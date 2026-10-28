@@ -595,9 +595,15 @@ int main(int argc, char* argv[])
 
                     if (write_dos_partition_table(&ipod) < 0) {
                         fprintf(stderr,"[ERR]  Partition conversion failed.\n");
-                    }
-
-                    if (format_partition(&ipod,1) < 0) {
+                    } else if (ipod.sector_size != 512) {
+                        /* format_partition() only knows 512 byte sectors */
+                        printf("[INFO] Partition table written. Now format the data partition:\n");
+#if defined(__APPLE__) && defined(__MACH__)
+                        printf("[INFO]   diskutil unmountDisk %s\n", ipod.diskname);
+                        printf("[INFO]   sudo newfs_msdos -F 32 -c 16 -v IPOD %ss2\n",
+                               ipod.diskname);
+#endif
+                    } else if (format_partition(&ipod,1) < 0) {
                         fprintf(stderr,"[ERR]  Format failed.\n");
                     }
                 } else {

@@ -292,7 +292,8 @@ static int ipod_unmount(struct ipod_t* ipod)
     char cmd[4096];
     int res;
 
-    sprintf(cmd, "/usr/sbin/diskutil unmount \"%ss2\"",ipod->diskname);
+    /* all of it: the data partition is s2 on a winpod but s3 on a macpod */
+    sprintf(cmd, "/usr/sbin/diskutil unmountDisk \"%s\"",ipod->diskname);
     fprintf(stderr,"[INFO] ");
     res = system(cmd);
 

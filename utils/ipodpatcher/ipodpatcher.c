@@ -1851,11 +1851,13 @@ int write_dos_partition_table(struct ipod_t* ipod)
     unsigned char* p;
     int i, n;
     uint32_t type;
+    unsigned long sector;
 
-    /* Only support 512-byte sectors at the moment */
-    if ( ipod->sector_size != 512 )
+    /* The MBR is the first 512 bytes of the first sector, and the partitions
+       are counted in sectors of the disk, 2048 bytes on some iPods */
+    if ( ipod->sector_size != 512 && ipod->sector_size != 2048 )
     {
-        fprintf(stderr,"[ERR]  Only iPods with 512 bytes per sector are supported.\n");
+        fprintf(stderr,"[ERR]  Only iPods with 512 or 2048 bytes per sector are supported.\n");
         return -1;
     }
     if(ipod->sectorbuf == NULL) {
@@ -1894,6 +1896,19 @@ int write_dos_partition_table(struct ipod_t* ipod)
     if ((n = ipod_write(ipod, ipod->sector_size)) < 0) {
         perror("[ERR]  Write failed\n");
         return -1;
+    }
+
+    /* Clear the rest of an Apple partition map, which lies before the
+       firmware partition, so that nothing finds it instead of the MBR */
+    if (ipod->macpod) {
+        memset(ipod->sectorbuf, 0, ipod->sector_size);
+        for (sector = 1; sector < ipod->pinfo[0].start; sector++) {
+            if (ipod_seek(ipod, sector * ipod->sector_size) < 0 ||
+                ipod_write(ipod, ipod->sector_size) < 0) {
+                fprintf(stderr,"[ERR]  Clearing the Apple partition map failed\n");
+                return -1;
+            }
+        }
     }
 
     return 0;
