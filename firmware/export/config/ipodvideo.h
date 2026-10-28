@@ -209,6 +209,10 @@
 #define USB_PRODUCT_ID 0x1209
 #define HAVE_USB_HID_MOUSE
 
+/* hand a computer over to Apple's disk mode instead of Rockbox's own USB mode,
+   so that Finder sees an iPod and syncs it */
+#define USB_APPLE_DISK_MODE
+
 /* Define this if you have adjustable CPU frequency */
 #define HAVE_ADJUSTABLE_CPU_FREQ
 

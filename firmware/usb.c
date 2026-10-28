@@ -126,7 +126,8 @@ static int usb_audio = 0;
 static bool usb_host_present = false;
 static int usb_num_acks_to_expect = 0;
 static uint32_t usb_broadcast_seqnum = 0x80000000;
-#if defined(USB_FIREWIRE_HANDLING)
+#if defined(USB_FIREWIRE_HANDLING) || \
+    (defined(USB_APPLE_DISK_MODE) && !defined(BOOTLOADER))
 static void try_reboot(void)
 {
 #ifdef HAVE_DISK_STORAGE
@@ -148,7 +149,7 @@ static void try_reboot(void)
 
     system_reboot(); /* Reboot */
 }
-#endif /* USB_FIRWIRE_HANDLING */
+#endif /* USB_FIRWIRE_HANDLING || USB_APPLE_DISK_MODE */
 
 /* Screen dump */
 static inline bool usb_do_screendump(void)
@@ -510,6 +511,12 @@ static void NORETURN_ATTR usb_thread(void)
             }
 
             DEBUGF("usb: all threads have acknowledged the connect.\n");
+#if defined(USB_APPLE_DISK_MODE) && !defined(BOOTLOADER)
+            /* Playback has stopped and everything is saved and closed, as for
+               our own USB mode, so Apple's disk mode can have the disk */
+            if(usb_host_present && exclusive_storage_requested)
+                try_reboot();
+#endif
             if(usb_host_present && exclusive_storage_requested) {
                 usb_slave_mode(true);
                 exclusive_storage_enabled = true;
