@@ -17465,3 +17465,59 @@
     *: "Нет фото"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-few-many"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d песня"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d песни"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d песен"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

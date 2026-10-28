@@ -1212,6 +1212,23 @@ void format_sound_value(char *buf, size_t buf_sz, int snd, int val)
     format_sound_value_ex(buf, buf_sz, snd, val, false);
 }
 
+/* LANG_PLURAL_FORMS says which forms a language has: "one-other" like
+   English (1 song, 21 songs), or "one-few-many" like Russian (1, 21 песня;
+   3, 23 песни; 5, 11 песен) */
+const char *plural_str(long n, int one, int few, int many)
+{
+    long n10 = n % 10, n100 = n % 100;
+    if (!strcmp((const char *)str(LANG_PLURAL_FORMS), "one-few-many"))
+    {
+        if (n10 == 1 && n100 != 11)
+            return (const char *)str(one);
+        if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14))
+            return (const char *)str(few);
+        return (const char *)str(many);
+    }
+    return (const char *)str(n == 1 ? one : many);
+}
+
 #endif /* !defined(__PCTOOL__) */
 
 /* Read (up to) a line of text from fd into buffer and return number of bytes

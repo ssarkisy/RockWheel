@@ -414,6 +414,8 @@ static volatile int write_lock;
 static volatile int read_lock;
 
 static bool delete_entry(long idx_id);
+/* the entries that aren't deleted, -1 until they have been counted */
+static int song_count = -1;
 
 static inline void str_setlen(char *buf, size_t len)
 {
@@ -3540,6 +3542,7 @@ static bool commit(void)
         close(masterfd);
 
         logf("tagcache committed");
+        song_count = -1;
         tagcache_commit_finalize();
 
 #if defined(HAVE_TC_RAMCACHE)
@@ -4325,6 +4328,7 @@ static bool delete_entry(long idx_id)
     }
 
     close(masterfd);
+    song_count = -1;
 
     return true;
 
@@ -5349,6 +5353,47 @@ static void update_and_reload(void)
 #endif
 }
 
+int tagcache_get_song_count(void)
+{
+    return song_count;
+}
+
+static void count_songs(void)
+{
+    int count = 0;
+#ifdef HAVE_TC_RAMCACHE
+    if (tc_stat.ramcache)
+    {
+        tcrc_buffer_lock();
+        for (int i = 0; i < current_tcmh.tch.entry_count; i++)
+            if (!(tcramcache.hdr->indices[i].flag & FLAG_DELETED))
+                count++;
+        tcrc_buffer_unlock();
+        song_count = count;
+        return;
+    }
+#endif
+    struct master_header hdr;
+    struct index_entry entries[32];
+    int fd = open_master_fd(&hdr, false);
+    if (fd < 0)
+        return;
+    int left = hdr.tch.entry_count;
+    while (left > 0)
+    {
+        int n = MIN(left, (int)ARRAYLEN(entries));
+        if (read_index_entries(fd, entries, n) != (ssize_t)(n * sizeof(struct index_entry)))
+            break;
+        for (int i = 0; i < n; i++)
+            if (!(entries[i].flag & FLAG_DELETED))
+                count++;
+        left -= n;
+    }
+    close(fd);
+    if (left == 0)
+        song_count = count;
+}
+
 static void tagcache_thread(void)
 {
     struct queue_event ev;
@@ -5415,6 +5460,8 @@ static void tagcache_thread(void)
     while (1)
     {
         run_command_queue(false);
+        if (song_count < 0 && tc_stat.ready && tc_stat.commit_step == 0)
+            count_songs();
 
         queue_wait_w_tmo(&tagcache_queue, &ev, HZ);
 

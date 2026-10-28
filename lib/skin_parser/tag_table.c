@@ -147,6 +147,8 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_PLAYBACK_STATUS,       "mp", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_BUTTON_VOLUME,         "mv", "|D", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_WPS_DISPLAY_MODE,      "mw", "", SKIN_REFRESH_DYNAMIC),
+    /* "3 Songs", what a stock iPod shows for the library when nothing plays */
+    TAG(SKIN_TOKEN_DB_SONG_COUNT,         "ns", "", SKIN_REFRESH_DYNAMIC),
 
     TAG(SKIN_TOKEN_PEAKMETER,             "pm", "", SKIN_REFRESH_PEAK_METER),
     TAG(SKIN_TOKEN_PEAKMETER_LEFT,        "pL", BAR_PARAMS, SKIN_REFRESH_PEAK_METER),

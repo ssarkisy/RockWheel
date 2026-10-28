@@ -182,6 +182,8 @@ void tagcache_search_finish(struct tagcache_search *tcs);
 long tagcache_get_numeric(const struct tagcache_search *tcs, int tag);
 long tagcache_increase_serial(void);
 bool tagcache_import_changelog(void);
+/* entries in the database, -1 until known */
+int tagcache_get_song_count(void);
 bool tagcache_create_changelog(struct tagcache_search *tcs);
 struct tagcache_runtime {
     long playcount;

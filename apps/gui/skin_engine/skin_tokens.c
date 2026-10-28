@@ -1646,6 +1646,21 @@ const char *get_token_value(struct gui_wps *gwps,
                                           token->value.i))
                 return "v";
             return NULL;
+        case SKIN_TOKEN_DB_SONG_COUNT:
+#ifdef HAVE_TAGCACHE
+        {
+            int songs = tagcache_get_song_count();
+            if (songs < 0)
+                return NULL;
+            snprintf(buf, buf_size, plural_str(songs, LANG_SONG_COUNT_ONE,
+                     LANG_SONG_COUNT_FEW, LANG_SONG_COUNT_MANY), songs);
+            numeric_ret = songs;
+            numeric_buf = buf;
+            goto gtv_ret_numeric_tag_info;
+        }
+#else
+            return NULL;
+#endif
         case SKIN_TOKEN_WPS_DISPLAY_MODE:
             numeric_ret = get_wps_state()->display_mode;
             itoa_buf(buf, buf_size, numeric_ret);

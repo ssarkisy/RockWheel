@@ -272,6 +272,9 @@ void format_sound_value(char *buf, size_t buf_sz, int snd, int val);
  */
 void format_sound_value_ex(char *buf, size_t buf_sz, int snd, int val, bool skin_token);
 
+/* the phrase of one, few or many for n, in the forms the language has */
+const char *plural_str(long n, int one, int few, int many);
+
 #ifndef PLUGIN
 enum core_load_bmp_error
 {
