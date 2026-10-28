@@ -235,9 +235,11 @@ def iclassic():
     make_stars(ICLASSIC, plain, 11.5)
     # the blue part of the 23px bar is its top 14 rows
     make_knob(ICLASSIC, 23, 7, 5.5, 7)
-    # the art goes at 52,22 (216x216); left of it the backdrop has the
-    # placeholder art and its reflection, elsewhere it is white
-    make_mask(ICLASSIC, 52, 221)
+    # the art goes at 60,29 (200x200, Finder's size); left of it the
+    # backdrop has the placeholder art and its reflection, and the ends of
+    # the progress bar trough stick out on both sides: the WPS draws this
+    # mask at 0 and at 260
+    make_mask(ICLASSIC, 60, 221)
     centre_note()
 
 

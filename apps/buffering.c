@@ -868,7 +868,7 @@ static int load_image(int fd, const char *path,
                        FORMAT_RESIZE | FORMAT_KEEP_ASPECT;
 #ifdef ITUNESDB_HAVE_ART
     if (data->ipod_art != NULL)
-        rc = itunesdb_load_art(fd, data->ipod_art, bmp, (int)max_size);
+        rc = itunesdb_load_art(data->ipod_art, bmp, (int)max_size);
     else
 #endif
 #ifdef HAVE_JPEG
@@ -961,9 +961,16 @@ int bufopen(const char *file, off_t offset, enum data_type type,
         return ERR_UNSUPPORTED_TYPE;
 #endif
     /* Other cases: there is a little more work. */
-    int fd = open(file, O_RDONLY);
-    if (fd < 0)
-        return ERR_FILE_ERROR;
+    int fd = -1;
+#ifdef ITUNESDB_HAVE_ART
+    /* a cover Finder made opens its file itself, if it must */
+    if (type != TYPE_BITMAP || !((struct bufopen_bitmap_data *)user_data)->ipod_art)
+#endif
+    {
+        fd = open(file, O_RDONLY);
+        if (fd < 0)
+            return ERR_FILE_ERROR;
+    }
 
     size_t size = 0;
 #ifdef HAVE_ALBUMART
@@ -1012,7 +1019,8 @@ int bufopen(const char *file, off_t offset, enum data_type type,
     if (!h) {
         DEBUGF("%s(): failed to add handle\n", __func__);
         mutex_unlock(&llist_mutex);
-        close(fd);
+        if (fd >= 0)
+            close(fd);
 
         /*warn playback.c if it is trying to buffer too large of an image*/
         if(type == TYPE_BITMAP && padded_size >= buffer_len - 64*1024)
@@ -1078,7 +1086,8 @@ int bufopen(const char *file, off_t offset, enum data_type type,
         queue_send(&buffering_queue, Q_BUFFER_HANDLE, handle_id);
     } else {
         /* Other types will get buffered in the course of normal operations */
-        close(fd);
+        if (fd >= 0)
+            close(fd);
 
         if (handle_id >= 0) {
             /* Inform the buffering thread that we added a handle */

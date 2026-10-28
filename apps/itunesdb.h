@@ -60,13 +60,17 @@ struct itunesdb_art {
    covers come from the files */
 void itunesdb_import_art(void);
 
+/* Reads where the covers are into memory, at boot before music plays */
+void itunesdb_load_art_index(void);
+
 /* the cover Finder made for the file at path */
 bool itunesdb_find_art(const char *path, struct itunesdb_art *art);
 
 /* reads the cover into bm, scaled up or down to fit its width and height;
-   returns the size of the pixels or -1 */
-int itunesdb_load_art(int fd, const struct itunesdb_art *art,
-                      struct bitmap *bm, int max_size);
+   returns the size of the pixels or -1. It opens the ithmb file itself, and
+   only when the frame isn't the one read last. */
+int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
+                      int max_size);
 #endif
 
 #endif /* _ITUNESDB_H_ */

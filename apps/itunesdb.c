@@ -1065,74 +1065,235 @@ done:
     }
 }
 
+/* Every open and every small read costs the iPod 20-30 ms, so the index
+   lives in memory and each frame is read once for all the sizes a theme
+   shows it at. Nothing is allocated while music plays: the audio buffer
+   has the memory then, and taking some would stop it. The index is loaded
+   at boot and after an import, the frame has a buffer of its own. */
+#define FRAME_MAX       (200 * 200)  /* the iPod Video's largest covers */
+/* Frames start anywhere in a sector. Read from where the sector starts into
+   an aligned buffer, the storage driver takes it all in one go; otherwise it
+   goes a sector at a time through a buffer of its own */
+#define FRAME_ALIGN     2048         /* the largest sector there is */
+
+static int index_handle;        /* the art index without its header */
+static struct art_header index_hdr;
+static unsigned char frame_raw[FRAME_MAX * sizeof(fb_data) + 2 * FRAME_ALIGN]
+    STORAGE_ALIGN_ATTR;
+static const fb_data *frame_buf;
+static char frame_path[64];     /* where the frame is from, "" for none */
+static uint32_t frame_offset;
+
+static void forget_art(void)
+{
+    if (index_handle > 0)
+        core_free(index_handle);
+    index_handle = 0;
+    frame_path[0] = '\0';
+}
+
+void itunesdb_load_art_index(void)
+{
+    if (index_handle > 0)
+        return;
+    int fd = open(ART_FILE, O_RDONLY);
+    if (fd < 0)
+        return;
+    if (read(fd, &index_hdr, sizeof(index_hdr)) == sizeof(index_hdr)
+        && index_hdr.magic == ART_MAGIC && index_hdr.version == ART_VERSION
+        && index_hdr.count > 0)
+    {
+        ssize_t size = index_hdr.count * sizeof(struct art_entry);
+        int handle = core_alloc(size);
+        if (handle > 0)
+        {
+            core_pin(handle);
+            bool ok = read(fd, core_get_data(handle), size) == size;
+            core_unpin(handle);
+            if (ok)
+                index_handle = handle;
+            else
+                core_free(handle);
+        }
+    }
+    close(fd);
+}
+
 void itunesdb_import_art(void)
 {
     /* the old covers point into ithmb files Finder has rewritten */
+    forget_art();
     remove(ART_FILE);
     if (db_load())
         write_art_index();
     db_unload();
+    itunesdb_load_art_index();
 }
 
 bool itunesdb_find_art(const char *path, struct itunesdb_art *art)
 {
-    struct art_header hdr;
+    if (index_handle <= 0)
+        return false;
+
+    core_pin(index_handle);
+    const struct art_entry *entries = core_get_data(index_handle);
     struct art_entry entry;
     bool found = false;
-    int fd = open(ART_FILE, O_RDONLY);
-    if (fd < 0)
-        return false;
-    if (read(fd, &hdr, sizeof(hdr)) == sizeof(hdr)
-        && hdr.magic == ART_MAGIC && hdr.version == ART_VERSION)
+    uint64_t hash = itunesdb_path_hash(path);
+    int lo = 0, hi = (int)index_hdr.count - 1;
+    while (lo <= hi && !found)
     {
-        uint64_t hash = itunesdb_path_hash(path);
-        int lo = 0, hi = (int)hdr.count - 1;
-        while (lo <= hi && !found)
+        int mid = (lo + hi) / 2;
+        if (entries[mid].hash == hash)
         {
-            int mid = (lo + hi) / 2;
-            lseek(fd, sizeof(hdr) + mid * sizeof(entry), SEEK_SET);
-            if (read(fd, &entry, sizeof(entry)) != sizeof(entry))
-                break;
-            if (entry.hash == hash)
-                found = true;
-            else if (entry.hash < hash)
-                lo = mid + 1;
-            else
-                hi = mid - 1;
+            entry = entries[mid];
+            found = true;
         }
+        else if (entries[mid].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
     }
-    close(fd);
+    core_unpin(index_handle);
     if (!found)
         return false;
+
     if ((size_t)snprintf(art->path, sizeof(art->path),
                          ARTWORK_DIR "/F%lu_%lu.ithmb",
-                         (unsigned long)hdr.format,
+                         (unsigned long)index_hdr.format,
                          (unsigned long)entry.file) >= sizeof(art->path))
         return false;
     art->offset = entry.offset;
-    art->width = hdr.width;
-    art->height = hdr.height;
+    art->width = index_hdr.width;
+    art->height = index_hdr.height;
     return true;
 }
 
-static inline unsigned lerp(unsigned a, unsigned b, unsigned f)
+/* the frame, read only when it isn't the one read last */
+static const fb_data *get_frame(const struct itunesdb_art *art)
 {
-    return (a * (256 - f) + b * f) >> 8;
+    size_t size = art->width * art->height * sizeof(fb_data);
+    if (size > FRAME_MAX * sizeof(fb_data))
+        return NULL;
+    if (frame_buf && frame_offset == art->offset
+        && !strcmp(frame_path, art->path))
+        return frame_buf;
+
+    frame_path[0] = '\0';
+    off_t start = art->offset & ~(off_t)(FRAME_ALIGN - 1);
+    size_t skip = art->offset - start;
+    size_t want = (skip + size + FRAME_ALIGN - 1) & ~(size_t)(FRAME_ALIGN - 1);
+    int fd = open(art->path, O_RDONLY);
+    /* the last frame of a file may end before the sector does */
+    bool ok = fd >= 0 && lseek(fd, start, SEEK_SET) == start
+              && read(fd, frame_raw, want) >= (ssize_t)(skip + size);
+    if (fd >= 0)
+        close(fd);
+    if (!ok)
+        return NULL;
+    frame_buf = (const fb_data *)(frame_raw + skip);
+    strmemccpy(frame_path, art->path, sizeof(frame_path));
+    frame_offset = art->offset;
+    return frame_buf;
 }
 
-/* the pixel between four, f in 256ths */
-static fb_data bilerp(fb_data a, fb_data b, fb_data c, fb_data d,
-                      unsigned fx, unsigned fy)
+/* RGB565 spread over 32 bits, green up in the top half, so that there is
+   room above each channel to scale all three with one multiply */
+#define SPREAD_MASK 0x07e0f81f
+#define SPREAD(p)   (((uint32_t)(p) << 16 | (p)) & SPREAD_MASK)
+#define UNSPREAD(x) ((fb_data)((x) >> 16 | (x)))
+
+/* from a towards b by f in 32nds, every channel at once */
+static inline uint32_t lerp32(uint32_t a, uint32_t b, unsigned f)
 {
-    unsigned r = lerp(lerp(a >> 11, b >> 11, fx), lerp(c >> 11, d >> 11, fx), fy);
-    unsigned g = lerp(lerp((a >> 5) & 63, (b >> 5) & 63, fx),
-                      lerp((c >> 5) & 63, (d >> 5) & 63, fx), fy);
-    unsigned bl = lerp(lerp(a & 31, b & 31, fx), lerp(c & 31, d & 31, fx), fy);
-    return r << 11 | g << 5 | bl;
+    return ((a * (32 - f) + b * f) >> 5) & SPREAD_MASK;
 }
 
-int itunesdb_load_art(int fd, const struct itunesdb_art *art,
-                      struct bitmap *bm, int max_size)
+/* the pixel between four */
+static inline fb_data bilerp(fb_data a, fb_data b, fb_data c, fb_data d,
+                             unsigned fx, unsigned fy)
+{
+    uint32_t top = lerp32(SPREAD(a), SPREAD(b), fx);
+    uint32_t bottom = lerp32(SPREAD(c), SPREAD(d), fx);
+    return UNSPREAD(lerp32(top, bottom, fy));
+}
+
+#define ROW_MAX 320 /* the widest cover drawn */
+
+/* one row of the frame scaled across, spread */
+static void scale_row(const fb_data *src, uint32_t *dst, int w,
+                      const uint16_t *xs, const uint8_t *fxs)
+{
+    for (int x = 0; x < w; x++)
+        dst[x] = lerp32(SPREAD(src[xs[x]]), SPREAD(src[xs[x] + 1]), fxs[x]);
+}
+
+/* Bilinear, a row of the frame across once and then the rows down: when
+   scaling up, several rows on the screen come from the same two rows of
+   the frame */
+static void scale_frame(const fb_data *frame, int fw, int fh,
+                        fb_data *out, int w, int h)
+{
+    static uint16_t xs[ROW_MAX];
+    static uint8_t fxs[ROW_MAX];
+    static uint32_t rows[2][ROW_MAX];
+
+    /* sample at pixel centres in 16.16 steps; this CPU has no divide, so
+       nothing in the loops may divide */
+    long xstep = ((long)fw << 16) / w, ystep = ((long)fh << 16) / h;
+    long sx = xstep / 2 - 0x8000;
+    for (int x = 0; x < w; x++, sx += xstep)
+    {
+        long cx = sx < 0 ? 0 : sx;
+        int x0 = cx >> 16;
+        if (x0 >= fw - 1)
+        {
+            /* the last column: from it to itself */
+            xs[x] = fw - 2 < 0 ? 0 : fw - 2;
+            fxs[x] = fw > 1 ? 31 : 0;
+        }
+        else
+        {
+            xs[x] = x0;
+            fxs[x] = (cx >> 11) & 31;
+        }
+    }
+
+    uint32_t *upper = rows[0], *lower = rows[1];
+    int have_upper = -1, have_lower = -1;  /* which frame rows they hold */
+    long sy = ystep / 2 - 0x8000;
+    for (int y = 0; y < h; y++, sy += ystep)
+    {
+        long cy = sy < 0 ? 0 : sy;
+        int y0 = cy >> 16, y1 = MIN(y0 + 1, fh - 1);
+        unsigned fy = (cy >> 11) & 31;
+
+        if (y0 == have_lower)
+        {
+            /* down by one row: the lower one becomes the upper */
+            uint32_t *t = upper;
+            upper = lower;
+            lower = t;
+            have_upper = have_lower;
+            have_lower = -1;
+        }
+        if (have_upper != y0)
+        {
+            scale_row(frame + y0 * fw, upper, w, xs, fxs);
+            have_upper = y0;
+        }
+        if (have_lower != y1)
+        {
+            scale_row(frame + y1 * fw, lower, w, xs, fxs);
+            have_lower = y1;
+        }
+        for (int x = 0; x < w; x++)
+            *out++ = UNSPREAD(lerp32(upper[x], lower[x], fy));
+    }
+}
+
+int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
+                      int max_size)
 {
     int fw = art->width, fh = art->height;
     int w = bm->width, h = bm->height;
@@ -1145,44 +1306,19 @@ int itunesdb_load_art(int fd, const struct itunesdb_art *art,
     else
         h = (w * fh + fw / 2) / fw;
     int out_size = w * h * sizeof(fb_data);
-    fb_data *out = (fb_data *)bm->data;
-
-    /* the frame's rows are read into the room after the bitmap, which
-       is there for decoding JPEG */
-    fb_data *rows = out + w * h;
-    int room = max_size - (int)sizeof(struct bitmap) - out_size;
-    int max_rows = MIN(room / (int)(fw * sizeof(fb_data)), fh);
-    if (max_rows < 2)
+    if (w > ROW_MAX || out_size + (int)sizeof(struct bitmap) > max_size)
         return -1;
-    int first = -1, nrows = 0;
 
-    /* sample at pixel centres in 16.16 steps; this CPU has no divide, so
-       nothing in the loops may divide */
-    long xstep = ((long)fw << 16) / w, ystep = ((long)fh << 16) / h;
-    long sy = ystep / 2 - 0x8000;
-    for (int y = 0; y < h; y++, sy += ystep)
+    const fb_data *frame = get_frame(art);
+    if (!frame)
+        return -1;
+    if (w == fw && h == fh)
+        memcpy(bm->data, frame, out_size);
+    else
     {
-        long cy = sy < 0 ? 0 : sy;
-        int y0 = cy >> 16, y1 = MIN(y0 + 1, fh - 1);
-        unsigned fy = (cy >> 8) & 255;
-        if (first < 0 || y0 < first || y1 >= first + nrows)
-        {
-            first = y0;
-            nrows = MIN(max_rows, fh - first);
-            size_t bytes = nrows * fw * sizeof(fb_data);
-            if (lseek(fd, art->offset + first * fw * sizeof(fb_data), SEEK_SET) < 0
-                || read(fd, rows, bytes) != (ssize_t)bytes)
-                return -1;
-        }
-        const fb_data *r0 = rows + (y0 - first) * fw;
-        const fb_data *r1 = rows + (y1 - first) * fw;
-        long sx = xstep / 2 - 0x8000;
-        for (int x = 0; x < w; x++, sx += xstep)
-        {
-            long cx = sx < 0 ? 0 : sx;
-            int x0 = cx >> 16, x1 = MIN(x0 + 1, fw - 1);
-            *out++ = bilerp(r0[x0], r0[x1], r1[x0], r1[x1], (cx >> 8) & 255, fy);
-        }
+        cpu_boost(true);
+        scale_frame(frame, fw, fh, (fb_data *)bm->data, w, h);
+        cpu_boost(false);
     }
 
     bm->width = w;

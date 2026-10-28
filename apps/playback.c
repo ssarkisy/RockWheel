@@ -1951,8 +1951,25 @@ static int audio_load_albumart(struct track_info *infop,
                          && itunesdb_find_art(track_id3->path, &ipod_art);
 #endif
 
+    /* the smallest first: on the WPS it is the one on screen */
+    int order[MAX_MULTIPLE_AA];
     FOREACH_ALBUMART(i)
     {
+        int area = albumart_slots[i].dim.width * albumart_slots[i].dim.height;
+        int k = i;
+        for (; k > 0; k--)
+        {
+            int j = order[k - 1];
+            if (albumart_slots[j].dim.width * albumart_slots[j].dim.height <= area)
+                break;
+            order[k] = j;
+        }
+        order[k] = i;
+    }
+
+    for (int n = 0; n < MAX_MULTIPLE_AA; n++)
+    {
+        int i = order[n];
         struct bufopen_bitmap_data user_data;
         int *aa_hid = &infop->aa_hid[i];
         int hid = ERR_UNSUPPORTED_TYPE;

@@ -676,10 +676,34 @@ static void display_mode_turn(int direction)
         skin_update(WPS, i, SKIN_REFRESH_PLAYER_PROGRESS | SKIN_REFRESH_DYNAMIC);
 }
 
+#ifdef HAVE_ALBUMART
+/* A cover can turn up after its track by ways that send no event, like a
+   second try once the buffer had room, and the skin draws it only on a full
+   update: redraw when the current track's cover handles change */
+static void check_album_art(void)
+{
+    static int drawn[2] = { -1, -1 };
+    struct wps_data *data = skin_get_gwps(WPS, SCREEN_MAIN)->data;
+    int slots[2] = { data->playback_aa_slot, data->playback_aa_slot2 };
+    for (int i = 0; i < 2; i++)
+    {
+        int hid = slots[i] >= 0 ? playback_current_aa_hid(slots[i]) : -1;
+        if (hid != drawn[i])
+        {
+            drawn[i] = hid;
+            skin_request_full_update(WPS);
+        }
+    }
+}
+#endif
+
 /* Called on every WPS loop timeout */
 static void display_mode_tick(void)
 {
     struct wps_state *state = get_wps_state();
+#ifdef HAVE_ALBUMART
+    check_album_art();
+#endif
     if (mode_track_changed)
     {
         /* the scrubber and rating views were for the old track, as was a

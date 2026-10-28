@@ -121,8 +121,10 @@
 # album art view: a second, large album art; the small one above is
 # hidden with the rest of the "info" viewports
 %xl(F,Art Mask.bmp,0,0)
+%xl(G,Art Mask.bmp,260,0)
 %Vl(bigart,0,19,320,221,-)
-%Cl(52,3,216,216,c,c)
-%Cd%xd(F)
+# 200x200, the size Finder makes the covers in, so nothing is scaled
+%Cl(60,10,200,200,c,c)
+%Cd%xd(F)%xd(G)
 # lyrics view: the WPS code draws the lyrics into this viewport
 %Vl(lyrics,8,24,304,212,5)%Vf(000000)

@@ -5401,6 +5401,9 @@ static void tagcache_thread(void)
 #endif
         queue_post(&tagcache_queue, Q_IMPORT_ITUNES, 0);
     }
+#ifdef ITUNESDB_HAVE_ART
+    itunesdb_load_art_index();
+#endif
 
     /* Don't delay bootup with the header check but do it on background. */
     if (!tc_stat.ready)
