@@ -38,6 +38,7 @@
 #include "settings.h"
 #include "tagcache.h"
 #include "tagtree.h"
+#include "timefuncs.h"
 #include "lang.h"
 #include "logf.h"
 #include "talk.h"
@@ -1018,10 +1019,11 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
     bool runtimedb = global_settings.runtimedb;
     bool autoresume = global_settings.autoresume_enable;
 
-    /* Don't process unplayed tracks, or tracks interrupted within the
-       first 15 seconds but always process autoresume point */
+    /* A play is a minute of a track, or all of a shorter one: neither
+       skipping on after a few seconds nor only a full play to the end.
+       The autoresume point is always processed. */
     if (runtimedb && (id3->elapsed == 0
-        || (id3->elapsed < 15 * 1000 && !auto_skip)
+        || (id3->elapsed < 60 * 1000 && !auto_skip)
         ))
     {
         logf("not db logging unplayed or skipped track");
@@ -1051,6 +1053,13 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
         logf("incorrect tc serial:%ld", lastplayed);
         return;
     }
+#if CONFIG_RTC
+    /* The time rather than the serial number, for Play Counts to tell
+       iTunes when; later plays still have the larger numbers */
+    long now = mktime(get_time());
+    if (now > lastplayed)
+        lastplayed = now;
+#endif
 
     if (runtimedb)
     {

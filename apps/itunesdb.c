@@ -493,7 +493,7 @@ static void write_playlists(off_t list)
 /* ratings and play counts */
 
 /* 1 to set the counts, 0 to leave the entry, -1 to remove it */
-static int update_entry(const char *path, long *playcount, long *rating,
+static int update_entry(const char *path, struct tagcache_runtime *rt,
                         void *data)
 {
     (void)data;
@@ -506,8 +506,8 @@ static int update_entry(const char *path, long *playcount, long *rating,
         return (db.complete && !strncasecmp(strip_volume(path), MUSIC_DIR "/",
                                             sizeof(MUSIC_DIR))) ? -1 : 0;
     }
-    *playcount = t->st.playcount;
-    *rating = t->st.rating / 10; /* the database counts half stars */
+    rt->playcount = t->st.playcount;
+    rt->rating = t->st.rating / 10; /* the database counts half stars */
     return 1;
 }
 
@@ -634,6 +634,183 @@ void itunesdb_import(void)
         logf("itunesdb: %d tracks imported", db.count);
     }
     db_unload();
+}
+
+/* Play Counts, as the stock firmware writes it: a header, then for every
+   track in iTunesDB's order its plays since the sync, when it was last
+   played, and its rating. Finder adds the plays to the library, takes the
+   ratings and removes the file. */
+
+#define PLAYCOUNTS_FILE  ITUNESDB_DIR "/Play Counts"
+#define PLAYCOUNTS_HDR   0x60
+#define PLAYCOUNTS_ENTRY 0x1c
+/* seconds from 1904, which iTunes counts from, to 1970 */
+#define MAC_EPOCH        2082844800UL
+/* last played values from here on are times, below they are serials */
+#define LASTPLAYED_TIME  0x40000000L
+
+/* what the database has now for an iTunesDB track */
+struct played {
+    uint32_t playcount;
+    uint32_t lastplayed;
+    uint8_t rating;     /* 0..10 */
+    bool found;
+};
+
+static struct {
+    struct state_entry *state;   /* in iTunesDB order */
+    uint32_t *by_hash;
+    struct played *now;
+    int count;
+} pc;
+
+static int cmp_state_hash(const void *a, const void *b)
+{
+    uint64_t x = pc.state[*(const uint32_t *)a].hash;
+    uint64_t y = pc.state[*(const uint32_t *)b].hash;
+    return (x > y) - (x < y);
+}
+
+static int read_played(const char *path, struct tagcache_runtime *rt,
+                       void *data)
+{
+    (void)data;
+    uint64_t hash = itunesdb_path_hash(path);
+    int lo = 0, hi = pc.count - 1;
+    while (lo <= hi)
+    {
+        int mid = (lo + hi) / 2;
+        uint32_t i = pc.by_hash[mid];
+        if (pc.state[i].hash == hash)
+        {
+            pc.now[i].playcount = rt->playcount;
+            pc.now[i].lastplayed = rt->lastplayed;
+            pc.now[i].rating = MIN(rt->rating, 10);
+            pc.now[i].found = true;
+            break;
+        }
+        if (pc.state[i].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return 0; /* only reading */
+}
+
+static void put32(unsigned char *p, uint32_t v)
+{
+    p[0] = v;
+    p[1] = v >> 8;
+    p[2] = v >> 16;
+    p[3] = v >> 24;
+}
+
+void itunesdb_write_playcounts(void)
+{
+    struct state_header hdr;
+    uint32_t size, mtime;
+    int handle = 0, fd = -1;
+    bool changed = false;
+
+    /* the entries go in the order of the iTunesDB the state was made from,
+       so only when that is the one on the disk */
+    if (!db_stamp(&size, &mtime) || !read_state_header(&hdr)
+        || hdr.db_size != size || hdr.db_mtime != mtime || hdr.count == 0)
+        return;
+
+    pc.count = hdr.count;
+    handle = core_alloc(pc.count * (sizeof(struct state_entry)
+                        + sizeof(uint32_t) + sizeof(struct played)));
+    if (handle <= 0)
+        return;
+    core_pin(handle);
+    pc.state = core_get_data(handle);
+    pc.by_hash = (uint32_t *)(pc.state + pc.count);
+    pc.now = (struct played *)(pc.by_hash + pc.count);
+    memset(pc.now, 0, pc.count * sizeof(struct played));
+
+    fd = open(STATE_FILE, O_RDONLY);
+    if (fd < 0)
+        goto done;
+    lseek(fd, sizeof(hdr), SEEK_SET);
+    ssize_t bytes = pc.count * sizeof(struct state_entry);
+    bool ok = read(fd, pc.state, bytes) == bytes;
+    close(fd);
+    fd = -1;
+    if (!ok)
+        goto done;
+    for (int i = 0; i < pc.count; i++)
+        pc.by_hash[i] = i;
+    qsort(pc.by_hash, pc.count, sizeof(uint32_t), cmp_state_hash);
+
+    if (!tagcache_update_runtime(read_played, NULL))
+        goto done;
+
+    /* nothing to tell Finder: no file, as after it took the last one */
+    for (int i = 0; i < pc.count && !changed; i++)
+        changed = pc.now[i].found
+            && (pc.now[i].playcount > pc.state[i].playcount
+                || pc.now[i].rating * 10 != pc.state[i].rating);
+    if (!changed)
+    {
+        remove(PLAYCOUNTS_FILE);
+        goto done;
+    }
+
+    fd = open(PLAYCOUNTS_FILE ".tmp", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fd < 0)
+        goto done;
+    unsigned char buf[PLAYCOUNTS_HDR];
+    memset(buf, 0, sizeof(buf));
+    memcpy(buf, "mhdp", 4);
+    put32(buf + 4, PLAYCOUNTS_HDR);
+    put32(buf + 8, PLAYCOUNTS_ENTRY);
+    put32(buf + 12, pc.count);
+    ok = write(fd, buf, PLAYCOUNTS_HDR) == PLAYCOUNTS_HDR;
+
+    static unsigned char entries[PLAYCOUNTS_ENTRY * 64];
+    size_t used = 0;
+    for (int i = 0; ok && i < pc.count; i++)
+    {
+        const struct state_entry *st = &pc.state[i];
+        const struct played *now = &pc.now[i];
+        uint32_t plays = 0, last = 0, rating = st->rating;
+        if (now->found)
+        {
+            if (now->playcount > st->playcount)
+                plays = now->playcount - st->playcount;
+            if (plays && (long)now->lastplayed >= LASTPLAYED_TIME)
+                last = now->lastplayed + MAC_EPOCH;
+            rating = now->rating * 10;
+        }
+        unsigned char *e = entries + used;
+        memset(e, 0, PLAYCOUNTS_ENTRY);
+        put32(e, plays);
+        put32(e + 4, last);
+        put32(e + 12, rating);
+        used += PLAYCOUNTS_ENTRY;
+        if (used == sizeof(entries) || i == pc.count - 1)
+        {
+            ok = write(fd, entries, used) == (ssize_t)used;
+            used = 0;
+        }
+    }
+    close(fd);
+    fd = -1;
+    if (ok)
+    {
+        remove(PLAYCOUNTS_FILE);
+        rename(PLAYCOUNTS_FILE ".tmp", PLAYCOUNTS_FILE);
+    }
+    else
+        remove(PLAYCOUNTS_FILE ".tmp");
+
+done:
+    if (fd >= 0)
+        close(fd);
+    core_unpin(handle);
+    core_free(handle);
+    memset(&pc, 0, sizeof(pc));
 }
 
 #ifdef ITUNESDB_HAVE_ART

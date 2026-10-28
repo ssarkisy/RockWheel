@@ -3985,11 +3985,12 @@ bool tagcache_import_changelog(void)
 #endif /* !__PCTOOL__ */
 
 #ifndef __PCTOOL__
-/* Calls update() with the filename, play count and rating of every entry,
-   and writes back what it changed, or removes the entry when it returns
-   less than 0. One pass, for imports too big to look each file up. */
+/* Calls update() with the filename and runtime values of every entry, and
+   writes back the play count and rating if it returns more than 0 and they
+   changed, or removes the entry if it returns less than 0. One pass, for
+   imports too big to look each file up. */
 bool tagcache_update_runtime(int (*update)(const char *filename,
-                                           long *playcount, long *rating,
+                                           struct tagcache_runtime *rt,
                                            void *data),
                              void *data)
 {
@@ -4015,20 +4016,22 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
             || !tagcache_retrieve(&tcs, i, tag_filename, buf, sizeof(buf)))
             continue;
 
-        long playcount = idx.tag_seek[tag_playcount];
-        long rating = idx.tag_seek[tag_rating];
-        int action = update(buf, &playcount, &rating, data);
+        struct tagcache_runtime rt = {
+            idx.tag_seek[tag_playcount], idx.tag_seek[tag_rating],
+            idx.tag_seek[tag_lastplayed]
+        };
+        int action = update(buf, &rt, data);
         if (action < 0)
         {
             /* a file that is gone, like the files a sync replaced */
             delete_entry(i);
         }
         else if (action > 0
-                 && (playcount != idx.tag_seek[tag_playcount]
-                     || rating != idx.tag_seek[tag_rating]))
+                 && (rt.playcount != idx.tag_seek[tag_playcount]
+                     || rt.rating != idx.tag_seek[tag_rating]))
         {
-            idx.tag_seek[tag_playcount] = playcount;
-            idx.tag_seek[tag_rating] = rating;
+            idx.tag_seek[tag_playcount] = rt.playcount;
+            idx.tag_seek[tag_rating] = rt.rating;
             idx.flag |= FLAG_DIRTYNUM;
             write_index(masterfd, i, &idx);
         }
@@ -5484,6 +5487,10 @@ static void tagcache_thread(void)
 
             case SYS_USB_CONNECTED:
                 logf("USB: TagCache");
+                /* what was played and rated since the last sync, for Finder
+                   to take in before the disk is handed over */
+                run_command_queue(true);
+                itunesdb_write_playcounts();
                 usb_acknowledge(SYS_USB_CONNECTED_ACK, ev.data);
                 usb_wait_for_disconnect(&tagcache_queue);
                 break ;

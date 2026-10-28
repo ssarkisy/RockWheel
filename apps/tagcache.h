@@ -183,8 +183,13 @@ long tagcache_get_numeric(const struct tagcache_search *tcs, int tag);
 long tagcache_increase_serial(void);
 bool tagcache_import_changelog(void);
 bool tagcache_create_changelog(struct tagcache_search *tcs);
+struct tagcache_runtime {
+    long playcount;
+    long rating;      /* 0..10 */
+    long lastplayed;  /* a serial number, or the time of the play */
+};
 bool tagcache_update_runtime(int (*update)(const char *filename,
-                                           long *playcount, long *rating,
+                                           struct tagcache_runtime *rt,
                                            void *data),
                              void *data);
 void tagcache_update_numeric(int idx_id, int tag, long data);

@@ -35,6 +35,11 @@ bool itunesdb_changed(void);
    on the tagcache thread once the database has been updated from the files */
 void itunesdb_import(void);
 
+/* Writes iPod_Control/iTunes/Play Counts like the stock firmware, for Finder
+   to take what was played and rated on the iPod into the library: plays
+   since the last sync and the ratings, in iTunesDB's order */
+void itunesdb_write_playcounts(void);
+
 /* the hash that a database entry and an iTunesDB track are matched by */
 uint64_t itunesdb_path_hash(const char *path);
 
