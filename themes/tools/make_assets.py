@@ -200,15 +200,16 @@ def fit_surface(px, area, skip):
 
 def centre_note():
     """The menus' right panel (x 160..319) has a music note placeholder, high
-    up as there used to be text under it. Move it to the middle: the panel's
-    gradient is fitted without the note, and the note with its shadow is
-    moved as its difference from that gradient."""
+    up for the text under it. Move it down a little, so that it and the line
+    under it (the song count, or the playing track's title) are in the
+    middle: the panel's gradient is fitted without the note, and the note
+    with its shadow is moved as its difference from that gradient."""
     px = read_bmp(os.path.join(ICLASSIC, '..', '..', '..', 'originals',
                                'iClassic_bd.bmp'))
     note = (190, 30, 288, 142)        # the note and its shadow
-    # its light part is 197..274 x 36..128; this puts it a little left of
-    # and above the middle, where it looks centred
-    dx, dy = 1, 31
+    # its light part is 197..274 x 36..128; this puts it at 51..143, with
+    # room above the text line at y 158
+    dx, dy = 1, 15
     bg = fit_surface(px, (176, 0, 319, 239), note)
 
     def inside(x, y):
