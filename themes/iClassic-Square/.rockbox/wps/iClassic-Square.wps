@@ -29,6 +29,7 @@
 %Fl(2,14-Inter-SemiBold.fnt)
 %Fl(3,17-Inter-SemiBold.fnt)
 %Fl(4,14-Inter-Bold.fnt)
+%Fl(5,18-Inter-SemiBold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
 %?mw<%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>|%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>|%?C<|%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>>||%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>>
 %?mw<%Vd(icons)|%Vd(icons)|%Vd(icons)||%Vd(icons)>
@@ -124,4 +125,4 @@
 %Cl(52,3,216,216,c,c)
 %Cd%xd(F)
 # lyrics view: the WPS code draws the lyrics into this viewport
-%Vl(lyrics,8,24,304,212,2)%Vf(000000)
+%Vl(lyrics,8,24,304,212,5)%Vf(000000)

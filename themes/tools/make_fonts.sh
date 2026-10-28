@@ -28,13 +28,14 @@ cc -std=c99 -O2 "$root/tools/convttf.c" $ft -lm -o "$build/convttf"
 mkdir -p "$out"
 
 # font <name> <ttf> <pixel size> [<more convttf options>]
-# Latin with its extensions, Greek, Cyrillic and punctuation up to U+2122;
+# Latin with its extensions, Greek, Cyrillic, punctuation and symbols up to
+# U+266F, which takes in the stars of Finder's rating playlists and notes;
 # digits all as wide, as on a stock iPod (Inter's are proportional), so
 # that numbered lists line up and times don't jitter
 font() {
     name=$1 file=$2 size=$3
     shift 3
-    "$build/convttf" -s 32 -l 8482 -W -p "$size" "$@" \
+    "$build/convttf" -s 32 -l 9839 -W -p "$size" "$@" \
         -o "$out/$name" "$ttf/$file" > /dev/null
 }
 
