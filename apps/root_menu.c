@@ -330,6 +330,13 @@ static int recscrn(void* param)
     return GO_TO_ROOT;
 }
 #endif
+#ifdef HAVE_TAGCACHE
+static int shuffle_songs(void* param)
+{
+    (void)param;
+    return tagtree_shuffle_songs() ? GO_TO_WPS : GO_TO_PREVIOUS;
+}
+#endif
 static int wpsscrn(void* param)
 {
     int ret_val = GO_TO_PREVIOUS;
@@ -430,7 +437,8 @@ static int playlist_view_catalog(void * param)
         return GO_TO_WPS;
     }
     pop_current_activity();
-    return GO_TO_ROOT;
+    /* back to the Music menu it is in, or the main menu */
+    return GO_TO_PREVIOUS;
 }
 
 static int playlist_view(void * param)
@@ -474,11 +482,11 @@ extern struct menu_item_ex
 static const struct root_items items[] = {
     [GO_TO_FILEBROWSER] =   { browser, (void*)GO_TO_FILEBROWSER, &file_menu},
 #ifdef HAVE_TAGCACHE
-    [GO_TO_DBBROWSER] =     { browser, (void*)GO_TO_DBBROWSER, &tagcache_menu },
+    [GO_TO_DBBROWSER] =     { browser, (void*)GO_TO_DBBROWSER, NULL },
 #endif
-    [GO_TO_WPS] =           { wpsscrn, NULL, &playback_settings },
+    [GO_TO_WPS] =           { wpsscrn, NULL, &ipod_playback_settings },
     [GO_TO_MAINMENU] =      { miscscrn, (struct menu_item_ex*)&main_menu_,
-                                                            &manage_settings },
+                                                            NULL },
 
 #ifdef HAVE_RECORDING
     [GO_TO_RECSCREEN] =     {  recscrn, NULL, &recording_settings_menu },
@@ -495,6 +503,10 @@ static const struct root_items items[] = {
     [GO_TO_PLAYLIST_VIEWER] = { playlist_view, NULL, &playlist_options },
     [GO_TO_SYSTEM_SCREEN] = { miscscrn, &info_menu, &system_menu },
     [GO_TO_SHORTCUTMENU] = { do_shortcut_menu, NULL, NULL },
+    [GO_TO_EXTRAS] = { miscscrn, (struct menu_item_ex*)&extras_menu, NULL },
+#ifdef HAVE_TAGCACHE
+    [GO_TO_SHUFFLE_SONGS] = { shuffle_songs, NULL, NULL },
+#endif
 
 };
 #define NUM_ITEMS (int)(sizeof(items)/sizeof(*items))
@@ -509,10 +521,14 @@ MENUITEM_RETURNVALUE(shortcut_menu, ID2P(LANG_SHORTCUTS), GO_TO_SHORTCUTMENU,
 MENUITEM_RETURNVALUE(file_browser, ID2P(LANG_DIR_BROWSER), GO_TO_FILEBROWSER,
                         NULL, Icon_file_view_menu);
 #ifdef HAVE_TAGCACHE
-MENUITEM_RETURNVALUE(db_browser, ID2P(LANG_TAGCACHE), GO_TO_DBBROWSER,
+MENUITEM_RETURNVALUE(db_browser, ID2P(LANG_MUSIC), GO_TO_DBBROWSER,
                         NULL, Icon_Audio);
+MENUITEM_RETURNVALUE(shuffle_songs_item, ID2P(LANG_SHUFFLE_SONGS),
+                        GO_TO_SHUFFLE_SONGS, NULL, Icon_Audio);
 #endif
 MENUITEM_RETURNVALUE(rocks_browser, ID2P(LANG_PLUGINS), GO_TO_BROWSEPLUGINS,
+                        NULL, Icon_Plugin);
+MENUITEM_RETURNVALUE(extras_item, ID2P(LANG_EXTRAS), GO_TO_EXTRAS,
                         NULL, Icon_Plugin);
 
 static char *get_wps_item_name(int selected_item, void * data,
@@ -553,6 +569,7 @@ static struct menu_table menu_table[] = {
     { "files", &file_browser },
 #ifdef HAVE_TAGCACHE
     { "database", &db_browser },
+    { "shuffle_songs", &shuffle_songs_item },
 #endif
     { "wps", &wps_item },
     { "settings", &menu_ },
@@ -564,6 +581,7 @@ static struct menu_table menu_table[] = {
 #endif
     { "playlists", &playlists },
     { "plugins", &rocks_browser },
+    { "extras", &extras_item },
     { "system_menu", &system_menu_ },
     { "shortcuts", &shortcut_menu },
 };
@@ -643,18 +661,13 @@ char* root_menu_write_to_cfg(void* setting, char*buf, int buf_len)
 
 void root_menu_set_default(void* setting, void* defaultval)
 {
-    unsigned i;
+    /* Only the items a stock iPod has are in the default menu and in its
+       order, the rest can still be added back through the main menu
+       configuration; playlists are in the Music (database) menu */
+    char order[] = "bookmarks, database, extras, settings, shuffle_songs, wps";
     (void)defaultval;
 
-    root_menu_.flags = MENU_HAS_DESC | MT_MENU;
-    root_menu_.submenus = (const struct menu_item_ex **)&root_menu__;
-    root_menu_.callback_and_desc = &root_menu_desc;
-
-    for (i=0; i<MAX_MENU_ITEMS; i++)
-    {
-        root_menu__[i] = (struct menu_item_ex *)menu_table[i].item;
-    }
-    root_menu_.flags |= MENU_ITEM_COUNT(MAX_MENU_ITEMS);
+    root_menu_load_from_cfg(setting, order);
     *(bool*)setting = false;
 }
 
@@ -695,7 +708,8 @@ static int item_callback(int action,
 static int get_selection(int last_screen)
 {
     int i;
-    int len = ARRAYLEN(root_menu__);
+    /* only the items in use, the screen may not be in the menu at all */
+    int len = MENU_GET_COUNT(root_menu_.flags);
     for(i=0; i < len; i++)
     {
         if (((root_menu__[i]->flags&MENU_TYPE_MASK) == MT_RETURN_VALUE) &&
@@ -718,8 +732,17 @@ static inline int load_screen(int screen)
         return screen;
     if (screen == old_previous)
         old_previous = GO_TO_ROOT;
-    global_status.last_screen = (char)screen;
-    status_save(false);
+#ifdef HAVE_TAGCACHE
+    /* an action rather than a screen, never to be gone back or booted to */
+    bool is_action = (screen == GO_TO_SHUFFLE_SONGS);
+#else
+    bool is_action = false;
+#endif
+    if (!is_action)
+    {
+        global_status.last_screen = (char)screen;
+        status_save(false);
+    }
 
     if (screen == GO_TO_BROWSEPLUGINS)
         activity = ACTIVITY_PLUGINBROWSER;
@@ -748,7 +771,7 @@ static inline int load_screen(int screen)
     }
 
     last_screen = screen;
-    if (ret_val == GO_TO_PREVIOUS)
+    if (ret_val == GO_TO_PREVIOUS || is_action)
         last_screen = old_previous;
     return ret_val;
 }

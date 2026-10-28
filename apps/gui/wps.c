@@ -63,6 +63,10 @@
 #include "statusbar-skinned.h"
 #include "skin_engine/wps_internals.h"
 #include "open_plugin.h"
+#include "lyrics.h"
+#ifdef HAVE_TAGCACHE
+#include "tagcache.h"
+#endif
 
 #ifdef USB_ENABLE_AUDIO
 #include "usbstack/usb_audio.h"
@@ -537,8 +541,171 @@ static void wps_lcd_activation_hook(unsigned short id, void *param)
 }
 #endif
 
+/* The scrubber and rating views fall back to the normal view after this
+   long without use, as on a stock iPod */
+#define WPS_MODE_TIMEOUT (5*HZ)
+/* A scrub is applied once the wheel has been still for this long */
+#define SCRUB_SEEK_DELAY (HZ/3)
+
+static long mode_last_used;
+static long scrub_last_turn;
+static bool scrub_pending = false;
+static bool mode_track_changed = false; /* set from the playback thread */
+
+/* the skin's viewport the lyrics are drawn in, from the WPS code as skins
+   can't wrap text */
+static struct viewport *lyrics_viewport(void)
+{
+    struct wps_data *data = skin_get_gwps(WPS, SCREEN_MAIN)->data;
+    struct skin_viewport *svp = skin_find_item("lyrics", SKIN_FIND_VP, data);
+    return svp ? &svp->vp : NULL;
+}
+
+static void draw_lyrics(void)
+{
+    struct viewport *vp = lyrics_viewport();
+    if (vp)
+        lyrics_draw(&screens[SCREEN_MAIN], vp);
+}
+
+static bool display_mode_available(enum wps_display_mode mode)
+{
+    struct mp3entry *id3 = get_wps_state()->id3;
+    switch (mode)
+    {
+        case WPS_MODE_SCRUB:
+            return id3 && id3->length;
+        case WPS_MODE_RATING:
+#ifdef HAVE_TAGCACHE
+            return id3 && id3->tagcache_idx && global_settings.runtimedb;
+#else
+            return false;
+#endif
+        case WPS_MODE_ALBUMART:
+#ifdef HAVE_ALBUMART
+        {
+            /* needs a skin with a second, full screen album art */
+            struct wps_data *data = skin_get_gwps(WPS, SCREEN_MAIN)->data;
+            return data->playback_aa_slot2 >= 0
+                && playback_current_aa_hid(data->playback_aa_slot2) >= 0;
+        }
+#else
+            return false;
+#endif
+        case WPS_MODE_LYRICS:
+        {
+            /* (re)loads them for the current track */
+            struct viewport *vp = lyrics_viewport();
+            return vp && lyrics_load(id3, vp);
+        }
+        default:
+            return true;
+    }
+}
+
+static void scrub_apply(void)
+{
+    struct wps_state *state = get_wps_state();
+    if (!scrub_pending)
+        return;
+    scrub_pending = false;
+    if (state->id3 && state->ff_rewind_count)
+    {
+        state->id3->elapsed += state->ff_rewind_count;
+        audio_pre_ff_rewind();
+        audio_ff_rewind(state->id3->elapsed);
+    }
+    state->ff_rewind_count = 0;
+}
+
+static void set_display_mode(enum wps_display_mode mode)
+{
+    scrub_apply();
+    get_wps_state()->display_mode = mode;
+    mode_last_used = current_tick;
+    skin_request_full_update(WPS);
+}
+
+static void next_display_mode(void)
+{
+    int mode = get_wps_state()->display_mode;
+    do
+        mode = (mode + 1) % WPS_MODE_COUNT;
+    while (!display_mode_available(mode));
+    set_display_mode(mode);
+}
+
+/* The wheel in the scrubber, lyrics and rating views */
+static void display_mode_turn(int direction)
+{
+    struct wps_state *state = get_wps_state();
+    struct mp3entry *id3 = state->id3;
+    int ticks = 1;
+#ifdef HAVE_WHEEL_ACCELERATION
+    ticks = MAX(1, button_apply_acceleration(get_action_data()));
+#endif
+    mode_last_used = current_tick;
+
+    if (state->display_mode == WPS_MODE_LYRICS)
+    {
+        if (lyrics_scroll(direction * ticks))
+            draw_lyrics();
+        return;
+    }
+    else if (state->display_mode == WPS_MODE_SCRUB)
+    {
+        /* about one wheel turn for the whole track */
+        long step = MAX(id3->length / 100, 1000) * ticks;
+        long pos = id3->elapsed + state->ff_rewind_count + direction * step;
+        pos = MAX(0, MIN(pos, (long)id3->length - 1000));
+        state->ff_rewind_count = pos - id3->elapsed;
+        scrub_pending = true;
+        scrub_last_turn = current_tick;
+    }
+#ifdef HAVE_TAGCACHE
+    else if (state->display_mode == WPS_MODE_RATING)
+    {
+        /* whole stars only, stored on the 0..10 database scale */
+        int stars = (id3->rating + 1) / 2 + direction;
+        id3->rating = MAX(0, MIN(stars, 5)) * 2;
+        tagcache_update_numeric(id3->tagcache_idx - 1, tag_rating, id3->rating);
+    }
+#endif
+
+    FOR_NB_SCREENS(i)
+        skin_update(WPS, i, SKIN_REFRESH_PLAYER_PROGRESS | SKIN_REFRESH_DYNAMIC);
+}
+
+/* Called on every WPS loop timeout */
+static void display_mode_tick(void)
+{
+    struct wps_state *state = get_wps_state();
+    if (mode_track_changed)
+    {
+        /* the scrubber and rating views were for the old track, as was a
+           pending scrub; the album art and lyrics views stay, the skin
+           shows the normal view for a track without them */
+        mode_track_changed = false;
+        scrub_pending = false;
+        state->ff_rewind_count = 0;
+        if (state->display_mode == WPS_MODE_SCRUB
+            || state->display_mode == WPS_MODE_RATING)
+            set_display_mode(WPS_MODE_VOLUME);
+        else if (state->display_mode == WPS_MODE_LYRICS)
+            set_display_mode(display_mode_available(WPS_MODE_LYRICS) ?
+                             WPS_MODE_LYRICS : WPS_MODE_VOLUME);
+    }
+    if (scrub_pending && TIME_AFTER(current_tick, scrub_last_turn + SCRUB_SEEK_DELAY))
+        scrub_apply();
+    if ((state->display_mode == WPS_MODE_SCRUB
+         || state->display_mode == WPS_MODE_RATING)
+        && TIME_AFTER(current_tick, mode_last_used + WPS_MODE_TIMEOUT))
+        set_display_mode(WPS_MODE_VOLUME);
+}
+
 static void gwps_leave_wps(bool theme_enabled)
 {
+    scrub_apply();
     FOR_NB_SCREENS(i)
     {
         struct gui_wps *gwps = skin_get_gwps(WPS, i);
@@ -734,6 +901,7 @@ long gui_wps_show(void)
     ab_reset_markers();
 
     wps_state_init();
+    state->display_mode = WPS_MODE_VOLUME;
     while ( 1 )
     {
         bool hotkey = false;
@@ -765,6 +933,8 @@ long gui_wps_show(void)
             update = true;
             gwps_enter_wps(theme_enabled);
             theme_enabled = true;
+            if (state->display_mode == WPS_MODE_LYRICS)
+                draw_lyrics();
         }
         else
         {
@@ -784,6 +954,10 @@ long gui_wps_show(void)
                         skin_update(WPS, i, full_update ?
                                      SKIN_REFRESH_ALL : SKIN_REFRESH_NON_STATIC);
                     }
+                    /* a full update clears the lyrics viewport */
+                    if (full_update && i == SCREEN_MAIN
+                        && state->display_mode == WPS_MODE_LYRICS)
+                        draw_lyrics();
                 }
             }
             update = false;
@@ -863,9 +1037,11 @@ long gui_wps_show(void)
             }
             break;
 
+            /* back to wherever the WPS was entered from, as Menu does
+               on a stock iPod */
             case ACTION_WPS_BROWSE:
                 gwps_leave_wps(true);
-                return GO_TO_PREVIOUS_BROWSER;
+                return GO_TO_PREVIOUS;
                 break;
 
                 /* play/pause */
@@ -873,8 +1049,20 @@ long gui_wps_show(void)
                 wps_do_action(WPS_PLAYPAUSE, true);
                 break;
 
+            case ACTION_WPS_NEXT_MODE:
+                next_display_mode();
+                break;
+
             case ACTION_WPS_VOLUP: /* fall through */
             case ACTION_WPS_VOLDOWN:
+                if (state->display_mode == WPS_MODE_SCRUB
+                    || state->display_mode == WPS_MODE_LYRICS
+                    || state->display_mode == WPS_MODE_RATING)
+                {
+                    display_mode_turn(button == ACTION_WPS_VOLUP ? 1 : -1);
+                    update = false;
+                    break;
+                }
                 if (button == ACTION_WPS_VOLUP)
                     adjust_volume(1);
                 else
@@ -1084,6 +1272,7 @@ long gui_wps_show(void)
             case ACTION_NONE: /* Timeout, do a partial update */
                 update = true;
                 ffwd_rew(button, false); /* hopefully fix the ffw/rwd bug */
+                display_mode_tick();
                 break;
 #ifdef HAVE_RECORDING
             case ACTION_WPS_REC:
@@ -1120,6 +1309,8 @@ static void track_info_callback(unsigned short id, void *param)
 {
     struct wps_state *state = get_wps_state();
 
+    if (id == PLAYBACK_EVENT_TRACK_CHANGE)
+        mode_track_changed = true;
     if (id == PLAYBACK_EVENT_TRACK_CHANGE || id == PLAYBACK_EVENT_CUR_TRACK_READY)
     {
         state->id3 = ((struct track_event *)param)->id3;

@@ -191,6 +191,7 @@ enum {
     ACTION_WPS_ABSETB_NEXTDIR, /* you shouldnt want to change dir in ab-mode */
     ACTION_WPS_ABRESET,
     ACTION_WPS_HOTKEY,
+    ACTION_WPS_NEXT_MODE, /* cycle the WPS display modes, iPod style */
 
     /* list and tree page up/down */
     ACTION_LISTTREE_PGUP,/* optional */
@@ -199,6 +200,10 @@ enum {
     ACTION_LIST_VOLUP,
     ACTION_LIST_VOLDOWN,
 #endif
+    /* playback control from any list, as on a stock iPod */
+    ACTION_LIST_PLAYPAUSE,
+    ACTION_LIST_SKIPPREV,
+    ACTION_LIST_SKIPNEXT,
 
     /* tree */
     ACTION_TREE_ROOT_INIT,

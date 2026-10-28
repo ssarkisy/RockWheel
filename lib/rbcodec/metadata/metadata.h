@@ -233,6 +233,14 @@ struct embedded_cuesheet {
     enum character_encoding encoding;
 };
 
+/* where the embedded lyrics text is (ID3 USLT, MP4 (c)lyr); it is only
+   read when shown */
+struct embedded_lyrics {
+    int size;
+    off_t pos;
+    enum character_encoding encoding;
+};
+
 struct mp3entry {
     char path[MAX_PATH];
     char* title;
@@ -321,6 +329,9 @@ struct mp3entry {
     bool has_embedded_cuesheet;
     struct embedded_cuesheet embedded_cuesheet;
     struct cuesheet *cuesheet;
+
+    bool has_embedded_lyrics;
+    struct embedded_lyrics embedded_lyrics;
 
     /* Musicbrainz Track ID */
     char* mb_track_id;

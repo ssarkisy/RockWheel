@@ -107,6 +107,7 @@ float           between_row = 0.0f;
 int             hv_resolution = 60;
 int             dump_glyphs = 0;
 int             digits_equally_wide = 1; /* Try to make digits equally wide */
+int             digits_force_wide = 0; /* ... even if the font's are not */
 int             trimming    = 0;
 int             trim_dp     = 0; /* trim descent percent */
 int             trim_da     = 0; /* trim descnet actual  */
@@ -210,6 +211,8 @@ void usage(void)
         "    -t N   Index of true type collection. It must be start from 0.(default N=0).\n"
         "    -ta    Convert all fonts in ttc (ignores outfile option)\n"
         "    -w     Don't try to make digits (0-9) equally wide\n"
+        "    -W     Make digits equally wide even if they are not in the font,\n"
+        "           as wide as the widest, for proportional figures\n"
         "    -L     Use lighter hinting algorithm\n"
     };
     fprintf(stderr, "%s", help);
@@ -542,6 +545,21 @@ FT_Long check_digit_width( FT_Face face )
 {
     FT_Long code;
     FT_Long last_advance = -1;
+
+    if (digits_force_wide)
+    {
+        /* the widest digit, narrower ones are centred in that width */
+        int widest = 0;
+        for (code='0'; code <= '9'; ++code)
+        {
+            int width;
+            FT_Load_Char(face, code, ft_load_opts);
+            width = glyph_width(face, code, 0);
+            if (width > widest)
+                widest = width;
+        }
+        return widest;
+    }
 
     for (code='0'; code <= '9'; ++code)
     {
@@ -1275,6 +1293,11 @@ void getopts(int *pac, char ***pav)
                 break;
             case 'w':     /* Don't try to make digits equally wide */
                 digits_equally_wide = 0;
+                while (*p && *p != ' ')
+                    p++;
+                break;
+            case 'W':     /* Make digits equally wide anyway */
+                digits_force_wide = 1;
                 while (*p && *p != ' ')
                     p++;
                 break;

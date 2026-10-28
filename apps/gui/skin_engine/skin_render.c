@@ -92,6 +92,21 @@ get_child(OFFSETTYPE(struct skin_element**) children, int child)
 }
 
 
+#ifdef HAVE_ALBUMART
+/* the album art a %Cd shows and its playback slot, see wps_data.albumart2 */
+static struct skin_albumart *token_albumart(struct wps_data *data,
+                                            struct wps_token *token, int *slot)
+{
+    if (token->value.i == 2)
+    {
+        *slot = data->playback_aa_slot2;
+        return SKINOFFSETTOPTR(skin_buffer, data->albumart2);
+    }
+    *slot = data->playback_aa_slot;
+    return SKINOFFSETTOPTR(skin_buffer, data->albumart);
+}
+#endif
+
 static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
                              struct skin_element *element)
 {
@@ -293,10 +308,11 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             /* now draw the AA */
             if (do_refresh)
             {
-                struct skin_albumart *aa = SKINOFFSETTOPTR(skin_buffer, data->albumart);
+                int slot;
+                struct skin_albumart *aa = token_albumart(data, token, &slot);
                 if (aa)
                 {
-                    int handle = playback_current_aa_hid(data->playback_aa_slot);
+                    int handle = playback_current_aa_hid(slot);
 #if CONFIG_TUNER
                     if (in_radio_screen() || (get_radio_status() != FMRADIO_OFF))
                     {
@@ -454,10 +470,11 @@ static void do_tags_in_hidden_conditional(struct skin_element* branch,
                 }
             }
 #ifdef HAVE_ALBUMART
-            else if (token->type == SKIN_TOKEN_ALBUMART_DISPLAY && data->albumart)
+            else if (token->type == SKIN_TOKEN_ALBUMART_DISPLAY)
             {
-                draw_album_art(gwps,
-                        playback_current_aa_hid(data->playback_aa_slot), true);
+                int slot;
+                struct skin_albumart *aa = token_albumart(data, token, &slot);
+                draw_album_art(gwps, aa, playback_current_aa_hid(slot), true);
             }
 #endif
         skip:

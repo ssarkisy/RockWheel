@@ -1467,6 +1467,8 @@ static int parse_albumart_load(struct skin_element* element,
     struct dim dimensions;
     int albumart_slot;
     bool swap_for_rtl = lang_is_rtl() && follow_lang_direction;
+    /* a second %Cl declares another size, see wps_data.albumart2 */
+    bool second = SKINOFFSETTOPTR(skin_buffer, wps_data->albumart) != NULL;
     struct skin_albumart *aa = skin_buffer_alloc(sizeof(*aa));
     (void)token; /* silence warning */
     if (!aa)
@@ -1493,15 +1495,26 @@ static int parse_albumart_load(struct skin_element* element,
         aa->x = (curr_vp->vp.width - aa->width - aa->x);
 
     aa->state = WPS_ALBUMART_LOAD;
-    wps_data->albumart = PTRTOSKINOFFSET(skin_buffer, aa);
 
     dimensions.width = aa->width;
     dimensions.height = aa->height;
 
     albumart_slot = playback_claim_aa_slot(&dimensions);
 
-    if (0 <= albumart_slot)
-        wps_data->playback_aa_slot = albumart_slot;
+    if (second)
+    {
+        /* a third %Cl replaces the second */
+        if (wps_data->playback_aa_slot2 >= 0)
+            playback_release_aa_slot(wps_data->playback_aa_slot2);
+        wps_data->albumart2 = PTRTOSKINOFFSET(skin_buffer, aa);
+        wps_data->playback_aa_slot2 = albumart_slot;
+    }
+    else
+    {
+        wps_data->albumart = PTRTOSKINOFFSET(skin_buffer, aa);
+        if (0 <= albumart_slot)
+            wps_data->playback_aa_slot = albumart_slot;
+    }
 
     if (element->params_count > 4 && !isdefault(get_param(element, 4)))
     {
@@ -1539,6 +1552,16 @@ static int parse_albumart_load(struct skin_element* element,
                 break;
         }
     }
+    return 0;
+}
+
+static int parse_albumart_display(struct skin_element* element,
+                                  struct wps_token *token,
+                                  struct wps_data *wps_data)
+{
+    (void)element;
+    /* draw the album art of the %Cl that came last before this %Cd */
+    token->value.i = SKINOFFSETTOPTR(skin_buffer, wps_data->albumart2) ? 2 : 1;
     return 0;
 }
 
@@ -2037,6 +2060,12 @@ static void skin_data_reset(struct wps_data *wps_data)
     {
         playback_release_aa_slot(wps_data->playback_aa_slot);
         wps_data->playback_aa_slot = -1;
+    }
+    wps_data->albumart2 = INVALID_OFFSET;
+    if (wps_data->playback_aa_slot2 >= 0)
+    {
+        playback_release_aa_slot(wps_data->playback_aa_slot2);
+        wps_data->playback_aa_slot2 = -1;
     }
 #endif
 
@@ -2572,6 +2601,9 @@ static int skin_element_callback(struct skin_element* element, void* data)
                 case SKIN_TOKEN_ALBUMART_LOAD:
                     function = parse_albumart_load;
                     break;
+                case SKIN_TOKEN_ALBUMART_DISPLAY:
+                    function = parse_albumart_display;
+                    break;
 #endif
 #ifdef HAVE_SKIN_VARIABLES
                 case SKIN_TOKEN_VAR_SET:
@@ -2750,9 +2782,10 @@ bool skin_data_load(enum skinnable_screens skin, enum screen_type screen,
 #if defined(HAVE_ALBUMART) && !defined(__PCTOOL__)
     /* last_albumart_{width,height} is either both 0 or valid AA dimensions */
     struct skin_albumart *aa = SKINOFFSETTOPTR(skin_buffer, wps_data->albumart);
-    if (aa && (aa->state != WPS_ALBUMART_NONE ||
+    if ((aa && (aa->state != WPS_ALBUMART_NONE ||
         (((wps_data->last_albumart_height != aa->height) ||
         (wps_data->last_albumart_width != aa->width)))))
+        || SKINOFFSETTOPTR(skin_buffer, wps_data->albumart2))
     {
         playback_update_aa_dims();
     }

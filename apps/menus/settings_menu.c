@@ -57,6 +57,8 @@
 #include "plugin.h"
 #include "onplay.h"
 #include "misc.h"
+#include "language.h"
+#include "viewport.h"
 
 #if !defined(SIMULATOR) && !defined(USB_NONE) && (defined(HAVE_USB_ADB) || defined(HAVE_USB_POWER))
 #define HAVE_USB_MODE
@@ -177,6 +179,11 @@ MAKE_MENU(tagcache_menu, ID2P(LANG_TAGCACHE), 0, Icon_NOICON,
                 &tagcache_autoupdate, &tc_init, &tc_update, &runtimedb,
                 &tc_export, &tc_import, &tc_paths
                 );
+
+/* The database in Settings > Advanced, until the iTunes database is
+   imported */
+MAKE_MENU(ipod_database_menu, ID2P(LANG_TAGCACHE), 0, Icon_NOICON,
+          &tc_update, &tc_init);
 #endif /* HAVE_TAGCACHE */
 /*    TAGCACHE MENU                */
 /***********************************/
@@ -248,7 +255,7 @@ static int filemenu_callback(int action,
 
 /* Battery */
 #if BATTERY_CAPACITY_INC > 0
-MENUITEM_SETTING(battery_capacity, &global_settings.battery_capacity, NULL);
+MENUITEM_SETTING_SHARED(battery_capacity, &global_settings.battery_capacity, NULL);
 #endif
 
 #ifdef HAVE_USB_CHARGING_ENABLE
@@ -347,6 +354,15 @@ MAKE_MENU(keyclick_menu, ID2P(LANG_KEYCLICK), 0, Icon_NOICON,
 #else
 MAKE_MENU(keyclick_menu, ID2P(LANG_KEYCLICK), 0, Icon_NOICON,
            &keyclick, &keyclick_repeats);
+#endif
+
+/* The clicker of the iPod settings, without the repeats setting */
+#ifdef HAVE_HARDWARE_CLICK
+MAKE_MENU(ipod_keyclick_menu, ID2P(LANG_KEYCLICK), 0, Icon_NOICON,
+          &keyclick, &keyclick_hardware);
+#else
+MAKE_MENU(ipod_keyclick_menu, ID2P(LANG_KEYCLICK), 0, Icon_NOICON,
+          &keyclick);
 #endif
 
 #if CONFIG_CHARGING
@@ -537,6 +553,64 @@ static int sleeptimer_duration_cb(int action,
     }
     return action;
 }
+
+/* Sleep Timer as on a stock iPod: a list of durations, or Off */
+static const int sleep_timer_minutes[] = { 0, 15, 30, 60, 90, 120 };
+#define SLEEP_TIMER_CHOICES ((int)ARRAYLEN(sleep_timer_minutes))
+
+static int sleep_timer_choice = 0; /* the one running, if any */
+
+static int sleep_timer_list(void)
+{
+    static char labels[SLEEP_TIMER_CHOICES][32];
+    struct opt_items items[SLEEP_TIMER_CHOICES];
+    for (int i = 0; i < SLEEP_TIMER_CHOICES; i++)
+    {
+        if (sleep_timer_minutes[i] == 0)
+        {
+            items[i].string = ID2P(LANG_OFF);
+            items[i].voice_id = LANG_OFF;
+        }
+        else
+        {
+            snprintf(labels[i], sizeof(labels[i]), str(LANG_SLEEP_TIMER_MINUTES),
+                     sleep_timer_minutes[i]);
+            items[i].string = labels[i];
+            items[i].voice_id = -1;
+        }
+    }
+
+    if (!get_sleep_timer())
+        sleep_timer_choice = 0;
+    int choice = sleep_timer_choice;
+    set_option(str(LANG_SLEEP_TIMER), &choice, RB_INT,
+               items, SLEEP_TIMER_CHOICES, NULL);
+    /* a new choice starts the timer afresh, leaving the list doesn't */
+    if (choice != sleep_timer_choice)
+    {
+        sleep_timer_choice = choice;
+        set_sleeptimer_duration(sleep_timer_minutes[choice]);
+    }
+    return 0;
+}
+
+/* "Sleep Timer", with the time left while it runs */
+static char* sleep_timer_getname(int selected_item, void * data,
+                                 char *buffer, size_t buffer_len)
+{
+    (void)selected_item;
+    (void)data;
+    int minutes = (get_sleep_timer() + 59) / 60;
+    if (!minutes)
+        return str(LANG_SLEEP_TIMER);
+    snprintf(buffer, buffer_len, "%s (%d:%02d)", str(LANG_SLEEP_TIMER),
+             minutes / 60, minutes % 60);
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(sleep_timer_item, 0, sleep_timer_list,
+                          sleep_timer_getname, sleeptimer_voice, NULL,
+                          NULL, Icon_NOICON);
 
 MENUITEM_SETTING(start_screen, &global_settings.start_in_screen, NULL);
 MENUITEM_SETTING(poweroff, &global_settings.poweroff, NULL);
@@ -836,6 +910,120 @@ static struct browse_folder_info langs = { LANG_DIR, SHOW_LNG };
 
 MENUITEM_FUNCTION_W_PARAM(browse_langs, 0, ID2P(LANG_LANGUAGE),
                           browse_folder, (void*)&langs, NULL, Icon_Language);
+
+/* Language as on a stock iPod: each language by its own name, in this
+   order; scripts the theme fonts lack (NULL) aren't offered, other
+   languages files come last by their file names */
+static const struct {
+    const char *file;
+    const char *name;
+} lang_names[] = {
+    { "catala", "Català" },             { "czech", "Čeština" },
+    { "dansk", "Dansk" },               { "deutsch", "Deutsch" },
+    { "eesti", "Eesti" },               { "english", "English (UK)" },
+    { "english-us", "English (US)" },   { "espanol", "Español" },
+    { "esperanto", "Esperanto" },       { "basque", "Euskara" },
+    { "francais", "Français" },         { "galego", "Galego" },
+    { "hrvatski", "Hrvatski" },         { "islenska", "Íslenska" },
+    { "italiano", "Italiano" },         { "latviesu", "Latviešu" },
+    { "lietuviu", "Lietuvių" },         { "magyar", "Magyar" },
+    { "moldoveneste", "Moldovenească" }, { "nederlands", "Nederlands" },
+    { "norsk", "Norsk (bokmål)" },      { "norsk-nynorsk", "Norsk (nynorsk)" },
+    { "polski", "Polski" },             { "portugues", "Português" },
+    { "portugues-brasileiro", "Português (Brasil)" },
+    { "romaneste", "Română" },          { "slovak", "Slovenčina" },
+    { "slovenscina", "Slovenščina" },   { "finnish", "Suomi" },
+    { "svenska", "Svenska" },           { "tagalog", "Tagalog" },
+    { "vietnamese", "Tiếng Việt" },     { "turkce", "Türkçe" },
+    { "vlaams", "Vlaams" },             { "walon", "Walon" },
+    { "greek", "Ελληνικά" },            { "bulgarian", "Български" },
+    { "russian", "Русский" },           { "srpski", "Српски" },
+    { "ukrainian", "Українська" },
+    { "arabic", NULL }, { "chinese-simp", NULL }, { "chinese-trad", NULL },
+    { "hebrew", NULL }, { "hindi", NULL }, { "japanese", NULL },
+    { "korean", NULL }, { "thai", NULL },
+};
+#define MAX_LANGS 64
+
+static int lang_name_index(const char *file)
+{
+    for (int i = 0; i < (int)ARRAYLEN(lang_names); i++)
+        if (!strcmp(lang_names[i].file, file))
+            return i;
+    return ARRAYLEN(lang_names);
+}
+
+static int language_list(void)
+{
+    static char files[MAX_LANGS][MAX_FILENAME];
+    struct opt_items items[MAX_LANGS];
+    int order[MAX_LANGS];
+    int count = 0, current = 0;
+
+    DIR *dir = opendir(LANG_DIR);
+    if (!dir)
+        return 0;
+    struct dirent *entry;
+    while (count < MAX_LANGS && (entry = readdir(dir)))
+    {
+        char *ext = strrchr(entry->d_name, '.');
+        if (!ext || strcasecmp(ext, ".lng") || ext - entry->d_name >= MAX_FILENAME)
+            continue;
+        strmemccpy(files[count], entry->d_name, ext - entry->d_name + 1);
+        int idx = lang_name_index(files[count]);
+        if (idx < (int)ARRAYLEN(lang_names) && !lang_names[idx].name)
+            continue;
+        /* insert by the table's order, then the file name */
+        int pos = count;
+        while (pos > 0)
+        {
+            int prev = lang_name_index(files[order[pos - 1]]);
+            if (prev < idx || (prev == idx && idx == (int)ARRAYLEN(lang_names)
+                               && strcmp(files[order[pos - 1]], files[count]) < 0))
+                break;
+            order[pos] = order[pos - 1];
+            pos--;
+        }
+        order[pos] = count++;
+    }
+    closedir(dir);
+
+    for (int i = 0; i < count; i++)
+    {
+        const char *file = files[order[i]];
+        int idx = lang_name_index(file);
+        items[i].string = (const unsigned char *)
+                        (idx < (int)ARRAYLEN(lang_names) ? lang_names[idx].name : file);
+        items[i].voice_id = -1;
+        if (!strcmp(file, global_settings.lang_file[0] ?
+                          (char *)global_settings.lang_file : "english"))
+            current = i;
+    }
+
+    int choice = current;
+    set_option(str(LANG_LANGUAGE), &choice, RB_INT, items, count, NULL);
+    if (count && choice != current)
+    {
+        /* as choosing the file in a browser does */
+        char path[MAX_PATH];
+        snprintf(path, sizeof(path), LANG_DIR "/%s.lng", files[order[choice]]);
+        splash(0, ID2P(LANG_WAIT));
+        if (lang_core_load(path))
+        {
+            splash(HZ, ID2P(LANG_FAILED));
+            return 0;
+        }
+        set_file(path, (char *)global_settings.lang_file);
+        talk_init();
+        viewportmanager_theme_changed(THEME_LANGUAGE);
+        settings_apply_skins();
+        splash(HZ, ID2P(LANG_LANGUAGE_LOADED));
+    }
+    return 0;
+}
+
+MENUITEM_FUNCTION(language_item, 0, ID2P(LANG_LANGUAGE),
+                  language_list, NULL, Icon_Language);
 
 MAKE_MENU(settings_menu_item, ID2P(LANG_GENERAL_SETTINGS), 0,
           Icon_General_settings_menu,

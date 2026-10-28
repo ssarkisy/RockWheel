@@ -182,10 +182,12 @@ struct audio_resume_info
 static struct mutex id3_mutex SHAREDBSS_ATTR; /* (A,O)*/
 
 /** For album art support **/
+/* one more than the skinnable screens for the second album art size a
+   WPS can declare */
 #if defined(USB_ENABLE_IAP)
-#define MAX_MULTIPLE_AA (SKINNABLE_SCREENS_COUNT + 1)
+#define MAX_MULTIPLE_AA (SKINNABLE_SCREENS_COUNT + 2)
 #else
-#define MAX_MULTIPLE_AA SKINNABLE_SCREENS_COUNT
+#define MAX_MULTIPLE_AA (SKINNABLE_SCREENS_COUNT + 1)
 #endif
 #ifdef HAVE_ALBUMART
 

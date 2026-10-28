@@ -87,7 +87,7 @@ static int volume_limit_callback(int action,
 /***********************************/
 /*    SOUND MENU                   */
 MENUITEM_SETTING(volume, &global_status.volume, NULL);
-MENUITEM_SETTING(volume_limit, &global_settings.volume_limit, volume_limit_callback);
+MENUITEM_SETTING_SHARED(volume_limit, &global_settings.volume_limit, volume_limit_callback);
 #ifdef AUDIOHW_HAVE_BASS
 MENUITEM_SETTING(bass, &global_settings.bass,
 #ifdef HAVE_SW_TONE_CONTROLS
@@ -272,3 +272,15 @@ MAKE_MENU(sound_settings, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_Audio,
          ,&speaker_mode
 #endif
          );
+
+/* The sound settings of the iPod settings: in Advanced and the WPS context
+   menu; volume is the wheel's, the equalizer has its own entry */
+MAKE_MENU(ipod_sound_settings, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_Audio,
+#ifdef AUDIOHW_HAVE_BASS
+          &bass,
+#endif
+#ifdef AUDIOHW_HAVE_TREBLE
+          &treble,
+#endif
+          &balance, &crossfeed_menu, &compressor_menu, &pbe_menu,
+          &afr_enabled, &stereo_width, &surround_menu);

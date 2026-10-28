@@ -937,10 +937,10 @@
   desc: in the sound settings menu
   user: core
   <source>
-    *: "Equalizer"
+    *: "EQ"
   </source>
   <dest>
-    *: "Equalizer"
+    *: "EQ"
   </dest>
   <voice>
     *: "Equalizer"
@@ -1586,13 +1586,13 @@
   desc: in replaygain
   user: core
   <source>
-    *: "Replaygain Type"
+    *: "Sound Check"
   </source>
   <dest>
-    *: "Replaygain Type"
+    *: "Sound Check"
   </dest>
   <voice>
-    *: "Replaygain Type"
+    *: "Sound Check"
   </voice>
 </phrase>
 <phrase>
@@ -3550,15 +3550,15 @@
   user: core
   <source>
     *: none
-    rtc: "Time & Date"
+    rtc: "Date & Time"
   </source>
   <dest>
     *: none
-    rtc: "Time & Date"
+    rtc: "Date & Time"
   </dest>
   <voice>
     *: none
-    rtc: "Time and Date"
+    rtc: "Date and Time"
   </voice>
 </phrase>
 <phrase>
@@ -9345,13 +9345,13 @@
   desc: in keyclick settings menu
   user: core
   <source>
-    *: "Keyclick"
+    *: "Clicker"
   </source>
   <dest>
-    *: "Keyclick"
+    *: "Clicker"
   </dest>
   <voice>
-    *: "Keyclick"
+    *: "Clicker"
   </voice>
 </phrase>
 <phrase>
@@ -11632,15 +11632,15 @@
   user: core
   <source>
     *: none
-    hardware_click: "Headphone Keyclick"
+    hardware_click: "Headphones"
   </source>
   <dest>
     *: none
-    hardware_click: "Headphone Keyclick"
+    hardware_click: "Headphones"
   </dest>
   <voice>
     *: none
-    hardware_click: "Headphone Keyclick"
+    hardware_click: "Headphones"
   </voice>
 </phrase>
 <phrase>
@@ -11649,15 +11649,15 @@
   user: core
   <source>
     *: none
-    hardware_click: "Speaker Keyclick"
+    hardware_click: "Speaker"
   </source>
   <dest>
     *: none
-    hardware_click: "Speaker Keyclick"
+    hardware_click: "Speaker"
   </dest>
   <voice>
     *: none
-    hardware_click: "Speaker Keyclick"
+    hardware_click: "Speaker"
   </voice>
 </phrase>
 <phrase>
@@ -12154,13 +12154,13 @@
   desc: in sound_settings
   user: core
   <source>
-    *: "Maximum Volume Limit"
+    *: "Volume Limit"
   </source>
   <dest>
-    *: "Maximum Volume Limit"
+    *: "Volume Limit"
   </dest>
   <voice>
-    *: "Maximum Volume Limit"
+    *: "Volume Limit"
   </voice>
 </phrase>
 <phrase>
@@ -16294,13 +16294,13 @@
   desc: in system menu
   user: core
   <source>
-    *: "Legal Notices"
+    *: "Legal"
   </source>
   <dest>
-    *: "Legal Notices"
+    *: "Legal"
   </dest>
   <voice>
-    *: "Legal Notices"
+    *: "Legal"
   </voice>
 </phrase>
 <phrase>
@@ -17297,5 +17297,215 @@
   <voice>
     *: none
     recording_remote: "remote recording screen skin"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Music"
+  </dest>
+  <voice>
+    *: "Music"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Extras"
+  </dest>
+  <voice>
+    *: "Extras"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Clock"
+  </dest>
+  <voice>
+    *: "Clock"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Brick"
+  </dest>
+  <voice>
+    *: "Brick"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Solitaire"
+  </dest>
+  <voice>
+    *: "Solitaire"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Calendar"
+  </dest>
+  <voice>
+    *: "Calendar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Stopwatch"
+  </dest>
+  <voice>
+    *: "Stopwatch"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "About"
+  </dest>
+  <voice>
+    *: "About"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADVANCED
+  desc: in the settings, the Rockbox settings beyond the stock ones
+  user: core
+  <source>
+    *: "Advanced"
+  </source>
+  <dest>
+    *: "Advanced"
+  </dest>
+  <voice>
+    *: "Advanced"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d Minutes"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Songs"
+  </dest>
+  <voice>
+    *: "Songs"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcasts"
+  </dest>
+  <voice>
+    *: "Podcasts"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Genres"
+  </dest>
+  <voice>
+    *: "Genres"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Composers"
+  </dest>
+  <voice>
+    *: "Composers"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Audiobooks"
+  </dest>
+  <voice>
+    *: "Audiobooks"
   </voice>
 </phrase>

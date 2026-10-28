@@ -381,6 +381,10 @@ struct wps_data
 #ifdef HAVE_ALBUMART
     OFFSETTYPE(struct skin_albumart *) albumart;
     int    playback_aa_slot;
+    /* a second album art size from a second %Cl, e.g. for a full screen
+     * view; a %Cd draws whichever %Cl came last before it */
+    OFFSETTYPE(struct skin_albumart *) albumart2;
+    int    playback_aa_slot2;
     /* copy of albumart to survive skin resets, used to check if albumart
      * dimensions changed on skin change */
     int16_t last_albumart_width, last_albumart_height;

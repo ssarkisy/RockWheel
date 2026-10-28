@@ -508,11 +508,15 @@ void wps_display_images(struct gui_wps *gwps, struct viewport* vp)
 
     /* Start with album art, as it may be drawn over by mask images */
 #ifdef HAVE_ALBUMART
-    struct skin_albumart *aa = SKINOFFSETTOPTR(get_skin_buffer(data), data->albumart);
-    if (aa && aa->draw_handle >= 0)
+    for (int i = 0; i < 2; i++)
     {
-        draw_album_art(gwps, aa->draw_handle, false);
-        aa->draw_handle = -1;
+        struct skin_albumart *aa = SKINOFFSETTOPTR(get_skin_buffer(data),
+                                        i ? data->albumart2 : data->albumart);
+        if (aa && aa->draw_handle >= 0)
+        {
+            draw_album_art(gwps, aa, aa->draw_handle, false);
+            aa->draw_handle = -1;
+        }
     }
 #endif
     struct skin_token_list *list = SKINOFFSETTOPTR(get_skin_buffer(data), data->images);
@@ -758,15 +762,10 @@ void draw_peakmeters(struct gui_wps *gwps, int line_number,
 #ifdef HAVE_ALBUMART
 /* Draw the album art bitmap from the given handle ID onto the given WPS.
    Call with clear = true to clear the bitmap instead of drawing it. */
-void draw_album_art(struct gui_wps *gwps, int handle_id, bool clear)
+void draw_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
+                    int handle_id, bool clear)
 {
-    if (!gwps || !gwps->data || !gwps->display || handle_id < 0)
-        return;
-
-    struct wps_data *data = gwps->data;
-    struct skin_albumart *aa = SKINOFFSETTOPTR(get_skin_buffer(data), data->albumart);
-
-    if (!aa)
+    if (!gwps || !gwps->data || !gwps->display || !aa || handle_id < 0)
         return;
 
     struct bitmap *bmp;

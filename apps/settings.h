@@ -588,6 +588,7 @@ struct user_settings
 
     int scrollbar;    /* SCROLLBAR_* enum values */
     int scrollbar_width;
+    int list_text_padding; /* pixels left of the text of list items */
 
 #ifdef HAVE_TOUCHSCREEN
     int list_line_padding;
@@ -641,6 +642,8 @@ struct user_settings
     int lss_color; /* background color for the selector or start color for the gradient */
     int lse_color; /* end color for the selector gradient */
     int lst_color; /* color of the text for the selector */
+    bool list_selector_bevel; /* lighter top, darker bottom edge on the gradient selector */
+    bool list_selector_chevron; /* chevron on a selected item that leads to more */
     unsigned char colors_file[MAX_FILENAME+1];
 #endif
 

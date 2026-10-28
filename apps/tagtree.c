@@ -120,6 +120,7 @@ enum variables {
     menu_load,
     menu_reload,
     menu_shuffle_songs,
+    menu_playlists,
 };
 
 /* Capacity 10 000 entries (for example 10k different artists) */
@@ -398,6 +399,7 @@ static int get_tag(int *tag)
         TAG_MATCH("lastplayed", tag_lastplayed) \
         TAG_MATCH("lastoffset", tag_lastoffset) \
         TAG_MATCH("%root_menu", var_rootmenu) \
+        TAG_MATCH("%playlists", menu_playlists) \
         TAG_MATCH("albumartist", tag_albumartist) \
         TAG_MATCH("lastelapsed", tag_lastelapsed) \
         TAG_MATCH("%menu_start", var_menu_start) \
@@ -874,6 +876,10 @@ static bool parse_search(struct menu_entry *entry, const char *str)
 
         return true;
     }
+
+    /* the playlist catalogue, as Playlists in the Music menu of a stock iPod */
+    if (entry->type == menu_playlists)
+        return true;
 
     if (entry->type != menu_next && entry->type != menu_shuffle_songs)
         return false;
@@ -1717,45 +1723,8 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
     tree_lock_cache(c);
     struct tagentry *dptr = core_get_data(c->cache.entries_handle);
 
-    if (tag != tag_title && tag != tag_filename)
-    {
-        bool show_album_sorted = (tag == tag_album);
-        int show_album_sorted_offset = (show_album_sorted ? 1 : 0);
-        if (offset == 0 && show_album_sorted)
-        {
-            dptr->newtable = TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS;
-            dptr->name = ID2P(LANG_TAGNAVI_ALL_TRACKS_SORTED_BY_ALBUM);
-            dptr->extraseek = 0;
-            dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-            dptr++;
-            current_entry_count++;
-            c->special_entry_count++;
-        }
-        if (offset <= (show_album_sorted_offset))
-        {
-            dptr->newtable = TABLE_ALLSUBENTRIES;
-            dptr->name = ID2P(LANG_TAGNAVI_ALL_TRACKS);
-            dptr->extraseek = 0;
-            dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-            dptr++;
-            current_entry_count++;
-            c->special_entry_count++;
-        }
-        if (offset <= (1 + show_album_sorted_offset))
-        {
-            dptr->newtable = TABLE_NAVIBROWSE;
-            dptr->name = ID2P(LANG_TAGNAVI_RANDOM);
-            dptr->extraseek = -1;
-            dptr->customaction = ONPLAY_NO_CUSTOMACTION;
-            dptr++;
-            current_entry_count++;
-            c->special_entry_count++;
-        }
-
-        total_count += 2;
-        if (show_album_sorted)
-            total_count++;
-    }
+    /* no <All tracks>, <By album> or <Random> entries in the lists: as on a
+       stock iPod, the Music menu has Songs instead */
 
     while (tagcache_get_next(&tcs, tcs_buf, tcs_bufsz))
     {
@@ -2033,6 +2002,12 @@ static int load_root(struct tree_context *c)
                 dptr->newtable = TABLE_NAVIBROWSE;
                 dptr->extraseek = i;
                 dptr->customaction = ONPLAY_CUSTOMACTION_FIRSTLETTER;
+                break;
+
+            case menu_playlists:
+                dptr->newtable = TABLE_NAVIBROWSE;
+                dptr->extraseek = i;
+                dptr->customaction = ONPLAY_CUSTOMACTION_PLAYLISTS;
                 break;
         }
 
@@ -2725,6 +2700,75 @@ bool tagtree_get_subentry_filename(char *buf, size_t bufsize)
 
     reset_tc_to_prev(dirlevel, selected_item);
     return ret;
+}
+
+/* Play all songs in random order, as Shuffle Songs in the main menu of a
+ * stock iPod. When there are more than the playlist can hold, a random
+ * selection fills it. False if nothing could be played. */
+bool tagtree_shuffle_songs(void)
+{
+    struct tagcache_search tcs;
+    struct playlist_insert_context context;
+    char buf[MAX_PATH];
+    int max = playlist_get_current()->max_playlist_size;
+    int count = 0, added = 0;
+    long last_tick;
+
+    if (!tagcache_is_usable() || !tagcache_search(&tcs, tag_filename))
+    {
+        splash(HZ, ID2P(LANG_TAGCACHE_BUSY));
+        return false;
+    }
+    while (tagcache_get_next(&tcs, buf, sizeof buf))
+        count++;
+    tagcache_search_finish(&tcs);
+    if (count == 0)
+        return false;
+
+    cpu_boost(true);
+    splash(0, ID2P(LANG_WAIT));
+    playlist_create(NULL, NULL);
+    if (playlist_insert_context_create(NULL, &context, PLAYLIST_INSERT_LAST,
+                                       false, false) < 0)
+    {
+        cpu_boost(false);
+        return false;
+    }
+
+    last_tick = current_tick + HZ/2; /* progress after half a second */
+    if (tagcache_search(&tcs, tag_filename))
+    {
+        for (int i = 0; added < max && tagcache_get_next(&tcs, buf, sizeof buf); i++)
+        {
+            /* selection sampling: each of the remaining songs gets picked
+               with the chance there are slots left for it */
+            if (count > max && rand() % (count - i) >= max - added)
+                continue;
+            if (playlist_insert_context_add(&context, tcs.result) < 0)
+                break;
+            added++;
+
+            if (TIME_AFTER(current_tick, last_tick + HZ/4))
+            {
+                splash_progress(added, MIN(count, max), "%s (%s)",
+                                str(LANG_WAIT), str(LANG_OFF_ABORT));
+                if (action_userabort(TIMEOUT_NOBLOCK))
+                    break;
+                last_tick = current_tick;
+            }
+            yield();
+        }
+        tagcache_search_finish(&tcs);
+    }
+    playlist_insert_context_release(&context);
+
+    if (added > 0)
+    {
+        playlist_shuffle(current_tick, -1);
+        playlist_start(0, 0, 0);
+    }
+    cpu_boost(false);
+    return added > 0;
 }
 
 bool tagtree_current_playlist_insert(int position, bool queue)

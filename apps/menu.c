@@ -113,6 +113,31 @@ static int get_menu_selection(int selected_item, const struct menu_item_ex *menu
         return current_subitems[selected_item];
     return selected_item;
 }
+/* Submenus, screens and actions lead to more, settings don't; nor does
+   Shuffle Songs, as on a stock iPod */
+static bool menu_has_children(int selected_item, void * data)
+{
+    const struct menu_item_ex *menu = (const struct menu_item_ex *)data;
+    if ((menu->flags&MENU_TYPE_MASK) == MT_RETURN_ID)
+        return false;
+    const struct menu_item_ex *item =
+                    menu->submenus[get_menu_selection(selected_item, menu)];
+    switch (item->flags&MENU_TYPE_MASK)
+    {
+        case MT_MENU:
+        case MT_FUNCTION_CALL:
+            return true;
+        case MT_RETURN_VALUE:
+#ifdef HAVE_TAGCACHE
+            return item->value != GO_TO_SHUFFLE_SONGS;
+#else
+            return true;
+#endif
+        default:
+            return false;
+    }
+}
+
 static int find_menu_selection(int selected)
 {
     int i;
@@ -268,6 +293,7 @@ static int init_menu_lists(const struct menu_item_ex *menu,
     title = init_title(menu, &icon, buf, buf_sz);
     gui_synclist_set_title(lists, title, icon);
     gui_synclist_set_icon_callback(lists, global_settings.show_icons?menu_get_icon:NULL);
+    gui_synclist_set_has_children_callback(lists, menu_has_children);
     if(global_settings.talk_menu)
         gui_synclist_set_voice_callback(lists, talk_menu_item);
     gui_synclist_set_nb_items(lists,current_subitems_count);

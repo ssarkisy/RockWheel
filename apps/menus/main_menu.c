@@ -467,7 +467,7 @@ static int show_info(void)
 }
 
 
-MENUITEM_FUNCTION(show_info_item, 0, ID2P(LANG_ROCKBOX_INFO),
+MENUITEM_FUNCTION(show_info_item, 0, ID2P(LANG_ABOUT),
                   show_info, NULL, Icon_NOICON);
 
 #if CONFIG_RTC
@@ -506,19 +506,39 @@ MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
 /***********************************/
 /*    MAIN MENU                    */
 
+/* What the iPod settings show of Rockbox's beyond the stock ones */
+MAKE_MENU(ipod_advanced_menu, ID2P(LANG_ADVANCED), NULL, Icon_Submenu_Entered,
+        &ipod_sound_settings, &ipod_playback_settings,
+#ifdef HAVE_BACKLIGHT
+        &ipod_backlight_menu,
+#endif
+        &battery_capacity, &browse_themes,
+#ifdef HAVE_TAGCACHE
+        &ipod_database_menu,
+#endif
+        &codepage_setting);
+
+/* The settings of a stock iPod, in its order, then Advanced; Rockbox's full
+   settings menus are not shown */
 MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         Icon_Submenu_Entered,
-        &sound_settings,
-        &playback_settings,
-        &settings_menu_item, &theme_menu,
-#ifdef HAVE_RECORDING
-        &recording_settings,
+        &show_info_item,
+        &shuffle_item, &repeat_mode,
+        &volume_limit,
+#ifdef HAVE_BACKLIGHT
+        &backlight_timeout,
 #endif
+#ifdef HAVE_BACKLIGHT_BRIGHTNESS
+        &brightness_item,
+#endif
+        &ipod_eq_menu, &replaygain_type, &ipod_keyclick_menu,
+        &sleep_timer_item,
 #if CONFIG_RTC
         &timedate_item,
 #endif
-        &main_menu_config_item,
-        &manage_settings,
+        &language_item,
+        &ipod_advanced_menu,
+        &show_legal_item, &reset_settings_item,
         );
 /*    MAIN MENU                    */
 /***********************************/

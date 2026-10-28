@@ -25,12 +25,25 @@
 struct mp3entry;
 
 /* Please don't add anything else to here... */
+/* What the centre button cycles through on the WPS, as on a stock iPod.
+   Skins see the current mode through %mw. */
+enum wps_display_mode
+{
+    WPS_MODE_VOLUME = 0, /* normal view, the wheel sets the volume */
+    WPS_MODE_SCRUB,      /* the wheel moves through the track */
+    WPS_MODE_ALBUMART,   /* full screen album art */
+    WPS_MODE_LYRICS,     /* the wheel scrolls the lyrics */
+    WPS_MODE_RATING,     /* the wheel sets the rating */
+    WPS_MODE_COUNT
+};
+
 struct wps_state
 {
     struct mp3entry *id3;
     struct mp3entry *nid3;
     int ff_rewind_count;
     bool paused;
+    enum wps_display_mode display_mode;
 };
 
 long gui_wps_show(void);

@@ -32,6 +32,7 @@ buffering.c
 voice_thread.c
 rbcodec_helpers.c
 menus/main_menu.c
+menus/extras_menu.c
 menus/playback_menu.c
 menus/playlist_menu.c
 #ifdef HAVE_RECORDING
@@ -94,6 +95,7 @@ gui/mask_select.c
 #endif
 
 gui/wps.c
+gui/lyrics.c
 gui/scrollbar.c
 gui/splash.c
 gui/statusbar.c

@@ -39,6 +39,8 @@
 #include "viewport.h"
 #include "appevents.h"
 #include "statusbar-skinned.h"
+#include "audio.h"
+#include "wps.h"
 
 /* The minimum number of pending button events in queue before starting
  * to limit list drawing interval.
@@ -154,6 +156,7 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     )
 {
     gui_list->callback_get_item_icon = NULL;
+    gui_list->callback_has_children = NULL;
     gui_list->callback_get_item_name = callback_get_item_name;
     gui_list->callback_speak_item = NULL;
     gui_list->callback_draw_item = NULL;
@@ -466,6 +469,12 @@ void gui_synclist_set_icon_callback(struct gui_synclist * lists,
     lists->callback_get_item_icon = icon_callback;
 }
 
+void gui_synclist_set_has_children_callback(struct gui_synclist * lists,
+                                            list_has_children has_children_callback)
+{
+    lists->callback_has_children = has_children_callback;
+}
+
 void gui_synclist_set_voice_callback(struct gui_synclist * lists,
                                      list_speak_item voice_callback)
 {
@@ -690,6 +699,36 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
             adjust_volume(-1);
             return true;
 #endif
+        case ACTION_LIST_PLAYPAUSE:
+            if (!(audio_status() & AUDIO_STATUS_PLAY))
+            {
+                /* nothing to pause, let the caller resume in the WPS */
+                *actionptr = ACTION_TREE_WPS;
+                return false;
+            }
+            wps_do_playpause(false);
+            /* show the new play state in the statusbar right away */
+            do_sbs_update_callback(0, NULL);
+            return true;
+
+        case ACTION_LIST_SKIPPREV:
+            if (audio_status() & AUDIO_STATUS_PLAY)
+            {
+                struct mp3entry *id3 = audio_current_track();
+                if (id3 && id3->elapsed >= DEFAULT_SKIP_THRESH)
+                {
+                    audio_pre_ff_rewind();
+                    audio_ff_rewind(0);
+                }
+                else
+                    audio_prev();
+            }
+            return true;
+
+        case ACTION_LIST_SKIPNEXT:
+            if (audio_status() & AUDIO_STATUS_PLAY)
+                audio_next();
+            return true;
         case ACTION_STD_PREVREPEAT:
             allow_wrap = false; /* Prevent list wraparound on repeating actions */
             /*Fallthrough*/

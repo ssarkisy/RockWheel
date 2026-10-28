@@ -57,7 +57,8 @@ void draw_peakmeters(struct gui_wps *gwps, int line_number,
 #ifdef HAVE_ALBUMART
 /* Draw the album art bitmap from the given handle ID onto the given Skin.
    Call with clear = true to clear the bitmap instead of drawing it. */
-void draw_album_art(struct gui_wps *gwps, int handle_id, bool clear);
+void draw_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
+                    int handle_id, bool clear);
 #endif
 
 #endif

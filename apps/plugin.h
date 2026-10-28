@@ -180,7 +180,9 @@ int plugin_open(const char *plugin, const char *parameter);
  * when this happens please take the opportunity to sort in
  * any new functions "waiting" at the end of the list.
  */
-#define PLUGIN_API_VERSION 286
+/* 287: the iPod fork changed structures plugins see (gui_synclist,
+ * user_settings, mp3entry) and the action numbering */
+#define PLUGIN_API_VERSION 287
 
 /* 239 Marks the removal of ARCHOS HWCODEC and CHARCELL */
 

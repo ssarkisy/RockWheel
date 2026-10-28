@@ -688,6 +688,66 @@ int button_read_device(void)
     return btn;
 }
 
+#if defined(SIMULATOR) && SDL_MAJOR_VERSION > 1
+/* Scripted input for automated UI testing. RBSIM_SCRIPT=<file> holds one
+ * command per line: an SDL key name ("Up", "Return", "Escape", ...) with an
+ * optional hold time in ms, "wait <ms>", "dump" (screendump) or "quit". */
+static char script_buf[8192];
+static long script_stack[DEFAULT_STACK_SIZE/sizeof(long)];
+
+static void script_thread(void)
+{
+    char *save;
+    for (char *line = strtok_r(script_buf, "\n", &save); line;
+         line = strtok_r(NULL, "\n", &save))
+    {
+        char cmd[32];
+        int ms = 0;
+        if (sscanf(line, "%31s %d", cmd, &ms) < 1 || cmd[0] == '#')
+            continue;
+
+        if (!strcmp(cmd, "wait"))
+            sleep(ms * HZ / 1000);
+        else if (!strcmp(cmd, "dump"))
+        {
+            sim_trigger_screendump();
+            sleep(HZ); /* dump names have one second resolution */
+        }
+        else if (!strcmp(cmd, "quit"))
+        {
+            SDL_Event ev = { .type = SDL_QUIT };
+            SDL_PushEvent(&ev);
+        }
+        else
+        {
+            SDL_Keycode key = SDL_GetKeyFromName(cmd);
+            if (key == SDLK_UNKNOWN)
+            {
+                printf("RBSIM_SCRIPT: unknown key '%s'\n", cmd);
+                continue;
+            }
+            button_event(key, true);
+            sleep(MAX(ms, 50) * HZ / 1000);
+            button_event(key, false);
+            sleep(HZ/5);
+        }
+    }
+}
+
+static void script_init(void)
+{
+    const char *path = getenv("RBSIM_SCRIPT");
+    FILE *f = path ? fopen(path, "r") : NULL;
+    if (!f)
+        return;
+
+    script_buf[fread(script_buf, 1, sizeof(script_buf) - 1, f)] = '\0';
+    fclose(f);
+    create_thread(script_thread, script_stack, sizeof(script_stack), 0,
+                  "sim script" IF_PRIO(, PRIORITY_BACKGROUND) IF_COP(, CPU));
+}
+#endif
+
 void button_init_device(void)
 {
 #ifdef SIMULATOR
@@ -695,5 +755,8 @@ void button_init_device(void)
         sdl_focus_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
     if (!sdl_arrow_cursor)
         sdl_arrow_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+#if SDL_MAJOR_VERSION > 1
+    script_init();
+#endif
 #endif
 }

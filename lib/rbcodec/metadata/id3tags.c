@@ -295,6 +295,61 @@ static int parsegenre( struct mp3entry* entry, char* tag, int bufferpos )
     }
 }
 
+/* Only this much of a USLT frame is read while parsing, enough for its
+   encoding, language and description */
+#define LYRICS_HEADER_SIZE 64
+
+/* parse embedded lyrics: text encoding, language, a nil terminated
+ * description and then the lyrics. The main loop has set embedded_lyrics to
+ * the whole frame, only where the lyrics start is worked out here, they are
+ * read when shown. */
+static int parselyrics( struct mp3entry* entry, char* tag, int bufferpos )
+{
+    struct embedded_lyrics *lyrics = &entry->embedded_lyrics;
+    unsigned char enc = tag[0];
+    bool utf16 = enc == 0x01 || enc == 0x02;
+    int limit = MIN(LYRICS_HEADER_SIZE, lyrics->size);
+    int pos = 4; /* encoding and language */
+
+    if (entry->has_embedded_lyrics || lyrics->size <= pos)
+        return bufferpos;
+
+    /* skip the description */
+    while (pos + 1 < limit && (tag[pos] || (utf16 && tag[pos + 1])))
+        pos += utf16 ? 2 : 1;
+    pos += utf16 ? 2 : 1;
+    if (pos >= limit)
+        return bufferpos;
+
+    switch (enc)
+    {
+        case 0x00:
+            lyrics->encoding = CHAR_ENC_ISO_8859_1;
+            break;
+        case 0x01: /* the byte order mark tells */
+            if (pos + 2 > limit)
+                return bufferpos;
+            lyrics->encoding = (unsigned char)tag[pos] == 0xff ?
+                                CHAR_ENC_UTF_16_LE : CHAR_ENC_UTF_16_BE;
+            pos += 2;
+            break;
+        case 0x02:
+            lyrics->encoding = CHAR_ENC_UTF_16_BE;
+            break;
+        case 0x03:
+            lyrics->encoding = CHAR_ENC_UTF_8;
+            break;
+        default:
+            return bufferpos;
+    }
+
+    lyrics->pos += pos;
+    lyrics->size -= pos;
+    entry->has_embedded_lyrics = lyrics->size > 0;
+    /* nothing was stored in id3v2buf */
+    return bufferpos;
+}
+
 #ifdef HAVE_ALBUMART
 /* parse embed albumart */
 static int parsealbumart( struct mp3entry* entry, char* tag, int bufferpos )
@@ -540,6 +595,8 @@ static const struct tag_resolver taglist[] = {
     { "APIC", 4, 0, &parsealbumart, true },
     { "PIC",  3, 0, &parsealbumart, true },
 #endif
+    { "USLT", 4, 0, &parselyrics, true },
+    { "ULT",  3, 0, &parselyrics, true },
     { "TXXX", 4, 0, &parseuser, false },
     { "RVA2", 4, 0, &parserva2, true },
     { "UFID", 4, 0, &parsembtid, false },
@@ -1061,6 +1118,19 @@ retry_with_limit:
 
                 /* found a tag matching one in tagList */
                 tag = buffer + bufferpos;
+
+                if (tr->ppFunc == &parselyrics)
+                {
+                    /* only the start, the lyrics are read from the file
+                       when shown, which unsynchronisation would break */
+                    framelen = MIN(framelen, LYRICS_HEADER_SIZE);
+                    if (!entry->has_embedded_lyrics)
+                    {
+                        entry->embedded_lyrics.pos = lseek(fd, 0, SEEK_CUR);
+                        entry->embedded_lyrics.size =
+                                        (unsynch || global_unsynch) ? 0 : totframelen;
+                    }
+                }
 
                 if(global_unsynch && version <= ID3_VER_2_3)
                     bytesread = read_unsynched(fd, tag, framelen);

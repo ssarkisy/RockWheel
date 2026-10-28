@@ -828,3 +828,8 @@ MENUITEM_FUNCTION_W_PARAM(eq_browse, 0, ID2P(LANG_EQUALIZER_BROWSE),
 MAKE_MENU(equalizer_menu, ID2P(LANG_EQUALIZER), NULL, Icon_EQ,
         &eq_enable, &eq_graphical, &eq_precut, &gain_menu,
         &advanced_menu, &eq_save, &eq_browse, &eq_reset);
+
+/* The equalizer of the iPod settings: on or off, a preset or the graphical
+   editor */
+MAKE_MENU(ipod_eq_menu, ID2P(LANG_EQUALIZER), NULL, Icon_EQ,
+        &eq_enable, &eq_browse, &eq_graphical);

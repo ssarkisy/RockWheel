@@ -357,7 +357,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             else
                 line_indent *= character_width;
         }
-        line_indent += indent;
+        /* the padding moves the text only, the selection stays full width */
+        line_indent += indent + global_settings.list_text_padding;
 
         /* position the string at the correct offset place */
         int item_width,h;
@@ -429,6 +430,10 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             }
         }
 #endif
+        if (is_selected && global_settings.list_selector_chevron
+            && list->callback_has_children
+            && list->callback_has_children(i, list->data))
+            style |= STYLE_CHEVRON;
         linedes.style = style;
         linedes.scroll = is_selected ? true : list->scroll_all;
         linedes.line = i % list->selected_size;

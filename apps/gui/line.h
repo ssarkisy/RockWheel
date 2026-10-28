@@ -45,6 +45,9 @@ enum line_styles {
     STYLE_GRADIENT   = 0x08,
     /* Modifier for the text color, which will be taken from line_desc.text_color */
     STYLE_COLORED    = 0x10,
+    /* Modifier for a chevron at the right end of the line, for a list item
+     * that leads to more */
+    STYLE_CHEVRON    = 0x20,
     /* These are used internally */
     _STYLE_DECO_MASK = 0x0f,
     _STYLE_MODE_MASK = 0x7F,

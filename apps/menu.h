@@ -151,6 +151,12 @@ int do_menu(const struct menu_item_ex *menu, int *start_selected,
     static const struct menu_item_ex name =                  \
         {MT_SETTING, {.variable = (void*)var},{callback}};
 
+/*  Like MENUITEM_SETTING, for an item that menus of other files use too,
+    see menus/exported_menus.h */
+#define MENUITEM_SETTING_SHARED(name,var,callback)              \
+    const struct menu_item_ex name =                            \
+        {MT_SETTING, {.variable = (void*)var},{callback}};
+
 /*  Use this for settings which have a differnt title in their
     setting screen than in the menu (e.g scroll options */
 #define MENUITEM_SETTING_W_TEXT(name, var, str, callback )              \

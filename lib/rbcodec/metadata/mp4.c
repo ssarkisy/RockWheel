@@ -49,6 +49,7 @@
 #define MP4_cwrt FOURCC(0xa9, 'w', 'r', 't')
 #define MP4_ccmt FOURCC(0xa9, 'c', 'm', 't')
 #define MP4_cday FOURCC(0xa9, 'd', 'a', 'y')
+#define MP4_clyr FOURCC(0xa9, 'l', 'y', 'r')
 #define MP4_covr FOURCC('c', 'o', 'v', 'r')
 #define MP4_disk FOURCC('d', 'i', 's', 'k')
 #define MP4_esds FOURCC('e', 's', 'd', 's')
@@ -506,8 +507,9 @@ static bool read_mp4_tags(int fd, struct mp3entry* id3,
 
                 if (read_mp4_tag(fd, size, buffer, 8) >= 4)
                 {
-
-                    if (memcmp(buffer, "\xff\xd8\xff\xe0", 4) == 0)
+                    /* any JPEG, not only JFIF ones: covers with Exif data
+                       start with ff d8 ff e1 */
+                    if (memcmp(buffer, "\xff\xd8\xff", 3) == 0)
                     {
                         id3->albumart.type = AA_TYPE_JPG;
                     }
@@ -526,6 +528,17 @@ static bool read_mp4_tags(int fd, struct mp3entry* id3,
             }
             break;
 #endif
+
+        case MP4_clyr:
+            /* UTF-8 text in a data atom, read when shown */
+            if (size > 16)
+            {
+                id3->embedded_lyrics.pos = lseek(fd, 0, SEEK_CUR) + 16;
+                id3->embedded_lyrics.size = size - 16;
+                id3->embedded_lyrics.encoding = CHAR_ENC_UTF_8;
+                id3->has_embedded_lyrics = true;
+            }
+            break;
 
         case MP4_extra:
             {

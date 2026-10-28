@@ -37,6 +37,7 @@
 #include "pcm_sampr.h"
 #ifdef HAVE_PLAY_FREQ
 #include "talk.h"
+#include "exported_menus.h"
 #endif
 
 #if defined(HAVE_CROSSFADE)
@@ -59,8 +60,8 @@ static int setcrossfadeonexit_callback(int action,
 
 /***********************************/
 /*    PLAYBACK MENU                */
-MENUITEM_SETTING(shuffle_item, &global_settings.playlist_shuffle, NULL);
-MENUITEM_SETTING(repeat_mode, &global_settings.repeat_mode, NULL);
+MENUITEM_SETTING_SHARED(shuffle_item, &global_settings.playlist_shuffle, NULL);
+MENUITEM_SETTING_SHARED(repeat_mode, &global_settings.repeat_mode, NULL);
 MENUITEM_SETTING(play_selected, &global_settings.play_selected, NULL);
 
 MENUITEM_SETTING(ff_rewind_accel, &global_settings.ff_rewind_accel, NULL);
@@ -127,7 +128,7 @@ static int replaygain_callback(int action,
 MENUITEM_SETTING(replaygain_noclip,
                  &global_settings.replaygain_settings.noclip,
                  replaygain_callback);
-MENUITEM_SETTING(replaygain_type,
+MENUITEM_SETTING_SHARED(replaygain_type,
                  &global_settings.replaygain_settings.type,
                  replaygain_callback);
 MENUITEM_SETTING(replaygain_preamp,
@@ -216,6 +217,22 @@ MAKE_MENU(playback_settings,ID2P(LANG_PLAYBACK),0,
 #endif
         ,&playback_log
          );
+
+/* The playback settings of the iPod settings: in Advanced and the WPS
+   context menu */
+MAKE_MENU(ipod_playback_settings, ID2P(LANG_PLAYBACK), 0,
+          Icon_Playback_menu,
+          &shuffle_item, &repeat_mode,
+#if defined(HAVE_CROSSFADE)
+          &crossfade_settings_menu,
+#endif
+#ifdef HAVE_HEADPHONE_DETECTION
+          &unplug_menu,
+#endif
+#ifdef HAVE_TAGCACHE
+          &autoresume_menu,
+#endif
+          &resume_rewind);
 
 /*    PLAYBACK MENU                */
 /***********************************/

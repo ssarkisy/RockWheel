@@ -454,10 +454,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Настройки воспроизведения"
+    *: "Воспроизведение"
   </dest>
   <voice>
-    *: "Настройки воспроизведения"
+    *: "Воспроизведение"
   </voice>
 </phrase>
 <phrase>
@@ -905,10 +905,10 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "Случайное"
+    *: "Перемешивание"
   </dest>
   <voice>
-    *: "Случайное"
+    *: "Перемешивание"
   </voice>
 </phrase>
 <phrase>
@@ -919,10 +919,10 @@
     *: "Repeat"
   </source>
   <dest>
-    *: "Повторять"
+    *: "Повтор"
   </dest>
   <voice>
-    *: "Повторять"
+    *: "Повтор"
   </voice>
 </phrase>
 <phrase>
@@ -1438,10 +1438,10 @@
     *: "Default Codepage"
   </source>
   <dest>
-    *: "Кодировка по умолчанию"
+    *: "Кодировка тегов"
   </dest>
   <voice>
-    *: "Кодировка по умолчанию"
+    *: "Кодировка тегов"
   </voice>
 </phrase>
 <phrase>
@@ -1664,11 +1664,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Время и дата"
+    rtc: "Дата и время"
   </dest>
   <voice>
     *: none
-    rtc: "Время и дата"
+    rtc: "Дата и время"
   </voice>
 </phrase>
 <phrase>
@@ -2277,10 +2277,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Тип усиления"
+    *: "Проверка звука"
   </dest>
   <voice>
-    *: "Тип усиления"
+    *: "Проверка звука"
   </voice>
 </phrase>
 <phrase>
@@ -2917,10 +2917,10 @@
     *: "Battery Capacity"
   </source>
   <dest>
-    *: "Ёмкость аккумулятора"
+    *: "Ёмкость батареи"
   </dest>
   <voice>
-    *: "Ёмкость аккумулятора"
+    *: "Ёмкость батареи"
   </voice>
 </phrase>
 <phrase>
@@ -6793,10 +6793,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Воспроизведение"
+    *: "Исполняется"
   </dest>
   <voice>
-    *: "Воспроизведение"
+    *: "Исполняется"
   </voice>
 </phrase>
 <phrase>
@@ -7792,10 +7792,10 @@
     *: "Resume Playback"
   </source>
   <dest>
-    *: "Продолжить воспроизведение"
+    *: "Продолжить"
   </dest>
   <voice>
-    *: "Продолжить воспроизведение"
+    *: "Продолжить"
   </voice>
 </phrase>
 <phrase>
@@ -8876,10 +8876,10 @@
     *: "Playlists"
   </source>
   <dest>
-    *: "Списки воспроизведения"
+    *: "Плейлисты"
   </dest>
   <voice>
-    *: "Списки воспроизведения"
+    *: "Плейлисты"
   </voice>
 </phrase>
 <phrase>
@@ -9168,10 +9168,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Озвучивание нажатия кнопок"
+    *: "Щелчки"
   </dest>
   <voice>
-    *: "Озвучивание нажатия кнопок"
+    *: "Щелчки"
   </voice>
 </phrase>
 <phrase>
@@ -11343,11 +11343,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Сигнал через динамик при нажатии клавиш"
+    hardware_click: "Динамик"
   </dest>
   <voice>
     *: none
-    hardware_click: "Сигнал через динамик при нажатии клавиш"
+    hardware_click: "Динамик"
   </voice>
 </phrase>
 <phrase>
@@ -11360,11 +11360,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Сигнал через наушники при нажатии клавиш"
+    hardware_click: "Наушники"
   </dest>
   <voice>
     *: none
-    hardware_click: "Сигнал через наушники при нажатии клавиш"
+    hardware_click: "Наушники"
   </voice>
 </phrase>
 <phrase>
@@ -11532,10 +11532,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "Ограничение максимальной громкости"
+    *: "Ограничение громкости"
   </dest>
   <voice>
-    *: "Ограничение максимальной громкости"
+    *: "Ограничение громкости"
   </voice>
 </phrase>
 <phrase>
@@ -16063,10 +16063,10 @@
     *: "Legal Notices"
   </source>
   <dest>
-    *: "Юридическое уведомление"
+    *: "Правовая информация"
   </dest>
   <voice>
-    *: "Юридическое уведомление"
+    *: "Правовая информация"
   </voice>
 </phrase>
 <phrase>
@@ -16371,10 +16371,10 @@
     *: "Artists"
   </source>
   <dest>
-    *: "Исполнители"
+    *: "Артисты"
   </dest>
   <voice>
-    *: "Исполнители"
+    *: "Артисты"
   </voice>
 </phrase>
 <phrase>
@@ -17141,5 +17141,215 @@
   </dest>
   <voice>
     *: "Тип фильтра"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Музыка"
+  </dest>
+  <voice>
+    *: "Музыка"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Дополнительно"
+  </dest>
+  <voice>
+    *: "Дополнительно"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Об iPod"
+  </dest>
+  <voice>
+    *: "Об айподе"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADVANCED
+  desc: in the settings, the Rockbox settings beyond the stock ones
+  user: core
+  <source>
+    *: "Advanced"
+  </source>
+  <dest>
+    *: "Расширенные"
+  </dest>
+  <voice>
+    *: "Расширенные"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Часы"
+  </dest>
+  <voice>
+    *: "Часы"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Кирпичи"
+  </dest>
+  <voice>
+    *: "Кирпичи"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Пасьянс"
+  </dest>
+  <voice>
+    *: "Пасьянс"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Календарь"
+  </dest>
+  <voice>
+    *: "Календарь"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Секундомер"
+  </dest>
+  <voice>
+    *: "Секундомер"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d минут"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Песни"
+  </dest>
+  <voice>
+    *: "Песни"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Подкасты"
+  </dest>
+  <voice>
+    *: "Подкасты"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Жанры"
+  </dest>
+  <voice>
+    *: "Жанры"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Композиторы"
+  </dest>
+  <voice>
+    *: "Композиторы"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Аудиокниги"
+  </dest>
+  <voice>
+    *: "Аудиокниги"
   </voice>
 </phrase>

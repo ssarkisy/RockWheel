@@ -700,16 +700,10 @@ struct eq_band_setting eq_defaults[EQ_NUM_BANDS] = {
     { EQ_FILTER_HIGH_SHELF, 16000, 7, 0 },
 };
 
+/* only the hotkey: the WPS context menu has just the playlist and sound
+   items, as the stock iPod has no such menu */
 static const int wps_context_menu_default =
-    HK_CTX_SET(0, HOTKEY_VIEW_PLAYLIST) /* hotkey*/
-  | HK_CTX_SET(1, HOTKEY_SHOW_TRACK_INFO)
-  | HK_CTX_SET(2, HOTKEY_SHOW_IN_FILES)
-#ifdef HAVE_PITCHCONTROL
-  | HK_CTX_SET(3, HOTKEY_PITCHSCREEN)
-#else
-  | HK_CTX_SET(3, HOTKEY_DELETE)
-#endif
-  | HK_CTX_SET(4, HOTKEY_ALBUMART);
+    HK_CTX_SET(0, HOTKEY_VIEW_PLAYLIST); /* hotkey*/
 
 #ifdef HAVE_HOTKEY
 static const int tree_hotkey_default = HOTKEY_OFF;
@@ -1349,6 +1343,10 @@ const struct settings_list settings[] = {
     INT_SETTING(F_THEMESETTING, scrollbar_width, LANG_SCROLLBAR_WIDTH, 6,
                 "scrollbar width",UNIT_INT, 3, MAX(LCD_WIDTH/10,25), 1,
                 NULL, NULL, NULL),
+    /* only set by themes, there is no menu entry */
+    INT_SETTING(F_THEMESETTING, list_text_padding, -1, 0,
+                "list text padding", UNIT_PIXEL, 0, 32, 1,
+                NULL, NULL, NULL),
 #ifdef HAVE_TOUCHSCREEN
     TABLE_SETTING(F_THEMESETTING|F_ALLOW_ARBITRARY_VALS, list_line_padding, LANG_LIST_LINE_PADDING,
                   -1, "list padding", "auto,off", UNIT_PIXEL, list_pad_formatter,
@@ -1585,8 +1583,9 @@ const struct settings_list settings[] = {
                 "screen scroll step", UNIT_PIXEL, 1, LCD_WIDTH, 1, NULL, NULL, NULL),
     OFFON_SETTING(0,scroll_paginated,LANG_SCROLL_PAGINATED,
                   false,"scroll paginated",NULL),
+    /* off: lists stop at their ends, as on a stock iPod */
     OFFON_SETTING(0,list_wraparound,LANG_LIST_WRAPAROUND,
-                  true,"list wraparound",NULL),
+                  false,"list wraparound",NULL),
     CHOICE_SETTING(0, list_order, LANG_LIST_ORDER,
 #if defined(HAVE_SCROLLWHEEL) && !defined(FIIO_M3K)
                    1,
@@ -1608,6 +1607,12 @@ const struct settings_list settings[] = {
         INT(DEFAULT_THEME_SELECTOR_END),"line selector end color",UNUSED},
     {F_T_INT|F_RGB|F_THEMESETTING ,&global_settings.lst_color,-1,
         INT(DEFAULT_THEME_SELECTOR_TEXT),"line selector text color",UNUSED},
+    /* only set by themes, there is no menu entry */
+    OFFON_SETTING(F_THEMESETTING, list_selector_bevel, -1, false,
+                  "line selector bevel", NULL),
+    /* only set by themes, there is no menu entry */
+    OFFON_SETTING(F_THEMESETTING, list_selector_chevron, -1, false,
+                  "line selector chevron", NULL),
 
 #endif
     /* more playback */
@@ -1886,7 +1891,7 @@ const struct settings_list settings[] = {
                  LANG_SET_BOOL_YES, LANG_SET_BOOL_NO, NULL),
 
 #ifdef HAVE_TAGCACHE
-    BOOL_SETTING(0, autoresume_enable, LANG_AUTORESUME, false,
+    BOOL_SETTING(0, autoresume_enable, LANG_AUTORESUME, true,
                  "autoresume enable", off_on,
                  LANG_SET_BOOL_YES, LANG_SET_BOOL_NO, NULL),
     CHOICE_SETTING(0, autoresume_automatic, LANG_AUTORESUME_AUTOMATIC,
@@ -1899,7 +1904,8 @@ const struct settings_list settings[] = {
     TEXT_SETTING(0, autoresume_paths, "autoresume next track paths",
                  "/podcast:/podcasts", NULL, NULL),
 
-    OFFON_SETTING(0, runtimedb, LANG_RUNTIMEDB_ACTIVE, false,
+    /* on by default: ratings and play counts are kept here */
+    OFFON_SETTING(0, runtimedb, LANG_RUNTIMEDB_ACTIVE, true,
                   "gather runtime data", NULL),
     TEXT_SETTING(0, tagcache_scan_paths, "database scan paths",
                  DEFAULT_TAGCACHE_SCAN_PATHS, NULL, NULL),
@@ -2014,7 +2020,7 @@ const struct settings_list settings[] = {
 #undef EQ_BAND
 
     /* dithering */
-    OFFON_SETTING(F_SOUNDSETTING, dithering_enabled, LANG_DITHERING, false,
+    OFFON_SETTING(F_SOUNDSETTING, dithering_enabled, LANG_DITHERING, true,
                   "dithering enabled", dsp_dither_enable),
     /* surround */
      TABLE_SETTING(F_TIME_SETTING | F_SOUNDSETTING, surround_enabled,
@@ -2134,8 +2140,9 @@ const struct settings_list settings[] = {
                    ID2P(LANG_CODEPAGE_SIMPLIFIED), ID2P(LANG_CODEPAGE_KOREAN),
                    ID2P(LANG_CODEPAGE_TRADITIONAL), ID2P(LANG_CODEPAGE_UTF8)),
 
+    /* off: a stock iPod just replaces what is playing */
     OFFON_SETTING(0, warnon_erase_dynplaylist, LANG_WARN_ERASEDYNPLAYLIST_MENU,
-                  true, "warn when erasing dynamic playlist",NULL),
+                  false, "warn when erasing dynamic playlist",NULL),
     OFFON_SETTING(0, keep_current_track_on_replace_playlist, LANG_KEEP_CURRENT_TRACK_ON_REPLACE,
                   true, "keep current track when replacing playlist",NULL),
     OFFON_SETTING(0, show_shuffled_adding_options, LANG_SHOW_SHUFFLED_ADDING_OPTIONS, true,
@@ -2199,7 +2206,8 @@ const struct settings_list settings[] = {
 #endif
 #endif
 #ifdef HAVE_HEADPHONE_DETECTION
-    CHOICE_SETTING(0, unplug_mode, LANG_HEADPHONE_UNPLUG, 0,
+    /* pause, as a stock iPod does */
+    CHOICE_SETTING(0, unplug_mode, LANG_HEADPHONE_UNPLUG, 1,
                    "pause on headphone unplug", "off,pause,pause and resume",
                    NULL, 3, ID2P(LANG_OFF), ID2P(LANG_PAUSE),
                    ID2P(LANG_HEADPHONE_UNPLUG_RESUME)),
@@ -2368,7 +2376,8 @@ const struct settings_list settings[] = {
                    ID2P(LANG_STRONG)),
     OFFON_SETTING(0, keyclick_repeats, LANG_KEYCLICK_REPEATS, false,
                   "keyclick repeats", NULL),
-    OFFON_SETTING(0, keyclick_hardware, LANG_KEYCLICK_HARDWARE, false,
+    /* on: the clicker of a stock iPod */
+    OFFON_SETTING(0, keyclick_hardware, LANG_KEYCLICK_HARDWARE, true,
         "hardware keyclick", NULL),
 #else
     CHOICE_SETTING(0, keyclick, LANG_KEYCLICK, 0,

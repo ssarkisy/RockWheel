@@ -186,6 +186,19 @@ static int tree_get_filecolor(int selected_item, void * data)
 }
 #endif
 
+/* Folders, database levels and playlists lead to more, tracks don't */
+static bool tree_has_children(int selected_item, void * data)
+{
+    struct tree_context * local_tc=(struct tree_context *)data;
+#ifdef HAVE_TAGCACHE
+    if (*(local_tc->dirfilter) == SHOW_ID3DB)
+        return tagtree_get_attr(local_tc) == ATTR_DIRECTORY;
+#endif
+    struct entry *entry = get_valid_entry(__func__, local_tc, selected_item);
+    return (entry->attr & ATTR_DIRECTORY)
+        || (entry->attr & FILE_ATTR_MASK) == FILE_ATTR_M3U;
+}
+
 static enum themable_icons tree_get_fileicon(int selected_item, void * data)
 {
     struct tree_context * local_tc=(struct tree_context *)data;
@@ -521,6 +534,7 @@ static int update_dir(void)
     gui_synclist_set_nb_items(list, tc.filesindir);
     gui_synclist_set_icon_callback(list,
                             global_settings.show_icons?tree_get_fileicon:NULL);
+    gui_synclist_set_has_children_callback(list, tree_has_children);
 #ifdef HAVE_TAGCACHE
     if(!id3db || global_settings.talk_menu)
 #endif
@@ -783,6 +797,13 @@ static int dirbrowse(void)
                     /* The code to insert shuffled is on the context branch of the switch so we always go here */
                     button = ACTION_STD_CONTEXT;
                     do_restore_display = false;
+                }
+                else if (customaction == ONPLAY_CUSTOMACTION_PLAYLISTS)
+                {
+                    /* the playlist catalogue is a screen of its own */
+                    if (button == ACTION_STD_OK)
+                        return exit_to_new_screen(GO_TO_PLAYLISTS_SCREEN);
+                    button = ACTION_NONE;
                 }
             }
         #endif

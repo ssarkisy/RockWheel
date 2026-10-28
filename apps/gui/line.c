@@ -44,6 +44,7 @@ static void style_line(struct screen *display, int x, int y, struct line_desc *l
 
 static void put_text(struct screen *display, int x, int y, struct line_desc *line,
                       const char *text, bool prevent_scroll, int text_skip_pixels);
+static void draw_chevron(struct screen *display, int y, struct line_desc *line);
 
 struct line_desc_scroll {
     struct line_desc desc;
@@ -88,8 +89,11 @@ static void scroller(struct scrollinfo *s, struct screen *display)
     }
     else
     {
-        style_line(display, s->x, s->y - (line->desc.height/2 - display->getcharheight()/2), &line->desc);
+        int y = s->y - (line->desc.height/2 - display->getcharheight()/2);
+        style_line(display, s->x, y, &line->desc);
         put_text(display, s->x, s->y, &line->desc, s->line, true, s->offset);
+        if (line->desc.style & STYLE_CHEVRON)
+            draw_chevron(display, y, &line->desc);
     }
 }
 
@@ -292,6 +296,40 @@ next:
     }
 }
 
+#ifdef HAVE_LCD_COLOR
+/* c1 moved pct percent of the way to c2 */
+static unsigned mix_color(unsigned c1, unsigned c2, int pct)
+{
+    /* signed, the unpacked components are unsigned */
+    int r = RGB_UNPACK_RED(c1), g = RGB_UNPACK_GREEN(c1), b = RGB_UNPACK_BLUE(c1);
+    r += ((int)RGB_UNPACK_RED(c2) - r) * pct / 100;
+    g += ((int)RGB_UNPACK_GREEN(c2) - g) * pct / 100;
+    b += ((int)RGB_UNPACK_BLUE(c2) - b) * pct / 100;
+    return LCD_RGBPACK(r, g, b);
+}
+
+/* A lighter top and a darker bottom edge on a gradient selection bar, as
+   on a stock iPod */
+static void draw_bevel(struct screen *display, int x, int y, int width,
+                       int height, struct line_desc *line)
+{
+    unsigned fg = display->get_foreground();
+    if (line->line == 0)
+    {
+        display->set_foreground(mix_color(line->line_color, LCD_WHITE, 45));
+        display->hline(x, x + width - 1, y);
+    }
+    if (line->line == line->nlines - 1 && height > 3)
+    {
+        display->set_foreground(mix_color(line->line_end_color, LCD_BLACK, 15));
+        display->hline(x, x + width - 1, y + height - 2);
+        display->set_foreground(mix_color(line->line_end_color, LCD_BLACK, 35));
+        display->hline(x, x + width - 1, y + height - 1);
+    }
+    display->set_foreground(fg);
+}
+#endif
+
 static void style_line(struct screen *display,
                        int x, int y, struct line_desc *line)
 {
@@ -342,6 +380,8 @@ static void style_line(struct screen *display,
                                             line->line_end_color,
                                             height*line->nlines,
                                             height*line->line);
+            if (global_settings.list_selector_bevel)
+                draw_bevel(display, x, y, width, bar_height, line);
             break;
         case STYLE_COLORBAR:
             /*display->set_drawmode(DRMODE_FG);*/
@@ -378,6 +418,55 @@ static void style_line(struct screen *display,
 #endif
 }
 
+/* The chevron at the right end of a line of an item that leads to more, as
+   on a stock iPod. It goes over whatever text scrolled there, on a strip of
+   the line's own background. */
+#define CHEVRON_MARGIN 6
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+/* drawn like anti-aliased glyphs: 9x11, lines 2.6 pixels thick, in Rockbox'
+   alpha format (4 bits from 0 opaque to 15 transparent, low nibble first,
+   rows run on without padding) */
+#define CHEVRON_W 9
+#define CHEVRON_H 11
+static const unsigned char chevron_alpha[] = {
+    0x3a, 0xf7, 0xff, 0xff, 0x5f, 0x00, 0xd3, 0xff, 0xff, 0x2d, 0x00, 0x90,
+    0xff, 0xff, 0x5e, 0x00, 0x50, 0xfe, 0xff, 0xaf, 0x01, 0x20, 0xfd, 0xff,
+    0xbf, 0x00, 0x70, 0xff, 0xaf, 0x01, 0x20, 0xfd, 0x5e, 0x00, 0x50, 0xfe,
+    0x2d, 0x00, 0x90, 0xff, 0x5f, 0x00, 0xd3, 0xff, 0xff, 0x3a, 0xf7, 0xff,
+    0xff, 0xff,
+};
+extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
+                                  int src_y, int stride, int x, int y,
+                                  int width, int height);
+#endif
+
+static void draw_chevron(struct screen *display, int y, struct line_desc *line)
+{
+    int height = line->height == -1 ? display->getcharheight() : line->height;
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type == SCREEN_MAIN)
+    {
+        int x = display->getwidth() - CHEVRON_W - CHEVRON_MARGIN;
+        style_line(display, x - CHEVRON_MARGIN, y, line);
+        display->set_drawmode(DRMODE_FG);
+        lcd_alpha_bitmap_part(chevron_alpha, 0, 0, CHEVRON_W,
+                              x, y + (height - CHEVRON_H)/2,
+                              CHEVRON_W, CHEVRON_H);
+        return;
+    }
+#endif
+    /* the font's single angle quotation mark elsewhere */
+    static const unsigned char chevron[] = "\xe2\x80\xba"; /* U+203A */
+    int w, h;
+    display->getstringsize(chevron, &w, &h);
+    int x = display->getwidth() - w - CHEVRON_MARGIN;
+
+    style_line(display, x - CHEVRON_MARGIN, y, line);
+    display->set_drawmode((line->style & STYLE_INVERT) ?
+                          DRMODE_SOLID|DRMODE_INVERSEVID : DRMODE_FG);
+    display->putsxy(x, y + height/2 - display->getcharheight()/2, chevron);
+}
+
 void vput_line(struct screen *display,
               int x, int y, struct line_desc *line,
               const char *fmt, va_list ap)
@@ -393,6 +482,8 @@ void vput_line(struct screen *display,
 #endif
     style_line(display, x, y, line);
     print_line(display, x, y, line, fmt, ap);
+    if (line->style & STYLE_CHEVRON)
+        draw_chevron(display, y, line);
 #if (LCD_DEPTH > 1 || (defined(LCD_REMOTE_DEPTH) && LCD_REMOTE_DEPTH > 1))
     if (display->depth > 1 && line->style > STYLE_INVERT)
     {

@@ -58,6 +58,9 @@ enum synclist_cursor
  * Note : we use the ICON type because the real type depends of the plateform
  */
 typedef enum themable_icons list_get_icon(int selected_item, void * data);
+/* whether an item leads to more (a menu, a folder), for the chevron on the
+   selected one */
+typedef bool list_has_children(int selected_item, void * data);
 /*
  * Text callback
  *  - selected_item : an integer that tells the number of the item to display
@@ -169,6 +172,7 @@ struct gui_synclist
     list_get_name *callback_get_item_name;
     list_speak_item *callback_speak_item;
     list_draw_item *callback_draw_item;
+    list_has_children *callback_has_children; /* can be NULL */
 
     /* The data that will be passed to the callback function YOU implement */
     void * data;
@@ -239,6 +243,8 @@ extern void gui_synclist_init(
     );
 extern void gui_synclist_set_nb_items(struct gui_synclist * lists, int nb_items);
 extern void gui_synclist_set_icon_callback(struct gui_synclist * lists, list_get_icon icon_callback);
+extern void gui_synclist_set_has_children_callback(struct gui_synclist * lists,
+                                              list_has_children has_children_callback);
 extern void gui_synclist_set_voice_callback(struct gui_synclist * lists, list_speak_item voice_callback);
 extern void gui_synclist_set_viewport_defaults(struct viewport *vp, enum screen_type screen);
 #ifdef HAVE_LCD_COLOR

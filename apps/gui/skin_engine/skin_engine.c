@@ -129,6 +129,8 @@ static void gui_skin_reset(struct gui_skin *skin)
 #ifdef HAVE_ALBUMART
     skin->data.albumart = -1;
     skin->data.playback_aa_slot = -1;
+    skin->data.albumart2 = -1;
+    skin->data.playback_aa_slot2 = -1;
 #endif
 #ifdef HAVE_BACKDROP_IMAGE
     skin->gui_wps.data->backdrop_id = -1;
@@ -159,6 +161,8 @@ static void skin_reset_buffers(int item, int screen)
 #ifdef HAVE_ALBUMART
     if (skins[item][screen].data.playback_aa_slot >= 0)
         playback_release_aa_slot(skins[item][screen].data.playback_aa_slot);
+    if (skins[item][screen].data.playback_aa_slot2 >= 0)
+        playback_release_aa_slot(skins[item][screen].data.playback_aa_slot2);
 #endif
 #ifdef HAVE_BACKDROP_IMAGE
     if (skins[item][screen].data.backdrop_id >= 0)

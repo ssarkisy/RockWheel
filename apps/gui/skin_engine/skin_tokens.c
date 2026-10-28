@@ -1646,6 +1646,12 @@ const char *get_token_value(struct gui_wps *gwps,
                                           token->value.i))
                 return "v";
             return NULL;
+        case SKIN_TOKEN_WPS_DISPLAY_MODE:
+            numeric_ret = get_wps_state()->display_mode;
+            itoa_buf(buf, buf_size, numeric_ret);
+            numeric_ret++;
+            numeric_buf = buf;
+            goto gtv_ret_numeric_tag_info;
         case SKIN_TOKEN_LASTTOUCH:
             {
 #ifdef HAVE_TOUCHSCREEN

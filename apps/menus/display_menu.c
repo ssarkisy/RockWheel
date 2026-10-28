@@ -143,7 +143,7 @@ static int flipdisplay_callback(int action,
 /***********************************/
 /*    LCD MENU                     */
 #ifdef HAVE_BACKLIGHT
-MENUITEM_SETTING(backlight_timeout, &global_settings.backlight_timeout, NULL);
+MENUITEM_SETTING_SHARED(backlight_timeout, &global_settings.backlight_timeout, NULL);
 #if CONFIG_CHARGING
 MENUITEM_SETTING(backlight_timeout_plugged,
                 &global_settings.backlight_timeout_plugged, NULL);
@@ -162,6 +162,14 @@ MENUITEM_SETTING(bl_filter_first_keypress,
                     &global_settings.bl_filter_first_keypress,
                     filterfirstkeypress_callback);
 
+/* The backlight settings of Settings > Advanced, the timeout and
+   brightness are in Settings itself */
+MAKE_MENU(ipod_backlight_menu, ID2P(LANG_BACKLIGHT), 0, Icon_NOICON,
+#if CONFIG_CHARGING
+          &backlight_timeout_plugged,
+#endif
+          &backlight_on_button_hold, &bl_filter_first_keypress);
+
 MENUITEM_SETTING(bl_selective_actions,
                  &global_settings.bl_selective_actions,
                                                     selectivebacklight_callback);
@@ -178,7 +186,7 @@ MENUITEM_SETTING(lcd_sleep_after_backlight_off,
                 &global_settings.lcd_sleep_after_backlight_off, NULL);
 #endif
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
-MENUITEM_SETTING(brightness_item, &global_settings.brightness, NULL);
+MENUITEM_SETTING_SHARED(brightness_item, &global_settings.brightness, NULL);
 #endif
 #ifdef HAVE_COMPOSITE_VIDEO_OUT
 MENUITEM_SETTING(composite_video_output,
@@ -619,7 +627,7 @@ static int codepage_callback(int action,
     return action;
 }
 
-MENUITEM_SETTING(codepage_setting, &global_settings.default_codepage, codepage_callback);
+MENUITEM_SETTING_SHARED(codepage_setting, &global_settings.default_codepage, codepage_callback);
 
 
 MAKE_MENU(display_menu, ID2P(LANG_DISPLAY),

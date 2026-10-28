@@ -133,45 +133,6 @@ static bool clipboard_clip(struct clipboard *clip, const char *path,
     }
 }
 
-/* ----------------------------------------------------------------------- */
-/* Displays the bookmark menu options for the user to decide.  This is an  */
-/* interface function.                                                     */
-/* ----------------------------------------------------------------------- */
-
-static int bookmark_menu_callback(int action,
-                                  const struct menu_item_ex *this_item,
-                                  struct gui_synclist *this_list);
-MENUITEM_FUNCTION(bookmark_create_menu_item, 0,
-                  ID2P(LANG_BOOKMARK_MENU_CREATE),
-                  bookmark_create_menu,
-                  bookmark_menu_callback, Icon_Bookmark);
-MENUITEM_FUNCTION(bookmark_load_menu_item, 0,
-                  ID2P(LANG_BOOKMARK_MENU_LIST),
-                  bookmark_load_menu,
-                  bookmark_menu_callback, Icon_Bookmark);
-MAKE_ONPLAYMENU(bookmark_menu, ID2P(LANG_BOOKMARK_MENU),
-                bookmark_menu_callback, Icon_Bookmark,
-                &bookmark_create_menu_item, &bookmark_load_menu_item);
-static int bookmark_menu_callback(int action,
-                                  const struct menu_item_ex *this_item,
-                                  struct gui_synclist *this_list)
-{
-    (void) this_list;
-    if (action == ACTION_REQUEST_MENUITEM)
-    {
-        /* hide loading bookmarks menu if no bookmarks exist */
-        if (this_item == &bookmark_load_menu_item)
-        {
-            if (!bookmark_exists())
-                return ACTION_EXIT_MENUITEM;
-        }
-    }
-    else if (action == ACTION_EXIT_MENUITEM)
-        settings_save();
-
-    return action;
-}
-
 /* CONTEXT_WPS playlist options */
 static bool shuffle_playlist(void)
 {
@@ -621,38 +582,6 @@ static int clipboard_paste(void)
     return 1;
 }
 
-#ifdef HAVE_TAGCACHE
-static int set_rating_inline(void)
-{
-    struct mp3entry* id3 = audio_current_track();
-    if (id3 && id3->tagcache_idx && global_settings.runtimedb)
-    {
-        set_int_ex(str(LANG_MENU_SET_RATING), "", UNIT_INT, (void*)(&id3->rating),
-                   NULL, 1, 0, 10, NULL, NULL);
-        tagcache_update_numeric(id3->tagcache_idx-1, tag_rating, id3->rating);
-    }
-    else
-        splash(HZ*2, ID2P(LANG_ID3_NO_INFO));
-    return 0;
-}
-static int ratingitem_callback(int action,
-                               const struct menu_item_ex *this_item,
-                               struct gui_synclist *this_list)
-{
-    (void)this_item;
-    (void)this_list;
-    if (action == ACTION_REQUEST_MENUITEM)
-    {
-        if (!selected_file.path || !global_settings.runtimedb || !tagcache_is_usable())
-            return ACTION_EXIT_MENUITEM;
-    }
-    return action;
-}
-MENUITEM_FUNCTION(rating_item, 0, ID2P(LANG_MENU_SET_RATING),
-                  set_rating_inline,
-                  ratingitem_callback, Icon_Questionmark);
-#endif
-
 static char *wps_context_get_item_name(int selected_item, void * data,
                                char *buffer, size_t buffer_len)
 {
@@ -811,32 +740,6 @@ static int wps_context_item_cb(int action,
     return action;
     (void)this_list;
 }
-
-static bool view_cue(void)
-{
-    struct mp3entry* id3 = audio_current_track();
-    if (id3 && id3->cuesheet)
-    {
-        browse_cuesheet(id3->cuesheet);
-    }
-    return false;
-}
-static int view_cue_item_callback(int action,
-                                  const struct menu_item_ex *this_item,
-                                  struct gui_synclist *this_list)
-{
-    (void)this_item;
-    (void)this_list;
-    struct mp3entry* id3 = audio_current_track();
-    if (action == ACTION_REQUEST_MENUITEM)
-    {
-        if (!selected_file.path || !id3 || !id3->cuesheet)
-            return ACTION_EXIT_MENUITEM;
-    }
-    return action;
-}
-MENUITEM_FUNCTION(view_cue_item, 0, ID2P(LANG_BROWSE_CUESHEET),
-                  view_cue, view_cue_item_callback, Icon_NOICON);
 
 
 static int browse_id3_wrapper(void)
@@ -1247,13 +1150,11 @@ static int onplaymenu_callback(int action,
 /* used when onplay() is called in the CONTEXT_WPS context */
 MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            onplaymenu_callback, Icon_Audio,
+           /* no rating, bookmarks or cuesheet: the rating is a view of the
+              WPS, as on a stock iPod; the configurable items are off by
+              default */
            &wps_playlist_menu, &cat_playlist_menu,
-           &sound_settings, &playback_settings,
-#ifdef HAVE_TAGCACHE
-           &rating_item,
-#endif
-           &bookmark_menu,
-           &view_cue_item,
+           &ipod_sound_settings, &ipod_playback_settings,
 #ifndef HAVE_HOTKEY
            &context_item_0,
 #endif
