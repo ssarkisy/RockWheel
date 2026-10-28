@@ -458,6 +458,24 @@ static int playlist_view(void * param)
     return GO_TO_PREVIOUS;
 }
 
+/* the Photos plugin is made for the iPod Video screen and keys */
+#if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_WIDTH == 320) && (LCD_HEIGHT == 240)
+#define HAVE_PHOTOS_MENU
+static int photos(void *param)
+{
+    (void)param;
+    switch (plugin_load(PLUGIN_APPS_DIR "/photos.rock", NULL))
+    {
+        case PLUGIN_GOTO_WPS:
+            return GO_TO_WPS;
+        case PLUGIN_GOTO_PLUGIN:
+            return GO_TO_PLUGIN;
+        default:
+            return GO_TO_ROOT;
+    }
+}
+#endif
+
 static int load_bmarks(void* param)
 {
     (void)param;
@@ -507,6 +525,9 @@ static const struct root_items items[] = {
 #ifdef HAVE_TAGCACHE
     [GO_TO_SHUFFLE_SONGS] = { shuffle_songs, NULL, NULL },
 #endif
+#ifdef HAVE_PHOTOS_MENU
+    [GO_TO_PHOTOS] = { photos, NULL, NULL },
+#endif
 
 };
 #define NUM_ITEMS (int)(sizeof(items)/sizeof(*items))
@@ -530,6 +551,10 @@ MENUITEM_RETURNVALUE(rocks_browser, ID2P(LANG_PLUGINS), GO_TO_BROWSEPLUGINS,
                         NULL, Icon_Plugin);
 MENUITEM_RETURNVALUE(extras_item, ID2P(LANG_EXTRAS), GO_TO_EXTRAS,
                         NULL, Icon_Plugin);
+#ifdef HAVE_PHOTOS_MENU
+MENUITEM_RETURNVALUE(photos_item, ID2P(LANG_PHOTOS), GO_TO_PHOTOS,
+                        NULL, Icon_Plugin);
+#endif
 
 static char *get_wps_item_name(int selected_item, void * data,
                                char *buffer, size_t buffer_len)
@@ -582,6 +607,9 @@ static struct menu_table menu_table[] = {
     { "playlists", &playlists },
     { "plugins", &rocks_browser },
     { "extras", &extras_item },
+#ifdef HAVE_PHOTOS_MENU
+    { "photos", &photos_item },
+#endif
     { "system_menu", &system_menu_ },
     { "shortcuts", &shortcut_menu },
 };
@@ -664,7 +692,7 @@ void root_menu_set_default(void* setting, void* defaultval)
     /* Only the items a stock iPod has are in the default menu and in its
        order, the rest can still be added back through the main menu
        configuration; playlists are in the Music (database) menu */
-    char order[] = "bookmarks, database, extras, settings, shuffle_songs, wps";
+    char order[] = "bookmarks, database, photos, extras, settings, shuffle_songs, wps";
     (void)defaultval;
 
     root_menu_load_from_cfg(setting, order);
@@ -884,7 +912,7 @@ static int root_menu_setup_screens(void)
     else
         new_screen = global_settings.start_in_screen - 2;
 
-    if (new_screen >= NUM_ITEMS ||
+    if (new_screen >= NUM_ITEMS || new_screen == GO_TO_PHOTOS ||
         (new_screen == GO_TO_WPS && global_status.resume_index == -1))
         new_screen = GO_TO_ROOT;
     else if (new_screen == GO_TO_PLUGIN)

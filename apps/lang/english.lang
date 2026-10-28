@@ -17509,3 +17509,115 @@
     *: "Audiobooks"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Photos"
+  </dest>
+  <voice>
+    *: "Photos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Photo Library"
+  </dest>
+  <voice>
+    *: "Photo Library"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Slideshow Settings"
+  </dest>
+  <voice>
+    *: "Slideshow Settings"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Time Per Slide"
+  </dest>
+  <voice>
+    *: "Time Per Slide"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Shuffle Photos"
+  </dest>
+  <voice>
+    *: "Shuffle Photos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Manual"
+  </dest>
+  <voice>
+    *: "Manual"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d Seconds"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "No Photos"
+  </dest>
+  <voice>
+    *: "No Photos"
+  </voice>
+</phrase>

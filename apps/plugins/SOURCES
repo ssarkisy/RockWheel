@@ -133,6 +133,9 @@ amaze.c
 rockblox1d.c
 brickmania.c
 calendar.c
+#if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_WIDTH == 320) && (LCD_HEIGHT == 240) && (LCD_PIXELFORMAT == RGB565)
+photos.c
+#endif
 maze.c
 mazezam.c
 text_editor.c

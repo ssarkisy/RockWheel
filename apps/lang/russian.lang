@@ -17353,3 +17353,115 @@
     *: "Аудиокниги"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Фото"
+  </dest>
+  <voice>
+    *: "Фото"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Медиатека"
+  </dest>
+  <voice>
+    *: "Медиатека"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Слайд-шоу"
+  </dest>
+  <voice>
+    *: "Слайд-шоу"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Время показа"
+  </dest>
+  <voice>
+    *: "Время показа"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Перемешать фото"
+  </dest>
+  <voice>
+    *: "Перемешать фото"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Вручную"
+  </dest>
+  <voice>
+    *: "Вручную"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d сек"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Нет фото"
+  </dest>
+  <voice>
+    *: "Нет фото"
+  </voice>
+</phrase>
