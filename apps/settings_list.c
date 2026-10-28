@@ -1920,7 +1920,9 @@ const struct settings_list settings[] = {
                  LANG_SET_BOOL_YES, LANG_SET_BOOL_NO, NULL),
 
 #ifdef HAVE_TAGCACHE
-    BOOL_SETTING(0, autoresume_enable, LANG_AUTORESUME, true,
+    /* off: for every track it is more than the stock iPod does, which
+       remembers the place only in podcasts and audiobooks */
+    BOOL_SETTING(0, autoresume_enable, LANG_AUTORESUME, false,
                  "autoresume enable", off_on,
                  LANG_SET_BOOL_YES, LANG_SET_BOOL_NO, NULL),
     CHOICE_SETTING(0, autoresume_automatic, LANG_AUTORESUME_AUTOMATIC,
