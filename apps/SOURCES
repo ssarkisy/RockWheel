@@ -184,6 +184,7 @@ gui/usb_screen.c
 #endif
 #ifdef HAVE_TAGCACHE
 tagcache.c
+itunesdb.c
 #endif
 #ifdef HAVE_TOUCHSCREEN
 keymaps/keymap-touchscreen.c

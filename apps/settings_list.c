@@ -2143,8 +2143,10 @@ const struct settings_list settings[] = {
 
 #ifdef HAVE_TAGCACHE
 #ifdef HAVE_TC_RAMCACHE
+    /* on by default: lists of a whole library come up quickly, and the
+       database can drop the files a sync removed */
     CHOICE_SETTING(F_BANFROMQS, tagcache_ram, LANG_TAGCACHE_RAM,
-                   0, "tagcache_ram", "off,on,quick",
+                   TAGCACHE_RAM_ON, "tagcache_ram", "off,on,quick",
                    NULL, 3,
                    ID2P(LANG_OFF), ID2P(LANG_ON), ID2P(LANG_QUICK_IGNORE_DIRACHE)),
 #endif

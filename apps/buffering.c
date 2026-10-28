@@ -33,6 +33,9 @@
 #include "albumart.h"
 #include "jpeg_load.h"
 #include "playback.h"
+#ifdef HAVE_TAGCACHE
+#include "itunesdb.h"
+#endif
 #endif
 #include "buffering.h"
 #include "linked_list.h"
@@ -863,6 +866,11 @@ static int load_image(int fd, const char *path,
 #endif
     const int format = FORMAT_NATIVE | FORMAT_DITHER |
                        FORMAT_RESIZE | FORMAT_KEEP_ASPECT;
+#ifdef ITUNESDB_HAVE_ART
+    if (data->ipod_art != NULL)
+        rc = itunesdb_load_art(fd, data->ipod_art, bmp, (int)max_size);
+    else
+#endif
 #ifdef HAVE_JPEG
     if (aa != NULL) {
         lseek(fd, aa->pos, SEEK_SET);

@@ -90,6 +90,7 @@
 #ifndef __PCTOOL__
 #include "lang.h"
 #include "eeprom_settings.h"
+#include "itunesdb.h"
 #endif
 #define USR_CANCEL false
 #else/*!defined(PLUGIN)*/
@@ -268,6 +269,7 @@ enum tagcache_queue {
     Q_IMPORT_CHANGELOG,
     Q_UPDATE,
     Q_REBUILD,
+    Q_IMPORT_ITUNES,
 
     /* Internal tagcache command queue. */
     CMD_UPDATE_MASTER_HEADER,
@@ -3982,6 +3984,64 @@ bool tagcache_import_changelog(void)
 
 #endif /* !__PCTOOL__ */
 
+#ifndef __PCTOOL__
+/* Calls update() with the filename, play count and rating of every entry,
+   and writes back what it changed, or removes the entry when it returns
+   less than 0. One pass, for imports too big to look each file up. */
+bool tagcache_update_runtime(int (*update)(const char *filename,
+                                           long *playcount, long *rating,
+                                           void *data),
+                             void *data)
+{
+    struct tagcache_search tcs;
+    struct master_header myhdr;
+    struct index_entry idx;
+    char buf[TAGCACHE_BUFSZ];
+    int masterfd;
+
+    if (!tagcache_search(&tcs, tag_filename))
+        return false;
+
+    masterfd = open_master_fd(&myhdr, true);
+    if (masterfd < 0)
+    {
+        tagcache_search_finish(&tcs);
+        return false;
+    }
+
+    for (int i = 0; i < myhdr.tch.entry_count; i++)
+    {
+        if (!get_index(masterfd, i, &idx, false)
+            || !tagcache_retrieve(&tcs, i, tag_filename, buf, sizeof(buf)))
+            continue;
+
+        long playcount = idx.tag_seek[tag_playcount];
+        long rating = idx.tag_seek[tag_rating];
+        int action = update(buf, &playcount, &rating, data);
+        if (action < 0)
+        {
+            /* a file that is gone, like the files a sync replaced */
+            delete_entry(i);
+        }
+        else if (action > 0
+                 && (playcount != idx.tag_seek[tag_playcount]
+                     || rating != idx.tag_seek[tag_rating]))
+        {
+            idx.tag_seek[tag_playcount] = playcount;
+            idx.tag_seek[tag_rating] = rating;
+            idx.flag |= FLAG_DIRTYNUM;
+            write_index(masterfd, i, &idx);
+        }
+        do_timed_yield();
+    }
+
+    close(masterfd);
+    tagcache_search_finish(&tcs);
+    update_master_header();
+    return true;
+}
+#endif /* !__PCTOOL__ */
+
 bool tagcache_create_changelog(struct tagcache_search *tcs)
 {
     struct master_header myhdr;
@@ -4578,7 +4638,9 @@ static bool load_tagcache(void)
                     goto failure;
                 }
 
-                if (idx->tag_seek[tag] != pos)
+                /* A deleted entry keeps hashes in place of its seeks, to
+                   bring its statistics back if the file returns */
+                if (idx->tag_seek[tag] != pos && !(idx->flag & FLAG_DELETED))
                 {
                     logf("corrupt data structures!:");
                     logf("  tag_seek[%d]=%" PRId32 ":pos=%ld", tag,
@@ -5213,10 +5275,31 @@ static void load_ramcache(void)
         tcramcache.hdr = NULL;
         int handle = tcramcache.handle;
         tcramcache.handle = 0;
+        /* or the next commit borrows the freed buffer and panics */
+        tc_stat.ramcache_allocated = 0;
         core_free(handle);
     }
 
     cpu_boost(false);
+}
+
+/* The cache is allocated at boot for the database as it was. When a commit
+   has made the database larger than that, loading it fails and switches
+   the database off until the next boot, so allocate it anew first. */
+static void reallocate_ramcache(void)
+{
+    if (!global_settings.tagcache_ram)
+        return;
+    tc_stat.ramcache = false;
+    if (tcramcache.handle > 0)
+    {
+        int handle = tcramcache.handle;
+        tcramcache.hdr = NULL;
+        tcramcache.handle = 0;
+        tc_stat.ramcache_allocated = 0;
+        core_free(handle);
+    }
+    allocate_tagcache();
 }
 
 void tagcache_unload_ramcache(void)
@@ -5239,6 +5322,28 @@ static bool NO_INLINE db_file_exists(const char* filename)
     snprintf(buf, sizeof(buf), "%s/%s", tc_stat.db_path, filename);
 
     return file_exists(buf);
+}
+
+/* Updates the database from the files, also when the commit had to wait
+   for a buffer, and loads it into the cache again at its new size */
+static void update_and_reload(void)
+{
+    tagcache_build();
+    if (db_file_exists(TAGCACHE_FILE_TEMP))
+    {
+        /* The commit found no buffer to borrow and waits for the next
+           boot; take one just for it, as at boot */
+        allocate_tempbuf();
+        commit();
+        free_tempbuf();
+    }
+#ifdef HAVE_TC_RAMCACHE
+    reallocate_ramcache();
+    load_ramcache();
+    /* without enough memory for it, the database still works from disk */
+    if (!tc_stat.ready)
+        tagcache_commit_finalize();
+#endif
 }
 
 static void tagcache_thread(void)
@@ -5284,6 +5389,16 @@ static void tagcache_thread(void)
     cpu_boost(false);
     tc_stat.initialized = true;
 
+    if (itunesdb_changed())
+    {
+#ifdef ITUNESDB_HAVE_ART
+        /* the covers first: it is quick, and the old ones point into ithmb
+           files that Finder has rewritten */
+        itunesdb_import_art();
+#endif
+        queue_post(&tagcache_queue, Q_IMPORT_ITUNES, 0);
+    }
+
     /* Don't delay bootup with the header check but do it on background. */
     if (!tc_stat.ready)
     {
@@ -5315,6 +5430,16 @@ static void tagcache_thread(void)
                 load_ramcache();
 #endif
                 check_deleted_file_refs(true);
+                break ;
+
+            case Q_IMPORT_ITUNES:
+                /* Finder has synced: the new files first, then what
+                   iTunesDB says about them */
+                update_and_reload();
+                check_deleted_file_refs(true);
+                /* the import is tried again on the next boot otherwise */
+                if (!db_file_exists(TAGCACHE_FILE_TEMP))
+                    itunesdb_import();
                 break ;
 
             case Q_START_SCAN:

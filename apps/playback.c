@@ -53,6 +53,7 @@
 
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
+#include "itunesdb.h"
 #endif
 
 #ifdef HAVE_ALBUMART
@@ -1943,6 +1944,13 @@ static int load_album_art_from_path(char *path, struct bufopen_bitmap_data *user
 static int audio_load_albumart(struct track_info *infop,
                                 struct mp3entry *track_id3, bool is_current_track)
 {
+#ifdef ITUNESDB_HAVE_ART
+    /* the cover Finder made for the stock firmware: no JPEG to decode */
+    struct itunesdb_art ipod_art;
+    bool have_ipod_art = global_settings.album_art != AA_OFF
+                         && itunesdb_find_art(track_id3->path, &ipod_art);
+#endif
+
     FOREACH_ALBUMART(i)
     {
         struct bufopen_bitmap_data user_data;
@@ -1969,6 +1977,17 @@ static int audio_load_albumart(struct track_info *infop,
             }
             checked_image_file = true;
         }
+
+#ifdef ITUNESDB_HAVE_ART
+        if (have_ipod_art && hid < 0 && hid != ERR_BUFFER_FULL)
+        {
+            if (is_current_track)
+                clear_last_folder_album_art();
+            user_data.ipod_art = &ipod_art;
+            hid = bufopen(ipod_art.path, 0, TYPE_BITMAP, &user_data);
+            user_data.ipod_art = NULL;
+        }
+#endif
 
         /* We can only decode jpeg for embedded AA */
         if (global_settings.album_art != AA_OFF &&

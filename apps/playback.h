@@ -64,9 +64,12 @@ void playback_release_aa_slot(int slot);
  * Save to call from other threads */
 void playback_update_aa_dims(void);
 
+struct itunesdb_art;
+
 struct bufopen_bitmap_data {
     struct dim *dim;
     struct mp3_albumart *embedded_albumart;
+    const struct itunesdb_art *ipod_art; /* a cover Finder made */
 };
 
 #endif /* HAVE_ALBUMART */
