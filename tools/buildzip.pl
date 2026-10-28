@@ -679,6 +679,22 @@ sub buildzip {
         copy("$ROOT/wps/classic_statusbar.mono.sbs", "$temp_dir/wps/classic_statusbar.rsbs");
     }
 
+    # the stock iPod themes from themes/ and their fonts, made for 320x240
+    if ($bitmap && $depth >= 16 && $width == 320 && $height == 240) {
+        foreach my $themedir (glob("$ROOT/themes/*/.rockbox")) {
+            find({ no_chdir => 1, wanted => sub {
+                return if ($File::Find::name eq $themedir);
+                my $dest = "$temp_dir/" . substr($File::Find::name, length($themedir) + 1);
+                if (-d $File::Find::name) {
+                    glob_mkdir($dest);
+                } else {
+                    print "theme: $File::Find::name -> $dest\n" if $verbose;
+                    copy($File::Find::name, $dest);
+                }
+            }}, $themedir);
+        }
+    }
+
     # and the info file
     copy("rockbox-info.txt", "$temp_dir/rockbox-info.txt");
 

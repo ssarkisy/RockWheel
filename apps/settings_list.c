@@ -334,9 +334,19 @@ static const int backlight_fade[] = {0,100,200,300,500,1000,2000,3000,5000,10000
 static const char graphic_numeric[] = "graphic,numeric";
 
 /* Default theme settings */
+#if (LCD_WIDTH == 320) && (LCD_HEIGHT == 240) && defined(HAVE_LCD_COLOR)
+/* The stock iPod look: iClassic Square from themes/, which buildzip.pl
+   installs for this screen size */
+#define DEFAULT_THEME_ICLASSIC
+#define DEFAULT_WPSNAME  "iClassic-Square"
+#define DEFAULT_SBSNAME  "iClassic-Square"
+#define DEFAULT_FMS_NAME "iClassic-Square"
+#define DEFAULT_FONTNAME "24-Inter-Bold"
+#else
 #define DEFAULT_WPSNAME  "cabbiev2"
 #define DEFAULT_SBSNAME  "-"
 #define DEFAULT_FMS_NAME "cabbiev2"
+#endif
 #define DEFAULT_WRS_NAME "cabbiev2"
 
 #if LCD_HEIGHT <= 64
@@ -413,14 +423,30 @@ static const char graphic_numeric[] = "graphic,numeric";
 #endif
 #endif /* HAVE_REMOTE_LCD */
 
+#ifdef DEFAULT_THEME_ICLASSIC
+#define DEFAULT_THEME_FOREGROUND LCD_RGBPACK(0x00, 0x00, 0x00)
+#define DEFAULT_THEME_BACKGROUND LCD_RGBPACK(0xff, 0xff, 0xff)
+#define DEFAULT_THEME_SELECTOR_START LCD_RGBPACK(0x6b, 0xa6, 0xde)
+#define DEFAULT_THEME_SELECTOR_END LCD_RGBPACK(0x18, 0x6d, 0xbd)
+#define DEFAULT_THEME_SELECTOR_TEXT LCD_RGBPACK(0xff, 0xff, 0xff)
+#define DEFAULT_BACKDROP    BACKDROP_DIR "/iClassic_bd.bmp"
+#define DEFAULT_STATUSBAR   STATUSBAR_OFF
+#define DEFAULT_SHOW_ICONS  false
+#define DEFAULT_LIST_TEXT_PADDING 6
+#define DEFAULT_LIST_SELECTOR_STYLE true /* bevel and chevron */
+#else
 #define DEFAULT_THEME_FOREGROUND LCD_RGBPACK(0xce, 0xcf, 0xce)
 #define DEFAULT_THEME_BACKGROUND LCD_RGBPACK(0x00, 0x00, 0x00)
 #define DEFAULT_THEME_SELECTOR_START LCD_RGBPACK(0xff, 0xeb, 0x9c)
 #define DEFAULT_THEME_SELECTOR_END LCD_RGBPACK(0xb5, 0x8e, 0x00)
 #define DEFAULT_THEME_SELECTOR_TEXT LCD_RGBPACK(0x00, 0x00, 0x00)
-#define DEFAULT_THEME_SEPARATOR  LCD_RGBPACK(0x80, 0x80, 0x80)
-
 #define DEFAULT_BACKDROP    BACKDROP_DIR "/cabbiev2.bmp"
+#define DEFAULT_STATUSBAR   STATUSBAR_TOP
+#define DEFAULT_SHOW_ICONS  true
+#define DEFAULT_LIST_TEXT_PADDING 0
+#define DEFAULT_LIST_SELECTOR_STYLE false
+#endif
+#define DEFAULT_THEME_SEPARATOR  LCD_RGBPACK(0x80, 0x80, 0x80)
 
 #ifdef HAVE_RECORDING
 /* these should be in the config.h files */
@@ -499,7 +525,9 @@ static const char graphic_numeric[] = "graphic,numeric";
 # define MAX_FILES_IN_DIR_STEP      50
 #endif
 
-#ifdef HAVE_TOUCHSCREEN
+#ifdef DEFAULT_THEME_ICLASSIC
+# define SCROLLBAR_DEFAULT SCROLLBAR_OFF
+#elif defined(HAVE_TOUCHSCREEN)
 /* on touchscreen, it makes more sense to put the scrollbar on the right */
 # define SCROLLBAR_DEFAULT SCROLLBAR_RIGHT
 #else
@@ -1328,7 +1356,7 @@ const struct settings_list settings[] = {
                     ID2P(LANG_INVERT_CURSOR_BAR)),
  #endif
     CHOICE_SETTING(F_THEMESETTING|F_TEMPVAR|F_NEEDAPPLY, statusbar,
-                  LANG_STATUS_BAR, STATUSBAR_TOP, "statusbar","off,top,bottom",
+                  LANG_STATUS_BAR, DEFAULT_STATUSBAR, "statusbar","off,top,bottom",
                   NULL, 3, ID2P(LANG_OFF), ID2P(LANG_STATUSBAR_TOP),
                   ID2P(LANG_STATUSBAR_BOTTOM)),
 #ifdef HAVE_REMOTE_LCD
@@ -1344,7 +1372,7 @@ const struct settings_list settings[] = {
                 "scrollbar width",UNIT_INT, 3, MAX(LCD_WIDTH/10,25), 1,
                 NULL, NULL, NULL),
     /* only set by themes, there is no menu entry */
-    INT_SETTING(F_THEMESETTING, list_text_padding, -1, 0,
+    INT_SETTING(F_THEMESETTING, list_text_padding, -1, DEFAULT_LIST_TEXT_PADDING,
                 "list text padding", UNIT_PIXEL, 0, 32, 1,
                 NULL, NULL, NULL),
 #ifdef HAVE_TOUCHSCREEN
@@ -1373,7 +1401,7 @@ const struct settings_list settings[] = {
     CHOICE_SETTING(0, timeformat, LANG_TIMEFORMAT, 0,
         "time format", "24hour,12hour", NULL, 2,
         ID2P(LANG_24_HOUR_CLOCK), ID2P(LANG_12_HOUR_CLOCK)),
-    OFFON_SETTING(F_THEMESETTING,show_icons, LANG_SHOW_ICONS ,true,"show icons", NULL),
+    OFFON_SETTING(F_THEMESETTING,show_icons, LANG_SHOW_ICONS ,DEFAULT_SHOW_ICONS,"show icons", NULL),
     /* system */
     INT_SETTING(F_TIME_SETTING, poweroff, LANG_POWEROFF_IDLE, 10,
                 "idle poweroff", UNIT_MIN, 0,60,1,
@@ -1608,10 +1636,11 @@ const struct settings_list settings[] = {
     {F_T_INT|F_RGB|F_THEMESETTING ,&global_settings.lst_color,-1,
         INT(DEFAULT_THEME_SELECTOR_TEXT),"line selector text color",UNUSED},
     /* only set by themes, there is no menu entry */
-    OFFON_SETTING(F_THEMESETTING, list_selector_bevel, -1, false,
-                  "line selector bevel", NULL),
+    OFFON_SETTING(F_THEMESETTING, list_selector_bevel, -1,
+                  DEFAULT_LIST_SELECTOR_STYLE, "line selector bevel", NULL),
     /* only set by themes, there is no menu entry */
-    OFFON_SETTING(F_THEMESETTING, list_selector_chevron, -1, false,
+    OFFON_SETTING(F_THEMESETTING, list_selector_chevron, -1,
+                  DEFAULT_LIST_SELECTOR_STYLE,
                   "line selector chevron", NULL),
 
 #endif
