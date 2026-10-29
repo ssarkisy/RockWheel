@@ -530,22 +530,26 @@ static ssize_t read_index_entries(int fd, struct index_entry *buf, size_t count)
 static ssize_t write_index_entries(int fd, struct index_entry *buf, size_t count)
 {
 #ifdef TAGCACHE_SUPPORT_FOREIGN_ENDIAN
-    ssize_t ret = 0;
-    for (; count > 0; count--)
+    /* one at a time only when they are to be swapped: a write() costs about
+       as much for one as for all of them */
+    if (tc_stat.econ)
     {
-        struct index_entry e = *buf++;
-        swap_index_entry(&e);
+        ssize_t ret = 0;
+        for (; count > 0; count--)
+        {
+            struct index_entry e = *buf++;
+            swap_index_entry(&e);
 
-        ssize_t rc = write(fd, &e, sizeof(e));
-        if (rc < 0)
-            return rc;
-        ret += rc;
+            ssize_t rc = write(fd, &e, sizeof(e));
+            if (rc < 0)
+                return rc;
+            ret += rc;
+        }
+
+        return ret;
     }
-
-    return ret;
-#else
-    return write(fd, buf, sizeof(*buf) * count);
 #endif
+    return write(fd, buf, sizeof(*buf) * count);
 }
 
 static ssize_t read_tagcache_header(int fd, struct tagcache_header *buf)
@@ -814,6 +818,66 @@ static void free_tempbuf(void)
     tempbuf_size = 0;
 }
 
+#ifndef __PCTOOL__
+/* Database entries by a hash of their file's path, sorted, for a binary
+ * search: while the database is built, and while it is in memory. Without
+ * them a file is looked up by walking every entry, and by reading the
+ * filename file through when that fails, which is a second or more on the
+ * iPod and holds up playback. */
+struct path_name {
+    uint64_t hash;
+    long idx_id;
+};
+
+static int cmp_path_name(const void *a, const void *b)
+{
+    uint64_t x = ((const struct path_name *)a)->hash;
+    uint64_t y = ((const struct path_name *)b)->hash;
+    return (x > y) - (x < y);
+}
+
+/* the entry of the file at path, or -1 */
+static long find_path_name(int handle, long count, const char *path)
+{
+    if (handle <= 0)
+        return -1;
+    uint64_t hash = itunesdb_path_hash(path);
+    struct path_name *names = core_get_data_pinned(handle);
+    long found = -1, lo = 0, hi = count - 1;
+    while (lo <= hi)
+    {
+        long mid = (lo + hi) / 2;
+        if (names[mid].hash == hash)
+        {
+            found = names[mid].idx_id;
+            break;
+        }
+        else if (names[mid].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    core_put_data_pinned(names);
+    return found;
+}
+#endif /* !__PCTOOL__ */
+
+#if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
+/* the files of the database in memory, filled as it is loaded */
+static int ram_names_handle;
+static long ram_names_count, ram_names_capacity;
+static bool ram_names_overflow; /* then the slow ways are used */
+
+static void free_ram_names(void)
+{
+    if (ram_names_handle > 0)
+        core_free(ram_names_handle);
+    ram_names_handle = 0;
+    ram_names_count = ram_names_capacity = 0;
+    ram_names_overflow = false;
+}
+#endif
+
 #if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
 /* find the ramcache entry corresponding to the file indicated by
  * filename and dc (it's corresponding dircache id). */
@@ -826,6 +890,18 @@ static long find_entry_ram(const char *filename)
     if (!tc_stat.ramcache
         || global_settings.tagcache_ram != TAGCACHE_RAM_ON)
         return -1;
+
+#ifndef __PCTOOL__
+    if (ram_names_handle > 0)
+    {
+        long idx_id = find_path_name(ram_names_handle, ram_names_count,
+                                     filename);
+        if (idx_id >= 0 && idx_id < current_tcmh.tch.entry_count
+            && !(tcramcache.hdr->indices[idx_id].flag & FLAG_DELETED))
+            return idx_id;
+        return -1;
+    }
+#endif
 
     if (dircache_search(DCS_CACHED_PATH | DCS_UPDATE_FILEREF, &dcfref,
                         filename) <= 0)
@@ -983,6 +1059,11 @@ static int find_index(const char *filename)
 
 #if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
     idx_id = find_entry_ram(filename);
+#if !defined(__PCTOOL__)
+    /* what the table of the files doesn't have isn't in the database */
+    if (tc_stat.ramcache && ram_names_handle > 0)
+        return idx_id;
+#endif
 #endif
 
     if (idx_id < 0)
@@ -2258,6 +2339,111 @@ static void db_log(const char *prefix, const char *msg)
 }
 #endif
 
+#ifndef __PCTOOL__
+/* While the database is built, the files it already has, by a hash of their
+ * path, and its index open. Without them every file is looked up by reading
+ * the filename file through, which takes about a second for a library of
+ * 13k files on the iPod, and the index is opened for each of them. */
+static int build_names_handle;
+static long build_names_count;
+static int build_masterfd = -1;
+#endif /* !__PCTOOL__ */
+
+/* the import after a sync, for tagcache_get_import() */
+static bool sync_found;
+static volatile int import_phase;
+static volatile int import_done, import_total;
+
+#ifndef __PCTOOL__
+
+/* reads the rest of the filename file, fd just past its header */
+static void load_build_names(int fd, long entry_count)
+{
+    enum { CHUNK = 32768 };
+    if (fd < 0 || entry_count <= 0 || tc_stat.econ)
+        return;
+    int handle = core_alloc(entry_count * sizeof(struct path_name)
+                            + CHUNK + TAG_MAXLEN + sizeof(struct tagfile_entry));
+    if (handle <= 0)
+        return;
+    core_pin(handle);
+    struct path_name *names = core_get_data(handle);
+    char *buf = (char *)(names + entry_count);
+    long count = 0;
+    size_t have = 0;
+    bool ok = true;
+    for (;;)
+    {
+        ssize_t got = read(fd, buf + have, CHUNK);
+        if (got < 0)
+            ok = false;
+        if (got <= 0)
+            break;
+        have += got;
+        size_t pos = 0;
+        while (have - pos >= sizeof(struct tagfile_entry))
+        {
+            /* copied: an entry needn't start on a word */
+            struct tagfile_entry e;
+            memcpy(&e, buf + pos, sizeof(e));
+            size_t len = e.tag_length;
+            const char *name = buf + pos + sizeof(e);
+            if (len > TAG_MAXLEN || e.idx_id < 0 || count >= entry_count)
+            {
+                ok = false;
+                break;
+            }
+            if (have - pos < sizeof(e) + len)
+                break;
+            /* a removed file's name is blanked */
+            if (len > 0 && name[0] != '\0' && memchr(name, '\0', len))
+            {
+                names[count].hash = itunesdb_path_hash(name);
+                names[count].idx_id = e.idx_id;
+                count++;
+            }
+            pos += sizeof(e) + len;
+        }
+        if (!ok)
+            break;
+        memmove(buf, buf + pos, have - pos);
+        have -= pos;
+        yield();
+    }
+    lseek(fd, sizeof(struct tagcache_header), SEEK_SET);
+    if (!ok || have != 0 || count == 0)
+    {
+        core_unpin(handle);
+        core_free(handle);
+        return;
+    }
+    qsort(names, count, sizeof(*names), cmp_path_name);
+    core_unpin(handle);
+    core_shrink(handle, names, count * sizeof(struct path_name));
+    build_names_handle = handle;
+    build_names_count = count;
+}
+
+static void free_build_names(void)
+{
+    if (build_names_handle > 0)
+        core_free(build_names_handle);
+    build_names_handle = 0;
+    build_names_count = 0;
+    if (build_masterfd >= 0)
+        close(build_masterfd);
+    build_masterfd = -1;
+}
+
+/* the index of the database's entry for the file at path, or -1 */
+static long find_known_file(const char *path)
+{
+    if (build_names_handle <= 0)
+        return filenametag_fd >= 0 ? find_entry_disk(path, false) : -1;
+    return find_path_name(build_names_handle, build_names_count, path);
+}
+#endif /* !__PCTOOL__ */
+
 /* GCC 3.4.6 for Coldfire can choose to inline this function. Not a good
  * idea, as it uses lots of stack and is called from a recursive function
  * (check_dir).
@@ -2298,6 +2484,8 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     int afmt = probe_file_format(path);
     if (afmt == AFMT_UNKNOWN)
         return;
+    if (import_phase == TAGCACHE_IMPORT_SCANNING)
+        import_done++;
 
     /* Check if the file is already cached. */
 #if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
@@ -2305,8 +2493,15 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
 #endif
 
     /* Be sure the entry doesn't exist. */
+#ifndef __PCTOOL__
+    if (idx_id < 0)
+        idx_id = find_known_file(path);
+    int masterfd = build_masterfd;
+#else
     if (filenametag_fd >= 0 && idx_id < 0)
         idx_id = find_entry_disk(path, false);
+    int masterfd = -1;
+#endif
 
     /* Check if file has been modified. */
     if (idx_id >= 0)
@@ -2316,7 +2511,7 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
         /* TODO: Mark that the index exists (for fast reverse scan) */
         //found_idx[idx_id/8] |= idx_id%8;
 
-        if (!get_index(-1, idx_id, &idx, true))
+        if (!get_index(masterfd, idx_id, &idx, true))
         {
             logf("failed to retrieve index entry");
             DB_LOG("error", "failed to retrieve index entry");
@@ -2442,12 +2637,12 @@ static bool tempbuf_insert(char *str, int id, int idx_id, bool unique)
     int i;
     unsigned *crcbuf = (unsigned *)&tempbuf[tempbuf_size-4];
     unsigned crc32 = 0xffffffff;
-    char chr_lower;
-    for (i = 0; str[i] != '\0' && i < len -1; i++)
-    {
-        chr_lower = tolower(str[i]);
-        crc32 = crc_32(&chr_lower, 1, crc32);
-    }
+    /* the crc of the lower case string, in one call rather than one for
+       each character */
+    static char lower[TAG_MAXLEN + 1];
+    for (i = 0; str[i] != '\0' && i < len - 1 && i < TAG_MAXLEN; i++)
+        lower[i] = tolower(str[i]);
+    crc32 = crc_32(lower, i, crc32);
 
     if (unique)
     {
@@ -2527,6 +2722,31 @@ static int compare(const void *p1, const void *p2)
     return strncasecmp(e1->str, e2->str, TAG_MAXLEN);
 }
 
+/* The sorted tag files are written through this, a block at a time: every
+ * commit rewrites them for the whole library, and a write() for each part
+ * of each entry took most of a commit on the iPod */
+static char tagfile_wbuf[8192];
+static size_t tagfile_wbuf_used;
+
+static bool tagfile_wbuf_flush(int fd)
+{
+    ssize_t used = tagfile_wbuf_used;
+    tagfile_wbuf_used = 0;
+    return used == 0 || write(fd, tagfile_wbuf, used) == used;
+}
+
+static bool tagfile_wbuf_put(int fd, const void *data, size_t len)
+{
+    if (tagfile_wbuf_used + len > sizeof(tagfile_wbuf)
+        && !tagfile_wbuf_flush(fd))
+        return false;
+    if (len > sizeof(tagfile_wbuf))
+        return write(fd, data, len) == (ssize_t)len;
+    memcpy(tagfile_wbuf + tagfile_wbuf_used, data, len);
+    tagfile_wbuf_used += len;
+    return true;
+}
+
 static int tempbuf_sort(int fd)
 {
     struct tempbuf_searchidx *index = (struct tempbuf_searchidx *)tempbuf;
@@ -2567,6 +2787,8 @@ static int tempbuf_sort(int fd)
     qsort(index, tempbufidx, sizeof(struct tempbuf_searchidx), compare);
     memset(lookup, 0, lookup_buffer_depth * sizeof(struct tempbuf_searchidx **));
 
+    off_t pos = lseek(fd, 0, SEEK_CUR);
+    tagfile_wbuf_used = 0;
     for (i = 0; i < tempbufidx; i++)
     {
         struct tempbuf_id_list *idlist = &index[i].idlist;
@@ -2579,7 +2801,7 @@ static int tempbuf_sort(int fd)
             idlist = idlist->next;
         }
 
-        index[i].seek = lseek(fd, 0, SEEK_CUR);
+        index[i].seek = pos;
         length = strlen(index[i].str) + 1;
         fe.tag_length = length;
         fe.idx_id = index[i].idx_id;
@@ -2592,14 +2814,17 @@ static int tempbuf_sort(int fd)
                 ((fe.tag_length + sizeof(struct tagfile_entry))
                  % TAGFILE_ENTRY_CHUNK_LENGTH);
         }
+        pos += sizeof(struct tagfile_entry) + fe.tag_length;
 
-        if (write_tagfile_entry(fd, &fe) != sizeof(struct tagfile_entry))
+        struct tagfile_entry e = fe;
+        swap_tagfile_entry(&e);
+        if (!tagfile_wbuf_put(fd, &e, sizeof(e)))
         {
             logf("tempbuf_sort: write error #1");
             return -1;
         }
 
-        if (write(fd, index[i].str, length) != length)
+        if (!tagfile_wbuf_put(fd, index[i].str, length))
         {
             logf("tempbuf_sort: write error #2");
             return -2;
@@ -2607,7 +2832,15 @@ static int tempbuf_sort(int fd)
 
         /* Write some padding. */
         if (fe.tag_length - length > 0)
-            write(fd, "XXXXXXXX", fe.tag_length - length);
+            tagfile_wbuf_put(fd, "XXXXXXXX", fe.tag_length - length);
+
+        do_timed_yield();
+    }
+
+    if (!tagfile_wbuf_flush(fd))
+    {
+        logf("tempbuf_sort: write error #3");
+        return -3;
     }
 
     return i;
@@ -3367,6 +3600,9 @@ static int build_index(int index_type, struct tagcache_header *h, int tmpfd)
     return 1;
 }
 
+/* the free memory a commit takes rather than the dircache's */
+#define COMMIT_TEMPBUF_MIN (4*1024*1024)
+
 static bool commit(void)
 {
     struct tagcache_header tch;
@@ -3431,6 +3667,9 @@ static bool commit(void)
     /* At first be sure to unload the ramcache! */
 #ifdef HAVE_TC_RAMCACHE
     tc_stat.ramcache = false;
+#ifndef __PCTOOL__
+    free_ram_names();
+#endif
 #endif
 
     /* Beyond here, jump to commit_error to undo locks and restore dircache */
@@ -3438,6 +3677,20 @@ static bool commit(void)
     read_lock++;
 
     /* Try to steal every buffer we can :) */
+#if defined(HAVE_DIRCACHE) && !defined(PLUGIN) && !defined(__PCTOOL__)
+    /* Free memory first: taking the dircache's means building it again
+       afterwards, a walk over the whole disk. While music plays the audio
+       buffer has the memory, and too little is left. */
+    bool tempbuf_taken = false;
+    if (tempbuf_size == 0)
+    {
+        allocate_tempbuf();
+        if (tempbuf_size >= COMMIT_TEMPBUF_MIN)
+            tempbuf_taken = true;
+        else
+            free_tempbuf();
+    }
+#endif
 #ifdef HAVE_DIRCACHE
     if (tempbuf_size == 0)
     {
@@ -3574,6 +3827,10 @@ commit_error:
 
     read_lock--;
 
+#if defined(HAVE_DIRCACHE) && !defined(PLUGIN) && !defined(__PCTOOL__)
+    if (tempbuf_taken)
+        free_tempbuf();
+#endif
 #ifdef HAVE_DIRCACHE
     /* Resume the dircache, if we stole the buffer. */
     if (dircache_buffer_stolen)
@@ -4015,7 +4272,10 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
 
     for (int i = 0; i < myhdr.tch.entry_count; i++)
     {
-        if (!get_index(masterfd, i, &idx, false)
+        /* From memory when the database is there, as it is for Play Counts
+           on every connection to a computer. Only an entry that changes is
+           read from the disk: the copy in memory has seeks of its own. */
+        if (!get_index(masterfd, i, &idx, true)
             || !tagcache_retrieve(&tcs, i, tag_filename, buf, sizeof(buf)))
             continue;
 
@@ -4031,7 +4291,8 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
         }
         else if (action > 0
                  && (rt.playcount != idx.tag_seek[tag_playcount]
-                     || rt.rating != idx.tag_seek[tag_rating]))
+                     || rt.rating != idx.tag_seek[tag_rating])
+                 && get_index(masterfd, i, &idx, false))
         {
             idx.tag_seek[tag_playcount] = rt.playcount;
             idx.tag_seek[tag_rating] = rt.rating;
@@ -4701,6 +4962,18 @@ static bool load_tagcache(void)
                     logf("read error #12");
                     goto failure;
                 }
+#ifndef __PCTOOL__
+                if (ram_names_count >= ram_names_capacity)
+                    ram_names_overflow = true;
+                else if (filename[0])
+                {
+                    filename[fe->tag_length] = '\0';
+                    struct path_name *names = core_get_data(ram_names_handle);
+                    names[ram_names_count].hash = itunesdb_path_hash(filename);
+                    names[ram_names_count].idx_id = idx_id;
+                    ram_names_count++;
+                }
+#endif
                 continue;
             }
 
@@ -5110,6 +5383,14 @@ void do_tagcache_build(const char *path[])
     }
 
     filenametag_fd = open_tag_fd(&header, tag_filename, false);
+#ifndef __PCTOOL__
+    if (filenametag_fd >= 0)
+    {
+        struct master_header mh;
+        load_build_names(filenametag_fd, header.entry_count);
+        build_masterfd = open_master_fd(&mh, false);
+    }
+#endif
 
     cpu_boost(true);
 
@@ -5217,6 +5498,9 @@ commit:
         close(filenametag_fd);
         filenametag_fd = -1;
     }
+#ifndef __PCTOOL__
+    free_build_names();
+#endif
 
     if (!ret)
     {
@@ -5229,6 +5513,8 @@ commit:
 #ifdef __PCTOOL__
     allocate_tempbuf();
 #endif
+    if (import_phase == TAGCACHE_IMPORT_SCANNING)
+        import_phase = TAGCACHE_IMPORT_SAVING;
     if (commit())
     {
         logf("tagcache built!");
@@ -5271,8 +5557,32 @@ static void load_ramcache(void)
 
     cpu_boost(true);
 
+#ifndef __PCTOOL__
+    /* taken before the load, which keeps the cache from moving */
+    free_ram_names();
+    if (current_tcmh.tch.entry_count > 0)
+    {
+        ram_names_capacity = current_tcmh.tch.entry_count;
+        ram_names_handle = core_alloc(ram_names_capacity
+                                      * sizeof(struct path_name));
+        if (ram_names_handle <= 0)
+            ram_names_handle = ram_names_capacity = 0;
+    }
+#endif
+
     /* At first we should load the cache (if exists). */
     tc_stat.ramcache = load_tagcache();
+
+#ifndef __PCTOOL__
+    if (tc_stat.ramcache && ram_names_handle > 0 && !ram_names_overflow)
+    {
+        struct path_name *names = core_get_data_pinned(ram_names_handle);
+        qsort(names, ram_names_count, sizeof(*names), cmp_path_name);
+        core_put_data_pinned(names);
+    }
+    else
+        free_ram_names();
+#endif
 
     if (!tc_stat.ramcache)
     {
@@ -5312,6 +5622,9 @@ static void reallocate_ramcache(void)
 void tagcache_unload_ramcache(void)
 {
     tc_stat.ramcache = false;
+#ifndef __PCTOOL__
+    free_ram_names();
+#endif
     /* Just to make sure there is no statefile present. */
     // remove_db_file(TAGCACHE_STATEFILE);
 }
@@ -5336,6 +5649,8 @@ static bool NO_INLINE db_file_exists(const char* filename)
 static void update_and_reload(void)
 {
     tagcache_build();
+    if (import_phase != TAGCACHE_IMPORT_NONE)
+        import_phase = TAGCACHE_IMPORT_LOADING;
     if (db_file_exists(TAGCACHE_FILE_TEMP))
     {
         /* The commit found no buffer to borrow and waits for the next
@@ -5357,6 +5672,20 @@ int tagcache_get_song_count(void)
 {
     return song_count;
 }
+
+int tagcache_get_import(int *done, int *total)
+{
+    int phase = import_phase;
+    *done = import_done;
+    *total = import_total;
+    if (phase == TAGCACHE_IMPORT_SAVING)
+    {
+        *done = tc_stat.commit_step;
+        *total = tagcache_get_max_commit_step();
+    }
+    return phase;
+}
+
 
 static void count_songs(void)
 {
@@ -5437,15 +5766,17 @@ static void tagcache_thread(void)
     cpu_boost(false);
     tc_stat.initialized = true;
 
-    if (itunesdb_changed())
+    if (sync_found)
     {
         /* what playback needs first: it is quick, and the old covers point
            into ithmb files that Finder has rewritten */
-        itunesdb_import_tracks();
+        import_total = itunesdb_import_tracks(true);
+        import_done = 0;
+        import_phase = TAGCACHE_IMPORT_SCANNING;
         queue_post(&tagcache_queue, Q_IMPORT_ITUNES, 0);
     }
     else if (!itunesdb_load_tracks())
-        itunesdb_import_tracks();
+        itunesdb_import_tracks(false);
 
     /* Don't delay bootup with the header check but do it on background. */
     if (!tc_stat.ready)
@@ -5457,7 +5788,12 @@ static void tagcache_thread(void)
     while (1)
     {
         run_command_queue(false);
-        if (song_count < 0 && tc_stat.ready && tc_stat.commit_step == 0)
+        /* counted in memory once the database is there, if it is to be */
+        if (song_count < 0 && tc_stat.ready && tc_stat.commit_step == 0
+#ifdef HAVE_TC_RAMCACHE
+            && (tc_stat.ramcache || tc_stat.ramcache_allocated <= 0)
+#endif
+            )
             count_songs();
 
         queue_wait_w_tmo(&tagcache_queue, &ev, HZ);
@@ -5487,9 +5823,11 @@ static void tagcache_thread(void)
                    iTunesDB says about them */
                 update_and_reload();
                 check_deleted_file_refs(true);
+                import_phase = TAGCACHE_IMPORT_COUNTS;
                 /* the import is tried again on the next boot otherwise */
                 if (!db_file_exists(TAGCACHE_FILE_TEMP))
                     itunesdb_import();
+                import_phase = TAGCACHE_IMPORT_NONE;
                 break ;
 
             case Q_START_SCAN:
@@ -5651,6 +5989,10 @@ void tagcache_init(void)
 #ifndef __PCTOOL__
     strmemccpy(tc_stat.db_path, global_settings.tagcache_db_path,
                sizeof(tc_stat.db_path));
+    /* known before the thread starts, for the progress screen */
+    sync_found = itunesdb_changed();
+    if (sync_found)
+        import_phase = TAGCACHE_IMPORT_READING;
     mutex_init(&command_queue_mutex);
     queue_init(&tagcache_queue, true);
     create_thread(tagcache_thread, tagcache_stack,

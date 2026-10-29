@@ -73,6 +73,8 @@
 #include "language.h"
 #include "plugin.h"
 #include "disk.h"
+#include "backlight.h"
+#include "icons.h"
 
 struct root_items {
     int (*function)(void* param);
@@ -989,6 +991,93 @@ static int root_menu_setup_screens(void)
 }
 
 
+#ifdef HAVE_TAGCACHE
+/* how far the import after a sync is, as the steps took on an iPod */
+static int library_update_percent(int phase, int done, int total)
+{
+    switch (phase)
+    {
+        case TAGCACHE_IMPORT_READING:
+            return 2;
+        case TAGCACHE_IMPORT_SCANNING:
+            return 4 + (total > 0 ? 41 * MIN(done, total) / total : 0);
+        case TAGCACHE_IMPORT_SAVING:
+            return 45 + (total > 0 ? 40 * MIN(done, total) / total : 0);
+        case TAGCACHE_IMPORT_LOADING:
+            return 88;
+        default:
+            return 96;
+    }
+}
+
+/* After a sync the database takes in the new songs before the menu shows,
+ * as a stock iPod has them as soon as it starts: the boot logo stays, with
+ * the progress under it. Menu leaves it to finish in the background. */
+static void show_library_update(void)
+{
+    int done, total, phase, last = -1;
+    while ((phase = tagcache_get_import(&done, &total))
+           != TAGCACHE_IMPORT_NONE)
+    {
+        int percent = library_update_percent(phase, done, total);
+        if (last < 0)
+        {
+            /* the whole screen, without the theme */
+            FOR_NB_SCREENS(i)
+                viewportmanager_theme_enable(i, false, NULL);
+        }
+        /* drawn every time: the theme's backdrop can come back meanwhile */
+        {
+            const int bar_w = 140, bar_h = 6;
+            lcd_set_viewport(NULL);
+#if LCD_DEPTH > 1
+            lcd_set_backdrop(NULL);
+#endif
+            int y = (LCD_HEIGHT - 96) / 2;
+            lcd_set_background(LCD_BLACK);
+            lcd_clear_display();
+#ifdef APPLE_BOOT_LOGO
+            lcd_bmp(&bm_applelogo, (LCD_WIDTH - BMPWIDTH_applelogo) / 2, y);
+            y += BMPHEIGHT_applelogo;
+#else
+            y += 96;
+#endif
+            y += 22;
+            int x = (LCD_WIDTH - bar_w) / 2;
+            lcd_set_foreground(LCD_RGBPACK(70, 70, 70));
+            lcd_fillrect(x, y, bar_w, bar_h);
+            lcd_set_foreground(LCD_WHITE);
+            lcd_fillrect(x, y, bar_w * percent / 100, bar_h);
+
+            const char *text = str(LANG_UPDATING_LIBRARY);
+            int w, h;
+            lcd_setfont(FONT_UI);
+            lcd_getstringsize(text, &w, &h);
+            lcd_set_foreground(LCD_RGBPACK(160, 160, 160));
+            lcd_set_drawmode(DRMODE_FG);
+            lcd_putsxy((LCD_WIDTH - w) / 2, y + bar_h + 10, text);
+            lcd_set_drawmode(DRMODE_SOLID);
+            lcd_update();
+            if (percent != last)
+                backlight_on();
+            last = percent;
+        }
+        int action = get_action(CONTEXT_STD, HZ / 4);
+        if (action == ACTION_STD_CANCEL
+            || default_event_handler(action) == SYS_USB_CONNECTED)
+            break;
+    }
+    if (last >= 0)
+    {
+        lcd_set_background(LCD_DEFAULT_BG);
+        lcd_set_foreground(LCD_DEFAULT_FG);
+        lcd_clear_display();
+        FOR_NB_SCREENS(i)
+            viewportmanager_theme_undo(i, true);
+    }
+}
+#endif /* HAVE_TAGCACHE */
+
 void root_menu(void)
 {
     int previous_browser = global_status.last_browser;
@@ -996,6 +1085,9 @@ void root_menu(void)
     int shortcut_origin = GO_TO_ROOT;
 
     push_current_activity(ACTIVITY_MAINMENU);
+#ifdef HAVE_TAGCACHE
+    show_library_update();
+#endif
     next_screen = root_menu_setup_screens();
 
     while (true)

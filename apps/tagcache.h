@@ -184,6 +184,17 @@ long tagcache_increase_serial(void);
 bool tagcache_import_changelog(void);
 /* entries in the database, -1 until known */
 int tagcache_get_song_count(void);
+/* Where the import after a sync is, for showing its progress; done and
+   total are of the files scanned and of the commit's steps */
+enum {
+    TAGCACHE_IMPORT_NONE = 0, /* none, or done */
+    TAGCACHE_IMPORT_READING,  /* iTunesDB */
+    TAGCACHE_IMPORT_SCANNING, /* the files, about total of them */
+    TAGCACHE_IMPORT_SAVING,   /* the commit */
+    TAGCACHE_IMPORT_LOADING,  /* into memory, and the file references */
+    TAGCACHE_IMPORT_COUNTS,   /* ratings and play counts */
+};
+int tagcache_get_import(int *done, int *total);
 bool tagcache_create_changelog(struct tagcache_search *tcs);
 struct tagcache_runtime {
     long playcount;

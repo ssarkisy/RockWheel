@@ -18027,3 +18027,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Updating Library"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

@@ -31,8 +31,9 @@
 /* true when Finder has synced since the last import */
 bool itunesdb_changed(void);
 
-/* Brings the playlists, ratings and play counts in line with iTunesDB. Runs
-   on the tagcache thread once the database has been updated from the files */
+/* Brings the ratings and play counts in line with what
+   itunesdb_import_tracks() read after the sync. Runs on the tagcache thread
+   once the database has been updated from the files */
 void itunesdb_import(void);
 
 /* Writes iPod_Control/iTunes/Play Counts like the stock firmware, for Finder
@@ -49,10 +50,12 @@ uint64_t itunesdb_path_hash(const char *path);
 #define ITUNESDB_AUDIOBOOK       0x02 /* plays at the audiobook speed */
 #define ITUNESDB_SKIP_SHUFFLE    0x04 /* not in Shuffle Songs */
 
-/* Notes what playback needs from iTunesDB, at boot after a sync: the tracks
-   with flags and where each cover is. Until then no track has flags and
-   the covers come from the files. */
-void itunesdb_import_tracks(void);
+/* Notes what playback needs from iTunesDB: the tracks with flags and where
+   each cover is. Until then no track has flags and the covers come from the
+   files. At boot after a sync (synced), it also writes Finder's playlists
+   as .m3u8 files and keeps the tracks' counts for itunesdb_import(), so
+   that iTunesDB is read only once. Returns the number of tracks read. */
+int itunesdb_import_tracks(bool synced);
 
 /* Reads what itunesdb_import_tracks() noted into memory, at boot before
    music plays. False when that was noted from another iTunesDB, or by a
