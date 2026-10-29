@@ -143,6 +143,10 @@ struct progressbar {
     int level, hold_pos;    /* in units of MAX_PEAK */
     long last_tick, hold_tick;
     OFFSETTYPE(struct gui_img *) slider;
+    /* the slider's middle on the end of the fill, as a stock iPod has it,
+     * with the bar its whole width: the slider takes half its own width
+     * past either end, which the viewport has to leave room for */
+    bool slider_centre;
 
     OFFSETTYPE(struct gui_img *) backdrop;
     const struct settings_list *setting;

@@ -337,17 +337,30 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
     if (SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->slider))
     {
         struct gui_img *img = SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->slider);
-        /* clear the slider */
-        screen_clear_area(display, x, y, width, height);
-
-        /* account for the sliders width in the progressbar */
-        if (flags&HORIZONTAL)
+        if (pb->slider_centre)
         {
-            width -= img->bm.width;
+            /* clear the slider, which can stand out past the ends */
+            if (flags&HORIZONTAL)
+                screen_clear_area(display, x - img->bm.width / 2, y,
+                                  width + img->bm.width, height);
+            else
+                screen_clear_area(display, x, y - img->bm.height / 2,
+                                  width, height + img->bm.height);
         }
         else
         {
-            height -= img->bm.height;
+            /* clear the slider */
+            screen_clear_area(display, x, y, width, height);
+
+            /* account for the sliders width in the progressbar */
+            if (flags&HORIZONTAL)
+            {
+                width -= img->bm.width;
+            }
+            else
+            {
+                height -= img->bm.height;
+            }
         }
     }
 
@@ -441,6 +454,8 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             xoff = width * end / length;
             if (flags&INVERTFILL)
                 xoff = width - xoff;
+            if (pb->slider_centre)
+                xoff -= w / 2;
         }
         else
         {
@@ -448,8 +463,19 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             yoff = height * end / length;
             if (flags&INVERTFILL)
                 yoff = height - yoff;
+            if (pb->slider_centre)
+                yoff -= h / 2;
         }
-        display->bmp_part(&img->bm, 0, 0, x + xoff, y + yoff, w, h);
+        if (pb->slider_centre)
+        {
+            /* over the end of the fill, which shows through the corners
+               of the image rather than the backdrop */
+            display->set_drawmode(DRMODE_FG);
+            display->bmp_part(&img->bm, 0, 0, x + xoff, y + yoff, w, h);
+            display->set_drawmode(DRMODE_SOLID);
+        }
+        else
+            display->bmp_part(&img->bm, 0, 0, x + xoff, y + yoff, w, h);
     }
 
     if (pb->type == SKIN_TOKEN_PROGRESSBAR)

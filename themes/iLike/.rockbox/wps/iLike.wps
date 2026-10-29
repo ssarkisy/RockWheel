@@ -62,10 +62,11 @@
 %ax%Vl(a,15,61,96,96,-)%Vf(000000)%Vb(FFFFFF)
 %Cl(0,0,96,96,c,c)
 %Cd
-# scrubber: the progress bar with a slider, the wheel moves it
+# scrubber: the progress bar with a slider, the wheel moves it; the
+# viewport leaves room for half the knob past either end of the bar
 %xl(N,Scrub Knob.bmp,0,0)
-%Vl(s,20,182,280,15,-)%Vf(000000)%Vb(FFFFFF)
-%pb(0,0,280,15,Progress Bar.bmp,slider,N)
+%Vl(s,14,182,292,15,-)%Vf(000000)%Vb(FFFFFF)
+%pb(6,0,280,15,Progress Bar.bmp,slider,N,slidercentre)
 # rating: whole stars in place of the progress bar, the wheel sets them
 %xl(O,Stars.bmp,0,0,6)
 %Vl(r,18,182,284,20,-)

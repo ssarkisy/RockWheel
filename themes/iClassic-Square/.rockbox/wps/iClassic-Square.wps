@@ -106,10 +106,11 @@
 %ar%pc
 %Vl(pb,273,207,47,14,2)%Vf(000000)
 %al-%pr
-# scrubber: the progress bar with a slider, the wheel moves it
+# scrubber: the progress bar with a slider, the wheel moves it; the
+# viewport leaves room for half the knob past either end of the bar
 %xl(K,Scrub Knob.bmp,0,0)
-%Vl(scrub,58,206,204,23,-)
-%pb(0,0,204,23,PB.bmp,slider,K)
+%Vl(scrub,51,206,218,23,-)
+%pb(7,0,204,23,PB.bmp,slider,K,slidercentre)
 %Vl(scrub,0,207,45,14,2)%Vf(000000)
 %ar%pc
 %Vl(scrub,273,207,47,14,2)%Vf(000000)

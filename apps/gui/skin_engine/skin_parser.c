@@ -1009,6 +1009,7 @@ static int parse_progressbar_tag(struct skin_element* element,
     pb->last_tick = pb->hold_tick = 0;
     pb->image = PTRTOSKINOFFSET(skin_buffer, NULL);
     pb->slider = PTRTOSKINOFFSET(skin_buffer, NULL);
+    pb->slider_centre = false;
     pb->backdrop = PTRTOSKINOFFSET(skin_buffer, NULL);
     pb->setting = NULL;
     pb->invert_fill_direction = false;
@@ -1092,7 +1093,7 @@ static int parse_progressbar_tag(struct skin_element* element,
     {
         eINVERT = 0, eNOFILL, eNOBORDER, eNOBAR, eSLIDER, eIMAGE,
         eBACKDROP, eVERTICAL, eHORIZONTAL, eNOTOUCH, eSETTING, eSETTING_OFFSET,
-        eHOLD, e_PB_TAG_COUNT
+        eHOLD, eSLIDERCENTRE, e_PB_TAG_COUNT
     };
 
     static const char *pb_options[e_PB_TAG_COUNT + 1] = {[eINVERT] = "invert",
@@ -1101,6 +1102,7 @@ static int parse_progressbar_tag(struct skin_element* element,
                  [eVERTICAL] = "vertical", [eHORIZONTAL] = "horizontal",
                  [eNOTOUCH] = "notouch", [eSETTING] = "setting",
                  [eSETTING_OFFSET] = "soffset", [eHOLD] = "hold",
+                 [eSLIDERCENTRE] = "slidercentre",
                  [e_PB_TAG_COUNT] = NULL};
     int pb_op;
 
@@ -1119,6 +1121,8 @@ static int parse_progressbar_tag(struct skin_element* element,
             pb->noborder = true;
         else if (pb_op == eNOBAR)
             pb->nobar = true;
+        else if (pb_op == eSLIDERCENTRE)
+            pb->slider_centre = true;
         else if (pb_op == eHOLD)
         {
             pb->hold = true;
