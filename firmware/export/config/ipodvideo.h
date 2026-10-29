@@ -217,9 +217,10 @@
 /* without that file, hand a computer over to Apple's disk mode instead */
 #define USB_APPLE_DISK_MODE
 
-/* the most one USB transfer takes, instead of the 24 KB ATA targets get by
-   default: Finder writes whole files */
-#define USB_WRITE_BUFFER_SIZE (1024*64)
+/* the part of a USB write taken at a time, instead of the 24 KB ATA targets
+   get by default: a copy onto the iPod ran at 8.6 MB/s with 32 KB, 8.5 with
+   16 KB and 7.9 with 64 KB */
+#define USB_WRITE_BUFFER_SIZE (1024*32)
 
 /* start with the Apple logo on black, as Apple's own firmware does, instead
    of the Rockbox logo */
