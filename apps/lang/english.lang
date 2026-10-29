@@ -18041,3 +18041,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Calculating…"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

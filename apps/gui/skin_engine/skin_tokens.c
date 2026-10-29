@@ -1651,7 +1651,18 @@ const char *get_token_value(struct gui_wps *gwps,
         {
             int songs = tagcache_get_song_count();
             if (songs < 0)
-                return NULL;
+            {
+                /* while the database loads or takes in a sync; nothing
+                   when there is none to count */
+                struct tagcache_stat *stat = tagcache_get_stat();
+                int done, total;
+                if (stat->initialized && stat->readyvalid && !stat->ready
+                    && stat->commit_step == 0
+                    && tagcache_get_import(&done, &total)
+                       == TAGCACHE_IMPORT_NONE)
+                    return NULL;
+                return str(LANG_SONG_COUNT_UNKNOWN);
+            }
             snprintf(buf, buf_size, plural_str(songs, LANG_SONG_COUNT_ONE,
                      LANG_SONG_COUNT_FEW, LANG_SONG_COUNT_MANY), songs);
             numeric_ret = songs;
