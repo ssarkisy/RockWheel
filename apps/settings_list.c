@@ -1411,8 +1411,15 @@ const struct settings_list settings[] = {
                 LANG_MAX_FILES_IN_PLAYLIST,
 #if CONFIG_CPU == PP5002 || CONFIG_CPU == PP5020 || CONFIG_CPU == PP5022
                   /** Slow CPU benefits greatly from building smaller playlists
-                  On the iPod Mini 2nd gen, creating a playlist of 2000 entries takes around 10 seconds */
+                  On the iPod Mini 2nd gen, creating a playlist of 2000 entries takes around 10 seconds.
+                  The iPod Video plays a whole library like the stock iPod; the
+                  database writes its playlists to a file and loads that,
+                  which is quick (tagtree.c) */
+#ifdef IPOD_VIDEO
+                  32000,
+#else
                   2000,
+#endif
 #elif MEMORYSIZE > 1
                   10000,
 #else

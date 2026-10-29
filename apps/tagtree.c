@@ -66,6 +66,30 @@
 
 #define TAGNAVI_DEFAULT_CONFIG  ROCKBOX_DIR "/tagnavi.config"
 #define TAGNAVI_USER_CONFIG     ROCKBOX_DIR "/tagnavi_user.config"
+/* Songs to play are written into a file and the playlist is loaded from
+   it, as from any playlist file: adding them one at a time writes the
+   control file for each, which takes seconds for a whole library. There
+   are two, so that the playlist playing goes on from its file while the
+   other is written, and is replaced only once. */
+#define TAGTREE_PLAYLIST_DIR    ROCKBOX_DIR
+static const char * const tagtree_playlist_names[2] = {
+    "tagtree.m3u8", "tagtree2.m3u8"
+};
+
+/* the one the current playlist isn't from, as a full path into buf */
+static const char *tagtree_playlist_file(char *buf, size_t size)
+{
+    char current[MAX_PATH];
+    const char *name = tagtree_playlist_names[0];
+    snprintf(buf, size, "%s/%s", TAGTREE_PLAYLIST_DIR, name);
+    if (playlist_get_name(NULL, current, sizeof(current))
+        && !strcasecmp(current, buf))
+    {
+        name = tagtree_playlist_names[1];
+        snprintf(buf, size, "%s/%s", TAGTREE_PLAYLIST_DIR, name);
+    }
+    return name;
+}
 
 static int tagtree_play_folder(struct tree_context* c);
 
@@ -2408,19 +2432,69 @@ static bool* fill_random_playlist_indexes(bool *bool_array, size_t arr_sz,
     return bool_array;
 }
 
+/* Writes a playlist file a large block at a time, through the plugin
+   buffer; one write() a song takes long on the iPod */
+struct playlist_writer {
+    int fd;
+    char *buf;
+    size_t size, used;
+    bool ok;
+};
+
+static bool playlist_writer_open(struct playlist_writer *w,
+                                 const char *playlist, bool new_playlist)
+{
+    w->buf = plugin_get_buffer(&w->size);
+    w->used = 0;
+    w->ok = true;
+    if (new_playlist)
+        w->fd = open_utf8(playlist, O_CREAT|O_WRONLY|O_TRUNC);
+    else
+        w->fd = open(playlist, O_CREAT|O_WRONLY|O_APPEND, 0666);
+    return w->fd >= 0 && w->buf && w->size >= MAX_PATH;
+}
+
+static bool playlist_writer_flush(struct playlist_writer *w)
+{
+    if (w->ok && w->used > 0)
+        w->ok = write(w->fd, w->buf, w->used) == (ssize_t)w->used;
+    w->used = 0;
+    return w->ok;
+}
+
+static bool playlist_writer_add(struct playlist_writer *w, const char *path)
+{
+    size_t len = strlen(path);
+    if (w->used + len + 1 > w->size && !playlist_writer_flush(w))
+        return false;
+    memcpy(w->buf + w->used, path, len);
+    w->buf[w->used + len] = '\n';
+    w->used += len + 1;
+    return true;
+}
+
+static bool playlist_writer_close(struct playlist_writer *w)
+{
+    bool ok = w->fd >= 0 && playlist_writer_flush(w);
+    if (w->fd >= 0)
+        close(w->fd);
+    w->fd = -1;
+    return ok;
+}
+
 static bool insert_all_playlist(struct tree_context *c,
                                 const char* playlist, bool new_playlist,
                                 int position, bool queue)
 {
     struct tagcache_search tcs;
     int n;
-    int fd = -1;
     unsigned long last_tick;
     int slots_remaining = 0;
     bool fill_randomly = false;
     bool *rand_bool_array = NULL;
     char buf[MAX_PATH];
     struct playlist_insert_context context;
+    struct playlist_writer writer = { .fd = -1 };
 
     cpu_boost(true);
 
@@ -2440,18 +2514,12 @@ static bool insert_all_playlist(struct tree_context *c,
             return false;
         }
     }
-    else
+    else if (!playlist_writer_open(&writer, playlist, new_playlist))
     {
-        if (new_playlist)
-            fd = open_utf8(playlist, O_CREAT|O_WRONLY|O_TRUNC);
-        else
-            fd = open(playlist, O_CREAT|O_WRONLY|O_APPEND, 0666);
-        if(fd < 0)
-        {
-            tagcache_search_finish(&tcs);
-            cpu_boost(false);
-            return false;
-        }
+        playlist_writer_close(&writer);
+        tagcache_search_finish(&tcs);
+        cpu_boost(false);
+        return false;
     }
 
     last_tick = current_tick + HZ/2; /* Show splash after 0.5 seconds have passed */
@@ -2554,26 +2622,30 @@ static bool insert_all_playlist(struct tree_context *c,
                 break;
             }
         }
-        else if (fdprintf(fd, "%s\n", buf) <= 0)
+        else if (!playlist_writer_add(&writer, buf))
         {
             exit_loop_now = true;
             break;
         }
-        yield();
+        /* now and then: music may still play, and a yield for every song
+           gave the codec a turn each time */
+        if ((i & 63) == 0)
+            yield();
 
         if (exit_loop_now)
             break;
     }
 
+    bool ok = true;
     if (playlist == NULL)
         playlist_insert_context_release(&context);
     else
-        close(fd);
+        ok = playlist_writer_close(&writer);
 
     tagcache_search_finish(&tcs);
     cpu_boost(false);
 
-    return true;
+    return ok;
 }
 
 static bool goto_allsubentries(int newtable)
@@ -2716,15 +2788,17 @@ bool tagtree_get_subentry_filename(char *buf, size_t bufsize)
 }
 
 /* Play all songs in random order, as Shuffle Songs in the main menu of a
- * stock iPod. When there are more than the playlist can hold, a random
- * selection fills it. False if nothing could be played. */
+ * stock iPod, but for podcasts and audiobooks. When there are more than the
+ * playlist can hold, a random selection fills it. False if nothing could
+ * be played. */
 bool tagtree_shuffle_songs(void)
 {
     struct tagcache_search tcs;
-    struct playlist_insert_context context;
+    struct playlist_writer writer;
     char buf[MAX_PATH];
     int max = playlist_get_current()->max_playlist_size;
-    int count = 0, added = 0;
+    int count = tagcache_get_song_count(); /* -1 until counted */
+    int added = 0;
     long last_tick;
 
     if (!tagcache_is_usable() || !tagcache_search(&tcs, tag_filename))
@@ -2732,56 +2806,56 @@ bool tagtree_shuffle_songs(void)
         splash(HZ, ID2P(LANG_TAGCACHE_BUSY));
         return false;
     }
-    while (tagcache_get_next(&tcs, buf, sizeof buf))
-        count++;
-    tagcache_search_finish(&tcs);
-    if (count == 0)
-        return false;
 
     cpu_boost(true);
     splash(0, ID2P(LANG_WAIT));
-    playlist_create(NULL, NULL);
-    if (playlist_insert_context_create(NULL, &context, PLAYLIST_INSERT_LAST,
-                                       false, false) < 0)
-    {
-        cpu_boost(false);
-        return false;
-    }
-
+    /* as when playing a list */
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        audio_stop();
+    char file[MAX_PATH];
+    const char *name = tagtree_playlist_file(file, sizeof(file));
+    bool ok = playlist_writer_open(&writer, file, true);
     last_tick = current_tick + HZ/2; /* progress after half a second */
-    if (tagcache_search(&tcs, tag_filename))
+    int seen = 0;
+    while (ok && added < max && tagcache_get_next(&tcs, buf, sizeof buf))
     {
-        for (int i = 0; added < max && tagcache_get_next(&tcs, buf, sizeof buf); i++)
-        {
-            /* selection sampling: each of the remaining songs gets picked
-               with the chance there are slots left for it */
-            if (count > max && rand() % (count - i) >= max - added)
-                continue;
-            if (playlist_insert_context_add(&context, tcs.result) < 0)
-                break;
-            added++;
-
-            if (TIME_AFTER(current_tick, last_tick + HZ/4))
-            {
-                splash_progress(added, MIN(count, max), "%s (%s)",
-                                str(LANG_WAIT), str(LANG_OFF_ABORT));
-                if (action_userabort(TIMEOUT_NOBLOCK))
-                    break;
-                last_tick = current_tick;
-            }
+        if (!buf[0])
+            continue; /* the entry of a removed file */
+        /* selection sampling: each of the remaining songs gets picked
+           with the chance there are slots left for it */
+        int i = seen++;
+        if (count > max && i < count && rand() % (count - i) >= max - added)
+            continue;
+        if (itunesdb_track_flags(buf) & ITUNESDB_SKIP_SHUFFLE)
+            continue;
+        ok = playlist_writer_add(&writer, buf);
+        added++;
+        if ((added & 63) == 0)
             yield();
-        }
-        tagcache_search_finish(&tcs);
-    }
-    playlist_insert_context_release(&context);
 
-    if (added > 0)
+        if (TIME_AFTER(current_tick, last_tick + HZ/4))
+        {
+            splash_progress(seen, count > 0 ? count : seen, "%s (%s)",
+                            str(LANG_WAIT), str(LANG_OFF_ABORT));
+            if (action_userabort(TIMEOUT_NOBLOCK))
+                break;
+            last_tick = current_tick;
+        }
+    }
+    tagcache_search_finish(&tcs);
+    ok = playlist_writer_close(&writer) && ok;
+
+    if (ok && added > 0
+        && playlist_create(TAGTREE_PLAYLIST_DIR, name) == 0
+        && playlist_amount() > 0)
     {
         playlist_shuffle(current_tick, -1);
         playlist_start(0, 0, 0);
     }
+    else
+        ok = false;
     cpu_boost(false);
-    return added > 0;
+    return ok;
 }
 
 bool tagtree_current_playlist_insert(int position, bool queue)
@@ -2802,16 +2876,33 @@ static int tagtree_play_folder(struct tree_context* c)
     logf( "%s", __func__);
     int start_index = c->selected_item;
 
-    if (playlist_create(NULL, NULL) < 0)
+
+    /* The music playing would change anyway; stopped first, it doesn't
+       take turns with building the playlist */
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        audio_stop();
+
+    int n = c->filesindir;
+    if (n <= playlist_get_current()->max_playlist_size)
+    {
+        char file[MAX_PATH];
+        const char *name = tagtree_playlist_file(file, sizeof(file));
+        if (!insert_all_playlist(c, file, true, PLAYLIST_INSERT_LAST, false))
+            return -2;
+        if (playlist_create(TAGTREE_PLAYLIST_DIR, name) < 0)
+        {
+            logf("Failed creating playlist\n");
+            return -1;
+        }
+    }
+    else if (playlist_create(NULL, NULL) < 0)
     {
         logf("Failed creating playlist\n");
         return -1;
     }
-
-    if (!insert_all_playlist(c, NULL, false, PLAYLIST_INSERT_LAST, false))
+    else if (!insert_all_playlist(c, NULL, false, PLAYLIST_INSERT_LAST, false))
         return -2;
 
-    int n = c->filesindir;
     bool has_playlist_been_randomized = n > playlist_get_current()->max_playlist_size;
     if (has_playlist_been_randomized)
     {

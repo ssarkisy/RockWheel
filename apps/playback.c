@@ -2317,6 +2317,39 @@ static bool audio_auto_change_frequency(struct mp3entry *id3, bool play);
    can load the codec, the album art and finally the audio data.
    This is called on the audio thread after the buffering thread calls the
    buffering_handle_finished_callback callback. */
+/* The next track is loaded once the one just loaded has its audio in the
+   buffer, or enough of it. Before that the two take turns at the disk: the
+   next track's metadata and cover took seconds on the iPod, and a skip
+   waited for them. */
+#define FILL_NEXT_AFTER     (16*1024*1024) /* bytes of the audio */
+#define FILL_NEXT_TIMEOUT   (10*HZ)
+static int fill_waiting_hid;    /* the audio handle waited for, 0 for none */
+static long fill_waiting_tick;
+
+static void fill_next_now(void)
+{
+    fill_waiting_hid = 0;
+    LOGFQUEUE("audio > audio Q_AUDIO_FILL_BUFFER");
+    audio_queue_post(Q_AUDIO_FILL_BUFFER, 0);
+}
+
+/* on the audio thread's timeouts while it fills */
+static void audio_check_fill_waiting(void)
+{
+    if (fill_waiting_hid <= 0)
+        return;
+    if (play_status == PLAY_STOPPED)
+    {
+        fill_waiting_hid = 0;
+        return;
+    }
+    off_t left = buf_handle_remaining(fill_waiting_hid);
+    off_t size = buf_filesize(fill_waiting_hid);
+    if (left <= 0 || size - left >= FILL_NEXT_AFTER
+        || TIME_AFTER(current_tick, fill_waiting_tick + FILL_NEXT_TIMEOUT))
+        fill_next_now();
+}
+
 static int audio_finish_load_track(struct track_info *infop)
 {
     int trackstat = LOAD_TRACK_OK;
@@ -2522,8 +2555,14 @@ audio_finish_load_track_exit:
     {
         /* Load next track - error or not */
         track_list.in_progress_hid = 0;
-        LOGFQUEUE("audio > audio Q_AUDIO_FILL_BUFFER");
-        audio_queue_post(Q_AUDIO_FILL_BUFFER, 0);
+        if (trackstat >= LOAD_TRACK_OK && infop->audio_hid > 0
+            && buf_handle_remaining(infop->audio_hid) > 0)
+        {
+            fill_waiting_hid = infop->audio_hid;
+            fill_waiting_tick = current_tick;
+        }
+        else
+            fill_next_now();
     }
     else
     {
@@ -2537,6 +2576,8 @@ audio_finish_load_track_exit:
 /* Start a new track load */
 static int audio_fill_file_buffer(void)
 {
+    fill_waiting_hid = 0; /* this is the load waited for, or a new start */
+
     if (play_status == PLAY_STOPPED)
         return LOAD_TRACK_ERR_FAILED;
 
@@ -2709,6 +2750,9 @@ static void audio_on_finish_load_track(int id3_hid)
    (Q_AUDIO_HANDLE_FINISHED) */
 static void audio_on_handle_finished(int hid)
 {
+    if (hid == fill_waiting_hid)
+        fill_next_now();
+
     /* Right now, only audio handles should end up calling this */
     if (filling == STATE_END_OF_PLAYLIST)
     {
@@ -3762,6 +3806,7 @@ void audio_playback_handler(struct queue_event *ev)
 
         case SYS_TIMEOUT:
             LOGFQUEUE_SYS_TIMEOUT("playback < SYS_TIMEOUT");
+            audio_check_fill_waiting();
             break;
 
         default:

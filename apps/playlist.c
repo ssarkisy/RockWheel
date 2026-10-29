@@ -1790,6 +1790,8 @@ static int get_next_index(const struct playlist_info* playlist, int steps,
  * Thread to update filename pointers to dircache on background
  * without affecting playlist load up performance.
  */
+#define DC_SCAN_MAX 500 /* tracks */
+
 static void dc_thread_playlist(void)
 {
     struct queue_event ev;
@@ -1836,8 +1838,13 @@ static void dc_thread_playlist(void)
 
             case SYS_TIMEOUT:
             {
-                /* Nothing to do if there are no dcfrefs or tracks */
-                if (!playlist->dcfrefs_handle || playlist->amount <= 0)
+                /* Nothing to do if there are no dcfrefs or tracks. Nor for a
+                   long playlist: a track's name is read from the file when
+                   it comes up, which is quick, while the scan reads every
+                   name and holds the file system for seconds, which slowed
+                   loading tracks on the iPod. */
+                if (!playlist->dcfrefs_handle || playlist->amount <= 0
+                    || playlist->amount > DC_SCAN_MAX)
                 {
                     is_dirty = false;
                     sleep_time = TIMEOUT_BLOCK;
