@@ -172,6 +172,9 @@ MENUITEM_SETTING(skip_length, &global_settings.skip_length, NULL);
 MENUITEM_SETTING(prevent_skip, &global_settings.prevent_skip, NULL);
 MENUITEM_SETTING(rewind_across_tracks, &global_settings.rewind_across_tracks, NULL);
 MENUITEM_SETTING(resume_rewind, &global_settings.resume_rewind, NULL);
+#ifdef HAVE_PITCHCONTROL
+MENUITEM_SETTING_SHARED(audiobook_speed, &global_settings.audiobook_speed, NULL);
+#endif
 MENUITEM_SETTING(pause_rewind, &global_settings.pause_rewind, NULL);
 #ifdef HAVE_PLAY_FREQ
 MENUITEM_SETTING(play_frequency, &global_settings.play_frequency, NULL);
@@ -228,9 +231,6 @@ MAKE_MENU(ipod_playback_settings, ID2P(LANG_PLAYBACK), 0,
 #endif
 #ifdef HAVE_HEADPHONE_DETECTION
           &unplug_menu,
-#endif
-#ifdef HAVE_TAGCACHE
-          &autoresume_menu,
 #endif
           &resume_rewind);
 

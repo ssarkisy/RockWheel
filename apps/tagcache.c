@@ -2197,7 +2197,7 @@ bool tagcache_fill_tags(struct mp3entry *id3, const char *filename)
     if (id3->bitrate == 0)
         id3->bitrate = 1;
 
-    if (global_settings.autoresume_enable)
+    if (itunesdb_resumes(filename))
     {
         id3->elapsed = get_tag_numeric(entry, tag_lastelapsed, idx_id);
         logf("tagcache_fill_tags: Set elapsed for %s to %lX\n",
@@ -5439,16 +5439,13 @@ static void tagcache_thread(void)
 
     if (itunesdb_changed())
     {
-#ifdef ITUNESDB_HAVE_ART
-        /* the covers first: it is quick, and the old ones point into ithmb
-           files that Finder has rewritten */
-        itunesdb_import_art();
-#endif
+        /* what playback needs first: it is quick, and the old covers point
+           into ithmb files that Finder has rewritten */
+        itunesdb_import_tracks();
         queue_post(&tagcache_queue, Q_IMPORT_ITUNES, 0);
     }
-#ifdef ITUNESDB_HAVE_ART
-    itunesdb_load_art_index();
-#endif
+    else if (!itunesdb_load_tracks())
+        itunesdb_import_tracks();
 
     /* Don't delay bootup with the header check but do it on background. */
     if (!tc_stat.ready)

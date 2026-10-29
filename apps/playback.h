@@ -90,6 +90,10 @@ void audio_set_playback_frequency(unsigned int sample_rate_hz);
 #ifdef HAVE_ALBUMART
 void set_albumart_mode(int setting);
 #endif
+#ifdef HAVE_PITCHCONTROL
+/* the audiobook speed setting's callback */
+void audio_audiobook_speed_changed(int speed);
+#endif
 
 size_t audio_get_filebuflen(void);
 

@@ -895,15 +895,19 @@ void settings_apply_videoout(int mode)
 }
 #endif
 
-/* The sound effects the iPod settings don't offer: a config file can't
-   leave one on where nothing would show it */
-static void reset_hidden_sound_settings(void)
+/* What the iPod settings don't offer: a config file can't leave one on
+   where nothing would show it. Automatic resume is for every track; the
+   podcasts and audiobooks resume without it. */
+static void reset_hidden_settings(void)
 {
     static void * const hidden[] = {
         &global_settings.stereo_width,
         &global_settings.surround_enabled,
         &global_settings.pbe,
         &global_settings.compressor_settings.threshold,
+#ifdef HAVE_TAGCACHE
+        &global_settings.autoresume_enable,
+#endif
     };
     for (size_t i = 0; i < ARRAYLEN(hidden); i++)
     {
@@ -917,7 +921,7 @@ void settings_apply(bool read_disk)
 {
     logf("%s", __func__);
     int rc;
-    reset_hidden_sound_settings();
+    reset_hidden_settings();
     CHART(">set_codepage");
     set_codepage(global_settings.default_codepage);
     CHART("<set_codepage");

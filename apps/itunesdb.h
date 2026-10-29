@@ -43,6 +43,30 @@ void itunesdb_write_playcounts(void);
 /* the hash that a database entry and an iTunesDB track are matched by */
 uint64_t itunesdb_path_hash(const char *path);
 
+/* What iTunesDB says a track does differently, as the stock firmware
+   plays it */
+#define ITUNESDB_REMEMBERS_PLACE 0x01 /* podcasts, audiobooks */
+#define ITUNESDB_AUDIOBOOK       0x02 /* plays at the audiobook speed */
+#define ITUNESDB_SKIP_SHUFFLE    0x04 /* not in Shuffle Songs */
+
+/* Notes what playback needs from iTunesDB, at boot after a sync: the tracks
+   with flags and where each cover is. Until then no track has flags and
+   the covers come from the files. */
+void itunesdb_import_tracks(void);
+
+/* Reads what itunesdb_import_tracks() noted into memory, at boot before
+   music plays. False when that was noted from another iTunesDB, or by a
+   firmware before this: the counts are then still to be kept, as they hold
+   plays Finder hasn't had, but the tracks are to be imported again. */
+bool itunesdb_load_tracks(void);
+
+/* the flags of the file at path */
+unsigned itunesdb_track_flags(const char *path);
+
+/* true when the file at path is to play from where it was left: a podcast
+   or an audiobook, or any file with Rockbox's automatic resume on */
+bool itunesdb_resumes(const char *path);
+
 /* the covers Finder makes for the stock firmware are RGB565 frames */
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH == 16) && (LCD_PIXELFORMAT == RGB565)
 #define ITUNESDB_HAVE_ART
@@ -55,13 +79,6 @@ struct itunesdb_art {
     uint32_t offset;
     int width, height;  /* of the frame */
 };
-
-/* Notes where each track's cover is, at boot after a sync; until then the
-   covers come from the files */
-void itunesdb_import_art(void);
-
-/* Reads where the covers are into memory, at boot before music plays */
-void itunesdb_load_art_index(void);
 
 /* the cover Finder made for the file at path */
 bool itunesdb_find_art(const char *path, struct itunesdb_art *art);

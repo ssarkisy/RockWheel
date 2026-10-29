@@ -54,6 +54,10 @@
 /* the folder where Finder keeps the music */
 #define MUSIC_DIR       "/iPod_Control/Music"
 
+/* media types, which a track can have more than one of */
+#define MEDIA_PODCAST   0x04
+#define MEDIA_AUDIOBOOK 0x08
+
 #define CACHE_SIZE      32768
 #define POOL_PER_TRACK  64 /* bytes of path; Finder's take about 35 */
 #define WRITE_BUF_SIZE  4096
@@ -71,7 +75,8 @@ struct state_entry {
     uint32_t playcount;
     uint8_t rating;  /* 0..100, 20 a star */
     uint8_t media;   /* the media type, 0xff when it doesn't fit */
-    uint16_t unused;
+    uint8_t flags;   /* ITUNESDB_* */
+    uint8_t unused;
 };
 
 struct track {
@@ -224,11 +229,23 @@ static void read_track(off_t pos, struct track *track)
     track->id = le32(p + 16);
     track->st.rating = p[31];
     track->st.playcount = le32(p + 80);
+    uint32_t media = 0;
     if (header_len >= 212)
     {
-        uint32_t media = le32(p + 208);
+        media = le32(p + 208);
         track->st.media = media > 0xfe ? 0xff : media;
     }
+    /* The stock firmware remembers the place and leaves the track out of
+       Shuffle Songs where iTunes says to, as it does for podcasts and
+       audiobooks; those always are, in case Finder leaves it to the media
+       type */
+    bool spoken = media & (MEDIA_PODCAST | MEDIA_AUDIOBOOK);
+    if ((header_len > 166 && p[166]) || spoken)
+        track->st.flags |= ITUNESDB_REMEMBERS_PLACE;
+    if ((header_len > 165 && p[165]) || spoken)
+        track->st.flags |= ITUNESDB_SKIP_SHUFFLE;
+    if (media & MEDIA_AUDIOBOOK)
+        track->st.flags |= ITUNESDB_AUDIOBOOK;
     if (header_len >= 356)
         track->art = le32(p + 352);
 
@@ -813,6 +830,155 @@ done:
     memset(&pc, 0, sizeof(pc));
 }
 
+/* What playback looks up for each track it plays: files of a header that
+   starts with their magic, version and count, then entries sorted by path
+   hash, which each starts with. Every open and every small read costs the
+   iPod 20-30 ms, so they are read into memory, at boot and after an
+   import: nothing is allocated while music plays, as the audio buffer has
+   the memory then and taking some would stop it. */
+
+struct index_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t count;
+};
+
+struct index {
+    int handle;         /* the entries, 0 for none */
+    uint32_t count;
+    size_t entry_size;
+};
+
+/* reads the header into hdr and the entries into memory */
+static void load_index(struct index *index, const char *file, void *hdr,
+                       size_t hdr_size, uint32_t magic, uint32_t version)
+{
+    const struct index_header *h = hdr;
+    if (index->handle > 0)
+        return;
+    int fd = open(file, O_RDONLY);
+    if (fd < 0)
+        return;
+    if (read(fd, hdr, hdr_size) == (ssize_t)hdr_size
+        && h->magic == magic && h->version == version && h->count > 0)
+    {
+        ssize_t size = h->count * index->entry_size;
+        int handle = core_alloc(size);
+        if (handle > 0)
+        {
+            core_pin(handle);
+            bool ok = read(fd, core_get_data(handle), size) == size;
+            core_unpin(handle);
+            if (ok)
+            {
+                index->handle = handle;
+                index->count = h->count;
+            }
+            else
+                core_free(handle);
+        }
+    }
+    close(fd);
+}
+
+static void forget_index(struct index *index)
+{
+    if (index->handle > 0)
+        core_free(index->handle);
+    index->handle = 0;
+    index->count = 0;
+}
+
+/* copies the entry with this hash into entry */
+static bool find_in_index(struct index *index, uint64_t hash, void *entry)
+{
+    if (index->handle <= 0)
+        return false;
+    core_pin(index->handle);
+    const char *entries = core_get_data(index->handle);
+    bool found = false;
+    int lo = 0, hi = (int)index->count - 1;
+    while (lo <= hi && !found)
+    {
+        int mid = (lo + hi) / 2;
+        const char *e = entries + mid * index->entry_size;
+        uint64_t h = *(const uint64_t *)e;
+        if (h == hash)
+        {
+            memcpy(entry, e, index->entry_size);
+            found = true;
+        }
+        else if (h < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    core_unpin(index->handle);
+    return found;
+}
+
+/* the tracks with flags */
+#define FLAGS_FILE      ROCKBOX_DIR "/itunesdb_flags.dat"
+#define FLAGS_MAGIC     0x46494252 /* "RBIF" */
+#define FLAGS_VERSION   1
+
+struct flags_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t count;
+    uint32_t db_size;   /* of the iTunesDB they are from */
+    uint32_t db_mtime;
+};
+
+struct flags_entry {
+    uint64_t hash;
+    uint32_t flags;
+    uint32_t unused;
+};
+
+static struct index flags_index = { 0, 0, sizeof(struct flags_entry) };
+
+static void write_flags(void)
+{
+    int fd = open(FLAGS_FILE ".tmp", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fd < 0)
+        return;
+    struct flags_header hdr = {
+        FLAGS_MAGIC, FLAGS_VERSION, 0, db_size, db_mtime
+    };
+    write(fd, &hdr, sizeof(hdr));
+    /* by path hash, which db.by_hash already has them in */
+    for (int i = 0; i < db.count; i++)
+    {
+        const struct track *t = &db.tracks[db.by_hash[i]];
+        if (!t->path || !t->st.flags)
+            continue;
+        struct flags_entry entry = { t->st.hash, t->st.flags, 0 };
+        write(fd, &entry, sizeof(entry));
+        hdr.count++;
+    }
+    lseek(fd, 0, SEEK_SET);
+    write(fd, &hdr, sizeof(hdr));
+    close(fd);
+    rename(FLAGS_FILE ".tmp", FLAGS_FILE);
+    logf("itunesdb: %lu tracks with flags", (unsigned long)hdr.count);
+}
+
+unsigned itunesdb_track_flags(const char *path)
+{
+    struct flags_entry entry;
+    if (flags_index.handle <= 0
+        || !find_in_index(&flags_index, itunesdb_path_hash(path), &entry))
+        return 0;
+    return entry.flags;
+}
+
+bool itunesdb_resumes(const char *path)
+{
+    return global_settings.autoresume_enable
+           || (itunesdb_track_flags(path) & ITUNESDB_REMEMBERS_PLACE);
+}
+
 #ifdef ITUNESDB_HAVE_ART
 /* Covers. Finder scales each one into the ithmb files beside ArtworkDB for
    the stock firmware, as RGB565 frames ready for the screen; the tracks
@@ -1065,18 +1231,15 @@ done:
     }
 }
 
-/* Every open and every small read costs the iPod 20-30 ms, so the index
-   lives in memory and each frame is read once for all the sizes a theme
-   shows it at. Nothing is allocated while music plays: the audio buffer
-   has the memory then, and taking some would stop it. The index is loaded
-   at boot and after an import, the frame has a buffer of its own. */
+/* The index lives in memory, and each frame is read once for all the sizes
+   a theme shows it at, into a buffer of its own */
 #define FRAME_MAX       (200 * 200)  /* the iPod Video's largest covers */
 /* Frames start anywhere in a sector. Read from where the sector starts into
    an aligned buffer, the storage driver takes it all in one go; otherwise it
    goes a sector at a time through a buffer of its own */
 #define FRAME_ALIGN     2048         /* the largest sector there is */
 
-static int index_handle;        /* the art index without its header */
+static struct index art_index = { 0, 0, sizeof(struct art_entry) };
 static struct art_header index_hdr;
 static unsigned char frame_raw[FRAME_MAX * sizeof(fb_data) + 2 * FRAME_ALIGN]
     STORAGE_ALIGN_ATTR;
@@ -1086,76 +1249,15 @@ static uint32_t frame_offset;
 
 static void forget_art(void)
 {
-    if (index_handle > 0)
-        core_free(index_handle);
-    index_handle = 0;
+    forget_index(&art_index);
     frame_path[0] = '\0';
-}
-
-void itunesdb_load_art_index(void)
-{
-    if (index_handle > 0)
-        return;
-    int fd = open(ART_FILE, O_RDONLY);
-    if (fd < 0)
-        return;
-    if (read(fd, &index_hdr, sizeof(index_hdr)) == sizeof(index_hdr)
-        && index_hdr.magic == ART_MAGIC && index_hdr.version == ART_VERSION
-        && index_hdr.count > 0)
-    {
-        ssize_t size = index_hdr.count * sizeof(struct art_entry);
-        int handle = core_alloc(size);
-        if (handle > 0)
-        {
-            core_pin(handle);
-            bool ok = read(fd, core_get_data(handle), size) == size;
-            core_unpin(handle);
-            if (ok)
-                index_handle = handle;
-            else
-                core_free(handle);
-        }
-    }
-    close(fd);
-}
-
-void itunesdb_import_art(void)
-{
-    /* the old covers point into ithmb files Finder has rewritten */
-    forget_art();
-    remove(ART_FILE);
-    if (db_load())
-        write_art_index();
-    db_unload();
-    itunesdb_load_art_index();
 }
 
 bool itunesdb_find_art(const char *path, struct itunesdb_art *art)
 {
-    if (index_handle <= 0)
-        return false;
-
-    core_pin(index_handle);
-    const struct art_entry *entries = core_get_data(index_handle);
     struct art_entry entry;
-    bool found = false;
-    uint64_t hash = itunesdb_path_hash(path);
-    int lo = 0, hi = (int)index_hdr.count - 1;
-    while (lo <= hi && !found)
-    {
-        int mid = (lo + hi) / 2;
-        if (entries[mid].hash == hash)
-        {
-            entry = entries[mid];
-            found = true;
-        }
-        else if (entries[mid].hash < hash)
-            lo = mid + 1;
-        else
-            hi = mid - 1;
-    }
-    core_unpin(index_handle);
-    if (!found)
+    if (art_index.handle <= 0
+        || !find_in_index(&art_index, itunesdb_path_hash(path), &entry))
         return false;
 
     if ((size_t)snprintf(art->path, sizeof(art->path),
@@ -1333,3 +1435,40 @@ int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
     return out_size;
 }
 #endif /* ITUNESDB_HAVE_ART */
+
+void itunesdb_import_tracks(void)
+{
+    forget_index(&flags_index);
+    remove(FLAGS_FILE);
+#ifdef ITUNESDB_HAVE_ART
+    /* the old covers point into ithmb files Finder has rewritten */
+    forget_art();
+    remove(ART_FILE);
+#endif
+    if (db_load())
+    {
+        write_flags();
+#ifdef ITUNESDB_HAVE_ART
+        write_art_index();
+#endif
+    }
+    db_unload();
+    itunesdb_load_tracks();
+}
+
+bool itunesdb_load_tracks(void)
+{
+    struct flags_header hdr = { 0 };
+    uint32_t size, mtime;
+    load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
+               FLAGS_MAGIC, FLAGS_VERSION);
+#ifdef ITUNESDB_HAVE_ART
+    load_index(&art_index, ART_FILE, &index_hdr, sizeof(index_hdr),
+               ART_MAGIC, ART_VERSION);
+#endif
+    if (flags_index.handle > 0 || !db_stamp(&size, &mtime))
+        return true;
+    /* none with flags, from this iTunesDB? */
+    return hdr.magic == FLAGS_MAGIC && hdr.version == FLAGS_VERSION
+           && hdr.db_size == size && hdr.db_mtime == mtime;
+}

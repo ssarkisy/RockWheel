@@ -37,6 +37,7 @@
 #include "action.h"
 #include "settings.h"
 #include "tagcache.h"
+#include "itunesdb.h"
 #include "tagtree.h"
 #include "timefuncs.h"
 #include "lang.h"
@@ -945,7 +946,7 @@ static void tagtree_buffer_event(unsigned short id, void *ev_data)
     struct mp3entry *id3 = ((struct track_event *)ev_data)->id3;
 
     bool runtimedb = global_settings.runtimedb;
-    bool autoresume = global_settings.autoresume_enable;
+    bool autoresume = itunesdb_resumes(id3->path);
 
     /* Do not gather data unless proper setting has been enabled. */
     if (!runtimedb && !autoresume)
@@ -1017,13 +1018,16 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
 
     bool auto_skip = te->flags & TEF_AUTO_SKIP;
     bool runtimedb = global_settings.runtimedb;
-    bool autoresume = global_settings.autoresume_enable;
+    bool autoresume = itunesdb_resumes(id3->path);
 
     /* A play is a minute of a track, or all of a shorter one: neither
        skipping on after a few seconds nor only a full play to the end.
-       The autoresume point is always processed. */
+       What plays from where it was left is played when it ends, as the
+       place says nothing of how long it was listened to. The autoresume
+       point is always processed. */
     if (runtimedb && (id3->elapsed == 0
         || (id3->elapsed < 60 * 1000 && !auto_skip)
+        || (autoresume && !auto_skip)
         ))
     {
         logf("not db logging unplayed or skipped track");

@@ -1750,6 +1750,33 @@ static bool autoresumable(struct mp3entry *id3)
 }
 #endif  /* HAVE_TAGCACHE */
 
+#ifdef HAVE_PITCHCONTROL
+/* Audiobooks play at the speed set for them, as on a stock iPod, the rest
+   at the normal speed. Set as the codec starts on a track, which is where
+   the DSP is in the music. */
+static void set_track_speed(const struct mp3entry *id3)
+{
+    static const int32_t speeds[] = {
+        75 * PITCH_SPEED_PRECISION, PITCH_SPEED_100,
+        125 * PITCH_SPEED_PRECISION
+    };
+    int speed = global_settings.audiobook_speed;
+    int32_t factor = PITCH_SPEED_100;
+    if ((itunesdb_track_flags(id3->path) & ITUNESDB_AUDIOBOOK)
+        && speed >= 0 && speed < (int)ARRAYLEN(speeds))
+        factor = speeds[speed];
+    dsp_set_timestretch(factor);
+}
+
+void audio_audiobook_speed_changed(int speed)
+{
+    (void)speed;
+    struct mp3entry *id3 = audio_current_track();
+    if (id3)
+        set_track_speed(id3);
+}
+#endif /* HAVE_PITCHCONTROL */
+
 /* Start the codec for the current track scheduled to be decoded */
 static bool audio_start_codec(bool auto_skip)
 {
@@ -1769,8 +1796,13 @@ static bool audio_start_codec(bool auto_skip)
         return false;
     }
 
+#ifdef HAVE_PITCHCONTROL
+    set_track_speed(cur_id3);
+#endif
+
     #ifdef HAVE_TAGCACHE
-    bool autoresume_enable = !cur_id3->skip_resume_adjustments && global_settings.autoresume_enable;
+    bool autoresume_enable = !cur_id3->skip_resume_adjustments
+                             && itunesdb_resumes(cur_id3->path);
 
     if (autoresume_enable && !(cur_id3->elapsed || cur_id3->offset))
     {
@@ -1783,8 +1815,11 @@ static bool audio_start_codec(bool auto_skip)
         if (!resume)
         {
             /* Automatic skip - do further tests to see if we should just
-               ignore any autoresume position */
-            int autoresume_automatic = global_settings.autoresume_automatic;
+               ignore any autoresume position. A podcast or an audiobook
+               plays from where it was left however it is come to. */
+            int autoresume_automatic = global_settings.autoresume_enable ?
+                global_settings.autoresume_automatic :
+                AUTORESUME_NEXTTRACK_ALWAYS;
 
             switch (autoresume_automatic)
             {

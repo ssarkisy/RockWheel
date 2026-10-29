@@ -866,6 +866,9 @@ struct user_settings
     int context_wps;
     /* When resuming playback (after a stop), rewind this number of seconds */
     int resume_rewind;
+#ifdef HAVE_PITCHCONTROL
+    int audiobook_speed; /* 0 slower, 1 normal, 2 faster */
+#endif
 
 #ifdef AUDIOHW_HAVE_DEPTH_3D
     int depth_3d;

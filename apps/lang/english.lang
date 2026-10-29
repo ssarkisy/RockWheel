@@ -17985,3 +17985,45 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Slower"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normal"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Faster"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

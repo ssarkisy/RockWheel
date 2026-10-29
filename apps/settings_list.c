@@ -1921,7 +1921,8 @@ const struct settings_list settings[] = {
 
 #ifdef HAVE_TAGCACHE
     /* off: for every track it is more than the stock iPod does, which
-       remembers the place only in podcasts and audiobooks */
+       remembers the place only in podcasts and audiobooks, and so does
+       this without it (itunesdb_resumes()) */
     BOOL_SETTING(0, autoresume_enable, LANG_AUTORESUME, false,
                  "autoresume enable", off_on,
                  LANG_SET_BOOL_YES, LANG_SET_BOOL_NO, NULL),
@@ -2093,8 +2094,9 @@ const struct settings_list settings[] = {
                        "pbe precut", UNIT_DB, -45, 0,
                        1, db_format, NULL, dsp_pbe_precut),
 #ifdef HAVE_PITCHCONTROL
-    /* timestretch */
-    OFFON_SETTING(F_SOUNDSETTING, timestretch_enabled, LANG_TIMESTRETCH, false,
+    /* timestretch; on for the audiobook speed, it costs nothing while
+       music plays at the normal speed. Its buffers are taken at boot. */
+    OFFON_SETTING(F_SOUNDSETTING, timestretch_enabled, LANG_TIMESTRETCH, true,
                   "timestretch enabled", dsp_timestretch_enable),
 #endif
 
@@ -2578,6 +2580,14 @@ const struct settings_list settings[] = {
     INT_SETTING(F_TIME_SETTING, resume_rewind, LANG_RESUME_REWIND, 0,
                 "resume rewind", UNIT_SEC, 0, 60, 5,
                 formatter_time_unit_0_is_off, getlang_time_unit_0_is_off, NULL),
+#ifdef HAVE_PITCHCONTROL
+    /* the stock iPod's Audiobooks setting: the speed of audiobooks only */
+    CHOICE_SETTING(0, audiobook_speed, LANG_AUDIOBOOKS, 1,
+                   "audiobook speed", "slower,normal,faster",
+                   audio_audiobook_speed_changed, 3,
+                   ID2P(LANG_AUDIOBOOK_SLOWER), ID2P(LANG_AUDIOBOOK_NORMAL),
+                   ID2P(LANG_AUDIOBOOK_FASTER)),
+#endif
    CUSTOM_SETTING(0, root_menu_customized,
                   LANG_ROCKBOX_TITLE, /* lang string here is never actually used */
                   NULL, "root menu order",

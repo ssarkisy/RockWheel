@@ -531,6 +531,9 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
         &brightness_item,
 #endif
+#ifdef HAVE_PITCHCONTROL
+        &audiobook_speed,
+#endif
         &ipod_eq_menu, &replaygain_type, &ipod_keyclick_menu,
         &sleep_timer_item,
 #if CONFIG_RTC

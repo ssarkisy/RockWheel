@@ -48,6 +48,9 @@ extern const struct menu_item_ex
 /* The settings of the iPod settings menu, from the menus they are in */
 extern const struct menu_item_ex
         shuffle_item, repeat_mode, replaygain_type, /* playback_menu.c */
+#ifdef HAVE_PITCHCONTROL
+        audiobook_speed,
+#endif
         ipod_playback_settings,
         volume_limit, ipod_sound_settings,          /* sound_menu.c     */
         ipod_eq_menu,                               /* eq_menu.c        */
@@ -61,7 +64,7 @@ extern const struct menu_item_ex
         battery_capacity, ipod_keyclick_menu,       /* settings_menu.c  */
         sleep_timer_item, language_item,
 #ifdef HAVE_TAGCACHE
-        ipod_database_menu, autoresume_menu,
+        ipod_database_menu,
 #endif
         browse_themes;                              /* theme_menu.c     */
 
