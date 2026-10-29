@@ -110,7 +110,14 @@
 #define POS_HISTORY_COUNT 4
 
 /* How much to pre-load entries while committing to prevent seeking. */
+#if defined(PLUGIN) || defined(__PCTOOL__)
 #define IDX_BUF_DEPTH 64
+#else
+/* The commit rewrites the seeks of every entry once for each tag. Written
+   back in place 64 at a time, they took the iPod's flash 0.8 s per tag
+   for 3000 songs. */
+#define IDX_BUF_DEPTH 512
+#endif
 
 /* Tag Cache Header version 'TCHxx'. Increment when changing internal structures. */
 #define TAGCACHE_MAGIC  0x54434810
@@ -3217,7 +3224,7 @@ static int build_index(int index_type, struct tagcache_header *h, int tmpfd)
     int i;
     struct tagcache_header tch;
     struct master_header   tcmh;
-    struct index_entry idxbuf[IDX_BUF_DEPTH];
+    static struct index_entry idxbuf[IDX_BUF_DEPTH];
     int idxbuf_pos;
     int fd = -1, masterfd;
     bool error = false;
@@ -5201,6 +5208,12 @@ failure:
 }
 #endif /* HAVE_TC_RAMCACHE */
 
+#ifndef __PCTOOL__
+/* during an import, which checks the files in Finder's folder against
+   iTunesDB: looking for each of them took 10 ms after a sync */
+static bool check_skips_synced;
+#endif
+
 static bool check_deleted_file_refs(bool auto_update)
 {
     int fd;
@@ -5260,6 +5273,10 @@ static bool check_deleted_file_refs(bool auto_update)
         }
 
         int idx_id = tfe.idx_id; /* dircache reference clobbers *tfe */
+#ifndef __PCTOOL__
+        if (check_skips_synced && itunesdb_synced_path(buf))
+            continue;
+#endif
 #ifdef HAVE_DIRCACHE
         struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
         unsigned int searchflag;
@@ -5843,6 +5860,14 @@ static bool NO_INLINE db_file_exists(const char* filename)
    for a buffer, and loads it into the cache again at its new size */
 static void update_and_reload(void)
 {
+    if (db_file_exists(TAGCACHE_FILE_TEMP))
+    {
+        /* one waits from before: it goes in first, or the scan would be
+           skipped for it and miss the new files */
+        allocate_tempbuf();
+        commit();
+        free_tempbuf();
+    }
     tagcache_build();
     if (import_phase != TAGCACHE_IMPORT_NONE)
         import_phase = TAGCACHE_IMPORT_LOADING;
@@ -6036,7 +6061,9 @@ static void tagcache_thread(void)
                 /* Finder has synced: the new files first, then what
                    iTunesDB says about them */
                 update_and_reload();
+                check_skips_synced = true;
                 check_deleted_file_refs(true);
+                check_skips_synced = false;
                 import_phase = TAGCACHE_IMPORT_COUNTS;
                 /* the import is tried again on the next boot otherwise */
                 if (!db_file_exists(TAGCACHE_FILE_TEMP))

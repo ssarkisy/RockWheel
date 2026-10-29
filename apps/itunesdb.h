@@ -30,6 +30,7 @@
 
 /* true when Finder has synced since the last import */
 bool itunesdb_changed(void);
+bool itunesdb_synced_path(const char *path);
 
 /* Brings the ratings and play counts in line with what
    itunesdb_import_tracks() read after the sync. Runs on the tagcache thread

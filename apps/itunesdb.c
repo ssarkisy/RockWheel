@@ -161,6 +161,12 @@ static const char *strip_volume(const char *path)
     return path;
 }
 
+/* in Finder's folder, whose files iTunesDB lists */
+bool itunesdb_synced_path(const char *path)
+{
+    return !strncasecmp(strip_volume(path), MUSIC_DIR "/", sizeof(MUSIC_DIR));
+}
+
 uint64_t itunesdb_path_hash(const char *path)
 {
     /* FNV-1a, ignoring ASCII case like FAT does */
@@ -645,9 +651,7 @@ static int update_entry(const char *path, struct tagcache_runtime *rt,
         /* Finder renames and removes the files in its folder as it syncs,
            so one that iTunesDB doesn't list is left from an older sync.
            Only trusted when all of iTunesDB could be read. */
-        return (pend.hdr.complete
-                && !strncasecmp(strip_volume(path), MUSIC_DIR "/",
-                                sizeof(MUSIC_DIR))) ? -1 : 0;
+        return (pend.hdr.complete && itunesdb_synced_path(path)) ? -1 : 0;
     }
     rt->playcount = t->playcount;
     rt->rating = t->rating / 10; /* the database counts half stars */
