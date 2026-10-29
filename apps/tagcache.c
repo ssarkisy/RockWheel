@@ -225,7 +225,7 @@ static const char * const tags_str[] = { "artist", "album", "genre", "title",
 #else /* strings for logf debugging */
     "tag_virt_basename", "tag_virt_length_min", "tag_virt_length_sec",
     "tag_virt_playtime_min", "tag_virt_playtime_sec",
-    "tag_virt_entryage", "tag_virt_autoscore"
+    "tag_virt_entryage", "tag_virt_autoscore", "tag_virt_kind"
 };
 /* more debug strings */
 static const char * const tag_type_str[] = {
@@ -397,6 +397,13 @@ struct tempbuf_searchidx {
     int seek;
     struct tempbuf_id_list idlist;
 };
+
+/* The strings of a unique tag in the commit by their crc: each was checked
+   against every other one before, which went with the square of the
+   library's size. Heads of chains by the crc's low bits, and each entry's
+   next, -1 ending them. */
+static int32_t *crc_heads, *crc_next;
+static uint32_t crc_mask;
 
 /* Lookup buffer for fixing messed up index while after sorting. */
 static long commit_entry_count;
@@ -868,6 +875,15 @@ static int ram_names_handle;
 static long ram_names_count, ram_names_capacity;
 static bool ram_names_overflow; /* then the slow ways are used */
 
+/* And their paths, which are otherwise built from the dircache or read
+ * from the disk for each file: Shuffle Songs, a list played and Play
+ * Counts take them all. With each entry's kind, for tag_virt_kind. The
+ * offsets and kinds are by entry, then come the paths; an offset is one
+ * past the path's, 0 for none. */
+static int ram_paths_handle;
+static long ram_paths_count;
+static size_t ram_paths_size, ram_paths_used;
+
 static void free_ram_names(void)
 {
     if (ram_names_handle > 0)
@@ -875,6 +891,65 @@ static void free_ram_names(void)
     ram_names_handle = 0;
     ram_names_count = ram_names_capacity = 0;
     ram_names_overflow = false;
+    if (ram_paths_handle > 0)
+        core_free(ram_paths_handle);
+    ram_paths_handle = 0;
+    ram_paths_count = 0;
+    ram_paths_size = ram_paths_used = 0;
+}
+
+static void ram_path_add(long idx_id, const char *path, uint64_t hash)
+{
+    if (ram_paths_handle <= 0 || idx_id < 0 || idx_id >= ram_paths_count)
+        return;
+    char *base = core_get_data(ram_paths_handle);
+    uint32_t *offsets = (uint32_t *)base;
+    uint8_t *kinds = (uint8_t *)(offsets + ram_paths_count);
+    char *pool = (char *)(kinds + ram_paths_count);
+    size_t len = strlen(path) + 1;
+    if (ram_paths_used + len <= ram_paths_size)
+    {
+        memcpy(pool + ram_paths_used, path, len);
+        offsets[idx_id] = ram_paths_used + 1;
+        ram_paths_used += len;
+    }
+    unsigned flags = itunesdb_hash_flags(hash);
+    kinds[idx_id] = (flags & ITUNESDB_AUDIOBOOK) ? 2 :
+                    (flags & ITUNESDB_PODCAST) ? 1 : 0;
+}
+
+/* the index of the entry in memory idx points at, or -1 */
+static long ram_entry_id(const struct index_entry *idx)
+{
+    if (!tc_stat.ramcache || !tcramcache.hdr || idx < tcramcache.hdr->indices
+        || idx >= tcramcache.hdr->indices + current_tcmh.tch.entry_count)
+        return -1;
+    return idx - tcramcache.hdr->indices;
+}
+
+/* the path of the entry into buf, from memory */
+static bool ram_path(long idx_id, char *buf, size_t size)
+{
+    if (!tc_stat.ramcache || ram_paths_handle <= 0
+        || idx_id < 0 || idx_id >= ram_paths_count)
+        return false;
+    const char *base = core_get_data_pinned(ram_paths_handle);
+    const uint32_t *offsets = (const uint32_t *)base;
+    const char *pool = base + ram_paths_count * (sizeof(uint32_t) + 1);
+    uint32_t off = offsets[idx_id];
+    bool ok = off > 0 && strmemccpy(buf, pool + off - 1, size) != NULL;
+    core_put_data_pinned((void *)base);
+    return ok;
+}
+
+static int ram_kind(long idx_id)
+{
+    if (!tc_stat.ramcache || ram_paths_handle <= 0
+        || idx_id < 0 || idx_id >= ram_paths_count)
+        return 0;
+    const uint8_t *kinds = (const uint8_t *)core_get_data(ram_paths_handle)
+                           + ram_paths_count * sizeof(uint32_t);
+    return kinds[idx_id];
 }
 #endif
 
@@ -1212,7 +1287,7 @@ static bool open_files(struct tagcache_search *tcs, int tag)
     return true;
 }
 
-static bool retrieve(struct tagcache_search *tcs, IF_DIRCACHE(int idx_id,)
+static bool retrieve(struct tagcache_search *tcs, int idx_id,
                      struct index_entry *idx, int tag, char *buf, long bufsz)
 {
     bool success = false;
@@ -1239,6 +1314,15 @@ static bool retrieve(struct tagcache_search *tcs, IF_DIRCACHE(int idx_id,)
 #ifdef HAVE_TC_RAMCACHE
     if (tcs->ramsearch)
     {
+#ifndef __PCTOOL__
+        /* A clause in a search passes the entry in memory with an idx_id
+           from before; tagcache_retrieve() a copy with the right one */
+        if (ram_entry_id(idx) >= 0)
+            idx_id = ram_entry_id(idx);
+        if (tag == tag_filename && ram_path(idx_id, buf, bufsz))
+            success = true;
+        else
+#endif
 #ifdef HAVE_DIRCACHE
         if (tag == tag_filename && (idx->flag & FLAG_DIRCACHE))
         {
@@ -1373,6 +1457,15 @@ static long check_virtual_tags(int tag, int idx_id,
 
         case tag_virt_playtime_min:
             data = min_in_ms(tc_find_tag(tag_playtime, idx_id, idx));
+            break;
+
+        case tag_virt_kind:
+#if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
+            /* a search in memory passes the entry, not its index */
+            if (ram_entry_id(idx) >= 0)
+                idx_id = ram_entry_id(idx);
+            data = ram_kind(idx_id);
+#endif
             break;
 
         case tag_virt_autoscore:
@@ -1620,7 +1713,7 @@ static bool check_clauses(struct tagcache_search *tcs,
                 if (clause->tag == tag_filename
                     || clause->tag == tag_virt_basename)
                 {
-                    retrieve(tcs, IF_DIRCACHE(tcs->idx_id,) idx, clause->tag,
+                    retrieve(tcs, tcs->idx_id, idx, clause->tag,
                              buf, bufsz);
                 }
                 else
@@ -2060,6 +2153,15 @@ static bool get_next(struct tagcache_search *tcs, bool is_numeric, char *buf, lo
     if (tcs->ramsearch)
     {
 #ifdef HAVE_DIRCACHE
+#ifndef __PCTOOL__
+        if (tcs->type == tag_filename && ram_path(tcs->idx_id, buf, bufsz))
+        {
+            tcs->result_len = strlen(buf) + 1;
+            tcs->result     = buf;
+            tcs->ramresult  = false;
+            return true;
+        }
+#endif
         if (tcs->type == tag_filename && (flag & FLAG_DIRCACHE))
         {
             ssize_t len = dircache_get_fileref_path(&tcrc_dcfrefs[tcs->idx_id],
@@ -2166,7 +2268,7 @@ bool tagcache_retrieve(struct tagcache_search *tcs, int idxid,
     if (!get_index(tcs->masterfd, idxid, &idx, true))
         return false;
 
-    return retrieve(tcs, IF_DIRCACHE(idxid,) &idx, tag, buf, size);
+    return retrieve(tcs, idxid, &idx, tag, buf, size);
 }
 
 void tagcache_search_finish(struct tagcache_search *tcs)
@@ -2647,7 +2749,7 @@ static bool tempbuf_insert(char *str, int id, int idx_id, bool unique)
     if (unique)
     {
         /* Check if the crc does not exist -> entry does not exist for sure. */
-        for (i = 0; i < tempbufidx; i++)
+        for (i = crc_heads[crc32 & crc_mask]; i >= 0; i = crc_next[i])
         {
             if (crcbuf[-i] != crc32)
                 continue;
@@ -2698,6 +2800,8 @@ static bool tempbuf_insert(char *str, int id, int idx_id, bool unique)
     index[tempbufidx].str = &tempbuf[tempbuf_pos];
     memcpy(index[tempbufidx].str, str, len);
     tempbuf_pos += len;
+    crc_next[tempbufidx] = crc_heads[crc32 & crc_mask];
+    crc_heads[crc32 & crc_mask] = tempbufidx;
     tempbufidx++;
 
     return true;
@@ -3184,6 +3288,15 @@ static int build_index(int index_type, struct tagcache_header *h, int tmpfd)
     tempbuf_pos += lookup_buffer_depth * sizeof(void **);
     memset(lookup, 0, lookup_buffer_depth * sizeof(void **));
 
+    /* and the chains by crc, a head for each entry or more */
+    for (crc_mask = 1; crc_mask < (uint32_t)commit_entry_count; crc_mask <<= 1);
+    crc_heads = (int32_t *)&tempbuf[tempbuf_pos];
+    tempbuf_pos += crc_mask * sizeof(int32_t);
+    crc_next = (int32_t *)&tempbuf[tempbuf_pos];
+    tempbuf_pos += commit_entry_count * sizeof(int32_t);
+    memset(crc_heads, 0xff, crc_mask * sizeof(int32_t));
+    crc_mask--;
+
     /* And calculate the remaining data space used mainly for storing
      * tag data (strings). */
     tempbuf_left = tempbuf_size - tempbuf_pos - 8;
@@ -3603,6 +3716,36 @@ static int build_index(int index_type, struct tagcache_header *h, int tmpfd)
 /* the free memory a commit takes rather than the dircache's */
 #define COMMIT_TEMPBUF_MIN (4*1024*1024)
 
+/* What build_index() takes of the buffer for a tag, at most. A build that
+ * found too little half way had rewritten the tags before it, and the commit
+ * done again then put the new entries of those in twice. h is the temporary
+ * file's header, count the entries in the database. */
+static size_t commit_tempbuf_need(int tag, const struct tagcache_header *h,
+                                  long count)
+{
+    struct tagcache_header tch;
+    long datasize = 0;
+    int fd = open_tag_fd(&tch, tag, false);
+    if (fd >= 0)
+    {
+        datasize = tch.datasize;
+        close(fd);
+    }
+    size_t entries = h->entry_count + 1 + count;
+    size_t depth = 1 + entries + datasize / TAGFILE_ENTRY_CHUNK_LENGTH;
+    size_t heads = 1;
+    while (heads < entries)
+        heads <<= 1;
+    size_t need = entries * sizeof(struct tempbuf_searchidx)
+                  + depth * sizeof(void **)
+                  + (heads + entries) * sizeof(int32_t) + 8;
+    /* the strings, old and new, with a crc, an id list and alignment for
+       each, or what build_index() asks for anyway */
+    size_t strings = TAGCACHE_IS_SORTED(tag) ?
+        datasize + h->datasize + entries * (4 + 12 + 4) : 0;
+    return need + MAX(strings, TAGFILE_ENTRY_AVG_LENGTH * entries);
+}
+
 static bool commit(void)
 {
     struct tagcache_header tch;
@@ -3731,6 +3874,28 @@ static bool commit(void)
     }
 
     logf("commit %" PRId32 " entries...", tch.entry_count);
+
+    /* Every tag must fit before the first is rewritten */
+    {
+        struct master_header mh;
+        long count = 0;
+        int fd = open_master_fd(&mh, false);
+        if (fd >= 0)
+        {
+            count = mh.tch.entry_count;
+            close(fd);
+        }
+        for (i = 0; i < TAG_COUNT; i++)
+        {
+            if (TAGCACHE_IS_NUMERIC(i)
+                || commit_tempbuf_need(i, &tch, count) <= (size_t)tempbuf_size)
+                continue;
+            logf("buffer too small for tag %d, delaying commit", i);
+            tc_stat.commit_delayed = true;
+            close(tmpfd);
+            goto commit_error;
+        }
+    }
 
     /* Mark DB dirty so it will stay disabled if commit fails. */
     current_tcmh.dirty = true;
@@ -4944,8 +5109,17 @@ static bool load_tagcache(void)
                     goto failure;
                 }
 
+                /* Without the dircache the names are read only to check the
+                   files, or for the tables of the files */
                 if ((idx->flag & FLAG_DELETED)
-                    IFN_DIRCACHE( || !global_settings.tagcache_autoupdate ))
+#ifndef HAVE_DIRCACHE
+                    || (!global_settings.tagcache_autoupdate
+#ifndef __PCTOOL__
+                        && ram_names_handle <= 0
+#endif
+                       )
+#endif
+                    )
                 {
                     /* seek over tag data instead of reading */
                     if (lseek(fd, fe->tag_length, SEEK_CUR) < 0)
@@ -4969,9 +5143,11 @@ static bool load_tagcache(void)
                 {
                     filename[fe->tag_length] = '\0';
                     struct path_name *names = core_get_data(ram_names_handle);
-                    names[ram_names_count].hash = itunesdb_path_hash(filename);
+                    uint64_t hash = itunesdb_path_hash(filename);
+                    names[ram_names_count].hash = hash;
                     names[ram_names_count].idx_id = idx_id;
                     ram_names_count++;
+                    ram_path_add(idx_id, filename, hash);
                 }
 #endif
                 continue;
@@ -5567,6 +5743,24 @@ static void load_ramcache(void)
                                       * sizeof(struct path_name));
         if (ram_names_handle <= 0)
             ram_names_handle = ram_names_capacity = 0;
+
+        /* the paths take at most what the filename file has */
+        struct tagcache_header tch;
+        int fd = open_tag_fd(&tch, tag_filename, false);
+        if (fd >= 0)
+        {
+            close(fd);
+            ram_paths_count = current_tcmh.tch.entry_count;
+            ram_paths_size = tch.datasize;
+            ram_paths_handle = core_alloc(ram_paths_count
+                                          * (sizeof(uint32_t) + 1)
+                                          + ram_paths_size);
+            if (ram_paths_handle > 0)
+                memset(core_get_data(ram_paths_handle), 0,
+                       ram_paths_count * (sizeof(uint32_t) + 1));
+            else
+                ram_paths_handle = ram_paths_count = ram_paths_size = 0;
+        }
     }
 #endif
 

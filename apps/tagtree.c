@@ -397,6 +397,7 @@ static int get_tag(int *tag)
         TAG_MATCH("~>", menu_shuffle_songs) \
         TAG_MATCH("==>", menu_load) \
         TAG_MATCH("year", tag_year) \
+        TAG_MATCH("kind", tag_virt_kind) \
         TAG_MATCH("album", tag_album) \
         TAG_MATCH("genre", tag_genre) \
         TAG_MATCH("title", tag_title) \

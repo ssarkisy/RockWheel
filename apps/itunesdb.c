@@ -252,6 +252,8 @@ static void read_track(off_t pos, struct track *track)
         track->st.flags |= ITUNESDB_SKIP_SHUFFLE;
     if (media & MEDIA_AUDIOBOOK)
         track->st.flags |= ITUNESDB_AUDIOBOOK;
+    else if (media & MEDIA_PODCAST)
+        track->st.flags |= ITUNESDB_PODCAST;
     if (header_len >= 356)
         track->art = le32(p + 352);
 
@@ -1040,7 +1042,7 @@ static bool find_in_index(struct index *index, uint64_t hash, void *entry)
 /* the tracks with flags */
 #define FLAGS_FILE      ROCKBOX_DIR "/itunesdb_flags.dat"
 #define FLAGS_MAGIC     0x46494252 /* "RBIF" */
-#define FLAGS_VERSION   1
+#define FLAGS_VERSION   2
 
 struct flags_header {
     uint32_t magic;
@@ -1085,13 +1087,19 @@ static void write_flags(void)
     logf("itunesdb: %lu tracks with flags", (unsigned long)hdr.count);
 }
 
-unsigned itunesdb_track_flags(const char *path)
+unsigned itunesdb_hash_flags(uint64_t hash)
 {
     struct flags_entry entry;
-    if (flags_index.handle <= 0
-        || !find_in_index(&flags_index, itunesdb_path_hash(path), &entry))
+    if (flags_index.handle <= 0 || !find_in_index(&flags_index, hash, &entry))
         return 0;
     return entry.flags;
+}
+
+unsigned itunesdb_track_flags(const char *path)
+{
+    if (flags_index.handle <= 0)
+        return 0;
+    return itunesdb_hash_flags(itunesdb_path_hash(path));
 }
 
 bool itunesdb_resumes(const char *path)

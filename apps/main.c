@@ -453,6 +453,12 @@ static void init(void)
     gui_sync_skin_init();
     sb_skin_init();
     viewportmanager_init();
+#ifdef APPLE_BOOT_LOGO
+    /* the boot logo stays until the menu shows, root_menu() turns this back:
+       loading the theme during the rest of the boot drew parts of it */
+    FOR_NB_SCREENS(i)
+        viewportmanager_theme_enable(i, false, NULL);
+#endif
 
     storage_init();
     pcm_init();
@@ -600,6 +606,12 @@ static void init(void)
     CHART(">viewportmanager_init");
     viewportmanager_init();
     CHART("<viewportmanager_init");
+#ifdef APPLE_BOOT_LOGO
+    /* the boot logo stays until the menu shows, root_menu() turns this back:
+       loading the theme during the rest of the boot drew parts of it */
+    FOR_NB_SCREENS(i)
+        viewportmanager_theme_enable(i, false, NULL);
+#endif
 
     CHART(">storage_init");
     rc = storage_init();

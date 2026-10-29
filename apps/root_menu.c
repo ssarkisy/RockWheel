@@ -1088,6 +1088,11 @@ void root_menu(void)
 #ifdef HAVE_TAGCACHE
     show_library_update();
 #endif
+#ifdef APPLE_BOOT_LOGO
+    /* the theme the boot turned off, now that the menu shows */
+    FOR_NB_SCREENS(i)
+        viewportmanager_theme_undo(i, false);
+#endif
     next_screen = root_menu_setup_screens();
 
     while (true)

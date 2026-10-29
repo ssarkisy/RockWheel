@@ -49,6 +49,7 @@ uint64_t itunesdb_path_hash(const char *path);
 #define ITUNESDB_REMEMBERS_PLACE 0x01 /* podcasts, audiobooks */
 #define ITUNESDB_AUDIOBOOK       0x02 /* plays at the audiobook speed */
 #define ITUNESDB_SKIP_SHUFFLE    0x04 /* not in Shuffle Songs */
+#define ITUNESDB_PODCAST         0x08
 
 /* Notes what playback needs from iTunesDB: the tracks with flags and where
    each cover is. Until then no track has flags and the covers come from the
@@ -63,8 +64,9 @@ int itunesdb_import_tracks(bool synced);
    plays Finder hasn't had, but the tracks are to be imported again. */
 bool itunesdb_load_tracks(void);
 
-/* the flags of the file at path */
+/* the flags of the file at path, or with this itunesdb_path_hash() */
 unsigned itunesdb_track_flags(const char *path);
+unsigned itunesdb_hash_flags(uint64_t hash);
 
 /* true when the file at path is to play from where it was left: a podcast
    or an audiobook, or any file with Rockbox's automatic resume on */
