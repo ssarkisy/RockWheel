@@ -213,6 +213,10 @@
    so that Finder sees an iPod and syncs it */
 #define USB_APPLE_DISK_MODE
 
+/* start with the Apple logo on black, as Apple's own firmware does, instead
+   of the Rockbox logo */
+#define APPLE_BOOT_LOGO
+
 /* Define this if you have adjustable CPU frequency */
 #define HAVE_ADJUSTABLE_CPU_FREQ
 

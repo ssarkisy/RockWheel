@@ -30,6 +30,9 @@
 #ifdef HAVE_REMOTE_LCD
 #include "bitmaps/remote_rockboxlogo.h"
 #endif
+#ifdef APPLE_BOOT_LOGO
+#include "bitmaps/applelogo.h"
+#endif
 #endif /* !(PLUGIN || __PCTOOL__) */
 
 struct cbmp_bitmap_info_entry /* */

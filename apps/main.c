@@ -251,6 +251,15 @@ int main(void)
 int show_logo_boot( void ) INIT_ATTR;
 int show_logo_boot( void )
 {
+#ifdef APPLE_BOOT_LOGO
+    /* only the logo on black, as the iPod starts its own firmware */
+    lcd_set_background(LCD_BLACK);
+    lcd_clear_display();
+    lcd_set_background(LCD_DEFAULT_BG);
+    lcd_bmp(&bm_applelogo, (LCD_WIDTH - BMPWIDTH_applelogo) / 2,
+            (LCD_HEIGHT - BMPHEIGHT_applelogo) / 2);
+    lcd_update();
+#else
     unsigned char version[32];
     int font_h, ver_w;
     snprintf(version, sizeof(version), "Ver. %s", rbversion);
@@ -285,6 +294,7 @@ int show_logo_boot( void )
     lcd_remote_setfont(FONT_UI);
     lcd_remote_update();
 #endif
+#endif /* APPLE_BOOT_LOGO */
 #ifdef SIMULATOR
     sleep(HZ); /* sim is too fast to see logo */
 #endif

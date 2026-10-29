@@ -37,6 +37,11 @@ rockboxlogo.480x149x16.bmp
 rockboxlogo.640x198x16.bmp
 #endif
 
+/* Apple logo, made by themes/tools/make_apple_logo.swift */
+#ifdef APPLE_BOOT_LOGO
+applelogo.79x96x16.bmp
+#endif
+
 /* The Sony NWZ linux bootloader needs icons to display a menu */
 #if defined(BOOTLOADER)
 #if defined(SONY_NWZ_LINUX)
