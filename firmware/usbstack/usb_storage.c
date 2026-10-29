@@ -34,6 +34,9 @@
 #include "timefuncs.h"
 #endif
 #include "core_alloc.h"
+#if defined(USB_IPOD_IDENTITY) && !defined(BOOTLOADER)
+#include "file.h"
+#endif
 #include "panic.h"
 
 #ifdef USB_USE_RAMDISK
@@ -327,6 +330,9 @@ static void receive_block_data(void *data,int size);
 static void receive_time(void);
 #endif
 static void fill_inquiry(IF_MD_NONVOID(int lun));
+#if defined(USB_IPOD_IDENTITY) && !defined(BOOTLOADER)
+static int fill_ipod_vpd(int page);
+#endif
 static void send_and_read_next(void);
 static bool ejected[NUM_DRIVES];
 static bool locked[NUM_DRIVES];
@@ -918,6 +924,23 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
 
         case SCSI_INQUIRY:
             logf("scsi inquiry %d",lun);
+#if defined(USB_IPOD_IDENTITY) && !defined(BOOTLOADER)
+            if(cbw->command_block[1] & 1) { /* EVPD */
+                int size = fill_ipod_vpd(cbw->command_block[2]);
+                if(size < 0) {
+                    send_command_failed_result();
+                    cur_sense_data.sense_key=SENSE_ILLEGAL_REQUEST;
+                    cur_sense_data.asc=ASC_INVALID_FIELD_IN_CBD;
+                    cur_sense_data.ascq=0;
+                    break;
+                }
+                length = MIN(length, (unsigned int)(cbw->command_block[3] << 8
+                                                    | cbw->command_block[4]));
+                send_command_result(tb.transfer_buffer,
+                                    MIN((unsigned int)size, length));
+                break;
+            }
+#endif
             fill_inquiry(IF_MD(lun));
             length = MIN(length, cbw->command_block[4]);
             send_command_result(tb.inquiry,
@@ -1577,6 +1600,75 @@ static void send_csw(int status)
     }
 }
 
+#if defined(USB_IPOD_IDENTITY) && !defined(BOOTLOADER)
+/* Apple's firmware describes the iPod in XML, which a computer reads as
+   pages of vital product data: 0xc0 lists the pages, from 0xc2 on, and each
+   holds the next part. The description Apple's firmware gave is kept on the
+   disk, and given the same way. */
+#define IPOD_XML_FILE       "/iPod_Control/Device/SysInfoExtended"
+#define IPOD_XML_PAGE       0xf8 /* bytes of XML in a page */
+#define IPOD_XML_FIRST_PAGE 0xc2
+#define IPOD_XML_PAGES      (0x100 - IPOD_XML_FIRST_PAGE)
+
+static char ipod_xml[IPOD_XML_PAGE * IPOD_XML_PAGES + 1];
+static int ipod_xml_size;
+static char ipod_revision[5] = "1.62";
+
+bool usb_storage_load_ipod_xml(void)
+{
+    int fd = open(IPOD_XML_FILE, O_RDONLY);
+    if(fd < 0)
+        return false;
+    ssize_t n = read(fd, ipod_xml, sizeof(ipod_xml) - 1);
+    close(fd);
+    ipod_xml_size = n > 0 ? n : 0;
+    ipod_xml[ipod_xml_size] = '\0';
+
+    /* the revision in INQUIRY is the description's FireWireVersion */
+    char *v = strstr(ipod_xml, "<key>FireWireVersion</key>");
+    if(v && (v = strstr(v, "<string>")) != NULL) {
+        v += 8;
+        int i;
+        for(i = 0; i < 4 && v[i] && v[i] != '<'; i++)
+            ipod_revision[i] = v[i];
+        ipod_revision[i] = '\0';
+    }
+    return ipod_xml_size > 0;
+}
+
+/* a page of vital product data into tb.transfer_buffer: its size, or -1
+   when there is no such page */
+static int fill_ipod_vpd(int page)
+{
+    unsigned char *p = tb.transfer_buffer;
+    int pages = (ipod_xml_size + IPOD_XML_PAGE - 1) / IPOD_XML_PAGE;
+    int n = 0;
+
+    if(page == 0x00 || page == 0xc0) {
+        /* the pages there are: all of them, or those of the XML */
+        if(page == 0x00) {
+            p[4 + n++] = 0x00;
+            p[4 + n++] = 0xc0;
+        }
+        for(int i = 0; i < pages; i++)
+            p[4 + n++] = IPOD_XML_FIRST_PAGE + i;
+    }
+    else if(page >= IPOD_XML_FIRST_PAGE && page < IPOD_XML_FIRST_PAGE + pages) {
+        int offset = (page - IPOD_XML_FIRST_PAGE) * IPOD_XML_PAGE;
+        n = MIN(IPOD_XML_PAGE, ipod_xml_size - offset);
+        memcpy(p + 4, ipod_xml + offset, n);
+    }
+    else
+        return -1;
+
+    p[0] = DIRECT_ACCESS_DEVICE;
+    p[1] = page;
+    p[2] = 0;
+    p[3] = n;
+    return 4 + n;
+}
+#endif /* USB_IPOD_IDENTITY && !BOOTLOADER */
+
 static void copy_padded(char *dest, char *src, int len)
 {
     for (int i = 0; i < len; i++) {
@@ -1594,9 +1686,17 @@ static void fill_inquiry(IF_MD_NONVOID(int lun))
     struct storage_info info;
     memset(tb.inquiry, 0, sizeof(struct inquiry_data));
     storage_get_info(lun,&info);
+#if defined(USB_IPOD_IDENTITY) && !defined(BOOTLOADER)
+    /* the names Apple's firmware gives, not the disk's */
+    (void)info;
+    copy_padded(tb.inquiry->VendorId,"Apple",sizeof(tb.inquiry->VendorId));
+    copy_padded(tb.inquiry->ProductId,"iPod",sizeof(tb.inquiry->ProductId));
+    copy_padded(tb.inquiry->ProductRevisionLevel,ipod_revision,sizeof(tb.inquiry->ProductRevisionLevel));
+#else
     copy_padded(tb.inquiry->VendorId,info.vendor,sizeof(tb.inquiry->VendorId));
     copy_padded(tb.inquiry->ProductId,info.product,sizeof(tb.inquiry->ProductId));
     copy_padded(tb.inquiry->ProductRevisionLevel,info.revision,sizeof(tb.inquiry->ProductRevisionLevel));
+#endif
 
     tb.inquiry->DeviceType = DIRECT_ACCESS_DEVICE;
     tb.inquiry->AdditionalLength = 0x1f;

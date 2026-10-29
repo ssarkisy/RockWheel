@@ -41,6 +41,10 @@
 #include "playlist.h"
 #include "misc.h"
 #include "icons.h"
+#ifdef HAVE_TAGCACHE
+#include "tagcache.h"
+#include "root_menu.h"
+#endif
 
 #include "bitmaps/usblogo.h"
 
@@ -311,5 +315,10 @@ void gui_usb_screen_run(bool early_usb, intptr_t seqnum)
     pop_current_activity();
 #ifdef SIMULATOR
     in_usb_screen = false;
+#endif
+#ifdef HAVE_TAGCACHE
+    /* after a sync, the new songs before anything else, as after a boot */
+    if(!early_usb && tagcache_check_sync())
+        show_library_update();
 #endif
 }

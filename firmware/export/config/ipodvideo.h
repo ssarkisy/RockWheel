@@ -209,9 +209,17 @@
 #define USB_PRODUCT_ID 0x1209
 #define HAVE_USB_HID_MOUSE
 
-/* hand a computer over to Apple's disk mode instead of Rockbox's own USB mode,
-   so that Finder sees an iPod and syncs it */
+/* Rockbox's own USB mode answers as Apple's firmware does, with its names and
+   the description in iPod_Control/Device/SysInfoExtended, so that Finder sees
+   an iPod and syncs it */
+#define USB_IPOD_IDENTITY
+
+/* without that file, hand a computer over to Apple's disk mode instead */
 #define USB_APPLE_DISK_MODE
+
+/* the most one USB transfer takes, instead of the 24 KB ATA targets get by
+   default: Finder writes whole files */
+#define USB_WRITE_BUFFER_SIZE (1024*64)
 
 /* start with the Apple logo on black, as Apple's own firmware does, instead
    of the Rockbox logo */

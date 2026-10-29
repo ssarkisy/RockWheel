@@ -296,6 +296,12 @@ bool usb_audio_get_active(void);
 void usb_set_skip_first_drive(bool skip);
 #endif
 
+#if defined(USB_IPOD_IDENTITY) && !defined(BOOTLOADER)
+/* read the iPod's description, which mass storage gives a computer as
+ * Apple's firmware does; false when the disk has none */
+bool usb_storage_load_ipod_xml(void);
+#endif
+
 #if !defined(SIMULATOR) && !defined(USB_NONE)
 /* initialise the USB hardware, this is a one-time init and it should setup what
  * is necessary to do proper USB detection, and it should call usb_drv_startup()

@@ -107,7 +107,11 @@ static struct usb_device_descriptor __attribute__((aligned(2)))
     .bMaxPacketSize0    = 64,
     .idVendor           = USB_VENDOR_ID,
     .idProduct          = USB_PRODUCT_ID,
+#ifdef USB_IPOD_IDENTITY
+    .bcdDevice          = 0x0002, /* Apple's */
+#else
     .bcdDevice          = 0x0100,
+#endif
     .iManufacturer      = USB_STRING_INDEX_MANUFACTURER,
     .iProduct           = USB_STRING_INDEX_PRODUCT,
     .iSerialNumber      = USB_STRING_INDEX_SERIAL,
@@ -140,11 +144,20 @@ static const struct usb_qualifier_descriptor __attribute__((aligned(2)))
     .bNumConfigurations = NUM_CONFIGS
 };
 
+#ifdef USB_IPOD_IDENTITY
+/* the names Apple's firmware gives */
+static const struct usb_string_descriptor usb_string_iManufacturer =
+USB_STRING_INITIALIZER(u"Apple");
+
+static const struct usb_string_descriptor usb_string_iProduct =
+USB_STRING_INITIALIZER(u"iPod");
+#else
 static const struct usb_string_descriptor usb_string_iManufacturer =
 USB_STRING_INITIALIZER(u"Rockbox.org");
 
 static const struct usb_string_descriptor usb_string_iProduct =
 USB_STRING_INITIALIZER(u"Rockbox media player");
+#endif
 
 static struct usb_string_descriptor usb_string_iSerial =
 USB_STRING_INITIALIZER(u"00000000000000000000000000000000000000000");
@@ -318,7 +331,12 @@ static void set_serial_descriptor(void)
 
     /* We need to convert from a little-endian 64-bit int
        into a utf-16 string of hex characters */
+#ifdef USB_IPOD_IDENTITY
+    /* only the number, as Apple's firmware gives it */
+    short* p = &usb_string_iSerial.wString[15];
+#else
     short* p = &usb_string_iSerial.wString[24];
+#endif
     uint32_t x;
     int i, j;
 
@@ -329,7 +347,11 @@ static void set_serial_descriptor(void)
           x >>= 4;
        }
     }
+#ifdef USB_IPOD_IDENTITY
+    usb_string_iSerial.bLength = 34;
+#else
     usb_string_iSerial.bLength = 52;
+#endif
 }
 #elif defined(HAVE_AS3514)
 static void set_serial_descriptor(void)
@@ -588,6 +610,7 @@ static void batch_xfer_complete(void) {
 
 static void usb_core_set_serial_function_id(void)
 {
+#ifndef USB_IPOD_IDENTITY /* there the serial number is Apple's, whole */
     int i, id = 0;
 
     for(i = 0; i < USB_NUM_DRIVERS; i++)
@@ -595,6 +618,7 @@ static void usb_core_set_serial_function_id(void)
             id |= 1 << i;
 
     usb_string_iSerial.wString[0] = hex[id];
+#endif
 }
 
 /* synchronize endpoint initialization state to allocation state */

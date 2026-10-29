@@ -513,8 +513,13 @@ static void NORETURN_ATTR usb_thread(void)
             DEBUGF("usb: all threads have acknowledged the connect.\n");
 #if defined(USB_APPLE_DISK_MODE) && !defined(BOOTLOADER)
             /* Playback has stopped and everything is saved and closed, as for
-               our own USB mode, so Apple's disk mode can have the disk */
-            if(usb_host_present && exclusive_storage_requested)
+               our own USB mode, so Apple's disk mode can have the disk, when
+               our own can't pass for an iPod */
+            if(usb_host_present && exclusive_storage_requested
+#ifdef USB_IPOD_IDENTITY
+               && !usb_storage_load_ipod_xml()
+#endif
+               )
                 try_reboot();
 #endif
             if(usb_host_present && exclusive_storage_requested) {

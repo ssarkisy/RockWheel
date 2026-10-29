@@ -1013,7 +1013,7 @@ static int library_update_percent(int phase, int done, int total)
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
  * the progress under it. Menu leaves it to finish in the background. */
-static void show_library_update(void)
+void show_library_update(void)
 {
     int done, total, phase, last = -1;
     while ((phase = tagcache_get_import(&done, &total))

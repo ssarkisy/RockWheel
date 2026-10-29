@@ -270,6 +270,7 @@ enum tagcache_queue {
     Q_UPDATE,
     Q_REBUILD,
     Q_IMPORT_ITUNES,
+    Q_SYNCED,
 
     /* Internal tagcache command queue. */
     CMD_UPDATE_MASTER_HEADER,
@@ -5880,6 +5881,19 @@ int tagcache_get_import(int *done, int *total)
     return phase;
 }
 
+/* What a boot does after a sync, for one over Rockbox's own USB mode, which
+   doesn't reboot: true when there is an import, which tagcache_get_import()
+   then follows. Called once the computer has let go of the disk. */
+bool tagcache_check_sync(void)
+{
+    if (!tc_stat.initialized || import_phase != TAGCACHE_IMPORT_NONE
+        || !itunesdb_changed())
+        return false;
+    import_phase = TAGCACHE_IMPORT_READING;
+    queue_post(&tagcache_queue, Q_SYNCED, 0);
+    return true;
+}
+
 
 static void count_songs(void)
 {
@@ -6012,6 +6026,12 @@ static void tagcache_thread(void)
                 check_deleted_file_refs(true);
                 break ;
 
+            case Q_SYNCED:
+                /* as at boot after a sync */
+                import_total = itunesdb_import_tracks(true);
+                import_done = 0;
+                import_phase = TAGCACHE_IMPORT_SCANNING;
+                /* fallthrough */
             case Q_IMPORT_ITUNES:
                 /* Finder has synced: the new files first, then what
                    iTunesDB says about them */

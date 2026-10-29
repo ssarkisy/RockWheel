@@ -197,6 +197,7 @@ enum {
     TAGCACHE_IMPORT_COUNTS,   /* ratings and play counts */
 };
 int tagcache_get_import(int *done, int *total);
+bool tagcache_check_sync(void);
 bool tagcache_create_changelog(struct tagcache_search *tcs);
 struct tagcache_runtime {
     long playcount;
