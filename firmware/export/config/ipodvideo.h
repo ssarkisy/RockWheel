@@ -223,8 +223,9 @@
 #define USB_WRITE_BUFFER_SIZE (1024*32)
 
 /* start with the Apple logo on black, as Apple's own firmware does, instead
-   of the Rockbox logo */
+   of the Rockbox logo; its top where Apple's boot screen has it */
 #define APPLE_BOOT_LOGO
+#define APPLE_BOOT_LOGO_Y 69
 
 /* Define this if you have adjustable CPU frequency */
 #define HAVE_ADJUSTABLE_CPU_FREQ

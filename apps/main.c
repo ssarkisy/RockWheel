@@ -175,11 +175,15 @@ int main(void)
     CHART(">init");
     init();
     CHART("<init");
+#ifndef APPLE_BOOT_LOGO
     FOR_NB_SCREENS(i)
     {
         screens[i].clear_display();
         screens[i].update();
     }
+#endif
+    /* else the logo stays until the menu or the library update draws the
+       screen: clearing it showed the theme's backdrop for a moment */
     list_init();
     tree_init();
 #if defined(HAVE_DEVICEDATA) && !defined(BOOTLOADER) /* SIMULATOR */
@@ -257,7 +261,7 @@ int show_logo_boot( void )
     lcd_clear_display();
     lcd_set_background(LCD_DEFAULT_BG);
     lcd_bmp(&bm_applelogo, (LCD_WIDTH - BMPWIDTH_applelogo) / 2,
-            (LCD_HEIGHT - BMPHEIGHT_applelogo) / 2);
+            APPLE_BOOT_LOGO_Y);
     lcd_update();
 #else
     unsigned char version[32];
