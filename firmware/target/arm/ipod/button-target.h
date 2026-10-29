@@ -70,6 +70,10 @@ void ipod_4g_button_int(void);
 
 
 #define POWEROFF_BUTTON BUTTON_PLAY
+
+/* with the backlight off the first press only lights it, if so set, but
+   play/pause works without looking */
+#define BACKLIGHT_FILTER_EXEMPT BUTTON_PLAY
 #define POWEROFF_COUNT 40
 
 #endif /* _BUTTON_TARGET_H_ */

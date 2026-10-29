@@ -172,7 +172,11 @@ static bool filter_first_keypress_enabled(int button, int data)
 #if defined(HAVE_TRANSFLECTIVE_LCD) && defined(HAVE_LCD_SLEEP)
     if (is_backlight_on(false) && lcd_active())
 #else
-    if (is_backlight_on(false))
+    if (is_backlight_on(false)
+#ifdef BACKLIGHT_FILTER_EXEMPT
+        || (button & BACKLIGHT_FILTER_EXEMPT)
+#endif
+       )
 #endif
     {
         return filter_first_keypress_disabled(button, data);

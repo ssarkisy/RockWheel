@@ -1523,8 +1523,10 @@ const struct settings_list settings[] = {
 #endif
 
 #ifdef HAVE_BACKLIGHT
+    /* on: with the screen dark, the first press only lights it, as
+       otherwise the centre button acted on a screen not yet seen */
     OFFON_SETTING(0, bl_filter_first_keypress,
-                  LANG_BACKLIGHT_FILTER_FIRST_KEYPRESS, false,
+                  LANG_BACKLIGHT_FILTER_FIRST_KEYPRESS, true,
                   "backlight filters first keypress", NULL),
 #ifdef HAVE_REMOTE_LCD
     OFFON_SETTING(0, remote_bl_filter_first_keypress,
