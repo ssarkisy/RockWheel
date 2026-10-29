@@ -829,7 +829,134 @@ MAKE_MENU(equalizer_menu, ID2P(LANG_EQUALIZER), NULL, Icon_EQ,
         &eq_enable, &eq_graphical, &eq_precut, &gain_menu,
         &advanced_menu, &eq_save, &eq_browse, &eq_reset);
 
-/* The equalizer of the iPod settings: on or off, a preset or the graphical
-   editor */
-MAKE_MENU(ipod_eq_menu, ID2P(LANG_EQUALIZER), NULL, Icon_EQ,
-        &eq_enable, &eq_browse, &eq_graphical);
+/* The equalizer of the iPod settings, as on a stock iPod: one list of Off
+   and iTunes' presets, each set by selecting it. The gains are iTunes' own,
+   in hundredths of a dB, for bands at 32 Hz to 16 kHz like the default
+   bands here. */
+static const struct
+{
+    int lang_id;
+    short gain[EQ_NUM_BANDS];
+} eq_presets[] =
+{
+    { LANG_EQ_ACOUSTIC,
+      { 500, 490, 395, 105, 215, 175, 350, 410, 355, 215 } },
+    { LANG_EQ_BASS_BOOSTER,
+      { 550, 425, 350, 250, 125, 0, 0, 0, 0, 0 } },
+    { LANG_EQ_BASS_REDUCER,
+      { -550, -425, -350, -250, -125, 0, 0, 0, 0, 0 } },
+    { LANG_EQ_CLASSICAL,
+      { 475, 375, 300, 250, -150, -150, 0, 225, 325, 375 } },
+    { LANG_EQ_DANCE,
+      { 357, 655, 499, 0, 192, 365, 515, 454, 359, 0 } },
+    { LANG_EQ_DEEP,
+      { 495, 355, 175, 100, 285, 250, 145, -215, -355, -460 } },
+    { LANG_EQ_ELECTRONIC,
+      { 425, 380, 120, 0, -215, 225, 85, 125, 395, 480 } },
+    { LANG_EQ_FLAT,
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { LANG_EQ_HIP_HOP,
+      { 500, 425, 150, 300, -100, -100, 150, -50, 200, 300 } },
+    { LANG_EQ_JAZZ,
+      { 400, 300, 150, 225, -150, -150, 0, 150, 300, 375 } },
+    { LANG_EQ_LATIN,
+      { 450, 300, 0, 0, -150, -150, -150, 0, 300, 450 } },
+    { LANG_EQ_LOUDNESS,
+      { 600, 400, 0, 0, -200, 0, -100, -500, 500, 100 } },
+    { LANG_EQ_LOUNGE,
+      { -300, -150, -50, 150, 400, 250, 0, -150, 200, 100 } },
+    { LANG_EQ_PIANO,
+      { 300, 200, 0, 250, 300, 150, 350, 450, 300, 350 } },
+    { LANG_EQ_POP,
+      { -150, -100, 0, 200, 400, 400, 200, 0, -100, -150 } },
+    { LANG_EQ_RNB,
+      { 262, 692, 565, 133, -219, -150, 232, 265, 300, 375 } },
+    { LANG_EQ_ROCK,
+      { 500, 400, 300, 150, -50, -100, 50, 250, 350, 450 } },
+    { LANG_EQ_SMALL_SPEAKERS,
+      { 550, 425, 350, 250, 125, 0, -125, -250, -350, -425 } },
+    { LANG_EQ_SPOKEN_WORD,
+      { -346, -47, 0, 69, 346, 461, 484, 428, 254, 0 } },
+    { LANG_EQ_TREBLE_BOOSTER,
+      { 0, 0, 0, 0, 0, 125, 250, 350, 425, 550 } },
+    { LANG_EQ_TREBLE_REDUCER,
+      { 0, 0, 0, 0, 0, -125, -250, -350, -425, -550 } },
+    { LANG_EQ_VOCAL_BOOSTER,
+      { -150, -300, -300, 150, 375, 375, 300, 150, 0, -150 } },
+};
+
+static int eq_preset_gain(int preset, int band)
+{
+    /* to the tenths of a dB the bands are set in */
+    int gain = eq_presets[preset - 1].gain[band];
+    return (gain + (gain < 0 ? -5 : 5)) / 10;
+}
+
+static void eq_set_preset(int preset)
+{
+    global_settings.eq_enabled = preset > 0;
+    if (preset > 0)
+    {
+        int precut = 0;
+        for (int i = 0; i < EQ_NUM_BANDS; i++)
+        {
+            global_settings.eq_band_settings[i] = eq_defaults[i];
+            global_settings.eq_band_settings[i].gain = eq_preset_gain(preset, i);
+            precut = MAX(precut, global_settings.eq_band_settings[i].gain);
+        }
+        /* down by the largest boost, so that loud music doesn't clip */
+        global_settings.eq_precut = precut;
+    }
+    eq_apply();
+}
+
+/* the preset the equalizer is set to, or Off (0) if none is */
+static int eq_get_preset(void)
+{
+    if (!global_settings.eq_enabled)
+        return 0;
+    for (int preset = 1; preset <= (int)ARRAYLEN(eq_presets); preset++)
+    {
+        int i = 0;
+        for (; i < EQ_NUM_BANDS; i++)
+        {
+            const struct eq_band_setting *band =
+                &global_settings.eq_band_settings[i];
+            if (band->type != eq_defaults[i].type
+                || band->cutoff != eq_defaults[i].cutoff
+                || band->q != eq_defaults[i].q
+                || band->gain != eq_preset_gain(preset, i))
+                break;
+        }
+        if (i == EQ_NUM_BANDS)
+            return preset;
+    }
+    return 0;
+}
+
+static int eq_choose_preset(void)
+{
+    static const unsigned char *names[1 + ARRAYLEN(eq_presets)];
+    names[0] = ID2P(LANG_OFF);
+    for (int i = 0; i < (int)ARRAYLEN(eq_presets); i++)
+        names[i + 1] = ID2P(eq_presets[i].lang_id);
+
+    static const struct choice_setting choice =
+        { eq_set_preset, ARRAYLEN(names), NULL, { .desc = names } };
+    static int preset;
+    preset = eq_get_preset();
+
+    /* the preset is set when it is selected, and Menu leaves the EQ as it
+       was */
+    struct settings_list setting = {
+        .flags = F_CHOICE_SETTING|F_T_INT|F_CB_ON_SELECT_ONLY|F_BANFROMQS,
+        .setting = &preset,
+        .lang_id = LANG_EQUALIZER,
+        .default_val.int_ = 0,
+        .choice_setting = &choice,
+    };
+    return option_screen(&setting, NULL, false, ID2P(LANG_EQUALIZER));
+}
+
+MENUITEM_FUNCTION(ipod_eq_menu, 0, ID2P(LANG_EQUALIZER),
+                  eq_choose_preset, lowlatency_callback, Icon_EQ);

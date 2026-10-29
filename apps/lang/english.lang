@@ -17677,3 +17677,311 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Acoustic"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Bass Booster"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Bass Reducer"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Classical"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Dance"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Deep"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Electronic"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Flat"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip Hop"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Jazz"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latin"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Loudness"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Piano"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rock"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Small Speakers"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Spoken Word"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Treble Booster"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Treble Reducer"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Vocal Booster"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

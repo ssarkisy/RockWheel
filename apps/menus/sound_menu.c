@@ -274,7 +274,9 @@ MAKE_MENU(sound_settings, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_Audio,
          );
 
 /* The sound settings of the iPod settings: in Advanced and the WPS context
-   menu; volume is the wheel's, the equalizer has its own entry */
+   menu; volume is the wheel's, the equalizer has its own entry. Stereo
+   width, surround, bass enhancement and the compressor are left out, and
+   settings_apply() keeps them off. */
 MAKE_MENU(ipod_sound_settings, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_Audio,
 #ifdef AUDIOHW_HAVE_BASS
           &bass,
@@ -282,5 +284,4 @@ MAKE_MENU(ipod_sound_settings, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_Audio,
 #ifdef AUDIOHW_HAVE_TREBLE
           &treble,
 #endif
-          &balance, &crossfeed_menu, &compressor_menu, &pbe_menu,
-          &afr_enabled, &stereo_width, &surround_menu);
+          &balance, &crossfeed_menu, &afr_enabled);
