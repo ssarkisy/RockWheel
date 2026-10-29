@@ -550,6 +550,7 @@ static void wps_lcd_activation_hook(unsigned short id, void *param)
 static long mode_last_used;
 static long scrub_last_turn;
 static bool scrub_pending = false;
+static bool scrub_moved = false; /* the wheel turned in this scrubber view */
 static bool mode_track_changed = false; /* set from the playback thread */
 
 /* the skin's viewport the lyrics are drawn in, from the WPS code as skins
@@ -621,6 +622,7 @@ static void scrub_apply(void)
 static void set_display_mode(enum wps_display_mode mode)
 {
     scrub_apply();
+    scrub_moved = false;
     get_wps_state()->display_mode = mode;
     mode_last_used = current_tick;
     skin_request_full_update(WPS);
@@ -640,26 +642,28 @@ static void display_mode_turn(int direction)
 {
     struct wps_state *state = get_wps_state();
     struct mp3entry *id3 = state->id3;
-    int ticks = 1;
-#ifdef HAVE_WHEEL_ACCELERATION
-    ticks = MAX(1, button_apply_acceleration(get_action_data()));
-#endif
     mode_last_used = current_tick;
 
     if (state->display_mode == WPS_MODE_LYRICS)
     {
+        int ticks = 1;
+#ifdef HAVE_WHEEL_ACCELERATION
+        ticks = MAX(1, button_apply_acceleration(get_action_data()));
+#endif
         if (lyrics_scroll(direction * ticks))
             draw_lyrics();
         return;
     }
     else if (state->display_mode == WPS_MODE_SCRUB)
     {
-        /* about one wheel turn for the whole track */
-        long step = MAX(id3->length / 100, 1000) * ticks;
+        /* a hundredth of the track a wheel step, a few turns for all of it;
+           no acceleration, which made a spot hard to aim at */
+        long step = MAX(id3->length / 100, 1000);
         long pos = id3->elapsed + state->ff_rewind_count + direction * step;
         pos = MAX(0, MIN(pos, (long)id3->length - 1000));
         state->ff_rewind_count = pos - id3->elapsed;
         scrub_pending = true;
+        scrub_moved = true;
         scrub_last_turn = current_tick;
     }
 #ifdef HAVE_TAGCACHE
@@ -1074,7 +1078,12 @@ long gui_wps_show(void)
                 break;
 
             case ACTION_WPS_NEXT_MODE:
-                next_display_mode();
+                /* after a scrub, back to the track rather than on to its
+                   cover */
+                if (state->display_mode == WPS_MODE_SCRUB && scrub_moved)
+                    set_display_mode(WPS_MODE_VOLUME);
+                else
+                    next_display_mode();
                 break;
 
             case ACTION_WPS_VOLUP: /* fall through */
