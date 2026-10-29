@@ -41,7 +41,29 @@
 #include "tagcache.h"
 #include "logf.h"
 #include "lcd.h"
+#include "metadata.h"
 #include "itunesdb.h"
+
+#ifdef HAVE_DIRCACHE
+#include "dircache.h"
+#endif
+
+/* core_alloc(), and once more after the dircache is built if that fails:
+   building it at boot takes all the free memory for a while, and an import
+   then could read nothing of iTunesDB */
+static int db_alloc(size_t size)
+{
+    int handle = core_alloc(size);
+#ifdef HAVE_DIRCACHE
+    if (handle <= 0)
+    {
+        dircache_wait();
+        handle = core_alloc(size);
+    }
+#endif
+    return handle;
+}
+
 
 /* what the last import was made from, and the tracks in iTunesDB order with
    the counts they had then, which Play Counts entries are made against */
@@ -87,6 +109,7 @@ struct track {
     uint32_t id;     /* what playlists refer to */
     uint32_t path;   /* offset in the path pool, 0 for none */
     uint32_t art;    /* the ArtworkDB image id of its cover, 0 for none */
+    uint32_t pos;    /* of its mhit in iTunesDB */
     struct state_entry st;
 };
 
@@ -226,11 +249,323 @@ bool itunesdb_changed(void)
 
 /* tracks */
 
+/* What iTunesDB says of the tracks Finder added since the last import, for
+   the scan to take instead of each file's tags: reading those took the iPod
+   13 ms a song. The records are made as the tracks are read and kept until
+   the scan is done. */
+
+#define META_PER_TRACK 256 /* bytes a record takes on average, at most */
+
+/* the strings of a record, in its order, and their mhod types */
+enum { META_TITLE, META_ARTIST, META_ALBUM, META_GENRE, META_COMPOSER,
+       META_COMMENT, META_ALBUMARTIST, META_GROUPING, META_STRINGS };
+static const uint8_t meta_mhods[META_STRINGS] = { 1, 4, 3, 5, 12, 8, 22, 13 };
+
+struct meta_record {
+    uint64_t hash;
+    uint32_t length;    /* ms */
+    uint16_t bitrate;   /* kbit/s */
+    uint16_t year;
+    uint16_t tracknum;
+    uint16_t discnum;
+    uint16_t size;      /* with the strings after it, a multiple of 8 */
+    uint8_t rating;     /* 0..100 */
+    uint8_t unused;
+    uint32_t playcount;
+    uint32_t unused2;
+    /* then the strings, each ended by a zero, ID3V2_BUF_SIZE in all */
+};
+
+static struct {
+    int handle;
+    int count, capacity;
+    uint32_t *by_hash;  /* offsets of the records in the pool, by hash */
+    char *pool;
+    size_t pool_size, pool_used;
+    /* while iTunesDB is read: the path hashes of the last import, sorted */
+    bool reading;
+    int known_handle;
+    int known;
+    bool full;          /* no room for more records */
+} meta;
+
+void itunesdb_forget_metadata(void)
+{
+    if (meta.handle > 0)
+    {
+        core_unpin(meta.handle);
+        core_free(meta.handle);
+    }
+    if (meta.known_handle > 0)
+    {
+        core_unpin(meta.known_handle);
+        core_free(meta.known_handle);
+    }
+    memset(&meta, 0, sizeof(meta));
+}
+
+static int cmp_u64(const void *a, const void *b)
+{
+    uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
+    return (x > y) - (x < y);
+}
+
+static int cmp_meta(const void *a, const void *b)
+{
+    uint64_t x = ((struct meta_record *)(meta.pool + *(const uint32_t *)a))->hash;
+    uint64_t y = ((struct meta_record *)(meta.pool + *(const uint32_t *)b))->hash;
+    return (x > y) - (x < y);
+}
+
+/* the path hashes of the last import, sorted; their count, 0 for none */
+static int load_known_hashes(int *handle)
+{
+    struct state_header hdr;
+    *handle = 0;
+    if (!read_state_header(&hdr) || hdr.count == 0)
+        return 0;
+    int fd = open(STATE_FILE, O_RDONLY);
+    if (fd < 0)
+        return 0;
+    *handle = db_alloc(hdr.count * sizeof(uint64_t));
+    if (*handle <= 0)
+    {
+        *handle = 0;
+        close(fd);
+        return -1;
+    }
+    core_pin(*handle);
+    uint64_t *hashes = core_get_data(*handle);
+    struct state_entry chunk[64];
+    uint32_t n = 0;
+    lseek(fd, sizeof(hdr), SEEK_SET);
+    while (n < hdr.count)
+    {
+        size_t want = MIN(hdr.count - n, ARRAYLEN(chunk));
+        if (read(fd, chunk, want * sizeof(chunk[0]))
+            != (ssize_t)(want * sizeof(chunk[0])))
+            break;
+        for (size_t i = 0; i < want; i++)
+            hashes[n++] = chunk[i].hash;
+    }
+    close(fd);
+    qsort(hashes, n, sizeof(uint64_t), cmp_u64);
+    return n;
+}
+
+static bool known_hash(const uint64_t *hashes, int count, uint64_t hash)
+{
+    int lo = 0, hi = count - 1;
+    while (lo <= hi)
+    {
+        int mid = (lo + hi) / 2;
+        if (hashes[mid] == hash)
+            return true;
+        if (hashes[mid] < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return false;
+}
+
+/* the record of a track into the pool, false when it doesn't fit */
+static bool add_metadata(const struct track *t)
+{
+    static char strings[ID3V2_BUF_SIZE];
+    off_t mhods_at[META_STRINGS] = { 0 };
+    struct meta_record r;
+    memset(&r, 0, sizeof(r));
+
+    const unsigned char *p = db_record(t->pos, "mhit", 0x9c);
+    if (!p)
+        return true;
+    uint32_t header_len = le32(p + 4);
+    int mhods = le32(p + 12);
+    r.hash = t->st.hash;
+    r.playcount = t->st.playcount;
+    r.rating = t->st.rating;
+    r.length = le32(p + 40);
+    r.tracknum = MIN(le32(p + 44), 0xffff);
+    r.year = MIN(le32(p + 52), 0xffff);
+    r.bitrate = MIN(le32(p + 56), 0xffff);
+    r.discnum = MIN(le32(p + 92), 0xffff);
+
+    off_t child = t->pos + header_len;
+    for (int i = 0; i < mhods; i++)
+    {
+        p = db_record(child, "mhod", 16);
+        if (!p)
+            break;
+        uint32_t total = le32(p + 8), type = le32(p + 12);
+        for (int k = 0; k < META_STRINGS; k++)
+        {
+            if (meta_mhods[k] == type)
+                mhods_at[k] = child;
+        }
+        if (total == 0)
+            break;
+        child += total;
+    }
+
+    size_t used = 0;
+    for (int k = 0; k < META_STRINGS; k++)
+    {
+        size_t room = MIN(sizeof(strings) - used - (META_STRINGS - k),
+                          ID3V2_MAX_ITEM_SIZE);
+        strings[used] = '\0';
+        if (mhods_at[k] && room > 1)
+            mhod_string(mhods_at[k], strings + used, room);
+        used += strlen(strings + used) + 1;
+    }
+
+    r.size = ALIGN_UP(sizeof(r) + used, 8);
+    if (meta.pool_used + r.size > meta.pool_size)
+        return false;
+    memcpy(meta.pool + meta.pool_used, &r, sizeof(r));
+    memcpy(meta.pool + meta.pool_used + sizeof(r), strings, used);
+    meta.by_hash[meta.count++] = meta.pool_used;
+    meta.pool_used += r.size;
+    return true;
+}
+
+/* before iTunesDB is read for an import */
+static void metadata_begin(void)
+{
+    itunesdb_forget_metadata();
+    meta.known = load_known_hashes(&meta.known_handle);
+    meta.reading = meta.known >= 0;
+}
+
+/* once the number of tracks is known: room for the records of all of them,
+   less if there isn't enough memory, until metadata_end() gives back what
+   the new ones didn't take */
+static void metadata_room(int tracks)
+{
+    if (!meta.reading)
+        return;
+    /* the new ones and as many replaced, or all when none are known; the
+       rest are read from the files */
+    int count = MIN(tracks, MAX(tracks - meta.known, 0) * 2 + 256);
+    size_t pool = count * META_PER_TRACK;
+    while (1)
+    {
+        meta.handle = db_alloc(count * sizeof(uint32_t) + pool);
+        if (meta.handle > 0 || pool < 64*1024)
+            break;
+        pool /= 2;
+    }
+    if (meta.handle <= 0)
+    {
+        meta.handle = 0;
+        meta.reading = false;
+        return;
+    }
+    core_pin(meta.handle);
+    meta.by_hash = core_get_data(meta.handle);
+    meta.pool = (char *)(meta.by_hash + count);
+    meta.pool_size = pool;
+    meta.capacity = count;
+}
+
+/* a track just read, its mhit still in the cache */
+static void new_track_metadata(const struct track *t)
+{
+    if (!meta.reading || meta.full || meta.handle <= 0)
+        return;
+    const uint64_t *hashes = meta.known_handle > 0 ?
+                             core_get_data(meta.known_handle) : NULL;
+    if (known_hash(hashes, meta.known, t->st.hash))
+        return;
+    if (meta.count >= meta.capacity || !add_metadata(t))
+        meta.full = true;
+}
+
+/* after iTunesDB was read */
+static void metadata_end(void)
+{
+    if (meta.known_handle > 0)
+    {
+        core_unpin(meta.known_handle);
+        core_free(meta.known_handle);
+    }
+    meta.known_handle = 0;
+    meta.reading = false;
+    if (meta.handle <= 0)
+        return;
+    if (meta.count == 0)
+    {
+        itunesdb_forget_metadata();
+        return;
+    }
+    qsort(meta.by_hash, meta.count, sizeof(uint32_t), cmp_meta);
+    core_unpin(meta.handle);
+    core_shrink(meta.handle, meta.by_hash,
+                meta.capacity * sizeof(uint32_t) + meta.pool_used);
+    core_pin(meta.handle);
+    meta.by_hash = core_get_data(meta.handle);
+    meta.pool = (char *)(meta.by_hash + meta.capacity);
+    meta.pool_size = meta.pool_used;
+}
+
+bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
+                           struct tagcache_runtime *rt)
+{
+    if (meta.count == 0)
+        return false;
+    uint64_t hash = itunesdb_path_hash(path);
+    const struct meta_record *r = NULL;
+    int lo = 0, hi = meta.count - 1;
+    while (lo <= hi)
+    {
+        int mid = (lo + hi) / 2;
+        const struct meta_record *m =
+            (const struct meta_record *)(meta.pool + meta.by_hash[mid]);
+        if (m->hash == hash)
+        {
+            r = m;
+            break;
+        }
+        if (m->hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    if (!r)
+        return false;
+
+    memset(id3, 0, sizeof(*id3));
+    const char *src = (const char *)(r + 1);
+    size_t size = r->size - sizeof(*r);
+    memcpy(id3->id3v2buf, src, MIN(size, sizeof(id3->id3v2buf)));
+    char **tags[META_STRINGS] = {
+        &id3->title, &id3->artist, &id3->album, &id3->genre_string,
+        &id3->composer, &id3->comment, &id3->albumartist, &id3->grouping
+    };
+    char *c = id3->id3v2buf;
+    for (int k = 0; k < META_STRINGS; k++)
+    {
+        *tags[k] = *c ? c : NULL;
+        c += strlen(c) + 1;
+    }
+    id3->length = r->length;
+    id3->bitrate = r->bitrate;
+    id3->year = r->year;
+    id3->tracknum = r->tracknum;
+    id3->discnum = r->discnum;
+    /* as itunesdb_import() would set them right after */
+    rt->playcount = r->playcount;
+    rt->rating = r->rating / 10;
+    rt->lastplayed = 0;
+    return true;
+}
+
 static void read_track(off_t pos, struct track *track)
 {
     char path[MAX_PATH];
     const unsigned char *p = db_record(pos, "mhit", 12);
     memset(track, 0, sizeof(*track));
+    track->pos = pos;
     if (!p)
         return;
     uint32_t header_len = le32(p + 4);
@@ -290,6 +625,8 @@ static void read_track(off_t pos, struct track *track)
             break;
         child += total;
     }
+    if (track->st.hash)
+        new_track_metadata(track);
 }
 
 static bool read_tracks(off_t list)
@@ -359,18 +696,122 @@ static void playlist_dir(char *buf, size_t size)
     strmemccpy(buf, dir, size);
 }
 
-/* the playlists of the last import go, as Finder may have removed some */
-static void remove_old_playlists(void)
+/* The playlists file lists those of the last import, a line each:
+   "<hash> <size> <file>" with the hash and size of what was written. Each
+   file costs the iPod's flash a good part of a second to remove and write
+   again, so those that would come out the same are left. */
+
+#define MAX_PLAYLISTS 256
+
+static struct {
+    int handle;
+    int count;
+    struct old_playlist {
+        uint64_t file_hash;     /* itunesdb_path_hash() of the file */
+        uint64_t hash;          /* of what it holds, 0 if not known */
+        uint32_t size;
+        uint32_t file;          /* offset of its name in the buffer */
+    } *lists;
+    char *names;
+    /* the files written this time */
+    int written_count;
+    uint64_t written[MAX_PLAYLISTS];
+} pls;
+
+static void load_old_playlists(void)
 {
-    char line[MAX_PATH];
+    memset(&pls, 0, sizeof(pls));
     int fd = open(PLAYLISTS_FILE, O_RDONLY);
     if (fd < 0)
         return;
-    while (read_line(fd, line, sizeof(line)) > 0)
-        if (line[0] == '/')
-            remove(line);
+    char line[MAX_PATH + 32];
+    off_t size = ffilesize(fd);
+    pls.handle = db_alloc(MAX_PLAYLISTS * sizeof(struct old_playlist)
+                            + size + 1);
+    if (pls.handle <= 0)
+    {
+        /* all are written again then, so they go first */
+        pls.handle = 0;
+        while (read_line(fd, line, sizeof(line)) > 0)
+        {
+            char *file = strchr(line, '/');
+            if (file)
+                remove(file);
+        }
+        close(fd);
+        return;
+    }
+    core_pin(pls.handle);
+    pls.lists = core_get_data(pls.handle);
+    pls.names = (char *)(pls.lists + MAX_PLAYLISTS);
+    size_t used = 0;
+    while (pls.count < MAX_PLAYLISTS
+           && read_line(fd, line, sizeof(line)) > 0)
+    {
+        struct old_playlist *o = &pls.lists[pls.count];
+        char *file = line;
+        o->hash = 0;
+        o->size = 0;
+        if (line[0] != '/')
+        {
+            /* not from an older version, which listed only the files */
+            char *end, high[9];
+            strmemccpy(high, line, sizeof(high));
+            o->hash = (uint64_t)strtoul(high, NULL, 16) << 32
+                      | (uint32_t)strtoul(line + 8, &end, 16);
+            o->size = strtoul(end, &end, 10);
+            file = end + 1;
+            if (*end != ' ' || file[0] != '/')
+                continue;
+        }
+        size_t len = strlen(file) + 1;
+        if (used + len > (size_t)size + 1)
+            break;
+        memcpy(pls.names + used, file, len);
+        o->file = used;
+        o->file_hash = itunesdb_path_hash(file);
+        used += len;
+        pls.count++;
+    }
     close(fd);
-    remove(PLAYLISTS_FILE);
+}
+
+static struct old_playlist *find_old_playlist(const char *file)
+{
+    uint64_t h = itunesdb_path_hash(file);
+    for (int i = 0; i < pls.count; i++)
+    {
+        if (pls.lists[i].file_hash == h
+            && !strcasecmp(pls.names + pls.lists[i].file, file))
+            return &pls.lists[i];
+    }
+    return NULL;
+}
+
+static bool written_playlist(uint64_t file_hash)
+{
+    for (int i = 0; i < pls.written_count; i++)
+    {
+        if (pls.written[i] == file_hash)
+            return true;
+    }
+    return false;
+}
+
+/* the old ones not written again go, as Finder removed them */
+static void remove_old_playlists(void)
+{
+    for (int i = 0; i < pls.count; i++)
+    {
+        if (!written_playlist(pls.lists[i].file_hash))
+            remove(pls.names + pls.lists[i].file);
+    }
+    if (pls.handle > 0)
+    {
+        core_unpin(pls.handle);
+        core_free(pls.handle);
+    }
+    memset(&pls, 0, sizeof(pls));
 }
 
 /* a playlist name as a file name that FAT takes; false if it is too long */
@@ -385,11 +826,18 @@ static bool playlist_file(char *buf, size_t size, const char *dir,
     if (n == 0)
         strcpy(clean, "Playlist");
 
+    /* taken by another playlist of this import, or by a file that isn't
+       one of the last */
     if ((size_t)snprintf(buf, size, "%s/%s.m3u8", dir, clean) >= size)
         return false;
-    for (int i = 2; file_exists(buf) && i < 100; i++)
+    for (int i = 2; i < 100; i++)
+    {
+        if (!written_playlist(itunesdb_path_hash(buf))
+            && (find_old_playlist(buf) || !file_exists(buf)))
+            break;
         if ((size_t)snprintf(buf, size, "%s/%s %d.m3u8", dir, clean, i) >= size)
             return false;
+    }
     return true;
 }
 
@@ -448,6 +896,45 @@ static void writer_line(struct writer *w, const char *line)
     w->used += len + 1;
 }
 
+static void playlist_line(struct writer *w, const char *line, uint64_t *hash,
+                          uint32_t *size)
+{
+    for (const char *c = line; ; c++)
+    {
+        unsigned char b = *c ? *c : '\n';
+        *hash = (*hash ^ b) * 0x100000001b3ULL;
+        if (!*c)
+            break;
+    }
+    *size += strlen(line) + 1;
+    if (w)
+        writer_line(w, line);
+}
+
+/* the lines of a playlist's items from child on, into w if there is one,
+   and their hash and size */
+static void playlist_items(off_t child, int items, struct writer *w,
+                           uint64_t *hash, uint32_t *size)
+{
+    const unsigned char *p;
+    *hash = 0xcbf29ce484222325ULL;
+    *size = 0;
+    playlist_line(w, "#EXTM3U", hash, size);
+    for (int i = 0; i < items; i++)
+    {
+        p = db_record(child, "mhip", 28);
+        if (!p)
+            break;
+        uint32_t total = le32(p + 8);
+        struct track *t = find_by_id(le32(p + 24));
+        if (t && t->path)
+            playlist_line(w, db.pool + t->path, hash, size);
+        if (total == 0)
+            break;
+        child += total;
+    }
+}
+
 /* the mhyp at pos as a playlist file, listed in the playlists file */
 static void write_playlist(off_t pos, const char *dir, int list_fd,
                            struct writer *w)
@@ -479,53 +966,67 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
         child += total;
     }
 
-    if (!playlist_file(file, sizeof(file), dir, name) || !writer_open(w, file))
+    if (!playlist_file(file, sizeof(file), dir, name)
+        || pls.written_count >= MAX_PLAYLISTS)
         return;
-    writer_line(w, "#EXTM3U");
-    for (int i = 0; i < items; i++)
+
+    /* what it would hold, then the file only if that changed */
+    uint64_t hash;
+    uint32_t size;
+    playlist_items(child, items, NULL, &hash, &size);
+    struct old_playlist *o = find_old_playlist(file);
+    bool same = false;
+    if (o && o->hash == hash && o->size == size)
     {
-        p = db_record(child, "mhip", 28);
-        if (!p)
-            break;
-        uint32_t total = le32(p + 8);
-        struct track *t = find_by_id(le32(p + 24));
-        if (t && t->path)
-            writer_line(w, db.pool + t->path);
-        if (total == 0)
-            break;
-        child += total;
+        int fd = open(file, O_RDONLY);
+        if (fd >= 0)
+        {
+            same = ffilesize(fd) == (off_t)size;
+            close(fd);
+        }
     }
-    writer_close(w);
-    fdprintf(list_fd, "%s\n", file);
+    if (!same)
+    {
+        if (!writer_open(w, file))
+            return;
+        playlist_items(child, items, w, &hash, &size);
+        if (!writer_close(w))
+            hash = 0;
+    }
+    pls.written[pls.written_count++] = itunesdb_path_hash(file);
+    fdprintf(list_fd, "%08lx%08lx %lu %s\n", (unsigned long)(hash >> 32),
+             (unsigned long)(uint32_t)hash, (unsigned long)size, file);
 }
 
 static void write_playlists(off_t list)
 {
     char dir[MAX_PATH];
-    const unsigned char *p = db_record(list, "mhlp", 12);
-    if (!p)
-        return;
-    off_t pos = list + le32(p + 4);
-    int count = le32(p + 8);
-
-    playlist_dir(dir, sizeof(dir));
-    mkdir(dir);
+    const unsigned char *p = list >= 0 ? db_record(list, "mhlp", 12) : NULL;
+    load_old_playlists();
     int list_fd = open(PLAYLISTS_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (list_fd < 0)
-        return;
-    for (int i = 0; i < count; i++)
+    if (p && list_fd >= 0)
     {
-        p = db_record(pos, "mhyp", 12);
-        if (!p)
-            break;
-        uint32_t total = le32(p + 8);
-        write_playlist(pos, dir, list_fd, &out);
-        if (total == 0)
-            break;
-        pos += total;
-        yield();
+        off_t pos = list + le32(p + 4);
+        int count = le32(p + 8);
+
+        playlist_dir(dir, sizeof(dir));
+        mkdir(dir);
+        for (int i = 0; i < count; i++)
+        {
+            p = db_record(pos, "mhyp", 12);
+            if (!p)
+                break;
+            uint32_t total = le32(p + 8);
+            write_playlist(pos, dir, list_fd, &out);
+            if (total == 0)
+                break;
+            pos += total;
+            yield();
+        }
     }
-    close(list_fd);
+    if (list_fd >= 0)
+        close(list_fd);
+    remove_old_playlists();
 }
 
 /* Ratings and play counts. iTunesDB is read once, at boot after a sync,
@@ -600,7 +1101,7 @@ static bool load_pending(void)
     if (ok)
     {
         size_t entries = pend.hdr.count * sizeof(struct state_entry);
-        pend.handle = core_alloc(entries
+        pend.handle = db_alloc(entries
                                  + pend.hdr.count * sizeof(uint32_t));
         ok = pend.handle > 0;
         if (ok)
@@ -714,7 +1215,7 @@ static bool db_load(void)
 
     /* 4 more bytes for the second half of a surrogate pair at the end */
     size_t cache_size = STORAGE_PAD(CACHE_SIZE + 4);
-    cache_handle = core_alloc(cache_size);
+    cache_handle = db_alloc(cache_size);
     if (cache_handle <= 0)
         return false;
     core_pin(cache_handle);
@@ -750,10 +1251,11 @@ static bool db_load(void)
     size_t table_size =
         db.count * (sizeof(struct track) + 2 * sizeof(uint32_t));
     db.pool_size = db.count * POOL_PER_TRACK;
-    table_handle = core_alloc(table_size + db.pool_size);
+    table_handle = db_alloc(table_size + db.pool_size);
     if (table_handle <= 0)
         return false;
     core_pin(table_handle);
+    metadata_room(db.count);
     db.tracks = core_get_data(table_handle);
     db.by_id = (uint32_t *)(db.tracks + db.count);
     db.by_hash = db.by_id + db.count;
@@ -862,7 +1364,7 @@ void itunesdb_write_playcounts(void)
         return;
 
     pc.count = hdr.count;
-    handle = core_alloc(pc.count * (sizeof(struct state_entry)
+    handle = db_alloc(pc.count * (sizeof(struct state_entry)
                         + sizeof(uint32_t) + sizeof(struct played)));
     if (handle <= 0)
         return;
@@ -989,7 +1491,7 @@ static void load_index(struct index *index, const char *file, void *hdr,
         && h->magic == magic && h->version == version && h->count > 0)
     {
         ssize_t size = h->count * index->entry_size;
-        int handle = core_alloc(size);
+        int handle = db_alloc(size);
         if (handle > 0)
         {
             core_pin(handle);
@@ -1292,7 +1794,7 @@ static int read_images(struct art_image **images, int *count)
         {
             off_t item = pos + header_len + le32(p + 4);
             int n = le32(p + 8);
-            handle = core_alloc(n * sizeof(struct art_image) + 1);
+            handle = db_alloc(n * sizeof(struct art_image) + 1);
             if (handle <= 0)
                 return -1;
             core_pin(handle);
@@ -1569,6 +2071,10 @@ int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
 int itunesdb_import_tracks(bool synced)
 {
     int count = 0;
+    if (synced)
+        metadata_begin();
+    else
+        itunesdb_forget_metadata();
     forget_index(&flags_index);
     remove(FLAGS_FILE);
 #ifdef ITUNESDB_HAVE_ART
@@ -1576,15 +2082,15 @@ int itunesdb_import_tracks(bool synced)
     forget_art();
     remove(ART_FILE);
 #endif
-    if (db_load())
+    bool loaded = db_load();
+    metadata_end();
+    if (loaded)
     {
         count = db.count;
         write_flags();
         if (synced)
         {
-            remove_old_playlists();
-            if (playlists_list >= 0)
-                write_playlists(playlists_list);
+            write_playlists(playlists_list);
             write_pending();
         }
 #ifdef ITUNESDB_HAVE_ART

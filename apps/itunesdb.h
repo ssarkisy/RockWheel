@@ -65,6 +65,16 @@ int itunesdb_import_tracks(bool synced);
    plays Finder hasn't had, but the tracks are to be imported again. */
 bool itunesdb_load_tracks(void);
 
+/* What iTunesDB says of a file Finder added since the last import, as its
+   tags would, and its play count and rating: false when it doesn't know the
+   file. Kept from itunesdb_import_tracks() until itunesdb_forget_metadata(),
+   for the scan. */
+struct mp3entry;
+struct tagcache_runtime;
+bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
+                           struct tagcache_runtime *rt);
+void itunesdb_forget_metadata(void);
+
 /* the flags of the file at path, or with this itunesdb_path_hash() */
 unsigned itunesdb_track_flags(const char *path);
 unsigned itunesdb_hash_flags(uint64_t hash);
