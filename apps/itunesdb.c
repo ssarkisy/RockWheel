@@ -86,7 +86,7 @@ static int db_alloc(size_t size)
 #define READ_ALIGN      2048  /* the largest sector there is */
 #define CACHE_SIZE      65536 /* a multiple of READ_ALIGN */
 #define POOL_PER_TRACK  64 /* bytes of path; Finder's take about 35 */
-#define WRITE_BUF_SIZE  4096
+#define WRITE_BUF_SIZE  32768
 
 struct state_header {
     uint32_t magic;

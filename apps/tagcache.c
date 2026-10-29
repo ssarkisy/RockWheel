@@ -2496,6 +2496,8 @@ static void db_log(const char *prefix, const char *msg)
 static int build_names_handle;
 static long build_names_count;
 static bool build_names_timed; /* the names have the times of their entries */
+/* the database in memory has every name, which the scan looks up first */
+static bool build_names_in_ram;
 static int build_masterfd = -1;
 #endif /* !__PCTOOL__ */
 
@@ -2624,6 +2626,7 @@ static void load_build_names(int fd, long entry_count)
 static void free_build_names(void)
 {
     build_names_timed = false;
+    build_names_in_ram = false;
     if (build_names_handle > 0)
         core_free(build_names_handle);
     build_names_handle = 0;
@@ -2638,6 +2641,8 @@ static void free_build_names(void)
 static long find_known_file(const char *path, uint32_t *mtime, bool *timed)
 {
     *timed = false;
+    if (build_names_in_ram)
+        return -1; /* not in memory, so new */
     if (build_names_handle <= 0)
         return filenametag_fd >= 0 ? find_entry_disk(path, false) : -1;
     *timed = build_names_timed;
@@ -2945,7 +2950,43 @@ static int compare(const void *p1, const void *p2)
     return strncasecmp(e1->str, e2->str, TAG_MAXLEN);
 }
 
-static int tempbuf_sort(int fd)
+/* The old entries, the first old_n, came in sorted from the old tag file:
+   the new ones are sorted alone and merged in. Sorting all again was the
+   largest part of a commit. False when the old ones aren't sorted. */
+static bool merge_sorted(struct tempbuf_searchidx *index, long old_n)
+{
+    long new_n = tempbufidx - old_n;
+    if (old_n == 0)
+        return false;
+    for (long i = 1; i < old_n; i++)
+    {
+        if (compare(&index[i - 1], &index[i]) > 0)
+            return false;
+    }
+    if (new_n <= 0)
+        return true;
+
+    long pos = tempbuf_pos, left = tempbuf_left;
+    ALIGN_BUFFER(pos, left, alignof(struct tempbuf_searchidx));
+    if (left < (long)(new_n * sizeof(*index)))
+        return false;
+    struct tempbuf_searchidx *added = (struct tempbuf_searchidx *)&tempbuf[pos];
+
+    qsort(&index[old_n], new_n, sizeof(*index), compare);
+    memcpy(added, &index[old_n], new_n * sizeof(*index));
+    /* from the end, an old one before a new one it equals */
+    long i = old_n - 1, j = new_n - 1, k = tempbufidx - 1;
+    while (j >= 0)
+    {
+        if (i >= 0 && compare(&index[i], &added[j]) > 0)
+            index[k--] = index[i--];
+        else
+            index[k--] = added[j--];
+    }
+    return true;
+}
+
+static int tempbuf_sort(int fd, long old_n)
 {
     struct tempbuf_searchidx *index = (struct tempbuf_searchidx *)tempbuf;
     struct tagfile_entry fe;
@@ -2982,7 +3023,8 @@ static int tempbuf_sort(int fd)
         do_timed_yield();
     }
 
-    qsort(index, tempbufidx, sizeof(struct tempbuf_searchidx), compare);
+    if (!merge_sorted(index, old_n))
+        qsort(index, tempbufidx, sizeof(struct tempbuf_searchidx), compare);
     memset(lookup, 0, lookup_buffer_depth * sizeof(struct tempbuf_searchidx **));
 
     off_t pos = lseek(fd, 0, SEEK_CUR);
@@ -3351,6 +3393,7 @@ static int build_index(int index_type, struct tagcache_header *h, int tmpfd)
     const long old_count = commit_mh.tch.entry_count;
     int fd = -1;
     bool error = false;
+    long old_n = 0; /* entries from the old tag file, sorted */
 
     logf("Building index: %d", index_type);
 
@@ -3480,6 +3523,7 @@ static int build_index(int index_type, struct tagcache_header *h, int tmpfd)
                 do_timed_yield();
             }
             logf("done");
+            old_n = tempbufidx;
         }
         else
             tempbufidx = tch.entry_count;
@@ -3607,7 +3651,7 @@ static int build_index(int index_type, struct tagcache_header *h, int tmpfd)
 
 
         /* Sort the buffer data and write it to the index file. */
-        i = tempbuf_sort(fd);
+        i = tempbuf_sort(fd, old_n);
         if (i < 0)
             goto error_exit;
         logf("sorted %d tags", i);
@@ -5726,6 +5770,17 @@ static int free_search_roots(struct search_roots_ll * start)
 #define free_search_roots(a) do {} while(0)
 #endif
 
+/* Rockbox's own folder: it has no music, as its database.ignore says, but
+   the scan went through all of it, 500 files on the iPod, for a
+   database.unignore that isn't there */
+static bool rockbox_dir(const char *path)
+{
+#ifdef HAVE_MULTIVOLUME
+    path_strip_volume(path, &path, false);
+#endif
+    return !strcasecmp(path, ROCKBOX_DIR);
+}
+
 static bool check_dir(const char *dirname, int add_files)
 {
     int success = false;
@@ -5737,9 +5792,14 @@ static bool check_dir(const char *dirname, int add_files)
         return false;
     }
 
-    /* check for a database.ignore and database.unignore */
-    int ignore, unignore;
-    check_ignore(dirname, &ignore, &unignore);
+    /* check for a database.ignore and database.unignore; Finder's folders
+       have none, and after a sync over USB, without the dircache yet,
+       looking cost 11 ms a folder */
+    int ignore = 0, unignore = 0;
+#ifndef __PCTOOL__
+    if (!itunesdb_synced_path(dirname))
+#endif
+        check_ignore(dirname, &ignore, &unignore);
 
     /* don't do anything if both ignore and unignore are there */
     if (ignore != unignore)
@@ -5773,6 +5833,7 @@ static bool check_dir(const char *dirname, int add_files)
                 add_search_root(curpath);
             else
 #endif /* SIMULATOR */
+            if (!rockbox_dir(curpath))
                 check_dir(curpath, add_files);
         }
         else if (add_files)
@@ -5844,7 +5905,13 @@ void do_tagcache_build(const char *path[])
 
     filenametag_fd = open_tag_fd(&header, tag_filename, false);
 #ifndef __PCTOOL__
-    if (filenametag_fd >= 0)
+#if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
+    /* as after a sync over USB: a table of the filename file took a second
+       to make for 6800 songs, for nothing */
+    build_names_in_ram = tc_stat.ramcache && ram_names_handle > 0
+                         && global_settings.tagcache_ram == TAGCACHE_RAM_ON;
+#endif
+    if (filenametag_fd >= 0 && !build_names_in_ram)
     {
         struct master_header mh;
         load_build_names(filenametag_fd, header.entry_count);
