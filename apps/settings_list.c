@@ -2533,7 +2533,8 @@ const struct settings_list settings[] = {
 #endif
 
 #ifdef USB_ENABLE_HID
-    OFFON_SETTING(0, usb_hid, LANG_USB_HID, true, "usb hid", usb_set_hid),
+    OFFON_SETTING(0, usb_hid, LANG_USB_HID, USB_HID_DEFAULT, "usb hid",
+                  usb_set_hid),
     CHOICE_SETTING(0, usb_keypad_mode, LANG_USB_KEYPAD_MODE, 0,
             "usb keypad mode", "multimedia,presentation,browser"
 #ifdef HAVE_USB_HID_MOUSE

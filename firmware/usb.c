@@ -115,7 +115,7 @@ static bool exclusive_storage_enabled = false;
 static bool exclusive_storage_requested = false;
 static struct event_queue usb_queue SHAREDBSS_ATTR;
 #ifdef USB_ENABLE_HID
-static bool usb_hid = true;
+static bool usb_hid = USB_HID_DEFAULT;
 #endif
 #ifdef USB_ENABLE_SERIAL
 static bool usb_serial = false;

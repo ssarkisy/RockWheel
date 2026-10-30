@@ -268,6 +268,13 @@ void usb_firewire_connect_event(void);
 #endif
 
 #ifdef USB_ENABLE_HID
+#ifdef USB_IPOD_IDENTITY
+/* an iPod shows the computer its disk, no keyboard with it; charging
+   alone keeps the HID driver, so the computer configures the device */
+#define USB_HID_DEFAULT false
+#else
+#define USB_HID_DEFAULT true
+#endif
 /* enable or disable the HID driver */
 void usb_set_hid(bool enable);
 #endif
