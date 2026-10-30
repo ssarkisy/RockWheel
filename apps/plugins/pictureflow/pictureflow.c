@@ -5115,6 +5115,17 @@ static bool start_playback(bool return_to_WPS)
         return false;
     }
 
+#ifdef ITUNESDB_HAVE_ART
+    /* A single: within all songs, as an album of one would stop after it. Its
+       playlist was made at the import; without one, as any album. */
+    if (pf_tracks.count == 1
+        && rb->tagtree_play_song_in_library(get_track_filename(0)))
+    {
+        old_playlist = -1;
+        return true;
+    }
+#endif
+
     insert_whole_album = true;
     int start_index = pf_tracks.sel;
     bool shuffle = rb->global_settings->playlist_shuffle;

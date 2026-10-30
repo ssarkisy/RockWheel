@@ -2171,6 +2171,53 @@ int playlist_create_indexed(const char *dir, const char *file,
     return status;
 }
 
+/* The same with the places in an open file, for when no buffer can be spared */
+int playlist_create_from_index(const char *dir, const char *file, int fd,
+                               int count)
+{
+    struct playlist_info* playlist = &current_playlist;
+    int status = 0;
+
+    if (count > playlist->max_playlist_size)
+        return -1;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    new_playlist_unlocked(playlist, dir, file);
+    pl_close_playlist(playlist);
+    if (pl_open_playlist(playlist) < 0)
+        status = -1;
+    else
+    {
+        uint32_t offsets[256];
+        int have = 0;
+        while (have < count && status == 0)
+        {
+            int n = MIN(count - have, (int)ARRAYLEN(offsets));
+            ssize_t bytes = n * sizeof(uint32_t);
+            if (read(fd, offsets, bytes) != bytes)
+                status = -1;
+            else
+            {
+                for (int i = 0; i < n; i++)
+                    playlist->indices[have + i] = offsets[i];
+                have += n;
+            }
+        }
+        if (status == 0)
+        {
+            dc_init_filerefs(playlist, 0, count);
+            playlist->amount = count;
+        }
+    }
+
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, true);
+
+    return status;
+}
+
 /* Returns false if 'steps' is out of bounds, else true */
 bool playlist_check(int steps)
 {

@@ -906,6 +906,7 @@ static const struct plugin_api rockbox_api = {
 #endif
 #ifdef HAVE_TAGCACHE
     tagcache_get_commitid,
+    tagtree_play_song_in_library,
 #endif
 #ifdef HAVE_TC_RAMCACHE
     tagcache_for_each_track,

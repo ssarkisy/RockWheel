@@ -183,7 +183,7 @@ int plugin_open(const char *plugin, const char *parameter);
  */
 /* 287: the iPod fork changed structures plugins see (gui_synclist,
  * user_settings, mp3entry) and the action numbering */
-#define PLUGIN_API_VERSION 292
+#define PLUGIN_API_VERSION 293
 
 /* 239 Marks the removal of ARCHOS HWCODEC and CHARCELL */
 
@@ -1074,6 +1074,7 @@ struct plugin_api {
 #endif
 #ifdef HAVE_TAGCACHE
     int (*tagcache_get_commitid)(void);
+    bool (*tagtree_play_song_in_library)(const char *path);
 #endif
 #ifdef HAVE_TC_RAMCACHE
     bool (*tagcache_for_each_track)(void (*f)(int idx_id,

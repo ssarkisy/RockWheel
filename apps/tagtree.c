@@ -2986,23 +2986,24 @@ int tagtree_add_to_playlist(const char* playlist, bool new_playlist)
 
 /* Which list this is, from how it is searched for. Going through its songs
    instead would load them all, a chunk at a time: over a second for 13000. */
-static uint32_t tagtree_list_id(const struct tree_context *c)
+static uint32_t tagtree_list_id(int table, int extra,
+                                const struct search_instruction *si)
 {
     uint32_t id = 2166136261u;
 #define LIST_ID_ADD(value) id = (id ^ (uint32_t)(value)) * 16777619u
-    LIST_ID_ADD(c->currtable);
-    LIST_ID_ADD(c->currextra);
-    LIST_ID_ADD(csi->tagorder_count);
-    for (int i = 0; i < csi->tagorder_count; i++)
+    LIST_ID_ADD(table);
+    LIST_ID_ADD(extra);
+    LIST_ID_ADD(si->tagorder_count);
+    for (int i = 0; i < si->tagorder_count; i++)
     {
-        LIST_ID_ADD(csi->tagorder[i]);
-        LIST_ID_ADD(csi->format_id[i]);
+        LIST_ID_ADD(si->tagorder[i]);
+        LIST_ID_ADD(si->format_id[i]);
         /* what was chosen on the way here */
-        if (i < c->currextra)
-            LIST_ID_ADD(csi->result_seek[i]);
-        for (int j = 0; j < csi->clause_count[i]; j++)
+        if (i < extra)
+            LIST_ID_ADD(si->result_seek[i]);
+        for (int j = 0; j < si->clause_count[i]; j++)
         {
-            const struct tagcache_search_clause *clause = csi->clause[i][j];
+            const struct tagcache_search_clause *clause = si->clause[i][j];
             LIST_ID_ADD(clause->tag);
             LIST_ID_ADD(clause->type);
             LIST_ID_ADD(clause->numeric);
@@ -3045,30 +3046,23 @@ static void tagtree_save_list_index(const struct tree_context *c, int slot,
 static int tagtree_load_list(struct tree_context *c)
 {
     struct tagtree_list_header h;
-    const uint32_t id = tagtree_list_id(c);
+    const uint32_t id = tagtree_list_id(c->currtable, c->currextra, csi);
     const int32_t commitid = tagcache_get_commitid();
 
     for (int i = 0; i < TAGTREE_SLOTS; i++)
     {
-        size_t size;
-        void *buf = plugin_get_buffer(&size);
         int fd = open(tagtree_list_index_names[i], O_RDONLY);
         if (fd < 0)
             continue;
         bool same = read(fd, &h, sizeof(h)) == sizeof(h)
             && h.magic == TAGTREE_LIST_MAGIC && h.commitid == commitid
             && h.entries == (uint32_t)c->filesindir && h.id == id
-            && h.count <= (uint32_t)playlist_get_current()->max_playlist_size;
-        ALIGN_BUFFER(buf, size, sizeof(uint32_t));
-        ssize_t bytes = same ? h.count * sizeof(uint32_t) : 0;
-        same = same && (size_t)bytes <= size && read(fd, buf, bytes) == bytes;
+            && playlist_create_from_index(TAGTREE_PLAYLIST_DIR,
+                                          tagtree_playlist_names[i], fd,
+                                          h.count) == 0;
         close(fd);
-        if (same && playlist_create_indexed(TAGTREE_PLAYLIST_DIR,
-                                            tagtree_playlist_names[i],
-                                            buf, h.count) == 0)
-        {
+        if (same)
             return 0;
-        }
     }
 
     char file[MAX_PATH];
@@ -3090,24 +3084,133 @@ static int tagtree_load_list(struct tree_context *c)
     return 0;
 }
 
+/* the list of all songs in the main menu, if there is one */
+static struct search_instruction *tagtree_all_songs(void)
+{
+    if (!tagnavi_loaded || rootmenu < 0 || !menus[rootmenu]
+        || !tagcache_is_usable())
+        return NULL;
+
+    const struct menu_root *root = menus[rootmenu];
+    for (int i = 0; i < root->itemcount; i++)
+    {
+        struct search_instruction *si = &root->items[i]->si;
+        if (root->items[i]->type == menu_next && si->tagorder_count == 1
+            && si->tagorder[0] == tag_title && si->clause_count[0] == 0)
+            return si;
+    }
+    return NULL;
+}
+
+/* The slot of the playlist of that list, written for this database, and its
+   index open after its header: -1 without one. */
+static int tagtree_songs_slot(const struct search_instruction *songs,
+                              struct tagtree_list_header *h, int *fd)
+{
+    const uint32_t id = tagtree_list_id(TABLE_NAVIBROWSE, 0, songs);
+    for (int i = TAGTREE_SLOT_SONGS; i < TAGTREE_SLOTS; i++)
+    {
+        *fd = open(tagtree_list_index_names[i], O_RDONLY);
+        if (*fd < 0)
+            continue;
+        if (read(*fd, h, sizeof(*h)) == sizeof(*h)
+            && h->magic == TAGTREE_LIST_MAGIC && h->id == id
+            && h->commitid == tagcache_get_commitid())
+            return i;
+        close(*fd);
+    }
+    return -1;
+}
+
+/* the place of a line in a playlist file, -1 if it isn't there */
+static int tagtree_find_in_playlist(const char *file, const char *line)
+{
+    static char block[4096];
+    const size_t len = strlen(line);
+    size_t have = 0;
+    int number = 0;
+    int result = -1;
+    int fd = open_utf8(file, O_RDONLY);
+    if (fd < 0)
+        return -1;
+
+    while (result < 0)
+    {
+        ssize_t got = read(fd, block + have, sizeof(block) - have);
+        if (got <= 0)
+            break;
+        have += got;
+        char *start = block, *end = block + have, *nl;
+        while ((nl = memchr(start, '\n', end - start)) != NULL)
+        {
+            if ((size_t)(nl - start) == len && !memcmp(start, line, len))
+            {
+                result = number;
+                break;
+            }
+            number++;
+            start = nl + 1;
+        }
+        have = end - start;
+        memmove(block, start, have);
+        /* longer than any line should be */
+        if (have == sizeof(block))
+            break;
+    }
+    close(fd);
+    return result;
+}
+
+/* Plays this song within the list of all songs, from the playlist made for it
+   at the import. False if there isn't one, or it isn't in there. Needs no buffer
+   but its own, so a plugin may call it. */
+bool tagtree_play_song_in_library(const char *path)
+{
+    struct tagtree_list_header h;
+    char file[MAX_PATH];
+    int fd;
+    const struct search_instruction *songs = tagtree_all_songs();
+    if (!songs)
+        return false;
+    int slot = tagtree_songs_slot(songs, &h, &fd);
+    if (slot < 0)
+        return false;
+
+    cpu_boost(true);
+    snprintf(file, sizeof(file), "%s/%s", TAGTREE_PLAYLIST_DIR,
+             tagtree_playlist_names[slot]);
+    int index = tagtree_find_in_playlist(file, path);
+    bool ok = index >= 0 && index < (int)h.count;
+    if (ok)
+    {
+        /* as when playing a list */
+        if (audio_status() & AUDIO_STATUS_PLAY)
+            audio_stop();
+        ok = playlist_create_from_index(TAGTREE_PLAYLIST_DIR,
+                                        tagtree_playlist_names[slot], fd,
+                                        h.count) == 0;
+    }
+    close(fd);
+    if (ok)
+    {
+        if (global_settings.playlist_shuffle)
+        {
+            index = playlist_shuffle(0, index);
+            if (!global_settings.play_selected)
+                index = 0;
+        }
+        playlist_start(index, 0, 0);
+    }
+    cpu_boost(false);
+    return ok;
+}
+
 /* At the end of an import: the playlist of the list of all songs, which takes
    seconds to write, so that playing a song of it starts at once. */
 void tagtree_prepare_songs(void)
 {
     struct tree_context *c = tree_get_context();
-    if (!tagnavi_loaded || rootmenu < 0 || !menus[rootmenu]
-        || !tagcache_is_usable())
-        return;
-
-    const struct menu_root *root = menus[rootmenu];
-    struct search_instruction *songs = NULL;
-    for (int i = 0; i < root->itemcount && !songs; i++)
-    {
-        struct search_instruction *si = &root->items[i]->si;
-        if (root->items[i]->type == menu_next && si->tagorder_count == 1
-            && si->tagorder[0] == tag_title && si->clause_count[0] == 0)
-            songs = si;
-    }
+    struct search_instruction *songs = tagtree_all_songs();
     if (!songs)
         return;
 
@@ -3121,19 +3224,12 @@ void tagtree_prepare_songs(void)
     c->currextra = 0;
     tc = c;
 
-    const uint32_t id = tagtree_list_id(c);
-    bool ready = false;
-    for (int i = TAGTREE_SLOT_SONGS; i < TAGTREE_SLOTS && !ready; i++)
-    {
-        struct tagtree_list_header h;
-        int fd = open(tagtree_list_index_names[i], O_RDONLY);
-        if (fd < 0)
-            continue;
-        ready = read(fd, &h, sizeof(h)) == sizeof(h)
-            && h.magic == TAGTREE_LIST_MAGIC && h.id == id
-            && h.commitid == tagcache_get_commitid();
+    const uint32_t id = tagtree_list_id(c->currtable, c->currextra, csi);
+    struct tagtree_list_header h;
+    int fd;
+    bool ready = tagtree_songs_slot(songs, &h, &fd) >= 0;
+    if (ready)
         close(fd);
-    }
 
     if (!ready)
     {
