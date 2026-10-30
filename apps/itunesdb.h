@@ -30,6 +30,7 @@
 
 /* true when Finder has synced since the last import */
 bool itunesdb_changed(void);
+bool itunesdb_exists(void);
 bool itunesdb_synced_path(const char *path);
 
 /* Brings the ratings and play counts in line with what

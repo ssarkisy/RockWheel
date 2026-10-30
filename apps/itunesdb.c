@@ -272,6 +272,12 @@ bool itunesdb_changed(void)
         || hdr.db_mtime != mtime;
 }
 
+bool itunesdb_exists(void)
+{
+    uint32_t size, mtime;
+    return db_stamp(&size, &mtime);
+}
+
 /* tracks */
 
 /* What iTunesDB says of the tracks Finder added since the last import, for

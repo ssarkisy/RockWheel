@@ -1401,6 +1401,7 @@ static struct {
     int *order;                 /* album_index by seek */
     struct artist_data *artists;/* by seek */
     unsigned char *seen;        /* the album's first track came */
+    int extra, room;            /* albums added behind album_index */
 } by_seek;
 
 static int compare_album_seeks(const void *a, const void *b)
@@ -1433,6 +1434,39 @@ static int artist_name_of(long seek)
     return -1;
 }
 
+/* A track of an album with the name of another artist's. The database lists
+   each name once, "Greatest Hits" for all who made one, so this album is added
+   behind the others: first_of_name is the place in order of an album with the
+   name, past them if it has none. */
+static void album_of_other_artist(int idx_id, long album, long artist, int year,
+                                  int first_of_name)
+{
+    struct album_data *extra = pf_idx.album_index + pf_idx.album_ct;
+    for (int i = 0; i < by_seek.extra; i++)
+    {
+        if (extra[i].seek == album && extra[i].artist_seek == artist)
+        {
+            if (year > extra[i].year)
+                extra[i].year = year;
+            return;
+        }
+    }
+    int idx = artist_name_of(artist);
+    if (by_seek.extra == by_seek.room || idx < 0
+        || first_of_name >= pf_idx.album_ct)
+        return;
+    const struct album_data *same =
+        &pf_idx.album_index[by_seek.order[first_of_name]];
+    if (same->seek != album)
+        return;
+    struct album_data *a = &extra[by_seek.extra++];
+    *a = *same;
+    a->artist_idx = idx;
+    a->artist_seek = artist;
+    a->year = year;
+    a->first_track = idx_id;
+}
+
 static void album_of_track(int idx_id, const int32_t *tag_seek, void *data)
 {
     (void)data;
@@ -1449,6 +1483,7 @@ static void album_of_track(int idx_id, const int32_t *tag_seek, void *data)
         else
             hi = mid;
     }
+    bool found = false;
     for (int k = lo; k < pf_idx.album_ct; k++)
     {
         int j = by_seek.order[k];
@@ -1470,17 +1505,27 @@ static void album_of_track(int idx_id, const int32_t *tag_seek, void *data)
         /* the track a search of the album and its artist finds first */
         if (a->first_track < 0 && a->artist_seek == artist)
             a->first_track = idx_id;
+        if (a->artist_seek == artist)
+            found = true;
     }
+    if (!found)
+        album_of_other_artist(idx_id, album, artist, year, lo);
 }
 
 /* false when the database isn't in memory or there is no room */
 static bool assign_albums_from_ram(void *buf, size_t buf_size)
 {
-    size_t need = pf_idx.album_ct * (sizeof(int) + 1)
+    /* far more than albums share a name, 17 names of 1668 on one iPod */
+    by_seek.extra = 0;
+    by_seek.room = pf_idx.album_ct / 8 + 64;
+    size_t room = by_seek.room * sizeof(struct album_data);
+    size_t need = room + pf_idx.album_ct * (sizeof(int) + 1)
                 + pf_idx.artist_ct * sizeof(struct artist_data)
                 + 2 * sizeof(long);
     if (need > buf_size)
         return false;
+    buf = (char *)buf + room;
+    buf_size -= room;
     ALIGN_BUFFER(buf, buf_size, sizeof(long));
     by_seek.artists = buf;
     by_seek.order = (int *)(by_seek.artists + pf_idx.artist_ct);
@@ -1497,7 +1542,10 @@ static bool assign_albums_from_ram(void *buf, size_t buf_size)
     }
     rb->qsort(by_seek.order, pf_idx.album_ct, sizeof(int),
               compare_album_seeks);
-    return rb->tagcache_for_each_track(album_of_track, NULL);
+    if (!rb->tagcache_for_each_track(album_of_track, NULL))
+        return false;
+    pf_idx.album_ct += by_seek.extra;
+    return true;
 }
 #endif /* HAVE_TC_RAMCACHE */
 
@@ -1617,7 +1665,13 @@ static int create_album_index(void)
 
     /* Assign indices */
 #ifdef HAVE_TC_RAMCACHE
-    if (!assign_albums_from_ram(buf, buf_size))
+    if (assign_albums_from_ram(buf, buf_size))
+    {
+        /* with the albums it added */
+        buf = pf_idx.album_index + pf_idx.album_ct;
+        buf_size -= by_seek.extra * sizeof(struct album_data);
+    }
+    else
 #endif
     {
         res = assign_albums_by_search(buf, buf_size);
@@ -1982,7 +2036,7 @@ static int id3_get_index(struct mp3entry *id3)
     if(id3)
     {
         /* we could be looking for the artist in either field */
-        if(id3->albumartist)
+        if(id3->albumartist && id3->albumartist[0])
             current_artist = id3->albumartist;
         else if(id3->artist)
             current_artist = id3->artist;

@@ -110,7 +110,7 @@
 #define POS_HISTORY_COUNT 4
 
 /* Tag Cache Header version 'TCHxx'. Increment when changing internal structures. */
-#define TAGCACHE_MAGIC  0x54434810
+#define TAGCACHE_MAGIC  0x54434811
 
 /* Dump store/restore header version 'TCSxx'. */
 #define TAGCACHE_STATEFILE_MAGIC 0x54435301
@@ -2799,6 +2799,10 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
         && strlen(id3.artist) > 0;
     has_grouping = id3.grouping != NULL
         && strlen(id3.grouping) > 0;
+    /* an album without an album artist is its track's artist's, as on a stock
+       iPod: Cover Flow tells albums apart by name and album artist */
+    if (has_artist && (id3.albumartist == NULL || !strlen(id3.albumartist)))
+        id3.albumartist = id3.artist;
 
     ADD_TAG(entry, tag_filename, &path);
     ADD_TAG(entry, tag_title, &id3.title);
@@ -6737,6 +6741,22 @@ void tagcache_init(void)
                sizeof(tc_stat.db_path));
     /* known before the thread starts, for the progress screen */
     sync_found = itunesdb_changed();
+    /* a database of an older firmware's, or none, is made again from iTunesDB
+       as after a sync; but for one in a commit that was cut short, which the
+       thread is yet to put right */
+    if (!sync_found && itunesdb_exists()
+        && !db_file_exists(TAGCACHE_FILE_JOURNAL))
+    {
+        struct master_header master;
+        int fd = open_master_fd(&master, false);
+        if (fd >= 0)
+            close(fd);
+        else
+        {
+            remove_files();
+            sync_found = true;
+        }
+    }
     if (sync_found)
         import_phase = TAGCACHE_IMPORT_READING;
 #ifdef ITUNESDB_HAVE_ART
