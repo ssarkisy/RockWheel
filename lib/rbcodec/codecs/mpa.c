@@ -732,7 +732,6 @@ enum codec_status codec_run(void)
         struct decoded_frame *f = &job.decoded[job.tail % DECODE_QUEUE];
 
         advance_stream_buffer(f->bytes);
-        file_end = 0;
 
         /* Check if sample rate and stereo settings changed in this frame. */
         if (f->samplerate != current_frequency) {
