@@ -582,6 +582,11 @@ static bool wants_to_quit;
     performing buffer-shifting operations.
 */
 static struct mutex buf_ctx_mutex;
+/* The track list has buf_ctx, from create_track_index() to
+   free_borrowed_tracks(), and leaving must let it go or the slide thread never
+   ends. Only that says so here: unlocking hands the mutex over at once to a
+   thread of higher priority, so a flag of all holders was cleared after the
+   next holder had set it. */
 static bool buf_ctx_locked;
 
 static int cover_animation_keyframe;
@@ -637,13 +642,11 @@ static void free_all_slide_prio(int prio);
 static inline void buf_ctx_lock(void)
 {
     rb->mutex_lock(&buf_ctx_mutex);
-    buf_ctx_locked = true;
 }
 
 static inline void buf_ctx_unlock(void)
 {
     rb->mutex_unlock(&buf_ctx_mutex);
-    buf_ctx_locked = false;
 }
 
 static bool check_database(void)
@@ -2172,6 +2175,7 @@ static void create_track_index(const int slide_index)
     char tcs_buf[TAGCACHE_BUFSZ];
     const long tcs_bufsz = sizeof(tcs_buf);
     buf_ctx_lock();
+    buf_ctx_locked = true;
     if ( slide_index == pf_tracks.cur_idx )
         return;
 
@@ -2250,6 +2254,7 @@ static inline void free_borrowed_tracks(void)
     pf_tracks.borrowed = 0;
     pf_tracks.used = 0;
     pf_tracks.cur_idx = -1;
+    buf_ctx_locked = false;
     buf_ctx_unlock();
 }
 
@@ -4246,7 +4251,10 @@ static void cleanup(void)
 {
     wants_to_quit = true;
     if (buf_ctx_locked)
+    {
+        buf_ctx_locked = false;
         buf_ctx_unlock();
+    }
 
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
     rb->cpu_boost(false);
@@ -4417,9 +4425,20 @@ static int settings_menu(void)
                     pf_cfg.year_sort_order = old_val;
                 break;
             case 3:
+#ifdef ITUNESDB_HAVE_ART
+            {
+                /* without "off", as music doesn't play in Cover Flow */
+                int wps_option = pf_cfg.auto_wps - 1;
+                rb->set_option(rb->str(LANG_WPS_INTEGRATION),
+                               &wps_option, RB_INT, wps_options + 1, 2, NULL);
+                pf_cfg.auto_wps = wps_option + 1;
+                break;
+            }
+#else
                 rb->set_option(rb->str(LANG_WPS_INTEGRATION),
                                &pf_cfg.auto_wps, RB_INT, wps_options, 3, NULL);
                 break;
+#endif
             case 4:
                 if ((result = display_settings_menu()))
                     return result;
@@ -4559,13 +4578,13 @@ static int main_menu(void)
     }
 }
 
-#define ZOOMIN_FRAME_COUNT  19
-#define ZOOMIN_FRAME_DIST   -5
+#define ZOOMIN_FRAME_COUNT  13
+#define ZOOMIN_FRAME_DIST   -7
 #define ZOOMIN_FRAME_ANGLE  1
-#define ZOOMIN_FRAME_FADE   13
+#define ZOOMIN_FRAME_FADE   19
 
-#define ROTATE_FRAME_COUNT  15
-#define ROTATE_FRAME_ANGLE  16
+#define ROTATE_FRAME_COUNT  10
+#define ROTATE_FRAME_ANGLE  24
 
 #define KEYFRAME_COUNT ZOOMIN_FRAME_COUNT + ROTATE_FRAME_COUNT
 
@@ -5239,6 +5258,12 @@ static bool init(void)
     config_set_defaults(&pf_cfg); /* must appear before configfile_save */
     configfile_load(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
 
+#ifdef ITUNESDB_HAVE_ART
+    /* music waits while here, so a track that is chosen plays on the WPS */
+    if (pf_cfg.auto_wps == 0)
+        pf_cfg.auto_wps = 2;
+#endif
+
     if(pf_cfg.backlight_mode == 0)
         backlight_ignore_timeout(); /* restore in cleanup */
 
@@ -5481,6 +5506,10 @@ static int pictureflow_main(void)
     while (true) {
         current_update = *rb->current_tick;
         frames++;
+        /* The disk sleeps 5 s after it was last used and is off 2 s later: the
+           next cover read while scrolling would hold the animation until it
+           is back. It stays on while the covers are open. */
+        rb->storage_spin();
 
         /* Initial rendering */
         instant_update = false;
@@ -5584,10 +5613,15 @@ static int pictureflow_main(void)
             get_context_map);
 
         switch (button) {
-        case PF_QUIT:
-            return PLUGIN_OK;
         case PF_WPS:
             return PLUGIN_GOTO_WPS;
+        case PF_QUIT:
+#ifndef ITUNESDB_HAVE_ART
+            return PLUGIN_OK;
+#endif
+            /* Menu, a level back as everywhere on an iPod: from an album's
+               tracks to the covers, and only from those out */
+            /* fallthrough */
         case PF_BACK:
             if (show_tracks_while_browsing)
                 show_tracks_while_browsing = false;
@@ -5819,6 +5853,8 @@ enum plugin_status plugin_start(const void *parameter)
     const char *file = parameter;
     bool file_id3 = (parameter && (((char *) parameter)[0] == '/'));
 #ifdef ITUNESDB_HAVE_ART
+    bool paused_music = false;
+
     if (parameter && !rb->strcmp(parameter, ITUNESDB_ALBUM_LIST))
     {
         atexit(cleanup);
@@ -5839,7 +5875,21 @@ enum plugin_status plugin_start(const void *parameter)
 #ifdef USEGSLIB
         grey_show(true);
 #endif
+#ifdef ITUNESDB_HAVE_ART
+        /* the codec takes the CPU from the animation, 8 frames a second
+           with music against 22 without: it waits while the covers go by */
+        if (rb->audio_status() == AUDIO_STATUS_PLAY)
+        {
+            rb->audio_pause();
+            paused_music = true;
+        }
+#endif
         ret = pictureflow_main();
+#ifdef ITUNESDB_HAVE_ART
+        /* not when an album was started here meanwhile, which plays */
+        if (paused_music && (rb->audio_status() & AUDIO_STATUS_PAUSE))
+            rb->audio_resume();
+#endif
     }
     else
         ret = PLUGIN_OK;

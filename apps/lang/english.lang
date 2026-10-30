@@ -18181,3 +18181,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COVER_FLOW
+  desc: in the menu of the WPS, opens Cover Flow at the album playing
+  user: core
+  <source>
+    *: "Cover Flow"
+  </source>
+  <dest>
+    *: "Cover Flow"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

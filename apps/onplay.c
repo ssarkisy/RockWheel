@@ -1147,12 +1147,34 @@ static int onplaymenu_callback(int action,
                                const struct menu_item_ex *this_item,
                                struct gui_synclist *this_list);
 
+#ifdef HAVE_TAGCACHE
+/* Cover Flow at the album playing: leaving it goes back to the WPS, not to
+   this menu */
+static int open_cover_flow(void)
+{
+    switch (plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", NULL))
+    {
+        case PLUGIN_GOTO_ROOT:
+            return GO_TO_ROOT;
+        case PLUGIN_GOTO_PLUGIN:
+            return GO_TO_PLUGIN;
+        default:
+            return GO_TO_WPS;
+    }
+}
+MENUITEM_FUNCTION(cover_flow_item, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_COVER_FLOW),
+                  open_cover_flow, NULL, Icon_NOICON);
+#endif
+
 /* used when onplay() is called in the CONTEXT_WPS context */
 MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            onplaymenu_callback, Icon_Audio,
            /* no rating, bookmarks or cuesheet: the rating is a view of the
               WPS, as on a stock iPod; the configurable items are off by
               default */
+#ifdef HAVE_TAGCACHE
+           &cover_flow_item,
+#endif
            &wps_playlist_menu, &cat_playlist_menu,
            &ipod_sound_settings, &ipod_playback_settings,
 #ifndef HAVE_HOTKEY
