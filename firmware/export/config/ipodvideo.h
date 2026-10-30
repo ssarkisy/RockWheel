@@ -91,8 +91,9 @@
 /* The number of bytes reserved for loadable codecs */
 #define CODEC_SIZE 0x80000
 
-/* The number of bytes reserved for loadable plugins */
-#define PLUGIN_BUFFER_SIZE 0x80000
+/* The number of bytes reserved for loadable plugins: Cover Flow keeps its
+   covers in them while music plays, and 512K held 7, fewer than it shows */
+#define PLUGIN_BUFFER_SIZE 0x200000
 
 /* Define this if you have the WM8758 audio codec */
 #define HAVE_WM8758
