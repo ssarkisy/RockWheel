@@ -230,8 +230,10 @@ typedef fb_data pix_t;
 #endif  /* LCD_DEPTH >= 8 */
 
 /* for fixed-point arithmetic, we need minimum 32-bit long
-   long long (64-bit) might be useful for multiplication and division */
-#define PFreal long
+   long long (64-bit) might be useful for multiplication and division.
+   32 bits exactly, so that a simulator on a 64-bit host overflows where
+   the targets do. */
+#define PFreal int32_t
 #define PFREAL_SHIFT 10
 #define PFREAL_FACTOR (1 << PFREAL_SHIFT)
 #define PFREAL_ONE (1 << PFREAL_SHIFT)
@@ -3348,7 +3350,7 @@ static inline pix_t fade_color(pix_t c, unsigned a)
 }
 
 /**
- * Render a single slide
+ * Render the slides
  * Where xc is the slide's horizontal offset from center, xs is the horizontal
  * on the slide from its center, zo is the slide's depth offset from the plane
  * of the display, r is the angle at which the slide is tilted, and xp is the
@@ -3369,8 +3371,73 @@ static inline pix_t fade_color(pix_t c, unsigned a)
  * the right edge of the slide, or the screen. The reverse projection can be
  * optimized by saving the numerator and denominator of the fraction, which can
  * then be incremented by (z + zo) and sin(r) respectively.
+ *
+ * A slide fills a column of the screen from the horizon up and down, so the
+ * slides are drawn from the front back, each only beyond the rows those in
+ * front of it filled there: every pixel is written once, and what no slide
+ * covers is cleared afterwards. The columns are drawn into a strip small
+ * enough to stay in the cache, one after another in it, and the strip is
+ * copied into the framebuffer a row at a time: drawn down the columns of the
+ * framebuffer itself, every pixel was a write to a far address, which made
+ * the slides most of the time of a frame. Where there is a second core, it
+ * draws the right half of the screen meanwhile. Nothing is in IRAM, which
+ * plugins share with the codecs: music stops for a plugin that uses it.
  */
-static void render_slide(struct slide_data *slide, const int alpha)
+
+/* a slide as it is drawn in this frame */
+struct slide_cols {
+    const pix_t *src;
+    int sw, sh;
+    int alpha;
+    bool flat;          /* faces the camera at its depth: xs steps by one */
+    PFreal slide_left;
+    PFreal zo, sinr;
+    PFreal xsnum, xsden, xsnumi, xsdeni;  /* at column xi */
+    PFreal xs;          /* at column xi, when flat */
+    int xi, xend;       /* its columns */
+    uint8_t reftab[REFLECT_HEIGHT];
+};
+
+#if LCD_STRIDEFORMAT == VERTICAL_STRIDE
+/* the framebuffer has its columns one after another already */
+#define STRIP_W LCD_WIDTH
+#else
+#define STRIP_W 8   /* a cache line of each row of the framebuffer */
+#endif
+
+#if NUM_CORES > 1 && LCD_STRIDEFORMAT != VERTICAL_STRIDE && LCD_DEPTH == 16
+/* The COP draws from this column on, which starts a cache line in every row
+   of the framebuffer, so that the cores never share one there */
+#define PF_COP_FROM ((LCD_WIDTH / 2) & ~7)
+#define PF_CORES 2
+#else
+#define PF_CORES 1
+#endif
+
+/* where a core draws, in cache lines of its own */
+struct strip {
+#if LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    pix_t pixels[STRIP_W * LCD_HEIGHT];
+#endif
+    /* the rows of each column filled above and below the horizon */
+    short filled_up[STRIP_W];
+    short filled_down[STRIP_W];
+} CACHEALIGN_ATTR;
+static struct strip strips[PF_CORES];
+
+#if LCD_STRIDEFORMAT == VERTICAL_STRIDE
+#define STRIP_COLUMN(st, x0, x) (&buffer[BUFFER_HEIGHT * (x)])
+#else
+#define STRIP_COLUMN(st, x0, x) (&(st)->pixels[LCD_HEIGHT * ((x) - (x0))])
+#endif
+
+static struct slide_cols slide_cols[2 * MAX_SLIDES_COUNT + 1];
+static int slide_cols_count;
+
+/**
+  Ready a slide to be drawn with the given alpha, behind those readied before
+ */
+static void add_slide(struct slide_data *slide, const int alpha)
 {
     struct dim *bmp = surface(slide->slide_index);
     if (!bmp) {
@@ -3378,22 +3445,21 @@ static void render_slide(struct slide_data *slide, const int alpha)
     }
     if (slide->angle > 255 || slide->angle < -255)
         return;
-    pix_t *src = (pix_t*)(sizeof(struct dim) + (char *)bmp);
 
-    const int sw = bmp->width;
-    const int sh = bmp->height;
-    const PFreal slide_left = -sw * PFREAL_HALF + PFREAL_HALF;
-    const int w = LCD_WIDTH;
-
-    uint8_t reftab[REFLECT_HEIGHT]; /* on stack, which is in IRAM on several targets */
+    struct slide_cols *s = &slide_cols[slide_cols_count];
+    s->src = (pix_t*)(sizeof(struct dim) + (char *)bmp);
+    s->sw = bmp->width;
+    s->sh = bmp->height;
+    s->alpha = alpha;
+    s->slide_left = -s->sw * PFREAL_HALF + PFREAL_HALF;
 
     if (alpha == 256) { /* opaque -> copy table */
-        rb->memcpy(reftab, reflect_table, sizeof(reftab));
+        rb->memcpy(s->reftab, reflect_table, sizeof(s->reftab));
     } else {            /* precalculate faded table */
         int i, lalpha;
         for (i = 0; i < REFLECT_HEIGHT; i++) {
             lalpha = reflect_table[i];
-            reftab[i] = (MULUQ(lalpha, alpha) + 129) >> 8;
+            s->reftab[i] = (MULUQ(lalpha, alpha) + 129) >> 8;
         }
     }
 
@@ -3401,7 +3467,7 @@ static void render_slide(struct slide_data *slide, const int alpha)
     PFreal sinr = fsin(slide->angle);
     PFreal zo = PFREAL_ONE * slide->distance + CAM_DIST_R * 100 / pf_cfg.zoom
         - CAM_DIST_R - fmuln(MAXSLIDE_LEFT_R, fabs(sinr), PFREAL_SHIFT - 2, 0);
-    PFreal xs = slide_left, xsnum, xsnumi, xsden, xsdeni;
+    PFreal xs = s->slide_left;
     PFreal xp = fdiv(CAM_DIST * (slide->cx + fmul(xs, cosr)),
         (CAM_DIST_R + zo + fmul(xs,sinr)));
 
@@ -3411,91 +3477,171 @@ static void render_slide(struct slide_data *slide, const int alpha)
     int xi = (fmax(DISPLAY_LEFT_R, xp) - DISPLAY_LEFT_R + PFREAL_ONE - 1)
         >> PFREAL_SHIFT;
     xp = DISPLAY_LEFT_R + xi * PFREAL_ONE;
-    if (xi >= w) {
+    if (xi >= LCD_WIDTH) {
         return;
     }
-    xsnum = CAM_DIST * (slide->cx - xp) - fmuln(xp, zo, PFREAL_SHIFT - 2, 0);
-    xsden = fmuln(xp, sinr, PFREAL_SHIFT - 2, 0) - CAM_DIST * cosr;
-    xs = fdiv(xsnum, xsden);
+    s->xsnum = CAM_DIST * (slide->cx - xp) - fmuln(xp, zo, PFREAL_SHIFT - 2, 0);
+    s->xsden = fmuln(xp, sinr, PFREAL_SHIFT - 2, 0) - CAM_DIST * cosr;
+    s->xs = fdiv(s->xsnum, s->xsden);
+    s->xsnumi = -CAM_DIST_R - zo;
+    s->xsdeni = sinr;
+    s->zo = zo;
+    s->sinr = sinr;
+    s->flat = !zo && !slide->angle;
+    s->xi = xi;
 
-    xsnumi = -CAM_DIST_R - zo;
-    xsdeni = sinr;
+    /* Where it ends on the screen, found a column at a time as the drawing
+       used to: past that the projection goes on to where it divides by
+       zero, and gives nonsense there */
+    PFreal xsnum = s->xsnum, xsden = s->xsden;
+    xs = s->xs;
     int x;
-    int dy = PFREAL_ONE;
-    for (x = xi; x < w; x++) {
-        int column = (xs - slide_left) / PFREAL_ONE;
-        if (column >= sw)
+    for (x = xi; x < LCD_WIDTH; x++) {
+        int column = (xs - s->slide_left) / PFREAL_ONE;
+        if (column < 0 || column >= s->sw)
             break;
-        if (zo || slide->angle)
-            dy = (CAM_DIST_R + zo + fmul(xs, sinr)) / CAM_DIST;
+        if (s->flat)
+            xs += PFREAL_ONE;
+        else
+        {
+            xsnum += s->xsnumi;
+            xsden += s->xsdeni;
+            xs = fdiv(xsnum, xsden);
+        }
+    }
+    s->xend = x;
+    slide_cols_count++;
+}
 
-        const pix_t *ptr = &src[column * bmp->height];
+/**
+  One column of a slide, beyond the rows filled there already
+ */
+static void render_column(const struct slide_cols *s, PFreal xs, pix_t *col,
+                          short *up, short *down)
+{
+    const int sh = s->sh;
+    const int alpha = s->alpha;
+    int column = (xs - s->slide_left) / PFREAL_ONE;
+    int dy = PFREAL_ONE;
+    if (!s->flat)
+        dy = (CAM_DIST_R + s->zo + fmul(xs, s->sinr)) / CAM_DIST;
+    if (dy <= 0)
+        return; /* the loops below would never end */
 
-#if LCD_STRIDEFORMAT == VERTICAL_STRIDE
-#define PIXELSTEP_Y   1
-#define LCDADDR(x, y) (&buffer[BUFFER_HEIGHT*(x) + (y)])
-#else
-#define PIXELSTEP_Y   BUFFER_WIDTH
-#define LCDADDR(x, y) (&buffer[(y)*BUFFER_WIDTH + (x)])
+    const pix_t *ptr = &s->src[column * sh];
+
+    /* from the horizon up */
+    int p = (sh-1-DISPLAY_OFFS) * PFREAL_ONE;
+    int plim = MAX(0, p - (LCD_HEIGHT/2-1) * dy);
+    p -= *up * dy;
+    pix_t *pixel = col + (LCD_HEIGHT/2)-1 - *up;
+    pix_t *from = pixel;
+
+    if (alpha == 256) {
+        while (p >= plim) {
+            *pixel-- = ptr[((unsigned)p) >> PFREAL_SHIFT];
+            p -= dy;
+        }
+    } else {
+        while (p >= plim) {
+            *pixel-- = fade_color(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
+            p -= dy;
+        }
+    }
+    *up += from - pixel;
+
+    /* from the horizon down: the rest of the slide, then its reflection */
+    p = (sh-DISPLAY_OFFS) * PFREAL_ONE;
+    plim = MIN(sh * PFREAL_ONE, p + (LCD_HEIGHT/2) * dy);
+    int plim2 = MIN(MIN(sh + REFLECT_HEIGHT, sh * 2) * PFREAL_ONE,
+                    p + (LCD_HEIGHT/2) * dy);
+    p += *down * dy;
+    /* a slide too wide and low to reach the horizon starts at its top */
+    if (p < 0)
+        p = 0;
+    pixel = col + (LCD_HEIGHT/2) + *down;
+    from = pixel;
+
+    if (alpha == 256) {
+        while (p < plim) {
+            *pixel++ = ptr[((unsigned)p) >> PFREAL_SHIFT];
+            p += dy;
+        }
+    } else {
+        while (p < plim) {
+            *pixel++ = fade_color(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
+            p += dy;
+        }
+    }
+    while (p < plim2) {
+        int ty = (((unsigned)p) >> PFREAL_SHIFT) - sh;
+        *pixel++ = fade_color(ptr[sh - 1 - ty], s->reftab[ty]);
+        p += dy;
+    }
+    *down += pixel - from;
+}
+
+/**
+  The columns of a slide in the strip, which starts at x0 and ends before x1
+ */
+static void render_slide_columns(const struct slide_cols *s, struct strip *st,
+                                 int x0, int x1)
+{
+    int x = MAX(s->xi, x0);
+    x1 = MIN(s->xend, x1);
+    if (x >= x1)
+        return;
+
+    PFreal xsnum = 0, xsden = 0, xs;
+    if (s->flat)
+        xs = s->xs + (x - s->xi) * PFREAL_ONE;
+    else
+    {
+        xsnum = s->xsnum + (x - s->xi) * s->xsnumi;
+        xsden = s->xsden + (x - s->xi) * s->xsdeni;
+        xs = x == s->xi ? s->xs : fdiv(xsnum, xsden);
+    }
+
+    for (; x < x1; x++) {
+        render_column(s, xs, STRIP_COLUMN(st, x0, x),
+                      &st->filled_up[x - x0], &st->filled_down[x - x0]);
+
+        if (s->flat)
+            xs += PFREAL_ONE;
+        else
+        {
+            xsnum += s->xsnumi;
+            xsden += s->xsdeni;
+            xs = fdiv(xsnum, xsden);
+        }
+    }
+}
+
+#if LCD_STRIDEFORMAT != VERTICAL_STRIDE
+/**
+  The strip into the framebuffer at column x0, a row at a time
+ */
+static void strip_to_buffer(const struct strip *st, int x0, int w)
+{
+    for (int y = 0; y < LCD_HEIGHT; y++) {
+        const pix_t *src = &st->pixels[y];
+        pix_t *dst = &buffer[y * BUFFER_WIDTH + x0];
+        int c = 0;
+#if LCD_DEPTH == 16 && defined(ROCKBOX_LITTLE_ENDIAN)
+        /* two pixels a write */
+        if (!((uintptr_t)dst & 3)) {
+            uint32_t *dst32 = (uint32_t *)dst;
+            for (; c + 1 < w; c += 2)
+                *dst32++ = src[c * LCD_HEIGHT]
+                         | (uint32_t)src[(c + 1) * LCD_HEIGHT] << 16;
+        }
+#endif
+        for (; c < w; c++)
+            dst[c] = src[c * LCD_HEIGHT];
+    }
+}
 #endif
 
-        int p = (bmp->height-1-DISPLAY_OFFS) * PFREAL_ONE;
-        int plim = MAX(0, p - (LCD_HEIGHT/2-1) * dy);
-        pix_t *pixel = LCDADDR(x, (LCD_HEIGHT/2)-1 );
-
-        if (alpha == 256) {
-            while (p >= plim) {
-                *pixel = ptr[((unsigned)p) >> PFREAL_SHIFT];
-                p -= dy;
-                pixel -= PIXELSTEP_Y;
-            }
-        } else {
-            while (p >= plim) {
-                *pixel = fade_color(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
-                p -= dy;
-                pixel -= PIXELSTEP_Y;
-            }
-        }
-        p = (bmp->height-DISPLAY_OFFS) * PFREAL_ONE;
-        plim = MIN(sh * PFREAL_ONE, p + (LCD_HEIGHT/2) * dy);
-        int plim2 = MIN(MIN(sh + REFLECT_HEIGHT, sh * 2) * PFREAL_ONE,
-                        p + (LCD_HEIGHT/2) * dy);
-        pixel = LCDADDR(x, (LCD_HEIGHT/2) );
-
-        if (alpha == 256) {
-            while (p < plim) {
-                *pixel = ptr[((unsigned)p) >> PFREAL_SHIFT];
-                p += dy;
-                pixel += PIXELSTEP_Y;
-            }
-        } else {
-            while (p < plim) {
-                *pixel = fade_color(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
-                p += dy;
-                pixel += PIXELSTEP_Y;
-            }
-        }
-        while (p < plim2) {
-            int ty = (((unsigned)p) >> PFREAL_SHIFT) - sh;
-            int lalpha = reftab[ty];
-            *pixel = fade_color(ptr[sh - 1 - ty], lalpha);
-            p += dy;
-            pixel += PIXELSTEP_Y;
-        }
-
-        if (zo || slide->angle)
-        {
-            xsnum += xsnumi;
-            xsden += xsdeni;
-            xs = fdiv(xsnum, xsden);
-        } else
-            xs += PFREAL_ONE;
-
-    }
-    /* let the music play... */
-    rb->yield();
-    return;
-}
 
 /**
   Jump to the given slide_index
@@ -3684,13 +3830,97 @@ static void show_next_slide(void)
 
 
 /**
+  The columns from "from" to before "to", a strip at a time, of the slides
+  readied from the back and so drawn from the front
+ */
+static void render_strips(struct strip *st, int from, int to)
+{
+    const pix_t black = G_BRIGHT(0);
+    for (int x0 = from; x0 < to; x0 += STRIP_W) {
+        int x1 = MIN(x0 + STRIP_W, to);
+        rb->memset(st->filled_up, 0, sizeof(st->filled_up));
+        rb->memset(st->filled_down, 0, sizeof(st->filled_down));
+        for (int i = slide_cols_count - 1; i >= 0; i--)
+            render_slide_columns(&slide_cols[i], st, x0, x1);
+
+        for (int x = x0; x < x1; x++) {
+            pix_t *col = STRIP_COLUMN(st, x0, x);
+            pix_t *top = col + (LCD_HEIGHT/2) - st->filled_up[x - x0];
+            pix_t *bottom = col + (LCD_HEIGHT/2) + st->filled_down[x - x0];
+            while (col < top)
+                *col++ = black;
+            while (bottom < STRIP_COLUMN(st, x0, x) + LCD_HEIGHT)
+                *bottom++ = black;
+        }
+#if LCD_STRIDEFORMAT != VERTICAL_STRIDE
+        strip_to_buffer(st, x0, x1 - x0);
+#endif
+#ifdef PF_COP_FROM
+        /* the MP3 codec's synthesis runs on the COP too: it comes in
+           between strips, so the music isn't held up for a half a frame */
+        if (st != &strips[0])
+            rb->yield();
+#endif
+    }
+}
+
+#ifdef PF_COP_FROM
+/* The COP's half of the frame, and the word that it is done. It only reads
+   what the CPU readied, and writes its strip and its columns of the
+   framebuffer. */
+static struct semaphore cop_go SHAREDBSS_ATTR;
+static volatile bool cop_busy SHAREDBSS_ATTR;
+static volatile bool cop_quit SHAREDBSS_ATTR;
+static unsigned int cop_thread_id;
+static bool cop_draws;          /* false if it was too late once */
+static long cop_stack[CACHEALIGN_UP(DEFAULT_STACK_SIZE * 2 / sizeof(long))]
+    CACHEALIGN_AT_LEAST_ATTR(4);
+
+static void cop_thread(void)
+{
+    while (true) {
+        rb->semaphore_wait(&cop_go, TIMEOUT_BLOCK);
+        if (cop_quit)
+            break;
+        /* nothing of the slides kept from before */
+        rb->commit_discard_dcache();
+        render_strips(&strips[1], PF_COP_FROM, LCD_WIDTH);
+        rb->commit_dcache();
+        cop_busy = false;
+    }
+}
+
+static void create_cop_thread(void)
+{
+    cop_quit = false;
+    cop_busy = false;
+    rb->semaphore_init(&cop_go, 1, 0);
+    cop_thread_id = rb->create_thread(cop_thread, cop_stack, sizeof(cop_stack),
+                                      0, "PictureFlow COP"
+                                      IF_PRIO(, PRIORITY_USER_INTERFACE)
+                                      IF_COP(, COP));
+    cop_draws = cop_thread_id != 0;
+}
+
+static void end_cop_thread(void)
+{
+    if (!cop_thread_id)
+        return;
+    cop_quit = true;
+    rb->semaphore_release(&cop_go);
+    rb->thread_wait(cop_thread_id);
+    cop_thread_id = 0;
+    cop_draws = false;
+}
+#endif /* PF_COP_FROM */
+
+/**
   Render the slides. Updates only the offscreen buffer.
 */
 static void render_all_slides(void)
 {
     mylcd_set_background(G_BRIGHT(0));
-    /* TODO: Optimizes this by e.g. invalidating rects */
-    mylcd_clear_display();
+    slide_cols_count = 0;
 
     int nleft = pf_cfg.num_slides;
     int nright = pf_cfg.num_slides;
@@ -3703,13 +3933,13 @@ static void render_all_slides(void)
             alpha = (index < nleft - 2) ? 256 : 128;
             alpha -= extra_fade;
             if (alpha > 0 )
-                render_slide(&left_slides[index], alpha);
+                add_slide(&left_slides[index], alpha);
         }
         for (index = nright - 2; index >= 0; index--) {
             alpha = (index < nright - 2) ? 256 : 128;
             alpha -= extra_fade;
             if (alpha > 0 )
-                render_slide(&right_slides[index], alpha);
+                add_slide(&right_slides[index], alpha);
         }
     } else {
         /* the first and last slide must fade in/fade out */
@@ -3718,7 +3948,7 @@ static void render_all_slides(void)
         alpha = ((step > 0) ? 0 : ((nleft == 1) ? 256 : 128)) - fade / 2;
         for (index = nleft - 1; index >= 0; index--) {
             if (alpha > 0)
-                render_slide(&left_slides[index], alpha);
+                add_slide(&left_slides[index], alpha);
             alpha += 128;
             if (alpha > 256) alpha = 256;
         }
@@ -3726,7 +3956,7 @@ static void render_all_slides(void)
         alpha = ((step > 0) ? ((nright == 1) ? 128 : 0) : -128) + fade / 2;
         for (index = nright - 1; index >= 0; index--) {
             if (alpha > 0)
-                render_slide(&right_slides[index], alpha);
+                add_slide(&right_slides[index], alpha);
             alpha += 128;
             if (alpha > 256) alpha = 256;
         }
@@ -3734,7 +3964,33 @@ static void render_all_slides(void)
     alpha = 256;
     if (step != 0 && pf_cfg.num_slides <= 2) /* fading out center slide */
         alpha = (step > 0) ? 256 - fade / 2 : 128 + fade / 2;
-    render_slide(&center_slide, alpha);
+    add_slide(&center_slide, alpha);
+
+#ifdef PF_COP_FROM
+    if (cop_draws) {
+        /* the slides out of this core's cache to the COP, and no line of
+           its half of the framebuffer kept here */
+        rb->commit_discard_dcache();
+        cop_busy = true;
+        rb->semaphore_release(&cop_go);
+        render_strips(&strips[0], 0, PF_COP_FROM);
+        /* Waited for without yielding, as the slide thread would move the
+           slides meanwhile; a COP that doesn't come back is not used again */
+        long timeout = *rb->current_tick + HZ;
+        while (cop_busy) {
+            /* not every cycle: the word is in DRAM, which the COP draws
+               from too */
+            for (volatile int i = 0; i < 16; i++);
+            if (TIME_AFTER(*rb->current_tick, timeout)) {
+                cop_draws = false;
+                render_strips(&strips[0], PF_COP_FROM, LCD_WIDTH);
+                break;
+            }
+        }
+        return;
+    }
+#endif
+    render_strips(&strips[0], 0, LCD_WIDTH);
 }
 
 
@@ -3853,6 +4109,9 @@ static void cleanup(void)
     rb->cpu_boost(false);
 #endif
     end_pf_thread();
+#ifdef PF_COP_FROM
+    end_cop_thread();
+#endif
 
     /* Turn on backlight timeout (revert to settings) */
     backlight_use_settings();
@@ -4981,6 +5240,9 @@ static bool init(void)
         error_wait("Cannot create thread!");
         return false;
     }
+#ifdef PF_COP_FROM
+    create_cop_thread(); /* or the CPU draws all */
+#endif
 
     buffer = LCD_BUF;
 
