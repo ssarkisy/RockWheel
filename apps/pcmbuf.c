@@ -79,7 +79,9 @@ static inline unsigned int data_level(int quarter_secs)
 #if MEMORYSIZE > 2
 /* Keep watermark high for large memory target - at least (2s) */
 #define PCMBUF_WATERMARK    (BYTERATE * 2)
-#define MIN_BUFFER_SIZE     (BYTERATE * 3)
+/* Plenty, as the codec lets the UI go first while there is: decoding takes most
+   of a slower CPU, and scrolling a list went from 25 frames a second to 10 */
+#define MIN_BUFFER_SIZE     (BYTERATE * 8)
 /* 1 seconds of buffer is low data */
 #define LOW_DATA            data_level(4)
 #else
@@ -394,15 +396,16 @@ static void boost_codec_thread(int pcm_fill_state)
         PRIORITY_PLAYBACK_MAX,      /*   0 - 10% */
         PRIORITY_PLAYBACK_MAX+1,    /*  10 - 20% */
         PRIORITY_PLAYBACK_MAX+3,    /*  20 - 30% */
-        PRIORITY_PLAYBACK_MAX+5,    /*  30 - 40% */
-        PRIORITY_PLAYBACK_MAX+7,    /*  40 - 50% */
-        PRIORITY_PLAYBACK_MAX+8,    /*  50 - 60% */
-        PRIORITY_PLAYBACK_MAX+9,    /*  60 - 70% */
-        /* raising priority above 70% shouldn't be needed */
-        PRIORITY_PLAYBACK,          /*  70 - 80% */
-        PRIORITY_PLAYBACK,          /*  80 - 90% */
-        PRIORITY_PLAYBACK,          /*  90 -100% */
-        PRIORITY_PLAYBACK,          /*      100% */
+        PRIORITY_PLAYBACK,          /*  30 - 40% */
+        /* over 3 s buffered: after the UI, which it catches up on as soon as
+           the UI has nothing to do */
+        PRIORITY_PLAYBACK+2,        /*  40 - 50% */
+        PRIORITY_PLAYBACK+2,        /*  50 - 60% */
+        PRIORITY_PLAYBACK+2,        /*  60 - 70% */
+        PRIORITY_PLAYBACK+2,        /*  70 - 80% */
+        PRIORITY_PLAYBACK+2,        /*  80 - 90% */
+        PRIORITY_PLAYBACK+2,        /*  90 -100% */
+        PRIORITY_PLAYBACK+2,        /*      100% */
     };
 
     int new_prio = prios[pcm_fill_state];
@@ -499,6 +502,8 @@ void * pcmbuf_request_buffer(int *count)
     {
         /* Boost CPU for pre-buffer */
         trigger_cpu_boost();
+        /* and not after the UI, as it may have been left */
+        boost_codec_thread(3);
 
         /* If pre-buffered to the watermark, start playback */
         if (!pcmbuf_data_critical())
