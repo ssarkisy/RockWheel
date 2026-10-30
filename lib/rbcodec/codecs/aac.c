@@ -36,7 +36,13 @@ CODEC_HEADER
  * the CPU. As threads only switch when one yields, the codec gets its turn once
  * for each frame the UI draws, 40 to 100 ms, and a frame is 23 ms of audio; so
  * the codec can't wait for frames one by one, or in batches, however high its
- * priority: that fell short of real time, and the sound stopped. */
+ * priority: that fell short of real time, and the sound stopped.
+ *
+ * The input and the PCM of the queue are only reached by their uncached
+ * addresses: no core has to sync its cache per frame, which also leaves the
+ * cache of the CPU as the UI and the DSP had it. The DSP works in place, so the
+ * CPU copies a frame out of the queue first: otherwise what it left in its cache
+ * could be written over a frame the COP put there later. */
 #if NUM_CORES > 1
 #define DECODE_THREAD
 #define DECODE_QUEUE    8
@@ -46,6 +52,12 @@ CODEC_HEADER
 #define DECODE_QUEUE    1
 #define WINDOW_FRAMES   1
 #define WINDOW_BYTES    FAAD_BYTE_BUFFER_SIZE
+#endif
+
+#ifdef UNCACHED_ADDR
+#define SHARED_ADDR(p)  UNCACHED_ADDR(p)
+#else
+#define SHARED_ADDR(p)  (p)
 #endif
 
 struct decoded_frame {
@@ -82,6 +94,20 @@ static struct {
 #ifdef DECODE_THREAD
 /* the decoder's output is only there until its next frame */
 static real_t decoded_out[DECODE_QUEUE][2][2*FRAME_LEN] MEM_ALIGN_ATTR;
+static real_t dsp_pcm[2][2*FRAME_LEN] MEM_ALIGN_ATTR;
+
+static void decode_insert(const struct decoded_frame *f, int first, int count)
+{
+    for (int ch = 0; ch < 2; ch++)
+    {
+        memcpy(&dsp_pcm[ch][first], &f->out[ch][first],
+               count * sizeof(real_t));
+    }
+    ci->pcmbuf_insert(&dsp_pcm[0][first], &dsp_pcm[1][first], count);
+}
+#else
+#define decode_insert(f, first, count) \
+    ci->pcmbuf_insert(&(f)->out[0][first], &(f)->out[1][first], count)
 #endif
 
 /* The next frame of the window into the queue: false if it has no more, which
@@ -118,7 +144,8 @@ static bool decode_step(void)
     size_t bytes = MIN(f->info.samples >> 1, 2*FRAME_LEN) * sizeof(real_t);
     for (int ch = 0; ch < 2; ch++)
     {
-        f->out[ch] = decoded_out[slot][ch];
+        real_t *out = decoded_out[slot][ch];
+        f->out[ch] = SHARED_ADDR(out);
         if (job.decoder->time_out[ch])
             memcpy(f->out[ch], job.decoder->time_out[ch], bytes);
     }
@@ -135,7 +162,7 @@ static bool decode_step(void)
 
 #ifdef DECODE_THREAD
 /* Nothing on the CPU touches the decoder's memory while a window goes on, so
-   the caches only need putting right around that, and for each frame's output */
+   the caches only need putting right around that */
 static long decode_stack[(DEFAULT_STACK_SIZE + 0x2000) / sizeof(long)];
 static unsigned int decode_thread_id;
 
@@ -146,7 +173,7 @@ static void decode_thread(void)
         ci->semaphore_wait(&job.pending, TIMEOUT_BLOCK);
         if (job.die)
             break;
-        /* the CPU's changes, and the new data DMA brought */
+        /* the CPU's changes to the decoder */
         ci->commit_discard_dcache();
         while (!job.over && !job.stop)
         {
@@ -157,7 +184,6 @@ static void decode_thread(void)
             }
             if (decode_step())
             {
-                ci->commit_dcache();
                 job.head++;
                 ci->semaphore_release(&job.ready);
             }
@@ -173,6 +199,9 @@ static void decode_thread_create(void)
     ci->semaphore_init(&job.pending, 1, 0);
     ci->semaphore_init(&job.ready, 1, 0);
     ci->semaphore_init(&job.room, 1, 0);
+    /* The CPU could have the memory of the queue in its cache from when the
+       codec was loaded, to be written over frames some time later */
+    ci->commit_discard_dcache();
     decode_thread_id = ci->create_thread(decode_thread, decode_stack,
                                          sizeof(decode_stack), 0, "aacdec"
                                          IF_PRIO(, PRIORITY_PLAYBACK)
@@ -189,7 +218,8 @@ static void decode_thread_quit(void)
     ci->commit_discard_dcache();
 }
 
-/* the window set up goes on, by itself */
+/* the window set up goes on, by itself: what it holds, and the CPU's changes to
+   the decoder, may still be in the CPU's cache */
 static void decode_run(void)
 {
     ci->commit_dcache();
@@ -201,8 +231,6 @@ static void decode_wait(void)
 {
     while (job.head == job.tail && job.running)
         ci->semaphore_wait(&job.ready, TIMEOUT_BLOCK);
-    /* the output, and nothing old of what the COP changed */
-    ci->commit_discard_dcache();
 }
 
 /* the COP has room for another now */
@@ -219,6 +247,7 @@ static void decode_stop(void)
     ci->semaphore_release(&job.room);
     while (job.running)
         ci->semaphore_wait(&job.ready, TIMEOUT_BLOCK);
+    /* nothing old of what the COP changed in the decoder */
     ci->commit_discard_dcache();
     job.head = job.tail = 0;
     job.stop = false;
@@ -449,7 +478,8 @@ enum codec_status codec_run(void)
 
             /* Request the required number of bytes from the input buffer */
             job.pos = ci->curpos;
-            job.buffer = ci->request_buffer(&n, WINDOW_BYTES);
+            unsigned char *input = ci->request_buffer(&n, WINDOW_BYTES);
+            job.buffer = input ? SHARED_ADDR(input) : NULL;
             job.size = n;
             job.to_end_of_file = n < WINDOW_BYTES;
             job.decoder = decoder;
@@ -532,9 +562,7 @@ enum codec_status codec_run(void)
 
             if (framelength > 0)
             {
-                ci->pcmbuf_insert(&f->out[0][lead_trim],
-                                  &f->out[1][lead_trim],
-                                  framelength);
+                decode_insert(f, lead_trim, framelength);
                 sound_samples_done += framelength;
                 /* Update the elapsed-time indicator */
                 elapsed_time = ((uint64_t) sound_samples_done * 1000) /
