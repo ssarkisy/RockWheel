@@ -7,7 +7,7 @@
 #define HAVE_FPU
 
 /* For Rolo and boot loader */
-#define MODEL_NUMBER  100s
+#define MODEL_NUMBER  122
 #define MODEL_NAME    "N3DS"
 
 #define USB_NONE
@@ -123,9 +123,6 @@
 /* Define this if a programmable hotkey is mapped */
 #define HAVE_HOTKEY
 
-#define BOOTDIR "/"
-
 /* No special storage */
 #define CONFIG_STORAGE STORAGE_HOSTFS
 #define HAVE_STORAGE_FLUSH
-
