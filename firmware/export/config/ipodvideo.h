@@ -221,6 +221,8 @@
    get by default: a copy onto the iPod ran at 8.6 MB/s with 32 KB, 8.5 with
    16 KB and 7.9 with 64 KB */
 #define USB_WRITE_BUFFER_SIZE (1024*32)
+/* write the blocks of one command while the next comes in */
+#define USB_WRITE_BEHIND
 
 /* start with the Apple logo on black, as Apple's own firmware does, instead
    of the Rockbox logo; its top where Apple's boot screen has it */

@@ -90,7 +90,25 @@
 #endif /* (CONFIG_STORAGE & STORAGE_SD) */
 #endif /* USB_WRITE_BUFFER_SIZE */
 
+/* The answer to a command has a buffer of its own, as with USB_WRITE_BEHIND
+   that to a write goes out while its blocks are still in the other one */
+#define CSW_BUFFER_SIZE 32
+
+#if defined(USB_WRITE_BEHIND) && !defined(BOOTLOADER) \
+    && !defined(USB_USE_RAMDISK)
+/* The blocks a computer writes go to the disk from a thread of their own,
+ * and a write command is answered once its blocks are in, not once they are
+ * on the disk: the disk then goes on writing while the next command comes
+ * in, where it stood still before. Any other command waits for the writes
+ * to be done, as does the end of the connection, and a write that failed
+ * fails the next command. */
+#define WRITE_BEHIND
+#define WRITE_SLOTS 16
+#define ALLOCATE_BUFFER_SIZE MAX(2*MAX(READ_BUFFER_SIZE,WRITE_BUFFER_SIZE), \
+                                 WRITE_SLOTS*WRITE_BUFFER_SIZE)
+#else
 #define ALLOCATE_BUFFER_SIZE (2*MAX(READ_BUFFER_SIZE,WRITE_BUFFER_SIZE))
+#endif
 
 /* bulk-only class specific requests */
 #define USB_BULK_RESET_REQUEST   0xff
@@ -292,11 +310,11 @@ static union {
     struct mode_sense_data_6 *ms_data_6;
     struct mode_sense_data_10 *ms_data_10;
     struct report_lun_data *lun_data;
-    struct command_status_wrapper* csw;
     char *max_lun;
 } tb;
 
 static char *cbw_buffer;
+static struct command_status_wrapper *csw_buffer;
 
 static struct {
     sector_t sector;
@@ -309,6 +327,7 @@ static struct {
     unsigned char data_select;
     unsigned int last_result;
     unsigned int data_residue;
+    bool force_unit_access; /* of a write: answered once on the disk */
 } cur_cmd;
 
 static struct {
@@ -418,9 +437,108 @@ void usb_set_skip_first_drive(bool skip)
 }
 #endif
 
+#ifdef WRITE_BEHIND
+static struct write_job {
+    unsigned char *data;
+    sector_t sector;
+    unsigned int count;
+    unsigned int bytes;
+    int lun;
+} write_jobs[WRITE_SLOTS];
+
+/* jobs[queued % WRITE_SLOTS] is the next to come in, jobs[done % ...] the
+   next to go to the disk */
+static volatile unsigned int jobs_queued, jobs_done;
+static struct semaphore slots_free, jobs_ready;
+static volatile int write_error;
+static long writer_stack[DEFAULT_STACK_SIZE/sizeof(long)];
+
+static void writer_thread(void)
+{
+    while (1)
+    {
+        semaphore_wait(&jobs_ready, TIMEOUT_BLOCK);
+        struct write_job *j = &write_jobs[jobs_done % WRITE_SLOTS];
+        unsigned int count = j->count, bytes = j->bytes, jobs = 1;
+        /* the blocks queued after these go with them where they follow
+           both on the disk and in memory */
+        while (jobs_queued - jobs_done > jobs)
+        {
+            struct write_job *n = &write_jobs[(jobs_done + jobs) % WRITE_SLOTS];
+            if (n->lun != j->lun || n->sector != j->sector + count
+                || n->data != j->data + bytes
+                || semaphore_wait(&jobs_ready, 0) != OBJ_WAIT_SUCCEEDED)
+                break;
+            count += n->count;
+            bytes += n->bytes;
+            jobs++;
+        }
+        int rc = storage_write_sectors(IF_MD(j->lun,) j->sector, count,
+                                       j->data);
+        if (rc != 0)
+            write_error = rc;
+        jobs_done += jobs;
+        while (jobs--)
+            semaphore_release(&slots_free);
+    }
+}
+
+/* the buffer the next blocks come into, once the writer has one free */
+static unsigned char *write_slot(void)
+{
+    semaphore_wait(&slots_free, TIMEOUT_BLOCK);
+    return tb.transfer_buffer
+           + (jobs_queued % WRITE_SLOTS) * WRITE_BUFFER_SIZE;
+}
+
+/* the blocks that came into write_slot() to the writer */
+static void queue_write(int lun, sector_t sector, unsigned int count)
+{
+    struct write_job *j = &write_jobs[jobs_queued % WRITE_SLOTS];
+    j->data = tb.transfer_buffer
+              + (jobs_queued % WRITE_SLOTS) * WRITE_BUFFER_SIZE;
+    j->sector = sector;
+    j->count = count;
+    j->bytes = count * cur_cmd.block_size;
+    j->lun = lun;
+    jobs_queued++;
+    semaphore_release(&jobs_ready);
+}
+
+static void wait_for_writes(void)
+{
+    while (jobs_done != jobs_queued)
+        yield();
+}
+
+/* true, once, when a write done after its command's answer failed */
+static bool write_failed(void)
+{
+    if (!write_error)
+        return false;
+    write_error = 0;
+    cur_sense_data.sense_key = SENSE_MEDIUM_ERROR;
+    cur_sense_data.asc = ASC_WRITE_ERROR;
+    cur_sense_data.ascq = 0;
+    return true;
+}
+#endif /* WRITE_BEHIND */
+
 /* called by usb_core_init() */
 static void usb_storage_init(void)
 {
+#ifdef WRITE_BEHIND
+    static bool writer_started = false;
+    if (!writer_started)
+    {
+        semaphore_init(&slots_free, WRITE_SLOTS, WRITE_SLOTS);
+        semaphore_init(&jobs_ready, WRITE_SLOTS, 0);
+        create_thread(writer_thread, writer_stack, sizeof(writer_stack), 0,
+                      "usb storage" IF_PRIO(, PRIORITY_SYSTEM)
+                      IF_COP(, CPU));
+        writer_started = true;
+    }
+#endif
     logf("usb_storage_init done");
 }
 
@@ -469,6 +587,9 @@ static void start_receiving_commands(void)
     static unsigned char _cbw_buffer[MAX_CBW_SIZE]
         USB_DEVBSS_ATTR __attribute__((aligned(32)));
     cbw_buffer = (void *)_cbw_buffer;
+    static unsigned char _csw_buffer[CSW_BUFFER_SIZE]
+        USB_DEVBSS_ATTR __attribute__((aligned(32)));
+    csw_buffer = (void *)_csw_buffer;
 
     static unsigned char _transfer_buffer[ALLOCATE_BUFFER_SIZE]
         USB_DEVBSS_ATTR __attribute__((aligned(32)));
@@ -484,8 +605,8 @@ static void start_receiving_commands(void)
         return; /* already receiving */
 
     // Add 31 to handle worst-case misalignment
-    usb_handle = core_alloc_ex(ALLOCATE_BUFFER_SIZE + MAX_CBW_SIZE + 31,
-                               &buflib_ops_locked);
+    usb_handle = core_alloc_ex(ALLOCATE_BUFFER_SIZE + MAX_CBW_SIZE
+                               + CSW_BUFFER_SIZE + 31, &buflib_ops_locked);
     if (usb_handle < 0)
         panicf("%s(): OOM", __func__);
 
@@ -495,7 +616,8 @@ static void start_receiving_commands(void)
 #else
     cbw_buffer = (void *)((unsigned int)(buffer+31) & 0xffffffe0);
 #endif
-    tb.transfer_buffer = cbw_buffer + MAX_CBW_SIZE;
+    csw_buffer = (void *)(cbw_buffer + MAX_CBW_SIZE);
+    tb.transfer_buffer = cbw_buffer + MAX_CBW_SIZE + CSW_BUFFER_SIZE;
     commit_discard_dcache();
 #ifdef USB_USE_RAMDISK
     ramdisk_buffer = tb.transfer_buffer + ALLOCATE_BUFFER_SIZE;
@@ -517,6 +639,13 @@ static int usb_storage_init_connection(void)
 {
     logf("ums: set config");
     state = WAITING_FOR_COMMAND;
+#ifdef WRITE_BEHIND
+    /* slots taken for blocks a connection that ended didn't send */
+    wait_for_writes();
+    jobs_queued = jobs_done = 0;
+    semaphore_init(&slots_free, WRITE_SLOTS, WRITE_SLOTS);
+    write_error = 0;
+#endif
 #ifndef USB_STATIC_ALLOC
     if(usb_exclusive_storage())
 #endif
@@ -533,6 +662,10 @@ static int usb_storage_init_connection(void)
 
 void usb_storage_disconnect(void)
 {
+#ifdef WRITE_BEHIND
+    /* before the buffer goes, and the disk is mounted again */
+    wait_for_writes();
+#endif
 #ifndef USB_STATIC_ALLOC
     usb_handle = core_free(usb_handle);
 #endif
@@ -566,6 +699,9 @@ static void usb_storage_transfer_complete(int ep,int dir,int status,int length)
                                     cur_cmd.block_size * cur_cmd.count);
                 if((unsigned int)length != expected) {
                     logf("unexpected length: %d != %u", length, expected);
+#ifdef WRITE_BEHIND
+                    semaphore_release(&slots_free);
+#endif
                     cur_sense_data.sense_key = SENSE_MEDIUM_ERROR;
                     cur_sense_data.asc = ASC_WRITE_ERROR;
                     cur_sense_data.ascq = 0;
@@ -577,6 +713,37 @@ static void usb_storage_transfer_complete(int ep,int dir,int status,int length)
                              (WRITE_BUFFER_SIZE/cur_cmd.block_size);
                 unsigned int next_count = cur_cmd.count -
                              MIN(cur_cmd.count,WRITE_BUFFER_SIZE/cur_cmd.block_size);
+#ifdef WRITE_BEHIND
+                int result = USBSTOR_WRITE_SECTORS_FILTER();
+                if(result != 0) {
+                    semaphore_release(&slots_free);
+                    send_csw(UMS_STATUS_FAIL);
+                    cur_sense_data.sense_key=SENSE_MEDIUM_ERROR;
+                    cur_sense_data.asc=ASC_WRITE_ERROR;
+                    cur_sense_data.ascq=0;
+                    break;
+                }
+                queue_write(cur_cmd.lun, cur_cmd.sector,
+                    MIN(WRITE_BUFFER_SIZE/cur_cmd.block_size, cur_cmd.count));
+
+                if(next_count!=0) {
+                    /* the host sends more as soon as there is room */
+                    receive_block_data(write_slot(),
+                                       MIN(WRITE_BUFFER_SIZE,next_count*cur_cmd.block_size));
+                }
+                else {
+                    /* answered with the blocks still on their way to the
+                       disk, unless the host asked for them on it */
+                    if(cur_cmd.force_unit_access)
+                        wait_for_writes();
+                    send_csw(write_failed() ? UMS_STATUS_FAIL
+                                            : UMS_STATUS_GOOD);
+                }
+
+                cur_cmd.sector = next_sector;
+                cur_cmd.count = next_count;
+            }
+#else
                 int next_select = !cur_cmd.data_select;
 
                 if(next_count!=0) {
@@ -619,8 +786,12 @@ static void usb_storage_transfer_complete(int ep,int dir,int status,int length)
                 cur_cmd.sector = next_sector;
                 cur_cmd.count = next_count;
             }
+#endif
             else {
                 logf("Transfer failed %X",status);
+#ifdef WRITE_BEHIND
+                semaphore_release(&slots_free);
+#endif
                 send_csw(UMS_STATUS_FAIL);
                 /* TODO fill in cur_sense_data */
                 cur_sense_data.sense_key=0;
@@ -851,6 +1022,22 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
      * to trigger a second execution of the same command with
      * bogus data */
     cbw->signature=0;
+
+#ifdef WRITE_BEHIND
+    /* a write that failed fails the next command that sends no blocks: the
+       blocks of a write would come in where the next command is awaited */
+    if(cbw->command_block[0] != SCSI_WRITE_10
+#ifdef STORAGE_64BIT_SECTOR
+       && cbw->command_block[0] != SCSI_WRITE_16
+#endif
+      ) {
+        wait_for_writes();
+        if(write_failed()) {
+            send_csw(UMS_STATUS_FAIL);
+            return;
+        }
+    }
+#endif
 
 #if defined(HAVE_MULTIDRIVE)
     if(skip_first) lun++;
@@ -1362,8 +1549,14 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
                 cur_sense_data.ascq=0;
             }
             else {
+#ifdef WRITE_BEHIND
+                cur_cmd.force_unit_access = cbw->command_block[1] & 0x08;
+                receive_block_data(write_slot(),
+                        MIN(WRITE_BUFFER_SIZE, cur_cmd.count*cur_cmd.block_size));
+#else
                 receive_block_data(cur_cmd.data[0],
                         MIN(WRITE_BUFFER_SIZE, cur_cmd.count*cur_cmd.block_size));
+#endif
             }
             break;
 #ifdef STORAGE_64BIT_SECTOR
@@ -1410,8 +1603,14 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
                 cur_sense_data.ascq=0;
             }
             else {
+#ifdef WRITE_BEHIND
+                cur_cmd.force_unit_access = cbw->command_block[1] & 0x08;
+                receive_block_data(write_slot(),
+                        MIN(WRITE_BUFFER_SIZE, cur_cmd.count*cur_cmd.block_size));
+#else
                 receive_block_data(cur_cmd.data[0],
                         MIN(WRITE_BUFFER_SIZE, cur_cmd.count*cur_cmd.block_size));
+#endif
             }
             break;
 #endif
@@ -1578,12 +1777,12 @@ static void receive_block_data(void *data,int size)
 
 static void send_csw(int status)
 {
-    tb.csw->signature = htole32(CSW_SIGNATURE);
-    tb.csw->tag = cur_cmd.tag;
-    tb.csw->data_residue = htole32(cur_cmd.data_residue);
-    tb.csw->status = status;
+    csw_buffer->signature = htole32(CSW_SIGNATURE);
+    csw_buffer->tag = cur_cmd.tag;
+    csw_buffer->data_residue = htole32(cur_cmd.data_residue);
+    csw_buffer->status = status;
 
-    usb_drv_send_nonblocking(EP_IN, tb.csw,
+    usb_drv_send_nonblocking(EP_IN, csw_buffer,
             sizeof(struct command_status_wrapper));
     state = WAITING_FOR_CSW_COMPLETION_OR_COMMAND;
     //logf("CSW: %X",status);
@@ -1623,6 +1822,7 @@ bool usb_storage_load_ipod_xml(void)
     close(fd);
     ipod_xml_size = n > 0 ? n : 0;
     ipod_xml[ipod_xml_size] = '\0';
+
 
     /* the revision in INQUIRY is the description's FireWireVersion */
     char *v = strstr(ipod_xml, "<key>FireWireVersion</key>");
