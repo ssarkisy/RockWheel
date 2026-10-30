@@ -18,6 +18,7 @@
  *
  ****************************************************************************/
 #include <string.h>
+#include "string-extra.h"
 #include "config.h"
 #include "system.h"
 #include "file.h"
@@ -38,6 +39,12 @@ static struct {
 static int line_count;
 static int top_line;
 static int rows_shown = 1;
+/* what the lines are of */
+static struct {
+    char path[MAX_PATH];
+    off_t pos;
+    int width, font, height;
+} loaded;
 
 static bool read_lyrics(const struct mp3entry *id3)
 {
@@ -100,18 +107,24 @@ static void wrap_lyrics(int width, int font)
             add_line(p, 0);
         while (p < pend)
         {
-            const char *q = p, *space = NULL, *e, *next;
-            while (q < pend)
+            /* what fits, measured once: measuring the line again for each
+               letter took the iPod most of the time the view took to show */
+            const char *q = p + font_measurestring((const unsigned char *)p,
+                                                   pend - p, width,
+                                                   NULL, NULL, font);
+            const char *space = NULL, *e, *next;
+            if (q < pend && *q == ' ')
+                space = q; /* all before it fits */
+            else if (q < pend)
             {
-                const char *after = q + utf8seek((const unsigned char *)q, 1);
-                int w;
-                font_getstringnsize((const unsigned char *)p, after - p,
-                                    &w, NULL, font);
-                if (w > width)
-                    break;
-                if (*q == ' ')
-                    space = q;
-                q = after;
+                for (const char *c = q; c > p; c--)
+                {
+                    if (c[-1] == ' ')
+                    {
+                        space = c - 1;
+                        break;
+                    }
+                }
             }
 
             if (q >= pend)
@@ -147,10 +160,30 @@ bool lyrics_load(const struct mp3entry *id3, struct viewport *vp)
     /* taken before the read: vp is in the skin's memory, which can move
        while the file is read */
     int width = vp->width, font = vp->font;
+    int height = font_get(font)->height;
+    if (!id3 || !id3->has_embedded_lyrics)
+    {
+        line_count = top_line = 0;
+        loaded.path[0] = '\0';
+        return false;
+    }
+    /* the view again for the same track: the lines as they were, and
+       scrolled where they were */
+    if (line_count > 0 && loaded.pos == id3->embedded_lyrics.pos
+        && loaded.width == width && loaded.font == font
+        && loaded.height == height && !strcmp(loaded.path, id3->path))
+        return true;
+
     line_count = top_line = 0;
-    if (!id3 || !id3->has_embedded_lyrics || !read_lyrics(id3))
+    loaded.path[0] = '\0';
+    if (!read_lyrics(id3))
         return false;
     wrap_lyrics(width, font);
+    strlcpy(loaded.path, id3->path, sizeof(loaded.path));
+    loaded.pos = id3->embedded_lyrics.pos;
+    loaded.width = width;
+    loaded.font = font;
+    loaded.height = height;
     return line_count > 0;
 }
 

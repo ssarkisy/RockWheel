@@ -27,7 +27,8 @@
 /* The lyrics view of the WPS: lyrics embedded in the track, wrapped to a
    viewport of the skin and scrolled with the wheel */
 
-/* read the lyrics of id3 and wrap them to fit vp, false if there are none */
+/* read the lyrics of id3 and wrap them to fit vp, false if there are none;
+   for the track they are of already, they stay as they are */
 bool lyrics_load(const struct mp3entry *id3, struct viewport *vp);
 
 void lyrics_draw(struct screen *display, struct viewport *vp);
