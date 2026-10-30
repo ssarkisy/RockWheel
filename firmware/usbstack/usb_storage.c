@@ -104,6 +104,9 @@
  * fails the next command. */
 #define WRITE_BEHIND
 #define WRITE_SLOTS 16
+/* sectors of one merged write: what an ATA command takes on a disk under
+   128 GiB (LBA28), whose driver doesn't split a longer one */
+#define WRITE_MERGE_MAX 256
 #define ALLOCATE_BUFFER_SIZE MAX(2*MAX(READ_BUFFER_SIZE,WRITE_BUFFER_SIZE), \
                                  WRITE_SLOTS*WRITE_BUFFER_SIZE)
 #else
@@ -449,7 +452,7 @@ static struct write_job {
 /* jobs[queued % WRITE_SLOTS] is the next to come in, jobs[done % ...] the
    next to go to the disk */
 static volatile unsigned int jobs_queued, jobs_done;
-static struct semaphore slots_free, jobs_ready;
+static struct semaphore slots_free, jobs_ready, writes_done;
 static volatile int write_error;
 static long writer_stack[DEFAULT_STACK_SIZE/sizeof(long)];
 
@@ -467,6 +470,7 @@ static void writer_thread(void)
             struct write_job *n = &write_jobs[(jobs_done + jobs) % WRITE_SLOTS];
             if (n->lun != j->lun || n->sector != j->sector + count
                 || n->data != j->data + bytes
+                || count + n->count > WRITE_MERGE_MAX
                 || semaphore_wait(&jobs_ready, 0) != OBJ_WAIT_SUCCEEDED)
                 break;
             count += n->count;
@@ -480,6 +484,7 @@ static void writer_thread(void)
         jobs_done += jobs;
         while (jobs--)
             semaphore_release(&slots_free);
+        semaphore_release(&writes_done);
     }
 }
 
@@ -507,8 +512,10 @@ static void queue_write(int lun, sector_t sector, unsigned int count)
 
 static void wait_for_writes(void)
 {
+    /* asleep: yielding at the USB thread's realtime priority let the
+       writer run only after some 200 turns of it */
     while (jobs_done != jobs_queued)
-        yield();
+        semaphore_wait(&writes_done, TIMEOUT_BLOCK);
 }
 
 /* true, once, when a write done after its command's answer failed */
@@ -533,6 +540,7 @@ static void usb_storage_init(void)
     {
         semaphore_init(&slots_free, WRITE_SLOTS, WRITE_SLOTS);
         semaphore_init(&jobs_ready, WRITE_SLOTS, 0);
+        semaphore_init(&writes_done, 1, 0);
         create_thread(writer_thread, writer_stack, sizeof(writer_stack), 0,
                       "usb storage" IF_PRIO(, PRIORITY_SYSTEM)
                       IF_COP(, CPU));
@@ -1023,22 +1031,6 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
      * bogus data */
     cbw->signature=0;
 
-#ifdef WRITE_BEHIND
-    /* a write that failed fails the next command that sends no blocks: the
-       blocks of a write would come in where the next command is awaited */
-    if(cbw->command_block[0] != SCSI_WRITE_10
-#ifdef STORAGE_64BIT_SECTOR
-       && cbw->command_block[0] != SCSI_WRITE_16
-#endif
-      ) {
-        wait_for_writes();
-        if(write_failed()) {
-            send_csw(UMS_STATUS_FAIL);
-            return;
-        }
-    }
-#endif
-
 #if defined(HAVE_MULTIDRIVE)
     if(skip_first) lun++;
 #endif
@@ -1070,6 +1062,28 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
     cur_cmd.tag = cbw->tag;
     cur_cmd.lun = lun;
     cur_cmd.cur_cmd = cbw->command_block[0];
+
+#ifdef WRITE_BEHIND
+    /* a write that failed fails the next command but a write, as this one's
+       answer, its tag and residue set: the blocks of a write would come in
+       where the next command is awaited */
+    if(cbw->command_block[0] != SCSI_WRITE_10
+#ifdef STORAGE_64BIT_SECTOR
+       && cbw->command_block[0] != SCSI_WRITE_16
+#endif
+      ) {
+        wait_for_writes();
+        if(write_failed()) {
+            /* a data phase is halted first, as in reject_command() */
+            if(cur_cmd.data_residue) {
+                bool in = (cbw->flags & USB_DIR_IN) != 0;
+                usb_drv_stall(in ? EP_IN : EP_OUT, true, in);
+            }
+            send_csw(UMS_STATUS_FAIL);
+            return;
+        }
+    }
+#endif
 
     switch (cbw->command_block[0]) {
         case SCSI_TEST_UNIT_READY:
