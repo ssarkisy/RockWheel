@@ -511,7 +511,9 @@ static const char graphic_numeric[] = "graphic,numeric";
  * larger maximums.
  */
 #if MEMORYSIZE >= 16
-# define MAX_FILES_IN_DIR_DEFAULT   5000
+/* more than a whole library's songs: over a list's window, scrolling stops for
+   half a second as the database is searched again from the start */
+# define MAX_FILES_IN_DIR_DEFAULT   20000
 # define MAX_FILES_IN_DIR_MAX       100000
 # define MAX_FILES_IN_DIR_STEP      1000
 #elif MEMORYSIZE >= 8

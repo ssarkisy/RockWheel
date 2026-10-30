@@ -193,6 +193,7 @@ enum variables {
 
 /* Capacity 10 000 entries (for example 10k different artists) */
 #define UNIQBUF_SIZE (64*1024)
+#define TAGTREE_SORT_MAX 5000
 static uint32_t uniqbuf[UNIQBUF_SIZE / sizeof(uint32_t)];
 
 #define MAX_TAGS 5
@@ -368,9 +369,12 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
     buf = core_get_data(tagtree_handle); /* data for the search clauses etc */
     crc = crc_32(buf, tagtree_buf_used, c->dirlength);
     buf = core_get_data(c->cache.name_buffer_handle); /* names */
-    crc = crc_32(buf, c->cache.name_buffer_size, crc);
+    /* of their start, which anything else using them writes first: the whole
+       of them took a tenth of a second and more as each song started */
+    crc = crc_32(buf, MIN(c->cache.name_buffer_size, 32*1024), crc);
     buf = core_get_data(c->cache.entries_handle); /* tagentries */
-    crc = crc_32(buf, c->cache.max_entries * sizeof(struct tagentry), crc);
+    crc = crc_32(buf, MIN(c->cache.max_entries * sizeof(struct tagentry),
+                          32*1024), crc);
     logf("%s 0x%x", __func__, crc);
     return crc;
 }
@@ -1978,7 +1982,9 @@ entry_skip_formatter:
         }
     }
 
-    if (sort)
+    /* A long list stays in the database's order, as sorted already: 13000 names
+       took seconds, and this is the order it always had in chunks */
+    if (sort && current_entry_count <= TAGTREE_SORT_MAX)
     {
         if (global_settings.interpret_numbers)
             qsort_fn = sort_inverse ? strnatcasecmp_n_inv : strnatcasecmp_n;
