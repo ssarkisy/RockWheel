@@ -51,6 +51,7 @@
 #include "action.h"
 #include "talk.h"
 #include "filetypes.h"
+#include "plugin.h"
 #include "misc.h"
 #include "pathfuncs.h"
 #include "filetree.h"
@@ -803,6 +804,27 @@ static int dirbrowse(void)
                     /* the playlist catalogue is a screen of its own */
                     if (button == ACTION_STD_OK)
                         return exit_to_new_screen(GO_TO_PLAYLISTS_SCREEN);
+                    button = ACTION_NONE;
+                }
+                else if (customaction == ONPLAY_CUSTOMACTION_COVERFLOW)
+                {
+                    /* PictureFlow, back to this list when it is left */
+                    if (button == ACTION_STD_OK)
+                    {
+                        switch (plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock",
+                                            NULL))
+                        {
+                            case PLUGIN_GOTO_WPS:
+                                return exit_to_new_screen(GO_TO_WPS);
+                            case PLUGIN_GOTO_ROOT:
+                                return exit_to_new_screen(GO_TO_ROOT);
+                            case PLUGIN_GOTO_PLUGIN:
+                                return exit_to_new_screen(GO_TO_PLUGIN);
+                            default:
+                                reload_dir = true; /* it had the screen */
+                                break;
+                        }
+                    }
                     button = ACTION_NONE;
                 }
             }

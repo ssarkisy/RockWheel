@@ -1062,9 +1062,9 @@ static int clipboard_callback(int action,
 #ifdef HAVE_TAGCACHE
             if (selected_file.context == CONTEXT_ID3DB)
             {
-                if (this_item == &track_info_item ||
-                    this_item == &pictureflow_item ||
-                    this_item == &reveal_item)
+                /* no PictureFlow, which is Cover Flow in the Music menu,
+                   and no files, which RockPod's menus don't show */
+                if (this_item == &track_info_item)
                     return action;
                 return ACTION_EXIT_MENUITEM;
             }

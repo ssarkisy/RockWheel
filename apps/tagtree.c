@@ -147,6 +147,7 @@ enum variables {
     menu_reload,
     menu_shuffle_songs,
     menu_playlists,
+    menu_coverflow,
 };
 
 /* Capacity 10 000 entries (for example 10k different artists) */
@@ -427,6 +428,7 @@ static int get_tag(int *tag)
         TAG_MATCH("lastoffset", tag_lastoffset) \
         TAG_MATCH("%root_menu", var_rootmenu) \
         TAG_MATCH("%playlists", menu_playlists) \
+        TAG_MATCH("%coverflow", menu_coverflow) \
         TAG_MATCH("albumartist", tag_albumartist) \
         TAG_MATCH("lastelapsed", tag_lastelapsed) \
         TAG_MATCH("%menu_start", var_menu_start) \
@@ -904,8 +906,9 @@ static bool parse_search(struct menu_entry *entry, const char *str)
         return true;
     }
 
-    /* the playlist catalogue, as Playlists in the Music menu of a stock iPod */
-    if (entry->type == menu_playlists)
+    /* the playlist catalogue, as Playlists in the Music menu of a stock iPod,
+       and Cover Flow, as the first item of an iPod Classic's */
+    if (entry->type == menu_playlists || entry->type == menu_coverflow)
         return true;
 
     if (entry->type != menu_next && entry->type != menu_shuffle_songs)
@@ -2046,6 +2049,12 @@ static int load_root(struct tree_context *c)
                 dptr->newtable = TABLE_NAVIBROWSE;
                 dptr->extraseek = i;
                 dptr->customaction = ONPLAY_CUSTOMACTION_PLAYLISTS;
+                break;
+
+            case menu_coverflow:
+                dptr->newtable = TABLE_NAVIBROWSE;
+                dptr->extraseek = i;
+                dptr->customaction = ONPLAY_CUSTOMACTION_COVERFLOW;
                 break;
         }
 
