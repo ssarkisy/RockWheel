@@ -39,6 +39,7 @@
 #include "tagcache.h"
 #include "itunesdb.h"
 #include "tagtree.h"
+#include "root_menu.h"
 #include "timefuncs.h"
 #include "lang.h"
 #include "logf.h"
@@ -72,26 +73,66 @@
    are two, so that the playlist playing goes on from its file while the
    other is written, and is replaced only once. */
 #define TAGTREE_PLAYLIST_DIR    ROCKBOX_DIR
-static const char * const tagtree_playlist_names[2] = {
-    "tagtree.m3u8", "tagtree2.m3u8"
+#define TAGTREE_SLOTS       4
+#define TAGTREE_SLOT_SONGS  2 /* a pair for the list of all songs alone: others
+                                 played meanwhile leave it ready */
+static const char * const tagtree_playlist_names[TAGTREE_SLOTS] = {
+    "tagtree.m3u8", "tagtree2.m3u8", "tagtree_songs.m3u8", "tagtree_songs2.m3u8"
+};
+/* Beside each, what spares writing it again: which list of which database it
+   holds, and where each of its songs starts */
+static const char * const tagtree_list_index_names[TAGTREE_SLOTS] = {
+    ROCKBOX_DIR "/tagtree.idx", ROCKBOX_DIR "/tagtree2.idx",
+    ROCKBOX_DIR "/tagtree_songs.idx", ROCKBOX_DIR "/tagtree_songs2.idx"
+};
+#define TAGTREE_LIST_MAGIC 0x4c545452 /* "RTTL" */
+struct tagtree_list_header {
+    uint32_t magic;
+    int32_t commitid;   /* of the database */
+    uint32_t entries;   /* of the list */
+    uint32_t id;        /* which list, from how it is searched for */
+    uint32_t count;     /* places after this */
 };
 
-/* the one the current playlist isn't from, as a full path into buf */
-static const char *tagtree_playlist_file(char *buf, size_t size)
+/* Whether a playlist playing or to be resumed is from this file */
+static bool tagtree_slot_in_use(int slot)
 {
-    char current[MAX_PATH];
-    const char *name = tagtree_playlist_names[0];
-    snprintf(buf, size, "%s/%s", TAGTREE_PLAYLIST_DIR, name);
+    char path[MAX_PATH], current[MAX_PATH];
+    snprintf(path, sizeof(path), "%s/%s", TAGTREE_PLAYLIST_DIR,
+             tagtree_playlist_names[slot]);
     if (playlist_get_name(NULL, current, sizeof(current))
-        && !strcasecmp(current, buf))
-    {
-        name = tagtree_playlist_names[1];
-        snprintf(buf, size, "%s/%s", TAGTREE_PLAYLIST_DIR, name);
-    }
-    return name;
+        && !strcasecmp(current, path))
+        return true;
+    /* at boot it is only named in the control file, on its first line */
+    char head[MAX_PATH + 32];
+    int fd = open(playlist_get_current()->control_filename, O_RDONLY);
+    ssize_t len = fd >= 0 ? read(fd, head, sizeof(head) - 1) : -1;
+    if (fd >= 0)
+        close(fd);
+    if (len <= 0)
+        return false;
+    head[len] = '\0';
+    char *line_end = strchr(head, '\n');
+    if (line_end)
+        *line_end = '\0';
+    return strstr(head, tagtree_playlist_names[slot]) != NULL;
+}
+
+/* The one of a pair, from first, which is free to be written, as a full path
+   into buf. Its index goes first, so that it never goes with another file. */
+static int tagtree_free_slot(int first, char *buf, size_t size)
+{
+    int slot = tagtree_slot_in_use(first) ? first + 1 : first;
+    snprintf(buf, size, "%s/%s", TAGTREE_PLAYLIST_DIR,
+             tagtree_playlist_names[slot]);
+    remove(tagtree_list_index_names[slot]);
+    return slot;
 }
 
 static int tagtree_play_folder(struct tree_context* c);
+
+/* on the screen of an import, which shows how far it is */
+static bool list_on_boot_screen;
 
 /* reuse of tagtree data after tagtree_play_folder() */
 static uint32_t loaded_entries_crc = 0;
@@ -1637,6 +1678,17 @@ static void tcs_get_basename(struct tagcache_search *tcs, bool is_basename)
     }
 }
 
+/* false when left by the user */
+static bool tagtree_search_progress(int count)
+{
+    if (list_on_boot_screen)
+    {
+        library_update_songs_progress(0, 0);
+        return !action_userabort(TIMEOUT_NOBLOCK);
+    }
+    return show_search_progress(false, count, 0, 0);
+}
+
 static int retrieve_entries(struct tree_context *c, int offset, bool init)
 {
     logf( "%s", __func__);
@@ -1916,7 +1968,7 @@ entry_skip_formatter:
 
         if (init)
         {
-            if (!show_search_progress(false, total_count, 0, 0))
+            if (!tagtree_search_progress(total_count))
             {   /* user aborted */
                 tagcache_search_finish(&tcs);
                 tree_unlock_cache(c);
@@ -1951,7 +2003,7 @@ entry_skip_formatter:
 
     while (tagcache_get_next(&tcs, tcs_buf, tcs_bufsz))
     {
-        if (!show_search_progress(false, total_count, 0, 0))
+        if (!tagtree_search_progress(total_count))
             break;
         total_count++;
     }
@@ -2318,8 +2370,10 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
                  allow user to cancel the operation */
                 if (!warn_on_pl_erase())
                     break;
+                cpu_boost(true);
                 if (tagtree_play_folder(c) >= 0)
                     rc = 2;
+                cpu_boost(false);
                 break;
             }
 
@@ -2449,7 +2503,16 @@ struct playlist_writer {
     char *buf;
     size_t size, used;
     bool ok;
+    /* of a new file: where each song starts, from the end of the buffer */
+    uint32_t *offsets;
+    int count, max;
+    uint32_t next;
 };
+
+/* those of the last new file, until the plugin buffer is used again; none
+   if it wasn't finished */
+static uint32_t *written_offsets;
+static int written_count;
 
 static bool playlist_writer_open(struct playlist_writer *w,
                                  const char *playlist, bool new_playlist)
@@ -2457,10 +2520,27 @@ static bool playlist_writer_open(struct playlist_writer *w,
     w->buf = plugin_get_buffer(&w->size);
     w->used = 0;
     w->ok = true;
+    w->offsets = NULL;
+    w->count = 0;
+    written_offsets = NULL;
+    written_count = 0;
     if (new_playlist)
         w->fd = open_utf8(playlist, O_CREAT|O_WRONLY|O_TRUNC);
     else
         w->fd = open(playlist, O_CREAT|O_WRONLY|O_APPEND, 0666);
+    if (new_playlist && w->fd >= 0 && w->buf)
+    {
+        /* after the BOM */
+        w->next = lseek(w->fd, 0, SEEK_CUR);
+        w->max = playlist_get_current()->max_playlist_size;
+        size_t room = w->max * sizeof(uint32_t) + sizeof(uint32_t);
+        if (w->size > room + MAX_PATH)
+        {
+            w->size -= room;
+            w->offsets = (uint32_t *)ALIGN_UP((uintptr_t)(w->buf + w->size),
+                                              sizeof(uint32_t));
+        }
+    }
     return w->fd >= 0 && w->buf && w->size >= MAX_PATH;
 }
 
@@ -2477,6 +2557,11 @@ static bool playlist_writer_add(struct playlist_writer *w, const char *path)
     size_t len = strlen(path);
     if (w->used + len + 1 > w->size && !playlist_writer_flush(w))
         return false;
+    if (w->offsets && w->count < w->max)
+    {
+        w->offsets[w->count++] = w->next;
+        w->next += len + 1;
+    }
     memcpy(w->buf + w->used, path, len);
     w->buf[w->used + len] = '\n';
     w->used += len + 1;
@@ -2489,6 +2574,11 @@ static bool playlist_writer_close(struct playlist_writer *w)
     if (w->fd >= 0)
         close(w->fd);
     w->fd = -1;
+    if (ok && w->offsets)
+    {
+        written_offsets = w->offsets;
+        written_count = w->count;
+    }
     return ok;
 }
 
@@ -2567,8 +2657,10 @@ static bool insert_all_playlist(struct tree_context *c,
     {
         if (TIME_AFTER(current_tick, last_tick + HZ/4))
         {
-            /* (voiced) */
-            splash_progress(i, n, "%s (%s)", str(LANG_WAIT), str(LANG_OFF_ABORT));
+            if (list_on_boot_screen)
+                library_update_songs_progress(i, n);
+            else /* (voiced) */
+                splash_progress(i, n, "%s (%s)", str(LANG_WAIT), str(LANG_OFF_ABORT));
             if (action_userabort(TIMEOUT_NOBLOCK))
             {
                 exit_loop_now = true;
@@ -2650,7 +2742,11 @@ static bool insert_all_playlist(struct tree_context *c,
     if (playlist == NULL)
         playlist_insert_context_release(&context);
     else
+    {
         ok = playlist_writer_close(&writer);
+        if (exit_loop_now)
+            written_offsets = NULL;
+    }
 
     tagcache_search_finish(&tcs);
     cpu_boost(false);
@@ -2823,7 +2919,8 @@ bool tagtree_shuffle_songs(void)
     if (audio_status() & AUDIO_STATUS_PLAY)
         audio_stop();
     char file[MAX_PATH];
-    const char *name = tagtree_playlist_file(file, sizeof(file));
+    const char *name = tagtree_playlist_names[
+        tagtree_free_slot(0, file, sizeof(file))];
     bool ok = playlist_writer_open(&writer, file, true);
     last_tick = current_tick + HZ/2; /* progress after half a second */
     int seen = 0;
@@ -2881,11 +2978,193 @@ int tagtree_add_to_playlist(const char* playlist, bool new_playlist)
     return tagtree_insert_selection(0, false, playlist, new_playlist) ? 0 : -1;
 }
 
+/* Which list this is, from how it is searched for. Going through its songs
+   instead would load them all, a chunk at a time: over a second for 13000. */
+static uint32_t tagtree_list_id(const struct tree_context *c)
+{
+    uint32_t id = 2166136261u;
+#define LIST_ID_ADD(value) id = (id ^ (uint32_t)(value)) * 16777619u
+    LIST_ID_ADD(c->currtable);
+    LIST_ID_ADD(c->currextra);
+    LIST_ID_ADD(csi->tagorder_count);
+    for (int i = 0; i < csi->tagorder_count; i++)
+    {
+        LIST_ID_ADD(csi->tagorder[i]);
+        LIST_ID_ADD(csi->format_id[i]);
+        /* what was chosen on the way here */
+        if (i < c->currextra)
+            LIST_ID_ADD(csi->result_seek[i]);
+        for (int j = 0; j < csi->clause_count[i]; j++)
+        {
+            const struct tagcache_search_clause *clause = csi->clause[i][j];
+            LIST_ID_ADD(clause->tag);
+            LIST_ID_ADD(clause->type);
+            LIST_ID_ADD(clause->numeric);
+            LIST_ID_ADD(clause->numeric_data);
+            for (const char *p = clause->str; p && *p; p++)
+                LIST_ID_ADD(*p);
+        }
+    }
+#undef LIST_ID_ADD
+    return id;
+}
+
+static bool tagtree_list_is_all_songs(void)
+{
+    return csi->tagorder_count == 1 && csi->tagorder[0] == tag_title
+           && csi->clause_count[0] == 0;
+}
+
+/* what spares writing the file just written the next time */
+static void tagtree_save_list_index(const struct tree_context *c, int slot,
+                                    uint32_t id)
+{
+    if (!written_offsets)
+        return;
+    struct tagtree_list_header h = {
+        TAGTREE_LIST_MAGIC, tagcache_get_commitid(), c->filesindir, id,
+        written_count
+    };
+    int fd = open(tagtree_list_index_names[slot], O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    if (fd >= 0)
+    {
+        write(fd, &h, sizeof(h));
+        write(fd, written_offsets, written_count * sizeof(uint32_t));
+        close(fd);
+    }
+}
+
+/* The list's playlist from a file written for it before, or from a new one.
+   A list of the whole library took over four seconds each time. */
+static int tagtree_load_list(struct tree_context *c)
+{
+    struct tagtree_list_header h;
+    const uint32_t id = tagtree_list_id(c);
+    const int32_t commitid = tagcache_get_commitid();
+
+    for (int i = 0; i < TAGTREE_SLOTS; i++)
+    {
+        size_t size;
+        void *buf = plugin_get_buffer(&size);
+        int fd = open(tagtree_list_index_names[i], O_RDONLY);
+        if (fd < 0)
+            continue;
+        bool same = read(fd, &h, sizeof(h)) == sizeof(h)
+            && h.magic == TAGTREE_LIST_MAGIC && h.commitid == commitid
+            && h.entries == (uint32_t)c->filesindir && h.id == id
+            && h.count <= (uint32_t)playlist_get_current()->max_playlist_size;
+        ALIGN_BUFFER(buf, size, sizeof(uint32_t));
+        ssize_t bytes = same ? h.count * sizeof(uint32_t) : 0;
+        same = same && (size_t)bytes <= size && read(fd, buf, bytes) == bytes;
+        close(fd);
+        if (same && playlist_create_indexed(TAGTREE_PLAYLIST_DIR,
+                                            tagtree_playlist_names[i],
+                                            buf, h.count) == 0)
+        {
+            return 0;
+        }
+    }
+
+    char file[MAX_PATH];
+    int slot = tagtree_free_slot(tagtree_list_is_all_songs()
+                                 ? TAGTREE_SLOT_SONGS : 0, file, sizeof(file));
+    const char *name = tagtree_playlist_names[slot];
+    if (!insert_all_playlist(c, file, true, PLAYLIST_INSERT_LAST, false))
+        return -2;
+
+    tagtree_save_list_index(c, slot, id);
+    if ((!written_offsets
+         || playlist_create_indexed(TAGTREE_PLAYLIST_DIR, name, written_offsets,
+                                    written_count) < 0)
+        && playlist_create(TAGTREE_PLAYLIST_DIR, name) < 0)
+    {
+        logf("Failed creating playlist\n");
+        return -1;
+    }
+    return 0;
+}
+
+/* At the end of an import: the playlist of the list of all songs, which takes
+   seconds to write, so that playing a song of it starts at once. */
+void tagtree_prepare_songs(void)
+{
+    struct tree_context *c = tree_get_context();
+    if (!tagnavi_loaded || rootmenu < 0 || !menus[rootmenu]
+        || !tagcache_is_usable())
+        return;
+
+    const struct menu_root *root = menus[rootmenu];
+    struct search_instruction *songs = NULL;
+    for (int i = 0; i < root->itemcount && !songs; i++)
+    {
+        struct search_instruction *si = &root->items[i]->si;
+        if (root->items[i]->type == menu_next && si->tagorder_count == 1
+            && si->tagorder[0] == tag_title && si->clause_count[0] == 0)
+            songs = si;
+    }
+    if (!songs)
+        return;
+
+    /* as the browser has it for that list, and back after */
+    struct search_instruction *old_csi = csi;
+    const int table = c->currtable, extra = c->currextra;
+    const int files = c->filesindir, length = c->dirlength;
+    const int dirs = c->dirsindir, special = c->special_entry_count;
+    csi = songs;
+    c->currtable = TABLE_NAVIBROWSE;
+    c->currextra = 0;
+    tc = c;
+
+    const uint32_t id = tagtree_list_id(c);
+    bool ready = false;
+    for (int i = TAGTREE_SLOT_SONGS; i < TAGTREE_SLOTS && !ready; i++)
+    {
+        struct tagtree_list_header h;
+        int fd = open(tagtree_list_index_names[i], O_RDONLY);
+        if (fd < 0)
+            continue;
+        ready = read(fd, &h, sizeof(h)) == sizeof(h)
+            && h.magic == TAGTREE_LIST_MAGIC && h.id == id
+            && h.commitid == tagcache_get_commitid();
+        close(fd);
+    }
+
+    if (!ready)
+    {
+        tree_lock_cache(c);
+        core_pin(tagtree_handle);
+        cpu_boost(true);
+        list_on_boot_screen = true;
+        library_update_songs_progress(0, 0);
+        int count = retrieve_entries(c, 0, true);
+        if (count > 0)
+        {
+            char file[MAX_PATH];
+            int slot = tagtree_free_slot(TAGTREE_SLOT_SONGS, file, sizeof(file));
+            c->filesindir = c->dirlength = count;
+            if (insert_all_playlist(c, file, true, PLAYLIST_INSERT_LAST, false))
+                tagtree_save_list_index(c, slot, id);
+        }
+        list_on_boot_screen = false;
+        cpu_boost(false);
+        core_unpin(tagtree_handle);
+        tree_unlock_cache(c);
+    }
+
+    csi = old_csi;
+    c->currtable = table;
+    c->currextra = extra;
+    c->filesindir = files;
+    c->dirlength = length;
+    c->dirsindir = dirs;
+    c->special_entry_count = special;
+    loaded_entries_crc = 0;
+}
+
 static int tagtree_play_folder(struct tree_context* c)
 {
     logf( "%s", __func__);
     int start_index = c->selected_item;
-
 
     /* The music playing would change anyway; stopped first, it doesn't
        take turns with building the playlist */
@@ -2895,15 +3174,9 @@ static int tagtree_play_folder(struct tree_context* c)
     int n = c->filesindir;
     if (n <= playlist_get_current()->max_playlist_size)
     {
-        char file[MAX_PATH];
-        const char *name = tagtree_playlist_file(file, sizeof(file));
-        if (!insert_all_playlist(c, file, true, PLAYLIST_INSERT_LAST, false))
-            return -2;
-        if (playlist_create(TAGTREE_PLAYLIST_DIR, name) < 0)
-        {
-            logf("Failed creating playlist\n");
-            return -1;
-        }
+        int result = tagtree_load_list(c);
+        if (result < 0)
+            return result;
     }
     else if (playlist_create(NULL, NULL) < 0)
     {

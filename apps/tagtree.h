@@ -41,6 +41,7 @@ char* tagtree_get_entry_name(struct tree_context *c, int id,
                                     char* buf, size_t bufsize);
 bool tagtree_current_playlist_insert(int position, bool queue);
 bool tagtree_shuffle_songs(void);
+void tagtree_prepare_songs(void);
 int tagtree_add_to_playlist(const char* playlist, bool new_playlist);
 char *tagtree_get_title(struct tree_context* c);
 int tagtree_get_attr(struct tree_context* c);

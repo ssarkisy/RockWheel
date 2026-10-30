@@ -118,6 +118,8 @@ struct playlist_insert_context {
 void playlist_init(void) INIT_ATTR;
 void playlist_shutdown(void);
 int playlist_create(const char *dir, const char *file);
+int playlist_create_indexed(const char *dir, const char *file,
+                            const uint32_t *offsets, int count);
 int playlist_resume(void);
 int playlist_shuffle(int random_seed, int start_index);
 unsigned int playlist_get_filename_crc32(struct playlist_info *playlist,

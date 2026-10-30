@@ -1071,19 +1071,29 @@ static void library_update_show(const char *text, int percent)
     backlight_on();
 }
 
-#ifdef ITUNESDB_HAVE_ART
-/* Each step of Cover Flow's album list counts anew, so its one bar only goes
-   forward */
-void library_update_progress(int done, int total)
+/* A step of the import that isn't the tagcache's. Its parts may each count
+   anew, so its one bar only goes forward. */
+static void library_update_forward(const char *text, int done, int total)
 {
     static int percent;
-    if (shown_text != (const char *)str(LANG_PREPARING_ALBUMS))
+    if (shown_text != text)
         percent = 0;
     if (total > 0)
         percent = MAX(percent, 100 * MIN(done, total) / total);
-    library_update_show(str(LANG_PREPARING_ALBUMS), percent);
+    library_update_show(text, percent);
+}
+
+#ifdef ITUNESDB_HAVE_ART
+void library_update_progress(int done, int total)
+{
+    library_update_forward((const char *)str(LANG_PREPARING_ALBUMS), done, total);
 }
 #endif
+
+void library_update_songs_progress(int done, int total)
+{
+    library_update_forward((const char *)str(LANG_PREPARING_SONGS), done, total);
+}
 
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
@@ -1124,6 +1134,8 @@ void show_library_update(void)
                         ITUNESDB_ALBUM_LIST);
         }
 #endif
+        if (phase == TAGCACHE_IMPORT_NONE)
+            tagtree_prepare_songs();
         lcd_set_background(LCD_DEFAULT_BG);
         lcd_set_foreground(LCD_DEFAULT_FG);
         lcd_clear_display();

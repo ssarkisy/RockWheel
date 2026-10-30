@@ -18039,3 +18039,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Подготовка песен"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

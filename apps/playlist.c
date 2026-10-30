@@ -2139,6 +2139,38 @@ int playlist_create(const char *dir, const char *file)
     return status;
 }
 
+/* As playlist_create() for a file whose tracks' places are already known, which
+   spares reading it: 13000 songs took over a second */
+int playlist_create_indexed(const char *dir, const char *file,
+                            const uint32_t *offsets, int count)
+{
+    struct playlist_info* playlist = &current_playlist;
+    int status = 0;
+
+    if (count > playlist->max_playlist_size)
+        return -1;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    new_playlist_unlocked(playlist, dir, file);
+    pl_close_playlist(playlist);
+    if (pl_open_playlist(playlist) < 0)
+        status = -1;
+    else
+    {
+        for (int i = 0; i < count; i++)
+            playlist->indices[i] = offsets[i];
+        dc_init_filerefs(playlist, 0, count);
+        playlist->amount = count;
+    }
+
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, true);
+
+    return status;
+}
+
 /* Returns false if 'steps' is out of bounds, else true */
 bool playlist_check(int steps)
 {
