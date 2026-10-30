@@ -55,30 +55,34 @@ static void strength_update(unsigned int fout)
         break;
     }
 
-    filter_bishelf_coefs(fp_div(8000, fout, 32),
-                         fp_div(20000, fout, 32),
-                         0, (hs/2), 0,
-                         &afr_filters[0]);
-
     filter_pk_coefs(fp_div(8000, fout, 32), 28, hs,
-                     &afr_filters[1]);
+                     &afr_filters[0]);
 
     filter_pk_coefs(fp_div(3150, fout, 32), 28, drop3k,
-                     &afr_filters[2]);
+                     &afr_filters[1]);
 
-    /* It costs as much as the others, and without a gain it does nothing */
-    if (ls != 0)
+    /* The shelves cost as much as the others, which at the weakest strength they
+       aren't worth: the high one is down less than 0.3 dB below 18 kHz, and the
+       low one does nothing */
+    if (afr_strength > 1)
     {
+        filter_bishelf_coefs(fp_div(8000, fout, 32),
+                             fp_div(20000, fout, 32),
+                             0, (hs/2), 0,
+                             &afr_filters[2]);
+
         filter_bishelf_coefs(fp_div(200, fout, 32),
                              fp_div(1280, fout, 32),
                              ls, 0, 0,
                              &afr_filters[3]);
+
         afr_filter_count = 4;
     }
     else
     {
+        filter_flush(&afr_filters[2]);
         filter_flush(&afr_filters[3]);
-        afr_filter_count = 3;
+        afr_filter_count = 2;
     }
 }
 
