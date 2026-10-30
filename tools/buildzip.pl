@@ -11,6 +11,7 @@ use strict;
 
 use File::Copy; # For move() and copy()
 use File::Find; # For find()
+use File::Basename; # For basename()
 use File::Path qw(mkpath rmtree); # For rmtree()
 use Cwd;
 use Cwd 'abs_path';
@@ -612,6 +613,37 @@ sub buildzip {
 
     }
 
+    # RockPod, the iPod Video build: only the plugins its menus open, with
+    # their data, and the viewers of those
+    if ($modelname =~ /\bipodvideo\b/ && -e "$ROOT/apps/plugins/ROCKPOD") {
+        open ROCKPOD, "$ROOT/apps/plugins/ROCKPOD" or die "can't open ROCKPOD";
+        my %keep = map { $_ => 1 } grep { /\S/ && !/^#/ } map { s/\s+//gr } <ROCKPOD>;
+        close ROCKPOD;
+        my @gone;
+        find({ no_chdir => 1, bydepth => 1, wanted => sub {
+            my $f = $File::Find::name;
+            if (-d $f) {
+                rmdir($f) if ($f ne "$temp_dir/rocks"); # only when emptied
+                return;
+            }
+            my $base = basename($f);
+            my $stem = $base =~ s/\..*$//r;
+            my $kept = grep { $stem eq $_ || index($stem, "${_}_") == 0 } keys %keep;
+            unless ($kept) {
+                unlink($f);
+                push @gone, substr($f, length("$temp_dir/rocks/"));
+            }
+        }}, "$temp_dir/rocks");
+        print "RockPod: left out " . scalar(@gone) . " plugin files\n" if $verbose;
+
+        open VIEWERS, "$temp_dir/viewers.config" or die "can't open viewers.config";
+        my @lines = grep { /[^,]*,([^,]*),/ && -e "$temp_dir/rocks/$1.rock" } <VIEWERS>;
+        close VIEWERS;
+        open VIEWERS, ">$temp_dir/viewers.config" or die "can't write viewers.config";
+        print VIEWERS @lines;
+        close VIEWERS;
+    }
+
     if($image) {
         # image is blank when this is a simulator
         if( filesize("rockbox.ucl") > 1000 ) {
@@ -709,9 +741,11 @@ sub buildzip {
     glob_copy('*.lng.talk', "$temp_dir/langs/");
     glob_copy('*.voice', "$temp_dir/langs/");
 
-    # copy the .lua files
-    glob_mkdir("$temp_dir/rocks/viewers/lua/");
-    glob_copy('apps/plugins/lua/*.lua', "$temp_dir/rocks/viewers/lua/");
+    # copy the .lua files, when Lua is there (RockPod leaves it out)
+    if (-e "$temp_dir/rocks/viewers/lua.rock") {
+        glob_mkdir("$temp_dir/rocks/viewers/lua/");
+        glob_copy('apps/plugins/lua/*.lua', "$temp_dir/rocks/viewers/lua/");
+    }
 
     # finally, bundle map files for debug
     glob_mkdir("$temp_dir/debug");

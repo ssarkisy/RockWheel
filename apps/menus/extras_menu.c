@@ -23,6 +23,8 @@
 
 #include <stdbool.h>
 #include "config.h"
+#include "action.h"
+#include "file.h"
 #include "lang.h"
 #include "menu.h"
 #include "plugin.h"
@@ -46,18 +48,35 @@ static int run_plugin(void *param)
     }
 }
 
+/* an item whose plugin the build left out isn't shown */
+static int plugin_there(int action, const struct menu_item_ex *this_item,
+                        struct gui_synclist *this_list)
+{
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM
+        && !file_exists((const char *)this_item->function_param->param))
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+
 #define EXTRA(name, lang, path) \
     MENUITEM_FUNCTION_W_PARAM(name, MENU_FUNC_CHECK_RETVAL, ID2P(lang), \
-                              run_plugin, (void *)(path), NULL, Icon_NOICON)
+                              run_plugin, (void *)(path), plugin_there, \
+                              Icon_NOICON)
 
 EXTRA(clock_item,     LANG_CLOCK,     PLUGIN_APPS_DIR  "/clock.rock");
+EXTRA(blackjack_item, LANG_BLACKJACK, PLUGIN_GAMES_DIR "/blackjack.rock");
 EXTRA(brick_item,     LANG_BRICK,     PLUGIN_GAMES_DIR "/brickmania.rock");
 EXTRA(solitaire_item, LANG_SOLITAIRE, PLUGIN_GAMES_DIR "/solitaire.rock");
+EXTRA(jewels_item,    LANG_JEWELS,    PLUGIN_GAMES_DIR "/jewels.rock");
+EXTRA(mines_item,     LANG_MINESWEEPER, PLUGIN_GAMES_DIR "/minesweeper.rock");
 EXTRA(calendar_item,  LANG_CALENDAR,  PLUGIN_APPS_DIR  "/calendar.rock");
 EXTRA(stopwatch_item, LANG_STOPWATCH, PLUGIN_APPS_DIR  "/stopwatch.rock");
 
+/* alphabetical, as the stock iPod has its games, here in Russian */
 MAKE_MENU(games_menu, ID2P(LANG_PLUGIN_GAMES), NULL, Icon_NOICON,
-          &brick_item, &solitaire_item);
+          &blackjack_item, &brick_item, &solitaire_item, &jewels_item,
+          &mines_item);
 
 MAKE_MENU(extras_menu, ID2P(LANG_EXTRAS), NULL, Icon_NOICON,
           &clock_item, &games_menu, &calendar_item, &stopwatch_item);

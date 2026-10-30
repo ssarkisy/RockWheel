@@ -232,7 +232,9 @@ MAKE_MENU(ipod_playback_settings, ID2P(LANG_PLAYBACK), 0,
 #ifdef HAVE_HEADPHONE_DETECTION
           &unplug_menu,
 #endif
-          &resume_rewind);
+          &resume_rewind,
+          /* an album as one file and its .cue, as copied beside Finder's */
+          &cuesheet);
 
 /*    PLAYBACK MENU                */
 /***********************************/

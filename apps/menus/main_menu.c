@@ -503,6 +503,27 @@ static int main_menu_config(void)
 MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
                   main_menu_config, NULL, Icon_Rockbox);
 
+/* the files macOS and Windows leave on the disk, as ._ beside each copy */
+static int disk_tidy(void)
+{
+    plugin_load(PLUGIN_APPS_DIR "/disktidy.rock", NULL);
+    return 0;
+}
+
+static int disk_tidy_callback(int action, const struct menu_item_ex *this_item,
+                              struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM
+        && !file_exists(PLUGIN_APPS_DIR "/disktidy.rock"))
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+
+MENUITEM_FUNCTION(disk_tidy_item, 0, ID2P(LANG_DISK_TIDY),
+                  disk_tidy, disk_tidy_callback, Icon_NOICON);
+
 /***********************************/
 /*    MAIN MENU                    */
 
@@ -516,7 +537,7 @@ MAKE_MENU(ipod_advanced_menu, ID2P(LANG_ADVANCED), NULL, Icon_Submenu_Entered,
 #ifdef HAVE_TAGCACHE
         &ipod_database_menu,
 #endif
-        &codepage_setting);
+        &codepage_setting, &disk_tidy_item);
 
 /* The settings of a stock iPod, in its order, then Advanced; Rockbox's full
    settings menus are not shown */

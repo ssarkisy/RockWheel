@@ -17899,3 +17899,59 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Блэкджек"
+  </dest>
+  <voice>
+    *: "Блэкджек"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Самоцветы"
+  </dest>
+  <voice>
+    *: "Самоцветы"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Сапёр"
+  </dest>
+  <voice>
+    *: "Сапёр"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DISK_TIDY
+  desc: in Settings > Advanced: removes the files macOS and Windows leave
+  user: core
+  <source>
+    *: "Clean Up Disk"
+  </source>
+  <dest>
+    *: "Уборка диска"
+  </dest>
+  <voice>
+    *: "Уборка диска"
+  </voice>
+</phrase>
