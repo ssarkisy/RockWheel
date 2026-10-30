@@ -4239,8 +4239,8 @@ static bool commit(void)
 
     close(tmpfd);
 
-    tc_stat.commit_step = 0;
-
+    /* the steps stay counted until the files are swapped: the progress
+       bar after a sync showed the master write and swap as 45% */
     if (!USR_CANCEL)
     {
         /* Update the master index headers. */
@@ -4288,6 +4288,7 @@ static bool commit(void)
     } /*!USR_CANCEL*/
 
 commit_error:
+    tc_stat.commit_step = 0;
     if (commit_idx)
     {
         tempbuf_size = commit_full_size;
