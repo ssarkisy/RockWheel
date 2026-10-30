@@ -31,6 +31,11 @@
    for the track they are of already, they stay as they are */
 bool lyrics_load(const struct mp3entry *id3, struct viewport *vp);
 
+/* synced lyrics: the line sung at elapsed ms becomes the current one and
+   the view follows it, unless the wheel moved it a moment ago; true when
+   they should be drawn again */
+bool lyrics_follow(unsigned long elapsed);
+
 void lyrics_draw(struct screen *display, struct viewport *vp);
 
 /* move the first line shown by delta lines, false if it did not move */

@@ -220,6 +220,8 @@ static int skintouch_to_wps(void)
 }
 #endif /* HAVE_TOUCHSCREEN */
 
+static void draw_lyrics(void);
+
 static bool ffwd_rew(int button, bool seek_from_end)
 {
     unsigned int step = 0;     /* current ff/rewind step */
@@ -320,6 +322,11 @@ static bool ffwd_rew(int button, bool seek_from_end)
                                 SKIN_REFRESH_PLAYER_PROGRESS |
                                 SKIN_REFRESH_DYNAMIC);
                 }
+                /* the lyrics stay, at the place seeked to: the theme's
+                   view of a seek drew over them, and nothing drew them
+                   again */
+                if (gstate->display_mode == WPS_MODE_LYRICS)
+                    draw_lyrics();
 
                 break;
 
@@ -328,6 +335,10 @@ static bool ffwd_rew(int button, bool seek_from_end)
                 audio_ff_rewind(id3->elapsed);
                 gstate->ff_rewind_count = 0;
                 ff_rewind = false;
+                /* the theme's view of a seek is gone with a full update,
+                   which draws the lyrics again */
+                if (gstate->display_mode == WPS_MODE_LYRICS)
+                    skin_request_full_update(WPS);
                 status_set_ffmode(0);
                 exit = true;
                 break;
@@ -565,6 +576,10 @@ static struct viewport *lyrics_viewport(void)
 static void draw_lyrics(void)
 {
     struct viewport *vp = lyrics_viewport();
+    struct wps_state *state = get_wps_state();
+    struct mp3entry *id3 = state->id3;
+    if (id3) /* synced: where the song is now, or is seeked to */
+        lyrics_follow(MAX(0, (long)id3->elapsed + state->ff_rewind_count));
     if (vp)
         lyrics_draw(&screens[SCREEN_MAIN], vp);
 }
@@ -734,6 +749,19 @@ static void display_mode_tick(void)
     check_album_art();
 #endif
     follow_track_change();
+    if (state->display_mode == WPS_MODE_LYRICS && state->id3
+        && lyrics_follow(state->id3->elapsed))
+    {
+#ifdef HAVE_BACKLIGHT
+        /* synced lyrics move on by themselves, with no touch of the wheel
+           to keep the screen lit while they are followed */
+#ifdef HAS_BUTTON_HOLD
+        if (!button_hold())
+#endif
+            backlight_on();
+#endif
+        draw_lyrics();
+    }
     if (scrub_pending && TIME_AFTER(current_tick, scrub_last_turn + SCRUB_SEEK_DELAY))
         scrub_apply();
     if ((state->display_mode == WPS_MODE_SCRUB
@@ -1400,3 +1428,4 @@ static void wps_state_init(void)
     add_event(PLAYBACK_EVENT_TRACK_SKIP, track_info_callback);
 #endif
 }
+
