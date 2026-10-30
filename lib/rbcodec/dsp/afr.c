@@ -29,6 +29,7 @@
 
 static int afr_strength = 0;
 static struct dsp_filter afr_filters[4];
+static int afr_filter_count = 0; /* The ones that change anything */
 
 static void dsp_afr_flush(void)
 {
@@ -65,10 +66,20 @@ static void strength_update(unsigned int fout)
     filter_pk_coefs(fp_div(3150, fout, 32), 28, drop3k,
                      &afr_filters[2]);
 
-    filter_bishelf_coefs(fp_div(200, fout, 32),
-                         fp_div(1280, fout, 32),
-                         ls, 0, 0,
-                         &afr_filters[3]);
+    /* It costs as much as the others, and without a gain it does nothing */
+    if (ls != 0)
+    {
+        filter_bishelf_coefs(fp_div(200, fout, 32),
+                             fp_div(1280, fout, 32),
+                             ls, 0, 0,
+                             &afr_filters[3]);
+        afr_filter_count = 4;
+    }
+    else
+    {
+        filter_flush(&afr_filters[3]);
+        afr_filter_count = 3;
+    }
 }
 
 void dsp_afr_enable(int var)
@@ -96,7 +107,7 @@ static void afr_reduce_process(struct dsp_proc_entry *this,
 {
     struct dsp_buffer *buf = *buf_p;
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < afr_filter_count; i++)
         filter_process(&afr_filters[i], buf->p32, buf->remcount,
                        buf->format.num_channels);
 
