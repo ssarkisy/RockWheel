@@ -610,9 +610,12 @@ static void scrub_apply(void)
     if (!scrub_pending)
         return;
     scrub_pending = false;
-    if (state->id3 && state->ff_rewind_count)
+    /* a scrub of the track before goes nowhere: back from near its end, it
+       took the new one below 0 and skipped it */
+    if (state->id3 && state->ff_rewind_count && !mode_track_changed)
     {
-        state->id3->elapsed += state->ff_rewind_count;
+        long pos = (long)state->id3->elapsed + state->ff_rewind_count;
+        state->id3->elapsed = MAX(pos, 0);
         audio_pre_ff_rewind();
         audio_ff_rewind(state->id3->elapsed);
     }
@@ -637,10 +640,32 @@ static void next_display_mode(void)
     set_display_mode(mode);
 }
 
+/* After a track change, before the wheel or a tick uses the views */
+static void follow_track_change(void)
+{
+    struct wps_state *state = get_wps_state();
+    if (!mode_track_changed)
+        return;
+    /* the scrubber and rating views were for the old track, as was a
+       pending scrub; the album art and lyrics views stay, the skin shows
+       the normal view for a track without them */
+    mode_track_changed = false;
+    scrub_pending = false;
+    state->ff_rewind_count = 0;
+    if (state->display_mode == WPS_MODE_SCRUB
+        || state->display_mode == WPS_MODE_RATING)
+        set_display_mode(WPS_MODE_VOLUME);
+    else if (state->display_mode == WPS_MODE_LYRICS)
+        set_display_mode(display_mode_available(WPS_MODE_LYRICS) ?
+                         WPS_MODE_LYRICS : WPS_MODE_VOLUME);
+}
+
 /* The wheel in the scrubber, lyrics and rating views */
 static void display_mode_turn(int direction)
 {
     struct wps_state *state = get_wps_state();
+    /* a turn right after a track change rated or scrubbed the new one */
+    follow_track_change();
     struct mp3entry *id3 = state->id3;
     mode_last_used = current_tick;
 
@@ -708,21 +733,7 @@ static void display_mode_tick(void)
 #ifdef HAVE_ALBUMART
     check_album_art();
 #endif
-    if (mode_track_changed)
-    {
-        /* the scrubber and rating views were for the old track, as was a
-           pending scrub; the album art and lyrics views stay, the skin
-           shows the normal view for a track without them */
-        mode_track_changed = false;
-        scrub_pending = false;
-        state->ff_rewind_count = 0;
-        if (state->display_mode == WPS_MODE_SCRUB
-            || state->display_mode == WPS_MODE_RATING)
-            set_display_mode(WPS_MODE_VOLUME);
-        else if (state->display_mode == WPS_MODE_LYRICS)
-            set_display_mode(display_mode_available(WPS_MODE_LYRICS) ?
-                             WPS_MODE_LYRICS : WPS_MODE_VOLUME);
-    }
+    follow_track_change();
     if (scrub_pending && TIME_AFTER(current_tick, scrub_last_turn + SCRUB_SEEK_DELAY))
         scrub_apply();
     if ((state->display_mode == WPS_MODE_SCRUB

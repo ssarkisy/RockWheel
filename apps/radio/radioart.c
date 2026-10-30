@@ -85,7 +85,8 @@ static int load_radioart_image(struct radioart *ra, const char* preset_name,
     ra->dim.height = dim->height;
     ra->dim.width = dim->width;
     ra->last_tick = current_tick;
-    user_data.embedded_albumart = NULL;
+    /* all of it: a cover Finder made has a field here too */
+    memset(&user_data, 0, sizeof(user_data));
     user_data.dim = &ra->dim;
     ra->handle = bufopen(path, 0, TYPE_BITMAP, &user_data);
     if (ra->handle == ERR_BUFFER_FULL || ra->handle == ERR_BITMAP_TOO_LARGE)

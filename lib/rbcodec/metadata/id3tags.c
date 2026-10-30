@@ -346,7 +346,7 @@ static int parselyrics( struct mp3entry* entry, char* tag, int bufferpos )
     lyrics->pos += pos;
     lyrics->size -= pos;
     entry->has_embedded_lyrics = lyrics->size > 0;
-    /* nothing was stored in id3v2buf */
+    /* the main loop takes back the frame's room in id3v2buf */
     return bufferpos;
 }
 
@@ -1123,12 +1123,17 @@ retry_with_limit:
                 {
                     /* only the start, the lyrics are read from the file
                        when shown, which unsynchronisation would break */
+                    /* with the buffer nearly full, less than the start
+                       is read, and the rest of it would be stale bytes */
+                    bool start_read =
+                        framelen >= MIN(totframelen, LYRICS_HEADER_SIZE);
                     framelen = MIN(framelen, LYRICS_HEADER_SIZE);
                     if (!entry->has_embedded_lyrics)
                     {
                         entry->embedded_lyrics.pos = lseek(fd, 0, SEEK_CUR);
                         entry->embedded_lyrics.size =
-                                        (unsynch || global_unsynch) ? 0 : totframelen;
+                            (unsynch || global_unsynch || !start_read) ?
+                            0 : totframelen;
                     }
                 }
 
@@ -1257,6 +1262,10 @@ retry_with_limit:
 #endif
                 if( tr->ppFunc )
                     bufferpos = tr->ppFunc(entry, tag, bufferpos);
+                /* only where the lyrics start was wanted: the buffer is
+                   free again for the tags after them */
+                if (tr->ppFunc == &parselyrics)
+                    bufferpos = tag - buffer;
                 break;
             }
         }

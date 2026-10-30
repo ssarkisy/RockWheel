@@ -144,10 +144,13 @@ static void wrap_lyrics(int width, int font)
 
 bool lyrics_load(const struct mp3entry *id3, struct viewport *vp)
 {
+    /* taken before the read: vp is in the skin's memory, which can move
+       while the file is read */
+    int width = vp->width, font = vp->font;
     line_count = top_line = 0;
     if (!id3 || !id3->has_embedded_lyrics || !read_lyrics(id3))
         return false;
-    wrap_lyrics(vp->width, vp->font);
+    wrap_lyrics(width, font);
     return line_count > 0;
 }
 

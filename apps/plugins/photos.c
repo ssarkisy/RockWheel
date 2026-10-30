@@ -329,6 +329,9 @@ static void parse_mhba(off_t pos, struct album *album)
         child += total;
     }
 
+    /* checked before the product, which a broken count can wrap */
+    if (mhias < 0 || (size_t)mhias > mem_left / sizeof(uint32_t))
+        return;
     album->items = alloc(mhias * sizeof(uint32_t));
     if (!album->items)
         return;
@@ -365,6 +368,8 @@ static bool parse_list(off_t pos, bool images)
     }
     else
     {
+        if ((size_t)count > mem_left / sizeof(struct album))
+            return false;
         albums = alloc(count * sizeof(struct album));
         if (!albums)
             return false;
