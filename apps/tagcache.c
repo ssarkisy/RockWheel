@@ -6459,9 +6459,12 @@ static void tagcache_thread(void)
             case SYS_USB_CONNECTED:
                 logf("USB: TagCache");
                 /* what was played and rated since the last sync, for Finder
-                   to take in before the disk is handed over */
+                   to take in before the disk is handed over; the computer
+                   waits for it, so at full speed */
+                cpu_boost(true);
                 run_command_queue(true);
                 itunesdb_write_playcounts();
+                cpu_boost(false);
                 usb_acknowledge(SYS_USB_CONNECTED_ACK, ev.data);
                 usb_wait_for_disconnect(&tagcache_queue);
                 break ;
