@@ -1640,28 +1640,37 @@ bool itunesdb_resumes(const char *path)
 /* where each track's cover is, by path hash */
 #define ART_FILE        ROCKBOX_DIR "/itunesdb_art.dat"
 #define ART_MAGIC       0x41494252 /* "RBIA" */
-#define ART_VERSION     1
+#define ART_VERSION     2   /* 2: the format of each entry's frame */
+#define ART_FORMATS     4
+#define FRAME_MAX       (200 * 200)  /* the iPod Video's largest covers */
+
+struct art_format {
+    uint32_t format;    /* of the ithmb files */
+    uint32_t width;     /* of their frames */
+    uint32_t height;
+};
 
 struct art_header {
     uint32_t magic;
     uint32_t version;
     uint32_t count;
-    uint32_t format;    /* of the ithmb files, the largest there is */
-    uint32_t width;     /* of its frames */
-    uint32_t height;
+    uint32_t nformats;
+    struct art_format formats[ART_FORMATS];
 };
 
 struct art_entry {
     uint64_t hash;
     uint32_t offset;    /* in F<format>_<file>.ithmb */
-    uint32_t file;
+    uint16_t file;
+    uint16_t format;
 };
 
 /* an ArtworkDB image */
 struct art_image {
     uint32_t id;
     uint32_t offset;
-    uint32_t file;
+    uint16_t file;
+    uint16_t format;
 };
 
 static struct art_header art_hdr;
@@ -1694,8 +1703,56 @@ static void read_artwork_name(off_t pos, char *buf, size_t size)
     }
 }
 
-/* the frame of the largest format in the mhii at pos; the first image
-   decides which format that is for all of them */
+/* the index's slot of a format of frames, taken if it is new and there is
+   room; -1 without */
+static int art_format_of(uint32_t format, uint32_t width, uint32_t height)
+{
+    for (uint32_t i = 0; i < art_hdr.nformats; i++)
+    {
+        if (art_hdr.formats[i].format == format)
+            return art_hdr.formats[i].width == width
+                   && art_hdr.formats[i].height == height ? (int)i : -1;
+    }
+    if (art_hdr.nformats == ART_FORMATS)
+        return -1;
+    struct art_format *f = &art_hdr.formats[art_hdr.nformats];
+    f->format = format;
+    f->width = width;
+    f->height = height;
+    return art_hdr.nformats++;
+}
+
+/* The sizes of the ithmb files, each looked up once: in a sync Finder lists
+   the frames of the covers before it writes them, and a frame past the end
+   of its file left playback to decode the track's own JPEG, for seconds */
+static struct { uint32_t format, file; off_t size; } ithmb_sizes[8];
+static int ithmb_count;
+
+static off_t ithmb_size(uint32_t format, uint32_t file)
+{
+    for (int i = 0; i < ithmb_count; i++)
+    {
+        if (ithmb_sizes[i].format == format && ithmb_sizes[i].file == file)
+            return ithmb_sizes[i].size;
+    }
+    char path[64];
+    snprintf(path, sizeof(path), ARTWORK_DIR "/F%lu_%lu.ithmb",
+             (unsigned long)format, (unsigned long)file);
+    int fd = open(path, O_RDONLY);
+    off_t size = fd >= 0 ? ffilesize(fd) : 0;
+    if (fd >= 0)
+        close(fd);
+    if (ithmb_count < (int)ARRAYLEN(ithmb_sizes))
+    {
+        ithmb_sizes[ithmb_count].format = format;
+        ithmb_sizes[ithmb_count].file = file;
+        ithmb_sizes[ithmb_count].size = size;
+        ithmb_count++;
+    }
+    return size;
+}
+
+/* the largest frame in the mhii at pos that its file has */
 static bool read_image(off_t pos, struct art_image *image)
 {
     struct { uint32_t format, offset, size, width, height, file; } frames[8];
@@ -1736,31 +1793,28 @@ static bool read_image(off_t pos, struct art_image *image)
         child += total;
     }
 
-    if (art_hdr.format == 0)
-    {
-        for (int i = 0; i < nframes; i++)
-        {
-            uint32_t pixels = frames[i].width * frames[i].height;
-            if (frames[i].size == pixels * 2
-                && pixels > art_hdr.width * art_hdr.height)
-            {
-                art_hdr.format = frames[i].format;
-                art_hdr.width = frames[i].width;
-                art_hdr.height = frames[i].height;
-            }
-        }
-    }
+    /* the largest RGB565 frame of the image, which is 200x200 where Finder
+       made one and else 100x100: it makes the large ones of some covers
+       later in a sync, so the first image doesn't tell for all */
+    int best = -1;
     for (int i = 0; i < nframes; i++)
     {
-        if (frames[i].format == art_hdr.format
-            && frames[i].size == art_hdr.width * art_hdr.height * 2)
-        {
-            image->offset = frames[i].offset;
-            image->file = frames[i].file;
-            return true;
-        }
+        uint32_t pixels = frames[i].width * frames[i].height;
+        if (frames[i].size != pixels * 2 || pixels > FRAME_MAX
+            || (best >= 0 && pixels <= frames[best].width * frames[best].height)
+            || (off_t)frames[i].offset + (off_t)frames[i].size
+               > ithmb_size(frames[i].format, frames[i].file)
+            || art_format_of(frames[i].format, frames[i].width,
+                             frames[i].height) < 0)
+            continue;
+        best = i;
     }
-    return false;
+    if (best < 0)
+        return false;
+    image->offset = frames[best].offset;
+    image->file = frames[best].file;
+    image->format = frames[best].format;
+    return true;
 }
 
 static int cmp_image(const void *a, const void *b)
@@ -1844,8 +1898,9 @@ static void write_art_index(void)
     struct art_image *images = NULL;
     int art_count = 0;
     memset(&art_hdr, 0, sizeof(art_hdr));
+    ithmb_count = 0;
     int handle = read_images(&images, &art_count);
-    if (handle <= 0 || art_hdr.format == 0)
+    if (handle <= 0 || art_hdr.nformats == 0)
         goto done;
 
     if (!writer_open(&out, ART_FILE ".tmp"))
@@ -1862,7 +1917,9 @@ static void write_art_index(void)
             find_image(images, art_count, t->art) : NULL;
         if (!image)
             continue;
-        struct art_entry entry = { t->st.hash, image->offset, image->file };
+        struct art_entry entry = {
+            t->st.hash, image->offset, image->file, image->format
+        };
         writer_put(&out, &entry, sizeof(entry));
         count++;
     }
@@ -1885,7 +1942,6 @@ done:
 
 /* The index lives in memory, and each frame is read once for all the sizes
    a theme shows it at, into a buffer of its own */
-#define FRAME_MAX       (200 * 200)  /* the iPod Video's largest covers */
 
 static struct index art_index = { 0, 0, sizeof(struct art_entry) };
 static struct art_header index_hdr;
@@ -1908,14 +1964,20 @@ bool itunesdb_find_art(const char *path, struct itunesdb_art *art)
         || !find_in_index(&art_index, itunesdb_path_hash(path), &entry))
         return false;
 
-    if ((size_t)snprintf(art->path, sizeof(art->path),
-                         ARTWORK_DIR "/F%lu_%lu.ithmb",
-                         (unsigned long)index_hdr.format,
-                         (unsigned long)entry.file) >= sizeof(art->path))
+    const struct art_format *f = NULL;
+    for (uint32_t i = 0; i < index_hdr.nformats && i < ART_FORMATS; i++)
+    {
+        if (index_hdr.formats[i].format == entry.format)
+            f = &index_hdr.formats[i];
+    }
+    if (!f || (size_t)snprintf(art->path, sizeof(art->path),
+                               ARTWORK_DIR "/F%lu_%lu.ithmb",
+                               (unsigned long)f->format,
+                               (unsigned long)entry.file) >= sizeof(art->path))
         return false;
     art->offset = entry.offset;
-    art->width = index_hdr.width;
-    art->height = index_hdr.height;
+    art->width = f->width;
+    art->height = f->height;
     return true;
 }
 
@@ -2059,17 +2121,28 @@ int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
     if (w > ROW_MAX || out_size + (int)sizeof(struct bitmap) > max_size)
         return -1;
 
+    /* one at a time: PictureFlow takes covers while playback does, and
+       the frame read last is shared */
+    static struct mutex art_lock;
+    static bool art_lock_ready;
+    if (!art_lock_ready)
+    {
+        mutex_init(&art_lock);
+        art_lock_ready = true;
+    }
+    mutex_lock(&art_lock);
     const fb_data *frame = get_frame(art);
-    if (!frame)
-        return -1;
-    if (w == fw && h == fh)
+    if (frame && w == fw && h == fh)
         memcpy(bm->data, frame, out_size);
-    else
+    else if (frame)
     {
         cpu_boost(true);
         scale_frame(frame, fw, fh, (fb_data *)bm->data, w, h);
         cpu_boost(false);
     }
+    mutex_unlock(&art_lock);
+    if (!frame)
+        return -1;
 
     bm->width = w;
     bm->height = h;
@@ -2128,6 +2201,20 @@ bool itunesdb_load_tracks(void)
 #ifdef ITUNESDB_HAVE_ART
     load_index(&art_index, ART_FILE, &index_hdr, sizeof(index_hdr),
                ART_MAGIC, ART_VERSION);
+    /* an index of covers of an older version: made again with the flags,
+       once, as it isn't there or is of this one after */
+    if (art_index.handle <= 0)
+    {
+        struct art_header old = { 0 };
+        int fd = open(ART_FILE, O_RDONLY);
+        if (fd >= 0)
+        {
+            read(fd, &old, 2 * sizeof(uint32_t));
+            close(fd);
+        }
+        if (old.magic == ART_MAGIC && old.version != ART_VERSION)
+            return false;
+    }
 #endif
     if (flags_index.handle > 0 || !db_stamp(&size, &mtime))
         return true;
