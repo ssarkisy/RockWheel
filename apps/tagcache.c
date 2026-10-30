@@ -1231,6 +1231,10 @@ static bool get_index(int masterfd, int idxid,
 #ifdef HAVE_TC_RAMCACHE
     if (tc_stat.ramcache && use_ram)
     {
+        /* as a read of a place past the end of the file fails */
+        if (idxid >= current_tcmh.tch.entry_count)
+            return false;
+
         if (tcramcache.hdr->indices[idxid].flag & FLAG_DELETED)
             return false;
 
@@ -6472,18 +6476,36 @@ static void tagcache_thread(void)
     {
         /* what playback needs first: it is quick, and the old covers point
            into ithmb files that Finder has rewritten */
-        import_total = itunesdb_import_tracks(true);
+        import_total = itunesdb_import_tracks(true, &import_done,
+                                              &import_total);
         import_done = 0;
         import_phase = TAGCACHE_IMPORT_SCANNING;
         queue_post(&tagcache_queue, Q_IMPORT_ITUNES, 0);
     }
     else if (!itunesdb_load_tracks())
-        itunesdb_import_tracks(false);
+        itunesdb_import_tracks(false, NULL, NULL);
 
     /* The header check, on the background but at once: the song count and
        an import after a sync wait for it */
     if (!tc_stat.ready)
         tagcache_commit_finalize();
+
+#ifdef ITUNESDB_HAVE_ART
+    /* Cover Flow's slides that an import without a sync left to make, or
+       one cut short: before the menu, as after a sync */
+    if (!sync_found)
+    {
+        if (itunesdb_slides_todo())
+        {
+            import_done = import_total = 0;
+            import_phase = TAGCACHE_IMPORT_SLIDES;
+            itunesdb_make_slides(&import_done, &import_total,
+                                 check_event_queue);
+        }
+        /* also when the import found none to make after all */
+        import_phase = TAGCACHE_IMPORT_NONE;
+    }
+#endif
 
     while (1)
     {
@@ -6518,7 +6540,8 @@ static void tagcache_thread(void)
 
             case Q_SYNCED:
                 /* as at boot after a sync */
-                import_total = itunesdb_import_tracks(true);
+                import_total = itunesdb_import_tracks(true, &import_done,
+                                              &import_total);
                 import_done = 0;
                 import_phase = TAGCACHE_IMPORT_SCANNING;
                 /* fallthrough */
@@ -6535,10 +6558,18 @@ static void tagcache_thread(void)
                 check_skips_synced = true;
                 check_deleted_file_refs(true);
                 check_skips_synced = false;
+                import_done = import_total = 0;
                 import_phase = TAGCACHE_IMPORT_COUNTS;
                 /* the import is tried again on the next boot otherwise */
                 if (!db_file_exists(TAGCACHE_FILE_TEMP))
                     itunesdb_import();
+#ifdef ITUNESDB_HAVE_ART
+                /* the slides of the new covers, ready for Cover Flow */
+                import_done = import_total = 0;
+                import_phase = TAGCACHE_IMPORT_COVERS;
+                itunesdb_make_slides(&import_done, &import_total,
+                                     check_event_queue);
+#endif
                 import_phase = TAGCACHE_IMPORT_NONE;
                 break ;
 
@@ -6708,6 +6739,10 @@ void tagcache_init(void)
     sync_found = itunesdb_changed();
     if (sync_found)
         import_phase = TAGCACHE_IMPORT_READING;
+#ifdef ITUNESDB_HAVE_ART
+    else if (itunesdb_slides_todo())
+        import_phase = TAGCACHE_IMPORT_SLIDES;
+#endif
     mutex_init(&command_queue_mutex);
     queue_init(&tagcache_queue, true);
     create_thread(tagcache_thread, tagcache_stack,
@@ -6761,7 +6796,8 @@ int tagcache_get_commitid(void)
 }
 
 #ifdef HAVE_TC_RAMCACHE
-bool tagcache_for_each_track(void (*f)(const int32_t *tag_seek, void *data),
+bool tagcache_for_each_track(void (*f)(int idx_id, const int32_t *tag_seek,
+                                       void *data),
                              void *data)
 {
     if (!tc_stat.ramcache)
@@ -6771,7 +6807,7 @@ bool tagcache_for_each_track(void (*f)(const int32_t *tag_seek, void *data),
     {
         const struct index_entry *idx = &tcramcache.hdr->indices[i];
         if (!(idx->flag & FLAG_DELETED))
-            f(idx->tag_seek, data);
+            f(i, idx->tag_seek, data);
     }
     tcrc_buffer_unlock();
     return true;

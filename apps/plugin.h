@@ -183,7 +183,7 @@ int plugin_open(const char *plugin, const char *parameter);
  */
 /* 287: the iPod fork changed structures plugins see (gui_synclist,
  * user_settings, mp3entry) and the action numbering */
-#define PLUGIN_API_VERSION 289
+#define PLUGIN_API_VERSION 292
 
 /* 239 Marks the removal of ARCHOS HWCODEC and CHARCELL */
 
@@ -1068,12 +1068,16 @@ struct plugin_api {
     bool (*itunesdb_find_art)(const char *path, struct itunesdb_art *art);
     int (*itunesdb_load_art)(const struct itunesdb_art *art, struct bitmap *bm,
                              int max_size);
+    int (*itunesdb_load_slide)(const struct itunesdb_art *art, void *buf,
+                               int *width, int *height);
+    void (*library_update_progress)(int done, int total);
 #endif
 #ifdef HAVE_TAGCACHE
     int (*tagcache_get_commitid)(void);
 #endif
 #ifdef HAVE_TC_RAMCACHE
-    bool (*tagcache_for_each_track)(void (*f)(const int32_t *tag_seek,
+    bool (*tagcache_for_each_track)(void (*f)(int idx_id,
+                                              const int32_t *tag_seek,
                                               void *data), void *data);
 #endif
 };

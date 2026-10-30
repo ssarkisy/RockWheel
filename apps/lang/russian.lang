@@ -17955,3 +17955,73 @@
     *: "Уборка диска"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Чтение медиатеки"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Проверка песен"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Обновление счётчиков"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Подготовка обложек"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Подготовка альбомов"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

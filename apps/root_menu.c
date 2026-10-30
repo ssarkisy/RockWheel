@@ -25,6 +25,7 @@
 #include "appevents.h"
 #include "menu.h"
 #include "root_menu.h"
+#include "itunesdb.h"
 #include "lang.h"
 #include "settings.h"
 #include "screens.h"
@@ -992,90 +993,137 @@ static int root_menu_setup_screens(void)
 
 
 #ifdef HAVE_TAGCACHE
-/* how far the import after a sync is, as the steps took on an iPod */
-static int library_update_percent(int phase, int done, int total)
+/* the step of the import after a sync, each with a bar of its own */
+static const char *library_update_step(int phase)
 {
     switch (phase)
     {
         case TAGCACHE_IMPORT_READING:
-            return 2;
+            return str(LANG_READING_LIBRARY);
         case TAGCACHE_IMPORT_SCANNING:
-            return 4 + (total > 0 ? 41 * MIN(done, total) / total : 0);
-        case TAGCACHE_IMPORT_SAVING:
-            return 45 + (total > 0 ? 40 * MIN(done, total) / total : 0);
-        case TAGCACHE_IMPORT_LOADING:
-            return 88;
+            return str(LANG_CHECKING_SONGS);
         case TAGCACHE_IMPORT_COUNTS:
-            /* through the tracks, deleting those a sync replaced */
-            return 90 + (total > 0 ? 9 * MIN(done, total) / total : 0);
-        default:
-            return 96;
+            return str(LANG_UPDATING_PLAY_COUNTS);
+        case TAGCACHE_IMPORT_COVERS:
+        case TAGCACHE_IMPORT_SLIDES:
+            return str(LANG_PREPARING_COVERS);
+        default: /* the commit, and loading it into memory */
+            return str(LANG_UPDATING_LIBRARY);
     }
 }
 
+static int library_update_percent(int phase, int done, int total)
+{
+    if (phase == TAGCACHE_IMPORT_LOADING)
+        return 100; /* of the commit before it: it has no numbers itself */
+    return total > 0 ? 100 * MIN(done, total) / total : 0;
+}
+
+/* what the screen shows now */
+static const char *shown_text;
+static int shown_percent;
+static long shown_at;
+
+/* the screen with this step and how far it is: drawn for a change, and every
+   second as the theme's backdrop can come back meanwhile */
+static void library_update_show(const char *text, int percent)
+{
+    if (text == shown_text && percent == shown_percent
+        && TIME_BEFORE(current_tick, shown_at + HZ))
+        return;
+    shown_text = text;
+    shown_percent = percent;
+    shown_at = current_tick;
+
+    const int bar_w = 140, bar_h = 6;
+    lcd_set_viewport(NULL);
+#if LCD_DEPTH > 1
+    lcd_set_backdrop(NULL);
+#endif
+#ifdef APPLE_BOOT_LOGO
+    int y = APPLE_BOOT_LOGO_Y;
+#else
+    int y = (LCD_HEIGHT - 96) / 2;
+#endif
+    lcd_set_background(LCD_BLACK);
+    lcd_clear_display();
+#ifdef APPLE_BOOT_LOGO
+    lcd_bmp(&bm_applelogo, (LCD_WIDTH - BMPWIDTH_applelogo) / 2, y);
+    y += BMPHEIGHT_applelogo;
+#else
+    y += 96;
+#endif
+    y += 22;
+    int x = (LCD_WIDTH - bar_w) / 2;
+    lcd_set_foreground(LCD_RGBPACK(70, 70, 70));
+    lcd_fillrect(x, y, bar_w, bar_h);
+    lcd_set_foreground(LCD_WHITE);
+    lcd_fillrect(x, y, bar_w * percent / 100, bar_h);
+
+    int w, h;
+    lcd_setfont(FONT_UI);
+    lcd_getstringsize(text, &w, &h);
+    lcd_set_foreground(LCD_RGBPACK(160, 160, 160));
+    lcd_set_drawmode(DRMODE_FG);
+    lcd_putsxy((LCD_WIDTH - w) / 2, y + bar_h + 10, text);
+    lcd_set_drawmode(DRMODE_SOLID);
+    lcd_update();
+    backlight_on();
+}
+
+#ifdef ITUNESDB_HAVE_ART
+/* Each step of Cover Flow's album list counts anew, so its one bar only goes
+   forward */
+void library_update_progress(int done, int total)
+{
+    static int percent;
+    if (shown_text != (const char *)str(LANG_PREPARING_ALBUMS))
+        percent = 0;
+    if (total > 0)
+        percent = MAX(percent, 100 * MIN(done, total) / total);
+    library_update_show(str(LANG_PREPARING_ALBUMS), percent);
+}
+#endif
+
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
- * the progress under it. Menu leaves it to finish in the background. */
+ * the step and how far that is under it. Menu leaves it to finish in the
+ * background. */
 void show_library_update(void)
 {
-    int done, total, phase, last = -1;
+    int done, total, phase;
+    bool shown = false;
     while ((phase = tagcache_get_import(&done, &total))
            != TAGCACHE_IMPORT_NONE)
     {
         int percent = library_update_percent(phase, done, total);
-        if (last < 0)
+        if (!shown)
         {
             /* the whole screen, without the theme */
             FOR_NB_SCREENS(i)
                 viewportmanager_theme_enable(i, false, NULL);
+            shown_text = NULL;
+            shown = true;
         }
-        /* drawn every time: the theme's backdrop can come back meanwhile */
-        {
-            const int bar_w = 140, bar_h = 6;
-            lcd_set_viewport(NULL);
-#if LCD_DEPTH > 1
-            lcd_set_backdrop(NULL);
-#endif
-#ifdef APPLE_BOOT_LOGO
-            int y = APPLE_BOOT_LOGO_Y;
-#else
-            int y = (LCD_HEIGHT - 96) / 2;
-#endif
-            lcd_set_background(LCD_BLACK);
-            lcd_clear_display();
-#ifdef APPLE_BOOT_LOGO
-            lcd_bmp(&bm_applelogo, (LCD_WIDTH - BMPWIDTH_applelogo) / 2, y);
-            y += BMPHEIGHT_applelogo;
-#else
-            y += 96;
-#endif
-            y += 22;
-            int x = (LCD_WIDTH - bar_w) / 2;
-            lcd_set_foreground(LCD_RGBPACK(70, 70, 70));
-            lcd_fillrect(x, y, bar_w, bar_h);
-            lcd_set_foreground(LCD_WHITE);
-            lcd_fillrect(x, y, bar_w * percent / 100, bar_h);
-
-            const char *text = str(LANG_UPDATING_LIBRARY);
-            int w, h;
-            lcd_setfont(FONT_UI);
-            lcd_getstringsize(text, &w, &h);
-            lcd_set_foreground(LCD_RGBPACK(160, 160, 160));
-            lcd_set_drawmode(DRMODE_FG);
-            lcd_putsxy((LCD_WIDTH - w) / 2, y + bar_h + 10, text);
-            lcd_set_drawmode(DRMODE_SOLID);
-            lcd_update();
-            if (percent != last)
-                backlight_on();
-            last = percent;
-        }
+        library_update_show(library_update_step(phase), percent);
         int action = get_action(CONTEXT_STD, HZ / 4);
         if (action == ACTION_STD_CANCEL
             || default_event_handler(action) == SYS_USB_CONNECTED)
             break;
     }
-    if (last >= 0)
+    if (shown)
     {
+#ifdef ITUNESDB_HAVE_ART
+        /* the album list of the new database, which Cover Flow itself makes:
+           it isn't left for when Cover Flow opens */
+        if (phase == TAGCACHE_IMPORT_NONE
+            && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock"))
+        {
+            library_update_show(str(LANG_PREPARING_ALBUMS), 0);
+            plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock",
+                        ITUNESDB_ALBUM_LIST);
+        }
+#endif
         lcd_set_background(LCD_DEFAULT_BG);
         lcd_set_foreground(LCD_DEFAULT_FG);
         lcd_clear_display();

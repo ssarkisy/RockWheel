@@ -21,6 +21,7 @@
 #define FILEFUNCTIONS_DEFINED
 #include "plugin.h"
 #include "itunesdb.h"
+#include "root_menu.h"
 #include "open_plugin.h"
 #include <ctype.h>
 #include <string.h>
@@ -900,6 +901,8 @@ static const struct plugin_api rockbox_api = {
 #ifdef ITUNESDB_HAVE_ART
     itunesdb_find_art,
     itunesdb_load_art,
+    itunesdb_load_slide,
+    library_update_progress,
 #endif
 #ifdef HAVE_TAGCACHE
     tagcache_get_commitid,

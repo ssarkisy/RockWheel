@@ -56,8 +56,9 @@ uint64_t itunesdb_path_hash(const char *path);
    each cover is. Until then no track has flags and the covers come from the
    files. At boot after a sync (synced), it also writes Finder's playlists
    as .m3u8 files and keeps the tracks' counts for itunesdb_import(), so
-   that iTunesDB is read only once. Returns the number of tracks read. */
-int itunesdb_import_tracks(bool synced);
+   that iTunesDB is read only once. Returns the number of tracks read; done
+   and total, which may be NULL, say how far it is meanwhile. */
+int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total);
 
 /* Reads what itunesdb_import_tracks() noted into memory, at boot before
    music plays. False when that was noted from another iTunesDB, or by a
@@ -87,6 +88,10 @@ bool itunesdb_resumes(const char *path);
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH == 16) && (LCD_PIXELFORMAT == RGB565)
 #define ITUNESDB_HAVE_ART
 
+/* the parameter of Cover Flow's plugin for making its album list and leaving,
+   at the end of an import */
+#define ITUNESDB_ALBUM_LIST "--album-list"
+
 struct bitmap;
 
 /* where a track's cover is */
@@ -94,7 +99,13 @@ struct itunesdb_art {
     char path[64];      /* its ithmb file */
     uint32_t offset;
     int width, height;  /* of the frame */
+    int slide;          /* its album's slide for Cover Flow, 0 for none */
 };
+
+/* Cover Flow's slides, one an album, made after an import: covers this
+   many pixels a side at most, as PictureFlow shows the one in the middle */
+#define ITUNESDB_SLIDE_SIZE MIN(MAX(LCD_HEIGHT / 2, LCD_WIDTH * 2 / 5), \
+                                LCD_HEIGHT * 2 / 3)
 
 /* the cover Finder made for the file at path */
 bool itunesdb_find_art(const char *path, struct itunesdb_art *art);
@@ -104,6 +115,21 @@ bool itunesdb_find_art(const char *path, struct itunesdb_art *art);
    only when the frame isn't the one read last. */
 int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
                       int max_size);
+
+/* reads the slide of the cover's album into buf, ITUNESDB_SLIDE_SIZE
+   squared pixels at most, column after column, and its size into width and
+   height; returns the size of the pixels, or -1 when it isn't made (yet) */
+int itunesdb_load_slide(const struct itunesdb_art *art, void *buf,
+                        int *width, int *height);
+
+/* true when an import left slides to make, or the index of covers is of
+   an older version, whose import at boot will */
+bool itunesdb_slides_todo(void);
+
+/* makes them, counting done of total, until stop() says to stop: the next
+   call goes on from there. On the tagcache thread. */
+void itunesdb_make_slides(volatile int *done, volatile int *total,
+                          bool (*stop)(void));
 #endif
 
 #endif /* _ITUNESDB_H_ */

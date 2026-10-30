@@ -27,6 +27,9 @@ void root_menu(void) NORETURN_ATTR;
 #ifdef HAVE_TAGCACHE
 /* the boot logo and the import's progress, while there is an import */
 void show_library_update(void);
+/* on that screen, for a plugin working at the end of it: total is 0 when it
+   only says that it still works */
+void library_update_progress(int done, int total);
 #endif
 struct menu_table {
     char *string;

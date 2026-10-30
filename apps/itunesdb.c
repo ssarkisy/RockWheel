@@ -87,6 +87,9 @@ static int db_alloc(size_t size)
 #define CACHE_SIZE      65536 /* a multiple of READ_ALIGN */
 #define POOL_PER_TRACK  64 /* bytes of path; Finder's take about 35 */
 #define WRITE_BUF_SIZE  32768
+/* more than any file of ours or Finder's should count: a damaged count would
+   wrap around when multiplied by the size of an entry, on this 32-bit CPU */
+#define COUNT_MAX       (1 << 20)
 
 struct state_header {
     uint32_t magic;
@@ -109,6 +112,7 @@ struct track {
     uint32_t id;     /* what playlists refer to */
     uint32_t path;   /* offset in the path pool, 0 for none */
     uint32_t art;    /* the ArtworkDB image id of its cover, 0 for none */
+    uint32_t album;  /* its album and the album's artist hashed, 0 for none */
     uint32_t pos;    /* of its mhit in iTunesDB */
     struct state_entry st;
 };
@@ -135,7 +139,7 @@ static uint32_t le32(const unsigned char *p)
 
 static const unsigned char *db_get(off_t pos, size_t len)
 {
-    if (len > CACHE_SIZE - READ_ALIGN || pos < 0)
+    if (len > CACHE_SIZE - READ_ALIGN || pos < 0 || pos > 0x7fffffff - (off_t)len)
         return NULL;
     if (pos < db.cache_pos || pos + (off_t)len > db.cache_pos + db.cache_len)
     {
@@ -175,6 +179,23 @@ static bool mhod_string(off_t pos, char *buf, size_t size)
         units--;
     *utf16LEdecode(p, (unsigned char *)buf, units) = '\0';
     return true;
+}
+
+/* the string of the mhod at pos hashed as it is, 0 for an empty one */
+static uint32_t mhod_hash(off_t pos)
+{
+    const unsigned char *p = db_record(pos, "mhod", 40);
+    if (!p)
+        return 0;
+    size_t len = MIN(le32(p + 28), 1024);
+    p = len ? db_get(pos + 40, len) : NULL;
+    if (!p)
+        return 0;
+    /* FNV-1a */
+    uint32_t hash = 0x811c9dc5;
+    for (size_t i = 0; i < len; i++)
+        hash = (hash ^ p[i]) * 0x01000193;
+    return hash;
 }
 
 /* the path without its volume: Rockbox has "/<HDD0>/iPod_Control/..." where
@@ -235,7 +256,8 @@ static bool read_state_header(struct state_header *hdr)
     if (fd < 0)
         return false;
     bool ok = read(fd, hdr, sizeof(*hdr)) == sizeof(*hdr)
-        && hdr->magic == STATE_MAGIC && hdr->version == STATE_VERSION;
+        && hdr->magic == STATE_MAGIC && hdr->version == STATE_VERSION
+        && hdr->count <= COUNT_MAX;
     close(fd);
     return ok;
 }
@@ -601,14 +623,23 @@ static void read_track(off_t pos, struct track *track)
     if (header_len >= 356)
         track->art = le32(p + 352);
 
+    /* the album, by its name and the album's artist, or the track's where
+       none is given, for the covers of Cover Flow: as UTF-16, unread */
+    uint32_t album = 0, album_artist = 0, artist = 0;
     off_t child = pos + header_len;
     for (int i = 0; i < mhods; i++)
     {
         p = db_record(child, "mhod", 16);
         if (!p)
             break;
-        uint32_t total = le32(p + 8);
-        if (le32(p + 12) == 2 && mhod_string(child, path, sizeof(path)))
+        uint32_t total = le32(p + 8), type = le32(p + 12);
+        if (type == 3 || type == 4 || type == 22)
+        {
+            uint32_t h = mhod_hash(child);
+            *(type == 3 ? &album : type == 4 ? &artist : &album_artist) = h;
+        }
+        else if (type == 2 && !track->path
+                 && mhod_string(child, path, sizeof(path)))
         {
             /* ":iPod_Control:Music:F07:CWZV.m4a" */
             for (char *c = path; *c; c++)
@@ -622,14 +653,29 @@ static void read_track(off_t pos, struct track *track)
                 db.pool_used += len;
                 track->st.hash = itunesdb_path_hash(path);
             }
-            break;
         }
         if (total == 0)
             break;
         child += total;
     }
+    if (album)
+        track->album = (album * 31 + (album_artist ? album_artist : artist))
+                       | 1;
     if (track->st.hash)
         new_track_metadata(track);
+}
+
+/* how far itunesdb_import_tracks() has read, for its progress screen: the
+   tracks are the first half and the covers the second */
+static volatile int *read_done, *read_total;
+
+static void reading(int part, int done, int of)
+{
+    if (read_done && of > 0)
+    {
+        *read_total = 2000;
+        *read_done = part * 1000 + done * 1000 / of;
+    }
 }
 
 static bool read_tracks(off_t list)
@@ -652,7 +698,10 @@ static bool read_tracks(off_t list)
             break;
         pos += total;
         if ((i & 255) == 0)
+        {
+            reading(0, i, count);
             yield();
+        }
     }
     db.complete = db.count == listed;
     return db.count > 0;
@@ -874,6 +923,13 @@ static void writer_put(struct writer *w, const void *data, size_t len)
 {
     if (w->used + len > sizeof(w->buf))
         writer_flush(w);
+    /* more than the buffer holds, as the slides of a large library are */
+    if (len > sizeof(w->buf))
+    {
+        if (write(w->fd, data, len) != (ssize_t)len)
+            w->ok = false;
+        return;
+    }
     memcpy(w->buf + w->used, data, len);
     w->used += len;
 }
@@ -1099,6 +1155,7 @@ static bool load_pending(void)
     bool ok = read(fd, &pend.hdr, sizeof(pend.hdr)) == sizeof(pend.hdr)
         && pend.hdr.magic == PENDING_MAGIC
         && pend.hdr.version == PENDING_VERSION && pend.hdr.count > 0
+        && pend.hdr.count <= COUNT_MAX
         && db_stamp(&size, &mtime) && pend.hdr.db_size == size
         && pend.hdr.db_mtime == mtime;
     if (ok)
@@ -1264,6 +1321,8 @@ static bool db_load(void)
         return false;
 
     db.count = le32(p + 8);
+    if ((uint32_t)db.count > COUNT_MAX)
+        return false;
     size_t table_size =
         db.count * (sizeof(struct track) + 2 * sizeof(uint32_t));
     db.pool_size = db.count * POOL_PER_TRACK;
@@ -1504,7 +1563,8 @@ static void load_index(struct index *index, const char *file, void *hdr,
     if (fd < 0)
         return;
     if (read(fd, hdr, hdr_size) == (ssize_t)hdr_size
-        && h->magic == magic && h->version == version && h->count > 0)
+        && h->magic == magic && h->version == version && h->count > 0
+        && h->count <= COUNT_MAX)
     {
         ssize_t size = h->count * index->entry_size;
         int handle = db_alloc(size);
@@ -1640,9 +1700,25 @@ bool itunesdb_resumes(const char *path)
 /* where each track's cover is, by path hash */
 #define ART_FILE        ROCKBOX_DIR "/itunesdb_art.dat"
 #define ART_MAGIC       0x41494252 /* "RBIA" */
-#define ART_VERSION     2   /* 2: the format of each entry's frame */
+#define ART_VERSION     4   /* 2: the format of each entry's frame,
+                               3: and its album's slide,
+                               4: and the covers of the slides */
 #define ART_FORMATS     4
 #define FRAME_MAX       (200 * 200)  /* the iPod Video's largest covers */
+#define SMALL_FRAME_MAX (100 * 100)  /* what they are checked against */
+/* Cover Flow's slides, one an album, made after the import from the cover
+   of one of its first tracks: column after column as PictureFlow draws
+   them, each in a slot of its own behind a header that says which it is */
+#define SLIDES_FILE     ROCKBOX_DIR "/itunesdb_slides.dat"
+#define SLIDES_TODO     ROCKBOX_DIR "/itunesdb_slides.todo"
+#define SLIDE_MAGIC     0x32494252 /* "RBI2": 2, of frames checked */
+/* of a small frame, the large ones being unlike it: the next import tries
+   again, as Finder may have written them by then */
+#define SLIDE_UNSURE    0x33494252 /* "RBI3" */
+#define SLIDE_SOURCES   3
+#define SLIDE_PIXELS    (ITUNESDB_SLIDE_SIZE * ITUNESDB_SLIDE_SIZE)
+#define SLIDE_SLOT      ((int)ALIGN_UP(sizeof(struct slide_header) \
+                                 + SLIDE_PIXELS * sizeof(fb_data), 2048))
 
 struct art_format {
     uint32_t format;    /* of the ithmb files */
@@ -1656,13 +1732,39 @@ struct art_header {
     uint32_t count;
     uint32_t nformats;
     struct art_format formats[ART_FORMATS];
+    uint32_t nslides;   /* their keys and sources, after the entries */
 };
 
 struct art_entry {
     uint64_t hash;
     uint32_t offset;    /* in F<format>_<file>.ithmb */
-    uint16_t file;
-    uint16_t format;
+    uint8_t file;
+    uint8_t format;     /* in formats[] */
+    uint16_t slide;     /* its album's, from 1; 0 for none */
+};
+
+/* a frame in an ithmb file */
+struct art_frame {
+    uint32_t offset;
+    uint8_t file;       /* from 1; 0 for none */
+    uint8_t format;     /* in formats[] */
+    uint16_t unused;
+};
+
+/* What a slide can be made from: the covers of its album's first tracks.
+   Finder lists a frame in ArtworkDB before it writes it, and where it reuses
+   the place of an old one, another album's cover can be found there for
+   long, so each large frame comes with a small one to check it against.
+   Each slide also has a key, its album and its cover, 0 when unused. */
+struct art_slide {
+    struct { struct art_frame large, small; } source[SLIDE_SOURCES];
+};
+
+/* in front of each slide */
+struct slide_header {
+    uint32_t magic;
+    uint16_t width, height;
+    uint64_t key;
 };
 
 /* an ArtworkDB image */
@@ -1671,6 +1773,11 @@ struct art_image {
     uint32_t offset;
     uint16_t file;
     uint16_t format;
+    uint32_t source;    /* the size of the image Finder made it from */
+    /* a smaller frame of it, to check that one against */
+    uint32_t small_offset;
+    uint16_t small_file; /* 0 for none */
+    uint16_t small_format;
 };
 
 static struct art_header art_hdr;
@@ -1758,12 +1865,13 @@ static bool read_image(off_t pos, struct art_image *image)
     struct { uint32_t format, offset, size, width, height, file; } frames[8];
     int nframes = 0;
     char name[48];
-    const unsigned char *p = db_record(pos, "mhii", 20);
+    const unsigned char *p = db_record(pos, "mhii", 52);
     if (!p)
         return false;
     uint32_t header_len = le32(p + 4);
     int children = le32(p + 12);
     image->id = le32(p + 16);
+    image->source = le32(p + 48);
 
     off_t child = pos + header_len;
     for (int i = 0; i < children && nframes < (int)ARRAYLEN(frames); i++)
@@ -1796,24 +1904,50 @@ static bool read_image(off_t pos, struct art_image *image)
     /* the largest RGB565 frame of the image, which is 200x200 where Finder
        made one and else 100x100: it makes the large ones of some covers
        later in a sync, so the first image doesn't tell for all */
-    int best = -1;
+    int best = -1, small = -1;
     for (int i = 0; i < nframes; i++)
     {
+        /* a cover that isn't square, 200x189 say, Finder pads with white
+           to the square frame: that whole frame is the cover, as on the
+           stock firmware, where it was left out for its size */
+        if (frames[i].size != frames[i].width * frames[i].height * 2)
+        {
+            uint32_t side = MAX(frames[i].width, frames[i].height);
+            while (side * side * 2 < frames[i].size && side < 1024)
+                side++;
+            if (side * side * 2 == frames[i].size)
+                frames[i].width = frames[i].height = side;
+        }
         uint32_t pixels = frames[i].width * frames[i].height;
+        /* nor of a shape no cover has, which scaling couldn't take */
+        if (frames[i].width < 2 || frames[i].height < 2
+            || frames[i].width > 2 * frames[i].height
+            || frames[i].height > 2 * frames[i].width)
+            continue;
         if (frames[i].size != pixels * 2 || pixels > FRAME_MAX
-            || (best >= 0 && pixels <= frames[best].width * frames[best].height)
             || (off_t)frames[i].offset + (off_t)frames[i].size
                > ithmb_size(frames[i].format, frames[i].file)
             || art_format_of(frames[i].format, frames[i].width,
                              frames[i].height) < 0)
             continue;
-        best = i;
+        if (best < 0 || pixels > frames[best].width * frames[best].height)
+            best = i;
+        if (small < 0 || pixels < frames[small].width * frames[small].height)
+            small = i;
     }
     if (best < 0)
         return false;
     image->offset = frames[best].offset;
     image->file = frames[best].file;
     image->format = frames[best].format;
+    image->small_file = 0;
+    if (small != best
+        && frames[small].width * frames[small].height <= SMALL_FRAME_MAX)
+    {
+        image->small_offset = frames[small].offset;
+        image->small_file = frames[small].file;
+        image->small_format = frames[small].format;
+    }
     return true;
 }
 
@@ -1864,6 +1998,8 @@ static int read_images(struct art_image **images, int *count)
         {
             off_t item = pos + header_len + le32(p + 4);
             int n = le32(p + 8);
+            if ((uint32_t)n > COUNT_MAX)
+                return -1;
             handle = db_alloc(n * sizeof(struct art_image) + 1);
             if (handle <= 0)
                 return -1;
@@ -1881,7 +2017,10 @@ static int read_images(struct art_image **images, int *count)
                     break;
                 item += item_total;
                 if ((k & 255) == 0)
+                {
+                    reading(1, k, n);
                     yield();
+                }
             }
             qsort(*images, *count, sizeof(struct art_image), cmp_image);
             return handle;
@@ -1893,15 +2032,246 @@ static int read_images(struct art_image **images, int *count)
     return -1;
 }
 
-static void write_art_index(void)
+/* the index in formats[] of a format of the ithmb files */
+static uint8_t art_format_index(uint32_t format)
+{
+    for (uint32_t i = 0; i < art_hdr.nformats; i++)
+    {
+        if (art_hdr.formats[i].format == format)
+            return i;
+    }
+    return 0;
+}
+
+/* the tracks with covers, by album and then in iTunesDB's order */
+static int cmp_album_track(const void *a, const void *b)
+{
+    uint32_t x = *(const uint32_t *)a, y = *(const uint32_t *)b;
+    uint32_t ax = db.tracks[x].album, ay = db.tracks[y].album;
+    if (ax != ay)
+        return (ax > ay) - (ax < ay);
+    return (x > y) - (x < y);
+}
+
+/* the old slides, sorted by key, as places in the slides file */
+static const uint64_t *old_keys;
+static int cmp_old_key(const void *a, const void *b)
+{
+    uint64_t x = old_keys[*(const uint32_t *)a];
+    uint64_t y = old_keys[*(const uint32_t *)b];
+    return (x > y) - (x < y);
+}
+
+/* the albums of the tracks in order, sorted by album */
+static int count_albums(const uint32_t *order, int n)
+{
+    int albums = 0;
+    for (int i = 0; i < n; i++)
+    {
+        if (i == 0 || db.tracks[order[i]].album != db.tracks[order[i - 1]].album)
+            albums++;
+    }
+    return albums;
+}
+
+/* an album's slide: what it can be made of, from the first of its tracks */
+static void set_slide_sources(struct art_slide *slide,
+                              struct art_image *images, int art_count,
+                              const uint32_t *order, int tracks)
+{
+    memset(slide, 0, sizeof(*slide));
+    for (int i = 0; i < tracks && i < SLIDE_SOURCES; i++)
+    {
+        const struct art_image *image = find_image(images, art_count,
+                                                   db.tracks[order[i]].art);
+        slide->source[i].large.offset = image->offset;
+        slide->source[i].large.file = image->file;
+        slide->source[i].large.format = art_format_index(image->format);
+        slide->source[i].small.offset = image->small_offset;
+        slide->source[i].small.file = image->small_file;
+        slide->source[i].small.format = art_format_index(image->small_format);
+    }
+}
+
+/* The slides of Cover Flow, one for each album with a cover: in slide_of
+   each track's from 1 (0 for none), in keys and sources what they are, by
+   place in the slides file, of which there are *count. A slide the last
+   index had, of the same album and the same cover in the same size, keeps
+   its place and is not made again; itunesdb_make_slides() makes the others,
+   in the places the albums gone left. order holds the n tracks with covers
+   sorted by album, with room behind them for old_count places and as many
+   bytes. */
+static void assign_slides(struct art_image *images, int art_count,
+                          const uint64_t *old, uint32_t old_count,
+                          uint16_t *slide_of, uint32_t *order, int n,
+                          uint64_t *keys, struct art_slide *sources,
+                          uint32_t *count)
+{
+    /* the old ones by key, as yet not taken */
+    uint32_t *by_key = order + n;
+    uint8_t *taken = (uint8_t *)(by_key + old_count);
+    for (uint32_t i = 0; i < old_count; i++)
+    {
+        keys[i] = 0;
+        by_key[i] = i;
+        taken[i] = 0;
+    }
+    old_keys = old;
+    qsort(by_key, old_count, sizeof(*by_key), cmp_old_key);
+
+    /* the ones kept first, so that a new one doesn't take their place */
+    uint32_t used = 0, free_at = 0;
+    for (int pass = 0; pass < 2; pass++)
+    {
+        for (int g = 0; g < n; )
+        {
+            const struct track *t = &db.tracks[order[g]];
+            int end = g + 1;
+            while (end < n && db.tracks[order[end]].album == t->album)
+                end++;
+            const struct art_image *image =
+                find_image(images, art_count, t->art);
+            const struct art_format *f =
+                &art_hdr.formats[art_format_index(image->format)];
+            /* with the frame's size: Finder makes the large ones later, and
+               a slide from a small one is made again when it has */
+            uint64_t key = (uint64_t)t->album << 32
+                           | (uint32_t)(image->source * 31
+                                        + f->width * f->height);
+            int slot = -1;
+            if (pass == 0)
+            {
+                /* the first of that key not taken */
+                int lo = 0, hi = old_count;
+                while (lo < hi)
+                {
+                    int mid = (lo + hi) / 2;
+                    if (old[by_key[mid]] < key)
+                        lo = mid + 1;
+                    else
+                        hi = mid;
+                }
+                for (; lo < (int)old_count && old[by_key[lo]] == key; lo++)
+                {
+                    if (!taken[by_key[lo]])
+                    {
+                        slot = by_key[lo];
+                        break;
+                    }
+                }
+            }
+            else if (!slide_of[order[g]])
+            {
+                /* where an album gone was, or after the rest */
+                while (free_at < old_count && taken[free_at])
+                    free_at++;
+                slot = free_at < old_count ? (int)free_at
+                                           : (int)MAX(used, old_count);
+                if (free_at < old_count)
+                    free_at++;
+            }
+            if (slot >= 0)
+            {
+                if ((uint32_t)slot < old_count)
+                    taken[slot] = 1;
+                keys[slot] = key;
+                set_slide_sources(&sources[slot], images, art_count,
+                                  &order[g], end - g);
+                used = MAX(used, (uint32_t)slot + 1);
+                for (int k = g; k < end; k++)
+                    slide_of[order[k]] = slot + 1;
+            }
+            g = end;
+        }
+    }
+    /* the places of albums gone stay empty, but for those at the end */
+    for (uint32_t i = 0; i < used && i < old_count; i++)
+    {
+        if (!taken[i])
+            memset(&sources[i], 0, sizeof(sources[i]));
+    }
+    *count = used;
+}
+
+/* the keys of the slides of the index in ART_FILE, which an import is to
+   keep, in memory; 0 without */
+static int read_old_slides(uint32_t *count)
+{
+    struct art_header h;
+    int handle = 0;
+    *count = 0;
+    int fd = open(ART_FILE, O_RDONLY);
+    if (fd >= 0 && read(fd, &h, sizeof(h)) == sizeof(h)
+        && h.magic == ART_MAGIC && h.version == ART_VERSION && h.nslides > 0
+        && h.nslides <= COUNT_MAX && h.count <= COUNT_MAX)
+    {
+        off_t pos = sizeof(h) + (off_t)h.count * sizeof(struct art_entry);
+        ssize_t size = h.nslides * sizeof(uint64_t);
+        handle = db_alloc(size);
+        if (handle > 0)
+        {
+            core_pin(handle);
+            bool ok = lseek(fd, pos, SEEK_SET) == pos
+                      && read(fd, core_get_data(handle), size) == size;
+            core_unpin(handle);
+            if (ok)
+                *count = h.nslides;
+            else
+                handle = core_free(handle);
+        }
+    }
+    if (fd >= 0)
+        close(fd);
+    return handle;
+}
+
+static void write_art_index(int old_handle, uint32_t old_count)
 {
     struct art_image *images = NULL;
     int art_count = 0;
+    int work = 0, slides = 0;
     memset(&art_hdr, 0, sizeof(art_hdr));
     ithmb_count = 0;
     int handle = read_images(&images, &art_count);
     if (handle <= 0 || art_hdr.nformats == 0)
         goto done;
+
+    /* for each track its slide, and the tracks with covers by album */
+    size_t slide_of_size = ALIGN_UP(db.count * sizeof(uint16_t), 4);
+    work = db_alloc(slide_of_size + (db.count + old_count) * sizeof(uint32_t)
+                    + ALIGN_UP(old_count, 4));
+    if (work <= 0)
+        goto done;
+    core_pin(work);
+    uint16_t *slide_of = core_get_data(work);
+    uint32_t *order = (uint32_t *)((char *)slide_of + slide_of_size);
+    int n = 0;
+    for (int i = 0; i < db.count; i++)
+    {
+        const struct track *t = &db.tracks[i];
+        slide_of[i] = 0;
+        if (t->path && t->art && t->album
+            && find_image(images, art_count, t->art))
+            order[n++] = i;
+    }
+    qsort(order, n, sizeof(*order), cmp_album_track);
+
+    /* the slides: as many as there were and albums at most */
+    uint32_t max_slides = count_albums(order, n) + old_count;
+    slides = db_alloc(MAX(max_slides, 1)
+                      * (sizeof(uint64_t) + sizeof(struct art_slide)));
+    if (slides <= 0)
+        goto done;
+    core_pin(slides);
+    uint64_t *keys = core_get_data(slides);
+    struct art_slide *sources = (struct art_slide *)(keys + max_slides);
+    if (old_handle > 0)
+        core_pin(old_handle);
+    assign_slides(images, art_count,
+                  old_handle > 0 ? core_get_data(old_handle) : NULL, old_count,
+                  slide_of, order, n, keys, sources, &art_hdr.nslides);
+    if (old_handle > 0)
+        core_unpin(old_handle);
 
     if (!writer_open(&out, ART_FILE ".tmp"))
         goto done;
@@ -1918,21 +2288,39 @@ static void write_art_index(void)
         if (!image)
             continue;
         struct art_entry entry = {
-            t->st.hash, image->offset, image->file, image->format
+            t->st.hash, image->offset, image->file,
+            art_format_index(image->format), slide_of[db.by_hash[i]]
         };
         writer_put(&out, &entry, sizeof(entry));
         count++;
     }
+    writer_put(&out, keys, art_hdr.nslides * sizeof(*keys));
+    writer_put(&out, sources, art_hdr.nslides * sizeof(*sources));
     /* the count, now that it is known */
     art_hdr.count = count;
     writer_flush(&out);
     lseek(out.fd, 0, SEEK_SET);
     writer_put(&out, &art_hdr, sizeof(art_hdr));
     if (writer_close(&out))
+    {
+        /* the slides to make before the index is complete */
+        close(open(SLIDES_TODO, O_WRONLY | O_CREAT | O_TRUNC, 0666));
         rename(ART_FILE ".tmp", ART_FILE);
-    logf("itunesdb: %lu covers", (unsigned long)count);
+    }
+    logf("itunesdb: %lu covers, %lu slides", (unsigned long)count,
+         (unsigned long)art_hdr.nslides);
 
 done:
+    if (slides > 0)
+    {
+        core_unpin(slides);
+        core_free(slides);
+    }
+    if (work > 0)
+    {
+        core_unpin(work);
+        core_free(work);
+    }
     if (handle > 0)
     {
         core_unpin(handle);
@@ -1944,66 +2332,129 @@ done:
    a theme shows it at, into a buffer of its own */
 
 static struct index art_index = { 0, 0, sizeof(struct art_entry) };
+static struct index slides_index = { 0, 0, sizeof(uint64_t) }; /* the keys */
 static struct art_header index_hdr;
 static unsigned char frame_raw[FRAME_MAX * sizeof(fb_data) + 2 * READ_ALIGN]
     STORAGE_ALIGN_ATTR;
 static const fb_data *frame_buf;
 static char frame_path[64];     /* where the frame is from, "" for none */
 static uint32_t frame_offset;
+/* one at a time: PictureFlow takes covers while playback does, the slides
+   are made meanwhile, and the frame read last is shared */
+static struct mutex art_lock;
+static bool art_lock_ready;
 
 static void forget_art(void)
 {
     forget_index(&art_index);
+    forget_index(&slides_index);
     frame_path[0] = '\0';
+}
+
+/* the slides' keys after the entries of the index loaded */
+static void load_slides_index(void)
+{
+    if (art_index.handle <= 0 || slides_index.handle > 0
+        || index_hdr.nslides == 0 || index_hdr.nslides > COUNT_MAX)
+        return;
+    int fd = open(ART_FILE, O_RDONLY);
+    if (fd < 0)
+        return;
+    off_t pos = sizeof(index_hdr)
+                + (off_t)index_hdr.count * sizeof(struct art_entry);
+    ssize_t size = index_hdr.nslides * sizeof(uint64_t);
+    int handle = db_alloc(size);
+    if (handle > 0)
+    {
+        core_pin(handle);
+        bool ok = lseek(fd, pos, SEEK_SET) == pos
+                  && read(fd, core_get_data(handle), size) == size;
+        core_unpin(handle);
+        if (ok)
+        {
+            slides_index.handle = handle;
+            slides_index.count = index_hdr.nslides;
+        }
+        else
+            core_free(handle);
+    }
+    close(fd);
+}
+
+/* the key of slide i (from 0) of the index, 0 without one */
+static uint64_t slide_key(uint32_t i)
+{
+    if (slides_index.handle <= 0 || i >= slides_index.count)
+        return 0;
+    return ((const uint64_t *)core_get_data(slides_index.handle))[i];
+}
+
+/* where the frame in the ithmb file of a format and number is */
+static bool art_place(uint8_t format, uint8_t file, uint32_t offset,
+                      struct itunesdb_art *art)
+{
+    if (format >= index_hdr.nformats || format >= ART_FORMATS)
+        return false;
+    const struct art_format *f = &index_hdr.formats[format];
+    /* as read_image() takes them, for an index that was damaged */
+    if (f->width < 2 || f->height < 2 || f->width > LCD_WIDTH * 2
+        || f->height > LCD_WIDTH * 2)
+        return false;
+    if ((size_t)snprintf(art->path, sizeof(art->path),
+                         ARTWORK_DIR "/F%lu_%lu.ithmb",
+                         (unsigned long)f->format,
+                         (unsigned long)file) >= sizeof(art->path))
+        return false;
+    art->offset = offset;
+    art->width = f->width;
+    art->height = f->height;
+    art->slide = 0;
+    return true;
 }
 
 bool itunesdb_find_art(const char *path, struct itunesdb_art *art)
 {
     struct art_entry entry;
     if (art_index.handle <= 0
-        || !find_in_index(&art_index, itunesdb_path_hash(path), &entry))
+        || !find_in_index(&art_index, itunesdb_path_hash(path), &entry)
+        || !art_place(entry.format, entry.file, entry.offset, art))
         return false;
-
-    const struct art_format *f = NULL;
-    for (uint32_t i = 0; i < index_hdr.nformats && i < ART_FORMATS; i++)
-    {
-        if (index_hdr.formats[i].format == entry.format)
-            f = &index_hdr.formats[i];
-    }
-    if (!f || (size_t)snprintf(art->path, sizeof(art->path),
-                               ARTWORK_DIR "/F%lu_%lu.ithmb",
-                               (unsigned long)f->format,
-                               (unsigned long)entry.file) >= sizeof(art->path))
-        return false;
-    art->offset = entry.offset;
-    art->width = f->width;
-    art->height = f->height;
+    art->slide = entry.slide;
     return true;
+}
+
+/* the frame read into raw, from the sector it starts in */
+static const fb_data *read_frame(const struct itunesdb_art *art,
+                                 unsigned char *raw, size_t room)
+{
+    size_t size = art->width * art->height * sizeof(fb_data);
+    off_t start = art->offset & ~(off_t)(READ_ALIGN - 1);
+    size_t skip = art->offset - start;
+    size_t want = (skip + size + READ_ALIGN - 1) & ~(size_t)(READ_ALIGN - 1);
+    if (want > room)
+        return NULL;
+    int fd = open(art->path, O_RDONLY);
+    /* the last frame of a file may end before the sector does */
+    bool ok = fd >= 0 && lseek(fd, start, SEEK_SET) == start
+              && read(fd, raw, want) >= (ssize_t)(skip + size);
+    if (fd >= 0)
+        close(fd);
+    return ok ? (const fb_data *)(raw + skip) : NULL;
 }
 
 /* the frame, read only when it isn't the one read last */
 static const fb_data *get_frame(const struct itunesdb_art *art)
 {
-    size_t size = art->width * art->height * sizeof(fb_data);
-    if (size > FRAME_MAX * sizeof(fb_data))
+    if (art->width * art->height > FRAME_MAX)
         return NULL;
     if (frame_buf && frame_offset == art->offset
         && !strcmp(frame_path, art->path))
         return frame_buf;
 
     frame_path[0] = '\0';
-    off_t start = art->offset & ~(off_t)(READ_ALIGN - 1);
-    size_t skip = art->offset - start;
-    size_t want = (skip + size + READ_ALIGN - 1) & ~(size_t)(READ_ALIGN - 1);
-    int fd = open(art->path, O_RDONLY);
-    /* the last frame of a file may end before the sector does */
-    bool ok = fd >= 0 && lseek(fd, start, SEEK_SET) == start
-              && read(fd, frame_raw, want) >= (ssize_t)(skip + size);
-    if (fd >= 0)
-        close(fd);
-    if (!ok)
+    frame_buf = read_frame(art, frame_raw, sizeof(frame_raw));
+    if (!frame_buf)
         return NULL;
-    frame_buf = (const fb_data *)(frame_raw + skip);
     strmemccpy(frame_path, art->path, sizeof(frame_path));
     frame_offset = art->offset;
     return frame_buf;
@@ -2044,7 +2495,7 @@ static void scale_row(const fb_data *src, uint32_t *dst, int w,
    scaling up, several rows on the screen come from the same two rows of
    the frame */
 static void scale_frame(const fb_data *frame, int fw, int fh,
-                        fb_data *out, int w, int h)
+                        fb_data *out, int w, int h, bool columns)
 {
     static uint16_t xs[ROW_MAX];
     static uint8_t fxs[ROW_MAX];
@@ -2099,9 +2550,22 @@ static void scale_frame(const fb_data *frame, int fw, int fh,
             scale_row(frame + y1 * fw, lower, w, xs, fxs);
             have_lower = y1;
         }
-        for (int x = 0; x < w; x++)
-            *out++ = UNSPREAD(lerp32(upper[x], lower[x], fy));
+        /* by rows, or column after column for Cover Flow */
+        fb_data *o = columns ? out + y : out + y * w;
+        const int step = columns ? h : 1;
+        for (int x = 0; x < w; x++, o += step)
+            *o = UNSPREAD(lerp32(upper[x], lower[x], fy));
     }
+}
+
+static void lock_art(void)
+{
+    if (!art_lock_ready)
+    {
+        mutex_init(&art_lock);
+        art_lock_ready = true;
+    }
+    mutex_lock(&art_lock);
 }
 
 int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
@@ -2121,23 +2585,14 @@ int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
     if (w > ROW_MAX || out_size + (int)sizeof(struct bitmap) > max_size)
         return -1;
 
-    /* one at a time: PictureFlow takes covers while playback does, and
-       the frame read last is shared */
-    static struct mutex art_lock;
-    static bool art_lock_ready;
-    if (!art_lock_ready)
-    {
-        mutex_init(&art_lock);
-        art_lock_ready = true;
-    }
-    mutex_lock(&art_lock);
+    lock_art();
     const fb_data *frame = get_frame(art);
     if (frame && w == fw && h == fh)
         memcpy(bm->data, frame, out_size);
     else if (frame)
     {
         cpu_boost(true);
-        scale_frame(frame, fw, fh, (fb_data *)bm->data, w, h);
+        scale_frame(frame, fw, fh, (fb_data *)bm->data, w, h, false);
         cpu_boost(false);
     }
     mutex_unlock(&art_lock);
@@ -2155,11 +2610,242 @@ int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
 #endif
     return out_size;
 }
+
+int itunesdb_load_slide(const struct itunesdb_art *art, void *buf,
+                        int *width, int *height)
+{
+    struct slide_header head;
+    uint64_t key = art->slide > 0 ? slide_key(art->slide - 1) : 0;
+    if (!key)
+        return -1;
+    int fd = open(SLIDES_FILE, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    off_t pos = (off_t)(art->slide - 1) * SLIDE_SLOT;
+    bool ok = lseek(fd, pos, SEEK_SET) == pos
+              && read(fd, &head, sizeof(head)) == sizeof(head)
+              && (head.magic == SLIDE_MAGIC || head.magic == SLIDE_UNSURE)
+              && head.key == key
+              && head.width <= ITUNESDB_SLIDE_SIZE
+              && head.height <= ITUNESDB_SLIDE_SIZE;
+    ssize_t size = ok ? head.width * head.height * sizeof(fb_data) : 0;
+    ok = ok && read(fd, buf, size) == size;
+    close(fd);
+    if (!ok)
+        return -1;
+    *width = head.width;
+    *height = head.height;
+    return size;
+}
+
+/* a slot: its header, and the slide behind it with the rest blank */
+static unsigned char slide_slot[SLIDE_SLOT] STORAGE_ALIGN_ATTR;
+static unsigned char small_raw[SMALL_FRAME_MAX * sizeof(fb_data)
+                               + 2 * READ_ALIGN] STORAGE_ALIGN_ATTR;
+
+/* the mean difference in brightness, about 0 to 187, from which frames are
+   of different covers: of Finder's, those of one were 0 to 10 and of two
+   12 to 77 */
+#define FRAMES_DIFFER 11
+
+static inline int frame_luma(fb_data p)
+{
+    return (p >> 11) * 2 + ((p >> 5) & 63) + (p & 31) * 2;
+}
+
+/* whether a large frame and a small one are of one cover, at a grid of the
+   small one's pixels */
+static bool frames_agree(const fb_data *large, int lw, int lh,
+                         const fb_data *small, int sw, int sh)
+{
+    const long xstep = ((long)lw << 16) / sw, ystep = ((long)lh << 16) / sh;
+    long sum = 0;
+    int points = 0;
+    for (int y = 0; y < sh; y += 4)
+    {
+        const fb_data *s = small + y * sw;
+        const fb_data *l0 = large + MIN(y * ystep >> 16, lh - 2) * lw;
+        const fb_data *l1 = l0 + lw;
+        for (int x = 0; x < sw; x += 4)
+        {
+            int lx = MIN(x * xstep >> 16, lw - 2);
+            int luma = (frame_luma(l0[lx]) + frame_luma(l0[lx + 1])
+                        + frame_luma(l1[lx]) + frame_luma(l1[lx + 1])) / 4;
+            int diff = frame_luma(s[x]) - luma;
+            sum += diff < 0 ? -diff : diff;
+            points++;
+        }
+    }
+    return sum < (long)points * FRAMES_DIFFER;
+}
+
+/* The cover to make a slide of, into art, with art_lock held: the first
+   large frame like its small one or with none to tell, else the first small
+   one, as one Finder hasn't written is more often the large, and then
+   *unsure. NULL without. */
+static const fb_data *slide_frame(const struct art_slide *slide,
+                                  struct itunesdb_art *art, bool *unsure)
+{
+    *unsure = false;
+    for (int i = 0; i < SLIDE_SOURCES; i++)
+    {
+        const struct art_frame *f = &slide->source[i].large;
+        const struct art_frame *g = &slide->source[i].small;
+        struct itunesdb_art small;
+        if (!f->file || !art_place(f->format, f->file, f->offset, art))
+            break;
+        const fb_data *frame = get_frame(art);
+        if (!frame)
+            continue;
+        if (!g->file || !art_place(g->format, g->file, g->offset, &small))
+            return frame;
+        const fb_data *s = read_frame(&small, small_raw, sizeof(small_raw));
+        if (!s || frames_agree(frame, art->width, art->height,
+                               s, small.width, small.height))
+            return frame;
+    }
+    const struct art_frame *g = &slide->source[0].small;
+    if (!g->file || !art_place(g->format, g->file, g->offset, art))
+        return NULL;
+    *unsure = true;
+    return read_frame(art, small_raw, sizeof(small_raw));
+}
+
+/* makes slide i of the index in the slides file, which is *size long so
+   far, of the sources read from the index: the slide first, then its header,
+   so that a slide being made is never taken for the one it will be */
+static bool make_slide(int fd, int index_fd, uint32_t i, uint64_t key,
+                       off_t *size)
+{
+    struct art_slide slide;
+    struct itunesdb_art art;
+    off_t source = sizeof(index_hdr)
+                   + (off_t)index_hdr.count * sizeof(struct art_entry)
+                   + (off_t)index_hdr.nslides * sizeof(uint64_t)
+                   + (off_t)i * sizeof(slide);
+    if (lseek(index_fd, source, SEEK_SET) != source
+        || read(index_fd, &slide, sizeof(slide)) != sizeof(slide))
+        return false;
+
+    struct slide_header *head = (struct slide_header *)slide_slot;
+    fb_data *pixels = (fb_data *)(slide_slot + sizeof(*head));
+    memset(slide_slot, 0, sizeof(slide_slot));
+
+    /* the places before it blank where the file is shorter: slides that
+       couldn't be made */
+    off_t pos = (off_t)i * SLIDE_SLOT;
+    if (lseek(fd, MIN(*size, pos), SEEK_SET) < 0)
+        return false;
+    for (; *size < pos; *size += SLIDE_SLOT)
+    {
+        if (write(fd, slide_slot, SLIDE_SLOT) != SLIDE_SLOT)
+            return false;
+    }
+
+    lock_art();
+    int w = 0, h = 0;
+    bool unsure;
+    const fb_data *frame = slide_frame(&slide, &art, &unsure);
+    if (frame)
+    {
+        /* the largest that fits the slide, keeping the shape */
+        w = h = ITUNESDB_SLIDE_SIZE;
+        if (art.width > art.height)
+            h = (w * art.height + art.width / 2) / art.width;
+        else
+            w = (h * art.width + art.height / 2) / art.height;
+        scale_frame(frame, art.width, art.height, pixels, w, h, true);
+    }
+    mutex_unlock(&art_lock);
+    if (!frame || write(fd, slide_slot, SLIDE_SLOT) != SLIDE_SLOT)
+        return false;
+    *size = MAX(*size, pos + (off_t)SLIDE_SLOT);
+    head->magic = unsure ? SLIDE_UNSURE : SLIDE_MAGIC;
+    head->width = w;
+    head->height = h;
+    head->key = key;
+    return lseek(fd, pos, SEEK_SET) == pos
+           && write(fd, head, sizeof(*head)) == sizeof(*head);
+}
+
+bool itunesdb_slides_todo(void)
+{
+    struct art_header h = { 0 };
+    int fd = open(ART_FILE, O_RDONLY);
+    if (fd >= 0)
+    {
+        read(fd, &h, 2 * sizeof(uint32_t));
+        close(fd);
+    }
+    return file_exists(SLIDES_TODO)
+           || (h.magic == ART_MAGIC && h.version != ART_VERSION);
+}
+
+void itunesdb_make_slides(volatile int *done, volatile int *total,
+                          bool (*stop)(void))
+{
+    if (slides_index.handle <= 0)
+    {
+        remove(SLIDES_TODO);
+        return;
+    }
+    int index_fd = open(ART_FILE, O_RDONLY);
+    int fd = open(SLIDES_FILE, O_RDWR | O_CREAT, 0666);
+    if (fd < 0 || index_fd < 0)
+    {
+        if (fd >= 0)
+            close(fd);
+        if (index_fd >= 0)
+            close(index_fd);
+        return;
+    }
+    /* whole slots: a cut short one is made again */
+    off_t size = ALIGN_DOWN(ffilesize(fd), SLIDE_SLOT);
+    uint32_t count = slides_index.count;
+    bool complete = true;
+    if (total)
+        *total = count;
+    cpu_boost(true);
+    for (uint32_t i = 0; i < count; i++)
+    {
+        struct slide_header head;
+        if (done)
+            *done = i;
+        if (stop && stop())
+        {
+            complete = false;
+            break;
+        }
+        uint64_t key = slide_key(i);
+        if (!key)
+            continue;
+        /* made already, at the last import or before it was cut short */
+        off_t pos = (off_t)i * SLIDE_SLOT;
+        if (pos + (off_t)SLIDE_SLOT <= size && lseek(fd, pos, SEEK_SET) == pos
+            && read(fd, &head, sizeof(head)) == sizeof(head)
+            && head.magic == SLIDE_MAGIC && head.key == key)
+            continue;
+        if (!make_slide(fd, index_fd, i, key, &size))
+            complete = false;
+        yield();
+    }
+    cpu_boost(false);
+    /* the slides of albums gone at the end */
+    off_t end = (off_t)count * (off_t)SLIDE_SLOT;
+    if (complete && size > end)
+        ftruncate(fd, end);
+    close(index_fd);
+    close(fd);
+    if (complete)
+        remove(SLIDES_TODO);
+}
 #endif /* ITUNESDB_HAVE_ART */
 
-int itunesdb_import_tracks(bool synced)
+int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
 {
     int count = 0;
+    read_done = done;
+    read_total = total;
     if (synced)
         metadata_begin();
     else
@@ -2167,7 +2853,10 @@ int itunesdb_import_tracks(bool synced)
     forget_index(&flags_index);
     remove(FLAGS_FILE);
 #ifdef ITUNESDB_HAVE_ART
-    /* the old covers point into ithmb files Finder has rewritten */
+    /* the old covers point into ithmb files Finder has rewritten; their
+       slides are kept where they are the same */
+    uint32_t old_slides_count;
+    int old_slides_handle = read_old_slides(&old_slides_count);
     forget_art();
     remove(ART_FILE);
 #endif
@@ -2184,11 +2873,16 @@ int itunesdb_import_tracks(bool synced)
         }
 #ifdef ITUNESDB_HAVE_ART
         /* last, as it reads ArtworkDB through the same cache */
-        write_art_index();
+        write_art_index(old_slides_handle, old_slides_count);
 #endif
     }
+#ifdef ITUNESDB_HAVE_ART
+    if (old_slides_handle > 0)
+        core_free(old_slides_handle);
+#endif
     db_unload();
     itunesdb_load_tracks();
+    read_done = read_total = NULL;
     return count;
 }
 
@@ -2201,6 +2895,7 @@ bool itunesdb_load_tracks(void)
 #ifdef ITUNESDB_HAVE_ART
     load_index(&art_index, ART_FILE, &index_hdr, sizeof(index_hdr),
                ART_MAGIC, ART_VERSION);
+    load_slides_index();
     /* an index of covers of an older version: made again with the flags,
        once, as it isn't there or is of this one after */
     if (art_index.handle <= 0)

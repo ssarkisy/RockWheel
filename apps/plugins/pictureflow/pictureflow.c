@@ -259,7 +259,7 @@ typedef fb_data pix_t;
 
 #define MAX_SLIDES_COUNT 10
 
-#define THREAD_STACK_SIZE DEFAULT_STACK_SIZE + 0x200
+#define THREAD_STACK_SIZE (DEFAULT_STACK_SIZE * 8)
 #define CACHE_PREFIX PLUGIN_DEMOS_DATA_DIR "/pictureflow"
 #define ALBUM_INDEX CACHE_PREFIX "/pictureflow_album.idx"
 
@@ -284,7 +284,7 @@ typedef fb_data pix_t;
 #define CACHE_VERSION 4
 #define CONFIG_VERSION 1
 #define CONFIG_FILE "pictureflow.cfg"
-#define INDEX_HDR "PFIC" /* C: with the commit id of the database */
+#define INDEX_HDR "PFIT" /* T: with the first track of each album */
 
 /** structs we use */
 struct pf_config_t
@@ -388,6 +388,7 @@ struct album_data {
     int year;        /* album year */
     long artist_seek; /* artist taglist position */
     long seek;        /* album taglist position */
+    int first_track;  /* its first track in the database, -1 if not known */
 };
 
 struct artist_data {
@@ -628,6 +629,9 @@ bool load_new_slide(void);
 int load_surface(int);
 static void draw_progressbar(int step, int count, char *msg);
 static void draw_splashscreen(unsigned char * buf_tmp, size_t buf_tmp_size);
+#ifdef ITUNESDB_HAVE_ART
+static bool preparing; /* only the album list, on the boot screen */
+#endif
 static void free_all_slide_prio(int prio);
 
 static inline void buf_ctx_lock(void)
@@ -677,6 +681,10 @@ static bool progress_cancel(int step, int count, char *msg)
     int action = rb->get_action(CONTEXT_STD,TIMEOUT_NOBLOCK);
     if (action == ACTION_STD_CANCEL || action == ACTION_STD_MENU)
     {
+#ifdef ITUNESDB_HAVE_ART
+        if (preparing)
+            return true; /* Cover Flow makes it when it opens */
+#endif
         if (rb->gui_syncyesno_run(&prompt, NULL, NULL) == YESNO_YES)
             return true;
         rb->lcd_clear_display();
@@ -686,6 +694,10 @@ static bool progress_cancel(int step, int count, char *msg)
 
     if (count)
         draw_progressbar(step, count, msg);
+#ifdef ITUNESDB_HAVE_ART
+    else if (preparing)
+        rb->library_update_progress(0, 0); /* it still works */
+#endif
 
     return false;
 }
@@ -1126,6 +1138,7 @@ static void write_album_index(int idx, int name_idx,
     pf_idx.album_index[idx].artist_idx = artist_idx;
     pf_idx.album_index[idx].artist_seek = artist_seek;
     pf_idx.album_index[idx].year = 0;
+    pf_idx.album_index[idx].first_track = -1;
 }
 
 static inline void write_album_entry(struct tagcache_search *tcs,
@@ -1180,16 +1193,16 @@ static int get_tcs_search_res(int type, struct tagcache_search *tcs,
             break;
         }
 
-        *bufsz -= data_size;
-
         l = tcs->result_len;
 
-        if ( l > *bufsz )
+        if ( data_size + l > *bufsz )
         {
             /* not enough memory */
             ret = ERROR_BUFFER_FULL;
             break;
         }
+
+        *bufsz -= data_size;
 
         rb->strcpy(*buf, tcs->result);
 
@@ -1420,7 +1433,7 @@ static int artist_name_of(long seek)
     return -1;
 }
 
-static void album_of_track(const int32_t *tag_seek, void *data)
+static void album_of_track(int idx_id, const int32_t *tag_seek, void *data)
 {
     (void)data;
     long album = tag_seek[tag_album], artist = tag_seek[tag_albumartist];
@@ -1454,6 +1467,9 @@ static void album_of_track(const int32_t *tag_seek, void *data)
         }
         if ((a->artist_idx < 0 || a->artist_seek == artist) && year > a->year)
             a->year = year;
+        /* the track a search of the album and its artist finds first */
+        if (a->first_track < 0 && a->artist_seek == artist)
+            a->first_track = idx_id;
     }
 }
 
@@ -1648,7 +1664,9 @@ static int create_album_index(void)
               sizeof(struct album_data), compare_album_artists);
 
     /* remove any extra untagged albums
-     * extra space is orphaned till restart */
+     * extra space is orphaned till restart
+     * the database sorts that name first, so its offset is 0, or -1 without:
+     * this is the one entry of all albums without a name */
     pf_idx.album_index += pf_idx.album_untagged_idx + 1;
     pf_idx.album_ct -= pf_idx.album_untagged_idx + 1;
 
@@ -1693,7 +1711,7 @@ static int save_album_index(void){
 static inline int read2buf(int fildes, void *buf, size_t nbyte){
     int read;
     read = rb->read(fildes, buf, nbyte);
-    if (read < (int)nbyte)
+    if (read < 0 || (size_t)read < nbyte)
         return 0;
 
     return read;
@@ -1728,10 +1746,13 @@ static int load_album_index(void){
                     rb->close(fr);
                     return -1;
                 }
+                /* each alone first, as their sum could wrap around */
+                if (data.artist_len > bufstart_sz || data.album_len > bufstart_sz)
+                    goto failure;
                 name_sz = data.artist_len + data.album_len;
                 album_idx_sz = data.album_ct * sizeof(struct album_data);
 
-                if (name_sz + album_idx_sz > bufstart_sz)
+                if (name_sz > bufstart_sz || album_idx_sz > bufstart_sz - name_sz)
                     goto failure;
 
                 //rb->lseek(fr, sizeof(data) + 1, SEEK_SET);
@@ -1767,7 +1788,8 @@ static int load_album_index(void){
                 {
                     album_idx = data.album_index[i].name_idx;
                     artist_idx = data.album_index[i].artist_idx;
-                    if (album_idx >= (int) data.album_len ||
+                    if (album_idx < 0 || artist_idx < 0 ||
+                        album_idx >= (int) data.album_len ||
                         artist_idx >= (int) data.artist_len)
                     {
                         goto failure;
@@ -2246,32 +2268,28 @@ static int read_embedded_jpeg(const char *path, const struct mp3_albumart *aa,
 #endif /* HAVE_ALBUMART */
 
 #ifdef ITUNESDB_HAVE_ART
-/**
-  A cover Finder made, fit into bm, which PictureFlow keeps a column at a
-  time: read a row at a time into the far half of the buffer, then turned.
- */
-static int read_ipod_art(const struct itunesdb_art *art, struct bitmap *bm,
-                         size_t buf_sz)
-{
-    size_t half = ALIGN_DOWN(buf_sz / 2, sizeof(long));
-    struct bitmap rows = {
-        .width = bm->width,
-        .height = bm->height,
-        .data = (unsigned char *)bm->data + half
-    };
-    int size = rb->itunesdb_load_art(art, &rows, buf_sz - half);
-    if (size <= 0
-        || (size_t)rows.width * rows.height * sizeof(pix_t) > half)
-        return -1;
+#define TURN_W 16
+static pix_t turn_tile[TURN_W * DISPLAY_HEIGHT] CACHEALIGN_ATTR;
 
-    const fb_data *src = (const fb_data *)rows.data;
-    pix_t *dst = (pix_t *)bm->data;
-    for (int y = 0; y < rows.height; y++)
-        for (int x = 0; x < rows.width; x++)
-            dst[x * rows.height + y] = *src++;
-    bm->width = rows.width;
-    bm->height = rows.height;
-    return size;
+/**
+  The rows of a cover into the columns PictureFlow keeps, TURN_W columns at
+  a time through a tile that stays in the cache: written straight down the
+  columns, every pixel was a write to a far address. h is at most
+  DISPLAY_HEIGHT.
+ */
+static void turn_rows(const fb_data *src, pix_t *dst, int w, int h)
+{
+    for (int x0 = 0; x0 < w; x0 += TURN_W)
+    {
+        int n = MIN(TURN_W, w - x0);
+        for (int y = 0; y < h; y++)
+        {
+            const fb_data *row = &src[y * w + x0];
+            for (int c = 0; c < n; c++)
+                turn_tile[c * h + y] = row[c];
+        }
+        rb->memcpy(&dst[x0 * h], turn_tile, n * h * sizeof(pix_t));
+    }
 }
 
 /**
@@ -2281,16 +2299,26 @@ static int read_ipod_art(const struct itunesdb_art *art, struct bitmap *bm,
  */
 static bool find_ipod_cover(const int slide_index, struct itunesdb_art *art)
 {
+    const struct album_data *album = &pf_idx.album_index[slide_index];
     char tcs_buf[TAGCACHE_BUFSZ];
     bool found = false;
     if (tcs.valid || !rb->tagcache_search(&tcs, tag_filename))
         return false;
-    rb->tagcache_search_add_filter(&tcs, tag_album,
-                                   pf_idx.album_index[slide_index].seek);
-    rb->tagcache_search_add_filter(&tcs, tag_albumartist,
-                                   pf_idx.album_index[slide_index].artist_seek);
-    if (rb->tagcache_get_next(&tcs, tcs_buf, sizeof(tcs_buf)))
-        found = rb->itunesdb_find_art(tcs.result, art);
+    if (album->first_track >= 0)
+    {
+        /* known from the album list: a search goes through every track */
+        if (rb->tagcache_retrieve(&tcs, album->first_track, tag_filename,
+                                  tcs_buf, sizeof(tcs_buf)))
+            found = rb->itunesdb_find_art(tcs_buf, art);
+    }
+    else
+    {
+        rb->tagcache_search_add_filter(&tcs, tag_album, album->seek);
+        rb->tagcache_search_add_filter(&tcs, tag_albumartist,
+                                       album->artist_seek);
+        if (rb->tagcache_get_next(&tcs, tcs_buf, sizeof(tcs_buf)))
+            found = rb->itunesdb_find_art(tcs.result, art);
+    }
     rb->tagcache_search_finish(&tcs);
     return found;
 }
@@ -2373,6 +2401,8 @@ static bool get_albumart_for_index_from_db(const int slide_index, char *buf,
 static void draw_splashscreen(unsigned char * buf_tmp, size_t buf_tmp_size)
 {
 #ifdef ITUNESDB_HAVE_ART
+    if (preparing)
+        return;
     /* as Cover Flow starts: black, no logo */
     (void)buf_tmp;
     (void)buf_tmp_size;
@@ -2427,6 +2457,11 @@ static void draw_splashscreen(unsigned char * buf_tmp, size_t buf_tmp_size)
 static void draw_progressbar(int step, int count, char *msg)
 {
 #ifdef ITUNESDB_HAVE_ART
+    if (preparing)
+    {
+        rb->library_update_progress(step, count);
+        return;
+    }
     /* the thin bar of the boot screen's "Updating Library", without words */
     (void)msg;
     const int bar_w = 140, bar_h = 6;
@@ -2686,6 +2721,17 @@ static void thread(void)
             case EV_WAKEUP:
                 /* we just woke up */
                 break;
+            case SYS_USB_CONNECTED:
+                /* The queue gets the broadcasts, so USB waits for this
+                   thread too: without the ack the computer never got the
+                   disk. It is the computer's until it is let go. */
+                rb->usb_acknowledge(SYS_USB_CONNECTED_ACK, ev.data);
+                do
+                    rb->queue_wait(&thread_q, &ev);
+                while (ev.id != SYS_USB_DISCONNECTED && ev.id != EV_EXIT);
+                if (ev.id == EV_EXIT)
+                    return;
+                continue;
         }
 
         if(ev.id != SYS_TIMEOUT) {
@@ -2730,7 +2776,10 @@ static bool create_pf_thread(void)
                            sizeof(thread_stack),
                             0,
                            "Picture load thread"
-                               IF_PRIO(, PRIORITY_BUFFERING)
+                               /* below the UI, which loads a cover a frame
+                                  itself while it scrolls: here each yield
+                                  in a load would wait out a frame */
+                               IF_PRIO(, PRIORITY_BACKGROUND)
                                IF_COP(, CPU)
                                       )
         ) == 0) {
@@ -2959,8 +3008,16 @@ static int read_pfraw(char* filename, int prio)
         /* pf_cfg.cache_version = CACHE_UPDATE; -- don't invalidate on missing pfraw */
         return empty_slide_hid;
     }
-    else
-        rb->read(fh, &bmph, sizeof(struct pfraw_header));
+    /* a damaged one is as none */
+    if (rb->read(fh, &bmph, sizeof(struct pfraw_header))
+            != sizeof(struct pfraw_header)
+        || bmph.width <= 0 || bmph.height <= 0
+        || bmph.width > MAX(DISPLAY_WIDTH, DISPLAY_HEIGHT)
+        || bmph.height > MAX(DISPLAY_WIDTH, DISPLAY_HEIGHT))
+    {
+        rb->close(fh);
+        return empty_slide_hid;
+    }
 
     int size =  sizeof(struct dim) +
                 sizeof( pix_t ) * bmph.width * bmph.height;
@@ -2988,10 +3045,15 @@ static int read_pfraw(char* filename, int prio)
 }
 
 #ifdef ITUNESDB_HAVE_ART
+/* no memory for the cover now, as opposed to there being none: an album taken
+   for one without would keep the empty slide until it left the cache */
+#define COVER_NO_ROOM (-2)
+
 /**
-  The slide of the cover Finder made, read as it is shown: that cover is
-  made already, so no file of it is kept, where writing one for each of a
-  thousand albums took minutes. The hid, or -1 without such a cover.
+  The slide of the cover Finder made: the one made after the sync, read
+  as it is shown, or else made of the cover here. No file of it is kept by
+  PictureFlow, where writing one for each of a thousand albums took
+  minutes. The hid, -1 without such a cover, or COVER_NO_ROOM.
  */
 static int read_ipod_cover(const int slide_index, const int prio)
 {
@@ -2999,27 +3061,52 @@ static int read_ipod_cover(const int slide_index, const int prio)
     if (!find_ipod_cover(slide_index, &art))
         return -1;
 
-    /* turned in aa_cache.buf, which the lock on buf_ctx keeps to us */
+    int hid;
+    if (art.slide && ITUNESDB_SLIDE_SIZE <= DISPLAY_WIDTH
+        && ITUNESDB_SLIDE_SIZE <= DISPLAY_HEIGHT)
+    {
+        do {
+            hid = rb->buflib_alloc(&buf_ctx, sizeof(struct dim)
+                  + sizeof(pix_t) * ITUNESDB_SLIDE_SIZE * ITUNESDB_SLIDE_SIZE);
+        } while (hid < 0 && free_slide_prio(prio));
+        if (hid < 0)
+            return COVER_NO_ROOM;
+        /* nothing else allocates while buf_ctx is locked, so it stays */
+        struct dim *slide = rb->buflib_get_data(&buf_ctx, hid);
+        int w, h;
+        if (rb->itunesdb_load_slide(&art, slide + 1, &w, &h) > 0)
+        {
+            slide->width = w;
+            slide->height = h;
+            return hid;
+        }
+        rb->buflib_free(&buf_ctx, hid);
+    }
+
+    /* its rows in aa_cache.buf, which the lock on buf_ctx keeps to us */
     struct bitmap bm = {
         .width = DISPLAY_WIDTH,
         .height = DISPLAY_HEIGHT,
         .data = aa_cache.buf
     };
-    if (read_ipod_art(&art, &bm, aa_cache.buf_sz) <= 0)
+    if (rb->itunesdb_load_art(&art, &bm, aa_cache.buf_sz) <= 0
+        || bm.width > DISPLAY_WIDTH || bm.height > DISPLAY_HEIGHT)
         return -1;
 
     size_t pixels = sizeof(pix_t) * bm.width * bm.height;
-    int hid;
     do {
         hid = rb->buflib_alloc(&buf_ctx, sizeof(struct dim) + pixels);
     } while (hid < 0 && free_slide_prio(prio));
     if (hid < 0)
-        return -1;
+        return COVER_NO_ROOM;
 
+    rb->yield(); /* a frame between reading and turning, when it scrolls */
     struct dim *slide = rb->buflib_get_data(&buf_ctx, hid);
     slide->width = bm.width;
     slide->height = bm.height;
-    rb->memcpy(sizeof(struct dim) + (char *)slide, bm.data, pixels);
+    turn_rows((const fb_data *)bm.data,
+              (pix_t *)(sizeof(struct dim) + (char *)slide),
+              bm.width, bm.height);
     return hid;
 }
 #endif /* ITUNESDB_HAVE_ART */
@@ -3035,6 +3122,8 @@ static inline bool load_and_prepare_surface(const int slide_index,
     int hid = -1;
 #ifdef ITUNESDB_HAVE_ART
     hid = read_ipod_cover(slide_index, prio);
+    if (hid == COVER_NO_ROOM)
+        return false;
     if (hid < 0)
 #endif
     {
@@ -5173,7 +5262,10 @@ static bool init(void)
 
     number_of_slides = pf_idx.album_ct;
 
-    size_t aa_bufsz = ALIGN_DOWN(pf_idx.buf_sz / 4, sizeof(long));
+    /* a quarter, but no more than a cover being made needs: the rest is
+       for the slides */
+    size_t aa_bufsz = ALIGN_DOWN(MIN(pf_idx.buf_sz / 4, 0x40000),
+                                 sizeof(long));
     if (aa_bufsz < DISPLAY_WIDTH * DISPLAY_HEIGHT * sizeof(pix_t))
     {
         error_wait("Not enough memory for album art cache");
@@ -5330,6 +5422,7 @@ static int pictureflow_main(void)
     int fps = 0;
     int fpstxt_y;
     bool instant_update;
+    long load_after = *rb->current_tick;
 
     while (true) {
         current_update = *rb->current_tick;
@@ -5411,10 +5504,21 @@ static int pictureflow_main(void)
         }
         draw_album_text();
 
-
         /* Copy offscreen buffer to LCD and give time to other threads */
         if (is_initial_slide == false)
             mylcd_update();
+        /* the slide thread is below the UI: while it scrolls, the covers
+           that come into view are loaded here, for a third of the time at
+           most, so that it keeps moving when they are slow to come */
+        if (pf_state == pf_scrolling
+            && !TIME_BEFORE(*rb->current_tick, load_after))
+        {
+            long start = *rb->current_tick;
+            buf_ctx_lock();
+            load_new_slide();
+            buf_ctx_unlock();
+            load_after = *rb->current_tick + 2 * (*rb->current_tick - start);
+        }
         rb->yield();
 
         /*/ Handle buttons */
@@ -5613,6 +5717,45 @@ static int pictureflow_main(void)
 
 /*************************** Plugin entry point ****************************/
 
+#ifdef ITUNESDB_HAVE_ART
+/**
+  At the end of an import, on its screen: only the album list, so that Cover
+  Flow opens at once. If it fails or Menu leaves it, Cover Flow makes it when
+  it opens, as for any list older than the database.
+ */
+static enum plugin_status prepare_album_list(void)
+{
+    struct tagcache_stat *stat = rb->tagcache_get_stat();
+    size_t buf_size;
+
+    if (!(stat->initialized && stat->ready))
+        return PLUGIN_OK;
+#ifdef HAVE_ADJUSTABLE_CPU_FREQ
+    rb->cpu_boost(true); /* revert in cleanup */
+#endif
+    rb->memset(&aa_cache, 0, sizeof(struct albumart_t));
+    config_set_defaults(&pf_cfg);
+    configfile_load(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
+
+    pf_idx.buf = rb->plugin_get_buffer(&buf_size);
+    pf_idx.buf_sz = buf_size;
+    if (!rb->dir_exists(CACHE_PREFIX) && rb->mkdir(CACHE_PREFIX) < 0)
+        return PLUGIN_OK;
+
+    preparing = true;
+    if (pf_cfg.cache_version != CACHE_VERSION || load_album_index() < 0)
+    {
+        if (create_album_index() == 0 && save_album_index() == 0)
+        {
+            /* as init() does for a new list */
+            aa_cache.idx = aa_cache.inspected = 0;
+            config_save(CACHE_VERSION, pf_cfg.update_albumart);
+        }
+    }
+    return PLUGIN_OK;
+}
+#endif /* ITUNESDB_HAVE_ART */
+
 enum plugin_status plugin_start(const void *parameter)
 {
     struct viewport *vp_main = rb->lcd_set_viewport(NULL);
@@ -5621,6 +5764,13 @@ enum plugin_status plugin_start(const void *parameter)
     int ret;
     const char *file = parameter;
     bool file_id3 = (parameter && (((char *) parameter)[0] == '/'));
+#ifdef ITUNESDB_HAVE_ART
+    if (parameter && !rb->strcmp(parameter, ITUNESDB_ALBUM_LIST))
+    {
+        atexit(cleanup);
+        return prepare_album_list();
+    }
+#endif
 
     if (!check_database())
     {

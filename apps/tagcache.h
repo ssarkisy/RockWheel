@@ -195,6 +195,8 @@ enum {
     TAGCACHE_IMPORT_SAVING,   /* the commit */
     TAGCACHE_IMPORT_LOADING,  /* into memory, and the file references */
     TAGCACHE_IMPORT_COUNTS,   /* ratings and play counts */
+    TAGCACHE_IMPORT_COVERS,   /* Cover Flow's slides, done of total */
+    TAGCACHE_IMPORT_SLIDES,   /* only those, without a sync */
 };
 int tagcache_get_import(int *done, int *total);
 bool tagcache_check_sync(void);
@@ -241,10 +243,11 @@ int tagcache_get_max_commit_step(void);
 /* the number of commits so far, which a change of the files makes one more */
 int tagcache_get_commitid(void);
 #ifdef HAVE_TC_RAMCACHE
-/* f with the tags of every track of the database in memory, in its order:
-   seeks as searches give them, the values of numeric tags; false when the
-   database isn't in memory. f mustn't yield. */
-bool tagcache_for_each_track(void (*f)(const int32_t *tag_seek, void *data),
+/* f with the index and the tags of every track of the database in memory,
+   in its order: seeks as searches give them, the values of numeric tags;
+   false when the database isn't in memory. f mustn't yield. */
+bool tagcache_for_each_track(void (*f)(int idx_id, const int32_t *tag_seek,
+                                       void *data),
                              void *data);
 #endif
 #endif
