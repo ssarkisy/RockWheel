@@ -102,47 +102,58 @@ static struct dither_data
                         /* 24h */
 } dither_data IBSS_ATTR;
 
+/* One channel into every other sample of the output, count not being 0 */
+#ifdef CPU_ARM
+void sample_output_dither_channel(const int32_t *s, int16_t *d, int count,
+                                  struct dither_state *dither, int scale);
+#else
+static void sample_output_dither_channel(const int32_t *s, int16_t *d,
+                                         int count,
+                                         struct dither_state *dither,
+                                         int scale)
+{
+    int32_t dc_bias = 1L << (scale - 1); /* 1/2 bit of significance */
+    int32_t mask = (1L << scale) - 1; /* Mask of bits quantized away */
+
+    for (int i = 0; i < count; i++, s++, d += 2)
+    {
+        /* Noise shape and bias (for correct rounding later) */
+        int32_t sample = *s;
+
+        sample += dither->error[0] - dither->error[1] + dither->error[2];
+        dither->error[2] = dither->error[1];
+        dither->error[1] = dither->error[0] / 2;
+
+        int32_t output = sample + dc_bias;
+
+        /* Dither, highpass triangle PDF */
+        int32_t random = dither->random*0x0019660dL + 0x3c6ef35fL;
+        output += (random & mask) - (dither->random & mask);
+        dither->random = random;
+
+        /* Quantize sample to output range */
+        output >>= scale;
+
+        /* Error feedback of quantization */
+        dither->error[0] = sample - (output << scale);
+
+        /* Clip and store */
+        *d = clip_sample_16(output);
+    }
+}
+#endif /* CPU_ARM */
+
 void sample_output_dithered(struct sample_io_data *this,
                             struct dsp_buffer *src, struct dsp_buffer *dst)
 {
     int count = this->outcount;
     int channels = src->format.num_channels;
     int scale = src->format.output_scale;
-    int32_t dc_bias = 1L << (scale - 1); /* 1/2 bit of significance */
-    int32_t mask = (1L << scale) - 1; /* Mask of bits quantized away */
 
     for (int ch = 0; ch < channels; ch++)
     {
-        struct dither_state *dither = &dither_data.state[ch];
-
-        const int32_t *s = src->p32[ch];
-        int16_t *d = &dst->p16out[ch];
-
-        for (int i = 0; i < count; i++, s++, d += 2)
-        {
-            /* Noise shape and bias (for correct rounding later) */
-            int32_t sample = *s;
-
-            sample += dither->error[0] - dither->error[1] + dither->error[2];
-            dither->error[2] = dither->error[1];
-            dither->error[1] = dither->error[0] / 2;
-
-            int32_t output = sample + dc_bias;
-
-            /* Dither, highpass triangle PDF */
-            int32_t random = dither->random*0x0019660dL + 0x3c6ef35fL;
-            output += (random & mask) - (dither->random & mask);
-            dither->random = random;
-
-            /* Quantize sample to output range */
-            output >>= scale;
-
-            /* Error feedback of quantization */
-            dither->error[0] = sample - (output << scale);
-
-            /* Clip and store */
-            *d = clip_sample_16(output);
-        }
+        sample_output_dither_channel(src->p32[ch], &dst->p16out[ch], count,
+                                     &dither_data.state[ch], scale);
     }
 
     if (channels > 1)
