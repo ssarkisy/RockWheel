@@ -2104,7 +2104,16 @@ static bool dbg_save_roms(void)
     int fd = creat("/internal_rom_000000-0FFFFF.bin", 0666);
     if(fd >= 0)
     {
-        write(fd, (void *)0x20000000, FLASH_SIZE);
+        /* through RAM: written straight from the flash, the disk's DMA
+           (used for writes to an SSD) couldn't read it, and every block
+           failed after its timeout */
+        static unsigned char buf[4096];
+        for (size_t pos = 0; pos < FLASH_SIZE; pos += sizeof(buf))
+        {
+            memcpy(buf, (const void *)(0x20000000 + pos), sizeof(buf));
+            if (write(fd, buf, sizeof(buf)) != (ssize_t)sizeof(buf))
+                break;
+        }
         close(fd);
     }
 
