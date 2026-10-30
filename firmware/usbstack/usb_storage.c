@@ -17,6 +17,7 @@
  * KIND, either express or implied.
  *
  ****************************************************************************/
+#include <stdio.h>
 #include "string.h"
 #include "system.h"
 #include "usb_core.h"
@@ -1827,15 +1828,93 @@ static char ipod_xml[IPOD_XML_PAGE * IPOD_XML_PAGES + 1];
 static int ipod_xml_size;
 static char ipod_revision[5] = "1.62";
 
+#ifdef IPOD_VIDEO
+#include "ipod_sysinfo_5g.h"
+
+/* Apple's SysCfg in the flash: "SCfg", the number of entries at 0x14, and
+   from 0x18 entries of a tag and 16 bytes, all little-endian, so the tags
+   read backwards */
+#define IPOD_SYSCFG ((const unsigned char *)0x20004000)
+
+static const unsigned char *syscfg_entry(const unsigned char *cfg,
+                                         const char *tag)
+{
+    if(memcmp(cfg, "gfCS", 4))
+        return NULL;
+    uint32_t count = cfg[0x14] | cfg[0x15] << 8 | cfg[0x16] << 16
+                   | (uint32_t)cfg[0x17] << 24;
+    for(uint32_t i = 0; i < count && i < 32; i++) {
+        const unsigned char *e = cfg + 0x18 + i * 20;
+        if(!memcmp(e, tag, 4))
+            return e + 4;
+    }
+    return NULL;
+}
+
+/* Without the file Apple's firmware gave, as on an iPod RockPod was put on
+   from scratch: the description of a 5.5G with this iPod's own serial
+   number, FireWire GUID and RAM, which is all that differs between them */
+static bool make_ipod_xml(const unsigned char *cfg, int ram_mb)
+{
+    const unsigned char *sn = syscfg_entry(cfg, "mNrS");
+    const unsigned char *fw = syscfg_entry(cfg, "dIwF");
+    if(!sn || !fw)
+        return false;
+
+    char serial[17], guid[17], ram[8];
+    int i;
+    for(i = 0; i < 16 && sn[i] > ' ' && sn[i] < 0x7f; i++)
+        serial[i] = sn[i];
+    serial[i] = '\0';
+    if(i == 0)
+        return false;
+    /* as the USB serial, from the same two words */
+    snprintf(guid, sizeof(guid), "%08lX%08lX",
+             (unsigned long)(fw[8] | fw[9] << 8 | fw[10] << 16
+                             | (uint32_t)fw[11] << 24),
+             (unsigned long)(fw[4] | fw[5] << 8 | fw[6] << 16
+                             | (uint32_t)fw[7] << 24));
+    snprintf(ram, sizeof(ram), "%d", ram_mb);
+
+    const char *t = ipod_xml_template;
+    int n = 0;
+    while(*t && n < (int)sizeof(ipod_xml) - 1) {
+        const char *value = NULL;
+        if(*t == '@') {
+            if(!strncmp(t, "@SERIAL@", 8))
+                value = serial, t += 8;
+            else if(!strncmp(t, "@GUID@", 6))
+                value = guid, t += 6;
+            else if(!strncmp(t, "@RAM@", 5))
+                value = ram, t += 5;
+        }
+        if(value)
+            while(*value && n < (int)sizeof(ipod_xml) - 1)
+                ipod_xml[n++] = *value++;
+        else
+            ipod_xml[n++] = *t++;
+    }
+    ipod_xml_size = n;
+    ipod_xml[n] = '\0';
+    return true;
+}
+#endif /* IPOD_VIDEO */
+
 bool usb_storage_load_ipod_xml(void)
 {
     int fd = open(IPOD_XML_FILE, O_RDONLY);
-    if(fd < 0)
-        return false;
-    ssize_t n = read(fd, ipod_xml, sizeof(ipod_xml) - 1);
-    close(fd);
-    ipod_xml_size = n > 0 ? n : 0;
-    ipod_xml[ipod_xml_size] = '\0';
+    if(fd < 0) {
+#ifdef IPOD_VIDEO
+        if(!make_ipod_xml(IPOD_SYSCFG, probed_ramsize))
+#endif
+            return false;
+    }
+    else {
+        ssize_t n = read(fd, ipod_xml, sizeof(ipod_xml) - 1);
+        close(fd);
+        ipod_xml_size = n > 0 ? n : 0;
+        ipod_xml[ipod_xml_size] = '\0';
+    }
 
 
     /* the revision in INQUIRY is the description's FireWireVersion */
