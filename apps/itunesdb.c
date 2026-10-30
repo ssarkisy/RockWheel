@@ -170,6 +170,9 @@ static bool mhod_string(off_t pos, char *buf, size_t size)
     p = db_get(pos + 40, units * 2);
     if (!p)
         return false;
+    /* not half of a pair: the decoder would take both, 4 bytes for one */
+    if (units > 0 && p[units * 2 - 1] >= 0xd8 && p[units * 2 - 1] < 0xe0)
+        units--;
     *utf16LEdecode(p, (unsigned char *)buf, units) = '\0';
     return true;
 }
@@ -1166,12 +1169,20 @@ static bool write_state(void)
         STATE_MAGIC, STATE_VERSION, pend.hdr.db_size, pend.hdr.db_mtime,
         pend.hdr.count
     };
-    if (!writer_open(&out, STATE_FILE))
+    /* not over the old one: Rockbox truncates a file on its close, so a
+       cut there left the new header on the old tracks, whose counts Play
+       Counts would then give to others */
+    if (!writer_open(&out, STATE_FILE ".tmp"))
         return false;
     writer_put(&out, &hdr, sizeof(hdr));
     for (uint32_t i = 0; i < pend.hdr.count; i++)
         writer_put(&out, &pend.tracks[i], sizeof(struct state_entry));
-    return writer_close(&out);
+    if (!writer_close(&out) || rename(STATE_FILE ".tmp", STATE_FILE) < 0)
+    {
+        remove(STATE_FILE ".tmp");
+        return false;
+    }
+    return true;
 }
 
 /* iTunesDB and its tracks, for the import and for the covers */
@@ -1179,9 +1190,10 @@ static bool write_state(void)
 static int cache_handle, table_handle;
 static off_t playlists_list;
 
+/* after every db_load(), loaded or not */
 static void db_unload(void)
 {
-    if (db.fd > 0)
+    if (db.fd >= 0)
         close(db.fd);
     if (table_handle > 0)
     {
@@ -1195,6 +1207,7 @@ static void db_unload(void)
     }
     cache_handle = table_handle = 0;
     memset(&db, 0, sizeof(db));
+    db.fd = -1;
     cpu_boost(false);
 }
 
@@ -1205,13 +1218,16 @@ static bool db_load(void)
     int sections;
 
     memset(&db, 0, sizeof(db));
+    /* fd 0 is a file on the iPod */
+    db.fd = -1;
     playlists_list = -1;
+    /* before anything can fail, as db_unload() undoes it */
+    cpu_boost(true);
     if (!db_stamp(&db_size, &db_mtime))
         return false;
     db.fd = open(ITUNESDB_FILE, O_RDONLY);
     if (db.fd < 0)
         return false;
-    cpu_boost(true);
 
     /* 4 more bytes for the second half of a surrogate pair at the end */
     size_t cache_size = STORAGE_PAD(CACHE_SIZE + 4);

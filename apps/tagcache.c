@@ -5869,6 +5869,11 @@ void tagcache_screensync_enable(bool state)
     tc_stat.syncscreen = state;
 }
 
+/* a scan stopped before it got through the files, as by USB: what it found
+   waits in the temp file, and an import after it would take the files it
+   didn't reach for ones Finder knows nothing of */
+static bool scan_cut_short;
+
 #ifndef __PCTOOL__
 /* this is called by the database tool to not pull in global_settings */
 static
@@ -5878,6 +5883,7 @@ void do_tagcache_build(const char *path[])
     struct tagcache_header header;
     bool ret;
 
+    scan_cut_short = false;
     str_setlen(curpath, 0);
     data_size = 0;
     total_entry_count = 0;
@@ -5901,6 +5907,7 @@ void do_tagcache_build(const char *path[])
     if (cachefd < 0)
     {
         logf("master file open failed: %s", TAGCACHE_FILE_TEMP);
+        scan_cut_short = true;
         return ;
     }
 
@@ -6039,6 +6046,7 @@ commit:
     if (!ret)
     {
         logf("Aborted.");
+        scan_cut_short = true;
         cpu_boost(false);
         return ;
     }
@@ -6197,8 +6205,9 @@ static bool NO_INLINE db_file_exists(const char* filename)
 }
 
 /* Updates the database from the files, also when the commit had to wait
-   for a buffer, and loads it into the cache again at its new size */
-static void update_and_reload(void)
+   for a buffer, and loads it into the cache again at its new size. False
+   when the scan was cut short: its part waits for the next try. */
+static bool update_and_reload(void)
 {
     if (db_file_exists(TAGCACHE_FILE_TEMP))
     {
@@ -6210,9 +6219,10 @@ static void update_and_reload(void)
     }
     tagcache_build();
     itunesdb_forget_metadata(); /* if the scan was skipped */
+    bool scanned = !scan_cut_short;
     if (import_phase != TAGCACHE_IMPORT_NONE)
         import_phase = TAGCACHE_IMPORT_LOADING;
-    if (db_file_exists(TAGCACHE_FILE_TEMP))
+    if (scanned && db_file_exists(TAGCACHE_FILE_TEMP))
     {
         /* The commit found no buffer to borrow and waits for the next
            boot; take one just for it, as at boot */
@@ -6231,6 +6241,7 @@ static void update_and_reload(void)
     if (!tc_stat.ready)
         tagcache_commit_finalize();
 #endif
+    return scanned;
 }
 
 int tagcache_get_song_count(void)
@@ -6405,8 +6416,14 @@ static void tagcache_thread(void)
                 /* fallthrough */
             case Q_IMPORT_ITUNES:
                 /* Finder has synced: the new files first, then what
-                   iTunesDB says about them */
-                update_and_reload();
+                   iTunesDB says about them. Cut short, as by USB, all of
+                   it is tried again: iTunesDB still differs from its stamp,
+                   so after USB or at the next boot */
+                if (!update_and_reload())
+                {
+                    import_phase = TAGCACHE_IMPORT_NONE;
+                    break;
+                }
                 check_skips_synced = true;
                 check_deleted_file_refs(true);
                 check_skips_synced = false;
