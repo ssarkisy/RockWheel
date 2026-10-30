@@ -121,6 +121,7 @@ int plugin_open(const char *plugin, const char *parameter);
 #include "buffering.h"
 #include "tagcache.h"
 #include "tagtree.h"
+#include "itunesdb.h"
 #include "viewport.h"
 #include "ata_idle_notify.h"
 #include "settings_list.h"
@@ -182,7 +183,7 @@ int plugin_open(const char *plugin, const char *parameter);
  */
 /* 287: the iPod fork changed structures plugins see (gui_synclist,
  * user_settings, mp3entry) and the action numbering */
-#define PLUGIN_API_VERSION 288
+#define PLUGIN_API_VERSION 289
 
 /* 239 Marks the removal of ARCHOS HWCODEC and CHARCELL */
 
@@ -1062,6 +1063,19 @@ struct plugin_api {
     /* new stuff at the end, sort into place next time
        the API gets incompatible */
     void (*settings_apply)(bool read_disk);
+#ifdef ITUNESDB_HAVE_ART
+    /* the covers Finder made, for PictureFlow */
+    bool (*itunesdb_find_art)(const char *path, struct itunesdb_art *art);
+    int (*itunesdb_load_art)(const struct itunesdb_art *art, struct bitmap *bm,
+                             int max_size);
+#endif
+#ifdef HAVE_TAGCACHE
+    int (*tagcache_get_commitid)(void);
+#endif
+#ifdef HAVE_TC_RAMCACHE
+    bool (*tagcache_for_each_track)(void (*f)(const int32_t *tag_seek,
+                                              void *data), void *data);
+#endif
 };
 
 /* plugin header */

@@ -282,7 +282,7 @@ typedef fb_data pix_t;
 #define CACHE_VERSION 4
 #define CONFIG_VERSION 1
 #define CONFIG_FILE "pictureflow.cfg"
-#define INDEX_HDR "PFID"
+#define INDEX_HDR "PFIC" /* C: with the commit id of the database */
 
 /** structs we use */
 struct pf_config_t
@@ -313,6 +313,7 @@ struct pf_config_t
 
 struct pf_index_t {
     uint32_t            header; /*INDEX_HDR*/
+    int32_t             commitid; /* of the database the index was made of */
     uint16_t            artist_ct;
     uint16_t            album_ct;
 
@@ -353,6 +354,9 @@ struct albumart_t {
 #ifdef HAVE_ALBUMART
     struct mp3_albumart embedded; /* type is AA_TYPE_UNKNOWN unless file
                                      is a track with the art embedded */
+#endif
+#ifdef ITUNESDB_HAVE_ART
+    struct itunesdb_art ipod_art; /* width 0 unless Finder made a cover */
 #endif
     int idx;
     int slides;
@@ -1373,61 +1377,118 @@ static int assign_album_year(void)
     return SUCCESS;
 }
 
-/**
-  Create an index of all artists and albums from the database.
-  Also store the artists and album names so we can access them later.
- */
-static int create_album_index(void)
+#ifdef HAVE_TC_RAMCACHE
+/* The albums' artists and years from the database in memory, in one pass
+   over the tracks, the same as the searches for each album give: an album
+   has the artist of its first track, and the latest year of its tracks by
+   that artist. The searches took a minute for 1000 albums of 9000 tracks. */
+static struct {
+    int *order;                 /* album_index by seek */
+    struct artist_data *artists;/* by seek */
+    unsigned char *seen;        /* the album's first track came */
+} by_seek;
+
+static int compare_album_seeks(const void *a, const void *b)
+{
+    long x = pf_idx.album_index[*(const int *)a].seek;
+    long y = pf_idx.album_index[*(const int *)b].seek;
+    return (x > y) - (x < y);
+}
+
+static int compare_artist_seeks(const void *a, const void *b)
+{
+    long x = ((const struct artist_data *)a)->seek;
+    long y = ((const struct artist_data *)b)->seek;
+    return (x > y) - (x < y);
+}
+
+static int artist_name_of(long seek)
+{
+    int lo = 0, hi = pf_idx.artist_ct - 1;
+    while (lo <= hi)
+    {
+        int mid = (lo + hi) / 2;
+        if (by_seek.artists[mid].seek == seek)
+            return by_seek.artists[mid].name_idx;
+        if (by_seek.artists[mid].seek < seek)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return -1;
+}
+
+static void album_of_track(const int32_t *tag_seek, void *data)
+{
+    (void)data;
+    long album = tag_seek[tag_album], artist = tag_seek[tag_albumartist];
+    int year = tag_seek[tag_year];
+
+    /* the albums of this seek, more than one only for <untagged> */
+    int lo = 0, hi = pf_idx.album_ct;
+    while (lo < hi)
+    {
+        int mid = (lo + hi) / 2;
+        if (pf_idx.album_index[by_seek.order[mid]].seek < album)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    for (int k = lo; k < pf_idx.album_ct; k++)
+    {
+        int j = by_seek.order[k];
+        struct album_data *a = &pf_idx.album_index[j];
+        if (a->seek != album)
+            break;
+        if (!by_seek.seen[j])
+        {
+            by_seek.seen[j] = 1;
+            int idx;
+            if (a->artist_seek < 0 && (idx = artist_name_of(artist)) >= 0)
+            {
+                a->artist_idx = idx;
+                a->artist_seek = artist;
+            }
+        }
+        if ((a->artist_idx < 0 || a->artist_seek == artist) && year > a->year)
+            a->year = year;
+    }
+}
+
+/* false when the database isn't in memory or there is no room */
+static bool assign_albums_from_ram(void *buf, size_t buf_size)
+{
+    size_t need = pf_idx.album_ct * (sizeof(int) + 1)
+                + pf_idx.artist_ct * sizeof(struct artist_data)
+                + 2 * sizeof(long);
+    if (need > buf_size)
+        return false;
+    ALIGN_BUFFER(buf, buf_size, sizeof(long));
+    by_seek.artists = buf;
+    by_seek.order = (int *)(by_seek.artists + pf_idx.artist_ct);
+    by_seek.seen = (unsigned char *)(by_seek.order + pf_idx.album_ct);
+
+    rb->memcpy(by_seek.artists, pf_idx.artist_index,
+               pf_idx.artist_ct * sizeof(struct artist_data));
+    rb->qsort(by_seek.artists, pf_idx.artist_ct, sizeof(struct artist_data),
+              compare_artist_seeks);
+    for (int j = 0; j < pf_idx.album_ct; j++)
+    {
+        by_seek.order[j] = j;
+        by_seek.seen[j] = 0;
+    }
+    rb->qsort(by_seek.order, pf_idx.album_ct, sizeof(int),
+              compare_album_seeks);
+    return rb->tagcache_for_each_track(album_of_track, NULL);
+}
+#endif /* HAVE_TC_RAMCACHE */
+
+/* the albums' artists and years by a search of each album */
+static int assign_albums_by_search(void *buf, size_t buf_size)
 {
     static char tcs_buf[TAGCACHE_BUFSZ];
     const long tcs_bufsz = sizeof(tcs_buf);
-    void *buf = pf_idx.buf;
-    size_t buf_size = pf_idx.buf_sz;
-
-    struct album_data* tmp_album;
-
-    int i, j, last, final, retry, res;
-
-    draw_splashscreen(buf, buf_size);
-    ALIGN_BUFFER(buf, buf_size, sizeof(long));
-
-    /* Artists */
-    res = build_artist_index(&tcs, &buf, &buf_size);
-    if (res < SUCCESS)
-        return res;
-
-    /* Albums */
-    pf_idx.album_ct = 0;
-    pf_idx.album_len =0;
-    pf_idx.album_untagged_idx = -1;
-    pf_idx.album_untagged_seek = -1;
-
-    /* album_index starts at end of buf it will be rearranged when finalized */
-    pf_idx.album_index = ((struct album_data *)(buf_size + (char *)buf)) - 1;
-    /* album_names starts at the beginning of buf */
-    pf_idx.album_names = buf;
-
-    rb->tagcache_search(&tcs, tag_album);
-    res = get_tcs_search_res(ePFS_ALBUM, &tcs, &buf, &buf_size);
-    rb->tagcache_search_finish(&tcs);
-    if (res < SUCCESS)
-        return res;
-
-    /* Build artist list for untagged albums */
-    res = create_album_untagged(&tcs, &buf, &buf_size);
-
-    if (res < SUCCESS)
-        return res;
-
-    /* finalize the album index */
-    ALIGN_BUFFER(buf, buf_size, alignof(struct album_data));
-    tmp_album = (struct album_data*)buf;
-    for (i = pf_idx.album_ct - 1; i >= 0; i--)
-        tmp_album[i] = pf_idx.album_index[-i];
-
-    pf_idx.album_index = tmp_album;
-    /* move buf ptr to end of album_index */
-    buf = pf_idx.album_index + pf_idx.album_ct;
+    int i, j, last, final, retry;
 
     /* Assign indices */
     draw_splashscreen(buf, buf_size);
@@ -1479,10 +1540,72 @@ retry_artist_lookup:
 
     draw_splashscreen(buf, buf_size);
 
-    res = assign_album_year();
+    return assign_album_year();
+}
+
+/**
+  Create an index of all artists and albums from the database.
+  Also store the artists and album names so we can access them later.
+ */
+static int create_album_index(void)
+{
+    void *buf = pf_idx.buf;
+    size_t buf_size = pf_idx.buf_sz;
+
+    struct album_data* tmp_album;
+
+    int i, j, res;
+
+    draw_splashscreen(buf, buf_size);
+    ALIGN_BUFFER(buf, buf_size, sizeof(long));
+
+    /* Artists */
+    res = build_artist_index(&tcs, &buf, &buf_size);
+    if (res < SUCCESS)
+        return res;
+
+    /* Albums */
+    pf_idx.album_ct = 0;
+    pf_idx.album_len =0;
+    pf_idx.album_untagged_idx = -1;
+    pf_idx.album_untagged_seek = -1;
+
+    /* album_index starts at end of buf it will be rearranged when finalized */
+    pf_idx.album_index = ((struct album_data *)(buf_size + (char *)buf)) - 1;
+    /* album_names starts at the beginning of buf */
+    pf_idx.album_names = buf;
+
+    rb->tagcache_search(&tcs, tag_album);
+    res = get_tcs_search_res(ePFS_ALBUM, &tcs, &buf, &buf_size);
+    rb->tagcache_search_finish(&tcs);
+    if (res < SUCCESS)
+        return res;
+
+    /* Build artist list for untagged albums */
+    res = create_album_untagged(&tcs, &buf, &buf_size);
 
     if (res < SUCCESS)
         return res;
+
+    /* finalize the album index */
+    ALIGN_BUFFER(buf, buf_size, alignof(struct album_data));
+    tmp_album = (struct album_data*)buf;
+    for (i = pf_idx.album_ct - 1; i >= 0; i--)
+        tmp_album[i] = pf_idx.album_index[-i];
+
+    pf_idx.album_index = tmp_album;
+    /* move buf ptr to end of album_index */
+    buf = pf_idx.album_index + pf_idx.album_ct;
+
+    /* Assign indices */
+#ifdef HAVE_TC_RAMCACHE
+    if (!assign_albums_from_ram(buf, buf_size))
+#endif
+    {
+        res = assign_albums_by_search(buf, buf_size);
+        if (res < SUCCESS)
+            return res;
+    }
 
     /* sort list order to find duplicates */
     rb->qsort(pf_idx.album_index, pf_idx.album_ct,
@@ -1549,6 +1672,7 @@ static int save_album_index(void){
     if(fd >= 0)
     {
         rb->memcpy(&data.header, INDEX_HDR, sizeof(pf_idx.header));
+        data.commitid = rb->tagcache_get_commitid();
 
         rb->write(fd, &data, sizeof(struct pf_index_t));
 
@@ -1595,6 +1719,13 @@ static int load_album_index(void){
             if (rb->read(fr, &data, sizeof(data)) == sizeof(data) &&
                 rb->memcmp(&(data.header), INDEX_HDR, sizeof(data.header)) == 0)
             {
+                /* the files of a database changed since hold the albums
+                   and artists elsewhere, as after every sync */
+                if (data.commitid != rb->tagcache_get_commitid())
+                {
+                    rb->close(fr);
+                    return -1;
+                }
                 name_sz = data.artist_len + data.album_len;
                 album_idx_sz = data.album_ct * sizeof(struct album_data);
 
@@ -2112,6 +2243,57 @@ static int read_embedded_jpeg(const char *path, const struct mp3_albumart *aa,
 }
 #endif /* HAVE_ALBUMART */
 
+#ifdef ITUNESDB_HAVE_ART
+/**
+  A cover Finder made, fit into bm, which PictureFlow keeps a column at a
+  time: read a row at a time into the far half of the buffer, then turned.
+ */
+static int read_ipod_art(const struct itunesdb_art *art, struct bitmap *bm,
+                         size_t buf_sz)
+{
+    size_t half = ALIGN_DOWN(buf_sz / 2, sizeof(long));
+    struct bitmap rows = {
+        .width = bm->width,
+        .height = bm->height,
+        .data = (unsigned char *)bm->data + half
+    };
+    int size = rb->itunesdb_load_art(art, &rows, buf_sz - half);
+    if (size <= 0
+        || (size_t)rows.width * rows.height * sizeof(pix_t) > half)
+        return -1;
+
+    const fb_data *src = (const fb_data *)rows.data;
+    pix_t *dst = (pix_t *)bm->data;
+    for (int y = 0; y < rows.height; y++)
+        for (int x = 0; x < rows.width; x++)
+            dst[x * rows.height + y] = *src++;
+    bm->width = rows.width;
+    bm->height = rows.height;
+    return size;
+}
+
+/**
+  The cover Finder made for the album's first track, if there is one. Called
+  with buf_ctx locked, as the other users of tcs are, or before the slide
+  thread runs.
+ */
+static bool find_ipod_cover(const int slide_index, struct itunesdb_art *art)
+{
+    char tcs_buf[TAGCACHE_BUFSZ];
+    bool found = false;
+    if (tcs.valid || !rb->tagcache_search(&tcs, tag_filename))
+        return false;
+    rb->tagcache_search_add_filter(&tcs, tag_album,
+                                   pf_idx.album_index[slide_index].seek);
+    rb->tagcache_search_add_filter(&tcs, tag_albumartist,
+                                   pf_idx.album_index[slide_index].artist_seek);
+    if (rb->tagcache_get_next(&tcs, tcs_buf, sizeof(tcs_buf)))
+        found = rb->itunesdb_find_art(tcs.result, art);
+    rb->tagcache_search_finish(&tcs);
+    return found;
+}
+#endif /* ITUNESDB_HAVE_ART */
+
 /**
   Find the album art of the track: an image file found by
   search_albumart_files() or a JPEG embedded in the track, in the order
@@ -2163,8 +2345,20 @@ static bool get_albumart_for_index_from_db(const int slide_index, char *buf,
     rb->tagcache_search_add_filter(&tcs, tag_albumartist,
                                    pf_idx.album_index[slide_index].artist_seek);
 
-    ret = rb->tagcache_get_next(&tcs, tcs_buf, tcs_bufsz) &&
-          retrieve_id3(&id3, tcs.result) &&
+    ret = rb->tagcache_get_next(&tcs, tcs_buf, tcs_bufsz);
+#ifdef ITUNESDB_HAVE_ART
+    /* the cover Finder made, first: no tags to read and no JPEG to decode,
+       where an album's embedded 1000x1000 took the iPod seconds */
+    aa->ipod_art.width = 0;
+    if (ret && rb->itunesdb_find_art(tcs.result, &aa->ipod_art))
+    {
+        rb->strlcpy(buf, tcs.result, buflen);
+        rb->tagcache_search_finish(&tcs);
+        return true;
+    }
+    aa->ipod_art.width = 0;
+#endif
+    ret = ret && retrieve_id3(&id3, tcs.result) &&
           find_track_albumart(&id3, buf, buflen, aa);
 
     rb->tagcache_search_finish(&tcs);
@@ -2176,6 +2370,15 @@ static bool get_albumart_for_index_from_db(const int slide_index, char *buf,
  */
 static void draw_splashscreen(unsigned char * buf_tmp, size_t buf_tmp_size)
 {
+#ifdef ITUNESDB_HAVE_ART
+    /* as Cover Flow starts: black, no logo */
+    (void)buf_tmp;
+    (void)buf_tmp_size;
+    rb->lcd_set_background(LCD_BLACK);
+    rb->lcd_clear_display();
+    rb->lcd_update();
+    return;
+#endif
     struct screen* display = rb->screens[SCREEN_MAIN];
 #if FB_DATA_SZ > 1
     ALIGN_BUFFER(buf_tmp, buf_tmp_size, sizeof(fb_data));
@@ -2221,6 +2424,20 @@ static void draw_splashscreen(unsigned char * buf_tmp, size_t buf_tmp_size)
  */
 static void draw_progressbar(int step, int count, char *msg)
 {
+#ifdef ITUNESDB_HAVE_ART
+    /* the thin bar of the boot screen's "Updating Library", without words */
+    (void)msg;
+    const int bar_w = 140, bar_h = 6;
+    const int bx = (LCD_WIDTH - bar_w) / 2, by = (LCD_HEIGHT - bar_h) / 2;
+    rb->lcd_set_foreground(LCD_RGBPACK(70, 70, 70));
+    rb->lcd_fillrect(bx, by, bar_w, bar_h);
+    rb->lcd_set_foreground(LCD_WHITE);
+    if (count > 0)
+        rb->lcd_fillrect(bx, by, bar_w * MIN(step, count) / count, bar_h);
+    rb->lcd_update();
+    rb->yield();
+    return;
+#endif
     static int txt_w, txt_h;
     const int bar_height = 22;
     const int w = LCD_WIDTH - 20;
@@ -2336,6 +2553,14 @@ static bool incremental_albumart_cache(bool verbose)
                                         sizeof(aa_cache.file), &aa_cache))
         goto aa_failure; //rb->strcpy(aa_cache.file, EMPTY_SLIDE_BMP);
 
+#ifdef ITUNESDB_HAVE_ART
+    /* a cover Finder made is read as it is shown, with no file of it */
+    if (aa_cache.ipod_art.width > 0)
+    {
+        aa_cache.slides++;
+        goto aa_success;
+    }
+#endif
 
     aa_cache.input_bmp.data = aa_cache.buf;
     aa_cache.input_bmp.width = DISPLAY_WIDTH;
@@ -2760,6 +2985,43 @@ static int read_pfraw(char* filename, int prio)
     return hid;
 }
 
+#ifdef ITUNESDB_HAVE_ART
+/**
+  The slide of the cover Finder made, read as it is shown: that cover is
+  made already, so no file of it is kept, where writing one for each of a
+  thousand albums took minutes. The hid, or -1 without such a cover.
+ */
+static int read_ipod_cover(const int slide_index, const int prio)
+{
+    struct itunesdb_art art;
+    if (!find_ipod_cover(slide_index, &art))
+        return -1;
+
+    /* turned in aa_cache.buf, which the lock on buf_ctx keeps to us */
+    struct bitmap bm = {
+        .width = DISPLAY_WIDTH,
+        .height = DISPLAY_HEIGHT,
+        .data = aa_cache.buf
+    };
+    if (read_ipod_art(&art, &bm, aa_cache.buf_sz) <= 0)
+        return -1;
+
+    size_t pixels = sizeof(pix_t) * bm.width * bm.height;
+    int hid;
+    do {
+        hid = rb->buflib_alloc(&buf_ctx, sizeof(struct dim) + pixels);
+    } while (hid < 0 && free_slide_prio(prio));
+    if (hid < 0)
+        return -1;
+
+    struct dim *slide = rb->buflib_get_data(&buf_ctx, hid);
+    slide->width = bm.width;
+    slide->height = bm.height;
+    rb->memcpy(sizeof(struct dim) + (char *)slide, bm.data, pixels);
+    return hid;
+}
+#endif /* ITUNESDB_HAVE_ART */
+
 
 /**
   Load the surface for the given slide_index into the cache at cache_index.
@@ -2768,14 +3030,20 @@ static inline bool load_and_prepare_surface(const int slide_index,
                                             const int cache_index,
                                             const int prio)
 {
-    char pfraw_file[MAX_PATH];
-    unsigned int hash_artist = mfnv(get_album_artist(slide_index));
-    unsigned int hash_album = mfnv(get_album_name(slide_index));
+    int hid = -1;
+#ifdef ITUNESDB_HAVE_ART
+    hid = read_ipod_cover(slide_index, prio);
+    if (hid < 0)
+#endif
+    {
+        char pfraw_file[MAX_PATH];
+        unsigned int hash_artist = mfnv(get_album_artist(slide_index));
+        unsigned int hash_album = mfnv(get_album_name(slide_index));
 
-    rb->snprintf(pfraw_file, sizeof(pfraw_file), CACHE_PREFIX "/%x%x.pfraw",
-                 hash_album, hash_artist);
-
-    int hid = read_pfraw(pfraw_file, prio);
+        rb->snprintf(pfraw_file, sizeof(pfraw_file),
+                     CACHE_PREFIX "/%x%x.pfraw", hash_album, hash_artist);
+        hid = read_pfraw(pfraw_file, prio);
+    }
     if (hid < 0)
         return false;
 
@@ -4671,12 +4939,32 @@ static bool init(void)
         return false;
     }
 
-    if ((pf_cfg.cache_version != CACHE_VERSION) && !create_albumart_cache())
+    bool prepare = pf_cfg.cache_version != CACHE_VERSION;
+#ifdef ITUNESDB_HAVE_ART
+    bool background_note = false; /* the covers just come, as on an iPod */
+#else
+    bool background_note = true;
+#endif
+#ifdef ITUNESDB_HAVE_ART
+    /* With covers Finder made, which are read as they are shown, only the
+       other albums need theirs made, and that in the background: making a
+       file of each cover first took minutes for a thousand albums */
+    struct itunesdb_art art;
+    for (int i = 0; prepare && i < MIN(pf_idx.album_ct, 16); i++)
+    {
+        if (find_ipod_cover(i, &art))
+        {
+            prepare = false;
+            aa_cache.idx = aa_cache.inspected = aa_cache.slides = 0;
+        }
+    }
+#endif
+    if (prepare && !create_albumart_cache())
     {
         config_save(CACHE_REBUILD, false);
         error_wait("Could not create album art cache");
     }
-    else if(aa_cache.inspected < pf_idx.album_ct)
+    else if (background_note && aa_cache.inspected < pf_idx.album_ct)
         rb->splash(HZ * 2, "Updating album art cache in background");
 
     if (pf_cfg.cache_version != CACHE_VERSION)
@@ -4830,8 +5118,13 @@ static int pictureflow_main(void)
             last_update = current_update;
             frames = 0;
         }
-        /* Draw FPS or draw percentage of already built album cache */
+        /* Draw FPS or draw percentage of already built album cache; not the
+           percentage in Cover Flow, whose covers just come */
+#ifdef ITUNESDB_HAVE_ART
+        if (pf_cfg.show_fps)
+#else
         if (pf_cfg.show_fps || aa_cache.inspected < pf_idx.album_ct)
+#endif
         {
 #ifdef USEGSLIB
             mylcd_set_foreground(G_BRIGHT(255));

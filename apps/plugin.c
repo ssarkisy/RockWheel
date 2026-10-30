@@ -20,6 +20,7 @@
 #define DIRFUNCTIONS_DEFINED
 #define FILEFUNCTIONS_DEFINED
 #include "plugin.h"
+#include "itunesdb.h"
 #include "open_plugin.h"
 #include <ctype.h>
 #include <string.h>
@@ -896,6 +897,16 @@ static const struct plugin_api rockbox_api = {
     /* new stuff at the end, sort into place next time
        the API gets incompatible */
     settings_apply,
+#ifdef ITUNESDB_HAVE_ART
+    itunesdb_find_art,
+    itunesdb_load_art,
+#endif
+#ifdef HAVE_TAGCACHE
+    tagcache_get_commitid,
+#endif
+#ifdef HAVE_TC_RAMCACHE
+    tagcache_for_each_track,
+#endif
 };
 
 static int plugin_buffer_handle;

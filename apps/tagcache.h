@@ -238,5 +238,14 @@ void tagcache_stop_scan(void);
 bool tagcache_update(void);
 bool tagcache_rebuild(void);
 int tagcache_get_max_commit_step(void);
+/* the number of commits so far, which a change of the files makes one more */
+int tagcache_get_commitid(void);
+#ifdef HAVE_TC_RAMCACHE
+/* f with the tags of every track of the database in memory, in its order:
+   seeks as searches give them, the values of numeric tags; false when the
+   database isn't in memory. f mustn't yield. */
+bool tagcache_for_each_track(void (*f)(const int32_t *tag_seek, void *data),
+                             void *data);
+#endif
 #endif
 #endif

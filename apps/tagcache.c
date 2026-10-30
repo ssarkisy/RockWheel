@@ -6755,6 +6755,29 @@ int tagcache_get_commit_step(void)
 {
     return tc_stat.commit_step;
 }
+int tagcache_get_commitid(void)
+{
+    return current_tcmh.commitid;
+}
+
+#ifdef HAVE_TC_RAMCACHE
+bool tagcache_for_each_track(void (*f)(const int32_t *tag_seek, void *data),
+                             void *data)
+{
+    if (!tc_stat.ramcache)
+        return false;
+    tcrc_buffer_lock(); /* the entries are movable */
+    for (int i = 0; i < current_tcmh.tch.entry_count; i++)
+    {
+        const struct index_entry *idx = &tcramcache.hdr->indices[i];
+        if (!(idx->flag & FLAG_DELETED))
+            f(idx->tag_seek, data);
+    }
+    tcrc_buffer_unlock();
+    return true;
+}
+#endif
+
 int tagcache_get_max_commit_step(void)
 {
     return (int)(SORTED_TAGS_COUNT)+1;
