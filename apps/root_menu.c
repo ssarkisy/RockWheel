@@ -1005,6 +1005,9 @@ static int library_update_percent(int phase, int done, int total)
             return 45 + (total > 0 ? 40 * MIN(done, total) / total : 0);
         case TAGCACHE_IMPORT_LOADING:
             return 88;
+        case TAGCACHE_IMPORT_COUNTS:
+            /* through the tracks, deleting those a sync replaced */
+            return 90 + (total > 0 ? 9 * MIN(done, total) / total : 0);
         default:
             return 96;
     }

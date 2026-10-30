@@ -461,7 +461,9 @@ static volatile int write_lock;
 static volatile int read_lock;
 
 static bool delete_entry(long idx_id);
-static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds);
+static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds,
+                            bool sweep_after);
+static void sweep_unused_tags(int masterfd, long count, int *fds);
 /* the entries that aren't deleted, -1 until they have been counted */
 static int song_count = -1;
 
@@ -4752,9 +4754,15 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
     int fds[TAG_COUNT];
     for (int tag = 0; tag < TAG_COUNT; tag++)
         fds[tag] = -1;
+    int deleted = 0;
 
     for (int i = 0; i < myhdr.tch.entry_count; i++)
     {
+        if (import_phase == TAGCACHE_IMPORT_COUNTS)
+        {
+            import_done = i;
+            import_total = myhdr.tch.entry_count;
+        }
         /* From memory when the database is there, as it is for Play Counts
            on every connection to a computer. Only an entry that changes is
            read from the disk: the copy in memory has seeks of its own. */
@@ -4770,7 +4778,9 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
         if (action < 0)
         {
             /* a file that is gone, like the files a sync replaced */
-            delete_entry_in(i, masterfd, myhdr.tch.entry_count, fds);
+            if (delete_entry_in(i, masterfd, myhdr.tch.entry_count, fds,
+                                true))
+                deleted++;
         }
         else if (action > 0
                  && (rt.playcount != idx.tag_seek[tag_playcount]
@@ -4784,6 +4794,8 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
         }
         do_timed_yield();
     }
+    if (deleted > 0)
+        sweep_unused_tags(masterfd, myhdr.tch.entry_count, fds);
 
     for (int tag = 0; tag < TAG_COUNT; tag++)
     {
@@ -4885,8 +4897,11 @@ bool tagcache_create_changelog(struct tagcache_search *tcs)
 
 /* masterfd is the master file, open for writing, with count entries, and
    fds[] the tag files, opened as needed and left open for the next one:
-   closing each after a write made a deletion take a tenth of a second */
-static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds)
+   closing each after a write made a deletion take a tenth of a second.
+   With sweep_after, the tags it leaves unused are deleted later by
+   sweep_unused_tags(), for all the entries deleted at once. */
+static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds,
+                            bool sweep_after)
 {
     int tag, i;
     struct index_entry idx, myidx;
@@ -4922,12 +4937,14 @@ static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds)
         return false;
     }
 
-    /* Now check which tags are no longer in use (if any) */
+    /* Now check which tags are no longer in use (if any): a look at every
+       entry for each deleted one, which took a sync that replaced 9000 files
+       many minutes; those are left to one sweep after */
     for (tag = 0; tag < TAG_COUNT; tag++)
-        in_use[tag] = 0;
+        in_use[tag] = sweep_after;
 
     lseek(masterfd, sizeof(struct master_header), SEEK_SET);
-    for (i = 0; i < count; i++)
+    for (i = 0; i < count && !sweep_after; i++)
     {
         struct index_entry *idxp;
 
@@ -5069,6 +5086,96 @@ static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds)
     return true;
 }
 
+static int cmp_seek(const void *a, const void *b)
+{
+    int32_t x = *(const int32_t *)a, y = *(const int32_t *)b;
+    return (x > y) - (x < y);
+}
+
+static bool seek_in(const int32_t *sorted, int n, int32_t seek)
+{
+    int lo = 0, hi = n - 1;
+    while (lo <= hi)
+    {
+        int mid = (lo + hi) / 2;
+        if (sorted[mid] == seek)
+            return true;
+        if (sorted[mid] < seek)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return false;
+}
+
+/* Every string of the tag files that no entry uses deletes, as
+   delete_entry_in() does for one entry's, in one pass over each file */
+static void sweep_unused_tags(int masterfd, long count, int *fds)
+{
+    int handle = core_alloc(count * sizeof(int32_t));
+    if (handle <= 0)
+        return; /* left in the files, shown in no list of a tag's own */
+    core_pin(handle);
+    int32_t *used = core_get_data(handle);
+
+    for (int tag = 0; tag < TAG_COUNT; tag++)
+    {
+        struct tagcache_header tch;
+        struct index_entry idx;
+        if (TAGCACHE_IS_NUMERIC(tag))
+            continue;
+
+        /* the seeks still in use, sorted */
+        int n = 0;
+        lseek(masterfd, sizeof(struct master_header), SEEK_SET);
+        for (long i = 0; i < count; i++)
+        {
+            const struct index_entry *e = &idx;
+#ifdef HAVE_TC_RAMCACHE
+            if (tc_stat.ramcache)
+                e = &tcramcache.hdr->indices[i];
+            else
+#endif
+            if (read_index_entries(masterfd, &idx, 1) != sizeof(idx))
+                break;
+            if (!(e->flag & FLAG_DELETED))
+                used[n++] = e->tag_seek[tag];
+        }
+        qsort(used, n, sizeof(int32_t), cmp_seek);
+
+        if (fds[tag] < 0 && (fds[tag] = open_tag_fd(&tch, tag, true)) < 0)
+            continue;
+        off_t size = ffilesize(fds[tag]);
+        off_t pos = sizeof(struct tagcache_header);
+        while (pos + (off_t)sizeof(struct tagfile_entry) < size)
+        {
+            struct tagfile_entry tfe;
+            char first;
+            lseek(fds[tag], pos, SEEK_SET);
+            if (read(fds[tag], &tfe, sizeof(tfe)) != sizeof(tfe)
+                || tfe.tag_length <= 0
+                || read(fds[tag], &first, 1) != 1)
+                break;
+            int32_t seek = pos;
+            if (first != '\0' && !seek_in(used, n, seek))
+            {
+                lseek(fds[tag], pos + sizeof(tfe), SEEK_SET);
+                write(fds[tag], "", 1);
+#ifdef HAVE_TC_RAMCACHE
+                if (tc_stat.ramcache && tag != tag_filename)
+                    str_setlen(((struct tagfile_entry *)
+                                &tcramcache.hdr->tags[tag][pos])->tag_data, 0);
+#endif
+            }
+            pos += sizeof(tfe) + tfe.tag_length;
+        }
+        do_timed_yield();
+    }
+
+    core_unpin(handle);
+    core_free(handle);
+}
+
 static bool delete_entry(long idx_id)
 {
     struct master_header myhdr;
@@ -5079,7 +5186,8 @@ static bool delete_entry(long idx_id)
 
     for (int tag = 0; tag < TAG_COUNT; tag++)
         fds[tag] = -1;
-    bool ok = delete_entry_in(idx_id, masterfd, myhdr.tch.entry_count, fds);
+    bool ok = delete_entry_in(idx_id, masterfd, myhdr.tch.entry_count, fds,
+                              false);
     for (int tag = 0; tag < TAG_COUNT; tag++)
     {
         if (fds[tag] >= 0)
