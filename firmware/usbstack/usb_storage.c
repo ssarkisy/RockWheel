@@ -360,6 +360,17 @@ static void send_and_read_next(void);
 static bool ejected[NUM_DRIVES];
 static bool locked[NUM_DRIVES];
 
+#ifdef USB_IPOD_IDENTITY
+/* The host has ejected all it was shown, so it's OK to disconnect */
+bool usb_storage_ejected(void)
+{
+    for(int i = 0; i < NUM_DRIVES; i++)
+        if(!ejected[i])
+            return false;
+    return true;
+}
+#endif
+
 static int usb_interface;
 
 static struct usb_class_driver_ep_allocation ep_allocs[2] = {

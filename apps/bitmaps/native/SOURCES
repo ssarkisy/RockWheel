@@ -45,6 +45,7 @@ applelogo.64x80x16.bmp
 /* The screen while connected over USB, made by themes/tools/make_usb_screen.py */
 #ifdef USB_IPOD_IDENTITY
 nodisconnect.96x98x16.bmp
+usbok.96x98x16.bmp
 usbbattery.25x22x16.bmp
 #endif
 

@@ -48,6 +48,7 @@
 
 #ifdef USB_IPOD_IDENTITY
 #include "bitmaps/nodisconnect.h"
+#include "bitmaps/usbok.h"
 #include "bitmaps/usbbattery.h"
 #include "power.h"
 #else
@@ -156,7 +157,15 @@ static const unsigned long ipod_usb_title_bar[] = {
 #define IPOD_USB_TITLE_H ((int)ARRAYLEN(ipod_usb_title_bar))
 
 static bool ipod_usb_charging;
+static bool ipod_usb_ejected;
 static struct viewport *ipod_usb_parent;
+
+/* There's no ejecting in the simulator, which has no USB storage */
+#ifdef SIMULATOR
+#define ipod_usb_is_ejected() false
+#else
+#define ipod_usb_is_ejected() usb_storage_ejected()
+#endif
 
 static inline unsigned ipod_usb_colour(unsigned long rgb)
 {
@@ -168,6 +177,7 @@ static void ipod_usb_prepare(void)
 {
     font_getstringsize("iPod", NULL, NULL, FONT_UI);
     font_getstringsize(str(LANG_USB_DO_NOT_DISCONNECT), NULL, NULL, FONT_UI);
+    font_getstringsize(str(LANG_USB_OK_TO_DISCONNECT), NULL, NULL, FONT_UI);
 }
 
 /* The two frames of the bitmap: charging, and on power but not charging */
@@ -205,6 +215,7 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
     struct viewport *last_vp = screen->set_viewport(parent);
 
     ipod_usb_parent = parent;
+    ipod_usb_ejected = ipod_usb_is_ejected();
     screen->backlight_on();
     screen->set_drawmode(DRMODE_SOLID);
 
@@ -217,7 +228,8 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
     screen->fillrect(0, IPOD_USB_TITLE_H, LCD_WIDTH,
                      LCD_HEIGHT - IPOD_USB_TITLE_H);
 
-    screen->bmp(&bm_nodisconnect, IPOD_USB_SIGN_X, IPOD_USB_SIGN_Y);
+    screen->bmp(ipod_usb_ejected ? &bm_usbok : &bm_nodisconnect,
+                IPOD_USB_SIGN_X, IPOD_USB_SIGN_Y);
     ipod_usb_draw_battery(screen);
 
     /* The letters blend with what's under them, here the title bar */
@@ -225,7 +237,9 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
     screen->set_foreground(LCD_BLACK);
     screen->set_drawmode(DRMODE_FG);
     ipod_usb_draw_centred(screen, "iPod", IPOD_USB_TITLE_H / 2);
-    ipod_usb_draw_centred(screen, str(LANG_USB_DO_NOT_DISCONNECT),
+    ipod_usb_draw_centred(screen, str(ipod_usb_ejected ?
+                                      LANG_USB_OK_TO_DISCONNECT :
+                                      LANG_USB_DO_NOT_DISCONNECT),
                           IPOD_USB_TEXT_Y);
     screen->set_drawmode(DRMODE_SOLID);
 
@@ -236,6 +250,12 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
 static void ipod_usb_update(void)
 {
     struct screen *screen = &screens[SCREEN_MAIN];
+
+    if (ipod_usb_is_ejected() != ipod_usb_ejected)
+    {
+        ipod_usb_draw(screen, ipod_usb_parent);
+        return;
+    }
 
     if (charging_state() == ipod_usb_charging)
         return;

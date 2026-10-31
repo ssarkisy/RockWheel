@@ -7500,3 +7500,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_USB_OK_TO_DISCONNECT
+  desc: under the check mark on the screen after the host has ejected the iPod, as on a stock iPod
+  user: core
+  <source>
+    *: "OK to disconnect."
+  </source>
+  <dest>
+    *: "Vi povas malkonekti."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

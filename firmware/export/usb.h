@@ -261,6 +261,9 @@ bool usb_exclusive_storage(void);
 void usb_request_exclusive_storage(void);
 /* finish exclusive storage access if enabled and mount volumes */
 void usb_release_exclusive_storage(void);
+#ifdef USB_IPOD_IDENTITY
+bool usb_storage_ejected(void);
+#endif
 
 #ifdef USB_FIREWIRE_HANDLING
 bool firewire_detect(void);
