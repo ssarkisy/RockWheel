@@ -71,7 +71,7 @@ int skin_shown_backdrop(const struct wps_data *data);
 /* A %Cd's handle, or SKIN_ART_KEPT for the cover shown until the next one is ready */
 #define SKIN_ART_KEPT (-2)
 int skin_art_handle(const struct wps_data *data, int index, int handle);
-bool skin_art_is_kept(const struct wps_data *data);
+bool skin_art_found(const struct wps_data *data, int handle);
 bool skin_art_kept_expired(void);
 #endif
 void skin_backdrop_load_setting(void);

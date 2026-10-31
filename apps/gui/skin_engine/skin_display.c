@@ -686,10 +686,31 @@ static struct {
     fb_data pixels[ART_KEPT_SIZE * ART_KEPT_SIZE];
     short width, height;
     int handle;
+    bool had_cover; /* it had one when last looked at */
+    bool keeping;   /* it has none now, and the copy stays until then */
+    long until;
 } kept_art[2];
-static int last_art_handle[2] = { -1, -1 };
-static long art_kept_until;
-static bool art_keeping = false;
+
+static void art_seen(int index, int handle)
+{
+    if (handle >= 0)
+    {
+        kept_art[index].had_cover = true;
+        kept_art[index].keeping = false;
+    }
+    else if (kept_art[index].had_cover)
+    {
+        kept_art[index].had_cover = false;
+        kept_art[index].keeping = true;
+        kept_art[index].until = current_tick + ART_KEPT_TIME;
+    }
+}
+
+static bool art_is_kept(int index)
+{
+    return kept_art[index].keeping
+           && TIME_BEFORE(current_tick, kept_art[index].until);
+}
 
 static void keep_album_art(int index, int handle)
 {
@@ -732,10 +753,15 @@ static void draw_kept_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
                                x, y, width, height);
 }
 
-bool skin_art_is_kept(const struct wps_data *data)
+/* What %?C says: it comes before the %Cd, and a theme may change what it shows by
+   it, so going without a cover has to start here already */
+bool skin_art_found(const struct wps_data *data, int handle)
 {
-    return art_keeping && data == skin_get_gwps(WPS, SCREEN_MAIN)->data
-           && TIME_BEFORE(current_tick, art_kept_until);
+    if (data != skin_get_gwps(WPS, SCREEN_MAIN)->data)
+        return handle >= 0;
+
+    art_seen(0, handle);
+    return handle >= 0 || art_is_kept(0);
 }
 
 int skin_art_handle(const struct wps_data *data, int index, int handle)
@@ -743,18 +769,8 @@ int skin_art_handle(const struct wps_data *data, int index, int handle)
     if (data != skin_get_gwps(WPS, SCREEN_MAIN)->data)
         return handle;
 
-    if (handle >= 0)
-    {
-        art_keeping = false;
-    }
-    else if (last_art_handle[index] >= 0 && !art_keeping)
-    {
-        art_keeping = true;
-        art_kept_until = current_tick + ART_KEPT_TIME;
-    }
-    last_art_handle[index] = handle;
-
-    if (handle < 0 && kept_art[index].width > 0 && skin_art_is_kept(data))
+    art_seen(index, handle);
+    if (handle < 0 && kept_art[index].width > 0 && art_is_kept(index))
         return SKIN_ART_KEPT;
     return handle;
 }
@@ -762,12 +778,16 @@ int skin_art_handle(const struct wps_data *data, int index, int handle)
 /* True once, when the time for it is up with no cover there: the note can show */
 bool skin_art_kept_expired(void)
 {
-    if (art_keeping && !TIME_BEFORE(current_tick, art_kept_until))
+    bool expired = false;
+    for (int i = 0; i < 2; i++)
     {
-        art_keeping = false;
-        return true;
+        if (kept_art[i].keeping && !TIME_BEFORE(current_tick, kept_art[i].until))
+        {
+            kept_art[i].keeping = false;
+            expired = true;
+        }
     }
-    return false;
+    return expired;
 }
 #endif /* HAVE_ALBUMART */
 
@@ -788,7 +808,9 @@ void wps_display_images(struct gui_wps *gwps, struct viewport* vp)
         if (aa && aa->draw_handle >= 0)
         {
             draw_album_art(gwps, aa, aa->draw_handle, false);
-            keep_album_art(i, aa->draw_handle);
+            /* not what the lists' skin draws, of another size */
+            if (data == skin_get_gwps(WPS, SCREEN_MAIN)->data)
+                keep_album_art(i, aa->draw_handle);
             aa->draw_handle = -1;
         }
         else if (aa && aa->draw_handle == SKIN_ART_KEPT)
