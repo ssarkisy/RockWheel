@@ -134,6 +134,8 @@ void do_setting_screen(const struct settings_list *setting, const char * title,
                      If NULL it is ignored and the firs item starts selected
 */
 bool menu_settings_selected(void);
+/* From a screen a menu has opened: Menu has been held, so leave for the main menu */
+void menu_request_root(void);
 int do_menu(const struct menu_item_ex *menu, int *start_selected,
             struct viewport parent[NB_SCREENS], bool hide_theme);
 

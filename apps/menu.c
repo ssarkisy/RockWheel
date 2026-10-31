@@ -419,6 +419,12 @@ bool menu_settings_selected(void)
     return settings_selected;
 }
 
+static bool root_requested = false;
+void menu_request_root(void)
+{
+    root_requested = true;
+}
+
 /* True if the theme has just been drawn again for it, over a part of the list */
 static bool set_settings_selected(bool selected)
 {
@@ -667,11 +673,14 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
         }
         else if (action == ACTION_STD_MENU)
         {
+            /* Menu held; it's already there in the main menu itself. Also for a
+               menu around this one, if this was opened by a function of it. */
             if (menu != &root_menu_)
+            {
                 ret = GO_TO_ROOT;
-            else
-                ret = GO_TO_PREVIOUS;
-            done = true;
+                done = true;
+                root_requested = true;
+            }
         }
         else if (action == ACTION_STD_CANCEL)
         {
@@ -728,6 +737,7 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                 if (action == ACTION_EXIT_MENUITEM)
                     break;
             }
+            root_requested = false;
             switch (type)
             {
                 case MT_MENU:
@@ -804,6 +814,12 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                     ret = GO_TO_PREVIOUS;
                     done = true;
                     break;
+            }
+            if (root_requested)
+            {
+                root_requested = false;
+                ret = GO_TO_ROOT;
+                done = true;
             }
             if (type != MT_MENU)
             {

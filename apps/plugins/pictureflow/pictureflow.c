@@ -5871,6 +5871,9 @@ static int pictureflow_main(void)
                 return PLUGIN_OK;
             break;
         case PF_MENU:
+#ifdef ITUNESDB_HAVE_ART
+            return PLUGIN_GOTO_ROOT; /* Menu held, as everywhere */
+#endif
 #ifdef USEGSLIB
             grey_show(false);
 #endif

@@ -29,6 +29,7 @@
 #include "system.h"
 
 #include "action.h"
+#include "menu.h"
 #include "screen_access.h"
 #include "list.h"
 #include "scrollbar.h"
@@ -994,6 +995,12 @@ bool simplelist_show_list(struct simplelist_info *info)
         }
         if (action == ACTION_STD_CANCEL)
         {
+            info->selection = -1;
+            break;
+        }
+        else if (action == ACTION_STD_MENU)
+        {
+            menu_request_root();
             info->selection = -1;
             break;
         }

@@ -550,6 +550,8 @@ bool option_screen(const struct settings_list *setting,
             continue;
         else if (action == ACTION_STD_CANCEL || action == ACTION_STD_MENU)
         {
+            if (action == ACTION_STD_MENU)
+                menu_request_root();
             /* setting canceled, restore old value if changed */
             if (*variable != oldvalue)
             {

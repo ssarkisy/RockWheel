@@ -112,9 +112,13 @@ static const struct button_mapping photos_keys[] = {
     { ACTION_STD_NEXT,       BUTTON_RIGHT|BUTTON_REL,          BUTTON_RIGHT },
     { ACTION_STD_OK,         BUTTON_SELECT|BUTTON_REL,         BUTTON_SELECT },
     { ACTION_STD_CANCEL,     BUTTON_MENU|BUTTON_REL,           BUTTON_MENU },
+    { ACTION_STD_MENU,       BUTTON_MENU|BUTTON_REPEAT,        BUTTON_MENU },
     { ACTION_PHOTOS_PLAY,    BUTTON_PLAY|BUTTON_REL,           BUTTON_PLAY },
     LAST_ITEM_IN_LIST
 };
+
+/* Menu held: out to the main menu, from whichever screen */
+static bool to_main_menu = false;
 
 static const struct button_mapping *get_keys(int context)
 {
@@ -784,6 +788,9 @@ static int view_photos(const struct album *album, int index, bool slideshow)
                 else
                     backlight_use_settings();
                 break;
+            case ACTION_STD_MENU:
+                to_main_menu = true;
+                /* fall through */
             case ACTION_STD_CANCEL:
                 result = PHOTO_AT(index);
                 break;
@@ -846,10 +853,18 @@ static bool browse_album(const struct album *album)
                     usb = done = true;
                     break;
                 }
+                if (to_main_menu)
+                {
+                    done = true;
+                    break;
+                }
                 next = selected = shown;
                 top = -1; /* redraw it all */
                 break;
             }
+            case ACTION_STD_MENU:
+                to_main_menu = true;
+                /* fall through */
             case ACTION_STD_CANCEL:
                 done = true;
                 break;
@@ -974,6 +989,9 @@ static bool slideshow_settings(void)
                                            Icon_NOICON);
                 rb->gui_synclist_draw(&list);
                 break;
+            case ACTION_STD_MENU:
+                to_main_menu = true;
+                /* fall through */
             case ACTION_STD_CANCEL:
                 return true;
             default:
@@ -1017,11 +1035,14 @@ static enum plugin_status photos_menu(void)
                                       : browse_album(&albums[item - 1]);
                 if (!ok)
                     return PLUGIN_USB_CONNECTED;
+                if (to_main_menu)
+                    return PLUGIN_OK;
                 rb->gui_synclist_set_title(&list, TEXT(LANG_PHOTOS),
                                            Icon_NOICON);
                 rb->gui_synclist_draw(&list);
                 break;
             }
+            case ACTION_STD_MENU:
             case ACTION_STD_CANCEL:
                 return PLUGIN_OK;
             default:
