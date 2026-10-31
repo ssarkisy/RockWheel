@@ -2719,6 +2719,160 @@ void III_overlap_z(mad_fixed_t overlap[18],
 }
 
 /*
+ * IMDCT of a normal long block, with its windowing and overlap: 63 multiplies
+ * instead of 226, which is about half of what decoding a frame takes otherwise.
+ * It's a Lee-style decomposition around two 9 point DCTs, as in ffmpeg's imdct36().
+ * Only rounding sets it apart from III_imdct_l() and III_overlap().
+ *
+ * It's not in IRAM, as that seemed no faster on the PP5022.
+ *
+ * A step of the decomposition has a factor of 1 / (2 * cos(..)), which the window
+ * then undoes. It all works on Q27, for the bit of headroom that the sums need.
+ */
+
+/* 1 / (2 * cos((PI / 36) * (2 * j + 1))), Q28 */
+static mad_fixed_t const imdct_l_twiddle[9] ICONST_ATTR MEM_ALIGN_ATTR = {
+  MAD_F(0x0807d2b2), MAD_F(0x08483ee1), MAD_F(0x08d3b7cd),
+  MAD_F(0x09c42578), MAD_F(0x0b504f33), MAD_F(0x0df2943c),
+  MAD_F(0x12edfb18), MAD_F(0x1ee8dd47), MAD_F(0x5bca2a2c),
+};
+
+/* sin((PI / 36) * (i + 1/2)) / (2 * cos((PI / 72) * (2 * i + 19))), Q27 */
+static mad_fixed_t const imdct_l_window[36] ICONST_ATTR MEM_ALIGN_ATTR = {
+  MAD_F(0x00421d4a), MAD_F(0x00db8f02), MAD_F(0x019c7f15),
+  MAD_F(0x029adcbf), MAD_F(0x04000000), MAD_F(0x06246711),
+  MAD_F(0x09ee0645), MAD_F(0x12a7d60c), MAD_F(0x3df40538),
+  MAD_F(-0x439c2cd1), MAD_F(-0x184ffda6), MAD_F(-0x0f962ddf),
+  MAD_F(-0x0bcc8eaa), MAD_F(-0x09a8279a), MAD_F(-0x08430459),
+  MAD_F(-0x0744a6af), MAD_F(-0x0683b69c), MAD_F(-0x05ea44e4),
+  MAD_F(-0x056b926e), MAD_F(-0x04ffae72), MAD_F(-0x04a15d91),
+  MAD_F(-0x044d0216), MAD_F(-0x04000000), MAD_F(-0x03b860c8),
+  MAD_F(-0x037499f7), MAD_F(-0x03336768), MAD_F(-0x02f3b0f5),
+  MAD_F(-0x02b476a4), MAD_F(-0x0274c031), MAD_F(-0x02338da3),
+  MAD_F(-0x01efc6d2), MAD_F(-0x01a8279a), MAD_F(-0x015b2583),
+  MAD_F(-0x0106ca09), MAD_F(-0x00a87927), MAD_F(-0x003c952c),
+};
+
+# define IMDCT_L_C1  MAD_F(0x0fc1c5c6)
+# define IMDCT_L_C2  MAD_F(0x0f08fb21)
+# define IMDCT_L_C3  MAD_F(0x0ddb3d74)
+# define IMDCT_L_C4  MAD_F(0x0c41b7d1)
+# define IMDCT_L_C5  MAD_F(0x0a48dba9)
+# define IMDCT_L_C7  MAD_F(0x0578ea1d)
+# define IMDCT_L_C8  MAD_F(0x02c74350)
+
+/* A Q27 window factor and a Q27 value, to a Q28 sample */
+# if defined(FPM_ARM)
+#  define imdct_l_mul_window(x, y)  \
+    ({ mad_fixed64hi_t __hi;  \
+       mad_fixed64lo_t __lo;  \
+       mad_fixed_t __result;  \
+       asm ("smull      %0, %1, %3, %4\n\t"  \
+            "movs       %0, %0, lsr #26\n\t"  \
+            "adc        %2, %0, %1, lsl #6"  \
+            : "=&r" (__lo), "=&r" (__hi), "=r" (__result)  \
+            : "%r" (x), "r" (y)  \
+            : "cc");  \
+       __result;  \
+    })
+# else
+#  define imdct_l_mul_window(x, y)  \
+    ((mad_fixed_t)((((signed long long)(x) * (y)) + (1 << 25)) >> 26))
+# endif
+
+/*
+ * NAME:        III_imdct_l_normal()
+ * DESCRIPTION: perform IMDCT, windowing and overlap for a long block of type 0,
+ *              in place of III_imdct_l() and III_overlap(); X is overwritten
+ */
+static __attribute__((noinline))
+void III_imdct_l_normal(mad_fixed_t X[18], mad_fixed_t overlap[18],
+                        mad_fixed_t sample[18][32], unsigned int sb)
+{
+  mad_fixed_t tmp[18];
+  mad_fixed_t t0, t1, t2, t3, s0, s1, s2, s3;
+  const mad_fixed_t *win = imdct_l_window;
+  int i, j;
+
+  t0 = X[17] >> 1;
+  for (i = 17; i > 0; --i) {
+    t1 = X[i - 1] >> 1;
+    X[i] = t0 + t1;
+    t0 = t1;
+  }
+  X[0] = t0;
+
+  for (i = 17; i >= 3; i -= 2)
+    X[i] += X[i - 2];
+
+  /* The factor comes first in the multiplies: a small multiplier in Rs ends
+     sooner on ARM7TDMI, and the values are smaller than the factors */
+  for (j = 0; j < 2; ++j) {
+    mad_fixed_t const *in = X + j;
+    mad_fixed_t *out = tmp + j;
+
+    t2 = in[8] + in[16] - in[4];
+    t3 = in[0] + (in[12] >> 1);
+    t1 = in[0] - in[12];
+    out[6]  = t1 - (t2 >> 1);
+    out[16] = t1 + t2;
+
+    t0 = mad_f_mul(IMDCT_L_C2, in[4] + in[8]);
+    t1 = mad_f_mul(IMDCT_L_C8, in[16] - in[8]);
+    t2 = mad_f_mul(IMDCT_L_C4, in[4] + in[16]);
+
+    out[10] = t3 - t0 + t2;
+    out[2]  = t3 + t0 + t1;
+    out[14] = t3 - t2 - t1;
+
+    out[4]  = mad_f_mul(IMDCT_L_C3, in[2] - in[10] - in[14]);
+    t2 = mad_f_mul(IMDCT_L_C1, in[2] + in[10]);
+    t3 = mad_f_mul(IMDCT_L_C7, in[14] - in[10]);
+    t0 = mad_f_mul(IMDCT_L_C3, in[6]);
+    t1 = mad_f_mul(IMDCT_L_C5, in[2] + in[14]);
+
+    out[0]  = t2 + t3 + t0;
+    out[12] = t2 - t1 - t0;
+    out[8]  = t3 + t1 - t0;
+  }
+
+  for (j = 0, i = 0; j < 4; ++j, i += 4) {
+    t0 = tmp[i];
+    t1 = tmp[i + 2];
+    s0 = t1 + t0;
+    s2 = t1 - t0;
+
+    t2 = tmp[i + 1];
+    t3 = tmp[i + 3];
+    s1 = mad_f_mul(imdct_l_twiddle[j], t3 + t2);
+    s3 = mad_f_mul(imdct_l_twiddle[8 - j], t3 - t2);
+
+    t0 = s0 + s1;
+    t1 = s0 - s1;
+    sample[9 + j][sb] = imdct_l_mul_window(win[9 + j], t1) + overlap[9 + j];
+    sample[8 - j][sb] = imdct_l_mul_window(win[8 - j], t1) + overlap[8 - j];
+    overlap[9 + j]    = imdct_l_mul_window(win[27 + j], t0);
+    overlap[8 - j]    = imdct_l_mul_window(win[26 - j], t0);
+
+    t0 = s2 + s3;
+    t1 = s2 - s3;
+    sample[17 - j][sb] = imdct_l_mul_window(win[17 - j], t1) + overlap[17 - j];
+    sample[j][sb]      = imdct_l_mul_window(win[j], t1) + overlap[j];
+    overlap[17 - j]    = imdct_l_mul_window(win[35 - j], t0);
+    overlap[j]         = imdct_l_mul_window(win[18 + j], t0);
+  }
+
+  s0 = tmp[16];
+  s1 = mad_f_mul(imdct_l_twiddle[4], tmp[17]);
+  t0 = s0 + s1;
+  t1 = s0 - s1;
+  sample[13][sb] = imdct_l_mul_window(win[13], t1) + overlap[13];
+  sample[4][sb]  = imdct_l_mul_window(win[4], t1) + overlap[4];
+  overlap[13]    = imdct_l_mul_window(win[31], t0);
+  overlap[4]     = imdct_l_mul_window(win[22], t0);
+}
+
+/*
  * NAME:        III_freqinver()
  * DESCRIPTION: perform subband frequency inversion for odd sample lines
  */
@@ -2840,8 +2994,13 @@ enum mad_error III_decode(struct mad_bitptr *ptr, struct mad_frame *frame,
 
         /* long blocks */
         for (sb = 0; sb < 2; ++sb, l += 18) {
-          III_imdct_l(&xr[ch][l], output, block_type);
-          III_overlap(output, (*frame->overlap)[ch][sb], sample, sb);
+          if (block_type == 0) {
+            III_imdct_l_normal(&xr[ch][l], (*frame->overlap)[ch][sb], sample, sb);
+          }
+          else {
+            III_imdct_l(&xr[ch][l], output, block_type);
+            III_overlap(output, (*frame->overlap)[ch][sb], sample, sb);
+          }
         }
       }
       else {
@@ -2876,8 +3035,13 @@ enum mad_error III_decode(struct mad_bitptr *ptr, struct mad_frame *frame,
       if (channel->block_type != 2) {
         /* long blocks */
         for (sb = 2; sb < sblimit; ++sb, l += 18) {
-          III_imdct_l(&xr[ch][l], output, channel->block_type);
-          III_overlap(output, (*frame->overlap)[ch][sb], sample, sb);
+          if (channel->block_type == 0) {
+            III_imdct_l_normal(&xr[ch][l], (*frame->overlap)[ch][sb], sample, sb);
+          }
+          else {
+            III_imdct_l(&xr[ch][l], output, channel->block_type);
+            III_overlap(output, (*frame->overlap)[ch][sb], sample, sb);
+          }
 
           if (sb & 1)
             III_freqinver(sample, sb);
