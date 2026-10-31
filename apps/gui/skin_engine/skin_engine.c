@@ -134,6 +134,7 @@ static void gui_skin_reset(struct gui_skin *skin)
 #endif
 #ifdef HAVE_BACKDROP_IMAGE
     skin->gui_wps.data->backdrop_id = -1;
+    skin->gui_wps.data->about_backdrop_id = -1;
 #endif
 }
 
@@ -148,6 +149,8 @@ void gui_sync_skin_init(void)
 #ifdef HAVE_BACKDROP_IMAGE
             if (skins[j][i].data.backdrop_id != -1)
                 skin_backdrop_unload(skins[j][i].data.backdrop_id);
+            if (skins[j][i].data.about_backdrop_id != -1)
+                skin_backdrop_unload(skins[j][i].data.about_backdrop_id);
 #endif
             gui_skin_reset(&skins[j][i]);
             skins[j][i].gui_wps.display = &screens[i];
@@ -167,6 +170,8 @@ static void skin_reset_buffers(int item, int screen)
 #ifdef HAVE_BACKDROP_IMAGE
     if (skins[item][screen].data.backdrop_id >= 0)
         skin_backdrop_unload(skins[item][screen].data.backdrop_id);
+    if (skins[item][screen].data.about_backdrop_id >= 0)
+        skin_backdrop_unload(skins[item][screen].data.about_backdrop_id);
 #endif
 }
 

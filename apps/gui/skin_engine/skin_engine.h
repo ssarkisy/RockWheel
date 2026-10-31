@@ -65,6 +65,8 @@ int skin_backdrop_assign(char* backdrop, char *bmpdir,
                           enum screen_type screen);
 bool skin_backdrops_preload(void);
 void skin_backdrop_show(int backdrop_id);
+struct wps_data;
+int skin_shown_backdrop(const struct wps_data *data);
 void skin_backdrop_load_setting(void);
 void skin_backdrop_unload(int backdrop_id);
 #define BACKDROP_BUFFERNAME "#backdrop_buffer#"

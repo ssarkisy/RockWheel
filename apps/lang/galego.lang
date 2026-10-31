@@ -12546,3 +12546,31 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_DISK_FREE_GB
+  desc: under the bar of the disk's use, beside Settings in the main menu, as on a stock iPod
+  user: core
+  <source>
+    *: "%d GB Free"
+  </source>
+  <dest>
+    *: "%d GB libres"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DISK_FREE_MB
+  desc: under the bar of the disk's use, beside Settings in the main menu, as on a stock iPod
+  user: core
+  <source>
+    *: "%d MB Free"
+  </source>
+  <dest>
+    *: "%d MB libres"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

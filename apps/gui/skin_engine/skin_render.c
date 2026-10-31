@@ -239,6 +239,7 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             /* fall through to the progressbar code */
         case SKIN_TOKEN_VOLUMEBAR:
         case SKIN_TOKEN_BATTERY_PERCENTBAR:
+        case SKIN_TOKEN_DISK_USEDBAR:
         case SKIN_TOKEN_PLAYLIST_PERCENTBAR:
         case SKIN_TOKEN_SETTINGBAR:
         case SKIN_TOKEN_PROGRESSBAR:
@@ -457,7 +458,7 @@ static void do_tags_in_hidden_conditional(struct skin_element* branch,
                             if (skin_viewport->output_to_backdrop_buffer)
                             {
                                 skin_backdrop_set_buffer(-1, skin_viewport);
-                                skin_backdrop_show(data->backdrop_id);
+                                skin_backdrop_show(skin_shown_backdrop(data));
                             }
 #else
                             gwps->display->set_viewport_ex(&skin_viewport->vp, VP_FLAG_VP_SET_CLEAN);
@@ -912,7 +913,7 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
         else
         {
             skin_backdrop_set_buffer(-1, skin_viewport);
-            skin_backdrop_show(data->backdrop_id);
+            skin_backdrop_show(skin_shown_backdrop(data));
         }
 #endif
 
@@ -946,7 +947,7 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
     }
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && (LCD_REMOTE_DEPTH > 1))
     skin_backdrop_set_buffer(-1, skin_viewport);
-    skin_backdrop_show(data->backdrop_id);
+    skin_backdrop_show(skin_shown_backdrop(data));
 #endif
 
     if (((refresh_mode&SKIN_REFRESH_ALL) == SKIN_REFRESH_ALL))

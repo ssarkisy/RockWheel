@@ -18,6 +18,7 @@
  * KIND, either express or implied.
  *
  ****************************************************************************/
+#include "disk.h"
 #include "config.h"
 #include <stdio.h>
 #include "string-extra.h"
@@ -237,6 +238,13 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
     {
         length = 100;
         end = battery_level();
+    }
+    else if (pb->type == SKIN_TOKEN_DISK_USEDBAR)
+    {
+        sector_t size = 0, free = 0;
+        volume_size(IF_MV(0,) &size, &free);
+        length = size;
+        end = size - free;
     }
     else if (pb->type == SKIN_TOKEN_PLAYLIST_PROGRESSBAR)
     {

@@ -26,10 +26,12 @@
 #include "settings.h"
 #include "wps_internals.h"
 #include "skin_engine.h"
+#include "menu.h"
 
 #if !defined(__PCTOOL__) && defined(HAVE_BACKDROP_IMAGE)
 
-#define NB_BDROPS SKINNABLE_SCREENS_COUNT*NB_SCREENS
+/* and the one for when Settings is selected in the main menu */
+#define NB_BDROPS (SKINNABLE_SCREENS_COUNT*NB_SCREENS + 1)
 static struct skin_backdrop {
     char name[MAX_PATH];
     char *buffer;
@@ -263,6 +265,14 @@ void skin_backdrop_set_buffer(int backdrop_id, struct skin_viewport *svp)
     svp->framebuf.stride = 0; /* default stride */
     svp->framebuf.get_address_fn = NULL; /*Default iterator*/
     screens[screen].viewport_set_buffer(&svp->vp, &svp->framebuf);
+}
+
+/* What a skin should have behind it right now */
+int skin_shown_backdrop(const struct wps_data *data)
+{
+    if (data->about_backdrop_id >= 0 && menu_settings_selected())
+        return data->about_backdrop_id;
+    return data->backdrop_id;
 }
 
 void skin_backdrop_show(int backdrop_id)

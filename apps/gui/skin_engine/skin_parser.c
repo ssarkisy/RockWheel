@@ -86,6 +86,7 @@
 static char* skin_buffer = NULL;
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && (LCD_REMOTE_DEPTH > 1))
 static char *backdrop_filename;
+static char *about_backdrop_filename;
 #endif
 static struct skin_stats *_stats = NULL;
 
@@ -785,6 +786,10 @@ static int parse_image_special(struct skin_element *element,
         }
         backdrop_filename = filename;
     }
+    else if (token->type == SKIN_TOKEN_IMAGE_ABOUT_BACKDROP)
+    {
+        about_backdrop_filename = get_param_text(element, 0);
+    }
 #endif
 
     return 0;
@@ -1278,6 +1283,8 @@ static int parse_progressbar_tag(struct skin_element* element,
         token->type = SKIN_TOKEN_VOLUMEBAR;
     else if (token->type == SKIN_TOKEN_BATTERY_PERCENT)
         token->type = SKIN_TOKEN_BATTERY_PERCENTBAR;
+    else if (token->type == SKIN_TOKEN_DISK_USED)
+        token->type = SKIN_TOKEN_DISK_USEDBAR;
     else if (token->type == SKIN_TOKEN_PLAYLIST_ELAPSED_PERCENT)
     {
 #ifndef __PCTOOL__
@@ -2050,7 +2057,11 @@ static void skin_data_reset(struct wps_data *wps_data)
 #ifdef HAVE_BACKDROP_IMAGE
     if (wps_data->backdrop_id >= 0)
         skin_backdrop_unload(wps_data->backdrop_id);
+    if (wps_data->about_backdrop_id >= 0)
+        skin_backdrop_unload(wps_data->about_backdrop_id);
+    wps_data->about_backdrop_id = -1;
     backdrop_filename = NULL;
+    about_backdrop_filename = NULL;
 #endif
 #ifdef HAVE_TOUCHSCREEN
     wps_data->touchregions = INVALID_OFFSET;
@@ -2216,6 +2227,8 @@ static bool load_skin_bitmaps(struct wps_data *wps_data, char *bmpdir)
 
 #ifdef HAVE_BACKDROP_IMAGE
     wps_data->backdrop_id = skin_backdrop_assign(backdrop_filename, bmpdir, curr_screen);
+    wps_data->about_backdrop_id = skin_backdrop_assign(about_backdrop_filename,
+                                                       bmpdir, curr_screen);
 #endif /* has backdrop support */
     return retval;
 }
@@ -2495,6 +2508,7 @@ static int skin_element_callback(struct skin_element* element, void* data)
                     break;
                 case SKIN_TOKEN_PROGRESSBAR:
                 case SKIN_TOKEN_VOLUME:
+                case SKIN_TOKEN_DISK_USED:
                 case SKIN_TOKEN_BATTERY_PERCENT:
                 case SKIN_TOKEN_PLAYLIST_ELAPSED_PERCENT:
                 case SKIN_TOKEN_PLAYER_PROGRESSBAR:
@@ -2552,6 +2566,7 @@ static int skin_element_callback(struct skin_element* element, void* data)
                     function = parse_viewportcolour;
                     break;
                 case SKIN_TOKEN_IMAGE_BACKDROP:
+                case SKIN_TOKEN_IMAGE_ABOUT_BACKDROP:
                     function = parse_image_special;
                     break;
                 case SKIN_TOKEN_VIEWPORT_TEXTSTYLE:
@@ -2751,6 +2766,7 @@ bool skin_data_load(enum skinnable_screens skin, enum screen_type screen,
 #ifdef HAVE_BACKDROP_IMAGE
     backdrop_filename = "-";
     wps_data->backdrop_id = -1;
+    wps_data->about_backdrop_id = -1;
 #endif
     /* parse the skin source */
     skin_buffer_init(skin_buffer, buffersize);

@@ -409,6 +409,33 @@ void do_setting_from_menu(const struct menu_item_ex *temp,
 }
 
 /* display a menu */
+/* Settings is selected in the main menu, for the theme to show the iPod beside it */
+static bool settings_selected = false;
+
+bool menu_settings_selected(void)
+{
+    return settings_selected;
+}
+
+/* True if the theme has just been drawn again for it, over a part of the list */
+static bool set_settings_selected(bool selected)
+{
+    if (selected == settings_selected)
+        return false;
+    settings_selected = selected;
+    send_event(GUI_EVENT_ACTIONUPDATE, (void*)1);
+    return true;
+}
+
+static bool is_settings_item(const struct menu_item_ex *menu, int selected)
+{
+    if (menu != &root_menu_)
+        return false;
+    const struct menu_item_ex *item = menu->submenus[selected];
+    return (item->flags & MENU_TYPE_MASK) == MT_RETURN_VALUE
+           && item->value == GO_TO_MAINMENU;
+}
+
 int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
             struct viewport parent[NB_SCREENS], bool hide_theme)
 {
@@ -470,8 +497,13 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
             start_action = ACTION_ENTER_MENUITEM;
         }
         else
+        {
+            if (set_settings_selected(is_settings_item(
+                    menu, get_menu_selection(gui_synclist_get_sel_pos(&lists), menu))))
+                gui_synclist_draw(&lists);
             action = get_action(CONTEXT_MAINMENU|ALLOW_SOFTLOCK,
                                 list_do_action_timeout(&lists, HZ));
+        }
             /* HZ so the status bar redraws corectly */
 
         /* query audio status to see if it changed */
@@ -840,5 +872,6 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
          tsm == old_global_mode))
         touchscreen_set_mode(tsm);
 #endif
+    set_settings_selected(false);
     return ret;
 }

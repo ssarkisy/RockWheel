@@ -18,6 +18,8 @@
  * KIND, either express or implied.
  *
  ****************************************************************************/
+#include "disk.h"
+#include "menu.h"
 #include "font.h"
 #include <stdio.h>
 #include "string-extra.h"
@@ -1646,6 +1648,31 @@ const char *get_token_value(struct gui_wps *gwps,
                                           token->value.i))
                 return "v";
             return NULL;
+        case SKIN_TOKEN_MENU_SETTINGS_SELECTED:
+            return menu_settings_selected() ? "s" : NULL;
+        case SKIN_TOKEN_DISK_FREE:
+        {
+            /* In units of 1000, as the Mac shows the same disk */
+            sector_t size = 0, free = 0;
+            volume_size(IF_MV(0,) &size, &free);
+            const uint64_t bytes = (uint64_t)free * 1024;
+            if (bytes >= 1000000000)
+                snprintf(buf, buf_size, str(LANG_DISK_FREE_GB),
+                         (int)(bytes / 1000000000));
+            else
+                snprintf(buf, buf_size, str(LANG_DISK_FREE_MB),
+                         (int)(bytes / 1000000));
+            return buf;
+        }
+        case SKIN_TOKEN_DISK_USED:
+        {
+            sector_t size = 0, free = 0;
+            volume_size(IF_MV(0,) &size, &free);
+            numeric_ret = size > 0 ? (int)((uint64_t)(size - free) * 100 / size) : 0;
+            itoa_buf(buf, buf_size, numeric_ret);
+            numeric_buf = buf;
+            goto gtv_ret_numeric_tag_info;
+        }
         case SKIN_TOKEN_DB_SONG_COUNT:
 #ifdef HAVE_TAGCACHE
         {

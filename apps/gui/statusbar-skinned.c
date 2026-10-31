@@ -173,7 +173,7 @@ int sb_get_backdrop(enum screen_type screen)
 {
     struct wps_data *data = skin_get_gwps(CUSTOM_STATUSBAR, screen)->data;
     if (data->wps_loaded)
-        return data->backdrop_id;
+        return skin_shown_backdrop(data);
     else
         return -1;
 }

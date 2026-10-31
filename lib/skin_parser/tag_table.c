@@ -64,6 +64,9 @@ static const struct tag_info legal_tags[] =
 
     TAG(SKIN_TOKEN_IMAGE_PRELOAD,         "xl", "SF|[IP][IP]I", 0|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_PRELOAD_DISPLAY, "xd", "S|[IT]I", 0),
+    /* the backdrop while Settings is selected in the main menu; before %X,
+       as tags are looked for in this order */
+    TAG(SKIN_TOKEN_IMAGE_ABOUT_BACKDROP,  "XS" , "f", SKIN_REFRESH_STATIC|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_BACKDROP,        "X"  , "f", SKIN_REFRESH_STATIC|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_DISPLAY,         "x", "SF|II", SKIN_REFRESH_STATIC|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_DISPLAY_9SEGMENT,"x9", "S", 0),
@@ -149,6 +152,11 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_WPS_DISPLAY_MODE,      "mw", "", SKIN_REFRESH_DYNAMIC),
     /* "3 Songs", what a stock iPod shows for the library when nothing plays */
     TAG(SKIN_TOKEN_DB_SONG_COUNT,         "ns", "", SKIN_REFRESH_DYNAMIC),
+    /* What a stock iPod shows beside Settings in the main menu: "116 GB Free",
+       the bar of what's used, and whether that item is selected */
+    TAG(SKIN_TOKEN_DISK_FREE,             "nf", "", SKIN_REFRESH_DYNAMIC),
+    TAG(SKIN_TOKEN_DISK_USED,             "nu", BAR_PARAMS, SKIN_REFRESH_DYNAMIC),
+    TAG(SKIN_TOKEN_MENU_SETTINGS_SELECTED, "LS", "", SKIN_REFRESH_DYNAMIC),
 
     TAG(SKIN_TOKEN_PEAKMETER,             "pm", "", SKIN_REFRESH_PEAK_METER),
     TAG(SKIN_TOKEN_PEAKMETER_LEFT,        "pL", BAR_PARAMS, SKIN_REFRESH_PEAK_METER),
