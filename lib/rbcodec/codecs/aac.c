@@ -194,7 +194,7 @@ static void decode_thread(void)
     }
 }
 
-static void decode_thread_create(void)
+static bool decode_thread_create(void)
 {
     ci->semaphore_init(&job.pending, 1, 0);
     ci->semaphore_init(&job.ready, 1, 0);
@@ -206,6 +206,7 @@ static void decode_thread_create(void)
                                          sizeof(decode_stack), 0, "aacdec"
                                          IF_PRIO(, PRIORITY_PLAYBACK)
                                          IF_COP(, COP));
+    return decode_thread_id != 0;
 }
 
 static void decode_thread_quit(void)
@@ -262,7 +263,7 @@ static void decode_reset(void)
     ci->semaphore_init(&job.room, 1, 0);
 }
 #else
-#define decode_thread_create()
+#define decode_thread_create() true
 #define decode_thread_quit()
 #define decode_run()
 static void decode_wait(void)
@@ -288,7 +289,8 @@ enum codec_status codec_main(enum codec_entry_call_reason reason)
         /* Generic codec initialisation */
         ci->configure(DSP_SET_STEREO_MODE, STEREO_NONINTERLEAVED);
         ci->configure(DSP_SET_SAMPLE_DEPTH, 29);
-        decode_thread_create();
+        if (!decode_thread_create())
+            return CODEC_ERROR;
     }
     else if (reason == CODEC_UNLOAD) {
         decode_thread_quit();
@@ -479,7 +481,11 @@ enum codec_status codec_run(void)
             /* Request the required number of bytes from the input buffer */
             job.pos = ci->curpos;
             unsigned char *input = ci->request_buffer(&n, WINDOW_BYTES);
-            job.buffer = input ? SHARED_ADDR(input) : NULL;
+            /* The file ends before the frames it says it has: the decoder leaves
+               the frame's info as it was, which would play the last one again */
+            if (!input)
+                break;
+            job.buffer = SHARED_ADDR(input);
             job.size = n;
             job.to_end_of_file = n < WINDOW_BYTES;
             job.decoder = decoder;
