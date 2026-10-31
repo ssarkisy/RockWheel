@@ -250,6 +250,16 @@ static bool db_stamp(uint32_t *size, uint32_t *mtime)
     return found;
 }
 
+bool itunesdb_sync_date(struct tm *tm)
+{
+    uint32_t size, mtime;
+    if (!db_stamp(&size, &mtime) || mtime == 0)
+        return false;
+    const time_t when = mtime;
+    gmtime_r(&when, tm);
+    return true;
+}
+
 static bool read_state_header(struct state_header *hdr)
 {
     int fd = open(STATE_FILE, O_RDONLY);

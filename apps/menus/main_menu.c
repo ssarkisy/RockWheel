@@ -48,6 +48,10 @@
 #include "wps.h"
 #include "skin_buffer.h"
 #include "disk.h"
+#include "tagcache.h"
+#include "itunesdb.h"
+#include "core_alloc.h"
+#include "file.h"
 
 static const struct browse_folder_info config = {ROCKBOX_DIR, SHOW_CFG};
 static int show_info(void);
@@ -120,12 +124,59 @@ static int show_credits(void)
     return 0;
 }
 
+/* The notice first, then the licences as the package has them */
 static int show_legal(void)
 {
-    if (plugin_load(VIEWERS_DIR "/text_viewer.rock", ROCKBOX_DIR "/docs/COPYING.txt") != PLUGIN_OK)
-        show_info();
-    if (plugin_load(VIEWERS_DIR "/text_viewer.rock", ROCKBOX_DIR "/docs/LICENSES.txt") != PLUGIN_OK)
-        show_info();
+    static const char notice[] =
+        "RockPod is built on Rockbox, free software under the GNU General Public "
+        "License, version 2 or later, by the Rockbox contributors.\n\n"
+        "Theme: modified/derived from iClassic Square theme for iPod Video "
+        "(CC-BY-SA 3.0) by Humberto Santana, with elements from the iLike theme by "
+        "Alan Brito and H. Pearce.\n\n"
+        "Font: Inter, under the SIL Open Font License.\n\n"
+        "Apple, iPod, iTunes and Finder are trademarks of Apple Inc. RockPod has "
+        "nothing to do with Apple.\n\n";
+    static const char * const files[] =
+        { ROCKBOX_DIR "/docs/COPYING.txt", ROCKBOX_DIR "/docs/LICENSES.txt" };
+
+    size_t size = sizeof(notice);
+    for (size_t i = 0; i < ARRAYLEN(files); i++)
+    {
+        const int fd = open(files[i], O_RDONLY);
+        if (fd >= 0)
+        {
+            size += lseek(fd, 0, SEEK_END) + 2;
+            close(fd);
+        }
+    }
+
+    const int handle = core_alloc(size);
+    if (handle <= 0)
+    {
+        splash(HZ, ID2P(LANG_FAILED));
+        return 0;
+    }
+    core_pin(handle);
+    char *text = core_get_data(handle);
+    size_t length = strlcpy(text, notice, size);
+    for (size_t i = 0; i < ARRAYLEN(files); i++)
+    {
+        const int fd = open(files[i], O_RDONLY);
+        if (fd < 0)
+            continue;
+        const ssize_t got = read(fd, text + length, size - length - 3);
+        close(fd);
+        if (got > 0)
+            length += got;
+        text[length++] = '\n';
+        text[length++] = '\n';
+    }
+    text[length] = '\0';
+
+    const char *title_and_text[2] = { str(LANG_LEGAL_NOTICES), text };
+    plugin_load(VIEWERS_DIR "/view_text.rock", title_and_text);
+    core_unpin(handle);
+    core_free(handle);
     return 0;
 }
 
@@ -467,8 +518,151 @@ static int show_info(void)
 }
 
 
+/* What this iPod holds and is, one line for each, its name and then its value, as on
+   a stock iPod. The Rockbox this is built on, from git describe of its upstream. */
+#define ABOUT_ROCKBOX   "4.0+ f3ffe789ef"
+#define ABOUT_THEME     "iClassic Square"
+#define ABOUT_LINES     14
+#define ABOUT_LINE_SIZE 64
+static char about_lines[ABOUT_LINES][ABOUT_LINE_SIZE];
+static int about_count;
+
+static void about_add(const char *name, const char *value)
+{
+    if (about_count < ABOUT_LINES)
+        snprintf(about_lines[about_count++], ABOUT_LINE_SIZE, "%s\t%s", name, value);
+}
+
+static void about_add_number(int lang_id, int number)
+{
+    char value[16];
+    if (number < 0)
+        return;
+    snprintf(value, sizeof(value), "%d", number);
+    about_add(str(lang_id), value);
+}
+
+/* In units of 1000, as the Mac shows the same disk */
+static void about_add_size(int lang_id, sector_t kib)
+{
+    char value[16];
+    const uint64_t bytes = (uint64_t)kib * 1024;
+    if (bytes >= 1000000000)
+        snprintf(value, sizeof(value), str(LANG_ABOUT_GB), (int)(bytes / 1000000000));
+    else
+        snprintf(value, sizeof(value), str(LANG_ABOUT_MB), (int)(bytes / 1000000));
+    about_add(str(lang_id), value);
+}
+
+static uint32_t about_le32(const unsigned char *p)
+{
+    return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+/* Reads no more of Photo Database than the count in the header of its list of images */
+static int about_photo_count(void)
+{
+    unsigned char h[24];
+    int count = 0;
+    const int fd = open("/Photos/Photo Database", O_RDONLY);
+    if (fd < 0)
+        return 0;
+    if (read(fd, h, sizeof(h)) == sizeof(h) && !memcmp(h, "mhfd", 4))
+    {
+        off_t pos = about_le32(h + 4);
+        const int sections = about_le32(h + 20);
+        for (int i = 0; i < sections; i++)
+        {
+            if (lseek(fd, pos, SEEK_SET) != pos || read(fd, h, 14) != 14
+                || memcmp(h, "mhsd", 4))
+                break;
+            const uint32_t header = about_le32(h + 4), total = about_le32(h + 8);
+            if (h[12] == 1)
+            {
+                if (lseek(fd, pos + header, SEEK_SET) == pos + (off_t)header
+                    && read(fd, h, 12) == 12 && !memcmp(h, "mhli", 4))
+                    count = about_le32(h + 8);
+                break;
+            }
+            if (total == 0)
+                break;
+            pos += total;
+        }
+    }
+    close(fd);
+    return count;
+}
+
+static void about_prepare(void)
+{
+    char value[32];
+    about_count = 0;
+
+    const char *device = itunesdb_device_name();
+    if (device && device[0])
+        strlcpy(about_lines[about_count++], device, ABOUT_LINE_SIZE);
+
+    about_add_number(LANG_SONGS, tagcache_get_song_count());
+    about_add_number(LANG_ALBUMS, tagcache_get_tag_count(tag_album));
+    about_add_number(LANG_ARTISTS, tagcache_get_tag_count(tag_artist));
+    about_add_number(LANG_PHOTOS, about_photo_count());
+
+    sector_t size = 0, free = 0;
+    volume_size(IF_MV(0,) &size, &free);
+    about_add_size(LANG_ABOUT_CAPACITY, size);
+    about_add_size(LANG_ABOUT_USED, size - free);
+    about_add_size(LANG_ABOUT_AVAILABLE, free);
+
+    if (battery_level() >= 0)
+    {
+        snprintf(value, sizeof(value), "%d %%", battery_level());
+        about_add(str(LANG_BATTERY_MENU), value);
+    }
+    if (!charger_inserted())
+    {
+        update_runtime();
+        snprintf(value, sizeof(value), "%d:%02d", global_status.runtime / 3600,
+                 global_status.runtime / 60 % 60);
+        about_add(str(LANG_ABOUT_ON_BATTERY), value);
+    }
+
+    struct tm tm;
+    if (itunesdb_sync_date(&tm))
+    {
+        snprintf(value, sizeof(value), "%02d.%02d.%04d", tm.tm_mday, tm.tm_mon + 1,
+                 tm.tm_year + 1900);
+        about_add(str(LANG_ABOUT_LAST_SYNC), value);
+    }
+
+    about_add("RockPod", rbversion);
+    about_add("Rockbox", ABOUT_ROCKBOX);
+    about_add(str(LANG_ABOUT_THEME), ABOUT_THEME);
+}
+
+static const char *about_get_name(int item, void *data, char *buffer, size_t size)
+{
+    (void)data; (void)buffer; (void)size;
+    return about_lines[item];
+}
+
+static int about_action(int action, struct gui_synclist *lists)
+{
+    lists->callback_draw_item = menu_draw_value_line;
+    return action == ACTION_STD_OK ? ACTION_NONE : action;
+}
+
+static int show_about(void)
+{
+    struct simplelist_info info;
+    about_prepare();
+    simplelist_info_init(&info, str(LANG_ABOUT), about_count, NULL);
+    info.get_name = about_get_name;
+    info.action_callback = about_action;
+    return simplelist_show_list(&info) ? 1 : 0;
+}
+
 MENUITEM_FUNCTION(show_info_item, 0, ID2P(LANG_ABOUT),
-                  show_info, NULL, Icon_NOICON);
+                  show_about, NULL, Icon_NOICON);
 
 #if CONFIG_RTC
 int time_screen(void* ignored);

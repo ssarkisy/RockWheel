@@ -6376,6 +6376,17 @@ static bool update_and_reload(void)
     return scanned;
 }
 
+/* How many different values a tag has, as artists or albums */
+int tagcache_get_tag_count(int tag)
+{
+    struct tagcache_header header;
+    const int fd = open_tag_fd(&header, tag, false);
+    if (fd < 0)
+        return -1;
+    close(fd);
+    return header.entry_count;
+}
+
 int tagcache_get_song_count(void)
 {
     return song_count;

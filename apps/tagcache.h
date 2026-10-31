@@ -186,6 +186,7 @@ long tagcache_increase_serial(void);
 bool tagcache_import_changelog(void);
 /* entries in the database, -1 until known */
 int tagcache_get_song_count(void);
+int tagcache_get_tag_count(int tag);
 /* Where the import after a sync is, for showing its progress; done and
    total are of the files scanned and of the commit's steps */
 enum {

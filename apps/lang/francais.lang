@@ -17106,3 +17106,115 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_ABOUT_THEME
+  desc: the theme, in About
+  user: core
+  <source>
+    *: "Theme Based On"
+  </source>
+  <dest>
+    *: "Thème basé sur"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_CAPACITY
+  desc: the size of the disk, in About
+  user: core
+  <source>
+    *: "Capacity"
+  </source>
+  <dest>
+    *: "Capacité"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_USED
+  desc: how much of the disk is in use, in About
+  user: core
+  <source>
+    *: "Used"
+  </source>
+  <dest>
+    *: "Utilisé"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_AVAILABLE
+  desc: how much of the disk is free, in About
+  user: core
+  <source>
+    *: "Available"
+  </source>
+  <dest>
+    *: "Disponible"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_ON_BATTERY
+  desc: the time since it was last on the charger, in About
+  user: core
+  <source>
+    *: "On battery"
+  </source>
+  <dest>
+    *: "Sur batterie"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_LAST_SYNC
+  desc: the date Finder last synced the iPod, in About
+  user: core
+  <source>
+    *: "Last sync"
+  </source>
+  <dest>
+    *: "Dernière synchro"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_GB
+  desc: a size in gigabytes, in About
+  user: core
+  <source>
+    *: "%d GB"
+  </source>
+  <dest>
+    *: "%d Go"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_MB
+  desc: a size in megabytes, in About
+  user: core
+  <source>
+    *: "%d MB"
+  </source>
+  <dest>
+    *: "%d Mo"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
