@@ -356,10 +356,10 @@
     *: "Resume Playback"
   </source>
   <dest>
-    *: "Turpināt atskaņošanu"
+    *: "Turpināt"
   </dest>
   <voice>
-    *: "Turpināt atskaņošanu"
+    *: "Turpināt"
   </voice>
 </phrase>
 <phrase>
@@ -600,10 +600,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Skaņas iestatījumi"
+    *: "Skaņa"
   </dest>
   <voice>
-    *: "Skaņas iestatījumi"
+    *: "Skaņa"
   </voice>
 </phrase>
 <phrase>
@@ -1093,10 +1093,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Vispārīgi iestatījumi"
+    *: "Vispārīgi"
   </dest>
   <voice>
-    *: "Vispārīgi iestatījumi"
+    *: "Vispārīgi"
   </voice>
 </phrase>
 <phrase>
@@ -1107,10 +1107,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Atskaņošanas iestatījumi"
+    *: "Atskaņošana"
   </dest>
   <voice>
-    *: "Atskaņošanas iestatījumi"
+    *: "Atskaņošana"
   </voice>
 </phrase>
 <phrase>
@@ -1311,11 +1311,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Izmantot pārklāšanos"
+    crossfade: "Pārklāšanās"
   </dest>
   <voice>
     *: none
-    crossfade: "Izmantot pārklāšanos"
+    crossfade: "Pārklāšanās"
   </voice>
 </phrase>
 <phrase>
@@ -1490,10 +1490,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Normalizācijas veids"
+    *: "Normalizācija"
   </dest>
   <voice>
-    *: "Normalizācijas veids"
+    *: "Normalizācija"
   </voice>
 </phrase>
 <phrase>
@@ -1532,10 +1532,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Dziesmu pastiprinājums secības jaukšanā"
+    *: "Auto"
   </dest>
   <voice>
-    *: "Dziesmu pastiprinājums secības jaukšanā"
+    *: "Auto"
   </voice>
 </phrase>
 <phrase>
@@ -1675,10 +1675,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cuesheet atbalsts"
+    *: "Cue faili"
   </dest>
   <voice>
-    *: "Kuešīt atbalsts"
+    *: "Cue faili"
   </voice>
 </phrase>
 <phrase>
@@ -1691,11 +1691,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pauzēt, atvienojot austiņas"
+    headphone_detection: "Pauzēt, atvienojot"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pauzēt kad atvieno austiņas"
+    headphone_detection: "Pauzēt, atvienojot"
   </voice>
 </phrase>
 <phrase>
@@ -1708,11 +1708,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pauzēt un atsākt"
+    headphone_detection: "Un atsākt"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pauzēt un atsākt"
+    headphone_detection: "Un atsākt"
   </voice>
 </phrase>
 <phrase>
@@ -3413,11 +3413,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Laiks un datums"
+    rtc: "Datums un laiks"
   </dest>
   <voice>
     *: none
-    rtc: "Laiks un datums"
+    rtc: "Datums un laiks"
   </voice>
 </phrase>
 <phrase>
@@ -10704,10 +10704,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Attīt pirms atsākt"
+    *: "Attīt pirms atsākšanas"
   </dest>
   <voice>
-    *: "Attīt pirms atsākt"
+    *: "Attīt pirms atsākšanas"
   </voice>
 </phrase>
 <phrase>
@@ -11253,11 +11253,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Klikšķis no skaļruņa"
+    hardware_click: "Skaļrunis"
   </dest>
   <voice>
     *: none
-    hardware_click: "Klikšķis no skaļruņa"
+    hardware_click: "Skaļrunis"
   </voice>
 </phrase>
 <phrase>
@@ -11270,11 +11270,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Klikšķis austiņās"
+    hardware_click: "Austiņas"
   </dest>
   <voice>
     *: none
-    hardware_click: "Klikšķis austiņās"
+    hardware_click: "Austiņas"
   </voice>
 </phrase>
 <phrase>
@@ -12032,10 +12032,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "Maksimālā skaļuma ierobežojums"
+    *: "Skaļuma ierobežojums"
   </dest>
   <voice>
-    *: "Maksimālā skaļuma ierobežojums"
+    *: "Skaļuma ierobežojums"
   </voice>
 </phrase>
 <phrase>
@@ -12060,10 +12060,10 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "Dzirdes noguruma mazināšana"
+    *: "Noguruma mazināšana"
   </dest>
   <voice>
-    *: "Dzirdes noguruma mazināšana"
+    *: "Noguruma mazināšana"
   </voice>
 </phrase>
 <phrase>
@@ -17410,5 +17410,873 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Mūzika"
+  </dest>
+  <voice>
+    *: "Mūzika"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Papildiespējas"
+  </dest>
+  <voice>
+    *: "Papildiespējas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Pulkstenis"
+  </dest>
+  <voice>
+    *: "Pulkstenis"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Ķieģeļi"
+  </dest>
+  <voice>
+    *: "Ķieģeļi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Pasjanss"
+  </dest>
+  <voice>
+    *: "Pasjanss"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Kalendārs"
+  </dest>
+  <voice>
+    *: "Kalendārs"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Hronometrs"
+  </dest>
+  <voice>
+    *: "Hronometrs"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Par iPod"
+  </dest>
+  <voice>
+    *: "Par iPod"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d minūtes"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Dziesmas"
+  </dest>
+  <voice>
+    *: "Dziesmas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Aplādes"
+  </dest>
+  <voice>
+    *: "Aplādes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Žanri"
+  </dest>
+  <voice>
+    *: "Žanri"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Komponisti"
+  </dest>
+  <voice>
+    *: "Komponisti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Audiogrāmatas"
+  </dest>
+  <voice>
+    *: "Audiogrāmatas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Fotoattēli"
+  </dest>
+  <voice>
+    *: "Fotoattēli"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Fotoattēlu bibliotēka"
+  </dest>
+  <voice>
+    *: "Fotoattēlu bibliotēka"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Slīdrādes iestatījumi"
+  </dest>
+  <voice>
+    *: "Slīdrādes iestatījumi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Slaida ilgums"
+  </dest>
+  <voice>
+    *: "Slaida ilgums"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Jaukt fotoattēlus"
+  </dest>
+  <voice>
+    *: "Jaukt fotoattēlus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Manuāli"
+  </dest>
+  <voice>
+    *: "Manuāli"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d sekundes"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Nav fotoattēlu"
+  </dest>
+  <voice>
+    *: "Nav fotoattēlu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "Dziesmas: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Dziesmas: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Dziesmas: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Akustiskā"
+  </dest>
+  <voice>
+    *: "Akustiskā"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Basu pastiprinājums"
+  </dest>
+  <voice>
+    *: "Basu pastiprinājums"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Basu samazinājums"
+  </dest>
+  <voice>
+    *: "Basu samazinājums"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klasiskā"
+  </dest>
+  <voice>
+    *: "Klasiskā"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Deju mūzika"
+  </dest>
+  <voice>
+    *: "Deju mūzika"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Dziļā"
+  </dest>
+  <voice>
+    *: "Dziļā"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektroniskā"
+  </dest>
+  <voice>
+    *: "Elektroniskā"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Bez korekcijas"
+  </dest>
+  <voice>
+    *: "Bez korekcijas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hiphops"
+  </dest>
+  <voice>
+    *: "Hiphops"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Džezs"
+  </dest>
+  <voice>
+    *: "Džezs"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latīņamerikas"
+  </dest>
+  <voice>
+    *: "Latīņamerikas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Skaļuma kompensācija"
+  </dest>
+  <voice>
+    *: "Skaļuma kompensācija"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Klavieres"
+  </dest>
+  <voice>
+    *: "Klavieres"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Popmūzika"
+  </dest>
+  <voice>
+    *: "Popmūzika"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rokmūzika"
+  </dest>
+  <voice>
+    *: "Rokmūzika"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Mazie skaļruņi"
+  </dest>
+  <voice>
+    *: "Mazie skaļruņi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Runa"
+  </dest>
+  <voice>
+    *: "Runa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Diskanta pastiprinājums"
+  </dest>
+  <voice>
+    *: "Diskanta pastiprinājums"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Diskanta samazinājums"
+  </dest>
+  <voice>
+    *: "Diskanta samazinājums"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Vokāla pastiprinājums"
+  </dest>
+  <voice>
+    *: "Vokāla pastiprinājums"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Lēnāk"
+  </dest>
+  <voice>
+    *: "Lēnāk"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normāli"
+  </dest>
+  <voice>
+    *: "Normāli"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Ātrāk"
+  </dest>
+  <voice>
+    *: "Ātrāk"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Atjaunina bibliotēku"
+  </dest>
+  <voice>
+    *: "Atjaunina bibliotēku"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Aprēķina…"
+  </dest>
+  <voice>
+    *: "Aprēķina…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blekdžeks"
+  </dest>
+  <voice>
+    *: "Blekdžeks"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Dārgakmeņi"
+  </dest>
+  <voice>
+    *: "Dārgakmeņi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Mīnu meklētājs"
+  </dest>
+  <voice>
+    *: "Mīnu meklētājs"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Lasa bibliotēku"
+  </dest>
+  <voice>
+    *: "Lasa bibliotēku"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Pārbauda dziesmas"
+  </dest>
+  <voice>
+    *: "Pārbauda dziesmas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Atjaunina atskaņojumu skaitu"
+  </dest>
+  <voice>
+    *: "Atjaunina atskaņojumu skaitu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Sagatavo albumu vākus"
+  </dest>
+  <voice>
+    *: "Sagatavo albumu vākus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Sagatavo albumus"
+  </dest>
+  <voice>
+    *: "Sagatavo albumus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Sagatavo dziesmas"
+  </dest>
+  <voice>
+    *: "Sagatavo dziesmas"
   </voice>
 </phrase>

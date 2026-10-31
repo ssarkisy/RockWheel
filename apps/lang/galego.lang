@@ -171,10 +171,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Opcións de son"
+    *: "Son"
   </dest>
   <voice>
-    *: "Opcións de son"
+    *: "Son"
   </voice>
 </phrase>
 <phrase>
@@ -185,10 +185,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Opcións xerais"
+    *: "Xeral"
   </dest>
   <voice>
-    *: "Opcións xerais"
+    *: "Xeral"
   </voice>
 </phrase>
 <phrase>
@@ -483,10 +483,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Axustes de reproducción"
+    *: "Reprodución"
   </dest>
   <voice>
-    *: "Axustes de Reproducción"
+    *: "Reprodución"
   </voice>
 </phrase>
 <phrase>
@@ -3335,10 +3335,10 @@
     *: "Bitrate"
   </source>
   <dest>
-    *: "Bitrate"
+    *: "Taxa de bits"
   </dest>
   <voice>
-    *: "Bitrate"
+    *: "Taxa de bits"
   </voice>
 </phrase>
 <phrase>
@@ -6021,8 +6021,7 @@
     lcd_sleep: "Never"
   </source>
   <dest>
-    *: none
-    lcd_sleep: "Nunca"
+    *: "Nunca"
   </dest>
   <voice>
     *: none
@@ -6522,11 +6521,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Activar crossfade"
+    crossfade: "Fundido encadeado"
   </dest>
   <voice>
     *: none
-    crossfade: "Activar crossfade"
+    crossfade: "Fundido encadeado"
   </voice>
 </phrase>
 <phrase>
@@ -7585,11 +7584,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pausar e continuar"
+    headphone_detection: "E continuar"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pausar e continuar"
+    headphone_detection: "E continuar"
   </voice>
 </phrase>
 <phrase>
@@ -8069,10 +8068,10 @@
     *: "Crossfeed"
   </source>
   <dest>
-    *: "Crossfeed"
+    *: "Mestura de canles"
   </dest>
   <voice>
-    *: "Crossfeed"
+    *: "Mestura de canles"
   </voice>
 </phrase>
 <phrase>
@@ -8347,10 +8346,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Tipo de Replaygain"
+    *: "Axuste de volume"
   </dest>
   <voice>
-    *: "Tipo de replaygain"
+    *: "Axuste de volume"
   </voice>
 </phrase>
 <phrase>
@@ -8965,10 +8964,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Retroceder antes de reanudar"
+    *: "Retroceso ao continuar"
   </dest>
   <voice>
-    *: "Retroceder antes de reanudar"
+    *: "Retroceso ao continuar"
   </voice>
 </phrase>
 <phrase>
@@ -9007,10 +9006,10 @@
     *: "Resume Playback"
   </source>
   <dest>
-    *: "Continuar a reprodución"
+    *: "Continuar"
   </dest>
   <voice>
-    *: "Continuar a reprodución"
+    *: "Continuar"
   </voice>
 </phrase>
 <phrase>
@@ -9023,11 +9022,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pausar ó desenchufar os auriculares"
+    headphone_detection: "Pausa ao desconectar"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pausar ó desenchufar os auriculares"
+    headphone_detection: "Pausa ao desconectar"
   </voice>
 </phrase>
 <phrase>
@@ -9314,10 +9313,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Clic de tecla"
+    *: "Son de clic"
   </dest>
   <voice>
-    *: "Clic de tecla"
+    *: "Son de clic"
   </voice>
 </phrase>
 <phrase>
@@ -10292,10 +10291,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Soporte de cuesheet"
+    *: "Ficheiros CUE"
   </dest>
   <voice>
-    *: "Soporte de cuesheet"
+    *: "Ficheiros CUE"
   </voice>
 </phrase>
 <phrase>
@@ -10354,10 +10353,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Ganancia de pista en aleatorio"
+    *: "Auto"
   </dest>
   <voice>
-    *: "Ganancia de pista en aleatorio"
+    *: "Auto"
   </voice>
 </phrase>
 <phrase>
@@ -11716,8 +11715,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "Luz de fondo cando estea bloqueado"
+    *: "Luz de fondo cando estea bloqueado"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -12365,11 +12364,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Clics de pulsacións en altofalante"
+    hardware_click: "Altofalante"
   </dest>
   <voice>
     *: none
-    hardware_click: "Clics de pulsacións en altofalante"
+    hardware_click: "Altofalante"
   </voice>
 </phrase>
 <phrase>
@@ -12382,11 +12381,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Clics de pulsacións en auriculares"
+    hardware_click: "Auriculares"
   </dest>
   <voice>
     *: none
-    hardware_click: "Clics de pulsacións en auriculares"
+    hardware_click: "Auriculares"
   </voice>
 </phrase>
 <phrase>
@@ -12768,5 +12767,1573 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "Límite de volume"
+  </dest>
+  <voice>
+    *: "Límite de volume"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "Redución da fatiga"
+  </dest>
+  <voice>
+    *: "Redución da fatiga"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "Avisos legais"
+  </dest>
+  <voice>
+    *: "Avisos legais"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Música"
+  </dest>
+  <voice>
+    *: "Música"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Extras"
+  </dest>
+  <voice>
+    *: "Extras"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Reloxo"
+  </dest>
+  <voice>
+    *: "Reloxo"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Ladrillos"
+  </dest>
+  <voice>
+    *: "Ladrillos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Solitario"
+  </dest>
+  <voice>
+    *: "Solitario"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Calendario"
+  </dest>
+  <voice>
+    *: "Calendario"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Cronómetro"
+  </dest>
+  <voice>
+    *: "Cronómetro"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Acerca de"
+  </dest>
+  <voice>
+    *: "Acerca de"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d minutos"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Cancións"
+  </dest>
+  <voice>
+    *: "Cancións"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcasts"
+  </dest>
+  <voice>
+    *: "Podcasts"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Xéneros"
+  </dest>
+  <voice>
+    *: "Xéneros"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Compositores"
+  </dest>
+  <voice>
+    *: "Compositores"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Audiolibros"
+  </dest>
+  <voice>
+    *: "Audiolibros"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Fotos"
+  </dest>
+  <voice>
+    *: "Fotos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Fototeca"
+  </dest>
+  <voice>
+    *: "Fototeca"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Axustes da presentación"
+  </dest>
+  <voice>
+    *: "Axustes da presentación"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Tempo por diapositiva"
+  </dest>
+  <voice>
+    *: "Tempo por diapositiva"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Fotos aleatorias"
+  </dest>
+  <voice>
+    *: "Fotos aleatorias"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Manual"
+  </dest>
+  <voice>
+    *: "Manual"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d segundos"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Sen fotos"
+  </dest>
+  <voice>
+    *: "Sen fotos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d canción"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d cancións"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d cancións"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Acústica"
+  </dest>
+  <voice>
+    *: "Acústica"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Amplificador de graves"
+  </dest>
+  <voice>
+    *: "Amplificador de graves"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Redutor de graves"
+  </dest>
+  <voice>
+    *: "Redutor de graves"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Clásica"
+  </dest>
+  <voice>
+    *: "Clásica"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Dance"
+  </dest>
+  <voice>
+    *: "Dance"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Profunda"
+  </dest>
+  <voice>
+    *: "Profunda"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Electrónica"
+  </dest>
+  <voice>
+    *: "Electrónica"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Uniforme"
+  </dest>
+  <voice>
+    *: "Uniforme"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip Hop"
+  </dest>
+  <voice>
+    *: "Hip Hop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Jazz"
+  </dest>
+  <voice>
+    *: "Jazz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latina"
+  </dest>
+  <voice>
+    *: "Latina"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Sonoridade"
+  </dest>
+  <voice>
+    *: "Sonoridade"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Piano"
+  </dest>
+  <voice>
+    *: "Piano"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: "Pop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rock"
+  </dest>
+  <voice>
+    *: "Rock"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Altofalantes pequenos"
+  </dest>
+  <voice>
+    *: "Altofalantes pequenos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Texto falado"
+  </dest>
+  <voice>
+    *: "Texto falado"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Amplificador de agudos"
+  </dest>
+  <voice>
+    *: "Amplificador de agudos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Redutor de agudos"
+  </dest>
+  <voice>
+    *: "Redutor de agudos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Amplificador de voz"
+  </dest>
+  <voice>
+    *: "Amplificador de voz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Lenta"
+  </dest>
+  <voice>
+    *: "Lenta"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normal"
+  </dest>
+  <voice>
+    *: "Normal"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Rápida"
+  </dest>
+  <voice>
+    *: "Rápida"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Actualizando a biblioteca"
+  </dest>
+  <voice>
+    *: "Actualizando a biblioteca"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Calculando…"
+  </dest>
+  <voice>
+    *: "Calculando…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Xoias"
+  </dest>
+  <voice>
+    *: "Xoias"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Buscaminas"
+  </dest>
+  <voice>
+    *: "Buscaminas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Lendo a biblioteca"
+  </dest>
+  <voice>
+    *: "Lendo a biblioteca"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Comprobando cancións"
+  </dest>
+  <voice>
+    *: "Comprobando cancións"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Actualizando reproducións"
+  </dest>
+  <voice>
+    *: "Actualizando reproducións"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Preparando as capas"
+  </dest>
+  <voice>
+    *: "Preparando as capas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Preparando os álbums"
+  </dest>
+  <voice>
+    *: "Preparando os álbums"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Preparando as cancións"
+  </dest>
+  <voice>
+    *: "Preparando as cancións"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "Artistas do álbume"
+  </dest>
+  <voice>
+    *: "Artistas do álbume"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_START_CURRENT
+  desc: shown when a sleep timer isn't running
+  user: core
+  <source>
+    *: "Start Sleep Timer"
+  </source>
+  <dest>
+    *: "Iniciar temporizador"
+  </dest>
+  <voice>
+    *: "Iniciar temporizador"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "Autobloqueo activado"
+  </dest>
+  <voice>
+    *: "Autobloqueo activado"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "Autobloqueo desactivado"
+  </dest>
+  <voice>
+    *: "Autobloqueo desactivado"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "Transcorrido da pista:"
+  </dest>
+  <voice>
+    *: "Transcorrido da pista:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "Restante da pista:"
+  </dest>
+  <voice>
+    *: "Restante da pista:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "Pista:"
+  </dest>
+  <voice>
+    *: "Pista:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "Espazo (feito / restante):"
+  </dest>
+  <voice>
+    *: "Espazo (feito / restante):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "Tamaño medio de pista:"
+  </dest>
+  <voice>
+    *: "Tamaño medio de pista:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "Taxa de bits media:"
+  </dest>
+  <voice>
+    *: "Taxa de bits media:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "Tempo de reprodución"
+  </dest>
+  <voice>
+    *: "Tempo de reprodución"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[Ruta]"
+  </dest>
+  <voice>
+    *: "[Ruta]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[Ficheiro]"
+  </dest>
+  <voice>
+    *: "[Ficheiro]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[Tamaño]"
+  </dest>
+  <voice>
+    *: "[Tamaño]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[Data]"
+  </dest>
+  <voice>
+    *: "[Data]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[Hora]"
+  </dest>
+  <voice>
+    *: "[Hora]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[Subcartafoles]"
+  </dest>
+  <voice>
+    *: "[Subcartafoles]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[Ficheiros]"
+  </dest>
+  <voice>
+    *: "[Ficheiros]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "Propiedades do cartafol"
+  </dest>
+  <voice>
+    *: "Propiedades do cartafol"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "Propiedades do ficheiro"
+  </dest>
+  <voice>
+    *: "Propiedades do ficheiro"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "Erro ao obter información"
+  </dest>
+  <voice>
+    *: "Erro ao obter información"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "Data"
+  </dest>
+  <voice>
+    *: "Data"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "Gardar"
+  </dest>
+  <voice>
+    *: "Gardar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "Tempo de espera"
+  </dest>
+  <voice>
+    *: "Tempo de espera"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "Pista"
+  </dest>
+  <voice>
+    *: "Pista"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "Transcorrido"
+  </dest>
+  <voice>
+    *: "Transcorrido"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "Engadir"
+  </dest>
+  <voice>
+    *: "Engadir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "Cola..."
+  </dest>
+  <voice>
+    *: "Cola..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "Información da pista"
+  </dest>
+  <voice>
+    *: "Información da pista"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "Reproducir"
+  </dest>
+  <voice>
+    *: "Reproducir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "Reproducir aleatorio"
+  </dest>
+  <voice>
+    *: "Reproducir aleatorio"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "Engadir á lista..."
+  </dest>
+  <voice>
+    *: "Engadir á lista..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "Engadir a lista existente"
+  </dest>
+  <voice>
+    *: "Engadir a lista existente"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "Reproducir a seguir..."
+  </dest>
+  <voice>
+    *: "Reproducir a seguir..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "Reproducir a seguir"
+  </dest>
+  <voice>
+    *: "Reproducir a seguir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "Engadir en aleatorio"
+  </dest>
+  <voice>
+    *: "Engadir en aleatorio"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "Reproducir ao final"
+  </dest>
+  <voice>
+    *: "Reproducir ao final"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "Aleatorio ao final da cola"
+  </dest>
+  <voice>
+    *: "Aleatorio ao final da cola"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "Quitar as pistas da cola?"
+  </dest>
+  <voice>
+    *: "Quitar as pistas da cola?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "Restante"
+  </dest>
+  <voice>
+    *: "Restante"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "Artistas"
+  </dest>
+  <voice>
+    *: "Artistas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Álbums"
+  </dest>
+  <voice>
+    *: "Álbums"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "Pistas"
+  </dest>
+  <voice>
+    *: "Pistas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "Cancións ao chou"
+  </dest>
+  <voice>
+    *: "Cancións ao chou"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "Buscar"
+  </dest>
+  <voice>
+    *: "Buscar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "Ver capa do álbum"
+  </dest>
+  <voice>
+    *: "Ver capa do álbum"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "Lista rematada. Repetir?"
+  </dest>
+  <voice>
+    *: "Lista rematada. Repetir?"
   </voice>
 </phrase>

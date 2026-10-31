@@ -624,10 +624,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "הגדרות צליל"
+    *: "צליל"
   </dest>
   <voice>
-    *: "הגדרות צליל"
+    *: "צליל"
   </voice>
 </phrase>
 <phrase>
@@ -823,10 +823,10 @@
     *: "Crossfeed"
   </source>
   <dest>
-    *: "Crossfeed"
+    *: "הזנה צולבת"
   </dest>
   <voice>
-    *: "Crossfeed"
+    *: "הזנה צולבת"
   </voice>
 </phrase>
 <phrase>
@@ -1284,10 +1284,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "הגדרות כלליות"
+    *: "כללי"
   </dest>
   <voice>
-    *: "הגדרות כלליות"
+    *: "כללי"
   </voice>
 </phrase>
 <phrase>
@@ -1298,10 +1298,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "הגדרות השמעה"
+    *: "השמעה"
   </dest>
   <voice>
-    *: "הגדרות השמעה"
+    *: "השמעה"
   </voice>
 </phrase>
 <phrase>
@@ -1516,11 +1516,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "הפעל מעבר ביניים"
+    crossfade: "מעבר ביניים"
   </dest>
   <voice>
     *: none
-    crossfade: "הפעל מעבר ביניים"
+    crossfade: "מעבר ביניים"
   </voice>
 </phrase>
 <phrase>
@@ -1695,10 +1695,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "סוג הגברה חוזרת"
+    *: "בדיקת צליל"
   </dest>
   <voice>
-    *: "סוג הגברה חוזרת"
+    *: "בדיקת צליל"
   </voice>
 </phrase>
 <phrase>
@@ -1737,10 +1737,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "הגברת שיר אם ערבוב פעיל"
+    *: "אוטומטי"
   </dest>
   <voice>
-    *: "הגברת שיר אם ערבוב פעיל"
+    *: "אוטומטי"
   </voice>
 </phrase>
 <phrase>
@@ -1880,10 +1880,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "תמיכה בגליונות סימנים"
+    *: "גליונות סימנים"
   </dest>
   <voice>
-    *: "תמיכה בגליונות סימנים"
+    *: "גליונות סימנים"
   </voice>
 </phrase>
 <phrase>
@@ -1896,11 +1896,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "הפסק בעת ניתוק אוזניות"
+    headphone_detection: "השהיה בניתוק אוזניות"
   </dest>
   <voice>
     *: none
-    headphone_detection: "הפסק בעת ניתוק אוזניות"
+    headphone_detection: "השהיה בניתוק אוזניות"
   </voice>
 </phrase>
 <phrase>
@@ -1913,11 +1913,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "הפסק והמשך"
+    headphone_detection: "עם המשך"
   </dest>
   <voice>
     *: none
-    headphone_detection: "הפסק והמשך"
+    headphone_detection: "עם המשך"
   </voice>
 </phrase>
 <phrase>
@@ -2456,8 +2456,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "תאורת מסך בנעילת מקשים"
+    *: "תאורת מסך בנעילת מקשים"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -2552,8 +2552,7 @@
     lcd_sleep: "Never"
   </source>
   <dest>
-    *: none
-    lcd_sleep: "אף פעם"
+    *: "אף פעם"
   </dest>
   <voice>
     *: none
@@ -3283,7 +3282,6 @@
   </source>
   <dest>
     *: "(%) ליניארי"
-    masd: none
   </dest>
   <voice>
     *: "ליניארי אחוזים"
@@ -3736,11 +3734,11 @@
   </source>
   <dest>
     *: none
-    rtc: "זמן ותאריך"
+    rtc: "תאריך ושעה"
   </dest>
   <voice>
     *: none
-    rtc: "זמן ותאריך"
+    rtc: "תאריך ושעה"
   </voice>
 </phrase>
 <phrase>
@@ -7055,10 +7053,10 @@
     *: "Bitrate"
   </source>
   <dest>
-    *: "Bitrate"
+    *: "קצב סיביות"
   </dest>
   <voice>
-    *: "Bitrate"
+    *: "קצב סיביות"
   </voice>
 </phrase>
 <phrase>
@@ -10238,10 +10236,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "קליק לחיצה"
+    *: "צליל לחיצה"
   </dest>
   <voice>
-    *: "קליק לחיצה"
+    *: "צליל לחיצה"
   </voice>
 </phrase>
 <phrase>
@@ -11952,10 +11950,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Rewind Before Resume"
+    *: "הרצה לאחור בהמשך"
   </dest>
   <voice>
-    *: "Rewind before resume"
+    *: "הרצה לאחור בהמשך"
   </voice>
 </phrase>
 <phrase>
@@ -11966,10 +11964,10 @@
     *: "[Untagged]"
   </source>
   <dest>
-    *: "[Untagged]"
+    *: "[ללא תגיות]"
   </dest>
   <voice>
-    *: "Untagged"
+    *: "[ללא תגיות]"
   </voice>
 </phrase>
 <phrase>
@@ -12475,7 +12473,7 @@
     *: "%d GB"
   </source>
   <dest>
-    *: "%d GB"
+    *: "%d ג״ב"
   </dest>
   <voice>
     *: ""
@@ -12489,9 +12487,1653 @@
     *: "%d MB"
   </source>
   <dest>
-    *: "%d MB"
+    *: "%d מ״ב"
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_SOFTWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Headphones"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "אוזניות"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "אוזניות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_HARDWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Speaker"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "רמקול"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "רמקול"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "הגבלת עוצמת קול"
+  </dest>
+  <voice>
+    *: "הגבלת עוצמת קול"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "הפחתת עייפות שמיעה"
+  </dest>
+  <voice>
+    *: "הפחתת עייפות שמיעה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "מידע משפטי"
+  </dest>
+  <voice>
+    *: "מידע משפטי"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "מוזיקה"
+  </dest>
+  <voice>
+    *: "מוזיקה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "תוספות"
+  </dest>
+  <voice>
+    *: "תוספות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "שעון"
+  </dest>
+  <voice>
+    *: "שעון"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "לבנים"
+  </dest>
+  <voice>
+    *: "לבנים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "סוליטר"
+  </dest>
+  <voice>
+    *: "סוליטר"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "לוח שנה"
+  </dest>
+  <voice>
+    *: "לוח שנה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "שעון עצר"
+  </dest>
+  <voice>
+    *: "שעון עצר"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "אודות"
+  </dest>
+  <voice>
+    *: "אודות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d דקות"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "שירים"
+  </dest>
+  <voice>
+    *: "שירים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "פודקאסטים"
+  </dest>
+  <voice>
+    *: "פודקאסטים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "סגנונות"
+  </dest>
+  <voice>
+    *: "סגנונות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "מלחינים"
+  </dest>
+  <voice>
+    *: "מלחינים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "ספרי שמע"
+  </dest>
+  <voice>
+    *: "ספרי שמע"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "תמונות"
+  </dest>
+  <voice>
+    *: "תמונות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "ספריית תמונות"
+  </dest>
+  <voice>
+    *: "ספריית תמונות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "הגדרות מצגת"
+  </dest>
+  <voice>
+    *: "הגדרות מצגת"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "זמן לכל שקופית"
+  </dest>
+  <voice>
+    *: "זמן לכל שקופית"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "ערבוב תמונות"
+  </dest>
+  <voice>
+    *: "ערבוב תמונות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "ידני"
+  </dest>
+  <voice>
+    *: "ידני"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d שניות"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "אין תמונות"
+  </dest>
+  <voice>
+    *: "אין תמונות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "שירים: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "שירים: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "שירים: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "אקוסטי"
+  </dest>
+  <voice>
+    *: "אקוסטי"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "מגביר בס"
+  </dest>
+  <voice>
+    *: "מגביר בס"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "מפחית בס"
+  </dest>
+  <voice>
+    *: "מפחית בס"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "קלאסי"
+  </dest>
+  <voice>
+    *: "קלאסי"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "דאנס"
+  </dest>
+  <voice>
+    *: "דאנס"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "עמוק"
+  </dest>
+  <voice>
+    *: "עמוק"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "אלקטרוני"
+  </dest>
+  <voice>
+    *: "אלקטרוני"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "שטוח"
+  </dest>
+  <voice>
+    *: "שטוח"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "היפ הופ"
+  </dest>
+  <voice>
+    *: "היפ הופ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "ג׳אז"
+  </dest>
+  <voice>
+    *: "ג׳אז"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "לטיני"
+  </dest>
+  <voice>
+    *: "לטיני"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "הגברת עוצמה"
+  </dest>
+  <voice>
+    *: "הגברת עוצמה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "לאונג׳"
+  </dest>
+  <voice>
+    *: "לאונג׳"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "פסנתר"
+  </dest>
+  <voice>
+    *: "פסנתר"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "פופ"
+  </dest>
+  <voice>
+    *: "פופ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "רוק"
+  </dest>
+  <voice>
+    *: "רוק"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "רמקולים קטנים"
+  </dest>
+  <voice>
+    *: "רמקולים קטנים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "דיבור"
+  </dest>
+  <voice>
+    *: "דיבור"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "מגביר טרבל"
+  </dest>
+  <voice>
+    *: "מגביר טרבל"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "מפחית טרבל"
+  </dest>
+  <voice>
+    *: "מפחית טרבל"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "מגביר שירה"
+  </dest>
+  <voice>
+    *: "מגביר שירה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "איטי יותר"
+  </dest>
+  <voice>
+    *: "איטי יותר"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "רגיל"
+  </dest>
+  <voice>
+    *: "רגיל"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "מהיר יותר"
+  </dest>
+  <voice>
+    *: "מהיר יותר"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "מעדכן את הספרייה"
+  </dest>
+  <voice>
+    *: "מעדכן את הספרייה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "מחשב…"
+  </dest>
+  <voice>
+    *: "מחשב…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "בלאק ג׳ק"
+  </dest>
+  <voice>
+    *: "בלאק ג׳ק"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "אבני חן"
+  </dest>
+  <voice>
+    *: "אבני חן"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "שולה מוקשים"
+  </dest>
+  <voice>
+    *: "שולה מוקשים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "קורא את הספרייה"
+  </dest>
+  <voice>
+    *: "קורא את הספרייה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "בודק שירים"
+  </dest>
+  <voice>
+    *: "בודק שירים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "מעדכן ספירת השמעות"
+  </dest>
+  <voice>
+    *: "מעדכן ספירת השמעות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "מכין עטיפות"
+  </dest>
+  <voice>
+    *: "מכין עטיפות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "מכין אלבומים"
+  </dest>
+  <voice>
+    *: "מכין אלבומים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "מכין שירים"
+  </dest>
+  <voice>
+    *: "מכין שירים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "אמני האלבום"
+  </dest>
+  <voice>
+    *: "אמני האלבום"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CURRENT_PLAYLIST
+  desc: Used when you need to say playlist, also voiced
+  user: core
+  <source>
+    *: "Current Playlist"
+  </source>
+  <dest>
+    *: "רשימת השירים הנוכחית"
+  </dest>
+  <voice>
+    *: "רשימת השירים הנוכחית"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE_CHANGES
+  desc: When you try to exit screens to confirm save
+  user: core
+  <source>
+    *: "Save Changes?"
+  </source>
+  <dest>
+    *: "לשמור שינויים?"
+  </dest>
+  <voice>
+    *: "לשמור שינויים?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_CANCEL_CURRENT
+  desc: shown instead of sleep timer when it's running
+  user: core
+  <source>
+    *: "Cancel Sleep Timer"
+  </source>
+  <dest>
+    *: "ביטול טיימר שינה"
+  </dest>
+  <voice>
+    *: "ביטול טיימר שינה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_START_CURRENT
+  desc: shown when a sleep timer isn't running
+  user: core
+  <source>
+    *: "Start Sleep Timer"
+  </source>
+  <dest>
+    *: "הפעלת טיימר שינה"
+  </dest>
+  <voice>
+    *: "הפעלת טיימר שינה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "נעילה אוטומטית פועלת"
+  </dest>
+  <voice>
+    *: "נעילה אוטומטית פועלת"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "נעילה אוטומטית כבויה"
+  </dest>
+  <voice>
+    *: "נעילה אוטומטית כבויה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "זמן שחלף ברצועה:"
+  </dest>
+  <voice>
+    *: "זמן שחלף ברצועה:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "זמן שנותר ברצועה:"
+  </dest>
+  <voice>
+    *: "זמן שנותר ברצועה:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "רצועה:"
+  </dest>
+  <voice>
+    *: "רצועה:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "אחסון (הושמע / נותר):"
+  </dest>
+  <voice>
+    *: "אחסון (הושמע / נותר):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "גודל רצועה ממוצע:"
+  </dest>
+  <voice>
+    *: "גודל רצועה ממוצע:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "קצב סיביות ממוצע:"
+  </dest>
+  <voice>
+    *: "קצב סיביות ממוצע:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "זמן השמעה"
+  </dest>
+  <voice>
+    *: "זמן השמעה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[נתיב]"
+  </dest>
+  <voice>
+    *: "[נתיב]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[שם קובץ]"
+  </dest>
+  <voice>
+    *: "[שם קובץ]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[גודל]"
+  </dest>
+  <voice>
+    *: "[גודל]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[תאריך]"
+  </dest>
+  <voice>
+    *: "[תאריך]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[שעה]"
+  </dest>
+  <voice>
+    *: "[שעה]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[תיקיות משנה]"
+  </dest>
+  <voice>
+    *: "[תיקיות משנה]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[קבצים]"
+  </dest>
+  <voice>
+    *: "[קבצים]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "מאפייני תיקייה"
+  </dest>
+  <voice>
+    *: "מאפייני תיקייה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "מאפייני קובץ"
+  </dest>
+  <voice>
+    *: "מאפייני קובץ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "לא ניתן לאסוף מידע"
+  </dest>
+  <voice>
+    *: "לא ניתן לאסוף מידע"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "תאריך"
+  </dest>
+  <voice>
+    *: "תאריך"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "שמירה"
+  </dest>
+  <voice>
+    *: "שמירה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "פסק זמן"
+  </dest>
+  <voice>
+    *: "פסק זמן"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "רצועה"
+  </dest>
+  <voice>
+    *: "רצועה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "זמן שחלף"
+  </dest>
+  <voice>
+    *: "זמן שחלף"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "הוספה"
+  </dest>
+  <voice>
+    *: "הוספה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "תור..."
+  </dest>
+  <voice>
+    *: "תור..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "פרטי רצועה"
+  </dest>
+  <voice>
+    *: "פרטי רצועה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "השמעה"
+  </dest>
+  <voice>
+    *: "השמעה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "השמעה בערבוב"
+  </dest>
+  <voice>
+    *: "השמעה בערבוב"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "הוספה לרשימת שירים..."
+  </dest>
+  <voice>
+    *: "הוספה לרשימת שירים..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "הוספה לרשימה קיימת"
+  </dest>
+  <voice>
+    *: "הוספה לרשימה קיימת"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "הבא בתור..."
+  </dest>
+  <voice>
+    *: "הבא בתור..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "השמעה הבאה"
+  </dest>
+  <voice>
+    *: "השמעה הבאה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "הוספה בערבוב"
+  </dest>
+  <voice>
+    *: "הוספה בערבוב"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "השמעה אחרונה"
+  </dest>
+  <voice>
+    *: "השמעה אחרונה"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "השמעה אחרונה בערבוב"
+  </dest>
+  <voice>
+    *: "השמעה אחרונה בערבוב"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "להסיר רצועות מהתור?"
+  </dest>
+  <voice>
+    *: "להסיר רצועות מהתור?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "זמן שנותר"
+  </dest>
+  <voice>
+    *: "זמן שנותר"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "אמנים"
+  </dest>
+  <voice>
+    *: "אמנים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "אלבומים"
+  </dest>
+  <voice>
+    *: "אלבומים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "רצועות"
+  </dest>
+  <voice>
+    *: "רצועות"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "ערבוב שירים"
+  </dest>
+  <voice>
+    *: "ערבוב שירים"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "חיפוש"
+  </dest>
+  <voice>
+    *: "חיפוש"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "הצגת עטיפת אלבום"
+  </dest>
+  <voice>
+    *: "הצגת עטיפת אלבום"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "הרשימה הסתיימה. להשמיע שוב?"
+  </dest>
+  <voice>
+    *: "הרשימה הסתיימה. להשמיע שוב?"
   </voice>
 </phrase>

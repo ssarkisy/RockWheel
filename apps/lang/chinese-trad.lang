@@ -154,10 +154,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "音效設定"
+    *: "音效"
   </dest>
   <voice>
-    *: "音效設定"
+    *: "音效"
   </voice>
 </phrase>
 <phrase>
@@ -168,10 +168,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "一般設定"
+    *: "一般"
   </dest>
   <voice>
-    *: "一般設定"
+    *: "一般"
   </voice>
 </phrase>
 <phrase>
@@ -440,10 +440,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "播放設定"
+    *: "播放"
   </dest>
   <voice>
-    *: "Playback"
+    *: "播放"
   </voice>
 </phrase>
 <phrase>
@@ -919,10 +919,10 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "亂序播放"
+    *: "隨機播放"
   </dest>
   <voice>
-    *: "亂序播放"
+    *: "隨機播放"
   </voice>
 </phrase>
 <phrase>
@@ -1765,11 +1765,11 @@
   </source>
   <dest>
     *: none
-    rtc: "時間與日期"
+    rtc: "日期與時間"
   </dest>
   <voice>
     *: none
-    rtc: "時間與日期"
+    rtc: "日期與時間"
   </voice>
 </phrase>
 <phrase>
@@ -2264,11 +2264,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "開啟Crossfade"
+    crossfade: "淡入淡出"
   </dest>
   <voice>
     *: none
-    crossfade: "開啟Crossfade"
+    crossfade: "淡入淡出"
   </voice>
 </phrase>
 <phrase>
@@ -2412,10 +2412,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "播放增益種類"
+    *: "音量平衡"
   </dest>
   <voice>
-    *: "播放增益種類"
+    *: "音量平衡"
   </voice>
 </phrase>
 <phrase>
@@ -2454,10 +2454,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "亂序播放時使用單曲增益"
+    *: "自動"
   </dest>
   <voice>
-    *: "亂序播放時使用單曲增益"
+    *: "自動"
   </voice>
 </phrase>
 <phrase>
@@ -3843,11 +3843,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Current Time"
+    rtc: "目前時間"
   </dest>
   <voice>
     *: none
-    rtc: "Current time"
+    rtc: "目前時間"
   </voice>
 </phrase>
 <phrase>
@@ -4322,10 +4322,10 @@
     *: "Artist"
   </source>
   <dest>
-    *: "作者"
+    *: "演出者"
   </dest>
   <voice>
-    *: "作者"
+    *: "演出者"
   </voice>
 </phrase>
 <phrase>
@@ -4364,10 +4364,10 @@
     *: "Genre"
   </source>
   <dest>
-    *: "類別"
+    *: "類型"
   </dest>
   <voice>
-    *: "類別"
+    *: "類型"
   </voice>
 </phrase>
 <phrase>
@@ -4462,10 +4462,10 @@
     *: "Track Gain"
   </source>
   <dest>
-    *: "Track Gain"
+    *: "單曲增益"
   </dest>
   <voice>
-    *: "Track gain"
+    *: "單曲增益"
   </voice>
 </phrase>
 <phrase>
@@ -7050,10 +7050,10 @@
     *: "Never"
   </source>
   <dest>
-    *: "Never"
+    *: "永不"
   </dest>
   <voice>
-    *: "Never"
+    *: "永不"
   </voice>
 </phrase>
 <phrase>
@@ -7505,11 +7505,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "暫停和恢復播放"
+    headphone_detection: "暫停並恢復"
   </dest>
   <voice>
     *: none
-    headphone_detection: "暫停和恢復播放"
+    headphone_detection: "暫停並恢復"
   </voice>
 </phrase>
 <phrase>
@@ -8422,10 +8422,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cuesheet 支援"
+    *: "CUE檔案"
   </dest>
   <voice>
-    *: "Cuesheet 支援"
+    *: "CUE檔案"
   </voice>
 </phrase>
 <phrase>
@@ -8762,10 +8762,10 @@
     *: "Album Artist"
   </source>
   <dest>
-    *: "專輯作者"
+    *: "專輯演出者"
   </dest>
   <voice>
-    *: "專輯作者"
+    *: "專輯演出者"
   </voice>
 </phrase>
 <phrase>
@@ -8892,8 +8892,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "背光 (Hold 時)"
+    *: "背光 (Hold 時)"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -9426,10 +9426,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "關鍵點"
+    *: "按鍵聲"
   </dest>
   <voice>
-    *: "關鍵點"
+    *: "按鍵聲"
   </voice>
 </phrase>
 <phrase>
@@ -10513,10 +10513,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "暫停時自動倒退長度"
+    *: "繼續播放時倒退"
   </dest>
   <voice>
-    *: "暫停時自動倒退長度"
+    *: "繼續播放時倒退"
   </voice>
 </phrase>
 <phrase>
@@ -11059,20 +11059,6 @@
   </voice>
 </phrase>
 <phrase>
-  id: LANG_RESUME_REWIND
-  desc: in playback settings menu
-  user: core
-  <source>
-    *: "Rewind Before Resume"
-  </source>
-  <dest>
-    *: "暫停時自動倒退長度"
-  </dest>
-  <voice>
-    *: "暫停時自動倒退長度"
-  </voice>
-</phrase>
-<phrase>
   id: LANG_SURROUND
   desc: in the sound settings menu
   user: core
@@ -11159,10 +11145,10 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "聲學抗疲勞"
+    *: "減輕聽覺疲勞"
   </dest>
   <voice>
-    *: "聲學抗疲勞音效"
+    *: "減輕聽覺疲勞"
   </voice>
 </phrase>
 <phrase>
@@ -11316,10 +11302,10 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "亂序播放"
+    *: "隨機播放"
   </dest>
   <voice>
-    *: ""
+    *: "隨機播放"
   </voice>
 </phrase>
 <phrase>
@@ -11488,5 +11474,1649 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_SOFTWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Headphones"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "耳機"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "耳機"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_HARDWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Speaker"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "揚聲器"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "揚聲器"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "法律聲明"
+  </dest>
+  <voice>
+    *: "法律聲明"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "音樂"
+  </dest>
+  <voice>
+    *: "音樂"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "額外功能"
+  </dest>
+  <voice>
+    *: "額外功能"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "時鐘"
+  </dest>
+  <voice>
+    *: "時鐘"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "打磚塊"
+  </dest>
+  <voice>
+    *: "打磚塊"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "接龍"
+  </dest>
+  <voice>
+    *: "接龍"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "行事曆"
+  </dest>
+  <voice>
+    *: "行事曆"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "碼錶"
+  </dest>
+  <voice>
+    *: "碼錶"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "關於本機"
+  </dest>
+  <voice>
+    *: "關於本機"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d 分鐘"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "歌曲"
+  </dest>
+  <voice>
+    *: "歌曲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcast"
+  </dest>
+  <voice>
+    *: "Podcast"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "類型"
+  </dest>
+  <voice>
+    *: "類型"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "作曲者"
+  </dest>
+  <voice>
+    *: "作曲者"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "有聲書"
+  </dest>
+  <voice>
+    *: "有聲書"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "照片"
+  </dest>
+  <voice>
+    *: "照片"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "照片圖庫"
+  </dest>
+  <voice>
+    *: "照片圖庫"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "幻燈片秀設定"
+  </dest>
+  <voice>
+    *: "幻燈片秀設定"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "每張幻燈片時間"
+  </dest>
+  <voice>
+    *: "每張幻燈片時間"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "隨機播放照片"
+  </dest>
+  <voice>
+    *: "隨機播放照片"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "手動"
+  </dest>
+  <voice>
+    *: "手動"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d 秒"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "沒有照片"
+  </dest>
+  <voice>
+    *: "沒有照片"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d 首歌曲"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d 首歌曲"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d 首歌曲"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "原聲"
+  </dest>
+  <voice>
+    *: "原聲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "低音增強"
+  </dest>
+  <voice>
+    *: "低音增強"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "低音減弱"
+  </dest>
+  <voice>
+    *: "低音減弱"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "古典"
+  </dest>
+  <voice>
+    *: "古典"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "舞曲"
+  </dest>
+  <voice>
+    *: "舞曲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "深沉"
+  </dest>
+  <voice>
+    *: "深沉"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "電子樂"
+  </dest>
+  <voice>
+    *: "電子樂"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "平坦"
+  </dest>
+  <voice>
+    *: "平坦"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "嘻哈"
+  </dest>
+  <voice>
+    *: "嘻哈"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "爵士樂"
+  </dest>
+  <voice>
+    *: "爵士樂"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "拉丁"
+  </dest>
+  <voice>
+    *: "拉丁"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "響度"
+  </dest>
+  <voice>
+    *: "響度"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "沙發音樂"
+  </dest>
+  <voice>
+    *: "沙發音樂"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "鋼琴"
+  </dest>
+  <voice>
+    *: "鋼琴"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "流行"
+  </dest>
+  <voice>
+    *: "流行"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "搖滾"
+  </dest>
+  <voice>
+    *: "搖滾"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "小型揚聲器"
+  </dest>
+  <voice>
+    *: "小型揚聲器"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "語音"
+  </dest>
+  <voice>
+    *: "語音"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "高音增強"
+  </dest>
+  <voice>
+    *: "高音增強"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "高音減弱"
+  </dest>
+  <voice>
+    *: "高音減弱"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "人聲增強"
+  </dest>
+  <voice>
+    *: "人聲增強"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "較慢"
+  </dest>
+  <voice>
+    *: "較慢"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "正常"
+  </dest>
+  <voice>
+    *: "正常"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "較快"
+  </dest>
+  <voice>
+    *: "較快"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "正在更新資料庫"
+  </dest>
+  <voice>
+    *: "正在更新資料庫"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "正在計算…"
+  </dest>
+  <voice>
+    *: "正在計算…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "二十一點"
+  </dest>
+  <voice>
+    *: "二十一點"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "寶石"
+  </dest>
+  <voice>
+    *: "寶石"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "踩地雷"
+  </dest>
+  <voice>
+    *: "踩地雷"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "正在讀取資料庫"
+  </dest>
+  <voice>
+    *: "正在讀取資料庫"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "正在檢查歌曲"
+  </dest>
+  <voice>
+    *: "正在檢查歌曲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "正在更新播放次數"
+  </dest>
+  <voice>
+    *: "正在更新播放次數"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "正在準備封面"
+  </dest>
+  <voice>
+    *: "正在準備封面"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "正在準備專輯"
+  </dest>
+  <voice>
+    *: "正在準備專輯"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "正在準備歌曲"
+  </dest>
+  <voice>
+    *: "正在準備歌曲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "專輯演出者"
+  </dest>
+  <voice>
+    *: "專輯演出者"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED
+  desc: timestretch speed
+  user: core
+  <source>
+    *: "Speed"
+  </source>
+  <dest>
+    *: "速度"
+  </dest>
+  <voice>
+    *: "速度"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NEXT_TRACK
+  desc: Shown in WPS
+  user: core
+  <source>
+    *: "Next Track:"
+  </source>
+  <dest>
+    *: "下一首："
+  </dest>
+  <voice>
+    *: "下一首："
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_OF
+  desc: Shown in WPS: X of Y (tracks)
+  user: core
+  <source>
+    *: "of"
+  </source>
+  <dest>
+    *: "/"
+  </dest>
+  <voice>
+    *: "/"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TAGNAVI_UNTAGGED
+  desc: "[untagged]" entry in tag browser
+  user: core
+  <source>
+    *: "[Untagged]"
+  </source>
+  <dest>
+    *: "[無標籤]"
+  </dest>
+  <voice>
+    *: "[無標籤]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_COMPOSER
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Composer"
+  </source>
+  <dest>
+    *: "作曲者"
+  </dest>
+  <voice>
+    *: "作曲者"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE_CHANGES
+  desc: When you try to exit screens to confirm save
+  user: core
+  <source>
+    *: "Save Changes?"
+  </source>
+  <dest>
+    *: "儲存變更？"
+  </dest>
+  <voice>
+    *: "儲存變更？"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "自動鎖定開啟"
+  </dest>
+  <voice>
+    *: "自動鎖定開啟"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "自動鎖定關閉"
+  </dest>
+  <voice>
+    *: "自動鎖定關閉"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "曲目已播放："
+  </dest>
+  <voice>
+    *: "曲目已播放："
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "曲目剩餘："
+  </dest>
+  <voice>
+    *: "曲目剩餘："
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "曲目："
+  </dest>
+  <voice>
+    *: "曲目："
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "儲存空間（已播放/剩餘）："
+  </dest>
+  <voice>
+    *: "儲存空間（已播放/剩餘）："
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "平均曲目大小："
+  </dest>
+  <voice>
+    *: "平均曲目大小："
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "平均位元率："
+  </dest>
+  <voice>
+    *: "平均位元率："
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "播放時間"
+  </dest>
+  <voice>
+    *: "播放時間"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[路徑]"
+  </dest>
+  <voice>
+    *: "[路徑]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[檔名]"
+  </dest>
+  <voice>
+    *: "[檔名]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[大小]"
+  </dest>
+  <voice>
+    *: "[大小]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[日期]"
+  </dest>
+  <voice>
+    *: "[日期]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[時間]"
+  </dest>
+  <voice>
+    *: "[時間]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[子檔案夾]"
+  </dest>
+  <voice>
+    *: "[子檔案夾]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[檔案]"
+  </dest>
+  <voice>
+    *: "[檔案]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "檔案夾屬性"
+  </dest>
+  <voice>
+    *: "檔案夾屬性"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "檔案屬性"
+  </dest>
+  <voice>
+    *: "檔案屬性"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "無法取得資訊"
+  </dest>
+  <voice>
+    *: "無法取得資訊"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "日期"
+  </dest>
+  <voice>
+    *: "日期"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "儲存"
+  </dest>
+  <voice>
+    *: "儲存"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "逾時"
+  </dest>
+  <voice>
+    *: "逾時"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "曲目"
+  </dest>
+  <voice>
+    *: "曲目"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "已播放"
+  </dest>
+  <voice>
+    *: "已播放"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "加入"
+  </dest>
+  <voice>
+    *: "加入"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "佇列..."
+  </dest>
+  <voice>
+    *: "佇列..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "曲目資訊"
+  </dest>
+  <voice>
+    *: "曲目資訊"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "播放"
+  </dest>
+  <voice>
+    *: "播放"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "亂序播放"
+  </dest>
+  <voice>
+    *: "亂序播放"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "加入播放清單..."
+  </dest>
+  <voice>
+    *: "加入播放清單..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "加入現有播放清單"
+  </dest>
+  <voice>
+    *: "加入現有播放清單"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "接下來播放..."
+  </dest>
+  <voice>
+    *: "接下來播放..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "下一首播放"
+  </dest>
+  <voice>
+    *: "下一首播放"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "亂序加入"
+  </dest>
+  <voice>
+    *: "亂序加入"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "最後播放"
+  </dest>
+  <voice>
+    *: "最後播放"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "亂序最後播放"
+  </dest>
+  <voice>
+    *: "亂序最後播放"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "移除佇列中的曲目？"
+  </dest>
+  <voice>
+    *: "移除佇列中的曲目？"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "剩餘"
+  </dest>
+  <voice>
+    *: "剩餘"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "演出者"
+  </dest>
+  <voice>
+    *: "演出者"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "專輯"
+  </dest>
+  <voice>
+    *: "專輯"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "曲目"
+  </dest>
+  <voice>
+    *: "曲目"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "隨機播放歌曲"
+  </dest>
+  <voice>
+    *: "隨機播放歌曲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "搜尋"
+  </dest>
+  <voice>
+    *: "搜尋"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "檢視專輯封面"
+  </dest>
+  <voice>
+    *: "檢視專輯封面"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "播放清單已結束。重新播放？"
+  </dest>
+  <voice>
+    *: "播放清單已結束。重新播放？"
   </voice>
 </phrase>

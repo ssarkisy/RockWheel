@@ -184,10 +184,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "声音设置"
+    *: "声音"
   </dest>
   <voice>
-    *: "声音设置"
+    *: "声音"
   </voice>
 </phrase>
 <phrase>
@@ -198,10 +198,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "常规设置"
+    *: "常规"
   </dest>
   <voice>
-    *: "常规设置"
+    *: "常规"
   </voice>
 </phrase>
 <phrase>
@@ -470,10 +470,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "播放设置"
+    *: "播放"
   </dest>
   <voice>
-    *: "播放设置"
+    *: "播放"
   </voice>
 </phrase>
 <phrase>
@@ -1781,11 +1781,11 @@
   </source>
   <dest>
     *: none
-    rtc: "时间与日期"
+    rtc: "日期与时间"
   </dest>
   <voice>
     *: none
-    rtc: "时间与日期"
+    rtc: "日期与时间"
   </voice>
 </phrase>
 <phrase>
@@ -2263,11 +2263,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "开启淡入淡出"
+    crossfade: "淡入淡出"
   </dest>
   <voice>
     *: none
-    crossfade: "开启淡入淡出"
+    crossfade: "淡入淡出"
   </voice>
 </phrase>
 <phrase>
@@ -2411,10 +2411,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "播放增益种类"
+    *: "音量平衡"
   </dest>
   <voice>
-    *: "播放增益种类"
+    *: "音量平衡"
   </voice>
 </phrase>
 <phrase>
@@ -2453,10 +2453,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "乱序播放时使用单曲增益"
+    *: "自动"
   </dest>
   <voice>
-    *: "乱序播放时使用单曲增益"
+    *: "自动"
   </voice>
 </phrase>
 <phrase>
@@ -7326,11 +7326,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "暂停和恢复播放"
+    headphone_detection: "暂停并恢复"
   </dest>
   <voice>
     *: none
-    headphone_detection: "暂停和恢复播放"
+    headphone_detection: "暂停并恢复"
   </voice>
 </phrase>
 <phrase>
@@ -7919,11 +7919,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "拔出耳机后自动暂停"
+    headphone_detection: "拔出耳机后暂停"
   </dest>
   <voice>
     *: none
-    headphone_detection: "拔出耳机后自动暂停"
+    headphone_detection: "拔出耳机后暂停"
   </voice>
 </phrase>
 <phrase>
@@ -8196,10 +8196,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cuesheet支持"
+    *: "CUE文件"
   </dest>
   <voice>
-    *: "Cue sheet支持"
+    *: "CUE文件"
   </voice>
 </phrase>
 <phrase>
@@ -10626,10 +10626,10 @@
     *: "of"
   </source>
   <dest>
-    *: "~of"
+    *: "/"
   </dest>
   <voice>
-    *: "共"
+    *: "/"
   </voice>
 </phrase>
 <phrase>
@@ -10824,10 +10824,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "恢复播放时自动快退时长"
+    *: "恢复播放时快退"
   </dest>
   <voice>
-    *: "恢复播放时自动快退时长"
+    *: "恢复播放时快退"
   </voice>
 </phrase>
 <phrase>
@@ -10886,10 +10886,10 @@
     *: "Composer"
   </source>
   <dest>
-    *: "曲师"
+    *: "作曲者"
   </dest>
   <voice>
-    *: "曲师"
+    *: "作曲者"
   </voice>
 </phrase>
 <phrase>
@@ -11274,11 +11274,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "扬声器按键音"
+    hardware_click: "扬声器"
   </dest>
   <voice>
     *: none
-    hardware_click: "扬声器按键音"
+    hardware_click: "扬声器"
   </voice>
 </phrase>
 <phrase>
@@ -11291,11 +11291,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "耳机按键音"
+    hardware_click: "耳机"
   </dest>
   <voice>
     *: none
-    hardware_click: "耳机按键音"
+    hardware_click: "耳机"
   </voice>
 </phrase>
 <phrase>
@@ -11615,10 +11615,10 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "声学抗疲劳"
+    *: "减轻听觉疲劳"
   </dest>
   <voice>
-    *: "声学抗疲劳音效"
+    *: "减轻听觉疲劳"
   </voice>
 </phrase>
 <phrase>
@@ -17486,5 +17486,873 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "音乐"
+  </dest>
+  <voice>
+    *: "音乐"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "附加功能"
+  </dest>
+  <voice>
+    *: "附加功能"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "时钟"
+  </dest>
+  <voice>
+    *: "时钟"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "打砖块"
+  </dest>
+  <voice>
+    *: "打砖块"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "纸牌"
+  </dest>
+  <voice>
+    *: "纸牌"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "日历"
+  </dest>
+  <voice>
+    *: "日历"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "秒表"
+  </dest>
+  <voice>
+    *: "秒表"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "关于本机"
+  </dest>
+  <voice>
+    *: "关于本机"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d 分钟"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "歌曲"
+  </dest>
+  <voice>
+    *: "歌曲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "播客"
+  </dest>
+  <voice>
+    *: "播客"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "流派"
+  </dest>
+  <voice>
+    *: "流派"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "作曲者"
+  </dest>
+  <voice>
+    *: "作曲者"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "有声读物"
+  </dest>
+  <voice>
+    *: "有声读物"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "照片"
+  </dest>
+  <voice>
+    *: "照片"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "照片图库"
+  </dest>
+  <voice>
+    *: "照片图库"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "幻灯片设置"
+  </dest>
+  <voice>
+    *: "幻灯片设置"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "每张幻灯片时间"
+  </dest>
+  <voice>
+    *: "每张幻灯片时间"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "随机播放照片"
+  </dest>
+  <voice>
+    *: "随机播放照片"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "手动"
+  </dest>
+  <voice>
+    *: "手动"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d 秒"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "没有照片"
+  </dest>
+  <voice>
+    *: "没有照片"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d 首歌曲"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d 首歌曲"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d 首歌曲"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "原声"
+  </dest>
+  <voice>
+    *: "原声"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "低音增强"
+  </dest>
+  <voice>
+    *: "低音增强"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "低音减弱"
+  </dest>
+  <voice>
+    *: "低音减弱"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "古典"
+  </dest>
+  <voice>
+    *: "古典"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "舞曲"
+  </dest>
+  <voice>
+    *: "舞曲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "深沉"
+  </dest>
+  <voice>
+    *: "深沉"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "电子乐"
+  </dest>
+  <voice>
+    *: "电子乐"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "平坦"
+  </dest>
+  <voice>
+    *: "平坦"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "嘻哈"
+  </dest>
+  <voice>
+    *: "嘻哈"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "爵士乐"
+  </dest>
+  <voice>
+    *: "爵士乐"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "拉丁"
+  </dest>
+  <voice>
+    *: "拉丁"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "响度"
+  </dest>
+  <voice>
+    *: "响度"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "沙发音乐"
+  </dest>
+  <voice>
+    *: "沙发音乐"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "钢琴"
+  </dest>
+  <voice>
+    *: "钢琴"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "流行"
+  </dest>
+  <voice>
+    *: "流行"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "摇滚"
+  </dest>
+  <voice>
+    *: "摇滚"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "小型扬声器"
+  </dest>
+  <voice>
+    *: "小型扬声器"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "语音"
+  </dest>
+  <voice>
+    *: "语音"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "高音增强"
+  </dest>
+  <voice>
+    *: "高音增强"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "高音减弱"
+  </dest>
+  <voice>
+    *: "高音减弱"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "人声增强"
+  </dest>
+  <voice>
+    *: "人声增强"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "较慢"
+  </dest>
+  <voice>
+    *: "较慢"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "正常"
+  </dest>
+  <voice>
+    *: "正常"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "较快"
+  </dest>
+  <voice>
+    *: "较快"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "正在更新资料库"
+  </dest>
+  <voice>
+    *: "正在更新资料库"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "正在计算…"
+  </dest>
+  <voice>
+    *: "正在计算…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "二十一点"
+  </dest>
+  <voice>
+    *: "二十一点"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "宝石"
+  </dest>
+  <voice>
+    *: "宝石"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "扫雷"
+  </dest>
+  <voice>
+    *: "扫雷"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "正在读取资料库"
+  </dest>
+  <voice>
+    *: "正在读取资料库"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "正在检查歌曲"
+  </dest>
+  <voice>
+    *: "正在检查歌曲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "正在更新播放次数"
+  </dest>
+  <voice>
+    *: "正在更新播放次数"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "正在准备封面"
+  </dest>
+  <voice>
+    *: "正在准备封面"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "正在准备专辑"
+  </dest>
+  <voice>
+    *: "正在准备专辑"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "正在准备歌曲"
+  </dest>
+  <voice>
+    *: "正在准备歌曲"
   </voice>
 </phrase>

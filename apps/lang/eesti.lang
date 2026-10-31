@@ -177,10 +177,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Heliseaded"
+    *: "Heli"
   </dest>
   <voice>
-    *: "Heliseaded"
+    *: "Heli"
   </voice>
 </phrase>
 <phrase>
@@ -191,10 +191,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Üldseaded"
+    *: "Üldine"
   </dest>
   <voice>
-    *: "Üldseaded"
+    *: "Üldine"
   </voice>
 </phrase>
 <phrase>
@@ -569,10 +569,10 @@
     *: "Crossfeed"
   </source>
   <dest>
-    *: "Crossfeed"
+    *: "Kanalite segamine"
   </dest>
   <voice>
-    *: "Crossfeed"
+    *: "Kanalite segamine"
   </voice>
 </phrase>
 <phrase>
@@ -583,10 +583,10 @@
     *: "Equalizer"
   </source>
   <dest>
-    *: "Tasakaalustaja (Ekvalaiser)"
+    *: "Ekvalaiser"
   </dest>
   <voice>
-    *: "Tasakaalustaja"
+    *: "Ekvalaiser"
   </voice>
 </phrase>
 <phrase>
@@ -1927,10 +1927,10 @@
     *: "Time & Date"
   </source>
   <dest>
-    *: "Aeg & Kuupäev"
+    *: "Kuupäev ja kellaaeg"
   </dest>
   <voice>
-    *: "Aeg ja kuupäev"
+    *: "Kuupäev ja kellaaeg"
   </voice>
 </phrase>
 <phrase>
@@ -2417,10 +2417,10 @@
     *: "Enable Crossfade"
   </source>
   <dest>
-    *: "Luba Crossfade"
+    *: "Sujuv üleminek"
   </dest>
   <voice>
-    *: "Luba Crossfade"
+    *: "Sujuv üleminek"
   </voice>
 </phrase>
 <phrase>
@@ -2543,10 +2543,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Replaygaini tüüp"
+    *: "Helitaseme ühtlustus"
   </dest>
   <voice>
-    *: "Replaygaini tüüp"
+    *: "Helitaseme ühtlustus"
   </voice>
 </phrase>
 <phrase>
@@ -2585,10 +2585,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Raja gain segades"
+    *: "Autom."
   </dest>
   <voice>
-    *: "Raja gain segades"
+    *: "Autom."
   </voice>
 </phrase>
 <phrase>
@@ -3903,7 +3903,7 @@
     ipodmini1g,ipodmini2g,iriverh10: "Batt: %d%% %dh %dm"
   </source>
   <dest>
-    *: "Battery: %d%% %dh %dm"
+    *: "Aku: %d%% %dt %dmin"
     archosondiofm,iriverifp7xx: "%d%% %dh %dm"
     ipodmini1g,ipodmini2g,iriverh10: "Batt: %d%% %dh %dm"
   </dest>
@@ -4429,10 +4429,10 @@
     *: "Title"
   </source>
   <dest>
-    *: "Title"
+    *: "Pealkiri"
   </dest>
   <voice>
-    *: "Title"
+    *: "Pealkiri"
   </voice>
 </phrase>
 <phrase>
@@ -4443,10 +4443,10 @@
     *: "Artist"
   </source>
   <dest>
-    *: "Artist"
+    *: "Esitaja"
   </dest>
   <voice>
-    *: "Artist"
+    *: "Esitaja"
   </voice>
 </phrase>
 <phrase>
@@ -4471,10 +4471,10 @@
     *: "Tracknum"
   </source>
   <dest>
-    *: "Tracknum"
+    *: "Loo number"
   </dest>
   <voice>
-    *: "Tracknum"
+    *: "Loo number"
   </voice>
 </phrase>
 <phrase>
@@ -4485,10 +4485,10 @@
     *: "Genre"
   </source>
   <dest>
-    *: "Genre"
+    *: "Žanr"
   </dest>
   <voice>
-    *: "Genre"
+    *: "Žanr"
   </voice>
 </phrase>
 <phrase>
@@ -4499,10 +4499,10 @@
     *: "Year"
   </source>
   <dest>
-    *: "Year"
+    *: "Aasta"
   </dest>
   <voice>
-    *: "Year"
+    *: "Aasta"
   </voice>
 </phrase>
 <phrase>
@@ -4513,10 +4513,10 @@
     *: "Length"
   </source>
   <dest>
-    *: "Length"
+    *: "Kestus"
   </dest>
   <voice>
-    *: "Length"
+    *: "Kestus"
   </voice>
 </phrase>
 <phrase>
@@ -4527,10 +4527,10 @@
     *: "Playlist"
   </source>
   <dest>
-    *: "Playlist"
+    *: "Esitusloend"
   </dest>
   <voice>
-    *: "Playlist"
+    *: "Esitusloend"
   </voice>
 </phrase>
 <phrase>
@@ -4541,10 +4541,10 @@
     *: "Bitrate"
   </source>
   <dest>
-    *: "Bitrate"
+    *: "Bitikiirus"
   </dest>
   <voice>
-    *: "Bitrate"
+    *: "Bitikiirus"
   </voice>
 </phrase>
 <phrase>
@@ -4569,10 +4569,10 @@
     *: "Frequency"
   </source>
   <dest>
-    *: "Frequency"
+    *: "Sagedus"
   </dest>
   <voice>
-    *: "Frequency"
+    *: "Sagedus"
   </voice>
 </phrase>
 <phrase>
@@ -4583,10 +4583,10 @@
     *: "Track Gain"
   </source>
   <dest>
-    *: "Track Gain"
+    *: "Loo võimendus"
   </dest>
   <voice>
-    *: "Track Gain"
+    *: "Loo võimendus"
   </voice>
 </phrase>
 <phrase>
@@ -4611,10 +4611,10 @@
     *: "Path"
   </source>
   <dest>
-    *: "Path"
+    *: "Tee"
   </dest>
   <voice>
-    *: "Path"
+    *: "Tee"
   </voice>
 </phrase>
 <phrase>
@@ -4625,10 +4625,10 @@
     *: "[No Info]"
   </source>
   <dest>
-    *: "[No Info]"
+    *: "[Teave puudub]"
   </dest>
   <voice>
-    *: "No Info"
+    *: "[Teave puudub]"
   </voice>
 </phrase>
 <phrase>
@@ -4639,10 +4639,10 @@
     *: "Sun"
   </source>
   <dest>
-    *: "Sun"
+    *: "P"
   </dest>
   <voice>
-    *: ""
+    *: "P"
   </voice>
 </phrase>
 <phrase>
@@ -4740,7 +4740,7 @@
     *: "Jan"
   </dest>
   <voice>
-    *: "January"
+    *: "Jan"
   </voice>
 </phrase>
 <phrase>
@@ -8137,5 +8137,2230 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CUESHEET_ENABLE
+  desc: cuesheet support option
+  user: core
+  <source>
+    *: "Cuesheet Support"
+  </source>
+  <dest>
+    *: "CUE-failid"
+  </dest>
+  <voice>
+    *: "CUE-failid"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HEADPHONE_UNPLUG
+  desc: in settings_menu.
+  user: core
+  <source>
+    *: none
+    headphone_detection: "Pause on Headphone Unplug"
+  </source>
+  <dest>
+    *: none
+    headphone_detection: "Paus eemaldamisel"
+  </dest>
+  <voice>
+    *: none
+    headphone_detection: "Paus eemaldamisel"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HEADPHONE_UNPLUG_RESUME
+  desc: in pause_phones_menu.
+  user: core
+  <source>
+    *: none
+    headphone_detection: "Pause and Resume"
+  </source>
+  <dest>
+    *: none
+    headphone_detection: "Jätkamisega"
+  </dest>
+  <voice>
+    *: none
+    headphone_detection: "Jätkamisega"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: "Clicker"
+  </source>
+  <dest>
+    *: "Klõpsud"
+  </dest>
+  <voice>
+    *: "Klõpsud"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESUME_REWIND
+  desc: in playback settings menu
+  user: core
+  <source>
+    *: "Rewind Before Resume"
+  </source>
+  <dest>
+    *: "Keri jätkamisel tagasi"
+  </dest>
+  <voice>
+    *: "Keri jätkamisel tagasi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_SOFTWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Headphones"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Kõrvaklapid"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Kõrvaklapid"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_HARDWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Speaker"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Kõlar"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Kõlar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "Helitugevuse piirang"
+  </dest>
+  <voice>
+    *: "Helitugevuse piirang"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "Väsimuse vähendamine"
+  </dest>
+  <voice>
+    *: "Väsimuse vähendamine"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "Õigusteave"
+  </dest>
+  <voice>
+    *: "Õigusteave"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Muusika"
+  </dest>
+  <voice>
+    *: "Muusika"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Lisad"
+  </dest>
+  <voice>
+    *: "Lisad"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Kell"
+  </dest>
+  <voice>
+    *: "Kell"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Telliskivid"
+  </dest>
+  <voice>
+    *: "Telliskivid"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Pasjanss"
+  </dest>
+  <voice>
+    *: "Pasjanss"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Kalender"
+  </dest>
+  <voice>
+    *: "Kalender"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Stopper"
+  </dest>
+  <voice>
+    *: "Stopper"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Teave"
+  </dest>
+  <voice>
+    *: "Teave"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d minutit"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Laulud"
+  </dest>
+  <voice>
+    *: "Laulud"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Taskuhäälingud"
+  </dest>
+  <voice>
+    *: "Taskuhäälingud"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Žanrid"
+  </dest>
+  <voice>
+    *: "Žanrid"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Heliloojad"
+  </dest>
+  <voice>
+    *: "Heliloojad"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Audioraamatud"
+  </dest>
+  <voice>
+    *: "Audioraamatud"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Fotod"
+  </dest>
+  <voice>
+    *: "Fotod"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Fotokogu"
+  </dest>
+  <voice>
+    *: "Fotokogu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Slaidiseansi seaded"
+  </dest>
+  <voice>
+    *: "Slaidiseansi seaded"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Slaidi kestus"
+  </dest>
+  <voice>
+    *: "Slaidi kestus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Sega fotod"
+  </dest>
+  <voice>
+    *: "Sega fotod"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Käsitsi"
+  </dest>
+  <voice>
+    *: "Käsitsi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d sekundit"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Fotosid pole"
+  </dest>
+  <voice>
+    *: "Fotosid pole"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d laul"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d laulu"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d laulu"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Akustiline"
+  </dest>
+  <voice>
+    *: "Akustiline"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Basside võimendus"
+  </dest>
+  <voice>
+    *: "Basside võimendus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Basside vähendus"
+  </dest>
+  <voice>
+    *: "Basside vähendus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klassikaline"
+  </dest>
+  <voice>
+    *: "Klassikaline"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Tantsumuusika"
+  </dest>
+  <voice>
+    *: "Tantsumuusika"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Sügav"
+  </dest>
+  <voice>
+    *: "Sügav"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektrooniline"
+  </dest>
+  <voice>
+    *: "Elektrooniline"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Tasane"
+  </dest>
+  <voice>
+    *: "Tasane"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip-hop"
+  </dest>
+  <voice>
+    *: "Hip-hop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Džäss"
+  </dest>
+  <voice>
+    *: "Džäss"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Ladina"
+  </dest>
+  <voice>
+    *: "Ladina"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Valjus"
+  </dest>
+  <voice>
+    *: "Valjus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Klaver"
+  </dest>
+  <voice>
+    *: "Klaver"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: "Pop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rokk"
+  </dest>
+  <voice>
+    *: "Rokk"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Väikesed kõlarid"
+  </dest>
+  <voice>
+    *: "Väikesed kõlarid"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Kõne"
+  </dest>
+  <voice>
+    *: "Kõne"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Kõrgete võimendus"
+  </dest>
+  <voice>
+    *: "Kõrgete võimendus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Kõrgete vähendus"
+  </dest>
+  <voice>
+    *: "Kõrgete vähendus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Vokaali võimendus"
+  </dest>
+  <voice>
+    *: "Vokaali võimendus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Aeglasem"
+  </dest>
+  <voice>
+    *: "Aeglasem"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Tavaline"
+  </dest>
+  <voice>
+    *: "Tavaline"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Kiirem"
+  </dest>
+  <voice>
+    *: "Kiirem"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Muusikakogu uuendamine"
+  </dest>
+  <voice>
+    *: "Muusikakogu uuendamine"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Arvutamine…"
+  </dest>
+  <voice>
+    *: "Arvutamine…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Kalliskivid"
+  </dest>
+  <voice>
+    *: "Kalliskivid"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Miiniväli"
+  </dest>
+  <voice>
+    *: "Miiniväli"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Muusikakogu lugemine"
+  </dest>
+  <voice>
+    *: "Muusikakogu lugemine"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Laulude kontrollimine"
+  </dest>
+  <voice>
+    *: "Laulude kontrollimine"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Esituskordade uuendamine"
+  </dest>
+  <voice>
+    *: "Esituskordade uuendamine"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Kaanepiltide ettevalmistus"
+  </dest>
+  <voice>
+    *: "Kaanepiltide ettevalmistus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Albumite ettevalmistus"
+  </dest>
+  <voice>
+    *: "Albumite ettevalmistus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Laulude ettevalmistus"
+  </dest>
+  <voice>
+    *: "Laulude ettevalmistus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SCANNING_DISK
+  desc: when booting up and rebuilding the cache and calculating free space
+  user: core
+  <source>
+    *: "Scanning disk..."
+  </source>
+  <dest>
+    *: "Ketta skannimine..."
+  </dest>
+  <voice>
+    *: "Ketta skannimine..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CANCEL
+  desc: Visual confirmation of canceling a changed setting
+  user: core
+  <source>
+    *: "Cancelled"
+  </source>
+  <dest>
+    *: "Tühistatud"
+  </dest>
+  <voice>
+    *: "Tühistatud"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARE_YOU_SURE
+  desc: confirm action
+  user: core
+  <source>
+    *: "Are You Sure?"
+  </source>
+  <dest>
+    *: "Kas oled kindel?"
+  </dest>
+  <voice>
+    *: "Kas oled kindel?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CONFIRM_WITH_BUTTON
+  desc: Generic string to use to confirm
+  user: core
+  <source>
+    *: "PLAY = Yes"
+    cowond2*: "MENU, or top-right = Yes"
+    creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Yes"
+    iriverh100,iriverh120,iriverh300: "NAVI = Yes"
+    mrobe500: "PLAY, POWER, or top-right = Yes"
+    vibe500: "OK = Yes"
+  </source>
+  <dest>
+    *: none
+    cowond2*: none
+    creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Jah"
+    iriverh100,iriverh120,iriverh300: none
+    mrobe500: none
+    vibe500: none
+  </dest>
+  <voice>
+    *: none
+    creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Jah"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CANCEL_WITH_ANY
+  desc: Generic string to use to cancel
+  user: core
+  <source>
+    *: "Any Other = No"
+  </source>
+  <dest>
+    *: "Muu nupp = Ei"
+  </dest>
+  <voice>
+    *: "Muu nupp = Ei"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NOW_PLAYING
+  desc: in the main menu
+  user: core
+  <source>
+    *: "Now Playing"
+  </source>
+  <dest>
+    *: "Praegu mängib"
+  </dest>
+  <voice>
+    *: "Praegu mängib"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESUME_PLAYBACK
+  desc: in the main menu
+  user: core
+  <source>
+    *: "Resume Playback"
+  </source>
+  <dest>
+    *: "Jätka esitust"
+  </dest>
+  <voice>
+    *: "Jätka esitust"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SETTINGS
+  desc:  in main menu and visual confirmation after settings reset
+  user: core
+  <source>
+    *: "Settings"
+  </source>
+  <dest>
+    *: "Seaded"
+  </dest>
+  <voice>
+    *: "Seaded"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLISTS
+  desc: in the main menu and Playlist settings menu
+  user: core
+  <source>
+    *: "Playlists"
+  </source>
+  <dest>
+    *: "Esitusloendid"
+  </dest>
+  <voice>
+    *: "Esitusloendid"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALL
+  desc: generic string used both in dir file filter and repeat mode selection
+  user: core
+  <source>
+    *: "All"
+  </source>
+  <dest>
+    *: "Kõik"
+  </dest>
+  <voice>
+    *: "Kõik"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SET_TIME
+  desc: in settings_menu
+  user: core
+  <source>
+    *: none
+    rtc: "Set Time/Date"
+  </source>
+  <dest>
+    *: none
+    rtc: "Määra aeg/kuupäev"
+  </dest>
+  <voice>
+    *: none
+    rtc: "Määra aeg/kuupäev"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_SET_BUTTON
+  desc: used in set_time()
+  user: core
+  <source>
+    *: none
+    rtc: "ON = Set"
+    aigoerosq,erosqnative,gogearsa9200,samsungyh*,xduoox3*: "PLAY = Set"
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Set"
+    iriverh100,iriverh120,iriverh300: "NAVI = Set"
+    mpiohd300: "ENTER = Set"
+    mrobe500: "HEART = Set"
+    vibe500: "OK = Set"
+  </source>
+  <dest>
+    *: none
+    rtc: none
+    aigoerosq,erosqnative,gogearsa9200,samsungyh*,xduoox3*: none
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Määra"
+    iriverh100,iriverh120,iriverh300: none
+    mpiohd300: none
+    mrobe500: none
+    vibe500: none
+  </dest>
+  <voice>
+    *: none
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: none
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_FORMAT
+  desc: audio format
+  user: core
+  <source>
+    *: "Format"
+  </source>
+  <dest>
+    *: "Vorming"
+  </dest>
+  <voice>
+    *: "Vorming"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ONPLAY_MENU_TITLE
+  desc: title for the onplay menus
+  user: core
+  <source>
+    *: "Context Menu"
+  </source>
+  <dest>
+    *: "Kontekstimenüü"
+  </dest>
+  <voice>
+    *: "Kontekstimenüü"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTIST
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artist"
+  </source>
+  <dest>
+    *: "Albumi esitaja"
+  </dest>
+  <voice>
+    *: "Albumi esitaja"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "Albumi esitajad"
+  </dest>
+  <voice>
+    *: "Albumi esitajad"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_DISCNUM
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Discnum"
+  </source>
+  <dest>
+    *: "Plaadi number"
+  </dest>
+  <voice>
+    *: "Plaadi number"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_COMMENT
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Comment"
+  </source>
+  <dest>
+    *: "Kommentaar"
+  </dest>
+  <voice>
+    *: "Kommentaar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DELETING
+  desc:
+  user: core
+  <source>
+    *: "Deleting..."
+  </source>
+  <dest>
+    *: "Kustutamine..."
+  </dest>
+  <voice>
+    *: "Kustutamine..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES
+  desc: browser file/dir properties
+  user: core
+  <source>
+    *: "Properties"
+  </source>
+  <dest>
+    *: "Omadused"
+  </dest>
+  <voice>
+    *: "Omadused"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_END_PLAYLIST
+  desc: when playlist has finished
+  user: core
+  <source>
+    *: "End of Song List"
+  </source>
+  <dest>
+    *: "Loendi lõpp"
+  </dest>
+  <voice>
+    *: "Loendi lõpp"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYLOCK_ON
+  desc: displayed when key lock is on
+  user: core
+  <source>
+    *: "Buttons Locked"
+  </source>
+  <dest>
+    *: "Nupud lukus"
+  </dest>
+  <voice>
+    *: "Nupud lukus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYLOCK_OFF
+  desc: displayed when key lock is turned off
+  user: core
+  <source>
+    *: "Buttons Unlocked"
+  </source>
+  <dest>
+    *: "Nupud lukust lahti"
+  </dest>
+  <voice>
+    *: "Nupud lukust lahti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLEASE_REBOOT
+  desc: when activating an option that requires a reboot
+  user: core
+  <source>
+    *: "Please reboot to enable"
+  </source>
+  <dest>
+    *: "Rakendamiseks taaskäivita"
+  </dest>
+  <voice>
+    *: "Rakendamiseks taaskäivita"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WARNING_BATTERY_LOW
+  desc: general warning
+  user: core
+  <source>
+    *: "WARNING! Low Battery!"
+  </source>
+  <dest>
+    *: "HOIATUS! Aku on tühjenemas!"
+  </dest>
+  <voice>
+    *: "HOIATUS! Aku on tühjenemas!"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WARNING_BATTERY_EMPTY
+  desc: general warning
+  user: core
+  <source>
+    *: "Battery empty! RECHARGE!"
+  </source>
+  <dest>
+    *: "Aku on tühi! LAADI!"
+  </dest>
+  <voice>
+    *: "Aku on tühi! LAADI!"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_GROUPING
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Work"
+  </source>
+  <dest>
+    *: "Teos"
+  </dest>
+  <voice>
+    *: "Teos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UNKNOWN
+  desc: generic string for unknown states, such as an unset clock
+  user: core
+  <source>
+    *: "Unknown"
+  </source>
+  <dest>
+    *: "Tundmatu"
+  </dest>
+  <voice>
+    *: "Tundmatu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH_RESULTS
+  desc: title for the list of results displayed after searching in a playlist
+  user: core
+  <source>
+    *: "Search Results"
+  </source>
+  <dest>
+    *: "Otsingutulemused"
+  </dest>
+  <voice>
+    *: "Otsingutulemused"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED
+  desc: timestretch speed
+  user: core
+  <source>
+    *: "Speed"
+  </source>
+  <dest>
+    *: "Kiirus"
+  </dest>
+  <voice>
+    *: "Kiirus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_LAST_SHUFFLED
+  desc: in onplay menu.  queue a playlist randomly at end of dynamic playlist
+  user: core
+  <source>
+    *: "Queue Last Shuffled"
+  </source>
+  <dest>
+    *: "Järjekorra lõppu segatult"
+  </dest>
+  <voice>
+    *: "Järjekorra lõppu segatult"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NEXT_TRACK
+  desc: Shown in WPS
+  user: core
+  <source>
+    *: "Next Track:"
+  </source>
+  <dest>
+    *: "Järgmine lugu:"
+  </dest>
+  <voice>
+    *: "Järgmine lugu:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_OF
+  desc: Shown in WPS: X of Y (tracks)
+  user: core
+  <source>
+    *: "of"
+  </source>
+  <dest>
+    *: "/"
+  </dest>
+  <voice>
+    *: "/"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TAGNAVI_UNTAGGED
+  desc: "[untagged]" entry in tag browser
+  user: core
+  <source>
+    *: "[Untagged]"
+  </source>
+  <dest>
+    *: "[Sildistamata]"
+  </dest>
+  <voice>
+    *: "[Sildistamata]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_COMPOSER
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Composer"
+  </source>
+  <dest>
+    *: "Helilooja"
+  </dest>
+  <voice>
+    *: "Helilooja"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CURRENT_PLAYLIST
+  desc: Used when you need to say playlist, also voiced
+  user: core
+  <source>
+    *: "Current Playlist"
+  </source>
+  <dest>
+    *: "Praegune esitusloend"
+  </dest>
+  <voice>
+    *: "Praegune esitusloend"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE_CHANGES
+  desc: When you try to exit screens to confirm save
+  user: core
+  <source>
+    *: "Save Changes?"
+  </source>
+  <dest>
+    *: "Salvesta muudatused?"
+  </dest>
+  <voice>
+    *: "Salvesta muudatused?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_CANCEL_CURRENT
+  desc: shown instead of sleep timer when it's running
+  user: core
+  <source>
+    *: "Cancel Sleep Timer"
+  </source>
+  <dest>
+    *: "Tühista unetaimer"
+  </dest>
+  <voice>
+    *: "Tühista unetaimer"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_START_CURRENT
+  desc: shown when a sleep timer isn't running
+  user: core
+  <source>
+    *: "Start Sleep Timer"
+  </source>
+  <dest>
+    *: "Käivita unetaimer"
+  </dest>
+  <voice>
+    *: "Käivita unetaimer"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "Automaatlukk sees"
+  </dest>
+  <voice>
+    *: "Automaatlukk sees"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "Automaatlukk väljas"
+  </dest>
+  <voice>
+    *: "Automaatlukk väljas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "Loo möödunud aeg:"
+  </dest>
+  <voice>
+    *: "Loo möödunud aeg:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "Loo järelejäänud aeg:"
+  </dest>
+  <voice>
+    *: "Loo järelejäänud aeg:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "Lugu:"
+  </dest>
+  <voice>
+    *: "Lugu:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "Maht (esitatud / jäänud):"
+  </dest>
+  <voice>
+    *: "Maht (esitatud / jäänud):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "Loo keskmine maht:"
+  </dest>
+  <voice>
+    *: "Loo keskmine maht:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "Keskmine bitikiirus:"
+  </dest>
+  <voice>
+    *: "Keskmine bitikiirus:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "Esitusaeg"
+  </dest>
+  <voice>
+    *: "Esitusaeg"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[Tee]"
+  </dest>
+  <voice>
+    *: "[Tee]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[Failinimi]"
+  </dest>
+  <voice>
+    *: "[Failinimi]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[Suurus]"
+  </dest>
+  <voice>
+    *: "[Suurus]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[Kuupäev]"
+  </dest>
+  <voice>
+    *: "[Kuupäev]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[Aeg]"
+  </dest>
+  <voice>
+    *: "[Aeg]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[Alamkaustad]"
+  </dest>
+  <voice>
+    *: "[Alamkaustad]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[Failid]"
+  </dest>
+  <voice>
+    *: "[Failid]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "Kausta omadused"
+  </dest>
+  <voice>
+    *: "Kausta omadused"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "Faili omadused"
+  </dest>
+  <voice>
+    *: "Faili omadused"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "Teabe kogumine nurjus"
+  </dest>
+  <voice>
+    *: "Teabe kogumine nurjus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "Kuupäev"
+  </dest>
+  <voice>
+    *: "Kuupäev"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "Salvesta"
+  </dest>
+  <voice>
+    *: "Salvesta"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "Ajalõpp"
+  </dest>
+  <voice>
+    *: "Ajalõpp"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "Lugu"
+  </dest>
+  <voice>
+    *: "Lugu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "Möödunud"
+  </dest>
+  <voice>
+    *: "Möödunud"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "Lisa"
+  </dest>
+  <voice>
+    *: "Lisa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "Järjekorda..."
+  </dest>
+  <voice>
+    *: "Järjekorda..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "Loo teave"
+  </dest>
+  <voice>
+    *: "Loo teave"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "Esita"
+  </dest>
+  <voice>
+    *: "Esita"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "Esita segatult"
+  </dest>
+  <voice>
+    *: "Esita segatult"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "Lisa esitusloendisse..."
+  </dest>
+  <voice>
+    *: "Lisa esitusloendisse..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "Olemasolevasse loendisse"
+  </dest>
+  <voice>
+    *: "Olemasolevasse loendisse"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "Esita järgmisena..."
+  </dest>
+  <voice>
+    *: "Esita järgmisena..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "Esita järgmisena"
+  </dest>
+  <voice>
+    *: "Esita järgmisena"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "Lisa segatult"
+  </dest>
+  <voice>
+    *: "Lisa segatult"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "Esita viimasena"
+  </dest>
+  <voice>
+    *: "Esita viimasena"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "Esita viimasena segatult"
+  </dest>
+  <voice>
+    *: "Esita viimasena segatult"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "Eemaldada järjekorra lood?"
+  </dest>
+  <voice>
+    *: "Eemaldada järjekorra lood?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "Jäänud"
+  </dest>
+  <voice>
+    *: "Jäänud"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "Esitajad"
+  </dest>
+  <voice>
+    *: "Esitajad"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Albumid"
+  </dest>
+  <voice>
+    *: "Albumid"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "Lood"
+  </dest>
+  <voice>
+    *: "Lood"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "Sega laulud"
+  </dest>
+  <voice>
+    *: "Sega laulud"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "Otsing"
+  </dest>
+  <voice>
+    *: "Otsing"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "Näita kaanepilti"
+  </dest>
+  <voice>
+    *: "Näita kaanepilti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "Loend lõppes. Esita uuesti?"
+  </dest>
+  <voice>
+    *: "Loend lõppes. Esita uuesti?"
   </voice>
 </phrase>

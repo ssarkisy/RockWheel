@@ -346,10 +346,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Laro"
+    *: "Tumutugtog Ngayon"
   </dest>
   <voice>
-    *: "Laro"
+    *: "Tumutugtog Ngayon"
   </voice>
 </phrase>
 <phrase>
@@ -374,10 +374,10 @@
     *: "Settings"
   </source>
   <dest>
-    *: "Ilagay"
+    *: "Mga Setting"
   </dest>
   <voice>
-    *: "Ilagay"
+    *: "Mga Setting"
   </voice>
 </phrase>
 <phrase>
@@ -618,10 +618,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Tunog Ilagay"
+    *: "Tunog"
   </dest>
   <voice>
-    *: "Tunog Ilagay"
+    *: "Tunog"
   </voice>
 </phrase>
 <phrase>
@@ -1261,10 +1261,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Heneral Tagpuan"
+    *: "Pangkalahatan"
   </dest>
   <voice>
-    *: "General Settings"
+    *: "Pangkalahatan"
   </voice>
 </phrase>
 <phrase>
@@ -1275,10 +1275,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Playback"
+    *: "Pagpapatugtog"
   </dest>
   <voice>
-    *: "Playback"
+    *: "Pagpapatugtog"
   </voice>
 </phrase>
 <phrase>
@@ -1479,11 +1479,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Magbigay-kaya ng Crossfade"
+    crossfade: "Crossfade"
   </dest>
   <voice>
     *: none
-    crossfade: "Enable Crossfade"
+    crossfade: "Crossfade"
   </voice>
 </phrase>
 <phrase>
@@ -1658,10 +1658,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Ulitin ng tubo tipo"
+    *: "Suri ng Tunog"
   </dest>
   <voice>
-    *: "Replaygain Type"
+    *: "Suri ng Tunog"
   </voice>
 </phrase>
 <phrase>
@@ -1700,10 +1700,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Landas ng tubo kung balasahin"
+    *: "Awto"
   </dest>
   <voice>
-    *: "Track Gain if Shuffling"
+    *: "Awto"
   </voice>
 </phrase>
 <phrase>
@@ -1843,10 +1843,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Paunawa sustento"
+    *: "Mga Cue Sheet"
   </dest>
   <voice>
-    *: "Cuesheet Support"
+    *: "Mga Cue Sheet"
   </voice>
 </phrase>
 <phrase>
@@ -1859,11 +1859,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Tumigil sa headphone alisin"
+    headphone_detection: "I-pause kapag inalis"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pause on Headphone Unplug"
+    headphone_detection: "I-pause kapag inalis"
   </voice>
 </phrase>
 <phrase>
@@ -1876,11 +1876,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Tumigil at ipagpatuloy"
+    headphone_detection: "At ituloy"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pause and Resume"
+    headphone_detection: "At ituloy"
   </voice>
 </phrase>
 <phrase>
@@ -2420,8 +2420,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "Magilaw sa likod pigilin"
+    *: "Magilaw sa likod pigilin"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -2516,8 +2516,7 @@
     lcd_sleep: "Never"
   </source>
   <dest>
-    *: none
-    lcd_sleep: "Hindi Kailanman"
+    *: "Hindi Kailanman"
   </dest>
   <voice>
     *: none
@@ -3112,10 +3111,10 @@
     *: "Numeric"
   </source>
   <dest>
-    *: "Numeric"
+    *: "Numeriko"
   </dest>
   <voice>
-    *: "Numeric"
+    *: "Numeriko"
   </voice>
 </phrase>
 <phrase>
@@ -6391,10 +6390,10 @@
     *: "Playlist"
   </source>
   <dest>
-    *: "Playlist"
+    *: "Listahan"
   </dest>
   <voice>
-    *: "Playlist"
+    *: "Listahan"
   </voice>
 </phrase>
 <phrase>
@@ -7370,7 +7369,7 @@
     iriverifp7xx: "%d%% %dh %dm"
   </source>
   <dest>
-    *: "Battery: %d%% %dh %dm"
+    *: "Batirya: %d%% %d oras %d min"
     ipodmini1g,ipodmini2g,iriverh10: "Batt: %d%% %dh %dm"
     iriverifp7xx: "%d%% %dh %dm"
   </dest>
@@ -8846,10 +8845,10 @@
     *: "Please reboot to enable"
   </source>
   <dest>
-    *: "Please reboot to enable"
+    *: "I-reboot para gumana"
   </dest>
   <voice>
-    *: "Please reboot to enable"
+    *: "I-reboot para gumana"
   </voice>
 </phrase>
 <phrase>
@@ -8888,10 +8887,10 @@
     *: "Context Menu"
   </source>
   <dest>
-    *: "Context Menu"
+    *: "Menu ng Konteksto"
   </dest>
   <voice>
-    *: "Context Menu"
+    *: "Menu ng Konteksto"
   </voice>
 </phrase>
 <phrase>
@@ -9015,10 +9014,10 @@
     *: "Discnum"
   </source>
   <dest>
-    *: "Discnum"
+    *: "Numero ng Disc"
   </dest>
   <voice>
-    *: "Discnum"
+    *: "Numero ng Disc"
   </voice>
 </phrase>
 <phrase>
@@ -9133,10 +9132,10 @@
     *: "Tracknum"
   </source>
   <dest>
-    *: "Tracknum"
+    *: "Numero ng Track"
   </dest>
   <voice>
-    *: "Tracknum"
+    *: "Numero ng Track"
   </voice>
 </phrase>
 <phrase>
@@ -9452,11 +9451,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Current Time"
+    rtc: "Kasalukuyang Oras"
   </dest>
   <voice>
     *: none
-    rtc: "Current time"
+    rtc: "Kasalukuyang Oras"
   </voice>
 </phrase>
 <phrase>
@@ -10310,10 +10309,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Keyclick"
+    *: "Tunog ng Pindot"
   </dest>
   <voice>
-    *: "Keyclick"
+    *: "Tunog ng Pindot"
   </voice>
 </phrase>
 <phrase>
@@ -11176,10 +11175,10 @@
     *: "Queue Last Shuffled"
   </source>
   <dest>
-    *: "Queue Last Shuffled"
+    *: "Ipila sa Huli nang Balasa"
   </dest>
   <voice>
-    *: "Queue Last Shuffled"
+    *: "Ipila sa Huli nang Balasa"
   </voice>
 </phrase>
 <phrase>
@@ -11692,10 +11691,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Rewind Bago Resume"
+    *: "I-rewind sa pagtuloy"
   </dest>
   <voice>
-    *: "Rewind bago resume"
+    *: "I-rewind sa pagtuloy"
   </voice>
 </phrase>
 <phrase>
@@ -11706,10 +11705,10 @@
     *: "[Untagged]"
   </source>
   <dest>
-    *: "[Untagged]"
+    *: "[Walang Tag]"
   </dest>
   <voice>
-    *: "Untagged"
+    *: "[Walang Tag]"
   </voice>
 </phrase>
 <phrase>
@@ -12145,10 +12144,10 @@
     *: "Next Track:"
   </source>
   <dest>
-    *: "Next Track:"
+    *: "Susunod na Track:"
   </dest>
   <voice>
-    *: "Next Track:"
+    *: "Susunod na Track:"
   </voice>
 </phrase>
 <phrase>
@@ -12190,10 +12189,10 @@
     *: "of"
   </source>
   <dest>
-    *: "of"
+    *: "sa"
   </dest>
   <voice>
-    *: "of"
+    *: "sa"
   </voice>
 </phrase>
 <phrase>
@@ -12431,10 +12430,10 @@
     *: "Available"
   </source>
   <dest>
-    *: "Available"
+    *: "Magagamit"
   </dest>
   <voice>
-    *: ""
+    *: "Magagamit"
   </voice>
 </phrase>
 <phrase>
@@ -12491,5 +12490,1649 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_SOFTWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Headphones"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Headphones"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Headphones"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_HARDWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Speaker"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Speaker"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Speaker"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "Hangganan ng Bulumen"
+  </dest>
+  <voice>
+    *: "Hangganan ng Bulumen"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "Pagbawas ng Pagod"
+  </dest>
+  <voice>
+    *: "Pagbawas ng Pagod"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "Legal"
+  </dest>
+  <voice>
+    *: "Legal"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Musika"
+  </dest>
+  <voice>
+    *: "Musika"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Mga Dagdag"
+  </dest>
+  <voice>
+    *: "Mga Dagdag"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Orasan"
+  </dest>
+  <voice>
+    *: "Orasan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Ladrilyo"
+  </dest>
+  <voice>
+    *: "Ladrilyo"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Solitaryo"
+  </dest>
+  <voice>
+    *: "Solitaryo"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Kalendaryo"
+  </dest>
+  <voice>
+    *: "Kalendaryo"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Stopwatch"
+  </dest>
+  <voice>
+    *: "Stopwatch"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Tungkol"
+  </dest>
+  <voice>
+    *: "Tungkol"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d minuto"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Mga Kanta"
+  </dest>
+  <voice>
+    *: "Mga Kanta"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Mga Podcast"
+  </dest>
+  <voice>
+    *: "Mga Podcast"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Mga Genre"
+  </dest>
+  <voice>
+    *: "Mga Genre"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Mga Kompositor"
+  </dest>
+  <voice>
+    *: "Mga Kompositor"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Mga Audiobook"
+  </dest>
+  <voice>
+    *: "Mga Audiobook"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Mga Larawan"
+  </dest>
+  <voice>
+    *: "Mga Larawan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Aklatan ng Larawan"
+  </dest>
+  <voice>
+    *: "Aklatan ng Larawan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Setting ng Slideshow"
+  </dest>
+  <voice>
+    *: "Setting ng Slideshow"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Oras kada Slide"
+  </dest>
+  <voice>
+    *: "Oras kada Slide"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Balasahin ang Larawan"
+  </dest>
+  <voice>
+    *: "Balasahin ang Larawan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Mano-mano"
+  </dest>
+  <voice>
+    *: "Mano-mano"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d segundo"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Walang Larawan"
+  </dest>
+  <voice>
+    *: "Walang Larawan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d kanta"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d kanta"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d kanta"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Akustiko"
+  </dest>
+  <voice>
+    *: "Akustiko"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Pampalakas ng Bass"
+  </dest>
+  <voice>
+    *: "Pampalakas ng Bass"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Pambawas ng Bass"
+  </dest>
+  <voice>
+    *: "Pambawas ng Bass"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klasikal"
+  </dest>
+  <voice>
+    *: "Klasikal"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Sayaw"
+  </dest>
+  <voice>
+    *: "Sayaw"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Malalim"
+  </dest>
+  <voice>
+    *: "Malalim"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektroniko"
+  </dest>
+  <voice>
+    *: "Elektroniko"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Patag"
+  </dest>
+  <voice>
+    *: "Patag"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip Hop"
+  </dest>
+  <voice>
+    *: "Hip Hop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Jazz"
+  </dest>
+  <voice>
+    *: "Jazz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latin"
+  </dest>
+  <voice>
+    *: "Latin"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Lakas ng Tunog"
+  </dest>
+  <voice>
+    *: "Lakas ng Tunog"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Piyano"
+  </dest>
+  <voice>
+    *: "Piyano"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: "Pop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rock"
+  </dest>
+  <voice>
+    *: "Rock"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Maliit na Speaker"
+  </dest>
+  <voice>
+    *: "Maliit na Speaker"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Salitang Binibigkas"
+  </dest>
+  <voice>
+    *: "Salitang Binibigkas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Pampalakas ng Treble"
+  </dest>
+  <voice>
+    *: "Pampalakas ng Treble"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Pambawas ng Treble"
+  </dest>
+  <voice>
+    *: "Pambawas ng Treble"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Pampalakas ng Boses"
+  </dest>
+  <voice>
+    *: "Pampalakas ng Boses"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Bagalan"
+  </dest>
+  <voice>
+    *: "Bagalan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normal"
+  </dest>
+  <voice>
+    *: "Normal"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Bilisan"
+  </dest>
+  <voice>
+    *: "Bilisan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Ina-update ang Aklatan"
+  </dest>
+  <voice>
+    *: "Ina-update ang Aklatan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Binibilang…"
+  </dest>
+  <voice>
+    *: "Binibilang…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Mga Hiyas"
+  </dest>
+  <voice>
+    *: "Mga Hiyas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Minesweeper"
+  </dest>
+  <voice>
+    *: "Minesweeper"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Binabasa ang Aklatan"
+  </dest>
+  <voice>
+    *: "Binabasa ang Aklatan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Sinusuri ang mga Kanta"
+  </dest>
+  <voice>
+    *: "Sinusuri ang mga Kanta"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Binibilang ang mga Tugtog"
+  </dest>
+  <voice>
+    *: "Binibilang ang mga Tugtog"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Inihahanda ang mga Pabalat"
+  </dest>
+  <voice>
+    *: "Inihahanda ang mga Pabalat"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Inihahanda ang mga Album"
+  </dest>
+  <voice>
+    *: "Inihahanda ang mga Album"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Inihahanda ang mga Kanta"
+  </dest>
+  <voice>
+    *: "Inihahanda ang mga Kanta"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "Mga Artista ng Album"
+  </dest>
+  <voice>
+    *: "Mga Artista ng Album"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CURRENT_PLAYLIST
+  desc: Used when you need to say playlist, also voiced
+  user: core
+  <source>
+    *: "Current Playlist"
+  </source>
+  <dest>
+    *: "Kasalukuyang Listahan"
+  </dest>
+  <voice>
+    *: "Kasalukuyang Listahan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE_CHANGES
+  desc: When you try to exit screens to confirm save
+  user: core
+  <source>
+    *: "Save Changes?"
+  </source>
+  <dest>
+    *: "I-save ang Pagbabago?"
+  </dest>
+  <voice>
+    *: "I-save ang Pagbabago?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_CANCEL_CURRENT
+  desc: shown instead of sleep timer when it's running
+  user: core
+  <source>
+    *: "Cancel Sleep Timer"
+  </source>
+  <dest>
+    *: "Itigil ang Timer ng Tulog"
+  </dest>
+  <voice>
+    *: "Itigil ang Timer ng Tulog"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_START_CURRENT
+  desc: shown when a sleep timer isn't running
+  user: core
+  <source>
+    *: "Start Sleep Timer"
+  </source>
+  <dest>
+    *: "Simulan ang Timer ng Tulog"
+  </dest>
+  <voice>
+    *: "Simulan ang Timer ng Tulog"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "Awtomatikong Kandado: Bukas"
+  </dest>
+  <voice>
+    *: "Awtomatikong Kandado: Bukas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "Awtomatikong Kandado: Isara"
+  </dest>
+  <voice>
+    *: "Awtomatikong Kandado: Isara"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "Lumipas sa Track:"
+  </dest>
+  <voice>
+    *: "Lumipas sa Track:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "Natitira sa Track:"
+  </dest>
+  <voice>
+    *: "Natitira sa Track:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "Track:"
+  </dest>
+  <voice>
+    *: "Track:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "Imbakan (Tapos / Natitira):"
+  </dest>
+  <voice>
+    *: "Imbakan (Tapos / Natitira):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "Karaniwang laki ng track:"
+  </dest>
+  <voice>
+    *: "Karaniwang laki ng track:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "Karaniwang bitrate:"
+  </dest>
+  <voice>
+    *: "Karaniwang bitrate:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "Haba ng Tugtog"
+  </dest>
+  <voice>
+    *: "Haba ng Tugtog"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[Landas]"
+  </dest>
+  <voice>
+    *: "[Landas]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[Pangalan ng File]"
+  </dest>
+  <voice>
+    *: "[Pangalan ng File]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[Laki]"
+  </dest>
+  <voice>
+    *: "[Laki]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[Petsa]"
+  </dest>
+  <voice>
+    *: "[Petsa]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[Oras]"
+  </dest>
+  <voice>
+    *: "[Oras]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[Mga Subfolder]"
+  </dest>
+  <voice>
+    *: "[Mga Subfolder]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[Mga File]"
+  </dest>
+  <voice>
+    *: "[Mga File]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "Katangian ng Folder"
+  </dest>
+  <voice>
+    *: "Katangian ng Folder"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "Katangian ng File"
+  </dest>
+  <voice>
+    *: "Katangian ng File"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "Hindi makuha ang impormasyon"
+  </dest>
+  <voice>
+    *: "Hindi makuha ang impormasyon"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "Petsa"
+  </dest>
+  <voice>
+    *: "Petsa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "I-save"
+  </dest>
+  <voice>
+    *: "I-save"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "Palugit"
+  </dest>
+  <voice>
+    *: "Palugit"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "Track"
+  </dest>
+  <voice>
+    *: "Track"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "Lumipas"
+  </dest>
+  <voice>
+    *: "Lumipas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "Idagdag"
+  </dest>
+  <voice>
+    *: "Idagdag"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "Ipila..."
+  </dest>
+  <voice>
+    *: "Ipila..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "Impormasyon ng Track"
+  </dest>
+  <voice>
+    *: "Impormasyon ng Track"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "Patugtugin"
+  </dest>
+  <voice>
+    *: "Patugtugin"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "Patugtugin nang Balasa"
+  </dest>
+  <voice>
+    *: "Patugtugin nang Balasa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "Idagdag sa Listahan..."
+  </dest>
+  <voice>
+    *: "Idagdag sa Listahan..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "Sa Umiiral na Listahan"
+  </dest>
+  <voice>
+    *: "Sa Umiiral na Listahan"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "Susunod na Tutugtog..."
+  </dest>
+  <voice>
+    *: "Susunod na Tutugtog..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "Patugtugin Kasunod"
+  </dest>
+  <voice>
+    *: "Patugtugin Kasunod"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "Idagdag nang Balasa"
+  </dest>
+  <voice>
+    *: "Idagdag nang Balasa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "Patugtugin sa Huli"
+  </dest>
+  <voice>
+    *: "Patugtugin sa Huli"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "Sa Huli nang Balasa"
+  </dest>
+  <voice>
+    *: "Sa Huli nang Balasa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "Alisin ang mga Nakapila?"
+  </dest>
+  <voice>
+    *: "Alisin ang mga Nakapila?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "Natitira"
+  </dest>
+  <voice>
+    *: "Natitira"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "Mga Artista"
+  </dest>
+  <voice>
+    *: "Mga Artista"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Mga Album"
+  </dest>
+  <voice>
+    *: "Mga Album"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "Mga Track"
+  </dest>
+  <voice>
+    *: "Mga Track"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "Balasa ng Kanta"
+  </dest>
+  <voice>
+    *: "Balasa ng Kanta"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "Hanapin"
+  </dest>
+  <voice>
+    *: "Hanapin"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "Tingnan ang Pabalat"
+  </dest>
+  <voice>
+    *: "Tingnan ang Pabalat"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "Tapos na. Patugtugin muli?"
+  </dest>
+  <voice>
+    *: "Tapos na. Patugtugin muli?"
   </voice>
 </phrase>

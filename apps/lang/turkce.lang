@@ -331,10 +331,10 @@
     *: "Resume Playback"
   </source>
   <dest>
-    *: "Oynatmaya Devam Et"
+    *: "Devam Et"
   </dest>
   <voice>
-    *: "Oynatmaya Devam Et"
+    *: "Devam Et"
   </voice>
 </phrase>
 <phrase>
@@ -575,10 +575,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Ses Ayarları"
+    *: "Ses"
   </dest>
   <voice>
-    *: "Ses Ayarları"
+    *: "Ses"
   </voice>
 </phrase>
 <phrase>
@@ -925,10 +925,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Genel Ayarlar"
+    *: "Genel"
   </dest>
   <voice>
-    *: "Genel Ayarlar"
+    *: "Genel"
   </voice>
 </phrase>
 <phrase>
@@ -939,10 +939,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Çalma Ayarları"
+    *: "Çalma"
   </dest>
   <voice>
-    *: "Çalma Ayarları"
+    *: "Çalma"
   </voice>
 </phrase>
 <phrase>
@@ -1112,11 +1112,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Çapraz Geçiş'i Etkinleştir"
+    crossfade: "Çapraz Geçiş"
   </dest>
   <voice>
     *: none
-    crossfade: "Çapraz Geçiş'i Etkinleştir"
+    crossfade: "Çapraz Geçiş"
   </voice>
 </phrase>
 <phrase>
@@ -2966,10 +2966,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Kaydırken ses yap"
+    *: "Tıklama Sesi"
   </dest>
   <voice>
-    *: "Kaydırken ses yap"
+    *: "Tıklama Sesi"
   </voice>
 </phrase>
 <phrase>
@@ -3402,11 +3402,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Tuş Sesi-Kulaklık"
+    hardware_click: "Kulaklık"
   </dest>
   <voice>
     *: none
-    hardware_click: "Kulaklık Tuş sesi"
+    hardware_click: "Kulaklık"
   </voice>
 </phrase>
 <phrase>
@@ -3605,11 +3605,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Duraklat ve Devam Ettir"
+    headphone_detection: "Devam Ederek"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Duraklat ve Devam Ettir"
+    headphone_detection: "Devam Ederek"
   </voice>
 </phrase>
 <phrase>
@@ -4727,11 +4727,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Tuş Sesi-Hoparlör "
+    hardware_click: "Hoparlör"
   </dest>
   <voice>
     *: none
-    hardware_click: "Hoparlör Tuş Sesi"
+    hardware_click: "Hoparlör"
   </voice>
 </phrase>
 <phrase>
@@ -5892,10 +5892,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "Maksimum Ses Sınırı"
+    *: "Ses Sınırı"
   </dest>
   <voice>
-    *: "Maksimum Ses Sınırı"
+    *: "Ses Sınırı"
   </voice>
 </phrase>
 <phrase>
@@ -6164,11 +6164,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Kulaklık Çıkarıldığında Duraklat"
+    headphone_detection: "Çıkarılınca Duraklat"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Kulaklık Çıkarıldığında Duraklat"
+    headphone_detection: "Çıkarılınca Duraklat"
   </voice>
 </phrase>
 <phrase>
@@ -6921,10 +6921,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Duraklatmadan Önce Geri Sar"
+    *: "Devam Ederken Geri Sar"
   </dest>
   <voice>
-    *: "Duraklatmadan Önce Geri Sar"
+    *: "Devam Ederken Geri Sar"
   </voice>
 </phrase>
 <phrase>
@@ -7693,10 +7693,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Yeniden Oynatma Türü"
+    *: "Ses Denetimi"
   </dest>
   <voice>
-    *: "Yeniden Oynatma Türü"
+    *: "Ses Denetimi"
   </voice>
 </phrase>
 <phrase>
@@ -8255,10 +8255,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Karıştırılıyorsa Kazancı Takip Edin"
+    *: "Otomatik"
   </dest>
   <voice>
-    *: "Karıştırılıyorsa Kazancı Takip Edin"
+    *: "Otomatik"
   </voice>
 </phrase>
 <phrase>
@@ -8758,11 +8758,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Saat ve Tarih"
+    rtc: "Tarih ve Saat"
   </dest>
   <voice>
     *: none
-    rtc: "Saat ve Tarih"
+    rtc: "Tarih ve Saat"
   </voice>
 </phrase>
 <phrase>
@@ -10081,10 +10081,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cuesheet Desteği"
+    *: "Cue Dosyaları"
   </dest>
   <voice>
-    *: "Cuesheet Desteği"
+    *: "Cue Dosyaları"
   </voice>
 </phrase>
 <phrase>
@@ -10519,10 +10519,10 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "İşitsel Yorgunluk Azaltma"
+    *: "Yorgunluk Azaltma"
   </dest>
   <voice>
-    *: "İşitsel Yorgunluk Azaltma"
+    *: "Yorgunluk Azaltma"
   </voice>
 </phrase>
 <phrase>
@@ -16104,10 +16104,10 @@
     *: "Legal Notices"
   </source>
   <dest>
-    *: "Yasal Uyarılar"
+    *: "Yasal"
   </dest>
   <voice>
-    *: "Yasal Uyarılar"
+    *: "Yasal"
   </voice>
 </phrase>
 <phrase>
@@ -17480,5 +17480,873 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Müzik"
+  </dest>
+  <voice>
+    *: "Müzik"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Ekstralar"
+  </dest>
+  <voice>
+    *: "Ekstralar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Saat"
+  </dest>
+  <voice>
+    *: "Saat"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Tuğla"
+  </dest>
+  <voice>
+    *: "Tuğla"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Solitaire"
+  </dest>
+  <voice>
+    *: "Solitaire"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Takvim"
+  </dest>
+  <voice>
+    *: "Takvim"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Kronometre"
+  </dest>
+  <voice>
+    *: "Kronometre"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Hakkında"
+  </dest>
+  <voice>
+    *: "Hakkında"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d dakika"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Şarkılar"
+  </dest>
+  <voice>
+    *: "Şarkılar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcast'ler"
+  </dest>
+  <voice>
+    *: "Podcast'ler"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Tarzlar"
+  </dest>
+  <voice>
+    *: "Tarzlar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Besteciler"
+  </dest>
+  <voice>
+    *: "Besteciler"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Sesli Kitaplar"
+  </dest>
+  <voice>
+    *: "Sesli Kitaplar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Fotoğraflar"
+  </dest>
+  <voice>
+    *: "Fotoğraflar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Fotoğraf Arşivi"
+  </dest>
+  <voice>
+    *: "Fotoğraf Arşivi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Slayt Gösterisi Ayarları"
+  </dest>
+  <voice>
+    *: "Slayt Gösterisi Ayarları"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Slayt Başına Süre"
+  </dest>
+  <voice>
+    *: "Slayt Başına Süre"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Fotoğrafları Karıştır"
+  </dest>
+  <voice>
+    *: "Fotoğrafları Karıştır"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "El ile"
+  </dest>
+  <voice>
+    *: "El ile"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d saniye"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Fotoğraf Yok"
+  </dest>
+  <voice>
+    *: "Fotoğraf Yok"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d şarkı"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d şarkı"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d şarkı"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Akustik"
+  </dest>
+  <voice>
+    *: "Akustik"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Bas Yükseltici"
+  </dest>
+  <voice>
+    *: "Bas Yükseltici"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Bas Azaltıcı"
+  </dest>
+  <voice>
+    *: "Bas Azaltıcı"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klasik"
+  </dest>
+  <voice>
+    *: "Klasik"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Dans"
+  </dest>
+  <voice>
+    *: "Dans"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Derin"
+  </dest>
+  <voice>
+    *: "Derin"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektronik"
+  </dest>
+  <voice>
+    *: "Elektronik"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Düz"
+  </dest>
+  <voice>
+    *: "Düz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip Hop"
+  </dest>
+  <voice>
+    *: "Hip Hop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Caz"
+  </dest>
+  <voice>
+    *: "Caz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latin"
+  </dest>
+  <voice>
+    *: "Latin"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Yüksek Ses"
+  </dest>
+  <voice>
+    *: "Yüksek Ses"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Piyano"
+  </dest>
+  <voice>
+    *: "Piyano"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: "Pop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rock"
+  </dest>
+  <voice>
+    *: "Rock"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Küçük Hoparlörler"
+  </dest>
+  <voice>
+    *: "Küçük Hoparlörler"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Konuşma"
+  </dest>
+  <voice>
+    *: "Konuşma"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Tiz Yükseltici"
+  </dest>
+  <voice>
+    *: "Tiz Yükseltici"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Tiz Azaltıcı"
+  </dest>
+  <voice>
+    *: "Tiz Azaltıcı"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Vokal Yükseltici"
+  </dest>
+  <voice>
+    *: "Vokal Yükseltici"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Daha Yavaş"
+  </dest>
+  <voice>
+    *: "Daha Yavaş"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normal"
+  </dest>
+  <voice>
+    *: "Normal"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Daha Hızlı"
+  </dest>
+  <voice>
+    *: "Daha Hızlı"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Arşiv Güncelleniyor"
+  </dest>
+  <voice>
+    *: "Arşiv Güncelleniyor"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Hesaplanıyor…"
+  </dest>
+  <voice>
+    *: "Hesaplanıyor…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Mücevherler"
+  </dest>
+  <voice>
+    *: "Mücevherler"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Mayın Tarlası"
+  </dest>
+  <voice>
+    *: "Mayın Tarlası"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Arşiv Okunuyor"
+  </dest>
+  <voice>
+    *: "Arşiv Okunuyor"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Şarkılar Denetleniyor"
+  </dest>
+  <voice>
+    *: "Şarkılar Denetleniyor"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Çalma Sayıları Güncelleniyor"
+  </dest>
+  <voice>
+    *: "Çalma Sayıları Güncelleniyor"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Kapaklar Hazırlanıyor"
+  </dest>
+  <voice>
+    *: "Kapaklar Hazırlanıyor"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Albümler Hazırlanıyor"
+  </dest>
+  <voice>
+    *: "Albümler Hazırlanıyor"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Şarkılar Hazırlanıyor"
+  </dest>
+  <voice>
+    *: "Şarkılar Hazırlanıyor"
   </voice>
 </phrase>

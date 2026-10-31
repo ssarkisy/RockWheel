@@ -615,10 +615,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "사운드 설정"
+    *: "사운드"
   </dest>
   <voice>
-    *: "사운드 설정"
+    *: "사운드"
   </voice>
 </phrase>
 <phrase>
@@ -1108,10 +1108,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "일반 설정"
+    *: "일반"
   </dest>
   <voice>
-    *: "일반 설정"
+    *: "일반"
   </voice>
 </phrase>
 <phrase>
@@ -1122,10 +1122,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "재생 설정"
+    *: "재생"
   </dest>
   <voice>
-    *: "재생 설정"
+    *: "재생"
   </voice>
 </phrase>
 <phrase>
@@ -1340,11 +1340,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "크로스페이드 켜기"
+    crossfade: "크로스페이드"
   </dest>
   <voice>
     *: none
-    crossfade: "크로스페이드 켜기"
+    crossfade: "크로스페이드"
   </voice>
 </phrase>
 <phrase>
@@ -1519,10 +1519,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "리플레이게인 유형"
+    *: "사운드 체크"
   </dest>
   <voice>
-    *: "리플레이게인 유형"
+    *: "사운드 체크"
   </voice>
 </phrase>
 <phrase>
@@ -1561,10 +1561,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "셔플 시 트랙 게인"
+    *: "자동"
   </dest>
   <voice>
-    *: "셔플 시 트랙 게인"
+    *: "자동"
   </voice>
 </phrase>
 <phrase>
@@ -1704,10 +1704,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "큐시트 지원"
+    *: "큐시트"
   </dest>
   <voice>
-    *: "큐시트 지원"
+    *: "큐시트"
   </voice>
 </phrase>
 <phrase>
@@ -1720,11 +1720,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "헤드폰 분리 시 일시 중지"
+    headphone_detection: "헤드폰 빼면 일시 중지"
   </dest>
   <voice>
     *: none
-    headphone_detection: "헤드폰 분리 시 일시 중지"
+    headphone_detection: "헤드폰 빼면 일시 중지"
   </voice>
 </phrase>
 <phrase>
@@ -1737,11 +1737,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "일시 중지 및 재시작"
+    headphone_detection: "자동 재시작"
   </dest>
   <voice>
     *: none
-    headphone_detection: "일시 중지 및 재시작"
+    headphone_detection: "자동 재시작"
   </voice>
 </phrase>
 <phrase>
@@ -3428,11 +3428,11 @@
   </source>
   <dest>
     *: none
-    rtc: "시간 & 날짜"
+    rtc: "날짜 및 시간"
   </dest>
   <voice>
     *: none
-    rtc: "시간과 날짜"
+    rtc: "날짜 및 시간"
   </voice>
 </phrase>
 <phrase>
@@ -9194,10 +9194,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "키클릭"
+    *: "클리커"
   </dest>
   <voice>
-    *: "키클릭"
+    *: "클리커"
   </voice>
 </phrase>
 <phrase>
@@ -11400,11 +11400,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "헤드폰 키클릭"
+    hardware_click: "헤드폰"
   </dest>
   <voice>
     *: none
-    hardware_click: "헤드폰 키클릭"
+    hardware_click: "헤드폰"
   </voice>
 </phrase>
 <phrase>
@@ -11417,11 +11417,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "스피커 키클릭"
+    hardware_click: "스피커"
   </dest>
   <voice>
     *: none
-    hardware_click: "스피커 키클릭"
+    hardware_click: "스피커"
   </voice>
 </phrase>
 <phrase>
@@ -11921,10 +11921,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "최대 볼륨 제한"
+    *: "볼륨 제한"
   </dest>
   <voice>
-    *: "최대 볼륨 제한"
+    *: "볼륨 제한"
   </voice>
 </phrase>
 <phrase>
@@ -17493,5 +17493,873 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "음악"
+  </dest>
+  <voice>
+    *: "음악"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "추가 기능"
+  </dest>
+  <voice>
+    *: "추가 기능"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "시계"
+  </dest>
+  <voice>
+    *: "시계"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "벽돌깨기"
+  </dest>
+  <voice>
+    *: "벽돌깨기"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "솔리테어"
+  </dest>
+  <voice>
+    *: "솔리테어"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "캘린더"
+  </dest>
+  <voice>
+    *: "캘린더"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "스톱워치"
+  </dest>
+  <voice>
+    *: "스톱워치"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "정보"
+  </dest>
+  <voice>
+    *: "정보"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d분"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "노래"
+  </dest>
+  <voice>
+    *: "노래"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "팟캐스트"
+  </dest>
+  <voice>
+    *: "팟캐스트"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "장르"
+  </dest>
+  <voice>
+    *: "장르"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "작곡가"
+  </dest>
+  <voice>
+    *: "작곡가"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "오디오북"
+  </dest>
+  <voice>
+    *: "오디오북"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "사진"
+  </dest>
+  <voice>
+    *: "사진"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "사진 보관함"
+  </dest>
+  <voice>
+    *: "사진 보관함"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "슬라이드쇼 설정"
+  </dest>
+  <voice>
+    *: "슬라이드쇼 설정"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "슬라이드당 시간"
+  </dest>
+  <voice>
+    *: "슬라이드당 시간"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "사진 셔플"
+  </dest>
+  <voice>
+    *: "사진 셔플"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "수동"
+  </dest>
+  <voice>
+    *: "수동"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d초"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "사진 없음"
+  </dest>
+  <voice>
+    *: "사진 없음"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d곡"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d곡"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d곡"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "어쿠스틱"
+  </dest>
+  <voice>
+    *: "어쿠스틱"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "저음 강화"
+  </dest>
+  <voice>
+    *: "저음 강화"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "저음 감소"
+  </dest>
+  <voice>
+    *: "저음 감소"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "클래식"
+  </dest>
+  <voice>
+    *: "클래식"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "댄스"
+  </dest>
+  <voice>
+    *: "댄스"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "딥"
+  </dest>
+  <voice>
+    *: "딥"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "일렉트로닉"
+  </dest>
+  <voice>
+    *: "일렉트로닉"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "플랫"
+  </dest>
+  <voice>
+    *: "플랫"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "힙합"
+  </dest>
+  <voice>
+    *: "힙합"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "재즈"
+  </dest>
+  <voice>
+    *: "재즈"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "라틴"
+  </dest>
+  <voice>
+    *: "라틴"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "라우드니스"
+  </dest>
+  <voice>
+    *: "라우드니스"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "라운지"
+  </dest>
+  <voice>
+    *: "라운지"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "피아노"
+  </dest>
+  <voice>
+    *: "피아노"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "팝"
+  </dest>
+  <voice>
+    *: "팝"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "록"
+  </dest>
+  <voice>
+    *: "록"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "소형 스피커"
+  </dest>
+  <voice>
+    *: "소형 스피커"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "음성"
+  </dest>
+  <voice>
+    *: "음성"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "고음 강화"
+  </dest>
+  <voice>
+    *: "고음 강화"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "고음 감소"
+  </dest>
+  <voice>
+    *: "고음 감소"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "보컬 강화"
+  </dest>
+  <voice>
+    *: "보컬 강화"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "느리게"
+  </dest>
+  <voice>
+    *: "느리게"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "보통"
+  </dest>
+  <voice>
+    *: "보통"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "빠르게"
+  </dest>
+  <voice>
+    *: "빠르게"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "보관함 업데이트 중"
+  </dest>
+  <voice>
+    *: "보관함 업데이트 중"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "계산 중…"
+  </dest>
+  <voice>
+    *: "계산 중…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "블랙잭"
+  </dest>
+  <voice>
+    *: "블랙잭"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "보석"
+  </dest>
+  <voice>
+    *: "보석"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "지뢰 찾기"
+  </dest>
+  <voice>
+    *: "지뢰 찾기"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "보관함 읽는 중"
+  </dest>
+  <voice>
+    *: "보관함 읽는 중"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "노래 확인 중"
+  </dest>
+  <voice>
+    *: "노래 확인 중"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "재생 횟수 업데이트 중"
+  </dest>
+  <voice>
+    *: "재생 횟수 업데이트 중"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "앨범 아트 준비 중"
+  </dest>
+  <voice>
+    *: "앨범 아트 준비 중"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "앨범 준비 중"
+  </dest>
+  <voice>
+    *: "앨범 준비 중"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "노래 준비 중"
+  </dest>
+  <voice>
+    *: "노래 준비 중"
   </voice>
 </phrase>

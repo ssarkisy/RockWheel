@@ -58,10 +58,10 @@
     *: "On"
   </source>
   <dest>
-    *: "オンにする"
+    *: "オン"
   </dest>
   <voice>
-    *: "オンにする"
+    *: "オン"
   </voice>
 </phrase>
 <phrase>
@@ -72,10 +72,10 @@
     *: "Off"
   </source>
   <dest>
-    *: "オフにする"
+    *: "オフ"
   </dest>
   <voice>
-    *: "オフにする"
+    *: "オフ"
   </voice>
 </phrase>
 <phrase>
@@ -606,10 +606,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "サウンド設定"
+    *: "サウンド"
   </dest>
   <voice>
-    *: "サウンド設定"
+    *: "サウンド"
   </voice>
 </phrase>
 <phrase>
@@ -1099,10 +1099,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "一般設定"
+    *: "一般"
   </dest>
   <voice>
-    *: "一般設定"
+    *: "一般"
   </voice>
 </phrase>
 <phrase>
@@ -1113,10 +1113,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "再生設定"
+    *: "再生"
   </dest>
   <voice>
-    *: "再生設定"
+    *: "再生"
   </voice>
 </phrase>
 <phrase>
@@ -1317,11 +1317,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "クロスフェードの有効化"
+    crossfade: "クロスフェード"
   </dest>
   <voice>
     *: none
-    crossfade: "クロスフェードの有効化"
+    crossfade: "クロスフェード"
   </voice>
 </phrase>
 <phrase>
@@ -1496,10 +1496,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "リプレイゲインの動作モード"
+    *: "サウンドチェック"
   </dest>
   <voice>
-    *: "リプレイゲインの動作モード"
+    *: "サウンドチェック"
   </voice>
 </phrase>
 <phrase>
@@ -1538,10 +1538,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "シャッフル時はトラックゲイン"
+    *: "自動"
   </dest>
   <voice>
-    *: "シャッフル時はトラックゲイン"
+    *: "自動"
   </voice>
 </phrase>
 <phrase>
@@ -1681,10 +1681,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cueシートの対応"
+    *: "Cueシート"
   </dest>
   <voice>
-    *: "キューシートの対応"
+    *: "Cueシート"
   </voice>
 </phrase>
 <phrase>
@@ -1697,11 +1697,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "ヘッドホンを接続していないとき一時停止する"
+    headphone_detection: "ヘッドホンを抜くと停止"
   </dest>
   <voice>
     *: none
-    headphone_detection: "ヘッドホンを接続していないとき一時停止する"
+    headphone_detection: "ヘッドホンを抜くと停止"
   </voice>
 </phrase>
 <phrase>
@@ -1714,11 +1714,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "一時停止とレジューム"
+    headphone_detection: "レジューム"
   </dest>
   <voice>
     *: none
-    headphone_detection: "一時停止とレジューム"
+    headphone_detection: "レジューム"
   </voice>
 </phrase>
 <phrase>
@@ -2209,10 +2209,10 @@
     *: "Backlight"
   </source>
   <dest>
-    *: "バックライト点灯時間 (バッテリー使用時)"
+    *: "バックライト"
   </dest>
   <voice>
-    *: "バッテリー使用時のバックライト点灯時間"
+    *: "バックライト"
   </voice>
 </phrase>
 <phrase>
@@ -10795,10 +10795,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "レジューム時の巻き戻し時間"
+    *: "レジューム時の巻き戻し"
   </dest>
   <voice>
-    *: "レジューム時の巻き戻し時間"
+    *: "レジューム時の巻き戻し"
   </voice>
 </phrase>
 <phrase>
@@ -11459,11 +11459,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "スピーカー・キークリック"
+    hardware_click: "スピーカー"
   </dest>
   <voice>
     *: none
-    hardware_click: "スピーカー・キークリック"
+    hardware_click: "スピーカー"
   </voice>
 </phrase>
 <phrase>
@@ -11547,10 +11547,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "ボリューム上限"
+    *: "音量制限"
   </dest>
   <voice>
-    *: "ボリューム上限"
+    *: "音量制限"
   </voice>
 </phrase>
 <phrase>
@@ -11664,11 +11664,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "ヘッドホン・キークリック"
+    hardware_click: "ヘッドホン"
   </dest>
   <voice>
     *: none
-    hardware_click: "ヘッドホン・キークリック"
+    hardware_click: "ヘッドホン"
   </voice>
 </phrase>
 <phrase>
@@ -16246,10 +16246,10 @@
     *: "Legal Notices"
   </source>
   <dest>
-    *: "法的通知"
+    *: "法的情報"
   </dest>
   <voice>
-    *: "法的通知"
+    *: "法的情報"
   </voice>
 </phrase>
 <phrase>
@@ -16777,5 +16777,957 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "ミュージック"
+  </dest>
+  <voice>
+    *: "ミュージック"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "その他"
+  </dest>
+  <voice>
+    *: "その他"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "時計"
+  </dest>
+  <voice>
+    *: "時計"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "ブロック崩し"
+  </dest>
+  <voice>
+    *: "ブロック崩し"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "ソリティア"
+  </dest>
+  <voice>
+    *: "ソリティア"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "カレンダー"
+  </dest>
+  <voice>
+    *: "カレンダー"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "ストップウォッチ"
+  </dest>
+  <voice>
+    *: "ストップウォッチ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "情報"
+  </dest>
+  <voice>
+    *: "情報"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d分"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "曲"
+  </dest>
+  <voice>
+    *: "曲"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcast"
+  </dest>
+  <voice>
+    *: "Podcast"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "ジャンル"
+  </dest>
+  <voice>
+    *: "ジャンル"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "作曲者"
+  </dest>
+  <voice>
+    *: "作曲者"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "オーディオブック"
+  </dest>
+  <voice>
+    *: "オーディオブック"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "写真"
+  </dest>
+  <voice>
+    *: "写真"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "フォトライブラリ"
+  </dest>
+  <voice>
+    *: "フォトライブラリ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "スライドショー設定"
+  </dest>
+  <voice>
+    *: "スライドショー設定"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "スライドごとの時間"
+  </dest>
+  <voice>
+    *: "スライドごとの時間"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "写真をシャッフル"
+  </dest>
+  <voice>
+    *: "写真をシャッフル"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "手動"
+  </dest>
+  <voice>
+    *: "手動"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d秒"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "写真がありません"
+  </dest>
+  <voice>
+    *: "写真がありません"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d曲"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d曲"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d曲"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "アコースティック"
+  </dest>
+  <voice>
+    *: "アコースティック"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "低音ブースト"
+  </dest>
+  <voice>
+    *: "低音ブースト"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "低音カット"
+  </dest>
+  <voice>
+    *: "低音カット"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "クラシック"
+  </dest>
+  <voice>
+    *: "クラシック"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "ダンス"
+  </dest>
+  <voice>
+    *: "ダンス"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "ディープ"
+  </dest>
+  <voice>
+    *: "ディープ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "エレクトロニック"
+  </dest>
+  <voice>
+    *: "エレクトロニック"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "フラット"
+  </dest>
+  <voice>
+    *: "フラット"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "ヒップホップ"
+  </dest>
+  <voice>
+    *: "ヒップホップ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "ジャズ"
+  </dest>
+  <voice>
+    *: "ジャズ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "ラテン"
+  </dest>
+  <voice>
+    *: "ラテン"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "ラウドネス"
+  </dest>
+  <voice>
+    *: "ラウドネス"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "ラウンジ"
+  </dest>
+  <voice>
+    *: "ラウンジ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "ピアノ"
+  </dest>
+  <voice>
+    *: "ピアノ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "ポップ"
+  </dest>
+  <voice>
+    *: "ポップ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "ロック"
+  </dest>
+  <voice>
+    *: "ロック"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "小型スピーカー"
+  </dest>
+  <voice>
+    *: "小型スピーカー"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "音声"
+  </dest>
+  <voice>
+    *: "音声"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "高音ブースト"
+  </dest>
+  <voice>
+    *: "高音ブースト"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "高音カット"
+  </dest>
+  <voice>
+    *: "高音カット"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "ボーカルブースト"
+  </dest>
+  <voice>
+    *: "ボーカルブースト"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "遅く"
+  </dest>
+  <voice>
+    *: "遅く"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "標準"
+  </dest>
+  <voice>
+    *: "標準"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "速く"
+  </dest>
+  <voice>
+    *: "速く"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "ライブラリを更新中"
+  </dest>
+  <voice>
+    *: "ライブラリを更新中"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "計算中…"
+  </dest>
+  <voice>
+    *: "計算中…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "ブラックジャック"
+  </dest>
+  <voice>
+    *: "ブラックジャック"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "ジュエル"
+  </dest>
+  <voice>
+    *: "ジュエル"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "マインスイーパ"
+  </dest>
+  <voice>
+    *: "マインスイーパ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "ライブラリを読み込み中"
+  </dest>
+  <voice>
+    *: "ライブラリを読み込み中"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "曲を確認中"
+  </dest>
+  <voice>
+    *: "曲を確認中"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "再生回数を更新中"
+  </dest>
+  <voice>
+    *: "再生回数を更新中"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "アートワークを準備中"
+  </dest>
+  <voice>
+    *: "アートワークを準備中"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "アルバムを準備中"
+  </dest>
+  <voice>
+    *: "アルバムを準備中"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "曲を準備中"
+  </dest>
+  <voice>
+    *: "曲を準備中"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "アルバムアーティスト"
+  </dest>
+  <voice>
+    *: "アルバムアーティスト"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "アーティスト"
+  </dest>
+  <voice>
+    *: "アーティスト"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "アルバム"
+  </dest>
+  <voice>
+    *: "アルバム"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "トラック"
+  </dest>
+  <voice>
+    *: "トラック"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "曲をシャッフル"
+  </dest>
+  <voice>
+    *: "曲をシャッフル"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "検索"
+  </dest>
+  <voice>
+    *: "検索"
   </voice>
 </phrase>

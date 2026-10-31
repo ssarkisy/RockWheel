@@ -359,10 +359,10 @@
     *: "Resume Playback"
   </source>
   <dest>
-    *: "Подновяване на свиренето"
+    *: "Продължи"
   </dest>
   <voice>
-    *: "Подновяване на свиренето"
+    *: "Продължи"
   </voice>
 </phrase>
 <phrase>
@@ -603,10 +603,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Звукови настройки"
+    *: "Звук"
   </dest>
   <voice>
-    *: "Звукови настройки"
+    *: "Звук"
   </voice>
 </phrase>
 <phrase>
@@ -1096,10 +1096,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Общи настройки"
+    *: "Общи"
   </dest>
   <voice>
-    *: "Общи настройки"
+    *: "Общи"
   </voice>
 </phrase>
 <phrase>
@@ -1110,10 +1110,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Настройки на възпроизвеждане"
+    *: "Възпроизвеждане"
   </dest>
   <voice>
-    *: "Настройки на възпроизвеждане"
+    *: "Възпроизвеждане"
   </voice>
 </phrase>
 <phrase>
@@ -1314,11 +1314,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Включване на  Кросфейд"
+    crossfade: "Кросфейд"
   </dest>
   <voice>
     *: none
-    crossfade: "Включване на  Кросфейд"
+    crossfade: "Кросфейд"
   </voice>
 </phrase>
 <phrase>
@@ -1493,10 +1493,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Вид усилване"
+    *: "Изравняване на звука"
   </dest>
   <voice>
-    *: "Вид усилване"
+    *: "Изравняване на звука"
   </voice>
 </phrase>
 <phrase>
@@ -1535,10 +1535,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "По записи при разбъркване"
+    *: "Авто"
   </dest>
   <voice>
-    *: "По записи при разбъркване"
+    *: "Авто"
   </voice>
 </phrase>
 <phrase>
@@ -1678,10 +1678,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Поддръжка на Cuesheet"
+    *: "CUE файлове"
   </dest>
   <voice>
-    *: "Поддръжка на Cuesheet"
+    *: "CUE файлове"
   </voice>
 </phrase>
 <phrase>
@@ -1694,11 +1694,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Пауза при изваждане на слушалките"
+    headphone_detection: "Пауза при изваждане"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Пауза при изваждане на слушалките"
+    headphone_detection: "Пауза при изваждане"
   </voice>
 </phrase>
 <phrase>
@@ -1711,11 +1711,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Пауза и възобновяване"
+    headphone_detection: "Подновяване"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Пауза и възобновяване"
+    headphone_detection: "Подновяване"
   </voice>
 </phrase>
 <phrase>
@@ -3416,11 +3416,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Час и дата"
+    rtc: "Дата и час"
   </dest>
   <voice>
     *: none
-    rtc: "Час и дата"
+    rtc: "Дата и час"
   </voice>
 </phrase>
 <phrase>
@@ -9168,10 +9168,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Цъкане на бутоните"
+    *: "Цъкане"
   </dest>
   <voice>
-    *: "Цъкане на бутоните"
+    *: "Цъкане"
   </voice>
 </phrase>
 <phrase>
@@ -10724,10 +10724,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Превъртане преди възобновяване"
+    *: "Назад при подновяване"
   </dest>
   <voice>
-    *: "Превъртане преди възобновяване"
+    *: "Назад при подновяване"
   </voice>
 </phrase>
 <phrase>
@@ -11315,11 +11315,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Цъкане на бутоните при включени слушалки"
+    hardware_click: "Слушалки"
   </dest>
   <voice>
     *: none
-    hardware_click: "Цъкане на бутоните при включени слушалки"
+    hardware_click: "Слушалки"
   </voice>
 </phrase>
 <phrase>
@@ -11332,11 +11332,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Цъкане на бутоните при включен говорител"
+    hardware_click: "Говорител"
   </dest>
   <voice>
     *: none
-    hardware_click: "Цъкане на бутоните при включен говорител"
+    hardware_click: "Говорител"
   </voice>
 </phrase>
 <phrase>
@@ -11614,10 +11614,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "Ограничение за максимална сила на звука"
+    *: "Ограничение на звука"
   </dest>
   <voice>
-    *: "Ограничение за максимална сила на звука"
+    *: "Ограничение на звука"
   </voice>
 </phrase>
 <phrase>
@@ -11771,10 +11771,10 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "Намаляване на слуховата умора"
+    *: "Намаляване на умората"
   </dest>
   <voice>
-    *: "Намаляване на слуховата умора"
+    *: "Намаляване на умората"
   </voice>
 </phrase>
 <phrase>
@@ -16385,10 +16385,10 @@
     *: "Shuffle Songs"
   </source>
   <dest>
-    *: "Разбъркване на песните"
+    *: "Случайни песни"
   </dest>
   <voice>
-    *: "Разбъркване на песните"
+    *: "Случайни песни"
   </voice>
 </phrase>
 <phrase>
@@ -17481,5 +17481,873 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Музика"
+  </dest>
+  <voice>
+    *: "Музика"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Допълнителни"
+  </dest>
+  <voice>
+    *: "Допълнителни"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Часовник"
+  </dest>
+  <voice>
+    *: "Часовник"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Тухли"
+  </dest>
+  <voice>
+    *: "Тухли"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Пасианс"
+  </dest>
+  <voice>
+    *: "Пасианс"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Календар"
+  </dest>
+  <voice>
+    *: "Календар"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Хронометър"
+  </dest>
+  <voice>
+    *: "Хронометър"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "За iPod"
+  </dest>
+  <voice>
+    *: "За iPod"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d минути"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Песни"
+  </dest>
+  <voice>
+    *: "Песни"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Подкасти"
+  </dest>
+  <voice>
+    *: "Подкасти"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Жанрове"
+  </dest>
+  <voice>
+    *: "Жанрове"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Композитори"
+  </dest>
+  <voice>
+    *: "Композитори"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Аудиокниги"
+  </dest>
+  <voice>
+    *: "Аудиокниги"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Снимки"
+  </dest>
+  <voice>
+    *: "Снимки"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Библиотека със снимки"
+  </dest>
+  <voice>
+    *: "Библиотека със снимки"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Настройки на слайдшоу"
+  </dest>
+  <voice>
+    *: "Настройки на слайдшоу"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Време за слайд"
+  </dest>
+  <voice>
+    *: "Време за слайд"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Разбъркване на снимките"
+  </dest>
+  <voice>
+    *: "Разбъркване на снимките"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Ръчно"
+  </dest>
+  <voice>
+    *: "Ръчно"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d секунди"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Няма снимки"
+  </dest>
+  <voice>
+    *: "Няма снимки"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d песен"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d песни"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d песни"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Акустична"
+  </dest>
+  <voice>
+    *: "Акустична"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Усилване на баса"
+  </dest>
+  <voice>
+    *: "Усилване на баса"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Намаляване на баса"
+  </dest>
+  <voice>
+    *: "Намаляване на баса"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Класическа"
+  </dest>
+  <voice>
+    *: "Класическа"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Танцова"
+  </dest>
+  <voice>
+    *: "Танцова"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Дълбока"
+  </dest>
+  <voice>
+    *: "Дълбока"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Електронна"
+  </dest>
+  <voice>
+    *: "Електронна"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Без корекция"
+  </dest>
+  <voice>
+    *: "Без корекция"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Хип-хоп"
+  </dest>
+  <voice>
+    *: "Хип-хоп"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Джаз"
+  </dest>
+  <voice>
+    *: "Джаз"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Латино"
+  </dest>
+  <voice>
+    *: "Латино"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Тонкомпенсация"
+  </dest>
+  <voice>
+    *: "Тонкомпенсация"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Лаундж"
+  </dest>
+  <voice>
+    *: "Лаундж"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Пиано"
+  </dest>
+  <voice>
+    *: "Пиано"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Поп"
+  </dest>
+  <voice>
+    *: "Поп"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Рок"
+  </dest>
+  <voice>
+    *: "Рок"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Малки говорители"
+  </dest>
+  <voice>
+    *: "Малки говорители"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Говор"
+  </dest>
+  <voice>
+    *: "Говор"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Усилване на високите"
+  </dest>
+  <voice>
+    *: "Усилване на високите"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Намаляване на високите"
+  </dest>
+  <voice>
+    *: "Намаляване на високите"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Усилване на вокала"
+  </dest>
+  <voice>
+    *: "Усилване на вокала"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "По-бавно"
+  </dest>
+  <voice>
+    *: "По-бавно"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Нормално"
+  </dest>
+  <voice>
+    *: "Нормално"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "По-бързо"
+  </dest>
+  <voice>
+    *: "По-бързо"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Обновяване на библиотеката"
+  </dest>
+  <voice>
+    *: "Обновяване на библиотеката"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Изчисляване…"
+  </dest>
+  <voice>
+    *: "Изчисляване…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Блекджек"
+  </dest>
+  <voice>
+    *: "Блекджек"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Скъпоценни камъни"
+  </dest>
+  <voice>
+    *: "Скъпоценни камъни"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Миночистач"
+  </dest>
+  <voice>
+    *: "Миночистач"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Четене на библиотеката"
+  </dest>
+  <voice>
+    *: "Четене на библиотеката"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Проверка на песните"
+  </dest>
+  <voice>
+    *: "Проверка на песните"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Обновяване на броя изпълнения"
+  </dest>
+  <voice>
+    *: "Обновяване на броя изпълнения"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Подготовка на обложките"
+  </dest>
+  <voice>
+    *: "Подготовка на обложките"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Подготовка на албумите"
+  </dest>
+  <voice>
+    *: "Подготовка на албумите"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Подготовка на песните"
+  </dest>
+  <voice>
+    *: "Подготовка на песните"
   </voice>
 </phrase>

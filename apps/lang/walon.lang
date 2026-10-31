@@ -622,10 +622,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Tchuzes do son"
+    *: "Son"
   </dest>
   <voice>
-    *: "Tchuzes do son"
+    *: "Son"
   </voice>
 </phrase>
 <phrase>
@@ -1282,10 +1282,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Apontiaedjes djenerås"
+    *: "Djenerå"
   </dest>
   <voice>
-    *: "Apontiaedjes djenerås"
+    *: "Djenerå"
   </voice>
 </phrase>
 <phrase>
@@ -1296,10 +1296,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Apontyî l' djouwaedje"
+    *: "Djouwaedje"
   </dest>
   <voice>
-    *: "Apontyî l' djouwaedje"
+    *: "Djouwaedje"
   </voice>
 </phrase>
 <phrase>
@@ -1500,11 +1500,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Mete croejhlé fondou en alaedje"
+    crossfade: "Croejhlé fondou"
   </dest>
   <voice>
     *: none
-    crossfade: "Mete croejhlé fondou en alaedje"
+    crossfade: "Croejhlé fondou"
   </voice>
 </phrase>
 <phrase>
@@ -1679,10 +1679,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Cogne di ReplayGain"
+    *: "Ewalijhaedje do son"
   </dest>
   <voice>
-    *: "Cogne di Replaygain"
+    *: "Ewalijhaedje do son"
   </voice>
 </phrase>
 <phrase>
@@ -1721,10 +1721,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Crexhaedje po boket a l'astcheyance"
+    *: "Auto"
   </dest>
   <voice>
-    *: "Crexhaedje po boket a l'astcheyance"
+    *: "Auto"
   </voice>
 </phrase>
 <phrase>
@@ -1864,10 +1864,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Sopoirt Cuesheet"
+    *: "Fitchîs CUE"
   </dest>
   <voice>
-    *: "Sopoirt Cuesheet"
+    *: "Fitchîs CUE"
   </voice>
 </phrase>
 <phrase>
@@ -1880,11 +1880,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Djoke å distchôcaedje del schoûtrece"
+    headphone_detection: "Djoke å distchôcaedje"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Djoke å distchôcaedje del schoûtrece"
+    headphone_detection: "Djoke å distchôcaedje"
   </voice>
 </phrase>
 <phrase>
@@ -1897,11 +1897,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Djoker et rataker"
+    headphone_detection: "Et rataker"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Djoker et rataker"
+    headphone_detection: "Et rataker"
   </voice>
 </phrase>
 <phrase>
@@ -2440,8 +2440,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "Erî-clårté tins des eclawêyès tapes"
+    *: "Erî-clårté tins des eclawêyès tapes"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -2536,8 +2536,7 @@
     lcd_sleep: "Never"
   </source>
   <dest>
-    *: none
-    lcd_sleep: "Måy"
+    *: "Måy"
   </dest>
   <voice>
     *: none
@@ -3720,11 +3719,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Eure & Date"
+    rtc: "Date et eure"
   </dest>
   <voice>
     *: none
-    rtc: "eure et Date"
+    rtc: "Date et eure"
   </voice>
 </phrase>
 <phrase>
@@ -10221,10 +10220,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Clitch des tapes"
+    *: "Clitch"
   </dest>
   <voice>
-    *: "Clitch des tapes"
+    *: "Clitch"
   </voice>
 </phrase>
 <phrase>
@@ -11752,5 +11751,1915 @@
   </dest>
   <voice>
     *: "Grandeu do fitchî"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESUME_REWIND
+  desc: in playback settings menu
+  user: core
+  <source>
+    *: "Rewind Before Resume"
+  </source>
+  <dest>
+    *: "Rculer å ratakaedje"
+  </dest>
+  <voice>
+    *: "Rculer å ratakaedje"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_SOFTWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Headphones"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Schoûtreces"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Schoûtreces"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_HARDWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Speaker"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Hôt-pårleu"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Hôt-pårleu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "Limite do volume"
+  </dest>
+  <voice>
+    *: "Limite do volume"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "Moens di fatigue"
+  </dest>
+  <voice>
+    *: "Moens di fatigue"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "Avis legås"
+  </dest>
+  <voice>
+    *: "Avis legås"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Muzike"
+  </dest>
+  <voice>
+    *: "Muzike"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Rawetes"
+  </dest>
+  <voice>
+    *: "Rawetes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Ôrlodje"
+  </dest>
+  <voice>
+    *: "Ôrlodje"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Brikes"
+  </dest>
+  <voice>
+    *: "Brikes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Solitaire"
+  </dest>
+  <voice>
+    *: "Solitaire"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Calindrî"
+  </dest>
+  <voice>
+    *: "Calindrî"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Cronometre"
+  </dest>
+  <voice>
+    *: "Cronometre"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Åd fwait"
+  </dest>
+  <voice>
+    *: "Åd fwait"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d min"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Tchansons"
+  </dest>
+  <voice>
+    *: "Tchansons"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcasts"
+  </dest>
+  <voice>
+    *: "Podcasts"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Cognes"
+  </dest>
+  <voice>
+    *: "Cognes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Compôzeus"
+  </dest>
+  <voice>
+    *: "Compôzeus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Lives a schoûter"
+  </dest>
+  <voice>
+    *: "Lives a schoûter"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Fotos"
+  </dest>
+  <voice>
+    *: "Fotos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Bibioteke di fotos"
+  </dest>
+  <voice>
+    *: "Bibioteke di fotos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Tchuzes do diaporama"
+  </dest>
+  <voice>
+    *: "Tchuzes do diaporama"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Tins po tchaeke foto"
+  </dest>
+  <voice>
+    *: "Tins po tchaeke foto"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Fotos a l'astcheyance"
+  </dest>
+  <voice>
+    *: "Fotos a l'astcheyance"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Al mwin"
+  </dest>
+  <voice>
+    *: "Al mwin"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Nole foto"
+  </dest>
+  <voice>
+    *: "Nole foto"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "Tchansons: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Tchansons: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Tchansons: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Acoustike"
+  </dest>
+  <voice>
+    *: "Acoustike"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Pus di bassès notes"
+  </dest>
+  <voice>
+    *: "Pus di bassès notes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Moens di bassès notes"
+  </dest>
+  <voice>
+    *: "Moens di bassès notes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Classike"
+  </dest>
+  <voice>
+    *: "Classike"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Dance"
+  </dest>
+  <voice>
+    *: "Dance"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Parfond"
+  </dest>
+  <voice>
+    *: "Parfond"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektronike"
+  </dest>
+  <voice>
+    *: "Elektronike"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Plat"
+  </dest>
+  <voice>
+    *: "Plat"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip Hop"
+  </dest>
+  <voice>
+    *: "Hip Hop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Jazz"
+  </dest>
+  <voice>
+    *: "Jazz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latene"
+  </dest>
+  <voice>
+    *: "Latene"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Foirt"
+  </dest>
+  <voice>
+    *: "Foirt"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Piano"
+  </dest>
+  <voice>
+    *: "Piano"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: "Pop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rock"
+  </dest>
+  <voice>
+    *: "Rock"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Ptits hôt-pårleus"
+  </dest>
+  <voice>
+    *: "Ptits hôt-pårleus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Pårlé"
+  </dest>
+  <voice>
+    *: "Pårlé"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Pus di hôtès notes"
+  </dest>
+  <voice>
+    *: "Pus di hôtès notes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Moens di hôtès notes"
+  </dest>
+  <voice>
+    *: "Moens di hôtès notes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Pus di vwès"
+  </dest>
+  <voice>
+    *: "Pus di vwès"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Moens rade"
+  </dest>
+  <voice>
+    *: "Moens rade"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normå"
+  </dest>
+  <voice>
+    *: "Normå"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Pus rade"
+  </dest>
+  <voice>
+    *: "Pus rade"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Metaedje a djoû del bibioteke"
+  </dest>
+  <voice>
+    *: "Metaedje a djoû del bibioteke"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Contaedje…"
+  </dest>
+  <voice>
+    *: "Contaedje…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Bijous"
+  </dest>
+  <voice>
+    *: "Bijous"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Dismineu"
+  </dest>
+  <voice>
+    *: "Dismineu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Lijhaedje del bibioteke"
+  </dest>
+  <voice>
+    *: "Lijhaedje del bibioteke"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Verifiaedje des tchansons"
+  </dest>
+  <voice>
+    *: "Verifiaedje des tchansons"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Metaedje a djoû des contes"
+  </dest>
+  <voice>
+    *: "Metaedje a djoû des contes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Apontiaedje des imådjes"
+  </dest>
+  <voice>
+    *: "Apontiaedje des imådjes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Apontiaedje des alboms"
+  </dest>
+  <voice>
+    *: "Apontiaedje des alboms"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Apontiaedje des tchansons"
+  </dest>
+  <voice>
+    *: "Apontiaedje des tchansons"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_GB
+  desc: a size in gigabytes, in About
+  user: core
+  <source>
+    *: "%d GB"
+  </source>
+  <dest>
+    *: "%d Go"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_MB
+  desc: a size in megabytes, in About
+  user: core
+  <source>
+    *: "%d MB"
+  </source>
+  <dest>
+    *: "%d Mo"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_USB_DO_NOT_DISCONNECT
+  desc: under the sign on the screen while connected over USB, as on a stock iPod
+  user: core
+  <source>
+    *: "Do not disconnect."
+  </source>
+  <dest>
+    *: "Ni distchôkez nén."
+  </dest>
+  <voice>
+    *: "Ni distchôkez nén."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_USB_OK_TO_DISCONNECT
+  desc: under the check mark on the screen after the host has ejected the iPod, as on a stock iPod
+  user: core
+  <source>
+    *: "OK to disconnect."
+  </source>
+  <dest>
+    *: "Vos ploz distchôkî."
+  </dest>
+  <voice>
+    *: "Vos ploz distchôkî."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DISK_FREE_GB
+  desc: under the bar of the disk's use, beside Settings in the main menu, as on a stock iPod
+  user: core
+  <source>
+    *: "%d GB Free"
+  </source>
+  <dest>
+    *: "%d Go di libe"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DISK_FREE_MB
+  desc: under the bar of the disk's use, beside Settings in the main menu, as on a stock iPod
+  user: core
+  <source>
+    *: "%d MB Free"
+  </source>
+  <dest>
+    *: "%d Mo di libe"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_ITEM
+  desc: shuffle with its value after it, in the menu over Now Playing where a line is short
+  user: core
+  <source>
+    *: "Shuffle"
+  </source>
+  <dest>
+    *: "A l'astcheyance"
+  </dest>
+  <voice>
+    *: "A l'astcheyance"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ZERO2_VOICE
+  desc: in the iPod's EQ list, the preset for the 7Hz Zero 2 earphones that brings voices forward
+  user: core
+  <source>
+    *: "7Hz Zero 2: Voice"
+  </source>
+  <dest>
+    *: "7Hz Zero 2: Vwès"
+  </dest>
+  <voice>
+    *: "7Hz Zero 2: Vwès"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ZERO2_SOFT
+  desc: in the iPod's EQ list, the gentler preset for the 7Hz Zero 2 earphones
+  user: core
+  <source>
+    *: "7Hz Zero 2: Soft"
+  </source>
+  <dest>
+    *: "7Hz Zero 2: Doûs"
+  </dest>
+  <voice>
+    *: "7Hz Zero 2: Doûs"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ZERO2_DETAIL
+  desc: in the iPod's EQ list, the preset for the 7Hz Zero 2 earphones for strings, quiet sounds and cymbals
+  user: core
+  <source>
+    *: "7Hz Zero 2: Detail"
+  </source>
+  <dest>
+    *: "7Hz Zero 2: Detay"
+  </dest>
+  <voice>
+    *: "7Hz Zero 2: Detay"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_THEME
+  desc: the theme, in About
+  user: core
+  <source>
+    *: "Theme Based On"
+  </source>
+  <dest>
+    *: "Tinme bazé so"
+  </dest>
+  <voice>
+    *: "Tinme bazé so"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_CAPACITY
+  desc: the size of the disk, in About
+  user: core
+  <source>
+    *: "Capacity"
+  </source>
+  <dest>
+    *: "Capacité"
+  </dest>
+  <voice>
+    *: "Capacité"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_USED
+  desc: how much of the disk is in use, in About
+  user: core
+  <source>
+    *: "Used"
+  </source>
+  <dest>
+    *: "Eployî"
+  </dest>
+  <voice>
+    *: "Eployî"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_AVAILABLE
+  desc: how much of the disk is free, in About
+  user: core
+  <source>
+    *: "Available"
+  </source>
+  <dest>
+    *: "Disponibe"
+  </dest>
+  <voice>
+    *: "Disponibe"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_ON_BATTERY
+  desc: the time since it was last on the charger, in About
+  user: core
+  <source>
+    *: "On battery"
+  </source>
+  <dest>
+    *: "So batreye"
+  </dest>
+  <voice>
+    *: "So batreye"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT_LAST_SYNC
+  desc: the date Finder last synced the iPod, in About
+  user: core
+  <source>
+    *: "Last sync"
+  </source>
+  <dest>
+    *: "Dierin sincro"
+  </dest>
+  <voice>
+    *: "Dierin sincro"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "Årtisses di l'albom"
+  </dest>
+  <voice>
+    *: "Årtisses di l'albom"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TAGNAVI_UNTAGGED
+  desc: "[untagged]" entry in tag browser
+  user: core
+  <source>
+    *: "[Untagged]"
+  </source>
+  <dest>
+    *: "[Sins etikete]"
+  </dest>
+  <voice>
+    *: "[Sins etikete]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_COMPOSER
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Composer"
+  </source>
+  <dest>
+    *: "Compôzeu"
+  </dest>
+  <voice>
+    *: "Compôzeu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CURRENT_PLAYLIST
+  desc: Used when you need to say playlist, also voiced
+  user: core
+  <source>
+    *: "Current Playlist"
+  </source>
+  <dest>
+    *: "Djivêye do moumint"
+  </dest>
+  <voice>
+    *: "Djivêye do moumint"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE_CHANGES
+  desc: When you try to exit screens to confirm save
+  user: core
+  <source>
+    *: "Save Changes?"
+  </source>
+  <dest>
+    *: "Schaper les candjmints ?"
+  </dest>
+  <voice>
+    *: "Schaper les candjmints ?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_CANCEL_CURRENT
+  desc: shown instead of sleep timer when it's running
+  user: core
+  <source>
+    *: "Cancel Sleep Timer"
+  </source>
+  <dest>
+    *: "Rinoncî a l' eure di dôrmi"
+  </dest>
+  <voice>
+    *: "Rinoncî a l' eure di dôrmi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_START_CURRENT
+  desc: shown when a sleep timer isn't running
+  user: core
+  <source>
+    *: "Start Sleep Timer"
+  </source>
+  <dest>
+    *: "Enonder l' eure di dôrmi"
+  </dest>
+  <voice>
+    *: "Enonder l' eure di dôrmi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "Blocaedje otomatike: oyi"
+  </dest>
+  <voice>
+    *: "Blocaedje otomatike: oyi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "Blocaedje otomatike: neni"
+  </dest>
+  <voice>
+    *: "Blocaedje otomatike: neni"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "Passé do boket:"
+  </dest>
+  <voice>
+    *: "Passé do boket:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "Dmorant do boket:"
+  </dest>
+  <voice>
+    *: "Dmorant do boket:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "Boket:"
+  </dest>
+  <voice>
+    *: "Boket:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "Plaece (passé / dmorant):"
+  </dest>
+  <voice>
+    *: "Plaece (passé / dmorant):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "Grandeu moyene des bokets:"
+  </dest>
+  <voice>
+    *: "Grandeu moyene des bokets:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "Debit moyen:"
+  </dest>
+  <voice>
+    *: "Debit moyen:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "Tins d' djouwaedje"
+  </dest>
+  <voice>
+    *: "Tins d' djouwaedje"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[Tchimin]"
+  </dest>
+  <voice>
+    *: "[Tchimin]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[No d' fitchî]"
+  </dest>
+  <voice>
+    *: "[No d' fitchî]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[Grandeu]"
+  </dest>
+  <voice>
+    *: "[Grandeu]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[Date]"
+  </dest>
+  <voice>
+    *: "[Date]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[Eure]"
+  </dest>
+  <voice>
+    *: "[Eure]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[Sos-ridants]"
+  </dest>
+  <voice>
+    *: "[Sos-ridants]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[Fitchîs]"
+  </dest>
+  <voice>
+    *: "[Fitchîs]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "Prôpietés do ridant"
+  </dest>
+  <voice>
+    *: "Prôpietés do ridant"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "Prôpietés do fitchî"
+  </dest>
+  <voice>
+    *: "Prôpietés do fitchî"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "Nén savou prinde les infos"
+  </dest>
+  <voice>
+    *: "Nén savou prinde les infos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "Date"
+  </dest>
+  <voice>
+    *: "Date"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "Schaper"
+  </dest>
+  <voice>
+    *: "Schaper"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "Tins d' atinte"
+  </dest>
+  <voice>
+    *: "Tins d' atinte"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "Boket"
+  </dest>
+  <voice>
+    *: "Boket"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "Passé"
+  </dest>
+  <voice>
+    *: "Passé"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "Radjouter"
+  </dest>
+  <voice>
+    *: "Radjouter"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "Cawêye..."
+  </dest>
+  <voice>
+    *: "Cawêye..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "Infos do boket"
+  </dest>
+  <voice>
+    *: "Infos do boket"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "Djouwer"
+  </dest>
+  <voice>
+    *: "Djouwer"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "Djouwer a l'astcheyance"
+  </dest>
+  <voice>
+    *: "Djouwer a l'astcheyance"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "Radjouter al djivêye..."
+  </dest>
+  <voice>
+    *: "Radjouter al djivêye..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "Radjouter a ene djivêye"
+  </dest>
+  <voice>
+    *: "Radjouter a ene djivêye"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "Djouwer après..."
+  </dest>
+  <voice>
+    *: "Djouwer après..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "Djouwer après"
+  </dest>
+  <voice>
+    *: "Djouwer après"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "Radjouter a l'astcheyance"
+  </dest>
+  <voice>
+    *: "Radjouter a l'astcheyance"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "Djouwer al fén"
+  </dest>
+  <voice>
+    *: "Djouwer al fén"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "Al fén, a l'astcheyance"
+  </dest>
+  <voice>
+    *: "Al fén, a l'astcheyance"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "Oister l' cawêye ?"
+  </dest>
+  <voice>
+    *: "Oister l' cawêye ?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "Dmorant"
+  </dest>
+  <voice>
+    *: "Dmorant"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "Årtisses"
+  </dest>
+  <voice>
+    *: "Årtisses"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Alboms"
+  </dest>
+  <voice>
+    *: "Alboms"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "Bokets"
+  </dest>
+  <voice>
+    *: "Bokets"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "A l'astcheyance"
+  </dest>
+  <voice>
+    *: "A l'astcheyance"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "Cweri"
+  </dest>
+  <voice>
+    *: "Cweri"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "Vey l' imådje d' albom"
+  </dest>
+  <voice>
+    *: "Vey l' imådje d' albom"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "Djivêye finie. Rdjower ?"
+  </dest>
+  <voice>
+    *: "Djivêye finie. Rdjower ?"
   </voice>
 </phrase>

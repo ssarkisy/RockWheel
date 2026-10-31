@@ -229,8 +229,7 @@
     lcd_sleep: "Never"
   </source>
   <dest>
-    *: none
-    lcd_sleep: "أبداً"
+    *: "أبداً"
   </dest>
   <voice>
     *: none
@@ -402,10 +401,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "إعدادات الصوت"
+    *: "الصوت"
   </dest>
   <voice>
-    *: "Sound Settings"
+    *: "الصوت"
   </voice>
 </phrase>
 <phrase>
@@ -800,10 +799,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "الإعدادات العامة"
+    *: "عام"
   </dest>
   <voice>
-    *: "General Settings"
+    *: "عام"
   </voice>
 </phrase>
 <phrase>
@@ -1450,10 +1449,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "ضغط المفتاح"
+    *: "صوت النقر"
   </dest>
   <voice>
-    *: "Keyclick"
+    *: "صوت النقر"
   </voice>
 </phrase>
 <phrase>
@@ -2481,10 +2480,10 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "لخبط"
+    *: "عشوائي"
   </dest>
   <voice>
-    *: "Shuffle"
+    *: "عشوائي"
   </voice>
 </phrase>
 <phrase>
@@ -2542,11 +2541,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Current Time"
+    rtc: "الوقت الحالي"
   </dest>
   <voice>
     *: none
-    rtc: "Current time"
+    rtc: "الوقت الحالي"
   </voice>
 </phrase>
 <phrase>
@@ -2942,7 +2941,7 @@
     *: "المعادل"
   </dest>
   <voice>
-    *: "Equalizer"
+    *: "المعادل"
   </voice>
 </phrase>
 <phrase>
@@ -3027,8 +3026,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "(hold)الإضاءة الخلفية فى وضع الامساك"
+    *: "(hold)الإضاءة الخلفية فى وضع الامساك"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -5543,11 +5542,11 @@
   </source>
   <dest>
     *: none
-    rtc: "الوقت والتاريخ"
+    rtc: "التاريخ والوقت"
   </dest>
   <voice>
     *: none
-    rtc: "الوقت والتاريخ"
+    rtc: "التاريخ والوقت"
   </voice>
 </phrase>
 <phrase>
@@ -5603,10 +5602,10 @@
     *: "Jan"
   </source>
   <dest>
-    *: "Jan"
+    *: "يناير"
   </dest>
   <voice>
-    *: "كانون الثاني"
+    *: "يناير"
   </voice>
 </phrase>
 <phrase>
@@ -6012,10 +6011,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "إعدادات التشغيل"
+    *: "التشغيل"
   </dest>
   <voice>
-    *: "إعدادات التشغيل"
+    *: "التشغيل"
   </voice>
 </phrase>
 <phrase>
@@ -6913,10 +6912,10 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "لخبط"
+    *: "عشوائي"
   </dest>
   <voice>
-    *: ""
+    *: "عشوائي"
   </voice>
 </phrase>
 <phrase>
@@ -7067,7 +7066,7 @@
     *: "%d GB"
   </source>
   <dest>
-    *: "%d GB"
+    *: "%d غ.ب"
   </dest>
   <voice>
     *: ""
@@ -7081,9 +7080,2485 @@
     *: "%d MB"
   </source>
   <dest>
-    *: "%d MB"
+    *: "%d م.ب"
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CROSSFADE_ENABLE
+  desc: in crossfade settings menu
+  user: core
+  <source>
+    *: none
+    crossfade: "Enable Crossfade"
+  </source>
+  <dest>
+    *: none
+    crossfade: "تداخل الأغاني"
+  </dest>
+  <voice>
+    *: none
+    crossfade: "تداخل الأغاني"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAYGAIN_MODE
+  desc: in replaygain
+  user: core
+  <source>
+    *: "Sound Check"
+  </source>
+  <dest>
+    *: "فحص الصوت"
+  </dest>
+  <voice>
+    *: "فحص الصوت"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_GAIN
+  desc: use track gain if shuffle mode is on, album gain otherwise
+  user: core
+  <source>
+    *: "Track Gain if Shuffling"
+  </source>
+  <dest>
+    *: "تلقائي"
+  </dest>
+  <voice>
+    *: "تلقائي"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CUESHEET_ENABLE
+  desc: cuesheet support option
+  user: core
+  <source>
+    *: "Cuesheet Support"
+  </source>
+  <dest>
+    *: "ملفات CUE"
+  </dest>
+  <voice>
+    *: "ملفات CUE"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HEADPHONE_UNPLUG
+  desc: in settings_menu.
+  user: core
+  <source>
+    *: none
+    headphone_detection: "Pause on Headphone Unplug"
+  </source>
+  <dest>
+    *: none
+    headphone_detection: "إيقاف مؤقت عند الفصل"
+  </dest>
+  <voice>
+    *: none
+    headphone_detection: "إيقاف مؤقت عند الفصل"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HEADPHONE_UNPLUG_RESUME
+  desc: in pause_phones_menu.
+  user: core
+  <source>
+    *: none
+    headphone_detection: "Pause and Resume"
+  </source>
+  <dest>
+    *: none
+    headphone_detection: "مع الاستئناف"
+  </dest>
+  <voice>
+    *: none
+    headphone_detection: "مع الاستئناف"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESUME_REWIND
+  desc: in playback settings menu
+  user: core
+  <source>
+    *: "Rewind Before Resume"
+  </source>
+  <dest>
+    *: "إرجاع عند الاستئناف"
+  </dest>
+  <voice>
+    *: "إرجاع عند الاستئناف"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_SOFTWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Headphones"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "سماعات الرأس"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "سماعات الرأس"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_HARDWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Speaker"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "مكبر الصوت"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "مكبر الصوت"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "حد مستوى الصوت"
+  </dest>
+  <voice>
+    *: "حد مستوى الصوت"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "تقليل إجهاد السمع"
+  </dest>
+  <voice>
+    *: "تقليل إجهاد السمع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "معلومات قانونية"
+  </dest>
+  <voice>
+    *: "معلومات قانونية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "الموسيقى"
+  </dest>
+  <voice>
+    *: "الموسيقى"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "الإضافات"
+  </dest>
+  <voice>
+    *: "الإضافات"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "الساعة"
+  </dest>
+  <voice>
+    *: "الساعة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "الطوب"
+  </dest>
+  <voice>
+    *: "الطوب"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "سوليتير"
+  </dest>
+  <voice>
+    *: "سوليتير"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "التقويم"
+  </dest>
+  <voice>
+    *: "التقويم"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "ساعة الإيقاف"
+  </dest>
+  <voice>
+    *: "ساعة الإيقاف"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "حول"
+  </dest>
+  <voice>
+    *: "حول"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d دقيقة"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "الأغاني"
+  </dest>
+  <voice>
+    *: "الأغاني"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "البودكاست"
+  </dest>
+  <voice>
+    *: "البودكاست"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "الأنواع"
+  </dest>
+  <voice>
+    *: "الأنواع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "الملحنون"
+  </dest>
+  <voice>
+    *: "الملحنون"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "الكتب الصوتية"
+  </dest>
+  <voice>
+    *: "الكتب الصوتية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "الصور"
+  </dest>
+  <voice>
+    *: "الصور"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "مكتبة الصور"
+  </dest>
+  <voice>
+    *: "مكتبة الصور"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "إعدادات عرض الشرائح"
+  </dest>
+  <voice>
+    *: "إعدادات عرض الشرائح"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "مدة كل شريحة"
+  </dest>
+  <voice>
+    *: "مدة كل شريحة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "صور عشوائية"
+  </dest>
+  <voice>
+    *: "صور عشوائية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "يدوي"
+  </dest>
+  <voice>
+    *: "يدوي"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d ث"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "لا توجد صور"
+  </dest>
+  <voice>
+    *: "لا توجد صور"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "الأغاني: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "الأغاني: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "الأغاني: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "أكوستيك"
+  </dest>
+  <voice>
+    *: "أكوستيك"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "معزز الجهير"
+  </dest>
+  <voice>
+    *: "معزز الجهير"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "مخفض الجهير"
+  </dest>
+  <voice>
+    *: "مخفض الجهير"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "كلاسيكية"
+  </dest>
+  <voice>
+    *: "كلاسيكية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "رقص"
+  </dest>
+  <voice>
+    *: "رقص"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "عميق"
+  </dest>
+  <voice>
+    *: "عميق"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "إلكترونية"
+  </dest>
+  <voice>
+    *: "إلكترونية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "مسطح"
+  </dest>
+  <voice>
+    *: "مسطح"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "هيب هوب"
+  </dest>
+  <voice>
+    *: "هيب هوب"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "جاز"
+  </dest>
+  <voice>
+    *: "جاز"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "لاتينية"
+  </dest>
+  <voice>
+    *: "لاتينية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "جهارة الصوت"
+  </dest>
+  <voice>
+    *: "جهارة الصوت"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "لاونج"
+  </dest>
+  <voice>
+    *: "لاونج"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "بيانو"
+  </dest>
+  <voice>
+    *: "بيانو"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "بوب"
+  </dest>
+  <voice>
+    *: "بوب"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "آر أند بي"
+  </dest>
+  <voice>
+    *: "آر أند بي"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "روك"
+  </dest>
+  <voice>
+    *: "روك"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "مكبرات صغيرة"
+  </dest>
+  <voice>
+    *: "مكبرات صغيرة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "الكلام المنطوق"
+  </dest>
+  <voice>
+    *: "الكلام المنطوق"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "معزز الحدة"
+  </dest>
+  <voice>
+    *: "معزز الحدة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "مخفض الحدة"
+  </dest>
+  <voice>
+    *: "مخفض الحدة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "معزز الغناء"
+  </dest>
+  <voice>
+    *: "معزز الغناء"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "أبطأ"
+  </dest>
+  <voice>
+    *: "أبطأ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "عادي"
+  </dest>
+  <voice>
+    *: "عادي"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "أسرع"
+  </dest>
+  <voice>
+    *: "أسرع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "تحديث المكتبة"
+  </dest>
+  <voice>
+    *: "تحديث المكتبة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "يتم الحساب…"
+  </dest>
+  <voice>
+    *: "يتم الحساب…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "بلاك جاك"
+  </dest>
+  <voice>
+    *: "بلاك جاك"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "الجواهر"
+  </dest>
+  <voice>
+    *: "الجواهر"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "كاسحة الألغام"
+  </dest>
+  <voice>
+    *: "كاسحة الألغام"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "قراءة المكتبة"
+  </dest>
+  <voice>
+    *: "قراءة المكتبة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "فحص الأغاني"
+  </dest>
+  <voice>
+    *: "فحص الأغاني"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "تحديث عدد مرات التشغيل"
+  </dest>
+  <voice>
+    *: "تحديث عدد مرات التشغيل"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "تجهيز الأغلفة"
+  </dest>
+  <voice>
+    *: "تجهيز الأغلفة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "تجهيز الألبومات"
+  </dest>
+  <voice>
+    *: "تجهيز الألبومات"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "تجهيز الأغاني"
+  </dest>
+  <voice>
+    *: "تجهيز الأغاني"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ON
+  desc: Used in a lot of places
+  user: core
+  <source>
+    *: "On"
+  </source>
+  <dest>
+    *: "تشغيل"
+  </dest>
+  <voice>
+    *: "تشغيل"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_OFF
+  desc: Used in a lot of places
+  user: core
+  <source>
+    *: "Off"
+  </source>
+  <dest>
+    *: "إيقاف"
+  </dest>
+  <voice>
+    *: "إيقاف"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAIT
+  desc: general please wait splash
+  user: core
+  <source>
+    *: "Loading..."
+  </source>
+  <dest>
+    *: "جار التحميل..."
+  </dest>
+  <voice>
+    *: "جار التحميل..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUTTINGDOWN
+  desc: in main menu
+  user: core
+  <source>
+    *: "Shutting down..."
+  </source>
+  <dest>
+    *: "جار إيقاف التشغيل..."
+  </dest>
+  <voice>
+    *: "جار إيقاف التشغيل..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CANCEL
+  desc: Visual confirmation of canceling a changed setting
+  user: core
+  <source>
+    *: "Cancelled"
+  </source>
+  <dest>
+    *: "تم الإلغاء"
+  </dest>
+  <voice>
+    *: "تم الإلغاء"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CONFIRM_WITH_BUTTON
+  desc: Generic string to use to confirm
+  user: core
+  <source>
+    *: "PLAY = Yes"
+    cowond2*: "MENU, or top-right = Yes"
+    creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Yes"
+    iriverh100,iriverh120,iriverh300: "NAVI = Yes"
+    mrobe500: "PLAY, POWER, or top-right = Yes"
+    vibe500: "OK = Yes"
+  </source>
+  <dest>
+    *: none
+    cowond2*: none
+    creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = نعم"
+    iriverh100,iriverh120,iriverh300: none
+    mrobe500: none
+    vibe500: none
+  </dest>
+  <voice>
+    *: none
+    creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = نعم"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CROSSFEED
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Crossfeed"
+  </source>
+  <dest>
+    *: "التغذية المتقاطعة"
+  </dest>
+  <voice>
+    *: "التغذية المتقاطعة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CROSSFADE
+  desc: in playback settings
+  user: core
+  <source>
+    *: none
+    crossfade: "Crossfade"
+  </source>
+  <dest>
+    *: none
+    crossfade: "تداخل الأغاني"
+  </dest>
+  <voice>
+    *: none
+    crossfade: "تداخل الأغاني"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUM_GAIN
+  desc: in replaygain
+  user: core
+  <source>
+    *: "Album Gain"
+  </source>
+  <dest>
+    *: "كسب الألبوم"
+  </dest>
+  <voice>
+    *: "كسب الألبوم"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRIGHTNESS
+  desc: in settings_menu
+  user: core
+  <source>
+    *: none
+    backlight_brightness: "Brightness"
+  </source>
+  <dest>
+    *: none
+    backlight_brightness: "السطوع"
+  </dest>
+  <voice>
+    *: none
+    backlight_brightness: "السطوع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_12_HOUR_CLOCK
+  desc: option for 12 hour clock
+  user: core
+  <source>
+    *: "12 Hour Clock"
+  </source>
+  <dest>
+    *: "نظام 12 ساعة"
+  </dest>
+  <voice>
+    *: "نظام 12 ساعة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_SET_BUTTON
+  desc: used in set_time()
+  user: core
+  <source>
+    *: none
+    rtc: "ON = Set"
+    aigoerosq,erosqnative,gogearsa9200,samsungyh*,xduoox3*: "PLAY = Set"
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Set"
+    iriverh100,iriverh120,iriverh300: "NAVI = Set"
+    mpiohd300: "ENTER = Set"
+    mrobe500: "HEART = Set"
+    vibe500: "OK = Set"
+  </source>
+  <dest>
+    *: none
+    rtc: none
+    aigoerosq,erosqnative,gogearsa9200,samsungyh*,xduoox3*: none
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = ضبط"
+    iriverh100,iriverh120,iriverh300: none
+    mpiohd300: none
+    mrobe500: none
+    vibe500: none
+  </dest>
+  <voice>
+    *: none
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: none
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WEEKDAY_SUNDAY
+  desc: Maximum 3-letter abbreviation for weekday
+  user: core
+  <source>
+    *: none
+    rtc: "Sun"
+  </source>
+  <dest>
+    *: none
+    rtc: "أحد"
+  </dest>
+  <voice>
+    *: none
+    rtc: "أحد"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER
+  desc: sleep timer setting
+  user: core
+  <source>
+    *: "Sleep Timer"
+  </source>
+  <dest>
+    *: "مؤقت النوم"
+  </dest>
+  <voice>
+    *: "مؤقت النوم"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESET_DONE_CLEAR
+  desc: visual confirmation after settings reset
+  user: core
+  <source>
+    *: "Cleared"
+  </source>
+  <dest>
+    *: "تم المسح"
+  </dest>
+  <voice>
+    *: "تم المسح"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_DYNAMIC_PLAYLIST
+  desc: in playlist menu.
+  user: core
+  <source>
+    *: "View Current Playlist"
+  </source>
+  <dest>
+    *: "عرض قائمة التشغيل الحالية"
+  </dest>
+  <voice>
+    *: "عرض قائمة التشغيل الحالية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE
+  desc: in playlist viewer on+play menu
+  user: core
+  <source>
+    *: "Remove"
+  </source>
+  <dest>
+    *: "إزالة"
+  </dest>
+  <voice>
+    *: "إزالة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLIST_SAVE_COUNT
+  desc: splash number of tracks saved
+  user: core
+  <source>
+    *: "Saved %d tracks (%s)"
+  </source>
+  <dest>
+    *: "المقاطع المحفوظة: %d (%s)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BATTERY_TIME
+  desc: battery level in % and estimated time remaining
+  user: core
+  <source>
+    *: "Battery: %d%% %dh %dm"
+    ipodmini1g,ipodmini2g,iriverh10: "Batt: %d%% %dh %dm"
+  </source>
+  <dest>
+    *: "بطارية: %d%% %dس %dد"
+    ipodmini1g,ipodmini2g,iriverh10: none
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE
+  desc: The verb/action Queue
+  user: core
+  <source>
+    *: "Queue"
+  </source>
+  <dest>
+    *: "أضف إلى قائمة الانتظار"
+  </dest>
+  <voice>
+    *: "أضف إلى قائمة الانتظار"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_FIRST
+  desc: in onplay menu.  queue a track/playlist into dynamic playlist.
+  user: core
+  <source>
+    *: "Queue Next"
+  </source>
+  <dest>
+    *: "التالي في الانتظار"
+  </dest>
+  <voice>
+    *: "التالي في الانتظار"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_LAST
+  desc: in onplay menu.  queue a track/playlist at end of playlist.
+  user: core
+  <source>
+    *: "Queue Last"
+  </source>
+  <dest>
+    *: "الأخير في الانتظار"
+  </dest>
+  <voice>
+    *: "الأخير في الانتظار"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLIST_INSERT_COUNT
+  desc: splash number of tracks inserted
+  user: core
+  <source>
+    *: "Inserted %d tracks (%s)"
+  </source>
+  <dest>
+    *: "المقاطع المدرجة: %d (%s)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLIST_QUEUE_COUNT
+  desc: splash number of tracks queued
+  user: core
+  <source>
+    *: "Queued %d tracks (%s)"
+  </source>
+  <dest>
+    *: "مقاطع في الانتظار: %d (%s)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW
+  desc: in on+play menu
+  user: core
+  <source>
+    *: "View"
+  </source>
+  <dest>
+    *: "عرض"
+  </dest>
+  <voice>
+    *: "عرض"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLIST_SEARCH_MSG
+  desc: splash number of tracks inserted
+  user: core
+  <source>
+    *: "Searching... %d found (%s)"
+  </source>
+  <dest>
+    *: "البحث... النتائج: %d (%s)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PLAYLIST
+  desc: in playlist menu, reshuffles the order in which songs are played
+  user: core
+  <source>
+    *: "Reshuffle"
+  </source>
+  <dest>
+    *: "ترتيب عشوائي جديد"
+  </dest>
+  <voice>
+    *: "ترتيب عشوائي جديد"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CATALOG_NO_PLAYLISTS
+  desc: error message when no playlists for playlist catalogue
+  user: core
+  <source>
+    *: "No Playlists"
+  </source>
+  <dest>
+    *: "لا توجد قوائم تشغيل"
+  </dest>
+  <voice>
+    *: "لا توجد قوائم تشغيل"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ONPLAY_MENU_TITLE
+  desc: title for the onplay menus
+  user: core
+  <source>
+    *: "Context Menu"
+  </source>
+  <dest>
+    *: "قائمة الخيارات"
+  </dest>
+  <voice>
+    *: "قائمة الخيارات"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MENU_SHOW_ID3_INFO
+  desc: Menu option to start tag viewer
+  user: core
+  <source>
+    *: "Show Track Info"
+  </source>
+  <dest>
+    *: "عرض معلومات المقطع"
+  </dest>
+  <voice>
+    *: "عرض معلومات المقطع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_TRACKNUM
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Tracknum"
+  </source>
+  <dest>
+    *: "رقم المقطع"
+  </dest>
+  <voice>
+    *: "رقم المقطع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "فنانو الألبوم"
+  </dest>
+  <voice>
+    *: "فنانو الألبوم"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_DISCNUM
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Discnum"
+  </source>
+  <dest>
+    *: "رقم القرص"
+  </dest>
+  <voice>
+    *: "رقم القرص"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_TRACK_GAIN
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Track Gain"
+  </source>
+  <dest>
+    *: "كسب المقطع"
+  </dest>
+  <voice>
+    *: "كسب المقطع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_PATH
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Path"
+  </source>
+  <dest>
+    *: "المسار"
+  </dest>
+  <voice>
+    *: "المسار"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REALLY_DELETE
+  desc: Really Delete?
+  user: core
+  <source>
+    *: "Delete?"
+  </source>
+  <dest>
+    *: "حذف؟"
+  </dest>
+  <voice>
+    *: "حذف؟"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NOTHING_TO_RESUME
+  desc: Error message displayed when resume button pressed but no playlist
+  user: core
+  <source>
+    *: "Nothing to resume"
+  </source>
+  <dest>
+    *: "لا يوجد ما يمكن استئنافه"
+  </dest>
+  <voice>
+    *: "لا يوجد ما يمكن استئنافه"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYLOCK_ON
+  desc: displayed when key lock is on
+  user: core
+  <source>
+    *: "Buttons Locked"
+  </source>
+  <dest>
+    *: "الأزرار مقفلة"
+  </dest>
+  <voice>
+    *: "الأزرار مقفلة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYLOCK_OFF
+  desc: displayed when key lock is turned off
+  user: core
+  <source>
+    *: "Buttons Unlocked"
+  </source>
+  <dest>
+    *: "الأزرار غير مقفلة"
+  </dest>
+  <voice>
+    *: "الأزرار غير مقفلة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_OFF_ABORT
+  desc: Used on many models
+  user: core
+  <source>
+    *: "OFF to abort"
+    gigabeatfx: "POWER to abort"
+    gigabeats,sansafuzeplus: "BACK to abort"
+    iaudiom5,iaudiox5: "Long PLAY to abort"
+    ipod*: "PLAY/PAUSE to abort"
+    iriverh10,iriverh10_5gb,sansac200*,sansae200*,vibe500: "PREV to abort"
+    iriverh100,iriverh120,iriverh300: "STOP to abort"
+  </source>
+  <dest>
+    *: none
+    gigabeatfx: none
+    gigabeats,sansafuzeplus: none
+    iaudiom5,iaudiox5: none
+    ipod*: "PLAY/PAUSE للإلغاء"
+    iriverh10,iriverh10_5gb,sansac200*,sansae200*,vibe500: none
+    iriverh100,iriverh120,iriverh300: none
+  </dest>
+  <voice>
+    *: none
+    ipod*: "PLAY/PAUSE للإلغاء"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BATTERY_CHARGE
+  desc: tells that the battery is charging, instead of battery level
+  user: core
+  <source>
+    *: none
+    charging: "Battery: Charging"
+  </source>
+  <dest>
+    *: none
+    charging: "بطارية: جار الشحن"
+  </dest>
+  <voice>
+    *: none
+    charging: "بطارية: جار الشحن"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WARNING_BATTERY_EMPTY
+  desc: general warning
+  user: core
+  <source>
+    *: "Battery empty! RECHARGE!"
+  </source>
+  <dest>
+    *: "البطارية فارغة! اشحنها!"
+  </dest>
+  <voice>
+    *: "البطارية فارغة! اشحنها!"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_GROUPING
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Work"
+  </source>
+  <dest>
+    *: "العمل"
+  </dest>
+  <voice>
+    *: "العمل"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED
+  desc: timestretch speed
+  user: core
+  <source>
+    *: "Speed"
+  </source>
+  <dest>
+    *: "السرعة"
+  </dest>
+  <voice>
+    *: "السرعة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_LAST_SHUFFLED
+  desc: in onplay menu.  queue a playlist randomly at end of dynamic playlist
+  user: core
+  <source>
+    *: "Queue Last Shuffled"
+  </source>
+  <dest>
+    *: "الأخير في الانتظار عشوائيا"
+  </dest>
+  <voice>
+    *: "الأخير في الانتظار عشوائيا"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NEXT_TRACK
+  desc: Shown in WPS
+  user: core
+  <source>
+    *: "Next Track:"
+  </source>
+  <dest>
+    *: "المقطع التالي:"
+  </dest>
+  <voice>
+    *: "المقطع التالي:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_OF
+  desc: Shown in WPS: X of Y (tracks)
+  user: core
+  <source>
+    *: "of"
+  </source>
+  <dest>
+    *: "من"
+  </dest>
+  <voice>
+    *: "من"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TAGNAVI_UNTAGGED
+  desc: "[untagged]" entry in tag browser
+  user: core
+  <source>
+    *: "[Untagged]"
+  </source>
+  <dest>
+    *: "[بدون وسوم]"
+  </dest>
+  <voice>
+    *: "[بدون وسوم]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_COMPOSER
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Composer"
+  </source>
+  <dest>
+    *: "الملحن"
+  </dest>
+  <voice>
+    *: "الملحن"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CURRENT_PLAYLIST
+  desc: Used when you need to say playlist, also voiced
+  user: core
+  <source>
+    *: "Current Playlist"
+  </source>
+  <dest>
+    *: "قائمة التشغيل الحالية"
+  </dest>
+  <voice>
+    *: "قائمة التشغيل الحالية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE_CHANGES
+  desc: When you try to exit screens to confirm save
+  user: core
+  <source>
+    *: "Save Changes?"
+  </source>
+  <dest>
+    *: "حفظ التغييرات؟"
+  </dest>
+  <voice>
+    *: "حفظ التغييرات؟"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_CANCEL_CURRENT
+  desc: shown instead of sleep timer when it's running
+  user: core
+  <source>
+    *: "Cancel Sleep Timer"
+  </source>
+  <dest>
+    *: "إلغاء مؤقت النوم"
+  </dest>
+  <voice>
+    *: "إلغاء مؤقت النوم"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_START_CURRENT
+  desc: shown when a sleep timer isn't running
+  user: core
+  <source>
+    *: "Start Sleep Timer"
+  </source>
+  <dest>
+    *: "بدء مؤقت النوم"
+  </dest>
+  <voice>
+    *: "بدء مؤقت النوم"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "القفل التلقائي مفعل"
+  </dest>
+  <voice>
+    *: "القفل التلقائي مفعل"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "القفل التلقائي معطل"
+  </dest>
+  <voice>
+    *: "القفل التلقائي معطل"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "المنقضي من المقطع:"
+  </dest>
+  <voice>
+    *: "المنقضي من المقطع:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "المتبقي من المقطع:"
+  </dest>
+  <voice>
+    *: "المتبقي من المقطع:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "المقطع:"
+  </dest>
+  <voice>
+    *: "المقطع:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "التخزين (المنقضي / المتبقي):"
+  </dest>
+  <voice>
+    *: "التخزين (المنقضي / المتبقي):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "متوسط حجم المقطع:"
+  </dest>
+  <voice>
+    *: "متوسط حجم المقطع:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "متوسط معدل البت:"
+  </dest>
+  <voice>
+    *: "متوسط معدل البت:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "وقت التشغيل"
+  </dest>
+  <voice>
+    *: "وقت التشغيل"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[المسار]"
+  </dest>
+  <voice>
+    *: "[المسار]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[اسم الملف]"
+  </dest>
+  <voice>
+    *: "[اسم الملف]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[الحجم]"
+  </dest>
+  <voice>
+    *: "[الحجم]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[التاريخ]"
+  </dest>
+  <voice>
+    *: "[التاريخ]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[الوقت]"
+  </dest>
+  <voice>
+    *: "[الوقت]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[المجلدات الفرعية]"
+  </dest>
+  <voice>
+    *: "[المجلدات الفرعية]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[الملفات]"
+  </dest>
+  <voice>
+    *: "[الملفات]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "خصائص المجلد"
+  </dest>
+  <voice>
+    *: "خصائص المجلد"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "خصائص الملف"
+  </dest>
+  <voice>
+    *: "خصائص الملف"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "تعذر جمع المعلومات"
+  </dest>
+  <voice>
+    *: "تعذر جمع المعلومات"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "التاريخ"
+  </dest>
+  <voice>
+    *: "التاريخ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "حفظ"
+  </dest>
+  <voice>
+    *: "حفظ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "المهلة"
+  </dest>
+  <voice>
+    *: "المهلة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "المقطع"
+  </dest>
+  <voice>
+    *: "المقطع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "المنقضي"
+  </dest>
+  <voice>
+    *: "المنقضي"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "إضافة"
+  </dest>
+  <voice>
+    *: "إضافة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "قائمة الانتظار..."
+  </dest>
+  <voice>
+    *: "قائمة الانتظار..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "معلومات المقطع"
+  </dest>
+  <voice>
+    *: "معلومات المقطع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "تشغيل"
+  </dest>
+  <voice>
+    *: "تشغيل"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "تشغيل عشوائي"
+  </dest>
+  <voice>
+    *: "تشغيل عشوائي"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "إضافة إلى قائمة التشغيل..."
+  </dest>
+  <voice>
+    *: "إضافة إلى قائمة التشغيل..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "إضافة إلى قائمة موجودة"
+  </dest>
+  <voice>
+    *: "إضافة إلى قائمة موجودة"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "التشغيل التالي..."
+  </dest>
+  <voice>
+    *: "التشغيل التالي..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "تشغيل كالتالي"
+  </dest>
+  <voice>
+    *: "تشغيل كالتالي"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "إضافة عشوائية"
+  </dest>
+  <voice>
+    *: "إضافة عشوائية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "تشغيل كالأخير"
+  </dest>
+  <voice>
+    *: "تشغيل كالأخير"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "تشغيل كالأخير عشوائيا"
+  </dest>
+  <voice>
+    *: "تشغيل كالأخير عشوائيا"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "إزالة مقاطع الانتظار؟"
+  </dest>
+  <voice>
+    *: "إزالة مقاطع الانتظار؟"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "المتبقي"
+  </dest>
+  <voice>
+    *: "المتبقي"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "الفنانون"
+  </dest>
+  <voice>
+    *: "الفنانون"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "الألبومات"
+  </dest>
+  <voice>
+    *: "الألبومات"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "المقاطع"
+  </dest>
+  <voice>
+    *: "المقاطع"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "أغان عشوائية"
+  </dest>
+  <voice>
+    *: "أغان عشوائية"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "بحث"
+  </dest>
+  <voice>
+    *: "بحث"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "عرض غلاف الألبوم"
+  </dest>
+  <voice>
+    *: "عرض غلاف الألبوم"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "انتهت القائمة. تشغيل مجددا؟"
+  </dest>
+  <voice>
+    *: "انتهت القائمة. تشغيل مجددا؟"
   </voice>
 </phrase>

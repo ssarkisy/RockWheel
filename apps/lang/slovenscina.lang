@@ -107,10 +107,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Nastavitev zvoka"
+    *: "Zvok"
   </dest>
   <voice>
-    *: ""
+    *: "Zvok"
   </voice>
 </phrase>
 <phrase>
@@ -121,10 +121,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Splosne nastavitve"
+    *: "Splošno"
   </dest>
   <voice>
-    *: ""
+    *: "Splošno"
   </voice>
 </phrase>
 <phrase>
@@ -1491,9 +1491,10 @@
   </source>
   <dest>
     *: none
+    charging: "Baterija: polnjenje"
   </dest>
   <voice>
-    *: ""
+    *: "Baterija: polnjenje"
   </voice>
 </phrase>
 <phrase>
@@ -1605,10 +1606,18 @@
     vibe500: "CANCEL = Revert"
   </source>
   <dest>
-    *: "OFF Preklici"
-    mpiohd300: "MENU Preklici"
-    samsungyh*: "REW Preklici"
-    vibe500: "C Preklici"
+    *: none
+    rtc: none
+    aigoerosq,erosqnative,gigabeats,sansafuzeplus,xduoox3*: none
+    gigabeatfx,mrobe500: none
+    gogearsa9200: none
+    iaudiom5,iaudiox5: none
+    ipod*,mpiohd300,sansac200*: "MENU = Prekliči"
+    iriverh10,iriverh10_5gb,sansae200*,sansafuze*: none
+    iriverh100,iriverh120,iriverh300: none
+    mrobe100: none
+    samsungyh*: none
+    vibe500: none
   </dest>
   <voice>
     *: ""
@@ -1689,7 +1698,8 @@
     alarm: "Waking Up in %d:%02d"
   </source>
   <dest>
-    *: "Bujenje cez %d:%02d"
+    *: none
+    alarm: "Bujenje cez %d:%02d"
   </dest>
   <voice>
     *: ""
@@ -1855,10 +1865,10 @@
     *: "Bitrate"
   </source>
   <dest>
-    *: "Bitrate"
+    *: "Bitna hitrost"
   </dest>
   <voice>
-    *: "Bitrate"
+    *: "Bitna hitrost"
   </voice>
 </phrase>
 <phrase>
@@ -2019,7 +2029,7 @@
     *: "Jan"
   </dest>
   <voice>
-    *: ""
+    *: "Jan"
   </voice>
 </phrase>
 <phrase>
@@ -2428,8 +2438,13 @@
     iriverh100,iriverh120,iriverh300: "STOP to abort"
   </source>
   <dest>
-    *: "OFF za odpoved"
-    vibe500: "PREV za odpoved"
+    *: none
+    gigabeatfx: none
+    gigabeats,sansafuzeplus: none
+    iaudiom5,iaudiox5: none
+    ipod*: "OFF za odpoved"
+    iriverh10,iriverh10_5gb,sansac200*,sansae200*,vibe500: none
+    iriverh100,iriverh120,iriverh300: none
   </dest>
   <voice>
     *: ""
@@ -2618,10 +2633,10 @@
     *: "Queue Last Shuffled"
   </source>
   <dest>
-    *: "Queue Last Shuffled"
+    *: "Na konec vrste naključno"
   </dest>
   <voice>
-    *: "Queue Last Shuffled"
+    *: "Na konec vrste naključno"
   </voice>
 </phrase>
 <phrase>
@@ -3052,12 +3067,11 @@
     lcd_sleep: "Never"
   </source>
   <dest>
-    *: none
-    lcd_sleep: "Never"
+    *: "Nikoli"
   </dest>
   <voice>
     *: none
-    lcd_sleep: "Never"
+    lcd_sleep: "Nikoli"
   </voice>
 </phrase>
 <phrase>
@@ -3188,10 +3202,10 @@
     *: "Scanning disk..."
   </source>
   <dest>
-    *: "Scanning disk..."
+    *: "Pregledovanje diska..."
   </dest>
   <voice>
-    *: "Scanning disk"
+    *: "Pregledovanje diska..."
   </voice>
 </phrase>
 <phrase>
@@ -3216,10 +3230,10 @@
     *: "[All tracks]"
   </source>
   <dest>
-    *: "[All tracks]"
+    *: "[Vse skladbe]"
   </dest>
   <voice>
-    *: "All tracks"
+    *: "[Vse skladbe]"
   </voice>
 </phrase>
 <phrase>
@@ -3390,10 +3404,10 @@
     *: "Comment"
   </source>
   <dest>
-    *: "Comment"
+    *: "Komentar"
   </dest>
   <voice>
-    *: "Comment"
+    *: "Komentar"
   </voice>
 </phrase>
 <phrase>
@@ -3469,10 +3483,10 @@
     *: "Moderate"
   </source>
   <dest>
-    *: "Moderate"
+    *: "Srednje"
   </dest>
   <voice>
-    *: "Moderate"
+    *: "Srednje"
   </voice>
 </phrase>
 <phrase>
@@ -3559,10 +3573,10 @@
     *: "No files"
   </source>
   <dest>
-    *: "No files"
+    *: "Ni datotek"
   </dest>
   <voice>
-    *: "No files"
+    *: "Ni datotek"
   </voice>
 </phrase>
 <phrase>
@@ -3739,10 +3753,10 @@
     *: "Deleting..."
   </source>
   <dest>
-    *: "Deleting..."
+    *: "Brisanje..."
   </dest>
   <voice>
-    *: "Deleting"
+    *: "Brisanje..."
   </voice>
 </phrase>
 <phrase>
@@ -3772,11 +3786,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Enable Crossfade"
+    crossfade: "Prelivanje"
   </dest>
   <voice>
     *: none
-    crossfade: "Enable Crossfade"
+    crossfade: "Prelivanje"
   </voice>
 </phrase>
 <phrase>
@@ -3942,10 +3956,10 @@
     *: "Queue Shuffled"
   </source>
   <dest>
-    *: "Queue Shuffled"
+    *: "V čakalno vrsto naključno"
   </dest>
   <voice>
-    *: "Queue Shuffled"
+    *: "V čakalno vrsto naključno"
   </voice>
 </phrase>
 <phrase>
@@ -4190,10 +4204,10 @@
     *: "Strong"
   </source>
   <dest>
-    *: "Strong"
+    *: "Močno"
   </dest>
   <voice>
-    *: "Strong"
+    *: "Močno"
   </voice>
 </phrase>
 <phrase>
@@ -4314,10 +4328,10 @@
     *: "WARNING! Low Battery!"
   </source>
   <dest>
-    *: "WARNING! Low Battery!"
+    *: "OPOZORILO! Šibka baterija!"
   </dest>
   <voice>
-    *: "WARNING! Low Battery!"
+    *: "OPOZORILO! Šibka baterija!"
   </voice>
 </phrase>
 <phrase>
@@ -4389,11 +4403,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Set Time/Date"
+    rtc: "Nastavi čas/datum"
   </dest>
   <voice>
     *: none
-    rtc: "Set Time and Date"
+    rtc: "Nastavi čas/datum"
   </voice>
 </phrase>
 <phrase>
@@ -4491,10 +4505,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Now Playing"
+    *: "Zdaj se predvaja"
   </dest>
   <voice>
-    *: "Now Playing"
+    *: "Zdaj se predvaja"
   </voice>
 </phrase>
 <phrase>
@@ -4567,10 +4581,10 @@
     *: "Erase dynamic playlist?"
   </source>
   <dest>
-    *: "Erase dynamic playlist?"
+    *: "Izbrišem dinamični seznam?"
   </dest>
   <voice>
-    *: "Erase dynamic playlist?"
+    *: "Izbrišem dinamični seznam?"
   </voice>
 </phrase>
 <phrase>
@@ -4629,10 +4643,10 @@
     *: "Database is not ready"
   </source>
   <dest>
-    *: "Database is not ready"
+    *: "Zbirka ni pripravljena"
   </dest>
   <voice>
-    *: "Database is not ready"
+    *: "Zbirka ni pripravljena"
   </voice>
 </phrase>
 <phrase>
@@ -5136,11 +5150,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pause and Resume"
+    headphone_detection: "Nadaljuj"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pause and Resume"
+    headphone_detection: "Nadaljuj"
   </voice>
 </phrase>
 <phrase>
@@ -5208,13 +5222,13 @@
     *: "PLAY = Yes"
     archosplayer: "(PLAY/STOP)"
     cowond2*: "MENU, or top-right = Yes"
-    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Yes"
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Da"
     iriverh100,iriverh120,iriverh300: "NAVI = Yes"
     mrobe500: "PLAY, POWER, or top-right = Yes"
     vibe500: "OK = Yes"
   </dest>
   <voice>
-    *: ""
+    *: "SELECT = Da"
   </voice>
 </phrase>
 <phrase>
@@ -5248,7 +5262,7 @@
   <dest>
     *: none
     rtc: "ON = Set"
-    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Set"
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Nastavi"
     gogearsa9200,samsungyh*: "PLAY = Set"
     iriverh100,iriverh120,iriverh300: "NAVI = Set"
     mpiohd300: "ENTER = Set"
@@ -5269,11 +5283,11 @@
     archosplayer: none
   </source>
   <dest>
-    *: "Any Other = No"
+    *: "Druga tipka = Ne"
     archosplayer: none
   </dest>
   <voice>
-    *: ""
+    *: "Druga tipka = Ne"
     archosplayer: none
   </voice>
 </phrase>
@@ -5385,11 +5399,11 @@
   </source>
   <dest>
     *: none
-    backlight_brightness: "Brightness"
+    backlight_brightness: "Svetlost"
   </dest>
   <voice>
     *: none
-    backlight_brightness: "Brightness"
+    backlight_brightness: "Svetlost"
   </voice>
 </phrase>
 <phrase>
@@ -5741,10 +5755,10 @@
     *: "Crossfeed"
   </source>
   <dest>
-    *: "Crossfeed"
+    *: "Mešanje kanalov"
   </dest>
   <voice>
-    *: "Crossfeed"
+    *: "Mešanje kanalov"
   </voice>
 </phrase>
 <phrase>
@@ -5755,10 +5769,10 @@
     *: "All"
   </source>
   <dest>
-    *: "All"
+    *: "Vse"
   </dest>
   <voice>
-    *: "All"
+    *: "Vse"
   </voice>
 </phrase>
 <phrase>
@@ -5950,11 +5964,11 @@
     archosplayer: "End of List"
   </source>
   <dest>
-    *: "End of Song List"
+    *: "Konec seznama skladb"
     archosplayer: "End of List"
   </dest>
   <voice>
-    *: "End of Song List"
+    *: "Konec seznama skladb"
   </voice>
 </phrase>
 <phrase>
@@ -6154,10 +6168,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Replaygain Type"
+    *: "Izenačitev glasnosti"
   </dest>
   <voice>
-    *: "Replaygain Type"
+    *: "Izenačitev glasnosti"
   </voice>
 </phrase>
 <phrase>
@@ -6199,10 +6213,10 @@
     *: "Buttons Unlocked"
   </source>
   <dest>
-    *: "Buttons Unlocked"
+    *: "Tipke odklenjene"
   </dest>
   <voice>
-    *: ""
+    *: "Tipke odklenjene"
   </voice>
 </phrase>
 <phrase>
@@ -6413,10 +6427,10 @@
     *: "Track Gain"
   </source>
   <dest>
-    *: "Track Gain"
+    *: "Ojačitev skladbe"
   </dest>
   <voice>
-    *: "Track Gain"
+    *: "Ojačitev skladbe"
   </voice>
 </phrase>
 <phrase>
@@ -6644,10 +6658,10 @@
     *: "Remove"
   </source>
   <dest>
-    *: "Remove"
+    *: "Odstrani"
   </dest>
   <voice>
-    *: "Remove"
+    *: "Odstrani"
   </voice>
 </phrase>
 <phrase>
@@ -7053,10 +7067,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Rewind Before Resume"
+    *: "Previj ob nadaljevanju"
   </dest>
   <voice>
-    *: "Rewind before resume"
+    *: "Previj ob nadaljevanju"
   </voice>
 </phrase>
 <phrase>
@@ -7112,10 +7126,10 @@
     *: "Resume Playback"
   </source>
   <dest>
-    *: "Resume Playback"
+    *: "Nadaljuj"
   </dest>
   <voice>
-    *: "Resume Playback"
+    *: "Nadaljuj"
   </voice>
 </phrase>
 <phrase>
@@ -7156,11 +7170,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pause on Headphone Unplug"
+    headphone_detection: "Premor ob odklopu"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pause on Headphone Unplug"
+    headphone_detection: "Premor ob odklopu"
   </voice>
 </phrase>
 <phrase>
@@ -7171,10 +7185,10 @@
     *: "Playlist"
   </source>
   <dest>
-    *: "Playlist"
+    *: "Seznam predvajanja"
   </dest>
   <voice>
-    *: "Playlist"
+    *: "Seznam predvajanja"
   </voice>
 </phrase>
 <phrase>
@@ -7199,10 +7213,10 @@
     *: "[Untagged]"
   </source>
   <dest>
-    *: "[Untagged]"
+    *: "[Brez oznak]"
   </dest>
   <voice>
-    *: "Untagged"
+    *: "[Brez oznak]"
   </voice>
 </phrase>
 <phrase>
@@ -7469,10 +7483,10 @@
     *: "Work"
   </source>
   <dest>
-    *: "Work"
+    *: "Delo"
   </dest>
   <voice>
-    *: "Work"
+    *: "Delo"
   </voice>
 </phrase>
 <phrase>
@@ -7601,10 +7615,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Keyclick"
+    *: "Klikanje"
   </dest>
   <voice>
-    *: "Keyclick"
+    *: "Klikanje"
   </voice>
 </phrase>
 <phrase>
@@ -7657,10 +7671,10 @@
     *: "Length"
   </source>
   <dest>
-    *: "Length"
+    *: "Dolžina"
   </dest>
   <voice>
-    *: "Length"
+    *: "Dolžina"
   </voice>
 </phrase>
 <phrase>
@@ -7671,10 +7685,10 @@
     *: "Battery empty! RECHARGE!"
   </source>
   <dest>
-    *: "Battery empty! RECHARGE!"
+    *: "Baterija prazna! NAPOLNITE!"
   </dest>
   <voice>
-    *: "Battery empty! RECHARGE!"
+    *: "Baterija prazna! NAPOLNITE!"
   </voice>
 </phrase>
 <phrase>
@@ -7713,10 +7727,10 @@
     *: "View"
   </source>
   <dest>
-    *: "View"
+    *: "Pokaži"
   </dest>
   <voice>
-    *: "View"
+    *: "Pokaži"
   </voice>
 </phrase>
 <phrase>
@@ -7879,10 +7893,10 @@
     *: "Search in Playlist"
   </source>
   <dest>
-    *: "Search in Playlist"
+    *: "Išči v seznamu"
   </dest>
   <voice>
-    *: "Search in Playlist"
+    *: "Išči v seznamu"
   </voice>
 </phrase>
 <phrase>
@@ -7893,10 +7907,10 @@
     *: "Reshuffle"
   </source>
   <dest>
-    *: "Reshuffle"
+    *: "Premešaj znova"
   </dest>
   <voice>
-    *: "Reshuffle"
+    *: "Premešaj znova"
   </voice>
 </phrase>
 <phrase>
@@ -8203,10 +8217,10 @@
     *: "Loading..."
   </source>
   <dest>
-    *: "Loading..."
+    *: "Nalaganje..."
   </dest>
   <voice>
-    *: "Loading"
+    *: "Nalaganje..."
   </voice>
 </phrase>
 <phrase>
@@ -8431,10 +8445,10 @@
     *: "Add to New Playlist"
   </source>
   <dest>
-    *: "Add to New Playlist"
+    *: "Dodaj na nov seznam"
   </dest>
   <voice>
-    *: "Add to New Playlist"
+    *: "Dodaj na nov seznam"
   </voice>
 </phrase>
 <phrase>
@@ -8478,11 +8492,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Time & Date"
+    rtc: "Datum in čas"
   </dest>
   <voice>
     *: none
-    rtc: "Time and Date"
+    rtc: "Datum in čas"
   </voice>
 </phrase>
 <phrase>
@@ -8620,10 +8634,10 @@
     *: "Please reboot to enable"
   </source>
   <dest>
-    *: "Please reboot to enable"
+    *: "Za vklop znova zaženite"
   </dest>
   <voice>
-    *: "Please reboot to enable"
+    *: "Za vklop znova zaženite"
   </voice>
 </phrase>
 <phrase>
@@ -8651,7 +8665,7 @@
     *: "Searching... %d found (%s)"
   </source>
   <dest>
-    *: "Searching... %d found (%s)"
+    *: "Iskanje... najdeno: %d (%s)"
   </dest>
   <voice>
     *: ""
@@ -8738,10 +8752,10 @@
     *: "Context Menu"
   </source>
   <dest>
-    *: "Context Menu"
+    *: "Priročni meni"
   </dest>
   <voice>
-    *: "Context Menu"
+    *: "Priročni meni"
   </voice>
 </phrase>
 <phrase>
@@ -8921,10 +8935,10 @@
     *: "Shutting down..."
   </source>
   <dest>
-    *: "Shutting down..."
+    *: "Zaustavljanje..."
   </dest>
   <voice>
-    *: "Shutting down"
+    *: "Zaustavljanje..."
   </voice>
 </phrase>
 <phrase>
@@ -9079,10 +9093,10 @@
     *: "Database"
   </source>
   <dest>
-    *: "Database"
+    *: "Zbirka podatkov"
   </dest>
   <voice>
-    *: "Database"
+    *: "Zbirka podatkov"
   </voice>
 </phrase>
 <phrase>
@@ -9093,10 +9107,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cuesheet Support"
+    *: "Datoteke CUE"
   </dest>
   <voice>
-    *: "Cuesheet Support"
+    *: "Datoteke CUE"
   </voice>
 </phrase>
 <phrase>
@@ -9141,10 +9155,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Track Gain if Shuffling"
+    *: "Avto"
   </dest>
   <voice>
-    *: "Track Gain if Shuffling"
+    *: "Avto"
   </voice>
 </phrase>
 <phrase>
@@ -9155,10 +9169,10 @@
     *: "Discnum"
   </source>
   <dest>
-    *: "Discnum"
+    *: "Številka diska"
   </dest>
   <voice>
-    *: "Discnum"
+    *: "Številka diska"
   </voice>
 </phrase>
 <phrase>
@@ -9211,10 +9225,10 @@
     *: "Move"
   </source>
   <dest>
-    *: "Move"
+    *: "Premakni"
   </dest>
   <voice>
-    *: "Move"
+    *: "Premakni"
   </voice>
 </phrase>
 <phrase>
@@ -9360,10 +9374,10 @@
     *: "Album Gain"
   </source>
   <dest>
-    *: "Album Gain"
+    *: "Ojačitev albuma"
   </dest>
   <voice>
-    *: "Album Gain"
+    *: "Ojačitev albuma"
   </voice>
 </phrase>
 <phrase>
@@ -9937,10 +9951,10 @@
     *: "Properties"
   </source>
   <dest>
-    *: "Properties"
+    *: "Lastnosti"
   </dest>
   <voice>
-    *: "Properties"
+    *: "Lastnosti"
   </voice>
 </phrase>
 <phrase>
@@ -9951,10 +9965,10 @@
     *: "Weak"
   </source>
   <dest>
-    *: "Weak"
+    *: "Šibko"
   </dest>
   <voice>
-    *: "Weak"
+    *: "Šibko"
   </voice>
 </phrase>
 <phrase>
@@ -10071,11 +10085,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Crossfade"
+    crossfade: "Prelivanje"
   </dest>
   <voice>
     *: none
-    crossfade: "Crossfade"
+    crossfade: "Prelivanje"
   </voice>
 </phrase>
 <phrase>
@@ -10274,10 +10288,10 @@
     *: "View Current Playlist"
   </source>
   <dest>
-    *: "View Current Playlist"
+    *: "Pokaži trenutni seznam"
   </dest>
   <voice>
-    *: "View Current Playlist"
+    *: "Pokaži trenutni seznam"
   </voice>
 </phrase>
 <phrase>
@@ -10290,11 +10304,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Current Time"
+    rtc: "Trenutni čas"
   </dest>
   <voice>
     *: none
-    rtc: "Current time"
+    rtc: "Trenutni čas"
   </voice>
 </phrase>
 <phrase>
@@ -10356,10 +10370,10 @@
     *: "Search Results"
   </source>
   <dest>
-    *: "Search Results"
+    *: "Rezultati iskanja"
   </dest>
   <voice>
-    *: "Search Results"
+    *: "Rezultati iskanja"
   </voice>
 </phrase>
 <phrase>
@@ -10449,10 +10463,10 @@
     *: "Album Artist"
   </source>
   <dest>
-    *: "Album Artist"
+    *: "Avtor albuma"
   </dest>
   <voice>
-    *: "Album Artist"
+    *: "Avtor albuma"
   </voice>
 </phrase>
 <phrase>
@@ -10958,10 +10972,10 @@
     *: "Unknown"
   </source>
   <dest>
-    *: "Unknown"
+    *: "Neznano"
   </dest>
   <voice>
-    *: "Unknown"
+    *: "Neznano"
   </voice>
 </phrase>
 <phrase>
@@ -11000,10 +11014,10 @@
     *: "Buttons Locked"
   </source>
   <dest>
-    *: "Buttons Locked"
+    *: "Tipke zaklenjene"
   </dest>
   <voice>
-    *: ""
+    *: "Tipke zaklenjene"
   </voice>
 </phrase>
 <phrase>
@@ -11107,10 +11121,10 @@
     *: "Equalizer"
   </source>
   <dest>
-    *: "Equalizer"
+    *: "Izenačevalnik"
   </dest>
   <voice>
-    *: "Equalizer"
+    *: "Izenačevalnik"
   </voice>
 </phrase>
 <phrase>
@@ -11135,10 +11149,10 @@
     *: "Nothing to resume"
   </source>
   <dest>
-    *: "Nothing to resume"
+    *: "Ni česa nadaljevati"
   </dest>
   <voice>
-    *: "Nothing to resume"
+    *: "Ni česa nadaljevati"
   </voice>
 </phrase>
 <phrase>
@@ -11251,8 +11265,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "Backlight on Hold"
+    *: "Backlight on Hold"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -11298,10 +11312,10 @@
     *: "Settings"
   </source>
   <dest>
-    *: "Settings"
+    *: "Nastavitve"
   </dest>
   <voice>
-    *: "Settings"
+    *: "Nastavitve"
   </voice>
 </phrase>
 <phrase>
@@ -11354,10 +11368,10 @@
     *: "Cancelled"
   </source>
   <dest>
-    *: "Cancelled"
+    *: "Preklicano"
   </dest>
   <voice>
-    *: "Cancelled"
+    *: "Preklicano"
   </voice>
 </phrase>
 <phrase>
@@ -11368,10 +11382,10 @@
     *: "Speed"
   </source>
   <dest>
-    *: "Speed"
+    *: "Hitrost"
   </dest>
   <voice>
-    *: "Speed"
+    *: "Hitrost"
   </voice>
 </phrase>
 <phrase>
@@ -11427,10 +11441,10 @@
     *: "Next Track:"
   </source>
   <dest>
-    *: "Next Track:"
+    *: "Naslednja skladba:"
   </dest>
   <voice>
-    *: "Next Track:"
+    *: "Naslednja skladba:"
   </voice>
 </phrase>
 <phrase>
@@ -11559,10 +11573,10 @@
     *: "Are You Sure?"
   </source>
   <dest>
-    *: "Are You Sure?"
+    *: "Ali ste prepričani?"
   </dest>
   <voice>
-    *: "Are You Sure?"
+    *: "Ali ste prepričani?"
   </voice>
 </phrase>
 <phrase>
@@ -11632,10 +11646,10 @@
     *: "No Playlists"
   </source>
   <dest>
-    *: "No Playlists"
+    *: "Ni seznamov predvajanja"
   </dest>
   <voice>
-    *: "No Playlists"
+    *: "Ni seznamov predvajanja"
   </voice>
 </phrase>
 <phrase>
@@ -11677,10 +11691,10 @@
     *: "of"
   </source>
   <dest>
-    *: "of"
+    *: "od"
   </dest>
   <voice>
-    *: "of"
+    *: "od"
   </voice>
 </phrase>
 <phrase>
@@ -12093,11 +12107,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Zvok tipke preko zvočnika"
+    hardware_click: "Zvočnik"
   </dest>
   <voice>
     *: none
-    hardware_click: "Zvok tipke preko zvočnika"
+    hardware_click: "Zvočnik"
   </voice>
 </phrase>
 <phrase>
@@ -12110,11 +12124,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Zvok tipke v slušalkah"
+    hardware_click: "Slušalke"
   </dest>
   <voice>
     *: none
-    hardware_click: "Zvok tipke v slušalkah"
+    hardware_click: "Slušalke"
   </voice>
 </phrase>
 <phrase>
@@ -12288,10 +12302,10 @@
     *: "Composer"
   </source>
   <dest>
-    *: "Sestavljalnik"
+    *: "Skladatelj"
   </dest>
   <voice>
-    *: "Sestavljalnik"
+    *: "Skladatelj"
   </voice>
 </phrase>
 <phrase>
@@ -12808,5 +12822,1559 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "Omejitev glasnosti"
+  </dest>
+  <voice>
+    *: "Omejitev glasnosti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "Zmanjšanje utrujenosti"
+  </dest>
+  <voice>
+    *: "Zmanjšanje utrujenosti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "Pravna obvestila"
+  </dest>
+  <voice>
+    *: "Pravna obvestila"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Glasba"
+  </dest>
+  <voice>
+    *: "Glasba"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Dodatki"
+  </dest>
+  <voice>
+    *: "Dodatki"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Ura"
+  </dest>
+  <voice>
+    *: "Ura"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Opeke"
+  </dest>
+  <voice>
+    *: "Opeke"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Pasjansa"
+  </dest>
+  <voice>
+    *: "Pasjansa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Koledar"
+  </dest>
+  <voice>
+    *: "Koledar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Štoparica"
+  </dest>
+  <voice>
+    *: "Štoparica"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Informacije"
+  </dest>
+  <voice>
+    *: "Informacije"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d minut"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Skladbe"
+  </dest>
+  <voice>
+    *: "Skladbe"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcasti"
+  </dest>
+  <voice>
+    *: "Podcasti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Zvrsti"
+  </dest>
+  <voice>
+    *: "Zvrsti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Skladatelji"
+  </dest>
+  <voice>
+    *: "Skladatelji"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Zvočne knjige"
+  </dest>
+  <voice>
+    *: "Zvočne knjige"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Fotografije"
+  </dest>
+  <voice>
+    *: "Fotografije"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Knjižnica fotografij"
+  </dest>
+  <voice>
+    *: "Knjižnica fotografij"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Nastavitve diaprojekcije"
+  </dest>
+  <voice>
+    *: "Nastavitve diaprojekcije"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Čas na diapozitiv"
+  </dest>
+  <voice>
+    *: "Čas na diapozitiv"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Premešaj fotografije"
+  </dest>
+  <voice>
+    *: "Premešaj fotografije"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Ročno"
+  </dest>
+  <voice>
+    *: "Ročno"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Ni fotografij"
+  </dest>
+  <voice>
+    *: "Ni fotografij"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "Skladbe: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Skladbe: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Skladbe: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Akustično"
+  </dest>
+  <voice>
+    *: "Akustično"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Ojačitev basov"
+  </dest>
+  <voice>
+    *: "Ojačitev basov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Zmanjšanje basov"
+  </dest>
+  <voice>
+    *: "Zmanjšanje basov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klasično"
+  </dest>
+  <voice>
+    *: "Klasično"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Plesno"
+  </dest>
+  <voice>
+    *: "Plesno"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Globoko"
+  </dest>
+  <voice>
+    *: "Globoko"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektronsko"
+  </dest>
+  <voice>
+    *: "Elektronsko"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Ravno"
+  </dest>
+  <voice>
+    *: "Ravno"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip hop"
+  </dest>
+  <voice>
+    *: "Hip hop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Jazz"
+  </dest>
+  <voice>
+    *: "Jazz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latino"
+  </dest>
+  <voice>
+    *: "Latino"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Glasnost"
+  </dest>
+  <voice>
+    *: "Glasnost"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Klavir"
+  </dest>
+  <voice>
+    *: "Klavir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: "Pop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rock"
+  </dest>
+  <voice>
+    *: "Rock"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Majhni zvočniki"
+  </dest>
+  <voice>
+    *: "Majhni zvočniki"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Govorjena beseda"
+  </dest>
+  <voice>
+    *: "Govorjena beseda"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Ojačitev visokih"
+  </dest>
+  <voice>
+    *: "Ojačitev visokih"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Zmanjšanje visokih"
+  </dest>
+  <voice>
+    *: "Zmanjšanje visokih"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Ojačitev vokala"
+  </dest>
+  <voice>
+    *: "Ojačitev vokala"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Počasneje"
+  </dest>
+  <voice>
+    *: "Počasneje"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normalno"
+  </dest>
+  <voice>
+    *: "Normalno"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Hitreje"
+  </dest>
+  <voice>
+    *: "Hitreje"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Posodabljanje knjižnice"
+  </dest>
+  <voice>
+    *: "Posodabljanje knjižnice"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Štetje…"
+  </dest>
+  <voice>
+    *: "Štetje…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Dragulji"
+  </dest>
+  <voice>
+    *: "Dragulji"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Minolovec"
+  </dest>
+  <voice>
+    *: "Minolovec"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Branje knjižnice"
+  </dest>
+  <voice>
+    *: "Branje knjižnice"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Preverjanje skladb"
+  </dest>
+  <voice>
+    *: "Preverjanje skladb"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Posodabljanje števcev"
+  </dest>
+  <voice>
+    *: "Posodabljanje števcev"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Priprava naslovnic"
+  </dest>
+  <voice>
+    *: "Priprava naslovnic"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Priprava albumov"
+  </dest>
+  <voice>
+    *: "Priprava albumov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Priprava skladb"
+  </dest>
+  <voice>
+    *: "Priprava skladb"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "Izvajalci albumov"
+  </dest>
+  <voice>
+    *: "Izvajalci albumov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "Samodejno zaklepanje: vklop"
+  </dest>
+  <voice>
+    *: "Samodejno zaklepanje: vklop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "Samodejno zaklepanje: izklop"
+  </dest>
+  <voice>
+    *: "Samodejno zaklepanje: izklop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "Preteklo v skladbi:"
+  </dest>
+  <voice>
+    *: "Preteklo v skladbi:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "Preostalo v skladbi:"
+  </dest>
+  <voice>
+    *: "Preostalo v skladbi:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "Skladba:"
+  </dest>
+  <voice>
+    *: "Skladba:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "Prostor (končano/preostalo):"
+  </dest>
+  <voice>
+    *: "Prostor (končano/preostalo):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "Povprečna velikost skladbe:"
+  </dest>
+  <voice>
+    *: "Povprečna velikost skladbe:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "Povprečna bitna hitrost:"
+  </dest>
+  <voice>
+    *: "Povprečna bitna hitrost:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "Čas predvajanja"
+  </dest>
+  <voice>
+    *: "Čas predvajanja"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[Pot]"
+  </dest>
+  <voice>
+    *: "[Pot]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[Ime datoteke]"
+  </dest>
+  <voice>
+    *: "[Ime datoteke]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[Velikost]"
+  </dest>
+  <voice>
+    *: "[Velikost]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[Datum]"
+  </dest>
+  <voice>
+    *: "[Datum]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[Čas]"
+  </dest>
+  <voice>
+    *: "[Čas]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[Podmape]"
+  </dest>
+  <voice>
+    *: "[Podmape]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[Datoteke]"
+  </dest>
+  <voice>
+    *: "[Datoteke]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "Lastnosti mape"
+  </dest>
+  <voice>
+    *: "Lastnosti mape"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "Lastnosti datoteke"
+  </dest>
+  <voice>
+    *: "Lastnosti datoteke"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "Ni mogoče zbrati podatkov"
+  </dest>
+  <voice>
+    *: "Ni mogoče zbrati podatkov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "Datum"
+  </dest>
+  <voice>
+    *: "Datum"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "Shrani"
+  </dest>
+  <voice>
+    *: "Shrani"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "Časovna omejitev"
+  </dest>
+  <voice>
+    *: "Časovna omejitev"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "Skladba"
+  </dest>
+  <voice>
+    *: "Skladba"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "Preteklo"
+  </dest>
+  <voice>
+    *: "Preteklo"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "Dodaj"
+  </dest>
+  <voice>
+    *: "Dodaj"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "Čakalna vrsta..."
+  </dest>
+  <voice>
+    *: "Čakalna vrsta..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "Podatki o skladbi"
+  </dest>
+  <voice>
+    *: "Podatki o skladbi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "Predvajaj"
+  </dest>
+  <voice>
+    *: "Predvajaj"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "Predvajaj naključno"
+  </dest>
+  <voice>
+    *: "Predvajaj naključno"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "Dodaj na seznam..."
+  </dest>
+  <voice>
+    *: "Dodaj na seznam..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "Dodaj na obstoječi seznam"
+  </dest>
+  <voice>
+    *: "Dodaj na obstoječi seznam"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "Predvajaj naslednje..."
+  </dest>
+  <voice>
+    *: "Predvajaj naslednje..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "Predvajaj naslednje"
+  </dest>
+  <voice>
+    *: "Predvajaj naslednje"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "Dodaj naključno"
+  </dest>
+  <voice>
+    *: "Dodaj naključno"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "Predvajaj zadnje"
+  </dest>
+  <voice>
+    *: "Predvajaj zadnje"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "Predvajaj zadnje naključno"
+  </dest>
+  <voice>
+    *: "Predvajaj zadnje naključno"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "Odstranim skladbe iz vrste?"
+  </dest>
+  <voice>
+    *: "Odstranim skladbe iz vrste?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "Preostalo"
+  </dest>
+  <voice>
+    *: "Preostalo"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "Izvajalci"
+  </dest>
+  <voice>
+    *: "Izvajalci"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Albumi"
+  </dest>
+  <voice>
+    *: "Albumi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "Skladbe"
+  </dest>
+  <voice>
+    *: "Skladbe"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "Premešaj skladbe"
+  </dest>
+  <voice>
+    *: "Premešaj skladbe"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "Iskanje"
+  </dest>
+  <voice>
+    *: "Iskanje"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "Pokaži naslovnico"
+  </dest>
+  <voice>
+    *: "Pokaži naslovnico"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "Konec seznama. Še enkrat?"
+  </dest>
+  <voice>
+    *: "Konec seznama. Še enkrat?"
   </voice>
 </phrase>

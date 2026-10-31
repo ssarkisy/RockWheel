@@ -685,10 +685,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Garso nuostatos"
+    *: "Garsas"
   </dest>
   <voice>
-    *: "Garso nuostatos"
+    *: "Garsas"
   </voice>
 </phrase>
 <phrase>
@@ -1345,10 +1345,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Bendros nuostatos"
+    *: "Bendra"
   </dest>
   <voice>
-    *: "Bendros nuostatos"
+    *: "Bendra"
   </voice>
 </phrase>
 <phrase>
@@ -1359,10 +1359,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Grojimo nuostatos"
+    *: "Grojimas"
   </dest>
   <voice>
-    *: "Grojimo nuostatos"
+    *: "Grojimas"
   </voice>
 </phrase>
 <phrase>
@@ -1563,11 +1563,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Įjunkti Crossfeidą"
+    crossfade: "Crossfeidas"
   </dest>
   <voice>
     *: none
-    crossfade: "Įjunkti Crossfeidą"
+    crossfade: "Crossfeidas"
   </voice>
 </phrase>
 <phrase>
@@ -1742,10 +1742,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Garsumo normalizavimo tipas"
+    *: "Normalizavimas"
   </dest>
   <voice>
-    *: "Garsumo normalizavimo tipas"
+    *: "Normalizavimas"
   </voice>
 </phrase>
 <phrase>
@@ -1784,10 +1784,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Įrašo stiprinimas jei įjungtas maišymas"
+    *: "Auto"
   </dest>
   <voice>
-    *: "Įrašo stiprinimas jei įjungtas maišymas"
+    *: "Auto"
   </voice>
 </phrase>
 <phrase>
@@ -1927,10 +1927,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cuesheet palaikymas"
+    *: "CUE failai"
   </dest>
   <voice>
-    *: "Cuesheet palaikymast"
+    *: "CUE failai"
   </voice>
 </phrase>
 <phrase>
@@ -1943,11 +1943,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pauzė ištraukus ausines"
+    headphone_detection: "Pauzė atjungus ausines"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pauzė ištraukus ausines"
+    headphone_detection: "Pauzė atjungus ausines"
   </voice>
 </phrase>
 <phrase>
@@ -1960,11 +1960,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pauzė ir grįžimas"
+    headphone_detection: "Su tęsimu"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pauzė ir grįžimas"
+    headphone_detection: "Su tęsimu"
   </voice>
 </phrase>
 <phrase>
@@ -2502,8 +2502,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "Ekrano apšvietimas užrakinus klaviatūrą"
+    *: "Ekrano apšvietimas užrakinus klaviatūrą"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -2598,8 +2598,7 @@
     lcd_sleep: "Never"
   </source>
   <dest>
-    *: none
-    lcd_sleep: "Niekada"
+    *: "Niekada"
   </dest>
   <voice>
     *: none
@@ -3782,11 +3781,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Laikas ir data"
+    rtc: "Data ir laikas"
   </dest>
   <voice>
     *: none
-    rtc: "Laikas ir data"
+    rtc: "Data ir laikas"
   </voice>
 </phrase>
 <phrase>
@@ -10280,10 +10279,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Klavišo paspaudimas"
+    *: "Paspaudimo garsas"
   </dest>
   <voice>
-    *: "Klavišo paspaudimas"
+    *: "Paspaudimo garsas"
   </voice>
 </phrase>
 <phrase>
@@ -11261,5 +11260,1747 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESUME_REWIND
+  desc: in playback settings menu
+  user: core
+  <source>
+    *: "Rewind Before Resume"
+  </source>
+  <dest>
+    *: "Atsukti prieš tęsiant"
+  </dest>
+  <voice>
+    *: "Atsukti prieš tęsiant"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_SOFTWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Headphones"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Ausinės"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Ausinės"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_HARDWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Speaker"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Garsiakalbis"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Garsiakalbis"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "Garsumo riba"
+  </dest>
+  <voice>
+    *: "Garsumo riba"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "Nuovargio mažinimas"
+  </dest>
+  <voice>
+    *: "Nuovargio mažinimas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "Teisinė informacija"
+  </dest>
+  <voice>
+    *: "Teisinė informacija"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Muzika"
+  </dest>
+  <voice>
+    *: "Muzika"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Papildomai"
+  </dest>
+  <voice>
+    *: "Papildomai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Laikrodis"
+  </dest>
+  <voice>
+    *: "Laikrodis"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Plytos"
+  </dest>
+  <voice>
+    *: "Plytos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Pasjansas"
+  </dest>
+  <voice>
+    *: "Pasjansas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Kalendorius"
+  </dest>
+  <voice>
+    *: "Kalendorius"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Chronometras"
+  </dest>
+  <voice>
+    *: "Chronometras"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Apie iPod"
+  </dest>
+  <voice>
+    *: "Apie iPod"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d minučių"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Dainos"
+  </dest>
+  <voice>
+    *: "Dainos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Tinklalaidės"
+  </dest>
+  <voice>
+    *: "Tinklalaidės"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Žanrai"
+  </dest>
+  <voice>
+    *: "Žanrai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Kompozitoriai"
+  </dest>
+  <voice>
+    *: "Kompozitoriai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Audioknygos"
+  </dest>
+  <voice>
+    *: "Audioknygos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Nuotraukos"
+  </dest>
+  <voice>
+    *: "Nuotraukos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Nuotraukų biblioteka"
+  </dest>
+  <voice>
+    *: "Nuotraukų biblioteka"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Skaidrių peržiūros nuostatos"
+  </dest>
+  <voice>
+    *: "Skaidrių peržiūros nuostatos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Skaidrės trukmė"
+  </dest>
+  <voice>
+    *: "Skaidrės trukmė"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Sumaišyti nuotraukas"
+  </dest>
+  <voice>
+    *: "Sumaišyti nuotraukas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Rankiniu būdu"
+  </dest>
+  <voice>
+    *: "Rankiniu būdu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d sek."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Nėra nuotraukų"
+  </dest>
+  <voice>
+    *: "Nėra nuotraukų"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "Dainos: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Dainos: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Dainos: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Akustinė"
+  </dest>
+  <voice>
+    *: "Akustinė"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Bosų stiprinimas"
+  </dest>
+  <voice>
+    *: "Bosų stiprinimas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Bosų mažinimas"
+  </dest>
+  <voice>
+    *: "Bosų mažinimas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klasikinė"
+  </dest>
+  <voice>
+    *: "Klasikinė"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Šokių"
+  </dest>
+  <voice>
+    *: "Šokių"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Gili"
+  </dest>
+  <voice>
+    *: "Gili"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektroninė"
+  </dest>
+  <voice>
+    *: "Elektroninė"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Be korekcijos"
+  </dest>
+  <voice>
+    *: "Be korekcijos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hiphopas"
+  </dest>
+  <voice>
+    *: "Hiphopas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Džiazas"
+  </dest>
+  <voice>
+    *: "Džiazas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Lotynų"
+  </dest>
+  <voice>
+    *: "Lotynų"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Garsumo kompensacija"
+  </dest>
+  <voice>
+    *: "Garsumo kompensacija"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Fortepijonas"
+  </dest>
+  <voice>
+    *: "Fortepijonas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: "Pop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rokas"
+  </dest>
+  <voice>
+    *: "Rokas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Maži garsiakalbiai"
+  </dest>
+  <voice>
+    *: "Maži garsiakalbiai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Kalba"
+  </dest>
+  <voice>
+    *: "Kalba"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Aukštųjų stiprinimas"
+  </dest>
+  <voice>
+    *: "Aukštųjų stiprinimas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Aukštųjų mažinimas"
+  </dest>
+  <voice>
+    *: "Aukštųjų mažinimas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Vokalo stiprinimas"
+  </dest>
+  <voice>
+    *: "Vokalo stiprinimas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Lėčiau"
+  </dest>
+  <voice>
+    *: "Lėčiau"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Įprastai"
+  </dest>
+  <voice>
+    *: "Įprastai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Greičiau"
+  </dest>
+  <voice>
+    *: "Greičiau"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Atnaujinama biblioteka"
+  </dest>
+  <voice>
+    *: "Atnaujinama biblioteka"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Skaičiuojama…"
+  </dest>
+  <voice>
+    *: "Skaičiuojama…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blekdžekas"
+  </dest>
+  <voice>
+    *: "Blekdžekas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Brangakmeniai"
+  </dest>
+  <voice>
+    *: "Brangakmeniai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Minų ieškotojas"
+  </dest>
+  <voice>
+    *: "Minų ieškotojas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Skaitoma biblioteka"
+  </dest>
+  <voice>
+    *: "Skaitoma biblioteka"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Tikrinamos dainos"
+  </dest>
+  <voice>
+    *: "Tikrinamos dainos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Atnaujinami grojimų skaičiai"
+  </dest>
+  <voice>
+    *: "Atnaujinami grojimų skaičiai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Ruošiami viršeliai"
+  </dest>
+  <voice>
+    *: "Ruošiami viršeliai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Ruošiami albumai"
+  </dest>
+  <voice>
+    *: "Ruošiami albumai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Ruošiamos dainos"
+  </dest>
+  <voice>
+    *: "Ruošiamos dainos"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "Albumo atlikėjai"
+  </dest>
+  <voice>
+    *: "Albumo atlikėjai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED
+  desc: timestretch speed
+  user: core
+  <source>
+    *: "Speed"
+  </source>
+  <dest>
+    *: "Greitis"
+  </dest>
+  <voice>
+    *: "Greitis"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_LAST_SHUFFLED
+  desc: in onplay menu.  queue a playlist randomly at end of dynamic playlist
+  user: core
+  <source>
+    *: "Queue Last Shuffled"
+  </source>
+  <dest>
+    *: "Į eilės galą sumaišius"
+  </dest>
+  <voice>
+    *: "Į eilės galą sumaišius"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NEXT_TRACK
+  desc: Shown in WPS
+  user: core
+  <source>
+    *: "Next Track:"
+  </source>
+  <dest>
+    *: "Kitas įrašas:"
+  </dest>
+  <voice>
+    *: "Kitas įrašas:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_OF
+  desc: Shown in WPS: X of Y (tracks)
+  user: core
+  <source>
+    *: "of"
+  </source>
+  <dest>
+    *: "iš"
+  </dest>
+  <voice>
+    *: "iš"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TAGNAVI_UNTAGGED
+  desc: "[untagged]" entry in tag browser
+  user: core
+  <source>
+    *: "[Untagged]"
+  </source>
+  <dest>
+    *: "[Be žymų]"
+  </dest>
+  <voice>
+    *: "[Be žymų]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_COMPOSER
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Composer"
+  </source>
+  <dest>
+    *: "Kompozitorius"
+  </dest>
+  <voice>
+    *: "Kompozitorius"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CURRENT_PLAYLIST
+  desc: Used when you need to say playlist, also voiced
+  user: core
+  <source>
+    *: "Current Playlist"
+  </source>
+  <dest>
+    *: "Dabartinis grojaraštis"
+  </dest>
+  <voice>
+    *: "Dabartinis grojaraštis"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE_CHANGES
+  desc: When you try to exit screens to confirm save
+  user: core
+  <source>
+    *: "Save Changes?"
+  </source>
+  <dest>
+    *: "Išsaugoti pakeitimus?"
+  </dest>
+  <voice>
+    *: "Išsaugoti pakeitimus?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_CANCEL_CURRENT
+  desc: shown instead of sleep timer when it's running
+  user: core
+  <source>
+    *: "Cancel Sleep Timer"
+  </source>
+  <dest>
+    *: "Atšaukti miego laikmatį"
+  </dest>
+  <voice>
+    *: "Atšaukti miego laikmatį"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_START_CURRENT
+  desc: shown when a sleep timer isn't running
+  user: core
+  <source>
+    *: "Start Sleep Timer"
+  </source>
+  <dest>
+    *: "Paleisti miego laikmatį"
+  </dest>
+  <voice>
+    *: "Paleisti miego laikmatį"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "Autoužrakinimas įjungtas"
+  </dest>
+  <voice>
+    *: "Autoužrakinimas įjungtas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "Autoužrakinimas išjungtas"
+  </dest>
+  <voice>
+    *: "Autoužrakinimas išjungtas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "Įrašo pragrota:"
+  </dest>
+  <voice>
+    *: "Įrašo pragrota:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "Įrašo liko:"
+  </dest>
+  <voice>
+    *: "Įrašo liko:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "Įrašas:"
+  </dest>
+  <voice>
+    *: "Įrašas:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "Dydis (pragrota / liko):"
+  </dest>
+  <voice>
+    *: "Dydis (pragrota / liko):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "Vidutinis įrašo dydis:"
+  </dest>
+  <voice>
+    *: "Vidutinis įrašo dydis:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "Vidutinis bitų srautas:"
+  </dest>
+  <voice>
+    *: "Vidutinis bitų srautas:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "Grojimo laikas"
+  </dest>
+  <voice>
+    *: "Grojimo laikas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[Kelias]"
+  </dest>
+  <voice>
+    *: "[Kelias]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[Failo vardas]"
+  </dest>
+  <voice>
+    *: "[Failo vardas]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[Dydis]"
+  </dest>
+  <voice>
+    *: "[Dydis]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[Data]"
+  </dest>
+  <voice>
+    *: "[Data]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[Laikas]"
+  </dest>
+  <voice>
+    *: "[Laikas]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[Poaplankiai]"
+  </dest>
+  <voice>
+    *: "[Poaplankiai]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[Failai]"
+  </dest>
+  <voice>
+    *: "[Failai]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "Aplanko savybės"
+  </dest>
+  <voice>
+    *: "Aplanko savybės"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "Failo savybės"
+  </dest>
+  <voice>
+    *: "Failo savybės"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "Nepavyko surinkti duomenų"
+  </dest>
+  <voice>
+    *: "Nepavyko surinkti duomenų"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "Data"
+  </dest>
+  <voice>
+    *: "Data"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "Išsaugoti"
+  </dest>
+  <voice>
+    *: "Išsaugoti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "Laiko limitas"
+  </dest>
+  <voice>
+    *: "Laiko limitas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "Įrašas"
+  </dest>
+  <voice>
+    *: "Įrašas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "Pragrota"
+  </dest>
+  <voice>
+    *: "Pragrota"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "Pridėti"
+  </dest>
+  <voice>
+    *: "Pridėti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "Į eilę..."
+  </dest>
+  <voice>
+    *: "Į eilę..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "Įrašo informacija"
+  </dest>
+  <voice>
+    *: "Įrašo informacija"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "Groti"
+  </dest>
+  <voice>
+    *: "Groti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "Groti sumaišius"
+  </dest>
+  <voice>
+    *: "Groti sumaišius"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "Pridėti į grojaraštį..."
+  </dest>
+  <voice>
+    *: "Pridėti į grojaraštį..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "Pridėti į esamą grojaraštį"
+  </dest>
+  <voice>
+    *: "Pridėti į esamą grojaraštį"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "Groti kitą..."
+  </dest>
+  <voice>
+    *: "Groti kitą..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "Groti kitą"
+  </dest>
+  <voice>
+    *: "Groti kitą"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "Pridėti sumaišius"
+  </dest>
+  <voice>
+    *: "Pridėti sumaišius"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "Groti paskutinį"
+  </dest>
+  <voice>
+    *: "Groti paskutinį"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "Paskutinį groti sumaišius"
+  </dest>
+  <voice>
+    *: "Paskutinį groti sumaišius"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "Pašalinti įrašus iš eilės?"
+  </dest>
+  <voice>
+    *: "Pašalinti įrašus iš eilės?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "Liko"
+  </dest>
+  <voice>
+    *: "Liko"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "Atlikėjai"
+  </dest>
+  <voice>
+    *: "Atlikėjai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Albumai"
+  </dest>
+  <voice>
+    *: "Albumai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "Įrašai"
+  </dest>
+  <voice>
+    *: "Įrašai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "Sumaišyti dainas"
+  </dest>
+  <voice>
+    *: "Sumaišyti dainas"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "Paieška"
+  </dest>
+  <voice>
+    *: "Paieška"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "Rodyti viršelį"
+  </dest>
+  <voice>
+    *: "Rodyti viršelį"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "Sąrašo pabaiga. Groti vėl?"
+  </dest>
+  <voice>
+    *: "Sąrašo pabaiga. Groti vėl?"
   </voice>
 </phrase>

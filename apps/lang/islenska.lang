@@ -169,10 +169,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Hljóðstillingar"
+    *: "Hljóð"
   </dest>
   <voice>
-    *: "Sound Settings"
+    *: "Hljóð"
   </voice>
 </phrase>
 <phrase>
@@ -183,10 +183,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Almennarstillingar"
+    *: "Almennt"
   </dest>
   <voice>
-    *: "General Settings"
+    *: "Almennt"
   </voice>
 </phrase>
 <phrase>
@@ -583,10 +583,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Spilastillingar"
+    *: "Spilun"
   </dest>
   <voice>
-    *: "Playback Settings"
+    *: "Spilun"
   </voice>
 </phrase>
 <phrase>
@@ -1387,11 +1387,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Tíminn & dagsetning"
+    rtc: "Dagsetning og tími"
   </dest>
   <voice>
     *: none
-    rtc: "Time and Date"
+    rtc: "Dagsetning og tími"
   </voice>
 </phrase>
 <phrase>
@@ -1895,10 +1895,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Gerð af hljóðstyrksaðlögun"
+    *: "Hljóðstyrksaðlögun"
   </dest>
   <voice>
-    *: "Replaygain Type"
+    *: "Hljóðstyrksaðlögun"
   </voice>
 </phrase>
 <phrase>
@@ -3102,11 +3102,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Current Time"
+    rtc: "Núverandi tími"
   </dest>
   <voice>
     *: none
-    rtc: "Current time"
+    rtc: "Núverandi tími"
   </voice>
 </phrase>
 <phrase>
@@ -3238,7 +3238,7 @@
     gigabeats,sansafuzeplus: "BACK = Revert"
     gogearsa9200: "LEFT = Revert"
     iaudiom5,iaudiox5: "RECORD = Revert"
-    ipod*,mpiohd300,sansac200*: "MENU = Revert"
+    ipod*,mpiohd300,sansac200*: "MENU = Afturkalla"
     iriverh10,iriverh10_5gb,sansae200*,sansafuze*: "PREV = Revert"
     iriverh100,iriverh120,iriverh300: "STOP = Revert"
     mrobe100: "DISPLAY = Revert"
@@ -3735,7 +3735,7 @@
   </dest>
   <voice>
     *: none
-    rtc: ""
+    rtc: "Sun"
   </voice>
 </phrase>
 <phrase>
@@ -3851,7 +3851,7 @@
     *: "Jan"
   </dest>
   <voice>
-    *: "January"
+    *: "Jan"
   </voice>
 </phrase>
 <phrase>
@@ -6274,8 +6274,7 @@
     lcd_sleep: "Never"
   </source>
   <dest>
-    *: none
-    lcd_sleep: "Aldrei"
+    *: "Aldrei"
   </dest>
   <voice>
     *: none
@@ -6579,5 +6578,2474 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQUALIZER
+  desc: in the sound settings menu
+  user: core
+  <source>
+    *: "EQ"
+  </source>
+  <dest>
+    *: "Tónjafnari"
+  </dest>
+  <voice>
+    *: "Tónjafnari"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CROSSFADE_ENABLE
+  desc: in crossfade settings menu
+  user: core
+  <source>
+    *: none
+    crossfade: "Enable Crossfade"
+  </source>
+  <dest>
+    *: none
+    crossfade: "Víxldeyfing"
+  </dest>
+  <voice>
+    *: none
+    crossfade: "Víxldeyfing"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_GAIN
+  desc: use track gain if shuffle mode is on, album gain otherwise
+  user: core
+  <source>
+    *: "Track Gain if Shuffling"
+  </source>
+  <dest>
+    *: "Sjálfv."
+  </dest>
+  <voice>
+    *: "Sjálfv."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CUESHEET_ENABLE
+  desc: cuesheet support option
+  user: core
+  <source>
+    *: "Cuesheet Support"
+  </source>
+  <dest>
+    *: "Cue-skrár"
+  </dest>
+  <voice>
+    *: "Cue-skrár"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HEADPHONE_UNPLUG
+  desc: in settings_menu.
+  user: core
+  <source>
+    *: none
+    headphone_detection: "Pause on Headphone Unplug"
+  </source>
+  <dest>
+    *: none
+    headphone_detection: "Hlé við aftengingu"
+  </dest>
+  <voice>
+    *: none
+    headphone_detection: "Hlé við aftengingu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HEADPHONE_UNPLUG_RESUME
+  desc: in pause_phones_menu.
+  user: core
+  <source>
+    *: none
+    headphone_detection: "Pause and Resume"
+  </source>
+  <dest>
+    *: none
+    headphone_detection: "Halda áfram"
+  </dest>
+  <voice>
+    *: none
+    headphone_detection: "Halda áfram"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: "Clicker"
+  </source>
+  <dest>
+    *: "Smellihljóð"
+  </dest>
+  <voice>
+    *: "Smellihljóð"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESUME_REWIND
+  desc: in playback settings menu
+  user: core
+  <source>
+    *: "Rewind Before Resume"
+  </source>
+  <dest>
+    *: "Bakspólun við ræsingu"
+  </dest>
+  <voice>
+    *: "Bakspólun við ræsingu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_SOFTWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Headphones"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Heyrnartól"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Heyrnartól"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_HARDWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Speaker"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "Hátalari"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "Hátalari"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "Hámarkshljóðstyrkur"
+  </dest>
+  <voice>
+    *: "Hámarkshljóðstyrkur"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "Minni heyrnarþreyta"
+  </dest>
+  <voice>
+    *: "Minni heyrnarþreyta"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "Lagalegt"
+  </dest>
+  <voice>
+    *: "Lagalegt"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Tónlist"
+  </dest>
+  <voice>
+    *: "Tónlist"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Aukaefni"
+  </dest>
+  <voice>
+    *: "Aukaefni"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Klukka"
+  </dest>
+  <voice>
+    *: "Klukka"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Brick"
+  </dest>
+  <voice>
+    *: "Brick"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Kapall"
+  </dest>
+  <voice>
+    *: "Kapall"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Dagatal"
+  </dest>
+  <voice>
+    *: "Dagatal"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Skeiðklukka"
+  </dest>
+  <voice>
+    *: "Skeiðklukka"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Um"
+  </dest>
+  <voice>
+    *: "Um"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d mínútur"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Lög"
+  </dest>
+  <voice>
+    *: "Lög"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Hlaðvörp"
+  </dest>
+  <voice>
+    *: "Hlaðvörp"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Tegundir"
+  </dest>
+  <voice>
+    *: "Tegundir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Tónskáld"
+  </dest>
+  <voice>
+    *: "Tónskáld"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Hljóðbækur"
+  </dest>
+  <voice>
+    *: "Hljóðbækur"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Myndir"
+  </dest>
+  <voice>
+    *: "Myndir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Myndasafn"
+  </dest>
+  <voice>
+    *: "Myndasafn"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Stillingar myndasýningar"
+  </dest>
+  <voice>
+    *: "Stillingar myndasýningar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Tími á mynd"
+  </dest>
+  <voice>
+    *: "Tími á mynd"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Stokka myndum"
+  </dest>
+  <voice>
+    *: "Stokka myndum"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Handvirkt"
+  </dest>
+  <voice>
+    *: "Handvirkt"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d sekúndur"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Engar myndir"
+  </dest>
+  <voice>
+    *: "Engar myndir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "Lög: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Lög: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Lög: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Órafmagnað"
+  </dest>
+  <voice>
+    *: "Órafmagnað"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Meiri bassi"
+  </dest>
+  <voice>
+    *: "Meiri bassi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Minni bassi"
+  </dest>
+  <voice>
+    *: "Minni bassi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klassík"
+  </dest>
+  <voice>
+    *: "Klassík"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Dans"
+  </dest>
+  <voice>
+    *: "Dans"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Djúpt"
+  </dest>
+  <voice>
+    *: "Djúpt"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Raftónlist"
+  </dest>
+  <voice>
+    *: "Raftónlist"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Flatt"
+  </dest>
+  <voice>
+    *: "Flatt"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hipphopp"
+  </dest>
+  <voice>
+    *: "Hipphopp"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Djass"
+  </dest>
+  <voice>
+    *: "Djass"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latín"
+  </dest>
+  <voice>
+    *: "Latín"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Háværð"
+  </dest>
+  <voice>
+    *: "Háværð"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Píanó"
+  </dest>
+  <voice>
+    *: "Píanó"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Popp"
+  </dest>
+  <voice>
+    *: "Popp"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rokk"
+  </dest>
+  <voice>
+    *: "Rokk"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Litlir hátalarar"
+  </dest>
+  <voice>
+    *: "Litlir hátalarar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Talað mál"
+  </dest>
+  <voice>
+    *: "Talað mál"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Meiri hátíðni"
+  </dest>
+  <voice>
+    *: "Meiri hátíðni"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Minni hátíðni"
+  </dest>
+  <voice>
+    *: "Minni hátíðni"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Meiri söngur"
+  </dest>
+  <voice>
+    *: "Meiri söngur"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Hægar"
+  </dest>
+  <voice>
+    *: "Hægar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Venjulegt"
+  </dest>
+  <voice>
+    *: "Venjulegt"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Hraðar"
+  </dest>
+  <voice>
+    *: "Hraðar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Uppfæri safn"
+  </dest>
+  <voice>
+    *: "Uppfæri safn"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Reikna…"
+  </dest>
+  <voice>
+    *: "Reikna…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Gimsteinar"
+  </dest>
+  <voice>
+    *: "Gimsteinar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Jarðsprengjuleit"
+  </dest>
+  <voice>
+    *: "Jarðsprengjuleit"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Les safn"
+  </dest>
+  <voice>
+    *: "Les safn"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Athuga lög"
+  </dest>
+  <voice>
+    *: "Athuga lög"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Uppfæri spilunartölur"
+  </dest>
+  <voice>
+    *: "Uppfæri spilunartölur"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Undirbý plötuumslög"
+  </dest>
+  <voice>
+    *: "Undirbý plötuumslög"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Undirbý hljómplötur"
+  </dest>
+  <voice>
+    *: "Undirbý hljómplötur"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Undirbý lög"
+  </dest>
+  <voice>
+    *: "Undirbý lög"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TAGCACHE
+  desc: in the main menu and the settings menu
+  user: core
+  <source>
+    *: "Database"
+  </source>
+  <dest>
+    *: "Gagnagrunnur"
+  </dest>
+  <voice>
+    *: "Gagnagrunnur"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CROSSFEED
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Crossfeed"
+  </source>
+  <dest>
+    *: "Krossblöndun"
+  </dest>
+  <voice>
+    *: "Krossblöndun"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "Listamenn hljómplötu"
+  </dest>
+  <voice>
+    *: "Listamenn hljómplötu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "Liðið af lagi:"
+  </dest>
+  <voice>
+    *: "Liðið af lagi:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "Eftir af lagi:"
+  </dest>
+  <voice>
+    *: "Eftir af lagi:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "Lag:"
+  </dest>
+  <voice>
+    *: "Lag:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "Geymsla (búið / eftir):"
+  </dest>
+  <voice>
+    *: "Geymsla (búið / eftir):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "Meðalstærð lags:"
+  </dest>
+  <voice>
+    *: "Meðalstærð lags:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "Meðalbitahraði:"
+  </dest>
+  <voice>
+    *: "Meðalbitahraði:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "Spilunartími"
+  </dest>
+  <voice>
+    *: "Spilunartími"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[Slóð]"
+  </dest>
+  <voice>
+    *: "[Slóð]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[Skráarheiti]"
+  </dest>
+  <voice>
+    *: "[Skráarheiti]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[Stærð]"
+  </dest>
+  <voice>
+    *: "[Stærð]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[Dagsetning]"
+  </dest>
+  <voice>
+    *: "[Dagsetning]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[Tími]"
+  </dest>
+  <voice>
+    *: "[Tími]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[Undirmöppur]"
+  </dest>
+  <voice>
+    *: "[Undirmöppur]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[Skrár]"
+  </dest>
+  <voice>
+    *: "[Skrár]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "Eiginleikar möppu"
+  </dest>
+  <voice>
+    *: "Eiginleikar möppu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "Eiginleikar skráar"
+  </dest>
+  <voice>
+    *: "Eiginleikar skráar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "Gat ekki sótt upplýsingar"
+  </dest>
+  <voice>
+    *: "Gat ekki sótt upplýsingar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "Dagsetning"
+  </dest>
+  <voice>
+    *: "Dagsetning"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "Vista"
+  </dest>
+  <voice>
+    *: "Vista"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "Tímamörk"
+  </dest>
+  <voice>
+    *: "Tímamörk"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "Lag"
+  </dest>
+  <voice>
+    *: "Lag"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "Liðið"
+  </dest>
+  <voice>
+    *: "Liðið"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "Bæta við"
+  </dest>
+  <voice>
+    *: "Bæta við"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "Biðröð..."
+  </dest>
+  <voice>
+    *: "Biðröð..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "Upplýsingar um lag"
+  </dest>
+  <voice>
+    *: "Upplýsingar um lag"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "Spila"
+  </dest>
+  <voice>
+    *: "Spila"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "Spila stokkað"
+  </dest>
+  <voice>
+    *: "Spila stokkað"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "Bæta í lagalista..."
+  </dest>
+  <voice>
+    *: "Bæta í lagalista..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "Í fyrirliggjandi lagalista"
+  </dest>
+  <voice>
+    *: "Í fyrirliggjandi lagalista"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "Spilað næst..."
+  </dest>
+  <voice>
+    *: "Spilað næst..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "Spila næst"
+  </dest>
+  <voice>
+    *: "Spila næst"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "Bæta við stokkað"
+  </dest>
+  <voice>
+    *: "Bæta við stokkað"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "Spila síðast"
+  </dest>
+  <voice>
+    *: "Spila síðast"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "Spila síðast, stokkað"
+  </dest>
+  <voice>
+    *: "Spila síðast, stokkað"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "Fjarlægja lög í biðröð?"
+  </dest>
+  <voice>
+    *: "Fjarlægja lög í biðröð?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "Eftir"
+  </dest>
+  <voice>
+    *: "Eftir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "Listamenn"
+  </dest>
+  <voice>
+    *: "Listamenn"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Hljómplötur"
+  </dest>
+  <voice>
+    *: "Hljómplötur"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "Lög"
+  </dest>
+  <voice>
+    *: "Lög"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "Stokka lögum"
+  </dest>
+  <voice>
+    *: "Stokka lögum"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "Leita"
+  </dest>
+  <voice>
+    *: "Leita"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "Skoða plötuumslag"
+  </dest>
+  <voice>
+    *: "Skoða plötuumslag"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "Listi búinn. Spila aftur?"
+  </dest>
+  <voice>
+    *: "Listi búinn. Spila aftur?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_FORMAT
+  desc: audio format
+  user: core
+  <source>
+    *: "Format"
+  </source>
+  <dest>
+    *: "Snið"
+  </dest>
+  <voice>
+    *: "Snið"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "Sjálfvirk læsing á"
+  </dest>
+  <voice>
+    *: "Sjálfvirk læsing á"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "Sjálfvirk læsing af"
+  </dest>
+  <voice>
+    *: "Sjálfvirk læsing af"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAIT
+  desc: general please wait splash
+  user: core
+  <source>
+    *: "Loading..."
+  </source>
+  <dest>
+    *: "Hleð..."
+  </dest>
+  <voice>
+    *: "Hleð..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SCANNING_DISK
+  desc: when booting up and rebuilding the cache and calculating free space
+  user: core
+  <source>
+    *: "Scanning disk..."
+  </source>
+  <dest>
+    *: "Skanna disk..."
+  </dest>
+  <voice>
+    *: "Skanna disk..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CANCEL
+  desc: Visual confirmation of canceling a changed setting
+  user: core
+  <source>
+    *: "Cancelled"
+  </source>
+  <dest>
+    *: "Hætt við"
+  </dest>
+  <voice>
+    *: "Hætt við"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARE_YOU_SURE
+  desc: confirm action
+  user: core
+  <source>
+    *: "Are You Sure?"
+  </source>
+  <dest>
+    *: "Ertu viss?"
+  </dest>
+  <voice>
+    *: "Ertu viss?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CONFIRM_WITH_BUTTON
+  desc: Generic string to use to confirm
+  user: core
+  <source>
+    *: "PLAY = Yes"
+    cowond2*: "MENU, or top-right = Yes"
+    creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Yes"
+    iriverh100,iriverh120,iriverh300: "NAVI = Yes"
+    mrobe500: "PLAY, POWER, or top-right = Yes"
+    vibe500: "OK = Yes"
+  </source>
+  <dest>
+    *: none
+    cowond2*: none
+    creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Já"
+    iriverh100,iriverh120,iriverh300: none
+    mrobe500: none
+    vibe500: none
+  </dest>
+  <voice>
+    *: none
+    creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Já"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CANCEL_WITH_ANY
+  desc: Generic string to use to cancel
+  user: core
+  <source>
+    *: "Any Other = No"
+  </source>
+  <dest>
+    *: "Allt annað = Nei"
+  </dest>
+  <voice>
+    *: "Allt annað = Nei"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NOW_PLAYING
+  desc: in the main menu
+  user: core
+  <source>
+    *: "Now Playing"
+  </source>
+  <dest>
+    *: "Í spilun"
+  </dest>
+  <voice>
+    *: "Í spilun"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESUME_PLAYBACK
+  desc: in the main menu
+  user: core
+  <source>
+    *: "Resume Playback"
+  </source>
+  <dest>
+    *: "Halda áfram"
+  </dest>
+  <voice>
+    *: "Halda áfram"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SETTINGS
+  desc:  in main menu and visual confirmation after settings reset
+  user: core
+  <source>
+    *: "Settings"
+  </source>
+  <dest>
+    *: "Stillingar"
+  </dest>
+  <voice>
+    *: "Stillingar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLISTS
+  desc: in the main menu and Playlist settings menu
+  user: core
+  <source>
+    *: "Playlists"
+  </source>
+  <dest>
+    *: "Lagalistar"
+  </dest>
+  <voice>
+    *: "Lagalistar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALL
+  desc: generic string used both in dir file filter and repeat mode selection
+  user: core
+  <source>
+    *: "All"
+  </source>
+  <dest>
+    *: "Allt"
+  </dest>
+  <voice>
+    *: "Allt"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TAGCACHE_BUSY
+  desc: when trying to shutdown and tagcache is committing
+  user: core
+  <source>
+    *: "Database is not ready"
+  </source>
+  <dest>
+    *: "Gagnagrunnur ekki tilbúinn"
+  </dest>
+  <voice>
+    *: "Gagnagrunnur ekki tilbúinn"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TAGNAVI_ALL_TRACKS
+  desc: "[All tracks]" entry in tag browser
+  user: core
+  <source>
+    *: "[All tracks]"
+  </source>
+  <dest>
+    *: "[Öll lög]"
+  </dest>
+  <voice>
+    *: "[Öll lög]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRIGHTNESS
+  desc: in settings_menu
+  user: core
+  <source>
+    *: none
+    backlight_brightness: "Brightness"
+  </source>
+  <dest>
+    *: none
+    backlight_brightness: "Birtustig"
+  </dest>
+  <voice>
+    *: none
+    backlight_brightness: "Birtustig"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SET_TIME
+  desc: in settings_menu
+  user: core
+  <source>
+    *: none
+    rtc: "Set Time/Date"
+  </source>
+  <dest>
+    *: none
+    rtc: "Stilla tíma/dagsetningu"
+  </dest>
+  <voice>
+    *: none
+    rtc: "Stilla tíma/dagsetningu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_SET_BUTTON
+  desc: used in set_time()
+  user: core
+  <source>
+    *: none
+    rtc: "ON = Set"
+    aigoerosq,erosqnative,gogearsa9200,samsungyh*,xduoox3*: "PLAY = Set"
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Set"
+    iriverh100,iriverh120,iriverh300: "NAVI = Set"
+    mpiohd300: "ENTER = Set"
+    mrobe500: "HEART = Set"
+    vibe500: "OK = Set"
+  </source>
+  <dest>
+    *: none
+    rtc: none
+    aigoerosq,erosqnative,gogearsa9200,samsungyh*,xduoox3*: none
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "SELECT = Stilla"
+    iriverh100,iriverh120,iriverh300: none
+    mpiohd300: none
+    mrobe500: none
+    vibe500: none
+  </dest>
+  <voice>
+    *: none
+    gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: none
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WARN_ERASEDYNPLAYLIST_PROMPT
+  desc: prompt shown when about to erase a modified dynamic playlist
+  user: core
+  <source>
+    *: "Erase dynamic playlist?"
+  </source>
+  <dest>
+    *: "Eyða kvikum lagalista?"
+  </dest>
+  <voice>
+    *: "Eyða kvikum lagalista?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_SHUFFLED
+  desc: in onplay menu.  queue a track/playlist randomly into dynamic playlist
+  user: core
+  <source>
+    *: "Queue Shuffled"
+  </source>
+  <dest>
+    *: "Setja í biðröð, stokkað"
+  </dest>
+  <voice>
+    *: "Setja í biðröð, stokkað"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH_IN_PLAYLIST
+  desc: in playlist menu.
+  user: core
+  <source>
+    *: "Search in Playlist"
+  </source>
+  <dest>
+    *: "Leita í lagalista"
+  </dest>
+  <voice>
+    *: "Leita í lagalista"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLIST_SEARCH_MSG
+  desc: splash number of tracks inserted
+  user: core
+  <source>
+    *: "Searching... %d found (%s)"
+  </source>
+  <dest>
+    *: "Leita... fundið: %d (%s)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CATALOG_ADD_TO_NEW
+  desc: in onplay playlist catalogue submenu
+  user: core
+  <source>
+    *: "Add to New Playlist"
+  </source>
+  <dest>
+    *: "Bæta í nýjan lagalista"
+  </dest>
+  <voice>
+    *: "Bæta í nýjan lagalista"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CATALOG_NO_PLAYLISTS
+  desc: error message when no playlists for playlist catalogue
+  user: core
+  <source>
+    *: "No Playlists"
+  </source>
+  <dest>
+    *: "Engir lagalistar"
+  </dest>
+  <voice>
+    *: "Engir lagalistar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ONPLAY_MENU_TITLE
+  desc: title for the onplay menus
+  user: core
+  <source>
+    *: "Context Menu"
+  </source>
+  <dest>
+    *: "Samhengisvalmynd"
+  </dest>
+  <voice>
+    *: "Samhengisvalmynd"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_LENGTH
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Length"
+  </source>
+  <dest>
+    *: "Lengd"
+  </dest>
+  <voice>
+    *: "Lengd"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTIST
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artist"
+  </source>
+  <dest>
+    *: "Listamaður hljómplötu"
+  </dest>
+  <voice>
+    *: "Listamaður hljómplötu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_DISCNUM
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Discnum"
+  </source>
+  <dest>
+    *: "Disknúmer"
+  </dest>
+  <voice>
+    *: "Disknúmer"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_COMMENT
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Comment"
+  </source>
+  <dest>
+    *: "Athugasemd"
+  </dest>
+  <voice>
+    *: "Athugasemd"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DELETING
+  desc:
+  user: core
+  <source>
+    *: "Deleting..."
+  </source>
+  <dest>
+    *: "Eyði..."
+  </dest>
+  <voice>
+    *: "Eyði..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES
+  desc: browser file/dir properties
+  user: core
+  <source>
+    *: "Properties"
+  </source>
+  <dest>
+    *: "Eiginleikar"
+  </dest>
+  <voice>
+    *: "Eiginleikar"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_END_PLAYLIST
+  desc: when playlist has finished
+  user: core
+  <source>
+    *: "End of Song List"
+  </source>
+  <dest>
+    *: "Lagalista lokið"
+  </dest>
+  <voice>
+    *: "Lagalista lokið"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYLOCK_ON
+  desc: displayed when key lock is on
+  user: core
+  <source>
+    *: "Buttons Locked"
+  </source>
+  <dest>
+    *: "Hnappar læstir"
+  </dest>
+  <voice>
+    *: "Hnappar læstir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYLOCK_OFF
+  desc: displayed when key lock is turned off
+  user: core
+  <source>
+    *: "Buttons Unlocked"
+  </source>
+  <dest>
+    *: "Hnappar ólæstir"
+  </dest>
+  <voice>
+    *: "Hnappar ólæstir"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLEASE_REBOOT
+  desc: when activating an option that requires a reboot
+  user: core
+  <source>
+    *: "Please reboot to enable"
+  </source>
+  <dest>
+    *: "Endurræstu til að virkja"
+  </dest>
+  <voice>
+    *: "Endurræstu til að virkja"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WARNING_BATTERY_LOW
+  desc: general warning
+  user: core
+  <source>
+    *: "WARNING! Low Battery!"
+  </source>
+  <dest>
+    *: "AÐVÖRUN! Lítil hleðsla!"
+  </dest>
+  <voice>
+    *: "AÐVÖRUN! Lítil hleðsla!"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WARNING_BATTERY_EMPTY
+  desc: general warning
+  user: core
+  <source>
+    *: "Battery empty! RECHARGE!"
+  </source>
+  <dest>
+    *: "Batterí tómt! HLAÐA!"
+  </dest>
+  <voice>
+    *: "Batterí tómt! HLAÐA!"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_GROUPING
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Work"
+  </source>
+  <dest>
+    *: "Verk"
+  </dest>
+  <voice>
+    *: "Verk"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UNKNOWN
+  desc: generic string for unknown states, such as an unset clock
+  user: core
+  <source>
+    *: "Unknown"
+  </source>
+  <dest>
+    *: "Óþekkt"
+  </dest>
+  <voice>
+    *: "Óþekkt"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH_RESULTS
+  desc: title for the list of results displayed after searching in a playlist
+  user: core
+  <source>
+    *: "Search Results"
+  </source>
+  <dest>
+    *: "Leitarniðurstöður"
+  </dest>
+  <voice>
+    *: "Leitarniðurstöður"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED
+  desc: timestretch speed
+  user: core
+  <source>
+    *: "Speed"
+  </source>
+  <dest>
+    *: "Hraði"
+  </dest>
+  <voice>
+    *: "Hraði"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_LAST_SHUFFLED
+  desc: in onplay menu.  queue a playlist randomly at end of dynamic playlist
+  user: core
+  <source>
+    *: "Queue Last Shuffled"
+  </source>
+  <dest>
+    *: "Aftast í biðröð, stokkað"
+  </dest>
+  <voice>
+    *: "Aftast í biðröð, stokkað"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NEXT_TRACK
+  desc: Shown in WPS
+  user: core
+  <source>
+    *: "Next Track:"
+  </source>
+  <dest>
+    *: "Næsta lag:"
+  </dest>
+  <voice>
+    *: "Næsta lag:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_OF
+  desc: Shown in WPS: X of Y (tracks)
+  user: core
+  <source>
+    *: "of"
+  </source>
+  <dest>
+    *: "af"
+  </dest>
+  <voice>
+    *: "af"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TAGNAVI_UNTAGGED
+  desc: "[untagged]" entry in tag browser
+  user: core
+  <source>
+    *: "[Untagged]"
+  </source>
+  <dest>
+    *: "[Ómerkt]"
+  </dest>
+  <voice>
+    *: "[Ómerkt]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_COMPOSER
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Composer"
+  </source>
+  <dest>
+    *: "Tónskáld"
+  </dest>
+  <voice>
+    *: "Tónskáld"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_FILESIZE
+  desc: in record timesplit options and in track information viewer
+  user: core
+  <source>
+    *: "Filesize"
+  </source>
+  <dest>
+    *: "Skráarstærð"
+  </dest>
+  <voice>
+    *: "Skráarstærð"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CURRENT_PLAYLIST
+  desc: Used when you need to say playlist, also voiced
+  user: core
+  <source>
+    *: "Current Playlist"
+  </source>
+  <dest>
+    *: "Núverandi lagalisti"
+  </dest>
+  <voice>
+    *: "Núverandi lagalisti"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE_CHANGES
+  desc: When you try to exit screens to confirm save
+  user: core
+  <source>
+    *: "Save Changes?"
+  </source>
+  <dest>
+    *: "Vista breytingar?"
+  </dest>
+  <voice>
+    *: "Vista breytingar?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_CANCEL_CURRENT
+  desc: shown instead of sleep timer when it's running
+  user: core
+  <source>
+    *: "Cancel Sleep Timer"
+  </source>
+  <dest>
+    *: "Hætta við svefnrofa"
+  </dest>
+  <voice>
+    *: "Hætta við svefnrofa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_START_CURRENT
+  desc: shown when a sleep timer isn't running
+  user: core
+  <source>
+    *: "Start Sleep Timer"
+  </source>
+  <dest>
+    *: "Ræsa svefnrofa"
+  </dest>
+  <voice>
+    *: "Ræsa svefnrofa"
   </voice>
 </phrase>

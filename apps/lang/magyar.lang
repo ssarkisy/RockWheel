@@ -602,10 +602,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Hangbeállítások"
+    *: "Hang"
   </dest>
   <voice>
-    *: "Hangbeállítások"
+    *: "Hang"
   </voice>
 </phrase>
 <phrase>
@@ -1078,10 +1078,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Általános beállítások"
+    *: "Általános"
   </dest>
   <voice>
-    *: "Általános beállítások"
+    *: "Általános"
   </voice>
 </phrase>
 <phrase>
@@ -1092,10 +1092,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Lejátszási beállítások"
+    *: "Lejátszás"
   </dest>
   <voice>
-    *: "Lejátszási beállítások"
+    *: "Lejátszás"
   </voice>
 </phrase>
 <phrase>
@@ -1296,11 +1296,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Átúsztatás be"
+    crossfade: "Átúsztatás"
   </dest>
   <voice>
     *: none
-    crossfade: "Átúsztatás be"
+    crossfade: "Átúsztatás"
   </voice>
 </phrase>
 <phrase>
@@ -1475,10 +1475,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Hangerő-kiegyenlítés fajtája"
+    *: "Hangellenőrzés"
   </dest>
   <voice>
-    *: "Hangerő kiegyenlítés fajtája"
+    *: "Hangellenőrzés"
   </voice>
 </phrase>
 <phrase>
@@ -1517,10 +1517,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Számonkénti erősítés kevert lejátszáskor"
+    *: "Auto"
   </dest>
   <voice>
-    *: "Számonkénti erősítés kevert lejátszáskor"
+    *: "Auto"
   </voice>
 </phrase>
 <phrase>
@@ -1660,10 +1660,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cuesheet támogatás"
+    *: "Cue-fájlok"
   </dest>
   <voice>
-    *: "Cuesheet támogatás"
+    *: "Cue-fájlok"
   </voice>
 </phrase>
 <phrase>
@@ -1676,11 +1676,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Szünet fejhallgató kihúzásakor"
+    headphone_detection: "Szünet kihúzáskor"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Szünet fejhallgató kihúzásakor"
+    headphone_detection: "Szünet kihúzáskor"
   </voice>
 </phrase>
 <phrase>
@@ -1693,11 +1693,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Szünet és folytatás"
+    headphone_detection: "Folytatással"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Szünet és folytatás"
+    headphone_detection: "Folytatással"
   </voice>
 </phrase>
 <phrase>
@@ -9346,10 +9346,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Billentyűhangok"
+    *: "Kattintás"
   </dest>
   <voice>
-    *: "Billentyűhangok"
+    *: "Kattintás"
   </voice>
 </phrase>
 <phrase>
@@ -10248,10 +10248,10 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "Hallgatásteher csökkentése"
+    *: "Fáradtságcsökkentés"
   </dest>
   <voice>
-    *: "Hallgatásteher csökkentése"
+    *: "Fáradtságcsökkentés"
   </voice>
 </phrase>
 <phrase>
@@ -10503,11 +10503,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Hangszóró billenytűhang"
+    hardware_click: "Hangszóró"
   </dest>
   <voice>
     *: none
-    hardware_click: "Hangszóró billenytűhang"
+    hardware_click: "Hangszóró"
   </voice>
 </phrase>
 <phrase>
@@ -10518,10 +10518,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Előretekerés folytatás előtt"
+    *: "Visszatekerve folytat"
   </dest>
   <voice>
-    *: "Előretekerés folytatás előtt"
+    *: "Visszatekerve folytat"
   </voice>
 </phrase>
 <phrase>
@@ -10546,10 +10546,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "Maximum hangerő korlát"
+    *: "Hangerőkorlát"
   </dest>
   <voice>
-    *: "Maximum hangerő korlát"
+    *: "Hangerőkorlát"
   </voice>
 </phrase>
 <phrase>
@@ -10855,11 +10855,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Fejhallgató billentyűhang"
+    hardware_click: "Fejhallgató"
   </dest>
   <voice>
     *: none
-    hardware_click: "Fejhallgató billentyűhang"
+    hardware_click: "Fejhallgató"
   </voice>
 </phrase>
 <phrase>
@@ -16385,10 +16385,10 @@
     *: "Shuffle Songs"
   </source>
   <dest>
-    *: "Zenék véletlenszerűen"
+    *: "Véletlen zenék"
   </dest>
   <voice>
-    *: "Zenék véletlenszerűen"
+    *: "Véletlen zenék"
   </voice>
 </phrase>
 <phrase>
@@ -17379,5 +17379,873 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Zene"
+  </dest>
+  <voice>
+    *: "Zene"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Extrák"
+  </dest>
+  <voice>
+    *: "Extrák"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Óra"
+  </dest>
+  <voice>
+    *: "Óra"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Téglák"
+  </dest>
+  <voice>
+    *: "Téglák"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Pasziánsz"
+  </dest>
+  <voice>
+    *: "Pasziánsz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Naptár"
+  </dest>
+  <voice>
+    *: "Naptár"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Stopper"
+  </dest>
+  <voice>
+    *: "Stopper"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Névjegy"
+  </dest>
+  <voice>
+    *: "Névjegy"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d perc"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Dalok"
+  </dest>
+  <voice>
+    *: "Dalok"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcastok"
+  </dest>
+  <voice>
+    *: "Podcastok"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Műfajok"
+  </dest>
+  <voice>
+    *: "Műfajok"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Szerzők"
+  </dest>
+  <voice>
+    *: "Szerzők"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Hangoskönyvek"
+  </dest>
+  <voice>
+    *: "Hangoskönyvek"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Fotók"
+  </dest>
+  <voice>
+    *: "Fotók"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Fotókönyvtár"
+  </dest>
+  <voice>
+    *: "Fotókönyvtár"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Diavetítés beállításai"
+  </dest>
+  <voice>
+    *: "Diavetítés beállításai"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Diánkénti idő"
+  </dest>
+  <voice>
+    *: "Diánkénti idő"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Fotók keverése"
+  </dest>
+  <voice>
+    *: "Fotók keverése"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Kézi"
+  </dest>
+  <voice>
+    *: "Kézi"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d másodperc"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Nincsenek fotók"
+  </dest>
+  <voice>
+    *: "Nincsenek fotók"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d dal"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d dal"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d dal"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Akusztikus"
+  </dest>
+  <voice>
+    *: "Akusztikus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Basszuskiemelés"
+  </dest>
+  <voice>
+    *: "Basszuskiemelés"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Basszuscsökkentés"
+  </dest>
+  <voice>
+    *: "Basszuscsökkentés"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klasszikus"
+  </dest>
+  <voice>
+    *: "Klasszikus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Tánczene"
+  </dest>
+  <voice>
+    *: "Tánczene"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Mély"
+  </dest>
+  <voice>
+    *: "Mély"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektronikus"
+  </dest>
+  <voice>
+    *: "Elektronikus"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Egyenletes"
+  </dest>
+  <voice>
+    *: "Egyenletes"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip-hop"
+  </dest>
+  <voice>
+    *: "Hip-hop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Jazz"
+  </dest>
+  <voice>
+    *: "Jazz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latin"
+  </dest>
+  <voice>
+    *: "Latin"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Hangosság"
+  </dest>
+  <voice>
+    *: "Hangosság"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Zongora"
+  </dest>
+  <voice>
+    *: "Zongora"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: "Pop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rock"
+  </dest>
+  <voice>
+    *: "Rock"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Kis hangszórók"
+  </dest>
+  <voice>
+    *: "Kis hangszórók"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Beszéd"
+  </dest>
+  <voice>
+    *: "Beszéd"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Magaskiemelés"
+  </dest>
+  <voice>
+    *: "Magaskiemelés"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Magascsökkentés"
+  </dest>
+  <voice>
+    *: "Magascsökkentés"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Vokálkiemelés"
+  </dest>
+  <voice>
+    *: "Vokálkiemelés"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Lassabb"
+  </dest>
+  <voice>
+    *: "Lassabb"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normál"
+  </dest>
+  <voice>
+    *: "Normál"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Gyorsabb"
+  </dest>
+  <voice>
+    *: "Gyorsabb"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Könyvtár frissítése"
+  </dest>
+  <voice>
+    *: "Könyvtár frissítése"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Számítás…"
+  </dest>
+  <voice>
+    *: "Számítás…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Ékkövek"
+  </dest>
+  <voice>
+    *: "Ékkövek"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Aknakereső"
+  </dest>
+  <voice>
+    *: "Aknakereső"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Könyvtár olvasása"
+  </dest>
+  <voice>
+    *: "Könyvtár olvasása"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Dalok ellenőrzése"
+  </dest>
+  <voice>
+    *: "Dalok ellenőrzése"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Lejátszásszámok frissítése"
+  </dest>
+  <voice>
+    *: "Lejátszásszámok frissítése"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Borítók előkészítése"
+  </dest>
+  <voice>
+    *: "Borítók előkészítése"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Albumok előkészítése"
+  </dest>
+  <voice>
+    *: "Albumok előkészítése"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Dalok előkészítése"
+  </dest>
+  <voice>
+    *: "Dalok előkészítése"
   </voice>
 </phrase>

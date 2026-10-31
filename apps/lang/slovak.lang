@@ -599,10 +599,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Nastavenia zvuku"
+    *: "Zvuk"
   </dest>
   <voice>
-    *: "Nastavenia zvuku"
+    *: "Zvuk"
   </voice>
 </phrase>
 <phrase>
@@ -1092,10 +1092,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Všeobecné nastavenia"
+    *: "Všeobecné"
   </dest>
   <voice>
-    *: "Všeobecné nastavenia"
+    *: "Všeobecné"
   </voice>
 </phrase>
 <phrase>
@@ -1106,10 +1106,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Nastavenia prehrávania"
+    *: "Prehrávanie"
   </dest>
   <voice>
-    *: "Nastavenia prehrávania"
+    *: "Prehrávanie"
   </voice>
 </phrase>
 <phrase>
@@ -1310,11 +1310,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Zapnúť prelínanie"
+    crossfade: "Prelínanie"
   </dest>
   <voice>
     *: none
-    crossfade: "Zapnúť prelínanie"
+    crossfade: "Prelínanie"
   </voice>
 </phrase>
 <phrase>
@@ -1489,10 +1489,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Použiť zosilnenie"
+    *: "Kontrola zvuku"
   </dest>
   <voice>
-    *: "Použiť zosilnenie"
+    *: "Kontrola zvuku"
   </voice>
 </phrase>
 <phrase>
@@ -1531,10 +1531,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Zosilnenie stopy ak sa mieša"
+    *: "Auto"
   </dest>
   <voice>
-    *: "Zosilnenie stopy ak sa mieša"
+    *: "Auto"
   </voice>
 </phrase>
 <phrase>
@@ -1674,10 +1674,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Podpora hárkov stôp (cuesheet)"
+    *: "Hárky stôp"
   </dest>
   <voice>
-    *: "Podpora hárkov stôp (cuesheet)"
+    *: "Hárky stôp"
   </voice>
 </phrase>
 <phrase>
@@ -1690,11 +1690,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pauza pri odpojení slúchadiel"
+    headphone_detection: "Pauza pri odpojení"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pauza pri odpojení slúchadiel"
+    headphone_detection: "Pauza pri odpojení"
   </voice>
 </phrase>
 <phrase>
@@ -1707,11 +1707,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pozastaviť a pokračovať"
+    headphone_detection: "Pokračovať"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pozastaviť a pokračovať"
+    headphone_detection: "Pokračovať"
   </voice>
 </phrase>
 <phrase>
@@ -3398,11 +3398,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Čas a dátum"
+    rtc: "Dátum a čas"
   </dest>
   <voice>
     *: none
-    rtc: "Čas a dátum"
+    rtc: "Dátum a čas"
   </voice>
 </phrase>
 <phrase>
@@ -9150,10 +9150,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Klikanie pri klávesoch"
+    *: "Klikanie"
   </dest>
   <voice>
-    *: "Klikanie pri klávesoch"
+    *: "Klikanie"
   </voice>
 </phrase>
 <phrase>
@@ -10672,10 +10672,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Vrátiť pred obnovením prehrávania"
+    *: "Vrátiť pri obnovení"
   </dest>
   <voice>
-    *: "Vrátiť pred obnovením prehrávania"
+    *: "Vrátiť pri obnovení"
   </voice>
 </phrase>
 <phrase>
@@ -10955,10 +10955,10 @@
     *: "Composer"
   </source>
   <dest>
-    *: "Autor"
+    *: "Skladateľ"
   </dest>
   <voice>
-    *: "Autor"
+    *: "Skladateľ"
   </voice>
 </phrase>
 <phrase>
@@ -11297,11 +11297,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Klik v reproduktore"
+    hardware_click: "Reproduktor"
   </dest>
   <voice>
     *: none
-    hardware_click: "Klik v reproduktore"
+    hardware_click: "Reproduktor"
   </voice>
 </phrase>
 <phrase>
@@ -11314,11 +11314,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Klik v slúchadlách"
+    hardware_click: "Slúchadlá"
   </dest>
   <voice>
     *: none
-    hardware_click: "Klik v slúchadlách"
+    hardware_click: "Slúchadlá"
   </voice>
 </phrase>
 <phrase>
@@ -11514,10 +11514,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "Obmedzenie maximálnej hlasitosti"
+    *: "Limit hlasitosti"
   </dest>
   <voice>
-    *: "Obmedzenie maximálnej hlasitosti"
+    *: "Limit hlasitosti"
   </voice>
 </phrase>
 <phrase>
@@ -11638,10 +11638,10 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "Redukcia rušivých tónov"
+    *: "Zníženie únavy"
   </dest>
   <voice>
-    *: "Redukcia rušivých tónov"
+    *: "Zníženie únavy"
   </voice>
 </phrase>
 <phrase>
@@ -17479,5 +17479,873 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Hudba"
+  </dest>
+  <voice>
+    *: "Hudba"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Doplnky"
+  </dest>
+  <voice>
+    *: "Doplnky"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Hodiny"
+  </dest>
+  <voice>
+    *: "Hodiny"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Tehly"
+  </dest>
+  <voice>
+    *: "Tehly"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Pasiáns"
+  </dest>
+  <voice>
+    *: "Pasiáns"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Kalendár"
+  </dest>
+  <voice>
+    *: "Kalendár"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Stopky"
+  </dest>
+  <voice>
+    *: "Stopky"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Informácie"
+  </dest>
+  <voice>
+    *: "Informácie"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d minút"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Skladby"
+  </dest>
+  <voice>
+    *: "Skladby"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcasty"
+  </dest>
+  <voice>
+    *: "Podcasty"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Žánre"
+  </dest>
+  <voice>
+    *: "Žánre"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Skladatelia"
+  </dest>
+  <voice>
+    *: "Skladatelia"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Audioknihy"
+  </dest>
+  <voice>
+    *: "Audioknihy"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Fotky"
+  </dest>
+  <voice>
+    *: "Fotky"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Knižnica fotiek"
+  </dest>
+  <voice>
+    *: "Knižnica fotiek"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Nastavenia prezentácie"
+  </dest>
+  <voice>
+    *: "Nastavenia prezentácie"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Čas na snímku"
+  </dest>
+  <voice>
+    *: "Čas na snímku"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Miešať fotky"
+  </dest>
+  <voice>
+    *: "Miešať fotky"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Ručne"
+  </dest>
+  <voice>
+    *: "Ručne"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Žiadne fotky"
+  </dest>
+  <voice>
+    *: "Žiadne fotky"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "Skladby: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Skladby: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "Skladby: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Akustický"
+  </dest>
+  <voice>
+    *: "Akustický"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Zosilnenie basov"
+  </dest>
+  <voice>
+    *: "Zosilnenie basov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Potlačenie basov"
+  </dest>
+  <voice>
+    *: "Potlačenie basov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klasický"
+  </dest>
+  <voice>
+    *: "Klasický"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Tanečný"
+  </dest>
+  <voice>
+    *: "Tanečný"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Hlboký"
+  </dest>
+  <voice>
+    *: "Hlboký"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektronický"
+  </dest>
+  <voice>
+    *: "Elektronický"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Plochý"
+  </dest>
+  <voice>
+    *: "Plochý"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip hop"
+  </dest>
+  <voice>
+    *: "Hip hop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Jazz"
+  </dest>
+  <voice>
+    *: "Jazz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latino"
+  </dest>
+  <voice>
+    *: "Latino"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Hlasitosť"
+  </dest>
+  <voice>
+    *: "Hlasitosť"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Klavír"
+  </dest>
+  <voice>
+    *: "Klavír"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Pop"
+  </dest>
+  <voice>
+    *: "Pop"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rock"
+  </dest>
+  <voice>
+    *: "Rock"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Malé reproduktory"
+  </dest>
+  <voice>
+    *: "Malé reproduktory"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Hovorené slovo"
+  </dest>
+  <voice>
+    *: "Hovorené slovo"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Zosilnenie výšok"
+  </dest>
+  <voice>
+    *: "Zosilnenie výšok"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Potlačenie výšok"
+  </dest>
+  <voice>
+    *: "Potlačenie výšok"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Zosilnenie vokálov"
+  </dest>
+  <voice>
+    *: "Zosilnenie vokálov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Pomalšie"
+  </dest>
+  <voice>
+    *: "Pomalšie"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normálne"
+  </dest>
+  <voice>
+    *: "Normálne"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Rýchlejšie"
+  </dest>
+  <voice>
+    *: "Rýchlejšie"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Aktualizácia knižnice"
+  </dest>
+  <voice>
+    *: "Aktualizácia knižnice"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Počítam…"
+  </dest>
+  <voice>
+    *: "Počítam…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Drahokamy"
+  </dest>
+  <voice>
+    *: "Drahokamy"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Míny"
+  </dest>
+  <voice>
+    *: "Míny"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Čítanie knižnice"
+  </dest>
+  <voice>
+    *: "Čítanie knižnice"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Kontrola skladieb"
+  </dest>
+  <voice>
+    *: "Kontrola skladieb"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Aktualizácia počtu prehratí"
+  </dest>
+  <voice>
+    *: "Aktualizácia počtu prehratí"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Príprava obalov"
+  </dest>
+  <voice>
+    *: "Príprava obalov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Príprava albumov"
+  </dest>
+  <voice>
+    *: "Príprava albumov"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Príprava skladieb"
+  </dest>
+  <voice>
+    *: "Príprava skladieb"
   </voice>
 </phrase>

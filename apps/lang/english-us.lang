@@ -867,10 +867,10 @@
     *: "Equalizer"
   </source>
   <dest>
-    *: "Equalizer"
+    *: "EQ"
   </dest>
   <voice>
-    *: "Equalizer"
+    *: "EQ"
   </voice>
 </phrase>
 <phrase>
@@ -1502,10 +1502,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Replaygain Type"
+    *: "Sound Check"
   </dest>
   <voice>
-    *: "Replaygain Type"
+    *: "Sound Check"
   </voice>
 </phrase>
 <phrase>
@@ -3411,11 +3411,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Time & Date"
+    rtc: "Date & Time"
   </dest>
   <voice>
     *: none
-    rtc: "Time and Date"
+    rtc: "Date & Time"
   </voice>
 </phrase>
 <phrase>
@@ -9177,10 +9177,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Keyclick"
+    *: "Clicker"
   </dest>
   <voice>
-    *: "Keyclick"
+    *: "Clicker"
   </voice>
 </phrase>
 <phrase>
@@ -11383,11 +11383,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Headphone Keyclick"
+    hardware_click: "Headphones"
   </dest>
   <voice>
     *: none
-    hardware_click: "Headphone Keyclick"
+    hardware_click: "Headphones"
   </voice>
 </phrase>
 <phrase>
@@ -11400,11 +11400,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Speaker Keyclick"
+    hardware_click: "Speaker"
   </dest>
   <voice>
     *: none
-    hardware_click: "Speaker Keyclick"
+    hardware_click: "Speaker"
   </voice>
 </phrase>
 <phrase>
@@ -11904,10 +11904,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "Maximum Volume Limit"
+    *: "Volume Limit"
   </dest>
   <voice>
-    *: "Maximum Volume Limit"
+    *: "Volume Limit"
   </voice>
 </phrase>
 <phrase>
@@ -16016,10 +16016,10 @@
     *: "Legal Notices"
   </source>
   <dest>
-    *: "Legal Notices"
+    *: "Legal"
   </dest>
   <voice>
-    *: "Legal Notices"
+    *: "Legal"
   </voice>
 </phrase>
 <phrase>

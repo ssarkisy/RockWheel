@@ -366,10 +366,10 @@
     *: "Resume Playback"
   </source>
   <dest>
-    *: "Συνέχιση αναπαραγωγής"
+    *: "Συνέχιση"
   </dest>
   <voice>
-    *: "Συνέχιση αναπαραγωγής"
+    *: "Συνέχιση"
   </voice>
 </phrase>
 <phrase>
@@ -624,10 +624,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Επιλογές ήχου"
+    *: "Ήχος"
   </dest>
   <voice>
-    *: "Επιλογές ήχου"
+    *: "Ήχος"
   </voice>
 </phrase>
 <phrase>
@@ -1267,10 +1267,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Γενικές επιλογές"
+    *: "Γενικά"
   </dest>
   <voice>
-    *: "Γενικές επιλογές"
+    *: "Γενικά"
   </voice>
 </phrase>
 <phrase>
@@ -1281,10 +1281,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Ρυθμίσεις Αναπαραγωγής"
+    *: "Αναπαραγωγή"
   </dest>
   <voice>
-    *: "Ρυθμίσεις Αναπαραγωγής"
+    *: "Αναπαραγωγή"
   </voice>
 </phrase>
 <phrase>
@@ -1485,11 +1485,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Ενεργοποίηση ομαλής εναλλαγής"
+    crossfade: "Ομαλή εναλλαγή"
   </dest>
   <voice>
     *: none
-    crossfade: "Ενεργοποίηση ομαλής εναλλαγής"
+    crossfade: "Ομαλή εναλλαγή"
   </voice>
 </phrase>
 <phrase>
@@ -1664,10 +1664,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Τύπος Replaygain"
+    *: "Έλεγχος ήχου"
   </dest>
   <voice>
-    *: "Τύπος ριπλέι γκέιν"
+    *: "Έλεγχος ήχου"
   </voice>
 </phrase>
 <phrase>
@@ -1706,10 +1706,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Ενίσχυση κομματιού εάν είναι ανακατεμένα"
+    *: "Αυτόματο"
   </dest>
   <voice>
-    *: "Ενίσχυση κομματιού εάν είναι ανακατεμένα"
+    *: "Αυτόματο"
   </voice>
 </phrase>
 <phrase>
@@ -1849,10 +1849,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Υποστίριξη Cuesheet"
+    *: "Αρχεία CUE"
   </dest>
   <voice>
-    *: "Υποστίριξη Κιούχιτ"
+    *: "Αρχεία CUE"
   </voice>
 </phrase>
 <phrase>
@@ -1865,11 +1865,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Παύση στην αποσύνδεση ακουστικών"
+    headphone_detection: "Παύση στην αποσύνδεση"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Παύση στην αποσύνδεση ακουστικών"
+    headphone_detection: "Παύση στην αποσύνδεση"
   </voice>
 </phrase>
 <phrase>
@@ -1882,11 +1882,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Παύση και συνέχιση"
+    headphone_detection: "Με συνέχιση"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Παύση και συνέχιση"
+    headphone_detection: "Με συνέχιση"
   </voice>
 </phrase>
 <phrase>
@@ -2410,8 +2410,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "Φωτισμός στο κλειδώμα πλήκτρων"
+    *: "Φωτισμός στο κλειδώμα πλήκτρων"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -3673,11 +3673,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Ώρα & ημερομηνία"
+    rtc: "Ημερομηνία και ώρα"
   </dest>
   <voice>
     *: none
-    rtc: "Ώρα και ημερομηνία"
+    rtc: "Ημερομηνία και ώρα"
   </voice>
 </phrase>
 <phrase>
@@ -10275,10 +10275,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Κλικ κουμπιών"
+    *: "Ήχος κλικ"
   </dest>
   <voice>
-    *: "Κλικ κουμπιών"
+    *: "Ήχος κλικ"
   </voice>
 </phrase>
 <phrase>
@@ -10836,10 +10836,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Επαναφορά πριν τη συνέχιση"
+    *: "Επαναφορά στη συνέχιση"
   </dest>
   <voice>
-    *: "Επαναφορά πριν τη συνέχιση"
+    *: "Επαναφορά στη συνέχιση"
   </voice>
 </phrase>
 <phrase>
@@ -10926,10 +10926,10 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "Auditory Fatigue Reduction"
+    *: "Μείωση κόπωσης"
   </dest>
   <voice>
-    *: "Auditory Fatigue Reduction"
+    *: "Μείωση κόπωσης"
   </voice>
 </phrase>
 <phrase>
@@ -11205,10 +11205,10 @@
     *: "Queue Last Shuffled"
   </source>
   <dest>
-    *: "Queue Last Shuffled"
+    *: "Στο τέλος ουράς ανακατεμένα"
   </dest>
   <voice>
-    *: "Queue Last Shuffled"
+    *: "Στο τέλος ουράς ανακατεμένα"
   </voice>
 </phrase>
 <phrase>
@@ -11533,11 +11533,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Ήχος κουμπιών στο μεγάφωνο"
+    hardware_click: "Μεγάφωνο"
   </dest>
   <voice>
     *: none
-    hardware_click: "Ήχος κουμπιών στο μεγάφωνο"
+    hardware_click: "Μεγάφωνο"
   </voice>
 </phrase>
 <phrase>
@@ -11700,10 +11700,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "Όριο μέγιστης έντασης"
+    *: "Όριο έντασης"
   </dest>
   <voice>
-    *: "Όριο μέγιστης έντασης"
+    *: "Όριο έντασης"
   </voice>
 </phrase>
 <phrase>
@@ -11938,11 +11938,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Ήχος πλήκτρων στα ακουστικά"
+    hardware_click: "Ακουστικά"
   </dest>
   <voice>
     *: none
-    hardware_click: "Ήχος πλήκτρων στα ακουστικά"
+    hardware_click: "Ακουστικά"
   </voice>
 </phrase>
 <phrase>
@@ -15827,5 +15827,1265 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "Νομικά"
+  </dest>
+  <voice>
+    *: "Νομικά"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Μουσική"
+  </dest>
+  <voice>
+    *: "Μουσική"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Πρόσθετα"
+  </dest>
+  <voice>
+    *: "Πρόσθετα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Ρολόι"
+  </dest>
+  <voice>
+    *: "Ρολόι"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Τουβλάκια"
+  </dest>
+  <voice>
+    *: "Τουβλάκια"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Πασιέντζα"
+  </dest>
+  <voice>
+    *: "Πασιέντζα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Ημερολόγιο"
+  </dest>
+  <voice>
+    *: "Ημερολόγιο"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Χρονόμετρο"
+  </dest>
+  <voice>
+    *: "Χρονόμετρο"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Πληροφορίες"
+  </dest>
+  <voice>
+    *: "Πληροφορίες"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d λεπτά"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Τραγούδια"
+  </dest>
+  <voice>
+    *: "Τραγούδια"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcast"
+  </dest>
+  <voice>
+    *: "Podcast"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Είδη"
+  </dest>
+  <voice>
+    *: "Είδη"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Συνθέτες"
+  </dest>
+  <voice>
+    *: "Συνθέτες"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Ηχητικά βιβλία"
+  </dest>
+  <voice>
+    *: "Ηχητικά βιβλία"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Φωτογραφίες"
+  </dest>
+  <voice>
+    *: "Φωτογραφίες"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Βιβλιοθήκη φωτογραφιών"
+  </dest>
+  <voice>
+    *: "Βιβλιοθήκη φωτογραφιών"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Ρυθμίσεις παρουσίασης"
+  </dest>
+  <voice>
+    *: "Ρυθμίσεις παρουσίασης"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Χρόνος ανά διαφάνεια"
+  </dest>
+  <voice>
+    *: "Χρόνος ανά διαφάνεια"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Ανακατεμένες φωτογραφίες"
+  </dest>
+  <voice>
+    *: "Ανακατεμένες φωτογραφίες"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Χειροκίνητα"
+  </dest>
+  <voice>
+    *: "Χειροκίνητα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d δευτερόλεπτα"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Χωρίς φωτογραφίες"
+  </dest>
+  <voice>
+    *: "Χωρίς φωτογραφίες"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d τραγούδι"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d τραγούδια"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d τραγούδια"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Ακουστική"
+  </dest>
+  <voice>
+    *: "Ακουστική"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Ενίσχυση μπάσων"
+  </dest>
+  <voice>
+    *: "Ενίσχυση μπάσων"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Μείωση μπάσων"
+  </dest>
+  <voice>
+    *: "Μείωση μπάσων"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Κλασική"
+  </dest>
+  <voice>
+    *: "Κλασική"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Χορευτική"
+  </dest>
+  <voice>
+    *: "Χορευτική"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Βαθιά"
+  </dest>
+  <voice>
+    *: "Βαθιά"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Ηλεκτρονική"
+  </dest>
+  <voice>
+    *: "Ηλεκτρονική"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Επίπεδη"
+  </dest>
+  <voice>
+    *: "Επίπεδη"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Χιπ χοπ"
+  </dest>
+  <voice>
+    *: "Χιπ χοπ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Τζαζ"
+  </dest>
+  <voice>
+    *: "Τζαζ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Λάτιν"
+  </dest>
+  <voice>
+    *: "Λάτιν"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Ακουστότητα"
+  </dest>
+  <voice>
+    *: "Ακουστότητα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Πιάνο"
+  </dest>
+  <voice>
+    *: "Πιάνο"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Ποπ"
+  </dest>
+  <voice>
+    *: "Ποπ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Ροκ"
+  </dest>
+  <voice>
+    *: "Ροκ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Μικρά ηχεία"
+  </dest>
+  <voice>
+    *: "Μικρά ηχεία"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Προφορικός λόγος"
+  </dest>
+  <voice>
+    *: "Προφορικός λόγος"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Ενίσχυση πρίμων"
+  </dest>
+  <voice>
+    *: "Ενίσχυση πρίμων"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Μείωση πρίμων"
+  </dest>
+  <voice>
+    *: "Μείωση πρίμων"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Ενίσχυση φωνής"
+  </dest>
+  <voice>
+    *: "Ενίσχυση φωνής"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Βραδύτερα"
+  </dest>
+  <voice>
+    *: "Βραδύτερα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Κανονικά"
+  </dest>
+  <voice>
+    *: "Κανονικά"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Ταχύτερα"
+  </dest>
+  <voice>
+    *: "Ταχύτερα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Ενημέρωση βιβλιοθήκης"
+  </dest>
+  <voice>
+    *: "Ενημέρωση βιβλιοθήκης"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Υπολογισμός…"
+  </dest>
+  <voice>
+    *: "Υπολογισμός…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Μπλακτζάκ"
+  </dest>
+  <voice>
+    *: "Μπλακτζάκ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Πετράδια"
+  </dest>
+  <voice>
+    *: "Πετράδια"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Ναρκαλιευτής"
+  </dest>
+  <voice>
+    *: "Ναρκαλιευτής"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Ανάγνωση βιβλιοθήκης"
+  </dest>
+  <voice>
+    *: "Ανάγνωση βιβλιοθήκης"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Έλεγχος τραγουδιών"
+  </dest>
+  <voice>
+    *: "Έλεγχος τραγουδιών"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Ενημέρωση αριθμού αναπαραγωγών"
+  </dest>
+  <voice>
+    *: "Ενημέρωση αριθμού αναπαραγωγών"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Προετοιμασία εξωφύλλων"
+  </dest>
+  <voice>
+    *: "Προετοιμασία εξωφύλλων"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Προετοιμασία άλμπουμ"
+  </dest>
+  <voice>
+    *: "Προετοιμασία άλμπουμ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Προετοιμασία τραγουδιών"
+  </dest>
+  <voice>
+    *: "Προετοιμασία τραγουδιών"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "Καλλιτέχνες άλμπουμ"
+  </dest>
+  <voice>
+    *: "Καλλιτέχνες άλμπουμ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "Ημερομηνία"
+  </dest>
+  <voice>
+    *: "Ημερομηνία"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "Αποθήκευση"
+  </dest>
+  <voice>
+    *: "Αποθήκευση"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "Χρονικό όριο"
+  </dest>
+  <voice>
+    *: "Χρονικό όριο"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "Κομμάτι"
+  </dest>
+  <voice>
+    *: "Κομμάτι"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "Χρόνος που πέρασε"
+  </dest>
+  <voice>
+    *: "Χρόνος που πέρασε"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "Προσθήκη"
+  </dest>
+  <voice>
+    *: "Προσθήκη"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "Ουρά..."
+  </dest>
+  <voice>
+    *: "Ουρά..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "Πληροφορίες κομματιού"
+  </dest>
+  <voice>
+    *: "Πληροφορίες κομματιού"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "Αναπαραγωγή"
+  </dest>
+  <voice>
+    *: "Αναπαραγωγή"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "Αναπαραγωγή ανακατεμένα"
+  </dest>
+  <voice>
+    *: "Αναπαραγωγή ανακατεμένα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "Προσθήκη σε λίστα..."
+  </dest>
+  <voice>
+    *: "Προσθήκη σε λίστα..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "Προσθήκη σε υπάρχουσα λίστα"
+  </dest>
+  <voice>
+    *: "Προσθήκη σε υπάρχουσα λίστα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "Επόμενη αναπαραγωγή..."
+  </dest>
+  <voice>
+    *: "Επόμενη αναπαραγωγή..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "Αναπαραγωγή επόμενου"
+  </dest>
+  <voice>
+    *: "Αναπαραγωγή επόμενου"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "Προσθήκη ανακατεμένα"
+  </dest>
+  <voice>
+    *: "Προσθήκη ανακατεμένα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "Αναπαραγωγή τελευταίου"
+  </dest>
+  <voice>
+    *: "Αναπαραγωγή τελευταίου"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "Τελευταία ανακατεμένα"
+  </dest>
+  <voice>
+    *: "Τελευταία ανακατεμένα"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "Αφαίρεση κομματιών ουράς;"
+  </dest>
+  <voice>
+    *: "Αφαίρεση κομματιών ουράς;"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "Απομένει"
+  </dest>
+  <voice>
+    *: "Απομένει"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "Καλλιτέχνες"
+  </dest>
+  <voice>
+    *: "Καλλιτέχνες"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Άλμπουμ"
+  </dest>
+  <voice>
+    *: "Άλμπουμ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "Κομμάτια"
+  </dest>
+  <voice>
+    *: "Κομμάτια"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "Τυχαία τραγούδια"
+  </dest>
+  <voice>
+    *: "Τυχαία τραγούδια"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "Αναζήτηση"
+  </dest>
+  <voice>
+    *: "Αναζήτηση"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "Προβολή εξωφύλλου"
+  </dest>
+  <voice>
+    *: "Προβολή εξωφύλλου"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "Η λίστα τελείωσε. Ξανά;"
+  </dest>
+  <voice>
+    *: "Η λίστα τελείωσε. Ξανά;"
   </voice>
 </phrase>

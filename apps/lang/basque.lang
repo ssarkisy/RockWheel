@@ -618,10 +618,10 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Soinu Aukerak"
+    *: "Soinua"
   </dest>
   <voice>
-    *: "Soinu Aukerak"
+    *: "Soinua"
   </voice>
 </phrase>
 <phrase>
@@ -1278,10 +1278,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Aukera Orokorrak"
+    *: "Orokorra"
   </dest>
   <voice>
-    *: "Aukera Orokorrak"
+    *: "Orokorra"
   </voice>
 </phrase>
 <phrase>
@@ -1292,10 +1292,10 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Erreproduzio Aukerak"
+    *: "Erreprodukzioa"
   </dest>
   <voice>
-    *: "Erreproduzio Aukerak"
+    *: "Erreprodukzioa"
   </voice>
 </phrase>
 <phrase>
@@ -1496,11 +1496,11 @@
   </source>
   <dest>
     *: none
-    crossfade: "Gaitu Gainjartzea"
+    crossfade: "Gainjartzea"
   </dest>
   <voice>
     *: none
-    crossfade: "Gaitu Gainjartzea"
+    crossfade: "Gainjartzea"
   </voice>
 </phrase>
 <phrase>
@@ -1675,10 +1675,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Bolumen Berdintze Mota"
+    *: "Bolumen berdintzea"
   </dest>
   <voice>
-    *: "Bolumen Berdintze Mota"
+    *: "Bolumen berdintzea"
   </voice>
 </phrase>
 <phrase>
@@ -1717,10 +1717,10 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Abesti Irabazia Nahastean"
+    *: "Auto"
   </dest>
   <voice>
-    *: "Abesti Irabazia Nahastean"
+    *: "Auto"
   </voice>
 </phrase>
 <phrase>
@@ -1860,10 +1860,10 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cuesheet Euskarria"
+    *: "Cue fitxategiak"
   </dest>
   <voice>
-    *: "Cuesheet Euskarria"
+    *: "Cue fitxategiak"
   </voice>
 </phrase>
 <phrase>
@@ -1876,11 +1876,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pausatu Kaskoak Ateratzean"
+    headphone_detection: "Pausatu ateratzean"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pausatu Kaskoak Ateratzean"
+    headphone_detection: "Pausatu ateratzean"
   </voice>
 </phrase>
 <phrase>
@@ -1893,11 +1893,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pausatu eta Berrekin"
+    headphone_detection: "Eta berrekin"
   </dest>
   <voice>
     *: none
-    headphone_detection: "Pausatu eta Berrekin"
+    headphone_detection: "Eta berrekin"
   </voice>
 </phrase>
 <phrase>
@@ -2422,8 +2422,8 @@
     hold_button: "Backlight on Hold"
   </source>
   <dest>
-    *: none
-    hold_button: "Atzeko-argia Sakatuta"
+    *: "Atzeko-argia Sakatuta"
+    hold_button: none
   </dest>
   <voice>
     *: none
@@ -2518,8 +2518,7 @@
     lcd_sleep: "Never"
   </source>
   <dest>
-    *: none
-    lcd_sleep: "Inoiz"
+    *: "Inoiz"
   </dest>
   <voice>
     *: none
@@ -3702,11 +3701,11 @@
   </source>
   <dest>
     *: none
-    rtc: "Ordua eta Data"
+    rtc: "Data eta ordua"
   </dest>
   <voice>
     *: none
-    rtc: "Ordua eta Data"
+    rtc: "Data eta ordua"
   </voice>
 </phrase>
 <phrase>
@@ -7503,11 +7502,11 @@
     archosplayer: "End of List"
   </source>
   <dest>
-    *: "End of Song List"
+    *: "Zerrendaren amaiera"
     archosplayer: "Zerrenda Amaiera"
   </dest>
   <voice>
-    *: " Zerrenda Amaiera"
+    *: "Zerrendaren amaiera"
   </voice>
 </phrase>
 <phrase>
@@ -10205,10 +10204,10 @@
     *: "Keyclick"
   </source>
   <dest>
-    *: "Keyclicka"
+    *: "Klik-soinua"
   </dest>
   <voice>
-    *: "Keyclicka"
+    *: "Klik-soinua"
   </voice>
 </phrase>
 <phrase>
@@ -11820,10 +11819,10 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Atzeratu Berrekin Aurretik"
+    *: "Atzeratu berrekitean"
   </dest>
   <voice>
-    *: "Atzeratu berrekin aurretik"
+    *: "Atzeratu berrekitean"
   </voice>
 </phrase>
 <phrase>
@@ -12380,11 +12379,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Bozgorailu Keyclicka"
+    hardware_click: "Bozgorailua"
   </dest>
   <voice>
     *: none
-    hardware_click: "Bozgorailu Keyclicka"
+    hardware_click: "Bozgorailua"
   </voice>
 </phrase>
 <phrase>
@@ -12397,11 +12396,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "Kasko Keyclicka"
+    hardware_click: "Kaskoak"
   </dest>
   <voice>
     *: none
-    hardware_click: "Kasko Keyclicka"
+    hardware_click: "Kaskoak"
   </voice>
 </phrase>
 <phrase>
@@ -12884,5 +12883,1559 @@
   </dest>
   <voice>
     *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "Bolumen-muga"
+  </dest>
+  <voice>
+    *: "Bolumen-muga"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "Nekea murriztea"
+  </dest>
+  <voice>
+    *: "Nekea murriztea"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "Legezko oharrak"
+  </dest>
+  <voice>
+    *: "Legezko oharrak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "Musika"
+  </dest>
+  <voice>
+    *: "Musika"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "Gehigarriak"
+  </dest>
+  <voice>
+    *: "Gehigarriak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "Erlojua"
+  </dest>
+  <voice>
+    *: "Erlojua"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "Adreiluak"
+  </dest>
+  <voice>
+    *: "Adreiluak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "Solitarioa"
+  </dest>
+  <voice>
+    *: "Solitarioa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "Egutegia"
+  </dest>
+  <voice>
+    *: "Egutegia"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "Kronometroa"
+  </dest>
+  <voice>
+    *: "Kronometroa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "Honi buruz"
+  </dest>
+  <voice>
+    *: "Honi buruz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d minutu"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "Abestiak"
+  </dest>
+  <voice>
+    *: "Abestiak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "Podcastak"
+  </dest>
+  <voice>
+    *: "Podcastak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "Motak"
+  </dest>
+  <voice>
+    *: "Motak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "Konposatzaileak"
+  </dest>
+  <voice>
+    *: "Konposatzaileak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "Audioliburuak"
+  </dest>
+  <voice>
+    *: "Audioliburuak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "Argazkiak"
+  </dest>
+  <voice>
+    *: "Argazkiak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "Argazki-liburutegia"
+  </dest>
+  <voice>
+    *: "Argazki-liburutegia"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "Diaporamaren aukerak"
+  </dest>
+  <voice>
+    *: "Diaporamaren aukerak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "Argazkiaren iraupena"
+  </dest>
+  <voice>
+    *: "Argazkiaren iraupena"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "Nahasi argazkiak"
+  </dest>
+  <voice>
+    *: "Nahasi argazkiak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "Eskuz"
+  </dest>
+  <voice>
+    *: "Eskuz"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d segundo"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "Ez dago argazkirik"
+  </dest>
+  <voice>
+    *: "Ez dago argazkirik"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: "one-other"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d abesti"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d abesti"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d abesti"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "Akustikoa"
+  </dest>
+  <voice>
+    *: "Akustikoa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "Baxuak indartu"
+  </dest>
+  <voice>
+    *: "Baxuak indartu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "Baxuak murriztu"
+  </dest>
+  <voice>
+    *: "Baxuak murriztu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "Klasikoa"
+  </dest>
+  <voice>
+    *: "Klasikoa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "Dantza"
+  </dest>
+  <voice>
+    *: "Dantza"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "Sakona"
+  </dest>
+  <voice>
+    *: "Sakona"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "Elektronikoa"
+  </dest>
+  <voice>
+    *: "Elektronikoa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "Laua"
+  </dest>
+  <voice>
+    *: "Laua"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "Hip-hopa"
+  </dest>
+  <voice>
+    *: "Hip-hopa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "Jazza"
+  </dest>
+  <voice>
+    *: "Jazza"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "Latinoa"
+  </dest>
+  <voice>
+    *: "Latinoa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "Ozentasuna"
+  </dest>
+  <voice>
+    *: "Ozentasuna"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "Lounge"
+  </dest>
+  <voice>
+    *: "Lounge"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "Pianoa"
+  </dest>
+  <voice>
+    *: "Pianoa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "Popa"
+  </dest>
+  <voice>
+    *: "Popa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "R&B"
+  </dest>
+  <voice>
+    *: "R&B"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "Rocka"
+  </dest>
+  <voice>
+    *: "Rocka"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "Bozgorailu txikiak"
+  </dest>
+  <voice>
+    *: "Bozgorailu txikiak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "Hizketa"
+  </dest>
+  <voice>
+    *: "Hizketa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "Altuak indartu"
+  </dest>
+  <voice>
+    *: "Altuak indartu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "Altuak murriztu"
+  </dest>
+  <voice>
+    *: "Altuak murriztu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "Ahotsa indartu"
+  </dest>
+  <voice>
+    *: "Ahotsa indartu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "Motelago"
+  </dest>
+  <voice>
+    *: "Motelago"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "Normala"
+  </dest>
+  <voice>
+    *: "Normala"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "Azkarrago"
+  </dest>
+  <voice>
+    *: "Azkarrago"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "Liburutegia eguneratzen"
+  </dest>
+  <voice>
+    *: "Liburutegia eguneratzen"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "Kalkulatzen…"
+  </dest>
+  <voice>
+    *: "Kalkulatzen…"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "Blackjack"
+  </dest>
+  <voice>
+    *: "Blackjack"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "Bitxiak"
+  </dest>
+  <voice>
+    *: "Bitxiak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "Mina-bilatzailea"
+  </dest>
+  <voice>
+    *: "Mina-bilatzailea"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "Liburutegia irakurtzen"
+  </dest>
+  <voice>
+    *: "Liburutegia irakurtzen"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "Abestiak egiaztatzen"
+  </dest>
+  <voice>
+    *: "Abestiak egiaztatzen"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "Erreprodukzioak eguneratzen"
+  </dest>
+  <voice>
+    *: "Erreprodukzioak eguneratzen"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "Azalak prestatzen"
+  </dest>
+  <voice>
+    *: "Azalak prestatzen"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "Albumak prestatzen"
+  </dest>
+  <voice>
+    *: "Albumak prestatzen"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "Abestiak prestatzen"
+  </dest>
+  <voice>
+    *: "Abestiak prestatzen"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ID3_ALBUMARTISTS
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Album Artists"
+  </source>
+  <dest>
+    *: "Album-artistak"
+  </dest>
+  <voice>
+    *: "Album-artistak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_ON
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock On"
+  </source>
+  <dest>
+    *: "Autoblokeoa gaituta"
+  </dest>
+  <voice>
+    *: "Autoblokeoa gaituta"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ACTION_AUTOLOCK_OFF
+  desc: Softlock behaviour setting
+  user: core
+  <source>
+    *: "Autolock Off"
+  </source>
+  <dest>
+    *: "Autoblokeoa ezgaituta"
+  </dest>
+  <voice>
+    *: "Autoblokeoa ezgaituta"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_ELAPSED
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track elapsed:"
+  </source>
+  <dest>
+    *: "Abestitik igarota:"
+  </dest>
+  <voice>
+    *: "Abestitik igarota:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRK_REMAINING
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track remaining:"
+  </source>
+  <dest>
+    *: "Abestitik falta:"
+  </dest>
+  <voice>
+    *: "Abestitik falta:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_TRACK
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Track:"
+  </source>
+  <dest>
+    *: "Abestia:"
+  </dest>
+  <voice>
+    *: "Abestia:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_STORAGE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Storage (Done / Remaining):"
+  </source>
+  <dest>
+    *: "Tamaina (eginda / falta):"
+  </dest>
+  <voice>
+    *: "Tamaina (eginda / falta):"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_TRACK_SIZE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average track size:"
+  </source>
+  <dest>
+    *: "Batez besteko tamaina:"
+  </dest>
+  <voice>
+    *: "Batez besteko tamaina:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_AVG_BITRATE
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Average bitrate:"
+  </source>
+  <dest>
+    *: "Batez besteko bit-tasa:"
+  </dest>
+  <voice>
+    *: "Batez besteko bit-tasa:"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_TIME
+  desc: onplay menu
+  user: core
+  <source>
+    *: "Playing time"
+  </source>
+  <dest>
+    *: "Erreprodukzio-denbora"
+  </dest>
+  <voice>
+    *: "Erreprodukzio-denbora"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_PATH
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Path]"
+  </source>
+  <dest>
+    *: "[Bidea]"
+  </dest>
+  <voice>
+    *: "[Bidea]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILENAME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Filename]"
+  </source>
+  <dest>
+    *: "[Fitxategi-izena]"
+  </dest>
+  <voice>
+    *: "[Fitxategi-izena]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SIZE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Size]"
+  </source>
+  <dest>
+    *: "[Tamaina]"
+  </dest>
+  <voice>
+    *: "[Tamaina]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DATE
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Date]"
+  </source>
+  <dest>
+    *: "[Data]"
+  </dest>
+  <voice>
+    *: "[Data]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_TIME
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Time]"
+  </source>
+  <dest>
+    *: "[Ordua]"
+  </dest>
+  <voice>
+    *: "[Ordua]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_SUBDIRS
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Subdirs]"
+  </source>
+  <dest>
+    *: "[Azpikarpetak]"
+  </dest>
+  <voice>
+    *: "[Azpikarpetak]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "[Files]"
+  </source>
+  <dest>
+    *: "[Fitxategiak]"
+  </dest>
+  <voice>
+    *: "[Fitxategiak]"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_DIRECTORY_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Directory properties"
+  </source>
+  <dest>
+    *: "Karpetaren propietateak"
+  </dest>
+  <voice>
+    *: "Karpetaren propietateak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FILE_PROPERTIES
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "File properties"
+  </source>
+  <dest>
+    *: "Fitxategiaren propietateak"
+  </dest>
+  <voice>
+    *: "Fitxategiaren propietateak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROPERTIES_FAIL
+  desc: in properties plugin
+  user: core
+  <source>
+    *: "Failed to gather information"
+  </source>
+  <dest>
+    *: "Ezin da informazioa bildu"
+  </dest>
+  <voice>
+    *: "Ezin da informazioa bildu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE
+  desc: for constructing time and date announcements
+  user: core
+  <source>
+    *: "Date"
+  </source>
+  <dest>
+    *: "Data"
+  </dest>
+  <voice>
+    *: "Data"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE
+  desc:
+  user: core
+  <source>
+    *: "Save"
+  </source>
+  <dest>
+    *: "Gorde"
+  </dest>
+  <voice>
+    *: "Gorde"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIMEOUT
+  desc:
+  user: core
+  <source>
+    *: "Timeout"
+  </source>
+  <dest>
+    *: "Denbora-muga"
+  </dest>
+  <voice>
+    *: "Denbora-muga"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK
+  desc: used in track x of y constructs
+  user: core
+  <source>
+    *: "Track"
+  </source>
+  <dest>
+    *: "Abestia"
+  </dest>
+  <voice>
+    *: "Abestia"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ELAPSED
+  desc: prefix for elapsed playtime announcement
+  user: core
+  <source>
+    *: "Elapsed"
+  </source>
+  <dest>
+    *: "Igarotakoa"
+  </dest>
+  <voice>
+    *: "Igarotakoa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD
+  desc:
+  user: core
+  <source>
+    *: "Add"
+  </source>
+  <dest>
+    *: "Gehitu"
+  </dest>
+  <voice>
+    *: "Gehitu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_QUEUE_MENU
+  desc: in onplay menu
+  user: core
+  <source>
+    *: "Queue..."
+  </source>
+  <dest>
+    *: "Ilaran jarri..."
+  </dest>
+  <voice>
+    *: "Ilaran jarri..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACK_INFO
+  desc: Track Info Title
+  user: core
+  <source>
+    *: "Track Info"
+  </source>
+  <dest>
+    *: "Abestiaren informazioa"
+  </dest>
+  <voice>
+    *: "Abestiaren informazioa"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY
+  desc: play selected file/directory, in playlist context menu
+  user: core
+  <source>
+    *: "Play"
+  </source>
+  <dest>
+    *: "Jo"
+  </dest>
+  <voice>
+    *: "Jo"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_SHUFFLED
+  desc: play selected files in shuffled order, in playlist context menu
+  user: core
+  <source>
+    *: "Play Shuffled"
+  </source>
+  <dest>
+    *: "Jo nahasian"
+  </dest>
+  <voice>
+    *: "Jo nahasian"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Playlist..."
+  </source>
+  <dest>
+    *: "Gehitu zerrendara..."
+  </dest>
+  <voice>
+    *: "Gehitu zerrendara..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_EXISTING_PL
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add to Existing Playlist"
+  </source>
+  <dest>
+    *: "Gehitu dagoen zerrendara"
+  </dest>
+  <voice>
+    *: "Gehitu dagoen zerrendara"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Playing Next..."
+  </source>
+  <dest>
+    *: "Hurrengo jotzeko..."
+  </dest>
+  <voice>
+    *: "Hurrengo jotzeko..."
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_NEXT
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next"
+  </source>
+  <dest>
+    *: "Jo hurrengo"
+  </dest>
+  <voice>
+    *: "Jo hurrengo"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Add Shuffled"
+  </source>
+  <dest>
+    *: "Gehitu nahasian"
+  </dest>
+  <voice>
+    *: "Gehitu nahasian"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last"
+  </source>
+  <dest>
+    *: "Jo azkenik"
+  </dest>
+  <voice>
+    *: "Jo azkenik"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAY_LAST_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Last Shuffled"
+  </source>
+  <dest>
+    *: "Jo azkenik nahasian"
+  </dest>
+  <voice>
+    *: "Jo azkenik nahasian"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_QUEUED_TRACKS
+  desc: Confirmation dialog
+  user: core
+  <source>
+    *: "Remove Queued Tracks?"
+  </source>
+  <dest>
+    *: "Ilarako abestiak kendu?"
+  </dest>
+  <voice>
+    *: "Ilarako abestiak kendu?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMAINING
+  desc: Playing Time
+  user: core
+  <source>
+    *: "Remaining"
+  </source>
+  <dest>
+    *: "Geratzen dena"
+  </dest>
+  <voice>
+    *: "Geratzen dena"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTISTS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Artists"
+  </source>
+  <dest>
+    *: "Artistak"
+  </dest>
+  <voice>
+    *: "Artistak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Albumak"
+  </dest>
+  <voice>
+    *: "Albumak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TRACKS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Tracks"
+  </source>
+  <dest>
+    *: "Abestiak"
+  </dest>
+  <voice>
+    *: "Abestiak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "Nahasi abestiak"
+  </dest>
+  <voice>
+    *: "Nahasi abestiak"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH
+  desc: Database menu
+  user: core
+  <source>
+    *: "Search"
+  </source>
+  <dest>
+    *: "Bilatu"
+  </dest>
+  <voice>
+    *: "Bilatu"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VIEW_ALBUMART
+  desc: WPS context menu
+  user: core
+  <source>
+    *: "View Album Art"
+  </source>
+  <dest>
+    *: "Ikusi azala"
+  </dest>
+  <voice>
+    *: "Ikusi azala"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REPLAY_FINISHED_PLAYLIST
+  desc: Resume playback of finished playlist
+  user: core
+  <source>
+    *: "Playlist finished. Play again?"
+  </source>
+  <dest>
+    *: "Zerrenda amaitu. Berriz jo?"
+  </dest>
+  <voice>
+    *: "Zerrenda amaitu. Berriz jo?"
   </voice>
 </phrase>
