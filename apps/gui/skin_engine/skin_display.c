@@ -638,6 +638,102 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
                           img->x, img->y, img->bm.width, img->subimage_height);
 }
 
+#ifdef HAVE_ALBUMART
+/* The next track's cover takes a moment to load, and with no cover there the
+   backdrop's note would show until then. So the last one stays that long: a copy,
+   as the buffer may have dropped it. */
+#define ART_KEPT_TIME   (HZ * 3 / 4)
+#define ART_KEPT_SIZE   200
+
+static struct {
+    fb_data pixels[ART_KEPT_SIZE * ART_KEPT_SIZE];
+    short width, height;
+    int handle;
+} kept_art[2];
+static int last_art_handle[2] = { -1, -1 };
+static long art_kept_until;
+static bool art_keeping = false;
+
+static void keep_album_art(int index, int handle)
+{
+    struct bitmap *bmp;
+
+    if (kept_art[index].width > 0 && kept_art[index].handle == handle)
+        return;
+    if (bufgetdata(handle, 0, (void *)&bmp) <= 0)
+        return;
+
+    const int width = bmp->width, height = bmp->height;
+    if (width > ART_KEPT_SIZE || height > ART_KEPT_SIZE)
+    {
+        kept_art[index].width = 0;
+        return;
+    }
+    memcpy(kept_art[index].pixels, bmp->data, width * height * sizeof(fb_data));
+    kept_art[index].width = width;
+    kept_art[index].height = height;
+    kept_art[index].handle = handle;
+}
+
+static void draw_kept_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
+                                int index)
+{
+    const int width = kept_art[index].width, height = kept_art[index].height;
+    int x = aa->x, y = aa->y;
+
+    if (aa->xalign & WPS_ALBUMART_ALIGN_RIGHT)
+        x += aa->width - width;
+    else if (aa->xalign & WPS_ALBUMART_ALIGN_CENTER)
+        x += (aa->width - width) / 2;
+    if (aa->yalign & WPS_ALBUMART_ALIGN_BOTTOM)
+        y += aa->height - height;
+    else if (aa->yalign & WPS_ALBUMART_ALIGN_CENTER)
+        y += (aa->height - height) / 2;
+
+    gwps->display->bitmap_part(kept_art[index].pixels, 0, 0,
+                               STRIDE(gwps->display->screen_type, width, height),
+                               x, y, width, height);
+}
+
+bool skin_art_is_kept(const struct wps_data *data)
+{
+    return art_keeping && data == skin_get_gwps(WPS, SCREEN_MAIN)->data
+           && TIME_BEFORE(current_tick, art_kept_until);
+}
+
+int skin_art_handle(const struct wps_data *data, int index, int handle)
+{
+    if (data != skin_get_gwps(WPS, SCREEN_MAIN)->data)
+        return handle;
+
+    if (handle >= 0)
+    {
+        art_keeping = false;
+    }
+    else if (last_art_handle[index] >= 0 && !art_keeping)
+    {
+        art_keeping = true;
+        art_kept_until = current_tick + ART_KEPT_TIME;
+    }
+    last_art_handle[index] = handle;
+
+    if (handle < 0 && kept_art[index].width > 0 && skin_art_is_kept(data))
+        return SKIN_ART_KEPT;
+    return handle;
+}
+
+/* True once, when the time for it is up with no cover there: the note can show */
+bool skin_art_kept_expired(void)
+{
+    if (art_keeping && !TIME_BEFORE(current_tick, art_kept_until))
+    {
+        art_keeping = false;
+        return true;
+    }
+    return false;
+}
+#endif /* HAVE_ALBUMART */
+
 void wps_display_images(struct gui_wps *gwps, struct viewport* vp)
 {
     if(!gwps || !gwps->data || !gwps->display)
@@ -655,6 +751,12 @@ void wps_display_images(struct gui_wps *gwps, struct viewport* vp)
         if (aa && aa->draw_handle >= 0)
         {
             draw_album_art(gwps, aa, aa->draw_handle, false);
+            keep_album_art(i, aa->draw_handle);
+            aa->draw_handle = -1;
+        }
+        else if (aa && aa->draw_handle == SKIN_ART_KEPT)
+        {
+            draw_kept_album_art(gwps, aa, i);
             aa->draw_handle = -1;
         }
     }

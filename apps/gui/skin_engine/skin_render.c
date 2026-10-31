@@ -325,7 +325,8 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
                         handle = radio_get_art_hid(&dim);
                     }
 #endif
-                    aa->draw_handle = handle;
+                    aa->draw_handle = skin_art_handle(data, token->value.i == 2,
+                                                      handle);
                 }
             }
             break;

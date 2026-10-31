@@ -727,6 +727,8 @@ static void display_mode_turn(int direction)
 static void check_album_art(void)
 {
     static int drawn[2] = { -1, -1 };
+    if (skin_art_kept_expired())
+        skin_request_full_update(WPS);
     struct wps_data *data = skin_get_gwps(WPS, SCREEN_MAIN)->data;
     int slots[2] = { data->playback_aa_slot, data->playback_aa_slot2 };
     for (int i = 0; i < 2; i++)

@@ -1428,7 +1428,7 @@ const char *get_token_value(struct gui_wps *gwps,
                     handle = radio_get_art_hid(&dim);
                 }
 #endif
-                if (handle >= 0)
+                if (handle >= 0 || skin_art_is_kept(data))
                     return "C";
             }
             return NULL;
