@@ -2140,7 +2140,7 @@ static bool track_buffer_avail(size_t needed)
 }
 
 
-static int pf_tcs_retrieve_track_title(int string_index, int disc_num, int track_num)
+static int pf_tcs_retrieve_track_title(int string_index)
 {
     char file_name[MAX_PATH];
     char *track_title = NULL;
@@ -2158,22 +2158,13 @@ static int pf_tcs_retrieve_track_title(int string_index, int disc_num, int track
     if (!track_title)
         track_title = tcs.result;
 
-    int max_len = rb->strlen(track_title) + 10;
+    /* the title alone, as on a stock iPod: the numbers only sort the list */
+    int max_len = rb->strlen(track_title) + 1;
     if (!track_buffer_avail(max_len))
         return 0;
 
-    if (track_num > 0)
-    {
-        if (disc_num > 0)
-            str_len = rb->snprintf(pf_tracks.names + string_index, max_len,
-                "%d.%02d: %s", disc_num, track_num, track_title);
-        else
-            str_len = rb->snprintf(pf_tracks.names + string_index, max_len,
-                "%d: %s", track_num, track_title);
-    }
-    else
-        str_len = rb->snprintf(pf_tracks.names + string_index, max_len,
-            "%s", track_title);
+    str_len = rb->snprintf(pf_tracks.names + string_index, max_len,
+        "%s", track_title);
     return str_len;
 }
 
@@ -2221,7 +2212,7 @@ static void create_track_index(const int slide_index)
         int track_num = rb->tagcache_get_numeric(&tcs, tag_tracknumber);
         disc_num = disc_num > 0 ? disc_num : 0;
         track_num = track_num > 0 ? track_num : 0;
-        int fn_idx = 1 + pf_tcs_retrieve_track_title(string_index, disc_num, track_num);
+        int fn_idx = 1 + pf_tcs_retrieve_track_title(string_index);
         if (fn_idx <= 1)
             goto fail;
         pf_tracks.used += fn_idx;
