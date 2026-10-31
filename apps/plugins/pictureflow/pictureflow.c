@@ -558,6 +558,8 @@ static int roll_speed;
 static int roll_aim;
 static bool roll_free; /* the wheel has been let go */
 static int roll_carry; /* what they had when a finger came back on the wheel */
+static bool roll_settling; /* slowing down for good, onto a cover already chosen */
+static int roll_settle_time; /* in 1/16 frames: how fast it slows */
 #ifdef HAVE_WHEEL_POSITION
 static bool wheel_timer_set;
 #endif
@@ -574,6 +576,12 @@ static bool anim_turning; /* just turned back, in the same place */
 #define ROLL_FRICTION       24    /* 1/n of what they follow is lost in a frame */
 #define ROLL_CLICKS_MAX     288   /* a second, 3 turns: over a few moments it's no surer */
 #define ROLL_TRAVEL_FULL    64    /* clicks; with less, it's that much of the wheel's speed */
+/* The end of a roll: what's left of the way is lost at a steady rate, so that the speed
+   falls by the same share every frame, as it does on an iPod touch, and they glide on
+   for about three covers. The cover they land on is chosen so that the speed doesn't
+   change where this begins. */
+#define ROLL_SETTLE_FRAMES  11
+#define ROLL_SETTLE_MIN     900   /* the last of it, or it would never get there */
 static int fade;
 static int center_index = 0; /* index of the slide that is in the center */
 static int itilt;
@@ -4183,6 +4191,24 @@ static int slide_ahead(int slides)
     return fbound(0, center_index + slides * step, number_of_slides - 1);
 }
 
+/* the cover they'd get to at this speed, and the rate that gets them there */
+static void roll_settle_start(void)
+{
+    const int want = roll_speed * ROLL_SETTLE_FRAMES;
+    int slides = 1;
+    int way;
+
+    while (true) {
+        target = slide_ahead(slides);
+        way = abs((target << 16) - slide_frame);
+        if (way >= want - 32768 || target == slide_ahead(slides + 1))
+            break;
+        slides++;
+    }
+    roll_settle_time = fmax(way * 16 / roll_speed, 16);
+    roll_settling = true;
+}
+
 /**
   Updates the animation effect. Call this periodically from a timer.
 */
@@ -4215,12 +4241,30 @@ static void update_scroll_animation(void)
             roll_aim -= roll_aim / ROLL_FRICTION;
         else
             roll_carry -= roll_carry / ROLL_FRICTION;
-        roll_speed += (fmin(roll_aim, left * ROLL_LAST_SLIDES + ROLL_LAST_SPEED)
-                       - roll_speed) / ROLL_FOLLOW;
-        roll_speed = fmax(roll_speed, ROLL_SPEED_MIN);
-        /* the last slide being nearer than that, they stop on it as usual */
-        if (target == center_index + 2 * step)
-            speed = roll_speed;
+        /* another flick takes them out of it */
+        if (roll_settling && roll_aim >= ROLL_SPEED_MIN)
+            roll_settling = false;
+        if (!roll_settling) {
+            roll_speed += (fmin(roll_aim, left * ROLL_LAST_SLIDES + ROLL_LAST_SPEED)
+                           - roll_speed) / ROLL_FOLLOW;
+            roll_speed = fmax(roll_speed, ROLL_SPEED_MIN);
+            /* the last slide being nearer than that, they stop on it as usual */
+            if (target == center_index + 2 * step)
+                speed = roll_speed;
+            /* run down, or the end of the albums near enough to glide to it */
+            if (roll_free
+                && ((roll_aim < ROLL_SPEED_MIN && roll_speed < ROLL_SPEED_MIN + 2048)
+                    || left * 65536 <= roll_speed * ROLL_SETTLE_FRAMES))
+                roll_settle_start();
+        }
+        if (roll_settling) {
+            /* a finger on the wheel: the next cover will do, at the same pace */
+            if (!roll_free && abs(target - center_index) > 1)
+                target = slide_ahead(1);
+            int left_of_way = abs((target << 16) - slide_frame);
+            speed = fmax(left_of_way * 16 / roll_settle_time, ROLL_SETTLE_MIN);
+            roll_speed = speed;
+        }
     }
     anim_speed = speed;
 
@@ -4246,8 +4290,9 @@ static void update_scroll_animation(void)
         for (i = 0; i < pf_cfg.num_slides; i++)
             right_slides[i].slide_index = center_index + 1 + i;
         const bool rolled = roll_speed != 0;
-        if (roll_speed) {
-            /* from the speed that the stop on the next slide starts with */
+        if (roll_speed && !roll_settling) {
+            /* a finger stopped them: from the speed that the stop on the next
+               slide starts with */
             if (roll_aim < ROLL_SPEED_MIN && roll_speed < ROLL_SPEED_MIN + 2048) {
                 roll_speed = 0;
                 target = slide_ahead(1);
@@ -4272,6 +4317,7 @@ static void update_scroll_animation(void)
         step = 0;
         fade = 256;
         roll_speed = 0;
+        roll_settling = false;
         return;
     }
 
@@ -5674,6 +5720,7 @@ static void roll_start(int direction)
     }
     if (pf_state == pf_scrolling && step == direction)
     {
+        roll_settling = false;
         roll_speed = fmax(anim_speed, ROLL_SPEED_MIN);
         target = slide_ahead(2);
     }
