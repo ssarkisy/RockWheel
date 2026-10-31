@@ -23,7 +23,7 @@
 %Fl(2,14-Inter-SemiBold.fnt)
 %Fl(3,14-Inter-Bold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
-%?LS<%Vd(about)|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(radio)|%Vd(radio)>>>
+%?LS<%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(radio)|%Vd(radio)>>>
 %Cl(0,0,240,240,c,c)
 %Vl(a,120,0,200,240,-)
 %Cd
@@ -49,8 +49,11 @@ s%al%?cs<||%?Rp<%Sx(Recording)>|%?tp<%Sx(FM Radio)>|%Sx(Playlist)>
 %XS(About Backdrop.bmp)
 %Vl(about,160,0,160,240,-)
 %nu(20,174,128,11,Disk Fill.bmp)
-%Vl(about,163,17,154,24,1)%Vf(dde1e6)
-%aciPod
+# the name given in Finder, in a smaller font if it wouldn't fit
+%Vl(name,161,17,158,24,1)%Vf(dde1e6)
+%s%ac%nn
+%Vl(longname,161,21,158,14,3)%Vf(dde1e6)
+%s%ac%nn
 %Vl(about,163,194,154,24,1)%Vf(eceef0)
 %s%ac%nf
 # nothing playing: the library under the note, as on a stock iPod

@@ -19,6 +19,7 @@
  *
  ****************************************************************************/
 #include "disk.h"
+#include "itunesdb.h"
 #include "menu.h"
 #include "font.h"
 #include <stdio.h>
@@ -1648,6 +1649,19 @@ const char *get_token_value(struct gui_wps *gwps,
                                           token->value.i))
                 return "v";
             return NULL;
+#ifdef HAVE_TAGCACHE
+        case SKIN_TOKEN_DEVICE_NAME:
+            return itunesdb_device_name();
+        case SKIN_TOKEN_DEVICE_NAME_LENGTH:
+            numeric_ret = utf8length(itunesdb_device_name());
+            itoa_buf(buf, buf_size, numeric_ret);
+            numeric_buf = buf;
+            goto gtv_ret_numeric_tag_info;
+#else
+        case SKIN_TOKEN_DEVICE_NAME:
+        case SKIN_TOKEN_DEVICE_NAME_LENGTH:
+            return NULL;
+#endif
         case SKIN_TOKEN_MENU_SETTINGS_SELECTED:
             return menu_settings_selected() ? "s" : NULL;
         case SKIN_TOKEN_DISK_FREE:

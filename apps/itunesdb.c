@@ -272,6 +272,91 @@ bool itunesdb_changed(void)
         || hdr.db_mtime != mtime;
 }
 
+/* The name given to the iPod in Finder is that of the first playlist, the hidden
+   one with the whole library. It's near the middle of a file of 30 MB, reached
+   here by a few short reads, so it's read when it's first shown, and again after
+   an import. */
+static char device_name[128];
+static bool device_name_read = false;
+
+static bool read_at(int fd, off_t pos, void *buf, size_t size)
+{
+    return lseek(fd, pos, SEEK_SET) == pos
+           && read(fd, buf, size) == (ssize_t)size;
+}
+
+static void read_device_name(void)
+{
+    unsigned char h[44];
+    unsigned char text[2 * (sizeof(device_name) / 3)];
+    int fd = open(ITUNESDB_DIR "/iTunesDB", O_RDONLY);
+
+    device_name[0] = '\0';
+    if (fd < 0)
+        return;
+
+    off_t pos = 0;
+    if (!read_at(fd, pos, h, 16) || memcmp(h, "mhbd", 4))
+        goto done;
+    pos += le32(h + 4);
+
+    /* the list of playlists */
+    while (1)
+    {
+        if (!read_at(fd, pos, h, 16) || memcmp(h, "mhsd", 4))
+            goto done;
+        if (le32(h + 12) == 2)
+            break;
+        if (le32(h + 8) == 0)
+            goto done;
+        pos += le32(h + 8);
+    }
+    pos += le32(h + 4);
+    if (!read_at(fd, pos, h, 16) || memcmp(h, "mhlp", 4))
+        goto done;
+    pos += le32(h + 4);
+
+    /* the first of them, if it's the hidden one */
+    if (!read_at(fd, pos, h, 44) || memcmp(h, "mhyp", 4) || le32(h + 20) == 0)
+        goto done;
+    int mhods = le32(h + 12);
+    pos += le32(h + 4);
+
+    for (int i = 0; i < mhods; i++)
+    {
+        if (!read_at(fd, pos, h, 40) || memcmp(h, "mhod", 4))
+            goto done;
+        if (le32(h + 12) == 1)
+        {
+            size_t units = MIN(le32(h + 28), sizeof(text)) / 2;
+            if (read_at(fd, pos + 40, text, units * 2))
+            {
+                /* not half of a pair: the decoder would take both */
+                if (units > 0 && text[units * 2 - 1] >= 0xd8
+                    && text[units * 2 - 1] < 0xe0)
+                    units--;
+                *utf16LEdecode(text, (unsigned char *)device_name, units) = '\0';
+            }
+            break;
+        }
+        if (le32(h + 8) == 0)
+            break;
+        pos += le32(h + 8);
+    }
+done:
+    close(fd);
+}
+
+const char *itunesdb_device_name(void)
+{
+    if (!device_name_read)
+    {
+        read_device_name();
+        device_name_read = true;
+    }
+    return device_name[0] ? device_name : "iPod";
+}
+
 bool itunesdb_exists(void)
 {
     uint32_t size, mtime;
@@ -2849,6 +2934,9 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
 
 int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
 {
+    /* a sync may have changed the name */
+    device_name_read = false;
+
     int count = 0;
     read_done = done;
     read_total = total;
