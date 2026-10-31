@@ -249,16 +249,18 @@ void draw_format_badge(struct gui_wps *gwps, struct skin_viewport *skin_viewport
     if (!id3)
         return;
 
-    /* What the database gives at first has no format, but it has the path, which
-       tells unless it's an MP4 file: AAC and ALAC have the same extensions, and
-       only the file itself can say. A bitrate of 1 is the database having none. */
+    /* What the database gives at first has no format, but it has the path and the
+       bitrate. AAC and ALAC have the same extensions, but iTunes makes AAC of 320
+       kbps at most, and ALAC is nearly always well over this. An ALAC file that's
+       under it shows as AAC until the file has been read. A bitrate of 1 is the
+       database having none. */
     unsigned int codec = id3->codectype;
     if (codec == AFMT_UNKNOWN)
     {
         codec = probe_file_format(id3->path);
         if (codec == AFMT_MP4_ALAC || codec == AFMT_MP4_AAC
             || codec == AFMT_MP4_AAC_HE)
-            return;
+            codec = id3->bitrate < 400 ? AFMT_MP4_AAC : AFMT_MP4_ALAC;
     }
     if (codec == AFMT_UNKNOWN || codec >= AFMT_NUM_CODECS || id3->bitrate <= 1)
         return;
