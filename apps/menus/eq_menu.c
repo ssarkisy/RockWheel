@@ -890,7 +890,7 @@ static const struct
    the rest off, as each one takes time from the UI. Bands are numbered as the
    defaults, and q and gain are in tenths. The precut is the largest boost after the
    bands add up, in tenths of a dB. */
-#define EQ_PHONES_BANDS 3
+#define EQ_PHONES_BANDS 5
 static const struct
 {
     int lang_id;
@@ -911,6 +911,17 @@ static const struct
       { { 2, { EQ_FILTER_PEAK, 170, 10, -30 } },
         { 6, { EQ_FILTER_PEAK, 3000, 12, 25 } },
         { 7, { EQ_FILTER_PEAK, 5500, 12, 30 } } } },
+    /* for strings, quiet sounds and cymbals: all of the bass hump gone but not the
+       lowest bass, 2-5 kHz a little ahead, and the dip around 10 kHz filled in.
+       Their peak at 8-8.5 kHz is cut, right after a dip it stands 6 to 10 dB over:
+       with it these made a lot of sibilance. So is some of the one at 12.5-13 kHz,
+       5 dB over the target. */
+    { LANG_EQ_ZERO2_DETAIL, 38,
+      { { 2, { EQ_FILTER_PEAK, 170, 8, -35 } },
+        { 5, { EQ_FILTER_PEAK, 4000, 8, 40 } },
+        { 6, { EQ_FILTER_PEAK, 8300, 30, -50 } },
+        { 7, { EQ_FILTER_PEAK, 10500, 40, 20 } },
+        { 8, { EQ_FILTER_PEAK, 12800, 30, -30 } } } },
     /* the same way, less far, for treble that's too much with the first */
     { LANG_EQ_ZERO2_SOFT, 25,
       { { 2, { EQ_FILTER_PEAK, 170, 10, -20 } },

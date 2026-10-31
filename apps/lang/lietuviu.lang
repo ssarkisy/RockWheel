@@ -11137,3 +11137,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_EQ_ZERO2_DETAIL
+  desc: in the iPod's EQ list, the preset for the 7Hz Zero 2 earphones for strings, quiet sounds and cymbals
+  user: core
+  <source>
+    *: "7Hz Zero 2: Detail"
+  </source>
+  <dest>
+    *: "7Hz Zero 2: Detalės"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
