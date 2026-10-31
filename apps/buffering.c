@@ -35,6 +35,7 @@
 #include "playback.h"
 #ifdef HAVE_TAGCACHE
 #include "itunesdb.h"
+#include "tagcache.h"
 #endif
 #endif
 #include "buffering.h"
@@ -654,8 +655,15 @@ static bool buffer_handle(int handle_id, size_t to_buffer)
     trigger_cpu_boost();
 
     if (h->type == TYPE_ID3) {
-        get_metadata_ex(ringbuf_ptr(h->data),
-                        h->fd, h->path, METADATA_CLOSE_FD_ON_EXIT);
+        struct mp3entry *id3 = ringbuf_ptr(h->data);
+        get_metadata_ex(id3, h->fd, h->path, METADATA_CLOSE_FD_ON_EXIT);
+#if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
+        /* The rating isn't in the file, and it's from this that Now Playing shows
+           the track: it shouldn't have to wait for the database's when the track
+           starts to play */
+        if (!id3->rating)
+            id3->rating = tagcache_get_rating(h->path);
+#endif
         h->fd = -1; /* with above, behavior same as close_fd */
         h->widx = ringbuf_add(h->data, h->filesize);
         h->end  = h->filesize;

@@ -2370,6 +2370,19 @@ static char* get_tag_string(const struct index_entry *entry, int tag)
     return strcmp(s, UNTAGGED) ? s : NULL;
 }
 
+/* The rating of a file, from the database in RAM, or 0: it's not in the file */
+int tagcache_get_rating(const char *filename)
+{
+    if (!tc_stat.ready || !tc_stat.ramcache)
+        return 0;
+
+    int idx_id = find_entry_ram(filename);
+    if (idx_id < 0)
+        return 0;
+
+    return get_tag_numeric(&tcramcache.hdr->indices[idx_id], tag_rating, idx_id);
+}
+
 bool tagcache_fill_tags(struct mp3entry *id3, const char *filename)
 {
     struct index_entry *entry;

@@ -227,6 +227,7 @@ void tagcache_screensync_enable(bool state);
 bool tagcache_is_in_ram(void);
 #ifdef HAVE_DIRCACHE
 bool tagcache_fill_tags(struct mp3entry *id3, const char *filename);
+int tagcache_get_rating(const char *filename);
 #endif
 void tagcache_unload_ramcache(void);
 #endif
