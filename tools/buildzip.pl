@@ -613,12 +613,12 @@ sub buildzip {
 
     }
 
-    # RockPod, the iPod Video build: only the plugins its menus open, with
+    # RockWheel, the iPod Video build: only the plugins its menus open, with
     # their data, and the viewers of those
-    if ($modelname =~ /\bipodvideo\b/ && -e "$ROOT/apps/plugins/ROCKPOD") {
-        open ROCKPOD, "$ROOT/apps/plugins/ROCKPOD" or die "can't open ROCKPOD";
-        my %keep = map { $_ => 1 } grep { /\S/ && !/^#/ } map { s/\s+//gr } <ROCKPOD>;
-        close ROCKPOD;
+    if ($modelname =~ /\bipodvideo\b/ && -e "$ROOT/apps/plugins/ROCKWHEEL") {
+        open ROCKWHEEL, "$ROOT/apps/plugins/ROCKWHEEL" or die "can't open ROCKWHEEL";
+        my %keep = map { $_ => 1 } grep { /\S/ && !/^#/ } map { s/\s+//gr } <ROCKWHEEL>;
+        close ROCKWHEEL;
         my @gone;
         find({ no_chdir => 1, bydepth => 1, wanted => sub {
             my $f = $File::Find::name;
@@ -634,7 +634,7 @@ sub buildzip {
                 push @gone, substr($f, length("$temp_dir/rocks/"));
             }
         }}, "$temp_dir/rocks");
-        print "RockPod: left out " . scalar(@gone) . " plugin files\n" if $verbose;
+        print "RockWheel: left out " . scalar(@gone) . " plugin files\n" if $verbose;
 
         open VIEWERS, "$temp_dir/viewers.config" or die "can't open viewers.config";
         my @lines = grep { /[^,]*,([^,]*),/ && -e "$temp_dir/rocks/$1.rock" } <VIEWERS>;
@@ -741,7 +741,7 @@ sub buildzip {
     glob_copy('*.lng.talk', "$temp_dir/langs/");
     glob_copy('*.voice', "$temp_dir/langs/");
 
-    # copy the .lua files, when Lua is there (RockPod leaves it out)
+    # copy the .lua files, when Lua is there (RockWheel leaves it out)
     if (-e "$temp_dir/rocks/viewers/lua.rock") {
         glob_mkdir("$temp_dir/rocks/viewers/lua/");
         glob_copy('apps/plugins/lua/*.lua', "$temp_dir/rocks/viewers/lua/");

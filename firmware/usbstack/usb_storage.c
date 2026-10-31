@@ -1862,7 +1862,7 @@ static const unsigned char *syscfg_entry(const unsigned char *cfg,
     return NULL;
 }
 
-/* Without the file Apple's firmware gave, as on an iPod RockPod was put on
+/* Without the file Apple's firmware gave, as on an iPod RockWheel was put on
    from scratch: the description of a 5.5G with this iPod's own serial
    number, FireWire GUID and RAM, which is all that differs between them */
 static bool make_ipod_xml(const unsigned char *cfg, int ram_mb)

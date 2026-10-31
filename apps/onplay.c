@@ -1064,7 +1064,7 @@ static int clipboard_callback(int action,
             if (selected_file.context == CONTEXT_ID3DB)
             {
                 /* no PictureFlow, which is Cover Flow in the Music menu,
-                   and no files, which RockPod's menus don't show */
+                   and no files, which RockWheel's menus don't show */
                 if (this_item == &track_info_item)
                     return action;
                 return ACTION_EXIT_MENUITEM;

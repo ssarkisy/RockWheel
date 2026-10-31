@@ -128,13 +128,13 @@ static int show_credits(void)
 static int show_legal(void)
 {
     static const char notice[] =
-        "RockPod is built on Rockbox, free software under the GNU General Public "
+        "RockWheel is built on Rockbox, free software under the GNU General Public "
         "License, version 2 or later, by the Rockbox contributors.\n\n"
         "Theme: modified/derived from iClassic Square theme for iPod Video "
         "(CC-BY-SA 3.0) by Humberto Santana, with elements from the iLike theme by "
         "Alan Brito and H. Pearce.\n\n"
         "Font: Inter, under the SIL Open Font License.\n\n"
-        "Apple, iPod, iTunes and Finder are trademarks of Apple Inc. RockPod has "
+        "Apple, iPod, iTunes and Finder are trademarks of Apple Inc. RockWheel has "
         "nothing to do with Apple.\n\n";
     static const char * const files[] =
         { ROCKBOX_DIR "/docs/COPYING.txt", ROCKBOX_DIR "/docs/LICENSES.txt" };
@@ -634,7 +634,7 @@ static void about_prepare(void)
         about_add(str(LANG_ABOUT_LAST_SYNC), value);
     }
 
-    about_add("RockPod", rbversion);
+    about_add("RockWheel", rbversion);
     about_add("Rockbox", ABOUT_ROCKBOX);
     about_add(str(LANG_ABOUT_THEME), ABOUT_THEME);
 }
