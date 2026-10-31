@@ -582,7 +582,7 @@ static const struct root_items items[] = {
 #ifdef HAVE_TAGCACHE
     [GO_TO_DBBROWSER] =     { browser, (void*)GO_TO_DBBROWSER, NULL },
 #endif
-    [GO_TO_WPS] =           { wpsscrn, NULL, &ipod_playback_settings },
+    [GO_TO_WPS] =           { wpsscrn, NULL, NULL },
     [GO_TO_MAINMENU] =      { miscscrn, (struct menu_item_ex*)&main_menu_,
                                                             NULL },
 

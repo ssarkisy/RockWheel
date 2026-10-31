@@ -1243,8 +1243,8 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            &cover_flow_item,
 #endif
            &wps_shuffle_item, &wps_repeat_item,
+           &ipod_eq_menu,
            &wps_playlist_menu, &cat_playlist_menu,
-           &ipod_sound_settings, &ipod_playback_settings,
 #ifndef HAVE_HOTKEY
            &context_item_0,
 #endif
