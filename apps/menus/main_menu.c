@@ -533,7 +533,7 @@ MAKE_MENU(ipod_advanced_menu, ID2P(LANG_ADVANCED), NULL, Icon_Submenu_Entered,
 #ifdef HAVE_BACKLIGHT
         &ipod_backlight_menu,
 #endif
-        &battery_capacity, &browse_themes,
+        &battery_capacity,
 #ifdef HAVE_TAGCACHE
         &ipod_database_menu,
 #endif

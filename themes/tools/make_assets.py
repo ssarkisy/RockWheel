@@ -20,7 +20,6 @@ import struct
 HERE = os.path.dirname(os.path.abspath(__file__))
 ICLASSIC = os.path.join(HERE, '..', 'iClassic-Square', '.rockbox', 'wps',
                         'iClassic-Square')
-ILIKE = os.path.join(HERE, '..', 'iLike', '.rockbox', 'wps', 'iLike')
 
 SS = 4  # supersampling per axis
 
@@ -244,15 +243,5 @@ def iclassic():
     centre_note()
 
 
-def ilike():
-    # trough at x 18..301, y 182..201 on a white backdrop
-    plain = [[(255, 255, 255)] * 284 for _ in range(20)]
-    make_stars(ILIKE, plain, 7.5)
-    make_knob(ILIKE, 15, 7.5, 4.5, 6.5)
-    # the art goes at 54,26 (212x212), the trough sticks out 36px each side
-    make_mask(ILIKE, 36, 20)
-
-
 if __name__ == '__main__':
     iclassic()
-    ilike()

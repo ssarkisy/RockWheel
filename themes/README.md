@@ -1,21 +1,19 @@
-# iPod themes
+# iPod theme
 
-Themes for the iPod Video (320x240), kept here in the layout they are
-installed in (`<theme>/.rockbox/...`). iClassic Square is the main theme,
-iLike is the alternative.
+The theme for the iPod Video (320x240), kept here in the layout it is installed
+in (`<theme>/.rockbox/...`). The menus don't offer another one.
 
-Both are licensed under Creative Commons Attribution-Share Alike 3.0
-(http://creativecommons.org/licenses/by-sa/3.0/), and so are the changes
-made to them here.
+It's licensed under Creative Commons Attribution-Share Alike 3.0
+(http://creativecommons.org/licenses/by-sa/3.0/), and so are the changes made
+to it here.
 
-`fonts/` holds the fonts both themes use: Inter (https://rsms.me/inter/),
-converted with `tools/make_fonts.sh`, under the SIL Open Font License 1.1
-(`fonts/OFL.txt`). The fonts the themes came with had no Cyrillic.
+`fonts/` holds the fonts it uses: Inter (https://rsms.me/inter/), converted with
+`tools/make_fonts.sh`, under the SIL Open Font License 1.1 (`fonts/OFL.txt`). The
+fonts it came with had no Cyrillic.
 
-- **iClassic Square** by Humberto Santana, derived from iLike.
+- **iClassic Square** by Humberto Santana, derived from iLike by Alan Brito, itself
+  ported from the 176x132 version by Hayden Pearce.
   https://themes.rockbox.org/index.php?themeid=1311&target=ipodvideo
-- **iLike** by Alan Brito, ported from the 176x132 version by Hayden Pearce.
-  https://themes.rockbox.org/index.php?themeid=1260&target=ipodvideo
 
 Changes from the originals:
 
