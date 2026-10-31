@@ -540,6 +540,29 @@ static struct slide_data right_slides[MAX_SLIDES_COUNT];
 static int slide_frame;
 static int step;
 static int target;
+/* With a wheel that turns fast the covers roll: they go at a speed that follows
+   the wheel's, and when it's let go, what they follow runs down. In 1/65536 of a
+   slide a frame; roll_speed is 0 when they aren't rolling. */
+static int roll_speed;
+static int roll_aim;
+static bool roll_free; /* the wheel has been let go */
+static int roll_carry; /* what they had when a finger came back on the wheel */
+#ifdef HAVE_WHEEL_POSITION
+static bool wheel_timer_set;
+#endif
+static int anim_speed; /* what they last moved by */
+static bool anim_turning; /* just turned back, in the same place */
+#define ROLL_PER_CLICK      655   /* of a click a second, with 4 clicks to a slide and
+                                     25 frames a second: at the speed of the wheel */
+#define ROLL_SPEED_MAX      81920 /* a slide and a quarter, from one turn */
+#define ROLL_SPEED_TOP      131072 /* two slides, from turns one after the other */
+#define ROLL_SPEED_MIN      18000 /* about what the stop on the next slide starts with */
+#define ROLL_LAST_SLIDES    6554  /* the most for each slide left, with what's below */
+#define ROLL_LAST_SPEED     22000
+#define ROLL_FOLLOW         3     /* 1/n of the difference is made up in a frame */
+#define ROLL_FRICTION       24    /* 1/n of what they follow is lost in a frame */
+#define ROLL_CLICKS_MAX     288   /* a second, 3 turns: over a few moments it's no surer */
+#define ROLL_TRAVEL_FULL    64    /* clicks; with less, it's that much of the wheel's speed */
 static int fade;
 static int center_index = 0; /* index of the slide that is in the center */
 static int itilt;
@@ -3796,6 +3819,7 @@ static void strip_to_buffer(const struct strip *st, int x0, int w)
  */
 static inline void set_current_slide(const int slide_index)
 {
+    roll_speed = 0;
     int old_center_index = center_index;
     step = 0;
     center_index = fbound(0, slide_index, number_of_slides - 1);
@@ -3929,6 +3953,7 @@ static bool sort_albums(int new_sorting, bool from_settings)
  */
 static void start_animation(void)
 {
+    roll_speed = 0;
     step = (target < center_slide.slide_index) ? -1 : 1;
     pf_state = pf_scrolling;
 }
@@ -3946,6 +3971,8 @@ static void show_previous_slide(void)
             start_animation();
         }
     } else if ( step > 0 ) {
+        roll_speed = 0;
+        anim_turning = true;
         target = center_index;
         step = (target <= center_slide.slide_index) ? -1 : 1;
         if (step < 0)
@@ -3967,6 +3994,8 @@ static void show_next_slide(void)
             start_animation();
         }
     } else if ( step < 0 ) {
+        roll_speed = 0;
+        anim_turning = true;
         target = center_index;
         step = (target < center_slide.slide_index) ? -1 : 1;
         if (step > 0)
@@ -4142,6 +4171,12 @@ static void render_all_slides(void)
 }
 
 
+/* The slide this many from the middle one in the direction they go, or the last */
+static int slide_ahead(int slides)
+{
+    return fbound(0, center_index + slides * step, number_of_slides - 1);
+}
+
 /**
   Updates the animation effect. Call this periodically from a timer.
 */
@@ -4167,6 +4202,22 @@ static void update_scroll_animation(void)
         speed = 512 + 16384 * (PFREAL_ONE + fsin(ia)) / PFREAL_ONE;
     }
 
+    if (roll_speed) {
+        const int left = step > 0 ? number_of_slides - 1 - center_index
+                                  : center_index;
+        if (roll_free)
+            roll_aim -= roll_aim / ROLL_FRICTION;
+        else
+            roll_carry -= roll_carry / ROLL_FRICTION;
+        roll_speed += (fmin(roll_aim, left * ROLL_LAST_SLIDES + ROLL_LAST_SPEED)
+                       - roll_speed) / ROLL_FOLLOW;
+        roll_speed = fmax(roll_speed, ROLL_SPEED_MIN);
+        /* the last slide being nearer than that, they stop on it as usual */
+        if (target == center_index + 2 * step)
+            speed = roll_speed;
+    }
+    anim_speed = speed;
+
     slide_frame += speed * step;
 
     int index = slide_frame >> 16;
@@ -4183,13 +4234,26 @@ static void update_scroll_animation(void)
     if (center_index != index) {
         center_index = index;
         rb->queue_post(&thread_q, EV_WAKEUP, 0);
-        slide_frame = index << 16;
         center_slide.slide_index = center_index;
         for (i = 0; i < pf_cfg.num_slides; i++)
             left_slides[i].slide_index = center_index - 1 - i;
         for (i = 0; i < pf_cfg.num_slides; i++)
             right_slides[i].slide_index = center_index + 1 + i;
+        const bool rolled = roll_speed != 0;
+        if (roll_speed) {
+            /* from the speed that the stop on the next slide starts with */
+            if (roll_aim < ROLL_SPEED_MIN && roll_speed < ROLL_SPEED_MIN + 2048) {
+                roll_speed = 0;
+                target = slide_ahead(1);
+            } else
+                target = slide_ahead(2);
+        }
+        /* rolling, nothing is dropped so they go evenly; and turning back this is
+           the same place counted from the other slide, not a slide reached */
+        if (!anim_turning && !rolled)
+            slide_frame = index << 16;
     }
+    anim_turning = false;
 
     center_slide.angle = (step * tick * itilt) >> 16;
     center_slide.cx = -step * fmul(offsetX, ftick);
@@ -4201,6 +4265,7 @@ static void update_scroll_animation(void)
         slide_frame = center_index << 16;
         step = 0;
         fade = 256;
+        roll_speed = 0;
         return;
     }
 
@@ -4250,6 +4315,11 @@ static void update_scroll_animation(void)
 static void cleanup(void)
 {
     wants_to_quit = true;
+#ifdef HAVE_WHEEL_POSITION
+    /* not otherwise, as the timer may be the backlight's, fading */
+    if (wheel_timer_set)
+        rb->timer_unregister();
+#endif
     if (buf_ctx_locked)
     {
         buf_ctx_locked = false;
@@ -5496,6 +5566,150 @@ static bool prompt_reinit(void)
     return true;
 }
 
+#ifdef HAVE_WHEEL_POSITION
+#define WHEEL_CLICKS        96 /* in a turn */
+#define WHEEL_READS         100 /* a second */
+#define WHEEL_RECENT        12 /* readings that its speed is taken over */
+#define WHEEL_RECENT_MIN    4  /* as if at least this many, as one can be off */
+#define WHEEL_CLICKS_MAX    8  /* in a reading: more is the place jumping when a finger
+                                  comes off, as no one turns it 8 times a second */
+#define WHEEL_LOST          3  /* readings of no finger, as one can be lost for a moment */
+#define WHEEL_HELD          8  /* readings of a finger not moving, that stops the covers */
+
+/* The wheel, read by a timer and not once a frame: a quick swipe can be over before
+   the next frame */
+static struct {
+    int position; /* -1 with no finger on it */
+    int lost;
+    signed char recent[WHEEL_RECENT];
+    int oldest;
+    int sum;      /* of recent */
+    int moving;   /* of recent, since it started to move */
+    int readings; /* since it was touched, or turned back */
+    int travel;   /* clicks this way, positive towards the next slide */
+    int energy;   /* what the covers are to follow, kept when it's let go */
+    bool let_go;
+} wheel = { .position = -1 };
+
+static void wheel_read(void)
+{
+    const int position = rb->wheel_status();
+
+    if (position < 0)
+    {
+        if (wheel.position >= 0 && ++wheel.lost >= WHEEL_LOST)
+        {
+            wheel.position = -1;
+            wheel.let_go = true;
+        }
+        return;
+    }
+    wheel.lost = 0;
+
+    bool from_start = wheel.position < 0;
+    int delta = 0;
+    if (!from_start)
+    {
+        delta = position - wheel.position;
+        if (delta < -WHEEL_CLICKS / 2)
+            delta += WHEEL_CLICKS;
+        else if (delta > WHEEL_CLICKS / 2)
+            delta -= WHEEL_CLICKS;
+        delta = fbound(-WHEEL_CLICKS_MAX, delta, WHEEL_CLICKS_MAX);
+        /* it wavers by a click or two when it's held */
+        from_start = (delta ^ wheel.travel) < 0 && abs(delta) > 2;
+    }
+    wheel.position = position;
+
+    if (from_start)
+    {
+        rb->memset(wheel.recent, 0, sizeof(wheel.recent));
+        wheel.sum = wheel.moving = wheel.travel = wheel.energy = wheel.readings = 0;
+        wheel.let_go = false;
+    }
+    wheel.readings++;
+    if (delta == 0 && wheel.moving == 0)
+        return;
+
+    wheel.sum += delta - wheel.recent[wheel.oldest];
+    wheel.recent[wheel.oldest] = delta;
+    wheel.oldest = (wheel.oldest + 1) % WHEEL_RECENT;
+    wheel.moving = fmin(wheel.moving + 1, WHEEL_RECENT);
+    wheel.travel += delta;
+
+    const int direction = wheel.travel > 0 ? 1 : -1;
+    const int speed = direction * wheel.sum * WHEEL_READS
+                      / fmax(wheel.moving, WHEEL_RECENT_MIN);
+    wheel.energy = fmin(fbound(0, speed, ROLL_CLICKS_MAX) * ROLL_PER_CLICK
+                        * fmin(direction * wheel.travel, ROLL_TRAVEL_FULL)
+                        / ROLL_TRAVEL_FULL, ROLL_SPEED_MAX);
+}
+
+/* Start rolling that way if they can. The wheel can be too quick for its events to
+   have got them moving, or turned them back: going the other way, the first only
+   stops them. */
+static void roll_start(int direction)
+{
+    if (pf_state != pf_idle && pf_state != pf_scrolling)
+        return;
+    roll_carry = 0;
+    for (int i = 0; i < 2 && step != direction; i++)
+    {
+        if (direction > 0)
+            show_next_slide();
+        else
+            show_previous_slide();
+    }
+    if (pf_state == pf_scrolling && step == direction)
+    {
+        roll_speed = fmax(anim_speed, ROLL_SPEED_MIN);
+        target = slide_ahead(2);
+    }
+}
+
+/* Once a frame: what the wheel means for the covers. What they follow is its speed
+   over the last moments, for as much of a turn as it has made: a touch sends them
+   nowhere, and a short quick swipe as far as it deserves. A finger put back on the
+   wheel adds that to what they have, so that turn after turn speeds them up; held
+   still it stops them, and turning the other way turns them back. */
+static void watch_wheel(void)
+{
+    const int direction = wheel.travel > 0 ? 1 : -1;
+    const int energy = wheel.energy;
+
+    if (wheel.let_go)
+    {
+        wheel.let_go = false;
+        if ((!roll_speed || step != direction) && energy >= ROLL_SPEED_MIN)
+            roll_start(direction);
+        if (roll_speed)
+        {
+            roll_aim = fmin(roll_carry + (step == direction ? energy : 0),
+                            ROLL_SPEED_TOP);
+            roll_carry = 0;
+            roll_free = true;
+        }
+        return;
+    }
+
+    if (wheel.position < 0)
+        return;
+
+    if (roll_free)
+    {
+        roll_free = false;
+        roll_carry = roll_aim;
+    }
+    if (wheel.readings >= WHEEL_HELD && abs(wheel.sum) <= 1)
+        roll_carry = 0;
+    if ((!roll_speed || step != direction) && energy >= ROLL_SPEED_MIN
+        && pf_state == pf_scrolling)
+        roll_start(direction);
+    if (roll_speed)
+        roll_aim = fmin(roll_carry + (step == direction ? energy : 0), ROLL_SPEED_TOP);
+}
+#endif /* HAVE_WHEEL_POSITION */
+
 /**
   Main function that also contain the main plasma
   algorithm.
@@ -5514,6 +5728,11 @@ static int pictureflow_main(void)
     bool instant_update;
     long load_after = *rb->current_tick;
 
+#ifdef HAVE_WHEEL_POSITION
+    wheel_timer_set = rb->timer_register(1, NULL, TIMER_FREQ / WHEEL_READS, wheel_read
+                                         IF_COP(, CPU));
+#endif
+
     while (true) {
         current_update = *rb->current_tick;
         frames++;
@@ -5526,6 +5745,9 @@ static int pictureflow_main(void)
         instant_update = false;
 
         update_scroll_lines();
+#ifdef HAVE_WHEEL_POSITION
+        watch_wheel();
+#endif
 
         /* Handle states */
         switch ( pf_state ) {
