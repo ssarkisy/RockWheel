@@ -82,7 +82,9 @@ Press Select to move from the cover to the lyrics, the scrubber and your rating.
 
 **Shortcuts your thumb learns quickly.** Hold Play for Now Playing from almost anywhere, and hold Menu to go to the main menu. Press Menu after holding Play to go back to the list you started it from.
 
-**The EQ from iTunes.** All 22 presets, tuned exactly as they are in iTunes, plus four made for the 7Hz Zero 2 earphones. Presets for more headphones may come in the future.
+**The EQ from iTunes.** All 22 presets, tuned exactly as they are in iTunes, plus four made for the 7Hz Zero 2 earphones. You hear a new preset the moment you pick it. Presets for more headphones may come in the future.
+
+**Songs at an even level.** Turn on Sound Check, in Settings or by holding Select in Now Playing, and your library plays at about the same volume, using the levels Finder has already worked out.
 
 **Your photos too,** synced by Finder, in the familiar grid and full screen.
 
@@ -118,6 +120,7 @@ How that was done:
 - **Faster codecs where it counted.** A new IMDCT path in libmad takes MP3 decoding from 7.8 to 6.7 ms a frame, and libfaad clears and copies less, taking AAC from 11.4 to 10.55 ms.
 - **The whole database in RAM,** paths included, with hash tables instead of repeated disk searches.
 - **Work done ahead of time.** Cover Flow's images and the playlist of all songs are prepared while the library updates, so nothing has to be built when you open them.
+- **Sound Check from Finder's own values,** looked up on disk as a track loads. It only ever lowers a track, since Finder's database doesn't say where its peaks are.
 - **Journaled library updates.** Cut off at 10 different points in the simulator, an update recovered every time.
 - **The device description Finder asks for** is generated from the iPod's own flash the first time it's needed.
 - **Finder's database read once,** as a stream in aligned 64 KB blocks, because it doesn't fit in memory.
@@ -168,6 +171,7 @@ Music you bought from iTunes plays, apart from old copy-protected purchases. App
 The stock firmware stays on the iPod, with the same library. To start it, turn the Hold switch on while the iPod boots.
 
 - **To update,** run the same command. Your settings, library and play counts are kept, and all it asks for is your password.
+- **To hear about new versions,** choose Watch, then Custom, then Releases, at the top of this page.
 - **To see what it would do first,** download [`install.sh`](install.sh) and run `bash install.sh --dry-run`. It changes nothing.
 - **To go back,** `bash install.sh --uninstall` removes the bootloader, and the iPod starts its stock firmware.
 
