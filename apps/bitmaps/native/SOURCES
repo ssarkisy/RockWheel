@@ -37,9 +37,9 @@ rockboxlogo.480x149x16.bmp
 rockboxlogo.640x198x16.bmp
 #endif
 
-/* Apple logo, made by themes/tools/make_apple_logo.swift */
-#ifdef APPLE_BOOT_LOGO
-applelogo.64x80x16.bmp
+/* the mark on the boot screen, made by themes/tools/make_wheel_mark.py */
+#ifdef STOCK_BOOT_LOGO
+bootlogo.64x80x16.bmp
 #endif
 
 /* The screen while connected over USB, made by themes/tools/make_usb_screen.py */

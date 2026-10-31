@@ -30,8 +30,8 @@
 #ifdef HAVE_REMOTE_LCD
 #include "bitmaps/remote_rockboxlogo.h"
 #endif
-#ifdef APPLE_BOOT_LOGO
-#include "bitmaps/applelogo.h"
+#ifdef STOCK_BOOT_LOGO
+#include "bitmaps/bootlogo.h"
 #endif
 #endif /* !(PLUGIN || __PCTOOL__) */
 

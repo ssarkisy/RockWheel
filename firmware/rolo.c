@@ -216,7 +216,7 @@ void rolo_restart(const unsigned char* source, unsigned char* dest,
 extern unsigned long loadaddress;
 
 /* On the way to the boot logo there's nothing here to read */
-#ifdef APPLE_BOOT_LOGO
+#ifdef STOCK_BOOT_LOGO
 #define rolo_puts(x, y, text) do {} while (0)
 #else
 #define rolo_puts lcd_puts

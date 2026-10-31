@@ -1120,16 +1120,16 @@ static void library_update_show(const char *text, int percent)
 #if LCD_DEPTH > 1
     lcd_set_backdrop(NULL);
 #endif
-#ifdef APPLE_BOOT_LOGO
-    int y = APPLE_BOOT_LOGO_Y;
+#ifdef STOCK_BOOT_LOGO
+    int y = STOCK_BOOT_LOGO_Y;
 #else
     int y = (LCD_HEIGHT - 96) / 2;
 #endif
     lcd_set_background(LCD_BLACK);
     lcd_clear_display();
-#ifdef APPLE_BOOT_LOGO
-    lcd_bmp(&bm_applelogo, (LCD_WIDTH - BMPWIDTH_applelogo) / 2, y);
-    y += BMPHEIGHT_applelogo;
+#ifdef STOCK_BOOT_LOGO
+    lcd_bmp(&bm_bootlogo, (LCD_WIDTH - BMPWIDTH_bootlogo) / 2, y);
+    y += BMPHEIGHT_bootlogo;
 #else
     y += 96;
 #endif
@@ -1235,7 +1235,7 @@ void root_menu(void)
 #ifdef HAVE_TAGCACHE
     show_library_update();
 #endif
-#ifdef APPLE_BOOT_LOGO
+#ifdef STOCK_BOOT_LOGO
     /* the theme the boot turned off, now that the menu shows */
     FOR_NB_SCREENS(i)
         viewportmanager_theme_undo(i, false);

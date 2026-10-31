@@ -39,3 +39,7 @@ The extra bitmaps are drawn by `tools/make_assets.py`.
 To try them in the simulator, copy them over the simulator disk:
 
     rsync -a themes/*/.rockbox/ build-sim/simdisk/.rockbox/
+
+The ring on the boot screen and on the panel beside the main menu is drawn by
+`tools/make_wheel_mark.py`, and the panel made from it by `tools/make_about_panel.py`.
+They are this project's own: no maker's logo is in this repository.

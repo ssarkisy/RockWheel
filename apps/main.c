@@ -175,7 +175,7 @@ int main(void)
     CHART(">init");
     init();
     CHART("<init");
-#ifndef APPLE_BOOT_LOGO
+#ifndef STOCK_BOOT_LOGO
     FOR_NB_SCREENS(i)
     {
         screens[i].clear_display();
@@ -255,13 +255,13 @@ int main(void)
 int show_logo_boot( void ) INIT_ATTR;
 int show_logo_boot( void )
 {
-#ifdef APPLE_BOOT_LOGO
+#ifdef STOCK_BOOT_LOGO
     /* only the logo on black, as the iPod starts its own firmware */
     lcd_set_background(LCD_BLACK);
     lcd_clear_display();
     lcd_set_background(LCD_DEFAULT_BG);
-    lcd_bmp(&bm_applelogo, (LCD_WIDTH - BMPWIDTH_applelogo) / 2,
-            APPLE_BOOT_LOGO_Y);
+    lcd_bmp(&bm_bootlogo, (LCD_WIDTH - BMPWIDTH_bootlogo) / 2,
+            STOCK_BOOT_LOGO_Y);
     lcd_update();
 #else
     unsigned char version[32];
@@ -298,7 +298,7 @@ int show_logo_boot( void )
     lcd_remote_setfont(FONT_UI);
     lcd_remote_update();
 #endif
-#endif /* APPLE_BOOT_LOGO */
+#endif /* STOCK_BOOT_LOGO */
 #ifdef SIMULATOR
     sleep(HZ); /* sim is too fast to see logo */
 #endif
@@ -457,7 +457,7 @@ static void init(void)
     gui_sync_skin_init();
     sb_skin_init();
     viewportmanager_init();
-#ifdef APPLE_BOOT_LOGO
+#ifdef STOCK_BOOT_LOGO
     /* the boot logo stays until the menu shows, root_menu() turns this back:
        loading the theme during the rest of the boot drew parts of it */
     FOR_NB_SCREENS(i)
@@ -610,7 +610,7 @@ static void init(void)
     CHART(">viewportmanager_init");
     viewportmanager_init();
     CHART("<viewportmanager_init");
-#ifdef APPLE_BOOT_LOGO
+#ifdef STOCK_BOOT_LOGO
     /* the boot logo stays until the menu shows, root_menu() turns this back:
        loading the theme during the rest of the boot drew parts of it */
     FOR_NB_SCREENS(i)
