@@ -39,6 +39,8 @@
 #include "splash.h"
 #include "general.h"
 #include "pathfuncs.h"
+#include "audio.h"
+#include "root_menu.h"
 
 /* load a screen to save the playlist passed in (or current playlist if NULL is passed) */
 int save_playlist_screen(struct playlist_info* playlist)
@@ -112,14 +114,15 @@ int save_playlist_screen(struct playlist_info* playlist)
 
 static int playlist_view_(void)
 {
-    playlist_viewer_ex(NULL, NULL);
+    /* this result is the viewer being left for the track playing */
+    const bool to_track = playlist_viewer_ex(NULL, NULL) == PLAYLIST_VIEWER_OK;
     FOR_NB_SCREENS(i) /* Playlist Viewer defers skin updates when popping its activity */
         skin_update(CUSTOM_STATUSBAR, i, SKIN_REFRESH_ALL);
-    return 0;
+    return to_track && audio_status() ? GO_TO_PREVIOUS_MUSIC : 0;
 }
 MENUITEM_FUNCTION(create_playlist_item, 0, ID2P(LANG_CREATE_PLAYLIST),
                   create_playlist, NULL, Icon_NOICON);
-MENUITEM_FUNCTION(view_cur_playlist, 0,
+MENUITEM_FUNCTION(view_cur_playlist, MENU_FUNC_CHECK_RETVAL,
                   ID2P(LANG_VIEW_DYNAMIC_PLAYLIST),
                   playlist_view_, NULL, Icon_NOICON);
 MENUITEM_FUNCTION_W_PARAM(save_playlist, 0, ID2P(LANG_SAVE_DYNAMIC_PLAYLIST),

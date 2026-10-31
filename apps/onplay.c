@@ -1698,7 +1698,8 @@ int onplay(char* file, int attr, int from_context, bool hotkey, int customaction
     menu_selection = do_menu(menu, NULL, NULL, false);
     pop_current_activity();
 
-    if (menu_selection == GO_TO_WPS)
+    /* the latter: Play held, over a list; Now Playing stays where it is anyway */
+    if (menu_selection == GO_TO_WPS || menu_selection == GO_TO_PREVIOUS_MUSIC)
         return ONPLAY_START_PLAY;
     if (menu_selection == GO_TO_ROOT)
         return ONPLAY_MAINMENU;
