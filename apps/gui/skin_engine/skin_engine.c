@@ -26,6 +26,7 @@
 #include "action.h"
 #include "crc32.h"
 #include "settings.h"
+#include "font.h"
 #include "rbpaths.h"
 #include "wps.h"
 #include "file.h"
@@ -183,6 +184,8 @@ static void skin_reset_buffers(int item, int screen)
 void settings_apply_skins(void)
 {
     int i;
+
+    font_load_fallback();
 
     if (audio_status() & AUDIO_STATUS_PLAY)
         audio_stop();

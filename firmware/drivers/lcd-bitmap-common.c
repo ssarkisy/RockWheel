@@ -413,12 +413,7 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
 
     void (*bmp_part_fn)(const unsigned char *src, int src_x, int src_y,
                         int stride, int x, int y, int width, int height);
-#if defined(MAIN_LCD) && defined(HAVE_LCD_COLOR)
-    if (pf->depth)
-        bmp_part_fn = lcd_alpha_bitmap_part;
-    else
-#endif
-        bmp_part_fn = LCDFN(mono_bmp_part_helper);
+    bool fallback_locked = false;
 
     rtl_next_non_diac_width = 0;
     last_non_diacritic_width = 0;
@@ -435,8 +430,24 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
 
         is_diac = IS_DIACRITIC_RTL(*ucs, &is_rtl);
 
+        /* A letter the font lacks comes from the fallback font, which may be another
+           kind of bitmap and another size: centred on the line */
+        struct font *gf = font_for_char(pf, *ucs);
+        if (gf != pf && !fallback_locked)
+        {
+            font_lock(font_fallback_id(), true);
+            fallback_locked = true;
+        }
+#if defined(MAIN_LCD) && defined(HAVE_LCD_COLOR)
+        if (gf->depth)
+            bmp_part_fn = lcd_alpha_bitmap_part;
+        else
+#endif
+            bmp_part_fn = LCDFN(mono_bmp_part_helper);
+        const int gy = y + ((int)pf->height - (int)gf->height) / 2;
+
         /* Get proportional width and glyph bits */
-        width = font_get_width(pf, *ucs);
+        width = font_get_width(gf, *ucs);
 
         /* Calculate base width */
         if (is_rtl)
@@ -451,7 +462,7 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
                     /* Jump to next non-diacritic char, and calc its width */
                     for (u = &ucs[1]; *u && IS_DIACRITIC(*u); u++);
 
-                    rtl_next_non_diac_width = *u ?  font_get_width(pf, *u) : 0;
+                    rtl_next_non_diac_width = *u ?  font_get_width(font_for_char(pf, *u), *u) : 0;
                 }
                 base_width = rtl_next_non_diac_width;
             }
@@ -475,7 +486,7 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
             continue;
         }
 
-        bits = font_get_bits(pf, *ucs);
+        bits = font_get_bits(gf, *ucs);
 
         if (is_diac)
         {
@@ -497,13 +508,13 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
             vp->drawmode = DRMODE_FG;
             base_ofs = (base_width - width) / 2;
 
-            bmp_part_fn(bits, ofs, 0, width, x + base_ofs, y, width - ofs, pf->height);
+            bmp_part_fn(bits, ofs, 0, width, x + base_ofs, gy, width - ofs, gf->height);
 
             vp->drawmode = drawmode;
         }
         else
         {
-            bmp_part_fn(bits, ofs, 0, width, x + base_ofs, y, width - ofs, pf->height);
+            bmp_part_fn(bits, ofs, 0, width, x + base_ofs, gy, width - ofs, gf->height);
         }
 
         if (next_ch)
@@ -522,6 +533,8 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
             }
         }
     }
+    if (fallback_locked)
+        font_lock(font_fallback_id(), false);
     font_lock(vp->font, false);
 }
 #else /* BOOTLOADER */

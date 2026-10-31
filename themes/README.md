@@ -9,7 +9,8 @@ to it here.
 
 `fonts/` holds the fonts it uses: Inter (https://rsms.me/inter/), converted with
 `tools/make_fonts.sh`, under the SIL Open Font License 1.1 (`fonts/OFL.txt`). The
-fonts it came with had no Cyrillic.
+fonts it came with had no Cyrillic. Letters Inter doesn't have come from GNU Unifont,
+which Rockbox also carries in the top-level `fonts/` (`16-GNU-Unifont.fnt`).
 
 - **iClassic Square** by Humberto Santana, derived from iLike by Alan Brito, itself
   ported from the 176x132 version by Hayden Pearce.

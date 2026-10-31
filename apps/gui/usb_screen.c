@@ -40,6 +40,7 @@
 #include "skin_engine/skin_engine.h"
 #include "playlist.h"
 #include "misc.h"
+#include "bidi.h"
 #include "icons.h"
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
@@ -175,6 +176,15 @@ static inline unsigned ipod_usb_colour(unsigned long rgb)
 }
 
 /* While files can still be read: what's measured stays in the font's cache */
+/* The fonts' files are closed during USB, so what's shown has to be in their caches by
+   then. Arabic is drawn with other letters than its text has, in their joined forms. */
+static void ipod_usb_cache_letters(const char *text)
+{
+    struct font *pf = font_get(FONT_UI);
+    for (const ucschar_t *ucs = bidi_l2v(text, 1); *ucs; ucs++)
+        font_get_width(font_for_char(pf, *ucs), *ucs);
+}
+
 static void ipod_usb_prepare(void)
 {
 #ifdef HAVE_TAGCACHE
@@ -183,6 +193,8 @@ static void ipod_usb_prepare(void)
     font_getstringsize(ipod_usb_name, NULL, NULL, FONT_UI);
     font_getstringsize(str(LANG_USB_DO_NOT_DISCONNECT), NULL, NULL, FONT_UI);
     font_getstringsize(str(LANG_USB_OK_TO_DISCONNECT), NULL, NULL, FONT_UI);
+    ipod_usb_cache_letters(str(LANG_USB_DO_NOT_DISCONNECT));
+    ipod_usb_cache_letters(str(LANG_USB_OK_TO_DISCONNECT));
 }
 
 /* The two frames of the bitmap: charging, and on power but not charging */

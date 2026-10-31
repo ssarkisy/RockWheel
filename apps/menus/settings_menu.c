@@ -913,8 +913,8 @@ MENUITEM_FUNCTION_W_PARAM(browse_langs, 0, ID2P(LANG_LANGUAGE),
                           browse_folder, (void*)&langs, NULL, Icon_Language);
 
 /* Language as on a stock iPod: each language by its own name, in this
-   order; scripts the theme fonts lack (NULL) aren't offered, other
-   languages files come last by their file names */
+   order; those Rockbox can't place the combining marks of (NULL) aren't
+   offered, other languages files come last by their file names */
 static const struct {
     const char *file;
     const char *name;
@@ -940,9 +940,10 @@ static const struct {
     { "greek", "Ελληνικά" },            { "bulgarian", "Български" },
     { "russian", "Русский" },           { "srpski", "Српски" },
     { "ukrainian", "Українська" },
-    { "arabic", NULL }, { "chinese-simp", NULL }, { "chinese-trad", NULL },
-    { "hebrew", NULL }, { "hindi", NULL }, { "japanese", NULL },
-    { "korean", NULL }, { "thai", NULL },
+    { "hebrew", "עברית" },              { "arabic", "العربية" },
+    { "hindi", NULL },                  { "thai", NULL },
+    { "korean", "한국어" },             { "japanese", "日本語" },
+    { "chinese-simp", "简体中文" },     { "chinese-trad", "繁體中文" },
 };
 #define MAX_LANGS 64
 

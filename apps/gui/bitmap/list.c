@@ -35,6 +35,7 @@
 #include "list.h"
 #include "scrollbar.h"
 #include "lang.h"
+#include "language.h"
 #include "sound.h"
 #include "misc.h"
 #include "viewport.h"
@@ -430,7 +431,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             }
         }
 #endif
+        /* it's at the right end, over the start of right-to-left text */
         if (is_selected && global_settings.list_selector_chevron
+            && !lang_is_rtl()
             && list->callback_has_children
             && list->callback_has_children(i, list->data))
             style |= STYLE_CHEVRON;

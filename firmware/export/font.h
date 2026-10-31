@@ -124,6 +124,16 @@ void font_unload(int font_id);
 void font_unload_all(void);
 void font_lock(int font_id, bool lock);
 
+/* The theme's fonts don't have every alphabet. A letter they lack comes from a
+   fallback font, loaded with the theme and read from disk only when it's needed. */
+#ifdef BOOTLOADER
+#define font_for_char(pf, ch) (pf)
+#else
+void font_load_fallback(void);
+struct font* font_for_char(struct font* pf, ucschar_t ch);
+int font_fallback_id(void);
+#endif
+
 /* Closes the file descriptor if the font file (if cached) but keeps
  * the cache intact, so font_get_{bits,width} still work. */
 void font_disable_all(void);

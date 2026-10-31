@@ -48,3 +48,8 @@ font 14-Inter-SemiBold.fnt Inter-SemiBold.ttf 13    # small text, lyrics
 font 14-Inter-Bold.fnt     Inter-Bold.ttf     13    # iClassic screen titles
 
 ls -l "$out"
+
+# the letters Inter doesn't have, from Rockbox's own font: the basic plane is all
+# the firmware can show of it, and without the rest the file is a third of the size
+"$here/../../tools/convbdf" -f -l 65535 -o "$out/16-GNU-Unifont.fnt" \
+    "$here/../../fonts/16-GNU-Unifont.bdf" > /dev/null

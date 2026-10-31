@@ -148,6 +148,43 @@ static void lock_font_handle(int handle, bool lock)
         core_unpin(handle);
 }
 
+#ifndef BOOTLOADER
+#define FALLBACK_FONT   FONT_DIR "/16-GNU-Unifont.fnt"
+#define FALLBACK_GLYPHS 1024   /* about two screens of text that's all different */
+static int fallback_id = -1;
+
+/* Alphabets the theme's Inter doesn't have. Going by the alphabet means that nothing
+   is read from a font's file to find out, and that spaces and marks of no width, which
+   the fallback draws as boxes, stay as they are. */
+static inline bool char_wants_fallback(ucschar_t ch)
+{
+    return (ch >= 0x0590 && ch < 0x1d00)    /* Hebrew, Arabic, Indic, Thai... */
+        || (ch >= 0x2e80 && ch < 0xd800)    /* Chinese, Japanese, Hangul */
+        || (ch >= 0xf900 && ch < 0xfe00)    /* CJK compatibility, Arabic forms */
+        || (ch >= 0xfe30 && ch < 0xfeff)    /* CJK and Arabic forms */
+        || (ch >= 0xff00 && ch < 0xfff0);   /* full and half width forms */
+}
+
+void font_load_fallback(void)
+{
+    if (fallback_id < 0)
+        fallback_id = font_load_ex(FALLBACK_FONT, 0, FALLBACK_GLYPHS);
+}
+
+int font_fallback_id(void)
+{
+    return fallback_id;
+}
+
+struct font* font_for_char(struct font* pf, ucschar_t ch)
+{
+    if (LIKELY(ch < 0x0590) || !char_wants_fallback(ch)
+        || fallback_id < 0 || pf == &sysfont)
+        return pf;
+    return font_get(fallback_id);
+}
+#endif /* BOOTLOADER */
+
 void font_lock(int font_id, bool lock)
 {
     if( font_id < 0 || font_id >= MAXFONTS )
@@ -633,6 +670,8 @@ void font_unload(int font_id)
         }
         core_free(handle);
         buflib_allocations[font_id] = -1;
+        if (font_id == fallback_id)
+            fallback_id = -1;
 
     }
 }
@@ -1061,6 +1100,9 @@ static NO_INLINE void glyph_cache_load(const char *font_path, struct font *pf)
             close(fd);
         } else {
         latin:
+            /* the fallback font is only ever asked for other alphabets */
+            if (strcmp(font_path, FALLBACK_FONT) == 0)
+                return;
             /* load latin1 chars into cache */
             for ( ch = 32 ; ch < 256  && ch < pf->cache._capacity + 32; ch++ )
                 font_get_bits(pf, ch);
@@ -1137,6 +1179,7 @@ int font_measurestring(const unsigned char *str, size_t maxbytes, size_t maxwidt
     font_lock( fontnum, true );
     ucschar_t ch;
     size_t width = 0;
+    bool fallback_locked = false;
 
     while (true)
     {
@@ -1148,7 +1191,15 @@ int font_measurestring(const unsigned char *str, size_t maxbytes, size_t maxwidt
         }
         if (IS_DIACRITIC(ch))
             continue;
-        int fw = font_get_width(pf,ch);
+        struct font* gf = font_for_char(pf, ch);
+#ifndef BOOTLOADER
+        if (gf != pf && !fallback_locked)
+        {
+            font_lock(font_fallback_id(), true);
+            fallback_locked = true;
+        }
+#endif
+        int fw = font_get_width(gf,ch);
         width += fw;
         if (width > maxwidth)
         {
@@ -1162,6 +1213,12 @@ int font_measurestring(const unsigned char *str, size_t maxbytes, size_t maxwidt
     if ( w )
         *w = width;
 
+#ifndef BOOTLOADER
+    if (fallback_locked)
+        font_lock(font_fallback_id(), false);
+#else
+    (void)fallback_locked;
+#endif
     font_lock( fontnum, false );
 
     return bytes;
