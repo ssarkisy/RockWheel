@@ -47,9 +47,10 @@
 #include "action.h"
 #include "gui/skin_engine/skin_engine.h"
 #include "menus/exported_menus.h"
-#include "string.h"
+#include "string-extra.h"
 #include "root_menu.h"
 #include "audio.h"
+#include "sound.h"
 #include "viewport.h"
 #include "quickscreen.h"
 #include "shortcuts.h"
@@ -114,8 +115,44 @@ static int get_menu_selection(int selected_item, const struct menu_item_ex *menu
         return current_subitems[selected_item];
     return selected_item;
 }
-/* Submenus, screens and actions lead to more, settings don't; nor does
-   Shuffle Songs, as on a stock iPod */
+
+/* The settings list shows what each setting is set to, and one with few values
+   changes right there when selected, as on a stock iPod; the rest open their
+   screen */
+#define IN_PLACE_CHOICES 4
+#define HASFLAG(setting, flag) (((setting)->flags & (flag)) == (flag))
+
+extern const struct menu_item_ex main_menu_;
+
+static bool menu_shows_values(const struct menu_item_ex *menu)
+{
+    return menu == &main_menu_ || menu == &ipod_keyclick_menu;
+}
+
+static bool setting_changes_in_place(const struct settings_list *setting)
+{
+    return setting && (HASFLAG(setting, F_BOOL_SETTING)
+                       || (HASFLAG(setting, F_CHOICE_SETTING)
+                           && setting->choice_setting->count <= IN_PLACE_CHOICES));
+}
+
+static const char *setting_value(const struct settings_list *setting,
+                                 char *buffer, size_t buffer_len)
+{
+    if (HASFLAG(setting, F_BOOL_SETTING))
+        return str(*(bool *)setting->setting ? LANG_ON : LANG_OFF);
+    if (HASFLAG(setting, F_CUSTOM_SETTING)) /* the volume limit */
+    {
+        format_sound_value(buffer, buffer_len, SOUND_VOLUME,
+                           *(int *)setting->setting);
+        return buffer;
+    }
+    return option_get_valuestring(setting, buffer, buffer_len,
+                                  option_value_as_int(setting));
+}
+
+/* Submenus, screens and actions lead to more, settings don't unless they open a
+   screen; nor does Shuffle Songs, as on a stock iPod */
 static bool menu_has_children(int selected_item, void * data)
 {
     const struct menu_item_ex *menu = (const struct menu_item_ex *)data;
@@ -136,6 +173,10 @@ static bool menu_has_children(int selected_item, void * data)
 #else
             return true;
 #endif
+        case MT_SETTING:
+        case MT_SETTING_W_TEXT:
+            return menu_shows_values(menu)
+                && !setting_changes_in_place(find_setting(item->variable));
         default:
             return false;
     }
@@ -186,11 +227,74 @@ static const char* get_menu_item_name(int selected_item,
     if ((type == MT_SETTING) || (type == MT_SETTING_W_TEXT))
     {
         const struct settings_list *v = find_setting(menu->variable);
-        if (v)
+        if (!v)
+            return "Not Done yet!";
+        if (!menu_shows_values((const struct menu_item_ex *)data))
             return str(v->lang_id);
-        else return "Not Done yet!";
+        char value[64];
+        snprintf(buffer, buffer_len, "%s\t%s", str(v->lang_id),
+                 setting_value(v, value, sizeof(value)));
+        return buffer;
     }
     return P2STR(menu->callback_and_desc->desc);
+}
+
+static bool menu_is_group(int item, void *data)
+{
+    const struct menu_item_ex *menu = (const struct menu_item_ex *)data;
+    return (menu->flags&MENU_TYPE_MASK) == MT_MENU
+        && (menu->submenus[get_menu_selection(item, menu)]->flags&MENU_TYPE_MASK)
+           == MT_GROUP;
+}
+
+/* A line of "name\tvalue": the name as usual, then the value at the right end,
+   grey. It goes left of where a chevron can come in a list that has them, and
+   only if it fits beside the name. The name of a group has a bar of its own. */
+#define VALUE_COLOUR LCD_RGBPACK(0x66, 0x66, 0x66)
+#define GROUP_COLOUR LCD_RGBPACK(0x60, 0x66, 0x70)
+#define GROUP_BAR_COLOUR LCD_RGBPACK(0xe6, 0xe8, 0xec)
+#define VALUE_MARGIN 6
+#define VALUE_MARGIN_CHEVRON 21
+#define VALUE_GAP 8
+void menu_draw_value_line(struct list_putlineinfo_t *info)
+{
+    struct screen *display = info->display;
+    const char *text = info->dsp_text;
+    const char *tab = strchr(text, '\t');
+    char name[64];
+
+    if (info->list->callback_is_group
+        && info->list->callback_is_group(info->line, info->list->data))
+    {
+        struct line_desc linedes = *info->linedes;
+        linedes.style = STYLE_COLORBAR;
+        linedes.text_color = GROUP_COLOUR;
+        linedes.line_color = GROUP_BAR_COLOUR;
+        display->put_line(info->x, info->y, &linedes, "$*s$*t", info->item_indent,
+                          info->item_offset, text);
+        return;
+    }
+
+    strlcpy(name, text, tab ? MIN((size_t)(tab - text) + 1, sizeof(name)) : sizeof(name));
+    display->put_line(info->x, info->y, info->linedes, "$*s$*t", info->item_indent,
+                      info->item_offset, name);
+    if (!tab)
+        return;
+
+    int name_width, width, height;
+    display->getstringsize(name, &name_width, &height);
+    display->getstringsize(tab + 1, &width, &height);
+    const int x = info->vp->width - width -
+        (info->list->callback_has_children ? VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
+    if (x < info->x + info->item_indent + name_width + VALUE_GAP)
+        return;
+
+    const unsigned old_fg = display->get_foreground();
+    display->set_foreground(info->is_selected ? LCD_WHITE : VALUE_COLOUR);
+    display->set_drawmode(DRMODE_FG);
+    display->putsxy(x, info->y + (info->linedes->height - height) / 2, tab + 1);
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_foreground(old_fg);
 }
 
 static enum themable_icons  menu_get_icon(int selected_item, void * data)
@@ -293,6 +397,11 @@ static int init_menu_lists(const struct menu_item_ex *menu,
     current_submenus_menu = (struct menu_item_ex *)menu;
 
     gui_synclist_init(lists,get_menu_item_name,(void*)menu,false,1, parent);
+    if (menu_shows_values(menu))
+    {
+        lists->callback_draw_item = menu_draw_value_line;
+        lists->callback_is_group = menu_is_group;
+    }
     title = init_title(menu, &icon, buf, buf_sz);
     gui_synclist_set_title(lists, title, icon);
     gui_synclist_set_icon_callback(lists, global_settings.show_icons?menu_get_icon:NULL);
@@ -615,7 +724,8 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                 else
                     type = -1;
 
-                if (type == MT_SETTING_W_TEXT || type == MT_SETTING)
+                if ((type == MT_SETTING_W_TEXT || type == MT_SETTING)
+                    && !menu_shows_values(menu))
                 {
                     const struct menu_item_ex *context_menu;
                     const struct settings_list *setting =
@@ -801,6 +911,16 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                 case MT_SETTING:
                 case MT_SETTING_W_TEXT:
                 {
+                    const struct settings_list *setting =
+                                                find_setting(temp->variable);
+                    if (menu_shows_values(menu)
+                        && setting_changes_in_place(setting))
+                    {
+                        option_select_next_val(setting, false, true);
+                        settings_save();
+                        redraw_lists = true;
+                        break;
+                    }
                     do_setting_from_menu(temp, vps);
                     init_menu_lists(menu, &lists, selected, false, vps, buf, sizeof buf);
                     redraw_lists = true;
@@ -913,6 +1033,7 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
          tsm == old_global_mode))
         touchscreen_set_mode(tsm);
 #endif
-    set_settings_selected(false);
+    /* the next screen draws it: drawn here it'd show for a moment before that */
+    settings_selected = false;
     return ret;
 }

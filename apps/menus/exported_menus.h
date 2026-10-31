@@ -51,9 +51,15 @@ extern const struct menu_item_ex
 #ifdef HAVE_PITCHCONTROL
         audiobook_speed,
 #endif
-        ipod_playback_settings,
-        volume_limit, ipod_sound_settings,          /* sound_menu.c     */
-        ipod_eq_menu,                               /* eq_menu.c        */
+#ifdef HAVE_CROSSFADE
+        crossfade,
+#endif
+#ifdef HAVE_HEADPHONE_DETECTION
+        unplug_mode,
+#endif
+        resume_rewind, cuesheet,
+        volume_limit, balance, crossfeed, afr_enabled, /* sound_menu.c  */
+        ipod_eq_menu, ipod_eq_row,                  /* eq_menu.c        */
 #ifdef HAVE_BACKLIGHT
         backlight_timeout, ipod_backlight_menu,     /* display_menu.c   */
 #endif

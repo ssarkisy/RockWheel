@@ -598,7 +598,7 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Sound Settings"
+    *: "Sound"
   </dest>
   <voice>
     *: "Sound Settings"
@@ -1091,7 +1091,7 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "General Settings"
+    *: "General"
   </dest>
   <voice>
     *: "General Settings"
@@ -1105,7 +1105,7 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Playback Settings"
+    *: "Playback"
   </dest>
   <voice>
     *: "Playback Settings"
@@ -1323,7 +1323,7 @@
   </source>
   <dest>
     *: none
-    crossfade: "Enable Crossfade"
+    crossfade: "Crossfade"
   </dest>
   <voice>
     *: none
@@ -1544,7 +1544,7 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Track Gain if Shuffling"
+    *: "Auto"
   </dest>
   <voice>
     *: "Track Gain if Shuffling"
@@ -1687,7 +1687,7 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Cuesheet Support"
+    *: "Cue Sheets"
   </dest>
   <voice>
     *: "Cuesheet Support"
@@ -1703,7 +1703,7 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pause on Headphone Unplug"
+    headphone_detection: "Pause on Unplug"
   </dest>
   <voice>
     *: none
@@ -1720,7 +1720,7 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Pause and Resume"
+    headphone_detection: "With Resume"
   </dest>
   <voice>
     *: none
@@ -10764,7 +10764,7 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Rewind Before Resume"
+    *: "Rewind on Resume"
   </dest>
   <voice>
     *: "Rewind before resume"
@@ -11932,7 +11932,7 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "Auditory Fatigue Reduction"
+    *: "Fatigue Reduction"
   </dest>
   <voice>
     *: "Auditory Fatigue Reduction"

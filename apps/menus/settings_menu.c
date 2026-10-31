@@ -594,7 +594,7 @@ static int sleep_timer_list(void)
     return 0;
 }
 
-/* "Sleep Timer", with the time left while it runs */
+/* "Sleep Timer" and the time left while it runs */
 static char* sleep_timer_getname(int selected_item, void * data,
                                  char *buffer, size_t buffer_len)
 {
@@ -602,9 +602,10 @@ static char* sleep_timer_getname(int selected_item, void * data,
     (void)data;
     int minutes = (get_sleep_timer() + 59) / 60;
     if (!minutes)
-        return str(LANG_SLEEP_TIMER);
-    snprintf(buffer, buffer_len, "%s (%d:%02d)", str(LANG_SLEEP_TIMER),
-             minutes / 60, minutes % 60);
+        snprintf(buffer, buffer_len, "%s\t%s", str(LANG_SLEEP_TIMER), str(LANG_OFF));
+    else
+        snprintf(buffer, buffer_len, "%s\t%d:%02d", str(LANG_SLEEP_TIMER),
+                 minutes / 60, minutes % 60);
     return buffer;
 }
 
@@ -1022,8 +1023,21 @@ static int language_list(void)
     return 0;
 }
 
-MENUITEM_FUNCTION(language_item, 0, ID2P(LANG_LANGUAGE),
-                  language_list, NULL, Icon_Language);
+static char *language_item_name(int selected_item, void *data,
+                                char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    const char *file = global_settings.lang_file[0] ?
+                       (char *)global_settings.lang_file : "english";
+    const int idx = lang_name_index(file);
+    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_LANGUAGE),
+             idx < (int)ARRAYLEN(lang_names) && lang_names[idx].name ?
+             lang_names[idx].name : file);
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(language_item, 0, language_list, language_item_name,
+                          NULL, NULL, NULL, Icon_Language);
 
 MAKE_MENU(settings_menu_item, ID2P(LANG_GENERAL_SETTINGS), 0,
           Icon_General_settings_menu,

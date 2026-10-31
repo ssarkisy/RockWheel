@@ -168,7 +168,7 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Настройки звука"
+    *: "Звук"
   </dest>
   <voice>
     *: "Настройки звука"
@@ -182,7 +182,7 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "Главные настройки"
+    *: "Общие"
   </dest>
   <voice>
     *: "Главные настройки"
@@ -426,7 +426,7 @@
     *: "Crossfeed"
   </source>
   <dest>
-    *: "Перекрёстная подача сигнала"
+    *: "Кроссфид"
   </dest>
   <voice>
     *: "Перекрёстная подача сигнала"
@@ -2146,7 +2146,7 @@
   </source>
   <dest>
     *: none
-    crossfade: "Разрешить наложение"
+    crossfade: "Наложение треков"
   </dest>
   <voice>
     *: none
@@ -2277,10 +2277,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Проверка звука"
+    *: "Выравнивание громкости"
   </dest>
   <voice>
-    *: "Проверка звука"
+    *: "Выравнивание громкости"
   </voice>
 </phrase>
 <phrase>
@@ -2319,7 +2319,7 @@
     *: "Track Gain if Shuffling"
   </source>
   <dest>
-    *: "Усиление трека при случайном воспр."
+    *: "Авто"
   </dest>
   <voice>
     *: "Усиление трэка при случайном воспроизведении"
@@ -6899,7 +6899,7 @@
   </source>
   <dest>
     *: none
-    crossfade: "Тасование и пропуск треков"
+    crossfade: "Случайно и вручную"
   </dest>
   <voice>
     *: none
@@ -6989,7 +6989,7 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Пауза и продолжение"
+    headphone_detection: "Продолжать"
   </dest>
   <voice>
     *: none
@@ -7808,7 +7808,7 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "Пауза при отключении наушников"
+    headphone_detection: "Пауза без наушников"
   </dest>
   <voice>
     *: none
@@ -8239,7 +8239,7 @@
   </source>
   <dest>
     *: none
-    crossfade: "Только при переключении"
+    crossfade: "При переключении"
   </dest>
   <voice>
     *: none
@@ -8344,7 +8344,7 @@
     *: "Cuesheet Support"
   </source>
   <dest>
-    *: "Поддержка карты диска"
+    *: "Файлы CUE"
   </dest>
   <voice>
     *: "Поддержка карты диска"
@@ -10488,7 +10488,7 @@
     *: "Rewind Before Resume"
   </source>
   <dest>
-    *: "Перемотать перед возобновлением"
+    *: "Откат при запуске"
   </dest>
   <voice>
     *: "Перемотать перед возобновлением"
@@ -10823,7 +10823,7 @@
   </source>
   <dest>
     *: none
-    crossfade: "Только автоматическая смена треков"
+    crossfade: "При автосмене"
   </dest>
   <voice>
     *: none
@@ -11729,7 +11729,7 @@
     *: "Auditory Fatigue Reduction"
   </source>
   <dest>
-    *: "Снижение слуховой утомляемости"
+    *: "Меньше усталости"
   </dest>
   <voice>
     *: "Снижение слуховой утомляемости"

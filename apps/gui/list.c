@@ -158,6 +158,7 @@ void gui_synclist_init(struct gui_synclist * gui_list,
 {
     gui_list->callback_get_item_icon = NULL;
     gui_list->callback_has_children = NULL;
+    gui_list->callback_is_group = NULL;
     gui_list->callback_get_item_name = callback_get_item_name;
     gui_list->callback_speak_item = NULL;
     gui_list->callback_draw_item = NULL;
@@ -402,6 +403,17 @@ static void gui_list_select_at_offset(struct gui_synclist * gui_list,
     {
         new_selection = allow_wrap ? remain : 0;
         edge_beep(gui_list, allow_wrap);
+    }
+
+    /* on past the name of a group, or nowhere if nothing's there */
+    if (gui_list->callback_is_group)
+    {
+        const int step = offset < 0 ? -1 : 1;
+        while (new_selection >= 0 && new_selection < gui_list->nb_items
+               && gui_list->callback_is_group(new_selection, gui_list->data))
+            new_selection += step;
+        if (new_selection < 0 || new_selection >= gui_list->nb_items)
+            new_selection = gui_list->selected_item;
     }
 
     gui_synclist_select_item(gui_list, new_selection);

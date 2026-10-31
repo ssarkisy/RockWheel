@@ -503,65 +503,52 @@ static int main_menu_config(void)
 MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
                   main_menu_config, NULL, Icon_Rockbox);
 
-/* the files macOS and Windows leave on the disk, as ._ beside each copy */
-static int disk_tidy(void)
-{
-    plugin_load(PLUGIN_APPS_DIR "/disktidy.rock", NULL);
-    return 0;
-}
-
-static int disk_tidy_callback(int action, const struct menu_item_ex *this_item,
-                              struct gui_synclist *this_list)
-{
-    (void)this_item;
-    (void)this_list;
-    if (action == ACTION_REQUEST_MENUITEM
-        && !file_exists(PLUGIN_APPS_DIR "/disktidy.rock"))
-        return ACTION_EXIT_MENUITEM;
-    return action;
-}
-
-MENUITEM_FUNCTION(disk_tidy_item, 0, ID2P(LANG_DISK_TIDY),
-                  disk_tidy, disk_tidy_callback, Icon_NOICON);
-
 /***********************************/
 /*    MAIN MENU                    */
 
-/* What the iPod settings show of Rockbox's beyond the stock ones */
-MAKE_MENU(ipod_advanced_menu, ID2P(LANG_ADVANCED), NULL, Icon_Submenu_Entered,
-        &ipod_sound_settings, &ipod_playback_settings,
-#ifdef HAVE_BACKLIGHT
-        &ipod_backlight_menu,
+/* All the settings there are, by what they are about. Rockbox's full settings
+   menus are not shown. */
+MENUITEM_GROUP(group_playback, ID2P(LANG_PLAYBACK));
+MENUITEM_GROUP(group_sound, ID2P(LANG_SOUND_SETTINGS));
+#if defined(HAVE_BACKLIGHT) || defined(HAVE_BACKLIGHT_BRIGHTNESS)
+MENUITEM_GROUP(group_display, ID2P(LANG_DISPLAY));
 #endif
-        &battery_capacity,
-#ifdef HAVE_TAGCACHE
-        &ipod_database_menu,
-#endif
-        &codepage_setting, &disk_tidy_item);
+MENUITEM_GROUP(group_general, ID2P(LANG_GENERAL_SETTINGS));
 
-/* The settings of a stock iPod, in its order, then Advanced; Rockbox's full
-   settings menus are not shown */
 MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         Icon_Submenu_Entered,
         &show_info_item,
+        &group_playback,
         &shuffle_item, &repeat_mode,
-        &volume_limit,
+#ifdef HAVE_CROSSFADE
+        &crossfade,
+#endif
+#ifdef HAVE_PITCHCONTROL
+        &audiobook_speed,
+#endif
+        &resume_rewind,
+#ifdef HAVE_HEADPHONE_DETECTION
+        &unplug_mode,
+#endif
+        &cuesheet,
+        &group_sound,
+        &ipod_eq_row, &replaygain_type, &volume_limit, &balance, &crossfeed,
+        &afr_enabled,
+#if defined(HAVE_BACKLIGHT) || defined(HAVE_BACKLIGHT_BRIGHTNESS)
+        &group_display,
+#endif
 #ifdef HAVE_BACKLIGHT
         &backlight_timeout,
 #endif
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
         &brightness_item,
 #endif
-#ifdef HAVE_PITCHCONTROL
-        &audiobook_speed,
-#endif
-        &ipod_eq_menu, &replaygain_type, &ipod_keyclick_menu,
-        &sleep_timer_item,
+        &group_general,
+        &ipod_keyclick_menu, &sleep_timer_item,
 #if CONFIG_RTC
         &timedate_item,
 #endif
         &language_item,
-        &ipod_advanced_menu,
         &show_legal_item, &reset_settings_item,
         );
 /*    MAIN MENU                    */

@@ -118,7 +118,7 @@ MENUITEM_SETTING(treble_cutoff, &global_settings.treble_cutoff, NULL);
 #endif /* AUDIOHW_HAVE_TREBLE */
 
 
-MENUITEM_SETTING(balance, &global_settings.balance, NULL);
+MENUITEM_SETTING_SHARED(balance, &global_settings.balance, NULL);
 MENUITEM_SETTING(channel_config, &global_settings.channel_config,
     lowlatency_callback
 );
@@ -143,7 +143,7 @@ MENUITEM_SETTING(power_mode, &global_settings.power_mode, NULL);
 #endif
 
     /* Crossfeed Submenu */
-    MENUITEM_SETTING(crossfeed, &global_settings.crossfeed, lowlatency_callback);
+    MENUITEM_SETTING_SHARED(crossfeed, &global_settings.crossfeed, lowlatency_callback);
     MENUITEM_SETTING(crossfeed_direct_gain,
                      &global_settings.crossfeed_direct_gain, lowlatency_callback);
     MENUITEM_SETTING(crossfeed_cross_gain,
@@ -178,7 +178,7 @@ static int timestretch_callback(int action,
 
     MENUITEM_SETTING(dithering_enabled,
                      &global_settings.dithering_enabled, lowlatency_callback);
-    MENUITEM_SETTING(afr_enabled,
+    MENUITEM_SETTING_SHARED(afr_enabled,
                      &global_settings.afr_enabled, lowlatency_callback);
     MENUITEM_SETTING(pbe,
                      &global_settings.pbe, lowlatency_callback);
@@ -273,15 +273,3 @@ MAKE_MENU(sound_settings, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_Audio,
 #endif
          );
 
-/* The sound settings of the iPod settings: in Advanced and the WPS context
-   menu; volume is the wheel's, the equalizer has its own entry. Stereo
-   width, surround, bass enhancement and the compressor are left out, and
-   settings_apply() keeps them off. */
-MAKE_MENU(ipod_sound_settings, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_Audio,
-#ifdef AUDIOHW_HAVE_BASS
-          &bass,
-#endif
-#ifdef AUDIOHW_HAVE_TREBLE
-          &treble,
-#endif
-          &balance, &crossfeed_menu, &afr_enabled);

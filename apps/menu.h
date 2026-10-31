@@ -39,6 +39,7 @@ enum menu_item_type {
     MT_FUNCTION_CALL_W_PARAM, /* call a function from the menus */
     MT_RETURN_ID, /* returns the position of the selected item (starting at 0)*/
     MT_RETURN_VALUE, /* returns a value associated with an item */
+    MT_GROUP, /* the name of the items after it, only shown */
 };
 #define MENU_TYPE_MASK 0xF /* MT_* type */
 
@@ -137,6 +138,7 @@ bool menu_settings_selected(void);
 /* Whether a screen is taking the whole width, with nothing of the theme beside it */
 bool menu_wide(void);
 void menu_set_wide(bool wide);
+void menu_draw_value_line(struct list_putlineinfo_t *info);
 /* From a screen a menu has opened: Menu has been held, so leave for the main menu */
 void menu_request_root(void);
 int do_menu(const struct menu_item_ex *menu, int *start_selected,
@@ -186,6 +188,13 @@ int do_menu(const struct menu_item_ex *menu, int *start_selected,
             { .strings = name##_},{.callback_and_desc = & name##__}};
 
             
+#define MENUITEM_GROUP(name, str)                                           \
+     static const struct menu_callback_with_desc name##_ =                  \
+         {NULL,str,Icon_NOICON};                                            \
+     static const struct menu_item_ex name   =                              \
+         { MT_GROUP|MENU_HAS_DESC, { .value = 0},                           \
+         {.callback_and_desc = & name##_}};
+
 /* causes do_menu() to return a value associated with the item */
 #define MENUITEM_RETURNVALUE(name, str, val, cb, icon)                      \
      static const struct menu_callback_with_desc name##_ = {cb,str,icon};   \

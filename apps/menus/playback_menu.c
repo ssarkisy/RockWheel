@@ -92,7 +92,7 @@ MENUITEM_SETTING(party_mode, &global_settings.party_mode, NULL);
 
 #ifdef HAVE_CROSSFADE
 /* crossfade submenu */
-MENUITEM_SETTING(crossfade, &global_settings.crossfade, setcrossfadeonexit_callback);
+MENUITEM_SETTING_SHARED(crossfade, &global_settings.crossfade, setcrossfadeonexit_callback);
 MENUITEM_SETTING(crossfade_fade_in_delay,
     &global_settings.crossfade_fade_in_delay, NULL);
 MENUITEM_SETTING(crossfade_fade_in_duration,
@@ -159,10 +159,10 @@ static int cuesheet_callback(int action,
     }
     return action;
 }
-MENUITEM_SETTING(cuesheet, &global_settings.cuesheet, cuesheet_callback);
+MENUITEM_SETTING_SHARED(cuesheet, &global_settings.cuesheet, cuesheet_callback);
 
 #ifdef HAVE_HEADPHONE_DETECTION
-MENUITEM_SETTING(unplug_mode, &global_settings.unplug_mode, NULL);
+MENUITEM_SETTING_SHARED(unplug_mode, &global_settings.unplug_mode, NULL);
 MENUITEM_SETTING(unplug_autoresume, &global_settings.unplug_autoresume, NULL);
 MAKE_MENU(unplug_menu, ID2P(LANG_HEADPHONE_UNPLUG), 0, Icon_NOICON,
           &unplug_mode, &unplug_autoresume);
@@ -171,7 +171,7 @@ MAKE_MENU(unplug_menu, ID2P(LANG_HEADPHONE_UNPLUG), 0, Icon_NOICON,
 MENUITEM_SETTING(skip_length, &global_settings.skip_length, NULL);
 MENUITEM_SETTING(prevent_skip, &global_settings.prevent_skip, NULL);
 MENUITEM_SETTING(rewind_across_tracks, &global_settings.rewind_across_tracks, NULL);
-MENUITEM_SETTING(resume_rewind, &global_settings.resume_rewind, NULL);
+MENUITEM_SETTING_SHARED(resume_rewind, &global_settings.resume_rewind, NULL);
 #ifdef HAVE_PITCHCONTROL
 MENUITEM_SETTING_SHARED(audiobook_speed, &global_settings.audiobook_speed, NULL);
 #endif
@@ -220,21 +220,6 @@ MAKE_MENU(playback_settings,ID2P(LANG_PLAYBACK),0,
 #endif
         ,&playback_log
          );
-
-/* The playback settings of the iPod settings: in Advanced and the WPS
-   context menu */
-MAKE_MENU(ipod_playback_settings, ID2P(LANG_PLAYBACK), 0,
-          Icon_Playback_menu,
-          &shuffle_item, &repeat_mode,
-#if defined(HAVE_CROSSFADE)
-          &crossfade_settings_menu,
-#endif
-#ifdef HAVE_HEADPHONE_DETECTION
-          &unplug_menu,
-#endif
-          &resume_rewind,
-          /* an album as one file and its .cue, as copied beside Finder's */
-          &cuesheet);
 
 /*    PLAYBACK MENU                */
 /***********************************/

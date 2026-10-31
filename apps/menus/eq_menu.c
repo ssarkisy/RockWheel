@@ -1025,3 +1025,21 @@ static int eq_choose_preset(void)
 
 MENUITEM_FUNCTION(ipod_eq_menu, 0, ID2P(LANG_EQUALIZER),
                   eq_choose_preset, lowlatency_callback, Icon_EQ);
+
+/* in the settings list: with the preset, or nothing if on and set to none */
+static char *eq_row_name(int selected_item, void *data,
+                         char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    const int phones = ARRAYLEN(eq_phones);
+    const int preset = eq_get_preset();
+    if (!preset && global_settings.eq_enabled)
+        return str(LANG_EQUALIZER);
+    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_EQUALIZER),
+             str(!preset ? LANG_OFF : preset <= phones ?
+                 eq_phones[preset - 1].lang_id : eq_presets[preset - phones - 1].lang_id));
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(ipod_eq_row, 0, eq_choose_preset, eq_row_name,
+                          NULL, NULL, lowlatency_callback, Icon_EQ);

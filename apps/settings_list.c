@@ -1259,23 +1259,11 @@ const struct settings_list settings[] = {
     OFFON_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, playlist_shuffle,
                   LANG_SHUFFLE, false, "shuffle", shuffle_playlist_callback),
 
+    /* as on a stock iPod */
     CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, repeat_mode,
-                   LANG_REPEAT, REPEAT_OFF, "repeat", "off,all,one,shuffle"
-#ifdef AB_REPEAT_ENABLE
-                   ",ab"
-#endif
-                   , repeat_mode_callback,
-#ifdef AB_REPEAT_ENABLE
-                   5,
-#else
-                   4,
-#endif
-                   ID2P(LANG_OFF), ID2P(LANG_ALL), ID2P(LANG_REPEAT_ONE),
-                   ID2P(LANG_SHUFFLE)
-#ifdef AB_REPEAT_ENABLE
-                   ,ID2P(LANG_REPEAT_AB)
-#endif
-                  ), /* CHOICE_SETTING( repeat_mode ) */
+                   LANG_REPEAT, REPEAT_OFF, "repeat", "off,all,one",
+                   repeat_mode_callback, 3,
+                   ID2P(LANG_OFF), ID2P(LANG_ALL), ID2P(LANG_REPEAT_ONE)),
 #ifdef HAVE_PLAY_FREQ
      TABLE_SETTING(F_SOUNDSETTING|F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED,
                   play_frequency, LANG_FREQUENCY, 0, "playback frequency", "auto",
@@ -1998,10 +1986,10 @@ const struct settings_list settings[] = {
 #endif
 
     /* crossfeed */
+    /* without "custom", whose delay colours what's in the middle */
     CHOICE_SETTING(F_SOUNDSETTING, crossfeed, LANG_CROSSFEED, 0,"crossfeed",
-                   "off,meier,custom", dsp_set_crossfeed_type, 3,
-                   ID2P(LANG_OFF), ID2P(LANG_CROSSFEED_MEIER),
-                   ID2P(LANG_CROSSFEED_CUSTOM)),
+                   "off,meier", dsp_set_crossfeed_type, 2,
+                   ID2P(LANG_OFF), ID2P(LANG_ON)),
     INT_SETTING_NOWRAP(F_SOUNDSETTING, crossfeed_direct_gain,
                        LANG_CROSSFEED_DIRECT_GAIN, -15,
                        "crossfeed direct gain", UNIT_DB, -60, 0, 5,
@@ -2255,7 +2243,7 @@ const struct settings_list settings[] = {
     /* pause, as a stock iPod does */
     CHOICE_SETTING(0, unplug_mode, LANG_HEADPHONE_UNPLUG, 1,
                    "pause on headphone unplug", "off,pause,pause and resume",
-                   NULL, 3, ID2P(LANG_OFF), ID2P(LANG_PAUSE),
+                   NULL, 3, ID2P(LANG_OFF), ID2P(LANG_ON),
                    ID2P(LANG_HEADPHONE_UNPLUG_RESUME)),
     OFFON_SETTING(0, unplug_autoresume,
                   LANG_HEADPHONE_UNPLUG_DISABLE_AUTORESUME, false,

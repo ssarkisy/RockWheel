@@ -61,6 +61,8 @@ typedef enum themable_icons list_get_icon(int selected_item, void * data);
 /* whether an item leads to more (a menu, a folder), for the chevron on the
    selected one */
 typedef bool list_has_children(int selected_item, void * data);
+/* whether a row is the name of a group of rows, which can't be selected */
+typedef bool list_is_group(int item, void * data);
 /*
  * Text callback
  *  - selected_item : an integer that tells the number of the item to display
@@ -173,6 +175,7 @@ struct gui_synclist
     list_speak_item *callback_speak_item;
     list_draw_item *callback_draw_item;
     list_has_children *callback_has_children; /* can be NULL */
+    list_is_group *callback_is_group; /* can be NULL */
 
     /* The data that will be passed to the callback function YOU implement */
     void * data;

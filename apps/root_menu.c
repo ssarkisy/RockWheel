@@ -491,7 +491,10 @@ static int radio(void* param)
 static int miscscrn(void * param)
 {
     const struct menu_item_ex *menu = (const struct menu_item_ex*)param;
+    /* room for the settings' values, and for what's opened from them */
+    menu_set_wide(true);
     int result = do_menu(menu, NULL, NULL, false);
+    menu_set_wide(false);
     switch (result)
     {
         case GO_TO_PLUGIN:
