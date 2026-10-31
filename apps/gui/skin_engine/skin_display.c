@@ -201,24 +201,37 @@ static unsigned long peak_bar_hold(struct progressbar *pb, unsigned long end,
 
 #if LCD_DEPTH >= 16
 #define BADGE_PADDING   9
-/* The badge is a veil of glass over what's behind it, by alphas of 256: darker
-   towards the bottom, with a gloss on its top half and a thin edge */
-#define BADGE_COLOUR        LCD_RGBPACK(0x3c, 0x46, 0x50)
-#define BADGE_TEXT          LCD_RGBPACK(0x62, 0x6a, 0x72)
-#define BADGE_VEIL_TOP      16
-#define BADGE_VEIL_BOTTOM   30
-#define BADGE_GLOSS_TOP     150
-#define BADGE_GLOSS_BOTTOM  50
-#define BADGE_EDGE_TOP      34
-#define BADGE_EDGE_BOTTOM   70
+/* The badge is an Aqua button, all as 0xrrggbb: an outline, a capsule of light in the
+   upper part, set in from the ends, and below it a step down to the middle that
+   lightens to the foot, with a soft shadow under it */
+#define BADGE_OUTLINE_TOP       0x6e6e6e
+#define BADGE_OUTLINE_BOTTOM    0x565656
+#define BADGE_LIGHT_TOP         0xffffff
+#define BADGE_LIGHT_BOTTOM      0xf4f4f4
+#define BADGE_MIDDLE            0xdcdcdc
+#define BADGE_FOOT              0xfcfcfc
+#define BADGE_TEXT              0x1a1a1a
+#define BADGE_LIGHT_INSET   2  /* from the ends */
+#define BADGE_SHADOW        48 /* of 256 */
+#define BADGE_SHADOW_FADE   6  /* over this many pixels at each end */
 
-/* a of 256 parts of colour over back */
+/* a of 256 parts of colour over back, both as 0xrrggbb: rounding to the screen's
+   colours at each of these steps would leave a tint */
 static unsigned badge_mix(unsigned back, unsigned colour, int a)
 {
-    return LCD_RGBPACK(
-        (RGB_UNPACK_RED(colour) * a + RGB_UNPACK_RED(back) * (256 - a)) / 256,
-        (RGB_UNPACK_GREEN(colour) * a + RGB_UNPACK_GREEN(back) * (256 - a)) / 256,
-        (RGB_UNPACK_BLUE(colour) * a + RGB_UNPACK_BLUE(back) * (256 - a)) / 256);
+    return ((((colour >> 16) & 0xff) * a + ((back >> 16) & 0xff) * (256 - a)) / 256) << 16
+         | ((((colour >> 8) & 0xff) * a + ((back >> 8) & 0xff) * (256 - a)) / 256) << 8
+         | (((colour & 0xff) * a + (back & 0xff) * (256 - a)) / 256);
+}
+
+/* The nearest of the screen's colours, as simply cutting off bits would tint a grey */
+#define BADGE_NEAREST(v, levels) \
+    (((v) * (levels) + 127 + (((v) * (levels) + 127) >> 8) + 1) >> 8)
+static unsigned badge_pack(unsigned colour)
+{
+    return LCD_RGBPACK(BADGE_NEAREST((colour >> 16) & 0xff, 31) << 3,
+                       BADGE_NEAREST((colour >> 8) & 0xff, 63) << 2,
+                       BADGE_NEAREST(colour & 0xff, 31) << 3);
 }
 
 /* How much of a pixel of the round end of a badge this high is inside it, out of
@@ -277,25 +290,40 @@ void draw_format_badge(struct gui_wps *gwps, struct skin_viewport *skin_viewport
 
     display->getstringsize(text, &text_width, &text_height);
 
-    const int height = vp->height;
+    const int height = vp->height - 1; /* the last row is the shadow */
     const int round_end = (height + 1) / 2; /* the columns that are rounded */
     const int width = MIN(text_width + 2 * BADGE_PADDING, vp->width);
     const unsigned old_fg = display->get_foreground();
-
-    const int last = MAX(height - 1, 1);
-    const int half = MAX(height / 2, 1);
+    const int middle_row = height * 8 / 17;
+    const int light_rows = middle_row - 1;
 
     display->set_drawmode(DRMODE_SOLID);
+
+    for (int x = BADGE_LIGHT_INSET + 1; x < width - BADGE_LIGHT_INSET - 1; x++)
+    {
+        const int from_end = MIN(x, width - 1 - x) - BADGE_LIGHT_INSET;
+        const unsigned pixel = FB_UNPACK_SCALAR_LCD(*FBADDR(vp->x + x, vp->y + height));
+        const unsigned back = RGB_UNPACK_RED(pixel) << 16
+                            | RGB_UNPACK_GREEN(pixel) << 8
+                            | RGB_UNPACK_BLUE(pixel);
+        display->set_foreground(badge_pack(badge_mix(back, 0,
+            BADGE_SHADOW * MIN(from_end, BADGE_SHADOW_FADE) / BADGE_SHADOW_FADE)));
+        display->drawpixel(x, height);
+    }
+
     for (int y = 0; y < height; y++)
     {
-        const int veil = BADGE_VEIL_TOP + (BADGE_VEIL_BOTTOM - BADGE_VEIL_TOP) * y / last;
-        const int gloss = y < half ?
-            BADGE_GLOSS_TOP + (BADGE_GLOSS_BOTTOM - BADGE_GLOSS_TOP) * y / half : 0;
-        const int edge = BADGE_EDGE_TOP + (BADGE_EDGE_BOTTOM - BADGE_EDGE_TOP) * y / last;
+        const unsigned outline = badge_mix(BADGE_OUTLINE_TOP, BADGE_OUTLINE_BOTTOM,
+                                           y * 256 / (height - 1));
+        const unsigned body = y < middle_row ? BADGE_MIDDLE :
+            badge_mix(BADGE_MIDDLE, BADGE_FOOT,
+                      (y - middle_row) * 256 / MAX(height - 2 - middle_row, 1));
+        const unsigned light = badge_mix(BADGE_LIGHT_TOP, BADGE_LIGHT_BOTTOM,
+                                         MAX(y - 1, 0) * 256 / MAX(light_rows - 1, 1));
 
         for (int x = 0; x < width; x++)
         {
-            /* the ends are round, and the edge is what's left of them and of the
+            /* the ends are round, and the outline is what's left of them and of the
                top and bottom when a smaller badge is taken out */
             const int from_end = MIN(x, width - 1 - x);
             int cover = 16, inner = 16;
@@ -312,25 +340,28 @@ void draw_format_badge(struct gui_wps *gwps, struct skin_viewport *skin_viewport
             if (cover == 0)
                 continue;
 
-            const unsigned back = FB_UNPACK_SCALAR_LCD(*FBADDR(vp->x + x, vp->y + y));
-            unsigned colour = badge_mix(back, BADGE_COLOUR, veil);
-            if (gloss > 0)
-                colour = badge_mix(colour, LCD_WHITE, gloss);
-            colour = badge_mix(colour, BADGE_COLOUR, edge * (16 - inner) / 16);
+            const unsigned pixel = FB_UNPACK_SCALAR_LCD(*FBADDR(vp->x + x, vp->y + y));
+            const unsigned back = RGB_UNPACK_RED(pixel) << 16
+                                | RGB_UNPACK_GREEN(pixel) << 8
+                                | RGB_UNPACK_BLUE(pixel);
+            unsigned colour = body;
+            if (y >= 1 && y < middle_row && from_end >= BADGE_LIGHT_INSET)
+            {
+                const int light_end = from_end - BADGE_LIGHT_INSET;
+                const int light_cover = light_end < (light_rows + 1) / 2 ?
+                                        badge_cover(light_end, y - 1, light_rows) : 16;
+                colour = badge_mix(body, light, light_cover * 16);
+            }
+            colour = badge_mix(colour, outline, (16 - inner) * 16);
 
-            display->set_foreground(badge_mix(back, colour, cover * 16));
+            display->set_foreground(badge_pack(badge_mix(back, colour, cover * 16)));
             display->drawpixel(x, y);
         }
     }
 
-    /* the text pressed in, with a light line under it */
-    const int text_x = (width - text_width) / 2;
-    const int text_y = (height - text_height) / 2;
     display->set_drawmode(DRMODE_FG);
-    display->set_foreground(LCD_RGBPACK(0xf4, 0xf6, 0xf8));
-    display->putsxy(text_x, text_y + 1, text);
-    display->set_foreground(BADGE_TEXT);
-    display->putsxy(text_x, text_y, text);
+    display->set_foreground(badge_pack(BADGE_TEXT));
+    display->putsxy((width - text_width) / 2, (height - text_height) / 2, text);
     display->set_drawmode(DRMODE_SOLID);
     display->set_foreground(old_fg);
 }

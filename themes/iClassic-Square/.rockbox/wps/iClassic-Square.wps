@@ -90,7 +90,7 @@
 %s%al%pp %Sx(of) %pe
 # the track's format and bitrate, on a badge, ending before the repeat icon: on a
 # full update a viewport is cleared whole, and this one comes after the icons
-%Vl(current,160,153,108,17,2)
+%Vl(current,160,153,108,18,2)
 %fB
 %Vl(next,160,134,157,14,2)%Vf(000000)
 %s%al%Sx(Now Playing): %?it<%it|%fn>
