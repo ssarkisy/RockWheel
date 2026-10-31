@@ -252,6 +252,10 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
                 draw_progressbar(gwps, info->skin_vp, info->line_number, bar);
         }
         break;
+        case SKIN_TOKEN_FORMAT_BADGE:
+            if (do_refresh)
+                draw_format_badge(gwps, info->skin_vp);
+            break;
         case SKIN_TOKEN_IMAGE_DISPLAY:
         {
             struct gui_img *img = SKINOFFSETTOPTR(skin_buffer, token->value.data);

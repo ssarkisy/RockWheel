@@ -17292,3 +17292,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_FORMAT_BADGE
+  desc: the format and bitrate of a track, on the badge under its number in Now Playing
+  user: core
+  <source>
+    *: "%s %d kbps"
+  </source>
+  <dest>
+    *: "%s %d kb/s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

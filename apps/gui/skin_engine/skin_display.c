@@ -199,6 +199,110 @@ static unsigned long peak_bar_hold(struct progressbar *pb, unsigned long end,
     return level;
 }
 
+#if LCD_DEPTH >= 16
+#define BADGE_PADDING   9
+/* A veil over what's behind the badge, and its text */
+#define BADGE_COLOUR    LCD_RGBPACK(0x3c, 0x46, 0x50)
+#define BADGE_ALPHA     36 /* of 256 */
+#define BADGE_TEXT      LCD_RGBPACK(0x6c, 0x74, 0x7c)
+
+/* a of 256 parts of colour, the rest of what's already at x, y on the screen */
+static unsigned badge_blend(int x, int y, unsigned colour, int a)
+{
+    const unsigned back = FB_UNPACK_SCALAR_LCD(*FBADDR(x, y));
+    return LCD_RGBPACK(
+        (RGB_UNPACK_RED(colour) * a + RGB_UNPACK_RED(back) * (256 - a)) / 256,
+        (RGB_UNPACK_GREEN(colour) * a + RGB_UNPACK_GREEN(back) * (256 - a)) / 256,
+        (RGB_UNPACK_BLUE(colour) * a + RGB_UNPACK_BLUE(back) * (256 - a)) / 256);
+}
+
+/* How much of a pixel of the round end is inside it, out of 16, by 4 x 4 samples
+   in units of an eighth of a pixel from the middle of the circle */
+static int badge_cover(int x, int y, int radius)
+{
+    const int limit = (radius * 8) * (radius * 8);
+    int inside = 0;
+    for (int sy = 0; sy < 4; sy++)
+    {
+        const int dy = (y * 8 + sy * 2 + 1) - radius * 8;
+        for (int sx = 0; sx < 4; sx++)
+        {
+            const int dx = (x * 8 + sx * 2 + 1) - radius * 8;
+            if (dx * dx + dy * dy <= limit)
+                inside++;
+        }
+    }
+    return inside;
+}
+
+/* "MP3 320 kbps" on a badge as wide as it needs to be, which isn't left to images
+   as it has to hug the text, and text in a viewport would clear what's behind it */
+void draw_format_badge(struct gui_wps *gwps, struct skin_viewport *skin_viewport)
+{
+    struct screen *display = gwps->display;
+    struct viewport *vp = &skin_viewport->vp;
+    const struct mp3entry *id3 = get_wps_state()->id3;
+    char text[32];
+    int text_width, text_height;
+
+    screen_clear_area(display, 0, 0, vp->width, vp->height);
+    if (!id3)
+        return;
+
+    /* What the database gives at first has no format, but it has the path, which
+       tells unless it's an MP4 file: AAC and ALAC have the same extensions, and
+       only the file itself can say. A bitrate of 1 is the database having none. */
+    unsigned int codec = id3->codectype;
+    if (codec == AFMT_UNKNOWN)
+    {
+        codec = probe_file_format(id3->path);
+        if (codec == AFMT_MP4_ALAC || codec == AFMT_MP4_AAC
+            || codec == AFMT_MP4_AAC_HE)
+            return;
+    }
+    if (codec == AFMT_UNKNOWN || codec >= AFMT_NUM_CODECS || id3->bitrate <= 1)
+        return;
+
+    snprintf(text, sizeof(text), str(LANG_FORMAT_BADGE),
+             get_codec_string(codec), id3->bitrate);
+
+    display->getstringsize(text, &text_width, &text_height);
+
+    const int height = vp->height;
+    const int radius = height / 2;
+    const int width = MIN(text_width + 2 * BADGE_PADDING, vp->width);
+    const unsigned old_fg = display->get_foreground();
+
+    display->set_drawmode(DRMODE_SOLID);
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            /* the ends are round */
+            const int from_end = MIN(x, width - 1 - x);
+            const int cover = from_end < radius ? badge_cover(from_end, y, radius) : 16;
+            if (cover == 0)
+                continue;
+            display->set_foreground(badge_blend(vp->x + x, vp->y + y, BADGE_COLOUR,
+                                                BADGE_ALPHA * cover / 16));
+            display->drawpixel(x, y);
+        }
+    }
+
+    display->set_foreground(BADGE_TEXT);
+    display->set_drawmode(DRMODE_FG);
+    display->putsxy((width - text_width) / 2, (height - text_height) / 2, text);
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_foreground(old_fg);
+}
+#else
+void draw_format_badge(struct gui_wps *gwps, struct skin_viewport *skin_viewport)
+{
+    (void)gwps;
+    (void)skin_viewport;
+}
+#endif /* LCD_DEPTH >= 16 */
+
 void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
                       int line, struct progressbar *pb)
 {

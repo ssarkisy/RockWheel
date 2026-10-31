@@ -88,6 +88,9 @@
 %?pE(15)<%?Fn<|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>
 %Vl(current,160,134,157,14,2)%Vf(888888)
 %s%al%pp %Sx(of) %pe
+# the track's format and bitrate, on a badge
+%Vl(current,160,153,157,17,2)
+%fB
 %Vl(next,160,134,157,14,2)%Vf(000000)
 %s%al%Sx(Now Playing): %?it<%it|%fn>
 %Vl(pb,58,206,204,23,-) 
