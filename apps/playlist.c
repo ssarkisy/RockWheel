@@ -3837,9 +3837,17 @@ int playlist_sort(struct playlist_info* playlist, bool start_current)
 }
 
 /* start playing current playlist at specified index/offset */
+static unsigned int start_count;
+/* Goes up each time music is started from the beginning of something */
+unsigned int playlist_start_count(void)
+{
+    return start_count;
+}
+
 void playlist_start(int start_index, unsigned long elapsed,
                     unsigned long offset)
 {
+    start_count++;
     struct playlist_info* playlist = &current_playlist;
 
     playlist_write_lock(playlist);

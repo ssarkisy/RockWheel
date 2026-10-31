@@ -23,6 +23,8 @@
 #include "config.h"
 #include "gcc_extensions.h"
 
+/* Cover Flow, by plugin_load, which knows if it starts the music */
+int root_menu_cover_flow(void);
 void root_menu(void) NORETURN_ATTR;
 #ifdef HAVE_TAGCACHE
 /* the boot logo and the import's progress, while there is an import */

@@ -93,6 +93,83 @@ static int last_screen = GO_TO_ROOT; /* unfortunatly needed so we can resume
 static int previous_music = GO_TO_WPS; /* Toggles behavior of the return-to
                                         * playback-button depending
                                         * on FM radio */
+static int last_db_dirlevel = 0, last_db_selection = 0;
+
+/* Where the music playing was started. Holding Play opens Now Playing from anywhere,
+   and Menu there then goes back to that and not to where Play was held. Not known
+   after a boot, when it goes back as usual. */
+static enum { ORIGIN_NONE, ORIGIN_SCREEN, ORIGIN_COVER_FLOW } music_origin = ORIGIN_NONE;
+static int music_origin_screen;
+static unsigned int music_starts_seen;
+static bool wps_after_hold = false;
+
+static void note_music_origin(int screen)
+{
+    const unsigned int starts = playlist_start_count();
+    if (starts == music_starts_seen)
+        return;
+    music_starts_seen = starts;
+    switch (screen)
+    {
+        case GO_TO_WPS:
+        case GO_TO_PLAYLIST_VIEWER: /* within what's playing */
+            return;
+        case GO_TO_SHUFFLE_SONGS: /* from the main menu */
+            music_origin_screen = GO_TO_ROOT;
+            break;
+#ifdef HAVE_TAGCACHE
+        case GO_TO_DBBROWSER:
+            tagtree_save_place(last_db_dirlevel, last_db_selection);
+            /* fall through */
+#endif
+        default:
+            music_origin_screen = screen;
+            break;
+    }
+    music_origin = ORIGIN_SCREEN;
+}
+
+int root_menu_cover_flow(void)
+{
+    const int ret = plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", NULL);
+    const unsigned int starts = playlist_start_count();
+    if (starts != music_starts_seen)
+    {
+        music_starts_seen = starts;
+        music_origin = ORIGIN_COVER_FLOW;
+    }
+    return ret;
+}
+
+/* The screen to go to from Now Playing, if it was opened by holding Play */
+static int back_to_music_origin(int otherwise)
+{
+    switch (music_origin)
+    {
+        case ORIGIN_NONE:
+            return otherwise;
+        case ORIGIN_COVER_FLOW:
+            switch (root_menu_cover_flow())
+            {
+                case PLUGIN_GOTO_WPS:
+                    wps_after_hold = true;
+                    return GO_TO_WPS;
+                case PLUGIN_GOTO_ROOT:
+                    return GO_TO_ROOT;
+                case PLUGIN_GOTO_PLUGIN:
+                    return GO_TO_PLUGIN;
+                default:
+                    return GO_TO_DBBROWSER;
+            }
+        case ORIGIN_SCREEN:
+        default:
+#ifdef HAVE_TAGCACHE
+            if (music_origin_screen == GO_TO_DBBROWSER)
+                tagtree_restore_place(&last_db_dirlevel, &last_db_selection);
+#endif
+            return music_origin_screen;
+    }
+}
 
 #if (CONFIG_TUNER)
 static void rootmenu_start_playback_callback(unsigned short id, void *param)
@@ -126,7 +203,7 @@ static int browser(void* param)
 
     /* and stuff for the database browser */
 #ifdef HAVE_TAGCACHE
-    static int last_db_dirlevel = 0, last_db_selection = 0, last_ft_dirlevel = 0;
+    static int last_ft_dirlevel = 0;
 #endif
 
     switch ((intptr_t)param)
@@ -1216,6 +1293,7 @@ void root_menu(void)
 
             case GO_TO_PREVIOUS_MUSIC:
                 next_screen = previous_music;
+                wps_after_hold = true;
                 break;
             case GO_TO_ROOTITEM_CONTEXT:
                 next_screen = load_context_screen(selected);
@@ -1291,7 +1369,18 @@ void root_menu(void)
         } /* switch() */
         continue;
 load_next_screen: /* load_screen is inlined */
-        next_screen = load_screen(next_screen);
+        {
+            const int screen = next_screen;
+            next_screen = load_screen(screen);
+            note_music_origin(screen);
+            if (screen == GO_TO_WPS)
+            {
+                const bool after_hold = wps_after_hold;
+                wps_after_hold = false;
+                if (after_hold && next_screen == GO_TO_PREVIOUS)
+                    next_screen = back_to_music_origin(next_screen);
+            }
+        }
     }
 
 }

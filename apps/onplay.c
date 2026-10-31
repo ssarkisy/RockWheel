@@ -40,6 +40,7 @@
 #include "playlist_viewer.h"
 #include "talk.h"
 #include "onplay.h"
+#include "root_menu.h"
 #include "filetypes.h"
 #include "fileop.h"
 #include "open_plugin.h"
@@ -1152,7 +1153,7 @@ static int onplaymenu_callback(int action,
    this menu */
 static int open_cover_flow(void)
 {
-    switch (plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", NULL))
+    switch (root_menu_cover_flow())
     {
         case PLUGIN_GOTO_ROOT:
             return GO_TO_ROOT;

@@ -811,8 +811,7 @@ static int dirbrowse(void)
                     /* PictureFlow, back to this list when it is left */
                     if (button == ACTION_STD_OK)
                     {
-                        switch (plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock",
-                                            NULL))
+                        switch (root_menu_cover_flow())
                         {
                             case PLUGIN_GOTO_WPS:
                                 return exit_to_new_screen(GO_TO_WPS);

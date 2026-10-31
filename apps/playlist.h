@@ -128,6 +128,7 @@ unsigned int playlist_get_filename_crc32(struct playlist_info *playlist,
                                          int index);
 void playlist_resume_track(int start_index, unsigned int crc,
                            unsigned long elapsed, unsigned long offset);
+unsigned int playlist_start_count(void);
 void playlist_start(int start_index, unsigned long elapsed,
                     unsigned long offset);
 bool playlist_check(int steps);

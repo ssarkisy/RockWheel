@@ -2207,6 +2207,52 @@ int tagtree_load(struct tree_context* c)
  * true, make sure that you are back at the previous dirlevel, by
  * calling tagtree_exit as needed, with is_visible set to false.
  */
+/* The place in the lists where the music playing was started, to go back to it */
+static struct
+{
+    struct menu_root *menu;
+    struct search_instruction *csi;
+    int result_seek[MAX_TAGS];
+    int currtable, currextra, dirlevel, selected_item, max_history_level;
+    int selected_item_history[MAX_DIR_LEVELS];
+    int table_history[MAX_DIR_LEVELS];
+    int extra_history[MAX_DIR_LEVELS];
+} saved_place;
+
+void tagtree_save_place(int dirlevel, int selected_item)
+{
+    saved_place.menu = menu;
+    saved_place.csi = csi;
+    if (csi)
+        memcpy(saved_place.result_seek, csi->result_seek, sizeof(csi->result_seek));
+    saved_place.currtable = tc->currtable;
+    saved_place.currextra = tc->currextra;
+    saved_place.dirlevel = dirlevel;
+    saved_place.selected_item = selected_item;
+    saved_place.max_history_level = max_history_level;
+    memcpy(saved_place.selected_item_history, selected_item_history,
+           sizeof(selected_item_history));
+    memcpy(saved_place.table_history, table_history, sizeof(table_history));
+    memcpy(saved_place.extra_history, extra_history, sizeof(extra_history));
+}
+
+void tagtree_restore_place(int *dirlevel, int *selected_item)
+{
+    menu = saved_place.menu;
+    csi = saved_place.csi;
+    if (csi)
+        memcpy(csi->result_seek, saved_place.result_seek, sizeof(csi->result_seek));
+    tc->currtable = saved_place.currtable;
+    tc->currextra = saved_place.currextra;
+    *dirlevel = saved_place.dirlevel;
+    *selected_item = saved_place.selected_item;
+    max_history_level = saved_place.max_history_level;
+    memcpy(selected_item_history, saved_place.selected_item_history,
+           sizeof(selected_item_history));
+    memcpy(table_history, saved_place.table_history, sizeof(table_history));
+    memcpy(extra_history, saved_place.extra_history, sizeof(extra_history));
+}
+
 int tagtree_enter(struct tree_context* c, bool is_visible)
 {
     logf( "%s", __func__);
