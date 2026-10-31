@@ -1,7 +1,7 @@
 #!/bin/bash
-# Installs or updates RockPod on an iPod Video (5th or 5.5th generation) from a Mac.
+# Installs or updates RockWheel on an iPod Video (5th or 5.5th generation) from a Mac.
 #
-#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ssarkisy/RockPod/main/install.sh)"
+#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ssarkisy/RockWheel/main/install.sh)"
 #
 # Options, after a local download of this script:
 #   --dry-run        look at the iPod and say what would be done, changing nothing
@@ -13,7 +13,7 @@
 
 set -u
 
-REPO="ssarkisy/RockPod"
+REPO="ssarkisy/RockWheel"
 RELEASE_URL="https://github.com/$REPO/releases/latest/download"
 # Rockbox's own bootloader, the one Rockbox Utility installs
 BOOTLOADER=bootloader-ipodvideo.ipod
@@ -101,7 +101,7 @@ fetch_files() {
         WORK=""
         FILES="$FROM"
     else
-        WORK=$(mktemp -d "${TMPDIR:-/tmp}/rockpod.XXXXXX") || die "Couldn't make a temporary folder."
+        WORK=$(mktemp -d "${TMPDIR:-/tmp}/rockwheel.XXXXXX") || die "Couldn't make a temporary folder."
         FILES="$WORK"
         local f
         for f in rockbox.zip ipodpatcher "$BOOTLOADER" SHA256SUMS; do
@@ -206,7 +206,7 @@ eject_ipod() {
     diskutil eject "/dev/$DISK" >/dev/null 2>&1 || say "    Eject it from Finder before you unplug it."
 }
 
-step "RockPod for iPod Video"
+step "RockWheel for iPod Video"
 [ "$DRY_RUN" = 1 ] && say "This is a dry run: nothing on the iPod is changed."
 say "It has been tested on a single iPod with a flash card, and never on an original"
 say "hard drive. Details are in the README."
@@ -222,7 +222,7 @@ read_ipod
 say "Model: $MODEL, $KIND."
 case "$MODEL" in
     *Video*) ;;
-    *) die "This isn't an iPod Video, which is the only model RockPod supports." ;;
+    *) die "This isn't an iPod Video, which is the only model RockWheel supports." ;;
 esac
 
 if [ "$UNINSTALL" = 1 ]; then
@@ -243,7 +243,7 @@ FORMAT_NEEDED=0
 FRESH=0
 if [ "$KIND" = "macpod" ]; then
     say ""
-    say "This iPod is Mac-formatted, and RockPod needs FAT32."
+    say "This iPod is Mac-formatted, and RockWheel needs FAT32."
     say "CONVERTING ERASES EVERYTHING ON THE IPOD: music, photos and anything else you"
     say "keep on it. What's in your Music library comes back with a sync from Finder;"
     say "plays and ratings not yet synced to the Mac are lost, so sync once first."
@@ -285,7 +285,7 @@ step "Done"
 if [ "$FRESH" = 1 ] || [ "$HAS_BOOTLOADER" = 0 ]; then
     say "1. Unplug the iPod. If it doesn't restart by itself, hold Menu and Select until it does."
     say "2. Connect it again. It appears in Finder as an iPod: sync your music from there."
-    say "   Don't choose Restore in Finder. That erases the iPod and removes RockPod."
+    say "   Don't choose Restore in Finder. That erases the iPod and removes RockWheel."
     say "3. Unplug it. The library comes in while the progress bar runs."
     say ""
     say "To start the stock firmware instead, for video, turn the Hold switch on while it boots."
