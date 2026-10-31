@@ -751,7 +751,7 @@ enum codec_status codec_run(void)
         }
 
         int framelength = f->length - samples_to_skip;
-        if (framelength < 0) {
+        if (framelength <= 0) {
             framelength = 0;
             samples_to_skip -= f->length;
         }
