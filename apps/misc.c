@@ -862,15 +862,11 @@ void check_bootfile(bool do_rolo)
             {
                 if(info.mtime != mtime)
                 {
-                    static const char *lines[] = { ID2P(LANG_BOOT_CHANGED),
-                                                   ID2P(LANG_REBOOT_NOW) };
-                    static const struct text_message message={ lines, 2 };
-                    button_clear_queue(); /* Empty the keyboard buffer */
-                    if(gui_syncyesno_run(&message, NULL, NULL) == YESNO_YES)
-                    {
-                        audio_hard_stop();
-                        rolo_load(BOOTDIR "/" BOOTFILE);
-                    }
+                    /* Straight into the new firmware, with nothing to ask: its
+                       Select was hard to press on the wheel without saying no. A
+                       file that can't be started says so here and this goes on. */
+                    audio_hard_stop();
+                    rolo_load(BOOTDIR "/" BOOTFILE);
                 }
             }
             mtime = info.mtime;

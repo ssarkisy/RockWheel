@@ -215,6 +215,13 @@ void rolo_restart(const unsigned char* source, unsigned char* dest,
 /* This is assigned in the linker control file */
 extern unsigned long loadaddress;
 
+/* On the way to the boot logo there's nothing here to read */
+#ifdef APPLE_BOOT_LOGO
+#define rolo_puts(x, y, text) do {} while (0)
+#else
+#define rolo_puts lcd_puts
+#endif
+
 /***************************************************************************
  *
  * Name: rolo_load(const char *filename)
@@ -230,8 +237,8 @@ int rolo_load(const char* filename)
     int err, length;
 
     lcd_clear_display();
-    lcd_puts(0, 0, "ROLO");
-    lcd_puts(0, 1, "Loading...");
+    rolo_puts(0, 0, "ROLO");
+    rolo_puts(0, 1, "Loading...");
     lcd_update();
 #ifdef HAVE_REMOTE_LCD
     lcd_remote_clear_display();
@@ -290,27 +297,27 @@ int rolo_load(const char* filename)
         length = err;
 
 #if defined(CPU_PP) && NUM_CORES > 1
-    lcd_puts(0, 2, "Waiting for coprocessor...");
+    rolo_puts(0, 2, "Waiting for coprocessor...");
     lcd_update();
     rolo_restart_cop();
     /* Wait for COP to be in safe code */
     while(cpu_reply != 1);
     lcd_clear_display();
-    lcd_puts(0, 0, "ROLO");
-    lcd_puts(0, 1, "Loading...");
+    rolo_puts(0, 0, "ROLO");
+    rolo_puts(0, 1, "Loading...");
     lcd_update();
 #endif
 
 #ifdef HAVE_STORAGE_FLUSH
-    lcd_puts(0, 1, "Flushing storage buffers...");
+    rolo_puts(0, 1, "Flushing storage buffers...");
     lcd_update();
     storage_flush();
     lcd_clear_display();
-    lcd_puts(0, 0, "ROLO");
+    rolo_puts(0, 0, "ROLO");
     lcd_update();
 #endif
 
-    lcd_puts(0, 1, "Executing...");
+    rolo_puts(0, 1, "Executing...");
     lcd_update();
 #ifdef HAVE_REMOTE_LCD
     lcd_remote_puts(0, 1, "Executing...");
