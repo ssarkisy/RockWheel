@@ -86,6 +86,14 @@ void itunesdb_forget_metadata(void);
 unsigned itunesdb_track_flags(const char *path);
 unsigned itunesdb_hash_flags(uint64_t hash);
 
+/* Sound Check's gains are noted from this iTunesDB, or there is none */
+bool itunesdb_gains_ready(void);
+
+/* Puts the gain Finder worked out for this file into its entry, for Sound
+   Check to use over any ReplayGain tags it has. Reads the disk: for when a
+   track loads. */
+void itunesdb_set_track_gain(struct mp3entry *id3);
+
 /* true when the file at path is to play from where it was left: a podcast
    or an audiobook, or any file with Rockbox's automatic resume on */
 bool itunesdb_resumes(const char *path);

@@ -6514,7 +6514,15 @@ static void tagcache_thread(void)
         queue_post(&tagcache_queue, Q_IMPORT_ITUNES, 0);
     }
     else if (!itunesdb_load_tracks())
-        itunesdb_import_tracks(false, NULL, NULL);
+    {
+        /* what an older firmware didn't note, once: tagcache_init() has put up
+           the import's screen for it */
+        import_phase = TAGCACHE_IMPORT_READING;
+        itunesdb_import_tracks(false, &import_done, &import_total);
+#ifndef ITUNESDB_HAVE_ART
+        import_phase = TAGCACHE_IMPORT_NONE;
+#endif
+    }
 
     /* The header check, on the background but at once: the song count and
        an import after a sync wait for it */
@@ -6784,7 +6792,7 @@ void tagcache_init(void)
             sync_found = true;
         }
     }
-    if (sync_found)
+    if (sync_found || !itunesdb_gains_ready())
         import_phase = TAGCACHE_IMPORT_READING;
 #ifdef ITUNESDB_HAVE_ART
     else if (itunesdb_slides_todo())

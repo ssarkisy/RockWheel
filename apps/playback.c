@@ -2378,6 +2378,9 @@ static int audio_finish_load_track(struct track_info *infop)
         goto audio_finish_load_track_exit;
     }
 
+    /* Sound Check: while the disk is reading anyway */
+    itunesdb_set_track_gain(track_id3);
+
     struct track_info user_cur;
 
 #ifdef HAVE_PLAY_FREQ

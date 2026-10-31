@@ -875,6 +875,21 @@ static void albumart_callback(int mode)
 }
 #endif
 
+/* Its row in Settings changes it in place, and the music at once: the gain goes
+   on as music is decoded, ahead of the seconds of it in the PCM buffer, so those
+   are decoded again from what is playing now, as a seek does. */
+static void sound_check_changed(int value)
+{
+    (void)value;
+    replaygain_update();
+    struct mp3entry *id3 = audio_current_track();
+    if (id3 && (audio_status() & AUDIO_STATUS_PLAY))
+    {
+        audio_pre_ff_rewind();
+        audio_ff_rewind(id3->elapsed);
+    }
+}
+
 /* perform shuffle/unshuffle of the current playlist based on the boolean provided */
 static void shuffle_playlist_callback(bool shuffle)
 {
@@ -1945,10 +1960,12 @@ const struct settings_list settings[] = {
 #endif
 
     /* replay gain */
+    /* Sound Check, on or off as on a stock iPod: the gains are Finder's, or
+       where it has none, the file's ReplayGain tags */
     CHOICE_SETTING(F_SOUNDSETTING, replaygain_settings.type,
-                   LANG_REPLAYGAIN_MODE, REPLAYGAIN_SHUFFLE, "replaygain type",
-                   "track,album,track shuffle,off", NULL, 4, ID2P(LANG_TRACK_GAIN),
-                   ID2P(LANG_ALBUM_GAIN), ID2P(LANG_SHUFFLE_GAIN), ID2P(LANG_OFF)),
+                   LANG_REPLAYGAIN_MODE, REPLAYGAIN_OFF, "replaygain type",
+                   "on,off", sound_check_changed, 2,
+                   ID2P(LANG_ON), ID2P(LANG_OFF)),
     OFFON_SETTING(F_SOUNDSETTING, replaygain_settings.noclip,
                   LANG_REPLAYGAIN_NOCLIP, false, "replaygain noclip", NULL),
     INT_SETTING_NOWRAP(F_SOUNDSETTING, replaygain_settings.preamp,

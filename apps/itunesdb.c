@@ -42,6 +42,7 @@
 #include "logf.h"
 #include "lcd.h"
 #include "metadata.h"
+#include "fixedpoint.h"
 #include "itunesdb.h"
 
 #ifdef HAVE_DIRCACHE
@@ -114,6 +115,7 @@ struct track {
     uint32_t art;    /* the ArtworkDB image id of its cover, 0 for none */
     uint32_t album;  /* its album and the album's artist hashed, 0 for none */
     uint32_t pos;    /* of its mhit in iTunesDB */
+    uint32_t sound_check; /* Finder's, 0 for none */
     struct state_entry st;
 };
 
@@ -700,6 +702,7 @@ static void read_track(off_t pos, struct track *track)
     int mhods = le32(p + 12);
     track->id = le32(p + 16);
     track->st.rating = p[31];
+    track->sound_check = le32(p + 76);
     track->st.playcount = le32(p + 80);
     uint32_t media = 0;
     if (header_len >= 212)
@@ -1782,6 +1785,103 @@ unsigned itunesdb_track_flags(const char *path)
     if (flags_index.handle <= 0)
         return 0;
     return itunesdb_hash_flags(itunesdb_path_hash(path));
+}
+
+/* Sound Check: Finder works it out for nearly every track, and iTunesDB holds
+   it as 1000 times the power the track is to be brought to. There are too many
+   to keep in memory for a look at each when it loads, so they stay in a file. */
+#define GAINS_FILE      ROCKBOX_DIR "/itunesdb_gains.dat"
+#define GAINS_MAGIC     0x47494252 /* "RBIG" */
+#define GAINS_VERSION   1
+
+struct gain_entry {
+    uint64_t hash;
+    uint32_t sound_check;
+    uint32_t unused;
+};
+
+static void write_gains(void)
+{
+    if (!writer_open(&out, GAINS_FILE ".tmp"))
+        return;
+    struct flags_header hdr = {
+        GAINS_MAGIC, GAINS_VERSION, 0, db_size, db_mtime
+    };
+    writer_put(&out, &hdr, sizeof(hdr));
+    /* by path hash, to be searched */
+    for (int i = 0; i < db.count; i++)
+    {
+        const struct track *t = &db.tracks[db.by_hash[i]];
+        if (!t->path || !t->sound_check)
+            continue;
+        struct gain_entry entry = { t->st.hash, t->sound_check, 0 };
+        writer_put(&out, &entry, sizeof(entry));
+        hdr.count++;
+    }
+    writer_flush(&out);
+    lseek(out.fd, 0, SEEK_SET);
+    writer_put(&out, &hdr, sizeof(hdr));
+    if (writer_close(&out))
+        rename(GAINS_FILE ".tmp", GAINS_FILE);
+    logf("itunesdb: %lu tracks with Sound Check", (unsigned long)hdr.count);
+}
+
+static bool read_gains_header(int fd, struct flags_header *hdr)
+{
+    return read(fd, hdr, sizeof(*hdr)) == sizeof(*hdr)
+           && hdr->magic == GAINS_MAGIC && hdr->version == GAINS_VERSION;
+}
+
+bool itunesdb_gains_ready(void)
+{
+    uint32_t size, mtime;
+    if (!db_stamp(&size, &mtime))
+        return true;
+    struct flags_header hdr;
+    int fd = open(GAINS_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    bool ready = read_gains_header(fd, &hdr)
+                 && hdr.db_size == size && hdr.db_mtime == mtime;
+    close(fd);
+    return ready;
+}
+
+void itunesdb_set_track_gain(struct mp3entry *id3)
+{
+    struct flags_header hdr;
+    int fd = open(GAINS_FILE, O_RDONLY);
+    if (fd < 0)
+        return;
+    uint32_t sound_check = 0;
+    if (read_gains_header(fd, &hdr))
+    {
+        const uint64_t hash = itunesdb_path_hash(id3->path);
+        int lo = 0, hi = (int)hdr.count - 1;
+        while (lo <= hi && !sound_check)
+        {
+            int mid = (lo + hi) / 2;
+            struct gain_entry entry;
+            lseek(fd, sizeof(hdr) + mid * sizeof(entry), SEEK_SET);
+            if (read(fd, &entry, sizeof(entry)) != sizeof(entry))
+                break;
+            if (entry.hash == hash)
+                sound_check = entry.sound_check;
+            else if (entry.hash < hash)
+                lo = mid + 1;
+            else
+                hi = mid - 1;
+        }
+    }
+    close(fd);
+    if (!sound_check)
+        return;
+    /* the factor on the samples, s7.24. A track Finder would raise stays as it
+       is: iTunesDB doesn't say where its peaks are, and raised they could clip */
+    id3->track_gain = sound_check <= 1000 ? (1L << 24) :
+        fp_sqrt(((uint64_t)1000 << 24) / sound_check, 24);
+    id3->album_gain = 0;
+    id3->album_peak = 0;
 }
 
 bool itunesdb_resumes(const char *path)
@@ -2955,6 +3055,7 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
         itunesdb_forget_metadata();
     forget_index(&flags_index);
     remove(FLAGS_FILE);
+    remove(GAINS_FILE);
 #ifdef ITUNESDB_HAVE_ART
     /* the old covers point into ithmb files Finder has rewritten; their
        slides are kept where they are the same */
@@ -2969,6 +3070,7 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     {
         count = db.count;
         write_flags();
+        write_gains();
         if (synced)
         {
             write_playlists(playlists_list);
@@ -2995,6 +3097,9 @@ bool itunesdb_load_tracks(void)
     uint32_t size, mtime;
     load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
                FLAGS_MAGIC, FLAGS_VERSION);
+    /* what an older firmware didn't note */
+    if (!itunesdb_gains_ready())
+        return false;
 #ifdef ITUNESDB_HAVE_ART
     load_index(&art_index, ART_FILE, &index_hdr, sizeof(index_hdr),
                ART_MAGIC, ART_VERSION);

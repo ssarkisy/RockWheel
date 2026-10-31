@@ -27,10 +27,11 @@ void dsp_dither_enable(bool enable); /* in dsp_sample_output.c */
 
 enum replaygain_types
 {
+    /* the setting's two values come first: Sound Check is on or off */
     REPLAYGAIN_TRACK = 0,
+    REPLAYGAIN_OFF,
     REPLAYGAIN_ALBUM,
     REPLAYGAIN_SHUFFLE,
-    REPLAYGAIN_OFF
 };
 
 struct replaygain_settings
