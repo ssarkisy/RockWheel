@@ -2402,6 +2402,9 @@ bool tagcache_fill_tags(struct mp3entry *id3, const char *filename)
     if (idx_id < 0)
         return false;
 
+    /* Not in id3->path, which being set says all of this is what the file said */
+    id3->path_codectype = probe_file_format(filename);
+
     entry = &tcramcache.hdr->indices[idx_id];
 
     char* buf = id3->id3v2buf;

@@ -338,6 +338,10 @@ struct mp3entry {
 
     /* For ASF files with MP3 audio stream */
     bool is_asf_stream;
+
+    /* the format as far as the path tells, from the database until the file has
+       been read: codectype being set is what says the file has */
+    unsigned int path_codectype;
 };
 
 unsigned int probe_file_format(const char *filename); /* returns audio_fmt */
