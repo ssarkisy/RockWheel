@@ -283,6 +283,17 @@ typedef fb_data pix_t;
 /* current version for cover cache */
 #define CACHE_VERSION 4
 #define CONFIG_VERSION 1
+
+#ifdef ITUNESDB_HAVE_ART
+/* Three covers on either side of the middle one, as Cover Flow has them: closer
+   together and at a steeper angle than the plugin's, and a little smaller. There's no
+   menu for these here, and an old config file mustn't keep the old look. */
+#define COVER_FLOW_SPACING 16
+#define COVER_FLOW_MARGIN  14
+#define COVER_FLOW_ZOOM    90
+#define COVER_FLOW_TILT    72
+#define COVER_FLOW_SLIDES  5
+#endif
 #define CONFIG_FILE "pictureflow.cfg"
 #define INDEX_HDR "PFIT" /* T: with the first track of each album */
 
@@ -3462,7 +3473,11 @@ static void recalc_offsets(void)
                 pf_cfg.center_margin * PFREAL_ONE) * pf_cfg.zoom / 100;
     PFreal cosr, sinr;
 
+#ifdef ITUNESDB_HAVE_ART
+    itilt = COVER_FLOW_TILT * IANGLE_MAX / 360;
+#else
     itilt = 70 * IANGLE_MAX / 360;      /* approx. 70 degrees tilted */
+#endif
     cosr = fcos(-itilt);
     sinr = fsin(-itilt);
     zo = CAM_DIST_R * 100 / pf_cfg.zoom - CAM_DIST_R +
@@ -5329,6 +5344,12 @@ static bool init(void)
 
     config_set_defaults(&pf_cfg); /* must appear before configfile_save */
     configfile_load(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
+#ifdef ITUNESDB_HAVE_ART
+    pf_cfg.slide_spacing = COVER_FLOW_SPACING;
+    pf_cfg.center_margin = COVER_FLOW_MARGIN;
+    pf_cfg.zoom = COVER_FLOW_ZOOM;
+    pf_cfg.num_slides = COVER_FLOW_SLIDES;
+#endif
 
 #ifdef ITUNESDB_HAVE_ART
     /* music waits while here, so a track that is chosen plays on the WPS */
