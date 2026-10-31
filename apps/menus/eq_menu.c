@@ -885,11 +885,60 @@ static const struct
       { -150, -300, -300, 150, 375, 375, 300, 150, 0, -150 } },
 };
 
-static int eq_preset_gain(int preset, int band)
+/* For particular earphones, first in the list. From measurements of 4 of them by 3
+   people, against the Harman in-ear target. Few bands, at their own frequencies and
+   the rest off, as each one takes time from the UI. Bands are numbered as the
+   defaults, and q and gain are in tenths. The precut is the largest boost after the
+   bands add up, in tenths of a dB. */
+#define EQ_PHONES_BANDS 3
+static const struct
 {
-    /* to the tenths of a dB the bands are set in */
-    int gain = eq_presets[preset - 1].gain[band];
-    return (gain + (gain < 0 ? -5 : 5)) / 10;
+    int lang_id;
+    int precut;
+    struct
+    {
+        int band;
+        struct eq_band_setting setting;
+    } bands[EQ_PHONES_BANDS];
+} eq_phones[] =
+{
+    /* 7Hz Zero 2: 2 dB too much at 100-250 Hz, and 2 to 5 dB too little at 2.5-6.3 kHz */
+    { LANG_EQ_ZERO2, 40,
+      { { 2, { EQ_FILTER_PEAK, 170, 10, -25 } },
+        { 7, { EQ_FILTER_PEAK, 5000, 10, 40 } } } },
+    /* a little ahead of the target at 1.6-4 kHz, for voices */
+    { LANG_EQ_ZERO2_VOICE, 37,
+      { { 2, { EQ_FILTER_PEAK, 170, 10, -30 } },
+        { 6, { EQ_FILTER_PEAK, 3000, 12, 25 } },
+        { 7, { EQ_FILTER_PEAK, 5500, 12, 30 } } } },
+    /* the same way, less far, for treble that's too much with the first */
+    { LANG_EQ_ZERO2_SOFT, 25,
+      { { 2, { EQ_FILTER_PEAK, 170, 10, -20 } },
+        { 7, { EQ_FILTER_PEAK, 5000, 10, 25 } } } },
+};
+
+/* Preset numbers: 0 is off, then the earphones', then iTunes' */
+static struct eq_band_setting eq_preset_band(int preset, int band)
+{
+    struct eq_band_setting setting = eq_defaults[band];
+    preset--;
+    if (preset < (int)ARRAYLEN(eq_phones))
+    {
+        for (int i = 0; i < EQ_PHONES_BANDS; i++)
+        {
+            /* unused entries are band 0 with gain 0, which is the default anyway */
+            if (eq_phones[preset].bands[i].setting.gain != 0
+                && eq_phones[preset].bands[i].band == band)
+                setting = eq_phones[preset].bands[i].setting;
+        }
+    }
+    else
+    {
+        /* to the tenths of a dB the bands are set in */
+        int gain = eq_presets[preset - ARRAYLEN(eq_phones)].gain[band];
+        setting.gain = (gain + (gain < 0 ? -5 : 5)) / 10;
+    }
+    return setting;
 }
 
 static void eq_set_preset(int preset)
@@ -900,10 +949,11 @@ static void eq_set_preset(int preset)
         int precut = 0;
         for (int i = 0; i < EQ_NUM_BANDS; i++)
         {
-            global_settings.eq_band_settings[i] = eq_defaults[i];
-            global_settings.eq_band_settings[i].gain = eq_preset_gain(preset, i);
+            global_settings.eq_band_settings[i] = eq_preset_band(preset, i);
             precut = MAX(precut, global_settings.eq_band_settings[i].gain);
         }
+        if (preset <= (int)ARRAYLEN(eq_phones))
+            precut = eq_phones[preset - 1].precut;
         /* down by the largest boost, so that loud music doesn't clip */
         global_settings.eq_precut = precut;
     }
@@ -915,17 +965,19 @@ static int eq_get_preset(void)
 {
     if (!global_settings.eq_enabled)
         return 0;
-    for (int preset = 1; preset <= (int)ARRAYLEN(eq_presets); preset++)
+    const int presets = ARRAYLEN(eq_phones) + ARRAYLEN(eq_presets);
+    for (int preset = 1; preset <= presets; preset++)
     {
         int i = 0;
         for (; i < EQ_NUM_BANDS; i++)
         {
             const struct eq_band_setting *band =
                 &global_settings.eq_band_settings[i];
-            if (band->type != eq_defaults[i].type
-                || band->cutoff != eq_defaults[i].cutoff
-                || band->q != eq_defaults[i].q
-                || band->gain != eq_preset_gain(preset, i))
+            const struct eq_band_setting wanted = eq_preset_band(preset, i);
+            if (band->type != wanted.type
+                || band->cutoff != wanted.cutoff
+                || band->q != wanted.q
+                || band->gain != wanted.gain)
                 break;
         }
         if (i == EQ_NUM_BANDS)
@@ -936,10 +988,12 @@ static int eq_get_preset(void)
 
 static int eq_choose_preset(void)
 {
-    static const unsigned char *names[1 + ARRAYLEN(eq_presets)];
+    static const unsigned char *names[1 + ARRAYLEN(eq_phones) + ARRAYLEN(eq_presets)];
     names[0] = ID2P(LANG_OFF);
+    for (int i = 0; i < (int)ARRAYLEN(eq_phones); i++)
+        names[1 + i] = ID2P(eq_phones[i].lang_id);
     for (int i = 0; i < (int)ARRAYLEN(eq_presets); i++)
-        names[i + 1] = ID2P(eq_presets[i].lang_id);
+        names[1 + ARRAYLEN(eq_phones) + i] = ID2P(eq_presets[i].lang_id);
 
     static const struct choice_setting choice =
         { eq_set_preset, ARRAYLEN(names), NULL, { .desc = names } };
