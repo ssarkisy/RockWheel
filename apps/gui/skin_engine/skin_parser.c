@@ -87,6 +87,7 @@ static char* skin_buffer = NULL;
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && (LCD_REMOTE_DEPTH > 1))
 static char *backdrop_filename;
 static char *about_backdrop_filename;
+static char *wide_backdrop_filename;
 #endif
 static struct skin_stats *_stats = NULL;
 
@@ -789,6 +790,10 @@ static int parse_image_special(struct skin_element *element,
     else if (token->type == SKIN_TOKEN_IMAGE_ABOUT_BACKDROP)
     {
         about_backdrop_filename = get_param_text(element, 0);
+    }
+    else if (token->type == SKIN_TOKEN_IMAGE_WIDE_BACKDROP)
+    {
+        wide_backdrop_filename = get_param_text(element, 0);
     }
 #endif
 
@@ -2060,8 +2065,12 @@ static void skin_data_reset(struct wps_data *wps_data)
     if (wps_data->about_backdrop_id >= 0)
         skin_backdrop_unload(wps_data->about_backdrop_id);
     wps_data->about_backdrop_id = -1;
+    if (wps_data->wide_backdrop_id >= 0)
+        skin_backdrop_unload(wps_data->wide_backdrop_id);
+    wps_data->wide_backdrop_id = -1;
     backdrop_filename = NULL;
     about_backdrop_filename = NULL;
+    wide_backdrop_filename = NULL;
 #endif
 #ifdef HAVE_TOUCHSCREEN
     wps_data->touchregions = INVALID_OFFSET;
@@ -2228,6 +2237,8 @@ static bool load_skin_bitmaps(struct wps_data *wps_data, char *bmpdir)
 #ifdef HAVE_BACKDROP_IMAGE
     wps_data->backdrop_id = skin_backdrop_assign(backdrop_filename, bmpdir, curr_screen);
     wps_data->about_backdrop_id = skin_backdrop_assign(about_backdrop_filename,
+                                                       bmpdir, curr_screen);
+    wps_data->wide_backdrop_id = skin_backdrop_assign(wide_backdrop_filename,
                                                        bmpdir, curr_screen);
 #endif /* has backdrop support */
     return retval;
@@ -2567,6 +2578,7 @@ static int skin_element_callback(struct skin_element* element, void* data)
                     break;
                 case SKIN_TOKEN_IMAGE_BACKDROP:
                 case SKIN_TOKEN_IMAGE_ABOUT_BACKDROP:
+                case SKIN_TOKEN_IMAGE_WIDE_BACKDROP:
                     function = parse_image_special;
                     break;
                 case SKIN_TOKEN_VIEWPORT_TEXTSTYLE:
@@ -2767,6 +2779,7 @@ bool skin_data_load(enum skinnable_screens skin, enum screen_type screen,
     backdrop_filename = "-";
     wps_data->backdrop_id = -1;
     wps_data->about_backdrop_id = -1;
+    wps_data->wide_backdrop_id = -1;
 #endif
     /* parse the skin source */
     skin_buffer_init(skin_buffer, buffersize);

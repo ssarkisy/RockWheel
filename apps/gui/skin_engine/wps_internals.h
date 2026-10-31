@@ -375,6 +375,7 @@ struct wps_data
 #ifdef HAVE_BACKDROP_IMAGE
     int16_t backdrop_id;
     int16_t about_backdrop_id;
+    int16_t wide_backdrop_id;
     bool use_extra_framebuffer;
 #endif
 

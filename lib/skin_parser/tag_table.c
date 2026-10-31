@@ -67,6 +67,8 @@ static const struct tag_info legal_tags[] =
     /* the backdrop while Settings is selected in the main menu; before %X,
        as tags are looked for in this order */
     TAG(SKIN_TOKEN_IMAGE_ABOUT_BACKDROP,  "XS" , "f", SKIN_REFRESH_STATIC|NOBREAK),
+    /* and for a screen that takes the whole width */
+    TAG(SKIN_TOKEN_IMAGE_WIDE_BACKDROP,   "XW" , "f", SKIN_REFRESH_STATIC|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_BACKDROP,        "X"  , "f", SKIN_REFRESH_STATIC|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_DISPLAY,         "x", "SF|II", SKIN_REFRESH_STATIC|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_DISPLAY_9SEGMENT,"x9", "S", 0),
@@ -162,6 +164,7 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_DISK_FREE,             "nf", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_DISK_USED,             "nu", BAR_PARAMS, SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_MENU_SETTINGS_SELECTED, "LS", "", SKIN_REFRESH_DYNAMIC),
+    TAG(SKIN_TOKEN_MENU_WIDE,             "LW", "", SKIN_REFRESH_DYNAMIC),
 
     TAG(SKIN_TOKEN_PEAKMETER,             "pm", "", SKIN_REFRESH_PEAK_METER),
     TAG(SKIN_TOKEN_PEAKMETER_LEFT,        "pL", BAR_PARAMS, SKIN_REFRESH_PEAK_METER),

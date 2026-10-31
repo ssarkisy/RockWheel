@@ -45,6 +45,7 @@
 #include "lang.h"
 #include "misc.h"
 #include "action.h"
+#include "gui/skin_engine/skin_engine.h"
 #include "menus/exported_menus.h"
 #include "string.h"
 #include "root_menu.h"
@@ -417,6 +418,23 @@ static bool settings_selected = false;
 bool menu_settings_selected(void)
 {
     return settings_selected;
+}
+
+static bool wide = false;
+bool menu_wide(void)
+{
+    return wide;
+}
+
+void menu_set_wide(bool on)
+{
+    wide = on;
+    /* the theme chooses the size of what's drawn in it */
+    FOR_NB_SCREENS(i)
+    {
+        skin_request_full_update(CUSTOM_STATUSBAR);
+        skin_update(CUSTOM_STATUSBAR, i, SKIN_REFRESH_ALL);
+    }
 }
 
 static bool root_requested = false;

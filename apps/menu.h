@@ -134,6 +134,9 @@ void do_setting_screen(const struct settings_list *setting, const char * title,
                      If NULL it is ignored and the firs item starts selected
 */
 bool menu_settings_selected(void);
+/* Whether a screen is taking the whole width, with nothing of the theme beside it */
+bool menu_wide(void);
+void menu_set_wide(bool wide);
 /* From a screen a menu has opened: Menu has been held, so leave for the main menu */
 void menu_request_root(void);
 int do_menu(const struct menu_item_ex *menu, int *start_selected,

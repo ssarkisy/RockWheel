@@ -30,8 +30,9 @@
 
 #if !defined(__PCTOOL__) && defined(HAVE_BACKDROP_IMAGE)
 
-/* and the one for when Settings is selected in the main menu */
-#define NB_BDROPS (SKINNABLE_SCREENS_COUNT*NB_SCREENS + 1)
+/* and those for when Settings is selected in the main menu, and for a screen that
+   takes the whole width */
+#define NB_BDROPS (SKINNABLE_SCREENS_COUNT*NB_SCREENS + 2)
 static struct skin_backdrop {
     char name[MAX_PATH];
     char *buffer;
@@ -270,6 +271,8 @@ void skin_backdrop_set_buffer(int backdrop_id, struct skin_viewport *svp)
 /* What a skin should have behind it right now */
 int skin_shown_backdrop(const struct wps_data *data)
 {
+    if (data->wide_backdrop_id >= 0 && menu_wide())
+        return data->wide_backdrop_id;
     if (data->about_backdrop_id >= 0 && menu_settings_selected())
         return data->about_backdrop_id;
     return data->backdrop_id;

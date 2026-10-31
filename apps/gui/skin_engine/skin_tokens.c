@@ -1662,6 +1662,8 @@ const char *get_token_value(struct gui_wps *gwps,
         case SKIN_TOKEN_DEVICE_NAME_LENGTH:
             return NULL;
 #endif
+        case SKIN_TOKEN_MENU_WIDE:
+            return menu_wide() ? "w" : NULL;
         case SKIN_TOKEN_MENU_SETTINGS_SELECTED:
             return menu_settings_selected() ? "s" : NULL;
         case SKIN_TOKEN_DISK_FREE:

@@ -23,30 +23,41 @@
 %Fl(2,14-Inter-SemiBold.fnt)
 %Fl(3,14-Inter-Bold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
-%?LS<%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(radio)|%Vd(radio)>>>
+%?LW<%VI(wide)%Vd(titlewide)%Vd(batwide)%Vd(playwide)|%VI(half)%Vd(t)%Vd(bat)%Vd(play)>
+%?LW<|%?LS<%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(radio)|%Vd(radio)>>>>
 %Cl(0,0,240,240,c,c)
 %Vl(a,120,0,200,240,-)
 %Cd
 %Vl(a,120,0,40,240,-)
-%Vi(-,0,19,160,221,1)%Vf(000000)%Vb(FFFFFF)
-%Vd(t)
+# the size of a list: half the width beside the panel, or a screen that takes it all
+%Vi(wide,0,19,320,221,1)%Vf(000000)%Vb(FFFFFF)
+%Vi(half,0,19,160,221,1)%Vf(000000)%Vb(FFFFFF)
+
 %Vl(t,6,2,110,14,3)%Vf(000000)
 #%s%al%?if(%Li, =, 0)<|%?if(%Li, <=, 32)<%Lt|%?if(%Li, =, 33)<iPod|>>>
 # the title of the list, the name given in Finder in the main menu
 %s%al%?if(%Li, =, 33)<%nn|%Lt>
+%Vl(titlewide,6,2,250,14,3)%Vf(000000)
+%s%al%Lt
 %Vl(n,2,3,114,14,2)%Vf(000000)
 s%al%?cs<||%?Rp<%Sx(Recording)>|%?tp<%Sx(FM Radio)>|%Sx(Playlist)>
 %xl(B,Battery.bmp,0,0,24)
-%V(134,4,25,11,-)
+%Vl(bat,134,4,25,11,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)||>>
+%Vl(batwide,291,4,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)||>>
 %xl(h,Hold Icon.bmp,0,1)
 #%xl(M,Memory Access.bmp,0,0,6)
 %xl(P,Playing Status.bmp,0,0,4)
-%V(118,3,16,13,-)
+%Vl(play,118,3,16,13,-)
 #%?mh<%xd(h)|%?lh<%t(0.1)%xd(Ma);%t(0.1)%xd(Mb);%t(0.1)%xd(Mc);%t(0.1)%xd(Md);%t(0.1)%xd(Me);%t(0.1)%xd(Mf)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>>
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(playwide,271,3,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
 # Settings selected in the main menu: the iPod and its disk, as on a stock iPod
 %XS(About Backdrop.bmp)
+# A screen that takes the whole width
+%XW(Wide Backdrop.bmp)
 %Vl(about,160,0,160,240,-)
 %nu(20,174,128,11,Disk Fill.bmp)
 # the name given in Finder, in a smaller font if it wouldn't fit
