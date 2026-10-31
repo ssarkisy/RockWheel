@@ -32,8 +32,8 @@
 %Vd(t)
 %Vl(t,6,2,110,14,3)%Vf(000000)
 #%s%al%?if(%Li, =, 0)<|%?if(%Li, <=, 32)<%Lt|%?if(%Li, =, 33)<iPod|>>>
-# the title of the list, "iPod" in the main menu, as on a stock iPod
-%s%al%?if(%Li, =, 33)<iPod|%Lt>
+# the title of the list, the name given in Finder in the main menu
+%s%al%?if(%Li, =, 33)<%nn|%Lt>
 %Vl(n,2,3,114,14,2)%Vf(000000)
 s%al%?cs<||%?Rp<%Sx(Recording)>|%?tp<%Sx(FM Radio)>|%Sx(Playlist)>
 %xl(B,Battery.bmp,0,0,24)

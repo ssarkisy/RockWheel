@@ -285,7 +285,8 @@ static bool read_at(int fd, off_t pos, void *buf, size_t size)
            && read(fd, buf, size) == (ssize_t)size;
 }
 
-static void read_device_name(void)
+/* false if it couldn't be tried yet, with the disk not there */
+static bool read_device_name(void)
 {
     unsigned char h[44];
     unsigned char text[2 * (sizeof(device_name) / 3)];
@@ -293,7 +294,7 @@ static void read_device_name(void)
 
     device_name[0] = '\0';
     if (fd < 0)
-        return;
+        return false;
 
     off_t pos = 0;
     if (!read_at(fd, pos, h, 16) || memcmp(h, "mhbd", 4))
@@ -345,15 +346,13 @@ static void read_device_name(void)
     }
 done:
     close(fd);
+    return true;
 }
 
 const char *itunesdb_device_name(void)
 {
     if (!device_name_read)
-    {
-        read_device_name();
-        device_name_read = true;
-    }
+        device_name_read = read_device_name();
     return device_name[0] ? device_name : "iPod";
 }
 

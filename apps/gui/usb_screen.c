@@ -51,6 +51,7 @@
 #include "bitmaps/usbok.h"
 #include "bitmaps/usbbattery.h"
 #include "power.h"
+#include "itunesdb.h"
 #else
 #include "bitmaps/usblogo.h"
 #endif
@@ -156,6 +157,7 @@ static const unsigned long ipod_usb_title_bar[] = {
 };
 #define IPOD_USB_TITLE_H ((int)ARRAYLEN(ipod_usb_title_bar))
 
+static const char *ipod_usb_name = "iPod";
 static bool ipod_usb_charging;
 static bool ipod_usb_ejected;
 static struct viewport *ipod_usb_parent;
@@ -175,7 +177,10 @@ static inline unsigned ipod_usb_colour(unsigned long rgb)
 /* While files can still be read: what's measured stays in the font's cache */
 static void ipod_usb_prepare(void)
 {
-    font_getstringsize("iPod", NULL, NULL, FONT_UI);
+#ifdef HAVE_TAGCACHE
+    ipod_usb_name = itunesdb_device_name();
+#endif
+    font_getstringsize(ipod_usb_name, NULL, NULL, FONT_UI);
     font_getstringsize(str(LANG_USB_DO_NOT_DISCONNECT), NULL, NULL, FONT_UI);
     font_getstringsize(str(LANG_USB_OK_TO_DISCONNECT), NULL, NULL, FONT_UI);
 }
@@ -236,7 +241,22 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
     screen->setfont(FONT_UI);
     screen->set_foreground(LCD_BLACK);
     screen->set_drawmode(DRMODE_FG);
-    ipod_usb_draw_centred(screen, "iPod", IPOD_USB_TITLE_H / 2);
+    /* in the middle if it's clear of the battery, and otherwise from the left */
+    int name_width, name_height;
+    screen->getstringsize(ipod_usb_name, &name_width, &name_height);
+    if (name_width <= 2 * (IPOD_USB_BATTERY_X - 4) - LCD_WIDTH)
+    {
+        ipod_usb_draw_centred(screen, ipod_usb_name, IPOD_USB_TITLE_H / 2);
+    }
+    else
+    {
+        struct viewport title_vp = *parent;
+        title_vp.width = IPOD_USB_BATTERY_X - 4;
+        screen->set_viewport(&title_vp);
+        screen->set_drawmode(DRMODE_FG);
+        screen->putsxy(6, IPOD_USB_TITLE_H / 2 - name_height / 2, ipod_usb_name);
+        screen->set_viewport(parent);
+    }
     ipod_usb_draw_centred(screen, str(ipod_usb_ejected ?
                                       LANG_USB_OK_TO_DISCONNECT :
                                       LANG_USB_DO_NOT_DISCONNECT),
