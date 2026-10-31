@@ -1697,7 +1697,8 @@ static uint8_t section_data(NeAACDecHandle hDecoder, ic_stream *ics, bitfile *ld
             printf("%d\n", ics->sect_end[g][i]);
 #endif
 
-            if (k + sect_len >= 8*15)
+            /* past num_swb, sect_sfb_offset holds what an earlier track left */
+            if (k + sect_len >= 8*15 || k + sect_len > ics->num_swb)
                 return 15;
             if (i >= 8*15)
                 return 15;
