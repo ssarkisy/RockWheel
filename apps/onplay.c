@@ -1233,11 +1233,9 @@ static int onplaymenu_callback(int action,
     switch (action)
     {
         case ACTION_TREE_STOP:
+            /* back to the track playing, as holding Play goes there elsewhere */
             if (this_item == &wps_onplay_menu)
-            {
-                list_stop_handler();
                 return ACTION_STD_CANCEL;
-            }
             break;
         case ACTION_REQUEST_MENUITEM:
             if (this_item == &view_playlist_item)

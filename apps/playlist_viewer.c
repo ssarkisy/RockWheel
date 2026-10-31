@@ -1033,6 +1033,10 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
             if (reload || viewer.moving_track >= 0)
                 gui_synclist_draw(&playlist_lists);
         }
+        /* holding Play goes to the track playing, if there is one */
+        if (button == ACTION_TREE_STOP && audio_status())
+            button = ACTION_TREE_WPS;
+
         switch (button)
         {
             case ACTION_TREE_WPS:

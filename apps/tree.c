@@ -895,8 +895,9 @@ static int dirbrowse(void)
                 break;
 
             case ACTION_TREE_STOP:
-                if (list_stop_handler())
-                    restore = do_restore_display;
+                /* holding Play goes to the track playing, if there is one */
+                if (audio_status())
+                    return exit_to_new_screen(GO_TO_PREVIOUS_MUSIC);
                 break;
 
             case ACTION_STD_MENU:

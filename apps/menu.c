@@ -563,7 +563,12 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
         }
         else if (action == ACTION_TREE_STOP)
         {
-            redraw_lists = list_stop_handler();
+            /* holding Play goes to the track playing, if there is one */
+            if (audio_status())
+            {
+                ret = GO_TO_PREVIOUS_MUSIC;
+                done = true;
+            }
         }
         else if (action == ACTION_STD_CONTEXT)
         {
