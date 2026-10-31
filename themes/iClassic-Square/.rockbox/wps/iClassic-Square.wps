@@ -32,7 +32,7 @@
 %Fl(5,18-Inter-SemiBold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
 %?mw<%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>|%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>|%?C<|%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>>||%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>>
-%?mw<%Vd(icons)|%Vd(icons)|%Vd(icons)||%Vd(icons)>
+%?mw<%Vd(icons)|%Vd(icons)|%?C<%Vd(iconsart)|%Vd(icons)>||%Vd(icons)>
 # display modes, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating
 %?mw<%Vd(info)%?mv(2.0)<%Vd(volume)|%Vd(pb)>|%Vd(info)%Vd(scrub)|%?C<%Vd(bigart)|%Vd(info)%Vd(pb)>|%Vd(lyrics)|%Vd(info)%Vd(rating)>
@@ -62,9 +62,10 @@
 %?lh<%t(0.1)%xd(Ma);%t(0.1)%xd(Mb);%t(0.1)%xd(Mc);%t(0.1)%xd(Md);%t(0.1)%xd(Me);%t(0.1)%xd(Mf)|%?mh<%xd(h)|>>
 %xl(r,Repeat Icon.bmp,0,0,4)
 %xl(S,Shuffle Icon.bmp,0,0)
-%Vl(icons,268,21,19,20,-)
+# repeat and shuffle, in the row of the badge
+%Vl(icons,268,152,19,20,-)
 %?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>
-%ax%Vl(icons,294,21,19,20,-)
+%ax%Vl(icons,294,152,19,20,-)
 %?ps<%xd(S)|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>
 #%?C<%Vd(aa)|>
 #%xl(w,FrameTop.bmp,0,0)
@@ -88,8 +89,9 @@
 %?pE(15)<%?Fn<|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>
 %Vl(current,160,134,157,14,2)%Vf(888888)
 %s%al%pp %Sx(of) %pe
-# the track's format and bitrate, on a badge
-%Vl(current,160,153,157,17,2)
+# the track's format and bitrate, on a badge, ending before the repeat icon: on a
+# full update a viewport is cleared whole, and this one comes after the icons
+%Vl(current,160,153,108,17,2)
 %fB
 %Vl(next,160,134,157,14,2)%Vf(000000)
 %s%al%Sx(Now Playing): %?it<%it|%fn>
@@ -130,5 +132,10 @@
 # 200x200, the size Finder makes the covers in, so nothing is scaled
 %Cl(60,10,200,200,c,c)
 %Cd%xd(F)%xd(G)
+# over the mask, so these come after it: repeat and shuffle beside the large art
+%Vl(iconsart,268,21,19,20,-)
+%?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>
+%ax%Vl(iconsart,294,21,19,20,-)
+%?ps<%xd(S)|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>
 # lyrics view: the WPS code draws the lyrics into this viewport
 %Vl(lyrics,8,24,304,212,5)%Vf(000000)

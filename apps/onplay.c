@@ -1166,6 +1166,72 @@ MENUITEM_FUNCTION(cover_flow_item, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_COVER_FLOW)
                   open_cover_flow, NULL, Icon_NOICON);
 #endif
 
+/* Shuffle and repeat, changed right here by selecting them, with the same effect
+   on what's playing as changing the settings */
+static int toggle_shuffle(void)
+{
+    const struct settings_list *setting =
+        find_setting(&global_settings.playlist_shuffle);
+
+    global_settings.playlist_shuffle = !global_settings.playlist_shuffle;
+    if (setting)
+        setting->bool_setting->option_callback(global_settings.playlist_shuffle);
+    settings_save();
+    return 0;
+}
+
+static char *shuffle_item_name(int selected_item, void *data,
+                               char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    snprintf(buffer, buffer_len, "%s: %s", str(LANG_SHUFFLE_ITEM),
+             str(global_settings.playlist_shuffle ? LANG_ON : LANG_OFF));
+    return buffer;
+}
+
+static int cycle_repeat(void)
+{
+    const struct settings_list *setting =
+        find_setting(&global_settings.repeat_mode);
+
+    switch (global_settings.repeat_mode)
+    {
+        case REPEAT_OFF: global_settings.repeat_mode = REPEAT_ALL; break;
+        case REPEAT_ALL: global_settings.repeat_mode = REPEAT_ONE; break;
+        default:         global_settings.repeat_mode = REPEAT_OFF; break;
+    }
+    if (setting)
+        setting->choice_setting->option_callback(global_settings.repeat_mode);
+    settings_save();
+    return 0;
+}
+
+static char *repeat_item_name(int selected_item, void *data,
+                              char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    int value;
+    switch (global_settings.repeat_mode)
+    {
+        case REPEAT_OFF:     value = LANG_OFF; break;
+        case REPEAT_ALL:     value = LANG_ALL; break;
+        case REPEAT_ONE:     value = LANG_REPEAT_ONE; break;
+        case REPEAT_SHUFFLE: value = LANG_SHUFFLE; break;
+#ifdef AB_REPEAT_ENABLE
+        case REPEAT_AB:      value = LANG_REPEAT_AB; break;
+#endif
+        default:             value = LANG_OFF; break;
+    }
+    snprintf(buffer, buffer_len, "%s: %s", str(LANG_REPEAT), str(value));
+    return buffer;
+}
+
+/* with this flag on an item, the menu with it stays open */
+MENUITEM_FUNCTION_DYNTEXT(wps_shuffle_item, MENU_EXITAFTERTHISMENU, toggle_shuffle,
+                          shuffle_item_name, NULL, NULL, NULL, Icon_NOICON);
+MENUITEM_FUNCTION_DYNTEXT(wps_repeat_item, MENU_EXITAFTERTHISMENU, cycle_repeat,
+                          repeat_item_name, NULL, NULL, NULL, Icon_NOICON);
+
 /* used when onplay() is called in the CONTEXT_WPS context */
 MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            onplaymenu_callback, Icon_Audio,
@@ -1175,6 +1241,7 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
 #ifdef HAVE_TAGCACHE
            &cover_flow_item,
 #endif
+           &wps_shuffle_item, &wps_repeat_item,
            &wps_playlist_menu, &cat_playlist_menu,
            &ipod_sound_settings, &ipod_playback_settings,
 #ifndef HAVE_HOTKEY

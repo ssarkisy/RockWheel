@@ -125,8 +125,10 @@ static bool menu_has_children(int selected_item, void * data)
     switch (item->flags&MENU_TYPE_MASK)
     {
         case MT_MENU:
-        case MT_FUNCTION_CALL:
             return true;
+        case MT_FUNCTION_CALL:
+            /* what changes right here, in a menu that stays open, opens nothing */
+            return !(item->flags & MENU_EXITAFTERTHISMENU);
         case MT_RETURN_VALUE:
 #ifdef HAVE_TAGCACHE
             return item->value != GO_TO_SHUFFLE_SONGS;

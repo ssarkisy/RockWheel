@@ -17306,3 +17306,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SHUFFLE_ITEM
+  desc: shuffle with its value after it, in the menu over Now Playing where a line is short
+  user: core
+  <source>
+    *: "Shuffle"
+  </source>
+  <dest>
+    *: "随机播放"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
