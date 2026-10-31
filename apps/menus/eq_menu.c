@@ -952,8 +952,11 @@ static struct eq_band_setting eq_preset_band(int preset, int band)
     return setting;
 }
 
+static int eq_get_preset(void);
+
 static void eq_set_preset(int preset)
 {
+    const bool changed = preset != eq_get_preset();
     global_settings.eq_enabled = preset > 0;
     if (preset > 0)
     {
@@ -969,6 +972,8 @@ static void eq_set_preset(int preset)
         global_settings.eq_precut = precut;
     }
     eq_apply();
+    if (changed)
+        dsp_change_heard_now();
 }
 
 /* the preset the equalizer is set to, or Off (0) if none is */

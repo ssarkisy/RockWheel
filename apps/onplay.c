@@ -1167,7 +1167,7 @@ MENUITEM_FUNCTION(cover_flow_item, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_COVER_FLOW)
                   open_cover_flow, NULL, Icon_NOICON);
 #endif
 
-/* Shuffle and repeat, changed right here by selecting them, with the same effect
+/* Shuffle, repeat and Sound Check, changed right here by selecting them, with the same effect
    on what's playing as changing the settings */
 static int toggle_shuffle(void)
 {
@@ -1228,10 +1228,36 @@ static char *repeat_item_name(int selected_item, void *data,
 }
 
 /* with this flag on an item, the menu with it stays open */
+static int toggle_sound_check(void)
+{
+    const struct settings_list *setting =
+        find_setting(&global_settings.replaygain_settings.type);
+    int *type = &global_settings.replaygain_settings.type;
+
+    *type = *type == REPLAYGAIN_OFF ? REPLAYGAIN_TRACK : REPLAYGAIN_OFF;
+    if (setting)
+        setting->choice_setting->option_callback(*type);
+    settings_save();
+    return 0;
+}
+
+static char *sound_check_item_name(int selected_item, void *data,
+                                   char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    snprintf(buffer, buffer_len, "%s: %s", str(LANG_REPLAYGAIN_MODE),
+             str(global_settings.replaygain_settings.type == REPLAYGAIN_OFF ?
+                 LANG_OFF : LANG_ON));
+    return buffer;
+}
+
 MENUITEM_FUNCTION_DYNTEXT(wps_shuffle_item, MENU_EXITAFTERTHISMENU, toggle_shuffle,
                           shuffle_item_name, NULL, NULL, NULL, Icon_NOICON);
 MENUITEM_FUNCTION_DYNTEXT(wps_repeat_item, MENU_EXITAFTERTHISMENU, cycle_repeat,
                           repeat_item_name, NULL, NULL, NULL, Icon_NOICON);
+MENUITEM_FUNCTION_DYNTEXT(wps_sound_check_item, MENU_EXITAFTERTHISMENU,
+                          toggle_sound_check, sound_check_item_name,
+                          NULL, NULL, NULL, Icon_NOICON);
 
 /* used when onplay() is called in the CONTEXT_WPS context */
 MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
@@ -1243,7 +1269,7 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            &cover_flow_item,
 #endif
            &wps_shuffle_item, &wps_repeat_item,
-           &ipod_eq_menu,
+           &ipod_eq_menu, &wps_sound_check_item,
            &wps_playlist_menu, &cat_playlist_menu,
 #ifndef HAVE_HOTKEY
            &context_item_0,

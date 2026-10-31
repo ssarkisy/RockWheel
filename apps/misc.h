@@ -249,6 +249,11 @@ struct mp3entry;
 int id3_get_replaygain_mode(const struct mp3entry *id3);
 void replaygain_update(void);
 
+/* Makes a change to what the DSP does heard at once: it goes on as music is
+   decoded, ahead of the seconds of it in the PCM buffer, so those are decoded
+   again from what is playing now, as a seek does. */
+void dsp_change_heard_now(void);
+
 void push_current_activity(enum current_activity screen);
 void push_activity_without_refresh(enum current_activity screen);
 void pop_current_activity(void);

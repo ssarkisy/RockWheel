@@ -1175,6 +1175,16 @@ int id3_get_replaygain_mode(const struct mp3entry *id3)
         REPLAYGAIN_ALBUM : (id3->track_gain != 0 ? REPLAYGAIN_TRACK : -1);
 }
 
+void dsp_change_heard_now(void)
+{
+    struct mp3entry *id3 = audio_current_track();
+    if (id3 && (audio_status() & AUDIO_STATUS_PLAY))
+    {
+        audio_pre_ff_rewind();
+        audio_ff_rewind(id3->elapsed);
+    }
+}
+
 /* Update DSP's replaygain from global settings */
 void replaygain_update(void)
 {

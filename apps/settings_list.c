@@ -875,19 +875,12 @@ static void albumart_callback(int mode)
 }
 #endif
 
-/* Its row in Settings changes it in place, and the music at once: the gain goes
-   on as music is decoded, ahead of the seconds of it in the PCM buffer, so those
-   are decoded again from what is playing now, as a seek does. */
+/* its row in Settings changes it in place, and the music at once */
 static void sound_check_changed(int value)
 {
     (void)value;
     replaygain_update();
-    struct mp3entry *id3 = audio_current_track();
-    if (id3 && (audio_status() & AUDIO_STATUS_PLAY))
-    {
-        audio_pre_ff_rewind();
-        audio_ff_rewind(id3->elapsed);
-    }
+    dsp_change_heard_now();
 }
 
 /* perform shuffle/unshuffle of the current playlist based on the boolean provided */
