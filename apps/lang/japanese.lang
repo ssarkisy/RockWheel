@@ -16527,3 +16527,17 @@
     *: "~U S B"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_USB_DO_NOT_DISCONNECT
+  desc: under the sign on the screen while connected over USB, as on a stock iPod
+  user: core
+  <source>
+    *: "Do not disconnect."
+  </source>
+  <dest>
+    *: "接続を解除しないでください。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

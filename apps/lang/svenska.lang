@@ -17106,3 +17106,17 @@
     *: "Slutförd"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_USB_DO_NOT_DISCONNECT
+  desc: under the sign on the screen while connected over USB, as on a stock iPod
+  user: core
+  <source>
+    *: "Do not disconnect."
+  </source>
+  <dest>
+    *: "Koppla inte från."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

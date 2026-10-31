@@ -17236,3 +17236,17 @@
     recording_remote: "线控录音界面皮肤"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_USB_DO_NOT_DISCONNECT
+  desc: under the sign on the screen while connected over USB, as on a stock iPod
+  user: core
+  <source>
+    *: "Do not disconnect."
+  </source>
+  <dest>
+    *: "不要断开。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

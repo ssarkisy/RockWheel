@@ -12766,3 +12766,17 @@
     *: "Color del separador de línies"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_USB_DO_NOT_DISCONNECT
+  desc: under the sign on the screen while connected over USB, as on a stock iPod
+  user: core
+  <source>
+    *: "Do not disconnect."
+  </source>
+  <dest>
+    *: "No desconnecteu."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

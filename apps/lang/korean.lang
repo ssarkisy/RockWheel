@@ -17243,3 +17243,17 @@
     recording_remote: "원격 녹음 화면 스킨"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_USB_DO_NOT_DISCONNECT
+  desc: under the sign on the screen while connected over USB, as on a stock iPod
+  user: core
+  <source>
+    *: "Do not disconnect."
+  </source>
+  <dest>
+    *: "연결 해제하지 마십시오."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

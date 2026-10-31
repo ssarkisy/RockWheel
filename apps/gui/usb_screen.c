@@ -46,7 +46,13 @@
 #include "root_menu.h"
 #endif
 
+#ifdef USB_IPOD_IDENTITY
+#include "bitmaps/nodisconnect.h"
+#include "bitmaps/usbbattery.h"
+#include "power.h"
+#else
 #include "bitmaps/usblogo.h"
+#endif
 
 #ifdef HAVE_REMOTE_LCD
 #include "bitmaps/remote_usblogo.h"
@@ -79,6 +85,10 @@ static void draw_usb_keypad_mode(struct viewport *title)
 }
 #endif /* USB_ENABLE_HID */
 
+#ifdef USB_IPOD_IDENTITY
+static void ipod_usb_update(void);
+#endif
+
 static void handle_usb_events(struct viewport *title)
 {
 #if (CONFIG_STORAGE & STORAGE_MMC) && !defined(SIMULATOR)
@@ -110,6 +120,9 @@ static void handle_usb_events(struct viewport *title)
             return;
         if (button == SYS_CHARGER_DISCONNECTED)
             reset_runtime();
+#ifdef USB_IPOD_IDENTITY
+        ipod_usb_update();
+#endif
 
 /* USB-MMC bridge can report activity */
 #if (CONFIG_STORAGE & STORAGE_MMC) && !defined(SIMULATOR)
@@ -124,9 +137,145 @@ static void handle_usb_events(struct viewport *title)
     }
 }
 
+#ifdef USB_IPOD_IDENTITY
+/* The screen of a stock iPod in this mode. It's all drawn here and not by the
+   theme, which has the screen split in two, and can't read its files by then. */
+#define IPOD_USB_SIGN_X     ((LCD_WIDTH - BMPWIDTH_nodisconnect) / 2)
+#define IPOD_USB_SIGN_Y     71
+#define IPOD_USB_TEXT_Y     186 /* the middle of it */
+#define IPOD_USB_BATTERY_X  288
+#define IPOD_USB_BATTERY_Y  6
+#define IPOD_USB_BATTERY_H  (BMPHEIGHT_usbbattery / 2)
+
+/* Colours of the title bar, for each row */
+static const unsigned long ipod_usb_title_bar[] = {
+    0xe6e7e5, 0xe4e5e3, 0xe2e3e3, 0xdfe1e3, 0xdde1e4, 0xdadfe2, 0xd7dce0, 0xd4dade,
+    0xd5dde0, 0xd5dde0, 0xd4dcdf, 0xd2dadd, 0xced7da, 0xc7d1d5, 0xc3ced4, 0xc4d0d7,
+    0xc2cfd8, 0xbbc9d4, 0xb6c4d0, 0xb3c2cf, 0xb1c1cd, 0xacbcc7, 0xa7b7c0, 0x8d9b9e,
+};
+#define IPOD_USB_TITLE_H ((int)ARRAYLEN(ipod_usb_title_bar))
+
+static bool ipod_usb_charging;
+static struct viewport *ipod_usb_parent;
+
+static inline unsigned ipod_usb_colour(unsigned long rgb)
+{
+    return LCD_RGBPACK((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff);
+}
+
+/* While files can still be read: what's measured stays in the font's cache */
+static void ipod_usb_prepare(void)
+{
+    font_getstringsize("iPod", NULL, NULL, FONT_UI);
+    font_getstringsize(str(LANG_USB_DO_NOT_DISCONNECT), NULL, NULL, FONT_UI);
+}
+
+/* The two frames of the bitmap: charging, and on power but not charging */
+static void ipod_usb_draw_battery(struct screen *screen)
+{
+    ipod_usb_charging = charging_state();
+
+    for (int y = IPOD_USB_BATTERY_Y;
+         y < IPOD_USB_BATTERY_Y + IPOD_USB_BATTERY_H; y++)
+    {
+        screen->set_foreground(ipod_usb_colour(ipod_usb_title_bar[y]));
+        screen->hline(IPOD_USB_BATTERY_X,
+                      IPOD_USB_BATTERY_X + BMPWIDTH_usbbattery - 1, y);
+    }
+
+    screen->transparent_bitmap_part((const fb_data *)bm_usbbattery.data, 0,
+                                    ipod_usb_charging ? 0 : IPOD_USB_BATTERY_H,
+                                    STRIDE(screen->screen_type,
+                                           BMPWIDTH_usbbattery,
+                                           BMPHEIGHT_usbbattery),
+                                    IPOD_USB_BATTERY_X, IPOD_USB_BATTERY_Y,
+                                    BMPWIDTH_usbbattery, IPOD_USB_BATTERY_H);
+}
+
+static void ipod_usb_draw_centred(struct screen *screen, const char *text,
+                                  int middle)
+{
+    int width, height;
+    screen->getstringsize(text, &width, &height);
+    screen->putsxy((LCD_WIDTH - width) / 2, middle - height / 2, text);
+}
+
+static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
+{
+    struct viewport *last_vp = screen->set_viewport(parent);
+
+    ipod_usb_parent = parent;
+    screen->backlight_on();
+    screen->set_drawmode(DRMODE_SOLID);
+
+    for (int y = 0; y < IPOD_USB_TITLE_H; y++)
+    {
+        screen->set_foreground(ipod_usb_colour(ipod_usb_title_bar[y]));
+        screen->hline(0, LCD_WIDTH - 1, y);
+    }
+    screen->set_foreground(LCD_WHITE);
+    screen->fillrect(0, IPOD_USB_TITLE_H, LCD_WIDTH,
+                     LCD_HEIGHT - IPOD_USB_TITLE_H);
+
+    screen->bmp(&bm_nodisconnect, IPOD_USB_SIGN_X, IPOD_USB_SIGN_Y);
+    ipod_usb_draw_battery(screen);
+
+    /* The letters blend with what's under them, here the title bar */
+    screen->setfont(FONT_UI);
+    screen->set_foreground(LCD_BLACK);
+    screen->set_drawmode(DRMODE_FG);
+    ipod_usb_draw_centred(screen, "iPod", IPOD_USB_TITLE_H / 2);
+    ipod_usb_draw_centred(screen, str(LANG_USB_DO_NOT_DISCONNECT),
+                          IPOD_USB_TEXT_Y);
+    screen->set_drawmode(DRMODE_SOLID);
+
+    screen->update();
+    screen->set_viewport(last_vp);
+}
+
+static void ipod_usb_update(void)
+{
+    struct screen *screen = &screens[SCREEN_MAIN];
+
+    if (charging_state() == ipod_usb_charging)
+        return;
+
+    struct viewport *last_vp = screen->set_viewport(ipod_usb_parent);
+    screen->set_drawmode(DRMODE_SOLID);
+    ipod_usb_draw_battery(screen);
+    screen->update_rect(IPOD_USB_BATTERY_X, IPOD_USB_BATTERY_Y,
+                        BMPWIDTH_usbbattery, IPOD_USB_BATTERY_H);
+    screen->set_viewport(last_vp);
+}
+#endif /* USB_IPOD_IDENTITY */
+
 static void usb_screen_fix_viewports(struct screen *screen,
         struct usb_screen_vps_t *usb_screen_vps)
 {
+#ifdef USB_IPOD_IDENTITY
+    /* The whole of the screen, without the theme */
+    viewportmanager_theme_enable(screen->screen_type, false,
+                                 &usb_screen_vps->parent);
+    ipod_usb_prepare();
+#ifdef USB_ENABLE_HID
+    if (global_settings.usb_hid)
+    {
+        /* Below the text, if the keypad mode has been turned on */
+        struct viewport *title = &usb_screen_vps->title;
+        *title = usb_screen_vps->parent;
+        int char_height = font_get(title->font)->height;
+        title->y = LCD_HEIGHT - char_height;
+        title->height = char_height;
+
+        int i = 0, langid = LANG_USB_KEYPAD_MODE;
+        while (langid >= 0) /* ensure the USB mode strings get cached */
+        {
+            font_getstringsize(str(langid), NULL, NULL, title->font);
+            langid = keypad_mode_name_get(i++);
+        }
+    }
+#endif
+#else
     int logo_width, logo_height;
     struct viewport *parent = &usb_screen_vps->parent;
     struct viewport *logo = &usb_screen_vps->logo;
@@ -197,10 +346,14 @@ static void usb_screen_fix_viewports(struct screen *screen,
         }
     }
 #endif
+#endif /* USB_IPOD_IDENTITY */
 }
 
 static void usb_screens_draw(struct usb_screen_vps_t *usb_screen_vps_ar)
 {
+#ifdef USB_IPOD_IDENTITY
+    ipod_usb_draw(&screens[SCREEN_MAIN], &usb_screen_vps_ar[SCREEN_MAIN].parent);
+#else
     struct viewport *last_vp;
     static const struct bitmap* logos[NB_SCREENS] = {
         &bm_usblogo,
@@ -222,6 +375,7 @@ static void usb_screens_draw(struct usb_screen_vps_t *usb_screen_vps_ar)
         screen->bmp(logos[i], 0, 0);
         screen->set_viewport(last_vp);
     }
+#endif /* USB_IPOD_IDENTITY */
 #ifdef USB_ENABLE_HID
     if (global_settings.usb_hid)
         draw_usb_keypad_mode(&usb_screen_vps_ar[SCREEN_MAIN].title);
