@@ -1039,8 +1039,7 @@ static char *eq_setting_name(void)
                eq_phones[preset - 1].lang_id : eq_presets[preset - phones - 1].lang_id);
 }
 
-/* in the narrow menu over Now Playing, among rows that say "name: value": a
-   variation of the earphones' preset goes by the variation alone */
+/* in the menu over Now Playing, among rows that say "name: value" */
 static char *eq_menu_name(int selected_item, void *data,
                           char *buffer, size_t buffer_len)
 {
@@ -1048,9 +1047,6 @@ static char *eq_menu_name(int selected_item, void *data,
     char *name = eq_setting_name();
     if (!name)
         return str(LANG_EQUALIZER);
-    char *variation = strrchr(name, ':');
-    if (variation)
-        name = skip_whitespace(variation + 1);
     snprintf(buffer, buffer_len, "%s: %s", str(LANG_EQUALIZER), name);
     return buffer;
 }
