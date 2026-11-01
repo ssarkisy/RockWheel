@@ -886,12 +886,12 @@ static const struct
       { -150, -300, -300, 150, 375, 375, 300, 150, 0, -150 } },
 };
 
-/* For particular earphones, first in the list. From measurements of 4 of them by 3
-   people, against the Harman in-ear target. Few bands, at their own frequencies and
+/* For particular earphones, first in the list. From measurements of several of them,
+   against the Harman target of their kind. Few bands, at their own frequencies and
    the rest off, as each one takes time from the UI. Bands are numbered as the
    defaults, and q and gain are in tenths. The precut is the largest boost after the
    bands add up, in tenths of a dB. */
-#define EQ_PHONES_BANDS 5
+#define EQ_PHONES_BANDS 6
 static const struct
 {
     int lang_id;
@@ -927,6 +927,18 @@ static const struct
     { LANG_EQ_ZERO2_SOFT, 25,
       { { 2, { EQ_FILTER_PEAK, 170, 10, -20 } },
         { 7, { EQ_FILTER_PEAK, 5000, 10, 25 } } } },
+    /* Koss KPH30i, from 3 measurements against the over-ear target and then by ear: 10 dB
+       too little at 40 Hz, of which more is made up than the target asks, and 3 dB too
+       much at 125-250 Hz, of which half is cut, as all of it sounded dry. A notch of 8 to
+       12 dB at 4-4.5 kHz comes right before a peak at 5 kHz that a single wide band would
+       raise, then dips at 6.3 and 10 kHz. Voices wanted a little more around 3 kHz. */
+    { LANG_EQ_KPH30I, 80,
+      { { 0, { EQ_FILTER_LOW_SHELF, 70, 10, 75 } },
+        { 2, { EQ_FILTER_PEAK, 190, 11, -15 } },
+        { 4, { EQ_FILTER_PEAK, 3000, 12, 15 } },
+        { 5, { EQ_FILTER_PEAK, 4200, 40, 50 } },
+        { 6, { EQ_FILTER_PEAK, 6300, 20, 35 } },
+        { 7, { EQ_FILTER_PEAK, 10400, 40, 40 } } } },
 };
 
 /* Preset numbers: 0 is off, then the earphones', then iTunes' */

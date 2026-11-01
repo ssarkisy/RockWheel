@@ -5039,6 +5039,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_EQ_KPH30I
+  desc: in the iPod's EQ list, the preset for the Koss KPH30i headphones, by their name
+  user: core
+  <source>
+    *: "KPH30i"
+  </source>
+  <dest>
+    *: "KPH30i"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_VOLUME_LIMIT_ROW
   desc: the Volume Limit setting by a name short enough for the narrow menu over Now Playing, with its value after it
   user: core
