@@ -52,6 +52,9 @@
 #define WHEEL_FAST_OFF_TIMEOUT   250000 /* timeout for acceleration = 250ms */
 #define WHEEL_REPEAT_TIMEOUT     250000 /* timeout for button repeat = 250ms */
 #define WHEEL_UNTOUCH_TIMEOUT    150000 /* timeout for untouching wheel = 150ms */
+/* degree/sec: no thumb is faster, but the position can jump by a quarter of the wheel
+   as a finger lifts, which would make the list leap */
+#define WHEEL_SPEED_MAX          2160
 
 #ifdef CPU_PP
 #define CLICKWHEEL_DATA   (*(volatile unsigned long*)(0x7000c140))
@@ -193,9 +196,15 @@ static inline int ipod_4g_button_read(void)
                         v = v ? (1000000 * wheel_delta) / v : 0;  /* clicks/sec = 1000000 * clicks/usec */
                         v = (v * 360) / WHEELCLICKS_PER_ROTATION; /* conversion to degree/sec */
                         v = (v<0) ? -v : v;                       /* undo signedness */
+                        v = MIN(v, WHEEL_SPEED_MAX);
             
-                        /* some velocity filtering to smooth things out */
-                        wheel_velocity = (15 * wheel_velocity + v) / 16;
+                        /* some velocity filtering to smooth things out, but slowing
+                           down to land on an item counts at once: over a turn passed
+                           with big steps otherwise */
+                        if (v < (long)wheel_velocity / 2)
+                            wheel_velocity = (wheel_velocity + v) / 2;
+                        else
+                            wheel_velocity = (15 * wheel_velocity + v) / 16;
                         /* limit to 24 bit */
                         wheel_velocity = (wheel_velocity>0xffffff) ? 0xffffff : wheel_velocity;
 
