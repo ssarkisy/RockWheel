@@ -31,18 +31,18 @@
 %Fl(4,14-Inter-Bold.fnt)
 %Fl(5,18-Inter-SemiBold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
-%?mw<%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>|%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>|%?C<|%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>>||%?pE(15)<%?Fn<%Vd(next)|%Vd(current)>|%Vd(current)>>
+%?mw<%Vd(current)|%Vd(current)|%?C<|%Vd(current)>||%Vd(current)>
 %?mw<%Vd(icons)|%Vd(icons)|%?C<%Vd(iconsart)|%Vd(icons)>||%Vd(icons)>
 # display modes, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating
 %?mw<%Vd(info)%?mv(2.0)<%Vd(volume)|%Vd(pb)>|%Vd(info)%Vd(scrub)|%?C<%Vd(bigart)|%Vd(info)%Vd(pb)>|%Vd(lyrics)|%Vd(info)%Vd(rating)>
 %?mv(5)<%?St(battery display)<%Vd(title)|%Vd(titlebat)>|%?St(battery display)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>>>
 %Vl(title,6,2,245,14,4)%Vf(000000)
-%s%al%?pE(15)<%?Fn<%Sx(Next Track:)|%Sx(End of Song List)>|%Sx(Now Playing)>
+%s%al%Sx(Now Playing)
 %Vl(titlebat,6,2,210,14,4)%Vf(000000)
-%s%al%?pE(15)<%?Fn<%Sx(Next Track:)|%Sx(End of Song List)>|%Sx(Now Playing)>
+%s%al%Sx(Now Playing)
 %Vl(clock,6,2,210,14,4)%Vf(000000)
-%s%al%?pS(15)<%Sx(Now Playing)|%?pE(15)<%?Fn<%Sx(Next Track:)|%Sx(End of Song List)>|%?cf<%cH:%cM|%cl:%cM %cP>>>
+%s%al%?pS(15)<%Sx(Now Playing)|%?cf<%cH:%cM|%cl:%cM %cP>>
 %xl(B,Battery.bmp,0,0,24)
 %V(291,4,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)||>>
@@ -77,23 +77,19 @@
 %Cd
 %Vl(current,160,54,157,21,1)%Vf(000000)
 %t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
-%Vl(next,160,54,157,21,1)%Vf(888888)
-%t(8)%s%al%?It<%It|%Fn>;%t(16)%al%?It<%It|%Fn>
 %Vl(info,160,77,157,19,3)%Vf(888888)
-%t(8)%al%?pE(15)<%?Fn<%?Ia<%Ia|%?D(2)<%D(2)|%Fc %Fbkbps>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>;%t(8)%s%al%?pE(15)<%?Fn<%?Ia<%Ia|%?D(2)<%D(2)|%Fc %Fbkbps>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>;%t(8)%al%?pE(15)<%?Fn<%?Ia<%Ia|%?D(2)<%D(2)|%Fc %Fbkbps>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>
+%t(8)%al%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>;%t(8)%s%al%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>;%t(8)%al%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>
 %Vl(info,160,96,157,19,3)%Vf(888888)
-%t(16)%al%?pE(15)<%?Fn<%?Id<%Id|%?D(3)<%D(3)|%?Sr<kHz%Fk|%FkkHz>>>|%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>>|%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>>;%t(8)%al%s%?pE(15)<%?Fn<%?Id<%Id|%?D(3)<%D(3)|%?Sr<kHz%Fk|%FkkHz>>>|%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>>|%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>>
+%t(16)%al%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>;%t(8)%al%s%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>
 %xl(R,Ratings.bmp,0,0,10)
 %Vl(info,160,116,66,13,-)
-%?pE(15)<%?Fn<|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>
+%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>
 %Vl(current,160,134,157,14,2)%Vf(888888)
 %s%al%pp %Sx(of) %pe
 # the track's format and bitrate, on a badge, ending before the repeat icon: on a
 # full update a viewport is cleared whole, and this one comes after the icons
 %Vl(current,160,153,108,18,2)
 %fB
-%Vl(next,160,134,157,14,2)%Vf(000000)
-%s%al%Sx(Now Playing): %?it<%it|%fn>
 %Vl(pb,58,206,204,23,-) 
 %pb(0,0,204,23,PB.bmp)
 %Vl(volume,58,206,204,23,-)
