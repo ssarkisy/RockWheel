@@ -17186,14 +17186,14 @@
   </voice>
 </phrase>
 <phrase>
-  id: LANG_FORMAT_BADGE
-  desc: the format and bitrate of a track, on the badge under its number in Now Playing
+  id: LANG_BITRATE_KBPS
+  desc: the bitrate of a track, after its format under its number in Now Playing
   user: core
   <source>
-    *: "%s %d kbps"
+    *: "%d kbps"
   </source>
   <dest>
-    *: "%s %d kbit/s"
+    *: "%d kbit/s"
   </dest>
   <voice>
     *: ""

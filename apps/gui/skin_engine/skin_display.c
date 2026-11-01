@@ -200,70 +200,33 @@ static unsigned long peak_bar_hold(struct progressbar *pb, unsigned long end,
 }
 
 #if LCD_DEPTH >= 16
-#define BADGE_PADDING   9
-/* The badge is an Aqua button, all as 0xrrggbb: an outline, a capsule of light in the
-   upper part, set in from the ends, and below it a step down to the middle that
-   lightens to the foot, with a soft shadow under it */
-#define BADGE_OUTLINE_TOP       0x6e6e6e
-#define BADGE_OUTLINE_BOTTOM    0x565656
-#define BADGE_LIGHT_TOP         0xffffff
-#define BADGE_LIGHT_BOTTOM      0xf4f4f4
-#define BADGE_MIDDLE            0xdcdcdc
-#define BADGE_FOOT              0xfcfcfc
-#define BADGE_TEXT              0x1a1a1a
-#define BADGE_LIGHT_INSET   2  /* from the ends */
-#define BADGE_SHADOW        48 /* of 256 */
-#define BADGE_SHADOW_FADE   6  /* over this many pixels at each end */
+/* Three bars of a sound wave, the format, and the bitrate in lighter letters on the
+   same baseline. The font of the viewport is for the format, and a viewport the theme
+   names "bitrate" and doesn't show gives the one for the bitrate. */
+#define FORMAT_COLOUR   LCD_RGBPACK(0x35, 0x38, 0x38)
+/* The bars are a pixel and a half wide and go half a pixel into their first and
+   last rows, in the middle of the capitals: a half and a quarter of the colour over
+   the white behind */
+#define FORMAT_BAR_HALF     LCD_RGBPACK(0x9a, 0x9b, 0x9b)
+#define FORMAT_BAR_QUARTER  LCD_RGBPACK(0xcc, 0xcd, 0xcd)
+#define BITRATE_COLOUR  LCD_RGBPACK(0x8a, 0x8d, 0x8a)
+#define FORMAT_TEXT_X   12
+#define FORMAT_TEXT_Y   1
+#define BITRATE_GAP     7
 
-/* a of 256 parts of colour over back, both as 0xrrggbb: rounding to the screen's
-   colours at each of these steps would leave a tint */
-static unsigned badge_mix(unsigned back, unsigned colour, int a)
+void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewport)
 {
-    return ((((colour >> 16) & 0xff) * a + ((back >> 16) & 0xff) * (256 - a)) / 256) << 16
-         | ((((colour >> 8) & 0xff) * a + ((back >> 8) & 0xff) * (256 - a)) / 256) << 8
-         | (((colour & 0xff) * a + (back & 0xff) * (256 - a)) / 256);
-}
-
-/* The nearest of the screen's colours, as simply cutting off bits would tint a grey */
-#define BADGE_NEAREST(v, levels) \
-    (((v) * (levels) + 127 + (((v) * (levels) + 127) >> 8) + 1) >> 8)
-static unsigned badge_pack(unsigned colour)
-{
-    return LCD_RGBPACK(BADGE_NEAREST((colour >> 16) & 0xff, 31) << 3,
-                       BADGE_NEAREST((colour >> 8) & 0xff, 63) << 2,
-                       BADGE_NEAREST(colour & 0xff, 31) << 3);
-}
-
-/* How much of a pixel of the round end of a badge this high is inside it, out of
-   16, by 4 x 4 samples in units of an eighth of a pixel. The middle of the circle
-   is half the height in from both sides, which may be half a pixel. */
-static int badge_cover(int x, int y, int height)
-{
-    const int radius = height * 4;
-    const int limit = radius * radius;
-    int inside = 0;
-    for (int sy = 0; sy < 4; sy++)
-    {
-        const int dy = (y * 8 + sy * 2 + 1) - radius;
-        for (int sx = 0; sx < 4; sx++)
-        {
-            const int dx = (x * 8 + sx * 2 + 1) - radius;
-            if (dx * dx + dy * dy <= limit)
-                inside++;
-        }
-    }
-    return inside;
-}
-
-/* "MP3 320 kbps" on a badge as wide as it needs to be, which isn't left to images
-   as it has to hug the text, and text in a viewport would clear what's behind it */
-void draw_format_badge(struct gui_wps *gwps, struct skin_viewport *skin_viewport)
-{
+    static const struct { signed char x, top, bottom; } bars[] =
+        { { 0, 5, 10 }, { 3, 1, 14 }, { 6, 3, 12 } };
     struct screen *display = gwps->display;
     struct viewport *vp = &skin_viewport->vp;
     const struct mp3entry *id3 = get_wps_state()->id3;
-    char text[32];
-    int text_width, text_height;
+    const struct skin_viewport *bitrate_vp =
+        skin_find_item("bitrate", SKIN_FIND_VP, gwps->data);
+    const int format_font = vp->font;
+    const int bitrate_font = bitrate_vp ? bitrate_vp->vp.font : format_font;
+    char bitrate[32];
+    int format_width, format_height;
 
     screen_clear_area(display, 0, 0, vp->width, vp->height);
     if (!id3)
@@ -285,88 +248,42 @@ void draw_format_badge(struct gui_wps *gwps, struct skin_viewport *skin_viewport
     if (codec == AFMT_UNKNOWN || codec >= AFMT_NUM_CODECS || id3->bitrate <= 1)
         return;
 
-    snprintf(text, sizeof(text), str(LANG_FORMAT_BADGE),
-             get_codec_string(codec), id3->bitrate);
-
-    display->getstringsize(text, &text_width, &text_height);
-
-    const int height = vp->height - 1; /* the last row is the shadow */
-    const int round_end = (height + 1) / 2; /* the columns that are rounded */
-    const int width = MIN(text_width + 2 * BADGE_PADDING, vp->width);
+    const char *format = get_codec_string(codec);
     const unsigned old_fg = display->get_foreground();
-    const int middle_row = height * 8 / 17;
-    const int light_rows = middle_row - 1;
 
     display->set_drawmode(DRMODE_SOLID);
-
-    for (int x = BADGE_LIGHT_INSET + 1; x < width - BADGE_LIGHT_INSET - 1; x++)
+    for (int i = 0; i < (int)ARRAYLEN(bars); i++)
     {
-        const int from_end = MIN(x, width - 1 - x) - BADGE_LIGHT_INSET;
-        const unsigned pixel = FB_UNPACK_SCALAR_LCD(*FBADDR(vp->x + x, vp->y + height));
-        const unsigned back = RGB_UNPACK_RED(pixel) << 16
-                            | RGB_UNPACK_GREEN(pixel) << 8
-                            | RGB_UNPACK_BLUE(pixel);
-        display->set_foreground(badge_pack(badge_mix(back, 0,
-            BADGE_SHADOW * MIN(from_end, BADGE_SHADOW_FADE) / BADGE_SHADOW_FADE)));
-        display->drawpixel(x, height);
-    }
-
-    for (int y = 0; y < height; y++)
-    {
-        const unsigned outline = badge_mix(BADGE_OUTLINE_TOP, BADGE_OUTLINE_BOTTOM,
-                                           y * 256 / (height - 1));
-        const unsigned body = y < middle_row ? BADGE_MIDDLE :
-            badge_mix(BADGE_MIDDLE, BADGE_FOOT,
-                      (y - middle_row) * 256 / MAX(height - 2 - middle_row, 1));
-        const unsigned light = badge_mix(BADGE_LIGHT_TOP, BADGE_LIGHT_BOTTOM,
-                                         MAX(y - 1, 0) * 256 / MAX(light_rows - 1, 1));
-
-        for (int x = 0; x < width; x++)
-        {
-            /* the ends are round, and the outline is what's left of them and of the
-               top and bottom when a smaller badge is taken out */
-            const int from_end = MIN(x, width - 1 - x);
-            int cover = 16, inner = 16;
-            if (from_end < round_end)
-            {
-                cover = badge_cover(from_end, y, height);
-                inner = (from_end == 0 || y == 0 || y == height - 1) ? 0 :
-                        badge_cover(from_end - 1, y - 1, height - 2);
-            }
-            else if (y == 0 || y == height - 1)
-            {
-                inner = 0;
-            }
-            if (cover == 0)
-                continue;
-
-            const unsigned pixel = FB_UNPACK_SCALAR_LCD(*FBADDR(vp->x + x, vp->y + y));
-            const unsigned back = RGB_UNPACK_RED(pixel) << 16
-                                | RGB_UNPACK_GREEN(pixel) << 8
-                                | RGB_UNPACK_BLUE(pixel);
-            unsigned colour = body;
-            if (y >= 1 && y < middle_row && from_end >= BADGE_LIGHT_INSET)
-            {
-                const int light_end = from_end - BADGE_LIGHT_INSET;
-                const int light_cover = light_end < (light_rows + 1) / 2 ?
-                                        badge_cover(light_end, y - 1, light_rows) : 16;
-                colour = badge_mix(body, light, light_cover * 16);
-            }
-            colour = badge_mix(colour, outline, (16 - inner) * 16);
-
-            display->set_foreground(badge_pack(badge_mix(back, colour, cover * 16)));
-            display->drawpixel(x, y);
-        }
+        const int x = bars[i].x, top = bars[i].top, bottom = bars[i].bottom;
+        display->set_foreground(FORMAT_COLOUR);
+        display->vline(x, top + 1, bottom - 1);
+        display->set_foreground(FORMAT_BAR_HALF);
+        display->vline(x + 1, top + 1, bottom - 1);
+        display->drawpixel(x, top);
+        display->drawpixel(x, bottom);
+        display->set_foreground(FORMAT_BAR_QUARTER);
+        display->drawpixel(x + 1, top);
+        display->drawpixel(x + 1, bottom);
     }
 
     display->set_drawmode(DRMODE_FG);
-    display->set_foreground(badge_pack(BADGE_TEXT));
-    display->putsxy((width - text_width) / 2, (height - text_height) / 2, text);
+    display->set_foreground(FORMAT_COLOUR);
+    display->putsxy(FORMAT_TEXT_X, FORMAT_TEXT_Y, format);
+    display->getstringsize(format, &format_width, &format_height);
+
+    snprintf(bitrate, sizeof(bitrate), str(LANG_BITRATE_KBPS), id3->bitrate);
+    vp->font = bitrate_font;
+    display->set_foreground(BITRATE_COLOUR);
+    display->putsxy(FORMAT_TEXT_X + format_width + BITRATE_GAP,
+                    FORMAT_TEXT_Y + font_get(format_font)->ascent
+                    - font_get(bitrate_font)->ascent, bitrate);
+    vp->font = format_font;
+
     display->set_drawmode(DRMODE_SOLID);
     display->set_foreground(old_fg);
 }
 #else
-void draw_format_badge(struct gui_wps *gwps, struct skin_viewport *skin_viewport)
+void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewport)
 {
     (void)gwps;
     (void)skin_viewport;

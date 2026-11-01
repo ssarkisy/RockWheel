@@ -156,9 +156,8 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_DB_SONG_COUNT,         "ns", "", SKIN_REFRESH_DYNAMIC),
     /* What a stock iPod shows beside Settings in the main menu: "116 GB Free",
        the bar of what's used, and whether that item is selected */
-    /* the format and bitrate of the track on a badge, at the top left of the
-       viewport and as high as it */
-    TAG(SKIN_TOKEN_FORMAT_BADGE,          "fB", "", SKIN_REFRESH_STATIC),
+    /* the format and bitrate of the track, at the top left of the viewport */
+    TAG(SKIN_TOKEN_FORMAT_BITRATE,        "fB", "", SKIN_REFRESH_STATIC),
     TAG(SKIN_TOKEN_DEVICE_NAME,           "nn", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_DEVICE_NAME_LENGTH,    "nl", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_DISK_FREE,             "nf", "", SKIN_REFRESH_DYNAMIC),

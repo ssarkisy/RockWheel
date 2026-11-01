@@ -252,9 +252,9 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
                 draw_progressbar(gwps, info->skin_vp, info->line_number, bar);
         }
         break;
-        case SKIN_TOKEN_FORMAT_BADGE:
+        case SKIN_TOKEN_FORMAT_BITRATE:
             if (do_refresh)
-                draw_format_badge(gwps, info->skin_vp);
+                draw_format_bitrate(gwps, info->skin_vp);
             break;
         case SKIN_TOKEN_IMAGE_DISPLAY:
         {

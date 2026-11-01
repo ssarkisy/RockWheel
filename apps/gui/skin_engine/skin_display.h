@@ -28,7 +28,7 @@
 #define _SKIN_DISPLAY_H_
 
 
-void draw_format_badge(struct gui_wps *gwps, struct skin_viewport *skin_viewport);
+void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewport);
 void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
                       int line, struct progressbar *pb);
 void draw_playlist_viewer_list(struct gui_wps *gwps, struct playlistviewer *viewer);

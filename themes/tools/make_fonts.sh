@@ -2,7 +2,7 @@
 # Make the Inter fonts the iPod themes use, from the static TTFs of an Inter
 # release (https://github.com/rsms/inter/releases, extras/ttf/ in the zip):
 #
-#     themes/tools/make_fonts.sh <folder with Inter-Bold.ttf, Inter-SemiBold.ttf>
+#     themes/tools/make_fonts.sh <folder with Inter-Bold.ttf, Inter-SemiBold.ttf, Inter-Medium.ttf>
 #
 # Needs a C compiler and FreeType (on macOS: brew install freetype) to build
 # Rockbox's tools/convttf. The fonts are anti-aliased and named after their
@@ -11,7 +11,7 @@ set -e
 
 here=$(cd "$(dirname "$0")" && pwd)
 root="$here/../.."
-ttf=${1:?usage: $0 <folder with Inter-Bold.ttf and Inter-SemiBold.ttf>}
+ttf=${1:?usage: $0 <folder with Inter-Bold.ttf, Inter-SemiBold.ttf and Inter-Medium.ttf>}
 out="$here/../fonts/.rockbox/fonts"
 build=$(mktemp -d)
 trap 'rm -rf "$build"' EXIT
@@ -44,8 +44,10 @@ font() {
 font 24-Inter-Bold.fnt     Inter-Bold.ttf     18 -r 3 -Ta-2
 font 18-Inter-SemiBold.fnt Inter-SemiBold.ttf 17    # iClassic lyrics
 font 17-Inter-SemiBold.fnt Inter-SemiBold.ttf 15    # iClassic track info
+font 17-Inter-Medium.fnt   Inter-Medium.ttf   15    # iClassic album
 font 14-Inter-SemiBold.fnt Inter-SemiBold.ttf 13    # small text, lyrics
 font 14-Inter-Bold.fnt     Inter-Bold.ttf     13    # iClassic screen titles
+font 12-Inter-SemiBold.fnt Inter-SemiBold.ttf 11    # iClassic bitrate
 
 ls -l "$out"
 
