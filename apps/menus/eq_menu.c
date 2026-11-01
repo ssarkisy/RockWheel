@@ -1028,21 +1028,46 @@ static int eq_choose_preset(void)
     return option_screen(&setting, NULL, false, ID2P(LANG_EQUALIZER));
 }
 
-MENUITEM_FUNCTION(ipod_eq_menu, 0, ID2P(LANG_EQUALIZER),
-                  eq_choose_preset, lowlatency_callback, Icon_EQ);
+/* the name of the preset, Off, or NULL if on and set to none */
+static char *eq_setting_name(void)
+{
+    const int phones = ARRAYLEN(eq_phones);
+    const int preset = eq_get_preset();
+    if (!preset && global_settings.eq_enabled)
+        return NULL;
+    return str(!preset ? LANG_OFF : preset <= phones ?
+               eq_phones[preset - 1].lang_id : eq_presets[preset - phones - 1].lang_id);
+}
 
-/* in the settings list: with the preset, or nothing if on and set to none */
+/* in the narrow menu over Now Playing, among rows that say "name: value": a
+   variation of the earphones' preset goes by the variation alone */
+static char *eq_menu_name(int selected_item, void *data,
+                          char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    char *name = eq_setting_name();
+    if (!name)
+        return str(LANG_EQUALIZER);
+    char *variation = strrchr(name, ':');
+    if (variation)
+        name = skip_whitespace(variation + 1);
+    snprintf(buffer, buffer_len, "%s: %s", str(LANG_EQUALIZER), name);
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(ipod_eq_menu, MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN,
+                          eq_choose_preset, eq_menu_name,
+                          NULL, NULL, lowlatency_callback, Icon_EQ);
+
+/* in the settings list */
 static char *eq_row_name(int selected_item, void *data,
                          char *buffer, size_t buffer_len)
 {
     (void)selected_item; (void)data;
-    const int phones = ARRAYLEN(eq_phones);
-    const int preset = eq_get_preset();
-    if (!preset && global_settings.eq_enabled)
+    char *name = eq_setting_name();
+    if (!name)
         return str(LANG_EQUALIZER);
-    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_EQUALIZER),
-             str(!preset ? LANG_OFF : preset <= phones ?
-                 eq_phones[preset - 1].lang_id : eq_presets[preset - phones - 1].lang_id));
+    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_EQUALIZER), name);
     return buffer;
 }
 

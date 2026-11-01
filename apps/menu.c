@@ -166,7 +166,8 @@ static bool menu_has_children(int selected_item, void * data)
             return true;
         case MT_FUNCTION_CALL:
             /* what changes right here, in a menu that stays open, opens nothing */
-            return !(item->flags & MENU_EXITAFTERTHISMENU);
+            return !(item->flags & MENU_EXITAFTERTHISMENU)
+                || (item->flags & MENU_FUNC_OPENS_SCREEN);
         case MT_RETURN_VALUE:
 #ifdef HAVE_TAGCACHE
             return item->value != GO_TO_SHUFFLE_SONGS;

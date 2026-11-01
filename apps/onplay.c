@@ -1251,6 +1251,28 @@ static char *sound_check_item_name(int selected_item, void *data,
     return buffer;
 }
 
+#ifdef HAVE_BACKLIGHT_BRIGHTNESS
+static int wps_set_brightness(void)
+{
+    do_setting_from_menu(&brightness_item, NULL);
+    return 0;
+}
+
+static char *brightness_item_name(int selected_item, void *data,
+                                  char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    snprintf(buffer, buffer_len, "%s: %d", str(LANG_BRIGHTNESS),
+             global_settings.brightness);
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(wps_brightness_item,
+                          MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN,
+                          wps_set_brightness, brightness_item_name,
+                          NULL, NULL, NULL, Icon_NOICON);
+#endif
+
 MENUITEM_FUNCTION_DYNTEXT(wps_shuffle_item, MENU_EXITAFTERTHISMENU, toggle_shuffle,
                           shuffle_item_name, NULL, NULL, NULL, Icon_NOICON);
 MENUITEM_FUNCTION_DYNTEXT(wps_repeat_item, MENU_EXITAFTERTHISMENU, cycle_repeat,
@@ -1270,6 +1292,9 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
 #endif
            &wps_shuffle_item, &wps_repeat_item,
            &ipod_eq_menu, &wps_sound_check_item,
+#ifdef HAVE_BACKLIGHT_BRIGHTNESS
+           &wps_brightness_item,
+#endif
            &wps_playlist_menu, &cat_playlist_menu,
 #ifndef HAVE_HOTKEY
            &context_item_0,
