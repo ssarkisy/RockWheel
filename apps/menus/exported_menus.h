@@ -84,4 +84,6 @@ struct browse_folder_info {
 int browse_folder(void *param); /* in theme_menu.c as it is mostly used there */
 
 #endif /* ! PLUGIN */
+void volume_limit_screen(void); /* sound_menu.c */
+
 #endif /*_EXPORTED_MENUS_H */

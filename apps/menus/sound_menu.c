@@ -45,13 +45,9 @@ static const char* vol_limit_format(char* buffer, size_t buffer_size, int value,
     return buffer;
 }
 
-static int volume_limit_callback(int action,
-                                 const struct menu_item_ex *this_item,
-                                 struct gui_synclist *this_list)
+/* its screen: the volume comes down to it if it's over it when this closes */
+void volume_limit_screen(void)
 {
-    (void)this_item;
-    (void)this_list;
-
     static struct int_setting volume_limit_int_setting;
 
     volume_limit_int_setting = (struct int_setting)
@@ -70,12 +66,21 @@ static int volume_limit_callback(int action,
     setting.lang_id = LANG_VOLUME_LIMIT;
     setting.default_val.int_ = volume_limit_int_setting.max;
     setting.int_setting = &volume_limit_int_setting;
+    setting.setting = &global_settings.volume_limit;
+    option_screen(&setting, NULL, false, ID2P(LANG_VOLUME_LIMIT));
+}
+
+static int volume_limit_callback(int action,
+                                 const struct menu_item_ex *this_item,
+                                 struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
 
     switch (action)
     {
         case ACTION_ENTER_MENUITEM:
-            setting.setting = &global_settings.volume_limit;
-            option_screen(&setting, NULL, false, ID2P(LANG_VOLUME_LIMIT));
+            volume_limit_screen();
             /* Fallthrough */
         case ACTION_EXIT_MENUITEM: /* on exit */
             setvol();

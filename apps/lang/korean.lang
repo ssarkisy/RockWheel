@@ -18447,3 +18447,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT_ROW
+  desc: the Volume Limit setting by a name short enough for the narrow menu over Now Playing, with its value after it
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "볼륨 제한"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

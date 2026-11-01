@@ -1288,6 +1288,29 @@ static char *sound_check_item_name(int selected_item, void *data,
     return buffer;
 }
 
+static int wps_set_volume_limit(void)
+{
+    volume_limit_screen();
+    setvol();
+    return 0;
+}
+
+/* by a shorter name for the narrow menu: its screen has the whole one */
+static char *volume_limit_item_name(int selected_item, void *data,
+                                    char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    char value[16];
+    format_sound_value(value, sizeof(value), SOUND_VOLUME, global_settings.volume_limit);
+    snprintf(buffer, buffer_len, "%s: %s", str(LANG_VOLUME_LIMIT_ROW), value);
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(wps_volume_limit_item,
+                          MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN,
+                          wps_set_volume_limit, volume_limit_item_name,
+                          NULL, NULL, NULL, Icon_NOICON);
+
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 static int cycle_cover_colours(void)
 {
@@ -1368,7 +1391,8 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            &wps_shuffle_item, &wps_repeat_item,
            &wps_playlist_menu, &cat_playlist_menu,
            &wps_group_settings,
-           &ipod_eq_menu, &wps_sound_check_item,
+           /* the two that change with the headphones first */
+           &wps_volume_limit_item, &ipod_eq_menu, &wps_sound_check_item,
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
            &wps_brightness_item,
 #endif
