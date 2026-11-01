@@ -240,6 +240,18 @@ static const char* get_menu_item_name(int selected_item,
     return P2STR(menu->callback_and_desc->desc);
 }
 
+static bool menu_has_groups(const struct menu_item_ex *menu)
+{
+    if ((menu->flags&MENU_TYPE_MASK) != MT_MENU)
+        return false;
+    for (int i = 0; i < (int)MENU_GET_COUNT(menu->flags); i++)
+    {
+        if ((menu->submenus[i]->flags&MENU_TYPE_MASK) == MT_GROUP)
+            return true;
+    }
+    return false;
+}
+
 static bool menu_is_group(int item, void *data)
 {
     const struct menu_item_ex *menu = (const struct menu_item_ex *)data;
@@ -398,7 +410,7 @@ static int init_menu_lists(const struct menu_item_ex *menu,
     current_submenus_menu = (struct menu_item_ex *)menu;
 
     gui_synclist_init(lists,get_menu_item_name,(void*)menu,false,1, parent);
-    if (menu_shows_values(menu))
+    if (menu_shows_values(menu) || menu_has_groups(menu))
     {
         lists->callback_draw_item = menu_draw_value_line;
         lists->callback_is_group = menu_is_group;

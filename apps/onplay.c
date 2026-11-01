@@ -1165,6 +1165,40 @@ static int open_cover_flow(void)
 }
 MENUITEM_FUNCTION(cover_flow_item, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_COVER_FLOW),
                   open_cover_flow, NULL, Icon_NOICON);
+
+/* The Music lists at the track playing. Menu there comes back to this menu, which
+   goes on with the track playing, whatever a menu opened in the lists has chosen. */
+static int go_to_playing(bool artist)
+{
+    static struct selected_file saved_file;
+    bool (*saved_insert)(int, bool, bool) = ctx_current_playlist_insert;
+    int (*saved_add)(const char*, bool) = ctx_add_to_playlist;
+
+    saved_file = selected_file;
+    const int screen = root_menu_go_to_playing(artist);
+    if (screen == 0)
+    {
+        selected_file = saved_file;
+        ctx_current_playlist_insert = saved_insert;
+        ctx_add_to_playlist = saved_add;
+        onplay_result = ONPLAY_OK;
+    }
+    return screen;
+}
+static int go_to_artist(void)
+{
+    return go_to_playing(true);
+}
+static int go_to_album(void)
+{
+    return go_to_playing(false);
+}
+MENUITEM_FUNCTION(go_to_artist_item,
+                  MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
+                  ID2P(LANG_GO_TO_ARTIST), go_to_artist, NULL, Icon_NOICON);
+MENUITEM_FUNCTION(go_to_album_item,
+                  MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
+                  ID2P(LANG_GO_TO_ALBUM), go_to_album, NULL, Icon_NOICON);
 #endif
 
 /* Shuffle, repeat and Sound Check, changed right here by selecting them, with the same effect
@@ -1281,6 +1315,9 @@ MENUITEM_FUNCTION_DYNTEXT(wps_sound_check_item, MENU_EXITAFTERTHISMENU,
                           toggle_sound_check, sound_check_item_name,
                           NULL, NULL, NULL, Icon_NOICON);
 
+MENUITEM_GROUP(wps_group_playback, ID2P(LANG_PLAYBACK));
+MENUITEM_GROUP(wps_group_settings, ID2P(LANG_SETTINGS));
+
 /* used when onplay() is called in the CONTEXT_WPS context */
 MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            onplaymenu_callback, Icon_Audio,
@@ -1288,14 +1325,16 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
               WPS, as on a stock iPod; the configurable items are off by
               default */
 #ifdef HAVE_TAGCACHE
-           &cover_flow_item,
+           &cover_flow_item, &go_to_artist_item, &go_to_album_item,
 #endif
+           &wps_group_playback,
            &wps_shuffle_item, &wps_repeat_item,
+           &wps_playlist_menu, &cat_playlist_menu,
+           &wps_group_settings,
            &ipod_eq_menu, &wps_sound_check_item,
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
            &wps_brightness_item,
 #endif
-           &wps_playlist_menu, &cat_playlist_menu,
 #ifndef HAVE_HOTKEY
            &context_item_0,
 #endif

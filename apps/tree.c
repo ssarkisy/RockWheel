@@ -869,6 +869,11 @@ static int dirbrowse(void)
 
             case ACTION_STD_CANCEL:
                 exit_to_new_screen(0);
+#ifdef HAVE_TAGCACHE
+                /* opened at the track playing, from the menu over Now Playing */
+                if (*tc.dirfilter == SHOW_ID3DB && tc.dirlevel == tagtree_go_to_level())
+                    return exit_to_new_screen(GO_TO_PREVIOUS);
+#endif
                 if (*tc.dirfilter > NUM_FILTER_MODES && tc.dirlevel < 1) {
                     exit_func = true;
                     break;

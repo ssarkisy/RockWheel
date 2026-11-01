@@ -10378,3 +10378,31 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_GO_TO_ARTIST
+  desc: in the menu over Now Playing, goes to the artist of the track playing in the Music lists
+  user: core
+  <source>
+    *: "Go to Artist"
+  </source>
+  <dest>
+    *: "Mine esitajale"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GO_TO_ALBUM
+  desc: in the menu over Now Playing, goes to the album of the track playing in the Music lists
+  user: core
+  <source>
+    *: "Go to Album"
+  </source>
+  <dest>
+    *: "Mine albumile"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

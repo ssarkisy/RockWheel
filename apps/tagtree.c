@@ -2207,8 +2207,8 @@ int tagtree_load(struct tree_context* c)
  * true, make sure that you are back at the previous dirlevel, by
  * calling tagtree_exit as needed, with is_visible set to false.
  */
-/* The place in the lists where the music playing was started, to go back to it */
-static struct
+/* A place in the lists, to go back to */
+struct tagtree_place
 {
     struct menu_root *menu;
     struct search_instruction *csi;
@@ -2217,40 +2217,176 @@ static struct
     int selected_item_history[MAX_DIR_LEVELS];
     int table_history[MAX_DIR_LEVELS];
     int extra_history[MAX_DIR_LEVELS];
-} saved_place;
+    char current_title[MAX_TAGS][sizeof(current_title[0])];
+};
+
+/* where the music playing was started, and where the lists were before they were
+   opened at the track playing */
+static struct tagtree_place saved_place, go_to_place;
+/* the level that was opened at the track playing, where Menu leaves the lists */
+static int go_to_level = -1;
+
+static void place_save(struct tagtree_place *place, int dirlevel, int selected_item)
+{
+    const struct tree_context *c = tree_get_context();
+    place->menu = menu;
+    place->csi = csi;
+    if (csi)
+        memcpy(place->result_seek, csi->result_seek, sizeof(csi->result_seek));
+    place->currtable = c->currtable;
+    place->currextra = c->currextra;
+    place->dirlevel = dirlevel;
+    place->selected_item = selected_item;
+    place->max_history_level = max_history_level;
+    memcpy(place->selected_item_history, selected_item_history,
+           sizeof(selected_item_history));
+    memcpy(place->table_history, table_history, sizeof(table_history));
+    memcpy(place->extra_history, extra_history, sizeof(extra_history));
+    memcpy(place->current_title, current_title, sizeof(current_title));
+}
+
+static void place_restore(const struct tagtree_place *place, int *dirlevel,
+                          int *selected_item)
+{
+    struct tree_context *c = tree_get_context();
+    menu = place->menu;
+    csi = place->csi;
+    if (csi)
+        memcpy(csi->result_seek, place->result_seek, sizeof(csi->result_seek));
+    c->currtable = place->currtable;
+    c->currextra = place->currextra;
+    *dirlevel = place->dirlevel;
+    *selected_item = place->selected_item;
+    max_history_level = place->max_history_level;
+    memcpy(selected_item_history, place->selected_item_history,
+           sizeof(selected_item_history));
+    memcpy(table_history, place->table_history, sizeof(table_history));
+    memcpy(extra_history, place->extra_history, sizeof(extra_history));
+    memcpy(current_title, place->current_title, sizeof(current_title));
+}
 
 void tagtree_save_place(int dirlevel, int selected_item)
 {
-    saved_place.menu = menu;
-    saved_place.csi = csi;
-    if (csi)
-        memcpy(saved_place.result_seek, csi->result_seek, sizeof(csi->result_seek));
-    saved_place.currtable = tc->currtable;
-    saved_place.currextra = tc->currextra;
-    saved_place.dirlevel = dirlevel;
-    saved_place.selected_item = selected_item;
-    saved_place.max_history_level = max_history_level;
-    memcpy(saved_place.selected_item_history, selected_item_history,
-           sizeof(selected_item_history));
-    memcpy(saved_place.table_history, table_history, sizeof(table_history));
-    memcpy(saved_place.extra_history, extra_history, sizeof(extra_history));
+    place_save(&saved_place, dirlevel, selected_item);
 }
 
 void tagtree_restore_place(int *dirlevel, int *selected_item)
 {
-    menu = saved_place.menu;
-    csi = saved_place.csi;
-    if (csi)
-        memcpy(csi->result_seek, saved_place.result_seek, sizeof(csi->result_seek));
-    tc->currtable = saved_place.currtable;
-    tc->currextra = saved_place.currextra;
-    *dirlevel = saved_place.dirlevel;
-    *selected_item = saved_place.selected_item;
-    max_history_level = saved_place.max_history_level;
-    memcpy(selected_item_history, saved_place.selected_item_history,
-           sizeof(selected_item_history));
-    memcpy(table_history, saved_place.table_history, sizeof(table_history));
-    memcpy(extra_history, saved_place.extra_history, sizeof(extra_history));
+    place_restore(&saved_place, dirlevel, selected_item);
+}
+
+/* The row of the list with this name, or -1 */
+static int tagtree_find_row(struct tree_context *c, const char *name)
+{
+    if (!strcmp(name, UNTAGGED))
+        name = str(LANG_TAGNAVI_UNTAGGED);
+    for (int i = 0; i < c->dirlength; i++)
+    {
+        if (!strcmp(tagtree_get_entry(c, i)->name, name))
+            return i;
+    }
+    return -1;
+}
+
+/* Puts the lists at the track playing, as one gets there by hand: its album's artist,
+   or else its own, with its album selected, or its album with the track selected. The
+   Artists list is of the tracks' artists, where a guest on one song has a row of their
+   own, so the albums here are those with that album artist. tagtree_end_go_to() ends
+   this, and until then Menu in that list leaves the lists. False if it isn't in the
+   database. */
+bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
+{
+    static char name[TAGCACHE_BUFSZ], album[TAGCACHE_BUFSZ];
+    static struct search_instruction album_artists;
+    struct tree_context *c = tree_get_context();
+    const struct mp3entry *id3 = audio_current_track();
+    const int tag = artist ? tag_virt_canonicalartist : tag_album;
+    struct tagcache_search tcs;
+    int row = -1;
+
+    if (!id3 || !tagtree_ready() || !tagcache_is_usable()
+        || !tagcache_find_index(&tcs, id3->path))
+        return false;
+    const int track = tcs.idx_id;
+    const bool by_album_artist = artist
+        && tagcache_retrieve(&tcs, track, tag_albumartist, name, sizeof(name))
+        && name[0] && strcmp(name, UNTAGGED);
+    const bool found = (by_album_artist
+                        || tagcache_retrieve(&tcs, track, tag, name, sizeof(name)))
+        && tagcache_retrieve(&tcs, track, tag_album, album, sizeof(album));
+    tagcache_search_finish(&tcs);
+    if (!found)
+        return false;
+
+    place_save(&go_to_place, *dirlevel, *selected_item);
+    c->dirlevel = 0;
+    c->currtable = 0;
+    max_history_level = 0;
+    if (tagtree_load(c) > 0)
+    {
+        for (int i = 0; i < menu->itemcount && row < 0; i++)
+        {
+            const struct search_instruction *si = &menu->items[i]->si;
+            if (menu->items[i]->type == menu_next && si->tagorder[0] == tag
+                && si->clause_count[0] == 0)
+                row = i;
+        }
+    }
+    if (row >= 0)
+    {
+        /* the list of them */
+        c->selected_item = row;
+        tagtree_enter(c, true);
+        if (by_album_artist)
+        {
+            album_artists = *csi;
+            album_artists.tagorder[0] = tag_albumartist;
+            csi = &album_artists;
+        }
+        tagtree_load(c);
+        row = tagtree_find_row(c, name);
+    }
+    if (row < 0)
+    {
+        place_restore(&go_to_place, dirlevel, selected_item);
+        return false;
+    }
+
+    /* the one playing */
+    c->selected_item = row;
+    tagtree_enter(c, true);
+    tagtree_load(c);
+    row = 0;
+    if (artist)
+        row = MAX(tagtree_find_row(c, album), 0);
+    else
+    {
+        for (int i = 0; i < c->dirlength; i++)
+        {
+            if (tagtree_get_entry(c, i)->extraseek == track)
+            {
+                row = i;
+                break;
+            }
+        }
+    }
+    c->selected_item = row;
+    *dirlevel = c->dirlevel;
+    *selected_item = row;
+    go_to_level = c->dirlevel;
+    return true;
+}
+
+int tagtree_go_to_level(void)
+{
+    return go_to_level;
+}
+
+void tagtree_end_go_to(bool go_back, int *dirlevel, int *selected_item)
+{
+    go_to_level = -1;
+    if (go_back)
+        place_restore(&go_to_place, dirlevel, selected_item);
 }
 
 int tagtree_enter(struct tree_context* c, bool is_visible)

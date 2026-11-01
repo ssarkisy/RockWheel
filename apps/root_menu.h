@@ -25,6 +25,9 @@
 
 /* Cover Flow, by plugin_load, which knows if it starts the music */
 int root_menu_cover_flow(void);
+#ifdef HAVE_TAGCACHE
+int root_menu_go_to_playing(bool artist);
+#endif
 void root_menu(void) NORETURN_ATTR;
 #ifdef HAVE_TAGCACHE
 /* the boot logo and the import's progress, while there is an import */

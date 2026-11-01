@@ -402,6 +402,24 @@ static int browser(void* param)
     return ret_val;
 }
 
+#ifdef HAVE_TAGCACHE
+/* The Music lists at the track playing, from the menu over Now Playing. Menu in the
+   list opened goes back to that menu, and the place in the lists stays as it was,
+   unless music was started from them. 0 for going back, or else the screen to go to. */
+int root_menu_go_to_playing(bool artist)
+{
+    const unsigned int starts = playlist_start_count();
+    if (!tagtree_go_to_playing(artist, &last_db_dirlevel, &last_db_selection))
+        return 0;
+    const int screen = browser((void*)GO_TO_DBBROWSER);
+    const bool started = playlist_start_count() != starts;
+    if (started)
+        note_music_origin(GO_TO_DBBROWSER);
+    tagtree_end_go_to(!started, &last_db_dirlevel, &last_db_selection);
+    return screen == GO_TO_PREVIOUS ? 0 : screen;
+}
+#endif
+
 #ifdef HAVE_RECORDING
 static int recscrn(void* param)
 {
