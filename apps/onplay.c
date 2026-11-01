@@ -1302,7 +1302,8 @@ static char *volume_limit_item_name(int selected_item, void *data,
     (void)selected_item; (void)data;
     char value[16];
     format_sound_value(value, sizeof(value), SOUND_VOLUME, global_settings.volume_limit);
-    snprintf(buffer, buffer_len, "%s: %s", str(LANG_VOLUME_LIMIT_ROW), value);
+    snprintf(buffer, buffer_len, "%s: %s", str(LANG_VOLUME_LIMIT_ROW),
+             skip_whitespace(value));
     return buffer;
 }
 
