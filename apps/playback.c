@@ -341,6 +341,9 @@ static unsigned int track_event_flags = TEF_NONE; /* (A, O-) */
 
 /* Pending manual track skip offset */
 static int skip_offset = 0; /* (A, O) */
+/* The part of it the audio thread has taken, until the track list has moved: the track
+   whose cover is shown doesn't go back to the old one meanwhile */
+static int skip_under_way = 0; /* (A, O) */
 
 static bool track_skip_is_manual = false;
 static bool pause_on_track_change = false;
@@ -3365,6 +3368,8 @@ static void audio_on_skip(void)
     /* Eat the delta to keep it synced, even if not playing */
     int toskip = skip_offset;
     skip_offset = 0;
+    if (play_status != PLAY_STOPPED)
+        skip_under_way = toskip;
 
     logf("%s(): %d", __func__, toskip);
 
@@ -3404,6 +3409,8 @@ static void audio_on_skip(void)
 
     audio_playlist_track_finish();
     skip_pending = TRACK_SKIP_NONE;
+    /* as an auto skip no longer counts for the user's track */
+    skip_under_way = track_list_delta;
 
     /* Update the playlist current track now */
     int pl_retval;
@@ -3413,6 +3420,7 @@ static void audio_on_skip(void)
         {
             /* Some variety of fatal error while updating playlist */
             filling = STATE_ENDED;
+            skip_under_way = 0;
             audio_stop_playback();
             return;
         }
@@ -3429,12 +3437,14 @@ static void audio_on_skip(void)
                 /* Had to move the opposite direction to correct, which is
                    wrong - this is the end */
                 filling = STATE_ENDED;
+                skip_under_way = 0;
                 audio_stop_playback();
                 return;
             }
 
             playlist_delta += d;
             track_list_delta += d;
+            skip_under_way = track_list_delta;
         }
     }
     track_skip_is_manual = false;
@@ -3444,8 +3454,9 @@ static void audio_on_skip(void)
     int trackstat = LOAD_TRACK_OK;
 
     struct track_info info;
-    if (!track_list_advance_current(track_list_delta, &info)
-        || info.audio_hid < 0)
+    const bool advanced = track_list_advance_current(track_list_delta, &info);
+    skip_under_way = 0;
+    if (!advanced || info.audio_hid < 0)
     {
         /* We don't know the next track thus we know we don't have it */
         trackstat = audio_reset_and_rebuffer(TRACK_LIST_CLEAR_ALL, -1);
@@ -4247,23 +4258,26 @@ void audio_flush_and_reload_tracks(void)
 /** --- Miscellaneous public interfaces --- **/
 
 #ifdef HAVE_ALBUMART
+/* The track whose cover is current for the user */
+static bool track_list_cover_current(struct track_info *infop)
+{
+    const int offset = skip_offset + skip_under_way;
+    bool have_info = track_list_user_current(offset, infop);
+
+    /* Give the actual position a go */
+    if (!have_info && abs(offset) <= 1)
+        have_info = track_list_user_current(0, infop);
+
+    return have_info;
+}
+
 /* Return which album art handle is current for the user in the given slot */
 int playback_current_aa_hid(int slot)
 {
-    if ((unsigned)slot < MAX_MULTIPLE_AA)
-    {
-        struct track_info user_cur;
-        bool have_info = track_list_user_current(skip_offset, &user_cur);
+    struct track_info user_cur;
 
-        if (!have_info && abs(skip_offset) <= 1)
-        {
-            /* Give the actual position a go */
-            have_info = track_list_user_current(0, &user_cur);
-        }
-
-        if (have_info)
-            return user_cur.aa_hid[slot];
-    }
+    if ((unsigned)slot < MAX_MULTIPLE_AA && track_list_cover_current(&user_cur))
+        return user_cur.aa_hid[slot];
 
     return ERR_HANDLE_NOT_FOUND;
 }
@@ -4272,12 +4286,9 @@ int playback_current_aa_hid(int slot)
 uint32_t playback_current_cover_colour(void)
 {
     struct track_info user_cur;
-    bool have_info = track_list_user_current(skip_offset, &user_cur);
 
-    if (!have_info && abs(skip_offset) <= 1)
-        have_info = track_list_user_current(0, &user_cur);
-
-    return have_info ? user_cur.cover_colour : COVER_COLOUR_UNKNOWN;
+    return track_list_cover_current(&user_cur) ? user_cur.cover_colour
+                                               : COVER_COLOUR_UNKNOWN;
 }
 
 /* Find an album art slot that doesn't match the dimensions of another that
