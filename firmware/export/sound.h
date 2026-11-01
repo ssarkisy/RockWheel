@@ -35,6 +35,8 @@ int sound_default(int setting);
 sound_set_type* sound_get_fn(int setting);
 
 void sound_set_volume(int value);
+/* How much the software EQ has cut the level by, for the analog volume to make up for */
+void sound_set_eq_makeup(int tenth_db);
 void sound_set_balance(int value);
 void sound_set_bass(int value);
 void sound_set_treble(int value);

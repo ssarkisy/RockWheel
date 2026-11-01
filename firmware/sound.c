@@ -217,6 +217,7 @@ static int sound_value_to_cb(int setting, int value)
 static struct
 {
     int volume;                       /* tenth dB */
+    int eq_makeup;                    /* tenth dB */
     int balance;                      /* percent  */
 #if defined(AUDIOHW_HAVE_BASS)
     int bass;                         /* tenth dB */
@@ -281,6 +282,12 @@ static void set_prescaled_volume(void)
 #if defined(AUDIOHW_HAVE_MONO_VOLUME)
     audiohw_set_volume(volume);
 #else /* Stereo volume */
+    /* The software EQ's precut keeps its boosts from clipping: the analog volume makes
+       up for it as far as it goes, so that a preset is no quieter than no EQ */
+    if (volume > minvol)
+        volume = MIN(volume + sound_prescaler.eq_makeup,
+                     MAX(volume, sound_value_to_cb(SOUND_VOLUME, sound_max(SOUND_VOLUME))));
+
     int l = volume, r = volume;
 
     /* Balance the channels scaled by the current volume and min volume */
@@ -325,6 +332,13 @@ void sound_set_volume(int value)
 
     sound_prescaler.volume = sound_value_to_cb(SOUND_VOLUME, value);
     set_prescaled_volume();
+}
+
+void sound_set_eq_makeup(int tenth_db)
+{
+    sound_prescaler.eq_makeup = tenth_db;
+    if (audio_is_initialized)
+        set_prescaled_volume();
 }
 
 void sound_set_balance(int value)
