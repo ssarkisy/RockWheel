@@ -2,7 +2,7 @@
 
 RockWheel is free, open-source firmware for the iPod Video, 5th and 5.5th generation, built on [Rockbox](https://www.rockbox.org). It keeps the engine that made Rockbox great, and adds the two things it never had: a place in Finder, and the manners of a real iPod.
 
-Your iPod syncs with Finder as it always did, and now has what it never got: Cover Flow with kinetic scrolling, lyrics that follow the song, and room for a very large library without slowing down.
+Your iPod syncs with Finder as it always did, and now has what it never got: Cover Flow with kinetic scrolling, lyrics that follow the song, a Now Playing screen that takes on the colours of the album, and room for a very large library without slowing down.
 
 ![Cover Flow, Now Playing, Settings and the main menu](docs/screenshots/banner.png)
 
@@ -19,6 +19,7 @@ Your iPod syncs with Finder as it always did, and now has what it never got: Cov
 | Finder's album art, shown at once | Yes | Slow with large embedded art | **Yes** |
 | Cover Flow | No | Plugin, with its own cache to build | **First item in Music, with kinetic scrolling** |
 | Time-synced lyrics | No | Plugin | **Built into Now Playing** |
+| Now Playing in the colours of the album | No | No | **Yes** |
 | Videos | Yes | Converted files, or the stock firmware, one restart away | **The stock firmware, one restart away** |
 | Open source | No | Yes | **Yes, GPL** |
 
@@ -42,7 +43,7 @@ RockWheel was built on a real library of well over ten thousand songs, on a chip
 
 **Skipping is instant.** The next song is there, with its cover, the moment you press.
 
-**Scrolling is smooth and fast.** Lists keep up with your thumb, even while music plays. A slow turn of the wheel moves row by row, and a quick one takes you through thousands of songs in seconds.
+**Scrolling is smooth and fast.** Lists keep up with your thumb, even while music plays. A slow turn of the wheel moves row by row, a quick one takes you through hundreds of songs in seconds, and as your thumb slows down the list does too, so you stop on the row you meant.
 
 **New music is ready quickly.** Hundreds of new songs are in your library seconds after you unplug.
 
@@ -62,11 +63,27 @@ The iPod Video never had Cover Flow. Here it's the first item in the Music menu,
 
 Press Select to move from the cover to the lyrics, the scrubber and your rating.
 
-<img src="docs/screenshots/now-playing.png" width="320" alt="Now Playing with a format badge"> <img src="docs/screenshots/large-art.png" width="320" alt="Large album art view">
+<img src="docs/screenshots/now-playing.png" width="320" alt="Now Playing, with the format and bitrate beside a small sound wave"> <img src="docs/screenshots/large-art.png" width="320" alt="Large album art view">
 
 <img src="docs/screenshots/lyrics.png" width="320" alt="Time-synced lyrics"> <img src="docs/screenshots/rating.png" width="320" alt="Rating a track with the wheel">
 
 **Lyrics follow the song,** line by line, if the track has timed lyrics or a `.lrc` file.
+
+## Colours from the album
+
+Now Playing can take on the colours of whatever you're listening to. Every album's colour is ready before you play it, so the screen changes together with the cover.
+
+<img src="docs/screenshots/cover-fill-dark.png" width="320" alt="Now Playing filled with the deep purple of the cover"> <img src="docs/screenshots/cover-fill-light.png" width="320" alt="Now Playing filled with the warm yellow of the cover">
+
+<img src="docs/screenshots/cover-whole-screen.png" width="320" alt="Now Playing with a soft tint of the cover's teal"> <img src="docs/screenshots/cover-text.png" width="320" alt="Now Playing with its text and stars in the colour of the cover">
+
+**Fill** spreads the album's colour across the whole screen, so the cover melts into it. The text turns light or dark to stay easy to read.
+
+**Whole Screen** keeps the screen light and gives all of it a soft tint, down to the status bar and the progress bar.
+
+**Text and Stars** leaves the screen white and colours only the words and your rating.
+
+It's off until you want it. Hold Select in Now Playing and choose Colours, or find Cover Colours in Settings.
 
 ## It feels like an iPod
 
@@ -74,7 +91,7 @@ Press Select to move from the cover to the lyrics, the scrubber and your rating.
 
 <img src="docs/screenshots/settings.png" width="320" alt="Settings in groups, with values on the right"> <img src="docs/screenshots/eq.png" width="320" alt="EQ presets">
 
-<img src="docs/screenshots/photos.png" width="320" alt="Photo browser">
+<img src="docs/screenshots/menu.png" width="320" alt="The menu you get by holding Select in Now Playing"> <img src="docs/screenshots/photos.png" width="320" alt="Photo browser">
 
 **The menus you remember:** Music, Photos, Extras, Settings, Shuffle Songs and Now Playing, with your iPod's name at the top.
 
@@ -82,7 +99,9 @@ Press Select to move from the cover to the lyrics, the scrubber and your rating.
 
 **Shortcuts your thumb learns quickly.** Hold Play for Now Playing from almost anywhere, and hold Menu to go to the main menu. Press Menu after holding Play to go back to the list you started it from.
 
-**The EQ from iTunes.** All 22 presets, tuned exactly as they are in iTunes, plus four made for the 7Hz Zero 2 earphones. You hear a new preset the moment you pick it. Presets for more headphones may come in the future.
+**What you reach for while you listen.** Hold Select in Now Playing to open Cover Flow, go to the song's artist or album, or change shuffle, repeat, the EQ, the volume limit, Sound Check, brightness and colours. Press Menu in a list you opened from there, and you're back where you were.
+
+**The EQ from iTunes.** All 22 presets, tuned exactly as they are in iTunes, plus presets made for the 7Hz Zero 2 earphones and the Koss KPH30i headphones. You hear a new preset the moment you pick it, and it doesn't make your music quieter. Presets for more headphones may come in the future.
 
 **Songs at an even level.** Turn on Sound Check, in Settings or by holding Select in Now Playing, and your library plays at about the same volume, using the levels Finder has already worked out.
 
@@ -119,7 +138,9 @@ How that was done:
 - **Decoding moved to the second core.** MP3 and AAC frames are decoded on the COP into a queue, so the main CPU is free for the UI.
 - **Faster codecs where it counted.** A new IMDCT path in libmad takes MP3 decoding from 7.8 to 6.7 ms a frame, and libfaad clears and copies less, taking AAC from 11.4 to 10.55 ms.
 - **The whole database in RAM,** paths included, with hash tables instead of repeated disk searches.
-- **Work done ahead of time.** Cover Flow's images and the playlist of all songs are prepared while the library updates, so nothing has to be built when you open them.
+- **Work done ahead of time.** Cover Flow's images, each album's colour and the playlist of all songs are prepared while the library updates, so nothing has to be built when you open them.
+- **A new colour in about 65 ms,** drawing included. The memory for it is only taken when you choose Whole Screen or Fill.
+- **EQ presets keep their level.** The EQ cuts the signal digitally so that its boosts can't clip, and the analog volume rises by the same amount. Near the top of the volume, the peaks of loud music can reach the limit of the amplifier.
 - **Sound Check from Finder's own values,** looked up on disk as a track loads. It only ever lowers a track, since Finder's database doesn't say where its peaks are.
 - **Journaled library updates.** Cut off at 10 different points in the simulator, an update recovered every time.
 - **The device description Finder asks for** is generated from the iPod's own flash the first time it's needed.
@@ -207,6 +228,6 @@ RockWheel stands entirely on [Rockbox](https://www.rockbox.org) and its contribu
 - **Theme:** modified from iClassic Square by Humberto Santana, derived from iLike by Alan Brito and Hayden Pearce, under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). See [themes/README.md](themes/README.md).
 - **Fonts:** [Inter](https://rsms.me/inter/), under the SIL Open Font License, and GNU Unifont from Rockbox for the alphabets Inter doesn't have.
 
-The screenshots come from the simulator, with a made-up library: the artists, albums, covers, lyrics and photos were generated for them. The disk size and the progress bar in them are set by hand.
+The screenshots come from the simulator, with a made-up library: the artists, albums, covers, lyrics and photos were generated for them. The disk size, the progress bar and the ratings in them are set by hand.
 
 Apple, iPod, iTunes and Finder are trademarks of Apple Inc. RockWheel has nothing to do with Apple. It contains no Apple logo or firmware, and identifies itself to the Mac as an iPod only so that Finder will sync it.
