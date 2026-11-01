@@ -18364,20 +18364,6 @@
   </voice>
 </phrase>
 <phrase>
-  id: LANG_COVER_COLOURS
-  desc: in the settings, whether Now Playing takes the colours of its text and stars from the cover
-  user: core
-  <source>
-    *: "Cover Colours"
-  </source>
-  <dest>
-    *: "커버 색상"
-  </dest>
-  <voice>
-    *: ""
-  </voice>
-</phrase>
-<phrase>
   id: LANG_GO_TO_ARTIST
   desc: in the menu over Now Playing, goes to the artist of the track playing in the Music lists
   user: core
@@ -18400,6 +18386,62 @@
   </source>
   <dest>
     *: "앨범으로 이동"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_COLOURS
+  desc: in the settings, whether Now Playing takes the colours of its text and stars from the cover
+  user: core
+  <source>
+    *: "Cover Colours"
+  </source>
+  <dest>
+    *: "커버 색상"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_TEXT
+  desc: a value of Cover Colours: the text and stars of Now Playing take the colour of the cover
+  user: core
+  <source>
+    *: "Text and Stars"
+  </source>
+  <dest>
+    *: "글자와 별"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_SCREEN
+  desc: a value of Cover Colours: the whole of Now Playing takes the colour of the cover
+  user: core
+  <source>
+    *: "Whole Screen"
+  </source>
+  <dest>
+    *: "전체 화면"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_FILL
+  desc: a value of Cover Colours: Now Playing is filled with the colour of the cover, on a plain background
+  user: core
+  <source>
+    *: "Fill"
+  </source>
+  <dest>
+    *: "채우기"
   </dest>
   <voice>
     *: ""

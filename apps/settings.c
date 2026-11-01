@@ -73,6 +73,9 @@
 #endif
 #include "wps.h"
 #include "skin_engine/skin_engine.h"
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+#include "skin_engine/cover_palette.h"
+#endif
 #include "viewport.h"
 #include "statusbar-skinned.h"
 #include "bootchart.h"
@@ -927,6 +930,11 @@ void settings_apply(bool read_disk)
     CHART("<set_codepage");
 
     sound_settings_apply();
+
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    /* at boot before music, so that the audio buffer has to give way to nothing */
+    cover_palette_set_mode(global_settings.cover_colours);
+#endif
 
 #ifdef HAVE_DISK_STORAGE
     audio_set_buffer_margin(global_settings.buffer_margin);

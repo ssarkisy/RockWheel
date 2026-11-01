@@ -68,6 +68,9 @@
 #include "storage.h"
 #endif
 #include "language.h"
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+#include "skin_engine/cover_palette.h"
+#endif
 
 static int onplay_result = ONPLAY_OK;
 static bool in_queue_submenu = false;
@@ -1285,6 +1288,40 @@ static char *sound_check_item_name(int selected_item, void *data,
     return buffer;
 }
 
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+static int cycle_cover_colours(void)
+{
+    const struct settings_list *setting =
+        find_setting(&global_settings.cover_colours);
+    int *mode = &global_settings.cover_colours;
+
+    *mode = *mode == COVER_COLOURS_FILL ? COVER_COLOURS_OFF : *mode + 1;
+    if (setting)
+        setting->choice_setting->option_callback(*mode);
+    settings_save();
+    return 0;
+}
+
+static char *cover_colours_item_name(int selected_item, void *data,
+                                     char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    int value = LANG_OFF;
+    if (global_settings.cover_colours == COVER_COLOURS_TEXT)
+        value = LANG_COVER_TEXT;
+    else if (global_settings.cover_colours == COVER_COLOURS_SCREEN)
+        value = LANG_COVER_SCREEN;
+    else if (global_settings.cover_colours == COVER_COLOURS_FILL)
+        value = LANG_COVER_FILL;
+    snprintf(buffer, buffer_len, "%s: %s", str(LANG_COLORS_MENU), str(value));
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(wps_cover_colours_item, MENU_EXITAFTERTHISMENU,
+                          cycle_cover_colours, cover_colours_item_name,
+                          NULL, NULL, NULL, Icon_NOICON);
+#endif
+
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
 static int wps_set_brightness(void)
 {
@@ -1334,6 +1371,9 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            &ipod_eq_menu, &wps_sound_check_item,
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
            &wps_brightness_item,
+#endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+           &wps_cover_colours_item,
 #endif
 #ifndef HAVE_HOTKEY
            &context_item_0,

@@ -22,6 +22,7 @@
 #define _PLAYBACK_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include "config.h"
 
@@ -40,6 +41,7 @@
  * Returns the handle id of the buffered albumart for the given slot id
  **/
 int playback_current_aa_hid(int slot);
+uint32_t playback_current_cover_colour(void);
 
 /*
  * Hands out an albumart slot for buffering albumart using the size

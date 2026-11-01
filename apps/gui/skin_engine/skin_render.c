@@ -886,8 +886,15 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
     skin_buffer = get_skin_buffer(gwps->data);
 
 #ifdef HAVE_ALBUMART
-    if (data->playback_aa_slot >= 0 && data == skin_get_gwps(WPS, SCREEN_MAIN)->data)
-        cover_palette_update(playback_current_aa_hid(data->playback_aa_slot));
+    if (data->playback_aa_slot >= 0 && data == skin_get_gwps(WPS, SCREEN_MAIN)->data
+        && cover_palette_update(playback_current_aa_hid(data->playback_aa_slot),
+                                playback_current_cover_colour()))
+    {
+        /* all in the new colours in one go */
+        refresh_mode = old_refresh_mode = SKIN_REFRESH_ALL;
+        display->set_viewport_ex(NULL, 0);
+        display->clear_viewport();
+    }
 #endif
 
     /* Framebuffer is likely dirty */

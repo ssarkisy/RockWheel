@@ -114,6 +114,7 @@ struct itunesdb_art {
     uint32_t offset;
     int width, height;  /* of the frame */
     int slide;          /* its album's slide for Cover Flow, 0 for none */
+    uint32_t colour;    /* its album's colour: see cover_palette.h */
 };
 
 /* Cover Flow's slides, one an album, made after an import: covers this
@@ -137,11 +138,13 @@ int itunesdb_load_slide(const struct itunesdb_art *art, void *buf,
                         int *width, int *height);
 
 /* true when an import left slides to make, or the index of covers is of
-   an older version, whose import at boot will */
+   an older version, whose import at boot will, or the slides' colours aren't
+   known yet */
 bool itunesdb_slides_todo(void);
 
-/* makes them, counting done of total, until stop() says to stop: the next
-   call goes on from there. On the tagcache thread. */
+/* makes them, and notes the colour of each, counting done of total, until
+   stop() says to stop: the next call goes on from there. On the tagcache
+   thread. */
 void itunesdb_make_slides(volatile int *done, volatile int *total,
                           bool (*stop)(void));
 #endif

@@ -303,6 +303,85 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
 }
 #endif /* LCD_DEPTH >= 16 */
 
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+static bool in_cover_colours(const struct gui_wps *gwps, const struct bitmap *bm)
+{
+    const struct cover_palette *palette = cover_palette_get();
+    return palette && palette->whole_screen && bm->format != FORMAT_MONO
+        && gwps->data == skin_get_gwps(WPS, SCREEN_MAIN)->data;
+}
+#endif
+
+/* What the fill of a bar is drawn from, in the colours of the cover if they are on the
+   whole screen: it's drawn from inside the scrollbar code, so a copy of all of it */
+static struct bitmap *tinted_bar_bitmap(const struct gui_wps *gwps, struct bitmap *bm)
+{
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    static struct bitmap tinted;
+
+    if (in_cover_colours(gwps, bm) && bm->alpha_offset == 0)
+    {
+        void *pixels = cover_palette_bar(bm);
+        if (pixels)
+        {
+            tinted = *bm;
+            tinted.data = pixels;
+            return &tinted;
+        }
+    }
+#else
+    (void)gwps;
+#endif
+    return bm;
+}
+
+/* A bitmap of the theme, in the colours of the cover if they are on the whole screen */
+static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
+                          int src_x, int src_y, int x, int y, int width, int height)
+{
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    if (width <= LCD_WIDTH && in_cover_colours(gwps, bm))
+    {
+        static fb_data line[LCD_WIDTH];
+        struct bitmap line_bm = *bm;
+        const int top = (*gwps->display->current_viewport)->y + y;
+        const fb_data *row = (const fb_data *)bm->data + src_y * bm->width + src_x;
+
+        if (bm->alpha_offset > 0)
+        {
+            /* its alpha channel comes after its pixels, so a copy of all of it: the
+               theme's only such image is the small knob of the scrubber */
+            size_t room;
+            unsigned char *copy = cover_palette_scratch(&room);
+            const size_t size = bm->alpha_offset + (bm->width + 1) / 2 * bm->height;
+            if (size <= room)
+            {
+                memcpy(copy, bm->data, size);
+                for (int i = 0; i < bm->height; i++)
+                    cover_palette_tint_line((const fb_data *)bm->data + i * bm->width,
+                                            (fb_data *)copy + i * bm->width, bm->width, top);
+                line_bm.data = copy;
+                gwps->display->bmp_part(&line_bm, src_x, src_y, x, y, width, height);
+                return;
+            }
+            gwps->display->bmp_part(bm, src_x, src_y, x, y, width, height);
+            return;
+        }
+
+        line_bm.data = (void *)line;
+        line_bm.width = width;
+        line_bm.height = 1;
+        for (int i = 0; i < height; i++, row += bm->width)
+        {
+            cover_palette_tint_line(row, line, width, top + i);
+            gwps->display->bmp_part(&line_bm, 0, 0, x, y + i, width, 1);
+        }
+        return;
+    }
+#endif
+    gwps->display->bmp_part(bm, src_x, src_y, x, y, width, height);
+}
+
 void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
                       int line, struct progressbar *pb)
 {
@@ -480,7 +559,7 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
     {
         struct gui_img *img = SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->backdrop);
         img->bm.data = core_get_data(img->buflib_handle);
-        display->bmp_part(&img->bm, 0, 0, x, y, pb->width, height);
+        draw_bmp_part(gwps, &img->bm, 0, 0, x, y, pb->width, height);
         flags |= DONT_CLEAR_EXCESS;
     }
 
@@ -491,7 +570,7 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         {
             char *img_data = core_get_data(img->buflib_handle);
             img->bm.data = img_data;
-            gui_bitmap_scrollbar_draw(display, &img->bm,
+            gui_bitmap_scrollbar_draw(display, tinted_bar_bitmap(gwps, &img->bm),
                                     x, y, width, height,
                                     length, 0, end, flags);
         }
@@ -547,7 +626,7 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             hw = MIN(hw, img->bm.width - bx);
             hh = MIN(hh, img->bm.height - by);
             if (hw > 0 && hh > 0)
-                display->bmp_part(&img->bm, bx, by, hx, hy, hw, hh);
+                draw_bmp_part(gwps, &img->bm, bx, by, hx, hy, hw, hh);
         }
         else if (hw > 0 && hh > 0)
             display->fillrect(hx, hy, hw, hh);
@@ -583,11 +662,11 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             /* over the end of the fill, which shows through the corners
                of the image rather than the backdrop */
             display->set_drawmode(DRMODE_FG);
-            display->bmp_part(&img->bm, 0, 0, x + xoff, y + yoff, w, h);
+            draw_bmp_part(gwps, &img->bm, 0, 0, x + xoff, y + yoff, w, h);
             display->set_drawmode(DRMODE_SOLID);
         }
         else
-            display->bmp_part(&img->bm, 0, 0, x + xoff, y + yoff, w, h);
+            draw_bmp_part(gwps, &img->bm, 0, 0, x + xoff, y + yoff, w, h);
     }
 
     if (pb->type == SKIN_TOKEN_PROGRESSBAR)
@@ -654,15 +733,15 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
 
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     const struct cover_palette *palette = img->cover_tint ? cover_palette_get() : NULL;
-    if (palette)
+    if (palette && !palette->whole_screen)
         draw_cover_tinted_image(display, img, subimage, palette->star);
     else
 #endif
     if (img->is_9_segment)
         display->nine_segment_bmp(&img->bm, 0, 0, vp->width, vp->height);
     else
-        display->bmp_part(&img->bm, 0, img->subimage_height * subimage,
-                          img->x, img->y, img->bm.width, img->subimage_height);
+        draw_bmp_part(gwps, &img->bm, 0, img->subimage_height * subimage,
+                      img->x, img->y, img->bm.width, img->subimage_height);
 }
 
 #ifdef HAVE_ALBUMART

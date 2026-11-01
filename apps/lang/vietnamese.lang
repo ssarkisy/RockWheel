@@ -18348,20 +18348,6 @@
   </voice>
 </phrase>
 <phrase>
-  id: LANG_COVER_COLOURS
-  desc: in the settings, whether Now Playing takes the colours of its text and stars from the cover
-  user: core
-  <source>
-    *: "Cover Colours"
-  </source>
-  <dest>
-    *: "Màu bìa"
-  </dest>
-  <voice>
-    *: ""
-  </voice>
-</phrase>
-<phrase>
   id: LANG_GO_TO_ARTIST
   desc: in the menu over Now Playing, goes to the artist of the track playing in the Music lists
   user: core
@@ -18384,6 +18370,62 @@
   </source>
   <dest>
     *: "Đến album"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_COLOURS
+  desc: in the settings, whether Now Playing takes the colours of its text and stars from the cover
+  user: core
+  <source>
+    *: "Cover Colours"
+  </source>
+  <dest>
+    *: "Màu bìa"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_TEXT
+  desc: a value of Cover Colours: the text and stars of Now Playing take the colour of the cover
+  user: core
+  <source>
+    *: "Text and Stars"
+  </source>
+  <dest>
+    *: "Chữ và sao"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_SCREEN
+  desc: a value of Cover Colours: the whole of Now Playing takes the colour of the cover
+  user: core
+  <source>
+    *: "Whole Screen"
+  </source>
+  <dest>
+    *: "Toàn màn hình"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_FILL
+  desc: a value of Cover Colours: Now Playing is filled with the colour of the cover, on a plain background
+  user: core
+  <source>
+    *: "Fill"
+  </source>
+  <dest>
+    *: "Tô màu"
   </dest>
   <voice>
     *: ""

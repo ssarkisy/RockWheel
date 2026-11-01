@@ -44,6 +44,9 @@
 #include "metadata.h"
 #include "fixedpoint.h"
 #include "itunesdb.h"
+#ifdef ITUNESDB_HAVE_ART
+#include "skin_engine/cover_palette.h"
+#endif
 
 #ifdef HAVE_DIRCACHE
 #include "dircache.h"
@@ -1916,6 +1919,11 @@ bool itunesdb_resumes(const char *path)
    again, as Finder may have written them by then */
 #define SLIDE_UNSURE    0x33494252 /* "RBI3" */
 #define SLIDE_SOURCES   3
+/* The colour of each slide's cover, which Now Playing can take on: worked out with the
+   slide, as a slide isn't made again, and known of each album when a track plays */
+#define COLOURS_FILE    ROCKBOX_DIR "/itunesdb_colours.dat"
+#define COLOURS_MAGIC   0x43494252 /* "RBIC" */
+#define COLOURS_VERSION 2 /* 2: all of the colour, and not its hue */
 #define SLIDE_PIXELS    (ITUNESDB_SLIDE_SIZE * ITUNESDB_SLIDE_SIZE)
 #define SLIDE_SLOT      ((int)ALIGN_UP(sizeof(struct slide_header) \
                                  + SLIDE_PIXELS * sizeof(fb_data), 2048))
@@ -1965,6 +1973,13 @@ struct slide_header {
     uint32_t magic;
     uint16_t width, height;
     uint64_t key;
+};
+
+/* of the slide in that place, with an index_header in front of them */
+struct slide_colour {
+    uint64_t key;
+    uint32_t colour;
+    uint32_t unused;
 };
 
 /* an ArtworkDB image */
@@ -2533,6 +2548,7 @@ done:
 
 static struct index art_index = { 0, 0, sizeof(struct art_entry) };
 static struct index slides_index = { 0, 0, sizeof(uint64_t) }; /* the keys */
+static int colours_handle; /* of the slides, as uint32_t, 0 for none */
 static struct art_header index_hdr;
 static unsigned char frame_raw[FRAME_MAX * sizeof(fb_data) + 2 * READ_ALIGN]
     STORAGE_ALIGN_ATTR;
@@ -2548,6 +2564,9 @@ static void forget_art(void)
 {
     forget_index(&art_index);
     forget_index(&slides_index);
+    if (colours_handle > 0)
+        core_free(colours_handle);
+    colours_handle = 0;
     frame_path[0] = '\0';
 }
 
@@ -2589,6 +2608,65 @@ static uint64_t slide_key(uint32_t i)
     return ((const uint64_t *)core_get_data(slides_index.handle))[i];
 }
 
+/* the colours known of the slides of the index loaded: those of a slide no longer in
+   its place aren't */
+static void load_colours(void)
+{
+    if (slides_index.handle <= 0 || colours_handle > 0)
+        return;
+    int handle = db_alloc(slides_index.count * sizeof(uint32_t));
+    if (handle <= 0)
+        return;
+    core_pin(handle);
+    uint32_t *colours = core_get_data(handle);
+    for (uint32_t i = 0; i < slides_index.count; i++)
+        colours[i] = COVER_COLOUR_UNKNOWN;
+    struct index_header h;
+    int fd = open(COLOURS_FILE, O_RDONLY);
+    if (fd >= 0)
+    {
+        if (read(fd, &h, sizeof(h)) == sizeof(h) && h.magic == COLOURS_MAGIC
+            && h.version == COLOURS_VERSION)
+        {
+            struct slide_colour c;
+            for (uint32_t i = 0; i < h.count && i < slides_index.count
+                 && read(fd, &c, sizeof(c)) == sizeof(c); i++)
+            {
+                if (c.key && c.key == slide_key(i))
+                    colours[i] = c.colour;
+            }
+        }
+        close(fd);
+    }
+    core_unpin(handle);
+    colours_handle = handle;
+}
+
+static void write_colours(void)
+{
+    if (colours_handle <= 0 || !writer_open(&out, COLOURS_FILE ".tmp"))
+        return;
+    struct index_header h = { COLOURS_MAGIC, COLOURS_VERSION, slides_index.count };
+    writer_put(&out, &h, sizeof(h));
+    for (uint32_t i = 0; i < slides_index.count; i++)
+    {
+        struct slide_colour c = {
+            slide_key(i), ((const uint32_t *)core_get_data(colours_handle))[i], 0
+        };
+        writer_put(&out, &c, sizeof(c));
+    }
+    if (writer_close(&out))
+        rename(COLOURS_FILE ".tmp", COLOURS_FILE);
+}
+
+/* the colour of slide i (from 0) of the index */
+static uint32_t slide_colour(uint32_t i)
+{
+    if (colours_handle <= 0 || i >= slides_index.count)
+        return COVER_COLOUR_UNKNOWN;
+    return ((const uint32_t *)core_get_data(colours_handle))[i];
+}
+
 /* where the frame in the ithmb file of a format and number is */
 static bool art_place(uint8_t format, uint8_t file, uint32_t offset,
                       struct itunesdb_art *art)
@@ -2609,6 +2687,7 @@ static bool art_place(uint8_t format, uint8_t file, uint32_t offset,
     art->width = f->width;
     art->height = f->height;
     art->slide = 0;
+    art->colour = COVER_COLOUR_UNKNOWN;
     return true;
 }
 
@@ -2620,6 +2699,8 @@ bool itunesdb_find_art(const char *path, struct itunesdb_art *art)
         || !art_place(entry.format, entry.file, entry.offset, art))
         return false;
     art->slide = entry.slide;
+    if (entry.slide > 0)
+        art->colour = slide_colour(entry.slide - 1);
     return true;
 }
 
@@ -2971,14 +3052,37 @@ static bool make_slide(int fd, int index_fd, uint32_t i, uint64_t key,
 bool itunesdb_slides_todo(void)
 {
     struct art_header h = { 0 };
+    struct index_header colours = { 0 };
     int fd = open(ART_FILE, O_RDONLY);
     if (fd >= 0)
     {
-        read(fd, &h, 2 * sizeof(uint32_t));
+        read(fd, &h, sizeof(h));
         close(fd);
     }
-    return file_exists(SLIDES_TODO)
-           || (h.magic == ART_MAGIC && h.version != ART_VERSION);
+    fd = open(COLOURS_FILE, O_RDONLY);
+    if (fd >= 0)
+    {
+        read(fd, &colours, sizeof(colours));
+        close(fd);
+    }
+    if (file_exists(SLIDES_TODO))
+        return true;
+    if (h.magic != ART_MAGIC)
+        return false;
+    /* of an older version, or slides made before they had colours */
+    return h.version != ART_VERSION
+           || (h.nslides > 0 && (colours.magic != COLOURS_MAGIC
+                                 || colours.version != COLOURS_VERSION
+                                 || colours.count != h.nslides));
+}
+
+/* of the slide in slide_slot, which is a column after another */
+static void note_slide_colour(uint32_t i)
+{
+    const struct slide_header *head = (const struct slide_header *)slide_slot;
+    if (colours_handle > 0)
+        ((uint32_t *)core_get_data(colours_handle))[i] = cover_palette_colour(
+            (const fb_data *)(slide_slot + sizeof(*head)), head->height, head->width);
 }
 
 void itunesdb_make_slides(volatile int *done, volatile int *total,
@@ -3021,15 +3125,22 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
             continue;
         /* made already, at the last import or before it was cut short */
         off_t pos = (off_t)i * SLIDE_SLOT;
-        if (pos + (off_t)SLIDE_SLOT <= size && lseek(fd, pos, SEEK_SET) == pos
-            && read(fd, &head, sizeof(head)) == sizeof(head)
-            && head.magic == SLIDE_MAGIC && head.key == key)
+        bool made = pos + (off_t)SLIDE_SLOT <= size
+                    && lseek(fd, pos, SEEK_SET) == pos
+                    && read(fd, &head, sizeof(head)) == sizeof(head)
+                    && head.magic == SLIDE_MAGIC && head.key == key;
+        if (made && (colours_handle <= 0 || slide_colour(i) != COVER_COLOUR_UNKNOWN))
             continue;
-        if (!make_slide(fd, index_fd, i, key, &size))
+        if (made ? lseek(fd, pos, SEEK_SET) == pos
+                   && read(fd, slide_slot, SLIDE_SLOT) == SLIDE_SLOT
+                 : make_slide(fd, index_fd, i, key, &size))
+            note_slide_colour(i);
+        else
             complete = false;
         yield();
     }
     cpu_boost(false);
+    write_colours();
     /* the slides of albums gone at the end */
     off_t end = (off_t)count * (off_t)SLIDE_SLOT;
     if (complete && size > end)
@@ -3104,6 +3215,7 @@ bool itunesdb_load_tracks(void)
     load_index(&art_index, ART_FILE, &index_hdr, sizeof(index_hdr),
                ART_MAGIC, ART_VERSION);
     load_slides_index();
+    load_colours();
     /* an index of covers of an older version: made again with the flags,
        once, as it isn't there or is of this one after */
     if (art_index.handle <= 0)

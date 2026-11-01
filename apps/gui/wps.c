@@ -64,6 +64,7 @@
 #include "skin_engine/wps_internals.h"
 #include "open_plugin.h"
 #include "lyrics.h"
+#include "skin_engine/cover_palette.h"
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
 #endif
@@ -793,6 +794,14 @@ static void gwps_leave_wps(bool theme_enabled)
             viewportmanager_theme_undo(i, skin_has_sbs(gwps));
         }
     }
+
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    /* The lists' status bar has the same icons in the same places, and doesn't draw
+       them again, but these have the colours of the cover */
+    const struct cover_palette *palette = cover_palette_get();
+    if (theme_enabled && palette && palette->whole_screen)
+        skin_request_full_update(CUSTOM_STATUSBAR);
+#endif
 
 #if defined(HAVE_LCD_ENABLE) || defined(HAVE_LCD_SLEEP)
     /* Play safe and unregister the hook */

@@ -31,6 +31,7 @@
 #include "settings.h"
 #include "rbunicode.h"
 #include "lyrics.h"
+#include "skin_engine/cover_palette.h"
 
 /* as read from the file, and as UTF-8 which can take up to twice as much */
 #define LYRICS_RAW_SIZE  8192
@@ -545,8 +546,13 @@ void lyrics_draw(struct screen *display, struct viewport *vp)
     if (time_count > 0)
         dim = dimmed(fg, vp->bg_pattern);
 #endif
-    display->set_foreground(vp->bg_pattern);
-    display->fillrect(0, 0, vp->width, vp->height);
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    if (!cover_palette_clear(display, vp))
+#endif
+    {
+        display->set_foreground(vp->bg_pattern);
+        display->fillrect(0, 0, vp->width, vp->height);
+    }
     display->set_drawmode(DRMODE_FG);
 
     rows_shown = MAX(1, vp->height / height);

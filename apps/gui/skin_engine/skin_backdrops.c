@@ -26,6 +26,7 @@
 #include "settings.h"
 #include "wps_internals.h"
 #include "skin_engine.h"
+#include "cover_palette.h"
 #include "menu.h"
 
 #if !defined(__PCTOOL__) && defined(HAVE_BACKDROP_IMAGE)
@@ -301,9 +302,22 @@ void skin_backdrop_show(int backdrop_id)
     }
     else if (backdrops[backdrop_id].buffer)
     {
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+        fb_data *tinted = cover_palette_backdrop(backdrop_id);
+        if (tinted)
+            screens[screen].backdrop_show((void *)tinted);
+        else
+#endif
         screens[screen].backdrop_show(backdrops[backdrop_id].buffer);
         current_lcd_backdrop[screen] = backdrop_id;
     }
+}
+
+const fb_data *skin_backdrop_buffer(int backdrop_id)
+{
+    if (backdrop_id < 0 || !backdrops[backdrop_id].loaded)
+        return NULL;
+    return (const fb_data *)backdrops[backdrop_id].buffer;
 }
 
 void skin_backdrop_unload(int backdrop_id)

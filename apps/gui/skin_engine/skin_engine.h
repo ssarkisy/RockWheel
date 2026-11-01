@@ -67,6 +67,7 @@ bool skin_backdrops_preload(void);
 void skin_backdrop_show(int backdrop_id);
 struct wps_data;
 int skin_shown_backdrop(const struct wps_data *data);
+const fb_data *skin_backdrop_buffer(int backdrop_id);
 #ifdef HAVE_ALBUMART
 /* A %Cd's handle, or SKIN_ART_KEPT for the cover shown until the next one is ready */
 #define SKIN_ART_KEPT (-2)

@@ -79,6 +79,9 @@
 #if defined(DX50) || defined(DX90)
 #include "governor-ibasso.h"
 #endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+#include "skin_engine/cover_palette.h"
+#endif
 
 #define UNUSED {.RESERVED=NULL}
 #define INT(a) {.int_ = a}
@@ -1568,7 +1571,10 @@ const struct settings_list settings[] = {
                 NULL, NULL, backlight_set_brightness),
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-    OFFON_SETTING(0, cover_colours, LANG_COVER_COLOURS, false, "cover colours", NULL),
+    CHOICE_SETTING(0, cover_colours, LANG_COVER_COLOURS, 0, "cover colours",
+                   "off,on,screen,fill", cover_palette_set_mode, 4, ID2P(LANG_OFF),
+                   ID2P(LANG_COVER_TEXT), ID2P(LANG_COVER_SCREEN),
+                   ID2P(LANG_COVER_FILL)),
 #endif
     /* backlight fading */
 #if defined(HAVE_BACKLIGHT_FADING_INT_SETTING)

@@ -54,6 +54,9 @@
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
 #include "itunesdb.h"
+#ifdef HAVE_ALBUMART
+#include "skin_engine/cover_palette.h"
+#endif
 #endif
 
 #ifdef HAVE_ALBUMART
@@ -255,6 +258,9 @@ struct track_info
 #endif
     int audio_hid;                  /* Main audio data handle ID */
     }; };
+#ifdef HAVE_ALBUMART
+    uint32_t cover_colour;          /* The colour of the cover, if known */
+#endif
 };
 
 /* On-buffer info format; includes links */
@@ -509,6 +515,9 @@ static void track_info_wipe(struct track_info *infop)
 
     FOR_EACH_TRACK_INFO_HANDLE(i)
         infop->handle[i] = ERR_HANDLE_NOT_FOUND;
+#ifdef HAVE_ALBUMART
+    infop->cover_colour = COVER_COLOUR_UNKNOWN;
+#endif
 }
 
 /** --- Track list --- **/
@@ -1984,6 +1993,8 @@ static int audio_load_albumart(struct track_info *infop,
     struct itunesdb_art ipod_art;
     bool have_ipod_art = global_settings.album_art != AA_OFF
                          && itunesdb_find_art(track_id3->path, &ipod_art);
+    if (have_ipod_art)
+        infop->cover_colour = ipod_art.colour;
 #endif
 
     /* the smallest first: on the WPS it is the one on screen */
@@ -4255,6 +4266,18 @@ int playback_current_aa_hid(int slot)
     }
 
     return ERR_HANDLE_NOT_FOUND;
+}
+
+/* The colour of the cover of the track that gives the handle above */
+uint32_t playback_current_cover_colour(void)
+{
+    struct track_info user_cur;
+    bool have_info = track_list_user_current(skip_offset, &user_cur);
+
+    if (!have_info && abs(skip_offset) <= 1)
+        have_info = track_list_user_current(0, &user_cur);
+
+    return have_info ? user_cur.cover_colour : COVER_COLOUR_UNKNOWN;
 }
 
 /* Find an album art slot that doesn't match the dimensions of another that
