@@ -108,6 +108,7 @@ struct gui_img {
     bool using_preloaded_icons; /* using the icon system instead of a bmp */
     bool is_9_segment;
     bool dither;
+    bool cover_tint;        /* takes the colour of the cover */
 };
 
 struct image_display {

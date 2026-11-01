@@ -34,6 +34,7 @@
 #include "settings.h"
 #include "skin_display.h"
 #include "skin_engine.h"
+#include "cover_palette.h"
 #include "skin_parser.h"
 #include "tag_table.h"
 #include "skin_scan.h"
@@ -125,7 +126,14 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             struct viewport_colour *col = SKINOFFSETTOPTR(skin_buffer, token->value.data);
             if (!col) return false;
             if (token->type == SKIN_TOKEN_VIEWPORT_FGCOLOUR)
+            {
                 skin_vp->vp.fg_pattern = col->colour;
+#ifdef HAVE_ALBUMART
+                if (cover_palette_get()
+                    && data == skin_get_gwps(WPS, SCREEN_MAIN)->data)
+                    skin_vp->vp.fg_pattern = cover_palette_text_colour(col->colour);
+#endif
+            }
             else
                 skin_vp->vp.bg_pattern = col->colour;
             skin_vp->fgbg_changed = true;
@@ -876,6 +884,11 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
 
     int old_refresh_mode = refresh_mode;
     skin_buffer = get_skin_buffer(gwps->data);
+
+#ifdef HAVE_ALBUMART
+    if (data->playback_aa_slot >= 0 && data == skin_get_gwps(WPS, SCREEN_MAIN)->data)
+        cover_palette_update(playback_current_aa_hid(data->playback_aa_slot));
+#endif
 
     /* Framebuffer is likely dirty */
     if ((refresh_mode&SKIN_REFRESH_ALL) == SKIN_REFRESH_ALL)

@@ -737,6 +737,9 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
         &brightness_item,
 #endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+        &cover_colours_item,
+#endif
         &group_general,
         &ipod_keyclick_menu, &sleep_timer_item,
 #if CONFIG_RTC

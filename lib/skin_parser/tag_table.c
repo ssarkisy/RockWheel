@@ -63,6 +63,8 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_FILE_DIRECTORY,        "D"  , "I", SKIN_REFRESH_STATIC),
 
     TAG(SKIN_TOKEN_IMAGE_PRELOAD,         "xl", "SF|[IP][IP]I", 0|NOBREAK),
+    /* this grey image, loaded before, takes the colour of the cover */
+    TAG(SKIN_TOKEN_IMAGE_COVER_TINT,      "xC", "S", 0|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_PRELOAD_DISPLAY, "xd", "S|[IT]I", 0),
     /* the backdrop while Settings is selected in the main menu; before %X,
        as tags are looked for in this order */

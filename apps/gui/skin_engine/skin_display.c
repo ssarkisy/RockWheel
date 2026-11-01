@@ -68,6 +68,7 @@
 #include "wps.h"
 #include "wps_internals.h"
 #include "skin_engine.h"
+#include "cover_palette.h"
 #include "statusbar-skinned.h"
 #include "skin_display.h"
 
@@ -250,30 +251,42 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
 
     const char *format = get_codec_string(codec);
     const unsigned old_fg = display->get_foreground();
+    unsigned colour = FORMAT_COLOUR, half = FORMAT_BAR_HALF,
+             quarter = FORMAT_BAR_QUARTER, bitrate_colour = BITRATE_COLOUR;
+#ifdef HAVE_ALBUMART
+    const struct cover_palette *palette = cover_palette_get();
+    if (palette)
+    {
+        colour = palette->format;
+        half = palette->format_half;
+        quarter = palette->format_quarter;
+        bitrate_colour = palette->muted;
+    }
+#endif
 
     display->set_drawmode(DRMODE_SOLID);
     for (int i = 0; i < (int)ARRAYLEN(bars); i++)
     {
         const int x = bars[i].x, top = bars[i].top, bottom = bars[i].bottom;
-        display->set_foreground(FORMAT_COLOUR);
+        display->set_foreground(colour);
         display->vline(x, top + 1, bottom - 1);
-        display->set_foreground(FORMAT_BAR_HALF);
+        display->set_foreground(half);
         display->vline(x + 1, top + 1, bottom - 1);
         display->drawpixel(x, top);
         display->drawpixel(x, bottom);
-        display->set_foreground(FORMAT_BAR_QUARTER);
+        display->set_foreground(quarter);
         display->drawpixel(x + 1, top);
         display->drawpixel(x + 1, bottom);
     }
 
     display->set_drawmode(DRMODE_FG);
-    display->set_foreground(FORMAT_COLOUR);
+    display->set_foreground(colour);
     display->putsxy(FORMAT_TEXT_X, FORMAT_TEXT_Y, format);
     display->getstringsize(format, &format_width, &format_height);
 
     snprintf(bitrate, sizeof(bitrate), str(LANG_BITRATE_KBPS), id3->bitrate);
     vp->font = bitrate_font;
-    display->set_foreground(BITRATE_COLOUR);
+    display->set_foreground(bitrate_colour);
     display->putsxy(FORMAT_TEXT_X + format_width + BITRATE_GAP,
                     FORMAT_TEXT_Y + font_get(format_font)->ascent
                     - font_get(bitrate_font)->ascent, bitrate);
@@ -609,6 +622,29 @@ void clear_image_pos(struct gui_wps *gwps, struct gui_img *img)
     gwps->display->set_drawmode(DRMODE_SOLID);
 }
 
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+/* a line at a time, as only the shade of each pixel matters */
+static void draw_cover_tinted_image(struct screen *display, const struct gui_img *img,
+                                    int subimage, const fb_data *shades)
+{
+    static fb_data line[LCD_WIDTH];
+    const int width = MIN(img->bm.width, LCD_WIDTH);
+    const fb_data *row = (const fb_data *)img->bm.data
+                         + img->bm.width * img->subimage_height * subimage;
+
+    for (int y = 0; y < img->subimage_height; y++, row += img->bm.width)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            const int shade = RGB_UNPACK_GREEN(FB_UNPACK_SCALAR_LCD(row[x])) >> 2;
+            line[x] = shade < COVER_PALETTE_STAR_KEPT ? shades[shade] : row[x];
+        }
+        display->bitmap_part(line, 0, 0, STRIDE(display->screen_type, width, 1),
+                             img->x, img->y + y, width, 1);
+    }
+}
+#endif
+
 void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
                     int subimage, struct viewport* vp)
 {
@@ -616,6 +652,12 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
     img->bm.data = core_get_data(img->buflib_handle);
     display->set_drawmode(DRMODE_SOLID);
 
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    const struct cover_palette *palette = img->cover_tint ? cover_palette_get() : NULL;
+    if (palette)
+        draw_cover_tinted_image(display, img, subimage, palette->star);
+    else
+#endif
     if (img->is_9_segment)
         display->nine_segment_bmp(&img->bm, 0, 0, vp->width, vp->height);
     else

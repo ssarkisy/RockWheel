@@ -1567,6 +1567,9 @@ const struct settings_list settings[] = {
                 MIN_BRIGHTNESS_SETTING, MAX_BRIGHTNESS_SETTING, 1,
                 NULL, NULL, backlight_set_brightness),
 #endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    OFFON_SETTING(0, cover_colours, LANG_COVER_COLOURS, false, "cover colours", NULL),
+#endif
     /* backlight fading */
 #if defined(HAVE_BACKLIGHT_FADING_INT_SETTING)
     TABLE_SETTING_LIST(F_TIME_SETTING | F_ALLOW_ARBITRARY_VALS, backlight_fade_in,

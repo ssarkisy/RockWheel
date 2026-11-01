@@ -188,6 +188,9 @@ MENUITEM_SETTING(lcd_sleep_after_backlight_off,
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
 MENUITEM_SETTING_SHARED(brightness_item, &global_settings.brightness, NULL);
 #endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+MENUITEM_SETTING_SHARED(cover_colours_item, &global_settings.cover_colours, NULL);
+#endif
 #ifdef HAVE_COMPOSITE_VIDEO_OUT
 MENUITEM_SETTING(composite_video_output,
                  &global_settings.composite_video_output, NULL);

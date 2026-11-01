@@ -18356,3 +18356,17 @@
     *: "正在准备歌曲"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COVER_COLOURS
+  desc: in the settings, whether Now Playing takes the colours of its text and stars from the cover
+  user: core
+  <source>
+    *: "Cover Colours"
+  </source>
+  <dest>
+    *: "封面配色"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

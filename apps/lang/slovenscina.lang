@@ -14378,3 +14378,17 @@
     *: "Konec seznama. Še enkrat?"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COVER_COLOURS
+  desc: in the settings, whether Now Playing takes the colours of its text and stars from the cover
+  user: core
+  <source>
+    *: "Cover Colours"
+  </source>
+  <dest>
+    *: "Barve ovitka"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

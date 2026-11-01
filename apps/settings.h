@@ -753,6 +753,7 @@ struct user_settings
 #endif
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
     int brightness;
+    bool cover_colours; /* Now Playing takes its colours from the cover */
 #endif
 #ifdef HAVE_COMPOSITE_VIDEO_OUT
     int composite_video_output;

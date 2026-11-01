@@ -87,6 +87,7 @@
 %Vl(info,160,90,148,18,7)%Vf(888888)
 %t(16)%al%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>;%t(8)%al%s%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>
 %xl(R,Ratings.bmp,0,0,10)
+%xC(R)
 %Vl(info,160,121,66,13,-)
 %?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>
 # the track's format and bitrate
@@ -123,6 +124,7 @@
 %al-%pr
 # rating: whole stars in place of the progress bar, the wheel sets them
 %xl(T,Stars.bmp,0,0,6)
+%xC(T)
 %Vl(rating,58,206,204,24,-)
 %?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>
 # album art view: a second, large album art; the small one above is

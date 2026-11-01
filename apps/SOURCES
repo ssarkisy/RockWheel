@@ -109,6 +109,9 @@ gui/yesno.c
 gui/viewport.c
 
 gui/skin_engine/skin_backdrops.c
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+gui/skin_engine/cover_palette.c
+#endif
 gui/skin_engine/skin_display.c
 gui/skin_engine/skin_engine.c
 gui/skin_engine/skin_parser.c

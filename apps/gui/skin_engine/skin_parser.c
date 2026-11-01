@@ -383,6 +383,19 @@ static int percent_parse_param(struct skin_tag_parameter *param, int mult)
     return param->data.number;
 }
 
+static int parse_image_cover_tint(struct skin_element *element,
+                                  struct wps_token *token,
+                                  struct wps_data *wps_data)
+{
+    (void)token;
+    struct gui_img *img = skin_find_item(get_param_text(element, 0),
+                                         SKIN_FIND_IMAGE, wps_data);
+    if (!img)
+        return WPS_ERROR_INVALID_PARAM;
+    img->cover_tint = true;
+    return 0;
+}
+
 static int parse_image_load(struct skin_element *element,
                             struct wps_token *token,
                             struct wps_data *wps_data)
@@ -435,6 +448,7 @@ static int parse_image_load(struct skin_element *element,
     img->is_9_segment = false;
     img->loaded = false;
     img->dither = false;
+    img->cover_tint = false;
 
     if (token->type == SKIN_TOKEN_IMAGE_DISPLAY)
     {
@@ -2612,6 +2626,9 @@ static int skin_element_callback(struct skin_element* element, void* data)
                 case SKIN_TOKEN_IMAGE_PRELOAD_DISPLAY:
                 case SKIN_TOKEN_IMAGE_DISPLAY_9SEGMENT:
                     function = parse_image_display;
+                    break;
+                case SKIN_TOKEN_IMAGE_COVER_TINT:
+                    function = parse_image_cover_tint;
                     break;
                 case SKIN_TOKEN_IMAGE_PRELOAD:
                 case SKIN_TOKEN_IMAGE_DISPLAY:

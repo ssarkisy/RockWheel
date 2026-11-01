@@ -66,6 +66,9 @@ extern const struct menu_item_ex
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
         brightness_item,
 #endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+        cover_colours_item,
+#endif
         codepage_setting,
         battery_capacity, ipod_keyclick_menu,       /* settings_menu.c  */
         sleep_timer_item, language_item,
