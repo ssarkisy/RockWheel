@@ -48,6 +48,7 @@
 #include "exported_menus.h"
 #include "pcmbuf.h"
 #include "option_select.h"
+#include "root_menu.h"
 #include "string-extra.h"
 
 static void eq_apply(void);
@@ -830,10 +831,9 @@ MAKE_MENU(equalizer_menu, ID2P(LANG_EQUALIZER), NULL, Icon_EQ,
         &eq_enable, &eq_graphical, &eq_precut, &gain_menu,
         &advanced_menu, &eq_save, &eq_browse, &eq_reset);
 
-/* The equalizer of the iPod settings, as on a stock iPod: one list of Off
-   and iTunes' presets, each set by selecting it. The gains are iTunes' own,
-   in hundredths of a dB, for bands at 32 Hz to 16 kHz like the default
-   bands here. */
+/* The equalizer of the iPod settings: Off, iTunes' presets, as on a stock iPod, and
+   those for particular earphones, each set by selecting it. The gains are iTunes' own,
+   in hundredths of a dB, for bands at 32 Hz to 16 kHz like the default bands here. */
 static const struct
 {
     int lang_id;
@@ -886,7 +886,8 @@ static const struct
       { -150, -300, -300, 150, 375, 375, 300, 150, 0, -150 } },
 };
 
-/* For particular earphones, first in the list. From measurements of several of them,
+/* For particular earphones, with eq_models and a row further down saying which are
+   for which model. From measurements of several of them,
    against the Harman target of their kind. Few bands, at their own frequencies and
    the rest off, as each one takes time from the UI. Bands are numbered as the
    defaults, and q and gain are in tenths. The precut is the largest boost after the
@@ -1015,30 +1016,158 @@ static int eq_get_preset(void)
     return 0;
 }
 
-static int eq_choose_preset(void)
+/* The first list: Off, iTunes' presets as one row, and a row for each model of
+   earphones, which has a list of its own if it has several presets. So that many
+   models don't make a long list of everything. */
+#define EQ_ITUNES_FIRST (1 + (int)ARRAYLEN(eq_phones))
+#define EQ_ROW_ITUNES 1
+#define EQ_ROW_FIRST_MODEL 3
+
+/* those of eq_phones that are for one model; each also has its row further down */
+static const struct
 {
-    static const unsigned char *names[1 + ARRAYLEN(eq_phones) + ARRAYLEN(eq_presets)];
-    names[0] = ID2P(LANG_OFF);
-    for (int i = 0; i < (int)ARRAYLEN(eq_phones); i++)
-        names[1 + i] = ID2P(eq_phones[i].lang_id);
-    for (int i = 0; i < (int)ARRAYLEN(eq_presets); i++)
-        names[1 + ARRAYLEN(eq_phones) + i] = ID2P(eq_presets[i].lang_id);
+    int lang_id;
+    int first;
+    int count;
+} eq_models[] =
+{
+    { LANG_EQ_ZERO2, 0, 4 },
+    { LANG_EQ_KPH30I, 4, 1 },
+};
 
-    static const struct choice_setting choice =
-        { eq_set_preset, ARRAYLEN(names), NULL, { .desc = names } };
-    static int preset;
-    preset = eq_get_preset();
+static int eq_current; /* the preset the first list opened with */
 
-    /* the preset is set when it is selected, and Menu leaves the EQ as it
-       was */
+/* the list of some presets that's on the screen */
+static int eq_list_first;
+static bool eq_list_chosen;
+
+static void eq_list_select(int item)
+{
+    eq_set_preset(eq_list_first + item);
+    eq_list_chosen = true;
+}
+
+/* True if one was chosen, which closes the first list as well; Menu goes back to it
+   with the EQ as it was */
+static int eq_choose_from(int lang_id, int first, int count, const unsigned char **names)
+{
+    static struct choice_setting choice;
+    static int item;
+
+    choice = (struct choice_setting){ eq_list_select, count, NULL, { .desc = names } };
+    item = (eq_current >= first && eq_current < first + count) ? eq_current - first : 0;
+    eq_list_first = first;
+    eq_list_chosen = false;
+
     struct settings_list setting = {
         .flags = F_CHOICE_SETTING|F_T_INT|F_CB_ON_SELECT_ONLY|F_BANFROMQS,
-        .setting = &preset,
-        .lang_id = LANG_EQUALIZER,
+        .setting = &item,
+        .lang_id = lang_id,
         .default_val.int_ = 0,
         .choice_setting = &choice,
     };
-    return option_screen(&setting, NULL, false, ID2P(LANG_EQUALIZER));
+    return option_screen(&setting, NULL, false, ID2P(lang_id)) || eq_list_chosen;
+}
+
+static int eq_choose_off(void)
+{
+    eq_set_preset(0);
+    return 1;
+}
+
+static int eq_choose_itunes(void)
+{
+    static const unsigned char *names[ARRAYLEN(eq_presets)];
+    for (int i = 0; i < (int)ARRAYLEN(eq_presets); i++)
+        names[i] = ID2P(eq_presets[i].lang_id);
+    return eq_choose_from(LANG_EQ_GENERAL, EQ_ITUNES_FIRST, ARRAYLEN(names), names);
+}
+
+/* "7Hz Zero 2: Voice" among the presets of the 7Hz Zero 2 is "Voice" */
+static const unsigned char *eq_short_name(int lang_id)
+{
+    const char *name = strstr(str(lang_id), ": ");
+    return name ? (const unsigned char *)name + 2 : ID2P(LANG_EQ_STANDARD);
+}
+
+static int eq_choose_model(int model)
+{
+    const int first = eq_models[model].first, count = eq_models[model].count;
+    if (count == 1)
+    {
+        eq_set_preset(1 + first);
+        return 1;
+    }
+    static const unsigned char *names[ARRAYLEN(eq_phones)];
+    for (int i = 0; i < count; i++)
+        names[i] = eq_short_name(eq_phones[first + i].lang_id);
+    return eq_choose_from(eq_models[model].lang_id, 1 + first, count, names);
+}
+
+static char *eq_itunes_row_name(int selected_item, void *data,
+                                char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    if (eq_current < EQ_ITUNES_FIRST)
+        return str(LANG_EQ_GENERAL);
+    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_EQ_GENERAL),
+             str(eq_presets[eq_current - EQ_ITUNES_FIRST].lang_id));
+    return buffer;
+}
+
+static char *eq_model_row_name(int selected_item, void *data,
+                               char *buffer, size_t buffer_len)
+{
+    (void)selected_item;
+    const int model = (intptr_t)data;
+    const int first = eq_models[model].first, count = eq_models[model].count;
+    const int phones = eq_current - 1;
+    if (count == 1 || phones < first || phones >= first + count)
+        return str(eq_models[model].lang_id);
+    snprintf(buffer, buffer_len, "%s\t%s", str(eq_models[model].lang_id),
+             P2STR(eq_short_name(eq_phones[phones].lang_id)));
+    return buffer;
+}
+
+#define EQ_MODEL_ROW(name, model, flags)                                        \
+    static int name##_choose(void) { return eq_choose_model(model); }           \
+    MENUITEM_FUNCTION_DYNTEXT(name, MENU_FUNC_CHECK_RETVAL|(flags), name##_choose, \
+                              eq_model_row_name, NULL, (void *)(intptr_t)(model), \
+                              NULL, Icon_NOICON)
+
+MENUITEM_FUNCTION(eq_off_row, MENU_FUNC_CHECK_RETVAL|MENU_EXITAFTERTHISMENU,
+                  ID2P(LANG_OFF), eq_choose_off, NULL, Icon_NOICON);
+MENUITEM_FUNCTION_DYNTEXT(eq_itunes_row, MENU_FUNC_CHECK_RETVAL, eq_choose_itunes,
+                          eq_itunes_row_name, NULL, NULL, NULL, Icon_NOICON);
+MENUITEM_GROUP(eq_phones_group, ID2P(LANG_EQ_HEADPHONES));
+/* one preset: selecting the row sets it, and it has no arrow */
+EQ_MODEL_ROW(eq_zero2_row, 0, 0);
+EQ_MODEL_ROW(eq_kph30i_row, 1, MENU_EXITAFTERTHISMENU);
+
+MAKE_MENU(eq_first_list, ID2P(LANG_EQUALIZER), NULL, Icon_EQ,
+          &eq_off_row, &eq_itunes_row, &eq_phones_group,
+          &eq_zero2_row, &eq_kph30i_row);
+
+static int eq_choose_preset(void)
+{
+    int selected = 0;
+
+    eq_current = eq_get_preset();
+    if (eq_current >= EQ_ITUNES_FIRST)
+        selected = EQ_ROW_ITUNES;
+    else if (eq_current > 0)
+    {
+        for (int i = 0; i < (int)ARRAYLEN(eq_models); i++)
+        {
+            if (eq_current > eq_models[i].first
+                && eq_current <= eq_models[i].first + eq_models[i].count)
+                selected = EQ_ROW_FIRST_MODEL + i;
+        }
+    }
+    /* Menu held goes on to the main menu, past the menu this one was opened from */
+    if (do_menu(&eq_first_list, &selected, NULL, false) == GO_TO_ROOT)
+        menu_request_root();
+    return 0;
 }
 
 /* the name of the preset, Off, or NULL if on and set to none */

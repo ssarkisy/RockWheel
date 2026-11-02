@@ -9842,3 +9842,45 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_EQ_HEADPHONES
+  desc: in the EQ screen: above the earphones and headphones that have presets
+  user: core
+  <source>
+    *: "Headphones"
+  </source>
+  <dest>
+    *: "سماعات الرأس"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_GENERAL
+  desc: in the EQ screen: the row, and the title, of the presets that are for any headphones
+  user: core
+  <source>
+    *: "General Presets"
+  </source>
+  <dest>
+    *: "الإعدادات العامة"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_STANDARD
+  desc: in the EQ screen of a model of headphones: its first preset, against which the others have a name of their own
+  user: core
+  <source>
+    *: "Standard"
+  </source>
+  <dest>
+    *: "قياسي"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
