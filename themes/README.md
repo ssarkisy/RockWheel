@@ -1,7 +1,8 @@
 # iPod theme
 
 The theme for the iPod Video (320x240), kept here in the layout it is installed
-in (`<theme>/.rockbox/...`). The menus don't offer another one.
+in (`<theme>/.rockbox/...`). The menus don't offer another one. Its dark version,
+`iClassic-Square-Dark`, is made from it by `tools/make_dark_theme.py`.
 
 It's licensed under Creative Commons Attribution-Share Alike 3.0
 (http://creativecommons.org/licenses/by-sa/3.0/), and so are the changes made

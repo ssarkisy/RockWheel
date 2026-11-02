@@ -2,7 +2,7 @@
 
 RockWheel is free, open-source firmware for the iPod Video, 5th and 5.5th generation, built on [Rockbox](https://www.rockbox.org). It keeps the engine that made Rockbox great, and adds the two things it never had: a place in Finder, and the manners of a real iPod.
 
-Your iPod syncs with Finder as it always did, and now has what it never got: Cover Flow with kinetic scrolling, lyrics that follow the song, a Now Playing screen that takes on the colours of the album, and room for a very large library without slowing down.
+Your iPod syncs with Finder/iTunes as it always did, and now has what it never got: Cover Flow with kinetic scrolling, lyrics that follow the song, a Now Playing screen that takes on the colours of the album, a dark theme with a Night Mode that keeps its own hours, and room for a very large library without slowing down.
 
 ![Cover Flow, Now Playing, Settings and the main menu](docs/screenshots/banner.png)
 
@@ -20,6 +20,8 @@ Your iPod syncs with Finder as it always did, and now has what it never got: Cov
 | Cover Flow | No | Plugin, with its own cache to build | **First item in Music, with kinetic scrolling** |
 | Time-synced lyrics | No | Plugin | **Built into Now Playing** |
 | Now Playing in the colours of the album | No | No | **Yes** |
+| Dark theme | No | Some themes | **Built in, and changes while the music plays** |
+| Night Mode, on a schedule if you like | No | No | **Yes** |
 | Videos | Yes | Converted files, or the stock firmware, one restart away | **The stock firmware, one restart away** |
 | Open source | No | Yes | **Yes, GPL** |
 
@@ -85,23 +87,41 @@ Now Playing can take on the colours of whatever you're listening to. Every album
 
 It's off until you want it. Hold Select in Now Playing and choose Colours, or find Cover Colours in Settings.
 
+## Dark theme and Night Mode
+
+The whole iPod can go dark: the menus, Now Playing, the dialogs, even the clock. It takes about half a second, and the music plays on.
+
+<img src="docs/screenshots/dark-now-playing.png" width="320" alt="Now Playing in the dark theme"> <img src="docs/screenshots/dark-home.png" width="320" alt="The main menu in the dark theme, with the playing album beside it">
+
+<img src="docs/screenshots/dark-settings.png" width="320" alt="Settings in the dark theme"> <img src="docs/screenshots/night-mode.png" width="320" alt="Night Mode and what it does when it's on">
+
+**The dark theme is one press away.** Hold Select in Now Playing, or find it in Settings. The colours from the album work on it too.
+
+**Night Mode gets the iPod ready for the end of the day.** Turn it on and it goes dark, quiets the wheel, dims the screen and lowers the volume limit. You choose which of these it does, how dim and how quiet.
+
+**It can keep its own hours.** Give it a start and an end, past midnight if you like, and it comes on and goes off by itself. If you change your mind in between, that holds until the next time on the schedule.
+
+**The morning is as you left it.** When it ends, everything goes back to how it was. If music is still playing when the schedule ends, the volume stays where it is, so nothing wakes you.
+
 ## It feels like an iPod
 
 <img src="docs/screenshots/home-playing.png" width="320" alt="Main menu with the playing album beside it"> <img src="docs/screenshots/home-settings.png" width="320" alt="Main menu with the iPod's name and free space">
 
-<img src="docs/screenshots/settings.png" width="320" alt="Settings in groups, with values on the right"> <img src="docs/screenshots/eq.png" width="320" alt="EQ presets">
+<img src="docs/screenshots/home-photos.png" width="320" alt="Main menu with a collage of your photos beside it"> <img src="docs/screenshots/photos.png" width="320" alt="Photo browser">
 
-<img src="docs/screenshots/menu.png" width="320" alt="The menu you get by holding Select in Now Playing"> <img src="docs/screenshots/photos.png" width="320" alt="Photo browser">
+<img src="docs/screenshots/settings.png" width="320" alt="Settings in groups, with values on the right"> <img src="docs/screenshots/menu.png" width="320" alt="The menu you get by holding Select in Now Playing">
 
-**The menus you remember:** Music, Photos, Extras, Settings, Shuffle Songs and Now Playing, with your iPod's name at the top.
+<img src="docs/screenshots/eq.png" width="320" alt="The EQ, with a row for each pair of headphones"> <img src="docs/screenshots/eq-model.png" width="320" alt="The presets for one pair of headphones">
+
+**The menus you remember:** Music, Photos, Extras, Settings, Shuffle Songs and Now Playing, with your iPod's name at the top. Beside them is the album playing, a collage of your photos, or your iPod and the room left on it.
 
 **Settings in one list,** neatly grouped, with every value in plain sight. Most change with a single press.
 
 **Shortcuts your thumb learns quickly.** Hold Play for Now Playing from almost anywhere, and hold Menu to go to the main menu. Press Menu after holding Play to go back to the list you started it from.
 
-**What you reach for while you listen.** Hold Select in Now Playing to open Cover Flow, go to the song's artist or album, or change shuffle, repeat, the EQ, the volume limit, Sound Check, brightness and colours. Press Menu in a list you opened from there, and you're back where you were.
+**What you reach for while you listen.** Hold Select in Now Playing to open Cover Flow, go to the song's artist or album, or change shuffle, repeat, the EQ, the volume limit, Sound Check, brightness, colours, the dark theme and Night Mode. Press Menu in a list you opened from there, and you're back where you were.
 
-**The EQ from iTunes.** All 22 presets, tuned exactly as they are in iTunes, plus presets made for the 7Hz Zero 2 earphones and the Koss KPH30i headphones. You hear a new preset the moment you pick it, and it doesn't make your music quieter. Presets for more headphones may come in the future.
+**The EQ from iTunes, and for your headphones.** All 22 presets, tuned exactly as they are in iTunes, are kept together, and each pair of headphones has a row of its own, so far the 7Hz Zero 2 earphones and the Koss KPH30i headphones. You hear a new preset the moment you pick it, and it doesn't make your music quieter. Presets for more headphones may come in the future.
 
 **Songs at an even level.** Turn on Sound Check, in Settings or by holding Select in Now Playing, and your library plays at about the same volume, using the levels Finder has already worked out.
 
@@ -131,6 +151,8 @@ All of these were measured on the test iPod. "Before" is Rockbox's behaviour or 
 | Library update after a sync | about 90 s for 200 new songs | **about 17 s for 200–300 new**, in a library of 6,810 |
 | Writing over USB | 3.2 MB/s in Apple's disk mode, 6.6 MB/s in Rockbox | **8.4–8.7 MB/s** |
 | Plugged in to mounted on the Mac | about 12 s | **about 9 s** |
+| Changing the theme while music plays | 8 s | **0.45–0.65 s** |
+| Parsing the skins, at every start | 282 ms | **54 ms** |
 
 How that was done:
 
@@ -138,10 +160,12 @@ How that was done:
 - **Decoding moved to the second core.** MP3 and AAC frames are decoded on the COP into a queue, so the main CPU is free for the UI.
 - **Faster codecs where it counted.** A new IMDCT path in libmad takes MP3 decoding from 7.8 to 6.7 ms a frame, and libfaad clears and copies less, taking AAC from 11.4 to 10.55 ms.
 - **The whole database in RAM,** paths included, with hash tables instead of repeated disk searches.
-- **Work done ahead of time.** Cover Flow's images, each album's colour and the playlist of all songs are prepared while the library updates, so nothing has to be built when you open them.
+- **Work done ahead of time.** Cover Flow's images, each album's colour, the collage of photos and the playlist of all songs are prepared while the library updates, so nothing has to be built when you open them.
 - **A new colour in about 65 ms,** drawing included. The memory for it is only taken when you choose Whole Screen or Fill.
 - **EQ presets keep their level.** The EQ cuts the signal digitally so that its boosts can't clip, and the analog volume rises by the same amount. Near the top of the volume, the peaks of loud music can reach the limit of the amplifier.
 - **Sound Check from Finder's own values,** looked up on disk as a track loads. It only ever lowers a track, since Finder's database doesn't say where its peaks are.
+- **A theme change that leaves the music alone.** A theme's pictures are packaged in the screen's own format and come in one DMA read rather than a row at a time, which took a backdrop from about a second to 14 ms with music playing. The fonts stay loaded, and the album art slots are held, so the audio buffer is never made again.
+- **An index on the skin tags,** which the parser asks for again and again as it scans ahead. They took 80% of its time.
 - **Journaled library updates.** Cut off at 10 different points in the simulator, an update recovered every time.
 - **The device description Finder asks for** is generated from the iPod's own flash the first time it's needed.
 - **Finder's database read once,** as a stream in aligned 64 KB blocks, because it doesn't fit in memory.
