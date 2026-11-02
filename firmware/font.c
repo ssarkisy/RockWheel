@@ -451,12 +451,48 @@ static struct font* font_load_header(int fd, struct font *pheader,
 }
 
 /* load a font with room for glyphs, limited to bufsize if not zero */
+static bool fonts_held;
+
+/* Skins going away and others coming with the same fonts: what is loaded stays, and
+   asking for it again doesn't even open the file */
+void font_hold(bool hold)
+{
+    static bool held[MAXFONTS];
+
+    for (int i = 0; i < MAXFONTS; i++)
+    {
+        if (hold && buflib_allocations[i] > 0)
+        {
+            struct buflib_alloc_data *pdata = core_get_data(buflib_allocations[i]);
+            pdata->refcount++;
+            held[i] = true;
+        }
+        else if (!hold && held[i])
+        {
+            font_unload(i);
+            held[i] = false;
+        }
+    }
+    fonts_held = hold;
+}
+
 int font_load_ex( const char *path, size_t buf_size, int glyphs )
 {
     /* needed to handle the font properly after it's loaded */
     size_t path_len = strlen(path);
     if ( path_len >= MAX_PATH )
         return -1;
+
+    if (fonts_held)
+    {
+        int held_id = find_font_index(path);
+        if (held_id > FONT_SYSFIXED)
+        {
+            struct buflib_alloc_data *pd = core_get_data(buflib_allocations[held_id]);
+            pd->refcount++;
+            return held_id;
+        }
+    }
 
     //printf("\nfont_load_ex(%s, %d, %d)\n", path, buf_size, glyphs);
     int fd = open(path, O_RDONLY|O_BINARY);
@@ -539,7 +575,10 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
                 font_id = font_load_ex(path, old_bufsize, 0);
                 /* we couldn't even get the old size, this shouldn't happen */
                 if ( font_id < 0 )
+                {
+                    close(fd);
                     return -1;
+                }
             }
             if (old_id != font_id)
             {
@@ -550,8 +589,11 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
             pd = core_get_data(buflib_allocations[font_id]);
             pd->refcount = old_refcount;
             if(failed)
+            {
                 /* return error because we didn't satisfy the new buffer size */
+                close(fd);
                 return -1;
+            }
         }
         pd->refcount++;
         //printf("reusing handle %d for %s (count: %d)\n", font_id, path, pd->refcount);
@@ -570,7 +612,10 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
         }
     }
     if ( open_slot == -1 )
+    {
+        close(fd);
         return -1;
+    }
     font_id = open_slot;
     size_t path_bufsz = MAX(path_len + 1, 64); /* enough size for common case */
     /* allocate mem */
@@ -579,6 +624,7 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
                      &buflibops );
     if ( handle <= 0 )
     {
+        close(fd);
         return -1;
     }
     struct buflib_alloc_data *pdata;
@@ -586,6 +632,7 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
     pdata = core_get_data_pinned(handle);
     pdata->refcount     = 1;
     pdata->path = pdata->buffer + bufsize;
+    pdata->path_bufsz = path_bufsz;
     /* save load path so we can recognize this font later */
     memcpy(pdata->path, path, path_len+1);
 

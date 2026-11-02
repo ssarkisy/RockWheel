@@ -120,6 +120,7 @@ void font_init(void) INIT_ATTR;
 bool font_filename_matches_loaded_id(int font_id, const char *filename);
 int font_load(const char *path);
 int font_load_ex(const char *path, size_t buffer_size, int glyphs);
+void font_hold(bool hold);
 void font_unload(int font_id);
 void font_unload_all(void);
 void font_lock(int font_id, bool lock);
