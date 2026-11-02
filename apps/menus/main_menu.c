@@ -29,6 +29,7 @@
 #include "power.h"
 #include "powermgmt.h"
 #include "menu.h"
+#include "photos_panel.h"
 #include "misc.h"
 #include "exported_menus.h"
 #include "tree.h"
@@ -554,45 +555,6 @@ static void about_add_size(int lang_id, sector_t kib)
     about_add(str(lang_id), value);
 }
 
-static uint32_t about_le32(const unsigned char *p)
-{
-    return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24;
-}
-
-/* Reads no more of Photo Database than the count in the header of its list of images */
-static int about_photo_count(void)
-{
-    unsigned char h[24];
-    int count = 0;
-    const int fd = open("/Photos/Photo Database", O_RDONLY);
-    if (fd < 0)
-        return 0;
-    if (read(fd, h, sizeof(h)) == sizeof(h) && !memcmp(h, "mhfd", 4))
-    {
-        off_t pos = about_le32(h + 4);
-        const int sections = about_le32(h + 20);
-        for (int i = 0; i < sections; i++)
-        {
-            if (lseek(fd, pos, SEEK_SET) != pos || read(fd, h, 14) != 14
-                || memcmp(h, "mhsd", 4))
-                break;
-            const uint32_t header = about_le32(h + 4), total = about_le32(h + 8);
-            if (h[12] == 1)
-            {
-                if (lseek(fd, pos + header, SEEK_SET) == pos + (off_t)header
-                    && read(fd, h, 12) == 12 && !memcmp(h, "mhli", 4))
-                    count = about_le32(h + 8);
-                break;
-            }
-            if (total == 0)
-                break;
-            pos += total;
-        }
-    }
-    close(fd);
-    return count;
-}
-
 static void about_prepare(void)
 {
     char value[32];
@@ -605,7 +567,7 @@ static void about_prepare(void)
     about_add_number(LANG_SONGS, tagcache_get_song_count());
     about_add_number(LANG_ALBUMS, tagcache_get_tag_count(tag_album));
     about_add_number(LANG_ARTISTS, tagcache_get_tag_count(tag_artist));
-    about_add_number(LANG_PHOTOS, about_photo_count());
+    about_add_number(LANG_PHOTOS, photos_count());
 
     sector_t size = 0, free = 0;
     volume_size(IF_MV(0,) &size, &free);

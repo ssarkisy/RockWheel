@@ -14789,3 +14789,59 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_PHOTO_COUNT_ONE
+  desc: beside the main menu when Photos is selected, %d is the number of photos: for 1 (21, 31 ... in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Photo"
+  </source>
+  <dest>
+    *: "%d foto"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_COUNT_FEW
+  desc: as LANG_PHOTO_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Photos"
+  </source>
+  <dest>
+    *: "%d fotos"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_COUNT_MANY
+  desc: as LANG_PHOTO_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Photos"
+  </source>
+  <dest>
+    *: "%d fotos"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_PHOTOS
+  desc: a step of the library update at boot, shown under its bar
+  user: core
+  <source>
+    *: "Preparing Photos"
+  </source>
+  <dest>
+    *: "Forbereder fotos"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

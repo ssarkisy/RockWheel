@@ -538,11 +538,11 @@ void do_setting_from_menu(const struct menu_item_ex *temp,
 
 /* display a menu */
 /* Settings is selected in the main menu, for the theme to show the iPod beside it */
-static bool settings_selected = false;
+static enum menu_panel selected_panel = MENU_PANEL_NONE;
 
-bool menu_settings_selected(void)
+enum menu_panel menu_selected_panel(void)
 {
-    return settings_selected;
+    return selected_panel;
 }
 
 static bool wide = false;
@@ -569,22 +569,33 @@ void menu_request_root(void)
 }
 
 /* True if the theme has just been drawn again for it, over a part of the list */
-static bool set_settings_selected(bool selected)
+static bool set_selected_panel(enum menu_panel panel)
 {
-    if (selected == settings_selected)
+    if (panel == selected_panel)
         return false;
-    settings_selected = selected;
+    selected_panel = panel;
     send_event(GUI_EVENT_ACTIONUPDATE, (void*)1);
     return true;
 }
 
-static bool is_settings_item(const struct menu_item_ex *menu, int selected)
+static enum menu_panel item_panel(const struct menu_item_ex *menu, int selected)
 {
     if (menu != &root_menu_)
-        return false;
+        return MENU_PANEL_NONE;
     const struct menu_item_ex *item = menu->submenus[selected];
-    return (item->flags & MENU_TYPE_MASK) == MT_RETURN_VALUE
-           && item->value == GO_TO_MAINMENU;
+    if ((item->flags & MENU_TYPE_MASK) != MT_RETURN_VALUE)
+        return MENU_PANEL_NONE;
+    switch (item->value)
+    {
+        case GO_TO_MAINMENU:
+            return MENU_PANEL_SETTINGS;
+        case GO_TO_EXTRAS:
+            return MENU_PANEL_EXTRAS;
+        case GO_TO_PHOTOS:
+            return MENU_PANEL_PHOTOS;
+        default:
+            return MENU_PANEL_NONE;
+    }
 }
 
 int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
@@ -649,7 +660,7 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
         }
         else
         {
-            if (set_settings_selected(is_settings_item(
+            if (set_selected_panel(item_panel(
                     menu, get_menu_selection(gui_synclist_get_sel_pos(&lists), menu))))
                 gui_synclist_draw(&lists);
             action = get_action(CONTEXT_MAINMENU|ALLOW_SOFTLOCK,
@@ -1050,6 +1061,6 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
         touchscreen_set_mode(tsm);
 #endif
     /* the next screen draws it: drawn here it'd show for a moment before that */
-    settings_selected = false;
+    selected_panel = MENU_PANEL_NONE;
     return ret;
 }

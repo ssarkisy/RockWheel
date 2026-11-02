@@ -24,7 +24,7 @@
 %Fl(3,14-Inter-Bold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
 %?LW<%VI(wide)%Vd(titlewide)%Vd(batwide)%Vd(playwide)|%VI(half)%Vd(t)%Vd(bat)%Vd(play)>
-%?LW<|%?LS<%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(radio)|%Vd(radio)>>>>
+%?LW<|%?LS<%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(radio)|%Vd(radio)>>>>
 %Cl(0,0,240,240,c,c)
 %Vl(a,120,0,200,240,-)
 %Cd
@@ -54,12 +54,23 @@ s%al%?cs<||%?Rp<%Sx(Recording)>|%?tp<%Sx(FM Radio)>|%Sx(Playlist)>
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
 %Vl(playwide,271,3,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-# Settings selected in the main menu: the iPod and its disk, as on a stock iPod
+# Settings or Extras selected in the main menu: the iPod and its disk, as on a stock iPod
 %XS(About Backdrop.bmp)
 # A screen that takes the whole width
 %XW(Wide Backdrop.bmp)
 %Vl(about,160,0,160,240,-)
 %nu(20,174,128,11,Disk Fill.bmp)
+# Photos selected: a collage of them, made on the iPod, or else an icon over the note
+%Vl(collage,160,0,160,176,-)
+%xl(Q,/.rockbox/photos_panel.bmp,0,0)
+%xd(Q)
+%Vl(photocount,163,190,154,24,1)%Vf(eceef0)
+%s%ac%nP
+%Vl(nophotos,188,48,104,104,-)
+%xl(I,Photos Icon.bmp,0,0)
+%xd(I)
+%Vl(photocaption,163,158,154,24,1)%Vf(ebeced)
+%ac%nP
 # the name given in Finder, in a smaller font if it wouldn't fit
 %Vl(name,161,17,158,24,1)%Vf(dde1e6)
 %s%ac%nn

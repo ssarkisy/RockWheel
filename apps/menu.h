@@ -136,7 +136,15 @@ void do_setting_screen(const struct settings_list *setting, const char * title,
                      This is always set, even if the menu was cancelled.
                      If NULL it is ignored and the firs item starts selected
 */
-bool menu_settings_selected(void);
+/* The row of the main menu that's selected, as far as it has a panel of its own beside
+   it. These numbers are also the order of the options of %LS in a skin. */
+enum menu_panel {
+    MENU_PANEL_SETTINGS = 1,
+    MENU_PANEL_EXTRAS,
+    MENU_PANEL_PHOTOS,
+    MENU_PANEL_NONE,
+};
+enum menu_panel menu_selected_panel(void);
 /* Whether a screen is taking the whole width, with nothing of the theme beside it */
 bool menu_wide(void);
 void menu_set_wide(bool wide);

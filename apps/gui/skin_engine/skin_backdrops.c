@@ -275,7 +275,10 @@ int skin_shown_backdrop(const struct wps_data *data)
 {
     if (data->wide_backdrop_id >= 0 && menu_wide())
         return data->wide_backdrop_id;
-    if (data->about_backdrop_id >= 0 && menu_settings_selected())
+    /* Extras has the same panel as Settings */
+    if (data->about_backdrop_id >= 0
+        && (menu_selected_panel() == MENU_PANEL_SETTINGS
+            || menu_selected_panel() == MENU_PANEL_EXTRAS))
         return data->about_backdrop_id;
     return data->backdrop_id;
 }

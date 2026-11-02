@@ -30,6 +30,7 @@
 #include "misc.h"
 #include "plugin.h"
 #include "viewport.h"
+#include "photos_panel.h"
 
 #include "skin_buffer.h"
 #include "skin_debug.h"
@@ -2243,7 +2244,8 @@ static bool load_skin_bitmaps(struct wps_data *wps_data, char *bmpdir)
                         imglist = SKINOFFSETTOPTR(skin_buffer, imglist->next);
                     }
                 }
-                else
+                /* made on the iPod once there are photos, and only shown then */
+                else if (strcmp(path, PHOTOS_PANEL_FILE))
                     retval = false;
             }
         }

@@ -27,6 +27,7 @@
 #include "plugin.h"
 #include "lib/helper.h"
 #include "lib/configfile.h"
+#include "photos_panel.h"
 
 #define PHOTOS_DIR  "/Photos"
 #define PHOTO_DB    PHOTOS_DIR "/Photo Database"
@@ -1055,10 +1056,112 @@ static enum plugin_status photos_menu(void)
     }
 }
 
+/* The collage for the panel beside the main menu: thumbnails from all over the library,
+   on what the panel has there, which the rest of it carries on under the count. As tall
+   as it is in the theme's .sbs. RGB565 and top-down, which read_bmp_fd reads as it is. */
+#define PANEL_W      160
+#define PANEL_H      176
+#define PANEL_COLS   3
+#define PANEL_ROWS   4
+#define PANEL_LEFT   2
+#define PANEL_TOP    2
+#define PANEL_STEP_X (GRID_W + 3)
+#define PANEL_STEP_Y (GRID_H + 3)
+#define PANEL_TMP    PHOTOS_PANEL_FILE ".tmp"
+
+static void put_le32(unsigned char *p, uint32_t value)
+{
+    p[0] = value;
+    p[1] = value >> 8;
+    p[2] = value >> 16;
+    p[3] = value >> 24;
+}
+
+static void make_panel(void)
+{
+    fb_data *panel = alloc(PANEL_W * PANEL_H * sizeof(fb_data));
+    if (!panel || photo_count == 0)
+        return;
+
+    for (int y = 0; y < PANEL_H; y++)
+    {
+        /* the panel's gradient, from (161,173,185) down to (99,106,114) here */
+        const fb_data line = FB_RGBPACK(161 - 62 * y / PANEL_H, 173 - 67 * y / PANEL_H,
+                                        185 - 71 * y / PANEL_H);
+        for (int x = 0; x < PANEL_W; x++)
+            panel[y * PANEL_W + x] = line;
+    }
+
+    const int cells = PANEL_COLS * PANEL_ROWS;
+    for (int cell = 0; cell < cells; cell++)
+    {
+        const int first = photo_count >= cells ? cell * photo_count / cells
+                                               : cell % photo_count;
+        const struct photo *photo = NULL;
+        for (int i = 0; i < photo_count && !photo; i++)
+        {
+            const struct photo *p = &photos[(first + i) % photo_count];
+            if (read_frame(&grid_ithmb, p->grid_file, p->grid_offset, grid_buf,
+                           grid_stride * GRID_H * sizeof(fb_data)))
+                photo = p;
+        }
+        if (!photo)
+            break;
+        const int left = PANEL_LEFT + (cell % PANEL_COLS) * PANEL_STEP_X
+                         + (GRID_W - photo->grid_w) / 2;
+        const int top = PANEL_TOP + (cell / PANEL_COLS) * PANEL_STEP_Y
+                        + (GRID_H - photo->grid_h) / 2;
+        for (int y = 0; y < photo->grid_h; y++)
+            rb->memcpy(&panel[(top + y) * PANEL_W + left],
+                       &grid_buf[(photo->grid_y + y) * grid_stride + photo->grid_x],
+                       photo->grid_w * sizeof(fb_data));
+    }
+    close_frames();
+
+    /* a BMP header with its three masks of RGB565 */
+    static unsigned char header[66];
+    const uint32_t size = PANEL_W * PANEL_H * sizeof(fb_data);
+    rb->memset(header, 0, sizeof(header));
+    header[0] = 'B';
+    header[1] = 'M';
+    put_le32(header + 2, sizeof(header) + size);
+    put_le32(header + 10, sizeof(header));
+    put_le32(header + 14, 40);
+    put_le32(header + 18, PANEL_W);
+    put_le32(header + 22, (uint32_t)-PANEL_H);
+    header[26] = 1;
+    header[28] = 16;
+    header[30] = 3;
+    put_le32(header + 34, size);
+    put_le32(header + 54, 0xF800);
+    put_le32(header + 58, 0x07E0);
+    put_le32(header + 62, 0x001F);
+
+    const int fd = rb->open(PANEL_TMP, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    if (fd < 0)
+        return;
+    const bool ok = rb->write(fd, header, sizeof(header)) == (ssize_t)sizeof(header)
+                    && rb->write(fd, panel, size) == (ssize_t)size;
+    rb->close(fd);
+    if (ok)
+    {
+        rb->remove(PHOTOS_PANEL_FILE);
+        rb->rename(PANEL_TMP, PHOTOS_PANEL_FILE);
+    }
+    else
+        rb->remove(PANEL_TMP);
+}
+
 enum plugin_status plugin_start(const void *parameter)
 {
-    (void)parameter;
     mem = rb->plugin_get_buffer(&mem_left);
+
+    if (parameter && !rb->strcmp(parameter, PHOTOS_PANEL_MAKE))
+    {
+        if (load_database())
+            make_panel();
+        return PLUGIN_OK;
+    }
 
     screen_buf = alloc(LCD_WIDTH * LCD_HEIGHT * sizeof(fb_data));
     if (!screen_buf || !load_database())

@@ -42,6 +42,7 @@
 #include "abrepeat.h"
 #include "lang.h"
 #include "misc.h"
+#include "photos_panel.h"
 #include "led.h"
 #include "peakmeter.h"
 #include "splash.h"
@@ -1665,7 +1666,21 @@ const char *get_token_value(struct gui_wps *gwps,
         case SKIN_TOKEN_MENU_WIDE:
             return menu_wide() ? "w" : NULL;
         case SKIN_TOKEN_MENU_SETTINGS_SELECTED:
-            return menu_settings_selected() ? "s" : NULL;
+            if (intval)
+                *intval = menu_selected_panel();
+            return menu_selected_panel() != MENU_PANEL_NONE ? "s" : NULL;
+        case SKIN_TOKEN_PHOTOS_CAPTION:
+        {
+            /* as a conditional, whether there are any */
+            const int photos = photos_panel_count();
+            if (intval)
+                *intval = photos > 0 ? 1 : 2;
+            if (photos <= 0)
+                return str(LANG_NO_PHOTOS);
+            snprintf(buf, buf_size, plural_str(photos, LANG_PHOTO_COUNT_ONE,
+                     LANG_PHOTO_COUNT_FEW, LANG_PHOTO_COUNT_MANY), photos);
+            return buf;
+        }
         case SKIN_TOKEN_DISK_FREE:
         {
             /* In units of 1000, as the Mac shows the same disk */

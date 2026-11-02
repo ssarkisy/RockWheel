@@ -189,6 +189,7 @@ gui/usb_screen.c
 tagcache.c
 itunesdb.c
 night_mode.c
+photos_panel.c
 #endif
 #ifdef HAVE_TOUCHSCREEN
 keymaps/keymap-touchscreen.c

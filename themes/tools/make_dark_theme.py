@@ -187,5 +187,5 @@ for name in ("Battery", "Playing Status", "Hold Icon", "Status Repeat", "Status 
     each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), header_pixel)
 for name in ("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask"):
     each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), glyph_pixel)
-for name in ("Scrub Knob", "Disk Fill"):
+for name in ("Scrub Knob", "Disk Fill", "Photos Icon"):
     shutil.copy(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"))

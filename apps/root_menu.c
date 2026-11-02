@@ -25,6 +25,8 @@
 #include "appevents.h"
 #include "menu.h"
 #include "root_menu.h"
+#include "gui/skin_engine/skin_engine.h"
+#include "photos_panel.h"
 #include "itunesdb.h"
 #include "lang.h"
 #include "settings.h"
@@ -1219,7 +1221,17 @@ void show_library_update(void)
             || default_event_handler(action) == SYS_USB_CONNECTED)
             break;
     }
-    if (shown)
+    const bool imported = shown;
+    /* Finder may sync photos only, so this goes by their own database */
+    const bool photos_changed = phase == TAGCACHE_IMPORT_NONE && photos_panel_stale();
+    if (photos_changed && !shown)
+    {
+        FOR_NB_SCREENS(i)
+            viewportmanager_theme_enable(i, false, NULL);
+        shown_text = NULL;
+        shown = true;
+    }
+    if (imported)
     {
 #ifdef ITUNESDB_HAVE_ART
         /* the album list of the new database, which Cover Flow itself makes:
@@ -1234,6 +1246,15 @@ void show_library_update(void)
 #endif
         if (phase == TAGCACHE_IMPORT_NONE)
             tagtree_prepare_songs();
+    }
+    if (shown)
+    {
+        if (photos_changed)
+        {
+            library_update_show(str(LANG_PREPARING_PHOTOS), 0);
+            photos_panel_update();
+            skin_reload_while_playing();
+        }
         lcd_set_background(global_settings.bg_color);
         lcd_set_foreground(global_settings.fg_color);
         lcd_clear_display();

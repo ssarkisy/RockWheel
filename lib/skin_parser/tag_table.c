@@ -157,6 +157,7 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_WPS_DISPLAY_MODE,      "mw", "", SKIN_REFRESH_DYNAMIC),
     /* "3 Songs", what a stock iPod shows for the library when nothing plays */
     TAG(SKIN_TOKEN_DB_SONG_COUNT,         "ns", "", SKIN_REFRESH_DYNAMIC),
+    TAG(SKIN_TOKEN_PHOTOS_CAPTION,        "nP", "", SKIN_REFRESH_DYNAMIC),
     /* What a stock iPod shows beside Settings in the main menu: "116 GB Free",
        the bar of what's used, and whether that item is selected */
     /* the format and bitrate of the track, at the top left of the viewport */

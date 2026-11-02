@@ -11,7 +11,7 @@ writes into the image folder of each theme:
   Scrub Knob.bmp   scrubber slider, 32 bit with alpha, as tall as the bar
   Art Mask.bmp     album art view, hides the backdrop next to the art
 (the note on the menus' panel and Now Playing's placeholder are from
-make_music_note.py)
+make_menu_icons.py)
 """
 import math
 import os
