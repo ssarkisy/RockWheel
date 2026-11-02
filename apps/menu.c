@@ -126,7 +126,7 @@ extern const struct menu_item_ex main_menu_;
 
 static bool menu_shows_values(const struct menu_item_ex *menu)
 {
-    return menu == &main_menu_ || menu == &ipod_keyclick_menu;
+    return menu == &main_menu_ || menu == &ipod_keyclick_menu || menu == &night_menu;
 }
 
 static bool setting_changes_in_place(const struct settings_list *setting)
@@ -263,9 +263,12 @@ static bool menu_is_group(int item, void *data)
 /* A line of "name\tvalue": the name as usual, then the value at the right end,
    grey. It goes left of where a chevron can come in a list that has them, and
    only if it fits beside the name. The name of a group has a bar of its own. */
-#define VALUE_COLOUR LCD_RGBPACK(0x66, 0x66, 0x66)
-#define GROUP_COLOUR LCD_RGBPACK(0x60, 0x66, 0x70)
-#define GROUP_BAR_COLOUR LCD_RGBPACK(0xe6, 0xe8, 0xec)
+#define VALUE_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa2, 0xa8) \
+                                                 : LCD_RGBPACK(0x66, 0x66, 0x66))
+#define GROUP_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa6, 0xb0) \
+                                                 : LCD_RGBPACK(0x60, 0x66, 0x70))
+#define GROUP_BAR_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0x2c, 0x2e, 0x33) \
+                                                     : LCD_RGBPACK(0xe6, 0xe8, 0xec))
 #define VALUE_MARGIN 6
 #define VALUE_MARGIN_CHEVRON 21
 #define VALUE_GAP 8

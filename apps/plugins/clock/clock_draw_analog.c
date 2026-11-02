@@ -212,7 +212,7 @@ static void draw_hour(struct screen* display, struct time* time,
         display->set_foreground(LCD_RGBPACK(100,110,125));
         draw_hands(display, hour, time->minute, time->second,
                    1, skin, show_seconds);
-        display->set_foreground(LCD_BLACK);
+        display->set_foreground(rb->global_settings->dark_theme ? LCD_WHITE : LCD_BLACK);
     }
 #endif
     draw_hands(display, hour, time->minute, time->second,

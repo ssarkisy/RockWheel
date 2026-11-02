@@ -19,6 +19,7 @@
  ****************************************************************************/
 
 #include <stdio.h>
+#include "night_mode.h"
 #include <stdbool.h>
 #include "action.h"
 #include "font.h"
@@ -170,9 +171,70 @@ static struct viewport *ipod_usb_parent;
 #define ipod_usb_is_ejected() usb_storage_ejected()
 #endif
 
+/* In the dark theme, as themes/tools/make_dark_theme.py does for the others: the title
+   bar stays a gradient in dark grey */
+static inline int ipod_usb_dark_tone(int channel)
+{
+    return MAX(MIN(34 + (channel - 196) * 3 / 10, 255), 0);
+}
+
 static inline unsigned ipod_usb_colour(unsigned long rgb)
 {
-    return LCD_RGBPACK((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff);
+    const int r = (rgb >> 16) & 0xff, g = (rgb >> 8) & 0xff, b = rgb & 0xff;
+    if (global_settings.dark_theme)
+        return LCD_RGBPACK(ipod_usb_dark_tone(r), ipod_usb_dark_tone(g), ipod_usb_dark_tone(b));
+    return LCD_RGBPACK(r, g, b);
+}
+
+/* A pixel of the battery on the title bar: its dark parts turn light, and colours stay */
+static fb_data ipod_usb_dark_battery(fb_data pixel)
+{
+    const unsigned v = FB_UNPACK_SCALAR_LCD(pixel);
+    const int r = RGB_UNPACK_RED(v), g = RGB_UNPACK_GREEN(v), b = RGB_UNPACK_BLUE(v);
+    const int hi = MAX(MAX(r, g), b), lo = MIN(MIN(r, g), b), sum = hi + lo;
+    const int luma = (54 * r + 183 * g + 19 * b) >> 8;
+
+    if (pixel == FB_SCALARPACK(TRANSPARENT_COLOR) || (hi - lo > 25
+        && (hi - lo) * 1000 / (sum > 255 ? 510 - sum : sum) > 400))
+        return pixel;
+    if (luma >= 191)
+        return FB_SCALARPACK(LCD_RGBPACK(ipod_usb_dark_tone(r), ipod_usb_dark_tone(g),
+                                         ipod_usb_dark_tone(b)));
+    const int alpha = MIN((191 - luma) * 256 / 121, 256), back = ipod_usb_dark_tone(191);
+    const int level = back + (242 - back) * alpha / 256;
+    return FB_SCALARPACK(LCD_RGBPACK(level, level, level));
+}
+
+/* A pixel of the sign, which is drawn on white with a soft shadow */
+static fb_data ipod_usb_dark_sign(fb_data pixel)
+{
+    const unsigned v = FB_UNPACK_SCALAR_LCD(pixel);
+    const int r = RGB_UNPACK_RED(v), g = RGB_UNPACK_GREEN(v), b = RGB_UNPACK_BLUE(v);
+    const int lo = MIN(MIN(r, g), b);
+    const int t = MAX(MIN((lo - 140) * 256 / 115, 256), 0);
+    return FB_SCALARPACK(LCD_RGBPACK(r + (THEME_DARK_BG_R - r) * t / 256,
+                                     g + (THEME_DARK_BG_G - g) * t / 256,
+                                     b + (THEME_DARK_BG_B - b) * t / 256));
+}
+
+/* A bitmap of this screen, line by line through one of those */
+static void ipod_usb_dark_bitmap(struct screen *screen, const fb_data *data, int width,
+                                 int src_y, int x, int y, int height, bool transparent,
+                                 fb_data (*map)(fb_data))
+{
+    static fb_data line[100];
+    for (int i = 0; i < height && width <= (int)ARRAYLEN(line); i++)
+    {
+        const fb_data *row = data + (src_y + i) * width;
+        for (int k = 0; k < width; k++)
+            line[k] = map(row[k]);
+        if (transparent)
+            screen->transparent_bitmap_part(line, 0, 0, STRIDE(screen->screen_type, width, 1),
+                                            x, y + i, width, 1);
+        else
+            screen->bitmap_part(line, 0, 0, STRIDE(screen->screen_type, width, 1),
+                                x, y + i, width, 1);
+    }
 }
 
 /* While files can still be read: what's measured stays in the font's cache */
@@ -210,6 +272,14 @@ static void ipod_usb_draw_battery(struct screen *screen)
                       IPOD_USB_BATTERY_X + BMPWIDTH_usbbattery - 1, y);
     }
 
+    if (global_settings.dark_theme)
+    {
+        ipod_usb_dark_bitmap(screen, (const fb_data *)bm_usbbattery.data, BMPWIDTH_usbbattery,
+                             ipod_usb_charging ? 0 : IPOD_USB_BATTERY_H,
+                             IPOD_USB_BATTERY_X, IPOD_USB_BATTERY_Y, IPOD_USB_BATTERY_H,
+                             true, ipod_usb_dark_battery);
+        return;
+    }
     screen->transparent_bitmap_part((const fb_data *)bm_usbbattery.data, 0,
                                     ipod_usb_charging ? 0 : IPOD_USB_BATTERY_H,
                                     STRIDE(screen->screen_type,
@@ -241,17 +311,24 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
         screen->set_foreground(ipod_usb_colour(ipod_usb_title_bar[y]));
         screen->hline(0, LCD_WIDTH - 1, y);
     }
-    screen->set_foreground(LCD_WHITE);
+    const bool dark = global_settings.dark_theme;
+    screen->set_foreground(dark ? LCD_RGBPACK(THEME_DARK_BG_R, THEME_DARK_BG_G, THEME_DARK_BG_B)
+                                : LCD_WHITE);
     screen->fillrect(0, IPOD_USB_TITLE_H, LCD_WIDTH,
                      LCD_HEIGHT - IPOD_USB_TITLE_H);
 
-    screen->bmp(ipod_usb_ejected ? &bm_usbok : &bm_nodisconnect,
-                IPOD_USB_SIGN_X, IPOD_USB_SIGN_Y);
+    const struct bitmap *const sign = ipod_usb_ejected ? &bm_usbok : &bm_nodisconnect;
+    if (dark)
+        ipod_usb_dark_bitmap(screen, (const fb_data *)sign->data, sign->width, 0,
+                             IPOD_USB_SIGN_X, IPOD_USB_SIGN_Y, sign->height, false,
+                             ipod_usb_dark_sign);
+    else
+        screen->bmp(sign, IPOD_USB_SIGN_X, IPOD_USB_SIGN_Y);
     ipod_usb_draw_battery(screen);
 
     /* The letters blend with what's under them, here the title bar */
     screen->setfont(FONT_UI);
-    screen->set_foreground(LCD_BLACK);
+    screen->set_foreground(dark ? LCD_RGBPACK(0xf2, 0xf2, 0xf6) : LCD_BLACK);
     screen->set_drawmode(DRMODE_FG);
     /* in the middle if it's clear of the battery, and otherwise from the left */
     int name_width, name_height;

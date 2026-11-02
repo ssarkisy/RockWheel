@@ -53,6 +53,7 @@
 #include "system.h"
 #include "general.h"
 #include "misc.h"
+#include "night_mode.h"
 #include "icons.h"
 #include "font.h"
 #include "peakmeter.h"
@@ -384,10 +385,10 @@ bool string_to_cfg(const char *name, char* value, bool *theme_changed)
         {
             *(bool*)setting->setting = !!temp;
             logf("Val: %s\r\n", value);
-        }
-        if (setting->bool_setting->option_callback)
-        {
-            setting->bool_setting->option_callback(!!temp);
+            if (setting->bool_setting->option_callback)
+            {
+                setting->bool_setting->option_callback(!!temp);
+            }
         }
         break;
     }
@@ -416,6 +417,10 @@ bool settings_load_config(const char* file, bool apply)
     fd = open_utf8(file, O_RDONLY);
     if (fd < 0)
         return false;
+
+    const bool old_dark = global_settings.dark_theme;
+    if (apply)
+        night_mode_settings_loading();
 
     while (read_line(fd, line, sizeof line) > 0)
     {
@@ -446,9 +451,10 @@ bool settings_load_config(const char* file, bool apply)
 
     if (apply)
     {
+        night_mode_boot();
         settings_save();
         settings_apply(true);
-        if (theme_changed)
+        if (theme_changed || global_settings.dark_theme != old_dark)
             settings_apply_skins();
     }
     return true;

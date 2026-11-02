@@ -46,8 +46,9 @@
 #define CELL_W      (GRID_W + 1) /* a thumbnail and the line left of it */
 #define CELL_H      (GRID_H + 1)
 #define SCROLLBAR_W 6
-#define GRID_LINE   LCD_RGBPACK(0xc8, 0xc8, 0xc8)
-#define GRID_EMPTY  LCD_RGBPACK(0xe8, 0xe8, 0xe8)
+#define DARK_THEME  (rb->global_settings->dark_theme)
+#define GRID_LINE   (DARK_THEME ? LCD_RGBPACK(0x3a, 0x3a, 0x3e) : LCD_RGBPACK(0xc8, 0xc8, 0xc8))
+#define GRID_EMPTY  (DARK_THEME ? LCD_RGBPACK(0x24, 0x24, 0x28) : LCD_RGBPACK(0xe8, 0xe8, 0xe8))
 #define GRID_SELECT LCD_RGBPACK(0xf0, 0xb8, 0x20)
 
 #define TITLE_FONT FONT_DIR "/14-Inter-Bold.fnt"
@@ -573,7 +574,8 @@ static void init_title_bar(void)
 static void draw_battery(int x, int y)
 {
     int level = rb->battery_level();
-    rb->lcd_set_foreground(LCD_RGBPACK(0x60, 0x60, 0x60));
+    rb->lcd_set_foreground(DARK_THEME ? LCD_RGBPACK(0xb0, 0xb0, 0xb4)
+                                      : LCD_RGBPACK(0x60, 0x60, 0x60));
     rb->lcd_drawrect(x, y, BATTERY_W - 2, BATTERY_H);
     rb->lcd_fillrect(x + BATTERY_W - 2, y + 3, 2, BATTERY_H - 6);
     if (level > 0)

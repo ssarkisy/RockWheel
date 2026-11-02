@@ -32,6 +32,7 @@
 
 #include "appevents.h"
 #include "button.h"
+#include "night_mode.h"
 #include "action.h"
 #include "kernel.h"
 #include "core_alloc.h"
@@ -1115,6 +1116,9 @@ static inline int do_backlight(action_last_t *last, action_cur_t *cur, int actio
 static int get_action_worker(action_last_t *last, action_cur_t *cur)
 {
     send_event(GUI_EVENT_ACTIONUPDATE, NULL);
+
+    if (night_mode_poll(cur->context))
+        return ACTION_REDRAW;
 
     /*if button = none/special; returns immediately*/
     if (action_poll_button(last, cur))

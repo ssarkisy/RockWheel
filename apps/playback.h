@@ -65,6 +65,7 @@ void playback_release_aa_slot(int slot);
  *
  * Save to call from other threads */
 void playback_update_aa_dims(void);
+void playback_hold_aa_slots(bool hold);
 
 struct itunesdb_art;
 

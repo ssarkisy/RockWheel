@@ -18459,3 +18459,171 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_DARK_THEME
+  desc: the dark look of the whole interface, or as what Night Mode turns on
+  user: core
+  <source>
+    *: "Dark Theme"
+  </source>
+  <dest>
+    *: "Giao diện tối"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_MODE
+  desc: a mode for the dark: a setting, and the name of its screen
+  user: core
+  <source>
+    *: "Night Mode"
+  </source>
+  <dest>
+    *: "Chế độ đêm"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_WHEN_ON
+  desc: in the Night Mode screen, the group of what it does when on
+  user: core
+  <source>
+    *: "When On"
+  </source>
+  <dest>
+    *: "Khi bật"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_SILENT
+  desc: in the Night Mode screen: no sound from the click wheel while it is on
+  user: core
+  <source>
+    *: "Silent Wheel"
+  </source>
+  <dest>
+    *: "Bánh xe im lặng"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_DIM
+  desc: in the Night Mode screen: a lower brightness while it is on
+  user: core
+  <source>
+    *: "Dim Screen"
+  </source>
+  <dest>
+    *: "Giảm độ sáng"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_LIMIT
+  desc: in the Night Mode screen: a lower limit of the volume while it is on
+  user: core
+  <source>
+    *: "Limit Volume"
+  </source>
+  <dest>
+    *: "Giới hạn âm lượng"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_VOLUME
+  desc: in the Night Mode screen: that limit
+  user: core
+  <source>
+    *: "Max Volume"
+  </source>
+  <dest>
+    *: "Âm lượng tối đa"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_SCHEDULE
+  desc: in the Night Mode screen, the group of when it turns on and off by itself
+  user: core
+  <source>
+    *: "Schedule"
+  </source>
+  <dest>
+    *: "Lịch"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_ON_SCHEDULE
+  desc: in the Night Mode screen: it turns on and off by itself at those times
+  user: core
+  <source>
+    *: "On a Schedule"
+  </source>
+  <dest>
+    *: "Theo lịch"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_STARTS
+  desc: in the Night Mode screen: the time it turns on by itself
+  user: core
+  <source>
+    *: "Starts"
+  </source>
+  <dest>
+    *: "Bắt đầu"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NIGHT_ENDS
+  desc: in the Night Mode screen: the time it turns off by itself
+  user: core
+  <source>
+    *: "Ends"
+  </source>
+  <dest>
+    *: "Kết thúc"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_THEME_APPLYING
+  desc: a message in the middle of the screen while the dark or light theme comes on
+  user: core
+  <source>
+    *: "Applying..."
+  </source>
+  <dest>
+    *: "Đang áp dụng..."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

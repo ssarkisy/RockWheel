@@ -53,7 +53,20 @@ static void white_background(struct screen* display){
 }
 
 static bool skin_require_black_background(int mode, int skin){
-    return((mode==BINARY && skin==2) || (mode==DIGITAL && skin==1 ));
+    return(rb->global_settings->dark_theme
+           || (mode==BINARY && skin==2) || (mode==DIGITAL && skin==1 ));
+}
+
+/* In the dark theme the pictures on a light background would glare, so those on a
+   black one stand in for them */
+static int skin_for_theme(int mode, int skin){
+    if(rb->global_settings->dark_theme){
+        if(mode==BINARY)
+            return 2;
+        if(mode==DIGITAL)
+            return 1;
+    }
+    return skin;
 }
 
 static void skin_set_background(struct screen* display, int mode, int skin){
@@ -67,14 +80,16 @@ void clock_draw_set_colors(void){
     FOR_NB_SCREENS(i)
         skin_set_background(rb->screens[i],
                             clock_settings.mode,
-                            clock_settings.skin[clock_settings.mode]);
+                            skin_for_theme(clock_settings.mode,
+                                           clock_settings.skin[clock_settings.mode]));
 }
 
 void clock_draw(struct screen* display, struct time* time,
                 struct counter* counter){
     if(!show_counter)
         counter=0;
-    int skin=clock_settings.skin[clock_settings.mode];
+    int skin=skin_for_theme(clock_settings.mode,
+                            clock_settings.skin[clock_settings.mode]);
     skin_set_background(display, clock_settings.mode, skin);
     if(clock_settings.mode == ANALOG)
         analog_clock_draw(display, time, &clock_settings, counter, skin);

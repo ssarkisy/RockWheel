@@ -82,6 +82,7 @@
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 #include "skin_engine/cover_palette.h"
 #endif
+#include "night_mode.h"
 
 #define UNUSED {.RESERVED=NULL}
 #define INT(a) {.int_ = a}
@@ -1570,6 +1571,42 @@ const struct settings_list settings[] = {
                 MIN_BRIGHTNESS_SETTING, MAX_BRIGHTNESS_SETTING, 1,
                 NULL, NULL, backlight_set_brightness),
 #endif
+    OFFON_SETTING(0, dark_theme, LANG_DARK_THEME, false, "dark theme", dark_theme_changed),
+    OFFON_SETTING(0, night_mode, LANG_NIGHT_MODE, false, "night mode", night_mode_changed),
+    OFFON_SETTING(0, night_dark, LANG_DARK_THEME, true, "night dark theme",
+                  night_action_changed),
+    OFFON_SETTING(0, night_silent, LANG_NIGHT_SILENT, true, "night silent wheel",
+                  night_action_changed),
+#ifdef HAVE_BACKLIGHT_BRIGHTNESS
+    OFFON_SETTING(0, night_dim, LANG_NIGHT_DIM, true, "night dim", night_action_changed),
+    INT_SETTING(F_NO_WRAP, night_brightness, LANG_BRIGHTNESS, 8, "night brightness", UNIT_INT,
+                MIN_BRIGHTNESS_SETTING, MAX_BRIGHTNESS_SETTING, 1,
+                NULL, NULL, night_brightness_changed),
+#endif
+    OFFON_SETTING(0, night_limit, LANG_NIGHT_LIMIT, true, "night limit", night_action_changed),
+    INT_SETTING(F_NO_WRAP, night_volume, LANG_NIGHT_VOLUME, -12, "night volume", UNIT_DB,
+                -60, 6, 1, NULL, NULL, NULL),
+    OFFON_SETTING(0, night_schedule, LANG_NIGHT_ON_SCHEDULE, false, "night schedule",
+                  night_schedule_changed),
+    INT_SETTING(0, night_start, LANG_NIGHT_STARTS, 22 * 60, "night start", UNIT_INT,
+                0, 24 * 60 - 5, 5, night_time_format, NULL, NULL),
+    INT_SETTING(0, night_end, LANG_NIGHT_ENDS, 7 * 60, "night end", UNIT_INT,
+                0, 24 * 60 - 5, 5, night_time_format, NULL, NULL),
+    OFFON_SETTING(F_BANFROMQS, night_was_in, LANG_NIGHT_MODE, false, "night was in", NULL),
+    INT_SETTING(F_BANFROMQS, night_seen, LANG_NIGHT_MODE, 0, "night seen", UNIT_INT,
+                0, 0x7fffffff, 1, NULL, NULL, NULL),
+    INT_SETTING(F_BANFROMQS, night_changed, LANG_NIGHT_MODE, 0, "night changed", UNIT_INT,
+                0, 15, 1, NULL, NULL, NULL),
+    INT_SETTING(F_BANFROMQS, night_old_keyclick, LANG_NIGHT_MODE, 0, "night old keyclick",
+                UNIT_INT, 0, 3, 1, NULL, NULL, NULL),
+    OFFON_SETTING(F_BANFROMQS, night_old_keyclick_hw, LANG_NIGHT_MODE, false,
+                  "night old hardware keyclick", NULL),
+    INT_SETTING(F_BANFROMQS, night_old_brightness, LANG_NIGHT_MODE, 0, "night old brightness",
+                UNIT_INT, 0, 255, 1, NULL, NULL, NULL),
+    INT_SETTING(F_BANFROMQS, night_old_limit, LANG_NIGHT_MODE, 0, "night old limit", UNIT_DB,
+                -90, 6, 1, NULL, NULL, NULL),
+    INT_SETTING(F_BANFROMQS, night_old_volume, LANG_NIGHT_MODE, 0, "night old volume", UNIT_DB,
+                -90, 6, 1, NULL, NULL, NULL),
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     CHOICE_SETTING(0, cover_colours, LANG_COVER_COLOURS, 0, "cover colours",
                    "off,on,screen,fill", cover_palette_set_mode, 4, ID2P(LANG_OFF),

@@ -64,6 +64,7 @@
 #include "skin_engine/wps_internals.h"
 #include "open_plugin.h"
 #include "lyrics.h"
+#include "night_mode.h"
 #include "skin_engine/cover_palette.h"
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
@@ -977,6 +978,7 @@ long gui_wps_show(void)
     struct wps_state *state = get_wps_state();
 
     ab_reset_markers();
+    night_mode_theme_changed(); /* one made elsewhere, as it's set up now anyway */
 
     wps_state_init();
     state->display_mode = WPS_MODE_VOLUME;
@@ -1111,6 +1113,7 @@ long gui_wps_show(void)
                     open_plugin_run(ID2P(LANG_ONPLAY_MENU_TITLE));
                 }
 
+                night_mode_theme_changed(); /* set up again anyway */
                 restore = true;
             }
             break;
@@ -1351,6 +1354,13 @@ long gui_wps_show(void)
             case ACTION_REDRAW:
                 skin_request_full_update(WPS);
                 skin_request_full_update(CUSTOM_STATUSBAR); /* if SBS is used */
+                /* the night's schedule has changed the theme under it */
+                if (night_mode_theme_changed())
+                {
+                    /* nothing has left the screen, so nothing to push back */
+                    restore = true;
+                    theme_enabled = false;
+                }
                 break;
             case ACTION_NONE: /* Timeout, do a partial update */
                 update = true;

@@ -740,6 +740,7 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
         &cover_colours_item,
 #endif
+        &dark_theme_item, &night_menu,
         &group_general,
         &ipod_keyclick_menu, &sleep_timer_item,
 #if CONFIG_RTC

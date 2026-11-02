@@ -1234,8 +1234,8 @@ void show_library_update(void)
 #endif
         if (phase == TAGCACHE_IMPORT_NONE)
             tagtree_prepare_songs();
-        lcd_set_background(LCD_DEFAULT_BG);
-        lcd_set_foreground(LCD_DEFAULT_FG);
+        lcd_set_background(global_settings.bg_color);
+        lcd_set_foreground(global_settings.fg_color);
         lcd_clear_display();
         FOR_NB_SCREENS(i)
             viewportmanager_theme_undo(i, true);

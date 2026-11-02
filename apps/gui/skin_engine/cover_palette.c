@@ -30,6 +30,7 @@
 #include "screen_access.h"
 #include "viewport.h"
 #include "cover_palette.h"
+#include "night_mode.h"
 
 #define HUE_BINS 36
 #define HUE_BIN_WIDTH 10
@@ -201,6 +202,21 @@ static unsigned over_background(const int rgb[3], const int background[3], int c
                        background[2] + (rgb[2] - background[2]) * c / 256);
 }
 
+/* The dark theme's background */
+static const int dark_background[3] = { THEME_DARK_BG_R, THEME_DARK_BG_G, THEME_DARK_BG_B };
+
+/* As light as this lightness, and for a contrast of 4.5 on the dark theme's background */
+static void readable_on_dark(int hue, int saturation, int lightness, int rgb[3])
+{
+    for (;;)
+    {
+        hsl_to_rgb(hue, saturation, lightness, rgb);
+        if (contrast(rgb, dark_background) >= 450 || lightness >= 950)
+            return;
+        lightness += 5;
+    }
+}
+
 /* What the theme's bitmaps and backdrop are drawn in on the whole screen */
 static struct
 {
@@ -245,8 +261,10 @@ static void tint_rgb(const int rgb[3], int out[3])
     if (screen_colours.fill)
     {
         /* the lightest shades are the images' own background: the stars' has a pale
-           panel in it, which a white screen hides and a coloured one doesn't */
-        const int level = MIN(luma * 255 / 236, 255);
+           panel in it, which a white screen hides and a coloured one doesn't. The dark
+           theme's images are the other way up. */
+        const int level = MIN((global_settings.dark_theme ? 255 - luma : luma) * 255 / 236,
+                              255);
         for (int i = 0; i < 3; i++)
             out[i] = screen_colours.ink[i]
                    + (screen_colours.background[i] - screen_colours.ink[i]) * level / 255;
@@ -444,7 +462,8 @@ static void tint_backdrop(void)
                   blue = out[2] * 248 / 255;
         for (int i = 0; i < 16; i++)
         {
-            const int d = dither[i];
+            /* it would show on the dark theme's shades, which have no near grey to lose */
+            const int d = global_settings.dark_theme ? 8 : dither[i];
             b->dithered[c][i] = FB_SCALARPACK(LCD_RGBPACK(red + d / 2, green + d / 4,
                                                           blue + d / 2));
         }
@@ -483,7 +502,7 @@ static void tint_header_rgb(const int rgb[3], int out[3])
 {
     const int hi = MAX(MAX(rgb[0], rgb[1]), rgb[2]), lo = MIN(MIN(rgb[0], rgb[1]), rgb[2]);
     const int sum = hi + lo, chroma = hi - lo;
-    const int luma = (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
+    int luma = (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
     int back[3];
 
     if (is_warning_red(rgb))
@@ -504,6 +523,9 @@ static void tint_header_rgb(const int rgb[3], int out[3])
         }
         return;
     }
+    /* the dark theme's grey images are the other way up */
+    if (global_settings.dark_theme)
+        luma = 255 - luma;
     if (luma >= 191)
     {
         header_shade(luma, out);
@@ -583,17 +605,31 @@ static void fill_backdrop(void)
     {
         int rgb[3], out[3];
         unpack_rgb(src[(HEADER_HEIGHT - 1) * LCD_WIDTH + x], rgb);
-        header_shade((54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8, out);
+        header_shade(global_settings.dark_theme ? 110
+                     : (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8, out);
         b->backdrop[(HEADER_HEIGHT - 1) * LCD_WIDTH + x] = pack_nearest(out);
     }
 
     for (int y = 0; y < BAR_HEIGHT; y++)
-        memcpy(&b->backdrop[(BAR_Y + y) * LCD_WIDTH + BAR_X],
-               &src[(BAR_Y + y) * LCD_WIDTH + BAR_X], BAR_WIDTH * sizeof(fb_data));
+    {
+        const fb_data *from = &src[(BAR_Y + y) * LCD_WIDTH + BAR_X];
+        fb_data *to = &b->backdrop[(BAR_Y + y) * LCD_WIDTH + BAR_X];
+        if (!global_settings.dark_theme)
+            memcpy(to, from, BAR_WIDTH * sizeof(fb_data));
+        /* light on the colour in both themes */
+        else for (int x = 0; x < BAR_WIDTH; x++)
+        {
+            int rgb[3];
+            unpack_rgb(from[x], rgb);
+            const int grey = MIN(255 - rgb[1] + 20, 255);
+            rgb[0] = rgb[1] = rgb[2] = grey;
+            to[x] = pack_nearest(rgb);
+        }
+    }
     for (int y = 0; y < BAR_REFLECTION; y++)
     {
         const int alpha = reflection_alpha(y);
-        const fb_data *row = &src[(BAR_Y + BAR_HEIGHT - 1 - y) * LCD_WIDTH + BAR_X];
+        const fb_data *row = &b->backdrop[(BAR_Y + BAR_HEIGHT - 1 - y) * LCD_WIDTH + BAR_X];
         fb_data *dst = &b->backdrop[(BAR_Y + BAR_HEIGHT + y) * LCD_WIDTH + BAR_X];
         for (int x = 0; x < BAR_WIDTH; x++)
             dst[x] = reflected(row[x], alpha);
@@ -747,6 +783,24 @@ static void make_screen_palette(struct cover_palette *palette, int hue, bool gre
     screen_colours.fill = false;
     screen_colours.hue = hue;
     screen_colours.accent_saturation = s * 598;
+    if (global_settings.dark_theme)
+    {
+        /* its images are light on dark, so what's dark is the background here */
+        int *const low = screen_colours.ink, *const high = screen_colours.background;
+        hsl_to_rgb(hue, s * 360, 95, low);
+        hsl_to_rgb(hue, s * 220, 950, high);
+        palette->background = LCD_RGBPACK(low[0], low[1], low[2]);
+        palette->ink = LCD_RGBPACK(high[0], high[1], high[2]);
+        hsl_to_rgb(hue, s * 200, 760, rgb);
+        palette->secondary = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+        hsl_to_rgb(hue, s * 160, 640, rgb);
+        palette->muted = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+        hsl_to_rgb(hue, s * 220, 860, rgb);
+        palette->format = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+        palette->format_half = over_background(rgb, low, 128);
+        palette->format_quarter = over_background(rgb, low, 64);
+        return;
+    }
     hsl_to_rgb(hue, s * 340, 949, screen_colours.background);
     hsl_to_rgb(hue, s * 300, 105, screen_colours.ink);
     palette->background = LCD_RGBPACK(screen_colours.background[0],
@@ -772,6 +826,29 @@ static void make_text_palette(struct cover_palette *palette, int hue, bool grey)
 
     palette->whole_screen = false;
     screen_colours.fill = false;
+    if (global_settings.dark_theme)
+    {
+        readable_on_dark(hue, s * 652, 720, ink);
+        palette->ink = LCD_RGBPACK(ink[0], ink[1], ink[2]);
+        readable_on_dark(hue, s * 420, 720, rgb);
+        palette->secondary = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+        readable_on_dark(hue, s * 285, 620, rgb);
+        palette->muted = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+        readable_on_dark(hue, s * 588, 760, rgb);
+        palette->format = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+        palette->format_half = over_background(rgb, dark_background, 128);
+        palette->format_quarter = over_background(rgb, dark_background, 64);
+        /* the stars are light on dark in these images: their shades go up to the ink */
+        for (int i = 0; i < COVER_PALETTE_STAR_KEPT; i++)
+        {
+            const int level = i * 255 / (COVER_PALETTE_STAR_KEPT - 1);
+            int star[3];
+            for (int c = 0; c < 3; c++)
+                star[c] = dark_background[c] + (ink[c] - dark_background[c]) * level / 255;
+            palette->star[i] = FB_SCALARPACK(LCD_RGBPACK(star[0], star[1], star[2]));
+        }
+        return;
+    }
     readable_colour(hue, s * 652, 280, ink);
     palette->ink = LCD_RGBPACK(ink[0], ink[1], ink[2]);
     readable_colour(hue, s * 420, 350, rgb);
@@ -964,9 +1041,27 @@ const struct cover_palette *cover_palette_get(void)
     return active ? &palette : NULL;
 }
 
+void cover_palette_theme_changed(void)
+{
+    set_inactive();
+    palette_handle = -1;
+    tinted_backdrop_id = indexed_backdrop_id = -1;
+    bar_source = NULL;
+}
+
 unsigned cover_palette_text_colour(unsigned colour)
 {
     const int green = RGB_UNPACK_GREEN(colour);
+    if (global_settings.dark_theme)
+    {
+        if (green >= 0xe0)
+            return palette.ink;
+        if (green >= 0xa0)
+            return palette.secondary;
+        if (green >= 0x70)
+            return palette.muted;
+        return colour;
+    }
     if (green < 0x40)
         return palette.ink;
     if (green < 0x78)

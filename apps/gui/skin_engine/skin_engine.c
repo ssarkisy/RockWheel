@@ -31,6 +31,8 @@
 #include "wps.h"
 #include "file.h"
 #include "misc.h"
+#include "playback.h"
+#include "appevents.h"
 #if CONFIG_TUNER
 #include "radio.h"
 #endif
@@ -181,13 +183,22 @@ static void skin_reset_buffers(int item, int screen)
 #endif
 }
 
-void settings_apply_skins(void)
+static void skins_reload(bool stop_audio)
 {
     int i;
+    /* With something on the screen the theme is off for this, as it is at boot: a
+       redraw of the status bar now would ask for skins that are just being loaded */
+    const bool on_screen = skins_initialised;
+
+    if (on_screen)
+    {
+        FOR_NB_SCREENS(j)
+            viewportmanager_theme_enable(j, false, NULL);
+    }
 
     font_load_fallback();
 
-    if (audio_status() & AUDIO_STATUS_PLAY)
+    if (stop_audio && (audio_status() & AUDIO_STATUS_PLAY))
         audio_stop();
 
     bool first_run = skin_backdrop_init();
@@ -216,12 +227,40 @@ void settings_apply_skins(void)
     }
 
     /* any backdrop that was loaded with "-" has to be reloaded because
-     * the setting may have changed */
-    skin_backdrop_load_setting();
+     * the setting may have changed, which it hasn't for skins swapped while playing:
+     * they've only just loaded it */
+    if (stop_audio)
+        skin_backdrop_load_setting();
     viewportmanager_theme_changed(THEME_STATUSBAR);
 
     FOR_NB_SCREENS(i)
         skin_backdrop_show(sb_get_backdrop(i));
+
+    if (on_screen)
+    {
+        FOR_NB_SCREENS(j)
+            viewportmanager_theme_undo(j, true);
+        /* At the bottom of the theme's stack, in the browsers, that doesn't draw the
+           status bar, and only that says which viewport the lists are to use */
+        send_event(GUI_EVENT_ACTIONREDRAW, (void *)1);
+        send_event(GUI_EVENT_THEME_CHANGED, NULL);
+    }
+}
+
+void settings_apply_skins(void)
+{
+    skins_reload(true);
+}
+
+/* For skins with all the same album art sizes as those before them, so that what's
+   loaded for the tracks stays right */
+void skin_reload_while_playing(void)
+{
+    playback_hold_aa_slots(true);
+    font_hold(true);
+    skins_reload(false);
+    font_hold(false);
+    playback_hold_aa_slots(false);
 }
 
 static void skin_load(enum skinnable_screens skin, enum screen_type screen,

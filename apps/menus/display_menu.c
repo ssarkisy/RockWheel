@@ -45,6 +45,7 @@
 #include "viewport.h"
 #include "statusbar.h" /* statusbar_vals enum*/
 #include "rbunicode.h"
+#include "night_mode.h"
 
 #ifdef HAVE_BACKLIGHT
 static int selectivebacklight_callback(int action,
@@ -191,6 +192,56 @@ MENUITEM_SETTING_SHARED(brightness_item, &global_settings.brightness, NULL);
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 MENUITEM_SETTING_SHARED(cover_colours_item, &global_settings.cover_colours, NULL);
 #endif
+
+MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);
+
+/* after the screen of a value of the mode */
+static int night_value_callback(int action, const struct menu_item_ex *this_item,
+                                struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_EXIT_MENUITEM)
+        night_settings_chosen();
+    return action;
+}
+
+static int night_time_callback(int action, const struct menu_item_ex *this_item,
+                               struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_EXIT_MENUITEM)
+        night_schedule_changed(global_settings.night_schedule);
+    return action;
+}
+
+MENUITEM_SETTING(night_mode_item, &global_settings.night_mode, NULL);
+MENUITEM_GROUP(night_group_actions, ID2P(LANG_NIGHT_WHEN_ON));
+MENUITEM_SETTING(night_dark_item, &global_settings.night_dark, NULL);
+MENUITEM_SETTING(night_silent_item, &global_settings.night_silent, NULL);
+#ifdef HAVE_BACKLIGHT_BRIGHTNESS
+MENUITEM_SETTING(night_dim_item, &global_settings.night_dim, NULL);
+MENUITEM_SETTING(night_brightness_item, &global_settings.night_brightness,
+                 night_value_callback);
+#endif
+MENUITEM_SETTING(night_limit_item, &global_settings.night_limit, NULL);
+MENUITEM_SETTING(night_volume_item, &global_settings.night_volume, night_value_callback);
+MENUITEM_GROUP(night_group_schedule, ID2P(LANG_NIGHT_SCHEDULE));
+MENUITEM_SETTING(night_schedule_item, &global_settings.night_schedule, NULL);
+MENUITEM_SETTING(night_start_item, &global_settings.night_start, night_time_callback);
+MENUITEM_SETTING(night_end_item, &global_settings.night_end, night_time_callback);
+
+MAKE_MENU(night_menu, ID2P(LANG_NIGHT_MODE), NULL, Icon_NOICON,
+          &night_mode_item,
+          &night_group_actions,
+          &night_dark_item, &night_silent_item,
+#ifdef HAVE_BACKLIGHT_BRIGHTNESS
+          &night_dim_item, &night_brightness_item,
+#endif
+          &night_limit_item, &night_volume_item,
+          &night_group_schedule,
+          &night_schedule_item, &night_start_item, &night_end_item);
 #ifdef HAVE_COMPOSITE_VIDEO_OUT
 MENUITEM_SETTING(composite_video_output,
                  &global_settings.composite_video_output, NULL);

@@ -754,6 +754,27 @@ struct user_settings
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
     int brightness;
     int cover_colours; /* Now Playing takes colours from the cover: COVER_COLOURS_* */
+
+    bool dark_theme;
+    bool night_mode;
+    /* what it does */
+    bool night_dark;
+    bool night_silent;
+    bool night_dim;
+    int night_brightness;
+    bool night_limit;
+    int night_volume;
+    bool night_schedule;
+    int night_start, night_end; /* minutes of the day */
+    /* where it stands: not shown */
+    bool night_was_in;          /* in its hours when last looked at */
+    int night_seen;             /* then, in minutes */
+    int night_changed;          /* what it has changed, of which the old values: */
+    int night_old_keyclick;
+    bool night_old_keyclick_hw;
+    int night_old_brightness;
+    int night_old_limit;
+    int night_old_volume;
 #endif
 #ifdef HAVE_COMPOSITE_VIDEO_OUT
     int composite_video_output;

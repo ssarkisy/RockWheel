@@ -70,6 +70,7 @@ extern const struct menu_item_ex
         cover_colours_item,
 #endif
         codepage_setting,
+        dark_theme_item, night_menu,                /* display_menu.c   */
         battery_capacity, ipod_keyclick_menu,       /* settings_menu.c  */
         sleep_timer_item, language_item,
 #ifdef HAVE_TAGCACHE

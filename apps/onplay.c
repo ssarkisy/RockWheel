@@ -68,6 +68,7 @@
 #include "storage.h"
 #endif
 #include "language.h"
+#include "night_mode.h"
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 #include "skin_engine/cover_palette.h"
 #endif
@@ -1312,6 +1313,44 @@ MENUITEM_FUNCTION_DYNTEXT(wps_volume_limit_item,
                           wps_set_volume_limit, volume_limit_item_name,
                           NULL, NULL, NULL, Icon_NOICON);
 
+static int toggle_dark_theme(void)
+{
+    dark_theme_toggle();
+    return 0;
+}
+
+static char *dark_theme_item_name(int selected_item, void *data,
+                                  char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    snprintf(buffer, buffer_len, "%s: %s", str(LANG_DARK_THEME),
+             str(global_settings.dark_theme ? LANG_ON : LANG_OFF));
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(wps_dark_theme_item, MENU_EXITAFTERTHISMENU,
+                          toggle_dark_theme, dark_theme_item_name,
+                          NULL, NULL, NULL, Icon_NOICON);
+
+static int toggle_night_mode(void)
+{
+    night_mode_toggle();
+    return 0;
+}
+
+static char *night_mode_item_name(int selected_item, void *data,
+                                  char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    snprintf(buffer, buffer_len, "%s: %s", str(LANG_NIGHT_MODE),
+             str(global_settings.night_mode ? LANG_ON : LANG_OFF));
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(wps_night_mode_item, MENU_EXITAFTERTHISMENU,
+                          toggle_night_mode, night_mode_item_name,
+                          NULL, NULL, NULL, Icon_NOICON);
+
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 static int cycle_cover_colours(void)
 {
@@ -1400,6 +1439,8 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
            &wps_cover_colours_item,
 #endif
+           &wps_dark_theme_item,
+           &wps_night_mode_item,
 #ifndef HAVE_HOTKEY
            &context_item_0,
 #endif

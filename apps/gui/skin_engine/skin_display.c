@@ -251,8 +251,11 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
 
     const char *format = get_codec_string(codec);
     const unsigned old_fg = display->get_foreground();
-    unsigned colour = FORMAT_COLOUR, half = FORMAT_BAR_HALF,
-             quarter = FORMAT_BAR_QUARTER, bitrate_colour = BITRATE_COLOUR;
+    const bool dark = global_settings.dark_theme;
+    unsigned colour = dark ? LCD_RGBPACK(0xd8, 0xda, 0xdc) : FORMAT_COLOUR,
+             half = dark ? LCD_RGBPACK(0x74, 0x75, 0x76) : FORMAT_BAR_HALF,
+             quarter = dark ? LCD_RGBPACK(0x43, 0x44, 0x45) : FORMAT_BAR_QUARTER,
+             bitrate_colour = dark ? LCD_RGBPACK(0x8e, 0x90, 0x94) : BITRATE_COLOUR;
 #ifdef HAVE_ALBUMART
     const struct cover_palette *palette = cover_palette_get();
     if (palette)
@@ -716,7 +719,9 @@ static void draw_cover_tinted_image(struct screen *display, const struct gui_img
         for (int x = 0; x < width; x++)
         {
             const int shade = RGB_UNPACK_GREEN(FB_UNPACK_SCALAR_LCD(row[x])) >> 2;
-            line[x] = shade < COVER_PALETTE_STAR_KEPT ? shades[shade] : row[x];
+            /* the dark theme's lightest shade is the stars themselves */
+            line[x] = shade < COVER_PALETTE_STAR_KEPT ? shades[shade]
+                : global_settings.dark_theme ? shades[COVER_PALETTE_STAR_KEPT - 1] : row[x];
         }
         display->bitmap_part(line, 0, 0, STRIDE(display->screen_type, width, 1),
                              img->x, img->y + y, width, 1);

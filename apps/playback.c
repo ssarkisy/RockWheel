@@ -4336,8 +4336,34 @@ void playback_release_aa_slot(int slot)
     }
 }
 
+/* The skins are being swapped for others with the same album art sizes: what's
+   buffered for the tracks stays right, so the slots stay claimed for the time they
+   are away and the audio buffer isn't made again */
+static bool aa_slot_held[MAX_MULTIPLE_AA];
+static bool aa_slots_held;
+
+void playback_hold_aa_slots(bool hold)
+{
+    FOREACH_ALBUMART(i)
+    {
+        if (hold && albumart_slots[i].used)
+        {
+            albumart_slots[i].used++;
+            aa_slot_held[i] = true;
+        }
+        else if (!hold && aa_slot_held[i])
+        {
+            playback_release_aa_slot(i);
+            aa_slot_held[i] = false;
+        }
+    }
+    aa_slots_held = hold;
+}
+
 void playback_update_aa_dims(void)
 {
+    if (aa_slots_held)
+        return;
     LOGFQUEUE("audio >| audio Q_AUDIO_REMAKE_AUDIO_BUFFER");
     audio_queue_send(Q_AUDIO_REMAKE_AUDIO_BUFFER, 0);
 }

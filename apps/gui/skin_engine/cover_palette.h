@@ -55,6 +55,8 @@ void cover_palette_set_mode(int mode);
    its colour if that's known. True if the colours have changed, and all of it has to
    be drawn again. */
 bool cover_palette_update(int art_handle, uint32_t colour);
+/* Before the theme changes: what's worked out from its images goes */
+void cover_palette_theme_changed(void);
 /* NULL if Now Playing has its usual colours */
 const struct cover_palette *cover_palette_get(void);
 /* The colour for a grey the theme's text is in */

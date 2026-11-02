@@ -99,5 +99,7 @@ void skin_request_update_locked(bool locked);
 
 bool dbg_skin_engine(void);
 
+void skin_reload_while_playing(void);
+
 #endif /* !PLUGIN */
 #endif
