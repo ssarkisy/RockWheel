@@ -178,7 +178,7 @@ bool skin_backdrops_preload(void)
                 buf_size = REMOTE_LCD_BACKDROP_BYTES;
             else
 #endif
-                buf_size = LCD_BACKDROP_BYTES;
+                buf_size = LCD_BACKDROP_ROOM;
 
             filename = backdrops[i].name;
             if (screen == SCREEN_MAIN && global_settings.backdrop_file[0] &&
@@ -202,6 +202,7 @@ bool skin_backdrops_preload(void)
                         {
                             core_free(backdrops[i].buflib_handle);
                             backdrops[i].buflib_handle = -1;
+                            backdrops[i].buffer = NULL;
                             retval = false;
                         }
                     }
@@ -351,7 +352,7 @@ void skin_backdrop_load_setting(void)
                 if (backdrops[i].buflib_handle <= 0)
                 {
                     backdrops[i].buflib_handle =
-                            core_alloc_ex(LCD_BACKDROP_BYTES, &buflib_ops);
+                            core_alloc_ex(LCD_BACKDROP_ROOM, &buflib_ops);
                     if (backdrops[i].buflib_handle <= 0)
                         return;
                 }

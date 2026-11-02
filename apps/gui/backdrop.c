@@ -33,7 +33,7 @@ bool backdrop_load(const char* filename, char *backdrop_buffer)
 
     /* load the image */
     bm.data = backdrop_buffer;
-    ret = read_bmp_file(filename, &bm, LCD_BACKDROP_BYTES,
+    ret = read_bmp_file(filename, &bm, LCD_BACKDROP_ROOM,
                         FORMAT_NATIVE | FORMAT_DITHER, NULL);
 
     return ((ret > 0)

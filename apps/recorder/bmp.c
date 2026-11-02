@@ -138,6 +138,12 @@ const unsigned short vi_pattern[4] = {
 };
 #endif
 
+#if !defined(PLUGIN) && LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && \
+    LCD_STRIDEFORMAT != VERTICAL_STRIDE && defined(ROCKBOX_LITTLE_ENDIAN)
+#define BMP_ONE_READ
+#define BMP_ONE_READ_ALIGN 16
+#endif
+
 /******************************************************************************
  * read_bmp_file()
  *
@@ -643,6 +649,18 @@ int read_bmp_fd(int fd,
         rset.rowstop = -1;
     }
 
+#ifdef BMP_ONE_READ
+    /* A top-down picture with rows as the screen holds them has nothing to convert:
+       one read, where a read for each row gives playback a turn at each sector.
+       Its rows' padding needs room until they are closed up, and so does reading it
+       to where the file's sectors land on 16 bytes, as the disk's DMA wants them (or
+       it copies them itself, block by block). tools/buildzip.pl packages a theme's
+       pictures like this. */
+    const bool one_read = depth == 16 && format == FORMAT_NATIVE && !remote && !resize
+                          && !cformat && rset.rowstep == 1;
+    const int one_read_size = padded_width * bm->height;
+#endif
+
     /* need even rows (see lcd-16bit-common.c for details) */
     int alphasize = ALIGN_UP(bm->width, 2) * bm->height / 2;
     if (cformat)
@@ -662,6 +680,10 @@ int read_bmp_fd(int fd,
             totalsize += BM_SCALED_SIZE(bm->width, 0, 0, 0);
         else if (bm->width > BM_MAX_WIDTH)
             totalsize += bm->width*4;
+#endif
+#ifdef BMP_ONE_READ
+        if (one_read)
+            totalsize = MAX(totalsize, one_read_size + BMP_ONE_READ_ALIGN - 1);
 #endif
         return totalsize;
     }
@@ -759,6 +781,24 @@ int read_bmp_fd(int fd,
 
     /* Search to the beginning of the image data */
     lseek(fd, (off_t)letoh32(bmph.off_bits), SEEK_SET);
+
+#ifdef BMP_ONE_READ
+    if (one_read && depth == 16 && one_read_size <= maxsize)
+    {
+        const int row_size = bm->width * 2;
+        int shift = (letoh32(bmph.off_bits) - (intptr_t)bitmap) & (BMP_ONE_READ_ALIGN - 1);
+        if (one_read_size + shift > maxsize)
+            shift = 0;
+        bm->alpha_offset = 0;
+        if (read(fd, bitmap + shift, one_read_size) != one_read_size)
+            return -9;
+        if (shift)
+            memmove(bitmap, bitmap + shift, one_read_size);
+        for (int y = 1; row_size != padded_width && y < bm->height; y++)
+            memmove(bitmap + y * row_size, bitmap + y * padded_width, row_size);
+        return totalsize;
+    }
+#endif
 
     memset(bitmap, 0, totalsize);
 

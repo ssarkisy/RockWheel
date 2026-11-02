@@ -27,11 +27,14 @@
 #include "bmp.h"
 
 #define LCD_BACKDROP_BYTES (LCD_FBHEIGHT*LCD_FBWIDTH*sizeof(fb_data))
+/* the room a buffer has for loading one: read_bmp_fd() may read it a little further on */
+#define LCD_BACKDROP_ROOM (LCD_BACKDROP_BYTES + 15)
 bool backdrop_load(const char *filename, char* backdrop_buffer);
 void backdrop_show(char* backdrop_buffer);
 
 #else
 #define LCD_BACKDROP_BYTES 0
+#define LCD_BACKDROP_ROOM 0
 #endif
 
 #if defined(HAVE_REMOTE_LCD) 

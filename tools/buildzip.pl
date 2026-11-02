@@ -97,6 +97,49 @@ sub find_copyfile {
     }
 }
 
+# A theme's 24 bit picture turned into what read_bmp_fd would make of it, so that it
+# is only read at load time: 16 bit RGB565, top-down. Whole-screen ones are backdrops,
+# which it dithers.
+sub theme_bmp_for_screen {
+    my ($path) = @_;
+    my @table = (0, 192, 48, 240, 12, 204, 60, 252, 3, 195, 51, 243, 15, 207, 63, 255);
+
+    open(my $in, '<:raw', $path) or die "can't read $path";
+    my $data = do { local $/; <$in> };
+    close($in);
+
+    my ($offset, $header, $w, $h, $planes, $bits, $compression) =
+        unpack('L< L< l< l< S< S< L<', substr($data, 10, 28));
+    return if ($bits != 24 || $compression != 0 || $h <= 0);
+
+    my $dither = ($w == 320 && $h == 240);
+    my $stride = ($w * 3 + 3) & ~3;
+    my $pixels = '';
+    for (my $y = 0; $y < $h; $y++) {
+        my $row = substr($data, $offset + ($h - 1 - $y) * $stride, $w * 3);
+        my $dy = $dither ? ($table[$y & 15] & 0xAA) : 0;
+        my @out;
+        for (my $x = 0; $x < $w; $x++) {
+            my ($b, $g, $r) = unpack('C3', substr($row, $x * 3, 3));
+            my $delta = $dither ? ($table[$x & 15] ^ $dy) : 127;
+            $r = (31 * $r + ($r >> 3) + $delta) >> 8;
+            $g = (63 * $g + ($g >> 2) + $delta) >> 8;
+            $b = (31 * $b + ($b >> 3) + $delta) >> 8;
+            push(@out, ($r << 11) | ($g << 5) | $b);
+        }
+        $pixels .= pack('S<*', @out) . (($w & 1) ? "\0\0" : '');
+    }
+
+    my $start = 66;
+    open(my $out, '>:raw', $path) or die "can't write $path";
+    print $out pack('A2 L< S< S< L<', 'BM', $start + length($pixels), 0, 0, $start);
+    print $out pack('L< l< l< S< S< L< L< l< l< L< L<',
+                    40, $w, -$h, 1, 16, 3, length($pixels), 0, 0, 0, 0);
+    print $out pack('L< L< L<', 0xF800, 0x07E0, 0x001F);
+    print $out $pixels;
+    close($out);
+}
+
 sub find_installfile {
     my ($pattern, $destination) = @_;
     print "find_installfile: $pattern -> $destination\n" if $verbose;
@@ -722,6 +765,7 @@ sub buildzip {
                 } else {
                     print "theme: $File::Find::name -> $dest\n" if $verbose;
                     copy($File::Find::name, $dest);
+                    theme_bmp_for_screen($dest) if ($dest =~ /\.bmp$/i);
                 }
             }}, $themedir);
         }
