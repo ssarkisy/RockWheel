@@ -18,6 +18,7 @@
  *
  ****************************************************************************/
 
+#include <stdbool.h>
 #include <string.h>
 #include "tag_table.h"
 
@@ -294,40 +295,6 @@ static const struct tag_info legal_tags[] =
 /* A table of legal escapable characters */
 static const char legal_escape_characters[] = "%(,);#<|>";
 
-/*
- * Just does a straight search through the tag table to find one by
- * the given name, n denotes command length and length name will be truncated to
- */
-static const struct tag_info* search_tag(const char* name, int n)
-{
-    const struct tag_info* current = legal_tags;
-
-    /*
-     * Continue searching so long as we have a non-empty name string
-     * and the name of the current element doesn't match the name
-     * we're searching for, param_pos contains the length of name
-     * including the Null \0 character
-     */
-
-    while(current->param_pos > 1
-      && (current->param_pos != n || strncmp(current->name, name, n - 1) != 0))
-    {
-        current++;
-    }
-
-    if(current->param_pos <= 1) /*param_pos of 1 is an empty string '\0'*/
-    {
-        //DEBUGF("!NOT FOUND! %s %d %.*s\n", __func__, -1, n-1, name);
-        return NULL;
-    }
-    else
-    {
-        //DEBUGF("%s %d %s\n", __func__, current->type, current->name);
-        return current;
-    }
-
-}
-
 /* Searches through the legal escape characters string */
 int find_escape_character(char lookup)
 {
@@ -345,15 +312,45 @@ int find_escape_character(char lookup)
  * Finds a tag by name and returns its parameter list, or an empty
  * string if the tag is not found in the table
  */
+/* The tags by their first character: finding one is asked for again and again as a
+   skin's lines are scanned ahead, and going through the table took most of the parsing */
+#define TAG_COUNT (sizeof(legal_tags) / sizeof(legal_tags[0]))
+static unsigned short tags_by_first[128]; /* index in the table + 1 */
+static unsigned short next_with_first[TAG_COUNT];
+static bool tags_indexed = false;
+
+static void index_tags(void)
+{
+    /* from the end, so that each chain goes in the order of the table */
+    for (int i = (int)TAG_COUNT - 1; i >= 0; i--)
+    {
+        const unsigned char first = legal_tags[i].name[0];
+        if (legal_tags[i].param_pos > 1 && first < 128)
+        {
+            next_with_first[i] = tags_by_first[first];
+            tags_by_first[first] = i + 1;
+        }
+    }
+    tags_indexed = true;
+}
+
 const struct tag_info* find_tag(const char *name)
 {
-    /* First we check three then two characters after the '%', then a single char */
+    /* The longest name in the table that the text starts with */
+    const unsigned char first = name[0];
     const struct tag_info *tag = NULL;
-    int i = MAX_TAG_LENGTH;
-    while (!tag && i > 1)
+
+    if (!tags_indexed)
+        index_tags();
+    if (first >= 128)
+        return NULL;
+    for (int i = tags_by_first[first]; i; i = next_with_first[i - 1])
     {
-        tag = search_tag(name, i);
-        i--;
+        const struct tag_info *current = &legal_tags[i - 1];
+        if (current->param_pos <= MAX_TAG_LENGTH
+            && (!tag || current->param_pos > tag->param_pos)
+            && strncmp(current->name, name, current->param_pos - 1) == 0)
+            tag = current;
     }
     return tag;
 }

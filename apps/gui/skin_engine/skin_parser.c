@@ -1290,6 +1290,9 @@ static int parse_progressbar_tag(struct skin_element* element,
             img->using_preloaded_icons = false;
             img->buflib_handle = -1;
             img->loaded = false;
+            img->dither = false;
+            img->is_9_segment = false;
+            img->cover_tint = false;
             struct skin_token_list *item = new_skin_token_list_item(NULL, img);
             if (!item)
                 return WPS_ERROR_INVALID_PARAM;
@@ -2765,22 +2768,21 @@ bool skin_data_load(enum skinnable_screens skin, enum screen_type screen,
 
         if (fd < 0)
             return false;
-        /* copy the file's content to the buffer for parsing,
+        /* copy the file's content to the buffer for parsing, in one read,
            ensuring that every line ends with a newline char. */
-        unsigned int start = 0;
-        while(read_line(fd, wps_buffer + start, buffersize - start) > 0)
-        {
-            start += strlen(wps_buffer + start);
-            if (start < buffersize - 1)
-            {
-                wps_buffer[start++] = '\n';
-                wps_buffer[start] = 0;
-            }
-        }
+        const ssize_t file_size = read(fd, wps_buffer, buffersize - 2);
         close(fd);
-        if (start <= 0)
+        if (file_size <= 0)
             return false;
-        start++;
+        unsigned int start = 0;
+        for (ssize_t pos = 0; pos < file_size; pos++)
+        {
+            if (wps_buffer[pos] != '\r')
+                wps_buffer[start++] = wps_buffer[pos];
+        }
+        if (start == 0 || wps_buffer[start - 1] != '\n')
+            wps_buffer[start++] = '\n';
+        wps_buffer[start++] = 0;
         skin_buffer = &wps_buffer[start];
         buffersize -= start;
     }
