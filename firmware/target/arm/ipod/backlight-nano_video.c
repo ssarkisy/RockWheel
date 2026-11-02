@@ -41,6 +41,14 @@ void backlight_hw_brightness(int val)
 {
     int oldlevel;
 
+    /* With the circuit off there's nothing to tell, and the pulses would leave its
+       line high: it's told when it comes on. Night Mode changes this at any time. */
+    if (!enabled)
+    {
+        brightness = val;
+        return;
+    }
+
     if (current_dim < val)
     {
         do
@@ -90,6 +98,7 @@ void _backlight_hw_enable(bool on)
         GPIO_SET_BITWISE(GPIOD_OUTPUT_VAL, 0x80);
         sleep(HZ/100);
         current_dim = 16;
+        enabled = true;
         backlight_hw_brightness(brightness);
     }
     else
