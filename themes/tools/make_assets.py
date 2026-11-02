@@ -10,8 +10,8 @@ writes into the image folder of each theme:
                    covering the progress bar trough of the backdrop
   Scrub Knob.bmp   scrubber slider, 32 bit with alpha, as tall as the bar
   Art Mask.bmp     album art view, hides the backdrop next to the art
-and, for iClassic, the menus' backdrop with its placeholder note in the
-middle of the right panel, from originals/iClassic_bd.bmp
+(the note on the menus' panel and Now Playing's placeholder are from
+make_music_note.py)
 """
 import math
 import os
@@ -155,77 +155,6 @@ def make_mask(folder, w, h):
               [[(255, 255, 255)] * w for _ in range(h)])
 
 
-def solve(a, b):
-    """Gaussian elimination for the small normal equations below"""
-    n = len(b)
-    m = [row[:] + [b[i]] for i, row in enumerate(a)]
-    for c in range(n):
-        p = max(range(c, n), key=lambda r: abs(m[r][c]))
-        m[c], m[p] = m[p], m[c]
-        for r in range(n):
-            if r != c:
-                f = m[r][c] / m[c][c]
-                for k in range(c, n + 1):
-                    m[r][k] -= f * m[c][k]
-    return [m[i][n] / m[i][i] for i in range(n)]
-
-
-def fit_surface(px, area, skip):
-    """Least squares cubic surface of each colour over area (x0, y0, x1, y1),
-    leaving out skip; returns a function giving the colour at x, y"""
-    x0, y0, x1, y1 = area
-    cx, cy, sx, sy = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2
-
-    def terms(x, y):
-        x, y = (x - cx) / sx, (y - cy) / sy
-        return [1, x, y, x*x, x*y, y*y, x*x*x, x*x*y, x*y*y, y*y*y]
-
-    samples = [(x, y) for y in range(y0, y1 + 1, 2) for x in range(x0, x1 + 1, 2)
-               if not (skip[0] <= x <= skip[2] and skip[1] <= y <= skip[3])]
-    coef = []
-    for c in range(3):
-        a = [[0.0] * 10 for _ in range(10)]
-        b = [0.0] * 10
-        for x, y in samples:
-            t = terms(x, y)
-            for i in range(10):
-                b[i] += t[i] * px[y][x][c]
-                for j in range(10):
-                    a[i][j] += t[i] * t[j]
-        coef.append(solve(a, b))
-    return lambda x, y: [sum(k * t for k, t in zip(coef[c], terms(x, y)))
-                         for c in range(3)]
-
-
-def centre_note():
-    """The menus' right panel (x 160..319) has a music note placeholder, high
-    up for the text under it. Move it down a little, so that it and the line
-    under it (the song count, or the playing track's title) are in the
-    middle: the panel's gradient is fitted without the note, and the note
-    with its shadow is moved as its difference from that gradient."""
-    px = read_bmp(os.path.join(ICLASSIC, '..', '..', '..', 'originals',
-                               'iClassic_bd.bmp'))
-    note = (190, 30, 288, 142)        # the note and its shadow
-    # its light part is 197..274 x 36..128; this puts it at 51..143, with
-    # room above the text line at y 158
-    dx, dy = 1, 15
-    bg = fit_surface(px, (176, 0, 319, 239), note)
-
-    def inside(x, y):
-        return note[0] <= x <= note[2] and note[1] <= y <= note[3]
-
-    out = [row[:] for row in px]
-    for y in range(note[1], note[3] + dy + 1):
-        for x in range(note[0], note[2] + dx + 1):
-            col = bg(x, y)
-            if inside(x - dx, y - dy):
-                src, sbg = px[y - dy][x - dx], bg(x - dx, y - dy)
-                col = [col[c] + src[c] - sbg[c] for c in range(3)]
-            out[y][x] = tuple(max(0, min(255, round(v))) for v in col)
-    write_bmp(os.path.join(ICLASSIC, '..', '..', 'backdrops',
-                           'iClassic_bd.bmp'), out)
-
-
 def iclassic():
     # trough at x 58..261, y 206..229; the album art reflection fades down
     # its left part (same in every column, sampled at x=30), white elsewhere
@@ -240,7 +169,6 @@ def iclassic():
     # the progress bar trough stick out on both sides: the WPS draws this
     # mask at 0 and at 260
     make_mask(ICLASSIC, 60, 221)
-    centre_note()
 
 
 if __name__ == '__main__':
