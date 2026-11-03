@@ -111,7 +111,7 @@ struct state_entry {
     uint64_t hash;
     uint32_t playcount;
     uint8_t rating;  /* 0..100, 20 a star */
-    uint8_t media;   /* the media type, 0xff when it doesn't fit */
+    uint8_t media;   /* the media type's low byte, which has the video kinds */
     uint8_t flags;   /* ITUNESDB_* */
     uint8_t unused;
 };
@@ -715,7 +715,9 @@ static void read_track(off_t pos, struct track *track)
     if (header_len >= 212)
     {
         media = le32(p + 208);
-        track->st.media = media > 0xfe ? 0xff : media;
+        /* its low byte, which has the video kinds: the ones above it, such
+           as ringtones and voice memos, are sound */
+        track->st.media = media & 0xff;
     }
     /* The stock firmware remembers the place and leaves the track out of
        Shuffle Songs where iTunes says to, as it does for podcasts and
