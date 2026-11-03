@@ -835,6 +835,20 @@ static bool do_timed_yield(void)
 }
 #endif /* __PCTOOL__ */
 
+#ifndef __PCTOOL__
+/* main() goes on to take memory once the database is initialized: the menus',
+   the playlist's, the audio buffer and the theme. A commit's buffer, all that
+   is left and locked, waits for that: with only a few songs a first boot's
+   import had committed by the time of tagtree_init(), which got nothing and
+   panicked. */
+static volatile bool boot_done = false;
+
+void tagcache_boot_done(void)
+{
+    boot_done = true;
+}
+#endif
+
 static void allocate_tempbuf(void)
 {
     /* Yeah, malloc would be really nice now :) */
@@ -847,6 +861,9 @@ static void allocate_tempbuf(void)
     if (tempbuf)
         tempbuf_size = size;
 #else /* !__PCTOOL__ */
+    /* before it, a commit is at init, which main() waits for */
+    while (tc_stat.initialized && !boot_done)
+        sleep(HZ/50);
     /* Need to pass dummy ops to prevent the buffer being moved
      * out from under us, since we yield during the tagcache commit. */
     tempbuf_handle = core_alloc_maximum(&size, &buflib_ops_locked);

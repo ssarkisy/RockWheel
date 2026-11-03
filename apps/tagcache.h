@@ -200,6 +200,8 @@ enum {
     TAGCACHE_IMPORT_SLIDES,   /* only those, without a sync */
 };
 int tagcache_get_import(int *done, int *total);
+/* main() has taken the boot's memory: a commit may have the rest */
+void tagcache_boot_done(void);
 bool tagcache_check_sync(void);
 bool tagcache_create_changelog(struct tagcache_search *tcs);
 struct tagcache_runtime {

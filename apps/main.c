@@ -246,6 +246,9 @@ int main(void)
 
     global_status.last_volume_change = 0;
     validate_start_directory_init();
+#ifdef HAVE_TAGCACHE
+    tagcache_boot_done();
+#endif
     /* no calls INIT_ATTR functions after this point anymore!
      * see definition of INIT_ATTR in config.h */
     CHART(">root_menu");
