@@ -177,18 +177,18 @@ How that was done:
 
 **What it was tested on:** one iPod. A 5.5G 30 GB model with 32 MB of RAM, an iFlash card of about 256 GB, macOS 26 and a library of about 13,000 songs.
 
-**Original hard drives have not been tested.** RockWheel changes Rockbox's disk driver only for flash, so I expect it to run, but it was tuned on flash, where a read costs almost nothing. On a hard drive, I'd expect:
+**On an original hard drive** it runs too: a user has it on a 5.5G 30 GB, installed as described here. RockWheel was tuned on flash, where a read costs almost nothing, so on a hard drive expect:
 
 - Cover Flow and covers on track changes to be slower, since they read artwork from disk, and more so when the drive has to spin up
 - Battery life to be shorter, since those reads keep the drive awake
 - The library update after a sync to take longer
 
-If you try it on a hard drive, please open an issue and say how it went.
+If you use it on a hard drive, please open an issue and say how it goes.
 
-**Also not tested:**
+**Not tested yet:**
 
 - The 60 and 80 GB models with 64 MB of RAM. With twice the memory, they should do even better.
-- Windows and iTunes. The iPod presents itself the same way to them, so they should work, but only Finder on macOS has been tried.
+- Syncing from iTunes on Windows. The iPod presents itself to iTunes the same way it does to Finder, so it should work, but only Finder on macOS has been tried.
 - Libraries beyond about 13,000 songs on a real iPod. In the simulator, with the memory of a 32 MB iPod, lists, playback, Shuffle and Cover Flow all worked with 40,000 songs. From about 25,000, if the iPod restarts straight into a library update, the theme may not load until the next restart. With 100,000 songs it won't start. Up to 32,000 songs can be queued at a time.
 - Audiobooks on a real iPod, since the test library has none.
 
@@ -215,6 +215,7 @@ The stock firmware stays on the iPod, with the same library. To use it, turn the
 - **To update,** run the same command. Your settings, library and play counts are kept, and all it asks for is your password.
 - **To hear about new versions,** choose Watch, then Custom, then Releases, at the top of this page.
 - **To see what it would do first,** download [`install.sh`](install.sh) and run `bash install.sh --dry-run`. It changes nothing.
+- **On Windows,** there's no installer yet. The steps by hand are below.
 - **To go back,** `bash install.sh --uninstall` removes the bootloader, and the iPod starts its stock firmware.
 
 <details>
@@ -226,6 +227,18 @@ Be careful with disk numbers: pointing these tools at the wrong disk erases that
 2. **Install the Rockbox bootloader** with `ipodpatcher /dev/diskN --add-bootloader bootloader-ipodvideo.ipod`, using the file from [Releases](../../releases), or with the official [Rockbox Utility](https://www.rockbox.org/wiki/RockboxUtility). Either needs root on macOS.
 3. **Copy the firmware.** Download `rockbox.zip` from [Releases](../../releases) and unzip it at the root of the iPod. If you had plain Rockbox before, move the old `.rockbox` folder out of the way first.
 4. **Restart and sync.** Eject, restart with Menu and Select, connect it again and sync from Finder. When you unplug, the library updates.
+
+</details>
+
+<details>
+<summary>Installing from Windows</summary>
+
+I haven't been able to try these steps myself. If anything goes differently, please open an issue.
+
+1. **Make sure the iPod is FAT32.** An iPod set up by iTunes on Windows already is: it shows up as a drive in File Explorer. If it doesn't, it was formatted on a Mac. Restoring it in iTunes makes it FAT32, but erases everything on it.
+2. **Install the Rockbox bootloader** with the official [Rockbox Utility](https://www.rockbox.org/wiki/RockboxUtility), run as administrator. Choose the iPod Video and install only the bootloader, not Rockbox itself. If your iPod already starts Rockbox, skip this step.
+3. **Copy the firmware.** Download `rockbox.zip` from [Releases](../../releases) and extract it to the iPod's drive, so that the `.rockbox` folder is at the top of it. If you had plain Rockbox before, rename its `.rockbox` folder first.
+4. **Restart and sync.** Eject the iPod, unplug it and hold Menu and Select until it restarts. The first start reads your library, so give it a moment. Then sync from iTunes as usual.
 
 </details>
 
