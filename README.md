@@ -7,7 +7,7 @@ Your iPod syncs with Finder/iTunes as it always did, and now has what it never g
 ![Cover Flow, Now Playing, Settings and the main menu](docs/screenshots/banner.png)
 
 > [!WARNING]
-> **Tested on exactly one iPod:** a 5.5G with 32 MB of RAM, converted to an iFlash card of about 256 GB. **It has never been run on an original hard drive.** See [Will it work on my iPod?](#will-it-work-on-my-ipod) before you install.
+> **Tested by me on one iPod:** a 5.5G with 32 MB of RAM, converted to an iFlash card of about 256 GB. Users now run it on other 5G and 5.5G iPods too, one of them with its original hard drive. See [Will it work on my iPod?](#will-it-work-on-my-ipod) before you install.
 
 ## Why RockWheel
 
