@@ -266,7 +266,8 @@ typedef fb_data pix_t;
 #define EV_EXIT 9999
 #define EV_WAKEUP 1337
 
-#define EMPTY_SLIDE CACHE_PREFIX "/emptyslide.pfraw"
+/* named anew when its picture changes, as it's made again only if missing */
+#define EMPTY_SLIDE CACHE_PREFIX "/emptynote.pfraw"
 #define EMPTY_SLIDE_BMP PLUGIN_DEMOS_DIR "/pictureflow_emptyslide.bmp"
 #define SPLASH_BMP PLUGIN_DEMOS_DIR "/pictureflow_splash.bmp"
 
@@ -2793,6 +2794,8 @@ static int create_empty_slide(bool force)
 
         if (!save_pfraw(EMPTY_SLIDE, &aa_cache.input_bmp))
             return false;
+        /* the question mark's, before the note */
+        rb->remove(CACHE_PREFIX "/emptyslide.pfraw");
     }
 
     return true;
