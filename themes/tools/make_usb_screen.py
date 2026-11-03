@@ -41,10 +41,9 @@ WIDTH, HEIGHT = 96, 98
 CX, CY = 47.5, 46.5
 R_OUT, R_IN = 44.5, 31.5
 BAR = 16.0                # width of the bar, from top left to bottom right
-SHADOW_DROP = 2.0         # how far below the sign its shadow is
-SHADOW_REACH = 3.5        # how far around it the shadow fades
-SHADOW_ALPHA = 0.36
-SHADOW = (150, 160, 205)
+# They stand on plain white: a soft shadow's near-whites became rings of pink and
+# lilac in the screen's 16-bit colour, as its green has a bit more than red and blue
+WHITE = (255, 255, 255)
 # from the top of the sign to its bottom
 SHADE_RED = ((0.00, (230, 64, 32)), (0.55, (226, 62, 26)),
              (0.78, (190, 46, 22)), (1.00, (124, 30, 13)))
@@ -109,24 +108,16 @@ def blend(back, colour, k):
     return tuple(b + (c - b) * k for b, c in zip(back, colour))
 
 
-def shadowed_white(distance, x, y):
-    d = distance(x + 0.5, y + 0.5 - SHADOW_DROP)
-    a = SHADOW_ALPHA * max(0.0, min(1.0, 1 - d / SHADOW_REACH)) ** 2
-    return tuple(255 + (c - 255) * a for c in SHADOW)
-
-
 def rounded(colour):
     return tuple(int(round(c)) for c in colour)
 
 
 def red_pixel(x, y):
-    back = shadowed_white(distance_red, x, y)
     colour = shade(SHADE_RED, y + 0.5)
-    return rounded(blend(back, colour, coverage(distance_red, x, y)))
+    return rounded(blend(WHITE, colour, coverage(distance_red, x, y)))
 
 
 def check_pixel(x, y):
-    back = shadowed_white(distance_check, x, y)
     cx, cy = x + 0.5, y + 0.5
     colour = shade_check(cy)
     # the edge facing the light brighter, the one away from it darker
@@ -139,7 +130,7 @@ def check_pixel(x, y):
             colour = blend(colour, (255, 255, 255), min(1.0, lit * BEVEL_LIGHT))
         else:
             colour = blend(colour, (0, 0, 0), min(1.0, -lit * BEVEL_DARK))
-    return rounded(blend(back, colour, coverage(distance_check, x, y)))
+    return rounded(blend(WHITE, colour, coverage(distance_check, x, y)))
 
 
 write_bmp(os.path.join(out_dir, "nodisconnect.%dx%dx16.bmp" % (WIDTH, HEIGHT)),
