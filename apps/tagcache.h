@@ -182,6 +182,8 @@ bool tagcache_retrieve(struct tagcache_search *tcs, int idxid,
                        int tag, char *buf, long size);
 void tagcache_search_finish(struct tagcache_search *tcs);
 long tagcache_get_numeric(const struct tagcache_search *tcs, int tag);
+/* for a file of iTunesDB's whose own tags are empty */
+bool tagcache_fill_text(struct mp3entry *id3, const char *filename);
 long tagcache_increase_serial(void);
 bool tagcache_import_changelog(void);
 /* entries in the database, -1 until known */

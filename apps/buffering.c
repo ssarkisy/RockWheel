@@ -664,6 +664,12 @@ static bool buffer_handle(int handle_id, size_t to_buffer)
         if (!id3->rating)
             id3->rating = tagcache_get_rating(h->path);
 #endif
+#ifdef HAVE_TAGCACHE
+        /* a file without tags of its own, as iOpenPod converts them, shows
+           what iTunesDB says, as on a stock iPod, not its name and folders */
+        if ((!id3->title || !id3->title[0]) && itunesdb_synced_path(h->path))
+            tagcache_fill_text(id3, h->path);
+#endif
         h->fd = -1; /* with above, behavior same as close_fd */
         h->widx = ringbuf_add(h->data, h->filesize);
         h->end  = h->filesize;

@@ -2373,6 +2373,7 @@ void tagcache_search_finish(struct tagcache_search *tcs)
         write_lock--;
 }
 
+
 #if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
 static struct tagfile_entry *get_tag(const struct index_entry *entry, int tag)
 {
@@ -2483,6 +2484,86 @@ bool tagcache_fill_tags(struct mp3entry *id3, const char *filename)
     return true;
 }
 #endif /* defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE) */
+
+#ifndef __PCTOOL__
+/* The words of a file the file itself has none of, from the database: for
+   one iTunesDB lists, what it says, as the stock firmware shows it. iOpenPod
+   leaves the files it converts without tags. The rest of id3 stays the file's.
+   The buffering thread calls it, which must never wait for a commit: one
+   taking the audio buffer waits for that thread, through the audio thread */
+bool tagcache_fill_text(struct mp3entry *id3, const char *filename)
+{
+    static const int tags[] = {
+        tag_title, tag_artist, tag_album, tag_genre,
+        tag_composer, tag_comment, tag_albumartist, tag_grouping
+    };
+    char **fields[] = {
+        &id3->title, &id3->artist, &id3->album, &id3->genre_string,
+        &id3->composer, &id3->comment, &id3->albumartist, &id3->grouping
+    };
+    long year, disc, track;
+#if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
+    /* from memory alone, which a commit unloads before it starts */
+    if (!tc_stat.ready || !tc_stat.ramcache)
+        return false;
+    int idx_id = find_entry_ram(filename);
+    if (idx_id < 0)
+        return false;
+    const struct index_entry *entry = &tcramcache.hdr->indices[idx_id];
+#else
+    /* the simulator's, without the database in memory: from the disk,
+       unless a commit has it */
+    struct tagcache_search tcs;
+    if (read_lock || !tagcache_find_index(&tcs, filename))
+        return false;
+#endif
+
+    /* what else of the file's could be in id3v2buf, written over */
+    id3->disc_string = id3->track_string = id3->year_string = NULL;
+    id3->mb_track_id = NULL;
+    char *buf = id3->id3v2buf;
+    long remaining = sizeof(id3->id3v2buf);
+    for (unsigned i = 0; i < ARRAYLEN(tags); i++)
+    {
+        *fields[i] = NULL;
+        if (remaining <= 1)
+            continue;
+#if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
+        const char *src = get_tag_string(entry, tags[i]);
+        if (!src)
+            continue;
+        strlcpy(buf, src, remaining);
+#else
+        if (!tagcache_retrieve(&tcs, tcs.idx_id, tags[i], buf, remaining)
+            || !strcmp(buf, UNTAGGED))
+            continue;
+#endif
+        if (!*buf)
+            continue;
+        *fields[i] = buf;
+        long len = strlen(buf) + 1;
+        buf += len;
+        remaining -= len;
+    }
+#if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
+    year = get_tag_numeric(entry, tag_year, idx_id);
+    disc = get_tag_numeric(entry, tag_discnumber, idx_id);
+    track = get_tag_numeric(entry, tag_tracknumber, idx_id);
+#else
+    year = tagcache_get_numeric(&tcs, tag_year);
+    disc = tagcache_get_numeric(&tcs, tag_discnumber);
+    track = tagcache_get_numeric(&tcs, tag_tracknumber);
+    tagcache_search_finish(&tcs);
+#endif
+    if (!id3->year && year > 0)
+        id3->year = year;
+    if (!id3->discnum && disc > 0)
+        id3->discnum = disc;
+    if (id3->tracknum <= 0 && track > 0)
+        id3->tracknum = track;
+    return true;
+}
+#endif
 
 static inline void write_item(const char *item)
 {
