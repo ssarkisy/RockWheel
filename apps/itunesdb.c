@@ -88,6 +88,16 @@ static int db_alloc(size_t size)
 /* a movie, a music video or a TV show, which Rockbox can't play */
 #define MEDIA_VIDEO     (0x02 | 0x20 | 0x40)
 
+/* A track's cover by its 64-bit dbid, for a database without image ids, as
+   the 32-bit key the images are looked up by: apart from those ids, which
+   are small */
+static inline uint32_t art_song_key(uint32_t lo, uint32_t hi)
+{
+    return ((lo ^ hi) & 0x7fffffff) | 0x80000000;
+}
+/* some of the tracks just read have only that */
+static bool art_by_song;
+
 /* Records start anywhere in a sector. Read from where the sector starts
    into an aligned buffer, the storage driver takes it all in one go;
    otherwise it goes a sector at a time through a buffer of its own */
@@ -734,6 +744,14 @@ static void read_track(off_t pos, struct track *track)
         track->st.flags |= ITUNESDB_PODCAST;
     if (header_len >= 356)
         track->art = le32(p + 352);
+    else if (p[0x7c] | p[0x7d] << 8)
+    {
+        /* a cover, but before iTunes 7's longer record no image id: the
+           image in ArtworkDB names the track by its dbid instead, as iOpenPod
+           writes them for an iPod whose database is that old */
+        track->art = art_song_key(le32(p + 0x70), le32(p + 0x74));
+        art_by_song = true;
+    }
 
     /* the album, by its name and the album's artist, or the track's where
        none is given, for the covers of Cover Flow: as UTF-16, unread */
@@ -799,6 +817,7 @@ static bool read_tracks(off_t list)
     int listed = le32(p + 8);
     int count = MIN(listed, db.count);
     db.count = 0;
+    art_by_song = false;
     for (int i = 0; i < count; i++)
     {
         p = db_record(pos, "mhit", 12);
@@ -2370,19 +2389,30 @@ static int read_images(struct art_image **images, int *count)
             int n = le32(p + 8);
             if ((uint32_t)n > COUNT_MAX)
                 return -1;
-            handle = db_alloc(n * sizeof(struct art_image) + 1);
+            /* each image also by its track's dbid, for tracks with only that */
+            const int per_image = art_by_song ? 2 : 1;
+            handle = db_alloc(n * per_image * sizeof(struct art_image) + 1);
             if (handle <= 0)
                 return -1;
             core_pin(handle);
             *images = core_get_data(handle);
             for (int k = 0; k < n; k++)
             {
-                p = db_record(item, "mhii", 12);
+                p = db_record(item, "mhii", 28);
                 if (!p)
                     break;
                 uint32_t item_total = le32(p + 8);
+                uint32_t song_lo = le32(p + 20), song_hi = le32(p + 24);
                 if (read_image(item, &(*images)[*count]))
+                {
                     (*count)++;
+                    if (art_by_song && (song_lo | song_hi))
+                    {
+                        (*images)[*count] = (*images)[*count - 1];
+                        (*images)[*count].id = art_song_key(song_lo, song_hi);
+                        (*count)++;
+                    }
+                }
                 if (item_total == 0)
                     break;
                 item += item_total;
