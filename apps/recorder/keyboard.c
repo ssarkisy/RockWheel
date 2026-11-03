@@ -939,7 +939,9 @@ static void kbd_calc_pm_params(struct keyboard_parameters *pm,
         pm->curfont = sc->getuifont();
     else
 #endif
-    pm->curfont = pm->default_lines ? FONT_SYSFIXED : sc->getuifont();
+    /* the built-in layout too, as the menus are: the system font is for when
+       that doesn't fit */
+    pm->curfont = sc->getuifont();
     font = font_get(pm->curfont);
     pm->font_h = font->height;
 
