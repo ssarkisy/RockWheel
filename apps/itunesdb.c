@@ -85,6 +85,8 @@ static int db_alloc(size_t size)
 /* media types, which a track can have more than one of */
 #define MEDIA_PODCAST   0x04
 #define MEDIA_AUDIOBOOK 0x08
+/* a movie, a music video or a TV show, which Rockbox can't play */
+#define MEDIA_VIDEO     (0x02 | 0x20 | 0x40)
 
 /* Records start anywhere in a sector. Read from where the sector starts
    into an aligned buffer, the storage driver takes it all in one go;
@@ -1092,11 +1094,14 @@ static void playlist_line(struct writer *w, const char *line, uint64_t *hash,
 }
 
 /* the lines of a playlist's items from child on, into w if there is one,
-   and their hash and size */
-static void playlist_items(off_t child, int items, struct writer *w,
-                           uint64_t *hash, uint32_t *size)
+   and their hash and size; the videos are left out. How many are written,
+   and how many videos there were */
+static int playlist_items(off_t child, int items, struct writer *w,
+                          uint64_t *hash, uint32_t *size, int *videos)
 {
     const unsigned char *p;
+    int written = 0;
+    *videos = 0;
     *hash = 0xcbf29ce484222325ULL;
     *size = 0;
     playlist_line(w, "#EXTM3U", hash, size);
@@ -1107,12 +1112,18 @@ static void playlist_items(off_t child, int items, struct writer *w,
             break;
         uint32_t total = le32(p + 8);
         struct track *t = find_by_id(le32(p + 24));
-        if (t && t->path)
+        if (t && (t->st.media & MEDIA_VIDEO))
+            (*videos)++;
+        else if (t && t->path)
+        {
             playlist_line(w, db.pool + t->path, hash, size);
+            written++;
+        }
         if (total == 0)
             break;
         child += total;
     }
+    return written;
 }
 
 /* the mhyp at pos as a playlist file, listed in the playlists file */
@@ -1146,14 +1157,17 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
         child += total;
     }
 
+    /* what it would hold, then the file only if that changed; none for one of
+       videos alone, such as Finder's Movies */
+    uint64_t hash;
+    uint32_t size;
+    int videos;
+    if (playlist_items(child, items, NULL, &hash, &size, &videos) == 0
+        && videos > 0)
+        return;
     if (!playlist_file(file, sizeof(file), dir, name)
         || pls.written_count >= MAX_PLAYLISTS)
         return;
-
-    /* what it would hold, then the file only if that changed */
-    uint64_t hash;
-    uint32_t size;
-    playlist_items(child, items, NULL, &hash, &size);
     struct old_playlist *o = find_old_playlist(file);
     bool same = false;
     if (o && o->hash == hash && o->size == size)
@@ -1169,7 +1183,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     {
         if (!writer_open(w, file))
             return;
-        playlist_items(child, items, w, &hash, &size);
+        playlist_items(child, items, w, &hash, &size, &videos);
         if (!writer_close(w))
             hash = 0;
     }
