@@ -948,6 +948,18 @@ static const struct
         { 5, { EQ_FILTER_PEAK, 4200, 40, 50 } },
         { 6, { EQ_FILTER_PEAK, 6300, 20, 35 } },
         { 7, { EQ_FILTER_PEAK, 10400, 40, 40 } } } },
+    /* Sony WH-1000XM4C by cable, switched on, with noise cancelling, from one measurement
+       against the target of its rig and then by ear: 3 to 5 dB too much from 20 to
+       250 Hz, cut further at 125-200 Hz, where it booms, than at 50-100 Hz, so that the
+       bass still punches. 3 dB too little at 2-2.5 kHz, filled for voices and guitars.
+       Sibilance, loudest at 8 kHz, and a peak at 10 kHz are cut only in part: more,
+       or anything off at 4 kHz or above 12 kHz, made the sound closed or dull. */
+    { LANG_EQ_XM4C, 6, 30,
+      { { 0, { EQ_FILTER_LOW_SHELF, 100, 6, -50 } },
+        { 2, { EQ_FILTER_PEAK, 160, 10, -55 } },
+        { 6, { EQ_FILTER_PEAK, 2300, 20, 30 } },
+        { 7, { EQ_FILTER_PEAK, 8000, 40, -30 } },
+        { 8, { EQ_FILTER_PEAK, 10000, 50, -33 } } } },
 };
 
 /* Preset numbers: 0 is off, then the earphones', then iTunes' */
@@ -1079,6 +1091,7 @@ static const struct
 {
     { LANG_EQ_ZERO2, 0, 4 },
     { LANG_EQ_KPH30I, 4, 1 },
+    { LANG_EQ_XM4C, 5, 1 },
 };
 
 static int eq_current; /* the preset the first list opened with */
@@ -1189,10 +1202,11 @@ MENUITEM_GROUP(eq_phones_group, ID2P(LANG_EQ_HEADPHONES));
 /* one preset: selecting the row sets it, and it has no arrow */
 EQ_MODEL_ROW(eq_zero2_row, 0, 0);
 EQ_MODEL_ROW(eq_kph30i_row, 1, MENU_EXITAFTERTHISMENU);
+EQ_MODEL_ROW(eq_xm4c_row, 2, MENU_EXITAFTERTHISMENU);
 
 MAKE_MENU(eq_first_list, ID2P(LANG_EQUALIZER), NULL, Icon_EQ,
           &eq_off_row, &eq_itunes_row, &eq_phones_group,
-          &eq_zero2_row, &eq_kph30i_row);
+          &eq_zero2_row, &eq_kph30i_row, &eq_xm4c_row);
 
 static int eq_choose_preset(void)
 {
