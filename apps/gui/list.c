@@ -263,7 +263,7 @@ static void gui_list_put_selection_on_screen(struct gui_synclist * gui_list,
     }
     else if (gui_list->scroll_paginated)
     {
-        nb_lines -= nb_lines%gui_list->selected_size;
+        nb_lines -= nb_lines % MAX(gui_list->selected_size, 1); /* 0: none shown */
         if (difference < 0 || difference >= nb_lines)
         {
             new_start_item = gui_list->selected_item -
@@ -632,6 +632,18 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
 
 #ifdef HAVE_WHEEL_ACCELERATION
     int next_item_modifier = button_apply_acceleration(get_action_data());
+    /* A long list goes further at the same speed: by the square root of how many
+       times LONG_LIST it is, 13000 songs five times, 1700 albums twice. Turned
+       slowly, the wheel still goes a row at a time. */
+#define LONG_LIST 500
+    if (next_item_modifier > 1 && lists->nb_items > LONG_LIST)
+    {
+        const unsigned target = (unsigned)lists->nb_items * 256 / LONG_LIST;
+        unsigned scale = 16; /* in sixteenths */
+        while ((scale + 1) * (scale + 1) <= target)
+            scale++;
+        next_item_modifier = next_item_modifier * (int)scale / 16;
+    }
 #else
     static int next_item_modifier = 1;
     static int last_accel_tick = 0;

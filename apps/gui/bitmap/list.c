@@ -232,7 +232,10 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     const int nb_lines = list_get_nb_lines(list, screen);
 
     linedes.height = list->line_height[screen];
-    linedes.nlines = list->selected_size;
+    /* a list may show no selection, a size of 0, as Search's while its
+       letters are typed: then its lines are each of one, as when it shows one */
+    const int item_lines = MAX(list->selected_size, 1);
+    linedes.nlines = item_lines;
 #if LCD_DEPTH > 1
     /* XXX: Do we want to support the separator on remote displays? */
     if (display->screen_type == SCREEN_MAIN)
@@ -439,7 +442,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             style |= STYLE_CHEVRON;
         linedes.style = style;
         linedes.scroll = is_selected ? true : list->scroll_all;
-        linedes.line = i % list->selected_size;
+        linedes.line = i % item_lines;
         icon = list->callback_get_item_icon ?
                     list->callback_get_item_icon(i, list->data) : Icon_NOICON;
 

@@ -20,6 +20,7 @@
 #define DIRFUNCTIONS_DEFINED
 #define FILEFUNCTIONS_DEFINED
 #include "plugin.h"
+#include "transition.h"
 #include "itunesdb.h"
 #include "root_menu.h"
 #include "open_plugin.h"
@@ -939,6 +940,9 @@ int plugin_load(const char* plugin, const void* parameter)
 
     if (!plugin)
         return PLUGIN_ERROR;
+
+    /* its screen without a slide to it */
+    transition_cancel();
 
     /* for some plugins, the SBS can be left enabled */
     const char *sepch = strrchr(plugin, PATH_SEPCH);

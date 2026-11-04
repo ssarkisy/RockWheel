@@ -40,6 +40,7 @@
 #include "playlist_viewer.h"
 #include "talk.h"
 #include "onplay.h"
+#include "transition.h"
 #include "root_menu.h"
 #include "filetypes.h"
 #include "fileop.h"
@@ -1879,6 +1880,7 @@ int onplay(char* file, int attr, int from_context, bool hotkey, int customaction
         if (!tree_menu_title[0])
             onplay_set_title(str(LANG_ONPLAY_MENU_TITLE));
     }
+    transition_begin(TRANSITION_FORWARD);
     menu_selection = do_menu(menu, NULL, NULL, false);
     tree_menu_title[0] = '\0';
     if (from_context == CONTEXT_WPS)

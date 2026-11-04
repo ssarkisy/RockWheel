@@ -60,6 +60,7 @@
 #include "option_select.h"
 #include "playlist_viewer.h"
 #include "wps.h"
+#include "transition.h"
 #include "statusbar-skinned.h"
 #include "skin_engine/wps_internals.h"
 #include "open_plugin.h"
@@ -1128,6 +1129,7 @@ long gui_wps_show(void)
             /* back to wherever the WPS was entered from, as Menu does
                on a stock iPod */
             case ACTION_WPS_BROWSE:
+                transition_begin(TRANSITION_BACK);
                 gwps_leave_wps(true);
                 return GO_TO_PREVIOUS;
                 break;
@@ -1261,6 +1263,7 @@ long gui_wps_show(void)
                 break;
             /* menu key functions */
             case ACTION_WPS_MENU:
+                transition_begin(TRANSITION_BACK);
                 gwps_leave_wps(true);
                 return GO_TO_ROOT;
                 break;

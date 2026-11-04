@@ -35,6 +35,7 @@
 #include "audio.h"
 #include "playlist.h"
 #include "menu.h"
+#include "transition.h"
 #include "skin_engine/skin_engine.h"
 #include "settings.h"
 #include "debug.h"
@@ -122,6 +123,51 @@ static struct entry *get_valid_entry(const char* funcname,
     return entry;
 }
 
+/* Playlists with folders among them, as Settings lists its groups: the folders,
+   which come first, under a name of their own, and then the playlists under
+   theirs, so that the one isn't taken for the other. The rows of the list are
+   then two more than the entries. */
+static int catalog_folders; /* the folders before the playlists, or 0 if not both */
+
+static void catalog_count(void)
+{
+    catalog_folders = 0;
+    if (*tc.dirfilter != SHOW_M3U)
+        return;
+    const struct entry *entries = tree_get_entries(&tc);
+    int folders = 0;
+    while (folders < tc.filesindir && (entries[folders].attr & ATTR_DIRECTORY))
+        folders++;
+    if (folders > 0 && folders < tc.filesindir)
+        catalog_folders = folders;
+}
+
+static bool catalog_group(int row)
+{
+    return catalog_folders && (row == 0 || row == catalog_folders + 1);
+}
+
+static bool tree_is_group(int row, void *data)
+{
+    (void)data;
+    return catalog_group(row);
+}
+
+/* the row of an entry, and the entry of a row that isn't a group's name */
+static int row_of(int index)
+{
+    if (!catalog_folders)
+        return index;
+    return index + (index < catalog_folders ? 1 : 2);
+}
+
+static int index_of(int row)
+{
+    if (!catalog_folders)
+        return row;
+    return MAX(row - (row <= catalog_folders ? 1 : 2), 0);
+}
+
 static bool ext_stripit(bool isdir, int attr, int dirfilter)
 {
     if((dirfilter != SHOW_ID3DB) && !isdir)
@@ -163,7 +209,10 @@ static const char* tree_get_filename(int selected_item, void *data,
     else
 #endif
     {
-        struct entry *entry = get_valid_entry(__func__, local_tc, selected_item);
+        if (catalog_group(selected_item))
+            return str(selected_item ? LANG_PLAYLISTS : LANG_FOLDERS);
+        struct entry *entry = get_valid_entry(__func__, local_tc,
+                                              index_of(selected_item));
         name = entry->name;
         attr = entry->attr;
     }
@@ -178,10 +227,10 @@ static const char* tree_get_filename(int selected_item, void *data,
 #ifdef HAVE_LCD_COLOR
 static int tree_get_filecolor(int selected_item, void * data)
 {
-    if (*tc.dirfilter == SHOW_ID3DB)
+    if (*tc.dirfilter == SHOW_ID3DB || catalog_group(selected_item))
         return -1;
     struct tree_context * local_tc=(struct tree_context *)data;
-    struct entry *entry = get_valid_entry(__func__, local_tc, selected_item);
+    struct entry *entry = get_valid_entry(__func__, local_tc, index_of(selected_item));
 
     return filetype_get_color(entry->name, entry->attr);
 }
@@ -195,7 +244,9 @@ static bool tree_has_children(int selected_item, void * data)
     if (*(local_tc->dirfilter) == SHOW_ID3DB)
         return tagtree_get_attr(local_tc) == ATTR_DIRECTORY;
 #endif
-    struct entry *entry = get_valid_entry(__func__, local_tc, selected_item);
+    if (catalog_group(selected_item))
+        return false;
+    struct entry *entry = get_valid_entry(__func__, local_tc, index_of(selected_item));
     return (entry->attr & ATTR_DIRECTORY)
         || (entry->attr & FILE_ATTR_MASK) == FILE_ATTR_M3U;
 }
@@ -211,7 +262,10 @@ static enum themable_icons tree_get_fileicon(int selected_item, void * data)
     else
 #endif
     {
-        struct entry *entry = get_valid_entry(__func__, local_tc, selected_item);
+        if (catalog_group(selected_item))
+            return Icon_NOICON;
+        struct entry *entry = get_valid_entry(__func__, local_tc,
+                                              index_of(selected_item));
 
         return filetype_get_icon(entry->attr);
     }
@@ -263,7 +317,10 @@ static int tree_voice_cb(int selected_item, void * data)
     else
 #endif
     {
-        struct entry *entry = get_valid_entry(__func__, local_tc, selected_item);
+        if (catalog_group(selected_item))
+            return 0;
+        struct entry *entry = get_valid_entry(__func__, local_tc,
+                                              index_of(selected_item));
         name = entry->name;
         attr = entry->attr;
     }
@@ -407,6 +464,26 @@ static int tree_get_file_position(char * filename)
     return(ret);
 }
 
+/* As on an iPod classic, the theme's panel is beside the menus, the main
+   menu's and Music's, and the lists from there on have the whole width, for
+   long names: Artists and deeper, and the playlists. Other browsers, such as
+   the fonts' in Settings, keep the width they were opened with */
+static void tree_set_width(void)
+{
+    bool wide;
+#ifdef HAVE_TAGCACHE
+    if (*tc.dirfilter == SHOW_ID3DB)
+        wide = tc.dirlevel > 0;
+    else
+#endif
+    if (*tc.dirfilter == SHOW_M3U)
+        wide = true;
+    else
+        return;
+    if (wide != menu_wide())
+        menu_set_wide(wide);
+}
+
 /*
  * Called when a new dir is loaded (for example when returning from other apps ...)
  * also completely redraws the tree
@@ -426,6 +503,7 @@ static int update_dir(void)
     const bool id3db = false;
 #endif
 
+    tree_set_width();
     /* Ensure that list is initialized before update_dir returns */
     gui_synclist_init(list, &tree_get_filename, &tc, false, 1, NULL);
 
@@ -496,8 +574,10 @@ static int update_dir(void)
             icon = tc.browse->icon;
             if (icon == NOICON)
                 icon = filetype_get_icon(ATTR_DIRECTORY);
-            /* display sub directories in the title of plugin browser */
-            if (tc.dirlevel > 0 && *tc.dirfilter == SHOW_PLUGINS)
+            /* display sub directories in the title of plugin browser, and the
+               folders of playlists */
+            if (tc.dirlevel > 0
+                && (*tc.dirfilter == SHOW_PLUGINS || *tc.dirfilter == SHOW_M3U))
             {
                 char *subdir = strrchr(tc.currdir, '/');
                 if (subdir != NULL)
@@ -532,7 +612,13 @@ static int update_dir(void)
      * with NULL and icon as NOICON as the list is reused */
     gui_synclist_set_title(list, P2STR((unsigned char*)title), icon);
 
-    gui_synclist_set_nb_items(list, tc.filesindir);
+    catalog_count();
+    gui_synclist_set_nb_items(list, tc.filesindir + (catalog_folders ? 2 : 0));
+    if (catalog_folders)
+    {
+        list->callback_is_group = tree_is_group;
+        list->callback_draw_item = menu_draw_value_line;
+    }
     gui_synclist_set_icon_callback(list,
                             global_settings.show_icons?tree_get_fileicon:NULL);
     gui_synclist_set_has_children_callback(list, tree_has_children);
@@ -548,7 +634,7 @@ static int update_dir(void)
     if( tc.selected_item >= tc.filesindir)
         tc.selected_item=tc.filesindir-1;
 
-    gui_synclist_select_item(list, tc.selected_item);
+    gui_synclist_select_item(list, row_of(tc.selected_item));
     gui_synclist_draw(list);
     gui_synclist_speak_item(list);
     return tc.filesindir;
@@ -700,10 +786,10 @@ static void set_current_file_ex(const char *path, const char *filename)
         tc.dirlevel =  0;
         tc.selected_item_history[tc.dirlevel] = -1;
 
-        /* use '/' to calculate dirlevel */
+        /* use '/' to calculate dirlevel, as deep as the history goes */
         for (i = 1; path[i] != '\0'; i++)
         {
-            if (path[i] == '/')
+            if (path[i] == '/' && tc.dirlevel < MAX_DIR_LEVELS - 1)
             {
                 tc.dirlevel++;
                 tc.selected_item_history[tc.dirlevel] = -1;
@@ -786,7 +872,7 @@ static int dirbrowse(void)
                             list_do_action_timeout(&tree_lists, HZ/2));
         oldbutton = button;
         gui_synclist_do_button(&tree_lists, &button);
-        tc.selected_item = gui_synclist_get_sel_pos(&tree_lists);
+        tc.selected_item = index_of(gui_synclist_get_sel_pos(&tree_lists));
         int customaction = ONPLAY_NO_CUSTOMACTION;
         bool do_restore_display = true;
         #ifdef HAVE_TAGCACHE
@@ -798,6 +884,16 @@ static int dirbrowse(void)
                     /* The code to insert shuffled is on the context branch of the switch so we always go here */
                     button = ACTION_STD_CONTEXT;
                     do_restore_display = false;
+                }
+                else if (customaction == ONPLAY_CUSTOMACTION_SEARCH)
+                {
+                    /* a screen of its own too */
+                    if (button == ACTION_STD_OK)
+                    {
+                        transition_begin(TRANSITION_FORWARD);
+                        return exit_to_new_screen(GO_TO_SEARCH);
+                    }
+                    button = ACTION_NONE;
                 }
                 else if (customaction == ONPLAY_CUSTOMACTION_PLAYLISTS)
                 {
@@ -845,6 +941,8 @@ static int dirbrowse(void)
                         return exit_to_new_screen(GO_TO_PREVIOUS);
                     }
                 }
+                /* into a list, or to Now Playing, or a plugin, which has none */
+                transition_begin(TRANSITION_FORWARD);
 #ifdef HAVE_TAGCACHE
                 switch (id3db ? tagtree_enter(&tc, true) : ft_enter(&tc))
 #else
@@ -872,9 +970,13 @@ static int dirbrowse(void)
 #ifdef HAVE_TAGCACHE
                 /* opened at the track playing, from the menu over Now Playing */
                 if (*tc.dirfilter == SHOW_ID3DB && tc.dirlevel == tagtree_go_to_level())
+                {
+                    transition_begin(TRANSITION_BACK);
                     return exit_to_new_screen(GO_TO_PREVIOUS);
+                }
 #endif
                 if (*tc.dirfilter > NUM_FILTER_MODES && tc.dirlevel < 1) {
+                    transition_begin(TRANSITION_BACK);
                     exit_func = true;
                     break;
                 }
@@ -883,10 +985,11 @@ static int dirbrowse(void)
                 {
                     if (oldbutton == ACTION_TREE_PGLEFT)
                         break;
-                    else
-                        return exit_to_new_screen(GO_TO_ROOT);
+                    transition_begin(TRANSITION_BACK);
+                    return exit_to_new_screen(GO_TO_ROOT);
                 }
 
+                transition_begin(TRANSITION_BACK);
 #ifdef HAVE_TAGCACHE
                 if (id3db)
                     tagtree_exit(&tc, true);
@@ -961,6 +1064,12 @@ static int dirbrowse(void)
                 int attr = 0;
 
                 if (tc.browse->flags & BROWSE_NO_CONTEXT_MENU)
+                    break;
+                /* a folder of playlists has no songs of its own for Playing Next
+                   and Add to Playlist, which are all the menu has here */
+                if (numentries && *tc.dirfilter == SHOW_M3U
+                    && (get_valid_entry(__func__, &tc, tc.selected_item)->attr
+                        & ATTR_DIRECTORY))
                     break;
 
                 if(!numentries)
@@ -1106,7 +1215,7 @@ static int dirbrowse(void)
 
             if (!reload_dir)
             {
-                gui_synclist_select_item(&tree_lists, 0);
+                gui_synclist_select_item(&tree_lists, row_of(0));
                 gui_synclist_draw(&tree_lists);
                 tc.selected_item = 0;
                 lastdir[0] = 0;
@@ -1167,6 +1276,9 @@ int rockbox_browse(struct browse_context *browse)
     if (backup_count >= 0)
         backups[backup_count] = tc;
     backup_count++;
+    /* the lists' width set by tree_set_width(), back as it was on leaving,
+       also straight from deep in Music to the main menu or Now Playing */
+    const bool was_wide = menu_wide();
     int *prev_dirfilter = tc.dirfilter;
     tc.dirfilter = &dirfilter;
     tc.sort_dir = global_settings.sort_dir;
@@ -1200,7 +1312,46 @@ int rockbox_browse(struct browse_context *browse)
             start_wps = false;
             last_context = curr_context;
 
-            if (browse->selected)
+            /* the file, as the catalogue gives it, below the root */
+            const char *rel = browse->selected;
+            while (rel && *rel == '/')
+                rel++;
+            const char *sub = rel ? strrchr(rel, '/') : NULL;
+            if (sub && *tc.dirfilter == SHOW_M3U)
+            {
+                /* a playlist in a folder of the catalogue's: back in that
+                   folder, as many levels down as it is */
+                char path[MAX_PATH];
+                const size_t len = path_append(path, browse->root, rel, sizeof(path));
+                int depth = 0;
+                for (const char *c = rel; c < sub; c++)
+                    depth += *c == '/';
+                /* not if the folder has gone, as when Finder removed it: the
+                   catalogue's top then, or it would close at once */
+                bool folder = false;
+                if (len < sizeof(path) && depth + 1 < MAX_DIR_LEVELS)
+                {
+                    char *name = strrchr(path, '/');
+                    if (name)
+                    {
+                        *name = '\0';
+                        folder = dir_exists(path);
+                        *name = '/';
+                    }
+                }
+                if (folder)
+                {
+                    set_current_file_ex(path, NULL);
+                    tc.dirlevel = depth + 1;
+                }
+                else
+                {
+                    strmemccpy(tc.currdir, browse->root, sizeof(tc.currdir));
+                    tc.selected_item = 0;
+                    tc.dirlevel = 0;
+                }
+            }
+            else if (browse->selected)
             {
                 set_current_file_ex(browse->root, browse->selected);
                 /* set_current_file changes dirlevel, change it back */
@@ -1225,6 +1376,8 @@ int rockbox_browse(struct browse_context *browse)
 
     tc.is_browsing = false;
     tc.dirfilter = prev_dirfilter; /* Bugfix restore dirfilter*/
+    if (menu_wide() != was_wide)
+        menu_set_wide(was_wide);
 
     backup_count--;
     if (backup_count >= 0)

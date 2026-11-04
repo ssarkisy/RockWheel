@@ -79,6 +79,7 @@ iap/iap-lingo7.c
 screen_access.c
 gui/icon.c
 gui/list.c
+gui/transition.c
 gui/line.c
 gui/bitmap/list.c
 gui/bitmap/list-skinned.c

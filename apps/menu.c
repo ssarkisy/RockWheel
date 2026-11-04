@@ -32,6 +32,7 @@
 #include "font.h"
 #include "file.h"
 #include "menu.h"
+#include "transition.h"
 #include "button.h"
 #include "kernel.h"
 #include "debug.h"
@@ -128,7 +129,11 @@ extern const struct menu_item_ex main_menu_;
 static bool menu_shows_values(const struct menu_item_ex *menu)
 {
     return menu_wide() || menu == &main_menu_ || menu == &ipod_keyclick_menu
-           || menu == &night_menu;
+           || menu == &night_menu
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+           || menu == &appearance_menu
+#endif
+           ;
 }
 
 static bool setting_changes_in_place(const struct settings_list *setting)
@@ -611,6 +616,9 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
 
     bool in_stringlist, done = false;
     bool redraw_lists;
+    /* a menu that came in with a slide goes with one, and one opened by an
+       item's function, which came at once, goes at once too */
+    const bool slid_in = transition_pending();
 
     int old_audio_status = audio_status();
 
@@ -859,13 +867,18 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                 if (!exiting_menu && (menu->flags&MENU_EXITAFTERTHISMENU))
                     done = true;
                 else
+                {
+                    transition_begin(TRANSITION_BACK);
                     init_menu_lists(menu, &lists, msel, false, vps, buf, sizeof buf);
+                }
                 redraw_lists = true;
                 /* new menu, so reload the callback */
                 get_menu_callback(menu, &menu_callback);
             }
             else if (menu != &root_menu_)
             {
+                if (slid_in)
+                    transition_begin(TRANSITION_BACK);
                 ret = GO_TO_PREVIOUS;
                 done = true;
             }
@@ -901,6 +914,7 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                         mstack[stack_top].selected = selected;
                         stack_top++;
                         menu = temp;
+                        transition_begin(TRANSITION_FORWARD);
                         init_menu_lists(menu, &lists, 0, true, vps, buf, sizeof buf);
                     }
                     break;
@@ -944,10 +958,23 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                     {
                         option_select_next_val(setting, false, true);
                         settings_save();
+                        /* the rows shown again, as one may show only with
+                           some values of it: Status Icons with Cover Colours;
+                           where the list was scrolled to as well */
+                        int top[NB_SCREENS];
+                        FOR_NB_SCREENS(i)
+                            top[i] = lists.start_item[i];
+                        init_menu_lists(menu, &lists, selected, false, vps,
+                                        buf, sizeof buf);
+                        FOR_NB_SCREENS(i)
+                            lists.start_item[i] = MIN(top[i],
+                                                      MAX(lists.nb_items - 1, 0));
                         redraw_lists = true;
                         break;
                     }
+                    transition_begin(TRANSITION_FORWARD);
                     do_setting_from_menu(temp, vps);
+                    transition_begin(TRANSITION_BACK);
                     init_menu_lists(menu, &lists, selected, false, vps, buf, sizeof buf);
                     redraw_lists = true;
 
@@ -965,11 +992,14 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                         mstack[stack_top].selected = selected;
                         stack_top++;
                         menu = temp;
+                        transition_begin(TRANSITION_FORWARD);
                         init_menu_lists(menu, &lists, 0, false, vps, buf, sizeof buf);
                         in_stringlist = true;
                     }
                     break;
                 case MT_RETURN_VALUE:
+                    if (menu == &root_menu_)
+                        transition_begin(TRANSITION_FORWARD);
                     ret = temp->value;
                     done = true;
                     break;

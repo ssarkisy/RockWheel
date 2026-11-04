@@ -393,7 +393,8 @@ int ft_load(struct tree_context* c, const char* tempdir)
             CHK_FT(SHOW_RFMS, FILE_ATTR_RFMS) ||
 #endif
 #endif
-            CHK_FT(SHOW_M3U, FILE_ATTR_M3U) ||
+            /* playlists, and the folders they're in on the computer */
+            (!(dir_attr) && CHK_FT(SHOW_M3U, FILE_ATTR_M3U)) ||
             CHK_FT(SHOW_CFG, FILE_ATTR_CFG) ||
             CHK_FT(SHOW_LNG, FILE_ATTR_LNG) ||
             CHK_FT(SHOW_MOD, FILE_ATTR_MOD) ||
@@ -431,9 +432,11 @@ int ft_load(struct tree_context* c, const char* tempdir)
     /* allow directories to be sorted into file list */
     cmp_data.sort_dir = (*c->dirfilter == SHOW_PLUGINS) ? SORT_AS_FILE : c->sort_dir;
 
-    /* playlist catalog uses sorting independent from file browser */
+    /* the playlist catalogue lists the newest first, as each file of the
+       library's has the time the playlist was last changed; its folders come
+       first, by name */
     cmp_data.sort_file = (*c->dirfilter == SHOW_M3U) ?
-                         global_settings.sort_playlists : global_settings.sort_file;
+                         SORT_DATE_REVERSED : global_settings.sort_file;
 
     if (global_settings.sort_case)
     {

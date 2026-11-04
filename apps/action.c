@@ -45,6 +45,7 @@
 #include "statusbar-skinned.h"
 #include "viewport.h"
 #endif
+#include "transition.h"
 
 #ifdef HAVE_BACKLIGHT
 #include "backlight.h"
@@ -1113,9 +1114,17 @@ static inline int do_backlight(action_last_t *last, action_cur_t *cur, int actio
 *                   TIMEOUT_BLOCK   to wait for a button press
 *                   Any number >0   to wait that many ticks for a press
 */
+/* only asked whether Menu is down, as while a list loads */
+static bool asking_abort;
+
 static int get_action_worker(action_last_t *last, action_cur_t *cur)
 {
     send_event(GUI_EVENT_ACTIONUPDATE, NULL);
+    /* the screen is drawn, the theme's part too: from the last to it. Not when
+       a list that loads asks whether to stop, which may show a splash: the
+       screen isn't there yet */
+    if (!asking_abort)
+        transition_run();
 
     if (night_mode_poll(cur->context))
         return ACTION_REDRAW;
@@ -1251,7 +1260,9 @@ int action_get_touchscreen_press_in_vp(short *x1, short *y1, struct viewport *vp
 
 bool action_userabort(int timeout)
 {
+    asking_abort = true;
     int  action = get_custom_action(CONTEXT_STD, timeout, NULL);
+    asking_abort = false;
     bool ret    = (action == ACTION_STD_CANCEL);
     if (!ret)
     {

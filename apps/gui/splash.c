@@ -34,6 +34,7 @@
 #include "font.h"
 #ifndef BOOTLOADER
 #include "misc.h" /* get_current_activity */
+#include "transition.h"
 #endif
 
 static long progress_next_tick, talked_tick;
@@ -365,6 +366,9 @@ void splashf(int ticks, const char *fmt, ...)
 {
     va_list ap;
 
+    /* shown at once: a slide that would hold it from the display isn't run */
+    transition_cancel();
+
     /* fmt may be a so called virtual pointer. See settings.h. */
     long id;
     if((id = P2ID((const unsigned char*)fmt)) >= 0)
@@ -416,6 +420,8 @@ void splash_progress(int current, int total, const char *fmt, ...)
         progress_next_tick = now + HZ/20;
         vp_flag = 0; /* don't mark vp dirty to prevent flashing */
     }
+    /* only once it shows: a slide while it's waited for isn't lost */
+    transition_cancel();
 
     if (global_settings.talk_menu &&
         total > 0 &&

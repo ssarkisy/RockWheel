@@ -312,7 +312,8 @@ static const struct button_mapping remote_button_context_standard[]  = {
     { ACTION_STD_OK,        BUTTON_RC_PLAY,     BUTTON_NONE },
 
     { ACTION_STD_MENU,          BUTTON_RC_MENU|BUTTON_REL,             BUTTON_RC_MENU },
-    { ACTION_STD_QUICKSCREEN,   BUTTON_RC_MENU|BUTTON_REPEAT,          BUTTON_RC_MENU },
+    /* held, as the iPod's Menu: the main menu, and not Rockbox's quick screen */
+    { ACTION_STD_MENU,          BUTTON_RC_MENU|BUTTON_REPEAT,          BUTTON_RC_MENU },
     { ACTION_STD_CONTEXT,       BUTTON_RC_SELECT|BUTTON_REPEAT,        BUTTON_RC_SELECT },
 
     LAST_ITEM_IN_LIST
@@ -336,7 +337,7 @@ static const struct button_mapping remote_button_context_wps[]  = {
     { ACTION_WPS_CONTEXT,   BUTTON_RC_SELECT|BUTTON_REPEAT,        BUTTON_RC_SELECT },
     { ACTION_WPS_HOTKEY,    BUTTON_RC_SELECT|BUTTON_PLAY,          BUTTON_NONE },
     { ACTION_WPS_MENU,      BUTTON_RC_MENU|BUTTON_REL,             BUTTON_RC_MENU },
-    { ACTION_WPS_QUICKSCREEN,   BUTTON_RC_MENU|BUTTON_REPEAT,      BUTTON_RC_MENU },
+    { ACTION_WPS_MENU,          BUTTON_RC_MENU|BUTTON_REPEAT,      BUTTON_RC_MENU },
 
 
     LAST_ITEM_IN_LIST__NEXTLIST(CONTEXT_STD)

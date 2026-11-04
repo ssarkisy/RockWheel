@@ -27,6 +27,9 @@
 int root_menu_cover_flow(void);
 #ifdef HAVE_TAGCACHE
 int root_menu_go_to_playing(bool artist);
+/* The list an artist or an album opens, from Search: -1 if it isn't there,
+   0 for going back, or else the screen to go to */
+int root_menu_go_to_name(int tag, const char *name);
 #endif
 void root_menu(void) NORETURN_ATTR;
 #ifdef HAVE_TAGCACHE
@@ -82,6 +85,9 @@ enum {
     GO_TO_SHUFFLE_SONGS, /* an action, not a screen to come back to */
 #endif
     GO_TO_PHOTOS,
+#ifdef HAVE_TAGCACHE
+    GO_TO_SEARCH, /* in Music, a screen of its own */
+#endif
 };
 #ifndef PLUGIN
 extern struct menu_item_ex root_menu_;

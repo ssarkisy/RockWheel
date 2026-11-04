@@ -890,7 +890,15 @@ static bool open_playlist_viewer(const char* filename,
             dir = "/";
             file = filename + 1;
         }
-        viewer.title = file;
+        /* its name as the list of playlists shows it, without .m3u8, which
+           took a good part of the title bar */
+        static char title[MAX_PATH];
+        strmemccpy(title, file, sizeof(title));
+        char *ext = strrchr(title, '.');
+        if (ext && ext != title
+            && (!strcasecmp(ext, ".m3u8") || !strcasecmp(ext, ".m3u")))
+            *ext = '\0';
+        viewer.title = title;
     }
     else
         viewer.title = (char *) str(LANG_PLAYLIST);
@@ -939,6 +947,11 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
     bool exit = false;        /* exit viewer */
     int button;
     struct gui_synclist playlist_lists;
+
+    /* songs have the whole width, as the lists of Music from Artists on */
+    const bool was_wide = menu_wide();
+    if (!was_wide)
+        menu_set_wide(true);
 
     if (!open_playlist_viewer(filename, &playlist_lists, false, recent_selection))
     {
@@ -1084,10 +1097,19 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
                     ret = PLAYLIST_VIEWER_USB;
                     goto exit;
                 }
+                /* the viewer is closed already, but the lists' width is back */
                 else if (pv_context_result == PV_CONTEXT_USB_CLOSED)
+                {
+                    if (!was_wide)
+                        menu_set_wide(false);
                     return PLAYLIST_VIEWER_USB;
+                }
                 else if (pv_context_result == PV_CONTEXT_WPS_CLOSED)
+                {
+                    if (!was_wide)
+                        menu_set_wide(false);
                     return PLAYLIST_VIEWER_OK;
+                }
                 else if (pv_context_result == PV_CONTEXT_CLOSED)
                 {
                     if (!open_playlist_viewer(filename, &playlist_lists, true, NULL))
@@ -1139,9 +1161,17 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
                     int plugin_result = do_plugin(current_track);
 
                     if (plugin_result == PV_CONTEXT_USB_CLOSED)
+                    {
+                        if (!was_wide)
+                            menu_set_wide(false);
                         return PLAYLIST_VIEWER_USB;
+                    }
                     else if (plugin_result == PV_CONTEXT_WPS_CLOSED)
+                    {
+                        if (!was_wide)
+                            menu_set_wide(false);
                         return PLAYLIST_VIEWER_OK;
+                    }
                     else if (!open_playlist_viewer(filename, &playlist_lists, true, NULL))
                     {
                         ret = PLAYLIST_VIEWER_CANCEL;
@@ -1186,6 +1216,8 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
 exit:
     pop_current_activity_without_refresh();
     close_playlist_viewer();
+    if (!was_wide)
+        menu_set_wide(false);
     return ret;
 }
 
