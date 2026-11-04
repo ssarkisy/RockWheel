@@ -131,7 +131,8 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
 #ifdef HAVE_ALBUMART
                 if (cover_palette_get()
                     && data == skin_get_gwps(WPS, SCREEN_MAIN)->data)
-                    skin_vp->vp.fg_pattern = cover_palette_text_colour(col->colour);
+                    skin_vp->vp.fg_pattern = cover_palette_text_colour_in(col->colour,
+                                                                          &skin_vp->vp);
 #endif
             }
             else

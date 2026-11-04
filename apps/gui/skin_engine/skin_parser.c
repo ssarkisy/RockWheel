@@ -397,6 +397,19 @@ static int parse_image_cover_tint(struct skin_element *element,
     return 0;
 }
 
+static int parse_image_cover_keep(struct skin_element *element,
+                                  struct wps_token *token,
+                                  struct wps_data *wps_data)
+{
+    (void)token;
+    struct gui_img *img = skin_find_item(get_param_text(element, 0),
+                                         SKIN_FIND_IMAGE, wps_data);
+    if (!img)
+        return WPS_ERROR_INVALID_PARAM;
+    img->cover_keep = true;
+    return 0;
+}
+
 static int parse_image_load(struct skin_element *element,
                             struct wps_token *token,
                             struct wps_data *wps_data)
@@ -450,6 +463,7 @@ static int parse_image_load(struct skin_element *element,
     img->loaded = false;
     img->dither = false;
     img->cover_tint = false;
+    img->cover_keep = false;
 
     if (token->type == SKIN_TOKEN_IMAGE_DISPLAY)
     {
@@ -1294,6 +1308,7 @@ static int parse_progressbar_tag(struct skin_element* element,
             img->dither = false;
             img->is_9_segment = false;
             img->cover_tint = false;
+            img->cover_keep = false;
             struct skin_token_list *item = new_skin_token_list_item(NULL, img);
             if (!item)
                 return WPS_ERROR_INVALID_PARAM;
@@ -1494,6 +1509,22 @@ failure:
 
 #ifdef HAVE_ALBUMART
 
+/* the cover of the last %Cl reflected */
+static int parse_albumart_reflect(struct skin_element *element,
+                                  struct wps_token *token,
+                                  struct wps_data *wps_data)
+{
+    (void)element;
+    (void)token;
+    struct skin_albumart *aa = SKINOFFSETTOPTR(skin_buffer, wps_data->albumart2);
+    if (!aa)
+        aa = SKINOFFSETTOPTR(skin_buffer, wps_data->albumart);
+    if (!aa)
+        return WPS_ERROR_INVALID_PARAM;
+    aa->reflect = true;
+    return 0;
+}
+
 static int parse_albumart_load(struct skin_element* element,
                                struct wps_token *token,
                                struct wps_data *wps_data)
@@ -1517,6 +1548,7 @@ static int parse_albumart_load(struct skin_element* element,
     aa->width =  percent_parse_param(get_param(element, 2), curr_vp->vp.width);
     aa->height =  percent_parse_param(get_param(element, 3), curr_vp->vp.height);
     aa->draw_handle = -1;
+    aa->reflect = false;
 
     /* if we got here, we parsed everything ok .. ! */
     if (aa->width < 0)
@@ -2635,6 +2667,9 @@ static int skin_element_callback(struct skin_element* element, void* data)
                 case SKIN_TOKEN_IMAGE_COVER_TINT:
                     function = parse_image_cover_tint;
                     break;
+                case SKIN_TOKEN_IMAGE_COVER_KEEP:
+                    function = parse_image_cover_keep;
+                    break;
                 case SKIN_TOKEN_IMAGE_PRELOAD:
                 case SKIN_TOKEN_IMAGE_DISPLAY:
                     function = parse_image_load;
@@ -2653,6 +2688,9 @@ static int skin_element_callback(struct skin_element* element, void* data)
 #ifdef HAVE_ALBUMART
                 case SKIN_TOKEN_ALBUMART_LOAD:
                     function = parse_albumart_load;
+                    break;
+                case SKIN_TOKEN_ALBUMART_REFLECT:
+                    function = parse_albumart_reflect;
                     break;
                 case SKIN_TOKEN_ALBUMART_DISPLAY:
                     function = parse_albumart_display;

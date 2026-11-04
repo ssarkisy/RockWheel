@@ -678,6 +678,7 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
 #ifdef HAVE_HEADPHONE_DETECTION
         &unplug_mode,
 #endif
+        &coverflow_pause_item,
         &cuesheet,
         &group_sound,
         &ipod_eq_row, &replaygain_type, &volume_limit, &balance, &crossfeed,
@@ -692,7 +693,8 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &brightness_item,
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-        &cover_colours_item,
+        &cover_colours_item, &status_icons_item, &angled_cover_item,
+        &appearance_row,
 #endif
         &dark_theme_item, &night_row,
         &group_general,

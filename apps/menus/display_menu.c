@@ -46,6 +46,10 @@
 #include "statusbar.h" /* statusbar_vals enum*/
 #include "rbunicode.h"
 #include "night_mode.h"
+#include "string-extra.h"
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+#include "skin_engine/cover_palette.h"
+#endif
 
 #ifdef HAVE_BACKLIGHT
 static int selectivebacklight_callback(int action,
@@ -191,6 +195,53 @@ MENUITEM_SETTING_SHARED(brightness_item, &global_settings.brightness, NULL);
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 MENUITEM_SETTING_SHARED(cover_colours_item, &global_settings.cover_colours, NULL);
+/* only the modes that colour the screen's images colour the icons */
+static int status_icons_callback(int action,
+                                 const struct menu_item_ex *this_item,
+                                 struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM
+        && global_settings.cover_colours < COVER_COLOURS_SCREEN)
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_SETTING_SHARED(status_icons_item, &global_settings.status_icons,
+                        status_icons_callback);
+MENUITEM_SETTING_SHARED(angled_cover_item, &global_settings.angled_cover, NULL);
+
+/* Appearance: the theme's look of each, as the iPod's or as iOS 13's */
+MENUITEM_SETTING(status_bar_style_item, &global_settings.status_bar_style, NULL);
+MENUITEM_SETTING(rating_style_item, &global_settings.rating_style, NULL);
+MENUITEM_SETTING(progress_bar_style_item, &global_settings.progress_bar_style, NULL);
+MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
+          &status_bar_style_item, &rating_style_item, &progress_bar_style_item);
+
+static int appearance_menu_open(void)
+{
+    /* Menu held goes on to the main menu, as from Night Mode */
+    if (do_menu(&appearance_menu, NULL, NULL, false) == GO_TO_ROOT)
+        menu_request_root();
+    return 0;
+}
+
+/* its row: which look, if they're all of one */
+static char *appearance_row_name(int selected_item, void *data,
+                                 char *buffer, size_t buffer_len)
+{
+    (void)selected_item; (void)data;
+    const int s = global_settings.status_bar_style;
+    if (s == global_settings.rating_style && s == global_settings.progress_bar_style)
+        snprintf(buffer, buffer_len, "%s\t%s", str(LANG_APPEARANCE),
+                 str(s == STYLE_IOS ? LANG_STYLE_IOS : LANG_STYLE_IPOD));
+    else
+        strmemccpy(buffer, str(LANG_APPEARANCE), buffer_len);
+    return buffer;
+}
+
+MENUITEM_FUNCTION_DYNTEXT(appearance_row, 0, appearance_menu_open, appearance_row_name,
+                          NULL, NULL, NULL, Icon_NOICON);
 #endif
 
 MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);

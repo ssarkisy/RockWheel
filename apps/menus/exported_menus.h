@@ -57,7 +57,7 @@ extern const struct menu_item_ex
 #ifdef HAVE_HEADPHONE_DETECTION
         unplug_mode,
 #endif
-        resume_rewind, cuesheet,
+        resume_rewind, cuesheet, coverflow_pause_item,
         volume_limit, balance, crossfeed, afr_enabled, /* sound_menu.c  */
         ipod_eq_menu, ipod_eq_row,                  /* eq_menu.c        */
 #ifdef HAVE_BACKLIGHT
@@ -67,7 +67,8 @@ extern const struct menu_item_ex
         brightness_item,
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-        cover_colours_item,
+        cover_colours_item, status_icons_item, angled_cover_item, appearance_row,
+        appearance_menu,
 #endif
         codepage_setting,
         dark_theme_item, night_menu, night_row,     /* display_menu.c   */
@@ -87,5 +88,8 @@ int browse_folder(void *param); /* in theme_menu.c as it is mostly used there */
 #endif /* ! PLUGIN */
 void volume_limit_screen(void); /* sound_menu.c */
 int language_screen(void); /* settings_menu.c: the list of languages */
+/* the i-th language of that list, by its file and its own name, NULL if it isn't
+   offered; false past the last */
+bool language_at(int i, const char **file, const char **name);
 
 #endif /*_EXPORTED_MENUS_H */

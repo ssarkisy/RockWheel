@@ -325,7 +325,7 @@ static struct bitmap *tinted_bar_bitmap(const struct gui_wps *gwps, struct bitma
 
     if (in_cover_colours(gwps, bm) && bm->alpha_offset == 0)
     {
-        void *pixels = cover_palette_bar(bm);
+        void *pixels = cover_palette_bar(bm, global_settings.progress_bar_style == STYLE_IOS);
         if (pixels)
         {
             tinted = *bm;
@@ -339,6 +339,9 @@ static struct bitmap *tinted_bar_bitmap(const struct gui_wps *gwps, struct bitma
     return bm;
 }
 
+/* the image being drawn keeps its own colours, as the battery does */
+static bool keep_own_colours;
+
 /* A bitmap of the theme, in the colours of the cover if they are on the whole screen */
 static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
                           int src_x, int src_y, int x, int y, int width, int height)
@@ -351,24 +354,47 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
         const int top = (*gwps->display->current_viewport)->y + y;
         const fb_data *row = (const fb_data *)bm->data + src_y * bm->width + src_x;
 
+        /* an icon of the status bar as the theme has it, if it reads so there */
+        bool own_ink = false;
+        if (global_settings.status_icons == STATUS_ICONS_OWN
+            && cover_palette_in_status_bar(top))
+        {
+            const int left = (*gwps->display->current_viewport)->x + x;
+            int most = 0;
+            const fb_data *r = row;
+            for (int i = 0; i < height; i++, r += bm->width)
+                cover_palette_status_bar_contrast(r, width, left, top + i, &most);
+            own_ink = most >= COVER_PALETTE_ICON_CONTRAST;
+        }
+
         if (bm->alpha_offset > 0)
         {
-            /* its alpha channel comes after its pixels, so a copy of all of it: the
-               theme's only such image is the small knob of the scrubber */
-            size_t room;
-            unsigned char *copy = cover_palette_scratch(&room);
-            const size_t size = bm->alpha_offset + (bm->width + 1) / 2 * bm->height;
-            if (size <= room)
+            /* Its alpha channel comes after its pixels, in whole bytes a row, so a line
+               of each with the line's alpha after it. The width it's tinted in is all
+               of the bitmap's, so its alpha and its pixels stay in step. */
+            static uint32_t alpha_line[(LCD_WIDTH * sizeof(fb_data) + LCD_WIDTH / 2) / 4 + 2];
+            fb_data *const pixels = (fb_data *)alpha_line;
+            const int alpha_stride = (bm->width + 1) / 2;
+            const unsigned char *alpha = bm->data + bm->alpha_offset + src_y * alpha_stride;
+            if (bm->width > LCD_WIDTH)
             {
-                memcpy(copy, bm->data, size);
-                for (int i = 0; i < bm->height; i++)
-                    cover_palette_tint_line((const fb_data *)bm->data + i * bm->width,
-                                            (fb_data *)copy + i * bm->width, bm->width, top);
-                line_bm.data = copy;
-                gwps->display->bmp_part(&line_bm, src_x, src_y, x, y, width, height);
+                gwps->display->bmp_part(bm, src_x, src_y, x, y, width, height);
                 return;
             }
-            gwps->display->bmp_part(bm, src_x, src_y, x, y, width, height);
+            row -= src_x;
+            line_bm.data = (void *)alpha_line;
+            line_bm.height = 1;
+            line_bm.alpha_offset = bm->width * sizeof(fb_data);
+            for (int i = 0; i < height; i++, row += bm->width, alpha += alpha_stride)
+            {
+                cover_palette_tint_line(row, pixels, bm->width, top + i);
+                if (own_ink)
+                    cover_palette_keep_ink(row, pixels, bm->width);
+                else if (keep_own_colours)
+                    cover_palette_keep_colours(row, pixels, bm->width);
+                memcpy((unsigned char *)alpha_line + line_bm.alpha_offset, alpha, alpha_stride);
+                gwps->display->bmp_part(&line_bm, src_x, 0, x, y + i, width, 1);
+            }
             return;
         }
 
@@ -378,12 +404,39 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
         for (int i = 0; i < height; i++, row += bm->width)
         {
             cover_palette_tint_line(row, line, width, top + i);
+            if (own_ink)
+                cover_palette_keep_ink(row, line, width);
+            else if (keep_own_colours)
+                cover_palette_keep_colours(row, line, width);
             gwps->display->bmp_part(&line_bm, 0, 0, x, y + i, width, 1);
         }
         return;
     }
 #endif
     gwps->display->bmp_part(bm, src_x, src_y, x, y, width, height);
+}
+
+/* The volume bar glides to the volume rather than jump a step at a time:
+   what it shows, in thousandths of its length, and when it last drew */
+static int volume_shown = -1;
+static long volume_shown_tick;
+static bool volume_gliding;
+
+static unsigned long volume_bar_end(unsigned long target)
+{
+    /* drawn afresh after a while, it starts at the volume */
+    if (volume_shown < 0 || TIME_AFTER(current_tick, volume_shown_tick + HZ/2))
+        volume_shown = target;
+    else if (volume_shown != (int)target)
+    {
+        /* a third of the way each frame */
+        int d = (int)target - volume_shown;
+        int step = d / 3;
+        volume_shown += step ? step : (d > 0 ? 1 : -1);
+    }
+    volume_shown_tick = current_tick;
+    volume_gliding = volume_shown != (int)target;
+    return volume_shown;
 }
 
 void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
@@ -413,13 +466,13 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
     {
         int minvol = sound_min(SOUND_VOLUME);
         int maxvol = sound_max(SOUND_VOLUME);
-#if defined(HAVE_PERCEPTUAL_VOLUME) || defined(HAVE_TOUCHSCREEN)
         length = 1000;
+#if defined(HAVE_PERCEPTUAL_VOLUME) || defined(HAVE_TOUCHSCREEN)
         end = to_normalized_volume(global_status.volume, minvol, maxvol, length);
 #else
-        length = maxvol - minvol;
-        end = global_status.volume - minvol;
+        end = (global_status.volume - minvol) * length / MAX(maxvol - minvol, 1);
 #endif
+        end = volume_bar_end(end);
     }
     else if (pb->type == SKIN_TOKEN_BATTERY_PERCENTBAR)
     {
@@ -563,6 +616,21 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
     {
         struct gui_img *img = SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->backdrop);
         img->bm.data = core_get_data(img->buflib_handle);
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+        /* the iOS look's track, of its own shade with the cover's colours: the
+           theme's tinted went with the background */
+        void *track = NULL;
+        if (global_settings.progress_bar_style == STYLE_IOS && in_cover_colours(gwps, &img->bm)
+            && img->bm.alpha_offset == 0)
+            track = cover_palette_bar_track(&img->bm);
+        if (track)
+        {
+            struct bitmap flat = img->bm;
+            flat.data = track;
+            display->bmp_part(&flat, 0, 0, x, y, pb->width, height);
+        }
+        else
+#endif
         draw_bmp_part(gwps, &img->bm, 0, 0, x, y, pb->width, height);
         flags |= DONT_CLEAR_EXCESS;
     }
@@ -719,7 +787,14 @@ static void draw_cover_tinted_image(struct screen *display, const struct gui_img
     {
         for (int x = 0; x < width; x++)
         {
-            const int shade = RGB_UNPACK_GREEN(FB_UNPACK_SCALAR_LCD(row[x])) >> 2;
+            /* by its green, the theme's stars being grey: on the dark theme, which
+               has them light on dark, by its lightest part, as the iOS look's red
+               star had the green of a shade near the background */
+            const unsigned px = FB_UNPACK_SCALAR_LCD(row[x]);
+            const int level = global_settings.dark_theme
+                ? MAX(MAX(RGB_UNPACK_RED(px), RGB_UNPACK_GREEN(px)), RGB_UNPACK_BLUE(px))
+                : RGB_UNPACK_GREEN(px);
+            const int shade = level >> 2;
             /* the dark theme's lightest shade is the stars themselves */
             line[x] = shade < COVER_PALETTE_STAR_KEPT ? shades[shade]
                 : global_settings.dark_theme ? shades[COVER_PALETTE_STAR_KEPT - 1] : row[x];
@@ -746,8 +821,13 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
     if (img->is_9_segment)
         display->nine_segment_bmp(&img->bm, 0, 0, vp->width, vp->height);
     else
+    {
+        keep_own_colours = img->cover_keep
+                           && global_settings.status_icons != STATUS_ICONS_COVER;
         draw_bmp_part(gwps, &img->bm, 0, img->subimage_height * subimage,
                       img->x, img->y, img->bm.width, img->subimage_height);
+        keep_own_colours = false;
+    }
 }
 
 #ifdef HAVE_ALBUMART
@@ -813,6 +893,184 @@ static void keep_album_art(int index, int handle)
     kept_art[index].handle = handle;
 }
 
+/* The cover a theme asks for so with %Cr, as Now Playing's, stands in
+   (x, y, w, h) with its reflection under it, as
+   Cover Flow's covers have theirs: what the backdrop had there, the theme's
+   placeholder note and its shadow, gives way to the background beside it.
+   With Angled Cover it's turned a little away from the text, as an iPod
+   classic shows it, and larger than the space: its left edge taller and nearer
+   the screen's edge, the right one further and shorter, its top and bottom
+   edges smoothed. The reflection ends where the space's would. */
+/* As measured on a photo of an iPod classic taken straight on, in its screen's
+   pixels: the left edge 142 high from 11 px off the screen's edge, the right one
+   0.87 of it, 0.96 of the left edge's height wide, its middle 2 px below the
+   space's; under it a reflection at half the cover's strength */
+#define ANGLE_NEAR  267 /* of 256: the left edge's height to the space's */
+#define ANGLE_FAR   223 /* of 256: the right edge's height to the left one's */
+#define ANGLE_WIDTH 246 /* of 256: how wide it is turned, to the left edge's height */
+#define ANGLE_LEFT  1   /* the left edge out of the space towards the screen's */
+#define ANGLE_DROP  2   /* its middle below the space's */
+#define ART_SPILL   12  /* how far past the space a cover can go */
+#define REFLECTION_ROWS  22
+#define REFLECTION_ALPHA 128 /* of 256, at its top, down to none */
+
+#if LCD_DEPTH == 16
+/* a of 256 of one, the rest of the other */
+static fb_data mix_pixel(fb_data one, fb_data other, int a)
+{
+    return LCD_RGBPACK_LCD(
+        (RGB_UNPACK_RED_LCD(one) * a + RGB_UNPACK_RED_LCD(other) * (256 - a)) >> 8,
+        (RGB_UNPACK_GREEN_LCD(one) * a + RGB_UNPACK_GREEN_LCD(other) * (256 - a)) >> 8,
+        (RGB_UNPACK_BLUE_LCD(one) * a + RGB_UNPACK_BLUE_LCD(other) * (256 - a)) >> 8);
+}
+
+/* the background of each row of the area, as beside the cover */
+static fb_data cover_bg[LCD_HEIGHT];
+
+/* A column of the cover in the area's column px, from the source column sx:
+   its top and height in 16.16 rows of the area, and its reflection under it,
+   as much shorter as the column is, down to the area's foot at most. A row of
+   the source is found with a multiply by the column's step: a 64-bit divide
+   for each pixel was 60 ms for the cover each time it was drawn. */
+static void draw_cover_column(const struct viewport *area, const fb_data *src,
+                              int stride, int sx, int sh, int px,
+                              long top, long col_h)
+{
+    if (px < 0 || px >= area->width)
+        return;
+    const long bottom = top + col_h;
+    /* to the foot of the area, where the space's would end: none at the foot
+       of the screen */
+    const long fade = MAX(((long)area->height << 16) - bottom, 0);
+    const int first = MAX(0, (int)(top >> 16));
+    const int last = MIN(area->height - 1, (int)((bottom + fade - 1) >> 16));
+    if (first > last)
+        return;
+    /* rows of the source to one of the area's 16.16, in 32.32 */
+    const int64_t rows = ((int64_t)sh << 32) / col_h;
+    fb_data *fb = area->buffer->get_address_fn(area->x + px, area->y + first);
+    const ptrdiff_t step = area->buffer->stride;
+    for (int r = first; r <= last; r++, fb += step)
+    {
+        const long from = (long)r << 16, to = from + 65536, mid = from + 32768;
+        const fb_data bg = cover_bg[r];
+        /* the reflection at this row, the cover upside down and fading */
+        fb_data under = bg;
+        if (to > bottom && fade > 0)
+        {
+            const long below = MAX(mid - bottom, 0);
+            int sy = sh - 1 - (int)(((int64_t)below * rows) >> 32);
+            sy = MAX(0, MIN(sy, sh - 1));
+            const int a = REFLECTION_ALPHA * (fade - below) / fade;
+            if (a > 0)
+                under = mix_pixel(src[sy * stride + sx], bg, a);
+        }
+        /* the cover over it, as much of the row as it covers */
+        const int cover = MAX(0, (int)((MIN(bottom, to) - MAX(top, from)) >> 8));
+        if (cover > 0)
+        {
+            int sy = (int)(((int64_t)(MIN(mid, bottom - 1) - top) * rows) >> 32);
+            sy = MAX(0, MIN(sy, sh - 1));
+            const fb_data pixel = src[sy * stride + sx];
+            /* above the cover, the background; below, the reflection */
+            const fb_data behind = from < top ? bg : under;
+            *fb = cover >= 256 ? pixel : mix_pixel(pixel, behind, cover);
+        }
+        else
+            *fb = under;
+    }
+}
+#endif
+
+static void draw_cover(struct gui_wps *gwps, struct skin_albumart *aa,
+                       const fb_data *src, int stride,
+                       int sw, int sh, int x, int y, int w, int h)
+{
+    struct screen *display = gwps->display;
+#if LCD_DEPTH == 16
+    /* the cover a theme asks for so with %Cr, as Now Playing's */
+    if (aa->reflect && w > 1 && h > 1)
+    {
+        struct viewport *vp = display->set_viewport(NULL);
+        display->set_viewport(vp);
+        /* the space with room around it, and the reflection under it */
+        struct viewport area = *vp;
+        area.x = MAX(vp->x + x - ART_SPILL, 0);
+        area.y = MAX(vp->y + y - ART_SPILL, 0);
+        area.width = MIN(vp->x + x + w + ART_SPILL, LCD_WIDTH) - area.x;
+        area.height = MIN(vp->y + y + h + REFLECTION_ROWS, LCD_HEIGHT) - area.y;
+        const int ax = vp->x + x - area.x, ay = vp->y + y - area.y;
+        /* the background left of it, where nothing is drawn over the backdrop:
+           right of it the text starts */
+        const int bx = MAX(area.x - 2, 1);
+        for (int r = 0; r < area.height; r++)
+            cover_bg[r] = *(fb_data *)vp->buffer->get_address_fn(bx, area.y + r);
+        display->set_viewport(&area);
+        for (int r = 0; r < area.height; r++)
+        {
+            display->set_foreground(cover_bg[r]);
+            display->hline(0, area.width - 1, r);
+        }
+
+        if (global_settings.angled_cover)
+        {
+            const int near_h = h * ANGLE_NEAR / 256;
+            const int pw = near_h * ANGLE_WIDTH / 256;
+            const int left = ax - ANGLE_LEFT;
+            const long middle = ((long)(ay + ANGLE_DROP) << 16) + ((long)h << 15);
+            for (int c = 0; c < pw; c++)
+            {
+                /* Across the columns the nearness goes from 1 to ANGLE_FAR,
+                   and the place on the cover with it, as a plane in
+                   perspective has them: s * ANGLE_FAR / near of the way
+                   across, its height near of the left edge's, in 16.16 */
+                const long s16 = ((long)c << 16) / pw + (32768 / pw);
+                const long near = 65536 - (((256 - ANGLE_FAR) * s16) >> 8);
+                const int sx = MIN((int)(((int64_t)s16 * ANGLE_FAR * sw)
+                                         / ((int64_t)near * 256)), sw - 1);
+                const long col_h = (long)near_h * near;
+                draw_cover_column(&area, src, stride, sx, sh, left + c,
+                                  middle - col_h / 2, col_h);
+            }
+        }
+        else
+        {
+            for (int c = 0; c < MIN(w, sw); c++)
+                draw_cover_column(&area, src, stride, c, sh, ax + c,
+                                  (long)ay << 16, (long)MIN(h, sh) << 16);
+        }
+        display->set_foreground(vp->fg_pattern);
+        display->set_viewport(vp);
+        return;
+    }
+#endif
+    display->bitmap_part(src, 0, 0, stride, x, y, MIN(w, sw), MIN(h, sh));
+}
+
+/* where Now Playing's cover and its reflection were, the backdrop again */
+static void clear_cover_reflection(struct gui_wps *gwps, struct skin_albumart *aa,
+                                   int x, int y, int w, int h)
+{
+#if LCD_DEPTH == 16
+    struct screen *display = gwps->display;
+    if (!aa->reflect)
+        return;
+    struct viewport *vp = display->set_viewport(NULL);
+    struct viewport area = *vp;
+    area.x = MAX(vp->x + x - ART_SPILL, 0);
+    area.y = MAX(vp->y + y - ART_SPILL, 0);
+    area.width = MIN(vp->x + x + w + ART_SPILL, LCD_WIDTH) - area.x;
+    area.height = MIN(vp->y + y + h + REFLECTION_ROWS, LCD_HEIGHT) - area.y;
+    display->set_viewport(&area);
+    display->set_drawmode(DRMODE_SOLID | DRMODE_INVERSEVID);
+    display->fillrect(0, 0, area.width, area.height);
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_viewport(vp);
+#else
+    (void)gwps; (void)aa; (void)x; (void)y; (void)w; (void)h;
+#endif
+}
+
 static void draw_art_pixels(struct gui_wps *gwps, struct skin_albumart *aa,
                             const fb_data *pixels, int width, int height)
 {
@@ -827,9 +1085,9 @@ static void draw_art_pixels(struct gui_wps *gwps, struct skin_albumart *aa,
     else if (aa->yalign & WPS_ALBUMART_ALIGN_CENTER)
         y += (aa->height - height) / 2;
 
-    gwps->display->bitmap_part(pixels, 0, 0,
-                               STRIDE(gwps->display->screen_type, width, height),
-                               x, y, width, height);
+    draw_cover(gwps, aa, pixels,
+               STRIDE(gwps->display->screen_type, width, height),
+               width, height, x, y, width, height);
 }
 
 static void draw_kept_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
@@ -1351,10 +1609,9 @@ void draw_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
     if (!clear)
     {
         /* Draw the bitmap */
-        gwps->display->bitmap_part((fb_data*)bmp->data, 0, 0,
-                                    STRIDE(gwps->display->screen_type,
-                                        bmp->width, bmp->height),
-                                   x, y, width, height);
+        draw_cover(gwps, aa, (fb_data*)bmp->data,
+                   STRIDE(gwps->display->screen_type, bmp->width, bmp->height),
+                   bmp->width, bmp->height, x, y, width, height);
 #ifdef HAVE_LCD_INVERT
         if (global_settings.invert) {
             gwps->display->set_drawmode(DRMODE_COMPLEMENT);
@@ -1369,6 +1626,7 @@ void draw_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
         gwps->display->set_drawmode(DRMODE_SOLID|DRMODE_INVERSEVID);
         gwps->display->fillrect(x, y, width, height);
         gwps->display->set_drawmode(DRMODE_SOLID);
+        clear_cover_reflection(gwps, aa, x, y, width, height);
     }
 }
 #endif
@@ -1392,7 +1650,7 @@ int skin_wait_for_action(enum skinnable_screens skin, int context, int timeout)
     bool peak_meter_enabled = false;
     FOR_NB_SCREENS(i)
         peak_meter_enabled |= skin_get_gwps(skin, i)->data->peak_meter_enabled;
-    if (!peak_meter_enabled)
+    if (!peak_meter_enabled && !volume_gliding)
         return get_action(context, timeout);
 
     long next_refresh = current_tick;
@@ -1407,7 +1665,21 @@ int skin_wait_for_action(enum skinnable_screens skin, int context, int timeout)
         peak_meter_peek(); /* Read peak values */
         sleep(0); /* Sleep until end of current tick. */
 
-        if (TIME_BEFORE(current_tick, next_refresh))
+        /* the volume bar until it's at the volume, every other tick; not
+           drawn for a while, it's hidden */
+        if (volume_gliding)
+        {
+            if (TIME_AFTER(current_tick, volume_shown_tick + HZ/10))
+                volume_gliding = false;
+            else if (!(current_tick & 1))
+                FOR_NB_SCREENS(i)
+                    skin_update(skin, i, SKIN_REFRESH_DYNAMIC);
+        }
+        if (!peak_meter_enabled && !volume_gliding)
+            return get_action(context, TIME_BEFORE(current_tick, timeout_tick)
+                                       ? timeout_tick - current_tick : 0);
+
+        if (!peak_meter_enabled || TIME_BEFORE(current_tick, next_refresh))
             continue;
 
         FOR_NB_SCREENS(i)

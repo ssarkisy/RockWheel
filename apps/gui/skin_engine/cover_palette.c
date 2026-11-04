@@ -226,15 +226,18 @@ static struct
     bool fill;
     int header_background[3], header_icon[3], header_ink[3];
     int icon_hsl[3], bar_hsl[3];
+    /* the iOS look's flat bar: its fill, which stands out well, and the track under it */
+    int flat_fill[3], flat_track[3];
 } screen_colours;
 
-/* the red of a nearly empty battery, a warning */
+/* the red of a nearly empty battery, a warning, and not the pinker red of the iOS
+   look's icons, which is its accent and takes the cover's colour as the theme's do */
 static bool is_warning_red(const int rgb[3])
 {
     const int r = rgb[0], g = rgb[1], b = rgb[2];
     const int hi = MAX(MAX(r, g), b), lo = MIN(MIN(r, g), b);
     const int sum = hi + lo, chroma = hi - lo;
-    return hi == r && chroma > 60 && ABS_DIFF(g, b) * 3 < chroma
+    return hi == r && chroma > 60 && ABS_DIFF(g, b) * 3 < chroma && b <= g + 12
         && chroma * 1000 / (sum > 255 ? 510 - sum : sum) > 450;
 }
 
@@ -262,9 +265,13 @@ static void tint_rgb(const int rgb[3], int out[3])
     {
         /* the lightest shades are the images' own background: the stars' has a pale
            panel in it, which a white screen hides and a coloured one doesn't. The dark
-           theme's images are the other way up. */
-        const int level = MIN((global_settings.dark_theme ? 255 - luma : luma) * 255 / 236,
-                              255);
+           theme's images are the other way up. What has colour is as dark as its
+           darkest part, or on the dark theme as light as its lightest, so the iOS
+           look's red is ink as the theme's grey is, its smoothed edges going over. */
+        const int weight = MIN(chroma, 64);
+        const int shade = global_settings.dark_theme ? 255 - (luma + (hi - luma) * weight / 64)
+                                                     : luma - (luma - lo) * weight / 64;
+        const int level = MIN(shade * 255 / 236, 255);
         for (int i = 0; i < 3; i++)
             out[i] = screen_colours.ink[i]
                    + (screen_colours.background[i] - screen_colours.ink[i]) * level / 255;
@@ -286,6 +293,23 @@ static void tint_rgb(const int rgb[3], int out[3])
     hsl_to_rgb(screen_colours.hue,
                screen_colours.accent_saturation * (650 + 350 * saturation / 1000) / 1000,
                120 + 800 * (sum * 1000 / 510) / 1000, colour);
+    /* clear of the screen as an icon is to be seen, 3 to 1, and 4.5 in the grey of a
+       grey cover, which has no hue to stand out by: the iOS look's red came out as a
+       grey too light for the status bar and the stars. Never more than the pixel
+       had on its image's background, so that smoothed edges stay smooth. The dark
+       theme's images are the other way up: its background is the ink's end. */
+    static const int white[3] = { 255, 255, 255 }, black[3] = { 0, 0, 0 };
+    const bool dark = global_settings.dark_theme;
+    const int target = MIN(screen_colours.accent_saturation ? 300 : 450,
+                           contrast(rgb, dark ? black : white));
+    const int *const back = dark ? screen_colours.ink : screen_colours.background;
+    const int *const away = dark ? screen_colours.background : screen_colours.ink;
+    for (int n = 0; n < 40 && contrast(colour, back) < target; n++)
+    {
+        for (int i = 0; i < 3; i++)
+            colour[i] += (away[i] - colour[i]) * 8 / 100
+                       + (away[i] > colour[i] ? 1 : away[i] < colour[i] ? -1 : 0);
+    }
     for (int i = 0; i < 3; i++)
         out[i] += (colour[i] - out[i]) * blend / 256;
 }
@@ -333,21 +357,28 @@ static struct screen_buffers
     uint32_t tint_known[(1 << 16) / 32];
     /* the same for the status bar when filled, whose icons are drawn differently */
     uint32_t header_cache[1024];
-    uint32_t scratch[512];
     fb_data bar[LCD_WIDTH * 32]; /* the fill of the progress bar */
+    fb_data track[LCD_WIDTH * 32]; /* and the iOS look's track under it */
 } *buffers;
 static int buffers_handle;
 static const void *bar_source; /* of what's in it */
+static const void *track_source;
 
 static int tinted_backdrop_id = -1;
 static int indexed_backdrop_id = -1;
 static int backdrop_colour_count;
 
+/* no memory for them when the setting was chosen: not asked for again as the
+   music plays, where each try would start the track again, until another is
+   chosen, rather than as the settings are applied again */
+static bool buffers_refused;
+static int buffers_mode = -1; /* the setting they were asked for in */
+
 /* The audio buffer gives way to them, which starts a playing track again where it was,
    but leaves a paused one stopped */
 static void allocate_buffers(void)
 {
-    if (buffers)
+    if (buffers || buffers_refused)
         return;
     const bool paused = audio_status() & AUDIO_STATUS_PAUSE;
     unsigned long elapsed = 0, offset = 0;
@@ -363,6 +394,8 @@ static void allocate_buffers(void)
         buffers_handle = handle;
         buffers = core_get_data(handle);
     }
+    else
+        buffers_refused = true;
     if (paused && !(audio_status() & AUDIO_STATUS_PLAY))
     {
         audio_play(elapsed, offset);
@@ -371,6 +404,24 @@ static void allocate_buffers(void)
 }
 
 static void tint_header_line(const fb_data *src, fb_data *dst, int count);
+
+void cover_palette_keep_colours(const fb_data *src, fb_data *dst, int count)
+{
+    const fb_data transparent = FB_SCALARPACK(TRANSPARENT_COLOR);
+    for (int i = 0; i < count; i++)
+    {
+        if (src[i] == transparent)
+            continue;
+        int rgb[3];
+        unpack_rgb(src[i], rgb);
+        const int hi = MAX(MAX(rgb[0], rgb[1]), rgb[2]);
+        const int lo = MIN(MIN(rgb[0], rgb[1]), rgb[2]);
+        const int sum = hi + lo, chroma = hi - lo;
+        /* as coloured as tint_header_rgb() takes for an icon's colour */
+        if (chroma > 25 && chroma * 1000 / (sum > 255 ? 510 - sum : sum) > 400)
+            dst[i] = src[i];
+    }
+}
 
 void cover_palette_tint_line(const fb_data *src, fb_data *dst, int count, int y)
 {
@@ -401,12 +452,6 @@ void cover_palette_tint_line(const fb_data *src, fb_data *dst, int count, int y)
         }
         dst[i] = tint_table[key];
     }
-}
-
-void *cover_palette_scratch(size_t *size)
-{
-    *size = sizeof(buffers->scratch);
-    return buffers->scratch;
 }
 
 /* Done once for a backdrop, using the table of the bitmaps' colours for the moment.
@@ -638,7 +683,71 @@ static void fill_backdrop(void)
     tinted_backdrop_id = id;
 }
 
-void *cover_palette_bar(const struct bitmap *bm)
+static inline int pixel_luma(fb_data pixel)
+{
+    int rgb[3];
+    unpack_rgb(pixel, rgb);
+    return (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
+}
+
+/* A flat part of the iOS bar, smoothed against its theme's background at its ends:
+   in colour where it's whole, and at its edges as much of that over the background
+   as there was of the theme's over its own. A shade by each pixel's lightness made
+   the edges lighter than the rest, a white rim at the end of the fill. */
+static void flat_bar(const fb_data *src, fb_data *dst, int count, const int colour[3])
+{
+    const fb_data corner = src[0];
+    const int *const bg = screen_colours.background;
+    const fb_data plain = pack_nearest(bg), whole = pack_nearest(colour);
+    /* it's whole where it's farthest from the corner's lightness: darker on a light
+       theme, lighter on a dark one */
+    const int corner_luma = pixel_luma(corner);
+    int span = 0;
+    for (int i = 0; i < count; i++)
+        span = MAX(span, abs(pixel_luma(src[i]) - corner_luma));
+    fb_data from = corner, to = plain;
+    for (int i = 0; i < count; i++)
+    {
+        if (src[i] == corner)
+            dst[i] = plain;
+        else
+        {
+            if (src[i] != from)
+            {
+                from = src[i];
+                const int part = span > 0 ? abs(corner_luma - pixel_luma(from)) * 256 / span
+                                          : 256;
+                if (part >= 256)
+                    to = whole;
+                else
+                {
+                    int out[3];
+                    for (int c = 0; c < 3; c++)
+                        out[c] = bg[c] + (colour[c] - bg[c]) * MAX(part, 0) / 256;
+                    to = pack_nearest(out);
+                }
+            }
+            dst[i] = to;
+        }
+    }
+}
+
+void *cover_palette_bar_track(const struct bitmap *bm)
+{
+    struct screen_buffers *const b = buffers;
+    const fb_data *src = (const fb_data *)bm->data;
+    const int count = bm->width * bm->height;
+    if (!b || !screen_colours.fill || count > (int)ARRAYLEN(b->track))
+        return NULL;
+    if (track_source != src)
+    {
+        track_source = src;
+        flat_bar(src, b->track, count, screen_colours.flat_track);
+    }
+    return b->track;
+}
+
+void *cover_palette_bar(const struct bitmap *bm, bool flat)
 {
     struct screen_buffers *const b = buffers;
     const fb_data *src = (const fb_data *)bm->data;
@@ -654,6 +763,12 @@ void *cover_palette_bar(const struct bitmap *bm)
     {
         for (int y = 0; y < bm->height; y++)
             cover_palette_tint_line(src + y * width, b->bar + y * width, width, BAR_Y);
+        return b->bar;
+    }
+
+    if (flat)
+    {
+        flat_bar(src, b->bar, width * bm->height, screen_colours.flat_fill);
         return b->bar;
     }
 
@@ -772,6 +887,27 @@ static void make_fill_palette(struct cover_palette *palette, uint32_t colour, bo
     screen_colours.bar_hsl[0] = hsl[0];
     screen_colours.bar_hsl[1] = saturation;
     screen_colours.bar_hsl[2] = lightness;
+
+    /* The iOS look's bar is flat, a fill over a track: the fill well clear of the
+       background, 4.5 to 1, and the track a step from it, 1.6 to 1. Its 2.4 of
+       the other was the cover's blue on a darker blue, and its track went with
+       the background. */
+    int *const fill = screen_colours.flat_fill, *const track = screen_colours.flat_track;
+    int flat = lightness;
+    hsl_to_rgb(hsl[0], saturation, flat, fill);
+    for (int n = 0; n < 100 && contrast(bg, fill) < 450; n++)
+    {
+        flat = MAX(MIN(flat + direction, 960), 40);
+        hsl_to_rgb(hsl[0], saturation, flat, fill);
+    }
+    const int *const toward = direction > 0 ? white : black;
+    memcpy(track, bg, 3 * sizeof(int));
+    for (int n = 0; n < 100 && contrast(bg, track) < 160; n++)
+    {
+        for (int i = 0; i < 3; i++)
+            track[i] += (toward[i] - track[i]) * 3 / 100
+                      + (toward[i] > track[i] ? 1 : toward[i] < track[i] ? -1 : 0);
+    }
 }
 
 static void make_screen_palette(struct cover_palette *palette, int hue, bool grey)
@@ -900,6 +1036,9 @@ static bool set_inactive(void)
 void cover_palette_set_mode(int mode)
 {
     palette_handle = -1;
+    if (mode != buffers_mode)
+        buffers_refused = false;
+    buffers_mode = mode;
     if (mode >= COVER_COLOURS_SCREEN)
         allocate_buffers();
     else if (buffers)
@@ -962,13 +1101,9 @@ bool cover_palette_update(int art_handle, uint32_t colour)
         return false;
     }
 
-    /* if there was no memory for it when it was chosen */
-    if (mode >= COVER_COLOURS_SCREEN)
-    {
-        allocate_buffers();
-        if (!buffers)
-            mode = COVER_COLOURS_TEXT;
-    }
+    /* without the memory for it, which was asked for when it was chosen */
+    if (mode >= COVER_COLOURS_SCREEN && !buffers)
+        mode = COVER_COLOURS_TEXT;
 
     static struct cover_palette next;
     const bool grey = colour & COVER_COLOUR_GREY;
@@ -1001,7 +1136,7 @@ bool cover_palette_update(int art_handle, uint32_t colour)
         else
             tint_backdrop();
         memset(buffers->tint_known, 0, sizeof(buffers->tint_known));
-        bar_source = NULL;
+        bar_source = track_source = NULL;
         if (tinted_backdrop_id >= 0)
             skin_backdrop_show(tinted_backdrop_id);
     }
@@ -1046,7 +1181,89 @@ void cover_palette_theme_changed(void)
     set_inactive();
     palette_handle = -1;
     tinted_backdrop_id = indexed_backdrop_id = -1;
-    bar_source = NULL;
+    bar_source = track_source = NULL;
+}
+
+bool cover_palette_in_status_bar(int y)
+{
+    return y < HEADER_HEIGHT;
+}
+
+/* what the status bar is at (x, y) of the screen */
+static void status_bar_rgb(int x, int y, int rgb[3])
+{
+    x = MAX(0, MIN(x, LCD_WIDTH - 1));
+    y = MAX(0, MIN(y, HEADER_HEIGHT - 1));
+    unpack_rgb(buffers->backdrop[y * LCD_WIDTH + x], rgb);
+}
+
+/* How much of an icon's pixel is its ink rather than the light it stands on in
+   the theme, of 256, as tint_header_rgb() sees it: its colour, and its dark parts
+   with their smoothed edges */
+static int icon_ink(const int rgb[3])
+{
+    const int hi = MAX(MAX(rgb[0], rgb[1]), rgb[2]), lo = MIN(MIN(rgb[0], rgb[1]), rgb[2]);
+    const int sum = hi + lo, chroma = hi - lo;
+    if (chroma > 25 && chroma * 1000 / (sum > 255 ? 510 - sum : sum) > 400)
+        return 256;
+    int luma = (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
+    if (global_settings.dark_theme)
+        luma = 255 - luma;
+    return luma >= 191 ? 0 : MIN((191 - luma) * 256 / (191 - 70), 256);
+}
+
+void cover_palette_status_bar_contrast(const fb_data *src, int count, int x, int y,
+                                       int *most)
+{
+    const fb_data transparent = FB_SCALARPACK(TRANSPARENT_COLOR);
+    if (!active || !palette.whole_screen || y >= HEADER_HEIGHT)
+        return;
+    for (int i = 0; i < count; i++)
+    {
+        if (src[i] == transparent)
+            continue;
+        int rgb[3], back[3];
+        unpack_rgb(src[i], rgb);
+        if (icon_ink(rgb) < 256)
+            continue;
+        status_bar_rgb(x + i, y, back);
+        *most = MAX(*most, contrast(rgb, back));
+    }
+}
+
+void cover_palette_keep_ink(const fb_data *src, fb_data *dst, int count)
+{
+    const fb_data transparent = FB_SCALARPACK(TRANSPARENT_COLOR);
+    for (int i = 0; i < count; i++)
+    {
+        if (src[i] == transparent)
+            continue;
+        int rgb[3], tinted[3];
+        unpack_rgb(src[i], rgb);
+        const int a = icon_ink(rgb);
+        if (a == 0)
+            continue;
+        unpack_rgb(dst[i], tinted);
+        for (int k = 0; k < 3; k++)
+            rgb[k] = tinted[k] + (rgb[k] - tinted[k]) * a / 256;
+        dst[i] = pack_nearest(rgb);
+    }
+}
+
+unsigned cover_palette_text_colour_in(unsigned colour, const struct viewport *vp)
+{
+    if (global_settings.status_icons == STATUS_ICONS_OWN && active
+        && palette.whole_screen && vp->y < HEADER_HEIGHT)
+    {
+        int rgb[3], back[3];
+        rgb[0] = RGB_UNPACK_RED(colour);
+        rgb[1] = RGB_UNPACK_GREEN(colour);
+        rgb[2] = RGB_UNPACK_BLUE(colour);
+        status_bar_rgb(vp->x + vp->width / 2, vp->y + vp->height / 2, back);
+        if (contrast(rgb, back) >= 450)
+            return colour;
+    }
+    return cover_palette_text_colour(colour);
 }
 
 unsigned cover_palette_text_colour(unsigned colour)

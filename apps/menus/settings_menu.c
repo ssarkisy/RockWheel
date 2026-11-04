@@ -955,6 +955,15 @@ static int lang_name_index(const char *file)
     return ARRAYLEN(lang_names);
 }
 
+bool language_at(int i, const char **file, const char **name)
+{
+    if (i < 0 || i >= (int)ARRAYLEN(lang_names))
+        return false;
+    *file = lang_names[i].file;
+    *name = lang_names[i].name;
+    return true;
+}
+
 int language_screen(void)
 {
     static char files[MAX_LANGS][MAX_FILENAME];

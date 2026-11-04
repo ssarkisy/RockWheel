@@ -436,7 +436,7 @@ static const char graphic_numeric[] = "graphic,numeric";
 #define DEFAULT_BACKDROP    BACKDROP_DIR "/iClassic_bd.bmp"
 #define DEFAULT_STATUSBAR   STATUSBAR_OFF
 #define DEFAULT_SHOW_ICONS  false
-#define DEFAULT_LIST_TEXT_PADDING 6
+#define DEFAULT_LIST_TEXT_PADDING 5
 #define DEFAULT_LIST_SELECTOR_STYLE true /* bevel and chevron */
 #else
 #define DEFAULT_THEME_FOREGROUND LCD_RGBPACK(0xce, 0xcf, 0xce)
@@ -767,10 +767,10 @@ struct eq_band_setting eq_defaults[EQ_NUM_BANDS] = {
     { EQ_FILTER_HIGH_SHELF, 16000, 7, 0 },
 };
 
-/* only the hotkey: the WPS context menu has just the playlist and sound
-   items, as the stock iPod has no such menu */
+/* only the hotkey, and that off: Select with Play opened Rockbox's view of the
+   playlist, which a stock iPod has no such press for */
 static const int wps_context_menu_default =
-    HK_CTX_SET(0, HOTKEY_VIEW_PLAYLIST); /* hotkey*/
+    HK_CTX_SET(0, HOTKEY_OFF); /* hotkey*/
 
 #ifdef HAVE_HOTKEY
 static const int tree_hotkey_default = HOTKEY_OFF;
@@ -1658,6 +1658,19 @@ const struct settings_list settings[] = {
                    "off,on,screen,fill", cover_palette_set_mode, 4, ID2P(LANG_OFF),
                    ID2P(LANG_COVER_TEXT), ID2P(LANG_COVER_SCREEN),
                    ID2P(LANG_COVER_FILL)),
+    /* the battery's charge keeps its green, or red when low, by default: it
+       says how full it is, and a user took the cover's for a fault */
+    CHOICE_SETTING(0, status_icons, LANG_STATUS_ICONS, STATUS_ICONS_BATTERY, "status icons",
+                   "cover,battery,own", NULL, 3, ID2P(LANG_COVER_COLOURS),
+                   ID2P(LANG_STATUS_ICONS_BATTERY), ID2P(LANG_STATUS_ICONS_OWN)),
+    OFFON_SETTING(0, angled_cover, LANG_ANGLED_COVER, false, "angled cover", NULL),
+    /* the theme shows its own or Linus's icons in the style of iOS 13, by these */
+    CHOICE_SETTING(0, status_bar_style, LANG_STATUS_BAR, STYLE_IPOD, "status bar style",
+                   "ipod,ios", NULL, 2, ID2P(LANG_STYLE_IPOD), ID2P(LANG_STYLE_IOS)),
+    CHOICE_SETTING(0, rating_style, LANG_RATING_STYLE, STYLE_IPOD, "rating style",
+                   "ipod,ios", NULL, 2, ID2P(LANG_STYLE_IPOD), ID2P(LANG_STYLE_IOS)),
+    CHOICE_SETTING(0, progress_bar_style, LANG_PROGRESS_BAR, STYLE_IPOD, "progress bar style",
+                   "ipod,ios", NULL, 2, ID2P(LANG_STYLE_IPOD), ID2P(LANG_STYLE_IOS)),
 #endif
     /* backlight fading */
 #if defined(HAVE_BACKLIGHT_FADING_INT_SETTING)
@@ -2688,6 +2701,10 @@ const struct settings_list settings[] = {
     INT_SETTING(F_TIME_SETTING, resume_rewind, LANG_RESUME_REWIND, 0,
                 "resume rewind", UNIT_SEC, 0, 60, 5,
                 formatter_time_unit_0_is_off, getlang_time_unit_0_is_off, NULL),
+    /* on: the covers go by at their full speed, as the codec takes the
+       CPU from them while it plays */
+    OFFON_SETTING(0, coverflow_pause, LANG_COVER_FLOW_PAUSE, true,
+                  "cover flow pause", NULL),
 #ifdef HAVE_PITCHCONTROL
     /* the stock iPod's Audiobooks setting: the speed of audiobooks only */
     CHOICE_SETTING(0, audiobook_speed, LANG_AUDIOBOOKS, 1,

@@ -109,6 +109,8 @@ struct gui_img {
     bool is_9_segment;
     bool dither;
     bool cover_tint;        /* takes the colour of the cover */
+    bool cover_keep;        /* its colours are its own in the cover's, as the
+                               battery's charge, unless the setting says */
 };
 
 struct image_display {
@@ -287,6 +289,7 @@ struct skin_albumart {
     unsigned char xalign; /* WPS_ALBUMART_ALIGN_LEFT, _CENTER, _RIGHT */
     unsigned char yalign; /* WPS_ALBUMART_ALIGN_TOP, _CENTER, _BOTTOM */
     unsigned char state; /* WPS_ALBUMART_NONE, _CHECK, _LOAD */
+    bool reflect;        /* with its reflection under it: %Cr */
 
     int draw_handle;
 };

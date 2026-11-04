@@ -172,6 +172,7 @@ MENUITEM_SETTING(skip_length, &global_settings.skip_length, NULL);
 MENUITEM_SETTING(prevent_skip, &global_settings.prevent_skip, NULL);
 MENUITEM_SETTING(rewind_across_tracks, &global_settings.rewind_across_tracks, NULL);
 MENUITEM_SETTING_SHARED(resume_rewind, &global_settings.resume_rewind, NULL);
+MENUITEM_SETTING_SHARED(coverflow_pause_item, &global_settings.coverflow_pause, NULL);
 #ifdef HAVE_PITCHCONTROL
 MENUITEM_SETTING_SHARED(audiobook_speed, &global_settings.audiobook_speed, NULL);
 #endif
