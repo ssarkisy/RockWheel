@@ -44,6 +44,8 @@ int tagtree_go_to_level(void);
 void tagtree_end_go_to(bool go_back, int *dirlevel, int *selected_item);
 int tagtree_enter(struct tree_context* c, bool is_visible);
 void tagtree_exit(struct tree_context* c, bool is_visible);
+/* Music's own menu, at the row of it that was gone into */
+void tagtree_to_top(struct tree_context* c);
 int tagtree_load(struct tree_context* c);
 char* tagtree_get_entry_name(struct tree_context *c, int id,
                                     char* buf, size_t bufsize);

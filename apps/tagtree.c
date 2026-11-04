@@ -2682,6 +2682,14 @@ void tagtree_exit(struct tree_context* c, bool is_visible)
     c->currextra = extra_history[c->dirlevel];
 }
 
+/* as Music is opened from the main menu, as on a stock iPod: not the list it
+   was left in, as Songs, which opened in place of Music's menu */
+void tagtree_to_top(struct tree_context* c)
+{
+    while (c->dirlevel > 0)
+        tagtree_exit(c, true);
+}
+
 int tagtree_get_filename(struct tree_context* c, char *buf, int buflen)
 {
     struct tagcache_search tcs;

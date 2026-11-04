@@ -101,6 +101,10 @@ static int previous_music = GO_TO_WPS; /* Toggles behavior of the return-to
                                         * playback-button depending
                                         * on FM radio */
 static int last_db_dirlevel = 0, last_db_selection = 0;
+#ifdef HAVE_TAGCACHE
+/* Music chosen in the main menu, which opens it at its own menu */
+static bool music_from_main_menu = false;
+#endif
 
 /* Where the music playing was started. Holding Play opens Now Playing from anywhere,
    and Menu there then goes back to that and not to where Play was held. Not known
@@ -367,6 +371,9 @@ static int browser(void* param)
             last_ft_dirlevel = tc->dirlevel;
             tc->dirlevel = last_db_dirlevel;
             tc->selected_item = last_db_selection;
+            if (music_from_main_menu)
+                tagtree_to_top(tc);
+            music_from_main_menu = false;
             push_current_activity(ACTIVITY_DATABASEBROWSER);
         break;
 #endif /*HAVE_TAGCACHE*/
@@ -1361,6 +1368,9 @@ void root_menu(void)
                 ignore_back_button_stub(true);
 
                 next_screen = do_menu(&root_menu_, &selected, NULL, false);
+#ifdef HAVE_TAGCACHE
+                music_from_main_menu = next_screen == GO_TO_DBBROWSER;
+#endif
 
                 ignore_back_button_stub(false);
 
