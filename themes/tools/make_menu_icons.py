@@ -29,6 +29,14 @@ SS = 8  # samples per pixel on each axis
 
 PANEL_X = 160
 ART = (12, 45, 148, 181)  # the placeholder art in Now Playing's backdrop
+# Its reflection, as the firmware draws one under a cover (skin_display.c): so many
+# rows, from this much of the art at the top to none. The original theme's shadow and
+# gradient around and under it go, from x 9 to 150 and down to the screen's foot,
+# except for the progress bar's trough.
+REFLECTION_ROWS = 22
+REFLECTION_ALPHA = 128 / 256
+SHADOW_AREA = (9, 41, 151, 240)
+TROUGH = (58, 206, 262, 230)
 # In the .sbs: the part of the panel the note takes up
 ICON_AREA = (PANEL_X + 28, 48, PANEL_X + 132, 152)
 
@@ -287,12 +295,22 @@ def main():
 
     path = os.path.join(WPS, 'iClassic_bg.bmp')
     rows = read_bmp(path)
+    for y in range(SHADOW_AREA[1], SHADOW_AREA[3]):
+        for x in range(SHADOW_AREA[0], SHADOW_AREA[2]):
+            in_trough = TROUGH[0] <= x < TROUGH[2] and TROUGH[1] <= y < TROUGH[3]
+            if not in_trough:
+                rows[y][x] = (255, 255, 255)
     art_h = ART[3] - ART[1]
     for y in range(art_h):
         colour = gradient[y * (len(gradient) - 1) // (art_h - 1)]
         rows[ART[1] + y][ART[0]:ART[2]] = [colour] * (ART[2] - ART[0])
     draw(rows, Note, ART[0] + (ART[2] - ART[0] - Note.W) // 2 - dx,
          ART[1] + (art_h - Note.H) // 2 - dy)
+    for k in range(REFLECTION_ROWS):
+        t = REFLECTION_ALPHA * (REFLECTION_ROWS - (k + 0.5)) / REFLECTION_ROWS
+        for x in range(ART[0], ART[2]):
+            rows[ART[3] + k][x] = tuple(round(c) for c in
+                                        mix((255, 255, 255), rows[ART[3] - 1 - k][x], t))
     colours = native_colours(rows)
     print(f"Now Playing's backdrop: {colours} colours, of 256 at most")
     if colours > 256:

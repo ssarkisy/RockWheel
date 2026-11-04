@@ -4,8 +4,9 @@
 #
 #   themes/tools/make_dark_theme.py
 #
-# Only 24-bit BMPs are worked on, by the Python standard library. Scrub Knob.bmp has an
-# alpha channel and reads well on both, so it's copied.
+# BMPs of 24 bits are worked on by the Python standard library, and of 32 their colours,
+# their alpha kept. Scrub Knob.bmp reads well on both, so it's copied. The iOS look's
+# battery is made for each by make_ios_icons.py, whose outline is fainter on dark.
 
 import os
 import re
@@ -25,38 +26,46 @@ HEADER_HEIGHT = 18    # above its dark line
 BAR_X, BAR_Y, BAR_W, BAR_H, BAR_REFLECTION = 58, 206, 204, 14, 9
 REFLECTION_ALPHA = 0.26
 ART = (12, 45, 148, 181)
+# the placeholder's reflection, as make_menu_icons.py and the firmware make it
+ART_REFLECTION_ROWS = 22
+ART_REFLECTION_ALPHA = 128 / 256
 PANEL_X = 160         # the panel beside the lists, dark in both
 
 TEXT = {"000000": "F2F2F6", "666666": "B4B6BA", "888888": "8E9094", "8a8d8a": "8E9094"}
 BACK = {"FFFFFF": "121214"}
 
 
-def read_bmp(path):
+def read_bmp(path, alpha=None):
+    """Its rows of (r, g, b), and of a 32-bit one its alpha into the list alpha"""
     with open(path, "rb") as f:
         d = f.read()
     off, w, h, bpp = (struct.unpack_from("<I", d, 10)[0], struct.unpack_from("<i", d, 18)[0],
                       struct.unpack_from("<i", d, 22)[0], struct.unpack_from("<H", d, 28)[0])
-    if bpp != 24:
+    if bpp != 24 and (bpp != 32 or alpha is None):
         raise SystemExit(f"{path}: {bpp} bits")
-    stride = (w * 3 + 3) & ~3
+    size = bpp // 8
+    stride = (w * size + 3) & ~3
     rows = []
     for y in range(abs(h)):
         y_file = abs(h) - 1 - y if h > 0 else y
         o = off + y_file * stride
-        rows.append([(d[o + x * 3 + 2], d[o + x * 3 + 1], d[o + x * 3]) for x in range(w)])
+        rows.append([(d[o + x * size + 2], d[o + x * size + 1], d[o + x * size]) for x in range(w)])
+        if bpp == 32:
+            alpha.append([d[o + x * 4 + 3] for x in range(w)])
     return w, abs(h), rows
 
 
-def write_bmp(path, rows):
+def write_bmp(path, rows, alpha=None):
     w, h = len(rows[0]), len(rows)
-    stride = (w * 3 + 3) & ~3
+    size = 4 if alpha else 3
+    stride = (w * size + 3) & ~3
     out = bytearray(b"BM" + struct.pack("<IHHI", 54 + stride * h, 0, 0, 54))
-    out += struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, stride * h, 2835, 2835, 0, 0)
-    for row in reversed(rows):
+    out += struct.pack("<IiiHHIIiiII", 40, w, h, 1, size * 8, 0, stride * h, 2835, 2835, 0, 0)
+    for y in range(h - 1, -1, -1):
         line = bytearray()
-        for r, g, b in row:
-            line += bytes((b, g, r))
-        out += line + bytes(stride - w * 3)
+        for x, (r, g, b) in enumerate(rows[y]):
+            line += bytes((b, g, r) + ((alpha[y][x],) if alpha else ()))
+        out += line + bytes(stride - w * size)
     with open(path, "wb") as f:
         f.write(out)
 
@@ -132,11 +141,13 @@ def now_playing_backdrop(src, dst):
             p = rows[y][x]
             if ART[0] <= x < ART[2] and ART[1] <= y < ART[3]:
                 row.append(mix((0, 0, 0), p, 0.7))              # the note, without a cover
-            elif ART[3] <= y < BAR_Y and ART[0] - 3 <= x < ART[2] + 3:
-                row.append(tuple(clamp(BG[i] + (255 - p[i]) * 0.4) for i in range(3)))
             else:
                 row.append(BG)
         out.append(row)
+    for k in range(ART_REFLECTION_ROWS):
+        t = ART_REFLECTION_ALPHA * (ART_REFLECTION_ROWS - (k + 0.5)) / ART_REFLECTION_ROWS
+        for x in range(ART[0], ART[2]):
+            out[ART[3] + k][x] = mix(BG, out[ART[3] - 1 - k][x], t)
     # the empty progress bar, and its reflection
     for y in range(BAR_H):
         for x in range(BAR_W):
@@ -160,8 +171,9 @@ def progress_fill(src, dst):
 
 
 def each_pixel(src, dst, fn):
-    w, h, rows = read_bmp(src)
-    write_bmp(dst, [[fn(p) for p in row] for row in rows])
+    alpha = []
+    w, h, rows = read_bmp(src, alpha)
+    write_bmp(dst, [[fn(p) for p in row] for row in rows], alpha)
 
 
 def skin(name):
@@ -173,19 +185,26 @@ def skin(name):
         f.write("# Made from the light theme by themes/tools/make_dark_theme.py\n" + text)
 
 
-os.makedirs(DARK, exist_ok=True)
-for name in ("wps", "sbs", "fms"):
-    skin(name)
-list_backdrop(os.path.join(ROOT, "backdrops", "iClassic_bd.bmp"),
-              os.path.join(ROOT, "backdrops", "iClassic_bd_dark.bmp"), True)
-list_backdrop(os.path.join(LIGHT, "About Backdrop.bmp"), os.path.join(DARK, "About Backdrop.bmp"), True)
-list_backdrop(os.path.join(LIGHT, "Wide Backdrop.bmp"), os.path.join(DARK, "Wide Backdrop.bmp"), False)
-now_playing_backdrop(os.path.join(LIGHT, "iClassic_bg.bmp"), os.path.join(DARK, "iClassic_bg.bmp"))
-progress_fill(os.path.join(LIGHT, "PB.bmp"), os.path.join(DARK, "PB.bmp"))
-for name in ("Battery", "Playing Status", "Hold Icon", "Status Repeat", "Status Shuffle", "Status Night",
-             "Memory Access", "Radio Icon", "Stereo Icon", "Repeat Icon", "Shuffle Icon"):
-    each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), header_pixel)
-for name in ("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask"):
-    each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), glyph_pixel)
-for name in ("Scrub Knob", "Disk Fill", "Photos Icon"):
-    shutil.copy(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"))
+def main():
+    os.makedirs(DARK, exist_ok=True)
+    for name in ("wps", "sbs", "fms"):
+        skin(name)
+    list_backdrop(os.path.join(ROOT, "backdrops", "iClassic_bd.bmp"),
+                  os.path.join(ROOT, "backdrops", "iClassic_bd_dark.bmp"), True)
+    list_backdrop(os.path.join(LIGHT, "About Backdrop.bmp"), os.path.join(DARK, "About Backdrop.bmp"), True)
+    list_backdrop(os.path.join(LIGHT, "Wide Backdrop.bmp"), os.path.join(DARK, "Wide Backdrop.bmp"), False)
+    now_playing_backdrop(os.path.join(LIGHT, "iClassic_bg.bmp"), os.path.join(DARK, "iClassic_bg.bmp"))
+    progress_fill(os.path.join(LIGHT, "PB.bmp"), os.path.join(DARK, "PB.bmp"))
+    for name in ("Battery", "Playing Status", "Hold Icon", "Status Repeat", "Status Shuffle", "Status Night",
+                 "Memory Access", "Radio Icon", "Stereo Icon", "Repeat Icon", "Shuffle Icon",
+                 "iOS Playing Status", "iOS Hold", "iOS Repeat", "iOS Shuffle"):
+        each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), header_pixel)
+    for name in ("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
+                 "iOS Stars", "iOS Ratings", "iOS Track", "iOS PB"):
+        each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), glyph_pixel)
+    for name in ("Scrub Knob", "Disk Fill", "Photos Icon"):
+        shutil.copy(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"))
+
+
+if __name__ == "__main__":
+    main()
