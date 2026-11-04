@@ -24,6 +24,8 @@
 #include "config.h"
 #include "appevents.h"
 #include "menu.h"
+#include "library_fonts.h"
+#include "font.h"
 #include "root_menu.h"
 #include "gui/skin_engine/skin_engine.h"
 #include "photos_panel.h"
@@ -78,6 +80,9 @@
 #include "disk.h"
 #include "backlight.h"
 #include "icons.h"
+#ifdef HAVE_TAGCACHE
+#include "music_search.h"
+#endif
 
 struct root_items {
     int (*function)(void* param);
@@ -420,6 +425,19 @@ int root_menu_go_to_playing(bool artist)
     tagtree_end_go_to(!started, &last_db_dirlevel, &last_db_selection);
     return screen == GO_TO_PREVIOUS ? 0 : screen;
 }
+
+int root_menu_go_to_name(int tag, const char *name)
+{
+    const unsigned int starts = playlist_start_count();
+    if (!tagtree_go_to_name(tag, name, &last_db_dirlevel, &last_db_selection))
+        return -1;
+    const int screen = browser((void*)GO_TO_DBBROWSER);
+    const bool started = playlist_start_count() != starts;
+    if (started)
+        note_music_origin(GO_TO_DBBROWSER);
+    tagtree_end_go_to(!started, &last_db_dirlevel, &last_db_selection);
+    return screen == GO_TO_PREVIOUS ? 0 : screen;
+}
 #endif
 
 #ifdef HAVE_RECORDING
@@ -630,6 +648,9 @@ static const struct root_items items[] = {
 #endif
 #ifdef HAVE_PHOTOS_MENU
     [GO_TO_PHOTOS] = { photos, NULL, NULL },
+#endif
+#ifdef HAVE_TAGCACHE
+    [GO_TO_SEARCH] = { music_search_screen, NULL, NULL },
 #endif
 
 };
@@ -1018,6 +1039,10 @@ static int root_menu_setup_screens(void)
     if (new_screen >= NUM_ITEMS || new_screen == GO_TO_PHOTOS ||
         (new_screen == GO_TO_WPS && global_status.resume_index == -1))
         new_screen = GO_TO_ROOT;
+#ifdef HAVE_TAGCACHE
+    else if (new_screen == GO_TO_SEARCH) /* what was typed is gone */
+        new_screen = GO_TO_DBBROWSER;
+#endif
     else if (new_screen == GO_TO_PLUGIN)
     {
         if (global_status.last_screen == GO_TO_SHORTCUTMENU)
@@ -1208,6 +1233,11 @@ void library_update_songs_progress(int done, int total)
     library_update_forward((const char *)str(LANG_PREPARING_SONGS), done, total);
 }
 
+static void library_fonts_progress(int done, int total)
+{
+    library_update_forward((const char *)str(LANG_UPDATING_LIBRARY), done, total);
+}
+
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
  * the step and how far that is under it. Menu leaves it to finish in the
@@ -1237,7 +1267,13 @@ void show_library_update(void)
     const bool imported = shown;
     /* Finder may sync photos only, so this goes by their own database */
     const bool photos_changed = phase == TAGCACHE_IMPORT_NONE && photos_panel_stale();
-    if (photos_changed && !shown)
+    /* the fonts of the alphabets of the tags, again after a sync, and of the
+       languages, again after an update */
+    const bool fonts_stale = phase == TAGCACHE_IMPORT_NONE && library_fonts_stale();
+    /* and the letters of their alphabets, which Search types with */
+    const bool letters_stale = phase == TAGCACHE_IMPORT_NONE
+                               && music_search_letters_stale();
+    if ((photos_changed || fonts_stale || letters_stale) && !shown)
     {
         FOR_NB_SCREENS(i)
             viewportmanager_theme_enable(i, false, NULL);
@@ -1259,6 +1295,18 @@ void show_library_update(void)
 #endif
         if (phase == TAGCACHE_IMPORT_NONE)
             tagtree_prepare_songs();
+    }
+    if (letters_stale)
+    {
+        library_update_show(str(LANG_UPDATING_LIBRARY), 0);
+        music_search_letters_make();
+    }
+    if (fonts_stale)
+    {
+        library_update_show(str(LANG_UPDATING_LIBRARY), 0);
+        font_load_library(false); /* their files are written anew */
+        library_fonts_make(library_fonts_progress);
+        font_load_library(true);
     }
     if (shown)
     {
@@ -1324,6 +1372,9 @@ void root_menu(void)
 #endif
             case GO_TO_FILEBROWSER:
             case GO_TO_PLAYLISTS_SCREEN:
+#ifdef HAVE_TAGCACHE
+            case GO_TO_SEARCH: /* Menu in Now Playing comes back to it */
+#endif
                 global_status.last_browser = previous_browser = next_screen;
                 goto load_next_screen;
                 break;

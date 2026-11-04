@@ -7028,6 +7028,15 @@ bool tagcache_is_in_ram(void)
 {
     return tc_stat.ramcache;
 }
+
+/* to be in memory in a moment: room made for it at the start, and its loading
+   left only for the database's thread to be idle a second, as after Updating
+   Library. Not during an import, which holds it back for its whole length. */
+bool tagcache_ram_pending(void)
+{
+    return global_settings.tagcache_ram && tcramcache.hdr && !tc_stat.ramcache
+           && tc_stat.ready && import_phase == TAGCACHE_IMPORT_NONE;
+}
 #endif
 int tagcache_get_commit_step(void)
 {

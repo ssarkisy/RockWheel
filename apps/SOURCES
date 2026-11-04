@@ -61,6 +61,8 @@ talk.c
 tree.c
 #ifdef HAVE_TAGCACHE
 tagtree.c
+music_search.c
+library_fonts.c
 #endif
 filetree.c
 #ifdef IPOD_ACCESSORY_PROTOCOL

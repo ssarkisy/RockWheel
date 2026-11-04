@@ -37,6 +37,9 @@ bool tagtree_ready(void);
 void tagtree_save_place(int dirlevel, int selected_item);
 void tagtree_restore_place(int *dirlevel, int *selected_item);
 bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item);
+/* as that, at the albums of an artist of the Artists list (tag_virt_canonicalartist)
+   or the songs of an album (tag_album), by name */
+bool tagtree_go_to_name(int tag, const char *name, int *dirlevel, int *selected_item);
 int tagtree_go_to_level(void);
 void tagtree_end_go_to(bool go_back, int *dirlevel, int *selected_item);
 int tagtree_enter(struct tree_context* c, bool is_visible);

@@ -189,6 +189,7 @@ enum variables {
     menu_shuffle_songs,
     menu_playlists,
     menu_coverflow,
+    menu_search,
 };
 
 /* Capacity 10 000 entries (for example 10k different artists) */
@@ -453,6 +454,7 @@ static int get_tag(int *tag)
         TAG_MATCH("rating", tag_rating) \
         TAG_MATCH("%limit", var_limit) \
         TAG_MATCH("%strip", var_strip) \
+        TAG_MATCH("%search", menu_search) \
         TAG_MATCH("bitrate", tag_bitrate) \
         TAG_MATCH("comment", tag_comment) \
         TAG_MATCH("discnum", tag_discnumber) \
@@ -952,8 +954,9 @@ static bool parse_search(struct menu_entry *entry, const char *str)
     }
 
     /* the playlist catalogue, as Playlists in the Music menu of a stock iPod,
-       and Cover Flow, as the first item of an iPod Classic's */
-    if (entry->type == menu_playlists || entry->type == menu_coverflow)
+       Cover Flow, as the first item of an iPod Classic's, and Search */
+    if (entry->type == menu_playlists || entry->type == menu_coverflow
+        || entry->type == menu_search)
         return true;
 
     if (entry->type != menu_next && entry->type != menu_shuffle_songs)
@@ -1693,7 +1696,7 @@ static bool tagtree_search_progress(int count)
     return show_search_progress(false, count, 0, 0);
 }
 
-static int retrieve_entries(struct tree_context *c, int offset, bool init)
+static int make_entries(struct tree_context *c, int offset, bool init)
 {
     logf( "%s", __func__);
     char tcs_buf[TAGCACHE_BUFSZ];
@@ -2052,6 +2055,27 @@ entry_skip_formatter:
 
 }
 
+/* The list, once the database is in memory if it's about to be, as for seconds
+   after a start: made from the disk meanwhile, all songs took minutes, and held
+   back its loading as long */
+static int retrieve_entries(struct tree_context *c, int offset, bool init)
+{
+#ifdef HAVE_TC_RAMCACHE
+    const long start = current_tick;
+    bool told = false;
+    while (tagcache_ram_pending() && TIME_BEFORE(current_tick, start + 20 * HZ))
+    {
+        if (!told && !list_on_boot_screen && TIME_AFTER(current_tick, start + HZ / 2))
+        {
+            splash(0, ID2P(LANG_WAIT));
+            told = true;
+        }
+        sleep(HZ / 10);
+    }
+#endif
+    return make_entries(c, offset, init);
+}
+
 static int load_root(struct tree_context *c)
 {
     struct tagentry *dptr = core_get_data(c->cache.entries_handle);
@@ -2113,6 +2137,12 @@ static int load_root(struct tree_context *c)
                 dptr->newtable = TABLE_NAVIBROWSE;
                 dptr->extraseek = i;
                 dptr->customaction = ONPLAY_CUSTOMACTION_COVERFLOW;
+                break;
+
+            case menu_search:
+                dptr->newtable = TABLE_NAVIBROWSE;
+                dptr->extraseek = i;
+                dptr->customaction = ONPLAY_CUSTOMACTION_SEARCH;
                 break;
         }
 
@@ -2288,35 +2318,15 @@ static int tagtree_find_row(struct tree_context *c, const char *name)
     return -1;
 }
 
-/* Puts the lists at the track playing, as one gets there by hand: its album's artist,
-   or else its own, with its album selected, or its album with the track selected. The
-   Artists list is of the tracks' artists, where a guest on one song has a row of their
-   own, so the albums here are those with that album artist. tagtree_end_go_to() ends
-   this, and until then Menu in that list leaves the lists. False if it isn't in the
-   database. */
-bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
+/* The list of them at the top of Music entered, and the row of name in it, as
+   by hand: true with c at the list that row opens, or else the lists back as
+   they were. By the album artist, the list of artists is of those instead. */
+static bool go_to_row(int tag, bool by_album_artist, const char *name,
+                      int *dirlevel, int *selected_item)
 {
-    static char name[TAGCACHE_BUFSZ], album[TAGCACHE_BUFSZ];
     static struct search_instruction album_artists;
     struct tree_context *c = tree_get_context();
-    const struct mp3entry *id3 = audio_current_track();
-    const int tag = artist ? tag_virt_canonicalartist : tag_album;
-    struct tagcache_search tcs;
     int row = -1;
-
-    if (!id3 || !tagtree_ready() || !tagcache_is_usable()
-        || !tagcache_find_index(&tcs, id3->path))
-        return false;
-    const int track = tcs.idx_id;
-    const bool by_album_artist = artist
-        && tagcache_retrieve(&tcs, track, tag_albumartist, name, sizeof(name))
-        && name[0] && strcmp(name, UNTAGGED);
-    const bool found = (by_album_artist
-                        || tagcache_retrieve(&tcs, track, tag, name, sizeof(name)))
-        && tagcache_retrieve(&tcs, track, tag_album, album, sizeof(album));
-    tagcache_search_finish(&tcs);
-    if (!found)
-        return false;
 
     place_save(&go_to_place, *dirlevel, *selected_item);
     c->dirlevel = 0;
@@ -2351,11 +2361,52 @@ bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
         place_restore(&go_to_place, dirlevel, selected_item);
         return false;
     }
-
-    /* the one playing */
     c->selected_item = row;
     tagtree_enter(c, true);
     tagtree_load(c);
+    return true;
+}
+
+/* the lists there, with that row selected, until tagtree_end_go_to() */
+static void go_to_end(int row, int *dirlevel, int *selected_item)
+{
+    struct tree_context *c = tree_get_context();
+    c->selected_item = row;
+    *dirlevel = c->dirlevel;
+    *selected_item = row;
+    go_to_level = c->dirlevel;
+}
+
+/* Puts the lists at the track playing, as one gets there by hand: its album's artist,
+   or else its own, with its album selected, or its album with the track selected. The
+   Artists list is of the tracks' artists, where a guest on one song has a row of their
+   own, so the albums here are those with that album artist. tagtree_end_go_to() ends
+   this, and until then Menu in that list leaves the lists. False if it isn't in the
+   database. */
+bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
+{
+    static char name[TAGCACHE_BUFSZ], album[TAGCACHE_BUFSZ];
+    struct tree_context *c = tree_get_context();
+    const struct mp3entry *id3 = audio_current_track();
+    const int tag = artist ? tag_virt_canonicalartist : tag_album;
+    struct tagcache_search tcs;
+    int row;
+
+    if (!id3 || !tagtree_ready() || !tagcache_is_usable()
+        || !tagcache_find_index(&tcs, id3->path))
+        return false;
+    const int track = tcs.idx_id;
+    const bool by_album_artist = artist
+        && tagcache_retrieve(&tcs, track, tag_albumartist, name, sizeof(name))
+        && name[0] && strcmp(name, UNTAGGED);
+    const bool found = (by_album_artist
+                        || tagcache_retrieve(&tcs, track, tag, name, sizeof(name)))
+        && tagcache_retrieve(&tcs, track, tag_album, album, sizeof(album));
+    tagcache_search_finish(&tcs);
+    if (!found || !go_to_row(tag, by_album_artist, name, dirlevel, selected_item))
+        return false;
+
+    /* the one playing */
     row = 0;
     if (artist)
         row = MAX(tagtree_find_row(c, album), 0);
@@ -2370,10 +2421,16 @@ bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
             }
         }
     }
-    c->selected_item = row;
-    *dirlevel = c->dirlevel;
-    *selected_item = row;
-    go_to_level = c->dirlevel;
+    go_to_end(row, dirlevel, selected_item);
+    return true;
+}
+
+bool tagtree_go_to_name(int tag, const char *name, int *dirlevel, int *selected_item)
+{
+    if (!tagtree_ready() || !tagcache_is_usable()
+        || !go_to_row(tag, false, name, dirlevel, selected_item))
+        return false;
+    go_to_end(0, dirlevel, selected_item);
     return true;
 }
 
