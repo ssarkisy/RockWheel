@@ -76,6 +76,22 @@ static inline unsigned int data_level(int quarter_secs)
 /* Number of bytes played per second */
 #define BYTERATE            (mixer_get_frequency() * PCMBUF_SAMPLE_SIZE)
 
+/* Until this tick the UI animates, as Cover Flow's covers roll, and the decoder
+   waits while there are HOLD_DATA to play: it makes that up after. Decoding and
+   the EQ took a third of each of the frames, which came half as often. What it
+   decodes as they go, below that, and for LIGHT_AFTER more, it decodes lighter
+   (dsp_set_light): an animation step by step, a click at a time, keeps to one
+   way of decoding. */
+static long hold_until, light_until;
+#define HOLD_DATA           data_level(12)
+#define LIGHT_AFTER         (HZ*3/4)
+
+void pcmbuf_hold_for_ui(long ticks)
+{
+    hold_until = current_tick + ticks;
+    light_until = hold_until + (ticks ? LIGHT_AFTER : 0);
+}
+
 #if MEMORYSIZE > 2
 /* Keep watermark high for large memory target - at least (2s) */
 #define PCMBUF_WATERMARK    (BYTERATE * 2)
@@ -462,6 +478,27 @@ static void commit_write_buffer(size_t size)
     commit_if_needed(COMMIT_CHUNKS);
 }
 
+/* What's left to play as the decoder waits: a crossfade's fade-out is made of
+   what's still to play as the next track comes, so all of that too */
+static size_t hold_floor(void)
+{
+    size_t floor = HOLD_DATA;
+#ifdef HAVE_CROSSFADE
+    if (crossfade_setting != CROSSFADE_ENABLE_OFF)
+        floor = MAX(floor, (global_settings.crossfade_fade_out_delay +
+                            global_settings.crossfade_fade_out_duration + 1) *
+                           BYTERATE);
+#endif
+    return floor;
+}
+
+bool pcmbuf_decode_light(void)
+{
+    return TIME_BEFORE(current_tick, light_until)
+           && mixer_channel_status(PCM_MIXER_CHAN_PLAYBACK) != CHANNEL_STOPPED
+           && pcmbuf_unplayed_bytes() <= hold_floor();
+}
+
 /* Request space in the buffer for writing output samples */
 void * pcmbuf_request_buffer(int *count)
 {
@@ -509,6 +546,13 @@ void * pcmbuf_request_buffer(int *count)
                 return NULL;
         }
 
+        if (TIME_BEFORE(current_tick, hold_until) && remaining > hold_floor()
+#ifdef HAVE_CROSSFADE
+            && crossfade_status == CROSSFADE_INACTIVE
+#endif
+            )
+            return NULL;
+
         /* Boost CPU if necessary */
         size_t realrem = pcmbuf_size - freespace;
 
@@ -519,6 +563,15 @@ void * pcmbuf_request_buffer(int *count)
     }
     else    /* !playing */
     {
+        /* Paused, and its fade out over, which stops the channel: the UI goes
+           first while there's enough, as when it plays, and the buffer is filled
+           when it's still. It was filled at once, at the codec's highest
+           priority, and Cover Flow had half its frames for seconds after a
+           pause. */
+        if (fade_out_complete && TIME_BEFORE(current_tick, hold_until)
+            && remaining > hold_floor())
+            return NULL;
+
         /* Boost CPU for pre-buffer */
         trigger_cpu_boost();
         /* and not after the UI, as it may have been left */

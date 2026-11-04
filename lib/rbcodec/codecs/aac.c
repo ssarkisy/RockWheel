@@ -187,6 +187,9 @@ static void decode_thread(void)
                 job.head++;
                 ci->semaphore_release(&job.ready);
             }
+            /* a frame at a time, as Cover Flow draws half of each of its own
+               here: it waited behind as many as eight, up to 40 ms */
+            ci->yield();
         }
         ci->commit_dcache();
         job.running = false;

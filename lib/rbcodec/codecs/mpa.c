@@ -383,6 +383,9 @@ static void decode_thread(void)
                 job.head++;
                 ci->semaphore_release(&job.ready);
             }
+            /* a frame at a time, as Cover Flow draws half of each of its own
+               here */
+            ci->yield();
         }
 
         job.running = false;

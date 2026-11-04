@@ -30,6 +30,12 @@ void pcmbuf_write_complete(int count, unsigned long elapsed, off_t offset);
 size_t pcmbuf_size_reqd(void);
 size_t pcmbuf_init(void *bufend);
 
+/* The decoder waits this many ticks from now while there's enough decoded, as
+   an animation of the UI goes: 0 lets it go on at once */
+void pcmbuf_hold_for_ui(long ticks);
+/* the UI animates and what's decoded now plays soon: the decoder goes lighter */
+bool pcmbuf_decode_light(void);
+
 /* Playback */
 void pcmbuf_play_start(void);
 void pcmbuf_play_stop(void);

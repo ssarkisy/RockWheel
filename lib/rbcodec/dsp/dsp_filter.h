@@ -30,8 +30,15 @@
 struct dsp_filter
 {
     int32_t coefs[5];      /* 00h: Order is b0, b1, b2, a1, a2 */
-    int32_t history[2][4]; /* 14h: Order is x-1, x-2, y-1, y-2, per channel */
+    int32_t history[2][4]; /* 14h: Order is x-1, x-2, y-1, y-2, per channel;
+                              a peaking filter's in the ARM assembly
+                              x-2, x-1, and v-1, v-2 of v = y - x */
     uint8_t shift;         /* 34h: Final shift after computation */
+    uint8_t peak;          /* 35h: a peaking filter's, its coefs exactly
+                                   a1 = -b1 and b2 = -a2 - (b0 - 1) as they're
+                                   kept: the ARM filter works out its
+                                   correction to the input, with two multiplies
+                                   less, its history the other way */
     uint32_t frac[2];      /* 38h: Part of the last sum that was below the
                                    output's lowest bit, left aligned, per
                                    channel */

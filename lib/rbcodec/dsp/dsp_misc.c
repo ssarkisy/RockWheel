@@ -30,6 +30,7 @@
 #ifdef HAVE_SW_TONE_CONTROLS
 #include "tone_controls.h"
 #endif
+#include "eq.h"
 #include <string.h>
 
 /** Replaygain settings **/
@@ -189,3 +190,9 @@ static intptr_t misc_handler_configure(struct dsp_proc_entry *this,
 DSP_PROC_DB_ENTRY(
     MISC_HANDLER,
     misc_handler_configure);
+
+void dsp_set_light(bool light)
+{
+    dsp_eq_set_light(light);
+    dsp_dither_set_light(light);
+}

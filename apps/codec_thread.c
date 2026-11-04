@@ -31,6 +31,7 @@
 #include "playback.h"
 #include "buffering.h"
 #include "dsp_core.h"
+#include "dsp_misc.h"
 #include "metadata.h"
 #include "settings.h"
 
@@ -249,6 +250,7 @@ static void codec_pcmbuf_insert_callback(
         }
         else
         {
+            dsp_set_light(pcmbuf_decode_light());
             dsp_process(ci.dsp, &src, &dst, true);
 
             if (dst.remcount > 0)

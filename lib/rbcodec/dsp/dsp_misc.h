@@ -24,6 +24,11 @@
 
 /* Set the tri-pdf dithered output */
 void dsp_dither_enable(bool enable); /* in dsp_sample_output.c */
+void dsp_dither_set_light(bool light); /* in dsp_sample_output.c */
+
+/* Lighter while the UI animates: no EQ bands and no dither in what's decoded
+   then, which the decoder keeps up with on a fraction of the CPU */
+void dsp_set_light(bool light);
 
 enum replaygain_types
 {

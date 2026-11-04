@@ -23,6 +23,7 @@
 #include "dsp_filter.h"
 #include "replaygain.h"
 #include <string.h>
+#include <stddef.h>
 
 enum filter_shift
 {
@@ -30,6 +31,16 @@ enum filter_shift
     FILTER_PEAK_SHIFT = 4,    /* Each peaking filter */
     FILTER_SHELF_SHIFT = 6,   /* Each high/low shelving filter */
 };
+
+#if defined(CPU_ARM) && !defined(CPU_ARM_MICRO)
+/* The ARM filter (dsp_arm.S) finds the fields at these offsets, and has the way
+   of a peak for its shift only */
+_Static_assert(offsetof(struct dsp_filter, history) == 0x14, "dsp_arm.S");
+_Static_assert(offsetof(struct dsp_filter, shift) == 0x34, "dsp_arm.S");
+_Static_assert(offsetof(struct dsp_filter, peak) == 0x35, "dsp_arm.S");
+_Static_assert(offsetof(struct dsp_filter, frac) == 0x38, "dsp_arm.S");
+_Static_assert(FILTER_PEAK_SHIFT == 4, "dsp_arm.S takes a peak at shift 4");
+#endif
 
 /** 
  * Calculate first order shelving filter. Filter is not directly usable by the
@@ -112,6 +123,7 @@ void filter_bishelf_coefs(unsigned long cutoff_low, unsigned long cutoff_high,
     *c   = -FRACMUL_SHL(a0, a1, 4);
 
     f->shift = FILTER_BISHELF_SHIFT;
+    f->peak = 0;
 }
 
 
@@ -140,28 +152,30 @@ void filter_pk_coefs(unsigned long cutoff, unsigned long Q, long db,
     const long one = 1 << 28; /* s3.28 */
     const long A = get_replaygain_int(db*5) << 5; /* 10^(db/40), s2.29 */
     const long alpha = fp_sincos(cutoff, &cs)/(2*Q)*10 >> 1; /* s1.30 */
-    int32_t a0, a1, a2; /* these are all s3.28 format */
-    int32_t b0, b1, b2;
+    int32_t a0, a2, b0, b1; /* these are all s3.28 format */
     const long alphadivA = fp_div(alpha, A, 27);
     const long alphaA = FRACMUL(alpha, A);
 
     /* possible numerical ranges are in comments by each coef */
     b0 = one + alphaA;                /* [1 .. 5] */
-    b1 = a1 = -2*(cs >> 3);           /* [-2 .. 2] */
-    b2 = one - alphaA;                /* [-3 .. 1] */
+    b1 = -2*(cs >> 3);                /* [-2 .. 2], as a1 */
     a0 = one + alphadivA;             /* [1 .. 5] */
     a2 = one - alphadivA;             /* [-3 .. 1] */
 
     /* range of this is roughly [0.2 .. 1], but we'll never hit 1 completely */
-    int32_t *c = f->coefs;
     const long rcp_a0 = fp_div(1, a0, 59); /* s0.31 */
-    *c++ = FRACMUL(b0, rcp_a0);         /* [0.25 .. 4] */
-    *c++ = FRACMUL(b1, rcp_a0);         /* [-2 .. 2] */
-    *c++ = FRACMUL(b2, rcp_a0);         /* [-2.4 .. 1] */
-    *c++ = FRACMUL(-a1, rcp_a0);        /* [-2 .. 2] */
-    *c   = FRACMUL(-a2, rcp_a0);        /* [-0.6 .. 1] */
+    f->coefs[0] = FRACMUL(b0, rcp_a0);      /* [0.25 .. 4] */
+    f->coefs[1] = FRACMUL(b1, rcp_a0);      /* [-2 .. 2] */
+    f->coefs[4] = FRACMUL(-a2, rcp_a0);     /* [-0.6 .. 1] */
+    /* the other two from these exactly, as a peaking filter's are, which the
+       ARM filter takes for granted (dsp_filter.h): the a's are kept negated, a1
+       is b1, and b2, 1 - alphaA over a0, is a2 - (b0 - 1) as a0 + a2 = 2. Each
+       by a FRACMUL of its own could round the other way, 2^-28 apart. */
+    f->coefs[3] = -f->coefs[1];             /* [-2 .. 2] */
+    f->coefs[2] = -f->coefs[4] - (f->coefs[0] - one); /* [-2.4 .. 1] */
 
     f->shift = FILTER_PEAK_SHIFT;
+    f->peak = 1;
 }
 
 /**
@@ -207,6 +221,7 @@ void filter_ls_coefs(unsigned long cutoff, unsigned long Q, long db,
     *c++ = FRACMUL_SHL(-a2, rcp_a0, 2);      /* [0 .. 1] */
 
     f->shift = FILTER_SHELF_SHIFT;
+    f->peak = 0;
 }
 
 /**
@@ -252,6 +267,7 @@ void filter_hs_coefs(unsigned long cutoff, unsigned long Q, long db,
     *c   = FRACMUL_SHL(-a2, rcp_a0, 2);      /* [0 .. 1] */
 
     f->shift = FILTER_SHELF_SHIFT;
+    f->peak = 0;
 }
 
 /**
@@ -261,6 +277,7 @@ void filter_copy(struct dsp_filter *dst, const struct dsp_filter *src)
 {
     memcpy(dst->coefs, src->coefs, sizeof (src->coefs));
     dst->shift = src->shift;
+    dst->peak = src->peak;
 }
 
 /**

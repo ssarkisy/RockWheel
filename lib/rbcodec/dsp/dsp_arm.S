@@ -575,6 +575,13 @@ pga_process:
  * there would be four of them for a sample. So there is a loop for each
  * shift the coefficient functions use, 4, 5 and 6, and a slower one for
  * any other.
+ *
+ * Two samples a pass, the second with the history registers the other way
+ * round: the new input and output go where the oldest were, so the history
+ * is never moved. A peaking filter is worked out as its correction to the
+ * input, on three multiplies rather than five; see PK_STEP. A sample was 50
+ * cycles of a filter on an ARM7TDMI, and is 46 of a shelf here and 31 of a
+ * peak (the iPod Video, 2026).
  */
 #if defined(CPU_PP)
     .section    .icode,"ax",%progbits
@@ -582,37 +589,139 @@ pga_process:
     .section    .text, "ax",%progbits
 #endif
 
-    @ The channel loop for a shift of \s. On entry, and for the next
-    @ channel: r0 = history[channels-ch-1], r1 = buf, r2 = count, r3 = ch,
-    @ r4-r8 = coefs. In the sample loop: r9-r12 = history, r0..r1 =
-    @ accumulator, r2 = samples left, r3 = buf[ch], r14 = frac
-.macro FP_LOOP s
-.fp_channelloop_\s:
-    ldmia   r0, { r9-r12 }          @ load history
+    @ One sample. r0..r1 = accumulator, r3 = buf[ch], r4-r8 = b0, b1, b2,
+    @ a1, a2, r14 = frac; x1, x2, y1, y2 = the history registers, x[i] read
+    @ into x2's and y[i] written from y2's
+.macro FP_STEP s, x1, x2, y1, y2
+    smull   r0, r1, r5, \x1         @ acc = b1*x[i - 1]
+    smlal   r0, r1, r6, \x2         @ acc += b2*x[i - 2]
+    ldr     \x2, [r3]               @ x[i], where x[i - 2] was
+    smlal   r0, r1, r7, \y1         @ acc += a1*y[i - 1]
+    smlal   r0, r1, r8, \y2         @ acc += a2*y[i - 2]
+    smlal   r0, r1, r4, \x2         @ acc += b0*x[i]
+    mov     \y2, r1, lsl #\s        @ y = acc >> (32 - shift): upper part,
+    orr     \y2, \y2, r0, lsr #32-\s @ where y[i - 2] was, and the lower part
+    adds    r14, r14, r0, lsl #\s   @ frac += the bits of acc below y's
+    adc     \y2, \y2, #0            @ y += the carry of that
+    str     \y2, [r3], #4           @ save result
+.endm
+
+    @ A sample of a peaking filter as its correction, y = x + v:
+    @ v[i] = g*(x[i] - x[i - 2]) + a1*v[i - 1] + a2*v[i - 2], g = b0 - 1. With
+    @ a1 = -b1 and b2 = -a2 - g, which filter_pk_coefs makes exact, it's the
+    @ same sum as the direct form's less x[i] at the scale of y, so y and frac
+    @ come out the same to the bit, on three multiplies. r4-r6 = g, a1, a2,
+    @ each in the multiply's second operand; x2's register takes x[i] - x[i - 2]
+    @ and v2's v[i]
+.macro PK_STEP s, x0, x1, x2, v1, v2
+    sub     \x2, \x0, \x2           @ x[i] - x[i - 2]
+    smull   r0, r1, \x2, r4         @ acc = g*(x[i] - x[i - 2])
+    smlal   r0, r1, \v1, r5         @ acc += a1*v[i - 1]
+    smlal   r0, r1, \v2, r6         @ acc += a2*v[i - 2]
+    mov     \v2, r1, lsl #\s        @ v = acc >> (32 - shift): upper part,
+    orr     \v2, \v2, r0, lsr #32-\s @ where v[i - 2] was, and the lower part
+    adds    r14, r14, r0, lsl #\s   @ frac += the bits of acc below v's
+    adc     \v2, \v2, #0            @ v += the carry of that
+    add     r1, \v2, \x0            @ y = x[i] + v
+    str     r1, [r3], #4            @ save result
+.endm
+
+    @ The channel loop of a peaking filter, four samples a pass, two read at a
+    @ time: x[i - 2] and x[i - 1] in r7 and r8 at its start, the samples read
+    @ into r9 and r10 and then into r7 and r8, so that after four the registers
+    @ are as they were. Its history is x[i - 2], x[i - 1], v[i - 1], v[i - 2]
+.macro PK_LOOP s
+.pk_channelloop_\s:
+    ldmia   r0, { r7, r8, r11, r12 } @ load history: x2, x1, v1, v2
     ldr     r3, [r1, r3, lsl #2]    @ r3 = buf[ch]
     ldr     r14, [sp, #16]          @ r14 = &frac[channels-ch-1]
     ldr     r14, [r14]              @ r14 = frac
-.fp_loop_\s:
-    @ Direct form 1 filtering code.
-    @ y[n] = b0*x[i] + b1*x[i - 1] + b2*x[i - 2] + a1*y[i - 1] + a2*y[i - 2],
-    @ where y[] is output and x[] is input. This is performed out of order to
-    @ reuse registers, we're pretty short on regs.
-    smull   r0, r1, r5, r9          @ acc = b1*x[i - 1]
-    smlal   r0, r1, r6, r10         @ acc += b2*x[i - 2]
-    mov     r10, r9                 @ fix input history
-    ldr     r9, [r3]                @ load input and fix history
-    smlal   r0, r1, r7, r11         @ acc += a1*y[i - 1]
-    smlal   r0, r1, r8, r12         @ acc += a2*y[i - 2]
-    smlal   r0, r1, r4, r9          @ acc += b0*x[i] /* avoid stall on arm9 */
-    mov     r12, r11                @ fix output history
-    mov     r11, r1, lsl #\s        @ y = acc >> (32 - shift): upper part
-    orr     r11, r11, r0, lsr #32-\s @ and the lower part
-    adds    r14, r14, r0, lsl #\s   @ frac += the bits of acc below y's
-    adc     r11, r11, #0            @ y += the carry of that
-    str     r11, [r3], #4           @ save result
-    subs    r2, r2, #1              @ are we done with this channel?
-    bgt     .fp_loop_\s             @
+    subs    r2, r2, #4              @ four samples or more?
+    bmi     .pk_tail_\s             @
+.pk_loop_\s:
+    ldmia   r3, { r9, r10 }         @
+    PK_STEP \s, r9, r8, r7, r11, r12
+    PK_STEP \s, r10, r9, r8, r12, r11
+    ldmia   r3, { r7, r8 }          @
+    PK_STEP \s, r7, r10, r9, r11, r12
+    PK_STEP \s, r8, r7, r10, r12, r11
+    subs    r2, r2, #4              @ four more?
+    bpl     .pk_loop_\s             @
+.pk_tail_\s:
+    adds    r2, r2, #4              @ 0 to 3 left
+    beq     .pk_left0_\s            @
+    cmp     r2, #2                  @
+    blt     .pk_left1_\s            @
+    ldmia   r3, { r9, r10 }         @ two of them
+    PK_STEP \s, r9, r8, r7, r11, r12
+    PK_STEP \s, r10, r9, r8, r12, r11
+    cmp     r2, #3                  @
+    beq     .pk_left3_\s            @
+    ldr     r0, [sp]                @ r0 = history[channels-ch-1]
+    stmia   r0!, { r9, r10, r11, r12 } @ x2, x1, v1, v2
+    b       .pk_channeldone_\s
+.pk_left3_\s:
+    ldr     r7, [r3]                @ and the third
+    PK_STEP \s, r7, r10, r9, r11, r12
+    ldr     r0, [sp]                @
+    str     r10, [r0], #4           @ x2
+    str     r7, [r0], #4            @ x1
+    str     r12, [r0], #4           @ v1
+    str     r11, [r0], #4           @ v2
+    b       .pk_channeldone_\s
+.pk_left1_\s:
+    ldr     r9, [r3]                @ the one
+    PK_STEP \s, r9, r8, r7, r11, r12
+    ldr     r0, [sp]                @
+    str     r8, [r0], #4            @ x2
+    str     r9, [r0], #4            @ x1
+    str     r12, [r0], #4           @ v1
+    str     r11, [r0], #4           @ v2
+    b       .pk_channeldone_\s
+.pk_left0_\s:
+    ldr     r0, [sp]                @
+    stmia   r0!, { r7, r8, r11, r12 } @ x2, x1, v1, v2
+.pk_channeldone_\s:
+    ldr     r1, [sp, #16]           @ r1 = &frac[channels-ch-1]
+    ldr     r3, [sp, #12]           @ r3 = ch
+    str     r14, [r1], #4           @ save back frac, frac++
+    str     r1, [sp, #16]           @ store &frac[channels-ch-1]
+    subs    r3, r3, #1              @ all channels processed?
+    ldmibhs sp, { r1-r2 }           @ r1 = buf, r2 = count
+    strhs   r3, [sp, #12]           @ store ch
+    strhs   r0, [sp]                @ store history[channels-ch-1]
+    bhs     .pk_channelloop_\s
+    b       .fp_done
+.endm
 
+    @ The channel loop for a shift of \s, with \step a sample. On entry, and
+    @ for the next channel: r0 = history[channels-ch-1], r1 = buf, r2 = count,
+    @ r3 = ch, r4-r8 = coefs. In the sample loop: r9-r12 = history, r0..r1 =
+    @ accumulator, r2 = samples left, r3 = buf[ch], r14 = frac
+.macro FP_LOOP name, s, step
+.fp_channelloop_\name:
+    ldmia   r0, { r9-r12 }          @ load history: x1, x2, y1, y2
+    ldr     r3, [r1, r3, lsl #2]    @ r3 = buf[ch]
+    ldr     r14, [sp, #16]          @ r14 = &frac[channels-ch-1]
+    ldr     r14, [r14]              @ r14 = frac
+    subs    r2, r2, #2              @ two samples or more?
+    bmi     .fp_last_\name          @
+.fp_loop_\name:
+    \step   \s, r9, r10, r11, r12   @ x[i] into r10, y[i] into r12
+    \step   \s, r10, r9, r12, r11   @ and back again
+    subs    r2, r2, #2              @ two more?
+    bpl     .fp_loop_\name          @
+.fp_last_\name:
+    cmn     r2, #1                  @ one more?
+    bne     .fp_channeldone_\name   @
+    \step   \s, r9, r10, r11, r12   @
+    mov     r0, r9                  @ the history in order again
+    mov     r9, r10                 @
+    mov     r10, r0                 @
+    mov     r0, r11                 @
+    mov     r11, r12                @
+    mov     r12, r0                 @
+.fp_channeldone_\name:
     ldr     r1, [sp, #16]           @ r1 = &frac[channels-ch-1]
     ldr     r3, [sp, #12]           @ r3 = ch
     str     r14, [r1], #4           @ save back frac, frac++
@@ -623,7 +732,7 @@ pga_process:
     ldmibhs sp, { r1-r2 }           @ r1 = buf, r2 = count
     strhs   r3, [sp, #12]           @ store ch
     strhs   r0, [sp]                @ store history[channels-ch-1]
-    bhs     .fp_channelloop_\s
+    bhs     .fp_channelloop_\name
     b       .fp_done
 .endm
 
@@ -642,6 +751,16 @@ filter_process:
 
     @ Channels are processed high to low while history is saved low to high
     @ It's really noone's business how we do this
+    ldrb    r12, [r0, #33]          @ r12 = peak
+    cmp     r12, #0                 @
+    beq     .fp_shifts              @
+    cmp     r14, #4                 @ a peaking filter's shift
+    bne     .fp_shifts              @
+    sub     r4, r4, #1<<28          @ g = b0 - 1, at the scale of y
+    mov     r5, r7                  @ a1
+    mov     r6, r8                  @ a2
+    b       .pk_channelloop_4       @
+.fp_shifts:
     cmp     r14, #4
     beq     .fp_channelloop_4
     cmp     r14, #5
@@ -698,9 +817,10 @@ filter_process:
 .fp_exit:
     ldmpc   regs=r4-r11
 
-    FP_LOOP 4
-    FP_LOOP 5
-    FP_LOOP 6
+    FP_LOOP 4, 4, FP_STEP
+    FP_LOOP 5, 5, FP_STEP
+    FP_LOOP 6, 6, FP_STEP
+    PK_LOOP 4
     .size   filter_process, .-filter_process
 #endif /* CPU_ARM_MICRO */
 

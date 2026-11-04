@@ -99,6 +99,7 @@ static struct dither_data
         long random;    /* 0ch: last random value */
     } state[2];         /* 0=left, 1=right */
     bool enabled;       /* 20h: dithered output enabled */
+    bool light;         /* 21h: left out for now, as the UI animates */
                         /* 24h */
 } dither_data IBSS_ATTR;
 
@@ -184,7 +185,7 @@ void dsp_sample_output_format_change(struct sample_io_data *this,
     };
 
     bool dither = dsp_get_id((void *)this) == CODEC_IDX_AUDIO &&
-                  dither_data.enabled;
+                  dither_data.enabled && !dither_data.light;
     int channels = format->num_channels;
 
     DSP_PRINT_FORMAT(DSP Output, *format);
@@ -209,17 +210,36 @@ void dsp_sample_output_flush(struct sample_io_data *this)
 
 /** Output settings **/
 
+/* the output as dithered now or not, from nothing when it comes on */
+static void dither_changed(bool was_on)
+{
+    struct sample_io_data *data = (void *)dsp_get_config(CODEC_IDX_AUDIO);
+    const bool on = dither_data.enabled && !dither_data.light;
+
+    if (on && !was_on)
+        dsp_sample_output_flush(data);
+
+    data->output_version = 0; /* Force format update */
+}
+
 /* Set the tri-pdf dithered output */
 void dsp_dither_enable(bool enable)
 {
     if (enable == dither_data.enabled)
         return;
 
+    const bool was_on = dither_data.enabled && !dither_data.light;
     dither_data.enabled = enable;
-    struct sample_io_data *data = (void *)dsp_get_config(CODEC_IDX_AUDIO);
+    dither_changed(was_on);
+}
 
-    if (enable)
-        dsp_sample_output_flush(data);
+/* Dithered output left out for now, or back */
+void dsp_dither_set_light(bool light)
+{
+    if (light == dither_data.light)
+        return;
 
-    data->output_version = 0; /* Force format update */
+    const bool was_on = dither_data.enabled && !dither_data.light;
+    dither_data.light = light;
+    dither_changed(was_on);
 }

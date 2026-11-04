@@ -55,6 +55,60 @@ static struct eq_state
 #define FOR_EACH_ENB_BAND(b) \
     for (uint8_t *b = eq_data.bands; *b < EQ_NUM_BANDS; b++)
 
+/* While the UI animates, as Cover Flow's covers roll, what's decoded then goes
+   without the bands, the precut kept: the decoder keeps up on a fraction of the
+   CPU it took. Into that and out of it, a crossfade of EQ_FADE samples, 46 ms,
+   over as many passes of the DSP as it takes, each EQ_PIECE at most at a time. */
+#define EQ_FADE_SHIFT 11
+#define EQ_FADE (1 << EQ_FADE_SHIFT)
+#define EQ_PIECE 192
+static bool eq_light;          /* asked for */
+static int eq_wet = EQ_FADE;   /* how much of the filtered there is, of EQ_FADE */
+static int32_t eq_dry[2][EQ_PIECE];
+static int32_t eq_last[2][2]; /* the last two samples that came in, of each channel */
+
+/* The filters as if they had let the sound through as it is, rather than
+   from nothing: only what they change comes in then, at their own pace. From
+   nothing, a narrow band in the bass took 50 ms to settle, as long as the
+   crossfade, and thumped. */
+static void eq_warm(unsigned int channels)
+{
+    FOR_EACH_ENB_BAND(b)
+    {
+        struct dsp_filter *f = &eq_data.filters[*b];
+        filter_flush(f);
+        for (unsigned int ch = 0; ch < channels && ch < 2; ch++)
+        {
+#if defined(CPU_ARM) && !defined(CPU_ARM_MICRO)
+            /* the assembly keeps the channels' the other way round, and a
+               peak's as its correction, which is none */
+            int32_t *h = f->history[channels - 1 - ch];
+            if (f->peak)
+            {
+                h[0] = eq_last[ch][0]; /* x[i - 2] */
+                h[1] = eq_last[ch][1]; /* x[i - 1] */
+                continue;
+            }
+#else
+            int32_t *h = f->history[ch];
+#endif
+            h[0] = h[2] = eq_last[ch][1]; /* x[i - 1], y[i - 1] */
+            h[1] = h[3] = eq_last[ch][0]; /* x[i - 2], y[i - 2] */
+        }
+    }
+}
+
+/* the last two samples of what comes in, as it comes */
+static void eq_keep_last(struct dsp_buffer *buf, int count, unsigned int channels)
+{
+    for (unsigned int ch = 0; ch < channels && ch < 2; ch++)
+    {
+        const int32_t *d = buf->p32[ch];
+        eq_last[ch][0] = count > 1 ? d[count - 2] : eq_last[ch][1];
+        eq_last[ch][1] = d[count - 1];
+    }
+}
+
 /* Clear histories of all enabled bands */
 static void eq_flush(void)
 {
@@ -87,8 +141,12 @@ static void update_band_filter(int band, unsigned int fout)
         break;
     }
 
+    const uint8_t was_peak = filter->peak;
     coef_gen(fp_div(setting->cutoff, fout, 32), setting->q ?: 1,
              setting->gain, filter);
+    /* a peak's history is another's to the ARM filter: from nothing then */
+    if (filter->peak != was_peak)
+        filter_flush(filter);
 }
 
 /* Resync all bands to a new DSP output frequency */
@@ -167,6 +225,43 @@ void dsp_eq_enable(bool enable)
         dsp_proc_activate(dsp, DSP_PROC_EQUALIZER, true);
 }
 
+void dsp_eq_set_light(bool light)
+{
+    eq_light = light;
+}
+
+/* After a seek or a change of track, the sound starts again: it's as asked at
+   once, the filters from nothing */
+static void eq_light_reset(void)
+{
+    eq_wet = eq_light ? 0 : EQ_FADE;
+    memset(eq_last, 0, sizeof(eq_last));
+}
+
+static void eq_filter(int32_t * const p[2], int count, unsigned int channels)
+{
+    FOR_EACH_ENB_BAND(b)
+        filter_process(&eq_data.filters[*b], p, count, channels);
+}
+
+/* n samples of the crossfade, from the filtered to the dry or back, a sample of
+   EQ_FADE further each */
+static void eq_crossfade(int32_t * const p[2], int n, unsigned int channels, int step)
+{
+    for (unsigned int ch = 0; ch < channels && ch < 2; ch++)
+    {
+        int32_t *d = p[ch];
+        int wet = eq_wet;
+        for (int i = 0; i < n; i++)
+        {
+            wet += step;
+            d[i] = eq_dry[ch][i] +
+                   (int32_t)((((int64_t)d[i] - eq_dry[ch][i]) * wet) >> EQ_FADE_SHIFT);
+        }
+    }
+    eq_wet += step * n;
+}
+
 /* Apply EQ filters to those bands that have got it switched on. */
 static void eq_process(struct dsp_proc_entry *this,
                        struct dsp_buffer **buf_p)
@@ -174,9 +269,40 @@ static void eq_process(struct dsp_proc_entry *this,
     struct dsp_buffer *buf = *buf_p;
     int count = buf->remcount;
     unsigned int channels = buf->format.num_channels;
+    const int target = eq_light ? 0 : EQ_FADE;
 
-    FOR_EACH_ENB_BAND(b)
-        filter_process(&eq_data.filters[*b], buf->p32, count, channels);
+    if (eq_wet == EQ_FADE && target == EQ_FADE)
+    {
+        eq_filter(buf->p32, count, channels);
+        return;
+    }
+    if (count <= 0)
+        return;
+    if (eq_wet == 0 && target != 0)
+        eq_warm(channels); /* under the dry, from what came before */
+    eq_keep_last(buf, count, channels);
+
+    /* the crossfade, as much of it as there is here */
+    int done = 0;
+    while (done < count && eq_wet != target)
+    {
+        const int step = target > eq_wet ? 1 : -1;
+        const int n = MIN(MIN(count - done, EQ_PIECE), (target - eq_wet) * step);
+        int32_t * const p[2] = { buf->p32[0] + done,
+                                 channels > 1 ? buf->p32[1] + done : NULL };
+        for (unsigned int ch = 0; ch < channels && ch < 2; ch++)
+            memcpy(eq_dry[ch], p[ch], n * sizeof (int32_t));
+        eq_filter(p, n, channels);
+        eq_crossfade(p, n, channels, step);
+        done += n;
+    }
+    /* and after it, the filtered or the dry */
+    if (done < count && eq_wet == EQ_FADE)
+    {
+        int32_t * const p[2] = { buf->p32[0] + done,
+                                 channels > 1 ? buf->p32[1] + done : NULL };
+        eq_filter(p, count - done, channels);
+    }
 
     (void)this;
 }
@@ -196,10 +322,12 @@ static intptr_t eq_configure(struct dsp_proc_entry *this,
         /* Fall-through */
     case DSP_PROC_CLOSE:
         pga_enable_gain(PGA_EQ_PRECUT, setting == DSP_PROC_INIT);
+        eq_light_reset();
         break;
-        
+
     case DSP_FLUSH:
         eq_flush();
+        eq_light_reset();
         break;
 
     case DSP_SET_OUT_FREQUENCY:
