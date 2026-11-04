@@ -18839,3 +18839,185 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_EQ_XM4C
+  desc: in the iPod's EQ list, the preset for the Sony WH-1000XM4C headphones, by their name
+  user: core
+  <source>
+    *: "WH-1000XM4C"
+  </source>
+  <dest>
+    *: "WH-1000XM4C"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STATUS_ICONS
+  desc: in the settings, after Cover Colours: what of the status bar takes the cover's colours too: the icons, all but the battery, or none
+  user: core
+  <source>
+    *: "Status Icons"
+  </source>
+  <dest>
+    *: "Status Icons"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STATUS_ICONS_BATTERY
+  desc: a value of Status Icons: all of them in the cover's colours but the battery, which keeps its green, or red when low
+  user: core
+  <source>
+    *: "Own Battery"
+  </source>
+  <dest>
+    *: "Own Battery"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STATUS_ICONS_OWN
+  desc: a value of Status Icons: the icons, the clock and the title in their own colours, where they can be read so
+  user: core
+  <source>
+    *: "Own Colours"
+  </source>
+  <dest>
+    *: "Own Colours"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SEARCH_SEE_ALL
+  desc: in Search, the last row of the artists or the albums found when there are more than the few shown: opens the list of all of them
+  user: core
+  <source>
+    *: "See All"
+  </source>
+  <dest>
+    *: "See All"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_FLOW_PAUSE
+  desc: in the settings, under Playback: whether the music pauses while Cover Flow is open, which lets the covers go by faster
+  user: core
+  <source>
+    *: "Pause in Cover Flow"
+  </source>
+  <dest>
+    *: "Pause in Cover Flow"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ANGLED_COVER
+  desc: in the settings, under Display: whether Now Playing shows the cover turned away at an angle, as on an iPod classic
+  user: core
+  <source>
+    *: "Angled Cover"
+  </source>
+  <dest>
+    *: "Angled Cover"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_APPEARANCE
+  desc: in the settings, under Display: the look of the status bar, the rating and the progress bar, as the iPod's or as iOS 13's
+  user: core
+  <source>
+    *: "Appearance"
+  </source>
+  <dest>
+    *: "Appearance"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RATING_STYLE
+  desc: in Appearance: the look of the stars of a song's rating in Now Playing
+  user: core
+  <source>
+    *: "Rating"
+  </source>
+  <dest>
+    *: "Rating"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PROGRESS_BAR
+  desc: in Appearance: the look of the bar of how far a song has played, in Now Playing
+  user: core
+  <source>
+    *: "Progress Bar"
+  </source>
+  <dest>
+    *: "Progress Bar"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STYLE_IPOD
+  desc: a value of the settings in Appearance: as the iPod has it
+  user: core
+  <source>
+    *: "iPod"
+  </source>
+  <dest>
+    *: "iPod"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STYLE_IOS
+  desc: a value of the settings in Appearance: in the style of iOS 13, as Linus drew it
+  user: core
+  <source>
+    *: "iOS"
+  </source>
+  <dest>
+    *: "iOS"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_FOLDERS
+  desc: in Playlists, the name over the group of folders, which come before the playlists under their own name
+  user: core
+  <source>
+    *: "Folders"
+  </source>
+  <dest>
+    *: "Folders"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
