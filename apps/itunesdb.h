@@ -119,10 +119,13 @@ struct itunesdb_art {
 };
 
 /* Cover Flow's slides, one an album, made after an import: covers this
-   many pixels a side at most, as PictureFlow shows the one in the middle */
-/* what itunesdb_load_slide() needs in its buffer beyond the slide */
-#define ITUNESDB_SLIDE_ROOM 32
-#define ITUNESDB_SLIDE_SIZE MIN(MAX(LCD_HEIGHT / 2, LCD_WIDTH * 2 / 5), \
+   many pixels a side at most, as PictureFlow shows the one in the middle. That
+   is as on a stock iPod, with the room of the status bar it has given to it:
+   136 on a screen 240 high */
+/* what itunesdb_load_slide() needs in its buffer beyond the slide: its header,
+   the way to an aligned address, and the rest of its slot, which it reads whole */
+#define ITUNESDB_SLIDE_ROOM 2048
+#define ITUNESDB_SLIDE_SIZE MIN(MAX(LCD_HEIGHT * 17 / 30, LCD_WIDTH * 2 / 5), \
                                 LCD_HEIGHT * 2 / 3)
 
 /* the cover Finder made for the file at path */
@@ -142,6 +145,9 @@ int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size
    height; returns the size of the pixels, or -1 when it isn't made (yet) */
 int itunesdb_load_slide(const struct itunesdb_art *art, void *buf,
                         int *width, int *height);
+/* the slides file closed, which itunesdb_load_slide() keeps open: as Cover
+   Flow ends, and before the disk goes to USB */
+void itunesdb_slides_done(void);
 
 /* true when an import left slides to make, or the index of covers is of
    an older version, whose import at boot will, or the slides' colours aren't

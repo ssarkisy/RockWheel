@@ -56,8 +56,8 @@ static fb_data *lcd_fb;
 #define PF_BACK ACTION_STD_CANCEL
 #define PF_MENU ACTION_STD_MENU
 #define PF_WPS ACTION_TREE_WPS
-#define PF_JMP ACTION_LISTTREE_PGDOWN
-#define PF_JMP_PREV ACTION_LISTTREE_PGUP
+#define PF_ALBUM_NEXT ACTION_LISTTREE_PGDOWN
+#define PF_ALBUM_PREV ACTION_LISTTREE_PGUP
 
 #define PF_QUIT (LAST_ACTION_PLACEHOLDER + 1)
 #define PF_TRACKLIST (LAST_ACTION_PLACEHOLDER + 2)
@@ -95,10 +95,10 @@ const struct button_mapping pf_context_album_scroll[] =
     || (CONFIG_KEYPAD == IPOD_3G_PAD) \
     || (CONFIG_KEYPAD == IPOD_4G_PAD) \
     || (CONFIG_KEYPAD == FIIO_M3K_PAD)
-    {PF_JMP_PREV,     BUTTON_LEFT,                BUTTON_NONE},
-    {PF_JMP_PREV,     BUTTON_LEFT|BUTTON_REPEAT,  BUTTON_NONE},
-    {PF_JMP,          BUTTON_RIGHT,               BUTTON_NONE},
-    {PF_JMP,          BUTTON_RIGHT|BUTTON_REPEAT, BUTTON_NONE},
+    {PF_ALBUM_PREV,     BUTTON_LEFT,                BUTTON_NONE},
+    {PF_ALBUM_PREV,     BUTTON_LEFT|BUTTON_REPEAT,  BUTTON_NONE},
+    {PF_ALBUM_NEXT,          BUTTON_RIGHT,               BUTTON_NONE},
+    {PF_ALBUM_NEXT,          BUTTON_RIGHT|BUTTON_REPEAT, BUTTON_NONE},
     {ACTION_NONE,     BUTTON_LEFT|BUTTON_REL,     BUTTON_LEFT},
     {ACTION_NONE,     BUTTON_RIGHT|BUTTON_REL,    BUTTON_RIGHT},
     {ACTION_NONE,     BUTTON_LEFT|BUTTON_REPEAT,  BUTTON_LEFT},
@@ -154,8 +154,18 @@ const struct button_mapping pf_context_buttons[] =
     || (CONFIG_KEYPAD == IPOD_4G_PAD)
     {PF_MENU,         BUTTON_MENU|BUTTON_REPEAT,  BUTTON_MENU},
     {PF_QUIT,         BUTTON_MENU|BUTTON_REL,     BUTTON_MENU},
+#ifdef ITUNESDB_HAVE_ART
+    /* holding Select opens nothing, as on a stock iPod: not Rockbox's menu of
+       Playing Next, Add to Playlist and Track Info. Nor do Select with Menu,
+       which restarts an iPod that hangs, and Select with Play sort the albums
+       otherwise, for good. */
+    {ACTION_NONE,     BUTTON_SELECT|BUTTON_REPEAT, BUTTON_NONE},
+    {ACTION_NONE,     BUTTON_SELECT|BUTTON_MENU,  BUTTON_NONE},
+    {ACTION_NONE,     BUTTON_SELECT|BUTTON_PLAY,  BUTTON_NONE},
+#else
     {PF_SORTING_NEXT, BUTTON_SELECT|BUTTON_MENU,  BUTTON_NONE},
     {PF_SORTING_PREV, BUTTON_SELECT|BUTTON_PLAY,  BUTTON_NONE},
+#endif
 #elif CONFIG_KEYPAD == MPIO_HD300_PAD
     {PF_QUIT,         BUTTON_MENU|BUTTON_REPEAT,  BUTTON_MENU},
 #elif CONFIG_KEYPAD == IAUDIO_M3_PAD
@@ -172,10 +182,10 @@ const struct button_mapping pf_context_buttons[] =
     {PF_TRACKLIST,    BUTTON_FFWD|BUTTON_REL,     BUTTON_FFWD},
     {PF_WPS,          BUTTON_PLAY|BUTTON_REPEAT,  BUTTON_PLAY},
 #elif CONFIG_KEYPAD == FIIO_M3K_PAD
-    {PF_JMP_PREV,     BUTTON_LEFT,                BUTTON_NONE},
-    {PF_JMP_PREV,     BUTTON_LEFT|BUTTON_REPEAT,  BUTTON_NONE},
-    {PF_JMP,          BUTTON_RIGHT,               BUTTON_NONE},
-    {PF_JMP,          BUTTON_RIGHT|BUTTON_REPEAT, BUTTON_NONE},
+    {PF_ALBUM_PREV,     BUTTON_LEFT,                BUTTON_NONE},
+    {PF_ALBUM_PREV,     BUTTON_LEFT|BUTTON_REPEAT,  BUTTON_NONE},
+    {PF_ALBUM_NEXT,          BUTTON_RIGHT,               BUTTON_NONE},
+    {PF_ALBUM_NEXT,          BUTTON_RIGHT|BUTTON_REPEAT, BUTTON_NONE},
     {PF_MENU,         BUTTON_POWER|BUTTON_REL,    BUTTON_POWER},
     {PF_SORTING_NEXT, BUTTON_VOL_UP,              BUTTON_NONE},
     {PF_SORTING_PREV, BUTTON_VOL_DOWN,            BUTTON_NONE},
@@ -245,12 +255,28 @@ typedef fb_data pix_t;
 #define REFLECT_TOP (LCD_HEIGHT * 2 / 3)
 #define REFLECT_HEIGHT (LCD_HEIGHT - REFLECT_TOP)
 #define DISPLAY_HEIGHT REFLECT_TOP
+#ifdef ITUNESDB_HAVE_ART
+/* The middle cover as large as the slides the core makes, its top this far down:
+   a stock iPod's, with the room of the status bar it has given to it */
+#define DISPLAY_WIDTH ITUNESDB_SLIDE_SIZE
+#define COVER_FLOW_TOP (LCD_HEIGHT * 11 / 120)
+/* the album and its artist under it this far apart: 22 on a screen 240 high */
+#define COVER_FLOW_LINES (LCD_HEIGHT * 11 / 120)
+#define DISPLAY_OFFS (DISPLAY_WIDTH - LCD_HEIGHT / 2 + COVER_FLOW_TOP)
+#else
 #define DISPLAY_WIDTH MAX((LCD_HEIGHT * LCD_PIXEL_ASPECT_HEIGHT / \
     LCD_PIXEL_ASPECT_WIDTH / 2), (LCD_WIDTH * 2 / 5))
+#define DISPLAY_OFFS ((LCD_HEIGHT / 2) - REFLECT_HEIGHT)
+#endif
 #define REFLECT_SC ((0x10000U * 3 + (REFLECT_HEIGHT * 5 - 1)) / \
     (REFLECT_HEIGHT * 5))
-#define DISPLAY_OFFS ((LCD_HEIGHT / 2) - REFLECT_HEIGHT)
+#ifdef ITUNESDB_HAVE_ART
+/* further away, as a stock iPod's: the far edges of the covers aside are less
+   smaller than their near ones */
+#define CAM_DIST (LCD_HEIGHT * 5 / 3)
+#else
 #define CAM_DIST MAX(MIN(LCD_HEIGHT,LCD_WIDTH),120)
+#endif
 #define CAM_DIST_R (CAM_DIST << PFREAL_SHIFT)
 #define DISPLAY_LEFT_R (PFREAL_HALF - LCD_WIDTH * PFREAL_HALF)
 #define MAXSLIDE_LEFT_R (PFREAL_HALF - DISPLAY_WIDTH * PFREAL_HALF)
@@ -267,7 +293,8 @@ typedef fb_data pix_t;
 #define EV_WAKEUP 1337
 
 /* named anew when its picture changes, as it's made again only if missing */
-#define EMPTY_SLIDE CACHE_PREFIX "/emptynote.pfraw"
+/* 2: of the size of the larger covers */
+#define EMPTY_SLIDE CACHE_PREFIX "/emptynote2.pfraw"
 #define EMPTY_SLIDE_BMP PLUGIN_DEMOS_DIR "/pictureflow_emptyslide.bmp"
 #define SPLASH_BMP PLUGIN_DEMOS_DIR "/pictureflow_splash.bmp"
 
@@ -281,22 +308,26 @@ typedef fb_data pix_t;
 #define ERROR_NO_ARTISTS    -3
 #define ERROR_USER_ABORT    -4
 
-/* current version for cover cache */
-#define CACHE_VERSION 4
+/* current version for cover cache: 5, of Cover Flow's larger covers */
+#define CACHE_VERSION 5
 #define CONFIG_VERSION 1
 
 #ifdef ITUNESDB_HAVE_ART
-/* Three covers on either side of the middle one, as Cover Flow has them: closer
-   together and at a steeper angle than the plugin's, and a little smaller. There's no
-   menu for these here, and an old config file mustn't keep the old look. */
-#define COVER_FLOW_SPACING 16
-#define COVER_FLOW_MARGIN  14
-#define COVER_FLOW_ZOOM    90
+/* As on a stock iPod: the covers on either side close together, at a steep
+   angle, the nearest ones tucked behind the middle one, of which a strip of a
+   third shows. There's no menu for these here, and an old config file mustn't
+   keep the old look. */
+#define COVER_FLOW_SPACING 27
+#define COVER_FLOW_MARGIN  -18
+#define COVER_FLOW_ZOOM    100
 #define COVER_FLOW_TILT    72
 #define COVER_FLOW_SLIDES  5
 #endif
 #define CONFIG_FILE "pictureflow.cfg"
-#define INDEX_HDR "PFIT" /* T: with the first track of each album */
+/* U: with the size of the database too; V: made again for the first tracks,
+   which a list made by searches lacks, so that each cover was a search of every
+   track: one made at boot before the database was in memory had none */
+#define INDEX_HDR "PFIV"
 
 /** structs we use */
 struct pf_config_t
@@ -328,6 +359,11 @@ struct pf_config_t
 struct pf_index_t {
     uint32_t            header; /*INDEX_HDR*/
     int32_t             commitid; /* of the database the index was made of */
+    /* and its tracks and the size of its albums' file: a new database
+       counts its commits from the start again, and its number can be one an
+       older library's index has */
+    int32_t             entries;
+    int32_t             albums_size;
     uint16_t            artist_ct;
     uint16_t            album_ct;
 
@@ -412,6 +448,7 @@ struct track_data {
     uint32_t sort;
     int name_idx;       /* offset to the track name */
     long seek;
+    int length;         /* in seconds */
 #if PF_PLAYBACK_CAPABLE
     /* offset to the filename in the string, needed for playlist generation */
     int filename_idx;
@@ -456,6 +493,7 @@ struct pf_scroll_line_info {
 
 struct pf_scroll_line {
     int width;          /* width of the string */
+    int room;           /* of the place it's in */
     int offset;         /* x coordinate of the string */
     int step;           /* 0 if scroll is disabled. otherwise, pixels to move */
     long start_tick;    /* tick when to start scrolling */
@@ -583,6 +621,20 @@ static bool anim_turning; /* just turned back, in the same place */
    change where this begins. */
 #define ROLL_SETTLE_FRAMES  11
 #define ROLL_SETTLE_MIN     900   /* the last of it, or it would never get there */
+/* The animations go by the time and not by the frames drawn, so that the covers
+   are as quick with music playing as without, and the wheel's speed is theirs: in
+   the frames of 1/25 s that all of the above is in, ANIM_ONE to a frame */
+#define ANIM_FRAME_US       (1000000 / 25)
+#define ANIM_ONE            256
+#define ANIM_MOST           (3 * ANIM_ONE) /* after a stall, no more than that at once */
+#if CONFIG_CPU == PP5020 || CONFIG_CPU == PP5022 || CONFIG_CPU == PP5024
+/* the SoC's microsecond timer, USEC_TIMER, whose header plugins don't see */
+#define PF_USEC_TIMER (*(volatile unsigned long *)0x60005010)
+#endif
+static unsigned long anim_clock;
+static bool anim_clock_running;
+static int anim_part;  /* the time of this frame */
+static int anim_keys;  /* toward the next key frame of the zoom */
 static int fade;
 static int center_index = 0; /* index of the slide that is in the center */
 static int itilt;
@@ -618,6 +670,8 @@ void reset_track_list(void);
 
 static bool thread_is_running;
 static bool wants_to_quit;
+/* the slides the thread has loaded: still covers are drawn again only for one */
+static volatile unsigned slides_arrived;
 
 /*
     Prevent picture loading thread from allocating
@@ -633,7 +687,43 @@ static struct mutex buf_ctx_mutex;
 static bool buf_ctx_locked;
 
 static int cover_animation_keyframe;
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+/* The panel with its edge as a picture that turns as a cover does, column after
+   column: the other side of the cover as it opens, which becomes the panel, as
+   on a stock iPod. Square, as it's turned where it's drawn. Turned to its edge,
+   the cover goes on turning as the card, which grows into the panel: at the
+   cover's pace, from where the cover was, as tall as its edge there. Its depth
+   to start with, and its rows below the horizon. */
+#define CARD_FRAME_COUNT    11
+#define CARD_FRAME_DIST     158
+#define CARD_FRAME_OFFS     52
+#define CARD_OFFS           (PANEL_Y + PANEL_H + 1 - LCD_HEIGHT / 2)
+#define CARD_W              (PANEL_W + 2)
+#define CARD_H              (PANEL_H + 2)
+#define CARD_SQUARE         (CARD_W == CARD_H)
+static struct dim *card;            /* NULL without room for it */
+static bool card_drawn;             /* of the album and tracks as they are now */
+static int card_album;              /* which */
+static struct slide_data card_slide;
+#else
+#define CARD_FRAME_COUNT    0
+#endif
+static int card_frame; /* 0 while the cover shows, else how far the card has come */
+static int card_offs(void);
 static int extra_fade;
+/* Light behind the covers with the light theme, as on a stock iPod, which their
+   reflections and the far ones fade into; dark with the dark theme */
+static bool pf_light;
+static pix_t pf_back;
+#ifdef ITUNESDB_HAVE_ART
+/* Each album's slide as found once, so that a load is only a read: else the
+   slide's number in the art index */
+static int32_t *album_slides;
+#define SLIDE_UNKNOWN   0   /* not looked for yet */
+#define SLIDE_NONE      (-1) /* no cover */
+#define SLIDE_UNREAD    (-2) /* a cover without a slide that reads: made of the
+                                cover each time, found again for it */
+#endif
 
 static struct pf_scroll_line_info scroll_line_info;
 static struct pf_scroll_line scroll_lines[PF_MAX_SCROLL_LINES];
@@ -1064,17 +1154,26 @@ static void init_scroll_lines(void)
         scroll_lines[i].step = 0;
 }
 
-static void set_scroll_line(const char *str, enum pf_scroll_line_type type)
+/* str in a place room wide, in the font it's drawn in: in its middle if it fits,
+   and from its left if centred is false; if it doesn't, it scrolls */
+static void set_scroll_line_in(const char *str, enum pf_scroll_line_type type,
+                               int room, bool centred)
 {
     struct pf_scroll_line *s = &scroll_lines[type];
     s->width = mylcd_getstringsize(str, NULL, NULL);
+    s->room = room;
     s->step = 0;
     s->offset = 0;
     s->start_tick = *rb->current_tick + scroll_line_info.delay;
-    if (LCD_WIDTH - s->width < 0)
+    if (room - s->width < 0)
         s->step = scroll_line_info.step;
-    else
-        s->offset = (LCD_WIDTH - s->width) / 2;
+    else if (centred)
+        s->offset = (room - s->width) / 2;
+}
+
+static void set_scroll_line(const char *str, enum pf_scroll_line_type type)
+{
+    set_scroll_line_in(str, type, LCD_WIDTH, true);
 }
 
 static int get_scroll_line_offset(enum pf_scroll_line_type type)
@@ -1082,12 +1181,14 @@ static int get_scroll_line_offset(enum pf_scroll_line_type type)
     return scroll_lines[type].offset;
 }
 
-static void update_scroll_lines(void)
+/* which of them moved, a bit for each */
+static unsigned update_scroll_lines(void)
 {
     int i;
+    unsigned moved = 0;
 
     if (TIME_BEFORE(*rb->current_tick, scroll_line_info.next_scroll))
-        return;
+        return 0;
 
     scroll_line_info.next_scroll = *rb->current_tick + scroll_line_info.ticks;
 
@@ -1097,6 +1198,7 @@ static void update_scroll_lines(void)
         if (s->step && TIME_BEFORE(s->start_tick, *rb->current_tick))
         {
             s->offset -= s->step;
+            moved |= 1u << i;
 
             if (s->offset >= 0) {
                 /* at beginning of line */
@@ -1104,14 +1206,15 @@ static void update_scroll_lines(void)
                 s->step = scroll_line_info.step;
                 s->start_tick = *rb->current_tick + scroll_line_info.delay * 2;
             }
-            if (s->offset <= LCD_WIDTH - s->width) {
+            if (s->offset <= s->room - s->width) {
                 /* at end of line */
-                s->offset = LCD_WIDTH - s->width;
+                s->offset = s->room - s->width;
                 s->step = -scroll_line_info.step;
                 s->start_tick = *rb->current_tick + scroll_line_info.delay * 2;
             }
         }
     }
+    return moved;
 }
 
 /* Create the lookup table with the scaling values for the reflections */
@@ -1780,6 +1883,24 @@ static int create_album_index(void)
     return (pf_idx.album_ct > 0) ? 0 : ERROR_NO_ALBUMS;
 }
 
+/* what the index is made of: the database as it is now */
+static void index_stamp(struct pf_index_t *stamp)
+{
+    struct tagcache_stat *stat = rb->tagcache_get_stat();
+    char file[MAX_PATH];
+    stamp->commitid = rb->tagcache_get_commitid();
+    stamp->entries = stat->total_entries;
+    stamp->albums_size = -1;
+    rb->snprintf(file, sizeof(file), "%s/database_%d.tcd", stat->db_path,
+                 tag_album);
+    int fd = rb->open(file, O_RDONLY);
+    if (fd >= 0)
+    {
+        stamp->albums_size = rb->ffilesize(fd);
+        rb->close(fd);
+    }
+}
+
 /*Saves the album index into a binary file to be recovered the
  next time PictureFlow is launched*/
 
@@ -1792,7 +1913,7 @@ static int save_album_index(void){
     if(fd >= 0)
     {
         rb->memcpy(&data.header, INDEX_HDR, sizeof(pf_idx.header));
-        data.commitid = rb->tagcache_get_commitid();
+        index_stamp(&data);
 
         rb->write(fd, &data, sizeof(struct pf_index_t));
 
@@ -1836,12 +1957,17 @@ static int load_album_index(void){
         const unsigned long filesize = rb->ffilesize(fr);
         if (filesize > sizeof(data))
         {
-            if (rb->read(fr, &data, sizeof(data)) == sizeof(data) &&
-                rb->memcmp(&(data.header), INDEX_HDR, sizeof(data.header)) == 0)
+            if (rb->read(fr, &data, sizeof(data)) == sizeof(data))
             {
                 /* the files of a database changed since hold the albums
-                   and artists elsewhere, as after every sync */
-                if (data.commitid != rb->tagcache_get_commitid())
+                   and artists elsewhere, as after every sync; the index of
+                   an older version is made again as well */
+                struct pf_index_t now;
+                index_stamp(&now);
+                if (rb->memcmp(&(data.header), INDEX_HDR, sizeof(data.header))
+                    || data.commitid != now.commitid
+                    || data.entries != now.entries
+                    || data.albums_size != now.albums_size)
                 {
                     rb->close(fr);
                     return -1;
@@ -1956,14 +2082,6 @@ static char* get_album_artist(const int slide_index)
 }
 
 
-static char* get_slide_name(const int slide_index, bool artist)
-{
-    if (artist)
-        return get_album_artist(slide_index);
-
-    return get_album_name(slide_index);
-}
-
 /**
  Return a pointer to the track name of the active album
  create_track_index has to be called first.
@@ -1984,95 +2102,6 @@ static char* get_track_filename(const int track_index)
 #endif
 
 
-
-static int jmp_idx_prev(void)
-{
-    if (aa_cache.inspected < pf_idx.album_ct)
-    {
-#ifdef USEGSLIB
-        grey_show(false);
-        rb->lcd_clear_display();
-        rb->lcd_update();
-#endif
-        rb->splash(HZ*2, rb->str(LANG_WAIT_FOR_CACHE));
-#ifdef USEGSLIB
-        grey_show(true);
-#endif
-        return center_index;
-    }
-
-    if (pf_cfg.sort_albums_by == SORT_BY_YEAR)
-    {
-        int current_year = pf_idx.album_index[center_index].year;
-
-        for (int i = center_index - 1; i > 0; i-- )
-        {
-            if(pf_idx.album_index[i].year != current_year)
-                current_year = pf_idx.album_index[i].year;
-            while (i > 0)
-            {
-                if (pf_idx.album_index[i-1].year != current_year)
-                    break;
-                i--;
-            }
-            return i;
-        }
-    }
-    else
-    {
-        bool by_artist = pf_cfg.sort_albums_by != SORT_BY_NAME;
-        char *current_selection = get_slide_name(center_index, by_artist);
-
-        for (int i = center_index - 1; i > 0; i-- )
-        {
-            if(rb->strncmp(get_slide_name(i, by_artist), current_selection, 1))
-                current_selection = get_slide_name(i, by_artist);
-            while (i > 0)
-            {
-                if (rb->strncmp(get_slide_name(i-1, by_artist), current_selection, 1))
-                    break;
-                i--;
-            }
-            return i;
-        }
-    }
-
-    return 0;
-}
-
-static int jmp_idx_next(void)
-{
-    if (aa_cache.inspected < pf_idx.album_ct)
-    {
-#ifdef USEGSLIB
-        grey_show(false);
-        rb->lcd_clear_display();
-        rb->lcd_update();
-#endif
-        rb->splash(HZ*2, rb->str(LANG_WAIT_FOR_CACHE));
-#ifdef USEGSLIB
-        grey_show(true);
-#endif
-        return center_index;
-    }
-
-    if (pf_cfg.sort_albums_by == SORT_BY_YEAR)
-    {
-        int current_year = pf_idx.album_index[center_index].year;
-        for (int i = center_index + 1; i < pf_idx.album_ct; i++ )
-            if(pf_idx.album_index[i].year != current_year)
-                return i;
-    }
-    else
-    {
-        bool by_artist = pf_cfg.sort_albums_by != SORT_BY_NAME;
-        char *current_selection = get_slide_name(center_index, by_artist);
-        for (int i = center_index + 1; i < pf_idx.album_ct; i++ )
-            if(rb->strncmp(get_slide_name(i, by_artist), current_selection, 1))
-                return i;
-    }
-    return pf_idx.album_ct - 1;
-}
 
 static int id3_get_index(struct mp3entry *id3)
 {
@@ -2208,10 +2237,16 @@ static void create_track_index(const int slide_index)
 {
     char tcs_buf[TAGCACHE_BUFSZ];
     const long tcs_bufsz = sizeof(tcs_buf);
-    buf_ctx_lock();
-    buf_ctx_locked = true;
+    if (!buf_ctx_locked)
+    {
+        buf_ctx_lock();
+        buf_ctx_locked = true;
+    }
     if ( slide_index == pf_tracks.cur_idx )
         return;
+    /* another album's in what's borrowed: over it */
+    pf_tracks.cur_idx = -1;
+    pf_tracks.used = 0;
 
     if (!rb->tagcache_search(&tcs, tag_title))
         goto fail;
@@ -2255,6 +2290,7 @@ static void create_track_index(const int slide_index)
         pf_tracks.index->sort += pf_tracks.count;
         pf_tracks.index->name_idx = string_index;
         pf_tracks.index->seek = tcs.result_seek;
+        pf_tracks.index->length = rb->tagcache_get_numeric(&tcs, tag_length) / 1000;
 #if PF_PLAYBACK_CAPABLE
         pf_tracks.index->filename_idx = fn_idx + string_index;
         string_index += (fn_idx + fn_len);
@@ -2284,6 +2320,8 @@ fail:
 */
 static inline void free_borrowed_tracks(void)
 {
+    if (!buf_ctx_locked)
+        return; /* none */
     rb->buflib_buffer_in(&buf_ctx, pf_tracks.borrowed);
     pf_tracks.borrowed = 0;
     pf_tracks.used = 0;
@@ -2410,7 +2448,12 @@ static bool find_ipod_cover(const int slide_index, struct itunesdb_art *art)
         rb->tagcache_search_add_filter(&tcs, tag_albumartist,
                                        album->artist_seek);
         if (rb->tagcache_get_next(&tcs, tcs_buf, sizeof(tcs_buf)))
+        {
             found = rb->itunesdb_find_art(tcs.result, art);
+            /* a search of the filenames gives the track, which the next time
+               is all it takes */
+            pf_idx.album_index[slide_index].first_track = tcs.idx_id;
+        }
     }
     rb->tagcache_search_finish(&tcs);
     return found;
@@ -2496,10 +2539,10 @@ static void draw_splashscreen(unsigned char * buf_tmp, size_t buf_tmp_size)
 #ifdef ITUNESDB_HAVE_ART
     if (preparing)
         return;
-    /* as Cover Flow starts: black, no logo */
+    /* as Cover Flow starts: plain, no logo */
     (void)buf_tmp;
     (void)buf_tmp_size;
-    rb->lcd_set_background(LCD_BLACK);
+    rb->lcd_set_background(pf_light ? LCD_WHITE : LCD_BLACK);
     rb->lcd_clear_display();
     rb->lcd_update();
     return;
@@ -2559,11 +2602,16 @@ static void draw_progressbar(int step, int count, char *msg)
     (void)msg;
     const int bar_w = 140, bar_h = 6;
     const int bx = (LCD_WIDTH - bar_w) / 2, by = (LCD_HEIGHT - bar_h) / 2;
-    rb->lcd_set_foreground(LCD_RGBPACK(70, 70, 70));
+    /* drawn when it grows: a screen for each of 1700 albums took 17 s */
+    static int shown_fill = -1;
+    const int fill = count > 0 ? bar_w * MIN(step, count) / count : 0;
+    if (step > 0 && fill == shown_fill)
+        return;
+    shown_fill = fill;
+    rb->lcd_set_foreground(pf_light ? LCD_RGBPACK(210, 210, 210) : LCD_RGBPACK(70, 70, 70));
     rb->lcd_fillrect(bx, by, bar_w, bar_h);
-    rb->lcd_set_foreground(LCD_WHITE);
-    if (count > 0)
-        rb->lcd_fillrect(bx, by, bar_w * MIN(step, count) / count, bar_h);
+    rb->lcd_set_foreground(pf_light ? LCD_RGBPACK(70, 70, 70) : LCD_WHITE);
+    rb->lcd_fillrect(bx, by, fill, bar_h);
     rb->lcd_update();
     rb->yield();
     return;
@@ -2794,8 +2842,10 @@ static int create_empty_slide(bool force)
 
         if (!save_pfraw(EMPTY_SLIDE, &aa_cache.input_bmp))
             return false;
-        /* the question mark's, before the note */
+        /* the question mark's, before the note, and the note's of the smaller
+           covers */
         rb->remove(CACHE_PREFIX "/emptyslide.pfraw");
+        rb->remove(CACHE_PREFIX "/emptynote.pfraw");
     }
 
     return true;
@@ -2820,6 +2870,10 @@ static void thread(void)
                 /* The queue gets the broadcasts, so USB waits for this
                    thread too: without the ack the computer never got the
                    disk. It is the computer's until it is let go. */
+#ifdef ITUNESDB_HAVE_ART
+                /* no file of the disk's open as it goes */
+                rb->itunesdb_slides_done();
+#endif
                 rb->usb_acknowledge(SYS_USB_CONNECTED_ACK, ev.data);
                 do
                     rb->queue_wait(&thread_q, &ev);
@@ -2836,6 +2890,7 @@ static void thread(void)
                 buf_ctx_unlock();
                 if (!slide_loaded)
                     break;
+                slides_arrived++;
                 rb->yield();
             }
         }
@@ -2871,10 +2926,10 @@ static bool create_pf_thread(void)
                            sizeof(thread_stack),
                             0,
                            "Picture load thread"
-                               /* below the UI, which loads a cover a frame
-                                  itself while it scrolls: here each yield
-                                  in a load would wait out a frame */
-                               IF_PRIO(, PRIORITY_BACKGROUND)
+                               /* as the UI: it loads while the UI draws, each
+                                  wait for the disk a frame of the UI's, where
+                                  below it a load waited for a frame to block */
+                               IF_PRIO(, PRIORITY_USER_INTERFACE)
                                IF_COP(, CPU)
                                       )
         ) == 0) {
@@ -3134,8 +3189,14 @@ static int read_pfraw(char* filename, int prio)
     bm->height = bmph.height;
     pix_t *data = (pix_t*)(sizeof(struct dim) + (char *)bm);
 
-    rb->read( fh, data , sizeof( pix_t ) * bm->width * bm->height );
+    /* nor one cut short */
+    const ssize_t want = sizeof( pix_t ) * bm->width * bm->height;
+    const bool whole = rb->read( fh, data, want ) == want;
     rb->close( fh );
+    if (!whole) {
+        rb->buflib_free(&buf_ctx, hid);
+        return empty_slide_hid;
+    }
     return hid;
 }
 
@@ -3153,8 +3214,30 @@ static int read_pfraw(char* filename, int prio)
 static int read_ipod_cover(const int slide_index, const int prio)
 {
     struct itunesdb_art art;
-    if (!find_ipod_cover(slide_index, &art))
+    /* the slide known from before, which is all a read needs */
+    int32_t *const known = album_slides ? &album_slides[slide_index] : NULL;
+    if (known && *known == SLIDE_NONE)
         return -1;
+    if (known && *known > 0)
+    {
+        rb->memset(&art, 0, sizeof(art));
+        art.slide = *known;
+    }
+    else
+    {
+        const bool found = find_ipod_cover(slide_index, &art);
+        if (known && *known == SLIDE_UNREAD)
+            art.slide = 0;
+        else if (known)
+        {
+            if (!found)
+                *known = SLIDE_NONE;
+            else
+                *known = art.slide > 0 ? art.slide : SLIDE_UNREAD;
+        }
+        if (!found)
+            return -1;
+    }
 
     int hid;
     if (art.slide && ITUNESDB_SLIDE_SIZE <= DISPLAY_WIDTH
@@ -3177,8 +3260,13 @@ static int read_ipod_cover(const int slide_index, const int prio)
             return hid;
         }
         rb->buflib_free(&buf_ctx, hid);
+        if (known)
+            *known = SLIDE_UNREAD;
     }
 
+    /* the slide didn't read: the cover itself then, whose frame is to find */
+    if (art.path[0] == '\0' && !find_ipod_cover(slide_index, &art))
+        return -1;
     /* its rows in aa_cache.buf, which the lock on buf_ctx keeps to us */
     struct bitmap bm = {
         .width = DISPLAY_WIDTH,
@@ -3584,6 +3672,8 @@ struct slide_cols {
     PFreal xsnum, xsden, xsnumi, xsdeni;  /* at column xi */
     PFreal xs;          /* at column xi, when flat */
     int xi, xend;       /* its columns */
+    int offs;           /* its rows below the horizon, as the covers' DISPLAY_OFFS */
+    bool reflect;       /* with its reflection under it */
     uint8_t reftab[REFLECT_HEIGHT];
 };
 
@@ -3595,8 +3685,9 @@ struct slide_cols {
 #endif
 
 #if NUM_CORES > 1 && LCD_STRIDEFORMAT != VERTICAL_STRIDE && LCD_DEPTH == 16
-/* The COP draws from this column on, which starts a cache line in every row
-   of the framebuffer, so that the cores never share one there */
+/* The COP draws from this column on to start with (cop_from), always at the
+   start of a cache line in every row of the framebuffer, so that the cores
+   never share one there */
 #define PF_COP_FROM ((LCD_WIDTH / 2) & ~7)
 #define PF_CORES 2
 #else
@@ -3614,32 +3705,77 @@ struct strip {
 } CACHEALIGN_ATTR;
 static struct strip strips[PF_CORES];
 
+#if defined(PF_COP_FROM) && defined(HAVE_LCD_UPDATE_FROM)
+/* While the covers move, the COP shows the last frame as the next is drawn, in
+   a frame of their own that takes turns with the screen's: showing one was a
+   quarter of each frame's time, the CPU's alone. Still, they're drawn in the
+   screen's and shown as before. */
+#define PF_SHOW_ON_COP
+static pix_t *frame_other;              /* the frame besides the screen's */
+static struct frame_buffer_t frame_other_fb;
+static struct viewport frame_other_vp;
+static const pix_t *shown_later;        /* drawn, and shown as the next is */
+static const pix_t *volatile cop_show SHAREDBSS_ATTR; /* the COP shows it first */
+/* The COP decodes the music too, and then hasn't the time to show the frames as
+   well: the CPU shows them, until the COP has time to spare again */
+static bool cpu_shows;
+static int cop_behind, cop_ahead; /* frames one after another it was so */
+static volatile unsigned long cop_done_at SHAREDBSS_ATTR; /* its part, by the timer */
+#define COP_SLOW_US         1000 /* the CPU waited this long: a strip less */
+#define COP_FAST_US         200  /* and this little: a strip more */
+#define COP_BEHIND_US       2000 /* a strip and still this long: behind */
+#define COP_SHOWS_FROM      (LCD_WIDTH * 2 / 3) /* with a third of them: ahead */
+#define COP_SWITCH_FRAMES   8
+
+/* the frame left to show, as a menu or a splash comes over the screen: what was
+   drawn under it isn't shown after it, and the screen's is drawn in again */
+static void drop_frame(void)
+{
+    cop_show = NULL;
+    shown_later = NULL;
+    buffer = LCD_BUF;
+}
+#else
+static inline void drop_frame(void) {}
+#endif
+#ifdef PF_COP_FROM
+/* where the COP's part starts: showing a frame too, it takes fewer columns,
+   as many as it can do in the time the CPU does the rest */
+static volatile int cop_from SHAREDBSS_ATTR;
+#endif
+
 #if LCD_STRIDEFORMAT == VERTICAL_STRIDE
 #define STRIP_COLUMN(st, x0, x) (&buffer[BUFFER_HEIGHT * (x)])
+#define STRIP_STEP 1
 #else
-#define STRIP_COLUMN(st, x0, x) (&(st)->pixels[LCD_HEIGHT * ((x) - (x0))])
+/* The strip a row after another, as the framebuffer has them: a row of it is
+   copied out in four words, where gathering a row of columns was a pixel at a
+   time. A column steps through it by its rows. */
+#define STRIP_COLUMN(st, x0, x) (&(st)->pixels[(x) - (x0)])
+#define STRIP_STEP STRIP_W
 #endif
 
 static struct slide_cols slide_cols[2 * MAX_SLIDES_COUNT + 1];
 static int slide_cols_count;
 
 /**
-  Ready a slide to be drawn with the given alpha, behind those readied before
+  Ready a picture to be drawn as a slide is with the given alpha, in front of
+  those readied before: so many of its rows below the horizon, and its
+  reflection under it if reflect
  */
-static void add_slide(struct slide_data *slide, const int alpha)
+static void add_picture(const struct slide_data *slide, const struct dim *bmp,
+                        const int alpha, int offs, bool reflect)
 {
-    struct dim *bmp = surface(slide->slide_index);
-    if (!bmp) {
-        return;
-    }
     if (slide->angle > 255 || slide->angle < -255)
         return;
 
     struct slide_cols *s = &slide_cols[slide_cols_count];
-    s->src = (pix_t*)(sizeof(struct dim) + (char *)bmp);
+    s->src = (const pix_t*)(sizeof(struct dim) + (const char *)bmp);
     s->sw = bmp->width;
     s->sh = bmp->height;
     s->alpha = alpha;
+    s->offs = fbound(0, offs, s->sh);
+    s->reflect = reflect;
     s->slide_left = -s->sw * PFREAL_HALF + PFREAL_HALF;
 
     if (alpha == 256) { /* opaque -> copy table */
@@ -3703,6 +3839,16 @@ static void add_slide(struct slide_data *slide, const int alpha)
 }
 
 /**
+  Ready a slide to be drawn with the given alpha, in front of those readied before
+ */
+static void add_slide(struct slide_data *slide, const int alpha)
+{
+    const struct dim *bmp = surface(slide->slide_index);
+    if (bmp)
+        add_picture(slide, bmp, alpha, DISPLAY_OFFS, true);
+}
+
+/**
   One column of a slide, beyond the rows filled there already
  */
 static void render_column(const struct slide_cols *s, PFreal xs, pix_t *col,
@@ -3720,54 +3866,93 @@ static void render_column(const struct slide_cols *s, PFreal xs, pix_t *col,
     const pix_t *ptr = &s->src[column * sh];
 
     /* from the horizon up */
-    int p = (sh-1-DISPLAY_OFFS) * PFREAL_ONE;
+    int p = (sh-1-s->offs) * PFREAL_ONE;
     int plim = MAX(0, p - (LCD_HEIGHT/2-1) * dy);
     p -= *up * dy;
-    pix_t *pixel = col + (LCD_HEIGHT/2)-1 - *up;
+    pix_t *pixel = col + ((LCD_HEIGHT/2)-1 - *up) * STRIP_STEP;
     pix_t *from = pixel;
 
+    /* Faded into what's behind: black, or white as the colour turned over,
+       faded and turned back, where a pixel is a number to turn over. Each in
+       loops of its own, as these are most of a frame's time: the dark theme's
+       as they always were, without the turning */
+#if LCD_DEPTH == 16 || defined(USEGSLIB)
+    const bool light = pf_light;
+#define FADED_LIGHT(c, a) ((pix_t)~fade_color((pix_t)~(c), (a)))
+#else
+    const bool light = false;
+#define FADED_LIGHT(c, a) fade_color((c), (a))
+#endif
     if (alpha == 256) {
         while (p >= plim) {
-            *pixel-- = ptr[((unsigned)p) >> PFREAL_SHIFT];
+            *pixel = ptr[((unsigned)p) >> PFREAL_SHIFT];
+            pixel -= STRIP_STEP;
+            p -= dy;
+        }
+    } else if (light) {
+        while (p >= plim) {
+            *pixel = FADED_LIGHT(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
+            pixel -= STRIP_STEP;
             p -= dy;
         }
     } else {
         while (p >= plim) {
-            *pixel-- = fade_color(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
+            *pixel = fade_color(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
+            pixel -= STRIP_STEP;
             p -= dy;
         }
     }
-    *up += from - pixel;
+    *up += (from - pixel) / STRIP_STEP;
 
     /* from the horizon down: the rest of the slide, then its reflection */
-    p = (sh-DISPLAY_OFFS) * PFREAL_ONE;
+    p = (sh-s->offs) * PFREAL_ONE;
     plim = MIN(sh * PFREAL_ONE, p + (LCD_HEIGHT/2) * dy);
-    int plim2 = MIN(MIN(sh + REFLECT_HEIGHT, sh * 2) * PFREAL_ONE,
+    int plim2 = !s->reflect ? plim
+              : MIN(MIN(sh + REFLECT_HEIGHT, sh * 2) * PFREAL_ONE,
                     p + (LCD_HEIGHT/2) * dy);
     p += *down * dy;
     /* a slide too wide and low to reach the horizon starts at its top */
     if (p < 0)
         p = 0;
-    pixel = col + (LCD_HEIGHT/2) + *down;
+    pixel = col + ((LCD_HEIGHT/2) + *down) * STRIP_STEP;
     from = pixel;
 
     if (alpha == 256) {
         while (p < plim) {
-            *pixel++ = ptr[((unsigned)p) >> PFREAL_SHIFT];
+            *pixel = ptr[((unsigned)p) >> PFREAL_SHIFT];
+            pixel += STRIP_STEP;
+            p += dy;
+        }
+    } else if (light) {
+        while (p < plim) {
+            *pixel = FADED_LIGHT(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
+            pixel += STRIP_STEP;
             p += dy;
         }
     } else {
         while (p < plim) {
-            *pixel++ = fade_color(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
+            *pixel = fade_color(ptr[((unsigned)p) >> PFREAL_SHIFT], alpha);
+            pixel += STRIP_STEP;
             p += dy;
         }
     }
-    while (p < plim2) {
-        int ty = (((unsigned)p) >> PFREAL_SHIFT) - sh;
-        *pixel++ = fade_color(ptr[sh - 1 - ty], s->reftab[ty]);
-        p += dy;
+    if (light) {
+        while (p < plim2) {
+            int ty = (((unsigned)p) >> PFREAL_SHIFT) - sh;
+            *pixel = FADED_LIGHT(ptr[sh - 1 - ty], s->reftab[ty]);
+            pixel += STRIP_STEP;
+            p += dy;
+        }
+    } else {
+        while (p < plim2) {
+            int ty = (((unsigned)p) >> PFREAL_SHIFT) - sh;
+            *pixel = fade_color(ptr[sh - 1 - ty], s->reftab[ty]);
+            pixel += STRIP_STEP;
+            p += dy;
+        }
     }
-    *down += pixel - from;
+#undef FADED_LIGHT
+    *down += (pixel - from) / STRIP_STEP;
 }
 
 /**
@@ -3813,20 +3998,23 @@ static void render_slide_columns(const struct slide_cols *s, struct strip *st,
 static void strip_to_buffer(const struct strip *st, int x0, int w)
 {
     for (int y = 0; y < LCD_HEIGHT; y++) {
-        const pix_t *src = &st->pixels[y];
+        const pix_t *src = &st->pixels[y * STRIP_W];
         pix_t *dst = &buffer[y * BUFFER_WIDTH + x0];
-        int c = 0;
-#if LCD_DEPTH == 16 && defined(ROCKBOX_LITTLE_ENDIAN)
-        /* two pixels a write */
-        if (!((uintptr_t)dst & 3)) {
-            uint32_t *dst32 = (uint32_t *)dst;
-            for (; c + 1 < w; c += 2)
-                *dst32++ = src[c * LCD_HEIGHT]
-                         | (uint32_t)src[(c + 1) * LCD_HEIGHT] << 16;
+#if LCD_DEPTH == 16
+        /* a whole row of it on a word of both, as in the middle of the screen:
+           four words */
+        if (w == STRIP_W && STRIP_W == 8 && !((uintptr_t)dst & 3)) {
+            const uint32_t *s32 = (const uint32_t *)src;
+            uint32_t *d32 = (uint32_t *)dst;
+            d32[0] = s32[0];
+            d32[1] = s32[1];
+            d32[2] = s32[2];
+            d32[3] = s32[3];
+            continue;
         }
 #endif
-        for (; c < w; c++)
-            dst[c] = src[c * LCD_HEIGHT];
+        for (int c = 0; c < w; c++)
+            dst[c] = src[c];
     }
 }
 #endif
@@ -3855,8 +4043,7 @@ static inline void set_current_slide(const int slide_index)
 static void skip_animation_to_idle_state(void);
 static void return_to_idle_state(void)
 {
-    if (pf_state == pf_show_tracks)
-        free_borrowed_tracks();
+    free_borrowed_tracks(); /* made as an album opens, too */
     if (pf_state == pf_show_tracks ||
         pf_state == pf_cover_in ||
         pf_state == pf_cover_out)
@@ -3910,6 +4097,7 @@ static bool sort_albums(int new_sorting, bool from_settings)
         ID2P(LANG_NAME)
     };
 
+    drop_frame();
     /* Only change sorting once artwork has been inspected */
     if (aa_cache.inspected < pf_idx.album_ct)
     {
@@ -3949,9 +4137,16 @@ static bool sort_albums(int new_sorting, bool from_settings)
 
     rb->qsort(pf_idx.album_index, pf_idx.album_ct,
                   sizeof(struct album_data), compare_albums);
+#ifdef ITUNESDB_HAVE_ART
+    /* the albums elsewhere now: their slides looked for again */
+    if (album_slides)
+        rb->memset(album_slides, 0, pf_idx.album_ct * sizeof(int32_t));
+#endif
 
     /* Empty cache and restart cover loading thread */
     rb->buflib_init(&buf_ctx, (void *)pf_idx.buf, pf_idx.buf_sz);
+    /* -1 as it's read, which is what a failure to read it gives then */
+    empty_slide_hid = -1;
     empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0);
     initialize_slide_cache();
     is_initial_slide = true;
@@ -4030,7 +4225,7 @@ static void show_next_slide(void)
  */
 static void render_strips(struct strip *st, int from, int to)
 {
-    const pix_t black = G_BRIGHT(0);
+    const pix_t back = pf_back;
     for (int x0 = from; x0 < to; x0 += STRIP_W) {
         int x1 = MIN(x0 + STRIP_W, to);
         rb->memset(st->filled_up, 0, sizeof(st->filled_up));
@@ -4040,12 +4235,13 @@ static void render_strips(struct strip *st, int from, int to)
 
         for (int x = x0; x < x1; x++) {
             pix_t *col = STRIP_COLUMN(st, x0, x);
-            pix_t *top = col + (LCD_HEIGHT/2) - st->filled_up[x - x0];
-            pix_t *bottom = col + (LCD_HEIGHT/2) + st->filled_down[x - x0];
-            while (col < top)
-                *col++ = black;
-            while (bottom < STRIP_COLUMN(st, x0, x) + LCD_HEIGHT)
-                *bottom++ = black;
+            pix_t *top = col + ((LCD_HEIGHT/2) - st->filled_up[x - x0]) * STRIP_STEP;
+            pix_t *bottom = col + ((LCD_HEIGHT/2) + st->filled_down[x - x0]) * STRIP_STEP;
+            pix_t *const end = col + LCD_HEIGHT * STRIP_STEP;
+            for (; col < top; col += STRIP_STEP)
+                *col = back;
+            for (; bottom < end; bottom += STRIP_STEP)
+                *bottom = back;
         }
 #if LCD_STRIDEFORMAT != VERTICAL_STRIDE
         strip_to_buffer(st, x0, x1 - x0);
@@ -4077,10 +4273,21 @@ static void cop_thread(void)
         rb->semaphore_wait(&cop_go, TIMEOUT_BLOCK);
         if (cop_quit)
             break;
-        /* nothing of the slides kept from before */
+        /* nothing of the slides kept from before, nor of the frame shown */
         rb->commit_discard_dcache();
-        render_strips(&strips[1], PF_COP_FROM, LCD_WIDTH);
+#ifdef PF_SHOW_ON_COP
+        const pix_t *show = cop_show;
+        if (show)
+        {
+            rb->lcd_update_from(show);
+            cop_show = NULL;
+        }
+#endif
+        render_strips(&strips[1], cop_from, LCD_WIDTH);
         rb->commit_dcache();
+#ifdef PF_SHOW_ON_COP
+        cop_done_at = PF_USEC_TIMER;
+#endif
         cop_busy = false;
     }
 }
@@ -4089,6 +4296,11 @@ static void create_cop_thread(void)
 {
     cop_quit = false;
     cop_busy = false;
+    cop_from = PF_COP_FROM;
+#ifdef PF_SHOW_ON_COP
+    cpu_shows = false;
+    cop_behind = cop_ahead = 0;
+#endif
     rb->semaphore_init(&cop_go, 1, 0);
     cop_thread_id = rb->create_thread(cop_thread, cop_stack, sizeof(cop_stack),
                                       0, "PictureFlow COP"
@@ -4114,7 +4326,7 @@ static void end_cop_thread(void)
 */
 static void render_all_slides(void)
 {
-    mylcd_set_background(G_BRIGHT(0));
+    mylcd_set_background(pf_back);
     slide_cols_count = 0;
 
     int nleft = pf_cfg.num_slides;
@@ -4122,6 +4334,16 @@ static void render_all_slides(void)
 
     int alpha;
     int index;
+    int incoming_alpha = 0; /* of the one coming to the middle */
+    /* The cover coming to the middle goes in front of the one leaving it as
+       soon as it starts to, as on a stock iPod. Passing by on the way to
+       another, it does once it's the nearer of the two to the middle: the one
+       in the middle is in front again with each cover reached, rather than
+       always under the next. */
+    const int towards = step > 0 ? (slide_frame & 0xffff)
+                                 : 65536 - (slide_frame & 0xffff);
+    const bool passing = roll_speed || abs(target - center_index) > 1;
+    const bool incoming_front = !passing || towards > 32768;
     if (step == 0) {
         /* no animation, boring plain rendering */
         for (index = nleft - 2; index >= 0; index--) {
@@ -4142,16 +4364,24 @@ static void render_all_slides(void)
         /* if step<0 and nleft==1, left_slides[0] is fading in  */
         alpha = ((step > 0) ? 0 : ((nleft == 1) ? 256 : 128)) - fade / 2;
         for (index = nleft - 1; index >= 0; index--) {
-            if (alpha > 0)
-                add_slide(&left_slides[index], alpha);
+            if (alpha > 0) {
+                if (step < 0 && index == 0 && incoming_front)
+                    incoming_alpha = alpha;
+                else
+                    add_slide(&left_slides[index], alpha);
+            }
             alpha += 128;
             if (alpha > 256) alpha = 256;
         }
         /* if step>0 and nright==1, right_slides[0] is fading in  */
         alpha = ((step > 0) ? ((nright == 1) ? 128 : 0) : -128) + fade / 2;
         for (index = nright - 1; index >= 0; index--) {
-            if (alpha > 0)
-                add_slide(&right_slides[index], alpha);
+            if (alpha > 0) {
+                if (step > 0 && index == 0 && incoming_front)
+                    incoming_alpha = alpha;
+                else
+                    add_slide(&right_slides[index], alpha);
+            }
             alpha += 128;
             if (alpha > 256) alpha = 256;
         }
@@ -4159,29 +4389,97 @@ static void render_all_slides(void)
     alpha = 256;
     if (step != 0 && pf_cfg.num_slides <= 2) /* fading out center slide */
         alpha = (step > 0) ? 256 - fade / 2 : 128 + fade / 2;
-    add_slide(&center_slide, alpha);
+    /* turned to its edge, behind the tracks: not a line of it above and below */
+#if CARD_FRAME_COUNT > 0
+    if (card_frame && card_drawn)
+        add_picture(&card_slide, card, 256, card_offs(), false);
+    else
+#endif
+    if (pf_state != pf_show_tracks)
+        add_slide(&center_slide, alpha);
+    /* the cover coming to the middle over the one leaving it, as soon as it
+       starts to, as on a stock iPod: added last, it's drawn in front */
+    if (incoming_alpha > 0)
+        add_slide(step > 0 ? &right_slides[0] : &left_slides[0], incoming_alpha);
 
 #ifdef PF_COP_FROM
     if (cop_draws) {
         /* the slides out of this core's cache to the COP, and no line of
            its half of the framebuffer kept here */
         rb->commit_discard_dcache();
+        const int from = cop_from;
         cop_busy = true;
         rb->semaphore_release(&cop_go);
-        render_strips(&strips[0], 0, PF_COP_FROM);
+#ifdef PF_SHOW_ON_COP
+        const unsigned long cpu_start = PF_USEC_TIMER;
+#endif
+        render_strips(&strips[0], 0, from);
         /* Waited for without yielding, as the slide thread would move the
            slides meanwhile; a COP that doesn't come back is not used again */
         long timeout = *rb->current_tick + HZ;
+#ifdef PF_SHOW_ON_COP
+        const unsigned long wait_start = PF_USEC_TIMER;
+        const unsigned long cpu_us = wait_start - cpu_start;
+#endif
         while (cop_busy) {
             /* not every cycle: the word is in DRAM, which the COP draws
                from too */
             for (volatile int i = 0; i < 16; i++);
             if (TIME_AFTER(*rb->current_tick, timeout)) {
+                /* Too late: not used again, but let finish, as it may be
+                   drawing or showing a frame still, the slides held where
+                   they are meanwhile */
                 cop_draws = false;
-                render_strips(&strips[0], PF_COP_FROM, LCD_WIDTH);
+                buf_ctx_lock();
+                while (cop_busy)
+                    rb->sleep(1);
+                buf_ctx_unlock();
                 break;
             }
         }
+#ifdef PF_SHOW_ON_COP
+        /* Strips moved to whichever core waited, of the 40 a little more than
+           a millisecond's work each: as many as make up half the time it
+           waited, a strip at least, so that they're even again within a few
+           frames of the music's pausing or going on. A strip a frame took a
+           second and more. Waiting under 0.2 ms, the COP was through first, by
+           as long before the CPU as it was. */
+        const unsigned long waited = PF_USEC_TIMER - wait_start;
+        const long strip_us = MAX(cpu_us / MAX(from / STRIP_W, 1), 200ul);
+        if (waited > COP_SLOW_US && from < LCD_WIDTH - STRIP_W)
+        {
+            const int strips_more = MAX((long)waited / (4 * strip_us), 1);
+            cop_from = MIN(from + strips_more * STRIP_W, LCD_WIDTH - STRIP_W);
+        }
+        else if (waited < COP_FAST_US && from > STRIP_W)
+        {
+            const long ahead = (long)(wait_start - cop_done_at);
+            const int strips_less = MAX(ahead / (4 * strip_us), 1);
+            cop_from = MAX(from - strips_less * STRIP_W, STRIP_W);
+        }
+        /* Showing the frames, the COP behind with only a strip of its own,
+           COP_SWITCH_FRAMES on end: the CPU shows them. Then with a third of
+           them and more, as without music: the COP again. */
+        if (!cpu_shows)
+        {
+            cop_behind = from >= LCD_WIDTH - STRIP_W && waited > COP_BEHIND_US
+                         ? cop_behind + 1 : 0;
+            if (cop_behind >= COP_SWITCH_FRAMES)
+            {
+                cpu_shows = true;
+                cop_behind = 0;
+            }
+        }
+        else
+        {
+            cop_ahead = from <= COP_SHOWS_FROM ? cop_ahead + 1 : 0;
+            if (cop_ahead >= COP_SWITCH_FRAMES)
+            {
+                cpu_shows = false;
+                cop_ahead = 0;
+            }
+        }
+#endif
         return;
     }
 #endif
@@ -4242,15 +4540,16 @@ static void update_scroll_animation(void)
         const int left = step > 0 ? number_of_slides - 1 - center_index
                                   : center_index;
         if (roll_free)
-            roll_aim -= roll_aim / ROLL_FRICTION;
+            roll_aim -= roll_aim * anim_part / (ROLL_FRICTION * ANIM_ONE);
         else
-            roll_carry -= roll_carry / ROLL_FRICTION;
+            roll_carry -= roll_carry * anim_part / (ROLL_FRICTION * ANIM_ONE);
         /* another flick takes them out of it */
         if (roll_settling && roll_aim >= ROLL_SPEED_MIN)
             roll_settling = false;
         if (!roll_settling) {
             roll_speed += (fmin(roll_aim, left * ROLL_LAST_SLIDES + ROLL_LAST_SPEED)
-                           - roll_speed) / ROLL_FOLLOW;
+                           - roll_speed) * fmin(anim_part, ROLL_FOLLOW * ANIM_ONE)
+                          / (ROLL_FOLLOW * ANIM_ONE);
             roll_speed = fmax(roll_speed, ROLL_SPEED_MIN);
             /* the last slide being nearer than that, they stop on it as usual */
             if (target == center_index + 2 * step)
@@ -4272,7 +4571,15 @@ static void update_scroll_animation(void)
     }
     anim_speed = speed;
 
-    slide_frame += speed * step;
+    /* as far as the time of the frame takes them, and not past the cover they
+       stop on, which a stall would: going back, they are on it below its place */
+    /* never still, as a cover just reached going back would be the one left */
+    int move = fmax(speed * anim_part / ANIM_ONE, 1);
+    const int way = step > 0 ? (target << 16) - slide_frame
+                             : slide_frame - ((target << 16) - 1);
+    if (way >= 0 && move > way)
+        move = way;
+    slide_frame += move * step;
 
     int index = slide_frame >> 16;
     int pos = slide_frame & 0xffff;
@@ -4365,12 +4672,258 @@ static void update_scroll_animation(void)
 }
 
 
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+/* The tracks on the back of the cover, as a stock iPod shows them: a panel in
+   the middle with the album and its artist at its top, in the theme's colours of
+   a selection, its tracks and their lengths under them, the covers aside behind */
+#define PANEL_W      (LCD_WIDTH * 5 / 8)
+#define PANEL_X      ((LCD_WIDTH - PANEL_W) / 2)
+#define PANEL_HEAD   40
+#define PANEL_ROW    20
+#define PANEL_ROWS   8
+#define PANEL_H      (PANEL_HEAD + PANEL_ROW * PANEL_ROWS)
+#define PANEL_Y      ((LCD_HEIGHT - PANEL_H) / 2)
+#define PANEL_PAD    6    /* the text's from the panel's sides */
+#define PANEL_GAP    8    /* between a track's name and its length */
+
+static int panel_font = FONT_UI;        /* of the tracks */
+static int panel_small_font = FONT_UI;  /* of the artist */
+/* where the panel is drawn: on the screen, or into the card that turns into it */
+static int panel_ox = PANEL_X, panel_oy = PANEL_Y;
+static struct frame_buffer_t *panel_fb; /* NULL for the screen's */
+
+/* The theme's, which are loaded already: asked for with as many glyphs as it
+   has them, so they are shared as they are and take no room of their own */
+static void load_panel_fonts(void)
+{
+    const int glyphs = rb->global_settings->glyphs_to_cache;
+    int id = rb->font_load_ex(FONT_DIR "/17-Inter-SemiBold.fnt", 0, glyphs);
+    panel_font = id >= 0 ? id : FONT_UI;
+    id = rb->font_load_ex(FONT_DIR "/14-Inter-SemiBold.fnt", 0, glyphs);
+    panel_small_font = id >= 0 ? id : FONT_UI;
+}
+
+static void unload_panel_fonts(void)
+{
+    if (panel_font != FONT_UI)
+        rb->font_unload(panel_font);
+    if (panel_small_font != FONT_UI)
+        rb->font_unload(panel_small_font);
+    panel_font = panel_small_font = FONT_UI;
+}
+
+/* the theme's selection, its start colour at the top, its end at the bottom */
+static void panel_gradient(int x, int y, int w, int h)
+{
+    const unsigned a = rb->global_settings->lss_color;
+    const unsigned b = rb->global_settings->lse_color;
+    rb->lcd_set_drawmode(DRMODE_SOLID);
+    for (int r = 0; r < h; r++)
+    {
+        const int t = h > 1 ? r * 256 / (h - 1) : 0;
+        rb->lcd_set_foreground(LCD_RGBPACK(
+            RGB_UNPACK_RED(a) + (RGB_UNPACK_RED(b) - RGB_UNPACK_RED(a)) * t / 256,
+            RGB_UNPACK_GREEN(a) + (RGB_UNPACK_GREEN(b) - RGB_UNPACK_GREEN(a)) * t / 256,
+            RGB_UNPACK_BLUE(a) + (RGB_UNPACK_BLUE(b) - RGB_UNPACK_BLUE(a)) * t / 256));
+        rb->lcd_hline(x, x + w - 1, y + r);
+    }
+}
+
+/* str as it fits in width in the current font, cut with an ellipsis */
+static const char *fit_text(const char *str, int width, char *buf, size_t size)
+{
+    static const char ellipsis[] = "\xe2\x80\xa6";
+    int w = rb->lcd_getstringsize(str, NULL, NULL);
+    if (w <= width)
+        return str;
+    const int ew = rb->lcd_getstringsize(ellipsis, NULL, NULL);
+    size_t fits = 0, len = 0;
+    while (str[len] && len + sizeof(ellipsis) < size)
+    {
+        /* to the end of this character */
+        size_t next = len + 1;
+        while ((str[next] & 0xc0) == 0x80)
+            next++;
+        if (next + sizeof(ellipsis) > size)
+            break;
+        rb->memcpy(buf, str, next);
+        buf[next] = '\0';
+        if (rb->lcd_getstringsize(buf, NULL, NULL) + ew > width)
+            break;
+        fits = len = next;
+    }
+    rb->memcpy(buf + fits, ellipsis, sizeof(ellipsis));
+    return buf;
+}
+
+static void draw_track_panel(bool loading)
+{
+    const bool light = pf_light;
+    const unsigned ink = light ? LCD_BLACK : LCD_RGBPACK(242, 242, 246);
+    const unsigned paper = light ? LCD_WHITE : LCD_RGBPACK(28, 28, 30);
+    const unsigned edge = light ? LCD_RGBPACK(190, 190, 190) : LCD_RGBPACK(64, 64, 68);
+    const unsigned sel_ink = rb->global_settings->lst_color;
+    const int px = panel_ox, py = panel_oy;
+    const int text_x = px + PANEL_PAD, text_w = PANEL_W - 2 * PANEL_PAD;
+    char buf[MAX_PATH];
+
+    rb->lcd_set_drawmode(DRMODE_SOLID);
+    rb->lcd_set_foreground(edge);
+    rb->lcd_drawrect(px - 1, py - 1, PANEL_W + 2, PANEL_H + 2);
+    rb->lcd_set_foreground(paper);
+    rb->lcd_fillrect(px, py + PANEL_HEAD, PANEL_W, PANEL_H - PANEL_HEAD);
+    panel_gradient(px, py, PANEL_W, PANEL_HEAD);
+
+    /* the album and its artist */
+    rb->lcd_set_drawmode(DRMODE_FG);
+    rb->lcd_set_foreground(sel_ink);
+    int album_idx = 0;
+    const int idx = center_slide.slide_index;
+    const char *album = get_album_name_idx(idx, &album_idx);
+    /* the album at the top, the artist's line at the bottom, 3 from it */
+    rb->lcd_setfont(FONT_UI);
+    if (album_idx != (int) pf_idx.album_untagged_idx)
+        rb->lcd_putsxy(text_x, py + 1, fit_text(album, text_w, buf, sizeof(buf)));
+    rb->lcd_setfont(panel_small_font);
+    rb->lcd_putsxy(text_x, py + PANEL_HEAD - 3 - rb->font_get(panel_small_font)->height,
+                   fit_text(get_album_artist(idx), text_w, buf, sizeof(buf)));
+
+    rb->lcd_setfont(panel_font);
+    const int fh = rb->font_get(panel_font)->height;
+    int y = py + PANEL_HEAD;
+    if (loading)
+    {
+        rb->lcd_set_foreground(ink);
+        const char *wait = rb->str(LANG_WAIT);
+        rb->lcd_putsxy(px + (PANEL_W - rb->lcd_getstringsize(wait, NULL, NULL)) / 2,
+                       y + (PANEL_H - PANEL_HEAD - fh) / 2, wait);
+        rb->lcd_setfont(FONT_UI);
+        return;
+    }
+
+    for (int i = pf_tracks.list_start;
+         i < pf_tracks.list_start + pf_tracks.list_visible; i++, y += PANEL_ROW)
+    {
+        const bool selected = i == pf_tracks.sel && !show_tracks_while_browsing;
+        if (selected)
+            panel_gradient(px, y, PANEL_W, PANEL_ROW);
+        rb->lcd_set_drawmode(DRMODE_FG);
+        rb->lcd_set_foreground(selected ? sel_ink : ink);
+        const int ty = y + (PANEL_ROW - fh) / 2;
+
+        /* its length at the right, the name in what's left */
+        int secs = pf_tracks.index[i].length, room = text_w;
+        if (secs > 0)
+        {
+            char length[16];
+            if (secs >= 3600)
+                rb->snprintf(length, sizeof(length), "%d:%02d:%02d",
+                             secs / 3600, secs / 60 % 60, secs % 60);
+            else
+                rb->snprintf(length, sizeof(length), "%d:%02d", secs / 60, secs % 60);
+            const int lw = rb->lcd_getstringsize(length, NULL, NULL);
+            rb->lcd_putsxy(text_x + text_w - lw, ty, length);
+            room = text_w - lw - PANEL_GAP;
+        }
+
+        char *name = get_track_name(i);
+        if (!selected)
+        {
+            rb->lcd_putsxy(text_x, ty, fit_text(name, room, buf, sizeof(buf)));
+            continue;
+        }
+        /* the chosen one scrolls when it doesn't fit, within its place */
+        if (pf_tracks.sel != pf_tracks.last_sel)
+        {
+            set_scroll_line_in(name, PF_SCROLL_TRACK, room, false);
+            pf_tracks.last_sel = pf_tracks.sel;
+        }
+        struct viewport vp;
+        rb->memset(&vp, 0, sizeof(vp));
+        rb->viewport_set_fullscreen(&vp, SCREEN_MAIN);
+        rb->viewport_set_buffer(&vp, panel_fb, SCREEN_MAIN);
+        vp.x = text_x;
+        vp.y = ty;
+        vp.width = room;
+        vp.height = fh;
+        vp.font = panel_font;
+        vp.drawmode = DRMODE_FG;
+        struct viewport *const last = rb->lcd_set_viewport(&vp);
+        rb->lcd_set_foreground(sel_ink);
+        rb->lcd_putsxy(get_scroll_line_offset(PF_SCROLL_TRACK), 0, name);
+        rb->lcd_set_viewport(last);
+        rb->lcd_setfont(panel_font);
+    }
+    rb->lcd_setfont(FONT_UI);
+}
+
+/* the panel of the album in the middle into the card, false without its tracks */
+static bool make_card(void)
+{
+    card_drawn = false;
+    if (!card || !CARD_SQUARE)
+        return false;
+    if (center_slide.slide_index != pf_tracks.cur_idx)
+    {
+#ifdef HAVE_TC_RAMCACHE
+        /* the database from the disk shows its wait first */
+        if (!rb->tagcache_is_in_ram())
+            return false;
+#endif
+        create_track_index(center_slide.slide_index);
+        if (pf_tracks.count == 0)
+        {
+            free_borrowed_tracks();
+            return false;
+        }
+        reset_track_list();
+    }
+
+    pix_t *pixels = (pix_t *)(card + 1);
+    static struct frame_buffer_t card_fb;
+    card_fb.fb_ptr = pixels;
+    card_fb.get_address_fn = NULL;
+    card_fb.stride = CARD_W;
+    card_fb.elems = CARD_W * CARD_H;
+    struct viewport vp;
+    rb->memset(&vp, 0, sizeof(vp));
+    rb->viewport_set_fullscreen(&vp, SCREEN_MAIN);
+    rb->viewport_set_buffer(&vp, &card_fb, SCREEN_MAIN);
+    vp.x = vp.y = 0;
+    vp.width = CARD_W;
+    vp.height = CARD_H;
+    struct viewport *const last = rb->lcd_set_viewport(&vp);
+    panel_ox = panel_oy = 1;
+    panel_fb = &card_fb;
+    draw_track_panel(false);
+    panel_fb = NULL;
+    panel_ox = PANEL_X;
+    panel_oy = PANEL_Y;
+    rb->lcd_set_viewport(last);
+
+    /* its rows into columns, as the slides have them */
+    for (int y = 0; y < CARD_H; y++)
+        for (int x = y + 1; x < CARD_W; x++)
+        {
+            const pix_t t = pixels[y * CARD_W + x];
+            pixels[y * CARD_W + x] = pixels[x * CARD_H + y];
+            pixels[x * CARD_H + y] = t;
+        }
+    card->width = CARD_W;
+    card->height = CARD_H;
+    card_drawn = true;
+    card_album = center_slide.slide_index;
+    return true;
+}
+#endif /* ITUNESDB_HAVE_ART && HAVE_LCD_COLOR */
+
 /**
   Cleanup the plugin
 */
 static void cleanup(void)
 {
     wants_to_quit = true;
+    drop_frame();
 #ifdef HAVE_WHEEL_POSITION
     /* not otherwise, as the timer may be the backlight's, fading */
     if (wheel_timer_set)
@@ -4389,9 +4942,16 @@ static void cleanup(void)
 #ifdef PF_COP_FROM
     end_cop_thread();
 #endif
+#ifdef ITUNESDB_HAVE_ART
+    rb->itunesdb_slides_done();
+#endif
+    rb->pcmbuf_hold_for_ui(0); /* the music goes on decoding at once */
 
     /* Turn on backlight timeout (revert to settings) */
     backlight_use_settings();
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+    unload_panel_fonts();
+#endif
 
 #ifdef USEGSLIB
     grey_release();
@@ -4707,12 +5267,53 @@ static int main_menu(void)
 #define ZOOMIN_FRAME_COUNT  13
 #define ZOOMIN_FRAME_DIST   -7
 #define ZOOMIN_FRAME_ANGLE  1
+#ifdef ITUNESDB_HAVE_ART
+/* the covers aside stay as they are behind the tracks, as on a stock iPod */
+#define ZOOMIN_FRAME_FADE   0
+#else
 #define ZOOMIN_FRAME_FADE   19
+#endif
 
 #define ROTATE_FRAME_COUNT  10
 #define ROTATE_FRAME_ANGLE  24
 
-#define KEYFRAME_COUNT ZOOMIN_FRAME_COUNT + ROTATE_FRAME_COUNT
+#define KEYFRAME_COUNT (ZOOMIN_FRAME_COUNT + ROTATE_FRAME_COUNT)
+
+#define ALL_KEYFRAMES       (KEYFRAME_COUNT + CARD_FRAME_COUNT)
+
+/* The opening as it is that many key frames in, the closing the same way back */
+static void set_cover_animation(int keyframe)
+{
+    const int zoom = fbound(0, keyframe, ZOOMIN_FRAME_COUNT);
+    const int turn = fbound(0, keyframe - ZOOMIN_FRAME_COUNT, ROTATE_FRAME_COUNT);
+    center_slide.distance = zoom * ZOOMIN_FRAME_DIST;
+    center_slide.angle = zoom * ZOOMIN_FRAME_ANGLE + turn * ROTATE_FRAME_ANGLE;
+    extra_fade = zoom * ZOOMIN_FRAME_FADE;
+    card_frame = fbound(0, keyframe - KEYFRAME_COUNT, CARD_FRAME_COUNT);
+#if CARD_FRAME_COUNT > 0
+    if (card_frame)
+    {
+        /* the other side, turned on from where the cover's edge was */
+        const int left = CARD_FRAME_COUNT - card_frame;
+        card_slide.slide_index = -1;
+        card_slide.angle = fmin(0, center_slide.angle
+                                   + card_frame * ROTATE_FRAME_ANGLE - IANGLE_MAX / 2);
+        card_slide.cx = card_slide.cy = 0;
+        card_slide.distance = CARD_FRAME_DIST * left / CARD_FRAME_COUNT;
+    }
+#endif
+}
+
+/* the card's rows below the horizon, as it comes */
+static int card_offs(void)
+{
+#if CARD_FRAME_COUNT > 0
+    return CARD_FRAME_OFFS
+           + (CARD_OFFS - CARD_FRAME_OFFS) * card_frame / CARD_FRAME_COUNT;
+#else
+    return DISPLAY_OFFS;
+#endif
+}
 
 /**
    Animation step for zooming into the current cover
@@ -4720,20 +5321,21 @@ static int main_menu(void)
 static void update_cover_in_animation(void)
 {
     cover_animation_keyframe++;
-
-    if(cover_animation_keyframe <= ZOOMIN_FRAME_COUNT)
-    {
-        center_slide.distance += ZOOMIN_FRAME_DIST;
-        center_slide.angle +=    ZOOMIN_FRAME_ANGLE;
-        extra_fade +=            ZOOMIN_FRAME_FADE;
-    }
-    else if(cover_animation_keyframe <= KEYFRAME_COUNT)
-        center_slide.angle += ROTATE_FRAME_ANGLE;
-    else
+#if CARD_FRAME_COUNT > 0
+    /* the card when the cover is on its edge, made as it started; without one,
+       the panel then */
+    if (cover_animation_keyframe == KEYFRAME_COUNT + 1
+        && !(card_drawn && card_album == center_slide.slide_index) && !make_card())
+        cover_animation_keyframe = ALL_KEYFRAMES + 1;
+#endif
+    if (cover_animation_keyframe > ALL_KEYFRAMES)
     {
         cover_animation_keyframe = 0;
+        card_frame = 0;
         pf_state = pf_show_tracks;
+        return;
     }
+    set_cover_animation(cover_animation_keyframe);
 }
 
 /**
@@ -4742,20 +5344,34 @@ static void update_cover_in_animation(void)
 static void update_cover_out_animation(void)
 {
     cover_animation_keyframe++;
-
-    if(cover_animation_keyframe <= ROTATE_FRAME_COUNT)
-        center_slide.angle -= ROTATE_FRAME_ANGLE;
-    else if(cover_animation_keyframe <= KEYFRAME_COUNT)
-    {
-        center_slide.distance -= ZOOMIN_FRAME_DIST;
-        center_slide.angle -=    ZOOMIN_FRAME_ANGLE;
-        extra_fade -=            ZOOMIN_FRAME_FADE;
-    }
-    else
+    if (cover_animation_keyframe >= ALL_KEYFRAMES)
     {
         cover_animation_keyframe = 0;
+        card_frame = 0;
+#if CARD_FRAME_COUNT > 0
+        card_drawn = false;
+#endif
+        free_borrowed_tracks();
+        set_cover_animation(0);
         pf_state = pf_idle;
+        return;
     }
+    set_cover_animation(ALL_KEYFRAMES - cover_animation_keyframe);
+}
+
+/* From the tracks back to the covers: the card of them as they are now, which
+   turns back into the cover. They're let go once it's closed, as the album may
+   open again on the way, as it was */
+static void start_cover_out(void)
+{
+    cover_animation_keyframe = 0;
+#if CARD_FRAME_COUNT > 0
+    if (pf_state != pf_show_tracks
+        || pf_tracks.cur_idx != center_slide.slide_index || !make_card())
+        cover_animation_keyframe = CARD_FRAME_COUNT; /* from the cover's edge */
+#endif
+    pf_state = pf_cover_out;
+    set_cover_animation(ALL_KEYFRAMES - cover_animation_keyframe);
 }
 
 /**
@@ -4765,11 +5381,8 @@ static void skip_animation_to_show_tracks(void)
 {
     pf_state = pf_show_tracks;
     cover_animation_keyframe = 0;
-
-    extra_fade =            ZOOMIN_FRAME_COUNT * ZOOMIN_FRAME_FADE;
-    center_slide.distance = ZOOMIN_FRAME_COUNT * ZOOMIN_FRAME_DIST;
-    center_slide.angle   = (ZOOMIN_FRAME_COUNT * ZOOMIN_FRAME_ANGLE) +
-                           (ROTATE_FRAME_COUNT * ROTATE_FRAME_ANGLE);
+    set_cover_animation(KEYFRAME_COUNT);
+    card_frame = 0;
 }
 
 /**
@@ -4777,8 +5390,13 @@ static void skip_animation_to_show_tracks(void)
 */
 static void skip_animation_to_idle_state(void)
 {
+    free_borrowed_tracks();
     pf_state = pf_idle;
     cover_animation_keyframe = 0;
+    card_frame = 0;
+#if CARD_FRAME_COUNT > 0
+    card_drawn = false;
+#endif
     extra_fade = 0;
     set_current_slide(center_index);
 }
@@ -4789,9 +5407,10 @@ static void skip_animation_to_idle_state(void)
 static void reverse_animation(void)
 {
     pf_state = pf_state == pf_cover_out ? pf_cover_in : pf_cover_out;
-    cover_animation_keyframe = KEYFRAME_COUNT - cover_animation_keyframe;
+    cover_animation_keyframe = ALL_KEYFRAMES - cover_animation_keyframe;
 }
 
+#if !(defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR))
 /**
    Draw a blue gradient at y with height h
  */
@@ -4849,12 +5468,19 @@ static void track_list_yh(int char_height)
             break;
     }
 }
+#endif /* the plugin's own list of tracks */
 
 /**
     Reset the track list after a album change
  */
 void reset_track_list(void)
 {
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+    pf_tracks.list_visible = MIN(PANEL_ROWS, pf_tracks.count);
+    pf_tracks.list_start = 0;
+    pf_tracks.sel = 0;
+    pf_tracks.last_sel = -1;
+#else
     int char_height = rb->screens[SCREEN_MAIN]->getcharheight();
     int total_height;
     track_list_yh(char_height);
@@ -4873,11 +5499,16 @@ void reset_track_list(void)
         pf_tracks.list_y += (pf_tracks.list_h - total_height) / 2;
         pf_tracks.list_h = total_height;
     }
+#endif
 }
 
 static void draw_album_text(void);
 static void show_track_list_loading(void)
 {
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+    draw_track_panel(true);
+    mylcd_update();
+#else
     int x = (LCD_WIDTH - mylcd_getstringsize(rb->str(LANG_WAIT), NULL, NULL)) / 2;
     mylcd_set_foreground(G_BRIGHT(255));
     int char_height = rb->screens[SCREEN_MAIN]->getcharheight();
@@ -4887,6 +5518,7 @@ static void show_track_list_loading(void)
     draw_album_text();
     mylcd_update();
     mylcd_clear_display();
+#endif
 }
 
 /**
@@ -4894,7 +5526,11 @@ static void show_track_list_loading(void)
  */
 static bool show_track_list(void)
 {
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+    render_all_slides();
+#else
     mylcd_clear_display();
+#endif
     if ( center_slide.slide_index != pf_tracks.cur_idx ) {
 #ifdef HAVE_TC_RAMCACHE
         if (!rb->tagcache_is_in_ram())
@@ -4903,12 +5539,14 @@ static bool show_track_list(void)
         create_track_index(center_slide.slide_index);
         if (pf_tracks.count == 0)
         {
-            pf_state = pf_cover_out;
-            free_borrowed_tracks();
+            start_cover_out();
             return false;
         }
         reset_track_list();
     }
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+    draw_track_panel(false);
+#else
     int titletxt_w, titletxt_x, color, titletxt_h;
     titletxt_h = rb->screens[SCREEN_MAIN]->getcharheight();
 
@@ -4939,7 +5577,7 @@ static bool show_track_list(void)
         mylcd_putsxy(titletxt_x,titletxt_y,trackname);
         titletxt_y += titletxt_h;
     }
-
+#endif
     return true;
 }
 
@@ -5288,6 +5926,11 @@ static void draw_album_text(void)
 
     if (pf_cfg.show_album_name == ALBUM_NAME_HIDE)
         return;
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+    /* the card over where it was, and then the panel */
+    if (pf_state == pf_show_tracks || card_frame)
+        return;
+#endif
 
     static int prev_albumtxt_index = -1;
     static bool prev_show_year = false;
@@ -5298,23 +5941,16 @@ static void draw_album_text(void)
 
     char *albumtxt;
     char *artisttxt;
-    int c;
-    /* Draw album text */
+    /* the album in the middle, or the one coming to it from half way there: its
+       name at once, as on a stock iPod. Faded out and in between albums, the
+       names blinked as the covers rolled by. */
+    albumtxt_index = center_index;
     if ( pf_state == pf_scrolling ) {
-        c = ((slide_frame & 0xffff )/ 255);
-        if (step < 0) c = 255-c;
-        if (c > 128 ) { /* half way to next slide .. still not perfect! */
-            albumtxt_index = center_index+step;
-            c = (c-128)*2;
-        }
-        else {
-            albumtxt_index = center_index;
-            c = (128-c)*2;
-        }
-    }
-    else {
-        albumtxt_index = center_index;
-        c= 255;
+        int part = (slide_frame & 0xffff) / 255;
+        if (step < 0)
+            part = 255 - part;
+        if (part > 128)
+            albumtxt_index = center_index + step;
     }
     albumtxt = get_album_name_idx(albumtxt_index, &album_idx);
 
@@ -5325,8 +5961,13 @@ static void draw_album_text(void)
     } else
         rb->snprintf(album_and_year, sizeof(album_and_year), "%s", albumtxt);
 
-    mylcd_set_foreground(G_BRIGHT(c));
-    if (albumtxt_index != prev_albumtxt_index || pf_cfg.show_year != prev_show_year) {
+    /* dark on the light behind the covers */
+    mylcd_set_foreground(pf_light ? G_BRIGHT(0) : G_BRIGHT(255));
+    /* measured once an album, and the artist's then too, which set each frame
+       was measured each and never scrolled */
+    const bool new_album = albumtxt_index != prev_albumtxt_index
+                           || pf_cfg.show_year != prev_show_year;
+    if (new_album) {
         set_scroll_line(album_and_year, PF_SCROLL_ALBUM);
         prev_albumtxt_index = albumtxt_index;
         prev_show_year = pf_cfg.show_year;
@@ -5357,9 +5998,15 @@ static void draw_album_text(void)
             mylcd_putsxy(albumtxt_x, albumtxt_y, album_and_year);
 
         artisttxt = get_album_artist(albumtxt_index);
-        set_scroll_line(artisttxt, PF_SCROLL_ARTIST);
+        if (new_album)
+            set_scroll_line(artisttxt, PF_SCROLL_ARTIST);
         artisttxt_x = get_scroll_line_offset(PF_SCROLL_ARTIST);
+#ifdef ITUNESDB_HAVE_ART
+        /* the two lines close together, as on a stock iPod */
+        int y_offset = COVER_FLOW_LINES;
+#else
         int y_offset = char_height + char_height/2;
+#endif
         mylcd_putsxy(artisttxt_x, albumtxt_y + y_offset, artisttxt);
     } else {
         mylcd_putsxy(albumtxt_x, albumtxt_y, album_and_year);
@@ -5388,6 +6035,10 @@ static bool init(void)
 #endif
 
     wants_to_quit = false;
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+    pf_light = !rb->global_settings->dark_theme;
+#endif
+    pf_back = pf_light ? G_BRIGHT(255) : G_BRIGHT(0);
 
     /* must appear before config load */
     rb->memset(&aa_cache, 0, sizeof(struct albumart_t));
@@ -5441,6 +6092,9 @@ static bool init(void)
     pf_idx.buf_sz = buf_size;
 
     rb->lcd_setfont(FONT_UI);
+#if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
+    load_panel_fonts();
+#endif
 
     if (!rb->dir_exists(CACHE_PREFIX))
     {
@@ -5500,6 +6154,48 @@ static bool init(void)
 
     pf_idx.buf += aa_bufsz;
     pf_idx.buf_sz -= aa_bufsz;
+#ifdef ITUNESDB_HAVE_ART
+    const size_t slides_sz = ALIGN_UP(pf_idx.album_ct * sizeof(int32_t), sizeof(long));
+    album_slides = NULL;
+    if (slides_sz < pf_idx.buf_sz / 8)
+    {
+        album_slides = (int32_t *)pf_idx.buf;
+        rb->memset(album_slides, 0, slides_sz);
+        pf_idx.buf += slides_sz;
+        pf_idx.buf_sz -= slides_sz;
+    }
+#endif
+#ifdef PF_SHOW_ON_COP
+    /* the second frame, if it leaves the covers room, on cache lines of its
+       own as the COP reads it */
+    frame_other = NULL;
+    shown_later = NULL;
+    ALIGN_BUFFER(pf_idx.buf, pf_idx.buf_sz, 32);
+    const size_t frame_sz = LCD_WIDTH * LCD_HEIGHT * sizeof(pix_t);
+    if (frame_sz < pf_idx.buf_sz / 4)
+    {
+        frame_other = (pix_t *)pf_idx.buf;
+        frame_other_fb.fb_ptr = frame_other;
+        frame_other_fb.get_address_fn = NULL;
+        frame_other_fb.stride = 0;
+        frame_other_fb.elems = LCD_WIDTH * LCD_HEIGHT;
+        pf_idx.buf = (char *)pf_idx.buf + frame_sz;
+        pf_idx.buf_sz -= frame_sz;
+    }
+#endif
+#if CARD_FRAME_COUNT > 0
+    /* the card, if it leaves the covers room */
+    card = NULL;
+    card_drawn = false;
+    ALIGN_BUFFER(pf_idx.buf, pf_idx.buf_sz, sizeof(long));
+    const size_t card_sz = sizeof(struct dim) + CARD_W * CARD_H * sizeof(pix_t);
+    if (CARD_SQUARE && card_sz < pf_idx.buf_sz / 4)
+    {
+        card = (struct dim *)pf_idx.buf;
+        pf_idx.buf = (char *)pf_idx.buf + card_sz;
+        pf_idx.buf_sz -= card_sz;
+    }
+#endif
 
     rb->buflib_init(&buf_ctx, (void *)pf_idx.buf, pf_idx.buf_sz);
     initialize_slide_cache();
@@ -5519,18 +6215,10 @@ static bool init(void)
     bool background_note = true;
 #endif
 #ifdef ITUNESDB_HAVE_ART
-    /* With covers Finder made, which are read as they are shown, only the
-       other albums need theirs made, and that in the background: making a
-       file of each cover first took minutes for a thousand albums */
-    struct itunesdb_art art;
-    for (int i = 0; prepare && i < MIN(pf_idx.album_ct, 16); i++)
-    {
-        if (find_ipod_cover(i, &art))
-        {
-            prepare = false;
-            aa_cache.idx = aa_cache.inspected = aa_cache.slides = 0;
-        }
-    }
+    /* The covers are the slides made at Updating Library of those Finder made:
+       nothing is read of the music's files here, neither now nor while it
+       stands still. Of an album without one the note shows, as on an iPod. */
+    prepare = false;
 #endif
     if (prepare && !create_albumart_cache())
     {
@@ -5543,7 +6231,11 @@ static bool init(void)
     if (pf_cfg.cache_version != CACHE_VERSION)
         config_save(CACHE_VERSION, pf_cfg.update_albumart);
 
-    if ((empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0)) < 0)
+    /* made again if it doesn't read, as when power was cut as it was written */
+    empty_slide_hid = -1; /* what a failure to read it gives */
+    if ((empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0)) < 0
+        && (!create_empty_slide(true)
+            || (empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0)) < 0))
     {
         error_wait("Unable to load empty slide image");
         return false;
@@ -5773,6 +6465,68 @@ static void watch_wheel(void)
 }
 #endif /* HAVE_WHEEL_POSITION */
 
+#ifdef PF_SHOW_ON_COP
+/* The frame drawn last on the screen, if the COP was to show it, and the
+   screen's to draw in again */
+static void show_frame_now(void)
+{
+    cop_show = NULL;
+    const pix_t *frame = shown_later;
+    shown_later = NULL;
+    buffer = LCD_BUF;
+    if (!frame)
+        return;
+    if (frame != LCD_BUF)
+        rb->memcpy(LCD_BUF, frame, LCD_WIDTH * LCD_HEIGHT * sizeof(pix_t));
+    mylcd_update();
+}
+
+/* The lines over a frame go into the one it's drawn in: the viewport to go
+   back to, NULL if that's the screen's */
+static struct viewport *draw_in_frame(void)
+{
+    if (buffer == LCD_BUF)
+        return NULL;
+    struct viewport *vp = rb->lcd_set_viewport(NULL);
+    rb->lcd_set_viewport(vp);
+    frame_other_vp = *vp;
+    frame_other_vp.buffer = &frame_other_fb;
+    rb->lcd_set_viewport(&frame_other_vp);
+    return vp;
+}
+#endif
+
+static unsigned long anim_now(void)
+{
+#ifdef PF_USEC_TIMER
+    return PF_USEC_TIMER;
+#else
+    return (unsigned long)*rb->current_tick * (1000000 / HZ);
+#endif
+}
+
+/* Once a frame: the time since the last one, which the animation goes on by;
+   the first of one goes a frame's way */
+static void anim_clock_tick(bool animating)
+{
+    const unsigned long now = anim_now();
+    if (!animating)
+        anim_clock_running = false;
+    else if (!anim_clock_running)
+    {
+        anim_part = ANIM_ONE;
+        anim_keys = 0;
+        anim_clock_running = true;
+    }
+    else
+    {
+        const unsigned long us = MIN(now - anim_clock,
+                                     (unsigned long)ANIM_FRAME_US * ANIM_MOST / ANIM_ONE);
+        anim_part = us * ANIM_ONE / ANIM_FRAME_US;
+    }
+    anim_clock = now;
+}
+
 /**
   Main function that also contain the main plasma
   algorithm.
@@ -5789,7 +6543,11 @@ static int pictureflow_main(void)
     int fps = 0;
     int fpstxt_y;
     bool instant_update;
-    long load_after = *rb->current_tick;
+    /* Still covers are drawn again only when something on them changed: a
+       cover that came, a line that scrolls, a button, which may have been a
+       menu over them. Each of the others is a fifth of a second of the CPU's. */
+    bool idle_shown = false;
+    unsigned idle_slides = 0;
 
 #ifdef HAVE_WHEEL_POSITION
     wheel_timer_set = rb->timer_register(1, NULL, TIMER_FREQ / WHEEL_READS, wheel_read
@@ -5807,10 +6565,31 @@ static int pictureflow_main(void)
         /* Initial rendering */
         instant_update = false;
 
-        update_scroll_lines();
+        const unsigned lines_moved = update_scroll_lines();
 #ifdef HAVE_WHEEL_POSITION
         watch_wheel();
 #endif
+        const bool animating = pf_state == pf_scrolling || pf_state == pf_cover_in
+                               || pf_state == pf_cover_out;
+        anim_clock_tick(animating);
+        /* the music decoded ahead of the covers, and while they move not, as
+           long as there's 3 s of it: it is made up when they stop */
+        if (animating)
+            rb->pcmbuf_hold_for_ui(HZ / 4);
+#ifdef PF_SHOW_ON_COP
+        bool show_on_cop = animating && cop_draws && frame_other && !cpu_shows;
+        if (show_on_cop)
+            cop_show = shown_later;
+        else
+            show_frame_now();
+#endif
+        bool drawn = true;
+        /* still, the covers or the tracks: drawn again only for a change */
+        static int shown_state;
+        if ((pf_state != pf_idle && pf_state != pf_show_tracks)
+            || pf_state != shown_state)
+            idle_shown = false;
+        shown_state = pf_state;
 
         /* Handle states */
         switch ( pf_state ) {
@@ -5820,29 +6599,69 @@ static int pictureflow_main(void)
                 instant_update = true;
                 break;
             case pf_cover_in:
-                update_cover_in_animation();
+                /* the key frames the time took, none if it was short: a
+                   quarter faster than the frames of the rest */
+                for (anim_keys += anim_part + anim_part / 4;
+                     anim_keys >= ANIM_ONE && pf_state == pf_cover_in;
+                     anim_keys -= ANIM_ONE)
+                    update_cover_in_animation();
+                if (pf_state == pf_show_tracks)
+                {
+                    /* the panel in this frame, where the card came to: drawn as the
+                       next one, it left a frame of the covers without either */
+#ifdef PF_SHOW_ON_COP
+                    show_frame_now();
+                    show_on_cop = false;
+#endif
+                    if (!show_track_list() && !prompt_reinit())
+                        return PLUGIN_OK;
+                    break;
+                }
                 render_all_slides();
                 instant_update = true;
                 break;
             case pf_cover_out:
                 show_tracks_while_browsing = false;
-                update_cover_out_animation();
+                for (anim_keys += anim_part + anim_part / 4;
+                     anim_keys >= ANIM_ONE && pf_state == pf_cover_out;
+                     anim_keys -= ANIM_ONE)
+                    update_cover_out_animation();
                 render_all_slides();
                 instant_update = true;
                 break;
             case pf_show_tracks:
+                /* the covers behind it were drawn 16 times a second, which
+                   held the music back from getting ahead */
+                if (idle_shown && !(lines_moved & (1u << PF_SCROLL_TRACK))
+                    && !pf_cfg.show_fps)
+                {
+                    drawn = false;
+                    break;
+                }
+                idle_shown = true;
                 if (!show_track_list() && !prompt_reinit())
                     return PLUGIN_OK;
                 break;
             case pf_idle:
                 show_tracks_while_browsing = false;
+                if (idle_shown
+                    && !(lines_moved & (1u << PF_SCROLL_ALBUM | 1u << PF_SCROLL_ARTIST))
+                    && idle_slides == slides_arrived && !pf_cfg.show_fps)
+                {
+                    drawn = false;
+                    break;
+                }
+                idle_slides = slides_arrived;
+                idle_shown = true;
                 render_all_slides();
+#ifndef ITUNESDB_HAVE_ART
                 if (aa_cache.inspected < pf_idx.album_ct)
                 {
                     buf_ctx_lock();
                     incremental_albumart_cache(false);
                     buf_ctx_unlock();
                 }
+#endif
                 break;
         }
 
@@ -5854,10 +6673,13 @@ static int pictureflow_main(void)
         }
         /* Draw FPS or draw percentage of already built album cache; not the
            percentage in Cover Flow, whose covers just come */
+#ifdef PF_SHOW_ON_COP
+        struct viewport *const frame_vp = drawn ? draw_in_frame() : NULL;
+#endif
 #ifdef ITUNESDB_HAVE_ART
-        if (pf_cfg.show_fps)
+        if (drawn && pf_cfg.show_fps)
 #else
-        if (pf_cfg.show_fps || aa_cache.inspected < pf_idx.album_ct)
+        if (drawn && (pf_cfg.show_fps || aa_cache.inspected < pf_idx.album_ct))
 #endif
         {
 #ifdef USEGSLIB
@@ -5865,6 +6687,11 @@ static int pictureflow_main(void)
 #else
             mylcd_set_foreground(G_PIX(255,0,0));
 #endif
+#ifdef ITUNESDB_HAVE_ART
+            /* the frames always: how far the covers are looked through is
+               nothing to show */
+            rb->snprintf(fpstxt, sizeof(fpstxt), "FPS: %d", fps);
+#else
             if(aa_cache.inspected >= pf_idx.album_ct)
                  rb->snprintf(fpstxt, sizeof(fpstxt), "FPS: %d", fps);
             else
@@ -5872,6 +6699,7 @@ static int pictureflow_main(void)
                 int progress_pct = 100 * aa_cache.inspected / pf_idx.album_ct;
                 rb->snprintf(fpstxt, sizeof(fpstxt), "%d %%", progress_pct);
             }
+#endif
 
             if (pf_cfg.show_album_name == ALBUM_NAME_TOP ||
                 pf_cfg.show_album_name == ALBUM_AND_ARTIST_TOP)
@@ -5881,22 +6709,30 @@ static int pictureflow_main(void)
                 fpstxt_y = 0;
             mylcd_putsxy(0, fpstxt_y, fpstxt);
         }
-        draw_album_text();
-
-        /* Copy offscreen buffer to LCD and give time to other threads */
-        if (is_initial_slide == false)
-            mylcd_update();
-        /* the slide thread is below the UI: while it scrolls, the covers
-           that come into view are loaded here, for a third of the time at
-           most, so that it keeps moving when they are slow to come */
-        if (pf_state == pf_scrolling
-            && !TIME_BEFORE(*rb->current_tick, load_after))
+        if (drawn)
         {
-            long start = *rb->current_tick;
-            buf_ctx_lock();
-            load_new_slide();
-            buf_ctx_unlock();
-            load_after = *rb->current_tick + 2 * (*rb->current_tick - start);
+            draw_album_text();
+#ifdef PF_SHOW_ON_COP
+            if (frame_vp)
+                rb->lcd_set_viewport(frame_vp);
+#endif
+
+            /* the others' turn as the frame is drawn: the codec's on this core,
+               so that the COP is through with its part by the next one, and the
+               slide thread's, which loads the covers that come into view */
+            rb->yield();
+            /* and the frame on the screen */
+#ifdef PF_SHOW_ON_COP
+            if (show_on_cop)
+            {
+                /* the COP shows it as the next is drawn in the other */
+                shown_later = buffer;
+                buffer = buffer == LCD_BUF ? frame_other : LCD_BUF;
+            }
+            else
+#endif
+            if (is_initial_slide == false)
+                mylcd_update();
         }
         rb->yield();
 
@@ -5907,8 +6743,37 @@ static int pictureflow_main(void)
 #endif
             ,instant_update ? 0 : HZ/16,
             get_context_map);
+        if (button != ACTION_NONE)
+            idle_shown = false;
 
         switch (button) {
+#ifdef ITUNESDB_HAVE_ART
+        case ACTION_LIST_PLAYPAUSE:
+            /* Play pauses the music and goes on with it, as anywhere, while
+               the settings keep it playing in here; with none, as after a
+               restart, it goes on where it was, as Resume Playback does */
+            if (rb->global_settings->coverflow_pause)
+                break;
+            if (rb->audio_status() & AUDIO_STATUS_PLAY)
+            {
+                if (rb->audio_status() & AUDIO_STATUS_PAUSE)
+                    rb->audio_resume();
+                else
+                    rb->audio_pause();
+            }
+            else if (rb->global_status->resume_index != -1
+                     && (drop_frame(), rb->playlist_resume() != -1))
+                rb->playlist_resume_track(rb->global_status->resume_index,
+                                          rb->global_status->resume_crc32,
+                                          rb->global_status->resume_elapsed,
+                                          rb->global_status->resume_offset);
+            break;
+        case ACTION_TREE_STOP:
+            /* held, to the track playing, as from the lists */
+            if (rb->audio_status())
+                return PLUGIN_GOTO_WPS;
+            break;
+#endif
         case PF_WPS:
             return PLUGIN_GOTO_WPS;
         case PF_QUIT:
@@ -5922,10 +6787,7 @@ static int pictureflow_main(void)
             if (show_tracks_while_browsing)
                 show_tracks_while_browsing = false;
             else if (pf_state == pf_show_tracks)
-            {
-                pf_state = pf_cover_out;
-                free_borrowed_tracks();
-            }
+                start_cover_out();
             else if (pf_state == pf_cover_in)
                 reverse_animation();
             else if (pf_state == pf_cover_out)
@@ -5937,6 +6799,7 @@ static int pictureflow_main(void)
 #ifdef ITUNESDB_HAVE_ART
             return PLUGIN_GOTO_ROOT; /* Menu held, as everywhere */
 #endif
+            drop_frame();
 #ifdef USEGSLIB
             grey_show(false);
 #endif
@@ -6007,29 +6870,17 @@ static int pictureflow_main(void)
         case PF_SORTING_PREV:
             sort_albums((pf_cfg.sort_albums_by + (SORT_VALUES_SIZE - 1)) % SORT_VALUES_SIZE, false);
             break;
-        case PF_JMP:
+        /* Next and Previous go an album at a time, as on a stock iPod, and on
+           while held; with the tracks shown, to the next album's */
+        case PF_ALBUM_NEXT:
             if (pf_state == pf_idle || pf_state == pf_scrolling)
-            {
-                int new_idx = jmp_idx_next();
-                if (new_idx != center_index)
-                {
-                    pf_state = pf_idle;
-                    set_current_slide(new_idx);
-                }
-            }
+                show_next_slide();
             else if ( pf_state == pf_show_tracks )
                 select_next_album();
             break;
-        case PF_JMP_PREV:
+        case PF_ALBUM_PREV:
             if (pf_state == pf_idle || pf_state == pf_scrolling)
-            {
-                int new_idx = jmp_idx_prev();
-                if (new_idx != center_index)
-                {
-                    pf_state = pf_idle;
-                    set_current_slide(new_idx);
-                }
-            }
+                show_previous_slide();
             else if ( pf_state == pf_show_tracks )
                 select_prev_album();
             else if (pf_state == pf_cover_in)
@@ -6050,6 +6901,7 @@ static int pictureflow_main(void)
                 else if (pf_state == pf_cover_out)
                     skip_animation_to_idle_state();
 
+                drop_frame();
                 if (context_menu_ready())
                 {
                     ret = context_menu();
@@ -6075,7 +6927,14 @@ static int pictureflow_main(void)
                 }
                 else
 #endif
+                {
+#if CARD_FRAME_COUNT > 0
+                    /* the album's tracks and its card before it moves: where the
+                       cover turns to its edge, finding them held it up there */
+                    make_card();
+#endif
                     pf_state = pf_cover_in;
+                }
             }
             else if (pf_state == pf_cover_out)
                 reverse_animation();
@@ -6117,6 +6976,16 @@ static enum plugin_status prepare_album_list(void)
 
     if (!(stat->initialized && stat->ready))
         return PLUGIN_OK;
+#ifdef HAVE_TC_RAMCACHE
+    /* The list from the database in memory is one pass over its tracks. After
+       an import that only made slides it's loaded a moment later, and without
+       it the list took two searches of every track for each album. A load
+       that fails says the database isn't ready: no waiting for it then. */
+    const long ramcache_until = *rb->current_tick + 15 * HZ;
+    while (rb->global_settings->tagcache_ram && !stat->ramcache && stat->ready
+           && TIME_BEFORE(*rb->current_tick, ramcache_until))
+        rb->sleep(HZ / 10);
+#endif
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
     rb->cpu_boost(true); /* revert in cleanup */
 #endif
@@ -6175,9 +7044,11 @@ enum plugin_status plugin_start(const void *parameter)
         grey_show(true);
 #endif
 #ifdef ITUNESDB_HAVE_ART
-        /* the codec takes the CPU from the animation, 8 frames a second
-           with music against 22 without: it waits while the covers go by */
-        if (rb->audio_status() == AUDIO_STATUS_PLAY)
+        /* the codec takes the CPU from the animation, the covers going by
+           slower with music: it waits for them, unless the settings say to
+           keep it playing */
+        if (rb->global_settings->coverflow_pause
+            && rb->audio_status() == AUDIO_STATUS_PLAY)
         {
             rb->audio_pause();
             paused_music = true;

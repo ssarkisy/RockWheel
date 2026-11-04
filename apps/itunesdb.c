@@ -24,6 +24,7 @@
    load, so it is read a record at a time. The layout is libgpod's. */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
 #include "config.h"
@@ -37,6 +38,7 @@
 #include "pathfuncs.h"
 #include "settings.h"
 #include "misc.h"
+#include "applimits.h"
 #include "rbpaths.h"
 #include "tagcache.h"
 #include "logf.h"
@@ -88,15 +90,48 @@ static int db_alloc(size_t size)
 /* a movie, a music video or a TV show, which Rockbox can't play */
 #define MEDIA_VIDEO     (0x02 | 0x20 | 0x40)
 
-/* A track's cover by its 64-bit dbid, for a database without image ids, as
-   the 32-bit key the images are looked up by: apart from those ids, which
-   are small */
-static inline uint32_t art_song_key(uint32_t lo, uint32_t hi)
+/* A track with a cover but, in a database without image ids, only its 64-bit
+   dbid, by which ArtworkDB's image names it: its art until the images are
+   read, which give it the image's id */
+#define ART_BY_SONG 0xffffffffu
+static struct {
+    int handle;
+    int capacity;
+    uint64_t *dbid;     /* of each track, by its index */
+    uint32_t *order;    /* the tracks with only that, by it */
+    int count;
+} art_songs;
+
+static void forget_art_songs(void)
 {
-    return ((lo ^ hi) & 0x7fffffff) | 0x80000000;
+    if (art_songs.handle > 0)
+    {
+        core_unpin(art_songs.handle);
+        core_free(art_songs.handle);
+    }
+    memset(&art_songs, 0, sizeof(art_songs));
 }
-/* some of the tracks just read have only that */
-static bool art_by_song;
+
+static void note_art_song(int track, uint64_t dbid)
+{
+    /* -1 once there was no room, which isn't asked for again each track */
+    if (art_songs.handle < 0)
+        return;
+    if (art_songs.handle == 0)
+    {
+        art_songs.handle = db_alloc(art_songs.capacity
+                                    * (sizeof(uint64_t) + sizeof(uint32_t)));
+        if (art_songs.handle <= 0)
+        {
+            art_songs.handle = -1;
+            return;
+        }
+        core_pin(art_songs.handle);
+        art_songs.dbid = core_get_data(art_songs.handle);
+        art_songs.order = (uint32_t *)(art_songs.dbid + art_songs.capacity);
+    }
+    art_songs.dbid[track] = dbid;
+}
 
 /* Records start anywhere in a sector. Read from where the sector starts
    into an aligned buffer, the storage driver takes it all in one go;
@@ -749,8 +784,10 @@ static void read_track(off_t pos, struct track *track)
         /* a cover, but before iTunes 7's longer record no image id: the
            image in ArtworkDB names the track by its dbid instead, as iOpenPod
            writes them for an iPod whose database is that old */
-        track->art = art_song_key(le32(p + 0x70), le32(p + 0x74));
-        art_by_song = true;
+        note_art_song(track - db.tracks,
+                      le32(p + 0x70) | (uint64_t)le32(p + 0x74) << 32);
+        if (art_songs.handle > 0)
+            track->art = ART_BY_SONG;
     }
 
     /* the album, by its name and the album's artist, or the track's where
@@ -817,7 +854,8 @@ static bool read_tracks(off_t list)
     int listed = le32(p + 8);
     int count = MIN(listed, db.count);
     db.count = 0;
-    art_by_song = false;
+    forget_art_songs();
+    art_songs.capacity = count;
     for (int i = 0; i < count; i++)
     {
         p = db_record(pos, "mhit", 12);
@@ -880,11 +918,23 @@ static void playlist_dir(char *buf, size_t size)
 }
 
 /* The playlists file lists those of the last import, a line each:
-   "<hash> <size> <file>" with the hash and size of what was written. Each
-   file costs the iPod's flash a good part of a second to remove and write
-   again, so those that would come out the same are left. */
+   "<hash> <size> <time> <file>" with the hash and size of what was written and
+   the time the playlist was last changed in the library, which the file has as
+   its own so that the newest come first; and "dir <folder>" for each folder it
+   made. Each file costs the iPod's flash a good part of a second to remove and
+   write again, so those that would come out the same are left. */
 
 #define MAX_PLAYLISTS 256
+#define MAX_FOLDERS 128
+#define MAX_PLAYLIST_DIRS MAX_FOLDERS
+/* Folders in folders this deep at most, as the browser goes no further: one
+   that iTunes has deeper, or in itself, isn't made, and its playlists go
+   into the top folder */
+#define MAX_FOLDER_DEPTH (MAX_DIR_LEVELS - 4)
+/* Each file is written here first and then put in its place, and so is the
+   playlists file, so that power cut at any moment leaves the old one whole */
+#define PLAYLIST_TEMP   ROCKBOX_DIR "/itunesdb_playlist.tmp"
+#define PLAYLISTS_TEMP  ROCKBOX_DIR "/itunesdb_playlists.tmp"
 
 static struct {
     int handle;
@@ -893,48 +943,87 @@ static struct {
         uint64_t file_hash;     /* itunesdb_path_hash() of the file */
         uint64_t hash;          /* of what it holds, 0 if not known */
         uint32_t size;
+        uint32_t time;          /* the file's, 0 if not set */
         uint32_t file;          /* offset of its name in the buffer */
+        bool older;             /* listed by a version that didn't mark its files */
     } *lists;
     char *names;
+    /* the folders made, as offsets of their names */
+    int dir_count;
+    uint32_t dirs[MAX_PLAYLIST_DIRS];
     /* the files written this time */
     int written_count;
     uint64_t written[MAX_PLAYLISTS];
+    bool list_failed;           /* a line of the new list didn't write */
 } pls;
 
-static void load_old_playlists(void)
+/* the last import's list as found */
+enum old_list { LIST_NONE, LIST_READ, LIST_NO_ROOM };
+
+/* A line of a list file, or none for one too long for the buffer, whose rest
+   is passed over too: a part of it could look like a path */
+static int read_list_line(int fd, char *line, size_t size)
+{
+    int n = read_line(fd, line, size);
+    if (n > 0 && strlen(line) >= size - 1)
+    {
+        char rest[64];
+        while (read_line(fd, rest, sizeof(rest)) > 0
+               && strlen(rest) >= sizeof(rest) - 1)
+            ;
+        line[0] = '\0';
+    }
+    return n;
+}
+
+/* the playlists file of the last import, if there is one to go by */
+static enum old_list load_old_playlists(void)
 {
     memset(&pls, 0, sizeof(pls));
+    remove(PLAYLIST_TEMP);
+    remove(PLAYLISTS_TEMP);
     int fd = open(PLAYLISTS_FILE, O_RDONLY);
     if (fd < 0)
-        return;
-    char line[MAX_PATH + 32];
+        return LIST_NONE;
+    char line[MAX_PATH + 48];
     off_t size = ffilesize(fd);
     pls.handle = db_alloc(MAX_PLAYLISTS * sizeof(struct old_playlist)
                             + size + 1);
     if (pls.handle <= 0)
     {
-        /* all are written again then, so they go first */
+        /* the playlists are left as they are, and the list, for the next */
         pls.handle = 0;
-        while (read_line(fd, line, sizeof(line)) > 0)
-        {
-            char *file = strchr(line, '/');
-            if (file)
-                remove(file);
-        }
         close(fd);
-        return;
+        return LIST_NO_ROOM;
     }
     core_pin(pls.handle);
     pls.lists = core_get_data(pls.handle);
     pls.names = (char *)(pls.lists + MAX_PLAYLISTS);
     size_t used = 0;
-    while (pls.count < MAX_PLAYLISTS
-           && read_line(fd, line, sizeof(line)) > 0)
+    while (read_list_line(fd, line, sizeof(line)) > 0)
     {
-        struct old_playlist *o = &pls.lists[pls.count];
         char *file = line;
+        /* none of one too long, or too short to hold what it should */
+        if (line[0] == '\0' || (line[0] != '/' && strlen(line) < 18))
+            continue;
+        if (!strncmp(line, "dir /", 5))
+        {
+            size_t len = strlen(line + 4) + 1;
+            if (pls.dir_count < MAX_PLAYLIST_DIRS && used + len <= (size_t)size + 1)
+            {
+                memcpy(pls.names + used, line + 4, len);
+                pls.dirs[pls.dir_count++] = used;
+                used += len;
+            }
+            continue;
+        }
+        if (pls.count >= MAX_PLAYLISTS)
+            continue; /* on to the folders, listed after them */
+        struct old_playlist *o = &pls.lists[pls.count];
         o->hash = 0;
         o->size = 0;
+        o->time = 0;
+        o->older = true;
         if (line[0] != '/')
         {
             /* not from an older version, which listed only the files */
@@ -943,6 +1032,12 @@ static void load_old_playlists(void)
             o->hash = (uint64_t)strtoul(high, NULL, 16) << 32
                       | (uint32_t)strtoul(line + 8, &end, 16);
             o->size = strtoul(end, &end, 10);
+            /* and the time, but in the version before, whose files had no mark */
+            if (*end == ' ' && end[1] != '/')
+            {
+                o->time = strtoul(end + 1, &end, 10);
+                o->older = false;
+            }
             file = end + 1;
             if (*end != ' ' || file[0] != '/')
                 continue;
@@ -957,6 +1052,20 @@ static void load_old_playlists(void)
         pls.count++;
     }
     close(fd);
+    return LIST_READ;
+}
+
+/* a line of the list being written: one that doesn't write spoils it, and the
+   old list stays */
+static void list_line(int fd, const char *fmt, ...)
+{
+    char line[MAX_PATH + 48];
+    va_list ap;
+    va_start(ap, fmt);
+    const int n = vsnprintf(line, sizeof(line), fmt, ap);
+    va_end(ap);
+    if (n < 0 || n >= (int)sizeof(line) || write(fd, line, n) != n)
+        pls.list_failed = true;
 }
 
 static struct old_playlist *find_old_playlist(const char *file)
@@ -981,14 +1090,98 @@ static bool written_playlist(uint64_t file_hash)
     return false;
 }
 
-/* the old ones not written again go, as Finder removed them */
-static void remove_old_playlists(void)
+/* The second line of each file written, by which the import knows its own
+   when the playlists file is gone, as with a new .rockbox: they are written
+   again in place, not as "Name 2", and those Finder removed go */
+#define PLAYLIST_HEAD "#EXTM3U\n"
+#define PLAYLIST_MARK "# From the iPod's library, written again after each sync"
+
+static bool own_playlist(const char *file)
+{
+    static const char head[] = PLAYLIST_HEAD PLAYLIST_MARK "\n";
+    char buf[sizeof(head) - 1];
+    int fd = open(file, O_RDONLY);
+    if (fd < 0)
+        return false;
+    bool own = read(fd, buf, sizeof(buf)) == (ssize_t)sizeof(buf)
+               && !memcmp(buf, head, sizeof(buf));
+    close(fd);
+    return own;
+}
+
+/* one of ours from the list, which may go or be written again: the user's own
+   file of the same name, put there since, stays */
+static bool listed_own(const struct old_playlist *o)
+{
+    const char *file = pls.names + o->file;
+    const char *ext = strrchr(file, '.');
+    return ext && !strcasecmp(ext, ".m3u8") && (o->older || own_playlist(file));
+}
+
+/* our files in a folder and those in it, not written again */
+static void remove_own_files(const char *dir, int depth)
+{
+    DIR *d = opendir(dir);
+    if (!d)
+        return;
+    char file[MAX_PATH];
+    struct dirent *entry;
+    while ((entry = readdir(d)))
+    {
+        if (entry->d_name[0] == '.')
+            continue;
+        if ((size_t)snprintf(file, sizeof(file), "%s/%s", dir,
+                             entry->d_name) >= sizeof(file))
+            continue;
+        if (dir_get_info(d, entry).attribute & ATTR_DIRECTORY)
+        {
+            if (depth < MAX_FOLDER_DEPTH)
+                remove_own_files(file, depth + 1);
+            continue;
+        }
+        const char *ext = strrchr(entry->d_name, '.');
+        if (ext && !strcasecmp(ext, ".m3u8")
+            && !written_playlist(itunesdb_path_hash(file)) && own_playlist(file))
+            remove(file);
+    }
+    closedir(d);
+}
+
+static int cmp_dir_depth(const void *a, const void *b)
+{
+    const char *x = pls.names + *(const uint32_t *)a;
+    const char *y = pls.names + *(const uint32_t *)b;
+    return (int)strlen(y) - (int)strlen(x);
+}
+
+/* The old ones not written again go, as Finder removed them; when there was no
+   list to go by, any of ours found. Then the folders made for them that are left
+   empty, the deepest first: one that can't go yet, as something is in it, is
+   listed again to be tried the next time. */
+static void remove_old_playlists(const char *dir, bool listed, const char *made,
+                                 size_t made_len, int list_fd)
 {
     for (int i = 0; i < pls.count; i++)
     {
-        if (!written_playlist(pls.lists[i].file_hash))
+        if (!written_playlist(pls.lists[i].file_hash) && listed_own(&pls.lists[i]))
             remove(pls.names + pls.lists[i].file);
     }
+    if (!listed)
+        remove_own_files(dir, 0);
+    qsort(pls.dirs, pls.dir_count, sizeof(uint32_t), cmp_dir_depth);
+    for (int i = 0; i < pls.dir_count; i++)
+    {
+        const char *old = pls.names + pls.dirs[i];
+        bool kept = false;
+        for (size_t k = 0; k < made_len && !kept; k += strlen(made + k) + 1)
+            kept = !strcasecmp(made + k, old);
+        if (!kept && rmdir(old) < 0 && dir_exists(old)) /* only if it's empty */
+            list_line(list_fd, "dir %s\n", old);
+    }
+}
+
+static void forget_old_playlists(void)
+{
     if (pls.handle > 0)
     {
         core_unpin(pls.handle);
@@ -997,31 +1190,50 @@ static void remove_old_playlists(void)
     memset(&pls, 0, sizeof(pls));
 }
 
+/* a name as FAT takes it for a file or a folder: cut where a character starts,
+   and the characters it doesn't take as _ */
+static void clean_name(char *clean, size_t size, const char *name, const char *empty)
+{
+    size_t n = 0;
+    for (const char *c = name; *c && n < size - 1; c++)
+    {
+        const unsigned char b = *c;
+        clean[n++] = (b < 0x20 || b == 0x7f || strchr("/\\:*?\"<>|", b)) ? '_' : b;
+    }
+    /* not in the middle of a character: back to where the one cut starts */
+    while (n > 0 && ((unsigned char)name[n] & 0xc0) == 0x80)
+        n--;
+    /* nor a dot or a space at the end */
+    while (n > 0 && (clean[n - 1] == '.' || clean[n - 1] == ' '))
+        n--;
+    clean[n] = '\0';
+    if (n == 0)
+        strmemccpy(clean, empty, size);
+}
+
 /* a playlist name as a file name that FAT takes; false if it is too long */
 static bool playlist_file(char *buf, size_t size, const char *dir,
                           const char *name)
 {
     char clean[MAX_PATH / 2];
-    size_t n = 0;
-    for (const char *c = name; *c && n < sizeof(clean) - 1; c++)
-        clean[n++] = strchr("/\\:*?\"<>|", *c) ? '_' : *c;
-    clean[n] = '\0';
-    if (n == 0)
-        strcpy(clean, "Playlist");
+    clean_name(clean, sizeof(clean), name, "Playlist");
 
     /* taken by another playlist of this import, or by a file that isn't
-       one of the last */
+       one of ours */
     if ((size_t)snprintf(buf, size, "%s/%s.m3u8", dir, clean) >= size)
         return false;
-    for (int i = 2; i < 100; i++)
+    for (int i = 2; ; i++)
     {
+        const struct old_playlist *o;
         if (!written_playlist(itunesdb_path_hash(buf))
-            && (find_old_playlist(buf) || !file_exists(buf)))
-            break;
-        if ((size_t)snprintf(buf, size, "%s/%s %d.m3u8", dir, clean, i) >= size)
+            && (!file_exists(buf) || own_playlist(buf)
+                || ((o = find_old_playlist(buf)) && o->older)))
+            return true;
+        /* none, rather than over a file of the user's */
+        if (i == 100
+            || (size_t)snprintf(buf, size, "%s/%s %d.m3u8", dir, clean, i) >= size)
             return false;
     }
-    return true;
 }
 
 /* Files are written through this a block at a time: a write() costs the
@@ -1126,6 +1338,7 @@ static int playlist_items(off_t child, int items, struct writer *w,
     *hash = 0xcbf29ce484222325ULL;
     *size = 0;
     playlist_line(w, "#EXTM3U", hash, size);
+    playlist_line(w, PLAYLIST_MARK, hash, size);
     for (int i = 0; i < items; i++)
     {
         p = db_record(child, "mhip", 28);
@@ -1147,12 +1360,210 @@ static int playlist_items(off_t child, int items, struct writer *w,
     return written;
 }
 
+/* The folders the playlists are in on the computer, which Finder leaves out of
+   an iPod Video's iTunesDB: written by the installer from Music, by the
+   persistent IDs that iTunesDB has for the playlists too. A line each:
+   "folder <id> <parent id or -> <name>" and "playlist <id> <parent id>". They
+   are read at each import, so they show after the sync that follows. */
+#define FOLDERS_FILE ROCKBOX_DIR "/playlist_folders.txt"
+
+static struct {
+    int handle;
+    int folder_count, placed_count;
+    struct folder {
+        uint64_t id, parent;
+        uint32_t name;          /* in names */
+    } *folders;
+    struct placed {
+        uint64_t id, parent;
+    } *placed;
+    char *names;
+    /* the folders made, or kept, this time, end to end */
+    char *made;
+    size_t made_len;
+    int made_count;
+    /* there was no list to say which were made, as with a new .rockbox: those
+       there already are taken to be the import's */
+    bool claim;
+} fld;
+
+#define MADE_SIZE (MAX_PLAYLIST_DIRS * 64)
+
+/* 16 hex digits, or none for "-" */
+static uint64_t parse_id(const char *s, const char **end)
+{
+    uint64_t id = 0;
+    while (*s == ' ')
+        s++;
+    for (; *s && *s != ' '; s++)
+    {
+        const char c = *s | 0x20;
+        if (c >= '0' && c <= '9')
+            id = id << 4 | (c - '0');
+        else if (c >= 'a' && c <= 'f')
+            id = id << 4 | (c - 'a' + 10);
+    }
+    *end = s;
+    return id;
+}
+
+static void load_folders(void)
+{
+    memset(&fld, 0, sizeof(fld));
+    int fd = open(FOLDERS_FILE, O_RDONLY);
+    if (fd < 0)
+        return;
+    const off_t size = ffilesize(fd);
+    fld.handle = db_alloc(MAX_FOLDERS * sizeof(struct folder)
+                          + MAX_PLAYLISTS * sizeof(struct placed) + MADE_SIZE + size + 1);
+    if (fld.handle <= 0)
+    {
+        fld.handle = 0;
+        close(fd);
+        return;
+    }
+    core_pin(fld.handle);
+    fld.folders = core_get_data(fld.handle);
+    fld.placed = (struct placed *)(fld.folders + MAX_FOLDERS);
+    fld.made = (char *)(fld.placed + MAX_PLAYLISTS);
+    fld.names = fld.made + MADE_SIZE;
+    size_t used = 0;
+    char line[MAX_PATH];
+    while (read_list_line(fd, line, sizeof(line)) > 0)
+    {
+        const char *rest;
+        if (!strncmp(line, "folder ", 7) && fld.folder_count < MAX_FOLDERS)
+        {
+            struct folder *f = &fld.folders[fld.folder_count];
+            f->id = parse_id(line + 7, &rest);
+            f->parent = parse_id(rest, &rest);
+            while (*rest == ' ')
+                rest++;
+            const size_t len = strlen(rest) + 1;
+            if (!f->id || used + len > (size_t)size + 1)
+                continue;
+            memcpy(fld.names + used, rest, len);
+            f->name = used;
+            used += len;
+            fld.folder_count++;
+        }
+        else if (!strncmp(line, "playlist ", 9) && fld.placed_count < MAX_PLAYLISTS)
+        {
+            struct placed *pl = &fld.placed[fld.placed_count];
+            pl->id = parse_id(line + 9, &rest);
+            pl->parent = parse_id(rest, &rest);
+            if (pl->id && pl->parent)
+                fld.placed_count++;
+        }
+    }
+    close(fd);
+}
+
+static void forget_folders(void)
+{
+    if (fld.handle > 0)
+    {
+        core_unpin(fld.handle);
+        core_free(fld.handle);
+    }
+    fld.handle = 0;
+    fld.folder_count = fld.placed_count = 0;
+    fld.made = NULL;
+    fld.made_len = 0;
+    fld.made_count = 0;
+}
+
+static const struct folder *find_folder(uint64_t id)
+{
+    for (int i = 0; id && i < fld.folder_count; i++)
+    {
+        if (fld.folders[i].id == id)
+            return &fld.folders[i];
+    }
+    return NULL;
+}
+
+/* a folder an import made, by the list of the last one */
+static bool made_before(const char *path)
+{
+    for (int i = 0; i < pls.dir_count; i++)
+    {
+        if (!strcasecmp(pls.names + pls.dirs[i], path))
+            return true;
+    }
+    return false;
+}
+
+/* The folder in the playlists' one of the folder with this id, made if it isn't
+   there, with those it's in: false if it's too deep, in itself, too long or
+   can't be made */
+static bool folder_dir(char *buf, size_t size, const char *dir, uint64_t id)
+{
+    const struct folder *chain[MAX_FOLDER_DEPTH];
+    int depth = 0;
+    for (const struct folder *f = find_folder(id); f; f = find_folder(f->parent))
+    {
+        if (depth == MAX_FOLDER_DEPTH)
+            return false;
+        for (int i = 0; i < depth; i++)
+        {
+            if (chain[i] == f)
+                return false;
+        }
+        chain[depth++] = f;
+    }
+    strmemccpy(buf, dir, size);
+    for (int i = depth - 1; i >= 0; i--)
+    {
+        char clean[MAX_PATH / 4];
+        clean_name(clean, sizeof(clean), fld.names + chain[i]->name, "Folder");
+        const size_t len = strlen(buf);
+        if ((size_t)snprintf(buf + len, size - len, "/%s", clean) >= size - len)
+            return false;
+        /* one that was there already is the user's, and is never removed */
+        const bool made = mkdir(buf) == 0;
+        if (!made && !dir_exists(buf))
+            return false;
+        if (!made && !made_before(buf) && !fld.claim)
+            continue;
+        /* noted once, to be removed when it's left empty */
+        bool noted = false;
+        for (size_t k = 0; k < fld.made_len && !noted; k += strlen(fld.made + k) + 1)
+            noted = !strcasecmp(fld.made + k, buf);
+        const size_t n = strlen(buf) + 1;
+        if (!noted && fld.made_count < MAX_PLAYLIST_DIRS
+            && fld.made_len + n <= MADE_SIZE)
+        {
+            memcpy(fld.made + fld.made_len, buf, n);
+            fld.made_len += n;
+            fld.made_count++;
+        }
+    }
+    return true;
+}
+
+/* the folder a playlist is in, 0 for none */
+static uint64_t playlist_parent(uint64_t id)
+{
+    for (int i = 0; i < fld.placed_count; i++)
+    {
+        if (fld.placed[i].id == id)
+            return fld.placed[i].parent;
+    }
+    return 0;
+}
+
+/* seconds from 1904 to 1970, for the times of iTunesDB */
+#define MAC_EPOCH_OFFSET 2082844800u
+
 /* the mhyp at pos as a playlist file, listed in the playlists file */
 static void write_playlist(off_t pos, const char *dir, int list_fd,
                            struct writer *w)
 {
-    char name[MAX_PATH / 2], file[MAX_PATH];
-    const unsigned char *p = db_record(pos, "mhyp", 44);
+    char name[MAX_PATH / 2], file[MAX_PATH], folder[MAX_PATH];
+    const unsigned char *p = db_record(pos, "mhyp", 0x5c);
+    if (!p)
+        p = db_record(pos, "mhyp", 44);
     if (!p)
         return;
     uint32_t header_len = le32(p + 4);
@@ -1162,6 +1573,12 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     bool podcasts = (p[42] | p[43] << 8) != 0;
     if (hidden || podcasts)
         return;
+    const uint64_t id = le32(p + 0x1c) | (uint64_t)le32(p + 0x20) << 32;
+    /* when it was last changed in the library, or else first written here */
+    uint32_t changed = header_len >= 0x5c ? le32(p + 0x58) : 0;
+    if (changed == 0)
+        changed = le32(p + 0x18);
+    const uint32_t time = changed > MAC_EPOCH_OFFSET ? changed - MAC_EPOCH_OFFSET : 0;
 
     name[0] = '\0';
     off_t child = pos + header_len;
@@ -1186,7 +1603,11 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     if (playlist_items(child, items, NULL, &hash, &size, &videos) == 0
         && videos > 0)
         return;
-    if (!playlist_file(file, sizeof(file), dir, name)
+    /* in its folder, if the folders are known */
+    const uint64_t parent = playlist_parent(id);
+    if (!parent || !folder_dir(folder, sizeof(folder), dir, parent))
+        strmemccpy(folder, dir, sizeof(folder));
+    if (!playlist_file(file, sizeof(file), folder, name)
         || pls.written_count >= MAX_PLAYLISTS)
         return;
     struct old_playlist *o = find_old_playlist(file);
@@ -1202,29 +1623,48 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     }
     if (!same)
     {
-        if (!writer_open(w, file))
-            return;
-        playlist_items(child, items, w, &hash, &size, &videos);
-        if (!writer_close(w))
+        /* the old one stays whole until the new one is all written, and as it
+           is if that can't be, to be written the next time */
+        bool ok = writer_open(w, PLAYLIST_TEMP);
+        if (ok)
+        {
+            playlist_items(child, items, w, &hash, &size, &videos);
+            ok = writer_close(w) && rename(PLAYLIST_TEMP, file) == 0;
+        }
+        if (!ok)
+        {
+            remove(PLAYLIST_TEMP);
+            if (!file_exists(file))
+                return;
             hash = 0;
+        }
     }
+    /* its time as the file's, so that the newest are listed first */
+    if (time && (!same || o->time != time))
+        modtime(file, time);
     pls.written[pls.written_count++] = itunesdb_path_hash(file);
-    fdprintf(list_fd, "%08lx%08lx %lu %s\n", (unsigned long)(hash >> 32),
-             (unsigned long)(uint32_t)hash, (unsigned long)size, file);
+    list_line(list_fd, "%08lx%08lx %lu %lu %s\n", (unsigned long)(hash >> 32),
+              (unsigned long)(uint32_t)hash, (unsigned long)size,
+              (unsigned long)time, file);
 }
 
 static void write_playlists(off_t list)
 {
     char dir[MAX_PATH];
     const unsigned char *p = list >= 0 ? db_record(list, "mhlp", 12) : NULL;
-    load_old_playlists();
-    int list_fd = open(PLAYLISTS_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    const enum old_list old = load_old_playlists();
+    if (old == LIST_NO_ROOM)
+        return;
+    const bool listed = old == LIST_READ;
+    load_folders();
+    fld.claim = !listed;
+    playlist_dir(dir, sizeof(dir));
+    int list_fd = open(PLAYLISTS_TEMP, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (p && list_fd >= 0)
     {
         off_t pos = list + le32(p + 4);
         int count = le32(p + 8);
 
-        playlist_dir(dir, sizeof(dir));
         mkdir(dir);
         for (int i = 0; i < count; i++)
         {
@@ -1238,10 +1678,25 @@ static void write_playlists(off_t list)
             pos += total;
             yield();
         }
+        /* A folder is made for a playlist in it, or in one in it, and not for
+           nothing: one left empty after this goes, as do those of the last
+           import that have nothing now */
+        for (size_t k = 0; k < fld.made_len; k += strlen(fld.made + k) + 1)
+            list_line(list_fd, "dir %s\n", fld.made + k);
+        /* only once this import's are written: nothing goes if it didn't */
+        remove_old_playlists(dir, listed, fld.made, fld.made_len, list_fd);
+        /* a list that didn't all write leaves the old one */
+        if (close(list_fd) < 0 || pls.list_failed
+            || rename(PLAYLISTS_TEMP, PLAYLISTS_FILE) < 0)
+            remove(PLAYLISTS_TEMP);
     }
-    if (list_fd >= 0)
+    else if (list_fd >= 0)
+    {
         close(list_fd);
-    remove_old_playlists();
+        remove(PLAYLISTS_TEMP);
+    }
+    forget_old_playlists();
+    forget_folders();
 }
 
 /* Ratings and play counts. iTunesDB is read once, at boot after a sync,
@@ -1455,6 +1910,7 @@ static void db_unload(void)
         core_free(cache_handle);
     }
     cache_handle = table_handle = 0;
+    forget_art_songs();
     memset(&db, 0, sizeof(db));
     db.fd = -1;
     cpu_boost(false);
@@ -2076,9 +2532,11 @@ bool itunesdb_resumes(const char *path)
 /* where each track's cover is, by path hash */
 #define ART_FILE        ROCKBOX_DIR "/itunesdb_art.dat"
 #define ART_MAGIC       0x41494252 /* "RBIA" */
-#define ART_VERSION     4   /* 2: the format of each entry's frame,
+#define ART_VERSION     5   /* 2: the format of each entry's frame,
                                3: and its album's slide,
-                               4: and the covers of the slides */
+                               4: and the covers of the slides,
+                               5: slides of the larger size Cover Flow
+                                  shows */
 #define ART_FORMATS     4
 #define FRAME_MAX       (200 * 200)  /* the iPod Video's largest covers */
 #define SMALL_FRAME_MAX (100 * 100)  /* what they are checked against */
@@ -2087,10 +2545,12 @@ bool itunesdb_resumes(const char *path)
    them, each in a slot of its own behind a header that says which it is */
 #define SLIDES_FILE     ROCKBOX_DIR "/itunesdb_slides.dat"
 #define SLIDES_TODO     ROCKBOX_DIR "/itunesdb_slides.todo"
-#define SLIDE_MAGIC     0x32494252 /* "RBI2": 2, of frames checked */
+/* "RBI4": of frames checked, at the size of Cover Flow's larger covers; each
+   slot of a file of the smaller ones, which were "RBI2", is made again */
+#define SLIDE_MAGIC     0x34494252
 /* of a small frame, the large ones being unlike it: the next import tries
-   again, as Finder may have written them by then */
-#define SLIDE_UNSURE    0x33494252 /* "RBI3" */
+   again, as Finder may have written them by then; "RBI3" before */
+#define SLIDE_UNSURE    0x35494252 /* "RBI5" */
 #define SLIDE_SOURCES   3
 /* The colour of each slide's cover, which Now Playing can take on: worked out with the
    slide, as a slide isn't made again, and known of each album when a track plays */
@@ -2148,6 +2608,8 @@ struct slide_header {
     uint64_t key;
 };
 _Static_assert(sizeof(struct slide_header) + 15 <= ITUNESDB_SLIDE_ROOM, "no room");
+_Static_assert(SLIDE_SLOT + 15 <= ITUNESDB_SLIDE_ROOM + SLIDE_PIXELS * sizeof(fb_data),
+               "no room for the whole slot");
 
 /* of the slide in that place, with an index_header in front of them */
 struct slide_colour {
@@ -2364,6 +2826,56 @@ static struct art_image *find_image(struct art_image *images, int count,
     return NULL;
 }
 
+static int cmp_art_song(const void *a, const void *b)
+{
+    uint64_t x = art_songs.dbid[*(const uint32_t *)a];
+    uint64_t y = art_songs.dbid[*(const uint32_t *)b];
+    return (x > y) - (x < y);
+}
+
+/* the tracks whose images name them by dbid, sorted by it; how many */
+static int art_songs_begin(void)
+{
+    art_songs.count = 0;
+    if (art_songs.handle <= 0)
+        return 0;
+    for (int i = 0; i < db.count; i++)
+    {
+        if (db.tracks[i].art == ART_BY_SONG)
+            art_songs.order[art_songs.count++] = i;
+    }
+    qsort(art_songs.order, art_songs.count, sizeof(uint32_t), cmp_art_song);
+    return art_songs.count;
+}
+
+/* an image of the track with that dbid */
+static void art_song_found(uint64_t song, uint32_t image)
+{
+    int lo = 0, hi = art_songs.count;
+    while (lo < hi)
+    {
+        int mid = (lo + hi) / 2;
+        if (art_songs.dbid[art_songs.order[mid]] < song)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    for (; lo < art_songs.count && art_songs.dbid[art_songs.order[lo]] == song; lo++)
+        db.tracks[art_songs.order[lo]].art = image;
+}
+
+/* those whose image wasn't found have none */
+static void art_songs_end(void)
+{
+    for (int i = 0; i < art_songs.count; i++)
+    {
+        struct track *t = &db.tracks[art_songs.order[i]];
+        if (t->art == ART_BY_SONG)
+            t->art = 0;
+    }
+    forget_art_songs();
+}
+
 /* ArtworkDB's images, sorted by id; returns the handle of their memory */
 static int read_images(struct art_image **images, int *count)
 {
@@ -2389,29 +2901,25 @@ static int read_images(struct art_image **images, int *count)
             int n = le32(p + 8);
             if ((uint32_t)n > COUNT_MAX)
                 return -1;
-            /* each image also by its track's dbid, for tracks with only that */
-            const int per_image = art_by_song ? 2 : 1;
-            handle = db_alloc(n * per_image * sizeof(struct art_image) + 1);
+            handle = db_alloc(n * sizeof(struct art_image) + 1);
             if (handle <= 0)
                 return -1;
             core_pin(handle);
             *images = core_get_data(handle);
+            /* the tracks with only their dbid, by it */
+            int songs = art_songs_begin();
             for (int k = 0; k < n; k++)
             {
                 p = db_record(item, "mhii", 28);
                 if (!p)
                     break;
                 uint32_t item_total = le32(p + 8);
-                uint32_t song_lo = le32(p + 20), song_hi = le32(p + 24);
+                uint64_t song = le32(p + 20) | (uint64_t)le32(p + 24) << 32;
                 if (read_image(item, &(*images)[*count]))
                 {
+                    if (songs > 0 && song)
+                        art_song_found(song, (*images)[*count].id);
                     (*count)++;
-                    if (art_by_song && (song_lo | song_hi))
-                    {
-                        (*images)[*count] = (*images)[*count - 1];
-                        (*images)[*count].id = art_song_key(song_lo, song_hi);
-                        (*count)++;
-                    }
                 }
                 if (item_total == 0)
                     break;
@@ -2422,6 +2930,7 @@ static int read_images(struct art_image **images, int *count)
                     yield();
                 }
             }
+            art_songs_end();
             qsort(*images, *count, sizeof(struct art_image), cmp_image);
             return handle;
         }
@@ -3106,6 +3615,17 @@ int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size
     return art_put((const fb_data *)src->data, src->width, src->height, bm, w, h);
 }
 
+/* the slides file, open while Cover Flow reads it: one open a cover cost a
+   look through the folder and the file's setting up, which hold the frames */
+static int slides_fd = -1;
+
+void itunesdb_slides_done(void)
+{
+    if (slides_fd >= 0)
+        close(slides_fd);
+    slides_fd = -1;
+}
+
 int itunesdb_load_slide(const struct itunesdb_art *art, void *buf,
                         int *width, int *height)
 {
@@ -3113,22 +3633,29 @@ int itunesdb_load_slide(const struct itunesdb_art *art, void *buf,
     uint64_t key = art->slide > 0 ? slide_key(art->slide - 1) : 0;
     if (!key)
         return -1;
-    int fd = open(SLIDES_FILE, O_RDONLY);
+    if (slides_fd < 0)
+        slides_fd = open(SLIDES_FILE, O_RDONLY);
+    const int fd = slides_fd;
     if (fd < 0)
         return -1;
     off_t pos = (off_t)(art->slide - 1) * SLIDE_SLOT;
     /* All of it in one read, with its header, to where DMA can reach, as the slots lie
-       on whole sectors. Then down to where it was asked for, which is in its way
-       only as far as ITUNESDB_SLIDE_ROOM. */
+       on whole sectors: the whole slot, so that it's a single command to the disk.
+       To the end of the slide's last sector was one more on the 5.5G, whose sectors
+       are 1 KB to the disk, for the last 512 bytes through a sector's cache, and the
+       reader waits a frame of the UI's for each. Then down to where it was asked
+       for, which is in its way only as far as ITUNESDB_SLIDE_ROOM. */
     char *at = buf;
     size_t room = ITUNESDB_SLIDE_ROOM + SLIDE_PIXELS * sizeof(fb_data);
     STORAGE_ALIGN_BUFFER(at, room);
-    (void)room;
     const ssize_t whole = sizeof(head) + SLIDE_PIXELS * sizeof(fb_data);
-    bool ok = lseek(fd, pos, SEEK_SET) == pos && read(fd, at, whole) == whole;
-    close(fd);
+    const ssize_t sectors = MIN((ssize_t)SLIDE_SLOT, (ssize_t)room);
+    bool ok = lseek(fd, pos, SEEK_SET) == pos && read(fd, at, sectors) >= whole;
     if (!ok)
+    {
+        itunesdb_slides_done(); /* opened again the next time */
         return -1;
+    }
     memcpy(&head, at, sizeof(head));
     if ((head.magic != SLIDE_MAGIC && head.magic != SLIDE_UNSURE)
         || head.key != key
@@ -3292,6 +3819,26 @@ bool itunesdb_slides_todo(void)
         return true;
     if (h.magic != ART_MAGIC)
         return false;
+    /* slides of an older kind, by the mark of the first made of them, as one
+       of another size isn't taken and Cover Flow then makes each of a cover */
+    fd = h.nslides > 0 ? open(SLIDES_FILE, O_RDONLY) : -1;
+    if (fd >= 0)
+    {
+        bool older = false;
+        for (int i = 0; i < 8 && !older; i++)
+        {
+            struct slide_header head;
+            const off_t pos = (off_t)i * SLIDE_SLOT;
+            if (lseek(fd, pos, SEEK_SET) != pos
+                || read(fd, &head, sizeof(head)) != sizeof(head))
+                break;
+            older = head.magic != 0 && head.magic != SLIDE_MAGIC
+                    && head.magic != SLIDE_UNSURE;
+        }
+        close(fd);
+        if (older)
+            return true;
+    }
     /* of an older version, or slides made before they had colours */
     return h.version != ART_VERSION
            || (h.nslides > 0 && (colours.magic != COLOURS_MAGIC
@@ -3316,6 +3863,8 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
         remove(SLIDES_TODO);
         return;
     }
+    /* not read meanwhile from what was open before */
+    itunesdb_slides_done();
     int index_fd = open(ART_FILE, O_RDONLY);
     int fd = open(SLIDES_FILE, O_RDWR | O_CREAT, 0666);
     if (fd < 0 || index_fd < 0)

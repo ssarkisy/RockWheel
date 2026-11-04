@@ -911,10 +911,25 @@ static const struct plugin_api rockbox_api = {
 #ifdef HAVE_TC_RAMCACHE
     tagcache_for_each_track,
 #endif
+    font_load_ex,
+#ifdef ITUNESDB_HAVE_ART
+    itunesdb_slides_done,
+#endif
+    pcmbuf_hold_for_ui,
+#ifdef HAVE_LCD_UPDATE_FROM
+    lcd_update_from,
+#endif
 };
 
 static int plugin_buffer_handle;
 static size_t plugin_buffer_size;
+
+static bool plugin_running;
+
+bool plugin_is_running(void)
+{
+    return plugin_running;
+}
 
 int plugin_load(const char* plugin, const void* parameter)
 {
@@ -1052,7 +1067,9 @@ int plugin_load(const char* plugin, const void* parameter)
 
     plugin_check_open_close__enter();
 
+    plugin_running = true;
     int rc = p_hdr->entry_point(parameter); /* run the loaded plugin */
+    plugin_running = false;
 
     /* unlock the tree and restore the dirfilter pointer */
     tree_unlock_cache(tc);

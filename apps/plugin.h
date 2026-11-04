@@ -183,7 +183,7 @@ int plugin_open(const char *plugin, const char *parameter);
  */
 /* 287: the iPod fork changed structures plugins see (gui_synclist,
  * user_settings, mp3entry) and the action numbering */
-#define PLUGIN_API_VERSION 300
+#define PLUGIN_API_VERSION 302
 
 /* 239 Marks the removal of ARCHOS HWCODEC and CHARCELL */
 
@@ -1081,6 +1081,15 @@ struct plugin_api {
                                               const int32_t *tag_seek,
                                               void *data), void *data);
 #endif
+    /* with as many glyphs as the theme's, which then is shared as it is */
+    int (*font_load_ex)(const char *path, size_t buffer_size, int glyphs);
+#ifdef ITUNESDB_HAVE_ART
+    void (*itunesdb_slides_done)(void);
+#endif
+    void (*pcmbuf_hold_for_ui)(long ticks);
+#ifdef HAVE_LCD_UPDATE_FROM
+    void (*lcd_update_from)(const fb_data *frame);
+#endif
 };
 
 /* plugin header */
@@ -1120,6 +1129,8 @@ extern unsigned char plugin_end_addr[];
 #define str(x) language_strings[x]
 
 int plugin_load(const char* plugin, const void* parameter);
+/* while a plugin's code runs, its menus too */
+bool plugin_is_running(void);
 
 /* defined by the plugin */
 extern const struct plugin_api *rb;
