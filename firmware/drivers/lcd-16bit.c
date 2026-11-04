@@ -57,6 +57,58 @@ static void ICODE_ATTR lcd_alpha_bitmap_part_mix(const fb_data* image,
 #include "lcd-bitmap-common.c"
 #include "lcd-16bit-common.c"
 
+/* only the main core holds them, and only its updates are held: the other's,
+   such as a video's, go through, and leave these as they are */
+static bool updates_held;
+static long updates_held_until;
+static unsigned int updates_owner; /* the thread whose updates alone show */
+static bool updates_dropped;       /* others' were left out meanwhile */
+
+void lcd_hold_updates(long ticks)
+{
+    updates_held_until = current_tick + ticks;
+    updates_held = true;
+}
+
+bool lcd_release_updates(void)
+{
+    bool held = updates_held;
+    updates_held = false;
+    return held;
+}
+
+bool lcd_own_updates(bool own)
+{
+    const bool dropped = updates_dropped;
+    updates_owner = own ? thread_self() : 0;
+    updates_dropped = false;
+    return dropped;
+}
+
+bool lcd_update_held(int *x, int *y, int *width, int *height)
+{
+#if NUM_CORES > 1
+    if (CURRENT_CORE != CPU)
+        return false;
+#endif
+    if (updates_owner)
+    {
+        if (thread_self() == updates_owner)
+            return false;
+        updates_dropped = true;
+        return true;
+    }
+    if (!updates_held)
+        return false;
+    if (TIME_BEFORE(current_tick, updates_held_until))
+        return true;
+    updates_held = false;
+    *x = *y = 0;
+    *width = LCD_WIDTH;
+    *height = LCD_HEIGHT;
+    return false;
+}
+
 /*** drawing functions ***/
 
 /* Draw a horizontal line (optimised) */

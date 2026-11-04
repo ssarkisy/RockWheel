@@ -427,15 +427,18 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
 
         if (x >= vp->width)
             break;
+        if (font_char_invisible(*ucs))
+            continue;
+        const ucschar_t ch = font_drawn_char(*ucs);
 
-        is_diac = IS_DIACRITIC_RTL(*ucs, &is_rtl);
+        is_diac = IS_DIACRITIC_RTL(ch, &is_rtl);
 
         /* A letter the font lacks comes from the fallback font, which may be another
            kind of bitmap and another size: centred on the line */
-        struct font *gf = font_for_char(pf, *ucs);
+        struct font *gf = font_for_char(pf, ch);
         if (gf != pf && !fallback_locked)
         {
-            font_lock(font_fallback_id(), true);
+            font_lock_fallbacks(true);
             fallback_locked = true;
         }
 #if defined(MAIN_LCD) && defined(HAVE_LCD_COLOR)
@@ -444,10 +447,14 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
         else
 #endif
             bmp_part_fn = LCDFN(mono_bmp_part_helper);
-        const int gy = y + ((int)pf->height - (int)gf->height) / 2;
+        /* on the baseline, within the line; one too tall for it centred on it */
+        int gy = y + ((int)pf->height - (int)gf->height) / 2;
+        if (gf != pf && gf->height <= pf->height)
+            gy = y + MAX(0, MIN(pf->ascent - gf->ascent,
+                                (int)pf->height - (int)gf->height));
 
         /* Get proportional width and glyph bits */
-        width = font_get_width(gf, *ucs);
+        width = font_get_width(gf, ch);
 
         /* Calculate base width */
         if (is_rtl)
@@ -486,7 +493,7 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
             continue;
         }
 
-        bits = font_get_bits(gf, *ucs);
+        bits = font_get_bits(gf, ch);
 
         if (is_diac)
         {
@@ -534,7 +541,7 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
         }
     }
     if (fallback_locked)
-        font_lock(font_fallback_id(), false);
+        font_lock_fallbacks(false);
     font_lock(vp->font, false);
 }
 #else /* BOOTLOADER */

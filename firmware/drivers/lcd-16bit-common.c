@@ -617,12 +617,19 @@ static void ICODE_ATTR lcd_alpha_bitmap_part_mix(
             } while (--col);
             break;
         }
+        /* Of a glyph, most pixels are none of it and many all of it: those
+           are what's there or the colour as they are, as the blend would give
+           them, without it. In text three in four were left as they were. */
         case DRMODE_FG|DRMODE_INT_IMG:
         {
             io = image - dst;
             do
             {
-                *dst = blend_two_colors(*dst, *(dst + io), READ_ALPHA());
+                unsigned a = READ_ALPHA();
+                if (a == 0)
+                    *dst = *(dst + io);
+                else if (a != ALPHA_MASK)
+                    *dst = blend_two_colors(*dst, *(dst + io), a);
                 dst += COL_INC;
             } while (--col);
             break;
@@ -632,7 +639,11 @@ static void ICODE_ATTR lcd_alpha_bitmap_part_mix(
             /*fg == vp->fg_pattern*/
             do
             {
-                *dst = blend_two_colors(*dst, fg, READ_ALPHA());
+                unsigned a = READ_ALPHA();
+                if (a == 0)
+                    *dst = fg;
+                else if (a != ALPHA_MASK)
+                    *dst = blend_two_colors(*dst, fg, a);
                 dst += COL_INC;
             } while (--col);
             break;
@@ -643,7 +654,13 @@ static void ICODE_ATTR lcd_alpha_bitmap_part_mix(
             bo = lcd_backdrop_offset;
             do
             {
-                *dst = blend_two_colors(*PTR_ADD(dst, bo), fg, READ_ALPHA());
+                unsigned a = READ_ALPHA();
+                if (a == 0)
+                    *dst = fg;
+                else if (a == ALPHA_MASK)
+                    *dst = *PTR_ADD(dst, bo);
+                else
+                    *dst = blend_two_colors(*PTR_ADD(dst, bo), fg, a);
                 dst += COL_INC;
             } while (--col);
             break;
@@ -676,7 +693,8 @@ static void ICODE_ATTR lcd_alpha_bitmap_part_mix(
             /*bg == vp->bg_pattern*/
             do
             {
-                *dst = blend_two_colors(bg, fg, READ_ALPHA());
+                unsigned a = READ_ALPHA();
+                *dst = a == 0 ? fg : a == ALPHA_MASK ? bg : blend_two_colors(bg, fg, a);
                 dst += COL_INC;
             } while (--col);
             break;

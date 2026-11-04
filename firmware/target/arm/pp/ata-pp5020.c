@@ -106,6 +106,7 @@ static bool dma_needs_boost;
 #endif
 
 static int ata_is_ssd = 0;
+static unsigned long dma_bytes; /* of the transfer going on, 0 for a write */
 
 /* This function sets up registers for 80 Mhz.
    Ultra DMA mode 2 works at 30 Mhz.
@@ -205,6 +206,7 @@ bool ata_dma_setup(void *addr, unsigned long bytes, bool write) {
 
     IDE_DMA_CONTROL |= 2;
     IDE_DMA_LENGTH = bytes - 4;
+    dma_bytes = write ? 0 : bytes;
 
 #if !defined(BOOTLOADER) || defined (HAVE_BOOTLOADER_USB_MODE)
     if ((unsigned long)addr < DRAM_START)
@@ -235,6 +237,28 @@ bool ata_dma_finish(void) {
 
     /* It may be okay to put this at the end of setup */
     IDE_DMA_CONTROL |= 1;
+
+    /* On flash a read is over in about the time it takes at 12 MB/s: waited for
+       here first, up to 4 ms, as a thread yielded to can keep the CPU for long,
+       the UI for a frame of its own. Cover Flow's frames are 70 ms with music, and
+       its covers came slower than it passed them. A write to flash takes longer,
+       and a disk seeks: they yield at once, as before. So does a thread that goes
+       before the UI, as the buffering of the music: it has the CPU back as soon as
+       the UI lets it go anyway, and its reads, waited for here, held up the lists
+       a few milliseconds at a time for as long as it filled the buffer. One behind
+       the UI, as the database's loading itself into memory, waits: yielding, it got
+       the CPU back only when the UI next let it go, a read at a time. */
+    if (ata_is_ssd && dma_bytes
+#ifdef HAVE_PRIORITY_SCHEDULING
+        && thread_get_priority(thread_self()) >= PRIORITY_USER_INTERFACE
+#endif
+        )
+    {
+        const unsigned long start = USEC_TIMER;
+        const unsigned long most = MIN(dma_bytes / 12 + 500, 4000);
+        while (!(IDE0_CFG & IDE_CFG_INTRQ) && USEC_TIMER - start < most)
+            ;
+    }
 
     /* Wait for end of transfer.
        Reading standard ATA status while DMA is in progress causes

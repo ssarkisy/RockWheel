@@ -125,14 +125,36 @@ void font_unload(int font_id);
 void font_unload_all(void);
 void font_lock(int font_id, bool lock);
 
+/* Characters drawn as nothing and taking no room: the joiners and marks of
+   direction, the selectors of a character's form, as the one that asks for "❤"
+   as an emoji, and the byte order mark. A font drew its blank or Unifont its box
+   for them. */
+static inline bool font_char_invisible(ucschar_t ch)
+{
+    return (ch >= 0x200b && ch <= 0x200f) || (ch >= 0x2060 && ch <= 0x2064)
+        || (ch >= 0xfe00 && ch <= 0xfe0f) || ch == 0xfeff;
+}
+
+/* What's drawn for a character: one past the plane that the fonts go to, as an
+   emoji like "🌎", as an empty square of the theme's font, as on a stock iPod.
+   Unifont drew its box of the code in hex. */
+static inline ucschar_t font_drawn_char(ucschar_t ch)
+{
+    return ch > 0xffff ? 0x25a1 : ch;
+}
+
 /* The theme's fonts don't have every alphabet. A letter they lack comes from a
    fallback font, loaded with the theme and read from disk only when it's needed. */
 #ifdef BOOTLOADER
 #define font_for_char(pf, ch) (pf)
 #else
-void font_load_fallback(void);
+/* Unifont, and the fonts of an alphabet by name, as "Hangul", or of none */
+void font_load_fallback(const char *script);
+/* the library's fonts loaded, again as they're made anew, or let go of */
+void font_load_library(bool load);
 struct font* font_for_char(struct font* pf, ucschar_t ch);
-int font_fallback_id(void);
+/* all of them, while their glyphs are drawn */
+void font_lock_fallbacks(bool lock);
 #endif
 
 /* Closes the file descriptor if the font file (if cached) but keeps

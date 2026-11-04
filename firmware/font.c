@@ -165,23 +165,153 @@ static inline bool char_wants_fallback(ucschar_t ch)
         || (ch >= 0xff00 && ch < 0xfff0);   /* full and half width forms */
 }
 
-void font_load_fallback(void)
+/* An alphabet's own fonts, which read better than Unifont's at the theme's sizes:
+   FONT_DIR "/<height>-<name>.fnt", the height that of the theme's font each goes
+   with. They're loaded for the alphabet of the menus' language, and any of them can
+   be replaced by one's own font of that name. */
+#define SCRIPT_GLYPHS 192
+static const struct script {
+    const char *name;
+    ucschar_t first[2], last[2]; /* its ranges */
+} scripts[] = {
+    { "Hangul", { 0xac00, 0x3131 }, { 0xd7a3, 0x318e } },
+};
+static const int script_heights[] = { 24, 17, 14 };
+static int script_loaded = -1;
+static int script_ids[ARRAYLEN(script_heights)] = { -1, -1, -1 };
+
+/* The fonts of the library (apps/library_fonts.c): of all that its tags, its
+   playlists and the menus of every language are written in, in those alphabets,
+   in the same sizes. What they have comes from them first. */
+#define LIBRARY_GLYPHS 256
+static int library_ids[ARRAYLEN(script_heights)] = { -1, -1, -1 };
+
+static bool in_script(const struct script *sc, ucschar_t ch)
+{
+    for (int i = 0; i < 2; i++)
+    {
+        if (ch >= sc->first[i] && ch <= sc->last[i])
+            return true;
+    }
+    return false;
+}
+
+/* a file of a fallback, whose glyphs are only ever asked for other alphabets */
+static bool is_fallback_file(const char *path)
+{
+    if (strcmp(path, FALLBACK_FONT) == 0)
+        return true;
+    const char *dash = strrchr(path, '-');
+    if (dash && !strcmp(dash + 1, "Library.fnt"))
+        return true;
+    for (size_t i = 0; dash && i < ARRAYLEN(scripts); i++)
+    {
+        const size_t n = strlen(scripts[i].name);
+        if (!strncmp(dash + 1, scripts[i].name, n) && !strcmp(dash + 1 + n, ".fnt"))
+            return true;
+    }
+    return false;
+}
+
+void font_load_fallback(const char *script)
 {
     if (fallback_id < 0)
         fallback_id = font_load_ex(FALLBACK_FONT, 0, FALLBACK_GLYPHS);
+
+    int wanted = -1;
+    for (size_t i = 0; script && i < ARRAYLEN(scripts); i++)
+    {
+        if (!strcmp(script, scripts[i].name))
+            wanted = i;
+    }
+    /* Once loaded, an alphabet's fonts stay until the next boot, as the
+       scrolling line may be drawing with them as the language changes, and
+       they serve its names in tags as well under another language */
+    if (wanted < 0 || script_loaded >= 0)
+        return;
+    script_loaded = wanted;
+    for (size_t i = 0; i < ARRAYLEN(script_heights); i++)
+    {
+        char path[MAX_PATH];
+        snprintf(path, sizeof(path), FONT_DIR "/%d-%s.fnt", script_heights[i],
+                 scripts[wanted].name);
+        script_ids[i] = font_load_ex(path, 0, SCRIPT_GLYPHS);
+        if (script_ids[i] < 0)
+            script_ids[i] = -1; /* not there */
+    }
 }
 
-int font_fallback_id(void)
+void font_load_library(bool load)
 {
-    return fallback_id;
+    for (size_t i = 0; i < ARRAYLEN(library_ids); i++)
+    {
+        if (load && library_ids[i] >= 0)
+            continue; /* as it was made */
+        if (library_ids[i] >= 0)
+            font_unload(library_ids[i]);
+        library_ids[i] = -1;
+        if (!load)
+            continue;
+        char path[MAX_PATH];
+        snprintf(path, sizeof(path), FONT_DIR "/%d-Library.fnt", script_heights[i]);
+        const int id = font_load_ex(path, 0, LIBRARY_GLYPHS);
+        library_ids[i] = id < 0 ? -1 : id;
+    }
+}
+
+void font_lock_fallbacks(bool lock)
+{
+    font_lock(fallback_id, lock);
+    for (size_t i = 0; i < ARRAYLEN(script_ids); i++)
+    {
+        font_lock(script_ids[i], lock);
+        font_lock(library_ids[i], lock);
+    }
+}
+
+/* of fonts in the sizes of the theme's, the one for a font of this height: the
+   tallest not over it, or else the smallest */
+static struct font *sized_font(const int ids[ARRAYLEN(script_heights)], int height)
+{
+    int best = -1, smallest = -1;
+    for (size_t i = 0; i < ARRAYLEN(script_heights); i++)
+    {
+        if (ids[i] < 0)
+            continue;
+        if (script_heights[i] <= height && (best < 0 || script_heights[i] > script_heights[best]))
+            best = i;
+        if (smallest < 0 || script_heights[i] < script_heights[smallest])
+            smallest = i;
+    }
+    if (best < 0)
+        best = smallest;
+    return best < 0 ? NULL : font_get(ids[best]);
 }
 
 struct font* font_for_char(struct font* pf, ucschar_t ch)
 {
-    if (LIKELY(ch < 0x0590) || !char_wants_fallback(ch)
-        || fallback_id < 0 || pf == &sysfont)
+    if (LIKELY(ch < 0x0590) || pf == &sysfont)
         return pf;
-    return font_get(fallback_id);
+    if (!char_wants_fallback(ch))
+    {
+        /* punctuation and symbols from the theme's font, but one past all it
+           has from Unifont, as the titles that Coldplay gives as "⦵" and "✨":
+           the font's blank default made an empty title */
+        if (ch < pf->firstchar + pf->size || fallback_id < 0)
+            return pf;
+        return font_get(fallback_id);
+    }
+    struct font *lf = sized_font(library_ids, pf->height);
+    if (lf && ch >= lf->firstchar && ch < lf->firstchar + lf->size
+        && font_get_width(lf, ch) > 0)
+        return lf;
+    if (script_loaded >= 0 && in_script(&scripts[script_loaded], ch))
+    {
+        struct font *sf = sized_font(script_ids, pf->height);
+        if (sf)
+            return sf;
+    }
+    return fallback_id < 0 ? pf : font_get(fallback_id);
 }
 #endif /* BOOTLOADER */
 
@@ -792,6 +922,13 @@ void font_unload(int font_id)
         buflib_allocations[font_id] = -1;
         if (font_id == fallback_id)
             fallback_id = -1;
+        for (size_t i = 0; i < ARRAYLEN(script_ids); i++)
+        {
+            if (font_id == script_ids[i])
+                script_ids[i] = -1;
+            if (font_id == library_ids[i])
+                library_ids[i] = -1;
+        }
 
     }
 }
@@ -1156,7 +1293,7 @@ static NO_INLINE void glyph_cache_load(const char *font_path, struct font *pf)
     /* The fallback's glyphs are of other alphabets, few and far apart in its 2 MB:
        loaded ahead from what was seen before, each needed reads of its own, 0.3 s
        at boot for glyphs that may not show at all. They load as they're drawn. */
-    if (strcmp(font_path, FALLBACK_FONT) == 0)
+    if (is_fallback_file(font_path))
         return;
 #endif
     if (pf->fd >= 0) {
@@ -1224,8 +1361,8 @@ static NO_INLINE void glyph_cache_load(const char *font_path, struct font *pf)
             close(fd);
         } else {
         latin:
-            /* the fallback font is only ever asked for other alphabets */
-            if (strcmp(font_path, FALLBACK_FONT) == 0)
+            /* the fallback fonts are only ever asked for other alphabets */
+            if (is_fallback_file(font_path))
                 return;
             /* load latin1 chars into cache */
             for ( ch = 32 ; ch < 256  && ch < pf->cache._capacity + 32; ch++ )
@@ -1313,13 +1450,14 @@ int font_measurestring(const unsigned char *str, size_t maxbytes, size_t maxwidt
         {
             break;
         }
-        if (IS_DIACRITIC(ch))
+        if (IS_DIACRITIC(ch) || font_char_invisible(ch))
             continue;
+        ch = font_drawn_char(ch);
         struct font* gf = font_for_char(pf, ch);
 #ifndef BOOTLOADER
         if (gf != pf && !fallback_locked)
         {
-            font_lock(font_fallback_id(), true);
+            font_lock_fallbacks(true);
             fallback_locked = true;
         }
 #endif
@@ -1339,7 +1477,7 @@ int font_measurestring(const unsigned char *str, size_t maxbytes, size_t maxwidt
 
 #ifndef BOOTLOADER
     if (fallback_locked)
-        font_lock(font_fallback_id(), false);
+        font_lock_fallbacks(false);
 #else
     (void)fallback_locked;
 #endif

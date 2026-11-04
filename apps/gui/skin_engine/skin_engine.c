@@ -196,7 +196,11 @@ static void skins_reload(bool stop_audio)
             viewportmanager_theme_enable(j, false, NULL);
     }
 
-    font_load_fallback();
+    /* the alphabets other than the theme's: in the library's fonts of them
+       (library_fonts.c), and without those, the menus' in Korean in Hangul's own */
+    font_load_library(true);
+    font_load_fallback(!strcmp((const char *)global_settings.lang_file, "korean")
+                       && !file_exists(FONT_DIR "/24-Library.fnt") ? "Hangul" : NULL);
 
     if (stop_audio && (audio_status() & AUDIO_STATUS_PLAY))
         audio_stop();

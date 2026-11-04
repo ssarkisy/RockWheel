@@ -132,6 +132,10 @@ void lcd_update(void)
 
 void lcd_update_rect(int x_start, int y_start, int width, int height)
 {
+#if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    if (lcd_update_held(&x_start, &y_start, &width, &height))
+        return;
+#endif
 #ifdef HAVE_LCD_FLIP
     if (sim_lcd_flipped)
     {

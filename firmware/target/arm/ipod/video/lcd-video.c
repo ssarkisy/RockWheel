@@ -388,6 +388,9 @@ void lcd_update_rect(int x, int y, int width, int height)
     const fb_data *addr;
     unsigned bcmaddr;
 
+    /* the first update as it wakes, which waking waits for, goes through */
+    if (lcd_state.state != LCD_INITIAL && lcd_update_held(&x, &y, &width, &height))
+        return;
 #ifdef HAVE_LCD_SLEEP
     if (!lcd_state.display_on)
         return;
@@ -430,6 +433,21 @@ void lcd_update_rect(int x, int y, int width, int height)
     }
     lcd_unblock_and_update();
 }
+
+#ifdef HAVE_LCD_UPDATE_FROM
+void lcd_update_from(const fb_data *frame)
+{
+#ifdef HAVE_LCD_SLEEP
+    if (!lcd_state.display_on)
+        return;
+#endif
+    /* Prevent the tick from triggering BCM updates while we're writing. */
+    lcd_block_tick();
+    bcm_write_addr(BCMA_CMDPARAM);
+    lcd_write_data(frame, LCD_WIDTH * LCD_HEIGHT);
+    lcd_unblock_and_update();
+}
+#endif
 
 /* Update the display.
    This must be called after all other LCD functions that change the display. */

@@ -220,6 +220,18 @@ extern struct viewport* lcd_set_viewport_ex(struct viewport* vp, int flags);
 extern void lcd_update(void);
 extern void lcd_update_viewport(void);
 extern void lcd_update_viewport_rect(int x, int y, int width, int height);
+#if LCD_DEPTH == 16
+/* Updates kept from the display for a screen drawn in full before it shows,
+   as for the menus' slide: until released, or until the ticks have passed */
+extern void lcd_hold_updates(long ticks);
+extern bool lcd_release_updates(void); /* true if they were held */
+/* while the slide draws: the updates of other threads, such as the scrolling
+   line's, are left out; true if any were since it was last called */
+extern bool lcd_own_updates(bool own);
+/* for lcd_update_rect(): true to leave this one out; once the time is up,
+   the whole screen instead, for those left out */
+extern bool lcd_update_held(int *x, int *y, int *width, int *height);
+#endif
 extern void lcd_clear_viewport(void);
 extern void lcd_clear_display(void);
 extern void lcd_putsxy(int x, int y, const unsigned char *string);
@@ -233,6 +245,13 @@ extern bool lcd_puts_scroll(int x, int y, const unsigned char* string);
 extern bool lcd_putsxy_scroll_func(int x, int y, const unsigned char *string,
                                    void (*scroll_func)(struct scrollinfo *),
                                    void *data, int x_offset);
+
+#if defined(IPOD_VIDEO) && !defined(SIMULATOR) && !defined(BOOTLOADER)
+/* The whole screen from a frame of its own rather than the framebuffer, and from
+   either core: as Cover Flow shows one from the COP while the next is drawn */
+#define HAVE_LCD_UPDATE_FROM
+extern void lcd_update_from(const fb_data *frame);
+#endif
 
 /* performance function */
 #if defined(HAVE_LCD_COLOR)
