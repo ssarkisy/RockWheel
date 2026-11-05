@@ -879,6 +879,32 @@ void check_bootfile(bool do_rolo)
 #endif
 
 /* set volume and save settings */
+static int (*yielding_compare)(const void *, const void *);
+
+static int compare_yielding(const void *a, const void *b)
+{
+    static long tick;
+    if (current_tick != tick)
+    {
+        tick = current_tick;
+        yield();
+    }
+    return yielding_compare(a, b);
+}
+
+void qsort_yielding(void *base, size_t count, size_t size,
+                    int (*compare)(const void *, const void *))
+{
+    if (yielding_compare)
+    {
+        qsort(base, count, size, compare);
+        return;
+    }
+    yielding_compare = compare;
+    qsort(base, count, size, compare_yielding);
+    yielding_compare = NULL;
+}
+
 void setvol(void)
 {
     sound_set_volume(global_status.volume);

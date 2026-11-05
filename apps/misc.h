@@ -164,6 +164,12 @@ enum volume_adjust_mode
 
 /* check range, set volume and save settings */
 void setvol(void);
+/* qsort for a thread behind the UI: once a tick it lets the UI go, as a sort of
+   13000 entries kept it waiting 190 ms. Only for an array pinned or static,
+   which no other thread reads meanwhile: the comparisons go on after. One at a
+   time: another thread's meanwhile sorts without letting go. */
+void qsort_yielding(void *base, size_t count, size_t size,
+                    int (*compare)(const void *, const void *));
 void set_normalized_volume(int vol);
 int get_normalized_volume(void);
 void adjust_volume(int steps);

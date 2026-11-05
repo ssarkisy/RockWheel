@@ -188,10 +188,18 @@ void photos_panel_update(void)
 
     if (photos_panel_count() > 0)
     {
+        /* the old one put aside: a load refused, as with a plugin open, left
+           it there, and its stamp was written as if it were made again */
+        remove(PHOTOS_PANEL_FILE ".old"); /* of a make cut short */
+        rename(PHOTOS_PANEL_FILE, PHOTOS_PANEL_FILE ".old");
         plugin_load(PLUGIN_APPS_DIR "/photos.rock", PHOTOS_PANEL_MAKE);
         /* it's tried again at the next boot */
         if (!file_exists(PHOTOS_PANEL_FILE))
+        {
+            rename(PHOTOS_PANEL_FILE ".old", PHOTOS_PANEL_FILE);
             return;
+        }
+        remove(PHOTOS_PANEL_FILE ".old");
     }
     else
         remove(PHOTOS_PANEL_FILE);

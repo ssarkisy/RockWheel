@@ -45,6 +45,7 @@
 #include "icons.h"
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
+#include "plugin.h"
 #include "root_menu.h"
 #endif
 
@@ -600,8 +601,16 @@ void gui_usb_screen_run(bool early_usb, intptr_t seqnum)
     in_usb_screen = false;
 #endif
 #ifdef HAVE_TAGCACHE
-    /* after a sync, the new songs before anything else, as after a boot */
-    if(!early_usb && tagcache_check_sync())
-        show_library_update();
+    /* after a sync, the new songs before anything else, as after a boot: at
+       once, as a browser stays open after USB, and from within a plugin's
+       screen once that has closed, as plugins do after USB: it took the
+       plugins' buffer from under the plugin itself */
+    if(!early_usb)
+    {
+        if (plugin_is_running())
+            library_update_after_usb();
+        else if (tagcache_check_sync())
+            show_library_update();
+    }
 #endif
 }

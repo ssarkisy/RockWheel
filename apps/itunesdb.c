@@ -75,6 +75,11 @@ static int db_alloc(size_t size)
    the counts they had then, which Play Counts entries are made against */
 #define STATE_FILE      ROCKBOX_DIR "/itunesdb.dat"
 #define STATE_MAGIC     0x54494252 /* "RBIT" */
+/* A new version leaves the plays not yet given to Finder uncounted: the next
+   boot takes every track's counts from iTunesDB as after a sync. So it reads
+   the last version too and writes Play Counts from it first, or isn't raised
+   while some may be waiting. TAGCACHE_MAGIC likewise, whose change drops the
+   database and its counts with it. */
 #define STATE_VERSION   1
 /* the database's commit id when the last import had gone through all of it */
 #define IMPORTED_FILE   ROCKBOX_DIR "/itunesdb_imported.dat"
@@ -284,7 +289,8 @@ uint64_t itunesdb_path_hash(const char *path)
 }
 
 /* the size and time of iTunesDB, which change with every sync */
-static bool db_stamp(uint32_t *size, uint32_t *mtime)
+/* the size and time of a file of iTunesDB's folder, as the disk has them */
+static bool dir_file_stamp(const char *name, uint32_t *size, uint32_t *mtime)
 {
     DIR *dir = opendir(ITUNESDB_DIR);
     if (!dir)
@@ -293,7 +299,7 @@ static bool db_stamp(uint32_t *size, uint32_t *mtime)
     struct dirent *entry;
     while (!found && (entry = readdir(dir)))
     {
-        if (strcasecmp(entry->d_name, "iTunesDB"))
+        if (strcasecmp(entry->d_name, name))
             continue;
         struct dirinfo info = dir_get_info(dir, entry);
         *size = info.size;
@@ -302,6 +308,11 @@ static bool db_stamp(uint32_t *size, uint32_t *mtime)
     }
     closedir(dir);
     return found;
+}
+
+static bool db_stamp(uint32_t *size, uint32_t *mtime)
+{
+    return dir_file_stamp("iTunesDB", size, mtime);
 }
 
 bool itunesdb_sync_date(struct tm *tm)
@@ -528,7 +539,7 @@ static int load_known_hashes(int *handle)
             hashes[n++] = chunk[i].hash;
     }
     close(fd);
-    qsort(hashes, n, sizeof(uint64_t), cmp_u64);
+    qsort_yielding(hashes, n, sizeof(uint64_t), cmp_u64);
     return n;
 }
 
@@ -1796,7 +1807,7 @@ static void index_pending(void)
 {
     for (uint32_t i = 0; i < pend.hdr.count; i++)
         pend.by_hash[i] = i;
-    qsort(pend.by_hash, pend.hdr.count, sizeof(uint32_t), cmp_pending_hash);
+    qsort_yielding(pend.by_hash, pend.hdr.count, sizeof(uint32_t), cmp_pending_hash);
 }
 
 /* Whether the tracks and their counts are those of the last import, and the database
@@ -1989,8 +2000,10 @@ static bool db_load(void)
         return false;
     for (int i = 0; i < db.count; i++)
         db.by_id[i] = db.by_hash[i] = i;
-    qsort(db.by_id, db.count, sizeof(uint32_t), cmp_id);
-    qsort(db.by_hash, db.count, sizeof(uint32_t), cmp_hash);
+    /* behind the UI, 13000 tracks kept it waiting 190 ms; the table is
+       pinned meanwhile */
+    qsort_yielding(db.by_id, db.count, sizeof(uint32_t), cmp_id);
+    qsort_yielding(db.by_hash, db.count, sizeof(uint32_t), cmp_hash);
     return true;
 }
 
@@ -2064,6 +2077,50 @@ void itunesdb_forget_state(void)
    ratings and removes the file. */
 
 #define PLAYCOUNTS_FILE  ITUNESDB_DIR "/Play Counts"
+/* Of the Play Counts written here last: its size and time, and the iTunesDB it
+   was made against. With nothing new to tell, only that one is removed, and
+   only once Finder has synced since: one of an older firmware's, as left by an
+   update between its sync and the next, held the only count of its plays */
+#define PLAYCOUNTS_MARK  ROCKBOX_DIR "/itunesdb_playcounts.dat"
+struct playcounts_mark {
+    uint32_t size, mtime;       /* of Play Counts */
+    uint32_t db_size, db_mtime; /* of iTunesDB */
+};
+
+static void playcounts_mark_write(void)
+{
+    struct playcounts_mark m;
+    if (!dir_file_stamp("Play Counts", &m.size, &m.mtime)
+        || !db_stamp(&m.db_size, &m.db_mtime))
+        return;
+    const int fd = open(PLAYCOUNTS_MARK, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    if (fd >= 0)
+    {
+        write(fd, &m, sizeof(m));
+        close(fd);
+    }
+}
+
+/* nothing new to tell Finder: the file it has taken, if it left it */
+static void playcounts_remove_taken(void)
+{
+    struct playcounts_mark m, now;
+    uint32_t db_size, db_mtime;
+    const int fd = open(PLAYCOUNTS_MARK, O_RDONLY);
+    if (fd < 0)
+        return;
+    const bool read_ok = read(fd, &m, sizeof(m)) == sizeof(m);
+    close(fd);
+    if (!read_ok || !dir_file_stamp("Play Counts", &now.size, &now.mtime))
+        return;
+    if (now.size == m.size && now.mtime == m.mtime
+        && db_stamp(&db_size, &db_mtime)
+        && (db_size != m.db_size || db_mtime != m.db_mtime))
+    {
+        remove(PLAYCOUNTS_FILE);
+        remove(PLAYCOUNTS_MARK);
+    }
+}
 #define PLAYCOUNTS_HDR   0x60
 #define PLAYCOUNTS_ENTRY 0x1c
 /* seconds from 1904, which iTunes counts from, to 1970 */
@@ -2175,7 +2232,7 @@ void itunesdb_write_playcounts(void)
                 || pc.now[i].rating * 10 != pc.state[i].rating);
     if (!changed)
     {
-        remove(PLAYCOUNTS_FILE);
+        playcounts_remove_taken();
         goto done;
     }
 
@@ -2213,6 +2270,7 @@ void itunesdb_write_playcounts(void)
     {
         remove(PLAYCOUNTS_FILE);
         rename(PLAYCOUNTS_FILE ".tmp", PLAYCOUNTS_FILE);
+        playcounts_mark_write();
     }
     else
         remove(PLAYCOUNTS_FILE ".tmp");
@@ -3163,7 +3221,7 @@ static void write_art_index(int old_handle, uint32_t old_count)
             && find_image(images, art_count, t->art))
             order[n++] = i;
     }
-    qsort(order, n, sizeof(*order), cmp_album_track);
+    qsort_yielding(order, n, sizeof(*order), cmp_album_track);
 
     /* the slides: as many as there were and albums at most */
     uint32_t max_slides = count_albums(order, n) + old_count;
@@ -3900,7 +3958,11 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
         bool made = pos + (off_t)SLIDE_SLOT <= size
                     && lseek(fd, pos, SEEK_SET) == pos
                     && read(fd, &head, sizeof(head)) == sizeof(head)
-                    && head.magic == SLIDE_MAGIC && head.key == key;
+                    && head.magic == SLIDE_MAGIC && head.key == key
+                    /* at this size of slides, which a cover fills one way:
+                       of another, kept by its slot's being as big, it showed
+                       smaller */
+                    && MAX(head.width, head.height) == ITUNESDB_SLIDE_SIZE;
         if (made && (colours_handle <= 0 || slide_colour(i) != COVER_COLOUR_UNKNOWN))
             continue;
         if (made ? lseek(fd, pos, SEEK_SET) == pos

@@ -86,11 +86,19 @@
 #include "debug.h"
 #include "dircache.h"
 #include "errno.h"
+#ifdef __PCTOOL__
+#define qsort_yielding qsort
+#endif
 
 #ifndef __PCTOOL__
 #include "lang.h"
 #include "eeprom_settings.h"
 #include "itunesdb.h"
+#include "audio.h"
+#ifndef PLUGIN
+#include "music_search.h"
+#include "library_fonts.h"
+#endif
 #endif
 #define USR_CANCEL false
 #else/*!defined(PLUGIN)*/
@@ -750,6 +758,9 @@ static void remove_files(void)
     tc_stat.econ = false;
 #if !defined(__PCTOOL__) && !defined(PLUGIN)
     itunesdb_forget_state();
+    /* and what's made from it */
+    music_search_forget();
+    library_fonts_forget();
 #endif
     remove_db_file(TAGCACHE_FILE_MASTER);
     for (i = 0; i < TAG_COUNT; i++)
@@ -823,12 +834,13 @@ static bool update_master_header(void)
 #ifndef __PCTOOL__
 static bool do_timed_yield(void)
 {
-    /* Sorting can lock up for quite a while, so yield occasionally */
+    /* Sorting can lock up for quite a while, so yield occasionally: each tick,
+       as the UI waits for it meanwhile, a wheel's step 40 ms at HZ/25 */
     static long wakeup_tick = 0;
     if (TIME_AFTER(current_tick, wakeup_tick))
     {
         yield();
-        wakeup_tick = current_tick + (HZ/25);
+        wakeup_tick = current_tick; /* the next one */
         return true;
     }
     return false;
@@ -909,6 +921,7 @@ static int cmp_path_name(const void *a, const void *b)
     return (x > y) - (x < y);
 }
 
+
 /* the entry of the file at path, or -1 */
 static long find_path_name(int handle, long count, const char *path,
                            uint32_t *mtime)
@@ -965,6 +978,58 @@ static void free_ram_names(void)
     ram_paths_handle = 0;
     ram_paths_count = 0;
     ram_paths_size = ram_paths_used = 0;
+}
+
+/* Room for the names and paths of count files, kept for the loads after, as
+   an update's, while it's as big. Taken while music played, it made the music
+   stop and start again as its buffer gave the room up: then there's none, and
+   the dircache finds the files instead. */
+static void ram_names_alloc(long count, size_t paths_size)
+{
+    if (ram_names_handle > 0 && ram_paths_handle > 0
+        && ram_names_capacity >= count && ram_paths_count >= count
+        && ram_paths_size >= paths_size)
+    {
+        ram_names_count = 0;
+        ram_names_overflow = false;
+        ram_paths_used = 0;
+        memset(core_get_data(ram_paths_handle), 0,
+               ram_paths_count * (sizeof(uint32_t) + 1));
+        return;
+    }
+    free_ram_names();
+    if (count <= 0)
+        return;
+    const size_t need = count * sizeof(struct path_name)
+                        + count * (sizeof(uint32_t) + 1) + paths_size;
+    if ((audio_status() & AUDIO_STATUS_PLAY) && core_allocatable() < need)
+        return;
+
+    ram_names_capacity = count;
+    ram_names_handle = core_alloc(count * sizeof(struct path_name));
+    if (ram_names_handle <= 0)
+        ram_names_handle = ram_names_capacity = 0;
+
+    /* the paths take at most what the filename file has */
+    ram_paths_count = count;
+    ram_paths_size = paths_size;
+    ram_paths_handle = core_alloc(count * (sizeof(uint32_t) + 1) + paths_size);
+    if (ram_paths_handle > 0)
+        memset(core_get_data(ram_paths_handle), 0,
+               count * (sizeof(uint32_t) + 1));
+    else
+        ram_paths_handle = ram_paths_count = ram_paths_size = 0;
+}
+
+/* the filename file's size of its paths, for ram_names_alloc */
+static size_t ram_paths_needed(void)
+{
+    struct tagcache_header tch;
+    int fd = open_tag_fd(&tch, tag_filename, false);
+    if (fd < 0)
+        return 0;
+    close(fd);
+    return tch.datasize;
 }
 
 static void ram_path_add(long idx_id, const char *path, uint64_t hash)
@@ -2649,7 +2714,7 @@ static bool load_build_times(struct path_name *names, long count, char *buf,
     int fd = open_master_fd(&mh, false);
     if (fd < 0)
         return false;
-    qsort(names, count, sizeof(*names), cmp_path_idx);
+    qsort_yielding(names, count, sizeof(*names), cmp_path_idx);
     struct index_entry *e = (struct index_entry *)buf;
     long per = size / sizeof(struct index_entry), k = 0;
     bool ok = true;
@@ -2681,6 +2746,13 @@ static void load_build_names(int fd, long entry_count)
     enum { CHUNK = 32768 };
     if (fd < 0 || entry_count <= 0 || tc_stat.econ)
         return;
+#ifndef __PCTOOL__
+    /* not while music plays and its buffer has the memory: taken, it stopped
+       the music and started it again; the scan goes the slow way then */
+    if ((audio_status() & AUDIO_STATUS_PLAY)
+        && core_allocatable() < entry_count * sizeof(struct path_name) + CHUNK)
+        return;
+#endif
     int handle = core_alloc(entry_count * sizeof(struct path_name)
                             + CHUNK + TAG_MAXLEN + sizeof(struct tagfile_entry));
     if (handle <= 0)
@@ -2739,7 +2811,7 @@ static void load_build_names(int fd, long entry_count)
     build_names_timed = load_build_times(names, count, buf,
                                          CHUNK + TAG_MAXLEN
                                          + sizeof(struct tagfile_entry));
-    qsort(names, count, sizeof(*names), cmp_path_name);
+    qsort_yielding(names, count, sizeof(*names), cmp_path_name);
     core_unpin(handle);
     core_shrink(handle, names, count * sizeof(struct path_name));
     build_names_handle = handle;
@@ -4192,11 +4264,11 @@ static bool commit(void)
 #endif
 #endif
 
-    /* Beyond here, jump to commit_error to undo locks and restore dircache */
     rc = false;
-    read_lock++;
 
-    /* Try to steal every buffer we can :) */
+    /* Try to steal every buffer we can :) Before read_lock: taking the audio
+       buffer's stops the music, whose track's end counts its play, which waits
+       for read_lock to be let go, and the two waited on each other for good */
 #if defined(HAVE_DIRCACHE) && !defined(PLUGIN) && !defined(__PCTOOL__)
     /* Free memory first: taking the dircache's means building it again
        afterwards, a walk over the whole disk. While music plays the audio
@@ -4240,6 +4312,9 @@ static bool commit(void)
         tempbuf_size &= ~0x03;
     }
 #endif /*defined(PLUGIN)*/
+
+    /* Beyond here, jump to commit_error to undo locks and restore dircache */
+    read_lock++;
 
     /* And finally fail if there are no buffers available. */
     if (tempbuf_size == 0)
@@ -4512,8 +4587,14 @@ static void command_queue_sync_callback(void)
 
     mutex_lock(&command_queue_mutex);
 
+    /* not to be had, as after a rebuild took the files: what's queued waits
+       for the next try, and the queue stays free for playback to add to, which
+       otherwise waited on it from then on */
     if ( (masterfd = open_master_fd(&myhdr, true)) < 0)
+    {
+        mutex_unlock(&command_queue_mutex);
         return;
+    }
 
     while (command_queue_ridx != command_queue_widx)
     {
@@ -4528,7 +4609,10 @@ static void command_queue_sync_callback(void)
 
                 /* Re-open the masterfd. */
                 if ( (masterfd = open_master_fd(&myhdr, true)) < 0)
+                {
+                    mutex_unlock(&command_queue_mutex);
                     return;
+                }
 
                 break;
             }
@@ -5484,6 +5568,10 @@ static bool allocate_tagcache(void)
     memset(tcramcache.hdr, 0, sizeof(struct ramcache_header));
     memcpy(&current_tcmh, &tcmh, sizeof current_tcmh);
     logf("tagcache: %d bytes allocated.", tc_stat.ramcache_allocated);
+    /* Not the room for the files' names too, here at the start: as much again
+       took the audio buffer's room, whose shrinking waits for the audio
+       thread, which didn't answer yet, and this thread stood still for good.
+       load_ramcache takes it. */
 
     return true;
 }
@@ -5618,7 +5706,10 @@ static bool load_tagcache(void)
     current_tcmh = tcmh;
 
     /* Load the master index table. */
-    /* in one read, and not a call for each of them */
+    /* in reads of many, and not a call for each of them, letting the UI go
+       between them: all at once, 1.2 MB of 13000 songs, it waited 200 ms, as
+       the disk is waited on rather than given up below the UI's priority */
+#define INDICES_A_READ 512
     if (tcmh.tch.entry_count < 0
         || tcmh.tch.entry_count > bytesleft / (ssize_t)sizeof(struct index_entry))
     {
@@ -5628,11 +5719,16 @@ static bool load_tagcache(void)
     const ssize_t indices_size =
         tcmh.tch.entry_count * (ssize_t)sizeof(struct index_entry);
     bytesleft -= indices_size;
-    if (read_index_entries(fd, tcramcache.hdr->indices, tcmh.tch.entry_count)
-        != indices_size)
+    for (int done = 0; done < tcmh.tch.entry_count; done += INDICES_A_READ)
     {
-        logf("read error #10");
-        goto failure;
+        const int count = MIN(INDICES_A_READ, tcmh.tch.entry_count - done);
+        if (read_index_entries(fd, &tcramcache.hdr->indices[done], count)
+            != count * (ssize_t)sizeof(struct index_entry))
+        {
+            logf("read error #10");
+            goto failure;
+        }
+        yield();
     }
 
     close(fd);
@@ -5865,6 +5961,10 @@ static bool check_deleted_file_refs(bool auto_update)
     if (fd < 0)
     {
         logf(TAGCACHE_FILE_INDEX " open fail", tag_filename);
+#ifdef HAVE_DIRCACHE
+        /* the cache locked above, which kept it from moving from then on */
+        tcrc_buffer_unlock();
+#endif
         return false;
     }
 
@@ -5873,6 +5973,9 @@ static bool check_deleted_file_refs(bool auto_update)
 
     while (!check_event_queue())
     {
+        /* first, as most go on to the next at once: at the end, the 13000 found
+           already in the dircache read their names for 200 ms without it */
+        do_timed_yield();
         int res = tagr_read_entry_and_tag(&tfe, buf, bufsz);
         processed_dir_count++;
 
@@ -5935,8 +6038,6 @@ static bool check_deleted_file_refs(bool auto_update)
             logf("-> %s / %" PRId32, buf, tfe.tag_length);
             delete_entry(idx_id);
         }
-
-        do_timed_yield();
     }
 
 wend_finished:
@@ -6411,51 +6512,31 @@ static void load_ramcache(void)
         return ;
 
     cpu_boost(true);
+    /* not searched while it loads again, as after an update that found
+       nothing new, which left it as it was: its names were gone meanwhile */
+    tc_stat.ramcache = false;
 
 #ifndef __PCTOOL__
     /* taken before the load, which keeps the cache from moving */
-    free_ram_names();
-    if (current_tcmh.tch.entry_count > 0)
-    {
-        ram_names_capacity = current_tcmh.tch.entry_count;
-        ram_names_handle = core_alloc(ram_names_capacity
-                                      * sizeof(struct path_name));
-        if (ram_names_handle <= 0)
-            ram_names_handle = ram_names_capacity = 0;
-
-        /* the paths take at most what the filename file has */
-        struct tagcache_header tch;
-        int fd = open_tag_fd(&tch, tag_filename, false);
-        if (fd >= 0)
-        {
-            close(fd);
-            ram_paths_count = current_tcmh.tch.entry_count;
-            ram_paths_size = tch.datasize;
-            ram_paths_handle = core_alloc(ram_paths_count
-                                          * (sizeof(uint32_t) + 1)
-                                          + ram_paths_size);
-            if (ram_paths_handle > 0)
-                memset(core_get_data(ram_paths_handle), 0,
-                       ram_paths_count * (sizeof(uint32_t) + 1));
-            else
-                ram_paths_handle = ram_paths_count = ram_paths_size = 0;
-        }
-    }
+    ram_names_alloc(current_tcmh.tch.entry_count, ram_paths_needed());
 #endif
 
-    /* At first we should load the cache (if exists). */
-    tc_stat.ramcache = load_tagcache();
+    /* At first we should load the cache (if exists). It's searched once its
+       paths are in order: their sort lets other threads go, and a track
+       looked up meanwhile was found in none of them, its play not counted */
+    const bool loaded = load_tagcache();
 
 #ifndef __PCTOOL__
-    if (tc_stat.ramcache && ram_names_handle > 0 && !ram_names_overflow)
+    if (loaded && ram_names_handle > 0 && !ram_names_overflow)
     {
         struct path_name *names = core_get_data_pinned(ram_names_handle);
-        qsort(names, ram_names_count, sizeof(*names), cmp_path_name);
+        qsort_yielding(names, ram_names_count, sizeof(*names), cmp_path_name);
         core_put_data_pinned(names);
     }
     else
         free_ram_names();
 #endif
+    tc_stat.ramcache = loaded;
 
     if (!tc_stat.ramcache)
     {
@@ -6633,6 +6714,9 @@ static void count_songs(void)
             if (!(entries[i].flag & FLAG_DELETED))
                 count++;
         left -= n;
+        /* the UI goes between them: all of 13000 songs kept it waiting
+           200 ms, as a read below its priority waits on the disk */
+        yield();
     }
     close(fd);
     if (left == 0)
@@ -6804,6 +6888,17 @@ static void tagcache_thread(void)
                 check_done = false;
                 /* fallthrough */
             case SYS_TIMEOUT:
+#ifdef HAVE_TC_RAMCACHE
+                /* lists wait for it, 20 s each, so it loads even after the
+                   check: as when a commit unloaded it after that */
+                if (check_done && tagcache_ram_pending())
+                {
+                    load_ramcache();
+                    if (global_settings.tagcache_ram == TAGCACHE_RAM_ON)
+                        check_deleted_file_refs(false);
+                    break;
+                }
+#endif
                 if (check_done || !tc_stat.ready)
                     break ;
 
@@ -6844,8 +6939,14 @@ static void tagcache_thread(void)
                 logf("USB: TagCache");
                 /* what was played and rated since the last sync, for Finder
                    to take in before the disk is handed over; the computer
-                   waits for it, so at full speed */
+                   waits for it, so at full speed. The song playing counts too:
+                   playback stops as USB connects, and its play is noted once
+                   its fade-out is over, which was after Play Counts was
+                   written, so that it came a sync late or not at all */
                 cpu_boost(true);
+                for (int wait = 0; wait < 3 * HZ
+                     && (audio_status() & AUDIO_STATUS_PLAY); wait += HZ / 20)
+                    sleep(HZ / 20);
                 run_command_queue(true);
                 itunesdb_write_playcounts();
                 cpu_boost(false);

@@ -754,17 +754,12 @@ struct menu_table *root_menu_get_options(int *nb_options)
     return menu_table;
 }
 
-void root_menu_load_from_cfg(void* setting, char *value)
+static void root_menu_parse(void* setting, char *value)
 {
     char *next = value, *start, *end;
     unsigned int menu_item_count = 0, i;
     bool main_menu_added = false;
 
-    if (*value == '-')
-    {
-        root_menu_set_default(setting, NULL);
-        return;
-    }
     root_menu_.flags = MENU_HAS_DESC | MT_MENU;
     root_menu_.submenus = (const struct menu_item_ex **)&root_menu__;
     root_menu_.callback_and_desc = &root_menu_desc;
@@ -820,14 +815,22 @@ char* root_menu_write_to_cfg(void* setting, char*buf, int buf_len)
 
 void root_menu_set_default(void* setting, void* defaultval)
 {
-    /* Only the items a stock iPod has are in the default menu and in its
-       order, the rest can still be added back through the main menu
-       configuration; playlists are in the Music (database) menu */
+    /* Only the items a stock iPod has are in the menu, and in its order;
+       playlists are in the Music (database) menu */
     char order[] = "bookmarks, database, photos, extras, settings, shuffle_songs, wps";
     (void)defaultval;
 
-    root_menu_load_from_cfg(setting, order);
+    root_menu_parse(setting, order);
     *(bool*)setting = false;
+}
+
+/* The menu is always a stock iPod's, with nothing here to change it: an order
+   Rockbox saved, coming from it with its settings, had Files, Plugins and
+   System, and no Photos, Extras or Shuffle Songs */
+void root_menu_load_from_cfg(void* setting, char *value)
+{
+    (void)value;
+    root_menu_set_default(setting, NULL);
 }
 
 bool root_menu_is_changed(void* setting, void* defaultval)
@@ -1247,8 +1250,9 @@ static void library_fonts_progress(int done, int total)
 
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
- * the step and how far that is under it. Menu leaves it to finish in the
- * background. */
+ * the step and how far that is under it, until it's done. Menu left it to
+ * finish behind the menu, where it took the memory of music started then,
+ * which stopped, and the caches made here weren't. */
 void show_library_update(void)
 {
     int done, total, phase;
@@ -1267,8 +1271,7 @@ void show_library_update(void)
         }
         library_update_show(library_update_step(phase), percent);
         int action = get_action(CONTEXT_STD, HZ / 4);
-        if (action == ACTION_STD_CANCEL
-            || default_event_handler(action) == SYS_USB_CONNECTED)
+        if (default_event_handler(action) == SYS_USB_CONNECTED)
             break;
     }
     const bool imported = shown;
@@ -1332,6 +1335,13 @@ void show_library_update(void)
 }
 #endif /* HAVE_TAGCACHE */
 
+static bool library_update_pending = false;
+
+void library_update_after_usb(void)
+{
+    library_update_pending = true;
+}
+
 void root_menu(void)
 {
     int previous_browser = global_status.last_browser;
@@ -1354,6 +1364,15 @@ void root_menu(void)
 
     while (true)
     {
+#ifdef HAVE_TAGCACHE
+        /* the import begins as it shows, not behind whatever was open */
+        if (library_update_pending)
+        {
+            library_update_pending = false;
+            if (tagcache_check_sync())
+                show_library_update();
+        }
+#endif
         switch (next_screen)
         {
             case MENU_ATTACHED_USB:
