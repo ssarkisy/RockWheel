@@ -26,6 +26,9 @@
 /* the database, the languages or the alphabets' own fonts are others than they
    were made of */
 bool library_fonts_stale(void);
+/* made again at the next Updating Library: of a database that has gone, as
+   a new one counts its commits from 1 again */
+void library_fonts_forget(void);
 /* made anew, with how far that is as it goes; the firmware's are let go of
    first (font_load_library) */
 bool library_fonts_make(void (*progress)(int done, int total));

@@ -42,6 +42,7 @@
 #include "settings.h"
 #include "menus/exported_menus.h"
 #include "library_fonts.h"
+#include "plugin.h"
 
 #define LF_VERSION   2
 #define LF_STAMP     FONT_DIR "/library.stamp"
@@ -501,9 +502,31 @@ static void repack(const unsigned char *src, int src_height, int src_ascent,
     }
 }
 
+/* What's written, gathered in the plugins' buffer, which is free on Updating
+   Library, and written out in as few pieces: a write of a byte or two for
+   each character from the first to the last of a font, some 64000 of them,
+   took seconds */
+static unsigned char *out_buf;
+static size_t out_size, out_used;
+
+static bool out_flush(int fd)
+{
+    const bool ok = out_used == 0 || write(fd, out_buf, out_used) == (ssize_t)out_used;
+    out_used = 0;
+    return ok;
+}
+
 static bool put(int fd, const void *p, size_t n)
 {
-    return write(fd, p, n) == (ssize_t)n;
+    if (!out_buf)
+        return write(fd, p, n) == (ssize_t)n;
+    if (out_used + n > out_size && !out_flush(fd))
+        return false;
+    if (n > out_size)
+        return write(fd, p, n) == (ssize_t)n;
+    memcpy(out_buf + out_used, p, n);
+    out_used += n;
+    return true;
 }
 
 static bool put16(int fd, uint16_t v)
@@ -577,6 +600,8 @@ static bool make_font(int size, struct glyph *glyphs, int count,
         close_sources();
         return false;
     }
+    out_buf = plugin_get_buffer(&out_size);
+    out_used = 0;
     /* as convttf writes them: the first character the default, of no width
        unless it's a glyph of its own */
     bool ok = put(fd, "RB12", 4) && put16(fd, maxwidth) && put16(fd, height)
@@ -628,6 +653,8 @@ static bool make_font(int size, struct glyph *glyphs, int count,
             }
         }
     }
+    ok = ok && out_flush(fd);
+    out_buf = NULL;
     ok = close(fd) == 0 && ok;
     close_sources();
     if (ok)
@@ -649,6 +676,14 @@ static bool have_sources(void)
 }
 
 #define STAMP_WORDS 5
+
+static uint32_t hash_bytes(uint32_t h, const void *p, size_t n)
+{
+    const unsigned char *b = p;
+    while (n--)
+        h = (h ^ *b++) * 16777619u;
+    return h;
+}
 
 static uint32_t hash_name(uint32_t h, const char *p)
 {
@@ -682,6 +717,11 @@ static void stamp_of(uint32_t stamp[STAMP_WORDS])
     }
 }
 
+void library_fonts_forget(void)
+{
+    remove(LF_STAMP);
+}
+
 bool library_fonts_stale(void)
 {
     if (!have_sources())
@@ -704,6 +744,9 @@ bool library_fonts_make(void (*progress)(int done, int total))
         return false;
     work = core_get_data_pinned(handle);
     memset(work, 0, sizeof(*work));
+    /* at full speed, as all else on Updating Library: at 30 MHz it took
+       more than twice as long */
+    cpu_boost(true);
     for (int s = 0; s < SRC_COUNT; s++)
         work->sources[s].fd = -1;
     for (int i = 0; i < WINDOWS; i++)
@@ -739,12 +782,34 @@ bool library_fonts_make(void (*progress)(int done, int total))
     if (work->kana)
         take_block(0x3041, 0x3096);
 
+    /* The same characters, in the same forms, as the fonts there are of, from
+       the same fonts and languages: only the database is another, as after a
+       sync that brought no new letters, and they stay as they are */
+    uint32_t now[STAMP_WORDS + 1], was[STAMP_WORDS + 1];
+    stamp_of(now);
+    now[STAMP_WORDS] = hash_bytes(hash_bytes(2166136261u, work->wanted,
+                                             sizeof(work->wanted)),
+                                  work->han, sizeof(work->han)) ^ work->ui_han;
+    bool same = false;
+    int stamp_fd = open(LF_STAMP, O_RDONLY);
+    if (stamp_fd >= 0)
+    {
+        same = read(stamp_fd, was, sizeof(was)) == sizeof(was)
+               && was[0] == now[0] && was[2] == now[2] && was[3] == now[3]
+               && was[4] == now[4] && was[STAMP_WORDS] == now[STAMP_WORDS];
+        close(stamp_fd);
+    }
+
     int count = 0;
-    for (ucschar_t c = 0; c <= 0xffff; c++)
+    for (ucschar_t c = 0; !same && c <= 0xffff; c++)
         count += get_bit(work->wanted, c);
     bool ok = true;
     const int list_handle = count ? core_alloc(count * sizeof(struct glyph)) : 0;
-    if (count && list_handle <= 0)
+    if (same)
+    {
+        /* kept as they are */
+    }
+    else if (count && list_handle <= 0)
         ok = false;
     else
     {
@@ -771,15 +836,14 @@ bool library_fonts_make(void (*progress)(int done, int total))
     core_put_data_pinned(work);
     core_free(handle);
     work = NULL;
+    cpu_boost(false);
 
     if (ok)
     {
-        uint32_t stamp[STAMP_WORDS];
-        stamp_of(stamp);
         int fd = creat(LF_STAMP, 0666);
         if (fd >= 0)
         {
-            write(fd, stamp, sizeof(stamp));
+            write(fd, now, sizeof(now));
             close(fd);
         }
     }
