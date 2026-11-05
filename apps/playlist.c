@@ -2239,6 +2239,48 @@ int playlist_create_from_index(const char *dir, const char *file, int fd,
     return status;
 }
 
+/* The place in the current playlist of the track at seek in its file, if it
+   is that file of count tracks as it was loaded: none added or queued, none
+   moved or removed by hand, none skipped for failing to load, and in the
+   file's order. -1 if not. Then playing another of them needn't load the file
+   again, which writes the control file anew. Shuffled, it would be shuffled
+   again, and resume, which shuffles the file's order, would give another. */
+int playlist_place_of(const char *dir, const char *file, int count,
+                      unsigned long seek)
+{
+    struct playlist_info* playlist = &current_playlist;
+    const size_t dirlen = strlen(dir);
+    char name[MAX_PATH];
+    snprintf(name, sizeof(name), "%s%s%s", dir,
+             dirlen && dir[dirlen - 1] == '/' ? "" : "/", file);
+    int place = -1;
+
+    playlist_write_lock(playlist);
+    if (playlist->amount == count && playlist->control_created
+        && !(playlist->flags & PLAYLIST_FLAG_MODIFIED)
+        && !strcmp(playlist->filename, name))
+    {
+        unsigned long last = 0;
+        for (int i = 0; i < count; i++)
+        {
+            const unsigned long index = playlist->indices[i];
+            const unsigned long at = index & PLAYLIST_SEEK_MASK;
+            if ((index & (PLAYLIST_INSERT_TYPE_MASK | PLAYLIST_QUEUED
+                          | PLAYLIST_SKIPPED))
+                || at < last)
+            {
+                place = -1;
+                break;
+            }
+            if (at == seek)
+                place = i;
+            last = at;
+        }
+    }
+    playlist_write_unlock(playlist);
+    return place;
+}
+
 /* Returns false if 'steps' is out of bounds, else true */
 bool playlist_check(int steps)
 {

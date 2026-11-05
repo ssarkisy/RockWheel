@@ -122,6 +122,8 @@ int playlist_create_indexed(const char *dir, const char *file,
                             const uint32_t *offsets, int count);
 int playlist_create_from_index(const char *dir, const char *file, int fd,
                                int count);
+int playlist_place_of(const char *dir, const char *file, int count,
+                      unsigned long seek);
 int playlist_resume(void);
 int playlist_shuffle(int random_seed, int start_index);
 unsigned int playlist_get_filename_crc32(struct playlist_info *playlist,

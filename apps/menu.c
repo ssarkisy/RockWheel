@@ -571,6 +571,12 @@ void menu_set_wide(bool on)
     }
 }
 
+void menu_set_wide_later(bool on)
+{
+    wide = on;
+    skin_request_full_update(CUSTOM_STATUSBAR);
+}
+
 static bool root_requested = false;
 void menu_request_root(void)
 {

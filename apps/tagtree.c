@@ -47,6 +47,7 @@
 #include "playlist.h"
 #include "keyboard.h"
 #include "gui/list.h"
+#include "gui/transition.h"
 #include "core_alloc.h"
 #include "yesno.h"
 #include "misc.h"
@@ -134,8 +135,18 @@ static int tagtree_play_folder(struct tree_context* c);
 /* on the screen of an import, which shows how far it is */
 static bool list_on_boot_screen;
 
-/* reuse of tagtree data after tagtree_play_folder() */
-static uint32_t loaded_entries_crc = 0;
+/* The list last made, for going back to it, from Now Playing or from the menu
+   over it, which has rows of its own: kept as long as the lists' buffers, its
+   search and the database are as they were. All songs took a second to make
+   again, each time. */
+static uint32_t kept_hash = 0;
+static int kept_count, kept_offset, kept_entry_count, kept_special;
+static bool kept_dirfull;
+/* the list made had all its rows, as it wasn't left before the end */
+static bool entries_whole;
+/* and goes by play statistics, so isn't kept: they change without a new
+   database */
+static bool entries_of_stats;
 
 
 /* this needs to be same size as struct entry (tree.h) and name needs to be
@@ -148,6 +159,10 @@ struct tagentry {
     int customaction;
     char* album_name;
 };
+
+/* the rows of the menu shown, out of the lists' buffer, which keeps the list */
+static struct tagentry root_entries[TAGMENU_MAX_ITEMS];
+static int root_rows;
 
 static struct tagentry* tagtree_get_entry(struct tree_context *c, int id);
 
@@ -361,6 +376,14 @@ static int move_callback(int handle, void* current, void* new)
     if (csi)
         UPDATE(csi, diff);
 
+    /* the menu's rows, by their names here */
+    for (int i = 0; i < root_rows; i++)
+    {
+        char *name = root_entries[i].name;
+        if (name >= (char *)current && name < (char *)current + tagtree_bufsize)
+            UPDATE(root_entries[i].name, diff);
+    }
+
     /* loop over menus */
     for(int i = 0; i < menu_count; i++)
     {
@@ -411,21 +434,86 @@ static struct buflib_callbacks ops = {
     .shrink_callback = NULL,
 };
 
+/* by words, many times quicker than crc_32() by nibbles */
+static uint32_t words_hash(const void *data, size_t size, uint32_t hash)
+{
+    const uint32_t *word = data;
+    for (size_t n = size / sizeof(*word); n > 0; n--)
+        hash = (hash ^ *word++) * 16777619; /* FNV's prime */
+    return hash;
+}
+
+static uint32_t text_hash(const char *text, uint32_t hash)
+{
+    for (; text && *text; text++)
+        hash = (hash ^ (unsigned char)*text) * 16777619;
+    return hash;
+}
+
+/* The list in the lists' buffer, which list it is and of which database */
 static uint32_t tagtree_data_crc(struct tree_context* c)
 {
-    char* buf;
-    uint32_t crc;
-    buf = core_get_data(tagtree_handle); /* data for the search clauses etc */
-    crc = crc_32(buf, tagtree_buf_used, c->dirlength);
-    buf = core_get_data(c->cache.name_buffer_handle); /* names */
-    /* of their start, which anything else using them writes first: the whole
-       of them took a tenth of a second and more as each song started */
-    crc = crc_32(buf, MIN(c->cache.name_buffer_size, 32*1024), crc);
-    buf = core_get_data(c->cache.entries_handle); /* tagentries */
-    crc = crc_32(buf, MIN(c->cache.max_entries * sizeof(struct tagentry),
-                          32*1024), crc);
-    logf("%s 0x%x", __func__, crc);
-    return crc;
+    const uint32_t list[] = {
+        c->currtable, c->currextra, (uintptr_t)csi, tagcache_get_commitid(),
+        global_settings.interpret_numbers,
+        (uintptr_t)str(LANG_TAGNAVI_UNTAGGED), /* a row's name, of the language */
+    };
+    uint32_t hash = words_hash(list, sizeof(list), 2166136261u);
+    hash = text_hash(str(LANG_TAGNAVI_UNTAGGED), hash);
+    /* The search, which can be out of tagtree's buffer (album artists), and its
+       clauses down to the list, which get what they look for as it is entered.
+       The rest of tagtree's buffer changes only with the menus: with it, this
+       took 11 ms on the iPod */
+    if (csi)
+    {
+        hash = words_hash(csi, sizeof(*csi), hash);
+        for (int i = 0; i <= c->currextra && i < MAX_TAGS; i++)
+        {
+            for (int j = 0; j < csi->clause_count[i]; j++)
+            {
+                const struct tagcache_search_clause *clause = csi->clause[i][j];
+                hash = words_hash(clause, sizeof(*clause), hash);
+                hash = text_hash(clause->str, hash);
+            }
+        }
+    }
+    /* the names and the tagentries, of their start, which anything else using
+       them writes first */
+    hash = words_hash(core_get_data(c->cache.name_buffer_handle),
+                      MIN(c->cache.name_buffer_size, 8*1024), hash);
+    hash = words_hash(core_get_data(c->cache.entries_handle),
+                      MIN(c->cache.max_entries * sizeof(struct tagentry),
+                          8*1024), hash);
+    logf("%s 0x%x", __func__, hash);
+    return hash ? hash : 1; /* 0 for none kept */
+}
+
+/* the list just made kept */
+static void keep_list(struct tree_context *c, int count)
+{
+    if (entries_of_stats)
+    {
+        kept_hash = 0;
+        return;
+    }
+    kept_hash = tagtree_data_crc(c);
+    kept_count = count;
+    kept_offset = current_offset;
+    kept_entry_count = current_entry_count;
+    kept_special = c->special_entry_count;
+    kept_dirfull = c->dirfull;
+}
+
+/* the list kept, if it is the one asked for: its count, or else -1 */
+static int kept_list(struct tree_context *c)
+{
+    if (!kept_hash || kept_hash != tagtree_data_crc(c))
+        return -1;
+    current_offset = kept_offset;
+    current_entry_count = kept_entry_count;
+    c->special_entry_count = kept_special;
+    c->dirfull = kept_dirfull;
+    return kept_count;
 }
 
 static void* tagtree_alloc(size_t size)
@@ -1527,6 +1615,9 @@ static void tagtree_unload(struct tree_context *c)
 {
     /* may be spurious... */
     core_pin(tagtree_handle);
+    /* the menu's rows and the list kept go with the menus */
+    root_rows = 0;
+    kept_hash = 0;
 
     remove_event(PLAYBACK_EVENT_TRACK_BUFFER, tagtree_buffer_event);
     remove_event(PLAYBACK_EVENT_TRACK_FINISH, tagtree_track_finish_event);
@@ -1534,7 +1625,7 @@ static void tagtree_unload(struct tree_context *c)
     if (c)
     {
         tree_lock_cache(c);
-        struct tagentry *dptr = core_get_data(c->cache.entries_handle);
+        struct tagentry *dptr = root_entries;
         menu = menus[c->currextra];
         if (!menu)
         {
@@ -1744,6 +1835,98 @@ static bool tagtree_search_progress(int count)
     return show_search_progress(false, count, 0, 0);
 }
 
+/* The group of formats of the list's rows */
+static int format_group(struct tree_context *c, int level)
+{
+    /* sorted by albums, with the view that has the disc number etc */
+    return c->currtable == TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS
+        ? csi->format_id[level + 1] : csi->format_id[level];
+}
+
+/* The format of rows that show the name searched for as it is, "%s" of it,
+   with only names before it that show otherwise: a format for each, by "is"
+   that name. NULL if the list's formats do more. Songs have one for
+   "[Untagged]", and formatting them took more than the search. */
+static const struct display_format *plain_format(int group, int tag)
+{
+    if (TAGCACHE_IS_NUMERIC(tag))
+        return NULL;
+    for (int i = 0; i < format_count; i++)
+    {
+        const struct display_format *f = formats[i];
+        if (f->group_id != group)
+            continue;
+        if (f->tag_count != 1 || strcmp(f->formatstr, "%s"))
+            return NULL;
+        if (f->clause_count == 0)
+            return f->tags[0] == tag ? f : NULL;
+        const struct tagcache_search_clause *cl = f->clause[0];
+        if (f->clause_count != 1 || cl->tag != tag || cl->type != clause_is
+            || cl->numeric || !cl->str)
+            return NULL;
+    }
+    return NULL;
+}
+
+/* whether a row of that name shows by the plain format */
+static bool shows_plain(const struct display_format *plain, const char *name)
+{
+    for (int i = 0; i < format_count && formats[i] != plain; i++)
+    {
+        if (formats[i]->group_id == plain->group_id
+            && !strcasecmp(formats[i]->clause[0]->str, name))
+            return false;
+    }
+    return true;
+}
+
+/* tags that change as music plays, without a new database */
+static bool tag_of_stats(int tag)
+{
+    switch (tag)
+    {
+        case tag_playcount: case tag_rating: case tag_playtime:
+        case tag_lastplayed: case tag_lastelapsed: case tag_lastoffset:
+        case tag_virt_playtime_min: case tag_virt_playtime_sec:
+        case tag_virt_autoscore:
+            return true;
+    }
+    return false;
+}
+
+/* whether a list is searched or shown by them: Most Played, Recently Played */
+static bool list_of_stats(int group, int tag, int level)
+{
+    if (tag_of_stats(tag))
+        return true;
+    for (int i = 0; i <= level; i++)
+    {
+        if (tag_of_stats(csi->tagorder[i]))
+            return true;
+        for (int j = 0; j < csi->clause_count[i]; j++)
+        {
+            if (tag_of_stats(csi->clause[i][j]->tag))
+                return true;
+        }
+    }
+    for (int i = 0; i < format_count; i++)
+    {
+        if (formats[i]->group_id != group)
+            continue;
+        for (int j = 0; j < formats[i]->tag_count; j++)
+        {
+            if (tag_of_stats(formats[i]->tags[j]))
+                return true;
+        }
+        for (int j = 0; j < formats[i]->clause_count; j++)
+        {
+            if (tag_of_stats(formats[i]->clause[j]->tag))
+                return true;
+        }
+    }
+    return false;
+}
+
 static int make_entries(struct tree_context *c, int offset, bool init)
 {
     logf( "%s", __func__);
@@ -1762,6 +1945,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     bool is_basename = false;
     int sort_limit;
     int strip;
+    entries_whole = false;
 
     /* Show search progress straight away if the disk needs to spin up,
        otherwise show it after the normal 1/2 second delay */
@@ -1837,21 +2021,18 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     current_entry_count = 0;
     c->dirfull = false;
 
+    const int group = format_group(c, level);
     fmt = NULL;
     for (i = 0; i < format_count; i++)
     {
-        if (c->currtable == TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS)
-        {
-            /* If it is sorted by albums, we need to use the proper view
-            that includes the disc number etc so sorting will be correct for each albums.
-            Otherwise, tracks will be sorted by title names */
-            if (formats[i]->group_id != csi->format_id[level + 1])
-                continue;
-        }
-        else if (formats[i]->group_id != csi->format_id[level])
-            continue;
-        fmt = formats[i];
+        if (formats[i]->group_id == group)
+            fmt = formats[i];
     }
+    const struct display_format *plain = is_basename ? NULL
+                                                     : plain_format(group, tag);
+    entries_of_stats = list_of_stats(group, tag, level);
+    /* the album only for sorting by it */
+    const bool with_album = c->currtable == TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS;
 
     if (fmt)
     {
@@ -1890,18 +2071,11 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         dptr->customaction = ONPLAY_NO_CUSTOMACTION;
 
         fmt = NULL;
-        /* Check the format */
-        for (i = 0; i < format_count; i++)
+        /* Check the format, but for a name that shows as it is */
+        const bool as_is = plain && shows_plain(plain, tcs.result);
+        for (i = 0; i < format_count && !as_is; i++)
         {
-            if (c->currtable == TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS)
-            {
-                /* If it is sorted by albums, we need to use the proper view
-                that includes the disc number etc so sorting will be correct for each albums.
-                Otherwise, tracks will be sorted by title names */
-                if (formats[i]->group_id != csi->format_id[level + 1])
-                    continue;
-            }
-            else if (formats[i]->group_id != csi->format_id[level])
+            if (formats[i]->group_id != group)
                 continue;
 
             if (tagcache_check_clauses(&tcs, formats[i]->clause,
@@ -1924,7 +2098,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
                 {
                     namebufused += strlen(dptr->name)+1;
                     dptr->album_name = core_get_data(c->cache.name_buffer_handle)+namebufused;
-                    if ((c->cache.name_buffer_size - namebufused) > 0 &&
+                    if (with_album && (c->cache.name_buffer_size - namebufused) > 0 &&
                         tagcache_retrieve(&tcs, tcs.idx_id, tag_album, dptr->album_name,
                                     c->cache.name_buffer_size - namebufused))
                         namebufused += strlen(dptr->album_name)+1;
@@ -1955,7 +2129,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
                 {
                     namebufused += strlen(dptr->name)+1; /* include NULL */
                     dptr->album_name = core_get_data(c->cache.name_buffer_handle)+namebufused;
-                    if ((c->cache.name_buffer_size - namebufused) > 0 &&
+                    if (with_album && (c->cache.name_buffer_size - namebufused) > 0 &&
                             tagcache_retrieve(&tcs, tcs.idx_id, tag_album, dptr->album_name,
                                       c->cache.name_buffer_size - namebufused))
                         namebufused += strlen(dptr->album_name)+1;
@@ -1987,7 +2161,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
                 if (!buffer_full)
                 {
                     dptr->album_name = core_get_data(c->cache.name_buffer_handle)+namebufused;
-                    if (tagcache_retrieve(&tcs, tcs.idx_id, tag_album, dptr->album_name,
+                    if (with_album && tagcache_retrieve(&tcs, tcs.idx_id, tag_album, dptr->album_name,
                                       c->cache.name_buffer_size - namebufused))
                         namebufused += strlen(dptr->album_name)+1;
                     else
@@ -2058,10 +2232,14 @@ entry_skip_formatter:
         return current_entry_count;
     }
 
+    bool counted = true;
     while (tagcache_get_next(&tcs, tcs_buf, tcs_bufsz))
     {
         if (!tagtree_search_progress(total_count))
+        {
+            counted = false;
             break;
+        }
         total_count++;
     }
 
@@ -2099,6 +2277,7 @@ entry_skip_formatter:
         }
     }
 
+    entries_whole = counted;
     return total_count;
 
 }
@@ -2145,7 +2324,7 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
 
 static int load_root(struct tree_context *c)
 {
-    struct tagentry *dptr = core_get_data(c->cache.entries_handle);
+    struct tagentry *dptr = root_entries;
     int i;
 
     tc = c;
@@ -2157,8 +2336,7 @@ static int load_root(struct tree_context *c)
     if (menu == NULL)
         return 0;
 
-    if (menu->itemcount > c->cache.max_entries)
-            panicf("%s tree_cache too small", __func__);
+    root_rows = 0;
 
     /* Music's own menu without the sections turned off in Music Menu: a row
        goes into the item of its extraseek, not of its number */
@@ -2223,9 +2401,7 @@ static int load_root(struct tree_context *c)
         dptr++;
     }
 
-    current_offset = 0;
-    current_entry_count = rows;
-
+    root_rows = rows;
     return rows;
 }
 
@@ -2258,27 +2434,26 @@ int tagtree_load(struct tree_context* c)
         case TABLE_NAVIBROWSE:
             logf("navibrowse...");
 
-            if (loaded_entries_crc != 0)
+            count = kept_list(c);
+            if (count >= 0)
             {
-                if (loaded_entries_crc == tagtree_data_crc(c))
-                {
-                    count = c->dirlength;
-                    logf("Reusing %d entries", count);
-                    break;
-                }
+                logf("Reusing %d entries", count);
+                break;
             }
 
             cpu_boost(true);
             count = retrieve_entries(c, 0, true);
             cpu_boost(false);
+            if (count >= 0 && entries_whole)
+                keep_list(c, count);
+            else
+                kept_hash = 0;
             break;
 
         default:
             logf("Unsupported table %d\n", table);
             return -1;
     }
-
-    loaded_entries_crc = 0;
 
     if (count < 0)
     {
@@ -2453,9 +2628,6 @@ static void go_to_end(int row, int *dirlevel, int *selected_item)
     *dirlevel = c->dirlevel;
     *selected_item = row;
     go_to_level = c->dirlevel;
-    /* the list loaded here is the one the browser shows: it took it again, and
-       Songs, opened from the main menu, said "Searching..." for two seconds */
-    loaded_entries_crc = tagtree_data_crc(c);
 }
 
 /* Puts the lists at the track playing, as one gets there by hand: its album's artist,
@@ -3465,7 +3637,26 @@ static void tagtree_save_list_index(const struct tree_context *c, int slot,
 
 /* The list's playlist from a file written for it before, or from a new one.
    A list of the whole library took over four seconds each time. */
-static int tagtree_load_list(struct tree_context *c)
+/* The place of the row's track in the current playlist, if it is the list's
+   written to that slot, as it was loaded, and not to be shuffled: -1 if not */
+static int tagtree_place_playing(int slot, int fd,
+                                 const struct tagtree_list_header *h, int row)
+{
+    uint32_t seek;
+    if (global_settings.playlist_shuffle
+        || h->count != h->entries || row < 0 || row >= (int)h->count
+        || lseek(fd, sizeof(*h) + row * sizeof(seek), SEEK_SET) < 0
+        || read(fd, &seek, sizeof(seek)) != sizeof(seek))
+        return -1;
+    return playlist_place_of(TAGTREE_PLAYLIST_DIR, tagtree_playlist_names[slot],
+                             h->count, seek);
+}
+
+/* The list as the current playlist, its row at *start_index: the playlist
+   written for it before, or written now. If it's that one playing already,
+   unshuffled, it goes on to the row's track there, and *start_index is that
+   one's place. */
+static int tagtree_load_list(struct tree_context *c, int *start_index)
 {
     struct tagtree_list_header h;
     const uint32_t id = tagtree_list_id(c->currtable, c->currextra, csi);
@@ -3478,10 +3669,21 @@ static int tagtree_load_list(struct tree_context *c)
             continue;
         bool same = read(fd, &h, sizeof(h)) == sizeof(h)
             && h.magic == TAGTREE_LIST_MAGIC && h.commitid == commitid
-            && h.entries == (uint32_t)c->filesindir && h.id == id
-            && playlist_create_from_index(TAGTREE_PLAYLIST_DIR,
-                                          tagtree_playlist_names[i], fd,
-                                          h.count) == 0;
+            && h.entries == (uint32_t)c->filesindir && h.id == id;
+        if (same)
+        {
+            const int place = tagtree_place_playing(i, fd, &h, *start_index);
+            if (place >= 0)
+            {
+                close(fd);
+                *start_index = place;
+                return 0;
+            }
+            same = lseek(fd, sizeof(h), SEEK_SET) == sizeof(h)
+                && playlist_create_from_index(TAGTREE_PLAYLIST_DIR,
+                                              tagtree_playlist_names[i], fd,
+                                              h.count) == 0;
+        }
         close(fd);
         if (same)
             return 0;
@@ -3669,6 +3871,11 @@ void tagtree_prepare_songs(void)
             if (insert_all_playlist(c, file, true, PLAYLIST_INSERT_LAST, false))
                 tagtree_save_list_index(c, slot, id);
         }
+        /* and Songs opens with it at once */
+        if (count > 0 && entries_whole)
+            keep_list(c, count);
+        else
+            kept_hash = 0;
         list_on_boot_screen = false;
         cpu_boost(false);
         core_unpin(tagtree_handle);
@@ -3682,23 +3889,25 @@ void tagtree_prepare_songs(void)
     c->dirlength = length;
     c->dirsindir = dirs;
     c->special_entry_count = special;
-    loaded_entries_crc = 0;
 }
 
 static int tagtree_play_folder(struct tree_context* c)
 {
     logf( "%s", __func__);
     int start_index = c->selected_item;
+    /* Now Playing takes half a second to a second to come, and the slide
+       into it waited for half */
+    transition_wait(HZ);
 
     /* The music playing would change anyway; stopped first, it doesn't
        take turns with building the playlist */
     if (audio_status() & AUDIO_STATUS_PLAY)
-        audio_stop();
+        audio_stop_at_once();
 
     int n = c->filesindir;
     if (n <= playlist_get_current()->max_playlist_size)
     {
-        int result = tagtree_load_list(c);
+        int result = tagtree_load_list(c, &start_index);
         if (result < 0)
             return result;
     }
@@ -3728,7 +3937,8 @@ static int tagtree_play_folder(struct tree_context* c)
     }
 
     playlist_start(start_index, 0, 0);
-    loaded_entries_crc = tagtree_data_crc(c); /* save crc in case we return */
+    if (kept_hash) /* as it is now, the playlist made from it */
+        keep_list(c, kept_count);
     return 0;
 }
 
@@ -3736,6 +3946,9 @@ static struct tagentry* tagtree_get_entry(struct tree_context *c, int id)
 {
     struct tagentry *entry;
     int realid = id - current_offset;
+
+    if (c->currtable == TABLE_ROOT)
+        return &root_entries[MAX(0, MIN(id, TAGMENU_MAX_ITEMS - 1))];
 
     /* Load the next chunk if necessary. */
     if (realid >= current_entry_count || realid < 0)

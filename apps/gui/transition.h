@@ -35,11 +35,15 @@ void transition_run(void);
 bool transition_pending(void);
 /* the display as drawn, without a slide, as before a plugin loads */
 void transition_cancel(void);
+/* the next screen comes later than most, as Now Playing after a song is
+   chosen: the slide waits for it this long from now */
+void transition_wait(long ticks);
 #else
 static inline void transition_begin(enum transition_dir dir) { (void)dir; }
 static inline void transition_run(void) {}
 static inline bool transition_pending(void) { return false; }
 static inline void transition_cancel(void) {}
+static inline void transition_wait(long ticks) { (void)ticks; }
 #endif
 
 #endif /* _TRANSITION_H_ */

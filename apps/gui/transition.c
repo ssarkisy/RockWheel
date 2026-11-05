@@ -100,6 +100,12 @@ bool transition_pending(void)
     return pending;
 }
 
+void transition_wait(long ticks)
+{
+    if (pending)
+        lcd_hold_updates(ticks);
+}
+
 void transition_cancel(void)
 {
     if (!pending)

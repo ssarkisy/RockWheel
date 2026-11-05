@@ -1381,7 +1381,12 @@ int rockbox_browse(struct browse_context *browse)
     tc.is_browsing = false;
     tc.dirfilter = prev_dirfilter; /* Bugfix restore dirfilter*/
     if (menu_wide() != was_wide)
-        menu_set_wide(was_wide);
+    {
+        if (ret_val == GO_TO_WPS || ret_val == GO_TO_PREVIOUS_MUSIC)
+            menu_set_wide_later(was_wide);
+        else
+            menu_set_wide(was_wide);
+    }
 
     backup_count--;
     if (backup_count >= 0)

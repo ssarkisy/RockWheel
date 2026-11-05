@@ -560,7 +560,10 @@ static int wpsscrn(void* param)
     int ret_val = GO_TO_PREVIOUS;
     int audstatus = audio_status();
     (void)param;
-    push_current_activity(ACTIVITY_WPS);
+    /* the theme isn't drawn first: Now Playing clears the screen and draws
+       it then, if it shows it at all. Drawn whole after a list it took
+       140 ms, behind which the slide into Now Playing waited */
+    push_activity_without_refresh(ACTIVITY_WPS);
 
 #ifdef HAVE_PITCHCONTROL
     if (!audstatus)

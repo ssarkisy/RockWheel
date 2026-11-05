@@ -390,6 +390,8 @@ enum audio_start_playback_flags
 static void audio_start_playback(const struct audio_resume_info *resume_info,
                                  unsigned int flags);
 static void audio_stop_playback(void);
+/* the stop asked for is without the fade (audio_stop_at_once()) */
+static volatile bool stop_at_once = false;
 static void buffer_event_buffer_low_callback(unsigned short id, void *data, void *user_data);
 static void buffer_event_rebuffer_callback(unsigned short id, void *data);
 static void buffer_event_finished_callback(unsigned short id, void *data);
@@ -3357,7 +3359,8 @@ static void audio_stop_playback(void)
     if (play_status == PLAY_STOPPED)
         return;
 
-    bool do_fade = global_settings.fade_on_stop && filling != STATE_ENDED;
+    bool do_fade = global_settings.fade_on_stop && filling != STATE_ENDED
+                   && !stop_at_once;
 
     pcmbuf_fade(do_fade, false);
 
@@ -4207,6 +4210,15 @@ void audio_stop(void)
 {
     LOGFQUEUE("audio >| audio Q_AUDIO_STOP");
     audio_queue_send(Q_AUDIO_STOP, 0);
+}
+
+/* the same at once, without the fade of Fade on Stop: for other music chosen,
+   which comes at once as by a skip. The fade took 370 ms. */
+void audio_stop_at_once(void)
+{
+    stop_at_once = true;
+    audio_stop();
+    stop_at_once = false;
 }
 
 /* Pause playback if playing */

@@ -148,6 +148,9 @@ enum menu_panel menu_selected_panel(void);
 /* Whether a screen is taking the whole width, with nothing of the theme beside it */
 bool menu_wide(void);
 void menu_set_wide(bool wide);
+/* the same, the theme drawn so when it next is: for Now Playing next, which
+   has the screen without it. Drawn at once, it took 110-230 ms then. */
+void menu_set_wide_later(bool wide);
 void menu_draw_value_line(struct list_putlineinfo_t *info);
 /* From a screen a menu has opened: Menu has been held, so leave for the main menu */
 void menu_request_root(void);
