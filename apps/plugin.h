@@ -62,6 +62,7 @@
 #define splash(__ticks, __str) splashf(__ticks, __str)
 
 void* plugin_get_buffer(size_t *buffer_size);
+unsigned int plugin_buffer_gen(void);
 size_t plugin_reserve_buffer(size_t buffer_size);
 int plugin_open(const char *plugin, const char *parameter);
 
@@ -181,9 +182,18 @@ int plugin_open(const char *plugin, const char *parameter);
  * when this happens please take the opportunity to sort in
  * any new functions "waiting" at the end of the list.
  */
-/* 287: the iPod fork changed structures plugins see (gui_synclist,
- * user_settings, mp3entry) and the action numbering */
-#define PLUGIN_API_VERSION 302
+/* RockWheel's own numbers, apart from Rockbox's, which are under 0x8000: a
+ * plugin built for Rockbox, its number met one day, would have run on another
+ * table of functions. With the sizes of what plugins see of the core in it,
+ * so that one built when they were otherwise doesn't load: twice a structure
+ * changed without the number. Raise PLUGIN_API_REVISION for a change that
+ * leaves the sizes, as functions in another order, or an action's number. */
+#define PLUGIN_API_REVISION 1
+#define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
+    + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
+    + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
+    + sizeof(struct viewport) * 13u + sizeof(struct system_status) * 17u \
+    + sizeof(struct tree_context) * 19u) & 0x7fff)))
 
 /* 239 Marks the removal of ARCHOS HWCODEC and CHARCELL */
 

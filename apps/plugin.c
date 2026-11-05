@@ -932,8 +932,15 @@ bool plugin_is_running(void)
     return plugin_running;
 }
 
+/* As many times as the buffer was handed out or a plugin loaded into it: one
+   that keeps something in it between, as Search its names, knows by this
+   whether it's still there, rather than by marks in it that a borrower
+   writing anywhere else would leave */
+static unsigned int plugin_buffer_generation;
+
 int plugin_load(const char* plugin, const void* parameter)
 {
+    plugin_buffer_generation++;
     struct plugin_header *p_hdr;
     struct lc_header     *hdr;
     const char * resume_plugin = NULL;
@@ -1182,9 +1189,16 @@ size_t plugin_reserve_buffer(size_t buffer_size)
 
 /* Returns a pointer to the portion of the plugin buffer that is not already
    being used.  If no plugin is loaded, returns the entire plugin buffer */
+unsigned int plugin_buffer_gen(void)
+{
+    return plugin_buffer_generation;
+}
+
 void* plugin_get_buffer(size_t *buffer_size)
 {
     int buffer_pos;
+
+    plugin_buffer_generation++;
 
     if (current_plugin_handle)
     {
