@@ -171,8 +171,20 @@ static void night_settings_off(bool by_schedule)
     s->night_changed = 0;
 }
 
-/* What they now say, on the screen and in the sound */
-static void night_apply_settings(bool old_dark, int old_volume)
+/* Whether the theme on the screen is the dark one, while a change of it the
+   schedule made waits for a screen it can change on (theme_can_change_here):
+   -1 for none waiting */
+static int theme_shown_dark = -1;
+
+static void apply_theme(void)
+{
+    theme_shown_dark = -1;
+    theme_apply();
+}
+
+/* What they now say, on the screen and in the sound: the theme at once only
+   if theme_now, the rest at once always */
+static void night_apply_settings(bool old_dark, int old_volume, bool theme_now)
 {
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
     backlight_set_brightness(global_settings.brightness);
@@ -182,11 +194,16 @@ static void night_apply_settings(bool old_dark, int old_volume)
         || global_status.volume > global_settings.volume_limit)
         setvol();
     if (global_settings.dark_theme != old_dark)
-        theme_apply();
+    {
+        if (theme_now)
+            apply_theme();
+        else if (theme_shown_dark < 0)
+            theme_shown_dark = old_dark;
+    }
     settings_save();
 }
 
-static void night_set(bool on, bool by_schedule)
+static void night_set(bool on, bool by_schedule, bool theme_now)
 {
     const bool old_dark = global_settings.dark_theme;
     const int old_volume = global_status.volume;
@@ -195,7 +212,7 @@ static void night_set(bool on, bool by_schedule)
     night_settings_off(by_schedule);
     if (on)
         night_settings_on();
-    night_apply_settings(old_dark, old_volume);
+    night_apply_settings(old_dark, old_volume, theme_now);
 }
 
 #if CONFIG_RTC
@@ -273,6 +290,9 @@ static bool theme_can_change_here(int context)
     }
 }
 
+/* The schedule goes by on every screen: in a plugin, Cover Flow's say, all the
+   night went by without the volume limit or the dimming. Only the theme waits
+   for a screen it can change on. */
 bool night_mode_poll(int context)
 {
 #if CONFIG_RTC
@@ -280,9 +300,19 @@ bool night_mode_poll(int context)
 
     if (!global_settings.night_schedule || TIME_BEFORE(current_tick, next_poll))
         return false;
-    if (!theme_can_change_here(context & ~ALLOW_SOFTLOCK))
-        return false;
     next_poll = current_tick + POLL_TIME;
+    const bool theme_here = theme_can_change_here(context & ~ALLOW_SOFTLOCK);
+    if (theme_here && theme_shown_dark >= 0)
+    {
+        /* changed and changed back meanwhile, it isn't read again */
+        const bool changed = global_settings.dark_theme != theme_shown_dark;
+        theme_shown_dark = -1;
+        if (changed)
+        {
+            apply_theme();
+            return true;
+        }
+    }
 
     struct tm *tm = get_time();
     if (!valid_time(tm))
@@ -301,8 +331,8 @@ bool night_mode_poll(int context)
         settings_save();
         return false;
     }
-    night_set(in, true);
-    return true;
+    night_set(in, true, theme_here);
+    return theme_here;
 #else
     (void)context;
     return false;
@@ -318,25 +348,25 @@ void dark_theme_changed(bool dark)
 {
     (void)dark;
     if (settings_loaded)
-        theme_apply();
+        apply_theme();
 }
 
 void night_mode_changed(bool on)
 {
     if (settings_loaded)
-        night_set(on, false);
+        night_set(on, false, true);
 }
 
 void dark_theme_toggle(void)
 {
     global_settings.dark_theme = !global_settings.dark_theme;
-    theme_apply();
+    apply_theme();
     settings_save();
 }
 
 void night_mode_toggle(void)
 {
-    night_set(!global_settings.night_mode, false);
+    night_set(!global_settings.night_mode, false, true);
 }
 
 /* What it does has changed while it's on: from what there was before it, again. A change
@@ -344,7 +374,7 @@ void night_mode_toggle(void)
 void night_settings_chosen(void)
 {
     if (global_settings.night_mode)
-        night_set(true, false);
+        night_set(true, false, true);
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
     else
         backlight_set_brightness(global_settings.brightness); /* as it was tried out */
@@ -379,7 +409,7 @@ void night_schedule_changed(bool on)
         global_settings.night_was_in = in;
         global_settings.night_seen = minutes_now(tm);
         if (in != global_settings.night_mode)
-            night_set(in, false);
+            night_set(in, false, true);
     }
 #else
     (void)on;
