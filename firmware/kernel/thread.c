@@ -1011,8 +1011,11 @@ static FORCE_INLINE void prepare_block(struct thread_entry *current,
 #ifdef USEC_TIMER
 /* when the thread each core runs got it: how long it has kept it, as a
    thread behind the UI only waits on the disk for so long before it gives
-   the CPU up */
-static unsigned long running_since[NUM_CORES];
+   the CPU up. In IRAM, as what both cores write is: in the cache, the COP's
+   copy of its line, written back, put back the CPU's tick tasks as they had
+   been, without the LCD's, and the screen, gone dark during music, never lit
+   again. */
+static unsigned long running_since[NUM_CORES] IBSS_ATTR;
 
 unsigned long thread_running_usec(void)
 {
