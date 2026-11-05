@@ -3274,6 +3274,13 @@ static void audio_start_playback(const struct audio_resume_info *resume_info,
         if (flags & AUDIO_START_RESTART)
             return; /* Must already be playing */
 
+        /* a skip asked for while it was stopped, whose message a clear of
+           the queue took: decoding would wait for it to be taken */
+        id3_mutex_lock();
+        skip_offset = 0;
+        skip_under_way = 0;
+        id3_mutex_unlock();
+
         /* Cold playback start from a stopped state */
         logf("%s(%lu, %lu): starting", __func__, resume.elapsed,
              resume.offset);
@@ -3369,6 +3376,12 @@ static void audio_stop_playback(void)
     skip_pending = TRACK_SKIP_NONE;
     track_event_flags = TEF_NONE;
     track_skip_is_manual = false;
+    /* a skip whose message a clear of the queue took: decoding waited for it
+       to be taken from then on, the music silent until another */
+    id3_mutex_lock();
+    skip_offset = 0;
+    skip_under_way = 0;
+    id3_mutex_unlock();
 
     /* Close all tracks and mark them NULL */
     remove_event(BUFFER_EVENT_REBUFFER, buffer_event_rebuffer_callback);

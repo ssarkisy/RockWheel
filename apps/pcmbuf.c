@@ -156,6 +156,9 @@ static enum
     PCM_FADING_OUT,
 } fade_state = PCM_NOT_FADING;
 static bool fade_out_complete = false;
+/* the music ran out of decoded sound as it played: not a pause, a stop or the
+   start, which the codec makes up for over the UI */
+static volatile bool ran_dry = false;
 
 /* Voice */
 static bool soft_mode = false;
@@ -559,7 +562,17 @@ void * pcmbuf_request_buffer(int *count)
         if (realrem < pcmbuf_watermark)
             trigger_cpu_boost();
 
-        boost_codec_thread(realrem*10 / pcmbuf_size);
+        /* By what's buffered in time, the bands being of seconds: by parts of
+           the buffer, which a crossfade's made bigger, the codec was over the
+           UI for longer after each skip. Paused, as at a seek, after the UI:
+           over it, at its highest, the scrubbing waited for nothing. */
+        if (status == CHANNEL_PAUSED)
+            boost_codec_thread(10);
+        else
+        {
+            ran_dry = false;
+            boost_codec_thread(MIN(realrem * 10 / MIN_BUFFER_SIZE, 10));
+        }
     }
     else    /* !playing */
     {
@@ -572,10 +585,25 @@ void * pcmbuf_request_buffer(int *count)
             && remaining > hold_floor())
             return NULL;
 
-        /* Boost CPU for pre-buffer */
-        trigger_cpu_boost();
-        /* and not after the UI, as it may have been left */
-        boost_codec_thread(3);
+        if (fade_out_complete)
+        {
+            /* paused: the buffer filled as the UI has nothing to do, as it
+               would have after it for a list scrolled meanwhile, at half its
+               frames for seconds */
+            boost_codec_thread(10);
+        }
+        else
+        {
+            /* Boost CPU for pre-buffer */
+            trigger_cpu_boost();
+            /* as it starts, with the UI, as it may have been left; run out as
+               it played, far over it, to have the sound back, but not while
+               it may not play, as at a seek: after the UI then */
+            if (!audio_pcmbuf_may_play())
+                boost_codec_thread(10);
+            else
+                boost_codec_thread(ran_dry ? 0 : 3);
+        }
 
         /* If pre-buffered enough, start playback */
         if (pcmbuf_unplayed_bytes() >= START_DATA)
@@ -899,6 +927,8 @@ static void pcmbuf_pcm_callback(const void **start, size_t *size)
     }
 
     /*- Process the new one -*/
+    if (index == chunk_widx && !fade_out_complete)
+        ran_dry = true;
     if (index != chunk_widx && !fade_out_complete)
     {
         current_desc = desc = index_chunkdesc(index);
@@ -954,6 +984,7 @@ void pcmbuf_play_stop(void)
 
     /* Reset buffer */
     init_buffer_state();
+    ran_dry = false;
 
     /* Revert to position updates by PCM */
     pcmbuf_sync_position = false;

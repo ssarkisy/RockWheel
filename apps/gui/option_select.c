@@ -123,6 +123,10 @@ const char *option_get_valuestring(const struct settings_list *setting,
     }
     else if (HASFLAG(setting, F_CHOICE_SETTING))
     {
+        /* one of its values: a choice made shorter left a bookmark's or an old
+           setting's beyond them, read past the end of its names */
+        if ((int)temp_var < 0 || (int)temp_var >= setting->choice_setting->count)
+            temp_var = 0;
         if (HASFLAG(setting, F_CHOICETALKS))
         {
             const struct choice_setting *info = setting->choice_setting;
@@ -199,6 +203,8 @@ void option_talk_value(const struct settings_list *setting, int value, bool enqu
     }
     else if (HASFLAG(setting, F_CHOICE_SETTING))
     {
+        if (value < 0 || value >= setting->choice_setting->count)
+            value = 0;
         if (HASFLAG(setting, F_CHOICETALKS))
         {
             talk_id(setting->choice_setting->talks[value], enqueue);

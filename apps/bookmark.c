@@ -1107,7 +1107,12 @@ static bool play_bookmark(const char* bookmark)
 
     if (parse_bookmark(fnamebuf, sizeof(fnamebuf), bookmark, &resume_info, true))
     {
-        global_settings.repeat_mode = resume_info.repeat_mode;
+        /* of Rockbox's five repeats, the three there are here: its repeat
+           shuffled again each time round as all, A-B as off */
+        global_settings.repeat_mode =
+            (resume_info.repeat_mode >= REPEAT_OFF && resume_info.repeat_mode <= REPEAT_ONE)
+            ? resume_info.repeat_mode
+            : resume_info.repeat_mode == REPEAT_SHUFFLE ? REPEAT_ALL : REPEAT_OFF;
         iap_on_repeat_state(global_settings.repeat_mode);
         global_settings.playlist_shuffle = resume_info.shuffle;
         iap_on_shuffle_state(global_settings.playlist_shuffle);
