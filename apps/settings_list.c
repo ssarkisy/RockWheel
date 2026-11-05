@@ -1365,6 +1365,19 @@ const struct settings_list settings[] = {
                     "off", UNIT_SEC, formatter_backlight,
                     getlang_backlight, backlight_set_timeout,
                     ARRAYLEN(backlight_timeouts), backlight_timeouts),
+    /* Select & Menu: on Now Playing the wheel's volume, Play and the track
+       buttons work with the screen dark and leave it dark */
+    CHOICE_SETTING(0, wake_screen, LANG_WAKE_SCREEN, WAKE_SELECT_MENU,
+                   "wake screen", "select and menu,any", NULL, 2,
+                   ID2P(LANG_WAKE_SELECT_MENU), ID2P(LANG_WAKE_ANY)),
+    /* the menus and the lists go to Now Playing as the screen goes dark while
+       music plays, or once it has been dark a while: the wheel is the volume
+       there */
+    CHOICE_SETTING(0, return_to_wps, LANG_RETURN_TO_WPS, RETURN_WPS_AT_OFF,
+                   "return to now playing",
+                   "no,screen off,10s,30s", NULL, 4,
+                   ID2P(LANG_RETURN_WPS_NO), ID2P(LANG_RETURN_SCREEN_OFF),
+                   ID2P(LANG_RETURN_10S), ID2P(LANG_RETURN_30S)),
 #if CONFIG_CHARGING
     TABLE_SETTING_LIST(F_TIME_SETTING,
                     backlight_timeout_plugged, LANG_BACKLIGHT_ON_WHEN_CHARGING,

@@ -1901,6 +1901,39 @@ static enum current_activity
         current_activity[MAX_ACTIVITY_DEPTH] = {ACTIVITY_UNKNOWN};
 static int current_activity_top = 0;
 
+/* Search's letters, where ⏮/⏭ type */
+static bool wake_screen_typing;
+
+void wake_screen_set_typing(bool typing)
+{
+    wake_screen_typing = typing;
+}
+
+bool wake_screen_is_typing(void)
+{
+    return wake_screen_typing;
+}
+
+/* What works with the screen dark and leaves it dark, if Wake Screen is Select
+   & Menu, for the screen waiting for a press in this context: ⏮/⏭ where they
+   are the tracks' (Now Playing, the lists and the menus), not a setting's
+   values, the Quickscreen or a keyboard, where unseen they changed things; and
+   the wheel on Now Playing alone, where it's the volume: elsewhere it would
+   move a list unseen, and lights it */
+void wake_screen_context(int context)
+{
+#ifdef HAVE_BACKLIGHT
+    const bool dark = global_settings.wake_screen == WAKE_SELECT_MENU;
+    context &= ~ALLOW_SOFTLOCK;
+    const bool tracks = context == CONTEXT_WPS || context == CONTEXT_TREE
+                        || context == CONTEXT_MAINMENU || context == CONTEXT_STD;
+    button_set_dark_controls(dark && tracks && !wake_screen_typing,
+                             dark && context == CONTEXT_WPS);
+#else
+    (void)context;
+#endif
+}
+
 static void push_current_activity_refresh(enum current_activity screen, bool refresh)
 {
     current_activity[current_activity_top++] = screen;

@@ -74,6 +74,9 @@ void ipod_4g_button_int(void);
 /* with the backlight off the first press only lights it, if so set, but
    play/pause works without looking */
 #define BACKLIGHT_FILTER_EXEMPT BUTTON_PLAY
+/* and, if Wake Screen is Select & Menu, the track buttons too, and on Now
+   Playing the wheel's volume as well (button_set_dark_controls) */
+#define BACKLIGHT_DARK_EXEMPT (BUTTON_PLAY | BUTTON_LEFT | BUTTON_RIGHT)
 #define POWEROFF_COUNT 40
 
 #endif /* _BUTTON_TARGET_H_ */

@@ -1659,7 +1659,8 @@ void root_menu(void)
 
             case GO_TO_PREVIOUS_MUSIC:
                 next_screen = previous_music;
-                wps_after_hold = true;
+                /* gone there as the screen went dark: Menu back here */
+                wps_after_hold = !action_dark_return_taken();
                 break;
             case GO_TO_ROOTITEM_CONTEXT:
                 next_screen = load_context_screen(selected);

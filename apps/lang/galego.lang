@@ -14981,3 +14981,115 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_WAKE_SCREEN
+  desc: a setting of Display: what lights the dark screen on Now Playing
+  user: core
+  <source>
+    *: "Wake Screen"
+  </source>
+  <dest>
+    *: "Activar a pantalla"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAKE_SELECT_MENU
+  desc: a value of Wake Screen: only Select and Menu light it, the volume and the track buttons work in the dark
+  user: core
+  <source>
+    *: "Select & Menu"
+  </source>
+  <dest>
+    *: "Select e Menu"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAKE_ANY
+  desc: a value of Wake Screen: a turn or touch of the wheel and the buttons light it, Play alone doesn't
+  user: core
+  <source>
+    *: "Wheel & Buttons"
+  </source>
+  <dest>
+    *: "Roda e botóns"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RETURN_TO_WPS
+  desc: a setting of Display: the menus and the lists go to Now Playing as the screen goes dark while music plays
+  user: core
+  <source>
+    *: "Return to Now Playing"
+  </source>
+  <dest>
+    *: "Ir a «Reproducindo»"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RETURN_WPS_NO
+  desc: a value of Return to Now Playing: it doesn't go there
+  user: core
+  <source>
+    *: "No"
+  </source>
+  <dest>
+    *: "Non"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RETURN_10S
+  desc: a value of Return to Now Playing: once the screen has been dark 10 seconds
+  user: core
+  <source>
+    *: "10s"
+  </source>
+  <dest>
+    *: "10 s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RETURN_30S
+  desc: a value of Return to Now Playing: once the screen has been dark 30 seconds
+  user: core
+  <source>
+    *: "30s"
+  </source>
+  <dest>
+    *: "30 s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RETURN_SCREEN_OFF
+  desc: a value of Return to Now Playing: as the screen goes dark
+  user: core
+  <source>
+    *: "Screen Off"
+  </source>
+  <dest>
+    *: "Pantalla apagada"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

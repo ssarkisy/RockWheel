@@ -138,6 +138,15 @@ static void opto_i2c_init(void)
 }
 #endif
 
+/* With the screen dark, a touch lights it once the wheel has gone a step, or
+   once the finger has stayed a moment without pressing a button: Play and
+   ⏮/⏭, which work without looking, are pressed on the ring itself, and their
+   touch lit the screen before the press came, or as ⏭ was held. A button that
+   lights it does so itself (button_tick). */
+#define TOUCH_LIGHT_USEC 300000
+static unsigned long touch_since_usec;
+static bool touch_play; /* a button was pressed in this touch */
+
 static inline int ipod_4g_button_read(void)
 {
     int whl = -1;
@@ -169,8 +178,19 @@ static inline int ipod_4g_button_read(void)
                 new_wheel_value = (status >> 16) & 0x7f;
                 whl = new_wheel_value;
                 
-                /* switch on backlight (again), reset power-off timer */
-                backlight_on();
+                if (!wheel_is_touched)
+                {
+                    touch_since_usec = usec;
+                    touch_play = false;
+                }
+                if (btn)
+                    touch_play = true;
+                /* switch on backlight (again), reset power-off timer; on Now
+                   Playing, as Wake Screen may have it, not with the volume */
+                if (is_backlight_on(false)
+                    || (!touch_play && !button_dark_wheel()
+                        && TIME_AFTER(usec, touch_since_usec + TOUCH_LIGHT_USEC)))
+                    backlight_on();
                 reset_poweroff_timer();
                 
                 /* Check whether the scrollwheel was untouched by accident or by will. */
@@ -232,6 +252,9 @@ static inline int ipod_4g_button_read(void)
                     if (wheel_keycode != BUTTON_NONE)
                     {
                         long v = (usec - last_wheel_usec) & 0x7fffffff;
+                        /* turned: it's to be seen */
+                        if (!button_dark_wheel() || is_backlight_on(false))
+                            backlight_on();
                         
                         /* undo signedness, and whole steps only */
                         wheel_delta = (wheel_delta>0) ? wheel_delta : -wheel_delta;

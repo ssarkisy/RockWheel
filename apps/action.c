@@ -49,6 +49,7 @@
 
 #ifdef HAVE_BACKLIGHT
 #include "backlight.h"
+#include "audio.h"
 #if CONFIG_CHARGING
 #include "power.h"
 #endif
@@ -144,6 +145,7 @@ static action_last_t action_last =
     .unlock_combo    = BUTTON_NONE,
 #endif
 }; /* action_last_t action_last */
+
 
 /******************************************************************************
 ** INTERNAL ACTION FUNCTIONS **************************************************
@@ -1120,6 +1122,69 @@ static inline int do_backlight(action_last_t *last, action_cur_t *cur, int actio
 /* only asked whether Menu is down, as while a list loads */
 static bool asking_abort;
 
+/* Return to Now Playing: the screen gone dark while music plays, at once or
+   once it has been dark 10 or 30 s, takes the menus and the lists there, once
+   each time it goes dark, so that what's done in the dark is the music's (Wake
+   Screen). Only the screens that go to Now Playing on ACTION_TREE_WPS; not a
+   plugin, a setting's values, nor a keyboard. */
+static bool dark_returned;      /* this time it went dark */
+static bool dark_return_taken;  /* until the main menu has asked */
+static unsigned int dark_count; /* the time it went dark that was gone by */
+
+static bool dark_return_due(int context)
+{
+#ifdef HAVE_BACKLIGHT
+    static const long after[] = {
+        [RETURN_WPS_AT_OFF] = 0, [RETURN_WPS_OFF_10] = 10 * HZ,
+        [RETURN_WPS_OFF_30] = 30 * HZ,
+    };
+    /* by the time it went off, as noted by the backlight itself: one lit and
+       gone dark again between two calls here is another */
+    unsigned int count;
+    const long since = backlight_off_since(&count);
+    if (is_backlight_on(false))
+        return false;
+    if (count != dark_count)
+    {
+        dark_count = count;
+        dark_returned = false;
+    }
+    const int when = global_settings.return_to_wps;
+    if (dark_returned || when <= RETURN_WPS_NO || when > RETURN_WPS_OFF_30
+        || TIME_BEFORE(current_tick, since + after[when])
+        || (audio_status() & (AUDIO_STATUS_PLAY | AUDIO_STATUS_PAUSE))
+           != AUDIO_STATUS_PLAY
+        || wake_screen_is_typing())
+        return false;
+    /* only where ACTION_TREE_WPS goes to Now Playing: the menus in their
+       context, the browsers in theirs, not the plain lists of Settings (About,
+       the EQ's) nor the playlist viewer, where a song being moved was let go */
+    context &= ~ALLOW_SOFTLOCK;
+    const enum current_activity activity = get_current_activity();
+    const bool menus = context == CONTEXT_MAINMENU
+        && (activity == ACTIVITY_MAINMENU || activity == ACTIVITY_SETTINGS);
+    const bool browsers = context == CONTEXT_TREE
+        && (activity == ACTIVITY_FILEBROWSER
+            || activity == ACTIVITY_DATABASEBROWSER
+            || activity == ACTIVITY_PLAYLISTBROWSER);
+    if (!menus && !browsers)
+        return false;
+    dark_returned = true;
+    dark_return_taken = true;
+    return true;
+#else
+    (void)context;
+    return false;
+#endif
+}
+
+bool action_dark_return_taken(void)
+{
+    const bool taken = dark_return_taken;
+    dark_return_taken = false;
+    return taken;
+}
+
 static int get_action_worker(action_last_t *last, action_cur_t *cur)
 {
     send_event(GUI_EVENT_ACTIONUPDATE, NULL);
@@ -1131,6 +1196,14 @@ static int get_action_worker(action_last_t *last, action_cur_t *cur)
 
     if (night_mode_poll(cur->context))
         return ACTION_REDRAW;
+
+    wake_screen_context(cur->context);
+
+    /* the main menu asks right after the screen it ended: a later call is of
+       another way to Now Playing */
+    dark_return_taken = false;
+    if (dark_return_due(cur->context))
+        return ACTION_TREE_WPS;
 
     /*if button = none/special; returns immediately*/
     if (action_poll_button(last, cur))

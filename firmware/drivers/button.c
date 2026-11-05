@@ -159,6 +159,31 @@ static void check_audio_peripheral_state(void)
 #endif
 }
 
+#ifdef BACKLIGHT_FILTER_EXEMPT
+/* the buttons that work with the screen dark, and leave it dark */
+static volatile int dark_exempt = BACKLIGHT_FILTER_EXEMPT;
+static volatile bool dark_wheel = false;
+
+void button_set_dark_controls(bool buttons, bool wheel)
+{
+#ifdef BACKLIGHT_DARK_EXEMPT
+    dark_exempt = buttons ? BACKLIGHT_DARK_EXEMPT : BACKLIGHT_FILTER_EXEMPT;
+#endif
+    dark_wheel = wheel;
+}
+
+bool button_dark_wheel(void)
+{
+    return dark_wheel;
+}
+
+/* a press of those alone, with the screen dark, which doesn't light it */
+static bool works_dark(int button)
+{
+    return !is_backlight_on(false) && button && !(button & ~dark_exempt);
+}
+#endif
+
 #ifdef HAVE_BACKLIGHT
 /* disabled function is shared between Main & Remote LCDs */
 static bool filter_first_keypress_disabled(int button, int data)
@@ -170,14 +195,15 @@ static bool filter_first_keypress_disabled(int button, int data)
 static bool filter_first_keypress_enabled(int button, int data)
 {
 #if defined(HAVE_TRANSFLECTIVE_LCD) && defined(HAVE_LCD_SLEEP)
-    if (is_backlight_on(false) && lcd_active())
+    if ((is_backlight_on(false) && lcd_active())
 #else
     if (is_backlight_on(false)
+#endif
 #ifdef BACKLIGHT_FILTER_EXEMPT
-        || (button & BACKLIGHT_FILTER_EXEMPT)
+        /* on the iPod Video too, whose screen is of the first kind */
+        || (button & dark_exempt)
 #endif
        )
-#endif
     {
         return filter_first_keypress_disabled(button, data);
     }
@@ -380,7 +406,12 @@ static void button_tick(void)
                         else
 #endif
                         {
-                            backlight_on();
+#ifdef BACKLIGHT_FILTER_EXEMPT
+                            /* ⏭ held to go through the track, unseen */
+                            if (keypress_filter_fn != filter_first_keypress_enabled
+                                || !works_dark(btn))
+#endif
+                                backlight_on();
                             buttonlight_on();
                         }
 #endif
@@ -398,7 +429,13 @@ static void button_tick(void)
 #endif
                     {
                         skip_release = keypress_filter_fn(btn, data);
-                        backlight_on();
+#ifdef BACKLIGHT_FILTER_EXEMPT
+                        /* what works without looking leaves the screen dark,
+                           while the first press only lights it */
+                        if (keypress_filter_fn != filter_first_keypress_enabled
+                            || !works_dark(btn))
+#endif
+                            backlight_on();
                         buttonlight_on();
                     }
 #else /* no backlight, nothing to skip */

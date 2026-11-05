@@ -687,7 +687,7 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &group_display,
 #endif
 #ifdef HAVE_BACKLIGHT
-        &backlight_timeout,
+        &backlight_timeout, &wake_screen_item, &return_to_wps_item,
 #endif
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
         &brightness_item,

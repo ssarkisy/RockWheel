@@ -400,6 +400,9 @@ int get_custom_action(int context,int timeout,
                       const struct button_mapping* (*get_context_map)(int));
 /* use if one of the standard CONTEXT_ mappings will work (ALL the core should be using this! */
 int get_action(int context, int timeout);
+/* whether Now Playing was gone to as the screen went dark (Return to Now
+   Playing): Menu there goes back where it was, and not to where music started */
+bool action_dark_return_taken(void);
 
 /* call this if you need to check for ACTION_STD_CANCEL only (i.e user abort! */
 bool action_userabort(int timeout);

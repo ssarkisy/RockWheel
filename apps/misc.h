@@ -263,6 +263,11 @@ void replaygain_update(void);
 void dsp_change_heard_now(void (*change)(void));
 
 void push_current_activity(enum current_activity screen);
+/* Wake Screen's way, for the context a screen waits for a press in (from
+   get_action); Search's letters set typing, where ⏮/⏭ type */
+void wake_screen_context(int context);
+void wake_screen_set_typing(bool typing);
+bool wake_screen_is_typing(void);
 void push_activity_without_refresh(enum current_activity screen);
 void pop_current_activity(void);
 void pop_current_activity_without_refresh(void);

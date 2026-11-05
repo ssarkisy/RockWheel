@@ -149,6 +149,8 @@ static int flipdisplay_callback(int action,
 /*    LCD MENU                     */
 #ifdef HAVE_BACKLIGHT
 MENUITEM_SETTING_SHARED(backlight_timeout, &global_settings.backlight_timeout, NULL);
+MENUITEM_SETTING_SHARED(wake_screen_item, &global_settings.wake_screen, NULL);
+MENUITEM_SETTING_SHARED(return_to_wps_item, &global_settings.return_to_wps, NULL);
 #if CONFIG_CHARGING
 MENUITEM_SETTING(backlight_timeout_plugged,
                 &global_settings.backlight_timeout_plugged, NULL);

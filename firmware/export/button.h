@@ -54,6 +54,15 @@ int button_status_wdata(int *pdata);
 #endif
 
 void button_set_flip(bool flip); /* turn 180 degrees */
+#ifdef BACKLIGHT_FILTER_EXEMPT
+/* The music's buttons, and the wheel too, work with the screen dark and leave
+   it dark, and only the others light it, as Wake Screen says */
+void button_set_dark_controls(bool buttons, bool wheel);
+bool button_dark_wheel(void);
+#else
+static inline void button_set_dark_controls(bool buttons, bool wheel)
+{ (void)buttons; (void)wheel; }
+#endif
 #ifdef HAVE_BACKLIGHT
 void set_backlight_filter_keypress(bool value);
 #ifdef HAVE_REMOTE_LCD

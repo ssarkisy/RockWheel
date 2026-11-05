@@ -205,6 +205,18 @@ enum {  ALARM_START_WPS = 0,
  /* Not really a setting but several files should stay synced */
 #define KEYCLICK_DURATION 2
 
+/* what lights the dark screen on Now Playing: Select and Menu alone, the
+   music's buttons and the volume working unseen, or any of them */
+#define WAKE_SELECT_MENU 0
+#define WAKE_ANY         1
+
+/* Return to Now Playing: never, as the screen goes dark, or once it has been
+   dark 10 or 30 s */
+#define RETURN_WPS_NO     0
+#define RETURN_WPS_AT_OFF 1
+#define RETURN_WPS_OFF_10 2
+#define RETURN_WPS_OFF_30 3
+
 /* Cover Flow, Search, Playlists, Artists, Albums, Songs, Podcasts, Genres,
    Composers, Audiobooks: each one shown in Music or not (tagtree.c) */
 #define MUSIC_SECTIONS 10
@@ -745,6 +757,9 @@ struct user_settings
                                 0=always, or time in seconds */
     bool caption_backlight; /* turn on backlight at end and start of track */
     bool bl_filter_first_keypress;   /* filter first keypress when dark? */
+    int  wake_screen; /* on Now Playing, dark: WAKE_SELECT_MENU or WAKE_ANY */
+    int  return_to_wps; /* the screen gone dark during music opens Now Playing:
+                           RETURN_WPS_* */
 #if CONFIG_CHARGING
     int backlight_timeout_plugged;
 #endif

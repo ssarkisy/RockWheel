@@ -481,8 +481,21 @@ static void backlight_setup_fade_down(void)
 }
 #endif /* CONFIG_BACKLIGHT_FADING */
 
+/* each time it went off, and when: what was done in the dark goes by the one
+   it is in, not by when the UI noticed */
+static unsigned int backlight_off_count;
+static long backlight_off_tick;
+
+long backlight_off_since(unsigned int *count)
+{
+    *count = backlight_off_count;
+    return backlight_off_tick;
+}
+
 static inline void do_backlight_off(void)
 {
+    backlight_off_count++;
+    backlight_off_tick = current_tick;
     backlight_timer = 0;
 #if BACKLIGHT_FADE_IN_THREAD
     backlight_setup_fade_down();

@@ -61,7 +61,8 @@ extern const struct menu_item_ex
         volume_limit, balance, crossfeed, afr_enabled, /* sound_menu.c  */
         ipod_eq_menu, ipod_eq_row,                  /* eq_menu.c        */
 #ifdef HAVE_BACKLIGHT
-        backlight_timeout, ipod_backlight_menu,     /* display_menu.c   */
+        backlight_timeout, wake_screen_item, return_to_wps_item,
+        ipod_backlight_menu,                        /* display_menu.c   */
 #endif
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
         brightness_item,

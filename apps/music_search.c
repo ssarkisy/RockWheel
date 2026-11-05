@@ -1895,7 +1895,10 @@ int music_search_screen(void *param)
         int timeout = list_do_action_timeout(&lists, HZ / 2);
         if (search_waits)
             timeout = MAX(0, MIN(timeout, search_due - current_tick));
+        /* the letters, where ⏮/⏭ type, don't take them with the screen dark */
+        wake_screen_set_typing(!in_results);
         int action = get_action(CONTEXT_TREE, timeout);
+        wake_screen_set_typing(false);
         /* the field and the letters with the list, as after a change of theme */
         if (action == ACTION_REDRAW)
         {

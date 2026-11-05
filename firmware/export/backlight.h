@@ -30,6 +30,8 @@
 #endif
 
 bool is_backlight_on(bool ignore_always_off);
+/* when it last went off, and how many times it has */
+long backlight_off_since(unsigned int *count);
 void backlight_on_ignore(bool value, int timeout);
 void backlight_on(void);
 void backlight_off(void);
