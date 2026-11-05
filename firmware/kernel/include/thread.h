@@ -162,6 +162,10 @@ void thread_exit(void) NORETURN_ATTR;
 #ifdef HAVE_PRIORITY_SCHEDULING
 int thread_set_priority(unsigned int thread_id, int priority);
 int thread_get_priority(unsigned int thread_id);
+#ifdef USEC_TIMER
+/* how long the running thread has had its core since it got it */
+unsigned long thread_running_usec(void);
+#endif
 #endif /* HAVE_PRIORITY_SCHEDULING */
 
 #if NUM_CORES > 1

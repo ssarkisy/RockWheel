@@ -1007,6 +1007,19 @@ static FORCE_INLINE void prepare_block(struct thread_entry *current,
  * INTERNAL: Intended for use by kernel and not programs.
  *---------------------------------------------------------------------------
  */
+
+#ifdef USEC_TIMER
+/* when the thread each core runs got it: how long it has kept it, as a
+   thread behind the UI only waits on the disk for so long before it gives
+   the CPU up */
+static unsigned long running_since[NUM_CORES];
+
+unsigned long thread_running_usec(void)
+{
+    return USEC_TIMER - running_since[CURRENT_CORE];
+}
+#endif
+
 void switch_thread(void)
 {
     const unsigned int core = CURRENT_CORE;
@@ -1094,7 +1107,9 @@ void switch_thread(void)
 
     rtr_queue_make_first(&corep->rtr, thread);
     corep->running = thread;
-
+#ifdef USEC_TIMER
+    running_since[core] = USEC_TIMER;
+#endif
     RTR_UNLOCK(corep);
     enable_irq();
 

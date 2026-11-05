@@ -247,10 +247,16 @@ bool ata_dma_finish(void) {
        the UI lets it go anyway, and its reads, waited for here, held up the lists
        a few milliseconds at a time for as long as it filled the buffer. One behind
        the UI, as the database's loading itself into memory, waits: yielding, it got
-       the CPU back only when the UI next let it go, a read at a time. */
+       the CPU back only when the UI next let it go, a read at a time. But only
+       until it has had the CPU for DMA_WAIT_RUN_USEC since it got it: then it
+       yields, as its long reads, a sort's, a load's, held the UI up for 200 ms,
+       each of them until it was made to yield by hand. */
+#define DMA_WAIT_RUN_USEC 8000
     if (ata_is_ssd && dma_bytes
 #ifdef HAVE_PRIORITY_SCHEDULING
         && thread_get_priority(thread_self()) >= PRIORITY_USER_INTERFACE
+        && (thread_get_priority(thread_self()) == PRIORITY_USER_INTERFACE
+            || thread_running_usec() < DMA_WAIT_RUN_USEC)
 #endif
         )
     {
