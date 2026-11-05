@@ -884,7 +884,9 @@ static bool read_tracks(off_t list)
         }
     }
     db.complete = db.count == listed;
-    return db.count > 0;
+    /* an iTunesDB of no songs is read whole too: after the last song is taken
+       off, the import takes them all out of the database */
+    return db.count > 0 || db.complete;
 }
 
 static int cmp_id(const void *a, const void *b)
@@ -966,6 +968,9 @@ static struct {
     int written_count;
     uint64_t written[MAX_PLAYLISTS];
     bool list_failed;           /* a line of the new list didn't write */
+    /* a record of the playlists in iTunesDB couldn't be read, as of one cut
+       short by a sync left off: the playlists after it would have looked gone */
+    bool read_failed;
 } pls;
 
 /* the last import's list as found */
@@ -1301,11 +1306,14 @@ static void writer_put(struct writer *w, const void *data, size_t len)
     }
 }
 
+/* The file's last sector goes to the disk as it closes, and that can fail, as
+   with the disk full at a new cluster: the file is then short, and isn't to
+   take the place of the one it was written for */
 static bool writer_close(struct writer *w)
 {
     writer_flush(w);
-    if (w->fd >= 0)
-        close(w->fd);
+    if (w->fd >= 0 && close(w->fd) < 0)
+        w->ok = false;
     w->fd = -1;
     return w->ok;
 }
@@ -1354,7 +1362,10 @@ static int playlist_items(off_t child, int items, struct writer *w,
     {
         p = db_record(child, "mhip", 28);
         if (!p)
+        {
+            pls.read_failed = true;
             break;
+        }
         uint32_t total = le32(p + 8);
         struct track *t = find_by_id(le32(p + 24));
         if (t && (t->st.media & MEDIA_VIDEO))
@@ -1365,7 +1376,10 @@ static int playlist_items(off_t child, int items, struct writer *w,
             written++;
         }
         if (total == 0)
+        {
+            pls.read_failed |= i < items - 1;
             break;
+        }
         child += total;
     }
     return written;
@@ -1572,11 +1586,16 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
                            struct writer *w)
 {
     char name[MAX_PATH / 2], file[MAX_PATH], folder[MAX_PATH];
+    /* as before this playlist: a read of its own that failed sets it */
+    const bool read_failed = pls.read_failed;
     const unsigned char *p = db_record(pos, "mhyp", 0x5c);
     if (!p)
         p = db_record(pos, "mhyp", 44);
     if (!p)
+    {
+        pls.read_failed = true;
         return;
+    }
     uint32_t header_len = le32(p + 4);
     int mhods = le32(p + 12);
     int items = le32(p + 16);
@@ -1596,13 +1615,14 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     for (int i = 0; i < mhods; i++)
     {
         p = db_record(child, "mhod", 16);
-        if (!p)
+        if (!p || le32(p + 8) == 0)
+        {
+            pls.read_failed = true;
             return;
+        }
         uint32_t total = le32(p + 8);
         if (le32(p + 12) == 1)
             mhod_string(child, name, sizeof(name));
-        if (total == 0)
-            return;
         child += total;
     }
 
@@ -1640,7 +1660,9 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
         if (ok)
         {
             playlist_items(child, items, w, &hash, &size, &videos);
-            ok = writer_close(w) && rename(PLAYLIST_TEMP, file) == 0;
+            /* not one cut short in place of the whole one */
+            ok = writer_close(w) && pls.read_failed == read_failed
+                 && rename(PLAYLIST_TEMP, file) == 0;
         }
         if (!ok)
         {
@@ -1681,11 +1703,17 @@ static void write_playlists(off_t list)
         {
             p = db_record(pos, "mhyp", 12);
             if (!p)
+            {
+                pls.read_failed = true;
                 break;
+            }
             uint32_t total = le32(p + 8);
             write_playlist(pos, dir, list_fd, &out);
             if (total == 0)
+            {
+                pls.read_failed |= i < count - 1;
                 break;
+            }
             pos += total;
             yield();
         }
@@ -1694,10 +1722,13 @@ static void write_playlists(off_t list)
            import that have nothing now */
         for (size_t k = 0; k < fld.made_len; k += strlen(fld.made + k) + 1)
             list_line(list_fd, "dir %s\n", fld.made + k);
-        /* only once this import's are written: nothing goes if it didn't */
-        remove_old_playlists(dir, listed, fld.made, fld.made_len, list_fd);
-        /* a list that didn't all write leaves the old one */
-        if (close(list_fd) < 0 || pls.list_failed
+        /* only once this import's are written, and all of iTunesDB's were
+           read: nothing goes if they weren't */
+        if (!pls.read_failed)
+            remove_old_playlists(dir, listed, fld.made, fld.made_len, list_fd);
+        /* a list that didn't all write, or of the part read, leaves the old
+           one */
+        if (close(list_fd) < 0 || pls.list_failed || pls.read_failed
             || rename(PLAYLISTS_TEMP, PLAYLISTS_FILE) < 0)
             remove(PLAYLISTS_TEMP);
     }
@@ -1776,15 +1807,15 @@ static bool load_pending(void)
         return false;
     bool ok = read(fd, &pend.hdr, sizeof(pend.hdr)) == sizeof(pend.hdr)
         && pend.hdr.magic == PENDING_MAGIC
-        && pend.hdr.version == PENDING_VERSION && pend.hdr.count > 0
+        && pend.hdr.version == PENDING_VERSION
         && pend.hdr.count <= COUNT_MAX
         && db_stamp(&size, &mtime) && pend.hdr.db_size == size
         && pend.hdr.db_mtime == mtime;
     if (ok)
     {
         size_t entries = pend.hdr.count * sizeof(struct state_entry);
-        pend.handle = db_alloc(entries
-                                 + pend.hdr.count * sizeof(uint32_t));
+        pend.handle = db_alloc(MAX(entries + pend.hdr.count * sizeof(uint32_t),
+                                   sizeof(uint32_t)));
         ok = pend.handle > 0;
         if (ok)
         {
@@ -1985,7 +2016,7 @@ static bool db_load(void)
     size_t table_size =
         db.count * (sizeof(struct track) + 2 * sizeof(uint32_t));
     db.pool_size = db.count * POOL_PER_TRACK;
-    table_handle = db_alloc(table_size + db.pool_size);
+    table_handle = db_alloc(MAX(table_size + db.pool_size, sizeof(uint32_t)));
     if (table_handle <= 0)
         return false;
     core_pin(table_handle);
@@ -2019,8 +2050,7 @@ static bool stamp_state(void)
     if (fd < 0)
         return false;
     const bool ok = write(fd, &hdr, sizeof(hdr)) == sizeof(hdr);
-    close(fd);
-    return ok;
+    return close(fd) == 0 && ok;
 }
 
 static void note_imported(void)
@@ -2029,8 +2059,10 @@ static void note_imported(void)
     const int fd = open(IMPORTED_FILE, O_WRONLY|O_CREAT|O_TRUNC, 0666);
     if (fd >= 0)
     {
-        write(fd, &commitid, sizeof(commitid));
-        close(fd);
+        /* none rather than one cut short */
+        const bool ok = write(fd, &commitid, sizeof(commitid)) == sizeof(commitid);
+        if (close(fd) < 0 || !ok)
+            remove(IMPORTED_FILE);
     }
 }
 
@@ -2096,8 +2128,10 @@ static void playcounts_mark_write(void)
     const int fd = open(PLAYCOUNTS_MARK, O_WRONLY|O_CREAT|O_TRUNC, 0666);
     if (fd >= 0)
     {
-        write(fd, &m, sizeof(m));
-        close(fd);
+        /* none rather than one cut short */
+        const bool ok = write(fd, &m, sizeof(m)) == sizeof(m);
+        if (close(fd) < 0 || !ok)
+            remove(PLAYCOUNTS_MARK);
     }
 }
 

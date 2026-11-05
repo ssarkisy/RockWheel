@@ -4939,7 +4939,10 @@ bool tagcache_import_changelog(void)
 /* Calls update() with the filename and runtime values of every entry, and
    writes back the play count and rating if it returns more than 0 and they
    changed, or removes the entry if it returns less than 0. One pass, for
-   imports too big to look each file up. */
+   imports too big to look each file up. False if an entry's counts couldn't
+   be written, or it couldn't be removed: the import is then done again, rather
+   than noted as done with the disk's old counts and ratings, or a song whose
+   file is gone, back after a reboot. */
 bool tagcache_update_runtime(int (*update)(const char *filename,
                                            struct tagcache_runtime *rt,
                                            void *data),
@@ -4964,6 +4967,7 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
     for (int tag = 0; tag < TAG_COUNT; tag++)
         fds[tag] = -1;
     int deleted = 0;
+    bool failed = false;
 
     for (int i = 0; i < myhdr.tch.entry_count; i++)
     {
@@ -4975,6 +4979,9 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
         /* From memory when the database is there, as it is for Play Counts
            on every connection to a computer. Only an entry that changes is
            read from the disk: the copy in memory has seeks of its own. */
+        /* one that can't be read, or whose name can't, is left as it is, as
+           one iTunesDB hasn't: failed for it, the import would be done at
+           every boot, and Play Counts never written */
         if (!get_index(masterfd, i, &idx, true)
             || !tagcache_retrieve(&tcs, i, tag_filename, buf, sizeof(buf)))
             continue;
@@ -4990,16 +4997,24 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
             if (delete_entry_in(i, masterfd, myhdr.tch.entry_count, fds,
                                 true))
                 deleted++;
+            else
+                failed = true;
         }
         else if (action > 0
                  && (rt.playcount != idx.tag_seek[tag_playcount]
-                     || rt.rating != idx.tag_seek[tag_rating])
-                 && get_index(masterfd, i, &idx, false))
+                     || rt.rating != idx.tag_seek[tag_rating]))
         {
-            idx.tag_seek[tag_playcount] = rt.playcount;
-            idx.tag_seek[tag_rating] = rt.rating;
-            idx.flag |= FLAG_DIRTYNUM;
-            write_index(masterfd, i, &idx);
+            /* the disk's copy, written back changed: one that can't be read
+               leaves the counts unset, and the import to be done again */
+            if (get_index(masterfd, i, &idx, false))
+            {
+                idx.tag_seek[tag_playcount] = rt.playcount;
+                idx.tag_seek[tag_rating] = rt.rating;
+                idx.flag |= FLAG_DIRTYNUM;
+                failed |= !write_index(masterfd, i, &idx);
+            }
+            else
+                failed = true;
         }
         do_timed_yield();
     }
@@ -5016,10 +5031,10 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
         if (fds[tag] >= 0)
             close(fds[tag]);
     }
-    close(masterfd);
+    failed |= close(masterfd) < 0;
     tagcache_search_finish(&tcs);
     update_master_header();
-    return true;
+    return !failed;
 }
 #endif /* !__PCTOOL__ */
 
@@ -6944,7 +6959,11 @@ static void tagcache_thread(void)
                    its fade-out is over, which was after Play Counts was
                    written, so that it came a sync late or not at all */
                 cpu_boost(true);
-                for (int wait = 0; wait < 3 * HZ
+                /* the stop notes the play before the status drops; 3 s was
+                   short of a disk spinning up for the track the audio thread
+                   was opening. Still bounded, for a stop that waited on this
+                   thread would hold USB up for good. */
+                for (int wait = 0; wait < 10 * HZ
                      && (audio_status() & AUDIO_STATUS_PLAY); wait += HZ / 20)
                     sleep(HZ / 20);
                 run_command_queue(true);
