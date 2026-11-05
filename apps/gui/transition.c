@@ -27,9 +27,10 @@
 
 #if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE && !defined(BOOTLOADER)
 
-/* As long as a stock iPod's, whatever the width, and slowing to its end as its
-   does: by its time, a position each tick, as fast as the display takes them */
-#define SLIDE_TICKS (HZ * 27 / 100)
+/* Shorter than a stock iPod's 270 ms, whatever the width, and slowing to its
+   end the more: most of the way at once, by its time, a position each tick, as
+   fast as the display takes them. As long as the stock one's, it felt slow. */
+#define SLIDE_TICKS (HZ * 20 / 100)
 /* while the next screen is drawn: as a slow one, Songs of a large library,
    would keep the display still for longer than this, it shows then */
 #define HOLD_TICKS (HZ/2)
@@ -120,13 +121,12 @@ void transition_run(void)
         return;
     }
 
-    /* a list that gets wider or narrower comes at once, as on a stock iPod */
-    const int width = slide_width();
+    /* a list that gets wider or narrower, as Music's menu beside the panel and
+       Artists, slides with all of the screen under the title, the panel too:
+       it came at once, as on a stock iPod, which felt abrupt */
+    int width = slide_width();
     if (width != old_width)
-    {
-        lcd_update();
-        return;
-    }
+        width = LCD_WIDTH;
 
     struct viewport *vp = lcd_set_viewport(NULL);
     for (int y = 0; y < rows; y++)
@@ -150,9 +150,10 @@ void transition_run(void)
             yield();
         now = current_tick;
         t = MIN(now - start, SLIDE_TICKS);
-        /* fast, then settling: an ease out */
+        /* fast, then settling: an ease out of the third power */
         int left = SLIDE_TICKS - t;
-        int off = width - width * left * left / (SLIDE_TICKS * SLIDE_TICKS);
+        int off = width - width * left * left * left
+                          / (SLIDE_TICKS * SLIDE_TICKS * SLIDE_TICKS);
         int keep = width - off;
         for (int y = 0; y < rows; y++)
         {
