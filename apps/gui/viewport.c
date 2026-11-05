@@ -164,6 +164,7 @@ static void toggle_theme(enum screen_type screen, bool force)
 #endif
         screens[screen].scroll_stop();
         skin_is_dirty(screen); /* remove dirty flag */
+        skin_forget_shown();
     }
     /* let list initialize viewport in case viewport dimensions is changed. */
     send_event(GUI_EVENT_THEME_CHANGED, NULL);
@@ -226,6 +227,13 @@ static void viewportmanager_update(unsigned short id, void* data)
     FOR_NB_SCREENS(i)
         if (skin_is_dirty(i))
             screens[i].update();
+}
+
+/* All of the theme drawn again, and not put on the screen: what's drawn over it
+   next, as a list it clears a part of, goes on it with it */
+void viewportmanager_redraw_unshown(void)
+{
+    viewportmanager_redraw(GUI_EVENT_ACTIONUPDATE, (void*)1);
 }
 
 void viewportmanager_init(void)

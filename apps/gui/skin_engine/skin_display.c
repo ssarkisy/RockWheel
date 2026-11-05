@@ -91,6 +91,83 @@ void skin_mark_dirty(enum screen_type screen)
  * Usually it should only be WPS_REFRESH_NON_STATIC
  * A full update will be done if required (skin_do_full_update() == true)
  */
+#if LCD_DEPTH == 16
+/* The pixels of the screen in the skin's viewports that show, but for where the
+   menus' lists go, by a hash, which of them show too: as they were after the
+   last redraw, nothing of the skin has to be put on the screen again. A redraw
+   of what hadn't changed, as the status bar's every seventh of a second and
+   Now Playing's five times a second, put the whole screen on it each time,
+   10 ms. Of the hidden viewports too, the panels', it held up the lists for
+   100 ms each time. The status bar's left out where its list is, as the
+   album art's strip over the main menu's right end: a step of the wheel there
+   put all of it on the screen again. False in *known if the skin draws into
+   its backdrop instead. */
+static uint32_t skin_pixels(struct gui_wps *gwps, enum skinnable_screens skin,
+                            bool *known)
+{
+    uint32_t h = 2166136261u;
+    *known = true;
+    int lx0 = 0, lx1 = 0, ly0 = 0, ly1 = 0; /* the list's */
+    if (skin == CUSTOM_STATUSBAR)
+    {
+        const struct viewport *list = sb_skin_get_info_vp(SCREEN_MAIN);
+        if (list)
+        {
+            lx0 = list->x;
+            lx1 = list->x + list->width;
+            ly0 = list->y;
+            ly1 = list->y + list->height;
+        }
+    }
+    char *const buffer = get_skin_buffer(gwps->data);
+    struct skin_element *viewport = SKINOFFSETTOPTR(buffer, gwps->data->tree);
+    for (int n = 0; viewport; viewport = SKINOFFSETTOPTR(buffer, viewport->next), n++)
+    {
+        const struct skin_viewport *svp = SKINOFFSETTOPTR(buffer, viewport->data);
+        if (!svp || svp->is_infovp
+            || (skin == CUSTOM_STATUSBAR && svp->label == VP_DEFAULT_LABEL))
+            continue;
+        if (svp->hidden_flags & (VP_NEVER_VISIBLE | VP_DRAW_HIDDEN))
+            continue;
+        if (svp->output_to_backdrop_buffer)
+        {
+            *known = false;
+            return 0;
+        }
+        h = (h ^ (uint32_t)n) * 16777619u; /* that it shows */
+        const int x0 = MAX(svp->vp.x, 0), y0 = MAX(svp->vp.y, 0);
+        const int x1 = MIN(svp->vp.x + svp->vp.width, LCD_WIDTH);
+        const int y1 = MIN(svp->vp.y + svp->vp.height, LCD_HEIGHT);
+        for (int y = y0; y < y1; y++)
+        {
+            const bool beside = y >= ly0 && y < ly1;
+            const int left_end = beside ? MIN(x1, lx0) : x1;
+            const int right_start = beside ? MAX(x0, lx1) : x1;
+            const fb_data *p = FBADDR(x0, y);
+            for (int x = x0; x < left_end; x++)
+                h = (h ^ FB_UNPACK_SCALAR_LCD(p[x - x0])) * 16777619u;
+            for (int x = right_start; x < x1; x++)
+                h = (h ^ FB_UNPACK_SCALAR_LCD(p[x - x0])) * 16777619u;
+        }
+    }
+    return h;
+}
+
+/* of each skin, as the screen was last updated for it */
+static uint32_t shown_pixels[SKINNABLE_SCREENS_COUNT];
+static bool shown_known[SKINNABLE_SCREENS_COUNT];
+#endif
+
+/* what was drawn wasn't put on the screen after all, as the theme was turned
+   off: the next redraw is, whatever it shows */
+void skin_forget_shown(void)
+{
+#if LCD_DEPTH == 16
+    for (int i = 0; i < SKINNABLE_SCREENS_COUNT; i++)
+        shown_known[i] = false;
+#endif
+}
+
 void skin_update(enum skinnable_screens skin, enum screen_type screen,
                  unsigned int update_type)
 {
@@ -102,8 +179,21 @@ void skin_update(enum skinnable_screens skin, enum screen_type screen,
     if (cuesheet_update)
         skin_request_full_update(skin);
 
-    skin_render(gwps, skin_do_full_update(skin, screen) ?
-                        SKIN_REFRESH_ALL : update_type);
+    const bool full = skin_do_full_update(skin, screen);
+    skin_render(gwps, full ? SKIN_REFRESH_ALL : update_type);
+#if LCD_DEPTH == 16
+    if (screen == SCREEN_MAIN)
+    {
+        bool known;
+        const uint32_t now = skin_pixels(gwps, skin, &known);
+        const bool same = !full && known && shown_known[skin]
+                          && now == shown_pixels[skin];
+        shown_pixels[skin] = now;
+        shown_known[skin] = known;
+        if (same)
+            return;
+    }
+#endif
     skin_mark_dirty(screen);
 }
 

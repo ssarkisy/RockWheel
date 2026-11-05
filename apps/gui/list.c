@@ -162,6 +162,7 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_get_item_name = callback_get_item_name;
     gui_list->callback_speak_item = NULL;
     gui_list->callback_draw_item = NULL;
+    gui_list->callback_before_draw = NULL;
     gui_list->nb_items = 0;
     gui_list->selected_item = 0;
     gui_synclist_init_display_settings(gui_list);
@@ -226,11 +227,21 @@ int gui_list_get_item_offset(struct gui_synclist * gui_list,
     return item_offset;
 }
 
+/* what its owner has it do as it's about to be drawn, as a menu its panel for
+   the selection: the two then go on the screen together */
+void gui_synclist_set_before_draw(struct gui_synclist *lists,
+                                  void (*fn)(struct gui_synclist *lists))
+{
+    lists->callback_before_draw = fn;
+}
+
 /*
  * Force a full screen update.
  */
 void gui_synclist_draw(struct gui_synclist *gui_list)
 {
+    if (gui_list->callback_before_draw)
+        gui_list->callback_before_draw(gui_list);
     if (list_is_dirty(gui_list))
     {
         list_init_viewports(gui_list);

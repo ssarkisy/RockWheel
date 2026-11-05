@@ -54,6 +54,7 @@ void skin_update(enum skinnable_screens skin, enum screen_type screen,
                  unsigned int update_type);
 void skin_mark_dirty(enum screen_type screen);
 bool skin_is_dirty(enum screen_type screen);
+void skin_forget_shown(void);
 bool skin_has_sbs(struct gui_wps *gwps);
 
 

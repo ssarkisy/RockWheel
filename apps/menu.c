@@ -377,6 +377,8 @@ static char* init_title(const struct menu_item_ex *menu, int *icon,
     return title;
 }
 
+static void panel_before_draw(struct gui_synclist *lists);
+
 static int init_menu_lists(const struct menu_item_ex *menu,
                      struct gui_synclist *lists, int selected, bool callback,
                      struct viewport parent[NB_SCREENS], char* buf, size_t buf_sz)
@@ -416,6 +418,7 @@ static int init_menu_lists(const struct menu_item_ex *menu,
     current_submenus_menu = (struct menu_item_ex *)menu;
 
     gui_synclist_init(lists,get_menu_item_name,(void*)menu,false,1, parent);
+    gui_synclist_set_before_draw(lists, panel_before_draw);
     if (menu_shows_values(menu) || menu_has_groups(menu))
     {
         lists->callback_draw_item = menu_draw_value_line;
@@ -571,14 +574,16 @@ void menu_request_root(void)
     root_requested = true;
 }
 
-/* True if the theme has just been drawn again for it, over a part of the list */
-static bool set_selected_panel(enum menu_panel panel)
+/* The theme drawn again for it, over a part of the list, which is drawn next:
+   the two go on the screen together then. Shown at once, the album art's strip
+   over the list's right end took off that of the selection for the time the
+   list took to draw */
+static void set_selected_panel(enum menu_panel panel)
 {
     if (panel == selected_panel)
-        return false;
+        return;
     selected_panel = panel;
-    send_event(GUI_EVENT_ACTIONUPDATE, (void*)1);
-    return true;
+    viewportmanager_redraw_unshown();
 }
 
 static enum menu_panel item_panel(const struct menu_item_ex *menu, int selected)
@@ -599,6 +604,22 @@ static enum menu_panel item_panel(const struct menu_item_ex *menu, int selected)
         default:
             return MENU_PANEL_NONE;
     }
+}
+
+/* Before a menu's list is drawn, its panel for the selection, so that the two
+   go on the screen together: drawn after it, as the list had been, the theme's
+   album art strip over the list's right end showed for a moment, and the list
+   was drawn twice */
+static void panel_before_draw(struct gui_synclist *lists)
+{
+    static bool drawing;
+    if (drawing)
+        return;
+    const struct menu_item_ex *menu = lists->data;
+    drawing = true;
+    set_selected_panel(item_panel(menu,
+        get_menu_selection(gui_synclist_get_sel_pos(lists), menu)));
+    drawing = false;
 }
 
 int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
@@ -666,9 +687,6 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
         }
         else
         {
-            if (set_selected_panel(item_panel(
-                    menu, get_menu_selection(gui_synclist_get_sel_pos(&lists), menu))))
-                gui_synclist_draw(&lists);
             action = get_action(CONTEXT_MAINMENU|ALLOW_SOFTLOCK,
                                 list_do_action_timeout(&lists, HZ));
         }

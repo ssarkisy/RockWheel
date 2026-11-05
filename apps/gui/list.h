@@ -176,6 +176,8 @@ struct gui_synclist
     list_draw_item *callback_draw_item;
     list_has_children *callback_has_children; /* can be NULL */
     list_is_group *callback_is_group; /* can be NULL */
+    /* what its owner does as it's about to be drawn, can be NULL */
+    void (*callback_before_draw)(struct gui_synclist *lists);
 
     /* The data that will be passed to the callback function YOU implement */
     void * data;
@@ -260,6 +262,10 @@ extern int gui_synclist_get_nb_items(struct gui_synclist * lists);
 extern int  gui_synclist_get_sel_pos(struct gui_synclist * lists);
 
 extern void gui_synclist_draw(struct gui_synclist * lists);
+/* As the list is about to be drawn, as the main menu has its panel drawn for
+   the selection first: the two go on the screen together then */
+extern void gui_synclist_set_before_draw(struct gui_synclist *lists,
+                                         void (*fn)(struct gui_synclist *lists));
 extern void gui_synclist_scroll_stop(struct gui_synclist *lists);
 extern void gui_synclist_select_item(struct gui_synclist * lists,
                                      int item_number);
