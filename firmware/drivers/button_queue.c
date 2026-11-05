@@ -126,6 +126,7 @@ static inline void button_queue_wait(struct queue_event *evp, int timeout)
 }
 #endif /* HAVE_ADJUSTABLE_CPU_FREQ */
 
+
 void button_queue_post(long id, intptr_t data)
 {
     queue_post(&button_queue, id, data);
@@ -181,15 +182,27 @@ bool button_queue_full(void)
     return queue_full(&button_queue);
 }
 
+/* As many times as presses were cleared from the queue: a driver that holds
+   back what the queue had no room for drops that too then, as the click
+   wheel's steps */
+static volatile unsigned int clears;
+
+unsigned int button_queue_clears(void)
+{
+    return clears;
+}
+
 void button_clear_queue(void)
 {
     queue_clear(&button_queue);
+    clears++;
 }
 
 /* clears anything but release and sysevents */
 void button_clear_pressed(void)
 {
     long button;
+    clears++;
     for (int count = queue_count(&button_queue); count > 0; count--)
     {
         button = button_get(false);

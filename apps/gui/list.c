@@ -631,18 +631,33 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
     static bool pgleft_allow_cancel = false;
 
 #ifdef HAVE_WHEEL_ACCELERATION
-    int next_item_modifier = button_apply_acceleration(get_action_data());
-    /* A long list goes further at the same speed: by the square root of how many
-       times LONG_LIST it is, 13000 songs five times, 1700 albums twice. Turned
-       slowly, the wheel still goes a row at a time. */
+    unsigned int wheel_data = get_action_data();
+    /* A short one, as a menu, goes a row a step, without the steps the UI was
+       too busy for, through which the main menu went two and three at once,
+       and faster not either: Apple's own scrolling doesn't speed up in a list
+       of twenty or fewer. A long one goes as far as the wheel did. */
+    if ((wheel_data & (1u << 31))
+        && lists->nb_items <= 2 * list_get_nb_lines(lists, SCREEN_MAIN))
+        wheel_data = 1u << 24;
+    /* a step at least, as for a remote's next and previous, of no data */
+    int next_item_modifier = MAX(1, button_apply_acceleration(wheel_data));
+    /* A long list goes further: by the square root of how many times LONG_LIST
+       it is, 13000 songs five times, 1700 albums twice; with the wheel's stages,
+       they double on to that many times their most. Turned slowly, the wheel
+       still goes a row a step. */
 #define LONG_LIST 500
-    if (next_item_modifier > 1 && lists->nb_items > LONG_LIST)
+    const int speed = button_wheel_speed(wheel_data);
+    if (speed > 1 && lists->nb_items > LONG_LIST)
     {
         const unsigned target = (unsigned)lists->nb_items * 256 / LONG_LIST;
         unsigned scale = 16; /* in sixteenths */
         while ((scale + 1) * (scale + 1) <= target)
             scale++;
-        next_item_modifier = next_item_modifier * (int)scale / 16;
+        if (button_wheel_staged(wheel_data))
+            next_item_modifier = button_wheel_steps(wheel_data)
+                                 * MIN(speed, WHEEL_STAGE_ROWS * (int)scale / 16);
+        else
+            next_item_modifier = next_item_modifier * (int)scale / 16;
     }
 #else
     static int next_item_modifier = 1;

@@ -2494,6 +2494,7 @@ extern int new_wheel_value;
 extern int wheel_delta;
 extern unsigned int accumulated_wheel_delta;
 extern unsigned int wheel_velocity;
+extern int wheel_accel_stage;
 
 static bool dbg_scrollwheel(void)
 {
@@ -2515,8 +2516,7 @@ static bool dbg_scrollwheel(void)
         lcd_putsf(0, 5, "velo [deg/s]: %4d", (int)wheel_velocity);
 
         /* show effective accelerated scrollspeed */
-        lcd_putsf(0, 6, "accel. speed: %4d",
-                button_apply_acceleration((1<<31)|(1<<24)|wheel_velocity) );
+        lcd_putsf(0, 6, "accel. speed: %4d", 1 << wheel_accel_stage);
 
         lcd_update();
     }

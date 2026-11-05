@@ -6369,7 +6369,11 @@ static void wheel_read(void)
             delta += WHEEL_CLICKS;
         else if (delta > WHEEL_CLICKS / 2)
             delta -= WHEEL_CLICKS;
-        delta = fbound(-WHEEL_CLICKS_MAX, delta, WHEEL_CLICKS_MAX);
+        /* the place jumping, as a finger comes off and on: from where it is
+           now, as the wheel's driver does, and not a flick of 8 clicks more,
+           or one turned back at its end */
+        if (delta > WHEEL_CLICKS_MAX || delta < -WHEEL_CLICKS_MAX)
+            delta = 0;
         /* it wavers by a click or two when it's held */
         from_start = (delta ^ wheel.travel) < 0 && abs(delta) > 2;
     }

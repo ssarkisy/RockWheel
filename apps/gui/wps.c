@@ -686,6 +686,18 @@ static void follow_track_change(void)
 }
 
 /* The wheel in the scrubber, lyrics and rating views */
+/* The wheel's steps of the press, those the UI was too busy to take included:
+   a volume's and a scrub's step each, without its acceleration */
+static int wheel_steps(void)
+{
+#ifdef HAVE_WHEEL_ACCELERATION
+    const unsigned int data = get_action_data();
+    if (data & (1u << 31))
+        return MAX(1, button_wheel_steps(data));
+#endif
+    return 1;
+}
+
 static void display_mode_turn(int direction)
 {
     struct wps_state *state = get_wps_state();
@@ -709,7 +721,8 @@ static void display_mode_turn(int direction)
         /* a hundredth of the track a wheel step, a few turns for all of it;
            no acceleration, which made a spot hard to aim at */
         long step = MAX(id3->length / 100, 1000);
-        long pos = id3->elapsed + state->ff_rewind_count + direction * step;
+        long pos = id3->elapsed + state->ff_rewind_count
+                   + direction * step * wheel_steps();
         pos = MAX(0, MIN(pos, (long)id3->length - 1000));
         state->ff_rewind_count = pos - id3->elapsed;
         scrub_pending = true;
@@ -1160,10 +1173,12 @@ long gui_wps_show(void)
                 }
                 /* which sets it too: once, as each write to the codec waits on
                    its bus, and the decoder takes the processor meanwhile */
+                /* three steps at most: after the UI stood still, a turn's
+                   steps came at once, 24 dB louder in one */
                 if (button == ACTION_WPS_VOLUP)
-                    adjust_volume(1);
+                    adjust_volume(MIN(wheel_steps(), 3));
                 else
-                    adjust_volume(-1);
+                    adjust_volume(-MIN(wheel_steps(), 3));
 
                 FOR_NB_SCREENS(i)
                 {

@@ -626,38 +626,61 @@ long touchscreen_last_touch(void)
  * data:
  *    [31] Use acceleration
  * [30:24] Message post count (skipped + 1) (1-127)
- *  [23:0] Velocity - degree/sec
+ *    [23] Staged: the speed is in the rows a step goes, as Apple's own
+ *         scrolling has it (US 7,312,785); a driver that measures degrees a
+ *         second leaves it clear
+ *  [22:0] Velocity - degree/sec, or the rows a step goes
  *
  * WHEEL_ACCEL_FACTOR:
  * Value in degree/sec -- configurable via settings -- above which
  * the accelerated scrolling starts. Factor is internally scaled by
  * 1<<16 in respect to the following 32bit integer operations.
  */
-int button_apply_acceleration(const unsigned int data)
+bool button_wheel_staged(const unsigned int data)
 {
-    int delta = (data >> 24) & 0x7f;
+    return (data & (1u << 31)) && (data & WHEEL_DATA_STAGED);
+}
 
-    if ((data & (1 << 31)) != 0)
-    {
-        /* read driver's velocity from data */
-        unsigned int v = data & 0xffffff;
+int button_wheel_speed(const unsigned int data)
+{
+    if ((data & (1u << 31)) == 0)
+        return 0;
+    if (data & WHEEL_DATA_STAGED)
+        return data & (WHEEL_DATA_STAGED - 1);
 
-        /* v = 28.4 fixed point */
-        v = (WHEEL_ACCEL_FACTOR * v)>>(16-4);
+    /* read driver's velocity from data */
+    unsigned int v = data & 0xffffff;
 
-        /* Calculate real numbers item to scroll based upon acceleration
-         * setting, use correct roundoff */
+    /* v = 28.4 fixed point */
+    v = (WHEEL_ACCEL_FACTOR * v)>>(16-4);
+
+    /* Calculate real numbers item to scroll based upon acceleration
+     * setting, use correct roundoff */
 #if   (WHEEL_ACCELERATION == 1)
-        v = (v*v     + (1<< 7))>> 8;
+    v = (v*v     + (1<< 7))>> 8;
 #elif (WHEEL_ACCELERATION == 2)
-        v = (v*v*v   + (1<<11))>>12;
+    v = (v*v*v   + (1<<11))>>12;
 #elif (WHEEL_ACCELERATION == 3)
-        v = (v*v*v*v + (1<<15))>>16;
+    v = (v*v*v*v + (1<<15))>>16;
 #endif
 
-        if (v > 1)
-            delta *= v;
-    }
+    return v;
+}
+
+int button_wheel_steps(const unsigned int data)
+{
+    return (data >> 24) & 0x7f;
+}
+
+/* The steps the wheel went, the UI's too busy to take them included, each as
+   far as its speed takes it: by stages, eight times at most, as Apple's */
+int button_apply_acceleration(const unsigned int data)
+{
+    int delta = button_wheel_steps(data);
+    const int v = button_wheel_speed(data);
+
+    if (v > 1)
+        delta *= button_wheel_staged(data) ? MIN(v, WHEEL_STAGE_ROWS) : v;
 
     return delta;
 }

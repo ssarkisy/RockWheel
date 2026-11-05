@@ -68,6 +68,7 @@ void button_queue_post_remove_head(long id, intptr_t data);
 bool button_queue_try_post(long button, int data);
 int button_queue_count(void);
 bool button_queue_empty(void);
+unsigned int button_queue_clears(void);
 bool button_queue_full(void);
 void button_clear_queue(void);
 void button_clear_pressed(void);
@@ -88,6 +89,17 @@ void wheel_send_events(bool send);
 
 #ifdef HAVE_WHEEL_ACCELERATION
 int button_apply_acceleration(const unsigned int data);
+/* of a wheel event's data, the items a step goes at the wheel's speed: over 1
+   when it's fast enough to go further */
+int button_wheel_speed(const unsigned int data);
+/* and its steps, those the UI was too busy for included */
+int button_wheel_steps(const unsigned int data);
+/* whether its speed is in stages, the rows a step goes, as the click wheel's
+   driver has them, and not in degrees a second */
+bool button_wheel_staged(const unsigned int data);
+#define WHEEL_DATA_STAGED (1u << 23)
+/* the most rows a step goes by the wheel's stages, in a list of up to 500 */
+#define WHEEL_STAGE_ROWS 8
 #endif
 
 #define BUTTON_NONE         0x00000000
@@ -144,5 +156,6 @@ void button_enable_touch(bool en);
 void button_set_sw_poweroff_state(bool en);
 bool button_get_sw_poweroff_state(void);
 #endif
+
 
 #endif /* _BUTTON_H_ */

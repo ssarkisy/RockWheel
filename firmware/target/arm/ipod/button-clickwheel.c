@@ -84,6 +84,34 @@ unsigned int  accumulated_wheel_delta = 0;
 static unsigned int  wheel_repeat            = 0;
 unsigned int  wheel_velocity          = 0;
 static unsigned long last_wheel_usec         = 0;
+/* A reading after none for longer, of a wheel touched all the while: from where
+   the finger is then, and not a jump of all it went meanwhile. The wheel's link
+   was reset, or the finger was off it a moment: then the list went 5 rows at
+   once, turned slowly */
+#define WHEEL_GAP_USEC 60000
+static unsigned long last_reading_usec       = 0;
+/* As Apple's: over WHEEL_ACCEL_START, a turn a second, each WHEEL_STAGE_USEC of
+   it doubles the rows a step goes, to 1 << WHEEL_STAGES, as far as a list lets
+   it; slower, a turn the other way or a pause, and it's a row again */
+#define WHEEL_STAGE_USEC 300000
+#define WHEEL_STAGES     6
+int wheel_accel_stage = 0;
+static unsigned long stage_since_usec        = 0;
+/* The steps held back while the queue is full, a turn at most: after the UI
+   stood a second, all of them at the stage it was at went thousands of rows.
+   A clear of the queue drops them too, as it does what it had. */
+#define WHEEL_CARRY_MAX  WHEELCLICKS_PER_ROTATION
+static unsigned int seen_clears              = 0;
+/* The UI standing still: an event not taken for this long, while one is drawn
+   in under 60 ms. The stages don't go on then, as the list doesn't show them:
+   stopped whenever the queue was full, they didn't go on as a long list was
+   drawn whole each step */
+#define WHEEL_STALL_USEC 150000
+static unsigned long last_post_usec          = 0;
+/* the last step's tick, for what's timed from it but its speed: USEC_TIMER
+   comes round each 72 minutes, after which a touch went on from a flick of
+   then, at its stage */
+static long last_step_tick                   = 0;
 
 /* Variable to use for setting button status in interrupt handler */
 static int int_btn = BUTTON_NONE;
@@ -147,11 +175,13 @@ static inline int ipod_4g_button_read(void)
                 
                 /* Check whether the scrollwheel was untouched by accident or by will. */
                 /* This is needed because wheel may be untoched very shortly during rotation */
-                if ( (!wheel_is_touched) && TIME_AFTER(usec, last_wheel_usec + WHEEL_UNTOUCH_TIMEOUT) )
+                if ( (!wheel_is_touched)
+                     && TIME_AFTER(current_tick, last_step_tick + WHEEL_UNTOUCH_TIMEOUT / (1000000 / HZ)) )
                 {
                     /* wheel has been really untouched -> reset internal variables */
                     old_wheel_value         = -1;
                     wheel_velocity          = 0;
+                    wheel_accel_stage       = 0;
                     accumulated_wheel_delta = 0;
                     wheel_repeat            = BUTTON_NONE;
                 }
@@ -160,6 +190,9 @@ static inline int ipod_4g_button_read(void)
                     /* wheel was shortly untouched by accident -> leave internal variables */
                     wheel_is_touched = true;
                 }
+
+                const unsigned long since_reading = (usec - last_reading_usec) & 0x7fffffff;
+                last_reading_usec = usec;
 
                 if (old_wheel_value >= 0)
                 {
@@ -173,6 +206,19 @@ static inline int ipod_4g_button_read(void)
                         wheel_delta += WHEELCLICKS_PER_ROTATION; /* Forward wrapping case */
                     else if (wheel_delta >  WHEELCLICKS_PER_ROTATION/2)
                         wheel_delta -= WHEELCLICKS_PER_ROTATION; /* Backward wrapping case */
+                    /* two steps and more at once after none for a while: turned
+                       slowly, readings far apart are of a click or two */
+                    if (since_reading > WHEEL_GAP_USEC
+                        && (wheel_delta >= 2 * WHEEL_SENSITIVITY
+                            || wheel_delta <= -2 * WHEEL_SENSITIVITY))
+                    {
+                        old_wheel_value = new_wheel_value;
+                        wheel_delta = 0;
+                    }
+                    /* the steps it went, and what's left of one stays: a step
+                       is four of the wheel's 96, and a turn 24 of them, however
+                       its readings come, as in Apple's own scrolling */
+                    const int direction = wheel_delta < 0 ? -1 : 1;
     
                     /* Getting direction and wheel_keycode from wheel_delta.
                      * Need at least some clicks to be sure to avoid haptic fuzziness */
@@ -187,11 +233,18 @@ static inline int ipod_4g_button_read(void)
                     {
                         long v = (usec - last_wheel_usec) & 0x7fffffff;
                         
-                        /* undo signedness */
+                        /* undo signedness, and whole steps only */
                         wheel_delta = (wheel_delta>0) ? wheel_delta : -wheel_delta;
+                        wheel_delta -= wheel_delta % WHEEL_SENSITIVITY;
                         
                         /* add the current wheel_delta */
-                        accumulated_wheel_delta += wheel_delta;
+                        if (button_queue_clears() != seen_clears)
+                        {
+                            seen_clears = button_queue_clears();
+                            accumulated_wheel_delta = 0;
+                        }
+                        accumulated_wheel_delta = MIN(accumulated_wheel_delta + wheel_delta,
+                                                      WHEEL_CARRY_MAX);
 
                         v = v ? (1000000 * wheel_delta) / v : 0;  /* clicks/sec = 1000000 * clicks/usec */
                         v = (v * 360) / WHEELCLICKS_PER_ROTATION; /* conversion to degree/sec */
@@ -219,15 +272,31 @@ static inline int ipod_4g_button_read(void)
                             accumulated_wheel_delta = 0;
                         }
                         /* on same direction REPEAT is assumed when new click is within timeout */
-                        else if (TIME_BEFORE(usec, last_wheel_usec + WHEEL_REPEAT_TIMEOUT))
+                        else if (TIME_BEFORE(current_tick, last_step_tick + WHEEL_REPEAT_TIMEOUT / (1000000 / HZ)))
                         {
                             repeat = BUTTON_REPEAT;
                         }
                         /* timeout nullifies acceleration and accumulator */
-                        if (TIME_AFTER(usec, last_wheel_usec + WHEEL_FAST_OFF_TIMEOUT))
+                        if (TIME_AFTER(current_tick, last_step_tick + WHEEL_FAST_OFF_TIMEOUT / (1000000 / HZ)))
                         {
                             wheel_velocity          = 0;
                             accumulated_wheel_delta = 0;
+                        }
+
+                        if (wheel_velocity < WHEEL_ACCEL_START)
+                        {
+                            wheel_accel_stage = 0;
+                            stage_since_usec = usec;
+                        }
+                        /* no further while the UI stands still and doesn't show it */
+                        else if (!button_queue_empty()
+                                 && TIME_AFTER(usec, last_post_usec + WHEEL_STALL_USEC))
+                            stage_since_usec = usec;
+                        else if (wheel_accel_stage < WHEEL_STAGES
+                                 && TIME_AFTER(usec, stage_since_usec + WHEEL_STAGE_USEC))
+                        {
+                            wheel_accel_stage++;
+                            stage_since_usec = usec;
                         }
 
 #ifdef HAVE_WHEEL_POSITION
@@ -241,19 +310,33 @@ static inline int ipod_4g_button_read(void)
 #ifdef HAVE_SCROLLWHEEL
                             /* use data-format for HAVE_SCROLLWHEEL */
                             /* always use acceleration mode (1<<31) */
-                            /* always set message post count to (1<<24) for iPod */
-                            /* this way the scrolling is always calculated from wheel_velocity */
-                            button_queue_post(wheel_keycode | repeat, 
-                                       (1<<31) | (1 << 24) | wheel_velocity);
-                                       
+                            /* the message post count is the steps since the last
+                               one posted: those the queue was too full for went
+                               nowhere, the list behind the finger as the UI drew;
+                               and the rows each goes, at the stage it's at */
+                            const unsigned int steps =
+                                MAX(1u, MIN(accumulated_wheel_delta, 127u));
+                            button_queue_post(wheel_keycode | repeat,
+                                       (1<<31) | (steps << 24) | WHEEL_DATA_STAGED
+                                       | (1u << wheel_accel_stage));
+                            last_post_usec = usec;
+
 #else
                             button_queue_post(wheel_keycode | repeat, 
                                        (accumulated_wheel_delta << 16) | new_wheel_value);
 #endif
                             accumulated_wheel_delta = 0;
                         }
+#ifdef HAVE_WHEEL_POSITION
+                        /* a screen that reads where the wheel is has the steps */
+                        if (!send_events)
+                            accumulated_wheel_delta = 0;
+#endif
                         last_wheel_usec = usec;
-                        old_wheel_value = new_wheel_value;
+                        last_step_tick = current_tick;
+                        old_wheel_value = (old_wheel_value + direction * wheel_delta
+                                           + WHEELCLICKS_PER_ROTATION)
+                                          % WHEELCLICKS_PER_ROTATION;
                     }
                 }
                 else
@@ -464,6 +547,10 @@ int button_read_device(void)
         
         if (hold_button)
         {
+            /* what was held as it locked isn't any more: with the sensor off,
+               nothing would tell it let go, and it was held on, to repeat or
+               power off */
+            int_btn = BUTTON_NONE;
 #ifdef CPU_PP
             /* lock -> disable wheel sensor */
             DEV_EN &= ~DEV_OPTO;

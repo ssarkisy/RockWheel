@@ -525,7 +525,10 @@ static inline void button_flip_horizontally(int context, int *button)
 #endif
 
 #ifndef SIMULATOR
-#ifdef HAVE_SCROLLWHEEL
+    /* not an iPod's: round, its clockwise goes down a list whatever the
+       language, as on a stock one; flipped, it went up in Arabic and Hebrew
+       and still raised the volume */
+#if defined(HAVE_SCROLLWHEEL) && !defined(IPOD_ARCH)
     newbutton &= ~(BUTTON_SCROLL_BACK | BUTTON_SCROLL_FWD);
     if (has_flag(*button, BUTTON_SCROLL_BACK))
     {
