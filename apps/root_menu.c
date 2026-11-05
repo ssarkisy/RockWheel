@@ -75,6 +75,9 @@
 #include "tagcache.h"
 #include "tagtree.h"
 #endif
+#ifdef HAVE_DIRCACHE
+#include "dircache.h"
+#endif
 #include "language.h"
 #include "plugin.h"
 #include "disk.h"
@@ -1349,6 +1352,13 @@ void root_menu(void)
     int shortcut_origin = GO_TO_ROOT;
 
     push_current_activity(ACTIVITY_MAINMENU);
+#ifdef HAVE_DIRCACHE
+    /* The tree of the files is in memory before the menu shows, as every cache
+       is, under the boot logo: in a second, as nothing else wants the CPU. Built
+       behind Updating Library, it had 3% of it while the fonts were made, and
+       the songs opened from the menu waited on "Loading..." for it. */
+    dircache_wait();
+#endif
 #ifdef HAVE_TAGCACHE
     show_library_update();
 #endif

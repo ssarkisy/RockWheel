@@ -1601,10 +1601,14 @@ void tree_restore(void)
 #endif
 
 #ifdef HAVE_DIRCACHE
-    if (global_settings.dircache && dircache_resume() > 0)
+    if (global_settings.dircache)
     {
-        /* Print "Scanning disk..." to the display. */
-        splash(0, str(LANG_SCANNING_DISK));
+        if (dircache_resume() > 0)
+        {
+            /* Print "Scanning disk..." to the display. */
+            splash(0, str(LANG_SCANNING_DISK));
+        }
+        /* built again before what was open shows, as at boot (root_menu.c) */
         dircache_wait();
     }
 #endif
