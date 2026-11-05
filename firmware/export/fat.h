@@ -181,6 +181,7 @@ int fat_unmount(IF_MV_NONVOID(int volume));
 int fat_get_bytes_per_sector(IF_MV_NONVOID(int volume));
 #endif /* MAX_VIRT_SECTOR_SIZE || MAX_VARIABLE_LOG_SECTOR */
 unsigned int fat_get_cluster_size(IF_MV_NONVOID(int volume));
+bool fat_get_offsets(IF_MV(int volume,) uint64_t *start, uint64_t *data);
 void fat_recalc_free(IF_MV_NONVOID(int volume));
 bool fat_size(IF_MV(int volume,) sector_t *size, sector_t *free);
 

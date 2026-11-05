@@ -154,6 +154,53 @@ static inline bool ata_power_off_timed_out(void)
 
 #include "ata-common.c"
 
+#if defined(HAVE_ATA_POWER_OFF) && !defined(BOOTLOADER)
+/* An adapter for SD cards can be flash without saying so in what it tells of
+   itself. Taken for a disk, it has its power taken 7 s after it was last read,
+   and a read after that waits 0.6-0.75 s for it to come on again. How soon it
+   reads after power-on tells: a disk spins up first, in 1.5 s or more, flash has
+   the sector in under a second. Only a read after the power was off is timed: a
+   disk can take a write into its cache before it spins, and from standby it can
+   have what is read in its cache; with its power gone it has nothing there. The
+   fastest seen is kept: the CPU going to other threads in between only makes it
+   longer, never a disk quick. */
+#define FLASH_POWER_ON_MS 1000
+static unsigned short power_on_ms; /* the fastest seen, 0 before one */
+
+bool ata_flash_by_power_on(void)
+{
+    /* one that says how fast it turns is a disk, however quick */
+    if (identify_info[217] >= 0x0401 && identify_info[217] <= 0xfffe)
+        return false;
+    return power_on_ms && power_on_ms < FLASH_POWER_ON_MS;
+}
+
+int ata_power_on_ms(void)
+{
+    return power_on_ms;
+}
+
+void ata_set_power_on_ms(int ms)
+{
+    if (ms > 0 && (!power_on_ms || ms < power_on_ms))
+        power_on_ms = MIN(ms, 0xffff);
+}
+#endif
+
+/* the first transfer after a wake has begun: from power off, the time it took
+   tells flash from a disk if it was a read */
+static inline void spun_up(long start, bool read_from_off)
+{
+    ata_state = ATA_ON;
+    spinup_time = current_tick - start;
+#if defined(HAVE_ATA_POWER_OFF) && !defined(BOOTLOADER)
+    if (read_from_off)
+        ata_set_power_on_ms(spinup_time * (1000 / HZ));
+#else
+    (void)read_from_off;
+#endif
+}
+
 #ifndef ATA_TARGET_POLLING
 static ICODE_ATTR int wait_for_bsy(void)
 {
@@ -400,6 +447,7 @@ static int ata_transfer_sectors(uint64_t start,
     int count;
     void* buf;
     long spinup_start = spinup_start;
+    bool read_from_off = false;
 #ifdef HAVE_ATA_DMA
     bool usedma = false;
 #endif
@@ -416,6 +464,7 @@ static int ata_transfer_sectors(uint64_t start,
     if (ata_state < ATA_ON) {
         spinup_start = current_tick;
         int state = ata_state;
+        read_from_off = state == ATA_OFF && !write;
         ata_state = ATA_SPINUP;
         if (ata_perform_wakeup(state)) {
             ret = -2;
@@ -503,10 +552,8 @@ static int ata_transfer_sectors(uint64_t start,
                 goto retry;
             }
 
-            if (ata_state == ATA_SPINUP) {
-                ata_state = ATA_ON;
-                spinup_time = current_tick - spinup_start;
-            }
+            if (ata_state == ATA_SPINUP)
+                spun_up(spinup_start, read_from_off);
         }
         else
 #endif /* HAVE_ATA_DMA */
@@ -531,10 +578,8 @@ static int ata_transfer_sectors(uint64_t start,
                     goto retry;
                 }
 
-                if (ata_state == ATA_SPINUP) {
-                    ata_state = ATA_ON;
-                    spinup_time = current_tick - spinup_start;
-                }
+                if (ata_state == ATA_SPINUP)
+                    spun_up(spinup_start, read_from_off);
 
                 /* read the status register exactly once per loop */
                 status = ATA_IN8(ATA_STATUS);

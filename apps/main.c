@@ -62,6 +62,7 @@
 #include "plugin.h"
 #include "misc.h"
 #include "dircache.h"
+#include "drive_info.h"
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
 #include "tagtree.h"
@@ -744,6 +745,7 @@ static void init(void)
     CHART(">settings_load");
     settings_load();
     CHART("<settings_load");
+    drive_info_init();
     night_mode_boot();
 
 #if defined(BUTTON_REC) || \

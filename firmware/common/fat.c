@@ -3181,6 +3181,19 @@ unsigned int fat_get_cluster_size(IF_MV_NONVOID(int volume))
     return size;
 }
 
+/* Where the volume begins on its drive, and its clusters, in bytes: whether they
+   lie on the pages of flash */
+bool fat_get_offsets(IF_MV(int volume,) uint64_t *start, uint64_t *data)
+{
+    struct bpb * const fat_bpb = FAT_BPB(volume);
+    if (!fat_bpb)
+        return false;
+
+    *start = (uint64_t)fat_bpb->startsector * LOG_SECTOR_SIZE(fat_bpb);
+    *data = *start + (uint64_t)fat_bpb->firstdatasector * LOG_SECTOR_SIZE(fat_bpb);
+    return true;
+}
+
 void fat_recalc_free(IF_MV_NONVOID(int volume))
 {
     struct bpb * const fat_bpb = FAT_BPB(volume);

@@ -65,6 +65,7 @@
 #include "list.h"
 #include "fixedpoint.h"
 #include "open_plugin.h"
+#include "drive_info.h"
 #include "statusbar-skinned.h"
 
 #include "debug.h"
@@ -348,6 +349,7 @@ static void system_flush(void)
     playlist_shutdown();
     tree_flush();
     open_plugin_cache_flush();
+    drive_info_flush();
     call_storage_idle_notifys(true); /*doesnt work on usb and shutdown from ata thread */
 }
 

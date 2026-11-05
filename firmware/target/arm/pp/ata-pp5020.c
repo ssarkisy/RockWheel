@@ -105,7 +105,6 @@ static bool dma_boosted = false;
 static bool dma_needs_boost;
 #endif
 
-static int ata_is_ssd = 0;
 static unsigned long dma_bytes; /* of the transfer going on, 0 for a write */
 
 /* This function sets up registers for 80 Mhz.
@@ -135,8 +134,6 @@ void ata_dma_set_mode(unsigned char mode) {
 #if !defined(IPOD_NANO)
     IDE0_CFG |= 0x20000000; /* >= 50 Mhz */
 #endif
-
-    ata_is_ssd = ata_disk_isssd();
 }
 
 #define IDE_CFG_INTRQ           8
@@ -175,11 +172,12 @@ bool ata_dma_setup(void *addr, unsigned long bytes, bool write) {
 
     /* Writes only need to be word-aligned, but by default DMA
      * is not used for writing on non-SSDs as it appears to be slower.
+     * Asked each time: flash can be known only once it has been read.
      */
     if (write) {
         if ((unsigned long)addr & 3)
             return false;
-        if (!ata_is_ssd)
+        if (!ata_disk_isssd())
             return false;
     }
 
@@ -252,7 +250,7 @@ bool ata_dma_finish(void) {
        yields, as its long reads, a sort's, a load's, held the UI up for 200 ms,
        each of them until it was made to yield by hand. */
 #define DMA_WAIT_RUN_USEC 8000
-    if (ata_is_ssd && dma_bytes
+    if (dma_bytes && ata_disk_isssd()
 #ifdef HAVE_PRIORITY_SCHEDULING
         && thread_get_priority(thread_self()) >= PRIORITY_USER_INTERFACE
         && (thread_get_priority(thread_self()) == PRIORITY_USER_INTERFACE

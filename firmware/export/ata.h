@@ -165,8 +165,21 @@ int ata_num_drives(int first_drive);
 long ata_last_disk_activity(void);
 int ata_spinup_time(void); /* ticks */
 
-/* Returns 1 if drive is solid-state */
-static inline int ata_disk_isssd(void)
+#if defined(HAVE_ATA_POWER_OFF) && !defined(BOOTLOADER) && !defined(SIMULATOR)
+/* Flash that doesn't say so, known by how soon it reads after power-on (ata.c).
+   The time is the fastest seen, in ms, 0 before one; set, it is kept if faster. */
+bool ata_flash_by_power_on(void);
+int ata_power_on_ms(void);
+void ata_set_power_on_ms(int ms);
+#else
+static inline bool ata_flash_by_power_on(void)
+{
+    return false;
+}
+#endif
+
+/* Returns 1 if the drive says it is solid-state */
+static inline int ata_identify_isssd(void)
 {
 #ifdef SIMULATOR
     return 0;
@@ -210,6 +223,12 @@ static inline int ata_disk_isssd(void)
                  ((identify_info[160] & (1<<15)) == 0))   /* CF power level 0 */
            );
 #endif
+}
+
+/* Returns 1 if drive is solid-state: as it says, or as soon as it reads */
+static inline int ata_disk_isssd(void)
+{
+    return ata_identify_isssd() || ata_flash_by_power_on();
 }
 
 /* Returns 1 if the drive supports power management commands */

@@ -44,6 +44,9 @@ menus/sound_menu.c
 menus/time_menu.c
 #endif
 misc.c
+#if (CONFIG_STORAGE & STORAGE_ATA) && (CONFIG_PLATFORM & PLATFORM_NATIVE) && defined(HAVE_ATA_POWER_OFF)
+drive_info.c
+#endif
 open_plugin.c
 onplay.c
 playlist.c
