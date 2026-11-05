@@ -2103,16 +2103,35 @@ entry_skip_formatter:
 
 }
 
-/* The list, once the database is in memory if it's about to be, as for seconds
-   after a start: made from the disk meanwhile, all songs took minutes, and held
-   back its loading as long */
+#ifdef HAVE_TC_RAMCACHE
+static bool waited_out = false;
+
+/* waited for before the menu as long as a list would */
+void tagtree_ram_waited_out(void)
+{
+    waited_out = true;
+}
+#endif
+
+/* The list, once the database is in memory if it's about to be: made from the
+   disk meanwhile, all songs took minutes, and held back its loading as long.
+   It is before the menu shows (root_menu.c), so this is for one that hasn't
+   come: waited for 20 s once, not by every list after, as a step into a list
+   loads two or three */
 static int retrieve_entries(struct tree_context *c, int offset, bool init)
 {
 #ifdef HAVE_TC_RAMCACHE
+    if (!tagcache_ram_pending())
+        waited_out = false;
     const long start = current_tick;
     bool told = false;
-    while (tagcache_ram_pending() && TIME_BEFORE(current_tick, start + 20 * HZ))
+    while (!waited_out && tagcache_ram_pending())
     {
+        if (TIME_AFTER(current_tick, start + 20 * HZ))
+        {
+            waited_out = true;
+            break;
+        }
         if (!told && !list_on_boot_screen && TIME_AFTER(current_tick, start + HZ / 2))
         {
             splash(0, ID2P(LANG_WAIT));

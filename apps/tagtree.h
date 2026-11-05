@@ -34,6 +34,11 @@ int tagtree_export(void);
 int tagtree_import(void);
 void tagtree_init(void) INIT_ATTR;
 bool tagtree_ready(void);
+#ifdef HAVE_TC_RAMCACHE
+/* the database not in memory after 20 s before the menu: the lists don't
+   wait for it too, but are made from the disk until it is */
+void tagtree_ram_waited_out(void);
+#endif
 void tagtree_save_place(int dirlevel, int selected_item);
 void tagtree_restore_place(int *dirlevel, int *selected_item);
 bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item);

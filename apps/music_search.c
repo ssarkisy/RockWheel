@@ -128,7 +128,7 @@ struct letters_file {
    lengths. A search reads it through in pieces and compares bytes: folding the
    database's every name again at each search took most of a second. */
 #define NAMES_FILE      ROCKBOX_DIR "/search_names.bin"
-#define NAMES_TEMP      ROCKBOX_DIR "/search_names.tmp"
+#define NAMES_TEMP      NAMES_FILE ".tmp" /* whole_file_open()'s */
 #define NAME_BYTES      255  /* of a name, and of its folded words, at most */
 #define ENTRY_MAX       (1 + 4 + 1 + NAME_BYTES + 1 + NAME_BYTES)
 struct names_header {
@@ -1251,8 +1251,7 @@ void music_search_letters_make(void)
     f.version = LETTERS_VERSION;
     f.commit = tagcache_get_commitid();
     struct names_header h = { LETTERS_VERSION, f.commit, 0 };
-    remove(NAMES_TEMP);
-    int names_fd = creat(NAMES_TEMP, 0666);
+    int names_fd = whole_file_open(NAMES_FILE);
     size_t room = 0;
     put_buf = plugin_get_buffer(&room);
     put_size = room;
@@ -1291,7 +1290,7 @@ void music_search_letters_make(void)
                     h.count++;
                 else
                 {
-                    close(names_fd);
+                    whole_file_close(names_fd, NAMES_FILE, false);
                     names_fd = -1;
                 }
             }
@@ -1311,18 +1310,11 @@ void music_search_letters_make(void)
         names_ok = names_fd >= 0 && write(names_fd, put_buf, used) == used
                    && lseek(names_fd, 0, SEEK_SET) == 0
                    && write(names_fd, &h, sizeof(h)) == sizeof(h);
-    if (names_fd >= 0 && close(names_fd) < 0)
-        names_ok = false;
-    remove(NAMES_FILE);
-    if (!names_ok || rename(NAMES_TEMP, NAMES_FILE) < 0)
-        remove(NAMES_TEMP);
+    /* none rather than those of the database before */
+    if (names_fd < 0 || !whole_file_close(names_fd, NAMES_FILE, names_ok))
+        remove(NAMES_FILE);
 
-    int fd = creat(LETTERS_FILE, 0666);
-    if (fd >= 0)
-    {
-        write(fd, &f, sizeof(f));
-        close(fd);
-    }
+    whole_file_write(LETTERS_FILE, &f, sizeof(f));
 }
 
 static void add_char(ucschar_t c)

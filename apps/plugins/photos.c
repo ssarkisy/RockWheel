@@ -1067,7 +1067,6 @@ static enum plugin_status photos_menu(void)
 #define PANEL_TOP    2
 #define PANEL_STEP_X (GRID_W + 3)
 #define PANEL_STEP_Y (GRID_H + 3)
-#define PANEL_TMP    PHOTOS_PANEL_FILE ".tmp"
 
 static void put_le32(unsigned char *p, uint32_t value)
 {
@@ -1137,19 +1136,12 @@ static void make_panel(void)
     put_le32(header + 58, 0x07E0);
     put_le32(header + 62, 0x001F);
 
-    const int fd = rb->open(PANEL_TMP, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    const int fd = rb->whole_file_open(PHOTOS_PANEL_FILE);
     if (fd < 0)
         return;
     const bool ok = rb->write(fd, header, sizeof(header)) == (ssize_t)sizeof(header)
                     && rb->write(fd, panel, size) == (ssize_t)size;
-    rb->close(fd);
-    if (ok)
-    {
-        rb->remove(PHOTOS_PANEL_FILE);
-        rb->rename(PANEL_TMP, PHOTOS_PANEL_FILE);
-    }
-    else
-        rb->remove(PANEL_TMP);
+    rb->whole_file_close(fd, PHOTOS_PANEL_FILE, ok);
 }
 
 enum plugin_status plugin_start(const void *parameter)

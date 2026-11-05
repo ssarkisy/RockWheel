@@ -143,6 +143,11 @@ int split_string(char *str, const char needle, char *vector[], int vector_length
 void fix_path_part(char* path, int offset, int count);
 int open_pathfmt(char *buf, size_t size, int oflag, const char *pathfmt, ...);
 int open_utf8(const char* pathname, int flags);
+/* our own files, whole or not at all (misc.c): opened to write, closed with
+   whether each write went well, which then puts it in place */
+int whole_file_open(const char *path);
+bool whole_file_close(int fd, const char *path, bool ok);
+bool whole_file_write(const char *path, const void *data, size_t size);
 int string_option(const char *option, const char *const oplist[], bool ignore_case);
 
 #ifdef BOOTFILE

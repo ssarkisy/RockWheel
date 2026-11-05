@@ -1455,9 +1455,21 @@ void library_update_songs_progress(int done, int total)
     library_update_forward((const char *)str(LANG_PREPARING_SONGS), done, total);
 }
 
-static void library_fonts_progress(int done, int total)
+/* USB or power off, come as Updating Library made the fonts: they stop for it,
+   their files closed, and it's answered then. Waited for, the computer saw no
+   disk for as long as the fonts took. */
+static long held_event;
+
+static bool library_fonts_progress(int done, int total)
 {
     library_update_forward((const char *)str(LANG_UPDATING_LIBRARY), done, total);
+    const long action = get_action(CONTEXT_STD, TIMEOUT_NOBLOCK);
+    if (action == SYS_USB_CONNECTED || action == SYS_POWEROFF
+        || action == SYS_REBOOT)
+        held_event = action;
+    else
+        default_event_handler(action); /* as the headphones' coming out */
+    return !held_event;
 }
 
 /* After a sync the database takes in the new songs before the menu shows,
@@ -1532,7 +1544,7 @@ void show_library_update(void)
     }
     if (shown)
     {
-        if (photos_changed)
+        if (photos_changed && !held_event) /* else made the next time */
         {
             library_update_show(str(LANG_PREPARING_PHOTOS), 0);
             photos_panel_update();
@@ -1544,8 +1556,43 @@ void show_library_update(void)
         FOR_NB_SCREENS(i)
             viewportmanager_theme_undo(i, true);
     }
+    if (held_event)
+    {
+        const long event = held_event;
+        held_event = 0;
+        default_event_handler(event);
+    }
 }
 #endif /* HAVE_TAGCACHE */
+
+#ifdef HAVE_TC_RAMCACHE
+/* The database in memory before the menu shows, as the dircache, under the
+   boot logo: loaded behind the menu, once its thread had been idle a second,
+   a list opened then waited for it on "Wait". Before Updating Library, which
+   loads it itself after an import, and which made the fonts while it loaded
+   with 3% of the CPU, the screen left on its last frame meanwhile. */
+static void database_ram_wait(void)
+{
+    if (!tagcache_ram_pending())
+        return;
+    tagcache_ram_load_now();
+    const long start = current_tick;
+    while (tagcache_ram_pending())
+    {
+        if (TIME_AFTER(current_tick, start + 20 * HZ))
+        {
+            tagtree_ram_waited_out(); /* nor the lists after, 20 s more */
+            break;
+        }
+        /* only the events, as USB: get_action() had the theme draw its status
+           bar and panel ("Calculating...") over the boot logo */
+        const long event = button_get_w_tmo(HZ / 10);
+        if (IS_SYSEVENT(event)
+            && default_event_handler(event) == SYS_USB_CONNECTED)
+            break;
+    }
+}
+#endif
 
 static bool library_update_pending = false;
 
@@ -1567,6 +1614,9 @@ void root_menu(void)
        behind Updating Library, it had 3% of it while the fonts were made, and
        the songs opened from the menu waited on "Loading..." for it. */
     dircache_wait();
+#endif
+#ifdef HAVE_TC_RAMCACHE
+    database_ram_wait();
 #endif
 #ifdef HAVE_TAGCACHE
     show_library_update();

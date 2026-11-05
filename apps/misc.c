@@ -1817,6 +1817,50 @@ int open_utf8(const char* pathname, int flags)
     return ret >= 0 ? fd : -1;
 }
 
+/* Our own files, whole or not at all: written beside, to "<path>.tmp", which
+   takes the old one's place once each write and the close went well. A file
+   cut short by a full disk or a pulled battery is let go of, and the one
+   before stays, so that a cache isn't read half made, nor taken as up to date
+   by a stamp written in part. */
+static void whole_file_temp(char *temp, size_t size, const char *path)
+{
+    snprintf(temp, size, "%s.tmp", path);
+}
+
+int whole_file_open(const char *path)
+{
+    char temp[MAX_PATH];
+    whole_file_temp(temp, sizeof(temp), path);
+    return creat(temp, 0666);
+}
+
+/* ok: each write went well */
+bool whole_file_close(int fd, const char *path, bool ok)
+{
+    char temp[MAX_PATH];
+    whole_file_temp(temp, sizeof(temp), path);
+    ok = close(fd) == 0 && ok;
+    /* the old one gone first: renamed over it, its entry stayed beside the
+       new one's for a moment, two of a name if the power went then; gone
+       before, there's a moment of none, which is made again */
+    if (ok)
+    {
+        remove(path);
+        ok = rename(temp, path) == 0;
+    }
+    if (!ok)
+        remove(temp);
+    return ok;
+}
+
+bool whole_file_write(const char *path, const void *data, size_t size)
+{
+    const int fd = whole_file_open(path);
+    if (fd < 0)
+        return false;
+    return whole_file_close(fd, path, write(fd, data, size) == (ssize_t)size);
+}
+
 
 #ifdef HAVE_LCD_COLOR
 /*

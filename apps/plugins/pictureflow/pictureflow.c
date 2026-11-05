@@ -1904,8 +1904,14 @@ static void index_stamp(struct pf_index_t *stamp)
 /*Saves the album index into a binary file to be recovered the
  next time PictureFlow is launched*/
 
+/* whole or not at all: one cut short had a stamp of this database */
+static bool write_all(int fd, const void *p, size_t n)
+{
+    return rb->write(fd, p, n) == (ssize_t)n;
+}
+
 static int save_album_index(void){
-    int fd = rb->creat(ALBUM_INDEX,0666);
+    int fd = rb->whole_file_open(ALBUM_INDEX);
 
     struct pf_index_t data;
     memcpy(&data, &pf_idx, sizeof(struct pf_index_t));
@@ -1915,15 +1921,13 @@ static int save_album_index(void){
         rb->memcpy(&data.header, INDEX_HDR, sizeof(pf_idx.header));
         index_stamp(&data);
 
-        rb->write(fd, &data, sizeof(struct pf_index_t));
+        bool ok = write_all(fd, &data, sizeof(struct pf_index_t))
+            && write_all(fd, data.artist_names, data.artist_len)
+            && write_all(fd, data.album_names, data.album_len)
+            && write_all(fd, data.album_index,
+                         data.album_ct * sizeof(struct album_data));
 
-        rb->write(fd, data.artist_names, data.artist_len);
-        rb->write(fd, data.album_names, data.album_len);
-
-        rb->write(fd, data.album_index, data.album_ct * sizeof(struct album_data));
-
-        rb->close(fd);
-        return 0;
+        return rb->whole_file_close(fd, ALBUM_INDEX, ok) ? 0 : -1;
     }
     return -1;
 }
@@ -2681,12 +2685,11 @@ static bool save_pfraw(char* filename, struct bitmap *bm)
     struct pfraw_header bmph;
     bmph.width = bm->width;
     bmph.height = bm->height;
-    int fh = rb->open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    int fh = rb->whole_file_open(filename);
     if( fh < 0 ) return false;
-    rb->write( fh, &bmph, sizeof( struct pfraw_header ) );
-    rb->write( fh, bm->data , sizeof( pix_t ) * bm->width *  bm->height );
-    rb->close( fh );
-    return true;
+    bool ok = write_all( fh, &bmph, sizeof( struct pfraw_header ) )
+        && write_all( fh, bm->data , sizeof( pix_t ) * bm->width *  bm->height );
+    return rb->whole_file_close( fh, filename, ok );
 }
 
 static bool incremental_albumart_cache(bool verbose)

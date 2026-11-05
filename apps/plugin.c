@@ -920,6 +920,9 @@ static const struct plugin_api rockbox_api = {
 #ifdef HAVE_LCD_UPDATE_FROM
     lcd_update_from,
 #endif
+    whole_file_open,
+    whole_file_close,
+    whole_file_write,
 };
 
 static int plugin_buffer_handle;

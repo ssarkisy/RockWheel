@@ -28,6 +28,7 @@
 #include "system.h"
 #include "string-extra.h"
 #include "photos_panel.h"
+#include "misc.h"
 
 #define PHOTOS_DIR "/Photos"
 #define PHOTO_DB_NAME "Photo Database"
@@ -149,12 +150,7 @@ static void database_stamp(uint32_t stamp[2])
 static void write_stamp(const uint32_t stamp[2], uint32_t hash)
 {
     const uint32_t all[3] = { stamp[0], stamp[1], hash };
-    const int fd = open(STAMP_FILE, O_WRONLY|O_CREAT|O_TRUNC, 0666);
-    if (fd >= 0)
-    {
-        write(fd, all, sizeof(all));
-        close(fd);
-    }
+    whole_file_write(STAMP_FILE, all, sizeof(all));
 }
 
 bool photos_panel_stale(void)

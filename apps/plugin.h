@@ -1100,6 +1100,10 @@ struct plugin_api {
 #ifdef HAVE_LCD_UPDATE_FROM
     void (*lcd_update_from)(const fb_data *frame);
 #endif
+    /* our own files, whole or not at all (misc.h) */
+    int (*whole_file_open)(const char *path);
+    bool (*whole_file_close)(int fd, const char *path, bool ok);
+    bool (*whole_file_write)(const char *path, const void *data, size_t size);
 };
 
 /* plugin header */

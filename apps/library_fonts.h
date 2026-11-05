@@ -29,8 +29,9 @@ bool library_fonts_stale(void);
 /* made again at the next Updating Library: of a database that has gone, as
    a new one counts its commits from 1 again */
 void library_fonts_forget(void);
-/* made anew, with how far that is as it goes; the firmware's are let go of
-   first (font_load_library) */
-bool library_fonts_make(void (*progress)(int done, int total));
+/* made anew, with how far that is as it goes, until progress returns false;
+   the firmware's are let go of first (font_load_library). Stopped, those made
+   are kept, and all are made again the next time, as for a failure */
+bool library_fonts_make(bool (*progress)(int done, int total));
 
 #endif

@@ -86,7 +86,7 @@ static void id_string(char *s, const unsigned short *id, int first, int words)
 
 static void write_info(const unsigned short *id, uint32_t key)
 {
-    int fd = open(DRIVE_INFO_FILE, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    int fd = whole_file_open(DRIVE_INFO_FILE);
     if (fd < 0)
         return;
 
@@ -97,20 +97,25 @@ static void write_info(const unsigned short *id, uint32_t key)
     storage_get_info(0, &info);
     const int ms = ata_power_on_ms();
 
-    fdprintf(fd, "# What the iPod's drive says of itself, without its serial number\n"
-                 "key: %08lx\nmodel: %s\nfirmware: %s\n"
-                 "sectors: %llu of %u bytes\n"
-                 "flash by what it says: %s\n"
-                 "power-on: %d\n",
+    char text[512];
+    int len = snprintf(text, sizeof(text),
+             "# What the iPod's drive says of itself, without its serial number\n"
+             "key: %08lx\nmodel: %s\nfirmware: %s\n"
+             "sectors: %llu of %u bytes\n"
+             "flash by what it says: %s\n"
+             "power-on: %d\n",
              (unsigned long)key, model, firmware,
              (unsigned long long)info.num_sectors, info.sector_size,
              ata_identify_isssd() ? "yes" : "no", ms);
     uint64_t start, data;
-    if (fat_get_offsets(IF_MV(0,) &start, &data))
-        fdprintf(fd, "volume at: %llu\nclusters at: %llu\ncluster: %u\n",
-                 (unsigned long long)start, (unsigned long long)data,
-                 fat_get_cluster_size(IF_MV(0)));
-    for (int i = 0; i < ATA_IDENTIFY_WORDS; i += 8)
+    if (len >= 0 && len < (int)sizeof(text)
+        && fat_get_offsets(IF_MV(0,) &start, &data))
+        len += snprintf(text + len, sizeof(text) - len,
+                        "volume at: %llu\nclusters at: %llu\ncluster: %u\n",
+                        (unsigned long long)start, (unsigned long long)data,
+                        fat_get_cluster_size(IF_MV(0)));
+    bool ok = len < (int)sizeof(text) && write(fd, text, len) == len;
+    for (int i = 0; ok && i < ATA_IDENTIFY_WORDS; i += 8)
     {
         char line[48];
         int n = snprintf(line, sizeof(line), "w%03d:", i);
@@ -118,9 +123,11 @@ static void write_info(const unsigned short *id, uint32_t key)
             n += snprintf(line + n, sizeof(line) - n, " %04x",
                           own_word(j) ? 0 : id[j]);
         line[n++] = '\n';
-        write(fd, line, n);
+        ok = write(fd, line, n) == n;
     }
-    close(fd);
+    /* not written, it's tried again as USB connects */
+    if (!whole_file_close(fd, DRIVE_INFO_FILE, ok))
+        return;
 
     written_key = key;
     written_ms = ms;

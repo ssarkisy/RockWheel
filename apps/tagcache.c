@@ -284,6 +284,7 @@ enum tagcache_queue {
     Q_REBUILD,
     Q_IMPORT_ITUNES,
     Q_SYNCED,
+    Q_LOAD_RAM,
 
     /* Internal tagcache command queue. */
     CMD_UPDATE_MASTER_HEADER,
@@ -2693,6 +2694,11 @@ static int build_masterfd = -1;
 static bool sync_found;
 static volatile int import_phase;
 static volatile int import_done, import_total;
+#ifdef HAVE_TC_RAMCACHE
+/* the database's thread is past its start: the database checked, imported if
+   synced, and room taken for it in memory */
+static volatile bool thread_started = false;
+#endif
 
 #ifndef __PCTOOL__
 
@@ -6827,6 +6833,9 @@ static void tagcache_thread(void)
         import_phase = TAGCACHE_IMPORT_NONE;
     }
 #endif
+#ifdef HAVE_TC_RAMCACHE
+    thread_started = true;
+#endif
 
     while (1)
     {
@@ -6902,10 +6911,11 @@ static void tagcache_thread(void)
             case Q_START_SCAN:
                 check_done = false;
                 /* fallthrough */
+            case Q_LOAD_RAM: /* the idle second's pass at once */
             case SYS_TIMEOUT:
 #ifdef HAVE_TC_RAMCACHE
-                /* lists wait for it, 20 s each, so it loads even after the
-                   check: as when a commit unloaded it after that */
+                /* lists wait for it, so it loads even after the check: as
+                   when a commit unloaded it after that */
                 if (check_done && tagcache_ram_pending())
                 {
                     load_ramcache();
@@ -7151,12 +7161,25 @@ bool tagcache_is_in_ram(void)
 
 /* to be in memory in a moment: room made for it at the start, and its loading
    left only for the database's thread to be idle a second, as after Updating
-   Library. Not during an import, which holds it back for its whole length. */
+   Library. Not during an import, which holds it back for its whole length.
+   Before that start, which finds whether there's one to load, as good as. */
 bool tagcache_ram_pending(void)
 {
+    if (!thread_started) /* but for an import, which loads it itself */
+        return global_settings.tagcache_ram
+               && import_phase == TAGCACHE_IMPORT_NONE;
     return global_settings.tagcache_ram && tcramcache.hdr && !tc_stat.ramcache
            && tc_stat.ready && import_phase == TAGCACHE_IMPORT_NONE;
 }
+
+#ifndef __PCTOOL__
+/* loaded now rather than once its thread has been idle a second, as the
+   boot logo waits for it; once loaded, or its first look done, nothing */
+void tagcache_ram_load_now(void)
+{
+    queue_post(&tagcache_queue, Q_LOAD_RAM, 0);
+}
+#endif
 #endif
 int tagcache_get_commit_step(void)
 {

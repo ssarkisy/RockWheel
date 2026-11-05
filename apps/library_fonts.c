@@ -42,6 +42,7 @@
 #include "settings.h"
 #include "menus/exported_menus.h"
 #include "library_fonts.h"
+#include "misc.h"
 #include "plugin.h"
 
 #define LF_VERSION   2
@@ -544,7 +545,7 @@ static bool put32(int fd, uint32_t v)
 /* The library's font of a size, of the glyphs its sources have of those wanted
    (glyphs[], in order): false if it couldn't be made */
 static bool make_font(int size, struct glyph *glyphs, int count,
-                      void (*progress)(int done, int total), int done, int total)
+                      bool (*progress)(int done, int total), int done, int total)
 {
     const int slot = sizes[size].height;
     int ascent = 0, descent = 0, maxwidth = 0, kept = 0;
@@ -571,12 +572,14 @@ static bool make_font(int size, struct glyph *glyphs, int count,
                 break;
             }
         }
-        if (progress && !(i & 255))
-            progress(done + i / 2, total);
+        if (progress && !(i & 255) && !progress(done + i / 2, total))
+        {
+            close_sources();
+            return false;
+        }
     }
-    char path[MAX_PATH], temp[MAX_PATH];
+    char path[MAX_PATH];
     snprintf(path, sizeof(path), FONT_DIR "/%d-Library.fnt", slot);
-    snprintf(temp, sizeof(temp), FONT_DIR "/%d-Library.tmp", slot);
     if (kept == 0)
     {
         close_sources();
@@ -594,7 +597,7 @@ static bool make_font(int size, struct glyph *glyphs, int count,
     const uint32_t chars = last - first + 1;
     const bool long_offsets = nbits >= 0xffdb;
 
-    int fd = creat(temp, 0666);
+    int fd = whole_file_open(path);
     if (fd < 0)
     {
         close_sources();
@@ -622,7 +625,7 @@ static bool make_font(int size, struct glyph *glyphs, int count,
         repack(work->in, f->height, f->ascent, work->out, height, ascent, w);
         ok = put(fd, work->out, glyph_bytes(height, w));
         if (progress && !(i & 255))
-            progress(done + count / 2 + i / 2, total);
+            ok = ok && progress(done + count / 2 + i / 2, total);
     }
 
     /* the offset of every character from the first, 0 for those that aren't
@@ -655,16 +658,8 @@ static bool make_font(int size, struct glyph *glyphs, int count,
     }
     ok = ok && out_flush(fd);
     out_buf = NULL;
-    ok = close(fd) == 0 && ok;
     close_sources();
-    if (ok)
-    {
-        remove(path);
-        ok = rename(temp, path) == 0;
-    }
-    else
-        remove(temp);
-    return ok;
+    return whole_file_close(fd, path, ok);
 }
 
 /** When they're made: after a sync, and when the languages or the alphabets'
@@ -737,7 +732,7 @@ bool library_fonts_stale(void)
     return !same;
 }
 
-bool library_fonts_make(void (*progress)(int done, int total))
+bool library_fonts_make(bool (*progress)(int done, int total))
 {
     const int handle = core_alloc(sizeof(struct work));
     if (handle <= 0)
@@ -839,13 +834,6 @@ bool library_fonts_make(void (*progress)(int done, int total))
     cpu_boost(false);
 
     if (ok)
-    {
-        int fd = creat(LF_STAMP, 0666);
-        if (fd >= 0)
-        {
-            write(fd, now, sizeof(now));
-            close(fd);
-        }
-    }
+        whole_file_write(LF_STAMP, now, sizeof(now));
     return ok;
 }
