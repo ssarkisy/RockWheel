@@ -254,6 +254,8 @@ static struct dircache_runinfo
     unsigned char         *pname;  /* alias of .p to assist name resolution */
     };
     struct buflib_callbacks ops;   /* buflib ops callbacks */
+    size_t       namesgap;         /* every free gap among the names is shorter
+                                      than this, as a scan found; 0 if unknown */
     /* per-volume data */
     struct dircache_runinfo_volume
     {
@@ -756,7 +758,12 @@ static int alloc_name(size_t size)
 {
     int nameidx = 0;
 
-    if (dircache.namesfree >= size)
+    /* A gap too short for a name was scanned for again by each name after it,
+       through all the names: a font rewritten while the cache was built left
+       one, and the 11000 names still to come took it 2.5 minutes, all of the
+       CPU. Not scanned for again until a name is freed. */
+    if (dircache.namesfree >= size
+        && (!dircache_runinfo.namesgap || size < dircache_runinfo.namesgap))
     {
         /* scan for a free gap starting at the hint point - first fit */
         unsigned char * const start = get_name(dircache.nextnamefree);
@@ -820,6 +827,8 @@ static int alloc_name(size_t size)
             dircache.sizeused += size;
             set_namesfree_hint(p + size);
         }
+        else
+            dircache_runinfo.namesgap = size;
     }
 
     if (!nameidx)
@@ -861,6 +870,7 @@ static void free_name(int nameidx, size_t size)
     memset(beg, 0xff, size);
     dircache.namesfree += size;
     dircache.sizeused -= size;
+    dircache_runinfo.namesgap = 0;
     set_namesfree_hint(beg);
 }
 
@@ -1821,6 +1831,7 @@ static void reset_cache(void)
     dircache.sizenames    = 0;
     dircache.namesfree    = 0;
     dircache.nextnamefree = 0;
+    dircache_runinfo.namesgap = 0;
     *get_name(dircache.names - 1) = 0;
     /* dircache.last_serialnum stays */
     /* dircache.reserve_used stays */
