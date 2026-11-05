@@ -362,7 +362,10 @@ static void decode_clear(void)
 }
 
 #ifdef DECODE_THREAD
-static long decode_stack[(DEFAULT_STACK_SIZE + 0x2000) / sizeof(long)];
+/* a line of the cache of its own, as the COP writes it and the CPU what is
+   beside it */
+static long decode_stack[CACHEALIGN_UP((DEFAULT_STACK_SIZE + 0x2000) / sizeof(long))]
+    CACHEALIGN_ATTR;
 static unsigned int decode_thread_id;
 
 static void decode_thread(void)

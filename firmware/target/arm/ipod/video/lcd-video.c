@@ -110,6 +110,7 @@ struct
 #endif
 } lcd_state IBSS_ATTR;
 
+
 #ifdef HAVE_LCD_SLEEP
 const fb_data *flash_vmcs_offset;
 unsigned flash_vmcs_length;
@@ -233,18 +234,65 @@ static void lcd_tick(void)
 #endif
 }
 
-static inline void lcd_block_tick(void)
+/* The BCM, for a write of pixels, or to switch it off: the tick doesn't kick an
+   update meanwhile, and the other core waits. A flag set by either alone let
+   Cover Flow's COP write a frame as the CPU wrote one, or switched the BCM
+   off: one's pixels went over the other's address, the BCM's own memory, and
+   the BCM was left wedged, the screen frozen or dark for good. */
+static void lcd_take_bcm(void)
+{
+    /* With interrupts off, as panicf and the crash screens draw, there is no
+       thread to yield to: the other core is waited for 50 ms at most, then the
+       BCM taken all the same, as before the lock, for the crash to be seen */
+    const bool may_yield = irq_enabled();
+    const unsigned long start = USEC_TIMER;
+    while (1)
+    {
+        int oldlevel = disable_irq_save();
+#if NUM_CORES > 1
+        corelock_lock(&lcd_state.cl);
+#endif
+        const bool taken = !lcd_state.blocked;
+        lcd_state.blocked = true;
+#if NUM_CORES > 1
+        corelock_unlock(&lcd_state.cl);
+#endif
+        restore_irq(oldlevel);
+        if (taken)
+            return;
+        if (may_yield)
+            yield();
+        else if (USEC_TIMER - start > 50000)
+            return;
+    }
+}
+
+static void lcd_give_bcm(void)
 {
     int oldlevel = disable_irq_save();
-
 #if NUM_CORES > 1
     corelock_lock(&lcd_state.cl);
-    lcd_state.blocked = true;
+#endif
+    lcd_state.blocked = false;
+#if NUM_CORES > 1
     corelock_unlock(&lcd_state.cl);
-#else
-    lcd_state.blocked = true;
 #endif
     restore_irq(oldlevel);
+}
+
+/* Taken for a write of pixels, until lcd_unblock_and_update(); false, and not
+   taken, if the display went off meanwhile */
+static bool lcd_block_tick(void)
+{
+    lcd_take_bcm();
+#ifdef HAVE_LCD_SLEEP
+    if (!lcd_state.display_on)
+    {
+        lcd_give_bcm();
+        return false;
+    }
+#endif
+    return true;
 }
 
 static void lcd_unblock_and_update(void)
@@ -285,7 +333,9 @@ static void lcd_unblock_and_update(void)
 
 #else /* BOOTLOADER */
 
-#define lcd_block_tick()
+#define lcd_block_tick() true
+#define lcd_take_bcm()
+#define lcd_give_bcm()
 
 static void lcd_unblock_and_update(void)
 {
@@ -410,7 +460,8 @@ void lcd_update_rect(int x, int y, int width, int height)
     x &= ~1;
 
     /* Prevent the tick from triggering BCM updates while we're writing. */
-    lcd_block_tick();
+    if (!lcd_block_tick())
+        return;
 
     addr = FBADDR(x, y);
     bcmaddr = BCMA_CMDPARAM + (LCD_WIDTH*2) * y + (x << 1);
@@ -442,7 +493,8 @@ void lcd_update_from(const fb_data *frame)
         return;
 #endif
     /* Prevent the tick from triggering BCM updates while we're writing. */
-    lcd_block_tick();
+    if (!lcd_block_tick())
+        return;
     bcm_write_addr(BCMA_CMDPARAM);
     lcd_write_data(frame, LCD_WIDTH * LCD_HEIGHT);
     lcd_unblock_and_update();
@@ -485,7 +537,8 @@ void lcd_blit_yuv(unsigned char * const src[3],
     yuv_src[2] = src[2] + (yuv_src[1] - src[1]);
 
     /* Prevent the tick from triggering BCM updates while we're writing. */
-    lcd_block_tick();
+    if (!lcd_block_tick())
+        return;
 
     bcmaddr = BCMA_CMDPARAM + (LCD_WIDTH*2) * y + (x << 1);
     height >>= 1;
@@ -647,7 +700,11 @@ void lcd_sleep(void)
 {
     if (lcd_state.display_on && flash_vmcs_length != 0)
     {
+        /* a write of pixels going on, from the other core, is over first, and
+           none starts after this */
+        lcd_take_bcm();
         lcd_state.display_on = false;
+        lcd_give_bcm();
 
         /* Wait for BCM to finish work */
         while (lcd_state.state != LCD_INITIAL && lcd_state.state != LCD_IDLE)

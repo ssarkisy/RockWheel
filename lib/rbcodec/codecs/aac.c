@@ -163,7 +163,10 @@ static bool decode_step(void)
 #ifdef DECODE_THREAD
 /* Nothing on the CPU touches the decoder's memory while a window goes on, so
    the caches only need putting right around that */
-static long decode_stack[(DEFAULT_STACK_SIZE + 0x2000) / sizeof(long)];
+/* a line of the cache of its own, as the COP writes it and the CPU what is
+   beside it */
+static long decode_stack[CACHEALIGN_UP((DEFAULT_STACK_SIZE + 0x2000) / sizeof(long))]
+    CACHEALIGN_ATTR;
 static unsigned int decode_thread_id;
 
 static void decode_thread(void)
