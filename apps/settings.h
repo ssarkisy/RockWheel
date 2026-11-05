@@ -205,6 +205,20 @@ enum {  ALARM_START_WPS = 0,
  /* Not really a setting but several files should stay synced */
 #define KEYCLICK_DURATION 2
 
+/* Cover Flow, Search, Playlists, Artists, Albums, Songs, Podcasts, Genres,
+   Composers, Audiobooks: each one shown in Music or not (tagtree.c) */
+#define MUSIC_SECTIONS 10
+/* the rows of Settings > Main Menu: Music, its sections, Photos, Extras,
+   Shuffle Songs */
+enum {
+    MAIN_MENU_MUSIC,
+    MAIN_MENU_SECTION, /* the first of MUSIC_SECTIONS */
+    MAIN_MENU_PHOTOS = MAIN_MENU_SECTION + MUSIC_SECTIONS,
+    MAIN_MENU_EXTRAS,
+    MAIN_MENU_SHUFFLE_SONGS,
+    MAIN_MENU_ROWS
+};
+
 /** virtual pointer stuff.. move to another .h maybe? **/
 /* These define "virtual pointers", which could either be a literal string,
    or a mean a string ID if the pointer is in a certain range.
@@ -902,6 +916,13 @@ struct user_settings
     int resume_rewind;
     bool coverflow_pause; /* Cover Flow pauses the music while it's open */
     bool smart_search; /* Search greys the letters no name goes on with */
+#ifdef HAVE_TAGCACHE
+    /* Settings > Music Menu: the sections shown in Music, in its order
+       (tagtree_section_lang) */
+    bool music_menu_show[MUSIC_SECTIONS];
+    /* Settings > Main Menu: what is in the main menu, as on a stock iPod */
+    bool main_menu_show[MAIN_MENU_ROWS];
+#endif
 #ifdef HAVE_PITCHCONTROL
     int audiobook_speed; /* 0 slower, 1 normal, 2 faster */
 #endif

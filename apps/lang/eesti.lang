@@ -11011,3 +11011,59 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_MUSIC_MENU
+  desc: a row of Settings, General, and the title of its screen: each section of Music turned on or off there
+  user: core
+  <source>
+    *: "Music Menu"
+  </source>
+  <dest>
+    *: "Muusikamenüü"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MAIN_MENU
+  desc: in start screen setting
+  user: core
+  <source>
+    *: "Main Menu"
+  </source>
+  <dest>
+    *: "Peamenüü"
+  </dest>
+  <voice>
+    *: "Peamenüü"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESET_MAIN_MENU
+  desc: the last row of Settings > Main Menu: its rows back as they were at first
+  user: core
+  <source>
+    *: "Reset Main Menu"
+  </source>
+  <dest>
+    *: "Taasta peamenüü"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESET_MUSIC_MENU
+  desc: the last row of Settings > Music Menu: its rows back as they were at first
+  user: core
+  <source>
+    *: "Reset Music Menu"
+  </source>
+  <dest>
+    *: "Taasta muusikamenüü"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

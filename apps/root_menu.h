@@ -90,6 +90,16 @@ enum {
     GO_TO_PHOTOS,
 #ifdef HAVE_TAGCACHE
     GO_TO_SEARCH, /* in Music, a screen of its own */
+    /* sections of Music added to the main menu by Settings > Main Menu;
+       Search and Playlists are the screens above */
+    GO_TO_COVER_FLOW,
+    GO_TO_ARTISTS,
+    GO_TO_ALBUMS,
+    GO_TO_SONGS,
+    GO_TO_PODCASTS,
+    GO_TO_GENRES,
+    GO_TO_COMPOSERS,
+    GO_TO_AUDIOBOOKS,
 #endif
 };
 #ifndef PLUGIN

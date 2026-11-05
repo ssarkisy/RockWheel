@@ -76,6 +76,7 @@ extern const struct menu_item_ex
         sleep_timer_item, language_item,
 #ifdef HAVE_TAGCACHE
         ipod_database_menu, smart_search_item,
+        music_menu_items, music_menu_row, main_menu_items, main_menu_row,
 #endif
         browse_themes;                              /* theme_menu.c     */
 

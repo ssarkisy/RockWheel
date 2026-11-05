@@ -107,6 +107,22 @@ static int last_db_dirlevel = 0, last_db_selection = 0;
 #ifdef HAVE_TAGCACHE
 /* Music chosen in the main menu, which opens it at its own menu */
 static bool music_from_main_menu = false;
+/* A section of Music in the main menu (music_section) whose lists were left
+   for Now Playing or a plugin, and not by Menu: the lists are still where it was
+   left, to go back to. 0 for none, or else its phrase. */
+static int section_left_in = 0;
+static bool in_section = false;
+/* where Search and Cover Flow go back to: Music, or the main menu they were
+   opened from */
+static int search_back = GO_TO_DBBROWSER;
+static int cover_flow_back = GO_TO_DBBROWSER;
+static bool cover_flow_from_main_menu = false;
+
+static bool is_section_screen(int screen)
+{
+    return screen >= GO_TO_ARTISTS && screen <= GO_TO_AUDIOBOOKS;
+}
+static int items_section_lang(int screen);
 #endif
 
 /* Where the music playing was started. Holding Play opens Now Playing from anywhere,
@@ -133,6 +149,9 @@ static void note_music_origin(int screen)
             break;
 #ifdef HAVE_TAGCACHE
         case GO_TO_DBBROWSER:
+        case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
+        case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
+        case GO_TO_AUDIOBOOKS:
             tagtree_save_place(last_db_dirlevel, last_db_selection);
             /* fall through */
 #endif
@@ -151,6 +170,9 @@ int root_menu_cover_flow(void)
     {
         music_starts_seen = starts;
         music_origin = ORIGIN_COVER_FLOW;
+#ifdef HAVE_TAGCACHE
+        cover_flow_back = cover_flow_from_main_menu ? GO_TO_ROOT : GO_TO_DBBROWSER;
+#endif
     }
     return ret;
 }
@@ -163,7 +185,18 @@ static int back_to_music_origin(int otherwise)
         case ORIGIN_NONE:
             return otherwise;
         case ORIGIN_COVER_FLOW:
-            switch (root_menu_cover_flow())
+        {
+#ifdef HAVE_TAGCACHE
+            const int back = cover_flow_back;
+            cover_flow_from_main_menu = back == GO_TO_ROOT;
+#else
+            const int back = GO_TO_DBBROWSER;
+#endif
+            const int ret = root_menu_cover_flow();
+#ifdef HAVE_TAGCACHE
+            cover_flow_from_main_menu = false;
+#endif
+            switch (ret)
             {
                 case PLUGIN_GOTO_WPS:
                     wps_after_hold = true;
@@ -173,13 +206,18 @@ static int back_to_music_origin(int otherwise)
                 case PLUGIN_GOTO_PLUGIN:
                     return GO_TO_PLUGIN;
                 default:
-                    return GO_TO_DBBROWSER;
+                    return back;
             }
+        }
         case ORIGIN_SCREEN:
         default:
 #ifdef HAVE_TAGCACHE
-            if (music_origin_screen == GO_TO_DBBROWSER)
+            if (music_origin_screen == GO_TO_DBBROWSER
+                || is_section_screen(music_origin_screen))
                 tagtree_restore_place(&last_db_dirlevel, &last_db_selection);
+            /* a section goes on from there, not from its list */
+            section_left_in = is_section_screen(music_origin_screen)
+                ? items_section_lang(music_origin_screen) : 0;
 #endif
             return music_origin_screen;
     }
@@ -371,6 +409,8 @@ static int browser(void* param)
                 return GO_TO_PREVIOUS;
             }
             filter = SHOW_ID3DB;
+            if (!in_section)
+                section_left_in = 0;
             last_ft_dirlevel = tc->dirlevel;
             tc->dirlevel = last_db_dirlevel;
             tc->selected_item = last_db_selection;
@@ -447,6 +487,56 @@ int root_menu_go_to_name(int tag, const char *name)
         note_music_origin(GO_TO_DBBROWSER);
     tagtree_end_go_to(!started, &last_db_dirlevel, &last_db_selection);
     return screen == GO_TO_PREVIOUS ? 0 : screen;
+}
+
+/* A section of Music in the main menu, as on a stock iPod: its list, where Menu
+   goes back to the main menu. Left for Now Playing, it opens again where it was,
+   as Music does. */
+static int music_section(void *param)
+{
+    const int lang = (intptr_t)param;
+    if (section_left_in == lang)
+        tagtree_resume_section(lang, &last_db_dirlevel, &last_db_selection);
+    else if (!tagtree_go_to_section(lang, &last_db_dirlevel, &last_db_selection))
+        return GO_TO_ROOT;
+    in_section = true;
+    const int screen = browser((void*)GO_TO_DBBROWSER);
+    in_section = false;
+    const bool left_by_menu = screen == GO_TO_PREVIOUS || screen == GO_TO_ROOT;
+    tagtree_end_go_to(left_by_menu, &last_db_dirlevel, &last_db_selection);
+    section_left_in = left_by_menu ? 0 : lang;
+    return screen;
+}
+
+/* Cover Flow from the main menu, back to it */
+static int cover_flow_screen(void *param)
+{
+    (void)param;
+    cover_flow_from_main_menu = true;
+    const int ret = root_menu_cover_flow();
+    cover_flow_from_main_menu = false;
+    switch (ret)
+    {
+        case PLUGIN_GOTO_WPS:
+            return GO_TO_WPS;
+        case PLUGIN_GOTO_ROOT:
+            return GO_TO_ROOT;
+        case PLUGIN_GOTO_PLUGIN:
+            return GO_TO_PLUGIN;
+        default:
+            return GO_TO_PREVIOUS;
+    }
+}
+
+/* Search, whose Menu goes up to Music, or to the main menu it was opened from */
+static int search_screen(void *param)
+{
+    int screen = music_search_screen(param);
+    if (screen == GO_TO_DBBROWSER)
+        screen = search_back;
+    if (screen == GO_TO_DBBROWSER || screen == GO_TO_ROOT)
+        search_back = GO_TO_DBBROWSER;
+    return screen;
 }
 #endif
 
@@ -660,11 +750,26 @@ static const struct root_items items[] = {
     [GO_TO_PHOTOS] = { photos, NULL, NULL },
 #endif
 #ifdef HAVE_TAGCACHE
-    [GO_TO_SEARCH] = { music_search_screen, NULL, NULL },
+    [GO_TO_SEARCH] = { search_screen, NULL, NULL },
+    [GO_TO_COVER_FLOW] = { cover_flow_screen, NULL, NULL },
+    [GO_TO_ARTISTS] = { music_section, (void*)LANG_ARTISTS, NULL },
+    [GO_TO_ALBUMS] = { music_section, (void*)LANG_ALBUMS, NULL },
+    [GO_TO_SONGS] = { music_section, (void*)LANG_SONGS, NULL },
+    [GO_TO_PODCASTS] = { music_section, (void*)LANG_PODCASTS, NULL },
+    [GO_TO_GENRES] = { music_section, (void*)LANG_GENRES, NULL },
+    [GO_TO_COMPOSERS] = { music_section, (void*)LANG_COMPOSERS, NULL },
+    [GO_TO_AUDIOBOOKS] = { music_section, (void*)LANG_AUDIOBOOKS, NULL },
 #endif
 
 };
 #define NUM_ITEMS (int)(sizeof(items)/sizeof(*items))
+
+#ifdef HAVE_TAGCACHE
+static int items_section_lang(int screen)
+{
+    return (intptr_t)items[screen].param;
+}
+#endif
 
 static int item_callback(int action,
                          const struct menu_item_ex *this_item,
@@ -677,17 +782,37 @@ MENUITEM_RETURNVALUE(file_browser, ID2P(LANG_DIR_BROWSER), GO_TO_FILEBROWSER,
                         NULL, Icon_file_view_menu);
 #ifdef HAVE_TAGCACHE
 MENUITEM_RETURNVALUE(db_browser, ID2P(LANG_MUSIC), GO_TO_DBBROWSER,
-                        NULL, Icon_Audio);
+                        item_callback, Icon_Audio);
 MENUITEM_RETURNVALUE(shuffle_songs_item, ID2P(LANG_SHUFFLE_SONGS),
-                        GO_TO_SHUFFLE_SONGS, NULL, Icon_Audio);
+                        GO_TO_SHUFFLE_SONGS, item_callback, Icon_Audio);
+/* Music's sections, in the main menu if Settings > Main Menu has them; Playlists
+   is the item below */
+MENUITEM_RETURNVALUE(cover_flow_item, ID2P(LANG_COVER_FLOW), GO_TO_COVER_FLOW,
+                        item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(search_item, ID2P(LANG_SEARCH), GO_TO_SEARCH,
+                        item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(artists_item, ID2P(LANG_ARTISTS), GO_TO_ARTISTS,
+                        item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(albums_item, ID2P(LANG_ALBUMS), GO_TO_ALBUMS,
+                        item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(songs_item, ID2P(LANG_SONGS), GO_TO_SONGS,
+                        item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(podcasts_item, ID2P(LANG_PODCASTS), GO_TO_PODCASTS,
+                        item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(genres_item, ID2P(LANG_GENRES), GO_TO_GENRES,
+                        item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(composers_item, ID2P(LANG_COMPOSERS), GO_TO_COMPOSERS,
+                        item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(audiobooks_item, ID2P(LANG_AUDIOBOOKS), GO_TO_AUDIOBOOKS,
+                        item_callback, Icon_Audio);
 #endif
 MENUITEM_RETURNVALUE(rocks_browser, ID2P(LANG_PLUGINS), GO_TO_BROWSEPLUGINS,
                         NULL, Icon_Plugin);
 MENUITEM_RETURNVALUE(extras_item, ID2P(LANG_EXTRAS), GO_TO_EXTRAS,
-                        NULL, Icon_Plugin);
+                        item_callback, Icon_Plugin);
 #ifdef HAVE_PHOTOS_MENU
 MENUITEM_RETURNVALUE(photos_item, ID2P(LANG_PHOTOS), GO_TO_PHOTOS,
-                        NULL, Icon_Plugin);
+                        item_callback, Icon_Plugin);
 #endif
 
 static char *get_wps_item_name(int selected_item, void * data,
@@ -714,7 +839,7 @@ MENUITEM_RETURNVALUE(bookmarks, ID2P(LANG_BOOKMARK_MENU_RECENT_BOOKMARKS),
                         GO_TO_RECENTBMARKS,  item_callback,
                         Icon_Bookmark);
 MENUITEM_RETURNVALUE(playlists, ID2P(LANG_PLAYLISTS), GO_TO_PLAYLISTS_SCREEN,
-                     NULL, Icon_Playlist);
+                     item_callback, Icon_Playlist);
 MENUITEM_RETURNVALUE(system_menu_, ID2P(LANG_SYSTEM), GO_TO_SYSTEM_SCREEN,
                      NULL, Icon_System_menu);
 
@@ -729,6 +854,15 @@ static struct menu_table menu_table[] = {
 #ifdef HAVE_TAGCACHE
     { "database", &db_browser },
     { "shuffle_songs", &shuffle_songs_item },
+    { "cover_flow", &cover_flow_item },
+    { "search", &search_item },
+    { "artists", &artists_item },
+    { "albums", &albums_item },
+    { "songs", &songs_item },
+    { "podcasts", &podcasts_item },
+    { "genres", &genres_item },
+    { "composers", &composers_item },
+    { "audiobooks", &audiobooks_item },
 #endif
     { "wps", &wps_item },
     { "settings", &menu_ },
@@ -818,9 +952,16 @@ char* root_menu_write_to_cfg(void* setting, char*buf, int buf_len)
 
 void root_menu_set_default(void* setting, void* defaultval)
 {
-    /* Only the items a stock iPod has are in the menu, and in its order;
-       playlists are in the Music (database) menu */
+    /* Only the items a stock iPod has are in the menu, and in its order:
+       Music's sections after it, each there only if Settings > Main Menu has
+       it (item_callback) */
+#ifdef HAVE_TAGCACHE
+    char order[] = "bookmarks, database, cover_flow, search, playlists, artists, "
+                   "albums, songs, podcasts, genres, composers, audiobooks, "
+                   "photos, extras, settings, shuffle_songs, wps";
+#else
     char order[] = "bookmarks, database, photos, extras, settings, shuffle_songs, wps";
+#endif
     (void)defaultval;
 
     root_menu_parse(setting, order);
@@ -841,6 +982,62 @@ bool root_menu_is_changed(void* setting, void* defaultval)
     (void)defaultval;
     return *(bool*)setting;
 }
+
+#ifdef HAVE_TAGCACHE
+/* The items Settings > Main Menu turns on or off, by its rows */
+static const struct {
+    const struct menu_item_ex *item;
+    int row;
+} main_menu_rows[] = {
+    { &db_browser, MAIN_MENU_MUSIC },
+    { &cover_flow_item, MAIN_MENU_SECTION + 0 },
+    { &search_item, MAIN_MENU_SECTION + 1 },
+    { &playlists, MAIN_MENU_SECTION + 2 },
+    { &artists_item, MAIN_MENU_SECTION + 3 },
+    { &albums_item, MAIN_MENU_SECTION + 4 },
+    { &songs_item, MAIN_MENU_SECTION + 5 },
+    { &podcasts_item, MAIN_MENU_SECTION + 6 },
+    { &genres_item, MAIN_MENU_SECTION + 7 },
+    { &composers_item, MAIN_MENU_SECTION + 8 },
+    { &audiobooks_item, MAIN_MENU_SECTION + 9 },
+#ifdef HAVE_PHOTOS_MENU
+    { &photos_item, MAIN_MENU_PHOTOS },
+#endif
+    { &extras_item, MAIN_MENU_EXTRAS },
+    { &shuffle_songs_item, MAIN_MENU_SHUFFLE_SONGS },
+};
+
+/* Whether the main menu has it: as Main Menu says, and a section only if
+   tagnavi.config has it, Music only with a section of its own to show */
+static bool main_menu_has(const struct menu_item_ex *item)
+{
+    for (unsigned i = 0; i < ARRAYLEN(main_menu_rows); i++)
+    {
+        if (main_menu_rows[i].item != item)
+            continue;
+        const int row = main_menu_rows[i].row;
+        if (!global_settings.main_menu_show[row])
+            return false;
+        if (row == MAIN_MENU_MUSIC)
+            return !tagtree_music_empty();
+        if (row >= MAIN_MENU_SECTION && row < MAIN_MENU_SECTION + MUSIC_SECTIONS)
+            return tagtree_has_section(tagtree_section_lang[row - MAIN_MENU_SECTION]);
+        return true;
+    }
+    return true;
+}
+
+/* the screen in the main menu, or the main menu itself if it isn't */
+static int main_menu_screen(int screen)
+{
+    for (unsigned i = 0; i < ARRAYLEN(main_menu_rows); i++)
+    {
+        if (main_menu_rows[i].item->value == screen)
+            return main_menu_has(main_menu_rows[i].item) ? screen : GO_TO_ROOT;
+    }
+    return screen;
+}
+#endif
 
 static int item_callback(int action,
                          const struct menu_item_ex *this_item,
@@ -865,6 +1062,10 @@ static int item_callback(int action,
                 if (global_settings.usemrb == 0)
                     return ACTION_EXIT_MENUITEM;
             }
+#ifdef HAVE_TAGCACHE
+            else if (!main_menu_has(this_item))
+                return ACTION_EXIT_MENUITEM;
+#endif
         break;
     }
     return action;
@@ -1079,6 +1280,14 @@ static int root_menu_setup_screens(void)
             }
         }
     }
+#ifdef HAVE_TAGCACHE
+    /* Music or a section of it only if the main menu has it now; Cover Flow,
+       a plugin, not at all, as Photos */
+    if (new_screen == GO_TO_COVER_FLOW)
+        new_screen = GO_TO_ROOT;
+    else if (new_screen == GO_TO_DBBROWSER || is_section_screen(new_screen))
+        new_screen = main_menu_screen(new_screen);
+#endif
 #if CONFIG_TUNER
     add_event(PLAYBACK_EVENT_START_PLAYBACK, rootmenu_start_playback_callback);
 #endif
@@ -1399,6 +1608,12 @@ void root_menu(void)
                 next_screen = do_menu(&root_menu_, &selected, NULL, false);
 #ifdef HAVE_TAGCACHE
                 music_from_main_menu = next_screen == GO_TO_DBBROWSER;
+                if (next_screen == GO_TO_SEARCH)
+                {
+                    /* Search added to the main menu, which Menu goes back to */
+                    music_search_new();
+                    search_back = GO_TO_ROOT;
+                }
 #endif
 
                 ignore_back_button_stub(false);
@@ -1413,6 +1628,9 @@ void root_menu(void)
             case GO_TO_PLAYLISTS_SCREEN:
 #ifdef HAVE_TAGCACHE
             case GO_TO_SEARCH: /* Menu in Now Playing comes back to it */
+            case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
+            case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
+            case GO_TO_AUDIOBOOKS:
 #endif
                 global_status.last_browser = previous_browser = next_screen;
                 goto load_next_screen;

@@ -259,6 +259,100 @@ MENUITEM_SETTING_SHARED(battery_capacity, &global_settings.battery_capacity, NUL
 #endif
 #ifdef HAVE_TAGCACHE
 MENUITEM_SETTING_SHARED(smart_search_item, &global_settings.smart_search, NULL);
+
+/* A screen's rows back as they were at first, as a stock iPod's Reset Main
+   Menu has them, at once */
+static void reset_rows(bool *first, int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+        const struct settings_list *setting = find_setting(&first[i]);
+        if (setting)
+            reset_setting(setting, &first[i]);
+    }
+    settings_save();
+}
+
+static int main_menu_reset(void)
+{
+    reset_rows(global_settings.main_menu_show, MAIN_MENU_ROWS);
+    return 0;
+}
+MENUITEM_FUNCTION(main_menu_reset_item, 0, ID2P(LANG_RESET_MAIN_MENU),
+                  main_menu_reset, NULL, Icon_NOICON);
+
+static int music_menu_reset(void)
+{
+    reset_rows(global_settings.music_menu_show, MUSIC_SECTIONS);
+    tagtree_music_menu_changed(true);
+    return 0;
+}
+MENUITEM_FUNCTION(music_menu_reset_item, 0, ID2P(LANG_RESET_MUSIC_MENU),
+                  music_menu_reset, NULL, Icon_NOICON);
+
+/* Music Menu: which sections of Music it shows, each On or Off, as on an iPod
+   classic */
+MENUITEM_SETTING(music_menu_0, &global_settings.music_menu_show[0], NULL);
+MENUITEM_SETTING(music_menu_1, &global_settings.music_menu_show[1], NULL);
+MENUITEM_SETTING(music_menu_2, &global_settings.music_menu_show[2], NULL);
+MENUITEM_SETTING(music_menu_3, &global_settings.music_menu_show[3], NULL);
+MENUITEM_SETTING(music_menu_4, &global_settings.music_menu_show[4], NULL);
+MENUITEM_SETTING(music_menu_5, &global_settings.music_menu_show[5], NULL);
+MENUITEM_SETTING(music_menu_6, &global_settings.music_menu_show[6], NULL);
+MENUITEM_SETTING(music_menu_7, &global_settings.music_menu_show[7], NULL);
+MENUITEM_SETTING(music_menu_8, &global_settings.music_menu_show[8], NULL);
+MENUITEM_SETTING(music_menu_9, &global_settings.music_menu_show[9], NULL);
+MAKE_MENU(music_menu_items, ID2P(LANG_MUSIC_MENU), NULL, Icon_NOICON,
+          &music_menu_0, &music_menu_1, &music_menu_2, &music_menu_3,
+          &music_menu_4, &music_menu_5, &music_menu_6, &music_menu_7,
+          &music_menu_8, &music_menu_9, &music_menu_reset_item);
+
+/* Main Menu: what the main menu has, as on a stock iPod: Music, each of its
+   sections, Photos, Extras and Shuffle Songs */
+MENUITEM_SETTING(main_menu_music, &global_settings.main_menu_show[MAIN_MENU_MUSIC], NULL);
+MENUITEM_SETTING(main_menu_s0, &global_settings.main_menu_show[MAIN_MENU_SECTION + 0], NULL);
+MENUITEM_SETTING(main_menu_s1, &global_settings.main_menu_show[MAIN_MENU_SECTION + 1], NULL);
+MENUITEM_SETTING(main_menu_s2, &global_settings.main_menu_show[MAIN_MENU_SECTION + 2], NULL);
+MENUITEM_SETTING(main_menu_s3, &global_settings.main_menu_show[MAIN_MENU_SECTION + 3], NULL);
+MENUITEM_SETTING(main_menu_s4, &global_settings.main_menu_show[MAIN_MENU_SECTION + 4], NULL);
+MENUITEM_SETTING(main_menu_s5, &global_settings.main_menu_show[MAIN_MENU_SECTION + 5], NULL);
+MENUITEM_SETTING(main_menu_s6, &global_settings.main_menu_show[MAIN_MENU_SECTION + 6], NULL);
+MENUITEM_SETTING(main_menu_s7, &global_settings.main_menu_show[MAIN_MENU_SECTION + 7], NULL);
+MENUITEM_SETTING(main_menu_s8, &global_settings.main_menu_show[MAIN_MENU_SECTION + 8], NULL);
+MENUITEM_SETTING(main_menu_s9, &global_settings.main_menu_show[MAIN_MENU_SECTION + 9], NULL);
+MENUITEM_SETTING(main_menu_photos, &global_settings.main_menu_show[MAIN_MENU_PHOTOS], NULL);
+MENUITEM_SETTING(main_menu_extras, &global_settings.main_menu_show[MAIN_MENU_EXTRAS], NULL);
+MENUITEM_SETTING(main_menu_shuffle, &global_settings.main_menu_show[MAIN_MENU_SHUFFLE_SONGS], NULL);
+/* as root_menu.c has Photos */
+#if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_WIDTH == 320) && (LCD_HEIGHT == 240)
+#define MAIN_MENU_PHOTOS_ITEM &main_menu_photos,
+#else
+#define MAIN_MENU_PHOTOS_ITEM
+#endif
+MAKE_MENU(main_menu_items, ID2P(LANG_MAIN_MENU), NULL, Icon_NOICON,
+          &main_menu_music, &main_menu_s0, &main_menu_s1, &main_menu_s2,
+          &main_menu_s3, &main_menu_s4, &main_menu_s5, &main_menu_s6,
+          &main_menu_s7, &main_menu_s8, &main_menu_s9, MAIN_MENU_PHOTOS_ITEM
+          &main_menu_extras, &main_menu_shuffle, &main_menu_reset_item);
+
+static int main_menu_open(void)
+{
+    if (do_menu(&main_menu_items, NULL, NULL, false) == GO_TO_ROOT)
+        menu_request_root();
+    return 0;
+}
+MENUITEM_FUNCTION(main_menu_row, 0, ID2P(LANG_MAIN_MENU), main_menu_open,
+                  NULL, Icon_NOICON);
+
+static int music_menu_open(void)
+{
+    /* Menu held goes on to the main menu, as from Appearance */
+    if (do_menu(&music_menu_items, NULL, NULL, false) == GO_TO_ROOT)
+        menu_request_root();
+    return 0;
+}
+MENUITEM_FUNCTION(music_menu_row, 0, ID2P(LANG_MUSIC_MENU), music_menu_open,
+                  NULL, Icon_NOICON);
 #endif
 
 #ifdef HAVE_USB_CHARGING_ENABLE

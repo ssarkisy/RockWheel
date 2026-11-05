@@ -72,6 +72,9 @@
 
 #include "playlist.h"
 #include "tree.h"
+#ifdef HAVE_TAGCACHE
+#include "tagtree.h"
+#endif
 #include "iap-usb.h"
 
 #include "voice_thread.h"
@@ -2708,6 +2711,58 @@ const struct settings_list settings[] = {
     /* on: Search greys the letters no name goes on with, and the wheel goes
        past them; off, a plain row of letters */
     OFFON_SETTING(0, smart_search, LANG_SMART_SEARCH, true, "smart search", NULL),
+#ifdef HAVE_TAGCACHE
+    /* Settings > Music Menu, in the order of tagtree_section_lang */
+    OFFON_SETTING(0, music_menu_show[0], LANG_COVER_FLOW, true,
+                  "music menu cover flow", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_show[1], LANG_SEARCH, true,
+                  "music menu search", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_show[2], LANG_PLAYLISTS, true,
+                  "music menu playlists", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_show[3], LANG_ARTISTS, true,
+                  "music menu artists", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_show[4], LANG_ALBUMS, true,
+                  "music menu albums", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_show[5], LANG_SONGS, true,
+                  "music menu songs", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_show[6], LANG_PODCASTS, true,
+                  "music menu podcasts", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_show[7], LANG_GENRES, true,
+                  "music menu genres", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_show[8], LANG_COMPOSERS, true,
+                  "music menu composers", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_show[9], LANG_AUDIOBOOKS, true,
+                  "music menu audiobooks", tagtree_music_menu_changed),
+    /* Settings > Main Menu: Music's sections are off, as on a stock iPod */
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_MUSIC], LANG_MUSIC, true,
+                  "main menu music", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 0], LANG_COVER_FLOW, false,
+                  "main menu cover flow", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 1], LANG_SEARCH, false,
+                  "main menu search", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 2], LANG_PLAYLISTS, false,
+                  "main menu playlists", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 3], LANG_ARTISTS, false,
+                  "main menu artists", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 4], LANG_ALBUMS, false,
+                  "main menu albums", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 5], LANG_SONGS, false,
+                  "main menu songs", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 6], LANG_PODCASTS, false,
+                  "main menu podcasts", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 7], LANG_GENRES, false,
+                  "main menu genres", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 8], LANG_COMPOSERS, false,
+                  "main menu composers", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 9], LANG_AUDIOBOOKS, false,
+                  "main menu audiobooks", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_PHOTOS], LANG_PHOTOS, true,
+                  "main menu photos", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_EXTRAS], LANG_EXTRAS, true,
+                  "main menu extras", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SHUFFLE_SONGS], LANG_SHUFFLE_SONGS, true,
+                  "main menu shuffle songs", NULL),
+#endif
 #ifdef HAVE_PITCHCONTROL
     /* the stock iPod's Audiobooks setting: the speed of audiobooks only */
     CHOICE_SETTING(0, audiobook_speed, LANG_AUDIOBOOKS, 1,

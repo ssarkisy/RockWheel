@@ -18935,3 +18935,45 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_MUSIC_MENU
+  desc: a row of Settings, General, and the title of its screen: each section of Music turned on or off there
+  user: core
+  <source>
+    *: "Music Menu"
+  </source>
+  <dest>
+    *: "Menu Nhạc"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESET_MAIN_MENU
+  desc: the last row of Settings > Main Menu: its rows back as they were at first
+  user: core
+  <source>
+    *: "Reset Main Menu"
+  </source>
+  <dest>
+    *: "Đặt lại Menu chính"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESET_MUSIC_MENU
+  desc: the last row of Settings > Music Menu: its rows back as they were at first
+  user: core
+  <source>
+    *: "Reset Music Menu"
+  </source>
+  <dest>
+    *: "Đặt lại Menu Nhạc"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

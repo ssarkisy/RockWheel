@@ -293,6 +293,54 @@ static int selected_item_history[MAX_DIR_LEVELS];
 static int table_history[MAX_DIR_LEVELS];
 static int extra_history[MAX_DIR_LEVELS];
 
+/* The sections of Music that Settings > Music Menu shows or not, by their
+   names in tagnavi.config, in the order of global_settings.music_menu_show.
+   One the file has that isn't here is always shown. */
+const int tagtree_section_lang[MUSIC_SECTIONS] = {
+    LANG_COVER_FLOW, LANG_SEARCH, LANG_PLAYLISTS, LANG_ARTISTS, LANG_ALBUMS,
+    LANG_SONGS, LANG_PODCASTS, LANG_GENRES, LANG_COMPOSERS, LANG_AUDIOBOOKS,
+};
+/* every item of Music's own menu, as when it's gone into past its list */
+static bool root_all_items;
+/* since the shown ones changed, the rows to go back to are of others */
+static bool root_rows_changed;
+
+static bool root_item_shown(const struct menu_entry *item)
+{
+    const int lang = P2ID((const unsigned char *)item->name);
+    for (int i = 0; i < MUSIC_SECTIONS; i++)
+    {
+        if (tagtree_section_lang[i] == lang)
+            return global_settings.music_menu_show[i];
+    }
+    return true;
+}
+
+/* The row of Music's own menu that the item is in, 0 if it isn't shown */
+static int root_row_of(int item)
+{
+    const struct menu_root *root = menus[rootmenu];
+    int row = 0;
+    if (!root || item >= root->itemcount || !root_item_shown(root->items[item]))
+        return 0;
+    for (int i = 0; i < item; i++)
+        row += root_item_shown(root->items[i]);
+    return row;
+}
+
+bool tagtree_music_empty(void)
+{
+    const struct menu_root *root = menus[rootmenu];
+    if (!root)
+        return false;
+    for (int i = 0; i < root->itemcount; i++)
+    {
+        if (root_item_shown(root->items[i]))
+            return false;
+    }
+    return true;
+}
+
 /* a few memory alloc helper */
 static int tagtree_handle;
 static size_t tagtree_bufsize, tagtree_buf_used;
@@ -2093,8 +2141,15 @@ static int load_root(struct tree_context *c)
     if (menu->itemcount > c->cache.max_entries)
             panicf("%s tree_cache too small", __func__);
 
+    /* Music's own menu without the sections turned off in Music Menu: a row
+       goes into the item of its extraseek, not of its number */
+    const bool all = root_all_items || c->currextra != rootmenu;
+    int rows = 0;
     for (i = 0; i < menu->itemcount; i++)
     {
+        if (!all && !root_item_shown(menu->items[i]))
+            continue;
+        rows++;
 
         dptr->name = (char*)menu->items[i]->name;
 
@@ -2150,9 +2205,9 @@ static int load_root(struct tree_context *c)
     }
 
     current_offset = 0;
-    current_entry_count = i;
+    current_entry_count = rows;
 
-    return i;
+    return rows;
 }
 
 int tagtree_load(struct tree_context* c)
@@ -2332,6 +2387,8 @@ static bool go_to_row(int tag, bool by_album_artist, const char *name,
     c->dirlevel = 0;
     c->currtable = 0;
     max_history_level = 0;
+    /* its section gone into even if Music Menu doesn't show it: a row an item */
+    root_all_items = true;
     if (tagtree_load(c) > 0)
     {
         for (int i = 0; i < menu->itemcount && row < 0; i++)
@@ -2342,11 +2399,13 @@ static bool go_to_row(int tag, bool by_album_artist, const char *name,
                 row = i;
         }
     }
+    root_all_items = false;
     if (row >= 0)
     {
-        /* the list of them */
+        /* the list of them; Menu up from it to the row of Music's own menu */
         c->selected_item = row;
         tagtree_enter(c, true);
+        selected_item_history[0] = root_row_of(row);
         if (by_album_artist)
         {
             album_artists = *csi;
@@ -2375,6 +2434,9 @@ static void go_to_end(int row, int *dirlevel, int *selected_item)
     *dirlevel = c->dirlevel;
     *selected_item = row;
     go_to_level = c->dirlevel;
+    /* the list loaded here is the one the browser shows: it took it again, and
+       Songs, opened from the main menu, said "Searching..." for two seconds */
+    loaded_entries_crc = tagtree_data_crc(c);
 }
 
 /* Puts the lists at the track playing, as one gets there by hand: its album's artist,
@@ -2434,6 +2496,74 @@ bool tagtree_go_to_name(int tag, const char *name, int *dirlevel, int *selected_
     return true;
 }
 
+/* The item of Music's own menu by its phrase, -1 if tagnavi.config hasn't it */
+static int root_item_of(int lang)
+{
+    const struct menu_root *root = menus[rootmenu];
+    for (int i = 0; root && i < root->itemcount; i++)
+    {
+        if (P2ID((const unsigned char *)root->items[i]->name) == lang)
+            return i;
+    }
+    return -1;
+}
+
+bool tagtree_has_section(int lang)
+{
+    return root_item_of(lang) >= 0;
+}
+
+/* the section of Music opened from the main menu, -1 for none; and the row
+   each was left at, to open there again */
+static int section_open = -1;
+static int section_rows[MUSIC_SECTIONS];
+
+static int section_of(int lang)
+{
+    for (int i = 0; i < MUSIC_SECTIONS; i++)
+    {
+        if (tagtree_section_lang[i] == lang)
+            return i;
+    }
+    return -1;
+}
+
+bool tagtree_go_to_section(int lang, int *dirlevel, int *selected_item)
+{
+    struct tree_context *c = tree_get_context();
+    const int item = root_item_of(lang);
+    const int section = section_of(lang);
+    if (item < 0 || section < 0 || !tagtree_ready() || !tagcache_is_usable())
+        return false;
+
+    place_save(&go_to_place, *dirlevel, *selected_item);
+    c->dirlevel = 0;
+    c->currtable = 0;
+    max_history_level = 0;
+    root_all_items = true;
+    const bool loaded = tagtree_load(c) > item;
+    root_all_items = false;
+    if (!loaded)
+    {
+        place_restore(&go_to_place, dirlevel, selected_item);
+        return false;
+    }
+    c->selected_item = item;
+    tagtree_enter(c, true);
+    selected_item_history[0] = root_row_of(item);
+    const int count = tagtree_load(c);
+    section_open = section;
+    go_to_end(MIN(section_rows[section], MAX(count - 1, 0)), dirlevel, selected_item);
+    return true;
+}
+
+void tagtree_resume_section(int lang, int *dirlevel, int *selected_item)
+{
+    place_save(&go_to_place, *dirlevel, *selected_item);
+    section_open = section_of(lang);
+    go_to_level = 1;
+}
+
 int tagtree_go_to_level(void)
 {
     return go_to_level;
@@ -2441,6 +2571,13 @@ int tagtree_go_to_level(void)
 
 void tagtree_end_go_to(bool go_back, int *dirlevel, int *selected_item)
 {
+    if (section_open >= 0)
+    {
+        /* its list's row, as left by Menu there or from deeper in it */
+        section_rows[section_open] = *dirlevel == 1 ? *selected_item
+                                                    : selected_item_history[1];
+        section_open = -1;
+    }
     go_to_level = -1;
     if (go_back)
         place_restore(&go_to_place, dirlevel, selected_item);
@@ -2688,6 +2825,25 @@ void tagtree_to_top(struct tree_context* c)
 {
     while (c->dirlevel > 0)
         tagtree_exit(c, true);
+    if (root_rows_changed)
+        c->selected_item = 0;
+    root_rows_changed = false;
+}
+
+/* A section turned on or off in Music Menu: the rows of Music's own menu, as
+   gone back to, were of the sections it showed before. Music opens at its
+   first row then. */
+void tagtree_music_menu_changed(bool shown)
+{
+    (void)shown;
+    selected_item_history[0] = 0;
+    saved_place.selected_item_history[0] = 0;
+    go_to_place.selected_item_history[0] = 0;
+    if (saved_place.dirlevel == 0)
+        saved_place.selected_item = 0;
+    if (go_to_place.dirlevel == 0)
+        go_to_place.selected_item = 0;
+    root_rows_changed = true;
 }
 
 int tagtree_get_filename(struct tree_context* c, char *buf, int buflen)

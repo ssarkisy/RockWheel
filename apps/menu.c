@@ -130,6 +130,9 @@ static bool menu_shows_values(const struct menu_item_ex *menu)
 {
     return menu_wide() || menu == &main_menu_ || menu == &ipod_keyclick_menu
            || menu == &night_menu
+#ifdef HAVE_TAGCACHE
+           || menu == &music_menu_items || menu == &main_menu_items
+#endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
            || menu == &appearance_menu
 #endif
