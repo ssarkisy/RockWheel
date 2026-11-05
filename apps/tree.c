@@ -77,6 +77,9 @@
 #include "appevents.h"
 
 #include "root_menu.h"
+#ifdef HAVE_TAGCACHE
+#include "music_search.h"
+#endif
 
 static struct gui_synclist tree_lists;
 
@@ -890,6 +893,7 @@ static int dirbrowse(void)
                     /* a screen of its own too */
                     if (button == ACTION_STD_OK)
                     {
+                        music_search_new();
                         transition_begin(TRANSITION_FORWARD);
                         return exit_to_new_screen(GO_TO_SEARCH);
                     }

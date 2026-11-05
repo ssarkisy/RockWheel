@@ -18334,6 +18334,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_COVER_FLOW
+  desc: in the menu of the WPS, opens Cover Flow at the album playing
+  user: core
+  <source>
+    *: "Cover Flow"
+  </source>
+  <dest>
+    *: "Cover Flow"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_PREPARING_SONGS
   desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
   user: core
@@ -18902,6 +18916,20 @@
   </source>
   <dest>
     *: "Thư mục"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SMART_SEARCH
+  desc: a setting of General: Search greys the letters no name goes on with, and the wheel goes past them
+  user: core
+  <source>
+    *: "Smart Search"
+  </source>
+  <dest>
+    *: "Tìm kiếm thông minh"
   </dest>
   <voice>
     *: ""

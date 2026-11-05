@@ -19,7 +19,9 @@
 #ifdef HAVE_TAGCACHE
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
+#include "string-extra.h"
 #include "system.h"
 #include "kernel.h"
 #include "action.h"
@@ -41,6 +43,7 @@
 #include "viewport.h"
 #include "wps.h"
 #include "music_search.h"
+#include "plugin.h"
 
 /* The screen: the query, the row of letters under it and what matches under
    that, in groups as Music has them. The wheel goes along the letters and
@@ -101,19 +104,44 @@ static const struct {
 
 /* The letters of the alphabets other than the Latin one that the library's
    names have, a bit each, as Updating Library finds them: from U+0370 to
-   U+10FF, then from the kana to Hangul's letters. With the commit of the
-   database they're of. */
+   U+10FF, then from the kana to Hangul's letters. And the letters, Latin ones
+   and digits too, that begin a word of a name: what may be typed first. With
+   the commit of the database they're of. */
 #define LETTERS_FILE    ROCKBOX_DIR "/search_letters.bin"
-#define LETTERS_VERSION 2
+#define LETTERS_VERSION 4
 #define LETTERS_LOW     0x0370
 #define LETTERS_MID     0x1100
 #define LETTERS_HIGH    0x3040
 #define LETTERS_END     0x3190
 #define LETTER_BITS     ((LETTERS_MID - LETTERS_LOW) + (LETTERS_END - LETTERS_HIGH))
+#define NEXT_BITS       (26 + 10 + LETTER_BITS) /* the Latin ones and the digits too */
+#define NEXT_BYTES      ((NEXT_BITS + 7) / 8)
 struct letters_file {
     int32_t version, commit;
     uint8_t present[LETTER_BITS / 8];
+    uint8_t starts[NEXT_BYTES];
 };
+
+/* The library's names as they're searched by, made with the letters: after a
+   header, each name's group, its track (a song's), its name as shown and its
+   words folded (fold_words()) in UTF-8 with a 0 after each, the two after their
+   lengths. A search reads it through in pieces and compares bytes: folding the
+   database's every name again at each search took most of a second. */
+#define NAMES_FILE      ROCKBOX_DIR "/search_names.bin"
+#define NAMES_TEMP      ROCKBOX_DIR "/search_names.tmp"
+#define NAME_BYTES      255  /* of a name, and of its folded words, at most */
+#define ENTRY_MAX       (1 + 4 + 1 + NAME_BYTES + 1 + NAME_BYTES)
+struct names_header {
+    int32_t version, commit, count;
+};
+/* Read in pieces from its start, as many sectors each, into a buffer aligned
+   for the disk to put them in directly; the rest of the last entry of a piece
+   goes before the next. From its header on, the pieces began within a sector,
+   and the file system read them a sector at a time through its cache. */
+#define NAMES_CHUNK     4096
+#define NAMES_CARRY     1024 /* at least ENTRY_MAX, and as aligned */
+static unsigned char names_buf[NAMES_CARRY + NAMES_CHUNK] CACHEALIGN_ATTR;
+static int names_commit = -1;         /* of the file last found good */
 
 static int letter_bit(ucschar_t c)
 {
@@ -130,6 +158,33 @@ static bool letter_present(const uint8_t *present, ucschar_t c)
     return bit >= 0 && (present[bit >> 3] & (1 << (bit & 7)));
 }
 
+/* a letter as searched by, a bit each of every alphabet's: -1 if it isn't one */
+static int next_bit(ucschar_t c)
+{
+    if (c >= 'a' && c <= 'z')
+        return c - 'a';
+    if (c >= '0' && c <= '9')
+        return 26 + c - '0';
+    const int bit = letter_bit(c);
+    return bit < 0 ? -1 : 36 + bit;
+}
+
+static void set_next(uint8_t *bits, ucschar_t c)
+{
+    const int bit = next_bit(c);
+    if (bit >= 0)
+        bits[bit >> 3] |= 1 << (bit & 7);
+}
+
+/* The letters that may come next, as what's typed so far leads to names that
+   go on with them: the others are greyed in the ring, and the wheel goes past
+   them. Known once the search of what's typed is through, all of them before
+   that. */
+static uint8_t next_letters[NEXT_BYTES];
+static bool next_known;
+static uint8_t word_starts[NEXT_BYTES]; /* of the library's, from the file */
+static bool word_starts_known;
+
 static struct {
     ucschar_t c[STRIP_MAX];
     unsigned char set[STRIP_MAX]; /* a gap between two sets */
@@ -142,6 +197,51 @@ static struct {
 /* kept while the screen is left for a list or for Now Playing, and come back to */
 #define QUERY_SIZE 64
 static char query[QUERY_SIZE];
+
+/* Those of the last queries, so that deleting a letter has them back at once:
+   what the shorter query matches takes a search of the whole library, and all
+   the letters were open until it was through */
+#define KEPT_LETTERS 8
+static struct {
+    char query[QUERY_SIZE];
+    int commit;
+    uint8_t next[NEXT_BYTES];
+} kept_letters[KEPT_LETTERS];
+static int kept_next; /* the one to write next, around */
+
+static void keep_letters(void)
+{
+    const int commit = tagcache_get_commitid();
+    int k = 0;
+    while (k < KEPT_LETTERS && !(kept_letters[k].commit == commit
+                                 && !strcmp(kept_letters[k].query, query)))
+        k++;
+    if (k == KEPT_LETTERS)
+    {
+        k = kept_next;
+        kept_next = (kept_next + 1) % KEPT_LETTERS;
+    }
+    strmemccpy(kept_letters[k].query, query, QUERY_SIZE);
+    kept_letters[k].commit = commit;
+    memcpy(kept_letters[k].next, next_letters, NEXT_BYTES);
+}
+
+/* the letters of the query as they were for it before, if they were known */
+static bool kept_letters_back(void)
+{
+    const int commit = tagcache_get_commitid();
+    for (int k = 0; k < KEPT_LETTERS; k++)
+    {
+        if (kept_letters[k].query[0] && kept_letters[k].commit == commit
+            && !strcmp(kept_letters[k].query, query))
+        {
+            memcpy(next_letters, kept_letters[k].next, NEXT_BYTES);
+            next_known = true;
+            return true;
+        }
+    }
+    return false;
+}
 
 /* What matches, in the order of the database's files, which is the lists'
    own: at most so many in each group, their names in the pool */
@@ -419,6 +519,34 @@ static int fold_words(const char *s, ucschar_t *out, int size)
     return n;
 }
 
+/* folded letters in UTF-8, a 0 for each 0 and one last: how many bytes, at
+   most room */
+static int folded_bytes(const ucschar_t *folded, int n, unsigned char *out, int room)
+{
+    int len = 0;
+    for (int i = 0; i < n; i++)
+    {
+        unsigned char utf8[8];
+        const int k = folded[i] ? utf8encode(folded[i], utf8) - utf8 : 1;
+        if (len + k > room - 1)
+            break;
+        if (folded[i])
+            memcpy(out + len, utf8, k);
+        else
+            out[len] = 0;
+        len += k;
+    }
+    if (len == 0 || out[len - 1] != 0)
+        out[len++] = 0;
+    return len;
+}
+
+static bool query_is_open; /* as fold_query() found it, query_open() */
+
+/* the query's words as the names' file has a name's, where each starts */
+static unsigned char query_bytes[QUERY_SIZE * 4 + 1];
+static int query_byte_word[QUERY_WORDS + 1];
+
 static void fold_query(void)
 {
     int n = fold_words(query, query_folded, QUERY_SIZE);
@@ -429,30 +557,132 @@ static void fold_query(void)
             query_word[query_words++] = i;
     }
     query_word[query_words] = n;
-}
+    const size_t len = strlen(query);
+    query_is_open = len == 0 || query[len - 1] == ' ';
 
-/* every word of the query begins one of the name's */
-static bool matches(const char *name)
-{
-    ucschar_t folded[256];
-    int n = fold_words(name, folded, ARRAYLEN(folded));
+    int at = 0;
     for (int w = 0; w < query_words; w++)
     {
-        const ucschar_t *word = &query_folded[query_word[w]];
-        bool found = false;
-        for (int i = 0; i < n && !found; i++)
+        query_byte_word[w] = at;
+        at += folded_bytes(&query_folded[query_word[w]],
+                           query_word[w + 1] - query_word[w], query_bytes + at,
+                           sizeof(query_bytes) - at);
+    }
+    query_byte_word[query_words] = at;
+}
+
+/* the query ends between words, as with nothing or a space last: a word is
+   typed anew */
+static bool query_open(void)
+{
+    return query_is_open;
+}
+
+/* the word begins one of the name's, folded; with next, the letter after it
+   in each such word of the name is one that may be typed after it */
+static bool word_begins(const ucschar_t *word, const ucschar_t *folded, int n,
+                        uint8_t *next)
+{
+    bool found = false;
+    for (int i = 0; i < n && (next || !found); i++)
+    {
+        if (i > 0 && folded[i - 1] != 0)
+            continue;
+        int k = 0;
+        while (word[k] && word[k] == folded[i + k])
+            k++;
+        if (word[k] == 0)
         {
-            if (i > 0 && folded[i - 1] != 0)
-                continue;
-            int k = 0;
-            while (word[k] && word[k] == folded[i + k])
-                k++;
-            found = word[k] == 0;
+            found = true;
+            if (next && folded[i + k])
+                set_next(next, folded[i + k]);
         }
-        if (!found)
+    }
+    return found;
+}
+
+/* Every word of the query begins one of the name's. With next, the letters
+   that may be typed after the query in the name: after the start of a word
+   of it that the last word of the query is, or with the query open, the first
+   of each of its words. */
+static bool matches(const char *name, uint8_t *next)
+{
+    ucschar_t folded[256];
+    const int n = fold_words(name, folded, ARRAYLEN(folded));
+    const bool open = query_open();
+    const int typed = open ? query_words : query_words - 1; /* the last's apart */
+    for (int w = 0; w < typed; w++)
+    {
+        if (!word_begins(&query_folded[query_word[w]], folded, n, NULL))
             return false;
     }
-    return query_words > 0;
+    if (open)
+    {
+        if (next)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                if (folded[i] && (i == 0 || folded[i - 1] == 0))
+                    set_next(next, folded[i]);
+            }
+        }
+        return query_words > 0;
+    }
+    return word_begins(&query_folded[query_word[typed]], folded, n, next);
+}
+
+/* As word_begins() and matches(), of a name of the names' file: its words in
+   UTF-8, folded already */
+static bool bytes_begin(const unsigned char *word, int wlen,
+                        const unsigned char *f, int n, uint8_t *next)
+{
+    bool found = false;
+    for (int i = 0; i + wlen <= n && (next || !found); i++)
+    {
+        if (f[i] != word[0] || (i > 0 && f[i - 1] != 0)
+            || memcmp(f + i, word, wlen))
+            continue;
+        found = true;
+        if (next && f[i + wlen])
+        {
+            ucschar_t c;
+            utf8decode(f + i + wlen, &c);
+            set_next(next, c);
+        }
+    }
+    return found;
+}
+
+static bool bytes_match(const unsigned char *f, int n, uint8_t *next)
+{
+    const bool open = query_open();
+    const int typed = open ? query_words : query_words - 1;
+    for (int w = 0; w < typed; w++)
+    {
+        const int at = query_byte_word[w];
+        const int wlen = query_byte_word[w + 1] - at - 1; /* its 0 apart */
+        if (!bytes_begin(query_bytes + at, wlen, f, n, NULL))
+            return false;
+    }
+    if (open)
+    {
+        if (next)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                if (f[i] && (i == 0 || f[i - 1] == 0))
+                {
+                    ucschar_t c;
+                    utf8decode(f + i, &c);
+                    set_next(next, c);
+                }
+            }
+        }
+        return query_words > 0;
+    }
+    const int at = query_byte_word[typed];
+    return bytes_begin(query_bytes + at, query_byte_word[typed + 1] - at - 1,
+                       f, n, next);
 }
 
 static bool add_result(int group, const char *name, int idx_id)
@@ -471,6 +701,188 @@ static bool add_result(int group, const char *name, int idx_id)
 /* through the database: its files of artists, albums and titles. If it may be
    stopped, a press stops it, and false says so: what it found by then is
    kept, as not all */
+
+/* The names' file in the plugins' buffer while Search is open, read whole as
+   it opens: from the disk at each letter, its 157 reads were half of each
+   search. The buffer is the core's while no plugin runs, and lent to others,
+   as the playlist of a song played from Search: let go of for that, and read
+   again as Search comes back. Marked at its end, and the copy is used only as
+   long as the mark and its header are as they were. */
+#define NAMES_MARK 0x5246534eu
+static unsigned char *names_ram;
+static size_t names_ram_len;
+
+static unsigned int names_ram_gen; /* of the plugins' buffer, as they went in */
+
+static bool names_held(void)
+{
+    if (!names_ram)
+        return false;
+    if (plugin_buffer_gen() != names_ram_gen)
+    {
+        names_ram = NULL;
+        return false;
+    }
+    uint32_t mark;
+    struct names_header h;
+    memcpy(&mark, names_ram + names_ram_len, sizeof(mark));
+    memcpy(&h, names_ram, sizeof(h));
+    if (mark == NAMES_MARK && h.version == LETTERS_VERSION
+        && h.commit == tagcache_get_commitid())
+        return true;
+    names_ram = NULL;
+    return false;
+}
+
+static void names_let_go(void)
+{
+    names_ram = NULL;
+}
+
+static void names_hold(void)
+{
+    /* still there: not read again, 1 MB, each time Search is back */
+    if (names_held())
+        return;
+    names_ram = NULL;
+    if (plugin_is_running())
+        return;
+    size_t size;
+    unsigned char *const buf = plugin_get_buffer(&size);
+    const int fd = open(NAMES_FILE, O_RDONLY);
+    if (!buf || fd < 0)
+    {
+        if (fd >= 0)
+            close(fd);
+        return;
+    }
+    const off_t len = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
+    const bool ok = len >= (off_t)sizeof(struct names_header)
+                    && (size_t)len + sizeof(uint32_t) <= size
+                    && read(fd, buf, len) == len;
+    close(fd);
+    if (!ok)
+        return;
+    const uint32_t mark = NAMES_MARK;
+    memcpy(buf + len, &mark, sizeof(mark));
+    names_ram = buf;
+    names_ram_len = len;
+    names_ram_gen = plugin_buffer_gen();
+    if (!names_held())
+        names_ram = NULL;
+}
+
+/* the names' file opened past its header, if it's of this database: -1 if not */
+static int open_names(struct names_header *h)
+{
+    int fd = open(NAMES_FILE, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    if (read(fd, h, sizeof(*h)) != sizeof(*h) || h->version != LETTERS_VERSION
+        || h->commit != tagcache_get_commitid() || h->count < 0)
+    {
+        close(fd);
+        return -1;
+    }
+    names_commit = h->commit;
+    return fd;
+}
+
+/* Through the names' file, every name of it, as the letters that may follow
+   are of all that match: false if there's none of this database. A press
+   stops it, if it may be stopped, as *stopped says. */
+static bool search_names(bool stoppable, bool *stopped)
+{
+    struct names_header h;
+    const unsigned char *p, *end;
+    ssize_t got;
+    bool more;
+    int fd = -1;
+    unsigned char *const chunk = names_buf + NAMES_CARRY;
+    if (names_held())
+    {
+        /* all of it in memory, as read when Search opened */
+        memcpy(&h, names_ram, sizeof(h));
+        p = names_ram + sizeof(h);
+        end = names_ram + names_ram_len;
+        more = false;
+    }
+    else
+    {
+        fd = open(NAMES_FILE, O_RDONLY);
+        if (fd < 0)
+            return false;
+        got = read(fd, chunk, NAMES_CHUNK);
+        if (got < (ssize_t)sizeof(h))
+        {
+            close(fd);
+            return false;
+        }
+        memcpy(&h, chunk, sizeof(h));
+        if (h.version != LETTERS_VERSION || h.commit != tagcache_get_commitid()
+            || h.count < 0)
+        {
+            close(fd);
+            return false;
+        }
+        p = chunk + sizeof(h);
+        end = chunk + got;
+        more = got == NAMES_CHUNK;
+    }
+    names_commit = h.commit;
+    int e;
+    for (e = 0; e < h.count; e++)
+    {
+        if (end - p < ENTRY_MAX && more)
+        {
+            const int rest = end - p;
+            memmove(chunk - rest, p, rest);
+            got = read(fd, chunk, NAMES_CHUNK);
+            if (got < 0)
+                got = 0;
+            more = got == NAMES_CHUNK;
+            p = chunk - rest;
+            end = chunk + got;
+        }
+        if (end - p < 7)
+            break;
+        const int g = p[0], name_len = p[5];
+        const unsigned char *const name = p + 6;
+        const int folded_len = name[name_len];
+        const unsigned char *const folded = name + name_len + 1;
+        if (g >= GROUPS || end - p < 7 + name_len + folded_len)
+            break; /* not as written */
+        const unsigned char *const entry = p;
+        p += 7 + name_len + folded_len;
+
+        if ((e & 255) == 255)
+        {
+            yield();
+            if (stoppable && !button_queue_empty())
+            {
+                *stopped = true;
+                break;
+            }
+        }
+        if (!bytes_match(folded, folded_len, next_letters) || group_full[g])
+            continue;
+        char shown[NAME_BYTES + 1];
+        int32_t idx_id;
+        memcpy(&idx_id, entry + 1, sizeof(idx_id));
+        memcpy(shown, name, name_len);
+        shown[name_len] = '\0';
+        if (!add_result(g, shown, idx_id))
+            group_full[g] = true;
+    }
+    if (fd >= 0)
+        close(fd);
+    return true;
+}
+
+/* through the database: its files of artists, albums and titles, as the names'
+   file has them if it's there. If it may be stopped, a press stops it, and
+   false says so: what it found by then is kept, as not all */
 static bool search_all(bool stoppable)
 {
     char buf[TAGCACHE_BUFSZ];
@@ -482,69 +894,100 @@ static bool search_all(bool stoppable)
     }
     have_results = query_words > 0;
     results_commit = tagcache_get_commitid();
+    memset(next_letters, 0, sizeof(next_letters));
+    next_known = false;
+    /* nothing typed: what begins a word of a name, as Updating Library found */
     if (query_words == 0)
-        return true;
-    bool stopped = false;
-    cpu_boost(true);
-    for (int g = 0; g < GROUPS && !stopped; g++)
     {
-        struct tagcache_search tcs;
-        if (!tagcache_search(&tcs, group_tag[g]))
-            continue;
-        int n = 0;
-        while (tagcache_get_next(&tcs, buf, sizeof(buf)))
+        memcpy(next_letters, word_starts, sizeof(next_letters));
+        next_known = word_starts_known;
+        return true;
+    }
+    bool stopped = false, all_found;
+    cpu_boost(true);
+    if (search_names(stoppable, &stopped))
+        all_found = !stopped; /* every name looked at, past full groups too */
+    else
+    {
+        for (int g = 0; g < GROUPS && !stopped; g++)
         {
-            if ((++n & 255) == 0)
+            struct tagcache_search tcs;
+            if (!tagcache_search(&tcs, group_tag[g]))
+                continue;
+            int n = 0;
+            while (tagcache_get_next(&tcs, buf, sizeof(buf)))
             {
-                yield();
-                if (stoppable && !button_queue_empty())
+                if ((++n & 255) == 0)
                 {
-                    stopped = true;
+                    yield();
+                    if (stoppable && !button_queue_empty())
+                    {
+                        stopped = true;
+                        break;
+                    }
+                }
+                if (!strcmp(buf, UNTAGGED) || !matches(buf, next_letters))
+                    continue;
+                if (!add_result(g, buf, tcs.idx_id))
+                {
+                    group_full[g] = true;
                     break;
                 }
             }
-            if (!strcmp(buf, UNTAGGED) || !matches(buf))
-                continue;
-            if (!add_result(g, buf, tcs.idx_id))
-            {
-                group_full[g] = true;
-                break;
-            }
+            tagcache_search_finish(&tcs);
         }
-        tagcache_search_finish(&tcs);
+        /* The letters that may follow are of all the names that match, and
+           so known only when they all are found: going on past a full group
+           for them, folding each name, made each search four times as long */
+        all_found = !stopped;
+        for (int g = 0; g < GROUPS; g++)
+            all_found = all_found && !group_full[g];
     }
     cpu_boost(false);
     if (stopped)
         have_results = false;
+    next_known = all_found;
+    if (next_known)
+        keep_letters();
     return !stopped;
 }
 
-/* with a letter more, among what matched already */
+/* with a letter more, among what matched already, which is all that does */
 static void search_within(void)
 {
+    memset(next_letters, 0, sizeof(next_letters));
     for (int g = 0; g < GROUPS; g++)
     {
         struct result *r = &results[group_first[g]];
         int kept = 0;
         for (int i = 0; i < group_count[g]; i++)
         {
-            if (matches(pool + r[i].name))
+            if (matches(pool + r[i].name, next_letters))
                 r[kept++] = r[i];
         }
         group_count[g] = kept;
     }
+    next_known = true;
+    keep_letters();
+}
+
+/* what matched before is all that may match now: before, with all of it kept,
+   leads the query, of the same database */
+static bool narrows(const char *before)
+{
+    bool narrower = have_results && before[0]
+                    && !strncmp(query, before, strlen(before))
+                    && results_commit == tagcache_get_commitid();
+    for (int g = 0; g < GROUPS; g++)
+        narrower = narrower && !group_full[g];
+    return narrower;
 }
 
 /* the results, of the query: false if a press stopped that */
 static bool search(const char *before, bool stoppable)
 {
     fold_query();
-    bool narrower = have_results && before[0]
-                    && !strncmp(query, before, strlen(before))
-                    && results_commit == tagcache_get_commitid();
-    for (int g = 0; g < GROUPS; g++)
-        narrower = narrower && !group_full[g];
-    if (!narrower)
+    if (!narrows(before))
         return search_all(stoppable);
     search_within();
     return true;
@@ -702,6 +1145,8 @@ static void make_strip(void)
 {
     struct letters_file f;
     read_letters(&f, false);
+    memcpy(word_starts, f.starts, sizeof(word_starts));
+    word_starts_known = f.version == LETTERS_VERSION;
     int set = 0, native = -1;
     strip.count = 0;
     strip.pitch_font = -1;
@@ -729,6 +1174,13 @@ static void make_strip(void)
         strip.pos = 0;
 }
 
+void music_search_forget(void)
+{
+    remove(LETTERS_FILE);
+    remove(NAMES_FILE);
+    remove(NAMES_TEMP);
+}
+
 bool music_search_letters_stale(void)
 {
     /* none to look through yet: not Updating Library at each start for that */
@@ -736,7 +1188,57 @@ bool music_search_letters_stale(void)
         return false;
     struct letters_file f;
     read_letters(&f, true);
-    return f.version != LETTERS_VERSION;
+    if (f.version != LETTERS_VERSION)
+        return true;
+    /* the names' file is of another database, or its version: none, as when
+       it couldn't be written, and Search goes through the database instead
+       until the next Updating Library, which isn't at each start for it */
+    if (!file_exists(NAMES_FILE))
+        return false;
+    struct names_header h;
+    const int fd = open_names(&h);
+    if (fd < 0)
+        return true;
+    close(fd);
+    return false;
+}
+
+/* What the names' file is gathered in before it's written: the plugins' buffer,
+   free on Updating Library, so that all of it goes in one write, rather than
+   some 140 that began within a sector; names_buf without that */
+static unsigned char *put_buf;
+static int put_size;
+static bool put_flushed; /* some of it written already, the header first */
+
+/* an entry of the names' file into put_buf at *used, written out first if
+   there's no room: false if writing failed */
+static bool put_name(int fd, int *used, int group, int32_t idx_id, const char *name,
+                     const ucschar_t *folded, int n)
+{
+    if (*used + ENTRY_MAX > put_size)
+    {
+        if (write(fd, put_buf, *used) != *used)
+            return false;
+        *used = 0;
+        put_flushed = true;
+    }
+    unsigned char *p = put_buf + *used;
+    /* as long as it may be, cut where a character starts */
+    int name_len = strlen(name);
+    if (name_len > NAME_BYTES)
+    {
+        name_len = NAME_BYTES;
+        while (name_len > 0 && ((unsigned char)name[name_len] & 0xc0) == 0x80)
+            name_len--;
+    }
+    p[0] = group;
+    memcpy(p + 1, &idx_id, sizeof(idx_id));
+    p[5] = name_len;
+    memcpy(p + 6, name, name_len);
+    const int folded_len = folded_bytes(folded, n, p + 7 + name_len, NAME_BYTES);
+    p[6 + name_len] = folded_len;
+    *used += 7 + name_len + folded_len;
+    return true;
 }
 
 void music_search_letters_make(void)
@@ -748,6 +1250,21 @@ void music_search_letters_make(void)
     memset(&f, 0, sizeof(f));
     f.version = LETTERS_VERSION;
     f.commit = tagcache_get_commitid();
+    struct names_header h = { LETTERS_VERSION, f.commit, 0 };
+    remove(NAMES_TEMP);
+    int names_fd = creat(NAMES_TEMP, 0666);
+    size_t room = 0;
+    put_buf = plugin_get_buffer(&room);
+    put_size = room;
+    if (!put_buf || put_size < (int)sizeof(names_buf))
+    {
+        put_buf = names_buf;
+        put_size = sizeof(names_buf);
+    }
+    /* the header first, its count put in at the end */
+    memcpy(put_buf, &h, sizeof(h));
+    int used = sizeof(h);
+    put_flushed = false;
     cpu_boost(true);
     for (int g = 0; g < GROUPS; g++)
     {
@@ -756,26 +1273,50 @@ void music_search_letters_make(void)
             continue;
         while (tagcache_get_next(&tcs, buf, sizeof(buf)))
         {
-            /* to its end and no further, as a character cut off by it would
-               step past it */
-            const unsigned char *p = (const unsigned char *)buf;
-            const unsigned char *const end = p + strlen(buf);
-            while (p < end)
+            if (!strcmp(buf, UNTAGGED))
+                continue;
+            ucschar_t folded[256];
+            const int n = fold_words(buf, folded, ARRAYLEN(folded));
+            for (int i = 0; i < n; i++)
             {
-                ucschar_t c, letters[FOLDED_MAX];
-                p = utf8decode(p, &c);
-                const int count = fold_letters(c, letters);
-                for (int i = 0; i < count; i++)
+                const int bit = letter_bit(folded[i]);
+                if (bit >= 0)
+                    f.present[bit >> 3] |= 1 << (bit & 7);
+                if (folded[i] && (i == 0 || folded[i - 1] == 0))
+                    set_next(f.starts, folded[i]);
+            }
+            if (names_fd >= 0 && n > 0)
+            {
+                if (put_name(names_fd, &used, g, tcs.idx_id, buf, folded, n))
+                    h.count++;
+                else
                 {
-                    const int bit = letter_bit(letters[i]);
-                    if (bit >= 0)
-                        f.present[bit >> 3] |= 1 << (bit & 7);
+                    close(names_fd);
+                    names_fd = -1;
                 }
             }
         }
         tagcache_search_finish(&tcs);
     }
     cpu_boost(false);
+
+    /* whole or not at all: the header, with the count, in it last */
+    bool names_ok;
+    if (!put_flushed)
+    {
+        memcpy(put_buf, &h, sizeof(h));
+        names_ok = names_fd >= 0 && write(names_fd, put_buf, used) == used;
+    }
+    else
+        names_ok = names_fd >= 0 && write(names_fd, put_buf, used) == used
+                   && lseek(names_fd, 0, SEEK_SET) == 0
+                   && write(names_fd, &h, sizeof(h)) == sizeof(h);
+    if (names_fd >= 0 && close(names_fd) < 0)
+        names_ok = false;
+    remove(NAMES_FILE);
+    if (!names_ok || rename(NAMES_TEMP, NAMES_FILE) < 0)
+        remove(NAMES_TEMP);
+
     int fd = creat(LETTERS_FILE, 0666);
     if (fd >= 0)
     {
@@ -804,6 +1345,53 @@ static void delete_char(void)
     query[len] = '\0';
 }
 
+/* the letter at i may come next: a space and the delete always */
+static bool letter_possible(int i)
+{
+    const ucschar_t c = strip.c[i];
+    if (!global_settings.smart_search || !next_known || c <= STRIP_DELETE)
+        return true;
+    const int bit = next_bit(fold(c));
+    return bit < 0 || (next_letters[bit >> 3] & (1 << (bit & 7)));
+}
+
+/* The one chosen, by the wheel: on to the next that may come in that way */
+static void strip_step(int dir)
+{
+    for (int k = 0; k < strip.count; k++)
+    {
+        strip.pos = (strip.pos + dir + strip.count) % strip.count;
+        if (letter_possible(strip.pos))
+            return;
+    }
+}
+
+/* and once what may come next is known, the letter nearest the one chosen that
+   may, if it may not, ahead first; with none of them, as after a whole word,
+   the space */
+static void strip_settle(void)
+{
+    if (letter_possible(strip.pos))
+        return;
+    for (int d = 1; d <= strip.count / 2; d++)
+    {
+        for (int dir = 1; dir >= -1; dir -= 2)
+        {
+            const int i = (strip.pos + dir * d + strip.count) % strip.count;
+            if (strip.c[i] > STRIP_DELETE && letter_possible(i))
+            {
+                strip.pos = i;
+                return;
+            }
+        }
+    }
+    for (int i = 0; i < strip.count; i++)
+    {
+        if (strip.c[i] == STRIP_SPACE)
+            strip.pos = i;
+    }
+}
+
 /* Drawing */
 #define GREY_TEXT  (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa2, 0xa8) \
                                                : LCD_RGBPACK(0x66, 0x66, 0x66))
@@ -811,6 +1399,9 @@ static void delete_char(void)
                                                : LCD_RGBPACK(0xe6, 0xe8, 0xec))
 #define RULE       (global_settings.dark_theme ? LCD_RGBPACK(0x3a, 0x3c, 0x42) \
                                                : LCD_RGBPACK(0xd4, 0xd6, 0xda))
+/* a letter no name goes on with */
+#define DIM_TEXT   (global_settings.dark_theme ? LCD_RGBPACK(0x4a, 0x4c, 0x52) \
+                                               : LCD_RGBPACK(0xc8, 0xca, 0xce))
 
 static struct viewport field_vp, strip_vp, list_vp[NB_SCREENS];
 /* the theme's, as set_foreground() changes the viewport's own */
@@ -966,7 +1557,7 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
             fill_rounded(display, x, y, w, h, global_settings.lss_color,
                          global_settings.lse_color);
     }
-    unsigned colour = GREY_TEXT;
+    unsigned colour = letter_possible(i) ? GREY_TEXT : DIM_TEXT;
     if (chosen && in_results)
         colour = text_colour;
     else if (chosen)
@@ -1032,6 +1623,16 @@ static void draw(void)
     gui_synclist_draw(&lists);
 }
 
+/* the field and the letters, as typed, before the search of it */
+static void draw_query(void)
+{
+    struct screen *display = &screens[SCREEN_MAIN];
+    struct viewport *last = display->set_viewport(NULL);
+    draw_field(display);
+    draw_strip(display);
+    display->set_viewport(last);
+}
+
 /* only the letters, as the wheel goes along them: the list under them as it was */
 static void draw_letters(void)
 {
@@ -1061,7 +1662,10 @@ static void run_search(bool stoppable)
     if (search_waits)
         search_due = current_tick + SEARCH_PAUSE;
     else
+    {
         strcpy(searched, query);
+        strip_settle();
+    }
     list_results();
 }
 
@@ -1228,6 +1832,18 @@ static int open_row(int row)
     return open_result(g, index);
 }
 
+/* Opened from Music, Search starts with nothing typed; come back to from what
+   it found, as from Now Playing, it's as it was left */
+void music_search_new(void)
+{
+    query[0] = '\0';
+    searched[0] = '\0';
+    have_results = false;
+    in_results = false;
+    chosen_row = 0;
+    strip.pos = 0;
+}
+
 int music_search_screen(void *param)
 {
     (void)param;
@@ -1247,6 +1863,13 @@ int music_search_screen(void *param)
     gui_synclist_set_has_children_callback(&lists, row_has_children);
     lists.callback_is_group = row_is_group;
     lists.callback_draw_item = menu_draw_value_line;
+    /* whether the names' file is there for this database, and all of it in
+       memory while Search is open */
+    struct names_header h;
+    const int names_fd = open_names(&h);
+    if (names_fd >= 0)
+        close(names_fd);
+    names_hold();
     /* the results kept for the query, if they're whole and of this database:
        a search of the whole library otherwise */
     run_search(false);
@@ -1308,7 +1931,11 @@ int music_search_screen(void *param)
             {
                 case ACTION_STD_OK:
                     chosen_row = gui_synclist_get_sel_pos(&lists);
+                    /* what it opens may take the plugins' buffer */
+                    names_let_go();
                     ret = open_row(chosen_row);
+                    if (ret == 0)
+                        names_hold();
                     redraw = true;
                     break;
                 case ACTION_STD_CANCEL:
@@ -1335,15 +1962,17 @@ int music_search_screen(void *param)
         {
             case ACTION_STD_NEXT:
             case ACTION_STD_NEXTREPEAT:
-                strip.pos = (strip.pos + 1) % strip.count;
+                strip_step(1);
                 redraw_letters = true;
                 break;
             case ACTION_STD_PREV:
             case ACTION_STD_PREVREPEAT:
-                strip.pos = (strip.pos + strip.count - 1) % strip.count;
+                strip_step(-1);
                 redraw_letters = true;
                 break;
             case ACTION_STD_OK:
+                if (!letter_possible(strip.pos))
+                    break;
                 if (strip.c[strip.pos] == STRIP_DELETE)
                     delete_char();
                 else if (strip.c[strip.pos] == STRIP_SPACE)
@@ -1379,18 +2008,52 @@ int music_search_screen(void *param)
                 ret = GO_TO_ROOT;
                 break;
             default:
+            {
+#ifdef BUTTON_LEFT
+                /* holding Previous deletes all of it, a letter at a time
+                   being slow */
+                int button;
+                get_action_statuscode(&button);
+                if (action == ACTION_UNKNOWN && button == (BUTTON_LEFT | BUTTON_REPEAT))
+                {
+                    query[0] = '\0';
+                    break;
+                }
+#endif
                 if (default_event_handler(action) == SYS_USB_CONNECTED)
                     ret = GO_TO_ROOT;
                 break;
+            }
         }
         if (strcmp(before, query))
         {
-            search_waits = true;
-            search_due = current_tick + SEARCH_PAUSE;
+            /* A letter more, among the names found, is quick: at once, and the
+               letters that may follow with it. So is the whole library through
+               its names' file, if a press doesn't stop it. Without that, once
+               the typing pauses, with all the letters meanwhile. */
+            if (narrows(searched) || !query[0])
+                run_search(false);
+            else if (names_commit == tagcache_get_commitid())
+            {
+                /* the letter in the field first, as the search takes a moment;
+                   all of it, as the letters that may follow are wanted as the
+                   wheel turns on, which stopped it */
+                draw_query();
+                run_search(false);
+            }
+            else
+            {
+                search_waits = true;
+                search_due = current_tick + SEARCH_PAUSE;
+                next_known = false;
+                if (kept_letters_back())
+                    strip_settle();
+            }
             redraw = true;
         }
     }
 
+    names_let_go();
     if (!was_wide)
         menu_set_wide(false);
     if (ret == GO_TO_WPS)

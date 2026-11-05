@@ -2705,6 +2705,9 @@ const struct settings_list settings[] = {
        CPU from them while it plays */
     OFFON_SETTING(0, coverflow_pause, LANG_COVER_FLOW_PAUSE, true,
                   "cover flow pause", NULL),
+    /* on: Search greys the letters no name goes on with, and the wheel goes
+       past them; off, a plain row of letters */
+    OFFON_SETTING(0, smart_search, LANG_SMART_SEARCH, true, "smart search", NULL),
 #ifdef HAVE_PITCHCONTROL
     /* the stock iPod's Audiobooks setting: the speed of audiobooks only */
     CHOICE_SETTING(0, audiobook_speed, LANG_AUDIOBOOKS, 1,

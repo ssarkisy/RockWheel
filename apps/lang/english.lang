@@ -17412,20 +17412,6 @@
   </voice>
 </phrase>
 <phrase>
-  id: LANG_ADVANCED
-  desc: in the settings, the Rockbox settings beyond the stock ones
-  user: core
-  <source>
-    *: "Advanced"
-  </source>
-  <dest>
-    *: "Advanced"
-  </dest>
-  <voice>
-    *: "Advanced"
-  </voice>
-</phrase>
-<phrase>
   id: LANG_SLEEP_TIMER_MINUTES
   desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
   user: core
@@ -18095,20 +18081,6 @@
   </dest>
   <voice>
     *: "Minesweeper"
-  </voice>
-</phrase>
-<phrase>
-  id: LANG_DISK_TIDY
-  desc: in Settings > Advanced: removes the files macOS and Windows leave
-  user: core
-  <source>
-    *: "Clean Up Disk"
-  </source>
-  <dest>
-    *: "Clean Up Disk"
-  </dest>
-  <voice>
-    *: "Clean Up Disk"
   </voice>
 </phrase>
 <phrase>
@@ -19016,6 +18988,20 @@
   </source>
   <dest>
     *: "Folders"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SMART_SEARCH
+  desc: a setting of General: Search greys the letters no name goes on with, and the wheel goes past them
+  user: core
+  <source>
+    *: "Smart Search"
+  </source>
+  <dest>
+    *: "Smart Search"
   </dest>
   <voice>
     *: ""

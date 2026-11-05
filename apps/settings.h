@@ -901,6 +901,7 @@ struct user_settings
     /* When resuming playback (after a stop), rewind this number of seconds */
     int resume_rewind;
     bool coverflow_pause; /* Cover Flow pauses the music while it's open */
+    bool smart_search; /* Search greys the letters no name goes on with */
 #ifdef HAVE_PITCHCONTROL
     int audiobook_speed; /* 0 slower, 1 normal, 2 faster */
 #endif

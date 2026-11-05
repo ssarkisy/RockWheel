@@ -257,6 +257,9 @@ static int filemenu_callback(int action,
 #if BATTERY_CAPACITY_INC > 0
 MENUITEM_SETTING_SHARED(battery_capacity, &global_settings.battery_capacity, NULL);
 #endif
+#ifdef HAVE_TAGCACHE
+MENUITEM_SETTING_SHARED(smart_search_item, &global_settings.smart_search, NULL);
+#endif
 
 #ifdef HAVE_USB_CHARGING_ENABLE
 static int usbcharging_callback(int action,

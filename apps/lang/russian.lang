@@ -17186,20 +17186,6 @@
   </voice>
 </phrase>
 <phrase>
-  id: LANG_ADVANCED
-  desc: in the settings, the Rockbox settings beyond the stock ones
-  user: core
-  <source>
-    *: "Advanced"
-  </source>
-  <dest>
-    *: "Расширенные"
-  </dest>
-  <voice>
-    *: "Расширенные"
-  </voice>
-</phrase>
-<phrase>
   id: LANG_CLOCK
   desc: in the Extras menu
   user: core
@@ -17939,20 +17925,6 @@
   </dest>
   <voice>
     *: "Сапёр"
-  </voice>
-</phrase>
-<phrase>
-  id: LANG_DISK_TIDY
-  desc: in Settings > Advanced: removes the files macOS and Windows leave
-  user: core
-  <source>
-    *: "Clean Up Disk"
-  </source>
-  <dest>
-    *: "Уборка диска"
-  </dest>
-  <voice>
-    *: "Уборка диска"
   </voice>
 </phrase>
 <phrase>
@@ -18860,6 +18832,20 @@
   </source>
   <dest>
     *: "Папки"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SMART_SEARCH
+  desc: a setting of General: Search greys the letters no name goes on with, and the wheel goes past them
+  user: core
+  <source>
+    *: "Smart Search"
+  </source>
+  <dest>
+    *: "Умный поиск"
   </dest>
   <voice>
     *: ""

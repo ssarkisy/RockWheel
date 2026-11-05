@@ -698,6 +698,9 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
 #endif
         &dark_theme_item, &night_row,
         &group_general,
+#ifdef HAVE_TAGCACHE
+        &smart_search_item,
+#endif
         &ipod_keyclick_menu, &sleep_timer_item,
 #if CONFIG_RTC
         &timedate_item,

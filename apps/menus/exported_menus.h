@@ -75,7 +75,7 @@ extern const struct menu_item_ex
         battery_capacity, ipod_keyclick_menu,       /* settings_menu.c  */
         sleep_timer_item, language_item,
 #ifdef HAVE_TAGCACHE
-        ipod_database_menu,
+        ipod_database_menu, smart_search_item,
 #endif
         browse_themes;                              /* theme_menu.c     */
 
