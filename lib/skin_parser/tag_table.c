@@ -169,9 +169,8 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_DISK_USED,             "nu", BAR_PARAMS, SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_MENU_SETTINGS_SELECTED, "LS", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_MENU_WIDE,             "LW", "", SKIN_REFRESH_DYNAMIC),
-    /* the volume limit, as "Volume Limit: 80%", if one is set; the volume, as
-       "Volume: 62%", by the share of the volume bar; Night Mode on */
-    TAG(SKIN_TOKEN_VOLUME_LIMIT,          "nV", "", SKIN_REFRESH_DYNAMIC),
+    /* the volume by the share of the volume bar, as "Volume: 62%", or with
+       the limit, if one is set, as "Volume: 62/80%"; Night Mode on */
     TAG(SKIN_TOKEN_VOLUME_PERCENT,        "nv", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_NIGHT_MODE,            "nN", "", SKIN_REFRESH_DYNAMIC),
 

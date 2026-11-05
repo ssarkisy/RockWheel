@@ -564,7 +564,9 @@ static void wps_lcd_activation_hook(unsigned short id, void *param)
 static long mode_last_used;
 static long scrub_last_turn;
 static bool scrub_pending = false;
-static bool scrub_moved = false; /* the wheel turned in this scrubber view */
+/* the wheel scrubbed in this scrubber view, or changed the rating in this
+   rating view */
+static bool mode_moved = false;
 static bool mode_track_changed = false; /* set from the playback thread */
 
 /* the skin's viewport the lyrics are drawn in, from the WPS code as skins
@@ -643,7 +645,7 @@ static void scrub_apply(void)
 static void set_display_mode(enum wps_display_mode mode)
 {
     scrub_apply();
-    scrub_moved = false;
+    mode_moved = false;
     get_wps_state()->display_mode = mode;
     mode_last_used = current_tick;
     skin_request_full_update(WPS);
@@ -726,7 +728,7 @@ static void display_mode_turn(int direction)
         pos = MAX(0, MIN(pos, (long)id3->length - 1000));
         state->ff_rewind_count = pos - id3->elapsed;
         scrub_pending = true;
-        scrub_moved = true;
+        mode_moved = true;
         scrub_last_turn = current_tick;
     }
 #ifdef HAVE_TAGCACHE
@@ -734,7 +736,10 @@ static void display_mode_turn(int direction)
     {
         /* whole stars only, stored on the 0..10 database scale */
         int stars = (id3->rating + 1) / 2 + direction;
-        id3->rating = MAX(0, MIN(stars, 5)) * 2;
+        stars = MAX(0, MIN(stars, 5));
+        if (stars * 2 != id3->rating)
+            mode_moved = true;
+        id3->rating = stars * 2;
         tagcache_update_numeric(id3->tagcache_idx - 1, tag_rating, id3->rating);
     }
 #endif
@@ -1153,9 +1158,10 @@ long gui_wps_show(void)
                 break;
 
             case ACTION_WPS_NEXT_MODE:
-                /* after a scrub, back to the track rather than on to its
-                   cover */
-                if (state->display_mode == WPS_MODE_SCRUB && scrub_moved)
+                /* after a scrub or a rating, back to the track rather than
+                   on to its next view */
+                if ((state->display_mode == WPS_MODE_SCRUB
+                     || state->display_mode == WPS_MODE_RATING) && mode_moved)
                     set_display_mode(WPS_MODE_VOLUME);
                 else
                     next_display_mode();

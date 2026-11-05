@@ -1665,20 +1665,11 @@ const char *get_token_value(struct gui_wps *gwps,
 #endif
         case SKIN_TOKEN_MENU_WIDE:
             return menu_wide() ? "w" : NULL;
-        case SKIN_TOKEN_VOLUME_LIMIT:
-        {
-            if (global_settings.volume_limit >= sound_max(SOUND_VOLUME))
-                return NULL;
-            char value[16];
-            snprintf(buf, buf_size, "%s: %s", str(LANG_VOLUME_LIMIT),
-                     format_volume_step(value, sizeof(value),
-                                        global_settings.volume_limit));
-            return buf;
-        }
         case SKIN_TOKEN_VOLUME_PERCENT:
         {
             /* as much of the bar as it fills, rounded, or a step of the limit's
-               as the limit says it, so that the volume at a limit of 80% says 80% */
+               as the limit says it, so that the volume at a limit of 80% says 80%;
+               then the limit, if one is set */
             long percent = -1;
             for (int i = 0; i < VOLUME_STEPS; i++)
             {
@@ -1689,7 +1680,15 @@ const char *get_token_value(struct gui_wps *gwps,
                 percent = (to_normalized_volume(global_status.volume,
                                                 sound_min(SOUND_VOLUME),
                                                 sound_max(SOUND_VOLUME), 1000) + 5) / 10;
-            snprintf(buf, buf_size, "%s: %ld%%", str(LANG_VOLUME), percent);
+            if (global_settings.volume_limit < sound_max(SOUND_VOLUME))
+            {
+                char limit[16];
+                snprintf(buf, buf_size, "%s: %ld/%s", str(LANG_VOLUME), percent,
+                         format_volume_step(limit, sizeof(limit),
+                                            global_settings.volume_limit));
+            }
+            else
+                snprintf(buf, buf_size, "%s: %ld%%", str(LANG_VOLUME), percent);
             return buf;
         }
         case SKIN_TOKEN_NIGHT_MODE:

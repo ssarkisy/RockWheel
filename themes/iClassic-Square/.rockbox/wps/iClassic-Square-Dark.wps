@@ -140,10 +140,9 @@
 %xl(v,Volume Left.bmp,0,0)
 %Vl(volume,34,204,13,19,-)
 %xd(v)
-# under the bar: the volume while it's turned and a second after, then the limit, if
-# one is set
+# under the bar: the volume, and the limit, if one is set
 %Vl(volume,58,227,204,13,2)%Vf(F2F2F6)
-%ac%?mv(1.0)<%nv|%?nV<%nV|%nv>>
+%ac%nv
 %Vl(pb,0,207,45,14,2)%Vf(F2F2F6)
 %ar%pc
 %Vl(pb,273,207,47,14,2)%Vf(F2F2F6)
