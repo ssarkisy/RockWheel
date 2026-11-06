@@ -1304,7 +1304,6 @@ void music_search_letters_make(void (*progress)(int done, int total))
         }
         tagcache_search_finish(&tcs);
     }
-    cpu_boost(false);
 
     /* whole or not at all: the header, with the count, in it last */
     bool names_ok;
@@ -1322,6 +1321,9 @@ void music_search_letters_make(void (*progress)(int done, int total))
         remove(NAMES_FILE);
 
     whole_file_write(LETTERS_FILE, &f, sizeof(f));
+    /* after the files too: the iPod writes as fast as its CPU goes, and at
+       30 MHz the names' 650 KB took 2 s */
+    cpu_boost(false);
 }
 
 static void add_char(ucschar_t c)
