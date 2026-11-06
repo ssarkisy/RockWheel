@@ -4597,6 +4597,10 @@ static void update_scroll_animation(void)
         index++;
     if (center_index != index) {
         center_index = index;
+        /* one waiting is enough: past album after album, quicker than the
+           slide thread read their covers, as from songs with no cover made,
+           they filled its queue, and the plugin stopped on it */
+        rb->queue_remove_from_head(&thread_q, EV_WAKEUP);
         rb->queue_post(&thread_q, EV_WAKEUP, 0);
         center_slide.slide_index = center_index;
         for (i = 0; i < pf_cfg.num_slides; i++)
