@@ -2730,8 +2730,12 @@ int dircache_search(unsigned int flags, struct dircache_fileref *dcfrefp,
         {
             if (ffcache == 0)
             {
-                /* checked storage too: absent for sure */
-                FILE_ERROR(rc2 ? ERRNO : ENOENT, rc2 * 10 - 5);
+                /* checked storage too: absent for sure. ERRNO keeps errno
+                   only as a constant: chosen at run time, it set it to 0
+                   for a path whose folder was gone */
+                if (rc2 == 0)
+                    FILE_ERROR(ENOENT, -5);
+                FILE_ERROR(ERRNO, rc2 * 10 - 5);
             }
 
             if (rc2 < 0)

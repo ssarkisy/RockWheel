@@ -5991,6 +5991,23 @@ static bool hidden_path(const char *path)
 static bool check_skips_synced;
 #endif
 
+#ifdef HAVE_DIRCACHE
+/* whether the volume of the path is mounted: the files of one that isn't are
+   said to be gone too */
+static bool path_volume_mounted(const char *path)
+{
+#ifdef HAVE_MULTIVOLUME
+    const char *rest;
+    const int volume = path_strip_volume(path, &rest, false);
+    if (volume != ROOT_VOLUME && volume >= 0)
+        return volume_ismounted(volume);
+#else
+    (void)path;
+#endif
+    return true;
+}
+#endif
+
 static bool check_deleted_file_refs(bool auto_update)
 {
     int fd;
@@ -6093,7 +6110,9 @@ static bool check_deleted_file_refs(bool auto_update)
         }
         else if (rc_cache == 0)     /* not in cache but okay */
         {;}
-        else if (auto_update && rc_cache == ENOENT)
+        /* a file that isn't there fails with ENOENT in errno: compared with
+           the result itself, none was ever removed */
+        else if (auto_update && errno == ENOENT && path_volume_mounted(buf))
 #else
         if (!file_exists(buf))
 #endif /* HAVE_DIRCACHE */
