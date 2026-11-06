@@ -107,6 +107,11 @@ int button_wheel_steps(const unsigned int data);
    driver has them, and not in degrees a second */
 bool button_wheel_staged(const unsigned int data);
 #define WHEEL_DATA_STAGED (1u << 23)
+/* Steps of the wheel half as far, for the volume in Now Playing: its hundred
+   steps in the two turns its fifty took. Only a driver with fine steps has
+   them, the click wheel's */
+void button_wheel_fine(bool fine);
+bool button_wheel_is_fine(void);
 /* the most rows a step goes by the wheel's stages, in a list of up to 500 */
 #define WHEEL_STAGE_ROWS 8
 #endif

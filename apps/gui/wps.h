@@ -63,6 +63,9 @@ void wps_do_action(enum wps_do_action_type, bool updatewps);
 #define wps_do_playpause(update) wps_do_action(WPS_PLAYPAUSE, update)
 
 struct wps_state *get_wps_state(void);
+/* whether the wheel goes through the volume in Now Playing's view, and not the
+   track, the lyrics or the rating */
+bool wps_wheel_is_volume(void);
 
 /* in milliseconds */
 #define DEFAULT_SKIP_THRESH          3000l

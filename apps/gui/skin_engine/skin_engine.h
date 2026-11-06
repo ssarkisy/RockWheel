@@ -52,6 +52,9 @@ void skin_disarm_touchregions(struct gui_wps *gwps);
 /* Do a update_type update of the skinned screen */
 void skin_update(enum skinnable_screens skin, enum screen_type screen,
                  unsigned int update_type);
+void skin_update_volume(enum skinnable_screens skin, enum screen_type screen);
+/* the volume changed: its bar drawn, now or at its frame's time */
+void skin_volume_changed(enum skinnable_screens skin, enum screen_type screen);
 void skin_mark_dirty(enum screen_type screen);
 bool skin_is_dirty(enum screen_type screen);
 void skin_forget_shown(void);

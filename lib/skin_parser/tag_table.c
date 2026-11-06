@@ -171,7 +171,7 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_MENU_WIDE,             "LW", "", SKIN_REFRESH_DYNAMIC),
     /* the volume by the share of the volume bar, as "Volume: 62%", or with
        the limit, if one is set, as "Volume: 62/80%"; Night Mode on */
-    TAG(SKIN_TOKEN_VOLUME_PERCENT,        "nv", "", SKIN_REFRESH_DYNAMIC),
+    TAG(SKIN_TOKEN_VOLUME_PERCENT,        "nv", "", SKIN_REFRESH_DYNAMIC|SKIN_REFRESH_VOLUME),
     TAG(SKIN_TOKEN_NIGHT_MODE,            "nN", "", SKIN_REFRESH_DYNAMIC),
 
     TAG(SKIN_TOKEN_PEAKMETER,             "pm", "", SKIN_REFRESH_PEAK_METER),
@@ -180,7 +180,7 @@ static const struct tag_info legal_tags[] =
 
     TAG(SKIN_TOKEN_PLAYER_PROGRESSBAR,    "pf", "", SKIN_REFRESH_DYNAMIC|SKIN_REFRESH_PLAYER_PROGRESS),
     TAG(SKIN_TOKEN_PROGRESSBAR,           "pb" , BAR_PARAMS, SKIN_REFRESH_PLAYER_PROGRESS),
-    TAG(SKIN_TOKEN_VOLUME,                "pv" , BAR_PARAMS, SKIN_REFRESH_DYNAMIC),
+    TAG(SKIN_TOKEN_VOLUME,                "pv" , BAR_PARAMS, SKIN_REFRESH_DYNAMIC|SKIN_REFRESH_VOLUME),
     TAG(SKIN_TOKEN_TRACK_ELAPSED_PERCENT, "px", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_TRACK_TIME_ELAPSED,    "pc", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_TRACK_TIME_REMAINING,  "pr", "", SKIN_REFRESH_DYNAMIC),

@@ -953,6 +953,11 @@ int plugin_load(const char* plugin, const void* parameter)
 
     /* its screen without a slide to it */
     transition_cancel();
+#ifdef HAVE_WHEEL_ACCELERATION
+    /* and the wheel's steps whole, as from Now Playing's volume by a hotkey:
+       a plugin that reads the buttons itself kept the fine ones */
+    button_wheel_fine(false);
+#endif
 
     /* for some plugins, the SBS can be left enabled */
     const char *sepch = strrchr(plugin, PATH_SEPCH);

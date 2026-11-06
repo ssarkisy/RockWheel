@@ -873,6 +873,49 @@ void skin_render_viewport(struct skin_element* viewport, struct gui_wps *gwps,
     wps_display_images(gwps, &skin_viewport->vp);
 }
 
+/* whether the lines from this one on have a tag of that refresh type */
+static bool lines_refresh(struct skin_element *line, unsigned flag)
+{
+    for (; line; line = SKINOFFSETTOPTR(skin_buffer, line->next))
+    {
+        switch (line->type)
+        {
+            case TAG:
+            case CONDITIONAL:
+                if (line->tag && (line->tag->flags & flag))
+                    return true;
+                if (line->type == TAG)
+                    break;
+                /* fall through */
+            case LINE:
+            case LINE_ALTERNATOR:
+                for (int i = 0; i < line->children_count; i++)
+                {
+                    if (lines_refresh(get_child(line->children, i), flag))
+                        return true;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    return false;
+}
+
+/* what an update of the volume alone drew, on the screen */
+static struct { int x0, y0, x1, y1; } volume_area;
+
+bool skin_render_volume_area(int *x, int *y, int *width, int *height)
+{
+    if (volume_area.x1 <= volume_area.x0 || volume_area.y1 <= volume_area.y0)
+        return false;
+    *x = volume_area.x0;
+    *y = volume_area.y0;
+    *width = volume_area.x1 - volume_area.x0;
+    *height = volume_area.y1 - volume_area.y0;
+    return true;
+}
+
 void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
 {
     const int vp_is_appearing = (VP_DRAW_WASHIDDEN|VP_DRAW_HIDEABLE);
@@ -885,6 +928,7 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
 
     int old_refresh_mode = refresh_mode;
     skin_buffer = get_skin_buffer(gwps->data);
+    volume_area.x0 = volume_area.y0 = volume_area.x1 = volume_area.y1 = 0;
 
 #ifdef HAVE_ALBUMART
     if (data->playback_aa_slot >= 0 && data == skin_get_gwps(WPS, SCREEN_MAIN)->data
@@ -896,6 +940,10 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
         display->clear_viewport();
     }
 #endif
+
+    /* the volume alone: only the viewports that show it, the rest as it is
+       (not if the colours above had all of it drawn again) */
+    const bool volume_only = refresh_mode == SKIN_REFRESH_VOLUME;
 
     /* Framebuffer is likely dirty */
     if ((refresh_mode&SKIN_REFRESH_ALL) == SKIN_REFRESH_ALL)
@@ -928,6 +976,16 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
         /* SETUP */
         skin_viewport = SKINOFFSETTOPTR(skin_buffer, viewport->data);
         if (!skin_viewport) continue;
+        if (volume_only
+            && ((skin_viewport->hidden_flags & (VP_NEVER_VISIBLE|VP_DRAW_HIDDEN))
+                || !viewport->children_count
+                || !lines_refresh(get_child(viewport->children, 0),
+                                  SKIN_REFRESH_VOLUME)))
+        {
+            /* as after any viewport: the default one's 0 isn't the next's */
+            refresh_mode = old_refresh_mode;
+            continue;
+        }
         unsigned vp_refresh_mode = refresh_mode;
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && LCD_REMOTE_DEPTH > 1)
         if (skin_viewport->output_to_backdrop_buffer)
@@ -968,6 +1026,25 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
         if (viewport->children_count)
             skin_render_viewport(get_child(viewport->children, 0), gwps,
                                  skin_viewport, vp_refresh_mode);
+        if (volume_only)
+        {
+            const struct viewport *vp = &skin_viewport->vp;
+            const int x0 = MAX(vp->x, 0), y0 = MAX(vp->y, 0);
+            const int x1 = MIN(vp->x + vp->width, display->lcdwidth);
+            const int y1 = MIN(vp->y + vp->height, display->lcdheight);
+            if (volume_area.x1 <= volume_area.x0)
+            {
+                volume_area.x0 = x0; volume_area.y0 = y0;
+                volume_area.x1 = x1; volume_area.y1 = y1;
+            }
+            else
+            {
+                volume_area.x0 = MIN(volume_area.x0, x0);
+                volume_area.y0 = MIN(volume_area.y0, y0);
+                volume_area.x1 = MAX(volume_area.x1, x1);
+                volume_area.y1 = MAX(volume_area.y1, y1);
+            }
+        }
         refresh_mode = old_refresh_mode;
     }
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && (LCD_REMOTE_DEPTH > 1))

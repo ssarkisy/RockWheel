@@ -1671,7 +1671,17 @@ const char *get_token_value(struct gui_wps *gwps,
                as the limit says it, so that the volume at a limit of 80% says 80%;
                then the limit, if one is set */
             long percent = -1;
-            for (int i = 0; i < VOLUME_STEPS; i++)
+#ifdef HAVE_PERCEPTUAL_VOLUME
+            /* by the volume's step of the bar's even ones, a step of the
+               wheel's each: as it fills the bar */
+            if (global_settings.volume_adjust_mode == VOLUME_ADJUST_PERCEPTUAL)
+            {
+                int count;
+                const int step = volume_get_step(&count);
+                percent = (step * 100L + count / 2) / MAX(count, 1);
+            }
+#endif
+            for (int i = 0; percent < 0 && i < VOLUME_STEPS; i++)
             {
                 if (volume_steps[i] == global_status.volume)
                     percent = 100 - 5 * i;

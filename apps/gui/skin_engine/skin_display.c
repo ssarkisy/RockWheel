@@ -75,7 +75,11 @@
 
 static bool dirty[NB_SCREENS];
 
+/* when all that changes of a skin was last drawn */
+static long dynamic_tick[SKINNABLE_SCREENS_COUNT];
+
 void skin_render(struct gui_wps *gwps, unsigned refresh_mode);
+bool skin_render_volume_area(int *x, int *y, int *width, int *height);
 
 bool skin_is_dirty(enum screen_type screen)
 {
@@ -121,6 +125,36 @@ static uint32_t skin_pixels(struct gui_wps *gwps, enum skinnable_screens skin,
     }
     char *const buffer = get_skin_buffer(gwps->data);
     struct skin_element *viewport = SKINOFFSETTOPTR(buffer, gwps->data->tree);
+    if (skin != CUSTOM_STATUSBAR)
+    {
+        /* Now Playing, which has the screen to itself: all of it, two pixels a
+           word. By its viewports, a pixel at a time and those that overlap
+           again, it took 36 ms on the iPod, more than putting the screen on it,
+           five times a second, and its volume bar went by fits */
+        for (; viewport; viewport = SKINOFFSETTOPTR(buffer, viewport->next))
+        {
+            const struct skin_viewport *svp = SKINOFFSETTOPTR(buffer, viewport->data);
+            if (svp && !(svp->hidden_flags & (VP_NEVER_VISIBLE | VP_DRAW_HIDDEN))
+                && svp->output_to_backdrop_buffer)
+            {
+                *known = false;
+                return 0;
+            }
+        }
+        for (int y = 0; y < LCD_HEIGHT; y++)
+        {
+            const uint32_t *word = (const uint32_t *)FBADDR(0, y);
+            for (size_t n = LCD_WIDTH * sizeof(fb_data) / sizeof(*word);
+                 n >= 4; n -= 4, word += 4)
+            {
+                h = (h ^ word[0]) * 16777619u;
+                h = (h ^ word[1]) * 16777619u;
+                h = (h ^ word[2]) * 16777619u;
+                h = (h ^ word[3]) * 16777619u;
+            }
+        }
+        return h;
+    }
     for (int n = 0; viewport; viewport = SKINOFFSETTOPTR(buffer, viewport->next), n++)
     {
         const struct skin_viewport *svp = SKINOFFSETTOPTR(buffer, viewport->data);
@@ -181,6 +215,8 @@ void skin_update(enum skinnable_screens skin, enum screen_type screen,
 
     const bool full = skin_do_full_update(skin, screen);
     skin_render(gwps, full ? SKIN_REFRESH_ALL : update_type);
+    if (update_type & SKIN_REFRESH_DYNAMIC)
+        dynamic_tick[skin] = current_tick;
 #if LCD_DEPTH == 16
     if (screen == SCREEN_MAIN)
     {
@@ -195,6 +231,36 @@ void skin_update(enum skinnable_screens skin, enum screen_type screen,
     }
 #endif
     skin_mark_dirty(screen);
+}
+
+/* Only what shows the volume drawn again, and only that put on the screen, as
+   the wheel turns it. All of Now Playing drawn for each step, and all of the
+   screen put on it, the bar went by fits and starts. Not shown, as on the
+   first step after a while, all that changes is drawn, which shows it. */
+void skin_update_volume(enum skinnable_screens skin, enum screen_type screen)
+{
+    struct gui_wps *gwps = skin_get_gwps(skin, screen);
+    int x, y, width, height;
+    if (skin_do_full_update(skin, screen))
+        skin_request_full_update(skin);
+    /* the rest as often as Now Playing's own updates: the wheel turning on,
+       they waited for it to stop, the time and the scrolling lines */
+    else if (TIME_BEFORE(current_tick, dynamic_tick[skin] + HZ/5))
+    {
+        skin_render(gwps, SKIN_REFRESH_VOLUME);
+        if (skin_render_volume_area(&x, &y, &width, &height))
+        {
+            /* of the screen, whatever the viewport */
+            gwps->display->update_rect(x, y, width, height);
+#if LCD_DEPTH == 16
+            /* the screen isn't as the last hash of it has it */
+            if (screen == SCREEN_MAIN)
+                shown_known[skin] = false;
+#endif
+            return;
+        }
+    }
+    skin_update(skin, screen, SKIN_REFRESH_NON_STATIC);
 }
 
 #ifdef AB_REPEAT_ENABLE
@@ -506,27 +572,36 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
     gwps->display->bmp_part(bm, src_x, src_y, x, y, width, height);
 }
 
-/* The volume bar glides to the volume rather than jump a step at a time:
-   what it shows, in thousandths of its length, and when it last drew */
-static int volume_shown = -1;
+/* When the volume bar was last drawn, a change of the volume to draw still, and
+   when it came */
 static long volume_shown_tick;
-static bool volume_gliding;
+static bool volume_pending;
+static long volume_changed_tick;
 
-static unsigned long volume_bar_end(unsigned long target)
+/* the bar's frames at most, apart: the BCM puts all of the screen on the panel
+   at each, in more than a frame's time */
+#define VOLUME_FRAME_TICKS 2
+
+static unsigned long volume_bar_end(unsigned long end)
 {
-    /* drawn afresh after a while, it starts at the volume */
-    if (volume_shown < 0 || TIME_AFTER(current_tick, volume_shown_tick + HZ/2))
-        volume_shown = target;
-    else if (volume_shown != (int)target)
-    {
-        /* a third of the way each frame */
-        int d = (int)target - volume_shown;
-        int step = d / 3;
-        volume_shown += step ? step : (d > 0 ? 1 : -1);
-    }
     volume_shown_tick = current_tick;
-    volume_gliding = volume_shown != (int)target;
-    return volume_shown;
+    volume_pending = false;
+    return end;
+}
+
+void skin_volume_changed(enum skinnable_screens skin, enum screen_type screen)
+{
+    /* At once, unless it was drawn less than a frame's time ago: then at the
+       frame's time. A step of the bar a step of the wheel, all of them the
+       same, it goes as the wheel does without gliding between: the glide
+       didn't feel quick, and steps of 1 to 4% of it went by fits */
+    if (!TIME_BEFORE(current_tick, volume_shown_tick + VOLUME_FRAME_TICKS))
+        skin_update_volume(skin, screen);
+    else
+    {
+        volume_pending = true;
+        volume_changed_tick = current_tick;
+    }
 }
 
 void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
@@ -557,6 +632,15 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         int minvol = sound_min(SOUND_VOLUME);
         int maxvol = sound_max(SOUND_VOLUME);
         length = 1000;
+#ifdef HAVE_PERCEPTUAL_VOLUME
+        if (global_settings.volume_adjust_mode == VOLUME_ADJUST_PERCEPTUAL)
+        {
+            /* by the volume's step of the bar's even ones */
+            int count;
+            end = volume_get_step(&count) * length / MAX(count, 1);
+        }
+        else
+#endif
 #if defined(HAVE_PERCEPTUAL_VOLUME) || defined(HAVE_TOUCHSCREEN)
         end = to_normalized_volume(global_status.volume, minvol, maxvol, length);
 #else
@@ -1740,7 +1824,7 @@ int skin_wait_for_action(enum skinnable_screens skin, int context, int timeout)
     bool peak_meter_enabled = false;
     FOR_NB_SCREENS(i)
         peak_meter_enabled |= skin_get_gwps(skin, i)->data->peak_meter_enabled;
-    if (!peak_meter_enabled && !volume_gliding)
+    if (!peak_meter_enabled && !volume_pending)
         return get_action(context, timeout);
 
     long next_refresh = current_tick;
@@ -1755,17 +1839,17 @@ int skin_wait_for_action(enum skinnable_screens skin, int context, int timeout)
         peak_meter_peek(); /* Read peak values */
         sleep(0); /* Sleep until end of current tick. */
 
-        /* the volume bar until it's at the volume, every other tick; not
-           drawn for a while, it's hidden */
-        if (volume_gliding)
+        /* a change of the volume, at its frame's time; not drawn after a
+           while, the bar isn't there */
+        if (volume_pending)
         {
-            if (TIME_AFTER(current_tick, volume_shown_tick + HZ/10))
-                volume_gliding = false;
-            else if (!(current_tick & 1))
+            if (TIME_AFTER(current_tick, volume_changed_tick + HZ/10))
+                volume_pending = false;
+            else if (!TIME_BEFORE(current_tick, volume_shown_tick + VOLUME_FRAME_TICKS))
                 FOR_NB_SCREENS(i)
-                    skin_update(skin, i, SKIN_REFRESH_DYNAMIC);
+                    skin_update_volume(skin, i);
         }
-        if (!peak_meter_enabled && !volume_gliding)
+        if (!peak_meter_enabled && !volume_pending)
             return get_action(context, TIME_BEFORE(current_tick, timeout_tick)
                                        ? timeout_tick - current_tick : 0);
 

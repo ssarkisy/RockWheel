@@ -46,6 +46,8 @@
 #include "viewport.h"
 #endif
 #include "transition.h"
+#include "wps.h"
+#include "plugin.h"
 
 #ifdef HAVE_BACKLIGHT
 #include "backlight.h"
@@ -1198,6 +1200,13 @@ static int get_action_worker(action_last_t *last, action_cur_t *cur)
         return ACTION_REDRAW;
 
     wake_screen_context(cur->context);
+#ifdef HAVE_WHEEL_ACCELERATION
+    /* the wheel's steps half as far where they're the volume's, a step of its
+       hundred each; elsewhere as ever, in the screens opened from Now Playing
+       too, as each takes its actions */
+    button_wheel_fine((cur->context & ~ALLOW_SOFTLOCK) == CONTEXT_WPS
+                      && wps_wheel_is_volume() && !plugin_is_running());
+#endif
 
     /* the main menu asks right after the screen it ended: a later call is of
        another way to Now Playing */

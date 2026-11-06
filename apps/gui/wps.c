@@ -688,6 +688,13 @@ static void follow_track_change(void)
 }
 
 /* The wheel in the scrubber, lyrics and rating views */
+bool wps_wheel_is_volume(void)
+{
+    const int mode = get_wps_state()->display_mode;
+    return mode != WPS_MODE_SCRUB && mode != WPS_MODE_LYRICS
+        && mode != WPS_MODE_RATING;
+}
+
 /* The wheel's steps of the press, those the UI was too busy to take included:
    a volume's and a scrub's step each, without its acceleration */
 static int wheel_steps(void)
@@ -1179,17 +1186,21 @@ long gui_wps_show(void)
                 }
                 /* which sets it too: once, as each write to the codec waits on
                    its bus, and the decoder takes the processor meanwhile */
-                /* three steps at most: after the UI stood still, a turn's
-                   steps came at once, 24 dB louder in one */
-                if (button == ACTION_WPS_VOLUP)
-                    adjust_volume(MIN(wheel_steps(), 3));
-                else
-                    adjust_volume(-MIN(wheel_steps(), 3));
+                {
+                    /* the wheel's fine steps, six at most, three of its whole
+                       ones: after the UI stood still, a turn's steps came at
+                       once, 24 dB louder in one. A button's, as the remote's,
+                       two of the hundred, as before them */
+                    int steps = 2;
+#ifdef HAVE_WHEEL_ACCELERATION
+                    if (get_action_data() & (1u << 31))
+                        steps = MIN(wheel_steps(), 6);
+#endif
+                    adjust_volume(button == ACTION_WPS_VOLUP ? steps : -steps);
+                }
 
                 FOR_NB_SCREENS(i)
-                {
-                    skin_update(WPS, i, SKIN_REFRESH_NON_STATIC);
-                }
+                    skin_volume_changed(WPS, i);
                 update = false;
                 break;
             /* fast forward, or the next part of a cue sheet if this is straight

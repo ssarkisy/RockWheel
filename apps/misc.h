@@ -177,6 +177,10 @@ void qsort_yielding(void *base, size_t count, size_t size,
                     int (*compare)(const void *, const void *));
 void set_normalized_volume(int vol);
 int get_normalized_volume(void);
+#ifdef HAVE_PERCEPTUAL_VOLUME
+/* the volume's step of the bar's even ones, and their count */
+int volume_get_step(int *count);
+#endif
 void adjust_volume(int steps);
 void adjust_volume_ex(int steps, enum volume_adjust_mode mode);
 

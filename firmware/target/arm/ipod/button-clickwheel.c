@@ -240,11 +240,24 @@ static inline int ipod_4g_button_read(void)
                        its readings come, as in Apple's own scrolling */
                     const int direction = wheel_delta < 0 ? -1 : 1;
     
+                    /* Fine, half a step as far (button_wheel_fine), but the first
+                       one way, after a touch, the other way or a pause: four of
+                       the 96 still, as a finger at rest went back and forth by
+                       twos, or crept on */
+                    const int step = button_wheel_is_fine() ? WHEEL_SENSITIVITY / 2
+                                                            : WHEEL_SENSITIVITY;
+                    const bool going_on =
+                        wheel_repeat == (unsigned int)(direction > 0 ? BUTTON_SCROLL_FWD
+                                                                     : BUTTON_SCROLL_BACK)
+                        && TIME_BEFORE(current_tick, last_step_tick
+                                       + WHEEL_REPEAT_TIMEOUT / (1000000 / HZ));
+                    const int first = going_on ? step : WHEEL_SENSITIVITY;
+
                     /* Getting direction and wheel_keycode from wheel_delta.
                      * Need at least some clicks to be sure to avoid haptic fuzziness */
-                    if      (wheel_delta >=  WHEEL_SENSITIVITY)
+                    if      (wheel_delta >=  first)
                         wheel_keycode = BUTTON_SCROLL_FWD;
-                    else if (wheel_delta <= -WHEEL_SENSITIVITY)
+                    else if (wheel_delta <= -first)
                         wheel_keycode = BUTTON_SCROLL_BACK;
                     else 
                         wheel_keycode = BUTTON_NONE;
@@ -258,7 +271,7 @@ static inline int ipod_4g_button_read(void)
                         
                         /* undo signedness, and whole steps only */
                         wheel_delta = (wheel_delta>0) ? wheel_delta : -wheel_delta;
-                        wheel_delta -= wheel_delta % WHEEL_SENSITIVITY;
+                        wheel_delta -= wheel_delta % step;
                         
                         /* add the current wheel_delta */
                         if (button_queue_clears() != seen_clears)
@@ -328,8 +341,9 @@ static inline int ipod_4g_button_read(void)
                         /* The queue should have no other events when scrolling */
                         if (button_queue_empty())
                         {
-                            /* each WHEEL_SENSITIVITY clicks = scrolling 1 item */
-                            accumulated_wheel_delta /= WHEEL_SENSITIVITY;
+                            /* each WHEEL_SENSITIVITY clicks = scrolling 1 item,
+                               half as many fine */
+                            accumulated_wheel_delta /= step;
 #ifdef HAVE_SCROLLWHEEL
                             /* use data-format for HAVE_SCROLLWHEEL */
                             /* always use acceleration mode (1<<31) */

@@ -41,6 +41,7 @@ extern "C"
 #define SKIN_REFRESH_PEAK_METER      (1u<<(SKIN_REFRESH_SHIFT+4))  /* line contains a peak meter */
 #define SKIN_REFRESH_STATUSBAR       (1u<<(SKIN_REFRESH_SHIFT+5))  /* refresh statusbar */
 #define SKIN_RTC_REFRESH             (1u<<(SKIN_REFRESH_SHIFT+6))  /* refresh rtc, convert at parse time */
+#define SKIN_REFRESH_VOLUME          (1u<<(SKIN_REFRESH_SHIFT+7))  /* line shows the volume, drawn alone as it changes */
 #define SKIN_REFRESH_ALL             (0xffffu<<SKIN_REFRESH_SHIFT)   /* to refresh all line types */
 
 /* to refresh only those lines that change over time */

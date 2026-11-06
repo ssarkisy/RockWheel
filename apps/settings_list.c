@@ -1494,13 +1494,14 @@ const struct settings_list settings[] = {
                 NULL, NULL, NULL),
 #ifdef HAVE_PERCEPTUAL_VOLUME
     /* by even shares of the volume bar, as its percentages show it, rather than by a dB
-       a click, which took 24 clicks from 5% to nothing and 4% at the top */
+       a click, which took 24 clicks from 5% to nothing and 4% at the top: a hundred,
+       each a step of the wheel half as far (button_wheel_fine), in two turns */
     CHOICE_SETTING(0, volume_adjust_mode, LANG_VOLUME_ADJUST_MODE,
                    VOLUME_ADJUST_PERCEPTUAL, "volume adjustment mode",
                    "direct,perceptual", NULL, 2,
                    ID2P(LANG_DIRECT), ID2P(LANG_PERCEPTUAL)),
     INT_SETTING_NOWRAP(0, volume_adjust_norm_steps, LANG_VOLUME_ADJUST_NORM_STEPS,
-                       50, "perceptual volume step count", UNIT_INT,
+                       100, "perceptual volume step count", UNIT_INT,
                        MIN_NORM_VOLUME_STEPS, MAX_NORM_VOLUME_STEPS, 5,
                        NULL, NULL, NULL),
 #endif

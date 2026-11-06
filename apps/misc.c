@@ -813,13 +813,14 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
         case BUTTON_MULTIMEDIA_STOP:
             list_stop_handler();
             return event;
+        /* two of the hundred steps, as before them */
         case BUTTON_MULTIMEDIA_VOLUME_UP:
         case BUTTON_MULTIMEDIA_VOLUME_UP|BUTTON_REPEAT:
-            adjust_volume(1);
+            adjust_volume(2);
             return event;
         case BUTTON_MULTIMEDIA_VOLUME_DOWN:
         case BUTTON_MULTIMEDIA_VOLUME_DOWN|BUTTON_REPEAT:
-            adjust_volume(-1);
+            adjust_volume(-2);
             return event;
         case BUTTON_MULTIMEDIA_REW:
         case BUTTON_MULTIMEDIA_FFWD:
@@ -916,6 +917,11 @@ void setvol(void)
 }
 
 #ifdef HAVE_PERCEPTUAL_VOLUME
+/* the volume's step of the bar's (volume_get_step()) */
+static int volume_step = -1, volume_step_count, volume_step_volume;
+static int volume_of_step(int step, int count);
+static int volume_top_step(int count);
+
 static short norm_tab[MAX_NORM_VOLUME_STEPS+2];
 static int norm_tab_num_steps;
 static int norm_tab_size;
@@ -1010,8 +1016,19 @@ void adjust_volume_ex(int steps, enum volume_adjust_mode mode)
     {
     case VOLUME_ADJUST_PERCEPTUAL:
 #ifdef HAVE_PERCEPTUAL_VOLUME
-        set_normalized_volume(get_normalized_volume() + steps);
+    {
+        /* a step of the bar each, up to the limit's step at most */
+        int count;
+        int step = volume_get_step(&count) + steps;
+        step = MAX(0, MIN(step, volume_top_step(count)));
+        while (step > 0 && volume_of_step(step, count) > global_settings.volume_limit)
+            step--;
+        global_status.volume = volume_of_step(step, count);
+        volume_step = step;
+        volume_step_count = count;
+        volume_step_volume = global_status.volume;
         break;
+    }
 #endif
     case VOLUME_ADJUST_DIRECT:
     default:
@@ -2168,7 +2185,9 @@ long to_normalized_volume(long vol, long min_vol, long max_vol, long max_norm)
     return nvol_mul(norm, max_norm) >> NVOL_FRACBITS;
 }
 
-long from_normalized_volume(long norm, long min_vol, long max_vol, long max_norm)
+/* the same, in fixed point */
+static long from_normalized_volume_fixed(long norm, long min_vol, long max_vol,
+                                         long max_norm)
 {
     long vol, min_norm;
     long factor = get_nvol_factor();
@@ -2182,10 +2201,110 @@ long from_normalized_volume(long norm, long min_vol, long max_vol, long max_norm
 
     min_norm = nvol_exp10(nvol_div(min_vol - max_vol, factor));
     vol = nvol_mul(vol, NVOL_UNITY - min_norm) + min_norm;
-    vol = nvol_mul(nvol_log10(vol), factor) + max_vol;
-
-    return vol >> NVOL_FRACBITS;
+    return nvol_mul(nvol_log10(vol), factor) + max_vol;
 }
+
+long from_normalized_volume(long norm, long min_vol, long max_vol, long max_norm)
+{
+    return from_normalized_volume_fixed(norm, min_vol, max_vol, max_norm)
+           >> NVOL_FRACBITS;
+}
+
+#ifdef HAVE_PERCEPTUAL_VOLUME
+/* The volume by even steps of the bar, as its percentages say it, the wheel's
+   one a step: each step's volume the volume step nearest its place on the
+   bar's curve, as the limit's (volume_steps), the codec having none between,
+   so that steps next to each other can have the same, at the top. The steps
+   of a table of those rounded down, the same ones left out, went by 1, 3 and
+   4% of the bar, and the bar by fits. A step stays as long as the volume is
+   its own; set elsewhere, as by the night or an accessory, the step it is is
+   the one of the volume nearest it, nearest its place on the curve. */
+static int volume_of_step(int step, int count)
+{
+    const int min = sound_min(SOUND_VOLUME), max = sound_max(SOUND_VOLUME);
+    const int unit = sound_steps(SOUND_VOLUME);
+    if (step <= 0)
+        return min;
+    if (step >= count)
+        return max;
+    /* at a step of the limit's, the volume its table has: the curve's fixed
+       point came a dB under it at 10%, which the wheel then didn't reach */
+    if ((step * 100) % (count * 5) == 0)
+    {
+        const int i = (100 - step * 100 / count) / 5;
+        if (i >= 0 && i < VOLUME_STEPS)
+            return volume_steps[i];
+    }
+    long vol = from_normalized_volume_fixed(step, min, max, count);
+    /* to the nearest unit of the codec's */
+    vol = ((vol + ((long)unit << (NVOL_FRACBITS - 1))) >> NVOL_FRACBITS) / unit * unit;
+    return MAX(min, MIN(vol, max));
+}
+
+/* the limit's step: its percentage's, as steps of the same volume as the
+   limit's above it went past it, 91% with a limit of 90; or the top */
+static int volume_top_step(int count)
+{
+    for (int i = 0; i < VOLUME_STEPS; i++)
+    {
+        if (volume_steps[i] == global_settings.volume_limit)
+            return (100 - 5 * i) * count / 100;
+    }
+    return count;
+}
+
+int volume_get_step(int *count)
+{
+    const int n = global_settings.volume_adjust_norm_steps;
+    *count = n;
+    const int top = volume_top_step(n);
+    if (volume_step >= 0 && volume_step_count == n
+        && volume_step_volume == global_status.volume)
+    {
+        /* not past a limit set since, of the same volume as it */
+        if (volume_step > top)
+            volume_step = top;
+        return volume_step;
+    }
+
+    /* a volume of the limit's table is at its percentage, as it was left: by
+       the curve alone, 80% came back as 79% after a start */
+    for (int i = 0; i < VOLUME_STEPS; i++)
+    {
+        const int step = (100 - 5 * i) * n / 100;
+        if (volume_steps[i] == global_status.volume
+            && volume_of_step(step, n) == global_status.volume && step <= top)
+        {
+            volume_step = step;
+            volume_step_count = n;
+            volume_step_volume = global_status.volume;
+            return step;
+        }
+    }
+
+    const int min = sound_min(SOUND_VOLUME), max = sound_max(SOUND_VOLUME);
+    const long place = to_normalized_volume(global_status.volume, min, max, n * 16);
+    int best = 0;
+    long best_off = 0;
+    for (int i = 0; i <= n; i++)
+    {
+        const long off = (long)abs(volume_of_step(i, n) - global_status.volume) * 100000
+                         + labs(i * 16L - place);
+        if (i == 0 || off < best_off)
+        {
+            best = i;
+            best_off = off;
+        }
+    }
+    /* not past the limit's */
+    if (best > top)
+        best = top;
+    volume_step = best;
+    volume_step_count = n;
+    volume_step_volume = global_status.volume;
+    return best;
+}
+#endif
 
 void clear_screen_buffer(bool update)
 {

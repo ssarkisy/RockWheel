@@ -709,6 +709,19 @@ int button_wheel_steps(const unsigned int data)
     return (data >> 24) & 0x7f;
 }
 
+/* the wheel's steps half as far, as the screen in front asks for them */
+static volatile bool wheel_fine = false;
+
+void button_wheel_fine(bool fine)
+{
+    wheel_fine = fine;
+}
+
+bool button_wheel_is_fine(void)
+{
+    return wheel_fine;
+}
+
 /* The steps the wheel went, the UI's too busy to take them included, each as
    far as its speed takes it: by stages, eight times at most, as Apple's */
 int button_apply_acceleration(const unsigned int data)
