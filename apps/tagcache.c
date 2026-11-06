@@ -6136,6 +6136,12 @@ static void remove_gone_done(void)
     gone_masterfd = -1;
 }
 
+#ifdef HAVE_DIRCACHE
+/* where the last entry's file was found, for the next: the entries are in
+   their folders' order */
+static struct dircache_hint check_hint;
+#endif
+
 /* An entry's file, looked for: 0 for one of Finder's, which the import goes
    by, 1 for one that's there, 2 for one gone, whose entry is removed */
 static int check_file_ref(long idx_id, const char *path, bool auto_update)
@@ -6161,8 +6167,12 @@ static int check_file_ref(long idx_id, const char *path, bool auto_update)
         searchflag = DCS_STORAGE_PATH;
     }
 
-    int rc_cache = dircache_search(searchflag | DCS_UPDATE_FILEREF,
-                                   &tcrc_dcfrefs[idx_id], path);
+    /* from where the last was found: from the start of the path, 13000 songs
+       outside Finder's folder, in 1000 artists' folders, took 54 s, at every
+       boot and connection. One not found so is looked for from the start, which
+       says if it's gone. */
+    int rc_cache = dircache_search_next(searchflag | DCS_UPDATE_FILEREF,
+                                        &tcrc_dcfrefs[idx_id], path, &check_hint);
 
     if (rc_cache > 0)           /* in cache and we have fileref */
         idx->flag |= FLAG_DIRCACHE;
@@ -6248,6 +6258,9 @@ static bool check_deleted_file_refs(bool auto_update)
     processed_dir_count = 0;
     int deleted = 0, outside = 0;
     refs_pass = !auto_update;
+#ifdef HAVE_DIRCACHE
+    dircache_hint_init(&check_hint);
+#endif
 
 #if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
     /* From the paths in memory when they're all there: read from the filename

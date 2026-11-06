@@ -2806,6 +2806,200 @@ int dircache_fileref_cmp(const struct dircache_fileref *dcfrefp1,
     return cmp;
 }
 
+void dircache_hint_init(struct dircache_hint *hintp)
+{
+    hintp->levels = 0;
+}
+
+/* The entries the hint looks over for one, the next usually the first: one
+   gone isn't found so, and the whole of a large folder went over twice for it,
+   with the lock held and nothing else let run */
+#define DIRCACHE_HINT_STEPS 64
+
+/* The entry of a folder named as the component, from after the one given round
+   to it, or from its first if that isn't one of its: as open_path_component()
+   finds one, by its name decoded the same way and compared without case. 0 if
+   there's none in so many. */
+static int find_in_folder(int diridx, int from, const char *comp, size_t complen)
+{
+    const int first = get_entry(diridx)->down;
+    struct dircache_entry *fe = get_entry(from);
+    int idx = fe && fe->serialnum && fe->up == diridx ? fe->next : first;
+    const int stop = idx;
+    char name[DC_MAX_NAME + 1];
+    /* each entry once at most, whatever the lists say */
+    unsigned int left = MIN(dircache.numentries + 1, DIRCACHE_HINT_STEPS);
+
+    do
+    {
+        if (idx <= 0)
+        {
+            /* round to the folder's first */
+            idx = first;
+            if (idx <= 0 || idx == stop)
+                break;
+        }
+        struct dircache_entry *ce = get_entry(idx);
+        if (!ce)
+            break;
+        entry_name_copy(name, ce);
+        if (ce->direntries == 1)
+            iso_decode_d_name(name);
+        if (!strncasecmp(comp, name, complen) && name[complen] == '\0')
+            return idx;
+        idx = ce->next;
+    }
+    while (idx != stop && --left);
+
+    return 0;
+}
+
+/* The folders of the path of the entry found, for the next: each as far as the
+   path names it as the cache does, up to the one below the volume's root */
+static void hint_set(struct dircache_hint *hintp, const char *path, int idx)
+{
+    hintp->levels = 0;
+    size_t pos = strlen(path);
+    if (pos >= sizeof(hintp->path))
+        return;
+    /* a folder's prefix that goes up again names another than its own once
+       one it goes through is gone */
+    for (const char *p = path; (p = strchr(p, PATH_SEPCH)); p++)
+    {
+        if (p[1] == '.' && (p[2] == PATH_SEPCH || p[2] == '\0'
+                            || (p[2] == '.' && (p[3] == PATH_SEPCH || p[3] == '\0'))))
+            return;
+    }
+    memcpy(hintp->path, path, pos + 1);
+
+    char name[DC_MAX_NAME + 1];
+    int k = 0;
+    while (k < DIRCACHE_HINT_LEVELS)
+    {
+        struct dircache_entry *ce = get_entry(idx);
+        if (!ce || ce->up <= 0)
+            break;
+        size_t sep = pos;
+        while (sep > 0 && path[sep - 1] != PATH_SEPCH)
+            sep--;
+        if (sep == 0)
+            break;
+        const size_t complen = pos - sep;
+        entry_name_copy(name, ce);
+        if (ce->direntries == 1)
+            iso_decode_d_name(name);
+        if (strncasecmp(path + sep, name, complen) || name[complen] != '\0')
+            break;
+        hintp->level[k].dir.idx = ce->up;
+        hintp->level[k].dir.serialnum = get_entry(ce->up)->serialnum;
+        hintp->level[k].hash = get_file_serialhash(&hintp->level[k].dir);
+        hintp->level[k].last = idx;
+        hintp->level[k].len = sep;
+        k++;
+        idx = ce->up;
+        pos = sep - 1;
+        if (pos == 0)
+            break;
+    }
+    hintp->levels = k;
+}
+
+/* The path from the deepest folder the last one has too, its next components
+   each looked for there from where the last path's was: 3 with the reference
+   filled as dircache_search() fills it. 0 if none of those folders is the path's
+   or is still as it was and wholly cached, if a component isn't a plain name
+   or isn't found so, or a folder on the way isn't one or is cached in part.
+   Called with the lock. */
+static int search_hinted(const char *path, struct dircache_hint *hintp,
+                         struct dircache_fileref *dcfrefp)
+{
+    if (!dircache_runinfo.handle)
+        return 0;
+
+    int k;
+    for (k = 0; k < hintp->levels; k++)
+    {
+        if (!strncmp(path, hintp->path, hintp->level[k].len))
+            break;
+    }
+    if (k == hintp->levels)
+        return 0;
+    /* a rename gives a folder a new serial number, but not those in it: the
+       hash of all of them up to the root says if one above was renamed */
+    const struct dircache_file *dirp = &hintp->level[k].dir;
+    if (dirp->idx <= 0 || check_file_serialnum(dirp) < 0
+        || get_file_serialhash(dirp) != hintp->level[k].hash
+        || get_frontier(dirp->idx) != FRONTIER_SETTLED)
+        return 0;
+
+    int diridx = dirp->idx, from = hintp->level[k].last;
+    const char *p = path + hintp->level[k].len;
+    while (1)
+    {
+        const char *end = strchr(p, PATH_SEPCH);
+        const size_t complen = end ? (size_t)(end - p) : strlen(p);
+        if (!complen || (p[0] == '.' && (complen == 1 || (complen == 2 && p[1] == '.'))))
+            return 0;
+        const int idx = find_in_folder(diridx, from, p, complen);
+        if (!idx)
+            return 0;
+        struct dircache_entry *ce = get_entry(idx);
+        if (!end)
+        {
+            dcfrefp->dcfile.idx = idx;
+            dcfrefp->dcfile.serialnum = ce->serialnum;
+            dcfrefp->serialhash = get_file_serialhash(&dcfrefp->dcfile);
+            if (k == 0 && diridx == dirp->idx)
+                hintp->level[0].last = idx; /* in the same folder */
+            else
+                hint_set(hintp, path, idx);
+            return 3;
+        }
+        if (!(ce->attr & ATTR_DIRECTORY) || ce->frontier != FRONTIER_SETTLED)
+            return 0;
+        diridx = idx;
+        from = 0;
+        p = end + 1;
+    }
+}
+
+/* As dircache_search() with a path and a reference updated, for a run of paths
+   from the database, which are in their folders' order: each looked for from
+   where the one before it was found, in the deepest folder they share, and in
+   the folders below it from their first. From the start of the path, each of a
+   song's folders was gone over from its first entry, 170 a song with Finder's
+   folders, at 8 us each; with 1000 artists' folders side by side, 500 and 54 s
+   for 13000 songs. Not found so, it's dircache_search() that looks, and that
+   says if the file is gone. */
+int dircache_search_next(unsigned int flags, struct dircache_fileref *dcfrefp,
+                         const char *path, struct dircache_hint *hintp)
+{
+    if (!dcfrefp || !(flags & DCS_CACHED_PATH) || !(flags & DCS_UPDATE_FILEREF)
+        || (flags & DCS_FILEREF))
+        return dircache_search(flags, dcfrefp, path);
+
+    dircache_lock();
+    int rc = search_hinted(path, hintp, dcfrefp);
+    dircache_unlock();
+    if (rc > 0)
+        return rc;
+
+    rc = dircache_search(flags, dcfrefp, path);
+    if (rc > 0)
+    {
+        /* not one gone: the next is likely beside it, where the hint is. Its
+           folders as they were when it was found, none renamed since */
+        dircache_lock();
+        if (check_file_serialnum(&dcfrefp->dcfile) == 0
+            && get_file_serialhash(&dcfrefp->dcfile) == dcfrefp->serialhash)
+            hint_set(hintp, path, dcfrefp->dcfile.idx);
+        else
+            hintp->levels = 0;
+        dircache_unlock();
+    }
+    return rc;
+}
+
 /** Debug screen/info stuff **/
 
 /**

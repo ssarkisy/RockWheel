@@ -22,6 +22,7 @@
 #define _DIRCACHE_H
 
 #include "mv.h"
+#include "fs_defines.h" /* MAX_PATH */
 #include <string.h>    /* size_t */
 #include <sys/types.h> /* ssize_t */
 
@@ -173,6 +174,26 @@ int dircache_search(unsigned int flags, struct dircache_fileref *dcfrefp,
 
 int dircache_fileref_cmp(const struct dircache_fileref *dcfrefp1,
                          const struct dircache_fileref *dcfrefp2);
+
+/* The folders of the path of the file found last by dircache_search_next(), the
+   deepest first, and where in each */
+#define DIRCACHE_HINT_LEVELS 6
+struct dircache_hint
+{
+    int levels;
+    struct
+    {
+        struct dircache_file dir;   /* the folder */
+        dc_serial_t          hash;  /* of the serial numbers of those above it */
+        int                  last;  /* the entry in it on the path */
+        size_t               len;   /* the path's length to it, its separator too */
+    } level[DIRCACHE_HINT_LEVELS];
+    char path[MAX_PATH];
+};
+
+void dircache_hint_init(struct dircache_hint *hintp);
+int dircache_search_next(unsigned int flags, struct dircache_fileref *dcfrefp,
+                         const char *path, struct dircache_hint *hintp);
 
 
 /** Debug screen/info stuff **/
