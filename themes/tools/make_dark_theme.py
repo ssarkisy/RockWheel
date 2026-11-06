@@ -31,7 +31,8 @@ ART_REFLECTION_ROWS = 22
 ART_REFLECTION_ALPHA = 128 / 256
 PANEL_X = 160         # the panel beside the lists, dark in both
 
-TEXT = {"000000": "F2F2F6", "666666": "B4B6BA", "888888": "8E9094", "8a8d8a": "8E9094"}
+TEXT = {"000000": "F2F2F6", "666666": "B4B6BA", "888888": "8E9094", "8a8d8a": "8E9094",
+        "767676": "8E9094"}
 BACK = {"FFFFFF": "121214"}
 
 

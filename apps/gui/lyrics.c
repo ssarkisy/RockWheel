@@ -559,6 +559,9 @@ void lyrics_draw(struct screen *display, struct viewport *vp)
             ground = palette->background;
 #endif
         dim = dimmed(fg, ground);
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+        dim = cover_palette_dimmed(fg, dim, ground);
+#endif
     }
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)

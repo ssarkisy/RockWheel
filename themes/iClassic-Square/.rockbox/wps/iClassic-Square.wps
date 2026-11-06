@@ -112,7 +112,7 @@
 %t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
 %Vl(info,160,72,148,18,3)%Vf(666666)
 %t(8)%al%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>;%t(8)%s%al%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>;%t(8)%al%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>
-%Vl(info,160,90,148,18,7)%Vf(888888)
+%Vl(info,160,90,148,18,7)%Vf(767676)
 %t(16)%al%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>;%t(8)%al%s%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>
 %xl(R,Ratings.bmp,0,0,10)
 %xC(R)
@@ -125,7 +125,7 @@
 %fB
 # never shown, it only gives %fB the font of the bitrate
 %Vl(bitrate,0,0,1,1,6)
-%Vl(current,159,159,149,14,2)%Vf(8a8d8a)
+%Vl(current,159,159,149,14,2)%Vf(767676)
 %s%al%pp %Sx(of) %pe
 # the iOS bar: its fill over its track, which hides the theme's
 %xl(k,iOS Track.bmp,0,0)

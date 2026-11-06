@@ -194,6 +194,42 @@ static void readable_colour(int hue, int saturation, int lightness, int rgb[3])
     }
 }
 
+/* the colour as the screen shows it, in 16 bits */
+static void as_shown(const int rgb[3], int out[3])
+{
+    out[0] = (rgb[0] & 0xf8) | (rgb[0] >> 5);
+    out[1] = (rgb[1] & 0xfc) | (rgb[1] >> 6);
+    out[2] = (rgb[2] & 0xf8) | (rgb[2] >> 5);
+}
+
+/* The colour, its hue kept, taken toward black or white until it reads on the
+   ground with a contrast of target by 100, as the screen shows it: toward its
+   own side of the ground where the target can be had there, else toward the
+   end farther from it, and as far as it goes where that can't be had either.
+   Always toward the farther end, a line half way from black ink on a ground
+   near the middle went through it to light. */
+static void readable_on(const int rgb[3], const int ground[3], int target, int out[3])
+{
+    static const int white[3] = { 255, 255, 255 }, black[3] = { 0, 0, 0 };
+    const uint32_t lc = luminance(rgb), lg = luminance(ground);
+    const int *const own = lc > lg ? white : lc < lg ? black : NULL;
+    const int *const end = own && contrast(ground, own) >= target ? own
+                         : contrast(ground, white) >= contrast(ground, black)
+                           ? white : black;
+    int c[3] = { rgb[0], rgb[1], rgb[2] }, shown[3];
+    target = MIN(target, contrast(ground, end));
+    for (int n = 0; n < 200; n++)
+    {
+        as_shown(c, shown);
+        if (contrast(shown, ground) >= target)
+            break;
+        for (int i = 0; i < 3; i++)
+            c[i] += (end[i] - c[i]) * 5 / 100
+                  + (end[i] > c[i] ? 1 : end[i] < c[i] ? -1 : 0);
+    }
+    memcpy(out, c, sizeof(c));
+}
+
 /* c of 256 of the colour over the background */
 static unsigned over_background(const int rgb[3], const int background[3], int c)
 {
@@ -525,14 +561,6 @@ static void tint_backdrop(void)
     tinted_backdrop_id = id;
 }
 
-/* in an accent's colour, with the highlights and shadows of the theme's colour */
-static void accent_shade(int luma, const int accent[3], int out[3])
-{
-    const int centre = MAX(MIN(accent[2], 820), 160);
-    const int lightness = centre + (luma * 1000 / 255 - 600) * 115 / 100;
-    hsl_to_rgb(accent[0], accent[1], MAX(MIN(lightness, 980), 25), out);
-}
-
 /* a shade of the status bar, from one of the theme's, which keeps its gradient */
 static void header_shade(int tone, int out[3])
 {
@@ -655,20 +683,39 @@ static void fill_backdrop(void)
         b->backdrop[(HEADER_HEIGHT - 1) * LCD_WIDTH + x] = pack_nearest(out);
     }
 
+    /* The empty bar a shade of the iOS look's track, a step from the background,
+       with the rows of the theme's: it stayed the light theme's on every cover,
+       and the fill read on it from as little as 1 to 1 */
+    int track_hsl[3], sum = 0;
+    rgb_to_hsl(screen_colours.flat_track, track_hsl);
+    for (int y = 0; y < BAR_HEIGHT; y++)
+    {
+        for (int x = 0; x < BAR_WIDTH; x++)
+        {
+            int rgb[3];
+            unpack_rgb(src[(BAR_Y + y) * LCD_WIDTH + BAR_X + x], rgb);
+            sum += (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
+        }
+    }
+    const int mean = sum / (BAR_HEIGHT * BAR_WIDTH);
     for (int y = 0; y < BAR_HEIGHT; y++)
     {
         const fb_data *from = &src[(BAR_Y + y) * LCD_WIDTH + BAR_X];
         fb_data *to = &b->backdrop[(BAR_Y + y) * LCD_WIDTH + BAR_X];
-        if (!global_settings.dark_theme)
-            memcpy(to, from, BAR_WIDTH * sizeof(fb_data));
-        /* light on the colour in both themes */
-        else for (int x = 0; x < BAR_WIDTH; x++)
+        fb_data last = 0, shade = 0;
+        for (int x = 0; x < BAR_WIDTH; x++)
         {
-            int rgb[3];
-            unpack_rgb(from[x], rgb);
-            const int grey = MIN(255 - rgb[1] + 20, 255);
-            rgb[0] = rgb[1] = rgb[2] = grey;
-            to[x] = pack_nearest(rgb);
+            if (x == 0 || from[x] != last)
+            {
+                int rgb[3];
+                last = from[x];
+                unpack_rgb(last, rgb);
+                const int luma = (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
+                const int lightness = track_hsl[2] + (luma - mean) * 1000 / 255 * 40 / 100;
+                hsl_to_rgb(track_hsl[0], track_hsl[1], MAX(MIN(lightness, 980), 20), rgb);
+                shade = pack_nearest(rgb);
+            }
+            to[x] = shade;
         }
     }
     for (int y = 0; y < BAR_REFLECTION; y++)
@@ -747,6 +794,65 @@ void *cover_palette_bar_track(const struct bitmap *bm)
     return b->track;
 }
 
+/* The iPod look's bar on the cover's colour: its rows' lightness about a centre,
+   spread as the theme's highlight, out of 100 */
+static int bar_centre, bar_spread;
+
+static void bar_shade(int luma, int out[3])
+{
+    const int *const hsl = screen_colours.bar_hsl;
+    const int lightness = bar_centre + (luma * 1000 / 255 - 600) * bar_spread / 100;
+    hsl_to_rgb(hsl[0], hsl[1], MAX(MIN(lightness, 980), 25), out);
+}
+
+/* The centre and the spread for every row to read 3 to 1 on the track, which
+   tells what's played from what's left, and on the background: near the centre
+   the background gave, with as much of the highlight as that leaves; the best
+   there is where that can't be had. Once a palette. */
+static void fit_bar(const int *lumas, int rows)
+{
+    static const int spreads[] = { 115, 90, 60, 30, 0 };
+    const int *const bg = screen_colours.background;
+    const int *const track = screen_colours.flat_track;
+    const int start = screen_colours.bar_hsl[2];
+    int best = -1, best_centre = start, best_spread = spreads[0];
+
+    cpu_boost(true);
+    for (unsigned s = 0; s < ARRAYLEN(spreads); s++)
+    {
+        for (int d = 0; d <= 960; d += 10)
+        {
+            for (int side = -1; side <= 1; side += 2)
+            {
+                const int centre = start + side * d;
+                if ((d == 0 && side > 0) || centre < 40 || centre > 980)
+                    continue;
+                bar_centre = centre;
+                bar_spread = spreads[s];
+                int worst = 100000;
+                for (int y = 0; y < rows && worst > best; y++)
+                {
+                    int rgb[3];
+                    bar_shade(lumas[y], rgb);
+                    worst = MIN(worst, MIN(contrast(rgb, track), contrast(rgb, bg)));
+                }
+                if (worst > best)
+                {
+                    best = worst;
+                    best_centre = centre;
+                    best_spread = spreads[s];
+                    if (best >= 300)
+                        goto found;
+                }
+            }
+        }
+    }
+found:
+    cpu_boost(false);
+    bar_centre = best_centre;
+    bar_spread = best_spread;
+}
+
 void *cover_palette_bar(const struct bitmap *bm, bool flat)
 {
     struct screen_buffers *const b = buffers;
@@ -773,6 +879,10 @@ void *cover_palette_bar(const struct bitmap *bm, bool flat)
     }
 
     const int rows = MIN(bm->height, BAR_HEIGHT);
+    int lumas[BAR_HEIGHT];
+    for (int y = 0; y < rows; y++)
+        lumas[y] = pixel_luma(src[y * width + width / 2]);
+    fit_bar(lumas, rows);
     fb_data from = *src, to = 0;
     bool known = false;
     for (int i = 0; i < rows * width; i++)
@@ -784,8 +894,7 @@ void *cover_palette_bar(const struct bitmap *bm, bool flat)
             from = src[i];
             known = true;
             unpack_rgb(from, rgb);
-            accent_shade((54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8,
-                         screen_colours.bar_hsl, out);
+            bar_shade((54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8, out);
             to = pack_nearest(out);
         }
         b->bar[i] = to;
@@ -889,13 +998,13 @@ static void make_fill_palette(struct cover_palette *palette, uint32_t colour, bo
     screen_colours.bar_hsl[2] = lightness;
 
     /* The iOS look's bar is flat, a fill over a track: the fill well clear of the
-       background, 4.5 to 1, and the track a step from it, 1.6 to 1. Its 2.4 of
+       background, 4.8 to 1, and the track a step from it, 1.6 to 1. Its 2.4 of
        the other was the cover's blue on a darker blue, and its track went with
        the background. */
     int *const fill = screen_colours.flat_fill, *const track = screen_colours.flat_track;
     int flat = lightness;
     hsl_to_rgb(hsl[0], saturation, flat, fill);
-    for (int n = 0; n < 100 && contrast(bg, fill) < 450; n++)
+    for (int n = 0; n < 100 && contrast(bg, fill) < 480; n++)
     {
         flat = MAX(MIN(flat + direction, 960), 40);
         hsl_to_rgb(hsl[0], saturation, flat, fill);
@@ -926,12 +1035,16 @@ static void make_screen_palette(struct cover_palette *palette, int hue, bool gre
         hsl_to_rgb(hue, s * 360, 95, low);
         hsl_to_rgb(hue, s * 220, 950, high);
         palette->background = LCD_RGBPACK(low[0], low[1], low[2]);
-        palette->ink = LCD_RGBPACK(high[0], high[1], high[2]);
+        readable_on(high, low, 700, rgb);
+        palette->ink = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
         hsl_to_rgb(hue, s * 200, 760, rgb);
+        readable_on(rgb, low, 450, rgb);
         palette->secondary = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
         hsl_to_rgb(hue, s * 160, 640, rgb);
+        readable_on(rgb, low, 450, rgb);
         palette->muted = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
         hsl_to_rgb(hue, s * 220, 860, rgb);
+        readable_on(rgb, low, 450, rgb);
         palette->format = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
         palette->format_half = over_background(rgb, low, 128);
         palette->format_quarter = over_background(rgb, low, 64);
@@ -942,13 +1055,18 @@ static void make_screen_palette(struct cover_palette *palette, int hue, bool gre
     palette->background = LCD_RGBPACK(screen_colours.background[0],
                                       screen_colours.background[1],
                                       screen_colours.background[2]);
-    palette->ink = LCD_RGBPACK(screen_colours.ink[0], screen_colours.ink[1],
-                               screen_colours.ink[2]);
+    /* the text's roles each as clear of the background as they're to be */
+    const int *const back = screen_colours.background;
+    readable_on(screen_colours.ink, back, 700, rgb);
+    palette->ink = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
     hsl_to_rgb(hue, s * 180, 330, rgb);
+    readable_on(rgb, back, 450, rgb);
     palette->secondary = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
     hsl_to_rgb(hue, s * 140, 380, rgb);
+    readable_on(rgb, back, 450, rgb);
     palette->muted = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
     hsl_to_rgb(hue, s * 220, 200, rgb);
+    readable_on(rgb, back, 450, rgb);
     palette->format = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
     palette->format_half = over_background(rgb, screen_colours.background, 128);
     palette->format_quarter = over_background(rgb, screen_colours.background, 64);
@@ -965,6 +1083,7 @@ static void make_text_palette(struct cover_palette *palette, int hue, bool grey)
     if (global_settings.dark_theme)
     {
         readable_on_dark(hue, s * 652, 720, ink);
+        readable_on(ink, dark_background, 700, ink);
         palette->ink = LCD_RGBPACK(ink[0], ink[1], ink[2]);
         readable_on_dark(hue, s * 420, 720, rgb);
         palette->secondary = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
@@ -986,6 +1105,8 @@ static void make_text_palette(struct cover_palette *palette, int hue, bool grey)
         return;
     }
     readable_colour(hue, s * 652, 280, ink);
+    /* the title's and the time's: 7 to 1, as the rest 4.5 */
+    readable_on(ink, white, 700, ink);
     palette->ink = LCD_RGBPACK(ink[0], ink[1], ink[2]);
     readable_colour(hue, s * 420, 350, rgb);
     palette->secondary = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
@@ -1281,9 +1402,21 @@ unsigned cover_palette_text_colour(unsigned colour)
     }
     if (green < 0x40)
         return palette.ink;
-    if (green < 0x78)
+    /* the album's and the 1 of N's grey, 767676, is muted */
+    if (green < 0x70)
         return palette.secondary;
     if (green < 0xc0)
         return palette.muted;
     return colour;
+}
+
+unsigned cover_palette_dimmed(unsigned ink, unsigned dim, unsigned ground)
+{
+    int i[3] = { RGB_UNPACK_RED(ink), RGB_UNPACK_GREEN(ink), RGB_UNPACK_BLUE(ink) };
+    int d[3] = { RGB_UNPACK_RED(dim), RGB_UNPACK_GREEN(dim), RGB_UNPACK_BLUE(dim) };
+    int g[3] = { RGB_UNPACK_RED(ground), RGB_UNPACK_GREEN(ground),
+                 RGB_UNPACK_BLUE(ground) };
+    /* 3 to 1, but no nearer the line sung than a third less than its own */
+    readable_on(d, g, MIN(300, contrast(i, g) * 2 / 3), d);
+    return LCD_RGBPACK(d[0], d[1], d[2]);
 }

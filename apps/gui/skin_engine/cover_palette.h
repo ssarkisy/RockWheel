@@ -71,6 +71,9 @@ unsigned cover_palette_text_colour(unsigned colour);
 struct viewport;
 /* the same for the text of a viewport, which in the status bar may keep it */
 unsigned cover_palette_text_colour_in(unsigned colour, const struct viewport *vp);
+/* the lines of the lyrics not sung now, dim, from the half way colour: clear
+   enough of the ground to read, 3 to 1, and still apart from the ink */
+unsigned cover_palette_dimmed(unsigned ink, unsigned dim, unsigned ground);
 /* whether row y of the screen is in the status bar */
 bool cover_palette_in_status_bar(int y);
 /* Of a line of an image at (x, y) of the screen: the most contrast any of its
