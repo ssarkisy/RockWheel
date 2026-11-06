@@ -1437,6 +1437,16 @@ unsigned cover_palette_dimmed(unsigned ink, unsigned dim, unsigned ground)
     int g[3] = { RGB_UNPACK_RED(ground), RGB_UNPACK_GREEN(ground),
                  RGB_UNPACK_BLUE(ground) };
     /* 3 to 1, but no nearer the line sung than a third less than its own */
-    readable_on(d, g, MIN(300, contrast(i, g) * 2 / 3), d);
+    const int target = MIN(300, contrast(i, g) * 2 / 3);
+    readable_on(d, g, target, d);
+    /* and on the Fill screen against the ground as it's painted there, its 16
+       bits the nearest: the one given has them cut, a level off in a fifth of
+       its parts, and the lines came out as much as 8% short of 3 to 1 */
+    if (active && palette.whole_screen && screen_colours.fill)
+    {
+        int painted[3];
+        unpack_rgb(pack_nearest(screen_colours.background), painted);
+        readable_on(d, painted, target, d);
+    }
     return LCD_RGBPACK(d[0], d[1], d[2]);
 }
