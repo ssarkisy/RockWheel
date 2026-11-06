@@ -1636,8 +1636,6 @@ void tree_restore(void)
         dircache_wait();
     }
 #endif
-
-#ifdef HAVE_TAGCACHE
-    tagcache_start_scan();
-#endif
+    /* the database's pass after it, tagcache_start_scan(), is the caller's:
+       after USB it follows the import or check there is (misc.c) */
 }

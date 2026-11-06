@@ -1351,6 +1351,7 @@ static const char *library_update_step(int phase)
         case TAGCACHE_IMPORT_READING:
             return str(LANG_READING_LIBRARY);
         case TAGCACHE_IMPORT_SCANNING:
+        case TAGCACHE_IMPORT_CHECKING:
             return str(LANG_CHECKING_SONGS);
         case TAGCACHE_IMPORT_COUNTS:
             return str(LANG_UPDATING_PLAY_COUNTS);
@@ -1484,9 +1485,35 @@ void show_library_update(void)
 {
     int done, total, phase;
     bool shown = false;
+    /* The check after USB of the songs outside Finder's folder shows only once
+       it takes long or finds a change: a connection that copied none is over
+       before the screen would come */
+    const int commitid = tagcache_get_commitid();
+    /* the database Cover Flow's albums and the songs were made for: a check
+       cut short by USB after it had changed the database left them, and the
+       one after found nothing more */
+    static int prepared_commitid = -1;
+    if (prepared_commitid < 0)
+        prepared_commitid = commitid; /* as the boot has them */
+    const long quiet_until = current_tick + HZ / 2;
+    bool checked_only = true;
     while ((phase = tagcache_get_import(&done, &total))
            != TAGCACHE_IMPORT_NONE)
     {
+        if (phase != TAGCACHE_IMPORT_CHECKING)
+            checked_only = false;
+        if (!shown && phase == TAGCACHE_IMPORT_CHECKING
+            && tagcache_get_commitid() == commitid
+            && TIME_BEFORE(current_tick, quiet_until))
+        {
+            /* only the events, as USB: get_action() had the theme draw its
+               status bar over the screen left */
+            const long event = button_get_w_tmo(HZ / 20);
+            if (IS_SYSEVENT(event)
+                && default_event_handler(event) == SYS_USB_CONNECTED)
+                break;
+            continue;
+        }
         int percent = library_update_percent(phase, done, total);
         if (!shown)
         {
@@ -1501,7 +1528,10 @@ void show_library_update(void)
         if (default_event_handler(action) == SYS_USB_CONNECTED)
             break;
     }
-    const bool imported = shown;
+    /* a check that took long but found nothing has nothing to make again */
+    const bool imported = phase == TAGCACHE_IMPORT_NONE
+        && ((shown && !checked_only)
+            || tagcache_get_commitid() != prepared_commitid);
     /* Finder may sync photos only, so this goes by their own database */
     const bool photos_changed = phase == TAGCACHE_IMPORT_NONE && photos_panel_stale();
     /* the fonts of the alphabets of the tags, again after a sync, and of the
@@ -1510,7 +1540,7 @@ void show_library_update(void)
     /* and the letters of their alphabets, which Search types with */
     const bool letters_stale = phase == TAGCACHE_IMPORT_NONE
                                && music_search_letters_stale();
-    if ((photos_changed || fonts_stale || letters_stale) && !shown)
+    if ((imported || photos_changed || fonts_stale || letters_stale) && !shown)
     {
         FOR_NB_SCREENS(i)
             viewportmanager_theme_enable(i, false, NULL);
@@ -1533,6 +1563,8 @@ void show_library_update(void)
         if (phase == TAGCACHE_IMPORT_NONE)
             tagtree_prepare_songs();
     }
+    if (phase == TAGCACHE_IMPORT_NONE)
+        prepared_commitid = tagcache_get_commitid();
     if (letters_stale)
     {
         library_update_show(str(LANG_UPDATING_LIBRARY), 0);

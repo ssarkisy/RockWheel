@@ -284,6 +284,7 @@ enum tagcache_queue {
     Q_REBUILD,
     Q_IMPORT_ITUNES,
     Q_SYNCED,
+    Q_CHECK_OUTSIDE,
     Q_LOAD_RAM,
 
     /* Internal tagcache command queue. */
@@ -434,6 +435,10 @@ static struct tempbuf_searchidx **lookup;
 
 /* Used when building the temporary file. */
 static int cachefd = -1, filenametag_fd;
+
+/* the check without a sync, of the songs copied outside Finder's folder:
+   what is in iPod_Control is iTunesDB's, not looked through */
+static bool scan_outside;
 
 /* The tag files and the temporary file are written through this, a block
  * at a time: a write() for each part of each entry took the iPod as long
@@ -966,9 +971,11 @@ static bool ram_names_overflow; /* then the slow ways are used */
 static int ram_paths_handle;
 static long ram_paths_count;
 static size_t ram_paths_size, ram_paths_used;
+static bool ram_paths_whole; /* none left out for room */
 
 static void free_ram_names(void)
 {
+    ram_paths_whole = false;
     if (ram_names_handle > 0)
         core_free(ram_names_handle);
     ram_names_handle = 0;
@@ -994,6 +1001,7 @@ static void ram_names_alloc(long count, size_t paths_size)
         ram_names_count = 0;
         ram_names_overflow = false;
         ram_paths_used = 0;
+        ram_paths_whole = true;
         memset(core_get_data(ram_paths_handle), 0,
                ram_paths_count * (sizeof(uint32_t) + 1));
         return;
@@ -1016,8 +1024,11 @@ static void ram_names_alloc(long count, size_t paths_size)
     ram_paths_size = paths_size;
     ram_paths_handle = core_alloc(count * (sizeof(uint32_t) + 1) + paths_size);
     if (ram_paths_handle > 0)
+    {
         memset(core_get_data(ram_paths_handle), 0,
                count * (sizeof(uint32_t) + 1));
+        ram_paths_whole = true;
+    }
     else
         ram_paths_handle = ram_paths_count = ram_paths_size = 0;
 }
@@ -1032,6 +1043,10 @@ static size_t ram_paths_needed(void)
     close(fd);
     return tch.datasize;
 }
+
+/* with the kind, for a file outside Finder's folder: the check of those after
+   USB passes over the others without a look at their paths */
+#define RAM_KIND_OUTSIDE 0x80
 
 static void ram_path_add(long idx_id, const char *path, uint64_t hash)
 {
@@ -1048,9 +1063,12 @@ static void ram_path_add(long idx_id, const char *path, uint64_t hash)
         offsets[idx_id] = ram_paths_used + 1;
         ram_paths_used += len;
     }
+    else
+        ram_paths_whole = false;
     unsigned flags = itunesdb_hash_flags(hash);
-    kinds[idx_id] = (flags & ITUNESDB_AUDIOBOOK) ? 2 :
-                    (flags & ITUNESDB_PODCAST) ? 1 : 0;
+    kinds[idx_id] = ((flags & ITUNESDB_AUDIOBOOK) ? 2 :
+                     (flags & ITUNESDB_PODCAST) ? 1 : 0)
+                    | (itunesdb_synced_path(path) ? 0 : RAM_KIND_OUTSIDE);
 }
 
 /* the index of the entry in memory idx points at, or -1 */
@@ -1060,6 +1078,14 @@ static long ram_entry_id(const struct index_entry *idx)
         || idx >= tcramcache.hdr->indices + current_tcmh.tch.entry_count)
         return -1;
     return idx - tcramcache.hdr->indices;
+}
+
+/* the paths of all the entries in memory, as loaded */
+static bool ram_paths_all(void)
+{
+    return tc_stat.ramcache && ram_paths_handle > 0 && ram_paths_whole
+           && !ram_names_overflow /* nor their paths added */
+           && ram_paths_count >= current_tcmh.tch.entry_count;
 }
 
 /* the path of the entry into buf, from memory */
@@ -1084,7 +1110,7 @@ static int ram_kind(long idx_id)
         return 0;
     const uint8_t *kinds = (const uint8_t *)core_get_data(ram_paths_handle)
                            + ram_paths_count * sizeof(uint32_t);
-    return kinds[idx_id];
+    return kinds[idx_id] & ~RAM_KIND_OUTSIDE;
 }
 #endif
 
@@ -2631,6 +2657,24 @@ bool tagcache_fill_text(struct mp3entry *id3, const char *filename)
 }
 #endif
 
+/* The scan's file of new entries, its header written once they're counted.
+   The check outside Finder's folder makes it only for one it finds: made and
+   removed again at every USB connection, it wrote to the disk for nothing. */
+static bool open_scan_temp(void)
+{
+    cachefd = open_db_fd(TAGCACHE_FILE_TEMP, O_RDWR | O_CREAT | O_TRUNC);
+    if (cachefd < 0)
+    {
+        logf("master file open failed: %s", TAGCACHE_FILE_TEMP);
+        return false;
+    }
+    struct tagcache_header header;
+    memset(&header, 0, sizeof(struct tagcache_header));
+    write(cachefd, &header, sizeof(struct tagcache_header));
+    tagfile_wbuf_used = 0;
+    return true;
+}
+
 static inline void write_item(const char *item)
 {
     int len = strlen(item) + 1;
@@ -2875,7 +2919,7 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
 
     DB_LOG("file", path);
 
-    if (cachefd < 0)
+    if (cachefd < 0 && !scan_outside)
         return ;
 
     /* Check for overlength file path. */
@@ -2891,7 +2935,8 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     int afmt = probe_file_format(path);
     if (afmt == AFMT_UNKNOWN)
         return;
-    if (import_phase == TAGCACHE_IMPORT_SCANNING)
+    if (import_phase == TAGCACHE_IMPORT_SCANNING
+        || import_phase == TAGCACHE_IMPORT_CHECKING)
         import_done++;
 
     /* Check if the file is already cached. */
@@ -3024,6 +3069,10 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
         ADD_TAG(entry, tag_grouping, &id3.title);
     }
     entry.data_length = offset;
+
+    /* the check outside Finder's folder makes the file with its first */
+    if (cachefd < 0 && !open_scan_temp())
+        return;
 
     /* Write the header */
     tagfile_wbuf_put(cachefd, &entry, sizeof(struct temp_file_entry));
@@ -6008,6 +6057,90 @@ static bool path_volume_mounted(const char *path)
 }
 #endif
 
+/* An entry's file, looked for: 0 for one of Finder's, which the import goes
+   by, 1 for one that's there, 2 for one gone, whose entry is removed */
+static int check_file_ref(long idx_id, const char *path, bool auto_update)
+{
+#ifndef __PCTOOL__
+    if (check_skips_synced && itunesdb_synced_path(path))
+        return 0;
+#endif
+    /* one of macOS's, from a scan before they were passed over */
+    if (auto_update && hidden_path(path))
+        return delete_entry(idx_id) ? 2 : 1;
+#ifdef HAVE_DIRCACHE
+    struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
+    unsigned int searchflag;
+    if (!auto_update)
+    {
+        if (idx->flag & FLAG_DIRCACHE) /* already found */
+            return 1;
+        searchflag = DCS_CACHED_PATH; /* attempt to load cache references */
+    }
+    else /* If auto updating, check storage too */
+    {
+        searchflag = DCS_STORAGE_PATH;
+    }
+
+    int rc_cache = dircache_search(searchflag | DCS_UPDATE_FILEREF,
+                                   &tcrc_dcfrefs[idx_id], path);
+
+    if (rc_cache > 0)           /* in cache and we have fileref */
+        idx->flag |= FLAG_DIRCACHE;
+    /* 0: not in cache but okay. A file that isn't there fails with ENOENT
+       in errno: compared with the result itself, none was ever removed */
+    if (rc_cache >= 0 || !auto_update || errno != ENOENT
+        || !path_volume_mounted(path))
+        return 1;
+#else
+    if (file_exists(path))
+        return 1;
+#endif /* HAVE_DIRCACHE */
+    logf("Entry no longer valid.");
+    logf("-> %s", path);
+    return delete_entry(idx_id) ? 2 : 1;
+}
+
+#if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
+/* The files of the entries looked for, by their paths in memory. The paths
+   stay where they are for it, and Finder's are passed over without a copy:
+   a copy, a lookup of the paths and a look at the queue for every one took
+   0.31 s for 13000, a look at Finder's paths still 0.17 s. */
+static void ram_check_file_refs(char *buf, size_t bufsz, bool auto_update,
+                                int *outside, int *deleted)
+{
+    const char *base = core_get_data_pinned(ram_paths_handle);
+    const uint32_t *offsets = (const uint32_t *)base;
+    const uint8_t *kinds = (const uint8_t *)(offsets + ram_paths_count);
+    const char *pool = (const char *)(kinds + ram_paths_count);
+    for (long i = 0; i < current_tcmh.tch.entry_count; i++)
+    {
+        if (!(i & 63) && check_event_queue())
+            break;
+        do_timed_yield();
+        processed_dir_count++;
+        /* the bar's first half: each file gone takes 0.17 s to remove, and
+           a hundred left it empty */
+        if (import_phase == TAGCACHE_IMPORT_CHECKING)
+        {
+            import_done = i;
+            import_total = 2 * current_tcmh.tch.entry_count;
+        }
+        if (check_skips_synced && !(kinds[i] & RAM_KIND_OUTSIDE))
+            continue;
+        uint32_t off = offsets[i];
+        /* none for a name empty */
+        if (!off || (tcramcache.hdr->indices[i].flag & FLAG_DELETED))
+            continue;
+        strmemccpy(buf, pool + off - 1, bufsz);
+        int res = check_file_ref(i, buf, auto_update);
+        *outside += res > 0;
+        *deleted += res == 2;
+    }
+    core_put_data_pinned((void *)base);
+}
+#endif
+
 static bool check_deleted_file_refs(bool auto_update)
 {
     int fd;
@@ -6020,7 +6153,9 @@ static bool check_deleted_file_refs(bool auto_update)
     logf("reverse scan...");
 
 #ifdef HAVE_DIRCACHE
-    if (tcramcache.handle > 0)
+    /* not while a commit has it unloaded: its entries are written below, and
+       the database can be bigger than its room by then */
+    if (tcramcache.handle > 0 && tc_stat.ramcache)
         tcrc_buffer_lock();
     else
         return false;
@@ -6029,6 +6164,20 @@ static bool check_deleted_file_refs(bool auto_update)
 #else
     if (!auto_update)
         return false;
+#endif
+
+    processed_dir_count = 0;
+    int deleted = 0, outside = 0;
+
+#if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
+    /* From the paths in memory when they're all there: read from the filename
+       file, 13000 of them took 0.44 s at every USB connection */
+    if (ram_paths_all())
+    {
+        fd = -1;
+        ram_check_file_refs(buf, bufsz, auto_update, &outside, &deleted);
+        goto wend_finished;
+    }
 #endif
 
     fd = open_tag_fd(&hdr, tag_filename, false); /* open read only*/
@@ -6043,7 +6192,6 @@ static bool check_deleted_file_refs(bool auto_update)
         return false;
     }
 
-    processed_dir_count = 0;
     tagr_start(fd);
 
     while (!check_event_queue())
@@ -6074,53 +6222,9 @@ static bool check_deleted_file_refs(bool auto_update)
                 continue;
         }
 
-        int idx_id = tfe.idx_id; /* dircache reference clobbers *tfe */
-#ifndef __PCTOOL__
-        if (check_skips_synced && itunesdb_synced_path(buf))
-            continue;
-#endif
-        /* one of macOS's, from a scan before they were passed over */
-        if (auto_update && hidden_path(buf))
-        {
-            delete_entry(idx_id);
-            continue;
-        }
-#ifdef HAVE_DIRCACHE
-        struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
-        unsigned int searchflag;
-        if (!auto_update)
-        {
-            if(idx->flag & FLAG_DIRCACHE) /* already found */
-            {
-                continue;
-            }
-            searchflag = DCS_CACHED_PATH; /* attempt to load cache references */
-        }
-        else /* If auto updating, check storage too */
-        {
-            searchflag = DCS_STORAGE_PATH;
-        }
-
-        int rc_cache = dircache_search(searchflag | DCS_UPDATE_FILEREF,
-                                   &tcrc_dcfrefs[idx_id], buf);
-
-        if (rc_cache > 0)           /* in cache and we have fileref */
-        {
-            idx->flag |= FLAG_DIRCACHE;
-        }
-        else if (rc_cache == 0)     /* not in cache but okay */
-        {;}
-        /* a file that isn't there fails with ENOENT in errno: compared with
-           the result itself, none was ever removed */
-        else if (auto_update && errno == ENOENT && path_volume_mounted(buf))
-#else
-        if (!file_exists(buf))
-#endif /* HAVE_DIRCACHE */
-        {
-            logf("Entry no longer valid.");
-            logf("-> %s / %" PRId32, buf, tfe.tag_length);
-            delete_entry(idx_id);
-        }
+        res = check_file_ref(tfe.idx_id, buf, auto_update);
+        outside += res > 0;
+        deleted += res == 2;
     }
 
 wend_finished:
@@ -6129,8 +6233,28 @@ wend_finished:
     if (tcramcache.handle > 0)
         tcrc_buffer_unlock();
 #endif
-    close(fd);
+    if (fd >= 0)
+        close(fd);
     logf("done");
+
+#ifndef __PCTOOL__
+    /* the bar's second half, the scan after: how many of those still there
+       it has found, as add_tagcache() counts them */
+    if (import_phase == TAGCACHE_IMPORT_CHECKING)
+    {
+        import_total = 2 * MAX(outside - deleted, 1);
+        import_done = import_total / 2;
+    }
+#endif
+    if (deleted > 0)
+    {
+        /* what's made from the database goes by this, as after an import that
+           removed songs: the lists kept, the prepared one of all songs, Cover
+           Flow's albums. A commit counts one too, but with no song new, none
+           comes */
+        current_tcmh.commitid++;
+        update_master_header();
+    }
 
     return ret;
 }
@@ -6279,6 +6403,18 @@ static bool rockbox_dir(const char *path)
     return !strcasecmp(path, ROCKBOX_DIR);
 }
 
+/* Finder's, with the songs of iTunesDB, which a sync brings: the check of
+   those outside it passes over it */
+static bool outside_skips(const char *path)
+{
+    if (!scan_outside)
+        return false;
+#ifdef HAVE_MULTIVOLUME
+    path_strip_volume(path, &path, false);
+#endif
+    return !strcasecmp(path, "/iPod_Control");
+}
+
 static bool check_dir(const char *dirname, int add_files)
 {
     int success = false;
@@ -6331,7 +6467,7 @@ static bool check_dir(const char *dirname, int add_files)
                 add_search_root(curpath);
             else
 #endif /* SIMULATOR */
-            if (!rockbox_dir(curpath))
+            if (!rockbox_dir(curpath) && !outside_skips(curpath))
                 check_dir(curpath, add_files);
         }
         else if (add_files)
@@ -6397,13 +6533,12 @@ void do_tagcache_build(const char *path[])
     {
         logf("skipping, cache already waiting for commit");
         close(cachefd);
+        cachefd = -1;
         return ;
     }
 
-    cachefd = open_db_fd(TAGCACHE_FILE_TEMP, O_RDWR | O_CREAT | O_TRUNC);
-    if (cachefd < 0)
+    if (!scan_outside && !open_scan_temp())
     {
-        logf("master file open failed: %s", TAGCACHE_FILE_TEMP);
         scan_cut_short = true;
         return ;
     }
@@ -6428,10 +6563,6 @@ void do_tagcache_build(const char *path[])
 
     logf("Scanning files...");
     /* Scan for new files. */
-    memset(&header, 0, sizeof(struct tagcache_header));
-    write(cachefd, &header, sizeof(struct tagcache_header));
-    tagfile_wbuf_used = 0;
-
     ret = true;
 
     if (path[0] == NULL)
@@ -6522,14 +6653,23 @@ void do_tagcache_build(const char *path[])
 #endif
 
 commit:
-    /* Write the header. */
-    tagfile_wbuf_flush(cachefd);
-    header.magic = TAGCACHE_MAGIC;
-    header.datasize = data_size;
-    header.entry_count = total_entry_count;
-    lseek(cachefd, 0, SEEK_SET);
-    write(cachefd, &header, sizeof(struct tagcache_header));
-    close(cachefd);
+    if (cachefd >= 0)
+    {
+        /* Write the header. */
+        tagfile_wbuf_flush(cachefd);
+        header.magic = TAGCACHE_MAGIC;
+        header.datasize = data_size;
+        header.entry_count = total_entry_count;
+        lseek(cachefd, 0, SEEK_SET);
+        write(cachefd, &header, sizeof(struct tagcache_header));
+        close(cachefd);
+        cachefd = -1;
+        /* The check's, cut short as by USB or switching off, isn't left: the
+           next boot asked whether to commit it. The next check finds them
+           again. */
+        if (!ret && scan_outside)
+            remove_db_file(TAGCACHE_FILE_TEMP);
+    }
 
     if (filenametag_fd >= 0)
     {
@@ -6552,9 +6692,13 @@ commit:
 #ifdef __PCTOOL__
     allocate_tempbuf();
 #endif
-    if (import_phase == TAGCACHE_IMPORT_SCANNING)
+    /* the check outside Finder's folder shows a screen only for a change */
+    if (import_phase == TAGCACHE_IMPORT_SCANNING
+        || (import_phase == TAGCACHE_IMPORT_CHECKING && total_entry_count > 0))
         import_phase = TAGCACHE_IMPORT_SAVING;
-    if (commit())
+    if (scan_outside && total_entry_count == 0)
+        ; /* none new, and no file made for them */
+    else if (commit())
     {
         logf("tagcache built!");
     }
@@ -6684,20 +6828,39 @@ static bool NO_INLINE db_file_exists(const char* filename)
 /* Updates the database from the files, also when the commit had to wait
    for a buffer, and loads it into the cache again at its new size. False
    when the scan was cut short: its part waits for the next try. */
-static bool update_and_reload(void)
+/* the database in memory again after a commit, which unloads it */
+static void reload_after_commit(void)
+{
+#ifdef HAVE_TC_RAMCACHE
+    if (!tc_stat.ramcache)
+    {
+        reallocate_ramcache();
+        load_ramcache();
+    }
+#endif
+}
+
+/* the new files of a scan before, as of one whose commit found no buffer */
+static void commit_waiting(void)
 {
     if (db_file_exists(TAGCACHE_FILE_TEMP))
     {
-        /* one waits from before: it goes in first, or the scan would be
-           skipped for it and miss the new files */
         allocate_tempbuf();
         commit();
         free_tempbuf();
     }
+}
+
+static bool update_and_reload(void)
+{
+    /* one waits from before: it goes in first, or the scan would be skipped
+       for it and miss the new files */
+    commit_waiting();
     tagcache_build();
     itunesdb_forget_metadata(); /* if the scan was skipped */
     bool scanned = !scan_cut_short;
-    if (import_phase != TAGCACHE_IMPORT_NONE)
+    if (import_phase != TAGCACHE_IMPORT_NONE
+        && import_phase != TAGCACHE_IMPORT_CHECKING)
         import_phase = TAGCACHE_IMPORT_LOADING;
     if (scanned && db_file_exists(TAGCACHE_FILE_TEMP))
     {
@@ -6708,12 +6871,7 @@ static bool update_and_reload(void)
         free_tempbuf();
     }
 #ifdef HAVE_TC_RAMCACHE
-    /* a commit unloads it */
-    if (!tc_stat.ramcache)
-    {
-        reallocate_ramcache();
-        load_ramcache();
-    }
+    reload_after_commit();
     /* without enough memory for it, the database still works from disk */
     if (!tc_stat.ready)
         tagcache_commit_finalize();
@@ -6752,14 +6910,32 @@ int tagcache_get_import(int *done, int *total)
 
 /* What a boot does after a sync, for one over Rockbox's own USB mode, which
    doesn't reboot: true when there is an import, which tagcache_get_import()
-   then follows. Called once the computer has let go of the disk. */
+   then follows. Without a sync, the songs outside Finder's folder are looked
+   for, as copied there by hand: FLAC, which Finder doesn't take. Called once
+   the computer has let go of the disk. */
 bool tagcache_check_sync(void)
 {
-    if (!tc_stat.initialized || import_phase != TAGCACHE_IMPORT_NONE
-        || !itunesdb_changed())
+    if (!tc_stat.initialized || import_phase != TAGCACHE_IMPORT_NONE)
         return false;
-    import_phase = TAGCACHE_IMPORT_READING;
-    queue_post(&tagcache_queue, Q_SYNCED, 0);
+    if (itunesdb_changed())
+    {
+        import_phase = TAGCACHE_IMPORT_READING;
+        queue_post(&tagcache_queue, Q_SYNCED, 0);
+        return true;
+    }
+    if (!tc_stat.ready
+#ifdef HAVE_TC_RAMCACHE
+        /* from the disk, every name was read and every file looked up, for
+           seconds at every connection */
+        || !tc_stat.ramcache
+#endif
+        /* after a plugin, music started meanwhile: a commit would take its
+           buffer and stop it. The songs come with the next connection. */
+        || (audio_status() & AUDIO_STATUS_PLAY))
+        return false;
+    import_done = import_total = 0;
+    import_phase = TAGCACHE_IMPORT_CHECKING;
+    queue_post(&tagcache_queue, Q_CHECK_OUTSIDE, 0);
     return true;
 }
 
@@ -6966,6 +7142,23 @@ static void tagcache_thread(void)
                 itunesdb_make_slides(&import_done, &import_total,
                                      check_event_queue);
 #endif
+                import_phase = TAGCACHE_IMPORT_NONE;
+                cpu_boost(false);
+                break ;
+
+            case Q_CHECK_OUTSIDE:
+                /* The songs outside Finder's folder: those gone first, so
+                   that a file moved or renamed has its counts and rating back
+                   when the scan adds it again, then the new ones */
+                cpu_boost(true);
+                check_skips_synced = scan_outside = true;
+                /* new files one waits with, from before: their entries are
+                   looked for too, in memory */
+                commit_waiting();
+                reload_after_commit();
+                check_deleted_file_refs(true);
+                update_and_reload();
+                check_skips_synced = scan_outside = false;
                 import_phase = TAGCACHE_IMPORT_NONE;
                 cpu_boost(false);
                 break ;

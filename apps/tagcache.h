@@ -200,6 +200,8 @@ enum {
     TAGCACHE_IMPORT_COUNTS,   /* ratings and play counts */
     TAGCACHE_IMPORT_COVERS,   /* Cover Flow's slides, done of total */
     TAGCACHE_IMPORT_SLIDES,   /* only those, without a sync */
+    TAGCACHE_IMPORT_CHECKING, /* the songs outside Finder's folder, without
+                                 a sync: found of those known */
 };
 int tagcache_get_import(int *done, int *total);
 /* main() has taken the boot's memory: a commit may have the rest */

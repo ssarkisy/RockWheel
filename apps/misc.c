@@ -58,6 +58,10 @@
 #include "font.h"
 #include "splash.h"
 #include "tagcache.h"
+#ifdef HAVE_TAGCACHE
+#include "plugin.h"
+#include "root_menu.h"
+#endif
 #include "sound.h"
 #include "playlist.h"
 #include "yesno.h"
@@ -356,6 +360,15 @@ static void system_flush(void)
 static void system_restore(void)
 {
     tree_restore();
+}
+
+/* the database's pass over the files after the disk was away: after an
+   import or check of its own, which come first */
+static void system_restore_database(void)
+{
+#ifdef HAVE_TAGCACHE
+    tagcache_start_scan();
+#endif
 }
 
 static bool clean_shutdown(enum shutdown_type sd_type,
@@ -683,6 +696,19 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
 #endif
 #endif
             system_restore();
+#ifdef HAVE_TAGCACHE
+            /* After a sync, the new songs before anything else, as after a
+               boot: at once, as a browser stays open after USB, and from
+               within a plugin's screen once that has closed, as plugins do
+               after USB: it took the plugins' buffer from under the plugin
+               itself. Once the dircache is built again, as at boot: before
+               it, every folder and file was looked up on the disk. */
+            if (plugin_is_running())
+                library_update_after_usb();
+            else if (tagcache_check_sync())
+                show_library_update();
+#endif
+            system_restore_database();
             return SYS_USB_CONNECTED;
         }
 
@@ -727,6 +753,7 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
             system_flush();
             check_bootfile(true); /* state gotten in main.c:init() */
             system_restore();
+            system_restore_database();
         }
             return SYS_FS_CHANGED;
 #endif
