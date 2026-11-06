@@ -3332,11 +3332,17 @@ static inline bool load_and_prepare_surface(const int slide_index,
 {
     int hid = -1;
 #ifdef ITUNESDB_HAVE_ART
+    /* the slides Updating Library made, of Finder's covers and of the songs
+       outside its folder: no file of the plugin's own any more, as older
+       versions kept of some albums, showing covers since changed */
     hid = read_ipod_cover(slide_index, prio);
     if (hid == COVER_NO_ROOM)
         return false;
+    /* none, the note's slide, as a missing .pfraw gave it: a slide not
+       loaded is taken for no room, and the slides past it weren't loaded */
     if (hid < 0)
-#endif
+        hid = empty_slide_hid;
+#else
     {
         char pfraw_file[MAX_PATH];
         unsigned int hash_artist = mfnv(get_album_artist(slide_index));
@@ -3346,6 +3352,7 @@ static inline bool load_and_prepare_surface(const int slide_index,
                      CACHE_PREFIX "/%x%x.pfraw", hash_album, hash_artist);
         hid = read_pfraw(pfraw_file, prio);
     }
+#endif
     if (hid < 0)
         return false;
 
@@ -4172,9 +4179,13 @@ static bool sort_albums(int new_sorting, bool from_settings)
 
     /* Empty cache and restart cover loading thread */
     rb->buflib_init(&buf_ctx, (void *)pf_idx.buf, pf_idx.buf_sz);
-    /* -1 as it's read, which is what a failure to read it gives then */
+    /* -1 as it's read, which is what a failure to read it gives then; made
+       again if it doesn't read, as at the start: without it a slide with no
+       cover was loaded again and again */
     empty_slide_hid = -1;
     empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0);
+    if (empty_slide_hid < 0 && create_empty_slide(true))
+        empty_slide_hid = read_pfraw(EMPTY_SLIDE, 0);
     initialize_slide_cache();
     is_initial_slide = true;
     create_pf_thread();
@@ -7312,6 +7323,45 @@ static void prepare_covers(void)
 }
 #endif /* HAVE_TC_RAMCACHE */
 
+/* The covers older versions kept as .pfraw files, one an album, which
+   nothing reads now: a second's worth of them let go of at a time, as
+   hundreds took long, the note's slide kept */
+static void remove_old_slides(void)
+{
+    /* their names in the buffer the album list, saved, has done with */
+    typedef char slide_name[MAX_PATH / 4];
+    slide_name *names = pf_idx.buf;
+    const int most = MIN(32, (int)(pf_idx.buf_sz / sizeof(slide_name)));
+    char path[MAX_PATH];
+    if (most <= 0)
+        return;
+    const long until = *rb->current_tick + HZ;
+    bool more = true;
+    while (more && TIME_BEFORE(*rb->current_tick, until))
+    {
+        int n = 0;
+        DIR *dir = rb->opendir(CACHE_PREFIX);
+        if (!dir)
+            return;
+        struct dirent *e;
+        while (n < most && (e = rb->readdir(dir)) != NULL)
+        {
+            const char *dot = rb->strrchr(e->d_name, '.');
+            if (dot && !rb->strcasecmp(dot, ".pfraw")
+                && rb->strcasecmp(e->d_name, rb->strrchr(EMPTY_SLIDE, '/') + 1)
+                && rb->strlen(e->d_name) < sizeof(names[0]))
+                rb->strcpy(names[n++], e->d_name);
+        }
+        more = n == most;
+        rb->closedir(dir);
+        for (int i = 0; i < n && TIME_BEFORE(*rb->current_tick, until); i++)
+        {
+            rb->snprintf(path, sizeof(path), CACHE_PREFIX "/%s", names[i]);
+            rb->remove(path);
+        }
+    }
+}
+
 static enum plugin_status prepare_album_list(void)
 {
     struct tagcache_stat *stat = rb->tagcache_get_stat();
@@ -7363,8 +7413,11 @@ static enum plugin_status prepare_album_list(void)
             config_save(CACHE_VERSION, pf_cfg.update_albumart);
         }
     }
-    /* in what of the buffer is left after the list; not when Menu has left
-       the list, or when there was no room for it */
+    /* the old slides, and the covers in what of the buffer is left after the
+       list: not when Menu, USB or switching off has left the list, or when
+       there was no room for it */
+    if (listed)
+        remove_old_slides();
 #ifdef HAVE_TC_RAMCACHE
     if (listed)
         prepare_covers();
