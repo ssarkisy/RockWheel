@@ -937,9 +937,9 @@ static void playlist_dir(char *buf, size_t size)
    made. Each file costs the iPod's flash a good part of a second to remove and
    write again, so those that would come out the same are left. */
 
-#define MAX_PLAYLISTS 256
-#define MAX_FOLDERS 128
-#define MAX_PLAYLIST_DIRS MAX_FOLDERS
+/* As many playlists and folders as there are: iTunesDB says how many
+   playlists, and the files are given room for their lines. Of 256 playlists
+   and 128 folders at most, a library of hundreds lost the rest (2026-11-04). */
 /* Folders in folders this deep at most, as the browser goes no further: one
    that iTunes has deeper, or in itself, isn't made, and its playlists go
    into the top folder */
@@ -951,7 +951,7 @@ static void playlist_dir(char *buf, size_t size)
 
 static struct {
     int handle;
-    int count;
+    int count, capacity;
     struct old_playlist {
         uint64_t file_hash;     /* itunesdb_path_hash() of the file */
         uint64_t hash;          /* of what it holds, 0 if not known */
@@ -962,11 +962,11 @@ static struct {
     } *lists;
     char *names;
     /* the folders made, as offsets of their names */
-    int dir_count;
-    uint32_t dirs[MAX_PLAYLIST_DIRS];
-    /* the files written this time */
-    int written_count;
-    uint64_t written[MAX_PLAYLISTS];
+    int dir_count, dir_capacity;
+    uint32_t *dirs;
+    /* the files written this time, one a playlist of iTunesDB's at most */
+    int written_count, written_capacity;
+    uint64_t *written;
     bool list_failed;           /* a line of the new list didn't write */
     /* a record of the playlists in iTunesDB couldn't be read, as of one cut
        short by a sync left off: the playlists after it would have looked gone */
@@ -992,29 +992,56 @@ static int read_list_line(int fd, char *line, size_t size)
     return n;
 }
 
-/* the playlists file of the last import, if there is one to go by */
-static enum old_list load_old_playlists(void)
+/* the lines of a list file, the last with a newline or without: as many as
+   it's given room for */
+static int count_lines(int fd)
+{
+    char block[512];
+    int lines = 0;
+    char last = '\n';
+    ssize_t n;
+    while ((n = read(fd, block, sizeof(block))) > 0)
+    {
+        for (ssize_t i = 0; i < n; i++)
+            lines += block[i] == '\n';
+        last = block[n - 1];
+    }
+    lseek(fd, 0, SEEK_SET);
+    /* as many as anyone has, and the sizes from it in range, of a broken file */
+    return MIN(lines + (last != '\n'), 1 << 16);
+}
+
+/* The playlists file of the last import, if there is one to go by, and room
+   for those of iTunesDB written this time */
+static enum old_list load_old_playlists(int playlists)
 {
     memset(&pls, 0, sizeof(pls));
     remove(PLAYLIST_TEMP);
     remove(PLAYLISTS_TEMP);
     int fd = open(PLAYLISTS_FILE, O_RDONLY);
-    if (fd < 0)
-        return LIST_NONE;
     char line[MAX_PATH + 48];
-    off_t size = ffilesize(fd);
-    pls.handle = db_alloc(MAX_PLAYLISTS * sizeof(struct old_playlist)
-                            + size + 1);
+    const int lines = fd >= 0 ? count_lines(fd) : 0;
+    const off_t size = fd >= 0 ? ffilesize(fd) : 0;
+    pls.written_capacity = MAX(0, MIN(playlists, 1 << 16)); /* as iTunesDB says */
+    pls.capacity = pls.dir_capacity = lines;
+    pls.handle = db_alloc(pls.written_capacity * sizeof(uint64_t)
+                          + lines * sizeof(struct old_playlist)
+                          + lines * sizeof(uint32_t) + size + 1);
     if (pls.handle <= 0)
     {
         /* the playlists are left as they are, and the list, for the next */
         pls.handle = 0;
-        close(fd);
+        if (fd >= 0)
+            close(fd);
         return LIST_NO_ROOM;
     }
     core_pin(pls.handle);
-    pls.lists = core_get_data(pls.handle);
-    pls.names = (char *)(pls.lists + MAX_PLAYLISTS);
+    pls.written = core_get_data(pls.handle);
+    pls.lists = (struct old_playlist *)(pls.written + pls.written_capacity);
+    pls.dirs = (uint32_t *)(pls.lists + lines);
+    pls.names = (char *)(pls.dirs + lines);
+    if (fd < 0)
+        return LIST_NONE;
     size_t used = 0;
     while (read_list_line(fd, line, sizeof(line)) > 0)
     {
@@ -1025,7 +1052,7 @@ static enum old_list load_old_playlists(void)
         if (!strncmp(line, "dir /", 5))
         {
             size_t len = strlen(line + 4) + 1;
-            if (pls.dir_count < MAX_PLAYLIST_DIRS && used + len <= (size_t)size + 1)
+            if (pls.dir_count < pls.dir_capacity && used + len <= (size_t)size + 1)
             {
                 memcpy(pls.names + used, line + 4, len);
                 pls.dirs[pls.dir_count++] = used;
@@ -1033,7 +1060,7 @@ static enum old_list load_old_playlists(void)
             }
             continue;
         }
-        if (pls.count >= MAX_PLAYLISTS)
+        if (pls.count >= pls.capacity)
             continue; /* on to the folders, listed after them */
         struct old_playlist *o = &pls.lists[pls.count];
         o->hash = 0;
@@ -1395,6 +1422,7 @@ static int playlist_items(off_t child, int items, struct writer *w,
 static struct {
     int handle;
     int folder_count, placed_count;
+    int capacity;               /* of each, a line of the file each */
     struct folder {
         uint64_t id, parent;
         uint32_t name;          /* in names */
@@ -1405,14 +1433,16 @@ static struct {
     char *names;
     /* the folders made, or kept, this time, end to end */
     char *made;
-    size_t made_len;
+    size_t made_len, made_size;
     int made_count;
     /* there was no list to say which were made, as with a new .rockbox: those
        there already are taken to be the import's */
     bool claim;
 } fld;
 
-#define MADE_SIZE (MAX_PLAYLIST_DIRS * 64)
+/* the room for the folders made, by so much a folder: one past it isn't
+   noted, and stays when it's left empty */
+#define MADE_PER_FOLDER 96
 
 /* 16 hex digits, or none for "-" */
 static uint64_t parse_id(const char *s, const char **end)
@@ -1439,8 +1469,11 @@ static void load_folders(void)
     if (fd < 0)
         return;
     const off_t size = ffilesize(fd);
-    fld.handle = db_alloc(MAX_FOLDERS * sizeof(struct folder)
-                          + MAX_PLAYLISTS * sizeof(struct placed) + MADE_SIZE + size + 1);
+    const int lines = count_lines(fd);
+    fld.capacity = lines;
+    fld.made_size = lines * MADE_PER_FOLDER + MAX_PATH;
+    fld.handle = db_alloc(lines * sizeof(struct folder) + lines * sizeof(struct placed)
+                          + fld.made_size + size + 1);
     if (fld.handle <= 0)
     {
         fld.handle = 0;
@@ -1449,15 +1482,15 @@ static void load_folders(void)
     }
     core_pin(fld.handle);
     fld.folders = core_get_data(fld.handle);
-    fld.placed = (struct placed *)(fld.folders + MAX_FOLDERS);
-    fld.made = (char *)(fld.placed + MAX_PLAYLISTS);
-    fld.names = fld.made + MADE_SIZE;
+    fld.placed = (struct placed *)(fld.folders + lines);
+    fld.made = (char *)(fld.placed + lines);
+    fld.names = fld.made + fld.made_size;
     size_t used = 0;
     char line[MAX_PATH];
     while (read_list_line(fd, line, sizeof(line)) > 0)
     {
         const char *rest;
-        if (!strncmp(line, "folder ", 7) && fld.folder_count < MAX_FOLDERS)
+        if (!strncmp(line, "folder ", 7) && fld.folder_count < fld.capacity)
         {
             struct folder *f = &fld.folders[fld.folder_count];
             f->id = parse_id(line + 7, &rest);
@@ -1472,7 +1505,7 @@ static void load_folders(void)
             used += len;
             fld.folder_count++;
         }
-        else if (!strncmp(line, "playlist ", 9) && fld.placed_count < MAX_PLAYLISTS)
+        else if (!strncmp(line, "playlist ", 9) && fld.placed_count < fld.capacity)
         {
             struct placed *pl = &fld.placed[fld.placed_count];
             pl->id = parse_id(line + 9, &rest);
@@ -1556,8 +1589,8 @@ static bool folder_dir(char *buf, size_t size, const char *dir, uint64_t id)
         for (size_t k = 0; k < fld.made_len && !noted; k += strlen(fld.made + k) + 1)
             noted = !strcasecmp(fld.made + k, buf);
         const size_t n = strlen(buf) + 1;
-        if (!noted && fld.made_count < MAX_PLAYLIST_DIRS
-            && fld.made_len + n <= MADE_SIZE)
+        if (!noted && fld.made_count < fld.capacity
+            && fld.made_len + n <= fld.made_size)
         {
             memcpy(fld.made + fld.made_len, buf, n);
             fld.made_len += n;
@@ -1639,7 +1672,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     if (!parent || !folder_dir(folder, sizeof(folder), dir, parent))
         strmemccpy(folder, dir, sizeof(folder));
     if (!playlist_file(file, sizeof(file), folder, name)
-        || pls.written_count >= MAX_PLAYLISTS)
+        || pls.written_count >= pls.written_capacity)
         return;
     struct old_playlist *o = find_old_playlist(file);
     bool same = false;
@@ -1685,7 +1718,7 @@ static void write_playlists(off_t list)
 {
     char dir[MAX_PATH];
     const unsigned char *p = list >= 0 ? db_record(list, "mhlp", 12) : NULL;
-    const enum old_list old = load_old_playlists();
+    const enum old_list old = load_old_playlists(p ? (int)le32(p + 8) : 0);
     if (old == LIST_NO_ROOM)
         return;
     const bool listed = old == LIST_READ;
