@@ -493,6 +493,11 @@ bool lyrics_load(const struct mp3entry *id3, struct viewport *vp)
     return loaded.found;
 }
 
+void lyrics_forget(void)
+{
+    loaded.path[0] = '\0';
+}
+
 bool lyrics_follow(unsigned long elapsed)
 {
     if (time_count == 0)

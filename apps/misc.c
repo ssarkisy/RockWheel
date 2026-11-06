@@ -93,6 +93,7 @@
 #if !defined(__PCTOOL__)
 #include "bmp.h"
 #include "icons.h"
+#include "lyrics.h"
 #endif /* !__PCTOOL__ */
 #include "bookmark.h"
 #include "wps.h"
@@ -360,6 +361,9 @@ static void system_flush(void)
 static void system_restore(void)
 {
     tree_restore();
+    /* the files may have changed: an .lrc copied for the track playing was
+       taken for none, as it was looked for before USB */
+    lyrics_forget();
 }
 
 #ifdef HAVE_TAGCACHE

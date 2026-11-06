@@ -31,6 +31,10 @@
    for the track they are of already, they stay as they are */
 bool lyrics_load(const struct mp3entry *id3, struct viewport *vp);
 
+/* looked for again the next time, for the same track too: after USB, which
+   may have brought an .lrc for the track playing */
+void lyrics_forget(void);
+
 /* synced lyrics: the line sung at elapsed ms becomes the current one and
    the view follows it, unless the wheel moved it a moment ago; true when
    they should be drawn again */
