@@ -6057,6 +6057,50 @@ static bool path_volume_mounted(const char *path)
 }
 #endif
 
+/* The entries the check of the files removes, through the files opened once
+   and their strings swept at the end in one pass, as the import's: each by
+   itself opened the files, went over all the entries for its strings and
+   closed them again, 0.17 s on the iPod */
+static int gone_masterfd = -1;
+static long gone_count;
+static int gone_fds[TAG_COUNT];
+
+static bool remove_gone(long idx_id)
+{
+    /* by itself while music plays: the sweep takes memory, which the music's
+       buffer would give up, stopping it */
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        return delete_entry(idx_id);
+    if (gone_masterfd < 0)
+    {
+        struct master_header hdr;
+        gone_masterfd = open_master_fd(&hdr, true);
+        if (gone_masterfd < 0)
+            return false;
+        gone_count = hdr.tch.entry_count;
+        for (int tag = 0; tag < TAG_COUNT; tag++)
+            gone_fds[tag] = -1;
+    }
+    return delete_entry_in(idx_id, gone_masterfd, gone_count, gone_fds, true);
+}
+
+static void remove_gone_done(void)
+{
+    if (gone_masterfd < 0)
+        return;
+    /* not for music started meanwhile, whose buffer would give the sweep its
+       memory: the strings stay in the files, as when there's none */
+    if (!(audio_status() & AUDIO_STATUS_PLAY))
+        sweep_unused_tags(gone_masterfd, gone_count, gone_fds);
+    for (int tag = 0; tag < TAG_COUNT; tag++)
+    {
+        if (gone_fds[tag] >= 0)
+            close(gone_fds[tag]);
+    }
+    close(gone_masterfd);
+    gone_masterfd = -1;
+}
+
 /* An entry's file, looked for: 0 for one of Finder's, which the import goes
    by, 1 for one that's there, 2 for one gone, whose entry is removed */
 static int check_file_ref(long idx_id, const char *path, bool auto_update)
@@ -6067,7 +6111,7 @@ static int check_file_ref(long idx_id, const char *path, bool auto_update)
 #endif
     /* one of macOS's, from a scan before they were passed over */
     if (auto_update && hidden_path(path))
-        return delete_entry(idx_id) ? 2 : 1;
+        return remove_gone(idx_id) ? 2 : 1;
 #ifdef HAVE_DIRCACHE
     struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
     unsigned int searchflag;
@@ -6098,7 +6142,7 @@ static int check_file_ref(long idx_id, const char *path, bool auto_update)
 #endif /* HAVE_DIRCACHE */
     logf("Entry no longer valid.");
     logf("-> %s", path);
-    return delete_entry(idx_id) ? 2 : 1;
+    return remove_gone(idx_id) ? 2 : 1;
 }
 
 #if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
@@ -6235,6 +6279,8 @@ wend_finished:
 #endif
     if (fd >= 0)
         close(fd);
+    /* after the unlock: the sweep locks the strings in memory itself */
+    remove_gone_done();
     logf("done");
 
 #ifndef __PCTOOL__
