@@ -1608,7 +1608,8 @@ static void note_skip_art(int offset, const struct mp3entry *id3, const char *pa
 {
     if (id3 == id3_get(PLAYING_PEEK_ID3))
         skip_art_offset = global_settings.album_art != AA_OFF
-                          && itunesdb_find_art(path, &skip_art) ? offset : 0;
+                          && itunesdb_find_track_art(id3, path, &skip_art)
+                          ? offset : 0;
 }
 #endif
 
@@ -1655,9 +1656,6 @@ static bool audio_get_track_metadata(int offset, struct mp3entry *id3)
     char path[MAX_PATH+1];
     if (playlist_peek(offset, path, sizeof (path)))
     {
-#ifdef HAVE_SKIP_ART
-        note_skip_art(offset, id3, path);
-#endif
 #if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
         /* Try to get it from the database */
         if (!tagcache_fill_tags(id3, path))
@@ -1666,6 +1664,11 @@ static bool audio_get_track_metadata(int offset, struct mp3entry *id3)
             /* By now, filename is the only source of info */
             fill_metadata_from_path(id3, path);
         }
+#ifdef HAVE_SKIP_ART
+        /* after its tags, which a cover of a song outside Finder's folder
+           is found by */
+        note_skip_art(offset, id3, path);
+#endif
 
         return true;
     }
@@ -2019,7 +2022,8 @@ static int audio_load_albumart(struct track_info *infop,
     /* the cover Finder made for the stock firmware: no JPEG to decode */
     struct itunesdb_art ipod_art;
     bool have_ipod_art = global_settings.album_art != AA_OFF
-                         && itunesdb_find_art(track_id3->path, &ipod_art);
+                         && itunesdb_find_track_art(track_id3, track_id3->path,
+                                                    &ipod_art);
     if (have_ipod_art)
         infop->cover_colour = ipod_art.colour;
 #ifdef HAVE_SKIP_ART

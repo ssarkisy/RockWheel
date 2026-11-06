@@ -923,6 +923,20 @@ static const struct plugin_api rockbox_api = {
     whole_file_open,
     whole_file_close,
     whole_file_write,
+#ifdef ITUNESDB_HAVE_ART
+    itunesdb_album_key,
+    itunesdb_find_album_art,
+    itunesdb_covers_stale,
+    itunesdb_covers_begin,
+    itunesdb_cover_known,
+    itunesdb_cover_put,
+    itunesdb_covers_end,
+    itunesdb_synced_path,
+    library_update_covers_progress,
+    itunesdb_covers_skip,
+    library_update_hold,
+    itunesdb_cover_making,
+#endif
 };
 
 static int plugin_buffer_handle;

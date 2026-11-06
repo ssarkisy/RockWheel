@@ -815,6 +815,18 @@ static bool progress_cancel(int step, int count, char *msg)
             (const char*[]) {"Quit?", "Progress will be lost"}, 2};
 
     int action = rb->get_action(CONTEXT_STD,TIMEOUT_NOBLOCK);
+#ifdef ITUNESDB_HAVE_ART
+    if (preparing && (action == SYS_USB_CONNECTED || action == SYS_POWEROFF
+                      || action == SYS_REBOOT))
+    {
+        /* answered once Updating Library is over, as during the covers:
+           dropped here, USB waited for a reconnect */
+        rb->library_update_hold(action);
+        return true;
+    }
+    else if (preparing && IS_SYSEVENT(action))
+        rb->default_event_handler(action);
+#endif
     if (action == ACTION_STD_CANCEL || action == ACTION_STD_MENU)
     {
 #ifdef ITUNESDB_HAVE_ART
@@ -2427,6 +2439,18 @@ static void turn_rows(const fb_data *src, pix_t *dst, int w, int h)
     }
 }
 
+/* the cover Finder made for the album's song at path, or else the one made
+   on Updating Library for the album, of songs copied outside Finder's
+   folder */
+static bool find_album_cover(const int slide_index, const char *path,
+                             struct itunesdb_art *art)
+{
+    return rb->itunesdb_find_art(path, art)
+           || rb->itunesdb_find_album_art(get_album_name(slide_index),
+                                          get_album_artist(slide_index),
+                                          path, art);
+}
+
 /**
   The cover Finder made for the album's first track, if there is one. Called
   with buf_ctx locked, as the other users of tcs are, or before the slide
@@ -2444,7 +2468,7 @@ static bool find_ipod_cover(const int slide_index, struct itunesdb_art *art)
         /* known from the album list: a search goes through every track */
         if (rb->tagcache_retrieve(&tcs, album->first_track, tag_filename,
                                   tcs_buf, sizeof(tcs_buf)))
-            found = rb->itunesdb_find_art(tcs_buf, art);
+            found = find_album_cover(slide_index, tcs_buf, art);
     }
     else
     {
@@ -2453,7 +2477,7 @@ static bool find_ipod_cover(const int slide_index, struct itunesdb_art *art)
                                        album->artist_seek);
         if (rb->tagcache_get_next(&tcs, tcs_buf, sizeof(tcs_buf)))
         {
-            found = rb->itunesdb_find_art(tcs.result, art);
+            found = find_album_cover(slide_index, tcs.result, art);
             /* a search of the filenames gives the track, which the next time
                is all it takes */
             pf_idx.album_index[slide_index].first_track = tcs.idx_id;
@@ -2520,7 +2544,7 @@ static bool get_albumart_for_index_from_db(const int slide_index, char *buf,
     /* the cover Finder made, first: no tags to read and no JPEG to decode,
        where an album's embedded 1000x1000 took the iPod seconds */
     aa->ipod_art.width = 0;
-    if (ret && rb->itunesdb_find_art(tcs.result, &aa->ipod_art))
+    if (ret && find_album_cover(slide_index, tcs.result, &aa->ipod_art))
     {
         rb->strlcpy(buf, tcs.result, buflen);
         rb->tagcache_search_finish(&tcs);
@@ -6980,6 +7004,314 @@ static int pictureflow_main(void)
   Flow opens at once. If it fails or Menu leaves it, Cover Flow makes it when
   it opens, as for any list older than the database.
  */
+/** The covers of the albums of songs copied outside Finder's folder, made
+    here on Updating Library in Finder's forms (itunesdb.h): of Finder's cover
+    of a song of the album, or else a JPEG embedded in one outside the folder
+    or an image in its folder, as the album art setting prefers **/
+
+#ifdef HAVE_TC_RAMCACHE /* the albums are found in the database in memory */
+#define COVER_FRAME 200 /* the largest, as Finder's */
+
+struct cover_job {
+    uint64_t key;       /* the album's */
+    int32_t track;      /* a song of it outside Finder's folder */
+    int32_t finder;     /* one of Finder's with a cover, -1 for none */
+    uint32_t stamp;     /* of the song outside, its path and time */
+    int32_t album;      /* where its album's and album artist's names are */
+    int32_t artist;
+    int32_t unused;
+};
+
+/* by album, and in it by song: the same one each time, which its stamp is of,
+   rather than whichever qsort left first, and the album made again for it */
+static int cmp_cover_job(const void *a, const void *b)
+{
+    const struct cover_job *x = a, *y = b;
+    if (x->key != y->key)
+        return (x->key > y->key) - (x->key < y->key);
+    return (x->track > y->track) - (x->track < y->track);
+}
+
+static uint32_t text_stamp(const char *s, uint32_t h)
+{
+    while (*s)
+        h = (h ^ (unsigned char)*s++) * 16777619u;
+    return h;
+}
+
+/* the album key of the song, with tcs searching */
+static uint64_t song_album_key(int idx_id, const char *path)
+{
+    static char album[TAGCACHE_BUFSZ], artist[TAGCACHE_BUFSZ];
+    if (!rb->tagcache_retrieve(&tcs, idx_id, tag_album, album, sizeof(album)))
+        album[0] = '\0';
+    if (!rb->tagcache_retrieve(&tcs, idx_id, tag_albumartist, artist,
+                               sizeof(artist)))
+        artist[0] = '\0';
+    return rb->itunesdb_album_key(album, artist, path);
+}
+
+struct cover_jobs {
+    struct cover_job *jobs;
+    int count, room;
+    /* the jobs by where their names are, for Finder's songs of their albums */
+    int32_t *by_names;
+    int seen;
+};
+
+/* each song outside Finder's folder, a job of its album's */
+static void collect_song(int idx_id, const int32_t *seek, void *data)
+{
+    struct cover_jobs *c = data;
+    static char path[MAX_PATH];
+    if (!(++c->seen & 255))
+        rb->yield();
+    if (c->count >= c->room
+        || !rb->tagcache_retrieve(&tcs, idx_id, tag_filename, path, sizeof(path))
+        || rb->itunesdb_synced_path(path))
+        return;
+    struct cover_job *job = &c->jobs[c->count++];
+    job->key = song_album_key(idx_id, path);
+    job->track = idx_id;
+    job->finder = -1;
+    job->stamp = text_stamp(path, 2166136261u) ^ (uint32_t)seek[tag_mtime];
+    job->album = seek[tag_album];
+    job->artist = seek[tag_albumartist];
+}
+
+static int cmp_names(const struct cover_job *x, int32_t album, int32_t artist)
+{
+    if (x->album != album)
+        return (x->album > album) - (x->album < album);
+    return (x->artist > artist) - (x->artist < artist);
+}
+
+static struct cover_jobs *sort_jobs; /* for qsort, which has no data */
+static int cmp_by_names(const void *a, const void *b)
+{
+    const struct cover_job *x = &sort_jobs->jobs[*(const int32_t *)a];
+    const struct cover_job *y = &sort_jobs->jobs[*(const int32_t *)b];
+    return cmp_names(x, y->album, y->artist);
+}
+
+/* For an album of songs both synced and copied, Finder's cover of one of
+   them, which is all the same then: a song of Finder's whose album and
+   artist are those of a job's, by where their names are, with no name read
+   but for those */
+static void find_finder_song(int idx_id, const int32_t *seek, void *data)
+{
+    struct cover_jobs *c = data;
+    static char path[MAX_PATH];
+    if (!(++c->seen & 255))
+        rb->yield();
+    int lo = 0, hi = c->count - 1;
+    while (lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        struct cover_job *job = &c->jobs[c->by_names[mid]];
+        const int cmp = cmp_names(job, seek[tag_album], seek[tag_albumartist]);
+        if (cmp == 0)
+        {
+            struct itunesdb_art art;
+            if (job->finder < 0
+                && rb->tagcache_retrieve(&tcs, idx_id, tag_filename, path,
+                                         sizeof(path))
+                && rb->itunesdb_synced_path(path)
+                /* the same album, as one without a name is its folder */
+                && song_album_key(idx_id, path) == job->key
+                && rb->itunesdb_find_art(path, &art))
+            {
+                job->finder = idx_id;
+                /* its colour too: Finder writes another cover in a place */
+                job->stamp = text_stamp(art.path, art.offset) ^ art.colour;
+            }
+            return;
+        }
+        if (cmp < 0)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+}
+
+/* The albums with songs outside Finder's folder, one each, from the database
+   in memory: with none, that's all there is to do. -1 without the database
+   in memory; *all false when there wasn't room for every song. */
+static int collect_cover_jobs(struct cover_job *jobs, int room, bool *all)
+{
+    struct cover_jobs c = { jobs, 0, room, NULL, 0 };
+    if (tcs.valid || !rb->tagcache_search(&tcs, tag_filename))
+        return -1;
+    if (!rb->tagcache_for_each_track(collect_song, &c))
+    {
+        rb->tagcache_search_finish(&tcs);
+        return -1;
+    }
+    *all = c.count < room;
+    if (c.count > 0)
+    {
+        /* one an album */
+        rb->qsort(jobs, c.count, sizeof(*jobs), cmp_cover_job);
+        int albums = 0;
+        for (int i = 0; i < c.count; i++)
+        {
+            if (albums == 0 || jobs[albums - 1].key != jobs[i].key)
+                jobs[albums++] = jobs[i];
+        }
+        c.count = albums;
+        /* after them, the room left being as much */
+        c.by_names = (int32_t *)&jobs[albums];
+        if ((room - albums) * sizeof(*jobs) >= albums * sizeof(int32_t))
+        {
+            for (int i = 0; i < albums; i++)
+                c.by_names[i] = i;
+            sort_jobs = &c;
+            rb->qsort(c.by_names, albums, sizeof(int32_t), cmp_by_names);
+            rb->tagcache_for_each_track(find_finder_song, &c);
+        }
+    }
+    rb->tagcache_search_finish(&tcs);
+    return c.count;
+}
+
+/* the path of a song of the database */
+static bool song_path(int32_t track, char *path, size_t size)
+{
+    if (tcs.valid || !rb->tagcache_search(&tcs, tag_filename))
+        return false;
+    bool ok = rb->tagcache_retrieve(&tcs, track, tag_filename, path, size);
+    rb->tagcache_search_finish(&tcs);
+    return ok;
+}
+
+/* an image in the folder of the song outside, which an album without a cover
+   may have been given since */
+static bool cover_file_added(const struct cover_job *job)
+{
+    static char path[MAX_PATH], image[MAX_PATH];
+    return song_path(job->track, path, sizeof(path))
+           && retrieve_id3(&id3, path)
+           && search_albumart_files(&id3, ":", image, sizeof(image));
+}
+
+/* the album's cover made into buf: itunesdb_cover_put()'s answer */
+static int make_cover(const struct cover_job *job, void *buf, size_t buf_size)
+{
+    static char path[MAX_PATH];
+    static struct albumart_t aa;
+    struct bitmap bm = { .width = COVER_FRAME, .height = COVER_FRAME,
+                         .data = buf };
+    int size = -1;
+    struct itunesdb_art art;
+    if (job->finder >= 0 && song_path(job->finder, path, sizeof(path))
+        && rb->itunesdb_find_art(path, &art))
+    {
+        /* Finder's, as it is */
+        bm.width = MIN(art.width, COVER_FRAME);
+        bm.height = MIN(art.height, COVER_FRAME);
+        size = rb->itunesdb_load_art(&art, &bm, buf_size);
+    }
+    else if (song_path(job->track, path, sizeof(path))
+             && retrieve_id3(&id3, path)
+             && find_track_albumart(&id3, aa.file, sizeof(aa.file), &aa))
+    {
+        /* fitted into the frame, its shape kept; said first, so that a cover
+           which crashes the decoder or hangs it is given up rather than
+           tried at every boot */
+        rb->itunesdb_cover_making(job->key, job->stamp);
+        const int format = FORMAT_NATIVE | FORMAT_RESIZE | FORMAT_KEEP_ASPECT;
+#ifdef HAVE_ALBUMART
+        if (aa.embedded.type != AA_TYPE_UNKNOWN)
+            size = read_embedded_jpeg(aa.file, &aa.embedded, &bm, buf_size,
+                                      format, NULL);
+        else
+#endif
+            size = read_image_file(aa.file, &bm, buf_size, format, NULL);
+    }
+    return rb->itunesdb_cover_put(job->key, job->stamp, size > 0 ? &bm : NULL);
+}
+
+/* Each album's made once, and again when what it's made of changes. Menu
+   leaves the rest to the next Updating Library. USB and switching off stop it
+   too, and are answered once Updating Library is over, as for its fonts:
+   answered here, the steps after it went on with what was before USB. */
+/* the covers said to be cut short, made at the next boot, the album list
+   with them */
+static void covers_later(void)
+{
+    if (rb->itunesdb_covers_begin(0))
+        rb->itunesdb_covers_end(COVERS_CUT);
+}
+
+static void prepare_covers(void)
+{
+    if (rb->global_settings->album_art == AA_OFF)
+    {
+        /* none looked for, rather than every album taken for one without:
+           made once it's on again */
+        covers_later();
+        return;
+    }
+    /* the jobs, and room for a frame and the decoder after them */
+    const size_t decode_size = 0x40000;
+    ALIGN_BUFFER(pf_idx.buf, pf_idx.buf_sz, sizeof(uint64_t));
+    if (pf_idx.buf_sz < decode_size + 64 * sizeof(struct cover_job))
+    {
+        /* none for this database rather than Updating Library at each boot */
+        rb->itunesdb_covers_skip();
+        return;
+    }
+    struct cover_job *jobs = pf_idx.buf;
+    const int room = (pf_idx.buf_sz - decode_size) / sizeof(*jobs);
+    void *decode = jobs + room;
+    bool all = true;
+    const int albums = collect_cover_jobs(jobs, room, &all);
+
+    /* none known without the database in memory, rather than all gone */
+    if (albums < 0 || !rb->itunesdb_covers_begin(albums))
+    {
+        rb->itunesdb_covers_skip();
+        return;
+    }
+    bool whole = true;
+    for (int i = 0; i < albums; i++)
+    {
+        const long button = rb->button_get(false);
+        if (button == SYS_USB_CONNECTED || button == SYS_POWEROFF
+            || button == SYS_REBOOT)
+        {
+            rb->library_update_hold(button);
+            whole = false;
+            break;
+        }
+        else if (IS_SYSEVENT(button))
+            rb->default_event_handler(button); /* as the headphones' */
+#ifdef BUTTON_MENU
+        if (button == BUTTON_MENU)
+        {
+            whole = false;
+            break;
+        }
+#endif
+        const int known = rb->itunesdb_cover_known(jobs[i].key, jobs[i].stamp);
+        if (known > 0 || (known < 0 && !cover_file_added(&jobs[i])))
+            continue;
+        rb->library_update_covers_progress(i, albums);
+        rb->reset_poweroff_timer();
+        if (make_cover(&jobs[i], decode, decode_size) < 0)
+        {
+            /* the disk nearly full: those made kept, the others as they were */
+            all = false;
+            break;
+        }
+        rb->yield();
+    }
+    /* with songs left out for room, the albums not seen are kept */
+    rb->itunesdb_covers_end(!whole ? COVERS_CUT
+                            : all ? COVERS_WHOLE : COVERS_PARTLY);
+}
+#endif /* HAVE_TC_RAMCACHE */
+
 static enum plugin_status prepare_album_list(void)
 {
     struct tagcache_stat *stat = rb->tagcache_get_stat();
@@ -7010,15 +7342,33 @@ static enum plugin_status prepare_album_list(void)
         return PLUGIN_OK;
 
     preparing = true;
+    bool listed = true;
     if (pf_cfg.cache_version != CACHE_VERSION || load_album_index() < 0)
     {
-        if (create_album_index() == 0 && save_album_index() == 0)
+        const int made = create_album_index();
+        listed = made == 0;
+        /* none for a library without albums or without room for the list,
+           rather than tried at every boot; left by Menu, USB or switching
+           off, at the next, rather than at the next sync */
+        if (!listed && made != ERROR_USER_ABORT)
+            rb->itunesdb_covers_skip();
+#ifdef HAVE_TC_RAMCACHE
+        else if (!listed)
+            covers_later();
+#endif
+        if (listed && save_album_index() == 0)
         {
             /* as init() does for a new list */
             aa_cache.idx = aa_cache.inspected = 0;
             config_save(CACHE_VERSION, pf_cfg.update_albumart);
         }
     }
+    /* in what of the buffer is left after the list; not when Menu has left
+       the list, or when there was no room for it */
+#ifdef HAVE_TC_RAMCACHE
+    if (listed)
+        prepare_covers();
+#endif
     return PLUGIN_OK;
 }
 #endif /* ITUNESDB_HAVE_ART */

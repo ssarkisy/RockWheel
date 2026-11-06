@@ -56,6 +56,8 @@ void skin_update_volume(enum skinnable_screens skin, enum screen_type screen);
 /* the volume changed: its bar drawn, now or at its frame's time */
 void skin_volume_changed(enum skinnable_screens skin, enum screen_type screen);
 void skin_mark_dirty(enum screen_type screen);
+/* the covers of the database's songs made again (itunesdb.h) */
+void skin_forget_db_art(void);
 bool skin_is_dirty(enum screen_type screen);
 void skin_forget_shown(void);
 bool skin_has_sbs(struct gui_wps *gwps);

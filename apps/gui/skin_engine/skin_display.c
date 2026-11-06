@@ -1282,7 +1282,8 @@ static bool shown_db_art(int handle, struct itunesdb_art *art)
         return true;
     const struct mp3entry *id3 = get_wps_state()->id3;
     return handle < 0 && id3 && id3->path[0] && global_settings.album_art != AA_OFF
-           && (audio_status() & AUDIO_STATUS_PLAY) && itunesdb_find_art(id3->path, art);
+           && (audio_status() & AUDIO_STATUS_PLAY)
+           && itunesdb_find_track_art(id3, id3->path, art);
 }
 
 /* That cover, in the copy kept between covers */
@@ -1331,6 +1332,18 @@ static struct {
     char path[sizeof(((struct itunesdb_art *)0)->path)];
 } menu_art;
 
+/* the covers made on Updating Library made again: an album's new one in the
+   place of its old one, or of another's, which the copies here are known by */
+void skin_forget_db_art(void)
+{
+    for (size_t i = 0; i < ARRAYLEN(kept_art); i++)
+    {
+        if (kept_art[i].handle < 0)
+            kept_art[i].width = 0;
+    }
+    menu_art.width = 0;
+}
+
 static bool menu_art_ready(const struct wps_data *data)
 {
     struct skin_albumart *aa = SKINOFFSETTOPTR(get_skin_buffer((struct wps_data *)data),
@@ -1339,7 +1352,7 @@ static bool menu_art_ready(const struct wps_data *data)
     struct itunesdb_art art;
     if (!aa || !id3 || !(audio_status() & AUDIO_STATUS_PLAY)
         || global_settings.album_art == AA_OFF
-        || !itunesdb_find_art(id3->path, &art))
+        || !itunesdb_find_track_art(id3, id3->path, &art))
         return false;
     if (menu_art.width > 0 && menu_art.offset == art.offset
         && !strcmp(menu_art.path, art.path))

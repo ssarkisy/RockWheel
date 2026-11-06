@@ -1104,6 +1104,24 @@ struct plugin_api {
     int (*whole_file_open)(const char *path);
     bool (*whole_file_close)(int fd, const char *path, bool ok);
     bool (*whole_file_write)(const char *path, const void *data, size_t size);
+#ifdef ITUNESDB_HAVE_ART
+    /* the covers of songs outside Finder's folder (itunesdb.h) */
+    uint64_t (*itunesdb_album_key)(const char *album, const char *artist,
+                                   const char *path);
+    bool (*itunesdb_find_album_art)(const char *album, const char *artist,
+                                    const char *path, struct itunesdb_art *art);
+    bool (*itunesdb_covers_stale)(void);
+    bool (*itunesdb_covers_begin)(int albums);
+    int (*itunesdb_cover_known)(uint64_t key, uint32_t stamp);
+    int (*itunesdb_cover_put)(uint64_t key, uint32_t stamp,
+                              const struct bitmap *bm);
+    void (*itunesdb_covers_end)(int how);
+    bool (*itunesdb_synced_path)(const char *path);
+    void (*library_update_covers_progress)(int done, int total);
+    void (*itunesdb_covers_skip)(void);
+    void (*library_update_hold)(long event);
+    void (*itunesdb_cover_making)(uint64_t key, uint32_t stamp);
+#endif
 };
 
 /* plugin header */

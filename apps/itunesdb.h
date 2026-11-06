@@ -131,6 +131,44 @@ struct itunesdb_art {
 /* the cover Finder made for the file at path */
 bool itunesdb_find_art(const char *path, struct itunesdb_art *art);
 
+/* The covers of the albums of songs copied outside Finder's folder, made on
+   Updating Library in Finder's forms, one an album. An album's key: its name
+   and album artist, as the database has them (the track's artist without
+   one), Latin letters in either case as one; or else the folder of path. */
+struct mp3entry;
+uint64_t itunesdb_album_key(const char *album, const char *artist,
+                            const char *path);
+/* the cover of the track at path with these tags: Finder's, or else its
+   album's */
+bool itunesdb_find_track_art(const struct mp3entry *id3, const char *path,
+                             struct itunesdb_art *art);
+/* an album's of ours, by what itunesdb_album_key() takes */
+bool itunesdb_find_album_art(const char *album, const char *artist,
+                             const char *path, struct itunesdb_art *art);
+/* not made yet for the database as it is now */
+bool itunesdb_covers_stale(void);
+/* Making them, by Cover Flow's plugin: begin with room for this many albums;
+   for each, known() when made from the same stamp, and kept: 1, or -1 when
+   none was found then, 0 when not made so; or else put() with its frame, up
+   to 200 by 200, or NULL for none found, and making() before decoding it;
+   then end(). */
+bool itunesdb_covers_begin(int albums);
+/* none to be made for this database, as without the room for it */
+void itunesdb_covers_skip(void);
+int itunesdb_cover_known(uint64_t key, uint32_t stamp);
+/* said just before an album's cover is decoded: an album the making is cut
+   short at twice, as by a cover that crashes the decoder, is given up */
+void itunesdb_cover_making(uint64_t key, uint32_t stamp);
+/* 1 made, 0 not, -1 for no room left on the disk, which ends the making */
+int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm);
+/* how they end: every album looked at, those not being gone; cut short by
+   Menu or USB, the rest made the next time; or the albums known not all of
+   them, those not seen kept */
+#define COVERS_CUT    0
+#define COVERS_WHOLE  1
+#define COVERS_PARTLY 2
+void itunesdb_covers_end(int how);
+
 /* reads the cover into bm, scaled up or down to fit its width and height;
    returns the size of the pixels or -1. It opens the ithmb file itself, and
    only when the frame isn't the one read last. */

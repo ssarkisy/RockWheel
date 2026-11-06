@@ -1454,6 +1454,12 @@ void library_update_progress(int done, int total)
 {
     library_update_forward((const char *)str(LANG_PREPARING_ALBUMS), done, total);
 }
+
+/* the covers of songs outside Finder's folder, of albums done of total */
+void library_update_covers_progress(int done, int total)
+{
+    library_update_forward((const char *)str(LANG_PREPARING_COVERS), done, total);
+}
 #endif
 
 void library_update_songs_progress(int done, int total)
@@ -1485,6 +1491,12 @@ static void library_letters_progress(int done, int total)
    their files closed, and it's answered then. Waited for, the computer saw no
    disk for as long as the fonts took. */
 static long held_event;
+
+/* the same for one come as Cover Flow's plugin made the covers */
+void library_update_hold(long event)
+{
+    held_event = event;
+}
 
 static bool library_fonts_progress(int done, int total)
 {
@@ -1562,39 +1574,51 @@ void show_library_update(void)
     /* and the letters of their alphabets, which Search types with */
     const bool letters_stale = phase == TAGCACHE_IMPORT_NONE
                                && music_search_letters_stale();
-    if ((imported || photos_changed || fonts_stale || letters_stale) && !shown)
+#ifdef ITUNESDB_HAVE_ART
+    /* the covers of songs outside Finder's folder, not made yet, or cut short
+       by Menu or USB: by Cover Flow's plugin, without which nothing's made,
+       from the database in memory, without which it finds no album */
+    const struct tagcache_stat *tc = tagcache_get_stat();
+    const bool covers_stale = phase == TAGCACHE_IMPORT_NONE
+                              && global_settings.album_art != AA_OFF
+                              && tc->ready && tc->ramcache
+                              && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock")
+                              && itunesdb_covers_stale();
+#else
+    const bool covers_stale = false;
+#endif
+    if ((imported || covers_stale || photos_changed || fonts_stale
+         || letters_stale) && !shown)
     {
         FOR_NB_SCREENS(i)
             viewportmanager_theme_enable(i, false, NULL);
         shown_text = NULL;
         shown = true;
     }
-    if (imported)
-    {
 #ifdef ITUNESDB_HAVE_ART
-        /* the album list of the new database, which Cover Flow itself makes:
-           it isn't left for when Cover Flow opens */
-        if (phase == TAGCACHE_IMPORT_NONE
-            && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock"))
-        {
-            library_update_show(str(LANG_PREPARING_ALBUMS), 0);
-            plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock",
-                        ITUNESDB_ALBUM_LIST);
-        }
-#endif
-        if (phase == TAGCACHE_IMPORT_NONE)
-            tagtree_prepare_songs();
+    /* the album list of the new database, which Cover Flow itself makes:
+       it isn't left for when Cover Flow opens; and the covers after it */
+    if ((imported || covers_stale) && phase == TAGCACHE_IMPORT_NONE
+        && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock"))
+    {
+        library_update_show(str(LANG_PREPARING_ALBUMS), 0);
+        plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", ITUNESDB_ALBUM_LIST);
     }
-    if (phase == TAGCACHE_IMPORT_NONE)
+#endif
+    /* the rest after USB or switching off, come meanwhile: what they'd go
+       by is of before it */
+    if (imported && phase == TAGCACHE_IMPORT_NONE && !held_event)
+        tagtree_prepare_songs();
+    if (phase == TAGCACHE_IMPORT_NONE && !held_event)
         prepared_commitid = tagcache_get_commitid();
-    if (letters_stale)
+    if (letters_stale && !held_event)
     {
         tail_from = 0;
         tail_span = fonts_stale ? LETTERS_SHARE : 100;
         library_update_show(str(LANG_UPDATING_LIBRARY), 0);
         music_search_letters_make(library_letters_progress);
     }
-    if (fonts_stale)
+    if (fonts_stale && !held_event)
     {
         tail_from = letters_stale ? LETTERS_SHARE : 0;
         tail_span = 100 - tail_from;

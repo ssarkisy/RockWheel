@@ -32,6 +32,7 @@
 #include "kernel.h"
 #include "file.h"
 #include "dir.h"
+#include "mv.h"
 #include "core_alloc.h"
 #include "rbunicode.h"
 #include "string-extra.h"
@@ -41,6 +42,7 @@
 #include "applimits.h"
 #include "rbpaths.h"
 #include "tagcache.h"
+#include <ctype.h>
 #include "logf.h"
 #include "lcd.h"
 #include "metadata.h"
@@ -48,6 +50,7 @@
 #include "itunesdb.h"
 #ifdef ITUNESDB_HAVE_ART
 #include "skin_engine/cover_palette.h"
+#include "skin_engine/skin_engine.h"
 #endif
 
 #ifdef HAVE_DIRCACHE
@@ -2756,6 +2759,45 @@ struct art_image {
     uint16_t small_format;
 };
 
+#define COVERS_FILE      ROCKBOX_DIR "/covers.dat"
+#define COVERS_FRAMES    ROCKBOX_DIR "/covers_frames.dat"
+#define COVERS_SLIDES    ROCKBOX_DIR "/covers_slides.dat"
+#define COVERS_MAGIC     0x56434252 /* "RBCV" */
+#define COVERS_VERSION   2
+/* a frame's place: whole sectors, so that it's one read */
+#define COVER_SLOT       ((off_t)ALIGN_UP(FRAME_MAX * sizeof(fb_data), 2048))
+/* the numbers of their slides, past Finder's, which have 16 bits */
+#define COVER_SLIDE_BASE (1 << 20)
+/* places at most: a file's offsets stop at 2 GB, and a table read damaged
+   can't point past them */
+#define COVERS_SLOTS_MAX 26000
+/* the free space a new place leaves at least, in KB: the files grew till the
+   disk was full, and then Play Counts and the database had none */
+#define COVERS_FREE_MIN  (64 * 1024)
+
+struct covers_header {
+    uint32_t magic;     /* as an index_header */
+    uint32_t version;
+    uint32_t count;
+    int32_t commitid;   /* COVERS_CUT_SHORT while a making isn't over */
+    uint64_t making;    /* the album being made then, 0 for none */
+    uint32_t making_stamp;
+    uint32_t making_tries; /* the makings cut short at it, one after another */
+};
+
+struct cover_entry {
+    uint64_t key;       /* the album's */
+    uint32_t stamp;     /* of what it was made from */
+    uint32_t slot;      /* of its frame and slide, from 1; 0 for none found */
+    uint16_t width;     /* of the frame; COVER_GIVEN_UP with no slot */
+    uint16_t height;
+    uint32_t colour;
+};
+/* an album whose making was cut short twice, by a cover that crashed the
+   decoder or hung it: not tried again until its songs change */
+#define COVER_GIVEN_UP   0xffff
+
+
 static struct art_header art_hdr;
 
 /* the name of an ithmb file in an ArtworkDB mhod, which unlike iTunesDB
@@ -3743,17 +3785,29 @@ int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size
 /* the slides file, open while Cover Flow reads it: one open a cover cost a
    look through the folder and the file's setting up, which hold the frames */
 static int slides_fd = -1;
+/* and of the covers of songs outside Finder's folder */
+static struct index covers_index = { 0, 0, sizeof(struct cover_entry) };
+static struct covers_header covers_hdr;
+static bool covers_have_frames; /* without, a table of albums with none */
+static int covers_slides_fd = -1;
+static int load_cover_slide(const struct itunesdb_art *art, void *buf,
+                            int *width, int *height);
 
 void itunesdb_slides_done(void)
 {
     if (slides_fd >= 0)
         close(slides_fd);
     slides_fd = -1;
+    if (covers_slides_fd >= 0)
+        close(covers_slides_fd);
+    covers_slides_fd = -1;
 }
 
 int itunesdb_load_slide(const struct itunesdb_art *art, void *buf,
                         int *width, int *height)
 {
+    if (art->slide > COVER_SLIDE_BASE)
+        return load_cover_slide(art, buf, width, height);
     struct slide_header head;
     uint64_t key = art->slide > 0 ? slide_key(art->slide - 1) : 0;
     if (!key)
@@ -4051,6 +4105,608 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
     if (complete)
         remove(SLIDES_TODO);
 }
+
+/** The covers of the albums of songs copied outside Finder's folder **/
+
+/* Made on Updating Library by Cover Flow's plugin, in the forms Finder's are
+   in, so that they show as fast: a frame of up to 200 by 200 for Now Playing
+   and the panel, a slide for Cover Flow and its colour. Decoded as a track
+   played, a cover of 1000 by 1000 took seconds for each size the theme has.
+   One an album, found by its key: a track finds its album's by its tags,
+   with no table of every song's path. */
+static uint64_t fnv_step(uint64_t hash, unsigned char c)
+{
+    return (hash ^ c) * 0x100000001b3ull;
+}
+
+/* a tag's text, but for none */
+static bool tag_given(const char *s)
+{
+    return s && *s && strcmp(s, UNTAGGED);
+}
+
+uint64_t itunesdb_album_key(const char *album, const char *artist,
+                            const char *path)
+{
+    uint64_t hash = 0xcbf29ce484222325ull;
+    if (tag_given(album))
+    {
+        /* Latin letters in either case as one, as the database's lists
+           take them */
+        for (const unsigned char *p = (const unsigned char *)album; *p; p++)
+            hash = fnv_step(hash, tolower(*p));
+        hash = fnv_step(hash, 0);
+        if (tag_given(artist))
+        {
+            for (const unsigned char *p = (const unsigned char *)artist; *p; p++)
+                hash = fnv_step(hash, tolower(*p));
+        }
+    }
+    else if (path)
+    {
+        /* an album without a name is its folder */
+        path = strip_volume(path);
+        const char *end = strrchr(path, '/');
+        hash = fnv_step(hash, '/');
+        for (const unsigned char *p = (const unsigned char *)path;
+             end && p < (const unsigned char *)end; p++)
+            hash = fnv_step(hash, tolower(*p));
+    }
+    return hash ? hash : 1;
+}
+
+static void covers_load(void)
+{
+    /* also with no frames, when no album had a cover: the next making knows
+       them then, and doesn't look in every album's songs again */
+    covers_have_frames = file_exists(COVERS_FRAMES);
+    load_index(&covers_index, COVERS_FILE, &covers_hdr, sizeof(covers_hdr),
+               COVERS_MAGIC, COVERS_VERSION);
+}
+
+static bool cover_art(const struct cover_entry *e, struct itunesdb_art *art)
+{
+    /* none with its frames gone, the track's own then */
+    if (!covers_have_frames || !e->slot || e->slot > COVERS_SLOTS_MAX
+        || !e->width || !e->height || e->width * e->height > FRAME_MAX)
+        return false;
+    strmemccpy(art->path, COVERS_FRAMES, sizeof(art->path));
+    art->offset = (e->slot - 1) * COVER_SLOT;
+    art->width = e->width;
+    art->height = e->height;
+    art->slide = COVER_SLIDE_BASE + e->slot;
+    art->colour = e->colour;
+    return true;
+}
+
+bool itunesdb_find_album_art(const char *album, const char *artist,
+                             const char *path, struct itunesdb_art *art)
+{
+    struct cover_entry e;
+    return covers_index.handle > 0
+           && find_in_index(&covers_index,
+                            itunesdb_album_key(album, artist, path), &e)
+           && cover_art(&e, art);
+}
+
+bool itunesdb_find_track_art(const struct mp3entry *id3, const char *path,
+                             struct itunesdb_art *art)
+{
+    /* Finder's first, the track's own */
+    if (itunesdb_find_art(path, art))
+        return true;
+    /* not for a song without an album, whose folder's cover is for Cover
+       Flow: singles in one folder each show their own */
+    if (!id3 || !tag_given(id3->album))
+        return false;
+    /* the album artist as the database takes it: the track's artist's
+       without one */
+    const char *artist = tag_given(id3->albumartist) ? id3->albumartist
+                                                     : id3->artist;
+    return itunesdb_find_album_art(id3->album, artist, path, art);
+}
+
+/* the slide of one of ours, as itunesdb_load_slide() reads Finder's */
+static int load_cover_slide(const struct itunesdb_art *art, void *buf,
+                            int *width, int *height)
+{
+    if (covers_slides_fd < 0)
+        covers_slides_fd = open(COVERS_SLIDES, O_RDONLY);
+    const int fd = covers_slides_fd;
+    if (fd < 0)
+        return -1;
+    off_t pos = (off_t)(art->slide - COVER_SLIDE_BASE - 1) * SLIDE_SLOT;
+    char *at = buf;
+    size_t room = ITUNESDB_SLIDE_ROOM + SLIDE_PIXELS * sizeof(fb_data);
+    STORAGE_ALIGN_BUFFER(at, room);
+    struct slide_header head;
+    const ssize_t whole = sizeof(head) + SLIDE_PIXELS * sizeof(fb_data);
+    const ssize_t sectors = MIN((ssize_t)SLIDE_SLOT, (ssize_t)room);
+    if (lseek(fd, pos, SEEK_SET) != pos || read(fd, at, sectors) < whole)
+    {
+        itunesdb_slides_done(); /* opened again the next time */
+        return -1;
+    }
+    memcpy(&head, at, sizeof(head));
+    if (head.magic != SLIDE_MAGIC || head.width > ITUNESDB_SLIDE_SIZE
+        || head.height > ITUNESDB_SLIDE_SIZE)
+        return -1;
+    const ssize_t size = head.width * head.height * sizeof(fb_data);
+    memmove(buf, at + sizeof(head), size);
+    *width = head.width;
+    *height = head.height;
+    return size;
+}
+
+/* the header's commitid when a making was cut short, by Menu or USB: the rest
+   is made at the next Updating Library */
+#define COVERS_CUT_SHORT (-1)
+
+bool itunesdb_covers_stale(void)
+{
+    /* after a database's change they're made anyway; this is for a first
+       start, and for the rest of a making cut short */
+    struct covers_header h;
+    int fd = open(COVERS_FILE, O_RDONLY);
+    if (fd < 0)
+        return true;
+    bool made = read(fd, &h, sizeof(h)) == sizeof(h) && h.magic == COVERS_MAGIC
+                && h.version == COVERS_VERSION
+                && h.commitid != COVERS_CUT_SHORT;
+    close(fd);
+    return !made;
+}
+
+/* the table written whole, through a file of its own: the writer shared with
+   Play Counts, which the tagcache thread writes as USB comes, mixed the two */
+static bool write_covers(const struct cover_entry *entries, int n, bool whole)
+{
+    struct covers_header h = { .magic = COVERS_MAGIC,
+                               .version = COVERS_VERSION, .count = n,
+                               .commitid = whole ? 0 : COVERS_CUT_SHORT };
+    int fd = whole_file_open(COVERS_FILE);
+    if (fd < 0)
+        return false;
+    const ssize_t size = n * sizeof(*entries);
+    return whole_file_close(fd, COVERS_FILE,
+                            write(fd, &h, sizeof(h)) == sizeof(h)
+                            && (!n || write(fd, entries, size) == size));
+}
+
+void itunesdb_covers_skip(void)
+{
+    /* none made for this database, as when there was no room for making them:
+       not taken for one cut short, which would be tried at every boot */
+    if (!itunesdb_covers_stale())
+        return;
+    covers_load();
+    const struct cover_entry *old = covers_index.handle > 0
+        ? core_get_data_pinned(covers_index.handle) : NULL;
+    write_covers(old, old ? (int)covers_index.count : 0, true);
+    if (old)
+        core_put_data_pinned((void *)old);
+}
+
+/* Making them: the table as it was, then those put meanwhile; each with
+   whether its album was seen */
+struct cover_work {
+    struct cover_entry e;
+    bool seen;
+};
+static int work_handle;
+static int work_count, work_old, work_room;
+static uint32_t work_slots; /* the places the bitmap after the entries has */
+static bool work_changed;   /* an album made or gone */
+static bool work_marked;    /* the file said to be in the making */
+/* the entries the table on disk has, -1 when it isn't the one the making
+   started from */
+static int work_disk_count;
+/* the album a making before was cut short at, and how many times */
+static uint64_t work_prev;
+static uint32_t work_prev_stamp, work_prev_tries;
+
+static struct cover_work *work_entries(void)
+{
+    return core_get_data(work_handle);
+}
+
+/* a bit for each place, whether an album has it */
+static uint8_t *work_used(void)
+{
+    return (uint8_t *)(work_entries() + work_room);
+}
+
+static int work_find(uint64_t key);
+
+/* the table as the making has it before any album's put, said to be cut
+   short */
+static bool write_work(void)
+{
+    struct covers_header h = { .magic = COVERS_MAGIC,
+                               .version = COVERS_VERSION, .count = work_old,
+                               .commitid = COVERS_CUT_SHORT };
+    int fd = whole_file_open(COVERS_FILE);
+    if (fd < 0)
+        return false;
+    core_pin(work_handle);
+    const struct cover_work *w = work_entries();
+    bool ok = write(fd, &h, sizeof(h)) == sizeof(h);
+    for (int i = 0; ok && i < work_old; i++)
+        ok = write(fd, &w[i].e, sizeof(w[i].e)) == sizeof(w[i].e);
+    core_unpin(work_handle);
+    return whole_file_close(fd, COVERS_FILE, ok);
+}
+
+bool itunesdb_covers_begin(int albums)
+{
+    itunesdb_covers_end(COVERS_CUT);
+    /* as the file has it, which USB may have changed */
+    forget_index(&covers_index);
+    covers_load();
+    work_old = covers_index.handle > 0 ? (int)covers_index.count : 0;
+    /* and where a making before was cut short */
+    struct covers_header h;
+    int fd = open(COVERS_FILE, O_RDONLY);
+    const bool read_ok = fd >= 0 && read(fd, &h, sizeof(h)) == sizeof(h)
+                         && h.magic == COVERS_MAGIC
+                         && h.version == COVERS_VERSION;
+    if (fd >= 0)
+        close(fd);
+    work_disk_count = read_ok && h.count == (uint32_t)work_old ? work_old : -1;
+    work_prev = 0;
+    work_prev_tries = 0;
+    if (read_ok && h.commitid == COVERS_CUT_SHORT && h.making)
+    {
+        work_prev = h.making;
+        work_prev_stamp = h.making_stamp;
+        work_prev_tries = h.making_tries;
+    }
+    /* and one for an album given up */
+    work_room = work_old + MAX(albums, 0) + 1;
+    const struct cover_entry *old = work_old ? core_get_data(covers_index.handle)
+                                             : NULL;
+    uint32_t top = 0;
+    for (int i = 0; i < work_old; i++)
+    {
+        if (old[i].slot <= COVERS_SLOTS_MAX)
+            top = MAX(top, old[i].slot);
+    }
+    /* places for every album there can be, past those taken */
+    work_slots = top + MAX(albums, 0) + 1;
+    work_handle = db_alloc(MAX(work_room, 1) * sizeof(struct cover_work)
+                           + (work_slots + 7) / 8);
+    if (work_handle <= 0)
+    {
+        work_handle = 0;
+        return false;
+    }
+    /* again, as the allocation may have moved it */
+    old = work_old ? core_get_data(covers_index.handle) : NULL;
+    struct cover_work *w = work_entries();
+    uint8_t *used = work_used();
+    memset(used, 0, (work_slots + 7) / 8);
+    bool dropped = false;
+    for (int i = 0; i < work_old; i++)
+    {
+        w[i].e = old[i];
+        w[i].seen = false;
+        if (w[i].e.slot > COVERS_SLOTS_MAX
+            || (w[i].e.slot && !covers_have_frames))
+        {
+            /* of a table read damaged, or with its frames gone: made again */
+            w[i].e.slot = 0;
+            w[i].e.stamp = 0;
+            w[i].e.width = 0;
+            dropped = true;
+        }
+        if (w[i].e.slot)
+            used[w[i].e.slot / 8] |= 1 << (w[i].e.slot % 8);
+    }
+    work_count = work_old;
+    work_changed = false;
+    work_marked = false;
+    if (work_prev && work_prev_tries >= 2)
+    {
+        /* cut short twice at this album: without a cover, rather than every
+           boot stopping there */
+        int i = work_find(work_prev);
+        if (i < 0)
+        {
+            /* in its place among the others, as the table on disk has them */
+            for (i = work_old; i > 0 && w[i - 1].e.key > work_prev; i--)
+                w[i] = w[i - 1];
+            memset(&w[i], 0, sizeof(w[i]));
+            w[i].e.key = work_prev;
+            work_old++;
+            work_count++;
+        }
+        else if (w[i].e.slot)
+            used[w[i].e.slot / 8] &= ~(1 << (w[i].e.slot % 8));
+        w[i].e.stamp = work_prev_stamp;
+        w[i].e.slot = 0;
+        w[i].e.width = COVER_GIVEN_UP;
+        w[i].e.height = 0;
+        w[i].e.colour = COVER_COLOUR_UNKNOWN;
+        work_prev = 0;
+        work_changed = true;
+        dropped = true;
+    }
+    /* the table on disk as this one at once: places it dropped are taken
+       again, and an album given up stays so through another reset, with
+       two such covers too */
+    if (dropped)
+        work_disk_count = write_work() ? work_old : -1;
+    return true;
+}
+
+/* the entry of the album being made, -1 for none: the old ones in order */
+static int work_find(uint64_t key)
+{
+    const struct cover_work *w = work_entries();
+    int lo = 0, hi = work_old - 1;
+    while (lo <= hi)
+    {
+        int mid = (lo + hi) / 2;
+        if (w[mid].e.key == key)
+            return mid;
+        if (w[mid].e.key < key)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    for (int i = work_old; i < work_count; i++)
+    {
+        if (w[i].e.key == key)
+            return i;
+    }
+    return -1;
+}
+
+int itunesdb_cover_known(uint64_t key, uint32_t stamp)
+{
+    if (work_handle <= 0)
+        return 0;
+    int i = work_find(key);
+    if (i < 0 || work_entries()[i].e.stamp != stamp)
+        return 0;
+    work_entries()[i].seen = true;
+    const struct cover_entry *e = &work_entries()[i].e;
+    return e->slot || e->width == COVER_GIVEN_UP ? 1 : -1;
+}
+
+/* the first place no album has, taken; 0 for none left */
+static uint32_t free_slot(void)
+{
+    uint8_t *used = work_used();
+    for (uint32_t slot = 1; slot < work_slots && slot <= COVERS_SLOTS_MAX; slot++)
+    {
+        if (!(used[slot / 8] & (1 << (slot % 8))))
+        {
+            used[slot / 8] |= 1 << (slot % 8);
+            return slot;
+        }
+    }
+    return 0;
+}
+
+static void release_slot(uint32_t slot)
+{
+    if (slot && slot < work_slots)
+        work_used()[slot / 8] &= ~(1 << (slot % 8));
+}
+
+/* data at pos of the file, blank places put before it where it's shorter */
+static bool write_slot(int fd, off_t pos, const void *data, size_t size)
+{
+    off_t end = ffilesize(fd);
+    if (end < 0 || lseek(fd, MIN(end, pos), SEEK_SET) < 0)
+        return false;
+    /* the gap from where the file ends, only: a frame is shorter than its
+       place, and padding whole places wrote 80 KB more for each album */
+    static const unsigned char blank[2048];
+    for (end = MIN(end, pos); end < pos; )
+    {
+        size_t n = MIN((off_t)sizeof(blank), pos - end);
+        if (write(fd, blank, n) != (ssize_t)n)
+            return false;
+        end += n;
+    }
+    return lseek(fd, pos, SEEK_SET) == pos
+           && write(fd, data, size) == (ssize_t)size;
+}
+
+/* the file said to be cut short, as it is until the end writes it again, and
+   the album being made: a reset or a crash meanwhile left one said to be
+   whole, and the rest wasn't made; a cover that crashed the decoder or hung
+   it was made again at every boot */
+static void mark_making(uint64_t key, uint32_t stamp)
+{
+    struct covers_header h;
+    int fd = open(COVERS_FILE, O_RDWR);
+    if (fd < 0 || read(fd, &h, sizeof(h)) != sizeof(h)
+        || h.magic != COVERS_MAGIC || h.version != COVERS_VERSION
+        || work_disk_count < 0 || h.count != (uint32_t)work_disk_count)
+    {
+        /* none, or not the table the making started from, whose places it
+           takes again: an empty one */
+        if (fd >= 0)
+            close(fd);
+        if (!write_covers(NULL, 0, false))
+        {
+            /* rather than the old one patched: none, all made again */
+            remove(COVERS_FILE);
+            work_disk_count = -1;
+            return;
+        }
+        work_disk_count = 0;
+        fd = open(COVERS_FILE, O_RDWR);
+        if (fd >= 0 && read(fd, &h, sizeof(h)) != sizeof(h))
+        {
+            close(fd);
+            fd = -1;
+        }
+    }
+    if (fd < 0)
+        return;
+    h.commitid = COVERS_CUT_SHORT;
+    h.making_tries = key == work_prev && stamp == work_prev_stamp
+                     ? work_prev_tries + 1 : 1;
+    h.making = key;
+    h.making_stamp = stamp;
+    if (lseek(fd, 0, SEEK_SET) == 0)
+        write(fd, &h, sizeof(h));
+    close(fd);
+    work_marked = true;
+}
+
+void itunesdb_cover_making(uint64_t key, uint32_t stamp)
+{
+    if (work_handle > 0)
+        mark_making(key, stamp);
+}
+
+/* room on the disk for one more place of each file */
+static bool covers_room(void)
+{
+    sector_t free = 0;
+    volume_size(IF_MV(0,) NULL, &free);
+    return free >= COVERS_FREE_MIN
+                   + (COVER_SLOT + SLIDE_SLOT) / 1024 + 1;
+}
+
+int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm)
+{
+    if (work_handle <= 0)
+        return 0;
+    if (!work_marked)
+        mark_making(0, 0); /* cut short, with no album being decoded */
+    int i = work_find(key);
+    /* a new place, the files growing, only with room left on the disk */
+    if (bm && (i < 0 || !work_entries()[i].e.slot) && !covers_room())
+        return -1;
+    if (i < 0)
+    {
+        if (work_count >= work_room)
+            return 0;
+        i = work_count++;
+        memset(&work_entries()[i], 0, sizeof(struct cover_work));
+        work_entries()[i].e.key = key;
+    }
+    struct cover_entry e = work_entries()[i].e;
+    e.stamp = stamp;
+    e.width = e.height = 0;
+    e.colour = COVER_COLOUR_UNKNOWN;
+    bool ok = true;
+    const uint32_t had_slot = e.slot;
+    if (bm && bm->width > 0 && bm->height > 0
+        && bm->width * bm->height <= FRAME_MAX
+        && (e.slot || (e.slot = free_slot())))
+    {
+        const int fw = bm->width, fh = bm->height;
+        lock_art();
+        /* the slide, the largest that fits, keeping the shape */
+        struct slide_header *head = (struct slide_header *)slide_slot;
+        fb_data *pixels = (fb_data *)(slide_slot + sizeof(*head));
+        memset(slide_slot, 0, sizeof(slide_slot));
+        int w = ITUNESDB_SLIDE_SIZE, h = ITUNESDB_SLIDE_SIZE;
+        if (fw > fh)
+            h = (w * fh + fw / 2) / fw;
+        else
+            w = (h * fw + fh / 2) / fh;
+        cpu_boost(true);
+        scale_frame((const fb_data *)bm->data, fw, fh, pixels, w, h, true);
+        cpu_boost(false);
+        /* its header last, as make_slide() writes it: a slide cut short by
+           switching off isn't taken for one */
+        head->magic = 0;
+        head->width = w;
+        head->height = h;
+        head->key = key;
+        e.colour = cover_palette_colour(pixels, h, w);
+        /* a frame read last of this place is another album's now */
+        frame_path[0] = '\0';
+        itunesdb_slides_done();
+        int frames = open(COVERS_FRAMES, O_RDWR | O_CREAT, 0666);
+        int slides = open(COVERS_SLIDES, O_RDWR | O_CREAT, 0666);
+        const off_t slide_pos = (off_t)(e.slot - 1) * SLIDE_SLOT;
+        ok = frames >= 0 && slides >= 0
+             && write_slot(frames, (e.slot - 1) * COVER_SLOT, bm->data,
+                           fw * fh * sizeof(fb_data))
+             && write_slot(slides, slide_pos, slide_slot, SLIDE_SLOT);
+        if (ok)
+        {
+            head->magic = SLIDE_MAGIC;
+            ok = lseek(slides, slide_pos, SEEK_SET) == slide_pos
+                 && write(slides, head, sizeof(*head)) == sizeof(*head);
+        }
+        if (frames >= 0)
+            ok = close(frames) == 0 && ok;
+        if (slides >= 0)
+            ok = close(slides) == 0 && ok;
+        mutex_unlock(&art_lock);
+        if (ok)
+        {
+            e.width = fw;
+            e.height = fh;
+        }
+    }
+    if (!ok || !e.width)
+    {
+        /* none: its place for another */
+        release_slot(e.slot ? e.slot : had_slot);
+        e.slot = 0;
+    }
+    work_entries()[i].e = e;
+    work_entries()[i].seen = true;
+    work_changed = true;
+    return ok ? 1 : 0;
+}
+
+static int cmp_cover(const void *a, const void *b)
+{
+    uint64_t x = ((const struct cover_work *)a)->e.key;
+    uint64_t y = ((const struct cover_work *)b)->e.key;
+    return (x > y) - (x < y);
+}
+
+void itunesdb_covers_end(int how)
+{
+    if (work_handle <= 0)
+        return;
+    const bool whole = how != COVERS_CUT;
+    core_pin(work_handle);
+    struct cover_work *w = work_entries();
+    /* the albums not seen are gone, when every one was looked at */
+    int n = 0;
+    for (int i = 0; i < work_count; i++)
+    {
+        if (w[i].seen || how != COVERS_WHOLE)
+            w[n++] = w[i];
+        else
+            work_changed = true;
+    }
+    qsort(w, n, sizeof(*w), cmp_cover);
+    /* the entries alone, packed down where they are: the first ones overlap */
+    struct cover_entry *entries = (struct cover_entry *)w;
+    for (int i = 0; i < n; i++)
+        memmove(&entries[i], &w[i].e, sizeof(entries[i]));
+    /* written only for a change, or to say where a making stopped, or after
+       a making stopped: an update of Finder's songs alone left it as it was */
+    const bool write = work_changed || !whole || itunesdb_covers_stale();
+    if (write)
+        write_covers(entries, n, whole);
+    core_unpin(work_handle);
+    core_free(work_handle);
+    work_handle = 0;
+    /* the new table in memory, for the tracks played from now on, and none
+       of the copies of the covers before */
+    if (write)
+    {
+        forget_index(&covers_index);
+        covers_load();
+        skin_forget_db_art();
+    }
+}
 #endif /* ITUNESDB_HAVE_ART */
 
 int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
@@ -4107,6 +4763,10 @@ bool itunesdb_load_tracks(void)
 {
     struct flags_header hdr = { 0 };
     uint32_t size, mtime;
+#ifdef ITUNESDB_HAVE_ART
+    /* the covers of songs outside Finder's folder, whatever iTunesDB is */
+    covers_load();
+#endif
     load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
                FLAGS_MAGIC, FLAGS_VERSION);
     /* what an older firmware didn't note */

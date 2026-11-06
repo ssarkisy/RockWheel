@@ -41,6 +41,9 @@ void library_update_after_usb(void);
 /* on that screen, for a plugin working at the end of it: total is 0 when it
    only says that it still works */
 void library_update_progress(int done, int total);
+void library_update_covers_progress(int done, int total);
+/* USB or power off, come meanwhile: answered once Updating Library is over */
+void library_update_hold(long event);
 void library_update_songs_progress(int done, int total);
 #endif
 struct menu_table {
