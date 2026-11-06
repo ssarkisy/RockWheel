@@ -653,13 +653,12 @@ static struct font* font_load_header(int fd, struct font *pheader,
 
 /* load a font with room for glyphs, limited to bufsize if not zero */
 static bool fonts_held;
+static bool held[MAXFONTS];
 
 /* Skins going away and others coming with the same fonts: what is loaded stays, and
    asking for it again doesn't even open the file */
 void font_hold(bool hold)
 {
-    static bool held[MAXFONTS];
-
     for (int i = 0; i < MAXFONTS; i++)
     {
         if (hold && buflib_allocations[i] > 0)
@@ -804,13 +803,46 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
 
     int open_slot = -1;
 
-    for (font_id = FONT_FIRSTUSERFONT; font_id < MAXFONTS; font_id++)
+    if ( fonts_held )
+    {
+        /* skins coming with other fonts, as for Bold Text: one held for the
+           skins before that none has taken again makes way first, its memory
+           with it, rather than the new one taking more, which the audio
+           buffer gave, stopping the music; and rather than failing with
+           every slot taken. The one whose memory holds the new one with the
+           least to spare, else the largest: the first one held, smaller,
+           left the rest to the audio buffer all the same */
+        const size_t need = bufsize + MAX(path_len + 1, 64);
+        int best = -1;
+        size_t best_size = 0;
+        for (int i = FONT_FIRSTUSERFONT; i < MAXFONTS; i++)
+        {
+            if (!held[i] || buflib_allocations[i] <= 0)
+                continue;
+            struct buflib_alloc_data *pd = core_get_data(buflib_allocations[i]);
+            if (pd->refcount != 1)
+                continue;
+            const size_t size = pd->font.buffer_size + pd->path_bufsz;
+            if (best < 0 || (size >= need ? best_size < need || size < best_size
+                                          : best_size < need && size > best_size))
+            {
+                best = i;
+                best_size = size;
+            }
+        }
+        if (best >= 0)
+        {
+            held[best] = false;
+            font_unload(best);
+            if (buflib_allocations[best] < 0)
+                open_slot = best;
+        }
+    }
+    for (font_id = FONT_FIRSTUSERFONT; font_id < MAXFONTS && open_slot == -1;
+         font_id++)
     {
         if (buflib_allocations[ font_id ] < 0)
-        {
             open_slot = font_id;
-            break;
-        }
     }
     if ( open_slot == -1 )
     {

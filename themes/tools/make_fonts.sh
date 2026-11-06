@@ -45,6 +45,8 @@ font 24-Inter-Bold.fnt     Inter-Bold.ttf     18 -r 3 -Ta-2
 font 18-Inter-SemiBold.fnt Inter-SemiBold.ttf 17    # iClassic lyrics
 font 17-Inter-SemiBold.fnt Inter-SemiBold.ttf 15    # iClassic track info
 font 17-Inter-Medium.fnt   Inter-Medium.ttf   15    # iClassic album
+font 18-Inter-Bold.fnt     Inter-Bold.ttf     17    # the lyrics, Bold Text
+font 17-Inter-Bold.fnt     Inter-Bold.ttf     15    # track info, Bold Text
 font 14-Inter-SemiBold.fnt Inter-SemiBold.ttf 13    # small text, lyrics
 font 14-Inter-Bold.fnt     Inter-Bold.ttf     13    # iClassic screen titles
 font 12-Inter-SemiBold.fnt Inter-SemiBold.ttf 11    # iClassic bitrate

@@ -696,7 +696,7 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &cover_colours_item, &status_icons_item, &angled_cover_item,
         &appearance_row,
 #endif
-        &dark_theme_item, &night_row,
+        &bold_text_item, &dark_theme_item, &night_row,
         &group_general,
 #ifdef HAVE_TAGCACHE
         &main_menu_row, &music_menu_row, &smart_search_item,

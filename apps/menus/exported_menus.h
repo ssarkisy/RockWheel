@@ -72,7 +72,8 @@ extern const struct menu_item_ex
         appearance_menu,
 #endif
         codepage_setting,
-        dark_theme_item, night_menu, night_row,     /* display_menu.c   */
+        dark_theme_item, bold_text_item,
+        night_menu, night_row,                      /* display_menu.c   */
         battery_capacity, ipod_keyclick_menu,       /* settings_menu.c  */
         sleep_timer_item, language_item,
 #ifdef HAVE_TAGCACHE

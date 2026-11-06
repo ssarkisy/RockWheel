@@ -19119,3 +19119,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_BOLD_TEXT
+  desc: in the settings, under Display: whether Now Playing shows its text in bold, as Bold Text in iOS's Accessibility
+  user: core
+  <source>
+    *: "Bold Text"
+  </source>
+  <dest>
+    *: "볼드체 텍스트"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

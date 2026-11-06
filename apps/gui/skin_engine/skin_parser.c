@@ -490,6 +490,7 @@ static int parse_image_load(struct skin_element *element,
 struct skin_font {
     int id; /* the id from font_load */
     char *name;  /* filename without path and extension */
+    char *bold;  /* the one for Bold Text, or NULL */
     int glyphs;  /* how many glyphs to reserve room for */
 };
 static struct skin_font skinfonts[MAXUSERFONTS];
@@ -503,7 +504,8 @@ static int parse_font_load(struct skin_element *element,
     int  glyphs;
     char *ptr;
 
-    if(element->params_count > 2)
+    /* %Fl(id, font[, glyphs or -[, the font for Bold Text]]) */
+    if(element->params_count > 2 && get_param(element, 2)->type == INTEGER)
         glyphs = get_param(element, 2)->data.number;
     else
         glyphs = global_settings.glyphs_to_cache;
@@ -525,6 +527,15 @@ static int parse_font_load(struct skin_element *element,
         return WPS_ERROR_INVALID_PARAM;
     skinfonts[id-2].id = -1;
     skinfonts[id-2].name = filename;
+    skinfonts[id-2].bold = NULL;
+    if (element->params_count > 3)
+    {
+        char *bold = get_param_text(element, 3);
+        ptr = strrchr(bold, '.');
+        if (!ptr || strncmp(ptr, ".fnt", 4))
+            return WPS_ERROR_INVALID_PARAM;
+        skinfonts[id-2].bold = bold;
+    }
     skinfonts[id-2].glyphs = glyphs;
 
     return 0;
@@ -2347,11 +2358,20 @@ static bool skin_load_fonts(struct wps_data *data)
         if (font->id < 0)
         {
             char path[MAX_PATH];
-            snprintf(path, sizeof path, FONT_DIR "/%s", font->name);
 #ifndef __PCTOOL__
-            font->id = font_load_ex(path, 0, skinfonts[font_id-2].glyphs);
+            /* Bold Text's, if the theme names one; without its file, the
+               usual one */
+            if (global_settings.bold_text && font->bold)
+            {
+                snprintf(path, sizeof path, FONT_DIR "/%s", font->bold);
+                font->id = font_load_ex(path, 0, font->glyphs);
+            }
+            snprintf(path, sizeof path, FONT_DIR "/%s", font->name);
+            if (font->id < 0)
+                font->id = font_load_ex(path, 0, skinfonts[font_id-2].glyphs);
 
 #else
+            snprintf(path, sizeof path, FONT_DIR "/%s", font->name);
             font->id = font_load(path);
 #endif
             //printf("[%d] %s -> %d\n",font_id, font->name, font->id);
@@ -2776,6 +2796,7 @@ bool skin_data_load(enum skinnable_screens skin, enum screen_type screen,
     {
         skinfonts[i].id = -1;
         skinfonts[i].name = NULL;
+        skinfonts[i].bold = NULL;
     }
 #ifdef DEBUG_SKIN_ENGINE
     if (isfile && debug_wps)

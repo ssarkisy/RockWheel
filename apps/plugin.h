@@ -188,7 +188,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * so that one built when they were otherwise doesn't load: twice a structure
  * changed without the number. Raise PLUGIN_API_REVISION for a change that
  * leaves the sizes, as functions in another order, or an action's number. */
-#define PLUGIN_API_REVISION 1
+#define PLUGIN_API_REVISION 2
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \

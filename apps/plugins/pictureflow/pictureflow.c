@@ -4739,9 +4739,19 @@ static struct frame_buffer_t *panel_fb; /* NULL for the screen's */
 static void load_panel_fonts(void)
 {
     const int glyphs = rb->global_settings->glyphs_to_cache;
-    int id = rb->font_load_ex(FONT_DIR "/17-Inter-SemiBold.fnt", 0, glyphs);
+    /* Bold Text's as Now Playing has them */
+    const bool bold = rb->global_settings->bold_text;
+    int id = -1;
+    if (bold)
+        id = rb->font_load_ex(FONT_DIR "/17-Inter-Bold.fnt", 0, glyphs);
+    if (id < 0)
+        id = rb->font_load_ex(FONT_DIR "/17-Inter-SemiBold.fnt", 0, glyphs);
     panel_font = id >= 0 ? id : FONT_UI;
-    id = rb->font_load_ex(FONT_DIR "/14-Inter-SemiBold.fnt", 0, glyphs);
+    id = -1;
+    if (bold)
+        id = rb->font_load_ex(FONT_DIR "/14-Inter-Bold.fnt", 0, glyphs);
+    if (id < 0)
+        id = rb->font_load_ex(FONT_DIR "/14-Inter-SemiBold.fnt", 0, glyphs);
     panel_small_font = id >= 0 ? id : FONT_UI;
 }
 

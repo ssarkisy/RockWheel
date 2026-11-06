@@ -27,12 +27,12 @@
 %T(264,20,56,18,quickscreen)
 %wd
 %X(iClassic_bg.bmp)
-%Fl(2,14-Inter-SemiBold.fnt)
-%Fl(3,17-Inter-SemiBold.fnt)
+%Fl(2,14-Inter-SemiBold.fnt,-,14-Inter-Bold.fnt)
+%Fl(3,17-Inter-SemiBold.fnt,-,17-Inter-Bold.fnt)
 %Fl(4,14-Inter-Bold.fnt)
-%Fl(5,18-Inter-SemiBold.fnt)
+%Fl(5,18-Inter-SemiBold.fnt,-,18-Inter-Bold.fnt)
 %Fl(6,12-Inter-SemiBold.fnt,32)
-%Fl(7,17-Inter-Medium.fnt)
+%Fl(7,17-Inter-Medium.fnt,-,17-Inter-Bold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
 %?mw<%Vd(current)|%Vd(current)|%?C<|%Vd(current)>||%Vd(current)>
 # display modes, cycled with the centre button:

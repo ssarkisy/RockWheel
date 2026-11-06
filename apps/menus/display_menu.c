@@ -247,6 +247,7 @@ MENUITEM_FUNCTION_DYNTEXT(appearance_row, 0, appearance_menu_open, appearance_ro
 #endif
 
 MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);
+MENUITEM_SETTING_SHARED(bold_text_item, &global_settings.bold_text, NULL);
 
 /* after the screen of a value of the mode */
 static int night_value_callback(int action, const struct menu_item_ex *this_item,

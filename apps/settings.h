@@ -797,6 +797,7 @@ struct user_settings
     int progress_bar_style;
 
     bool dark_theme;
+    bool bold_text; /* Now Playing's text in the theme's bold fonts */
     bool night_mode;
     /* what it does */
     bool night_dark;

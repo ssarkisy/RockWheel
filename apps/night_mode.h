@@ -40,6 +40,8 @@ bool night_mode_poll(int context);
 
 /* Callbacks of the settings */
 void dark_theme_changed(bool dark);
+/* Bold Text: the skins again, with the bold fonts they name */
+void bold_text_changed(bool bold);
 void night_mode_changed(bool on);
 void night_action_changed(bool on);
 void night_brightness_changed(int value);
