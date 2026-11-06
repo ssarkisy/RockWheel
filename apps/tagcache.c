@@ -5948,6 +5948,43 @@ failure:
 }
 #endif /* HAVE_TC_RAMCACHE */
 
+/* A name of macOS's own, passed over: the Trash, whose songs went into the
+   library, and the "._" file beside each one copied to FAT with its attributes,
+   which every scan opened and turned down. Not every name with a dot first, as
+   the file browser hides: "...Baby One More Time" is an album's. name ends at
+   a '/' or at its end. */
+static bool hidden_name(const char *name)
+{
+    static const char * const folders[] = {
+        ".Trashes", ".Spotlight-V100", ".fseventsd", ".TemporaryItems",
+        ".DocumentRevisions-V100", ".Trash",
+    };
+    if (name[0] != '.')
+        return false;
+    /* and .Trash-1000 as Linux makes */
+    if (name[1] == '_' || !strncmp(name, ".Trash-", 7))
+        return true;
+    for (size_t i = 0; i < ARRAYLEN(folders); i++)
+    {
+        size_t len = strlen(folders[i]);
+        if (!strncasecmp(name, folders[i], len)
+            && (name[len] == '\0' || name[len] == '/'))
+            return true;
+    }
+    return false;
+}
+
+/* a path with such a name in it */
+static bool hidden_path(const char *path)
+{
+    for (const char *s = path; (s = strchr(s, '/')); s++)
+    {
+        if (hidden_name(s + 1))
+            return true;
+    }
+    return false;
+}
+
 #ifndef __PCTOOL__
 /* during an import, which checks the files in Finder's folder against
    iTunesDB: looking for each of them took 10 ms after a sync */
@@ -6025,6 +6062,12 @@ static bool check_deleted_file_refs(bool auto_update)
         if (check_skips_synced && itunesdb_synced_path(buf))
             continue;
 #endif
+        /* one of macOS's, from a scan before they were passed over */
+        if (auto_update && hidden_path(buf))
+        {
+            delete_entry(idx_id);
+            continue;
+        }
 #ifdef HAVE_DIRCACHE
         struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
         unsigned int searchflag;
@@ -6251,7 +6294,7 @@ static bool check_dir(const char *dirname, int add_files)
             break;
         }
 
-        if (is_dotdir_name(entry->d_name))
+        if (is_dotdir_name(entry->d_name) || hidden_name(entry->d_name))
             continue;
 
         struct dirinfo info = dir_get_info(dir, entry);
