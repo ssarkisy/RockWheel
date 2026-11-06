@@ -1241,10 +1241,15 @@ static bool put_name(int fd, int *used, int group, int32_t idx_id, const char *n
     return true;
 }
 
-void music_search_letters_make(void)
+void music_search_letters_make(void (*progress)(int done, int total))
 {
     if (!tagcache_is_usable())
         return;
+    /* the names of the tag files, deleted ones too: Updating Library's bar
+       stood empty for the seconds this took */
+    int done = 0, total = 0;
+    for (int g = 0; g < GROUPS; g++)
+        total += MAX(0, tagcache_get_tag_count(group_tag[g]));
     struct letters_file f;
     char buf[TAGCACHE_BUFSZ];
     memset(&f, 0, sizeof(f));
@@ -1272,6 +1277,8 @@ void music_search_letters_make(void)
             continue;
         while (tagcache_get_next(&tcs, buf, sizeof(buf)))
         {
+            if (!(++done & 255))
+                progress(done, total);
             if (!strcmp(buf, UNTAGGED))
                 continue;
             ucschar_t folded[256];

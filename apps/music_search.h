@@ -34,6 +34,7 @@ bool music_search_letters_stale(void);
 /* its files, made from a database that has gone: a new one counts its commits
    from 1 again, and the old names' songs would be played */
 void music_search_forget(void);
-void music_search_letters_make(void);
+/* progress is told how many names are done of about how many */
+void music_search_letters_make(void (*progress)(int done, int total));
 
 #endif /* _MUSIC_SEARCH_H_ */

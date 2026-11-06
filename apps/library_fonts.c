@@ -209,22 +209,59 @@ static void take_block(ucschar_t first, ucschar_t last)
 
 /* a file of the database: a header, then each string after its length and its
    track's index */
+/* How far making the fonts is, of FONTS_STEPS: the characters gathered to
+   GATHERED, by the bytes of the tag and language files read, then the fonts
+   made of them. The gathering is all of it after a sync that brought no new
+   letters, 5 s for 13000 songs, and Updating Library's bar stood empty
+   meanwhile. The fonts are made only for letters new to the library. */
+#define FONTS_STEPS 1000
+#define GATHERED    950
+static bool (*fonts_progress)(int done, int total);
+static int gather_at, gather_total, gather_told; /* bytes, and steps told */
+static bool gather_stopped; /* by USB or switching off, as progress says */
+
+static void gather_read(int bytes)
+{
+    gather_at += bytes;
+    if (!fonts_progress || gather_stopped || gather_total <= 0)
+        return;
+    const int step = GATHERED * (MIN(gather_at, gather_total) >> 10)
+                     / ((gather_total >> 10) + 1);
+    if (step != gather_told)
+    {
+        gather_told = step;
+        gather_stopped = !fonts_progress(step, FONTS_STEPS);
+    }
+}
+
+static bool made_progress(int done, int total)
+{
+    return fonts_progress(GATHERED + (FONTS_STEPS - GATHERED) * done
+                                     / MAX(total, 1), FONTS_STEPS);
+}
+
+static void tag_file_path(int tag, char *path, size_t size)
+{
+    snprintf(path, size, "%s/database_%d.tcd", tagcache_get_stat()->db_path, tag);
+}
+
 static void take_tag_file(int tag, enum han no_kana)
 {
     char path[MAX_PATH];
-    snprintf(path, sizeof(path), "%s/database_%d.tcd", tagcache_get_stat()->db_path, tag);
+    tag_file_path(tag, path, sizeof(path));
     int fd = open(path, O_RDONLY);
     if (fd < 0)
         return;
     int32_t header[3]; /* magic, size, count */
     if (read(fd, header, sizeof(header)) == sizeof(header))
     {
-        for (int32_t i = 0; i < header[2]; i++)
+        for (int32_t i = 0; i < header[2] && !gather_stopped; i++)
         {
             int32_t entry[2];
             if (read(fd, entry, sizeof(entry)) != sizeof(entry)
                 || entry[0] < 0 || entry[0] > 0x10000)
                 break;
+            gather_read(sizeof(entry) + entry[0]);
             const int n = MIN(entry[0], (int)sizeof(work->text) - 1);
             if (read(fd, work->text, n) != n)
                 break;
@@ -247,11 +284,12 @@ static void take_strings_file(const char *path, enum han no_kana)
     unsigned char *const buf = work->text;
     const size_t room = sizeof(work->text) - 1;
     size_t have = 0;
-    for (;;)
+    while (!gather_stopped)
     {
         const ssize_t got = read(fd, buf + have, room - have);
         if (got <= 0)
             break;
+        gather_read(got);
         have += got;
         buf[have] = '\0';
         /* up to the last end of a string, the rest kept for the next read */
@@ -755,6 +793,34 @@ bool library_fonts_make(bool (*progress)(int done, int total))
 
     static const int tags[] = { tag_artist, tag_album, tag_title, tag_genre,
                                 tag_composer, tag_albumartist, tag_grouping };
+    fonts_progress = progress;
+    gather_at = gather_total = gather_told = 0;
+    gather_stopped = false;
+    for (size_t i = 0; progress && i < ARRAYLEN(tags); i++)
+    {
+        char path[MAX_PATH];
+        tag_file_path(tags[i], path, sizeof(path));
+        int fd = open(path, O_RDONLY);
+        if (fd >= 0)
+        {
+            gather_total += ffilesize(fd);
+            close(fd);
+        }
+    }
+    DIR *langs = progress ? opendir(LANG_DIR) : NULL;
+    if (langs)
+    {
+        /* those take_languages() reads: the folder has the voice's files
+           too, a third of it, and the bar ended at 70% */
+        struct dirent *entry;
+        while ((entry = readdir(langs)))
+        {
+            const char *ext = strrchr(entry->d_name, '.');
+            if (ext && !strcasecmp(ext, ".lng"))
+                gather_total += dir_get_info(langs, entry).size;
+        }
+        closedir(langs);
+    }
     for (size_t i = 0; i < ARRAYLEN(tags); i++)
         take_tag_file(tags[i], no_kana);
     take_names_in(global_settings.playlist_catalog_dir[0]
@@ -798,9 +864,13 @@ bool library_fonts_make(bool (*progress)(int done, int total))
     int count = 0;
     for (ucschar_t c = 0; !same && c <= 0xffff; c++)
         count += get_bit(work->wanted, c);
-    bool ok = true;
-    const int list_handle = count ? core_alloc(count * sizeof(struct glyph)) : 0;
-    if (same)
+    bool ok = !gather_stopped;
+    const int list_handle = count && ok ? core_alloc(count * sizeof(struct glyph)) : 0;
+    if (!ok)
+    {
+        /* made the next time */
+    }
+    else if (same)
     {
         /* kept as they are */
     }
@@ -820,7 +890,8 @@ bool library_fonts_make(bool (*progress)(int done, int total))
                 if (get_bit(work->wanted, c))
                     glyphs[n++].c = c;
             }
-            ok = make_font(s, glyphs, n, progress, count * s, total);
+            ok = make_font(s, glyphs, n, progress ? made_progress : NULL,
+                           count * s, total);
         }
         if (list_handle)
         {

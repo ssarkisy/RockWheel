@@ -1440,7 +1440,9 @@ static void library_update_show(const char *text, int percent)
 static void library_update_forward(const char *text, int done, int total)
 {
     static int percent;
-    if (shown_text != text)
+    /* a step of its own, also when shown from 0 under the same words: Search's
+       letters and the fonts are both Updating Library */
+    if (shown_text != text || shown_percent < percent)
         percent = 0;
     if (total > 0)
         percent = MAX(percent, 100 * MIN(done, total) / total);
@@ -1459,6 +1461,26 @@ void library_update_songs_progress(int done, int total)
     library_update_forward((const char *)str(LANG_PREPARING_SONGS), done, total);
 }
 
+/* Search's letters and the fonts, one after the other as Updating Library:
+   one bar across both, from and as far as these percents. Each filling one of
+   its own, the fonts' emptied it at the end. After a change of 13000 songs on
+   the iPod the letters took 3.4 s, the fonts 5.2 s. */
+#define LETTERS_SHARE 40
+static int tail_from, tail_span;
+
+static void library_tail_progress(int done, int total)
+{
+    if (total > 0)
+        library_update_forward((const char *)str(LANG_UPDATING_LIBRARY),
+                               tail_from * total
+                               + tail_span * MIN(done, total), 100 * total);
+}
+
+static void library_letters_progress(int done, int total)
+{
+    library_tail_progress(done, total);
+}
+
 /* USB or power off, come as Updating Library made the fonts: they stop for it,
    their files closed, and it's answered then. Waited for, the computer saw no
    disk for as long as the fonts took. */
@@ -1466,7 +1488,7 @@ static long held_event;
 
 static bool library_fonts_progress(int done, int total)
 {
-    library_update_forward((const char *)str(LANG_UPDATING_LIBRARY), done, total);
+    library_tail_progress(done, total);
     const long action = get_action(CONTEXT_STD, TIMEOUT_NOBLOCK);
     if (action == SYS_USB_CONNECTED || action == SYS_POWEROFF
         || action == SYS_REBOOT)
@@ -1567,12 +1589,17 @@ void show_library_update(void)
         prepared_commitid = tagcache_get_commitid();
     if (letters_stale)
     {
+        tail_from = 0;
+        tail_span = fonts_stale ? LETTERS_SHARE : 100;
         library_update_show(str(LANG_UPDATING_LIBRARY), 0);
-        music_search_letters_make();
+        music_search_letters_make(library_letters_progress);
     }
     if (fonts_stale)
     {
-        library_update_show(str(LANG_UPDATING_LIBRARY), 0);
+        tail_from = letters_stale ? LETTERS_SHARE : 0;
+        tail_span = 100 - tail_from;
+        if (!letters_stale) /* else on from where they are */
+            library_update_show(str(LANG_UPDATING_LIBRARY), 0);
         font_load_library(false); /* their files are written anew */
         library_fonts_make(library_fonts_progress);
         font_load_library(true);
