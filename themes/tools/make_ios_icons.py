@@ -164,8 +164,7 @@ def alpha(cov, ink):
 
 
 # The battery over the theme's status bar, as the theme's own is: opaque, its
-# smoothed edges into the bar's gradient at the rows it's drawn in, as the backdrop
-# has a battery of its own under it
+# smoothed edges into the bar's gradient at the rows it's drawn in
 def header():
     bg = read_bmp(os.path.join(WPS, 'iClassic_bg.bmp'))
     return [bg[y][200] for y in range(dark_theme.HEADER_HEIGHT + 1)]

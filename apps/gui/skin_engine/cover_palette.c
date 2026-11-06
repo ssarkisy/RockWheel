@@ -670,7 +670,7 @@ static void fill_backdrop(void)
     for (int i = 0; i < LCD_FBHEIGHT * LCD_FBWIDTH; i++)
         b->backdrop[i] = plain;
 
-    /* with a battery in it, the theme's for a full one, as an icon like the rest */
+    /* the status bar, the battery the theme draws over it not in it */
     for (int y = 0; y < HEADER_HEIGHT - 1; y++)
         tint_header_line(&src[y * LCD_WIDTH], &b->backdrop[y * LCD_WIDTH], LCD_WIDTH);
     /* and the dark line under it isn't one */

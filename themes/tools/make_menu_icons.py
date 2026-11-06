@@ -11,6 +11,10 @@ patch. Plain Python, no imaging libraries. Usage:
 
     python3 themes/tools/make_menu_icons.py
 
+It also takes the battery the original theme drew in the status bar out of the four
+light backdrops: the firmware draws one there, over the whole of it, and Own Colours
+judged the battery's colour against the drawn one under it, not the bar.
+
 Then run make_dark_theme.py, which takes these from the light theme.
 
 Whole Screen in Cover Colours indexes Now Playing's backdrop in 256 colours once it is
@@ -39,6 +43,13 @@ SHADOW_AREA = (9, 41, 151, 240)
 TROUGH = (58, 206, 262, 230)
 # In the .sbs: the part of the panel the note takes up
 ICON_AREA = (PANEL_X + 28, 48, PANEL_X + 132, 152)
+# The battery drawn in the status bar, 25 x 11 at y 4, with its rim of a pixel: beside
+# the lists' panel and at the right of the whole screen. The bar's texture repeats every
+# 20 px, and these are where it does on both sides, the first a pixel further left, where
+# its dither changes step near the battery.
+BATTERY_ROWS = (3, 15)
+BATTERY_PANEL = (125, 160)
+BATTERY_WIDE = (290, 320)
 
 LIGHT = ((250, 250, 249), (238, 239, 240))  # above the sheen, from top to bottom
 SILVER = ((186, 193, 199), (228, 231, 234))  # below it, from the sheen to the bottom
@@ -190,6 +201,23 @@ def mix(a, b, t):
     return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
 
 
+def erase_battery(rows, area):
+    """The status bar where the battery was, from itself 20 or 40 px to the left. The
+    same again changes nothing, and nothing of the battery may be left."""
+    left, right = area
+    for y in range(*BATTERY_ROWS):
+        for x in range(left, right):
+            rows[y][x] = rows[y][x - 20 * ((x - left) // 20 + 1)]
+    # each pixel of its rows and those round them, to the panel or the screen's edge,
+    # like one of the bar's further left
+    end = PANEL_X if right <= PANEL_X else len(rows[0])
+    for y in range(BATTERY_ROWS[0] - 1, BATTERY_ROWS[1] + 1):
+        bar = rows[y][left - 60:left - 40]
+        for x in range(left - 40, end):
+            if min(max(abs(a - b) for a, b in zip(rows[y][x], c)) for c in bar) > 4:
+                raise SystemExit('the battery is still there at %d, %d' % (x, y))
+
+
 def coverage(shape, margin):
     """How much of each pixel a shape and a band of a pixel inside its edge take up, in a
     grid with room around it for its shadow"""
@@ -273,6 +301,22 @@ def panel_gradient():
     return gradient
 
 
+def erase_battery_in(path, area):
+    """The battery out of a backdrop no part of this script makes, as it is but there"""
+    rows = read_bmp(path)
+    erase_battery(rows, area)
+    data = bytearray(open(path, 'rb').read())
+    off, = struct.unpack_from('<I', data, 10)
+    w, h = len(rows[0]), len(rows)
+    stride = (w * 3 + 3) & ~3
+    for y in range(*BATTERY_ROWS):
+        for x in range(*area):
+            r, g, b = rows[y][x]
+            o = off + (h - 1 - y) * stride + x * 3
+            data[o:o + 3] = bytes((b, g, r))
+    open(path, 'wb').write(data)
+
+
 def native_colours(rows):
     seen = set()
     for y, row in enumerate(rows):
@@ -285,8 +329,12 @@ def main():
     gradient = panel_gradient()
     dx, dy = optical_offset(Note)
 
+    erase_battery_in(os.path.join(WPS, 'About Backdrop.bmp'), BATTERY_PANEL)
+    erase_battery_in(os.path.join(WPS, 'Wide Backdrop.bmp'), BATTERY_WIDE)
+
     path = os.path.join(THEME, 'backdrops', 'iClassic_bd.bmp')
     rows = read_bmp(path)
+    erase_battery(rows, BATTERY_PANEL)
     for y, row in enumerate(rows):
         row[PANEL_X:] = [gradient[y]] * (len(row) - PANEL_X)
     # around where the Settings panel has what it shows, with the text under it in mind
@@ -295,6 +343,7 @@ def main():
 
     path = os.path.join(WPS, 'iClassic_bg.bmp')
     rows = read_bmp(path)
+    erase_battery(rows, BATTERY_WIDE)
     for y in range(SHADOW_AREA[1], SHADOW_AREA[3]):
         for x in range(SHADOW_AREA[0], SHADOW_AREA[2]):
             in_trough = TROUGH[0] <= x < TROUGH[2] and TROUGH[1] <= y < TROUGH[3]

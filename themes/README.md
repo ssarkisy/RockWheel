@@ -68,7 +68,8 @@ after a change, in this order:
 
 - `make_assets.py`, `make_status_icons.py`, `make_night_icon.py`,
   `make_usb_screen.py`, `make_about_panel.py`: bitmaps of their own.
-- `make_menu_icons.py`: the backdrops' placeholder note and its reflection.
+- `make_menu_icons.py`: the backdrops' placeholder note and its reflection, and
+  the original theme's battery out of their status bar, where the skins draw one.
 - `make_ios_icons.py <folder of Linus's BMPs>`: the iOS look's bitmaps, and the
   dark theme's battery.
 - `make_dark_theme.py`: the dark theme, all of it from the light one.
