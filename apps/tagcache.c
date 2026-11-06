@@ -439,6 +439,12 @@ static int cachefd = -1, filenametag_fd;
 /* the check without a sync, of the songs copied outside Finder's folder:
    what is in iPod_Control is iTunesDB's, not looked through */
 static bool scan_outside;
+#ifndef __PCTOOL__
+static struct search_roots_ll *scan_roots; /* the scan's, for the count */
+static bool outside_counted;
+static int outside_known; /* the songs outside Finder's folder known, still there */
+static void count_outside(void);
+#endif
 
 /* The tag files and the temporary file are written through this, a block
  * at a time: a write() for each part of each entry took the iPod as long
@@ -2935,8 +2941,7 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     int afmt = probe_file_format(path);
     if (afmt == AFMT_UNKNOWN)
         return;
-    if (import_phase == TAGCACHE_IMPORT_SCANNING
-        || import_phase == TAGCACHE_IMPORT_CHECKING)
+    if (import_phase == TAGCACHE_IMPORT_SCANNING)
         import_done++;
 
     /* Check if the file is already cached. */
@@ -2992,6 +2997,17 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
             return ;
         }
     }
+
+#ifndef __PCTOOL__
+    /* the check outside Finder's folder steps its bar by the songs whose tags
+       it reads: new, or changed */
+    if (scan_outside)
+    {
+        if (!outside_counted)
+            count_outside();
+        import_done++;
+    }
+#endif
 
     /*memset(&id3, 0, sizeof(struct mp3entry)); -- get_metadata does this for us */
     memset(&entry, 0, sizeof(struct temp_file_entry));
@@ -6304,12 +6320,13 @@ wend_finished:
     logf("done");
 
 #ifndef __PCTOOL__
-    /* the bar's second half, the scan after: how many of those still there
-       it has found, as add_tagcache() counts them */
+    /* the bar's second half, the scan after, by the songs new: half way
+       while those known are passed over, quickly */
     if (scan_outside)
     {
-        import_total = 2 * MAX(outside - deleted, 1);
-        import_done = import_total / 2;
+        outside_known = MAX(outside - deleted, 0);
+        import_total = 2;
+        import_done = 1;
     }
 #endif
     if (deleted > 0)
@@ -6542,6 +6559,10 @@ static bool check_dir(const char *dirname, int add_files)
 
             /* Add a new entry to the temporary db file. */
             add_tagcache(curpath, info.mtime);
+            /* the UI between them, as a tick goes by: the tags of hundreds
+               read one after another, the bar under Checking Songs was drawn
+               again only at the end */
+            do_timed_yield();
 
             /* Wait until current path for debug screen is read and unset. */
             while (tc_stat.syncscreen && tc_stat.curentry != NULL)
@@ -6557,6 +6578,66 @@ static bool check_dir(const char *dirname, int add_files)
 
     return success;
 }
+
+#ifndef __PCTOOL__
+/* The songs in the folder at countpath and those in it, as check_dir() takes
+   them, without their tags: in the dircache, in memory */
+static char countpath[TAGCACHE_BUFSZ];
+static int count_dir(void)
+{
+    int count = 0;
+    DIR *dir = opendir(countpath);
+    if (!dir)
+        return 0;
+    struct dirent *entry;
+    while (!check_event_queue() && (entry = readdir(dir)) != NULL)
+    {
+        if (is_dotdir_name(entry->d_name) || hidden_name(entry->d_name))
+            continue;
+        struct dirinfo info = dir_get_info(dir, entry);
+        size_t len = strlen(countpath);
+        path_append(&countpath[len-1], PA_SEP_HARD, entry->d_name,
+                    sizeof (countpath) - len);
+        if (info.attribute & ATTR_DIRECTORY)
+        {
+#ifndef SIMULATOR
+            if (!(info.attribute & ATTR_LINK))
+#endif
+            if (!rockbox_dir(countpath) && !outside_skips(countpath))
+                count += count_dir();
+        }
+        else if (probe_file_format(countpath) != AFMT_UNKNOWN)
+            count++;
+        str_setlen(countpath, len);
+        do_timed_yield();
+    }
+    closedir(dir);
+    return count;
+}
+
+/* The bar's second half by the songs new outside Finder's folder: those there
+   less those known, counted at the first new one, whose tags are read. By
+   every song found, as before, the first time none was known, and it was full
+   at the first song new while the tags of thousands more were read. A check
+   with nothing new, at every USB, walks the folders once. */
+static void count_outside(void)
+{
+    outside_counted = true;
+    int songs = 0;
+    for (struct search_roots_ll *r = scan_roots; r; r = r->next)
+    {
+        strmemccpy(countpath, r->path, sizeof(countpath));
+        if (dir_exists(countpath))
+            songs += count_dir();
+    }
+    /* none new, the tags of some changed: by all those known, rather than
+       full at the first */
+    const int fresh = songs > outside_known ? songs - outside_known
+                                            : MAX(outside_known, 1);
+    import_total = 2 * fresh;
+    import_done = fresh;
+}
+#endif /* !__PCTOOL__ */
 
 void tagcache_screensync_event(void)
 {
@@ -6698,6 +6779,11 @@ void do_tagcache_build(const char *path[])
     }
 
     struct search_roots_ll * this;
+#ifndef __PCTOOL__
+    /* for count_outside(), once the scan finds more songs than are known */
+    scan_roots = scan_outside ? &roots_ll[0] : NULL;
+    outside_counted = false;
+#endif
     /* check_dir might add new roots */
     for(this = &roots_ll[0]; this; this = this->next)
     {
@@ -6714,6 +6800,7 @@ void do_tagcache_build(const char *path[])
     }
     free_search_roots(&roots_ll[0]);
 #ifndef __PCTOOL__
+    scan_roots = NULL;
     /* the commit can have the memory */
     itunesdb_forget_metadata();
 #endif
@@ -7008,6 +7095,7 @@ bool tagcache_check_sync(void)
         || (audio_status() & AUDIO_STATUS_PLAY))
         return false;
     import_done = import_total = 0;
+    outside_known = 0; /* until the pass over those gone says */
     import_phase = TAGCACHE_IMPORT_CHECKING;
     queue_post(&tagcache_queue, Q_CHECK_OUTSIDE, 0);
     return true;
