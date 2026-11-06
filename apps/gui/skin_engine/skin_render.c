@@ -71,6 +71,10 @@ struct skin_draw_info {
     size_t buf_size;
 
     int offset; /* used by the playlist viewer */
+
+    /* the bars of the line, to draw again if it's cleared */
+    struct progressbar *bars[4];
+    int bar_count;
 };
 
 extern void sb_set_info_vp(enum screen_type screen, OFFSETTYPE(char*) label);
@@ -259,6 +263,9 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             struct progressbar *bar = (struct progressbar*)SKINOFFSETTOPTR(skin_buffer, token->value.data);
             if (do_refresh)
                 draw_progressbar(gwps, info->skin_vp, info->line_number, bar);
+            /* this update's or not, the clear of its line takes it */
+            if (info->bar_count < (int)ARRAYLEN(info->bars))
+                info->bars[info->bar_count++] = bar;
         }
         break;
         case SKIN_TOKEN_FORMAT_BITRATE:
@@ -820,6 +827,7 @@ void skin_render_viewport(struct skin_element* viewport, struct gui_wps *gwps,
         info.no_line_break = false;
         info.line_scrolls = false;
         info.force_redraw = false;
+        info.bar_count = 0;
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && (LCD_REMOTE_DEPTH > 1))
         skin_viewport->fgbg_changed = false;
 #ifdef HAVE_LCD_COLOR
@@ -865,6 +873,16 @@ void skin_render_viewport(struct skin_element* viewport, struct gui_wps *gwps,
             }
             write_line(display, align, info.line_number,
                     info.line_scrolls, &info.line_desc);
+            /* A line of no text with a bar, as one in a conditional that has
+               changed: the line is cleared before its text, and the bar went
+               with it, the backdrop under it shown until the next update. The
+               bars of a line with text stay under it as they were. */
+            if (!*align->left && (!align->center || !*align->center)
+                && (!align->right || !*align->right))
+            {
+                for (int i = 0; i < info.bar_count; i++)
+                    draw_progressbar(gwps, skin_viewport, info.line_number, info.bars[i]);
+            }
         }
         if (!info.no_line_break)
             info.line_number++;
