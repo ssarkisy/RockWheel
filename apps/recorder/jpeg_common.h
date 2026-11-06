@@ -31,7 +31,9 @@
 #include "bmp.h"
 
 #define HUFF_LOOKAHEAD 8 /* # of bits of lookahead */
-#define JPEG_READ_BUF_SIZE 16
+/* the file read this much at a time: 16 bytes were a read for every one,
+   tens of thousands for a cover of 500 KB, which the iPod took seconds over */
+#define JPEG_READ_BUF_SIZE 4096
 struct derived_tbl
 {
     /* Basic tables: (element [0] of each array is unused) */
