@@ -502,28 +502,66 @@ static bool read_mp4_tags(int fd, struct mp3entry* id3,
 #ifdef HAVE_ALBUMART
         case MP4_covr:
             {
-                int pos = lseek(fd, 0, SEEK_CUR) + 16;
+                /* Each picture in a data atom of its own: the first JPEG,
+                   which is all that's drawn, or else the first PNG. An album
+                   with a PNG before its JPEG had no cover. */
+                off_t at = lseek(fd, 0, SEEK_CUR);
+                const off_t covr_start = at, covr_end = at + size;
                 id3->albumart.type = AA_TYPE_UNKNOWN;
-
-                if (read_mp4_tag(fd, size, buffer, 8) >= 4)
+                while (at + 24 <= covr_end)
                 {
+                    /* the data atom's size and name, its type and locale,
+                       and the picture's first bytes */
+                    unsigned char head[24];
+                    if (lseek(fd, at, SEEK_SET) != at
+                        || read(fd, head, sizeof(head)) != sizeof(head))
+                        break;
+                    const uint32_t data_size = get_long_be(head);
+                    const unsigned char *image = head + 16;
+                    if (data_size < sizeof(head)
+                        || (off_t)data_size > covr_end - at
+                        || memcmp(head + 4, "data", 4))
+                    {
+                        /* not data atoms as they should be: the picture
+                           taken at the start of the first, to the end, as
+                           before */
+                        if (at == covr_start
+                            && memcmp(image, "\xff\xd8\xff", 3) == 0)
+                        {
+                            id3->albumart.type = AA_TYPE_JPG;
+                            id3->albumart.pos  = at + 16;
+                            id3->albumart.size = size - 16;
+                            id3->has_embedded_albumart = true;
+                        }
+                        else if (at == covr_start
+                                 && memcmp(image, "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", 8) == 0)
+                        {
+                            id3->albumart.type = AA_TYPE_PNG;
+                            id3->albumart.pos  = at + 16;
+                            id3->albumart.size = size - 16;
+                            id3->has_embedded_albumart = true;
+                        }
+                        break;
+                    }
+                    int type = AA_TYPE_UNKNOWN;
                     /* any JPEG, not only JFIF ones: covers with Exif data
                        start with ff d8 ff e1 */
-                    if (memcmp(buffer, "\xff\xd8\xff", 3) == 0)
+                    if (memcmp(image, "\xff\xd8\xff", 3) == 0)
+                        type = AA_TYPE_JPG;
+                    else if (memcmp(image, "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", 8) == 0)
+                        type = AA_TYPE_PNG;
+                    if (type == AA_TYPE_JPG
+                        || (type == AA_TYPE_PNG
+                            && id3->albumart.type == AA_TYPE_UNKNOWN))
                     {
-                        id3->albumart.type = AA_TYPE_JPG;
-                    }
-                    else if (memcmp(buffer, "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", 8) == 0)
-                    {
-                        id3->albumart.type = AA_TYPE_PNG;
-                    }
-
-                    if (id3->albumart.type != AA_TYPE_UNKNOWN)
-                    {
-                        id3->albumart.pos  = pos;
-                        id3->albumart.size = size - 16;
+                        id3->albumart.type = type;
+                        id3->albumart.pos  = at + 16;
+                        id3->albumart.size = data_size - 16;
                         id3->has_embedded_albumart = true;
                     }
+                    if (type == AA_TYPE_JPG)
+                        break;
+                    at += data_size;
                 }
             }
             break;

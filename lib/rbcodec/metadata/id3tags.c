@@ -1248,20 +1248,36 @@ retry_with_limit:
                     *ptag = tag;
 
 #ifdef HAVE_ALBUMART
-                /* albumart */
-                if ((!entry->has_embedded_albumart) &&
+                /* albumart: the first picture, or a JPEG after one that
+                   isn't, which is all that's drawn */
+                const struct mp3_albumart had_art = entry->albumart;
+                const bool had = entry->has_embedded_albumart;
+                const bool picture =
+                    (!had || (had_art.type & AA_CLEAR_FLAGS_MASK) != AA_TYPE_JPG) &&
                     ((tr->tag_length == 4 && !memcmp( header, "APIC", 4)) ||
-                     (tr->tag_length == 3 && !memcmp( header, "PIC" , 3))))
+                     (tr->tag_length == 3 && !memcmp( header, "PIC" , 3)));
+                if (picture)
                 {
                     entry->albumart.pos = lseek(fd, 0, SEEK_CUR) - framelen;
                     entry->albumart.size = totframelen;
                     entry->albumart.type = (unsynch || (global_unsynch && version <= ID3_VER_2_3))
                                            ? AA_FLAG_ID3_UNSYNC
                                            : AA_TYPE_UNKNOWN;
+                    entry->has_embedded_albumart = false; /* this one parsed */
                 }
 #endif
                 if( tr->ppFunc )
                     bufferpos = tr->ppFunc(entry, tag, bufferpos);
+#ifdef HAVE_ALBUMART
+                /* not one after all, or not a JPEG: the one before stays */
+                if (picture && had
+                    && (!entry->has_embedded_albumart
+                        || (entry->albumart.type & AA_CLEAR_FLAGS_MASK) != AA_TYPE_JPG))
+                {
+                    entry->albumart = had_art;
+                    entry->has_embedded_albumart = true;
+                }
+#endif
                 /* only where the lyrics start was wanted: the buffer is
                    free again for the tags after them */
                 if (tr->ppFunc == &parselyrics)

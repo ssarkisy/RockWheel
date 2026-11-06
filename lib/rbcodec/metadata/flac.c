@@ -173,8 +173,12 @@ bool get_flac_metadata(int fd, struct mp3entry* id3)
 #ifdef HAVE_ALBUMART
         else if (type == 6) /* 6 is the PICTURE block */
         {
-            /* only use the first PICTURE; a bad one is skipped */
-            if (!id3->has_embedded_albumart && i > 0)
+            /* the first PICTURE, or a JPEG after one that isn't, which is
+               all that's drawn: an album of PNG and JPEG covers had none; a
+               bad one is skipped */
+            if ((!id3->has_embedded_albumart
+                 || (id3->albumart.type & AA_CLEAR_FLAGS_MASK) != AA_TYPE_JPG)
+                && i > 0)
             {
                 unsigned int buf_size = MIN(sizeof(id3->path), i);
                 unsigned long block_size = i;
@@ -190,10 +194,12 @@ bool get_flac_metadata(int fd, struct mp3entry* id3)
                 }
                 i -= bytes_read;
 
-                /* the picture data length must be in the block */
+                /* the picture data length must be in the block; after a
+                   first picture, only a JPEG replaces it */
                 if (parse_flac_album_art(buf, bytes_read, &aa_type,
                                          &picframe_pos)
                     && aa_type != AA_TYPE_UNKNOWN
+                    && (!id3->has_embedded_albumart || aa_type == AA_TYPE_JPG)
                     && (unsigned long)picframe_pos + 4 <= block_size)
                 {
                     if (picframe_pos + 4 <= bytes_read)
