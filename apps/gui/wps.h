@@ -66,6 +66,9 @@ struct wps_state *get_wps_state(void);
 /* whether the wheel goes through the volume in Now Playing's view, and not the
    track, the lyrics or the rating */
 bool wps_wheel_is_volume(void);
+/* the lyrics drawn again in the view of them, from the skin, after it drew
+   their viewport afresh */
+void wps_lyrics_redraw(void);
 
 /* in milliseconds */
 #define DEFAULT_SKIP_THRESH          3000l

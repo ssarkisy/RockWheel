@@ -589,6 +589,16 @@ static void draw_lyrics(void)
         lyrics_draw(&screens[SCREEN_MAIN], vp);
 }
 
+/* Whatever drew the skin afresh: the WPS's full updates, and those the skin
+   made itself, as when the cover's colours changed at a pause's update. Drawn
+   after the full updates the WPS saw alone, the lyrics were gone after the
+   others, the backdrop's empty bar in their place until the wheel turned. */
+void wps_lyrics_redraw(void)
+{
+    if (get_wps_state()->display_mode == WPS_MODE_LYRICS)
+        draw_lyrics();
+}
+
 static bool display_mode_available(enum wps_display_mode mode)
 {
     struct mp3entry *id3 = get_wps_state()->id3;
@@ -1046,8 +1056,6 @@ long gui_wps_show(void)
             update = true;
             gwps_enter_wps(theme_enabled);
             theme_enabled = true;
-            if (state->display_mode == WPS_MODE_LYRICS)
-                draw_lyrics();
         }
         else
         {
@@ -1064,13 +1072,11 @@ long gui_wps_show(void)
                     bool full_update = skin_do_full_update(WPS, i);
                     if (update || full_update)
                     {
+                        /* the lyrics, cleared by a full one, the skin draws
+                           again with wps_lyrics_redraw() */
                         skin_update(WPS, i, full_update ?
                                      SKIN_REFRESH_ALL : SKIN_REFRESH_NON_STATIC);
                     }
-                    /* a full update clears the lyrics viewport */
-                    if (full_update && i == SCREEN_MAIN
-                        && state->display_mode == WPS_MODE_LYRICS)
-                        draw_lyrics();
                 }
             }
             update = false;
