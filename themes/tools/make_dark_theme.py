@@ -201,7 +201,8 @@ def main():
                  "iOS Playing Status", "iOS Hold", "iOS Repeat", "iOS Shuffle"):
         each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), header_pixel)
     for name in ("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
-                 "iOS Stars", "iOS Ratings", "iOS Track", "iOS PB"):
+                 "iOS Stars", "iOS Ratings", "iOS Track", "iOS PB",
+                 "iOS Knob Small", "iOS Knob", "iOS Volume Left", "iOS Volume Right"):
         each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), glyph_pixel)
     for name in ("Scrub Knob", "Disk Fill", "Photos Icon"):
         shutil.copy(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"))

@@ -128,18 +128,25 @@
 %Vl(bitrate,0,0,1,1,6)
 %Vl(current,159,159,149,14,2)%Vf(8E9094)
 %s%al%pp %Sx(of) %pe
-# the iOS bar: its fill over its track, which hides the theme's
+# the iOS bar: its fill over its track, which hides the theme's, and its knob,
+# small as it plays and large as it's moved, by a held button (fast forward and
+# rewind), the wheel or the volume; the viewports leave room for half the knob
+# past either end of the bar
 %xl(k,iOS Track.bmp,0,0)
-%Vl(pb,58,206,204,23,-)
-%?St(progress bar style)<%pb(0,0,204,23,PB.bmp)|%pb(0,0,204,23,iOS PB.bmp,backdrop,k)>
-%Vl(volume,58,206,204,23,-)
-%?St(progress bar style)<%pv(0,0,204,23,PB.bmp)|%pv(0,0,204,23,iOS PB.bmp,backdrop,k)>
+%xl(o,iOS Knob Small.bmp,0,0)
+%xl(O,iOS Knob.bmp,0,0)
+%Vl(pb,51,206,218,23,-)
+%?St(progress bar style)<%pb(7,0,204,23,PB.bmp)|%?mp<%pb(7,0,204,23,iOS PB.bmp,backdrop,k,slider,o,slidercentre)|%pb(7,0,204,23,iOS PB.bmp,backdrop,k,slider,o,slidercentre)|%pb(7,0,204,23,iOS PB.bmp,backdrop,k,slider,o,slidercentre)|%pb(7,0,204,23,iOS PB.bmp,backdrop,k,slider,O,slidercentre)|%pb(7,0,204,23,iOS PB.bmp,backdrop,k,slider,O,slidercentre)>>
+%Vl(volume,51,206,218,23,-)
+%?St(progress bar style)<%pv(7,0,204,23,PB.bmp)|%pv(7,0,204,23,iOS PB.bmp,backdrop,k,slider,O,slidercentre)>
 %xl(V,Volume Right.bmp,0,0)
+%xl(W,iOS Volume Right.bmp,0,0)
 %Vl(volume,273,203,21,21,-)
-%xd(V)
+%?St(progress bar style)<%xd(V)|%xd(W)>
 %xl(v,Volume Left.bmp,0,0)
+%xl(w,iOS Volume Left.bmp,0,0)
 %Vl(volume,34,204,13,19,-)
-%xd(v)
+%?St(progress bar style)<%xd(v)|%xd(w)>
 # under the bar: the volume, and the limit, if one is set
 %Vl(volume,58,225,204,13,2)%Vf(F2F2F6)
 %ac%nv
@@ -151,7 +158,7 @@
 # viewport leaves room for half the knob past either end of the bar
 %xl(K,Scrub Knob.bmp,0,0)
 %Vl(scrub,51,206,218,23,-)
-%?St(progress bar style)<%pb(7,0,204,23,PB.bmp,slider,K,slidercentre)|%pb(7,0,204,23,iOS PB.bmp,backdrop,k,slider,K,slidercentre)>
+%?St(progress bar style)<%pb(7,0,204,23,PB.bmp,slider,K,slidercentre)|%pb(7,0,204,23,iOS PB.bmp,backdrop,k,slider,O,slidercentre)>
 %Vl(scrub,0,207,45,14,2)%Vf(F2F2F6)
 %ar%pc
 %Vl(scrub,273,207,47,14,2)%Vf(F2F2F6)

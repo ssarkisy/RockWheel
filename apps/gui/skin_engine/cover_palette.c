@@ -441,20 +441,23 @@ static void allocate_buffers(void)
 
 static void tint_header_line(const fb_data *src, fb_data *dst, int count);
 
+/* as coloured as tint_header_rgb() takes for an icon's colour */
+static bool icon_coloured(fb_data pixel)
+{
+    int rgb[3];
+    unpack_rgb(pixel, rgb);
+    const int hi = MAX(MAX(rgb[0], rgb[1]), rgb[2]);
+    const int lo = MIN(MIN(rgb[0], rgb[1]), rgb[2]);
+    const int sum = hi + lo, chroma = hi - lo;
+    return chroma > 25 && chroma * 1000 / (sum > 255 ? 510 - sum : sum) > 400;
+}
+
 void cover_palette_keep_colours(const fb_data *src, fb_data *dst, int count)
 {
     const fb_data transparent = FB_SCALARPACK(TRANSPARENT_COLOR);
     for (int i = 0; i < count; i++)
     {
-        if (src[i] == transparent)
-            continue;
-        int rgb[3];
-        unpack_rgb(src[i], rgb);
-        const int hi = MAX(MAX(rgb[0], rgb[1]), rgb[2]);
-        const int lo = MIN(MIN(rgb[0], rgb[1]), rgb[2]);
-        const int sum = hi + lo, chroma = hi - lo;
-        /* as coloured as tint_header_rgb() takes for an icon's colour */
-        if (chroma > 25 && chroma * 1000 / (sum > 255 ? 510 - sum : sum) > 400)
+        if (src[i] != transparent && icon_coloured(src[i]))
             dst[i] = src[i];
     }
 }
@@ -487,6 +490,23 @@ void cover_palette_tint_line(const fb_data *src, fb_data *dst, int count, int y)
             tint_known[key >> 5] |= 1u << (key & 31);
         }
         dst[i] = tint_table[key];
+    }
+}
+
+/* On the Fill screen the knob's colour went to the ink, as an icon's does, and the
+   fill it sits on is a colour of its own: the colour of that. Elsewhere both take
+   the same tint. Grey, as the iPod look's knob, stays as it is. */
+void cover_palette_knob_line(const fb_data *src, fb_data *dst, int count, int y)
+{
+    cover_palette_tint_line(src, dst, count, y);
+    if (!screen_colours.fill)
+        return;
+    const fb_data transparent = FB_SCALARPACK(TRANSPARENT_COLOR);
+    const fb_data fill = pack_nearest(screen_colours.flat_fill);
+    for (int i = 0; i < count; i++)
+    {
+        if (src[i] != transparent && icon_coloured(src[i]))
+            dst[i] = fill;
     }
 }
 

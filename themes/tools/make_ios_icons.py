@@ -8,7 +8,8 @@ shows one or the other by the settings under Appearance:
 
 His drawings are kept where they fit: the battery loses a straight row, and the
 rest are made the size of the theme's own, in their places. The play symbols,
-the stars and the bar are drawn here in his colours, as simple shapes they are.
+the stars and the bar are drawn here in his colours, as simple shapes they are,
+and so are the bar's knob and the volume's speakers, which he didn't draw.
 The icons of the status bar but the battery are of one colour with an alpha
 channel, so the firmware gives them the cover's colour with their edges smooth
 over whatever the bar is. The battery is made here for the dark theme too; run
@@ -31,6 +32,7 @@ _spec.loader.exec_module(dark_theme)
 ACCENT = (234, 68, 90)      # his red, of iOS 13's Music
 RED = (255, 59, 48)         # iOS's own, of a battery nearly empty, which stays red
 TRACK = (220, 220, 220)     # the empty part of his bar, and the dot of no star
+GREY = (142, 142, 147)      # iOS's grey, of the volume's speakers
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
@@ -365,6 +367,54 @@ def bar(colour):
     return over(shape(w, h, inside, colour), WHITE)
 
 
+# The bar's knob, in its colour: a small one as it plays, a large one as it's moved,
+# as iOS 13's. Both as wide, so the large one leaves nothing as it goes small, and
+# as tall as the bar's frame, round the middle of its 6 rows.
+KNOB_W, KNOB_H, KNOB_Y = 14, 23, 7.0
+
+
+def knob(diameter):
+    r = diameter / 2
+
+    def inside(x, y):
+        return (x - KNOB_W / 2) ** 2 + (y - KNOB_Y) ** 2 <= r * r
+    return alpha(shape(KNOB_W, KNOB_H, inside, ACCENT), ACCENT)
+
+
+# The volume's speakers, on either side of the bar in the frames of the theme's own:
+# the quiet one, and the loud one with three waves. Drawn here as plain shapes; the
+# symbols of iOS are only for apps on Apple's systems.
+def speaker(mouth, cy):
+    """a box and a cone opening to the right, its mouth at x mouth, centred on cy"""
+    def inside(x, y):
+        if mouth - 7.5 <= x <= mouth - 4.5 and abs(y - cy) <= 2:
+            return True
+        return mouth - 5 <= x <= mouth and abs(y - cy) <= 2 + (x - (mouth - 5)) * 0.7
+    return inside
+
+
+def waves(cx, cy, radii, thick=1.5, spread=0.8):
+    """arcs round (cx, cy) to its right, as far up and down as spread of a radian"""
+    import math
+
+    def inside(x, y):
+        d = math.hypot(x - cx, y - cy)
+        return x > cx and abs(math.atan2(y - cy, x - cx)) <= spread \
+            and any(abs(d - r) <= thick / 2 for r in radii)
+    return inside
+
+
+def volume_left():
+    # 13 x 19 at y 204: the bar's middle is its row 9
+    return alpha(shape(13, 19, speaker(11, 9.0), GREY), GREY)
+
+
+def volume_right():
+    # 21 x 21 at y 203: the bar's middle is its row 10
+    return alpha(shape(21, 21, union(speaker(8, 10.0), waves(7, 10.0, (3.5, 6.5, 9.5))),
+                       GREY), GREY)
+
+
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         raise SystemExit(__doc__)
@@ -379,6 +429,10 @@ if __name__ == '__main__':
         'iOS Stars.bmp': stars(),
         'iOS Track.bmp': bar(TRACK),
         'iOS PB.bmp': bar(ACCENT),
+        'iOS Knob Small.bmp': knob(10),
+        'iOS Knob.bmp': knob(14),
+        'iOS Volume Left.bmp': volume_left(),
+        'iOS Volume Right.bmp': volume_right(),
     }
     for name, rows in out.items():
         write_bmp(os.path.join(WPS, name), rows)

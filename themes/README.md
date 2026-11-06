@@ -62,6 +62,8 @@ Changes from the originals:
   stars and the progress bar as Linus (u/Linusssk) drew them in the style of
   iOS 13's Music for iPodWizard, used with his permission. The skins show them
   or the theme's own by the settings (`%?St(status bar style)` and the others).
+  The bar's knob and the volume's speakers are drawn by `make_ios_icons.py` as
+  plain shapes, not by him.
 
 The extra bitmaps are drawn by the scripts in `tools/`, which are run again
 after a change, in this order:

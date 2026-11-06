@@ -89,6 +89,8 @@ void cover_palette_keep_ink(const fb_data *src, fb_data *dst, int count);
 /* A line of a bitmap of the theme in the colours of the whole screen, for this line
    of the screen */
 void cover_palette_tint_line(const fb_data *src, fb_data *dst, int count, int y);
+/* the same for the iOS bar's knob, its colour that of the bar's fill */
+void cover_palette_knob_line(const fb_data *src, fb_data *dst, int count, int y);
 /* after it, the pixels of src with a colour of their own back in dst, as the
    battery's charge: its colour says something */
 void cover_palette_keep_colours(const fb_data *src, fb_data *dst, int count);

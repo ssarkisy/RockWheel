@@ -497,6 +497,8 @@ static struct bitmap *tinted_bar_bitmap(const struct gui_wps *gwps, struct bitma
 
 /* the image being drawn keeps its own colours, as the battery does */
 static bool keep_own_colours;
+/* or is the iOS bar's knob, in the colour of the bar's fill */
+static bool drawing_knob;
 
 /* A bitmap of the theme, in the colours of the cover if they are on the whole screen */
 static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
@@ -543,7 +545,10 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
             line_bm.alpha_offset = bm->width * sizeof(fb_data);
             for (int i = 0; i < height; i++, row += bm->width, alpha += alpha_stride)
             {
-                cover_palette_tint_line(row, pixels, bm->width, top + i);
+                if (drawing_knob)
+                    cover_palette_knob_line(row, pixels, bm->width, top + i);
+                else
+                    cover_palette_tint_line(row, pixels, bm->width, top + i);
                 if (own_ink)
                     cover_palette_keep_ink(row, pixels, bm->width);
                 else if (keep_own_colours)
@@ -559,7 +564,10 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
         line_bm.height = 1;
         for (int i = 0; i < height; i++, row += bm->width)
         {
-            cover_palette_tint_line(row, line, width, top + i);
+            if (drawing_knob)
+                cover_palette_knob_line(row, line, width, top + i);
+            else
+                cover_palette_tint_line(row, line, width, top + i);
             if (own_ink)
                 cover_palette_keep_ink(row, line, width);
             else if (keep_own_colours)
@@ -903,6 +911,9 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             if (pb->slider_centre)
                 yoff -= h / 2;
         }
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+        drawing_knob = global_settings.progress_bar_style == STYLE_IOS;
+#endif
         if (pb->slider_centre)
         {
             /* over the end of the fill, which shows through the corners
@@ -913,6 +924,7 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         }
         else
             draw_bmp_part(gwps, &img->bm, 0, 0, x + xoff, y + yoff, w, h);
+        drawing_knob = false;
     }
 
     if (pb->type == SKIN_TOKEN_PROGRESSBAR)
