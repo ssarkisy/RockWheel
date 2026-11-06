@@ -30,8 +30,9 @@ bool library_fonts_stale(void);
    a new one counts its commits from 1 again */
 void library_fonts_forget(void);
 /* made anew, with how far that is as it goes, until progress returns false;
-   the firmware's are let go of first (font_load_library). Stopped, those made
-   are kept, and all are made again the next time, as for a failure */
+   the firmware's are let go of and loaded again around it (font_load_library),
+   only when there are letters new to them. Stopped, those made are kept, and
+   all are made again the next time, as for a failure */
 bool library_fonts_make(bool (*progress)(int done, int total));
 
 #endif

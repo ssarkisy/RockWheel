@@ -43,6 +43,7 @@
 #include "menus/exported_menus.h"
 #include "library_fonts.h"
 #include "misc.h"
+#include "version.h"
 #include "plugin.h"
 
 #define LF_VERSION   2
@@ -169,6 +170,14 @@ static inline bool get_bit(const uint8_t *bits, ucschar_t c)
    kana given */
 static void take_text(const unsigned char *s, const unsigned char *end, enum han no_kana)
 {
+    /* nothing wanted below U+0590, whose UTF-8 starts at 0xd6: a text in Latin
+       or Cyrillic letters, most of a library, is passed over by its bytes
+       rather than decoded twice */
+    const unsigned char *q = s;
+    while (q < end && *q && *q < 0xd6)
+        q++;
+    if (q >= end || !*q)
+        return;
     bool kana = false;
     for (const unsigned char *p = s; p < end && *p; )
     {
@@ -207,8 +216,6 @@ static void take_block(ucschar_t first, ucschar_t last)
         set_bit(work->wanted, c);
 }
 
-/* a file of the database: a header, then each string after its length and its
-   track's index */
 /* How far making the fonts is, of FONTS_STEPS: the characters gathered to
    GATHERED, by the bytes of the tag and language files read, then the fonts
    made of them. The gathering is all of it after a sync that brought no new
@@ -245,6 +252,20 @@ static void tag_file_path(int tag, char *path, size_t size)
     snprintf(path, size, "%s/database_%d.tcd", tagcache_get_stat()->db_path, tag);
 }
 
+/* what's left of buf from at moved to its start, and more read after it */
+static void refill(int fd, unsigned char *buf, int room, int *have, int *at)
+{
+    memmove(buf, buf + *at, *have - *at);
+    *have -= *at;
+    *at = 0;
+    const ssize_t got = read(fd, buf + *have, room - *have);
+    if (got > 0)
+        *have += got;
+}
+
+/* a file of the database: a header, then each string after its length and its
+   track's index. Read a buffer at a time: two reads for each string, 13000
+   songs' titles and as many groupings, were most of the time the fonts took */
 static void take_tag_file(int tag, enum han no_kana)
 {
     char path[MAX_PATH];
@@ -252,23 +273,40 @@ static void take_tag_file(int tag, enum han no_kana)
     int fd = open(path, O_RDONLY);
     if (fd < 0)
         return;
+    unsigned char *const buf = work->text;
+    const int room = sizeof(work->text) - 1;
+    int have = 0, at = 0;
     int32_t header[3]; /* magic, size, count */
     if (read(fd, header, sizeof(header)) == sizeof(header))
     {
         for (int32_t i = 0; i < header[2] && !gather_stopped; i++)
         {
-            int32_t entry[2];
-            if (read(fd, entry, sizeof(entry)) != sizeof(entry)
-                || entry[0] < 0 || entry[0] > 0x10000)
+            int32_t entry[2]; /* the string's length, its track */
+            if (have - at < (int)sizeof(entry))
+                refill(fd, buf, room, &have, &at);
+            if (have - at < (int)sizeof(entry))
                 break;
+            memcpy(entry, buf + at, sizeof(entry));
+            if (entry[0] < 0 || entry[0] > 0x10000)
+                break;
+            if (have - at < (int)sizeof(entry) + entry[0] && at > 0)
+                refill(fd, buf, room, &have, &at);
             gather_read(sizeof(entry) + entry[0]);
-            const int n = MIN(entry[0], (int)sizeof(work->text) - 1);
-            if (read(fd, work->text, n) != n)
-                break;
-            work->text[n] = '\0';
-            if (entry[0] > n)
+            at += sizeof(entry);
+            /* as much of it as the buffer holds: the rest of a longer one is
+               passed over */
+            const int n = MIN(entry[0], have - at);
+            const unsigned char after = buf[at + n];
+            buf[at + n] = '\0';
+            take_text(buf + at, buf + at + n, no_kana);
+            buf[at + n] = after;
+            if (n < entry[0])
+            {
                 lseek(fd, entry[0] - n, SEEK_CUR);
-            take_text(work->text, work->text + n, no_kana);
+                have = at = 0;
+            }
+            else
+                at += n;
         }
     }
     close(fd);
@@ -770,6 +808,60 @@ bool library_fonts_stale(void)
     return !same;
 }
 
+/* The characters of the menus' languages, all 48 of them, kept: a megabyte of
+   text gone through again at every change of the library, as the database's
+   names, though they change only with the files of the languages */
+#define LF_LANGS     FONT_DIR "/library-langs.bin"
+#define LANGS_VERSION (LF_VERSION << 8 | 1)
+struct langs_head {
+    uint32_t version, stamp; /* of the languages' folder and the firmware's */
+    uint8_t hangul, kana, pad[2];
+};
+
+/* the languages' folder, and the firmware, whose update can change a
+   language's words without its size, and the names of the languages */
+static uint32_t langs_key(uint32_t folder)
+{
+    return hash_name(folder, rbversion);
+}
+
+/* into the work, clear but for them */
+static bool load_langs(uint32_t stamp)
+{
+    struct langs_head h;
+    const int fd = open(LF_LANGS, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool ok = read(fd, &h, sizeof(h)) == sizeof(h)
+        && h.version == LANGS_VERSION && h.stamp == langs_key(stamp)
+        && read(fd, work->wanted, sizeof(work->wanted)) == sizeof(work->wanted)
+        && read(fd, work->han, sizeof(work->han)) == sizeof(work->han);
+    close(fd);
+    if (!ok)
+    {
+        memset(work->wanted, 0, sizeof(work->wanted));
+        memset(work->han, 0, sizeof(work->han));
+        return false;
+    }
+    work->hangul = h.hangul;
+    work->kana = h.kana;
+    return true;
+}
+
+/* from the work, with nothing but theirs in it yet */
+static void save_langs(uint32_t stamp)
+{
+    const struct langs_head h = { LANGS_VERSION, langs_key(stamp),
+                                  work->hangul, work->kana, { 0, 0 } };
+    const int fd = whole_file_open(LF_LANGS);
+    if (fd < 0)
+        return;
+    whole_file_close(fd, LF_LANGS,
+        write(fd, &h, sizeof(h)) == sizeof(h)
+        && write(fd, work->wanted, sizeof(work->wanted)) == sizeof(work->wanted)
+        && write(fd, work->han, sizeof(work->han)) == sizeof(work->han));
+}
+
 bool library_fonts_make(bool (*progress)(int done, int total))
 {
     const int handle = core_alloc(sizeof(struct work));
@@ -807,7 +899,12 @@ bool library_fonts_make(bool (*progress)(int done, int total))
             close(fd);
         }
     }
-    DIR *langs = progress ? opendir(LANG_DIR) : NULL;
+    /* the languages' first, as kept from before while their files are the
+       same, the work clear: the tags' are added to them */
+    uint32_t langs_stamp[STAMP_WORDS];
+    stamp_of(langs_stamp);
+    const bool langs_kept = load_langs(langs_stamp[3]);
+    DIR *langs = progress && !langs_kept ? opendir(LANG_DIR) : NULL;
     if (langs)
     {
         /* those take_languages() reads: the folder has the voice's files
@@ -821,12 +918,17 @@ bool library_fonts_make(bool (*progress)(int done, int total))
         }
         closedir(langs);
     }
+    if (!langs_kept)
+    {
+        take_languages();
+        if (!gather_stopped)
+            save_langs(langs_stamp[3]);
+    }
     for (size_t i = 0; i < ARRAYLEN(tags); i++)
         take_tag_file(tags[i], no_kana);
     take_names_in(global_settings.playlist_catalog_dir[0]
                   ? (const char *)global_settings.playlist_catalog_dir
                   : PLAYLIST_CATALOG_DEFAULT_DIR, 2, no_kana);
-    take_languages();
     if (get_bit(work->wanted, 0x05d0))
         take_block(0x0590, 0x05ff);
     if (get_bit(work->wanted, 0x0627))
@@ -865,7 +967,13 @@ bool library_fonts_make(bool (*progress)(int done, int total))
     for (ucschar_t c = 0; !same && c <= 0xffff; c++)
         count += get_bit(work->wanted, c);
     bool ok = !gather_stopped;
-    const int list_handle = count && ok ? core_alloc(count * sizeof(struct glyph)) : 0;
+    /* The firmware's let go of as their files are written anew, and loaded
+       again after: as they are, they stay. Unloaded and loaded each time, it
+       took 0.8 s after a change of the library that brought no letters. */
+    const bool remake = ok && !same;
+    if (remake)
+        font_load_library(false);
+    const int list_handle = count && remake ? core_alloc(count * sizeof(struct glyph)) : 0;
     if (!ok)
     {
         /* made the next time */
@@ -906,5 +1014,7 @@ bool library_fonts_make(bool (*progress)(int done, int total))
 
     if (ok)
         whole_file_write(LF_STAMP, now, sizeof(now));
+    if (remake)
+        font_load_library(true);
     return ok;
 }

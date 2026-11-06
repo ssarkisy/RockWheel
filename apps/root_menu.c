@@ -1600,9 +1600,7 @@ void show_library_update(void)
         tail_span = 100 - tail_from;
         if (!letters_stale) /* else on from where they are */
             library_update_show(str(LANG_UPDATING_LIBRARY), 0);
-        font_load_library(false); /* their files are written anew */
         library_fonts_make(library_fonts_progress);
-        font_load_library(true);
     }
     if (shown)
     {
