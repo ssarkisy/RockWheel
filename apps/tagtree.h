@@ -73,6 +73,7 @@ bool tagtree_play_song_in_library(const char *path);
 int tagtree_add_to_playlist(const char* playlist, bool new_playlist);
 char *tagtree_get_title(struct tree_context* c);
 int tagtree_get_attr(struct tree_context* c);
+bool tagtree_row_is_playing(struct tree_context *c, int row, long playing);
 int tagtree_get_icon(struct tree_context* c);
 int tagtree_get_filename(struct tree_context* c, char *buf, int buflen);
 int tagtree_get_custom_action(struct tree_context* c);

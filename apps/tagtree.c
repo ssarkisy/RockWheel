@@ -119,6 +119,62 @@ static bool tagtree_slot_in_use(int slot)
     return strstr(head, tagtree_playlist_names[slot]) != NULL;
 }
 
+/* The list of Music the music playing is from, as noted where it was started
+   (tagtree_note_queue), with the start's count, its playlist's file and the
+   database's commit */
+static uint32_t queue_id;
+static unsigned int queue_starts = ~0u;
+static char queue_file[MAX_PATH];
+static int32_t queue_commit;
+
+static void tagtree_note_queue(const char *file, uint32_t id)
+{
+    strmemccpy(queue_file, file, sizeof(queue_file));
+    queue_id = id;
+    queue_starts = playlist_start_count();
+    queue_commit = tagcache_get_commitid();
+}
+
+/* That list's id, or 0 if the music playing is of none. Started elsewhere, as
+   resumed at a start, by the playlist's file: one of the slots', whose index
+   says which list, of this database. That is read only while the disk is up:
+   the first draw of a list after a sleep waited for it seconds. */
+static uint32_t tagtree_queue_list(void)
+{
+    char current[MAX_PATH];
+    if (!playlist_get_name(NULL, current, sizeof(current)))
+        current[0] = '\0';
+    if (queue_starts == playlist_start_count()
+        && queue_commit == tagcache_get_commitid()
+        && !strcasecmp(queue_file, current))
+        return queue_id;
+#ifdef HAVE_DISK_STORAGE
+    if (!storage_disk_is_active())
+        return 0;
+#endif
+    uint32_t id = 0;
+    for (int i = 0; i < TAGTREE_SLOTS && current[0]; i++)
+    {
+        char path[MAX_PATH];
+        snprintf(path, sizeof(path), "%s/%s", TAGTREE_PLAYLIST_DIR,
+                 tagtree_playlist_names[i]);
+        if (strcasecmp(current, path))
+            continue;
+        struct tagtree_list_header h;
+        int fd = open(tagtree_list_index_names[i], O_RDONLY);
+        if (fd >= 0)
+        {
+            if (read(fd, &h, sizeof(h)) == sizeof(h) && h.magic == TAGTREE_LIST_MAGIC
+                && h.commitid == tagcache_get_commitid())
+                id = h.id;
+            close(fd);
+        }
+        break;
+    }
+    tagtree_note_queue(current, id);
+    return id;
+}
+
 /* The one of a pair, from first, which is free to be written, as a full path
    into buf. Its index goes first, so that it never goes with another file. */
 static int tagtree_free_slot(int first, char *buf, size_t size)
@@ -1160,9 +1216,8 @@ static void tagtree_buffer_event(unsigned short id, void *ev_data)
     bool runtimedb = global_settings.runtimedb;
     bool autoresume = itunesdb_resumes(id3->path);
 
-    /* Do not gather data unless proper setting has been enabled. */
-    if (!runtimedb && !autoresume)
-        return;
+    /* Its number in the database, which the speaker in the lists and the
+       rating go by, all the same; the data only if it's gathered */
 
     logf("be:%s", id3->path);
 
@@ -3656,9 +3711,13 @@ static int tagtree_place_playing(int slot, int fd,
    written for it before, or written now. If it's that one playing already,
    unshuffled, it goes on to the row's track there, and *start_index is that
    one's place. */
+/* the playlist's file of the list last loaded as the current one, or empty */
+static char loaded_file[MAX_PATH];
+
 static int tagtree_load_list(struct tree_context *c, int *start_index)
 {
     struct tagtree_list_header h;
+    loaded_file[0] = '\0';
     const uint32_t id = tagtree_list_id(c->currtable, c->currextra, csi);
     const int32_t commitid = tagcache_get_commitid();
 
@@ -3677,6 +3736,8 @@ static int tagtree_load_list(struct tree_context *c, int *start_index)
             {
                 close(fd);
                 *start_index = place;
+                snprintf(loaded_file, sizeof(loaded_file), "%s/%s",
+                         TAGTREE_PLAYLIST_DIR, tagtree_playlist_names[i]);
                 return 0;
             }
             same = lseek(fd, sizeof(h), SEEK_SET) == sizeof(h)
@@ -3686,7 +3747,11 @@ static int tagtree_load_list(struct tree_context *c, int *start_index)
         }
         close(fd);
         if (same)
+        {
+            snprintf(loaded_file, sizeof(loaded_file), "%s/%s",
+                     TAGTREE_PLAYLIST_DIR, tagtree_playlist_names[i]);
             return 0;
+        }
     }
 
     char file[MAX_PATH];
@@ -3705,6 +3770,7 @@ static int tagtree_load_list(struct tree_context *c, int *start_index)
         logf("Failed creating playlist\n");
         return -1;
     }
+    strmemccpy(loaded_file, file, sizeof(loaded_file));
     return 0;
 }
 
@@ -3807,9 +3873,9 @@ bool tagtree_play_song_in_library(const char *path)
     bool ok = index >= 0 && index < (int)h.count;
     if (ok)
     {
-        /* as when playing a list */
+        /* as when playing a list: at once, without the fade */
         if (audio_status() & AUDIO_STATUS_PLAY)
-            audio_stop();
+            audio_stop_at_once();
         ok = playlist_create_from_index(TAGTREE_PLAYLIST_DIR,
                                         tagtree_playlist_names[slot], fd,
                                         h.count) == 0;
@@ -3824,6 +3890,7 @@ bool tagtree_play_song_in_library(const char *path)
                 index = 0;
         }
         playlist_start(index, 0, 0);
+        tagtree_note_queue(file, h.id);
     }
     cpu_boost(false);
     return ok;
@@ -3905,6 +3972,7 @@ static int tagtree_play_folder(struct tree_context* c)
         audio_stop_at_once();
 
     int n = c->filesindir;
+    loaded_file[0] = '\0';
     if (n <= playlist_get_current()->max_playlist_size)
     {
         int result = tagtree_load_list(c, &start_index);
@@ -3937,6 +4005,9 @@ static int tagtree_play_folder(struct tree_context* c)
     }
 
     playlist_start(start_index, 0, 0);
+    /* the list the music is now from, for its speaker */
+    tagtree_note_queue(loaded_file, loaded_file[0]
+                       ? tagtree_list_id(c->currtable, c->currextra, csi) : 0);
     if (kept_hash) /* as it is now, the playlist made from it */
         keep_list(c, kept_count);
     return 0;
@@ -4009,6 +4080,21 @@ char *tagtree_get_title(struct tree_context* c)
     }
 
     return "?";
+}
+
+/* The row is the song playing, paused too, of the list the music playing is
+   from: in another list it plays as any other, its own list then. playing is
+   its id3's tagcache_idx. */
+bool tagtree_row_is_playing(struct tree_context *c, int row, long playing)
+{
+    if (playing <= 0 || c->currtable == TABLE_ROOT || row < 0 || row >= c->filesindir
+        || !csi)
+        return false;
+    const struct tagentry *entry = tagtree_get_entry(c, row);
+    if (!entry || entry->newtable != TABLE_PLAYTRACK || entry->extraseek + 1 != playing)
+        return false;
+    const uint32_t queue = tagtree_queue_list();
+    return queue && queue == tagtree_list_id(c->currtable, c->currextra, csi);
 }
 
 int tagtree_get_attr(struct tree_context* c)

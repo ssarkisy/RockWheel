@@ -21,6 +21,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "scroll_engine.h"
 #include "system.h"
@@ -31,6 +32,7 @@
 #include "settings.h"
 #include "debug.h"
 #include "viewport.h"
+#include "language.h"
 #include "debug.h"
 
 #ifdef HAVE_REMOTE_LCD
@@ -45,6 +47,8 @@ static void style_line(struct screen *display, int x, int y, struct line_desc *l
 static void put_text(struct screen *display, int x, int y, struct line_desc *line,
                       const char *text, bool prevent_scroll, int text_skip_pixels);
 static void draw_chevron(struct screen *display, int y, struct line_desc *line);
+static void draw_speaker(struct screen *display, int y, struct line_desc *line);
+static int decoration_width(struct screen *display, const struct line_desc *line);
 
 struct line_desc_scroll {
     struct line_desc desc;
@@ -92,6 +96,8 @@ static void scroller(struct scrollinfo *s, struct screen *display)
         int y = s->y - (line->desc.height/2 - display->getcharheight()/2);
         style_line(display, s->x, y, &line->desc);
         put_text(display, s->x, s->y, &line->desc, s->line, true, s->offset);
+        if (line->desc.style & STYLE_PLAYING)
+            draw_speaker(display, y, &line->desc);
         if (line->desc.style & STYLE_CHEVRON)
             draw_chevron(display, y, &line->desc);
     }
@@ -144,6 +150,15 @@ static void put_text(struct screen *display,
 
     display->set_drawmode(drmode);
 
+    /* The text short of a speaker or a chevron at the right end, on their strip
+       of background: as wide as the line, a title that ended under them didn't
+       scroll and lost its end, and one that did never showed it */
+    struct viewport *vp = *display->current_viewport;
+    const int vp_width = vp->width;
+    const int deco = decoration_width(display, line);
+    if (deco > 0 && deco < vp->width - x)
+        vp->width -= deco;
+
     if (line->scroll && !prevent_scroll)
     {
         bool scrolls;
@@ -159,6 +174,7 @@ static void put_text(struct screen *display,
     }
     else
         display->putsxy_scroll_func(x, y, text, NULL, NULL, text_skip_pixels);
+    vp->width = vp_width;
 }
 
 /* A line consists of:
@@ -435,6 +451,20 @@ static const unsigned char chevron_alpha[] = {
     0x2d, 0x00, 0x90, 0xff, 0x5f, 0x00, 0xd3, 0xff, 0xff, 0x3a, 0xf7, 0xff,
     0xff, 0xff,
 };
+/* the speaker of the song playing, in the same format: made by
+   themes/tools/make_list_glyphs.py */
+#define SPEAKER_W 15
+#define SPEAKER_H 12
+static const unsigned char speaker_alpha[] = {
+    0xff, 0xff, 0xff, 0xdf, 0xff, 0xbf, 0xfe, 0xff, 0xff, 0xff, 0x6f, 0xf7,
+    0xef, 0x40, 0xff, 0xff, 0xff, 0x4e, 0x70, 0xef, 0xaf, 0x80, 0xff, 0xff,
+    0x3e, 0x00, 0xe7, 0x70, 0x5f, 0xf1, 0x07, 0x00, 0x00, 0x70, 0x6f, 0xd0,
+    0x0b, 0x7b, 0x00, 0x00, 0x00, 0xf7, 0x0d, 0xe9, 0x90, 0x07, 0x00, 0x00,
+    0x70, 0xdf, 0x90, 0x0e, 0x79, 0x00, 0x00, 0x00, 0xf7, 0x06, 0xbd, 0xb0,
+    0xff, 0xef, 0x03, 0x70, 0x0e, 0xf7, 0x15, 0xff, 0xff, 0xef, 0x04, 0xf7,
+    0xfe, 0x0a, 0xf8, 0xff, 0xff, 0xff, 0x76, 0xff, 0x0e, 0xf4, 0xff, 0xff,
+    0xff, 0xff, 0xfd, 0xff, 0xeb, 0xff,
+};
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
@@ -467,6 +497,78 @@ static void draw_chevron(struct screen *display, int y, struct line_desc *line)
     display->putsxy(x, y + height/2 - display->getcharheight()/2, chevron);
 }
 
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+/* how light a colour of the settings is, roughly */
+static int colour_light(unsigned colour)
+{
+    return RGB_UNPACK_RED(colour) * 77 + RGB_UNPACK_GREEN(colour) * 150
+           + RGB_UNPACK_BLUE(colour) * 29;
+}
+
+/* the blue of the selection's gradient that stands out more from the list:
+   its dark end on a light one, its light start on the dark theme's */
+static unsigned speaker_colour(void)
+{
+    const int bg = colour_light(global_settings.bg_color);
+    const int end = colour_light(global_settings.lse_color);
+    const int start = colour_light(global_settings.lss_color);
+    return abs(end - bg) >= abs(start - bg) ? global_settings.lse_color
+                                            : global_settings.lss_color;
+}
+#endif
+
+/* The speaker of the song playing at the right end of its line, as on a stock
+   iPod: in the blue of the selection's end on the list, and as the selection's
+   text on it, on a strip of the line's own background. Left of a chevron if
+   the line has both, and at the left end with right-to-left text. */
+static void draw_speaker(struct screen *display, int y, struct line_desc *line)
+{
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type != SCREEN_MAIN)
+        return;
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    int x;
+    if (lang_is_rtl())
+        x = CHEVRON_MARGIN; /* where the text ends, without a strip */
+    else
+    {
+        x = display->getwidth() - SPEAKER_W - CHEVRON_MARGIN;
+        if (line->style & STYLE_CHEVRON)
+            x -= CHEVRON_W + CHEVRON_MARGIN;
+        style_line(display, x - CHEVRON_MARGIN, y, line);
+    }
+    const bool selected = line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT);
+    const unsigned fg = display->get_foreground();
+    if (!selected)
+        display->set_foreground(speaker_colour());
+    display->set_drawmode(DRMODE_FG);
+    lcd_alpha_bitmap_part(speaker_alpha, 0, 0, SPEAKER_W,
+                          x, y + (height - SPEAKER_H)/2, SPEAKER_W, SPEAKER_H);
+    display->set_foreground(fg);
+#else
+    (void)display; (void)y; (void)line;
+#endif
+}
+
+/* the width of the strip of a speaker, a chevron or both at the line's right
+   end, which the text stops short of: 0 where they're drawn otherwise */
+static int decoration_width(struct screen *display, const struct line_desc *line)
+{
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type != SCREEN_MAIN || lang_is_rtl())
+        return 0;
+    int width = 0;
+    if (line->style & STYLE_PLAYING)
+        width += SPEAKER_W + CHEVRON_MARGIN;
+    if (line->style & STYLE_CHEVRON)
+        width += CHEVRON_W + CHEVRON_MARGIN;
+    return width ? width + CHEVRON_MARGIN : 0;
+#else
+    (void)display; (void)line;
+    return 0;
+#endif
+}
+
 void vput_line(struct screen *display,
               int x, int y, struct line_desc *line,
               const char *fmt, va_list ap)
@@ -482,6 +584,9 @@ void vput_line(struct screen *display,
 #endif
     style_line(display, x, y, line);
     print_line(display, x, y, line, fmt, ap);
+    /* the speaker first: its strip goes to the right end */
+    if (line->style & STYLE_PLAYING)
+        draw_speaker(display, y, line);
     if (line->style & STYLE_CHEVRON)
         draw_chevron(display, y, line);
 #if (LCD_DEPTH > 1 || (defined(LCD_REMOTE_DEPTH) && LCD_REMOTE_DEPTH > 1))

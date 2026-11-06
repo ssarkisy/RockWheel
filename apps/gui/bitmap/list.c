@@ -434,6 +434,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             }
         }
 #endif
+        /* the song playing, a speaker at the right end, on any row */
+        if (list->callback_is_playing && list->callback_is_playing(i, list->data))
+            style |= STYLE_PLAYING;
         /* it's at the right end, over the start of right-to-left text */
         if (is_selected && global_settings.list_selector_chevron
             && !lang_is_rtl()

@@ -159,6 +159,8 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_get_item_icon = NULL;
     gui_list->callback_has_children = NULL;
     gui_list->callback_is_group = NULL;
+    gui_list->callback_is_playing = NULL;
+    gui_list->playing_shown = 0;
     gui_list->callback_get_item_name = callback_get_item_name;
     gui_list->callback_speak_item = NULL;
     gui_list->callback_draw_item = NULL;
@@ -238,10 +240,29 @@ void gui_synclist_set_before_draw(struct gui_synclist *lists,
 /*
  * Force a full screen update.
  */
+/* The song playing, once for each draw of a list that shows it: the track's
+   taken under its mutex, not for each row */
+static long playing_now;
+
+long gui_synclist_song_playing(void)
+{
+    if (!(audio_status() & AUDIO_STATUS_PLAY))
+        return 0;
+    const struct mp3entry *id3 = audio_current_track();
+    return id3 ? MAX(id3->tagcache_idx, 0) : 0;
+}
+
+long gui_synclist_playing(void)
+{
+    return playing_now;
+}
+
 void gui_synclist_draw(struct gui_synclist *gui_list)
 {
     if (gui_list->callback_before_draw)
         gui_list->callback_before_draw(gui_list);
+    if (gui_list->callback_is_playing)
+        gui_list->playing_shown = playing_now = gui_synclist_song_playing();
     if (list_is_dirty(gui_list))
     {
         list_init_viewports(gui_list);
@@ -497,6 +518,12 @@ void gui_synclist_set_has_children_callback(struct gui_synclist * lists,
                                             list_has_children has_children_callback)
 {
     lists->callback_has_children = has_children_callback;
+}
+
+void gui_synclist_set_playing_callback(struct gui_synclist * lists,
+                                       list_is_playing is_playing_callback)
+{
+    lists->callback_is_playing = is_playing_callback;
 }
 
 void gui_synclist_set_voice_callback(struct gui_synclist * lists,
@@ -877,6 +904,11 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
        && TIME_AFTER(current_tick, lists->scheduled_talk_tick))
         /* scheduled postponed item announcement is due */
         _gui_synclist_speak_item(lists);
+    /* another song playing, as by ⏭ or its end: its speaker moves, all of the
+       list drawn again, as it is for any change */
+    if (lists->callback_is_playing
+        && gui_synclist_song_playing() != lists->playing_shown)
+        gui_synclist_draw(lists);
     return false;
 }
 

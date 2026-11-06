@@ -48,6 +48,9 @@ enum line_styles {
     /* Modifier for a chevron at the right end of the line, for a list item
      * that leads to more */
     STYLE_CHEVRON    = 0x20,
+    /* Modifier for a speaker at the right end of the line, for the song
+     * playing, paused too */
+    STYLE_PLAYING    = 0x40,
     /* These are used internally */
     _STYLE_DECO_MASK = 0x0f,
     _STYLE_MODE_MASK = 0x7F,

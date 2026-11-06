@@ -141,6 +141,9 @@ struct playlist_viewer {
     bool allow_view_text_plugin;
     unsigned long loading_tick;
     bool is_open;
+    /* the song playing, if a file is viewed that the music playing is from:
+       its path, as its tracks have theirs, or empty */
+    char playing[MAX_PATH];
 };
 
 struct playlist_search_data
@@ -789,6 +792,37 @@ static enum themable_icons playlist_callback_icons(int selected_item,
         return Icon_NOICON;
 }
 
+/* The song playing, paused too, of the music playing: a speaker at its right
+   end, as in the lists of Music. In a file of another, none. */
+static bool playlist_callback_playing(int selected_item, void *data)
+{
+    struct playlist_viewer *local_viewer = (struct playlist_viewer *)data;
+    struct playlist_entry *track = pv_get_track(local_viewer, selected_item);
+    if (!local_viewer->playlist)
+        return audio_status() && track->index == local_viewer->current_playing_track;
+    return local_viewer->playing[0] && !strcasecmp(track->name, local_viewer->playing);
+}
+
+/* of a file viewed, the song playing if the music playing is from that file:
+   true if it isn't as it was */
+static bool update_playing(void)
+{
+    char current[MAX_PATH];
+    const char *path = "";
+    if (viewer.playlist && (audio_status() & AUDIO_STATUS_PLAY)
+        && playlist_get_name(NULL, current, sizeof(current))
+        && !strcasecmp(current, viewer.playlist->filename))
+    {
+        const struct mp3entry *id3 = audio_current_track();
+        if (id3)
+            path = id3->path;
+    }
+    if (!strcmp(path, viewer.playing))
+        return false;
+    strmemccpy(viewer.playing, path, sizeof(viewer.playing));
+    return true;
+}
+
 static int playlist_callback_voice(int selected_item, void *data)
 {
     struct playlist_viewer *local_viewer = (struct playlist_viewer *)data;
@@ -841,6 +875,8 @@ static void update_gui(struct gui_synclist * playlist_lists, bool init)
     gui_synclist_set_icon_callback(playlist_lists,
                   global_settings.playlist_viewer_icons?
                   &playlist_callback_icons:NULL);
+    gui_synclist_set_playing_callback(playlist_lists, &playlist_callback_playing);
+    update_playing();
     gui_synclist_set_title(playlist_lists, viewer.title, Icon_Playlist);
     gui_synclist_select_item(playlist_lists, viewer.selected_track);
     gui_synclist_draw(playlist_lists);
@@ -982,6 +1018,9 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
             gui_synclist_draw(&playlist_lists);
             gui_synclist_speak_item(&playlist_lists);
         }
+        /* another song of the file viewed, or the music from another file */
+        else if (update_playing())
+            gui_synclist_draw(&playlist_lists);
 
         /* Timeout so we can determine if play status has changed */
         bool res = list_do_action(CONTEXT_TREE|ALLOW_SOFTLOCK, HZ/2, &playlist_lists, &button);
@@ -1032,6 +1071,15 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
                             playlist_buffer_get_track(&viewer.buffer,
                                                       viewer.selected_track);
                 int ret_val, start_index = current_track->index;
+                /* the song playing: to it, paused or not, rather than from its
+                   start */
+                if (viewer.moving_track < 0
+                    && playlist_callback_playing(viewer.selected_track, &viewer))
+                {
+                    exit = true;
+                    ret = PLAYLIST_VIEWER_OK;
+                    break;
+                }
                 if (viewer.moving_track >= 0)
                 {
                     /* Move track */

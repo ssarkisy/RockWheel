@@ -239,6 +239,17 @@ static int tree_get_filecolor(int selected_item, void * data)
 }
 #endif
 
+#ifdef HAVE_TAGCACHE
+/* the song playing, in the Music list it's from */
+static bool tree_is_playing(int selected_item, void *data)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    return *local_tc->dirfilter == SHOW_ID3DB
+        && tagtree_row_is_playing(local_tc, index_of(selected_item),
+                                  gui_synclist_playing());
+}
+#endif
+
 /* Folders, database levels and playlists lead to more, tracks don't */
 static bool tree_has_children(int selected_item, void * data)
 {
@@ -626,6 +637,7 @@ static int update_dir(void)
                             global_settings.show_icons?tree_get_fileicon:NULL);
     gui_synclist_set_has_children_callback(list, tree_has_children);
 #ifdef HAVE_TAGCACHE
+    gui_synclist_set_playing_callback(list, id3db ? tree_is_playing : NULL);
     if(!id3db || global_settings.talk_menu)
 #endif
     {
@@ -947,6 +959,13 @@ static int dirbrowse(void)
                 }
                 /* into a list, or to Now Playing, or a plugin, which has none */
                 transition_begin(TRANSITION_FORWARD);
+#ifdef HAVE_TAGCACHE
+                /* the song playing, of this list: to it, paused or not, as on
+                   a stock iPod, rather than from its start */
+                if (id3db && tagtree_row_is_playing(&tc, tc.selected_item,
+                                                   gui_synclist_song_playing()))
+                    return exit_to_new_screen(GO_TO_WPS);
+#endif
 #ifdef HAVE_TAGCACHE
                 switch (id3db ? tagtree_enter(&tc, true) : ft_enter(&tc))
 #else

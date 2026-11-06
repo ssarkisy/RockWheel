@@ -63,6 +63,8 @@ typedef enum themable_icons list_get_icon(int selected_item, void * data);
 typedef bool list_has_children(int selected_item, void * data);
 /* whether a row is the name of a group of rows, which can't be selected */
 typedef bool list_is_group(int item, void * data);
+/* whether a row is the song playing, paused too: a speaker at its right end */
+typedef bool list_is_playing(int item, void * data);
 /*
  * Text callback
  *  - selected_item : an integer that tells the number of the item to display
@@ -176,6 +178,9 @@ struct gui_synclist
     list_draw_item *callback_draw_item;
     list_has_children *callback_has_children; /* can be NULL */
     list_is_group *callback_is_group; /* can be NULL */
+    list_is_playing *callback_is_playing; /* can be NULL */
+    /* the song playing as the list was last drawn (gui_synclist_playing()) */
+    long playing_shown;
     /* what its owner does as it's about to be drawn, can be NULL */
     void (*callback_before_draw)(struct gui_synclist *lists);
 
@@ -250,6 +255,14 @@ extern void gui_synclist_set_nb_items(struct gui_synclist * lists, int nb_items)
 extern void gui_synclist_set_icon_callback(struct gui_synclist * lists, list_get_icon icon_callback);
 extern void gui_synclist_set_has_children_callback(struct gui_synclist * lists,
                                               list_has_children has_children_callback);
+extern void gui_synclist_set_playing_callback(struct gui_synclist * lists,
+                                              list_is_playing is_playing_callback);
+/* The song playing or paused, as its number in the database plus one (its
+   id3's tagcache_idx), 0 if none or none known: as the list being drawn saw
+   it, for its rows' is_playing callbacks */
+extern long gui_synclist_playing(void);
+/* the same now, as for a Select on a row */
+extern long gui_synclist_song_playing(void);
 extern void gui_synclist_set_voice_callback(struct gui_synclist * lists, list_speak_item voice_callback);
 extern void gui_synclist_set_viewport_defaults(struct viewport *vp, enum screen_type screen);
 #ifdef HAVE_LCD_COLOR
