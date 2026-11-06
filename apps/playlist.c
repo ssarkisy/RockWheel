@@ -2020,6 +2020,10 @@ void playlist_init(void)
 /*
  * Clean playlist at shutdown
  */
+/* The track to resume as USB came, while its name could be read: after USB the
+   control file is shut, and a track put in a list from it can't be */
+static char resume_path[MAX_PATH];
+
 void playlist_shutdown(void)
 
 {
@@ -2027,6 +2031,14 @@ void playlist_shutdown(void)
     /*if (usb_detect() == USB_INSERTED)*/
     audio_stop();
     struct playlist_info* playlist = &current_playlist;
+    /* its name while it can be read, for playlist_resume_gone(); after USB
+       without a resume since, the control file is shut, and the name is the
+       one before */
+    char name[MAX_PATH];
+    if (playlist->control_fd >= 0 && global_status.resume_index >= 0
+        && get_track_filename(playlist, global_status.resume_index,
+                              name, sizeof(name)) == 0)
+        strmemccpy(resume_path, name, sizeof(resume_path));
     playlist_write_lock(playlist);
     logf("Closing Control %s", __func__);
     pl_close_playlist(playlist);
@@ -2537,6 +2549,83 @@ int playlist_get_seed(const struct playlist_info* playlist)
         playlist = &current_playlist;
 
     return playlist->seed;
+}
+
+bool playlist_resume_gone(void)
+{
+    if (!resume_path[0] || file_exists(resume_path))
+        return false;
+    resume_path[0] = '\0';
+    return true;
+}
+
+/* The first track of the current playlist from index on, going round, whose
+   file is still on the disk; *known false when a name couldn't be read or
+   looking took too long, nothing to be made of it then */
+static int first_present(int index, bool *known)
+{
+    struct playlist_info *playlist = &current_playlist;
+    char filename[MAX_PATH];
+    const long until = current_tick + 2 * HZ;
+    *known = false;
+    for (int i = 0; i < playlist->amount; i++)
+    {
+        if (TIME_AFTER(current_tick, until))
+            return -1; /* as it is then: the audio skips those gone */
+        const int at = (index + i) % playlist->amount;
+        if (get_track_filename(playlist, at, filename, sizeof(filename)) != 0)
+            return -1; /* not taken for gone */
+        if (file_exists(filename))
+        {
+            *known = true;
+            return at;
+        }
+        if ((i & 31) == 31)
+            yield();
+    }
+    *known = true;
+    return -1;
+}
+
+void playlist_check_resume(void)
+{
+    struct playlist_info *playlist = &current_playlist;
+    /* not with the control file shut, as by USB during the load: the list
+       may be part of it */
+    if (audio_status() || playlist->control_fd < 0)
+        return;
+    bool known = true;
+    /* none at all, as when its playlist file is gone */
+    int index = -1;
+    if (playlist->amount > 0)
+        index = first_present(MAX(global_status.resume_index, 0), &known);
+    if (!known)
+        return;
+    if (index < 0)
+    {
+        /* nothing to resume: let go of, its control file too, as Resume
+           Playback otherwise stayed in the main menu, playing nothing */
+        dc_thread_stop(playlist);
+        playlist_write_lock(playlist);
+        empty_playlist_unlocked(playlist, true);
+        remove(playlist->control_filename);
+        playlist_write_unlock(playlist);
+        dc_thread_start(playlist, false);
+        global_status.resume_index = -1;
+        global_status.resume_elapsed = 0;
+        global_status.resume_offset = 0;
+        status_save(false);
+    }
+    else if (global_status.resume_index >= 0
+             && index != global_status.resume_index)
+    {
+        /* the track played gone: the next one there, from its start */
+        global_status.resume_index = index;
+        global_status.resume_crc32 = playlist_get_filename_crc32(playlist, index);
+        global_status.resume_elapsed = 0;
+        global_status.resume_offset = 0;
+        status_save(false);
+    }
 }
 
 /* Fills info structure with information about track at specified index.
@@ -3912,6 +4001,7 @@ void playlist_start(int start_index, unsigned long elapsed,
 {
     start_count++;
     struct playlist_info* playlist = &current_playlist;
+    resume_path[0] = '\0'; /* another list, or this one going on */
 
     playlist_write_lock(playlist);
 

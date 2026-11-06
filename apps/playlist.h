@@ -126,6 +126,13 @@ int playlist_place_of(const char *dir, const char *file, int count,
                       unsigned long seek);
 int playlist_resume(void);
 int playlist_shuffle(int random_seed, int start_index);
+/* With the music stopped and the playlist just resumed, all its names to be
+   read: the track to resume gone, as over USB, the next one still there
+   instead, from its start; none of its files left, the playlist let go of,
+   nothing to resume. A name not read, nothing changed. */
+void playlist_check_resume(void);
+/* the track to resume as USB came is gone since, once after it */
+bool playlist_resume_gone(void);
 unsigned int playlist_get_filename_crc32(struct playlist_info *playlist,
                                          int index);
 void playlist_resume_track(int start_index, unsigned int crc,

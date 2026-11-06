@@ -559,6 +559,7 @@ static int wpsscrn(void* param)
 {
     int ret_val = GO_TO_PREVIOUS;
     int audstatus = audio_status();
+    int loaded; /* playlist_resume()'s answer */
     (void)param;
     /* the theme isn't drawn first: Now Playing clears the screen and draws
        it then, if it shows it at all. Drawn whole after a list it took
@@ -584,22 +585,39 @@ static int wpsscrn(void* param)
                global_status.resume_index,
                (unsigned long)global_status.resume_crc32,
                (unsigned long)global_status.resume_offset);
-        if (playlist_resume() != -1)
+        loaded = playlist_resume();
+        if (loaded != -1)
         {
-            playlist_resume_track(global_status.resume_index,
-                global_status.resume_crc32,
-                global_status.resume_elapsed,
-                global_status.resume_offset);
-            ret_val = gui_wps_show();
+            /* its songs may be gone since the boot before, as through
+               another disk mode; not for a list loaded in part */
+            if (loaded >= 0)
+                playlist_check_resume();
+            if (global_status.resume_index == -1 || playlist_amount() <= 0)
+                splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
+            else
+            {
+                playlist_resume_track(global_status.resume_index,
+                    global_status.resume_crc32,
+                    global_status.resume_elapsed,
+                    global_status.resume_offset);
+                ret_val = gui_wps_show();
+            }
         }
     }
     else if (!file_exists(PLAYLIST_CONTROL_FILE))
         splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
     /* a list played to its end starts again from the top, with no question */
-    else if (playlist_resume() != -1)
+    else if ((loaded = playlist_resume()) != -1)
     {
-        playlist_start(0, 0, 0);
-        ret_val = gui_wps_show();
+        if (loaded >= 0)
+            playlist_check_resume();
+        if (playlist_amount() <= 0)
+            splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
+        else
+        {
+            playlist_start(0, 0, 0);
+            ret_val = gui_wps_show();
+        }
     }
 
     if (ret_val == GO_TO_PLAYLIST_VIEWER
@@ -826,7 +844,7 @@ static char *get_wps_item_name(int selected_item, void * data,
         return ID2P(LANG_NOW_PLAYING);
     return ID2P(LANG_RESUME_PLAYBACK);
 }
-MENUITEM_RETURNVALUE_DYNTEXT(wps_item, GO_TO_WPS, NULL, get_wps_item_name,
+MENUITEM_RETURNVALUE_DYNTEXT(wps_item, GO_TO_WPS, item_callback, get_wps_item_name,
                                 NULL, NULL, Icon_Playback_menu);
 #ifdef HAVE_RECORDING
 MENUITEM_RETURNVALUE(rec, ID2P(LANG_RECORDING), GO_TO_RECSCREEN,
@@ -1063,6 +1081,14 @@ static int item_callback(int action,
                 if (this_item == &bookmarks)
             {
                 if (global_settings.usemrb == 0)
+                    return ACTION_EXIT_MENUITEM;
+            }
+            else if (this_item == &wps_item)
+            {
+                /* as Now Playing on a stock iPod: none with nothing to play,
+                   rather than Resume Playback that plays nothing */
+                if (!audio_status() && global_status.resume_index == -1
+                    && !file_exists(PLAYLIST_CONTROL_FILE))
                     return ACTION_EXIT_MENUITEM;
             }
 #ifdef HAVE_TAGCACHE
@@ -1752,6 +1778,12 @@ void root_menu(void)
             case GO_TO_ROOT:
                 if (last_screen != GO_TO_ROOT)
                     selected = get_selection(last_screen);
+                /* the song to resume gone over USB: its list loaded again,
+                   as Resume Playback does, for the next song still there, or
+                   for none and no Resume Playback */
+                if (!audio_status() && playlist_resume_gone()
+                    && playlist_resume() >= 0)
+                    playlist_check_resume();
                 global_status.last_screen = GO_TO_ROOT; /* We've returned to ROOT */
                 /* When we are in the main menu we want the hardware BACK
                  * button to be handled by HOST instead of rockbox */
