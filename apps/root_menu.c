@@ -1630,13 +1630,15 @@ void show_library_update(void)
    boot logo: loaded behind the menu, once its thread had been idle a second,
    a list opened then waited for it on "Wait". Before Updating Library, which
    loads it itself after an import, and which made the fonts while it loaded
-   with 3% of the CPU, the screen left on its last frame meanwhile. */
-static void database_ram_wait(void)
+   with 3% of the CPU, the screen left on its last frame meanwhile. True when
+   USB came meanwhile, and the check of the songs after it with it. */
+static bool database_ram_wait(void)
 {
+    bool usb = false;
     if (!tagcache_ram_pending())
-        return;
+        return false;
     tagcache_ram_load_now();
-    const long start = current_tick;
+    long start = current_tick;
     while (tagcache_ram_pending())
     {
         if (TIME_AFTER(current_tick, start + 20 * HZ))
@@ -1649,8 +1651,15 @@ static void database_ram_wait(void)
         const long event = button_get_w_tmo(HZ / 10);
         if (IS_SYSEVENT(event)
             && default_event_handler(event) == SYS_USB_CONNECTED)
-            break;
+        {
+            /* the load USB stopped, again, and waited for: the menu came
+               without it */
+            tagcache_ram_load_now();
+            start = current_tick;
+            usb = true;
+        }
     }
+    return usb;
 }
 #endif
 
@@ -1675,10 +1684,17 @@ void root_menu(void)
        the songs opened from the menu waited on "Loading..." for it. */
     dircache_wait();
 #endif
+    bool usb_checked = false;
 #ifdef HAVE_TC_RAMCACHE
-    database_ram_wait();
+    usb_checked = database_ram_wait();
 #endif
 #ifdef HAVE_TAGCACHE
+    /* the songs outside Finder's folder, as after USB: the check there was
+       lost to a reset or a switch off right after it, and the songs copied
+       waited for the next connection. Not again after one that USB, come
+       meanwhile, was followed by. */
+    if (!usb_checked)
+        tagcache_check_sync();
     show_library_update();
 #endif
 #ifdef STOCK_BOOT_LOGO
@@ -1695,7 +1711,9 @@ void root_menu(void)
     {
 #ifdef HAVE_TAGCACHE
         /* the import begins as it shows, not behind whatever was open */
-        if (library_update_pending)
+        /* not under music, started meanwhile: an import's memory stops it,
+           and the check waits for it */
+        if (library_update_pending && !(audio_status() & AUDIO_STATUS_PLAY))
         {
             library_update_pending = false;
             if (tagcache_check_sync())

@@ -362,6 +362,29 @@ static void system_restore(void)
     tree_restore();
 }
 
+#ifdef HAVE_TAGCACHE
+/* Updating Library after USB, for a screen that keeps what it has in the
+   plugins' buffer, which the update writes over: a plugin, the playlist
+   viewer's changes not saved yet, bookmarks, a folder chosen. It comes back
+   to the menu first, as a plugin does. */
+static bool library_update_waits(void)
+{
+    if (plugin_is_running())
+        return true;
+    switch (get_current_activity())
+    {
+        case ACTIVITY_MAINMENU:
+        case ACTIVITY_WPS:
+        case ACTIVITY_FILEBROWSER:
+        case ACTIVITY_DATABASEBROWSER:
+        case ACTIVITY_PLAYLISTBROWSER:
+            return false;
+        default:
+            return true;
+    }
+}
+#endif
+
 /* the database's pass over the files after the disk was away: after an
    import or check of its own, which come first */
 static void system_restore_database(void)
@@ -703,7 +726,7 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
                after USB: it took the plugins' buffer from under the plugin
                itself. Once the dircache is built again, as at boot: before
                it, every folder and file was looked up on the disk. */
-            if (plugin_is_running())
+            if (library_update_waits())
                 library_update_after_usb();
             else if (tagcache_check_sync())
                 show_library_update();

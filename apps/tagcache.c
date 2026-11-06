@@ -5560,6 +5560,10 @@ static bool delete_entry(long idx_id)
  * Returns true if there is an event waiting in the queue
  * that requires the current operation to be aborted.
  */
+/* the pass at boot that finds each file in the dircache for its reference:
+   13000 of them took 84 s on the iPod, in the background */
+static bool refs_pass;
+
 static bool check_event_queue(void)
 {
 #ifndef __PCTOOL__
@@ -5575,6 +5579,12 @@ static bool check_event_queue(void)
         case SYS_REBOOT:
         case SYS_USB_CONNECTED:
             return true;
+        /* that pass gives way to an import or a check, which a screen waits
+           for: the check at boot stood behind it as long. Files lists find
+           by their paths in memory, so references left out cost little. */
+        case Q_SYNCED:
+        case Q_CHECK_OUTSIDE:
+            return refs_pass;
     }
 #endif /* __PCTOOL__ */
 
@@ -5739,6 +5749,10 @@ static bool tagcache_dumpsave(void)
 }
 #endif /* HAVE_EEPROM_SETTINGS */
 
+/* a load stopped for USB or switching off, not one that failed: the database
+   is as good as before, and is loaded again after */
+static bool load_cut_short;
+
 static bool load_tagcache(void)
 {
     /* DEBUG: After tagcache commit and dircache rebuild, hdr-sturcture
@@ -5841,7 +5855,10 @@ static bool load_tagcache(void)
         {
             /* Abort if we got a critical event in queue */
             if (do_timed_yield() && check_event_queue())
+            {
+                load_cut_short = true;
                 goto failure;
+            }
 
             p = TC_ALIGN_PTR(p, struct tagfile_entry, &rc);
             bytesleft -= rc;
@@ -6163,9 +6180,9 @@ static void ram_check_file_refs(char *buf, size_t bufsz, bool auto_update,
             break;
         do_timed_yield();
         processed_dir_count++;
-        /* the bar's first half: each file gone takes 0.17 s to remove, and
-           a hundred left it empty */
-        if (import_phase == TAGCACHE_IMPORT_CHECKING)
+        /* the bar's first half: each file gone took 0.17 s to remove, and a
+           hundred left it empty */
+        if (scan_outside)
         {
             import_done = i;
             import_total = 2 * current_tcmh.tch.entry_count;
@@ -6212,6 +6229,7 @@ static bool check_deleted_file_refs(bool auto_update)
 
     processed_dir_count = 0;
     int deleted = 0, outside = 0;
+    refs_pass = !auto_update;
 
 #if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
     /* From the paths in memory when they're all there: read from the filename
@@ -6233,6 +6251,7 @@ static bool check_deleted_file_refs(bool auto_update)
         /* the cache locked above, which kept it from moving from then on */
         tcrc_buffer_unlock();
 #endif
+        refs_pass = false;
         return false;
     }
 
@@ -6279,6 +6298,7 @@ wend_finished:
 #endif
     if (fd >= 0)
         close(fd);
+    refs_pass = false;
     /* after the unlock: the sweep locks the strings in memory itself */
     remove_gone_done();
     logf("done");
@@ -6286,7 +6306,7 @@ wend_finished:
 #ifndef __PCTOOL__
     /* the bar's second half, the scan after: how many of those still there
        it has found, as add_tagcache() counts them */
-    if (import_phase == TAGCACHE_IMPORT_CHECKING)
+    if (scan_outside)
     {
         import_total = 2 * MAX(outside - deleted, 1);
         import_done = import_total / 2;
@@ -6797,6 +6817,7 @@ static void load_ramcache(void)
     /* At first we should load the cache (if exists). It's searched once its
        paths are in order: their sort lets other threads go, and a track
        looked up meanwhile was found in none of them, its play not counted */
+    load_cut_short = false;
     const bool loaded = load_tagcache();
 
 #ifndef __PCTOOL__
@@ -6811,7 +6832,10 @@ static void load_ramcache(void)
 #endif
     tc_stat.ramcache = loaded;
 
-    if (!tc_stat.ramcache)
+    /* Stopped by USB, as on connecting the iPod just after it started, it is
+       loaded again once idle: taken for a failure, the database was off until
+       the next boot, and the songs copied over USB went unchecked */
+    if (!tc_stat.ramcache && !load_cut_short)
     {
         /* If loading failed, it must indicate some problem with the db
          * so disable it entirely to prevent further issues. */
@@ -6972,9 +6996,13 @@ bool tagcache_check_sync(void)
     if (!tc_stat.ready
 #ifdef HAVE_TC_RAMCACHE
         /* from the disk, every name was read and every file looked up, for
-           seconds at every connection */
-        || !tc_stat.ramcache
+           seconds at every connection; in memory, it's loaded first if a
+           connection stopped its load */
+        || !global_settings.tagcache_ram
 #endif
+        /* its own pass in the background finds them: the screen waited for
+           a scan of the whole disk */
+        || global_settings.tagcache_autoupdate
         /* after a plugin, music started meanwhile: a commit would take its
            buffer and stop it. The songs come with the next connection. */
         || (audio_status() & AUDIO_STATUS_PLAY))
@@ -7027,6 +7055,19 @@ static void count_songs(void)
     if (left == 0)
         song_count = count;
 }
+
+#ifdef HAVE_TC_RAMCACHE
+/* The files' references from the dircache, at boot, or with an update their
+   check. The references are wanted only for files whose paths didn't fit in
+   memory, which finds them otherwise: 13000 took 84 s on the iPod, in the
+   background at every boot. */
+static void check_file_refs(bool auto_update)
+{
+    if (!auto_update && ram_paths_all())
+        return;
+    check_deleted_file_refs(auto_update);
+}
+#endif
 
 static void tagcache_thread(void)
 {
@@ -7201,9 +7242,16 @@ static void tagcache_thread(void)
                 /* new files one waits with, from before: their entries are
                    looked for too, in memory */
                 commit_waiting();
+                /* and after a load USB stopped */
                 reload_after_commit();
-                check_deleted_file_refs(true);
-                update_and_reload();
+#ifdef HAVE_TC_RAMCACHE
+                /* not from the disk, for seconds, as without the memory */
+                if (tc_stat.ramcache)
+#endif
+                {
+                    check_deleted_file_refs(true);
+                    update_and_reload();
+                }
                 check_skips_synced = scan_outside = false;
                 import_phase = TAGCACHE_IMPORT_NONE;
                 cpu_boost(false);
@@ -7221,7 +7269,7 @@ static void tagcache_thread(void)
                 {
                     load_ramcache();
                     if (global_settings.tagcache_ram == TAGCACHE_RAM_ON)
-                        check_deleted_file_refs(false);
+                        check_file_refs(false);
                     break;
                 }
 #endif
@@ -7233,7 +7281,7 @@ static void tagcache_thread(void)
                 {
                     load_ramcache();
                     if (global_settings.tagcache_ram == TAGCACHE_RAM_ON)
-                        check_deleted_file_refs(global_settings.tagcache_autoupdate);
+                        check_file_refs(global_settings.tagcache_autoupdate);
                     if (tc_stat.ramcache && global_settings.tagcache_autoupdate)
                         tagcache_build();
                 }
