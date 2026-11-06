@@ -149,7 +149,8 @@ bool itunesdb_find_album_art(const char *album, const char *artist,
 bool itunesdb_covers_stale(void);
 /* Making them, by Cover Flow's plugin: begin with room for this many albums;
    for each, known() when made from the same stamp, and kept: 1, or -1 when
-   none was found then, 0 when not made so; or else put() with its frame, up
+   none was found then, -2 when it was in a format not shown, 0 when not made
+   so; or else put() with its frame, up
    to 200 by 200, or NULL for none found, and making() before decoding it;
    then end(). */
 bool itunesdb_covers_begin(int albums);
@@ -159,6 +160,16 @@ int itunesdb_cover_known(uint64_t key, uint32_t stamp);
 /* said just before an album's cover is decoded: an album the making is cut
    short at twice, as by a cover that crashes the decoder, is given up */
 void itunesdb_cover_making(uint64_t key, uint32_t stamp);
+/* put() of none, its cover in a format that isn't shown, as PNG: known()
+   says -2 for it then */
+void itunesdb_cover_unshown(uint64_t key);
+/* after put(), the stamp of the image in the album's folder it was made of,
+   0 for none; image_of() says the one kept, for the images changed */
+void itunesdb_cover_image(uint64_t key, uint32_t image);
+uint32_t itunesdb_cover_image_of(uint64_t key);
+/* the images outside Finder's folder changed since the covers were made, by
+   the check after USB: they're to be looked at again */
+bool itunesdb_covers_images_changed(void);
 /* 1 made, 0 not, -1 for no room left on the disk, which ends the making */
 int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm);
 /* how they end: every album looked at, those not being gone; cut short by

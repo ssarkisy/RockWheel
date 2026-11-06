@@ -936,6 +936,10 @@ static const struct plugin_api rockbox_api = {
     itunesdb_covers_skip,
     library_update_hold,
     itunesdb_cover_making,
+    itunesdb_cover_unshown,
+    itunesdb_cover_image,
+    itunesdb_cover_image_of,
+    itunesdb_covers_images_changed,
 #endif
 };
 

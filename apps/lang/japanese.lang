@@ -18473,3 +18473,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COVERS_UNSHOWN
+  desc: a splash at the end of Updating Library, after the covers of songs copied outside Finder: how many albums have a cover in a format that isn't shown (PNG or progressive JPEG), and what to do. %d is the number
+  user: core
+  <source>
+    *: "Covers in an unsupported format: %d. Save them as standard JPEG."
+  </source>
+  <dest>
+    *: "非対応の形式のアートワーク：%d。標準の JPEG で保存し直してください。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

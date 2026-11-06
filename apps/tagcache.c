@@ -443,6 +443,8 @@ static bool scan_outside;
 static struct search_roots_ll *scan_roots; /* the scan's, for the count */
 static bool outside_counted;
 static int outside_known; /* the songs outside Finder's folder known, still there */
+static uint32_t outside_images; /* their folders' images, as a sum */
+static bool outside_images_valid;
 static void count_outside(void);
 #endif
 
@@ -6498,6 +6500,37 @@ static bool outside_skips(const char *path)
     return !strcasecmp(path, "/iPod_Control");
 }
 
+#ifndef __PCTOOL__
+/* An image of a folder outside Finder's, as a cover may be: in a sum of
+   their names, sizes and times, in any order, which tells that a cover was
+   saved again, added or taken away. Finder's photos aren't covers. */
+static void add_outside_image(const char *path, const struct dirinfo *info)
+{
+    const char *dot = strrchr(path, '.');
+    if (!dot || (strcasecmp(dot, ".jpg") && strcasecmp(dot, ".jpeg")
+                 && strcasecmp(dot, ".png") && strcasecmp(dot, ".bmp")))
+        return;
+    const char *p = path;
+#ifdef HAVE_MULTIVOLUME
+    path_strip_volume(path, &p, false);
+#endif
+    if (!strncasecmp(p, "/Photos/", 8))
+        return;
+    uint32_t h = 2166136261u;
+    for (const unsigned char *c = (const unsigned char *)p; *c; c++)
+        h = (h ^ *c) * 16777619u;
+    h ^= (uint32_t)info->size * 2654435761u;
+    h ^= (uint32_t)info->mtime * 40503u;
+    outside_images += h;
+}
+
+bool tagcache_outside_images(uint32_t *sum)
+{
+    *sum = outside_images;
+    return outside_images_valid;
+}
+#endif
+
 static bool check_dir(const char *dirname, int add_files)
 {
     int success = false;
@@ -6553,8 +6586,19 @@ static bool check_dir(const char *dirname, int add_files)
             if (!rockbox_dir(curpath) && !outside_skips(curpath))
                 check_dir(curpath, add_files);
         }
-        else if (add_files)
+        else if (!add_files)
         {
+#ifndef __PCTOOL__
+            if (scan_outside)
+                add_outside_image(curpath, &info);
+#endif
+        }
+        else
+        {
+#ifndef __PCTOOL__
+            if (scan_outside)
+                add_outside_image(curpath, &info);
+#endif
             tc_stat.curentry = curpath;
 
             /* Add a new entry to the temporary db file. */
@@ -6801,6 +6845,9 @@ void do_tagcache_build(const char *path[])
     free_search_roots(&roots_ll[0]);
 #ifndef __PCTOOL__
     scan_roots = NULL;
+    /* the images' sum of the whole walk only */
+    if (scan_outside && ret)
+        outside_images_valid = true;
     /* the commit can have the memory */
     itunesdb_forget_metadata();
 #endif
@@ -7327,6 +7374,8 @@ static void tagcache_thread(void)
                    when the scan adds it again, then the new ones */
                 cpu_boost(true);
                 check_skips_synced = scan_outside = true;
+                outside_images = 0;
+                outside_images_valid = false;
                 /* new files one waits with, from before: their entries are
                    looked for too, in memory */
                 commit_waiting();

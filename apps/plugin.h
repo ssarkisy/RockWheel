@@ -1121,6 +1121,10 @@ struct plugin_api {
     void (*itunesdb_covers_skip)(void);
     void (*library_update_hold)(long event);
     void (*itunesdb_cover_making)(uint64_t key, uint32_t stamp);
+    void (*itunesdb_cover_unshown)(uint64_t key);
+    void (*itunesdb_cover_image)(uint64_t key, uint32_t image);
+    uint32_t (*itunesdb_cover_image_of)(uint64_t key);
+    bool (*itunesdb_covers_images_changed)(void);
 #endif
 };
 

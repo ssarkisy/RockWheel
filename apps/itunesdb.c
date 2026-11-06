@@ -2763,7 +2763,7 @@ struct art_image {
 #define COVERS_FRAMES    ROCKBOX_DIR "/covers_frames.dat"
 #define COVERS_SLIDES    ROCKBOX_DIR "/covers_slides.dat"
 #define COVERS_MAGIC     0x56434252 /* "RBCV" */
-#define COVERS_VERSION   2
+#define COVERS_VERSION   3
 /* a frame's place: whole sectors, so that it's one read */
 #define COVER_SLOT       ((off_t)ALIGN_UP(FRAME_MAX * sizeof(fb_data), 2048))
 /* the numbers of their slides, past Finder's, which have 16 bits */
@@ -2792,10 +2792,18 @@ struct cover_entry {
     uint16_t width;     /* of the frame; COVER_GIVEN_UP with no slot */
     uint16_t height;
     uint32_t colour;
+    uint32_t image;     /* the stamp of the folder's image it was made of, or
+                           0: one saved again since is made again */
 };
 /* an album whose making was cut short twice, by a cover that crashed the
    decoder or hung it: not tried again until its songs change */
 #define COVER_GIVEN_UP   0xffff
+/* one whose cover is in a format that isn't shown, PNG or progressive JPEG:
+   counted for Updating Library's message only as it becomes so */
+#define COVER_UNSHOWN    0xfffe
+/* the sum of the images outside Finder's folder the covers were last made
+   with: changed, as by a cover saved again, they're looked at again */
+#define COVERS_IMAGES    ROCKBOX_DIR "/covers_images.dat"
 
 
 static struct art_header art_hdr;
@@ -4273,6 +4281,8 @@ static bool write_covers(const struct cover_entry *entries, int n, bool whole)
                             && (!n || write(fd, entries, size) == size));
 }
 
+static void covers_images_made(void);
+
 void itunesdb_covers_skip(void)
 {
     /* none made for this database, as when there was no room for making them:
@@ -4285,6 +4295,7 @@ void itunesdb_covers_skip(void)
     write_covers(old, old ? (int)covers_index.count : 0, true);
     if (old)
         core_put_data_pinned((void *)old);
+    covers_images_made();
 }
 
 /* Making them: the table as it was, then those put meanwhile; each with
@@ -4471,7 +4482,77 @@ int itunesdb_cover_known(uint64_t key, uint32_t stamp)
         return 0;
     work_entries()[i].seen = true;
     const struct cover_entry *e = &work_entries()[i].e;
-    return e->slot || e->width == COVER_GIVEN_UP ? 1 : -1;
+    if (e->slot || e->width == COVER_GIVEN_UP)
+        return 1;
+    return e->width == COVER_UNSHOWN ? -2 : -1;
+}
+
+void itunesdb_cover_image(uint64_t key, uint32_t image)
+{
+    if (work_handle <= 0)
+        return;
+    int i = work_find(key);
+    if (i >= 0 && work_entries()[i].e.image != image)
+    {
+        work_entries()[i].e.image = image;
+        work_changed = true;
+    }
+}
+
+uint32_t itunesdb_cover_image_of(uint64_t key)
+{
+    if (work_handle <= 0)
+        return 0;
+    int i = work_find(key);
+    return i >= 0 ? work_entries()[i].e.image : 0;
+}
+
+void itunesdb_cover_unshown(uint64_t key)
+{
+    if (work_handle <= 0)
+        return;
+    int i = work_find(key);
+    if (i >= 0 && !work_entries()[i].e.slot)
+    {
+        work_entries()[i].e.width = COVER_UNSHOWN;
+        work_changed = true;
+    }
+}
+
+static uint32_t covers_images;
+static bool covers_images_read, covers_images_had;
+
+bool itunesdb_covers_images_changed(void)
+{
+    uint32_t sum;
+    if (!tagcache_outside_images(&sum))
+        return false;
+    if (!covers_images_read)
+    {
+        covers_images_read = true;
+        int fd = open(COVERS_IMAGES, O_RDONLY);
+        if (fd >= 0)
+        {
+            covers_images_had = read(fd, &covers_images, sizeof(covers_images))
+                                == sizeof(covers_images);
+            close(fd);
+        }
+    }
+    return !covers_images_had || sum != covers_images;
+}
+
+/* the images the covers were made with now, once every album was seen */
+static void covers_images_made(void)
+{
+    uint32_t sum;
+    if (!tagcache_outside_images(&sum)
+        || (covers_images_read && covers_images_had && sum == covers_images))
+        return;
+    if (whole_file_write(COVERS_IMAGES, &sum, sizeof(sum)))
+    {
+        covers_images = sum;
+        covers_images_read = covers_images_had = true;
+    }
 }
 
 /* the first place no album has, taken; 0 for none left */
@@ -4596,6 +4677,7 @@ int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm)
     e.stamp = stamp;
     e.width = e.height = 0;
     e.colour = COVER_COLOUR_UNKNOWN;
+    e.image = 0;
     bool ok = true;
     const uint32_t had_slot = e.slot;
     if (bm && bm->width > 0 && bm->height > 0
@@ -4698,6 +4780,8 @@ void itunesdb_covers_end(int how)
     core_unpin(work_handle);
     core_free(work_handle);
     work_handle = 0;
+    if (whole)
+        covers_images_made();
     /* the new table in memory, for the tracks played from now on, and none
        of the copies of the covers before */
     if (write)

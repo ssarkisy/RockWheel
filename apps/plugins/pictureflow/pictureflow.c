@@ -7195,24 +7195,166 @@ static bool song_path(int32_t track, char *path, size_t size)
     return ok;
 }
 
+/* cover.png or folder.png in the folder of the song at path, which the
+   core's search, for the images it decodes, passes over */
+static bool folder_png(const char *path, char *image, size_t size)
+{
+    static const char * const names[] = { "cover.png", "folder.png" };
+    const char *slash = rb->strrchr(path, '/');
+    if (!slash)
+        return false;
+    for (unsigned i = 0; i < ARRAYLEN(names); i++)
+    {
+        rb->snprintf(image, size, "%.*s/%s", (int)(slash - path), path,
+                     names[i]);
+        if (rb->file_exists(image))
+            return true;
+    }
+    return false;
+}
+
+/* the stamp of the image file at path: its name, size and time, as a cover
+   saved again changes them; 0 for none */
+static uint32_t image_stamp(const char *path)
+{
+    static char dir_path[MAX_PATH];
+    const char *slash = rb->strrchr(path, '/');
+    if (!slash)
+        return 0;
+    rb->snprintf(dir_path, sizeof(dir_path), "%.*s",
+                 (int)MAX(slash - path, 1), path);
+    DIR *dir = rb->opendir(dir_path);
+    if (!dir)
+        return 0;
+    uint32_t stamp = 0;
+    struct dirent *e;
+    while ((e = rb->readdir(dir)) != NULL)
+    {
+        if (rb->strcasecmp(e->d_name, slash + 1))
+            continue;
+        struct dirinfo info = rb->dir_get_info(dir, e);
+        stamp = text_stamp(path, 2166136261u) ^ (uint32_t)info.size
+                ^ ((uint32_t)info.mtime * 40503u);
+        stamp += !stamp; /* not 0, which is none */
+        break;
+    }
+    rb->closedir(dir);
+    return stamp;
+}
+
+/* With the images outside Finder's folder changed: the album's cover made of
+   an image of its folder saved again, or taken away, or, with image files
+   preferred, one there now for a cover of the song's own */
+static bool cover_image_changed(const struct cover_job *job)
+{
+    static char path[MAX_PATH], image[MAX_PATH];
+    if (job->finder >= 0)
+        return false; /* Finder's is first */
+    const uint32_t was = rb->itunesdb_cover_image_of(job->key);
+    if (!was && rb->global_settings->album_art != AA_PREFER_IMAGE_FILE)
+        return false;
+    if (!song_path(job->track, path, sizeof(path)) || !retrieve_id3(&id3, path))
+        return false;
+    const uint32_t now = search_albumart_files(&id3, ":", image, sizeof(image))
+                         ? image_stamp(image) : 0;
+    return now != was;
+}
+
 /* an image in the folder of the song outside, which an album without a cover
-   may have been given since */
-static bool cover_file_added(const struct cover_job *job)
+   may have been given since: also a PNG, to be told of, for one that had
+   none (known -1), not again for one told of already (-2) */
+static bool cover_file_added(const struct cover_job *job, int known)
 {
     static char path[MAX_PATH], image[MAX_PATH];
     return song_path(job->track, path, sizeof(path))
            && retrieve_id3(&id3, path)
-           && search_albumart_files(&id3, ":", image, sizeof(image));
+           && (search_albumart_files(&id3, ":", image, sizeof(image))
+               || (known == -1 && folder_png(path, image, sizeof(image))));
 }
 
-/* the album's cover made into buf: itunesdb_cover_put()'s answer */
-static int make_cover(const struct cover_job *job, void *buf, size_t buf_size)
+/** Covers the core's decoder can't read, a PNG or a progressive JPEG, aren't
+    made: they decode whole, and on the iPod one of 1000 by 1000 took 8 s, or
+    13 s for a PNG, against 1.5 s for a standard JPEG, and one of 600 by 600
+    still 3.5 s or 5 s. A library of a thousand albums would have taken an
+    hour. Those found are counted, and Updating Library says how many, to be
+    saved as a standard JPEG. **/
+static int covers_unshown;
+
+/* a PNG or a progressive JPEG at pos of the file, by its header */
+static bool unshown_format(const char *file, off_t pos)
+{
+    static const unsigned char png_sig[8] =
+        { 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a };
+    unsigned char b[8];
+    bool unshown = false;
+    int fd = rb->open(file, O_RDONLY);
+    if (fd < 0)
+        return false;
+    if (rb->lseek(fd, pos, SEEK_SET) == pos
+        && rb->read(fd, b, sizeof(b)) == (ssize_t)sizeof(b))
+    {
+        if (!rb->memcmp(b, png_sig, sizeof(png_sig)))
+            unshown = true;
+        else if (b[0] == 0xff && b[1] == 0xd8)
+        {
+            /* its frame's marker, past the others: SOF2 for progressive */
+            off_t at = pos + 2;
+            for (int n = 0; n < 64; n++)
+            {
+                unsigned char m[4];
+                if (rb->lseek(fd, at, SEEK_SET) != at
+                    || rb->read(fd, m, sizeof(m)) != (ssize_t)sizeof(m)
+                    || m[0] != 0xff)
+                    break;
+                if (m[1] == 0xff)
+                {
+                    at++; /* a fill byte */
+                    continue;
+                }
+                const int len = (m[2] << 8) | m[3];
+                if (m[1] == 0xc2)
+                {
+                    unshown = true;
+                    break;
+                }
+                /* another frame, the core's, or the scan */
+                if ((m[1] >= 0xc0 && m[1] <= 0xcf && m[1] != 0xc4
+                     && m[1] != 0xc8 && m[1] != 0xcc) || m[1] == 0xda
+                    || len < 2)
+                    break;
+                at += 2 + len;
+            }
+        }
+    }
+    rb->close(fd);
+    return unshown;
+}
+
+/* an image of those, with none the core reads: a PNG in the song, as the
+   tags say, or cover.png or folder.png beside it */
+static bool unshown_source(const struct mp3entry *id3, char *file, size_t size)
+{
+#ifdef HAVE_ALBUMART
+    if (id3->has_embedded_albumart
+        && (id3->albumart.type & AA_CLEAR_FLAGS_MASK) == AA_TYPE_PNG)
+        return true;
+#endif
+    return folder_png(id3->path, file, size);
+}
+
+/* the album's cover made into buf: itunesdb_cover_put()'s answer. One in a
+   format that isn't shown is counted as it becomes so: prev is what
+   itunesdb_cover_known() said of the album before. */
+static int make_cover(const struct cover_job *job, void *buf, size_t buf_size,
+                      int prev)
 {
     static char path[MAX_PATH];
     static struct albumart_t aa;
     struct bitmap bm = { .width = COVER_FRAME, .height = COVER_FRAME,
                          .data = buf };
     int size = -1;
+    bool unshown = false;
+    bool from_file = false; /* an image of the folder */
     struct itunesdb_art art;
     if (job->finder >= 0 && song_path(job->finder, path, sizeof(path))
         && rb->itunesdb_find_art(path, &art))
@@ -7223,29 +7365,47 @@ static int make_cover(const struct cover_job *job, void *buf, size_t buf_size)
         size = rb->itunesdb_load_art(&art, &bm, buf_size);
     }
     else if (song_path(job->track, path, sizeof(path))
-             && retrieve_id3(&id3, path)
-             && find_track_albumart(&id3, aa.file, sizeof(aa.file), &aa))
+             && retrieve_id3(&id3, path))
     {
-        /* fitted into the frame, its shape kept; said first, so that a cover
-           which crashes the decoder or hangs it is given up rather than
-           tried at every boot */
-        rb->itunesdb_cover_making(job->key, job->stamp);
-        const int format = FORMAT_NATIVE | FORMAT_RESIZE | FORMAT_KEEP_ASPECT;
+        off_t pos = 0;
+        if (find_track_albumart(&id3, aa.file, sizeof(aa.file), &aa))
+        {
+            /* fitted into the frame, its shape kept; said first, so that a
+               cover which crashes the decoder or hangs it is given up rather
+               than tried at every boot */
+            rb->itunesdb_cover_making(job->key, job->stamp);
+            const int format = FORMAT_NATIVE | FORMAT_RESIZE
+                               | FORMAT_KEEP_ASPECT;
 #ifdef HAVE_ALBUMART
-        if (aa.embedded.type != AA_TYPE_UNKNOWN)
-            size = read_embedded_jpeg(aa.file, &aa.embedded, &bm, buf_size,
-                                      format, NULL);
-        else
+            if (aa.embedded.type != AA_TYPE_UNKNOWN)
+            {
+                size = read_embedded_jpeg(aa.file, &aa.embedded, &bm,
+                                          buf_size, format, NULL);
+                pos = aa.embedded.pos;
+            }
+            else
 #endif
-            size = read_image_file(aa.file, &bm, buf_size, format, NULL);
+            {
+                size = read_image_file(aa.file, &bm, buf_size, format, NULL);
+                from_file = size > 0;
+            }
+            /* one the core's decoder can't read, as progressive */
+            unshown = size <= 0 && unshown_format(aa.file, pos);
+        }
+        else
+            unshown = unshown_source(&id3, aa.file, sizeof(aa.file));
+        if (unshown && prev != -2)
+            covers_unshown++;
     }
-    return rb->itunesdb_cover_put(job->key, job->stamp, size > 0 ? &bm : NULL);
+    const int made = rb->itunesdb_cover_put(job->key, job->stamp,
+                                            size > 0 ? &bm : NULL);
+    if (unshown)
+        rb->itunesdb_cover_unshown(job->key);
+    else if (from_file && made > 0)
+        rb->itunesdb_cover_image(job->key, image_stamp(aa.file));
+    return made;
 }
 
-/* Each album's made once, and again when what it's made of changes. Menu
-   leaves the rest to the next Updating Library. USB and switching off stop it
-   too, and are answered once Updating Library is over, as for its fonts:
-   answered here, the steps after it went on with what was before USB. */
 /* the covers said to be cut short, made at the next boot, the album list
    with them */
 static void covers_later(void)
@@ -7254,6 +7414,40 @@ static void covers_later(void)
         rb->itunesdb_covers_end(COVERS_CUT);
 }
 
+/* How many of the albums have a cover in a format that isn't shown, and what
+   to do: until a button is pressed, or some seconds. USB and switching off
+   are answered once Updating Library is over, as during the covers. */
+static void show_unshown(void)
+{
+    rb->splashf(0, rb->str(LANG_COVERS_UNSHOWN), covers_unshown);
+    const long until = *rb->current_tick + 5 * HZ;
+    while (TIME_BEFORE(*rb->current_tick, until))
+    {
+        const long button = rb->button_get_w_tmo(HZ / 10);
+        if (button == SYS_USB_CONNECTED || button == SYS_POWEROFF
+            || button == SYS_REBOOT)
+        {
+            rb->library_update_hold(button);
+            break;
+        }
+        if (IS_SYSEVENT(button))
+            rb->default_event_handler(button);
+        /* a press, not Menu still held from leaving the covers, nor a turn
+           of the wheel */
+        else if (button != BUTTON_NONE
+                 && !(button & (BUTTON_REL | BUTTON_REPEAT))
+#ifdef BUTTON_SCROLL_FWD
+                 && !(button & (BUTTON_SCROLL_FWD | BUTTON_SCROLL_BACK))
+#endif
+                )
+            break;
+    }
+}
+
+/* Each album's made once, and again when what it's made of changes. Menu
+   leaves the rest to the next Updating Library. USB and switching off stop it
+   too, and are answered once Updating Library is over, as for its fonts:
+   answered here, the steps after it went on with what was before USB. */
 static void prepare_covers(void)
 {
     if (rb->global_settings->album_art == AA_OFF)
@@ -7284,7 +7478,10 @@ static void prepare_covers(void)
         rb->itunesdb_covers_skip();
         return;
     }
-    bool whole = true;
+    bool whole = true, held = false;
+    covers_unshown = 0;
+    /* then the covers made of a folder's image are looked at again */
+    const bool images_changed = rb->itunesdb_covers_images_changed();
     for (int i = 0; i < albums; i++)
     {
         const long button = rb->button_get(false);
@@ -7293,6 +7490,7 @@ static void prepare_covers(void)
         {
             rb->library_update_hold(button);
             whole = false;
+            held = true;
             break;
         }
         else if (IS_SYSEVENT(button))
@@ -7305,11 +7503,12 @@ static void prepare_covers(void)
         }
 #endif
         const int known = rb->itunesdb_cover_known(jobs[i].key, jobs[i].stamp);
-        if (known > 0 || (known < 0 && !cover_file_added(&jobs[i])))
+        if (known > 0 ? !(images_changed && cover_image_changed(&jobs[i]))
+                      : known < 0 && !cover_file_added(&jobs[i], known))
             continue;
         rb->library_update_covers_progress(i, albums);
         rb->reset_poweroff_timer();
-        if (make_cover(&jobs[i], decode, decode_size) < 0)
+        if (make_cover(&jobs[i], decode, decode_size, known) < 0)
         {
             /* the disk nearly full: those made kept, the others as they were */
             all = false;
@@ -7320,6 +7519,10 @@ static void prepare_covers(void)
     /* with songs left out for room, the albums not seen are kept */
     rb->itunesdb_covers_end(!whole ? COVERS_CUT
                             : all ? COVERS_WHOLE : COVERS_PARTLY);
+    /* also after Menu, as those counted are taken for told; not before USB
+       or switching off, which are waited for */
+    if (!held && covers_unshown > 0)
+        show_unshown();
 }
 #endif /* HAVE_TC_RAMCACHE */
 

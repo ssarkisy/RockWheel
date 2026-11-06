@@ -13663,3 +13663,17 @@
     *: "Djivêye finie. Rdjower ?"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COVERS_UNSHOWN
+  desc: a splash at the end of Updating Library, after the covers of songs copied outside Finder: how many albums have a cover in a format that isn't shown (PNG or progressive JPEG), and what to do. %d is the number
+  user: core
+  <source>
+    *: "Covers in an unsupported format: %d. Save them as standard JPEG."
+  </source>
+  <dest>
+    *: "Imådjes dins on format nén sopoirté: %d. Schapez-les come on JPEG normå."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

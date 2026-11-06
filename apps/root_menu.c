@@ -1609,7 +1609,8 @@ void show_library_update(void)
                               && global_settings.album_art != AA_OFF
                               && tc->ready && tc->ramcache
                               && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock")
-                              && itunesdb_covers_stale();
+                              && (itunesdb_covers_stale()
+                                  || itunesdb_covers_images_changed());
 #else
     const bool covers_stale = false;
 #endif
