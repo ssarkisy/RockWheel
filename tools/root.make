@@ -13,7 +13,9 @@ DEFINES = -DROCKBOX -DMEMORYSIZE=$(MEMORYSIZE) $(TARGET) \
 	$(EXTRA_DEFINES) # <-- -DSIMULATOR or not
 INCLUDES = -I$(BUILDDIR) -I$(BUILDDIR)/lang $(TARGET_INC)
 
-CFLAGS = $(INCLUDES) $(DEFINES) $(GCCOPTS)
+# __FILE__ from the tree's root, not the path of whoever built it: assert()s put
+# it in plugins and the core, and with them the builder's home folder
+CFLAGS = $(INCLUDES) $(DEFINES) $(GCCOPTS) -fmacro-prefix-map=$(ROOTDIR)/=
 PPCFLAGS = $(filter-out -g -Dmain=SDL_main,$(CFLAGS)) # cygwin sdl-config fix
 CORE_LDOPTS = $(GLOBAL_LDOPTS)  # linker ops specifically for core build
 
@@ -329,6 +331,12 @@ fontzip: BUILDZIPOPTS=-f 1
 fontzip: ZIPFILESUFFIX=-fonts
 fontzip: NODEPS=1
 fontzip: zip
+
+# RockWheel's second archive, rockbox-games.zip: Rockbox's games of
+# apps/plugins/ROCKWHEEL_GAMES, built with the same core as rockbox.zip
+gameszip: BUILDZIPOPTS=-g
+gameszip: ZIPFILESUFFIX=-games
+gameszip: zip
 
 font7zip: BUILDZIPOPTS=-f 1
 font7zip: ZIPFILESUFFIX=-fonts

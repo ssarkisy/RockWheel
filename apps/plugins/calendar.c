@@ -19,6 +19,7 @@
  *
  ****************************************************************************/
 #include "plugin.h"
+#include "lib/extras_lang.h"
 
 #include <timefuncs.h>
 #include "lib/playback_control.h"
@@ -526,8 +527,28 @@ static const int days_in_month[2][13] = {
     {31, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
 };
 
-static const char *dayname_long[7] = {"Mon","Tue","Wed","Thu","Fri","Sat","Sun"};
-static const char *dayname_short[7] = {"M","T","W","T","F","S","S"};
+/* A weekday's name as the iPod's language shortens it, Monday first here: the core
+   keeps them Sunday first */
+static const char *weekday_name(int wday)
+{
+    return rb->str(LANG_WEEKDAY_SUNDAY + (wday + 1) % 7);
+}
+
+/* The first letters of a weekday's name, all of them if it has no more */
+static const char *weekday_letters(char *buf, size_t size, int wday, int letters)
+{
+    const char *name = weekday_name(wday);
+    int bytes;
+
+    if (letters >= (int)rb->utf8length(name))
+        return name;
+    bytes = rb->utf8seek(name, letters);
+    if (bytes > (int)size - 1)
+        bytes = size - 1;
+    rb->memcpy(buf, name, bytes);
+    buf[bytes] = '\0';
+    return buf;
+}
 
 struct shown {
     int     mday;        /* day of the month */
@@ -607,29 +628,48 @@ static void calendar_init(struct shown *shown)
     leap_year = is_leap_year(shown->year);
 }
 
-static void draw_headers(void)
+/* As many letters of the weekdays' names as fit a cell in every one of them, one at
+   least: a language with longer names gets them cut alike, as "M T W" in English */
+static int weekday_letters_that_fit(void)
 {
-    int i, w, h;
-    int x = X_OFFSET;
-    int wday;
-    const char **dayname = dayname_long;
+    char buf[32];
+    int i, w, h, letters, longest = 0;
 
     for (i = 0; i < 7; i++)
     {
-        rb->lcd_getstringsize(dayname[i], &w, &h);
-        if (w > CELL_WIDTH)
-        {
-            dayname = dayname_short;
-            break;
-        }
+        int n = rb->utf8length(weekday_name(i));
+        if (n > longest)
+            longest = n;
     }
+    for (letters = longest; letters > 1; letters--)
+    {
+        for (i = 0; i < 7; i++)
+        {
+            rb->lcd_getstringsize(weekday_letters(buf, sizeof(buf), i, letters),
+                                  &w, &h);
+            if (w > CELL_WIDTH)
+                break;
+        }
+        if (i == 7)
+            break;
+    }
+    return letters;
+}
+
+static void draw_headers(void)
+{
+    char buf[32];
+    int i, w, h;
+    int x = X_OFFSET;
+    int wday;
+    int letters = weekday_letters_that_fit();
 
     wday = info.first_wday;
     rb->lcd_getstringsize("A", &w, &h);
     for (i = 0; i < 7; i++)
     {
         if (wday >= 7) wday = 0;
-        rb->lcd_putsxy(x, 0, dayname[wday++]);
+        rb->lcd_putsxy(x, 0, weekday_letters(buf, sizeof(buf), wday++, letters));
         x += CELL_WIDTH;
     }
     rb->lcd_hline(0, LCD_WIDTH-1, h);
@@ -642,10 +682,8 @@ static void draw_calendar(struct shown *shown)
     int w, h;
     int x, y, pos, days_per_month, j;
     int wday;
-    const char *monthname[] = {
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    };
+    char label[48];
+    int label_w, label_x;
     if(use_system_font)
     {
         rb->lcd_setfont(FONT_SYSFIXED);
@@ -691,10 +729,16 @@ static void draw_calendar(struct shown *shown)
     }
     shown->lastday = wday;
     rb->lcd_set_drawmode(DRMODE_SOLID);
-    rb->lcd_vline(LCD_WIDTH-w*8-10, LCD_HEIGHT-h-3, LCD_HEIGHT-1);
-    rb->lcd_hline(LCD_WIDTH-w*8-10, LCD_WIDTH-1, LCD_HEIGHT-h-3);
-    rb->lcd_putsxyf(LCD_WIDTH-w*8-8, LCD_HEIGHT-h-1, "%s %04d",
-                 monthname[shown->mon-1], shown->year);
+    /* The month in the corner, its box as wide as the language's name needs */
+    rb->snprintf(label, sizeof(label), "%s %04d",
+                 rb->str(LANG_MONTH_JANUARY + shown->mon - 1), shown->year);
+    rb->lcd_getstringsize(label, &label_w, NULL);
+    label_x = LCD_WIDTH - label_w - 4;
+    if (label_x < 2)
+        label_x = 2;
+    rb->lcd_vline(label_x-2, LCD_HEIGHT-h-3, LCD_HEIGHT-1);
+    rb->lcd_hline(label_x-2, LCD_WIDTH-1, LCD_HEIGHT-h-3);
+    rb->lcd_putsxy(label_x, LCD_HEIGHT-h-1, label);
     rb->lcd_update();
 }
 
@@ -870,9 +914,9 @@ static void add_memo(struct shown *shown, int type)
     }
     rb->lcd_clear_display();
     if (saved)
-        rb->splash(HZ/2, "Event added");
+        rb->splash(HZ/2, ID2P(LANG_CALENDAR_EVENT_ADDED));
     else
-        rb->splash(HZ/2, "Event not added");
+        rb->splash(HZ/2, ID2P(LANG_CALENDAR_EVENT_NOT_ADDED));
 }
 
 static int edit_menu_cb(int action,
@@ -893,21 +937,25 @@ static bool edit_memo(int change, struct shown *shown)
     int selected = 0;
 
     static const struct opt_items modes[7] = {
-        { "Mon", -1 },
-        { "Tue", -1 },
-        { "Wed", -1 },
-        { "Thu", -1 },
-        { "Fri", -1 },
-        { "Sat", -1 },
-        { "Sun", -1 },
+        { STR(LANG_WEEKDAY_MONDAY) },
+        { STR(LANG_WEEKDAY_TUESDAY) },
+        { STR(LANG_WEEKDAY_WEDNESDAY) },
+        { STR(LANG_WEEKDAY_THURSDAY) },
+        { STR(LANG_WEEKDAY_FRIDAY) },
+        { STR(LANG_WEEKDAY_SATURDAY) },
+        { STR(LANG_WEEKDAY_SUNDAY) },
     };
 
-    MENUITEM_STRINGLIST(edit_menu, "Edit", edit_menu_cb,
-                        "Remove", "Edit",
-                        "New Weekly", "New Monthly",
-                        "New Yearly", "New One off",
-                        "First Day of Week",
-                        "Playback Control");
+    /* Under the Calendar's name: it opens on a day without events too, where
+       there is nothing to edit */
+    MENUITEM_STRINGLIST(edit_menu, ID2P(LANG_CALENDAR), edit_menu_cb,
+                        ID2P(LANG_REMOVE), ID2P(LANG_EDIT),
+                        ID2P(LANG_CALENDAR_NEW_WEEKLY),
+                        ID2P(LANG_CALENDAR_NEW_MONTHLY),
+                        ID2P(LANG_CALENDAR_NEW_YEARLY),
+                        ID2P(LANG_CALENDAR_NEW_ONE_TIME),
+                        ID2P(LANG_CALENDAR_FIRST_DAY_OF_WEEK),
+                        ID2P(LANG_PLAYBACK_CONTROL));
 
     while (!exit)
     {
@@ -940,8 +988,8 @@ static bool edit_memo(int change, struct shown *shown)
                 return false;
 
             case 6: /* weekday */
-                rb->set_option("First Day of Week", &info.first_wday,
-                                RB_INT, modes, 7, NULL);
+                rb->set_option(rb->str(LANG_CALENDAR_FIRST_DAY_OF_WEEK),
+                               &info.first_wday, RB_INT, modes, 7, NULL);
                 break;
 
             case 7: /* playback control */
@@ -970,7 +1018,7 @@ static const char* get_event_text(int selected, void *data,
     }
     memo = &memos[pointer_array[selected]];
     if (memo->type == 2)
-        rb->snprintf(buffer, buffer_len, "%s (%d yrs)",
+        rb->snprintf(buffer, buffer_len, rb->str(LANG_CALENDAR_EVENT_YEARS),
                      memo->message, shown->year - memo->year);
     else
         rb->snprintf(buffer, buffer_len, "%s", memo->message);
@@ -984,7 +1032,13 @@ static bool view_events(int selected, struct shown *shown)
     int button;
 
     rb->gui_synclist_init(&gui_memos, &get_event_text, shown, false, 1, NULL);
+#if (CONFIG_KEYPAD == IPOD_4G_PAD) || (CONFIG_KEYPAD == IPOD_3G_PAD) || \
+    (CONFIG_KEYPAD == IPOD_1G2G_PAD)
+    /* Select opens an event's menu, as anywhere on the iPod: no hint of it */
+    rb->gui_synclist_set_title(&gui_memos, rb->str(LANG_CALENDAR_EVENTS), NOICON);
+#else
     rb->gui_synclist_set_title(&gui_memos, "Events (" CALENDAR_EVENT_MENU_NAME " : menu)", NOICON);
+#endif
     rb->gui_synclist_set_nb_items(&gui_memos, memos_in_shown_memory);
     rb->gui_synclist_select_item(&gui_memos, selected);
     rb->gui_synclist_draw(&gui_memos);
@@ -1101,6 +1155,7 @@ static void prev_day(struct shown *shown, int step)
 
 enum plugin_status plugin_start(const void* parameter)
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     struct shown shown;
     bool exit = false;
     int button;

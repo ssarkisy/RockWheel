@@ -19,24 +19,13 @@
  ****************************************************************************/
 
 #include "clock.h"
-#include "clock_bitmaps.h"
 #include "clock_draw.h"
 #include "clock_settings.h"
-#include "lib/picture.h"
 
 static int max_skin[]={
     [ANALOG]=2,
     [BINARY]=3,
     [DIGITAL]=2,
-};
-
-enum message{
-    MESSAGE_LOADING,
-    MESSAGE_LOADED,
-    MESSAGE_ERRLOAD,
-    MESSAGE_SAVING,
-    MESSAGE_SAVED,
-    MESSAGE_ERRSAVE
 };
 
 enum settings_file_status{
@@ -144,75 +133,22 @@ static enum settings_file_status clock_settings_save(
     return(ERRSAVE);
 }
 
-static void draw_logo(struct screen* display){
-#ifdef HAVE_LCD_COLOR
-    if(display->is_color){
-        display->set_foreground(LCD_BLACK);
-        display->set_background(LCD_RGBPACK(180,200,230));
-    }
-#endif
-
-    const struct picture* logo = &(logos[display->screen_type]);
-    display->clear_display();
-    picture_draw(display, logo, 0, 0);
-}
-
-static void draw_message(struct screen* display, int msg, int y){
-    const struct picture* message = &(messages[display->screen_type]);
-    display->set_drawmode(DRMODE_SOLID|DRMODE_INVERSEVID);
-    display->fillrect(0, display->getheight()-message->slide_height,
-                      display->getwidth(), message->slide_height);
-    display->set_drawmode(DRMODE_SOLID);
-    vertical_picture_draw_sprite(display, message, msg,
-                                 0, display->getheight() -
-                                    (message->slide_height*y));
-}
-
+/* A settings file that won't load or save passes in silence: the clock goes on with
+   its defaults, as nothing on the screen could help. The English pictures that said
+   so ("Error loading settings!" over a "clock" logo) are gone with it. */
 void load_settings(void)
 {
-    struct screen* display;
-    enum settings_file_status load_status = LOADED;
-
     if (rb->file_exists(settings_filename))
-        load_status = clock_settings_load(&clock_settings, settings_filename);
+        clock_settings_load(&clock_settings, settings_filename);
     else
         clock_settings_reset(&clock_settings);
-
-    if (load_status != LOADED)
-    {
-        FOR_NB_SCREENS(i)
-        {
-            display = rb->screens[i];
-            display->clear_display();
-            draw_logo(display);
-            draw_message(display, MESSAGE_ERRLOAD, 1);
-            display->update();
-        }
-        rb->sleep(HZ);
-    }
     rb->storage_sleep();
 }
 
 void save_settings(void)
 {
-    struct screen* display;
-    enum settings_file_status save_status = SAVED;
-
     if (settings_needs_saving(&clock_settings))
-        save_status = clock_settings_save(&clock_settings, settings_filename);
-
-    if (save_status != SAVED)
-    {
-        FOR_NB_SCREENS(i)
-        {
-            display = rb->screens[i];
-            display->clear_display();
-            draw_logo(display);
-            draw_message(display, MESSAGE_ERRSAVE, 1);
-            display->update();
-        }
-        rb->sleep(HZ);
-    }
+        clock_settings_save(&clock_settings, settings_filename);
 }
 
 void save_settings_wo_gui(void){

@@ -122,7 +122,12 @@ bool highscore_would_update(int score, struct highscore *scores,
 void highscore_show(int position, struct highscore *scores, int num_scores,
                     bool show_level)
 {
-    int i, w, h;
+    const unsigned char *title = rb->str(LANG_GAME_HIGH_SCORES);
+    const unsigned char *score_title = rb->str(LANG_GAME_SCORE);
+    const unsigned char *level_title = rb->str(LANG_GAME_LEVEL);
+    char rank[8];
+    int i, w, h, row_h, title_font, rows_font;
+    int rank_w, score_w, level_w, score_x, level_x;
 #if defined(HAVE_LCD_COLOR) || LCD_DEPTH >= 2
     unsigned bgcolor = rb->lcd_get_background();
     unsigned fgcolor = rb->lcd_get_foreground();
@@ -136,20 +141,46 @@ void highscore_show(int position, struct highscore *scores, int num_scores,
 #endif
     rb->lcd_clear_display();
 
-    rb->lcd_setfont(FONT_UI);
-    rb->lcd_getstringsize("High Scores", &w, &h);
-    /* check wether it fits on screen */
-    if ((4*h + h*(num_scores-1) + MARGIN) > LCD_HEIGHT) {
-        rb->lcd_setfont(FONT_SYSFIXED);
-        rb->lcd_getstringsize("High Scores", &w, &h);
-    }
-    rb->lcd_putsxy(LCD_WIDTH/2-w/2, MARGIN, "High Scores");
-    rb->lcd_putsxy(LCD_WIDTH/4-w/4,2*h, "Score");
-    
-    if(show_level) {
-        rb->lcd_putsxy(LCD_WIDTH*3/4-w/4,2*h, "Level");
+    /* The titles are in the UI font, the one with every language's letters.
+     * The rows hold only digits: if they don't fit in it, they take the
+     * small built-in font, and only a screen too small for even that puts
+     * the titles in it too (its letters are Latin only). */
+    title_font = rows_font = FONT_UI;
+    h = row_h = rb->font_get(FONT_UI)->height;
+    if ((3*h + row_h*num_scores + MARGIN) > LCD_HEIGHT) {
+        rows_font = FONT_SYSFIXED;
+        row_h = rb->font_get(FONT_SYSFIXED)->height;
+        if ((3*h + row_h*num_scores + MARGIN) > LCD_HEIGHT) {
+            title_font = FONT_SYSFIXED;
+            h = row_h;
+        }
     }
 
+    /* columns placed by the widths of what's in them, not by the English
+     * words', so a longer translation pushes them apart; the title is
+     * centred and starts at the left edge when it's wider than the screen */
+    rb->snprintf(rank, sizeof(rank), "%d)", num_scores);
+    rb->lcd_setfont(rows_font);
+    rb->lcd_getstringsize(rank, &rank_w, NULL);
+    rb->lcd_setfont(title_font);
+    rb->lcd_getstringsize(title, &w, NULL);
+    rb->lcd_getstringsize(score_title, &score_w, NULL);
+    rb->lcd_getstringsize(level_title, &level_w, NULL);
+
+    rb->lcd_putsxy(MAX(0, LCD_WIDTH/2-w/2), MARGIN, title);
+
+    score_x = MAX(LCD_WIDTH/6, MARGIN + rank_w + MARGIN);
+    level_x = MAX(LCD_WIDTH*5/8, score_x + score_w + 2*MARGIN);
+    if (level_x + level_w > LCD_WIDTH - MARGIN)
+        level_x = MAX(LCD_WIDTH - MARGIN - level_w,
+                      score_x + score_w + 2*MARGIN);
+
+    rb->lcd_putsxy(score_x, 2*h, score_title);
+    if(show_level) {
+        rb->lcd_putsxy(level_x, 2*h, level_title);
+    }
+
+    rb->lcd_setfont(rows_font);
     for (i = 0; i<num_scores; i++)
     {
 #ifdef HAVE_LCD_COLOR
@@ -157,18 +188,18 @@ void highscore_show(int position, struct highscore *scores, int num_scores,
             rb->lcd_set_foreground(LCD_RGBPACK(245,0,0));
         }
 #endif
-        rb->lcd_putsxyf (MARGIN,3*h + h*i, "%d)", i+1);
-        rb->lcd_putsxyf (LCD_WIDTH/4-w/4,3*h + h*i, "%d", scores[i].score);
-        
+        rb->lcd_putsxyf (MARGIN, 3*h + row_h*i, "%d)", i+1);
+        rb->lcd_putsxyf (score_x, 3*h + row_h*i, "%d", scores[i].score);
+
         if(show_level) {
-            rb->lcd_putsxyf (LCD_WIDTH*3/4-w/4,3*h + h*i, "%d", scores[i].level);
+            rb->lcd_putsxyf (level_x, 3*h + row_h*i, "%d", scores[i].level);
         }
-        
+
         if(i == position) {
 #ifdef HAVE_LCD_COLOR
             rb->lcd_set_foreground(LCD_WHITE);
 #else
-            rb->lcd_hline(MARGIN, LCD_WIDTH-MARGIN*2, 3*h + h*(i+1) - 1);
+            rb->lcd_hline(MARGIN, LCD_WIDTH-MARGIN*2, 3*h + row_h*(i+1) - 1);
 #endif
         }
     }

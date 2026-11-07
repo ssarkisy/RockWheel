@@ -12,6 +12,7 @@ configfile.c
 playback_control.c
 rgb_hsv.c
 highscore.c
+extras_lang.c
 simple_viewer.c
 display_text.c
 printcell_helper.c

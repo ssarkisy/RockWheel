@@ -1,0 +1,15 @@
+# Rockbox's games that RockWheel puts in a second archive, rockbox-games.zip
+# (make gameszip), which its installer asks about: by name as in CATEGORIES,
+# with their data as ROCKWHEEL has it. Each is a row of Extras > Games
+# (apps/menus/extras_menu.c), shown only when its plugin is on the iPod. They
+# play with the iPod's buttons and wheel and fit the plugin buffer without
+# taking the music's; of files, only Sokoban needs its sokoban.levels, which
+# goes with it by its name.
+rockblox
+2048
+sudoku
+sokoban
+reversi
+spacerocks
+bubbles
+clix

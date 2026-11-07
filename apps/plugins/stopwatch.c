@@ -469,7 +469,7 @@ enum plugin_status plugin_start(const void* parameter)
 
     FOR_NB_SCREENS(i)
     {
-        rb->sb_set_persistent_title("Stopwatch", Icon_NOICON, i);
+        rb->sb_set_persistent_title(rb->str(LANG_STOPWATCH), Icon_NOICON, i);
         rb->viewportmanager_theme_enable(i, true, NULL);
     }
 

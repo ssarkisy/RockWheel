@@ -19,8 +19,10 @@
  ****************************************************************************/
 
 #include "plugin.h"
+#include "lib/extras_lang.h"
 
 #include "lib/playback_control.h"
+#include "lib/simple_viewer.h"
 
 /* what the minesweeper() function can return */
 enum minesweeper_status {
@@ -821,15 +823,33 @@ static int count_flags( void )
     return flags;
 }
 
+/* how to play, with the iPod's buttons; true if USB was plugged in */
+static bool minesweeper_help( void )
+{
+    static char text[3072];
+
+    rb->snprintf( text, sizeof(text), "%s\n\n%s\n\n%s\n\n%s",
+                  rb->str(LANG_MINESWEEPER_HELP_GOAL),
+                  rb->str(LANG_MINESWEEPER_HELP_MOVE),
+                  rb->str(LANG_MINESWEEPER_HELP_SELECT),
+                  rb->str(LANG_MINESWEEPER_HELP_MORE) );
+    return view_text( rb->str(LANG_GAME_HELP), text ) == PLUGIN_USB_CONNECTED;
+}
+
 /* welcome screen where player can chose mine percentage */
 static enum minesweeper_status menu( void )
 {
     int selection = 0, result = MINESWEEPER_QUIT;
     bool menu_quit = false;
 
-    MENUITEM_STRINGLIST( menu, "Minesweeper", NULL, "Play Minesweeper",
-                         "Mine Percentage", "Number of Rows",
-                         "Number of Columns", "Playback Control", "Quit" );
+    MENUITEM_STRINGLIST( menu, ID2P(LANG_MINESWEEPER), NULL,
+                         ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                         ID2P(LANG_MINESWEEPER_MINES),
+                         ID2P(LANG_MINESWEEPER_ROWS),
+                         ID2P(LANG_MINESWEEPER_COLUMNS),
+                         ID2P(LANG_GAME_HELP),
+                         ID2P(LANG_PLAYBACK_CONTROL),
+                         ID2P(LANG_MENU_QUIT) );
 
 #ifdef HAVE_LCD_COLOR
     rb->lcd_set_foreground( rb->global_settings->fg_color );
@@ -846,21 +866,29 @@ static enum minesweeper_status menu( void )
                 break;
 
             case 1:
-                rb->set_int( "Mine Percentage", "%", UNIT_INT, &percent, NULL,
-                             1, 2, 98, NULL );
+                rb->set_int( rb->str(LANG_MINESWEEPER_MINES), "%", UNIT_INT,
+                             &percent, NULL, 1, 2, 98, NULL );
                 break;
 
             case 2:
-                rb->set_int( "Number of Rows", "", UNIT_INT, &height, NULL,
-                             1, 1, MAX_HEIGHT, NULL );
+                rb->set_int( rb->str(LANG_MINESWEEPER_ROWS), "", UNIT_INT,
+                             &height, NULL, 1, 1, MAX_HEIGHT, NULL );
                 break;
 
             case 3:
-                rb->set_int( "Number of Columns", "", UNIT_INT, &width, NULL,
-                             1, 1, MAX_WIDTH, NULL );
+                rb->set_int( rb->str(LANG_MINESWEEPER_COLUMNS), "", UNIT_INT,
+                             &width, NULL, 1, 1, MAX_WIDTH, NULL );
                 break;
 
             case 4:
+                if( minesweeper_help() )
+                {
+                    result = MINESWEEPER_USB;
+                    menu_quit = true;
+                }
+                break;
+
+            case 5:
                 playback_control( NULL );
                 break;
 
@@ -1074,16 +1102,9 @@ static enum minesweeper_status minesweeper( void )
 #endif
                 if( no_mines )
                     break;
-                int flags_used = count_flags();
-                if (flags_used == 1) {
-                    rb->splashf( HZ*2, "You marked 1 field. There are %d mines.",
-                                mine_num );
-                }
-                else
-                {
-                    rb->splashf( HZ*2, "You marked %d fields. There are %d mines.",
-                                flags_used, mine_num );
-                }
+                /* one form for any number, as languages count differently */
+                rb->splashf( HZ*2, rb->str(LANG_MINESWEEPER_FLAGS_MINES),
+                             count_flags(), mine_num );
                 break;
 
             default:
@@ -1102,6 +1123,7 @@ static enum minesweeper_status minesweeper( void )
 /* plugin entry point */
 enum plugin_status plugin_start(const void* parameter)
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     bool exit = false;
 
     (void)parameter;
@@ -1114,13 +1136,13 @@ enum plugin_status plugin_start(const void* parameter)
         switch( minesweeper() )
         {
             case MINESWEEPER_WIN:
-                rb->splash( HZ, "You Win!" );
+                rb->splash( HZ, ID2P(LANG_GAME_YOU_WIN) );
                 rb->lcd_clear_display();
                 mine_show();
                 break;
 
             case MINESWEEPER_LOSE:
-                rb->splash( HZ, "You Lose!" );
+                rb->splash( HZ, ID2P(LANG_GAME_YOU_LOSE) );
                 rb->lcd_clear_display();
                 mine_show();
                 break;

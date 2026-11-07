@@ -21,6 +21,7 @@
  *
  ****************************************************************************/
 #include "plugin.h"
+#include "lib/extras_lang.h"
 #include "lib/playback_control.h"
 
 
@@ -1631,10 +1632,14 @@ static int sokoban_menu(void)
     bool menu_quit;
     int start_selected = 0;
 
-    MENUITEM_STRINGLIST(menu, "Sokoban", NULL,
-                        "Resume", "Select Level", "Audio Playback", "Keys",
-                        "Load Default Level Set", "Quit Without Saving",
-                        "Save Progress & Quit");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_SOKOBAN), NULL,
+                        ID2P(LANG_CHESSBOX_MENU_RESUME_GAME),
+                        ID2P(LANG_GAME_LEVEL),              /* Select Level */
+                        ID2P(LANG_PLAYBACK_CONTROL),
+                        ID2P(LANG_GAME_HELP),               /* Keys */
+                        ID2P(LANG_SOKOBAN_DEFAULT_LEVELS),
+                        ID2P(LANG_QUIT_WITHOUT_SAVING),
+                        ID2P(LANG_MENU_QUIT));              /* Save & quit */
 
     do {
         menu_quit = true;
@@ -1646,7 +1651,7 @@ static int sokoban_menu(void)
 
             case 1: /* Select level */
                 current_info.level.index++;
-                rb->set_int("Select Level", "", UNIT_INT,
+                rb->set_int(rb->str(LANG_GAME_LEVEL), "", UNIT_INT,
                             &current_info.level.index, NULL, 1, 1,
                             current_info.max_level, NULL);
                 current_info.level.index--;
@@ -1675,7 +1680,7 @@ static int sokoban_menu(void)
 #elif (CONFIG_KEYPAD == IPOD_4G_PAD) || \
       (CONFIG_KEYPAD == IPOD_3G_PAD) || \
       (CONFIG_KEYPAD == IPOD_1G2G_PAD)
-                rb->lcd_putsxy(3,  6, "[SELECT+MENU] Menu");
+                rb->lcd_putsxy(3,  6, "[HOLD SELECT] Menu");
                 rb->lcd_putsxy(3, 16, "[SELECT] Undo");
                 rb->lcd_putsxy(3, 26, "[SELECT+PLAY] Redo");
                 rb->lcd_putsxy(3, 36, "[SELECT+LEFT] Previous Level");
@@ -2031,6 +2036,7 @@ static bool sokoban_loop(void)
 
 enum plugin_status plugin_start(const void* parameter)
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     int w, h;
 
     (void)(parameter);

@@ -17,6 +17,7 @@
  *
  ****************************************************************************/
 #include "plugin.h"
+#include "lib/extras_lang.h"
 #include "lib/highscore.h"
 #include "lib/playback_control.h"
 #include "lib/display_text.h"
@@ -788,13 +789,13 @@ static int clix_menu(struct clix_game_state_t* state, bool ingame)
 
     _ingame = ingame;
 
-    MENUITEM_STRINGLIST (main_menu, "Clix", clix_menu_cb,
-                             "Resume Game",
-                             "Start New Game",
-                             "Help",
-                             "High Scores",
-                             "Playback Control",
-                             "Quit");
+    MENUITEM_STRINGLIST (main_menu, ID2P(LANG_CLIX), clix_menu_cb,
+                             ID2P(LANG_CHESSBOX_MENU_RESUME_GAME),
+                             ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                             ID2P(LANG_GAME_HELP),
+                             ID2P(LANG_GAME_HIGH_SCORES),
+                             ID2P(LANG_PLAYBACK_CONTROL),
+                             ID2P(LANG_MENU_QUIT));
 
     while (!leave_menu) {
 
@@ -1025,6 +1026,7 @@ static int clix_handle_game(struct clix_game_state_t* state)
 /* this is the plugin entry point */
 enum plugin_status plugin_start(const void* parameter)
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     (void)parameter;
 
     rb->lcd_set_backdrop(NULL);

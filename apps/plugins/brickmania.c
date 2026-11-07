@@ -23,11 +23,12 @@
  ****************************************************************************/
 
 #include "plugin.h"
+#include "lib/extras_lang.h"
 #include "lib/configfile.h"
-#include "lib/display_text.h"
 #include "lib/helper.h"
 #include "lib/highscore.h"
 #include "lib/playback_control.h"
+#include "lib/simple_viewer.h"
 
 #include "pluginbitmaps/brickmania_pads.h"
 #include "pluginbitmaps/brickmania_short_pads.h"
@@ -434,7 +435,7 @@ CONFIG_KEYPAD == SANSA_M200_PAD
  *  targets to specify their own text if needed.
  */
 #if !defined(CONTINUE_TEXT)
-#define CONTINUE_TEXT "Press SELECT To Continue"
+#define CONTINUE_TEXT rb->str(LANG_BRICK_CONTINUE)
 #endif
 
 #ifndef SCROLL_FWD /* targets without scroll wheel*/
@@ -1398,7 +1399,7 @@ static void brickmania_loadgame(void)
         (rb->read(fd, &fire, sizeof(fire)) <= 0) ||
         (rb->read(fd, &power, sizeof(power)) <= 0))
     {
-        rb->splash(HZ/2, "Failed to load game");
+        rb->splash(HZ*2, ID2P(LANG_GAME_LOAD_FAILED));
     }
     else
     {
@@ -1439,7 +1440,7 @@ static void brickmania_savegame(void)
     {
         rb->close(fd);
         rb->remove(SAVE_FILE);
-        rb->splash(HZ/2, "Failed to save game");
+        rb->splash(HZ*2, ID2P(LANG_GAME_SAVE_FAILED));
         return;
     }
 
@@ -1476,99 +1477,103 @@ static void brickmania_sleep(int secs)
     }
 }
 
-static int brickmania_help(void)
+/* Text with words goes in the UI font: the built-in one the game draws its
+ * numbers with has Latin letters only. A message is centred and broken at
+ * spaces into lines no wider than the screen, so a long translation stays
+ * on it. */
+#define MESSAGE_LINE 96 /* bytes */
+
+/* Puts into line the longest start of text, cut at a space, that fits the
+ * screen's width (a single word wider than that goes whole, cut only at the
+ * buffer's size). Returns how far into text the next line starts. */
+static int message_line(const char *text, char *line)
 {
-    static char *help_text[] = {
-        "Brickmania", "", "Aim", "",                                    /*  3 */
-        "Destroy", "all", "the", "bricks", "by", "bouncing",            /*  9 */
-        "the", "ball", "of", "them", "using", "the", "paddle.", "", "", /* 18 */
-        "Controls", "",                                                 /* 20 */
-#if CONFIG_KEYPAD == COWON_D2_PAD
-        "- & +:",
-#else
-        "< & >:",
-#endif
-        "Moves", "the", "paddle", "",                                   /* 25 */
-#if (CONFIG_KEYPAD == IAUDIO_M3_PAD)
-        "PLAY:",
-#elif CONFIG_KEYPAD == IRIVER_H300_PAD
-        "NAVI:",
-#elif CONFIG_KEYPAD == COWON_D2_PAD
-        "MENU:",
-#else
-        "SELECT:",
-#endif
-        "Releases", "the", "ball/Fire!", "",                            /* 30 */
-#if CONFIG_KEYPAD == IAUDIO_M3_PAD
-        "REC:",
-#elif (CONFIG_KEYPAD == GIGABEAT_S_PAD)
-        "BACK:",
-#elif (CONFIG_KEYPAD == IPOD_4G_PAD) || \
-      (CONFIG_KEYPAD == IPOD_3G_PAD) || \
-      (CONFIG_KEYPAD == IPOD_1G2G_PAD) || \
-      (CONFIG_KEYPAD == SANSA_FUZE_PAD)
-        "MENU:",
-#elif (CONFIG_KEYPAD == IRIVER_H100_PAD) || \
-      (CONFIG_KEYPAD == IRIVER_H300_PAD)
-        "STOP:",
-#else
-        "POWER:",
-#endif
-        "Returns", "to", "menu", "",                                    /* 35 */
-#if defined(THREE_KEYS_SUICIDE)
-        "Press", "Fire,", "Down,", "Quit", "together:",
-#elif defined(TWO_KEYS_SUICIDE)
-        "Hold", "Fire", "and", "Quit", "together:",
-#else
-#error No info about the suicide button, cannot complete help screen.
-#endif
-        "Kills", "all","the", "balls","(suicide)","",                   /* 46 */
-        "",                                                             /* 47 */
-        "Specials", "",                                                 /* 49 */
-        "N", "Normal:", "returns", "paddle", "to", "normal", "",        /* 56 */
-        "D", "DIE!:", "loses", "a", "life", "",                         /* 62 */
-        "L", "Life:", "gains", "a", "life/power", "up", "",             /* 69 */
-        "F", "Fire:", "allows", "you", "to", "shoot", "bricks", "",     /* 77 */
-        "G", "Glue:", "ball", "sticks", "to", "paddle", "",             /* 84 */
-        "B", "Ball:", "generates", "another", "ball", "",               /* 90 */
-        "FL", "Flip:", "flips", "left / right", "movement", "",         /* 96 */
-        "<->", "or", "<E>:", "enlarges", "the", "paddle", "",          /* 103 */
-        ">-<", "or", ">S<:", "shrinks", "the", "paddle", "",           /* 110 */
-    };
-    static struct style_text formation[]={
-        { 0, TEXT_CENTER|TEXT_UNDERLINE },
-        { 2, C_RED },
-        { 19, C_RED },
-        { 21, TEXT_UNDERLINE},
-        { 26, TEXT_UNDERLINE},
-        { 31, TEXT_UNDERLINE},
-#if defined(THREE_KEYS_SUICIDE)
-        { 37, TEXT_UNDERLINE},
-        { 38, TEXT_UNDERLINE},
-        { 39, TEXT_UNDERLINE},
-#elif defined(TWO_KEYS_SUICIDE)
-        { 37, TEXT_UNDERLINE},
-        { 39, TEXT_UNDERLINE},
-#else
-#error No info about the suicide button, cannot complete help screen.
-#endif
-        { 48, C_RED },
-        { 50, C_BLUE },
-        { 57, C_RED },
-        { 63, C_GREEN },
-        { 70, C_ORANGE },
-        { 78, C_GREEN },
-        { 85, C_YELLOW },
-        { 91, C_RED },
-        LAST_STYLE_ITEM
-    };
+    int fit = 0, end = 0, w;
+
+    while (true)
+    {
+        while (text[end] == ' ')
+            end++;
+        while (text[end] && text[end] != ' ')
+            end++;
+        if (end >= MESSAGE_LINE)
+            break;
+        rb->memcpy(line, text, end);
+        line[end] = '\0';
+        rb->lcd_getstringsize(line, &w, NULL);
+        if (w > LCD_WIDTH && fit > 0)
+            break;
+        fit = end;
+        if (!text[end])
+            break;
+    }
+    if (fit == 0)
+    {
+        /* one word longer than the buffer: cut where a letter starts */
+        fit = MESSAGE_LINE - 1;
+        while (fit > 1 && (text[fit] & 0xC0) == 0x80)
+            fit--;
+    }
+    rb->memcpy(line, text, fit);
+    line[fit] = '\0';
+    while (text[fit] == ' ')
+        fit++;
+    return fit;
+}
+
+/* The height a message takes */
+static int message_height(const char *text)
+{
+    char line[MESSAGE_LINE];
+    int lines = 0;
 
     rb->lcd_setfont(FONT_UI);
-#ifdef HAVE_LCD_COLOR
-    rb->lcd_set_background(LCD_BLACK);
-    rb->lcd_set_foreground(LCD_WHITE);
-#endif
-    if (display_text(ARRAYLEN(help_text), help_text, formation, NULL, true))
+    while (*text)
+    {
+        text += message_line(text, line);
+        lines++;
+    }
+    rb->lcd_setfont(FONT_SYSFIXED);
+    return lines * rb->font_get(FONT_UI)->height;
+}
+
+/* Draws a message with its top at y */
+static void message_draw(const char *text, int y)
+{
+    char line[MESSAGE_LINE];
+    int w, h;
+
+    rb->lcd_setfont(FONT_UI);
+    h = rb->font_get(FONT_UI)->height;
+    while (*text)
+    {
+        text += message_line(text, line);
+        rb->lcd_getstringsize(line, &w, NULL);
+        rb->lcd_putsxy(MAX(0, (LCD_WIDTH - w)/2), y, line);
+        y += h;
+    }
+    rb->lcd_setfont(FONT_SYSFIXED);
+}
+
+/* Draws a message where the game shows "Press Select to continue": below
+ * the bricks, and above the paddle however many lines it takes */
+static void message_draw_low(const char *text)
+{
+    int h = message_height(text);
+
+    message_draw(text, MIN(INT3(STRINGPOS_NAVI), INT3(PAD_POS_Y) - 2 - h));
+}
+
+static int brickmania_help(void)
+{
+    static char text[3072];
+
+    rb->snprintf(text, sizeof(text), "%s\n\n%s\n\n%s\n\n%s",
+                 rb->str(LANG_BRICK_HELP_GOAL),
+                 rb->str(LANG_BRICK_HELP_CONTROLS),
+                 rb->str(LANG_BRICK_HELP_CATCH),
+                 rb->str(LANG_BRICK_HELP_AVOID));
+    if (view_text(rb->str(LANG_GAME_HELP), text) == PLUGIN_USB_CONNECTED)
         return 1;
     rb->lcd_setfont(FONT_SYSFIXED);
 
@@ -1596,8 +1601,8 @@ static int brickmania_menu(void)
     int selected = 0;
 
     static struct opt_items options[] = {
-        { "Easy", -1 },
-        { "Normal", -1 },
+        { STR(LANG_DIFFICULTY_EASY) },
+        { STR(LANG_NORMAL) },
     };
 
 #ifdef HAVE_TOUCHSCREEN
@@ -1605,12 +1610,16 @@ static int brickmania_menu(void)
     rb->touchscreen_set_mode(rb->global_settings->touch_mode);
 #endif
 
-    MENUITEM_STRINGLIST(main_menu, "Brickmania", brickmania_menu_cb,
-                        "Resume Game", "Start New Game",
-                        "Difficulty", "Help", "High Scores",
-                        "Playback Control",
-                        "Remove savefile",
-                        "Quit without Saving", "Quit");
+    MENUITEM_STRINGLIST(main_menu, ID2P(LANG_BRICK), brickmania_menu_cb,
+                        ID2P(LANG_CHESSBOX_MENU_RESUME_GAME),
+                        ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                        ID2P(LANG_GAME_DIFFICULTY),
+                        ID2P(LANG_GAME_HELP),
+                        ID2P(LANG_GAME_HIGH_SCORES),
+                        ID2P(LANG_PLAYBACK_CONTROL),
+                        ID2P(LANG_BRICK_DELETE_SAVE),
+                        ID2P(LANG_QUIT_WITHOUT_SAVING),
+                        ID2P(LANG_MENU_QUIT));
     rb->button_clear_queue();
     while (true) {
         switch (rb->do_menu(&main_menu, &selected, NULL, false)) {
@@ -1626,8 +1635,8 @@ static int brickmania_menu(void)
                 brickmania_init_game(true);
                 return 0;
             case 2:
-                rb->set_option("Difficulty", &difficulty, RB_INT,
-                                    options, 2, NULL);
+                rb->set_option(rb->str(LANG_GAME_DIFFICULTY), &difficulty,
+                               RB_INT, options, 2, NULL);
                 break;
             case 3:
                 if (brickmania_help())
@@ -1647,7 +1656,7 @@ static int brickmania_menu(void)
                 return 1;
             case 8:
                 if (resume) {
-                    rb->splash(HZ*1, "Saving game ...");
+                    rb->splash(HZ*1, ID2P(LANG_GAME_SAVING));
                     brickmania_savegame();
                 }
                 return 1;
@@ -1701,18 +1710,18 @@ static void newround(void)
     brickmania_sleep(2);
 }
 
-static void error_newround(const char * message)
+/* a ball got out of the screen by a fault of the game: the round starts
+ * again without costing a life */
+static void error_newround(void)
 {
-    rb->splash(HZ*3,"Some error happened, so the current balls will be killed.");
-    rb->splashf(HZ*3,"The reason is: %s",message);
-    rb->splash(HZ*3,"Don't worry, it's my fault, you won't lose any life for this. :)");
+    rb->splash(HZ*3, ID2P(LANG_BRICK_BALL_LOST));
     newround();
 }
 
 static int brickmania_game_loop(void)
 {
     int j,i,k;
-    int sw, sh;
+    int sw;
     char s[30];
     int sec_count=0;
     int end;
@@ -1766,37 +1775,37 @@ static int brickmania_game_loop(void)
             rb->lcd_getstringsize(s, &sw, NULL);
             rb->lcd_putsxy(LCD_WIDTH/2-sw/2, 0, s);
 
-            /* write life num */
-            rb->snprintf(s, sizeof(s), "Life: %d", life);
-
-            /* hijack i */
-            i = sw;
-            rb->lcd_getstringsize(s, &sw, NULL);
-            if (sw >= (LCD_WIDTH/2-i/2))
-                rb->snprintf(s, sizeof(s), "L: %d", life);
-            rb->lcd_putsxy(0, 0, s);
-
-            /* write level */
-            rb->snprintf(s, sizeof(s), "Level %d", level+1);
-            rb->lcd_getstringsize(s, &sw, NULL);
-
-            if (LCD_WIDTH-sw <= (LCD_WIDTH/2+i/2)+1)
+            /* The top line is numbers only, in the built-in font, which has
+             * Latin letters only and is the one that fits above the bricks:
+             * the lives left beside a ball on the left, the score in the
+             * middle, the level on the right. The level's word shows in the
+             * field while the ball waits on the paddle. */
             {
-                rb->snprintf(s, sizeof(s), "Lvl %d", level+1);
-                rb->lcd_getstringsize(s, &sw, NULL);
+                int fh = rb->font_get(FONT_SYSFIXED)->height;
+                rb->lcd_bitmap(brickmania_ball, 0,
+                               MAX(0, (fh - INT3(BALL))/2),
+                               INT3(BALL), INT3(BALL));
+                rb->snprintf(s, sizeof(s), "%d", life);
+                rb->lcd_putsxy(INT3(BALL) + 2, 0, s);
             }
 
+            rb->snprintf(s, sizeof(s), "%d", level+1);
+            rb->lcd_getstringsize(s, &sw, NULL);
             rb->lcd_putsxy(LCD_WIDTH-sw, 0, s);
-            i = 0;
 
             /* continue game */
             if (game_state == ST_PAUSE)
             {
-                rb->snprintf(s, sizeof(s), CONTINUE_TEXT);
-                rb->lcd_getstringsize(s, &sw, NULL);
-                rb->lcd_putsxy(LCD_WIDTH/2-sw/2, INT3(STRINGPOS_NAVI), s);
+                message_draw_low(CONTINUE_TEXT);
 
                 sec_count=*rb->current_tick+HZ;
+            }
+            else if (game_state == ST_READY)
+            {
+                char msg[64];
+                rb->snprintf(msg, sizeof(msg), rb->str(LANG_GAME_LEVEL_N),
+                             level+1);
+                message_draw_low(msg);
             }
 
             /* draw the ball */
@@ -1806,7 +1815,7 @@ static int brickmania_game_loop(void)
                 const int H_OFFSCREEN_LIMIT=GAMESCREEN_WIDTH*3/2;
                 const int V_OFFSCREEN_LIMIT=GAMESCREEN_HEIGHT*3/2;
                 if(abs(ball[i].pos_x)>H_OFFSCREEN_LIMIT || abs(ball[i].pos_y)>V_OFFSCREEN_LIMIT)
-                    error_newround("Ball went offscreen");
+                    error_newround();
                 rb->lcd_bitmap(brickmania_ball,
                     INT3(ball[i].pos_x - HALFBALL),
                     INT3(ball[i].pos_y - HALFBALL),
@@ -2389,18 +2398,23 @@ static int brickmania_game_loop(void)
                 }
                 else
                 {
+#if (LCD_WIDTH == 112) && (LCD_HEIGHT == 64)
+                    int sh;
                     rb->lcd_getstringsize("Congratulations!", &sw, &sh);
                     rb->lcd_putsxy(LCD_WIDTH/2-sw/2, INT3(STRINGPOS_FINISH) - 2 * sh,
                                    "Congratulations!");
-#if (LCD_WIDTH == 112) && (LCD_HEIGHT == 64)
                     rb->lcd_getstringsize("No more levels", &sw, NULL);
                     rb->lcd_putsxy(LCD_WIDTH/2-sw/2, INT3(STRINGPOS_FINISH),
                                    "No more levels");
 #else
-                    rb->lcd_getstringsize("You have finished the game!",
-                                          &sw, NULL);
-                    rb->lcd_putsxy(LCD_WIDTH/2-sw/2, INT3(STRINGPOS_FINISH),
-                                   "You have finished the game!");
+                    /* the bricks are gone: the two messages in the middle */
+                    const char *congrats = rb->str(LANG_GAME_CONGRATULATIONS);
+                    const char *finished = rb->str(LANG_GAME_FINISHED);
+                    int congrats_h = message_height(congrats);
+                    int top = (LCD_HEIGHT - congrats_h
+                               - message_height(finished)) / 2;
+                    message_draw(congrats, MAX(0, top));
+                    message_draw(finished, MAX(0, top) + congrats_h);
 #endif
                     vscore=score;
                     rb->lcd_update();
@@ -2584,10 +2598,13 @@ static int brickmania_game_loop(void)
                 resume_file = false;
             }
 #ifdef HAVE_LCD_COLOR
-            rb->lcd_bitmap_transparent(brickmania_gameover,
-                           (LCD_WIDTH - INT3(GAMEOVER_WIDTH))/2,
-                           INT3(GAMESCREEN_HEIGHT - GAMEOVER_HEIGHT)/2,
-                           INT3(GAMEOVER_WIDTH),INT3(GAMEOVER_HEIGHT));
+            /* in words of the iPod's language where the English picture
+             * was, in its yellow */
+            const char *over = rb->str(LANG_GAME_OVER);
+            int over_top = (LCD_HEIGHT - message_height(over))/2;
+            rb->lcd_set_foreground(LCD_RGBPACK(255, 255, 0));
+            message_draw(over, MAX(0, over_top));
+            rb->lcd_set_foreground(LCD_WHITE);
 #else /* greyscale and mono */
             rb->lcd_bitmap(brickmania_gameover,(LCD_WIDTH -
                             INT3(GAMEOVER_WIDTH))/2,
@@ -2612,6 +2629,7 @@ static int brickmania_game_loop(void)
 /* this is the plugin entry point */
 enum plugin_status plugin_start(const void* parameter)
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     (void)parameter;
     int last_difficulty;
 
@@ -2644,7 +2662,7 @@ enum plugin_status plugin_start(const void* parameter)
             if (position != -1)
             {
                 if (position == 0)
-                    rb->splash(HZ*2, "New High Score");
+                    rb->splash(HZ*2, ID2P(LANG_GAME_NEW_HIGH_SCORE));
                 highscore_show(position, highscores, NUM_SCORES, true);
             }
             else

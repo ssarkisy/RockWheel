@@ -19427,3 +19427,1641 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_GAME_HELP
+  desc: in the games' menus (Brick, Jewels, Minesweeper): the item that opens how to play, and the title of that screen
+  user: extras
+  <source>
+    *: "Help"
+  </source>
+  <dest>
+    *: "Help"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_HIGH_SCORES
+  desc: in the games' menus, and the title centred above every game's table of best scores; at most about 25 letters
+  user: extras
+  <source>
+    *: "High Scores"
+  </source>
+  <dest>
+    *: "High Scores"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_SCORE
+  desc: in every game's table of best scores: the heading of the points column; at most about 12 letters
+  user: extras
+  <source>
+    *: "Score"
+  </source>
+  <dest>
+    *: "Score"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_LEVEL
+  desc: the heading of the level column in the table of best scores, and in Jewels above the level number in a narrow side panel; about 6 letters at most, as Jewels leaves out a longer word and shows the number alone
+  user: extras
+  <source>
+    *: "Level"
+  </source>
+  <dest>
+    *: "Level"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_LEVEL_N
+  desc: a game's level, %d is its number: a message in Jewels when a new level starts, and in Brick under the bricks while the ball waits on the paddle
+  user: extras
+  <source>
+    *: "Level %d"
+  </source>
+  <dest>
+    *: "Level %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_NEW_HIGH_SCORE
+  desc: a message when a game ends with the best score so far
+  user: extras
+  <source>
+    *: "New High Score"
+  </source>
+  <dest>
+    *: "New High Score"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_SAVING
+  desc: a message while a game is kept for later on quitting it
+  user: extras
+  <source>
+    *: "Saving game…"
+  </source>
+  <dest>
+    *: "Saving game…"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_OVER
+  desc: when a game ends: a message in Jewels when no move is left, and in Brick centred on the field when the last life is gone, where it may run to two lines
+  user: extras
+  <source>
+    *: "Game Over"
+  </source>
+  <dest>
+    *: "Game Over"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_CONGRATULATIONS
+  desc: shown when the last level of a game is done, above "You have finished the game!"
+  user: extras
+  <source>
+    *: "Congratulations!"
+  </source>
+  <dest>
+    *: "Congratulations!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_FINISHED
+  desc: shown when the last level of a game is done, below "Congratulations!"; it may run to two lines
+  user: extras
+  <source>
+    *: "You have finished the game!"
+  </source>
+  <dest>
+    *: "You have finished the game!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_YOU_WIN
+  desc: a message when a game is won, in Minesweeper when every square without a mine is open
+  user: extras
+  <source>
+    *: "You Win!"
+  </source>
+  <dest>
+    *: "You Win!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_YOU_LOSE
+  desc: a message when a game is lost, in Minesweeper when a mine is opened
+  user: extras
+  <source>
+    *: "You Lose!"
+  </source>
+  <dest>
+    *: "You Lose!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_SAVE_FAILED
+  desc: a message when a game couldn't be kept for later on quitting it
+  user: extras
+  <source>
+    *: "Couldn't save the game"
+  </source>
+  <dest>
+    *: "Couldn't save the game"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_LOAD_FAILED
+  desc: a message when a game kept from last time can't be read, so a new one starts
+  user: extras
+  <source>
+    *: "Couldn't open the saved game"
+  </source>
+  <dest>
+    *: "Couldn't open the saved game"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_DIFFICULTY
+  desc: in a game's menu: the item, and the title of the setting, that chooses how hard the game is (in Brick: Easy or Normal)
+  user: extras
+  <source>
+    *: "Difficulty"
+  </source>
+  <dest>
+    *: "Difficulty"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_MODE
+  desc: in a game's menu: the item, and the title of the setting, that chooses the kind of game (in Jewels: Normal or Puzzle)
+  user: extras
+  <source>
+    *: "Mode"
+  </source>
+  <dest>
+    *: "Mode"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_CONTINUE
+  desc: in Brick, centred in the field while the game is paused after its menu; Select is the iPod's centre button, keep its name as the iPod's own phrases call it; it may run to two lines
+  user: extras
+  <source>
+    *: "Press Select to continue"
+  </source>
+  <dest>
+    *: "Press Select to continue"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_DELETE_SAVE
+  desc: in Brick's menu: removes the game kept from last time; one line of a menu
+  user: extras
+  <source>
+    *: "Delete Saved Game"
+  </source>
+  <dest>
+    *: "Delete Saved Game"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_BALL_LOST
+  desc: in Brick, a message when the ball slips off the screen by a fault of the game: the round starts over and no life is lost
+  user: extras
+  <source>
+    *: "The ball got lost. The round starts again, and you keep your lives."
+  </source>
+  <dest>
+    *: "The ball got lost. The round starts again, and you keep your lives."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_HELP_GOAL
+  desc: in Brick's help, the first paragraph: the aim of the game, and what the three numbers at the top of the screen mean
+  user: extras
+  <source>
+    *: "Break all the bricks with the ball, and catch it with the paddle each time it comes down, or you lose a life. Clear the wall to go on to the next level. At the top are your lives beside a ball, your score in the middle and the level on the right."
+  </source>
+  <dest>
+    *: "Break all the bricks with the ball, and catch it with the paddle each time it comes down, or you lose a life. Clear the wall to go on to the next level. At the top are your lives beside a ball, your score in the middle and the level on the right."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_HELP_CONTROLS
+  desc: in Brick's help, the iPod's buttons: keep ◀ and ▶ as they are, and Select and Menu as the iPod's own phrases name those buttons
+  user: extras
+  <source>
+    *: "Turn the wheel, or hold ◀ or ▶, to move the paddle. Press Select to launch the ball, and to shoot once the paddle has guns. Press Menu to pause and see the menu."
+  </source>
+  <dest>
+    *: "Turn the wheel, or hold ◀ or ▶, to move the paddle. Press Select to launch the ball, and to shoot once the paddle has guns. Press Menu to pause and see the menu."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_HELP_CATCH
+  desc: in Brick's help, the good pieces that fall from broken bricks; keep the letters L, B, G, F, E and N as they are, they are drawn on the pieces
+  user: extras
+  <source>
+    *: "Catch the falling letters for their powers: L gives you a life, B another ball, G makes the ball stick to the paddle, F gives the paddle guns, E makes it longer, and N brings it back to normal."
+  </source>
+  <dest>
+    *: "Catch the falling letters for their powers: L gives you a life, B another ball, G makes the ball stick to the paddle, F gives the paddle guns, E makes it longer, and N brings it back to normal."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_HELP_AVOID
+  desc: in Brick's help, the bad pieces that fall from broken bricks; keep the letters D, S and FL and the signs ◀ and ▶ as they are, they are drawn on the pieces or are the iPod's buttons
+  user: extras
+  <source>
+    *: "Keep away from D, which costs a life, S, which makes the paddle shorter, and FL, which swaps ◀ and ▶ for ten seconds."
+  </source>
+  <dest>
+    *: "Keep away from D, which costs a life, S, which makes the paddle shorter, and FL, which swaps ◀ and ▶ for ten seconds."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS_PUZZLE
+  desc: in Jewels, a value of Mode beside Normal: ten set boards whose linked pieces must be joined, instead of play for points
+  user: extras
+  <source>
+    *: "Puzzle"
+  </source>
+  <dest>
+    *: "Puzzle"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS_HELP_GOAL
+  desc: in Jewels' help, the first paragraph: how the game is played in Normal mode
+  user: extras
+  <source>
+    *: "Swap two jewels side by side so that three or more of a kind line up, and they vanish. Each match fills the bar on the right, and a full bar takes you to the next level. The game ends when no swap can make a match."
+  </source>
+  <dest>
+    *: "Swap two jewels side by side so that three or more of a kind line up, and they vanish. Each match fills the bar on the right, and a full bar takes you to the next level. The game ends when no swap can make a match."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS_HELP_PUZZLE
+  desc: in Jewels' help, the second paragraph: the aim of the Puzzle mode; Puzzle is the mode's name in the menu, as LANG_JEWELS_PUZZLE
+  user: extras
+  <source>
+    *: "In Puzzle, each of the ten boards has a few pieces with links. Swap and clear the jewels around them until every link meets the link of another piece."
+  </source>
+  <dest>
+    *: "In Puzzle, each of the ten boards has a few pieces with links. Swap and clear the jewels around them until every link meets the link of another piece."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS_HELP_CONTROLS
+  desc: in Jewels' help, the iPod's buttons: keep ◀ and ▶ as they are, and Menu, Play and Select as the iPod's own phrases name those buttons
+  user: extras
+  <source>
+    *: "Turn the wheel to move through the board, or press ◀, ▶, Menu and Play to move left, right, up and down. Press Select on a jewel, then ◀, ▶, Menu or Play to swap it with its neighbour that way. Hold Select for the menu."
+  </source>
+  <dest>
+    *: "Turn the wheel to move through the board, or press ◀, ▶, Menu and Play to move left, right, up and down. Press Select on a jewel, then ◀, ▶, Menu or Play to swap it with its neighbour that way. Hold Select for the menu."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_MINES
+  desc: in Minesweeper's menu: the item, and the title of the setting, for how many of the field's squares hide a mine, given in %
+  user: extras
+  <source>
+    *: "Mines"
+  </source>
+  <dest>
+    *: "Mines"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_ROWS
+  desc: in Minesweeper's menu: the item, and the title of the setting, for the field's height in squares
+  user: extras
+  <source>
+    *: "Rows"
+  </source>
+  <dest>
+    *: "Rows"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_COLUMNS
+  desc: in Minesweeper's menu: the item, and the title of the setting, for the field's width in squares
+  user: extras
+  <source>
+    *: "Columns"
+  </source>
+  <dest>
+    *: "Columns"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_FLAGS_MINES
+  desc: in Minesweeper, a message on Select and Play together: the first %d is how many squares you have flagged, the second how many mines the field has; one form for any number, no plurals
+  user: extras
+  <source>
+    *: "Flags: %d, mines: %d"
+  </source>
+  <dest>
+    *: "Flags: %d, mines: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_HELP_GOAL
+  desc: in Minesweeper's help, the first paragraph: the aim of the game
+  user: extras
+  <source>
+    *: "Open every square that hides no mine. A number on a square tells how many mines touch it, and the first square you open is never a mine."
+  </source>
+  <dest>
+    *: "Open every square that hides no mine. A number on a square tells how many mines touch it, and the first square you open is never a mine."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_HELP_MOVE
+  desc: in Minesweeper's help, moving the cursor with the iPod's buttons: keep ◀ and ▶ as they are, and Menu and Play as the iPod's own phrases name those buttons
+  user: extras
+  <source>
+    *: "Turn the wheel to go through the field square by square, or press ◀, ▶, Menu and Play to move left, right, up and down."
+  </source>
+  <dest>
+    *: "Turn the wheel to go through the field square by square, or press ◀, ▶, Menu and Play to move left, right, up and down."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_HELP_SELECT
+  desc: in Minesweeper's help: a short press of the iPod's centre button flags a square, holding it opens the square; Select as the iPod's own phrases name that button
+  user: extras
+  <source>
+    *: "Press Select to put a flag on a square you think hides a mine, and again to take it off. Hold Select to open the square."
+  </source>
+  <dest>
+    *: "Press Select to put a flag on a square you think hides a mine, and again to take it off. Hold Select to open the square."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_HELP_MORE
+  desc: in Minesweeper's help, the last paragraph: the counts shown by Select and Play pressed together, leaving the game with Select and Menu together, and the field shown after a game
+  user: extras
+  <source>
+    *: "Once a square is open, press Select and Play together to see how many flags you've placed and how many mines there are. Press Select and Menu together to leave Minesweeper. When a game ends, the whole field shows; press any button to go back to the menu."
+  </source>
+  <dest>
+    *: "Once a square is open, press Select and Play together to see how many flags you've placed and how many mines there are. Press Select and Menu together to leave Minesweeper. When a game ends, the whole field shows; press any button to go back to the menu."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_DRAW_CARDS
+  desc: in Solitaire's menu before a game starts, the row and the title of the choice of how many cards Menu turns over from the deck at once
+  user: extras
+  <source>
+    *: "Draw Cards"
+  </source>
+  <dest>
+    *: "Draw Cards"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_DRAW_ONE
+  desc: in Solitaire, a choice of Draw Cards: Menu turns over one card from the deck at once
+  user: extras
+  <source>
+    *: "One at a Time"
+  </source>
+  <dest>
+    *: "One at a Time"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_DRAW_THREE
+  desc: in Solitaire, a choice of Draw Cards: Menu turns over three cards from the deck at once, of which only the top one can be played
+  user: extras
+  <source>
+    *: "Three at a Time"
+  </source>
+  <dest>
+    *: "Three at a Time"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_RESUMING
+  desc: in Solitaire, a message for a second as it opens straight on the game left with Quit last time, rather than on its menu
+  user: extras
+  <source>
+    *: "Resuming game…"
+  </source>
+  <dest>
+    *: "Resuming game…"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_HELP_AIM
+  desc: in Solitaire's Help, the first paragraph: the aim and the rules. Menu is the iPod's Menu button, named as the iPod's manual in your language names it
+  user: extras
+  <source>
+    *: "Move all the cards onto the four piles at the top right, each by suit from ace to king. In the seven columns, put each card on one a rank higher and of the other colour; only a king goes into an empty column. Menu turns over cards from the deck at the top left, one or three at a time as set in Draw Cards."
+  </source>
+  <dest>
+    *: "Move all the cards onto the four piles at the top right, each by suit from ace to king. In the seven columns, put each card on one a rank higher and of the other colour; only a king goes into an empty column. Menu turns over cards from the deck at the top left, one or three at a time as set in Draw Cards."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_HELP_MOVE
+  desc: in Solitaire's Help, the second paragraph: moving the cursor. ◀ and ▶ are the iPod's Previous and Next buttons, kept as these signs; the wheel is the click wheel
+  user: extras
+  <source>
+    *: "◀ and ▶ move between the columns; past the first or the last one, they go to the turned card beside the deck. The wheel moves up and down a column, and along the top row between the turned card and the four piles."
+  </source>
+  <dest>
+    *: "◀ and ▶ move between the columns; past the first or the last one, they go to the turned card beside the deck. The wheel moves up and down a column, and along the top row between the turned card and the four piles."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_HELP_SELECT
+  desc: in Solitaire's Help, the third paragraph: moving cards. Select and Menu are the iPod's buttons of those names, as the iPod's manual in your language names them
+  user: extras
+  <source>
+    *: "Select picks up the card under the cursor. Select on another column or pile moves it there with the cards on it, or puts it back if it can't go there. Select on the same card again sends it to its pile if it fits. Menu also puts back a card picked up."
+  </source>
+  <dest>
+    *: "Select picks up the card under the cursor. Select on another column or pile moves it there with the cards on it, or puts it back if it can't go there. Select on the same card again sends it to its pile if it fits. Menu also puts back a card picked up."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_HELP_SHORTCUTS
+  desc: in Solitaire's Help, the last paragraph: the buttons held. Play, Menu and Select are the iPod's buttons, ▶ its Next button kept as this sign; the turned card is the face-up card beside the deck at the top left
+  user: extras
+  <source>
+    *: "Play puts the turned card where the cursor is. Hold ▶ to send the turned card to its pile, or hold Menu to send the card under the cursor to its pile. Hold Select for the menu."
+  </source>
+  <dest>
+    *: "Play puts the turned card where the cursor is. Hold ▶ to send the turned card to its pile, or hold Menu to send the card under the cursor to its pile. Hold Select for the menu."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_DEALER
+  desc: in Blackjack, at the top left of the table above the dealer's cards, on one row with the money; left out if they don't both fit, so at most 12 letters
+  user: extras
+  <source>
+    *: "Dealer"
+  </source>
+  <dest>
+    *: "Dealer"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_PLAYER
+  desc: in Blackjack, at the left just below the line across the table, above your cards, on one row with the total; left out if they don't both fit, so at most 12 letters
+  user: extras
+  <source>
+    *: "Player"
+  </source>
+  <dest>
+    *: "Player"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_MONEY
+  desc: in Blackjack, at the top right of the table before the money you have besides your bet, like $990; at most 12 letters
+  user: extras
+  <source>
+    *: "Money"
+  </source>
+  <dest>
+    *: "Money"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_BET
+  desc: in Blackjack, at the bottom right of the table before the money staked on this hand, like $10; at most 12 letters
+  user: extras
+  <source>
+    *: "Bet"
+  </source>
+  <dest>
+    *: "Bet"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_TOTAL
+  desc: in Blackjack, at the right just below the line across the table, before the points your cards add up to, like 18; at most 12 letters
+  user: extras
+  <source>
+    *: "Total"
+  </source>
+  <dest>
+    *: "Total"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_BUST
+  desc: in Blackjack, the result of a hand, centred on the table: your cards went over 21, so the bet is lost; at most 24 letters
+  user: extras
+  <source>
+    *: "Bust!"
+  </source>
+  <dest>
+    *: "Bust!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_PUSH
+  desc: in Blackjack, the result of a hand, centred on the table: a tie with the dealer, so you get your bet back; at most 24 letters
+  user: extras
+  <source>
+    *: "Push"
+  </source>
+  <dest>
+    *: "Push"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_GOT_BLACKJACK
+  desc: in Blackjack, the result of a hand, centred on the table: 21 with your first two cards, which pays 3 to 2; at most 24 letters
+  user: extras
+  <source>
+    *: "Blackjack!"
+  </source>
+  <dest>
+    *: "Blackjack!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HAND_RESULT
+  desc: in Blackjack, after a split into two hands, the result of each in turn, centred on the table: %d is 1 or 2, %s the result, like You Win! or Bust!; at most 10 letters besides the result
+  user: extras
+  <source>
+    *: "Hand %d: %s"
+  </source>
+  <dest>
+    *: "Hand %d: %s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_DEALER_HAS_IT
+  desc: in Blackjack, a message after the question about insurance: the dealer's two cards make 21, so an insurance bought pays 2 to 1
+  user: extras
+  <source>
+    *: "Dealer has blackjack"
+  </source>
+  <dest>
+    *: "Dealer has blackjack"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_DEALER_HASNT_IT
+  desc: in Blackjack, a message after the question about insurance: the dealer's two cards don't make 21, so an insurance bought is lost and the hand goes on
+  user: extras
+  <source>
+    *: "Dealer doesn't have blackjack"
+  </source>
+  <dest>
+    *: "Dealer doesn't have blackjack"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_NO_MONEY_SPLIT
+  desc: in Blackjack, a message when your first two cards are of the same rank but the money left can't stake a second bet on a second hand
+  user: extras
+  <source>
+    *: "Not enough money to split"
+  </source>
+  <dest>
+    *: "Not enough money to split"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_NO_MONEY_DOUBLE
+  desc: in Blackjack, a message when ◀ asks to double the bet for one last card but the money left can't cover it
+  user: extras
+  <source>
+    *: "Not enough money to double down"
+  </source>
+  <dest>
+    *: "Not enough money to double down"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_NO_MONEY_LEFT
+  desc: in Blackjack, a message when less than the smallest bet, $10, is left, so the game is over
+  user: extras
+  <source>
+    *: "Not enough money to continue"
+  </source>
+  <dest>
+    *: "Not enough money to continue"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_SPLIT_Q
+  desc: in Blackjack, a question in a box at the bottom of the table when your first two cards are of the same rank: make them two hands, each with a bet? Yes or No follows it in the box; at most 24 letters
+  user: extras
+  <source>
+    *: "Split?"
+  </source>
+  <dest>
+    *: "Split?"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_INSURANCE_Q
+  desc: in Blackjack, a question in a box at the bottom of the table when the dealer's card shown is an ace: bet up to half your bet that the dealer has blackjack? Yes or No follows it in the box; at most 24 letters
+  user: extras
+  <source>
+    *: "Buy insurance?"
+  </source>
+  <dest>
+    *: "Buy insurance?"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_PLAY_AGAIN
+  desc: in Blackjack, a question in a box at the bottom of the table after a hand's result: deal another hand? Yes or No follows it in the box; at most 24 letters
+  user: extras
+  <source>
+    *: "Play again?"
+  </source>
+  <dest>
+    *: "Play again?"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_PLACE_BET
+  desc: in Blackjack, the first line of the box before each hand where you set your bet, above the amount, like $10; at most 26 letters
+  user: extras
+  <source>
+    *: "Place your bet"
+  </source>
+  <dest>
+    *: "Place your bet"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HOW_MUCH
+  desc: in Blackjack, the first line of the box where you set how much insurance to buy, above the amount; at most 26 letters
+  user: extras
+  <source>
+    *: "How much?"
+  </source>
+  <dest>
+    *: "How much?"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_WHEEL
+  desc: in Blackjack's box for a bet, a line of its own before ±10: turning the click wheel changes the bet by 10, as the lines ▶ +1 and ◀ −1 above it tell of those buttons; at most 16 letters
+  user: extras
+  <source>
+    *: "Wheel"
+  </source>
+  <dest>
+    *: "Wheel"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HELP_AIM
+  desc: in Blackjack's Help, the first paragraph: the aim and the rules; J, Q and K are the jack, queen and king, written as the cards in your language mark them
+  user: extras
+  <source>
+    *: "Get closer to 21 than the dealer without going over. Cards count as their number, J, Q and K as 10, and an ace as 1 or 11. The dealer takes cards until reaching 17 or more. A win pays your bet, and a blackjack, 21 with your first two cards, pays 3 to 2."
+  </source>
+  <dest>
+    *: "Get closer to 21 than the dealer without going over. Cards count as their number, J, Q and K as 10, and an ace as 1 or 11. The dealer takes cards until reaching 17 or more. A win pays your bet, and a blackjack, 21 with your first two cards, pays 3 to 2."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HELP_KEYS
+  desc: in Blackjack's Help, the second paragraph: the buttons during a hand. Select and Menu are the iPod's buttons, ◀ and ▶ its Previous and Next buttons kept as these signs; Resume Game as that row of the game's menu is translated
+  user: extras
+  <source>
+    *: "Select takes another card, and ▶ stands. ◀ doubles down on your first two cards: your bet doubles, and you take one more card only. Menu leaves the hand for the menu, and Resume Game goes back to it."
+  </source>
+  <dest>
+    *: "Select takes another card, and ▶ stands. ◀ doubles down on your first two cards: your bet doubles, and you take one more card only. Menu leaves the hand for the menu, and Resume Game goes back to it."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HELP_BET
+  desc: in Blackjack's Help, the third paragraph: the bet. ◀ and ▶ are the iPod's Previous and Next buttons kept as these signs, the wheel its click wheel, Select and Menu its buttons; the amounts are dollars
+  user: extras
+  <source>
+    *: "Before each hand, set your bet: ◀ and ▶ change it by 1, the wheel by 10, and Select deals. Menu ends the game. You start with $1000, and the game is over when less than $10 is left."
+  </source>
+  <dest>
+    *: "Before each hand, set your bet: ◀ and ▶ change it by 1, the wheel by 10, and Select deals. Menu ends the game. You start with $1000, and the game is over when less than $10 is left."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HELP_QUESTIONS
+  desc: in Blackjack's Help, the last paragraph: insurance, splitting and answering the questions the game asks. ◀ and ▶ are the iPod's Previous and Next buttons kept as these signs; Yes and No as the answers are translated
+  user: extras
+  <source>
+    *: "When the dealer shows an ace, you can buy insurance for up to half your bet; it pays 2 to 1 if the dealer has blackjack. Two cards of the same rank can be split into two hands, each with your bet. In a question, ◀ and ▶ choose Yes or No, Select answers, and Menu answers No."
+  </source>
+  <dest>
+    *: "When the dealer shows an ace, you can buy insurance for up to half your bet; it pays 2 to 1 if the dealer has blackjack. Two cards of the same rank can be split into two hands, each with your bet. In a question, ◀ and ▶ choose Yes or No, Select answers, and Menu answers No."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_EVENTS
+  desc: in Calendar, the title of the list of a day's events, which Select opens on a day that has any
+  user: extras
+  <source>
+    *: "Events"
+  </source>
+  <dest>
+    *: "Events"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_EVENT_ADDED
+  desc: in Calendar, a message once a new event's text is typed and kept
+  user: extras
+  <source>
+    *: "Event Added"
+  </source>
+  <dest>
+    *: "Event Added"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_EVENT_NOT_ADDED
+  desc: in Calendar, a message when typing a new event is cancelled or left empty, or it couldn't be kept
+  user: extras
+  <source>
+    *: "Event Not Added"
+  </source>
+  <dest>
+    *: "Event Not Added"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_NEW_WEEKLY
+  desc: in Calendar, a row of a day's menu: type in an event that comes back every week on this weekday
+  user: extras
+  <source>
+    *: "New Weekly Event"
+  </source>
+  <dest>
+    *: "New Weekly Event"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_NEW_MONTHLY
+  desc: in Calendar, a row of a day's menu: type in an event that comes back every month on this day of the month
+  user: extras
+  <source>
+    *: "New Monthly Event"
+  </source>
+  <dest>
+    *: "New Monthly Event"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_NEW_YEARLY
+  desc: in Calendar, a row of a day's menu: type in an event that comes back every year on this date, such as a birthday
+  user: extras
+  <source>
+    *: "New Yearly Event"
+  </source>
+  <dest>
+    *: "New Yearly Event"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_NEW_ONE_TIME
+  desc: in Calendar, a row of a day's menu: type in an event for this date only
+  user: extras
+  <source>
+    *: "New One-Time Event"
+  </source>
+  <dest>
+    *: "New One-Time Event"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_FIRST_DAY_OF_WEEK
+  desc: in Calendar, a row of a day's menu and the title of its choice: the weekday the calendar's columns start with
+  user: extras
+  <source>
+    *: "First Day of Week"
+  </source>
+  <dest>
+    *: "First Day of Week"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_EVENT_YEARS
+  desc: in Calendar's list of a day's events, a yearly event: %s is its text, %d how many years since the year it was set on (an age or anniversary); keep a form that reads right with any number, as 'years: %d' does, and %s before %d
+  user: extras
+  <source>
+    *: "%s (years: %d)"
+  </source>
+  <dest>
+    *: "%s (years: %d)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_ANALOG
+  desc: in Clock, a mode: a round face with hands; also the row of its settings and their title
+  user: extras
+  <source>
+    *: "Analog"
+  </source>
+  <dest>
+    *: "Analog"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_DIGITAL
+  desc: in Clock, a mode: the time in big digits; also the row of its settings and their title
+  user: extras
+  <source>
+    *: "Digital"
+  </source>
+  <dest>
+    *: "Digital"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_BINARY
+  desc: in Clock, a mode: the hours, minutes and seconds as rows of lit and unlit dots, binary digits
+  user: extras
+  <source>
+    *: "Binary"
+  </source>
+  <dest>
+    *: "Binary"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SHOW_DATE
+  desc: in Clock's Analog settings: whether the date shows in digits in the lower corner, beside the face
+  user: extras
+  <source>
+    *: "Show Date"
+  </source>
+  <dest>
+    *: "Show Date"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SHOW_SECOND_HAND
+  desc: in Clock's Analog settings: whether the face has a hand for the seconds
+  user: extras
+  <source>
+    *: "Show Second Hand"
+  </source>
+  <dest>
+    *: "Show Second Hand"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SHOW_HOUR_MARKS
+  desc: in Clock's Analog settings: whether small squares mark the 12 hours around the face
+  user: extras
+  <source>
+    *: "Show Hour Marks"
+  </source>
+  <dest>
+    *: "Show Hour Marks"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SHOW_SECONDS
+  desc: in Clock's Digital settings: whether the seconds show in big digits under the hours and minutes
+  user: extras
+  <source>
+    *: "Show Seconds"
+  </source>
+  <dest>
+    *: "Show Seconds"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_BLINKING_COLON
+  desc: in Clock's Digital settings: whether the colon between the hours and the minutes blinks every second
+  user: extras
+  <source>
+    *: "Blinking Colon"
+  </source>
+  <dest>
+    *: "Blinking Colon"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_DATE_FORMAT
+  desc: in Clock's settings: the order of the day, the month and the year in the date it shows in digits, or no date
+  user: extras
+  <source>
+    *: "Date Format"
+  </source>
+  <dest>
+    *: "Date Format"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_NO_DATE
+  desc: a value of Date Format in Clock: the clock shows no date
+  user: extras
+  <source>
+    *: "No Date"
+  </source>
+  <dest>
+    *: "No Date"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_MONTH_DAY_YEAR
+  desc: a value of Date Format in Clock: the date in digits with the month first, as 11/07/2026
+  user: extras
+  <source>
+    *: "Month/Day/Year"
+  </source>
+  <dest>
+    *: "Month/Day/Year"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_DAY_MONTH_YEAR
+  desc: a value of Date Format in Clock: the date in digits with the day first, as 07/11/2026
+  user: extras
+  <source>
+    *: "Day/Month/Year"
+  </source>
+  <dest>
+    *: "Day/Month/Year"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_YEAR_MONTH_DAY
+  desc: a value of Date Format in Clock: the date in digits with the year first, as 2026/11/07
+  user: extras
+  <source>
+    *: "Year/Month/Day"
+  </source>
+  <dest>
+    *: "Year/Month/Day"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_ALWAYS_OFF
+  desc: a value of Backlight in Clock's settings, beside Always On: the screen's light stays off while the clock shows
+  user: extras
+  <source>
+    *: "Always Off"
+  </source>
+  <dest>
+    *: "Always Off"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_USE_SYSTEM_SETTING
+  desc: a value of Backlight in Clock's settings: the light goes off after the time set in the iPod's own Settings
+  user: extras
+  <source>
+    *: "Use System Setting"
+  </source>
+  <dest>
+    *: "Use System Setting"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SAVE_ON_EXIT
+  desc: in Clock's settings, Yes or No: whether the clock keeps its mode and settings for next time as you leave it
+  user: extras
+  <source>
+    *: "Save on Exit"
+  </source>
+  <dest>
+    *: "Save on Exit"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ROCKBLOX
+  desc: a game's name in Extras > Games and atop its own menu (a falling-blocks game); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Rockblox"
+  </source>
+  <dest>
+    *: "Rockblox"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_2048
+  desc: a game's name in Extras > Games and atop its own menu (slide tiles to add them up to 2048); a translator may keep it as it is
+  user: core
+  <source>
+    *: "2048"
+  </source>
+  <dest>
+    *: "2048"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU
+  desc: a game's name in Extras > Games and atop its own menu; a translator may keep it as it is
+  user: core
+  <source>
+    *: "Sudoku"
+  </source>
+  <dest>
+    *: "Sudoku"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOKOBAN
+  desc: a game's name in Extras > Games and atop its own menu (push boxes onto their places); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Sokoban"
+  </source>
+  <dest>
+    *: "Sokoban"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI
+  desc: a game's name in Extras > Games and atop its own menu (the board game also called Othello); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Reversi"
+  </source>
+  <dest>
+    *: "Reversi"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPACEROCKS
+  desc: a game's name in Extras > Games and atop its own menu (shoot the asteroids from a small ship); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Space Rocks"
+  </source>
+  <dest>
+    *: "Space Rocks"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BUBBLES
+  desc: a game's name in Extras > Games and atop its own menu (shoot coloured bubbles to pop groups of three); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Bubbles"
+  </source>
+  <dest>
+    *: "Bubbles"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLIX
+  desc: a game's name in Extras > Games and atop its own menu (clear groups of same-coloured blocks); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Clix"
+  </source>
+  <dest>
+    *: "Clix"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_2048_GAME_LOST
+  desc: in 2048, the second line under "Are You Sure?" before a new game or quitting without saving: the game in progress is thrown away
+  user: extras
+  <source>
+    *: "Your current game will be lost."
+  </source>
+  <dest>
+    *: "Your current game will be lost."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_COLOURED_NUMBERS
+  desc: in Sudoku's menu, a setting On or Off: the digits on the board are drawn in colours instead of black
+  user: extras
+  <source>
+    *: "Coloured Numbers"
+  </source>
+  <dest>
+    *: "Coloured Numbers"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_SHOW_MARKINGS
+  desc: in Sudoku's menu, a setting On or Off: shows the small pencil marks of the digits that might go in a cell, which Play puts there
+  user: extras
+  <source>
+    *: "Show Markings"
+  </source>
+  <dest>
+    *: "Show Markings"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_REVERT
+  desc: in Sudoku's menu: puts the board back as it was when last saved
+  user: extras
+  <source>
+    *: "Revert to Saved"
+  </source>
+  <dest>
+    *: "Revert to Saved"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_START_OVER
+  desc: in Sudoku's menu: clears the digits the player entered and keeps the puzzle's own
+  user: extras
+  <source>
+    *: "Start Over"
+  </source>
+  <dest>
+    *: "Start Over"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_ENTER_PUZZLE
+  desc: in Sudoku's menu: opens an empty board to set a puzzle's given digits by hand, as one from a newspaper
+  user: extras
+  <source>
+    *: "Enter a Puzzle"
+  </source>
+  <dest>
+    *: "Enter a Puzzle"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_SAVE_AS
+  desc: in Sudoku's Edit menu, while entering a puzzle by hand: saves it under a name typed with the keyboard
+  user: extras
+  <source>
+    *: "Save As"
+  </source>
+  <dest>
+    *: "Save As"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOKOBAN_DEFAULT_LEVELS
+  desc: in Sokoban's menu: loads the levels that come with the game and starts again from the first
+  user: extras
+  <source>
+    *: "Load Default Levels"
+  </source>
+  <dest>
+    *: "Load Default Levels"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_PASS
+  desc: in Reversi's menu: gives the turn to the other side without placing a disc
+  user: extras
+  <source>
+    *: "Pass"
+  </source>
+  <dest>
+    *: "Pass"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_BLACK_PLAYER
+  desc: in Reversi's menu and atop its choices: who plays the black discs, a human or the iPod
+  user: extras
+  <source>
+    *: "Black Player"
+  </source>
+  <dest>
+    *: "Black Player"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_WHITE_PLAYER
+  desc: in Reversi's menu and atop its choices: who plays the white discs, a human or the iPod
+  user: extras
+  <source>
+    *: "White Player"
+  </source>
+  <dest>
+    *: "White Player"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_HUMAN
+  desc: in Reversi, a choice for Black Player and White Player: a person plays that side with the buttons
+  user: extras
+  <source>
+    *: "Human"
+  </source>
+  <dest>
+    *: "Human"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_COMPUTER_EASY
+  desc: in Reversi, a choice for Black Player and White Player: the iPod plays that side with random moves
+  user: extras
+  <source>
+    *: "Computer (Easy)"
+  </source>
+  <dest>
+    *: "Computer (Easy)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_COMPUTER_MEDIUM
+  desc: in Reversi, a choice for Black Player and White Player: the iPod plays that side and looks for its best move
+  user: extras
+  <source>
+    *: "Computer (Medium)"
+  </source>
+  <dest>
+    *: "Computer (Medium)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_CURSOR_WRAP
+  desc: in Reversi's menu and atop its choices: where the cursor goes when moved past the board's edge; the choices are Off, Same Line and Next Line
+  user: extras
+  <source>
+    *: "Cursor Wrap"
+  </source>
+  <dest>
+    *: "Cursor Wrap"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_WRAP_SAME_LINE
+  desc: in Reversi, a choice for Cursor Wrap: past the edge the cursor comes back at the other end of the same row or column
+  user: extras
+  <source>
+    *: "Same Line"
+  </source>
+  <dest>
+    *: "Same Line"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_WRAP_NEXT_LINE
+  desc: in Reversi, a choice for Cursor Wrap: past the edge the cursor goes on to the start of the next row or column
+  user: extras
+  <source>
+    *: "Next Line"
+  </source>
+  <dest>
+    *: "Next Line"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

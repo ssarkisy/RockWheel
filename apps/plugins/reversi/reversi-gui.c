@@ -37,6 +37,7 @@ further options:
 */
 
 #include "plugin.h"
+#include "lib/extras_lang.h"
 
 #include "reversi-game.h"
 #include "reversi-strategy.h"
@@ -357,24 +358,24 @@ static void reversi_gui_display_board(void) {
  */
 
 /* Menu entries and the corresponding values for cursor wrap mode */
-#define MENU_TEXT_WRAP_MODE "Cursor wrap mode"
+#define MENU_TEXT_WRAP_MODE LANG_REVERSI_CURSOR_WRAP
 static const struct opt_items cursor_wrap_mode_settings[] = {
-    { "Flat board", -1 },
-    { "Sphere",     -1 },
-    { "Torus",      -1 },
+    { STR(LANG_OFF) },                     /* flat board */
+    { STR(LANG_REVERSI_WRAP_SAME_LINE) },  /* sphere */
+    { STR(LANG_REVERSI_WRAP_NEXT_LINE) },  /* torus */
 };
 static const cursor_wrap_mode_t cursor_wrap_mode_values[3] = {
     WRAP_FLAT, WRAP_SPHERE, WRAP_TORUS };
 
 
 /* Menu entries and the corresponding values for available strategies */
-#define MENU_TEXT_STRAT_WHITE "Strategy for white"
-#define MENU_TEXT_STRAT_BLACK "Strategy for black"
+#define MENU_TEXT_STRAT_WHITE LANG_REVERSI_WHITE_PLAYER
+#define MENU_TEXT_STRAT_BLACK LANG_REVERSI_BLACK_PLAYER
 
 static struct opt_items strategy_settings[] = {
-    { "Human", -1 },
-    { "Naive robot", -1 },
-    { "Simple robot", -1 },
+    { STR(LANG_REVERSI_HUMAN) },
+    { STR(LANG_REVERSI_COMPUTER_EASY) },    /* naive robot */
+    { STR(LANG_REVERSI_COMPUTER_MEDIUM) },  /* simple robot */
     //{ "AB robot", -1 },
 };
 static const game_strategy_t * const strategy_values[] = {
@@ -383,10 +384,10 @@ static const game_strategy_t * const strategy_values[] = {
 
 /* Sets the strategy for the specified player. 'player' is the
    pointer to the player to set the strategy for (actually,
-   either white_strategy or black_strategy). propmpt is the
-   text to show as the prompt in the menu */
+   either white_strategy or black_strategy). prompt is the
+   language id of the text to show as the prompt in the menu */
 static bool reversi_gui_choose_strategy(
-            const game_strategy_t **player, const char *prompt) {
+            const game_strategy_t **player, int prompt) {
     int index = 0, i;
     int num_items = sizeof(strategy_settings)/sizeof(strategy_settings[0]);
     bool result;
@@ -399,7 +400,8 @@ static bool reversi_gui_choose_strategy(
     }
 
     result =
-        rb->set_option(prompt, &index, RB_INT, strategy_settings, num_items, NULL);
+        rb->set_option(rb->str(prompt), &index, RB_INT, strategy_settings,
+                       num_items, NULL);
 
     (*player) = strategy_values[index];
 
@@ -415,10 +417,12 @@ static bool reversi_gui_menu(void) {
     int index, num_items, i;
     int result;
 
-    MENUITEM_STRINGLIST(menu, "Reversi", NULL,
-                        "Start new game", "Pass the move",
-                        MENU_TEXT_STRAT_BLACK, MENU_TEXT_STRAT_WHITE,
-                        MENU_TEXT_WRAP_MODE, "Playback Control", "Quit");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_REVERSI), NULL,
+                        ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                        ID2P(LANG_REVERSI_PASS),
+                        ID2P(MENU_TEXT_STRAT_BLACK), ID2P(MENU_TEXT_STRAT_WHITE),
+                        ID2P(MENU_TEXT_WRAP_MODE), ID2P(LANG_PLAYBACK_CONTROL),
+                        ID2P(LANG_MENU_QUIT));
 
     result = rb->do_menu(&menu, NULL, NULL, false);
 
@@ -449,7 +453,7 @@ static bool reversi_gui_menu(void) {
                     break;
                 }
             }
-            rb->set_option(MENU_TEXT_WRAP_MODE, &index, RB_INT,
+            rb->set_option(rb->str(MENU_TEXT_WRAP_MODE), &index, RB_INT,
                     cursor_wrap_mode_settings, 3, NULL);
             cursor_wrap_mode = cursor_wrap_mode_values[index];
             break;
@@ -585,6 +589,7 @@ static void reversi_gui_move_cursor(int new_row, int new_col) {
 
 /* plugin entry point */
 enum plugin_status plugin_start(const void *parameter) {
+    extras_lang_init(); /* its words: the language files' Extras section */
     bool exit, draw_screen;
     int button;
 #ifdef HAVE_TOUCHSCREEN
@@ -613,7 +618,14 @@ enum plugin_status plugin_start(const void *parameter) {
     /* Avoid compiler warnings */
     (void)parameter;
 
+    /* on an iPod, played alone: black against the iPod, as its own Reversi
+       would have it; Black Player and White Player change it */
+#if (CONFIG_KEYPAD == IPOD_4G_PAD) || (CONFIG_KEYPAD == IPOD_3G_PAD) || \
+    (CONFIG_KEYPAD == IPOD_1G2G_PAD)
+    white_strategy = &strategy_simple;
+#else
     white_strategy = &strategy_human;
+#endif
     black_strategy = &strategy_human;
 
     reversi_gui_init();
@@ -645,11 +657,16 @@ enum plugin_status plugin_start(const void *parameter) {
         }
 
         if(cur_strategy->is_robot && !game_finished) {
+            /* half a second to see the player's move before the answer:
+               they came on the screen at once */
+            const game_strategy_t *other =
+                (cur_player == WHITE) ? black_strategy : white_strategy;
+            if (!other->is_robot)
+                rb->sleep(HZ/2);
             move_t m = cur_strategy->move_func(&game, cur_player);
             reversi_make_move(&game, MOVE_ROW(m), MOVE_COL(m), cur_player);
             cur_player = reversi_flipped_color(cur_player);
             draw_screen = true;
-            /* TODO: Add some delay to prevent it from being too fast ? */
             /* TODO: Don't duplicate end of game check */
             if (reversi_game_is_finished(&game, cur_player)) {
                 reversi_count_occupied_cells(&game, &w_cnt, &b_cnt);

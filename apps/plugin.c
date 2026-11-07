@@ -943,6 +943,7 @@ static const struct plugin_api rockbox_api = {
     itunesdb_covers_images_changed,
 #endif
     otg_add_file,
+    lang_extras_load,
 };
 
 static int plugin_buffer_handle;
@@ -1109,6 +1110,8 @@ int plugin_load(const char* plugin, const void* parameter)
     plugin_running = true;
     int rc = p_hdr->entry_point(parameter); /* run the loaded plugin */
     plugin_running = false;
+    /* the phrases a plugin of Extras loaded were in its memory, gone now */
+    lang_extras_reset();
 
     /* unlock the tree and restore the dirfilter pointer */
     tree_unlock_cache(tc);

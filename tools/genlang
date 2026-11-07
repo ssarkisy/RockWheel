@@ -215,11 +215,18 @@ sub readenglish {
     my @idnum = ((0));       # start with a true number
     my @vidnum = ((0x8001)); # first voice id
 
-    if ($binary and file_is_newer("$binpath/english.list", $english)) {
+    if ($binary and file_is_newer("$binpath/english.list", $english)
+        and file_is_newer("$binpath/english.list", $0)) {
         open(ENG, "<$binpath/english.list") ||
             die "Error: can't open $binpath/english.list";
         while (<ENG>) {
-            my ($user, $id, $value) = split ':', $_;
+            chomp;
+            my ($uname, $id, $value) = split ':', $_;
+            my $user = $users{$uname};
+            if (!defined $user) {
+                $user = scalar(keys %users);
+                $users{$uname} = $user;
+            }
             $idmap[$user]{$id} = $value;
             $english{$id} = 1;
         }
@@ -235,7 +242,8 @@ sub readenglish {
     my $user;
     my $withindest;
     my $numphrases = 0;
-    my $numusers = 1; # core is already in the users map
+    my $numusers = 0; # core is already in the users map, as 0: the others follow
+                      # it, as lang_load() finds a user's subheader by its number
 
     while(<ENG>) {
         # get rid of DOS newlines
@@ -249,10 +257,12 @@ sub readenglish {
                 # voice-only entries get a difference range
                 if($id =~ /^VOICE_/) {
                     # Assign an ID number to this entry
+                    $vidnum[$user] //= 0x8001;
                     $idmap[$user]{$id}=$vidnum[$user];
                     $vidnum[$user]++;
                 } else {
                     # Assign an ID number to this entry
+                    $idnum[$user] //= 0;
                     $idmap[$user]{$id}=$idnum[$user];
                     $idnum[$user]++;
                 }
@@ -310,7 +320,7 @@ sub readenglish {
 my @idcount;           # counter for lang ID numbers
 my @voiceid;           # counter for voice-only ID numbers
 
-for (keys %users) {
+for (sort { $a <=> $b } values %users) {
     push @idcount, 0;
     push @voiceid, 0x8001;
 }
@@ -526,7 +536,7 @@ MOO
 
 #include "$headername"
 
-unsigned char *language_strings[LANG_LAST_INDEX_IN_ARRAY];
+unsigned char *language_strings[LANG_LAST_EXTRAS_INDEX];
 const unsigned char core_language_builtin[] =
 MOO
 ;
@@ -545,6 +555,24 @@ MOO
 
     print HFILE_CORE <<MOO
     LANG_LAST_INDEX_IN_ARRAY, /* this is not a string, this is a marker */
+MOO
+    ;
+
+# The phrases of user extras, the plugins of Extras: in a section of their own
+# of the language file, which a plugin loads as it starts (lang_extras_load()),
+# so that the core keeps none of them; after the core's in language_strings,
+# from the one after LANG_LAST_INDEX_IN_ARRAY, which talk takes as the end
+    if (defined $users{"extras"}) {
+        my $x = $users{"extras"};
+        for $i (0 .. $idcount[$x]-1) {
+            my $name=$idnum[$x][$i]; # get the ID name
+            $name =~ tr/\"//d;
+            printf HFILE_CORE ("    %s, /* (extras %d) */\n", $name, $i);
+        }
+    }
+
+    print HFILE_CORE <<MOO
+    LANG_LAST_EXTRAS_INDEX, /* this is not a string, this is a marker */
     /* --- below this follows voice-only strings --- */
     VOICEONLY_DELIMITER = 0x8000,
 MOO
@@ -616,8 +644,9 @@ elsif($binary || $binvoice) {
 
     # output the number of strings for each user
     my $foffsetb = $HEADER_SIZE + $SUBHEADER_SIZE * keys(%users);
-    my $foffsetv = $HEADER_SIZE + $SUBHEADER_SIZE * keys(%users);
-    for (keys %users) {
+    # the voice strings are the core's alone, as talk and the voice tools take them
+    my $foffsetv = $HEADER_SIZE + $SUBHEADER_SIZE;
+    for (sort { $a <=> $b } values %users) {
         if($binary) {
 	    my $sizeb = 0;
 	    for $n (0 .. $idcount[$_]-1) {
@@ -627,7 +656,7 @@ elsif($binary || $binvoice) {
 			 ($sizeb >> 8), ($sizeb & 0xff), ($foffsetb >> 8), ($foffsetb & 0xff));
 	    $foffsetb += $sizeb;
         }
-        if($binvoice) {
+        if($binvoice && $_ == $users{"core"}) {
 	    my $sizev = 0;
 	    my $count = 0;
 
@@ -646,7 +675,7 @@ elsif($binary || $binvoice) {
         }
     }
 
-    for (keys %users) {
+    for (sort { $a <=> $b } values %users) {
         # loop over the target phrases
         # This loops over the strings in the translated language file order
 	# XXX ^^^ this should always be done in the ENGLISH order.  wtf.
@@ -665,7 +694,7 @@ elsif($binary || $binvoice) {
 
                 printf OUTF ("%c%c%s\x00", ($idnum>>8), ($idnum&0xff), $dest);
             }
-            if($voice && $binvoice) {
+            if($voice && $binvoice && $_ == $users{"core"}) {
                 $voice =~ s/^\"(.*)\"\s*$/$1/g; # cut off quotes
                 # Now, make sure we get the number from the english sort order:
                 $idnum = $idmap[$_]{$name};
@@ -686,7 +715,7 @@ elsif($voiceout) {
 
     my @engl;
 
-    for (keys %users) {
+    for ($users{"core"}) { # the core's alone, as for the voice strings
         # loop over the target phrases
         # This loops over the strings in the translated language file order
         my @ids = ((0 .. ($idcount[$_]-1)));
@@ -714,7 +743,7 @@ elsif($voiceout) {
 if($verbose) {
     my $num_str = 0;
 
-    for (keys %users) {
+    for (sort { $a <=> $b } values %users) {
         $num_str += $idcount[$_];
     }
 
@@ -726,13 +755,19 @@ if($verbose) {
     }
 }
 
-if ($binary and !file_is_newer("$binpath/english.list", $english)) {
-    open(ENGLIST, ">$binpath/english.list") ||
+if ($binary and !(file_is_newer("$binpath/english.list", $english)
+                  and file_is_newer("$binpath/english.list", $0))) {
+    # whole or not at all: a list cut short by a parallel build would lose
+    # the extras, written last
+    open(ENGLIST, ">$binpath/english.list.$$") ||
         die "Failed creating $binpath/english.list";
-    for my $user (keys %users) {
+    for my $uname (sort { $users{$a} <=> $users{$b} } keys %users) {
+        my $user = $users{$uname};
         for my $id (sort { $idmap[$user]{$a} <=> $idmap[$user]{$b} } keys %{$idmap[$user]}) {
-            print ENGLIST "$user:$id:$idmap[$user]{$id}\n";
+            print ENGLIST "$uname:$id:$idmap[$user]{$id}\n";
         }
     }
     close ENGLIST;
+    rename("$binpath/english.list.$$", "$binpath/english.list") ||
+        die "Failed creating $binpath/english.list";
 }

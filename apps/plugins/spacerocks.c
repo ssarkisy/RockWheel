@@ -19,6 +19,7 @@
  ****************************************************************************/
 
 #include "plugin.h"
+#include "lib/extras_lang.h"
 #include "lib/display_text.h"
 #include "lib/helper.h"
 #include "lib/highscore.h"
@@ -1955,10 +1956,11 @@ static int spacerocks_menu_cb(int action,
 static int spacerocks_menu(void)
 {
     int selection = 0;
-    MENUITEM_STRINGLIST(main_menu, "Spacerocks", spacerocks_menu_cb,
-                        "Resume Game", "Start New Game",
-                        "Help", "High Scores",
-                        "Playback Control", "Quit");
+    MENUITEM_STRINGLIST(main_menu, ID2P(LANG_SPACEROCKS), spacerocks_menu_cb,
+                        ID2P(LANG_CHESSBOX_MENU_RESUME_GAME),
+                        ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                        ID2P(LANG_GAME_HELP), ID2P(LANG_GAME_HIGH_SCORES),
+                        ID2P(LANG_PLAYBACK_CONTROL), ID2P(LANG_MENU_QUIT));
     rb->button_clear_queue();
 
     while (1)
@@ -2147,6 +2149,7 @@ static int spacerocks_game_loop(void)
 
 enum plugin_status plugin_start(const void* parameter)
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     (void)parameter;
     int ret = PLUGIN_OTHER;
 

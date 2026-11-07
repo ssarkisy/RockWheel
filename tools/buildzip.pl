@@ -27,6 +27,7 @@ my $exe;
 my $target;
 my $modelname;
 my $incfonts;
+my $games;
 my $target_id; # passed in, not currently used
 my $rbdir; # can be non-.rockbox for special builds
 my $app;
@@ -301,6 +302,7 @@ GetOptions ( 'r|root=s'      => \$ROOT,
              'i|id=s'        => \$target_id,  # The target id name as used in TARGET_ID in the root makefile
              'o|output:s'    => \$output,
              'f|fonts=s'     => \$incfonts,   # 0 - no fonts, 1 - fonts only 2 - fonts and package
+             'g|games'       => \$games,      # RockWheel's second archive: the games of ROCKWHEEL_GAMES only
              'v|verbose'     => \$verbose,
              'install=s'     => \$install, # install destination
              'rbdir:s'       => \$rbdir, # If we want to put in a different directory
@@ -666,11 +668,30 @@ sub buildzip {
     }
 
     # RockWheel, the iPod Video build: only the plugins its menus open, with
-    # their data, and the viewers of those
+    # their data, and the viewers of those; or, for its second archive, only
+    # Rockbox's games of ROCKWHEEL_GAMES
     if ($modelname =~ /\bipodvideo\b/ && -e "$ROOT/apps/plugins/ROCKWHEEL") {
-        open ROCKWHEEL, "$ROOT/apps/plugins/ROCKWHEEL" or die "can't open ROCKWHEEL";
-        my %keep = map { $_ => 1 } grep { /\S/ && !/^#/ } map { s/\s+//gr } <ROCKWHEEL>;
-        close ROCKWHEEL;
+        my $list = sub {
+            open my $fh, "$ROOT/apps/plugins/$_[0]" or die "can't open $_[0]";
+            my @names = grep { /\S/ && !/^#/ } map { s/\s+//gr } <$fh>;
+            close $fh;
+            return @names;
+        };
+        my @core = $list->("ROCKWHEEL");
+        my @extra = $list->("ROCKWHEEL_GAMES");
+        my %in_core = map { $_ => 1 } @core;
+        for my $g (@extra) {
+            die "buildzip: $g is in both ROCKWHEEL and ROCKWHEEL_GAMES\n" if $in_core{$g};
+        }
+        # a game not in Extras > Games would be put on the iPod and never shown
+        open my $menu, "$ROOT/apps/menus/extras_menu.c" or die "can't open extras_menu.c";
+        my $extras = do { local $/; <$menu> };
+        close $menu;
+        for my $g (@extra) {
+            die "buildzip: $g of ROCKWHEEL_GAMES isn't in apps/menus/extras_menu.c\n"
+                if index($extras, "/$g.rock\"") < 0;
+        }
+        my %keep = map { $_ => 1 } ($games ? @extra : @core);
         my @gone;
         find({ no_chdir => 1, bydepth => 1, wanted => sub {
             my $f = $File::Find::name;
@@ -803,6 +824,15 @@ sub buildzip {
     # finally, bundle map files for debug
     glob_mkdir("$temp_dir/debug");
     glob_copy("*.map", "$temp_dir/debug");
+
+    # the second archive: the games' plugins and their data, to go beside the
+    # first one's, and nothing else of the build
+    if ($games) {
+        opendir(my $dh, $temp_dir) or die "can't open $temp_dir";
+        my @rest = grep { !/^\.\.?$/ && $_ ne "rocks" } readdir($dh);
+        closedir($dh);
+        rmtree("$temp_dir/$_") for @rest;
+    }
 # codecs and plugin maps add up
 #    find(find_copyfile(qr/\.(map)/, abs_path("$temp_dir/debug")), 'lib');
 #    find(find_copyfile(qr/\.(map)/, abs_path("$temp_dir/debug")), 'apps/plugins');
@@ -832,8 +862,8 @@ sub runone {
 
     unlink($output);
 
-    if($fonts == 1) {
-        # Don't include image file in fonts-only package
+    if($fonts == 1 || $games) {
+        # Don't include image file in fonts-only or games package
         undef $target;
     }
     if($target && ($target !~ /(mod|ajz|wma)\z/i)) {

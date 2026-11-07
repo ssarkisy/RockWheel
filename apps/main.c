@@ -448,6 +448,7 @@ static void init(void)
 #endif
     lang_init(core_language_builtin, language_strings,
               LANG_LAST_INDEX_IN_ARRAY);
+    lang_extras_reset(); /* the Extras plugins' phrases, empty until one loads them */
 #ifdef DEBUG
     debug_init();
 #endif
@@ -560,6 +561,7 @@ static void init(void)
     CHART("<show_logo");
     lang_init(core_language_builtin, language_strings,
               LANG_LAST_INDEX_IN_ARRAY);
+    lang_extras_reset(); /* the Extras plugins' phrases, empty until one loads them */
 
 #ifdef DEBUG
     debug_init();

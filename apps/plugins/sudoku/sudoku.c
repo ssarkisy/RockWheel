@@ -58,6 +58,7 @@ Example ".ss" file, and one with a saved state:
 */
 
 #include "plugin.h"
+#include "lib/extras_lang.h"
 #include "lib/configfile.h"
 
 #include <lib/playback_control.h>
@@ -545,7 +546,7 @@ static bool save_sudoku(struct sudoku_state_t* state)
 #endif
     char sep[13]__NONSTRING = "-----------\r\n";
 
-    rb->splash(0, "Saving...");
+    rb->splash(0, ID2P(LANG_GAME_SAVING));
 
     if (state->filename[0]==0) {
         return false;
@@ -875,11 +876,12 @@ static bool sudoku_generate(struct sudoku_state_t* state)
 static bool numdisplay_setting(void)
 {
     static const struct opt_items names[] = {
-        {"Black",  -1},
-        {"Coloured",  -1},
+        { STR(LANG_OFF) }, /* black */
+        { STR(LANG_ON) },  /* coloured */
     };
 
-    return rb->set_option("Number Display", &sudcfg.number_display, RB_INT, names,
+    return rb->set_option(rb->str(LANG_SUDOKU_COLOURED_NUMBERS),
+                          &sudcfg.number_display, RB_INT, names,
                           sizeof(names) / sizeof(names[0]), NULL);
 }
 #endif
@@ -888,11 +890,12 @@ static bool numdisplay_setting(void)
 static bool showmarkings_setting(void)
 {
     static const struct opt_items names[] = {
-        {"Hide",  -1},
-        {"Show",  -1},
+        { STR(LANG_OFF) }, /* hide */
+        { STR(LANG_ON) },  /* show */
     };
 
-    return rb->set_option("Show Markings", &sudcfg.show_markings, RB_INT, names,
+    return rb->set_option(rb->str(LANG_SUDOKU_SHOW_MARKINGS),
+                          &sudcfg.show_markings, RB_INT, names,
                           sizeof(names) / sizeof(names[0]), NULL);
 }
 #endif
@@ -918,16 +921,21 @@ static int sudoku_menu(struct sudoku_state_t* state)
 {
     int result;
 
-    MENUITEM_STRINGLIST(menu, "Sudoku", NULL,
-                        "Audio Playback",
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_SUDOKU), NULL,
+                        ID2P(LANG_PLAYBACK_CONTROL),
 #ifdef HAVE_LCD_COLOR
-                        "Number Display",
+                        ID2P(LANG_SUDOKU_COLOURED_NUMBERS),
 #endif
 #ifdef SUDOKU_BUTTON_POSSIBLE
-                        "Show Markings",
+                        ID2P(LANG_SUDOKU_SHOW_MARKINGS),
 #endif
-                        "Save", "Reload", "Clear", "Solve",
-                        "Generate", "New", "Quit");
+                        ID2P(LANG_SAVE),                     /* Save */
+                        ID2P(LANG_SUDOKU_REVERT),            /* Reload */
+                        ID2P(LANG_SUDOKU_START_OVER),        /* Clear */
+                        ID2P(LANG_SHOW_SOLUTION),            /* Solve */
+                        ID2P(LANG_CHESSBOX_MENU_NEW_GAME),   /* Generate */
+                        ID2P(LANG_SUDOKU_ENTER_PUZZLE),      /* New */
+                        ID2P(LANG_MENU_QUIT));
 
     result = rb->do_menu(&menu, NULL, NULL, false);
 
@@ -988,8 +996,8 @@ static int sudoku_edit_menu(struct sudoku_state_t* state)
 {
     int result;
 
-    MENUITEM_STRINGLIST(menu, "Edit", NULL,
-                        "Save as", "Quit");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_EDIT), NULL,
+                        ID2P(LANG_SUDOKU_SAVE_AS), ID2P(LANG_MENU_QUIT));
 
     result = rb->do_menu(&menu, NULL, NULL, false);
 
@@ -999,7 +1007,7 @@ static int sudoku_edit_menu(struct sudoku_state_t* state)
             if (save_sudoku(state)) {
                 state->editmode=0;
             } else {
-                rb->splash(HZ*2, "Save failed");
+                rb->splash(HZ*2, ID2P(LANG_GAME_SAVE_FAILED));
             }
             break;
 
@@ -1039,6 +1047,7 @@ static void move_cursor(struct sudoku_state_t* state, int newx, int newy)
 /* plugin entry point */
 enum plugin_status plugin_start(const void* parameter)
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     bool exit;
     int button;
 #if defined(SUDOKU_BUTTON_TOGGLE_PRE) || defined(SUDOKU_BUTTON_MENU_PRE)

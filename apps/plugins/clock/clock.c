@@ -19,6 +19,7 @@
  ****************************************************************************/
 
 #include "plugin.h"
+#include "lib/extras_lang.h"
 #include "time.h"
 #include "lib/pluginlib_actions.h"
 #include "lib/pluginlib_exit.h"
@@ -111,6 +112,7 @@ void format_date(char* buffer, struct time* time, enum date_format format){
  * Plugin starts here
  **********************************************************************/
 enum plugin_status plugin_start(const void* parameter){
+    extras_lang_init(); /* its words: the language files' Extras section */
     int button;
     int last_second = -1;
     bool redraw=true;

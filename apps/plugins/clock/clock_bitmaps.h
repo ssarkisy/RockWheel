@@ -22,9 +22,6 @@
 #define _CLOCK_BITMAPS_
 #include "lib/picture.h"
 
-extern const struct picture logos[];
-extern const struct picture messages[];
-
 extern const struct picture binary[];
 extern const struct picture digits[];
 extern const struct picture smalldigits[];

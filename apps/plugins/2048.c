@@ -796,7 +796,8 @@ static void hs_check_update(bool noshow)
 /* asks the user if they wish to quit */
 static bool confirm_quit(void)
 {
-    const struct text_message prompt = { (const char*[]) {"Are you sure?", "This will clear your current game."}, 2};
+    const struct text_message prompt = { (const char*[]) {ID2P(LANG_ARE_YOU_SURE),
+                                                          ID2P(LANG_2048_GAME_LOST)}, 2};
     enum yesno_res response = rb->gui_syncyesno_run(&prompt, NULL, NULL);
     if(response == YESNO_NO)
         return false;
@@ -808,14 +809,14 @@ static bool confirm_quit(void)
 static int do_2048_pause_menu(void)
 {
     int sel = 0;
-    MENUITEM_STRINGLIST(menu,"2048", NULL,
-                        "Resume Game",
-                        "Start New Game",
-                        "High Scores",
-                        "Playback Control",
-                        "Help",
-                        "Quit without Saving",
-                        "Quit");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_2048), NULL,
+                        ID2P(LANG_CHESSBOX_MENU_RESUME_GAME),
+                        ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                        ID2P(LANG_GAME_HIGH_SCORES),
+                        ID2P(LANG_PLAYBACK_CONTROL),
+                        ID2P(LANG_GAME_HELP),
+                        ID2P(LANG_QUIT_WITHOUT_SAVING),
+                        ID2P(LANG_MENU_QUIT));
     while(1)
     {
         switch(rb->do_menu(&menu, &sel, NULL, false))
@@ -1013,15 +1014,15 @@ static enum plugin_status do_2048_menu(void)
     int sel = 0;
     loaded = load_game();
     MENUITEM_STRINGLIST(menu,
-                        "2048",
+                        ID2P(LANG_2048),
                         mainmenu_cb,
-                        "Resume Game",
-                        "Start New Game",
-                        "High Scores",
-                        "Playback Control",
-                        "Help",
-                        "Quit without Saving",
-                        "Quit");
+                        ID2P(LANG_CHESSBOX_MENU_RESUME_GAME),
+                        ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                        ID2P(LANG_GAME_HIGH_SCORES),
+                        ID2P(LANG_PLAYBACK_CONTROL),
+                        ID2P(LANG_GAME_HELP),
+                        ID2P(LANG_QUIT_WITHOUT_SAVING),
+                        ID2P(LANG_MENU_QUIT));
     while(true)
     {
         switch(rb->do_menu(&menu, &sel, NULL, false))
@@ -1081,8 +1082,11 @@ static enum plugin_status do_2048_menu(void)
 }
 
 /* plugin entry point */
+#include "lib/extras_lang.h"
+
 enum plugin_status plugin_start(const void* param)
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     (void)param;
     load_hs();
     rb->lcd_setfont(WHAT_FONT);

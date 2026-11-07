@@ -19,9 +19,11 @@
  ****************************************************************************/
 
 #include "plugin.h"
+#include "lib/extras_lang.h"
 #include "lib/playback_control.h"
 #include "lib/configfile.h"
 #include "lib/display_text.h"
+#include "lib/simple_viewer.h"
 #include "button.h"
 #include "lcd.h"
 
@@ -77,6 +79,7 @@
 #   define HK_REM2CUR      "PLAY"
 #   define HK_CUR2STACK    "MENU.."
 #   define HK_REM2STACK    "RIGHT.."
+#   define SOL_IPOD_HELP   /* the help tells of these keys, in phrases */
 
 #elif (CONFIG_KEYPAD == IAUDIO_X5M5_PAD)
 #   define SOL_QUIT          BUTTON_POWER
@@ -1032,6 +1035,19 @@ static void draw_empty_stack( int s, int x, int y, bool cursor )
 }
 
 /* Help */
+#ifdef SOL_IPOD_HELP
+/* in the iPod's language, what its buttons and wheel do here */
+static bool solitaire_help( void )
+{
+    static char text[4096];
+    rb->snprintf( text, sizeof(text), "%s\n\n%s\n\n%s\n\n%s",
+                  rb->str(LANG_SOLITAIRE_HELP_AIM),
+                  rb->str(LANG_SOLITAIRE_HELP_MOVE),
+                  rb->str(LANG_SOLITAIRE_HELP_SELECT),
+                  rb->str(LANG_SOLITAIRE_HELP_SHORTCUTS) );
+    return view_text( rb->str(LANG_GAME_HELP), text ) == PLUGIN_USB_CONNECTED;
+}
+#else
 static bool solitaire_help( void )
 {
     static char* help_text[] = {
@@ -1063,6 +1079,7 @@ static bool solitaire_help( void )
         return true;
     return false;
 }
+#endif /* SOL_IPOD_HELP */
 
 /**
  * Custom menu / options
@@ -1082,8 +1099,8 @@ static struct configdata config[] = {
 };
 
 static const struct opt_items drawcards[2] = {
-    { "Draw Three Cards", -1 },
-    { "Draw One Card", -1 },
+    { STR(LANG_SOLITAIRE_DRAW_THREE) },
+    { STR(LANG_SOLITAIRE_DRAW_ONE) },
 };
 
 void solitaire_init(void);
@@ -1111,11 +1128,14 @@ static int solitaire_menu(bool in_game)
     int selected = 0;
     int result = -1;
 
-    MENUITEM_STRINGLIST(menu, "Solitaire", solitaire_menu_cb,
-                        "Resume Game", "Start New Game",
-                        "Draw Cards Option",
-                        "Help", "Playback Control",
-                        "Quit without Saving", "Quit");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_SOLITAIRE), solitaire_menu_cb,
+                        ID2P(LANG_CHESSBOX_MENU_RESUME_GAME),
+                        ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                        ID2P(LANG_SOLITAIRE_DRAW_CARDS),
+                        ID2P(LANG_GAME_HELP),
+                        ID2P(LANG_PLAYBACK_CONTROL),
+                        ID2P(LANG_QUIT_WITHOUT_SAVING),
+                        ID2P(LANG_MENU_QUIT));
     _ingame = in_game;
 
     while (result < 0)
@@ -1140,8 +1160,8 @@ static int solitaire_menu(bool in_game)
                 break;
 
             case 2:
-                if (rb->set_option("Draw Cards Option", &sol.draw_type,
-                                   RB_INT, drawcards, 2, NULL))
+                if (rb->set_option(rb->str(LANG_SOLITAIRE_DRAW_CARDS),
+                                   &sol.draw_type, RB_INT, drawcards, 2, NULL))
                     result = MENU_USB;
                 break;
 
@@ -1664,7 +1684,7 @@ static int save_game( void )
         || ( rb->write( fd, &checksum, sizeof( int ) ) < (ssize_t)(sizeof( int ) ) ) )
     {
         rb->close( fd );
-        rb->splash( 2*HZ, "Error while saving game. Aborting." );
+        rb->splash( 2*HZ, ID2P(LANG_GAME_SAVE_FAILED) );
         return -2;
     }
     rb->close( fd );
@@ -1694,12 +1714,12 @@ static int load_game( void )
         || save_read( fd, cols, COL_NUM * sizeof( int ), &checksum )
         || save_read( fd, stacks, SUITS * sizeof( int ), &checksum ) )
     {
-        rb->splash( 2*HZ, "Error while loading saved game. Aborting." );
+        rb->splash( 2*HZ, ID2P(LANG_GAME_LOAD_FAILED) );
         retval = -2;
     }
     else if( checksum != 42 )
     {
-        rb->splash( 2*HZ, "Save file was corrupted. Aborting." );
+        rb->splash( 2*HZ, ID2P(LANG_GAME_LOAD_FAILED) );
         retval = -3;
     }
 
@@ -1784,7 +1804,7 @@ static int solitaire( int skipmenu )
         if( biggest_col_length == 0 && rem == NOT_A_CARD )
         {
             rb->lcd_update();
-            rb->splash( HZ, "You Won :)" );
+            rb->splash( HZ, ID2P(LANG_GAME_YOU_WIN) );
             return bouncing_cards();
         }
 
@@ -2235,6 +2255,7 @@ static int solitaire( int skipmenu )
 
 enum plugin_status plugin_start(const void* parameter )
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     int result;
 
     /* plugin init */
@@ -2246,7 +2267,7 @@ enum plugin_status plugin_start(const void* parameter )
 
     if( load_game() == 0 )
     {
-        rb->splash( HZ, "Resuming saved game." );
+        rb->splash( HZ, ID2P(LANG_SOLITAIRE_RESUMING) );
         result = SOLITAIRE_QUIT;
     }
     else

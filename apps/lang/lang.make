@@ -19,14 +19,11 @@ CLEANOBJS += $(BUILDDIR)/lang/max_language_size.h $(BUILDDIR)/lang/lang*
 # Therefore we create it here.
 #DUMMY := $(shell mkdir -p $(BUILDDIR)/apps/lang)
 
-# Calculate the maximum language size. Currently based on the file size
-# of the largest lng file. Subtract 10 due to HEADER_SIZE and
-# SUBHEADER_SIZE.
-# TODO: In the future generate this file within genlang or another script
-# in order to only calculate the maximum size based on the core strings.
-$(BUILDDIR)/lang/max_language_size.h: $(LANGOBJ) $(BUILDDIR)/apps/lang/voicestrings.zip
+# The maximum language size: the largest core section of the lng files, and
+# what a plugin of Extras needs for their second section (tools/lngsize.pl)
+$(BUILDDIR)/lang/max_language_size.h: $(LANGOBJ) $(BUILDDIR)/apps/lang/voicestrings.zip $(TOOLSDIR)/lngsize.pl
 	$(call PRINTS,GEN $(subst $(BUILDDIR)/,,$@))
-	$(SILENT)echo "#define MAX_LANGUAGE_SIZE `ls -ln $(BUILDDIR)/apps/lang/*.lng | awk '{print $$5-10}' | sort -n | tail -1`" > $@
+	$(SILENT)perl $(TOOLSDIR)/lngsize.pl $(BUILDDIR)/apps/lang/*.lng > $@
 
 $(BUILDDIR)/lang/lang_core.o: $(BUILDDIR)/lang/lang.h $(BUILDDIR)/lang/lang_core.c
 	$(call PRINTS,CC lang_core.c)$(CC) $(CFLAGS) -c $(BUILDDIR)/lang/lang_core.c -o $@

@@ -187,13 +187,18 @@ int plugin_open(const char *plugin, const char *parameter);
  * table of functions. With the sizes of what plugins see of the core in it,
  * so that one built when they were otherwise doesn't load: twice a structure
  * changed without the number. Raise PLUGIN_API_REVISION for a change that
- * leaves the sizes, as functions in another order, or an action's number. */
+ * leaves the sizes, as functions in another order, or an action's number.
+ * The counts of the language's phrases, the core's and the Extras', are in it
+ * too: a plugin takes its words by their numbers, and one built with another
+ * list showed other phrases, or read past the end of it. */
 #define PLUGIN_API_REVISION 2
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
     + sizeof(struct viewport) * 13u + sizeof(struct system_status) * 17u \
-    + sizeof(struct tree_context) * 19u) & 0x7fff)))
+    + sizeof(struct tree_context) * 19u \
+    + (unsigned)LANG_LAST_INDEX_IN_ARRAY * 23u \
+    + (unsigned)LANG_LAST_EXTRAS_INDEX * 29u) & 0x7fff)))
 
 /* 239 Marks the removal of ARCHOS HWCODEC and CHARCELL */
 
@@ -1128,6 +1133,9 @@ struct plugin_api {
 #endif
     /* a song at the end of On-The-Go (on_the_go.h), as Cover Flow adds them */
     bool (*otg_add_file)(const char *path);
+    /* the phrases of the plugins of Extras into the plugin's buf, for
+       rb->str() and ID2P() to find until it quits (language.h) */
+    int (*lang_extras_load)(unsigned char *buf, size_t size);
 };
 
 /* plugin header */

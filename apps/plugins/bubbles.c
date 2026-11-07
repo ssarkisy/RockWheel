@@ -21,6 +21,7 @@
 ****************************************************************************/
 
 #include "plugin.h"
+#include "lib/extras_lang.h"
 #include "fixedpoint.h"
 
 #include "lib/xlcd.h"
@@ -2555,10 +2556,12 @@ static int bubbles_menu(struct game_context* bb) {
     int selected = 0;
     bool startgame = false;
 
-    MENUITEM_STRINGLIST(menu,"Bubbles",bubbles_menu_cb,
-                        "Resume Game", "Start New Game",
-                        "Level", "High Scores", "Playback Control",
-                        "Quit without Saving", "Quit");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_BUBBLES), bubbles_menu_cb,
+                        ID2P(LANG_CHESSBOX_MENU_RESUME_GAME),
+                        ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                        ID2P(LANG_GAME_LEVEL), ID2P(LANG_GAME_HIGH_SCORES),
+                        ID2P(LANG_PLAYBACK_CONTROL),
+                        ID2P(LANG_QUIT_WITHOUT_SAVING), ID2P(LANG_MENU_QUIT));
 
     while(!startgame){
         switch (rb->do_menu(&menu, &selected, NULL, false))
@@ -2577,7 +2580,7 @@ static int bubbles_menu(struct game_context* bb) {
                 break;
             case 2: /* choose level */
                 startlevel++;
-                rb->set_int("Choose start level", "", UNIT_INT, &startlevel,
+                rb->set_int(rb->str(LANG_GAME_LEVEL), "", UNIT_INT, &startlevel,
                             NULL, 1, 1, highlevel+1, NULL);
                 startlevel--;
                 break;
@@ -2662,6 +2665,7 @@ static int bubbles(struct game_context* bb) {
 * plugin entry point.
 ******************************************************************************/
 enum plugin_status plugin_start(const void* parameter) {
+    extras_lang_init(); /* its words: the language files' Extras section */
     static struct game_context bb;
     bool exit = false;
     enum plugin_status ret = PLUGIN_OK;
@@ -2707,7 +2711,7 @@ enum plugin_status plugin_start(const void* parameter) {
                 break;
 
             case BB_QUIT:
-                rb->splash(HZ/3, "Saving game data ...");
+                rb->splash(HZ/3, ID2P(LANG_GAME_SAVING));
                 bubbles_savegame(&bb);
                 bubbles_savedata();
                 highscore_save(SCORE_FILE, highscores, NUM_SCORES);

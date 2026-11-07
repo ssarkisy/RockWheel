@@ -20,11 +20,19 @@
  *
  ****************************************************************************/
 
+#include <stddef.h>
+
 /* Initialize language array with the builtin strings */
 void lang_init(const unsigned char *builtin, unsigned char **dest, int count);
 
 /* load a given language file */
 int lang_core_load(const char *filename);
+
+/* The phrases of the plugins of Extras, from the second section of the
+   language files: empty, or loaded by such a plugin into its own buf as it
+   starts (0, or -1 without English's file), and empty again after it */
+void lang_extras_reset(void);
+int lang_extras_load(unsigned char *buf, size_t size);
 
 int lang_load(const char *filename, const unsigned char *builtin, 
               unsigned char **dest, unsigned char *buffer, 

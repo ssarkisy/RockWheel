@@ -26,26 +26,26 @@
 
 /* Option structs (possible selections per each option) */
 static const struct opt_items noyes_text[] = {
-    { "No", -1 },
-    { "Yes", -1 }
+    { STR(LANG_SET_BOOL_NO) },
+    { STR(LANG_SET_BOOL_YES) }
 };
 
 static const struct opt_items backlight_settings_text[] = {
-    { "Always Off", -1 },
-    { "Use System Setting", -1 },
-    { "Always On", -1 }
+    { STR(LANG_CLOCK_ALWAYS_OFF) },
+    { STR(LANG_CLOCK_USE_SYSTEM_SETTING) },
+    { STR(LANG_ALWAYS_ON) }
 };
 
 static const struct opt_items idle_poweroff_text[] = {
-    { "Disabled", -1 },
-    { "Enabled", -1 }
+    { STR(LANG_OFF) },
+    { STR(LANG_ON) }
 };
 
 static const struct opt_items date_format_text[] = {
-    { "No date", -1 },
-    { "US (M-D-Y)", -1 },
-    { "European (D-M-Y)", -1 },
-    { "Japanese (Y-M-D)", -1 },
+    { STR(LANG_CLOCK_NO_DATE) },
+    { STR(LANG_CLOCK_MONTH_DAY_YEAR) },
+    { STR(LANG_CLOCK_DAY_MONTH_YEAR) },
+    { STR(LANG_CLOCK_YEAR_MONTH_DAY) },
 };
 
 /***************
@@ -53,8 +53,9 @@ static const struct opt_items date_format_text[] = {
  * (we go back to clock display then)
  **************/
 static bool menu_mode_selector(void){
-    MENUITEM_STRINGLIST(menu,"Mode",NULL, "Analog",
-                        "Digital", "Binary");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_GAME_MODE), NULL,
+                        ID2P(LANG_CLOCK_ANALOG), ID2P(LANG_CLOCK_DIGITAL),
+                        ID2P(LANG_CLOCK_BINARY));
     if(rb->do_menu(&menu, &clock_settings.mode, NULL, false) >=0)
         return(true);
     return(false);
@@ -67,23 +68,26 @@ static void menu_analog_settings(void)
 {
     int selection=0, result=0;
 
-    MENUITEM_STRINGLIST(menu,"Analog",NULL,"Show Date",
-                        "Show Second Hand","Show Border");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_CLOCK_ANALOG), NULL,
+                        ID2P(LANG_CLOCK_SHOW_DATE),
+                        ID2P(LANG_CLOCK_SHOW_SECOND_HAND),
+                        ID2P(LANG_CLOCK_SHOW_HOUR_MARKS));
 
     while(result>=0){
         result=rb->do_menu(&menu, &selection, NULL, false);
         switch(result){
             case 0:
-                rb->set_option("Show Date", &clock_settings.analog.show_date,
+                rb->set_option(rb->str(LANG_CLOCK_SHOW_DATE),
+                               &clock_settings.analog.show_date,
                                RB_BOOL, noyes_text, 2, NULL);
                 break;
             case 1:
-                rb->set_option("Show Second Hand",
+                rb->set_option(rb->str(LANG_CLOCK_SHOW_SECOND_HAND),
                                &clock_settings.analog.show_seconds,
                                RB_BOOL, noyes_text, 2, NULL);
                 break;
             case 2:
-                rb->set_option("Show Border",
+                rb->set_option(rb->str(LANG_CLOCK_SHOW_HOUR_MARKS),
                                &clock_settings.analog.show_border,
                                RB_BOOL, noyes_text, 2, NULL);
                 break;
@@ -97,19 +101,20 @@ static void menu_analog_settings(void)
 static void menu_digital_settings(void){
     int selection=0, result=0;
 
-    MENUITEM_STRINGLIST(menu,"Digital",NULL,"Show Seconds",
-                        "Blinking Colon");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_CLOCK_DIGITAL), NULL,
+                        ID2P(LANG_CLOCK_SHOW_SECONDS),
+                        ID2P(LANG_CLOCK_BLINKING_COLON));
 
     while(result>=0){
         result=rb->do_menu(&menu, &selection, NULL, false);
         switch(result){
             case 0:
-                rb->set_option("Show Seconds",
+                rb->set_option(rb->str(LANG_CLOCK_SHOW_SECONDS),
                                &clock_settings.digital.show_seconds,
                                RB_BOOL, noyes_text, 2, NULL);
                 break;
             case 1:
-                rb->set_option("Blinking Colon",
+                rb->set_option(rb->str(LANG_CLOCK_BLINKING_COLON),
                                &clock_settings.digital.blinkcolon,
                                RB_BOOL, noyes_text, 2, NULL);
                 break;
@@ -123,10 +128,13 @@ static void menu_digital_settings(void){
 static int menu_general_settings(void){
     int selection=0, result=0;
 
-    MENUITEM_STRINGLIST(menu, "Clock Settings", NULL,
-                        "Analog", "Digital",
-                        "Date Format", "Backlight", "Idle Poweroff",
-                        "Save on Exit", "Save", "Reset");
+    /* Under the name of the row that opens it, Settings */
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_SETTINGS), NULL,
+                        ID2P(LANG_CLOCK_ANALOG), ID2P(LANG_CLOCK_DIGITAL),
+                        ID2P(LANG_CLOCK_DATE_FORMAT), ID2P(LANG_BACKLIGHT),
+                        ID2P(LANG_POWEROFF_IDLE),
+                        ID2P(LANG_CLOCK_SAVE_ON_EXIT), ID2P(LANG_SAVE),
+                        ID2P(LANG_RESET));
 
     while(result>=0){
         result=rb->do_menu(&menu, &selection, NULL, false);
@@ -138,24 +146,24 @@ static int menu_general_settings(void){
                 menu_digital_settings();
                 break;
             case 2:
-                rb->set_option("Date Format",
+                rb->set_option(rb->str(LANG_CLOCK_DATE_FORMAT),
                                &clock_settings.general.date_format,
                                RB_INT, date_format_text, 4, NULL);
                 break;
             case 3:
-                rb->set_option("Backlight",
+                rb->set_option(rb->str(LANG_BACKLIGHT),
                                &clock_settings.general.backlight,
                                RB_INT, backlight_settings_text, 3, NULL);
                 apply_backlight_setting(clock_settings.general.backlight);
                 break;
 
             case 4:
-                rb->set_option("Idle Poweroff",
+                rb->set_option(rb->str(LANG_POWEROFF_IDLE),
                                &clock_settings.general.idle_poweroff,
                                RB_BOOL, idle_poweroff_text, 2, NULL);
                 break;
             case 5:
-                rb->set_option("Save on Exit",
+                rb->set_option(rb->str(LANG_CLOCK_SAVE_ON_EXIT),
                                &clock_settings.general.save_settings,
                                RB_BOOL, noyes_text, 2, NULL);
 
@@ -189,9 +197,9 @@ bool main_menu(void)
     bool done = false;
     bool exit_clock=false;
 
-    MENUITEM_STRINGLIST(menu, "Clock", NULL, "Mode",
-                        "Settings","Playback Control",
-                        "Quit");
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_CLOCK), NULL, ID2P(LANG_GAME_MODE),
+                        ID2P(LANG_SETTINGS), ID2P(LANG_PLAYBACK_CONTROL),
+                        ID2P(LANG_MENU_QUIT));
     while (!done)
     {
         switch(rb->do_menu(&menu, &selection, NULL, false))

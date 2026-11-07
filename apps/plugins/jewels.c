@@ -21,9 +21,10 @@
 ****************************************************************************/
 
 #include "plugin.h"
-#include "lib/display_text.h"
+#include "lib/extras_lang.h"
 #include "lib/highscore.h"
 #include "lib/playback_control.h"
+#include "lib/simple_viewer.h"
 #include "pluginbitmaps/jewels.h"
 
 /* button definitions */
@@ -641,7 +642,7 @@ static void jewels_drawboard(struct game_context* bj) {
     int w, h;
     unsigned int tempscore;
     unsigned int size;
-    char *title = "Level";
+    const char *title = rb->str(LANG_GAME_LEVEL);
     char str[10];
 
     if (bj->type == GAME_TYPE_NORMAL) {
@@ -681,49 +682,73 @@ static void jewels_drawboard(struct game_context* bj) {
 
 #if LCD_WIDTH > LCD_HEIGHT /* horizontal layout */
 
+    /* The panel's text is in the UI font, the one with every language's
+     * letters, and placed by its height: the level's word and number at the
+     * top, the score at the bottom, the bar between them. A word wider than
+     * the panel is left out, the number staying; a font so tall the bar
+     * would keep less than a third of the screen gives way to the small
+     * built-in one. */
+    int font = FONT_UI;
+    int fh = rb->font_get(FONT_UI)->height;
+    int bar_top, bar_bottom;
+    bool show_title;
+
+    if (3*fh + 4 > LCD_HEIGHT*2/3) {
+        font = FONT_SYSFIXED;
+        fh = rb->font_get(FONT_SYSFIXED)->height;
+    }
+    rb->lcd_setfont(font);
+    rb->lcd_getstringsize(title, &w, &h);
+    show_title = (w <= LCD_WIDTH-BJ_WIDTH*TILE_WIDTH-2);
+    bar_top = 1 + (show_title ? fh : 0) + fh + 1;
+    bar_bottom = LCD_HEIGHT - fh - 2;
+
     /* draw separator lines */
     jewels_setcolors();
     rb->lcd_vline(BJ_WIDTH*TILE_WIDTH, 0, LCD_HEIGHT-1);
 
-    rb->lcd_hline(BJ_WIDTH*TILE_WIDTH, LCD_WIDTH-1, 18);
-    rb->lcd_hline(BJ_WIDTH*TILE_WIDTH, LCD_WIDTH-1, LCD_HEIGHT-10);
+    rb->lcd_hline(BJ_WIDTH*TILE_WIDTH, LCD_WIDTH-1, bar_top);
+    rb->lcd_hline(BJ_WIDTH*TILE_WIDTH, LCD_WIDTH-1, bar_bottom);
 
     /* draw progress bar */
 #ifdef HAVE_LCD_COLOR
     rb->lcd_set_foreground(LCD_RGBPACK(104, 63, 63));
 #endif
     rb->lcd_fillrect(BJ_WIDTH*TILE_WIDTH+(LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/4,
-                     (LCD_HEIGHT-10)-(((LCD_HEIGHT-10)-18)*
+                     bar_bottom-((bar_bottom-bar_top)*
                          tempscore/size),
                      (LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/2,
-                     ((LCD_HEIGHT-10)-18)*tempscore/size);
+                     (bar_bottom-bar_top)*tempscore/size);
 #ifdef HAVE_LCD_COLOR
     rb->lcd_set_foreground(LCD_RGBPACK(83, 44, 44));
     rb->lcd_drawrect(BJ_WIDTH*TILE_WIDTH+(LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/4+1,
-                     (LCD_HEIGHT-10)-(((LCD_HEIGHT-10)-18)*
+                     bar_bottom-((bar_bottom-bar_top)*
                          tempscore/size)+1,
                      (LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/2-2,
-                     ((LCD_HEIGHT-10)-18)*tempscore/size-1);
+                     (bar_bottom-bar_top)*tempscore/size-1);
     jewels_setcolors();
     rb->lcd_drawrect(BJ_WIDTH*TILE_WIDTH+(LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/4,
-                     (LCD_HEIGHT-10)-(((LCD_HEIGHT-10)-18)*tempscore/size),
+                     bar_bottom-((bar_bottom-bar_top)*tempscore/size),
                      (LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/2,
-                     ((LCD_HEIGHT-10)-18)*tempscore/size+1);
+                     (bar_bottom-bar_top)*tempscore/size+1);
 #endif
 
     /* print text */
-    rb->lcd_getstringsize(title, &w, &h);
-    rb->lcd_putsxy(LCD_WIDTH-(LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/2-w/2, 1, title);
+    if (show_title)
+        rb->lcd_putsxy(LCD_WIDTH-(LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/2-w/2, 1,
+                       title);
     rb->snprintf(str, 4, "%d", bj->level);
     rb->lcd_getstringsize(str, &w, &h);
-    rb->lcd_putsxy(LCD_WIDTH-(LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/2-w/2, 10, str);
+    rb->lcd_putsxy(LCD_WIDTH-(LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/2-w/2,
+                   1 + (show_title ? fh : 0), str);
 
     if (bj->type == GAME_TYPE_NORMAL) {
         rb->snprintf(str, 6, "%d", (bj->level-1)*LEVEL_PTS+bj->score);
         rb->lcd_getstringsize(str, &w, &h);
         rb->lcd_putsxy(LCD_WIDTH-(LCD_WIDTH-BJ_WIDTH*TILE_WIDTH)/2-w/2,
-                       LCD_HEIGHT-8, str);
+                       bar_bottom + 2, str);
     }
+    rb->lcd_setfont(FONT_SYSFIXED);
 
 #elif LCD_WIDTH < LCD_HEIGHT /* vertical layout */
 
@@ -1402,7 +1427,7 @@ static void jewels_nextlevel(struct game_context* bj) {
             while(bj->score >= LEVEL_PTS) {
                 bj->score -= LEVEL_PTS;
                 bj->level++;
-                rb->splashf(HZ*2, "Level %d", bj->level);
+                rb->splashf(HZ*2, rb->str(LANG_GAME_LEVEL_N), bj->level);
                 jewels_drawboard(bj);
             }
 
@@ -1420,7 +1445,7 @@ static void jewels_nextlevel(struct game_context* bj) {
 
         case GAME_TYPE_PUZZLE:
             bj->level++;
-            rb->splashf(HZ*2, "Level %d", bj->level);
+            rb->splashf(HZ*2, rb->str(LANG_GAME_LEVEL_N), bj->level);
             break;
     }
 
@@ -1430,32 +1455,13 @@ static void jewels_nextlevel(struct game_context* bj) {
 
 static bool jewels_help(void)
 {
-    static char *help_text[] = {
-        "Jewels", "", "Aim", "",
-        "Swap", "pairs", "of", "jewels", "to", "form", "connected",
-        "segments", "of", "three", "or", "more", "of", "the", "same",
-        "type.", "",
-        "The", "goal", "of", "the", "game", "is", "to", "score", "as", "many",
-        "points", "as", "possible", "before", "running", "out", "of",
-        "available", "moves.", "", "",
-        "Controls", "",
-        "Directions",
-#ifdef JEWELS_SCROLLWHEEL
-            "or", "scroll",
-#endif
-            "to", "move", "",
-        HK_SELECT, "to", "select", "",
-        HK_CANCEL, "to", "go", "to", "menu"
-    };
-    static struct style_text formation[]={
-        { 0, TEXT_CENTER|TEXT_UNDERLINE },
-        { 2, C_RED },
-        { 42, C_RED },
-        LAST_STYLE_ITEM
-    };
+    static char text[3072];
 
-    rb->lcd_setfont(FONT_UI);
-    if (display_text(ARRAYLEN(help_text), help_text, formation, NULL, true))
+    rb->snprintf(text, sizeof(text), "%s\n\n%s\n\n%s",
+                 rb->str(LANG_JEWELS_HELP_GOAL),
+                 rb->str(LANG_JEWELS_HELP_PUZZLE),
+                 rb->str(LANG_JEWELS_HELP_CONTROLS));
+    if (view_text(rb->str(LANG_GAME_HELP), text) == PLUGIN_USB_CONNECTED)
         return true;
     rb->lcd_setfont(FONT_SYSFIXED);
 
@@ -1485,19 +1491,19 @@ static int jewels_game_menu(struct game_context* bj, bool ingame)
     _ingame = ingame;
 
     static struct opt_items mode[] = {
-        { "Normal", -1 },
-        { "Puzzle", -1 },
+        { STR(LANG_NORMAL) },
+        { STR(LANG_JEWELS_PUZZLE) },
     };
 
-    MENUITEM_STRINGLIST (main_menu, "Jewels", jewels_menu_cb,
-                             "Resume Game",
-                             "Start New Game",
-                             "Mode",
-                             "Help",
-                             "High Scores",
-                             "Playback Control",
-                             "Quit without Saving",
-                             "Quit");
+    MENUITEM_STRINGLIST (main_menu, ID2P(LANG_JEWELS), jewels_menu_cb,
+                             ID2P(LANG_CHESSBOX_MENU_RESUME_GAME),
+                             ID2P(LANG_CHESSBOX_MENU_NEW_GAME),
+                             ID2P(LANG_GAME_MODE),
+                             ID2P(LANG_GAME_HELP),
+                             ID2P(LANG_GAME_HIGH_SCORES),
+                             ID2P(LANG_PLAYBACK_CONTROL),
+                             ID2P(LANG_QUIT_WITHOUT_SAVING),
+                             ID2P(LANG_MENU_QUIT));
 
     while (1) {
         switch (rb->do_menu(&main_menu, &choice, NULL, false)) {
@@ -1510,7 +1516,8 @@ static int jewels_game_menu(struct game_context* bj, bool ingame)
                 jewels_init(bj);
                 return 0;
             case 2:
-                rb->set_option("Mode", &bj->tmp_type, RB_INT, mode, 2, NULL);
+                rb->set_option(rb->str(LANG_GAME_MODE), &bj->tmp_type, RB_INT,
+                               mode, 2, NULL);
                 break;
             case 3:
                 if(jewels_help())
@@ -1526,7 +1533,7 @@ static int jewels_game_menu(struct game_context* bj, bool ingame)
                 return 1;
             case 7:
                 if (ingame) {
-                    rb->splash(HZ*1, "Saving game ...");
+                    rb->splash(HZ*1, ID2P(LANG_GAME_SAVING));
                     jewels_savegame(bj);
                 }
                 return 1;
@@ -1661,8 +1668,8 @@ static int jewels_main(struct game_context* bj) {
                     if (bj->level < NUM_PUZZLE_LEVELS) {
                         jewels_nextlevel(bj);
                     } else {
-                        rb->splash(2*HZ, "Congratulations!");
-                        rb->splash(2*HZ, "You have finished the game!");
+                        rb->splash(2*HZ, ID2P(LANG_GAME_CONGRATULATIONS));
+                        rb->splash(2*HZ, ID2P(LANG_GAME_FINISHED));
                         if (jewels_game_menu(bj, false)!=0) {
                             return 0;
                         }
@@ -1674,7 +1681,7 @@ static int jewels_main(struct game_context* bj) {
         if (!jewels_movesavail(bj)) {
             switch(bj->type) {
                 case GAME_TYPE_NORMAL:
-                    rb->splash(HZ*2, "Game Over!");
+                    rb->splash(HZ*2, ID2P(LANG_GAME_OVER));
                     rb->lcd_clear_display();
                     bj->score += (bj->level-1)*LEVEL_PTS;
                     position=highscore_update(bj->score, bj->level, "",
@@ -1682,12 +1689,12 @@ static int jewels_main(struct game_context* bj) {
                     if (position != -1)
                     {
                         if (position == 0)
-                            rb->splash(HZ*2, "New High Score");
+                            rb->splash(HZ*2, ID2P(LANG_GAME_NEW_HIGH_SCORE));
                         highscore_show(position, highscores, NUM_SCORES, true);
                     }
                     break;
                 case GAME_TYPE_PUZZLE:
-                    rb->splash(2*HZ, "Game Over");
+                    rb->splash(2*HZ, ID2P(LANG_GAME_OVER));
                     break;
             }
             if (jewels_game_menu(bj, false)!=0) {
@@ -1700,6 +1707,7 @@ static int jewels_main(struct game_context* bj) {
 /* this is the plugin entry point */
 enum plugin_status plugin_start(const void* parameter)
 {
+    extras_lang_init(); /* its words: the language files' Extras section */
     (void)parameter;
 
     /* load high scores */

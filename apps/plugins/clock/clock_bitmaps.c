@@ -28,9 +28,6 @@
 #include "pluginbitmaps/clock_segments.h"
 #include "pluginbitmaps/clock_smallsegments.h"
 
-#include "pluginbitmaps/clock_logo.h"
-#include "pluginbitmaps/clock_messages.h"
-
 #if NB_SCREENS==2
 #include "pluginbitmaps/clock_binary_remote.h"
 #include "pluginbitmaps/clock_digits_remote.h"
@@ -38,29 +35,10 @@
 #include "pluginbitmaps/clock_segments_remote.h"
 #include "pluginbitmaps/clock_smallsegments_remote.h"
 
-#include "pluginbitmaps/clock_logo_remote.h"
-#include "pluginbitmaps/clock_messages_remote.h"
-
 #endif
 
-
-const struct picture logos[]={
-        {clock_logo, BMPWIDTH_clock_logo, BMPHEIGHT_clock_logo, 
-                BMPHEIGHT_clock_logo},
-#if NB_SCREENS==2
-        {clock_logo_remote,BMPWIDTH_clock_logo_remote,
-                BMPHEIGHT_clock_logo_remote, BMPHEIGHT_clock_logo_remote}
-#endif
-};
-
-const struct picture messages[]={
-    {clock_messages,BMPWIDTH_clock_messages, BMPHEIGHT_clock_messages, 
-        BMPHEIGHT_clock_messages/6},
-#if NB_SCREENS==2
-    {clock_messages_remote,BMPWIDTH_clock_messages_remote, 
-        BMPHEIGHT_clock_messages_remote, BMPHEIGHT_clock_messages_remote/6}
-#endif
-};
+/* The logo and the English messages over it are no longer drawn: the clock
+   says nothing of its settings file (clock_settings.c) */
 
 const struct picture binary[]={
     {clock_binary, BMPWIDTH_clock_binary, BMPHEIGHT_clock_binary, 
