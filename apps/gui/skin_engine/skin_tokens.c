@@ -570,15 +570,21 @@ const char *get_id3_token(struct wps_token *token, struct mp3entry *id3,
 
 #ifdef HAVE_TAGCACHE
         case SKIN_TOKEN_DATABASE_PLAYCOUNT:
+        {
+            const long plays = tagcache_track_playcount(id3);
             if (intval)
-                *intval = id3->playcount + 1;
-            itoa_buf(buf, buf_size, id3->playcount);
+                *intval = plays + 1;
+            itoa_buf(buf, buf_size, plays);
             return buf;
+        }
         case SKIN_TOKEN_DATABASE_RATING:
+        {
+            const long rating = tagcache_track_rating(id3);
             if (intval)
-                *intval = id3->rating + 1;
-            itoa_buf(buf, buf_size, id3->rating);
+                *intval = rating + 1;
+            itoa_buf(buf, buf_size, rating);
             return buf;
+        }
         case SKIN_TOKEN_DATABASE_AUTOSCORE:
             if (intval)
                 *intval = id3->score + 1;

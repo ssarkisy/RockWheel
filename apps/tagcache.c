@@ -4833,6 +4833,63 @@ static void entry_numbers(int idx_id, const struct index_entry *idx,
 #endif
 }
 
+/* a numeric tag's value queued for an entry, the newest, else its own */
+static long queued_or(int tag, int idx_id, const struct index_entry *idx)
+{
+    for (int ridx = command_queue_widx; ridx != command_queue_ridx; )
+    {
+        if (--ridx < 0)
+            ridx = TAGCACHE_COMMAND_QUEUE_LENGTH - 1;
+        if (command_queue[ridx].command == CMD_UPDATE_NUMERIC
+            && command_queue[ridx].idx_id == idx_id
+            && command_queue[ridx].tag == tag)
+            return command_queue[ridx].data;
+    }
+    return idx->tag_seek[tag];
+}
+
+/* One entry's numbers as they are now, the changes queued for it too: from
+   memory only, as a skin asks each frame. Without the queue's lock, which the
+   storage thread holds over the disk's writes as it empties the queue: Now
+   Playing waited on it. Nothing here yields, and an entry written there has
+   its memory changed before it leaves the queue, so it's one or the other. */
+bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n)
+{
+#ifdef HAVE_TC_RAMCACHE
+    if (!tc_stat.ready || !tc_stat.ramcache || !tcramcache.hdr || idx_id < 0
+        || idx_id >= current_tcmh.tch.entry_count)
+        return false;
+    const struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
+    if (idx->flag & FLAG_DELETED)
+        return false;
+    n->length = queued_or(tag_length, idx_id, idx);
+    n->playcount = queued_or(tag_playcount, idx_id, idx);
+    n->playtime = queued_or(tag_playtime, idx_id, idx);
+    n->rating = queued_or(tag_rating, idx_id, idx);
+    n->lastplayed = queued_or(tag_lastplayed, idx_id, idx);
+    n->kind = ram_kind(idx_id);
+    return true;
+#else
+    (void)idx_id;
+    (void)n;
+    return false;
+#endif
+}
+
+long tagcache_track_rating(const struct mp3entry *id3)
+{
+    struct tagcache_numbers n;
+    return id3->tagcache_idx && tagcache_get_numbers(id3->tagcache_idx - 1, &n)
+           ? n.rating : id3->rating;
+}
+
+long tagcache_track_playcount(const struct mp3entry *id3)
+{
+    struct tagcache_numbers n;
+    return id3->tagcache_idx && tagcache_get_numbers(id3->tagcache_idx - 1, &n)
+           ? n.playcount : id3->playcount;
+}
+
 /* What an entry sorts by for a tag, from the database in memory: a number's
    value, or for a string of a sorted file its place there, which goes as the
    alphabet. 0 without the memory. */

@@ -241,6 +241,13 @@ bool tagcache_read_entries(void (*fn)(int idx_id, const char *filename,
                                       const struct tagcache_numbers *n,
                                       void *data),
                            void *data, bool names);
+bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n);
+/* A track's rating and plays as the database has them now: one played again
+   from the buffer, as by Previous, has those of when it was buffered, which
+   playback copies to it again after any change made to it. Its own without
+   the database in memory. */
+long tagcache_track_rating(const struct mp3entry *id3);
+long tagcache_track_playcount(const struct mp3entry *id3);
 long tagcache_sort_key(int idx_id, int tag);
 bool tagcache_modify_numeric_entry(struct tagcache_search *tcs, 
                                    int tag, long data);

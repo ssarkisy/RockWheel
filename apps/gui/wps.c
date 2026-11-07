@@ -751,13 +751,20 @@ static void display_mode_turn(int direction)
 #ifdef HAVE_TAGCACHE
     else if (state->display_mode == WPS_MODE_RATING)
     {
-        /* whole stars only, stored on the 0..10 database scale */
-        int stars = (id3->rating + 1) / 2 + direction;
+        /* whole stars only, stored on the 0..10 database scale; from those it
+           has there, as its own may be of when it was buffered */
+        const int rating = tagcache_track_rating(id3);
+        int stars = (rating + 1) / 2 + direction;
         stars = MAX(0, MIN(stars, 5));
-        if (stars * 2 != id3->rating)
-            mode_moved = true;
         id3->rating = stars * 2;
-        tagcache_update_numeric(id3->tagcache_idx - 1, tag_rating, id3->rating);
+        /* not again at none or five: each change has the smart playlists by
+           ratings worked out again */
+        if (stars * 2 != rating)
+        {
+            mode_moved = true;
+            tagcache_update_numeric(id3->tagcache_idx - 1, tag_rating,
+                                    id3->rating);
+        }
     }
 #endif
 

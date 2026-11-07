@@ -1269,6 +1269,24 @@ static void tagtree_buffer_event(unsigned short id, void *ev_data)
     tagcache_search_finish(&tcs);
 }
 
+/* Its numbers again as it plays: a song come back to while it was still in
+   the buffer had them as when it was buffered, the stars just given it gone
+   and its next play counted on from the plays before */
+static void tagtree_track_change_event(unsigned short id, void *ev_data)
+{
+    (void)id;
+    struct mp3entry *id3 = ((struct track_event *)ev_data)->id3;
+    struct tagcache_numbers n;
+    if (!id3->tagcache_idx || !global_settings.runtimedb
+        || !tagcache_get_numbers(id3->tagcache_idx - 1, &n))
+        return;
+    id3->playcount = n.playcount;
+    id3->playtime = n.playtime;
+    id3->lastplayed = n.lastplayed;
+    /* the database's alone: no file's metadata gives one */
+    id3->rating = n.rating;
+}
+
 static void tagtree_track_finish_event(unsigned short id, void *ev_data)
 {
     (void)id;
@@ -1337,10 +1355,15 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
         long playcount;
         long playtime;
 
-        playcount = id3->playcount + 1;
+        /* on from the database's, as the track's may be of when it was
+           buffered, played again from the buffer */
+        struct tagcache_numbers n;
+        const bool fresh = tagcache_get_numbers(tagcache_idx, &n);
+        playcount = (fresh ? n.playcount : id3->playcount) + 1;
 
         /* Ignore the last 15s (crossfade etc.) */
-        playtime = id3->playtime + MIN(id3->length, id3->elapsed + 15 * 1000);
+        playtime = (fresh ? n.playtime : id3->playtime)
+                   + MIN(id3->length, id3->elapsed + 15 * 1000);
 
         logf("ube:%s", id3->path);
         logf("-> %ld/%ld", playcount, playtime);
@@ -1675,6 +1698,7 @@ static void tagtree_unload(struct tree_context *c)
     kept_hash = 0;
 
     remove_event(PLAYBACK_EVENT_TRACK_BUFFER, tagtree_buffer_event);
+    remove_event(PLAYBACK_EVENT_TRACK_CHANGE, tagtree_track_change_event);
     remove_event(PLAYBACK_EVENT_TRACK_FINISH, tagtree_track_finish_event);
 
     if (c)
@@ -1750,6 +1774,7 @@ static bool initialize_tagtree(void) /* also used when user selects 'Reload' in 
         rootmenu = 0;
 
     add_event(PLAYBACK_EVENT_TRACK_BUFFER, tagtree_buffer_event);
+    add_event(PLAYBACK_EVENT_TRACK_CHANGE, tagtree_track_change_event);
     add_event(PLAYBACK_EVENT_TRACK_FINISH, tagtree_track_finish_event);
 
     core_shrink(tagtree_handle, NULL, tagtree_buf_used);
