@@ -69,91 +69,103 @@ bool text_is_rtl(const unsigned char *str)
 
 static const arab_t * arab_lookup(ucschar_t uchar)
 {
+    const arab_t *a = 0;
     if (uchar >= 0x621 && uchar <= 0x63a)
-        return &(jointable[uchar - 0x621]);
-    if (uchar >= 0x640 && uchar <= 0x64a)
-        return &(jointable[uchar - 0x621 - 5]);
-    if (uchar >= 0x671 && uchar <= 0x6d5)
-        return &(jointable[uchar - 0x621 - 5 - 38]);
-    if (uchar == 0x200D) /* Support for the zero-width joiner */
-        return &zwj;
-    return 0;
+        a = &(jointable[uchar - 0x621]);
+    else if (uchar >= 0x640 && uchar <= 0x64a)
+        a = &(jointable[uchar - 0x621 - 5]);
+    else if (uchar >= 0x671 && uchar <= 0x6d5)
+        a = &(jointable[uchar - 0x621 - 5 - 38]);
+    else if (uchar == 0x200D) /* Support for the zero-width joiner */
+        a = &zwj;
+    /* the table's letters without forms, as Urdu's full stop, as they are:
+       their form of 0 ended the line drawn there */
+    return a && a->isolated ? a : 0;
+}
+
+bool arabic_join_letter(ucschar_t ch)
+{
+    return arab_lookup(ch) != 0;
+}
+
+int arabic_join_next(struct arabic_join *join, ucschar_t uchar, ucschar_t out[2])
+{
+    const arab_t *prev = join->prev;
+    const arab_t *cur = arab_lookup(uchar);
+    int n = 0;
+
+    /* Skip non-arabic chars */
+    if (cur == 0) {
+        if (prev) {
+            /* Finish the last char */
+            if (join->connected) {
+                out[n++] = prev->final;
+                join->connected = false;
+            } else
+                out[n++] = prev->isolated;
+            join->prev = 0;
+        }
+        out[n++] = uchar;
+        return n;
+    }
+
+    /* nothing to do for arabic char if the previous was non-arabic */
+    if (prev == 0) {
+        join->prev = cur;
+        return 0;
+    }
+
+    /* if it's LAM, check for LAM+ALEPH ligatures */
+    if (prev->isolated == 0xfedd) {
+        const arab_t *ligature = 0;
+        switch (cur->isolated) {
+            case 0xfe8d:
+                ligature = &(lamaleph[0]);
+                break;
+            case 0xfe87:
+                ligature = &(lamaleph[1]);
+                break;
+            case 0xfe83:
+                ligature = &(lamaleph[2]);
+                break;
+            case 0xfe81:
+                ligature = &(lamaleph[3]);
+        }
+        if (ligature) { /* replace the 2 glyphs by their ligature */
+            join->prev = ligature;
+            return 0;
+        }
+    }
+
+    if (join->connected) { /* previous char has something connected to it */
+        if (prev->medial && cur->final) /* Can we connect to it? */
+            out[n++] = prev->medial;
+        else {
+            out[n++] = prev->final;
+            join->connected = false;
+        }
+    } else {
+        if (prev->initial && cur->final) { /* Can we connect to it? */
+            out[n++] = prev->initial;
+            join->connected = true;
+        } else
+            out[n++] = prev->isolated;
+    }
+    join->prev = cur;
+    return n;
 }
 
 static void arabjoin(ucschar_t *stringprt, int length)
 {
-    bool connected = false;
+    struct arabic_join join = ARABIC_JOIN_INIT;
     ucschar_t *writeprt = stringprt;
 
-    const arab_t * prev = 0;
-    const arab_t * cur;
-    const arab_t * ligature = 0;
-    ucschar_t uchar;
-
-    int i;
-    for (i = 0; i <= length; i++) {
-        cur = arab_lookup(uchar = *stringprt++);
-
-        /* Skip non-arabic chars */
-        if (cur == 0) {
-            if (prev) {
-                /* Finish the last char */
-                if (connected) {
-                    *writeprt++ = prev->final;
-                    connected = false;
-                } else
-                    *writeprt++ = prev->isolated;
-                prev = 0;
-                *writeprt++ = uchar;
-            } else {
-                *writeprt++ = uchar;
-            }
-            continue;
-        }
-
-        /* nothing to do for arabic char if the previous was non-arabic */
-        if (prev == 0) {
-            prev = cur;
-            continue;
-        }
-
-        /* if it's LAM, check for LAM+ALEPH ligatures */
-        if (prev->isolated == 0xfedd) {
-            switch (cur->isolated) {
-                case 0xfe8d:
-                    ligature = &(lamaleph[0]);
-                    break;
-                case 0xfe87:
-                    ligature = &(lamaleph[1]);
-                    break;
-                case 0xfe83:
-                    ligature = &(lamaleph[2]);
-                    break;
-                case 0xfe81:
-                    ligature = &(lamaleph[3]);
-            }
-        }
-
-        if (ligature) { /* replace the 2 glyphs by their ligature */
-            prev = ligature;
-            ligature = 0;
-        } else {
-            if (connected) { /* previous char has something connected to it */
-                if (prev->medial && cur->final) /* Can we connect to it? */
-                    *writeprt++ = prev->medial;
-                else {
-                    *writeprt++ = prev->final;
-                    connected = false;
-                }
-            } else {
-                if (prev->initial && cur->final) { /* Can we connect to it? */
-                    *writeprt++ = prev->initial;
-                    connected = true;
-                } else
-                    *writeprt++ = prev->isolated;
-            }
-            prev = cur;
-        }
+    /* each character read before what it gives is written over it */
+    for (int i = 0; i <= length; i++) {
+        ucschar_t out[2];
+        const int n = arabic_join_next(&join, stringprt[i], out);
+        for (int k = 0; k < n; k++)
+            *writeprt++ = out[k];
     }
 }
 #endif /* !BOOTLOADER */

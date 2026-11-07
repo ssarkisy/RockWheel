@@ -42,6 +42,7 @@
 #include "rbunicode.h"
 #include "diacritic.h"
 #include "rbpaths.h"
+#include "bidi.h"
 
 /* Define LOGF_ENABLE to enable logf output in this file */
 //#define LOGF_ENABLE
@@ -1483,34 +1484,86 @@ int font_measurestring(const unsigned char *str, size_t maxbytes, size_t maxwidt
     ucschar_t ch;
     size_t width = 0;
     bool fallback_locked = false;
+#ifndef BOOTLOADER
+    /* Arabic's letters in the joined forms they're drawn in, which are much
+       narrower than the letters of the text: measured by those, its lines
+       right-aligned fell short of the right edge, and wrapped at two thirds
+       of their width. Each form at the bytes of its letter. */
+    struct arabic_join join = ARABIC_JOIN_INIT;
+    size_t waiting_at = 0;
+#endif
 
     while (true)
     {
-        bytes = str - start;
+        const size_t at = str - start;
         str = utf8decode(str, &ch);
-        if (ch == 0 || bytes >= maxbytes)
-        {
-            break;
-        }
-        if (IS_DIACRITIC(ch) || font_char_invisible(ch))
-            continue;
-        ch = font_drawn_char(ch);
-        struct font* gf = font_for_char(pf, ch);
+        const bool end = ch == 0 || at >= maxbytes;
+        ucschar_t shown[2];
+        size_t shown_at[2] = { at, at };
+        int n = 0;
 #ifndef BOOTLOADER
-        if (gf != pf && !fallback_locked)
+        const bool waiting = join.prev != NULL;
+        if (!waiting && ch < 0x621)
         {
-            font_lock_fallbacks(true);
-            fallback_locked = true;
+            /* no letter of Arabic waits, and this isn't one: as it is */
+            if (!end)
+                shown[n++] = ch;
         }
-#endif
-        int fw = font_get_width(gf,ch);
-        width += fw;
-        if (width > maxwidth)
+        else
         {
-            width -= fw;
+            n = arabic_join_next(&join, end ? 0 : ch, shown);
+            if (end || !arabic_join_letter(ch))
+            {
+                /* the letter that waited, then this character, not the end's
+                   0 */
+                if (waiting)
+                    shown_at[0] = waiting_at;
+                if (end)
+                    n--;
+            }
+            else
+            {
+                /* the letter that waited, and this one waits, unless the two
+                   make one */
+                shown_at[0] = waiting_at;
+                if (n || !waiting)
+                    waiting_at = at;
+            }
+        }
+#else
+        if (!end)
+            shown[n++] = ch;
+#endif
+        for (int k = 0; k < n; k++)
+        {
+            ucschar_t c = shown[k];
+            if (IS_DIACRITIC(c) || font_char_invisible(c))
+                continue;
+            c = font_drawn_char(c);
+            struct font* gf = font_for_char(pf, c);
+#ifndef BOOTLOADER
+            if (gf != pf && !fallback_locked)
+            {
+                font_lock_fallbacks(true);
+                fallback_locked = true;
+            }
+#endif
+            int fw = font_get_width(gf, c);
+            width += fw;
+            if (width > maxwidth)
+            {
+                width -= fw;
+                bytes = shown_at[k];
+                goto measured;
+            }
+        }
+        if (end)
+        {
+            bytes = at;
             break;
         }
     }
+measured:
 
     if ( h )
         *h = pf->height;

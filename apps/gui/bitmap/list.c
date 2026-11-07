@@ -45,7 +45,6 @@
 #include "fixedpoint.h"
 #include "rbunicode.h"
 #include "rbpaths.h"
-#include "diacritic.h"
 
 #define ICON_PADDING 1
 #define ICON_PADDING_S "1"
@@ -249,48 +248,52 @@ static bool breaks_before(ucschar_t ch)
 }
 
 /* A line of the text from p, as wide as width at most: up to the last space,
-   or letter of Chinese or Japanese, that fits, or, for a word longer than a
-   line, as many of its letters. A mark drawn over the letter before it, as
-   Hindi's vowels, takes no width, as the font draws it. Its end, and its
-   width. tools/check_hints.py wraps them the same. */
-static const char *hint_line(const char *p, struct font *pf, int width, int *w)
+   or letter of Chinese or Japanese, where it fits, or, for a word longer than
+   a line, as many of its letters, one at least. Measured as it's drawn, by
+   the parts between the places a line may end, where Arabic's letters stop
+   joining: they take the forms of the letters beside them, and a mark drawn
+   over the letter before it, as Hindi's vowels, takes no width. Its end.
+   tools/check_hints.py wraps them the same. */
+static const char *hint_line(const char *p, int font, int width)
 {
-    const char *q = p, *end = p, *brk = NULL;
-    int sum = 0, at_brk = 0;
-    while (*q)
+    const char *q = p, *end = NULL;
+    int sum = 0;
+    while (true)
     {
         ucschar_t ch;
         const char *next = (const char *)utf8decode((const unsigned char *)q, &ch);
-        if (ch == ' ' || (breaks_before(ch) && q > p))
+        if (ch == 0 || (q > p && (ch == ' ' || breaks_before(ch))))
         {
-            brk = q;
-            at_brk = sum;
+            const char *from = end ? end : p;
+            int w;
+            /* no longer than the line's buffer, whatever its width */
+            if (q - p > HINT_BYTES - 4)
+                break;
+            font_getstringnsize((const unsigned char *)from, q - from, &w, NULL, font);
+            if (sum + w > width)
+                break;
+            sum += w;
+            end = q;
+            if (ch == 0)
+                break;
         }
-        /* no longer than the line's buffer, whatever its width */
-        if (next - p > HINT_BYTES - 4)
-            break;
-        const int cw = IS_DIACRITIC(ch) ? 0
-                                        : font_get_width(font_for_char(pf, ch), ch);
-        if (sum + cw > width)
-            break;
-        sum += cw;
         q = next;
-        end = q;
     }
-    if (*q && brk && brk > p)
+    if (end)
+        return end;
+    /* the letters that fit, of those that start and end within the buffer */
+    int n = font_measurestring((const unsigned char *)p, HINT_BYTES - 4, width,
+                               NULL, NULL, font);
+    while (n > HINT_BYTES - 4)
     {
-        end = brk;
-        sum = at_brk;
+        do
+            n--;
+        while (n > 0 && (p[n] & 0xc0) == 0x80);
     }
-    if (end == p && *p)
-    {
-        /* not one letter fits: one, still */
-        ucschar_t ch;
-        end = (const char *)utf8decode((const unsigned char *)p, &ch);
-        sum = font_get_width(font_for_char(pf, ch), ch);
-    }
-    *w = sum;
-    return end;
+    if (n > 0)
+        return p + n;
+    ucschar_t ch;
+    return (const char *)utf8decode((const unsigned char *)p, &ch);
 }
 
 static void draw_hint(struct screen *display, struct viewport *band,
@@ -305,12 +308,6 @@ static void draw_hint(struct screen *display, struct viewport *band,
     display->fillrect(0, 0, band->width, band->height);
     if (!text || !*text || font < 0)
         return;
-    /* kept where they are while a glyph missing from their caches is read
-       from the disk, as font_getstringnsize() keeps them, or pf would point
-       where the font was before buflib moved it */
-    font_lock(font, true);
-    font_lock_fallbacks(true);
-    struct font *pf = font_get(band->font);
     const int width = band->width - 2 * HINT_X;
     display->set_foreground(LIST_GROUP_COLOUR);
     display->set_drawmode(DRMODE_FG);
@@ -320,7 +317,7 @@ static void draw_hint(struct screen *display, struct viewport *band,
         while (*p == ' ')
             p++;
         int w;
-        const char *end = hint_line(p, pf, width, &w);
+        const char *end = hint_line(p, font, width);
         char line[HINT_BYTES];
         size_t n = MIN((size_t)(end - p), sizeof(line) - 4);
         memcpy(line, p, n);
@@ -349,8 +346,6 @@ static void draw_hint(struct screen *display, struct viewport *band,
         display->putsxy(HINT_X, HINT_TOP + i * HINT_PITCH, line);
     }
     display->set_drawmode(DRMODE_SOLID);
-    font_lock_fallbacks(false);
-    font_lock(font, false);
 }
 
 void list_draw(struct screen *display, struct gui_synclist *list)

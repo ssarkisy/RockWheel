@@ -48,4 +48,22 @@ bool text_is_rtl(const unsigned char *str);
 
 ucschar_t *bidi_l2v(const unsigned char *str, int orientation);
 
+#ifndef BOOTLOADER
+/* Arabic's letters in the forms they're drawn in, joined, as a text is read
+   one character at a time: bidi_l2v() joins them so, and font_measurestring()
+   measures them so, as a line is as wide as it's drawn only in those */
+struct arabic_join {
+    const void *prev; /* the letter whose form waits for the next character */
+    bool connected;   /* it's joined to the one before it */
+};
+#define ARABIC_JOIN_INIT { 0, false }
+
+/* the next character of a text, 0 at its end: what's drawn before it, two
+   characters at most, into out, and their count. A letter of Arabic waits for
+   the next character, all else is passed on after the letter that waited. */
+int arabic_join_next(struct arabic_join *join, ucschar_t ch, ucschar_t out[2]);
+/* a letter that waits so */
+bool arabic_join_letter(ucschar_t ch);
+#endif
+
 #endif /* BIDI_H */

@@ -11,7 +11,8 @@ The theme's 18-Inter-SemiBold draws them, and 18-Inter-Bold with Bold Text;
 both are checked. A letter of another alphabet comes from 17-Library, which
 Updating Library makes of the glyphs of the fonts in scripts/ and of
 17-Hangul, so it's measured in those, as font_for_char() takes them; what none
-has, from 16-GNU-Unifont.
+has, from 16-GNU-Unifont. Arabic is measured in the joined forms of its
+letters, which are what's drawn, by the tables of firmware/arabjoin.c.
 """
 import glob
 import os
@@ -121,13 +122,104 @@ class Fonts:
         return self.unifont or self.theme
 
     def width_of(self, ch):
+        """of a character as it's drawn, as font_measurestring() takes it"""
         c = ord(ch)
         if c >= 0x300 and any(a <= c < b for a, b in DIACRITICS):
             return 0
+        if 0x200b <= c <= 0x200f or 0x2060 <= c <= 0x2064 or 0xfe00 <= c <= 0xfe0f \
+                or c == 0xfeff:
+            return 0
+        if c > 0xffff:
+            ch = '□'
         return self.font_for(ch).width(ch)
 
     def text_width(self, s):
-        return sum(self.width_of(ch) for ch in s)
+        """as drawn: Arabic's letters in their joined forms"""
+        return sum(self.width_of(ch) for ch in arabic_join(s))
+
+
+class Arab:
+    """firmware/arabjoin.c: each letter's isolated, final, medial and initial
+    forms, as arab_lookup() in firmware/bidi.c finds them"""
+
+    def __init__(self, root):
+        src = open(os.path.join(root, 'firmware/arabjoin.c')).read()
+        # the rows left out of the build
+        src = re.sub(r'#\s*if\s+0.*?#\s*endif', '', src, flags=re.S)
+
+        def table(name):
+            m = re.search(r'%s\[\]\s*=\s*\{(.*?)\};' % name, src, re.S)
+            return [tuple(int(x, 16) for x in row) for row in
+                    re.findall(r'\{\s*(0x[0-9a-fA-F]+),\s*(0x[0-9a-fA-F]+),\s*'
+                               r'(0x[0-9a-fA-F]+|0),\s*(0x[0-9a-fA-F]+|0)\s*\}',
+                               m.group(1))]
+        self.lamaleph = table('lamaleph')
+        self.jointable = table('jointable')
+        self.zwj = (0x20, 0x20, 0x20, 0x20)
+
+    def lookup(self, c):
+        a = None
+        if 0x621 <= c <= 0x63a:
+            a = self.jointable[c - 0x621]
+        elif 0x640 <= c <= 0x64a:
+            a = self.jointable[c - 0x621 - 5]
+        elif 0x671 <= c <= 0x6d5:
+            a = self.jointable[c - 0x621 - 5 - 38]
+        elif c == 0x200d:
+            a = self.zwj
+        # a letter without forms, as it is
+        return a if a and a[0] else None
+
+
+ARAB = []
+
+
+class Join:
+    """arabic_join_next() of firmware/bidi.c: a letter of Arabic waits for the
+    next character to know its form; what's drawn before each character"""
+
+    def __init__(self):
+        self.prev, self.connected = None, False
+
+    def next(self, ch):
+        arab = ARAB[0]
+        prev, cur = self.prev, arab.lookup(ord(ch))
+        if cur is None:
+            out = []
+            if prev:
+                out.append(chr(prev[1] if self.connected else prev[0]))
+                self.connected, self.prev = False, None
+            return out + [ch]
+        if prev is None:
+            self.prev = cur
+            return []
+        if prev[0] == 0xfedd:
+            lig = {0xfe8d: 0, 0xfe87: 1, 0xfe83: 2, 0xfe81: 3}.get(cur[0])
+            if lig is not None:
+                self.prev = arab.lamaleph[lig]
+                return []
+        if self.connected:
+            if prev[2] and cur[1]:
+                out = [chr(prev[2])]
+            else:
+                out = [chr(prev[1])]
+                self.connected = False
+        elif prev[3] and cur[1]:
+            out = [chr(prev[3])]
+            self.connected = True
+        else:
+            out = [chr(prev[0])]
+        self.prev = cur
+        return out
+
+
+def arabic_join(s):
+    """what's drawn for s, Arabic's letters in their joined forms"""
+    join = Join()
+    out = []
+    for ch in list(s) + ['\0']:
+        out += join.next(ch)
+    return ''.join(out[:-1])
 
 
 # keeps_with_before() of apps/gui/bitmap/list.c: the closing punctuation and the
@@ -145,8 +237,40 @@ def breaks_before(ch):
             and c not in KEEPS_WITH_BEFORE)
 
 
+def measurestring(fonts, s, maxbytes, maxwidth):
+    """font_measurestring() of firmware/font.c: how many characters of s fit in
+    maxwidth, each joined form at the letter it is, as it counts them"""
+    join = Join()
+    waiting_at = 0
+    width = 0
+    for i, ch in enumerate(list(s) + ['\0']):
+        end = ch == '\0' or len(s[:i].encode('utf-8')) >= maxbytes
+        waiting = join.prev is not None
+        shown = join.next('\0' if end else ch)
+        at = [i, i]
+        if end or ARAB[0].lookup(ord(ch)) is None:
+            if waiting:
+                at[0] = waiting_at
+            if end:
+                shown = shown[:-1]
+        else:
+            at[0] = waiting_at
+            if shown or not waiting:
+                waiting_at = i
+        for k, c in enumerate(shown):
+            w = fonts.width_of(c)
+            if width + w > maxwidth:
+                return at[k]
+            width += w
+        if end:
+            return i
+
+
 def wrap(fonts, text):
-    """the lines, as hint_line() in apps/gui/bitmap/list.c breaks them"""
+    """the lines, as hint_line() in apps/gui/bitmap/list.c breaks them: the
+    longest part from the line's start to a space, a letter of Chinese or
+    Japanese or the end that fits, measured as drawn; else, a word longer than
+    a line, as many of its letters, one at least"""
     lines = []
     p = 0
     while p < len(text) and len(lines) < 10:
@@ -154,23 +278,24 @@ def wrap(fonts, text):
             p += 1
         if p >= len(text):
             break
-        q, total, brk = p, 0, None
-        while q < len(text):
-            ch = text[q]
-            if ch == ' ' or (breaks_before(ch) and q > p):
-                brk = q
-            if len(text[p:q + 1].encode('utf-8')) > LINE_BYTES:
-                break
-            cw = fonts.width_of(ch)
-            if total + cw > LINE_WIDTH:
-                break
-            total += cw
+        q, end = p, None
+        while True:
+            ch = text[q] if q < len(text) else '\0'
+            if ch == '\0' or (q > p and (ch == ' ' or breaks_before(ch))):
+                if len(text[p:q].encode('utf-8')) > LINE_BYTES:
+                    break
+                if fonts.text_width(text[p:q]) > LINE_WIDTH:
+                    break
+                end = q
+                if ch == '\0':
+                    break
             q += 1
-        end = q
-        if q < len(text) and brk is not None and brk > p:
-            end = brk
-        if end == p:
-            end = p + 1
+        if end is None:
+            n = measurestring(fonts, text[p:], LINE_BYTES, LINE_WIDTH)
+            # of the letters that start and end within the buffer
+            while n > 0 and len(text[p:p + n].encode('utf-8')) > LINE_BYTES:
+                n -= 1
+            end = p + max(n, 1)
         lines.append(text[p:end].rstrip(' '))
         p = end
     return lines
@@ -192,7 +317,9 @@ def hints(path):
 def main():
     langs = sys.argv[1] if len(sys.argv) > 1 else 'apps/lang'
     fontdir = sys.argv[2] if len(sys.argv) > 2 else 'themes/fonts/.rockbox/fonts'
-    DIACRITICS.extend(diacritics(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+    DIACRITICS.extend(diacritics(root))
+    ARAB.append(Arab(root))
     bad = 0
     count = 0
     for f in sorted(glob.glob(os.path.join(langs, '*.lang'))):
