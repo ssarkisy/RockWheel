@@ -155,11 +155,11 @@ const struct button_mapping pf_context_buttons[] =
     {PF_MENU,         BUTTON_MENU|BUTTON_REPEAT,  BUTTON_MENU},
     {PF_QUIT,         BUTTON_MENU|BUTTON_REL,     BUTTON_MENU},
 #ifdef ITUNESDB_HAVE_ART
-    /* holding Select opens nothing, as on a stock iPod: not Rockbox's menu of
-       Playing Next, Add to Playlist and Track Info. Nor do Select with Menu,
-       which restarts an iPod that hangs, and Select with Play sort the albums
-       otherwise, for good. */
-    {ACTION_NONE,     BUTTON_SELECT|BUTTON_REPEAT, BUTTON_NONE},
+    /* holding Select opens the menu that Music's lists have so, Add to
+       On-The-Go first, for the album or, on its songs, the song. Select with
+       Menu, which restarts an iPod that hangs, and Select with Play sort the
+       albums otherwise, for good: they do nothing. */
+    {PF_CONTEXT,      BUTTON_SELECT|BUTTON_REPEAT, BUTTON_SELECT},
     {ACTION_NONE,     BUTTON_SELECT|BUTTON_MENU,  BUTTON_NONE},
     {ACTION_NONE,     BUTTON_SELECT|BUTTON_PLAY,  BUTTON_NONE},
 #else
@@ -5679,44 +5679,6 @@ static void select_prev_album(void)
 }
 
 #if PF_PLAYBACK_CAPABLE
-static int show_id3_info(const char *selected_file)
-{
-    int i;
-    unsigned long last_tick;
-    const char *file_name;
-    bool is_multiple_tracks = insert_whole_album && pf_tracks.count > 1;
-
-    last_tick = *(rb->current_tick) + HZ/2;
-    rb->splash_progress_set_delay(HZ / 2); /* wait 1/2 sec before progress */
-    i = 0;
-    do {
-        file_name = i == 0 ? selected_file : get_track_filename(i);
-        if (!rb->get_metadata(&id3, -1, file_name))
-            return 0;
-
-        if (is_multiple_tracks)
-        {
-            rb->splash_progress(i, pf_tracks.count,
-                                "%s (%s)", rb->str(LANG_WAIT), rb->str(LANG_OFF_ABORT));
-            if (TIME_AFTER(*(rb->current_tick), last_tick + HZ/4))
-            {
-                if (rb->action_userabort(TIMEOUT_NOBLOCK))
-                    return 0;
-                last_tick = *(rb->current_tick);
-            }
-
-            collect_id3(&id3, i == 0);
-            rb->yield();
-        }
-    } while (++i < pf_tracks.count && is_multiple_tracks);
-
-    if (is_multiple_tracks)
-        finalize_id3(&id3);
-
-    return rb->browse_id3(&id3, 0, 0, NULL, i, &view_text) ? PLUGIN_USB_CONNECTED : 0;
-}
-
-
 static bool pf_current_playlist_insert(int position, bool queue, bool create_new)
 {
     if (position == PLAYLIST_REPLACE)
@@ -5836,42 +5798,40 @@ static void context_menu_cleanup(void)
 
 static int context_menu(void)
 {
-    char *file_name = get_track_filename(show_tracks_while_browsing ? 0 : pf_tracks.sel);
-    int attr = FILE_ATTR_AUDIO;
-
+    /* as Music's lists have it: On-The-Go first, then, while music plays,
+       Play Next and Play Last, for the album or, on its songs, the song */
     enum {
-        PF_CURRENT_PLAYLIST = 0,
-        PF_ON_THE_GO,
-        PF_ID3_INFO
+        PF_ON_THE_GO = 0,
+        PF_PLAY_NEXT,
+        PF_PLAY_LAST
     };
-    MENUITEM_STRINGLIST(context_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
-                        ID2P(LANG_PLAYING_NEXT),
+    MENUITEM_STRINGLIST(playing_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
-                        ID2P(LANG_MENU_SHOW_ID3_INFO));
+                        ID2P(LANG_PLAY_NEXT),
+                        ID2P(LANG_PLAY_LAST));
+    MENUITEM_STRINGLIST(stopped_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
+                        ID2P(LANG_ADD_TO_ON_THE_GO));
+    const bool playing = rb->audio_status() & AUDIO_STATUS_PLAY;
 
-    while (1)  {
-        switch (rb->do_menu(&context_menu,
-                            NULL, NULL, false)) {
-
-            case PF_CURRENT_PLAYLIST:
-                if (insert_whole_album && pf_tracks.count > 1)
-                {
-                    attr = ATTR_DIRECTORY;
-                    file_name = NULL;
-                }
-                rb->onplay_show_playlist_menu(file_name, attr, &pf_current_playlist_insert);
-                return 0;
-            case PF_ON_THE_GO:
-                pf_add_to_on_the_go();
-                return 0;
-            case PF_ID3_INFO:
-                return show_id3_info(file_name);
-            case MENU_ATTACHED_USB:
-                return PLUGIN_USB_CONNECTED;
-            default:
-                return 0;
-
-        }
+    const int chosen = rb->do_menu(playing ? &playing_menu : &stopped_menu,
+                                   NULL, NULL, false);
+    switch (chosen)
+    {
+        case PF_ON_THE_GO:
+            pf_add_to_on_the_go();
+            return 0;
+        case PF_PLAY_NEXT:
+        case PF_PLAY_LAST:
+            rb->splash(0, ID2P(LANG_WAIT));
+            pf_current_playlist_insert(chosen == PF_PLAY_NEXT ?
+                                       PLAYLIST_INSERT_FIRST : PLAYLIST_INSERT_LAST,
+                                       false, false);
+            rb->playlist_set_modified(NULL, true);
+            return 0;
+        case MENU_ATTACHED_USB:
+            return PLUGIN_USB_CONNECTED;
+        default:
+            return 0;
     }
 }
 
