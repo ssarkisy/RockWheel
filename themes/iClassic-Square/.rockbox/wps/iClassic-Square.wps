@@ -151,7 +151,7 @@
 %ac%nv
 %Vl(pb,0,207,45,14,2)%Vf(000000)
 %ar%pc
-%Vl(pb,273,207,47,14,2)%Vf(000000)
+%Vl(pb,272,207,48,14,2)%Vf(000000)
 %al-%pr
 # scrubber: the progress bar with a slider, the wheel moves it; the
 # viewport leaves room for half the knob past either end of the bar
@@ -160,7 +160,7 @@
 %?St(progress bar style)<%pb(7,0,204,23,PB.bmp,slider,K,slidercentre)|%pb(7,0,204,23,iOS PB.bmp,backdrop,k,slider,O,slidercentre)>
 %Vl(scrub,0,207,45,14,2)%Vf(000000)
 %ar%pc
-%Vl(scrub,273,207,47,14,2)%Vf(000000)
+%Vl(scrub,272,207,48,14,2)%Vf(000000)
 %al-%pr
 # rating: whole stars in place of the progress bar, the wheel sets them
 %xl(T,Stars.bmp,0,0,6)

@@ -876,10 +876,10 @@
     *: "Equalizer"
   </source>
   <dest>
-    *: "Ισοσταθμιστής"
+    *: "EQ"
   </dest>
   <voice>
-    *: "Ισοσταθμιστής"
+    *: "EQ"
   </voice>
 </phrase>
 <phrase>
@@ -11022,10 +11022,10 @@
     *: "Current Playlist"
   </source>
   <dest>
-    *: "Τρέχουσα λίστα αναπαραγωγής"
+    *: "Τρέχουσα λίστα"
   </dest>
   <voice>
-    *: "Τρέχουσα λίστα αναπαραγωγής"
+    *: "Τρέχουσα λίστα"
   </voice>
 </phrase>
 <phrase>

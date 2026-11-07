@@ -11161,10 +11161,10 @@
     *: "Current Playlist"
   </source>
   <dest>
-    *: "Pašreizējais atskaņošanas saraksts"
+    *: "Pašreizējais saraksts"
   </dest>
   <voice>
-    *: "Pašreizējais atskaņošanas saraksts"
+    *: "Pašreizējais saraksts"
   </voice>
 </phrase>
 <phrase>

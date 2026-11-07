@@ -31,21 +31,23 @@ mkdir -p "$out"
 # Latin with its extensions, Greek, Cyrillic, punctuation and symbols up to
 # U+266F, which takes in the stars of Finder's rating playlists and notes;
 # digits all as wide, as on a stock iPod (Inter's are proportional), so
-# that numbered lists line up and times don't jitter
+# that numbered lists line up and times don't jitter. The letters spaced as
+# Inter spaces them (-A): as wide as their images only, as before 1.3, those
+# with straight sides touched, the i and P of iPod run into one.
 font() {
     name=$1 file=$2 size=$3
     shift 3
-    "$build/convttf" -s 32 -l 9839 -W -p "$size" "$@" \
+    "$build/convttf" -s 32 -l 9839 -W -A -p "$size" "$@" \
         -o "$out/$name" "$ttf/$file" > /dev/null
 }
 
 # menus and titles: 5 more pixels of line height, 2 of them above the text
 # so that it sits in the middle of the selection bar
 font 24-Inter-Bold.fnt     Inter-Bold.ttf     18 -r 3 -Ta-2
-font 18-Inter-SemiBold.fnt Inter-SemiBold.ttf 17    # iClassic lyrics
+font 18-Inter-SemiBold.fnt Inter-SemiBold.ttf 17    # iClassic lyrics, hints
 font 17-Inter-SemiBold.fnt Inter-SemiBold.ttf 15    # iClassic track info
 font 17-Inter-Medium.fnt   Inter-Medium.ttf   15    # iClassic album
-font 18-Inter-Bold.fnt     Inter-Bold.ttf     17    # the lyrics, Bold Text
+font 18-Inter-Bold.fnt     Inter-Bold.ttf     17    # the lyrics, hints, Bold Text
 font 17-Inter-Bold.fnt     Inter-Bold.ttf     15    # track info, Bold Text
 font 14-Inter-SemiBold.fnt Inter-SemiBold.ttf 13    # small text, lyrics
 font 14-Inter-Bold.fnt     Inter-Bold.ttf     13    # iClassic screen titles

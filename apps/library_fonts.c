@@ -46,7 +46,7 @@
 #include "version.h"
 #include "plugin.h"
 
-#define LF_VERSION   2
+#define LF_VERSION   3 /* 3: the sources spaced as their typefaces */
 #define LF_STAMP     FONT_DIR "/library.stamp"
 #define LF_SCRIPTS   FONT_DIR "/scripts"
 #define RB12_HEADER  36

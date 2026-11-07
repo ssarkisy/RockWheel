@@ -18994,7 +18994,7 @@
     *: "Wake Screen"
   </source>
   <dest>
-    *: "Wybudzanie ekranu"
+    *: "Budzenie ekranu"
   </dest>
   <voice>
     *: ""

@@ -15307,7 +15307,7 @@
     *: "Screen Off"
   </source>
   <dest>
-    *: "Pantalla apagada"
+    *: "Pantalla fosca"
   </dest>
   <voice>
     *: ""

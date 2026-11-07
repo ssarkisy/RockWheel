@@ -259,6 +259,15 @@ sub make_install {
         glob_install("$src/$t/*", "$userdir/$t");
     }
 
+    # the fonts of the other alphabets, in a folder of their own that the line
+    # above passes by: the simulator kept those of its first install
+    if (-d "$src/fonts/scripts") {
+        unless (glob_mkdir("$userdir/fonts/scripts")) {
+            return 0;
+        }
+        glob_install("$src/fonts/scripts/*", "$userdir/fonts/scripts");
+    }
+
     # wps/ subfolders and bitmaps
     opendir(DIR, $src . "/wps");
     @files = readdir(DIR);

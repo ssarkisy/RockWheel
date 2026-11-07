@@ -108,6 +108,7 @@ int             hv_resolution = 60;
 int             dump_glyphs = 0;
 int             digits_equally_wide = 1; /* Try to make digits equally wide */
 int             digits_force_wide = 0; /* ... even if the font's are not */
+int             font_spacing = 0; /* letters as wide as the font advances them */
 int             trimming    = 0;
 int             trim_dp     = 0; /* trim descent percent */
 int             trim_da     = 0; /* trim descnet actual  */
@@ -214,6 +215,9 @@ void usage(void)
         "    -W     Make digits equally wide even if they are not in the font,\n"
         "           as wide as the widest, for proportional figures\n"
         "    -L     Use lighter hinting algorithm\n"
+        "    -A     Space letters as the font does: each as wide as its advance,\n"
+        "           its image at its left bearing (otherwise as wide as the image,\n"
+        "           which sets letters with straight sides, as iP, against each other)\n"
     };
     fprintf(stderr, "%s", help);
     exit( 1 );
@@ -533,6 +537,8 @@ int glyph_width( FT_Face face, FT_Long code, FT_Long digit_width )
         pitch = ABS(face->glyph->bitmap.pitch);
         h_adv = face->glyph->metrics.horiAdvance >> 6;
         width = (face->glyph->metrics.width + spacing) >> 6;
+        if (font_spacing)
+            width = (face->glyph->metrics.horiAdvance + spacing + 32) >> 6;
 
         if(pitch == 0)    pitch = h_adv;
         if(width < pitch) width = pitch;
@@ -842,7 +848,13 @@ void convttf(char* path, char* destfile, FT_Long face_index)
         err = 0;
         /* insert empty pixels on the left */
         col_off = w - stride;
-        if (col_off > 1) col_off /= 2;
+        if (font_spacing && !(code >= '0' && code <= '9' && digit_width))
+        {
+            /* where the font puts it, as far as it fits */
+            if (slot->bitmap_left < col_off)
+                col_off = slot->bitmap_left;
+        }
+        else if (col_off > 1) col_off /= 2;
         if (col_off < 0) col_off = 0;
 
         for(row=0; row < glyph_height; row++)
@@ -1303,6 +1315,11 @@ void getopts(int *pac, char ***pav)
                 break;
             case 'L':     /* Light rendering algorithm */
                 ft_load_opts |= FT_LOAD_TARGET_LIGHT;
+                break;
+            case 'A':     /* The font's own spacing */
+                font_spacing = 1;
+                while (*p && *p != ' ')
+                    p++;
                 break;
 
             default:

@@ -627,10 +627,10 @@
     *: "Crossfeed"
   </source>
   <dest>
-    *: "Sammenbland højre og venstre kanal"
+    *: "Crossfeed"
   </dest>
   <voice>
-    *: "Sammenbland højre og venstre kanal"
+    *: "Crossfeed"
   </voice>
 </phrase>
 <phrase>

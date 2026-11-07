@@ -784,7 +784,7 @@
     *: "Crossfeed"
   </source>
   <dest>
-    *: "Térakusztika fejhallgatón (crossfeed)"
+    *: "Crossfeed"
   </dest>
   <voice>
     *: "Térakusztika fejhallgatón"
@@ -854,10 +854,10 @@
     *: "Equalizer"
   </source>
   <dest>
-    *: "Hangszínszabályzó"
+    *: "EQ"
   </dest>
   <voice>
-    *: "Hangszínszabályzó"
+    *: "EQ"
   </voice>
 </phrase>
 <phrase>

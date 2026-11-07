@@ -33,9 +33,10 @@ cc -std=c99 -O2 "$root/tools/convttf.c" $ft -lm -o "$build/convttf"
 
 # font <name> <otf> <pixel size>: the compatibility jamo, U+3131, to the last
 # syllable, U+D7A3; the syllables about as tall as the capitals of the Inter they go
-# with, as Korean text set beside Latin is
+# with, as Korean text set beside Latin is; spaced as Pretendard spaces them (-A),
+# as make_fonts.sh does Inter
 font() {
-    "$build/convttf" -s 12593 -l 55203 -p "$3" -o "$out/$1" "$otf/$2" > /dev/null
+    "$build/convttf" -s 12593 -l 55203 -A -p "$3" -o "$out/$1" "$otf/$2" > /dev/null
 }
 
 font 24-Hangul.fnt Pretendard-Bold.otf     16   # the menus, Inter Bold 18

@@ -55,12 +55,13 @@ weight() {
 }
 
 # font <name> <family> <first> <last> <menu px> <now playing px> <small px>
+# spaced as the typeface spaces them (-A), as make_fonts.sh does Inter
 font() {
     bold=$(weight "$2" 700 "$2-700.ttf")
     semi=$(weight "$2" 600 "$2-600.ttf")
-    "$build/convttf" -s "$3" -l "$4" -p "$5" -o "$out/24-$1.fnt" "$bold" > /dev/null
-    "$build/convttf" -s "$3" -l "$4" -p "$6" -o "$out/17-$1.fnt" "$semi" > /dev/null
-    "$build/convttf" -s "$3" -l "$4" -p "$7" -o "$out/14-$1.fnt" "$bold" > /dev/null
+    "$build/convttf" -s "$3" -l "$4" -A -p "$5" -o "$out/24-$1.fnt" "$bold" > /dev/null
+    "$build/convttf" -s "$3" -l "$4" -A -p "$6" -o "$out/17-$1.fnt" "$semi" > /dev/null
+    "$build/convttf" -s "$3" -l "$4" -A -p "$7" -o "$out/14-$1.fnt" "$bold" > /dev/null
     cp "$src/$2/OFL.txt" "$out/$1-OFL.txt"
 }
 
