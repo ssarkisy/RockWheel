@@ -44,6 +44,9 @@
 #include "misc.h"
 #include "strnatcmp.h"
 #include "keyboard.h"
+#ifdef HAVE_TAGCACHE
+#include "library_playlists.h"
+#endif
 
 #ifdef HAVE_MULTIVOLUME
 #include "mv.h"
@@ -599,6 +602,11 @@ int ft_enter(struct tree_context* c)
 
         switch ( file_attr & FILE_ATTR_MASK ) {
             case FILE_ATTR_M3U:
+#ifdef HAVE_TAGCACHE
+                /* a smart one as its screen has it: here, on the screen's
+                   thread, not in ft_play_playlist, which a dock calls too */
+                lp_sync(buf);
+#endif
                 play = ft_play_playlist(buf, c->currdir, file->name);
 
                 if (play)

@@ -363,6 +363,14 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         }
         /* the padding moves the text only, the selection stays full width */
         line_indent += indent + global_settings.list_text_padding;
+        /* a Shuffle Songs: its arrows where the text would start, the text
+           after them */
+        const int shuffle_x = line_indent;
+        const bool shuffle = list->callback_is_shuffle
+                             && list->callback_is_shuffle(i, list->data)
+                             && line_shuffle_width(display);
+        if (shuffle)
+            line_indent += line_shuffle_width(display);
 
         /* position the string at the correct offset place */
         int item_width,h;
@@ -437,6 +445,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         /* the song playing, a speaker at the right end, on any row */
         if (list->callback_is_playing && list->callback_is_playing(i, list->data))
             style |= STYLE_PLAYING;
+
         /* it's at the right end, over the start of right-to-left text */
         if (is_selected && global_settings.list_selector_chevron
             && !lang_is_rtl()
@@ -459,6 +468,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         list_info.item_offset = item_offset;
 
         callback_draw_item(&list_info);
+        if (shuffle)
+            line_draw_shuffle(display, list_info.x + shuffle_x, list_info.y,
+                              &linedes);
     }
     display->set_viewport(last_vp);
 }

@@ -160,6 +160,7 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_has_children = NULL;
     gui_list->callback_is_group = NULL;
     gui_list->callback_is_playing = NULL;
+    gui_list->callback_is_shuffle = NULL;
     gui_list->playing_shown = 0;
     gui_list->callback_get_item_name = callback_get_item_name;
     gui_list->callback_speak_item = NULL;
@@ -524,6 +525,12 @@ void gui_synclist_set_playing_callback(struct gui_synclist * lists,
                                        list_is_playing is_playing_callback)
 {
     lists->callback_is_playing = is_playing_callback;
+}
+
+void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
+                                       list_is_shuffle is_shuffle_callback)
+{
+    lists->callback_is_shuffle = is_shuffle_callback;
 }
 
 void gui_synclist_set_voice_callback(struct gui_synclist * lists,

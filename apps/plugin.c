@@ -52,6 +52,7 @@
 #include "language.h"
 #include "statusbar-skinned.h"
 #include "panic.h"
+#include "on_the_go.h"
 
 #if CONFIG_CHARGING
 #include "power.h"
@@ -941,6 +942,7 @@ static const struct plugin_api rockbox_api = {
     itunesdb_cover_image_of,
     itunesdb_covers_images_changed,
 #endif
+    otg_add_file,
 };
 
 static int plugin_buffer_handle;

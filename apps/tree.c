@@ -77,6 +77,7 @@
 #include "appevents.h"
 
 #include "root_menu.h"
+#include "on_the_go.h"
 #ifdef HAVE_TAGCACHE
 #include "music_search.h"
 #endif
@@ -131,10 +132,18 @@ static struct entry *get_valid_entry(const char* funcname,
    theirs, so that the one isn't taken for the other. The rows of the list are
    then two more than the entries. */
 static int catalog_folders; /* the folders before the playlists, or 0 if not both */
+/* On-The-Go, as on a stock iPod: a row of its own, the last of the catalogue's
+   top, when it's viewed; none of the catalogue's entries */
+static bool catalog_otg, catalog_otg_empty;
+static bool catalog_on_otg; /* the cursor was on it, and goes back there */
 
 static void catalog_count(void)
 {
     catalog_folders = 0;
+    catalog_otg = *tc.dirfilter == SHOW_M3U && tc.browse
+                  && (tc.browse->flags & BROWSE_ON_THE_GO) && tc.dirlevel == 0;
+    if (catalog_otg)
+        catalog_otg_empty = otg_empty();
     if (*tc.dirfilter != SHOW_M3U)
         return;
     const struct entry *entries = tree_get_entries(&tc);
@@ -148,6 +157,17 @@ static void catalog_count(void)
 static bool catalog_group(int row)
 {
     return catalog_folders && (row == 0 || row == catalog_folders + 1);
+}
+
+/* the rows of the entries and their groups' names, and On-The-Go's after them */
+static int catalog_rows(void)
+{
+    return tc.filesindir + (catalog_folders ? 2 : 0);
+}
+
+static bool catalog_otg_row(int row)
+{
+    return catalog_otg && row == catalog_rows();
 }
 
 static bool tree_is_group(int row, void *data)
@@ -212,6 +232,8 @@ static const char* tree_get_filename(int selected_item, void *data,
     else
 #endif
     {
+        if (catalog_otg_row(selected_item))
+            return str(LANG_ON_THE_GO);
         if (catalog_group(selected_item))
             return str(selected_item ? LANG_PLAYLISTS : LANG_FOLDERS);
         struct entry *entry = get_valid_entry(__func__, local_tc,
@@ -230,7 +252,8 @@ static const char* tree_get_filename(int selected_item, void *data,
 #ifdef HAVE_LCD_COLOR
 static int tree_get_filecolor(int selected_item, void * data)
 {
-    if (*tc.dirfilter == SHOW_ID3DB || catalog_group(selected_item))
+    if (*tc.dirfilter == SHOW_ID3DB || catalog_group(selected_item)
+        || catalog_otg_row(selected_item))
         return -1;
     struct tree_context * local_tc=(struct tree_context *)data;
     struct entry *entry = get_valid_entry(__func__, local_tc, index_of(selected_item));
@@ -258,6 +281,8 @@ static bool tree_has_children(int selected_item, void * data)
     if (*(local_tc->dirfilter) == SHOW_ID3DB)
         return tagtree_get_attr(local_tc) == ATTR_DIRECTORY;
 #endif
+    if (catalog_otg_row(selected_item))
+        return !catalog_otg_empty;
     if (catalog_group(selected_item))
         return false;
     struct entry *entry = get_valid_entry(__func__, local_tc, index_of(selected_item));
@@ -276,6 +301,8 @@ static enum themable_icons tree_get_fileicon(int selected_item, void * data)
     else
 #endif
     {
+        if (catalog_otg_row(selected_item))
+            return Icon_Playlist;
         if (catalog_group(selected_item))
             return Icon_NOICON;
         struct entry *entry = get_valid_entry(__func__, local_tc,
@@ -331,6 +358,11 @@ static int tree_voice_cb(int selected_item, void * data)
     else
 #endif
     {
+        if (catalog_otg_row(selected_item))
+        {
+            talk_id(LANG_ON_THE_GO, false);
+            return 0;
+        }
         if (catalog_group(selected_item))
             return 0;
         struct entry *entry = get_valid_entry(__func__, local_tc,
@@ -627,7 +659,7 @@ static int update_dir(void)
     gui_synclist_set_title(list, P2STR((unsigned char*)title), icon);
 
     catalog_count();
-    gui_synclist_set_nb_items(list, tc.filesindir + (catalog_folders ? 2 : 0));
+    gui_synclist_set_nb_items(list, catalog_rows() + (catalog_otg ? 1 : 0));
     if (catalog_folders)
     {
         list->callback_is_group = tree_is_group;
@@ -649,7 +681,10 @@ static int update_dir(void)
     if( tc.selected_item >= tc.filesindir)
         tc.selected_item=tc.filesindir-1;
 
-    gui_synclist_select_item(list, row_of(tc.selected_item));
+    if (catalog_otg && (catalog_on_otg || tc.filesindir <= 0))
+        gui_synclist_select_item(list, catalog_rows());
+    else
+        gui_synclist_select_item(list, row_of(tc.selected_item));
     gui_synclist_draw(list);
     gui_synclist_speak_item(list);
     return tc.filesindir;
@@ -870,7 +905,7 @@ static int dirbrowse(void)
     if (numentries == -1)
         return exit_to_new_screen(GO_TO_PREVIOUS);  /* currdir is not a directory */
 
-    if (*tc.dirfilter > NUM_FILTER_MODES && numentries==0)
+    if (*tc.dirfilter > NUM_FILTER_MODES && numentries==0 && !catalog_otg)
     {
         splash(HZ*2, *tc.dirfilter == SHOW_M3U ?
                      ID2P(LANG_CATALOG_NO_PLAYLISTS) : ID2P(LANG_NO_FILES));
@@ -887,7 +922,12 @@ static int dirbrowse(void)
                             list_do_action_timeout(&tree_lists, HZ/2));
         oldbutton = button;
         gui_synclist_do_button(&tree_lists, &button);
-        tc.selected_item = index_of(gui_synclist_get_sel_pos(&tree_lists));
+        const bool on_otg = catalog_otg_row(gui_synclist_get_sel_pos(&tree_lists));
+        if (catalog_otg)
+            catalog_on_otg = on_otg;
+        /* an entry's still, for what goes by it */
+        tc.selected_item = on_otg ? MAX(tc.filesindir - 1, 0)
+                                  : index_of(gui_synclist_get_sel_pos(&tree_lists));
         int customaction = ONPLAY_NO_CUSTOMACTION;
         bool do_restore_display = true;
         #ifdef HAVE_TAGCACHE
@@ -940,6 +980,23 @@ static int dirbrowse(void)
                 }
             }
         #endif
+        if (on_otg)
+        {
+            /* On-The-Go: its file, as a playlist's, or nothing while empty */
+            if (button == ACTION_STD_OK && !catalog_otg_empty
+                && (tc.browse->flags & BROWSE_SELECTONLY))
+            {
+                tc.browse->flags |= BROWSE_SELECTED;
+                strmemccpy(tc.browse->buf, OTG_FILE, tc.browse->bufsize);
+                return exit_to_new_screen(GO_TO_PREVIOUS);
+            }
+            if (button == ACTION_STD_OK || button == ACTION_STD_CONTEXT
+#ifdef HAVE_HOTKEY
+                || button == ACTION_TREE_HOTKEY
+#endif
+               )
+                button = ACTION_NONE;
+        }
         switch ( button ) {
             case ACTION_STD_OK:
                 /* nothing to do if no files to display */

@@ -1126,6 +1126,8 @@ struct plugin_api {
     uint32_t (*itunesdb_cover_image_of)(uint64_t key);
     bool (*itunesdb_covers_images_changed)(void);
 #endif
+    /* a song at the end of On-The-Go (on_the_go.h), as Cover Flow adds them */
+    bool (*otg_add_file)(const char *path);
 };
 
 /* plugin header */

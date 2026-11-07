@@ -1,0 +1,1102 @@
+/***************************************************************************
+ *             __________               __   ___.
+ *   Open      \______   \ ____   ____ |  | _\_ |__   _______  ___
+ *   Source     |       _//  _ \_/ ___\|  |/ /| __ \ /  _ \  \/  /
+ *   Jukebox    |    |   (  <_> )  \___|    < | \_\ (  <_> > <  <
+ *   Firmware   |____|_  /\____/ \___  >__|_ \|___  /\____/__/\_ \
+ *                     \/            \/     \/    \/            \/
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
+ * KIND, either express or implied.
+ *
+ ****************************************************************************/
+
+#include "config.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "string-extra.h"
+#include "system.h"
+#include "kernel.h"
+#include "file.h"
+#include "dir.h"
+#include "pathfuncs.h"
+#include "action.h"
+#include "audio.h"
+#include "lang.h"
+#include "list.h"
+#include "menu.h"
+#include "misc.h"
+#include "playlist.h"
+#include "playlist_viewer.h"
+#include "playlist_catalog.h"
+#include "plugin.h"
+#include "settings.h"
+#include "splash.h"
+#include "tagcache.h"
+#include "transition.h"
+#include "onplay.h"
+#include "filetypes.h"
+#include "rbpaths.h"
+#include "itunesdb.h"
+#include "smart_playlists.h"
+#include "library_playlists.h"
+
+/* Rockbox's viewer read them a window of 200 lines at a time from the file,
+   again as it scrolled past one, and looked up each title as it showed,
+   yielding to the music each time: they scrolled by fits and starts. */
+
+#define LP_DIR     ROCKBOX_DIR "/playlist_index"
+#define LP_MAGIC   0x504c4958   /* "PLIX" */
+#define LP_VERSION 3
+
+struct lp_head {
+    uint32_t magic, version;
+    /* of the database its entries are of: a new one counts commits from 1
+       again, its count of entries tells it apart */
+    uint32_t commitid, entries;
+    uint32_t size;      /* of the playlist file it was made from or for */
+    uint32_t count;
+    uint32_t lines;     /* of songs in that file */
+    uint32_t unmatched; /* of those, not in the database */
+    uint32_t pending;   /* the file is still to be written from it */
+    uint32_t sort;
+};
+
+static void index_path(uint64_t hash, char *buf, size_t size)
+{
+    snprintf(buf, size, LP_DIR "/%08lx%08lx.idx", (unsigned long)(hash >> 32),
+             (unsigned long)(uint32_t)hash);
+}
+
+static long file_size(const char *file)
+{
+    const int fd = open(file, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    const long size = ffilesize(fd);
+    close(fd);
+    return size;
+}
+
+/* a file's time, as its folder has it, 0 if it isn't found there */
+static time_t file_time(const char *file)
+{
+    char dir[MAX_PATH];
+    strmemccpy(dir, file, sizeof(dir));
+    char *name = strrchr(dir, '/');
+    if (!name)
+        return 0;
+    *name++ = '\0';
+    DIR *d = opendir(dir[0] ? dir : "/");
+    if (!d)
+        return 0;
+    time_t time = 0;
+    struct dirent *e;
+    while ((e = readdir(d)))
+    {
+        if (!strcasecmp(e->d_name, name))
+        {
+            time = dir_get_info(d, e).mtime;
+            break;
+        }
+    }
+    closedir(d);
+    return time;
+}
+
+/* a path without the drive the browser names first on an iPod */
+static const char *no_volume(const char *path)
+{
+#ifdef HAVE_MULTIVOLUME
+    path_strip_volume(path, &path, false);
+#endif
+    return path;
+}
+
+/* nor a separator doubled, as the browser gives one back in a folder */
+static void tidy_copy(char *buf, size_t size, const char *path)
+{
+    path = no_volume(path);
+    size_t n = 0;
+    for (; *path && n + 1 < size; path++)
+    {
+        if (*path == '/' && n > 0 && buf[n - 1] == '/')
+            continue;
+        buf[n++] = *path;
+    }
+    buf[n] = '\0';
+}
+
+bool lp_same_file(const char *a, const char *b)
+{
+    return itunesdb_path_hash(a) == itunesdb_path_hash(b);
+}
+
+/* whether the music is from this file, playing or paused */
+static bool playing_from(const char *file)
+{
+    char name[MAX_PATH];
+    return (audio_status() & AUDIO_STATUS_PLAY)
+           && playlist_get_name(NULL, name, sizeof(name))
+           && lp_same_file(name, file);
+}
+
+/* the database in memory, which their songs are found in by their paths */
+static bool database_in_ram(void)
+{
+    return tagcache_finds_entries();
+}
+
+int lp_index_read(const char *file, struct lp_song *songs, int max,
+                  struct lp_state *state)
+{
+    char path[MAX_PATH];
+    index_path(itunesdb_path_hash(file), path, sizeof(path));
+    const int fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    struct lp_head head;
+    int count = -1;
+    if (read(fd, &head, sizeof(head)) == sizeof(head)
+        && head.magic == LP_MAGIC && head.version == LP_VERSION
+        && head.commitid == (uint32_t)tagcache_get_commitid()
+        && head.entries == (uint32_t)tagcache_entry_count()
+        && (long)head.size == file_size(file) && head.count <= LP_MAX)
+    {
+        count = head.count;
+        if (songs)
+        {
+            count = MIN(count, max);
+            const ssize_t bytes = count * sizeof(*songs);
+            if (read(fd, songs, bytes) != bytes)
+                count = -1;
+        }
+        if (state)
+        {
+            state->lines = head.lines;
+            state->unmatched = head.unmatched;
+            state->sort = head.sort;
+            state->pending = head.pending;
+        }
+    }
+    close(fd);
+    return count;
+}
+
+bool lp_in_file_order(const struct lp_song *songs, int count,
+                      const struct lp_state *state)
+{
+    if ((uint32_t)count + state->unmatched != state->lines)
+        return false;
+    for (int i = 0; i < count; i++)
+    {
+        if (songs[i].line == LP_NO_LINE
+            || (i > 0 && songs[i].line <= songs[i - 1].line))
+            return false;
+    }
+    return true;
+}
+
+bool lp_index_write(const char *file, const struct lp_song *songs, int count,
+                    struct lp_state *state)
+{
+    state->pending = !lp_in_file_order(songs, count, state);
+    char path[MAX_PATH], tmp[MAX_PATH + 4];
+    index_path(itunesdb_path_hash(file), path, sizeof(path));
+    snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+    const long size = file_size(file);
+    if (size < 0)
+        return false;
+    mkdir(LP_DIR);
+    const int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fd < 0)
+        return false;
+    const struct lp_head head = {
+        LP_MAGIC, LP_VERSION, tagcache_get_commitid(), tagcache_entry_count(),
+        size, count, state->lines, state->unmatched, state->pending,
+        state->sort
+    };
+    const ssize_t bytes = count * sizeof(*songs);
+    bool ok = write(fd, &head, sizeof(head)) == sizeof(head)
+              && write(fd, songs, bytes) == bytes;
+    if (close(fd) < 0)
+        ok = false;
+    if (!ok || rename(tmp, path) < 0)
+    {
+        remove(tmp);
+        return false;
+    }
+    return true;
+}
+
+void lp_index_forget(const char *file)
+{
+    char path[MAX_PATH];
+    index_path(itunesdb_path_hash(file), path, sizeof(path));
+    remove(path);
+}
+
+int lp_index_build(const char *file, struct lp_song *songs, int max,
+                   char *buf, size_t size, struct lp_state *state)
+{
+    state->sort = ITUNESDB_SORT_MANUAL;
+    state->lines = state->unmatched = 0;
+    state->pending = false;
+    if (!database_in_ram() || size < MAX_PATH * 2)
+        return -1;
+    const int fd = open_utf8(file, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    max = MIN(max, LP_MAX);
+    const size_t sort_len = strlen(ITUNESDB_PLAYLIST_SORT);
+    int count = 0;
+    uint32_t line_no = 0;
+    size_t have = 0;
+    bool end = false, full = false;
+    while (!end && !full)
+    {
+        const ssize_t n = read(fd, buf + have, size - 1 - have);
+        if (n <= 0)
+            end = true;
+        else
+            have += n;
+        buf[have] = '\0';
+        char *line = buf;
+        for (;;)
+        {
+            char *nl = strchr(line, '\n');
+            if (!nl && !end)
+                break;
+            if (nl)
+                *nl = '\0';
+            size_t len = strlen(line);
+            if (len && line[len - 1] == '\r')
+                line[--len] = '\0';
+            if (line[0] == '#')
+            {
+                /* of its head, not of another's copied into it */
+                if (line_no == 0
+                    && !strncmp(line, ITUNESDB_PLAYLIST_SORT, sort_len))
+                    state->sort = strtoul(line + sort_len, NULL, 10);
+            }
+            /* the lines of songs, as the playlist counts them: those after
+               max not counted, which stay in the file as they are */
+            else if (len)
+            {
+                if (count >= max)
+                {
+                    full = true;
+                    break;
+                }
+                const long idx = tagcache_find_entry(line);
+                if (idx >= 0)
+                {
+                    songs[count].idx = idx;
+                    songs[count].line = line_no;
+                    count++;
+                }
+                else
+                    state->unmatched++;
+                line_no++;
+            }
+            if (!nl)
+            {
+                line += len;
+                break;
+            }
+            line = nl + 1;
+        }
+        /* the line not ended, to the front for the rest of it */
+        have = buf + have - line;
+        memmove(buf, line, have);
+        if (have >= size - 1)
+            have = 0; /* longer than any path */
+        yield();
+    }
+    close(fd);
+    /* those past max not counted: not in the file's order then */
+    state->lines = line_no;
+    return count;
+}
+
+/* What each column is sorted by, as on the Mac: a column's tag, then those
+   that order songs alike in it. The strings by their places in the
+   database's files, which go as the alphabet. */
+#define END 0xff
+/* an album's artist after its title, as two of one title are each a whole */
+static const unsigned char by_artist[] = {
+    tag_artist, tag_album, tag_albumartist, tag_discnumber, tag_tracknumber,
+    tag_title, END };
+static const unsigned char by_album[] = {
+    tag_album, tag_albumartist, tag_discnumber, tag_tracknumber, tag_title,
+    END };
+static const unsigned char by_title[] = {
+    tag_title, tag_artist, tag_album, END };
+static const unsigned char by_genre[] = {
+    tag_genre, tag_artist, tag_album, tag_albumartist, tag_discnumber,
+    tag_tracknumber, END };
+static const unsigned char by_composer[] = {
+    tag_composer, tag_album, tag_albumartist, tag_discnumber,
+    tag_tracknumber, END };
+static const unsigned char *sort_tags;
+
+static int cmp_song(const void *a, const void *b)
+{
+    const struct lp_song *x = a, *y = b;
+    for (const unsigned char *t = sort_tags; *t != END; t++)
+    {
+        const long kx = tagcache_sort_key(x->idx, *t);
+        const long ky = tagcache_sort_key(y->idx, *t);
+        if (kx != ky)
+            return kx < ky ? -1 : 1;
+    }
+    /* those alike as the file had them, any new after */
+    if (x->line != y->line)
+        return x->line < y->line ? -1 : 1;
+    return (x->idx > y->idx) - (x->idx < y->idx);
+}
+
+void lp_sort(struct lp_song *songs, int count, uint32_t sort)
+{
+    switch (sort)
+    {
+        case ITUNESDB_SORT_ARTIST:   sort_tags = by_artist; break;
+        case ITUNESDB_SORT_ALBUM:    sort_tags = by_album; break;
+        case ITUNESDB_SORT_TITLE:    sort_tags = by_title; break;
+        case ITUNESDB_SORT_GENRE:    sort_tags = by_genre; break;
+        case ITUNESDB_SORT_COMPOSER: sort_tags = by_composer; break;
+        default:                     return; /* as the file has them */
+    }
+    qsort(songs, count, sizeof(*songs), cmp_song);
+}
+
+/* a line into the block written, the block first if it's full */
+struct lp_out {
+    int fd;
+    char block[2048];
+    size_t used;
+    bool ok;
+};
+
+static void out_line(struct lp_out *out, const char *line, size_t n)
+{
+    if (out->used + n + 1 > sizeof(out->block))
+    {
+        out->ok = out->ok
+                  && write(out->fd, out->block, out->used) == (ssize_t)out->used;
+        out->used = 0;
+    }
+    if (n + 1 > sizeof(out->block))
+    {
+        out->ok = false;
+        return;
+    }
+    memcpy(out->block + out->used, line, n);
+    out->block[out->used + n] = '\n';
+    out->used += n + 1;
+}
+
+/* The songs of a file the database hasn't, as of a format it doesn't take,
+   after those written: kept as they were rather than lost. How many. */
+static uint32_t keep_unmatched(const char *file, struct lp_out *out)
+{
+    const int fd = open_utf8(file, O_RDONLY);
+    if (fd < 0)
+        return 0;
+    char chunk[256], line[MAX_PATH];
+    size_t have = 0;
+    bool too_long = false;
+    uint32_t kept = 0;
+    ssize_t n;
+    bool end = false;
+    while (out->ok && !end)
+    {
+        n = read(fd, chunk, sizeof(chunk));
+        if (n <= 0)
+        {
+            end = true;
+            n = 1;
+            chunk[0] = '\n'; /* the last line, if not ended */
+        }
+        for (ssize_t i = 0; i < n; i++)
+        {
+            if (chunk[i] != '\n')
+            {
+                if (have + 1 < sizeof(line))
+                    line[have++] = chunk[i];
+                else
+                    too_long = true;
+                continue;
+            }
+            if (have && line[have - 1] == '\r')
+                have--;
+            line[have] = '\0';
+            if (have && line[0] != '#' && !too_long
+                && tagcache_find_entry(line) < 0)
+            {
+                out_line(out, line, have);
+                kept++;
+            }
+            have = 0;
+            too_long = false;
+        }
+    }
+    close(fd);
+    return kept;
+}
+
+bool lp_write_file(const char *file, struct lp_song *songs, int count,
+                   struct lp_state *state)
+{
+    const uint32_t sort = state->sort;
+    char tmp[MAX_PATH + 4], path[MAX_PATH];
+    snprintf(tmp, sizeof(tmp), "%s.tmp", file);
+    /* its time as Finder last changed it, which its place in Playlists goes by */
+    const time_t time = file_time(file);
+    struct tagcache_search tcs;
+    if (!tagcache_search(&tcs, tag_filename))
+        return false;
+    const int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    bool ok = fd >= 0;
+    /* its head as the import writes it, which knows it as its own by that */
+    char head[sizeof(ITUNESDB_PLAYLIST_HEAD ITUNESDB_PLAYLIST_MARK) + 32];
+    int len = snprintf(head, sizeof(head), "%s%s\n", ITUNESDB_PLAYLIST_HEAD,
+                       ITUNESDB_PLAYLIST_MARK);
+    if (sort > ITUNESDB_SORT_MANUAL)
+        len += snprintf(head + len, sizeof(head) - len,
+                        ITUNESDB_PLAYLIST_SORT "%lu\n", (unsigned long)sort);
+    ok = ok && write(fd, head, len) == len;
+    struct lp_out out;
+    out.fd = fd;
+    out.used = 0;
+    out.ok = ok;
+    uint32_t line = 0;
+    for (int i = 0; out.ok && i < count; i++)
+    {
+        if (!tagcache_retrieve(&tcs, songs[i].idx, tag_filename, path, sizeof(path)))
+        {
+            songs[i].line = LP_NO_LINE;
+            continue;
+        }
+        /* as the import writes them */
+        const char *name = no_volume(path);
+        out_line(&out, name, strlen(name));
+        songs[i].line = line++;
+        if (!(i & 63))
+            yield();
+    }
+    const uint32_t kept = state->unmatched ? keep_unmatched(file, &out) : 0;
+    ok = out.ok;
+    if (ok && out.used)
+        ok = write(fd, out.block, out.used) == (ssize_t)out.used;
+    if (fd >= 0 && close(fd) < 0)
+        ok = false;
+    tagcache_search_finish(&tcs);
+    /* none of its songs found, as with the database going: not empty for it */
+    if (count > 0 && line == 0)
+        ok = false;
+    if (!ok || rename(tmp, file) < 0)
+    {
+        remove(tmp);
+        return false;
+    }
+    if (time)
+        modtime(file, time);
+    state->lines = line + kept;
+    state->unmatched = kept;
+    return true;
+}
+
+bool lp_is_library(const char *file)
+{
+    return file && database_in_ram() && itunesdb_own_playlist(file);
+}
+
+void lp_sync(const char *file)
+{
+    struct lp_state state;
+    if (!file || lp_index_read(file, NULL, 0, &state) < 0 || !state.pending
+        || playing_from(file))
+        return;
+    size_t size;
+    struct lp_song *songs = plugin_get_buffer(&size);
+    if (!songs)
+        return;
+    const int max = MIN(size / sizeof(*songs), LP_MAX);
+    const int n = lp_index_read(file, songs, max, NULL);
+    if (n < 0)
+        return;
+    splash(0, ID2P(LANG_WAIT));
+    if (lp_write_file(file, songs, n, &state))
+        lp_index_write(file, songs, n, &state);
+}
+
+/* A playlist's index from its file, in the order it's shown by, and its file
+   in that order too if rewrite, else to be written yet */
+static int index_make(const char *file, struct lp_song *songs, int max,
+                      char *buf, size_t size, bool rewrite)
+{
+    struct lp_state state;
+    const int n = lp_index_build(file, songs, max, buf, size, &state);
+    if (n < 0)
+        return n;
+    lp_sort(songs, n, state.sort);
+    if (rewrite && !lp_in_file_order(songs, n, &state)
+        && !playing_from(file))
+        lp_write_file(file, songs, n, &state);
+    lp_index_write(file, songs, n, &state);
+    return n;
+}
+
+/* The indexes, before the menu: of each playlist of the import's in the
+   catalogue's folder and those in it, one that isn't of the database as it
+   is; and those of playlists gone, removed */
+#define LP_SEEN_MAX 1024
+static struct {
+    struct lp_song *songs;
+    int max;
+    char *buf;
+    size_t size;
+    uint64_t *seen;
+    int seen_count;
+    bool overflow;
+    bool (*go_on)(void);
+} all;
+
+static void index_folder(char *path, size_t len, int depth)
+{
+    DIR *dir = opendir(path);
+    if (!dir)
+        return;
+    struct dirent *e;
+    while ((e = readdir(dir)))
+    {
+        if (e->d_name[0] == '.')
+            continue;
+        if (all.go_on && !all.go_on())
+        {
+            all.overflow = true; /* not all seen */
+            break;
+        }
+        const bool is_dir = dir_get_info(dir, e).attribute & ATTR_DIRECTORY;
+        if ((size_t)snprintf(path + len, MAX_PATH - len, "/%s", e->d_name)
+            >= MAX_PATH - len)
+        {
+            path[len] = '\0';
+            all.overflow = true; /* one may have an index */
+            continue;
+        }
+        const char *ext = strrchr(e->d_name, '.');
+        if (is_dir)
+        {
+            if (depth < 8)
+                index_folder(path, strlen(path), depth + 1);
+            else
+                all.overflow = true;
+        }
+        else if (ext && !strcasecmp(ext, ".m3u8") && lp_is_library(path))
+        {
+            if (lp_index_read(path, NULL, 0, NULL) < 0)
+                index_make(path, all.songs, all.max, all.buf, all.size, true);
+            if (all.seen_count < LP_SEEN_MAX)
+                all.seen[all.seen_count++] = itunesdb_path_hash(path);
+            else
+                all.overflow = true;
+        }
+        path[len] = '\0';
+        yield();
+    }
+    closedir(dir);
+}
+
+/* What the last whole pass saw: the database, and the catalogue's folder by
+   its playlists' and folders' names, sizes and times, which its listing has,
+   none opened. The same at the next boot, nothing to look at: each playlist's
+   head and index were read again, two reads each. */
+#define LP_MARK      LP_DIR "/catalog.dat"
+#define LP_MARK_MAGIC 0x504c4943 /* "PLIC" */
+struct lp_mark {
+    uint32_t magic, version;
+    uint32_t commitid, entries;
+    uint64_t catalog;
+};
+
+static uint64_t mix(uint64_t h, const void *data, size_t n)
+{
+    const unsigned char *p = data;
+    for (size_t i = 0; i < n; i++)
+        h = (h ^ p[i]) * 0x100000001b3ull;
+    return h;
+}
+
+static uint64_t catalog_print(char *path, size_t len, int depth, uint64_t h)
+{
+    DIR *dir = opendir(path);
+    if (!dir)
+        return h;
+    struct dirent *e;
+    while ((e = readdir(dir)))
+    {
+        if (e->d_name[0] == '.')
+            continue;
+        const struct dirinfo info = dir_get_info(dir, e);
+        const bool is_dir = info.attribute & ATTR_DIRECTORY;
+        const char *ext = strrchr(e->d_name, '.');
+        if (!is_dir && !(ext && !strcasecmp(ext, ".m3u8")))
+            continue;
+        h = mix(h, path, len);
+        h = mix(h, e->d_name, strlen(e->d_name) + 1);
+        h = mix(h, &info.size, sizeof(info.size));
+        h = mix(h, &info.mtime, sizeof(info.mtime));
+        if (is_dir && depth < 8
+            && (size_t)snprintf(path + len, MAX_PATH - len, "/%s", e->d_name)
+               < MAX_PATH - len)
+        {
+            h = catalog_print(path, strlen(path), depth + 1, h);
+            path[len] = '\0';
+        }
+    }
+    closedir(dir);
+    return h;
+}
+
+static void mark_now(struct lp_mark *mark, char *path)
+{
+    mark->magic = LP_MARK_MAGIC;
+    mark->version = LP_VERSION;
+    mark->commitid = tagcache_get_commitid();
+    mark->entries = tagcache_entry_count();
+    mark->catalog = catalog_print(path, strlen(path), 0, 0xcbf29ce484222325ull);
+}
+
+static void remove_gone(void)
+{
+    DIR *dir = opendir(LP_DIR);
+    if (!dir)
+        return;
+    char path[MAX_PATH];
+    struct dirent *e;
+    while ((e = readdir(dir)))
+    {
+        const char *ext = strrchr(e->d_name, '.');
+        if (!ext || e->d_name[0] == '.')
+            continue;
+        bool keep = !strcasecmp(e->d_name, LP_MARK + sizeof(LP_DIR));
+        if (!strcasecmp(ext, ".idx") && ext - e->d_name == 16)
+        {
+            char high[9];
+            strmemccpy(high, e->d_name, sizeof(high));
+            const uint64_t hash = (uint64_t)strtoul(high, NULL, 16) << 32
+                                  | strtoul(e->d_name + 8, NULL, 16);
+            for (int i = 0; i < all.seen_count && !keep; i++)
+                keep = all.seen[i] == hash;
+        }
+        if (!keep)
+        {
+            snprintf(path, sizeof(path), LP_DIR "/%s", e->d_name);
+            remove(path);
+        }
+    }
+    closedir(dir);
+}
+
+void lp_index_all(bool (*go_on)(void))
+{
+    size_t size;
+    char path[MAX_PATH];
+    /* not made here if there's none */
+    if (!database_in_ram() || !catalog_directory_name(path, sizeof(path)))
+        return;
+    /* nothing changed since the last whole pass */
+    struct lp_mark now, last;
+    mark_now(&now, path);
+    int fd = open(LP_MARK, O_RDONLY);
+    if (fd >= 0)
+    {
+        const bool same = read(fd, &last, sizeof(last)) == sizeof(last)
+                          && !memcmp(&last, &now, sizeof(now));
+        close(fd);
+        if (same)
+            return;
+    }
+    char *buf = plugin_get_buffer(&size);
+    const size_t read_size = 8192;
+    if (!buf || size < read_size + LP_SEEN_MAX * sizeof(uint64_t) + 64)
+        return;
+    buf = (char *)ALIGN_UP((uintptr_t)buf, 8);
+    size -= 8;
+    all.seen = (uint64_t *)buf;
+    all.seen_count = 0;
+    all.overflow = false;
+    all.go_on = go_on;
+    all.buf = (char *)(all.seen + LP_SEEN_MAX);
+    all.size = read_size;
+    all.songs = (struct lp_song *)(all.buf + read_size);
+    all.max = MIN((buf + size - (char *)all.songs) / sizeof(struct lp_song),
+                  LP_MAX);
+    cpu_boost(true);
+    index_folder(path, strlen(path), 0);
+    if (!all.overflow)
+    {
+        remove_gone();
+        /* as the pass left it, files it wrote again in their order too */
+        mark_now(&now, path);
+        whole_file_write(LP_MARK, &now, sizeof(now));
+    }
+    cpu_boost(false);
+}
+
+/* The screen: its songs, their titles' places in the pool of them, and the
+   pool, in the plugin buffer */
+static struct {
+    char file[MAX_PATH];    /* its own: the catalogue's is written over by
+                               Add to Playlist meanwhile */
+    struct lp_song *songs;
+    uint32_t *names;
+    char *pool;
+    int count;              /* those shown */
+    int total;              /* those it has, all written to its file */
+    struct lp_state state;
+    bool from_this;         /* the music is from this playlist */
+    bool waited;            /* Loading was shown as it opened */
+    bool at_playing;        /* opened at the song playing */
+    unsigned int gen;       /* of the plugin buffer, which a plugin takes */
+} lp;
+
+static bool lp_load(void)
+{
+    size_t size;
+    char *buf = plugin_get_buffer(&size);
+    lp.gen = plugin_buffer_gen();
+    lp.count = lp.total = 0;
+    if (!buf || size < 4096)
+        return false;
+    /* a third for the songs and their titles' places, the rest for titles */
+    buf = (char *)ALIGN_UP((uintptr_t)buf, 4);
+    size -= 4;
+    const int max = MIN((size / 3) / (sizeof(struct lp_song) + sizeof(uint32_t)),
+                        LP_MAX);
+    lp.songs = (struct lp_song *)buf;
+    lp.names = (uint32_t *)(lp.songs + max);
+    lp.pool = (char *)(lp.names + max);
+    const size_t pool_size = buf + size - lp.pool;
+
+    int n = lp_index_read(lp.file, lp.songs, max, &lp.state);
+    if (n < 0)
+    {
+        /* none yet, as after Rockbox's own update of the database: made now,
+           its file written as it plays */
+        splash(0, ID2P(LANG_WAIT));
+        lp.waited = true;
+        n = index_make(lp.file, lp.songs, max, lp.pool, pool_size, false);
+        if (n < 0)
+            return false;
+        n = lp_index_read(lp.file, lp.songs, max, &lp.state);
+        if (n < 0)
+            return false;
+    }
+    lp.count = lp.total = n;
+
+    /* the titles, or for one without a title its file's name */
+    struct tagcache_search tcs;
+    size_t used = 0;
+    const bool search = tagcache_search(&tcs, tag_title);
+    for (int i = 0; i < n; i++)
+    {
+        const size_t room = pool_size - used;
+        if (room < 2)
+        {
+            lp.count = i;
+            break;
+        }
+        lp.names[i] = used;
+        char *name = lp.pool + used;
+        name[0] = '\0';
+        if (search
+            && (!tagcache_retrieve(&tcs, lp.songs[i].idx, tag_title, name, room)
+                || !name[0]))
+        {
+            char path[MAX_PATH];
+            name[0] = '\0';
+            if (tagcache_retrieve(&tcs, lp.songs[i].idx, tag_filename,
+                                  path, sizeof(path)))
+            {
+                const char *base = strrchr(path, '/');
+                strmemccpy(name, base ? base + 1 : path, room);
+                char *ext = strrchr(name, '.');
+                if (ext && ext != name)
+                    *ext = '\0';
+            }
+        }
+        used += strlen(name) + 1;
+    }
+    if (search)
+        tagcache_search_finish(&tcs);
+    return true;
+}
+
+/* The rows: Shuffle Songs first, all of the playlist's in random order,
+   then its songs; none for one without songs */
+#define SHUFFLE_ROW 0
+
+static int lp_rows(void)
+{
+    return lp.count > 0 ? lp.count + 1 : 0;
+}
+
+static const char *lp_name(int row, void *data, char *buf, size_t size)
+{
+    (void)data;
+    (void)buf;
+    (void)size;
+    if (row == SHUFFLE_ROW)
+        return str(LANG_SHUFFLE_SONGS);
+    return lp.pool + lp.names[row - 1];
+}
+
+static bool lp_shuffle_row(int row, void *data)
+{
+    (void)data;
+    return row == SHUFFLE_ROW;
+}
+
+static bool lp_playing(int row, void *data)
+{
+    (void)data;
+    return row != SHUFFLE_ROW && lp.from_this
+           && gui_synclist_playing() == (long)lp.songs[row - 1].idx + 1;
+}
+
+/* the music from this song on, or with song < 0 all of them shuffled, from
+   the playlist's file, written first if it's behind the list. False if it
+   didn't start. */
+static bool lp_play(int song)
+{
+    if (global_settings.party_mode || !warn_on_pl_erase())
+        return false;
+    if (lp.state.pending || (song >= 0 && lp.songs[song].line == LP_NO_LINE))
+    {
+        /* the music from it plays on meanwhile: its file, open, is kept
+           until it closes */
+        splash(0, ID2P(LANG_WAIT));
+        if (!lp_write_file(lp.file, lp.songs, lp.total, &lp.state))
+            return false;
+        lp_index_write(lp.file, lp.songs, lp.total, &lp.state);
+        if (song >= 0 && lp.songs[song].line == LP_NO_LINE)
+            return false;
+    }
+    char dir[MAX_PATH];
+    strmemccpy(dir, lp.file, sizeof(dir));
+    char *name = strrchr(dir, '/');
+    if (!name)
+        return false;
+    *name++ = '\0';
+    if (playlist_create(dir[0] ? dir : "/", name) < 0)
+        return false;
+    /* not past its end, as with fewer files allowed in a playlist */
+    const int amount = playlist_amount();
+    if (amount <= 0)
+        return false;
+    if (song < 0)
+    {
+        /* whatever the Shuffle setting, as Shuffle Songs in the main menu */
+        playlist_shuffle(current_tick, -1);
+        playlist_start(0, 0, 0);
+        return true;
+    }
+    int start = MIN((int)lp.songs[song].line, amount - 1);
+    if (global_settings.playlist_shuffle)
+    {
+        start = playlist_shuffle(0, start);
+        if (!global_settings.play_selected)
+            start = 0;
+    }
+    playlist_start(start, 0, 0);
+    return true;
+}
+
+/* a held Select: the menu of the song, as in Songs */
+static int lp_song_menu(int song)
+{
+    char path[MAX_PATH], title[MAX_PATH];
+    struct tagcache_search tcs;
+    if (!tagcache_search(&tcs, tag_filename))
+        return -1;
+    const bool found = tagcache_retrieve(&tcs, lp.songs[song].idx, tag_filename,
+                                         path, sizeof(path));
+    tagcache_search_finish(&tcs);
+    if (!found)
+        return -1;
+    /* its own: what the menu opens may take the plugin buffer */
+    strmemccpy(title, lp.pool + lp.names[song], sizeof(title));
+    onplay_set_title(title);
+    switch (onplay(path, FILE_ATTR_AUDIO, CONTEXT_STD, false,
+                   ONPLAY_NO_CUSTOMACTION))
+    {
+        case ONPLAY_START_PLAY:
+            return PLAYLIST_VIEWER_OK;
+        case ONPLAY_MAINMENU:
+            return PLAYLIST_VIEWER_MAINMENU;
+        default:
+            return -1;
+    }
+}
+
+int lp_view(const char *file, int *selection)
+{
+    tidy_copy(lp.file, sizeof(lp.file), file);
+    /* songs have the whole width, as the lists of Music from Artists on, and
+       Loading before them is in the middle of it, not of the menu's part */
+    const bool was_wide = menu_wide();
+    if (!was_wide)
+        menu_set_wide(true);
+    /* a live smart one as ratings and plays are now, before it shows */
+    lp.waited = smart_prepare(lp.file);
+    if (!lp_load())
+    {
+        if (!was_wide)
+            menu_set_wide(false);
+        return PLAYLIST_VIEWER_CANCEL;
+    }
+
+    /* its name, without .m3u8 */
+    char title[MAX_PATH];
+    const char *base = strrchr(lp.file, '/');
+    strmemccpy(title, base ? base + 1 : lp.file, sizeof(title));
+    char *ext = strrchr(title, '.');
+    if (ext && ext != title)
+        *ext = '\0';
+
+    push_current_activity(ACTIVITY_PLAYLISTVIEWER);
+    /* from the screen before, not from Loading */
+    if (!lp.waited)
+        transition_begin(TRANSITION_FORWARD);
+
+    struct gui_synclist list;
+    gui_synclist_init(&list, lp_name, NULL, false, 1, NULL);
+    gui_synclist_set_title(&list, title, Icon_Playlist);
+    gui_synclist_set_icon_callback(&list, NULL);
+    gui_synclist_set_playing_callback(&list, lp_playing);
+    gui_synclist_set_shuffle_callback(&list, lp_shuffle_row);
+    gui_synclist_set_nb_items(&list, lp_rows());
+    int sel = selection ? *selection : 0;
+    if (lp.at_playing)
+    {
+        const long playing = gui_synclist_song_playing();
+        for (int i = 0; i < lp.count; i++)
+        {
+            if ((long)lp.songs[i].idx + 1 == playing)
+            {
+                sel = i + 1;
+                break;
+            }
+        }
+    }
+    gui_synclist_select_item(&list, MAX(MIN(sel, lp_rows() - 1), 0));
+
+    int ret = -1;
+    bool redraw = true;
+    while (ret < 0)
+    {
+        /* the plugin buffer taken meanwhile, as by a dock: read again */
+        if (plugin_buffer_gen() != lp.gen)
+        {
+            const int row = gui_synclist_get_sel_pos(&list);
+            if (!lp_load())
+            {
+                ret = PLAYLIST_VIEWER_CANCEL;
+                break;
+            }
+            gui_synclist_set_nb_items(&list, lp_rows());
+            gui_synclist_select_item(&list, MAX(MIN(row, lp_rows() - 1), 0));
+            redraw = true;
+        }
+        if (redraw)
+        {
+            lp.from_this = playing_from(lp.file);
+            gui_synclist_draw(&list);
+        }
+        redraw = false;
+        int action;
+        if (list_do_action(CONTEXT_TREE | ALLOW_SOFTLOCK, HZ / 2, &list, &action))
+            continue;
+        /* holding Play goes to the song playing, if there is one */
+        if (action == ACTION_TREE_STOP && audio_status())
+            action = ACTION_TREE_WPS;
+        const int row = gui_synclist_get_sel_pos(&list);
+        switch (action)
+        {
+            case ACTION_STD_OK:
+                if (lp.count <= 0)
+                    break;
+                if (row == SHUFFLE_ROW)
+                {
+                    if (lp_play(-1))
+                        ret = PLAYLIST_VIEWER_OK;
+                    redraw = true;
+                    break;
+                }
+                /* the song playing, of this list: to it, paused or not */
+                lp.from_this = playing_from(lp.file);
+                if (lp.from_this && gui_synclist_song_playing()
+                                    == (long)lp.songs[row - 1].idx + 1)
+                {
+                    ret = PLAYLIST_VIEWER_OK;
+                    break;
+                }
+                if (lp_play(row - 1))
+                    ret = PLAYLIST_VIEWER_OK;
+                redraw = true;
+                break;
+            case ACTION_STD_CONTEXT:
+                if (lp.count <= 0 || row == SHUFFLE_ROW)
+                    break;
+                ret = lp_song_menu(row - 1);
+                redraw = true;
+                break;
+            case ACTION_STD_CANCEL:
+                transition_begin(TRANSITION_BACK);
+                ret = PLAYLIST_VIEWER_CANCEL;
+                break;
+            case ACTION_TREE_WPS:
+                if (audio_status())
+                    ret = PLAYLIST_VIEWER_OK;
+                break;
+            case ACTION_STD_MENU:
+                ret = PLAYLIST_VIEWER_MAINMENU;
+                break;
+            default:
+                if (default_event_handler(action) == SYS_USB_CONNECTED)
+                    ret = PLAYLIST_VIEWER_USB;
+                break;
+        }
+    }
+    if (selection)
+        *selection = gui_synclist_get_sel_pos(&list);
+    pop_current_activity_without_refresh();
+    if (!was_wide)
+        menu_set_wide(false);
+    return ret;
+}
+
+int lp_view_current(void)
+{
+    char name[MAX_PATH];
+    struct lp_state state;
+    /* as many songs as its file has: none put in from elsewhere, none taken
+       out, which the list from its index wouldn't show */
+    if (!playlist_get_name(NULL, name, sizeof(name)) || !lp_is_library(name)
+        || lp_index_read(name, NULL, 0, &state) < 0
+        || (int)state.lines != playlist_amount())
+        return -1;
+    lp.at_playing = true;
+    const int ret = lp_view(name, NULL);
+    lp.at_playing = false;
+    return ret;
+}

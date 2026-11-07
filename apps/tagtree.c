@@ -3633,6 +3633,18 @@ int tagtree_add_to_playlist(const char* playlist, bool new_playlist)
     return tagtree_insert_selection(0, false, playlist, new_playlist) ? 0 : -1;
 }
 
+/* the selection's songs at the end of a playlist file, from the list it's in */
+bool tagtree_add_to_file(const char *file)
+{
+    return tagtree_insert_selection(0, false, file, false);
+}
+
+/* in Music's own list, whose rows are its sections: none adds a song */
+bool tagtree_at_top(void)
+{
+    return tc && tc->dirlevel == 0;
+}
+
 /* Which list this is, from how it is searched for. Going through its songs
    instead would load them all, a chunk at a time: over a second for 13000. */
 static uint32_t tagtree_list_id(int table, int extra,

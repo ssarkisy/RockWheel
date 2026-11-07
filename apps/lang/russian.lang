@@ -19033,3 +19033,45 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_ON_THE_GO
+  desc: the playlist made on the iPod, as on a stock one: its row at the end of Playlists and its screen's title. Apple keeps the name in every language
+  user: core
+  <source>
+    *: "On-The-Go"
+  </source>
+  <dest>
+    *: "On-The-Go"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ADD_TO_ON_THE_GO
+  desc: first in the menu of a held Select on a song, an album, an artist or a playlist, and in the one over Now Playing: adds it to On-The-Go
+  user: core
+  <source>
+    *: "Add to On-The-Go"
+  </source>
+  <dest>
+    *: "Добавить в On-The-Go"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ON_THE_GO_CLEAR
+  desc: the last row of On-The-Go, and the choice asked after it: empties it
+  user: core
+  <source>
+    *: "Clear Playlist"
+  </source>
+  <dest>
+    *: "Очистить плейлист"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

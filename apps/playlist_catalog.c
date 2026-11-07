@@ -47,6 +47,10 @@
 #include "bookmark.h"
 #include "root_menu.h"
 #include "general.h"
+#include "on_the_go.h"
+#ifdef HAVE_TAGCACHE
+#include "library_playlists.h"
+#endif
 
 /* Use for recursive directory search */
 struct add_track_context {
@@ -144,6 +148,44 @@ void catalog_get_directory(char* dirbuf, size_t dirbuf_sz)
     }
 }
 
+bool catalog_directory_name(char *dirbuf, size_t dirbuf_sz)
+{
+    return get_directory(dirbuf, dirbuf_sz) < dirbuf_sz && dir_exists(dirbuf);
+}
+
+/* A path as the browser gives it, as the catalogue's folder is, which the
+   playlist's place in it is counted from, and as the import names its
+   playlists: without the drive it names first on an iPod, nor a separator
+   doubled, as it gives one back in a folder ("/Playlists//Sub") */
+static void tidy_path(char *path)
+{
+#ifdef HAVE_MULTIVOLUME
+    const char *rest;
+    path_strip_volume(path, &rest, false);
+    if (rest != path && *rest == PATH_SEPCH)
+        memmove(path, rest, strlen(rest) + 1);
+#endif
+    char *to = path;
+    for (const char *from = path; *from; from++)
+    {
+        if (*from == PATH_SEPCH && to > path && to[-1] == PATH_SEPCH)
+            continue;
+        *to++ = *from;
+    }
+    *to = '\0';
+}
+
+/* a playlist's screen: one of the library's from the database, as Songs is,
+   the user's own as Rockbox has it */
+static int view_playlist(char *file, int *selection)
+{
+#ifdef HAVE_TAGCACHE
+    if (lp_is_library(file))
+        return lp_view(file, selection);
+#endif
+    return playlist_viewer_ex(file, selection);
+}
+
 /* Display all playlists in catalog.  Selected "playlist" is returned.
  * If status is CATBROWSE_CATVIEW then we're not adding anything into playlist */
 static int display_playlists(char* playlist, enum catbrowse_status_flags status)
@@ -159,7 +201,7 @@ static int display_playlists(char* playlist, enum catbrowse_status_flags status)
 
     struct browse_context browse = {
         .dirfilter = SHOW_M3U,
-        .flags = BROWSE_SELECTONLY | (view ? 0 : BROWSE_NO_CONTEXT_MENU),
+        .flags = BROWSE_SELECTONLY | (view ? BROWSE_ON_THE_GO : BROWSE_NO_CONTEXT_MENU),
         .title = str(LANG_PLAYLISTS),
         .icon = Icon_Playlist,
         .root = selected_playlist,
@@ -175,7 +217,7 @@ restart:
 
     if (view && reopen_last_playlist)
     {
-        switch (playlist_viewer_ex(most_recent_playlist, &most_recent_selection))
+        switch (view_playlist(most_recent_playlist, &most_recent_selection))
         {
             case PLAYLIST_VIEWER_OK:
             {
@@ -202,7 +244,27 @@ restart:
             result = 0;
     }
 
-    if (browse.flags & BROWSE_SELECTED) /* User picked a playlist */
+    if (browse.flags & BROWSE_SELECTED)
+        tidy_path(selected_playlist);
+
+    /* On-The-Go, viewed: none of the catalogue's playlists, which stays the one
+       it opens at, and no bookmark */
+    if (view && (browse.flags & BROWSE_SELECTED)
+        && !strcmp(selected_playlist, OTG_FILE))
+    {
+        /* a path of its own: the viewer cuts it apart for a while */
+        switch (playlist_viewer_ex(selected_playlist, NULL))
+        {
+            case PLAYLIST_VIEWER_OK:
+                result = 0;
+                break;
+            case PLAYLIST_VIEWER_CANCEL:
+                goto restart;
+            default:
+                break;
+        }
+    }
+    else if (browse.flags & BROWSE_SELECTED) /* User picked a playlist */
     {
         if (strcmp(most_recent_playlist, selected_playlist)) /* isn't most recent one */
         {
@@ -214,7 +276,6 @@ restart:
 
         if (view) /* display playlist contents or resume bookmark */
         {
-
             int res = bookmark_autoload(selected_playlist);
             if (res == BOOKMARK_DO_RESUME)
                result = 0;
@@ -222,7 +283,7 @@ restart:
                 goto restart;
             else
             {
-                switch (playlist_viewer_ex(selected_playlist, &most_recent_selection)) {
+                switch (view_playlist(selected_playlist, &most_recent_selection)) {
                     case PLAYLIST_VIEWER_OK:
                     {
                         reopen_last_playlist = true;
@@ -317,9 +378,17 @@ int catalog_insert_into(const char* playlist, bool new_playlist,
         int f, fs, i;
         char buf[1024];
 
-        if(strcasecmp(playlist, sel) == 0)
+        /* not into itself, the drive named in one path or not */
+        char same[MAX_PATH];
+        strmemccpy(same, sel, sizeof(same));
+        tidy_path(same);
+        if(strcasecmp(playlist, same) == 0)
             goto exit;
 
+#ifdef HAVE_TAGCACHE
+        /* a smart one as its screen has it */
+        lp_sync(sel);
+#endif
         f = open_utf8(sel, O_RDONLY);
         if (f < 0)
             goto exit;

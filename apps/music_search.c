@@ -43,6 +43,8 @@
 #include "viewport.h"
 #include "wps.h"
 #include "music_search.h"
+#include "onplay.h"
+#include "filetypes.h"
 #include "plugin.h"
 
 /* The screen: the query, the row of letters under it and what matches under
@@ -1763,6 +1765,33 @@ static int open_result(int g, int index)
     return screen;
 }
 
+/* a held Select on a song: the menu a song has in Music's lists, Add to
+   On-The-Go first; the screen to go to, or 0 for this one */
+static int song_menu(int index)
+{
+    char path[MAX_PATH];
+    struct tagcache_search tcs;
+    const struct result *r = &results[group_first[GROUP_SONGS] + index];
+    if (!tagcache_search(&tcs, tag_filename))
+        return 0;
+    const bool found = tagcache_retrieve(&tcs, r->idx_id, tag_filename,
+                                         path, sizeof(path));
+    tagcache_search_finish(&tcs);
+    if (!found)
+        return 0;
+    onplay_set_title(pool + r->name);
+    switch (onplay(path, FILE_ATTR_AUDIO, CONTEXT_STD, false,
+                   ONPLAY_NO_CUSTOMACTION))
+    {
+        case ONPLAY_START_PLAY:
+            return GO_TO_WPS;
+        case ONPLAY_MAINMENU:
+            return GO_TO_ROOT;
+        default:
+            return 0;
+    }
+}
+
 static const char *group_row_name(int row, void *data, char *buf, size_t size)
 {
     (void)buf;
@@ -1802,6 +1831,16 @@ static int show_group(int g)
             case ACTION_STD_OK:
                 ret = open_result(g, gui_synclist_get_sel_pos(&list));
                 redraw = true;
+                break;
+            case ACTION_STD_CONTEXT:
+                if (g == GROUP_SONGS)
+                {
+                    names_let_go();
+                    ret = song_menu(gui_synclist_get_sel_pos(&list));
+                    if (ret == 0)
+                        names_hold();
+                    redraw = true;
+                }
                 break;
             case ACTION_STD_CANCEL:
                 transition_begin(TRANSITION_BACK);
@@ -1942,6 +1981,21 @@ int music_search_screen(void *param)
                         names_hold();
                     redraw = true;
                     break;
+                case ACTION_STD_CONTEXT:
+                {
+                    int index;
+                    chosen_row = gui_synclist_get_sel_pos(&lists);
+                    if (row_group(chosen_row, &index) == GROUP_SONGS && index >= 0
+                        && !see_all(GROUP_SONGS, index))
+                    {
+                        names_let_go();
+                        ret = song_menu(index);
+                        if (ret == 0)
+                            names_hold();
+                        redraw = true;
+                    }
+                    break;
+                }
                 case ACTION_STD_CANCEL:
                     go_up();
                     redraw = true;

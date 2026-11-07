@@ -98,6 +98,7 @@
 #ifndef PLUGIN
 #include "music_search.h"
 #include "library_fonts.h"
+#include "smart_playlists.h"
 #endif
 #endif
 #define USR_CANCEL false
@@ -4768,9 +4769,123 @@ long tagcache_increase_serial(void)
     return old;
 }
 
+static long rating_generation, plays_generation;
+
 void tagcache_update_numeric(int idx_id, int tag, long data)
 {
+    if (tag == tag_rating)
+        rating_generation++;
+    else if (tag == tag_playcount || tag == tag_lastplayed)
+        plays_generation++;
     queue_command(CMD_UPDATE_NUMERIC, idx_id, tag, data);
+}
+
+long tagcache_runtime_generation(bool ratings)
+{
+    return ratings ? rating_generation : plays_generation;
+}
+
+/* the entries, those removed too: as many as a pass over them can give */
+int tagcache_entry_count(void)
+{
+    return current_tcmh.tch.entry_count;
+}
+
+/* whether files are found in memory by their paths, all of them */
+bool tagcache_finds_entries(void)
+{
+#ifdef HAVE_TC_RAMCACHE
+    return tc_stat.ready && tc_stat.ramcache && ram_names_handle > 0;
+#else
+    return false;
+#endif
+}
+
+/* the entry of a file, from memory, or -1 */
+long tagcache_find_entry(const char *filename)
+{
+#ifdef HAVE_TC_RAMCACHE
+    if (tagcache_finds_entries())
+    {
+        const long idx_id = find_path_name(ram_names_handle, ram_names_count,
+                                           filename, NULL);
+        if (idx_id >= 0 && idx_id < current_tcmh.tch.entry_count
+            && !(tcramcache.hdr->indices[idx_id].flag & FLAG_DELETED))
+            return idx_id;
+    }
+#endif
+    (void)filename;
+    return -1;
+}
+
+static void entry_numbers(int idx_id, const struct index_entry *idx,
+                          struct tagcache_numbers *n)
+{
+    n->length = tc_find_tag(tag_length, idx_id, idx);
+    n->playcount = tc_find_tag(tag_playcount, idx_id, idx);
+    n->playtime = tc_find_tag(tag_playtime, idx_id, idx);
+    n->rating = tc_find_tag(tag_rating, idx_id, idx);
+    n->lastplayed = tc_find_tag(tag_lastplayed, idx_id, idx);
+#if defined(HAVE_TC_RAMCACHE)
+    n->kind = ram_kind(idx_id);
+#else
+    n->kind = 0;
+#endif
+}
+
+/* What an entry sorts by for a tag, from the database in memory: a number's
+   value, or for a string of a sorted file its place there, which goes as the
+   alphabet. 0 without the memory. */
+long tagcache_sort_key(int idx_id, int tag)
+{
+#ifdef HAVE_TC_RAMCACHE
+    /* as it is in memory, without the queue, which has only what playing
+       changes: nothing waited for in the middle of a sort */
+    if (tc_stat.ramcache && idx_id >= 0 && idx_id < current_tcmh.tch.entry_count
+        && (TAGCACHE_IS_NUMERIC(tag) || TAGCACHE_IS_SORTED(tag)))
+        return tcramcache.hdr->indices[idx_id].tag_seek[tag];
+#endif
+    (void)idx_id;
+    (void)tag;
+    return 0;
+}
+
+/* Each entry's file and what smart playlists go by, to read them only: from
+   memory when the database is there, and its numbers as changed even if not
+   yet written, as the queue has them */
+bool tagcache_read_entries(void (*fn)(int idx_id, const char *filename,
+                                      const struct tagcache_numbers *n,
+                                      void *data),
+                           void *data, bool names)
+{
+    struct tagcache_search tcs;
+    struct master_header myhdr;
+    struct index_entry idx;
+    char buf[TAGCACHE_BUFSZ];
+
+    if (!tagcache_search(&tcs, tag_filename))
+        return false;
+    const int masterfd = open_master_fd(&myhdr, false);
+    if (masterfd < 0)
+    {
+        tagcache_search_finish(&tcs);
+        return false;
+    }
+    for (int i = 0; i < myhdr.tch.entry_count; i++)
+    {
+        if (!get_index(masterfd, i, &idx, true) || (idx.flag & FLAG_DELETED)
+            || (names && !tagcache_retrieve(&tcs, i, tag_filename, buf, sizeof(buf))))
+            continue;
+        struct tagcache_numbers n;
+        entry_numbers(i, &idx, &n);
+        fn(i, names ? buf : NULL, &n, data);
+        /* now and then: music may play meanwhile */
+        if (!(i & 63))
+            yield();
+    }
+    close(masterfd);
+    tagcache_search_finish(&tcs);
+    return true;
 }
 #endif /* !__PCTOOL__ */
 
@@ -7369,7 +7484,11 @@ static void tagcache_thread(void)
                 import_phase = TAGCACHE_IMPORT_COUNTS;
                 /* the import is tried again on the next boot otherwise */
                 if (!db_file_exists(TAGCACHE_FILE_TEMP))
+                {
                     itunesdb_import();
+                    /* the live smart playlists, by the counts just in */
+                    smart_update_after_import();
+                }
 #ifdef ITUNESDB_HAVE_ART
                 /* the slides of the new covers, ready for Cover Flow */
                 import_done = import_total = 0;

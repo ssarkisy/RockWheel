@@ -42,6 +42,7 @@
 #include "lang.h"
 
 #include "playlist_viewer.h"
+#include "on_the_go.h"
 #include "playlist_catalog.h"
 #include "icon.h"
 #include "list.h"
@@ -57,6 +58,9 @@
 
 #if defined (HAVE_TAGCACHE) && defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
 #include "tagcache.h"
+#endif
+#ifdef HAVE_TAGCACHE
+#include "library_playlists.h"
 #endif
 
 /* Maximum number of tracks we can have loaded at one time                   */
@@ -144,6 +148,9 @@ struct playlist_viewer {
     /* the song playing, if a file is viewed that the music playing is from:
        its path, as its tracks have theirs, or empty */
     char playing[MAX_PATH];
+    /* On-The-Go, as on a stock iPod: Clear Playlist its last row, a held Select
+       removes a song at once, and what changed is kept, unasked */
+    bool on_the_go;
 };
 
 struct playlist_search_data
@@ -153,6 +160,17 @@ struct playlist_search_data
 };
 
 static struct playlist_viewer  viewer;
+
+/* the rows: On-The-Go's songs and its Clear Playlist */
+static int pv_rows(void)
+{
+    return viewer.num_tracks + (viewer.on_the_go ? 1 : 0);
+}
+
+static bool pv_clear_row(int item)
+{
+    return viewer.on_the_go && item == viewer.num_tracks;
+}
 
 static void playlist_buffer_init(struct playlist_buffer *pb, char *names_buffer,
                                  int names_buffer_size)
@@ -603,7 +621,12 @@ static void close_playlist_viewer(void)
         if (viewer.initial_selection)
             *(viewer.initial_selection) = viewer.selected_track;
 
-        if(playlist_modified(viewer.playlist))
+        if (viewer.on_the_go)
+        {
+            if (playlist_modified(viewer.playlist))
+                otg_save(viewer.playlist);
+        }
+        else if(playlist_modified(viewer.playlist))
         {
             if (viewer.num_tracks && yesno_pop(ID2P(LANG_SAVE_CHANGES)))
                 save_playlist_screen(viewer.playlist);
@@ -759,6 +782,8 @@ static const char* playlist_callback_name(int selected_item,
                                           char *buffer,
                                           size_t buffer_len)
 {
+    if (pv_clear_row(selected_item))
+        return str(LANG_ON_THE_GO_CLEAR);
     struct playlist_entry *track = pv_get_track(data, selected_item);
 
     format_line(track, buffer, buffer_len);
@@ -771,6 +796,8 @@ static enum themable_icons playlist_callback_icons(int selected_item,
                                                    void *data)
 {
     struct playlist_viewer *local_viewer = (struct playlist_viewer *)data;
+    if (pv_clear_row(selected_item))
+        return Icon_NOICON;
     struct playlist_entry *track = pv_get_track(local_viewer, selected_item);
 
     if (track->index == local_viewer->current_playing_track)
@@ -797,6 +824,8 @@ static enum themable_icons playlist_callback_icons(int selected_item,
 static bool playlist_callback_playing(int selected_item, void *data)
 {
     struct playlist_viewer *local_viewer = (struct playlist_viewer *)data;
+    if (pv_clear_row(selected_item))
+        return false;
     struct playlist_entry *track = pv_get_track(local_viewer, selected_item);
     if (!local_viewer->playlist)
         return audio_status() && track->index == local_viewer->current_playing_track;
@@ -826,6 +855,11 @@ static bool update_playing(void)
 static int playlist_callback_voice(int selected_item, void *data)
 {
     struct playlist_viewer *local_viewer = (struct playlist_viewer *)data;
+    if (pv_clear_row(selected_item))
+    {
+        talk_id(LANG_ON_THE_GO_CLEAR, false);
+        return 0;
+    }
     struct playlist_entry *track = pv_get_track(local_viewer, selected_item);
 
     if(global_settings.playlist_viewer_icons) {
@@ -868,7 +902,7 @@ static void update_gui(struct gui_synclist * playlist_lists, bool init)
     if (init)
         gui_synclist_init(playlist_lists, playlist_callback_name,
                           &viewer, false, 1, NULL);
-    gui_synclist_set_nb_items(playlist_lists, viewer.num_tracks);
+    gui_synclist_set_nb_items(playlist_lists, pv_rows());
     gui_synclist_set_voice_callback(playlist_lists,
                                     global_settings.talk_file?
                                     &playlist_callback_voice:NULL);
@@ -910,6 +944,7 @@ static bool open_playlist_viewer(const char* filename,
     char *sep = NULL;
     viewer.loading_tick = current_tick + HZ/3;
 
+    viewer.on_the_go = filename && !strcasecmp(filename, OTG_FILE);
     /* Set viewer title */
     if (filename)
     {
@@ -934,7 +969,7 @@ static bool open_playlist_viewer(const char* filename,
         if (ext && ext != title
             && (!strcasecmp(ext, ".m3u8") || !strcasecmp(ext, ".m3u")))
             *ext = '\0';
-        viewer.title = title;
+        viewer.title = viewer.on_the_go ? (char *) str(LANG_ON_THE_GO) : title;
     }
     else
         viewer.title = (char *) str(LANG_PLAYLIST);
@@ -984,6 +1019,18 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
     int button;
     struct gui_synclist playlist_lists;
 
+#ifdef HAVE_TAGCACHE
+    /* the songs to come from one of the library's playlists: its own screen,
+       as from Playlists, its name, Shuffle Songs and a list that scrolls as
+       Songs does */
+    if (!filename)
+    {
+        const int lp = lp_view_current();
+        if (lp >= 0)
+            return lp;
+    }
+#endif
+
     /* songs have the whole width, as the lists of Music from Artists on */
     const bool was_wide = menu_wide();
     if (!was_wide)
@@ -1013,7 +1060,7 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
             /*Needed because update_playlist gives wrong value when
                                                             playing is stopped*/
             viewer.current_playing_track = track;
-            gui_synclist_set_nb_items(&playlist_lists, viewer.num_tracks);
+            gui_synclist_set_nb_items(&playlist_lists, pv_rows());
 
             gui_synclist_draw(&playlist_lists);
             gui_synclist_speak_item(&playlist_lists);
@@ -1028,7 +1075,9 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
          * since viewer.selected_track is updated too late (after the first draw)
          * drawing the moving item needs it */
         viewer.selected_track=gui_synclist_get_sel_pos(&playlist_lists);
-        if (res)
+        /* Clear Playlist is no song */
+        const bool on_clear = pv_clear_row(viewer.selected_track);
+        if (res && !on_clear)
         {
             bool reload = playlist_buffer_needs_reload(&viewer.buffer,
                     viewer.selected_track);
@@ -1042,6 +1091,56 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
         /* holding Play goes to the track playing, if there is one */
         if (button == ACTION_TREE_STOP && audio_status())
             button = ACTION_TREE_WPS;
+
+        if (on_clear && button == ACTION_STD_OK)
+        {
+            /* as Reset Settings asks, Cancel first */
+            static const struct opt_items items[] = {
+                { STR(LANG_ON_THE_GO_CLEAR) }, { STR(LANG_CANCEL_0) },
+            };
+            int choice = 1;
+            if (set_option(str(LANG_ON_THE_GO_CLEAR), &choice, RB_INT, items,
+                           ARRAYLEN(items), NULL))
+            {
+                ret = PLAYLIST_VIEWER_USB;
+                goto exit;
+            }
+            if (choice == 0)
+            {
+                /* nothing of it to keep as it closes */
+                otg_clear();
+                playlist_set_modified(viewer.playlist, false);
+                ret = PLAYLIST_VIEWER_CANCEL;
+                goto exit;
+            }
+            update_gui(&playlist_lists, false);
+            continue;
+        }
+        if (on_clear && (button == ACTION_STD_CONTEXT
+#ifdef HAVE_HOTKEY
+                         || button == ACTION_TREE_HOTKEY
+#endif
+                        ))
+            continue;
+        if (viewer.on_the_go && button == ACTION_STD_CONTEXT)
+        {
+            /* a held Select removes a song at once, as on a stock iPod, and
+               it's kept at once: kept as the screen closed, a song played
+               from it, or USB meanwhile, lost it */
+            struct playlist_entry *current_track =
+                playlist_buffer_get_track(&viewer.buffer, viewer.selected_track);
+            const enum pv_context_result res =
+                delete_track(current_track->index, viewer.selected_track,
+                             current_track->index == viewer.current_playing_track);
+            otg_save(viewer.playlist);
+            if (update_viewer(&playlist_lists, res))
+            {
+                ret = PLAYLIST_VIEWER_CANCEL;
+                goto exit;
+            }
+            playlist_set_modified(viewer.playlist, false);
+            continue;
+        }
 
         switch (button)
         {

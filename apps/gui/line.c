@@ -465,6 +465,19 @@ static const unsigned char speaker_alpha[] = {
     0xfe, 0x0a, 0xf8, 0xff, 0xff, 0xff, 0x76, 0xff, 0x0e, 0xf4, 0xff, 0xff,
     0xff, 0xff, 0xfd, 0xff, 0xeb, 0xff,
 };
+/* the shuffle arrows of a list's Shuffle Songs, by the same tool */
+#define SHUFFLE_W 16
+#define SHUFFLE_H 12
+static const unsigned char shuffle_alpha[] = {
+    0xff, 0xff, 0xff, 0xff, 0xff, 0x9f, 0xf9, 0xff, 0xbd, 0xcb, 0xff, 0xff,
+    0xef, 0x6b, 0x40, 0xfd, 0x01, 0x00, 0xe4, 0xff, 0x1a, 0x00, 0x00, 0xd1,
+    0xbd, 0x8b, 0x40, 0xbf, 0x30, 0x6b, 0x40, 0xfd, 0xff, 0xff, 0x0a, 0x15,
+    0xe3, 0x9f, 0xf9, 0xff, 0xff, 0xff, 0x7f, 0x10, 0xfd, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0x7f, 0x10, 0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0a, 0x15,
+    0xe3, 0x9f, 0xf9, 0xff, 0xbd, 0x8b, 0x40, 0xbf, 0x30, 0x6b, 0x40, 0xfd,
+    0x01, 0x00, 0xe4, 0xff, 0x1a, 0x00, 0x00, 0xd1, 0xbd, 0xcb, 0xff, 0xff,
+    0xef, 0x6b, 0x40, 0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0x9f, 0xf9, 0xff,
+};
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
@@ -547,6 +560,39 @@ static void draw_speaker(struct screen *display, int y, struct line_desc *line)
     display->set_foreground(fg);
 #else
     (void)display; (void)y; (void)line;
+#endif
+}
+
+int line_shuffle_width(struct screen *display)
+{
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type == SCREEN_MAIN && !lang_is_rtl())
+        return SHUFFLE_W + CHEVRON_MARGIN;
+#endif
+    (void)display;
+    return 0;
+}
+
+/* before the text, rather than at the end with the speaker and the chevron:
+   that the row isn't a song, seen at once. Left alone by the text scrolling
+   on the selection, which draws from where the text starts. */
+void line_draw_shuffle(struct screen *display, int x, int y,
+                       const struct line_desc *line)
+{
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (!line_shuffle_width(display))
+        return;
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    const unsigned fg = display->get_foreground();
+    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
+        display->set_foreground(line->text_color);
+    display->set_drawmode(DRMODE_FG);
+    lcd_alpha_bitmap_part(shuffle_alpha, 0, 0, SHUFFLE_W,
+                          x, y + (height - SHUFFLE_H)/2, SHUFFLE_W, SHUFFLE_H);
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+#else
+    (void)display; (void)x; (void)y; (void)line;
 #endif
 }
 

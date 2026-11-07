@@ -52,6 +52,7 @@ onplay.c
 playlist.c
 playlist_catalog.c
 playlist_viewer.c
+on_the_go.c
 plugin.c
 root_menu.c
 screens.c
@@ -194,6 +195,8 @@ gui/usb_screen.c
 #ifdef HAVE_TAGCACHE
 tagcache.c
 itunesdb.c
+smart_playlists.c
+library_playlists.c
 night_mode.c
 photos_panel.c
 #endif

@@ -221,6 +221,27 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
                                            void *data),
                              void *data);
 void tagcache_update_numeric(int idx_id, int tag, long data);
+/* the changes to ratings, or to play counts and last plays, since boot: as
+   many as there were, for what goes by them to know it's out of date */
+long tagcache_runtime_generation(bool ratings);
+int tagcache_entry_count(void);
+bool tagcache_finds_entries(void);
+long tagcache_find_entry(const char *filename);
+/* what smart playlists go by, of an entry */
+struct tagcache_numbers {
+    long length;      /* ms */
+    long playcount;
+    long playtime;    /* ms, of all its plays */
+    long rating;      /* 0..10 */
+    long lastplayed;  /* a serial number, or the time of the play */
+    int kind;         /* 0 music, 1 podcast, 2 audiobook */
+};
+/* with each entry's file, or NULL for it without names, which is quicker */
+bool tagcache_read_entries(void (*fn)(int idx_id, const char *filename,
+                                      const struct tagcache_numbers *n,
+                                      void *data),
+                           void *data, bool names);
+long tagcache_sort_key(int idx_id, int tag);
 bool tagcache_modify_numeric_entry(struct tagcache_search *tcs, 
                                    int tag, long data);
 

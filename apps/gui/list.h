@@ -65,6 +65,8 @@ typedef bool list_has_children(int selected_item, void * data);
 typedef bool list_is_group(int item, void * data);
 /* whether a row is the song playing, paused too: a speaker at its right end */
 typedef bool list_is_playing(int item, void * data);
+/* whether an item is the list's Shuffle Songs, drawn with shuffle arrows */
+typedef bool list_is_shuffle(int item, void * data);
 /*
  * Text callback
  *  - selected_item : an integer that tells the number of the item to display
@@ -179,6 +181,7 @@ struct gui_synclist
     list_has_children *callback_has_children; /* can be NULL */
     list_is_group *callback_is_group; /* can be NULL */
     list_is_playing *callback_is_playing; /* can be NULL */
+    list_is_shuffle *callback_is_shuffle; /* can be NULL */
     /* the song playing as the list was last drawn (gui_synclist_playing()) */
     long playing_shown;
     /* what its owner does as it's about to be drawn, can be NULL */
@@ -257,6 +260,8 @@ extern void gui_synclist_set_has_children_callback(struct gui_synclist * lists,
                                               list_has_children has_children_callback);
 extern void gui_synclist_set_playing_callback(struct gui_synclist * lists,
                                               list_is_playing is_playing_callback);
+extern void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
+                                              list_is_shuffle is_shuffle_callback);
 /* The song playing or paused, as its number in the database plus one (its
    id3's tagcache_idx), 0 if none or none known: as the list being drawn saw
    it, for its rows' is_playing callbacks */

@@ -149,4 +149,11 @@ void vput_line(struct screen *display,
                int x, int y, struct line_desc *line,
                const char *fmt, va_list ap);
 
+/* The shuffle arrows of a list's Shuffle Songs, before its text, which goes
+ * on so far from where they start: drawn at x of a line put at y, after it,
+ * in its text colour. 0 where none are drawn, as without an alpha bitmap. */
+int line_shuffle_width(struct screen *display);
+void line_draw_shuffle(struct screen *display, int x, int y,
+                       const struct line_desc *line);
+
 #endif /* __LINE_H__*/

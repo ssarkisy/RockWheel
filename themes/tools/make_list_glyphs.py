@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Draw the speaker that marks the song playing in a list, as on a stock iPod, and print it
-as the C array apps/gui/line.c draws it from: an alpha mask in Rockbox' format, 4 bits a
-pixel from 0 opaque to 15 transparent, the low nibble first, the rows running on without
-padding, as the chevron's there. The firmware colours it, so it's the same in every theme.
-Plain Python, no imaging libraries. Usage:
+"""Draw the speaker that marks the song playing in a list, as on a stock iPod, and the
+shuffle arrows of a list's Shuffle Songs, and print them as the C arrays apps/gui/line.c
+draws them from: alpha masks in Rockbox' format, 4 bits a pixel from 0 opaque to 15
+transparent, the low nibble first, the rows running on without padding, as the chevron's
+there. The firmware colours them, so they're the same in every theme. Plain Python, no
+imaging libraries. Usage:
 
-    python3 themes/tools/make_list_glyphs.py [preview.bmp]
+    python3 themes/tools/make_list_glyphs.py [preview-prefix]
 
-With a file name it also writes the mask, eight times as large, black on white, to look at.
+With a prefix it also writes each mask, eight times as large, black on white, to look at,
+as <prefix>-speaker.bmp and <prefix>-shuffle.bmp.
 """
 import math
 import struct
@@ -28,7 +30,7 @@ WAVE_THICK = 1.5
 WAVE_ANGLE = math.radians(48)
 
 
-def inside(x, y):
+def speaker(x, y):
     if BOX[0] <= x <= BOX[2] and BOX[1] <= y <= BOX[3]:
         return True
     if CONE_X0 <= x <= CONE_X1:
@@ -50,11 +52,53 @@ def inside(x, y):
     return False
 
 
-def coverage():
+# the shuffle arrows, as a stock iPod's: two lines from the left that cross on an S
+# each, then run level to a filled arrowhead at the right end, the upper one coming
+# from below; level on the middles of rows of pixels, sharp there
+SW, SH = 16, 12
+SHUF_Y = (2.5, 9.5)
+SHUF_X0, SHUF_BEND0, SHUF_BEND1 = 0.75, 3.0, 10.5
+SHUF_THICK = 1.5
+HEAD_TIP, HEAD_BASE, HEAD_HALF = 15.5, 11.5, 2.5
+
+
+def shuffle_path(y_from, y_to, steps=48):
+    points = [(SHUF_X0, y_from), (SHUF_BEND0, y_from)]
+    for i in range(1, steps):
+        t = i / steps
+        s = t * t * (3 - 2 * t)  # an S, level at both ends
+        points.append((SHUF_BEND0 + (SHUF_BEND1 - SHUF_BEND0) * t,
+                       y_from + (y_to - y_from) * s))
+    points += [(SHUF_BEND1, y_to), (HEAD_BASE + 0.5, y_to)]
+    return points
+
+
+SHUF_SEGMENTS = []
+for y_from, y_to in ((SHUF_Y[1], SHUF_Y[0]), (SHUF_Y[0], SHUF_Y[1])):
+    path = shuffle_path(y_from, y_to)
+    SHUF_SEGMENTS += list(zip(path, path[1:]))
+
+
+def near_segment(x, y, a, b, r):
+    (ax, ay), (bx, by) = a, b
+    dx, dy = bx - ax, by - ay
+    t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(x - (ax + t * dx), y - (ay + t * dy)) <= r
+
+
+def shuffle(x, y):
+    for cy in SHUF_Y:
+        if HEAD_BASE <= x <= HEAD_TIP:
+            if abs(y - cy) <= HEAD_HALF * (HEAD_TIP - x) / (HEAD_TIP - HEAD_BASE):
+                return True
+    return any(near_segment(x, y, a, b, SHUF_THICK / 2) for a, b in SHUF_SEGMENTS)
+
+
+def coverage(inside, w, h):
     rows = []
-    for py in range(H):
+    for py in range(h):
         row = []
-        for px in range(W):
+        for px in range(w):
             hits = 0
             for sy in range(SS):
                 for sx in range(SS):
@@ -80,7 +124,7 @@ def c_array(nib):
 
 
 def preview(cov, path, k=8):
-    w, h = W * k, H * k
+    w, h = len(cov[0]) * k, len(cov) * k
     stride = (w * 3 + 3) & ~3
     body = bytearray()
     for y in range(h - 1, -1, -1):
@@ -97,14 +141,15 @@ def preview(cov, path, k=8):
 
 
 def main():
-    cov = coverage()
-    print('#define SPEAKER_W %d' % W)
-    print('#define SPEAKER_H %d' % H)
-    print('static const unsigned char speaker_alpha[] = {')
-    print(c_array(nibbles(cov)))
-    print('};')
-    if len(sys.argv) > 1:
-        preview(cov, sys.argv[1])
+    for name, inside, w, h in (('speaker', speaker, W, H), ('shuffle', shuffle, SW, SH)):
+        cov = coverage(inside, w, h)
+        print('#define %s_W %d' % (name.upper(), w))
+        print('#define %s_H %d' % (name.upper(), h))
+        print('static const unsigned char %s_alpha[] = {' % name)
+        print(c_array(nibbles(cov)))
+        print('};')
+        if len(sys.argv) > 1:
+            preview(cov, '%s-%s.bmp' % (sys.argv[1], name))
 
 
 if __name__ == '__main__':

@@ -5749,40 +5749,22 @@ static bool pf_current_playlist_insert(int position, bool queue, bool create_new
 }
 
 
-static int pf_add_to_playlist(const char* playlist, bool new_playlist)
+/* the song, or with Insert Whole Album its album, at the end of On-The-Go,
+   as Music's lists add them: rather than to a playlist picked or named with
+   the keyboard, as a stock iPod has it */
+static void pf_add_to_on_the_go(void)
 {
-    int fd;
-    int result = 0;
-
-    if (new_playlist)
-        fd = rb->open_utf8(playlist, O_CREAT|O_WRONLY|O_TRUNC);
-    else
-        fd = rb->open(playlist, O_CREAT|O_WRONLY|O_APPEND, 0666);
-
-    if(fd < 0)
-        return -1;
-
-    rb->reload_directory();
-
     if (!insert_whole_album)
     {
-        if (rb->fdprintf(fd, "%s\n", get_track_filename(pf_tracks.sel)) <= 0)
-            result = -1;
+        rb->otg_add_file(get_track_filename(pf_tracks.sel));
+        return;
     }
-    else
+    for (int i = 0; i < pf_tracks.count; i++)
     {
-        int i = 0;
-        do {
-            if (rb->fdprintf(fd, "%s\n", get_track_filename(i)) <= 0)
-            {
-                result = -1;
-                break;
-            }
-            rb->yield();
-        } while(++i < pf_tracks.count);
+        if (!rb->otg_add_file(get_track_filename(i)))
+            break;
+        rb->yield();
     }
-    rb->close(fd);
-    return result;
 }
 
 
@@ -5854,18 +5836,17 @@ static void context_menu_cleanup(void)
 
 static int context_menu(void)
 {
-    char album_name[MAX_PATH];
     char *file_name = get_track_filename(show_tracks_while_browsing ? 0 : pf_tracks.sel);
     int attr = FILE_ATTR_AUDIO;
 
     enum {
         PF_CURRENT_PLAYLIST = 0,
-        PF_CATALOG,
+        PF_ON_THE_GO,
         PF_ID3_INFO
     };
     MENUITEM_STRINGLIST(context_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_PLAYING_NEXT),
-                        ID2P(LANG_ADD_TO_PL),
+                        ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_MENU_SHOW_ID3_INFO));
 
     while (1)  {
@@ -5880,18 +5861,8 @@ static int context_menu(void)
                 }
                 rb->onplay_show_playlist_menu(file_name, attr, &pf_current_playlist_insert);
                 return 0;
-            case PF_CATALOG:
-                if (insert_whole_album)
-                {
-                    /* add a leading slash so that catalog_add_to_a_playlist
-                       later prefills the name when creating a new playlist */
-                    rb->snprintf(album_name, MAX_PATH, "/%s", get_album_name(center_index));
-                    rb->fix_path_part(album_name, 1, sizeof(album_name) - 2);
-                    file_name = album_name;
-                    attr = ATTR_DIRECTORY;
-                }
-
-                rb->onplay_show_playlist_cat_menu(file_name, attr, &pf_add_to_playlist);
+            case PF_ON_THE_GO:
+                pf_add_to_on_the_go();
                 return 0;
             case PF_ID3_INFO:
                 return show_id3_info(file_name);

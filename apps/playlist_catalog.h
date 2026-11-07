@@ -22,6 +22,8 @@
 
 /* Gets the configured playlist catalog dir */
 void catalog_get_directory(char* dirbuf, size_t dirbuf_sz);
+/* the same, without making it if it isn't there: false then */
+bool catalog_directory_name(char *dirbuf, size_t dirbuf_sz);
 
 /* Set the playlist catalog dir */
 void catalog_set_directory(const char* directory);

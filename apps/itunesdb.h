@@ -49,6 +49,22 @@ void itunesdb_forget_state(void);
    since the last sync and the ratings, in iTunesDB's order */
 void itunesdb_write_playcounts(void);
 
+/* The first lines of each playlist file the import writes, by which it knows
+   its own: written so again from the iPod's own changes to them */
+#define ITUNESDB_PLAYLIST_HEAD "#EXTM3U\n"
+#define ITUNESDB_PLAYLIST_MARK "# From the iPod's library, written again after each sync"
+/* and after them, the column it's sorted by on the Mac, as iTunesDB numbers
+   them, if not its own order */
+#define ITUNESDB_PLAYLIST_SORT "# Sorted by "
+#define ITUNESDB_SORT_MANUAL   1
+#define ITUNESDB_SORT_TITLE    3
+#define ITUNESDB_SORT_ALBUM    4
+#define ITUNESDB_SORT_ARTIST   5
+#define ITUNESDB_SORT_GENRE    7
+#define ITUNESDB_SORT_COMPOSER 18
+/* one of the import's, by its second line */
+bool itunesdb_own_playlist(const char *file);
+
 /* the hash that a database entry and an iTunesDB track are matched by */
 uint64_t itunesdb_path_hash(const char *path);
 

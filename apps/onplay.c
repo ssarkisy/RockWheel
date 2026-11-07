@@ -57,6 +57,7 @@
 #include "playlist_catalog.h"
 #ifdef HAVE_TAGCACHE
 #include "tagtree.h"
+#include "library_playlists.h"
 #endif
 #include "cuesheet.h"
 #include "statusbar-skinned.h"
@@ -70,6 +71,7 @@
 #endif
 #include "language.h"
 #include "night_mode.h"
+#include "on_the_go.h"
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 #include "skin_engine/cover_palette.h"
 #endif
@@ -143,7 +145,15 @@ static bool clipboard_clip(struct clipboard *clip, const char *path,
 /* Menu there comes back to this menu; a song chosen, or Play, goes to it */
 static int wps_view_cur_playlist(void)
 {
-    switch (playlist_viewer_ex(NULL, NULL))
+    /* a song's menu opened in it chose that song: this menu's is the track
+       playing again, as Add to On-The-Go here goes by it */
+    static struct selected_file saved_file;
+    saved_file = selected_file;
+    const int saved_result = onplay_result;
+    const int ret = playlist_viewer_ex(NULL, NULL);
+    selected_file = saved_file;
+    onplay_result = saved_result;
+    switch (ret)
     {
         case PLAYLIST_VIEWER_CANCEL:
             return 0;
@@ -209,7 +219,13 @@ static void op_playlist_insert_selected(int position, bool queue)
     if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_AUDIO)
         playlist_insert_track(NULL, selected_file.path, position, queue, true);
     else if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_M3U)
+    {
+#ifdef HAVE_TAGCACHE
+        /* a smart one as its screen has it */
+        lp_sync(selected_file.path);
+#endif
         playlist_insert_playlist(NULL, selected_file.path, position, queue);
+    }
     else if (selected_file.attr & ATTR_DIRECTORY)
     {
         bool recurse = (global_settings.recursive_dir_insert == RECURSE_ON);
@@ -453,6 +469,69 @@ void onplay_show_playlist_menu(const char* path, int attr, void (*playlist_inser
     in_queue_submenu = false;
     do_menu(&tree_playlist_menu, NULL, NULL, false);
 }
+
+/* On-The-Go, as on a stock iPod: the song, album, artist or the like, or the
+   playlist, at its end; over Now Playing, the song playing */
+static int add_to_on_the_go(void)
+{
+    switch (selected_file.context)
+    {
+#ifdef HAVE_TAGCACHE
+        case CONTEXT_ID3DB:
+            otg_add_selection();
+            break;
+#endif
+        case CONTEXT_WPS:
+        {
+            const struct mp3entry *id3 = audio_current_track();
+            if (id3 && id3->path[0])
+                otg_add_file(id3->path);
+            break;
+        }
+        default:
+            if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_M3U)
+                otg_add_playlist(selected_file.path);
+            else if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_AUDIO)
+                otg_add_file(selected_file.path);
+            break;
+    }
+    return 0;
+}
+
+static int on_the_go_callback(int action, const struct menu_item_ex *this_item,
+                              struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action != ACTION_REQUEST_MENUITEM)
+        return action;
+    switch (selected_file.context)
+    {
+#ifdef HAVE_TAGCACHE
+        case CONTEXT_ID3DB:
+        {
+            /* not Music's own rows, as Songs, which would add all of them, nor
+               a list empty, which has no row */
+            const int attr = selected_file.attr & FILE_ATTR_MASK;
+            return tagtree_at_top()
+                || (attr != FILE_ATTR_AUDIO && !(selected_file.attr & ATTR_DIRECTORY)) ?
+                   ACTION_EXIT_MENUITEM : action;
+        }
+#endif
+        case CONTEXT_WPS:
+            return audio_current_track() ? action : ACTION_EXIT_MENUITEM;
+        default:
+        {
+            const int attr = selected_file.attr & FILE_ATTR_MASK;
+            return selected_file.path
+                && (attr == FILE_ATTR_AUDIO || attr == FILE_ATTR_M3U) ?
+                   action : ACTION_EXIT_MENUITEM;
+        }
+    }
+}
+
+MENUITEM_FUNCTION(on_the_go_item, 0, ID2P(LANG_ADD_TO_ON_THE_GO),
+                  add_to_on_the_go, on_the_go_callback, Icon_Playlist);
 
 /* playlist catalog options */
 static bool cat_add_to_a_playlist(void)
@@ -1416,7 +1495,9 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
 #endif
            &wps_group_playback,
            &wps_shuffle_item, &wps_repeat_item,
-           &wps_view_cur_playlist_item, &cat_playlist_menu,
+           /* On-The-Go, as on a stock iPod, rather than a playlist picked or
+              named with the keyboard */
+           &wps_view_cur_playlist_item, &on_the_go_item,
            &wps_group_settings,
            /* the two that change with the headphones first */
            &wps_volume_limit_item, &ipod_eq_menu, &wps_sound_check_item,
@@ -1453,7 +1534,11 @@ void onplay_set_title(const char *title)
 
 MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
            onplaymenu_callback, Icon_file_view_menu,
-           &i_first_pl_item, &i_last_pl_item, &cat_playlist_menu,
+           /* no Add to Playlist, as on a stock iPod: it picked any playlist,
+              those of the library too, which the next sync writes again, and
+              named a new one by its path with the keyboard; On-The-Go goes to
+              the Mac instead */
+           &on_the_go_item, &i_first_pl_item, &i_last_pl_item,
            &rename_file_item, &clipboard_cut_item, &clipboard_copy_item,
            &clipboard_paste_item, &delete_file_item, &delete_dir_item,
            &list_viewers_item, &create_dir_item, &properties_item, &track_info_item,

@@ -25,6 +25,8 @@
 #include "appevents.h"
 #include "menu.h"
 #include "library_fonts.h"
+#include "smart_playlists.h"
+#include "library_playlists.h"
 #include "font.h"
 #include "root_menu.h"
 #include "gui/skin_engine/skin_engine.h"
@@ -1536,6 +1538,19 @@ static bool library_fonts_progress(int done, int total)
     return !held_event;
 }
 
+/* the same for one come as the library's playlists were indexed: only the
+   events, as get_action() would have the theme draw its bar over the screen */
+static bool library_playlists_go_on(void)
+{
+    const long event = button_get(false);
+    if (event == SYS_USB_CONNECTED || event == SYS_POWEROFF
+        || event == SYS_REBOOT)
+        held_event = event;
+    else if (IS_SYSEVENT(event))
+        default_event_handler(event);
+    return !held_event;
+}
+
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
  * the step and how far that is under it, until it's done. Menu left it to
@@ -1652,6 +1667,18 @@ void show_library_update(void)
         if (!letters_stale) /* else on from where they are */
             library_update_show(str(LANG_UPDATING_LIBRARY), 0);
         library_fonts_make(library_fonts_progress);
+    }
+    /* the library's playlists, as Songs is: their lists of songs, and those of
+       the live smart ones by ratings and plays as they are, ready before they
+       open, which would wait for them. Under what shows, a second at most:
+       the files of the smart ones are written after a sync, by the import,
+       or as one starts to play. */
+    if (phase == TAGCACHE_IMPORT_NONE && !held_event)
+    {
+        if (shown && !letters_stale && !fonts_stale)
+            library_update_show(str(LANG_UPDATING_LIBRARY), 0);
+        smart_update_at_boot();
+        lp_index_all(library_playlists_go_on);
     }
     if (shown)
     {

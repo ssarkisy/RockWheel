@@ -56,6 +56,9 @@
 #ifdef HAVE_DIRCACHE
 #include "dircache.h"
 #endif
+#include "on_the_go.h"
+#include "smart_playlists.h"
+#include "library_playlists.h"
 
 /* core_alloc(), and once more after the dircache is built if that fails:
    building it at boot takes all the free memory for a while, and an import
@@ -278,12 +281,15 @@ bool itunesdb_synced_path(const char *path)
 
 uint64_t itunesdb_path_hash(const char *path)
 {
-    /* FNV-1a, ignoring ASCII case like FAT does */
+    /* FNV-1a, ignoring ASCII case like FAT does, and a separator doubled, as
+       the browser gives one back in a folder ("/Playlists//Sub") */
     uint64_t hash = 0xcbf29ce484222325ull;
     path = strip_volume(path);
     for (const unsigned char *p = (const unsigned char *)path; *p; p++)
     {
         unsigned char c = *p;
+        if (c == '/' && p > (const unsigned char *)path && p[-1] == '/')
+            continue;
         if (c >= 'A' && c <= 'Z')
             c += 'a' - 'A';
         hash = (hash ^ c) * 0x100000001b3ull;
@@ -1139,8 +1145,14 @@ static bool written_playlist(uint64_t file_hash)
 /* The second line of each file written, by which the import knows its own
    when the playlists file is gone, as with a new .rockbox: they are written
    again in place, not as "Name 2", and those Finder removed go */
-#define PLAYLIST_HEAD "#EXTM3U\n"
-#define PLAYLIST_MARK "# From the iPod's library, written again after each sync"
+#define PLAYLIST_HEAD ITUNESDB_PLAYLIST_HEAD
+#define PLAYLIST_MARK ITUNESDB_PLAYLIST_MARK
+
+static bool own_playlist(const char *file);
+bool itunesdb_own_playlist(const char *file)
+{
+    return own_playlist(file);
+}
 
 static bool own_playlist(const char *file)
 {
@@ -1377,9 +1389,11 @@ static void playlist_line(struct writer *w, const char *line, uint64_t *hash,
 
 /* the lines of a playlist's items from child on, into w if there is one,
    and their hash and size; the videos are left out. How many are written,
-   and how many videos there were */
-static int playlist_items(off_t child, int items, struct writer *w,
-                          uint64_t *hash, uint32_t *size, int *videos)
+   and how many videos there were. Its order as Finder shows it, if not its
+   own, on a line of the head. */
+static int playlist_items(off_t child, int items, uint32_t sort,
+                          struct writer *w, uint64_t *hash, uint32_t *size,
+                          int *videos)
 {
     const unsigned char *p;
     int written = 0;
@@ -1388,6 +1402,13 @@ static int playlist_items(off_t child, int items, struct writer *w,
     *size = 0;
     playlist_line(w, "#EXTM3U", hash, size);
     playlist_line(w, PLAYLIST_MARK, hash, size);
+    if (sort > ITUNESDB_SORT_MANUAL)
+    {
+        char line[32];
+        snprintf(line, sizeof(line), ITUNESDB_PLAYLIST_SORT "%lu",
+                 (unsigned long)sort);
+        playlist_line(w, line, hash, size);
+    }
     for (int i = 0; i < items; i++)
     {
         p = db_record(child, "mhip", 28);
@@ -1617,6 +1638,77 @@ static uint64_t playlist_parent(uint64_t id)
 /* seconds from 1904 to 1970, for the times of iTunesDB */
 #define MAC_EPOCH_OFFSET 2082844800u
 
+static uint32_t be32(const unsigned char *p)
+{
+    return (uint32_t)p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
+}
+
+static int64_t be64(const unsigned char *p)
+{
+    return (int64_t)((uint64_t)be32(p) << 32 | be32(p + 4));
+}
+
+/* A smart playlist's mhod 50: whether it's live, and its limits. As libgpod
+   reads it: after the mhod's 24 bytes, a byte each for live, the rules, the
+   limits, their kind and their order, the limit at 8, and at 13 the order the
+   other way round. */
+static bool smart_prefs(off_t pos, uint32_t total, struct smart_rules *r)
+{
+    if (total < 24 + 14)
+        return false;
+    const unsigned char *p = db_get(pos, 24 + 14);
+    if (!p)
+        return false;
+    const unsigned char *d = p + 24;
+    if (!d[0])
+        return false; /* not live: Finder's list, as it is */
+    r->check_rules = d[1];
+    r->check_limits = d[2];
+    r->limit_type = d[3];
+    r->limit_sort = d[4] | (d[13] ? 0x80000000u : 0);
+    r->limit_value = le32(d + 8);
+    return true;
+}
+
+/* Its mhod 51, the rules: big-endian after "SLst", their count at 8 and
+   whether any one will do at 12, and from 136 on each with its field, its
+   action, the length of what follows at 52, and that: for a number or a
+   date, its from, its units back, how long a unit is and its to */
+static bool smart_rule_list(off_t pos, uint32_t total, struct smart_rules *r)
+{
+    if (total < 24 + 136)
+        return false;
+    const unsigned char *p = db_get(pos, total);
+    if (!p || memcmp(p + 24, "SLst", 4))
+        return false;
+    const unsigned char *d = p + 24;
+    const uint32_t n = be32(d + 8);
+    r->any = be32(d + 12) == 1;
+    r->count = MIN(n, SMART_RULES_MAX + 1); /* more can't be worked out */
+    size_t off = 24 + 136;
+    for (uint32_t i = 0; i < n && i < SMART_RULES_MAX; i++)
+    {
+        if (off + 56 > total)
+            return false;
+        const unsigned char *q = p + off;
+        struct smart_rule *s = &r->rule[i];
+        s->field = be32(q);
+        s->action = be32(q + 4);
+        const uint32_t len = be32(q + 52);
+        if (len > total - off - 56)
+            return false;
+        if (len >= 0x44 && !(s->action & 0x01000000))
+        {
+            s->from = be64(q + 56);
+            s->from_date = be64(q + 64);
+            s->from_units = be64(q + 72);
+            s->to = be64(q + 80);
+        }
+        off += 56 + len;
+    }
+    return true;
+}
+
 /* the mhyp at pos as a playlist file, listed in the playlists file */
 static void write_playlist(off_t pos, const char *dir, int list_fd,
                            struct writer *w)
@@ -1625,6 +1717,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     /* as before this playlist: a read of its own that failed sets it */
     const bool read_failed = pls.read_failed;
     const unsigned char *p = db_record(pos, "mhyp", 0x5c);
+    const bool whole = p != NULL;
     if (!p)
         p = db_record(pos, "mhyp", 44);
     if (!p)
@@ -1635,6 +1728,8 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     uint32_t header_len = le32(p + 4);
     int mhods = le32(p + 12);
     int items = le32(p + 16);
+    /* the column it's sorted by on the Mac, which a stock iPod shows it by */
+    const uint32_t sort = whole ? le32(p + 0x2c) : ITUNESDB_SORT_MANUAL;
     bool hidden = le32(p + 20) != 0;   /* the library itself */
     bool podcasts = (p[42] | p[43] << 8) != 0;
     if (hidden || podcasts)
@@ -1647,6 +1742,9 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     const uint32_t time = changed > MAC_EPOCH_OFFSET ? changed - MAC_EPOCH_OFFSET : 0;
 
     name[0] = '\0';
+    struct smart_rules smart;
+    memset(&smart, 0, sizeof(smart));
+    bool live = false, ruled = false;
     off_t child = pos + header_len;
     for (int i = 0; i < mhods; i++)
     {
@@ -1657,8 +1755,13 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
             return;
         }
         uint32_t total = le32(p + 8);
-        if (le32(p + 12) == 1)
+        const uint32_t type = le32(p + 12);
+        if (type == 1)
             mhod_string(child, name, sizeof(name));
+        else if (type == 50)
+            live = smart_prefs(child, total, &smart);
+        else if (type == 51)
+            ruled = smart_rule_list(child, total, &smart);
         child += total;
     }
 
@@ -1667,7 +1770,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     uint64_t hash;
     uint32_t size;
     int videos;
-    if (playlist_items(child, items, NULL, &hash, &size, &videos) == 0
+    if (playlist_items(child, items, sort, NULL, &hash, &size, &videos) == 0
         && videos > 0)
         return;
     /* in its folder, if the folders are known */
@@ -1695,7 +1798,11 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
         bool ok = writer_open(w, PLAYLIST_TEMP);
         if (ok)
         {
-            playlist_items(child, items, w, &hash, &size, &videos);
+            playlist_items(child, items, sort, w, &hash, &size, &videos);
+            /* its list of songs is of the file before: one the same size,
+               of the same database, still looked like it. Gone first, as
+               the file may be new without it being so. */
+            lp_index_forget(file);
             /* not one cut short in place of the whole one */
             ok = writer_close(w) && pls.read_failed == read_failed
                  && rename(PLAYLIST_TEMP, file) == 0;
@@ -1712,6 +1819,9 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     if (time && (!same || o->time != time))
         modtime(file, time);
     pls.written[pls.written_count++] = itunesdb_path_hash(file);
+    /* a live smart one, to be kept up to date as the iPod's ratings change */
+    if (live && (ruled || !smart.check_rules))
+        smart_import_note(file, time, &smart);
     list_line(list_fd, "%08lx%08lx %lu %lu %s\n", (unsigned long)(hash >> 32),
               (unsigned long)(uint32_t)hash, (unsigned long)size,
               (unsigned long)time, file);
@@ -1731,6 +1841,7 @@ static void write_playlists(off_t list)
     int list_fd = open(PLAYLISTS_TEMP, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (p && list_fd >= 0)
     {
+        smart_import_begin();
         off_t pos = list + le32(p + 4);
         int count = le32(p + 8);
 
@@ -1764,6 +1875,8 @@ static void write_playlists(off_t list)
             remove_old_playlists(dir, listed, fld.made, fld.made_len, list_fd);
         /* a list that didn't all write, or of the part read, leaves the old
            one */
+        /* the rules of all, or the old ones */
+        smart_import_end(!pls.read_failed);
         if (close(list_fd) < 0 || pls.list_failed || pls.read_failed
             || rename(PLAYLISTS_TEMP, PLAYLISTS_FILE) < 0)
             remove(PLAYLISTS_TEMP);
@@ -2254,6 +2367,221 @@ static void put32(unsigned char *p, uint32_t v)
     p[3] = v >> 24;
 }
 
+/* On-The-Go to Finder, as the stock firmware gives it: OTGPlaylistInfo, a header,
+   then the index in iTunesDB's list of tracks of each of its songs, which Finder
+   makes "On-The-Go 1" of at the sync. Those it doesn't know, outside its folder,
+   stay on the iPod. Each one written is noted with the hashes of its songs,
+   which leave On-The-Go once Finder has taken it. */
+#define OTG_INFO_NAME  "OTGPlaylistInfo"
+#define OTG_INFO       ITUNESDB_DIR "/" OTG_INFO_NAME
+#define OTG_INFO_TEMP  ITUNESDB_DIR "/RockWheel OTG.tmp"
+#define OTG_MARK       ROCKBOX_DIR "/itunesdb_otg.dat"
+#define OTG_MARK_MAGIC 0x4f544731   /* "OTG1" */
+#define OTG_HDR        20
+#define OTG_MAX        4096         /* the songs given at once */
+
+struct otg_mark {
+    uint32_t magic;
+    uint32_t size, mtime;       /* of OTGPlaylistInfo */
+    uint32_t db_size, db_mtime; /* of the iTunesDB its indices are in */
+    uint32_t count;             /* the hashes of its songs after this, sorted */
+};
+
+static bool otg_mark_read(struct otg_mark *m)
+{
+    const int fd = open(OTG_MARK, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool ok = read(fd, m, sizeof(*m)) == sizeof(*m)
+                    && m->magic == OTG_MARK_MAGIC && m->count <= OTG_MAX;
+    close(fd);
+    return ok;
+}
+
+/* the track of iTunesDB that has this path, or -1 */
+static int state_index(uint64_t hash)
+{
+    int lo = 0, hi = pc.count - 1;
+    while (lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        const uint32_t i = pc.by_hash[mid];
+        if (pc.state[i].hash == hash)
+            return i;
+        if (pc.state[i].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return -1;
+}
+
+static void write_on_the_go(void)
+{
+    struct otg_mark m;
+    const bool marked = otg_mark_read(&m);
+    uint32_t size, mtime;
+    const bool there = dir_file_stamp(OTG_INFO_NAME, &size, &mtime);
+    const bool ours = marked && there && size == m.size && mtime == m.mtime;
+    /* the stock firmware's, of a dual boot: as it is, and ours waits */
+    if (there && !ours)
+        return;
+
+    const int handle = db_alloc(OTG_MAX * (sizeof(uint64_t) + sizeof(uint32_t)));
+    if (handle <= 0)
+        return;
+    core_pin(handle);
+    uint64_t *hashes = core_get_data(handle);
+    uint32_t *indices = (uint32_t *)(hashes + OTG_MAX);
+    int n = 0;
+    const int fd = open(OTG_FILE, O_RDONLY);
+    if (fd >= 0)
+    {
+        char line[MAX_PATH];
+        while (n < OTG_MAX && read_line(fd, line, sizeof(line)) > 0)
+        {
+            if (!line[0] || line[0] == '#')
+                continue;
+            const uint64_t hash = itunesdb_path_hash(line);
+            const int i = state_index(hash);
+            if (i < 0)
+                continue; /* outside Finder's folder */
+            hashes[n] = hash;
+            indices[n] = i;
+            n++;
+        }
+        close(fd);
+    }
+
+    if (n == 0)
+    {
+        if (ours)
+            remove(OTG_INFO);
+        remove(OTG_MARK);
+        goto done;
+    }
+
+    /* not "OTGPlaylistInfo…": Finder takes every file named so */
+    if (!writer_open(&out, OTG_INFO_TEMP))
+        goto done;
+    unsigned char head[OTG_HDR];
+    memcpy(head, "mhpo", 4);
+    put32(head + 4, OTG_HDR);
+    put32(head + 8, sizeof(uint32_t));
+    put32(head + 12, n);
+    put32(head + 16, 0);
+    writer_put(&out, head, sizeof(head));
+    for (int i = 0; i < n; i++)
+    {
+        unsigned char e[4];
+        put32(e, indices[i]);
+        writer_put(&out, e, sizeof(e));
+    }
+    if (!writer_close(&out) || rename(OTG_INFO_TEMP, OTG_INFO) < 0)
+    {
+        remove(OTG_INFO_TEMP);
+        goto done;
+    }
+
+    /* without its note it would be taken for another's from then on, and left */
+    bool noted = false;
+    m.magic = OTG_MARK_MAGIC;
+    m.count = n;
+    if (dir_file_stamp(OTG_INFO_NAME, &m.size, &m.mtime)
+        && db_stamp(&m.db_size, &m.db_mtime) && writer_open(&out, OTG_MARK))
+    {
+        qsort(hashes, n, sizeof(uint64_t), cmp_u64);
+        writer_put(&out, &m, sizeof(m));
+        writer_put(&out, hashes, n * sizeof(uint64_t));
+        noted = writer_close(&out);
+    }
+    if (!noted)
+    {
+        remove(OTG_MARK);
+        remove(OTG_INFO);
+    }
+done:
+    core_unpin(handle);
+    core_free(handle);
+}
+
+/* At the start of an import after a sync: OTGPlaylistInfo gone, Finder has
+   taken it, and the songs it had leave On-The-Go, each as often as it gave
+   them; those added since, and those outside Finder's folder, stay. Left, its
+   indices are of the iTunesDB before the sync, and it goes, as the stock
+   firmware removes it, On-The-Go as it was. */
+static void otg_after_sync(void)
+{
+    struct otg_mark m;
+    if (!otg_mark_read(&m))
+        return;
+    uint32_t size, mtime;
+    if (dir_file_stamp(OTG_INFO_NAME, &size, &mtime))
+    {
+        if (size == m.size && mtime == m.mtime)
+            remove(OTG_INFO);
+        remove(OTG_MARK);
+        return;
+    }
+
+    /* the hashes, and a byte each for whether a song of On-The-Go was it */
+    const int handle = db_alloc(m.count * (sizeof(uint64_t) + 1) + 1);
+    if (handle <= 0)
+        return;
+    core_pin(handle);
+    uint64_t *hashes = core_get_data(handle);
+    uint8_t *taken = (uint8_t *)(hashes + m.count);
+    memset(taken, 0, m.count);
+    int fd = open(OTG_MARK, O_RDONLY);
+    bool ok = fd >= 0 && lseek(fd, sizeof(m), SEEK_SET) == sizeof(m)
+              && read(fd, hashes, m.count * sizeof(uint64_t))
+                 == (ssize_t)(m.count * sizeof(uint64_t));
+    if (fd >= 0)
+        close(fd);
+
+    fd = ok ? open(OTG_FILE, O_RDONLY) : -1;
+    if (fd >= 0 && writer_open(&out, OTG_FILE ".tmp"))
+    {
+        char line[MAX_PATH];
+        while (read_line(fd, line, sizeof(line)) > 0)
+        {
+            if (!line[0] || line[0] == '#')
+                continue;
+            const uint64_t hash = itunesdb_path_hash(line);
+            /* the first of the same hash not yet matched */
+            int lo = 0, hi = m.count;
+            while (lo < hi)
+            {
+                const int mid = (lo + hi) / 2;
+                if (hashes[mid] < hash)
+                    lo = mid + 1;
+                else
+                    hi = mid;
+            }
+            while (lo < (int)m.count && hashes[lo] == hash && taken[lo])
+                lo++;
+            if (lo < (int)m.count && hashes[lo] == hash)
+                taken[lo] = 1;
+            else
+                writer_line(&out, line);
+        }
+        close(fd);
+        fd = -1;
+        if (writer_close(&out) && rename(OTG_FILE ".tmp", OTG_FILE) == 0)
+        {
+            if (otg_empty())
+                otg_clear();
+        }
+        else
+            remove(OTG_FILE ".tmp");
+    }
+    if (fd >= 0)
+        close(fd);
+    remove(OTG_MARK);
+    core_unpin(handle);
+    core_free(handle);
+}
+
 void itunesdb_write_playcounts(void)
 {
     struct state_header hdr;
@@ -2291,6 +2619,9 @@ void itunesdb_write_playcounts(void)
     for (int i = 0; i < pc.count; i++)
         pc.by_hash[i] = i;
     qsort(pc.by_hash, pc.count, sizeof(uint32_t), cmp_state_hash);
+
+    /* in the same order as the plays, so whatever they come to */
+    write_on_the_go();
 
     if (!tagcache_update_runtime(read_played, NULL))
         goto done;
@@ -4802,7 +5133,11 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     read_done = done;
     read_total = total;
     if (synced)
+    {
+        /* before the import changes anything: the note is of the old one */
+        otg_after_sync();
         metadata_begin();
+    }
     else
         itunesdb_forget_metadata();
     forget_index(&flags_index);
