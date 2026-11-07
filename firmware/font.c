@@ -585,6 +585,16 @@ bool font_filename_matches_loaded_id(int font_id, const char *filename)
     return false;
 }
 
+int font_find(const char *path)
+{
+    for (int index = 0; index < MAXFONTS; index++)
+    {
+        if (font_filename_matches_loaded_id(index, path))
+            return index;
+    }
+    return -1;
+}
+
 static int find_font_index(const char* path)
 {
     for(int index = 0; index < MAXFONTS; index++)

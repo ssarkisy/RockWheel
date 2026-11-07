@@ -14945,7 +14945,7 @@
 </phrase>
 <phrase>
   id: LANG_APPEARANCE
-  desc: in the settings, under Display: the look of the status bar, the rating and the progress bar, as the iPod's or as iOS 13's
+  desc: a folder of Settings: all that changes the look, Dark Theme and Bold Text, Now Playing's cover colours and cover, and the iPod's or iOS's look of the status bar, the rating and the progress bar
   user: core
   <source>
     *: "Appearance"
@@ -15260,6 +15260,202 @@
   </source>
   <dest>
     *: "Garbitu zerrenda"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NOW_PLAYING_MENU
+  desc: a row of Settings, after Music Menu, and its title: which rows the menu held Select opens over Now Playing has, each On or Off
+  user: core
+  <source>
+    *: "Now Playing Menu"
+  </source>
+  <dest>
+    *: "Orain Jotzen menua"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESET_NOW_PLAYING_MENU
+  desc: the last row of Settings > Now Playing Menu: its rows back as they were at first
+  user: core
+  <source>
+    *: "Reset Now Playing Menu"
+  </source>
+  <dest>
+    *: "Orain Jotzen menua berrezarri"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_RESUME_REWIND
+  desc: the hint in the band under Settings > Playback while Rewind on Resume is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Songs and audiobooks pick up a few seconds before where you left off."
+  </source>
+  <dest>
+    *: "Abestiek eta audio-liburuek utzi zenituen lekua baino segundo batzuk lehenago jarraitzen dute."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_HEADPHONE_UNPLUG
+  desc: the hint in the band under Settings > Playback while Pause on Unplug is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "With Resume, the music also plays again once the headphones are back in."
+  </source>
+  <dest>
+    *: "Eta berrekin aukerarekin, musikak berriro jotzen du entzungailuak berriz konektatzean."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CUESHEET
+  desc: the hint in the band under Settings > Playback while Cue Sheets is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+  </source>
+  <dest>
+    *: "Fitxategi bakarrean dagoen albuma abesti bereizi gisa entzuten da, ondoko .cue fitxategiari esker."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CROSSFEED
+  desc: the hint in the band under Settings > Sound while Crossfeed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Makes old stereo recordings feel less split between your ears on headphones."
+  </source>
+  <dest>
+    *: "Estereo grabazio zaharrak entzungailuetan ez dira hain zatituta entzuten belarrien artean."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_BOLD_TEXT
+  desc: the hint in the band under Settings > Appearance while Bold Text is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Song details on Now Playing in bold, easier to read at a glance."
+  </source>
+  <dest>
+    *: "Abestiaren datuak Orain Jotzen pantailan letra lodiz, begirada batean errazago irakurtzeko."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_COVER_COLOURS
+  desc: the hint in the band under Settings > Appearance while Cover Colours is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Now Playing takes on the colours of each album's cover."
+  </source>
+  <dest>
+    *: "Orain Jotzen pantailak album bakoitzaren azalaren koloreak hartzen ditu."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_STATUS_ICONS
+  desc: the hint in the band under Settings > Appearance while Status Icons is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+  </source>
+  <dest>
+    *: "Egoera-barrak ere azalaren koloreak hartzen ditu, eta Bateria berea aukerarekin karga berde geratzen da."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_ANGLED_COVER
+  desc: the hint in the band under Settings > Appearance while Angled Cover is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The cover on Now Playing turns slightly away, as on an iPod classic."
+  </source>
+  <dest>
+    *: "Orain Jotzen pantailako azala pixka bat biratuta dago, iPod classic batean bezala."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_WAKE_SCREEN
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+  </source>
+  <dest>
+    *: "Select eta Menu aukerarekin, bolumena eta abestiak alda ditzakezu pantaila ilun dagoela."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_RETURN_TO_WPS
+  desc: the hint in the band under Settings > General while Return to Now Playing is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+  </source>
+  <dest>
+    *: "Musikarekin pantaila itzaltzean, Orain Jotzen itzultzen da, eta gurpilak bolumena aldatzen du."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_COVER_FLOW_PAUSE
+  desc: the hint in the band under Settings > Playback while Pause in Cover Flow is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+  </source>
+  <dest>
+    *: "Musika pausatu egiten da Cover Flow irekita dagoen bitartean, azalak abiadura osoan irristatzeko."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SMART_SEARCH
+  desc: the hint in the band under Settings > General while Smart Search is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Search offers only the letters that lead to a name, so you get there sooner."
+  </source>
+  <dest>
+    *: "Bilatu aukerak izen batera daramaten letrak bakarrik eskaintzen ditu, lehenago iristeko."
   </dest>
   <voice>
     *: ""

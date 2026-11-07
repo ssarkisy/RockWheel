@@ -14642,7 +14642,7 @@
 </phrase>
 <phrase>
   id: LANG_APPEARANCE
-  desc: in the settings, under Display: the look of the status bar, the rating and the progress bar, as the iPod's or as iOS 13's
+  desc: a folder of Settings: all that changes the look, Dark Theme and Bold Text, Now Playing's cover colours and cover, and the iPod's or iOS's look of the status bar, the rating and the progress bar
   user: core
   <source>
     *: "Appearance"
@@ -14957,6 +14957,202 @@
   </source>
   <dest>
     *: "Burahin ang Listahan"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NOW_PLAYING_MENU
+  desc: a row of Settings, after Music Menu, and its title: which rows the menu held Select opens over Now Playing has, each On or Off
+  user: core
+  <source>
+    *: "Now Playing Menu"
+  </source>
+  <dest>
+    *: "Menu ng Tumutugtog Ngayon"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESET_NOW_PLAYING_MENU
+  desc: the last row of Settings > Now Playing Menu: its rows back as they were at first
+  user: core
+  <source>
+    *: "Reset Now Playing Menu"
+  </source>
+  <dest>
+    *: "I-reset ang Menu ng Tumutugtog Ngayon"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_RESUME_REWIND
+  desc: the hint in the band under Settings > Playback while Rewind on Resume is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Songs and audiobooks pick up a few seconds before where you left off."
+  </source>
+  <dest>
+    *: "Itinutuloy ang mga kanta at audiobook ilang segundo bago kung saan ka tumigil."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_HEADPHONE_UNPLUG
+  desc: the hint in the band under Settings > Playback while Pause on Unplug is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "With Resume, the music also plays again once the headphones are back in."
+  </source>
+  <dest>
+    *: "Kapag pinili ang At ituloy, tutugtog muli ang musika pagbalik ng headphones."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CUESHEET
+  desc: the hint in the band under Settings > Playback while Cue Sheets is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+  </source>
+  <dest>
+    *: "Ang album na iisang file ay tutugtog bilang hiwa-hiwalay na kanta, ayon sa .cue file sa tabi nito."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CROSSFEED
+  desc: the hint in the band under Settings > Sound while Crossfeed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Makes old stereo recordings feel less split between your ears on headphones."
+  </source>
+  <dest>
+    *: "Mas buo ang tunog ng lumang stereo recording sa headphones, hindi hati sa dalawang tainga."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_BOLD_TEXT
+  desc: the hint in the band under Settings > Appearance while Bold Text is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Song details on Now Playing in bold, easier to read at a glance."
+  </source>
+  <dest>
+    *: "Naka-bold ang detalye ng kanta sa Tumutugtog Ngayon, mas madaling basahin agad."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_COVER_COLOURS
+  desc: the hint in the band under Settings > Appearance while Cover Colours is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Now Playing takes on the colours of each album's cover."
+  </source>
+  <dest>
+    *: "Kinukuha ng Tumutugtog Ngayon ang kulay ng cover ng bawat album."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_STATUS_ICONS
+  desc: the hint in the band under Settings > Appearance while Status Icons is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+  </source>
+  <dest>
+    *: "Kinukuha rin ng status bar ang kulay ng cover. Sa Sariling Baterya, berde pa rin ang charge."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_ANGLED_COVER
+  desc: the hint in the band under Settings > Appearance while Angled Cover is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The cover on Now Playing turns slightly away, as on an iPod classic."
+  </source>
+  <dest>
+    *: "Bahagyang nakapihit ang cover sa Tumutugtog Ngayon, gaya sa iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_WAKE_SCREEN
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+  </source>
+  <dest>
+    *: "Sa Select at Menu, mababago ang volume at kanta habang madilim ang screen."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_RETURN_TO_WPS
+  desc: the hint in the band under Settings > General while Return to Now Playing is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+  </source>
+  <dest>
+    *: "Pagdilim ng screen habang may musika, babalik ang Tumutugtog Ngayon at volume ang aayusin ng gulong."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_COVER_FLOW_PAUSE
+  desc: the hint in the band under Settings > Playback while Pause in Cover Flow is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+  </source>
+  <dest>
+    *: "Naka-pause ang musika habang bukas ang Cover Flow, kaya buong bilis na dumudulas ang mga cover."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SMART_SEARCH
+  desc: the hint in the band under Settings > General while Smart Search is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Search offers only the letters that lead to a name, so you get there sooner."
+  </source>
+  <dest>
+    *: "Sa Hanapin, mga titik lang na papunta sa isang pangalan ang lalabas, kaya mas mabilis."
   </dest>
   <voice>
     *: ""

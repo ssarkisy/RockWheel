@@ -654,54 +654,55 @@ MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
 /***********************************/
 /*    MAIN MENU                    */
 
-/* All the settings there are, by what they are about. Rockbox's full settings
-   menus are not shown. */
-MENUITEM_GROUP(group_playback, ID2P(LANG_PLAYBACK));
-MENUITEM_GROUP(group_sound, ID2P(LANG_SOUND_SETTINGS));
-#if defined(HAVE_BACKLIGHT) || defined(HAVE_BACKLIGHT_BRIGHTNESS)
-MENUITEM_GROUP(group_display, ID2P(LANG_DISPLAY));
-#endif
-MENUITEM_GROUP(group_general, ID2P(LANG_GENERAL_SETTINGS));
+/* Settings in folders by subject, as an iPod nano 6G has them: all that the
+   music sounds like in Sound, all of how it plays in Playback */
+MAKE_MENU(settings_sound, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_NOICON,
+          &ipod_eq_row, &replaygain_type, &volume_limit, &crossfeed, &balance);
 
+MAKE_MENU(settings_playback, ID2P(LANG_PLAYBACK), NULL, Icon_NOICON,
+#ifdef HAVE_PITCHCONTROL
+          &audiobook_speed,
+#endif
+#ifdef HAVE_CROSSFADE
+          &crossfade,
+#endif
+          &resume_rewind,
+#ifdef HAVE_HEADPHONE_DETECTION
+          &unplug_mode,
+#endif
+          &cuesheet, &coverflow_pause_item);
+
+/* General: the wheel and the buttons, the dark screen's and Search's */
+MAKE_MENU(settings_general, ID2P(LANG_GENERAL_SETTINGS), NULL, Icon_NOICON,
+#ifdef HAVE_BACKLIGHT
+          &wake_screen_item, &return_to_wps_item,
+#endif
+#ifdef HAVE_TAGCACHE
+          &smart_search_item,
+#endif
+          &ipod_keyclick_menu);
+
+/* Two screens: what's changed often on the first, the menus' rows and General
+   on the second, then what's set once, the timer, the clock and the language,
+   at the end. 1.2's list had grown to four screens with Rockbox's groups, and
+   the iPod classic's order kept the EQ, Sound Check and Volume Limit apart.
+   Rockbox's full settings menus are not shown. */
 MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         Icon_Submenu_Entered,
         &show_info_item,
-        &group_playback,
         &shuffle_item, &repeat_mode,
-#ifdef HAVE_CROSSFADE
-        &crossfade,
-#endif
-#ifdef HAVE_PITCHCONTROL
-        &audiobook_speed,
-#endif
-        &resume_rewind,
-#ifdef HAVE_HEADPHONE_DETECTION
-        &unplug_mode,
-#endif
-        &coverflow_pause_item,
-        &cuesheet,
-        &group_sound,
-        &ipod_eq_row, &replaygain_type, &volume_limit, &balance, &crossfeed,
-        &afr_enabled,
-#if defined(HAVE_BACKLIGHT) || defined(HAVE_BACKLIGHT_BRIGHTNESS)
-        &group_display,
-#endif
+        &settings_sound, &settings_playback,
 #ifdef HAVE_BACKLIGHT
-        &backlight_timeout, &wake_screen_item, &return_to_wps_item,
+        &backlight_timeout,
 #endif
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
         &brightness_item,
 #endif
-#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-        &cover_colours_item, &status_icons_item, &angled_cover_item,
-        &appearance_row,
-#endif
-        &bold_text_item, &dark_theme_item, &night_row,
-        &group_general,
+        &night_row, &appearance_menu,
 #ifdef HAVE_TAGCACHE
-        &main_menu_row, &music_menu_row, &smart_search_item,
+        &main_menu_row, &music_menu_row,
 #endif
-        &ipod_keyclick_menu, &sleep_timer_item,
+        &wps_menu_row, &settings_general, &sleep_timer_item,
 #if CONFIG_RTC
         &timedate_item,
 #endif

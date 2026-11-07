@@ -14843,7 +14843,7 @@
 </phrase>
 <phrase>
   id: LANG_APPEARANCE
-  desc: in the settings, under Display: the look of the status bar, the rating and the progress bar, as the iPod's or as iOS 13's
+  desc: a folder of Settings: all that changes the look, Dark Theme and Bold Text, Now Playing's cover colours and cover, and the iPod's or iOS's look of the status bar, the rating and the progress bar
   user: core
   <source>
     *: "Appearance"
@@ -15158,6 +15158,202 @@
   </source>
   <dest>
     *: "Baleirar a lista"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NOW_PLAYING_MENU
+  desc: a row of Settings, after Music Menu, and its title: which rows the menu held Select opens over Now Playing has, each On or Off
+  user: core
+  <source>
+    *: "Now Playing Menu"
+  </source>
+  <dest>
+    *: "Menú Reproducindo"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_RESET_NOW_PLAYING_MENU
+  desc: the last row of Settings > Now Playing Menu: its rows back as they were at first
+  user: core
+  <source>
+    *: "Reset Now Playing Menu"
+  </source>
+  <dest>
+    *: "Restablecer o menú Reproducindo"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_RESUME_REWIND
+  desc: the hint in the band under Settings > Playback while Rewind on Resume is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Songs and audiobooks pick up a few seconds before where you left off."
+  </source>
+  <dest>
+    *: "As cancións e os audiolibros continúan uns segundos antes de onde se pararon."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_HEADPHONE_UNPLUG
+  desc: the hint in the band under Settings > Playback while Pause on Unplug is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "With Resume, the music also plays again once the headphones are back in."
+  </source>
+  <dest>
+    *: "Con «E continuar», a música tamén volve soar cando se conectan de novo os auriculares."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CUESHEET
+  desc: the hint in the band under Settings > Playback while Cue Sheets is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+  </source>
+  <dest>
+    *: "Un álbum gardado nun só ficheiro reprodúcese en cancións separadas, grazas ao ficheiro .cue ao seu lado."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CROSSFEED
+  desc: the hint in the band under Settings > Sound while Crossfeed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Makes old stereo recordings feel less split between your ears on headphones."
+  </source>
+  <dest>
+    *: "Cos auriculares, as gravacións estéreo antigas soan menos separadas entre os oídos."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_BOLD_TEXT
+  desc: the hint in the band under Settings > Appearance while Bold Text is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Song details on Now Playing in bold, easier to read at a glance."
+  </source>
+  <dest>
+    *: "Os datos da canción en «Reproducindo» en negra, máis fáciles de ler dunha ollada."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_COVER_COLOURS
+  desc: the hint in the band under Settings > Appearance while Cover Colours is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Now Playing takes on the colours of each album's cover."
+  </source>
+  <dest>
+    *: "«Reproducindo» toma as cores da portada de cada álbum."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_STATUS_ICONS
+  desc: the hint in the band under Settings > Appearance while Status Icons is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+  </source>
+  <dest>
+    *: "A barra de estado tamén toma as cores da portada. Con «Batería propia», a carga segue en verde."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_ANGLED_COVER
+  desc: the hint in the band under Settings > Appearance while Angled Cover is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The cover on Now Playing turns slightly away, as on an iPod classic."
+  </source>
+  <dest>
+    *: "A portada en «Reproducindo» aparece algo xirada, como nun iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_WAKE_SCREEN
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+  </source>
+  <dest>
+    *: "Con «Select e Menu» pode axustar o volume e cambiar de canción coa pantalla apagada."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_RETURN_TO_WPS
+  desc: the hint in the band under Settings > General while Return to Now Playing is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+  </source>
+  <dest>
+    *: "Cando a pantalla se apaga con música, volve «Reproducindo» e a roda axusta o volume."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_COVER_FLOW_PAUSE
+  desc: the hint in the band under Settings > Playback while Pause in Cover Flow is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+  </source>
+  <dest>
+    *: "A música detense mentres Cover Flow está aberto, para que as portadas pasen a toda velocidade."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SMART_SEARCH
+  desc: the hint in the band under Settings > General while Smart Search is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Search offers only the letters that lead to a name, so you get there sooner."
+  </source>
+  <dest>
+    *: "«Buscar» só ofrece as letras que levan a un nome, para chegar antes."
   </dest>
   <voice>
     *: ""

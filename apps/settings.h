@@ -231,6 +231,26 @@ enum {
     MAIN_MENU_ROWS
 };
 
+/* the rows of Settings > Now Playing Menu: those of the menu held Select
+   opens over Now Playing, in its order (onplay.c) */
+enum {
+    WPS_MENU_COVER_FLOW,
+    WPS_MENU_GO_TO_ARTIST,
+    WPS_MENU_GO_TO_ALBUM,
+    WPS_MENU_SHUFFLE,
+    WPS_MENU_REPEAT,
+    WPS_MENU_CURRENT_PLAYLIST,
+    WPS_MENU_ON_THE_GO,
+    WPS_MENU_VOLUME_LIMIT,
+    WPS_MENU_EQ,
+    WPS_MENU_SOUND_CHECK,
+    WPS_MENU_BRIGHTNESS,
+    WPS_MENU_COVER_COLOURS,
+    WPS_MENU_DARK_THEME,
+    WPS_MENU_NIGHT_MODE,
+    WPS_MENU_ROWS
+};
+
 /** virtual pointer stuff.. move to another .h maybe? **/
 /* These define "virtual pointers", which could either be a literal string,
    or a mean a string ID if the pointer is in a certain range.
@@ -939,6 +959,8 @@ struct user_settings
     /* Settings > Main Menu: what is in the main menu, as on a stock iPod */
     bool main_menu_show[MAIN_MENU_ROWS];
 #endif
+    /* Settings > Now Playing Menu: what the menu held Select opens there has */
+    bool wps_menu_show[WPS_MENU_ROWS];
 #ifdef HAVE_PITCHCONTROL
     int audiobook_speed; /* 0 slower, 1 normal, 2 faster */
 #endif

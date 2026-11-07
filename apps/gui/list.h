@@ -67,6 +67,15 @@ typedef bool list_is_group(int item, void * data);
 typedef bool list_is_playing(int item, void * data);
 /* whether an item is the list's Shuffle Songs, drawn with shuffle arrows */
 typedef bool list_is_shuffle(int item, void * data);
+/* the hint shown under the list while an item is selected, NULL for none */
+typedef const char *list_get_hint(int item, void * data);
+
+/* the colours of a group's bar in a list of settings, and of the band of
+   hints under one, and of their text */
+#define LIST_GROUP_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa6, 0xb0) \
+                                                      : LCD_RGBPACK(0x60, 0x66, 0x70))
+#define LIST_GROUP_BAR_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0x2c, 0x2e, 0x33) \
+                                                          : LCD_RGBPACK(0xe6, 0xe8, 0xec))
 /*
  * Text callback
  *  - selected_item : an integer that tells the number of the item to display
@@ -182,6 +191,8 @@ struct gui_synclist
     list_is_group *callback_is_group; /* can be NULL */
     list_is_playing *callback_is_playing; /* can be NULL */
     list_is_shuffle *callback_is_shuffle; /* can be NULL */
+    /* a list with hints has a band for them under its rows, can be NULL */
+    list_get_hint *callback_get_hint;
     /* the song playing as the list was last drawn (gui_synclist_playing()) */
     long playing_shown;
     /* what its owner does as it's about to be drawn, can be NULL */
@@ -262,6 +273,13 @@ extern void gui_synclist_set_playing_callback(struct gui_synclist * lists,
                                               list_is_playing is_playing_callback);
 extern void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
                                               list_is_shuffle is_shuffle_callback);
+extern void gui_synclist_set_hint_callback(struct gui_synclist * lists,
+                                           list_get_hint get_hint_callback);
+/* the least height of the band of hints, which takes as many rows of the list
+   as it needs for three lines of them; 0 for a list without */
+extern int list_hint_band(struct gui_synclist *list, enum screen_type screen);
+/* the rows a list shows at once on a screen */
+extern int list_get_nb_lines(struct gui_synclist *list, enum screen_type screen);
 /* The song playing or paused, as its number in the database plus one (its
    id3's tagcache_idx), 0 if none or none known: as the list being drawn saw
    it, for its rows' is_playing callbacks */

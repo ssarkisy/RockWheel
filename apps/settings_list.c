@@ -2217,10 +2217,10 @@ const struct settings_list settings[] = {
                        LANG_SURROUND_MIX, 50,
                        "surround mix", UNIT_PERCENT, 0, 100,
                        5, NULL, NULL, dsp_surround_mix),
-    /* auditory fatigue reduction */
+    /* auditory fatigue reduction, kept off by settings_apply() */
     CHOICE_SETTING(F_SOUNDSETTING|F_NO_WRAP, afr_enabled,
                        LANG_AFR, 0,"afr enabled",
-                       "off,weak,moderate,strong", dsp_afr_enable, 4,
+                       "off,weak,moderate,strong", NULL, 4,
                        ID2P(LANG_OFF), ID2P(LANG_WEAK),ID2P(LANG_MODERATE),ID2P(LANG_STRONG)),
     /* PBE */
     INT_SETTING_NOWRAP(F_SOUNDSETTING, pbe,
@@ -2778,6 +2778,35 @@ const struct settings_list settings[] = {
     OFFON_SETTING(0, main_menu_show[MAIN_MENU_SHUFFLE_SONGS], LANG_SHUFFLE_SONGS, true,
                   "main menu shuffle songs", NULL),
 #endif
+    /* Settings > Now Playing Menu: all of it, as it was */
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_COVER_FLOW], LANG_COVER_FLOW, true,
+                  "now playing menu cover flow", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_GO_TO_ARTIST], LANG_GO_TO_ARTIST, true,
+                  "now playing menu go to artist", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_GO_TO_ALBUM], LANG_GO_TO_ALBUM, true,
+                  "now playing menu go to album", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_SHUFFLE], LANG_SHUFFLE, true,
+                  "now playing menu shuffle", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_REPEAT], LANG_REPEAT, true,
+                  "now playing menu repeat", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_CURRENT_PLAYLIST], LANG_CURRENT_PLAYLIST,
+                  true, "now playing menu current playlist", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_ON_THE_GO], LANG_ADD_TO_ON_THE_GO, true,
+                  "now playing menu on-the-go", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_VOLUME_LIMIT], LANG_VOLUME_LIMIT, true,
+                  "now playing menu volume limit", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_EQ], LANG_EQUALIZER, true,
+                  "now playing menu eq", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_SOUND_CHECK], LANG_REPLAYGAIN_MODE, true,
+                  "now playing menu sound check", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_BRIGHTNESS], LANG_BRIGHTNESS, true,
+                  "now playing menu brightness", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_COVER_COLOURS], LANG_COVER_COLOURS, true,
+                  "now playing menu cover colours", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_DARK_THEME], LANG_DARK_THEME, true,
+                  "now playing menu dark theme", NULL),
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_NIGHT_MODE], LANG_NIGHT_MODE, true,
+                  "now playing menu night mode", NULL),
 #ifdef HAVE_PITCHCONTROL
     /* the stock iPod's Audiobooks setting: the speed of audiobooks only */
     CHOICE_SETTING(0, audiobook_speed, LANG_AUDIOBOOKS, 1,

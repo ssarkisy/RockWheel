@@ -32,6 +32,7 @@
 #include "font.h"
 #include "file.h"
 #include "menu.h"
+#include "onplay.h"
 #include "transition.h"
 #include "button.h"
 #include "kernel.h"
@@ -123,20 +124,82 @@ static int get_menu_selection(int selected_item, const struct menu_item_ex *menu
 #define IN_PLACE_CHOICES 4
 #define HASFLAG(setting, flag) (((setting)->flags & (flag)) == (flag))
 
-extern const struct menu_item_ex main_menu_;
+extern const struct menu_item_ex main_menu_, settings_sound, settings_playback,
+                                 settings_general;
 
 /* Settings and what opens from it, and any list as wide: the menu over Now Playing */
 static bool menu_shows_values(const struct menu_item_ex *menu)
 {
     return menu_wide() || menu == &main_menu_ || menu == &ipod_keyclick_menu
-           || menu == &night_menu
+           || menu == &night_menu || menu == &appearance_menu
+           || menu == &settings_sound || menu == &settings_playback
+           || menu == &settings_general
+           || menu == &wps_menu_items
 #ifdef HAVE_TAGCACHE
            || menu == &music_menu_items || menu == &main_menu_items
 #endif
-#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-           || menu == &appearance_menu
-#endif
            ;
+}
+
+/* The hints under Settings' folders: of the settings not plain from their
+   names, by their variables. Only in the wide lists, where three lines fit. */
+static const struct {
+    const void *variable;
+    int lang;
+} hints[] = {
+    { &global_settings.resume_rewind, LANG_HINT_RESUME_REWIND },
+#ifdef HAVE_HEADPHONE_DETECTION
+    { &global_settings.unplug_mode, LANG_HINT_HEADPHONE_UNPLUG },
+#endif
+    { &global_settings.cuesheet, LANG_HINT_CUESHEET },
+    { &global_settings.crossfeed, LANG_HINT_CROSSFEED },
+    { &global_settings.bold_text, LANG_HINT_BOLD_TEXT },
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    { &global_settings.cover_colours, LANG_HINT_COVER_COLOURS },
+    { &global_settings.status_icons, LANG_HINT_STATUS_ICONS },
+    { &global_settings.angled_cover, LANG_HINT_ANGLED_COVER },
+#endif
+#ifdef HAVE_BACKLIGHT
+    { &global_settings.wake_screen, LANG_HINT_WAKE_SCREEN },
+    { &global_settings.return_to_wps, LANG_HINT_RETURN_TO_WPS },
+#endif
+    { &global_settings.coverflow_pause, LANG_HINT_COVER_FLOW_PAUSE },
+#ifdef HAVE_TAGCACHE
+    { &global_settings.smart_search, LANG_HINT_SMART_SEARCH },
+#endif
+};
+
+static const char *item_hint(const struct menu_item_ex *item)
+{
+    if ((item->flags & MENU_TYPE_MASK) != MT_SETTING)
+        return NULL;
+    for (unsigned i = 0; i < ARRAYLEN(hints); i++)
+    {
+        if (hints[i].variable == item->variable)
+            return str(hints[i].lang);
+    }
+    return NULL;
+}
+
+static const char *menu_hint(int selected, void *data)
+{
+    const struct menu_item_ex *menu = data;
+    if (selected < 0 || selected >= current_subitems_count)
+        return NULL;
+    return item_hint(menu->submenus[get_menu_selection(selected, menu)]);
+}
+
+/* a menu with any: its band then, for all its rows, which don't move */
+static bool menu_has_hints(const struct menu_item_ex *menu)
+{
+    if ((menu->flags & MENU_TYPE_MASK) != MT_MENU)
+        return false;
+    for (int i = 0; i < (int)MENU_GET_COUNT(menu->flags); i++)
+    {
+        if (item_hint(menu->submenus[i]))
+            return true;
+    }
+    return false;
 }
 
 static bool setting_changes_in_place(const struct settings_list *setting)
@@ -187,6 +250,13 @@ static bool menu_has_children(int selected_item, void * data)
         default:
             return false;
     }
+}
+
+/* whether a row of the list built is a group's bar */
+static bool is_group_row(const struct menu_item_ex *menu, int row)
+{
+    return (menu->submenus[current_subitems[row]]->flags & MENU_TYPE_MASK)
+           == MT_GROUP;
 }
 
 static int find_menu_selection(int selected)
@@ -271,10 +341,8 @@ static bool menu_is_group(int item, void *data)
    only if it fits beside the name. The name of a group has a bar of its own. */
 #define VALUE_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa2, 0xa8) \
                                                  : LCD_RGBPACK(0x66, 0x66, 0x66))
-#define GROUP_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa6, 0xb0) \
-                                                 : LCD_RGBPACK(0x60, 0x66, 0x70))
-#define GROUP_BAR_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0x2c, 0x2e, 0x33) \
-                                                     : LCD_RGBPACK(0xe6, 0xe8, 0xec))
+#define GROUP_COLOUR LIST_GROUP_COLOUR
+#define GROUP_BAR_COLOUR LIST_GROUP_BAR_COLOUR
 #define VALUE_MARGIN 6
 #define VALUE_MARGIN_CHEVRON 21
 #define VALUE_GAP 8
@@ -411,17 +479,35 @@ static int init_menu_lists(const struct menu_item_ex *menu,
 
         if (menu_callback(ACTION_REQUEST_MENUITEM,
             type==MT_RETURN_ID ? (void*)(intptr_t)i: menu->submenus[i], lists)
-                != ACTION_EXIT_MENUITEM)
+                != ACTION_EXIT_MENUITEM
+            && (type == MT_RETURN_ID || !onplay_row_hidden(menu, i)))
         {
             current_subitems[current_subitems_count] = i;
             current_subitems_count++;
         }
     }
 
+    /* a group's bar with none of its rows shown after it, as when they're
+       hidden: gone too */
+    if (type == MT_MENU)
+    {
+        int kept = 0;
+        for (i = 0; i < current_subitems_count; i++)
+        {
+            if (is_group_row(menu, i)
+                && (i + 1 == current_subitems_count || is_group_row(menu, i + 1)))
+                continue;
+            current_subitems[kept++] = current_subitems[i];
+        }
+        current_subitems_count = kept;
+    }
+
     current_submenus_menu = (struct menu_item_ex *)menu;
 
     gui_synclist_init(lists,get_menu_item_name,(void*)menu,false,1, parent);
     gui_synclist_set_before_draw(lists, panel_before_draw);
+    if (menu_wide() && menu_has_hints(menu))
+        gui_synclist_set_hint_callback(lists, menu_hint);
     if (menu_shows_values(menu) || menu_has_groups(menu))
     {
         lists->callback_draw_item = menu_draw_value_line;
@@ -434,7 +520,12 @@ static int init_menu_lists(const struct menu_item_ex *menu,
     if(global_settings.talk_menu)
         gui_synclist_set_voice_callback(lists, talk_menu_item);
     gui_synclist_set_nb_items(lists,current_subitems_count);
-    gui_synclist_select_item(lists, find_menu_selection(selected));
+    /* not on a group's bar, as when the rows before it are hidden */
+    int row = find_menu_selection(selected);
+    while (type == MT_MENU && row + 1 < current_subitems_count
+           && is_group_row(menu, row))
+        row++;
+    gui_synclist_select_item(lists, row);
 
     get_menu_callback(menu,&menu_callback);
     if (callback)
@@ -993,9 +1084,11 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                             top[i] = lists.start_item[i];
                         init_menu_lists(menu, &lists, selected, false, vps,
                                         buf, sizeof buf);
+                        /* no further down than the last row's screen: a
+                           row gone left a line empty at the bottom */
                         FOR_NB_SCREENS(i)
-                            lists.start_item[i] = MIN(top[i],
-                                                      MAX(lists.nb_items - 1, 0));
+                            lists.start_item[i] = MAX(MIN(top[i],
+                                lists.nb_items - list_get_nb_lines(&lists, i)), 0);
                         redraw_lists = true;
                         break;
                     }

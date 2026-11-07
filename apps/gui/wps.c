@@ -1141,6 +1141,10 @@ long gui_wps_show(void)
 #endif /* def HAVE_HOTKEY */
             case ACTION_WPS_CONTEXT:
             {
+                /* nothing in it, by Settings > Now Playing Menu: nothing
+                   to leave Now Playing for, nor to draw again */
+                if (!hotkey && onplay_wps_menu_empty())
+                    break;
                 gwps_leave_wps(true);
                 int retval = onplay(state->id3->path,
                        FILE_ATTR_AUDIO, CONTEXT_WPS, hotkey, ONPLAY_NO_CUSTOMACTION);

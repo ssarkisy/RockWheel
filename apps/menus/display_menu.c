@@ -213,41 +213,24 @@ MENUITEM_SETTING_SHARED(status_icons_item, &global_settings.status_icons,
                         status_icons_callback);
 MENUITEM_SETTING_SHARED(angled_cover_item, &global_settings.angled_cover, NULL);
 
-/* Appearance: the theme's look of each, as the iPod's or as iOS 13's */
+/* the theme's look of each, as the iPod's or as iOS 13's */
 MENUITEM_SETTING(status_bar_style_item, &global_settings.status_bar_style, NULL);
 MENUITEM_SETTING(rating_style_item, &global_settings.rating_style, NULL);
 MENUITEM_SETTING(progress_bar_style_item, &global_settings.progress_bar_style, NULL);
-MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
-          &status_bar_style_item, &rating_style_item, &progress_bar_style_item);
-
-static int appearance_menu_open(void)
-{
-    /* Menu held goes on to the main menu, as from Night Mode */
-    if (do_menu(&appearance_menu, NULL, NULL, false) == GO_TO_ROOT)
-        menu_request_root();
-    return 0;
-}
-
-/* its row: which look, if they're all of one */
-static char *appearance_row_name(int selected_item, void *data,
-                                 char *buffer, size_t buffer_len)
-{
-    (void)selected_item; (void)data;
-    const int s = global_settings.status_bar_style;
-    if (s == global_settings.rating_style && s == global_settings.progress_bar_style)
-        snprintf(buffer, buffer_len, "%s\t%s", str(LANG_APPEARANCE),
-                 str(s == STYLE_IOS ? LANG_STYLE_IOS : LANG_STYLE_IPOD));
-    else
-        strmemccpy(buffer, str(LANG_APPEARANCE), buffer_len);
-    return buffer;
-}
-
-MENUITEM_FUNCTION_DYNTEXT(appearance_row, 0, appearance_menu_open, appearance_row_name,
-                          NULL, NULL, NULL, Icon_NOICON);
 #endif
 
 MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);
 MENUITEM_SETTING_SHARED(bold_text_item, &global_settings.bold_text, NULL);
+
+/* Appearance, a folder of Settings: all that changes the look, the whole of
+   it first, then Now Playing's, then the iPod's or iOS's look of its parts */
+MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
+          &dark_theme_item, &bold_text_item,
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+          &cover_colours_item, &status_icons_item, &angled_cover_item,
+          &status_bar_style_item, &rating_style_item, &progress_bar_style_item,
+#endif
+          );
 
 /* after the screen of a value of the mode */
 static int night_value_callback(int action, const struct menu_item_ex *this_item,
@@ -300,10 +283,12 @@ MAKE_MENU(night_menu, ID2P(LANG_NIGHT_MODE), NULL, Icon_NOICON,
 /* its row in Settings, which says whether it's on, as the EQ's says its preset */
 static int night_menu_open(void)
 {
-    /* Menu held goes on to the main menu, past the menu this one was opened from */
-    if (do_menu(&night_menu, NULL, NULL, false) == GO_TO_ROOT)
+    /* Menu held goes on to the main menu, past the menu this one was opened
+       from, and Play held to Now Playing */
+    const int ret = do_menu(&night_menu, NULL, NULL, false);
+    if (ret == GO_TO_ROOT)
         menu_request_root();
-    return 0;
+    return ret == GO_TO_PREVIOUS_MUSIC ? ret : 0;
 }
 
 static char *night_row_name(int selected_item, void *data,
@@ -315,8 +300,8 @@ static char *night_row_name(int selected_item, void *data,
     return buffer;
 }
 
-MENUITEM_FUNCTION_DYNTEXT(night_row, 0, night_menu_open, night_row_name,
-                          NULL, NULL, NULL, Icon_NOICON);
+MENUITEM_FUNCTION_DYNTEXT(night_row, MENU_FUNC_CHECK_RETVAL, night_menu_open,
+                          night_row_name, NULL, NULL, NULL, Icon_NOICON);
 #ifdef HAVE_COMPOSITE_VIDEO_OUT
 MENUITEM_SETTING(composite_video_output,
                  &global_settings.composite_video_output, NULL);

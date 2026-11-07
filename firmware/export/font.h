@@ -165,6 +165,9 @@ void font_disable_all(void);
 void font_enable_all(void);
 
 struct font* font_get(int font);
+/* the id of a font loaded from this path, as by a skin, or -1: none is; the
+   font isn't loaded for it, nor its count of users raised */
+int font_find(const char *path);
 void set_ui_font(int font); /* when FONT_UI is supplied this font will be tried first */
 
 int font_measurestring(const unsigned char *str, size_t maxbytes, size_t maxwidth, int *w, int *h, int fontnum);

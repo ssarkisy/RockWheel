@@ -86,10 +86,19 @@ static void list_init_viewports(struct gui_synclist *list)
     list->dirty_tick = last_dirty_tick;
 }
 
+/* three lines of hints and their margins, in a font of Now Playing: the room of
+   three rows */
+#define HINT_BAND_LEAST 72
+
+int list_hint_band(struct gui_synclist *list, enum screen_type screen)
+{
+    return list->callback_get_hint && screen == SCREEN_MAIN ? HINT_BAND_LEAST : 0;
+}
+
 static int list_nb_lines(struct gui_synclist *list, enum screen_type screen)
 {
     struct viewport *vp = list->parent[screen];
-    return vp->height / list->line_height[screen];
+    return (vp->height - list_hint_band(list, screen)) / list->line_height[screen];
 }
 
 bool list_display_title(struct gui_synclist *list, enum screen_type screen)
@@ -161,6 +170,7 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_is_group = NULL;
     gui_list->callback_is_playing = NULL;
     gui_list->callback_is_shuffle = NULL;
+    gui_list->callback_get_hint = NULL;
     gui_list->playing_shown = 0;
     gui_list->callback_get_item_name = callback_get_item_name;
     gui_list->callback_speak_item = NULL;
@@ -531,6 +541,12 @@ void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
                                        list_is_shuffle is_shuffle_callback)
 {
     lists->callback_is_shuffle = is_shuffle_callback;
+}
+
+void gui_synclist_set_hint_callback(struct gui_synclist * lists,
+                                    list_get_hint get_hint_callback)
+{
+    lists->callback_get_hint = get_hint_callback;
 }
 
 void gui_synclist_set_voice_callback(struct gui_synclist * lists,

@@ -257,8 +257,15 @@ static int filemenu_callback(int action,
 #if BATTERY_CAPACITY_INC > 0
 MENUITEM_SETTING_SHARED(battery_capacity, &global_settings.battery_capacity, NULL);
 #endif
-#ifdef HAVE_TAGCACHE
-MENUITEM_SETTING_SHARED(smart_search_item, &global_settings.smart_search, NULL);
+/* A screen of rows opened from Settings: Menu held goes on to the main menu,
+   Play held to Now Playing, past Settings, as from its folders */
+static int open_rows(const struct menu_item_ex *menu)
+{
+    const int ret = do_menu(menu, NULL, NULL, false);
+    if (ret == GO_TO_ROOT)
+        menu_request_root();
+    return ret == GO_TO_PREVIOUS_MUSIC ? ret : 0;
+}
 
 /* A screen's rows back as they were at first, as a stock iPod's Reset Main
    Menu has them, at once */
@@ -272,6 +279,62 @@ static void reset_rows(bool *first, int count)
     }
     settings_save();
 }
+
+/* Now Playing Menu: which rows the menu held Select opens over Now Playing
+   has, each On or Off, as Main Menu has the main menu's */
+static int wps_menu_reset(void)
+{
+    reset_rows(global_settings.wps_menu_show, WPS_MENU_ROWS);
+    return 0;
+}
+MENUITEM_FUNCTION(wps_menu_reset_item, 0, ID2P(LANG_RESET_NOW_PLAYING_MENU),
+                  wps_menu_reset, NULL, Icon_NOICON);
+#define WPS_MENU_SETTING(name, row) \
+    MENUITEM_SETTING(name, &global_settings.wps_menu_show[row], NULL)
+#ifdef HAVE_TAGCACHE
+WPS_MENU_SETTING(wps_menu_cover_flow, WPS_MENU_COVER_FLOW);
+WPS_MENU_SETTING(wps_menu_go_to_artist, WPS_MENU_GO_TO_ARTIST);
+WPS_MENU_SETTING(wps_menu_go_to_album, WPS_MENU_GO_TO_ALBUM);
+#endif
+WPS_MENU_SETTING(wps_menu_shuffle, WPS_MENU_SHUFFLE);
+WPS_MENU_SETTING(wps_menu_repeat, WPS_MENU_REPEAT);
+WPS_MENU_SETTING(wps_menu_current_playlist, WPS_MENU_CURRENT_PLAYLIST);
+WPS_MENU_SETTING(wps_menu_on_the_go, WPS_MENU_ON_THE_GO);
+WPS_MENU_SETTING(wps_menu_volume_limit, WPS_MENU_VOLUME_LIMIT);
+WPS_MENU_SETTING(wps_menu_eq, WPS_MENU_EQ);
+WPS_MENU_SETTING(wps_menu_sound_check, WPS_MENU_SOUND_CHECK);
+#ifdef HAVE_BACKLIGHT_BRIGHTNESS
+WPS_MENU_SETTING(wps_menu_brightness, WPS_MENU_BRIGHTNESS);
+#endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+WPS_MENU_SETTING(wps_menu_cover_colours, WPS_MENU_COVER_COLOURS);
+#endif
+WPS_MENU_SETTING(wps_menu_dark_theme, WPS_MENU_DARK_THEME);
+WPS_MENU_SETTING(wps_menu_night_mode, WPS_MENU_NIGHT_MODE);
+MAKE_MENU(wps_menu_items, ID2P(LANG_NOW_PLAYING_MENU), NULL, Icon_NOICON,
+#ifdef HAVE_TAGCACHE
+          &wps_menu_cover_flow, &wps_menu_go_to_artist, &wps_menu_go_to_album,
+#endif
+          &wps_menu_shuffle, &wps_menu_repeat, &wps_menu_current_playlist,
+          &wps_menu_on_the_go, &wps_menu_volume_limit, &wps_menu_eq,
+          &wps_menu_sound_check,
+#ifdef HAVE_BACKLIGHT_BRIGHTNESS
+          &wps_menu_brightness,
+#endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+          &wps_menu_cover_colours,
+#endif
+          &wps_menu_dark_theme, &wps_menu_night_mode, &wps_menu_reset_item);
+
+static int wps_menu_open(void)
+{
+    return open_rows(&wps_menu_items);
+}
+MENUITEM_FUNCTION(wps_menu_row, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_NOW_PLAYING_MENU),
+                  wps_menu_open, NULL, Icon_NOICON);
+
+#ifdef HAVE_TAGCACHE
+MENUITEM_SETTING_SHARED(smart_search_item, &global_settings.smart_search, NULL);
 
 static int main_menu_reset(void)
 {
@@ -337,22 +400,17 @@ MAKE_MENU(main_menu_items, ID2P(LANG_MAIN_MENU), NULL, Icon_NOICON,
 
 static int main_menu_open(void)
 {
-    if (do_menu(&main_menu_items, NULL, NULL, false) == GO_TO_ROOT)
-        menu_request_root();
-    return 0;
+    return open_rows(&main_menu_items);
 }
-MENUITEM_FUNCTION(main_menu_row, 0, ID2P(LANG_MAIN_MENU), main_menu_open,
-                  NULL, Icon_NOICON);
+MENUITEM_FUNCTION(main_menu_row, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_MAIN_MENU),
+                  main_menu_open, NULL, Icon_NOICON);
 
 static int music_menu_open(void)
 {
-    /* Menu held goes on to the main menu, as from Appearance */
-    if (do_menu(&music_menu_items, NULL, NULL, false) == GO_TO_ROOT)
-        menu_request_root();
-    return 0;
+    return open_rows(&music_menu_items);
 }
-MENUITEM_FUNCTION(music_menu_row, 0, ID2P(LANG_MUSIC_MENU), music_menu_open,
-                  NULL, Icon_NOICON);
+MENUITEM_FUNCTION(music_menu_row, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_MUSIC_MENU),
+                  music_menu_open, NULL, Icon_NOICON);
 #endif
 
 #ifdef HAVE_USB_CHARGING_ENABLE

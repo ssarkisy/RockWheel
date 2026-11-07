@@ -43,6 +43,9 @@
 #include "debug.h"
 #include "line.h"
 #include "fixedpoint.h"
+#include "rbunicode.h"
+#include "rbpaths.h"
+#include "diacritic.h"
 
 #define ICON_PADDING 1
 #define ICON_PADDING_S "1"
@@ -194,6 +197,162 @@ static bool draw_title(struct screen *display,
     return true;
 }
 
+/* The band of hints under a list of settings: the hint of the row selected,
+   in three lines at most of a font of Now Playing, which its skin keeps loaded
+   from boot, found by its path rather than loaded for it. 14 px in two lines
+   was too small to read at a glance, and 17 px hardly larger. */
+#define HINT_X      6
+#define HINT_TOP    6
+#define HINT_PITCH  21
+#define HINT_LINES  3
+#define HINT_BYTES  192
+
+static int hint_font(void)
+{
+    int font = font_find(FONT_DIR "/18-Inter-SemiBold.fnt");
+    if (font < 0)
+        font = font_find(FONT_DIR "/18-Inter-Bold.fnt"); /* with Bold Text */
+    return font; /* -1, as for a moment as the theme loads: the band empty */
+}
+
+/* What doesn't start a line of Chinese or Japanese: the punctuation that
+   closes what's before it and Japanese's small kana. "。" went to a line of
+   its own once its font's spacing made it as wide as a letter. */
+static bool keeps_with_before(ucschar_t ch)
+{
+    switch (ch)
+    {
+    case 0x3001: case 0x3002:                           /* 、。 */
+    case 0x3009: case 0x300b: case 0x300d: case 0x300f: /* 〉》」』 */
+    case 0x3011: case 0x3015: case 0x3017: case 0x3019: /* 】〕〗〙 */
+    case 0x301b: case 0x30fb: case 0x30fc:              /* 〛・ー */
+    case 0x3041: case 0x3043: case 0x3045: case 0x3047: /* ぁぃぅぇ */
+    case 0x3049: case 0x3063: case 0x3083: case 0x3085: /* ぉっゃゅ */
+    case 0x3087: case 0x308e:                           /* ょゎ */
+    case 0x30a1: case 0x30a3: case 0x30a5: case 0x30a7: /* ァィゥェ */
+    case 0x30a9: case 0x30c3: case 0x30e3: case 0x30e5: /* ォッャュ */
+    case 0x30e7: case 0x30ee: case 0x30f5: case 0x30f6: /* ョヮヵヶ */
+    case 0xff01: case 0xff09: case 0xff0c: case 0xff0e: /* ！），． */
+    case 0xff1a: case 0xff1b: case 0xff1f:              /* ：；？ */
+    case 0xff3d: case 0xff5d:                           /* ］｝ */
+        return true;
+    }
+    return false;
+}
+
+/* Chinese and Japanese, which have no spaces: a line may end before any of
+   their letters but those */
+static bool breaks_before(ucschar_t ch)
+{
+    return ((ch >= 0x2e80 && ch <= 0x9fff) || (ch >= 0xf900 && ch <= 0xfaff)
+            || (ch >= 0xff00 && ch <= 0xffef)) && !keeps_with_before(ch);
+}
+
+/* A line of the text from p, as wide as width at most: up to the last space,
+   or letter of Chinese or Japanese, that fits, or, for a word longer than a
+   line, as many of its letters. A mark drawn over the letter before it, as
+   Hindi's vowels, takes no width, as the font draws it. Its end, and its
+   width. tools/check_hints.py wraps them the same. */
+static const char *hint_line(const char *p, struct font *pf, int width, int *w)
+{
+    const char *q = p, *end = p, *brk = NULL;
+    int sum = 0, at_brk = 0;
+    while (*q)
+    {
+        ucschar_t ch;
+        const char *next = (const char *)utf8decode((const unsigned char *)q, &ch);
+        if (ch == ' ' || (breaks_before(ch) && q > p))
+        {
+            brk = q;
+            at_brk = sum;
+        }
+        /* no longer than the line's buffer, whatever its width */
+        if (next - p > HINT_BYTES - 4)
+            break;
+        const int cw = IS_DIACRITIC(ch) ? 0
+                                        : font_get_width(font_for_char(pf, ch), ch);
+        if (sum + cw > width)
+            break;
+        sum += cw;
+        q = next;
+        end = q;
+    }
+    if (*q && brk && brk > p)
+    {
+        end = brk;
+        sum = at_brk;
+    }
+    if (end == p && *p)
+    {
+        /* not one letter fits: one, still */
+        ucschar_t ch;
+        end = (const char *)utf8decode((const unsigned char *)p, &ch);
+        sum = font_get_width(font_for_char(pf, ch), ch);
+    }
+    *w = sum;
+    return end;
+}
+
+static void draw_hint(struct screen *display, struct viewport *band,
+                      const char *text)
+{
+    const int font = hint_font();
+    band->font = font < 0 ? FONT_UI : font;
+    display->set_viewport(band);
+    /* its own grey, as a group's bar, over the theme's backdrop */
+    display->set_foreground(LIST_GROUP_BAR_COLOUR);
+    display->set_drawmode(DRMODE_SOLID);
+    display->fillrect(0, 0, band->width, band->height);
+    if (!text || !*text || font < 0)
+        return;
+    /* kept where they are while a glyph missing from their caches is read
+       from the disk, as font_getstringnsize() keeps them, or pf would point
+       where the font was before buflib moved it */
+    font_lock(font, true);
+    font_lock_fallbacks(true);
+    struct font *pf = font_get(band->font);
+    const int width = band->width - 2 * HINT_X;
+    display->set_foreground(LIST_GROUP_COLOUR);
+    display->set_drawmode(DRMODE_FG);
+    const char *p = text;
+    for (int i = 0; i < HINT_LINES && *p; i++)
+    {
+        while (*p == ' ')
+            p++;
+        int w;
+        const char *end = hint_line(p, pf, width, &w);
+        char line[HINT_BYTES];
+        size_t n = MIN((size_t)(end - p), sizeof(line) - 4);
+        memcpy(line, p, n);
+        line[n] = '\0';
+        p = end;
+        while (*p == ' ')
+            p++;
+        if (i == HINT_LINES - 1 && *p)
+        {
+            /* more than three lines' worth, as a translation too long: cut
+               short where "…" still fits */
+            static const char ellipsis[] = "\xe2\x80\xa6";
+            int ew;
+            font_getstringsize(ellipsis, &ew, NULL, band->font);
+            while (n > 0 && font_getstringnsize(line, n, &w, NULL, band->font)
+                            + ew > width)
+            {
+                do
+                    n--;
+                while (n > 0 && (line[n] & 0xc0) == 0x80);
+            }
+            memcpy(line + n, ellipsis, sizeof(ellipsis));
+        }
+        /* at the right end in a language written so: the viewport's, a copy
+           of the list's, aligns it there */
+        display->putsxy(HINT_X, HINT_TOP + i * HINT_PITCH, line);
+    }
+    display->set_drawmode(DRMODE_SOLID);
+    font_lock_fallbacks(false);
+    font_lock(font, false);
+}
+
 void list_draw(struct screen *display, struct gui_synclist *list)
 {
     int start, end, item_offset, i;
@@ -230,6 +389,29 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     }
 
     const int nb_lines = list_get_nb_lines(list, screen);
+    int draw_lines = nb_lines;
+
+    /* a list of hints: its rows, and the band below them to the end with the
+       hint of the row selected. A row without one has the rows go on over the
+       band, though the list scrolls as if it were there: no row moves as the
+       hints come and go, and the selection never goes under it */
+    struct viewport band = *list_text_vp;
+    const char *hint = NULL;
+    if (list_hint_band(list, screen) > 0)
+    {
+        hint = list->callback_get_hint(list->selected_item, list->data);
+        if (hint && *hint)
+        {
+            list_text_vp->height = nb_lines * list->line_height[screen];
+            band.y = list_text_vp->y + list_text_vp->height;
+            band.height = parent->y + parent->height - band.y;
+        }
+        else
+        {
+            hint = NULL;
+            draw_lines = list_text_vp->height / list->line_height[screen];
+        }
+    }
 
     linedes.height = list->line_height[screen];
     /* a list may show no selection, a size of 0, as Search's while its
@@ -242,7 +424,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         linedes.separator_height = abs(global_settings.list_separator_height);
 #endif
     start = list_start_item;
-    end = start + nb_lines;
+    end = start + draw_lines;
 
 #ifdef HAVE_TOUCHSCREEN
     /* y_pos needs to be clamped now since it can overflow the maximum
@@ -472,6 +654,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             line_draw_shuffle(display, list_info.x + shuffle_x, list_info.y,
                               &linedes);
     }
+    if (hint)
+        draw_hint(display, &band, hint);
     display->set_viewport(last_vp);
 }
 

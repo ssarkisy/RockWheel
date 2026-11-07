@@ -1518,6 +1518,74 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
            &context_item_4,
          );
 
+/* Settings > Now Playing Menu: each row of that menu shown or not, by its
+   setting; Rockbox's configurable items after them go by their own */
+static const struct {
+    const struct menu_item_ex *item;
+    int row;
+} wps_rows[] = {
+#ifdef HAVE_TAGCACHE
+    { &cover_flow_item, WPS_MENU_COVER_FLOW },
+    { &go_to_artist_item, WPS_MENU_GO_TO_ARTIST },
+    { &go_to_album_item, WPS_MENU_GO_TO_ALBUM },
+#endif
+    { &wps_shuffle_item, WPS_MENU_SHUFFLE },
+    { &wps_repeat_item, WPS_MENU_REPEAT },
+    { &wps_view_cur_playlist_item, WPS_MENU_CURRENT_PLAYLIST },
+    { &on_the_go_item, WPS_MENU_ON_THE_GO },
+    { &wps_volume_limit_item, WPS_MENU_VOLUME_LIMIT },
+    { &ipod_eq_menu, WPS_MENU_EQ },
+    { &wps_sound_check_item, WPS_MENU_SOUND_CHECK },
+#ifdef HAVE_BACKLIGHT_BRIGHTNESS
+    { &wps_brightness_item, WPS_MENU_BRIGHTNESS },
+#endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    { &wps_cover_colours_item, WPS_MENU_COVER_COLOURS },
+#endif
+    { &wps_dark_theme_item, WPS_MENU_DARK_THEME },
+    { &wps_night_mode_item, WPS_MENU_NIGHT_MODE },
+};
+
+/* -1 for one that isn't of them */
+static int wps_row(const struct menu_item_ex *item)
+{
+    for (unsigned i = 0; i < ARRAYLEN(wps_rows); i++)
+    {
+        if (wps_rows[i].item == item)
+            return global_settings.wps_menu_show[wps_rows[i].row];
+    }
+    return -1;
+}
+
+/* a group's bar with none of its rows left goes in init_menu_lists */
+bool onplay_row_hidden(const struct menu_item_ex *menu, int i)
+{
+    return menu == &wps_onplay_menu && wps_row(menu->submenus[i]) == 0;
+}
+
+/* none of its rows on: held Select does nothing there, rather than open an
+   empty menu */
+bool onplay_wps_menu_empty(void)
+{
+    /* Rockbox's configurable items, set in config.cfg, after them: the
+       menu's, as the first is the hotkey's with one */
+#ifdef HAVE_HOTKEY
+    for (int item = 1; item < 5; item++)
+#else
+    for (int item = 0; item < 5; item++)
+#endif
+    {
+        if (HK_CTX_GET(item, global_settings.context_wps) != HOTKEY_OFF)
+            return false;
+    }
+    for (unsigned i = 0; i < ARRAYLEN(wps_rows); i++)
+    {
+        if (global_settings.wps_menu_show[wps_rows[i].row])
+            return false;
+    }
+    return true;
+}
+
 
 MENUITEM_FUNCTION(view_playlist_item, 0, ID2P(LANG_VIEW),
                   view_playlist,
@@ -1950,6 +2018,8 @@ int onplay(char* file, int attr, int from_context, bool hotkey, int customaction
             return ONPLAY_RELOAD_DIR;
         return ONPLAY_START_PLAY;
     }
+    if (from_context == CONTEXT_WPS && onplay_wps_menu_empty())
+        return onplay_result;
 
     push_current_activity(ACTIVITY_CONTEXTMENU);
     /* over Now Playing, the whole width, with room for the rows' values */

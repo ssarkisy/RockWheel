@@ -91,6 +91,11 @@ int hotkey_run_menu(intptr_t flag, bool execute, int current_action);
 int onplay(char* file, int attr, int from_context, bool hotkey, int customaction);
 /* the title of the next menu of a song or the like that onplay() opens: its name */
 void onplay_set_title(const char *title);
+/* whether a row of a menu is hidden by Settings > Now Playing Menu */
+struct menu_item_ex;
+bool onplay_row_hidden(const struct menu_item_ex *menu, int i);
+/* with all of them hidden, held Select over Now Playing opens nothing */
+bool onplay_wps_menu_empty(void);
 int get_onplay_context(void);
 
 /* needed for the playlist viewer.. eventually clean this up */

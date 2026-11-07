@@ -68,14 +68,13 @@ extern const struct menu_item_ex
         brightness_item,
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-        cover_colours_item, status_icons_item, angled_cover_item, appearance_row,
-        appearance_menu,
+        cover_colours_item, status_icons_item, angled_cover_item,
 #endif
         codepage_setting,
-        dark_theme_item, bold_text_item,
+        dark_theme_item, bold_text_item, appearance_menu,
         night_menu, night_row,                      /* display_menu.c   */
         battery_capacity, ipod_keyclick_menu,       /* settings_menu.c  */
-        sleep_timer_item, language_item,
+        sleep_timer_item, language_item, wps_menu_items, wps_menu_row,
 #ifdef HAVE_TAGCACHE
         ipod_database_menu, smart_search_item,
         music_menu_items, music_menu_row, main_menu_items, main_menu_row,
