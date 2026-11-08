@@ -57,6 +57,16 @@ enum {
    CONVERT_TO_FAT32
 };
 
+/* Rockbox's bootloader on a Mac-formatted iPod finds no partition it can
+   read and stops there, before Menu or Hold can choose the stock firmware:
+   only disk mode is left */
+static void print_macpod_refusal(void)
+{
+    fprintf(stderr,"[ERR]  This iPod is Mac-formatted: the Rockbox bootloader can't start on it,\n");
+    fprintf(stderr,"[ERR]  and the iPod would start only in disk mode. Nothing was written.\n");
+    fprintf(stderr,"[ERR]  Convert it to FAT32 first, with --convert, which erases it.\n");
+}
+
 void print_macpod_warning(void)
 {
     printf("[INFO] ************************************************************************\n");
@@ -404,6 +414,20 @@ int main(int argc, char* argv[])
         print_macpod_warning();
     }
 
+    /* no bootloader on a Mac-formatted iPod, nor one in place of its stock
+       firmware (-we); taking one off, to save an iPod that has it, stays */
+    if (ipod.macpod && (action==ADD_BOOTLOADER
+#ifdef WITH_BOOTOBJS
+                        || action==INSTALL
+                        || (action==WRITE_FIRMWARE && type==FILETYPE_INTERNAL)
+#endif
+                       )) {
+        print_macpod_refusal();
+        ipod_close(&ipod);
+        ipod_dealloc_buffer(&ipod);
+        return IPOD_WRONG_TYPE;
+    }
+
     if (action==LIST_IMAGES) {
         list_images(&ipod);
 #ifdef WITH_BOOTOBJS
@@ -412,7 +436,9 @@ int main(int argc, char* argv[])
         printf("Enter i to install the Rockbox bootloader, u to uninstall\n or c to cancel and do nothing (i/u/c) :");
 
         if (fgets(yesno,4,stdin)) {
-            if (yesno[0]=='i') {
+            if (yesno[0]=='i' && ipod.macpod) {
+                print_macpod_refusal();
+            } else if (yesno[0]=='i') {
                 if (ipod_reopen_rw(&ipod) < 0) {
                     return IPOD_CANNOT_REOPEN;
                 }
