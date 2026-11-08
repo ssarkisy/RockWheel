@@ -27,6 +27,7 @@
 #include "library_fonts.h"
 #include "smart_playlists.h"
 #include "library_playlists.h"
+#include "ipod_playlists.h"
 #include "font.h"
 #include "root_menu.h"
 #include "gui/skin_engine/skin_engine.h"
@@ -1678,6 +1679,8 @@ void show_library_update(void)
         if (shown && !letters_stale && !fonts_stale)
             library_update_show(str(LANG_UPDATING_LIBRARY), 0);
         smart_update_at_boot();
+        /* the marks of the synced ones, as this import left them */
+        ip_synced_load();
         lp_index_all(library_playlists_go_on);
     }
     if (shown)

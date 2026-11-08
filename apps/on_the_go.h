@@ -33,6 +33,10 @@ bool otg_add_file(const char *path);
 bool otg_add_playlist(const char *playlist);
 /* the song, album, artist or the like selected in a list of Music */
 bool otg_add_selection(void);
+/* the same at the end of another playlist file, target */
+bool playlist_file_append(const char *target, const char *path);
+bool playlist_file_append_playlist(const char *target, const char *playlist);
+bool playlist_file_append_selection(const char *target);
 
 void otg_clear(void);
 bool otg_empty(void);

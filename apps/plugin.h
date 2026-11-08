@@ -1136,6 +1136,12 @@ struct plugin_api {
     /* the phrases of the plugins of Extras into the plugin's buf, for
        rb->str() and ID2P() to find until it quits (language.h) */
     int (*lang_extras_load)(unsigned char *buf, size_t size);
+#ifdef HAVE_TAGCACHE
+    /* a playlist made on the iPod picked from the catalogue, or made, and a
+       song at its end (ipod_playlists.h), as Cover Flow's Add to Playlist */
+    int (*ip_pick_playlist)(char *picked, size_t size);
+    bool (*ip_add_file)(const char *target, const char *path);
+#endif
 };
 
 /* plugin header */

@@ -45,6 +45,15 @@ struct entry {
 #define BROWSE_SELECTED         0x0100  /* this bit is set if user selected item */
 #define BROWSE_ON_THE_GO        0x0200  /* the playlists' catalogue, viewed: On-The-Go
                                            last at its top, selected as its file */
+#define BROWSE_PICK_FOLDER      0x0400  /* a folder of the catalogue picked, by its
+                                           first row, Move Here */
+#define BROWSE_PICK_PLAYLIST    0x0800  /* a playlist of the catalogue made on the
+                                           iPod picked, or a new one */
+
+/* A playlist of the catalogue without songs, as one just made on the iPod,
+   in its entry's attributes: no chevron, and nothing to open. The volume's
+   label's bit, which no file of a list has. */
+#define ENTRY_EMPTY_PLAYLIST    ATTR_VOLUME_ID
 
 
 struct tree_context;
@@ -116,6 +125,9 @@ void tree_init(void) INIT_ATTR;
 char* get_current_file(char* buffer, size_t buffer_len);
 void set_dirfilter(int l_dirfilter);
 void set_current_file(const char *path);
+/* the cursor on this file or folder of the folder viewed, as the list is
+   loaded again after it was made or renamed */
+void tree_select_after_reload(const char *path);
 int rockbox_browse(struct browse_context *browse);
 int create_playlist(void);
 void resume_directory(const char *dir);

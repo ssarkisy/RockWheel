@@ -53,6 +53,9 @@
 #include "statusbar-skinned.h"
 #include "panic.h"
 #include "on_the_go.h"
+#ifdef HAVE_TAGCACHE
+#include "ipod_playlists.h"
+#endif
 
 #if CONFIG_CHARGING
 #include "power.h"
@@ -944,6 +947,10 @@ static const struct plugin_api rockbox_api = {
 #endif
     otg_add_file,
     lang_extras_load,
+#ifdef HAVE_TAGCACHE
+    ip_pick_playlist,
+    ip_add_file,
+#endif
 };
 
 static int plugin_buffer_handle;

@@ -58,6 +58,7 @@
 #ifdef HAVE_TAGCACHE
 #include "tagtree.h"
 #include "library_playlists.h"
+#include "ipod_playlists.h"
 #endif
 #include "cuesheet.h"
 #include "statusbar-skinned.h"
@@ -474,13 +475,31 @@ void onplay_show_playlist_menu(const char* path, int attr, void (*playlist_inser
    playlist, at its end; over Now Playing, the song playing */
 static int add_to_on_the_go(void)
 {
+#ifdef HAVE_TAGCACHE
+    /* as into any playlist made on the iPod: its index and, if it plays,
+       the queue with it */
     switch (selected_file.context)
     {
-#ifdef HAVE_TAGCACHE
         case CONTEXT_ID3DB:
-            otg_add_selection();
+            ip_add_selection(OTG_FILE);
             break;
-#endif
+        case CONTEXT_WPS:
+        {
+            const struct mp3entry *id3 = audio_current_track();
+            if (id3 && id3->path[0])
+                ip_add_file(OTG_FILE, id3->path);
+            break;
+        }
+        default:
+            if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_M3U)
+                ip_add_playlist(OTG_FILE, selected_file.path);
+            else if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_AUDIO)
+                ip_add_file(OTG_FILE, selected_file.path);
+            break;
+    }
+#else
+    switch (selected_file.context)
+    {
         case CONTEXT_WPS:
         {
             const struct mp3entry *id3 = audio_current_track();
@@ -495,6 +514,7 @@ static int add_to_on_the_go(void)
                 otg_add_file(selected_file.path);
             break;
     }
+#endif
     return 0;
 }
 
@@ -532,6 +552,53 @@ static int on_the_go_callback(int action, const struct menu_item_ex *this_item,
 
 MENUITEM_FUNCTION(on_the_go_item, 0, ID2P(LANG_ADD_TO_ON_THE_GO),
                   add_to_on_the_go, on_the_go_callback, Icon_Playlist);
+
+#ifdef HAVE_TAGCACHE
+/* The same, at the end of a playlist made on the iPod, picked from the
+   catalogue or made there: as Add to Playlist on a stock iPod, but not into
+   one synced from Finder, which the next sync writes again */
+static int add_to_picked_playlist(void)
+{
+    char target[MAX_PATH], song[MAX_PATH];
+    song[0] = '\0';
+    /* the song playing as it is now, before the catalogue is gone through */
+    if (selected_file.context == CONTEXT_WPS)
+    {
+        const struct mp3entry *id3 = audio_current_track();
+        if (!id3 || !id3->path[0])
+            return 0;
+        strmemccpy(song, id3->path, sizeof(song));
+    }
+    const int r = ip_pick_playlist(target, sizeof(target));
+    if (r < 0)
+    {
+        onplay_result = ONPLAY_MAINMENU;
+        return 0;
+    }
+    if (r == 0)
+        return 0;
+    switch (selected_file.context)
+    {
+        case CONTEXT_ID3DB:
+            tagtree_reload_after_browse();
+            ip_add_selection(target);
+            break;
+        case CONTEXT_WPS:
+            ip_add_file(target, song);
+            break;
+        default:
+            if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_M3U)
+                ip_add_playlist(target, selected_file.path);
+            else if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_AUDIO)
+                ip_add_file(target, selected_file.path);
+            break;
+    }
+    return 0;
+}
+
+MENUITEM_FUNCTION(add_to_playlist_item, 0, ID2P(LANG_ADD_TO_PL),
+                  add_to_picked_playlist, on_the_go_callback, Icon_Playlist);
+#endif
 
 /* playlist catalog options */
 static bool cat_add_to_a_playlist(void)
@@ -1498,6 +1565,9 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
            /* On-The-Go, as on a stock iPod, rather than a playlist picked or
               named with the keyboard */
            &wps_view_cur_playlist_item, &on_the_go_item,
+#ifdef HAVE_TAGCACHE
+           &add_to_playlist_item,
+#endif
            &wps_group_settings,
            /* the two that change with the headphones first */
            &wps_volume_limit_item, &ipod_eq_menu, &wps_sound_check_item,
@@ -1533,6 +1603,10 @@ static const struct {
     { &wps_repeat_item, WPS_MENU_REPEAT },
     { &wps_view_cur_playlist_item, WPS_MENU_CURRENT_PLAYLIST },
     { &on_the_go_item, WPS_MENU_ON_THE_GO },
+#ifdef HAVE_TAGCACHE
+    /* with Add to On-The-Go, which the setting is of */
+    { &add_to_playlist_item, WPS_MENU_ON_THE_GO },
+#endif
     { &wps_volume_limit_item, WPS_MENU_VOLUME_LIMIT },
     { &ipod_eq_menu, WPS_MENU_EQ },
     { &wps_sound_check_item, WPS_MENU_SOUND_CHECK },
@@ -1591,6 +1665,128 @@ MENUITEM_FUNCTION(view_playlist_item, 0, ID2P(LANG_VIEW),
                   view_playlist,
                   onplaymenu_callback, Icon_Playlist);
 
+#ifdef HAVE_TAGCACHE
+/* A playlist made on the iPod, held in the catalogue: Rename, Move to Folder
+   and Delete, which the import's haven't, as the next sync makes them again */
+static int ipod_playlist_callback(int action,
+                                  const struct menu_item_ex *this_item,
+                                  struct gui_synclist *this_list)
+{
+    (void)this_item; (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM
+        && !(selected_file.context == CONTEXT_TREE
+             && (selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_M3U
+             && ip_editable(selected_file.path)))
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+
+static void ipod_playlist_done(int r, const char *path)
+{
+    if (r < 0)
+        onplay_result = ONPLAY_MAINMENU;
+    else
+    {
+        if (r > 0 && path)
+            tree_select_after_reload(path);
+        onplay_result = ONPLAY_RELOAD_DIR;
+    }
+}
+
+static int ipod_playlist_rename(void)
+{
+    char done[MAX_PATH];
+    const int r = ip_rename(selected_file.path, done, sizeof(done));
+    ipod_playlist_done(r, done);
+    return 0;
+}
+
+static bool folders_only(char *name, int attr, struct tree_context *tc)
+{
+    (void)name; (void)tc;
+    return attr & ATTR_DIRECTORY;
+}
+
+static int ipod_playlist_move(void)
+{
+    char root[MAX_PATH], folder[MAX_PATH], done[MAX_PATH];
+    if (!catalog_directory_name(root, sizeof(root)))
+        return 0;
+    folder[0] = '\0';
+    struct browse_context browse = {
+        .dirfilter = SHOW_M3U,
+        .flags = BROWSE_SELECTONLY | BROWSE_NO_CONTEXT_MENU | BROWSE_PICK_FOLDER,
+        .callback_show_item = folders_only,
+        .title = str(LANG_PLAYLISTS),
+        .icon = Icon_Playlist,
+        .root = root,
+        .buf = folder,
+        .bufsize = sizeof(folder),
+    };
+    if (rockbox_browse(&browse) == GO_TO_ROOT)
+    {
+        onplay_result = ONPLAY_MAINMENU;
+        return 0;
+    }
+    int r = 0;
+    if (browse.flags & BROWSE_SELECTED)
+    {
+        /* the folder without the separator at its end the browser gives */
+        size_t len = strlen(folder);
+        if (len > 1 && folder[len - 1] == '/')
+            folder[len - 1] = '\0';
+        r = ip_move(selected_file.path, folder, done, sizeof(done));
+    }
+    ipod_playlist_done(r, NULL);
+    return 0;
+}
+
+static int ipod_playlist_delete(void)
+{
+    char title[MAX_PATH];
+    const char *base = strrchr(selected_file.path, '/');
+    strmemccpy(title, base ? base + 1 : selected_file.path, sizeof(title));
+    char *ext = strrchr(title, '.');
+    if (ext && ext != title)
+        *ext = '\0';
+    const int r = ip_delete(selected_file.path, title);
+    ipod_playlist_done(r, NULL);
+    return 0;
+}
+
+/* a song of a playlist made on the iPod, as its screen asks */
+static bool song_removable;
+void onplay_set_removable(bool removable)
+{
+    song_removable = removable;
+}
+
+static int remove_song_callback(int action, const struct menu_item_ex *this_item,
+                                struct gui_synclist *this_list)
+{
+    (void)this_item; (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM && !song_removable)
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+
+static int remove_song(void)
+{
+    onplay_result = ONPLAY_REMOVE;
+    return 0;
+}
+
+MENUITEM_FUNCTION(remove_song_item, 0, ID2P(LANG_REMOVE),
+                  remove_song, remove_song_callback, Icon_NOICON);
+
+MENUITEM_FUNCTION(ipod_rename_item, 0, ID2P(LANG_RENAME),
+                  ipod_playlist_rename, ipod_playlist_callback, Icon_NOICON);
+MENUITEM_FUNCTION(ipod_move_item, 0, ID2P(LANG_MOVE_TO_FOLDER),
+                  ipod_playlist_move, ipod_playlist_callback, Icon_NOICON);
+MENUITEM_FUNCTION(ipod_delete_item, 0, ID2P(LANG_DELETE),
+                  ipod_playlist_delete, ipod_playlist_callback, Icon_NOICON);
+#endif
+
 /* used when onplay() is not called in the CONTEXT_WPS context: for a song, an album
    or the like, or a playlist, what plays it, at once rather than in a submenu. Its
    title is the name the list shows for it. */
@@ -1606,7 +1802,15 @@ MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
               those of the library too, which the next sync writes again, and
               named a new one by its path with the keyboard; On-The-Go goes to
               the Mac instead */
-           &on_the_go_item, &i_first_pl_item, &i_last_pl_item,
+           &on_the_go_item,
+#ifdef HAVE_TAGCACHE
+           &add_to_playlist_item,
+#endif
+           &i_first_pl_item, &i_last_pl_item,
+#ifdef HAVE_TAGCACHE
+           &remove_song_item,
+           &ipod_rename_item, &ipod_move_item, &ipod_delete_item,
+#endif
            &rename_file_item, &clipboard_cut_item, &clipboard_copy_item,
            &clipboard_paste_item, &delete_file_item, &delete_dir_item,
            &list_viewers_item, &create_dir_item, &properties_item, &track_info_item,
@@ -2038,6 +2242,9 @@ int onplay(char* file, int attr, int from_context, bool hotkey, int customaction
     transition_begin(TRANSITION_FORWARD);
     menu_selection = do_menu(menu, NULL, NULL, false);
     tree_menu_title[0] = '\0';
+#ifdef HAVE_TAGCACHE
+    song_removable = false;
+#endif
     if (from_context == CONTEXT_WPS)
         menu_set_wide(was_wide);
     pop_current_activity();

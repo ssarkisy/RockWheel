@@ -190,6 +190,8 @@ struct gui_synclist
     list_has_children *callback_has_children; /* can be NULL */
     list_is_group *callback_is_group; /* can be NULL */
     list_is_playing *callback_is_playing; /* can be NULL */
+    /* the mark before a row's name, as enum line_mark (line.h); can be NULL */
+    int (*callback_get_mark)(int item, void *data);
     list_is_shuffle *callback_is_shuffle; /* can be NULL */
     /* a list with hints has a band for them under its rows, can be NULL */
     list_get_hint *callback_get_hint;
@@ -271,6 +273,8 @@ extern void gui_synclist_set_has_children_callback(struct gui_synclist * lists,
                                               list_has_children has_children_callback);
 extern void gui_synclist_set_playing_callback(struct gui_synclist * lists,
                                               list_is_playing is_playing_callback);
+extern void gui_synclist_set_mark_callback(struct gui_synclist * lists,
+                                           int (*get_mark)(int item, void *data));
 extern void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
                                               list_is_shuffle is_shuffle_callback);
 extern void gui_synclist_set_hint_callback(struct gui_synclist * lists,
@@ -278,6 +282,13 @@ extern void gui_synclist_set_hint_callback(struct gui_synclist * lists,
 /* the least height of the band of hints, which takes as many rows of the list
    as it needs for three lines of them; 0 for a list without */
 extern int list_hint_band(struct gui_synclist *list, enum screen_type screen);
+/* three lines of hints and their margins, in a font of Now Playing: the room of
+   three rows */
+#define LIST_HINT_BAND 72
+/* a band of hints with this text, as under Settings' folders, in a viewport
+   of the screen: for a screen other than a list's too */
+extern void list_draw_hint(struct screen *display, struct viewport *band,
+                           const char *text);
 /* the rows a list shows at once on a screen */
 extern int list_get_nb_lines(struct gui_synclist *list, enum screen_type screen);
 /* The song playing or paused, as its number in the database plus one (its

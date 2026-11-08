@@ -45,6 +45,7 @@ static fb_data *lcd_fb;
 #if PF_PLAYBACK_CAPABLE
 #include "lib/playback_control.h"
 #include "lib/mul_id3.h"
+#include "on_the_go.h"
 #endif
 
 #define PF_PREV ACTION_STD_PREV
@@ -5716,17 +5717,40 @@ static bool pf_current_playlist_insert(int position, bool queue, bool create_new
    the keyboard, as a stock iPod has it */
 static void pf_add_to_on_the_go(void)
 {
+    /* its index and, if it plays, the queue with it, as Music's add them */
     if (!insert_whole_album)
     {
-        rb->otg_add_file(get_track_filename(pf_tracks.sel));
+        rb->ip_add_file(OTG_FILE, get_track_filename(pf_tracks.sel));
         return;
     }
     for (int i = 0; i < pf_tracks.count; i++)
     {
-        if (!rb->otg_add_file(get_track_filename(i)))
+        if (!rb->ip_add_file(OTG_FILE, get_track_filename(i)))
             break;
         rb->yield();
     }
+}
+
+
+/* the same at the end of a playlist made on the iPod, picked or made */
+static int pf_add_to_playlist(void)
+{
+    char target[MAX_PATH];
+    const int r = rb->ip_pick_playlist(target, sizeof(target));
+    if (r <= 0)
+        return r < 0 ? PLUGIN_USB_CONNECTED : 0;
+    if (!insert_whole_album)
+    {
+        rb->ip_add_file(target, get_track_filename(pf_tracks.sel));
+        return 0;
+    }
+    for (int i = 0; i < pf_tracks.count; i++)
+    {
+        if (!rb->ip_add_file(target, get_track_filename(i)))
+            break;
+        rb->yield();
+    }
+    return 0;
 }
 
 
@@ -5798,19 +5822,22 @@ static void context_menu_cleanup(void)
 
 static int context_menu(void)
 {
-    /* as Music's lists have it: On-The-Go first, then, while music plays,
+    /* as Music's lists have it: On-The-Go first, Add to Playlist, then, while music plays,
        Play Next and Play Last, for the album or, on its songs, the song */
     enum {
         PF_ON_THE_GO = 0,
+        PF_ADD_TO_PLAYLIST,
         PF_PLAY_NEXT,
         PF_PLAY_LAST
     };
     MENUITEM_STRINGLIST(playing_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
+                        ID2P(LANG_ADD_TO_PL),
                         ID2P(LANG_PLAY_NEXT),
                         ID2P(LANG_PLAY_LAST));
     MENUITEM_STRINGLIST(stopped_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
-                        ID2P(LANG_ADD_TO_ON_THE_GO));
+                        ID2P(LANG_ADD_TO_ON_THE_GO),
+                        ID2P(LANG_ADD_TO_PL));
     const bool playing = rb->audio_status() & AUDIO_STATUS_PLAY;
 
     const int chosen = rb->do_menu(playing ? &playing_menu : &stopped_menu,
@@ -5820,6 +5847,8 @@ static int context_menu(void)
         case PF_ON_THE_GO:
             pf_add_to_on_the_go();
             return 0;
+        case PF_ADD_TO_PLAYLIST:
+            return pf_add_to_playlist();
         case PF_PLAY_NEXT:
         case PF_PLAY_LAST:
             rb->splash(0, ID2P(LANG_WAIT));

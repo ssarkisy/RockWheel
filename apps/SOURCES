@@ -197,6 +197,7 @@ tagcache.c
 itunesdb.c
 smart_playlists.c
 library_playlists.c
+ipod_playlists.c
 night_mode.c
 photos_panel.c
 #endif

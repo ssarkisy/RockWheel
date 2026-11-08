@@ -56,7 +56,6 @@
 #ifdef HAVE_DIRCACHE
 #include "dircache.h"
 #endif
-#include "on_the_go.h"
 #include "smart_playlists.h"
 #include "library_playlists.h"
 
@@ -90,7 +89,7 @@ static int db_alloc(size_t size)
 /* the database's commit id when the last import had gone through all of it */
 #define IMPORTED_FILE   ROCKBOX_DIR "/itunesdb_imported.dat"
 /* the playlists made from iTunesDB, removed again on the next import */
-#define PLAYLISTS_FILE  ROCKBOX_DIR "/itunesdb_playlists.txt"
+#define PLAYLISTS_FILE  ITUNESDB_PLAYLISTS_LIST
 
 /* the folder where Finder keeps the music */
 #define MUSIC_DIR       "/iPod_Control/Music"
@@ -180,6 +179,7 @@ struct track {
     uint32_t pos;    /* of its mhit in iTunesDB */
     uint32_t sound_check; /* Finder's, 0 for none */
     struct state_entry st;
+    uint64_t dbid;   /* the song's, the same under another path after a sync */
 };
 
 static struct {
@@ -797,6 +797,7 @@ static void read_track(off_t pos, struct track *track)
         track->st.flags |= ITUNESDB_AUDIOBOOK;
     else if (media & MEDIA_PODCAST)
         track->st.flags |= ITUNESDB_PODCAST;
+    track->dbid = le32(p + 0x70) | (uint64_t)le32(p + 0x74) << 32;
     if (header_len >= 356)
         track->art = le32(p + 352);
     else if (p[0x7c] | p[0x7d] << 8)
@@ -2367,219 +2368,38 @@ static void put32(unsigned char *p, uint32_t v)
     p[3] = v >> 24;
 }
 
-/* On-The-Go to Finder, as the stock firmware gives it: OTGPlaylistInfo, a header,
-   then the index in iTunesDB's list of tracks of each of its songs, which Finder
-   makes "On-The-Go 1" of at the sync. Those it doesn't know, outside its folder,
-   stay on the iPod. Each one written is noted with the hashes of its songs,
-   which leave On-The-Go once Finder has taken it. */
+/* On-The-Go was handed to Finder as the stock firmware gives it, in
+   OTGPlaylistInfo, with a note of ours beside it: Finder made "On-The-Go 1" of
+   it on the iPod alone, never in Music, as it does of the stock firmware's,
+   and dropped it later. On-The-Go stays on the iPod now, and what's left of
+   that goes: our OTGPlaylistInfo, as the note has it, then the note. The
+   stock firmware's own, of a dual boot, aren't touched. */
 #define OTG_INFO_NAME  "OTGPlaylistInfo"
 #define OTG_INFO       ITUNESDB_DIR "/" OTG_INFO_NAME
-#define OTG_INFO_TEMP  ITUNESDB_DIR "/RockWheel OTG.tmp"
 #define OTG_MARK       ROCKBOX_DIR "/itunesdb_otg.dat"
 #define OTG_MARK_MAGIC 0x4f544731   /* "OTG1" */
-#define OTG_HDR        20
-#define OTG_MAX        4096         /* the songs given at once */
 
 struct otg_mark {
     uint32_t magic;
     uint32_t size, mtime;       /* of OTGPlaylistInfo */
-    uint32_t db_size, db_mtime; /* of the iTunesDB its indices are in */
-    uint32_t count;             /* the hashes of its songs after this, sorted */
+    uint32_t db_size, db_mtime; /* of the iTunesDB its indices were in */
+    uint32_t count;             /* the hashes of its songs after this */
 };
 
-static bool otg_mark_read(struct otg_mark *m)
+static void otg_cleanup(void)
 {
+    struct otg_mark m;
     const int fd = open(OTG_MARK, O_RDONLY);
     if (fd < 0)
-        return false;
-    const bool ok = read(fd, m, sizeof(*m)) == sizeof(*m)
-                    && m->magic == OTG_MARK_MAGIC && m->count <= OTG_MAX;
+        return;
+    const bool ok = read(fd, &m, sizeof(m)) == sizeof(m)
+                    && m.magic == OTG_MARK_MAGIC;
     close(fd);
-    return ok;
-}
-
-/* the track of iTunesDB that has this path, or -1 */
-static int state_index(uint64_t hash)
-{
-    int lo = 0, hi = pc.count - 1;
-    while (lo <= hi)
-    {
-        const int mid = (lo + hi) / 2;
-        const uint32_t i = pc.by_hash[mid];
-        if (pc.state[i].hash == hash)
-            return i;
-        if (pc.state[i].hash < hash)
-            lo = mid + 1;
-        else
-            hi = mid - 1;
-    }
-    return -1;
-}
-
-static void write_on_the_go(void)
-{
-    struct otg_mark m;
-    const bool marked = otg_mark_read(&m);
     uint32_t size, mtime;
-    const bool there = dir_file_stamp(OTG_INFO_NAME, &size, &mtime);
-    const bool ours = marked && there && size == m.size && mtime == m.mtime;
-    /* the stock firmware's, of a dual boot: as it is, and ours waits */
-    if (there && !ours)
-        return;
-
-    const int handle = db_alloc(OTG_MAX * (sizeof(uint64_t) + sizeof(uint32_t)));
-    if (handle <= 0)
-        return;
-    core_pin(handle);
-    uint64_t *hashes = core_get_data(handle);
-    uint32_t *indices = (uint32_t *)(hashes + OTG_MAX);
-    int n = 0;
-    const int fd = open(OTG_FILE, O_RDONLY);
-    if (fd >= 0)
-    {
-        char line[MAX_PATH];
-        while (n < OTG_MAX && read_line(fd, line, sizeof(line)) > 0)
-        {
-            if (!line[0] || line[0] == '#')
-                continue;
-            const uint64_t hash = itunesdb_path_hash(line);
-            const int i = state_index(hash);
-            if (i < 0)
-                continue; /* outside Finder's folder */
-            hashes[n] = hash;
-            indices[n] = i;
-            n++;
-        }
-        close(fd);
-    }
-
-    if (n == 0)
-    {
-        if (ours)
-            remove(OTG_INFO);
-        remove(OTG_MARK);
-        goto done;
-    }
-
-    /* not "OTGPlaylistInfo…": Finder takes every file named so */
-    if (!writer_open(&out, OTG_INFO_TEMP))
-        goto done;
-    unsigned char head[OTG_HDR];
-    memcpy(head, "mhpo", 4);
-    put32(head + 4, OTG_HDR);
-    put32(head + 8, sizeof(uint32_t));
-    put32(head + 12, n);
-    put32(head + 16, 0);
-    writer_put(&out, head, sizeof(head));
-    for (int i = 0; i < n; i++)
-    {
-        unsigned char e[4];
-        put32(e, indices[i]);
-        writer_put(&out, e, sizeof(e));
-    }
-    if (!writer_close(&out) || rename(OTG_INFO_TEMP, OTG_INFO) < 0)
-    {
-        remove(OTG_INFO_TEMP);
-        goto done;
-    }
-
-    /* without its note it would be taken for another's from then on, and left */
-    bool noted = false;
-    m.magic = OTG_MARK_MAGIC;
-    m.count = n;
-    if (dir_file_stamp(OTG_INFO_NAME, &m.size, &m.mtime)
-        && db_stamp(&m.db_size, &m.db_mtime) && writer_open(&out, OTG_MARK))
-    {
-        qsort(hashes, n, sizeof(uint64_t), cmp_u64);
-        writer_put(&out, &m, sizeof(m));
-        writer_put(&out, hashes, n * sizeof(uint64_t));
-        noted = writer_close(&out);
-    }
-    if (!noted)
-    {
-        remove(OTG_MARK);
+    if (ok && dir_file_stamp(OTG_INFO_NAME, &size, &mtime)
+        && size == m.size && mtime == m.mtime)
         remove(OTG_INFO);
-    }
-done:
-    core_unpin(handle);
-    core_free(handle);
-}
-
-/* At the start of an import after a sync: OTGPlaylistInfo gone, Finder has
-   taken it, and the songs it had leave On-The-Go, each as often as it gave
-   them; those added since, and those outside Finder's folder, stay. Left, its
-   indices are of the iTunesDB before the sync, and it goes, as the stock
-   firmware removes it, On-The-Go as it was. */
-static void otg_after_sync(void)
-{
-    struct otg_mark m;
-    if (!otg_mark_read(&m))
-        return;
-    uint32_t size, mtime;
-    if (dir_file_stamp(OTG_INFO_NAME, &size, &mtime))
-    {
-        if (size == m.size && mtime == m.mtime)
-            remove(OTG_INFO);
-        remove(OTG_MARK);
-        return;
-    }
-
-    /* the hashes, and a byte each for whether a song of On-The-Go was it */
-    const int handle = db_alloc(m.count * (sizeof(uint64_t) + 1) + 1);
-    if (handle <= 0)
-        return;
-    core_pin(handle);
-    uint64_t *hashes = core_get_data(handle);
-    uint8_t *taken = (uint8_t *)(hashes + m.count);
-    memset(taken, 0, m.count);
-    int fd = open(OTG_MARK, O_RDONLY);
-    bool ok = fd >= 0 && lseek(fd, sizeof(m), SEEK_SET) == sizeof(m)
-              && read(fd, hashes, m.count * sizeof(uint64_t))
-                 == (ssize_t)(m.count * sizeof(uint64_t));
-    if (fd >= 0)
-        close(fd);
-
-    fd = ok ? open(OTG_FILE, O_RDONLY) : -1;
-    if (fd >= 0 && writer_open(&out, OTG_FILE ".tmp"))
-    {
-        char line[MAX_PATH];
-        while (read_line(fd, line, sizeof(line)) > 0)
-        {
-            if (!line[0] || line[0] == '#')
-                continue;
-            const uint64_t hash = itunesdb_path_hash(line);
-            /* the first of the same hash not yet matched */
-            int lo = 0, hi = m.count;
-            while (lo < hi)
-            {
-                const int mid = (lo + hi) / 2;
-                if (hashes[mid] < hash)
-                    lo = mid + 1;
-                else
-                    hi = mid;
-            }
-            while (lo < (int)m.count && hashes[lo] == hash && taken[lo])
-                lo++;
-            if (lo < (int)m.count && hashes[lo] == hash)
-                taken[lo] = 1;
-            else
-                writer_line(&out, line);
-        }
-        close(fd);
-        fd = -1;
-        if (writer_close(&out) && rename(OTG_FILE ".tmp", OTG_FILE) == 0)
-        {
-            if (otg_empty())
-                otg_clear();
-        }
-        else
-            remove(OTG_FILE ".tmp");
-    }
-    if (fd >= 0)
-        close(fd);
     remove(OTG_MARK);
-    core_unpin(handle);
-    core_free(handle);
 }
 
 void itunesdb_write_playcounts(void)
@@ -2620,8 +2440,7 @@ void itunesdb_write_playcounts(void)
         pc.by_hash[i] = i;
     qsort(pc.by_hash, pc.count, sizeof(uint32_t), cmp_state_hash);
 
-    /* in the same order as the plays, so whatever they come to */
-    write_on_the_go();
+    otg_cleanup();
 
     if (!tagcache_update_runtime(read_played, NULL))
         goto done;
@@ -5124,6 +4943,203 @@ void itunesdb_covers_end(int how)
 }
 #endif /* ITUNESDB_HAVE_ART */
 
+/* Songs Finder wrote again under another path, as it does a few hundred a
+   week and all of them after the iPod is restored: by their dbid, which stays.
+   The dbid and path hash of each song of the last sync are kept, sorted by
+   dbid; one of this sync with that dbid and another path is noted in the
+   moved list by its old path, for the playlists made on the iPod to keep it. */
+#define IDS_FILE    ROCKBOX_DIR "/itunesdb_ids.dat"
+#define IDS_MAGIC   0x49445331  /* "IDS1" */
+struct id_pair {        /* as the file has them */
+    uint64_t dbid;
+    uint64_t hash;
+};
+struct id_track {       /* and with the track, to find its path */
+    uint64_t dbid;
+    uint64_t hash;
+    uint32_t track;
+};
+
+static int cmp_id_track(const void *a, const void *b)
+{
+    return cmp_u64(&((const struct id_track *)a)->dbid,
+                   &((const struct id_track *)b)->dbid);
+}
+
+static int cmp_moved(const void *a, const void *b)
+{
+    return cmp_u64(&((const struct itunesdb_moved *)a)->old_hash,
+                   &((const struct itunesdb_moved *)b)->old_hash);
+}
+
+/* the moved list by old path, to be looked up in on the disk */
+static void sort_moved_list(void)
+{
+    int fd = open(ITUNESDB_MOVED_LIST, O_RDWR);
+    if (fd < 0)
+        return;
+    const off_t size = ffilesize(fd);
+    const int n = size / sizeof(struct itunesdb_moved);
+    const int handle = n > 1 ? db_alloc(n * sizeof(struct itunesdb_moved)) : 0;
+    if (handle > 0)
+    {
+        core_pin(handle);
+        struct itunesdb_moved *m = core_get_data(handle);
+        const ssize_t bytes = n * sizeof(*m);
+        if (read(fd, m, bytes) == bytes)
+        {
+            qsort(m, n, sizeof(*m), cmp_moved);
+            if (lseek(fd, 0, SEEK_SET) == 0)
+                write(fd, m, bytes);
+        }
+        core_unpin(handle);
+        core_free(handle);
+    }
+    close(fd);
+}
+
+bool itunesdb_moved_to(uint64_t old_hash, char *path, size_t size)
+{
+    const int fd = open(ITUNESDB_MOVED_LIST, O_RDONLY);
+    if (fd < 0)
+        return false;
+    struct itunesdb_moved m;
+    int lo = 0, hi = ffilesize(fd) / sizeof(m) - 1;
+    bool found = false;
+    while (lo <= hi && !found)
+    {
+        const int mid = (lo + hi) / 2;
+        if (lseek(fd, (off_t)mid * sizeof(m), SEEK_SET) < 0
+            || read(fd, &m, sizeof(m)) != sizeof(m))
+            break;
+        if (m.old_hash == old_hash)
+            found = true;
+        else if (m.old_hash < old_hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    close(fd);
+    if (found)
+    {
+        m.path[sizeof(m.path) - 1] = '\0';
+        strmemccpy(path, m.path, size);
+    }
+    return found;
+}
+
+static void note_moved_songs(void)
+{
+    const int n = db.count;
+    if (n <= 0)
+        return;
+    const int handle = db_alloc(n * sizeof(struct id_track));
+    if (handle <= 0)
+        return;
+    core_pin(handle);
+    struct id_track *ids = core_get_data(handle);
+    int count = 0;
+    for (int i = 0; i < n; i++)
+    {
+        if (db.tracks[i].dbid && db.tracks[i].path)
+        {
+            ids[count].dbid = db.tracks[i].dbid;
+            ids[count].hash = db.tracks[i].st.hash;
+            ids[count].track = i;
+            count++;
+        }
+    }
+    qsort_yielding(ids, count, sizeof(*ids), cmp_id_track);
+
+    /* the last sync's, a block at a time: of the same dbid and another hash,
+       moved */
+    struct itunesdb_moved moved[16];
+    int n_moved = 0, moved_fd = -1;
+    bool changed = true, any_moved = false;
+    int fd = open(IDS_FILE, O_RDONLY);
+    uint32_t head[2];
+    if (fd >= 0 && read(fd, head, sizeof(head)) == sizeof(head)
+        && head[0] == IDS_MAGIC)
+    {
+        changed = head[1] != (uint32_t)count;
+        struct id_pair old[64];
+        int at = 0;
+        ssize_t got;
+        while ((got = read(fd, old, sizeof(old))) > 0)
+        {
+            const int k = got / sizeof(*old);
+            for (int j = 0; j < k; j++)
+            {
+                while (at < count && ids[at].dbid < old[j].dbid)
+                {
+                    changed = true; /* one new */
+                    at++;
+                }
+                if (at >= count)
+                {
+                    changed = true; /* those gone */
+                    break;
+                }
+                if (ids[at].dbid != old[j].dbid)
+                {
+                    changed = true;
+                    continue;
+                }
+                if (ids[at].hash == old[j].hash)
+                    continue;
+                changed = true;
+                /* a path longer than a record holds isn't noted: cut, it
+                   would be another */
+                const char *now = db.pool + db.tracks[ids[at].track].path;
+                if (strlen(now) >= sizeof(moved[n_moved].path))
+                    continue;
+                moved[n_moved].old_hash = old[j].hash;
+                strmemccpy(moved[n_moved].path, now, sizeof(moved[n_moved].path));
+                if (++n_moved == (int)ARRAYLEN(moved))
+                {
+                    if (moved_fd < 0)
+                        moved_fd = open(ITUNESDB_MOVED_LIST,
+                                        O_WRONLY | O_CREAT | O_APPEND, 0666);
+                    if (moved_fd >= 0)
+                        write(moved_fd, moved, sizeof(moved));
+                    any_moved = true;
+                    n_moved = 0;
+                }
+            }
+            yield();
+        }
+    }
+    if (fd >= 0)
+        close(fd);
+    if (n_moved)
+    {
+        if (moved_fd < 0)
+            moved_fd = open(ITUNESDB_MOVED_LIST, O_WRONLY | O_CREAT | O_APPEND, 0666);
+        if (moved_fd >= 0)
+            write(moved_fd, moved, n_moved * sizeof(*moved));
+        any_moved = true;
+    }
+    if (moved_fd >= 0)
+        close(moved_fd);
+    if (any_moved)
+        sort_moved_list();
+    if (changed && writer_open(&out, IDS_FILE ".tmp"))
+    {
+        head[0] = IDS_MAGIC;
+        head[1] = count;
+        writer_put(&out, head, sizeof(head));
+        for (int i = 0; i < count; i++)
+        {
+            const struct id_pair pair = { ids[i].dbid, ids[i].hash };
+            writer_put(&out, &pair, sizeof(pair));
+        }
+        if (!writer_close(&out) || rename(IDS_FILE ".tmp", IDS_FILE) < 0)
+            remove(IDS_FILE ".tmp");
+    }
+    core_unpin(handle);
+    core_free(handle);
+}
+
 int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
 {
     /* a sync may have changed the name */
@@ -5134,8 +5150,7 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     read_total = total;
     if (synced)
     {
-        /* before the import changes anything: the note is of the old one */
-        otg_after_sync();
+        otg_cleanup();
         metadata_begin();
     }
     else
@@ -5162,6 +5177,9 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
         {
             write_playlists(playlists_list);
             write_pending();
+            /* only from all of iTunesDB: a song missing would seem gone */
+            if (db.complete)
+                note_moved_songs();
         }
 #ifdef ITUNESDB_HAVE_ART
         /* last, as it reads ArtworkDB through the same cache */

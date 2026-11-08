@@ -32,7 +32,34 @@
 
 bool otg_add_file(const char *path)
 {
-    int fd = open(OTG_FILE, O_CREAT|O_WRONLY|O_APPEND, 0666);
+    return playlist_file_append(OTG_FILE, path);
+}
+
+/* A file whose last line has no end, as one put there by hand may: its end
+   first, or the first line added would join it */
+static void end_last_line(const char *target)
+{
+    int fd = open(target, O_RDONLY);
+    if (fd < 0)
+        return;
+    char last = '\n';
+    if (lseek(fd, -1, SEEK_END) >= 0 && read(fd, &last, 1) != 1)
+        last = '\n';
+    close(fd);
+    if (last == '\n')
+        return;
+    fd = open(target, O_WRONLY | O_APPEND);
+    if (fd >= 0)
+    {
+        write(fd, "\n", 1);
+        close(fd);
+    }
+}
+
+bool playlist_file_append(const char *target, const char *path)
+{
+    end_last_line(target);
+    int fd = open(target, O_CREAT|O_WRONLY|O_APPEND, 0666);
     if (fd < 0)
         return false;
     bool ok = fdprintf(fd, "%s\n", path) > 0;
@@ -47,8 +74,15 @@ bool otg_add_file(const char *path)
    made whole. */
 bool otg_add_playlist(const char *playlist)
 {
-    if (!strcasecmp(playlist, OTG_FILE))
+    return playlist_file_append_playlist(OTG_FILE, playlist);
+}
+
+bool playlist_file_append_playlist(const char *target, const char *playlist)
+{
+    /* not into itself */
+    if (!strcasecmp(playlist, target))
         return false;
+    end_last_line(target);
 #ifdef HAVE_TAGCACHE
     /* a smart one as its screen has it */
     lp_sync(playlist);
@@ -64,7 +98,7 @@ bool otg_add_playlist(const char *playlist)
     int fd = open_utf8(playlist, O_RDONLY);
     if (fd < 0)
         return false;
-    int otg = open(OTG_FILE, O_CREAT|O_WRONLY|O_APPEND, 0666);
+    int otg = open(target, O_CREAT|O_WRONLY|O_APPEND, 0666);
     if (otg < 0)
     {
         close(fd);
@@ -142,9 +176,16 @@ bool otg_add_playlist(const char *playlist)
 
 bool otg_add_selection(void)
 {
+    return playlist_file_append_selection(OTG_FILE);
+}
+
+bool playlist_file_append_selection(const char *target)
+{
 #ifdef HAVE_TAGCACHE
-    return tagtree_add_to_file(OTG_FILE);
+    end_last_line(target);
+    return tagtree_add_to_file(target);
 #else
+    (void)target;
     return false;
 #endif
 }

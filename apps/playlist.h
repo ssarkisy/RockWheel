@@ -118,6 +118,11 @@ struct playlist_insert_context {
 void playlist_init(void) INIT_ATTR;
 void playlist_shutdown(void);
 int playlist_create(const char *dir, const char *file);
+/* a line of a playlist file as the path of its song, as a playlist loads it:
+   relative to dir, the playlist's folder, Windows' separators and drive taken
+   in; its length, or < 0 */
+ssize_t playlist_resolve_path(char *dest, size_t size, const char *line,
+                              const char *dir);
 int playlist_create_indexed(const char *dir, const char *file,
                             const uint32_t *offsets, int count);
 int playlist_create_from_index(const char *dir, const char *file, int fd,

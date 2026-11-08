@@ -370,6 +370,11 @@ int ft_load(struct tree_context* c, const char* tempdir)
             dptr->attr |= filetype_get_attr((char *)entry->d_name);
 
         int file_attr = (dptr->attr & FILE_ATTR_MASK);
+        /* its head at most, "#EXTM3U" and a line's end, as one just made is:
+           a song's line is longer, a BOM before it longer too */
+        if (*c->dirfilter == SHOW_M3U && file_attr == FILE_ATTR_M3U
+            && info.size <= 9)
+            dptr->attr |= ENTRY_EMPTY_PLAYLIST;
 
 #define CHK_FT(show,attr) (*c->dirfilter == (show) && file_attr != (attr))
         /* filter out non-visible files */

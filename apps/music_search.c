@@ -46,6 +46,7 @@
 #include "onplay.h"
 #include "filetypes.h"
 #include "plugin.h"
+#include "splash.h"
 
 /* The screen: the query, the row of letters under it and what matches under
    that, in groups as Music has them. The wheel goes along the letters and
@@ -56,6 +57,10 @@
    space and a delete, around in a ring */
 #define STRIP_SPACE  1
 #define STRIP_DELETE 2
+/* and as a name is typed: capitals, and done */
+#define STRIP_SHIFT  3
+#define STRIP_DONE   4
+#define STRIP_LAST_SPECIAL STRIP_DONE
 #define STRIP_MAX    400
 
 /* Each alphabet: its letters as they're searched by (fold()), from first to
@@ -195,6 +200,17 @@ static struct {
     int pitch_font;               /* the font the pitch is of, or -1 */
     int room;                     /* as many as it may have yet */
 } strip;
+
+/* Naming, as a playlist or a folder is: the same ring with the menu
+   language's letters and the Latin ones only, as the ring shows them, small
+   or capital by ⇧, and ✓ for done; no search under it */
+static bool naming;
+static char *name_text;         /* the caller's */
+static size_t name_max;         /* its bytes at most, without its 0 */
+#define NAME_CHARS_MAX 64
+enum { SHIFT_OFF, SHIFT_ONE, SHIFT_LOCK };
+static int name_shift;
+static const char *name_title;
 
 /* kept while the screen is left for a list or for Now Playing, and come back to */
 #define QUERY_SIZE 64
@@ -1176,6 +1192,96 @@ static void make_strip(void)
         strip.pos = 0;
 }
 
+/* The Latin alphabets of the menu languages that have letters of their
+   own, in their order, as capitals: the others type A to Z */
+static const struct {
+    const char *lang;
+    const char *letters;
+} latin_letters[] = {
+    { "deutsch",      "AÄBCDEFGHIJKLMNOÖPQRSßTUÜVWXYZ" },
+    { "francais",     "AÀÂÆBCÇDEÉÈÊËFGHIÎÏJKLMNOÔŒPQRSTUÙÛÜVWXYŸZ" },
+    { "espanol",      "AÁBCDEÉFGHIÍJKLMNÑOÓPQRSTUÚÜVWXYZ" },
+    { "galego",       "AÁBCDEÉFGHIÍJKLMNÑOÓPQRSTUÚÜVWXYZ" },
+    { "basque",       "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ" },
+    { "catala",       "AÀBCÇDEÉÈFGHIÍÏJKLMNOÓÒPQRSTUÚÜVWXYZ" },
+    { "italiano",     "AÀBCDEÈÉFGHIÌJKLMNOÒPQRSTUÙVWXYZ" },
+    { "portugues",    "AÁÂÃÀBCÇDEÉÊFGHIÍJKLMNOÓÔÕPQRSTUÚVWXYZ" },
+    { "portugues-brasileiro", "AÁÂÃÀBCÇDEÉÊFGHIÍJKLMNOÓÔÕPQRSTUÚVWXYZ" },
+    { "polski",       "AĄBCĆDEĘFGHIJKLŁMNŃOÓPQRSŚTUVWXYZŹŻ" },
+    { "czech",        "AÁBCČDĎEÉĚFGHIÍJKLMNŇOÓPQRŘSŠTŤUÚŮVWXYÝZŽ" },
+    { "slovak",       "AÁÄBCČDĎEÉFGHIÍJKLĹĽMNŇOÓÔPQRŔSŠTŤUÚVWXYÝZŽ" },
+    { "magyar",       "AÁBCDEÉFGHIÍJKLMNOÓÖŐPQRSTUÚÜŰVWXYZ" },
+    { "romaneste",    "AĂÂBCDEFGHIÎJKLMNOPQRSȘTȚUVWXYZ" },
+    { "moldoveneste", "AĂÂBCDEFGHIÎJKLMNOPQRSȘTȚUVWXYZ" },
+    { "turkce",       "ABCÇDEFGĞHIİJKLMNOÖPQRSŞTUÜVWXYZ" },
+    { "dansk",        "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ" },
+    { "norsk",        "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ" },
+    { "norsk-nynorsk", "ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ" },
+    { "svenska",      "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ" },
+    { "finnish",      "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ" },
+    { "eesti",        "ABCDEFGHIJKLMNOPQRSŠZŽTUVWÕÄÖÜXY" },
+    { "latviesu",     "AĀBCČDEĒFGĢHIĪJKĶLĻMNŅOPQRSŠTUŪVWXYZŽ" },
+    { "lietuviu",     "AĄBCČDEĘĖFGHIĮYJKLMNOPQRSŠTUŲŪVWXZŽ" },
+    { "slovenscina",  "ABCČDEFGHIJKLMNOPQRSŠTUVWXYZŽ" },
+    { "hrvatski",     "ABCČĆDĐEFGHIJKLMNOPQRSŠTUVWXYZŽ" },
+    { "islenska",     "AÁBCDÐEÉFGHIÍJKLMNOÓPQRSTUÚVWXYÝZÞÆÖ" },
+    { "vietnamese",   "AĂÂBCDĐEÊFGHIJKLMNOÔƠPQRSTUƯVWXYZ" },
+    { "esperanto",    "ABCĈDEFGĜHĤIJĴKLMNOPQRSŜTUŬVWXYZ" },
+    { "tagalog",      "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ" },
+};
+/* Japanese names in both kanas, voiced and small ones too, which Search
+   folds away; Russian with Ё */
+static const char hiragana_letters[] =
+    "あいうえおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとど"
+    "なにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろ"
+    "わをんー";
+static const char katakana_letters[] =
+    "アイウエオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトド"
+    "ナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロ"
+    "ワヲンー";
+static const char russian_letters[] = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+static const char name_marks[] = "-&'.()";
+
+/* ⇧, the menu language's letters if it has its own, the Latin ones, the
+   digits and the marks, then the space, the delete and ✓ */
+static void make_name_strip(void)
+{
+    const char *lang = (const char *)global_settings.lang_file;
+    const char *latin = scripts[SCRIPT_LATIN].letters;
+    int set = 0;
+    strip.count = 0;
+    strip.pitch_font = -1;
+    strip.room = STRIP_MAX;
+    add_letter(STRIP_SHIFT, set++);
+    for (size_t i = 0; i < ARRAYLEN(native_letters); i++)
+    {
+        if (strcmp(lang, native_letters[i].lang))
+            continue;
+        const enum script s = native_letters[i].script;
+        if (s == SCRIPT_KANA)
+        {
+            add_letters(hiragana_letters, set++);
+            add_letters(katakana_letters, set++);
+        }
+        else if (s != SCRIPT_THAI)
+            add_letters(!strcmp(lang, "russian") ? russian_letters :
+                        native_letters[i].letters ? native_letters[i].letters
+                                                  : scripts[s].letters, set++);
+    }
+    for (size_t i = 0; i < ARRAYLEN(latin_letters); i++)
+    {
+        if (!strcmp(lang, latin_letters[i].lang))
+            latin = latin_letters[i].letters;
+    }
+    add_letters(latin, set++);
+    add_letters(digit_letters, set);
+    add_letters(name_marks, set++);
+    add_letter(STRIP_SPACE, set);
+    add_letter(STRIP_DELETE, set);
+    add_letter(STRIP_DONE, set);
+    strip.pos = 1; /* the first letter */
+}
+
 void music_search_forget(void)
 {
     remove(LETTERS_FILE);
@@ -1348,11 +1454,210 @@ static void delete_char(void)
     query[len] = '\0';
 }
 
+/* A letter's small form, as the ring shows them without ⇧: of the Latin
+   alphabets of the menu languages, Greek and Cyrillic */
+static ucschar_t small(ucschar_t c)
+{
+    if (c == 0x130) /* Turkish İ */
+        return 'i';
+    if ((c >= 'A' && c <= 'Z') || (c >= 0xc0 && c <= 0xde && c != 0xd7)
+        || (c >= 0x391 && c <= 0x3a9) || (c >= 0x410 && c <= 0x42f))
+        return c + 0x20;
+    if (c >= 0x400 && c <= 0x40f)
+        return c + 0x50;
+    if ((c >= 0x100 && c <= 0x137) || (c >= 0x14a && c <= 0x177)
+        || (c >= 0x218 && c <= 0x21b) || c == 0x1a0 || (c >= 0x490 && c <= 0x4bf))
+        return c | 1;
+    if ((c >= 0x139 && c <= 0x148) || (c >= 0x179 && c <= 0x17e))
+        return c & 1 ? c + 1 : c;
+    if (c == 0x178)
+        return 0xff;
+    if (c == 0x1af)
+        return 0x1b0;
+    return c;
+}
+
+/* the letter as the ring shows it and types it */
+static ucschar_t name_letter(ucschar_t c)
+{
+    return name_shift == SHIFT_OFF ? small(c) : c;
+}
+
+static size_t name_chars(void)
+{
+    size_t n = 0;
+    for (const char *s = name_text; *s; s++)
+        n += ((unsigned char)*s & 0xc0) != 0x80;
+    return n;
+}
+
+static ucschar_t name_last(size_t *at)
+{
+    size_t len = strlen(name_text);
+    while (len > 0 && ((unsigned char)name_text[--len] & 0xc0) == 0x80)
+        ;
+    ucschar_t c = 0;
+    if (name_text[len])
+        utf8decode((const unsigned char *)name_text + len, &c);
+    if (at)
+        *at = len;
+    return c;
+}
+
+/* room for one more letter of this one */
+static bool name_room(ucschar_t c)
+{
+    unsigned char utf8[8];
+    return name_chars() < NAME_CHARS_MAX
+           && strlen(name_text) + (utf8encode(c, utf8) - utf8) <= name_max;
+}
+
+/* anything but spaces and dots, which a file's name loses at its end */
+static bool name_ready(void)
+{
+    for (const char *s = name_text; *s; s++)
+    {
+        if (*s != ' ' && *s != '.')
+            return true;
+    }
+    return false;
+}
+
+static bool name_possible(ucschar_t c)
+{
+    switch (c)
+    {
+        case STRIP_SHIFT:
+        case STRIP_DELETE:
+            return true;
+        case STRIP_DONE:
+            return name_ready();
+        case STRIP_SPACE:
+            /* not first, nor two together */
+            return name_text[0] && name_last(NULL) != ' ' && name_room(' ');
+        default:
+            return name_room(c);
+    }
+}
+
+/* the last letter as c, and after it, if next */
+static bool name_put(size_t at, ucschar_t c, ucschar_t next)
+{
+    unsigned char utf8[16];
+    unsigned char *e = utf8encode(c, utf8);
+    if (next)
+        e = utf8encode(next, e);
+    const size_t len = e - utf8;
+    if (at + len > name_max)
+        return false;
+    memcpy(name_text + at, utf8, len);
+    name_text[at + len] = '\0';
+    return true;
+}
+
+static int jamo_find(const uint16_t *table, int n, ucschar_t c)
+{
+    for (int i = 0; i < n; i++)
+    {
+        if (table[i] == c)
+            return i;
+    }
+    return -1;
+}
+
+static ucschar_t jamo_join(ucschar_t a, ucschar_t b)
+{
+    for (size_t k = 0; k < ARRAYLEN(jamo_two); k++)
+    {
+        if (jamo_two[k][1] == a && jamo_two[k][2] == b)
+            return jamo_two[k][0];
+    }
+    return 0;
+}
+
+#define HANGUL_FIRST 0xac00
+#define JAMO_VOWEL   0x314f /* the first, ㅏ */
+static ucschar_t syllable(int first, int vowel, int last)
+{
+    return HANGUL_FIRST + (first * 21 + vowel) * 28 + last;
+}
+
+/* A letter of Hangul after the last one, into a syllable with it as a phone
+   types them: a vowel after a consonant, a consonant under a syllable, two of
+   them into one, and a syllable's last consonant on to the next one before a
+   vowel. False if it stands alone. */
+static bool name_compose(ucschar_t c)
+{
+    size_t at;
+    const ucschar_t p = name_last(&at);
+    const bool vowel = c >= JAMO_VOWEL && c <= 0x3163;
+    if (p >= HANGUL_FIRST && p <= 0xd7a3)
+    {
+        const int s = p - HANGUL_FIRST;
+        const int first = s / (21 * 28), v = s / 28 % 21, last = s % 28;
+        if (!vowel)
+        {
+            const ucschar_t under = last ? jamo_join(jamo_last[last - 1], c) : c;
+            const int l = under ? jamo_find(jamo_last, ARRAYLEN(jamo_last), under) : -1;
+            return l >= 0 && name_put(at, syllable(first, v, l + 1), 0);
+        }
+        if (!last)
+        {
+            const ucschar_t two = jamo_join(JAMO_VOWEL + v, c);
+            return two && name_put(at, syllable(first, two - JAMO_VOWEL, 0), 0);
+        }
+        /* the last consonant, or the second of two, begins the next one */
+        ucschar_t keep = 0, move = jamo_last[last - 1];
+        for (size_t k = 0; k < ARRAYLEN(jamo_two); k++)
+        {
+            if (jamo_two[k][0] == move)
+            {
+                keep = jamo_two[k][1];
+                move = jamo_two[k][2];
+                break;
+            }
+        }
+        const int f = jamo_find(jamo_first, ARRAYLEN(jamo_first), move);
+        if (f < 0)
+            return false;
+        const int l = keep ? jamo_find(jamo_last, ARRAYLEN(jamo_last), keep) + 1 : 0;
+        return name_put(at, syllable(first, v, l),
+                        syllable(f, c - JAMO_VOWEL, 0));
+    }
+    const int f = jamo_find(jamo_first, ARRAYLEN(jamo_first), p);
+    return vowel && f >= 0 && name_put(at, syllable(f, c - JAMO_VOWEL, 0), 0);
+}
+
+static void name_add(ucschar_t c)
+{
+    if (!name_room(c))
+        return;
+    if (!(c >= 0x3131 && c <= 0x3163 && name_compose(c)))
+    {
+        size_t len = strlen(name_text);
+        name_put(len, c, 0);
+    }
+    if (name_shift == SHIFT_ONE)
+        name_shift = SHIFT_OFF;
+}
+
+static void name_delete(void)
+{
+    size_t at;
+    if (name_last(&at))
+        name_text[at] = '\0';
+    /* capitals again, for a name typed anew */
+    if (!name_text[0] && name_shift == SHIFT_OFF)
+        name_shift = SHIFT_ONE;
+}
+
 /* the letter at i may come next: a space and the delete always */
 static bool letter_possible(int i)
 {
     const ucschar_t c = strip.c[i];
-    if (!global_settings.smart_search || !next_known || c <= STRIP_DELETE)
+    if (naming)
+        return name_possible(c);
+    if (!global_settings.smart_search || !next_known || c <= STRIP_LAST_SPECIAL)
         return true;
     const int bit = next_bit(fold(c));
     return bit < 0 || (next_letters[bit >> 3] & (1 << (bit & 7)));
@@ -1381,7 +1686,7 @@ static void strip_settle(void)
         for (int dir = 1; dir >= -1; dir -= 2)
         {
             const int i = (strip.pos + dir * d + strip.count) % strip.count;
-            if (strip.c[i] > STRIP_DELETE && letter_possible(i))
+            if (strip.c[i] > STRIP_LAST_SPECIAL && letter_possible(i))
             {
                 strip.pos = i;
                 return;
@@ -1456,7 +1761,7 @@ static void make_layout(void)
     {
         unsigned char utf8[8];
         int w, h;
-        if (strip.c[i] <= STRIP_DELETE)
+        if (strip.c[i] <= STRIP_LAST_SPECIAL)
             continue;
         *utf8encode(strip.c[i], utf8) = '\0';
         display->getstringsize((char *)utf8, &w, &h);
@@ -1499,7 +1804,7 @@ static void draw_field(struct screen *display)
     fill_rounded(display, x, y, w, h, FIELD_FILL, FIELD_FILL);
 
     /* its end, if it is longer than the field */
-    const char *text = query;
+    const char *text = naming ? name_text : query;
     display->getstringsize(text, &text_w, &text_h);
     while (*text && text_w > w - 20)
     {
@@ -1545,6 +1850,41 @@ static void draw_delete(struct screen *display, int cx, int cy)
     display->drawline(cx - 2, cy + 3, cx + 4, cy - 3);
 }
 
+/* ⇧, as an arrow up: hollow, filled for a capital, and underlined too while
+   they all are */
+static void draw_shift(struct screen *display, int cx, int cy)
+{
+    const int top = cy - 7, base = cy;
+    if (name_shift == SHIFT_OFF)
+    {
+        display->drawline(cx, top, cx - 7, base);
+        display->drawline(cx, top, cx + 7, base);
+        display->hline(cx - 7, cx - 3, base);
+        display->hline(cx + 3, cx + 7, base);
+        display->vline(cx - 3, base, base + 5);
+        display->vline(cx + 3, base, base + 5);
+        display->hline(cx - 3, cx + 3, base + 5);
+    }
+    else
+    {
+        for (int y = 0; y <= 7; y++)
+            display->hline(cx - y, cx + y, top + y);
+        display->fillrect(cx - 3, base, 7, 6);
+    }
+    if (name_shift == SHIFT_LOCK)
+        display->fillrect(cx - 4, base + 7, 9, 2);
+}
+
+/* ✓, two strokes two pixels thick */
+static void draw_done(struct screen *display, int cx, int cy)
+{
+    for (int d = 0; d < 2; d++)
+    {
+        display->drawline(cx - 6, cy + d, cx - 2, cy + 4 + d);
+        display->drawline(cx - 2, cy + 4 + d, cx + 6, cy - 5 + d);
+    }
+}
+
 static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
 {
     const struct font *pf = font_get(strip_vp.font);
@@ -1570,11 +1910,15 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
         draw_space(display, cx, cy);
     else if (strip.c[i] == STRIP_DELETE)
         draw_delete(display, cx, cy);
+    else if (strip.c[i] == STRIP_SHIFT)
+        draw_shift(display, cx, cy);
+    else if (strip.c[i] == STRIP_DONE)
+        draw_done(display, cx, cy);
     else
     {
         unsigned char utf8[8];
         int w, h;
-        *utf8encode(strip.c[i], utf8) = '\0';
+        *utf8encode(naming ? name_letter(strip.c[i]) : strip.c[i], utf8) = '\0';
         display->getstringsize((char *)utf8, &w, &h);
         /* the middle of a capital, which stands on the baseline about two
            thirds of the way up to it, rather than of the font's line */
@@ -1613,17 +1957,36 @@ static void draw_strip(struct screen *display)
     display->update_viewport();
 }
 
+#define NAME_KEYS_BAND 33 /* a line of hints and its margins */
 static void draw(void)
 {
     struct screen *display = &screens[SCREEN_MAIN];
     make_layout();
     FOR_NB_SCREENS(i)
-        sb_set_title_text(str(LANG_SEARCH), Icon_NOICON, i);
+        sb_set_title_text(naming ? name_title : (const char *)str(LANG_SEARCH),
+                          Icon_NOICON, i);
     struct viewport *last = display->set_viewport(NULL);
     draw_field(display);
     draw_strip(display);
+    if (naming)
+    {
+        /* the buttons that end it, at the bottom in a band as Settings'
+           hints, of a line */
+        struct viewport band = list_vp[SCREEN_MAIN];
+        display->set_viewport(&list_vp[SCREEN_MAIN]);
+        display->clear_viewport();
+        display->update_viewport();
+        if (band.height > NAME_KEYS_BAND)
+        {
+            band.y += band.height - NAME_KEYS_BAND;
+            band.height = NAME_KEYS_BAND;
+        }
+        list_draw_hint(display, &band, str(LANG_NAME_KEYS));
+        display->update_viewport();
+    }
     display->set_viewport(last);
-    gui_synclist_draw(&lists);
+    if (!naming)
+        gui_synclist_draw(&lists);
 }
 
 /* the field and the letters, as typed, before the search of it */
@@ -2118,6 +2481,146 @@ int music_search_screen(void *param)
         pop_current_activity_without_refresh();
     else
         pop_current_activity();
+    return ret;
+}
+
+int music_search_name(const char *title, char *buf, size_t size,
+                      size_t max_bytes, bool (*taken)(const char *name))
+{
+    if (size < 2)
+        return 0;
+    /* Search's, if this is opened from it, as from a song's menu there */
+    const int search_pos = strip.pos;
+    const bool search_in_results = in_results;
+    naming = true;
+    name_text = buf;
+    name_max = MIN(size - 1, max_bytes);
+    name_text[name_max] = '\0';
+    name_title = title;
+    /* capitals for a name typed anew, as one starts; small for one renamed */
+    name_shift = buf[0] ? SHIFT_OFF : SHIFT_ONE;
+    in_results = false;
+    const bool was_wide = menu_wide();
+    if (!was_wide)
+        menu_set_wide(true);
+    make_name_strip();
+    make_layout();
+
+    int ret = -2;
+    bool redraw = true, redraw_letters = false;
+    while (ret == -2)
+    {
+        if (redraw)
+            draw();
+        else if (redraw_letters)
+            draw_letters();
+        redraw = redraw_letters = false;
+        wake_screen_set_typing(true);
+        int action = get_action(CONTEXT_TREE, HZ / 2);
+        wake_screen_set_typing(false);
+        char before[MAX_PATH];
+        strmemccpy(before, name_text, sizeof(before));
+        const int shift_before = name_shift;
+        bool done = false;
+        switch (action)
+        {
+            case ACTION_REDRAW:
+                strip.pitch_font = -1;
+                redraw = true;
+                break;
+            case ACTION_STD_NEXT:
+            case ACTION_STD_NEXTREPEAT:
+                strip_step(1);
+                redraw_letters = true;
+                break;
+            case ACTION_STD_PREV:
+            case ACTION_STD_PREVREPEAT:
+                strip_step(-1);
+                redraw_letters = true;
+                break;
+            case ACTION_STD_OK:
+            {
+                const ucschar_t c = strip.c[strip.pos];
+                if (!letter_possible(strip.pos))
+                    break;
+                if (c == STRIP_SHIFT)
+                    name_shift = (name_shift + 1) % 3;
+                else if (c == STRIP_DELETE)
+                    name_delete();
+                else if (c == STRIP_SPACE)
+                    name_add(' ');
+                else if (c == STRIP_DONE)
+                    done = true;
+                else
+                    name_add(name_letter(c));
+                break;
+            }
+            case ACTION_LIST_SKIPNEXT:
+                if (name_possible(STRIP_SPACE))
+                    name_add(' ');
+                break;
+            case ACTION_LIST_SKIPPREV:
+                name_delete();
+                break;
+            case ACTION_LIST_PLAYPAUSE:
+                done = name_ready();
+                break;
+            case ACTION_STD_CANCEL:
+            case ACTION_STD_MENU:
+                ret = 0;
+                break;
+            default:
+            {
+#ifdef BUTTON_LEFT
+                /* holding Previous deletes all of it */
+                int button;
+                get_action_statuscode(&button);
+                if (action == ACTION_UNKNOWN && button == (BUTTON_LEFT | BUTTON_REPEAT))
+                {
+                    name_text[0] = '\0';
+                    name_shift = SHIFT_ONE;
+                    break;
+                }
+#endif
+#ifdef BUTTON_RIGHT
+                /* holding Next is ⇧, once a hold, as it's pressed on the ring */
+                if (action == ACTION_UNKNOWN && button == (BUTTON_RIGHT | BUTTON_REPEAT))
+                {
+                    name_shift = (name_shift + 1) % 3;
+                    action_wait_for_release();
+                    break;
+                }
+#endif
+                if (default_event_handler(action) == SYS_USB_CONNECTED)
+                    ret = -1;
+                break;
+            }
+        }
+        if (done)
+        {
+            /* without the spaces and dots at its end, which FAT drops */
+            size_t len = strlen(name_text);
+            while (len > 0 && (name_text[len - 1] == ' ' || name_text[len - 1] == '.'))
+                name_text[--len] = '\0';
+            if (taken && taken(name_text))
+            {
+                splash(HZ, ID2P(LANG_NAME_TAKEN));
+                redraw = true;
+            }
+            else
+                ret = 1;
+        }
+        if (strcmp(before, name_text) || shift_before != name_shift)
+            redraw = true;
+    }
+
+    naming = false;
+    /* Search's ring again, for its screen under this one */
+    make_strip();
+    strip.pos = search_pos < strip.count ? search_pos : 0;
+    in_results = search_in_results;
+    if (!was_wide)
+        menu_set_wide(false);
     return ret;
 }
 

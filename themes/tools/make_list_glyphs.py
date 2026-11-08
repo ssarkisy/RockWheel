@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Draw the speaker that marks the song playing in a list, as on a stock iPod, and the
-shuffle arrows of a list's Shuffle Songs, and print them as the C arrays apps/gui/line.c
+"""Draw the speaker that marks the song playing in a list, as on a stock iPod, the
+shuffle arrows of a list's Shuffle Songs and the marks of the catalogue's playlists, and print them as the C arrays apps/gui/line.c
 draws them from: alpha masks in Rockbox' format, 4 bits a pixel from 0 opaque to 15
 transparent, the low nibble first, the rows running on without padding, as the chevron's
 there. The firmware colours them, so they're the same in every theme. Plain Python, no
@@ -9,7 +9,7 @@ imaging libraries. Usage:
     python3 themes/tools/make_list_glyphs.py [preview-prefix]
 
 With a prefix it also writes each mask, eight times as large, black on white, to look at,
-as <prefix>-speaker.bmp and <prefix>-shuffle.bmp.
+as <prefix>-<name>.bmp.
 """
 import math
 import struct
@@ -94,6 +94,53 @@ def shuffle(x, y):
     return any(near_segment(x, y, a, b, SHUF_THICK / 2) for a, b in SHUF_SEGMENTS)
 
 
+def rounded_rect_ring(x, y, x0, y0, x1, y1, r, thick):
+    """inside the outline of a rectangle with round corners"""
+    def inside(px, py, inset):
+        a0, b0, a1, b1 = x0 + inset, y0 + inset, x1 - inset, y1 - inset
+        rr = max(r - inset, 0)
+        if px < a0 or px > a1 or py < b0 or py > b1:
+            return False
+        cx = min(max(px, a0 + rr), a1 - rr)
+        cy = min(max(py, b0 + rr), b1 - rr)
+        return math.hypot(px - cx, py - cy) <= rr
+    return inside(x, y, 0) and not inside(x, y, thick)
+
+
+def rounded_rect(x, y, x0, y0, x1, y1, r):
+    """inside a rectangle with round corners"""
+    return rounded_rect_ring(x, y, x0, y0, x1, y1, r, 1000)
+
+
+# the marks of the catalogue's playlists and folders, before their names: a
+# computer for those synced from it and an iPod for those made on it. One
+# family: solid, what's in
+# them cut out, two pixels of it everywhere, their edges on the pixels' edges,
+# which keeps them sharp
+COMPUTER_W, COMPUTER_H = 13, 12
+
+
+def computer(x, y):
+    # a display, its screen cut out, on a neck and a foot
+    if rounded_rect(x, y, 0, 0, 13, 9, 1.5):
+        return not (2 <= x <= 11 and 2 <= y <= 7)
+    if 5 <= x <= 8 and 9 <= y <= 10:
+        return True
+    return rounded_rect(x, y, 3, 10, 10, 12, 0.8)
+
+
+IPOD_W, IPOD_H = 10, 13
+
+
+def ipod(x, y):
+    # a classic iPod: its screen and its wheel cut out
+    if not rounded_rect(x, y, 0, 0, 10, 13, 1.5):
+        return False
+    if 2 <= x <= 8 and 2 <= y <= 5:
+        return False
+    return math.hypot(x - 5, y - 9) > 2
+
+
 def coverage(inside, w, h):
     rows = []
     for py in range(h):
@@ -141,7 +188,9 @@ def preview(cov, path, k=8):
 
 
 def main():
-    for name, inside, w, h in (('speaker', speaker, W, H), ('shuffle', shuffle, SW, SH)):
+    for name, inside, w, h in (('speaker', speaker, W, H), ('shuffle', shuffle, SW, SH),
+                               ('computer', computer, COMPUTER_W, COMPUTER_H),
+                               ('ipod', ipod, IPOD_W, IPOD_H)):
         cov = coverage(inside, w, h)
         print('#define %s_W %d' % (name.upper(), w))
         print('#define %s_H %d' % (name.upper(), h))

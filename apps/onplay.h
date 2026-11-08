@@ -40,6 +40,8 @@ enum onplay_return_code {
     ONPLAY_PLAYLIST,
     ONPLAY_PLUGIN,
     ONPLAY_FUNC_RETURN, /* for use in hotkey_assignment only */
+    ONPLAY_REMOVE,      /* the song out of the playlist made on the iPod it's
+                           listed in, as onplay_set_removable() let it */
 };
 
 enum hotkey_action {
@@ -91,6 +93,8 @@ int hotkey_run_menu(intptr_t flag, bool execute, int current_action);
 int onplay(char* file, int attr, int from_context, bool hotkey, int customaction);
 /* the title of the next menu of a song or the like that onplay() opens: its name */
 void onplay_set_title(const char *title);
+/* Remove in the next menu, for a song of a playlist made on the iPod */
+void onplay_set_removable(bool removable);
 /* whether a row of a menu is hidden by Settings > Now Playing Menu */
 struct menu_item_ex;
 bool onplay_row_hidden(const struct menu_item_ex *menu, int i);

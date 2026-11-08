@@ -175,12 +175,17 @@ static void tidy_path(char *path)
     *to = '\0';
 }
 
-/* a playlist's screen: one of the library's from the database, as Songs is,
-   the user's own as Rockbox has it */
+void catalog_select_playlist(const char *path)
+{
+    strmemccpy(most_recent_playlist, path, sizeof(most_recent_playlist));
+}
+
+/* a playlist's screen: from the database, as Songs is, the import's and the
+   iPod's own alike; as Rockbox has it without the database */
 static int view_playlist(char *file, int *selection)
 {
 #ifdef HAVE_TAGCACHE
-    if (lp_is_library(file))
+    if (lp_viewable(file))
         return lp_view(file, selection);
 #endif
     return playlist_viewer_ex(file, selection);
@@ -253,7 +258,7 @@ restart:
         && !strcmp(selected_playlist, OTG_FILE))
     {
         /* a path of its own: the viewer cuts it apart for a while */
-        switch (playlist_viewer_ex(selected_playlist, NULL))
+        switch (view_playlist(selected_playlist, NULL))
         {
             case PLAYLIST_VIEWER_OK:
                 result = 0;

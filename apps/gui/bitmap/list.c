@@ -296,8 +296,8 @@ static const char *hint_line(const char *p, int font, int width)
     return (const char *)utf8decode((const unsigned char *)p, &ch);
 }
 
-static void draw_hint(struct screen *display, struct viewport *band,
-                      const char *text)
+void list_draw_hint(struct screen *display, struct viewport *band,
+                    const char *text)
 {
     const int font = hint_font();
     band->font = font < 0 ? FONT_UI : font;
@@ -548,6 +548,12 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                              && line_shuffle_width(display);
         if (shuffle)
             line_indent += line_shuffle_width(display);
+        /* a playlist's or folder's mark, its name after its column */
+        const int mark_x = line_indent;
+        const int mark = !shuffle && list->callback_get_mark ?
+                         list->callback_get_mark(i, list->data) : LINE_MARK_NONE;
+        if (mark != LINE_MARK_NONE)
+            line_indent += line_mark_width(display);
 
         /* position the string at the correct offset place */
         int item_width,h;
@@ -648,9 +654,12 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         if (shuffle)
             line_draw_shuffle(display, list_info.x + shuffle_x, list_info.y,
                               &linedes);
+        if (mark != LINE_MARK_NONE)
+            line_draw_mark(display, list_info.x + mark_x, list_info.y,
+                           &linedes, mark);
     }
     if (hint)
-        draw_hint(display, &band, hint);
+        list_draw_hint(display, &band, hint);
     display->set_viewport(last_vp);
 }
 

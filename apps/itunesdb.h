@@ -20,6 +20,7 @@
 #ifndef _ITUNESDB_H_
 #define _ITUNESDB_H_
 
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "config.h"
@@ -64,6 +65,19 @@ void itunesdb_write_playcounts(void);
 #define ITUNESDB_SORT_COMPOSER 18
 /* one of the import's, by its second line */
 bool itunesdb_own_playlist(const char *file);
+/* The playlists the last import wrote and the folders it made, a line each:
+   "<hash> <size> <time> <file>", and "dir <folder>" */
+#define ITUNESDB_PLAYLISTS_LIST ROCKBOX_DIR "/itunesdb_playlists.txt"
+/* Songs a sync wrote again under another path, as their dbid has it, by
+   their old path's hash, sorted by it: for the playlists made on the iPod,
+   which keep them, at Updating Library, which then removes the list */
+#define ITUNESDB_MOVED_LIST ROCKBOX_DIR "/itunesdb_moved.dat"
+struct itunesdb_moved {
+    uint64_t old_hash;
+    char path[56];      /* "/iPod_Control/Music/F07/CWZV.m4a" and the like */
+};
+/* the path now of a song moved from the path of old_hash */
+bool itunesdb_moved_to(uint64_t old_hash, char *path, size_t size);
 
 /* the hash that a database entry and an iTunesDB track are matched by */
 uint64_t itunesdb_path_hash(const char *path);

@@ -3664,6 +3664,13 @@ bool tagtree_add_to_file(const char *file)
     return tagtree_insert_selection(0, false, file, false);
 }
 
+/* the list the selection is in, as it was before the catalogue was gone
+   through to pick a playlist, which took the list's buffer */
+void tagtree_reload_after_browse(void)
+{
+    tagtree_load(tc);
+}
+
 /* in Music's own list, whose rows are its sections: none adds a song */
 bool tagtree_at_top(void)
 {

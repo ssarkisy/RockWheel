@@ -546,6 +546,17 @@ int update_playlist_flags_unlocked(struct playlist_info *playlist,
  *    the drive letter is accepted but ignored.
  */
 static ssize_t format_track_path(char *dest, char *src, int buf_length,
+                                 const char *dir, size_t dlen);
+
+ssize_t playlist_resolve_path(char *dest, size_t size, const char *line,
+                              const char *dir)
+{
+    char src[MAX_PATH];
+    strmemccpy(src, line, sizeof(src));
+    return format_track_path(dest, src, size, dir, -1u);
+}
+
+static ssize_t format_track_path(char *dest, char *src, int buf_length,
                                  const char *dir, size_t dlen)
 {
     /* Look for the end of the string (includes NULL) */

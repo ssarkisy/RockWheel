@@ -99,6 +99,7 @@
 #include "music_search.h"
 #include "library_fonts.h"
 #include "smart_playlists.h"
+#include "library_playlists.h"
 #endif
 #endif
 #define USR_CANCEL false
@@ -5241,7 +5242,12 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
             /* a file that is gone, like the files a sync replaced */
             if (delete_entry_in(i, masterfd, myhdr.tch.entry_count, fds,
                                 true))
+            {
                 deleted++;
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+                lp_gone_note(buf);
+#endif
+            }
             else
                 failed = true;
         }
@@ -5265,6 +5271,9 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
     }
     if (deleted > 0)
     {
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+        lp_gone_flush();
+#endif
         sweep_unused_tags(masterfd, myhdr.tch.entry_count, fds);
         /* what's made from the database goes by this, and is out of date: Cover Flow's
            albums and the prepared lists of songs */
@@ -6379,7 +6388,13 @@ static int check_file_ref(long idx_id, const char *path, bool auto_update)
 #endif /* HAVE_DIRCACHE */
     logf("Entry no longer valid.");
     logf("-> %s", path);
-    return remove_gone(idx_id) ? 2 : 1;
+    if (!remove_gone(idx_id))
+        return 1;
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+    /* out of the playlists made on the iPod too, at Updating Library */
+    lp_gone_note(path);
+#endif
+    return 2;
 }
 
 #if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
@@ -6544,6 +6559,10 @@ wend_finished:
            comes */
         current_tcmh.commitid++;
         update_master_header();
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+        /* the songs gone, kept for the playlists made on the iPod */
+        lp_gone_flush();
+#endif
     }
 
     return ret;

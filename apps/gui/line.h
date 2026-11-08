@@ -153,6 +153,13 @@ void vput_line(struct screen *display,
  * on so far from where they start: drawn at x of a line put at y, after it,
  * in its text colour. 0 where none are drawn, as without an alpha bitmap. */
 int line_shuffle_width(struct screen *display);
+/* The marks of the catalogue's playlists and folders before their names, in a
+   column of their own: a computer for those synced from it, an iPod for those
+   made on it */
+enum line_mark { LINE_MARK_NONE, LINE_MARK_COMPUTER, LINE_MARK_IPOD };
+int line_mark_width(struct screen *display);
+void line_draw_mark(struct screen *display, int x, int y,
+                    const struct line_desc *line, int mark);
 void line_draw_shuffle(struct screen *display, int x, int y,
                        const struct line_desc *line);
 

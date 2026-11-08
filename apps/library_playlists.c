@@ -45,6 +45,8 @@
 #include "rbpaths.h"
 #include "itunesdb.h"
 #include "smart_playlists.h"
+#include "rbunicode.h"
+#include "on_the_go.h"
 #include "library_playlists.h"
 
 /* Rockbox's viewer read them a window of 200 lines at a time from the file,
@@ -52,6 +54,14 @@
    yielding to the music each time: they scrolled by fits and starts. */
 
 #define LP_DIR     ROCKBOX_DIR "/playlist_index"
+/* A playlist made on the iPod plays from a copy of it, as Rockbox keeps a
+   playing playlist by the places of its lines in its file: one changed as it
+   played would have lost its place, at the next boot too. Two, taken in
+   turn, the one playing left until the other is started; the file the copy
+   is of, to find it by. */
+#define LP_PLAYING      LP_DIR "/playing.m3u8"
+#define LP_PLAYING2     LP_DIR "/playing2.m3u8"
+#define LP_PLAYING_FROM LP_DIR "/playing.txt"
 #define LP_MAGIC   0x504c4958   /* "PLIX" */
 #define LP_VERSION 3
 
@@ -138,13 +148,84 @@ bool lp_same_file(const char *a, const char *b)
     return itunesdb_path_hash(a) == itunesdb_path_hash(b);
 }
 
-/* whether the music is from this file, playing or paused */
+/* A line of a playlist as its song's path. The import's are whole already;
+   one put in Playlists by hand may have them relative to its folder, as
+   Windows writes them, or as a Mac has the iPod mounted, under
+   /Volumes/<its name>; an .m3u's are in the codepage of the settings. NULL if
+   it can't be one. */
+static const char *song_path(const char *line, const char *dir, bool m3u,
+                             char *buf, size_t size)
+{
+    /* into buf, which resolving takes a copy of first */
+    if (m3u)
+    {
+        *iso_decode_ex((const unsigned char *)line, (unsigned char *)buf,
+                       -1, strlen(line), size - 1) = '\0';
+        line = buf;
+    }
+    if (line[0] == '/' && strncasecmp(line, "/Volumes/", 9)
+        && !strchr(line, '\\') && !strstr(line, "/."))
+        return line;
+    if (playlist_resolve_path(buf, size, line, dir) < 0)
+        return NULL;
+    if (!strncasecmp(buf, "/Volumes/", 9))
+    {
+        const char *rest = strchr(buf + 9, '/');
+        if (!rest)
+            return NULL;
+        memmove(buf, rest, strlen(rest) + 1);
+    }
+    return buf;
+}
+
+/* a playlist's folder, which its relative lines are of, and whether it's an
+   .m3u, in the codepage */
+static bool playlist_dir(const char *file, char *dir, size_t size)
+{
+    strmemccpy(dir, file, size);
+    char *name = strrchr(dir, '/');
+    if (name)
+        *(name == dir ? name + 1 : name) = '\0';
+    const char *ext = strrchr(file, '.');
+    return ext && !strcasecmp(ext, ".m3u");
+}
+
+static bool is_copy(const char *name)
+{
+    return lp_same_file(name, LP_PLAYING) || lp_same_file(name, LP_PLAYING2);
+}
+
+/* the file the copy playing is of, as LP_PLAYING_FROM has it */
+static char copy_source[MAX_PATH];
+static bool copy_source_read;
+
+static const char *playing_copy_source(void)
+{
+    if (!copy_source_read)
+    {
+        copy_source_read = true;
+        copy_source[0] = '\0';
+        const int fd = open(LP_PLAYING_FROM, O_RDONLY);
+        if (fd >= 0)
+        {
+            read_line(fd, copy_source, sizeof(copy_source));
+            close(fd);
+        }
+    }
+    return copy_source;
+}
+
+/* whether the music is from this file, playing or paused: from it, or from
+   the copy of it a playlist made on the iPod plays from */
 static bool playing_from(const char *file)
 {
     char name[MAX_PATH];
-    return (audio_status() & AUDIO_STATUS_PLAY)
-           && playlist_get_name(NULL, name, sizeof(name))
-           && lp_same_file(name, file);
+    if (!(audio_status() & AUDIO_STATUS_PLAY)
+        || !playlist_get_name(NULL, name, sizeof(name)))
+        return false;
+    if (is_copy(name))
+        return lp_same_file(playing_copy_source(), file);
+    return lp_same_file(name, file);
 }
 
 /* the database in memory, which their songs are found in by their paths */
@@ -242,6 +323,144 @@ void lp_index_forget(const char *file)
     remove(path);
 }
 
+/* Songs added at the end of a playlist made on the iPod, from old_size on:
+   their entries after those of its index, which isn't made again, the cost
+   the same for a playlist of ten songs or of thousands; and if it plays,
+   after the queue too. One that can't be added to is made again as it
+   opens. */
+void lp_index_appended(const char *file, long old_size)
+{
+    char path[MAX_PATH], dir[MAX_PATH];
+    index_path(itunesdb_path_hash(file), path, sizeof(path));
+    const bool playing = playing_from(file);
+    struct lp_head head;
+    int ifd = open(path, O_RDWR);
+    const bool indexed = ifd >= 0
+        && read(ifd, &head, sizeof(head)) == sizeof(head)
+        && head.magic == LP_MAGIC && head.version == LP_VERSION
+        && head.commitid == (uint32_t)tagcache_get_commitid()
+        && head.entries == (uint32_t)tagcache_entry_count()
+        && (long)head.size == old_size && !head.pending
+        && head.sort == ITUNESDB_SORT_MANUAL
+        && lseek(ifd, sizeof(head) + head.count * sizeof(struct lp_song),
+                 SEEK_SET) >= 0;
+    if (!indexed)
+    {
+        if (ifd >= 0)
+            close(ifd);
+        ifd = -1;
+        remove(path);
+        if (!playing)
+            return;
+    }
+    const bool m3u = playlist_dir(file, dir, sizeof(dir));
+    int fd = open(file, O_RDONLY);
+    if (fd < 0 || lseek(fd, old_size, SEEK_SET) != old_size)
+    {
+        if (fd >= 0)
+            close(fd);
+        if (ifd >= 0)
+        {
+            close(ifd);
+            remove(path);
+        }
+        return;
+    }
+    char buf[2 * MAX_PATH];
+    struct lp_song added[32];
+    int n_added = 0;
+    bool ok = true;
+    size_t have = 0;
+    bool end = false;
+    while (!end)
+    {
+        const ssize_t n = read(fd, buf + have, sizeof(buf) - 1 - have);
+        if (n <= 0)
+            end = true;
+        else
+            have += n;
+        buf[have] = '\0';
+        char *line = buf;
+        for (;;)
+        {
+            char *nl = strchr(line, '\n');
+            if (!nl && !end)
+                break;
+            if (nl)
+                *nl = '\0';
+            size_t len = strlen(line);
+            if (len && line[len - 1] == '\r')
+                line[--len] = '\0';
+            if (len && line[0] != '#')
+            {
+                char resolved[MAX_PATH];
+                const char *song = song_path(line, dir, m3u, resolved,
+                                             sizeof(resolved));
+                const long idx = song ? tagcache_find_entry(song) : -1;
+                if (ifd >= 0)
+                {
+                    if (idx >= 0)
+                    {
+                        added[n_added].idx = idx;
+                        added[n_added].line = head.lines;
+                        if (++n_added == ARRAYLEN(added))
+                        {
+                            ok = ok && write(ifd, added, sizeof(added))
+                                       == (ssize_t)sizeof(added);
+                            head.count += n_added;
+                            n_added = 0;
+                        }
+                    }
+                    else
+                        head.unmatched++;
+                    head.lines++;
+                }
+                if (playing && song)
+                    playlist_insert_track(NULL, song, PLAYLIST_INSERT_LAST,
+                                          false, false);
+            }
+            if (!nl)
+            {
+                line += len;
+                break;
+            }
+            line = nl + 1;
+        }
+        have = buf + have - line;
+        memmove(buf, line, have);
+        if (have >= sizeof(buf) - 1)
+            have = 0;
+    }
+    close(fd);
+    if (playing)
+        playlist_sync(NULL);
+    if (ifd < 0)
+        return;
+    if (n_added)
+    {
+        const ssize_t bytes = n_added * sizeof(*added);
+        ok = ok && write(ifd, added, bytes) == bytes;
+        head.count += n_added;
+    }
+    head.size = file_size(file);
+    ok = ok && head.count <= LP_MAX && lseek(ifd, 0, SEEK_SET) == 0
+         && write(ifd, &head, sizeof(head)) == sizeof(head);
+    if (close(ifd) < 0 || !ok)
+        remove(path);
+}
+
+void lp_index_moved(const char *from, const char *to)
+{
+    /* the same name but for its case: the same index */
+    if (lp_same_file(from, to))
+        return;
+    char a[MAX_PATH], b[MAX_PATH];
+    index_path(itunesdb_path_hash(from), a, sizeof(a));
+    index_path(itunesdb_path_hash(to), b, sizeof(b));
+    remove(b);
+    rename(a, b);
+}
+
 int lp_index_build(const char *file, struct lp_song *songs, int max,
                    char *buf, size_t size, struct lp_state *state)
 {
@@ -250,7 +469,9 @@ int lp_index_build(const char *file, struct lp_song *songs, int max,
     state->pending = false;
     if (!database_in_ram() || size < MAX_PATH * 2)
         return -1;
-    const int fd = open_utf8(file, O_RDONLY);
+    char dir[MAX_PATH];
+    const bool m3u = playlist_dir(file, dir, sizeof(dir));
+    const int fd = m3u ? open(file, O_RDONLY) : open_utf8(file, O_RDONLY);
     if (fd < 0)
         return -1;
     max = MIN(max, LP_MAX);
@@ -294,7 +515,10 @@ int lp_index_build(const char *file, struct lp_song *songs, int max,
                     full = true;
                     break;
                 }
-                const long idx = tagcache_find_entry(line);
+                char resolved[MAX_PATH];
+                const char *song = song_path(line, dir, m3u, resolved,
+                                             sizeof(resolved));
+                const long idx = song ? tagcache_find_entry(song) : -1;
                 if (idx >= 0)
                 {
                     songs[count].idx = idx;
@@ -454,6 +678,10 @@ static uint32_t keep_unmatched(const char *file, struct lp_out *out)
 bool lp_write_file(const char *file, struct lp_song *songs, int count,
                    struct lp_state *state)
 {
+    /* the import's only: written with its mark, a playlist made on the iPod
+       would be taken for one and removed at the next sync */
+    if (!itunesdb_own_playlist(file))
+        return false;
     const uint32_t sort = state->sort;
     char tmp[MAX_PATH + 4], path[MAX_PATH];
     snprintf(tmp, sizeof(tmp), "%s.tmp", file);
@@ -518,6 +746,11 @@ bool lp_is_library(const char *file)
     return file && database_in_ram() && itunesdb_own_playlist(file);
 }
 
+bool lp_viewable(const char *file)
+{
+    return file && file[0] && database_in_ram();
+}
+
 void lp_sync(const char *file)
 {
     struct lp_state state;
@@ -537,15 +770,239 @@ void lp_sync(const char *file)
         lp_index_write(file, songs, n, &state);
 }
 
+/* The songs the database lost, as a sync replaced or removed their files
+   or they were deleted over USB: by their paths' hashes, a block at a time
+   to a file, which Updating Library goes by, then removes. Only those leave
+   the playlists made on the iPod; a line the database never had stays, as a
+   computer's path, which a playlist put there by hand may have. */
+#define LP_GONE   ROCKBOX_DIR "/playlist_gone.dat"
+static uint64_t gone_block[32];
+static int gone_in_block;
+
+void lp_gone_flush(void)
+{
+    if (!gone_in_block)
+        return;
+    const int fd = open(LP_GONE, O_WRONLY | O_CREAT | O_APPEND, 0666);
+    if (fd >= 0)
+    {
+        write(fd, gone_block, gone_in_block * sizeof(*gone_block));
+        close(fd);
+    }
+    gone_in_block = 0;
+}
+
+void lp_gone_note(const char *path)
+{
+    gone_block[gone_in_block++] = itunesdb_path_hash(path);
+    if (gone_in_block == (int)ARRAYLEN(gone_block))
+        lp_gone_flush();
+}
+
+static int cmp_hash64(const void *a, const void *b)
+{
+    const uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
+    return (x > y) - (x < y);
+}
+
+/* those of the file, sorted, while Updating Library goes through the
+   playlists; none otherwise */
+static uint64_t *gone_set;
+static int gone_count;
+
+static bool gone(const char *path)
+{
+    const uint64_t hash = itunesdb_path_hash(path);
+    int lo = 0, hi = gone_count - 1;
+    while (lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (gone_set[mid] == hash)
+            return true;
+        if (gone_set[mid] < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return false;
+}
+
+/* whether the music plays straight from this file, not from a copy of it:
+   a playlist of the iPod's own as 1.2 played it, or without the database */
+static bool playing_straight_from(const char *file)
+{
+    char name[MAX_PATH];
+    return (audio_status() & AUDIO_STATUS_PLAY)
+           && playlist_get_name(NULL, name, sizeof(name))
+           && !is_copy(name) && lp_same_file(name, file);
+}
+
+/* A playlist made on the iPod as the library is now: a song Finder wrote
+   again under another path, as the last sync's dbids tell, at its new path;
+   one whose file is gone, deleted from the computer or by a sync, out. Those
+   not in the database whose files are there stay, as they play. The file
+   written again only if a line changed; through buf, a block at a time. True
+   if it was. */
+static bool clean_playlist(const char *file, char *buf, size_t size)
+{
+    char dir[MAX_PATH], tmp[MAX_PATH + 4];
+    const bool m3u = playlist_dir(file, dir, sizeof(dir));
+    const int fd = m3u ? open(file, O_RDONLY) : open_utf8(file, O_RDONLY);
+    if (fd < 0 || size < 2 * MAX_PATH)
+    {
+        if (fd >= 0)
+            close(fd);
+        return false;
+    }
+    snprintf(tmp, sizeof(tmp), "%s.tmp", file);
+    int wfd = -1;
+    bool changed = false, ok = true, end = false;
+    size_t have = 0;
+    char out[1024];
+    size_t put = 0;
+    /* the lines before the first change are copied once it's known: from the
+       file's start, a BOM open_utf8() passed over too */
+    off_t kept_to = 0, read_at = lseek(fd, 0, SEEK_CUR);
+    if (read_at < 0)
+        read_at = 0;
+    while (ok && !end)
+    {
+        const ssize_t n = read(fd, buf + have, size - 1 - have);
+        if (n <= 0)
+            end = true;
+        else
+            have += n;
+        buf[have] = '\0';
+        char *line = buf;
+        for (;;)
+        {
+            char *nl = strchr(line, '\n');
+            if (!nl && !end)
+                break;
+            if (nl)
+                *nl = '\0';
+            size_t len = strlen(line);
+            const off_t line_at = read_at + (line - buf);
+            if (len && line[len - 1] == '\r')
+                line[--len] = '\0';
+            const char *text = line;
+            char moved[MAX_PATH];
+            bool drop = false, replace = false;
+            if (len && line[0] != '#')
+            {
+                char resolved[MAX_PATH];
+                const char *song = song_path(line, dir, m3u, resolved,
+                                             sizeof(resolved));
+                if (song && tagcache_find_entry(song) < 0)
+                {
+                    /* where a sync moved it, and on, if a later one moved it
+                       again before this */
+                    const char *at = song;
+                    for (int hop = 0; hop < 4 && itunesdb_moved_to(
+                             itunesdb_path_hash(at), moved, sizeof(moved)); hop++)
+                    {
+                        replace = true;
+                        at = moved;
+                        if (tagcache_find_entry(moved) >= 0)
+                            break;
+                    }
+                    if (!replace && gone(song))
+                        drop = true;
+                }
+            }
+            if ((drop || replace) && !changed)
+            {
+                /* the lines before it, as they were */
+                changed = true;
+                wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+                kept_to = line_at;
+                const int rfd = open(file, O_RDONLY);
+                ok = wfd >= 0 && rfd >= 0;
+                for (off_t done = 0; ok && done < kept_to; )
+                {
+                    const ssize_t k = read(rfd, out, MIN((off_t)sizeof(out),
+                                                         kept_to - done));
+                    ok = k > 0 && write(wfd, out, k) == k;
+                    done += k;
+                }
+                if (rfd >= 0)
+                    close(rfd);
+            }
+            if (changed && ok && !drop && (len || nl))
+            {
+                if (replace)
+                    text = moved;
+                const size_t tlen = strlen(text);
+                if (put + tlen + 1 > sizeof(out))
+                {
+                    ok = write(wfd, out, put) == (ssize_t)put;
+                    put = 0;
+                }
+                if (tlen + 1 <= sizeof(out))
+                {
+                    memcpy(out + put, text, tlen);
+                    out[put + tlen] = '\n';
+                    put += tlen + 1;
+                }
+            }
+            if (!nl)
+            {
+                line += len;
+                break;
+            }
+            line = nl + 1;
+        }
+        const size_t consumed = line - buf;
+        read_at += consumed;
+        have -= consumed;
+        memmove(buf, line, have);
+        if (have >= size - 1)
+        {
+            read_at += have;
+            have = 0;
+        }
+        yield();
+    }
+    close(fd);
+    if (!changed)
+        return false;
+    if (ok && put)
+        ok = write(wfd, out, put) == (ssize_t)put;
+    if (wfd >= 0 && close(wfd) < 0)
+        ok = false;
+    if (!ok || rename(tmp, file) < 0)
+    {
+        remove(tmp);
+        return false;
+    }
+    return true;
+}
+
 /* A playlist's index from its file, in the order it's shown by, and its file
    in that order too if rewrite, else to be written yet */
 static int index_make(const char *file, struct lp_song *songs, int max,
                       char *buf, size_t size, bool rewrite)
 {
     struct lp_state state;
-    const int n = lp_index_build(file, songs, max, buf, size, &state);
+    int n = lp_index_build(file, songs, max, buf, size, &state);
     if (n < 0)
         return n;
+    /* one made on the iPod in its own order, whatever its head says, as it
+       was copied from one of the import's; without the songs gone */
+    if (!itunesdb_own_playlist(file))
+    {
+        /* not under the music playing straight from it, which keeps its
+           lines by where they are in the file */
+        if (state.unmatched > 0 && !playing_straight_from(file)
+            && clean_playlist(file, buf, size))
+        {
+            n = lp_index_build(file, songs, max, buf, size, &state);
+            if (n < 0)
+                return n;
+        }
+        state.sort = ITUNESDB_SORT_MANUAL;
+        rewrite = false;
+    }
     lp_sort(songs, n, state.sort);
     if (rewrite && !lp_in_file_order(songs, n, &state)
         && !playing_from(file))
@@ -600,7 +1057,7 @@ static void index_folder(char *path, size_t len, int depth)
             else
                 all.overflow = true;
         }
-        else if (ext && !strcasecmp(ext, ".m3u8") && lp_is_library(path))
+        else if (ext && (!strcasecmp(ext, ".m3u8") || !strcasecmp(ext, ".m3u")))
         {
             if (lp_index_read(path, NULL, 0, NULL) < 0)
                 index_make(path, all.songs, all.max, all.buf, all.size, true);
@@ -648,7 +1105,8 @@ static uint64_t catalog_print(char *path, size_t len, int depth, uint64_t h)
         const struct dirinfo info = dir_get_info(dir, e);
         const bool is_dir = info.attribute & ATTR_DIRECTORY;
         const char *ext = strrchr(e->d_name, '.');
-        if (!is_dir && !(ext && !strcasecmp(ext, ".m3u8")))
+        if (!is_dir && !(ext && (!strcasecmp(ext, ".m3u8")
+                                 || !strcasecmp(ext, ".m3u"))))
             continue;
         h = mix(h, path, len);
         h = mix(h, e->d_name, strlen(e->d_name) + 1);
@@ -687,7 +1145,10 @@ static void remove_gone(void)
         const char *ext = strrchr(e->d_name, '.');
         if (!ext || e->d_name[0] == '.')
             continue;
-        bool keep = !strcasecmp(e->d_name, LP_MARK + sizeof(LP_DIR));
+        bool keep = !strcasecmp(e->d_name, LP_MARK + sizeof(LP_DIR))
+                    || !strcasecmp(e->d_name, LP_PLAYING + sizeof(LP_DIR))
+                    || !strcasecmp(e->d_name, LP_PLAYING2 + sizeof(LP_DIR))
+                    || !strcasecmp(e->d_name, LP_PLAYING_FROM + sizeof(LP_DIR));
         if (!strcasecmp(ext, ".idx") && ext - e->d_name == 16)
         {
             char high[9];
@@ -731,6 +1192,29 @@ void lp_index_all(bool (*go_on)(void))
         return;
     buf = (char *)ALIGN_UP((uintptr_t)buf, 8);
     size -= 8;
+    /* the songs the database lost since the last pass, sorted, first: as
+       many as half the buffer holds, and the rest stay in the playlists */
+    lp_gone_flush();
+    gone_set = (uint64_t *)buf;
+    gone_count = 0;
+    int gfd = open(LP_GONE, O_RDONLY);
+    if (gfd >= 0)
+    {
+        const size_t most = (size / 2) / sizeof(uint64_t);
+        const ssize_t got = read(gfd, gone_set, most * sizeof(uint64_t));
+        close(gfd);
+        if (got > 0)
+            gone_count = got / sizeof(uint64_t);
+        qsort(gone_set, gone_count, sizeof(uint64_t), cmp_hash64);
+        buf += gone_count * sizeof(uint64_t);
+        size -= gone_count * sizeof(uint64_t);
+    }
+    if (size < read_size + LP_SEEN_MAX * sizeof(uint64_t) + 64)
+    {
+        gone_set = NULL;
+        gone_count = 0;
+        return;
+    }
     all.seen = (uint64_t *)buf;
     all.seen_count = 0;
     all.overflow = false;
@@ -742,8 +1226,22 @@ void lp_index_all(bool (*go_on)(void))
                   LP_MAX);
     cpu_boost(true);
     index_folder(path, strlen(path), 0);
+    /* On-The-Go too, out of the catalogue's folder */
+    if (file_exists(OTG_FILE))
+    {
+        if (lp_index_read(OTG_FILE, NULL, 0, NULL) < 0)
+            index_make(OTG_FILE, all.songs, all.max, all.buf, all.size, false);
+        if (all.seen_count < LP_SEEN_MAX)
+            all.seen[all.seen_count++] = itunesdb_path_hash(OTG_FILE);
+    }
+    gone_set = NULL;
+    gone_count = 0;
     if (!all.overflow)
     {
+        /* the songs a sync moved or the database lost, out of or moved in
+           each playlist made on the iPod now */
+        remove(ITUNESDB_MOVED_LIST);
+        remove(LP_GONE);
         remove_gone();
         /* as the pass left it, files it wrote again in their order too */
         mark_now(&now, path);
@@ -763,6 +1261,10 @@ static struct {
     int count;              /* those shown */
     int total;              /* those it has, all written to its file */
     struct lp_state state;
+    bool library;           /* the import's, else made on the iPod */
+    bool otg;               /* On-The-Go */
+    size_t pool_used;       /* of the pool, by the titles: the rest is free */
+    size_t pool_size;
     bool from_this;         /* the music is from this playlist */
     bool waited;            /* Loading was shown as it opened */
     bool at_playing;        /* opened at the song playing */
@@ -838,16 +1340,165 @@ static bool lp_load(void)
     }
     if (search)
         tagcache_search_finish(&tcs);
+    lp.pool_used = used;
+    lp.pool_size = pool_size;
     return true;
+}
+
+/* The copy of a playlist made on the iPod to play from: each line of a song
+   as its path, whole, in the file's order, those not in the database too, so
+   that the songs' lines in the index are theirs in the copy. Through the
+   pool's free part. Which one it is, or NULL. */
+static const char *make_copy(const char *file)
+{
+    char name[MAX_PATH], dir[MAX_PATH];
+    const char *copy = playlist_get_name(NULL, name, sizeof(name))
+                       && lp_same_file(name, LP_PLAYING) ? LP_PLAYING2
+                                                        : LP_PLAYING;
+    const size_t room = lp.pool_size - lp.pool_used;
+    if (room < 4 * MAX_PATH)
+        return NULL;
+    const size_t in_size = room / 2;
+    char *in = lp.pool + lp.pool_used;
+    char *out = in + in_size;
+    const size_t out_size = room - in_size;
+    const bool m3u = playlist_dir(file, dir, sizeof(dir));
+    const int fd = m3u ? open(file, O_RDONLY) : open_utf8(file, O_RDONLY);
+    if (fd < 0)
+        return NULL;
+    char tmp[MAX_PATH + 4];
+    snprintf(tmp, sizeof(tmp), "%s.tmp", copy);
+    mkdir(LP_DIR);
+    const int wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    bool ok = wfd >= 0;
+    size_t have = 0, put = 0;
+    bool end = false;
+    while (ok && !end)
+    {
+        const ssize_t n = read(fd, in + have, in_size - 1 - have);
+        if (n <= 0)
+            end = true;
+        else
+            have += n;
+        in[have] = '\0';
+        char *line = in;
+        for (;;)
+        {
+            char *nl = strchr(line, '\n');
+            if (!nl && !end)
+                break;
+            if (nl)
+                *nl = '\0';
+            size_t len = strlen(line);
+            if (len && line[len - 1] == '\r')
+                line[--len] = '\0';
+            /* the lines of songs, as lp_index_build() counts them */
+            if (len && line[0] != '#')
+            {
+                char resolved[MAX_PATH];
+                const char *song = song_path(line, dir, m3u, resolved,
+                                             sizeof(resolved));
+                if (!song)
+                    song = line;
+                const size_t slen = strlen(song);
+                if (put + slen + 1 > out_size)
+                {
+                    ok = write(wfd, out, put) == (ssize_t)put;
+                    put = 0;
+                }
+                if (slen + 1 <= out_size)
+                {
+                    memcpy(out + put, song, slen);
+                    out[put + slen] = '\n';
+                    put += slen + 1;
+                }
+            }
+            if (!nl)
+            {
+                line += len;
+                break;
+            }
+            line = nl + 1;
+        }
+        have = in + have - line;
+        memmove(in, line, have);
+        if (have >= in_size - 1)
+            have = 0;
+        yield();
+    }
+    close(fd);
+    if (ok && put)
+        ok = write(wfd, out, put) == (ssize_t)put;
+    if (wfd >= 0 && close(wfd) < 0)
+        ok = false;
+    if (!ok || rename(tmp, copy) < 0)
+    {
+        remove(tmp);
+        return NULL;
+    }
+    return copy;
+}
+
+static void note_copy_source(const char *file);
+
+void lp_source_moved(const char *from, const char *to)
+{
+    const char *source = playing_copy_source();
+    /* as the source is written, tidy: the browser's on an iPod start with
+       its drive */
+    char was[MAX_PATH], now[MAX_PATH];
+    tidy_copy(was, sizeof(was), from);
+    const size_t len = strlen(was);
+    if (!source[0] || strncasecmp(source, was, len)
+        || (source[len] && source[len] != '/'))
+        return;
+    char moved[MAX_PATH];
+    if (to)
+    {
+        tidy_copy(now, sizeof(now), to);
+        snprintf(moved, sizeof(moved), "%s%s", now, source + len);
+    }
+    else
+        moved[0] = '\0';
+    note_copy_source(moved);
+}
+
+/* the copy playing is of this file now */
+static void note_copy_source(const char *file)
+{
+    strmemccpy(copy_source, file, sizeof(copy_source));
+    copy_source_read = true;
+    const int fd = open(LP_PLAYING_FROM, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fd >= 0)
+    {
+        fdprintf(fd, "%s\n", copy_source);
+        close(fd);
+    }
 }
 
 /* The rows: Shuffle Songs first, all of the playlist's in random order,
    then its songs; none for one without songs */
 #define SHUFFLE_ROW 0
 
+/* and On-The-Go's last, as on a stock iPod: Save Playlist, Clear Playlist */
+static bool is_save_row(int row)
+{
+    return lp.otg && lp.count > 0 && row == lp.count + 1;
+}
+
+static bool is_clear_row(int row)
+{
+    return lp.otg && lp.count > 0 && row == lp.count + 2;
+}
+
+static bool is_song_row(int row)
+{
+    return row > SHUFFLE_ROW && row <= lp.count;
+}
+
 static int lp_rows(void)
 {
-    return lp.count > 0 ? lp.count + 1 : 0;
+    return lp.count > 0 ? lp.count + 1 + (lp.otg ? 2 : 0) : 0;
 }
 
 static const char *lp_name(int row, void *data, char *buf, size_t size)
@@ -857,6 +1508,10 @@ static const char *lp_name(int row, void *data, char *buf, size_t size)
     (void)size;
     if (row == SHUFFLE_ROW)
         return str(LANG_SHUFFLE_SONGS);
+    if (is_save_row(row))
+        return str(LANG_SAVE_PLAYLIST);
+    if (is_clear_row(row))
+        return str(LANG_ON_THE_GO_CLEAR);
     return lp.pool + lp.names[row - 1];
 }
 
@@ -869,7 +1524,7 @@ static bool lp_shuffle_row(int row, void *data)
 static bool lp_playing(int row, void *data)
 {
     (void)data;
-    return row != SHUFFLE_ROW && lp.from_this
+    return is_song_row(row) && lp.from_this
            && gui_synclist_playing() == (long)lp.songs[row - 1].idx + 1;
 }
 
@@ -892,13 +1547,18 @@ static bool lp_play(int song)
             return false;
     }
     char dir[MAX_PATH];
-    strmemccpy(dir, lp.file, sizeof(dir));
+    const char *copy = NULL;
+    if (!lp.library && !(copy = make_copy(lp.file)))
+        return false;
+    strmemccpy(dir, copy ? copy : lp.file, sizeof(dir));
     char *name = strrchr(dir, '/');
     if (!name)
         return false;
     *name++ = '\0';
     if (playlist_create(dir[0] ? dir : "/", name) < 0)
         return false;
+    if (copy)
+        note_copy_source(lp.file);
     /* not past its end, as with fewer files allowed in a playlist */
     const int amount = playlist_amount();
     if (amount <= 0)
@@ -921,6 +1581,248 @@ static bool lp_play(int song)
     return true;
 }
 
+/* the song out of the queue too, if it plays from this playlist: its first
+   time after the one playing, else another than that */
+static void remove_from_queue(const char *path)
+{
+    const int amount = playlist_amount();
+    const int playing = playlist_get_current()->index;
+    int found = -1;
+    struct playlist_track_info info;
+    for (int k = 1; k < amount && found < 0; k++)
+    {
+        const int i = (playing + k) % amount;
+        if (playlist_get_track_info(NULL, i, &info) >= 0
+            && lp_same_file(info.filename, path))
+            found = i;
+    }
+    if (found >= 0)
+    {
+        playlist_delete(NULL, found);
+        playlist_sync(NULL);
+    }
+}
+
+/* The music playing straight from this playlist's file moved to a copy of
+   it, at the same song and place, before the file changes under it: it
+   keeps its songs by where their lines are. */
+static void play_from_copy_instead(void)
+{
+    if (!playing_straight_from(lp.file))
+        return;
+    const struct mp3entry *id3 = audio_current_track();
+    if (!id3 || !id3->path[0])
+        return;
+    char playing[MAX_PATH], path[MAX_PATH];
+    strmemccpy(playing, id3->path, sizeof(playing));
+    const unsigned long elapsed = id3->elapsed, offset = id3->offset;
+    const bool paused = audio_status() & AUDIO_STATUS_PAUSE;
+    int start = -1;
+    struct tagcache_search tcs;
+    if (tagcache_search(&tcs, tag_filename))
+    {
+        for (int i = 0; i < lp.total && start < 0; i++)
+        {
+            if (lp.songs[i].line != LP_NO_LINE
+                && tagcache_retrieve(&tcs, lp.songs[i].idx, tag_filename,
+                                     path, sizeof(path))
+                && lp_same_file(path, playing))
+                start = lp.songs[i].line;
+        }
+        tagcache_search_finish(&tcs);
+    }
+    const char *copy = start >= 0 ? make_copy(lp.file) : NULL;
+    if (!copy)
+        return;
+    strmemccpy(path, copy, sizeof(path));
+    char *name = strrchr(path, '/');
+    *name++ = '\0';
+    if (playlist_create(path, name) < 0)
+        return;
+    note_copy_source(lp.file);
+    if (global_settings.playlist_shuffle)
+        start = playlist_shuffle(current_tick, start);
+    playlist_start(start, elapsed, offset);
+    if (paused)
+        audio_pause();
+}
+
+/* A song out of a playlist made on the iPod, as its line goes from the file:
+   the file written again a block at a time, its other lines as they were;
+   an .m3u's as an .m3u8, in UTF-8, as anything written to it would be.
+   On-The-Go with none left is no file, as when it was cleared. The list and
+   the index without it, not made again. */
+static bool lp_remove(int song)
+{
+    play_from_copy_instead();
+    const uint32_t line_no = lp.songs[song].line;
+    char dir[MAX_PATH], out_path[MAX_PATH], tmp[MAX_PATH + 4], song_file[MAX_PATH];
+    const bool m3u = playlist_dir(lp.file, dir, sizeof(dir));
+    strmemccpy(out_path, lp.file, sizeof(out_path));
+    bool convert = false;
+    if (m3u)
+    {
+        char *ext = strrchr(out_path, '.');
+        snprintf(ext, sizeof(out_path) - (ext - out_path), ".m3u8");
+        convert = !file_exists(out_path) && !dir_exists(out_path);
+        if (!convert)
+            strmemccpy(out_path, lp.file, sizeof(out_path));
+    }
+    song_file[0] = '\0';
+    struct tagcache_search tcs;
+    if (tagcache_search(&tcs, tag_filename))
+    {
+        tagcache_retrieve(&tcs, lp.songs[song].idx, tag_filename, song_file,
+                          sizeof(song_file));
+        tagcache_search_finish(&tcs);
+    }
+
+    const size_t room = lp.pool_size - lp.pool_used;
+    if (room < 4 * MAX_PATH)
+        return false;
+    const size_t in_size = room / 2, out_size = room - in_size;
+    char *in = lp.pool + lp.pool_used, *out = in + in_size;
+    const int fd = m3u ? open(lp.file, O_RDONLY) : open_utf8(lp.file, O_RDONLY);
+    if (fd < 0)
+        return false;
+    snprintf(tmp, sizeof(tmp), "%s.tmp", out_path);
+    const int wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    bool ok = wfd >= 0;
+    size_t have = 0, put = 0;
+    uint32_t songs_seen = 0, songs_kept = 0;
+    bool end = false;
+    while (ok && !end)
+    {
+        const ssize_t n = read(fd, in + have, in_size - 1 - have);
+        if (n <= 0)
+            end = true;
+        else
+            have += n;
+        in[have] = '\0';
+        char *line = in;
+        for (;;)
+        {
+            char *nl = strchr(line, '\n');
+            if (!nl && !end)
+                break;
+            if (nl)
+                *nl = '\0';
+            size_t len = strlen(line);
+            if (len && line[len - 1] == '\r')
+                line[--len] = '\0';
+            const bool is_song = len && line[0] != '#';
+            const bool gone = is_song && songs_seen++ == line_no;
+            if ((len || nl) && !gone)
+            {
+                char decoded[MAX_PATH];
+                const char *text = line;
+                if (convert)
+                {
+                    *iso_decode_ex((const unsigned char *)line,
+                                   (unsigned char *)decoded, -1, len,
+                                   sizeof(decoded) - 1) = '\0';
+                    text = decoded;
+                }
+                const size_t tlen = strlen(text);
+                if (put + tlen + 1 > out_size)
+                {
+                    ok = write(wfd, out, put) == (ssize_t)put;
+                    put = 0;
+                }
+                if (tlen + 1 <= out_size)
+                {
+                    memcpy(out + put, text, tlen);
+                    out[put + tlen] = '\n';
+                    put += tlen + 1;
+                }
+                songs_kept += is_song;
+            }
+            if (!nl)
+            {
+                line += len;
+                break;
+            }
+            line = nl + 1;
+        }
+        have = in + have - line;
+        memmove(in, line, have);
+        if (have >= in_size - 1)
+            have = 0;
+        yield();
+    }
+    close(fd);
+    if (ok && put)
+        ok = write(wfd, out, put) == (ssize_t)put;
+    if (wfd >= 0 && close(wfd) < 0)
+        ok = false;
+    if (ok && lp.otg && songs_kept == 0)
+    {
+        remove(tmp);
+        remove(lp.file);
+        lp_index_forget(lp.file);
+        lp.count = lp.total = 0;
+        if (song_file[0] && playing_from(lp.file))
+            remove_from_queue(song_file);
+        return true;
+    }
+    if (!ok || rename(tmp, out_path) < 0)
+    {
+        remove(tmp);
+        return false;
+    }
+    const bool from_this = playing_from(lp.file);
+    if (convert)
+    {
+        remove(lp.file);
+        lp_index_forget(lp.file);
+        lp_source_moved(lp.file, out_path);
+        strmemccpy(lp.file, out_path, sizeof(lp.file));
+    }
+
+    /* the list as the file is now: its songs after it a line earlier */
+    memmove(&lp.songs[song], &lp.songs[song + 1],
+            (lp.total - song - 1) * sizeof(*lp.songs));
+    if (song < lp.count)
+        memmove(&lp.names[song], &lp.names[song + 1],
+                (lp.count - song - 1) * sizeof(*lp.names));
+    lp.total--;
+    if (song < lp.count)
+        lp.count--;
+    for (int i = 0; i < lp.total; i++)
+    {
+        if (lp.songs[i].line != LP_NO_LINE && lp.songs[i].line > line_no)
+            lp.songs[i].line--;
+    }
+    lp.state.lines--;
+    lp_index_write(lp.file, lp.songs, lp.total, &lp.state);
+    if (from_this && song_file[0])
+        remove_from_queue(song_file);
+    return true;
+}
+
+/* On-The-Go as a playlist of its own on the iPod, as on a stock one: "On-The-Go
+   1", the first number free, in the catalogue; On-The-Go empty again */
+static bool lp_save_otg(char *saved, size_t size)
+{
+    char root[MAX_PATH];
+    if (!catalog_directory_name(root, sizeof(root)))
+        return false;
+    for (int n = 1; n < 1000; n++)
+    {
+        snprintf(saved, size, "%s/%s %d.m3u8", root, str(LANG_ON_THE_GO), n);
+        char folder[MAX_PATH];
+        snprintf(folder, sizeof(folder), "%s/%s %d", root, str(LANG_ON_THE_GO), n);
+        if (file_exists(saved) || dir_exists(folder))
+            continue;
+        if (rename(OTG_FILE, saved) < 0)
+            return false;
+        lp_index_moved(OTG_FILE, saved);
+        lp_source_moved(OTG_FILE, saved);
+        return true;
+    }
+    return false;
+}
+
 /* a held Select: the menu of the song, as in Songs */
 static int lp_song_menu(int song)
 {
@@ -936,9 +1838,19 @@ static int lp_song_menu(int song)
     /* its own: what the menu opens may take the plugin buffer */
     strmemccpy(title, lp.pool + lp.names[song], sizeof(title));
     onplay_set_title(title);
-    switch (onplay(path, FILE_ATTR_AUDIO, CONTEXT_STD, false,
-                   ONPLAY_NO_CUSTOMACTION))
+    /* out of one made on the iPod */
+    onplay_set_removable(!lp.library);
+    const long size_before = file_size(lp.file);
+    const int result = onplay(path, FILE_ATTR_AUDIO, CONTEXT_STD, false,
+                              ONPLAY_NO_CUSTOMACTION);
+    /* songs added to this one from it, as by Add to Playlist */
+    if (result != ONPLAY_REMOVE && file_size(lp.file) != size_before)
+        lp_load();
+    switch (result)
     {
+        case ONPLAY_REMOVE:
+            lp_remove(song);
+            return -1;
         case ONPLAY_START_PLAY:
             return PLAYLIST_VIEWER_OK;
         case ONPLAY_MAINMENU:
@@ -951,6 +1863,8 @@ static int lp_song_menu(int song)
 int lp_view(const char *file, int *selection)
 {
     tidy_copy(lp.file, sizeof(lp.file), file);
+    lp.library = itunesdb_own_playlist(lp.file);
+    lp.otg = lp_same_file(lp.file, OTG_FILE);
     /* songs have the whole width, as the lists of Music from Artists on, and
        Loading before them is in the middle of it, not of the menu's part */
     const bool was_wide = menu_wide();
@@ -972,6 +1886,8 @@ int lp_view(const char *file, int *selection)
     char *ext = strrchr(title, '.');
     if (ext && ext != title)
         *ext = '\0';
+    if (lp.otg)
+        strmemccpy(title, str(LANG_ON_THE_GO), sizeof(title));
 
     push_current_activity(ACTIVITY_PLAYLISTVIEWER);
     /* from the screen before, not from Loading */
@@ -1035,6 +1951,40 @@ int lp_view(const char *file, int *selection)
             case ACTION_STD_OK:
                 if (lp.count <= 0)
                     break;
+                if (is_save_row(row))
+                {
+                    char saved[MAX_PATH];
+                    if (lp_save_otg(saved, sizeof(saved)))
+                    {
+                        catalog_select_playlist(saved);
+                        transition_begin(TRANSITION_BACK);
+                        ret = PLAYLIST_VIEWER_CANCEL;
+                    }
+                    break;
+                }
+                if (is_clear_row(row))
+                {
+                    /* as Reset Settings asks, Cancel first */
+                    static const struct opt_items items[] = {
+                        { STR(LANG_ON_THE_GO_CLEAR) }, { STR(LANG_CANCEL_0) },
+                    };
+                    int choice = 1;
+                    if (set_option(str(LANG_ON_THE_GO_CLEAR), &choice, RB_INT,
+                                   items, ARRAYLEN(items), NULL))
+                    {
+                        ret = PLAYLIST_VIEWER_USB;
+                        break;
+                    }
+                    if (choice == 0)
+                    {
+                        remove(OTG_FILE);
+                        lp_index_forget(OTG_FILE);
+                        transition_begin(TRANSITION_BACK);
+                        ret = PLAYLIST_VIEWER_CANCEL;
+                    }
+                    redraw = true;
+                    break;
+                }
                 if (row == SHUFFLE_ROW)
                 {
                     if (lp_play(-1))
@@ -1055,9 +2005,22 @@ int lp_view(const char *file, int *selection)
                 redraw = true;
                 break;
             case ACTION_STD_CONTEXT:
-                if (lp.count <= 0 || row == SHUFFLE_ROW)
+                if (lp.count <= 0 || !is_song_row(row))
                     break;
-                ret = lp_song_menu(row - 1);
+                /* On-The-Go's song out at once, as on a stock iPod */
+                if (lp.otg)
+                    lp_remove(row - 1);
+                else
+                    ret = lp_song_menu(row - 1);
+                /* a song fewer, perhaps; none left of On-The-Go, back */
+                if (lp.otg && lp.count <= 0)
+                {
+                    transition_begin(TRANSITION_BACK);
+                    ret = PLAYLIST_VIEWER_CANCEL;
+                    break;
+                }
+                gui_synclist_set_nb_items(&list, lp_rows());
+                gui_synclist_select_item(&list, MAX(MIN(row, lp_rows() - 1), 0));
                 redraw = true;
                 break;
             case ACTION_STD_CANCEL:
@@ -1091,8 +2054,12 @@ int lp_view_current(void)
     struct lp_state state;
     /* as many songs as its file has: none put in from elsewhere, none taken
        out, which the list from its index wouldn't show */
-    if (!playlist_get_name(NULL, name, sizeof(name)) || !lp_is_library(name)
-        || lp_index_read(name, NULL, 0, &state) < 0
+    if (!playlist_get_name(NULL, name, sizeof(name)))
+        return -1;
+    /* one made on the iPod, from the copy of it playing */
+    if (is_copy(name))
+        strmemccpy(name, playing_copy_source(), sizeof(name));
+    if (!lp_viewable(name) || lp_index_read(name, NULL, 0, &state) < 0
         || (int)state.lines != playlist_amount())
         return -1;
     lp.at_playing = true;

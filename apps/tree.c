@@ -79,6 +79,9 @@
 #include "root_menu.h"
 #include "on_the_go.h"
 #ifdef HAVE_TAGCACHE
+#include "ipod_playlists.h"
+#endif
+#ifdef HAVE_TAGCACHE
 #include "music_search.h"
 #endif
 
@@ -136,10 +139,19 @@ static int catalog_folders; /* the folders before the playlists, or 0 if not bot
    top, when it's viewed; none of the catalogue's entries */
 static bool catalog_otg, catalog_otg_empty;
 static bool catalog_on_otg; /* the cursor was on it, and goes back there */
+/* New Playlist and New Folder, the first rows of each level of the catalogue
+   as it's viewed; Move Here and New Folder as a folder is picked */
+static int catalog_lead;
+#define LEAD_FIRST  0
+#define LEAD_FOLDER 1
 
 static void catalog_count(void)
 {
     catalog_folders = 0;
+    catalog_lead = *tc.dirfilter == SHOW_M3U && tc.browse
+                   && (tc.browse->flags & (BROWSE_ON_THE_GO | BROWSE_PICK_FOLDER
+                                           | BROWSE_PICK_PLAYLIST))
+                   ? 2 : 0;
     catalog_otg = *tc.dirfilter == SHOW_M3U && tc.browse
                   && (tc.browse->flags & BROWSE_ON_THE_GO) && tc.dirlevel == 0;
     if (catalog_otg)
@@ -156,13 +168,19 @@ static void catalog_count(void)
 
 static bool catalog_group(int row)
 {
+    row -= catalog_lead;
     return catalog_folders && (row == 0 || row == catalog_folders + 1);
+}
+
+static bool catalog_lead_row(int row)
+{
+    return row < catalog_lead;
 }
 
 /* the rows of the entries and their groups' names, and On-The-Go's after them */
 static int catalog_rows(void)
 {
-    return tc.filesindir + (catalog_folders ? 2 : 0);
+    return catalog_lead + tc.filesindir + (catalog_folders ? 2 : 0);
 }
 
 static bool catalog_otg_row(int row)
@@ -180,12 +198,13 @@ static bool tree_is_group(int row, void *data)
 static int row_of(int index)
 {
     if (!catalog_folders)
-        return index;
-    return index + (index < catalog_folders ? 1 : 2);
+        return catalog_lead + index;
+    return catalog_lead + index + (index < catalog_folders ? 1 : 2);
 }
 
 static int index_of(int row)
 {
+    row = MAX(row - catalog_lead, 0);
     if (!catalog_folders)
         return row;
     return MAX(row - (row <= catalog_folders ? 1 : 2), 0);
@@ -234,8 +253,12 @@ static const char* tree_get_filename(int selected_item, void *data,
     {
         if (catalog_otg_row(selected_item))
             return str(LANG_ON_THE_GO);
+        if (catalog_lead_row(selected_item))
+            return str(selected_item == LEAD_FOLDER ? LANG_NEW_FOLDER :
+                       (tc.browse->flags & BROWSE_PICK_FOLDER) ? LANG_MOVE_HERE
+                                                               : LANG_NEW_PLAYLIST);
         if (catalog_group(selected_item))
-            return str(selected_item ? LANG_PLAYLISTS : LANG_FOLDERS);
+            return str(selected_item > catalog_lead ? LANG_PLAYLISTS : LANG_FOLDERS);
         struct entry *entry = get_valid_entry(__func__, local_tc,
                                               index_of(selected_item));
         name = entry->name;
@@ -253,7 +276,7 @@ static const char* tree_get_filename(int selected_item, void *data,
 static int tree_get_filecolor(int selected_item, void * data)
 {
     if (*tc.dirfilter == SHOW_ID3DB || catalog_group(selected_item)
-        || catalog_otg_row(selected_item))
+        || catalog_otg_row(selected_item) || catalog_lead_row(selected_item))
         return -1;
     struct tree_context * local_tc=(struct tree_context *)data;
     struct entry *entry = get_valid_entry(__func__, local_tc, index_of(selected_item));
@@ -273,6 +296,26 @@ static bool tree_is_playing(int selected_item, void *data)
 }
 #endif
 
+#ifdef HAVE_TAGCACHE
+/* The mark before a playlist's or folder's name in Playlists: a computer for
+   one synced from Finder, as the import's list has it, an iPod for one made
+   on the iPod or put there by hand, and On-The-Go. New Playlist, New Folder
+   and Move Here are names alone, as the groups' */
+static int tree_get_mark(int selected_item, void *data)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    if (catalog_group(selected_item) || catalog_lead_row(selected_item))
+        return LINE_MARK_NONE;
+    if (catalog_otg_row(selected_item))
+        return LINE_MARK_IPOD;
+    struct entry *entry = get_valid_entry(__func__, local_tc,
+                                          index_of(selected_item));
+    char path[MAX_PATH];
+    ft_assemble_path(path, sizeof(path), local_tc->currdir, entry->name);
+    return ip_is_synced(path) ? LINE_MARK_COMPUTER : LINE_MARK_IPOD;
+}
+#endif
+
 /* Folders, database levels and playlists lead to more, tracks don't */
 static bool tree_has_children(int selected_item, void * data)
 {
@@ -283,11 +326,13 @@ static bool tree_has_children(int selected_item, void * data)
 #endif
     if (catalog_otg_row(selected_item))
         return !catalog_otg_empty;
-    if (catalog_group(selected_item))
+    if (catalog_group(selected_item) || catalog_lead_row(selected_item))
         return false;
     struct entry *entry = get_valid_entry(__func__, local_tc, index_of(selected_item));
     return (entry->attr & ATTR_DIRECTORY)
-        || (entry->attr & FILE_ATTR_MASK) == FILE_ATTR_M3U;
+        || ((entry->attr & FILE_ATTR_MASK) == FILE_ATTR_M3U
+            && !(*local_tc->dirfilter == SHOW_M3U
+                 && (entry->attr & ENTRY_EMPTY_PLAYLIST)));
 }
 
 static enum themable_icons tree_get_fileicon(int selected_item, void * data)
@@ -303,7 +348,7 @@ static enum themable_icons tree_get_fileicon(int selected_item, void * data)
     {
         if (catalog_otg_row(selected_item))
             return Icon_Playlist;
-        if (catalog_group(selected_item))
+        if (catalog_group(selected_item) || catalog_lead_row(selected_item))
             return Icon_NOICON;
         struct entry *entry = get_valid_entry(__func__, local_tc,
                                               index_of(selected_item));
@@ -363,7 +408,7 @@ static int tree_voice_cb(int selected_item, void * data)
             talk_id(LANG_ON_THE_GO, false);
             return 0;
         }
-        if (catalog_group(selected_item))
+        if (catalog_group(selected_item) || catalog_lead_row(selected_item))
             return 0;
         struct entry *entry = get_valid_entry(__func__, local_tc,
                                               index_of(selected_item));
@@ -670,6 +715,8 @@ static int update_dir(void)
     gui_synclist_set_has_children_callback(list, tree_has_children);
 #ifdef HAVE_TAGCACHE
     gui_synclist_set_playing_callback(list, id3db ? tree_is_playing : NULL);
+    /* in the catalogue, not in the file browser showing playlists */
+    gui_synclist_set_mark_callback(list, catalog_lead ? tree_get_mark : NULL);
     if(!id3db || global_settings.talk_menu)
 #endif
     {
@@ -681,10 +728,12 @@ static int update_dir(void)
     if( tc.selected_item >= tc.filesindir)
         tc.selected_item=tc.filesindir-1;
 
-    if (catalog_otg && (catalog_on_otg || tc.filesindir <= 0))
+    /* back on On-The-Go, unless it was saved as a playlist, which the cursor
+       goes to */
+    if (catalog_otg && ((catalog_on_otg && !catalog_otg_empty) || tc.filesindir <= 0))
         gui_synclist_select_item(list, catalog_rows());
     else
-        gui_synclist_select_item(list, row_of(tc.selected_item));
+        gui_synclist_select_item(list, tc.filesindir > 0 ? row_of(tc.selected_item) : 0);
     gui_synclist_draw(list);
     gui_synclist_speak_item(list);
     return tc.filesindir;
@@ -871,6 +920,43 @@ static int exit_to_new_screen(int screen)
     return screen;
 }
 
+#ifdef HAVE_TAGCACHE
+/* the cursor on this one, of the folder viewed, as it's loaded again */
+void tree_select_after_reload(const char *path)
+{
+    const char *base = strrchr(path, '/');
+    strmemccpy(lastfile, base ? base + 1 : path, MAX_PATH);
+    tc.selected_item = -1;
+    reload_dir = true;
+}
+
+/* A held Select on a folder of the catalogue the iPod may change: Rename
+   and Delete. False for USB. */
+static bool catalog_folder_menu(const char *path, const char *name)
+{
+    MENUITEM_STRINGLIST(folder_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
+                        ID2P(LANG_RENAME), ID2P(LANG_DELETE));
+    char done[MAX_PATH];
+    int r = 0;
+    switch (do_menu(&folder_menu, NULL, NULL, false))
+    {
+        case 0:
+            r = ip_rename(path, done, sizeof(done));
+            if (r > 0)
+                tree_select_after_reload(done);
+            break;
+        case 1:
+            r = ip_delete(path, name);
+            break;
+        case MENU_ATTACHED_USB:
+            r = -1;
+            break;
+    }
+    reload_dir = true;
+    return r >= 0;
+}
+#endif
+
 /* main loop, handles key events */
 static int dirbrowse(void)
 {
@@ -905,7 +991,8 @@ static int dirbrowse(void)
     if (numentries == -1)
         return exit_to_new_screen(GO_TO_PREVIOUS);  /* currdir is not a directory */
 
-    if (*tc.dirfilter > NUM_FILTER_MODES && numentries==0 && !catalog_otg)
+    if (*tc.dirfilter > NUM_FILTER_MODES && numentries==0 && !catalog_otg
+        && !catalog_lead)
     {
         splash(HZ*2, *tc.dirfilter == SHOW_M3U ?
                      ID2P(LANG_CATALOG_NO_PLAYLISTS) : ID2P(LANG_NO_FILES));
@@ -923,6 +1010,8 @@ static int dirbrowse(void)
         oldbutton = button;
         gui_synclist_do_button(&tree_lists, &button);
         const bool on_otg = catalog_otg_row(gui_synclist_get_sel_pos(&tree_lists));
+        const int lead_row = gui_synclist_get_sel_pos(&tree_lists);
+        const bool on_lead = catalog_lead_row(lead_row);
         if (catalog_otg)
             catalog_on_otg = on_otg;
         /* an entry's still, for what goes by it */
@@ -980,6 +1069,48 @@ static int dirbrowse(void)
                 }
             }
         #endif
+#ifdef HAVE_TAGCACHE
+        if (on_lead)
+        {
+            /* New Playlist, New Folder, or as a folder is picked, Move Here:
+               this one */
+            if (button == ACTION_STD_OK)
+            {
+                char made[MAX_PATH];
+                int r;
+                if (lead_row == LEAD_FIRST
+                    && (tc.browse->flags & BROWSE_PICK_FOLDER))
+                {
+                    tc.browse->flags |= BROWSE_SELECTED;
+                    strmemccpy(tc.browse->buf, currdir, tc.browse->bufsize);
+                    return exit_to_new_screen(GO_TO_PREVIOUS);
+                }
+                r = lead_row == LEAD_FOLDER ? ip_new_folder(currdir, made, sizeof(made))
+                                            : ip_new_playlist(currdir, made, sizeof(made));
+                if (r < 0)
+                    return exit_to_new_screen(GO_TO_ROOT);
+                /* a new one picked at once, to add to */
+                if (r > 0 && lead_row == LEAD_FIRST
+                    && (tc.browse->flags & BROWSE_PICK_PLAYLIST))
+                {
+                    tc.browse->flags |= BROWSE_SELECTED;
+                    strmemccpy(tc.browse->buf, made, tc.browse->bufsize);
+                    return exit_to_new_screen(GO_TO_PREVIOUS);
+                }
+                if (r > 0)
+                    tree_select_after_reload(made);
+                else
+                    reload_dir = true; /* the screen of the name over it */
+            }
+            /* Menu, Play, USB and the rest as on any row */
+            if (button == ACTION_STD_OK || button == ACTION_STD_CONTEXT
+#ifdef HAVE_HOTKEY
+                || button == ACTION_TREE_HOTKEY
+#endif
+               )
+                button = ACTION_NONE;
+        }
+#endif
         if (on_otg)
         {
             /* On-The-Go: its file, as a playlist's, or nothing while empty */
@@ -1001,6 +1132,12 @@ static int dirbrowse(void)
             case ACTION_STD_OK:
                 /* nothing to do if no files to display */
                 if ( numentries == 0 )
+                    break;
+                /* a playlist without songs, as On-The-Go empty: nothing to
+                   view, though one may be picked to add songs to */
+                if ((tc.browse->flags & BROWSE_ON_THE_GO)
+                    && (get_valid_entry(__func__, &tc, tc.selected_item)->attr
+                        & ENTRY_EMPTY_PLAYLIST))
                     break;
                 if (tc.browse->flags & BROWSE_SELECTONLY)
                 {
@@ -1146,11 +1283,25 @@ static int dirbrowse(void)
                 if (tc.browse->flags & BROWSE_NO_CONTEXT_MENU)
                     break;
                 /* a folder of playlists has no songs of its own for Playing Next
-                   and Add to Playlist, which are all the menu has here */
+                   and Add to Playlist: its menu, of one made on the iPod, has
+                   Rename and Delete */
                 if (numentries && *tc.dirfilter == SHOW_M3U
                     && (get_valid_entry(__func__, &tc, tc.selected_item)->attr
                         & ATTR_DIRECTORY))
+                {
+#ifdef HAVE_TAGCACHE
+                    struct entry *entry = get_valid_entry(__func__, &tc,
+                                                          tc.selected_item);
+                    char name[MAX_PATH];
+                    strmemccpy(name, entry->name, sizeof(name));
+                    ft_assemble_path(buf, sizeof(buf), currdir, name);
+                    if ((tc.browse->flags & BROWSE_ON_THE_GO)
+                        && ip_folder_editable(buf)
+                        && !catalog_folder_menu(buf, name))
+                        return exit_to_new_screen(GO_TO_ROOT);
+#endif
                     break;
+                }
 
                 if(!numentries)
                     onplay_result = onplay(NULL, 0, curr_context, hotkey, customaction);
@@ -1466,7 +1617,12 @@ int rockbox_browse(struct browse_context *browse)
 
     backup_count--;
     if (backup_count >= 0)
+    {
         tc = backups[backup_count];
+        /* the cache has the listing of the browser that's gone, as a picker
+           of playlists filtered it: this one's read again */
+        lastdir[0] = '\0';
+    }
 
     return ret_val;
 }

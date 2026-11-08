@@ -478,6 +478,28 @@ static const unsigned char shuffle_alpha[] = {
     0x01, 0x00, 0xe4, 0xff, 0x1a, 0x00, 0x00, 0xd1, 0xbd, 0xcb, 0xff, 0xff,
     0xef, 0x6b, 0x40, 0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0x9f, 0xf9, 0xff,
 };
+/* the marks of the catalogue's playlists and folders, by the same tool */
+#define COMPUTER_W 13
+#define COMPUTER_H 12
+static const unsigned char computer_alpha[] = {
+    0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x00, 0xf0, 0xff, 0xff, 0xff,
+    0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x00, 0xf0, 0xff, 0xff,
+    0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf7, 0xff,
+    0xff, 0x00, 0xf0, 0xff, 0xff, 0xff, 0x2f, 0x00, 0x00, 0x20, 0xff, 0xff,
+    0xff, 0x02, 0x00, 0x00, 0xf2, 0xff,
+};
+#define IPOD_W 10
+#define IPOD_H 13
+static const unsigned char ipod_alpha[] = {
+    0x07, 0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,
+    0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x50, 0xee, 0x05, 0x00, 0x00, 0xe0, 0xff, 0x0e, 0x00, 0x00, 0xe0, 0xff,
+    0x0e, 0x00, 0x00, 0x50, 0xee, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x07, 0x00, 0x00, 0x00, 0x70,
+};
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
@@ -571,6 +593,54 @@ int line_shuffle_width(struct screen *display)
 #endif
     (void)display;
     return 0;
+}
+
+#define MARK_COLUMN 13 /* the widest of them */
+#define MARK_GAP    4  /* and the names close after it */
+int line_mark_width(struct screen *display)
+{
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type == SCREEN_MAIN && !lang_is_rtl())
+        return MARK_COLUMN + MARK_GAP;
+#endif
+    (void)display;
+    return 0;
+}
+
+/* in the middle of their column, in the colour of the names */
+void line_draw_mark(struct screen *display, int x, int y,
+                    const struct line_desc *line, int mark)
+{
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (!line_mark_width(display))
+        return;
+    const unsigned char *alpha;
+    int w, h;
+    switch (mark)
+    {
+        case LINE_MARK_COMPUTER:
+            alpha = computer_alpha; w = COMPUTER_W; h = COMPUTER_H;
+            break;
+        case LINE_MARK_IPOD:
+            alpha = ipod_alpha; w = IPOD_W; h = IPOD_H;
+            break;
+        default:
+            return;
+    }
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    const unsigned fg = display->get_foreground();
+    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
+        display->set_foreground(line->text_color);
+    else if (line->style & STYLE_INVERT) /* as the text on the bar */
+        display->set_foreground(display->get_background());
+    display->set_drawmode(DRMODE_FG);
+    lcd_alpha_bitmap_part(alpha, 0, 0, w, x + (MARK_COLUMN - w) / 2,
+                          y + (height - h) / 2, w, h);
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+#else
+    (void)display; (void)x; (void)y; (void)line; (void)mark;
+#endif
 }
 
 /* before the text, rather than at the end with the speaker and the chevron:

@@ -15266,6 +15266,118 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_NEW_PLAYLIST
+  desc: the first row of each level of Playlists and of the list Add to Playlist picks from: a playlist made on the iPod, named with the letter ring
+  user: core
+  <source>
+    *: "New Playlist"
+  </source>
+  <dest>
+    *: "Zerrenda berria"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NEW_FOLDER
+  desc: the second row of each level of Playlists and of the list Add to Playlist and Move to Folder pick from: a folder for playlists, named with the letter ring
+  user: core
+  <source>
+    *: "New Folder"
+  </source>
+  <dest>
+    *: "Karpeta berria"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SAVE_PLAYLIST
+  desc: a row at the end of On-The-Go: it becomes a playlist of its own on the iPod, On-The-Go 1, and On-The-Go is emptied
+  user: core
+  <source>
+    *: "Save Playlist"
+  </source>
+  <dest>
+    *: "Gorde zerrenda"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MOVE_TO_FOLDER
+  desc: in the menu of a playlist made on the iPod: picks a folder of Playlists to put it in
+  user: core
+  <source>
+    *: "Move to Folder..."
+  </source>
+  <dest>
+    *: "Mugitu karpetara..."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MOVE_HERE
+  desc: the first row of each level as a folder is picked for a playlist: puts it in this folder
+  user: core
+  <source>
+    *: "Move Here"
+  </source>
+  <dest>
+    *: "Mugitu hona"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NAME_TAKEN
+  desc: a short message as a playlist or folder is named: one of that name is already there
+  user: core
+  <source>
+    *: "That Name Is Taken"
+  </source>
+  <dest>
+    *: "Izen hori hartuta dago"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DELETE_FOLDER_WITH
+  desc: the choice asked before a folder of Playlists is deleted with the playlists in it; %d is how many
+  user: core
+  <source>
+    *: "Delete Folder and %d Playlists"
+  </source>
+  <dest>
+    *: "Ezabatu karpeta eta %d zerrenda"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NAME_KEYS
+  desc: under the letter ring as a playlist or a folder is named: the iPod's buttons that cancel it and save it; keep Menu and Play as the iPod's own phrases name those buttons
+  user: core
+  <source>
+    *: "Menu – Cancel, Play – Save"
+  </source>
+  <dest>
+    *: "Menu – Utzi, Play – Gorde"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_NOW_PLAYING_MENU
   desc: a row of Settings, after Music Menu, and its title: which rows the menu held Select opens over Now Playing has, each On or Off
   user: core

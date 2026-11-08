@@ -84,6 +84,21 @@ void lp_index_all(bool (*go_on)(void));
 
 /* one of the import's, with the database in memory to show it from */
 bool lp_is_library(const char *file);
+/* one lp_view() shows: any of Playlists, the import's and those made on the
+   iPod or put there by hand, while the database is in memory */
+bool lp_viewable(const char *file);
+/* songs added at the end of a playlist made on the iPod, which was old_size
+   before: its index and, if it plays, the queue with them */
+void lp_index_appended(const char *file, long old_size);
+/* a song the database lost, as a sync or USB took its file: out of the
+   playlists made on the iPod at Updating Library; and the notes, to the disk */
+void lp_gone_note(const char *path);
+void lp_gone_flush(void);
+/* a playlist renamed or moved, its index with it */
+void lp_index_moved(const char *from, const char *to);
+/* a playlist or folder renamed or moved, to, or removed, NULL: the copy
+   playing of it, or of one in it, as of it still */
+void lp_source_moved(const char *from, const char *to);
 /* its screen: a playlist viewer's result */
 int lp_view(const char *file, int *selection);
 /* the same, at the song playing, as the current playlist: if the music is
