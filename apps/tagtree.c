@@ -229,6 +229,7 @@ static struct tagentry root_entries[TAGMENU_MAX_ITEMS];
 static int root_rows;
 
 static struct tagentry* tagtree_get_entry(struct tree_context *c, int id);
+static int tagtree_find_row(struct tree_context *c, const char *name);
 
 #define SEARCHSTR_SIZE 256
 
@@ -407,6 +408,18 @@ static int root_row_of(int item)
     return row;
 }
 
+/* The item of Music's own menu by its phrase, -1 if tagnavi.config hasn't it */
+static int root_item_of(int lang)
+{
+    const struct menu_root *root = menus[rootmenu];
+    for (int i = 0; root && i < root->itemcount; i++)
+    {
+        if (P2ID((const unsigned char *)root->items[i]->name) == lang)
+            return i;
+    }
+    return -1;
+}
+
 bool tagtree_music_empty(void)
 {
     const struct menu_root *root = menus[rootmenu];
@@ -420,9 +433,42 @@ bool tagtree_music_empty(void)
     return true;
 }
 
+/* A place in the lists, to go back to */
+struct tagtree_place
+{
+    struct menu_root *menu;
+    struct search_instruction *csi;
+    int result_seek[MAX_TAGS];
+    int currtable, currextra, dirlevel, selected_item, max_history_level;
+    int selected_item_history[MAX_DIR_LEVELS];
+    int table_history[MAX_DIR_LEVELS];
+    int extra_history[MAX_DIR_LEVELS];
+    char current_title[MAX_TAGS][sizeof(current_title[0])];
+};
+
+/* where the music playing was started, and where the lists were before they were
+   opened at the track playing */
+static struct tagtree_place saved_place, go_to_place;
+
+/* Artists' search with the other artists at its top, out of tagtree's buffer, as
+   go_to_row() makes it: [0] of the albums' artists, [1] of the songs'. Each is
+   made again only as it was, so that a place kept in one stays of its tag. With
+   the item of Music's own menu each is of, and the name of the row Menu left
+   one's top by, which that item's own list is opened at instead. */
+static struct search_instruction artists_copy[2];
+static int artists_copy_item[2];
+static char artists_copy_left[sizeof(current_title[0])];
+
 /* a few memory alloc helper */
 static int tagtree_handle;
 static size_t tagtree_bufsize, tagtree_buf_used;
+
+/* whether p points into the buffer, as it was at start */
+static bool in_buffer(const void *p, const void *start)
+{
+    return (const char *)p >= (const char *)start
+           && (const char *)p < (const char *)start + tagtree_bufsize;
+}
 
 #define UPDATE(x, y) { x = (typeof(x))((char*)(x) + (y)); }
 static int move_callback(int handle, void* current, void* new)
@@ -437,14 +483,35 @@ static int move_callback(int handle, void* current, void* new)
         UPDATE(menu, diff);
     }
 
-    if (csi)
+    /* the search, unless it's a copy, and the places, which point into it too */
+    if (csi && in_buffer(csi, current))
         UPDATE(csi, diff);
+    struct tagtree_place *const places[] = { &saved_place, &go_to_place };
+    for (size_t i = 0; i < ARRAYLEN(places); i++)
+    {
+        if (places[i]->menu && in_buffer(places[i]->menu, current))
+            UPDATE(places[i]->menu, diff);
+        if (places[i]->csi && in_buffer(places[i]->csi, current))
+            UPDATE(places[i]->csi, diff);
+    }
+    /* the copies' clauses, which are the menus' */
+    for (size_t i = 0; i < ARRAYLEN(artists_copy); i++)
+    {
+        struct search_instruction *si = &artists_copy[i];
+        for (int k = 0; k < si->tagorder_count; k++)
+        {
+            for (int l = 0; l < si->clause_count[k]; l++)
+            {
+                if (in_buffer(si->clause[k][l], current))
+                    UPDATE(si->clause[k][l], diff);
+            }
+        }
+    }
 
     /* the menu's rows, by their names here */
     for (int i = 0; i < root_rows; i++)
     {
-        char *name = root_entries[i].name;
-        if (name >= (char *)current && name < (char *)current + tagtree_bufsize)
+        if (in_buffer(root_entries[i].name, current))
             UPDATE(root_entries[i].name, diff);
     }
 
@@ -531,7 +598,7 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
     };
     uint32_t hash = words_hash(list, sizeof(list), 2166136261u);
     hash = text_hash(str(LANG_TAGNAVI_UNTAGGED), hash);
-    /* The search, which can be out of tagtree's buffer (album artists), and its
+    /* The search, which can be out of tagtree's buffer (artists_copy), and its
        clauses down to the list, which get what they look for as it is entered.
        The rest of tagtree's buffer changes only with the menus: with it, this
        took 11 ms on the iPod */
@@ -1770,6 +1837,88 @@ static void tagtree_unload(struct tree_context *c)
         tree_unlock_cache(c);
 }
 
+/* The levels of Music's Artists and Genres that list the songs' artists, as
+   tagnavi.config has them, a bit each, by the item's number in Music's own
+   menu: the buffer they're in moves. Group by Album Artist lists the albums'
+   artists there instead, the same list Go to Artist opens. */
+static uint8_t artist_levels[TAGMENU_MAX_ITEMS];
+
+static void artist_levels_mark(void)
+{
+    const struct menu_root *root = menus[rootmenu];
+    memset(artist_levels, 0, sizeof(artist_levels));
+    for (int i = 0; root && i < root->itemcount; i++)
+    {
+        const int lang = P2ID((const unsigned char *)root->items[i]->name);
+        const struct search_instruction *si = &root->items[i]->si;
+        if (root->items[i]->type != menu_next
+            || (lang != LANG_ARTISTS && lang != LANG_GENRES))
+            continue;
+        for (int level = 0; level < si->tagorder_count; level++)
+        {
+            if (si->tagorder[level] == tag_virt_canonicalartist)
+                artist_levels[i] |= 1 << level;
+        }
+    }
+}
+
+/* the tag Group by Album Artist has them list */
+static int artist_levels_wanted(void)
+{
+    return global_settings.artists_by_album_artist ? tag_albumartist
+                                                   : tag_virt_canonicalartist;
+}
+
+static void artist_levels_apply(void)
+{
+    const int tag = artist_levels_wanted();
+    const struct menu_root *root = rootmenu >= 0 ? menus[rootmenu] : NULL;
+    for (int i = 0; root && i < root->itemcount; i++)
+    {
+        for (int level = 0; level < MAX_TAGS; level++)
+        {
+            if (artist_levels[i] & (1 << level))
+                root->items[i]->si.tagorder[level] = tag;
+        }
+    }
+}
+
+/* the first of an item's levels, -1 if it has none */
+static int artist_levels_first(int item)
+{
+    for (int level = 0; level < MAX_TAGS; level++)
+    {
+        if (artist_levels[item] & (1 << level))
+            return level;
+    }
+    return -1;
+}
+
+/* the first of those levels, if the search is Artists' or Genres': -1 if not */
+static int artists_level(const struct search_instruction *si)
+{
+    const struct menu_root *root = rootmenu >= 0 ? menus[rootmenu] : NULL;
+    for (int i = 0; root && si && i < root->itemcount; i++)
+    {
+        if (&root->items[i]->si == si)
+            return artist_levels_first(i);
+    }
+    return -1;
+}
+
+/* the tag those levels have, -1 if there are none */
+static int artist_levels_tag(void)
+{
+    const struct menu_root *root = rootmenu >= 0 ? menus[rootmenu] : NULL;
+    for (int i = 0; root && i < root->itemcount; i++)
+    {
+        const int level = artist_levels_first(i);
+        if (level >= 0)
+            return root->items[i]->si.tagorder[level];
+    }
+    return -1;
+}
+
 static bool initialize_tagtree(void) /* also used when user selects 'Reload' in 'custom menu'*/
 {
     max_history_level = 0;
@@ -1803,6 +1952,8 @@ static bool initialize_tagtree(void) /* also used when user selects 'Reload' in 
      * we have. That shouldn't normally happen. */
     if (rootmenu < 0)
         rootmenu = 0;
+    artist_levels_mark();
+    artist_levels_apply();
 
     add_event(PLAYBACK_EVENT_TRACK_BUFFER, tagtree_buffer_event);
     add_event(PLAYBACK_EVENT_TRACK_CHANGE, tagtree_track_change_event);
@@ -2697,6 +2848,14 @@ int tagtree_load(struct tree_context* c)
     /* The _total_ numer of entries available. */
     c->dirlength = c->filesindir = count;
 
+    /* the list opened in place of a copy's top, at the row it was left by */
+    if (artists_copy_left[0])
+    {
+        if (c->currtable == TABLE_NAVIBROWSE && c->currextra == 0)
+            c->selected_item = MAX(tagtree_find_row(c, artists_copy_left), 0);
+        artists_copy_left[0] = '\0';
+    }
+
     return count;
 }
 
@@ -2709,22 +2868,6 @@ int tagtree_load(struct tree_context* c)
  * true, make sure that you are back at the previous dirlevel, by
  * calling tagtree_exit as needed, with is_visible set to false.
  */
-/* A place in the lists, to go back to */
-struct tagtree_place
-{
-    struct menu_root *menu;
-    struct search_instruction *csi;
-    int result_seek[MAX_TAGS];
-    int currtable, currextra, dirlevel, selected_item, max_history_level;
-    int selected_item_history[MAX_DIR_LEVELS];
-    int table_history[MAX_DIR_LEVELS];
-    int extra_history[MAX_DIR_LEVELS];
-    char current_title[MAX_TAGS][sizeof(current_title[0])];
-};
-
-/* where the music playing was started, and where the lists were before they were
-   opened at the track playing */
-static struct tagtree_place saved_place, go_to_place;
 /* the level that was opened at the track playing, where Menu leaves the lists */
 static int go_to_level = -1;
 
@@ -2793,11 +2936,12 @@ static int tagtree_find_row(struct tree_context *c, const char *name)
 
 /* The list of them at the top of Music entered, and the row of name in it, as
    by hand: true with c at the list that row opens, or else the lists back as
-   they were. By the album artist, the list of artists is of those instead. */
-static bool go_to_row(int tag, bool by_album_artist, const char *name,
+   they were. The list is the item's whose top is of item_tag, made of list_tag
+   instead if that's another: the albums' artists in place of the songs' or the
+   other way round (artists_copy). */
+static bool go_to_row(int item_tag, int list_tag, const char *name,
                       int *dirlevel, int *selected_item)
 {
-    static struct search_instruction album_artists;
     struct tree_context *c = tree_get_context();
     int row = -1;
 
@@ -2812,7 +2956,7 @@ static bool go_to_row(int tag, bool by_album_artist, const char *name,
         for (int i = 0; i < menu->itemcount && row < 0; i++)
         {
             const struct search_instruction *si = &menu->items[i]->si;
-            if (menu->items[i]->type == menu_next && si->tagorder[0] == tag
+            if (menu->items[i]->type == menu_next && si->tagorder[0] == item_tag
                 && si->clause_count[0] == 0)
                 row = i;
         }
@@ -2824,11 +2968,13 @@ static bool go_to_row(int tag, bool by_album_artist, const char *name,
         c->selected_item = row;
         tagtree_enter(c, true);
         selected_item_history[0] = root_row_of(row);
-        if (by_album_artist)
+        if (list_tag != item_tag)
         {
-            album_artists = *csi;
-            album_artists.tagorder[0] = tag_albumartist;
-            csi = &album_artists;
+            const int k = list_tag == tag_albumartist ? 0 : 1;
+            artists_copy[k] = *csi;
+            artists_copy[k].tagorder[0] = list_tag;
+            artists_copy_item[k] = row;
+            csi = &artists_copy[k];
         }
         tagtree_load(c);
         row = tagtree_find_row(c, name);
@@ -2854,24 +3000,34 @@ static void go_to_end(int row, int *dirlevel, int *selected_item)
     go_to_level = c->dirlevel;
 }
 
+/* what Music's Artists lists now: the songs' artists, as tagnavi.config has
+   them, or the albums' (Group by Album Artist) */
+static int artists_tag(void)
+{
+    const int item = root_item_of(LANG_ARTISTS);
+    if (item < 0 || menus[rootmenu]->items[item]->type != menu_next)
+        return tag_virt_canonicalartist;
+    return menus[rootmenu]->items[item]->si.tagorder[0];
+}
+
 /* Puts the lists at the track playing, as one gets there by hand: its album's artist,
-   or else its own, with its album selected, or its album with the track selected. The
-   Artists list is of the tracks' artists, where a guest on one song has a row of their
-   own, so the albums here are those with that album artist. tagtree_end_go_to() ends
-   this, and until then Menu in that list leaves the lists. False if it isn't in the
-   database. */
+   or else its own, with its album selected, or its album with the track selected. If
+   Artists lists the tracks' artists, where a guest on one song has a row of their own,
+   the list is of the albums' artists in its place, so that the albums here are those
+   with that album artist. tagtree_end_go_to() ends this, and until then Menu in that
+   list leaves the lists. False if it isn't in the database. */
 bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
 {
     static char name[TAGCACHE_BUFSZ], album[TAGCACHE_BUFSZ];
     struct tree_context *c = tree_get_context();
     const struct mp3entry *id3 = audio_current_track();
-    const int tag = artist ? tag_virt_canonicalartist : tag_album;
     struct tagcache_search tcs;
     int row;
 
     if (!id3 || !tagtree_ready() || !tagcache_is_usable()
         || !tagcache_find_index(&tcs, id3->path))
         return false;
+    const int tag = artist ? artists_tag() : tag_album;
     const int track = tcs.idx_id;
     const bool by_album_artist = artist
         && tagcache_retrieve(&tcs, track, tag_albumartist, name, sizeof(name))
@@ -2880,7 +3036,8 @@ bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
                         || tagcache_retrieve(&tcs, track, tag, name, sizeof(name)))
         && tagcache_retrieve(&tcs, track, tag_album, album, sizeof(album));
     tagcache_search_finish(&tcs);
-    if (!found || !go_to_row(tag, by_album_artist, name, dirlevel, selected_item))
+    if (!found || !go_to_row(tag, by_album_artist ? tag_albumartist : tag, name,
+                             dirlevel, selected_item))
         return false;
 
     /* the one playing */
@@ -2904,23 +3061,20 @@ bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
 
 bool tagtree_go_to_name(int tag, const char *name, int *dirlevel, int *selected_item)
 {
-    if (!tagtree_ready() || !tagcache_is_usable()
-        || !go_to_row(tag, false, name, dirlevel, selected_item))
+    if (!tagtree_ready() || !tagcache_is_usable())
+        return false;
+    /* An artist: the row of Artists, or else of the other artists' list in its
+       place, as a guest on a song has none among the albums' artists: their
+       albums, each with their songs, as in Artists by the songs' artists */
+    const bool artist = tag == tag_virt_canonicalartist;
+    const int item_tag = artist ? artists_tag() : tag;
+    const int other = item_tag == tag_albumartist ? tag_virt_canonicalartist
+                                                  : tag_albumartist;
+    if (!go_to_row(item_tag, item_tag, name, dirlevel, selected_item)
+        && (!artist || !go_to_row(item_tag, other, name, dirlevel, selected_item)))
         return false;
     go_to_end(0, dirlevel, selected_item);
     return true;
-}
-
-/* The item of Music's own menu by its phrase, -1 if tagnavi.config hasn't it */
-static int root_item_of(int lang)
-{
-    const struct menu_root *root = menus[rootmenu];
-    for (int i = 0; root && i < root->itemcount; i++)
-    {
-        if (P2ID((const unsigned char *)root->items[i]->name) == lang)
-            return i;
-    }
-    return -1;
 }
 
 bool tagtree_has_section(int lang)
@@ -3235,6 +3389,22 @@ void tagtree_exit(struct tree_context* c, bool is_visible)
         c->selected_item = selected_item_history[c->dirlevel];
     c->currtable = table_history[c->dirlevel];
     c->currextra = extra_history[c->dirlevel];
+
+    /* Up to the top of a copy, as the go-to that made it ended in music
+       played: Menu leaves a go-to's lists before that. The list of the other
+       artists isn't Music's, so the item's own list is opened in its place,
+       as by hand, at the row of the name left if it has one. */
+    for (int k = 0; is_visible && k < 2; k++)
+    {
+        if (csi != &artists_copy[k] || c->currtable != TABLE_NAVIBROWSE
+            || c->currextra != 0
+            || artists_copy_item[k] >= menus[rootmenu]->itemcount)
+            continue;
+        csi = &menus[rootmenu]->items[artists_copy_item[k]]->si;
+        strmemccpy(artists_copy_left, current_title[1],
+                   sizeof(artists_copy_left));
+        max_history_level = MIN(max_history_level, c->dirlevel);
+    }
 }
 
 /* as Music is opened from the main menu, as on a stock iPod: not the list it
@@ -3277,6 +3447,53 @@ void tagtree_albums_reordered(void)
         selected_item_history[1] = 0;
         max_history_level = 1;
     }
+}
+
+/* Group by Album Artist switched: a row chosen in the artists of Artists or
+   Genres, which the lists below it were made of, isn't one of the new ones. A
+   place there or below goes back to that list, at its first row, and the rows
+   to go back to from there down are forgotten. False for another place. */
+static bool artists_place_cut(struct tagtree_place *place)
+{
+    const int level = artists_level(place->csi);
+    if (level < 0 || (place->currtable == TABLE_ROOT
+                      && place->menu != menus[rootmenu]))
+        return false;
+    /* the level of the lists that list is at, from Music's own menu or
+       from one of the lists of that item */
+    const int list = place->currtable == TABLE_ROOT
+                     ? place->dirlevel + 1 + level
+                     : place->dirlevel - (place->currextra - level);
+    if (list <= place->dirlevel)
+    {
+        place->dirlevel = list;
+        place->currtable = TABLE_NAVIBROWSE;
+        place->currextra = level;
+        place->selected_item = 0;
+    }
+    place->max_history_level = MIN(place->max_history_level, list);
+    for (int i = MAX(list, 0); i < MAX_DIR_LEVELS; i++)
+        place->selected_item_history[i] = 0;
+    return true;
+}
+
+void tagtree_artists_grouping_changed(int *dirlevel, int *selected_item)
+{
+    /* where the lists were left */
+    static struct tagtree_place lists;
+    /* as they are already, as after a .cfg that didn't change it, or none */
+    const int tag = artist_levels_tag();
+    if (tag < 0 || tag == artist_levels_wanted())
+        return;
+    artist_levels_apply();
+    artists_place_cut(&saved_place);
+    artists_place_cut(&go_to_place);
+    place_save(&lists, *dirlevel, *selected_item);
+    if (artists_place_cut(&lists))
+        place_restore(&lists, dirlevel, selected_item);
+    const int section = section_of(LANG_ARTISTS);
+    if (section >= 0)
+        section_rows[section] = 0;
 }
 
 void tagtree_albums_sort_changed(int dirlevel)
@@ -3741,13 +3958,16 @@ static bool goto_all_songs(void)
     tree_lock_cache(tc);
     struct tagentry *entries = get_entries(tc);
     const int half = tc->cache.max_entries / 2;
+    /* a genre's: by artist, as its list of them, of the albums' artists if
+       it's of those */
+    const int next = extra + 1 < csi->tagorder_count ? csi->tagorder[extra + 1]
+                                                     : tag_album;
     struct gathering g = {
         .keys = (struct gather_key *)&entries[half],
         .room = (tc->cache.max_entries - half) * sizeof(*entries)
                 / sizeof(struct gather_key),
-        /* a genre's: by artist, as its list of them */
-        .group_tag = extra + 1 < csi->tagorder_count
-                     && csi->tagorder[extra + 1] != tag_album ? tag_artist : -1,
+        .group_tag = next == tag_album ? -1
+                     : next == tag_albumartist ? tag_albumartist : tag_artist,
     };
     album_years_rows_begin();
     tagcache_search_set_match(&tcs, gather_match, &g);

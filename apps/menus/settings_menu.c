@@ -34,6 +34,7 @@
 #include "exported_menus.h"
 #include "tree.h"
 #include "tagtree.h"
+#include "root_menu.h"
 #include "usb.h"
 #include "splash.h"
 #include "yesno.h"
@@ -347,7 +348,9 @@ MENUITEM_FUNCTION(main_menu_reset_item, 0, ID2P(LANG_RESET_MAIN_MENU),
 static int music_menu_reset(void)
 {
     reset_rows(global_settings.music_menu_show, MUSIC_SECTIONS);
+    reset_rows(&global_settings.artists_by_album_artist, 1);
     tagtree_music_menu_changed(true);
+    root_menu_artists_grouping_changed(global_settings.artists_by_album_artist);
     return 0;
 }
 MENUITEM_FUNCTION(music_menu_reset_item, 0, ID2P(LANG_RESET_MUSIC_MENU),
@@ -365,10 +368,13 @@ MENUITEM_SETTING(music_menu_6, &global_settings.music_menu_show[6], NULL);
 MENUITEM_SETTING(music_menu_7, &global_settings.music_menu_show[7], NULL);
 MENUITEM_SETTING(music_menu_8, &global_settings.music_menu_show[8], NULL);
 MENUITEM_SETTING(music_menu_9, &global_settings.music_menu_show[9], NULL);
+/* and after them what Artists lists */
+MENUITEM_SETTING(music_menu_grouping, &global_settings.artists_by_album_artist, NULL);
 MAKE_MENU(music_menu_items, ID2P(LANG_MUSIC_MENU), NULL, Icon_NOICON,
           &music_menu_0, &music_menu_1, &music_menu_2, &music_menu_3,
           &music_menu_4, &music_menu_5, &music_menu_6, &music_menu_7,
-          &music_menu_8, &music_menu_9, &music_menu_reset_item);
+          &music_menu_8, &music_menu_9, &music_menu_grouping,
+          &music_menu_reset_item);
 
 /* Main Menu: what the main menu has, as on a stock iPod: Music, each of its
    sections, Photos, Extras and Shuffle Songs */

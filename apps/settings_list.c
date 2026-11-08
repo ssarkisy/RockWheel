@@ -74,6 +74,7 @@
 #include "tree.h"
 #ifdef HAVE_TAGCACHE
 #include "tagtree.h"
+#include "root_menu.h"
 #endif
 #include "iap-usb.h"
 
@@ -2751,6 +2752,10 @@ const struct settings_list settings[] = {
     /* Music > Albums' first row, Sort By, and nowhere in Settings */
     CHOICE_SETTING(0, albums_sort, LANG_SORT_BY, 0, "albums sort", "year,name",
                    NULL, 2, ID2P(LANG_SORT_YEAR), ID2P(LANG_SORT_NAME)),
+    /* Settings > Music Menu, after the sections: Artists and a genre's
+       artists by the albums' artists */
+    OFFON_SETTING(0, artists_by_album_artist, LANG_GROUP_BY_ALBUM_ARTIST, true,
+                  "group by album artist", root_menu_artists_grouping_changed),
     /* Settings > Main Menu: Music's sections are off, as on a stock iPod */
     OFFON_SETTING(0, main_menu_show[MAIN_MENU_MUSIC], LANG_MUSIC, true,
                   "main menu music", NULL),

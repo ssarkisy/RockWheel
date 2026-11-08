@@ -493,6 +493,12 @@ int root_menu_go_to_name(int tag, const char *name)
     return screen == GO_TO_PREVIOUS ? 0 : screen;
 }
 
+void root_menu_artists_grouping_changed(bool on)
+{
+    (void)on;
+    tagtree_artists_grouping_changed(&last_db_dirlevel, &last_db_selection);
+}
+
 /* A section of Music in the main menu, as on a stock iPod: its list, where Menu
    goes back to the main menu. Left for Now Playing, it opens again where it was,
    as Music does. */

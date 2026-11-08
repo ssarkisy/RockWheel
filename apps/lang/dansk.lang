@@ -15112,6 +15112,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_GROUP_BY_ALBUM_ARTIST
+  desc: a setting of Settings > Music Menu, after its sections: On, Artists and the artists of each genre list the albums' artists, as iOS's Group By Album Artist, each album whole under its artist; Off, the songs' own artists, a guest on one song with a row of their own
+  user: core
+  <source>
+    *: "Group by Album Artist"
+  </source>
+  <dest>
+    *: "Gruppér efter albumkunstner"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_WAKE_SCREEN
   desc: a setting of Display: what lights the dark screen on Now Playing
   user: core

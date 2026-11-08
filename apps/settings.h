@@ -1057,6 +1057,9 @@ struct user_settings
     /* Music > Albums, as its first row sorts it: 0 by year, 1 by name. Last,
        to keep the layout plugins see */
     int albums_sort;
+    /* Artists and a genre's artists by the albums' artists, as iOS's Group By
+       Album Artist; off, by the songs' own. After the rest, as albums_sort */
+    bool artists_by_album_artist;
 };
 
 /* global settings */

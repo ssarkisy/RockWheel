@@ -115,7 +115,7 @@ static const struct {
    and digits too, that begin a word of a name: what may be typed first. With
    the commit of the database they're of. */
 #define LETTERS_FILE    ROCKBOX_DIR "/search_letters.bin"
-#define LETTERS_VERSION 4
+#define LETTERS_VERSION 5
 #define LETTERS_LOW     0x0370
 #define LETTERS_MID     0x1100
 #define LETTERS_HIGH    0x3040
@@ -130,7 +130,8 @@ struct letters_file {
 };
 
 /* The library's names as they're searched by, made with the letters: after a
-   header, each name's group, its track (a song's), its name as shown and its
+   header, each name's group, its track (a song's) or where it's found (an
+   artist's, ARTIST_SHOWN_OFF and ARTIST_SHOWN_ON), its name as shown and its
    words folded (fold_words()) in UTF-8 with a 0 after each, the two after their
    lengths. A search reads it through in pieces and compares bytes: folding the
    database's every name again at each search took most of a second. */
@@ -223,16 +224,23 @@ static char query[QUERY_SIZE];
 static struct {
     char query[QUERY_SIZE];
     int commit;
+    bool grouping; /* Group by Album Artist, which artists are found */
     uint8_t next[NEXT_BYTES];
 } kept_letters[KEPT_LETTERS];
 static int kept_next; /* the one to write next, around */
 
+/* of this query, as the library is now */
+static bool kept_letters_of(int k)
+{
+    return kept_letters[k].commit == tagcache_get_commitid()
+           && kept_letters[k].grouping == global_settings.artists_by_album_artist
+           && !strcmp(kept_letters[k].query, query);
+}
+
 static void keep_letters(void)
 {
-    const int commit = tagcache_get_commitid();
     int k = 0;
-    while (k < KEPT_LETTERS && !(kept_letters[k].commit == commit
-                                 && !strcmp(kept_letters[k].query, query)))
+    while (k < KEPT_LETTERS && !kept_letters_of(k))
         k++;
     if (k == KEPT_LETTERS)
     {
@@ -240,18 +248,17 @@ static void keep_letters(void)
         kept_next = (kept_next + 1) % KEPT_LETTERS;
     }
     strmemccpy(kept_letters[k].query, query, QUERY_SIZE);
-    kept_letters[k].commit = commit;
+    kept_letters[k].commit = tagcache_get_commitid();
+    kept_letters[k].grouping = global_settings.artists_by_album_artist;
     memcpy(kept_letters[k].next, next_letters, NEXT_BYTES);
 }
 
 /* the letters of the query as they were for it before, if they were known */
 static bool kept_letters_back(void)
 {
-    const int commit = tagcache_get_commitid();
     for (int k = 0; k < KEPT_LETTERS; k++)
     {
-        if (kept_letters[k].query[0] && kept_letters[k].commit == commit
-            && !strcmp(kept_letters[k].query, query))
+        if (kept_letters[k].query[0] && kept_letters_of(k))
         {
             memcpy(next_letters, kept_letters[k].next, NEXT_BYTES);
             next_known = true;
@@ -280,9 +287,17 @@ static struct result {
 } results[ARTISTS_MAX + ALBUMS_MAX + SONGS_MAX];
 static int group_count[GROUPS];
 static bool group_full[GROUPS]; /* more than it holds matched */
-/* the results are of a query with words, of the database as it was then */
+/* the results are of a query with words, of the database as it was then,
+   and of the artists Group by Album Artist had found */
 static bool have_results;
 static int results_commit;
+static bool results_grouping;
+
+static bool results_current(void)
+{
+    return results_commit == tagcache_get_commitid()
+           && results_grouping == global_settings.artists_by_album_artist;
+}
 
 #define POOL_SIZE 24576
 static char pool[POOL_SIZE];
@@ -716,6 +731,114 @@ static bool add_result(int group, const char *name, int idx_id)
     return true;
 }
 
+/* Where a name of the group of artists is found: as Artists lists the songs'
+   artists (Group by Album Artist off), or the albums' and, as guests, the
+   songs' (on). A name the two spell otherwise, in the case of a Latin letter,
+   is there twice, as each list has it. */
+#define ARTIST_SHOWN_OFF 1
+#define ARTIST_SHOWN_ON  2
+
+static bool artist_shown(int32_t shown)
+{
+    return shown & (global_settings.artists_by_album_artist ? ARTIST_SHOWN_ON
+                                                            : ARTIST_SHOWN_OFF);
+}
+
+/* as the database's files are sorted (tagcache.c's compare()): <Untagged>
+   first, then without regard to the case of Latin letters */
+static int file_order(const char *a, const char *b)
+{
+    const bool untagged_a = !strcmp(a, UNTAGGED);
+    const bool untagged_b = !strcmp(b, UNTAGGED);
+    if (untagged_a || untagged_b)
+        return untagged_b - untagged_a;
+    return strncasecmp(a, b, TAG_MAXLEN);
+}
+
+/* A group's names, in the order of the database's files. The artists are the
+   songs' and the albums' at once: their two files are sorted alike, so that
+   reading them side by side puts the names in one order, and a name in both
+   comes once, or as each spells it. */
+static struct {
+    int files;
+    struct tagcache_search tcs[2];
+    bool searching[2];  /* begun, to be finished */
+    bool have[2];       /* its name read, not given yet */
+    char name[2][TAGCACHE_BUFSZ];
+    bool songs_next;    /* the songs' spelling of the name given last */
+    int read;           /* of the files' names, deleted ones not */
+} names_in;
+
+static void group_begin(int g)
+{
+    names_in.files = g == GROUP_ARTISTS ? 2 : 1;
+    names_in.read = 0;
+    for (int i = 0; i < names_in.files; i++)
+    {
+        names_in.searching[i] = tagcache_search(&names_in.tcs[i],
+                                                i ? tag_albumartist : group_tag[g]);
+        names_in.have[i] = false;
+    }
+    names_in.songs_next = false;
+}
+
+/* the next name, NULL past the last: a song's track in *idx_id, or where an
+   artist is found (ARTIST_SHOWN_OFF, ARTIST_SHOWN_ON) */
+static const char *group_next(int32_t *idx_id)
+{
+    for (int i = 0; i < names_in.files; i++)
+    {
+        if (names_in.searching[i] && !names_in.have[i]
+            && tagcache_get_next(&names_in.tcs[i], names_in.name[i],
+                                 sizeof(names_in.name[i])))
+        {
+            names_in.have[i] = true;
+            names_in.read++;
+        }
+    }
+    if (names_in.files == 1)
+    {
+        if (!names_in.have[0])
+            return NULL;
+        names_in.have[0] = false;
+        *idx_id = names_in.tcs[0].idx_id;
+        return names_in.name[0];
+    }
+    if (names_in.songs_next)
+    {
+        names_in.songs_next = false;
+        names_in.have[0] = false;
+        *idx_id = ARTIST_SHOWN_OFF;
+        return names_in.name[0];
+    }
+    if (!names_in.have[0] && !names_in.have[1])
+        return NULL;
+    const int order = !names_in.have[1] ? -1 : !names_in.have[0] ? 1
+                      : file_order(names_in.name[0], names_in.name[1]);
+    if (order == 0 && strcmp(names_in.name[0], names_in.name[1]))
+    {
+        /* the albums' spelling, then the songs' */
+        names_in.have[1] = false;
+        names_in.songs_next = true;
+        *idx_id = ARTIST_SHOWN_ON;
+        return names_in.name[1];
+    }
+    /* an artist of the albums alone isn't among the songs' */
+    *idx_id = order > 0 ? ARTIST_SHOWN_ON : ARTIST_SHOWN_ON | ARTIST_SHOWN_OFF;
+    names_in.have[0] = names_in.have[0] && order > 0;
+    names_in.have[1] = names_in.have[1] && order < 0;
+    return names_in.name[order >= 0 ? 1 : 0];
+}
+
+static void group_finish(void)
+{
+    for (int i = 0; i < names_in.files; i++)
+    {
+        if (names_in.searching[i])
+            tagcache_search_finish(&names_in.tcs[i]);
+    }
+}
+
 /* through the database: its files of artists, albums and titles. If it may be
    stopped, a press stops it, and false says so: what it found by then is
    kept, as not all */
@@ -883,11 +1006,12 @@ static bool search_names(bool stoppable, bool *stopped)
                 break;
             }
         }
-        if (!bytes_match(folded, folded_len, next_letters) || group_full[g])
-            continue;
-        char shown[NAME_BYTES + 1];
         int32_t idx_id;
         memcpy(&idx_id, entry + 1, sizeof(idx_id));
+        if ((g == GROUP_ARTISTS && !artist_shown(idx_id))
+            || !bytes_match(folded, folded_len, next_letters) || group_full[g])
+            continue;
+        char shown[NAME_BYTES + 1];
         memcpy(shown, name, name_len);
         shown[name_len] = '\0';
         if (!add_result(g, shown, idx_id))
@@ -903,7 +1027,6 @@ static bool search_names(bool stoppable, bool *stopped)
    false says so: what it found by then is kept, as not all */
 static bool search_all(bool stoppable)
 {
-    char buf[TAGCACHE_BUFSZ];
     pool_used = 0;
     for (int g = 0; g < GROUPS; g++)
     {
@@ -912,6 +1035,7 @@ static bool search_all(bool stoppable)
     }
     have_results = query_words > 0;
     results_commit = tagcache_get_commitid();
+    results_grouping = global_settings.artists_by_album_artist;
     memset(next_letters, 0, sizeof(next_letters));
     next_known = false;
     /* nothing typed: what begins a word of a name, as Updating Library found */
@@ -929,11 +1053,11 @@ static bool search_all(bool stoppable)
     {
         for (int g = 0; g < GROUPS && !stopped; g++)
         {
-            struct tagcache_search tcs;
-            if (!tagcache_search(&tcs, group_tag[g]))
-                continue;
+            const char *name;
+            int32_t idx_id;
             int n = 0;
-            while (tagcache_get_next(&tcs, buf, sizeof(buf)))
+            group_begin(g);
+            while ((name = group_next(&idx_id)))
             {
                 if ((++n & 255) == 0)
                 {
@@ -944,15 +1068,17 @@ static bool search_all(bool stoppable)
                         break;
                     }
                 }
-                if (!strcmp(buf, UNTAGGED) || !matches(buf, next_letters))
+                if (!strcmp(name, UNTAGGED)
+                    || (g == GROUP_ARTISTS && !artist_shown(idx_id))
+                    || !matches(name, next_letters))
                     continue;
-                if (!add_result(g, buf, tcs.idx_id))
+                if (!add_result(g, name, idx_id))
                 {
                     group_full[g] = true;
                     break;
                 }
             }
-            tagcache_search_finish(&tcs);
+            group_finish();
         }
         /* The letters that may follow are of all the names that match, and
            so known only when they all are found: going on past a full group
@@ -990,12 +1116,12 @@ static void search_within(void)
 }
 
 /* what matched before is all that may match now: before, with all of it kept,
-   leads the query, of the same database */
+   leads the query, of the same database and artists */
 static bool narrows(const char *before)
 {
     bool narrower = have_results && before[0]
                     && !strncmp(query, before, strlen(before))
-                    && results_commit == tagcache_get_commitid();
+                    && results_current();
     for (int g = 0; g < GROUPS; g++)
         narrower = narrower && !group_full[g];
     return narrower;
@@ -1355,11 +1481,10 @@ void music_search_letters_make(void (*progress)(int done, int total))
         return;
     /* the names of the tag files, deleted ones too: Updating Library's bar
        stood empty for the seconds this took */
-    int done = 0, total = 0;
+    int done = 0, total = MAX(0, tagcache_get_tag_count(tag_albumartist));
     for (int g = 0; g < GROUPS; g++)
         total += MAX(0, tagcache_get_tag_count(group_tag[g]));
     struct letters_file f;
-    char buf[TAGCACHE_BUFSZ];
     memset(&f, 0, sizeof(f));
     f.version = LETTERS_VERSION;
     f.commit = tagcache_get_commitid();
@@ -1380,17 +1505,18 @@ void music_search_letters_make(void (*progress)(int done, int total))
     cpu_boost(true);
     for (int g = 0; g < GROUPS; g++)
     {
-        struct tagcache_search tcs;
-        if (!tagcache_search(&tcs, group_tag[g]))
-            continue;
-        while (tagcache_get_next(&tcs, buf, sizeof(buf)))
+        const char *name;
+        int32_t idx_id;
+        int names = 0;
+        group_begin(g);
+        while ((name = group_next(&idx_id)))
         {
-            if (!(++done & 255))
-                progress(done, total);
-            if (!strcmp(buf, UNTAGGED))
+            if (!(++names & 255))
+                progress(done + names_in.read, total);
+            if (!strcmp(name, UNTAGGED))
                 continue;
             ucschar_t folded[256];
-            const int n = fold_words(buf, folded, ARRAYLEN(folded));
+            const int n = fold_words(name, folded, ARRAYLEN(folded));
             for (int i = 0; i < n; i++)
             {
                 const int bit = letter_bit(folded[i]);
@@ -1401,7 +1527,7 @@ void music_search_letters_make(void (*progress)(int done, int total))
             }
             if (names_fd >= 0 && n > 0)
             {
-                if (put_name(names_fd, &used, g, tcs.idx_id, buf, folded, n))
+                if (put_name(names_fd, &used, g, idx_id, name, folded, n))
                     h.count++;
                 else
                 {
@@ -1410,7 +1536,8 @@ void music_search_letters_make(void (*progress)(int done, int total))
                 }
             }
         }
-        tagcache_search_finish(&tcs);
+        done += names_in.read;
+        group_finish();
     }
 
     /* whole or not at all: the header, with the count, in it last */
@@ -2319,8 +2446,9 @@ int music_search_screen(void *param)
             continue;
         }
         /* a database made again meanwhile has other tracks under the numbers:
-           the press is of a row that may be another now */
-        if (have_results && results_commit != tagcache_get_commitid())
+           the press is of a row that may be another now; and Group by Album
+           Artist switched, other artists are found */
+        if (have_results && !results_current())
         {
             searched[0] = '\0';
             run_search(false);

@@ -30,6 +30,9 @@ int root_menu_go_to_playing(bool artist);
 /* The list an artist or an album opens, from Search: -1 if it isn't there,
    0 for going back, or else the screen to go to */
 int root_menu_go_to_name(int tag, const char *name);
+/* Settings > Music Menu > Group by Album Artist's callback: the lists of
+   artists change, and where the lists were left in them with them */
+void root_menu_artists_grouping_changed(bool on);
 #endif
 void root_menu(void) NORETURN_ATTR;
 #ifdef HAVE_TAGCACHE

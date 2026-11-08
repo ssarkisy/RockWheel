@@ -54,6 +54,9 @@
 #include "general.h"
 #include "misc.h"
 #include "night_mode.h"
+#ifdef HAVE_TAGCACHE
+#include "root_menu.h"
+#endif
 #include "gui/lyrics.h"
 #include "icons.h"
 #include "font.h"
@@ -1233,6 +1236,12 @@ void settings_apply(bool read_disk)
 #endif
 #if defined(DX50) || defined(DX90)
     ibasso_set_governor(global_settings.governor);
+#endif
+
+#ifdef HAVE_TAGCACHE
+    /* Artists as Group by Album Artist has it, after Reset Settings too,
+       which calls no setting's callback */
+    root_menu_artists_grouping_changed(global_settings.artists_by_album_artist);
 #endif
 
     /* This should stay last */

@@ -42,8 +42,9 @@ void tagtree_ram_waited_out(void);
 void tagtree_save_place(int dirlevel, int selected_item);
 void tagtree_restore_place(int *dirlevel, int *selected_item);
 bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item);
-/* as that, at the albums of an artist of the Artists list (tag_virt_canonicalartist)
-   or the songs of an album (tag_album), by name */
+/* as that, at the albums of an artist (tag_virt_canonicalartist), of the songs or
+   of the albums, by its row in Artists or else in a list of the other artists in
+   its place; or at the songs of an album (tag_album), by name */
 bool tagtree_go_to_name(int tag, const char *name, int *dirlevel, int *selected_item);
 /* A section of Music by its phrase, as a screen of the main menu: its list at the
    row it was left at, where Menu leaves the lists, until tagtree_end_go_to() */
@@ -83,6 +84,10 @@ const char *tagtree_entry_year(struct tree_context *c, int row, char *buf,
 void tagtree_albums_sort_changed(int dirlevel);
 /* the albums' years made again */
 void tagtree_albums_reordered(void);
+/* Artists and Genres as Group by Album Artist has them, if they aren't: they
+   list the other artists, and the lists left in them, at the place given, go
+   back up to those */
+void tagtree_artists_grouping_changed(int *dirlevel, int *selected_item);
 int tagtree_get_icon(struct tree_context* c);
 int tagtree_get_filename(struct tree_context* c, char *buf, int buflen);
 int tagtree_get_custom_action(struct tree_context* c);
