@@ -1,4 +1,4 @@
-![RockWheel. Your iPod Video, the way it should have aged.](docs/images/rockwheel-banner-cover-flow.png)
+![RockWheel. Your iPod Video, the way it should have aged.](docs/images/banner-1.3.png)
 
 RockWheel is free, open-source firmware for the iPod Video, 5th and 5.5th generation, built on [Rockbox](https://www.rockbox.org). It brings Finder and iTunes sync to a familiar iPod interface, with Cover Flow, Live Lyrics, a dark theme and FLAC playback.
 
