@@ -19358,6 +19358,48 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_UNKNOWN_ARTIST
+  desc: the row of the songs without an artist, last in Artists and in a genre's artists, and the artist Now Playing shows for such a song, as the Music app on a Mac names it
+  user: core
+  <source>
+    *: "Unknown Artist"
+  </source>
+  <dest>
+    *: "Artista sconosciuto"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UNKNOWN_ALBUM
+  desc: the row of the songs without an album, last in Albums and in an artist's albums, and the album Now Playing shows for such a song, as the Music app on a Mac names it
+  user: core
+  <source>
+    *: "Unknown Album"
+  </source>
+  <dest>
+    *: "Album sconosciuto"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UNKNOWN_GENRE
+  desc: the row of the songs without a genre, last in Genres, as the Music app on a Mac names it
+  user: core
+  <source>
+    *: "Unknown Genre"
+  </source>
+  <dest>
+    *: "Genere sconosciuto"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_HINT_RESUME_REWIND
   desc: the hint in the band under Settings > Playback while Rewind on Resume is selected, in three lines at most: what the user gets from it
   user: core

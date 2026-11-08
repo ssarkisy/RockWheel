@@ -76,9 +76,9 @@
 %Vl(next,160,54,157,21,1)%Vf(888888)
 %t(8)%s%al%?It<%It|%Fn>;%t(16)%al%?It<%It|%Fn>
 %V(160,77,157,19,3)%Vf(888888)
-%t(8)%al%?pE(15)<%?Fn<%?Ia<%Ia|%?D(2)<%D(2)|%Fc %Fbkbps>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>;%t(8)%s%al%?pE(15)<%?Fn<%?Ia<%Ia|%?D(2)<%D(2)|%Fc %Fbkbps>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>;%t(8)%al%?pE(15)<%?Fn<%?Ia<%Ia|%?D(2)<%D(2)|%Fc %Fbkbps>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>|%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>>
+%t(8)%al%?pE(15)<%?Fn<%?Ia<%Ia|%?IA<%IA|%Sx(Unknown Artist)>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>;%t(8)%s%al%?pE(15)<%?Fn<%?Ia<%Ia|%?IA<%IA|%Sx(Unknown Artist)>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>;%t(8)%al%?pE(15)<%?Fn<%?Ia<%Ia|%?IA<%IA|%Sx(Unknown Artist)>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>
 %V(160,96,157,19,3)%Vf(888888)
-%t(16)%al%?pE(15)<%?Fn<%?Id<%Id|%?D(3)<%D(3)|%?Sr<kHz%Fk|%FkkHz>>>|%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>>|%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>>;%t(8)%al%s%?pE(15)<%?Fn<%?Id<%Id|%?D(3)<%D(3)|%?Sr<kHz%Fk|%FkkHz>>>|%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>>|%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>>
+%t(16)%al%?pE(15)<%?Fn<%?Id<%Id|%Sx(Unknown Album)>|%?id<%id|%Sx(Unknown Album)>>|%?id<%id|%Sx(Unknown Album)>>;%t(8)%al%s%?pE(15)<%?Fn<%?Id<%Id|%Sx(Unknown Album)>|%?id<%id|%Sx(Unknown Album)>>|%?id<%id|%Sx(Unknown Album)>>
 %xl(R,Ratings.bmp,0,0,10)
 %V(160,116,66,13,-)
 %?pE(15)<%?Fn<|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>

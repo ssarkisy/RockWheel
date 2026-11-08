@@ -87,7 +87,9 @@ static const char * const tagtree_list_index_names[TAGTREE_SLOTS] = {
     ROCKBOX_DIR "/tagtree.idx", ROCKBOX_DIR "/tagtree2.idx",
     ROCKBOX_DIR "/tagtree_songs.idx", ROCKBOX_DIR "/tagtree_songs2.idx"
 };
-#define TAGTREE_LIST_MAGIC 0x4c545452 /* "RTTL" */
+/* another when the lists' songs are put in another order: an index of the
+   order before played other songs than the rows chosen */
+#define TAGTREE_LIST_MAGIC 0x4c545453 /* "STTL" */
 struct tagtree_list_header {
     uint32_t magic;
     int32_t commitid;   /* of the database */
@@ -199,8 +201,13 @@ static bool list_on_boot_screen;
 static uint32_t kept_hash = 0;
 static int kept_count, kept_offset, kept_entry_count, kept_special;
 static bool kept_dirfull, kept_years;
+static int32_t kept_untagged;
 /* the rows of the list made are albums with their years */
 static bool entries_years;
+/* the list's row of the songs without its tag, by its seek, as a tag may have
+   the text that row shows: -1 if none, and in a list of songs, whose seeks are
+   of another kind */
+static int32_t entries_untagged = -1;
 /* the list made had all its rows, as it wasn't left before the end */
 static bool entries_whole;
 /* and goes by play statistics, so isn't kept: they change without a new
@@ -581,6 +588,32 @@ static uint32_t text_hash(const char *text, uint32_t hash)
     return hash;
 }
 
+/* The names of the rows of the songs without a tag, untagged_name()'s: a
+   list's rows point at them, in the language's buffer */
+static const int untagged_phrases[] = {
+    LANG_TAGNAVI_UNTAGGED, LANG_UNKNOWN_ARTIST, LANG_UNKNOWN_ALBUM,
+    LANG_UNKNOWN_GENRE,
+};
+
+/* The row of the songs without the tag a list is of, by the name the Music
+   app gives it, as "Unknown Artist"; "[Untagged]" for a tag of one's own
+   tagnavi */
+static const char *untagged_name(int tag)
+{
+    switch (tag)
+    {
+        case tag_virt_canonicalartist:
+        case tag_artist:
+        case tag_albumartist:
+            return str(LANG_UNKNOWN_ARTIST);
+        case tag_album:
+            return str(LANG_UNKNOWN_ALBUM);
+        case tag_genre:
+            return str(LANG_UNKNOWN_GENRE);
+    }
+    return str(LANG_TAGNAVI_UNTAGGED);
+}
+
 /* The list in the lists' buffer, which list it is and of which database */
 static uint32_t tagtree_data_crc(struct tree_context* c)
 {
@@ -594,10 +627,16 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
         global_settings.interpret_numbers,
         of_albums ? album_years_generation() : 0,
         of_albums ? global_settings.albums_sort : 0,
-        (uintptr_t)str(LANG_TAGNAVI_UNTAGGED), /* a row's name, of the language */
     };
     uint32_t hash = words_hash(list, sizeof(list), 2166136261u);
-    hash = text_hash(str(LANG_TAGNAVI_UNTAGGED), hash);
+    /* the rows' names of the language, where they are and what they say */
+    for (size_t i = 0; i < ARRAYLEN(untagged_phrases); i++)
+    {
+        const char *name = str(untagged_phrases[i]);
+        const uint32_t where = (uintptr_t)name;
+        hash = words_hash(&where, sizeof(where), hash);
+        hash = text_hash(name, hash);
+    }
     /* The search, which can be out of tagtree's buffer (artists_copy), and its
        clauses down to the list, which get what they look for as it is entered.
        The rest of tagtree's buffer changes only with the menus: with it, this
@@ -641,6 +680,7 @@ static void keep_list(struct tree_context *c, int count)
     kept_special = c->special_entry_count;
     kept_dirfull = c->dirfull;
     kept_years = entries_years;
+    kept_untagged = entries_untagged;
 }
 
 /* the list kept, if it is the one asked for: its count, or else -1 */
@@ -653,6 +693,7 @@ static int kept_list(struct tree_context *c)
     c->special_entry_count = kept_special;
     c->dirfull = kept_dirfull;
     entries_years = kept_years;
+    entries_untagged = kept_untagged;
     return kept_count;
 }
 
@@ -1975,6 +2016,18 @@ bool tagtree_ready(void)
     return tagnavi_loaded;
 }
 
+/* The name of the song found without a title, in buf: its file's, without the
+   extension, as the Music app shows it. False if it isn't known */
+static bool song_file_name(struct tagcache_search *tcs, char *buf, long size)
+{
+    if (!tagcache_retrieve(tcs, tcs->idx_id, tag_virt_basename, buf, size))
+        return false;
+    char *dot = strrchr(buf, '.');
+    if (dot && dot != buf)
+        *dot = '\0';
+    return true;
+}
+
 static int format_str(struct tagcache_search *tcs, struct display_format *fmt,
                       char *buf, int buf_size)
 {
@@ -2014,7 +2067,7 @@ static int format_str(struct tagcache_search *tcs, struct display_format *fmt,
             {
                 unsigned space_left = buf_size - buf_pos;
                 char tmpbuf[MAX_PATH];
-                char *result;
+                const char *result;
 
                 fmtbuf[fmtbuf_pos] = '\0';
                 read_format = false;
@@ -2039,6 +2092,11 @@ static int format_str(struct tagcache_search *tcs, struct display_format *fmt,
                         }
 
                         result = tmpbuf;
+                        /* an empty one as a list of that tag names it */
+                        if (!strcmp(tmpbuf, UNTAGGED)
+                            && !(tag == tag_title
+                                 && song_file_name(tcs, tmpbuf, sizeof tmpbuf)))
+                            result = untagged_name(tag);
                     }
                     buf_pos +=
                         snprintf(&buf[buf_pos], space_left, fmtbuf, result);
@@ -2107,8 +2165,8 @@ static int format_group(struct tree_context *c, int level)
 
 /* The format of rows that show the name searched for as it is, "%s" of it,
    with only names before it that show otherwise: a format for each, by "is"
-   that name. NULL if the list's formats do more. Songs have one for
-   "[Untagged]", and formatting them took more than the search. */
+   that name. NULL if the list's formats do more. Formatting the rows of
+   Songs took more than the search. */
 static const struct display_format *plain_format(int group, int tag)
 {
     if (TAGCACHE_IS_NUMERIC(tag))
@@ -2307,7 +2365,9 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     /* an artist's albums: their years, as the songs found are on them */
     const bool years = offset == 0 && years_apply(c, level, tag);
     entries_years = false;
-    int32_t untagged_seek = -1;
+    /* a list's first part, or all of it: its row of <Untagged> not found yet */
+    if (offset == 0)
+        entries_untagged = -1;
     if (years)
     {
         album_years_rows_begin();
@@ -2400,8 +2460,15 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         c->special_entry_count = 1;
     }
 
+    /* Composers lists the composers alone, without a row of the songs that
+       have none: most of a library */
+    const bool composers = level == 0 && tag == tag_composer
+                           && c->currtable == TABLE_NAVIBROWSE;
+
     while (tagcache_get_next(&tcs, tcs_buf, tcs_bufsz))
     {
+        if (composers && !strcmp(tcs.result, UNTAGGED))
+            continue;
         if (total_count++ < offset)
             continue;
 
@@ -2433,32 +2500,21 @@ static int make_entries(struct tree_context *c, int offset, bool init)
 
         if (strcmp(tcs.result, UNTAGGED) == 0)
         {
-            untagged_seek = tcs.result_seek;
-            if (tag == tag_title && tcs.type == tag_title && tcs.filter_count <= 1)
-            { /* Fallback to basename */
-                char *lastname = dptr->name;
-                dptr->name = core_get_data(c->cache.name_buffer_handle)+namebufused;
-                if ((c->cache.name_buffer_size - namebufused) > 0 &&
-                    tagcache_retrieve(&tcs, tcs.idx_id, tag_virt_basename, dptr->name,
-                                      c->cache.name_buffer_size - namebufused))
-                {
-                    namebufused += strlen(dptr->name)+1;
-                    dptr->album_name = core_get_data(c->cache.name_buffer_handle)+namebufused;
-                    if (with_album && (c->cache.name_buffer_size - namebufused) > 0 &&
-                        tagcache_retrieve(&tcs, tcs.idx_id, tag_album, dptr->album_name,
-                                    c->cache.name_buffer_size - namebufused))
-                        namebufused += strlen(dptr->album_name)+1;
-                    else
-                        dptr->album_name = NULL;
-                    goto entry_skip_formatter;
-                }
-                dptr->name = lastname; /* restore last entry if filename failed */
-                dptr->album_name = NULL;
+            if (dptr->newtable != TABLE_PLAYTRACK)
+                entries_untagged = tcs.result_seek;
+            /* a song without a title by its file's name, in the title's
+               place: in an album, its track's */
+            if (tag == tag_title && song_file_name(&tcs, tcs_buf, tcs_bufsz))
+            {
+                tcs.result = tcs_buf;
+                tcs.ramresult = false;
             }
-
-            tcs.result = str(LANG_TAGNAVI_UNTAGGED);
-            tcs.result_len = strlen(tcs.result);
-            tcs.ramresult = true;
+            else
+            {
+                tcs.result = (char *)untagged_name(tag);
+                tcs.ramresult = true;
+            }
+            tcs.result_len = strlen(tcs.result) + 1;
         }
 
         if (!tcs.ramresult || fmt)
@@ -2529,7 +2585,6 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             dptr->name = tcs.result;
             dptr->album_name = NULL;
         }
-entry_skip_formatter:
         dptr++;
         current_entry_count++;
 
@@ -2559,7 +2614,7 @@ entry_skip_formatter:
     {
         struct tagentry *entries = get_entries(c);
         for (i = c->special_entry_count; i < current_entry_count; i++)
-            entries[i].year = entries[i].extraseek == untagged_seek ? YEAR_LAST
+            entries[i].year = entries[i].extraseek == entries_untagged ? YEAR_LAST
                               : album_years_row(entries[i].extraseek);
         entries_years = true;
     }
@@ -2571,7 +2626,7 @@ entry_skip_formatter:
         struct tagentry *entries = get_entries(c);
         const int n = current_entry_count - c->special_entry_count;
         for (i = c->special_entry_count; i < current_entry_count; i++)
-            entries[i].year = entries[i].extraseek == untagged_seek ? YEAR_LAST
+            entries[i].year = entries[i].extraseek == entries_untagged ? YEAR_LAST
                               : album_name_year(entries[i].extraseek);
         sort_by_year(&entries[c->special_entry_count], n,
                      &entries[current_entry_count]);
@@ -2596,6 +2651,26 @@ entry_skip_formatter:
         );
     }
 
+    /* The row of the songs without the tag, "Unknown Artist", the last: after
+       the names, and the albums without a year. Found by its seek, wherever the
+       database's order or a sort put it. Not among songs, nor in a list in
+       chunks, whose rows are places in the database */
+    if (entries_untagged >= 0 && offset == 0 && !c->dirfull)
+    {
+        struct tagentry *entries = get_entries(c);
+        for (i = c->special_entry_count; i < current_entry_count - 1; i++)
+        {
+            if (entries[i].extraseek == entries_untagged)
+            {
+                const struct tagentry row = entries[i];
+                memmove(&entries[i], &entries[i + 1],
+                        (current_entry_count - 1 - i) * sizeof(*entries));
+                entries[current_entry_count - 1] = row;
+                break;
+            }
+        }
+    }
+
     if (!init)
     {
         tagcache_search_finish(&tcs);
@@ -2612,7 +2687,8 @@ entry_skip_formatter:
             counted = false;
             break;
         }
-        total_count++;
+        if (!(composers && !strcmp(tcs.result, UNTAGGED)))
+            total_count++;
     }
 
     tagcache_search_finish(&tcs);
@@ -2920,15 +2996,21 @@ void tagtree_restore_place(int *dirlevel, int *selected_item)
     place_restore(&saved_place, dirlevel, selected_item);
 }
 
-/* The row of the list with this name, or -1 */
+/* The row of the list with this name, or -1: for the database's <Untagged>,
+   the row of the songs without the list's tag, by its seek, as a tag may have
+   the text that row shows */
 static int tagtree_find_row(struct tree_context *c, const char *name)
 {
-    if (!strcmp(name, UNTAGGED))
-        name = str(LANG_TAGNAVI_UNTAGGED);
+    const bool untagged = !strcmp(name, UNTAGGED);
     /* past Sort By, whose name is a phrase's number */
     for (int i = c->special_entry_count; i < c->dirlength; i++)
     {
-        if (!strcmp(tagtree_get_entry(c, i)->name, name))
+        /* got first: a part of a list in chunks finds its seek. A tag with
+           the name that row shows isn't it, where the row isn't moved last */
+        const struct tagentry *row = tagtree_get_entry(c, i);
+        const bool unknown = entries_untagged >= 0
+                             && row->extraseek == entries_untagged;
+        if (untagged ? unknown : !unknown && !strcmp(row->name, name))
             return i;
     }
     return -1;
@@ -3341,8 +3423,12 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
             unsigned char *name = dptr->name;
             name = P2STR(name);
             logf("%s (NAVI/ALLSUB) current title %s", __func__, name);
-            /* Update the statusbar title */
-            strmemccpy(current_title[c->currextra], name, sizeof(current_title[0]));
+            /* Update the statusbar title: of the row of the songs without the
+               tag, the database's name, which tagtree_get_title() shows as
+               the row was, and by which the row is found again */
+            strmemccpy(current_title[c->currextra],
+                       entries_untagged >= 0 && seek == entries_untagged
+                       ? UNTAGGED : (char *)name, sizeof(current_title[0]));
             break;
 
         default:
@@ -3855,7 +3941,7 @@ static bool goto_allsubentries(int newtable)
    it opens: an artist's albums by their years, then each album's songs by
    disc and track; a genre's by artist first. With one search through the
    database, as the lists would make them, rather than each list opened in
-   turn, which for Composers' <Untagged>, 1,400 albums, took minutes. Their
+   turn, which for a row of 1,400 albums took minutes. Their
    keys are gathered past half the lists' room, then sorted, and the songs
    made the list there. Without <All tracks> in the lists, an artist added
    only its first album. */
@@ -3959,15 +4045,15 @@ static bool goto_all_songs(void)
     struct tagentry *entries = get_entries(tc);
     const int half = tc->cache.max_entries / 2;
     /* a genre's: by artist, as its list of them, of the albums' artists if
-       it's of those */
+       it's of those; an album's by disc and track alone */
     const int next = extra + 1 < csi->tagorder_count ? csi->tagorder[extra + 1]
                                                      : tag_album;
     struct gathering g = {
         .keys = (struct gather_key *)&entries[half],
         .room = (tc->cache.max_entries - half) * sizeof(*entries)
                 / sizeof(struct gather_key),
-        .group_tag = next == tag_album ? -1
-                     : next == tag_albumartist ? tag_albumartist : tag_artist,
+        .group_tag = next == tag_artist || next == tag_albumartist
+                     || next == tag_virt_canonicalartist ? next : -1,
     };
     album_years_rows_begin();
     tagcache_search_set_match(&tcs, gather_match, &g);
@@ -3976,17 +4062,28 @@ static bool goto_all_songs(void)
     while (n < g.room && tagcache_get_next(&tcs, buf, sizeof(buf)))
         g.keys[n++].idx = tcs.idx_id;
     n = MIN(n, g.found);
-    /* the album without a name, which goes last */
-    int32_t untagged = -1;
-    int32_t checked = -1;
-    for (int i = 0; i < n && untagged < 0; i++)
+    /* the album and the artist without a name, which go last as their rows:
+       one look at each, as its songs mostly come together */
+    int32_t untagged = -1, untagged_group = -1;
+    int32_t checked = -1, group_checked = -1;
+    for (int i = 0; i < n && (untagged < 0
+                              || (g.group_tag >= 0 && untagged_group < 0)); i++)
     {
-        if (g.keys[i].album == checked)
-            continue;
-        checked = g.keys[i].album;
-        if (tagcache_retrieve(&tcs, g.keys[i].idx, tag_album, buf, sizeof(buf))
-            && !strcmp(buf, UNTAGGED))
-            untagged = checked;
+        const struct gather_key *k = &g.keys[i];
+        if (untagged < 0 && k->album != checked)
+        {
+            checked = k->album;
+            if (tagcache_retrieve(&tcs, k->idx, tag_album, buf, sizeof(buf))
+                && !strcmp(buf, UNTAGGED))
+                untagged = checked;
+        }
+        if (g.group_tag >= 0 && untagged_group < 0 && k->group != group_checked)
+        {
+            group_checked = k->group;
+            if (tagcache_retrieve(&tcs, k->idx, g.group_tag, buf, sizeof(buf))
+                && !strcmp(buf, UNTAGGED))
+                untagged_group = group_checked;
+        }
     }
     tagcache_search_finish(&tcs);
     core_unpin(tagtree_handle);
@@ -3996,6 +4093,8 @@ static bool goto_all_songs(void)
         struct gather_key *k = &g.keys[i];
         k->year = year_key(k->album == untagged ? YEAR_LAST
                                                 : album_years_row(k->album));
+        if (untagged_group >= 0 && k->group == untagged_group)
+            k->group = INT32_MAX;
     }
     qsort(g.keys, n, sizeof(*g.keys), cmp_gather_key);
     for (int i = 0; i < n; i++)
@@ -4015,6 +4114,7 @@ static bool goto_all_songs(void)
     tc->special_entry_count = 0;
     tc->dirfull = false;
     entries_years = false;
+    entries_untagged = -1;
     kept_hash = 0;
     return true;
 }
@@ -4704,6 +4804,8 @@ char *tagtree_get_title(struct tree_context* c)
         case TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS:
             logf("%s (NAVI/ALLSUB) idx: %d %s", __func__,
                  c->currextra, current_title[c->currextra]);
+            if (c->currextra > 0 && !strcmp(current_title[c->currextra], UNTAGGED))
+                return (char *)untagged_name(csi->tagorder[c->currextra - 1]);
             return current_title[c->currextra];
     }
 

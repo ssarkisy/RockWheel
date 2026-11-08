@@ -111,9 +111,9 @@
 %Vl(current,160,50,148,21,1)%Vf(000000)
 %t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
 %Vl(info,160,72,148,18,3)%Vf(666666)
-%t(8)%al%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>;%t(8)%s%al%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>;%t(8)%al%?ia<%ia|%?d(2)<%d(2)|%fc %fbkbps>>
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
 %Vl(info,160,90,148,18,7)%Vf(767676)
-%t(16)%al%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>;%t(8)%al%s%?id<%id|%?d(3)<%d(3)|%?Sr<kHz%fk|%fkkHz>>>
+%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
 %xl(R,Ratings.bmp,0,0,10)
 %xC(R)
 %xl(g,iOS Ratings.bmp,0,0,10)

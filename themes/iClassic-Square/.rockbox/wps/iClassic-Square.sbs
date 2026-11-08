@@ -97,9 +97,9 @@ s%al%?cs<||%?Rp<%Sx(Recording)>|%?tp<%Sx(FM Radio)>|%Sx(Playlist)>
 %Vl(normal,163,158,154,24,1)%Vf(ebeced)
 %t(6)%s%ac%?it<%it|%?fn<%fn|>>;%t(12)%ac%?it<%it|%?fn<%fn|>>
 %Vl(normal,163,187,154,14,2)%Vf(ebeced)
-%t(6)%ac%?fn<%?ia<%ia|%?d(2)<%d(2)|>>|>;%t(6)%s%ac%?fn<%?ia<%ia|%?d(2)<%d(2)|>>|>;%t(6)%ac%?fn<%?ia<%ia|%?d(2)<%d(2)|>>|>
+%t(6)%ac%?fn<%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>|>;%t(6)%s%ac%?fn<%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>|>;%t(6)%ac%?fn<%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>|>
 %Vl(normal,163,203,154,14,2)%Vf(ebeced)
-%t(12)%ac%?fn<%?id<%id|%?d(1)<%d(1)|>>|>;%t(6)%s%ac%?fn<%?id<%id|%?d(1)<%d(1)|>>|>
+%t(12)%ac%?fn<%?id<%id|%Sx(Unknown Album)>|>;%t(6)%s%ac%?fn<%?id<%id|%Sx(Unknown Album)>|>
 %Vl(radio,163,158,154,24,1)%Vf(ebeced)
 %ac%tf Mhz
 %Vl(radio,163,187,154,14,2)%Vf(ebeced)

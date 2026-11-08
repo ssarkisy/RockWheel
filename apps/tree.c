@@ -1037,9 +1037,11 @@ static int dirbrowse(void)
         int customaction = ONPLAY_NO_CUSTOMACTION;
         bool do_restore_display = true;
         #ifdef HAVE_TAGCACHE
-            /* held Select on Music's own rows, its sections: nothing to add,
-               so no menu, as on a stock iPod, rather than one left empty */
-            if (id3db && button == ACTION_STD_CONTEXT && tagtree_at_top())
+            /* held Select on Music's own rows, its sections, or in a list with
+               none, as Composers without composers: nothing to add, so no
+               menu, as on a stock iPod, rather than one left empty */
+            if (id3db && button == ACTION_STD_CONTEXT
+                && (tagtree_at_top() || tc.filesindir <= 0))
                 button = ACTION_NONE;
             if (id3db && (button == ACTION_STD_OK || button == ACTION_STD_CONTEXT))
             {

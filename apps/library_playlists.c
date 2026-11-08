@@ -1322,7 +1322,7 @@ static bool lp_load(void)
         name[0] = '\0';
         if (search
             && (!tagcache_retrieve(&tcs, lp.songs[i].idx, tag_title, name, room)
-                || !name[0]))
+                || !name[0] || !strcmp(name, UNTAGGED)))
         {
             char path[MAX_PATH];
             name[0] = '\0';
