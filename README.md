@@ -1,4 +1,4 @@
-![RockWheel. Your iPod Video, the way it should have aged.](docs/images/rockwheel-banner.png)
+![RockWheel. Your iPod Video, the way it should have aged.](docs/images/rockwheel-banner-1.3.png)
 
 RockWheel is free, open-source firmware for the iPod Video, 5th and 5.5th generation, built on [Rockbox](https://www.rockbox.org). It brings Finder and iTunes sync to a familiar iPod interface, with Cover Flow, Live Lyrics, a dark theme and FLAC playback.
 
@@ -6,7 +6,7 @@ Sync your music as usual, or copy files directly onto the iPod. Both appear in t
 
 **[Features](#features) · [Compatibility](#will-it-work-on-my-ipod) · [Install](#install) · [Update](#update) · [Build](#build-from-source)**
 
-![Cover Flow, Now Playing, Settings and the main menu](docs/screenshots/banner.png)
+![Cover Flow, Now Playing, Settings and the main menu](docs/screenshots/1.3/banner.png)
 
 ## Features
 
@@ -191,7 +191,7 @@ The measurements, compared with Rockbox and the stock firmware, and how they wer
 
 Plug it in and it appears in Finder as an iPod, or in iTunes on Windows, and [iOpenPod](https://github.com/TheRealSavi/iOpenPod) syncs it too. Sync the way you always have, unplug, and your library is ready.
 
-<img src="docs/screenshots/usb.png" width="320" alt="Do not disconnect screen"> <img src="docs/screenshots/updating-library.png" width="320" alt="Library update with a progress bar">
+<img src="docs/screenshots/1.3/usb.png" width="320" alt="Do not disconnect screen"> <img src="docs/screenshots/1.3/updating-library.png" width="320" alt="Library update with a progress bar">
 
 Your songs, playlists, ratings, covers, podcasts and audiobooks arrive just as they were synced. It works both ways: what you play and rate on the iPod is on your computer after the next sync. There's no extra app to install on your computer, and nothing to set up.
 
@@ -224,7 +224,7 @@ Open an artist, and their albums are in the order they came out, the year beside
 
 Turn the wheel along the ring of letters and press Select to add one. Artists, albums and songs appear below as you type.
 
-<img src="docs/screenshots/search.png" width="320" alt="Search with two letters typed, and an artist, an album and a song found">
+<img src="docs/screenshots/1.3/search.png" width="320" alt="Search with two letters typed, and an artist, an album and a song found">
 
 With Smart Search, on by default, the wheel passes over letters that wouldn't find anything, so a name is usually a few presses away.
 
@@ -236,7 +236,7 @@ Next (⏭) adds a space, Previous (⏮) deletes a letter, and Play (⏯) takes y
 
 A playlist opens as quickly as Songs, its songs in the order you sorted them in on your computer.
 
-<img src="docs/screenshots/playlists.png" width="320" alt="Playlists, with a folder first, then the playlists and On-The-Go"> <img src="docs/screenshots/playlist.png" width="320" alt="A playlist opened, with Shuffle Songs at the top">
+<img src="docs/screenshots/1.3/playlists.png" width="320" alt="Playlists: New Playlist and New Folder, a synced folder, then synced and local playlists and On-The-Go"> <img src="docs/screenshots/1.3/playlist.png" width="320" alt="A playlist opened, with Shuffle Songs at the top">
 
 Smart playlists that go by rating, play count or kind of media update right on the iPod, with their limits by number of songs or by time. Give a song five stars and it's in your five-star playlist at once. Those with other rules, such as when a song was last played, stay as they were synced until the next sync.
 
@@ -254,7 +254,7 @@ Finder leaves playlist folders behind when it syncs an iPod Video. The installer
 
 The iPod Video never had Cover Flow. Here it's built in, laid out as on an iPod classic: large covers standing close together, on white, or on black in the dark theme.
 
-<img src="docs/screenshots/cover-flow.png" width="320" alt="Cover Flow on white, the album in the middle and its neighbors close beside it"> <img src="docs/screenshots/cover-flow-album.png" width="320" alt="An album's songs and their lengths, opened in Cover Flow">
+<img src="docs/screenshots/1.3/cover-flow.png" width="320" alt="Cover Flow on white, the album in the middle and its neighbors close beside it"> <img src="docs/screenshots/1.3/cover-flow-album.png" width="320" alt="An album's songs and their lengths, opened in Cover Flow">
 
 Scrolling has weight. Flick the wheel and the covers pick up the speed of your thumb, glide on their own and settle gently on an album. Flick again to go faster, or rest your thumb to stop.
 
@@ -268,13 +268,13 @@ On the test iPod, thousands of covers go by without waiting for any of them to l
 
 Press Select to move from the cover to the scrubber, your rating, a large cover and the lyrics. The lyrics follow the song line by line when the song has time-synced lyrics in it. For music you copy onto the iPod, an `.lrc` file with the same name beside the song works too.
 
-<img src="docs/screenshots/now-playing.png" width="320" alt="Now Playing, the cover over its reflection, with the format and bitrate beside a small sound wave"> <img src="docs/screenshots/large-art.png" width="320" alt="Large album art view">
+<img src="docs/screenshots/1.3/now-playing.png" width="320" alt="Now Playing, the cover over its reflection, with the format and bitrate beside a small sound wave"> <img src="docs/screenshots/1.3/large-art.png" width="320" alt="Large album art view">
 
-<img src="docs/screenshots/lyrics.png" width="320" alt="Time-synced lyrics"> <img src="docs/screenshots/rating.png" width="320" alt="Rating a track with the wheel">
+<img src="docs/screenshots/1.3/lyrics.png" width="320" alt="Time-synced lyrics"> <img src="docs/screenshots/1.3/rating.png" width="320" alt="Rating a track with the wheel">
 
 Hold Select for a short menu. From there you can open Cover Flow, go to the song's artist or album, see what's playing next, add the song to On-The-Go or a playlist, or change shuffle, repeat, the volume limit, the EQ, Sound Check, brightness, colors, the dark theme and Night Mode. The menu is customizable.
 
-<img src="docs/screenshots/menu.png" width="320" alt="The menu you get by holding Select in Now Playing"> <img src="docs/screenshots/menu-settings.png" width="320" alt="The same menu further down, with Volume Limit, EQ, Sound Check, Brightness, Cover Colors, Dark Theme and Night Mode">
+<img src="docs/screenshots/1.3/menu.png" width="320" alt="The menu you get by holding Select in Now Playing"> <img src="docs/screenshots/1.3/menu-settings.png" width="320" alt="The same menu further down, with Volume Limit, EQ, Sound Check, Brightness, Cover Colors, Dark Theme and Night Mode">
 
 ### Buttons and the screen
 
@@ -288,7 +288,7 @@ The volume, the volume limit and Night Mode's volume are all in percent. The vol
 
 Sound Check plays your songs at about the same loudness, using the levels your computer has already worked out.
 
-<img src="docs/screenshots/eq.png" width="320" alt="The EQ, with a row for each pair of headphones"> <img src="docs/screenshots/eq-model.png" width="320" alt="The presets for one pair of headphones">
+<img src="docs/screenshots/1.3/eq.png" width="320" alt="The EQ, with a row for each pair of headphones"> <img src="docs/screenshots/1.3/eq-model.png" width="320" alt="The presets for one pair of headphones">
 
 The EQ has all 22 presets from iTunes, tuned as they are there. It also has presets for three pairs of headphones: the 7Hz Zero 2 earphones, the Koss KPH30i, and the Sony WH-1000XM4C, by cable in Active Mode (headphones switched on).
 
@@ -296,9 +296,9 @@ The EQ has all 22 presets from iTunes, tuned as they are there. It also has pres
 
 ### A familiar interface
 
-<img src="docs/screenshots/home-playing.png" width="320" alt="Main menu with the playing album beside it"> <img src="docs/screenshots/home-settings.png" width="320" alt="Main menu with the iPod's name and free space">
+<img src="docs/screenshots/1.3/home-playing.png" width="320" alt="Main menu with the playing album beside it"> <img src="docs/screenshots/1.3/home-settings.png" width="320" alt="Main menu with the iPod's name and free space">
 
-<img src="docs/screenshots/settings.png" width="320" alt="Settings, with Sound, Playback and Appearance as folders"> <img src="docs/screenshots/settings-hint.png" width="320" alt="Settings' General folder, with a short hint under the setting chosen">
+<img src="docs/screenshots/1.3/settings.png" width="320" alt="Settings, with Sound, Playback and Appearance as folders"> <img src="docs/screenshots/1.3/settings-hint.png" width="320" alt="Settings' General folder, with a short hint under the setting chosen">
 
 The main menu is the one you remember, with your iPod's name at the top. Beside it you see the album that's playing, a collage of your photos, or your iPod and its free space.
 
@@ -310,15 +310,15 @@ The menus come in more than forty languages. Song titles in Korean, Japanese, Ch
 
 Now Playing comes in the style of the iPod Video, the cover standing over its reflection, or of the iPod classic, with Angled Cover turning it slightly away. Status Bar, Rating and Progress Bar each have a second look, inspired by Music on iOS 13.
 
-<img src="docs/screenshots/now-playing.png" width="320" alt="Now Playing as set at first, in the style of the iPod Video: the cover over its reflection, gray stars, a blue bar"> <img src="docs/screenshots/now-playing-ios.png" width="320" alt="Now Playing with the angled cover and the look inspired by iOS 13: red stars, a red bar with a round knob">
+<img src="docs/screenshots/1.3/now-playing.png" width="320" alt="Now Playing as set at first, in the style of the iPod Video: the cover over its reflection, gray stars, a blue bar"> <img src="docs/screenshots/1.3/now-playing-ios.png" width="320" alt="Now Playing with the angled cover and the look inspired by iOS 13: red stars, a red bar with a round knob">
 
 ### Colors from the album
 
 Now Playing can take on the colors of the album you're listening to, and the screen changes together with the cover.
 
-<img src="docs/screenshots/cover-fill-dark.png" width="320" alt="Now Playing filled with the deep purple of the cover"> <img src="docs/screenshots/cover-fill-light.png" width="320" alt="Now Playing filled with the warm yellow of the cover">
+<img src="docs/screenshots/1.3/cover-fill-dark.png" width="320" alt="Now Playing filled with the deep purple of the cover"> <img src="docs/screenshots/1.3/cover-fill-light.png" width="320" alt="Now Playing filled with the warm yellow of the cover">
 
-<img src="docs/screenshots/cover-whole-screen.png" width="320" alt="Now Playing with a soft tint of the cover's teal"> <img src="docs/screenshots/cover-text.png" width="320" alt="Now Playing with its text and stars in the color of the cover">
+<img src="docs/screenshots/1.3/cover-whole-screen.png" width="320" alt="Now Playing with a soft tint of the cover's teal"> <img src="docs/screenshots/1.3/cover-text.png" width="320" alt="Now Playing with its text and stars in the color of the cover">
 
 **Fill** paints the screen in the album's color, so the cover melts into it. The text turns light or dark to stay easy to read.
 
@@ -334,9 +334,9 @@ It's off by default. To turn it on, hold Select in Now Playing and choose Cover 
 
 The whole iPod can go dark: the menus, Now Playing, the dialogs, even the clock. On the test iPod it switches in about half a second. To turn it on, hold Select in Now Playing, or find Dark Theme in Settings, under Appearance. The colors from the album work in the dark too.
 
-<img src="docs/screenshots/dark-now-playing.png" width="320" alt="Now Playing in the dark theme"> <img src="docs/screenshots/dark-home.png" width="320" alt="The main menu in the dark theme, with the playing album beside it">
+<img src="docs/screenshots/1.3/dark-now-playing.png" width="320" alt="Now Playing in the dark theme"> <img src="docs/screenshots/1.3/dark-home.png" width="320" alt="The main menu in the dark theme, with the playing album beside it">
 
-<img src="docs/screenshots/dark-settings.png" width="320" alt="Settings in the dark theme"> <img src="docs/screenshots/night-mode.png" width="320" alt="Night Mode and what it does when it's on">
+<img src="docs/screenshots/1.3/dark-settings.png" width="320" alt="Settings in the dark theme"> <img src="docs/screenshots/1.3/night-mode.png" width="320" alt="Night Mode and what it does when it's on">
 
 **Night Mode** is for the end of the day. It makes the iPod dark, silences the wheel, dims the screen and lowers the volume limit. You choose which of these it does, how dim the screen gets and how quiet the music.
 
@@ -344,13 +344,13 @@ It can also keep its own hours. Give it a start and an end, and it turns on and 
 
 ## Photos and Extras
 
-<img src="docs/screenshots/home-photos.png" width="320" alt="Main menu with a collage of your photos beside it"> <img src="docs/screenshots/photos.png" width="320" alt="Photo browser">
+<img src="docs/screenshots/1.3/home-photos.png" width="320" alt="Main menu with a collage of your photos beside it"> <img src="docs/screenshots/1.3/photos.png" width="320" alt="Photo browser">
 
 Photos you sync show in the familiar grid and full screen, and a collage of them sits beside the main menu.
 
 Extras has a clock, a calendar, a stopwatch and five games: Brick, Solitaire, Jewels, Minesweeper and Blackjack. When you install, you can add eight more games from Rockbox: Rockblox, 2048, Sudoku, Sokoban, Reversi, Space Rocks, Bubbles and Clix. In Reversi, the iPod plays the other side.
 
-<img src="docs/screenshots/games.png" width="320" alt="Extras, Games: thirteen games in alphabetical order">
+<img src="docs/screenshots/1.3/games.png" width="320" alt="Extras, Games: thirteen games in alphabetical order">
 
 ## What's next
 
