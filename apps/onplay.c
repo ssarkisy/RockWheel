@@ -2245,7 +2245,13 @@ int onplay(char* file, int attr, int from_context, bool hotkey, int customaction
         if (!tree_menu_title[0])
             onplay_set_title(str(LANG_ONPLAY_MENU_TITLE));
     }
-    transition_begin(TRANSITION_FORWARD);
+    /* from Now Playing it began there, before Now Playing left its screen,
+       so that the menu slides over it: held longer, for the theme drawn twice
+       since, for the menu's activity and its width */
+    if (from_context != CONTEXT_WPS)
+        transition_begin(TRANSITION_FORWARD);
+    else
+        transition_wait(HZ/2);
     menu_selection = do_menu(menu, NULL, NULL, false);
     tree_menu_title[0] = '\0';
 #ifdef HAVE_TAGCACHE

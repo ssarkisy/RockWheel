@@ -34,6 +34,7 @@ struct wps_data;
 char* sb_create_from_settings(enum screen_type screen);
 void sb_skin_init(void) INIT_ATTR;
 struct viewport *sb_skin_get_info_vp(enum screen_type screen);
+int sb_skin_bar_icons(enum screen_type screen, int top, int width);
 void sb_skin_update(enum screen_type screen, bool force);
 
 void sb_skin_set_update_delay(int delay);

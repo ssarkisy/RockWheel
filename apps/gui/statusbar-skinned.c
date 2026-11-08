@@ -168,6 +168,33 @@ struct viewport *sb_skin_get_info_vp(enum screen_type screen)
     return &vp->vp;
 }
 
+/* Where the title bar's icons begin, in a bar as wide as width over the top
+   rows: the leftmost of the viewports shown as last drawn that are in those
+   rows only, from the bar's middle on. The title's words are left of it, the
+   theme's to say: by the pixels, a long name came too near the play icon to
+   tell apart. -1 for none */
+int sb_skin_bar_icons(enum screen_type screen, int top, int width)
+{
+    if (!sbs_loaded[screen])
+        return -1;
+    struct wps_data *data = skin_get_gwps(CUSTOM_STATUSBAR, screen)->data;
+    char *buffer = get_skin_buffer(data);
+    int first = -1;
+    for (struct skin_element *viewport = SKINOFFSETTOPTR(buffer, data->tree);
+         viewport; viewport = SKINOFFSETTOPTR(buffer, viewport->next))
+    {
+        const struct skin_viewport *svp = SKINOFFSETTOPTR(buffer, viewport->data);
+        if (!svp || svp->is_infovp
+            || (svp->hidden_flags & (VP_NEVER_VISIBLE | VP_DRAW_HIDDEN)))
+            continue;
+        const struct viewport *vp = &svp->vp;
+        if (vp->y + vp->height <= top && vp->x >= width / 2 && vp->x < width
+            && (first < 0 || vp->x < first))
+            first = vp->x;
+    }
+    return first;
+}
+
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && LCD_REMOTE_DEPTH > 1)
 int sb_get_backdrop(enum screen_type screen)
 {

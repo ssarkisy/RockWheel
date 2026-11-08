@@ -1145,6 +1145,10 @@ long gui_wps_show(void)
                    to leave Now Playing for, nor to draw again */
                 if (!hotkey && onplay_wps_menu_empty())
                     break;
+                /* Now Playing as it is, before leaving it draws the menus'
+                   screen: the menu slides over it */
+                if (!hotkey)
+                    transition_begin(TRANSITION_FORWARD);
                 gwps_leave_wps(true);
                 int retval = onplay(state->id3->path,
                        FILE_ATTR_AUDIO, CONTEXT_WPS, hotkey, ONPLAY_NO_CUSTOMACTION);
