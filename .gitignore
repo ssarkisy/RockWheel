@@ -339,3 +339,6 @@ __pycache__
 # /utils/jztool/
 /utils/jztool/build*
 /utils/jztool/jztool.*
+
+# RockWheel: banners, posters and mockups in the works, kept out of git
+/work/
