@@ -7,9 +7,14 @@
 #   --dry-run        look at the iPod and say what would be done, changing nothing
 #   --from DIR       take the files from DIR instead of downloading them
 #   --uninstall      remove the bootloader, so the iPod starts its stock firmware
+#   --folders        put your playlist folders from Music on the iPod, for them to
+#                    show there after the next sync
+#   --games          add Rockbox's games to Extras > Games without asking
+#   --no-games       take those games off the iPod, and don't ask about them again
 #
 # It changes nothing without asking, unless all it has to do is update the firmware
-# files. A Mac-formatted iPod has to be erased, and only after you type ERASE.
+# files, and the games if you added them. A Mac-formatted iPod has to be erased,
+# and only after you type ERASE.
 
 set -u
 
@@ -21,6 +26,8 @@ BOOTLOADER_SHA256=19dfa0e930689f5afdeaae18f4c56b472cbed9c6c3a7039bb32b646d804029
 
 DRY_RUN=0
 UNINSTALL=0
+FOLDERS=0
+GAMES=""
 FROM=""
 WORK=""
 DISK=""
@@ -60,14 +67,27 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run)   DRY_RUN=1 ;;
         --uninstall) UNINSTALL=1 ;;
+        --folders)   FOLDERS=1 ;;
+        --games)     GAMES=yes ;;
+        --no-games)  GAMES=no ;;
         --from)      shift; FROM="${1:-}"; [ -n "$FROM" ] || die "--from needs a folder" ;;
-        -h|--help)   sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help)   sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)           die "Unknown option: $1" ;;
     esac
     shift
 done
 
-[ "$(uname -s)" = "Darwin" ] || die "This installer is for macOS. See the README for the manual steps."
+case "$(uname -s)" in
+    Darwin) ;;
+    MINGW*|MSYS*|CYGWIN*|Windows*)
+        die "This installer is for macOS. On Windows, run this in PowerShell:
+    irm https://raw.githubusercontent.com/$REPO/main/install.ps1 | iex" ;;
+    *)  if grep -qi microsoft /proc/version 2>/dev/null; then
+            die "This installer is for macOS. On Windows, run this in PowerShell, not in WSL:
+    irm https://raw.githubusercontent.com/$REPO/main/install.ps1 | iex"
+        fi
+        die "This installer is for macOS and Windows. See the README for the manual steps." ;;
+esac
 
 disk_value() {  # the value of a key in diskutil's description of a disk
     diskutil info -plist "$2" 2>/dev/null | plutil -extract "$1" raw -o - - 2>/dev/null
@@ -110,6 +130,16 @@ fetch_files() {
         done
         (cd "$FILES" && shasum -a 256 -c SHA256SUMS >/dev/null 2>&1) \
             || die "The download is damaged: its checksums don't match."
+        # The games, with a checksum of their own, as SHA256SUMS has the four files a
+        # script of 1.2 checks; a release without them is only asked nothing about them
+        if curl -fsSL -o "$FILES/rockbox-games.zip" "$RELEASE_URL/rockbox-games.zip" 2>/dev/null \
+            && curl -fsSL -o "$FILES/SHA256SUMS-games" "$RELEASE_URL/SHA256SUMS-games" 2>/dev/null; then
+            say "    rockbox-games.zip"
+            (cd "$FILES" && shasum -a 256 -c SHA256SUMS-games >/dev/null 2>&1) \
+                || die "The download is damaged: its checksums don't match."
+        else
+            rm -f "$FILES/rockbox-games.zip" "$FILES/SHA256SUMS-games"
+        fi
     fi
     for f in rockbox.zip ipodpatcher "$BOOTLOADER"; do
         [ -f "$FILES/$f" ] || die "$f is missing from $FILES"
@@ -137,10 +167,20 @@ convert_to_fat32() {
         || die "Couldn't unmount the iPod. Close Finder windows and apps using it, then run this again."
     printf 'y\n' | sudo "$PATCHER" "/dev/$DISK" --convert >/dev/null 2>&1 \
         || die "Writing the partition table failed."
+    # ipodpatcher answers 0 even when it wrote nothing, and a Mac-formatted
+    # iPod has an s2 already, its firmware partition, which formatting would
+    # wipe: the Mac has to see the new table, and the iPod be a "winpod"
     local i=0
-    while [ -z "$(disk_value DeviceNode "${DISK}s2")" ] && [ $i -lt 20 ]; do sleep 1; i=$((i + 1)); done
-    [ -n "$(disk_value DeviceNode "${DISK}s2")" ] \
+    while { [ "$(disk_value Content "$DISK")" != "FDisk_partition_scheme" ] \
+            || [ -z "$(disk_value DeviceNode "${DISK}s2")" ]; } && [ $i -lt 20 ]; do
+        sleep 1; i=$((i + 1))
+    done
+    [ "$(disk_value Content "$DISK")" = "FDisk_partition_scheme" ] \
+        && [ -n "$(disk_value DeviceNode "${DISK}s2")" ] \
         || die "The Mac hasn't seen the new partitions. Unplug the iPod, connect it again and run this again."
+    read_ipod
+    [ "$KIND" = "winpod" ] \
+        || die "Converting failed: the iPod is still Mac-formatted. Nothing was formatted."
 }
 
 # Clusters of 32 KB, with both copies of the FAT and the clusters on 4 MiB boundaries:
@@ -200,6 +240,104 @@ copy_firmware() {
     sync
 }
 
+# Rockbox's games for Extras > Games, in an archive of their own: asked about
+# while they aren't on the iPod, then kept up to date with the firmware. A no is
+# kept in a file on the iPod, so that an update doesn't ask again.
+copy_games() {
+    local part="${DISK}s2" mount files count size have=0 declined
+    if [ ! -f "$FILES/rockbox-games.zip" ]; then    # a release or --from folder without them
+        [ -n "$GAMES" ] && say "" && say "    There are no games with this release, so they were left as they are."
+        return 0
+    fi
+    files=$(unzip -Z1 "$FILES/rockbox-games.zip" | grep -v '/$')
+    count=$(printf '%s\n' "$files" | grep -c '\.rock$')
+    size=$(unzip -l "$FILES/rockbox-games.zip" | tail -1 | awk '{ printf "%.1f", $1 / 1048576 }')
+    mount=$(disk_value MountPoint "$part")
+    declined="$mount/.rockbox/no-extra-games"
+    if [ -n "$mount" ]; then
+        while IFS= read -r f; do
+            case "$f" in *.rock) [ -f "$mount/$f" ] && have=1 ;; esac
+        done <<< "$files"
+    fi
+
+    if [ "$GAMES" = "no" ]; then
+        step "Taking the extra games off the iPod"
+        would "remove the $count games of Extras > Games that came with rockbox-games.zip" && return
+        [ -n "$mount" ] || die "Couldn't find the iPod's music partition."
+        while IFS= read -r f; do rm -f "$mount/$f"; done <<< "$files"
+        : > "$declined"
+        sync
+        return
+    fi
+    if [ "$GAMES" != "yes" ] && [ "$have" = 0 ]; then
+        [ -n "$mount" ] && [ -f "$declined" ] && return
+        say ""
+        if [ "$DRY_RUN" = 1 ]; then
+            say "    Would ask whether to add $count games from Rockbox to Extras > Games."
+            return
+        fi
+        ask "Add $count games from Rockbox to Extras > Games? About $size MB. [y/N]"
+        case "$REPLY" in
+            [yY]|[yY][eE][sS]) ;;
+            *)  [ -n "$mount" ] && : > "$declined"
+                say "    Not added. Run this with --games to add them later."
+                return ;;
+        esac
+    fi
+    step "Copying the games"
+    would "copy the files of rockbox-games.zip to the iPod" && return
+    [ -n "$mount" ] || die "Couldn't find the iPod's music partition."
+    unzip -oq "$FILES/rockbox-games.zip" -d "$mount" || die "Copying the games failed. Is the iPod full?"
+    find "$mount/.rockbox" -name '._*' -delete 2>/dev/null
+    rm -f "$declined"
+    sync
+}
+
+# Finder leaves playlist folders out of what it syncs to an iPod Video. Music knows
+# them, by the same persistent IDs the iPod's database has for the playlists: a
+# line for each folder and for each playlist in one, which RockWheel reads at the
+# import after a sync.
+read_folders() {
+    osascript <<'APPLESCRIPT'
+tell application "Music"
+    set out to ""
+    repeat with f in (every folder playlist)
+        set par to "-"
+        try
+            set par to persistent ID of (parent of f)
+        end try
+        set out to out & "folder " & (persistent ID of f) & " " & par & " " & (name of f) & linefeed
+    end repeat
+    repeat with p in (every user playlist)
+        try
+            set par to persistent ID of (parent of p)
+            set out to out & "playlist " & (persistent ID of p) & " " & par & linefeed
+        end try
+    end repeat
+    return out
+end tell
+APPLESCRIPT
+}
+
+put_folders() {
+    local part="${DISK}s2" mount lines count
+    step "Reading your playlist folders from Music"
+    lines=$(read_folders) || die "Couldn't read the playlists from Music. Allow the Terminal to control Music if macOS asks."
+    count=$(printf '%s\n' "$lines" | grep -c '^folder ')
+    say "    $count folders."
+    mount=$(disk_value MountPoint "$part")
+    [ -n "$mount" ] && [ -d "$mount/.rockbox" ] || die "The iPod's music partition isn't mounted, or RockWheel isn't on it."
+    would "write them to .rockbox/playlist_folders.txt on the iPod" && return
+    # whole or not at all: written beside it, then put in its place
+    printf '# Playlist folders from Music, written by install.sh --folders\n%s\n' "$lines" \
+        > "$mount/.rockbox/playlist_folders.tmp" \
+        && mv -f "$mount/.rockbox/playlist_folders.tmp" "$mount/.rockbox/playlist_folders.txt" \
+        || { rm -f "$mount/.rockbox/playlist_folders.tmp"; die "Couldn't write to the iPod."; }
+    rm -f "$mount/.rockbox/._playlist_folders.txt" "$mount/.rockbox/._playlist_folders.tmp"
+    sync
+    say "    They show on the iPod after your next sync."
+}
+
 eject_ipod() {
     step "Ejecting"
     would "eject the iPod" && return
@@ -208,8 +346,15 @@ eject_ipod() {
 
 step "RockWheel for iPod Video"
 [ "$DRY_RUN" = 1 ] && say "This is a dry run: nothing on the iPod is changed."
-say "It has been tested on a single iPod with a flash card, and never on an original"
-say "hard drive. Details are in the README."
+say "People run it on iPods with flash cards, SD card adapters and the original hard"
+say "drive. Details are in the README."
+
+if [ "$FOLDERS" = 1 ]; then
+    step "Looking for the iPod"
+    find_ipod
+    put_folders
+    exit 0
+fi
 
 fetch_files
 
@@ -274,6 +419,7 @@ else
     add_bootloader
 fi
 copy_firmware
+copy_games
 eject_ipod
 
 if [ "$DRY_RUN" = 1 ]; then
