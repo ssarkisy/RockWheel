@@ -6230,6 +6230,25 @@ static bool hidden_name(const char *name)
     return false;
 }
 
+/* What the stock firmware keeps in iPod_Control besides the songs, as the
+   games iTunes puts on an iPod with their sounds (Games_RO): no music of the
+   library, though the scan after a sync took their .wav files for songs, an
+   album in Cover Flow each. Of iPod_Control only Music, Finder's folder, is
+   looked through, and the entries of the rest are removed. */
+static bool ipod_control_private(const char *path)
+{
+    static const char dir[] = "/iPod_Control/";
+#ifdef HAVE_MULTIVOLUME
+    path_strip_volume(path, &path, false);
+#endif
+    if (strncasecmp(path, dir, sizeof(dir) - 1))
+        return false;
+    const char *rest = path + sizeof(dir) - 1;
+    const char *slash = strchr(rest, '/');
+    const size_t len = slash ? (size_t)(slash - rest) : strlen(rest);
+    return len != 5 || strncasecmp(rest, "Music", 5);
+}
+
 /* a path with such a name in it */
 static bool hidden_path(const char *path)
 {
@@ -6322,8 +6341,9 @@ static int check_file_ref(long idx_id, const char *path, bool auto_update)
     if (check_skips_synced && itunesdb_synced_path(path))
         return 0;
 #endif
-    /* one of macOS's, from a scan before they were passed over */
-    if (auto_update && hidden_path(path))
+    /* one of macOS's, or of iPod_Control's other folders, from a scan before
+       they were passed over */
+    if (auto_update && (hidden_path(path) || ipod_control_private(path)))
         return remove_gone(idx_id) ? 2 : 1;
 #ifdef HAVE_DIRCACHE
     struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
@@ -6768,7 +6788,8 @@ static bool check_dir(const char *dirname, int add_files)
                 add_search_root(curpath);
             else
 #endif /* SIMULATOR */
-            if (!rockbox_dir(curpath) && !outside_skips(curpath))
+            if (!rockbox_dir(curpath) && !outside_skips(curpath)
+                && !ipod_control_private(curpath))
                 check_dir(curpath, add_files);
         }
         else if (!add_files)
@@ -6778,7 +6799,9 @@ static bool check_dir(const char *dirname, int add_files)
                 add_outside_image(curpath, &info);
 #endif
         }
-        else
+        /* nor a file of iPod_Control's own, beside its folders: it would be
+           added at each import and removed by the check after it */
+        else if (!ipod_control_private(curpath))
         {
 #ifndef __PCTOOL__
             if (scan_outside)
