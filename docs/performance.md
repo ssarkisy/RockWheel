@@ -31,7 +31,7 @@ The same work done by Rockbox's own code, as plain Rockbox does it.
 
 Work that plain Rockbox doesn't do, timed against the RockWheel build the work started from.
 
-| | Earlier RockWheel | RockWheel 1.3 |
+| | Earlier RockWheel | RockWheel |
 |---|---:|---:|
 | Library update after a sync | about 90 s for 200 new songs | **about 17 s for 200–300 new**, in a library of 6,810 |
 | Sending your play counts to Finder, at each connection | 1.8 s | **0.18 s** |
