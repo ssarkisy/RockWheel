@@ -2050,6 +2050,8 @@ static bool build_lookup_list(struct tagcache_search *tcs)
             /* Check for conditions. */
             if (!check_clauses(tcs, idx, tcs->clause, tcs->clause_count))
                 continue;
+            if (tcs->match)
+                tcs->match(idx->tag_seek, tcs->match_data);
             /* Add to the seek list if not already in uniq buffer (doesn't yield)*/
             if (!add_uniqbuf(tcs, idx->tag_seek[tcs->type]))
                 continue;
@@ -2106,6 +2108,8 @@ static bool build_lookup_list(struct tagcache_search *tcs)
         /* Check for conditions. */
         if (!check_clauses(tcs, &entry, tcs->clause, tcs->clause_count))
             continue;
+        if (tcs->match)
+            tcs->match(entry.tag_seek, tcs->match_data);
 
         /* Add to the seek list if not already in uniq buffer. */
         if (!add_uniqbuf(tcs, entry.tag_seek[tcs->type]))
@@ -2186,6 +2190,14 @@ bool tagcache_search(struct tagcache_search *tcs, int tag)
     write_lock++;
 
     return true;
+}
+
+void tagcache_search_set_match(struct tagcache_search *tcs,
+                               void (*match)(const int32_t *tag_seek, void *data),
+                               void *data)
+{
+    tcs->match = match;
+    tcs->match_data = data;
 }
 
 void tagcache_search_set_uniqbuf(struct tagcache_search *tcs,

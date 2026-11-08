@@ -507,6 +507,10 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         .have_icons = have_icons, .linedes = &linedes, .display = display
     };
 
+    /* the column of the texts before the names, as albums' years */
+    const int lead_w = list->callback_get_lead && screen == SCREEN_MAIN ?
+                       line_lead_width(display) : 0;
+
     for (i=start; i<end && i<list->nb_items; i++)
     {
         /* do the text */
@@ -554,6 +558,13 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                          list->callback_get_mark(i, list->data) : LINE_MARK_NONE;
         if (mark != LINE_MARK_NONE)
             line_indent += line_mark_width(display);
+        /* an album's year, its name after its column */
+        char lead_buf[12];
+        const int lead_x = line_indent;
+        const char *lead = lead_w && !shuffle && mark == LINE_MARK_NONE ?
+            list->callback_get_lead(i, list->data, lead_buf, sizeof(lead_buf)) : NULL;
+        if (lead)
+            line_indent += lead_w;
 
         /* position the string at the correct offset place */
         int item_width,h;
@@ -657,6 +668,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         if (mark != LINE_MARK_NONE)
             line_draw_mark(display, list_info.x + mark_x, list_info.y,
                            &linedes, mark);
+        if (lead)
+            line_draw_lead(display, list_info.x + lead_x, list_info.y,
+                           &linedes, lead);
     }
     if (hint)
         list_draw_hint(display, &band, hint);

@@ -76,6 +76,10 @@ typedef const char *list_get_hint(int item, void * data);
                                                       : LCD_RGBPACK(0x60, 0x66, 0x70))
 #define LIST_GROUP_BAR_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0x2c, 0x2e, 0x33) \
                                                           : LCD_RGBPACK(0xe6, 0xe8, 0xec))
+/* a value's grey, as a setting's at the right end of its row, and an album's
+   year before its name */
+#define LIST_VALUE_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa2, 0xa8) \
+                                                      : LCD_RGBPACK(0x66, 0x66, 0x66))
 /*
  * Text callback
  *  - selected_item : an integer that tells the number of the item to display
@@ -192,6 +196,9 @@ struct gui_synclist
     list_is_playing *callback_is_playing; /* can be NULL */
     /* the mark before a row's name, as enum line_mark (line.h); can be NULL */
     int (*callback_get_mark)(int item, void *data);
+    /* a short text before a row's name, in a column of its own, as an
+       album's year; written to buf, or NULL for none. Can be NULL */
+    const char *(*callback_get_lead)(int item, void *data, char *buf, size_t size);
     list_is_shuffle *callback_is_shuffle; /* can be NULL */
     /* a list with hints has a band for them under its rows, can be NULL */
     list_get_hint *callback_get_hint;
@@ -275,6 +282,8 @@ extern void gui_synclist_set_playing_callback(struct gui_synclist * lists,
                                               list_is_playing is_playing_callback);
 extern void gui_synclist_set_mark_callback(struct gui_synclist * lists,
                                            int (*get_mark)(int item, void *data));
+extern void gui_synclist_set_lead_callback(struct gui_synclist * lists,
+        const char *(*get_lead)(int item, void *data, char *buf, size_t size));
 extern void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
                                               list_is_shuffle is_shuffle_callback);
 extern void gui_synclist_set_hint_callback(struct gui_synclist * lists,

@@ -294,6 +294,15 @@ static bool tree_is_playing(int selected_item, void *data)
         && tagtree_row_is_playing(local_tc, index_of(selected_item),
                                   gui_synclist_playing());
 }
+
+/* an album's year before its name, in an artist's albums */
+static const char *tree_get_year(int selected_item, void *data, char *buf,
+                                 size_t size)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    return *local_tc->dirfilter == SHOW_ID3DB ?
+           tagtree_entry_year(local_tc, index_of(selected_item), buf, size) : NULL;
+}
 #endif
 
 #ifdef HAVE_TAGCACHE
@@ -321,8 +330,10 @@ static bool tree_has_children(int selected_item, void * data)
 {
     struct tree_context * local_tc=(struct tree_context *)data;
 #ifdef HAVE_TAGCACHE
+    /* nor Albums' Sort By, which switches in place */
     if (*(local_tc->dirfilter) == SHOW_ID3DB)
-        return tagtree_get_attr(local_tc) == ATTR_DIRECTORY;
+        return selected_item >= local_tc->special_entry_count
+               && tagtree_get_attr(local_tc) == ATTR_DIRECTORY;
 #endif
     if (catalog_otg_row(selected_item))
         return !catalog_otg_empty;
@@ -710,11 +721,17 @@ static int update_dir(void)
         list->callback_is_group = tree_is_group;
         list->callback_draw_item = menu_draw_value_line;
     }
+#ifdef HAVE_TAGCACHE
+    /* Albums' Sort By, its value at the right end as a setting's */
+    if (id3db && tc.special_entry_count > 0)
+        list->callback_draw_item = menu_draw_value_line;
+#endif
     gui_synclist_set_icon_callback(list,
                             global_settings.show_icons?tree_get_fileicon:NULL);
     gui_synclist_set_has_children_callback(list, tree_has_children);
 #ifdef HAVE_TAGCACHE
     gui_synclist_set_playing_callback(list, id3db ? tree_is_playing : NULL);
+    gui_synclist_set_lead_callback(list, id3db ? tree_get_year : NULL);
     /* in the catalogue, not in the file browser showing playlists */
     gui_synclist_set_mark_callback(list, catalog_lead ? tree_get_mark : NULL);
     if(!id3db || global_settings.talk_menu)
@@ -1020,6 +1037,10 @@ static int dirbrowse(void)
         int customaction = ONPLAY_NO_CUSTOMACTION;
         bool do_restore_display = true;
         #ifdef HAVE_TAGCACHE
+            /* held Select on Music's own rows, its sections: nothing to add,
+               so no menu, as on a stock iPod, rather than one left empty */
+            if (id3db && button == ACTION_STD_CONTEXT && tagtree_at_top())
+                button = ACTION_NONE;
             if (id3db && (button == ACTION_STD_OK || button == ACTION_STD_CONTEXT))
             {
                 customaction = tagtree_get_custom_action(&tc);
@@ -1047,6 +1068,20 @@ static int dirbrowse(void)
                         return exit_to_new_screen(GO_TO_PLAYLISTS_SCREEN);
                     button = ACTION_NONE;
                 }
+                else if (customaction == ONPLAY_CUSTOMACTION_ALBUMS_SORT)
+                {
+                    /* Albums' Sort By: Year or Name, the list again in that
+                       order at once, its row still selected */
+                    if (button == ACTION_STD_OK)
+                    {
+                        global_settings.albums_sort = !global_settings.albums_sort;
+                        settings_save();
+                        tagtree_albums_sort_changed(tc.dirlevel);
+                        tc.selected_item = 0;
+                        reload_dir = true;
+                    }
+                    button = ACTION_NONE;
+                }
                 else if (customaction == ONPLAY_CUSTOMACTION_COVERFLOW)
                 {
                     /* PictureFlow, back to this list when it is left */
@@ -1070,6 +1105,12 @@ static int dirbrowse(void)
             }
         #endif
 #ifdef HAVE_TAGCACHE
+#ifdef HAVE_HOTKEY
+        /* nothing to play or add on Albums' Sort By */
+        if (id3db && button == ACTION_TREE_HOTKEY
+            && tagtree_get_custom_action(&tc) == ONPLAY_CUSTOMACTION_ALBUMS_SORT)
+            button = ACTION_NONE;
+#endif
         if (on_lead)
         {
             /* New Playlist, New Folder, or as a folder is picked, Move Here:

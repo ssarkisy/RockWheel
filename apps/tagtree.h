@@ -77,6 +77,12 @@ bool tagtree_at_top(void);
 char *tagtree_get_title(struct tree_context* c);
 int tagtree_get_attr(struct tree_context* c);
 bool tagtree_row_is_playing(struct tree_context *c, int row, long playing);
+const char *tagtree_entry_year(struct tree_context *c, int row, char *buf,
+                               size_t size);
+/* Albums' Sort By switched, in the list at this level */
+void tagtree_albums_sort_changed(int dirlevel);
+/* the albums' years made again */
+void tagtree_albums_reordered(void);
 int tagtree_get_icon(struct tree_context* c);
 int tagtree_get_filename(struct tree_context* c, char *buf, int buflen);
 int tagtree_get_custom_action(struct tree_context* c);

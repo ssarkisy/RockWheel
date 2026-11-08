@@ -427,6 +427,12 @@ static int treeplaylist_callback(int action,
                 sel_file_attr != FILE_ATTR_M3U &&
                 (selected_file.attr & ATTR_DIRECTORY) == 0)
                 return ACTION_EXIT_MENUITEM;
+#ifdef HAVE_TAGCACHE
+            /* nor Music's own rows, as Songs, the whole library, or Albums,
+               as On-The-Go hasn't them either: a stock iPod's open nothing */
+            if (selected_file.context == CONTEXT_ID3DB && tagtree_at_top())
+                return ACTION_EXIT_MENUITEM;
+#endif
 
             if ((param->flags & PL_QUEUE) == PL_QUEUE)
             {

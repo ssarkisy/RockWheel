@@ -166,6 +166,7 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_is_group = NULL;
     gui_list->callback_is_playing = NULL;
     gui_list->callback_get_mark = NULL;
+    gui_list->callback_get_lead = NULL;
     gui_list->callback_is_shuffle = NULL;
     gui_list->callback_get_hint = NULL;
     gui_list->playing_shown = 0;
@@ -538,6 +539,12 @@ void gui_synclist_set_mark_callback(struct gui_synclist * lists,
                                     int (*get_mark)(int item, void *data))
 {
     lists->callback_get_mark = get_mark;
+}
+
+void gui_synclist_set_lead_callback(struct gui_synclist * lists,
+        const char *(*get_lead)(int item, void *data, char *buf, size_t size))
+{
+    lists->callback_get_lead = get_lead;
 }
 
 void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,

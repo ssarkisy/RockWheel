@@ -339,8 +339,7 @@ static bool menu_is_group(int item, void *data)
 /* A line of "name\tvalue": the name as usual, then the value at the right end,
    grey. It goes left of where a chevron can come in a list that has them, and
    only if it fits beside the name. The name of a group has a bar of its own. */
-#define VALUE_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa2, 0xa8) \
-                                                 : LCD_RGBPACK(0x66, 0x66, 0x66))
+#define VALUE_COLOUR LIST_VALUE_COLOUR
 #define GROUP_COLOUR LIST_GROUP_COLOUR
 #define GROUP_BAR_COLOUR LIST_GROUP_BAR_COLOUR
 #define VALUE_MARGIN 6
@@ -365,11 +364,16 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         return;
     }
 
-    strlcpy(name, text, tab ? MIN((size_t)(tab - text) + 1, sizeof(name)) : sizeof(name));
+    /* a row without a value, as an album's, as long as it is */
+    if (!tab)
+    {
+        display->put_line(info->x, info->y, info->linedes, "$*s$*t",
+                          info->item_indent, info->item_offset, text);
+        return;
+    }
+    strlcpy(name, text, MIN((size_t)(tab - text) + 1, sizeof(name)));
     display->put_line(info->x, info->y, info->linedes, "$*s$*t", info->item_indent,
                       info->item_offset, name);
-    if (!tab)
-        return;
 
     int name_width, width, height;
     display->getstringsize(name, &name_width, &height);

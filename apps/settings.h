@@ -1054,6 +1054,9 @@ struct user_settings
     unsigned char rwrs_file[MAX_FILENAME+1];  /* last remote-wrs */
 #endif
 #endif
+    /* Music > Albums, as its first row sorts it: 0 by year, 1 by name. Last,
+       to keep the layout plugins see */
+    int albums_sort;
 };
 
 /* global settings */

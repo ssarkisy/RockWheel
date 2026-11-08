@@ -145,6 +145,11 @@ struct tagcache_search {
     uint32_t *unique_list;
     int unique_list_capacity;
     int unique_list_count;
+    /* told of each song that matches, before its name is passed over as
+       found already: with the database's memory held still, so it doesn't
+       wait for anything */
+    void (*match)(const int32_t *tag_seek, void *data);
+    void *match_data;
 
     /* Exported variables. */
     bool ramsearch;      /* Is ram copy of the tagcache being used. */
@@ -171,6 +176,10 @@ bool tagcache_find_index(struct tagcache_search *tcs, const char *filename);
 bool tagcache_check_clauses(struct tagcache_search *tcs,
                             struct tagcache_search_clause **clause, int count);
 bool tagcache_search(struct tagcache_search *tcs, int tag);
+/* for this search only, as tagcache_search() clears it */
+void tagcache_search_set_match(struct tagcache_search *tcs,
+                               void (*match)(const int32_t *tag_seek, void *data),
+                               void *data);
 void tagcache_search_set_uniqbuf(struct tagcache_search *tcs,
                                  void *buffer, long length);
 bool tagcache_search_add_filter(struct tagcache_search *tcs,

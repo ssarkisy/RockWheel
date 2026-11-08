@@ -88,6 +88,7 @@
 #include "icons.h"
 #ifdef HAVE_TAGCACHE
 #include "music_search.h"
+#include "album_years.h"
 #endif
 
 struct root_items {
@@ -1650,6 +1651,11 @@ void show_library_update(void)
 #endif
     /* the rest after USB or switching off, come meanwhile: what they'd go
        by is of before it */
+    /* the albums' years, which the lists of an artist's albums go by: before
+       Songs is prepared, which is kept as they're made */
+    if (phase == TAGCACHE_IMPORT_NONE && !held_event && !album_years_ready()
+        && album_years_make())
+        tagtree_albums_reordered();
     if (imported && phase == TAGCACHE_IMPORT_NONE && !held_event)
         tagtree_prepare_songs();
     if (phase == TAGCACHE_IMPORT_NONE && !held_event)
@@ -1800,6 +1806,12 @@ void root_menu(void)
             if (tagcache_check_sync())
                 show_library_update();
         }
+        /* the albums' years, if USB during Updating Library left them
+           unmade, or the database changed since: as the menu shows, in a
+           moment, not while music plays */
+        if (!album_years_ready() && tagcache_finds_entries()
+            && !(audio_status() & AUDIO_STATUS_PLAY) && album_years_make())
+            tagtree_albums_reordered();
 #endif
         switch (next_screen)
         {

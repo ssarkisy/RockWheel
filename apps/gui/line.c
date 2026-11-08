@@ -34,6 +34,7 @@
 #include "viewport.h"
 #include "language.h"
 #include "debug.h"
+#include "list.h"
 
 #ifdef HAVE_REMOTE_LCD
 #define MAX_LINES (LCD_SCROLLABLE_LINES + LCD_REMOTE_SCROLLABLE_LINES)
@@ -641,6 +642,38 @@ void line_draw_mark(struct screen *display, int x, int y,
 #else
     (void)display; (void)x; (void)y; (void)line; (void)mark;
 #endif
+}
+
+#define LEAD_GAP 8 /* as a setting's value from its name */
+int line_lead_width(struct screen *display)
+{
+    int widest = 0;
+    for (char digit[2] = "0"; digit[0] <= '9'; digit[0]++)
+    {
+        int w;
+        display->getstringsize(digit, &w, NULL);
+        widest = MAX(widest, w);
+    }
+    return 4 * widest + LEAD_GAP;
+}
+
+void line_draw_lead(struct screen *display, int x, int y,
+                    const struct line_desc *line, const char *text)
+{
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    const unsigned fg = display->get_foreground();
+#ifdef HAVE_LCD_COLOR
+    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
+        display->set_foreground(line->text_color);
+    else if (line->style & STYLE_INVERT) /* as the text on the bar */
+        display->set_foreground(display->get_background());
+    else
+        display->set_foreground(LIST_VALUE_COLOUR);
+#endif
+    display->set_drawmode(DRMODE_FG);
+    display->putsxy(x, y + height/2 - display->getcharheight()/2, text);
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
 }
 
 /* before the text, rather than at the end with the speaker and the chevron:

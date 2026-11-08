@@ -18028,6 +18028,48 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_SORT_BY
+  desc: Music > Albums: the first row, which sorts the albums by their year or by their name; its value, Year or Name, shows at the right end as a setting's does
+  user: core
+  <source>
+    *: "Sort By"
+  </source>
+  <dest>
+    *: "Ταξινόμηση κατά"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SORT_YEAR
+  desc: Music > Albums, Sort By: by the year the albums came out, the oldest first
+  user: core
+  <source>
+    *: "Year"
+  </source>
+  <dest>
+    *: "Έτος"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SORT_NAME
+  desc: Music > Albums, Sort By: by the albums' names, A to Z
+  user: core
+  <source>
+    *: "Name"
+  </source>
+  <dest>
+    *: "Όνομα"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_NOW_PLAYING_MENU
   desc: a row of Settings, after Music Menu, and its title: which rows the menu held Select opens over Now Playing has, each On or Off
   user: core

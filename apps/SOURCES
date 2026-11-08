@@ -198,6 +198,7 @@ itunesdb.c
 smart_playlists.c
 library_playlists.c
 ipod_playlists.c
+album_years.c
 night_mode.c
 photos_panel.c
 #endif
