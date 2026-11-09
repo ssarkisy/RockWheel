@@ -37,6 +37,7 @@
 #include "debug.h"
 #include "list.h"
 #include "font.h"
+#include "rbunicode.h"
 
 #ifdef HAVE_REMOTE_LCD
 #define MAX_LINES (LCD_SCROLLABLE_LINES + LCD_REMOTE_SCROLLABLE_LINES)
@@ -57,8 +58,23 @@ static int decoration_width(struct screen *display, const struct line_desc *line
 struct line_desc_scroll {
     struct line_desc desc;
     int rtl_cut; /* right to left, the viewport's end cut off for the text */
+    /* of a part of a taller row: the row's viewport, the part's top in it and
+       its whole width; the text scrolls in part_vps. NULL for another line */
+    struct viewport *row_vp;
+    int part_top, full_width;
     bool used;
 };
+
+/* The rows of a part of a taller row as a viewport of the row's, which the
+   part's text is drawn in: its font's cell is taller than the part, and what
+   it would draw past it, scrolling, nothing would paint over again. One for
+   each screen, where the selected row's name scrolls alone */
+static struct viewport part_vps[NB_SCREENS];
+
+void line_scroll_stop_parts(struct screen *display)
+{
+    display->scroll_stop_viewport(&part_vps[display->screen_type]);
+}
 
 /* Allocate MAX_LINES+1 because at the time get_line_desc() is called
  * the scroll engine did not yet determine that it ran out of lines
@@ -96,9 +112,29 @@ static void scroller(struct scrollinfo *s, struct screen *display)
     {
         line->used = false;
     }
+    else if (line->row_vp)
+    {
+        /* the text in its part's viewport, current now, as wide as the
+           row's but for what's before it right to left; then what's at the
+           right end, in the row's middle, in the row's */
+        struct viewport *vp = *display->current_viewport;
+        const int width = vp->width;
+        vp->width = line->full_width - line->rtl_cut;
+        style_line(display, s->x, 0, &line->desc);
+        put_text(display, s->x, s->y, &line->desc, s->line, true, s->offset);
+        vp->width = width;
+        struct viewport *part = display->set_viewport(line->row_vp);
+        if (line->desc.style & STYLE_PLAYING)
+            draw_speaker(display, line->part_top, &line->desc);
+        draw_value(display, line->part_top, &line->desc);
+        if (line->desc.style & STYLE_CHEVRON)
+            draw_chevron(display, line->part_top, &line->desc);
+        display->set_viewport(part);
+    }
     else
     {
-        int y = s->y - (line->desc.height/2 - display->getcharheight()/2);
+        int y = s->y - (line->desc.height/2 - display->getcharheight()/2)
+                - line->desc.text_dy;
         /* the text's bar again, short of what's before it right to left */
         struct viewport *vp = *display->current_viewport;
         vp->width -= line->rtl_cut;
@@ -179,6 +215,22 @@ static void put_text(struct screen *display,
         vp->width -= x;
         x = 0;
     }
+    /* of a part of a taller row, in the part's rows alone: in a viewport of
+       them, the scroller's when it scrolls (part_vps) */
+    struct viewport part;
+    struct viewport *part_vp = NULL;
+    int part_top = 0;
+    if (line->row_height > 0 && !prevent_scroll)
+    {
+        part_top = y - (line->height/2 - display->getcharheight()/2)
+                   - line->text_dy;
+        part_vp = line->scroll ? &part_vps[display->screen_type] : &part;
+        *part_vp = *vp;
+        part_vp->y += part_top;
+        part_vp->height = line->height;
+        y -= part_top;
+        display->set_viewport(part_vp);
+    }
 
     if (line->scroll && !prevent_scroll)
     {
@@ -190,12 +242,17 @@ static void put_text(struct screen *display,
         if (line_data->desc.height == -1)
             line_data->desc.height = display->getcharheight();
         line_data->rtl_cut = rtl_cut;
+        line_data->row_vp = part_vp ? vp : NULL;
+        line_data->part_top = part_top;
+        line_data->full_width = vp_width;
         scrolls = display->putsxy_scroll_func(x, y, text,
             scrollers[display->screen_type], line_data, text_skip_pixels);
         line_data->used = scrolls;
     }
     else
         display->putsxy_scroll_func(x, y, text, NULL, NULL, text_skip_pixels);
+    if (part_vp)
+        display->set_viewport(vp);
     vp->width = vp_width;
 }
 
@@ -234,7 +291,7 @@ static void print_line(struct screen *display,
     icon_y = y + (height - icon_h)/2;
     /* vertically center string on the line
      * x/2 - y/2 rounds up compared to (x-y)/2 if one of x and y is odd */
-    y += height/2 - display->getcharheight()/2;
+    y += height/2 - display->getcharheight()/2 + line->text_dy;
 
     /* parse format string */
     while (xpos < max_width)
@@ -334,6 +391,13 @@ next:
     }
 }
 
+/* The line ends its row at the bottom, as a part of a taller one may not:
+   the bevel's dark edge and the separator are under the whole row */
+static bool ends_row(const struct line_desc *line, int height)
+{
+    return line->row_height <= 0 || line->row_top + height >= line->row_height;
+}
+
 #ifdef HAVE_LCD_COLOR
 /* c1 moved pct percent of the way to c2 */
 static unsigned mix_color(unsigned c1, unsigned c2, int pct)
@@ -352,12 +416,13 @@ static void draw_bevel(struct screen *display, int x, int y, int width,
                        int height, struct line_desc *line)
 {
     unsigned fg = display->get_foreground();
-    if (line->line == 0)
+    if (line->line == 0 && line->row_top == 0)
     {
         display->set_foreground(mix_color(line->line_color, LCD_WHITE, 45));
         display->hline(x, x + width - 1, y);
     }
-    if (line->line == line->nlines - 1 && height > 3)
+    if (line->line == line->nlines - 1 && height > 3
+        && ends_row(line, line->height))
     {
         display->set_foreground(mix_color(line->line_end_color, LCD_BLACK, 15));
         display->hline(x, x + width - 1, y + height - 2);
@@ -383,7 +448,8 @@ static void style_line(struct screen *display,
         style |= STYLE_INVERT;
     }
 
-    if (line->separator_height > 0 && (line->line == line->nlines-1))
+    if (line->separator_height > 0 && (line->line == line->nlines-1)
+        && ends_row(line, height))
     {
         int sep_height = MIN(line->separator_height, height);
         display->set_drawmode(DRMODE_FG);
@@ -412,15 +478,19 @@ static void style_line(struct screen *display,
     {
 #ifdef HAVE_LCD_COLOR
         case STYLE_GRADIENT:
+        {
+            /* of a part, the whole row's gradient from the part's top */
+            const int row = line->row_height > 0 ? line->row_height : height;
             display->set_drawmode(DRMODE_FG);
             display->gradient_fillrect_part(x, y, width, bar_height,
                                             line->line_color,
                                             line->line_end_color,
-                                            height*line->nlines,
-                                            height*line->line);
+                                            row*line->nlines,
+                                            row*line->line + line->row_top);
             if (global_settings.list_selector_bevel)
                 draw_bevel(display, x, y, width, bar_height, line);
             break;
+        }
         case STYLE_COLORBAR:
             /*display->set_drawmode(DRMODE_FG);*/
             display->set_foreground(line->line_color);
@@ -454,6 +524,34 @@ static void style_line(struct screen *display,
             display->set_foreground(line->text_color);
     }
 #endif
+}
+
+/* The strip of the line's background from x to the right end, under what's
+   drawn there: of a part of a taller row, the whole row's, as what's on it is
+   in the row's middle and goes over into the other part. Drawn again with
+   what's on it, rather than over it, which would darken its edges */
+static void style_strip(struct screen *display, int x, int y,
+                        struct line_desc *line)
+{
+    if (line->row_height <= 0)
+    {
+        style_line(display, x, y, line);
+        return;
+    }
+    struct line_desc row = *line;
+    row.height = line->row_height;
+    row.row_top = 0;
+    style_line(display, x, y - line->row_top, &row);
+}
+
+/* the top of something h high in the middle of the line at y, or of its row */
+static int line_middle(struct screen *display, int y,
+                       const struct line_desc *line, int h)
+{
+    if (line->row_height > 0)
+        return y - line->row_top + (line->row_height - h) / 2;
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    return y + (height - h) / 2;
 }
 
 /* The chevron at the right end of a line of an item that leads to more, as
@@ -522,6 +620,25 @@ static const unsigned char ipod_alpha[] = {
     0x0e, 0x00, 0x00, 0x50, 0xee, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x07, 0x00, 0x00, 0x00, 0x70,
 };
+/* the note on the tile in place of a cover in an album's row, the one of an
+   album's header (album_header.c) smaller, by the same tool */
+#define SMALL_NOTE_W 16
+#define SMALL_NOTE_H 19
+static const unsigned char small_note_alpha[] = {
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xef, 0x7a, 0xa3, 0xff, 0xff, 0xff, 0xdf,
+    0x6a, 0x02, 0x00, 0x90, 0xff, 0xff, 0x6d, 0x02, 0x00, 0x00, 0x00, 0x90,
+    0xff, 0xff, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x90, 0xff, 0xff, 0x0b, 0x00,
+    0x00, 0x73, 0xca, 0x90, 0xff, 0xff, 0x0b, 0x74, 0xeb, 0xff, 0xdf, 0x90,
+    0xff, 0xff, 0x0b, 0xfd, 0xff, 0xff, 0xdf, 0x90, 0xff, 0xff, 0x0b, 0xfd,
+    0xff, 0xff, 0xdf, 0x90, 0xff, 0xff, 0x0b, 0xfd, 0xff, 0xff, 0xdf, 0x90,
+    0xff, 0xff, 0x0b, 0xfd, 0xff, 0xff, 0xdf, 0x90, 0xff, 0xff, 0x0b, 0xfd,
+    0xff, 0xff, 0xdf, 0x90, 0xff, 0xff, 0x0b, 0xfd, 0xff, 0xff, 0xdf, 0x90,
+    0xff, 0xff, 0x0b, 0xfd, 0xff, 0xef, 0x9a, 0x90, 0xef, 0x48, 0x04, 0xfd,
+    0xff, 0x08, 0x00, 0x90, 0x2d, 0x00, 0x00, 0xfd, 0x9f, 0x00, 0x00, 0x90,
+    0x04, 0x00, 0x00, 0xfd, 0x4f, 0x00, 0x00, 0xd0, 0x01, 0x00, 0x40, 0xff,
+    0x6f, 0x00, 0x00, 0xf9, 0x08, 0x00, 0xe5, 0xff, 0xff, 0x68, 0xc7, 0xff,
+    0xdf, 0xdb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+};
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
@@ -529,15 +646,14 @@ extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
 
 static void draw_chevron(struct screen *display, int y, struct line_desc *line)
 {
-    int height = line->height == -1 ? display->getcharheight() : line->height;
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (display->screen_type == SCREEN_MAIN)
     {
         int x = display->getwidth() - CHEVRON_W - CHEVRON_MARGIN;
-        style_line(display, x - CHEVRON_MARGIN, y, line);
+        style_strip(display, x - CHEVRON_MARGIN, y, line);
         display->set_drawmode(DRMODE_FG);
         lcd_alpha_bitmap_part(chevron_alpha, 0, 0, CHEVRON_W,
-                              x, y + (height - CHEVRON_H)/2,
+                              x, line_middle(display, y, line, CHEVRON_H),
                               CHEVRON_W, CHEVRON_H);
         return;
     }
@@ -548,10 +664,11 @@ static void draw_chevron(struct screen *display, int y, struct line_desc *line)
     display->getstringsize(chevron, &w, &h);
     int x = display->getwidth() - w - CHEVRON_MARGIN;
 
-    style_line(display, x - CHEVRON_MARGIN, y, line);
+    style_strip(display, x - CHEVRON_MARGIN, y, line);
     display->set_drawmode((line->style & STYLE_INVERT) ?
                           DRMODE_SOLID|DRMODE_INVERSEVID : DRMODE_FG);
-    display->putsxy(x, y + height/2 - display->getcharheight()/2, chevron);
+    display->putsxy(x, line_middle(display, y, line, display->getcharheight()),
+                    chevron);
 }
 
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
@@ -590,7 +707,6 @@ static void draw_speaker(struct screen *display, int y, struct line_desc *line)
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (display->screen_type != SCREEN_MAIN)
         return;
-    const int height = line->height == -1 ? display->getcharheight() : line->height;
     int x;
     if (lang_is_rtl())
         x = CHEVRON_MARGIN; /* where the text ends, without a strip */
@@ -601,7 +717,7 @@ static void draw_speaker(struct screen *display, int y, struct line_desc *line)
             x -= CHEVRON_W + CHEVRON_MARGIN;
         if (has_value(display, line))
             x -= line->value_width + CHEVRON_MARGIN;
-        style_line(display, x - CHEVRON_MARGIN, y, line);
+        style_strip(display, x - CHEVRON_MARGIN, y, line);
     }
     const bool selected = line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT);
     const unsigned fg = display->get_foreground();
@@ -609,7 +725,8 @@ static void draw_speaker(struct screen *display, int y, struct line_desc *line)
         display->set_foreground(speaker_colour());
     display->set_drawmode(DRMODE_FG);
     lcd_alpha_bitmap_part(speaker_alpha, 0, 0, SPEAKER_W,
-                          x, y + (height - SPEAKER_H)/2, SPEAKER_W, SPEAKER_H);
+                          x, line_middle(display, y, line, SPEAKER_H),
+                          SPEAKER_W, SPEAKER_H);
     display->set_foreground(fg);
 #else
     (void)display; (void)y; (void)line;
@@ -631,7 +748,8 @@ static void draw_value(struct screen *display, int y, struct line_desc *line)
     const int height = line->height == -1 ? display->getcharheight() : line->height;
     struct viewport *vp = *display->current_viewport;
     const int name_font = vp->font;
-    y += height/2 - display->getcharheight()/2 + line->value_shift;
+    /* in line with the name, in a row of two parts too */
+    y += height/2 - display->getcharheight()/2 + line->text_dy + line->value_shift;
     int width;
     font_getstringsize(line->value, &width, NULL, line->value_font);
     const unsigned fg = display->get_foreground();
@@ -654,7 +772,7 @@ static void draw_value(struct screen *display, int y, struct line_desc *line)
 int line_shuffle_width(struct screen *display)
 {
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-    if (display->screen_type == SCREEN_MAIN && !lang_is_rtl())
+    if (display->screen_type == SCREEN_MAIN)
         return SHUFFLE_W + CHEVRON_MARGIN;
 #endif
     (void)display;
@@ -820,13 +938,17 @@ void line_draw_lead(struct screen *display, int font, int shift, int x, int y,
 
 /* before the text, rather than at the end with the speaker and the chevron:
    that the row isn't a song, seen at once. Left alone by the text scrolling
-   on the selection, which draws from where the text starts. */
+   on the selection, which draws from where the text starts. Right to left at
+   the right end, where the text starts, as an album's cover is */
 void line_draw_shuffle(struct screen *display, int x, int y,
                        const struct line_desc *line)
 {
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (!line_shuffle_width(display))
         return;
+    const struct viewport *vp = *display->current_viewport;
+    if (VP_IS_RTL(vp))
+        x = vp->width - x - SHUFFLE_W;
     const int height = line->height == -1 ? display->getcharheight() : line->height;
     const unsigned fg = display->get_foreground();
     if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
@@ -838,6 +960,253 @@ void line_draw_shuffle(struct screen *display, int x, int y,
     display->set_drawmode(DRMODE_SOLID);
 #else
     (void)display; (void)x; (void)y; (void)line;
+#endif
+}
+
+const char *line_fit(const char *text, int font, int width, char *buf,
+                     size_t size)
+{
+    static const char ellipsis[] = "\xe2\x80\xa6"; /* U+2026 */
+    int w;
+    font_getstringsize(text, &w, NULL, font);
+    if (w <= width)
+        return text;
+    /* as many letters as fit with "…", whole ones, and no space before it */
+    const int ellipsis_w = font_getstringsize(ellipsis, NULL, NULL, font);
+    int n = MIN((int)strlen(text), (int)size - (int)sizeof(ellipsis));
+    while (n > 0 && (text[n] & 0xc0) == 0x80)
+        n--;
+    while (n > 0 && font_getstringnsize(text, n, NULL, NULL, font)
+                    + ellipsis_w > width)
+    {
+        do
+            n--;
+        while (n > 0 && (text[n] & 0xc0) == 0x80);
+    }
+    while (n > 0 && text[n - 1] == ' ')
+        n--;
+    if (n <= 0)
+        return NULL;
+    memcpy(buf, text, n);
+    memcpy(buf + n, ellipsis, sizeof(ellipsis));
+    return buf;
+}
+
+void line_draw_subline(struct screen *display, int font, int x, int y,
+                       int top_dy, const struct line_desc *line,
+                       const char *text)
+{
+    struct viewport *vp = *display->current_viewport;
+    char buf[MAX_PATH];
+    text = line_fit(text, font, vp->width - x - decoration_width(display, line),
+                    buf, sizeof(buf));
+    if (!text)
+        return;
+    const int name_font = vp->font;
+    const unsigned fg = display->get_foreground();
+#ifdef HAVE_LCD_COLOR
+    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
+        display->set_foreground(line->text_color);
+    else if (line->style & STYLE_INVERT) /* as the text on the bar */
+        display->set_foreground(display->get_background());
+    else
+        display->set_foreground(LIST_VALUE_COLOUR);
+#endif
+    display->set_drawmode(DRMODE_FG);
+    vp->font = font;
+    display->putsxy(x, y + top_dy, text);
+    vp->font = name_font;
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+}
+
+void line_draw_cover(struct screen *display, int x, int y,
+                     const fb_data *pixels)
+{
+    if (pixels)
+    {
+        display->bitmap_part(pixels, 0, 0,
+                             STRIDE(display->screen_type, LINE_COVER_SIZE,
+                                    LINE_COVER_SIZE),
+                             x, y, LINE_COVER_SIZE, LINE_COVER_SIZE);
+        return;
+    }
+    /* as an album's header has it in its cover's place, smaller */
+    const unsigned fg = display->get_foreground();
+    display->set_foreground(LIST_GROUP_BAR_COLOUR);
+    display->set_drawmode(DRMODE_SOLID);
+    display->fillrect(x, y, LINE_COVER_SIZE, LINE_COVER_SIZE);
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type == SCREEN_MAIN)
+    {
+        display->set_foreground(LIST_GROUP_COLOUR);
+        display->set_drawmode(DRMODE_FG);
+        lcd_alpha_bitmap_part(small_note_alpha, 0, 0, SMALL_NOTE_W,
+                              x + (LINE_COVER_SIZE - SMALL_NOTE_W) / 2,
+                              y + (LINE_COVER_SIZE - SMALL_NOTE_H) / 2,
+                              SMALL_NOTE_W, SMALL_NOTE_H);
+    }
+#endif
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+}
+
+/* Quick Scroll's box: as tall as three rows of the menus or two of 36 px, as
+   wide or as its text and a margin each side, its corners rounded */
+#define INITIAL_HEIGHT 72
+#define INITIAL_MARGIN 16
+#define INITIAL_RADIUS 11
+#define INITIAL_CHARS  8   /* of its text, at most */
+
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+/* how much of each pixel of a corner is inside its rounding, in sixteenths,
+   by 4x4 points of each: the top left one's, its rows from the top */
+static uint8_t initial_corner[INITIAL_RADIUS][INITIAL_RADIUS];
+
+static void initial_corner_make(void)
+{
+    const int r = 8 * INITIAL_RADIUS; /* in eighths of a pixel */
+    for (int y = 0; y < INITIAL_RADIUS; y++)
+    {
+        for (int x = 0; x < INITIAL_RADIUS; x++)
+        {
+            int in = 0;
+            for (int j = 0; j < 4; j++)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    const int dx = r - (8 * x + 2 * i + 1);
+                    const int dy = r - (8 * y + 2 * j + 1);
+                    in += dx * dx + dy * dy <= r * r;
+                }
+            }
+            initial_corner[y][x] = in;
+        }
+    }
+}
+
+/* The blitter's alpha for a pixel of so many sixteenths of the colour over
+   what's there: 0 all of it, 15 none, which it takes as 16 */
+static unsigned initial_alpha(int sixteenths)
+{
+    const int a = 16 - sixteenths;
+    return a > 8 ? a - 1 : a;
+}
+
+static void set_nibble(unsigned char *mask, int i, unsigned a)
+{
+    mask[i / 2] = i & 1 ? (mask[i / 2] & 0x0f) | a << 4 : (mask[i / 2] & 0xf0) | a;
+}
+
+/* a row of the box's alpha, w wide, edge rows from its top or bottom: the
+   middle ones all alike, those of the corners rounded */
+static void initial_row(unsigned char *mask, int w, int opacity, int edge)
+{
+    const unsigned a = initial_alpha(opacity);
+    memset(mask, a | a << 4, (w + 1) / 2);
+    if (edge >= INITIAL_RADIUS)
+        return;
+    for (int i = 0; i < INITIAL_RADIUS; i++)
+    {
+        const unsigned c = initial_alpha(opacity * initial_corner[edge][i] / 16);
+        set_nibble(mask, i, c);
+        set_nibble(mask, w - 1 - i, c);
+    }
+}
+#endif
+
+void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
+                       int font, int text_font)
+{
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type != SCREEN_MAIN)
+        return;
+    /* in Quick Scroll's own font if it has each of the letters, or else in
+       the list's, from which another alphabet's come from a fallback */
+    struct font *pf = font >= 0 ? font_get(font) : NULL;
+    ucschar_t ucs[INITIAL_CHARS];
+    int n = 0, width = 0;
+    for (const unsigned char *p = (const unsigned char *)text;
+         *p && n < INITIAL_CHARS; n++)
+        p = utf8decode(p, &ucs[n]);
+    for (int i = 0; pf && i < n; i++)
+    {
+        /* a letter it hasn't has its default one's glyph */
+        if (ucs[i] != (ucschar_t)pf->defaultchar
+            && font_get_bits(pf, ucs[i]) == font_get_bits(pf, pf->defaultchar))
+            pf = NULL;
+        else
+            width += font_get_width(pf, ucs[i]);
+    }
+    if (!pf)
+        font_getstringsize(text, &width, NULL, text_font);
+
+    static bool corner_made;
+    if (!corner_made)
+    {
+        initial_corner_make();
+        corner_made = true;
+    }
+    const int w = MIN(MAX(INITIAL_HEIGHT, width + 2 * INITIAL_MARGIN), LCD_WIDTH);
+    const int h = INITIAL_HEIGHT;
+    const int x = cx - w / 2, y = cy - h / 2;
+    const unsigned colour = LIST_INITIAL_COLOUR;
+    const int opacity = LIST_INITIAL_OPACITY;
+    const unsigned fg = display->get_foreground();
+    unsigned char middle[(LCD_WIDTH + 1) / 2], corner[(LCD_WIDTH + 1) / 2];
+    initial_row(middle, w, opacity, INITIAL_RADIUS);
+    display->set_drawmode(DRMODE_FG);
+    for (int row = 0; row < h; row++)
+    {
+        const int edge = MIN(row, h - 1 - row);
+        const unsigned char *mask = middle;
+        if (edge < INITIAL_RADIUS)
+        {
+            initial_row(corner, w, opacity, edge);
+            mask = corner;
+        }
+        /* a lighter top and a darker bottom, as the selection's bar has */
+        display->set_foreground(row == 0 ? mix_color(colour, LCD_WHITE, 45)
+                                : row == h - 1 ? mix_color(colour, LCD_BLACK, 35)
+                                : colour);
+        lcd_alpha_bitmap_part(mask, 0, 0, w, x, y + row, w, 1);
+    }
+
+    display->set_foreground(LCD_WHITE);
+    if (pf)
+    {
+        /* the capitals' middle in the box's, as the digits of a year have it
+           too, rather than that of the glyphs' line, with room for accents */
+        static int ink_font = -1, ink_middle;
+        if (ink_font != font)
+        {
+            int top, bottom;
+            ink_middle = glyph_ink(font, 'H', &top, &bottom) ?
+                         (top + bottom + 1) / 2 : (int)pf->height / 2;
+            ink_font = font;
+        }
+        int gx = cx - width / 2;
+        const int gy = cy - ink_middle;
+        font_lock(font, true);
+        for (int i = 0; i < n; i++)
+        {
+            const int gw = font_get_width(pf, ucs[i]);
+            const unsigned char *bits = font_get_bits(pf, ucs[i]);
+            if (pf->depth)
+                lcd_alpha_bitmap_part(bits, 0, 0, gw, gx, gy, gw, pf->height);
+            else
+                display->mono_bitmap_part(bits, 0, 0, gw, gx, gy, gw, pf->height);
+            gx += gw;
+        }
+        font_lock(font, false);
+    }
+    else
+        display->putsxy(cx - width / 2, cy - font_get(text_font)->height / 2,
+                        text);
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+#else
+    (void)display; (void)cx; (void)cy; (void)text; (void)font; (void)text_font;
 #endif
 }
 

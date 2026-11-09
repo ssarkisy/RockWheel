@@ -194,6 +194,25 @@ struct order_mark {
     int32_t commitid;   /* of the database sorted */
     uint32_t finder;    /* the crc of Finder's Sort fields it had */
 };
+/* After the mark, the letters Quick Scroll shows over lists of names
+   (sortkey_initial()), as the tag files it marks have them: for each tag a
+   list can be of, where each letter begins in its file, noted as the commit
+   writes it, from what it sorted by, the Sort field if a name has one. A
+   tag's ideographs, each a letter of its own, may run out of its room: from
+   the last place kept on, the letter isn't known. */
+#define INITIALS_PER_TAG 96
+static const unsigned char initial_tags[] = {
+    tag_artist, tag_album, tag_genre, tag_title, tag_composer, tag_albumartist,
+    tag_virt_canonicalartist,
+};
+#define INITIAL_TAGS ARRAYLEN(initial_tags)
+static struct initials {
+    uint16_t count[INITIAL_TAGS];
+    int32_t seek[INITIAL_TAGS][INITIALS_PER_TAG];
+    uint16_t letter[INITIAL_TAGS][INITIALS_PER_TAG]; /* 0 for none */
+} initials;
+/* the commit id of the database they're of, -1 while they're of none */
+static int32_t initials_commit = -1;
 #endif /* !PLUGIN && !__PCTOOL__ */
 
 /* Flags */
@@ -3347,6 +3366,33 @@ static const char *sort_value(unsigned crc, const char *name)
     }
     return value;
 }
+
+/* the place of a tag among those of Quick Scroll's letters, -1 for one of
+   no list's */
+static int initial_slot(int tag)
+{
+    for (size_t i = 0; i < INITIAL_TAGS; i++)
+    {
+        if (initial_tags[i] == tag)
+            return i;
+    }
+    return -1;
+}
+
+/* The commit writes a name of the tag of that slot at seek, its letter that,
+   0 for none: noted if it's another than the one before. In the last room
+   left, that the letters from there on aren't known. */
+static void initial_note(int slot, int32_t seek, ucschar_t letter)
+{
+    const int n = initials.count[slot];
+    if (letter > 0xffff)
+        letter = 0; /* beyond what's noted */
+    if (n == INITIALS_PER_TAG || (n > 0 && initials.letter[slot][n - 1] == letter))
+        return;
+    initials.seek[slot][n] = seek;
+    initials.letter[slot][n] = n == INITIALS_PER_TAG - 1 ? 0 : letter;
+    initials.count[slot] = n + 1;
+}
 #endif /* TAGCACHE_SORT_FIELDS */
 
 static bool tempbuf_insert(char *str, int id, int idx_id, bool unique)
@@ -3537,6 +3583,11 @@ static int tempbuf_sort(int fd, long old_n)
         qsort(index, tempbufidx, sizeof(struct tempbuf_searchidx), compare);
     memset(lookup, 0, lookup_buffer_depth * sizeof(struct tempbuf_searchidx **));
 
+#ifdef TAGCACHE_SORT_FIELDS
+    const int initials_of = initial_slot(sort_build_tag);
+    if (initials_of >= 0)
+        initials.count[initials_of] = 0;
+#endif
     off_t pos = lseek(fd, 0, SEEK_CUR);
     tagfile_wbuf_used = 0;
     for (i = 0; i < tempbufidx; i++)
@@ -3552,6 +3603,11 @@ static int tempbuf_sort(int fd, long old_n)
         }
 
         index[i].seek = pos;
+#ifdef TAGCACHE_SORT_FIELDS
+        if (initials_of >= 0)
+            initial_note(initials_of, pos, index[i].group == GROUP_UNTAGGED ? 0
+                         : sortkey_initial(index[i].str + index[i].key));
+#endif
         length = strlen(index[i].str) + 1;
         fe.tag_length = length;
         fe.idx_id = index[i].idx_id;
@@ -4515,7 +4571,8 @@ static bool write_sort_files(void)
 
 /* The commit's database is sorted by the rules and the Sort fields it had:
    put in place with its files (commit_swap()), so that a commit finished or
-   undone after a reboot has the mark of its files */
+   undone after a reboot has the mark of its files. With the letters noted as
+   they were written. */
 static bool write_order_mark(int32_t commitid)
 {
     const struct order_mark mark = {
@@ -4524,8 +4581,35 @@ static bool write_order_mark(int32_t commitid)
     int fd = open_db_fd(TAGCACHE_FILE_ORDER_NEW, O_WRONLY | O_CREAT | O_TRUNC);
     if (fd < 0)
         return false;
-    const bool ok = write(fd, &mark, sizeof(mark)) == sizeof(mark);
+    const bool ok = write(fd, &mark, sizeof(mark)) == sizeof(mark)
+                    && write(fd, &initials, sizeof(initials)) == sizeof(initials);
     return close(fd) == 0 && ok;
+}
+
+/* Quick Scroll's letters from the order's mark, if it's of the database as it
+   is: at boot, and after a commit that didn't go through, which may have
+   noted some of its own */
+static void initials_load(void)
+{
+    initials_commit = -1;
+    struct master_header mh;
+    int fd = open_master_fd(&mh, false);
+    if (fd < 0)
+        return;
+    close(fd);
+    struct order_mark mark;
+    fd = open_db_fd(TAGCACHE_FILE_ORDER, O_RDONLY);
+    if (fd < 0)
+        return;
+    bool ok = read(fd, &mark, sizeof(mark)) == sizeof(mark)
+              && mark.magic == ORDER_MAGIC && mark.rules == SORTKEY_RULES_VERSION
+              && mark.commitid == mh.commitid
+              && read(fd, &initials, sizeof(initials)) == sizeof(initials);
+    close(fd);
+    for (size_t i = 0; ok && i < INITIAL_TAGS; i++)
+        ok = initials.count[i] <= INITIALS_PER_TAG;
+    if (ok)
+        initials_commit = mark.commitid;
 }
 
 /* Songs taken out of the database, and the counts of a changelog, leave the
@@ -4547,9 +4631,46 @@ static void order_mark_follow(int32_t from)
             mark.magic = 0;
     }
     if (close(fd) < 0 || mark.magic != ORDER_MAGIC)
+    {
         remove_db_file(TAGCACHE_FILE_ORDER);
+        initials_commit = -1;
+    }
+    /* and the letters, which are of the same places */
+    else if (initials_commit == from)
+        initials_commit = mark.commitid;
 }
 #endif /* TAGCACHE_SORT_FIELDS */
+
+/* The letter a name for a tag is listed under, Quick Scroll's, by its place
+   in the tag's file: 0 if it isn't known. From memory, without a read. */
+ucschar_t tagcache_initial(int tag, long seek)
+{
+#ifdef TAGCACHE_SORT_FIELDS
+    const int slot = initial_slot(tag);
+    if (slot < 0 || initials_commit < 0
+        || initials_commit != current_tcmh.commitid)
+        return 0;
+    const int32_t *seeks = initials.seek[slot];
+    const int n = initials.count[slot];
+    if (n == 0 || seek < seeks[0])
+        return 0;
+    /* the last letter that begins where it is or before */
+    int lo = 0, hi = n - 1;
+    while (lo < hi)
+    {
+        const int mid = (lo + hi + 1) / 2;
+        if (seeks[mid] <= seek)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+    return initials.letter[slot][lo];
+#else
+    (void)tag;
+    (void)seek;
+    return 0;
+#endif
+}
 
 /* A commit on disk until it is done. While it builds the new files, a
    reboot undoes it, and the temporary file is committed again; once it puts
@@ -4960,6 +5081,10 @@ static bool commit(void)
     tc_stat.commit_step = 0;
     tch.datasize = 0;
     tc_stat.commit_delayed = false;
+#ifdef TAGCACHE_SORT_FIELDS
+    /* Quick Scroll's letters are noted anew as they're written */
+    initials_commit = -1;
+#endif
 
     for (i = 0; i < TAG_COUNT && !USR_CANCEL; i++)
     {
@@ -5029,6 +5154,9 @@ static bool commit(void)
         journal_written = false;
         if (!commit_swap())
             goto commit_error;
+#ifdef TAGCACHE_SORT_FIELDS
+        initials_commit = tcmh.commitid;
+#endif
 
         logf("tagcache committed");
         song_count = -1;
@@ -5065,6 +5193,11 @@ commit_error:
     }
     if (journal_written)
         commit_undo(&journal);
+#ifdef TAGCACHE_SORT_FIELDS
+    /* those of the database as it stayed */
+    if (initials_commit < 0)
+        initials_load();
+#endif
 #ifdef HAVE_TC_RAMCACHE
     if (ramcache_buffer_stolen)
     {
@@ -7799,7 +7932,9 @@ static bool order_stale(void)
     fd = open_db_fd(TAGCACHE_FILE_ORDER, O_RDONLY);
     if (fd < 0)
         return true;
-    const bool read_whole = read(fd, &mark, sizeof(mark)) == sizeof(mark);
+    /* with Quick Scroll's letters after it */
+    const bool read_whole = read(fd, &mark, sizeof(mark)) == sizeof(mark)
+        && ffilesize(fd) == (off_t)(sizeof(mark) + sizeof(initials));
     close(fd);
     return !read_whole || mark.magic != ORDER_MAGIC
            || mark.rules != SORTKEY_RULES_VERSION
@@ -8126,6 +8261,9 @@ static void tagcache_thread(void)
     /* the screen tagcache_init() put up for it */
     if (import_phase == TAGCACHE_IMPORT_SAVING)
         import_phase = TAGCACHE_IMPORT_NONE;
+    /* Quick Scroll's letters, unless a commit just noted them */
+    if (initials_commit < 0)
+        initials_load();
 
     /* The header check, on the background but at once: the song count and
        an import after a sync wait for it */
@@ -8559,6 +8697,21 @@ bool tagcache_for_each_track(void (*f)(int idx_id, const int32_t *tag_seek,
             f(i, idx->tag_seek, data);
     }
     tcrc_buffer_unlock();
+    return true;
+}
+
+bool tagcache_tag_string(int tag, int32_t seek, char *buf, size_t size)
+{
+    /* copied without a yield, as retrieve() reads it: the memory moves
+       only as some is taken */
+    if (!tc_stat.ramcache || seek < 0 || tag < 0 || tag >= TAG_COUNT
+        || TAGCACHE_IS_NUMERIC(tag) || tag == tag_filename)
+        return false;
+    const struct tagfile_entry *ep =
+        (const struct tagfile_entry *)&tcramcache.hdr->tags[tag][seek];
+    if (!strcmp(ep->tag_data, UNTAGGED))
+        return false;
+    strmemccpy(buf, ep->tag_data, size);
     return true;
 }
 #endif

@@ -56,6 +56,8 @@
 #include "night_mode.h"
 #ifdef HAVE_TAGCACHE
 #include "root_menu.h"
+#include "tagtree.h"
+#include "list_covers.h"
 #endif
 #include "gui/lyrics.h"
 #include "icons.h"
@@ -972,6 +974,12 @@ void settings_apply(bool read_disk)
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     /* at boot before music, so that the audio buffer has to give way to nothing */
     cover_palette_set_mode(global_settings.cover_colours);
+#endif
+#ifdef HAVE_TAGCACHE
+    /* and the covers of lists' rows, as theirs; and Albums' rows, which a
+       .cfg or a reset may have split by album artists or not */
+    list_covers_apply();
+    tagtree_album_rows_check();
 #endif
 
 #ifdef HAVE_DISK_STORAGE

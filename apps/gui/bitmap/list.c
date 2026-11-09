@@ -76,6 +76,7 @@ void gui_synclist_scroll_stop(struct gui_synclist *lists)
     {
         screens[i].scroll_stop_viewport(&list_text[i]);
         screens[i].scroll_stop_viewport(&title_text[i]);
+        line_scroll_stop_parts(&screens[i]);
         screens[i].scroll_stop_viewport(lists->parent[i]);
     }
 }
@@ -240,6 +241,73 @@ static int list_value_font(int list_font)
     if (font < 0)
         font = font_find(fonts[!first]);
     return font < 0 ? list_font : font;
+}
+
+/* The second line of a row of two, as an album's year and artist, in the font
+   of Now Playing's year: smaller and lighter than the name over it. Bold with
+   Bold Text, as the theme has it then. In the list's own as the theme loads,
+   or with a theme without them. */
+int list_subline_font(int list_font)
+{
+    static const char *const fonts[2] = {
+        FONT_DIR "/14-Inter-SemiBold.fnt", FONT_DIR "/14-Inter-Bold.fnt"
+    };
+    const int first = global_settings.bold_text ? 1 : 0;
+    int font = font_find(fonts[first]);
+    if (font < 0)
+        font = font_find(fonts[!first]);
+    return font < 0 ? list_font : font;
+}
+
+/* A row of two lines: the name's part, as high as the name's capitals, its
+   accents and what goes below the line take, which its font's cell has some
+   rows more than, and the second line's under it, its cell and a gap. With
+   the theme's 24 and 14 px fonts, 19 and 17: six rows on the screen, and its
+   two lines read as one row, closer than to the next one's name. The name's
+   cell starts a row above its part and ends four rows into the next, which
+   it draws nothing in (line.c keeps it to its part) */
+#define NAME_PART_CUT  5 /* the name's cell's rows outside what it draws */
+#define SUBLINE_GAP    3
+#define NAME_TEXT_DY   2 /* its cell two rows lower than in the middle of its part */
+#define SUBLINE_TOP_DY 0
+#define COVER_GAP      8 /* from a cover to the text */
+static int list_name_height(int font)
+{
+    return font_get(font)->height - NAME_PART_CUT;
+}
+
+int list_two_lines_height(int font)
+{
+    return list_name_height(font) + font_get(list_subline_font(font))->height
+           + SUBLINE_GAP;
+}
+
+/* Quick Scroll's letter over a list, in Inter of 52 px, its capitals three
+   times as tall as the list's: loaded whole after the theme's fonts, music
+   stopped, and kept as they are, so that a fast turn of the wheel never waits
+   for the disk. It gives its place up to any font loaded later with every
+   place taken, a theme's or the library's, and comes again with the theme
+   next; meanwhile the letter is in the list's own font. */
+#define INITIAL_FONT   FONT_DIR "/53-Inter-Letters.fnt"
+#define INITIAL_GLYPHS 160 /* more than it has: all of it read */
+
+void list_load_initial_font(void)
+{
+    if (font_find(INITIAL_FONT) < 0)
+        font_set_yielding(font_load_ex(INITIAL_FONT, 0, INITIAL_GLYPHS));
+}
+
+/* the letter for the row selected while it's due, NULL if it isn't or the
+   row has none */
+static const char *list_initial(struct gui_synclist *list, enum screen_type screen,
+                                char *buf, size_t size)
+{
+    if (screen != SCREEN_MAIN || !list->callback_get_initial || !list->initial_until
+        || !TIME_BEFORE(current_tick, list->initial_until))
+        return NULL;
+    const char *text = list->callback_get_initial(list->selected_item, list->data,
+                                                  buf, size);
+    return text && *text ? text : NULL;
 }
 
 /* What doesn't start a line of Chinese or Japanese: the punctuation that
@@ -408,6 +476,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     display->clear_viewport();
     if (!list->scroll_all)
         display->scroll_stop_viewport(list_text_vp);
+    line_scroll_stop_parts(display);
     *list_text_vp = *parent;
     if ((show_title = draw_title(display, list, callback_draw_item)))
     {
@@ -576,11 +645,25 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         linedes.value_shift = line_lead_shift(list_text_vp->font, value_font);
     }
 
+    /* Quick Scroll's letter over the rows, if it's due and the row selected
+       has one: that row doesn't scroll meanwhile, which would draw its text
+       over the box */
+    char initial_buf[16];
+    const char *initial = list_initial(list, screen, initial_buf, sizeof(initial_buf));
+
     /* the block at the top, as much of it as shows: what's above the
        viewport cut off */
     if (start < list->block_rows && screen == SCREEN_MAIN)
         list->callback_draw_block(display, -start * linedes.height + draw_offset,
                                   list->data);
+
+    /* rows of two lines: the name's part, then the second line's, in its
+       font; and their covers' column, if the list has one */
+    const int row_h = linedes.height;
+    const bool two_lines = list->callback_get_subline && screen == SCREEN_MAIN;
+    const int name_h = two_lines ? list_name_height(list_text_vp->font) : 0;
+    const int subline_font = two_lines ? list_subline_font(list_text_vp->font) : -1;
+    const bool covers = two_lines && list->callback_get_cover;
 
     for (i=MAX(start, list->block_rows); i<end && i<list->nb_items; i++)
     {
@@ -615,6 +698,17 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         }
         /* the padding moves the text only, the selection stays full width */
         line_indent += indent + global_settings.list_text_padding;
+        /* an album's cover, or the note in its place, where the text would
+           start, the text after their column; at the right end right to
+           left, as the text starts there */
+        const fb_data *cover_pixels = NULL;
+        const int cover = covers ? list->callback_get_cover(i, list->data,
+                                                            &cover_pixels)
+                                 : LIST_COVER_NONE;
+        const int cover_x = VP_IS_RTL(list_text_vp) ?
+            list_text_vp->width - line_indent - LINE_COVER_SIZE : line_indent;
+        if (cover != LIST_COVER_NONE)
+            line_indent += LINE_COVER_SIZE + COVER_GAP;
         /* a Shuffle Songs: its arrows where the text would start, the text
            after them */
         const int shuffle_x = line_indent;
@@ -719,7 +813,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             && list->callback_has_children(i, list->data))
             style |= STYLE_CHEVRON;
         linedes.style = style;
-        linedes.scroll = is_selected ? true : list->scroll_all;
+        /* of two lines, only the selected row's name: it's drawn in its part
+           alone (line.c); none under Quick Scroll's letter */
+        linedes.scroll = !initial && (is_selected || (list->scroll_all && !two_lines));
         linedes.line = i % item_lines;
         if (values)
         {
@@ -732,7 +828,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                     list->callback_get_item_icon(i, list->data) : Icon_NOICON;
 
 
-        list_info.y = line * linedes.height + draw_offset;
+        list_info.y = line * row_h + draw_offset;
         list_info.is_selected = is_selected;
         list_info.item_indent = line_indent;
         list_info.line = i;
@@ -740,7 +836,36 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         list_info.dsp_text = entry_name;
         list_info.item_offset = item_offset;
 
+        /* A row of two lines: the second line's part, its background or the
+           selection's gradient there; the name's part over it, whose speaker
+           and chevron, in the row's middle, go down into it; then the second
+           line's text. Each part is drawn in its own rows only. A row of one
+           line is one part, its text in the middle */
+        char subline_buf[MAX_PATH];
+        const char *subline = two_lines ?
+            list->callback_get_subline(i, list->data, subline_buf,
+                                       sizeof(subline_buf)) : NULL;
+        if (subline)
+        {
+            struct line_desc part = linedes;
+            part.style &= ~(STYLE_CHEVRON|STYLE_PLAYING);
+            part.value[0] = '\0';
+            part.scroll = false;
+            part.height = row_h - name_h;
+            part.row_top = name_h;
+            part.row_height = row_h;
+            display->put_line(list_info.x, list_info.y + name_h, &part, "");
+            linedes.height = name_h;
+            linedes.row_height = row_h;
+            linedes.text_dy = NAME_TEXT_DY;
+        }
+
         callback_draw_item(&list_info);
+        if (subline)
+            line_draw_subline(display, subline_font,
+                              list_info.x + line_indent + (have_icons ? icon_w : 0),
+                              list_info.y + name_h, SUBLINE_TOP_DY, &linedes,
+                              subline);
         if (shuffle)
             line_draw_shuffle(display, list_info.x + shuffle_x, list_info.y,
                               &linedes);
@@ -751,9 +876,31 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             line_draw_lead(display, lead_font, lead_shift, list_info.x + lead_x,
                            list_info.y, &linedes, lead, lead_w,
                            list->lead_digit);
+        if (cover != LIST_COVER_NONE)
+            line_draw_cover(display, list_info.x + cover_x,
+                            list_info.y + (row_h - LINE_COVER_SIZE) / 2,
+                            cover == LIST_COVER_PIXELS ? cover_pixels : NULL);
+        linedes.height = row_h;
+        linedes.row_height = 0;
+        linedes.text_dy = 0;
     }
     if (hint)
         list_draw_hint(display, &band, hint);
+    if (initial)
+    {
+        /* in the middle of the rows and of the list's width, from the left
+           of a copy of its viewport, as in a language written right to left:
+           of as many rows as fit */
+        struct viewport vp = *list_text_vp;
+        vp.x = parent->x;
+        vp.width = parent->width;
+        vp.height = list_text_vp->height / row_h * row_h;
+        vp.flags &= ~VP_FLAG_ALIGNMENT_MASK;
+        display->set_viewport(&vp);
+        line_draw_initial(display, vp.width / 2, vp.height / 2, initial,
+                          font_find(INITIAL_FONT), vp.font);
+        list->initial_shown = true;
+    }
     display->set_viewport(last_vp);
 }
 

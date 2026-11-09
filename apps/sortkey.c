@@ -32,6 +32,36 @@ static const char latin_ext_base[] =
     "aaaaaacccccccc" "dddd" "eeeeeeeeee" "gggggggg" "hhhh" "iiiiiiiiii" "ii" "jj"
     "kkk" "llllllllll" "nnnnnnnnn" "oooooo" "oo" "rrrrrr" "ssssssss" "tttttt"
     "uuuuuuuuuuuu" "ww" "yyy" "zzzzzz" "s";
+/* U+0180 to U+024F, by the letters of those Unicode writes as a letter with
+   marks, as pinyin's "ǎ" and Vietnamese's "ơ"; '.' for a letter of its own */
+static const char latin_extb_base[] =
+    "................................oo......"
+    ".......uu............................aai"
+    "ioouuuuuuuuuu.aaaaaa..ggkkoooo..j...gg.."
+    "nnaaaaooaaaaeeeeiiiioooorrrruuuusstt..hh"
+    "......aaeeooooooooyy...................."
+    "........";
+/* and those of their own by their small ones, some of them the IPA's, as "Ə"
+   by "ə": each capital with its small one */
+static const uint16_t latin_extb_case[][2] = {
+    { 0x181, 0x253 }, { 0x182, 0x183 }, { 0x184, 0x185 }, { 0x186, 0x254 },
+    { 0x187, 0x188 }, { 0x189, 0x256 }, { 0x18a, 0x257 }, { 0x18b, 0x18c },
+    { 0x18e, 0x1dd }, { 0x18f, 0x259 }, { 0x190, 0x25b }, { 0x191, 0x192 },
+    { 0x193, 0x260 }, { 0x194, 0x263 }, { 0x196, 0x269 }, { 0x197, 0x268 },
+    { 0x198, 0x199 }, { 0x19c, 0x26f }, { 0x19d, 0x272 }, { 0x19f, 0x275 },
+    { 0x1a2, 0x1a3 }, { 0x1a4, 0x1a5 }, { 0x1a6, 0x280 }, { 0x1a7, 0x1a8 },
+    { 0x1a9, 0x283 }, { 0x1ac, 0x1ad }, { 0x1ae, 0x288 }, { 0x1b1, 0x28a },
+    { 0x1b2, 0x28b }, { 0x1b3, 0x1b4 }, { 0x1b5, 0x1b6 }, { 0x1b7, 0x292 },
+    { 0x1b8, 0x1b9 }, { 0x1bc, 0x1bd }, { 0x1c4, 0x1c6 }, { 0x1c5, 0x1c6 },
+    { 0x1c7, 0x1c9 }, { 0x1c8, 0x1c9 }, { 0x1ca, 0x1cc }, { 0x1cb, 0x1cc },
+    { 0x1e4, 0x1e5 }, { 0x1ee, 0x1ef }, { 0x1f1, 0x1f3 }, { 0x1f2, 0x1f3 },
+    { 0x1f6, 0x195 }, { 0x1f7, 0x1bf }, { 0x21c, 0x21d }, { 0x220, 0x19e },
+    { 0x222, 0x223 }, { 0x224, 0x225 }, { 0x23a, 0x2c65 }, { 0x23b, 0x23c },
+    { 0x23d, 0x19a }, { 0x23e, 0x2c66 }, { 0x241, 0x242 }, { 0x243, 0x180 },
+    { 0x244, 0x289 }, { 0x245, 0x28c }, { 0x246, 0x247 }, { 0x248, 0x249 },
+    { 0x24a, 0x24b }, { 0x24c, 0x24d }, { 0x24e, 0x24f },
+};
+#define LATIN_EXTB_CASES (sizeof(latin_extb_case) / sizeof(latin_extb_case[0]))
 
 /* a hiragana without its small size or its voicing marks: "が" is found by "か" */
 static ucschar_t kana_base(ucschar_t c)
@@ -70,6 +100,17 @@ ucschar_t sortkey_fold(ucschar_t c)
         return latin1_base[c - 0xc0] == ' ' ? 0 : (ucschar_t)latin1_base[c - 0xc0];
     if (c >= 0x100 && c <= 0x17f)
         return latin_ext_base[c - 0x100];
+    if (c >= 0x180 && c <= 0x24f)
+    {
+        if (latin_extb_base[c - 0x180] != '.')
+            return latin_extb_base[c - 0x180];
+        for (size_t i = 0; i < LATIN_EXTB_CASES; i++)
+        {
+            if (latin_extb_case[i][0] == c)
+                return latin_extb_case[i][1];
+        }
+        return c;
+    }
     /* Vietnamese */
     if (c >= 0x1ea0 && c <= 0x1ef9)
         return c <= 0x1eb7 ? 'a' : c <= 0x1ec7 ? 'e' : c <= 0x1ecb ? 'i'
@@ -95,10 +136,6 @@ ucschar_t sortkey_fold(ucschar_t c)
         return '0' + c - 0xe50;
     switch (c)
     {
-        case 0x1a0: case 0x1a1: return 'o'; /* Vietnamese */
-        case 0x1af: case 0x1b0: return 'u';
-        case 0x218: case 0x219: return 's'; /* Romanian */
-        case 0x21a: case 0x21b: return 't';
         case 0x2bc: case 0x2019: return SORTKEY_SKIP; /* apostrophes */
         /* Arabic: an alef with its hamza or madda, the yeh and the kaf of
            Persian, as the letters they're typed as */
@@ -400,4 +437,67 @@ int sortkey_compare(const char *s1, const char *s2)
         return ga < gb ? -1 : 1;
     const int d = sortkey_compare_from(a, b);
     return d ? d : strcmp(s1, s2);
+}
+
+ucschar_t sortkey_capital(ucschar_t c)
+{
+    if ((c >= 'a' && c <= 'z') || (c >= 0x3b1 && c <= 0x3c9)
+        || (c >= 0x430 && c <= 0x44f))
+        return c - 0x20;
+    if (c == 0xfe)
+        return 0xde;                    /* Þ */
+    if (c >= 0x450 && c <= 0x45f)
+        return c - 0x50;
+    if (c >= 0x4c2 && c <= 0x4ce)
+        return c & 1 ? c : c - 1;
+    if (c >= 0x461 && c <= 0x4ff && (c & 1))
+        return c - 1;
+    if (c >= 0x561 && c <= 0x586)
+        return c - 0x30;                /* Armenian */
+    /* Latin Extended-B's own letters, and the IPA's small ones of them */
+    if ((c >= 0x180 && c < 0x2b0) || c == 0x2c65 || c == 0x2c66)
+    {
+        for (size_t i = 0; i < LATIN_EXTB_CASES; i++)
+        {
+            if (latin_extb_case[i][1] == c)
+                return latin_extb_case[i][0];
+        }
+    }
+    return c;
+}
+
+/* The letters Hangul's syllables begin with, as their own, a doubled one as
+   the one it doubles: "까" goes under "ㄱ" as in iOS's index */
+static const uint16_t hangul_initials[19] = {
+    0x3131, 0x3131, 0x3134, 0x3137, 0x3137, 0x3139, 0x3141, 0x3142, 0x3142, 0x3145,
+    0x3145, 0x3147, 0x3148, 0x3148, 0x314a, 0x314b, 0x314c, 0x314d, 0x314e,
+};
+/* The rows of the kana, folded to hiragana, from where each begins: あ, か,
+   さ, た, な, は, ま, や, ら, わ */
+static const uint16_t kana_rows[][2] = {
+    { 0x3041, 0x3042 }, { 0x304b, 0x304b }, { 0x3055, 0x3055 },
+    { 0x305f, 0x305f }, { 0x306a, 0x306a }, { 0x306f, 0x306f },
+    { 0x307e, 0x307e }, { 0x3083, 0x3084 }, { 0x3089, 0x3089 },
+    { 0x308e, 0x308f },
+};
+
+ucschar_t sortkey_initial(const char *start)
+{
+    struct unit u;
+    next_unit((const unsigned char *)start, &u);
+    if (u.key < KEY_LETTER)
+        return '#';
+    /* the letter folded, below its alphabet's bits */
+    const ucschar_t c = u.key & ((1u << 21) - 1);
+    if (c >= 0xac00 && c <= 0xd7a3)
+        return hangul_initials[(c - 0xac00) / 588];
+    if (c >= 0x3041 && c <= 0x3096)
+    {
+        size_t row = 0;
+        while (row + 1 < sizeof(kana_rows) / sizeof(kana_rows[0])
+               && c >= kana_rows[row + 1][0])
+            row++;
+        return kana_rows[row][1];
+    }
+    return sortkey_capital(c);
 }

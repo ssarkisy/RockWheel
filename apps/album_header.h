@@ -42,7 +42,15 @@ bool album_header_cover_came(void);
    another's now */
 void album_header_forget_cover(void);
 /* the cover's read ended, if one is on, and its thread with it: as a plugin
-   starts, which may want every thread slot there is */
+   starts, which may want every thread slot there is; the covers of lists'
+   rows asked for (list_covers.h) left unread */
 void album_header_reader_wait(void);
+/* The reader's thread reads the covers of lists' rows too: started, if it
+   isn't on, false if it couldn't be. And where an album's cover is, by one
+   of its songs' number in the database, for a read on that thread: 1 found,
+   0 none, -1 not known, as with the database busy */
+struct itunesdb_art;
+bool album_header_reader_start(void);
+int album_header_find_art(int32_t song, struct itunesdb_art *art);
 
 #endif /* _ALBUM_HEADER_H_ */

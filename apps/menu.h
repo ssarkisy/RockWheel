@@ -152,6 +152,9 @@ void menu_set_wide(bool wide);
    has the screen without it. Drawn at once, it took 110-230 ms then. */
 void menu_set_wide_later(bool wide);
 void menu_draw_value_line(struct list_putlineinfo_t *info);
+/* in a row's text for that, before a lighter text drawn right after the
+   name, as an album's artist in Search's list */
+#define MENU_LIGHT_SEP '\x1f'
 /* From a screen a menu has opened: Menu has been held, so leave for the main menu */
 void menu_request_root(void);
 int do_menu(const struct menu_item_ex *menu, int *start_selected,

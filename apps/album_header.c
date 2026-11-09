@@ -53,6 +53,7 @@
 #include "tagtree.h"
 #include "itunesdb.h"
 #include "album_header.h"
+#include "list_covers.h"
 
 #define COVER_SIZE   60
 #define COVER_TOP    6
@@ -266,7 +267,7 @@ static struct {
     char path[MAX_PATH], name[MAX_PATH], artist[MAX_PATH];
 } finding;
 
-static int find_art(int32_t song, struct itunesdb_art *art)
+int album_header_find_art(int32_t song, struct itunesdb_art *art)
 {
     struct tagcache_search *tcs = &finding.tcs;
     if (!tagcache_search(tcs, tag_title))
@@ -307,11 +308,23 @@ static bool album_playing(const struct tagtree_album *album)
 /* The reader: each cover asked for, until none is, shown if it's still the
    one wanted; then its thread ends. One it couldn't look for or read, as
    with USB coming or a disk's error, is looked for again the next time the
-   album opens; only an album without one is kept as such */
+   album opens; only an album without one is kept as such. The covers of a
+   list's rows too, those a frame lacked and those next to them as the wheel
+   rests (list_covers.c), after the header's, which its screen waits for.
+   Behind the UI, which has the CPU at each of a read's yields before it, as
+   a wheel's step comes; the header's as the UI, which waits for it */
 static void cover_reader(void)
 {
-    while (cover.to_read)
+    while (cover.to_read || list_covers_to_read())
     {
+        if (!cover.to_read)
+        {
+            list_covers_read();
+            continue;
+        }
+#ifdef HAVE_PRIORITY_SCHEDULING
+        thread_set_priority(thread_self(), PRIORITY_USER_INTERFACE);
+#endif
         cover.to_read = false;
         const unsigned wanted = cover.wanted;
         const int32_t song = cover.song;
@@ -325,7 +338,7 @@ static void cover_reader(void)
         bm.data = (unsigned char *)cover.pixels;
         const int room = sizeof(bm) + sizeof(cover.pixels);
         int size = -1;
-        const int found = find_art(song, &art);
+        const int found = album_header_find_art(song, &art);
         if (found > 0)
         {
             /* As large as Finder's in the buffer, as the menus' panel takes
@@ -349,9 +362,24 @@ static void cover_reader(void)
             cover.known = found == 0 || size >= 0;
             cover.came = true;
         }
+#ifdef HAVE_PRIORITY_SCHEDULING
+        thread_set_priority(thread_self(), PRIORITY_BACKGROUND);
+#endif
     }
     cover.reading = false;
     thread_exit();
+}
+
+bool album_header_reader_start(void)
+{
+    if (cover.reading)
+        return true;
+    cover.reading = true;
+    if (!create_thread(cover_reader, reader_stack, sizeof(reader_stack), 0,
+                       "album cover" IF_PRIO(, PRIORITY_BACKGROUND)
+                       IF_COP(, CPU)))
+        cover.reading = false;
+    return cover.reading;
 }
 
 /* The album's cover, unless it's the one read last: asked of the reader, its
@@ -372,16 +400,10 @@ static void find_cover(const struct tagtree_album *album)
     cover.wanted++;
     cover.to_read = true;
     cover.came = false;
-    if (!cover.reading)
+    if (!album_header_reader_start())
     {
-        cover.reading = true;
-        if (!create_thread(cover_reader, reader_stack, sizeof(reader_stack), 0,
-                           "album cover" IF_PRIO(, PRIORITY_USER_INTERFACE)
-                           IF_COP(, CPU)))
-        {
-            cover.reading = cover.to_read = cover.known = false;
-            return;
-        }
+        cover.to_read = cover.known = false;
+        return;
     }
     /* storage_disk_is_active() says so while it spins up too: then the note
        after a frame or so, as with the disk asleep */
@@ -522,6 +544,8 @@ bool album_header_cover_came(void)
 void album_header_reader_wait(void)
 {
 #ifdef ITUNESDB_HAVE_ART
+    /* the rows' asked for not read: lists' covers wait for the wheel again */
+    list_covers_cancel();
     /* the flag drops just before the thread ends, without a yield between */
     while (cover.reading)
         sleep(1);
@@ -536,5 +560,6 @@ void album_header_forget_cover(void)
     cover.width = 0;
     cover.wanted++;
     cover.to_read = false;
+    list_covers_forget();
 #endif
 }

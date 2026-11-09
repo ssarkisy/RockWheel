@@ -5,8 +5,9 @@
 #     themes/tools/make_fonts.sh <folder with Inter-Bold.ttf, Inter-SemiBold.ttf, Inter-Medium.ttf>
 #
 # Needs a C compiler and FreeType (on macOS: brew install freetype) to build
-# Rockbox's tools/convttf. The fonts are anti-aliased and named after their
-# line height, like the fonts they replace.
+# Rockbox's tools/convttf, and fontTools (pip install fonttools; PYTHON names
+# a python3 with it) for the font of Quick Scroll. The fonts are anti-aliased
+# and named after their line height, like the fonts they replace.
 set -e
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -52,6 +53,16 @@ font 17-Inter-Bold.fnt     Inter-Bold.ttf     15    # track info, Bold Text
 font 14-Inter-SemiBold.fnt Inter-SemiBold.ttf 13    # small text, lyrics
 font 14-Inter-Bold.fnt     Inter-Bold.ttf     13    # iClassic screen titles
 font 12-Inter-SemiBold.fnt Inter-SemiBold.ttf 11    # iClassic bitrate
+
+# Quick Scroll's letter over a list (apps/gui/bitmap/list.c), 52 px with
+# capitals 32 px tall: Inter Bold cut to what it shows first, the capitals of
+# Latin, Greek and Cyrillic, the digits of years and "#", as convttf would make
+# every glyph of the range in that size. The firmware keeps it whole in memory.
+"${PYTHON:-python3}" -m fontTools.subset "$ttf/Inter-Bold.ttf" \
+    --unicodes=20,23,30-39,41-5A,DE,391-3A1,3A3-3A9,402,404,406-40B,40E-42F,490 \
+    --layout-features='' --output-file="$build/Letters.ttf"
+"$build/convttf" -s 32 -l 1168 -W -A -p 52 -o "$out/53-Inter-Letters.fnt" \
+    "$build/Letters.ttf" > /dev/null
 
 ls -l "$out"
 

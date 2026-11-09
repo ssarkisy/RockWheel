@@ -12,7 +12,9 @@ to it here.
 `tools/make_fonts.sh`, under the SIL Open Font License 1.1 (`fonts/OFL.txt`,
 installed as `Inter-OFL.txt`). The fonts it came with had no Cyrillic. Letters
 Inter doesn't have come from GNU Unifont, which Rockbox also carries in the
-top-level `fonts/` (`16-GNU-Unifont.fnt`).
+top-level `fonts/` (`16-GNU-Unifont.fnt`). `53-Inter-Letters.fnt` is the large
+letter of Quick Scroll over a long list: Inter Bold in 52 px, only the capitals
+of Latin, Greek and Cyrillic, the digits and "#".
 
 Hangul comes from fonts of its own in the theme's sizes, `24-`, `17-` and
 `14-Hangul.fnt`, made by `tools/make_hangul_fonts.sh` from Pretendard

@@ -266,6 +266,10 @@ bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n);
 long tagcache_track_rating(const struct mp3entry *id3);
 long tagcache_track_playcount(const struct mp3entry *id3);
 long tagcache_sort_key(int idx_id, int tag);
+/* The letter Quick Scroll shows for a name of a tag, by its place in the
+   tag's file as tagcache_sort_key() has it, from what the commit sorted it
+   by (sortkey_initial()): 0 if it isn't known */
+ucschar_t tagcache_initial(int tag, long seek);
 
 /* Sort fields, the names that names sort by as Music has them: Sort Artist
    for an artist, Sort Name for a song's title, and so on. The commit sorts
@@ -342,6 +346,10 @@ int tagcache_get_commitid(void);
 bool tagcache_for_each_track(void (*f)(int idx_id, const int32_t *tag_seek,
                                        void *data),
                              void *data);
+/* The text of a tag's name by its seek, as a search or the seeks above give
+   it, of the database in memory as it is now: false without it, or for
+   UNTAGGED, which is no name */
+bool tagcache_tag_string(int tag, int32_t seek, char *buf, size_t size);
 #endif
 #endif
 #endif

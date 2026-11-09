@@ -47,6 +47,9 @@ int root_menu_playing_from(void);
 /* The list an artist or an album opens, from Search: -1 if it isn't there,
    0 for going back, or else the screen to go to */
 int root_menu_go_to_name(int tag, const char *name);
+/* and an album's, by its album artist's seek too, as Albums has the albums
+   of a name apart; by its name alone with -1 */
+int root_menu_go_to_album(const char *name, int32_t artist);
 /* Settings > Music Menu > Group by Album Artist's callback: the lists of
    artists change, and where the lists were left in them with them */
 void root_menu_artists_grouping_changed(bool on);

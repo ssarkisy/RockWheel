@@ -66,6 +66,7 @@ tree.c
 #ifdef HAVE_TAGCACHE
 tagtree.c
 album_header.c
+list_covers.c
 music_search.c
 library_fonts.c
 #endif

@@ -80,6 +80,12 @@ typedef const char *list_get_hint(int item, void * data);
    year or a song's number before its name */
 #define LIST_VALUE_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa2, 0xa8) \
                                                       : LCD_RGBPACK(0x66, 0x66, 0x66))
+/* Quick Scroll's box over a list, with its letter in white, and how much of
+   the list it hides, in sixteenths: dark over the light theme's, and lighter
+   than the dark one's list, over whose black a dark box didn't show */
+#define LIST_INITIAL_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0x5a, 0x5c, 0x64) \
+                                                        : LCD_BLACK)
+#define LIST_INITIAL_OPACITY (global_settings.dark_theme ? 13 : 11)
 /*
  * Text callback
  *  - selected_item : an integer that tells the number of the item to display
@@ -220,6 +226,14 @@ struct gui_synclist
        has scrolled. 0 for none */
     int block_rows;
     void (*callback_draw_block)(struct screen *display, int y, void *data);
+    /* Rows of two lines, as an album's name over its year and artist: the
+       second line's text written to buf, or NULL for a row of one line in
+       the middle of the row's height. Can be NULL, for rows of one line */
+    const char *(*callback_get_subline)(int item, void *data, char *buf, size_t size);
+    /* and in such rows a column of covers at the left, LINE_COVER_SIZE a side:
+       what a row has there (enum list_cover), the cover's pixels in *pixels
+       for LIST_COVER_PIXELS, which stay where they are. Can be NULL */
+    int (*callback_get_cover)(int item, void *data, const fb_data **pixels);
     list_is_shuffle *callback_is_shuffle; /* can be NULL */
     /* a list with hints has a band for them under its rows, can be NULL */
     list_get_hint *callback_get_hint;
@@ -227,6 +241,14 @@ struct gui_synclist
     long playing_shown;
     /* what its owner does as it's about to be drawn, can be NULL */
     void (*callback_before_draw)(struct gui_synclist *lists);
+    /* Quick Scroll: the letter a row is listed under, shown large over a
+       long list while the wheel turns fast, written to buf; NULL for a row
+       without one. Can be NULL, for a list not in such an order */
+    const char *(*callback_get_initial)(int item, void *data, char *buf, size_t size);
+    /* the tick until which it shows, 0 for none; and whether it showed in
+       the last frame drawn */
+    long initial_until;
+    bool initial_shown;
 
     /* The data that will be passed to the callback function YOU implement */
     void * data;
@@ -311,10 +333,28 @@ extern void gui_synclist_set_value_callback(struct gui_synclist * lists,
         const char *widest);
 extern void gui_synclist_set_block(struct gui_synclist * lists, int rows,
         void (*draw_block)(struct screen *display, int y, void *data));
+/* Rows of two lines, their height that of the name's part and the second
+   line's, in its font (list_two_lines_height()); and their covers */
+extern void gui_synclist_set_subline_callback(struct gui_synclist * lists,
+        const char *(*get_subline)(int item, void *data, char *buf, size_t size));
+/* what a row has in the column of covers: nothing, as Sort By, which has no
+   column; the note, as an album without a cover or with one not read yet;
+   or its cover */
+enum list_cover { LIST_COVER_NONE, LIST_COVER_NOTE, LIST_COVER_PIXELS };
+extern void gui_synclist_set_cover_callback(struct gui_synclist * lists,
+        int (*get_cover)(int item, void *data, const fb_data **pixels));
+/* the height of a row of two lines in a list in font; and the font of their
+   second lines, lighter than the list's own */
+extern int list_two_lines_height(int font);
+extern int list_subline_font(int list_font);
 extern void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
                                               list_is_shuffle is_shuffle_callback);
 extern void gui_synclist_set_hint_callback(struct gui_synclist * lists,
                                            list_get_hint get_hint_callback);
+extern void gui_synclist_set_initial_callback(struct gui_synclist *lists,
+    const char *(*get_initial)(int item, void *data, char *buf, size_t size));
+/* Quick Scroll's font, loaded once for good as the theme is, music stopped */
+extern void list_load_initial_font(void);
 /* the least height of the band of hints, which takes as many rows of the list
    as it needs for three lines of them; 0 for a list without */
 extern int list_hint_band(struct gui_synclist *list, enum screen_type screen);

@@ -28,9 +28,10 @@
    marks alone. Case doesn't count in any alphabet, "Ё" goes with "Е", and
    numbers go by their value. Names the same by all that go by their bytes. */
 
-/* What the commit sorts by goes with the database: a change of these rules
+/* What the commit sorts by goes with the database, and so do the letters it
+   notes from it for Quick Scroll (sortkey_initial()): a change of these rules
    sorts it again at the next boot */
-#define SORTKEY_RULES_VERSION 1
+#define SORTKEY_RULES_VERSION 3
 
 /* A letter as names are searched and sorted by: small, without its accents,
    so that "é" is found by "e" and goes with it. 0 for a mark between words;
@@ -53,5 +54,15 @@ int sortkey_compare_from(const char *a, const char *b);
 
 /* Two names, wholly: 0 only for the same bytes */
 int sortkey_compare(const char *a, const char *b);
+
+/* A letter as lists show it: a capital, of the alphabets that have them */
+ucschar_t sortkey_capital(ucschar_t c);
+
+/* The letter a name is listed under, from its start (sortkey_start()), as
+   Quick Scroll shows it over a list: its first letter as a capital, without
+   its accents; of Hangul the letter its syllable begins with, and of the kana
+   the first of its row, as names starting with any of those go together; '#'
+   for a name starting with a digit, or of marks alone. */
+ucschar_t sortkey_initial(const char *start);
 
 #endif /* _SORTKEY_H_ */

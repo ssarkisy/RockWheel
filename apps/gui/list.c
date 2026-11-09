@@ -121,6 +121,8 @@ void list_init_item_height(struct gui_synclist *list, enum screen_type screen)
 {
     struct viewport *vp = list->parent[screen];
     int line_height = font_get(vp->font)->height;
+    if (list->callback_get_subline && screen == SCREEN_MAIN)
+        line_height = list_two_lines_height(vp->font);
 #ifdef HAVE_TOUCHSCREEN
     /* the 4/12 factor is designed for reasonable item size on a 160dpi screen */
     if (global_settings.list_line_padding == -1)
@@ -175,6 +177,8 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->value_font = -1;
     gui_list->block_rows = 0;
     gui_list->callback_draw_block = NULL;
+    gui_list->callback_get_subline = NULL;
+    gui_list->callback_get_cover = NULL;
     gui_list->callback_is_shuffle = NULL;
     gui_list->callback_get_hint = NULL;
     gui_list->playing_shown = 0;
@@ -182,6 +186,9 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_speak_item = NULL;
     gui_list->callback_draw_item = NULL;
     gui_list->callback_before_draw = NULL;
+    gui_list->callback_get_initial = NULL;
+    gui_list->initial_until = 0;
+    gui_list->initial_shown = false;
     gui_list->nb_items = 0;
     gui_list->selected_item = 0;
     gui_synclist_init_display_settings(gui_list);
@@ -287,6 +294,9 @@ void gui_synclist_draw(struct gui_synclist *gui_list)
             list_init_item_height(gui_list, i);
         gui_synclist_select_item(gui_list, gui_list->selected_item);
     }
+    /* until list_draw() draws Quick Scroll's letter again, as a skin's list
+       doesn't */
+    gui_list->initial_shown = false;
     FOR_NB_SCREENS(i)
     {
         if (!skinlist_draw(&screens[i], gui_list))
@@ -611,10 +621,31 @@ void gui_synclist_set_block(struct gui_synclist * lists, int rows,
     lists->callback_draw_block = draw_block;
 }
 
+void gui_synclist_set_subline_callback(struct gui_synclist * lists,
+        const char *(*get_subline)(int item, void *data, char *buf, size_t size))
+{
+    lists->callback_get_subline = get_subline;
+    /* as high as its rows are now, which takes fewer of them on the screen */
+    FOR_NB_SCREENS(i)
+        list_init_item_height(lists, i);
+}
+
+void gui_synclist_set_cover_callback(struct gui_synclist * lists,
+        int (*get_cover)(int item, void *data, const fb_data **pixels))
+{
+    lists->callback_get_cover = get_cover;
+}
+
 void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
                                        list_is_shuffle is_shuffle_callback)
 {
     lists->callback_is_shuffle = is_shuffle_callback;
+}
+
+void gui_synclist_set_initial_callback(struct gui_synclist *lists,
+    const char *(*get_initial)(int item, void *data, char *buf, size_t size))
+{
+    lists->callback_get_initial = get_initial;
 }
 
 void gui_synclist_set_hint_callback(struct gui_synclist * lists,
@@ -760,10 +791,18 @@ static void _lists_uiviewport_update_callback(unsigned short id,
         gui_synclist_draw(current_lists);
 }
 
+/* Quick Scroll: the wheel turned at its stage of four rows a step or faster,
+   through a list of more than a hundred, shows the letter of the row selected
+   over it, as on a stock iPod, until half a second after the last such step */
+#define QUICK_SCROLL_SPEED 4
+#define QUICK_SCROLL_ROWS  100
+#define QUICK_SCROLL_HOLD  (HZ / 2)
+
 bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
 {
     int action = *actionptr;
     static bool pgleft_allow_cancel = false;
+    bool quick_step = false;
 
 #ifdef HAVE_WHEEL_ACCELERATION
     unsigned int wheel_data = get_action_data();
@@ -782,6 +821,7 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
        still goes a row a step. */
 #define LONG_LIST 500
     const int speed = button_wheel_speed(wheel_data);
+    quick_step = speed >= QUICK_SCROLL_SPEED && lists->nb_items > QUICK_SCROLL_ROWS;
     if (speed > 1 && lists->nb_items > LONG_LIST)
     {
         const unsigned target = (unsigned)lists->nb_items * 256 / LONG_LIST;
@@ -836,6 +876,37 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
 
     /* Disable the skin redraw callback */
     current_lists = NULL;
+
+    /* Quick Scroll's letter from a fast step on, in the same frame; a slower
+       one, to find the row by, leaves it no longer. Any other button takes it
+       off at once, before its screen goes on: drawn without it, the list is
+       what slides away (transition.c), or what shows as the music pauses. */
+    bool taken_off = false;
+    if (lists->callback_get_initial)
+    {
+        switch (action)
+        {
+            case ACTION_STD_NEXT: case ACTION_STD_NEXTREPEAT:
+            case ACTION_STD_PREV: case ACTION_STD_PREVREPEAT:
+                if (quick_step)
+                    lists->initial_until = current_tick + QUICK_SCROLL_HOLD;
+                break;
+            case ACTION_NONE: case ACTION_REDRAW:
+                break;
+            default:
+                if (!IS_SYSEVENT(action))
+                {
+                    lists->initial_until = 0;
+                    taken_off = true;
+                }
+                break;
+        }
+    }
+    if (lists->initial_until && !TIME_BEFORE(current_tick, lists->initial_until))
+        lists->initial_until = 0;
+    if (lists->initial_shown && !lists->initial_until
+        && (taken_off || action == ACTION_NONE))
+        gui_synclist_draw(lists);
 
     /* repeat actions block list wraparound */
     bool allow_wrap = lists->wraparound;
@@ -1015,6 +1086,15 @@ int list_do_action_timeout(struct gui_synclist *lists, int timeout)
 {
     add_event_ex(GUI_EVENT_NEED_UI_UPDATE, true, _lists_uiviewport_update_callback, NULL);
     current_lists = lists;
+    /* Quick Scroll's letter taken off as it's due */
+    if (lists->initial_shown)
+    {
+        long delay = lists->initial_until ? lists->initial_until - current_tick : 0;
+        if (delay < 0)
+            delay = 0;
+        if (timeout > delay || timeout == TIMEOUT_BLOCK)
+            timeout = delay;
+    }
     if(lists->scheduled_talk_tick)
     {
         long delay = lists->scheduled_talk_tick -current_tick +1;

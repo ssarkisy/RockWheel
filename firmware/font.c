@@ -154,6 +154,16 @@ static void lock_font_handle(int handle, bool lock)
 #define FALLBACK_GLYPHS 1024   /* about two screens of text that's all different */
 static int fallback_id = -1;
 
+/* The font that gives its place up to any other loaded with every place taken
+   (font_set_yielding()), -1 for none */
+static int yielding_id = -1;
+
+void font_set_yielding(int font_id)
+{
+    yielding_id = font_id >= FONT_FIRSTUSERFONT && font_id < MAXFONTS
+                  && buflib_allocations[font_id] > 0 ? font_id : -1;
+}
+
 /* Alphabets the theme's Inter doesn't have. Going by the alphabet means that nothing
    is read from a font's file to find out, and that spaces and marks of no width, which
    the fallback draws as boxes, stay as they are. */
@@ -875,6 +885,19 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
         if (buflib_allocations[ font_id ] < 0)
             open_slot = font_id;
     }
+    /* every place taken: the one of the font that gives way, rather than this
+       one failing, unless another than its own owner has asked for it too, as
+       a theme or a plugin by its path: theirs isn't to go from under them */
+    struct buflib_alloc_data *pd = open_slot == -1 && yielding_id >= 0 ?
+        core_get_data(buflib_allocations[yielding_id]) : NULL;
+    if (pd && pd->refcount <= 1 + held[yielding_id])
+    {
+        const int id = yielding_id;
+        pd->refcount = 1;
+        held[id] = false;
+        font_unload(id);
+        open_slot = id;
+    }
     if ( open_slot == -1 )
     {
         close(fd);
@@ -985,6 +1008,8 @@ void font_unload(int font_id)
         buflib_allocations[font_id] = -1;
         if (font_id == fallback_id)
             fallback_id = -1;
+        if (font_id == yielding_id)
+            yielding_id = -1;
         for (size_t i = 0; i < ARRAYLEN(script_ids); i++)
         {
             if (font_id == script_ids[i])

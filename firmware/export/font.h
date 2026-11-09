@@ -48,7 +48,10 @@ enum {
     FONT_SYSFIXED = -1, /* system fixed pitch font*/
     FONT_FIRSTUSERFONT = 0, /* first id for the user fonts */
 };
-#define MAXUSERFONTS 12
+/* 16: the theme's 7, the fallback, the library's three sizes, Korean's three
+   for the menus and the quick-scroll letter, with room to spare. A place
+   costs a few bytes; it's the fonts loaded that take memory */
+#define MAXUSERFONTS 16
 
 /* SYSFONT, FONT_UI, FONT_UI_REMOTE + MAXUSERFONTS fonts in skins */
 #define MAXFONTS (FONT_FIRSTUSERFONT + MAXUSERFONTS)
@@ -122,6 +125,10 @@ int font_load(const char *path);
 int font_load_ex(const char *path, size_t buffer_size, int glyphs);
 void font_hold(bool hold);
 void font_unload(int font_id);
+/* The font gives its place up to any other loaded when every place is taken,
+   as Quick Scroll's letter does, the least missed: unloaded for it, which its
+   user finds by its path (font_find()). One at a time; -1 for none. */
+void font_set_yielding(int font_id);
 void font_unload_all(void);
 void font_lock(int font_id, bool lock);
 

@@ -90,6 +90,13 @@ struct line_desc {
     int8_t value_shift;
     int16_t value_font, value_width;
     char value[10];
+    /* A part of a taller row, as an album's name over its year and artist:
+     * the row's height and the part's top in it, 0 for a line that is a
+     * row. The selection's gradient and bevel go over the whole row, part by
+     * part, and the speaker and the chevron in its middle, on strips of the
+     * whole row's height. text_dy moves the text down from the part's middle */
+    int16_t row_height, row_top;
+    int8_t text_dy;
 };
 
 /* default initializer, can be used for static initialitation also.
@@ -188,5 +195,32 @@ void line_draw_mark(struct screen *display, int x, int y,
                     const struct line_desc *line, int mark);
 void line_draw_shuffle(struct screen *display, int x, int y,
                        const struct line_desc *line);
+/* the scrolling of the text of the parts of taller rows stopped, as a list's
+   is as it's drawn again */
+void line_scroll_stop_parts(struct screen *display);
+/* text as wide as width at most in font: itself if it fits, or else in buf
+   as many of its letters as fit with "…" after them; NULL if none does */
+const char *line_fit(const char *text, int font, int width, char *buf,
+                     size_t size);
+/* The second line of a row of two, as an album's year and artist under its
+   name: in font, grey as a setting's value, as the selection's text on it,
+   from x of the part put at y, its cell top_dy pixels below the part's top,
+   and cut short with "…" before the speaker and the chevron. The part's
+   background is drawn already, by a put_line() of no text */
+void line_draw_subline(struct screen *display, int font, int x, int y,
+                       int top_dy, const struct line_desc *line,
+                       const char *text);
+/* An album's cover at x, y of a row: pixels of LINE_COVER_SIZE a side, or
+   NULL for the note on a tile in its place, as an album without one has and
+   one not read yet */
+#define LINE_COVER_SIZE 32
+void line_draw_cover(struct screen *display, int x, int y,
+                     const fb_data *pixels);
+/* Quick Scroll's letter, or a year, in a box of its own around it, its middle
+   at cx, cy of the viewport set: in white over the list, which shows through
+   the box. In font, Quick Scroll's own, or in text_font for a letter that
+   font hasn't or without it (-1). On the main screen only. */
+void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
+                       int font, int text_font);
 
 #endif /* __LINE_H__*/

@@ -89,6 +89,7 @@
 #ifdef HAVE_TAGCACHE
 #include "music_search.h"
 #include "album_years.h"
+#include "list_covers.h"
 #endif
 
 struct root_items {
@@ -563,6 +564,13 @@ int root_menu_go_to_name(int tag, const char *name)
         note_music_origin(GO_TO_DBBROWSER);
     tagtree_end_go_to(!started, &last_db_dirlevel, &last_db_selection);
     return screen == GO_TO_PREVIOUS ? 0 : screen;
+}
+
+int root_menu_go_to_album(const char *name, int32_t artist)
+{
+    const unsigned int starts = playlist_start_count();
+    return go_to_browse(tagtree_go_to_album(name, artist, &last_db_dirlevel,
+                                            &last_db_selection), starts);
 }
 
 void root_menu_artists_grouping_changed(bool on)
@@ -1693,8 +1701,8 @@ void show_library_update(void)
        languages, again after an update */
     const bool fonts_stale = phase == TAGCACHE_IMPORT_NONE && library_fonts_stale();
     /* and the letters of their alphabets, which Search types with */
-    const bool letters_stale = phase == TAGCACHE_IMPORT_NONE
-                               && music_search_letters_stale();
+    bool letters_stale = phase == TAGCACHE_IMPORT_NONE
+                         && music_search_letters_stale();
 #ifdef ITUNESDB_HAVE_ART
     /* the covers of songs outside Finder's folder, not made yet, or cut short
        by Menu or USB: by Cover Flow's plugin, without which nothing's made,
@@ -1706,11 +1714,15 @@ void show_library_update(void)
                               && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock")
                               && (itunesdb_covers_stale()
                                   || itunesdb_covers_images_changed());
+    /* and the covers of the lists' rows, made of Cover Flow's slides */
+    const bool row_covers_stale = phase == TAGCACHE_IMPORT_NONE
+                                  && list_covers_stale();
 #else
     const bool covers_stale = false;
+    const bool row_covers_stale = false;
 #endif
-    if ((imported || covers_stale || photos_changed || fonts_stale
-         || letters_stale) && !shown)
+    if ((imported || covers_stale || row_covers_stale || photos_changed
+         || fonts_stale || letters_stale) && !shown)
     {
         FOR_NB_SCREENS(i)
             viewportmanager_theme_enable(i, false, NULL);
@@ -1733,7 +1745,34 @@ void show_library_update(void)
        Songs is prepared, which is kept as they're made */
     if (phase == TAGCACHE_IMPORT_NONE && !held_event && !album_years_ready()
         && album_years_make())
+    {
         tagtree_albums_reordered();
+        /* the lists' covers, by the albums' numbers in it */
+        list_covers_load();
+        /* and Search's names, its albums by those numbers, if they're of
+           another table, which wasn't made as they were written */
+        if (!letters_stale && music_search_letters_stale())
+        {
+            letters_stale = true;
+            if (!shown)
+            {
+                FOR_NB_SCREENS(i)
+                    viewportmanager_theme_enable(i, false, NULL);
+                shown_text = NULL;
+                shown = true;
+            }
+        }
+    }
+#ifdef ITUNESDB_HAVE_ART
+    /* those covers made, after the albums' years they're in the order of, and
+       Cover Flow's plugin above, which may have made some again */
+    if (phase == TAGCACHE_IMPORT_NONE && !held_event && album_years_ready()
+        && (row_covers_stale || list_covers_stale()))
+    {
+        library_update_show(str(LANG_PREPARING_COVERS), 0);
+        list_covers_make(library_update_covers_progress, library_playlists_go_on);
+    }
+#endif
     if (imported && phase == TAGCACHE_IMPORT_NONE && !held_event)
         tagtree_prepare_songs();
     if (phase == TAGCACHE_IMPORT_NONE && !held_event)
@@ -1895,7 +1934,10 @@ void root_menu(void)
            moment, not while music plays */
         if (!album_years_ready() && tagcache_finds_entries()
             && !(audio_status() & AUDIO_STATUS_PLAY) && album_years_make())
+        {
             tagtree_albums_reordered();
+            list_covers_load();
+        }
 #endif
         switch (next_screen)
         {

@@ -1085,6 +1085,13 @@ struct user_settings
     /* Settings > Shuffle in Lists: Shuffle Songs at the top of each kind of
        list (SHUFFLE_ROW_...). After the rest, as albums_sort */
     bool shuffle_rows_show[SHUFFLE_ROWS];
+    /* Music > Albums: each album's year and album artist under its name, and
+       the albums of a name of several album artists apart (Settings >
+       Appearance > Artists in Albums). After the rest, as albums_sort */
+    bool album_artists;
+    /* the albums' covers beside them in Music's lists of albums (Covers in
+       Lists) */
+    bool list_covers;
 };
 
 /* global settings */

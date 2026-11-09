@@ -69,6 +69,10 @@ void tagtree_forget_browse(void);
    of the albums, by its row in Artists or else in a list of the other artists in
    its place; or at the songs of an album (tag_album), by name */
 bool tagtree_go_to_name(int tag, const char *name, int *dirlevel, int *selected_item);
+/* and at an album's songs by its name and its album artist's seek, as Albums
+   has the albums of a name apart; by its name alone with -1 */
+bool tagtree_go_to_album(const char *name, int32_t artist, int *dirlevel,
+                         int *selected_item);
 /* A section of Music by its phrase, as a screen of the main menu: its list at the
    row it was left at, where Menu leaves the lists, until tagtree_end_go_to() */
 bool tagtree_has_section(int lang);
@@ -110,6 +114,32 @@ bool tagtree_row_is_playing(struct tree_context *c, int row, long playing);
 int tagtree_lead_digits(struct tree_context *c);
 const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
                                size_t size);
+/* The rows of albums in two lines, each album's name over its year and its
+   album artist, as Albums has them with Artists in Albums, and with their
+   covers, with Covers in Lists (list_covers.h) in any list of albums: the
+   list made last has them. A row's second line written to buf, or NULL for a
+   row of one line, as Sort By; and its album by its number in the table of
+   years (album_years.h), whose cover it shows: -1 for the note, as Unknown
+   Album, -2 for a row without a cover, as Sort By */
+bool tagtree_rows_two_lines(struct tree_context *c);
+bool tagtree_rows_covers(struct tree_context *c);
+const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
+                                  size_t size);
+/* "2011 · Juniper Coast": an album's year, if it's given one, and with artist
+   its album artist, as the album's number has it, unless that's except, as
+   an artist's albums have it for theirs. NULL for neither */
+const char *tagtree_album_subline(int no, int year, bool artist,
+                                  const char *except, char *buf, size_t size);
+int tagtree_entry_album(struct tree_context *c, int row);
+/* Artists in Albums switched, by its setting or as settings are applied:
+   Albums' rows are others, and the places in it at their first */
+void tagtree_album_rows_changed(bool on);
+void tagtree_album_rows_check(void);
+/* Quick Scroll's letter of a row, as the list goes by them, or its year in a
+   list by years, written to buf; NULL for a row without one, as at the top,
+   and for each of a list in another order */
+const char *tagtree_entry_initial(struct tree_context *c, int row, char *buf,
+                                  size_t size);
 /* the list has a Sort By, Albums' or All Songs', which is drawn as a setting,
    with its value */
 bool tagtree_has_sort_by(struct tree_context *c);
@@ -128,8 +158,9 @@ const char *tagtree_group_name(struct tree_context *c, int group, char *buf,
    cover, name, album artist, year and songs (album_header.c): the songs of
    one album, all of them, in the order of its discs and tracks, and music.
    False for another list: a part of one, the songs without an album, those
-   of two albums of a name in one row, a show's or a book's, or any without
-   the database in memory, which the rest is read from. */
+   of two albums of a name in one row, as without Artists in Albums, a show's
+   or a book's, or any without the database in memory, which the rest is read
+   from. */
 struct tagtree_album {
     int songs;
     int year;                   /* 0 for none */

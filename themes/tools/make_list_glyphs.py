@@ -2,7 +2,7 @@
 """Draw the speaker that marks the song playing in a list, as on a stock iPod, the
 shuffle arrows of a list's Shuffle Songs and the marks of the catalogue's playlists, and print them as the C arrays apps/gui/line.c
 draws them from; and the note of an album's header without a cover, which
-apps/album_header.c draws: alpha masks in Rockbox' format, 4 bits a pixel from 0 opaque to 15
+apps/album_header.c draws, and of an album's row in a list, which line.c draws: alpha masks in Rockbox' format, 4 bits a pixel from 0 opaque to 15
 transparent, the low nibble first, the rows running on without padding, as the chevron's
 there. The firmware colours them, so they're the same in every theme. Plain Python, no
 imaging libraries. Usage:
@@ -154,6 +154,17 @@ def note(x, y):
     return Note.inside(x / NOTE_SCALE, y / NOTE_SCALE)
 
 
+# and on the smaller tile of an album's row in a list, 32 px (apps/gui/line.c): the
+# same share of it
+SMALL_NOTE_SCALE = NOTE_SCALE * 32 / 60
+SMALL_NOTE_W, SMALL_NOTE_H = 16, 19
+
+
+def small_note(x, y):
+    from make_menu_icons import Note
+    return Note.inside(x / SMALL_NOTE_SCALE, y / SMALL_NOTE_SCALE)
+
+
 def coverage(inside, w, h):
     rows = []
     for py in range(h):
@@ -204,7 +215,8 @@ def main():
     for name, inside, w, h in (('speaker', speaker, W, H), ('shuffle', shuffle, SW, SH),
                                ('computer', computer, COMPUTER_W, COMPUTER_H),
                                ('ipod', ipod, IPOD_W, IPOD_H),
-                               ('note', note, NOTE_W, NOTE_H)):
+                               ('note', note, NOTE_W, NOTE_H),
+                               ('small_note', small_note, SMALL_NOTE_W, SMALL_NOTE_H)):
         cov = coverage(inside, w, h)
         print('#define %s_W %d' % (name.upper(), w))
         print('#define %s_H %d' % (name.upper(), h))

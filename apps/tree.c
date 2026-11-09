@@ -84,6 +84,7 @@
 #ifdef HAVE_TAGCACHE
 #include "music_search.h"
 #include "album_header.h"
+#include "list_covers.h"
 #endif
 
 static struct gui_synclist tree_lists;
@@ -381,6 +382,15 @@ static const char *tree_get_lead(int selected_item, void *data, char *buf,
            tagtree_entry_lead(local_tc, index_of(selected_item), buf, size) : NULL;
 }
 
+/* Quick Scroll's letter of a row of Music's, as the list goes by them */
+static const char *tree_get_initial(int selected_item, void *data, char *buf,
+                                    size_t size)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    return *local_tc->dirfilter == SHOW_ID3DB && !tree_is_group(selected_item, NULL) ?
+           tagtree_entry_initial(local_tc, index_of(selected_item), buf, size) : NULL;
+}
+
 /* At the right end of a song's row on an album's screen: its length. Where
    Star Ratings, when it's on, is to put the song's stars instead */
 static const char *tree_get_value(int selected_item, void *data, char *buf,
@@ -389,6 +399,55 @@ static const char *tree_get_value(int selected_item, void *data, char *buf,
     struct tree_context *local_tc = (struct tree_context *)data;
     return album_rows && !tree_is_group(selected_item, NULL) ?
            tagtree_entry_length(local_tc, index_of(selected_item), buf, size) : NULL;
+}
+
+/* an album's year and album artist under its name, in a list of albums in
+   two lines */
+static const char *tree_get_subline(int selected_item, void *data, char *buf,
+                                    size_t size)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    return tree_is_group(selected_item, NULL) ? NULL
+           : tagtree_entry_subline(local_tc, index_of(selected_item), buf, size);
+}
+
+/* and its cover at its left, or the note in its place; none for a row that
+   isn't an album's, as Sort By */
+static int tree_get_cover(int selected_item, void *data, const fb_data **pixels)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    if (tree_is_group(selected_item, NULL))
+        return LIST_COVER_NONE;
+    const int album = tagtree_entry_album(local_tc, index_of(selected_item));
+    return album < -1 ? LIST_COVER_NONE : list_covers_get(album, pixels);
+}
+
+/* Before each frame of a list with covers: what it lacks counted anew, its
+   rows' covers read now if they can be at once, and the covers of the rows
+   next to those shown asked for after theirs, the way the list went first,
+   as far again as it went, at least a screen */
+static void tree_covers_before_draw(struct gui_synclist *list)
+{
+    static int last_start;
+    list_covers_frame();
+    list_covers_draw_soon(list);
+    const int start = list->start_item[SCREEN_MAIN];
+    const int shown = list_get_nb_lines(list, SCREEN_MAIN);
+    const bool down = start >= last_start;
+    const int far = MIN(shown + 2 * abs(start - last_start), 32);
+    last_start = start;
+    for (int k = 0; k < far + shown; k++)
+    {
+        /* that way first, then the other, a screen */
+        const bool forward = k < far ? down : !down;
+        const int d = k < far ? k : k - far;
+        const int row = forward ? start + shown + d : start - 1 - d;
+        if (row < 0 || row >= list->nb_items || tree_is_group(row, NULL))
+            continue;
+        const int album = tagtree_entry_album(&tc, index_of(row));
+        if (album >= 0)
+            list_covers_ahead(album);
+    }
 }
 
 /* An album's title as its header has scrolled away, the list's above until
@@ -716,6 +775,10 @@ static int update_dir(void)
     gui_synclist_init(list, &tree_get_filename, &tc, false, 1, NULL);
 
 #ifdef HAVE_TAGCACHE
+    /* the memory of the lists' covers, if the setting was turned on while
+       music played, which has stopped since */
+    if (id3db)
+        list_covers_apply();
     /* Checks for changes */
     if (id3db) {
         if (tc.currtable != lasttable ||
@@ -861,6 +924,24 @@ static int update_dir(void)
     const int lead_digits = id3db ? tagtree_lead_digits(&tc) : 0;
     gui_synclist_set_lead_callback(list, lead_digits ? tree_get_lead : NULL,
                                    lead_digits);
+    /* albums in two lines, each one's year and album artist under its name,
+       and their covers, as Artists in Albums and Covers in Lists have them.
+       A list without covers has none read for the one before, as an album's
+       header's waits for them */
+    if (id3db && tagtree_rows_two_lines(&tc))
+    {
+        gui_synclist_set_subline_callback(list, tree_get_subline);
+        if (tagtree_rows_covers(&tc))
+        {
+            gui_synclist_set_cover_callback(list, tree_get_cover);
+            gui_synclist_set_before_draw(list, tree_covers_before_draw);
+            list_covers_opened();
+        }
+    }
+    if (!list->callback_get_cover)
+        list_covers_cancel();
+    /* in Music's lists, not the catalogue's of playlists, new first */
+    gui_synclist_set_initial_callback(list, id3db ? tree_get_initial : NULL);
     /* in the catalogue, not in the file browser showing playlists */
     gui_synclist_set_mark_callback(list, catalog_lead ? tree_get_mark : NULL);
     if(!id3db || global_settings.talk_menu)
@@ -1180,9 +1261,17 @@ static int dirbrowse(void)
         /* an album's cover, read meanwhile as the disk spins up: looked for
            each tenth of a second, and drawn as it comes */
         const bool cover = album_rows && album_header_cover_reading();
-        button = get_action(CONTEXT_TREE|ALLOW_SOFTLOCK,
-                            list_do_action_timeout(&tree_lists, cover ? HZ/10 : HZ/2));
-        if (album_rows && album_header_cover_came())
+        /* and the covers of albums' rows the reader reads as the wheel rests,
+           each list drawn again as they come */
+        const bool row_covers = tree_lists.callback_get_cover != NULL;
+        int timeout = list_do_action_timeout(&tree_lists, cover ? HZ/10 : HZ/2);
+        if (row_covers)
+            timeout = list_covers_timeout(timeout);
+        button = get_action(CONTEXT_TREE|ALLOW_SOFTLOCK, timeout);
+        if (row_covers && button != ACTION_NONE)
+            list_covers_input();
+        if ((album_rows && album_header_cover_came())
+            || (row_covers && list_covers_poll()))
             gui_synclist_draw(&tree_lists);
 #else
         button = get_action(CONTEXT_TREE|ALLOW_SOFTLOCK,

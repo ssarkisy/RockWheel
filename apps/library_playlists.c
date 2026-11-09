@@ -1533,6 +1533,31 @@ static const char *lp_name(int row, void *data, char *buf, size_t size)
     return lp.pool + lp.names[row - lp_lead()];
 }
 
+/* Quick Scroll's letter of a song's row, in a playlist sorted by a column:
+   of the place of its name for the column's tag, as its songs go by them */
+static const char *lp_initial(int row, void *data, char *buf, size_t size)
+{
+    (void)data;
+    int tag;
+    switch (lp.state.sort)
+    {
+        case ITUNESDB_SORT_TITLE:    tag = tag_title; break;
+        case ITUNESDB_SORT_ALBUM:    tag = tag_album; break;
+        case ITUNESDB_SORT_ARTIST:   tag = tag_artist; break;
+        case ITUNESDB_SORT_GENRE:    tag = tag_genre; break;
+        case ITUNESDB_SORT_COMPOSER: tag = tag_composer; break;
+        default:                     return NULL; /* as the file has them */
+    }
+    if (!is_song_row(row) || size < 5)
+        return NULL;
+    const ucschar_t letter =
+        tagcache_initial(tag, tagcache_sort_key(lp.songs[row - lp_lead()].idx, tag));
+    if (!letter)
+        return NULL;
+    *utf8encode(letter, (unsigned char *)buf) = '\0';
+    return buf;
+}
+
 static bool lp_playing(int row, void *data)
 {
     (void)data;
@@ -1913,6 +1938,7 @@ int lp_view(const char *file, int *selection)
     gui_synclist_set_icon_callback(&list, NULL);
     gui_synclist_set_playing_callback(&list, lp_playing);
     gui_synclist_set_shuffle_callback(&list, lp_shuffle_row);
+    gui_synclist_set_initial_callback(&list, lp_initial);
     gui_synclist_set_nb_items(&list, lp_rows());
     /* at the row it was left at, or a new one at its first song, Shuffle
        Songs above it */

@@ -221,11 +221,37 @@ MENUITEM_SETTING(progress_bar_style_item, &global_settings.progress_bar_style, N
 
 MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);
 MENUITEM_SETTING_SHARED(bold_text_item, &global_settings.bold_text, NULL);
+#ifdef HAVE_TAGCACHE
+/* the look of Music's lists of albums */
+MENUITEM_SETTING(album_artists_item, &global_settings.album_artists, NULL);
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+/* none with Album Art off, as there's no cover anywhere then */
+static int list_covers_callback(int action,
+                                const struct menu_item_ex *this_item,
+                                struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM && global_settings.album_art == AA_OFF)
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_SETTING(list_covers_item, &global_settings.list_covers,
+                 list_covers_callback);
+#endif
+#endif
 
 /* Appearance, a folder of Settings: all that changes the look, the whole of
-   it first, then Now Playing's, then the iPod's or iOS's look of its parts */
+   it first, then Music's lists', then Now Playing's, then the iPod's or iOS's
+   look of its parts */
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &dark_theme_item, &bold_text_item,
+#ifdef HAVE_TAGCACHE
+          &album_artists_item,
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+          &list_covers_item,
+#endif
+#endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
           &cover_colours_item, &status_icons_item, &angled_cover_item,
           &status_bar_style_item, &rating_style_item, &progress_bar_style_item,

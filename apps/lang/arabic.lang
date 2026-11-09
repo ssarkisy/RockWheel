@@ -12965,3 +12965,59 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_ARTISTS_IN_ALBUMS
+  desc: a setting of Settings > Appearance: On, Music > Albums shows each album in two lines, its name and under it its year and album artist, and albums of the same name by different album artists are separate rows; Off, Albums as before
+  user: core
+  <source>
+    *: "Artists in Albums"
+  </source>
+  <dest>
+    *: "الفنانون في الألبومات"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_ARTISTS_IN_ALBUMS
+  desc: the hint in the band under Settings > Appearance while Artists in Albums is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+  </source>
+  <dest>
+    *: "يظهر تحت اسم كل ألبوم في الألبومات سنته وفنانه، وتظهر الألبومات التي تحمل الاسم نفسه كلٌّ على حدة."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVERS_IN_LISTS
+  desc: a setting of Settings > Appearance: each album's cover at the left of its row in Music > Albums and in an artist's albums, as on an iPod classic
+  user: core
+  <source>
+    *: "Covers in Lists"
+  </source>
+  <dest>
+    *: "الأغلفة في القوائم"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_COVERS_IN_LISTS
+  desc: the hint in the band under Settings > Appearance while Covers in Lists is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Each album shows its cover beside its name, in Albums and in an artist's albums, as on an iPod classic."
+  </source>
+  <dest>
+    *: "يظهر غلاف كل ألبوم بجانب اسمه، في الألبومات وفي ألبومات الفنان، كما في iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

@@ -75,6 +75,7 @@
 #ifdef HAVE_TAGCACHE
 #include "tagtree.h"
 #include "root_menu.h"
+#include "list_covers.h"
 #endif
 #include "iap-usb.h"
 
@@ -913,6 +914,10 @@ static void playback_frequency_callback(int sample_rate_hz)
 static void albumart_callback(int mode)
 {
     set_albumart_mode(mode);
+#ifdef HAVE_TAGCACHE
+    /* none in lists either with it off, nor their memory */
+    list_covers_apply();
+#endif
 }
 #endif
 
@@ -2756,6 +2761,13 @@ const struct settings_list settings[] = {
     CHOICE_SETTING(0, all_songs_sort, LANG_SORT_BY, 0, "all songs sort",
                    "album,name", NULL, 2, ID2P(LANG_ID3_ALBUM),
                    ID2P(LANG_SORT_NAME)),
+    /* Settings > Appearance: Albums' rows with each album's year and album
+       artist under its name, and the albums' covers beside them in their
+       lists */
+    OFFON_SETTING(0, album_artists, LANG_ARTISTS_IN_ALBUMS, true,
+                  "album artists", tagtree_album_rows_changed),
+    OFFON_SETTING(0, list_covers, LANG_COVERS_IN_LISTS, true,
+                  "list covers", list_covers_changed),
     /* Settings > Music Menu, after the sections: Artists and a genre's
        artists by the albums' artists */
     OFFON_SETTING(0, artists_by_album_artist, LANG_GROUP_BY_ALBUM_ARTIST, true,

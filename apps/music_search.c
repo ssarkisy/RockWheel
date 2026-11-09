@@ -49,6 +49,8 @@
 #include "filetypes.h"
 #include "plugin.h"
 #include "splash.h"
+#include "album_years.h"
+#include "list_covers.h"
 
 /* The screen: the query, the row of letters under it and what matches under
    that, in groups as Music has them. The wheel goes along the letters and
@@ -117,7 +119,7 @@ static const struct {
    and digits too, that begin a word of a name: what may be typed first. With
    the commit of the database they're of. */
 #define LETTERS_FILE    ROCKBOX_DIR "/search_letters.bin"
-#define LETTERS_VERSION 5
+#define LETTERS_VERSION 7
 #define LETTERS_LOW     0x0370
 #define LETTERS_MID     0x1100
 #define LETTERS_HIGH    0x3040
@@ -132,17 +134,23 @@ struct letters_file {
 };
 
 /* The library's names as they're searched by, made with the letters: after a
-   header, each name's group, its track (a song's) or where it's found (an
-   artist's, ARTIST_SHOWN_OFF and ARTIST_SHOWN_ON), its name as shown and its
-   words folded (fold_words()) in UTF-8 with a 0 after each, the two after their
-   lengths. A search reads it through in pieces and compares bytes: folding the
-   database's every name again at each search took most of a second. */
+   header, each name's group, its track (a song's), where it's found (an
+   artist's, ARTIST_SHOWN_OFF and ARTIST_SHOWN_ON) or its album's number in the
+   table of years (an album's, album_years.h, -1 without it), its name as shown
+   and its words folded (fold_words()) in UTF-8 with a 0 after each, the two
+   after their lengths. An album's name is there once for each of its album
+   artists, as Albums has them apart. A search reads it through in pieces and
+   compares bytes: folding the database's every name again at each search
+   took most of a second. */
 #define NAMES_FILE      ROCKBOX_DIR "/search_names.bin"
 #define NAMES_TEMP      NAMES_FILE ".tmp" /* whole_file_open()'s */
 #define NAME_BYTES      255  /* of a name, and of its folded words, at most */
 #define ENTRY_MAX       (1 + 4 + 1 + NAME_BYTES + 1 + NAME_BYTES)
 struct names_header {
     int32_t version, commit, count;
+    /* the table of years its albums' numbers are of: its count and hash */
+    int32_t albums;
+    uint32_t table;
 };
 /* Read in pieces from its start, as many sectors each, into a buffer aligned
    for the disk to put them in directly; the rest of the last entry of a piece
@@ -285,20 +293,22 @@ static const int group_first[GROUPS] = { 0, ARTISTS_MAX, ARTISTS_MAX + ALBUMS_MA
 
 static struct result {
     uint32_t name;  /* in the pool */
-    int32_t idx_id; /* the track of a song */
+    int32_t idx_id; /* the track of a song, an album's number */
 } results[ARTISTS_MAX + ALBUMS_MAX + SONGS_MAX];
 static int group_count[GROUPS];
 static bool group_full[GROUPS]; /* more than it holds matched */
 /* the results are of a query with words, of the database as it was then,
-   and of the artists Group by Album Artist had found */
+   of the artists Group by Album Artist had found, and of the albums of a
+   name apart or not, as Artists in Albums had them */
 static bool have_results;
 static int results_commit;
-static bool results_grouping;
+static bool results_grouping, results_album_artists;
 
 static bool results_current(void)
 {
     return results_commit == tagcache_get_commitid()
-           && results_grouping == global_settings.artists_by_album_artist;
+           && results_grouping == global_settings.artists_by_album_artist
+           && results_album_artists == global_settings.album_artists;
 }
 
 #define POOL_SIZE 24576
@@ -310,22 +320,6 @@ static size_t pool_used;
 static ucschar_t query_folded[QUERY_SIZE];
 static int query_word[QUERY_WORDS + 1]; /* where each starts, then the end */
 static int query_words;
-
-/* A letter of the library's as the ring shows it: a capital */
-static ucschar_t capital(ucschar_t c)
-{
-    if ((c >= 0x3b1 && c <= 0x3c9) || (c >= 0x430 && c <= 0x44f))
-        return c - 0x20;
-    if (c >= 0x450 && c <= 0x45f)
-        return c - 0x50;
-    if (c >= 0x4c2 && c <= 0x4ce)
-        return c & 1 ? c : c - 1;
-    if (c >= 0x461 && c <= 0x4ff && (c & 1))
-        return c - 1;
-    if (c >= 0x561 && c <= 0x586)
-        return c - 0x30;
-    return c;
-}
 
 /* Hangul's syllables as the letters they're written with: first, middle and
    last. Of those that are two, as a "ㅘ" of "ㅗ" and "ㅏ", both, so that they're
@@ -850,6 +844,53 @@ static void names_hold(void)
         names_ram = NULL;
 }
 
+/* the albums' numbers of the names' file are of the table of years as it
+   is, which it was written with: as the search found them */
+static bool albums_known;
+
+/* An album of the name of the one found before it, which the names' file has
+   next to it: of another album artist, a row of its own only as Albums has
+   them apart (Artists in Albums), and with the numbers that tell them apart */
+static bool same_album_name(const char *name)
+{
+    const int n = group_count[GROUP_ALBUMS];
+    return (!global_settings.album_artists || !albums_known) && n > 0
+           && !strcmp(pool + results[group_first[GROUP_ALBUMS] + n - 1].name, name);
+}
+
+static bool names_albums_known(const struct names_header *h)
+{
+    return h->albums == album_years_count() && h->table == album_years_hash();
+}
+
+/* the number of a found album in the table of years, -1 if it isn't known,
+   as without the names' file or the table */
+static int album_of(const struct result *r)
+{
+    return albums_known && r->idx_id >= 0 && r->idx_id < album_years_count()
+           ? r->idx_id : -1;
+}
+
+/* its album artist, after its name in Search's list as Albums has it, with
+   MENU_LIGHT_SEP between: the name alone without Artists in Albums, or if
+   it isn't known */
+static const char *album_row_name(const struct result *r, char *buf, size_t size)
+{
+    const char *name = pool + r->name;
+    const int no = album_of(r);
+    const int len = strlen(name);
+    if (!global_settings.album_artists || no < 0 || (size_t)len + 2 >= size)
+        return name;
+    memcpy(buf, name, len);
+    buf[len] = MENU_LIGHT_SEP;
+#ifdef HAVE_TC_RAMCACHE
+    if (tagcache_tag_string(tag_albumartist, album_years_artist(no),
+                            buf + len + 1, size - len - 1))
+        return buf;
+#endif
+    return name;
+}
+
 /* the names' file opened past its header, if it's of this database: -1 if not */
 static int open_names(struct names_header *h)
 {
@@ -908,6 +949,7 @@ static bool search_names(bool stoppable, bool *stopped)
         more = got == NAMES_CHUNK;
     }
     names_commit = h.commit;
+    albums_known = names_albums_known(&h);
     int e;
     for (e = 0; e < h.count; e++)
     {
@@ -950,6 +992,8 @@ static bool search_names(bool stoppable, bool *stopped)
         char shown[NAME_BYTES + 1];
         memcpy(shown, name, name_len);
         shown[name_len] = '\0';
+        if (g == GROUP_ALBUMS && same_album_name(shown))
+            continue;
         if (!add_result(g, shown, idx_id))
             group_full[g] = true;
     }
@@ -972,6 +1016,7 @@ static bool search_all(bool stoppable)
     have_results = query_words > 0;
     results_commit = tagcache_get_commitid();
     results_grouping = global_settings.artists_by_album_artist;
+    results_album_artists = global_settings.album_artists;
     memset(next_letters, 0, sizeof(next_letters));
     next_known = false;
     /* nothing typed: what begins a word of a name, as Updating Library found */
@@ -1017,6 +1062,9 @@ static bool search_all(bool stoppable)
                     || (g == GROUP_ARTISTS && !artist_shown(idx_id))
                     || !matches(name, next_letters))
                     continue;
+                /* an album by its name alone, without the names' file */
+                if (g == GROUP_ALBUMS)
+                    idx_id = -1;
                 if (!add_result(g, name, idx_id))
                 {
                     group_full[g] = true;
@@ -1146,6 +1194,8 @@ static const char *row_name(int row, void *data, char *buf, size_t size)
         snprintf(buf, size, "%s\t%d", str(LANG_SEARCH_SEE_ALL), group_count[g]);
         return buf;
     }
+    if (g == GROUP_ALBUMS)
+        return album_row_name(&results[group_first[g] + index], buf, size);
     return pool + results[group_first[g] + index].name;
 }
 
@@ -1200,7 +1250,7 @@ static void add_script(enum script s, const char *letters, const uint8_t *presen
         for (int i = from; i < strip.count && !have; i++)
             have = sortkey_fold(strip.c[i]) == c;
         if (!have)
-            add_letter(capital(c), set);
+            add_letter(sortkey_capital(c), set);
     }
 }
 
@@ -1379,7 +1429,9 @@ bool music_search_letters_stale(void)
     if (fd < 0)
         return true;
     close(fd);
-    return false;
+    /* its albums' numbers of another table, as one not made as it was
+       written: known once the table is made */
+    return album_years_ready() && !names_albums_known(&h);
 }
 
 /* What the names' file is gathered in before it's written: the plugins' buffer,
@@ -1433,7 +1485,8 @@ void music_search_letters_make(void (*progress)(int done, int total))
     memset(&f, 0, sizeof(f));
     f.version = LETTERS_VERSION;
     f.commit = tagcache_get_commitid();
-    struct names_header h = { LETTERS_VERSION, f.commit, 0 };
+    struct names_header h = { LETTERS_VERSION, f.commit, 0, album_years_count(),
+                              album_years_hash() };
     int names_fd = whole_file_open(NAMES_FILE);
     size_t room = 0;
     put_buf = plugin_get_buffer(&room);
@@ -1479,9 +1532,18 @@ void music_search_letters_make(void (*progress)(int done, int total))
                 if (folded[i] && (i == 0 || folded[i - 1] == 0))
                     set_next(f.starts, folded[i]);
             }
-            if (names_fd >= 0 && n > 0)
+            /* an album's name once for each of its album artists, by the
+               number of each album, or once without the table */
+            int of_name = 1;
+            const int first = g == GROUP_ALBUMS ?
+                album_years_find(names_in.tcs[0].result_seek, &of_name) : -1;
+            if (first < 0)
+                of_name = 1;
+            for (int k = 0; k < of_name && names_fd >= 0 && n > 0; k++)
             {
-                if (put_name(names_fd, &used, g, idx_id, name, folded, n))
+                const int32_t id = g != GROUP_ALBUMS ? idx_id
+                                   : first < 0 ? -1 : first + k;
+                if (put_name(names_fd, &used, g, id, name, folded, n))
                     h.count++;
                 else
                 {
@@ -2199,8 +2261,14 @@ static int open_result(int g, int index)
     if (g == GROUP_SONGS)
         return play_song(index) ? GO_TO_WPS : 0;
     transition_begin(TRANSITION_FORWARD);
-    int screen = root_menu_go_to_name(group_tag[g],
-                                      pool + results[group_first[g] + index].name);
+    const struct result *r = &results[group_first[g] + index];
+    /* an album by its album artist too, as Albums has the albums of a name
+       apart */
+    const int no = g == GROUP_ALBUMS && global_settings.album_artists ?
+                   album_of(r) : -1;
+    int screen = g == GROUP_ALBUMS ?
+        root_menu_go_to_album(pool + r->name, no < 0 ? -1 : album_years_artist(no))
+        : root_menu_go_to_name(group_tag[g], pool + r->name);
     if (screen < 0)
     {
         transition_cancel();
@@ -2249,6 +2317,46 @@ static bool group_row_has_children(int row, void *data)
     return (intptr_t)data != GROUP_SONGS;
 }
 
+/* See All of albums as Albums has them: each in two lines, its year, and its
+   album artist with Artists in Albums, under its name, and with its cover */
+static const char *album_row_subline(int row, void *data, char *buf, size_t size)
+{
+    (void)data;
+    const int no = album_of(&results[group_first[GROUP_ALBUMS] + row]);
+    if (no < 0)
+        return NULL;
+    const bool apart = global_settings.album_artists;
+    return tagtree_album_subline(no, apart ? album_years_year(no)
+                                           : album_years_name_year_of(no),
+                                 apart, NULL, buf, size);
+}
+
+static int album_row_cover(int row, void *data, const fb_data **pixels)
+{
+    (void)data;
+    return list_covers_get(album_of(&results[group_first[GROUP_ALBUMS] + row]),
+                           pixels);
+}
+
+static void album_rows_before_draw(struct gui_synclist *list)
+{
+    list_covers_frame();
+    list_covers_draw_soon(list);
+}
+
+/* Quick Scroll's letter of a row, as the group's names go by them: by the
+   name, as an album's or artist's row hasn't its place in the database's
+   files, which a Sort field would have put elsewhere */
+static const char *group_row_initial(int row, void *data, char *buf, size_t size)
+{
+    const char *name = pool + results[group_first[(intptr_t)data] + row].name;
+    const ucschar_t letter = sortkey_initial(sortkey_start(name, true));
+    if (size < 5)
+        return NULL;
+    *utf8encode(letter, (unsigned char *)buf) = '\0';
+    return buf;
+}
+
 /* See All: those of a group alone, a list like any of Music's */
 static int show_group(int g)
 {
@@ -2259,6 +2367,20 @@ static int show_group(int g)
     gui_synclist_set_title(&list, str(group_lang[g]), Icon_NOICON);
     gui_synclist_set_icon_callback(&list, NULL);
     gui_synclist_set_has_children_callback(&list, group_row_has_children);
+    /* the covers' memory, if turned on as music played, which has stopped */
+    list_covers_apply();
+    /* of the albums' numbers in the table of years, if they're known */
+    const bool numbered = g == GROUP_ALBUMS && albums_known && album_years_count() > 0;
+    const bool covers = numbered && list_covers_on();
+    if (numbered && (global_settings.album_artists || covers))
+        gui_synclist_set_subline_callback(&list, album_row_subline);
+    if (covers)
+    {
+        gui_synclist_set_cover_callback(&list, album_row_cover);
+        gui_synclist_set_before_draw(&list, album_rows_before_draw);
+        list_covers_opened();
+    }
+    gui_synclist_set_initial_callback(&list, group_row_initial);
     gui_synclist_set_nb_items(&list, group_count[g]);
     gui_synclist_select_item(&list, 0);
     bool redraw = true;
@@ -2267,7 +2389,16 @@ static int show_group(int g)
         if (redraw)
             gui_synclist_draw(&list);
         redraw = false;
-        int action = get_action(CONTEXT_TREE, list_do_action_timeout(&list, HZ / 2));
+        int timeout = list_do_action_timeout(&list, HZ / 2);
+        if (covers)
+            timeout = list_covers_timeout(timeout);
+        int action = get_action(CONTEXT_TREE, timeout);
+        /* the covers the reader reads as the wheel rests, drawn as they
+           come */
+        if (covers && action != ACTION_NONE)
+            list_covers_input();
+        if (covers && list_covers_poll())
+            redraw = true;
         if (gui_synclist_do_button(&list, &action))
             continue;
         switch (action)

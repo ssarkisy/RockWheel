@@ -154,6 +154,12 @@ static const struct {
     { &global_settings.cuesheet, LANG_HINT_CUESHEET },
     { &global_settings.crossfeed, LANG_HINT_CROSSFEED },
     { &global_settings.bold_text, LANG_HINT_BOLD_TEXT },
+#ifdef HAVE_TAGCACHE
+    { &global_settings.album_artists, LANG_HINT_ARTISTS_IN_ALBUMS },
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    { &global_settings.list_covers, LANG_HINT_COVERS_IN_LISTS },
+#endif
+#endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     { &global_settings.cover_colours, LANG_HINT_COVER_COLOURS },
     { &global_settings.status_icons, LANG_HINT_STATUS_ICONS },
@@ -363,6 +369,7 @@ static bool menu_is_group(int item, void *data)
 #define VALUE_MARGIN 6
 #define VALUE_MARGIN_CHEVRON 21
 #define VALUE_GAP 8
+#define LIGHT_LEAST 40 /* the room a lighter text after a name needs at least */
 void menu_draw_value_line(struct list_putlineinfo_t *info)
 {
     struct screen *display = info->display;
@@ -379,6 +386,41 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         linedes.line_color = GROUP_BAR_COLOUR;
         display->put_line(info->x, info->y, &linedes, "$*s$*t", info->item_indent,
                           info->item_offset, text);
+        return;
+    }
+
+    /* "name\x1flight": a lighter text right after the name, as an album's
+       artist in Search, in the font of a row's second line, on the name's
+       baseline; cut short before the chevron, and none where it would be
+       only a letter or two */
+    const char *light = strchr(text, MENU_LIGHT_SEP);
+    if (light)
+    {
+        char whole[MAX_PATH], fitted[MAX_PATH];
+        strlcpy(whole, text, MIN((size_t)(light - text) + 1, sizeof(whole)));
+        display->put_line(info->x, info->y, info->linedes, "$*s$*t",
+                          info->item_indent, info->item_offset, whole);
+        int name_width, height;
+        display->getstringsize(whole, &name_width, &height);
+        const int x = info->x + info->item_indent + name_width + VALUE_GAP;
+        const int right = info->vp->width - (info->list->callback_has_children ?
+                                             VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
+        const int name_font = info->vp->font;
+        const int font = list_subline_font(name_font);
+        const char *fit = right - x >= LIGHT_LEAST ?
+            line_fit(light + 1, font, right - x, fitted, sizeof(fitted)) : NULL;
+        if (!fit)
+            return;
+        const int y = info->y + info->linedes->height / 2 - height / 2
+                      + font_get(name_font)->ascent - font_get(font)->ascent;
+        const unsigned old_fg = display->get_foreground();
+        display->set_foreground(info->is_selected ? LCD_WHITE : VALUE_COLOUR);
+        display->set_drawmode(DRMODE_FG);
+        info->vp->font = font;
+        display->putsxy(x, y, fit);
+        info->vp->font = name_font;
+        display->set_drawmode(DRMODE_SOLID);
+        display->set_foreground(old_fg);
         return;
     }
 

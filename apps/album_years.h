@@ -40,6 +40,27 @@ int album_name_year(int32_t album);
 /* how many times it was made, which the lists kept of it go by */
 unsigned album_years_generation(void);
 
+/* The albums by their numbers in the table, sorted by name and then by album
+   artist as the tags' files are: an album's number lasts as long as the
+   table's generation. The first album of a name, -1 for none, and in *n how
+   many of the name there are, each of another album artist, one after
+   another */
+int album_years_find(int32_t album, int *n);
+/* of an album by its number: its name's and its album artist's seeks, -1 for
+   none; its year, 0 for none; one of its songs, by its number in the
+   database, -1 for none */
+int32_t album_years_album(int no);
+int32_t album_years_artist(int no);
+int album_years_year(int no);
+/* and the latest of the albums of its name, as album_name_year() */
+int album_years_name_year_of(int no);
+int32_t album_years_first_track(int no);
+/* how many albums the table has, 0 when it isn't ready; and a hash of their
+   seeks in their order, by which what's kept by their numbers is known to be
+   of this table, 0 when it isn't ready */
+int album_years_count(void);
+uint32_t album_years_hash(void);
+
 /* The years of a list's rows of albums, among some songs only, as an
    artist's: each row's the latest of the albums its songs are on, so a
    name two album artists have is of this one's. Begun before the search
@@ -49,5 +70,8 @@ unsigned album_years_generation(void);
 void album_years_rows_begin(void);
 void album_years_match(const int32_t *tag_seek, void *data);
 int album_years_row(int32_t album);
+/* and the number of the row's album, the first of the name found among the
+   songs; of the name's first album for a row it wasn't told of; -1 for none */
+int album_years_row_album(int32_t album);
 
 #endif /* _ALBUM_YEARS_H_ */
