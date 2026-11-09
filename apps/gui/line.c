@@ -35,6 +35,7 @@
 #include "language.h"
 #include "debug.h"
 #include "list.h"
+#include "font.h"
 
 #ifdef HAVE_REMOTE_LCD
 #define MAX_LINES (LCD_SCROLLABLE_LINES + LCD_REMOTE_SCROLLABLE_LINES)
@@ -662,29 +663,71 @@ void line_draw_mark(struct screen *display, int x, int y,
 }
 
 #define LEAD_GAP 8 /* as a setting's value from its name */
-int line_lead_width(struct screen *display, int digits, int *digit)
+int line_lead_width(struct screen *display, int font, int digits, int *digit)
 {
+    (void)display;
     int widest = 0;
     for (char d[2] = "0"; d[0] <= '9'; d[0]++)
     {
         int w;
-        display->getstringsize(d, &w, NULL);
+        font_getstringsize(d, &w, NULL, font);
         widest = MAX(widest, w);
     }
     *digit = widest;
     return digits * widest + LEAD_GAP;
 }
 
+/* The rows of its line a glyph's ink takes, its pixels at least half drawn:
+   false for a font without grey levels, whose bits are laid out otherwise,
+   or a glyph without ink. A grey-level glyph is its rows one after another,
+   a pixel a nibble, 0 drawn and 15 not (lcd-16bit-common.c) */
+static bool glyph_ink(int font, ucschar_t ch, int *top, int *bottom)
+{
+    struct font *pf = font_get(font);
+    if (!pf->depth)
+        return false;
+    const int width = font_get_width(pf, ch);
+    const unsigned char *bits = font_get_bits(pf, ch);
+    *top = -1;
+    for (int row = 0; row < (int)pf->height; row++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            const int p = row * width + x;
+            if (((bits[p >> 1] >> ((p & 1) * 4)) & 0xf) < 8)
+            {
+                if (*top < 0)
+                    *top = row;
+                *bottom = row;
+                break;
+            }
+        }
+    }
+    return *top >= 0;
+}
+
+int line_lead_shift(int name_font, int font)
+{
+    int name_top, name_bottom, top, bottom;
+    if (glyph_ink(name_font, 'H', &name_top, &name_bottom)
+        && glyph_ink(font, '0', &top, &bottom))
+        return (name_top + name_bottom - top - bottom) / 2;
+    return font_get(name_font)->ascent - font_get(font)->ascent;
+}
+
 /* right-aligned, 9 under 10, which right-to-left text mirrors to the name's
    side too: placed as if each of its digits were as wide as the widest, as
    the theme's all are, rather than measured row by row. A year fills its
    column as before */
-void line_draw_lead(struct screen *display, int x, int y,
+void line_draw_lead(struct screen *display, int font, int shift, int x, int y,
                     const struct line_desc *line, const char *text,
                     int width, int digit)
 {
     x += width - LEAD_GAP - digit * (int)strlen(text);
     const int height = line->height == -1 ? display->getcharheight() : line->height;
+    struct viewport *vp = *display->current_viewport;
+    const int name_font = vp->font;
+    y += height/2 - display->getcharheight()/2 + shift;
     const unsigned fg = display->get_foreground();
 #ifdef HAVE_LCD_COLOR
     if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
@@ -695,7 +738,9 @@ void line_draw_lead(struct screen *display, int x, int y,
         display->set_foreground(LIST_VALUE_COLOUR);
 #endif
     display->set_drawmode(DRMODE_FG);
-    display->putsxy(x, y + height/2 - display->getcharheight()/2, text);
+    vp->font = font;
+    display->putsxy(x, y, text);
+    vp->font = name_font;
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
 }

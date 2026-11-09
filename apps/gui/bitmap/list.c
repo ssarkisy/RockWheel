@@ -214,6 +214,17 @@ static int hint_font(void)
     return font; /* -1, as for a moment as the theme loads: the band empty */
 }
 
+/* Albums' years and songs' numbers, lighter than the names they're before:
+   in the font of Now Playing's song, which its skin keeps loaded from boot.
+   In the list's own as the theme loads, or with a theme without it. */
+static int list_lead_font(int list_font)
+{
+    int font = font_find(FONT_DIR "/17-Inter-SemiBold.fnt");
+    if (font < 0)
+        font = font_find(FONT_DIR "/17-Inter-Bold.fnt"); /* with Bold Text */
+    return font < 0 ? list_font : font;
+}
+
 /* What doesn't start a line of Chinese or Japanese: the punctuation that
    closes what's before it and Japanese's small kana. "。" went to a line of
    its own once its font's spacing made it as wide as a letter. */
@@ -508,17 +519,21 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     };
 
     /* the column of the texts before the names, as albums' years, measured
-       once for the list in its font */
-    int lead_w = 0;
+       once for the list in its font; its height against the names' once a
+       frame, two glyphs looked at */
+    int lead_w = 0, lead_font = -1, lead_shift = 0;
     if (list->callback_get_lead && list->lead_digits > 0 && screen == SCREEN_MAIN)
     {
-        if (list->lead_font != list_text_vp->font)
+        lead_font = list_lead_font(list_text_vp->font);
+        if (list->lead_font != lead_font)
         {
-            list->lead_width = line_lead_width(display, list->lead_digits,
+            list->lead_width = line_lead_width(display, lead_font,
+                                               list->lead_digits,
                                                &list->lead_digit);
-            list->lead_font = list_text_vp->font;
+            list->lead_font = lead_font;
         }
         lead_w = list->lead_width;
+        lead_shift = line_lead_shift(list_text_vp->font, lead_font);
     }
 
     for (i=start; i<end && i<list->nb_items; i++)
@@ -680,8 +695,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             line_draw_mark(display, list_info.x + mark_x, list_info.y,
                            &linedes, mark);
         if (lead && *lead)
-            line_draw_lead(display, list_info.x + lead_x, list_info.y,
-                           &linedes, lead, lead_w, list->lead_digit);
+            line_draw_lead(display, lead_font, lead_shift, list_info.x + lead_x,
+                           list_info.y, &linedes, lead, lead_w,
+                           list->lead_digit);
     }
     if (hint)
         list_draw_hint(display, &band, hint);

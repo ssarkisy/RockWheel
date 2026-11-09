@@ -162,9 +162,14 @@ int line_mark_width(struct screen *display);
    as a setting's value, in a column as wide as so many of the font's widest
    digit and a gap, against the gap's side of it, as numbers in a column go.
    The column's width, and in *digit the widest digit's: measured once for a
-   list. Drawn at x of a line put at y, after it, in a column of these. */
-int line_lead_width(struct screen *display, int digits, int *digit);
-void line_draw_lead(struct screen *display, int x, int y,
+   list, in the font it's drawn in. Its top, shift pixels below the name's:
+   its digits in the middle of the name's capitals, which are taller, rather
+   than on their baseline, where they looked low (line_lead_shift(), on the
+   baseline with a font without grey levels). Drawn at x of a line put at y,
+   after it, in a column of these. */
+int line_lead_width(struct screen *display, int font, int digits, int *digit);
+int line_lead_shift(int name_font, int font);
+void line_draw_lead(struct screen *display, int font, int shift, int x, int y,
                     const struct line_desc *line, const char *text,
                     int width, int digit);
 void line_draw_mark(struct screen *display, int x, int y,
