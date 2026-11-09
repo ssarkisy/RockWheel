@@ -145,13 +145,14 @@ void ata_dma_set_mode(unsigned char mode) {
 static ICODE_ATTR int ata_wait_intrq(void)
 {
     long timeout = current_tick + HZ*10;
+    const unsigned long begun = ata_wait_begin();
 
     do
     {
         if (IDE0_CFG & IDE_CFG_INTRQ)
             return 1;
         ata_keep_active();
-        yield();
+        ata_wait_yield(begun);
     } while (TIME_BEFORE(current_tick, timeout));
 
     return 0; /* timeout */
@@ -248,9 +249,12 @@ bool ata_dma_finish(void) {
        the CPU back only when the UI next let it go, a read at a time. But only
        until it has had the CPU for DMA_WAIT_RUN_USEC since it got it: then it
        yields, as its long reads, a sort's, a load's, held the UI up for 200 ms,
-       each of them until it was made to yield by hand. */
+       each of them until it was made to yield by hand. A thread that asks for
+       it yields at once, too: a list's covers' reader, whose reads come while
+       the wheel may turn again, and wait for the UI rather than it for them. */
 #define DMA_WAIT_RUN_USEC 8000
     if (dma_bytes && ata_disk_isssd()
+        && thread_self() != ata_dma_yielding_thread
 #ifdef HAVE_PRIORITY_SCHEDULING
         && thread_get_priority(thread_self()) >= PRIORITY_USER_INTERFACE
         && (thread_get_priority(thread_self()) == PRIORITY_USER_INTERFACE

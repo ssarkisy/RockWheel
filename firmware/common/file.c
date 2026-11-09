@@ -25,6 +25,7 @@
 #include <errno.h>
 #include "debug.h"
 #include "file.h"
+#include "file_map.h"
 #include "fileobj_mgr.h"
 #include "disk_cache.h"
 #include "rb_namespace.h"
@@ -1284,3 +1285,95 @@ bool rbfs_file_exists(const char *path)
     file_internal_unlock_WRITER();
     return rc;
 }
+
+#ifdef HAVE_FILE_MAP
+/* map a part of a file onto its sectors on the drive (file_map.h) */
+int file_map(int fildes, off_t offset, off_t length, struct file_map *map,
+             struct file_map_run *runs, int max)
+{
+    map->runs = 0;
+    struct filestr_desc * const file = GET_FILESTR(READER, fildes);
+    if (!file)
+        FILE_ERROR_RETURN(ERRNO, -1);
+
+    int rc;
+    const struct fat_filestr * const fatstr = &file->stream.fatstr;
+    const unsigned int sector_size =
+        fat_file_sector_size(IF_MV(fatstr->fatfilep));
+    file_size_t size = *file->sizep;
+
+    /* as of the volume as it is from here on, even if it fails */
+    map->gen = fat_map_gen();
+    map->sector_size = sector_size;
+#ifdef HAVE_MULTIVOLUME
+    map->volume = fatstr->fatfilep->volume;
+#else
+    map->volume = 0;
+#endif
+
+    if (offset < 0 || length <= 0 || offset % sector_size
+        || length % sector_size || (file_size_t)length > size
+        || (file_size_t)offset > size - (file_size_t)length)
+        FILE_ERROR(EINVAL, -2);
+
+    rc = fat_map_sectors(fatstr, offset / sector_size, length / sector_size,
+                         runs, max, map->gen);
+    if (rc < 0)
+        FILE_ERROR(EIO, rc * 10 - 3);
+
+    map->runs = rc;
+file_error:
+    RELEASE_FILESTR(READER, file);
+    return rc;
+}
+
+/* read a mapped part of a file by its sectors (file_map.h) */
+int file_read_mapped(const struct file_map *map, const struct file_map_run *runs,
+                     off_t offset, size_t size, void *buf)
+{
+    const unsigned int sector_size = map->sector_size;
+    if (map->runs <= 0 || !sector_size || offset < 0 || !size
+        || offset % sector_size || size % sector_size)
+        FILE_ERROR_RETURN(EINVAL, -1);
+
+    unsigned long at = offset / sector_size;
+    unsigned long count = size / sector_size;
+    /* the run it begins in */
+    int i = 0;
+    while (i < map->runs && at >= runs[i].at + runs[i].count)
+        i++;
+
+    unsigned char *p = buf;
+    int rc = 0;
+    /* the volume kept mounted meanwhile, as by a read of the file */
+    file_internal_lock_READER();
+    while (count)
+    {
+        /* each run goes on from the one before: past the last, it's past the
+           part mapped */
+        if (i >= map->runs || at < runs[i].at)
+            FILE_ERROR(EINVAL, -2);
+
+        const unsigned long n = MIN(count, runs[i].at + runs[i].count - at);
+        rc = fat_read_mapped(IF_MV(map->volume,) map->gen,
+                             runs[i].sector + (at - runs[i].at), n, p);
+        if (rc < 0)
+            FILE_ERROR(EIO, rc * 10 - 3);
+
+        p += n * sector_size;
+        at += n;
+        count -= n;
+        i++;
+    }
+
+file_error:
+    file_internal_unlock_READER();
+    return rc;
+}
+
+/* a map is still of the volume as it is, as a hint (file_map.h) */
+bool file_map_current(const struct file_map *map)
+{
+    return fat_map_current(IF_MV(map->volume,) map->gen);
+}
+#endif /* HAVE_FILE_MAP */

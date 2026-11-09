@@ -165,6 +165,16 @@ void fat_seek_to_stream(struct fat_filestr *filestr,
                         const struct fat_filestr *filestr_seek_to);
 int fat_truncate(const struct fat_filestr *filestr);
 
+/** Maps of files' sectors, for file_map.h, which takes the locks **/
+struct file_map_run;
+unsigned long fat_map_gen(void);
+bool fat_map_current(IF_MV(int volume,) unsigned long gen);
+int fat_map_sectors(const struct fat_filestr *filestr, unsigned long first,
+                    unsigned long count, struct file_map_run *runs, int max,
+                    unsigned long gen);
+int fat_read_mapped(IF_MV(int volume,) unsigned long gen, sector_t sector,
+                    unsigned long count, void *buf);
+
 /** Directory stream functions **/
 struct filestr_cache;
 int fat_readdir(struct fat_filestr *dirstr, struct fat_dirscan_info *scan,

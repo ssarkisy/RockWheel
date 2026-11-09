@@ -201,17 +201,56 @@ static inline void spun_up(long start, bool read_from_off)
 #endif
 }
 
+#if !defined(BOOTLOADER) && defined(USEC_TIMER)
+/* The thread, if any, whose waits for the disk keep the CPU, ATA_SPIN_USEC
+   at most a wait: one that draws what it reads at once, as a list the covers
+   of its frame, which a thread it yielded to kept from it for milliseconds
+   at a time (ata_spin_waits()) */
+#define ATA_SPIN_USEC 4000
+static unsigned int ata_spinning_thread;
+
+void ata_spin_waits(bool on)
+{
+    if (on)
+        ata_spinning_thread = thread_self();
+    else if (ata_spinning_thread == thread_self())
+        ata_spinning_thread = 0;
+}
+#endif
+
+unsigned long ata_wait_begin(void)
+{
+#ifdef USEC_TIMER
+    return USEC_TIMER;
+#else
+    return 0;
+#endif
+}
+
+void ata_wait_yield(unsigned long begun)
+{
+#if !defined(BOOTLOADER) && defined(USEC_TIMER)
+    if (ata_spinning_thread && ata_spinning_thread == thread_self()
+        && USEC_TIMER - begun < ATA_SPIN_USEC)
+        return;
+#else
+    (void)begun;
+#endif
+    yield();
+}
+
 #ifndef ATA_TARGET_POLLING
 static ICODE_ATTR int wait_for_bsy(void)
 {
     long timeout = current_tick + HZ*30;
+    const unsigned long begun = ata_wait_begin();
 
     do
     {
         if (!(ATA_IN8(ATA_STATUS) & STATUS_BSY))
             return 1;
         keep_ata_active();
-        yield();
+        ata_wait_yield(begun);
     } while (TIME_BEFORE(current_tick, timeout));
 
     return 0; /* timeout */
@@ -225,13 +264,14 @@ static ICODE_ATTR int wait_for_rdy(void)
         return 0;
 
     timeout = current_tick + HZ*10;
+    const unsigned long begun = ata_wait_begin();
 
     do
     {
         if (ATA_IN8(ATA_ALT_STATUS) & STATUS_RDY)
             return 1;
         keep_ata_active();
-        yield();
+        ata_wait_yield(begun);
     } while (TIME_BEFORE(current_tick, timeout));
 
     return 0; /* timeout */
@@ -729,6 +769,11 @@ void ata_spindown(int seconds)
 bool ata_disk_is_active(void)
 {
     return (ata_state >= ATA_SPINUP);
+}
+
+bool ata_disk_is_on(void)
+{
+    return ata_state == ATA_ON;
 }
 
 void ata_sleepnow(void)
@@ -1273,6 +1318,18 @@ long ata_last_disk_activity(void)
 int ata_get_dma_mode(void)
 {
     return dma_mode;
+}
+
+/* the thread, if any, whose transfers give the CPU up at once, wherever the
+   target's ata_dma_finish() would otherwise wait out a short one first */
+unsigned int ata_dma_yielding_thread;
+
+void ata_dma_yield_always(bool on)
+{
+    if (on)
+        ata_dma_yielding_thread = thread_self();
+    else if (ata_dma_yielding_thread == thread_self())
+        ata_dma_yielding_thread = 0;
 }
 
 /* Needed to allow updating while waiting for DMA to complete */

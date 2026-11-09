@@ -29,6 +29,7 @@
 #include "pathfuncs.h"
 #include "disk_cache.h"
 #include "file_internal.h" /* for struct filestr_cache */
+#include "file_map.h"
 #include "storage.h"
 #include "timefuncs.h"
 #include "rbunicode.h"
@@ -882,6 +883,18 @@ static void forget_seek_marks(void)
 #define forget_seek_marks()
 #endif /* MEMORYSIZE >= 16 && !BOOTLOADER */
 
+#ifdef HAVE_FILE_MAP
+/* One more each time a cluster is about to be freed, and as volumes are
+   mounted or unmounted: a map of a file's sectors made before may then have
+   another file's in it (file_map.h). Counted before the cluster is free, so
+   that a read by a map, which looks before and after, can't take the data of
+   a file that got it meanwhile */
+static volatile unsigned long chains_gen;
+#define chains_changing() ((void)chains_gen++)
+#else
+#define chains_changing() ((void)0)
+#endif /* HAVE_FILE_MAP */
+
 #ifdef HAVE_FAT16SUPPORT
 static long get_next_cluster16(struct bpb *fat_bpb, long startcluster)
 {
@@ -967,6 +980,10 @@ static int update_fat_entry16(struct bpb *fat_bpb, unsigned long entry,
 
     if (entry < 2)
         panicf("Updating reserved FAT16 entry %lu\n", entry);
+
+    /* before the change: see chains_gen */
+    if (!val)
+        chains_changing();
 
     dc_lock_cache();
 
@@ -1127,6 +1144,10 @@ static int update_fat_entry32(struct bpb *fat_bpb, unsigned long entry,
 
     if (entry < 2)
         panicf("Updating reserved FAT32 entry %lu\n", entry);
+
+    /* before the change: see chains_gen */
+    if (!val)
+        chains_changing();
 
     dc_lock_cache();
 
@@ -3120,6 +3141,7 @@ int fat_mount(IF_MV(int volume,) IF_MD(int drive,) unsigned long startsector)
 
     /* it worked */
     forget_seek_marks();
+    chains_changing();
     fat_bpb->mounted = true;
 
     /* calculate freecount if unset */
@@ -3146,10 +3168,105 @@ int fat_unmount(IF_MV_NONVOID(int volume))
     /* free the entries for this volume */
     cache_discard(IF_MV(fat_bpb));
     forget_seek_marks();
+    chains_changing();
     fat_bpb->mounted = false;
 
     return 0;
 }
+
+
+/** Maps of files' sectors (file_map.h) **/
+
+#ifdef HAVE_FILE_MAP
+unsigned long fat_map_gen(void)
+{
+    return chains_gen;
+}
+
+bool fat_map_current(IF_MV(int volume,) unsigned long gen)
+{
+    return FAT_BPB(volume) && gen == chains_gen;
+}
+
+/* The file's sectors from first on, count of them, as runs of sectors in a
+   row on the drive, max at most, where the clusters were at gen: how many,
+   < 0 if more, past the chain's end, or another cluster was freed meanwhile,
+   as walking the FAT can yield. On the caller's lock of the file system */
+int fat_map_sectors(const struct fat_filestr *filestr, unsigned long first,
+                    unsigned long count, struct file_map_run *runs, int max,
+                    unsigned long gen)
+{
+    const struct fat_file * const file = filestr->fatfilep;
+    struct bpb * const fat_bpb = FAT_BPB(file->volume);
+    if (!fat_bpb || gen != chains_gen || file->firstcluster < 2 || !count
+        || max <= 0)
+        return -1;
+
+    const unsigned long per_cluster = fat_bpb->bpb_secperclus;
+    long cluster = file->firstcluster;
+    if (first >= per_cluster)
+        cluster = seek_chain(fat_bpb, file, cluster, 0, first / per_cluster);
+    unsigned long in_cluster = first % per_cluster;
+    unsigned long at = first;
+    int n = 0;
+    while (count)
+    {
+        /* past the end of the chain, or no cluster of the volume's */
+        if (cluster < 2 || (unsigned long)cluster > fat_bpb->dataclusters + 1)
+            return -2;
+        const unsigned long take = MIN(per_cluster - in_cluster, count);
+        const sector_t sector = fat_bpb->startsector
+                                + cluster2sec(fat_bpb, cluster) + in_cluster;
+        if (n > 0 && runs[n - 1].sector + runs[n - 1].count == sector)
+            runs[n - 1].count += take;
+        else if (n < max)
+        {
+            runs[n].at = at;
+            runs[n].count = take;
+            runs[n].sector = sector;
+            n++;
+        }
+        else
+            return -3;
+        at += take;
+        count -= take;
+        in_cluster = 0;
+        if (count)
+            cluster = skip_clusters(fat_bpb, cluster, 1);
+    }
+
+    return gen == chains_gen ? n : -4;
+}
+
+/* count sectors of the volume's drive from sector on into buf, if its
+   clusters are still as they were at gen, before the read and after it:
+   those of a file mapped then. On the caller's lock of the file system,
+   which keeps the volume mounted meanwhile */
+int fat_read_mapped(IF_MV(int volume,) unsigned long gen, sector_t sector,
+                    unsigned long count, void *buf)
+{
+    struct bpb * const fat_bpb = FAT_BPB(volume);
+    if (!fat_bpb || gen != chains_gen)
+        return -1;
+
+    /* in the volume's clusters, whatever the map says */
+    const sector_t data = fat_bpb->startsector + fat_bpb->firstdatasector;
+    const sector_t end = fat_bpb->startsector + fat_bpb->totalsectors;
+    if (!count || sector < data || sector > end || count > end - sector)
+        return -2;
+
+#ifdef STORAGE_NEEDS_BOUNCE_BUFFER
+    if (STORAGE_OVERLAP((uintptr_t)buf))
+        return -3;
+#endif
+
+    int rc = storage_read_sectors(IF_MD(fat_bpb->drive,) sector, count, buf);
+    if (rc < 0)
+        return rc * 10 - 4;
+
+    return gen == chains_gen ? 0 : -5;
+}
+#endif /* HAVE_FILE_MAP */
 
 
 /** Debug screen stuff **/

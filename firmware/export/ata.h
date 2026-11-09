@@ -137,6 +137,9 @@ void ata_sleepnow(void);
          doing something use ata_idle_notify.h
  */
 bool ata_disk_is_active(void);
+/* on, and not coming on: a read now doesn't wait for a power-up or a
+   spin-up, which holds the disk's lock while it lasts */
+bool ata_disk_is_on(void);
 int ata_soft_reset(void);
 int ata_init(void) STORAGE_INIT_ATTR;
 void ata_close(void);
@@ -242,9 +245,24 @@ static inline int ata_disk_can_sleep(void)
 
 int ata_flush(void);
 
+/* With true, the calling thread's waits for the disk keep the CPU, 4 ms at
+   most each, as a list's reads of the covers its frame is about to draw:
+   yielding, the UI got it back only milliseconds later; with false, they
+   give it up again as every thread's do */
+void ata_spin_waits(bool on);
+/* the target's waits: when one began, and the CPU given up as it goes on,
+   unless the thread spins (ata_spin_waits()) */
+unsigned long ata_wait_begin(void);
+void ata_wait_yield(unsigned long begun);
+
 #ifdef HAVE_ATA_DMA
 /* Returns current DMA mode */
 int ata_get_dma_mode(void);
+/* With true, the calling thread's transfers give the CPU up as soon as each
+   is started, at any priority, as a list's covers' reads behind the wheel;
+   with false, they wait as every other thread's again */
+void ata_dma_yield_always(bool on);
+extern unsigned int ata_dma_yielding_thread; /* 0 for none */
 #endif /* HAVE_ATA_DMA */
 
 #ifdef HAVE_ATA_SMART
