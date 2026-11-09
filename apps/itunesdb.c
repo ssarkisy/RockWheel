@@ -85,11 +85,8 @@ static int db_alloc(size_t size)
    the counts they had then, which Play Counts entries are made against */
 #define STATE_FILE      ROCKBOX_DIR "/itunesdb.dat"
 #define STATE_MAGIC     0x54494252 /* "RBIT" */
-/* A new version leaves the plays not yet given to Finder uncounted: the next
-   boot takes every track's counts from iTunesDB as after a sync. So it reads
-   the last version too and writes Play Counts from it first, or isn't raised
-   while some may be waiting. TAGCACHE_MAGIC likewise, whose change drops the
-   database and its counts with it. */
+/* A new version re-imports the same iTunesDB leaving the counts (counts_kept);
+   the header's start is fixed for good. */
 #define STATE_VERSION   1
 /* the database's commit id when the last import had gone through all of it */
 #define IMPORTED_FILE   ROCKBOX_DIR "/itunesdb_imported.dat"
@@ -166,6 +163,12 @@ struct state_header {
     uint32_t db_mtime;
     uint32_t count;
 };
+#define STATE_STAMP_SIZE offsetof(struct state_header, count)
+_Static_assert(offsetof(struct state_header, magic) == 0
+               && offsetof(struct state_header, version) == 4
+               && offsetof(struct state_header, db_size) == 8
+               && offsetof(struct state_header, db_mtime) == 12,
+               "the start of itunesdb.dat's header is kept for good");
 
 struct state_entry {
     uint64_t hash;
@@ -359,6 +362,28 @@ bool itunesdb_changed(void)
         return false;
     return !read_state_header(&hdr) || hdr.db_size != size
         || hdr.db_mtime != mtime;
+}
+
+bool itunesdb_stamp(uint32_t *size, uint32_t *mtime)
+{
+    return db_stamp(size, mtime);
+}
+
+bool itunesdb_imported_stamp(uint32_t *size, uint32_t *mtime)
+{
+    struct state_header hdr;
+    const int fd = open(STATE_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool ok = read(fd, &hdr, STATE_STAMP_SIZE) == STATE_STAMP_SIZE
+                    && hdr.magic == STATE_MAGIC;
+    close(fd);
+    if (ok)
+    {
+        *size = hdr.db_size;
+        *mtime = hdr.db_mtime;
+    }
+    return ok;
 }
 
 /* The name given to the iPod in Finder is that of the first playlist, the hidden
@@ -2080,6 +2105,18 @@ static const struct state_entry *find_pending(uint64_t hash)
     return NULL;
 }
 
+/* counts already from this iTunesDB with the unsynced plays (a restore, or a
+   new STATE_VERSION): leave them */
+static bool counts_kept;
+
+static bool counts_of_this_itunesdb(void)
+{
+    uint32_t size, mtime;
+    return tagcache_restore_finder()
+        || (itunesdb_imported_stamp(&size, &mtime)
+            && size == pend.hdr.db_size && mtime == pend.hdr.db_mtime);
+}
+
 /* 1 to set the counts, 0 to leave the entry, -1 to remove it */
 static int update_entry(const char *path, struct tagcache_runtime *rt,
                         void *data)
@@ -2093,6 +2130,8 @@ static int update_entry(const char *path, struct tagcache_runtime *rt,
            Only trusted when all of iTunesDB could be read. */
         return (pend.hdr.complete && itunesdb_synced_path(path)) ? -1 : 0;
     }
+    if (counts_kept)
+        return 0;
     rt->playcount = t->playcount;
     rt->rating = t->rating / 10; /* the database counts half stars */
     return 1;
@@ -2272,6 +2311,7 @@ void itunesdb_import(void)
         /* not the same as what went through all of it, if cut short */
         remove(IMPORTED_FILE);
         index_pending();
+        counts_kept = counts_of_this_itunesdb();
         if (tagcache_update_runtime(update_entry, NULL) && write_state())
         {
             remove(PENDING_FILE);

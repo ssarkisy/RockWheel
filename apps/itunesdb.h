@@ -32,6 +32,11 @@
 /* true when Finder has synced since the last import */
 bool itunesdb_changed(void);
 bool itunesdb_exists(void);
+/* iTunesDB's size and time, which each sync changes */
+bool itunesdb_stamp(uint32_t *size, uint32_t *mtime);
+/* those of the iTunesDB the last import was made from, as itunesdb.dat of any
+   version has them: false without one */
+bool itunesdb_imported_stamp(uint32_t *size, uint32_t *mtime);
 /* the name given to the iPod in Finder, or else "iPod" */
 const char *itunesdb_device_name(void);
 /* when Finder last wrote the database */

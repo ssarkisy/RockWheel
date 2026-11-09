@@ -120,8 +120,14 @@
 /* Allow a little drift to the filename ordering (should not be too high/low). */
 #define POS_HISTORY_COUNT 4
 
-/* Tag Cache Header version 'TCHxx'. Increment when changing internal structures. */
-#define TAGCACHE_MAGIC  0x54434811
+/* RockWheel's own format, "RWD" and its number. Raise it for any layout
+   change (the asserts below) or a change in what a tag means (they can't
+   see it). */
+#define TAGCACHE_FORMAT 1
+#define TAGCACHE_MAGIC  (0x52574400 | TAGCACHE_FORMAT)
+/* older layouts whose statistics are restored: RockWheel up to 1.3, Rockbox */
+#define TAGCACHE_MAGIC_ROCKWHEEL 0x54434811
+#define TAGCACHE_MAGIC_ROCKBOX   0x54434810
 
 /* Dump store/restore header version 'TCSxx'. */
 #define TAGCACHE_STATEFILE_MAGIC 0x54435301
@@ -213,6 +219,13 @@ static struct initials {
 } initials;
 /* the commit id of the database they're of, -1 while they're of none */
 static int32_t initials_commit = -1;
+
+/* a database of another format, set aside for its statistics while this one
+   is built; the mark goes last, after the import */
+#define TAGCACHE_RESTORE
+#define TAGCACHE_FILE_OLD_MASTER "database_old_idx.tcd"
+#define TAGCACHE_FILE_OLD_NAMES  "database_old_4.tcd" /* tag_filename's */
+#define TAGCACHE_FILE_OLD_MARK   "database_old.tcd"
 #endif /* !PLUGIN && !__PCTOOL__ */
 
 /* Flags */
@@ -221,6 +234,8 @@ static int32_t initials_commit = -1;
 #define FLAG_DIRTYNUM    0x0004  /* Numeric data has been modified */
 #define FLAG_TRKNUMGEN   0x0008  /* Track number has been generated  */
 #define FLAG_RESURRECTED 0x0010  /* Statistics data has been resurrected */
+/* temp file only: restored statistics; keep its commit id, even 0 */
+#define FLAG_RESTORED    0x0020
 
 #ifdef __PCTOOL__
 #define yield() do { } while(0)
@@ -375,6 +390,9 @@ struct master_header {
     int32_t serial; /* Increasing counting number */
     int32_t commitid; /* Number of commits so far */
     int32_t dirty;
+    /* so other formats can read the statistics */
+    int32_t header_size;
+    int32_t entry_size;
 };
 
 static struct master_header current_tcmh;
@@ -446,6 +464,42 @@ struct temp_file_entry {
     int32_t flag;
     int32_t data_length;
 };
+
+_Static_assert(TAGCACHE_FORMAT == 1 && TAG_COUNT == 23
+               && sizeof(struct index_entry) == 96
+               && sizeof(struct master_header) == 32
+               && sizeof(struct temp_file_entry) == 148,
+               "the database's layout changed: raise TAGCACHE_FORMAT");
+/* Fixed for good, so formats restore each other: the statistics' tag
+   positions, the flags as the last word, the header's start, the names
+   file's entries; a rating 0..10, a last play below 0x40000000 a serial, else
+   a time. */
+_Static_assert(tag_filename == 4 && tag_playcount == 15 && tag_rating == 16
+               && tag_playtime == 17 && tag_lastplayed == 18
+               && tag_commitid == 19 && tag_lastelapsed == 21
+               && tag_lastoffset == 22
+               && offsetof(struct index_entry, flag)
+                  == sizeof(struct index_entry) - sizeof(int32_t)
+               && offsetof(struct master_header, tch.entry_count) == 8
+               && offsetof(struct master_header, serial) == 12
+               && offsetof(struct master_header, commitid) == 16
+               && offsetof(struct master_header, header_size) == 24
+               && offsetof(struct master_header, entry_size) == 28
+               && sizeof(struct tagcache_header) == 12
+               && sizeof(struct tagfile_entry) == 8,
+               "the places of the statistics are kept for good");
+_Static_assert(TAG_COUNT_ALL <= 32, "a tag past the masks: make them wider");
+
+#ifndef TAGCACHE_RESTORE
+static inline bool restoring(void) { return false; }
+static inline bool restore_load(void) { return true; }
+static inline void restore_free(void) {}
+static inline void restore_apply(const char *path, struct temp_file_entry *e)
+{
+    (void)path; (void)e;
+}
+static inline void restore_numbers(struct master_header *mh) { (void)mh; }
+#endif
 
 struct tempbuf_id_list {
     long id;
@@ -588,6 +642,8 @@ static void swap_master_header(struct master_header *buf)
         buf->serial = swap32(buf->serial);
         buf->commitid = swap32(buf->commitid);
         buf->dirty = swap32(buf->dirty);
+        buf->header_size = swap32(buf->header_size);
+        buf->entry_size = swap32(buf->entry_size);
     }
 }
 #else
@@ -3069,6 +3125,326 @@ static long find_known_file(const char *path, uint32_t *mtime, bool *timed)
 }
 #endif /* !__PCTOOL__ */
 
+#ifdef TAGCACHE_RESTORE
+#define RESTORE_MAGIC 0x4f445752 /* "RWDO" */
+struct restore_mark {
+    uint32_t magic;
+    /* of the iTunesDB the old counts were imported from, 0 if none */
+    uint32_t db_size, db_mtime;
+    int32_t serial, commitid;
+};
+static struct restore_mark restore_from;
+static bool restore_pending;
+
+/* same set as resurrection in build_numeric_indices() */
+static const unsigned char restore_tags[] = {
+    tag_playcount, tag_rating, tag_playtime, tag_lastplayed, tag_commitid,
+    tag_lastelapsed, tag_lastoffset
+};
+#define RESTORE_TAGS ARRAYLEN(restore_tags)
+
+/* every live entry, zeros too: a rating cleared on the iPod stays cleared.
+   Packed: 36 bytes, not 40. */
+struct restore_entry {
+    uint64_t hash;
+    int32_t value[RESTORE_TAGS];
+} __attribute__((packed, aligned(4)));
+#define RESTORE_CHUNK 32768
+static int restore_handle;
+static long restore_count;
+/* the same iTunesDB as the old import, or none: the old counts are right */
+static bool restore_finder;
+
+/* a restorable master of another format, its header as this format's; the
+   layout must match the file size; native byte order only */
+static bool old_master(int fd, struct master_header *mh)
+{
+    const int32_t min_entry = (tag_lastoffset + 2) * sizeof(int32_t);
+    const int32_t old_header = offsetof(struct master_header, header_size);
+    memset(mh, 0, sizeof(*mh));
+    const ssize_t got = read(fd, mh, sizeof(*mh));
+    const uint32_t magic = mh->tch.magic;
+    if ((magic == TAGCACHE_MAGIC_ROCKWHEEL || magic == TAGCACHE_MAGIC_ROCKBOX)
+        && got >= old_header)
+    {
+        /* without the sizes, whose words are the first entry's */
+        mh->header_size = old_header;
+        mh->entry_size = min_entry;
+    }
+    else if ((magic & ~0xffu) != (TAGCACHE_MAGIC & ~0xffu)
+             || magic == TAGCACHE_MAGIC || got != sizeof(*mh)
+             || mh->header_size < (int32_t)sizeof(*mh))
+        return false;
+    const off_t size = ffilesize(fd);
+    return mh->entry_size >= min_entry
+        && mh->entry_size % sizeof(int32_t) == 0
+        && mh->entry_size <= RESTORE_CHUNK && mh->tch.entry_count >= 0
+        && size >= mh->header_size
+        && mh->tch.entry_count <= (size - mh->header_size) / mh->entry_size
+        && size == mh->header_size + (off_t)mh->tch.entry_count * mh->entry_size;
+}
+
+static void restore_read_mark(void)
+{
+    memset(&restore_from, 0, sizeof(restore_from));
+    const int fd = open_db_fd(TAGCACHE_FILE_OLD_MARK, O_RDONLY);
+    restore_pending = fd >= 0;
+    if (fd < 0)
+        return;
+    /* unreadable: Finder counts from iTunesDB */
+    if (read(fd, &restore_from, sizeof(restore_from)) != sizeof(restore_from)
+        || restore_from.magic != RESTORE_MAGIC)
+        memset(&restore_from, 0, sizeof(restore_from));
+    close(fd);
+}
+
+bool tagcache_restore_finder(void)
+{
+    return restore_pending && restore_finder;
+}
+
+static bool restoring(void)
+{
+    return restore_pending;
+}
+
+static int cmp_restore(const void *a, const void *b)
+{
+    const uint64_t x = ((const struct restore_entry *)a)->hash;
+    const uint64_t y = ((const struct restore_entry *)b)->hash;
+    return (x > y) - (x < y);
+}
+
+static void restore_hash_names(uint64_t *hashes, long entries, char *buf)
+{
+    memset(hashes, 0, entries * sizeof(*hashes));
+    const int fd = open_db_fd(TAGCACHE_FILE_OLD_NAMES, O_RDONLY);
+    if (fd < 0)
+        return;
+    size_t have = 0;
+    bool ok = lseek(fd, sizeof(struct tagcache_header), SEEK_SET)
+              == sizeof(struct tagcache_header);
+    while (ok)
+    {
+        const ssize_t got = read(fd, buf + have, RESTORE_CHUNK);
+        if (got <= 0)
+            break;
+        have += got;
+        size_t pos = 0;
+        while (have - pos >= sizeof(struct tagfile_entry))
+        {
+            /* copied: an entry needn't start on a word */
+            struct tagfile_entry e;
+            memcpy(&e, buf + pos, sizeof(e));
+            const size_t len = e.tag_length;
+            const char *name = buf + pos + sizeof(e);
+            if (len > TAG_MAXLEN)
+            {
+                ok = false;
+                break;
+            }
+            if (have - pos < sizeof(e) + len)
+                break;
+            /* a removed file's name is blanked; one past the entries is of a
+               commit cut short */
+            if (e.idx_id >= 0 && e.idx_id < entries && len > 0
+                && name[0] != '\0' && memchr(name, '\0', len))
+                hashes[e.idx_id] = itunesdb_path_hash(name);
+            pos += sizeof(e) + len;
+        }
+        memmove(buf, buf + pos, have - pos);
+        have -= pos;
+        yield();
+    }
+    close(fd);
+}
+
+/* the old master's live entries with a name into table, only those with
+   statistics if stats_only; how many, 0 on a read error; NULL counts only */
+static long restore_read_entries(int fd, const struct master_header *mh,
+                                 const uint64_t *hashes, char *buf,
+                                 struct restore_entry *table, bool stats_only)
+{
+    const long per = RESTORE_CHUNK / mh->entry_size;
+    const int flag = mh->entry_size / sizeof(int32_t) - 1;
+    long n = 0;
+    if (lseek(fd, mh->header_size, SEEK_SET) != mh->header_size)
+        return 0;
+    for (long i = 0; i < mh->tch.entry_count; i += per)
+    {
+        const long k = MIN(per, mh->tch.entry_count - i);
+        if (read(fd, buf, k * mh->entry_size) != (ssize_t)(k * mh->entry_size))
+            return 0;
+        for (long j = 0; j < k; j++)
+        {
+            const int32_t *e = (const int32_t *)(buf + j * mh->entry_size);
+            if ((e[flag] & FLAG_DELETED) || hashes[i + j] == 0)
+                continue;
+            struct restore_entry r = { .hash = hashes[i + j] };
+            bool any = false;
+            for (unsigned t = 0; t < RESTORE_TAGS; t++)
+                any |= (r.value[t] = e[restore_tags[t]]) != 0;
+            if (stats_only && !any)
+                continue;
+            if (table)
+                table[n] = r;
+            n++;
+        }
+        yield();
+    }
+    return n;
+}
+
+/* Songs a sync moved, by the import's list: their entries under the new
+   path's hash, one move each. The list is sorted by the old hash
+   (sort_moved_list()), as the table: one walk. */
+static bool restore_moved(struct restore_entry *table, long count)
+{
+    const int fd = open(ITUNESDB_MOVED_LIST, O_RDONLY);
+    if (fd < 0)
+        return false;
+    struct itunesdb_moved m[16];
+    long at = 0;
+    bool moved = false;
+    ssize_t got;
+    while ((got = read(fd, m, sizeof(m))) >= (ssize_t)sizeof(m[0]))
+    {
+        for (int k = 0; k < got / (ssize_t)sizeof(m[0]); k++)
+        {
+            while (at < count && table[at].hash < m[k].old_hash)
+                at++;
+            m[k].path[sizeof(m[k].path) - 1] = '\0';
+            for (; at < count && table[at].hash == m[k].old_hash; at++)
+            {
+                table[at].hash = itunesdb_path_hash(m[k].path);
+                moved = true;
+            }
+        }
+    }
+    close(fd);
+    return moved;
+}
+
+/* only for the import's scan, never while music plays: false makes the scan
+   wait. Short of memory, only the songs with statistics; then none. */
+static bool restore_load(void)
+{
+    if (!restore_pending || import_phase != TAGCACHE_IMPORT_SCANNING)
+        return true;
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        return false;
+    uint32_t size, mtime;
+    restore_finder = !itunesdb_stamp(&size, &mtime)
+                     || (size == restore_from.db_size
+                         && mtime == restore_from.db_mtime);
+    struct master_header mh;
+    const int fd = open_db_fd(TAGCACHE_FILE_OLD_MASTER, O_RDONLY);
+    if (fd < 0)
+        return true;
+    const long entries = old_master(fd, &mh) ? mh.tch.entry_count : 0;
+    const int names = entries > 0 ?
+        core_alloc(entries * sizeof(uint64_t) + RESTORE_CHUNK + TAG_MAXLEN
+                   + sizeof(struct tagfile_entry)) : 0;
+    bool stats_only = false, lost = entries > 0 && names <= 0;
+    if (names > 0)
+    {
+        core_pin(names);
+        uint64_t *hashes = core_get_data(names);
+        char *buf = (char *)(hashes + entries);
+        restore_hash_names(hashes, entries, buf);
+        restore_handle = core_alloc(entries * sizeof(struct restore_entry));
+        if (restore_handle <= 0)
+        {
+            stats_only = true;
+            const long n = restore_read_entries(fd, &mh, hashes, buf, NULL,
+                                                true);
+            restore_handle = n > 0 ?
+                core_alloc(n * sizeof(struct restore_entry)) : 0;
+            lost = n > 0 && restore_handle <= 0;
+        }
+        if (restore_handle > 0)
+        {
+            core_pin(restore_handle);
+            struct restore_entry *table = core_get_data(restore_handle);
+            restore_count = restore_read_entries(fd, &mh, hashes, buf, table,
+                                                 stats_only);
+            qsort_yielding(table, restore_count, sizeof(*table), cmp_restore);
+            /* with the same iTunesDB, the old database has every move */
+            if (!restore_finder && restore_moved(table, restore_count))
+                qsort_yielding(table, restore_count, sizeof(*table),
+                               cmp_restore);
+            core_shrink(restore_handle, table,
+                        MAX(restore_count, 1) * sizeof(*table));
+            core_unpin(restore_handle);
+        }
+        core_unpin(names);
+        core_free(names);
+    }
+    close(fd);
+    if (lost)
+        logf("no memory for the old statistics: not restored");
+    return true;
+}
+
+static void restore_free(void)
+{
+    if (restore_handle > 0)
+        core_free(restore_handle);
+    restore_handle = 0;
+    restore_count = 0;
+}
+
+/* Finder songs take counts and rating only if iTunesDB hasn't changed since */
+static void restore_apply(const char *path, struct temp_file_entry *entry)
+{
+    if (restore_handle <= 0)
+        return;
+    const uint64_t hash = itunesdb_path_hash(path);
+    struct restore_entry *table = core_get_data_pinned(restore_handle);
+    struct restore_entry old;
+    long lo = 0, hi = restore_count - 1, found = -1;
+    while (lo <= hi && found < 0)
+    {
+        const long mid = (lo + hi) / 2;
+        if (table[mid].hash == hash)
+            found = mid;
+        else if (table[mid].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    if (found >= 0)
+        old = table[found];
+    core_put_data_pinned(table);
+    if (found < 0)
+        return;
+    const bool finder = itunesdb_synced_path(path);
+    entry->flag |= FLAG_RESTORED;
+    for (unsigned i = 0; i < RESTORE_TAGS; i++)
+    {
+        const int tag = restore_tags[i];
+        if (finder && !restore_finder
+            && (tag == tag_playcount || tag == tag_rating))
+            continue;
+        entry->tag_offset[tag] = old.value[i];
+        if (old.value[i])
+            entry->flag |= FLAG_DIRTYNUM;
+    }
+}
+
+/* go on from the old numbers so caches of the old database go stale */
+static void restore_numbers(struct master_header *mh)
+{
+    if (!restore_pending)
+        return;
+    mh->serial = restore_from.serial;
+    mh->commitid = restore_from.commitid;
+}
+
+
+
+#endif /* TAGCACHE_RESTORE */
+
 /* GCC 3.4.6 for Coldfire can choose to inline this function. Not a good
  * idea, as it uses lots of stack and is called from a recursive function
  * (check_dir).
@@ -3225,6 +3601,7 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     if (itdb_rt.playcount || itdb_rt.rating)
         entry.flag |= FLAG_DIRTYNUM;
 #endif
+    restore_apply(path, &entry);
 
     /* String tags. */
     has_artist = id3.artist != NULL
@@ -3925,9 +4302,11 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
 
                 idx->tag_seek[j] = entrybuf[i].tag_offset[j];
             }
-            idx->flag = entrybuf[i].flag;
+            idx->flag = entrybuf[i].flag & ~FLAG_RESTORED;
 
-            if (idx->tag_seek[tag_commitid])
+            if (entrybuf[i].flag & FLAG_RESTORED)
+                ; /* its commit id is the old database's, 0 too */
+            else if (idx->tag_seek[tag_commitid])
             {
                 /* Data has been resurrected. */
                 idx->flag |= FLAG_DIRTYNUM;
@@ -4808,6 +5187,7 @@ static bool load_master(bool fresh, long capacity,
         commit_mh.tch.entry_count = 0;
         commit_mh.tch.datasize = 0;
         commit_mh.dirty = true;
+        restore_numbers(&commit_mh);
     }
     else
     {
@@ -4833,6 +5213,8 @@ static bool write_master(struct master_header *mh)
                         O_WRONLY | O_CREAT | O_TRUNC);
     if (fd < 0)
         return false;
+    mh->header_size = sizeof(struct master_header);
+    mh->entry_size = sizeof(struct index_entry);
     ssize_t size = mh->tch.entry_count * sizeof(struct index_entry);
     bool ok = write_master_header(fd, mh) == sizeof(*mh)
               && write_index_entries(fd, commit_idx, mh->tch.entry_count)
@@ -7595,12 +7977,20 @@ void do_tagcache_build(const char *path[])
         logf("skipping, cache already waiting for commit");
         close(cachefd);
         cachefd = -1;
+        /* scan skipped: keep the import, and the forget, from running */
+        scan_cut_short = restoring();
         return ;
     }
 
+    if (!restore_load())
+    {
+        scan_cut_short = true;
+        return ;
+    }
     if (!scan_outside && !open_scan_temp())
     {
         scan_cut_short = true;
+        restore_free();
         return ;
     }
 
@@ -7723,6 +8113,7 @@ void do_tagcache_build(const char *path[])
 #endif
 
 commit:
+    restore_free();
 #ifdef TAGCACHE_SORT_FIELDS
     sort_scan_close();
 #endif
@@ -8076,7 +8467,9 @@ bool tagcache_check_sync(void)
 {
     if (!tc_stat.initialized || import_phase != TAGCACHE_IMPORT_NONE)
         return false;
-    if (itunesdb_changed())
+    /* a build restoring statistics goes on, also without iTunesDB */
+    if (itunesdb_changed()
+        || (restore_pending && !(audio_status() & AUDIO_STATUS_PLAY)))
     {
         import_phase = TAGCACHE_IMPORT_READING;
         queue_post(&tagcache_queue, Q_SYNCED, 0);
@@ -8158,6 +8551,73 @@ static void check_file_refs(bool auto_update)
     check_deleted_file_refs(auto_update);
 }
 #endif
+
+/* the names file left in its place by a cut after the master's rename */
+static bool names_left(const char *names)
+{
+    struct tagcache_header h;
+    if (db_file_exists(TAGCACHE_FILE_OLD_NAMES))
+        return false;
+    const int fd = open_db_fd(names, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool left = read(fd, &h, sizeof(h)) == sizeof(h)
+                      && h.magic != TAGCACHE_MAGIC;
+    close(fd);
+    return left;
+}
+
+/* Boot: set aside a database of another format, its mark, master and names
+   in that order. A cut before the master's rename starts again; one after it
+   finishes here. */
+static bool restore_set_aside(void)
+{
+    char names[32];
+    struct master_header mh;
+    snprintf(names, sizeof(names), TAGCACHE_FILE_INDEX, tag_filename);
+    int fd = open_db_fd(TAGCACHE_FILE_MASTER, O_RDONLY);
+    const bool found = fd >= 0 && old_master(fd, &mh);
+    if (fd >= 0)
+        close(fd);
+    if (found)
+    {
+        /* while the master is here, none of them is this one's */
+        remove_db_file(TAGCACHE_FILE_OLD_MASTER);
+        remove_db_file(TAGCACHE_FILE_OLD_NAMES);
+        struct restore_mark mark = {
+            RESTORE_MAGIC, 0, 0, mh.serial, mh.commitid
+        };
+        itunesdb_imported_stamp(&mark.db_size, &mark.db_mtime);
+        fd = open_db_fd(TAGCACHE_FILE_OLD_MARK, O_WRONLY | O_CREAT | O_TRUNC);
+        if (fd < 0)
+            return false;
+        const bool written = write(fd, &mark, sizeof(mark)) == sizeof(mark);
+        if (close(fd) < 0 || !written
+            || rename_db_file(TAGCACHE_FILE_MASTER, TAGCACHE_FILE_OLD_MASTER) < 0)
+            return false;
+        restore_pending = true;
+        restore_from = mark;
+    }
+    else if (!restore_pending || !names_left(names))
+        return false;
+    /* without them nothing is restored, but the build goes on */
+    rename_db_file(names, TAGCACHE_FILE_OLD_NAMES);
+    /* an old-format journal can't be read: drop it */
+    commit_undo(NULL);
+    remove_scan_files();
+    remove_files();
+    return true;
+}
+
+static void restore_forget(void)
+{
+    if (!restore_pending)
+        return;
+    remove_db_file(TAGCACHE_FILE_OLD_MASTER);
+    remove_db_file(TAGCACHE_FILE_OLD_NAMES);
+    remove_db_file(TAGCACHE_FILE_OLD_MARK);
+    restore_pending = false;
+}
 
 static void tagcache_thread(void)
 {
@@ -8351,6 +8811,10 @@ static void tagcache_thread(void)
                 if (!db_file_exists(TAGCACHE_FILE_TEMP))
                 {
                     itunesdb_import();
+                    /* itunesdb.dat now matches, or there's no iTunesDB:
+                       the statistics are all back */
+                    if (!itunesdb_changed())
+                        restore_forget();
                     /* the live smart playlists, by the counts just in */
                     smart_update_after_import();
                 }
@@ -8582,7 +9046,28 @@ void tagcache_init(void)
                sizeof(tc_stat.db_path));
     /* known before the thread starts, for the progress screen */
     sync_found = itunesdb_changed();
-    /* a database of an older firmware's, or none, is made again from iTunesDB
+    restore_read_mark();
+    if (restore_set_aside())
+        sync_found = true;
+    else if (restore_pending)
+    {
+        struct master_header master;
+        const int fd = open_master_fd(&master, false);
+        if (fd >= 0)
+            close(fd);
+        /* only with this format's master is itunesdb.dat the import's: the
+           build goes on until then, also without iTunesDB */
+        if (fd >= 0 && !sync_found && itunesdb_exists())
+            restore_forget();
+        else
+        {
+            /* the old firmware's, left by a cut in the set-aside */
+            if (fd < 0)
+                itunesdb_forget_state();
+            sync_found = true;
+        }
+    }
+    /* a database that can't be read, or none, is made again from iTunesDB
        as after a sync; but for one in a commit that was cut short, which the
        thread is yet to put right */
     if (!sync_found && itunesdb_exists()

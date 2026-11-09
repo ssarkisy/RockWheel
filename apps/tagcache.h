@@ -27,8 +27,8 @@
 #include "settings.h"
 
 /**
- Note: When adding new tags, make sure to update index_entry_ec and tags_str in 
- tagcache.c and bump up the header version too.
+ Note: When adding new tags, make sure to update tags_str in tagcache.c and
+ to raise TAGCACHE_FORMAT there; the statistics keep their places.
  */
 enum tag_type { tag_artist = 0, tag_album, tag_genre, tag_title,
     tag_filename, tag_composer, tag_comment, tag_albumartist, tag_grouping, tag_year,
@@ -221,6 +221,8 @@ enum {
                                  a sync: found of those known */
 };
 int tagcache_get_import(int *done, int *total);
+/* during a restore: the old counts of Finder's songs are this iTunesDB's */
+bool tagcache_restore_finder(void);
 /* main() has taken the boot's memory: a commit may have the rest */
 void tagcache_boot_done(void);
 bool tagcache_check_sync(void);

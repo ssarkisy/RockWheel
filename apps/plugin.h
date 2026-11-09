@@ -190,21 +190,24 @@ int plugin_open(const char *plugin, const char *parameter);
  * leaves the sizes, as functions in another order, or an action's number.
  * The counts of the language's phrases, the core's and the Extras', are in it
  * too: a plugin takes its words by their numbers, and one built with another
- * list showed other phrases, or read past the end of it. */
-#define PLUGIN_API_REVISION 15
+ * list showed other phrases, or read past the end of it. So is the database's
+ * count of tags: a tag added moves the numbers of the virtual ones after it. */
+#define PLUGIN_API_REVISION 16
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
     + sizeof(struct viewport) * 13u + sizeof(struct system_status) * 17u \
     + sizeof(struct tree_context) * 19u \
     + (unsigned)LANG_LAST_INDEX_IN_ARRAY * 23u \
-    + (unsigned)LANG_LAST_EXTRAS_INDEX * 29u + TAGCACHE_SEARCH_SIZE * 31u) \
-    & 0x7fff)))
+    + (unsigned)LANG_LAST_EXTRAS_INDEX * 29u + TAGCACHE_SEARCH_SIZE * 31u \
+    + TAGCACHE_TAGS * 37u) & 0x7fff)))
 /* the search plugins make themselves, as Cover Flow does */
 #ifdef HAVE_TAGCACHE
 #define TAGCACHE_SEARCH_SIZE sizeof(struct tagcache_search)
+#define TAGCACHE_TAGS ((unsigned)TAG_COUNT_ALL)
 #else
 #define TAGCACHE_SEARCH_SIZE 0u
+#define TAGCACHE_TAGS 0u
 #endif
 
 /* 239 Marks the removal of ARCHOS HWCODEC and CHARCELL */
