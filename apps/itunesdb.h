@@ -119,6 +119,9 @@ unsigned itunesdb_hash_flags(uint64_t hash);
 
 /* Sound Check's gains are noted from this iTunesDB, or there is none */
 bool itunesdb_gains_ready(void);
+/* and the Sort fields of its tracks (tagcache.h), which the database sorts
+   by */
+bool itunesdb_sort_ready(void);
 
 /* Puts the gain Finder worked out for this file into its entry, for Sound
    Check to use over any ReplayGain tags it has. Reads the disk: for when a

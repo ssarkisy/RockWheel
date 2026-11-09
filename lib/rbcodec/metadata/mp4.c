@@ -64,6 +64,11 @@
 #define MP4_minf FOURCC('m', 'i', 'n', 'f')
 #define MP4_moov FOURCC('m', 'o', 'o', 'v')
 #define MP4_mp4a FOURCC('m', 'p', '4', 'a')
+#define MP4_soaa FOURCC('s', 'o', 'a', 'a')
+#define MP4_soal FOURCC('s', 'o', 'a', 'l')
+#define MP4_soar FOURCC('s', 'o', 'a', 'r')
+#define MP4_soco FOURCC('s', 'o', 'c', 'o')
+#define MP4_sonm FOURCC('s', 'o', 'n', 'm')
 #define MP4_soun FOURCC('s', 'o', 'u', 'n')
 #define MP4_stbl FOURCC('s', 't', 'b', 'l')
 #define MP4_stsd FOURCC('s', 't', 's', 'd')
@@ -450,6 +455,21 @@ static bool read_mp4_tags(int fd, struct mp3entry* id3,
             read_mp4_tag_string(fd, size, &buffer, &buffer_left,
                 &id3->composer);
             cwrt = false;
+            break;
+
+        /* the Sort fields, for the database only */
+        case MP4_soar:
+        case MP4_soaa:
+        case MP4_soal:
+        case MP4_sonm:
+        case MP4_soco:
+            if (id3->read_sort_fields)
+                read_mp4_tag_string(fd, size, &buffer, &buffer_left,
+                    type == MP4_soar ? &id3->artist_sort
+                    : type == MP4_soaa ? &id3->albumartist_sort
+                    : type == MP4_soal ? &id3->album_sort
+                    : type == MP4_sonm ? &id3->title_sort
+                    : &id3->composer_sort);
             break;
 
         case MP4_ccmt:

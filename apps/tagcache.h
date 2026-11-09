@@ -71,6 +71,14 @@ enum tag_type { tag_artist = 0, tag_album, tag_genre, tag_title,
 
 #define TAGCACHE_IS_NUMERIC(tag) (BIT_N(tag) & TAGCACHE_NUMERIC_TAGS)
 
+/* Tags whose files the commit sorts (sortkey.h): an entry's seek in one is
+   its place in that order */
+#define TAGCACHE_SORTED_TAGS ((1LU << tag_artist) | (1LU << tag_album) | \
+    (1LU << tag_genre) | (1LU << tag_composer) | (1LU << tag_comment) | \
+    (1LU << tag_albumartist) | (1LU << tag_grouping) | (1LU << tag_title) | \
+    (1LU << tag_virt_canonicalartist))
+#define TAGCACHE_IS_SORTED(tag) (BIT_N(tag) & TAGCACHE_SORTED_TAGS)
+
 enum clause { clause_none, clause_is, clause_is_not, clause_gt, clause_gteq,
     clause_lt, clause_lteq, clause_contains, clause_not_contains, 
     clause_begins_with, clause_not_begins_with, clause_ends_with, clause_not_ends_with, 
@@ -258,6 +266,41 @@ bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n);
 long tagcache_track_rating(const struct mp3entry *id3);
 long tagcache_track_playcount(const struct mp3entry *id3);
 long tagcache_sort_key(int idx_id, int tag);
+
+/* Sort fields, the names that names sort by as Music has them: Sort Artist
+   for an artist, Sort Name for a song's title, and so on. The commit sorts
+   by them from files of pairs, each a tag, a name and its Sort field: one of
+   Finder's songs, which each import writes from iTunesDB, and one of the
+   other songs', from the tags of their files. A pair is kept only where the
+   Sort field sorts otherwise than the name itself. */
+#define TAGCACHE_SORT_FINDER  ROCKBOX_DIR "/itunesdb_sort.dat"
+#define TAGCACHE_SORT_MAGIC   0x46534252 /* "RBSF" */
+#define TAGCACHE_SORT_VERSION 1
+struct tagcache_sort_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t count;     /* of pairs */
+    uint32_t crc;       /* crc_32() of the pairs after it, from 0xffffffff */
+    uint32_t db_size;   /* of the iTunesDB they're from, 0 for the files' */
+    uint32_t db_mtime;
+};
+/* Then each pair: the tag, the sizes of the name and of its Sort field with
+   their ends, two bytes each, little-endian, then the two strings */
+#define TAGCACHE_SORT_PAIR_HEAD 5
+/* the pair's head into head: false for a pair too long to keep */
+static inline bool tagcache_sort_pair_head(unsigned char *head, int tag,
+                                           size_t name_size, size_t value_size)
+{
+    if (name_size > TAG_MAXLEN + 1 || value_size > TAG_MAXLEN + 1)
+        return false;
+    head[0] = tag;
+    head[1] = name_size & 0xff;
+    head[2] = name_size >> 8;
+    head[3] = value_size & 0xff;
+    head[4] = value_size >> 8;
+    return true;
+}
+
 bool tagcache_modify_numeric_entry(struct tagcache_search *tcs, 
                                    int tag, long data);
 

@@ -449,6 +449,9 @@ static int asf_parse_header(int fd, struct mp3entry* id3,
                         eWM_TrackNumber, eWM_Genre, eWM_AlbumTitle,
                         eWM_AlbumArtist, eWM_Composer, eWM_Year,
                         eWM_MusicBrainz_Track_Id, eWM_Picture,
+                        eWM_ArtistSortOrder, eWM_AlbumArtistSortOrder,
+                        eWM_AlbumSortOrder, eWM_TitleSortOrder,
+                        eWM_ComposerSortOrder,
                         eWM_COUNT_TAG_COUNT
                     };
 
@@ -461,6 +464,11 @@ static int asf_parse_header(int fd, struct mp3entry* id3,
                       [eWM_Year] = "WM/Year",
                       [eWM_MusicBrainz_Track_Id]"MusicBrainz/Track Id",
                       [eWM_Picture]"WM/Picture",
+                      [eWM_ArtistSortOrder] = "WM/ArtistSortOrder",
+                      [eWM_AlbumArtistSortOrder] = "WM/AlbumArtistSortOrder",
+                      [eWM_AlbumSortOrder] = "WM/AlbumSortOrder",
+                      [eWM_TitleSortOrder] = "WM/TitleSortOrder",
+                      [eWM_ComposerSortOrder] = "WM/ComposerSortOrder",
                       [eWM_COUNT_TAG_COUNT] = NULL
                     };
 
@@ -517,6 +525,18 @@ static int asf_parse_header(int fd, struct mp3entry* id3,
                             }
                         } else if (itag == eWM_MusicBrainz_Track_Id) {
                             id3->mb_track_id = id3buf;
+                            asf_utf16LEdecode(fd, length, &id3buf, &id3buf_remaining);
+                        } else if (itag >= eWM_ArtistSortOrder
+                                   && itag <= eWM_ComposerSortOrder
+                                   && type == 0 && id3->read_sort_fields) {
+                            /* the Sort fields, for the database only */
+                            char **sort =
+                                itag == eWM_ArtistSortOrder ? &id3->artist_sort
+                                : itag == eWM_AlbumArtistSortOrder ? &id3->albumartist_sort
+                                : itag == eWM_AlbumSortOrder ? &id3->album_sort
+                                : itag == eWM_TitleSortOrder ? &id3->title_sort
+                                : &id3->composer_sort;
+                            *sort = id3buf;
                             asf_utf16LEdecode(fd, length, &id3buf, &id3buf_remaining);
 #ifdef HAVE_ALBUMART
                         } else if (itag == eWM_Picture && type == 1

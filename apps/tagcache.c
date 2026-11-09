@@ -86,6 +86,7 @@
 #include "debug.h"
 #include "dircache.h"
 #include "errno.h"
+#include "sortkey.h"
 #ifdef __PCTOOL__
 #define qsort_yielding qsort
 #endif
@@ -169,6 +170,32 @@
 /* Serialized DB. */
 #define TAGCACHE_STATEFILE       "database_state.tcd"
 
+/* The Sort fields and the order's mark are the firmware's: the commit's
+   plugin and the PC's database tool sort by the names alone, and leave the
+   firmware to sort again once */
+#if !defined(PLUGIN) && !defined(__PCTOOL__)
+#define TAGCACHE_SORT_FIELDS
+
+/* The rules and the Sort fields the tag files were sorted by at a commit: a
+   database sorted otherwise, as by an older firmware, is sorted again once
+   (order_stale()) */
+#define TAGCACHE_FILE_ORDER      "database_order.tcd"
+#define TAGCACHE_FILE_ORDER_NEW  "database_order.new"
+#define ORDER_MAGIC              0x52424f52 /* "RBOR" */
+/* The Sort fields of the songs outside Finder's folder, from their files'
+   tags (tagcache.h): those the database has, its next ones from a commit
+   until it's done, and those of the songs a scan found, until committed */
+#define TAGCACHE_FILE_SORT       "database_sort.tcd"
+#define TAGCACHE_FILE_SORT_NEW   "database_sort.new"
+#define TAGCACHE_FILE_SORT_SCAN  "database_sort_tmp.tcd"
+struct order_mark {
+    uint32_t magic;
+    uint32_t rules;     /* SORTKEY_RULES_VERSION */
+    int32_t commitid;   /* of the database sorted */
+    uint32_t finder;    /* the crc of Finder's Sort fields it had */
+};
+#endif /* !PLUGIN && !__PCTOOL__ */
+
 /* Flags */
 #define FLAG_DELETED     0x0001  /* Entry has been removed from db */
 #define FLAG_DIRCACHE    0x0002  /* Filename is a dircache pointer */
@@ -213,14 +240,8 @@ static int tempbuf_handle;
 
 #define SORTED_TAGS_COUNT 9
 #define TAGCACHE_IS_UNIQUE(tag) (BIT_N(tag) & TAGCACHE_UNIQUE_TAGS)
-#define TAGCACHE_IS_SORTED(tag) (BIT_N(tag) & TAGCACHE_SORTED_TAGS)
 #define TAGCACHE_IS_NUMERIC_OR_NONUNIQUE(tag) \
     (BIT_N(tag) & (TAGCACHE_NUMERIC_TAGS | ~TAGCACHE_UNIQUE_TAGS))
-/* Tags we want to get sorted (loaded to the tempbuf). */
-#define TAGCACHE_SORTED_TAGS ((1LU << tag_artist) | (1LU << tag_album) | \
-    (1LU << tag_genre) | (1LU << tag_composer) | (1LU << tag_comment) | \
-    (1LU << tag_albumartist) | (1LU << tag_grouping) | (1LU << tag_title) | \
-    (1LU << tag_virt_canonicalartist))
 
 /* Uniqued tags (we can use these tags with filters and conditional clauses). */
 #define TAGCACHE_UNIQUE_TAGS ((1LU << tag_artist) | (1LU << tag_album) | \
@@ -339,6 +360,9 @@ struct master_header {
 
 static struct master_header current_tcmh;
 
+/* a commit of no new entries goes through, to sort the database again */
+static bool commit_resorting;
+
 #ifdef HAVE_TC_RAMCACHE
 
 #define TC_ALIGN_PTR(p, type, gap_out_p) \
@@ -414,7 +438,13 @@ struct tempbuf_searchidx {
     char *str;
     int seek;
     struct tempbuf_id_list idlist;
+    /* what it sorts by, worked out as it's put in: from str + key, past its
+       article, or from its Sort field after it; and its group, <Untagged>'s
+       first (GROUP_UNTAGGED) and then sortkey_group()'s, each one higher */
+    uint16_t key;
+    uint8_t group;
 };
+#define GROUP_UNTAGGED 0
 
 /* The strings of a unique tag in the commit by their crc: each was checked
    against every other one before, which went with the square of the
@@ -685,6 +715,15 @@ static int NO_INLINE rename_db_file(const char *from, const char *to)
     snprintf(topath, sizeof(topath), "%s/%s", tc_stat.db_path, to);
 
     return rename(frompath, topath);
+}
+
+/* the scan's files for the commit: its new entries, and their Sort fields */
+static void remove_scan_files(void)
+{
+    remove_db_file(TAGCACHE_FILE_TEMP);
+#ifdef TAGCACHE_SORT_FIELDS
+    remove_db_file(TAGCACHE_FILE_SORT_SCAN);
+#endif
 }
 
 static int open_tag_fd(struct tagcache_header *hdr, int tag, bool write)
@@ -2679,11 +2718,105 @@ bool tagcache_fill_text(struct mp3entry *id3, const char *filename)
 }
 #endif
 
+#ifdef TAGCACHE_SORT_FIELDS
+/* The Sort fields the scan finds in the tags of songs outside Finder's
+   folder, for the commit (load_sort_pairs()): in a file of their own made
+   with the first, through a buffer, its header written as the scan's is */
+static int sort_scan_fd = -1;
+static struct tagcache_sort_header sort_scan_header;
+static unsigned char sort_scan_buf[1024];
+static size_t sort_scan_used;
+
+static bool sort_scan_flush(void)
+{
+    bool ok = !sort_scan_used
+        || write(sort_scan_fd, sort_scan_buf, sort_scan_used)
+           == (ssize_t)sort_scan_used;
+    sort_scan_used = 0;
+    return ok;
+}
+
+static void sort_scan_put(const void *data, size_t len)
+{
+    if (sort_scan_used + len > sizeof(sort_scan_buf) && !sort_scan_flush())
+        return;
+    memcpy(sort_scan_buf + sort_scan_used, data, len);
+    sort_scan_used += len;
+    sort_scan_header.crc = crc_32(data, len, sort_scan_header.crc);
+}
+
+/* the Sort field of a song's name for a tag, kept if it sorts otherwise */
+static void sort_scan_add(int tag, const char *name, const char *value)
+{
+    if (!name || !value || !*name || !*value)
+        return;
+    const char *a = sortkey_start(name, true), *b = sortkey_start(value, false);
+    if (sortkey_group(a) == sortkey_group(b) && !sortkey_compare_from(a, b))
+        return;
+    unsigned char head[TAGCACHE_SORT_PAIR_HEAD];
+    const size_t name_size = strlen(name) + 1, value_size = strlen(value) + 1;
+    if (!tagcache_sort_pair_head(head, tag, name_size, value_size))
+        return;
+    if (sort_scan_fd < 0)
+    {
+        sort_scan_fd = open_db_fd(TAGCACHE_FILE_SORT_SCAN,
+                                  O_WRONLY | O_CREAT | O_TRUNC);
+        if (sort_scan_fd < 0)
+            return;
+        sort_scan_header = (struct tagcache_sort_header){
+            TAGCACHE_SORT_MAGIC, TAGCACHE_SORT_VERSION, 0, 0xffffffff, 0, 0
+        };
+        /* counted at the end: none till then, if cut short */
+        struct tagcache_sort_header none = sort_scan_header;
+        none.magic = 0;
+        write(sort_scan_fd, &none, sizeof(none));
+        sort_scan_used = 0;
+    }
+    sort_scan_put(head, sizeof(head));
+    sort_scan_put(name, name_size);
+    sort_scan_put(value, value_size);
+    sort_scan_header.count++;
+}
+
+/* at the end of the scan, with its file of new entries */
+static void sort_scan_close(void)
+{
+    if (sort_scan_fd < 0)
+        return;
+    if (sort_scan_flush() && lseek(sort_scan_fd, 0, SEEK_SET) == 0)
+        write(sort_scan_fd, &sort_scan_header, sizeof(sort_scan_header));
+    close(sort_scan_fd);
+    sort_scan_fd = -1;
+}
+
+/* A song's Sort fields for each tag the database has its names in, as
+   add_tagcache() takes them: the album artist is the artist's where there's
+   none, and so the canonical artist the album artist's */
+static void sort_scan_song(const struct mp3entry *id3, bool has_artist,
+                           bool albumartist_is_artist)
+{
+    sort_scan_add(tag_artist, id3->artist, id3->artist_sort);
+    sort_scan_add(tag_albumartist, id3->albumartist, albumartist_is_artist
+                  ? id3->artist_sort : id3->albumartist_sort);
+    if (has_artist)
+        sort_scan_add(tag_virt_canonicalartist, id3->artist, id3->artist_sort);
+    else
+        sort_scan_add(tag_virt_canonicalartist, id3->albumartist,
+                      id3->albumartist_sort);
+    sort_scan_add(tag_album, id3->album, id3->album_sort);
+    sort_scan_add(tag_title, id3->title, id3->title_sort);
+    sort_scan_add(tag_composer, id3->composer, id3->composer_sort);
+}
+#endif /* TAGCACHE_SORT_FIELDS */
+
 /* The scan's file of new entries, its header written once they're counted.
    The check outside Finder's folder makes it only for one it finds: made and
    removed again at every USB connection, it wrote to the disk for nothing. */
 static bool open_scan_temp(void)
 {
+#ifdef TAGCACHE_SORT_FIELDS
+    remove_db_file(TAGCACHE_FILE_SORT_SCAN); /* of another scan's, cut short */
+#endif
     cachefd = open_db_fd(TAGCACHE_FILE_TEMP, O_RDWR | O_CREAT | O_TRUNC);
     if (cachefd < 0)
     {
@@ -3028,13 +3161,21 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     /*memset(&id3, 0, sizeof(struct mp3entry)); -- get_metadata does this for us */
     memset(&entry, 0, sizeof(struct temp_file_entry));
     memset(&tracknumfix, 0, sizeof(tracknumfix));
+    int metadata_flags = METADATA_EXCLUDE_ID3_PATH;
+#ifdef TAGCACHE_SORT_FIELDS
+    /* the Sort fields of Finder's songs are iTunesDB's: those of the others
+       are their tags' */
+    const bool sort_fields = !itunesdb_synced_path(path);
+    if (sort_fields)
+        metadata_flags |= METADATA_SORT_FIELDS;
+#endif
 #ifndef __PCTOOL__
     /* what iTunesDB says of a file Finder added, as a stock iPod has it */
     struct tagcache_runtime itdb_rt = { 0, 0, 0 };
     ret = itunesdb_get_metadata(path, &id3, &itdb_rt);
     if (!ret)
 #endif
-    ret = get_metadata_afmt(&id3, -1, path, afmt, METADATA_EXCLUDE_ID3_PATH);
+    ret = get_metadata_afmt(&id3, -1, path, afmt, metadata_flags);
 
     if (!ret)
     {
@@ -3073,7 +3214,9 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
         && strlen(id3.grouping) > 0;
     /* an album without an album artist is its track's artist's, as on a stock
        iPod: Cover Flow tells albums apart by name and album artist */
-    if (has_artist && (id3.albumartist == NULL || !strlen(id3.albumartist)))
+    const bool albumartist_is_artist = has_artist
+        && (id3.albumartist == NULL || !strlen(id3.albumartist));
+    if (albumartist_is_artist)
         id3.albumartist = id3.artist;
 
     ADD_TAG(entry, tag_filename, &path);
@@ -3105,6 +3248,10 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     /* the check outside Finder's folder makes the file with its first */
     if (cachefd < 0 && !open_scan_temp())
         return;
+#ifdef TAGCACHE_SORT_FIELDS
+    if (sort_fields)
+        sort_scan_song(&id3, has_artist, albumartist_is_artist);
+#endif
 
     /* Write the header */
     tagfile_wbuf_put(cachefd, &entry, sizeof(struct temp_file_entry));
@@ -3142,19 +3289,73 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
 #endif /*!defined(PLUGIN)*/
 
 
+/* the crc of a name in lower case, in one call rather than one for each
+   character: by which the commit finds a name again, and its Sort field */
+static unsigned name_crc(const char *str)
+{
+    static char lower[TAG_MAXLEN + 1];
+    int i;
+    for (i = 0; str[i] != '\0' && i < TAG_MAXLEN; i++)
+        lower[i] = tolower(str[i]);
+    return crc_32(lower, i, 0xffffffff);
+}
+
+#ifdef TAGCACHE_SORT_FIELDS
+/* The Sort fields, the names that names sort by as Music has them, while a
+   commit loads them: from the files of Finder's, of the files' tags kept and
+   of those the scan just found, in this order of precedence. At the end of
+   the commit's buffer, below the master file, sorted to be looked up by tag
+   and crc. */
+enum { SORT_FROM_FINDER, SORT_FROM_SCAN, SORT_FROM_FILES };
+struct sort_pair {
+    uint32_t crc;       /* of the name, name_crc()'s */
+    const char *name;
+    const char *value;
+    uint8_t tag;
+    uint8_t from;
+    bool used;          /* its name is still one of its tag's */
+};
+static struct sort_pair *sort_pairs;
+static long sort_pair_count;
+static size_t sort_values_size;  /* of their Sort fields, for the buffer */
+static uint32_t sort_finder_crc; /* of Finder's file, the commit's order mark's */
+static bool sort_files_kept;     /* those of files' tags were read */
+static int sort_build_tag = -1;  /* the tag build_index() puts in, or -1 */
+
+/* the value of the name for the tag the commit builds, NULL for none */
+static const char *sort_value(unsigned crc, const char *name)
+{
+    long lo = 0, hi = sort_pair_count;
+    while (lo < hi)
+    {
+        const long mid = (lo + hi) / 2;
+        const struct sort_pair *p = &sort_pairs[mid];
+        if (p->tag < sort_build_tag || (p->tag == sort_build_tag && p->crc < crc))
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    const char *value = NULL;
+    for (; lo < sort_pair_count && sort_pairs[lo].tag == sort_build_tag
+           && sort_pairs[lo].crc == crc; lo++)
+    {
+        if (strcasecmp(sort_pairs[lo].name, name))
+            continue;
+        sort_pairs[lo].used = true;
+        if (!value)
+            value = sort_pairs[lo].value;
+    }
+    return value;
+}
+#endif /* TAGCACHE_SORT_FIELDS */
+
 static bool tempbuf_insert(char *str, int id, int idx_id, bool unique)
 {
     struct tempbuf_searchidx *index = (struct tempbuf_searchidx *)tempbuf;
     int len = strlen(str)+1;
     int i;
     unsigned *crcbuf = (unsigned *)&tempbuf[tempbuf_size-4];
-    unsigned crc32 = 0xffffffff;
-    /* the crc of the lower case string, in one call rather than one for
-       each character */
-    static char lower[TAG_MAXLEN + 1];
-    for (i = 0; str[i] != '\0' && i < len - 1 && i < TAG_MAXLEN; i++)
-        lower[i] = tolower(str[i]);
-    crc32 = crc_32(lower, i, crc32);
+    const unsigned crc32 = name_crc(str);
 
     if (unique)
     {
@@ -3210,6 +3411,34 @@ static bool tempbuf_insert(char *str, int id, int idx_id, bool unique)
     index[tempbufidx].str = &tempbuf[tempbuf_pos];
     memcpy(index[tempbufidx].str, str, len);
     tempbuf_pos += len;
+
+    /* what it sorts by: its Sort field, copied after it, as Music takes
+       one, with its article; or itself without its own */
+    const char *key;
+    if (!strcmp(str, UNTAGGED))
+    {
+        key = index[tempbufidx].str;
+        index[tempbufidx].group = GROUP_UNTAGGED;
+    }
+    else
+    {
+        bool article = true;
+        key = index[tempbufidx].str;
+#ifdef TAGCACHE_SORT_FIELDS
+        const char *value = sort_build_tag >= 0 ? sort_value(crc32, str) : NULL;
+        const int value_len = value ? (int)strlen(value) + 1 : 0;
+        if (value && tempbuf_left - value_len - 4 >= 0)
+        {
+            key = memcpy(&tempbuf[tempbuf_pos], value, value_len);
+            tempbuf_pos += value_len;
+            tempbuf_left -= value_len;
+            article = false;
+        }
+#endif
+        key = sortkey_start(key, article);
+        index[tempbufidx].group = 1 + sortkey_group(key);
+    }
+    index[tempbufidx].key = key - index[tempbufidx].str;
     crc_next[tempbufidx] = crc_heads[crc32 & crc_mask];
     crc_heads[crc32 & crc_mask] = tempbufidx;
     tempbufidx++;
@@ -3217,23 +3446,18 @@ static bool tempbuf_insert(char *str, int id, int idx_id, bool unique)
     return true;
 }
 
+/* by the rules of sortkey.c, <Untagged> first */
 static int compare(const void *p1, const void *p2)
 {
     do_timed_yield();
 
-    struct tempbuf_searchidx *e1 = (struct tempbuf_searchidx *)p1;
-    struct tempbuf_searchidx *e2 = (struct tempbuf_searchidx *)p2;
-
-    if (strcmp(e1->str, UNTAGGED) == 0)
-    {
-        if (strcmp(e2->str, UNTAGGED) == 0)
-            return 0;
-        return -1;
-    }
-    else if (strcmp(e2->str, UNTAGGED) == 0)
-        return 1;
-
-    return strncasecmp(e1->str, e2->str, TAG_MAXLEN);
+    const struct tempbuf_searchidx *e1 = p1, *e2 = p2;
+    if (e1->group != e2->group)
+        return e1->group < e2->group ? -1 : 1;
+    if (e1->group == GROUP_UNTAGGED)
+        return 0;
+    const int d = sortkey_compare_from(e1->str + e1->key, e2->str + e2->key);
+    return d ? d : strcmp(e1->str, e2->str);
 }
 
 /* The old entries, the first old_n, came in sorted from the old tag file:
@@ -4102,11 +4326,230 @@ static size_t commit_tempbuf_need(int tag, const struct tagcache_header *h,
                   + depth * sizeof(void **)
                   + (heads + entries) * sizeof(int32_t) + 8;
     /* the strings, old and new, with a crc, an id list and alignment for
-       each, or what build_index() asks for anyway */
+       each, and their Sort fields, or what build_index() asks for anyway */
     size_t strings = TAGCACHE_IS_SORTED(tag) ?
         datasize + h->datasize + entries * (4 + 12 + 4) : 0;
+#ifdef TAGCACHE_SORT_FIELDS
+    if (strings)
+        strings += sort_values_size;
+#endif
     return need + MAX(strings, TAGFILE_ENTRY_AVG_LENGTH * entries);
 }
+
+#ifdef TAGCACHE_SORT_FIELDS
+/* a file of Sort fields, at path or the database's file of that name, past
+   its header: -1 for none */
+static int open_sort_file(const char *path, bool in_db,
+                          struct tagcache_sort_header *h)
+{
+    char buf[MAX_PATH];
+    int fd = in_db ? open_pathfmt(buf, sizeof(buf), O_RDONLY, "%s/%s",
+                                  tc_stat.db_path, path)
+                   : open(path, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    if (read(fd, h, sizeof(*h)) != sizeof(*h) || h->magic != TAGCACHE_SORT_MAGIC
+        || h->version != TAGCACHE_SORT_VERSION || h->count > 0x100000)
+    {
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+
+/* the crc of Finder's Sort fields, 0 for none */
+static uint32_t finder_sort_crc(void)
+{
+    struct tagcache_sort_header h;
+    int fd = open_sort_file(TAGCACHE_SORT_FINDER, false, &h);
+    if (fd < 0)
+        return 0;
+    close(fd);
+    return h.crc;
+}
+
+static int cmp_sort_pair(const void *p1, const void *p2)
+{
+    const struct sort_pair *a = p1, *b = p2;
+    if (a->tag != b->tag)
+        return a->tag < b->tag ? -1 : 1;
+    if (a->crc != b->crc)
+        return a->crc < b->crc ? -1 : 1;
+    return a->from < b->from ? -1 : a->from > b->from;
+}
+
+/* The pairs of the three files of Sort fields into the end of the commit's
+   buffer, below the master file: false if they don't fit. Small: 24 pairs in
+   a library of 13,000 songs, 1 KB, and some 12,000 in one with a reading of
+   every name, 0.8 MB. */
+static bool load_sort_pairs(void)
+{
+    static const struct {
+        const char *path;
+        bool in_db;
+        uint8_t from;
+    } files[] = {
+        { TAGCACHE_SORT_FINDER, false, SORT_FROM_FINDER },
+        { TAGCACHE_FILE_SORT_SCAN, true, SORT_FROM_SCAN },
+        { TAGCACHE_FILE_SORT, true, SORT_FROM_FILES },
+    };
+    int fds[ARRAYLEN(files)];
+    long sizes[ARRAYLEN(files)];
+    size_t bytes = 0, count = 0;
+    sort_pairs = NULL;
+    sort_pair_count = 0;
+    sort_values_size = 0;
+    sort_finder_crc = 0;
+    sort_files_kept = false;
+    for (size_t k = 0; k < ARRAYLEN(files); k++)
+    {
+        struct tagcache_sort_header h;
+        fds[k] = open_sort_file(files[k].path, files[k].in_db, &h);
+        sizes[k] = 0;
+        if (fds[k] < 0)
+            continue;
+        sizes[k] = ffilesize(fds[k]) - sizeof(h);
+        bytes += MAX(sizes[k], 0);
+        count += h.count;
+        if (files[k].from == SORT_FROM_FINDER)
+            sort_finder_crc = h.crc;
+        else
+            sort_files_kept = true;
+    }
+    const size_t need = count * sizeof(struct sort_pair) + ALIGN_UP(bytes, 4);
+    bool ok = need + 1024 <= (size_t)tempbuf_size;
+    if (ok && count > 0)
+    {
+        char *room = (char *)ALIGN_DOWN(tempbuf + tempbuf_size - need, 4);
+        tempbuf_size = (room - tempbuf) & ~0x03;
+        sort_pairs = (struct sort_pair *)room;
+        char *data = (char *)(sort_pairs + count);
+        for (size_t k = 0; k < ARRAYLEN(files); k++)
+        {
+            if (fds[k] < 0 || sizes[k] <= 0
+                || read(fds[k], data, sizes[k]) != sizes[k])
+                continue;
+            const char *p = data, *end = data + sizes[k];
+            while (end - p >= TAGCACHE_SORT_PAIR_HEAD
+                   && sort_pair_count < (long)count)
+            {
+                const unsigned char *head = (const unsigned char *)p;
+                const int tag = head[0];
+                const long name_size = head[1] | head[2] << 8;
+                const long value_size = head[3] | head[4] << 8;
+                const char *name = p + TAGCACHE_SORT_PAIR_HEAD;
+                const char *value = name + name_size;
+                if (name_size < 2 || value_size < 2 || value_size > end - value
+                    || name[name_size - 1] || value[value_size - 1])
+                    break;
+                if (tag < TAG_COUNT && TAGCACHE_IS_SORTED(tag))
+                {
+                    sort_pairs[sort_pair_count++] = (struct sort_pair){
+                        name_crc(name), name, value, tag, files[k].from, false
+                    };
+                    sort_values_size += value_size;
+                }
+                p = value + value_size;
+            }
+            data += sizes[k];
+        }
+        qsort(sort_pairs, sort_pair_count, sizeof(*sort_pairs), cmp_sort_pair);
+    }
+    for (size_t k = 0; k < ARRAYLEN(files); k++)
+    {
+        if (fds[k] >= 0)
+            close(fds[k]);
+    }
+    return ok;
+}
+
+/* The Sort fields of files' tags that the commit found names for, those the
+   scan found over those kept, as the database's next ones: a song gone with
+   the last of its name takes its pair with it. Put in place with the tag
+   files (commit_swap()). */
+static bool write_sort_files(void)
+{
+    if (!sort_files_kept)
+        return true;
+    int fd = open_db_fd(TAGCACHE_FILE_SORT_NEW, O_WRONLY | O_CREAT | O_TRUNC);
+    if (fd < 0)
+        return false;
+    struct tagcache_sort_header h = {
+        TAGCACHE_SORT_MAGIC, TAGCACHE_SORT_VERSION, 0, 0xffffffff, 0, 0
+    };
+    bool ok = write(fd, &h, sizeof(h)) == sizeof(h);
+    tagfile_wbuf_used = 0;
+    for (long i = 0; ok && i < sort_pair_count; i++)
+    {
+        const struct sort_pair *p = &sort_pairs[i];
+        if (p->from == SORT_FROM_FINDER || !p->used)
+            continue;
+        /* the first of a name, the scan's if it has one */
+        bool first = true;
+        for (long j = i - 1; first && j >= 0 && sort_pairs[j].tag == p->tag
+                             && sort_pairs[j].crc == p->crc; j--)
+        {
+            first = sort_pairs[j].from == SORT_FROM_FINDER
+                    || strcasecmp(sort_pairs[j].name, p->name);
+        }
+        unsigned char head[TAGCACHE_SORT_PAIR_HEAD];
+        const size_t name_size = strlen(p->name) + 1;
+        const size_t value_size = strlen(p->value) + 1;
+        if (!first || !tagcache_sort_pair_head(head, p->tag, name_size,
+                                               value_size))
+            continue;
+        h.crc = crc_32(head, sizeof(head), h.crc);
+        h.crc = crc_32(p->name, name_size, h.crc);
+        h.crc = crc_32(p->value, value_size, h.crc);
+        ok = tagfile_wbuf_put(fd, head, sizeof(head))
+             && tagfile_wbuf_put(fd, p->name, name_size)
+             && tagfile_wbuf_put(fd, p->value, value_size);
+        h.count++;
+    }
+    ok = ok && tagfile_wbuf_flush(fd) && lseek(fd, 0, SEEK_SET) == 0
+         && write(fd, &h, sizeof(h)) == sizeof(h);
+    if (close(fd) < 0)
+        ok = false;
+    return ok;
+}
+
+/* The commit's database is sorted by the rules and the Sort fields it had:
+   put in place with its files (commit_swap()), so that a commit finished or
+   undone after a reboot has the mark of its files */
+static bool write_order_mark(int32_t commitid)
+{
+    const struct order_mark mark = {
+        ORDER_MAGIC, SORTKEY_RULES_VERSION, commitid, sort_finder_crc
+    };
+    int fd = open_db_fd(TAGCACHE_FILE_ORDER_NEW, O_WRONLY | O_CREAT | O_TRUNC);
+    if (fd < 0)
+        return false;
+    const bool ok = write(fd, &mark, sizeof(mark)) == sizeof(mark);
+    return close(fd) == 0 && ok;
+}
+
+/* Songs taken out of the database, and the counts of a changelog, leave the
+   others in their order, but count as a commit for what's made from it (its
+   commit id from from to current_tcmh's): the order's mark goes with them, or
+   the next boot sorted it again for nothing */
+static void order_mark_follow(int32_t from)
+{
+    struct order_mark mark;
+    int fd = open_db_fd(TAGCACHE_FILE_ORDER, O_RDWR);
+    if (fd < 0)
+        return;
+    if (read(fd, &mark, sizeof(mark)) == sizeof(mark)
+        && mark.magic == ORDER_MAGIC && mark.commitid == from)
+    {
+        mark.commitid = current_tcmh.commitid;
+        if (lseek(fd, 0, SEEK_SET) != 0
+            || write(fd, &mark, sizeof(mark)) != sizeof(mark))
+            mark.magic = 0;
+    }
+    if (close(fd) < 0 || mark.magic != ORDER_MAGIC)
+        remove_db_file(TAGCACHE_FILE_ORDER);
+}
+#endif /* TAGCACHE_SORT_FIELDS */
 
 /* A commit on disk until it is done. While it builds the new files, a
    reboot undoes it, and the temporary file is committed again; once it puts
@@ -4152,7 +4595,15 @@ static bool commit_swap(void)
         if (rename_db_file(from, to) < 0 && errno != ENOENT)
             return false;
     }
-    remove_db_file(TAGCACHE_FILE_TEMP);
+#ifdef TAGCACHE_SORT_FIELDS
+    if (rename_db_file(TAGCACHE_FILE_SORT_NEW, TAGCACHE_FILE_SORT) < 0
+        && errno != ENOENT)
+        return false;
+    if (rename_db_file(TAGCACHE_FILE_ORDER_NEW, TAGCACHE_FILE_ORDER) < 0
+        && errno != ENOENT)
+        return false;
+#endif
+    remove_scan_files();
     remove_db_file(TAGCACHE_FILE_JOURNAL);
     return true;
 }
@@ -4171,6 +4622,10 @@ static void commit_undo(const struct commit_journal *j)
         snprintf(name, sizeof(name), TAGCACHE_FILE_INDEX_NEW, tag);
         remove_db_file(name);
     }
+#ifdef TAGCACHE_SORT_FIELDS
+    remove_db_file(TAGCACHE_FILE_SORT_NEW);
+    remove_db_file(TAGCACHE_FILE_ORDER_NEW);
+#endif
 
     if (j && j->fresh)
         remove_files();
@@ -4317,11 +4772,11 @@ static bool commit(void)
     {
         logf("incorrect tmpheader");
         close(tmpfd);
-        remove_db_file(TAGCACHE_FILE_TEMP);
+        remove_scan_files();
         return false;
     }
 
-    if (tch.entry_count == 0)
+    if (tch.entry_count == 0 && !commit_resorting)
     {
         /* A scan that found nothing new. Writing every tag file again the
            same way took as long as a commit of new files. */
@@ -4331,7 +4786,7 @@ static bool commit(void)
             logf("nothing to commit");
             close(masterfd);
             close(tmpfd);
-            remove_db_file(TAGCACHE_FILE_TEMP);
+            remove_scan_files();
             return true;
         }
     }
@@ -4445,6 +4900,16 @@ static bool commit(void)
         commit_idx = STORAGE_ALIGN_DOWN(
             (struct index_entry *)(tempbuf + tempbuf_size - master_size));
         tempbuf_size = ((char *)commit_idx - tempbuf) & ~0x03;
+#ifdef TAGCACHE_SORT_FIELDS
+        /* and the Sort fields below it, for every tag */
+        if (!load_sort_pairs())
+        {
+            logf("buffer too small for the Sort fields, delaying commit");
+            tc_stat.commit_delayed = true;
+            close(tmpfd);
+            goto commit_error;
+        }
+#endif
 
         for (i = 0; i < TAG_COUNT; i++)
         {
@@ -4504,7 +4969,13 @@ static bool commit(void)
             continue;
 
         tc_stat.commit_step++;
+#ifdef TAGCACHE_SORT_FIELDS
+        sort_build_tag = i;
+#endif
         ret = build_index(i, &tch, tmpfd);
+#ifdef TAGCACHE_SORT_FIELDS
+        sort_build_tag = -1;
+#endif
         if (ret <= 0)
         {
             close(tmpfd);
@@ -4542,6 +5013,10 @@ static bool commit(void)
         tcmh.commitid++;
 
         bool master_written = write_master(&tcmh);
+#ifdef TAGCACHE_SORT_FIELDS
+        master_written = master_written && write_sort_files()
+                         && write_order_mark(tcmh.commitid);
+#endif
         tempbuf_size = commit_full_size;
         commit_idx = NULL;
         if (!master_written)
@@ -4578,6 +5053,11 @@ static bool commit(void)
 
 commit_error:
     tc_stat.commit_step = 0;
+#ifdef TAGCACHE_SORT_FIELDS
+    sort_pairs = NULL; /* in the buffer */
+    sort_pair_count = 0;
+    sort_values_size = 0;
+#endif
     if (commit_idx)
     {
         tempbuf_size = commit_full_size;
@@ -5169,6 +5649,9 @@ bool tagcache_import_changelog(void)
     }
 
     write_lock++;
+#ifdef TAGCACHE_SORT_FIELDS
+    const int32_t commitid = current_tcmh.commitid;
+#endif
 
     filenametag_fd = open_tag_fd(&tch, tag_filename, false);
 
@@ -5186,7 +5669,12 @@ bool tagcache_import_changelog(void)
 
     write_lock--;
 
+#ifdef TAGCACHE_SORT_FIELDS
+    if (update_master_header() && current_tcmh.commitid != commitid)
+        order_mark_follow(commitid);
+#else
     update_master_header();
+#endif
 
     return true;
 }
@@ -5299,7 +5787,12 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
     }
     failed |= close(masterfd) < 0;
     tagcache_search_finish(&tcs);
+#ifdef TAGCACHE_SORT_FIELDS
+    if (update_master_header() && deleted > 0)
+        order_mark_follow(current_tcmh.commitid - 1);
+#else
     update_master_header();
+#endif
     return !failed;
 }
 #endif /* !__PCTOOL__ */
@@ -6570,7 +7063,12 @@ wend_finished:
            Flow's albums. A commit counts one too, but with no song new, none
            comes */
         current_tcmh.commitid++;
+#ifdef TAGCACHE_SORT_FIELDS
+        if (update_master_header())
+            order_mark_follow(current_tcmh.commitid - 1);
+#else
         update_master_header();
+#endif
 #if !defined(__PCTOOL__) && !defined(PLUGIN)
         /* the songs gone, kept for the playlists made on the iPod */
         lp_gone_flush();
@@ -7092,6 +7590,9 @@ void do_tagcache_build(const char *path[])
 #endif
 
 commit:
+#ifdef TAGCACHE_SORT_FIELDS
+    sort_scan_close();
+#endif
     if (cachefd >= 0)
     {
         /* Write the header. */
@@ -7107,7 +7608,7 @@ commit:
            next boot asked whether to commit it. The next check finds them
            again. */
         if (!ret && scan_outside)
-            remove_db_file(TAGCACHE_FILE_TEMP);
+            remove_scan_files();
     }
 
     if (filenametag_fd >= 0)
@@ -7283,6 +7784,83 @@ static void reload_after_commit(void)
 #endif
 }
 
+/* Whether the tag files are sorted otherwise than by these rules and the Sort
+   fields Finder's songs have now: by an older firmware, by the commit's
+   plugin, or before a sync changed the Sort fields. At boot, from the order's
+   mark and two headers. */
+static bool order_stale(void)
+{
+    struct master_header mh;
+    int fd = open_master_fd(&mh, false);
+    if (fd < 0)
+        return false; /* none: the first commit sorts it */
+    close(fd);
+    struct order_mark mark;
+    fd = open_db_fd(TAGCACHE_FILE_ORDER, O_RDONLY);
+    if (fd < 0)
+        return true;
+    const bool read_whole = read(fd, &mark, sizeof(mark)) == sizeof(mark);
+    close(fd);
+    return !read_whole || mark.magic != ORDER_MAGIC
+           || mark.rules != SORTKEY_RULES_VERSION
+           || mark.commitid != mh.commitid
+           || mark.finder != finder_sort_crc();
+}
+
+/* The database sorted again if it's stale, by a commit of no new entries but
+   of every tag file, under the import's screen: once at the first boot after
+   an update, and after a sync that changed Sort fields. Its new commit id has
+   the caches made from it made again, as after a sync. True once sorted. */
+static bool resort_if_stale(void)
+{
+    if (!order_stale())
+        return false;
+    /* an empty file of new entries, unless one waits with some */
+    const bool made = !db_file_exists(TAGCACHE_FILE_TEMP);
+    if (made)
+    {
+        const struct tagcache_header none = { TAGCACHE_MAGIC, 0, 0 };
+        int fd = open_db_fd(TAGCACHE_FILE_TEMP, O_WRONLY | O_CREAT | O_TRUNC);
+        if (fd < 0)
+            return false;
+        const bool ok = write(fd, &none, sizeof(none)) == sizeof(none);
+        if (close(fd) < 0 || !ok)
+        {
+            remove_db_file(TAGCACHE_FILE_TEMP);
+            return false;
+        }
+    }
+    logf("sorting the database again");
+    const int phase = import_phase;
+    import_phase = TAGCACHE_IMPORT_SAVING;
+    commit_resorting = true;
+    allocate_tempbuf();
+    commit();
+    free_tempbuf();
+    commit_resorting = false;
+    /* A commit that didn't go through, as for want of memory, leaves the
+       file: waiting, it would have every scan skipped, and the boot ask
+       whether to commit it. The mark stays stale, for the next try. */
+    if (made)
+        remove_db_file(TAGCACHE_FILE_TEMP);
+    import_phase = phase;
+    return !order_stale();
+}
+
+/* the entries of the scan's file waiting for a commit, -1 for none: 0 for
+   an empty one, or one cut short before its header was written */
+static long temp_entries(void)
+{
+    struct tagcache_header h;
+    int fd = open_db_fd(TAGCACHE_FILE_TEMP, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    const bool whole = read(fd, &h, sizeof(h)) == sizeof(h)
+                       && h.magic == TAGCACHE_MAGIC;
+    close(fd);
+    return whole ? h.entry_count : 0;
+}
+
 /* the new files of a scan before, as of one whose commit found no buffer */
 static void commit_waiting(void)
 {
@@ -7313,6 +7891,9 @@ static bool update_and_reload(void)
         commit();
         free_tempbuf();
     }
+    /* a sync can change the Sort fields alone, which no commit has taken */
+    if (scanned)
+        resort_if_stale();
 #ifdef HAVE_TC_RAMCACHE
     reload_after_commit();
     /* without enough memory for it, the database still works from disk */
@@ -7451,22 +8032,30 @@ static void tagcache_thread(void)
     commit_recover();
     /* If the previous cache build/update was interrupted, commit
      * the changes first in foreground. After a sync the import does,
-     * behind its progress screen. */
-    if (db_file_exists(TAGCACHE_FILE_TEMP) && !sync_found)
+     * behind its progress screen. One of no new entries, as a sort cut
+     * short leaves, has nothing to ask about. */
+    bool scan_waits = false; /* still, declined or its commit failed */
+    const long waiting = sync_found ? -1 : temp_entries();
+    if (waiting == 0)
+        remove_scan_files();
+    else if (waiting > 0)
     {
+        bool now = true;
 #if !(defined(__APPLE__) && (CONFIG_PLATFORM & PLATFORM_SDL))
         static const char *lines[] = {ID2P(LANG_TAGCACHE_BUSY),
                                       ID2P(LANG_TAGCACHE_UPDATE)};
         static const struct text_message message = {lines, 2};
 
-        if (gui_syncyesno_run_w_tmo(HZ * 5, YESNO_YES, str(LANG_TAGCACHE),
-                                    &message, NULL, NULL) == YESNO_YES)
+        now = gui_syncyesno_run_w_tmo(HZ * 5, YESNO_YES, str(LANG_TAGCACHE),
+                                      &message, NULL, NULL) == YESNO_YES;
 #endif
+        if (now)
         {
             allocate_tempbuf();
             commit();
             free_tempbuf();
         }
+        scan_waits = db_file_exists(TAGCACHE_FILE_TEMP);
     }
 
 #ifdef HAVE_TC_RAMCACHE
@@ -7510,6 +8099,33 @@ static void tagcache_thread(void)
         import_phase = TAGCACHE_IMPORT_NONE;
 #endif
     }
+
+    /* Sorted by older rules, or before Sort fields an import took in, as
+       after an update: sorted again once, before the menu. After a sync, the
+       import's commit does; and not with the scan's file still waiting,
+       which the sort would commit too, behind the menu: there was no screen
+       for it. */
+#ifdef HAVE_TC_RAMCACHE
+    bool refs_due = false; /* the check of the files after the load, below */
+#endif
+    if (!sync_found && !scan_waits && resort_if_stale())
+    {
+#ifdef HAVE_TC_RAMCACHE
+        /* In memory before the screen goes, as after a sync: the boot's menu
+           didn't wait for it, and what Updating Library makes then goes
+           through all of it, as Cover Flow's albums. The check of the files
+           is left to the pass behind the menu, as after the boot's own load:
+           without every path in memory, it took more than a minute. */
+        const int phase = import_phase;
+        import_phase = TAGCACHE_IMPORT_LOADING;
+        reload_after_commit();
+        refs_due = tc_stat.ramcache;
+        import_phase = phase;
+#endif
+    }
+    /* the screen tagcache_init() put up for it */
+    if (import_phase == TAGCACHE_IMPORT_SAVING)
+        import_phase = TAGCACHE_IMPORT_NONE;
 
     /* The header check, on the background but at once: the song count and
        an import after a sync wait for it */
@@ -7555,7 +8171,7 @@ static void tagcache_thread(void)
 
             case Q_REBUILD:
                 remove_files();
-                remove_db_file(TAGCACHE_FILE_TEMP);
+                remove_scan_files();
                 tagcache_build();
                 break;
 
@@ -7657,9 +8273,14 @@ static void tagcache_thread(void)
                     break ;
 
 #ifdef HAVE_TC_RAMCACHE
-                if (!tc_stat.ramcache && global_settings.tagcache_ram)
+                /* loaded now, or by the boot's sort, which left this to do
+                   after it, in the same order */
+                if ((!tc_stat.ramcache || refs_due)
+                    && global_settings.tagcache_ram)
                 {
-                    load_ramcache();
+                    if (!tc_stat.ramcache)
+                        load_ramcache();
+                    refs_due = false;
                     if (global_settings.tagcache_ram == TAGCACHE_RAM_ON)
                         check_file_refs(global_settings.tagcache_autoupdate);
                     if (tc_stat.ramcache && global_settings.tagcache_autoupdate)
@@ -7839,12 +8460,16 @@ void tagcache_init(void)
             sync_found = true;
         }
     }
-    if (sync_found || !itunesdb_gains_ready())
+    if (sync_found || !itunesdb_gains_ready() || !itunesdb_sort_ready())
         import_phase = TAGCACHE_IMPORT_READING;
 #ifdef ITUNESDB_HAVE_ART
     else if (itunesdb_slides_todo())
         import_phase = TAGCACHE_IMPORT_SLIDES;
 #endif
+    /* the database to sort again, under the screen, but for a scan's file
+       waiting, which the boot asks about first and whose commit sorts it */
+    else if (temp_entries() <= 0 && order_stale())
+        import_phase = TAGCACHE_IMPORT_SAVING;
     mutex_init(&command_queue_mutex);
     queue_init(&tagcache_queue, true);
     create_thread(tagcache_thread, tagcache_stack,

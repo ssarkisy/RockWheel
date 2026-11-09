@@ -26,6 +26,7 @@
 #define METADATA_EXCLUDE_ID3_PATH  (0x01) /* don't copy filename path to the id3 path buffer */
 #define METADATA_CLOSE_FD_ON_EXIT  (0x02) /* close the filedescriptor when finished */
 #define METADATA_EXCLUDE_NORMALIZE (0x04) /* don't normalize id3 text entries */
+#define METADATA_SORT_FIELDS       (0x08) /* read the Sort fields too */
 /* Audio file types. */
 /* NOTE: The values of the AFMT_* items are used for the %fc tag in the WPS
          - so new entries MUST be added to the end to maintain compatibility.
@@ -342,6 +343,16 @@ struct mp3entry {
     /* the format as far as the path tells, from the database until the file has
        been read: codectype being set is what says the file has */
     unsigned int path_codectype;
+
+    /* The Sort fields, what Music sorts the names by: "Beatles, The" for
+       "The Beatles". Read for the database only (METADATA_SORT_FIELDS), as
+       they take room in id3v2buf that playback has for the other tags. */
+    bool read_sort_fields;
+    char *artist_sort;
+    char *albumartist_sort;
+    char *album_sort;
+    char *title_sort;
+    char *composer_sort;
 };
 
 unsigned int probe_file_format(const char *filename); /* returns audio_fmt */

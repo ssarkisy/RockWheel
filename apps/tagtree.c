@@ -39,6 +39,7 @@
 #include "tagcache.h"
 #include "itunesdb.h"
 #include "tagtree.h"
+#include "sortkey.h"
 #include "root_menu.h"
 #include "timefuncs.h"
 #include "lang.h"
@@ -334,6 +335,36 @@ static int strnatcasecmp_n_inv(const char *a, const char *b, size_t n)
 static int strncasecmp_inv(const char *a, const char *b, size_t n)
 {
     return strncasecmp(b, a, n);
+}
+/* and Music's rules (sortkey.h) */
+static int sortkey_compare_n(const char *a, const char *b, size_t n)
+{
+    (void)n;
+    return sortkey_compare(a, b);
+}
+static int sortkey_compare_n_inv(const char *a, const char *b, size_t n)
+{
+    (void)n;
+    return sortkey_compare(b, a);
+}
+
+/* Rows go by their places in the tag files, which the commit sorted by
+   Music's rules and the Sort fields (sortkey.h, tagcache.h): a row's seek
+   there, or a song's from the database in memory, a number to compare rather
+   than two names. Not rows of a format's names, which sort by what they
+   show, as "fmt_title" by disc and track, as qsort_fn has it. */
+static bool sort_by_place;
+static bool sort_places_inverse;
+static int sort_places_tag; /* a song's title, or the tag of the rows' seeks */
+
+/* the songs' places are known, from the database in memory */
+static bool song_places_known(void)
+{
+#ifdef HAVE_TC_RAMCACHE
+    return tagcache_is_in_ram();
+#else
+    return false;
+#endif
 }
 
 /*
@@ -1351,11 +1382,24 @@ static bool parse_search(struct menu_entry *entry, const char *str)
     return true;
 }
 
+static int compare_rows(const struct tagentry *e1, const struct tagentry *e2)
+{
+    if (!sort_by_place)
+        return qsort_fn(e1->name, e2->name, MAX_PATH);
+    long a = e1->extraseek, b = e2->extraseek;
+    if (sort_places_tag == tag_title)
+    {
+        a = tagcache_sort_key(a, tag_title);
+        b = tagcache_sort_key(b, tag_title);
+    }
+    if (sort_places_inverse)
+        return a < b ? 1 : a > b ? -1 : 0;
+    return a < b ? -1 : a > b;
+}
+
 static int compare(const void *p1, const void *p2)
 {
-    struct tagentry *e1 = (struct tagentry *)p1;
-    struct tagentry *e2 = (struct tagentry *)p2;
-    return qsort_fn(e1->name, e2->name, MAX_PATH);
+    return compare_rows(p1, p2);
 }
 
 /* albums by their years, the oldest first, then those without one, by name:
@@ -1369,22 +1413,23 @@ static int compare_years(const void *p1, const void *p2)
             return e1->year <= 0 && (e2->year > 0 || e1->year < e2->year) ? 1 : -1;
         return e1->year < e2->year ? -1 : 1;
     }
-    return qsort_fn(e1->name, e2->name, MAX_PATH);
+    return compare_rows(e1, e2);
 }
 
+/* songs by their albums' names, which the rows don't have the places of */
 static int compare_with_albums(const void *p1, const void *p2)
 {
     struct tagentry *e1 = (struct tagentry *)p1;
     struct tagentry *e2 = (struct tagentry *)p2;
-    int sort_album_res = qsort_fn(
+    int sort_album_res = sortkey_compare(
         e1->album_name == NULL ? "" : e1->album_name,
-        e2->album_name == NULL ? "" : e2->album_name, MAX_PATH);
+        e2->album_name == NULL ? "" : e2->album_name);
     if (sort_album_res != 0)
     {
         /* If album name is different */
         return sort_album_res;
     }
-    return qsort_fn(e1->name, e2->name, MAX_PATH);
+    return compare_rows(e1, e2);
 }
 
 static void tagtree_buffer_event(unsigned short id, void *ev_data)
@@ -2697,6 +2742,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
        have none: most of a library */
     const bool composers = level == 0 && tag == tag_composer
                            && c->currtable == TABLE_NAVIBROWSE;
+    /* a row's name is a format's, which it sorts by */
+    bool formatted = false;
 
     while (tagcache_get_next(&tcs, tcs_buf, tcs_bufsz))
     {
@@ -2727,6 +2774,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
                                        formats[i]->clause_count))
             {
                 fmt = formats[i];
+                formatted = true;
                 break;
             }
         }
@@ -2871,7 +2919,16 @@ static int make_entries(struct tree_context *c, int offset, bool init)
        took seconds, and this is the order it always had in chunks */
     if (sort && current_entry_count <= TAGTREE_SORT_MAX)
     {
-        if (global_settings.interpret_numbers)
+        /* by place, as the database has them; a format's names by what they
+           show, as they did, files' by their names; songs without their
+           places by Music's rules */
+        sort_by_place = !formatted && !is_basename && TAGCACHE_IS_SORTED(tag)
+                        && (tag != tag_title || song_places_known());
+        sort_places_inverse = sort_inverse;
+        sort_places_tag = tag;
+        if (!formatted && !is_basename && TAGCACHE_IS_SORTED(tag))
+            qsort_fn = sort_inverse ? sortkey_compare_n_inv : sortkey_compare_n;
+        else if (global_settings.interpret_numbers)
             qsort_fn = sort_inverse ? strnatcasecmp_n_inv : strnatcasecmp_n;
         else
             qsort_fn = sort_inverse ? strncasecmp_inv : strncasecmp;
@@ -4282,7 +4339,7 @@ static bool goto_allsubentries(int newtable)
 struct gather_key {
     int32_t group;  /* the artist, under a genre */
     int32_t year;   /* as its album's row has it, in year_key()'s order */
-    int32_t album;  /* its seek, then its place by name among its year's */
+    int32_t album;  /* its seek, which goes as their names (sortkey.h) */
     int32_t order;  /* disc and track, then its number as shown */
     int32_t idx;    /* the song */
 };
@@ -4319,82 +4376,6 @@ static int cmp_gather_key(const void *p1, const void *p2)
     if (a->order != b->order)
         return a->order < b->order ? -1 : 1;
     return a->idx < b->idx ? -1 : a->idx > b->idx;
-}
-
-/* an album of a year, by its name, for the place among them it's given */
-struct album_name {
-    int32_t album;
-    int32_t place;
-    const char *name;
-};
-
-static int cmp_album_name(const void *p1, const void *p2)
-{
-    const struct album_name *a = p1, *b = p2;
-    const int by_name = qsort_fn(a->name, b->name, MAX_PATH);
-    if (by_name)
-        return by_name;
-    return a->album < b->album ? -1 : a->album > b->album;
-}
-
-static int cmp_album_seek(const void *p1, const void *p2)
-{
-    const struct album_name *a = p1, *b = p2;
-    return a->album < b->album ? -1 : a->album > b->album;
-}
-
-/* The albums of a year, in the keys sorted, by name as their list has them,
-   rather than where the tag file has their names: "Vol. 9" before "Vol. 10".
-   Each one's seek in its keys becomes its place among them, and the keys of
-   the year are sorted again. One look at each name, put in the names' room,
-   and the albums in the lists' room before the keys: both are free until
-   the songs' rows are made, and the albums fewer and smaller than the keys */
-static void gather_by_name(struct tree_context *c, struct tagcache_search *tcs,
-                           struct gather_key *keys, int n)
-{
-    struct album_name *albums = (struct album_name *)get_entries(c);
-    char *names = core_get_data(c->cache.name_buffer_handle);
-    qsort_fn = global_settings.interpret_numbers ? strnatcasecmp_n : strncasecmp;
-    for (int start = 0, end; start < n; start = end)
-    {
-        /* the year's keys, the same album's together */
-        int count = 1;
-        for (end = start + 1; end < n && keys[end].group == keys[start].group
-                              && keys[end].year == keys[start].year; end++)
-        {
-            if (keys[end].album != keys[end - 1].album)
-                count++;
-        }
-        if (count < 2)
-            continue;
-        int m = 0;
-        long used = 0;
-        for (int i = start; i < end; i++)
-        {
-            if (i > start && keys[i].album == keys[i - 1].album)
-                continue;
-            /* past the names' room, by seek among those of the same name */
-            char *name = &names[used];
-            const long room = c->cache.name_buffer_size - used;
-            if (room > 1 && tagcache_retrieve(tcs, keys[i].idx, tag_album,
-                                              name, room))
-                used += strlen(name) + 1;
-            else
-                name = "";
-            albums[m++] = (struct album_name){ keys[i].album, 0, name };
-        }
-        qsort(albums, m, sizeof(*albums), cmp_album_name);
-        for (int i = 0; i < m; i++)
-            albums[i].place = i;
-        qsort(albums, m, sizeof(*albums), cmp_album_seek);
-        for (int i = start, a = 0; i < end; i++)
-        {
-            while (albums[a].album != keys[i].album)
-                a++;
-            keys[i].album = albums[a].place;
-        }
-        qsort(&keys[start], end - start, sizeof(*keys), cmp_gather_key);
-    }
 }
 
 /* The songs of the row of seek row_seek at level extra of the search, under
@@ -4495,7 +4476,6 @@ static int gather_songs(struct tree_context *c, int extra, int32_t row_seek,
             k->group = INT32_MAX;
     }
     qsort(g.keys, n, sizeof(*g.keys), cmp_gather_key);
-    gather_by_name(c, &tcs, g.keys, n);
     tagcache_search_finish(&tcs);
     core_unpin(tagtree_handle);
     *keys = g.keys;
@@ -4714,9 +4694,10 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
     int groups = 0;
     if (by_name)
     {
-        /* too many to sort by name: in the database's order of the titles,
-           as Songs is then */
-        if (n > TAGTREE_SORT_MAX)
+        /* by the places of their titles, as Songs: from the database in
+           memory, or else by name, but for too many to sort, which stay in
+           the database's order */
+        if (song_places_known() || n > TAGTREE_SORT_MAX)
         {
             for (int i = 0; i < n; i++)
             {
@@ -4796,10 +4777,10 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
         digits = MAX(digits, keep_lead(entry, track));
     }
     tagcache_search_finish(&tcs);
-    if (by_name && n <= TAGTREE_SORT_MAX)
+    if (by_name && !song_places_known() && n <= TAGTREE_SORT_MAX)
     {
-        qsort_fn = global_settings.interpret_numbers ? strnatcasecmp_n
-                                                     : strncasecmp;
+        sort_by_place = false;
+        qsort_fn = sortkey_compare_n;
         qsort(&entries[first], n, sizeof(*entries), compare);
     }
     tree_unlock_cache(c);

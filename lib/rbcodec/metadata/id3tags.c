@@ -591,6 +591,21 @@ static const struct tag_resolver taglist[] = {
     { "COM",  3, offsetof(struct mp3entry, comment), NULL, false },
     { "TCON", 4, offsetof(struct mp3entry, genre_string), &parsegenre, false },
     { "TCO",  3, offsetof(struct mp3entry, genre_string), &parsegenre, false },
+    /* the Sort fields: ID3v2.4's, those iTunes writes for the album artist
+       and the composer, and those of Picard's in ID3v2.3 */
+    { "TSOP", 4, offsetof(struct mp3entry, artist_sort), NULL, false },
+    { "XSOP", 4, offsetof(struct mp3entry, artist_sort), NULL, false },
+    { "TSP",  3, offsetof(struct mp3entry, artist_sort), NULL, false },
+    { "TSO2", 4, offsetof(struct mp3entry, albumartist_sort), NULL, false },
+    { "TS2",  3, offsetof(struct mp3entry, albumartist_sort), NULL, false },
+    { "TSOA", 4, offsetof(struct mp3entry, album_sort), NULL, false },
+    { "XSOA", 4, offsetof(struct mp3entry, album_sort), NULL, false },
+    { "TSA",  3, offsetof(struct mp3entry, album_sort), NULL, false },
+    { "TSOT", 4, offsetof(struct mp3entry, title_sort), NULL, false },
+    { "XSOT", 4, offsetof(struct mp3entry, title_sort), NULL, false },
+    { "TST",  3, offsetof(struct mp3entry, title_sort), NULL, false },
+    { "TSOC", 4, offsetof(struct mp3entry, composer_sort), NULL, false },
+    { "TSC",  3, offsetof(struct mp3entry, composer_sort), NULL, false },
 #ifdef HAVE_ALBUMART
     { "APIC", 4, 0, &parsealbumart, true },
     { "PIC",  3, 0, &parsealbumart, true },
@@ -1104,6 +1119,11 @@ retry_with_limit:
                 || ((version > ID3_VER_2_2) && (tr->tag_length != 4))) {
                 continue;
             }
+            /* a Sort field, whose pointers are the last of the entry's, only
+               as it asks for them */
+            if (tr->offset > offsetof(struct mp3entry, read_sort_fields)
+                && !entry->read_sort_fields)
+                continue;
 
             if( !memcmp( header, tr->tag, tr->tag_length ) ) {
 

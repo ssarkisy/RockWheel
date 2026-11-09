@@ -48,6 +48,8 @@
 #include "metadata.h"
 #include "fixedpoint.h"
 #include "itunesdb.h"
+#include "crc32.h"
+#include "sortkey.h"
 #ifdef ITUNESDB_HAVE_ART
 #include "skin_engine/cover_palette.h"
 #include "skin_engine/skin_engine.h"
@@ -762,6 +764,27 @@ bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
     return true;
 }
 
+/* Finder's Sort fields (tagcache.h), from each track as it's read for an
+   import: a pair for each of its names whose Sort field sorts it otherwise,
+   as it comes. The songs of an album come together, and the pairs they share
+   go once, by the last few remembered; a pair written twice anyway is taken
+   once by the commit. The Sort mhods, each with the one of the name it's
+   of. */
+enum { SORT_ARTIST, SORT_ALBUMARTIST, SORT_ALBUM, SORT_TITLE, SORT_COMPOSER,
+       SORTS };
+static const uint8_t sort_mhods[SORTS] = { 23, 29, 28, 27, 30 };
+static const uint8_t sorted_mhods[SORTS] = { 4, 22, 3, 1, 12 };
+#define SORT_RECENT 16
+
+static struct {
+    bool writing;   /* into out, with the tracks read */
+    struct tagcache_sort_header hdr;
+    uint32_t recent[SORT_RECENT]; /* hashes of the last pairs written */
+    int next;
+} sorts;
+
+static void track_sort_fields(const off_t *name_at, const off_t *sort_at);
+
 static void read_track(off_t pos, struct track *track)
 {
     char path[MAX_PATH];
@@ -817,6 +840,8 @@ static void read_track(off_t pos, struct track *track)
     /* the album, by its name and the album's artist, or the track's where
        none is given, for the covers of Cover Flow: as UTF-16, unread */
     uint32_t album = 0, album_artist = 0, artist = 0;
+    off_t name_at[SORTS] = { 0 }, sort_at[SORTS] = { 0 };
+    bool sorted = false;
     off_t child = pos + header_len;
     for (int i = 0; i < mhods; i++)
     {
@@ -824,6 +849,16 @@ static void read_track(off_t pos, struct track *track)
         if (!p)
             break;
         uint32_t total = le32(p + 8), type = le32(p + 12);
+        for (int k = 0; sorts.writing && k < SORTS; k++)
+        {
+            if (type == sorted_mhods[k])
+                name_at[k] = child;
+            else if (type == sort_mhods[k])
+            {
+                sort_at[k] = child;
+                sorted = true;
+            }
+        }
         if (type == 3 || type == 4 || type == 22)
         {
             uint32_t h = mhod_hash(child);
@@ -854,6 +889,8 @@ static void read_track(off_t pos, struct track *track)
                        | 1;
     if (track->st.hash)
         new_track_metadata(track);
+    if (sorted)
+        track_sort_fields(name_at, sort_at);
 }
 
 /* how far itunesdb_import_tracks() has read, for its progress screen: the
@@ -2713,6 +2750,152 @@ bool itunesdb_gains_ready(void)
         return false;
     bool ready = read_gains_header(fd, &hdr)
                  && hdr.db_size == size && hdr.db_mtime == mtime;
+    close(fd);
+    return ready;
+}
+
+static void sort_fields_begin(void)
+{
+    memset(&sorts, 0, sizeof(sorts));
+    sorts.hdr = (struct tagcache_sort_header){
+        TAGCACHE_SORT_MAGIC, TAGCACHE_SORT_VERSION, 0, 0xffffffff, 0, 0
+    };
+    sorts.writing = writer_open(&out, TAGCACHE_SORT_FINDER ".tmp");
+    if (sorts.writing)
+        writer_put(&out, &sorts.hdr, sizeof(sorts.hdr));
+}
+
+/* In place of the last ones once all of iTunesDB was read, of its stamp.
+   Those that couldn't be written are none rather than missing, as with the
+   disk full: the import isn't made again at every boot for them. */
+static void sort_fields_end(bool loaded)
+{
+    if (!loaded)
+    {
+        if (sorts.writing)
+            writer_close(&out);
+        remove(TAGCACHE_SORT_FINDER ".tmp");
+        return;
+    }
+    sorts.hdr.db_size = db_size;
+    sorts.hdr.db_mtime = db_mtime;
+    bool written = false;
+    if (sorts.writing)
+    {
+        writer_flush(&out);
+        lseek(out.fd, 0, SEEK_SET);
+        writer_put(&out, &sorts.hdr, sizeof(sorts.hdr));
+        written = writer_close(&out)
+                  && rename(TAGCACHE_SORT_FINDER ".tmp",
+                            TAGCACHE_SORT_FINDER) == 0;
+    }
+    sorts.writing = false;
+    if (!written)
+    {
+        remove(TAGCACHE_SORT_FINDER ".tmp");
+        sorts.hdr.count = 0;
+        sorts.hdr.crc = 0xffffffff;
+        int fd = open(TAGCACHE_SORT_FINDER, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd >= 0)
+        {
+            write(fd, &sorts.hdr, sizeof(sorts.hdr));
+            close(fd);
+        }
+    }
+    logf("itunesdb: %lu Sort fields", (unsigned long)sorts.hdr.count);
+}
+
+static void sort_field_put(int tag, const char *name, const char *value)
+{
+    if (!*name || !*value)
+        return;
+    const char *a = sortkey_start(name, true), *b = sortkey_start(value, false);
+    if (sortkey_group(a) == sortkey_group(b) && !sortkey_compare_from(a, b))
+        return;
+    const size_t name_size = strlen(name) + 1, value_size = strlen(value) + 1;
+    unsigned char head[TAGCACHE_SORT_PAIR_HEAD];
+    if (!tagcache_sort_pair_head(head, tag, name_size, value_size))
+        return;
+    uint32_t hash = crc_32(head, sizeof(head), 0xffffffff);
+    hash = crc_32(name, name_size, hash);
+    hash = crc_32(value, value_size, hash);
+    for (int i = 0; i < SORT_RECENT; i++)
+    {
+        if (sorts.recent[i] == hash)
+            return;
+    }
+    sorts.recent[sorts.next] = hash;
+    sorts.next = (sorts.next + 1) % SORT_RECENT;
+    writer_put(&out, head, sizeof(head));
+    writer_put(&out, name, name_size);
+    writer_put(&out, value, value_size);
+    sorts.hdr.crc = crc_32(head, sizeof(head), sorts.hdr.crc);
+    sorts.hdr.crc = crc_32(name, name_size, sorts.hdr.crc);
+    sorts.hdr.crc = crc_32(value, value_size, sorts.hdr.crc);
+    sorts.hdr.count++;
+}
+
+/* whether the string of the mhod at pos is empty, or there's none */
+static bool mhod_empty(off_t pos)
+{
+    const unsigned char *p = pos ? db_record(pos, "mhod", 40) : NULL;
+    return !p || le32(p + 28) == 0;
+}
+
+/* A track's Sort fields for each tag the database has its names in, as the
+   scan takes them (add_tagcache()): an album without an album artist is its
+   artist's, and the canonical artist is the album artist's for a track
+   without one. Read only for a track that has one. */
+static void track_sort_fields(const off_t *name_at, const off_t *sort_at)
+{
+    static char name[TAG_MAXLEN + 1], value[TAG_MAXLEN + 1];
+    const bool has_artist = !mhod_empty(name_at[SORT_ARTIST]);
+    const bool has_albumartist = !mhod_empty(name_at[SORT_ALBUMARTIST]);
+    for (int k = 0; k < SORTS; k++)
+    {
+        if (!sort_at[k] || !name_at[k]
+            || !mhod_string(sort_at[k], value, sizeof(value))
+            || !mhod_string(name_at[k], name, sizeof(name)))
+            continue;
+        switch (k)
+        {
+            case SORT_ARTIST:
+                sort_field_put(tag_artist, name, value);
+                sort_field_put(tag_virt_canonicalartist, name, value);
+                if (!has_albumartist)
+                    sort_field_put(tag_albumartist, name, value);
+                break;
+            case SORT_ALBUMARTIST:
+                sort_field_put(tag_albumartist, name, value);
+                if (!has_artist)
+                    sort_field_put(tag_virt_canonicalartist, name, value);
+                break;
+            case SORT_ALBUM:
+                sort_field_put(tag_album, name, value);
+                break;
+            case SORT_TITLE:
+                sort_field_put(tag_title, name, value);
+                break;
+            case SORT_COMPOSER:
+                sort_field_put(tag_composer, name, value);
+                break;
+        }
+    }
+}
+
+bool itunesdb_sort_ready(void)
+{
+    uint32_t size, mtime;
+    if (!db_stamp(&size, &mtime))
+        return true;
+    struct tagcache_sort_header hdr;
+    int fd = open(TAGCACHE_SORT_FINDER, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool ready = read(fd, &hdr, sizeof(hdr)) == sizeof(hdr)
+        && hdr.magic == TAGCACHE_SORT_MAGIC
+        && hdr.version == TAGCACHE_SORT_VERSION
+        && hdr.db_size == size && hdr.db_mtime == mtime;
     close(fd);
     return ready;
 }
@@ -5253,7 +5436,9 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     forget_art();
     remove(ART_FILE);
 #endif
+    sort_fields_begin();
     bool loaded = db_load();
+    sort_fields_end(loaded);
     metadata_end();
     if (loaded)
     {
@@ -5316,6 +5501,9 @@ bool itunesdb_load_tracks(void)
             return false;
     }
 #endif
+    /* and the Sort fields, which the covers don't wait for */
+    if (!itunesdb_sort_ready())
+        return false;
     if (flags_index.handle > 0 || !db_stamp(&size, &mtime))
         return true;
     /* none with flags, from this iTunesDB? */

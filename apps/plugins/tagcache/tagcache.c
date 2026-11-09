@@ -179,8 +179,11 @@ bool user_check_tag(int index_type, char* build_idx_buf)
 #undef HAVE_DIRCACHE
 #undef HAVE_TC_RAMCACHE
 #undef HAVE_EEPROM_SETTINGS
-/* paste the whole tagcache.c file */
+/* paste the whole tagcache.c file, and the rules it sorts names by */
+#define utf8decode rb->utf8decode
+#include "sortkey.h"
 #include "../tagcache.c"
+#include "../sortkey.c"
 
 static void check_logindex(void)
 {

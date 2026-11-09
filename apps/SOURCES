@@ -195,6 +195,7 @@ gui/usb_screen.c
 #endif
 #ifdef HAVE_TAGCACHE
 tagcache.c
+sortkey.c
 itunesdb.c
 smart_playlists.c
 library_playlists.c

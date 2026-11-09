@@ -458,6 +458,7 @@ bool get_metadata_afmt(struct mp3entry* id3, int fd, const char* trackname, int 
 
     /* Take our best guess at the codec type based on file extension */
     id3->codectype = audio_fmt; /* use probe_file_format(trackname); */
+    id3->read_sort_fields = flags & METADATA_SORT_FIELDS;
 
     /* default values for embedded cuesheets */
     id3->has_embedded_cuesheet = false;
@@ -495,6 +496,11 @@ bool get_metadata_afmt(struct mp3entry* id3, int fd, const char* trackname, int 
         utf8_normalize(id3->comment);
         utf8_normalize(id3->albumartist);
         utf8_normalize(id3->grouping);
+        utf8_normalize(id3->artist_sort);
+        utf8_normalize(id3->albumartist_sort);
+        utf8_normalize(id3->album_sort);
+        utf8_normalize(id3->title_sort);
+        utf8_normalize(id3->composer_sort);
     }
 #endif
 
@@ -560,6 +566,11 @@ void adjust_mp3entry(struct mp3entry *entry, void *dest, const void *orig)
     MOVE_ENTRY(entry->albumartist)
     MOVE_ENTRY(entry->grouping)
     MOVE_ENTRY(entry->mb_track_id)
+    MOVE_ENTRY(entry->artist_sort)
+    MOVE_ENTRY(entry->albumartist_sort)
+    MOVE_ENTRY(entry->album_sort)
+    MOVE_ENTRY(entry->title_sort)
+    MOVE_ENTRY(entry->composer_sort)
 }
 
 void copy_mp3entry(struct mp3entry *dest, const struct mp3entry *orig)

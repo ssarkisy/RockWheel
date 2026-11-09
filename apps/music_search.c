@@ -33,6 +33,8 @@
 #include "misc.h"
 #include "playlist.h"
 #include "rbunicode.h"
+#include "sortkey.h"
+#include "crc32.h"
 #include "root_menu.h"
 #include "screen_access.h"
 #include "settings.h"
@@ -63,10 +65,10 @@
 #define STRIP_LAST_SPECIAL STRIP_DONE
 #define STRIP_MAX    400
 
-/* Each alphabet: its letters as they're searched by (fold()), from first to
-   last, and those the ring has of it in their order. A letter of the library's
-   that isn't among them comes after them. Japanese is typed in its kana, and
-   Korean in the letters its syllables are written with. */
+/* Each alphabet: its letters as they're searched by (sortkey_fold()), from
+   first to last, and those the ring has of it in their order. A letter of the
+   library's that isn't among them comes after them. Japanese is typed in its
+   kana, and Korean in the letters its syllables are written with. */
 enum script { SCRIPT_LATIN, SCRIPT_GREEK, SCRIPT_CYRILLIC, SCRIPT_ARMENIAN,
               SCRIPT_HEBREW, SCRIPT_ARABIC, SCRIPT_THAI, SCRIPT_GEORGIAN,
               SCRIPT_HANGUL, SCRIPT_KANA, SCRIPTS };
@@ -309,143 +311,6 @@ static ucschar_t query_folded[QUERY_SIZE];
 static int query_word[QUERY_WORDS + 1]; /* where each starts, then the end */
 static int query_words;
 
-/* Letters as they are searched by: small, without accents, so that a song
-   with "é" is found by "E". 0 is between words; SKIP is left out, so that
-   "R.E.M." and "Don't" are found as "REM" and "Dont". */
-#define SKIP 0xffff
-
-/* U+00C0 to U+00FF, then U+0100 to U+017F, by their letters; ' ' between words */
-static const char latin1_base[] =
-    "aaaaaaaceeeeiiiidnooooo ouuuuyts"
-    "aaaaaaaceeeeiiiidnooooo ouuuuyty";
-static const char latin_ext_base[] =
-    "aaaaaacccccccc" "dddd" "eeeeeeeeee" "gggggggg" "hhhh" "iiiiiiiiii" "ii" "jj"
-    "kkk" "llllllllll" "nnnnnnnnn" "oooooo" "oo" "rrrrrr" "ssssssss" "tttttt"
-    "uuuuuuuuuuuu" "ww" "yyy" "zzzzzz" "s";
-
-/* a hiragana without its small size or its voicing marks: "が" is found by "か" */
-static ucschar_t kana_base(ucschar_t c)
-{
-    if (c <= 0x304a || (c >= 0x3083 && c <= 0x3088))
-        return c & 1 ? c + 1 : c;       /* ぁ あ, ゃ や */
-    if (c <= 0x3062)
-        return c & 1 ? c : c - 1;       /* か が */
-    if (c == 0x3063)
-        return 0x3064;                  /* っ つ */
-    if (c <= 0x3069)
-        return c & 1 ? c - 1 : c;       /* つ づ */
-    if (c >= 0x306f && c <= 0x307d)
-        return c - (c - 0x306f) % 3;    /* は ば ぱ */
-    switch (c)
-    {
-        case 0x308e: return 0x308f;     /* ゎ わ */
-        case 0x3094: return 0x3046;     /* ゔ う */
-        case 0x3095: return 0x304b;     /* ゕ か */
-        case 0x3096: return 0x3051;     /* ゖ け */
-    }
-    return c;
-}
-
-static ucschar_t fold(ucschar_t c)
-{
-    if (c < 0x80)
-    {
-        if (c >= 'A' && c <= 'Z')
-            return c + ('a' - 'A');
-        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-            return c;
-        return c == '\'' || c == '.' ? SKIP : 0;
-    }
-    if (c >= 0xc0 && c <= 0xff)
-        return latin1_base[c - 0xc0] == ' ' ? 0 : (ucschar_t)latin1_base[c - 0xc0];
-    if (c >= 0x100 && c <= 0x17f)
-        return latin_ext_base[c - 0x100];
-    /* Vietnamese */
-    if (c >= 0x1ea0 && c <= 0x1ef9)
-        return c <= 0x1eb7 ? 'a' : c <= 0x1ec7 ? 'e' : c <= 0x1ecb ? 'i'
-             : c <= 0x1ee3 ? 'o' : c <= 0x1ef1 ? 'u' : 'y';
-    /* the kana: katakana as hiragana */
-    if (c >= 0x30a1 && c <= 0x30f6)
-        c -= 0x60;
-    if (c >= 0x3041 && c <= 0x3096)
-        return kana_base(c);
-    /* the full-width Latin of Japanese titles as the plain */
-    if (c >= 0xff10 && c <= 0xff19)
-        return '0' + c - 0xff10;
-    if (c >= 0xff21 && c <= 0xff3a)
-        return 'a' + c - 0xff21;
-    if (c >= 0xff41 && c <= 0xff5a)
-        return 'a' + c - 0xff41;
-    /* the digits of Arabic and Thai as the Latin ones */
-    if (c >= 0x660 && c <= 0x669)
-        return '0' + c - 0x660;
-    if (c >= 0x6f0 && c <= 0x6f9)
-        return '0' + c - 0x6f0;
-    if (c >= 0xe50 && c <= 0xe59)
-        return '0' + c - 0xe50;
-    switch (c)
-    {
-        case 0x1a0: case 0x1a1: return 'o'; /* Vietnamese */
-        case 0x1af: case 0x1b0: return 'u';
-        case 0x218: case 0x219: return 's'; /* Romanian */
-        case 0x21a: case 0x21b: return 't';
-        case 0x2bc: case 0x2019: return SKIP; /* apostrophes */
-        /* Arabic: an alef with its hamza or madda, the yeh and the kaf of
-           Persian, as the letters they're typed as */
-        case 0x622: case 0x623: case 0x625: case 0x671: return 0x627;
-        case 0x624: return 0x648;
-        case 0x626: case 0x649: case 0x6cc: return 0x64a;
-        case 0x629: return 0x647;
-        case 0x6a9: return 0x643;
-        case 0x640: return SKIP; /* the line letters are drawn out with */
-        case 0x30fb: return 0;   /* the dot between Japanese words */
-        case 0x30fc: return SKIP; /* and the mark of a long vowel */
-        case 0x3099: case 0x309a: case 0x309b: case 0x309c:
-            return SKIP;         /* and the voicing marks written apart */
-        case 0x5be: case 0x5c0: case 0x5c3:
-            return 0;            /* the Hebrew hyphen and stops, between words */
-        /* Greek, without its accents and with one sigma */
-        case 0x386: case 0x3ac: return 0x3b1;
-        case 0x388: case 0x3ad: return 0x3b5;
-        case 0x389: case 0x3ae: return 0x3b7;
-        case 0x38a: case 0x3af: case 0x390: case 0x3aa: case 0x3ca: return 0x3b9;
-        case 0x38c: case 0x3cc: return 0x3bf;
-        case 0x38e: case 0x3cd: case 0x3b0: case 0x3ab: case 0x3cb: return 0x3c5;
-        case 0x38f: case 0x3ce: return 0x3c9;
-        case 0x3c2: return 0x3c3;
-        /* Cyrillic: "Ё" is found by "Е" */
-        case 0x401: case 0x451: case 0x400: case 0x450: return 0x435;
-        case 0x40d: case 0x45d: return 0x438;
-        /* the final forms of Hebrew letters */
-        case 0x5da: return 0x5db;
-        case 0x5dd: return 0x5de;
-        case 0x5df: return 0x5e0;
-        case 0x5e3: return 0x5e4;
-        case 0x5e5: return 0x5e6;
-    }
-    if (c >= 0x391 && c <= 0x3a9)
-        return c + 0x20;
-    if (c >= 0x400 && c <= 0x40f)
-        return c + 0x50;
-    if (c >= 0x410 && c <= 0x42f)
-        return c + 0x20;
-    if (c >= 0x4c1 && c <= 0x4ce)
-        return c & 1 ? c + 1 : c; /* their capitals are the odd ones */
-    if (c >= 0x460 && c <= 0x4ff && !(c & 1))
-        return c + 1;
-    if (c >= 0x531 && c <= 0x556)
-        return c + 0x30; /* Armenian */
-    if ((c >= 0x300 && c <= 0x36f) || (c >= 0x591 && c <= 0x5c7)
-        || (c >= 0x64b && c <= 0x65f) || c == 0x670
-        || (c >= 0xe47 && c <= 0xe4e) || c == 0xe2f || c == 0xe46)
-        return SKIP; /* accents written apart, the points of Hebrew and Arabic,
-                        and the tone marks of Thai */
-    if ((c >= 0x2000 && c <= 0x206f) || (c >= 0x3000 && c <= 0x303f)
-        || (c >= 0xff00 && c <= 0xff0f) || c == 0xe3f)
-        return 0;
-    return c;
-}
-
 /* A letter of the library's as the ring shows it: a capital */
 static ucschar_t capital(ucschar_t c)
 {
@@ -515,7 +380,7 @@ static int fold_letters(ucschar_t c, ucschar_t out[FOLDED_MAX])
     }
     if (c >= 0x3131 && c <= 0x3163)
         return jamo(c, out);
-    out[0] = fold(c);
+    out[0] = sortkey_fold(c);
     return 1;
 }
 
@@ -534,7 +399,9 @@ static int fold_words(const char *s, ucschar_t *out, int size)
         for (int i = 0; i < count; i++)
         {
             c = letters[i];
-            if (c == SKIP)
+            /* left out, so that "R.E.M." and "Don't" are found as "REM"
+               and "Dont" */
+            if (c == SORTKEY_SKIP)
                 continue;
             if (c == 0)
             {
@@ -745,41 +612,116 @@ static bool artist_shown(int32_t shown)
 }
 
 /* as the database's files are sorted (tagcache.c's compare()): <Untagged>
-   first, then without regard to the case of Latin letters */
+   first, then by Music's rules, but for the Sort fields of each file's own */
 static int file_order(const char *a, const char *b)
 {
     const bool untagged_a = !strcmp(a, UNTAGGED);
     const bool untagged_b = !strcmp(b, UNTAGGED);
     if (untagged_a || untagged_b)
         return untagged_b - untagged_a;
-    return strncasecmp(a, b, TAG_MAXLEN);
+    return sortkey_compare(a, b);
+}
+
+/* a name's crc without regard to the case of Latin letters, as the database
+   takes two names for one */
+static uint32_t name_crc(const char *name)
+{
+    uint32_t crc = 0xffffffff;
+    for (const unsigned char *c = (const unsigned char *)name; *c; c++)
+    {
+        const unsigned char low = *c >= 'A' && *c <= 'Z' ? *c + ('a' - 'A') : *c;
+        crc = crc_32(&low, 1, crc);
+    }
+    return crc;
+}
+
+static int cmp_crc(const void *a, const void *b)
+{
+    const uint32_t x = *(const uint32_t *)a, y = *(const uint32_t *)b;
+    return (x > y) - (x < y);
 }
 
 /* A group's names, in the order of the database's files. The artists are the
-   songs' and the albums' at once: their two files are sorted alike, so that
-   reading them side by side puts the names in one order, and a name in both
-   comes once, or as each spells it. */
+   songs' and the albums' at once, their two files read side by side, which
+   puts the names in one order: a name in both comes once where the two come
+   together. Their Sort fields may have them apart, each file's of its own, so
+   that a song's artist is known to be an album's by the albums' artists'
+   names, read first: as their crcs, sorted, in the room the caller gives. */
 static struct {
     int files;
     struct tagcache_search tcs[2];
     bool searching[2];  /* begun, to be finished */
     bool have[2];       /* its name read, not given yet */
     char name[2][TAGCACHE_BUFSZ];
-    bool songs_next;    /* the songs' spelling of the name given last */
     int read;           /* of the files' names, deleted ones not */
+    uint32_t *albums;   /* the albums' artists' name_crc()s, NULL for none */
+    int album_count;
 } names_in;
 
-static void group_begin(int g)
+/* the albums' artists into the room, false if they don't fit */
+static bool albums_read(void *room, size_t size)
+{
+    struct tagcache_search tcs;
+    uint32_t *crcs = (uint32_t *)ALIGN_UP((char *)room, sizeof(uint32_t));
+    const size_t max = size > sizeof(uint32_t) ? size / sizeof(uint32_t) - 1 : 0;
+    size_t n = 0;
+    bool fits = true;
+    if (!room || !tagcache_search(&tcs, tag_albumartist))
+        return false;
+    while (tagcache_get_next(&tcs, names_in.name[1], sizeof(names_in.name[1])))
+    {
+        if (n == max)
+        {
+            fits = false;
+            break;
+        }
+        crcs[n++] = name_crc(names_in.name[1]);
+    }
+    tagcache_search_finish(&tcs);
+    if (!fits)
+        return false;
+    qsort(crcs, n, sizeof(*crcs), cmp_crc);
+    names_in.albums = crcs;
+    names_in.album_count = n;
+    return true;
+}
+
+/* the songs' artist is one of the albums', in their spelling or another;
+   without the albums' read, none is */
+static bool album_artist(const char *name)
+{
+    if (!names_in.albums)
+        return false;
+    const uint32_t crc = name_crc(name);
+    int lo = 0, hi = names_in.album_count - 1;
+    while (lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (names_in.albums[mid] == crc)
+            return true;
+        if (names_in.albums[mid] < crc)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return false;
+}
+
+/* the artists' with room for the albums' (albums_read()) */
+static void group_begin(int g, void *room, size_t size)
 {
     names_in.files = g == GROUP_ARTISTS ? 2 : 1;
     names_in.read = 0;
+    names_in.albums = NULL;
+    names_in.album_count = 0;
+    if (g == GROUP_ARTISTS)
+        albums_read(room, size);
     for (int i = 0; i < names_in.files; i++)
     {
         names_in.searching[i] = tagcache_search(&names_in.tcs[i],
                                                 i ? tag_albumartist : group_tag[g]);
         names_in.have[i] = false;
     }
-    names_in.songs_next = false;
 }
 
 /* the next name, NULL past the last: a song's track in *idx_id, or where an
@@ -804,30 +746,24 @@ static const char *group_next(int32_t *idx_id)
         *idx_id = names_in.tcs[0].idx_id;
         return names_in.name[0];
     }
-    if (names_in.songs_next)
-    {
-        names_in.songs_next = false;
-        names_in.have[0] = false;
-        *idx_id = ARTIST_SHOWN_OFF;
-        return names_in.name[0];
-    }
     if (!names_in.have[0] && !names_in.have[1])
         return NULL;
     const int order = !names_in.have[1] ? -1 : !names_in.have[0] ? 1
                       : file_order(names_in.name[0], names_in.name[1]);
-    if (order == 0 && strcmp(names_in.name[0], names_in.name[1]))
+    if (order < 0)
     {
-        /* the albums' spelling, then the songs' */
-        names_in.have[1] = false;
-        names_in.songs_next = true;
-        *idx_id = ARTIST_SHOWN_ON;
-        return names_in.name[1];
+        /* a songs' artist, a guest's unless an album's too, which shows
+           with Group by Album Artist on in its albums' spelling */
+        names_in.have[0] = false;
+        *idx_id = album_artist(names_in.name[0]) ? ARTIST_SHOWN_OFF
+                  : ARTIST_SHOWN_ON | ARTIST_SHOWN_OFF;
+        return names_in.name[0];
     }
-    /* an artist of the albums alone isn't among the songs' */
-    *idx_id = order > 0 ? ARTIST_SHOWN_ON : ARTIST_SHOWN_ON | ARTIST_SHOWN_OFF;
+    /* an albums' artist, the same of the songs' with it once */
+    *idx_id = order == 0 ? ARTIST_SHOWN_ON | ARTIST_SHOWN_OFF : ARTIST_SHOWN_ON;
     names_in.have[0] = names_in.have[0] && order > 0;
-    names_in.have[1] = names_in.have[1] && order < 0;
-    return names_in.name[order >= 0 ? 1 : 0];
+    names_in.have[1] = false;
+    return names_in.name[1];
 }
 
 static void group_finish(void)
@@ -1051,12 +987,21 @@ static bool search_all(bool stoppable)
         all_found = !stopped; /* every name looked at, past full groups too */
     else
     {
+        /* the albums' artists in the plugins' buffer, which the names' file
+           isn't in */
+        size_t room = 0;
+        void *albums = NULL;
+        if (!plugin_is_running())
+        {
+            names_let_go();
+            albums = plugin_get_buffer(&room);
+        }
         for (int g = 0; g < GROUPS && !stopped; g++)
         {
             const char *name;
             int32_t idx_id;
             int n = 0;
-            group_begin(g);
+            group_begin(g, albums, room);
             while ((name = group_next(&idx_id)))
             {
                 if ((++n & 255) == 0)
@@ -1253,7 +1198,7 @@ static void add_script(enum script s, const char *letters, const uint8_t *presen
             continue;
         bool have = false;
         for (int i = from; i < strip.count && !have; i++)
-            have = fold(strip.c[i]) == c;
+            have = sortkey_fold(strip.c[i]) == c;
         if (!have)
             add_letter(capital(c), set);
     }
@@ -1493,6 +1438,15 @@ void music_search_letters_make(void (*progress)(int done, int total))
     size_t room = 0;
     put_buf = plugin_get_buffer(&room);
     put_size = room;
+    /* the albums' artists at its end */
+    const size_t albums = sizeof(uint32_t)
+        * (MAX(0, tagcache_get_tag_count(tag_albumartist)) + 2);
+    void *albums_room = NULL;
+    if (put_buf && room >= albums + sizeof(names_buf))
+    {
+        put_size = room - albums;
+        albums_room = put_buf + put_size;
+    }
     if (!put_buf || put_size < (int)sizeof(names_buf))
     {
         put_buf = names_buf;
@@ -1508,7 +1462,7 @@ void music_search_letters_make(void (*progress)(int done, int total))
         const char *name;
         int32_t idx_id;
         int names = 0;
-        group_begin(g);
+        group_begin(g, albums_room, albums);
         while ((name = group_next(&idx_id)))
         {
             if (!(++names & 255))
@@ -1786,7 +1740,7 @@ static bool letter_possible(int i)
         return name_possible(c);
     if (!global_settings.smart_search || !next_known || c <= STRIP_LAST_SPECIAL)
         return true;
-    const int bit = next_bit(fold(c));
+    const int bit = next_bit(sortkey_fold(c));
     return bit < 0 || (next_letters[bit >> 3] & (1 << (bit & 7)));
 }
 

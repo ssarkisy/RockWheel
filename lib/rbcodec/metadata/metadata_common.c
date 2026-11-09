@@ -293,7 +293,9 @@ long parse_tag(const char* name, char* value, struct mp3entry* id3,
         eYEAR, eDATE, eTITLE, eARTIST, eALBUM, eGENRE,
         eCOMPOSER, eCOMMENT, eALBUMARTIST, eALBUM_ARTIST,
         eENSEMBLE, eGROUPING, eCONTENTGROUP, eCONTENT_GROUP,
-        eMUSICBRAINZ1, eMUSICBRAINZ2, eDESCRIPTION, e_COUNT_TAG_COUNT
+        eMUSICBRAINZ1, eMUSICBRAINZ2, eDESCRIPTION,
+        eARTISTSORT, eALBUMARTISTSORT, eALBUMSORT, eTITLESORT, eCOMPOSERSORT,
+        e_COUNT_TAG_COUNT
     };
 
     static const char *tagops[e_COUNT_TAG_COUNT + 1] =
@@ -308,6 +310,9 @@ long parse_tag(const char* name, char* value, struct mp3entry* id3,
       [eMUSICBRAINZ1] = "musicbrainz_trackid",
       [eMUSICBRAINZ2] = "http://musicbrainz.org",
       [eDESCRIPTION] = "description",
+      [eARTISTSORT] = "artistsort", [eALBUMARTISTSORT] = "albumartistsort",
+      [eALBUMSORT] = "albumsort", [eTITLESORT] = "titlesort",
+      [eCOMPOSERSORT] = "composersort",
       [e_COUNT_TAG_COUNT] = NULL
     };
 
@@ -381,6 +386,16 @@ long parse_tag(const char* name, char* value, struct mp3entry* id3,
     else if (item == eMUSICBRAINZ1 || item == eMUSICBRAINZ2)
     {
         p = &(id3->mb_track_id);
+    }
+    else if (item >= eARTISTSORT && item <= eCOMPOSERSORT)
+    {
+        /* the Sort fields, for the database only */
+        p = !id3->read_sort_fields ? NULL
+            : item == eARTISTSORT ? &(id3->artist_sort)
+            : item == eALBUMARTISTSORT ? &(id3->albumartist_sort)
+            : item == eALBUMSORT ? &(id3->album_sort)
+            : item == eTITLESORT ? &(id3->title_sort)
+            : &(id3->composer_sort);
     }
     else
     {
