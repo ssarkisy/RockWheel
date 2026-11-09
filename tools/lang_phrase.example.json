@@ -1,0 +1,80 @@
+{
+  "about": "The format of a lang_phrase.py batch. LANG_GROUP_BY_ALBUM_ARTIST is in english.lang already, so this one writes nothing as it is. A phrase with \"after\" is added; one without it is changed, only in the fields given (here a Korean user's correction).",
+  "phrases": [
+    {
+      "id": "LANG_GROUP_BY_ALBUM_ARTIST",
+      "desc": "a setting of Settings > Music Menu, after its sections: On, Artists and the artists of each genre list the albums' artists, as iOS's Group By Album Artist, each album whole under its artist; Off, the songs' own artists, a guest on one song with a row of their own",
+      "user": "core",
+      "english": "Group by Album Artist",
+      "voice": "",
+      "after": "LANG_RESET_MUSIC_MENU",
+      "translations": {
+        "arabic": "تجميع حسب فنان الألبوم",
+        "basque": "Albumaren artistaren arabera",
+        "bulgarian": "Групиране по изпълнител на албума",
+        "catala": "Agrupa per artista de l'àlbum",
+        "chinese-simp": "按专辑艺术家分组",
+        "chinese-trad": "依專輯演出者分組",
+        "czech": "Seskupit podle autora alba",
+        "dansk": "Gruppér efter albumkunstner",
+        "deutsch": "Nach Albumkünstler gruppieren",
+        "eesti": "Rühmita albumi esitaja järgi",
+        "english-us": "Group by Album Artist",
+        "espanol": "Agrupar por artista del álbum",
+        "esperanto": "Grupigi laŭ albuma artisto",
+        "finnish": "Ryhmittele albumin esittäjän mukaan",
+        "francais": "Grouper par artiste de l'album",
+        "galego": "Agrupar por artista do álbume",
+        "greek": "Ομαδοποίηση ανά καλλιτέχνη άλμπουμ",
+        "hebrew": "קיבוץ לפי אמן האלבום",
+        "hindi": "एल्बम कलाकार के अनुसार समूह",
+        "hrvatski": "Grupiraj po izvođaču albuma",
+        "islenska": "Flokka eftir listamanni plötu",
+        "italiano": "Raggruppa per artista dell'album",
+        "japanese": "アルバムアーティストでグループ化",
+        "korean": "앨범 아티스트별로 그룹화",
+        "latviesu": "Grupēt pēc albuma izpildītāja",
+        "lietuviu": "Grupuoti pagal albumo atlikėją",
+        "magyar": "Csoportosítás albumelőadó szerint",
+        "moldoveneste": "Grupează după artistul albumului",
+        "nederlands": "Groeperen op artiest van album",
+        "norsk": "Grupper etter albumartist",
+        "norsk-nynorsk": "Grupper etter albumartist",
+        "polski": "Grupuj według wykonawcy albumu",
+        "portugues": "Agrupar por Artista do Álbum",
+        "portugues-brasileiro": "Agrupar por Artista do Álbum",
+        "romaneste": "Grupează după artistul albumului",
+        "russian": "По исполнителю альбома",
+        "slovak": "Zoskupiť podľa interpreta albumu",
+        "slovenscina": "Združi po avtorju albuma",
+        "srpski": "Групиши по уметнику албума",
+        "svenska": "Gruppera efter albumartist",
+        "tagalog": "Igrupo ayon sa Album Artista",
+        "thai": "จัดกลุ่มตามศิลปินอัลบั้ม",
+        "turkce": "Albüm sanatçısına göre grupla",
+        "ukrainian": "За виконавцем альбому",
+        "vietnamese": "Nhóm theo nghệ sĩ album",
+        "vlaams": "Groeperen op artiest van album"
+      },
+      "short": {
+        "bulgarian": "По изпълнител на албума",
+        "finnish": "Albumin esittäjän mukaan",
+        "galego": "Por artista do álbume",
+        "greek": "Ανά καλλιτέχνη άλμπουμ",
+        "hindi": "एल्बम कलाकार अनुसार",
+        "italiano": "Per artista dell'album",
+        "moldoveneste": "După artistul albumului",
+        "polski": "Według wykonawcy albumu",
+        "portugues": "Por Artista do Álbum",
+        "romaneste": "După artistul albumului",
+        "slovak": "Podľa interpreta albumu"
+      }
+    },
+    {
+      "id": "LANG_APPEARANCE",
+      "translations": {
+        "korean": "테마"
+      }
+    }
+  ]
+}
