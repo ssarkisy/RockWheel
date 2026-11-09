@@ -19340,6 +19340,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_ALL_SONGS
+  desc: the first row of an artist's albums, with two or more of them, over the albums: it opens all of the artist's songs in one list, album after album
+  user: core
+  <source>
+    *: "All Songs"
+  </source>
+  <dest>
+    *: "Todas las canciones"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_HINT_RESUME_REWIND
   desc: the hint in the band under Settings > Playback while Rewind on Resume is selected, in three lines at most: what the user gets from it
   user: core

@@ -330,10 +330,9 @@ static bool tree_has_children(int selected_item, void * data)
 {
     struct tree_context * local_tc=(struct tree_context *)data;
 #ifdef HAVE_TAGCACHE
-    /* nor Albums' Sort By, which switches in place */
+    /* nor Albums' Sort By, which switches in place; All Songs does lead */
     if (*(local_tc->dirfilter) == SHOW_ID3DB)
-        return selected_item >= local_tc->special_entry_count
-               && tagtree_get_attr(local_tc) == ATTR_DIRECTORY;
+        return tagtree_row_has_children(local_tc, selected_item);
 #endif
     if (catalog_otg_row(selected_item))
         return !catalog_otg_empty;
@@ -723,7 +722,7 @@ static int update_dir(void)
     }
 #ifdef HAVE_TAGCACHE
     /* Albums' Sort By, its value at the right end as a setting's */
-    if (id3db && tc.special_entry_count > 0)
+    if (id3db && tagtree_has_sort_by(&tc))
         list->callback_draw_item = menu_draw_value_line;
 #endif
     gui_synclist_set_icon_callback(list,
@@ -1353,8 +1352,12 @@ static int dirbrowse(void)
                     if (id3db)
                     {
                         char title[MAX_PATH];
-                        if (tagtree_get_entry_name(&tc, tc.selected_item, title,
-                                                   sizeof(title)))
+                        /* the menu of a row at the top, All Songs, by the
+                           list's title, its artist, as an album's by its name */
+                        if (tc.selected_item < tc.special_entry_count)
+                            onplay_set_title(tagtree_get_title(&tc));
+                        else if (tagtree_get_entry_name(&tc, tc.selected_item,
+                                                        title, sizeof(title)))
                             onplay_set_title(title);
                         if (tagtree_get_attr(&tc) == FILE_ATTR_AUDIO)
                         {

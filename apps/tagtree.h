@@ -80,6 +80,10 @@ int tagtree_get_attr(struct tree_context* c);
 bool tagtree_row_is_playing(struct tree_context *c, int row, long playing);
 const char *tagtree_entry_year(struct tree_context *c, int row, char *buf,
                                size_t size);
+/* the list has Albums' Sort By, which is drawn as a setting, with its value */
+bool tagtree_has_sort_by(struct tree_context *c);
+/* the row opens a list: not a song, nor Sort By, which switches in place */
+bool tagtree_row_has_children(struct tree_context *c, int row);
 /* Albums' Sort By switched, in the list at this level */
 void tagtree_albums_sort_changed(int dirlevel);
 /* the albums' years made again */
