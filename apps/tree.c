@@ -132,8 +132,7 @@ static struct entry *get_valid_entry(const char* funcname,
 
 /* Playlists with folders among them, as Settings lists its groups: the folders,
    which come first, under a name of their own, and then the playlists under
-   theirs, so that the one isn't taken for the other. The rows of the list are
-   then two more than the entries. */
+   theirs, so that the one isn't taken for the other. */
 static int catalog_folders; /* the folders before the playlists, or 0 if not both */
 /* On-The-Go, as on a stock iPod: a row of its own, the last of the catalogue's
    top, when it's viewed; none of the catalogue's entries */
@@ -166,10 +165,50 @@ static void catalog_count(void)
         catalog_folders = folders;
 }
 
-static bool catalog_group(int row)
+/* The bars of groups among a list's rows, each over the entry it starts with:
+   the catalogue's two, or in Music an album's discs and All Songs' albums, as
+   the list was made. The rows past catalog_lead are then as many more than
+   the entries. */
+static int group_count(void)
+{
+#ifdef HAVE_TAGCACHE
+    if (*tc.dirfilter == SHOW_ID3DB)
+        return tagtree_group_count(&tc);
+#endif
+    return catalog_folders ? 2 : 0;
+}
+
+static int group_at(int group)
+{
+#ifdef HAVE_TAGCACHE
+    if (*tc.dirfilter == SHOW_ID3DB)
+        return tagtree_group_at(&tc, group);
+#endif
+    return group ? catalog_folders : 0;
+}
+
+/* Of the rows past catalog_lead, the groups' before row, by halves: each
+   group's is at its entry's and those of the groups before it */
+static int groups_before(int row)
+{
+    int lo = 0, hi = group_count();
+    while (lo < hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (group_at(mid) + mid < row)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    return lo;
+}
+
+/* the group whose name a row is, or -1 */
+static int group_of(int row)
 {
     row -= catalog_lead;
-    return catalog_folders && (row == 0 || row == catalog_folders + 1);
+    const int group = groups_before(row);
+    return group < group_count() && group_at(group) + group == row ? group : -1;
 }
 
 static bool catalog_lead_row(int row)
@@ -180,7 +219,7 @@ static bool catalog_lead_row(int row)
 /* the rows of the entries and their groups' names, and On-The-Go's after them */
 static int catalog_rows(void)
 {
-    return catalog_lead + tc.filesindir + (catalog_folders ? 2 : 0);
+    return catalog_lead + tc.filesindir + group_count();
 }
 
 static bool catalog_otg_row(int row)
@@ -191,23 +230,29 @@ static bool catalog_otg_row(int row)
 static bool tree_is_group(int row, void *data)
 {
     (void)data;
-    return catalog_group(row);
+    return group_of(row) >= 0;
 }
 
-/* the row of an entry, and the entry of a row that isn't a group's name */
+/* the row of an entry, after the groups' names over it and those before; and
+   the entry of a row that isn't a group's name */
 static int row_of(int index)
 {
-    if (!catalog_folders)
-        return catalog_lead + index;
-    return catalog_lead + index + (index < catalog_folders ? 1 : 2);
+    int lo = 0, hi = group_count();
+    while (lo < hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (group_at(mid) <= index)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    return catalog_lead + index + lo;
 }
 
 static int index_of(int row)
 {
     row = MAX(row - catalog_lead, 0);
-    if (!catalog_folders)
-        return row;
-    return MAX(row - (row <= catalog_folders ? 1 : 2), 0);
+    return MAX(row - groups_before(row), 0);
 }
 
 static bool ext_stripit(bool isdir, int attr, int dirfilter)
@@ -241,12 +286,17 @@ static const char* tree_get_filename(int selected_item, void *data,
     struct tree_context * local_tc=(struct tree_context *)data;
     char *name;
     int attr=0;
+    const int group = group_of(selected_item);
 #ifdef HAVE_TAGCACHE
     bool id3db = *(local_tc->dirfilter) == SHOW_ID3DB;
 
     if (id3db)
     {
-        return tagtree_get_entry_name(&tc, selected_item, buffer, buffer_len);
+        /* a group's name, as "Disc 2" */
+        if (group >= 0)
+            return tagtree_group_name(&tc, group, buffer, buffer_len);
+        return tagtree_get_entry_name(&tc, index_of(selected_item), buffer,
+                                      buffer_len);
     }
     else
 #endif
@@ -257,8 +307,8 @@ static const char* tree_get_filename(int selected_item, void *data,
             return str(selected_item == LEAD_FOLDER ? LANG_NEW_FOLDER :
                        (tc.browse->flags & BROWSE_PICK_FOLDER) ? LANG_MOVE_HERE
                                                                : LANG_NEW_PLAYLIST);
-        if (catalog_group(selected_item))
-            return str(selected_item > catalog_lead ? LANG_PLAYLISTS : LANG_FOLDERS);
+        if (group >= 0)
+            return str(group ? LANG_PLAYLISTS : LANG_FOLDERS);
         struct entry *entry = get_valid_entry(__func__, local_tc,
                                               index_of(selected_item));
         name = entry->name;
@@ -275,7 +325,7 @@ static const char* tree_get_filename(int selected_item, void *data,
 #ifdef HAVE_LCD_COLOR
 static int tree_get_filecolor(int selected_item, void * data)
 {
-    if (*tc.dirfilter == SHOW_ID3DB || catalog_group(selected_item)
+    if (*tc.dirfilter == SHOW_ID3DB || tree_is_group(selected_item, NULL)
         || catalog_otg_row(selected_item) || catalog_lead_row(selected_item))
         return -1;
     struct tree_context * local_tc=(struct tree_context *)data;
@@ -286,11 +336,11 @@ static int tree_get_filecolor(int selected_item, void * data)
 #endif
 
 #ifdef HAVE_TAGCACHE
-/* the song playing, in the Music list it's from */
+/* the song playing, in the Music list it's from; not a group's name over it */
 static bool tree_is_playing(int selected_item, void *data)
 {
     struct tree_context *local_tc = (struct tree_context *)data;
-    return *local_tc->dirfilter == SHOW_ID3DB
+    return *local_tc->dirfilter == SHOW_ID3DB && !tree_is_group(selected_item, NULL)
         && tagtree_row_is_playing(local_tc, index_of(selected_item),
                                   gui_synclist_playing());
 }
@@ -301,7 +351,7 @@ static const char *tree_get_lead(int selected_item, void *data, char *buf,
                                  size_t size)
 {
     struct tree_context *local_tc = (struct tree_context *)data;
-    return *local_tc->dirfilter == SHOW_ID3DB ?
+    return *local_tc->dirfilter == SHOW_ID3DB && !tree_is_group(selected_item, NULL) ?
            tagtree_entry_lead(local_tc, index_of(selected_item), buf, size) : NULL;
 }
 #endif
@@ -314,7 +364,7 @@ static const char *tree_get_lead(int selected_item, void *data, char *buf,
 static int tree_get_mark(int selected_item, void *data)
 {
     struct tree_context *local_tc = (struct tree_context *)data;
-    if (catalog_group(selected_item) || catalog_lead_row(selected_item))
+    if (tree_is_group(selected_item, NULL) || catalog_lead_row(selected_item))
         return LINE_MARK_NONE;
     if (catalog_otg_row(selected_item))
         return LINE_MARK_IPOD;
@@ -331,13 +381,15 @@ static bool tree_has_children(int selected_item, void * data)
 {
     struct tree_context * local_tc=(struct tree_context *)data;
 #ifdef HAVE_TAGCACHE
-    /* nor Albums' Sort By, which switches in place; All Songs does lead */
+    /* nor a Sort By, which switches in place, nor a group's name; All Songs
+       does lead */
     if (*(local_tc->dirfilter) == SHOW_ID3DB)
-        return tagtree_row_has_children(local_tc, selected_item);
+        return !tree_is_group(selected_item, NULL)
+               && tagtree_row_has_children(local_tc, index_of(selected_item));
 #endif
     if (catalog_otg_row(selected_item))
         return !catalog_otg_empty;
-    if (catalog_group(selected_item) || catalog_lead_row(selected_item))
+    if (tree_is_group(selected_item, NULL) || catalog_lead_row(selected_item))
         return false;
     struct entry *entry = get_valid_entry(__func__, local_tc, index_of(selected_item));
     return (entry->attr & ATTR_DIRECTORY)
@@ -352,14 +404,15 @@ static enum themable_icons tree_get_fileicon(int selected_item, void * data)
 #ifdef HAVE_TAGCACHE
     bool id3db = *(local_tc->dirfilter) == SHOW_ID3DB;
     if (id3db) {
-        return tagtree_get_icon(&tc);
+        return tree_is_group(selected_item, NULL) ? Icon_NOICON
+                                                  : tagtree_get_icon(&tc);
     }
     else
 #endif
     {
         if (catalog_otg_row(selected_item))
             return Icon_Playlist;
-        if (catalog_group(selected_item) || catalog_lead_row(selected_item))
+        if (tree_is_group(selected_item, NULL) || catalog_lead_row(selected_item))
             return Icon_NOICON;
         struct entry *entry = get_valid_entry(__func__, local_tc,
                                               index_of(selected_item));
@@ -380,8 +433,12 @@ static int tree_voice_cb(int selected_item, void * data)
 
     if (id3db)
     {
+        /* a group's name, which isn't selected */
+        if (tree_is_group(selected_item, NULL))
+            return 0;
         attr = tagtree_get_attr(local_tc);
-        name = tagtree_get_entry_name(local_tc, selected_item, buf, sizeof(buf));
+        name = tagtree_get_entry_name(local_tc, index_of(selected_item), buf,
+                                      sizeof(buf));
         customaction = tagtree_get_custom_action(local_tc);
 
         /* See if name is an encoded ID, if it is, then speak it normally */
@@ -419,7 +476,7 @@ static int tree_voice_cb(int selected_item, void * data)
             talk_id(LANG_ON_THE_GO, false);
             return 0;
         }
-        if (catalog_group(selected_item) || catalog_lead_row(selected_item))
+        if (tree_is_group(selected_item, NULL) || catalog_lead_row(selected_item))
             return 0;
         struct entry *entry = get_valid_entry(__func__, local_tc,
                                               index_of(selected_item));
@@ -716,13 +773,14 @@ static int update_dir(void)
 
     catalog_count();
     gui_synclist_set_nb_items(list, catalog_rows() + (catalog_otg ? 1 : 0));
-    if (catalog_folders)
+    /* the groups' names on bars of their own, as Settings has them */
+    if (group_count())
     {
         list->callback_is_group = tree_is_group;
         list->callback_draw_item = menu_draw_value_line;
     }
 #ifdef HAVE_TAGCACHE
-    /* Albums' Sort By, its value at the right end as a setting's */
+    /* a Sort By, its value at the right end as a setting's */
     if (id3db && tagtree_has_sort_by(&tc))
         list->callback_draw_item = menu_draw_value_line;
 #endif
@@ -1073,15 +1131,14 @@ static int dirbrowse(void)
                         return exit_to_new_screen(GO_TO_PLAYLISTS_SCREEN);
                     button = ACTION_NONE;
                 }
-                else if (customaction == ONPLAY_CUSTOMACTION_ALBUMS_SORT)
+                else if (customaction == ONPLAY_CUSTOMACTION_SORT_BY)
                 {
-                    /* Albums' Sort By: Year or Name, the list again in that
-                       order at once, its row still selected */
+                    /* Sort By: of Albums Year or Name, of All Songs Album or
+                       Name, the list again in that order at once, its row
+                       still selected */
                     if (button == ACTION_STD_OK)
                     {
-                        global_settings.albums_sort = !global_settings.albums_sort;
-                        settings_save();
-                        tagtree_albums_sort_changed(tc.dirlevel);
+                        tagtree_sort_by_switched(&tc);
                         tc.selected_item = 0;
                         reload_dir = true;
                     }
@@ -1111,9 +1168,9 @@ static int dirbrowse(void)
         #endif
 #ifdef HAVE_TAGCACHE
 #ifdef HAVE_HOTKEY
-        /* nothing to play or add on Albums' Sort By */
+        /* nothing to play or add on a Sort By */
         if (id3db && button == ACTION_TREE_HOTKEY
-            && tagtree_get_custom_action(&tc) == ONPLAY_CUSTOMACTION_ALBUMS_SORT)
+            && tagtree_get_custom_action(&tc) == ONPLAY_CUSTOMACTION_SORT_BY)
             button = ACTION_NONE;
 #endif
         if (on_lead)

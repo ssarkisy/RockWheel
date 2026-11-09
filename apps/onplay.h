@@ -29,7 +29,7 @@ enum onplay_custom_action {
     ONPLAY_CUSTOMACTION_PLAYLISTS,
     ONPLAY_CUSTOMACTION_COVERFLOW,
     ONPLAY_CUSTOMACTION_SEARCH,
-    ONPLAY_CUSTOMACTION_ALBUMS_SORT, /* Music > Albums' Sort By */
+    ONPLAY_CUSTOMACTION_SORT_BY, /* Music > Albums' and All Songs' Sort By */
 };
 
 enum onplay_return_code {

@@ -1060,6 +1060,9 @@ struct user_settings
     /* Artists and a genre's artists by the albums' artists, as iOS's Group By
        Album Artist; off, by the songs' own. After the rest, as albums_sort */
     bool artists_by_album_artist;
+    /* All Songs, as its first row sorts it: 0 by album, 1 by name. After the
+       rest, as albums_sort */
+    int all_songs_sort;
 };
 
 /* global settings */

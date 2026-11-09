@@ -83,12 +83,20 @@ bool tagtree_row_is_playing(struct tree_context *c, int row, long playing);
 int tagtree_lead_digits(struct tree_context *c);
 const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
                                size_t size);
-/* the list has Albums' Sort By, which is drawn as a setting, with its value */
+/* the list has a Sort By, Albums' or All Songs', which is drawn as a setting,
+   with its value */
 bool tagtree_has_sort_by(struct tree_context *c);
 /* the row opens a list: not a song, nor Sort By, which switches in place */
 bool tagtree_row_has_children(struct tree_context *c, int row);
-/* Albums' Sort By switched, in the list at this level */
-void tagtree_albums_sort_changed(int dirlevel);
+/* the list's Sort By chosen: its other order, saved, as the list is made
+   again */
+void tagtree_sort_by_switched(struct tree_context *c);
+/* The bars of groups among the list's songs, which aren't its entries: how
+   many, the entry each is over, in their order, and the text of one */
+int tagtree_group_count(struct tree_context *c);
+int tagtree_group_at(struct tree_context *c, int group);
+const char *tagtree_group_name(struct tree_context *c, int group, char *buf,
+                               size_t size);
 /* the albums' years made again */
 void tagtree_albums_reordered(void);
 /* Artists and Genres as Group by Album Artist has them, if they aren't: they

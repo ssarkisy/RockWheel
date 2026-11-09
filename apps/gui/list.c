@@ -448,14 +448,33 @@ static void gui_list_select_at_offset(struct gui_synclist * gui_list,
         edge_beep(gui_list, allow_wrap);
     }
 
-    /* on past the name of a group, or nowhere if nothing's there */
+    /* On past the name of a group, to the nearest row that isn't one: off an
+       end, as from the first row's, round to the other end if the list wraps,
+       or else back from that end. Where it was if there's none */
     if (gui_list->callback_is_group)
     {
-        const int step = offset < 0 ? -1 : 1;
+        int step = offset < 0 ? -1 : 1;
+        int tries = 2 * gui_list->nb_items; /* each row once each way */
         while (new_selection >= 0 && new_selection < gui_list->nb_items
-               && gui_list->callback_is_group(new_selection, gui_list->data))
+               && gui_list->callback_is_group(new_selection, gui_list->data)
+               && tries-- > 0)
+        {
             new_selection += step;
-        if (new_selection < 0 || new_selection >= gui_list->nb_items)
+            if (new_selection >= 0 && new_selection <= remain)
+                continue;
+            const bool top = new_selection < 0;
+            if (allow_wrap)
+            {
+                new_selection = top ? remain : 0;
+                edge_beep(gui_list, true);
+            }
+            else
+            {
+                new_selection = top ? 0 : remain;
+                step = -step;
+            }
+        }
+        if (tries < 0 || new_selection < 0 || new_selection >= gui_list->nb_items)
             new_selection = gui_list->selected_item;
     }
 
@@ -654,12 +673,25 @@ static void gui_synclist_scroll_left(struct gui_synclist * lists)
     }
 }
 
+/* on the first row the cursor can be on: past the names of groups above it,
+   as a "Disc 1" over an album's first song */
+static bool gui_list_at_top(struct gui_synclist *lists)
+{
+    for (int i = lists->selected_item - 1; i >= 0; i--)
+    {
+        if (!lists->callback_is_group
+            || !lists->callback_is_group(i, lists->data))
+            return false;
+    }
+    return true;
+}
+
 bool gui_synclist_keyclick_callback(int action, void* data)
 {
     struct gui_synclist *lists = (struct gui_synclist *)data;
 
     /* Block the beep if we're at the end of the list and we're not wrapping. */
-    if (lists->selected_item == 0)
+    if (gui_list_at_top(lists))
     {
         if (action == ACTION_STD_PREVREPEAT)
             return false;

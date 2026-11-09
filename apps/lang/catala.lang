@@ -17442,6 +17442,34 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_DISC_NUMBER
+  desc: a grey bar over the songs of one disc of an album of two discs or more, as in the album's songs and, after the album's year and name, in an artist's All Songs: the disc's number, as its tag has it (Disc 1, Disc 4); %d is the number
+  user: core
+  <source>
+    *: "Disc %d"
+  </source>
+  <dest>
+    *: "Disc %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SINGLES
+  desc: a grey bar in an artist's All Songs, after a year (2019 · Singles) or alone: over the songs of that year that are each the only one of their album in the list, as singles
+  user: core
+  <source>
+    *: "Singles"
+  </source>
+  <dest>
+    *: "Senzills"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_ALWAYS_ON
   desc: in the pictureflow settings menu
   user: core
