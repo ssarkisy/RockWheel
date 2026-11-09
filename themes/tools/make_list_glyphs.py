@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Draw the speaker that marks the song playing in a list, as on a stock iPod, the
 shuffle arrows of a list's Shuffle Songs and the marks of the catalogue's playlists, and print them as the C arrays apps/gui/line.c
-draws them from: alpha masks in Rockbox' format, 4 bits a pixel from 0 opaque to 15
+draws them from; and the note of an album's header without a cover, which
+apps/album_header.c draws: alpha masks in Rockbox' format, 4 bits a pixel from 0 opaque to 15
 transparent, the low nibble first, the rows running on without padding, as the chevron's
 there. The firmware colours them, so they're the same in every theme. Plain Python, no
 imaging libraries. Usage:
@@ -141,6 +142,18 @@ def ipod(x, y):
     return math.hypot(x - 5, y - 9) > 2
 
 
+# the note on the tile in place of an album's cover in its header, when it has none
+# or while it's read (apps/album_header.c): the note of the menus' panel
+# (make_menu_icons.py), scaled to a little over half the tile's 60 px
+NOTE_SCALE = 0.4
+NOTE_W, NOTE_H = 29, 35
+
+
+def note(x, y):
+    from make_menu_icons import Note
+    return Note.inside(x / NOTE_SCALE, y / NOTE_SCALE)
+
+
 def coverage(inside, w, h):
     rows = []
     for py in range(h):
@@ -190,7 +203,8 @@ def preview(cov, path, k=8):
 def main():
     for name, inside, w, h in (('speaker', speaker, W, H), ('shuffle', shuffle, SW, SH),
                                ('computer', computer, COMPUTER_W, COMPUTER_H),
-                               ('ipod', ipod, IPOD_W, IPOD_H)):
+                               ('ipod', ipod, IPOD_W, IPOD_H),
+                               ('note', note, NOTE_W, NOTE_H)):
         cov = coverage(inside, w, h)
         print('#define %s_W %d' % (name.upper(), w))
         print('#define %s_H %d' % (name.upper(), h))

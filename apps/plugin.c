@@ -55,6 +55,7 @@
 #include "on_the_go.h"
 #ifdef HAVE_TAGCACHE
 #include "ipod_playlists.h"
+#include "album_header.h"
 #endif
 
 #if CONFIG_CHARGING
@@ -981,6 +982,11 @@ int plugin_load(const char* plugin, const void* parameter)
 
     /* its screen without a slide to it */
     transition_cancel();
+#ifdef HAVE_TAGCACHE
+    /* every thread slot it had before, as Cover Flow's two: not one taken by
+       an album's cover being read meanwhile */
+    album_header_reader_wait();
+#endif
 #ifdef HAVE_WHEEL_ACCELERATION
     /* and the wheel's steps whole, as from Now Playing's volume by a hotkey:
        a plugin that reads the buttons itself kept the fine ones */

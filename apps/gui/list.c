@@ -24,6 +24,7 @@
 #include "font.h"
 #include "button.h"
 #include "string.h"
+#include "string-extra.h"
 #include "settings.h"
 #include "kernel.h"
 #include "system.h"
@@ -169,6 +170,11 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_get_lead = NULL;
     gui_list->lead_digits = 0;
     gui_list->lead_font = -1;
+    gui_list->callback_get_value = NULL;
+    gui_list->value_widest[0] = '\0';
+    gui_list->value_font = -1;
+    gui_list->block_rows = 0;
+    gui_list->callback_draw_block = NULL;
     gui_list->callback_is_shuffle = NULL;
     gui_list->callback_get_hint = NULL;
     gui_list->playing_shown = 0;
@@ -289,6 +295,20 @@ void gui_synclist_draw(struct gui_synclist *gui_list)
     }
 }
 
+/* The rows above this one are all names of groups, or none: on the first row
+   the cursor can be on, as a song under "Disc 1" and an album's header. Asked
+   from the row up, the first that isn't one ends it */
+static bool gui_list_groups_above(struct gui_synclist *lists, int row)
+{
+    for (int i = row - 1; i >= 0; i--)
+    {
+        if (!lists->callback_is_group
+            || !lists->callback_is_group(i, lists->data))
+            return false;
+    }
+    return true;
+}
+
 /* sets up the list so the selection is shown correctly on the screen */
 static void gui_list_put_selection_on_screen(struct gui_synclist * gui_list,
                                              enum screen_type screen)
@@ -316,6 +336,10 @@ static void gui_list_put_selection_on_screen(struct gui_synclist * gui_list,
     else if (difference <= scroll_limit_up) /* list moved up */
     {
         new_start_item = gui_list->selected_item - scroll_limit_up;
+        /* up to the top, past what only names groups: an album's header
+           whole again, rather than its last row's worth */
+        if (gui_list_groups_above(gui_list, new_start_item))
+            new_start_item = 0;
     }
     else if (difference > nb_lines - scroll_limit_down) /* list moved down */
     {
@@ -571,6 +595,22 @@ void gui_synclist_set_lead_callback(struct gui_synclist * lists,
     lists->lead_font = -1; /* to be measured */
 }
 
+void gui_synclist_set_value_callback(struct gui_synclist * lists,
+        const char *(*get_value)(int item, void *data, char *buf, size_t size),
+        const char *widest)
+{
+    lists->callback_get_value = get_value;
+    strlcpy(lists->value_widest, widest ? widest : "", sizeof(lists->value_widest));
+    lists->value_font = -1; /* to be measured */
+}
+
+void gui_synclist_set_block(struct gui_synclist * lists, int rows,
+        void (*draw_block)(struct screen *display, int y, void *data))
+{
+    lists->block_rows = draw_block ? rows : 0;
+    lists->callback_draw_block = draw_block;
+}
+
 void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
                                        list_is_shuffle is_shuffle_callback)
 {
@@ -673,25 +713,12 @@ static void gui_synclist_scroll_left(struct gui_synclist * lists)
     }
 }
 
-/* on the first row the cursor can be on: past the names of groups above it,
-   as a "Disc 1" over an album's first song */
-static bool gui_list_at_top(struct gui_synclist *lists)
-{
-    for (int i = lists->selected_item - 1; i >= 0; i--)
-    {
-        if (!lists->callback_is_group
-            || !lists->callback_is_group(i, lists->data))
-            return false;
-    }
-    return true;
-}
-
 bool gui_synclist_keyclick_callback(int action, void* data)
 {
     struct gui_synclist *lists = (struct gui_synclist *)data;
 
     /* Block the beep if we're at the end of the list and we're not wrapping. */
-    if (gui_list_at_top(lists))
+    if (gui_list_groups_above(lists, lists->selected_item))
     {
         if (action == ACTION_STD_PREVREPEAT)
             return false;

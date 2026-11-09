@@ -22,6 +22,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "string-extra.h"
 
 #include "scroll_engine.h"
 #include "system.h"
@@ -50,6 +51,7 @@ static void put_text(struct screen *display, int x, int y, struct line_desc *lin
                       const char *text, bool prevent_scroll, int text_skip_pixels);
 static void draw_chevron(struct screen *display, int y, struct line_desc *line);
 static void draw_speaker(struct screen *display, int y, struct line_desc *line);
+static void draw_value(struct screen *display, int y, struct line_desc *line);
 static int decoration_width(struct screen *display, const struct line_desc *line);
 
 struct line_desc_scroll {
@@ -105,6 +107,7 @@ static void scroller(struct scrollinfo *s, struct screen *display)
         vp->width += line->rtl_cut;
         if (line->desc.style & STYLE_PLAYING)
             draw_speaker(display, y, &line->desc);
+        draw_value(display, y, &line->desc);
         if (line->desc.style & STYLE_CHEVRON)
             draw_chevron(display, y, &line->desc);
     }
@@ -571,10 +574,17 @@ static unsigned speaker_colour(void)
 }
 #endif
 
+/* the line has a value at its right end, drawn: not right to left */
+static bool has_value(struct screen *display, const struct line_desc *line)
+{
+    return line->value[0] && display->screen_type == SCREEN_MAIN && !lang_is_rtl();
+}
+
 /* The speaker of the song playing at the right end of its line, as on a stock
    iPod: in the blue of the selection's end on the list, and as the selection's
-   text on it, on a strip of the line's own background. Left of a chevron if
-   the line has both, and at the left end with right-to-left text. */
+   text on it, on a strip of the line's own background, which goes on under
+   what's right of it, drawn after it. Left of a value and a chevron if the
+   line has them, and at the left end with right-to-left text. */
 static void draw_speaker(struct screen *display, int y, struct line_desc *line)
 {
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
@@ -589,6 +599,8 @@ static void draw_speaker(struct screen *display, int y, struct line_desc *line)
         x = display->getwidth() - SPEAKER_W - CHEVRON_MARGIN;
         if (line->style & STYLE_CHEVRON)
             x -= CHEVRON_W + CHEVRON_MARGIN;
+        if (has_value(display, line))
+            x -= line->value_width + CHEVRON_MARGIN;
         style_line(display, x - CHEVRON_MARGIN, y, line);
     }
     const bool selected = line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT);
@@ -602,6 +614,41 @@ static void draw_speaker(struct screen *display, int y, struct line_desc *line)
 #else
     (void)display; (void)y; (void)line;
 #endif
+}
+
+/* The value at the right end, in its column, which the text never reaches:
+   on what was drawn there, the line's background or the speaker's strip.
+   Grey as a setting's value, and as the selection's text on it */
+static void draw_value(struct screen *display, int y, struct line_desc *line)
+{
+    if (!has_value(display, line))
+        return;
+    int right = display->getwidth() - CHEVRON_MARGIN;
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (line->style & STYLE_CHEVRON)
+        right -= CHEVRON_W + CHEVRON_MARGIN;
+#endif
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    struct viewport *vp = *display->current_viewport;
+    const int name_font = vp->font;
+    y += height/2 - display->getcharheight()/2 + line->value_shift;
+    int width;
+    font_getstringsize(line->value, &width, NULL, line->value_font);
+    const unsigned fg = display->get_foreground();
+#ifdef HAVE_LCD_COLOR
+    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
+        display->set_foreground(line->text_color);
+    else if (line->style & STYLE_INVERT)
+        display->set_foreground(display->get_background());
+    else
+        display->set_foreground(LIST_VALUE_COLOUR);
+#endif
+    display->set_drawmode(DRMODE_FG);
+    vp->font = line->value_font;
+    display->putsxy(right - width, y, line->value);
+    vp->font = name_font;
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
 }
 
 int line_shuffle_width(struct screen *display)
@@ -715,6 +762,32 @@ int line_lead_shift(int name_font, int font)
     return font_get(name_font)->ascent - font_get(font)->ascent;
 }
 
+int line_value_width(int font, const char *text)
+{
+    char widest = '0';
+    int widest_w = 0;
+    for (char d[2] = "0"; d[0] <= '9'; d[0]++)
+    {
+        int w;
+        font_getstringsize(d, &w, NULL, font);
+        if (w > widest_w)
+        {
+            widest = d[0];
+            widest_w = w;
+        }
+    }
+    char shape[sizeof(((struct line_desc *)0)->value)];
+    strlcpy(shape, text, sizeof(shape));
+    for (char *p = shape; *p; p++)
+    {
+        if (*p >= '0' && *p <= '9')
+            *p = widest;
+    }
+    int width;
+    font_getstringsize(shape, &width, NULL, font);
+    return width;
+}
+
 /* right-aligned, 9 under 10, which right-to-left text mirrors to the name's
    side too: placed as if each of its digits were as wide as the widest, as
    the theme's all are, rather than measured row by row. A year fills its
@@ -768,23 +841,21 @@ void line_draw_shuffle(struct screen *display, int x, int y,
 #endif
 }
 
-/* the width of the strip of a speaker, a chevron or both at the line's right
-   end, which the text stops short of: 0 where they're drawn otherwise */
+/* the width of the strip of a speaker, a value, a chevron, those the line has
+   at its right end, which the text stops short of: 0 where they're drawn
+   otherwise */
 static int decoration_width(struct screen *display, const struct line_desc *line)
 {
-#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (display->screen_type != SCREEN_MAIN || lang_is_rtl())
         return 0;
-    int width = 0;
+    int width = has_value(display, line) ? line->value_width + CHEVRON_MARGIN : 0;
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (line->style & STYLE_PLAYING)
         width += SPEAKER_W + CHEVRON_MARGIN;
     if (line->style & STYLE_CHEVRON)
         width += CHEVRON_W + CHEVRON_MARGIN;
-    return width ? width + CHEVRON_MARGIN : 0;
-#else
-    (void)display; (void)line;
-    return 0;
 #endif
+    return width ? width + CHEVRON_MARGIN : 0;
 }
 
 void vput_line(struct screen *display,
@@ -805,6 +876,7 @@ void vput_line(struct screen *display,
     /* the speaker first: its strip goes to the right end */
     if (line->style & STYLE_PLAYING)
         draw_speaker(display, y, line);
+    draw_value(display, y, line);
     if (line->style & STYLE_CHEVRON)
         draw_chevron(display, y, line);
 #if (LCD_DEPTH > 1 || (defined(LCD_REMOTE_DEPTH) && LCD_REMOTE_DEPTH > 1))

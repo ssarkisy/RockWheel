@@ -220,6 +220,10 @@ static bool entries_whole;
 /* and goes by play statistics, so isn't kept: they change without a new
    database */
 static bool entries_of_stats;
+/* its songs are one album's, as its screen shows them under a header
+   (tagtree_album()): songs 0 for a list that isn't. Made from its rows as it
+   loads, as one kept is shown again too */
+static struct tagtree_album album_view;
 
 
 /* this needs to be same size as struct entry (tree.h) and name needs to be
@@ -2467,6 +2471,54 @@ static int number_songs(struct tree_context *c, struct tagcache_search *tcs,
     return digits;
 }
 
+/* The list as an album's screen, if it's one album's songs (tagtree_album()):
+   each song's album and album artist the first's, as the database has the
+   song's artist for none, and their discs and tracks in order, as by
+   tagnavi's fmt_title, though two may share a number. Of the rows past those
+   at the top, from the database's memory, as the list is loaded */
+static void album_view_make(struct tree_context *c)
+{
+    album_view.songs = 0;
+    const int level = c->currextra;
+    const int first = c->special_entry_count;
+    struct tagcache_numbers numbers;
+    if (c->currtable != TABLE_NAVIBROWSE || !csi || c->dirfull
+        || current_offset != 0 || current_entry_count != c->filesindir
+        || first >= current_entry_count
+        || !album_songs(c, level, csi->tagorder[level])
+        || !strcmp(current_title[level], UNTAGGED))
+        return;
+    const struct tagentry *entries = get_entries(c);
+    const int32_t idx = entries[first].extraseek;
+    if (!tagcache_get_numbers(idx, &numbers) || numbers.kind != 0)
+        return;
+    const long album = tagcache_sort_key(idx, tag_album);
+    const long albumartist = tagcache_sort_key(idx, tag_albumartist);
+    long disc = 0, track = 0, longest = 0;
+    for (int i = first; i < current_entry_count; i++)
+    {
+        const int32_t song = entries[i].extraseek;
+        const long d = MAX(tagcache_sort_key(song, tag_discnumber), 0);
+        const long t = MAX(tagcache_sort_key(song, tag_tracknumber), 0);
+        if (entries[i].newtable != TABLE_PLAYTRACK
+            || tagcache_sort_key(song, tag_album) != album
+            || tagcache_sort_key(song, tag_albumartist) != albumartist
+            || d < disc || (d == disc && t < track))
+            return;
+        disc = d;
+        track = t;
+        longest = MAX(longest, tagcache_sort_key(song, tag_length));
+    }
+    album_view = (struct tagtree_album){
+        .songs = current_entry_count - first,
+        .year = album_year(album, albumartist),
+        .longest = longest,
+        .first = idx,
+        .album = album,
+        .albumartist = albumartist,
+    };
+}
+
 static int make_all_songs(struct tree_context *c, int extra, bool init);
 
 static int make_entries(struct tree_context *c, int offset, bool init)
@@ -2491,6 +2543,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     entries_years = false;
     entries_tracks = 0;
     entries_groups = 0;
+    album_view.songs = 0;
 
     /* Show search progress straight away if the disk needs to spin up,
        otherwise show it after the normal 1/2 second delay */
@@ -3163,6 +3216,7 @@ int tagtree_load(struct tree_context* c)
 
     /* The _total_ numer of entries available. */
     c->dirlength = c->filesindir = count;
+    album_view_make(c);
 
     if (at_first_row)
         c->selected_item = first_row(c);
@@ -4509,6 +4563,7 @@ static bool goto_all_songs(void)
     entries_tracks = 0;
     entries_groups = 0;
     entries_untagged = -1;
+    album_view.songs = 0;
     kept_hash = 0;
     return true;
 }
@@ -4756,6 +4811,7 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
     entries_tracks = digits;
     entries_groups = groups;
     entries_untagged = -1;
+    album_view.songs = 0;
     /* searched by the clauses of all its levels, and its titles shown
        without a format (group 0) */
     entries_of_stats = list_of_stats(0, tag_title, csi->tagorder_count - 1);
@@ -5574,6 +5630,54 @@ const char *tagtree_group_name(struct tree_context *c, int group, char *buf,
                             len ? " \xc2\xb7 " : "", parts[i]); /* U+00B7 */
     }
     return buf;
+}
+
+bool tagtree_album(struct tree_context *c, struct tagtree_album *album)
+{
+    /* of the list made last, which Music's own menu isn't */
+    if (c->currtable == TABLE_ROOT || album_view.songs <= 0)
+        return false;
+    *album = album_view;
+    return true;
+}
+
+bool tagtree_album_text(struct tree_context *c, int tag, char *buf, size_t size)
+{
+    struct tagcache_search tcs;
+    if (c->currtable == TABLE_ROOT || album_view.songs <= 0
+        || !tagcache_search(&tcs, tag_title))
+        return false;
+    /* not from the disk, as between a commit and the database's load */
+    const bool found = tcs.ramsearch
+                       && tagcache_retrieve(&tcs, album_view.first, tag, buf, size);
+    tagcache_search_finish(&tcs);
+    return found;
+}
+
+/* As Now Playing has it, 3:41 or 1:00:01 */
+const char *tagtree_entry_length(struct tree_context *c, int row, char *buf,
+                                 size_t size)
+{
+    if (c->currtable == TABLE_ROOT || album_view.songs <= 0
+        || row < c->special_entry_count || row >= c->filesindir)
+        return NULL;
+    const struct tagentry *entry = tagtree_get_entry(c, row);
+    const long length = entry ? tagcache_sort_key(entry->extraseek, tag_length) : 0;
+    if (length <= 0)
+        return NULL;
+    format_time(buf, size, length);
+    return buf;
+}
+
+const char *tagtree_get_title_above(struct tree_context *c)
+{
+    const int level = c->currextra - 1;
+    if (c->currtable != TABLE_NAVIBROWSE || level < 0)
+        return tagtree_get_title(c);
+    /* the row of the songs without its tag, by the name that row shows */
+    if (level > 0 && !strcmp(current_title[level], UNTAGGED))
+        return untagged_name(csi->tagorder[level - 1]);
+    return current_title[level];
 }
 
 /* The row is the song playing, paused too, of the list the music playing is

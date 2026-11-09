@@ -43,6 +43,10 @@
 int playback_current_aa_hid(int slot);
 bool playback_current_has_art(void);
 struct bitmap *playback_current_largest_art(void);
+/* the same, with the database entry of the track it's of (its id3's
+   tagcache_idx, 0 for none), taken together: whose cover it is, as of a
+   thread other than the UI's, which audio_current_track() isn't for */
+struct bitmap *playback_current_largest_art_of(long *tagcache_idx);
 uint32_t playback_current_cover_colour(void);
 #ifdef AUDIO_FAST_SKIP_PREVIEW
 struct itunesdb_art;

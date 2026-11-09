@@ -205,6 +205,21 @@ struct gui_synclist
     /* and as measured once for the list, in the font of lead_font: its
        pixels, and its widest digit's (line_lead_width()) */
     int lead_font, lead_width, lead_digit;
+    /* a short text at the right end of a row, as a song's length on an
+       album's screen (line_desc.value): written to buf, or NULL for a row
+       without it. Can be NULL */
+    const char *(*callback_get_value)(int item, void *data, char *buf, size_t size);
+    /* its column as wide as the widest of its texts, as the longest length,
+       would be with each digit the font's widest: measured once for the list,
+       in the font of value_font */
+    char value_widest[10];
+    int value_font, value_width;
+    /* the rows at the list's top drawn as one, as an album's header, which
+       scrolls away with the list: none of them selected, nor drawn as rows.
+       Drawn with its top at y in the list's viewport, above it as the list
+       has scrolled. 0 for none */
+    int block_rows;
+    void (*callback_draw_block)(struct screen *display, int y, void *data);
     list_is_shuffle *callback_is_shuffle; /* can be NULL */
     /* a list with hints has a band for them under its rows, can be NULL */
     list_get_hint *callback_get_hint;
@@ -291,6 +306,11 @@ extern void gui_synclist_set_mark_callback(struct gui_synclist * lists,
 extern void gui_synclist_set_lead_callback(struct gui_synclist * lists,
         const char *(*get_lead)(int item, void *data, char *buf, size_t size),
         int digits);
+extern void gui_synclist_set_value_callback(struct gui_synclist * lists,
+        const char *(*get_value)(int item, void *data, char *buf, size_t size),
+        const char *widest);
+extern void gui_synclist_set_block(struct gui_synclist * lists, int rows,
+        void (*draw_block)(struct screen *display, int y, void *data));
 extern void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
                                               list_is_shuffle is_shuffle_callback);
 extern void gui_synclist_set_hint_callback(struct gui_synclist * lists,
@@ -305,6 +325,9 @@ extern int list_hint_band(struct gui_synclist *list, enum screen_type screen);
    of the screen: for a screen other than a list's too */
 extern void list_draw_hint(struct screen *display, struct viewport *band,
                            const char *text);
+/* Of a text from p, a line as wide as width at most in font, broken where a
+   hint's lines are, as between words: its end */
+extern const char *list_line_end(const char *p, int font, int width);
 /* the rows a list shows at once on a screen */
 extern int list_get_nb_lines(struct gui_synclist *list, enum screen_type screen);
 /* The song playing or paused, as its number in the database plus one (its

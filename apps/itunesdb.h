@@ -219,6 +219,14 @@ int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
 /* the same from a cover already in memory, such as one in the buffer */
 int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size);
 
+/* both, for a cover shown small, as in an album's header: shrunk to half its
+   size or less, each pixel the mean of those of the frame it covers, rather
+   than bilinear's four of them */
+int itunesdb_load_small_art(const struct itunesdb_art *art, struct bitmap *bm,
+                            int max_size);
+int itunesdb_scale_small_art(const struct bitmap *src, struct bitmap *bm,
+                             int max_size);
+
 /* reads the slide of the cover's album into buf, ITUNESDB_SLIDE_SIZE
    squared pixels at most, column after column, and its size into width and
    height; returns the size of the pixels, or -1 when it isn't made (yet) */

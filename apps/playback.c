@@ -4408,12 +4408,15 @@ int playback_current_aa_hid(int slot)
 }
 
 /* The largest cover of the user's current track in the buffer, or NULL; none while a
-   skip is on its way, as the handles above may still be those of the track it leaves */
-struct bitmap *playback_current_largest_art(void)
+   skip is on its way, as the handles above may still be those of the track it leaves.
+   With the track's database entry, its id3's tagcache_idx (0 for none), if asked */
+static struct bitmap *largest_art(long *tagcache_idx)
 {
     struct track_info user_cur;
     struct bitmap *largest = NULL;
 
+    if (tagcache_idx)
+        *tagcache_idx = 0;
     if (skip_offset + skip_under_way != 0 || !track_list_user_current(0, &user_cur))
         return NULL;
     FOREACH_ALBUMART(i)
@@ -4424,7 +4427,22 @@ struct bitmap *playback_current_largest_art(void)
             && (!largest || bmp->width * bmp->height > largest->width * largest->height))
             largest = bmp;
     }
+    if (largest && tagcache_idx)
+    {
+        const struct mp3entry *id3 = bufgetid3(user_cur.id3_hid);
+        *tagcache_idx = id3 ? id3->tagcache_idx : 0;
+    }
     return largest;
+}
+
+struct bitmap *playback_current_largest_art(void)
+{
+    return largest_art(NULL);
+}
+
+struct bitmap *playback_current_largest_art_of(long *tagcache_idx)
+{
+    return largest_art(tagcache_idx);
 }
 
 /* The colour of the cover of the track that gives the handle above */

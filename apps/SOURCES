@@ -65,6 +65,7 @@ talk.c
 tree.c
 #ifdef HAVE_TAGCACHE
 tagtree.c
+album_header.c
 music_search.c
 library_fonts.c
 #endif

@@ -97,6 +97,30 @@ int tagtree_group_count(struct tree_context *c);
 int tagtree_group_at(struct tree_context *c, int group);
 const char *tagtree_group_name(struct tree_context *c, int group, char *buf,
                                size_t size);
+/* The list made last as an album's screen shows it, under a header with its
+   cover, name, album artist, year and songs (album_header.c): the songs of
+   one album, all of them, in the order of its discs and tracks, and music.
+   False for another list: a part of one, the songs without an album, those
+   of two albums of a name in one row, a show's or a book's, or any without
+   the database in memory, which the rest is read from. */
+struct tagtree_album {
+    int songs;
+    int year;                   /* 0 for none */
+    long longest;               /* the longest song's length, in ms */
+    int32_t first;              /* its first song in the database */
+    int32_t album, albumartist; /* their names' seeks, which are the album's */
+};
+bool tagtree_album(struct tree_context *c, struct tagtree_album *album);
+/* of its first song, a tag of names' text as the database has it, UNTAGGED
+   for none: from its memory only, false without it. Not tag_filename, whose
+   path may be read from the disk */
+bool tagtree_album_text(struct tree_context *c, int tag, char *buf, size_t size);
+/* a song's length at the right of its row there, or NULL */
+const char *tagtree_entry_length(struct tree_context *c, int row, char *buf,
+                                 size_t size);
+/* the title of the list the list was opened from, as an album's screen has
+   it while its header shows: Albums, the artist, the genre */
+const char *tagtree_get_title_above(struct tree_context *c);
 /* the albums' years made again */
 void tagtree_albums_reordered(void);
 /* Artists and Genres as Group by Album Artist has them, if they aren't: they

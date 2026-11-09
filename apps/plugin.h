@@ -191,7 +191,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * The counts of the language's phrases, the core's and the Extras', are in it
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. */
-#define PLUGIN_API_REVISION 8
+#define PLUGIN_API_REVISION 9
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \

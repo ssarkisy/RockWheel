@@ -83,6 +83,7 @@
 #endif
 #ifdef HAVE_TAGCACHE
 #include "music_search.h"
+#include "album_header.h"
 #endif
 
 static struct gui_synclist tree_lists;
@@ -143,6 +144,16 @@ static bool catalog_on_otg; /* the cursor was on it, and goes back there */
 static int catalog_lead;
 #define LEAD_FIRST  0
 #define LEAD_FOLDER 1
+#ifdef HAVE_TAGCACHE
+/* In Music, an album's songs under its header (album_header.c): the rows it
+   takes at the top, which aren't entries, and none selects; 0 for another
+   list. Its title the list's above while it shows, the album's once it
+   has scrolled away */
+static int album_rows;
+static bool album_title_shown;
+#else
+#define album_rows 0
+#endif
 
 static void catalog_count(void)
 {
@@ -206,7 +217,9 @@ static int groups_before(int row)
 /* the group whose name a row is, or -1 */
 static int group_of(int row)
 {
-    row -= catalog_lead;
+    row -= album_rows + catalog_lead;
+    if (row < 0)
+        return -1;
     const int group = groups_before(row);
     return group < group_count() && group_at(group) + group == row ? group : -1;
 }
@@ -216,10 +229,11 @@ static bool catalog_lead_row(int row)
     return row < catalog_lead;
 }
 
-/* the rows of the entries and their groups' names, and On-The-Go's after them */
+/* the rows of an album's header, the entries and their groups' names, and
+   On-The-Go's after them */
 static int catalog_rows(void)
 {
-    return catalog_lead + tc.filesindir + group_count();
+    return album_rows + catalog_lead + tc.filesindir + group_count();
 }
 
 static bool catalog_otg_row(int row)
@@ -227,14 +241,15 @@ static bool catalog_otg_row(int row)
     return catalog_otg && row == catalog_rows();
 }
 
+/* a group's name, or a row of an album's header, which none selects either */
 static bool tree_is_group(int row, void *data)
 {
     (void)data;
-    return group_of(row) >= 0;
+    return row < album_rows || group_of(row) >= 0;
 }
 
-/* the row of an entry, after the groups' names over it and those before; and
-   the entry of a row that isn't a group's name */
+/* the row of an entry, after an album's header, the groups' names over it
+   and those before; and the entry of a row that isn't a group's name */
 static int row_of(int index)
 {
     int lo = 0, hi = group_count();
@@ -246,12 +261,12 @@ static int row_of(int index)
         else
             hi = mid;
     }
-    return catalog_lead + index + lo;
+    return album_rows + catalog_lead + index + lo;
 }
 
 static int index_of(int row)
 {
-    row = MAX(row - catalog_lead, 0);
+    row = MAX(row - album_rows - catalog_lead, 0);
     return MAX(row - groups_before(row), 0);
 }
 
@@ -292,6 +307,9 @@ static const char* tree_get_filename(int selected_item, void *data,
 
     if (id3db)
     {
+        /* an album's header, which is drawn whole rather than by rows */
+        if (selected_item < album_rows)
+            return "";
         /* a group's name, as "Disc 2" */
         if (group >= 0)
             return tagtree_group_name(&tc, group, buffer, buffer_len);
@@ -353,6 +371,29 @@ static const char *tree_get_lead(int selected_item, void *data, char *buf,
     struct tree_context *local_tc = (struct tree_context *)data;
     return *local_tc->dirfilter == SHOW_ID3DB && !tree_is_group(selected_item, NULL) ?
            tagtree_entry_lead(local_tc, index_of(selected_item), buf, size) : NULL;
+}
+
+/* At the right end of a song's row on an album's screen: its length. Where
+   Star Ratings, when it's on, is to put the song's stars instead */
+static const char *tree_get_value(int selected_item, void *data, char *buf,
+                                  size_t size)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    return album_rows && !tree_is_group(selected_item, NULL) ?
+           tagtree_entry_length(local_tc, index_of(selected_item), buf, size) : NULL;
+}
+
+/* An album's title as its header has scrolled away, the list's above until
+   then, which the header's name would repeat: as iOS's bar has it */
+static void tree_before_draw(struct gui_synclist *list)
+{
+    const bool shown = list->start_item[SCREEN_MAIN] >= album_rows;
+    if (shown == album_title_shown)
+        return;
+    album_title_shown = shown;
+    gui_synclist_set_title(list, shown ? tagtree_get_title(&tc)
+                                       : tagtree_get_title_above(&tc),
+                           list->title_icon);
 }
 #endif
 
@@ -715,12 +756,15 @@ static int update_dir(void)
     }
 
 #ifdef HAVE_TAGCACHE
+    /* an album's songs, under its header */
+    album_rows = id3db ? album_header_open(&tc, list) : 0;
+    album_title_shown = false;
     if (id3db)
     {
         if (show_path_in_browser == SHOW_PATH_FULL
             || show_path_in_browser == SHOW_PATH_CURRENT)
         {
-            title = tagtree_get_title(&tc);
+            title = album_rows ? tagtree_get_title_above(&tc) : tagtree_get_title(&tc);
             icon = filetype_get_icon(ATTR_DIRECTORY);
         }
     }
@@ -773,16 +817,31 @@ static int update_dir(void)
 
     catalog_count();
     gui_synclist_set_nb_items(list, catalog_rows() + (catalog_otg ? 1 : 0));
-    /* the groups' names on bars of their own, as Settings has them */
-    if (group_count())
-    {
+    /* the groups' names on bars of their own, as Settings has them; with an
+       album's header, rows none selects too, whatever the album's discs */
+    if (group_count() || album_rows)
         list->callback_is_group = tree_is_group;
+    if (group_count())
         list->callback_draw_item = menu_draw_value_line;
-    }
 #ifdef HAVE_TAGCACHE
     /* a Sort By, its value at the right end as a setting's */
     if (id3db && tagtree_has_sort_by(&tc))
         list->callback_draw_item = menu_draw_value_line;
+    /* an album's header, its songs' lengths in a column as wide as the
+       longest's, if any has one, and its title as the header scrolls away */
+    struct tagtree_album album;
+    if (album_rows && tagtree_album(&tc, &album))
+    {
+        gui_synclist_set_block(list, album_rows, album_header_draw);
+        if (album.longest > 0)
+        {
+            char longest[sizeof(list->value_widest)];
+            format_time(longest, sizeof(longest), album.longest);
+            gui_synclist_set_value_callback(list, tree_get_value, longest);
+        }
+        if (title)
+            gui_synclist_set_before_draw(list, tree_before_draw);
+    }
 #endif
     gui_synclist_set_icon_callback(list,
                             global_settings.show_icons?tree_get_fileicon:NULL);
@@ -1083,8 +1142,18 @@ static int dirbrowse(void)
             tc.dirlevel = 0; /* shouldnt be needed.. this code needs work! */
 
         keyclick_set_callback(gui_synclist_keyclick_callback, &tree_lists);
+#ifdef HAVE_TAGCACHE
+        /* an album's cover, read meanwhile as the disk spins up: looked for
+           each tenth of a second, and drawn as it comes */
+        const bool cover = album_rows && album_header_cover_reading();
+        button = get_action(CONTEXT_TREE|ALLOW_SOFTLOCK,
+                            list_do_action_timeout(&tree_lists, cover ? HZ/10 : HZ/2));
+        if (album_rows && album_header_cover_came())
+            gui_synclist_draw(&tree_lists);
+#else
         button = get_action(CONTEXT_TREE|ALLOW_SOFTLOCK,
                             list_do_action_timeout(&tree_lists, HZ/2));
+#endif
         oldbutton = button;
         gui_synclist_do_button(&tree_lists, &button);
         const bool on_otg = catalog_otg_row(gui_synclist_get_sel_pos(&tree_lists));

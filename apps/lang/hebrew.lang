@@ -17050,6 +17050,48 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_ALBUM_SONGS_ONE
+  desc: in an album's header over its songs, after its year (2019 · 16 songs): how many songs the album has, in lowercase as a count in running text; %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d song"
+  </source>
+  <dest>
+    *: "שירים: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUM_SONGS_FEW
+  desc: as LANG_ALBUM_SONGS_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d songs"
+  </source>
+  <dest>
+    *: "שירים: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ALBUM_SONGS_MANY
+  desc: as LANG_ALBUM_SONGS_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d songs"
+  </source>
+  <dest>
+    *: "שירים: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_ALWAYS_ON
   desc: in the pictureflow settings menu
   user: core

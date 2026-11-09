@@ -51,6 +51,9 @@
 #ifdef ITUNESDB_HAVE_ART
 #include "skin_engine/cover_palette.h"
 #include "skin_engine/skin_engine.h"
+#ifdef HAVE_TAGCACHE
+#include "album_header.h"
+#endif
 #endif
 
 #ifdef HAVE_DIRCACHE
@@ -3587,6 +3590,9 @@ static void forget_art(void)
         core_free(colours_handle);
     colours_handle = 0;
     frame_path[0] = '\0';
+#ifdef HAVE_TAGCACHE
+    album_header_forget_cover();
+#endif
 }
 
 /* the slides' keys after the entries of the index loaded */
@@ -3865,6 +3871,55 @@ static void scale_frame(const fb_data *frame, int fw, int fh,
     }
 }
 
+/* Shrunk to half or less each way, for an album's header, 60 from 200: each
+   pixel the mean of those of the frame it covers. Bilinear's four left out
+   most of those ten or so, which looked grainy. Only where it's asked for:
+   the other screens' covers as they were */
+#define BOX_MAX 8 /* the most pixels of the frame a pixel covers each way */
+
+static bool shrinks(int fw, int fh, int w, int h)
+{
+    return fw >= 2 * w && fh >= 2 * h && fw <= BOX_MAX * w && fh <= BOX_MAX * h;
+}
+
+static void shrink_frame(const fb_data *frame, int fw, int fh,
+                         fb_data *out, int w, int h)
+{
+    static uint16_t xs[ROW_MAX + 1];
+    /* 65536 / n, rounded: this CPU has no divide, so nothing in the loops
+       may divide */
+    static uint32_t recip[BOX_MAX * BOX_MAX + 1];
+    if (!recip[1])
+    {
+        for (int n = 1; n <= BOX_MAX * BOX_MAX; n++)
+            recip[n] = (65536 + n / 2) / n;
+    }
+    for (int x = 0; x <= w; x++)
+        xs[x] = x * fw / w;
+    for (int y = 0; y < h; y++)
+    {
+        const int y0 = y * fh / h, y1 = (y + 1) * fh / h;
+        for (int x = 0; x < w; x++)
+        {
+            uint32_t r = 0, g = 0, b = 0;
+            for (int sy = y0; sy < y1; sy++)
+            {
+                const fb_data *p = frame + sy * fw;
+                for (int sx = xs[x]; sx < xs[x + 1]; sx++)
+                {
+                    r += p[sx] >> 11;
+                    g += (p[sx] >> 5) & 0x3f;
+                    b += p[sx] & 0x1f;
+                }
+            }
+            const uint32_t k = recip[(xs[x + 1] - xs[x]) * (y1 - y0)];
+            *out++ = (fb_data)(((r * k + 0x8000) >> 16) << 11
+                               | ((g * k + 0x8000) >> 16) << 5
+                               | ((b * k + 0x8000) >> 16));
+        }
+    }
+}
+
 static void lock_art(void)
 {
     if (!art_lock_ready)
@@ -3889,9 +3944,9 @@ static bool art_fit(int fw, int fh, int *w, int *h, int max_size)
            && *w * *h * (int)sizeof(fb_data) + (int)sizeof(struct bitmap) <= max_size;
 }
 
-/* the frame into bm at w by h */
+/* the frame into bm at w by h, shrunk by averaging if asked */
 static int art_put(const fb_data *frame, int fw, int fh, struct bitmap *bm,
-                   int w, int h)
+                   int w, int h, bool average)
 {
     const int out_size = w * h * sizeof(fb_data);
     if (w == fw && h == fh)
@@ -3899,7 +3954,10 @@ static int art_put(const fb_data *frame, int fw, int fh, struct bitmap *bm,
     else
     {
         cpu_boost(true);
-        scale_frame(frame, fw, fh, (fb_data *)bm->data, w, h, false);
+        if (average && shrinks(fw, fh, w, h))
+            shrink_frame(frame, fw, fh, (fb_data *)bm->data, w, h);
+        else
+            scale_frame(frame, fw, fh, (fb_data *)bm->data, w, h, false);
         cpu_boost(false);
     }
     bm->width = w;
@@ -3914,8 +3972,8 @@ static int art_put(const fb_data *frame, int fw, int fh, struct bitmap *bm,
     return out_size;
 }
 
-int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
-                      int max_size)
+static int load_art(const struct itunesdb_art *art, struct bitmap *bm,
+                    int max_size, bool average)
 {
     int w = bm->width, h = bm->height;
     if (!art_fit(art->width, art->height, &w, &h, max_size))
@@ -3923,12 +3981,14 @@ int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
 
     lock_art();
     const fb_data *frame = get_frame(art);
-    const int size = frame ? art_put(frame, art->width, art->height, bm, w, h) : -1;
+    const int size = frame ? art_put(frame, art->width, art->height, bm, w, h,
+                                     average) : -1;
     mutex_unlock(&art_lock);
     return size;
 }
 
-int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size)
+static int scale_art(const struct bitmap *src, struct bitmap *bm, int max_size,
+                     bool average)
 {
     int w = bm->width, h = bm->height;
     if (!art_fit(src->width, src->height, &w, &h, max_size))
@@ -3936,8 +3996,32 @@ int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size
 
     /* not waiting for art_lock, which a read from the disk can hold for long, and
        src could move in the buffer meanwhile: scaling doesn't yield, so it's never
-       in scale_frame's rows along with another thread */
-    return art_put((const fb_data *)src->data, src->width, src->height, bm, w, h);
+       in scale_frame's or shrink_frame's rows along with another thread */
+    return art_put((const fb_data *)src->data, src->width, src->height, bm, w, h,
+                   average);
+}
+
+int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
+                      int max_size)
+{
+    return load_art(art, bm, max_size, false);
+}
+
+int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size)
+{
+    return scale_art(src, bm, max_size, false);
+}
+
+int itunesdb_load_small_art(const struct itunesdb_art *art, struct bitmap *bm,
+                            int max_size)
+{
+    return load_art(art, bm, max_size, true);
+}
+
+int itunesdb_scale_small_art(const struct bitmap *src, struct bitmap *bm,
+                             int max_size)
+{
+    return scale_art(src, bm, max_size, true);
 }
 
 /* the slides file, open while Cover Flow reads it: one open a cover cost a
@@ -4939,6 +5023,9 @@ void itunesdb_covers_end(int how)
         forget_index(&covers_index);
         covers_load();
         skin_forget_db_art();
+#ifdef HAVE_TAGCACHE
+        album_header_forget_cover();
+#endif
     }
 }
 #endif /* ITUNESDB_HAVE_ART */

@@ -82,6 +82,14 @@ struct line_desc {
     /* height of the line separator (in pixels). 0 to disable drawing
      * of the separator */
     int8_t separator_height;
+    /* A short text at the right end, as a song's length on an album's
+     * screen, grey as a setting's value: in value_font, value_shift pixels
+     * below the text's top (line_lead_shift()), against the right of a
+     * column value_width wide, which the text stops short of; left of a
+     * chevron, right of a speaker. "" for none, and none right to left */
+    int8_t value_shift;
+    int16_t value_font, value_width;
+    char value[10];
 };
 
 /* default initializer, can be used for static initialitation also.
@@ -169,6 +177,10 @@ int line_mark_width(struct screen *display);
    after it, in a column of these. */
 int line_lead_width(struct screen *display, int font, int digits, int *digit);
 int line_lead_shift(int name_font, int font);
+/* The column of a line's value (line_desc.value) as wide as text would be in
+   font, each of its digits as wide as the font's widest, as the longest of a
+   list's values is measured once for it */
+int line_value_width(int font, const char *text);
 void line_draw_lead(struct screen *display, int font, int shift, int x, int y,
                     const struct line_desc *line, const char *text,
                     int width, int digit);

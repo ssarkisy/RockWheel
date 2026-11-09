@@ -26,6 +26,7 @@
 #include "font.h"
 #include "button.h"
 #include "string.h"
+#include "string-extra.h"
 #include "settings.h"
 #include "kernel.h"
 #include "file.h"
@@ -225,6 +226,22 @@ static int list_lead_font(int list_font)
     return font < 0 ? list_font : font;
 }
 
+/* Songs' lengths at the right of an album's rows, in the font of Now
+   Playing's artist: lighter than the numbers before the names, whose column
+   is narrow. Bold with Bold Text, as the theme has it then. In the list's own
+   as the theme loads, or with a theme without them. */
+static int list_value_font(int list_font)
+{
+    static const char *const fonts[2] = {
+        FONT_DIR "/17-Inter-Medium.fnt", FONT_DIR "/17-Inter-Bold.fnt"
+    };
+    const int first = global_settings.bold_text ? 1 : 0;
+    int font = font_find(fonts[first]);
+    if (font < 0)
+        font = font_find(fonts[!first]);
+    return font < 0 ? list_font : font;
+}
+
 /* What doesn't start a line of Chinese or Japanese: the punctuation that
    closes what's before it and Japanese's small kana. "。" went to a line of
    its own once its font's spacing made it as wide as a letter. */
@@ -305,6 +322,11 @@ static const char *hint_line(const char *p, int font, int width)
         return p + n;
     ucschar_t ch;
     return (const char *)utf8decode((const unsigned char *)p, &ch);
+}
+
+const char *list_line_end(const char *p, int font, int width)
+{
+    return hint_line(p, font, width);
 }
 
 void list_draw_hint(struct screen *display, struct viewport *band,
@@ -536,7 +558,31 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         lead_shift = line_lead_shift(list_text_vp->font, lead_font);
     }
 
-    for (i=start; i<end && i<list->nb_items; i++)
+    /* the column of the values at the right end, as songs' lengths: as the
+       lead's, none right to left, where the names run to that end */
+    linedes.value[0] = '\0';
+    const bool values = list->callback_get_value && list->value_widest[0]
+                        && screen == SCREEN_MAIN && !VP_IS_RTL(list_text_vp);
+    if (values)
+    {
+        const int value_font = list_value_font(list_text_vp->font);
+        if (list->value_font != value_font)
+        {
+            list->value_width = line_value_width(value_font, list->value_widest);
+            list->value_font = value_font;
+        }
+        linedes.value_font = value_font;
+        linedes.value_width = list->value_width;
+        linedes.value_shift = line_lead_shift(list_text_vp->font, value_font);
+    }
+
+    /* the block at the top, as much of it as shows: what's above the
+       viewport cut off */
+    if (start < list->block_rows && screen == SCREEN_MAIN)
+        list->callback_draw_block(display, -start * linedes.height + draw_offset,
+                                  list->data);
+
+    for (i=MAX(start, list->block_rows); i<end && i<list->nb_items; i++)
     {
         /* do the text */
         enum themable_icons icon;
@@ -675,6 +721,13 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         linedes.style = style;
         linedes.scroll = is_selected ? true : list->scroll_all;
         linedes.line = i % item_lines;
+        if (values)
+        {
+            char value_buf[sizeof(linedes.value)];
+            const char *value = list->callback_get_value(i, list->data, value_buf,
+                                                         sizeof(value_buf));
+            strlcpy(linedes.value, value ? value : "", sizeof(linedes.value));
+        }
         icon = list->callback_get_item_icon ?
                     list->callback_get_item_icon(i, list->data) : Icon_NOICON;
 
