@@ -98,6 +98,21 @@ static const unsigned char bmpheader[] =
 
 static void (*screen_dump_hook)(int fh) = NULL;
 
+#ifdef SIMULATOR
+#include <stdio.h>
+
+/* RBSIM_SCRIPT's dumps (button-sdl.c) by number, "dump 001.bmp" on: a date
+   and time's second named one at most */
+static int dump_number;
+
+void sim_screen_dump_numbered(int number)
+{
+    dump_number = number;
+    screen_dump();
+    dump_number = 0;
+}
+#endif
+
 void screen_dump(void)
 {
     int fd, y;
@@ -122,6 +137,12 @@ void screen_dump(void)
     unsigned char linebuf[DUMP_BMP_LINESIZE * 3];
 #endif
 
+#ifdef SIMULATOR
+    if (dump_number)
+        snprintf(filename, sizeof(filename), "%s/dump %03d.bmp", HOME_DIR,
+                 dump_number);
+    else
+#endif
 #if CONFIG_RTC
     create_datetime_filename(filename, HOME_DIR, "dump ", ".bmp", false);
 #else

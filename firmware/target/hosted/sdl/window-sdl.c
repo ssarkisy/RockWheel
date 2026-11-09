@@ -41,6 +41,9 @@ static SDL_Surface  *picture_surface;
 static bool new_gui_texture_needed = true;
 static bool window_adjustment_needed;
 double display_zoom = 1;
+#ifdef SIMULATOR
+static bool script_presents; /* RBSIM_SCRIPT's: fewer frames shown */
+#endif
 
 static void get_window_dimensions(int *w, int *h)
 {
@@ -158,6 +161,20 @@ void sdl_window_render(void)
     }
     else
     {
+#ifdef SIMULATOR
+        /* A script's run (button-sdl.c) shows a frame each 40 ms of the
+           host's at most, the texture updated meanwhile: macOS took a
+           display refresh for each, a 60th of a second for each step of a
+           list, vsync or not. Its dumps read the LCD. */
+        if (script_presents)
+        {
+            static Uint32 last;
+            const Uint32 now = SDL_GetTicks();
+            if (now - last < 40)
+                return;
+            last = now;
+        }
+#endif
         SDL_RenderClear(sdlRenderer);
         SDL_RenderCopy(sdlRenderer, gui_texture, NULL, NULL);
         SDL_RenderPresent(sdlRenderer);
@@ -230,6 +247,9 @@ void sdl_window_setup(void)
         panicf("%s", SDL_GetError());
     if ((sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, SDL_RENDERER_PRESENTVSYNC)) == NULL)
         panicf("%s", SDL_GetError());
+#ifdef SIMULATOR
+    script_presents = getenv("RBSIM_SCRIPT") != NULL;
+#endif
 
     /* Surface for LCD content only. Needs to fit largest LCD */
     if ((sim_lcd_surface = SDL_CreateRGBSurface(0,

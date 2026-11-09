@@ -62,4 +62,17 @@ extern bool showremote;
 extern double display_zoom;
 extern long start_tick;
 
+#ifdef SIMULATOR
+/* RBSIM_SPEED=N: the device's clock runs N times as fast as the host's
+   (kernel-sdl.c). The device's ms since the tick started, and the host's ms
+   that so many of the device's take, a part of one rounded up. */
+extern int sim_speed;
+long sim_time_ms(void);
+int sim_host_ms(long ms);
+#else
+#define sim_speed 1
+#define sim_time_ms() ((long)(SDL_GetTicks() - start_tick))
+#define sim_host_ms(ms) (ms)
+#endif
+
 #endif /* _SYSTEM_SDL_H_ */

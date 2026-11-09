@@ -63,6 +63,11 @@ void screen_dump_set_hook(void (*hook)(int fd));
 void remote_screen_dump(void);
 #endif
 
+#ifdef SIMULATOR
+/* as "dump 001.bmp", for RBSIM_SCRIPT */
+void sim_screen_dump_numbered(int number);
+#endif
+
 #else /* !HAVE_SCREENDUMP */
 
 #define screen_dump() do { } while(0)

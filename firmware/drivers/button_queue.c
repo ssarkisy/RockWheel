@@ -95,6 +95,15 @@ static void button_queue_wait(struct queue_event *evp, int timeout)
     while (timeout);
 }
 #else /* ndef HAVE_ADJUSTABLE_CPU_FREQ */
+#if defined(SIMULATOR) && defined(__APPLE__) && (CONFIG_PLATFORM & PLATFORM_SDL)
+/* asleep between two looks at the queue, for sim_button_queue_waited() */
+static volatile bool button_polled_waiting;
+#define POLLED_SLEEP(ticks) \
+    ({ button_polled_waiting = true; sleep(ticks); button_polled_waiting = false; })
+#else
+#define POLLED_SLEEP(ticks) sleep(ticks)
+#endif
+
 static inline void button_queue_wait(struct queue_event *evp, int timeout)
 {
 #if defined(__APPLE__) && (CONFIG_PLATFORM & PLATFORM_SDL)
@@ -107,14 +116,14 @@ static inline void button_queue_wait(struct queue_event *evp, int timeout)
         if (evp->id != SYS_TIMEOUT || timeout == TIMEOUT_NOBLOCK)
             return;
         else if (timeout == TIMEOUT_BLOCK)
-            sleep(HZ/60);
+            POLLED_SLEEP(HZ/60);
         else
         {
             curr_tick = current_tick;
             if (!TIME_AFTER(initial_tick + timeout, curr_tick))
                 return;
             remaining = ((initial_tick + timeout) - curr_tick);
-            sleep(remaining < HZ/60 ? remaining : HZ/60);
+            POLLED_SLEEP(remaining < HZ/60 ? remaining : HZ/60);
         }
     }
 #else
@@ -181,6 +190,23 @@ bool button_queue_full(void)
 {
     return queue_full(&button_queue);
 }
+
+#ifdef SIMULATOR
+/* A thread waits for a button, the queue empty: the UI ready for the next
+   key, for RBSIM_SCRIPT (button-sdl.c). On macOS it looks at the queue each
+   tick and sleeps between. */
+bool sim_button_queue_waited(void)
+{
+    if (!queue_empty(&button_queue))
+        return false;
+#if !defined(HAVE_ADJUSTABLE_CPU_FREQ) && defined(__APPLE__) \
+    && (CONFIG_PLATFORM & PLATFORM_SDL)
+    if (button_polled_waiting)
+        return true;
+#endif
+    return button_queue.queue.head != NULL;
+}
+#endif
 
 /* As many times as presses were cleared from the queue: a driver that holds
    back what the queue had no room for drops that too then, as the click

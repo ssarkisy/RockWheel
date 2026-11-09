@@ -291,7 +291,7 @@ static void write_to_soundcard(struct pcm_udata *udata)
     }
 }
 
-static void sdl_audio_callback(void *handle, Uint8 *stream, int len)
+static void sdl_audio_fill(void *handle, Uint8 *stream, int len)
 {
     struct pcm_udata *udata = handle;
 
@@ -335,7 +335,9 @@ static void sdl_audio_callback(void *handle, Uint8 *stream, int len)
             {
                 int delay = pcm_data_size*250 / pcm_sampr - 1;
 
-                if (delay > 0)
+                /* a buffer's time as the DMA's, but not in RBSIM_SPEED's
+                   silent run: its callback takes N times the music */
+                if (delay > 0 && sim_speed == 1)
                 {
                     SDL_Delay(delay);
 
@@ -352,6 +354,35 @@ static void sdl_audio_callback(void *handle, Uint8 *stream, int len)
     }
 
     SDL_UnlockMutex(audio_lock);
+}
+
+static void sdl_audio_callback(void *handle, Uint8 *stream, int len)
+{
+#ifdef SIMULATOR
+    /* RBSIM_SPEED=N: the music goes by the device's clock, N times the host's,
+       so the sound card's each buffer takes N buffers of it, and plays silence */
+    if (sim_speed > 1)
+    {
+        static Uint8 *fast;
+        static int fast_len;
+        const int want = len * sim_speed;
+        if (want > fast_len)
+        {
+            Uint8 *p = realloc(fast, want);
+            if (!p)
+            {
+                memset(stream, obtained.silence, len);
+                return;
+            }
+            fast = p;
+            fast_len = want;
+        }
+        sdl_audio_fill(handle, fast, want);
+        memset(stream, obtained.silence, len);
+        return;
+    }
+#endif
+    sdl_audio_fill(handle, stream, len);
 }
 
 #ifdef HAVE_RECORDING

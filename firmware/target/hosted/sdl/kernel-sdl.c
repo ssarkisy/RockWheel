@@ -33,6 +33,45 @@
 static SDL_TimerID tick_timer_id;
 long start_tick;
 
+#ifdef SIMULATOR
+/* RBSIM_SPEED=N, for scripted runs: the device's clock runs N times as fast
+   as the host's. The tick goes by it, and with it every sleep and timeout
+   (thread-sdl.c), the user timer (timer-sdl.c) and the music, which plays N
+   times as fast and silent (pcm-sdl.c). The host's work takes as long as
+   ever, so it looks N times as slow to the device. */
+int sim_speed = 1;
+static Uint64 sim_pc_start;
+static Uint64 sim_pc_per_ms;
+
+long sim_time_ms(void)
+{
+    if (!sim_pc_per_ms)
+        return 0;
+    return (long)((SDL_GetPerformanceCounter() - sim_pc_start) * sim_speed
+                  / sim_pc_per_ms);
+}
+
+int sim_host_ms(long ms)
+{
+    return ms <= 0 ? 0 : (int)((ms + sim_speed - 1) / sim_speed);
+}
+
+static void sim_clock_init(void)
+{
+    const char *s = getenv("RBSIM_SPEED");
+    if (s && atoi(s) > 1)
+    {
+        sim_speed = atoi(s) < 1000 ? atoi(s) : 1000;
+        printf("RBSIM_SPEED: the clock runs %d times as fast, the music silent\n",
+               sim_speed);
+    }
+    sim_pc_per_ms = SDL_GetPerformanceFrequency() / 1000;
+    if (!sim_pc_per_ms)
+        sim_pc_per_ms = 1;
+    sim_pc_start = SDL_GetPerformanceCounter();
+}
+#endif
+
 #ifndef HAVE_SDL_THREADS
 /* for the wait_for_interrupt function */
 static SDL_cond *wfi_cond;
@@ -162,7 +201,7 @@ Uint32 tick_timer(Uint32 interval, void *param)
     (void) interval;
     (void) param;
 
-    new_tick = (SDL_GetTicks() - start_tick) / (1000/HZ);
+    new_tick = sim_time_ms() / (1000/HZ);
 
     while(new_tick != current_tick)
     {
@@ -194,9 +233,13 @@ void tick_start(unsigned int interval_in_ms)
     else
     {
         start_tick = SDL_GetTicks();
+#ifdef SIMULATOR
+        sim_clock_init();
+#endif
     }
 
-    tick_timer_id = SDL_AddTimer(interval_in_ms, tick_timer, NULL);
+    /* a tick in the host's ms; a timer of 1 ms runs several ticks at a time */
+    tick_timer_id = SDL_AddTimer(sim_host_ms(interval_in_ms), tick_timer, NULL);
 #ifndef HAVE_SDL_THREADS
     SDL_LockMutex(wfi_mutex);
 #endif

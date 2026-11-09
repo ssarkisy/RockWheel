@@ -72,7 +72,12 @@ int remote_type(void)
 static int btn = 0;    /* Hopefully keeps track of currently pressed keys... */
 
 #ifdef SIMULATOR
+#include <string.h>
 #include "strlcat.h"
+#include "screendump.h"
+#include "thread-sdl.h"
+/* root_menu() came, past the boot's waits that take keys (RBSIM_SCRIPT) */
+volatile bool sim_boot_done = false;
 static bool cursor_isfocus = false;
 SDL_Cursor *sdl_focus_cursor = NULL;
 SDL_Cursor *sdl_arrow_cursor = NULL;
@@ -655,6 +660,62 @@ static void button_event(int key, bool pressed)
     else
         btn &= ~new_btn;
 }
+#if defined(SIMULATOR) && SDL_MAJOR_VERSION > 1
+/* Scripted input for automated UI testing. RBSIM_SCRIPT=<file> holds one
+ * command a line, '#' starting a comment. Times are the device's ms, which
+ * RBSIM_SPEED makes pass faster than the host's.
+ *
+ *   <key> [<hold>]   an SDL key name: "Up" and "Down", a step of the wheel each,
+ *                    "Return", "Escape", "Left", "Right", "Space"; or the
+ *                    simulator's own, "U" (USB), "h" (hold)... A button is held
+ *                    for RBSIM_KEYGAP ms, or <hold> (300 and longer is a long
+ *                    press), then released for as long. A button or a step
+ *                    first waits for the boot to reach the menu, and then, up
+ *                    to 10 s of the host's, for the UI to wait for a key, the
+ *                    keys before taken: none is lost to the boot's waits, nor
+ *                    to a screen that loads or clears the queue as it opens,
+ *                    however short the gap. "!Return" doesn't wait.
+ *   <cmd>*<n> ...    a command n times: "Down*421"
+ *   wheel <steps> <stage>
+ *                    the click wheel turned <steps> steps, back if negative,
+ *                    at its acceleration stage 0-6: each step goes 2^stage rows,
+ *                    as far as the list lets it (apps/gui/list.c), as the iPod's
+ *                    driver posts them (button-clickwheel.c)
+ *   wait <ms>
+ *   waitidle <ms> [<max>]
+ *                    until the LCD had no update for <ms>, a scrolling line's
+ *                    aside; <max> at most, 60000 if not given
+ *   dump             a screendump as "dump 001.bmp", "dump 002.bmp"... in the
+ *                    simdisk's root; after the boot, once the UI took the keys
+ *                    before it ("!dump" at once)
+ *   quit
+ *
+ * RBSIM_KEYGAP=<ms>  a button's hold, and the gap after a key: 20 if not
+ *                    given. A button's are 20 at least, as the driver takes a
+ *                    change seen at two ticks in a row (button.c button_read);
+ *                    a step of the wheel, posted at once, has the gap only.
+ * RBSIM_SPEED=<n>    the device's clock n times as fast as the host's, for
+ *                    ticks, sleeps, timeouts and the music, which is silent
+ *                    (kernel-sdl.c)
+ */
+
+/* The script's press, read by the ticks after script_press_tick, as many as
+   script_press_ticks: however late its thread runs, a press lasts that long */
+static int script_press_btn;
+static long script_press_tick;
+static int script_press_ticks;
+
+static int script_pressed(void)
+{
+    if (script_press_btn && TIME_AFTER(current_tick, script_press_tick)
+        && !TIME_AFTER(current_tick, script_press_tick + script_press_ticks))
+        return script_press_btn;
+    return 0;
+}
+#else
+#define script_pressed() 0
+#endif
+
 #if defined(HAVE_BUTTON_DATA)
 int button_read_device(int* data)
 {
@@ -685,15 +746,170 @@ int button_read_device(void)
     else
 #endif
 
-    return btn;
+    return btn | script_pressed();
 }
 
 #if defined(SIMULATOR) && SDL_MAJOR_VERSION > 1
-/* Scripted input for automated UI testing. RBSIM_SCRIPT=<file> holds one
- * command per line: an SDL key name ("Up", "Return", "Escape", ...) with an
- * optional hold time in ms, "wait <ms>", "dump" (screendump) or "quit". */
-static char script_buf[8192];
+static char *script_buf;
 static long script_stack[DEFAULT_STACK_SIZE/sizeof(long)];
+static int script_keygap = 20; /* ms */
+static int script_dumps;
+
+extern bool sim_button_queue_waited(void);     /* button_queue.c */
+extern volatile long sim_lcd_update_tick;      /* lcd-bitmap.c */
+
+#define SCRIPT_TICKS(ms) ((ms) / (1000/HZ))
+
+static void script_sleep_until(long tick)
+{
+    while (TIME_BEFORE(current_tick, tick))
+        sleep(tick - current_tick);
+}
+
+/* a host's ms off the kernel, for what's polled: a tick is 10 ms at 1x */
+static void script_poll(void)
+{
+    void *me = sim_thread_unlock();
+    SDL_Delay(1);
+    sim_thread_lock(me);
+}
+
+/* Until the boot is done and the UI waits for a key, the keys before taken.
+   Ten seconds of the host's at most, as the UI may be busy that long on its
+   CPU, which RBSIM_SPEED doesn't hasten. */
+static void script_wait_ui(void)
+{
+    while (!sim_boot_done)
+        script_poll();
+    const Uint32 start = SDL_GetTicks();
+    while (!sim_button_queue_waited())
+    {
+        if (SDL_GetTicks() - start > 10000)
+        {
+            printf("RBSIM_SCRIPT: the UI took no key for 10 s, going on\n");
+            return;
+        }
+        script_poll();
+    }
+}
+
+static void script_key(SDL_Keycode key, int hold_ms, bool now)
+{
+    const int b = key_to_button(key);
+    if (b && !now)
+        script_wait_ui();
+
+    if (b & (BUTTON_SCROLL_FWD | BUTTON_SCROLL_BACK))
+    {
+        /* a step of the wheel, posted at once */
+        button_event(key, true);
+        button_event(key, false);
+        script_sleep_until(current_tick + SCRIPT_TICKS(script_keygap));
+    }
+    else if (b)
+    {
+        /* seen at two ticks in a row, a change is taken (button.c) */
+        const int hold = MAX(SCRIPT_TICKS(hold_ms), 2);
+        const int gap = MAX(SCRIPT_TICKS(script_keygap), 2);
+        /* no tick reads it half set */
+        const int oldlevel = disable_irq_save();
+        script_press_tick = current_tick;
+        script_press_ticks = hold;
+        script_press_btn = b;
+        restore_irq(oldlevel);
+        script_sleep_until(script_press_tick + hold + gap);
+    }
+    else
+    {
+        /* the simulator's own, as USB or hold: on the press or the release */
+        button_event(key, true);
+        script_sleep_until(current_tick + MAX(SCRIPT_TICKS(hold_ms), 1));
+        button_event(key, false);
+        script_sleep_until(current_tick + MAX(SCRIPT_TICKS(script_keygap), 1));
+    }
+}
+
+#ifdef HAVE_WHEEL_ACCELERATION
+/* steps of the click wheel as its driver posts them: the first of a turn
+   without BUTTON_REPEAT, and each at the stage's rows */
+static void script_wheel(int steps, int stage, bool now)
+{
+    const int b = steps < 0 ? BUTTON_SCROLL_BACK : BUTTON_SCROLL_FWD;
+    stage = MAX(0, MIN(stage, 6));
+    for (int i = 0; i < abs(steps); i++)
+    {
+        if (!now)
+            script_wait_ui();
+#ifdef HAVE_BACKLIGHT
+        backlight_on();
+#endif
+        reset_poweroff_timer();
+        button_queue_post(b | (i ? BUTTON_REPEAT : 0),
+                          (1u << 31) | (1u << 24) | WHEEL_DATA_STAGED
+                          | (1u << stage));
+        script_sleep_until(current_tick + SCRIPT_TICKS(script_keygap));
+    }
+}
+#endif
+
+/* until the LCD had no update for so long, a scrolling line's aside */
+static void script_wait_idle(int ms, int max_ms)
+{
+    const long quiet = MAX(SCRIPT_TICKS(ms), 1);
+    const long until = current_tick + SCRIPT_TICKS(max_ms);
+    while (TIME_BEFORE(current_tick, sim_lcd_update_tick + quiet))
+    {
+        if (!TIME_BEFORE(current_tick, until))
+        {
+            printf("RBSIM_SCRIPT: waitidle %d: the LCD still updates after %d ms\n",
+                   ms, max_ms);
+            return;
+        }
+        script_poll();
+    }
+}
+
+/* one command; false to end the script */
+static bool script_command(const char *cmd, int argc, int a, int b)
+{
+    /* "!Escape": at once, the UI ready or not */
+    const bool now = cmd[0] == '!';
+    if (now)
+        cmd++;
+
+    if (!strcmp(cmd, "wait"))
+        sleep(SCRIPT_TICKS(a));
+    else if (!strcmp(cmd, "waitidle"))
+        script_wait_idle(a, argc >= 3 ? b : 60000);
+    else if (!strcmp(cmd, "dump"))
+    {
+        /* the boot's screens as they come */
+        if (sim_boot_done && !now)
+            script_wait_ui();
+        sim_screen_dump_numbered(++script_dumps);
+    }
+#ifdef HAVE_WHEEL_ACCELERATION
+    else if (!strcmp(cmd, "wheel"))
+        script_wheel(a, argc >= 3 ? b : 0, now);
+#endif
+    else if (!strcmp(cmd, "quit"))
+    {
+        SDL_Event ev = { .type = SDL_QUIT };
+        SDL_PushEvent(&ev);
+        return false;
+    }
+    else
+    {
+        SDL_Keycode key = SDL_GetKeyFromName(cmd);
+        if (key == SDLK_UNKNOWN)
+        {
+            printf("RBSIM_SCRIPT: unknown key '%s'\n", cmd);
+            return true;
+        }
+        script_key(key, argc >= 2 ? a : script_keygap, now);
+    }
+    return true;
+}
 
 static void script_thread(void)
 {
@@ -701,36 +917,23 @@ static void script_thread(void)
     for (char *line = strtok_r(script_buf, "\n", &save); line;
          line = strtok_r(NULL, "\n", &save))
     {
-        char cmd[32];
-        int ms = 0;
-        if (sscanf(line, "%31s %d", cmd, &ms) < 1 || cmd[0] == '#')
+        char cmd[64];
+        int a = 0, b = 0;
+        const int argc = sscanf(line, "%63s %d %d", cmd, &a, &b);
+        if (argc < 1 || cmd[0] == '#')
             continue;
 
-        if (!strcmp(cmd, "wait"))
-            sleep(ms * HZ / 1000);
-        else if (!strcmp(cmd, "dump"))
+        /* "Down*421": that many times */
+        int times = 1;
+        char *star = strchr(cmd, '*');
+        if (star)
         {
-            sim_trigger_screendump();
-            sleep(HZ); /* dump names have one second resolution */
+            *star = '\0';
+            times = atoi(star + 1);
         }
-        else if (!strcmp(cmd, "quit"))
-        {
-            SDL_Event ev = { .type = SDL_QUIT };
-            SDL_PushEvent(&ev);
-        }
-        else
-        {
-            SDL_Keycode key = SDL_GetKeyFromName(cmd);
-            if (key == SDLK_UNKNOWN)
-            {
-                printf("RBSIM_SCRIPT: unknown key '%s'\n", cmd);
-                continue;
-            }
-            button_event(key, true);
-            sleep(MAX(ms, 50) * HZ / 1000);
-            button_event(key, false);
-            sleep(HZ/5);
-        }
+        for (int i = 0; i < times; i++)
+            if (!script_command(cmd, argc, a, b))
+                return;
     }
 }
 
@@ -741,8 +944,28 @@ static void script_init(void)
     if (!f)
         return;
 
-    script_buf[fread(script_buf, 1, sizeof(script_buf) - 1, f)] = '\0';
+    size_t size = 0, room = 4096;
+    script_buf = malloc(room);
+    while (script_buf)
+    {
+        size += fread(script_buf + size, 1, room - 1 - size, f);
+        if (size < room - 1)
+            break;
+        char *bigger = realloc(script_buf, room *= 2);
+        if (!bigger)
+            free(script_buf);
+        script_buf = bigger;
+    }
     fclose(f);
+    if (!script_buf)
+        return;
+    script_buf[size] = '\0';
+
+    const char *gap = getenv("RBSIM_KEYGAP");
+    if (gap && *gap)
+        script_keygap = MAX(atoi(gap), 0);
+    printf("RBSIM_SCRIPT: %s, keys %d ms apart\n", path, script_keygap);
+
     create_thread(script_thread, script_stack, sizeof(script_stack), 0,
                   "sim script" IF_PRIO(, PRIORITY_BACKGROUND) IF_COP(, CPU));
 }

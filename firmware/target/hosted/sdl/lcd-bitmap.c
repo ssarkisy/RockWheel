@@ -24,6 +24,11 @@
 #include "button-sdl.h"
 #include "lcd-sdl.h"
 #include "screendump.h"
+#ifdef SIMULATOR
+#include "kernel.h"
+#include "lcd.h"
+#include "scroll_engine.h"
+#endif
 
 SDL_Surface* lcd_surface;
 
@@ -130,8 +135,33 @@ void lcd_update(void)
     lcd_update_rect(0, 0, LCD_WIDTH, LCD_HEIGHT);
 }
 
+#ifdef SIMULATOR
+/* The tick of the last update of the LCD but a scrolling line's, for
+   RBSIM_SCRIPT's waitidle (button-sdl.c): a long name scrolls on for good */
+volatile long sim_lcd_update_tick;
+
+static bool sim_lcd_scroll_only(int x, int y, int width, int height)
+{
+    for (int i = 0; i < lcd_scroll_info.lines; i++)
+    {
+        const struct scrollinfo *s = &lcd_scroll_info.scroll[i];
+        if (!s->vp)
+            continue;
+        const int sx = s->vp->x + s->x, sy = s->vp->y + s->y;
+        if (x >= sx && y >= sy && x + width <= sx + s->width
+            && y + height <= sy + s->height)
+            return true;
+    }
+    return false;
+}
+#endif
+
 void lcd_update_rect(int x_start, int y_start, int width, int height)
 {
+#ifdef SIMULATOR
+    if (!sim_lcd_scroll_only(x_start, y_start, width, height))
+        sim_lcd_update_tick = current_tick;
+#endif
 #if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
     if (lcd_update_held(&x_start, &y_start, &width, &height))
         return;

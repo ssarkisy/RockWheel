@@ -1795,6 +1795,12 @@ void root_menu(void)
     FOR_NB_SCREENS(i)
         viewportmanager_theme_undo(i, false);
 #endif
+#ifdef SIMULATOR
+    /* RBSIM_SCRIPT's keys from now on, not to the boot's waits for USB, which
+       take them and drop them (button-sdl.c) */
+    extern volatile bool sim_boot_done;
+    sim_boot_done = true;
+#endif
     /* with no settings yet, the language is asked for first, as on a stock iPod */
     if (settings_first_start())
         language_screen();

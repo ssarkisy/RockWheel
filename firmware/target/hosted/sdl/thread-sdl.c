@@ -230,11 +230,12 @@ void sleep_thread(int ticks)
 
     current->state = STATE_SLEEPING;
 
-    rem = (SDL_GetTicks() - start_tick) % (1000/HZ);
+    rem = sim_time_ms() % (1000/HZ);
     if (rem < 0)
         rem = 0;
 
-    current->tmo_tick = (1000/HZ) * ticks + ((1000/HZ)-1) - rem;
+    /* in the device's ms, waited in the host's (RBSIM_SPEED) */
+    current->tmo_tick = sim_host_ms((1000/HZ) * ticks + ((1000/HZ)-1) - rem);
 }
 
 void block_thread_(struct thread_entry *current, int ticks)
@@ -244,7 +245,7 @@ void block_thread_(struct thread_entry *current, int ticks)
     else
     {
         current->state = STATE_BLOCKED_W_TMO;
-        current->tmo_tick = (1000/HZ)*ticks;
+        current->tmo_tick = sim_host_ms((1000/HZ)*ticks);
     }
 
     wait_queue_register(current);

@@ -19,6 +19,7 @@
 ****************************************************************************/
 
 #include "timer.h"
+#include "system.h"
 #include <SDL_timer.h>
 
 static int timer_prio = -1;
@@ -31,8 +32,9 @@ Uint32 SDL_timer_callback(Uint32 interval, void *param){
     return(interval);
 }
 
+/* in the host's ms: RBSIM_SPEED's clock runs the timer as fast as the tick */
 #define cycles_to_miliseconds(cycles) \
-    ((int)((1000*cycles)/TIMER_FREQ))
+    sim_host_ms((int)((1000*cycles)/TIMER_FREQ))
 
 bool timer_register(int reg_prio, void (*unregister_callback)(void),
                     long cycles, void (*timer_callback)(void))
