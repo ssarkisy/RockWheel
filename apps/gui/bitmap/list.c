@@ -507,9 +507,19 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         .have_icons = have_icons, .linedes = &linedes, .display = display
     };
 
-    /* the column of the texts before the names, as albums' years */
-    const int lead_w = list->callback_get_lead && screen == SCREEN_MAIN ?
-                       line_lead_width(display) : 0;
+    /* the column of the texts before the names, as albums' years, measured
+       once for the list in its font */
+    int lead_w = 0;
+    if (list->callback_get_lead && list->lead_digits > 0 && screen == SCREEN_MAIN)
+    {
+        if (list->lead_font != list_text_vp->font)
+        {
+            list->lead_width = line_lead_width(display, list->lead_digits,
+                                               &list->lead_digit);
+            list->lead_font = list_text_vp->font;
+        }
+        lead_w = list->lead_width;
+    }
 
     for (i=start; i<end && i<list->nb_items; i++)
     {
@@ -558,7 +568,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                          list->callback_get_mark(i, list->data) : LINE_MARK_NONE;
         if (mark != LINE_MARK_NONE)
             line_indent += line_mark_width(display);
-        /* an album's year, its name after its column */
+        /* an album's year or a song's number, its name after their column,
+           even with its cell empty */
         char lead_buf[12];
         const int lead_x = line_indent;
         const char *lead = lead_w && !shuffle && mark == LINE_MARK_NONE ?
@@ -668,9 +679,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         if (mark != LINE_MARK_NONE)
             line_draw_mark(display, list_info.x + mark_x, list_info.y,
                            &linedes, mark);
-        if (lead)
+        if (lead && *lead)
             line_draw_lead(display, list_info.x + lead_x, list_info.y,
-                           &linedes, lead);
+                           &linedes, lead, lead_w, list->lead_digit);
     }
     if (hint)
         list_draw_hint(display, &band, hint);

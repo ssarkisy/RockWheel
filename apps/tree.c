@@ -295,13 +295,14 @@ static bool tree_is_playing(int selected_item, void *data)
                                   gui_synclist_playing());
 }
 
-/* an album's year before its name, in an artist's albums */
-static const char *tree_get_year(int selected_item, void *data, char *buf,
+/* an album's year before its name, in an artist's albums, and a song's
+   number before its title, in an album's songs */
+static const char *tree_get_lead(int selected_item, void *data, char *buf,
                                  size_t size)
 {
     struct tree_context *local_tc = (struct tree_context *)data;
     return *local_tc->dirfilter == SHOW_ID3DB ?
-           tagtree_entry_year(local_tc, index_of(selected_item), buf, size) : NULL;
+           tagtree_entry_lead(local_tc, index_of(selected_item), buf, size) : NULL;
 }
 #endif
 
@@ -730,7 +731,10 @@ static int update_dir(void)
     gui_synclist_set_has_children_callback(list, tree_has_children);
 #ifdef HAVE_TAGCACHE
     gui_synclist_set_playing_callback(list, id3db ? tree_is_playing : NULL);
-    gui_synclist_set_lead_callback(list, id3db ? tree_get_year : NULL);
+    /* as wide as the list's years or numbers need, if it has them */
+    const int lead_digits = id3db ? tagtree_lead_digits(&tc) : 0;
+    gui_synclist_set_lead_callback(list, lead_digits ? tree_get_lead : NULL,
+                                   lead_digits);
     /* in the catalogue, not in the file browser showing playlists */
     gui_synclist_set_mark_callback(list, catalog_lead ? tree_get_mark : NULL);
     if(!id3db || global_settings.talk_menu)

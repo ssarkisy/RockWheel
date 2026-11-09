@@ -78,7 +78,10 @@ bool tagtree_at_top(void);
 char *tagtree_get_title(struct tree_context* c);
 int tagtree_get_attr(struct tree_context* c);
 bool tagtree_row_is_playing(struct tree_context *c, int row, long playing);
-const char *tagtree_entry_year(struct tree_context *c, int row, char *buf,
+/* the column before the rows' names: the digits of its widest text, 0 for a
+   list without it; and a row's text there, as gui_synclist's lead has it */
+int tagtree_lead_digits(struct tree_context *c);
+const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
                                size_t size);
 /* the list has Albums' Sort By, which is drawn as a setting, with its value */
 bool tagtree_has_sort_by(struct tree_context *c);

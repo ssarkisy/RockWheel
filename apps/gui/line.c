@@ -53,6 +53,7 @@ static int decoration_width(struct screen *display, const struct line_desc *line
 
 struct line_desc_scroll {
     struct line_desc desc;
+    int rtl_cut; /* right to left, the viewport's end cut off for the text */
     bool used;
 };
 
@@ -95,8 +96,12 @@ static void scroller(struct scrollinfo *s, struct screen *display)
     else
     {
         int y = s->y - (line->desc.height/2 - display->getcharheight()/2);
+        /* the text's bar again, short of what's before it right to left */
+        struct viewport *vp = *display->current_viewport;
+        vp->width -= line->rtl_cut;
         style_line(display, s->x, y, &line->desc);
         put_text(display, s->x, s->y, &line->desc, s->line, true, s->offset);
+        vp->width += line->rtl_cut;
         if (line->desc.style & STYLE_PLAYING)
             draw_speaker(display, y, &line->desc);
         if (line->desc.style & STYLE_CHEVRON)
@@ -159,6 +164,17 @@ static void put_text(struct screen *display,
     const int deco = decoration_width(display, line);
     if (deco > 0 && deco < vp->width - x)
         vp->width -= deco;
+    /* Right to left, the text runs leftwards from x short of the right end,
+       where there may be something before it, as an album's year: the
+       viewport ends at x for it. Its scrolling, which the scroll engine
+       doesn't mirror, then has the text's area, and leaves that alone */
+    int rtl_cut = 0;
+    if (VP_IS_RTL(vp) && x > 0 && x < vp->width)
+    {
+        rtl_cut = x;
+        vp->width -= x;
+        x = 0;
+    }
 
     if (line->scroll && !prevent_scroll)
     {
@@ -169,6 +185,7 @@ static void put_text(struct screen *display,
          * do this on the copy of the original line_desc*/
         if (line_data->desc.height == -1)
             line_data->desc.height = display->getcharheight();
+        line_data->rtl_cut = rtl_cut;
         scrolls = display->putsxy_scroll_func(x, y, text,
             scrollers[display->screen_type], line_data, text_skip_pixels);
         line_data->used = scrolls;
@@ -645,21 +662,28 @@ void line_draw_mark(struct screen *display, int x, int y,
 }
 
 #define LEAD_GAP 8 /* as a setting's value from its name */
-int line_lead_width(struct screen *display)
+int line_lead_width(struct screen *display, int digits, int *digit)
 {
     int widest = 0;
-    for (char digit[2] = "0"; digit[0] <= '9'; digit[0]++)
+    for (char d[2] = "0"; d[0] <= '9'; d[0]++)
     {
         int w;
-        display->getstringsize(digit, &w, NULL);
+        display->getstringsize(d, &w, NULL);
         widest = MAX(widest, w);
     }
-    return 4 * widest + LEAD_GAP;
+    *digit = widest;
+    return digits * widest + LEAD_GAP;
 }
 
+/* right-aligned, 9 under 10, which right-to-left text mirrors to the name's
+   side too: placed as if each of its digits were as wide as the widest, as
+   the theme's all are, rather than measured row by row. A year fills its
+   column as before */
 void line_draw_lead(struct screen *display, int x, int y,
-                    const struct line_desc *line, const char *text)
+                    const struct line_desc *line, const char *text,
+                    int width, int digit)
 {
+    x += width - LEAD_GAP - digit * (int)strlen(text);
     const int height = line->height == -1 ? display->getcharheight() : line->height;
     const unsigned fg = display->get_foreground();
 #ifdef HAVE_LCD_COLOR

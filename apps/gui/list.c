@@ -167,6 +167,8 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_is_playing = NULL;
     gui_list->callback_get_mark = NULL;
     gui_list->callback_get_lead = NULL;
+    gui_list->lead_digits = 0;
+    gui_list->lead_font = -1;
     gui_list->callback_is_shuffle = NULL;
     gui_list->callback_get_hint = NULL;
     gui_list->playing_shown = 0;
@@ -542,9 +544,12 @@ void gui_synclist_set_mark_callback(struct gui_synclist * lists,
 }
 
 void gui_synclist_set_lead_callback(struct gui_synclist * lists,
-        const char *(*get_lead)(int item, void *data, char *buf, size_t size))
+        const char *(*get_lead)(int item, void *data, char *buf, size_t size),
+        int digits)
 {
     lists->callback_get_lead = get_lead;
+    lists->lead_digits = digits;
+    lists->lead_font = -1; /* to be measured */
 }
 
 void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,

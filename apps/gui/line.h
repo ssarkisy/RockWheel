@@ -158,11 +158,15 @@ int line_shuffle_width(struct screen *display);
    made on it */
 enum line_mark { LINE_MARK_NONE, LINE_MARK_COMPUTER, LINE_MARK_IPOD };
 int line_mark_width(struct screen *display);
-/* A short text before the name, as an album's year: grey, as a setting's
-   value, in a column as wide as four of the font's widest digit and a gap */
-int line_lead_width(struct screen *display);
+/* A short text before the name, as an album's year or a song's number: grey,
+   as a setting's value, in a column as wide as so many of the font's widest
+   digit and a gap, against the gap's side of it, as numbers in a column go.
+   The column's width, and in *digit the widest digit's: measured once for a
+   list. Drawn at x of a line put at y, after it, in a column of these. */
+int line_lead_width(struct screen *display, int digits, int *digit);
 void line_draw_lead(struct screen *display, int x, int y,
-                    const struct line_desc *line, const char *text);
+                    const struct line_desc *line, const char *text,
+                    int width, int digit);
 void line_draw_mark(struct screen *display, int x, int y,
                     const struct line_desc *line, int mark);
 void line_draw_shuffle(struct screen *display, int x, int y,
