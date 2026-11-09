@@ -342,3 +342,6 @@ __pycache__
 
 # RockWheel: banners, posters and mockups in the works, kept out of git
 /work/
+# and the instructions and skills for Claude, which are the owner's own
+/CLAUDE.md
+/.claude/
