@@ -191,7 +191,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * The counts of the language's phrases, the core's and the Extras', are in it
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. */
-#define PLUGIN_API_REVISION 10
+#define PLUGIN_API_REVISION 11
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1148,6 +1148,9 @@ struct plugin_api {
        song at its end (ipod_playlists.h), as Cover Flow's Add to Playlist */
     int (*ip_pick_playlist)(char *picked, size_t size);
     bool (*ip_add_file)(const char *target, const char *path);
+    /* Cover Flow's Go to Artist: the song's file, gone to as it quits with
+       PLUGIN_OK, if it's offered (root_menu.h) */
+    bool (*root_menu_go_to_later)(const char *path);
 #endif
 };
 

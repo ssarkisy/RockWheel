@@ -12783,3 +12783,185 @@
     rtc: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SHUFFLE_IN_LISTS
+  desc: a row of Settings, after Music Menu, and the title of its screen: which kinds of Music's lists and of playlists have Shuffle Songs as their first row
+  user: core
+  <source>
+    *: "Shuffle in Lists"
+  </source>
+  <dest>
+    *: "عشوائي في القوائم"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_ARTIST_ALBUMS
+  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an artist's or a composer's albums, playing all of their songs
+  user: core
+  <source>
+    *: "An Artist's Albums"
+  </source>
+  <dest>
+    *: "ألبومات الفنان"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_ALBUM_SONGS
+  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an album's songs
+  user: core
+  <source>
+    *: "An Album's Songs"
+  </source>
+  <dest>
+    *: "أغاني الألبوم"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_PLAYLISTS
+  desc: the hint in the band under Settings > Shuffle in Lists while Playlists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "Shuffle Songs at the top of a playlist or On-The-Go plays all of its songs in a new order."
+  </source>
+  <dest>
+    *: "أغان عشوائية في أعلى قائمة تشغيل أو On-The-Go تشغّل كل أغانيها بترتيب جديد."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ARTISTS
+  desc: the hint in the band under Settings > Shuffle in Lists while Artists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Artists, Shuffle Songs plays your whole library; in a genre, all of the genre's songs."
+  </source>
+  <dest>
+    *: "في الفنانين، تشغّل أغان عشوائية مكتبتك كلها؛ وفي نوع، كل أغاني النوع."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ARTIST
+  desc: the hint in the band under Settings > Shuffle in Lists while An Artist's Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In an artist's or a composer's albums, Shuffle Songs plays all of their songs."
+  </source>
+  <dest>
+    *: "في ألبومات فنان أو ملحن، تشغّل أغان عشوائية كل أغانيه."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ALBUMS
+  desc: the hint in the band under Settings > Shuffle in Lists while Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Albums, Shuffle Songs plays your whole library, as in the main menu."
+  </source>
+  <dest>
+    *: "في الألبومات، تشغّل أغان عشوائية مكتبتك كلها، كما في القائمة الرئيسية."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ALBUM
+  desc: the hint in the band under Settings > Shuffle in Lists while An Album's Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In an album, Shuffle Songs plays its songs in a new order."
+  </source>
+  <dest>
+    *: "في ألبوم، تشغّل أغان عشوائية أغانيه بترتيب جديد."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_SONGS
+  desc: the hint in the band under Settings > Shuffle in Lists while Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Songs, Shuffle Songs plays your whole library, as in the main menu."
+  </source>
+  <dest>
+    *: "في الأغاني، تشغّل أغان عشوائية مكتبتك كلها، كما في القائمة الرئيسية."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_GENRES
+  desc: the hint in the band under Settings > Shuffle in Lists while Genres is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Genres, Shuffle Songs plays your whole library. A genre's own list follows Artists."
+  </source>
+  <dest>
+    *: "في الأنواع، تشغّل أغان عشوائية مكتبتك كلها. قائمة النوع نفسه تتبع الفنانين."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_COMPOSERS
+  desc: the hint in the band under Settings > Shuffle in Lists while Composers is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Composers, Shuffle Songs plays your whole library. A composer's albums follow An Artist's Albums."
+  </source>
+  <dest>
+    *: "في الملحنين، تشغّل أغان عشوائية مكتبتك كلها. ألبومات الملحن تتبع ألبومات الفنان."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_FROM
+  desc: a row of the menu held Select opens over Now Playing, without a value: the list of Music the music playing was started from, opened at the song playing; in place of Current Playlist, which is for a playlist
+  user: core
+  <source>
+    *: "Playing From"
+  </source>
+  <dest>
+    *: "التشغيل من"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UP_NEXT
+  desc: a row of the menu held Select opens over Now Playing, and of Settings > Now Playing Menu (On or Off), and the title of the screen it opens: the play queue, the songs to come, as Apple's Music has Up Next
+  user: core
+  <source>
+    *: "Up Next"
+  </source>
+  <dest>
+    *: "التالي"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

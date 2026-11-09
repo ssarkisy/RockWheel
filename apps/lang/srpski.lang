@@ -21287,3 +21287,185 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SHUFFLE_IN_LISTS
+  desc: a row of Settings, after Music Menu, and the title of its screen: which kinds of Music's lists and of playlists have Shuffle Songs as their first row
+  user: core
+  <source>
+    *: "Shuffle in Lists"
+  </source>
+  <dest>
+    *: "Мешање у листама"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_ARTIST_ALBUMS
+  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an artist's or a composer's albums, playing all of their songs
+  user: core
+  <source>
+    *: "An Artist's Albums"
+  </source>
+  <dest>
+    *: "Албуми уметника"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_ALBUM_SONGS
+  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an album's songs
+  user: core
+  <source>
+    *: "An Album's Songs"
+  </source>
+  <dest>
+    *: "Песме албума"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_PLAYLISTS
+  desc: the hint in the band under Settings > Shuffle in Lists while Playlists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "Shuffle Songs at the top of a playlist or On-The-Go plays all of its songs in a new order."
+  </source>
+  <dest>
+    *: "Промешај песме на врху плејлисте или On-The-Go пушта све њене песме новим редом."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ARTISTS
+  desc: the hint in the band under Settings > Shuffle in Lists while Artists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Artists, Shuffle Songs plays your whole library; in a genre, all of the genre's songs."
+  </source>
+  <dest>
+    *: "У Уметници, Промешај песме пушта целу библиотеку; у жанру, све песме жанра."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ARTIST
+  desc: the hint in the band under Settings > Shuffle in Lists while An Artist's Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In an artist's or a composer's albums, Shuffle Songs plays all of their songs."
+  </source>
+  <dest>
+    *: "У албумима уметника или композитора, Промешај песме пушта све њихове песме."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ALBUMS
+  desc: the hint in the band under Settings > Shuffle in Lists while Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Albums, Shuffle Songs plays your whole library, as in the main menu."
+  </source>
+  <dest>
+    *: "У Албуми, Промешај песме пушта целу библиотеку, као у главном менију."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ALBUM
+  desc: the hint in the band under Settings > Shuffle in Lists while An Album's Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In an album, Shuffle Songs plays its songs in a new order."
+  </source>
+  <dest>
+    *: "У албуму, Промешај песме пушта његове песме новим редом."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_SONGS
+  desc: the hint in the band under Settings > Shuffle in Lists while Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Songs, Shuffle Songs plays your whole library, as in the main menu."
+  </source>
+  <dest>
+    *: "У Песме, Промешај песме пушта целу библиотеку, као у главном менију."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_GENRES
+  desc: the hint in the band under Settings > Shuffle in Lists while Genres is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Genres, Shuffle Songs plays your whole library. A genre's own list follows Artists."
+  </source>
+  <dest>
+    *: "У Жанрови, Промешај песме пушта целу библиотеку. Листа жанра прати Уметници."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_COMPOSERS
+  desc: the hint in the band under Settings > Shuffle in Lists while Composers is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Composers, Shuffle Songs plays your whole library. A composer's albums follow An Artist's Albums."
+  </source>
+  <dest>
+    *: "У Композитори, Промешај песме пушта целу библиотеку. Албуми композитора прате Албуми уметника."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_FROM
+  desc: a row of the menu held Select opens over Now Playing, without a value: the list of Music the music playing was started from, opened at the song playing; in place of Current Playlist, which is for a playlist
+  user: core
+  <source>
+    *: "Playing From"
+  </source>
+  <dest>
+    *: "Пушта се из"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UP_NEXT
+  desc: a row of the menu held Select opens over Now Playing, and of Settings > Now Playing Menu (On or Off), and the title of the screen it opens: the play queue, the songs to come, as Apple's Music has Up Next
+  user: core
+  <source>
+    *: "Up Next"
+  </source>
+  <dest>
+    *: "Следеће"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

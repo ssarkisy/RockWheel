@@ -700,7 +700,7 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
 #endif
         &night_row, &appearance_menu,
 #ifdef HAVE_TAGCACHE
-        &main_menu_row, &music_menu_row,
+        &main_menu_row, &music_menu_row, &shuffle_rows_row,
 #endif
         &wps_menu_row, &settings_general, &sleep_timer_item,
 #if CONFIG_RTC

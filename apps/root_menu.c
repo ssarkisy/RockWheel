@@ -166,19 +166,65 @@ static void note_music_origin(int screen)
     music_origin = ORIGIN_SCREEN;
 }
 
-int root_menu_cover_flow(void)
+/* the song of Cover Flow's Go to Artist, "" for none; offered only while
+   root_menu_cover_flow() has it open, which goes there, and not as a plugin
+   of a file's menu or a hotkey opens it */
+static char cover_flow_go_to[MAX_PATH];
+static bool cover_flow_go_to_offered;
+
+bool root_menu_go_to_later(const char *path)
 {
-    const int ret = plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", NULL);
-    const unsigned int starts = playlist_start_count();
-    if (starts != music_starts_seen)
-    {
-        music_starts_seen = starts;
-        music_origin = ORIGIN_COVER_FLOW;
+    if (cover_flow_go_to_offered && path)
+        strmemccpy(cover_flow_go_to, path, sizeof(cover_flow_go_to));
+    return cover_flow_go_to_offered;
+}
+
+int root_menu_cover_flow(const char *at, char *go_to)
+{
 #ifdef HAVE_TAGCACHE
-        cover_flow_back = cover_flow_from_main_menu ? GO_TO_ROOT : GO_TO_DBBROWSER;
+    char back[MAX_PATH];
+#endif
+    while (true)
+    {
+        cover_flow_go_to[0] = '\0';
+#ifdef HAVE_TAGCACHE
+        cover_flow_go_to_offered = true;
+#endif
+        const int ret = plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", at);
+        cover_flow_go_to_offered = false;
+        const unsigned int starts = playlist_start_count();
+        if (starts != music_starts_seen)
+        {
+            music_starts_seen = starts;
+            music_origin = ORIGIN_COVER_FLOW;
+#ifdef HAVE_TAGCACHE
+            cover_flow_back = cover_flow_from_main_menu ? GO_TO_ROOT : GO_TO_DBBROWSER;
+#endif
+        }
+        if (go_to)
+            strmemccpy(go_to, ret == PLUGIN_OK ? cover_flow_go_to : "", MAX_PATH);
+#ifdef HAVE_TAGCACHE
+        if (ret != PLUGIN_OK || go_to || !cover_flow_go_to[0])
+            return ret;
+        strmemccpy(back, cover_flow_go_to, sizeof(back));
+        switch (root_menu_go_to_track(back, true))
+        {
+            case -1: /* no artist found */
+            case 0: /* Menu there: Cover Flow at it again */
+                at = back;
+                break;
+            case GO_TO_WPS:
+            case GO_TO_PREVIOUS_MUSIC:
+                return PLUGIN_GOTO_WPS;
+            case GO_TO_PLUGIN:
+                return PLUGIN_GOTO_PLUGIN;
+            default:
+                return PLUGIN_GOTO_ROOT;
+        }
+#else
+        return ret;
 #endif
     }
-    return ret;
 }
 
 /* The screen to go to from Now Playing, if it was opened by holding Play */
@@ -196,7 +242,7 @@ static int back_to_music_origin(int otherwise)
 #else
             const int back = GO_TO_DBBROWSER;
 #endif
-            const int ret = root_menu_cover_flow();
+            const int ret = root_menu_cover_flow(NULL, NULL);
 #ifdef HAVE_TAGCACHE
             cover_flow_from_main_menu = false;
 #endif
@@ -457,6 +503,9 @@ static int browser(void* param)
             last_db_dirlevel = tc->dirlevel;
             last_db_selection = tc->selected_item;
             tc->dirlevel = last_ft_dirlevel;
+            /* a list opened in place by Go to stays as it is, Menu going up
+               from it as by hand */
+            tagtree_forget_browse();
         break;
 #endif
     }
@@ -467,11 +516,12 @@ static int browser(void* param)
 /* The Music lists at the track playing, from the menu over Now Playing. Menu in the
    list opened goes back to that menu, and the place in the lists stays as it was,
    unless music was started from them. 0 for going back, or else the screen to go to. */
-int root_menu_go_to_playing(bool artist)
+/* the lists opened by a go-to, if it found its place, and left; -1 if it
+   didn't */
+static int go_to_browse(bool found, unsigned int starts)
 {
-    const unsigned int starts = playlist_start_count();
-    if (!tagtree_go_to_playing(artist, &last_db_dirlevel, &last_db_selection))
-        return 0;
+    if (!found)
+        return -1;
     const int screen = browser((void*)GO_TO_DBBROWSER);
     const bool started = playlist_start_count() != starts;
     if (started)
@@ -479,6 +529,28 @@ int root_menu_go_to_playing(bool artist)
     tagtree_end_go_to(!started, &last_db_dirlevel, &last_db_selection);
     return screen == GO_TO_PREVIOUS ? 0 : screen;
 }
+
+int root_menu_go_to_playing(bool artist)
+{
+    const unsigned int starts = playlist_start_count();
+    return MAX(go_to_browse(tagtree_go_to_playing(artist, &last_db_dirlevel,
+                                                  &last_db_selection), starts), 0);
+}
+
+int root_menu_go_to_track(const char *path, bool artist)
+{
+    const unsigned int starts = playlist_start_count();
+    return go_to_browse(tagtree_go_to_track(path, artist, &last_db_dirlevel,
+                                            &last_db_selection), starts);
+}
+
+int root_menu_playing_from(void)
+{
+    const unsigned int starts = playlist_start_count();
+    return MAX(go_to_browse(tagtree_go_to_from(&last_db_dirlevel,
+                                               &last_db_selection), starts), 0);
+}
+
 
 int root_menu_go_to_name(int tag, const char *name)
 {
@@ -523,7 +595,7 @@ static int cover_flow_screen(void *param)
 {
     (void)param;
     cover_flow_from_main_menu = true;
-    const int ret = root_menu_cover_flow();
+    const int ret = root_menu_cover_flow(NULL, NULL);
     cover_flow_from_main_menu = false;
     switch (ret)
     {

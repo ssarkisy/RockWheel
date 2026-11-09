@@ -143,15 +143,16 @@ static bool clipboard_clip(struct clipboard *clip, const char *path,
 }
 
 /* CONTEXT_WPS playlist options */
-/* Menu there comes back to this menu; a song chosen, or Play, goes to it */
-static int wps_view_cur_playlist(void)
+/* A screen of songs over this menu, the queue's or a playlist's: Menu there
+   comes back to this menu; a song chosen, or Play, goes to it */
+static int wps_view_songs(int (*view)(void))
 {
     /* a song's menu opened in it chose that song: this menu's is the track
        playing again, as Add to On-The-Go here goes by it */
     static struct selected_file saved_file;
     saved_file = selected_file;
     const int saved_result = onplay_result;
-    const int ret = playlist_viewer_ex(NULL, NULL);
+    const int ret = view();
     selected_file = saved_file;
     onplay_result = saved_result;
     switch (ret)
@@ -165,6 +166,18 @@ static int wps_view_cur_playlist(void)
     }
 }
 
+static int view_queue(void)
+{
+    return playlist_viewer_ex(NULL, NULL);
+}
+
+/* Up Next: the queue, the songs to come, as Apple's Music has it, always
+   (the owner's decision, 2026-11-09); where they're from is Playing From */
+static int wps_view_cur_playlist(void)
+{
+    return wps_view_songs(view_queue);
+}
+
 #ifdef HAVE_ALBUMART
 static void view_album_art(void)
 {
@@ -176,7 +189,7 @@ static void view_album_art(void)
    rest of Rockbox's menu here was for its own playlists */
 MENUITEM_FUNCTION(wps_view_cur_playlist_item,
                   MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
-                  ID2P(LANG_CURRENT_PLAYLIST), wps_view_cur_playlist, NULL, Icon_NOICON);
+                  ID2P(LANG_UP_NEXT), wps_view_cur_playlist, NULL, Icon_NOICON);
 
 /* argument for add_to_playlist (for use by menu callbacks) */
 #define PL_NONE    0x00
@@ -1293,7 +1306,7 @@ static int onplaymenu_callback(int action,
    this menu */
 static int open_cover_flow(void)
 {
-    switch (root_menu_cover_flow())
+    switch (root_menu_cover_flow(NULL, NULL))
     {
         case PLUGIN_GOTO_ROOT:
             return GO_TO_ROOT;
@@ -1306,19 +1319,49 @@ static int open_cover_flow(void)
 MENUITEM_FUNCTION(cover_flow_item, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_COVER_FLOW),
                   open_cover_flow, NULL, Icon_NOICON);
 
-/* The Music lists at the track playing. Menu there comes back to this menu, which
-   goes on with the track playing, whatever a menu opened in the lists has chosen. */
-static int go_to_playing(bool artist)
+/* where the lists open from a menu over another screen */
+enum {
+    LISTS_AT_PLAYING,   /* the track playing */
+    LISTS_AT_FROM,      /* where it was started */
+    LISTS_AT_SONG,      /* the song of the menu, of Search or a playlist */
+};
+
+/* The Music lists opened from the menu over Now Playing, Search or a playlist.
+   Menu there comes back to that menu or screen, which goes on as it was,
+   whatever a menu opened in the lists has chosen. */
+static int go_to_lists(int at, bool artist)
 {
     static struct selected_file saved_file;
     bool (*saved_insert)(int, bool, bool) = ctx_current_playlist_insert;
     int (*saved_add)(const char*, bool) = ctx_add_to_playlist;
+    char path[MAX_PATH];
 
     saved_file = selected_file;
+    if (at == LISTS_AT_SONG)
+        strmemccpy(path, selected_file.path, sizeof(path));
     /* the lists as they always are, beside the panel */
     const bool wide = menu_wide();
     menu_set_wide(false);
-    const int screen = root_menu_go_to_playing(artist);
+    int screen;
+    switch (at)
+    {
+        case LISTS_AT_PLAYING:
+            screen = root_menu_go_to_playing(artist);
+            break;
+        case LISTS_AT_FROM:
+            screen = root_menu_playing_from();
+            break;
+        default:
+            transition_begin(TRANSITION_FORWARD);
+            screen = root_menu_go_to_track(path, artist);
+            /* not found: nothing slides */
+            if (screen < 0)
+            {
+                transition_cancel();
+                screen = 0;
+            }
+            break;
+    }
     menu_set_wide(wide);
     if (screen == 0)
     {
@@ -1331,18 +1374,113 @@ static int go_to_playing(bool artist)
 }
 static int go_to_artist(void)
 {
-    return go_to_playing(true);
+    return go_to_lists(LISTS_AT_PLAYING, true);
 }
 static int go_to_album(void)
 {
-    return go_to_playing(false);
+    return go_to_lists(LISTS_AT_PLAYING, false);
+}
+/* none for a song the library hasn't, as of a playlist from Finder whose
+   file was added since: they did nothing */
+static int go_to_playing_callback(int action, const struct menu_item_ex *this_item,
+                                  struct gui_synclist *this_list)
+{
+    (void)this_item; (void)this_list;
+    const struct mp3entry *id3 = audio_current_track();
+    if (action == ACTION_REQUEST_MENUITEM
+        && (!id3 || !id3->tagcache_idx || !tagtree_ready() || !tagcache_is_usable()))
+        return ACTION_EXIT_MENUITEM;
+    return action;
 }
 MENUITEM_FUNCTION(go_to_artist_item,
                   MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
-                  ID2P(LANG_GO_TO_ARTIST), go_to_artist, NULL, Icon_NOICON);
+                  ID2P(LANG_GO_TO_ARTIST), go_to_artist, go_to_playing_callback,
+                  Icon_NOICON);
 MENUITEM_FUNCTION(go_to_album_item,
                   MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
-                  ID2P(LANG_GO_TO_ALBUM), go_to_album, NULL, Icon_NOICON);
+                  ID2P(LANG_GO_TO_ALBUM), go_to_album, go_to_playing_callback,
+                  Icon_NOICON);
+
+/* Playing From: where the music playing was started, at the song playing: a
+   list of Music's, or a playlist, of Playlists, On-The-Go or another. None if
+   that isn't known, as for Search, Cover Flow or Shuffle Songs; Up Next is
+   there anyway (the owner's decision, 2026-11-09) */
+static int playing_from(void)
+{
+    if (tagtree_playing_from_known())
+        return go_to_lists(LISTS_AT_FROM, false);
+    return wps_view_songs(lp_view_playing);
+}
+static int playing_from_callback(int action, const struct menu_item_ex *this_item,
+                                 struct gui_synclist *this_list)
+{
+    (void)this_item; (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM && !tagtree_playing_from_known()
+        && !lp_playing_from_known())
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_FUNCTION(playing_from_item,
+                  MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
+                  ID2P(LANG_PLAYING_FROM), playing_from, playing_from_callback,
+                  Icon_NOICON);
+
+/* Go to Artist and Go to Album on a song of a list, as over Now Playing for
+   the song playing, and Go to Artist on an album: in Music's lists in place,
+   Menu there back to the row; from Search, a playlist and Current Playlist in
+   lists of their own, Menu back to that screen. After Play Last, before a
+   playlist's Remove (the owner's decision, 2026-11-09). */
+static int song_go_to(bool artist)
+{
+    if (selected_file.context == CONTEXT_ID3DB)
+    {
+        /* loaded again even if it wasn't found: others were searched */
+        if (tagtree_browse_from_row(artist))
+            transition_begin(TRANSITION_FORWARD);
+        onplay_result = ONPLAY_RELOAD_DIR;
+        return 0;
+    }
+    return go_to_lists(LISTS_AT_SONG, artist);
+}
+static int song_go_to_artist(void)
+{
+    return song_go_to(true);
+}
+static int song_go_to_album(void)
+{
+    return song_go_to(false);
+}
+static int song_go_to_callback(int action, const struct menu_item_ex *this_item,
+                               struct gui_synclist *this_list);
+MENUITEM_FUNCTION(song_go_to_artist_item, MENU_FUNC_CHECK_RETVAL,
+                  ID2P(LANG_GO_TO_ARTIST), song_go_to_artist, song_go_to_callback,
+                  Icon_NOICON);
+MENUITEM_FUNCTION(song_go_to_album_item, MENU_FUNC_CHECK_RETVAL,
+                  ID2P(LANG_GO_TO_ALBUM), song_go_to_album, song_go_to_callback,
+                  Icon_NOICON);
+/* a song of the library, of Music's lists or of Search and the playlists,
+   which list those alone; Go to Artist on an album too, and no Go to Album in
+   its own list (tagtree_row_goes_to()) */
+static int song_go_to_callback(int action, const struct menu_item_ex *this_item,
+                               struct gui_synclist *this_list)
+{
+    (void)this_list;
+    if (action != ACTION_REQUEST_MENUITEM)
+        return action;
+    const bool album = this_item == &song_go_to_album_item;
+    switch (selected_file.context)
+    {
+        case CONTEXT_ID3DB:
+            return tagtree_row_goes_to(album) ? action : ACTION_EXIT_MENUITEM;
+        case CONTEXT_STD:
+            return selected_file.path
+                   && (selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_AUDIO
+                   && tagtree_ready() && tagcache_is_usable() ?
+                   action : ACTION_EXIT_MENUITEM;
+        default:
+            return ACTION_EXIT_MENUITEM;
+    }
+}
 #endif
 
 /* Shuffle, repeat and Sound Check, changed right here by selecting them, with the same effect
@@ -1570,7 +1708,11 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
            &wps_shuffle_item, &wps_repeat_item,
            /* On-The-Go, as on a stock iPod, rather than a playlist picked or
               named with the keyboard */
-           &wps_view_cur_playlist_item, &on_the_go_item,
+#ifdef HAVE_TAGCACHE
+           &playing_from_item,
+#endif
+           &wps_view_cur_playlist_item,
+           &on_the_go_item,
 #ifdef HAVE_TAGCACHE
            &add_to_playlist_item,
 #endif
@@ -1607,6 +1749,7 @@ static const struct {
 #endif
     { &wps_shuffle_item, WPS_MENU_SHUFFLE },
     { &wps_repeat_item, WPS_MENU_REPEAT },
+    /* Up Next; Playing From, when it's known, has no row of its own */
     { &wps_view_cur_playlist_item, WPS_MENU_CURRENT_PLAYLIST },
     { &on_the_go_item, WPS_MENU_ON_THE_GO },
 #ifdef HAVE_TAGCACHE
@@ -1814,6 +1957,7 @@ MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
 #endif
            &i_first_pl_item, &i_last_pl_item,
 #ifdef HAVE_TAGCACHE
+           &song_go_to_artist_item, &song_go_to_album_item,
            &remove_song_item,
            &ipod_rename_item, &ipod_move_item, &ipod_delete_item,
 #endif

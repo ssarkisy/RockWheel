@@ -499,7 +499,8 @@ static bool playlist_viewer_init(struct playlist_viewer * viewer,
     if (!reload)
     {
         if (viewer->playlist)
-            viewer->selected_track = recent_selection ? *recent_selection : 0;
+            viewer->selected_track = recent_selection && *recent_selection >= 0 ?
+                                     *recent_selection : 0;
         else
             viewer->selected_track = playlist_get_display_index() - 1;
     }
@@ -971,8 +972,8 @@ static bool open_playlist_viewer(const char* filename,
             *ext = '\0';
         viewer.title = viewer.on_the_go ? (char *) str(LANG_ON_THE_GO) : title;
     }
-    else
-        viewer.title = (char *) str(LANG_PLAYLIST);
+    else /* the queue, as Apple's Music has it */
+        viewer.title = (char *) str(LANG_UP_NEXT);
 
     /* Prevent UI from feeling unresponsive when retrieving
        metadata, or on devices that use disk storage. */
@@ -1018,18 +1019,6 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
     bool exit = false;        /* exit viewer */
     int button;
     struct gui_synclist playlist_lists;
-
-#ifdef HAVE_TAGCACHE
-    /* the songs to come from one of the library's playlists: its own screen,
-       as from Playlists, its name, Shuffle Songs and a list that scrolls as
-       Songs does */
-    if (!filename)
-    {
-        const int lp = lp_view_current();
-        if (lp >= 0)
-            return lp;
-    }
-#endif
 
     /* songs have the whole width, as the lists of Music from Artists on */
     const bool was_wide = menu_wide();

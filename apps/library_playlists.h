@@ -101,9 +101,10 @@ void lp_index_moved(const char *from, const char *to);
 void lp_source_moved(const char *from, const char *to);
 /* its screen: a playlist viewer's result */
 int lp_view(const char *file, int *selection);
-/* the same, at the song playing, as the current playlist: if the music is
-   from one of the library's as it is, with no songs put in nor taken out;
-   -1 if not */
-int lp_view_current(void);
+/* Now Playing's Playing From for music from a playlist, of Playlists,
+   On-The-Go or another: whether it is, and its screen at the song playing,
+   -1 if not. Up Next is the queue's own screen (playlist_viewer.c). */
+bool lp_playing_from_known(void);
+int lp_view_playing(void);
 
 #endif /* _LIBRARY_PLAYLISTS_H_ */

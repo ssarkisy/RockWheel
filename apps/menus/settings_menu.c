@@ -417,6 +417,28 @@ static int music_menu_open(void)
 }
 MENUITEM_FUNCTION(music_menu_row, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_MUSIC_MENU),
                   music_menu_open, NULL, Icon_NOICON);
+
+/* Shuffle in Lists: the kinds of list with Shuffle Songs at the top, each On
+   or Off, a hint under each saying where and what it plays. No row to reset
+   them, all on at first: Reset Settings does that */
+MENUITEM_SETTING(shuffle_rows_0, &global_settings.shuffle_rows_show[0], NULL);
+MENUITEM_SETTING(shuffle_rows_1, &global_settings.shuffle_rows_show[1], NULL);
+MENUITEM_SETTING(shuffle_rows_2, &global_settings.shuffle_rows_show[2], NULL);
+MENUITEM_SETTING(shuffle_rows_3, &global_settings.shuffle_rows_show[3], NULL);
+MENUITEM_SETTING(shuffle_rows_4, &global_settings.shuffle_rows_show[4], NULL);
+MENUITEM_SETTING(shuffle_rows_5, &global_settings.shuffle_rows_show[5], NULL);
+MENUITEM_SETTING(shuffle_rows_6, &global_settings.shuffle_rows_show[6], NULL);
+MENUITEM_SETTING(shuffle_rows_7, &global_settings.shuffle_rows_show[7], NULL);
+MAKE_MENU(shuffle_rows_items, ID2P(LANG_SHUFFLE_IN_LISTS), NULL, Icon_NOICON,
+          &shuffle_rows_0, &shuffle_rows_1, &shuffle_rows_2, &shuffle_rows_3,
+          &shuffle_rows_4, &shuffle_rows_5, &shuffle_rows_6, &shuffle_rows_7);
+
+static int shuffle_rows_open(void)
+{
+    return open_rows(&shuffle_rows_items);
+}
+MENUITEM_FUNCTION(shuffle_rows_row, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_SHUFFLE_IN_LISTS),
+                  shuffle_rows_open, NULL, Icon_NOICON);
 #endif
 
 #ifdef HAVE_USB_CHARGING_ENABLE

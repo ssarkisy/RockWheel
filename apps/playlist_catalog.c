@@ -196,7 +196,9 @@ static int view_playlist(char *file, int *selection)
 static int display_playlists(char* playlist, enum catbrowse_status_flags status)
 {
     static bool reopen_last_playlist = false;
-    static int most_recent_selection = 0;
+    /* the row its screen was left at, -1 for none: it opens at its first
+       song then */
+    static int most_recent_selection = -1;
     int result = -1;
     char selected_playlist[MAX_PATH];
     selected_playlist[0] = '\0';
@@ -275,7 +277,7 @@ restart:
         {
             path_append(most_recent_playlist, selected_playlist,
                         PA_SEP_SOFT, sizeof(most_recent_playlist));
-            most_recent_selection = 0;
+            most_recent_selection = -1;
             reopen_last_playlist = false;
         }
 

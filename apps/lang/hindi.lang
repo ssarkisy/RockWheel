@@ -1295,6 +1295,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_SHUFFLE_SONGS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Shuffle Songs"
+  </source>
+  <dest>
+    *: "गाने शफ़ल करें"
+  </dest>
+  <voice>
+    *: "गाने शफ़ल करें"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_FLIP_DISPLAY
   desc: in settings_menu, option to turn display+buttos by 180 degrees
   user: core
@@ -6251,6 +6265,188 @@
   </source>
   <dest>
     *: "%d गाने"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_IN_LISTS
+  desc: a row of Settings, after Music Menu, and the title of its screen: which kinds of Music's lists and of playlists have Shuffle Songs as their first row
+  user: core
+  <source>
+    *: "Shuffle in Lists"
+  </source>
+  <dest>
+    *: "सूचियों में शफ़ल"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_ARTIST_ALBUMS
+  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an artist's or a composer's albums, playing all of their songs
+  user: core
+  <source>
+    *: "An Artist's Albums"
+  </source>
+  <dest>
+    *: "कलाकार के एल्बम"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_ALBUM_SONGS
+  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an album's songs
+  user: core
+  <source>
+    *: "An Album's Songs"
+  </source>
+  <dest>
+    *: "एल्बम के गाने"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_PLAYLISTS
+  desc: the hint in the band under Settings > Shuffle in Lists while Playlists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "Shuffle Songs at the top of a playlist or On-The-Go plays all of its songs in a new order."
+  </source>
+  <dest>
+    *: "प्लेलिस्ट या On-The-Go के ऊपर गाने शफ़ल करें उसके सभी गाने नए क्रम में चलाता है।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ARTISTS
+  desc: the hint in the band under Settings > Shuffle in Lists while Artists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Artists, Shuffle Songs plays your whole library; in a genre, all of the genre's songs."
+  </source>
+  <dest>
+    *: "कलाकार में, गाने शफ़ल करें पूरी लाइब्रेरी चलाता है; किसी शैली में, उस शैली के सभी गाने।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ARTIST
+  desc: the hint in the band under Settings > Shuffle in Lists while An Artist's Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In an artist's or a composer's albums, Shuffle Songs plays all of their songs."
+  </source>
+  <dest>
+    *: "किसी कलाकार या संगीतकार के एल्बमों में, गाने शफ़ल करें उनके सभी गाने चलाता है।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ALBUMS
+  desc: the hint in the band under Settings > Shuffle in Lists while Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Albums, Shuffle Songs plays your whole library, as in the main menu."
+  </source>
+  <dest>
+    *: "एल्बम में, गाने शफ़ल करें पूरी लाइब्रेरी चलाता है, मुख्य मेनू की तरह।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_ALBUM
+  desc: the hint in the band under Settings > Shuffle in Lists while An Album's Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In an album, Shuffle Songs plays its songs in a new order."
+  </source>
+  <dest>
+    *: "किसी एल्बम में, गाने शफ़ल करें उसके गाने नए क्रम में चलाता है।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_SONGS
+  desc: the hint in the band under Settings > Shuffle in Lists while Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Songs, Shuffle Songs plays your whole library, as in the main menu."
+  </source>
+  <dest>
+    *: "गाने में, गाने शफ़ल करें पूरी लाइब्रेरी चलाता है, मुख्य मेनू की तरह।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_GENRES
+  desc: the hint in the band under Settings > Shuffle in Lists while Genres is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Genres, Shuffle Songs plays your whole library. A genre's own list follows Artists."
+  </source>
+  <dest>
+    *: "शैलियाँ में पूरी लाइब्रेरी चलती है। किसी शैली की सूची कलाकार का पालन करती है।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE_ROW_COMPOSERS
+  desc: the hint in the band under Settings > Shuffle in Lists while Composers is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  user: core
+  <source>
+    *: "In Composers, Shuffle Songs plays your whole library. A composer's albums follow An Artist's Albums."
+  </source>
+  <dest>
+    *: "संगीतकार में पूरी लाइब्रेरी चलती है। संगीतकार के एल्बम कलाकार के एल्बम का पालन करते हैं।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYING_FROM
+  desc: a row of the menu held Select opens over Now Playing, without a value: the list of Music the music playing was started from, opened at the song playing; in place of Current Playlist, which is for a playlist
+  user: core
+  <source>
+    *: "Playing From"
+  </source>
+  <dest>
+    *: "यहाँ से चल रहा है"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UP_NEXT
+  desc: a row of the menu held Select opens over Now Playing, and of Settings > Now Playing Menu (On or Off), and the title of the screen it opens: the play queue, the songs to come, as Apple's Music has Up Next
+  user: core
+  <source>
+    *: "Up Next"
+  </source>
+  <dest>
+    *: "आगे"
   </dest>
   <voice>
     *: ""

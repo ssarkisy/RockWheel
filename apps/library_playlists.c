@@ -34,6 +34,7 @@
 #include "misc.h"
 #include "playlist.h"
 #include "playlist_viewer.h"
+#include "tagtree.h"
 #include "playlist_catalog.h"
 #include "plugin.h"
 #include "settings.h"
@@ -1268,6 +1269,7 @@ static struct {
     bool from_this;         /* the music is from this playlist */
     bool waited;            /* Loading was shown as it opened */
     bool at_playing;        /* opened at the song playing */
+    bool unloaded;          /* it couldn't be read as it was opened */
     unsigned int gen;       /* of the plugin buffer, which a plugin takes */
 } lp;
 
@@ -1476,29 +1478,45 @@ static void note_copy_source(const char *file)
     }
 }
 
-/* The rows: Shuffle Songs first, all of the playlist's in random order,
-   then its songs; none for one without songs */
-#define SHUFFLE_ROW 0
+/* The rows: Shuffle Songs first, all of the playlist's in random order, as
+   Settings > Shuffle in Lists has it, then its songs; none for one without
+   songs. The rows before the songs: Shuffle Songs' if there is one, for a
+   playlist of as many songs as the lists of Music have it for, its songs of
+   the library, which it plays */
+static int lp_lead(void)
+{
+    return global_settings.shuffle_rows_show[SHUFFLE_ROW_PLAYLISTS]
+           && lp.total >= SHUFFLE_ROW_MIN_SONGS ? 1 : 0;
+}
+/* and those before the row the catalogue remembers, as it was left: the
+   setting, Reset Settings or songs taken out may have made them others */
+static int lp_selection_lead;
 
 /* and On-The-Go's last, as on a stock iPod: Save Playlist, Clear Playlist */
 static bool is_save_row(int row)
 {
-    return lp.otg && lp.count > 0 && row == lp.count + 1;
+    return lp.otg && lp.count > 0 && row == lp_lead() + lp.count;
 }
 
 static bool is_clear_row(int row)
 {
-    return lp.otg && lp.count > 0 && row == lp.count + 2;
+    return lp.otg && lp.count > 0 && row == lp_lead() + lp.count + 1;
 }
 
 static bool is_song_row(int row)
 {
-    return row > SHUFFLE_ROW && row <= lp.count;
+    return row >= lp_lead() && row < lp_lead() + lp.count;
 }
 
 static int lp_rows(void)
 {
-    return lp.count > 0 ? lp.count + 1 + (lp.otg ? 2 : 0) : 0;
+    return lp.count > 0 ? lp_lead() + lp.count + (lp.otg ? 2 : 0) : 0;
+}
+
+static bool lp_shuffle_row(int row, void *data)
+{
+    (void)data;
+    return lp_lead() && row == 0;
 }
 
 static const char *lp_name(int row, void *data, char *buf, size_t size)
@@ -1506,26 +1524,20 @@ static const char *lp_name(int row, void *data, char *buf, size_t size)
     (void)data;
     (void)buf;
     (void)size;
-    if (row == SHUFFLE_ROW)
+    if (lp_shuffle_row(row, NULL))
         return str(LANG_SHUFFLE_SONGS);
     if (is_save_row(row))
         return str(LANG_SAVE_PLAYLIST);
     if (is_clear_row(row))
         return str(LANG_ON_THE_GO_CLEAR);
-    return lp.pool + lp.names[row - 1];
-}
-
-static bool lp_shuffle_row(int row, void *data)
-{
-    (void)data;
-    return row == SHUFFLE_ROW;
+    return lp.pool + lp.names[row - lp_lead()];
 }
 
 static bool lp_playing(int row, void *data)
 {
     (void)data;
     return is_song_row(row) && lp.from_this
-           && gui_synclist_playing() == (long)lp.songs[row - 1].idx + 1;
+           && gui_synclist_playing() == (long)lp.songs[row - lp_lead()].idx + 1;
 }
 
 /* the music from this song on, or with song < 0 all of them shuffled, from
@@ -1872,7 +1884,8 @@ int lp_view(const char *file, int *selection)
         menu_set_wide(true);
     /* a live smart one as ratings and plays are now, before it shows */
     lp.waited = smart_prepare(lp.file);
-    if (!lp_load())
+    lp.unloaded = !lp_load();
+    if (lp.unloaded)
     {
         if (!was_wide)
             menu_set_wide(false);
@@ -1901,7 +1914,10 @@ int lp_view(const char *file, int *selection)
     gui_synclist_set_playing_callback(&list, lp_playing);
     gui_synclist_set_shuffle_callback(&list, lp_shuffle_row);
     gui_synclist_set_nb_items(&list, lp_rows());
-    int sel = selection ? *selection : 0;
+    /* at the row it was left at, or a new one at its first song, Shuffle
+       Songs above it */
+    int sel = selection && *selection >= 0
+              ? MAX(*selection - lp_selection_lead + lp_lead(), 0) : lp_lead();
     if (lp.at_playing)
     {
         const long playing = gui_synclist_song_playing();
@@ -1909,7 +1925,7 @@ int lp_view(const char *file, int *selection)
         {
             if ((long)lp.songs[i].idx + 1 == playing)
             {
-                sel = i + 1;
+                sel = lp_lead() + i;
                 break;
             }
         }
@@ -1985,7 +2001,7 @@ int lp_view(const char *file, int *selection)
                     redraw = true;
                     break;
                 }
-                if (row == SHUFFLE_ROW)
+                if (lp_shuffle_row(row, NULL))
                 {
                     if (lp_play(-1))
                         ret = PLAYLIST_VIEWER_OK;
@@ -1995,23 +2011,25 @@ int lp_view(const char *file, int *selection)
                 /* the song playing, of this list: to it, paused or not */
                 lp.from_this = playing_from(lp.file);
                 if (lp.from_this && gui_synclist_song_playing()
-                                    == (long)lp.songs[row - 1].idx + 1)
+                                    == (long)lp.songs[row - lp_lead()].idx + 1)
                 {
                     ret = PLAYLIST_VIEWER_OK;
                     break;
                 }
-                if (lp_play(row - 1))
+                if (lp_play(row - lp_lead()))
                     ret = PLAYLIST_VIEWER_OK;
                 redraw = true;
                 break;
             case ACTION_STD_CONTEXT:
+            {
                 if (lp.count <= 0 || !is_song_row(row))
                     break;
+                const int lead = lp_lead();
                 /* On-The-Go's song out at once, as on a stock iPod */
                 if (lp.otg)
-                    lp_remove(row - 1);
+                    lp_remove(row - lead);
                 else
-                    ret = lp_song_menu(row - 1);
+                    ret = lp_song_menu(row - lead);
                 /* a song fewer, perhaps; none left of On-The-Go, back */
                 if (lp.otg && lp.count <= 0)
                 {
@@ -2019,10 +2037,14 @@ int lp_view(const char *file, int *selection)
                     ret = PLAYLIST_VIEWER_CANCEL;
                     break;
                 }
+                /* on the song after it still, Shuffle Songs gone above it
+                   if three are left */
                 gui_synclist_set_nb_items(&list, lp_rows());
-                gui_synclist_select_item(&list, MAX(MIN(row, lp_rows() - 1), 0));
+                gui_synclist_select_item(&list, MAX(MIN(row - lead + lp_lead(),
+                                                        lp_rows() - 1), 0));
                 redraw = true;
                 break;
+            }
             case ACTION_STD_CANCEL:
                 transition_begin(TRANSITION_BACK);
                 ret = PLAYLIST_VIEWER_CANCEL;
@@ -2041,29 +2063,51 @@ int lp_view(const char *file, int *selection)
         }
     }
     if (selection)
+    {
         *selection = gui_synclist_get_sel_pos(&list);
+        lp_selection_lead = lp_lead();
+    }
     pop_current_activity_without_refresh();
     if (!was_wide)
         menu_set_wide(false);
     return ret;
 }
 
-int lp_view_current(void)
+/* The file of the playlist the music playing is from, a playlist's of
+   Playlists, On-The-Go or another .m3u: not a list of Music's, whose files
+   tagtree.c has, nor music started without one; an iPod-made one's own, not
+   its copy playing. By the name the music has, and none gone since, as by a
+   sync or Delete: the copy's source, read once, and the file, found in the
+   directory cache */
+static bool playing_playlist(char *name, size_t size)
+{
+    if (!playlist_get_name(NULL, name, size) || tagtree_is_list_file(name))
+        return false;
+    const char *ext = strrchr(name, '.');
+    if (!ext || (strcasecmp(ext, ".m3u8") && strcasecmp(ext, ".m3u")))
+        return false;
+    if (is_copy(name))
+        strmemccpy(name, playing_copy_source(), size);
+    return name[0] && lp_viewable(name) && file_exists(name);
+}
+
+bool lp_playing_from_known(void)
 {
     char name[MAX_PATH];
-    struct lp_state state;
-    /* as many songs as its file has: none put in from elsewhere, none taken
-       out, which the list from its index wouldn't show */
-    if (!playlist_get_name(NULL, name, sizeof(name)))
-        return -1;
-    /* one made on the iPod, from the copy of it playing */
-    if (is_copy(name))
-        strmemccpy(name, playing_copy_source(), sizeof(name));
-    if (!lp_viewable(name) || lp_index_read(name, NULL, 0, &state) < 0
-        || (int)state.lines != playlist_amount())
+    return playing_playlist(name, sizeof(name));
+}
+
+int lp_view_playing(void)
+{
+    char name[MAX_PATH];
+    if (!playing_playlist(name, sizeof(name)))
         return -1;
     lp.at_playing = true;
     const int ret = lp_view(name, NULL);
     lp.at_playing = false;
+    /* not to be read after all: the songs to come instead, rather than
+       nothing */
+    if (lp.unloaded)
+        return playlist_viewer_ex(NULL, NULL);
     return ret;
 }

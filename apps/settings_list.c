@@ -2760,6 +2760,27 @@ const struct settings_list settings[] = {
        artists by the albums' artists */
     OFFON_SETTING(0, artists_by_album_artist, LANG_GROUP_BY_ALBUM_ARTIST, true,
                   "group by album artist", root_menu_artists_grouping_changed),
+    /* Settings > Shuffle in Lists, in the order of SHUFFLE_ROW_...: the lists
+       see it changed as they're loaded (tagtree.c), the playlists as they
+       open (library_playlists.c) */
+    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_PLAYLISTS], LANG_PLAYLISTS, true,
+                  "shuffle row playlists", NULL),
+    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_ARTISTS], LANG_ARTISTS, true,
+                  "shuffle row artists", NULL),
+    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_ARTIST],
+                  LANG_SHUFFLE_ARTIST_ALBUMS, true,
+                  "shuffle row artist albums", NULL),
+    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_ALBUMS], LANG_ALBUMS, true,
+                  "shuffle row albums", NULL),
+    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_ALBUM],
+                  LANG_SHUFFLE_ALBUM_SONGS, true,
+                  "shuffle row album songs", NULL),
+    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_SONGS], LANG_SONGS, true,
+                  "shuffle row songs", NULL),
+    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_GENRES], LANG_GENRES, true,
+                  "shuffle row genres", NULL),
+    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_COMPOSERS], LANG_COMPOSERS, true,
+                  "shuffle row composers", NULL),
     /* Settings > Main Menu: Music's sections are off, as on a stock iPod */
     OFFON_SETTING(0, main_menu_show[MAIN_MENU_MUSIC], LANG_MUSIC, true,
                   "main menu music", NULL),
@@ -2801,7 +2822,7 @@ const struct settings_list settings[] = {
                   "now playing menu shuffle", NULL),
     OFFON_SETTING(0, wps_menu_show[WPS_MENU_REPEAT], LANG_REPEAT, true,
                   "now playing menu repeat", NULL),
-    OFFON_SETTING(0, wps_menu_show[WPS_MENU_CURRENT_PLAYLIST], LANG_CURRENT_PLAYLIST,
+    OFFON_SETTING(0, wps_menu_show[WPS_MENU_CURRENT_PLAYLIST], LANG_UP_NEXT,
                   true, "now playing menu current playlist", NULL),
     OFFON_SETTING(0, wps_menu_show[WPS_MENU_ON_THE_GO], LANG_ADD_TO_ON_THE_GO, true,
                   "now playing menu on-the-go", NULL),

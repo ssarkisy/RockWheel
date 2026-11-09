@@ -951,6 +951,7 @@ static const struct plugin_api rockbox_api = {
 #ifdef HAVE_TAGCACHE
     ip_pick_playlist,
     ip_add_file,
+    root_menu_go_to_later,
 #endif
 };
 

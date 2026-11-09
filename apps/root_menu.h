@@ -23,10 +23,27 @@
 #include "config.h"
 #include "gcc_extensions.h"
 
-/* Cover Flow, by plugin_load, which knows if it starts the music */
-int root_menu_cover_flow(void);
+/* Cover Flow, by plugin_load, which knows if it starts the music: at the album
+   of the song at, if not NULL. Its Go to Artist leaves it for that song's album
+   artist's albums, Menu there back to Cover Flow at that album: in lists of
+   their own, or, given go_to (MAX_PATH), from Music's lists it was opened in,
+   which go there in place, the song in go_to, "" for none. The plugin's answer,
+   PLUGIN_OK to go back */
+int root_menu_cover_flow(const char *at, char *go_to);
+/* Cover Flow's Go to Artist, the song's file, as it quits: false if it isn't
+   offered, as Cover Flow isn't open by root_menu_cover_flow(); with NULL, that
+   alone */
+bool root_menu_go_to_later(const char *path);
 #ifdef HAVE_TAGCACHE
+/* The Music lists at the song playing, or at a song by its file, from the menus
+   over Now Playing, of Search's songs, a playlist's and Cover Flow: Menu there
+   goes back, and the place in the lists stays as it was, unless music was
+   started from them. 0 for going back, or else the screen to go to; for a
+   song by its file, -1 if it isn't found */
 int root_menu_go_to_playing(bool artist);
+int root_menu_go_to_track(const char *path, bool artist);
+/* the same where the music playing was started, Now Playing's Playing From */
+int root_menu_playing_from(void);
 /* The list an artist or an album opens, from Search: -1 if it isn't there,
    0 for going back, or else the screen to go to */
 int root_menu_go_to_name(int tag, const char *name);

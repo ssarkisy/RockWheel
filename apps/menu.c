@@ -166,6 +166,24 @@ static const struct {
     { &global_settings.coverflow_pause, LANG_HINT_COVER_FLOW_PAUSE },
 #ifdef HAVE_TAGCACHE
     { &global_settings.smart_search, LANG_HINT_SMART_SEARCH },
+    /* Shuffle in Lists: where each row of Shuffle Songs is and what it
+       plays */
+    { &global_settings.shuffle_rows_show[SHUFFLE_ROW_PLAYLISTS],
+      LANG_HINT_SHUFFLE_ROW_PLAYLISTS },
+    { &global_settings.shuffle_rows_show[SHUFFLE_ROW_ARTISTS],
+      LANG_HINT_SHUFFLE_ROW_ARTISTS },
+    { &global_settings.shuffle_rows_show[SHUFFLE_ROW_ARTIST],
+      LANG_HINT_SHUFFLE_ROW_ARTIST },
+    { &global_settings.shuffle_rows_show[SHUFFLE_ROW_ALBUMS],
+      LANG_HINT_SHUFFLE_ROW_ALBUMS },
+    { &global_settings.shuffle_rows_show[SHUFFLE_ROW_ALBUM],
+      LANG_HINT_SHUFFLE_ROW_ALBUM },
+    { &global_settings.shuffle_rows_show[SHUFFLE_ROW_SONGS],
+      LANG_HINT_SHUFFLE_ROW_SONGS },
+    { &global_settings.shuffle_rows_show[SHUFFLE_ROW_GENRES],
+      LANG_HINT_SHUFFLE_ROW_GENRES },
+    { &global_settings.shuffle_rows_show[SHUFFLE_ROW_COMPOSERS],
+      LANG_HINT_SHUFFLE_ROW_COMPOSERS },
 #endif
 };
 

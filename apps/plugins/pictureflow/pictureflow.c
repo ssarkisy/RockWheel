@@ -5820,30 +5820,62 @@ static void context_menu_cleanup(void)
 }
 
 
+/* context_menu()'s answer for Go to Artist: Cover Flow quits, for the lists */
+#define PF_LEAVE_FOR_LISTS (-100)
+
 static int context_menu(void)
 {
     /* as Music's lists have it: On-The-Go first, Add to Playlist, then, while music plays,
-       Play Next and Play Last, for the album or, on its songs, the song */
+       Play Next and Play Last, for the album or, on its songs, the song; and Go to
+       Artist, its album artist's albums, Menu there back here (root_menu.c) */
     enum {
         PF_ON_THE_GO = 0,
         PF_ADD_TO_PLAYLIST,
         PF_PLAY_NEXT,
-        PF_PLAY_LAST
+        PF_PLAY_LAST,
+        PF_GO_TO_ARTIST
     };
     MENUITEM_STRINGLIST(playing_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),
                         ID2P(LANG_PLAY_NEXT),
-                        ID2P(LANG_PLAY_LAST));
+                        ID2P(LANG_PLAY_LAST),
+                        ID2P(LANG_GO_TO_ARTIST));
     MENUITEM_STRINGLIST(stopped_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
+                        ID2P(LANG_ADD_TO_ON_THE_GO),
+                        ID2P(LANG_ADD_TO_PL),
+                        ID2P(LANG_GO_TO_ARTIST));
+    /* without Go to Artist where it isn't offered, as opened by a file's
+       menu: its rows are the first of those */
+    MENUITEM_STRINGLIST(playing_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
+                        ID2P(LANG_ADD_TO_ON_THE_GO),
+                        ID2P(LANG_ADD_TO_PL),
+                        ID2P(LANG_PLAY_NEXT),
+                        ID2P(LANG_PLAY_LAST));
+    MENUITEM_STRINGLIST(stopped_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL));
     const bool playing = rb->audio_status() & AUDIO_STATUS_PLAY;
+    const bool go_to = rb->root_menu_go_to_later(NULL);
 
-    const int chosen = rb->do_menu(playing ? &playing_menu : &stopped_menu,
-                                   NULL, NULL, false);
+    int chosen = rb->do_menu(playing ? (go_to ? &playing_menu : &playing_menu_here)
+                                     : (go_to ? &stopped_menu : &stopped_menu_here),
+                             NULL, NULL, false);
+    if (!playing && go_to && chosen == PF_PLAY_NEXT)
+        chosen = PF_GO_TO_ARTIST;
     switch (chosen)
     {
+        case PF_GO_TO_ARTIST:
+        {
+            /* a slide's songs have one album artist: the song's, or the
+               album's first */
+            const char *path = get_track_filename(insert_whole_album ? 0
+                                                                     : pf_tracks.sel);
+            if (!path)
+                return 0;
+            rb->root_menu_go_to_later(path);
+            return PF_LEAVE_FOR_LISTS;
+        }
         case PF_ON_THE_GO:
             pf_add_to_on_the_go();
             return 0;
@@ -6922,6 +6954,8 @@ static int pictureflow_main(void)
                 {
                     ret = context_menu();
                     context_menu_cleanup();
+                    if (ret == PF_LEAVE_FOR_LISTS)
+                        return PLUGIN_OK;
                     if ( ret != 0 ) return ret;
                 }
                 else if (!prompt_reinit())

@@ -363,6 +363,14 @@ static bool tree_is_playing(int selected_item, void *data)
                                   gui_synclist_playing());
 }
 
+/* a list's Shuffle Songs, drawn with its arrows */
+static bool tree_is_shuffle(int selected_item, void *data)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    return !tree_is_group(selected_item, NULL)
+           && tagtree_row_is_shuffle(local_tc, index_of(selected_item));
+}
+
 /* an album's year before its name, in an artist's albums, and a song's
    number before its title, in an album's songs */
 static const char *tree_get_lead(int selected_item, void *data, char *buf,
@@ -848,6 +856,7 @@ static int update_dir(void)
     gui_synclist_set_has_children_callback(list, tree_has_children);
 #ifdef HAVE_TAGCACHE
     gui_synclist_set_playing_callback(list, id3db ? tree_is_playing : NULL);
+    gui_synclist_set_shuffle_callback(list, id3db ? tree_is_shuffle : NULL);
     /* as wide as the list's years or numbers need, if it has them */
     const int lead_digits = id3db ? tagtree_lead_digits(&tc) : 0;
     gui_synclist_set_lead_callback(list, lead_digits ? tree_get_lead : NULL,
@@ -1094,6 +1103,30 @@ static bool catalog_folder_menu(const char *path, const char *name)
 }
 #endif
 
+#ifdef HAVE_TAGCACHE
+/* Cover Flow from Music's own row, at the album of the song at if not NULL,
+   back to Music when it's left. Its Go to Artist goes to the artist's albums
+   here, in place, Menu there back to Cover Flow at that album. 0 to stay in
+   the lists, which are then loaded again, or else the screen to go to; buf
+   (MAX_PATH) is used for the song */
+static int tree_cover_flow(const char *at, char *buf)
+{
+    switch (root_menu_cover_flow(at, buf))
+    {
+        case PLUGIN_GOTO_WPS:
+            return GO_TO_WPS;
+        case PLUGIN_GOTO_ROOT:
+            return GO_TO_ROOT;
+        case PLUGIN_GOTO_PLUGIN:
+            return GO_TO_PLUGIN;
+    }
+    if (buf[0] && tagtree_browse_from_cover_flow(buf))
+        transition_begin(TRANSITION_FORWARD);
+    reload_dir = true; /* it had the screen */
+    return 0;
+}
+#endif
+
 /* main loop, handles key events */
 static int dirbrowse(void)
 {
@@ -1115,7 +1148,8 @@ static int dirbrowse(void)
     else
 #endif
         curr_context=CONTEXT_TREE;
-    if (tc.selected_item < 0)
+    /* in Music, a row forgotten opens the list at its first, as it's loaded */
+    if (tc.selected_item < 0 && !id3db)
         tc.selected_item = 0;
 #ifdef HAVE_TAGCACHE
     lasttable = -1;
@@ -1204,11 +1238,24 @@ static int dirbrowse(void)
                 {
                     /* Sort By: of Albums Year or Name, of All Songs Album or
                        Name, the list again in that order at once, its row
-                       still selected */
+                       still selected, as the rows over it stay */
                     if (button == ACTION_STD_OK)
                     {
                         tagtree_sort_by_switched(&tc);
-                        tc.selected_item = 0;
+                        reload_dir = true;
+                    }
+                    button = ACTION_NONE;
+                }
+                else if (customaction == ONPLAY_CUSTOMACTION_SHUFFLE_LIST)
+                {
+                    /* the list's songs in a new order, as a playlist's Shuffle
+                       Songs; no menu */
+                    if (button == ACTION_STD_OK)
+                    {
+                        transition_begin(TRANSITION_FORWARD);
+                        if (tagtree_shuffle_list(&tc))
+                            return exit_to_new_screen(GO_TO_WPS);
+                        transition_cancel();
                         reload_dir = true;
                     }
                     button = ACTION_NONE;
@@ -1218,18 +1265,9 @@ static int dirbrowse(void)
                     /* PictureFlow, back to this list when it is left */
                     if (button == ACTION_STD_OK)
                     {
-                        switch (root_menu_cover_flow())
-                        {
-                            case PLUGIN_GOTO_WPS:
-                                return exit_to_new_screen(GO_TO_WPS);
-                            case PLUGIN_GOTO_ROOT:
-                                return exit_to_new_screen(GO_TO_ROOT);
-                            case PLUGIN_GOTO_PLUGIN:
-                                return exit_to_new_screen(GO_TO_PLUGIN);
-                            default:
-                                reload_dir = true; /* it had the screen */
-                                break;
-                        }
+                        const int screen = tree_cover_flow(NULL, buf);
+                        if (screen)
+                            return exit_to_new_screen(screen);
                     }
                     button = ACTION_NONE;
                 }
@@ -1237,9 +1275,11 @@ static int dirbrowse(void)
         #endif
 #ifdef HAVE_TAGCACHE
 #ifdef HAVE_HOTKEY
-        /* nothing to play or add on a Sort By */
+        /* nothing to play or add on a Sort By, nor on Shuffle Songs */
         if (id3db && button == ACTION_TREE_HOTKEY
-            && tagtree_get_custom_action(&tc) == ONPLAY_CUSTOMACTION_SORT_BY)
+            && (tagtree_get_custom_action(&tc) == ONPLAY_CUSTOMACTION_SORT_BY
+                || tagtree_get_custom_action(&tc)
+                   == ONPLAY_CUSTOMACTION_SHUFFLE_LIST))
             button = ACTION_NONE;
 #endif
         if (on_lead)
@@ -1357,8 +1397,28 @@ static int dirbrowse(void)
             case ACTION_STD_CANCEL:
                 exit_to_new_screen(0);
 #ifdef HAVE_TAGCACHE
-                /* opened at the track playing, from the menu over Now Playing */
-                if (*tc.dirfilter == SHOW_ID3DB && tc.dirlevel == tagtree_go_to_level())
+                /* opened by Go to in a row's menu: back to that row, or to
+                   Cover Flow at its album. Before the go-to's below, whose
+                   lists it may be in, at the same level: Menu leaves them
+                   next */
+                if (*tc.dirfilter == SHOW_ID3DB && tc.dirlevel == tagtree_browse_level())
+                {
+                    transition_begin(TRANSITION_BACK);
+                    if (tagtree_end_browse(&tc.dirlevel, &tc.selected_item, buf,
+                                           sizeof(buf)))
+                    {
+                        const int screen = tree_cover_flow(buf, buf);
+                        if (screen)
+                            return exit_to_new_screen(screen);
+                    }
+                    reload_dir = true;
+                    break;
+                }
+                /* opened at the track playing, from the menu over Now Playing;
+                   not while a list opened in place is gone through, which may
+                   be at a level above it, as from Playing From at an album */
+                if (*tc.dirfilter == SHOW_ID3DB && tagtree_browse_level() < 0
+                    && tc.dirlevel == tagtree_go_to_level())
                 {
                     transition_begin(TRANSITION_BACK);
                     return exit_to_new_screen(GO_TO_PREVIOUS);
@@ -1964,6 +2024,9 @@ void tree_flush(void)
 {
      tc.is_browsing = false;/* clear browse to prevent reentry to a possibly missing file */
 #ifdef HAVE_TAGCACHE
+    /* where the music playing was started in the lists, for Playing From
+       after the boot */
+    tagtree_keep_place();
     tagcache_shutdown();
 #endif
     /* The database stays in memory over USB: Finder doesn't touch its

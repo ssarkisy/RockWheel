@@ -41,7 +41,30 @@ void tagtree_ram_waited_out(void);
 #endif
 void tagtree_save_place(int dirlevel, int selected_item);
 void tagtree_restore_place(int *dirlevel, int *selected_item);
+/* That place, a list of Music's, is known for the music playing: Now Playing's
+   Playing From opens it then, as the go-tos below, at the song playing */
+bool tagtree_playing_from_known(void);
+/* a playlist file the lists of Music play from, not a playlist of one's own */
+bool tagtree_is_list_file(const char *path);
+bool tagtree_go_to_from(int *dirlevel, int *selected_item);
+/* it kept over a boot, as the iPod shuts down or USB is connected */
+void tagtree_keep_place(void);
 bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item);
+/* as that, at a song by its file: from Search, a playlist, Cover Flow */
+bool tagtree_go_to_track(const char *path, bool artist, int *dirlevel,
+                         int *selected_item);
+/* Go to Artist and Go to Album in the menu of the row selected in Music's lists,
+   which goes there in place: whether it has the one (an album has Go to Artist,
+   a song both, but Go to Album in its album's own list); and going there. Menu
+   in the list opened, at tagtree_browse_level(), goes back to the row with
+   tagtree_end_browse(), true if Cover Flow is to open again at the song in buf
+   (tagtree_browse_from_cover_flow()). Forgotten as the lists are left. */
+bool tagtree_row_goes_to(bool album);
+bool tagtree_browse_from_row(bool artist);
+bool tagtree_browse_from_cover_flow(const char *path);
+int tagtree_browse_level(void);
+bool tagtree_end_browse(int *dirlevel, int *selected_item, char *buf, size_t size);
+void tagtree_forget_browse(void);
 /* as that, at the albums of an artist (tag_virt_canonicalartist), of the songs or
    of the albums, by its row in Artists or else in a list of the other artists in
    its place; or at the songs of an album (tag_album), by name */
@@ -64,6 +87,10 @@ extern const int tagtree_section_lang[MUSIC_SECTIONS];
 bool tagtree_music_empty(void);
 /* the callback of each Music Menu setting */
 void tagtree_music_menu_changed(bool shown);
+/* a list's Shuffle Songs row, and its songs played in a new order: false if
+   none started */
+bool tagtree_row_is_shuffle(struct tree_context *c, int row);
+bool tagtree_shuffle_list(struct tree_context *c);
 int tagtree_load(struct tree_context* c);
 char* tagtree_get_entry_name(struct tree_context *c, int id,
                                     char* buf, size_t bufsize);
