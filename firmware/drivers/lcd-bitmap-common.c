@@ -433,8 +433,8 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
 
         is_diac = IS_DIACRITIC_RTL(ch, &is_rtl);
 
-        /* A letter the font lacks comes from the fallback font, which may be another
-           kind of bitmap and another size: centred on the line */
+        /* A letter the font lacks comes from a fallback font, which may be another
+           kind of bitmap and another size */
         struct font *gf = font_for_char(pf, ch);
         if (gf != pf && !fallback_locked)
         {
@@ -447,11 +447,14 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
         else
 #endif
             bmp_part_fn = LCDFN(mono_bmp_part_helper);
-        /* on the baseline, within the line; one too tall for it centred on it */
+        /* on the baseline, within the line; one too tall for it centred on
+           it, but Hangul's of the size above on the baseline still */
         int gy = y + ((int)pf->height - (int)gf->height) / 2;
         if (gf != pf && gf->height <= pf->height)
             gy = y + MAX(0, MIN(pf->ascent - gf->ascent,
                                 (int)pf->height - (int)gf->height));
+        else if (gf != pf && font_on_baseline(gf, ch))
+            gy = y + pf->ascent - gf->ascent;
 
         /* Get proportional width and glyph bits */
         width = font_get_width(gf, ch);

@@ -153,6 +153,10 @@ void font_load_fallback(const char *script);
 /* the library's fonts loaded, again as they're made anew, or let go of */
 void font_load_library(bool load);
 struct font* font_for_char(struct font* pf, ucschar_t ch);
+/* whether the glyph of a letter from the font it gave stands on the line's
+   baseline when it's taller than the line: Hangul's of the size above the
+   line's, cut to stand on that of its own size, rather than centred */
+bool font_on_baseline(struct font *gf, ucschar_t ch);
 /* all of them, while their glyphs are drawn */
 void font_lock_fallbacks(bool lock);
 #endif

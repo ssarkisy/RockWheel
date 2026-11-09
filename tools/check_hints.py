@@ -9,10 +9,11 @@ don't, with the lines they'd take, and exits with 1 then.
 
 The theme's 18-Inter-SemiBold draws them, and 18-Inter-Bold with Bold Text;
 both are checked. A letter of another alphabet comes from 17-Library, which
-Updating Library makes of the glyphs of the fonts in scripts/ and of
-17-Hangul, so it's measured in those, as font_for_char() takes them; what none
-has, from 16-GNU-Unifont. Arabic is measured in the joined forms of its
-letters, which are what's drawn, by the tables of firmware/arabjoin.c.
+Updating Library makes of the glyphs of the fonts in scripts/, and Hangul from
+24-Library, of 24-Hangul's, as font_for_char() takes it a size up; so they're
+measured in those. What none has comes from 16-GNU-Unifont. Arabic is measured
+in the joined forms of its letters, which are what's drawn, by the tables of
+firmware/arabjoin.c.
 """
 import glob
 import os
@@ -92,9 +93,10 @@ class Fonts:
         self.theme = load(theme)
         self.unifont = load('16-GNU-Unifont.fnt')
         han = {'japanese': 'JP', 'chinese-trad': 'TC'}.get(lang, 'SC')
-        # the sources of 17-Library, by the ranges library_fonts.c takes from each
+        # the sources of 17-Library, by the ranges library_fonts.c takes from
+        # each, but Hangul's of 24-Library
         self.sources = [
-            ((0xac00, 0xd7a3), (0x3131, 0x318e), load('17-Hangul.fnt')),
+            ((0xac00, 0xd7a3), (0x3131, 0x318e), load('24-Hangul.fnt')),
             ((0x3000, 0x9fff), load('scripts/17-Han-%s.fnt' % han)),
             ((0xff00, 0xffef), load('scripts/17-Wide-%s.fnt' % han)),
             ((0x0590, 0x05ff), load('scripts/17-Hebrew.fnt')),

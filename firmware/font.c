@@ -270,18 +270,33 @@ void font_lock_fallbacks(bool lock)
     }
 }
 
-/* of fonts in the sizes of the theme's, the one for a font of this height: the
-   tallest not over it, or else the smallest */
-static struct font *sized_font(const int ids[ARRAYLEN(script_heights)], int height)
+/* Hangul, whose sizes go by the capitals of the Inter beside it rather than by
+   its line: the 18 px Inter of the lyrics and the hints has those of the menus'
+   24, and Hangul from the 17s stood smaller than the Latin beside it. Between
+   two of the theme's sizes it takes the taller, and the other alphabets the
+   smaller, whose bolder 24s were too dark and Thai's too tall for those lines. */
+static inline bool sized_up(ucschar_t ch)
 {
+    return (ch >= 0xac00 && ch <= 0xd7a3) || (ch >= 0x3131 && ch <= 0x318e);
+}
+
+/* of fonts in the sizes of the theme's, the one for a font of this height: the
+   tallest not over it, or else the smallest; rounded up, the shortest not
+   under it, or else the tallest */
+static struct font *sized_font(const int ids[ARRAYLEN(script_heights)], int height,
+                               bool up)
+{
+    /* rounding up is rounding down over the heights turned negative */
+    const int sign = up ? -1 : 1;
     int best = -1, smallest = -1;
     for (size_t i = 0; i < ARRAYLEN(script_heights); i++)
     {
         if (ids[i] < 0)
             continue;
-        if (script_heights[i] <= height && (best < 0 || script_heights[i] > script_heights[best]))
+        const int h = sign * script_heights[i];
+        if (h <= sign * height && (best < 0 || h > sign * script_heights[best]))
             best = i;
-        if (smallest < 0 || script_heights[i] < script_heights[smallest])
+        if (smallest < 0 || h < sign * script_heights[smallest])
             smallest = i;
     }
     if (best < 0)
@@ -302,17 +317,22 @@ struct font* font_for_char(struct font* pf, ucschar_t ch)
             return pf;
         return font_get(fallback_id);
     }
-    struct font *lf = sized_font(library_ids, pf->height);
+    struct font *lf = sized_font(library_ids, pf->height, sized_up(ch));
     if (lf && ch >= lf->firstchar && ch < lf->firstchar + lf->size
         && font_get_width(lf, ch) > 0)
         return lf;
     if (script_loaded >= 0 && in_script(&scripts[script_loaded], ch))
     {
-        struct font *sf = sized_font(script_ids, pf->height);
+        struct font *sf = sized_font(script_ids, pf->height, sized_up(ch));
         if (sf)
             return sf;
     }
     return fallback_id < 0 ? pf : font_get(fallback_id);
+}
+
+bool font_on_baseline(struct font *gf, ucschar_t ch)
+{
+    return sized_up(ch) && (fallback_id < 0 || gf != font_get(fallback_id));
 }
 #endif /* BOOTLOADER */
 

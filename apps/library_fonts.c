@@ -25,7 +25,9 @@
  * fonts, and the firmware takes those glyphs from them rather than from GNU
  * Unifont (firmware/font.c). So a title in Korean, Japanese or Chinese looks as
  * the rest of the text does whatever the language of the menus, with three
- * small fonts however many alphabets the library has. */
+ * small fonts however many alphabets the library has. For lyrics, which have
+ * letters their tags don't, they have every letter of the small alphabets and of
+ * Hangul, and the common ideographs, whatever the tags are written in. */
 
 #include "config.h"
 #include <stdbool.h>
@@ -45,8 +47,10 @@
 #include "misc.h"
 #include "version.h"
 #include "plugin.h"
+#include "library_fonts_han.h"
 
-#define LF_VERSION   3 /* 3: the sources spaced as their typefaces */
+#define LF_VERSION   5 /* 3: the sources spaced as their typefaces; 5: the alphabets
+                          whole and the common ideographs, for lyrics */
 #define LF_STAMP     FONT_DIR "/library.stamp"
 #define LF_SCRIPTS   FONT_DIR "/scripts"
 #define RB12_HEADER  36
@@ -98,12 +102,6 @@ static bool is_hebrew(ucschar_t c)
     return c >= 0x0590 && c <= 0x05ff;
 }
 
-static bool is_arabic(ucschar_t c)
-{
-    return (c >= 0x0600 && c <= 0x06ff) || (c >= 0xfb50 && c <= 0xfdff)
-        || (c >= 0xfe70 && c <= 0xfeff);
-}
-
 static bool is_thai(ucschar_t c)
 {
     return c >= 0x0e00 && c <= 0x0e7f;
@@ -150,7 +148,6 @@ struct work {
     unsigned char text[4096];
     unsigned char in[GLYPH_MAX], out[GLYPH_MAX];
     enum han ui_han; /* the menus' forms of the ideographs, or HAN_COUNT */
-    bool hangul, kana; /* any of them */
 };
 static struct work *work;
 
@@ -192,21 +189,10 @@ static void take_text(const unsigned char *s, const unsigned char *end, enum han
         p = utf8decode(p, &c);
         if (c < 0x0590 || c > 0xffff)
             continue;
-        work->hangul |= is_hangul(c);
-        work->kana |= is_kana(c);
         if (is_han(c))
             set_bit(work->han[kana ? HAN_JP : no_kana], c);
         if (is_han(c) || is_hangul(c))
             set_bit(work->wanted, c);
-        /* the small alphabets whole, as they're joined and stacked as they're
-           drawn: a letter's forms are other characters. A letter of each
-           says they're wanted. */
-        else if (is_hebrew(c))
-            set_bit(work->wanted, 0x05d0);
-        else if (is_arabic(c))
-            set_bit(work->wanted, 0x0627);
-        else if (is_thai(c))
-            set_bit(work->wanted, 0x0e01);
     }
 }
 
@@ -214,6 +200,21 @@ static void take_block(ucschar_t first, ucschar_t last)
 {
     for (ucschar_t c = first; c <= last; c++)
         set_bit(work->wanted, c);
+}
+
+/* the common ideographs, as a text without kana has them, but in the forms the
+   tags and the languages have them in if they have them */
+static void take_common_han(enum han no_kana)
+{
+    for (ucschar_t c = COMMON_HAN_FIRST; c <= COMMON_HAN_LAST; c++)
+    {
+        if (!get_bit(common_han, c - COMMON_HAN_FIRST))
+            continue;
+        set_bit(work->wanted, c);
+        if (!get_bit(work->han[HAN_JP], c) && !get_bit(work->han[HAN_SC], c)
+            && !get_bit(work->han[HAN_TC], c))
+            set_bit(work->han[no_kana], c);
+    }
 }
 
 /* How far making the fonts is, of FONTS_STEPS: the characters gathered to
@@ -815,7 +816,6 @@ bool library_fonts_stale(void)
 #define LANGS_VERSION (LF_VERSION << 8 | 1)
 struct langs_head {
     uint32_t version, stamp; /* of the languages' folder and the firmware's */
-    uint8_t hangul, kana, pad[2];
 };
 
 /* the languages' folder, and the firmware, whose update can change a
@@ -843,16 +843,13 @@ static bool load_langs(uint32_t stamp)
         memset(work->han, 0, sizeof(work->han));
         return false;
     }
-    work->hangul = h.hangul;
-    work->kana = h.kana;
     return true;
 }
 
 /* from the work, with nothing but theirs in it yet */
 static void save_langs(uint32_t stamp)
 {
-    const struct langs_head h = { LANGS_VERSION, langs_key(stamp),
-                                  work->hangul, work->kana, { 0, 0 } };
+    const struct langs_head h = { LANGS_VERSION, langs_key(stamp) };
     const int fd = whole_file_open(LF_LANGS);
     if (fd < 0)
         return;
@@ -929,21 +926,22 @@ bool library_fonts_make(bool (*progress)(int done, int total))
     take_names_in(global_settings.playlist_catalog_dir[0]
                   ? (const char *)global_settings.playlist_catalog_dir
                   : PLAYLIST_CATALOG_DEFAULT_DIR, 2, no_kana);
-    if (get_bit(work->wanted, 0x05d0))
-        take_block(0x0590, 0x05ff);
-    if (get_bit(work->wanted, 0x0627))
-    {
-        take_block(0x0600, 0x06ff);
-        take_block(0xfb50, 0xfbff); /* the forms they're joined in */
-        take_block(0xfe70, 0xfeff);
-    }
-    if (get_bit(work->wanted, 0x0e01))
-        take_block(0x0e00, 0x0e7f);
-    /* the letters Search types Korean and Japanese with (music_search.c) */
-    if (work->hangul)
-        take_block(0x3131, 0x3163);
-    if (work->kana)
-        take_block(0x3041, 0x3096);
+    /* The small alphabets whole, Hangul's syllables, and the common ideographs,
+       whatever the tags and the menus are written in: lyrics, the names of
+       files and the text viewer have letters the tags haven't, which Unifont
+       drew among the rest, and lyrics in Korean or Japanese come with songs
+       tagged in English under English menus. The small alphabets are joined
+       and stacked as they're drawn, a letter's forms other characters. */
+    take_block(0x0590, 0x05ff);         /* Hebrew */
+    take_block(0x0600, 0x06ff);         /* Arabic */
+    take_block(0xfb50, 0xfbff);         /* the forms it's joined in */
+    take_block(0xfe70, 0xfeff);
+    take_block(0x0e00, 0x0e7f);         /* Thai */
+    take_block(0x3041, 0x3096);         /* hiragana, which Search types */
+    take_block(0x30a0, 0x30ff);         /* katakana */
+    take_block(0x3131, 0x3163);         /* Hangul's letters, which Search types */
+    take_block(0xac00, 0xd7a3);         /* Hangul's syllables */
+    take_common_han(no_kana);
 
     /* The same characters, in the same forms, as the fonts there are of, from
        the same fonts and languages: only the database is another, as after a

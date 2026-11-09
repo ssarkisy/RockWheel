@@ -17,8 +17,9 @@ top-level `fonts/` (`16-GNU-Unifont.fnt`).
 Hangul comes from fonts of its own in the theme's sizes, `24-`, `17-` and
 `14-Hangul.fnt`, made by `tools/make_hangul_fonts.sh` from Pretendard
 (https://github.com/orioncactus/pretendard, its Hangul from Source Han Sans), under
-the SIL Open Font License 1.1 (`Hangul-OFL.txt`). They aren't called Pretendard, a
-name its license reserves.
+the SIL Open Font License 1.1 (`Hangul-OFL.txt`): SemiBold 18, Medium 15 and
+SemiBold 14, about the size of the Inter beside them and a weight lighter. They
+aren't called Pretendard, a name its license reserves.
 
 The other alphabets come from `fonts/scripts/`, made in the same sizes by
 `tools/make_script_fonts.sh`: Han and the full-width forms from Noto Sans JP, SC
@@ -29,9 +30,14 @@ alphabets, as Source and Plex are names those licenses reserve.
 
 The iPod doesn't draw with these or the Hangul fonts directly. On the Updating
 Library screen it takes from them just the glyphs that the library's tags, the
-names of its playlists and the languages of the menus are written in, and makes
+names of its playlists and the languages of the menus are written in, and for
+lyrics and names of files every letter of Hebrew, Arabic, Thai, the kana and
+Hangul, and the 7,174 common ideographs of `tools/make_common_han.py`, and makes
 `24-`, `17-` and `14-Library.fnt` of those (`apps/library_fonts.c`), small enough
-to stay loaded. Until it has, Korean menus fall back to the Hangul fonts.
+to stay loaded. Until it has, Korean menus fall back to the Hangul fonts. Hangul
+in text of a height between two of the sizes takes the taller one's glyphs, as
+the Inter of the lyrics and the hints under Settings, in 18 px, has the capitals
+of the menus' 24; the other alphabets take the shorter one's.
 
 - **iClassic Square** by Humberto Santana, derived from iLike by Alan Brito, itself
   ported from the 176x132 version by Hayden Pearce.

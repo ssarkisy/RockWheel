@@ -17517,10 +17517,10 @@
     *: "Extras"
   </source>
   <dest>
-    *: "추가 기능"
+    *: "기타"
   </dest>
   <voice>
-    *: "추가 기능"
+    *: "기타"
   </voice>
 </phrase>
 <phrase>
@@ -18861,7 +18861,7 @@
     *: "Appearance"
   </source>
   <dest>
-    *: "모양"
+    *: "테마"
   </dest>
   <voice>
     *: ""

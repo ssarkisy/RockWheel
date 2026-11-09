@@ -11,7 +11,9 @@
 #
 # They are the sources the iPod takes glyphs from: on the Updating Library screen
 # it gathers what the tags of the library and the names of the languages are
-# written in, and makes fonts of just those glyphs (apps/library_fonts.c). These
+# written in, with the alphabets whole and the common ideographs, and makes fonts
+# of just those glyphs (apps/library_fonts.c); run make_common_han.py after this,
+# for the ideographs these have. These
 # files stay on the disk and are only read then. Each comes in the three sizes of
 # the theme's fonts, named after the line height of the font it goes with:
 # 24 the menus (Inter Bold 18), 17 Now Playing (Inter SemiBold 15), 14 small text

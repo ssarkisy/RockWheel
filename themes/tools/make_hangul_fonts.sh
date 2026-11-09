@@ -3,7 +3,7 @@
 # Pretendard release (https://github.com/orioncactus/pretendard/releases,
 # public/static/ in the zip):
 #
-#     themes/tools/make_hangul_fonts.sh <folder with Pretendard-Bold.otf and Pretendard-SemiBold.otf>
+#     themes/tools/make_hangul_fonts.sh <folder with Pretendard-SemiBold.otf and Pretendard-Medium.otf>
 #
 # Each goes with a font of the theme, of the line height it's named after: the
 # firmware takes the syllables from it rather than from GNU Unifont, set on that
@@ -17,7 +17,7 @@ set -e
 
 here=$(cd "$(dirname "$0")" && pwd)
 root="$here/../.."
-otf=${1:?usage: $0 <folder with Pretendard-Bold.otf and Pretendard-SemiBold.otf>}
+otf=${1:?usage: $0 <folder with Pretendard-SemiBold.otf and Pretendard-Medium.otf>}
 out="$here/../fonts/.rockbox/fonts"
 build=$(mktemp -d)
 trap 'rm -rf "$build"' EXIT
@@ -32,16 +32,18 @@ fi
 cc -std=c99 -O2 "$root/tools/convttf.c" $ft -lm -o "$build/convttf"
 
 # font <name> <otf> <pixel size>: the compatibility jamo, U+3131, to the last
-# syllable, U+D7A3; the syllables about as tall as the capitals of the Inter they go
-# with, as Korean text set beside Latin is; spaced as Pretendard spaces them (-A),
-# as make_fonts.sh does Inter
+# syllable, U+D7A3; of the size of the Inter they go with, as Pretendard sets its
+# Hangul beside its Latin, but the small ones a size up, as at 13 a third of the
+# syllables come a pixel wider than the rest; a weight lighter, as a syllable has
+# more strokes than a letter; spaced as Pretendard spaces them (-A), as
+# make_fonts.sh does Inter
 font() {
     "$build/convttf" -s 12593 -l 55203 -A -p "$3" -o "$out/$1" "$otf/$2" > /dev/null
 }
 
-font 24-Hangul.fnt Pretendard-Bold.otf     16   # the menus, Inter Bold 18
-font 17-Hangul.fnt Pretendard-SemiBold.otf 13   # Now Playing, Inter SemiBold 15
-font 14-Hangul.fnt Pretendard-Bold.otf     12   # titles and small text, Inter Bold 13
+font 24-Hangul.fnt Pretendard-SemiBold.otf 18  # the menus, Inter Bold 18
+font 17-Hangul.fnt Pretendard-Medium.otf   15  # Now Playing, Inter SemiBold 15
+font 14-Hangul.fnt Pretendard-SemiBold.otf 14  # titles and small text, Inter Bold 13
 cp "$otf/LICENSE.txt" "$out/Hangul-OFL.txt" 2>/dev/null \
     || echo "put Pretendard's LICENSE beside the fonts as Hangul-OFL.txt"
 ls -l "$out"/*-Hangul.fnt
