@@ -94,6 +94,9 @@ bool lineout_inserted(void);
 #ifdef HAVE_WHEEL_POSITION
 int wheel_status(void);
 void wheel_send_events(bool send);
+/* how long the wheel has been without a finger, 0 while it has one; with Hold
+   on, as if for ever */
+long button_wheel_untouched_ticks(void);
 #endif
 
 #ifdef HAVE_WHEEL_ACCELERATION

@@ -29,6 +29,7 @@
  */
 
 #include <stdlib.h>
+#include <limits.h>
 #include "config.h"
 #include "cpu.h"
 #include "system.h"
@@ -118,6 +119,7 @@ static int int_btn = BUTTON_NONE;
 #ifdef HAVE_WHEEL_POSITION
     static int wheel_position = -1;
     static bool send_events = true;
+    static long untouch_tick;
 #endif
 
 #if CONFIG_CPU==S5L8701 || CONFIG_CPU==S5L8702 || CONFIG_CPU==S5L8720
@@ -386,6 +388,10 @@ static inline int ipod_4g_button_read(void)
             else
             {
                 /* In this case the finger was lifted from the scrollwheel. */
+#ifdef HAVE_WHEEL_POSITION
+                if (wheel_is_touched)
+                    untouch_tick = current_tick;
+#endif
                 wheel_is_touched = false; 
             }
 
@@ -435,6 +441,14 @@ int wheel_status(void)
 void wheel_send_events(bool send)
 {
     send_events = send;
+}
+
+long button_wheel_untouched_ticks(void)
+{
+    /* the sensor is off, and no reading would say it's let go */
+    if (button_hold())
+        return LONG_MAX;
+    return wheel_is_touched ? 0 : current_tick - untouch_tick;
 }
 #endif
 

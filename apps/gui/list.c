@@ -747,11 +747,19 @@ static void gui_synclist_scroll_left(struct gui_synclist * lists)
 
 /* Quick Scroll: the wheel turned at its stage of four rows a step or faster,
    through a list of more than a hundred, shows the letter of the row selected
-   over it, as on a stock iPod; while it shows, each step goes a letter, and
-   any keeps it a second more */
+   over it, as on a stock iPod; while it shows, each step goes a letter. It
+   stays while the finger is on the wheel, or where that isn't known, as in
+   the simulator, a second after the last step */
 #define QUICK_SCROLL_SPEED 4
 #define QUICK_SCROLL_ROWS  100
+#ifdef HAVE_WHEEL_POSITION
+/* LIFT matches the driver's WHEEL_UNTOUCH_TIMEOUT; HOLD caps a missed lift */
+#define QUICK_SCROLL_HOLD  (10 * HZ)
+#define QUICK_SCROLL_LIFT  (HZ * 15 / 100)
+#define QUICK_SCROLL_LOOK  (HZ / 20)
+#else
 #define QUICK_SCROLL_HOLD  HZ
+#endif
 /* rows without a letter skipped at most */
 #define QUICK_SCROLL_SKIP  32
 
@@ -1023,7 +1031,14 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
                 if (quick_step || by_initials)
                     lists->initial_until = current_tick + QUICK_SCROLL_HOLD;
                 break;
-            case ACTION_NONE: case ACTION_REDRAW:
+            case ACTION_NONE:
+#ifdef HAVE_WHEEL_POSITION
+                if (lists->initial_until
+                    && button_wheel_untouched_ticks() >= QUICK_SCROLL_LIFT)
+                    lists->initial_until = 0;
+#endif
+                break;
+            case ACTION_REDRAW:
                 break;
             default:
                 if (!IS_SYSEVENT(action))
@@ -1229,6 +1244,9 @@ int list_do_action_timeout(struct gui_synclist *lists, int timeout)
         long delay = lists->initial_until ? lists->initial_until - current_tick : 0;
         if (delay < 0)
             delay = 0;
+#ifdef HAVE_WHEEL_POSITION
+        delay = MIN(delay, QUICK_SCROLL_LOOK);
+#endif
         if (timeout > delay || timeout == TIMEOUT_BLOCK)
             timeout = delay;
     }
