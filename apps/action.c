@@ -1187,6 +1187,14 @@ bool action_dark_return_taken(void)
     return taken;
 }
 
+/* Clears the click callback as keyclick_click() would: lists set it before
+   each call, some to themselves on a stack frame this action may end. */
+static int no_click(int action)
+{
+    keyclick_set_callback(NULL, NULL);
+    return action;
+}
+
 static int get_action_worker(action_last_t *last, action_cur_t *cur)
 {
     send_event(GUI_EVENT_ACTIONUPDATE, NULL);
@@ -1197,7 +1205,7 @@ static int get_action_worker(action_last_t *last, action_cur_t *cur)
         transition_run();
 
     if (night_mode_poll(cur->context))
-        return ACTION_REDRAW;
+        return no_click(ACTION_REDRAW);
 
     wake_screen_context(cur->context);
 #ifdef HAVE_WHEEL_ACCELERATION
@@ -1212,12 +1220,12 @@ static int get_action_worker(action_last_t *last, action_cur_t *cur)
        another way to Now Playing */
     dark_return_taken = false;
     if (dark_return_due(cur->context))
-        return ACTION_TREE_WPS;
+        return no_click(ACTION_TREE_WPS);
 
     /*if button = none/special; returns immediately*/
     if (action_poll_button(last, cur))
     {
-        return cur->button;
+        return no_click(cur->button);
     }
 
     update_screen_has_lock(last, cur);
@@ -1225,7 +1233,7 @@ static int get_action_worker(action_last_t *last, action_cur_t *cur)
     if (get_action_touchscreen(last, cur))
     {
         do_softlock(last, cur);
-        return cur->action;
+        return no_click(cur->action);
     }
 
     button_flip_horizontally(cur->context, &cur->button);
