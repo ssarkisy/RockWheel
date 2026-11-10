@@ -1889,7 +1889,18 @@ void show_library_update(void)
         list_covers_make(library_update_covers_progress, library_playlists_go_on);
     }
 #endif
-    if (imported && phase == TAGCACHE_IMPORT_NONE && !held_event)
+    /* Songs' playlist in the order chosen, if no import nor a song played
+       wrote it: after the albums' years, its order's */
+    const bool songs_stale = phase == TAGCACHE_IMPORT_NONE && !held_event
+                             && !imported && !no_space && tagtree_songs_stale();
+    if (songs_stale && !shown)
+    {
+        FOR_NB_SCREENS(i)
+            viewportmanager_theme_enable(i, false, NULL);
+        shown_text = NULL;
+        shown = true;
+    }
+    if ((imported || songs_stale) && phase == TAGCACHE_IMPORT_NONE && !held_event)
         tagtree_prepare_songs();
     /* not by a database the caches couldn't be made for */
     no_space |= library_take_no_room();

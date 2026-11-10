@@ -62,6 +62,8 @@ unsigned album_years_generation(void);
    many of the name there are, each of another album artist, one after
    another */
 int album_years_find(int32_t album, int *n);
+/* the number of the album of this name and album artist, -1 for none */
+int album_years_number(int32_t album, int32_t albumartist);
 /* of an album by its number: its name's and its album artist's seeks, -1 for
    none; its date and its year, 0 for none; one of its songs, by its number
    in the database, -1 for none */

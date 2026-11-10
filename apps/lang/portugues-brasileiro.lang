@@ -21378,3 +21378,31 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SORT_ARTIST
+  desc: Sort By's value in Music > Songs and in Cover Flow's menu: by artist, A to Z, each artist's albums oldest first
+  user: core
+  <source>
+    *: "Artist"
+  </source>
+  <dest>
+    *: "Artista"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SORT_ALBUM
+  desc: Sort By's value in Music > Songs and in an artist's All Songs: by album, each album's songs by disc and track
+  user: core
+  <source>
+    *: "Album"
+  </source>
+  <dest>
+    *: "Álbum"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

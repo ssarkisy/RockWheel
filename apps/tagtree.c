@@ -210,11 +210,24 @@ static uint32_t tagtree_queue_list(void)
     return id;
 }
 
+/* a slot's file is of a list of this database, to load again */
+static bool slot_holds_list(int slot)
+{
+    return slot_lists[slot].id
+           && slot_lists[slot].commitid == tagcache_get_commitid();
+}
+
 /* The one of a pair, from first, which is free to be written, as a full path
-   into buf. Its index goes first, so that it never goes with another file. */
+   into buf: not the one in use, and of the two the one that holds no list,
+   so that Songs in two orders keeps both. Its index goes first, so that it
+   never goes with another file. */
 static int tagtree_free_slot(int first, char *buf, size_t size)
 {
-    int slot = tagtree_slot_in_use(first) ? first + 1 : first;
+    int slot = first;
+    if (tagtree_slot_in_use(first)
+        || (slot_holds_list(first) && !slot_holds_list(first + 1)
+            && !tagtree_slot_in_use(first + 1)))
+        slot = first + 1;
     snprintf(buf, size, "%s/%s", TAGTREE_PLAYLIST_DIR,
              tagtree_playlist_names[slot]);
     remove(tagtree_list_index_names[slot]);
@@ -422,6 +435,29 @@ static bool song_places_known(void)
 #endif
 }
 
+/* Music > Songs' Sort By, global_settings.songs_sort */
+enum { SONGS_BY_NAME, SONGS_BY_ARTIST, SONGS_BY_ALBUM, SONGS_BY_YEAR };
+
+static bool album_numbers_fit(void);
+
+/* the songs' keys are their albums' numbers in the table of years and their
+   tags' places in the database's memory */
+static bool songs_sortable(void)
+{
+    return song_places_known() && album_years_ready() && album_numbers_fit();
+}
+
+static int songs_setting(void)
+{
+    const int order = global_settings.songs_sort;
+    return order >= SONGS_BY_NAME && order <= SONGS_BY_YEAR ? order : SONGS_BY_NAME;
+}
+
+static int songs_order(void)
+{
+    return songs_sortable() ? songs_setting() : SONGS_BY_NAME;
+}
+
 /*
  * "%3d. %s" autoscore title %sort = "inverse" %limit = "100"
  *
@@ -479,6 +515,13 @@ struct menu_root {
     int itemcount;
     struct menu_entry *items[TAGMENU_MAX_ITEMS];
 };
+
+/* Music > Songs: all songs, by their titles */
+static bool is_songs(const struct search_instruction *si)
+{
+    return si && si->tagorder_count == 1 && si->tagorder[0] == tag_title
+           && si->clause_count[0] == 0;
+}
 
 /* Statusbar text of the current view. */
 static char current_title[MAX_TAGS][128];
@@ -743,17 +786,19 @@ static const char *untagged_name(int tag)
 /* The list in the lists' buffer, which list it is and of which database */
 static uint32_t tagtree_data_crc(struct tree_context* c)
 {
-    /* the years and their order only in lists of albums: Songs, made
-       before them, kept after */
+    /* the years and their order in lists of albums, All Songs in its albums'
+       order, and Songs, whose Sort By goes by them */
     const bool of_albums = c->currtable == TABLE_NAVIBROWSE && csi
                            && c->currextra < MAX_TAGS
                            && csi->tagorder[c->currextra] == tag_album;
-    /* and All Songs, in its albums' order */
     const bool all_songs = c->currtable == TABLE_ALLSUBENTRIES;
+    const bool songs = c->currtable == TABLE_NAVIBROWSE && c->currextra == 0
+                       && is_songs(csi);
     const uint32_t list[] = {
         c->currtable, c->currextra, (uintptr_t)csi, tagcache_get_commitid(),
         global_settings.interpret_numbers,
-        of_albums || all_songs ? album_years_generation() : 0,
+        of_albums || all_songs || songs ? album_years_generation() : 0,
+        songs ? songs_order() : 0,
         of_albums ? global_settings.albums_sort : 0,
         /* their rows in one line or two, split by album artists or not */
         of_albums ? global_settings.album_artists : 0,
@@ -2535,6 +2580,161 @@ static void sort_by_year(struct tagentry *e, int n, struct tagentry *room)
     }
 }
 
+/* the name of a tag at seek is one, not UNTAGGED, in the database's memory */
+static bool tag_named(int tag, long seek)
+{
+#ifdef HAVE_TC_RAMCACHE
+    char probe[2];
+    return tagcache_tag_string(tag, seek, probe, sizeof(probe));
+#else
+    (void)tag; (void)seek;
+    return false;
+#endif
+}
+
+/* Songs' keys, compared in place of names: a song's album's number in the
+   table of years or its album's place by date, then disc and track; by
+   artist, its artist's place in the tag's file first. Songs without an album
+   go last in their order by name; an artist without a name is the last. */
+struct song_key {
+    uint32_t hi, lo;
+};
+struct album_place {
+    int32_t key, no;
+};
+#define SONG_ALBUM_NONE 0xffffu
+#define SONGS_SORT_MAX  0x7fff /* bit 15 marks a row moved */
+
+static int cmp_album_place(const void *p1, const void *p2)
+{
+    const struct album_place *a = p1, *b = p2;
+    if (a->key != b->key)
+        return a->key < b->key ? -1 : 1;
+    return a->no < b->no ? -1 : a->no > b->no;
+}
+
+static bool key_before(const struct song_key *a, const struct song_key *b)
+{
+    return a->hi != b->hi ? a->hi < b->hi : a->lo < b->lo;
+}
+
+/* The sort's room for n songs, in the names' room past used, nothing
+   allocated, so also while music plays: the keys, the albums' keys, then the
+   rows' numbers twice, or before them the albums' places by date. NULL
+   without it, or for more songs than bit 15 leaves, or none: Songs then has
+   no Sort By, in any order */
+static struct song_key *songs_sort_room(struct tree_context *c, int n, long used)
+{
+    char *names = core_get_data(c->cache.name_buffer_handle);
+    struct song_key *keys = (struct song_key *)ALIGN_UP((uintptr_t)(names + used),
+                                                         sizeof(uint32_t));
+    const int albums = album_years_count();
+    if (n <= 0 || n > SONGS_SORT_MAX)
+        return NULL;
+    const size_t need = n * sizeof(*keys) + ALIGN_UP(albums, 2) * sizeof(uint16_t)
+                        + MAX(2 * n * sizeof(uint16_t),
+                              albums * sizeof(struct album_place));
+    return (char *)keys + need <= names + c->cache.name_buffer_size ? keys : NULL;
+}
+
+/* Stable, by merges of the rows' numbers, then each row moved along the
+   cycles of the order, in songs_sort_room()'s keys */
+static void sort_songs(struct tree_context *c, int order, struct song_key *keys)
+{
+    struct tagentry *e = get_entries(c) + c->special_entry_count;
+    const int n = current_entry_count - c->special_entry_count;
+    const int albums = album_years_count();
+    uint16_t *album_key = (uint16_t *)(keys + n);
+    uint16_t *a = album_key + ALIGN_UP(albums, 2);
+    uint16_t *b = a + n;
+    struct album_place *places = (struct album_place *)a;
+
+    if (order == SONGS_BY_ALBUM)
+    {
+        for (int no = 0; no < albums; no++)
+            album_key[no] = no;
+    }
+    else
+    {
+        for (int no = 0; no < albums; no++)
+            places[no] = (struct album_place){
+                date_key(album_years_date(no), false), no
+            };
+        qsort(places, albums, sizeof(*places), cmp_album_place);
+        for (int i = 0; i < albums; i++)
+            album_key[places[i].no] = i;
+    }
+    for (int no = 0; no < albums; no++)
+    {
+        if (!tag_named(tag_album, album_years_album(no)))
+            album_key[no] = SONG_ALBUM_NONE;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        const int32_t idx = e[i].extraseek;
+        const int no = album_years_number(tagcache_sort_key(idx, tag_album),
+                                          tagcache_sort_key(idx, tag_albumartist));
+        const uint32_t k = no >= 0 ? album_key[no] : SONG_ALBUM_NONE;
+        const bool album = k != SONG_ALBUM_NONE;
+        const long disc = MIN(MAX(tagcache_sort_key(idx, tag_discnumber), 0), 64);
+        const long track = MIN(MAX(tagcache_sort_key(idx, tag_tracknumber), 0), 999);
+        keys[i].lo = k << 16 | (album ? disc * 1000 + track : 0);
+        keys[i].hi = 0;
+        if (order == SONGS_BY_ARTIST)
+        {
+            const long artist = tagcache_sort_key(idx, tag_virt_canonicalartist);
+            keys[i].hi = tag_named(tag_virt_canonicalartist, artist) ?
+                         (uint32_t)artist : UINT32_MAX;
+        }
+        if (order == SONGS_BY_YEAR)
+            e[i].album = (typeof(e[i].album)){
+                .year = album ? album_years_year(no) : YEAR_LAST, .no = -1
+            };
+        else
+            e[i].album = (typeof(e[i].album)){ .year = 0, .no = album ? no : -1 };
+    }
+
+    for (int i = 0; i < n; i++)
+        a[i] = i;
+    for (int width = 1; width < n; width *= 2)
+    {
+        for (int lo = 0; lo < n; lo += 2 * width)
+        {
+            const int mid = MIN(lo + width, n), hi = MIN(lo + 2 * width, n);
+            int x = lo, y = mid, k = lo;
+            while (x < mid && y < hi)
+                b[k++] = key_before(&keys[a[y]], &keys[a[x]]) ? a[y++] : a[x++];
+            while (x < mid)
+                b[k++] = a[x++];
+            while (y < hi)
+                b[k++] = a[y++];
+        }
+        uint16_t *t = a;
+        a = b;
+        b = t;
+        /* for the codec: nothing but this room is used across it */
+        yield();
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        if ((a[i] & 0x8000) || a[i] == i)
+            continue;
+        const struct tagentry first = e[i];
+        int to = i;
+        while (a[to] != i)
+        {
+            const int from = a[to];
+            e[to] = e[from];
+            a[to] |= 0x8000;
+            to = from;
+        }
+        e[to] = first;
+        a[to] |= 0x8000;
+    }
+}
+
 /* A person's albums: an artist's, album artist's or composer's, which go by
    their years once the table of the years is made, and have All Songs */
 static bool persons_albums(struct tree_context *c, int level, int tag)
@@ -3005,6 +3205,20 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         current_entry_count++;
         c->special_entry_count++;
     }
+    /* and Songs', its rows its titles alone */
+    const bool songs = offset == 0 && level == 0 && tag == tag_title
+        && c->currtable == TABLE_NAVIBROWSE && is_songs(csi) && plain
+        && tcs.ramsearch && songs_sortable();
+    if (songs)
+    {
+        *dptr++ = (struct tagentry){
+            .name = ID2P(LANG_SORT_BY), .newtable = TABLE_NAVIBROWSE,
+            .extraseek = -2, .customaction = ONPLAY_CUSTOMACTION_SORT_BY,
+            .album = { .year = 0, .no = -1 }
+        };
+        current_entry_count++;
+        c->special_entry_count++;
+    }
     /* past the songs of the parts before, in their rows after those at the
        top */
     const int skip = offset > 0 ? offset - special_before : 0;
@@ -3174,6 +3388,31 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         c->special_entry_count--;
     }
 
+    /* Songs by its Sort By; by name without the row, whatever the order
+       chosen, in chunks or without room for the sort, which the lists' size
+       decides: list_hash() has it */
+    int songs_by = SONGS_BY_NAME;
+    if (songs)
+    {
+        struct song_key *keys = c->dirfull ? NULL
+            : songs_sort_room(c, current_entry_count - c->special_entry_count,
+                              namebufused);
+        if (!keys)
+        {
+            struct tagentry *entries = get_entries(c);
+            const int row = c->special_entry_count - 1;
+            memmove(&entries[row], &entries[row + 1],
+                    (current_entry_count - row - 1) * sizeof(*entries));
+            current_entry_count--;
+            c->special_entry_count--;
+        }
+        else if ((songs_by = songs_order()) != SONGS_BY_NAME)
+        {
+            sort_songs(c, songs_by, keys);
+            sort = false;
+        }
+    }
+
     /* each album's year, now that all its songs are found: the songs without
        an album have none, and go last. With covers, in two lines, and each
        row's album, the first of its name among the songs, whose cover it has */
@@ -3303,6 +3542,16 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         else if (level == 0 && !csi->clause_count[0])
             entries_initials = tag != tag_title || song_places_known() ?
                                INITIALS_BY_PLACE : INITIALS_BY_NAME;
+    }
+    /* by year, the album's year before the title, as Albums by year; by
+       artist or album, that name under the title, and Quick Scroll by it */
+    if (songs_by != SONGS_BY_NAME)
+    {
+        entries_years = songs_by == SONGS_BY_YEAR;
+        entries_two_lines = !entries_years;
+        entries_initials = entries_years ? INITIALS_NONE : INITIALS_BY_PLACE;
+        entries_initials_tag = songs_by == SONGS_BY_ARTIST ?
+                               tag_virt_canonicalartist : tag_album;
     }
 
     /* each song's number and its disc's bar, now that they're in their
@@ -4761,6 +5010,13 @@ static void all_songs_place_reset(struct tagtree_place *place)
         place->selected_item = -1;
 }
 
+/* a place in Songs, whose songs are in another order: at its first */
+static void songs_place_reset(struct tagtree_place *place)
+{
+    if (is_songs(place->csi) && place->currtable == TABLE_NAVIBROWSE)
+        place->selected_item = -1;
+}
+
 void tagtree_sort_by_switched(struct tree_context *c)
 {
     if (c->currtable == TABLE_ALLSUBENTRIES)
@@ -4769,6 +5025,16 @@ void tagtree_sort_by_switched(struct tree_context *c)
         all_songs_place_reset(&saved_place);
         all_songs_place_reset(&go_to_place);
         all_songs_place_reset(&browse_place);
+    }
+    else if (is_songs(csi))
+    {
+        global_settings.songs_sort = (songs_setting() + 1) % (SONGS_BY_YEAR + 1);
+        songs_place_reset(&saved_place);
+        songs_place_reset(&go_to_place);
+        songs_place_reset(&browse_place);
+        const int section = section_of(LANG_SONGS);
+        if (section >= 0)
+            section_rows[section] = -1;
     }
     else
     {
@@ -5926,6 +6192,14 @@ static uint32_t list_hash(int table, int extra, const struct search_instruction 
         LIST_ID_ADD(global_settings.interpret_numbers);
         LIST_ID_ADD(global_settings.all_songs_sort); /* its Sort By */
     }
+    /* and Songs in another order than by name, as the lists' size let it be
+       sorted: by name, the id it always had */
+    if (table == TABLE_NAVIBROWSE && by_order && extra == 0 && is_songs(si)
+        && songs_order() != SONGS_BY_NAME)
+    {
+        LIST_ID_ADD(songs_order());
+        LIST_ID_ADD(tree_get_context()->cache.max_entries);
+    }
     LIST_ID_ADD(si->tagorder_count);
     for (int i = 0; i < si->tagorder_count; i++)
     {
@@ -5967,8 +6241,7 @@ static uint32_t shuffled_list_id(struct tree_context *c)
 
 static bool tagtree_list_is_all_songs(void)
 {
-    return csi->tagorder_count == 1 && csi->tagorder[0] == tag_title
-           && csi->clause_count[0] == 0;
+    return is_songs(csi);
 }
 
 /* what spares writing the file just written the next time */
@@ -6220,6 +6493,9 @@ void tagtree_prepare_songs(void)
     c->currtable = TABLE_NAVIBROWSE;
     c->currextra = 0;
     tc = c;
+    /* as Music's menu enters it: else the list kept here wasn't found */
+    for (int i = 0; i < MAX_TAGS; i++)
+        songs->result_artist[i] = -1;
 
     const uint32_t id = tagtree_list_id(c->currtable, c->currextra, csi);
     struct tagtree_list_header h;
@@ -6273,6 +6549,36 @@ bool tagtree_songs_prepared(void)
         return false;
     close(fd);
     return true;
+}
+
+/* Room for Songs' playlist and its index over what the next update of the
+   library keeps: its paths are no longer than their tag's file */
+static bool songs_playlist_room(void)
+{
+    char file[MAX_PATH];
+    snprintf(file, sizeof(file), "%s/database_%d.tcd",
+             tagcache_get_stat()->db_path, tag_filename);
+    const int fd = open(file, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const off_t paths = ffilesize(fd);
+    close(fd);
+    if (paths < 0)
+        return false;
+    sector_t free_kb = 0;
+    volume_size(IF_MV(0,) NULL, &free_kb);
+    return free_kb >= (paths + tagcache_entry_count() * sizeof(uint32_t)) / 1024
+                      + 1 + tagcache_caches_floor_kb();
+}
+
+/* Without room it waits for a song played, and nothing says so: asked at
+   every boot, a write that failed would raise Not Enough Space at each. Not
+   without the database in memory: all songs from the disk took minutes */
+bool tagtree_songs_stale(void)
+{
+    return song_places_known() && tagcache_get_song_count() != 0
+           && tagtree_all_songs() && !tagtree_songs_prepared()
+           && songs_playlist_room();
 }
 
 static int tagtree_play_folder(struct tree_context* c)
@@ -6510,14 +6816,20 @@ char* tagtree_get_entry_name(struct tree_context *c, int id,
         return NULL;
 
     /* Sort By, as a setting with its value at the right end: of Albums,
-       Year or Name, of All Songs, Album or Name */
+       Year or Name, of All Songs, Album or Name, of Songs, one of four */
     if (entry->customaction == ONPLAY_CUSTOMACTION_SORT_BY)
     {
+        static const int songs_values[] = {
+            [SONGS_BY_NAME] = LANG_SORT_NAME, [SONGS_BY_ARTIST] = LANG_SORT_ARTIST,
+            [SONGS_BY_ALBUM] = LANG_SORT_ALBUM, [SONGS_BY_YEAR] = LANG_SORT_YEAR,
+        };
         const bool all_songs = c->currtable == TABLE_ALLSUBENTRIES;
-        const int value = all_songs ? (global_settings.all_songs_sort ?
-                                       LANG_SORT_NAME : LANG_ID3_ALBUM)
-                                    : (global_settings.albums_sort ?
-                                       LANG_SORT_NAME : LANG_SORT_YEAR);
+        int value = all_songs ? (global_settings.all_songs_sort ?
+                                 LANG_SORT_NAME : LANG_SORT_ALBUM)
+                              : (global_settings.albums_sort ?
+                                 LANG_SORT_NAME : LANG_SORT_YEAR);
+        if (!all_songs && is_songs(csi))
+            value = songs_values[songs_setting()];
         snprintf(buf, bufsize, "%s\t%s", str(LANG_SORT_BY), str(value));
         return buf;
     }
@@ -6631,6 +6943,21 @@ const char *tagtree_album_subline(int no, int year, bool artist,
     return buf[0] ? buf : NULL;
 }
 
+/* under a song's title in Songs by artist or by album */
+static const char *song_tag_name(int32_t idx, int tag, char *buf, size_t size)
+{
+#ifdef HAVE_TC_RAMCACHE
+    if (!tagcache_is_in_ram())
+        return NULL;
+    if (tagcache_tag_string(tag, tagcache_sort_key(idx, tag), buf, size))
+        return buf;
+    return untagged_name(tag);
+#else
+    (void)idx; (void)tag; (void)buf; (void)size;
+    return NULL;
+#endif
+}
+
 /* Albums has the album artist as Artists in Albums has it, the albums of a
    name of several apart; an artist's albums only one other than the
    artist's, as a compilation's, which the songs found there are on too */
@@ -6643,6 +6970,8 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
     const struct tagentry *entry = tagtree_get_entry(c, row);
     if (!entry)
         return NULL;
+    if (entry->newtable == TABLE_PLAYTRACK)
+        return song_tag_name(entry->extraseek, entries_initials_tag, buf, size);
     const bool albums = is_albums(csi) && c->currextra == 0;
     return tagtree_album_subline(entry->album.no, entry->album.year,
                                  entries_split || !albums,
@@ -6731,8 +7060,13 @@ const char *tagtree_entry_initial(struct tree_context *c, int row, char *buf,
             letter = sortkey_initial(sortkey_start(entry->name, true));
     }
     else if (entry->newtable == TABLE_PLAYTRACK)
-        letter = tagcache_initial(tag_title,
-                                  tagcache_sort_key(entry->extraseek, tag_title));
+    {
+        /* of its title, or of the name its list goes by: none without one */
+        const long seek = tagcache_sort_key(entry->extraseek, entries_initials_tag);
+        if (entries_initials_tag == tag_title
+            || tag_named(entries_initials_tag, seek))
+            letter = tagcache_initial(entries_initials_tag, seek);
+    }
     /* not the row of those without the tag, wherever its text would go */
     else if (entry->extraseek != entries_untagged)
         letter = tagcache_initial(entries_initials_tag, entry->extraseek);

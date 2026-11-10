@@ -1100,6 +1100,9 @@ struct user_settings
     /* Settings > Appearance: the cover beside the menus pans slowly from side
        to side (Moving Cover) */
     bool moving_cover;
+    /* Music > Songs, as its first row sorts it: 0 by name, 1 by artist, 2 by
+       album, 3 by year */
+    int songs_sort;
 };
 
 /* global settings */

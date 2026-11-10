@@ -313,6 +313,13 @@ int album_years_find(int32_t album, int *n)
     return first;
 }
 
+int album_years_number(int32_t album, int32_t albumartist)
+{
+    if (!album_years_ready() || count == 0)
+        return -1;
+    return album_in(core_get_data(handle), album, albumartist);
+}
+
 /* an album by its number, NULL if there's none of it in the table as it is */
 static const struct album *album_no(int no)
 {
@@ -502,6 +509,11 @@ int album_years_find(int32_t album, int *n)
 {
     (void)album;
     *n = 0;
+    return -1;
+}
+int album_years_number(int32_t album, int32_t albumartist)
+{
+    (void)album; (void)albumartist;
     return -1;
 }
 int32_t album_years_album(int no) { (void)no; return -1; }

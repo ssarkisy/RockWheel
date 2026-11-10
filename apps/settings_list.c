@@ -2766,8 +2766,13 @@ const struct settings_list settings[] = {
                    NULL, 2, ID2P(LANG_SORT_YEAR), ID2P(LANG_SORT_NAME)),
     /* and an artist's All Songs', one for all of them */
     CHOICE_SETTING(0, all_songs_sort, LANG_SORT_BY, 0, "all songs sort",
-                   "album,name", NULL, 2, ID2P(LANG_ID3_ALBUM),
+                   "album,name", NULL, 2, ID2P(LANG_SORT_ALBUM),
                    ID2P(LANG_SORT_NAME)),
+    /* and Music > Songs' */
+    CHOICE_SETTING(0, songs_sort, LANG_SORT_BY, 0, "songs sort",
+                   "name,artist,album,year", NULL, 4, ID2P(LANG_SORT_NAME),
+                   ID2P(LANG_SORT_ARTIST), ID2P(LANG_SORT_ALBUM),
+                   ID2P(LANG_SORT_YEAR)),
     /* Settings > Appearance: Albums' rows with each album's year and album
        artist under its name, and the albums' covers beside them in their
        lists */

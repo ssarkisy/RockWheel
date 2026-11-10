@@ -5955,7 +5955,7 @@ static int context_menu(void)
     static char sort_by[64];
     rb->snprintf(sort_by, sizeof(sort_by), "%s\t%s", rb->str(LANG_SORT_BY),
                  rb->str(pf_cfg.sort_albums_by == SORT_BY_YEAR ? LANG_SORT_YEAR
-                                                               : LANG_ID3_ARTIST));
+                                                               : LANG_SORT_ARTIST));
     MENUITEM_STRINGLIST(playing_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),

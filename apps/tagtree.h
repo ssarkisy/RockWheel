@@ -103,6 +103,8 @@ bool tagtree_shuffle_songs(void);
 void tagtree_prepare_songs(void);
 /* whether Songs' list is made for the database as it is */
 bool tagtree_songs_prepared(void);
+/* Songs' playlist in the order chosen isn't written, and has its room */
+bool tagtree_songs_stale(void);
 bool tagtree_play_song_in_library(const char *path);
 int tagtree_add_to_playlist(const char* playlist, bool new_playlist);
 bool tagtree_add_to_file(const char *file);
@@ -142,8 +144,8 @@ void tagtree_album_rows_check(void);
    and for each of a list in another order */
 const char *tagtree_entry_initial(struct tree_context *c, int row, char *buf,
                                   size_t size);
-/* the list has a Sort By, Albums' or All Songs', which is drawn as a setting,
-   with its value */
+/* the list has a Sort By, Albums', All Songs' or Songs', which is drawn as a
+   setting, with its value */
 bool tagtree_has_sort_by(struct tree_context *c);
 /* the row opens a list: not a song, nor Sort By, which switches in place */
 bool tagtree_row_has_children(struct tree_context *c, int row);
