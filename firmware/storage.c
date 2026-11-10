@@ -158,6 +158,41 @@ static FORCE_INLINE int storage_event_send(unsigned int route, long id,
 }
 #endif /* ndef CONFIG_STORAGE_MULTI */
 
+#ifdef USING_STORAGE_CALLBACK
+static void (*soon_func)(void);
+static long soon_tick;
+
+void register_storage_idle_func_soon(void (*function)(void))
+{
+    register_storage_idle_func(function);
+    soon_tick = current_tick + HZ * 3 / 2;
+    soon_func = function;
+}
+
+/* nothing to spin up: flash, as an iFlash is */
+static bool storage_is_flash(void)
+{
+#if CONFIG_STORAGE == STORAGE_ATA
+    return ata_disk_isssd();
+#else
+    return !(CONFIG_STORAGE & STORAGE_ATA);
+#endif
+}
+
+/* Taken off the idle's list before it runs, so that a call meanwhile isn't
+   lost, and without holding off the others' as call_storage_idle_notifys()
+   does for 30 s */
+static void storage_run_soon(bool usb_mode)
+{
+    void (*function)(void) = soon_func;
+    if (!function || TIME_BEFORE(current_tick, soon_tick))
+        return;
+    soon_func = NULL;
+    if (!usb_mode && (storage_disk_is_active() || storage_is_flash()))
+        unregister_storage_idle_func(function, true);
+}
+#endif
+
 static void NORETURN_ATTR storage_thread(void)
 {
     unsigned int bdcast = CONFIG_STORAGE;
@@ -171,6 +206,9 @@ static void NORETURN_ATTR storage_thread(void)
         switch (ev.id)
         {
         case SYS_TIMEOUT:;
+#ifdef USING_STORAGE_CALLBACK
+            storage_run_soon(usb_mode);
+#endif
             /* drivers hold their bit low when they want to
                sleep and keep it high otherwise */
             unsigned int trig = 0;

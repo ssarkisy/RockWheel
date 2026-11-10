@@ -835,7 +835,8 @@ int settings_save(void)
     logf("%s", __func__);
     /* remove any oustanding status_cb we will call it in the config_block_cb */
     unregister_storage_idle_func(flush_global_status_callback, false);
-    register_storage_idle_func(flush_config_block_callback);
+    /* soon, as a reset loses what isn't written */
+    register_storage_idle_func_soon(flush_config_block_callback);
     return 0;
 }
 

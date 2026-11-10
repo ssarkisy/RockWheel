@@ -22,6 +22,7 @@
 
 
 #include <stdbool.h>
+#include "config.h"
 #include "events.h"
 
 /*
@@ -57,6 +58,15 @@ extern bool call_storage_idle_notifys(bool force);
 #define unregister_storage_idle_func(f,r)
 #define call_storage_idle_notifys(f)
 #define storage_idle_notify_init(s)
+#endif
+#if defined(USING_STORAGE_CALLBACK) && (CONFIG_PLATFORM & PLATFORM_NATIVE)
+/* As register_storage_idle_func(), and run in a second or two rather than at
+   the disk's idle where it's flash or spinning already, as for a setting
+   changed: a sleeping disk isn't woken for it. One function; each call puts
+   it off again. */
+extern void register_storage_idle_func_soon(void (*function)(void));
+#else
+#define register_storage_idle_func_soon(f) register_storage_idle_func(f)
 #endif
 
 #endif /* __ATACALLBACK_H__ */
