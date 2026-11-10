@@ -68,7 +68,6 @@ tagtree.c
 album_header.c
 list_covers.c
 music_search.c
-library_fonts.c
 #endif
 filetree.c
 #ifdef IPOD_ACCESSORY_PROTOCOL

@@ -1017,6 +1017,10 @@ static void reset_hidden_settings(void)
     }
 }
 
+/* Glyphs the menus' font keeps at least: a list of names in Chinese or Korean
+   has one of its own for nearly every character */
+#define UI_FONT_GLYPHS 512
+
 void settings_apply(bool read_disk)
 {
     logf("%s", __func__);
@@ -1135,7 +1139,8 @@ void settings_apply(bool read_disk)
                 CHART2(">font_load ", global_settings.font_file);
                 if (font_ui >= 0)
                     font_unload(font_ui);
-                rc = font_load_ex(buf, 0, global_settings.glyphs_to_cache);
+                rc = font_load_ex(buf, 0, MAX(global_settings.glyphs_to_cache,
+                                              UI_FONT_GLYPHS));
                 CHART2("<font_load ", global_settings.font_file);
                 screens[SCREEN_MAIN].setuifont(rc);
                 screens[SCREEN_MAIN].setfont(rc);

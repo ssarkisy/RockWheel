@@ -1,36 +1,51 @@
 #!/bin/sh
-# Make the fonts of the alphabets other than Latin, Greek and Cyrillic, which
-# Inter has, from OFL typefaces of Google Fonts (https://github.com/google/fonts,
-# ofl/<family>/):
+# Give the theme's Inter fonts the alphabets other than Latin, Greek and
+# Cyrillic, from OFL typefaces: those of Google Fonts (https://github.com/google/fonts,
+# ofl/<family>/) and Pretendard's Hangul (https://github.com/orioncactus/pretendard/releases,
+# public/static/ in the zip):
 #
-#     themes/tools/make_script_fonts.sh <folder with a folder of each family>
+#     themes/tools/make_script_fonts.sh <folder with a folder of each family> <folder with Pretendard's OTFs>
 #
 # with notosansjp, notosanssc, notosanstc, notosanshebrew, vazirmatn and
-# ibmplexsansthai in it, each with its TTF and OFL.txt. Hangul comes from
-# make_hangul_fonts.sh.
+# ibmplexsansthai in the first, each with its TTF and OFL.txt, and
+# Pretendard-SemiBold.otf, Pretendard-Medium.otf and LICENSE.txt in the second.
+# Run it after make_fonts.sh, whose eight fonts of the menus and the text it
+# merges into (merge_fonts.py); again on its own output, it makes the same.
 #
-# They are the sources the iPod takes glyphs from: on the Updating Library screen
-# it gathers what the tags of the library and the names of the languages are
-# written in, with the alphabets whole and the common ideographs, and makes fonts
-# of just those glyphs (apps/library_fonts.c); run make_common_han.py after this,
-# for the ideographs these have. These
-# files stay on the disk and are only read then. Each comes in the three sizes of
-# the theme's fonts, named after the line height of the font it goes with:
-# 24 the menus (Inter Bold 18), 17 Now Playing (Inter SemiBold 15), 14 small text
-# (Inter Bold 13). Under the OFL a font made from one can't carry its name, so they
-# are named after their alphabet, with each licence beside them.
+# The alphabets come in the three sizes of the theme's fonts first, outside
+# the theme: the ideographs and kana as tall as the capitals of Inter beside
+# them, the others at the sizes of Inter, which their letters match. Under the
+# OFL a font made from one can't carry its name; the fonts keep Inter's, which
+# reserves none, with each typeface's licence beside them.
 #
 # Needs a C compiler, FreeType (on macOS: brew install freetype) and fontTools
-# (pip install fonttools) for the weights of the variable fonts.
+# (pip install fonttools; PYTHON names a python3 with it). With FreeType 2.14
+# and fontTools 4.68, the sources below gave the fonts in the theme.
 set -e
 
 here=$(cd "$(dirname "$0")" && pwd)
 root="$here/../.."
-src=${1:?usage: $0 <folder with a folder of each family>}
-out="$here/../fonts/.rockbox/fonts/scripts"
+usage="usage: $0 <folder with a folder of each family> <folder with Pretendard's OTFs>"
+src=${1:?$usage}
+otf=${2:?$usage}
+out="$here/../fonts/.rockbox/fonts"
 build=$(mktemp -d)
 trap 'rm -rf "$build"' EXIT
-mkdir -p "$out"
+
+# the sources the fonts in the theme were made of, Google Fonts' as of 2026-11-04
+echo "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f $src/notosansjp/NotoSansJP[wght].ttf
+a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da $src/notosanssc/NotoSansSC[wght].ttf
+864727d210d54f2537bbe23b3a839436c3992af72de9322af5270897246bd44f $src/notosanstc/NotoSansTC[wght].ttf
+7ef36a2c3593758cdb622e1bdef4f84523e92fbc3ccc667438dd80ff54c2de88 $src/notosanshebrew/NotoSansHebrew[wdth,wght].ttf
+696249a2c74b39ffdef55de4df2809c5b639d3ff80d618d8160a095d2fd49dca $src/vazirmatn/Vazirmatn[wght].ttf
+f88fbe0a3717c93deddf4b13e50a05c9adcd38f58d675d9d5d0b869961851667 $src/ibmplexsansthai/IBMPlexSansThai-Bold.ttf
+9d7526a0c8dfad63c49815d0cce9eea1026f018468b81c579997e953620a67d3 $src/ibmplexsansthai/IBMPlexSansThai-SemiBold.ttf
+c89bc43027dc7cde5726e96223376f8eec09302b2fc1f8147fd5b57cfc376118 $otf/Pretendard-SemiBold.otf
+d39e50e4bb52b4993b6a4eeb821a171254745bd824446af01e1f616b89fface0 $otf/Pretendard-Medium.otf" |
+while read -r sum file; do
+    [ "$(shasum -a 256 "$file" | cut -d' ' -f1)" = "$sum" ] \
+        || { echo "$file isn't the one the theme's fonts were made of" >&2; exit 1; }
+done
 
 if pkg-config --exists freetype2 2>/dev/null; then
     ft=$(pkg-config --cflags --libs freetype2)
@@ -61,25 +76,42 @@ weight() {
 font() {
     bold=$(weight "$2" 700 "$2-700.ttf")
     semi=$(weight "$2" 600 "$2-600.ttf")
-    "$build/convttf" -s "$3" -l "$4" -A -p "$5" -o "$out/24-$1.fnt" "$bold" > /dev/null
-    "$build/convttf" -s "$3" -l "$4" -A -p "$6" -o "$out/17-$1.fnt" "$semi" > /dev/null
-    "$build/convttf" -s "$3" -l "$4" -A -p "$7" -o "$out/14-$1.fnt" "$bold" > /dev/null
-    cp "$src/$2/OFL.txt" "$out/$1-OFL.txt"
+    "$build/convttf" -s "$3" -l "$4" -A -p "$5" -o "$build/24-$1.fnt" "$bold" > /dev/null
+    "$build/convttf" -s "$3" -l "$4" -A -p "$6" -o "$build/17-$1.fnt" "$semi" > /dev/null
+    "$build/convttf" -s "$3" -l "$4" -A -p "$7" -o "$build/14-$1.fnt" "$bold" > /dev/null
 }
 
-# The ideographs and kana as tall as the capitals of the Inter beside them, as the
-# syllables of Hangul are; the CJK punctuation and the full-width forms, as titles in
-# Japanese and Chinese have them, apart from the ideographs
-font Han-JP     notosansjp     12288 40959 16 13 12  # U+3000, kana, U+4E00..U+9FFF
-font Wide-JP    notosansjp     65280 65519 16 13 12  # U+FF00..U+FFEF
-font Han-SC     notosanssc     12288 40959 16 13 12
-font Wide-SC    notosanssc     65280 65519 16 13 12
-font Han-TC     notosanstc     12288 40959 16 13 12
-font Wide-TC    notosanstc     65280 65519 16 13 12
-# The others at the sizes of Inter, which their letters match
-font Hebrew     notosanshebrew  1424  1535 18 15 13  # U+0590..U+05FF
-font Arabic     vazirmatn       1536  1791 18 15 13  # U+0600..U+06FF
-font ArabicA    vazirmatn      64336 65023 18 15 13  # forms U+FB50..U+FDFF
-font ArabicB    vazirmatn      65136 65279 18 15 13  # forms U+FE70..U+FEFF
-font Thai       ibmplexsansthai 3584  3711 18 15 13  # U+0E00..U+0E7F
+# U+3000 to U+9FFF, the compatibility ideographs and the full-width forms
+for r in JP SC TC; do
+    family=notosans$(echo $r | tr A-Z a-z)
+    font Han-$r    $family 12288 40959 16 13 12
+    font Compat-$r $family 63744 64255 16 13 12
+    font Wide-$r   $family 65280 65519 16 13 12
+done
+font Hebrew  notosanshebrew  1424  1535 18 15 13  # U+0590..U+05FF
+font Arabic  vazirmatn       1536  1791 18 15 13  # U+0600..U+06FF
+font ArabicA vazirmatn      64336 65023 18 15 13  # forms U+FB50..U+FDFF
+font ArabicB vazirmatn      65136 65279 18 15 13  # forms U+FE70..U+FEFF
+font Thai    ibmplexsansthai 3584  3711 18 15 13  # U+0E00..U+0E7F
+# Hangul's letters and syllables: the small ones a size up, as at 13 a third
+# of the syllables come a pixel wider than the rest; a weight lighter, as a
+# syllable has more strokes than a letter
+hangul() {
+    "$build/convttf" -s 12593 -l 55203 -A -p "$3" -o "$build/$1-Hangul.fnt" "$otf/$2" > /dev/null
+}
+hangul 24 Pretendard-SemiBold.otf 18
+hangul 17 Pretendard-Medium.otf   15
+hangul 14 Pretendard-SemiBold.otf 14
+
+"$python" "$here/merge_fonts.py" "$out" "$build" "$root/firmware/font_han_forms.h"
+
+# licence <from> <to>: with the line ends git keeps
+licence() {
+    tr -d '\r' < "$1" > "$out/$2"
+}
+licence "$src/notosanssc/OFL.txt" Han-OFL.txt # as JP's and TC's
+licence "$src/notosanshebrew/OFL.txt" Hebrew-OFL.txt
+licence "$src/vazirmatn/OFL.txt" Arabic-OFL.txt
+licence "$src/ibmplexsansthai/OFL.txt" Thai-OFL.txt
+licence "$otf/LICENSE.txt" Hangul-OFL.txt
 ls -l "$out"

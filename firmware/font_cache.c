@@ -28,7 +28,7 @@
 static void font_cache_lru_init(void* data)
 {
     struct font_cache_entry* p = data;
-    p->_char_code = 0xffff;   /* assume invalid char */
+    p->_char_code = FONT_CACHE_NONE;
 }
 
 /*******************************************************************************

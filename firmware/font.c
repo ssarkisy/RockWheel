@@ -85,6 +85,9 @@
 /* Font cache includes */
 #include "font_cache.h"
 #include "lru.h"
+#include "dir.h"
+/* JP and TC forms' codes past U+FFFF (made with the fonts by merge_fonts.py) */
+#include "font_han_forms.h"
 #endif
 
 #ifndef O_BINARY
@@ -101,13 +104,28 @@ extern struct font sysfont;
 
 #if !defined(BOOTLOADER) || defined(SONY_NWZ_LINUX) || defined(HIBY_LINUX)
 
+/* Glyphs of a block of codes in records of one size, in order: a byte of the
+   glyph's width, then its bits, read in one go (themes/tools/merge_fonts.py) */
+#define RECORD_BLOCKS 4
+struct record_block {
+    ucschar_t first, last;
+    uint32_t offset; /* the first record's, as a glyph's offset */
+    uint32_t size;
+};
+
 struct buflib_alloc_data {
     struct font font;    /* must be the first member! */
     char *path; /* font path and filename (allocd at end of buffer) */
     size_t path_bufsz; /* size of path buffer */
     int refcount;        /* how many times has this font been loaded? */
+    int records;
+    bool forms; /* its glyphs past U+FFFF are font_han_forms.h's */
+    struct record_block record[RECORD_BLOCKS];
     unsigned char buffer[];
 };
+/* the loaders pad a font's tables by their addresses, as the file by offsets */
+_Static_assert(offsetof(struct buflib_alloc_data, buffer) % 4 == 0,
+               "a font's buffer is 4-byte aligned");
 static int buflib_allocations[MAXFONTS];
 static int ui_font = FONT_LASTUSERFONT;
 
@@ -149,6 +167,7 @@ static void lock_font_handle(int handle, bool lock)
         core_unpin(handle);
 }
 
+
 #ifndef BOOTLOADER
 #define FALLBACK_FONT   FONT_DIR "/16-GNU-Unifont.fnt"
 #define FALLBACK_GLYPHS 1024   /* about two screens of text that's all different */
@@ -176,173 +195,328 @@ static inline bool char_wants_fallback(ucschar_t ch)
         || (ch >= 0xff00 && ch < 0xfff0);   /* full and half width forms */
 }
 
-/* An alphabet's own fonts, which read better than Unifont's at the theme's sizes:
-   FONT_DIR "/<height>-<name>.fnt", the height that of the theme's font each goes
-   with. They're loaded for the alphabet of the menus' language, and any of them can
-   be replaced by one's own font of that name. */
-#define SCRIPT_GLYPHS 192
-static const struct script {
-    const char *name;
-    ucschar_t first[2], last[2]; /* its ranges */
-} scripts[] = {
-    { "Hangul", { 0xac00, 0x3131 }, { 0xd7a3, 0x318e } },
-};
-static const int script_heights[] = { 24, 17, 14 };
-static int script_loaded = -1;
-static int script_ids[ARRAYLEN(script_heights)] = { -1, -1, -1 };
-
-/* The fonts of the library (apps/library_fonts.c): of all that its tags, its
-   playlists and the menus of every language are written in, in those alphabets,
-   in the same sizes. What they have comes from them first. */
-#define LIBRARY_GLYPHS 256
-static int library_ids[ARRAYLEN(script_heights)] = { -1, -1, -1 };
-
-static bool in_script(const struct script *sc, ucschar_t ch)
-{
-    for (int i = 0; i < 2; i++)
-    {
-        if (ch >= sc->first[i] && ch <= sc->last[i])
-            return true;
-    }
-    return false;
-}
-
-/* a file of a fallback, whose glyphs are only ever asked for other alphabets */
-static bool is_fallback_file(const char *path)
-{
-    if (strcmp(path, FALLBACK_FONT) == 0)
-        return true;
-    const char *dash = strrchr(path, '-');
-    if (dash && !strcmp(dash + 1, "Library.fnt"))
-        return true;
-    for (size_t i = 0; dash && i < ARRAYLEN(scripts); i++)
-    {
-        const size_t n = strlen(scripts[i].name);
-        if (!strncmp(dash + 1, scripts[i].name, n) && !strcmp(dash + 1 + n, ".fnt"))
-            return true;
-    }
-    return false;
-}
-
-void font_load_fallback(const char *script)
-{
-    if (fallback_id < 0)
-        fallback_id = font_load_ex(FALLBACK_FONT, 0, FALLBACK_GLYPHS);
-
-    int wanted = -1;
-    for (size_t i = 0; script && i < ARRAYLEN(scripts); i++)
-    {
-        if (!strcmp(script, scripts[i].name))
-            wanted = i;
-    }
-    /* Once loaded, an alphabet's fonts stay until the next boot, as the
-       scrolling line may be drawing with them as the language changes, and
-       they serve its names in tags as well under another language */
-    if (wanted < 0 || script_loaded >= 0)
-        return;
-    script_loaded = wanted;
-    for (size_t i = 0; i < ARRAYLEN(script_heights); i++)
-    {
-        char path[MAX_PATH];
-        snprintf(path, sizeof(path), FONT_DIR "/%d-%s.fnt", script_heights[i],
-                 scripts[wanted].name);
-        script_ids[i] = font_load_ex(path, 0, SCRIPT_GLYPHS);
-        if (script_ids[i] < 0)
-            script_ids[i] = -1; /* not there */
-    }
-}
-
-void font_load_library(bool load)
-{
-    for (size_t i = 0; i < ARRAYLEN(library_ids); i++)
-    {
-        if (load && library_ids[i] >= 0)
-            continue; /* as it was made */
-        if (library_ids[i] >= 0)
-            font_unload(library_ids[i]);
-        library_ids[i] = -1;
-        if (!load)
-            continue;
-        char path[MAX_PATH];
-        snprintf(path, sizeof(path), FONT_DIR "/%d-Library.fnt", script_heights[i]);
-        const int id = font_load_ex(path, 0, LIBRARY_GLYPHS);
-        library_ids[i] = id < 0 ? -1 : id;
-    }
-}
-
-void font_lock_fallbacks(bool lock)
-{
-    font_lock(fallback_id, lock);
-    for (size_t i = 0; i < ARRAYLEN(script_ids); i++)
-    {
-        font_lock(script_ids[i], lock);
-        font_lock(library_ids[i], lock);
-    }
-}
-
-/* Hangul, whose sizes go by the capitals of the Inter beside it rather than by
-   its line: the 18 px Inter of the lyrics and the hints has those of the menus'
-   24, and Hangul from the 17s stood smaller than the Latin beside it. Between
-   two of the theme's sizes it takes the taller, and the other alphabets the
-   smaller, whose bolder 24s were too dark and Thai's too tall for those lines. */
-static inline bool sized_up(ucschar_t ch)
+static inline bool is_hangul(ucschar_t ch)
 {
     return (ch >= 0xac00 && ch <= 0xd7a3) || (ch >= 0x3131 && ch <= 0x318e);
 }
 
-/* of fonts in the sizes of the theme's, the one for a font of this height: the
-   tallest not over it, or else the smallest; rounded up, the shortest not
-   under it, or else the tallest */
-static struct font *sized_font(const int ids[ARRAYLEN(script_heights)], int height,
-                               bool up)
+/* One's own fonts of Hangul, FONT_DIR "/<height>-Hangul.fnt" in the heights of the
+   theme's fonts, made by tools/convttf from another typeface: their syllables
+   rather than the theme's */
+#define HANGUL_GLYPHS 192
+static const int hangul_heights[] = { 24, 17, 14 };
+static int hangul_ids[ARRAYLEN(hangul_heights)] = { -1, -1, -1 };
+static bool hangul_looked_for;
+
+/* a file of a fallback, whose glyphs are only ever asked for other alphabets */
+static bool is_fallback_file(const char *path)
 {
-    /* rounding up is rounding down over the heights turned negative */
-    const int sign = up ? -1 : 1;
-    int best = -1, smallest = -1;
-    for (size_t i = 0; i < ARRAYLEN(script_heights); i++)
+    const char *dash = strrchr(path, '-');
+    return !strcmp(path, FALLBACK_FONT) || (dash && !strcmp(dash, "-Hangul.fnt"));
+}
+
+/* Old Library and scripts files and the theme's old Hangul (by their shipped
+   sizes, so one's own stay), while fonts/scripts or library.stamp exists */
+static void font_remove_old(void)
+{
+    /* the stamp last: while it's there, this runs again */
+    static const char *const library[] = {
+        "library-langs.bin", "24-Library.fnt", "17-Library.fnt", "14-Library.fnt",
+        "24-Library.gc", "17-Library.gc", "14-Library.gc", "library.stamp",
+    };
+    static const off_t theme_hangul[ARRAYLEN(hangul_heights)][3] = {
+        { 1328651, 1372179, 1622407 }, { 957151, 957851, 1212835 },
+        { 861963, 883511, 1065939 },
+    };
+    if (!dir_exists(FONT_DIR "/scripts") && !file_exists(FONT_DIR "/library.stamp"))
+        return;
+    char path[MAX_PATH];
+    for (size_t i = 0; i < ARRAYLEN(hangul_heights); i++)
     {
-        if (ids[i] < 0)
+        snprintf(path, sizeof(path), FONT_DIR "/%d-Hangul.fnt", hangul_heights[i]);
+        const int fd = open(path, O_RDONLY);
+        const off_t size = fd >= 0 ? ffilesize(fd) : -1;
+        if (fd >= 0)
+            close(fd);
+        for (size_t k = 0; k < ARRAYLEN(theme_hangul[i]); k++)
+        {
+            if (size != theme_hangul[i][k])
+                continue;
+            remove(path);
+            snprintf(path, sizeof(path), FONT_DIR "/%d-Hangul.gc", hangul_heights[i]);
+            remove(path);
+            break;
+        }
+    }
+    /* all of it, only ever the theme's, "._" copies of macOS's too, or the
+       folder stays and this runs at every boot */
+    DIR *dir = opendir(FONT_DIR "/scripts");
+    struct dirent *entry;
+    while (dir && (entry = readdir(dir)))
+    {
+        if (!(dir_get_info(dir, entry).attribute & ATTR_DIRECTORY)
+            && snprintf(path, sizeof(path), FONT_DIR "/scripts/%s", entry->d_name)
+               < (int)sizeof(path))
+            remove(path);
+    }
+    if (dir)
+        closedir(dir);
+    rmdir(FONT_DIR "/scripts");
+    for (size_t i = 0; i < ARRAYLEN(library); i++)
+    {
+        snprintf(path, sizeof(path), FONT_DIR "/%s", library[i]);
+        /* as 1.3 wrote it, left by a power cut */
+        strlcat(path, ".tmp", sizeof(path));
+        remove(path);
+        path[strlen(path) - 4] = '\0';
+        remove(path);
+    }
+}
+
+void font_load_fallback(void)
+{
+    if (fallback_id < 0)
+        fallback_id = font_load_ex(FALLBACK_FONT, 0, FALLBACK_GLYPHS);
+
+    /* Once, at boot, the music stopped; they stay until the next, as the
+       scrolling line may be drawing with them */
+    if (hangul_looked_for)
+        return;
+    hangul_looked_for = true;
+    font_remove_old();
+    for (size_t i = 0; i < ARRAYLEN(hangul_heights); i++)
+    {
+        char path[MAX_PATH];
+        snprintf(path, sizeof(path), FONT_DIR "/%d-Hangul.fnt", hangul_heights[i]);
+        const int id = file_exists(path) ? font_load_ex(path, 0, HANGUL_GLYPHS) : -1;
+        hangul_ids[i] = id < 0 ? -1 : id;
+    }
+}
+
+unsigned font_lock_all(void)
+{
+    unsigned locked = 0;
+    for (int i = 0; i < MAXFONTS; i++)
+    {
+        if (buflib_allocations[i] > 0)
+        {
+            font_lock(i, true);
+            locked |= 1u << i;
+        }
+    }
+    return locked;
+}
+
+void font_unlock_all(unsigned locked)
+{
+    for (int i = 0; i < MAXFONTS; i++)
+    {
+        if (locked & (1u << i))
+            font_lock(i, false);
+    }
+}
+
+/* The theme's fonts with every alphabet (themes/tools/merge_fonts.py): what
+   they haven't has no width */
+static inline bool font_is_merged(const struct font *pf)
+{
+    return pf->firstchar + pf->size > 0x10000;
+}
+
+/* of the theme's fonts with every alphabet, the one for a font of this height
+   that hasn't them: the tallest not over it, or else the shortest */
+static struct font *merged_font_for(unsigned int height)
+{
+    struct font *best = NULL, *shortest = NULL;
+    for (int i = 0; i < MAXFONTS; i++)
+    {
+        if (buflib_allocations[i] <= 0)
             continue;
-        const int h = sign * script_heights[i];
-        if (h <= sign * height && (best < 0 || h > sign * script_heights[best]))
+        struct font *f = font_get(i);
+        if (!font_is_merged(f))
+            continue;
+        if (f->height <= height && (!best || f->height > best->height))
+            best = f;
+        if (!shortest || f->height < shortest->height)
+            shortest = f;
+    }
+    return best ? best : shortest;
+}
+
+/* One's own Hangul for a font of this height: that of its height or the one
+   above, as the capitals of the 18 px Inter of the lyrics and the hints are
+   those of the menus' 24, or else the tallest */
+static struct font *hangul_font_for(unsigned int height)
+{
+    int best = -1, tallest = -1;
+    for (size_t i = 0; i < ARRAYLEN(hangul_heights); i++)
+    {
+        const int h = hangul_heights[i];
+        if (hangul_ids[i] < 0)
+            continue;
+        if (h >= (int)height && (best < 0 || h < hangul_heights[best]))
             best = i;
-        if (smallest < 0 || h < sign * script_heights[smallest])
-            smallest = i;
+        if (tallest < 0 || h > hangul_heights[tallest])
+            tallest = i;
     }
     if (best < 0)
-        best = smallest;
-    return best < 0 ? NULL : font_get(ids[best]);
+        best = tallest;
+    return best < 0 ? NULL : font_get(hangul_ids[best]);
 }
 
-struct font* font_for_char(struct font* pf, ucschar_t ch)
+static int glyph_bytes(struct font *pf, int width);
+
+/* Whether a character has a glyph of its own in one's own font: convttf
+   gives one it hasn't the default's width and bits */
+static bool own_glyph(struct font *pf, ucschar_t ch)
 {
+    const int width = font_get_width(pf, ch);
+    if (width == 0 || ch == (ucschar_t)pf->defaultchar
+        || width != font_get_width(pf, pf->defaultchar))
+        return width > 0;
+    lock_font_handle(pf->handle, true); /* both bits stay where they are */
+    const bool own = memcmp(font_get_bits(pf, pf->defaultchar), font_get_bits(pf, ch),
+                            glyph_bytes(pf, width)) != 0;
+    lock_font_handle(pf->handle, false);
+    return own;
+}
+
+/* the code of the glyph of a character's form in a merged font */
+static ucschar_t font_han_glyph(struct font *pf, ucschar_t ch, int form)
+{
+    /* the code's bit in font_han_forms.h, as merge_fonts.py lays them out */
+    int i;
+    if (ch >= 0x3000 && ch <= 0x9fff)
+        i = ch - 0x3000;
+    else if (ch >= 0xf900 && ch <= 0xfaff)
+        i = ch - 0xf900 + 0x7000;
+    else if (ch >= 0xff00 && ch <= 0xffef)
+        i = ch - 0xff00 + 0x7200;
+    else
+        return ch;
+    const uint32_t *bits;
+    const uint16_t *ranks;
+    ucschar_t first;
+    if (form == FONT_HAN_JP)
+    {
+        bits = font_han_jp_bits;
+        ranks = font_han_jp_ranks;
+        first = FONT_HAN_HIDDEN;
+    }
+    else if (form == FONT_HAN_TC)
+    {
+        bits = font_han_tc_bits;
+        ranks = font_han_tc_ranks;
+        first = FONT_HAN_HIDDEN + FONT_HAN_JP_COUNT;
+    }
+    else
+        return ch;
+    if (!((const struct buflib_alloc_data *)pf)->forms)
+        return ch;
+    const uint32_t word = bits[i >> 5];
+    if (!(word & (1u << (i & 31))))
+        return ch;
+    int rank = ranks[i >> 8] + __builtin_popcount(word & ((1u << (i & 31)) - 1));
+    for (int w = (i >> 5) & ~7; w < i >> 5; w++)
+        rank += __builtin_popcount(bits[w]);
+    return first + rank;
+}
+
+struct font* font_for_char(struct font* pf, ucschar_t ch, int form, ucschar_t *glyph)
+{
+    *glyph = ch;
     if (LIKELY(ch < 0x0590) || pf == &sysfont)
         return pf;
-    if (!char_wants_fallback(ch))
+    if (is_hangul(ch))
     {
-        /* punctuation and symbols from the theme's font, but one past all it
-           has from Unifont, as the titles that Coldplay gives as "⦵" and "✨":
-           the font's blank default made an empty title */
-        if (ch < pf->firstchar + pf->size || fallback_id < 0)
-            return pf;
+        struct font *hf = hangul_font_for(pf->height);
+        if (hf && own_glyph(hf, ch))
+            return hf;
+    }
+    if (!font_is_merged(pf))
+    {
+        if (!char_wants_fallback(ch))
+        {
+            /* punctuation and symbols from the font, but one past all it has
+               from Unifont, as the titles that Coldplay gives as "⦵" and "✨":
+               the font's blank default made an empty title */
+            if (ch < pf->firstchar + pf->size || fallback_id < 0)
+                return pf;
+            return font_get(fallback_id);
+        }
+        struct font *mf = merged_font_for(pf->height);
+        if (!mf)
+            return fallback_id < 0 ? pf : font_get(fallback_id);
+        pf = mf;
+    }
+    /* the width of the glyph drawn: the code's would load that one too */
+    const ucschar_t g = font_han_glyph(pf, ch, form);
+    if (fallback_id >= 0 && font_get_width(pf, g) == 0)
         return font_get(fallback_id);
-    }
-    struct font *lf = sized_font(library_ids, pf->height, sized_up(ch));
-    if (lf && ch >= lf->firstchar && ch < lf->firstchar + lf->size
-        && font_get_width(lf, ch) > 0)
-        return lf;
-    if (script_loaded >= 0 && in_script(&scripts[script_loaded], ch))
-    {
-        struct font *sf = sized_font(script_ids, pf->height, sized_up(ch));
-        if (sf)
-            return sf;
-    }
-    return fallback_id < 0 ? pf : font_get(fallback_id);
+    *glyph = g;
+    return pf;
 }
 
+/* Hangul taller than the line stands on its baseline, as one's own of the
+   size above for the 18 px fonts, rather than in its middle */
 bool font_on_baseline(struct font *gf, ucschar_t ch)
 {
-    return sized_up(ch) && (fallback_id < 0 || gf != font_get(fallback_id));
+    return is_hangul(ch) && (fallback_id < 0 || gf != font_get(fallback_id));
+}
+
+/* the forms of the menus' language, and those of a whole text for the thread
+   drawing its parts (font_set_text_form()) */
+static int han_form = FONT_HAN_SC;
+static int text_form = -1;
+static unsigned int text_form_thread;
+
+void font_set_han_form(int form)
+{
+    han_form = form;
+}
+
+void font_set_text_form(int form)
+{
+    text_form = form;
+    text_form_thread = thread_self();
+}
+
+static int forced_form(void)
+{
+    return text_form >= 0 && text_form_thread == thread_self() ? text_form : -1;
+}
+
+/* ・ of names in Chinese too isn't one */
+static inline bool is_kana(ucschar_t ch)
+{
+    return (ch >= 0x3040 && ch <= 0x30ff && ch != 0x30fb)
+        || (ch >= 0x31f0 && ch <= 0x31ff) || (ch >= 0xff66 && ch <= 0xff9f);
+}
+
+int font_han_form(const ucschar_t *text)
+{
+    const int forced = forced_form();
+    if (forced >= 0)
+        return forced;
+    for (; han_form != FONT_HAN_JP && *text; text++)
+    {
+        if (is_kana(*text))
+            return FONT_HAN_JP;
+    }
+    return han_form;
+}
+
+int font_text_form(const unsigned char *text, size_t maxbytes)
+{
+    const unsigned char *p = text;
+    while (han_form != FONT_HAN_JP && *p && (size_t)(p - text) < maxbytes)
+    {
+        ucschar_t ch;
+        p = utf8decode(p, &ch);
+        if (is_kana(ch))
+            return FONT_HAN_JP;
+    }
+    return han_form;
 }
 #endif /* BOOTLOADER */
 
@@ -692,6 +866,43 @@ static struct font* font_load_header(int fd, struct font *pheader,
     return pf;
 }
 
+static uint32_t le32(const unsigned char *p)
+{
+    return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+/* The record blocks of a merged font, described after its header, and whether
+   its forms are font_han_forms.h's: none if they aren't, or if one isn't
+   within its codes and its bits */
+static int font_load_records(int fd, struct font *pf, struct record_block *record,
+                             bool *forms)
+{
+    unsigned char d[12 + 16 * RECORD_BLOCKS];
+    *forms = false;
+    if (read(fd, d, sizeof(d)) != sizeof(d) || memcmp(d, "RWFR", 4)
+        || le32(d + 4) > RECORD_BLOCKS)
+        return 0;
+    const int n = le32(d + 4);
+    for (int i = 0; i < n; i++)
+    {
+        struct record_block *r = &record[i];
+        const unsigned char *b = d + 12 + 16 * i;
+        r->first = le32(b);
+        r->last = le32(b + 4);
+        r->offset = le32(b + 8);
+        r->size = le32(b + 12);
+        /* a record within a glyph's entry of the cache (load_cache_entry()) */
+        if (r->first < pf->firstchar || r->first > r->last
+            || r->last >= pf->firstchar + pf->size
+            || r->size < 1 || r->size > 1 + (uint32_t)glyph_bytes(pf, pf->maxwidth)
+            || r->offset > (uint32_t)pf->bits_size
+            || ((uint32_t)pf->bits_size - r->offset) / r->size < r->last - r->first + 1)
+            return 0;
+    }
+    *forms = le32(d + 8) == FONT_HAN_CHECK;
+    return n;
+}
+
 /* load a font with room for glyphs, limited to bufsize if not zero */
 static bool fonts_held;
 static bool held[MAXFONTS];
@@ -763,6 +974,9 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
         close(fd);
         return -1;
     }
+    struct record_block record[RECORD_BLOCKS];
+    bool forms = false;
+    const int records = font_is_merged(&f) ? font_load_records(fd, &f, record, &forms) : 0;
 
     /* examine f and calc buffer size */
     bool cached = false;
@@ -918,6 +1132,9 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
 
     pdata = core_get_data_pinned(handle);
     pdata->refcount     = 1;
+    pdata->records = records;
+    memcpy(pdata->record, record, sizeof(record));
+    pdata->forms = forms;
     pdata->path = pdata->buffer + bufsize;
     pdata->path_bufsz = path_bufsz;
     /* save load path so we can recognize this font later */
@@ -1010,12 +1227,10 @@ void font_unload(int font_id)
             fallback_id = -1;
         if (font_id == yielding_id)
             yielding_id = -1;
-        for (size_t i = 0; i < ARRAYLEN(script_ids); i++)
+        for (size_t i = 0; i < ARRAYLEN(hangul_ids); i++)
         {
-            if (font_id == script_ids[i])
-                script_ids[i] = -1;
-            if (font_id == library_ids[i])
-                library_ids[i] = -1;
+            if (font_id == hangul_ids[i])
+                hangul_ids[i] = -1;
         }
 
     }
@@ -1134,6 +1349,12 @@ void set_ui_font(int font)
         ui_font = FONT_LASTUSERFONT;
 }
 
+
+/* a glyph's record is read into its entry of the cache as it is */
+_Static_assert(offsetof(struct font_cache_entry, bitmap)
+               == offsetof(struct font_cache_entry, width) + 1,
+               "a record is a glyph's width, then its bits");
+
 /*
  * Reads an entry into cache entry
  */
@@ -1146,6 +1367,21 @@ load_cache_entry(struct font_cache_entry* p, void* callback_data)
     int fd;
 
     lock_font_handle(pf->handle, true);
+    const struct buflib_alloc_data *alloc = (const void *)pf;
+    const ucschar_t ch = pf->firstchar + char_code;
+    for (int i = 0; i < alloc->records; i++)
+    {
+        const struct record_block *r = &alloc->record[i];
+        if (ch < r->first || ch > r->last)
+            continue;
+        /* its width and bits at once */
+        if (font_read_at(pf, WINDOW_BITS, pf->fd,
+                         FONT_HEADER_SIZE + r->offset + (ch - r->first) * r->size,
+                         &p->width, r->size) != (ssize_t)r->size)
+            p->width = 0;
+        lock_font_handle(pf->handle, false);
+        return;
+    }
     if (pf->file_width_offset)
     {
         int width_offset = pf->file_width_offset + char_code;
@@ -1314,7 +1550,7 @@ static void glyph_file_write(void* data)
         if ( data == NULL )
             return;
     }
-    if ( p->_char_code == 0xffff )
+    if ( p->_char_code == FONT_CACHE_NONE )
         return;
 
     ch = p->_char_code + pf->firstchar;
@@ -1419,15 +1655,22 @@ static NO_INLINE void glyph_cache_load(const char *font_path, struct font *pf)
             }
             while(1) {
                 for ( size = 0;
-                      read( fd, tmp, sizeof(tmp) ) == sizeof(tmp) && size < sort_size;
-                      size++ )
+                      size < sort_size && read( fd, tmp, sizeof(tmp) ) == sizeof(tmp); )
                 {
 #ifdef UNICODE32
-                    glyphs[size] = (tmp[0] << 24) | (tmp[1] << 16) | (tmp[2] << 8) | tmp[3];
+                    ch = (tmp[0] << 24) | (tmp[1] << 16) | (tmp[2] << 8) | tmp[3];
 #else
-                    glyphs[size] = (tmp[0] << 8) | tmp[1];
+                    ch = (tmp[0] << 8) | tmp[1];
 #endif
-                    glyphs_lru_order[size] = glyphs[size];
+#ifndef BOOTLOADER
+                    /* the other alphabets of a font with all of them load as
+                       they're drawn: each a read of its own, of a file of
+                       megabytes, for glyphs that may not show at all */
+                    if (ch >= 0x0590 && font_is_merged(pf))
+                        continue;
+#endif
+                    glyphs[size] = ch;
+                    glyphs_lru_order[size++] = ch;
                 }
 
                 /* sort glyphs array to make sector cache happy */
@@ -1528,8 +1771,9 @@ int font_measurestring(const unsigned char *str, size_t maxbytes, size_t maxwidt
     font_lock( fontnum, true );
     ucschar_t ch;
     size_t width = 0;
-    bool fallback_locked = false;
 #ifndef BOOTLOADER
+    unsigned fallbacks_locked = 0;
+    int form = -1; /* the ideographs', found at the first */
     /* Arabic's letters in the joined forms they're drawn in, which are much
        narrower than the letters of the text: measured by those, its lines
        right-aligned fell short of the right edge, and wrapped at two thirds
@@ -1585,13 +1829,19 @@ int font_measurestring(const unsigned char *str, size_t maxbytes, size_t maxwidt
             if (IS_DIACRITIC(c) || font_char_invisible(c))
                 continue;
             c = font_drawn_char(c);
-            struct font* gf = font_for_char(pf, c);
 #ifndef BOOTLOADER
-            if (gf != pf && !fallback_locked)
+            /* in the form it's drawn in, whose width may differ by a pixel */
+            if (c >= 0x3000 && form < 0)
             {
-                font_lock_fallbacks(true);
-                fallback_locked = true;
+                form = forced_form();
+                if (form < 0)
+                    form = font_text_form(start, maxbytes);
             }
+#endif
+            struct font* gf = font_for_char(pf, c, form, &c);
+#ifndef BOOTLOADER
+            if (gf != pf && !fallbacks_locked)
+                fallbacks_locked = font_lock_all();
 #endif
             int fw = font_get_width(gf, c);
             width += fw;
@@ -1616,10 +1866,7 @@ measured:
         *w = width;
 
 #ifndef BOOTLOADER
-    if (fallback_locked)
-        font_lock_fallbacks(false);
-#else
-    (void)fallback_locked;
+    font_unlock_all(fallbacks_locked);
 #endif
     font_lock( fontnum, false );
 

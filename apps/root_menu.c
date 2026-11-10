@@ -24,7 +24,6 @@
 #include "config.h"
 #include "appevents.h"
 #include "menu.h"
-#include "library_fonts.h"
 #include "smart_playlists.h"
 #include "library_playlists.h"
 #include "ipod_playlists.h"
@@ -1557,7 +1556,7 @@ static void library_update_forward(const char *text, int done, int total)
 {
     static int percent;
     /* a step of its own, also when shown from 0 under the same words: Search's
-       letters and the fonts are both Updating Library */
+       letters and the library's playlists are both Updating Library */
     if (shown_text != text || shown_percent < percent)
         percent = 0;
     if (total > 0)
@@ -1583,47 +1582,20 @@ void library_update_songs_progress(int done, int total)
     library_update_forward((const char *)str(LANG_PREPARING_SONGS), done, total);
 }
 
-/* Search's letters and the fonts, one after the other as Updating Library:
-   one bar across both, from and as far as these percents. Each filling one of
-   its own, the fonts' emptied it at the end. After a change of 13000 songs on
-   the iPod the letters took 3.4 s, the fonts 5.2 s. */
-#define LETTERS_SHARE 40
-static int tail_from, tail_span;
-
-static void library_tail_progress(int done, int total)
-{
-    if (total > 0)
-        library_update_forward((const char *)str(LANG_UPDATING_LIBRARY),
-                               tail_from * total
-                               + tail_span * MIN(done, total), 100 * total);
-}
-
+/* Search's letters, as Updating Library */
 static void library_letters_progress(int done, int total)
 {
-    library_tail_progress(done, total);
+    library_update_forward((const char *)str(LANG_UPDATING_LIBRARY), done, total);
 }
 
-/* USB or power off, come as Updating Library made the fonts: they stop for it,
-   their files closed, and it's answered then. Waited for, the computer saw no
-   disk for as long as the fonts took. */
+/* USB or power off, come as Cover Flow's plugin made the covers: it stops for
+   it, its files closed, and it's answered then. Waited for, the computer saw
+   no disk for as long as the covers took. */
 static long held_event;
 
-/* the same for one come as Cover Flow's plugin made the covers */
 void library_update_hold(long event)
 {
     held_event = event;
-}
-
-static bool library_fonts_progress(int done, int total)
-{
-    library_tail_progress(done, total);
-    const long action = get_action(CONTEXT_STD, TIMEOUT_NOBLOCK);
-    if (action == SYS_USB_CONNECTED || action == SYS_POWEROFF
-        || action == SYS_REBOOT)
-        held_event = action;
-    else
-        default_event_handler(action); /* as the headphones' coming out */
-    return !held_event;
 }
 
 /* the same for one come as the library's playlists were indexed: only the
@@ -1730,10 +1702,7 @@ void show_library_update(void)
             || tagcache_get_commitid() != prepared_commitid);
     /* Finder may sync photos only, so this goes by their own database */
     const bool photos_changed = phase == TAGCACHE_IMPORT_NONE && photos_panel_stale();
-    /* the fonts of the alphabets of the tags, again after a sync, and of the
-       languages, again after an update */
-    const bool fonts_stale = phase == TAGCACHE_IMPORT_NONE && library_fonts_stale();
-    /* and the letters of their alphabets, which Search types with */
+    /* the letters of the tags' alphabets, which Search types with */
     bool letters_stale = phase == TAGCACHE_IMPORT_NONE
                          && music_search_letters_stale();
 #ifdef ITUNESDB_HAVE_ART
@@ -1755,7 +1724,7 @@ void show_library_update(void)
     const bool row_covers_stale = false;
 #endif
     if ((imported || covers_stale || row_covers_stale || photos_changed
-         || fonts_stale || letters_stale) && !shown)
+         || letters_stale) && !shown)
     {
         FOR_NB_SCREENS(i)
             viewportmanager_theme_enable(i, false, NULL);
@@ -1812,18 +1781,8 @@ void show_library_update(void)
         prepared_commitid = tagcache_get_commitid();
     if (letters_stale && !held_event)
     {
-        tail_from = 0;
-        tail_span = fonts_stale ? LETTERS_SHARE : 100;
         library_update_show(str(LANG_UPDATING_LIBRARY), 0);
         music_search_letters_make(library_letters_progress);
-    }
-    if (fonts_stale && !held_event)
-    {
-        tail_from = letters_stale ? LETTERS_SHARE : 0;
-        tail_span = 100 - tail_from;
-        if (!letters_stale) /* else on from where they are */
-            library_update_show(str(LANG_UPDATING_LIBRARY), 0);
-        library_fonts_make(library_fonts_progress);
     }
     /* the library's playlists, as Songs is: their lists of songs, and those of
        the live smart ones by ratings and plays as they are, ready before they
@@ -1832,7 +1791,7 @@ void show_library_update(void)
        or as one starts to play. */
     if (phase == TAGCACHE_IMPORT_NONE && !held_event)
     {
-        if (shown && !letters_stale && !fonts_stale)
+        if (shown && !letters_stale)
             library_update_show(str(LANG_UPDATING_LIBRARY), 0);
         smart_update_at_boot();
         /* the marks of the synced ones, as this import left them */
@@ -1866,8 +1825,8 @@ void show_library_update(void)
 /* The database in memory before the menu shows, as the dircache, under the
    boot logo: loaded behind the menu, once its thread had been idle a second,
    a list opened then waited for it on "Wait". Before Updating Library, which
-   loads it itself after an import, and which made the fonts while it loaded
-   with 3% of the CPU, the screen left on its last frame meanwhile. True when
+   loads it itself after an import; the screen stays on its last frame
+   meanwhile. True when
    USB came meanwhile, and the check of the songs after it with it. */
 static bool database_ram_wait(void)
 {
@@ -1917,8 +1876,8 @@ void root_menu(void)
 #ifdef HAVE_DIRCACHE
     /* The tree of the files is in memory before the menu shows, as every cache
        is, under the boot logo: in a second, as nothing else wants the CPU. Built
-       behind Updating Library, it had 3% of it while the fonts were made, and
-       the songs opened from the menu waited on "Loading..." for it. */
+       behind Updating Library, the songs opened from the menu waited on
+       "Loading..." for it. */
     dircache_wait();
 #endif
     bool usb_checked = false;

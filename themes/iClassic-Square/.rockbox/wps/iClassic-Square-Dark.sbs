@@ -21,8 +21,8 @@
 %T(172,175,136,60,&ffwd)
 %T(172,90,136,60,select)
 %T(172,90,136,60,&cancel)
-%Fl(2,14-Inter-SemiBold.fnt)
-%Fl(3,14-Inter-Bold.fnt)
+%Fl(2,14-Inter-SemiBold.fnt,512)
+%Fl(3,14-Inter-Bold.fnt,512)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
 %?LW<%VI(wide)%?nN<%Vd(titlewiden)%Vd(nightwide)|%Vd(titlewide)>%Vd(batwide)%Vd(playwide)|%VI(half)%?nN<%Vd(tn)%Vd(night)|%Vd(t)>%Vd(bat)%Vd(play)>
 %?LW<|%?LS<%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(radio)|%Vd(radio)>>>>

@@ -4809,6 +4809,15 @@ static const char *fit_text(const char *str, int width, char *buf, size_t size)
     return buf;
 }
 
+/* str fitted, in the form of its ideographs whole, as the selected track's
+   name scrolls whole */
+static void put_fitted(int x, int y, const char *str, int width, char *buf, size_t size)
+{
+    rb->font_set_text_form(rb->font_text_form((const unsigned char *)str, -1));
+    rb->lcd_putsxy(x, y, fit_text(str, width, buf, size));
+    rb->font_set_text_form(-1);
+}
+
 static void draw_track_panel(bool loading)
 {
     const bool light = pf_light;
@@ -4836,10 +4845,10 @@ static void draw_track_panel(bool loading)
     /* the album at the top, the artist's line at the bottom, 3 from it */
     rb->lcd_setfont(FONT_UI);
     if (album_idx != (int) pf_idx.album_untagged_idx)
-        rb->lcd_putsxy(text_x, py + 1, fit_text(album, text_w, buf, sizeof(buf)));
+        put_fitted(text_x, py + 1, album, text_w, buf, sizeof(buf));
     rb->lcd_setfont(panel_small_font);
-    rb->lcd_putsxy(text_x, py + PANEL_HEAD - 3 - rb->font_get(panel_small_font)->height,
-                   fit_text(get_album_artist(idx), text_w, buf, sizeof(buf)));
+    put_fitted(text_x, py + PANEL_HEAD - 3 - rb->font_get(panel_small_font)->height,
+               get_album_artist(idx), text_w, buf, sizeof(buf));
 
     rb->lcd_setfont(panel_font);
     const int fh = rb->font_get(panel_font)->height;
@@ -4882,7 +4891,7 @@ static void draw_track_panel(bool loading)
         char *name = get_track_name(i);
         if (!selected)
         {
-            rb->lcd_putsxy(text_x, ty, fit_text(name, room, buf, sizeof(buf)));
+            put_fitted(text_x, ty, name, room, buf, sizeof(buf));
             continue;
         }
         /* the chosen one scrolls when it doesn't fit, within its place */

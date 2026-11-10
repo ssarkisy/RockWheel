@@ -407,10 +407,15 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
                                              VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
         const int name_font = info->vp->font;
         const int font = list_subline_font(name_font);
+        /* cut short in the form of the whole */
+        font_set_text_form(font_text_form((const unsigned char *)light + 1, -1));
         const char *fit = right - x >= LIGHT_LEAST ?
             line_fit(light + 1, font, right - x, fitted, sizeof(fitted)) : NULL;
         if (!fit)
+        {
+            font_set_text_form(-1);
             return;
+        }
         const int y = info->y + info->linedes->height / 2 - height / 2
                       + font_get(name_font)->ascent - font_get(font)->ascent;
         const unsigned old_fg = display->get_foreground();
@@ -418,6 +423,7 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         display->set_drawmode(DRMODE_FG);
         info->vp->font = font;
         display->putsxy(x, y, fit);
+        font_set_text_form(-1);
         info->vp->font = name_font;
         display->set_drawmode(DRMODE_SOLID);
         display->set_foreground(old_fg);

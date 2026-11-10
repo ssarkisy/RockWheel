@@ -48,9 +48,9 @@ enum {
     FONT_SYSFIXED = -1, /* system fixed pitch font*/
     FONT_FIRSTUSERFONT = 0, /* first id for the user fonts */
 };
-/* 16: the theme's 7, the fallback, the library's three sizes, Korean's three
-   for the menus and the quick-scroll letter, with room to spare. A place
-   costs a few bytes; it's the fonts loaded that take memory */
+/* 16: the theme's 7, the fallback, one's own Hangul's three and the
+   quick-scroll letter, with room to spare. A place costs a few bytes; it's the
+   fonts loaded that take memory */
 #define MAXUSERFONTS 16
 
 /* SYSFONT, FONT_UI, FONT_UI_REMOTE + MAXUSERFONTS fonts in skins */
@@ -132,41 +132,60 @@ void font_set_yielding(int font_id);
 void font_unload_all(void);
 void font_lock(int font_id, bool lock);
 
-/* Characters drawn as nothing and taking no room: the joiners and marks of
-   direction, the selectors of a character's form, as the one that asks for "❤"
-   as an emoji, and the byte order mark. A font drew its blank or Unifont its box
-   for them. */
+/* Characters drawn as nothing and taking no room: the joiners, the marks,
+   embeddings and isolates of direction, the selectors of a character's form,
+   as the one that asks for "❤" as an emoji, and the byte order mark. A font
+   drew its blank or Unifont its box for them. */
 static inline bool font_char_invisible(ucschar_t ch)
 {
-    return (ch >= 0x200b && ch <= 0x200f) || (ch >= 0x2060 && ch <= 0x2064)
-        || (ch >= 0xfe00 && ch <= 0xfe0f) || ch == 0xfeff;
+    return (ch >= 0x200b && ch <= 0x200f) || (ch >= 0x202a && ch <= 0x202e)
+        || (ch >= 0x2060 && ch <= 0x206f) || (ch >= 0xfe00 && ch <= 0xfe0f)
+        || ch == 0xfeff || ch == 0x061c || ch == 0x180e;
 }
 
 /* What's drawn for a character: one past the plane that the fonts go to, as an
    emoji like "🌎", as an empty square of the theme's font, as on a stock iPod.
-   Unifont drew its box of the code in hex. */
+   Unifont drew its box of the code in hex. The line and paragraph separators
+   as a space, as the words they part shouldn't run into one. */
 static inline ucschar_t font_drawn_char(ucschar_t ch)
 {
-    return ch > 0xffff ? 0x25a1 : ch;
+    return ch > 0xffff ? 0x25a1 : (ch == 0x2028 || ch == 0x2029) ? ' ' : ch;
 }
 
-/* The theme's fonts don't have every alphabet. A letter they lack comes from a
-   fallback font, loaded with the theme and read from disk only when it's needed. */
+/* The theme's fonts of the menus and the text have every alphabet the iPod
+   shows in fonts of its own; another font takes those letters from the nearest
+   of them not taller, and a letter none has comes from a fallback font, loaded
+   with the theme and read from disk only when it's needed. */
 #ifdef BOOTLOADER
-#define font_for_char(pf, ch) (pf)
+#define font_for_char(pf, ch, form, glyph) (*(glyph) = (ch), (pf))
 #else
-/* Unifont, and the fonts of an alphabet by name, as "Hangul", or of none */
-void font_load_fallback(const char *script);
-/* the library's fonts loaded, again as they're made anew, or let go of */
-void font_load_library(bool load);
-struct font* font_for_char(struct font* pf, ucschar_t ch);
+/* Unifont; the first call, at boot, also removes the old Library and scripts
+   files and loads one's own Hangul */
+void font_load_fallback(void);
+/* the font of a character, and in *glyph the code of its glyph there, in the
+   form given (font_han_form()) */
+struct font* font_for_char(struct font* pf, ucschar_t ch, int form, ucschar_t *glyph);
 /* whether the glyph of a letter from the font it gave stands on the line's
    baseline when it's taller than the line: Hangul's of the size above the
    line's, cut to stand on that of its own size, rather than centred */
 bool font_on_baseline(struct font *gf, ucschar_t ch);
-/* all of them, while their glyphs are drawn */
-void font_lock_fallbacks(bool lock);
+/* every font loaded, while glyphs are drawn: the mask to unlock */
+unsigned font_lock_all(void);
+void font_unlock_all(unsigned locked);
+
+/* The ideographs and kana in the forms of China, Japan or Taiwan: Japan's in a
+   line with kana, else those of the menus' language */
+enum { FONT_HAN_SC, FONT_HAN_JP, FONT_HAN_TC };
+void font_set_han_form(int form);
+int font_han_form(const ucschar_t *text);
+/* the form of a text's ideographs, from at most maxbytes of it */
+int font_text_form(const unsigned char *text, size_t maxbytes);
+/* the form of a whole text for its parts drawn or measured alone, as a row cut
+   short with "…" or wrapped lyrics, in the calling thread; -1 for each
+   string's own again */
+void font_set_text_form(int form);
 #endif
+
 
 /* Closes the file descriptor if the font file (if cached) but keeps
  * the cache intact, so font_get_{bits,width} still work. */

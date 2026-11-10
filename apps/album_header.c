@@ -75,6 +75,7 @@ static struct {
     char name[NAME_LINES][TEXT_BYTES];
     char artist[TEXT_BYTES];
     char counts[TEXT_BYTES];
+    signed char name_form, artist_form; /* of the whole, for their parts */
 } header;
 
 #ifdef ITUNESDB_HAVE_ART
@@ -433,13 +434,18 @@ int album_header_open(struct tree_context *c, struct gui_synclist *list)
                       - COVER_GAP - TEXT_MARGIN;
     if (width <= 0)
         return 0;
+    header.name_form = font_text_form((const unsigned char *)text, -1);
+    font_set_text_form(header.name_form);
     header.lines = wrap_name(text, font, width);
 
     if (!tagtree_album_text(c, tag_albumartist, text, sizeof(text)))
         text[0] = '\0';
     else if (!strcmp(text, UNTAGGED))
         strlcpy(text, str(LANG_UNKNOWN_ARTIST), sizeof(text));
+    header.artist_form = font_text_form((const unsigned char *)text, -1);
+    font_set_text_form(header.artist_form);
     fit_text(header.artist, TEXT_BYTES, text, strlen(text), artist_font(font), width);
+    font_set_text_form(-1);
 
     /* "2019 · 16 songs", or the songs alone without a year */
     int len = 0;
@@ -508,11 +514,14 @@ void album_header_draw(struct screen *display, int y, void *data)
     const int x = pad + COVER_SIZE + COVER_GAP;
     display->set_drawmode(DRMODE_FG);
     display->set_foreground(fg);
+    font_set_text_form(header.name_form);
     for (int k = 0; k < header.lines; k++)
         display->putsxy(x, y + l.name[k], header.name[k]);
     display->set_foreground(LIST_VALUE_COLOUR);
     vp->font = artist_font(list_font);
+    font_set_text_form(header.artist_form);
     display->putsxy(x, y + l.artist, header.artist);
+    font_set_text_form(-1);
     vp->font = counts_font(list_font);
     display->putsxy(x, y + l.counts, header.counts);
     vp->font = list_font;

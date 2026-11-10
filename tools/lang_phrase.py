@@ -25,8 +25,8 @@ language's short form and voice as <file>.short and <file>.voice; # comments.
 --fit VALUES (ids such as LANG_ON,LANG_OFF, or literal values): the setting's
 name (--name, or the batch's one phrase that isn't a value, or those with short
 forms) measured beside each value in each language, as
-~/ipod-data/archive/work/settings-1.3/value_fit.py does (24-Inter-Bold and the
-24 px script fonts of themes/fonts, a row's room --room, 275 px in Settings).
+~/ipod-data/archive/work/settings-1.3/value_fit.py does (24-Inter-Bold of
+themes/fonts, a row's room --room, 275 px in Settings).
 Where a value would hide, the short form is written; with no short form that
 fits, nothing is written. Without BATCH, it only reports.
 
@@ -339,42 +339,22 @@ def change(f, p, en):
 # the fit beside a setting's value
 
 class Measure:
-    """value_fit.py's measure: 24-Inter-Bold, and the 24 px fonts of the
-    library's sources for other alphabets, through tools/check_hints.py"""
+    """value_fit.py's measure: 24-Inter-Bold, through tools/check_hints.py"""
 
     def __init__(self):
         spec = importlib.util.spec_from_file_location(
             'check_hints', os.path.join(ROOT, 'tools', 'check_hints.py'))
-        ch = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(ch)
-        ch.DIACRITICS.extend(ch.diacritics(ROOT))
-        ch.ARAB.append(ch.Arab(ROOT))
-        fd = os.path.join(ROOT, 'themes/fonts/.rockbox/fonts')
-
-        class Fonts24(ch.Fonts):
-            def __init__(self, lang):
-                def load(name):
-                    p = os.path.join(fd, name)
-                    return ch.Font(p) if os.path.exists(p) else None
-                self.theme = load('24-Inter-Bold.fnt')
-                self.unifont = load('16-GNU-Unifont.fnt')
-                han = {'japanese': 'JP', 'chinese-trad': 'TC'}.get(lang, 'SC')
-                self.sources = [
-                    ((0xac00, 0xd7a3), (0x3131, 0x318e), load('24-Hangul.fnt')),
-                    ((0x3000, 0x9fff), load('scripts/24-Han-%s.fnt' % han)),
-                    ((0xff00, 0xffef), load('scripts/24-Wide-%s.fnt' % han)),
-                    ((0x0590, 0x05ff), load('scripts/24-Hebrew.fnt')),
-                    ((0x0600, 0x06ff), load('scripts/24-Arabic.fnt')),
-                    ((0xfb50, 0xfdff), load('scripts/24-ArabicA.fnt')),
-                    ((0xfe70, 0xfeff), load('scripts/24-ArabicB.fnt')),
-                    ((0x0e00, 0x0e7f), load('scripts/24-Thai.fnt')),
-                ]
-        self.Fonts24 = Fonts24
+        self.ch = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.ch)
+        self.ch.DIACRITICS.extend(self.ch.diacritics(ROOT))
+        self.ch.ARAB.append(self.ch.Arab(ROOT))
+        self.ch.FORMS.append(self.ch.Forms(ROOT))
         self.cache = {}
 
     def slack(self, lang, name, values, room):
         """the least room left beside the name, of all the values"""
-        fs = self.cache.get(lang) or self.cache.setdefault(lang, self.Fonts24(lang))
+        fs = self.cache.get(lang) or self.cache.setdefault(lang, self.ch.Fonts(
+            os.path.join(ROOT, 'themes/fonts/.rockbox/fonts'), '24-Inter-Bold.fnt', lang))
         return min(room - fs.text_width(name) - fs.text_width(v) for v in values)
 
 

@@ -98,7 +98,6 @@
 #include "audio.h"
 #ifndef PLUGIN
 #include "music_search.h"
-#include "library_fonts.h"
 #include "smart_playlists.h"
 #include "library_playlists.h"
 #include "timefuncs.h"
@@ -892,7 +891,6 @@ static void remove_files(void)
     itunesdb_forget_state();
     /* and what's made from it */
     music_search_forget();
-    library_fonts_forget();
 #endif
     remove_db_file(TAGCACHE_FILE_MASTER);
     for (i = 0; i < TAG_COUNT; i++)

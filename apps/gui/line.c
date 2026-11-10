@@ -998,10 +998,15 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
 {
     struct viewport *vp = *display->current_viewport;
     char buf[MAX_PATH];
+    /* cut short in the form of the whole, as when it isn't */
+    font_set_text_form(font_text_form((const unsigned char *)text, -1));
     text = line_fit(text, font, vp->width - x - decoration_width(display, line),
                     buf, sizeof(buf));
     if (!text)
+    {
+        font_set_text_form(-1);
         return;
+    }
     const int name_font = vp->font;
     const unsigned fg = display->get_foreground();
 #ifdef HAVE_LCD_COLOR
@@ -1015,6 +1020,7 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
     display->set_drawmode(DRMODE_FG);
     vp->font = font;
     display->putsxy(x, y + top_dy, text);
+    font_set_text_form(-1);
     vp->font = name_font;
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);

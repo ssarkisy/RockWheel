@@ -953,6 +953,8 @@ static const struct plugin_api rockbox_api = {
     ip_add_file,
     root_menu_go_to_later,
 #endif
+    font_text_form,
+    font_set_text_form,
 };
 
 static int plugin_buffer_handle;

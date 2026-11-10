@@ -7,7 +7,9 @@
 # Needs a C compiler and FreeType (on macOS: brew install freetype) to build
 # Rockbox's tools/convttf, and fontTools (pip install fonttools; PYTHON names
 # a python3 with it) for the font of Quick Scroll. The fonts are anti-aliased
-# and named after their line height, like the fonts they replace.
+# and named after their line height, like the fonts they replace. Run
+# make_script_fonts.sh after it, which gives the 24, 18, 17 and 14 px ones the
+# other alphabets.
 set -e
 
 here=$(cd "$(dirname "$0")" && pwd)

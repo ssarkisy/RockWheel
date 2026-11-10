@@ -48,6 +48,7 @@ static char text[LYRICS_TEXT_SIZE];
 static struct {
     unsigned short start, len; /* in text */
     short time;                /* the timed line it shows, or -1 */
+    signed char form;          /* of the ideographs of its whole line */
 } lines[LYRICS_MAX_LINES];
 static int line_count;
 static int top_line;
@@ -366,13 +367,14 @@ static void parse_synced(void)
     }
 }
 
-static void add_line(const char *start, int len, int time)
+static void add_line(const char *start, int len, int time, int form)
 {
     if (line_count < LYRICS_MAX_LINES)
     {
         lines[line_count].start = start - text;
         lines[line_count].len = len;
         lines[line_count].time = time;
+        lines[line_count].form = form;
         line_count++;
     }
 }
@@ -382,8 +384,10 @@ static void add_line(const char *start, int len, int time)
 static void wrap_span(const char *p, const char *pend, int time,
                       int width, int font)
 {
+    const int form = font_text_form((const unsigned char *)p, pend - p);
     if (p == pend)
-        add_line(p, 0, time);
+        add_line(p, 0, time, form);
+    font_set_text_form(form);
     while (p < pend && line_count < LYRICS_MAX_LINES)
     {
         /* what fits, measured once: measuring the line again for each
@@ -417,11 +421,12 @@ static void wrap_span(const char *p, const char *pend, int time,
             e = next = (q > p) ? q :
                        p + utf8seek((const unsigned char *)p, 1);
 
-        add_line(p, e - p, time);
+        add_line(p, e - p, time, form);
         p = next;
         while (p < pend && *p == ' ')
             p++;
     }
+    font_set_text_form(-1);
 }
 
 /* the lines of the text at its own line breaks (any of \r\n, \n and \r,
@@ -582,8 +587,10 @@ void lyrics_draw(struct screen *display, struct viewport *vp)
         buf[len] = '\0';
         display->set_foreground(time_count == 0 || lines[l].time == current
                                 ? fg : dim);
+        font_set_text_form(lines[l].form);
         display->putsxy(0, i * height, buf);
     }
+    font_set_text_form(-1);
 
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);

@@ -16,30 +16,28 @@ top-level `fonts/` (`16-GNU-Unifont.fnt`). `53-Inter-Letters.fnt` is the large
 letter of Quick Scroll over a long list: Inter Bold in 52 px, only the capitals
 of Latin, Greek and Cyrillic, the digits and "#".
 
-Hangul comes from fonts of its own in the theme's sizes, `24-`, `17-` and
-`14-Hangul.fnt`, made by `tools/make_hangul_fonts.sh` from Pretendard
-(https://github.com/orioncactus/pretendard, its Hangul from Source Han Sans), under
-the SIL Open Font License 1.1 (`Hangul-OFL.txt`): SemiBold 18, Medium 15 and
-SemiBold 14, about the size of the Inter beside them and a weight lighter. They
-aren't called Pretendard, a name its license reserves.
+The fonts of the menus and the text, the 24, 18, 17 and 14 px ones, have the
+other alphabets as well, merged into them by `tools/make_script_fonts.sh` after
+`make_fonts.sh`, each glyph on Inter's baseline:
 
-The other alphabets come from `fonts/scripts/`, made in the same sizes by
-`tools/make_script_fonts.sh`: Han and the full-width forms from Noto Sans JP, SC
-and TC (their Han from Source Han Sans), Hebrew from Noto Sans Hebrew, Arabic from
-Vazirmatn and Thai from IBM Plex Sans Thai, all from Google Fonts and under the SIL
-Open Font License 1.1, each with its license beside it. They are named after their
-alphabets, as Source and Plex are names those licenses reserve.
+- Hangul from Pretendard (https://github.com/orioncactus/pretendard, its Hangul
+  from Source Han Sans), `Hangul-OFL.txt`: SemiBold 18, Medium 15 and SemiBold 14,
+  about the size of the Inter beside them and a weight lighter;
+- the ideographs, kana and full-width forms from Noto Sans SC, JP and TC (Source
+  Han Sans), `Han-OFL.txt`: all of SC's, and past U+FFFF the glyphs JP and TC
+  draw otherwise, which the firmware takes in a line with kana, or under menus
+  in Japanese or traditional Chinese;
+- Hebrew from Noto Sans Hebrew, Arabic with the forms its letters are joined in
+  from Vazirmatn, and Thai from IBM Plex Sans Thai, `Hebrew-`, `Arabic-` and
+  `Thai-OFL.txt`.
 
-The iPod doesn't draw with these or the Hangul fonts directly. On the Updating
-Library screen it takes from them just the glyphs that the library's tags, the
-names of its playlists and the languages of the menus are written in, and for
-lyrics and names of files every letter of Hebrew, Arabic, Thai, the kana and
-Hangul, and the 7,174 common ideographs of `tools/make_common_han.py`, and makes
-`24-`, `17-` and `14-Library.fnt` of those (`apps/library_fonts.c`), small enough
-to stay loaded. Until it has, Korean menus fall back to the Hangul fonts. Hangul
-in text of a height between two of the sizes takes the taller one's glyphs, as
-the Inter of the lyrics and the hints under Settings, in 18 px, has the capitals
-of the menus' 24; the other alphabets take the shorter one's.
+All are under the SIL Open Font License 1.1, and all but Pretendard from Google
+Fonts. The fonts keep Inter's names, as Pretendard, Source and Plex are names
+those licenses reserve. The ideographs and kana are as tall as the capitals of
+the Inter beside them, the others of Inter's size; the 18 px fonts of the lyrics
+and the hints, between two sizes, have the menus' Hangul and the 17s' rest.
+One's own `24-`, `17-` and `14-Hangul.fnt`, made by `tools/convttf` from another
+typeface, still draw Hangul in those sizes.
 
 - **iClassic Square** by Humberto Santana, derived from iLike by Alan Brito, itself
   ported from the 176x132 version by Hayden Pearce.

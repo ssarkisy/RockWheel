@@ -8,12 +8,12 @@ don't, with the lines they'd take, and exits with 1 then.
     python3 tools/check_hints.py apps/lang themes/fonts/.rockbox/fonts
 
 The theme's 18-Inter-SemiBold draws them, and 18-Inter-Bold with Bold Text;
-both are checked. A letter of another alphabet comes from 17-Library, which
-Updating Library makes of the glyphs of the fonts in scripts/, and Hangul from
-24-Library, of 24-Hangul's, as font_for_char() takes it a size up; so they're
-measured in those. What none has comes from 16-GNU-Unifont. Arabic is measured
-in the joined forms of its letters, which are what's drawn, by the tables of
-firmware/arabjoin.c.
+both are checked. They have every alphabet the iPod has fonts of; what they
+haven't comes from 16-GNU-Unifont. The ideographs and kana are in the forms of
+the language, Japan's or Taiwan's under those menus, past U+FFFF in the fonts
+(firmware/font_han_forms.h), some a pixel wider or narrower than China's.
+Arabic is measured in the joined forms of its letters, which are what's drawn,
+by the tables of firmware/arabjoin.c.
 """
 import glob
 import os
@@ -47,15 +47,6 @@ class Font:
     def in_range(self, ch):
         return 0 <= ord(ch) - self.first < self.size
 
-    def has(self, ch):
-        if not self.in_range(ch):
-            return False
-        if self.offsets is None or ord(ch) == self.default:
-            return True
-        i = ord(ch) - self.first
-        d = self.default - self.first
-        return not (0 <= d < self.size and self.offsets[i] == self.offsets[d])
-
     def width(self, ch):
         if self.widths is None:
             return self.maxwidth
@@ -77,14 +68,33 @@ def diacritics(root):
 DIACRITICS = []
 
 
-def wants_fallback(c):
-    """char_wants_fallback() of firmware/font.c"""
-    return (0x0590 <= c < 0x1d00 or 0x2e80 <= c < 0xd800 or 0xf900 <= c < 0xfe00
-            or 0xfe30 <= c < 0xfeff or 0xff00 <= c < 0xfff0)
+class Forms:
+    """firmware/font_han_forms.h: the glyphs of the ideographs and kana in
+    Japan's and Taiwan's forms, by their codes"""
+
+    def __init__(self, root):
+        src = open(os.path.join(root, 'firmware/font_han_forms.h')).read()
+        glyph = int(re.search(r'FONT_HAN_HIDDEN (0x[0-9A-Fa-f]+)', src).group(1), 16)
+        self.glyphs = {}
+        for form in ('JP', 'TC'):
+            bits = re.search(r'font_han_%s_bits\[\d+\] = \{([^}]*)\}' % form.lower(), src)
+            words = [int(w, 16) for w in bits.group(1).replace(',', ' ').split()]
+            self.glyphs[form] = {}
+            for i in range(32 * len(words)):
+                if words[i >> 5] >> (i & 31) & 1:
+                    # U+3000..9FFF, U+F900..FAFF and U+FF00..FFEF, one after another
+                    c = (0x3000 + i if i < 0x7000 else 0xf900 + i - 0x7000 if i < 0x7200
+                         else 0xff00 + i - 0x7200)
+                    self.glyphs[form][c] = glyph
+                    glyph += 1
+
+
+FORMS = []
 
 
 class Fonts:
     """the fonts a hint in one language is drawn in"""
+    form = None
 
     def __init__(self, fontdir, theme, lang):
         def load(name):
@@ -92,36 +102,16 @@ class Fonts:
             return Font(path) if os.path.exists(path) else None
         self.theme = load(theme)
         self.unifont = load('16-GNU-Unifont.fnt')
-        han = {'japanese': 'JP', 'chinese-trad': 'TC'}.get(lang, 'SC')
-        # the sources of 17-Library, by the ranges library_fonts.c takes from
-        # each, but Hangul's of 24-Library
-        self.sources = [
-            ((0xac00, 0xd7a3), (0x3131, 0x318e), load('24-Hangul.fnt')),
-            ((0x3000, 0x9fff), load('scripts/17-Han-%s.fnt' % han)),
-            ((0xff00, 0xffef), load('scripts/17-Wide-%s.fnt' % han)),
-            ((0x0590, 0x05ff), load('scripts/17-Hebrew.fnt')),
-            ((0x0600, 0x06ff), load('scripts/17-Arabic.fnt')),
-            ((0xfb50, 0xfdff), load('scripts/17-ArabicA.fnt')),
-            ((0xfe70, 0xfeff), load('scripts/17-ArabicB.fnt')),
-            ((0x0e00, 0x0e7f), load('scripts/17-Thai.fnt')),
-        ]
+        self.form = {'japanese': 'JP', 'chinese-trad': 'TC'}.get(lang)
 
     def font_for(self, ch):
-        """font_for_char(): the theme's font up to Hebrew, and for punctuation
-        and symbols it has; another alphabet's letters from the library, or
-        else Unifont"""
+        """font_for_char(): the theme's font up to Hebrew, and for all it has a
+        glyph of; Unifont for the rest"""
         c = ord(ch)
-        if c < 0x0590:
+        if c < 0x0590 or not self.unifont \
+                or (self.theme.in_range(ch) and self.theme.width(ch) > 0):
             return self.theme
-        if not wants_fallback(c):
-            return self.theme if self.theme.in_range(ch) or not self.unifont \
-                else self.unifont
-        for entry in self.sources:
-            ranges, font = entry[:-1], entry[-1]
-            if font and any(a <= c <= b for a, b in ranges) and font.has(ch) \
-                    and font.width(ch) > 0:
-                return font
-        return self.unifont or self.theme
+        return self.unifont
 
     def width_of(self, ch):
         """of a character as it's drawn, as font_measurestring() takes it"""
@@ -133,7 +123,10 @@ class Fonts:
             return 0
         if c > 0xffff:
             ch = '□'
-        return self.font_for(ch).width(ch)
+        font = self.font_for(ch)
+        if font is self.theme and self.form:
+            ch = chr(FORMS[0].glyphs[self.form].get(ord(ch), ord(ch)))
+        return font.width(ch)
 
     def text_width(self, s):
         """as drawn: Arabic's letters in their joined forms"""
@@ -322,6 +315,7 @@ def main():
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
     DIACRITICS.extend(diacritics(root))
     ARAB.append(Arab(root))
+    FORMS.append(Forms(root))
     bad = 0
     count = 0
     for f in sorted(glob.glob(os.path.join(langs, '*.lang'))):

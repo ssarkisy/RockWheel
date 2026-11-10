@@ -239,8 +239,13 @@ static void ipod_usb_dark_bitmap(struct screen *screen, const fb_data *data, int
 static void ipod_usb_cache_letters(const char *text)
 {
     struct font *pf = font_get(FONT_UI);
-    for (const ucschar_t *ucs = bidi_l2v(text, 1); *ucs; ucs++)
-        font_get_width(font_for_char(pf, *ucs), *ucs);
+    const ucschar_t *ucs = bidi_l2v(text, 1);
+    const int form = font_han_form(ucs);
+    for (; *ucs; ucs++)
+    {
+        ucschar_t glyph;
+        font_get_width(font_for_char(pf, *ucs, form, &glyph), glyph);
+    }
 }
 
 static void ipod_usb_prepare(void)

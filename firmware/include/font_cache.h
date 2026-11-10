@@ -37,6 +37,14 @@ struct font_cache
     short *_index; /* index of lru handles in char_code order */
 };
 
+/* The code of an entry not loaded yet: past every code, glyphs past U+FFFF
+   included, and positive as an int after a subtraction (search()) */
+#ifdef UNICODE32
+#define FONT_CACHE_NONE 0x7fffffff
+#else
+#define FONT_CACHE_NONE 0xffff
+#endif
+
 struct font_cache_entry
 {
     ucschar_t _char_code;
