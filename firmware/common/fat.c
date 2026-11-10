@@ -265,6 +265,9 @@ static struct bpb
     uint8_t volume;   /* on which volume is this located (shortcut) */
 #endif
     uint8_t mounted;  /* true if volume is mounted, false otherwise */
+    /* a search read the whole FAT and found no free cluster: none is looked
+       for again until one is freed or the volume is mounted again */
+    uint8_t full;
 #ifdef HAVE_FAT16SUPPORT
     /* some functions are different for different FAT types */
     long BPB_FN_DECL(get_next_cluster, long);
@@ -949,7 +952,7 @@ static long find_free_cluster16(struct bpb *fat_bpb, long startcluster)
         unsigned long nr = (i + sector) % fat_bpb->fatsize;
         uint16_t *sec = cache_sector(fat_bpb, nr + fat_bpb->fatrgnstart);
         if (!sec)
-            break;
+            return -1;
 
         for (unsigned long j = 0; j < CLUSTERS_PER_FAT16_SECTOR; j++)
         {
@@ -1019,7 +1022,10 @@ static int update_fat_entry16(struct bpb *fat_bpb, unsigned long entry,
     {
         /* being freed */
         if (curval != 0x0000)
+        {
             fat_bpb->fsinfo.freecount++;
+            fat_bpb->full = false;
+        }
     }
 
     DEBUGF("%lu free clusters\n", fat_bpb->fsinfo.freecount);
@@ -1115,7 +1121,7 @@ static long find_free_cluster32(struct bpb *fat_bpb, long startcluster)
         unsigned long nr = (i + sector) % fat_bpb->fatsize;
         uint32_t *sec = cache_sector(fat_bpb, nr + fat_bpb->fatrgnstart);
         if (!sec)
-            break;
+            return -1;
 
         for (unsigned long j = 0; j < CLUSTERS_PER_FAT_SECTOR; j++)
         {
@@ -1183,7 +1189,10 @@ static int update_fat_entry32(struct bpb *fat_bpb, unsigned long entry,
     {
         /* being freed */
         if (curval & 0x0fffffff)
+        {
             fat_bpb->fsinfo.freecount++;
+            fat_bpb->full = false;
+        }
     }
 
     DEBUGF("%lu free clusters\n", fat_bpb->fsinfo.freecount);
@@ -1457,19 +1466,29 @@ static long find_write_cluster(struct bpb *fat_bpb, long oldcluster)
                   /* impossible to append something to the root */
 #endif /* HAVE_FAT16SUPPORT */
 
+    /* else each write to a full volume reads the whole FAT again */
+    if (fat_bpb->full)
+        return 0;
+
     long findstart = oldcluster > 0 ?
         oldcluster + 1 : (long)fat_bpb->fsinfo.nextfree;
 
     long cluster = find_free_cluster(fat_bpb, findstart);
 
-    if (!cluster)
+    if (cluster <= 0)
     {
-    #ifdef TEST_FAT
-        if (fat_bpb->fsinfo.freecount > 0)
-            panicf("There is free space, but find_free_cluster() "
-                   "didn't find it!\n");
-    #endif
+        if (!cluster) /* the whole FAT read, not an error of reading it */
+        {
+        #ifdef TEST_FAT
+            if (fat_bpb->fsinfo.freecount > 0)
+                panicf("There is free space, but find_free_cluster() "
+                       "didn't find it!\n");
+        #endif
+            fat_bpb->full = true;
+            fat_bpb->fsinfo.freecount = 0;
+        }
         DEBUGF("Disk full!\n");
+        cluster = 0;
     }
 
     return cluster;
@@ -3276,6 +3295,7 @@ int fat_mount(IF_MV(int volume,) IF_MD(int drive,) unsigned long startsector)
     /* it worked */
     forget_seek_marks();
     chains_changing();
+    fat_bpb->full = false;
     fat_bpb->mounted = true;
 
     /* calculate freecount if unset */

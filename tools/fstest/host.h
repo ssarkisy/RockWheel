@@ -9,6 +9,8 @@ void host_close(void);
 void host_journal(const char *path);
 long host_journal_count(void);
 int  host_read(uint64_t sector, int count, void *buf);
+void host_count_reads(uint64_t end);
+long host_counted_reads(void);
 int  host_write(uint64_t sector, int count, const void *buf);
 void host_clone(const char *src, const char *dst);
 long host_apply(const char *journal_path, const char *img, long k);

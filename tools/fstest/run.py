@@ -18,6 +18,8 @@ at which cuts k, and what the scenario's own check of its files said, if not
 ok; with --outcomes, how many cuts left each outcome the scenario's check
 found ok. Known and left as it is: renamed over another's name, a file has
 that name twice (dupname) between its new entry and the other's removal.
+Then, without cuts, what errno open() sets, and the FAT's sectors each write
+past a full volume's last cluster reads (fstest full).
 """
 import argparse
 import concurrent.futures
@@ -184,6 +186,12 @@ def main():
     base = os.path.join(work, name, "settings-0-0", "base.img")
     if os.path.exists(base):
         print(sh(fstest, "errno", base), end="")
+    if "full" in names:
+        # a FAT of 17 sectors: the reads of each write past the last cluster
+        img = os.path.join(work, name, "full.img")
+        fatimg.mkfs(img, 2048)
+        print(sh(fstest, "full", img), end="")
+        os.remove(img)
 
 
 main()

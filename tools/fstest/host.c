@@ -62,8 +62,25 @@ long host_journal_count(void)
     return journal_count;
 }
 
+/* the sectors read below the end counted from, by host_count_reads() */
+static uint64_t count_end;
+static long counted;
+
+void host_count_reads(uint64_t end)
+{
+    count_end = end;
+    counted = 0;
+}
+
+long host_counted_reads(void)
+{
+    return counted;
+}
+
 int host_read(uint64_t sector, int count, void *buf)
 {
+    for (int i = 0; i < count; i++)
+        counted += sector + i < count_end;
     if (sector + count > img_sectors)
         return -1;
     ssize_t n = pread(img_fd, buf, (size_t)count * SECTOR, sector * SECTOR);

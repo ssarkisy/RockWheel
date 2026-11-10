@@ -13,6 +13,7 @@
        prints how many writes, and 1 if a rename was in one sector, else 0
    fstest crash <scenario> <img> <journal> <k> <crash-img> <post-img> [1|0]
    fstest errno <img>
+   fstest full <img>
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -667,6 +668,73 @@ static void zero_action(void)
         close(fd);
 }
 
+/* The scan's file written 8 KB at a time on a volume that fills up, as the
+   database's scan writes it: the writes past its last cluster fail, and go
+   on once another file is removed */
+#define FULL_FILE  ROCKBOX_DIR "/database_tmp.tcd"
+#define FULL_SPARE "/spare.bin"
+#define FULL_CHUNK 8192
+#define FULL_SEED  23
+
+/* every cluster taken but the spare file's and two more */
+static void full_fill(void)
+{
+    put_file(FULL_SPARE, 2 * CLUSTER, 21, 4096);
+    sector_t free_kb;
+    if (!fat_size(IF_MV(0,) NULL, &free_kb))
+        fail("fat_size");
+    put_file("/full.bin", (free_kb - 2 * CLUSTER / 1024) * 1024, 22, 65536);
+}
+
+static void full_setup(void)
+{
+    setup_common();
+    full_fill();
+}
+
+/* a write at the file's end, of the bytes of that place */
+static bool full_write(int fd)
+{
+    static char buf[FULL_CHUNK];
+    off_t at = lseek(fd, 0, SEEK_END);
+    bytes(buf, sizeof buf, FULL_SEED, at);
+    return write(fd, buf, sizeof buf) == sizeof buf;
+}
+
+static void full_action(void)
+{
+    int fd = open(FULL_FILE, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+    if (fd < 0)
+        return;
+    for (int failed = 0; failed < 4; )
+        failed += !full_write(fd);
+    remove(FULL_SPARE);
+    for (int failed = 0; failed < 2; )
+        failed += !full_write(fd);
+    close(fd);
+}
+
+/* the file is the start of what was written; the spare is whole or gone */
+static bool full_post(char *verdict, size_t max)
+{
+    static char got[FULL_CHUNK], want[FULL_CHUNK];
+    long size = 0, n;
+    bool same = true;
+    int fd = open(FULL_FILE, O_RDONLY);
+    while (fd >= 0 && same && (n = read(fd, got, sizeof got)) > 0)
+    {
+        bytes(want, n, FULL_SEED, size);
+        same = !memcmp(got, want, n);
+        size += n;
+    }
+    if (fd >= 0)
+        close(fd);
+    int spare = whole(FULL_SPARE, 2 * CLUSTER, 21);
+    snprintf(verdict, max, "file %s%ld bytes, spare %s", same ? "" : "bad ",
+             fd < 0 ? -1 : size, spare > 0 ? "whole" : spare ? "bad" : "gone");
+    return same && spare >= 0;
+}
+
 static bool no_post(char *verdict, size_t max)
 {
     verdict[0] = '\0';
@@ -710,6 +778,7 @@ static const struct scenario
     { "mkdir-grow",     dirgrow_setup,  mkdir_grow_action, no_post },
     { "trunc",          trunc_setup,    trunc_action,    no_post },
     { "trunc-zero",     trunc_setup,    zero_action,     no_post },
+    { "full",           full_setup,     full_action,     full_post },
 };
 
 static const struct scenario *find(const char *name)
@@ -780,6 +849,75 @@ static void errno_test(void)
     }
 }
 
+/* The FAT's sectors each write past a full volume's last cluster reads, the
+   disk cache emptied before it as a large disk's FAT doesn't fit in it: the
+   whole FAT once, again after a mount, then only the file's own sector of
+   it. On a fresh image of more clusters. */
+static bool full_counted_write(int fd, uint64_t data, long *reads)
+{
+    dc_lock_cache();
+    dc_commit_all(IF_MV(0));
+    dc_discard_all(IF_MV(0));
+    dc_unlock_cache();
+    host_count_reads(data / 512);
+    errno = 0;
+    bool ok = full_write(fd);
+    *reads = host_counted_reads();
+    if (!ok && errno != ENOSPC)
+        fail("ENOSPC");
+    return ok;
+}
+
+static void full_reads(const char *what, int fd, uint64_t data)
+{
+    long reads;
+    printf("full: %s, sectors of the FAT read by each write that failed:",
+           what);
+    for (int i = 0; i < 3; i++)
+    {
+        if (full_counted_write(fd, data, &reads))
+            fail("full");
+        printf(" %ld", reads);
+    }
+    printf("\n");
+}
+
+static void full_test(const char *img)
+{
+    uint64_t start, data;
+    long reads;
+    fs_mount(img);
+    fat_get_offsets(IF_MV(0,) &start, &data);
+    if (mkdir(ROCKBOX_DIR) < 0)
+        fail("mkdir");
+    full_fill();
+    int fd = open(FULL_FILE, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+    if (fd < 0)
+        fail("open");
+    int written = 0;
+    while (full_write(fd))
+        written++;
+    printf("full: %d writes of 8 KB until the volume was full; the FAT has "
+           "%ld sectors\n", written, (long)(data / 512 - 32) / 2);
+    full_reads("then", fd, data);
+    remove(FULL_SPARE);
+    written = 0;
+    while (full_counted_write(fd, data, &reads))
+        written++;
+    printf("full: after a file of 2 clusters was removed, %d more writes "
+           "(8 expected), the next failed one read %ld sectors\n", written,
+           reads);
+    close(fd);
+    fs_unmount();
+    fs_mount(img);
+    fd = open(FULL_FILE, O_WRONLY);
+    if (fd < 0)
+        fail("open");
+    full_reads("after a mount", fd, data);
+    close(fd);
+    fs_unmount();
+}
+
 int main(int argc, char *argv[])
 {
     const char *cmd = argc > 1 ? argv[1] : "";
@@ -829,6 +967,8 @@ int main(int argc, char *argv[])
         errno_test();
         fs_unmount();
     }
+    else if (!strcmp(cmd, "full") && argc == 3)
+        full_test(argv[2]);
     else
     {
         fprintf(stderr, "usage: see the top of fstest.c\n");
