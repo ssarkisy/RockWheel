@@ -7916,16 +7916,19 @@ static bool rockbox_dir(const char *path)
     return !strcasecmp(path, ROCKBOX_DIR);
 }
 
-/* Finder's, with the songs of iTunesDB, which a sync brings: the check of
-   those outside it passes over it */
-static bool outside_skips(const char *path)
+/* Finder's, with iTunesDB's songs */
+static bool finder_dir(const char *path)
 {
-    if (!scan_outside)
-        return false;
 #ifdef HAVE_MULTIVOLUME
     path_strip_volume(path, &path, false);
 #endif
     return !strcasecmp(path, "/iPod_Control");
+}
+
+/* the check of the songs outside it passes over it */
+static bool outside_skips(const char *path)
+{
+    return scan_outside && finder_dir(path);
 }
 
 #ifndef __PCTOOL__
@@ -8055,15 +8058,20 @@ static bool check_dir(const char *dirname, int add_files)
 }
 
 #ifndef __PCTOOL__
-/* The songs in the folder at countpath and those in it, as check_dir() takes
-   them, without their tags: in the dircache, in memory */
+/* The songs in the folder at countpath and those in it, outside Finder's and
+   as database.ignore leaves them, without their tags: in the dircache, in
+   memory */
 static char countpath[TAGCACHE_BUFSZ];
-static int count_dir(void)
+static int count_dir(bool add_files)
 {
     int count = 0;
     DIR *dir = opendir(countpath);
     if (!dir)
         return 0;
+    int ignore, unignore;
+    check_ignore(countpath, &ignore, &unignore);
+    if (ignore != unignore)
+        add_files = unignore;
     struct dirent *entry;
     while (!check_event_queue() && (entry = readdir(dir)) != NULL)
     {
@@ -8078,10 +8086,10 @@ static int count_dir(void)
 #ifndef SIMULATOR
             if (!(info.attribute & ATTR_LINK))
 #endif
-            if (!rockbox_dir(countpath) && !outside_skips(countpath))
-                count += count_dir();
+            if (!rockbox_dir(countpath) && !finder_dir(countpath))
+                count += count_dir(add_files);
         }
-        else if (probe_file_format(countpath) != AFMT_UNKNOWN)
+        else if (add_files && probe_file_format(countpath) != AFMT_UNKNOWN)
             count++;
         str_setlen(countpath, len);
         do_timed_yield();
@@ -8090,11 +8098,9 @@ static int count_dir(void)
     return count;
 }
 
-/* The bar's second half by the songs new outside Finder's folder: those there
-   less those known, counted at the first new one, whose tags are read. By
-   every song found, as before, the first time none was known, and it was full
-   at the first song new while the tags of thousands more were read. A check
-   with nothing new, at every USB, walks the folders once. */
+/* The songs outside Finder's folder: a sync's bar goes by them and iTunesDB's;
+   the check's second half by those new, counted at the first new one, whose
+   tags are read. A check with nothing new walks the folders once. */
 static void count_outside(void)
 {
     outside_counted = true;
@@ -8103,7 +8109,12 @@ static void count_outside(void)
     {
         strmemccpy(countpath, r->path, sizeof(countpath));
         if (dir_exists(countpath))
-            songs += count_dir();
+            songs += count_dir(true);
+    }
+    if (!scan_outside)
+    {
+        import_total += songs;
+        return;
     }
     /* none new, the tags of some changed: by all those known, rather than
        full at the first */
@@ -8263,9 +8274,12 @@ void do_tagcache_build(const char *path[])
 
     struct search_roots_ll * this;
 #ifndef __PCTOOL__
-    /* for count_outside(), once the scan finds more songs than are known */
-    scan_roots = scan_outside ? &roots_ll[0] : NULL;
+    /* for count_outside() */
+    scan_roots = &roots_ll[0];
     outside_counted = false;
+    /* before the walk, which can take Finder's folder first */
+    if (import_phase == TAGCACHE_IMPORT_SCANNING)
+        count_outside();
 #endif
     /* check_dir might add new roots */
     for(this = &roots_ll[0]; this; this = this->next)
