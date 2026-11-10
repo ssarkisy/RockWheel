@@ -458,12 +458,29 @@ static void pan_draw(int h, long show_at)
     lcd_set_viewport_ex(vp, 0);
 }
 
+/* At 80 MHz while it moves: at 30 MHz a frame isn't drawn and sent within
+   PAN_LATENCY, the decoder on the COP going first */
+static void pan_boost(bool on)
+{
+#ifdef HAVE_ADJUSTABLE_CPU_FREQ
+    static bool boosted;
+    if (on != boosted)
+    {
+        boosted = on;
+        cpu_boost(on);
+    }
+#else
+    (void)on;
+#endif
+}
+
 /* On the scroll thread: a step when it's due; the ticks until the next look */
 static long pan_tick(void)
 {
     cop_settle();
     if (!pan_can_go())
     {
+        pan_boost(false);
         pan_going = false;
         return PAN_POLL;
     }
@@ -474,6 +491,8 @@ static long pan_tick(void)
     pan_going = true;
     long until;
     const int h = pan_at(pan_clock, &until);
+    /* not through a rest but its last PAN_POLL */
+    pan_boost(h != pan_h || until <= PAN_POLL);
     if (h != pan_h)
     {
         if (!cop_free())
@@ -550,6 +569,7 @@ int menu_cover_place(const struct viewport *vp, int x, int y, int width,
 void menu_cover_stop(void)
 {
     pan_shown = false;
+    pan_boost(false);
     cop_end(false);
 }
 
@@ -561,6 +581,7 @@ void menu_cover_wait(void)
 void menu_cover_end(void)
 {
     pan_shown = false;
+    pan_boost(false);
     cop_end(true);
 }
 
