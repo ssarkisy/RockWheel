@@ -65,6 +65,8 @@ static fb_data *lcd_fb;
 #define PF_TRACKLIST (LAST_ACTION_PLACEHOLDER + 2)
 #define PF_SORTING_NEXT (LAST_ACTION_PLACEHOLDER + 3)
 #define PF_SORTING_PREV (LAST_ACTION_PLACEHOLDER + 4)
+#define PF_ALBUM_FIRST (LAST_ACTION_PLACEHOLDER + 5)
+#define PF_ALBUM_LAST (LAST_ACTION_PLACEHOLDER + 6)
 
 #if defined(HAVE_SCROLLWHEEL) || CONFIG_KEYPAD == IRIVER_H10_PAD || \
     CONFIG_KEYPAD == MPIO_HD300_PAD
@@ -98,9 +100,18 @@ const struct button_mapping pf_context_album_scroll[] =
     || (CONFIG_KEYPAD == IPOD_4G_PAD) \
     || (CONFIG_KEYPAD == FIIO_M3K_PAD)
     {PF_ALBUM_PREV,     BUTTON_LEFT,                BUTTON_NONE},
+#if defined(ITUNESDB_HAVE_ART) && CONFIG_KEYPAD != FIIO_M3K_PAD
+    /* held, to the first album or the last */
+    {PF_ALBUM_FIRST,    BUTTON_LEFT|BUTTON_REPEAT,  BUTTON_NONE},
+#else
     {PF_ALBUM_PREV,     BUTTON_LEFT|BUTTON_REPEAT,  BUTTON_NONE},
+#endif
     {PF_ALBUM_NEXT,          BUTTON_RIGHT,               BUTTON_NONE},
+#if defined(ITUNESDB_HAVE_ART) && CONFIG_KEYPAD != FIIO_M3K_PAD
+    {PF_ALBUM_LAST,     BUTTON_RIGHT|BUTTON_REPEAT, BUTTON_NONE},
+#else
     {PF_ALBUM_NEXT,          BUTTON_RIGHT|BUTTON_REPEAT, BUTTON_NONE},
+#endif
     {ACTION_NONE,     BUTTON_LEFT|BUTTON_REL,     BUTTON_LEFT},
     {ACTION_NONE,     BUTTON_RIGHT|BUTTON_REL,    BUTTON_RIGHT},
     {ACTION_NONE,     BUTTON_LEFT|BUTTON_REPEAT,  BUTTON_LEFT},
@@ -607,6 +618,10 @@ static bool wheel_timer_set;
 #endif
 static int anim_speed; /* what they last moved by */
 static bool anim_turning; /* just turned back, in the same place */
+/* << or >> held: on to the first album or the last, quicker frame by frame,
+   slowing onto it; what a frame may move so far, in 1/65536 of a slide */
+static bool seeking;
+static int seek_cap;
 #define ROLL_PER_CLICK      655   /* of a click a second, with 4 clicks to a slide and
                                      25 frames a second: at the speed of the wheel */
 #define ROLL_SPEED_MAX      81920 /* a slide and a quarter, from one turn */
@@ -4279,6 +4294,7 @@ static void update_scroll_animation(void);
  */
 static void show_previous_slide(void)
 {
+    seeking = false;
     if (step == 0) {
         if (center_index > 0) {
             target = center_index - 1;
@@ -4302,6 +4318,7 @@ static void show_previous_slide(void)
  */
 static void show_next_slide(void)
 {
+    seeking = false;
     if (step == 0) {
         if (center_index < number_of_slides - 1) {
             target = center_index + 1;
@@ -4637,6 +4654,14 @@ static void update_scroll_animation(void)
         speed = 512 + 16384 * (PFREAL_ONE + fsin(ia)) / PFREAL_ONE;
     }
 
+    /* a sixth of the way left a frame, from a slide a frame up, doubling:
+       hundreds of albums in a second or so, slowing onto the last ones */
+    if (seeking) {
+        const int left = abs((target << 16) - slide_frame);
+        seek_cap = fmin(seek_cap * 2, 64 * 65536);
+        speed = fmax(fmin(left / 6, seek_cap), 16384);
+    }
+
     if (roll_speed) {
         const int left = step > 0 ? number_of_slides - 1 - center_index
                                   : center_index;
@@ -4705,7 +4730,7 @@ static void update_scroll_animation(void)
             left_slides[i].slide_index = center_index - 1 - i;
         for (i = 0; i < pf_cfg.num_slides; i++)
             right_slides[i].slide_index = center_index + 1 + i;
-        const bool rolled = roll_speed != 0;
+        const bool rolled = roll_speed != 0 || seeking;
         if (roll_speed && !roll_settling) {
             /* a finger stopped them: from the speed that the stop on the next
                slide starts with */
@@ -4727,6 +4752,7 @@ static void update_scroll_animation(void)
     center_slide.cy = fmul(offsetY, ftick);
 
     if (center_index == target) {
+        seeking = false;
         reset_slides();
         pf_state = pf_idle;
         slide_frame = center_index << 16;
@@ -6558,6 +6584,7 @@ static void roll_start(int direction)
 {
     if (pf_state != pf_idle && pf_state != pf_scrolling)
         return;
+    seeking = false;
     roll_carry = 0;
     for (int i = 0; i < 2 && step != direction; i++)
     {
@@ -7022,13 +7049,37 @@ static int pictureflow_main(void)
         case PF_SORTING_PREV:
             sort_albums((pf_cfg.sort_albums_by + (SORT_VALUES_SIZE - 1)) % SORT_VALUES_SIZE, false);
             break;
-        /* Next and Previous go an album at a time, as on a stock iPod, and on
-           while held; with the tracks shown, to the next album's */
+        /* Next and Previous go an album at a time, as on a stock iPod; with
+           the tracks shown, to the next album's */
         case PF_ALBUM_NEXT:
             if (pf_state == pf_idle || pf_state == pf_scrolling)
                 show_next_slide();
             else if ( pf_state == pf_show_tracks )
                 select_next_album();
+            break;
+        /* held: on to the first album or the last, quickly */
+        case PF_ALBUM_FIRST:
+        case PF_ALBUM_LAST:
+            if (pf_state == pf_idle || pf_state == pf_scrolling)
+            {
+                const int to = button == PF_ALBUM_FIRST ? 0 : number_of_slides - 1;
+                const int way = button == PF_ALBUM_FIRST ? -1 : 1;
+                if (to != center_index && !(seeking && target == to))
+                {
+                    roll_speed = 0;
+                    roll_settling = false;
+                    if (pf_state == pf_idle || step != way)
+                    {
+                        if (way > 0)
+                            show_next_slide();
+                        else
+                            show_previous_slide();
+                    }
+                    target = to;
+                    seeking = true;
+                    seek_cap = 65536;
+                }
+            }
             break;
         case PF_ALBUM_PREV:
             if (pf_state == pf_idle || pf_state == pf_scrolling)
