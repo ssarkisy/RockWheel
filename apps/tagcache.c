@@ -123,7 +123,7 @@
 /* RockWheel's own format, "RWD" and its number. Raise it for any layout
    change (the asserts below) or a change in what a tag means (they can't
    see it). */
-#define TAGCACHE_FORMAT 2
+#define TAGCACHE_FORMAT 3
 #define TAGCACHE_MAGIC  (0x52574400 | TAGCACHE_FORMAT)
 /* older layouts whose statistics are restored: RockWheel up to 1.3, Rockbox */
 #define TAGCACHE_MAGIC_ROCKWHEEL 0x54434811
@@ -466,7 +466,7 @@ struct temp_file_entry {
     int32_t data_length;
 };
 
-_Static_assert(TAGCACHE_FORMAT == 2 && TAG_COUNT == 25
+_Static_assert(TAGCACHE_FORMAT == 3 && TAG_COUNT == 25
                && sizeof(struct index_entry) == 104
                && sizeof(struct master_header) == 32
                && sizeof(struct temp_file_entry) == 160,
@@ -3601,7 +3601,6 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     int offset = 0;
     int path_length = strlen(path);
     bool has_artist;
-    bool has_grouping;
 
     DB_LOG("file", path);
 
@@ -3750,8 +3749,6 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     /* String tags. */
     has_artist = id3.artist != NULL
         && strlen(id3.artist) > 0;
-    has_grouping = id3.grouping != NULL
-        && strlen(id3.grouping) > 0;
     /* an album without an album artist is its track's artist's, as on a stock
        iPod: Cover Flow tells albums apart by name and album artist */
     const bool albumartist_is_artist = has_artist
@@ -3775,14 +3772,7 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     {
         ADD_TAG(entry, tag_virt_canonicalartist, &id3.albumartist);
     }
-    if (has_grouping)
-    {
-        ADD_TAG(entry, tag_grouping, &id3.grouping);
-    }
-    else
-    {
-        ADD_TAG(entry, tag_grouping, &id3.title);
-    }
+    ADD_TAG(entry, tag_grouping, &id3.grouping);
     entry.data_length = offset;
 
     /* the check outside Finder's folder makes the file with its first */
@@ -3813,14 +3803,7 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     {
         write_item(id3.albumartist);
     }
-    if (has_grouping)
-    {
-        write_item(id3.grouping);
-    }
-    else
-    {
-        write_item(id3.title);
-    }
+    write_item(id3.grouping);
 
     total_entry_count++;
 
