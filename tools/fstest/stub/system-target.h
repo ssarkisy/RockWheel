@@ -1,0 +1,4 @@
+#ifndef SYSTEM_TARGET_H
+#define SYSTEM_TARGET_H
+#define HIGHEST_IRQ_LEVEL 0
+#endif
