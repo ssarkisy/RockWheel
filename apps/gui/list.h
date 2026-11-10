@@ -358,6 +358,7 @@ extern void gui_synclist_set_initial_callback(struct gui_synclist *lists,
     const char *(*get_initial)(int item, void *data, char *buf, size_t size));
 /* Quick Scroll's font, loaded once for good as the theme is, music stopped */
 extern void list_load_initial_font(void);
+extern bool list_initial_drawn(const char *letter);
 /* the least height of the band of hints, which takes as many rows of the list
    as it needs for three lines of them; 0 for a list without */
 extern int list_hint_band(struct gui_synclist *list, enum screen_type screen);

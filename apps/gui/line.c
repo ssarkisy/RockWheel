@@ -1121,6 +1121,21 @@ static void initial_row(unsigned char *mask, int w, int opacity, int edge)
 }
 #endif
 
+bool line_font_has(int font, const char *text)
+{
+    struct font *pf = font_get(font);
+    ucschar_t ch;
+    for (const unsigned char *p = (const unsigned char *)text; *p; )
+    {
+        p = utf8decode(p, &ch);
+        /* a letter it hasn't has its default one's glyph */
+        if (ch != (ucschar_t)pf->defaultchar
+            && font_get_bits(pf, ch) == font_get_bits(pf, pf->defaultchar))
+            return false;
+    }
+    return true;
+}
+
 void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
                        int font, int text_font)
 {
@@ -1129,21 +1144,14 @@ void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
         return;
     /* in Quick Scroll's own font if it has each of the letters, or else in
        the list's, from which another alphabet's come from a fallback */
-    struct font *pf = font >= 0 ? font_get(font) : NULL;
+    struct font *pf = font >= 0 && line_font_has(font, text) ? font_get(font) : NULL;
     ucschar_t ucs[INITIAL_CHARS];
     int n = 0, width = 0;
     for (const unsigned char *p = (const unsigned char *)text;
          *p && n < INITIAL_CHARS; n++)
         p = utf8decode(p, &ucs[n]);
     for (int i = 0; pf && i < n; i++)
-    {
-        /* a letter it hasn't has its default one's glyph */
-        if (ucs[i] != (ucschar_t)pf->defaultchar
-            && font_get_bits(pf, ucs[i]) == font_get_bits(pf, pf->defaultchar))
-            pf = NULL;
-        else
-            width += font_get_width(pf, ucs[i]);
-    }
+        width += font_get_width(pf, ucs[i]);
     if (!pf)
         font_getstringsize(text, &width, NULL, text_font);
 

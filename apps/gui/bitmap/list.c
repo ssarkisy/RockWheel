@@ -297,6 +297,15 @@ void list_load_initial_font(void)
         font_set_yielding(font_load_ex(INITIAL_FONT, 0, INITIAL_GLYPHS));
 }
 
+/* Whether Quick Scroll shows a letter and steps by it: its own font has it,
+   as the capitals of Latin, Greek and Cyrillic; another alphabet's, its rows
+   go by as rows. Any while that font is away, in the list's. */
+bool list_initial_drawn(const char *letter)
+{
+    const int font = font_find(INITIAL_FONT);
+    return font < 0 || line_font_has(font, letter);
+}
+
 /* the letter for the row selected while it's due, NULL if it isn't or the
    row has none */
 static const char *list_initial(struct gui_synclist *list, enum screen_type screen,
@@ -307,7 +316,7 @@ static const char *list_initial(struct gui_synclist *list, enum screen_type scre
         return NULL;
     const char *text = list->callback_get_initial(list->selected_item, list->data,
                                                   buf, size);
-    return text && *text ? text : NULL;
+    return text && *text && list_initial_drawn(text) ? text : NULL;
 }
 
 /* What doesn't start a line of Chinese or Japanese: the punctuation that

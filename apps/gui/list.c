@@ -850,14 +850,20 @@ static int initial_step(struct gui_synclist *lists, int row, int dir)
     return initial_edge(lists, to, -1, own) + 1;
 }
 
-static bool steps_by_initials(struct gui_synclist *lists, bool quick_step)
+static bool row_initial_drawn(struct gui_synclist *lists, int row)
 {
     char buf[16];
+    const char *s = row_initial(lists, row, buf, sizeof(buf));
+    return s && list_initial_drawn(s);
+}
+
+static bool steps_by_initials(struct gui_synclist *lists, bool quick_step)
+{
     return lists->callback_get_initial && lists->initial_steps
            && global_settings.jump_by_letter
            && (quick_step || (lists->initial_shown && lists->initial_until
                               && TIME_BEFORE(current_tick, lists->initial_until)))
-           && row_initial(lists, lists->selected_item, buf, sizeof(buf));
+           && row_initial_drawn(lists, lists->selected_item);
 }
 
 static void gui_list_select_by_initials(struct gui_synclist *lists, int dir,
@@ -870,6 +876,9 @@ static void gui_list_select_by_initials(struct gui_synclist *lists, int dir,
         if (to == row)
             break;
         row = to;
+        /* a letter not shown: its alphabet goes by rows */
+        if (!row_initial_drawn(lists, row))
+            break;
     }
     gui_synclist_select_item(lists, row);
 }

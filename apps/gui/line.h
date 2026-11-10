@@ -222,5 +222,6 @@ void line_draw_cover(struct screen *display, int x, int y,
    font hasn't or without it (-1). On the main screen only. */
 void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
                        int font, int text_font);
+bool line_font_has(int font, const char *text);
 
 #endif /* __LINE_H__*/
