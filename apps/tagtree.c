@@ -911,6 +911,7 @@ static int get_tag(int *tag)
         TAG_MATCH("==>", menu_load) \
         TAG_MATCH("year", tag_year) \
         TAG_MATCH("kind", tag_virt_kind) \
+        TAG_MATCH("date", tag_date) \
         TAG_MATCH("album", tag_album) \
         TAG_MATCH("genre", tag_genre) \
         TAG_MATCH("title", tag_title) \
@@ -937,6 +938,7 @@ static int get_tag(int *tag)
         TAG_MATCH("%include", var_include) \
         TAG_MATCH("playcount", tag_playcount) \
         TAG_MATCH("autoscore", tag_virt_autoscore) \
+        TAG_MATCH("dateadded", tag_dateadded) \
         TAG_MATCH("lastplayed", tag_lastplayed) \
         TAG_MATCH("lastoffset", tag_lastoffset) \
         TAG_MATCH("%root_menu", var_rootmenu) \

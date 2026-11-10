@@ -219,6 +219,34 @@ static uint32_t le32(const unsigned char *p)
     return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24;
 }
 
+/* seconds from 1904 to 1970, for the times of iTunesDB */
+#define MAC_EPOCH_OFFSET 2082844800u
+
+/* tag_date of a track: its mhit's date at 0x8C, Mac seconds, if of its year
+   at 52 or there's no year; else 0. The day as Music shows it, without a time
+   zone: the iTunes Store's dates are at midnight in California, 07:00 or
+   08:00, the others at 00:00 or 12:00, each that day. */
+static uint32_t track_date(uint32_t year, uint32_t released)
+{
+    if (released == 0 || released == 0xffffffff)
+        return 0;
+    /* the date of a day counted from 1 March of the year 0, as Howard
+       Hinnant's civil_from_days() has it: 1 January 1904 is day 695361 */
+    const uint32_t days = released / 86400 + 695361;
+    const uint32_t era = days / 146097, of_era = days % 146097;
+    const uint32_t year_of_era = (of_era - of_era / 1460 + of_era / 36524
+                                  - of_era / 146096) / 365;
+    const uint32_t of_year = of_era - (365 * year_of_era + year_of_era / 4
+                                       - year_of_era / 100);
+    const uint32_t from_march = (5 * of_year + 2) / 153;
+    const uint32_t day = of_year - (153 * from_march + 2) / 5 + 1;
+    const uint32_t month = from_march < 10 ? from_march + 3 : from_march - 9;
+    const uint32_t y = era * 400 + year_of_era + (month <= 2);
+    if (y < 1000 || y > 2999 || (year != 0 && year != y))
+        return 0;
+    return y * 10000 + month * 100 + day;
+}
+
 static const unsigned char *db_get(off_t pos, size_t len)
 {
     if (len > CACHE_SIZE - READ_ALIGN || pos < 0 || pos > 0x7fffffff - (off_t)len)
@@ -512,7 +540,8 @@ struct meta_record {
     uint8_t rating;     /* 0..100 */
     uint8_t unused;
     uint32_t playcount;
-    uint32_t unused2;
+    uint32_t date;      /* of release, track_date()'s */
+    uint32_t added;     /* as tag_dateadded, 0 for none */
     /* then the strings, each ended by a zero, ID3V2_BUF_SIZE in all */
 };
 
@@ -630,6 +659,15 @@ static bool add_metadata(const struct track *t)
     r.year = MIN(le32(p + 52), 0xffff);
     r.bitrate = MIN(le32(p + 56), 0xffff);
     r.discnum = MIN(le32(p + 92), 0xffff);
+    if (header_len >= 0x90)
+    {
+        r.date = track_date(r.year, le32(p + 0x8c));
+        /* a Mac time, as the last play's at 0x58 */
+        const uint32_t added = le32(p + 0x68);
+        r.added = added > MAC_EPOCH_OFFSET ? added - MAC_EPOCH_OFFSET : 0;
+    }
+    if (!r.year)
+        r.year = r.date / 10000;
 
     off_t child = t->pos + header_len;
     for (int i = 0; i < mhods; i++)
@@ -749,7 +787,8 @@ static void metadata_end(void)
 }
 
 bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
-                           struct tagcache_runtime *rt)
+                           struct tagcache_runtime *rt, long *date,
+                           long *added)
 {
     if (meta.count == 0)
         return false;
@@ -797,6 +836,8 @@ bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
     rt->playcount = r->playcount;
     rt->rating = r->rating / 10;
     rt->lastplayed = 0;
+    *date = r->date;
+    *added = r->added;
     return true;
 }
 
@@ -1717,9 +1758,6 @@ static uint64_t playlist_parent(uint64_t id)
     }
     return 0;
 }
-
-/* seconds from 1904 to 1970, for the times of iTunesDB */
-#define MAC_EPOCH_OFFSET 2082844800u
 
 static uint32_t be32(const unsigned char *p)
 {

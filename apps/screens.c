@@ -591,21 +591,30 @@ static const char * id3_get_or_speak_info(int selected_item, void* data,
             case LANG_ID3_YEAR: {
                 const char *format = str(LANG_VOICED_DATE_FORMAT);
                 bool numericyear = strrchr(format, 'y');
-                if (id3->year_string)
+                long year = id3->year, date = 0;
+#ifdef HAVE_TAGCACHE
+                /* as the database reads it: the date, else the year alone,
+                   without a time or what can't be a date */
+                tagcache_song_date(&year, &date, id3->year_string);
+                if (date)
+                    tagcache_date_text(buffer, buffer_len, date);
+#endif
+                if (date || (id3->year_string && (year < 1000 || year > 2999)))
                 {
-                    val = id3->year_string;
+                    /* or text that's neither, as "May 2019" */
+                    val = date ? buffer : id3->year_string;
                     if(say_it && val)
                         say_number_and_spell(val, !numericyear);
                 }
-                else if (id3->year)
+                else if (year > 0)
                 {
-                    itoa_buf(buffer, buffer_len, id3->year);
+                    itoa_buf(buffer, buffer_len, year);
                     val = buffer;
                     if(say_it) {
                         if (numericyear)
-                            talk_number(id3->year, true);
+                            talk_number(year, true);
                         else
-                            talk_value(id3->year, UNIT_DATEYEAR, true);
+                            talk_value(year, UNIT_DATEYEAR, true);
                     }
                 }
                 break;

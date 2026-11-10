@@ -265,6 +265,24 @@ static int parseyearnum( struct mp3entry* entry, char* tag, int bufferpos )
     return bufferpos;
 }
 
+/* ID3v2.3's TDAT, ID3v2.2's TDA: the day and month of TYER's year, DDMM.
+   Kept with room for the date the two make, "YYYY-MM-DD" as ID3v2.4's TDRC
+   has it, which setid3v2title() writes there once all the frames are read;
+   let go if it isn't four digits, or there's no room */
+#define TDAT_ROOM 11
+static int parsetdat( struct mp3entry* entry, char* tag, int bufferpos )
+{
+    (void)bufferpos;
+    const int at = tag - entry->id3v2buf;
+    const int room = sizeof(entry->id3v2buf) + sizeof(entry->id3v1buf) - 1;
+    for (int i = 0; i < 4; i++)
+    {
+        if (!isdigit((unsigned char)tag[i]))
+            return at;
+    }
+    return !tag[4] && at + TDAT_ROOM < room ? at + TDAT_ROOM : at;
+}
+
 /* parse numeric genre from string, version 2.2 and 2.3 */
 static int parsegenre( struct mp3entry* entry, char* tag, int bufferpos )
 {
@@ -581,6 +599,8 @@ static const struct tag_resolver taglist[] = {
     { "TDRC", 4, offsetof(struct mp3entry, year_string), &parseyearnum, false },
     { "TYER", 4, offsetof(struct mp3entry, year_string), &parseyearnum, false },
     { "TYE",  3, offsetof(struct mp3entry, year_string), &parseyearnum, false },
+    { "TDAT", 4, 0, &parsetdat, false },
+    { "TDA",  3, 0, &parsetdat, false },
     { "TCOM", 4, offsetof(struct mp3entry, composer), NULL, false },
     { "TCM",  3, offsetof(struct mp3entry, composer), NULL, false },
     { "TPE2", 4, offsetof(struct mp3entry, albumartist), NULL, false },
@@ -860,18 +880,9 @@ static bool is_cuesheet(char *tag, unsigned char *char_enc, unsigned char *cuesh
     return true;
 }
 
-/*
- * Sets the title of an MP3 entry based on its ID3v2 tag.
- *
- * Arguments: file - the MP3 file to scan for a ID3v2 tag
- *            entry - the entry to set the title in
- *
- * Returns: true if a title was found and created, else false
- *
- * Assumes that the offset of file is at the start of the ID3 header.
- * (if the header is at the begining of the file getid3v2len() will ensure this.)
- */
-void setid3v2title(int fd, struct mp3entry *entry)
+/* setid3v2title()'s frames into entry; in *tdat TDAT's text, kept with its
+   room by parsetdat(), or NULL */
+static void read_frames(int fd, struct mp3entry *entry, char **tdat)
 {
     int minframesize;
     int size;
@@ -981,6 +992,7 @@ retry_with_limit:
         size = initial_size;
         lseek(fd, initial_pos, SEEK_SET);
         memset(buffer, 0, buffersize);
+        *tdat = NULL;
     }
 
     /*
@@ -1288,6 +1300,8 @@ retry_with_limit:
 #endif
                 if( tr->ppFunc )
                     bufferpos = tr->ppFunc(entry, tag, bufferpos);
+                if (tr->ppFunc == &parsetdat && bufferpos > tag - buffer)
+                    *tdat = tag;
 #ifdef HAVE_ALBUMART
                 /* not one after all, or not a JPEG: the one before stays */
                 if (picture && had
@@ -1330,6 +1344,31 @@ retry_with_limit:
             }
         }
     }
+}
+
+/* The ID3v2 tag at fd's offset, where getid3v2len() leaves it, into entry */
+void setid3v2title(int fd, struct mp3entry *entry)
+{
+    char *tdat = NULL;
+    read_frames(fd, entry, &tdat);
+    /* TYER's year with TDAT's day and month, as the date TDRC has in
+       ID3v2.4, in the room kept with TDAT's text */
+    const char *year = entry->year_string;
+    if (!tdat || !year || strlen(year) != 4)
+        return;
+    for (int i = 0; i < 4; i++)
+    {
+        if (!isdigit((unsigned char)year[i]))
+            return;
+    }
+    const int day = (tdat[0] - '0') * 10 + tdat[1] - '0';
+    const int month = (tdat[2] - '0') * 10 + tdat[3] - '0';
+    if (day < 1 || day > 31 || month < 1 || month > 12)
+        return;
+    char date[TDAT_ROOM];
+    snprintf(date, sizeof(date), "%.4s-%.2s-%.2s", year, tdat + 2, tdat);
+    memcpy(tdat, date, sizeof(date));
+    entry->year_string = tdat;
 }
 
 /*

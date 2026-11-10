@@ -101,6 +101,7 @@
 #include "library_fonts.h"
 #include "smart_playlists.h"
 #include "library_playlists.h"
+#include "timefuncs.h"
 #endif
 #endif
 #define USR_CANCEL false
@@ -123,7 +124,7 @@
 /* RockWheel's own format, "RWD" and its number. Raise it for any layout
    change (the asserts below) or a change in what a tag means (they can't
    see it). */
-#define TAGCACHE_FORMAT 1
+#define TAGCACHE_FORMAT 2
 #define TAGCACHE_MAGIC  (0x52574400 | TAGCACHE_FORMAT)
 /* older layouts whose statistics are restored: RockWheel up to 1.3, Rockbox */
 #define TAGCACHE_MAGIC_ROCKWHEEL 0x54434811
@@ -273,22 +274,22 @@ static int tempbuf_handle;
 #endif
 
 #define SORTED_TAGS_COUNT 9
-#define TAGCACHE_IS_UNIQUE(tag) (BIT_N(tag) & TAGCACHE_UNIQUE_TAGS)
+#define TAGCACHE_IS_UNIQUE(tag) TAGCACHE_TAG_IN(TAGCACHE_UNIQUE_TAGS, tag)
 #define TAGCACHE_IS_NUMERIC_OR_NONUNIQUE(tag) \
-    (BIT_N(tag) & (TAGCACHE_NUMERIC_TAGS | ~TAGCACHE_UNIQUE_TAGS))
+    TAGCACHE_TAG_IN(TAGCACHE_NUMERIC_TAGS | ~TAGCACHE_UNIQUE_TAGS, tag)
 
 /* Uniqued tags (we can use these tags with filters and conditional clauses). */
-#define TAGCACHE_UNIQUE_TAGS ((1LU << tag_artist) | (1LU << tag_album) | \
-    (1LU << tag_genre) | (1LU << tag_composer) | (1LU << tag_comment) | \
-    (1LU << tag_albumartist) | (1LU << tag_grouping) | \
-    (1LU << tag_virt_canonicalartist))
+#define TAGCACHE_UNIQUE_TAGS (TAG_BIT(tag_artist) | TAG_BIT(tag_album) | \
+    TAG_BIT(tag_genre) | TAG_BIT(tag_composer) | TAG_BIT(tag_comment) | \
+    TAG_BIT(tag_albumartist) | TAG_BIT(tag_grouping) | \
+    TAG_BIT(tag_virt_canonicalartist))
 
 /* String presentation of the tags defined in tagcache.h. Must be in correct order! */
 static const char * const tags_str[] = { "artist", "album", "genre", "title",
     "filename", "composer", "comment", "albumartist", "grouping", "year",
     "discnumber", "tracknumber", "canonicalartist", "bitrate", "length",
     "playcount", "rating", "playtime", "lastplayed", "commitid", "mtime",
-    "lastelapsed", "lastoffset"
+    "lastelapsed", "lastoffset", "date", "dateadded"
 #if !defined(LOGF_ENABLE) || !defined(LOGF_CLAUSES)
 };
 #define logf_clauses(...) do { } while(0)
@@ -400,6 +401,7 @@ static struct master_header current_tcmh;
 /* a commit of no new entries goes through, to sort the database again */
 static bool commit_resorting;
 
+
 #ifdef HAVE_TC_RAMCACHE
 
 #define TC_ALIGN_PTR(p, type, gap_out_p) \
@@ -465,19 +467,19 @@ struct temp_file_entry {
     int32_t data_length;
 };
 
-_Static_assert(TAGCACHE_FORMAT == 1 && TAG_COUNT == 23
-               && sizeof(struct index_entry) == 96
+_Static_assert(TAGCACHE_FORMAT == 2 && TAG_COUNT == 25
+               && sizeof(struct index_entry) == 104
                && sizeof(struct master_header) == 32
-               && sizeof(struct temp_file_entry) == 148,
+               && sizeof(struct temp_file_entry) == 160,
                "the database's layout changed: raise TAGCACHE_FORMAT");
 /* Fixed for good, so formats restore each other: the statistics' tag
    positions, the flags as the last word, the header's start, the names
    file's entries; a rating 0..10, a last play below 0x40000000 a serial, else
-   a time. */
+   a time; the date added in local seconds, 0 unknown. */
 _Static_assert(tag_filename == 4 && tag_playcount == 15 && tag_rating == 16
                && tag_playtime == 17 && tag_lastplayed == 18
                && tag_commitid == 19 && tag_lastelapsed == 21
-               && tag_lastoffset == 22
+               && tag_lastoffset == 22 && tag_dateadded == 24
                && offsetof(struct index_entry, flag)
                   == sizeof(struct index_entry) - sizeof(int32_t)
                && offsetof(struct master_header, tch.entry_count) == 8
@@ -488,7 +490,7 @@ _Static_assert(tag_filename == 4 && tag_playcount == 15 && tag_rating == 16
                && sizeof(struct tagcache_header) == 12
                && sizeof(struct tagfile_entry) == 8,
                "the places of the statistics are kept for good");
-_Static_assert(TAG_COUNT_ALL <= 32, "a tag past the masks: make them wider");
+_Static_assert(TAG_COUNT_ALL <= 64, "a tag past the masks: make them wider");
 
 #ifndef TAGCACHE_RESTORE
 static inline bool restoring(void) { return false; }
@@ -2602,6 +2604,20 @@ void tagcache_search_finish(struct tagcache_search *tcs)
 }
 
 
+#ifndef __PCTOOL__
+/* a song's tag_date into the room left of id3v2buf, as Track Info shows a
+   file's date */
+static void fill_date(struct mp3entry *id3, char *buf, long remaining,
+                      long date)
+{
+    if (date > 0 && remaining > 1)
+    {
+        tagcache_date_text(buf, remaining, date);
+        id3->year_string = buf;
+    }
+}
+#endif
+
 #if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
 static struct tagfile_entry *get_tag(const struct index_entry *entry, int tag)
 {
@@ -2691,6 +2707,7 @@ bool tagcache_fill_tags(struct mp3entry *id3, const char *filename)
     id3->lastplayed = get_tag_numeric(entry, tag_lastplayed, idx_id);
     id3->score      = get_tag_numeric(entry, tag_virt_autoscore, idx_id) / 10;
     id3->year       = get_tag_numeric(entry, tag_year, idx_id);
+    fill_date(id3, buf, remaining, get_tag_numeric(entry, tag_date, idx_id));
 
     id3->discnum = get_tag_numeric(entry, tag_discnumber, idx_id);
     id3->tracknum = get_tag_numeric(entry, tag_tracknumber, idx_id);
@@ -2729,7 +2746,7 @@ bool tagcache_fill_text(struct mp3entry *id3, const char *filename)
         &id3->title, &id3->artist, &id3->album, &id3->genre_string,
         &id3->composer, &id3->comment, &id3->albumartist, &id3->grouping
     };
-    long year, disc, track;
+    long year, date, disc, track;
 #if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
     /* from memory alone, which a commit unloads before it starts */
     if (!tc_stat.ready || !tc_stat.ramcache)
@@ -2775,16 +2792,21 @@ bool tagcache_fill_text(struct mp3entry *id3, const char *filename)
     }
 #if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
     year = get_tag_numeric(entry, tag_year, idx_id);
+    date = get_tag_numeric(entry, tag_date, idx_id);
     disc = get_tag_numeric(entry, tag_discnumber, idx_id);
     track = get_tag_numeric(entry, tag_tracknumber, idx_id);
 #else
     year = tagcache_get_numeric(&tcs, tag_year);
+    date = tagcache_get_numeric(&tcs, tag_date);
     disc = tagcache_get_numeric(&tcs, tag_discnumber);
     track = tagcache_get_numeric(&tcs, tag_tracknumber);
     tagcache_search_finish(&tcs);
 #endif
     if (!id3->year && year > 0)
+    {
         id3->year = year;
+        fill_date(id3, buf, remaining, date);
+    }
     if (!id3->discnum && disc > 0)
         id3->discnum = disc;
     if (id3->tracknum <= 0 && track > 0)
@@ -3125,6 +3147,7 @@ static long find_known_file(const char *path, uint32_t *mtime, bool *timed)
 }
 #endif /* !__PCTOOL__ */
 
+
 #ifdef TAGCACHE_RESTORE
 #define RESTORE_MAGIC 0x4f445752 /* "RWDO" */
 struct restore_mark {
@@ -3139,16 +3162,15 @@ static bool restore_pending;
 /* same set as resurrection in build_numeric_indices() */
 static const unsigned char restore_tags[] = {
     tag_playcount, tag_rating, tag_playtime, tag_lastplayed, tag_commitid,
-    tag_lastelapsed, tag_lastoffset
+    tag_lastelapsed, tag_lastoffset, tag_dateadded
 };
 #define RESTORE_TAGS ARRAYLEN(restore_tags)
 
-/* every live entry, zeros too: a rating cleared on the iPod stays cleared.
-   Packed: 36 bytes, not 40. */
+/* every live entry, zeros too: a rating cleared on the iPod stays cleared */
 struct restore_entry {
     uint64_t hash;
     int32_t value[RESTORE_TAGS];
-} __attribute__((packed, aligned(4)));
+};
 #define RESTORE_CHUNK 32768
 static int restore_handle;
 static long restore_count;
@@ -3288,7 +3310,15 @@ static long restore_read_entries(int fd, const struct master_header *mh,
             struct restore_entry r = { .hash = hashes[i + j] };
             bool any = false;
             for (unsigned t = 0; t < RESTORE_TAGS; t++)
-                any |= (r.value[t] = e[restore_tags[t]]) != 0;
+            {
+                /* a tag past an older format's entry, as the date added of
+                   format 1's, is none: not its flags or the next entry */
+                if (restore_tags[t] < flag)
+                    r.value[t] = e[restore_tags[t]];
+                /* nearly every song has a date added: those with plays
+                   or ratings are the ones kept */
+                any |= r.value[t] != 0 && restore_tags[t] != tag_dateadded;
+            }
             if (stats_only && !any)
                 continue;
             if (table)
@@ -3428,6 +3458,13 @@ static void restore_apply(const char *path, struct temp_file_entry *entry)
     for (unsigned i = 0; i < RESTORE_TAGS; i++)
     {
         const int tag = restore_tags[i];
+        /* a Finder song's is iTunesDB's */
+        if (tag == tag_dateadded)
+        {
+            if (!entry->tag_offset[tag])
+                entry->tag_offset[tag] = old.value[i];
+            continue;
+        }
         entry->tag_offset[tag] = old.value[i];
         if (old.value[i])
             entry->flag |= FLAG_DIRTYNUM;
@@ -3446,6 +3483,105 @@ static void restore_numbers(struct master_header *mh)
 
 
 #endif /* TAGCACHE_RESTORE */
+
+static int month_days(int year, int month)
+{
+    static const unsigned char days[12] = {
+        31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    if (month == 2 && year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))
+        return 29;
+    return days[month - 1];
+}
+
+/* the number n digits at s write, or -1 if they aren't all digits */
+static int date_digits(const char *s, int n)
+{
+    int value = 0;
+    for (int i = 0; i < n; i++)
+    {
+        if (s[i] < '0' || s[i] > '9')
+            return -1;
+        value = value * 10 + s[i] - '0';
+    }
+    return value;
+}
+
+/* true if only spaces follow, or with time an ISO time first, as
+   "T07:00:00Z" or " 07:00" */
+static bool date_ends(const char *s, bool time)
+{
+    if (time && (*s == 'T' || *s == ' ') && date_digits(s + 1, 2) >= 0
+        && s[3] == ':' && date_digits(s + 4, 2) >= 0)
+    {
+        s += 6;
+        while (*s && strchr("0123456789:.+-Z", *s))
+            s++;
+    }
+    while (*s == ' ')
+        s++;
+    return !*s;
+}
+
+/* Text written as yyyy-mm-dd, yyyy/mm/dd or yyyymmdd, any with a time after
+   it, or as yyyy-mm, of a year 1000-2999 that the parser took (all of it, as
+   atoi() takes yyyymmdd, or none): the date and its year, or the year alone
+   where no such date can be, as 2019-02-29. Other text keeps the parser's
+   year, but a number past four digits, which is none. */
+void tagcache_song_date(long *year, long *date, const char *text)
+{
+    int y = -1, m = 0, d = 0;
+    bool written = false;    /* as a date */
+    bool month_only = false; /* as yyyy-mm */
+    bool ends = true;        /* with nothing after it but a time */
+    *date = 0;
+    if (text)
+    {
+        while (*text == ' ')
+            text++;
+        y = date_digits(text, 4);
+        const char sep = y >= 0 ? text[4] : '\0';
+        if ((sep == '-' || sep == '/') && (m = date_digits(text + 5, 2)) >= 0)
+        {
+            if (text[7] == sep && (d = date_digits(text + 8, 2)) >= 0)
+            {
+                written = true;
+                ends = date_ends(text + 10, true);
+            }
+            else if (sep == '-')
+            {
+                d = 0;
+                written = month_only = true;
+                ends = date_ends(text + 7, false);
+            }
+        }
+        else if (y >= 0 && (m = date_digits(text + 4, 2)) >= 0
+                 && (d = date_digits(text + 6, 2)) >= 0)
+        {
+            written = true;
+            ends = date_ends(text + 8, true);
+        }
+    }
+    const long ymd = y * 10000L + m * 100 + d;
+    if (written && y >= 1000 && y <= 2999
+        && (*year == 0 || *year == y || *year == ymd))
+    {
+        *year = y;
+        if (ends && m >= 1 && m <= 12
+            && (month_only || (d >= 1 && d <= month_days(y, m))))
+            *date = ymd;
+    }
+    else if (*year >= 10000)
+        *year = 0;
+}
+
+void tagcache_date_text(char *buf, size_t size, long date)
+{
+    if (date % 100)
+        snprintf(buf, size, "%04ld-%02ld-%02ld", date / 10000, date / 100 % 100,
+                 date % 100);
+    else
+        snprintf(buf, size, "%04ld-%02ld", date / 10000, date / 100 % 100);
+}
 
 /* GCC 3.4.6 for Coldfire can choose to inline this function. Not a good
  * idea, as it uses lots of stack and is called from a recursive function
@@ -3566,10 +3702,13 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     if (sort_fields)
         metadata_flags |= METADATA_SORT_FIELDS;
 #endif
+    long date = 0, added = 0;
+    bool finder = false;
 #ifndef __PCTOOL__
     /* what iTunesDB says of a file Finder added, as a stock iPod has it */
     struct tagcache_runtime itdb_rt = { 0 };
-    ret = itunesdb_get_metadata(path, &id3, &itdb_rt);
+    ret = itunesdb_get_metadata(path, &id3, &itdb_rt, &date, &added);
+    finder = ret;
     if (!ret)
 #endif
     ret = get_metadata_afmt(&id3, -1, path, afmt, metadata_flags);
@@ -3589,7 +3728,12 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     }
 
     /* Numeric tags */
-    entry.tag_offset[tag_year] = id3.year;
+    long year = id3.year;
+    if (!finder)
+        tagcache_song_date(&year, &date, id3.year_string);
+    entry.tag_offset[tag_year] = year;
+    entry.tag_offset[tag_date] = date;
+    entry.tag_offset[tag_dateadded] = added;
     entry.tag_offset[tag_discnumber] = id3.discnum;
     entry.tag_offset[tag_tracknumber] = id3.tracknum;
     entry.tag_offset[tag_length] = id3.length;
@@ -4146,9 +4290,35 @@ static enum e_read_errors tagr_read_entry_and_tag(struct tagfile_entry *tfe,
     return (tag_length > 0 && *buf) ? e_SUCCESS : e_SUCCESS_LEN_ZERO;
 }
 
+/* the clock's time, in the scale of the times of plays, or 0 if it's before
+   this firmware was built, as after the battery ran flat */
+static long clock_time(void)
+{
+#if CONFIG_RTC && !defined(PLUGIN) && !defined(__PCTOOL__)
+    struct tm *tm = get_time();
+    if (valid_time(tm) && tm->tm_year + 1900 >= YEAR)
+        return mktime(tm);
+#endif
+    return 0;
+}
+
+#define DATEADDED_MIN 978307200 /* 2001-01-01 */
+/* The date added of a song the commit adds without one: the commit's time,
+   now, if it's new to a database there was, so a copy's songs have one time;
+   else its file's time, from 2001 to now; else 0 */
+static long date_added(long mtime, bool new_song, long now)
+{
+    if (new_song && now)
+        return now;
+    if (mtime >= DATEADDED_MIN && (!now || mtime <= now))
+        return mtime;
+    return 0;
+}
+
 static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
 {
     const long old_count = commit_mh.tch.entry_count;
+    const long now = clock_time();
     struct temp_file_entry *entrybuf = (struct temp_file_entry *)tempbuf;
     int max_entries;
     int entries_processed = 0;
@@ -4282,6 +4452,9 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
                 tmpdb_copy_tag(tag_commitid);
                 tmpdb_copy_tag(tag_lastelapsed);
                 tmpdb_copy_tag(tag_lastoffset);
+                /* its tags changed, it keeps the date it was added */
+                if (!tfe->tag_offset[tag_dateadded])
+                    tmpdb_copy_tag(tag_dateadded);
 
                 /* Avoid processing this entry again. */
                 idx->flag |= FLAG_RESURRECTED;
@@ -4306,6 +4479,7 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
             }
             idx->flag = entrybuf[i].flag & ~FLAG_RESTORED;
 
+            bool new_song = false;
             if (entrybuf[i].flag & FLAG_RESTORED)
                 ; /* its commit id is the old database's, 0 too */
             else if (idx->tag_seek[tag_commitid])
@@ -4317,7 +4491,11 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
             {
                 idx->tag_seek[tag_commitid] = current_tcmh.commitid;
                 idx->flag |= FLAG_DIRTYNUM;
+                new_song = true;
             }
+            if (!idx->tag_seek[tag_dateadded])
+                idx->tag_seek[tag_dateadded] =
+                    date_added(idx->tag_seek[tag_mtime], new_song, now);
         }
 
         entries_processed += count;
@@ -6077,7 +6255,7 @@ static int parse_changelog_line(int line_n, char *buf, void *parameters)
     long masterfd = (long)(intptr_t)parameters;
     const int import_tags[] = { tag_playcount, tag_rating, tag_playtime,
                                 tag_lastplayed, tag_commitid, tag_lastelapsed,
-                                tag_lastoffset };
+                                tag_lastoffset, tag_dateadded };
     int i;
     (void)line_n;
 

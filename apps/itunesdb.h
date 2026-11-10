@@ -114,13 +114,15 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
 bool itunesdb_load_tracks(void);
 
 /* What iTunesDB says of a file Finder added since the last import, as its
-   tags would, and its play count and rating: false when it doesn't know the
-   file. Kept from itunesdb_import_tracks() until itunesdb_forget_metadata(),
-   for the scan. */
+   tags would, its play count and rating, and its dates of release and when
+   it was added, as tag_date and tag_dateadded have them: false when it
+   doesn't know the file. Kept from itunesdb_import_tracks() until
+   itunesdb_forget_metadata(), for the scan. */
 struct mp3entry;
 struct tagcache_runtime;
 bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
-                           struct tagcache_runtime *rt);
+                           struct tagcache_runtime *rt, long *date,
+                           long *added);
 void itunesdb_forget_metadata(void);
 
 /* the flags of the file at path, or with this itunesdb_path_hash() */

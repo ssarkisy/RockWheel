@@ -35,6 +35,9 @@ enum tag_type { tag_artist = 0, tag_album, tag_genre, tag_title,
     tag_discnumber, tag_tracknumber, tag_virt_canonicalartist, tag_bitrate, tag_length,
     tag_playcount, tag_rating, tag_playtime, tag_lastplayed, tag_commitid, tag_mtime,
     tag_lastelapsed, tag_lastoffset,
+    tag_date,      /* of release: yyyymmdd, yyyymm00 for a month alone, 0 for
+                      none; its year is tag_year's */
+    tag_dateadded, /* local seconds, as tag_lastplayed's times; 0 unknown */
     /* Real tags end here, count them. */
     TAG_COUNT,
     /* Virtual tags */
@@ -59,25 +62,30 @@ enum tag_type { tag_artist = 0, tag_album, tag_genre, tag_title,
 #define TAGCACHE_BUFSZ (TAG_MAXLEN+32)
 
 /* Numeric tags (we can use these tags with conditional clauses). */
-#define TAGCACHE_NUMERIC_TAGS ((1LU << tag_year) | (1LU << tag_discnumber) | \
-    (1LU << tag_tracknumber) | (1LU << tag_length) | (1LU << tag_bitrate) | \
-    (1LU << tag_playcount) | (1LU << tag_rating) | (1LU << tag_playtime) | \
-    (1LU << tag_lastplayed) | (1LU << tag_commitid) | (1LU << tag_mtime) | \
-    (1LU << tag_lastelapsed) | (1LU << tag_lastoffset) | \
-    (1LU << tag_virt_length_min) | (1LU << tag_virt_length_sec) | \
-    (1LU << tag_virt_playtime_min) | (1LU << tag_virt_playtime_sec) | \
-    (1LU << tag_virt_entryage) | (1LU << tag_virt_autoscore) | \
-    (1LU << tag_virt_kind))
+#define TAG_BIT(tag) ((uint64_t)1 << (tag))
+#define TAGCACHE_NUMERIC_TAGS (TAG_BIT(tag_year) | TAG_BIT(tag_discnumber) | \
+    TAG_BIT(tag_tracknumber) | TAG_BIT(tag_length) | TAG_BIT(tag_bitrate) | \
+    TAG_BIT(tag_playcount) | TAG_BIT(tag_rating) | TAG_BIT(tag_playtime) | \
+    TAG_BIT(tag_lastplayed) | TAG_BIT(tag_commitid) | TAG_BIT(tag_mtime) | \
+    TAG_BIT(tag_lastelapsed) | TAG_BIT(tag_lastoffset) | TAG_BIT(tag_date) | \
+    TAG_BIT(tag_dateadded) | \
+    TAG_BIT(tag_virt_length_min) | TAG_BIT(tag_virt_length_sec) | \
+    TAG_BIT(tag_virt_playtime_min) | TAG_BIT(tag_virt_playtime_sec) | \
+    TAG_BIT(tag_virt_entryage) | TAG_BIT(tag_virt_autoscore) | \
+    TAG_BIT(tag_virt_kind))
 
-#define TAGCACHE_IS_NUMERIC(tag) (BIT_N(tag) & TAGCACHE_NUMERIC_TAGS)
+/* false for any number past the masks, as tagtree's menus over 100 */
+#define TAGCACHE_TAG_IN(mask, tag) \
+    ((unsigned)(tag) < 64 && (((mask) >> (tag)) & 1))
+#define TAGCACHE_IS_NUMERIC(tag) TAGCACHE_TAG_IN(TAGCACHE_NUMERIC_TAGS, tag)
 
 /* Tags whose files the commit sorts (sortkey.h): an entry's seek in one is
    its place in that order */
-#define TAGCACHE_SORTED_TAGS ((1LU << tag_artist) | (1LU << tag_album) | \
-    (1LU << tag_genre) | (1LU << tag_composer) | (1LU << tag_comment) | \
-    (1LU << tag_albumartist) | (1LU << tag_grouping) | (1LU << tag_title) | \
-    (1LU << tag_virt_canonicalartist))
-#define TAGCACHE_IS_SORTED(tag) (BIT_N(tag) & TAGCACHE_SORTED_TAGS)
+#define TAGCACHE_SORTED_TAGS (TAG_BIT(tag_artist) | TAG_BIT(tag_album) | \
+    TAG_BIT(tag_genre) | TAG_BIT(tag_composer) | TAG_BIT(tag_comment) | \
+    TAG_BIT(tag_albumartist) | TAG_BIT(tag_grouping) | TAG_BIT(tag_title) | \
+    TAG_BIT(tag_virt_canonicalartist))
+#define TAGCACHE_IS_SORTED(tag) TAGCACHE_TAG_IN(TAGCACHE_SORTED_TAGS, tag)
 
 enum clause { clause_none, clause_is, clause_is_not, clause_gt, clause_gteq,
     clause_lt, clause_lteq, clause_contains, clause_not_contains, 
@@ -201,6 +209,11 @@ void tagcache_search_finish(struct tagcache_search *tcs);
 long tagcache_get_numeric(const struct tagcache_search *tcs, int tag);
 /* for a file of iTunesDB's whose own tags are empty */
 bool tagcache_fill_text(struct mp3entry *id3, const char *filename);
+/* a song's tag_date and year from a tag's text, or NULL: year in as its
+   parser took it, and out */
+void tagcache_song_date(long *year, long *date, const char *text);
+/* a tag_date as "yyyy-mm-dd", or "yyyy-mm" for a month alone */
+void tagcache_date_text(char *buf, size_t size, long date);
 long tagcache_increase_serial(void);
 bool tagcache_import_changelog(void);
 /* entries in the database, -1 until known */
