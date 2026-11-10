@@ -49,6 +49,7 @@
 #include "string-extra.h"
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 #include "skin_engine/cover_palette.h"
+#include "skin_engine/menu_cover.h"
 #endif
 
 #ifdef HAVE_BACKLIGHT
@@ -242,6 +243,21 @@ MENUITEM_SETTING(list_covers_item, &global_settings.list_covers,
 #endif
 MENUITEM_SETTING(list_scrollbar_item, &global_settings.list_scrollbar, NULL);
 MENUITEM_SETTING(jump_by_letter_item, &global_settings.jump_by_letter, NULL);
+#ifdef HAVE_MENU_COVER
+/* none with Album Art off, as there's no cover beside the menus then */
+static int moving_cover_callback(int action,
+                                 const struct menu_item_ex *this_item,
+                                 struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM && global_settings.album_art == AA_OFF)
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_SETTING(moving_cover_item, &global_settings.moving_cover,
+                 moving_cover_callback);
+#endif
 
 /* Appearance, a folder of Settings: all that changes the look, the whole of
    it first, then Music's lists', then Now Playing's, then the iPod's or iOS's
@@ -255,6 +271,9 @@ MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
 #endif
 #endif
           &list_scrollbar_item, &jump_by_letter_item,
+#ifdef HAVE_MENU_COVER
+          &moving_cover_item,
+#endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
           &cover_colours_item, &status_icons_item, &angled_cover_item,
           &status_bar_style_item, &rating_style_item, &progress_bar_style_item,

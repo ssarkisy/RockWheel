@@ -48,6 +48,7 @@
 #include "misc.h"
 #include "action.h"
 #include "gui/skin_engine/skin_engine.h"
+#include "gui/skin_engine/menu_cover.h"
 #include "menus/exported_menus.h"
 #include "string-extra.h"
 #include "root_menu.h"
@@ -164,6 +165,9 @@ static const struct {
     { &global_settings.cover_colours, LANG_HINT_COVER_COLOURS },
     { &global_settings.status_icons, LANG_HINT_STATUS_ICONS },
     { &global_settings.angled_cover, LANG_HINT_ANGLED_COVER },
+#endif
+#ifdef HAVE_MENU_COVER
+    { &global_settings.moving_cover, LANG_HINT_MOVING_COVER },
 #endif
 #ifdef HAVE_BACKLIGHT
     { &global_settings.wake_screen, LANG_HINT_WAKE_SCREEN },

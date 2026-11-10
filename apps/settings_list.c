@@ -87,6 +87,7 @@
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 #include "skin_engine/cover_palette.h"
 #endif
+#include "skin_engine/menu_cover.h"
 #include "night_mode.h"
 
 #define UNUSED {.RESERVED=NULL}
@@ -2778,6 +2779,8 @@ const struct settings_list settings[] = {
                   "list scrollbar", NULL),
     OFFON_SETTING(0, jump_by_letter, LANG_JUMP_BY_LETTER, true,
                   "jump by letter", NULL),
+    OFFON_SETTING(0, moving_cover, LANG_MOVING_COVER, false,
+                  "moving cover", menu_cover_changed),
     /* Settings > Music Menu, after the sections: Artists and a genre's
        artists by the albums' artists */
     OFFON_SETTING(0, artists_by_album_artist, LANG_GROUP_BY_ALBUM_ARTIST, true,

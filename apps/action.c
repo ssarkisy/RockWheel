@@ -325,12 +325,16 @@ static void action_handle_backlight(bool backlight, bool ignore_next)
 * if waiting for button release ACTION_NONE is returned until
 * button is released/repeated.
 */
+static bool waiting;
+
 static inline bool action_poll_button(action_last_t *last, action_cur_t *cur)
 {
     bool ret = true;
     int *button = &cur->button;
 
+    waiting = true;
     *button = button_get_w_tmo(cur->timeout);
+    waiting = false;
 
    /* ********************************************************
     * Can return button immediately, sys_event & multimedia
@@ -1185,6 +1189,16 @@ bool action_dark_return_taken(void)
     const bool taken = dark_return_taken;
     dark_return_taken = false;
     return taken;
+}
+
+long action_last_tick(void)
+{
+    return action_last.tick;
+}
+
+bool action_waiting(void)
+{
+    return waiting;
 }
 
 /* Clears the click callback as keyclick_click() would: lists set it before

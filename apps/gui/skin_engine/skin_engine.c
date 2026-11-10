@@ -41,6 +41,7 @@
 #include "skin_buffer.h"
 #include "statusbar-skinned.h"
 #include "wps_internals.h"
+#include "menu_cover.h"
 
 #define FAILSAFENAME "rockbox_failsafe"
 
@@ -274,6 +275,8 @@ static void skin_load(enum skinnable_screens skin, enum screen_type screen,
 {
     bool loaded = false;
 
+    if (skin == CUSTOM_STATUSBAR && screen == SCREEN_MAIN)
+        menu_cover_stop();
     skin_helpers[skin]->process(screen, &skins[skin][screen].data, true);
 
     if (filename && *filename)

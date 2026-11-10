@@ -21569,3 +21569,31 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_MOVING_COVER
+  desc: a setting of Settings > Appearance, after Jump by Letter, not shown with Album Art off: On, the album cover beside the menus pans slowly from side to side while a song plays or is paused, as a long name scrolls; Off, it stays still
+  user: core
+  <source>
+    *: "Moving Cover"
+  </source>
+  <dest>
+    *: "움직이는 앨범 아트"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_MOVING_COVER
+  desc: the hint in the band under Settings > Appearance while Moving Cover is selected, in three lines at most: what the user gets from it, and that it uses more battery
+  user: core
+  <source>
+    *: "The cover beside the menus drifts slowly from side to side while music plays. Uses more battery."
+  </source>
+  <dest>
+    *: "음악이 재생되는 동안 메뉴 옆의 앨범 아트가 천천히 좌우로 움직입니다. 배터리를 더 사용합니다."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

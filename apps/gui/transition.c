@@ -36,6 +36,7 @@
 #define HOLD_TICKS (HZ/2)
 
 static bool pending;
+static bool sliding;
 static enum transition_dir pending_dir;
 /* The two screens, 300 KB of their own: borrowed memory, the plugins' buffer
    or the audio buffer, isn't free for the slide's time. The core lends the
@@ -207,6 +208,11 @@ bool transition_pending(void)
     return pending;
 }
 
+bool transition_active(void)
+{
+    return pending || sliding;
+}
+
 void transition_wait(long ticks)
 {
     if (pending)
@@ -233,6 +239,7 @@ void transition_run(void)
         lcd_update();
         return;
     }
+    sliding = true;
 
     /* a list that gets wider or narrower, as Music's menu beside the panel and
        Artists, slides with all of the screen under the title, the panel too:
@@ -335,6 +342,7 @@ void transition_run(void)
     if (lcd_own_updates(false))
         lcd_update();
     lcd_set_viewport(vp);
+    sliding = false;
 }
 
 #endif /* LCD_DEPTH == 16 && rows one after another && !BOOTLOADER */

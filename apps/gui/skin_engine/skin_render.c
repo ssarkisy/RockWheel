@@ -33,6 +33,7 @@
 #endif
 #include "settings.h"
 #include "skin_display.h"
+#include "menu_cover.h"
 #include "skin_engine.h"
 #include "cover_palette.h"
 #include "skin_parser.h"
@@ -465,6 +466,7 @@ static void do_tags_in_hidden_conditional(struct skin_element* branch,
                             skin_viewport->hidden_flags |= VP_DRAW_WASHIDDEN;
                         else
                         {
+                            menu_cover_hidden(&skin_viewport->vp);
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && (LCD_REMOTE_DEPTH > 1))
                             if (skin_viewport->output_to_backdrop_buffer)
                             {

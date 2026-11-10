@@ -33,6 +33,8 @@ void transition_begin(enum transition_dir dir);
 void transition_run(void);
 /* begun, and not run yet: the screen being drawn is to slide in */
 bool transition_pending(void);
+/* begun, and not over yet */
+bool transition_active(void);
 /* the display as drawn, without a slide, as before a plugin loads */
 void transition_cancel(void);
 /* the next screen comes later than most, as Now Playing after a song is
@@ -42,6 +44,7 @@ void transition_wait(long ticks);
 static inline void transition_begin(enum transition_dir dir) { (void)dir; }
 static inline void transition_run(void) {}
 static inline bool transition_pending(void) { return false; }
+static inline bool transition_active(void) { return false; }
 static inline void transition_cancel(void) {}
 static inline void transition_wait(long ticks) { (void)ticks; }
 #endif

@@ -56,6 +56,7 @@
 #include "language.h"
 #include "statusbar-skinned.h"
 #include "skin_engine/skin_engine.h"
+#include "skin_engine/menu_cover.h"
 #include "debug.h"
 
 #define VPSTACK_DEPTH 16
@@ -159,6 +160,8 @@ static void toggle_theme(enum screen_type screen, bool force)
     }
     else
     {
+        if (screen == SCREEN_MAIN)
+            menu_cover_stop();
 #if LCD_DEPTH > 1 || (defined(LCD_REMOTE_DEPTH) && LCD_REMOTE_DEPTH > 1)
         screens[screen].backdrop_show(NULL);
 #endif

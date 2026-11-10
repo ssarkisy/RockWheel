@@ -403,6 +403,10 @@ int get_action(int context, int timeout);
 /* whether Now Playing was gone to as the screen went dark (Return to Now
    Playing): Menu there goes back where it was, and not to where music started */
 bool action_dark_return_taken(void);
+/* the tick of the last button's action, as of a step of the wheel */
+long action_last_tick(void);
+/* the UI's thread waits in get_action() for a button: it draws nothing */
+bool action_waiting(void);
 
 /* call this if you need to check for ACTION_STD_CANCEL only (i.e user abort! */
 bool action_userabort(int timeout);

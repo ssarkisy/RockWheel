@@ -40,6 +40,10 @@ extern void lcd_scroll_delay(int ms);
 #ifdef HAVE_REMOTE_LCD
 extern void lcd_remote_scroll_speed(int speed);
 extern void lcd_remote_scroll_delay(int ms);
+#elif !defined(BOOTLOADER)
+/* Called on the scroll thread as well, as soon as the ticks it returned have
+   passed, and not while it's NULL */
+extern void scroll_set_tick_hook(long (*hook)(void));
 #endif
 
 #ifdef BOOTLOADER

@@ -72,6 +72,7 @@
 #include "cover_palette.h"
 #include "statusbar-skinned.h"
 #include "skin_display.h"
+#include "menu_cover.h"
 
 static bool dirty[NB_SCREENS];
 
@@ -104,14 +105,23 @@ void skin_mark_dirty(enum screen_type screen)
    10 ms. Of the hidden viewports too, the panels', it held up the lists for
    100 ms each time. The status bar's left out where its list is, as the
    album art's strip over the main menu's right end: a step of the wheel there
-   put all of it on the screen again. False in *known if the skin draws into
-   its backdrop instead. */
+   put all of it on the screen again. Nor the cover beside the menus as it
+   pans: its steps put it on the screen themselves. False in *known if the
+   skin draws into its backdrop instead. */
+static uint32_t hash_span(uint32_t h, const fb_data *row, int from, int to)
+{
+    for (int x = from; x < to; x++)
+        h = (h ^ FB_UNPACK_SCALAR_LCD(row[x])) * 16777619u;
+    return h;
+}
+
 static uint32_t skin_pixels(struct gui_wps *gwps, enum skinnable_screens skin,
                             bool *known)
 {
     uint32_t h = 2166136261u;
     *known = true;
     int lx0 = 0, lx1 = 0, ly0 = 0, ly1 = 0; /* the list's */
+    int cx0 = 0, cx1 = 0, cy0 = 0, cy1 = 0; /* the moving cover's */
     if (skin == CUSTOM_STATUSBAR)
     {
         const struct viewport *list = sb_skin_get_info_vp(SCREEN_MAIN);
@@ -122,6 +132,9 @@ static uint32_t skin_pixels(struct gui_wps *gwps, enum skinnable_screens skin,
             ly0 = list->y;
             ly1 = list->y + list->height;
         }
+#ifdef HAVE_MENU_COVER
+        menu_cover_area(&cx0, &cy0, &cx1, &cy1);
+#endif
     }
     char *const buffer = get_skin_buffer(gwps->data);
     struct skin_element *viewport = SKINOFFSETTOPTR(buffer, gwps->data->tree);
@@ -174,14 +187,20 @@ static uint32_t skin_pixels(struct gui_wps *gwps, enum skinnable_screens skin,
         const int y1 = MIN(svp->vp.y + svp->vp.height, LCD_HEIGHT);
         for (int y = y0; y < y1; y++)
         {
-            const bool beside = y >= ly0 && y < ly1;
-            const int left_end = beside ? MIN(x1, lx0) : x1;
-            const int right_start = beside ? MAX(x0, lx1) : x1;
-            const fb_data *p = FBADDR(x0, y);
-            for (int x = x0; x < left_end; x++)
-                h = (h ^ FB_UNPACK_SCALAR_LCD(p[x - x0])) * 16777619u;
-            for (int x = right_start; x < x1; x++)
-                h = (h ^ FB_UNPACK_SCALAR_LCD(p[x - x0])) * 16777619u;
+            /* the row but for the list's part and the cover's, a before b */
+            int a0 = x1, a1 = x1, b0 = x1, b1 = x1;
+            if (y >= ly0 && y < ly1)
+                a0 = lx0, a1 = lx1;
+            if (y >= cy0 && y < cy1)
+            {
+                b0 = cx0, b1 = cx1;
+                if (b0 < a0)
+                    b0 = a0, b1 = a1, a0 = cx0, a1 = cx1;
+            }
+            const fb_data *p = FBADDR(0, y);
+            h = hash_span(h, p, x0, MIN(a0, x1));
+            h = hash_span(h, p, MAX(x0, a1), MIN(b0, x1));
+            h = hash_span(h, p, MAX(x0, MAX(a1, b1)), x1);
         }
     }
     return h;
@@ -214,7 +233,11 @@ void skin_update(enum skinnable_screens skin, enum screen_type screen,
         skin_request_full_update(skin);
 
     const bool full = skin_do_full_update(skin, screen);
-    skin_render(gwps, full ? SKIN_REFRESH_ALL : update_type);
+    const unsigned int refresh = full ? SKIN_REFRESH_ALL : update_type;
+    if (skin == CUSTOM_STATUSBAR && screen == SCREEN_MAIN
+        && (refresh & SKIN_REFRESH_ALL) == SKIN_REFRESH_ALL)
+        menu_cover_stop();
+    skin_render(gwps, refresh);
     if (update_type & SKIN_REFRESH_DYNAMIC)
         dynamic_tick[skin] = current_tick;
 #if LCD_DEPTH == 16
@@ -1258,7 +1281,8 @@ static void clear_cover_reflection(struct gui_wps *gwps, struct skin_albumart *a
 }
 
 static void draw_art_pixels(struct gui_wps *gwps, struct skin_albumart *aa,
-                            const fb_data *pixels, int width, int height)
+                            const fb_data *pixels, int width, int height,
+                            const struct viewport *vp)
 {
     int x = aa->x, y = aa->y;
 
@@ -1270,6 +1294,12 @@ static void draw_art_pixels(struct gui_wps *gwps, struct skin_albumart *aa,
         y += aa->height - height;
     else if (aa->yalign & WPS_ALBUMART_ALIGN_CENTER)
         y += (aa->height - height) / 2;
+#ifdef HAVE_MENU_COVER
+    if (vp && !aa->reflect)
+        x += menu_cover_place(vp, x, y, width, height);
+#else
+    (void)vp;
+#endif
 
     draw_cover(gwps, aa, pixels,
                STRIDE(gwps->display->screen_type, width, height),
@@ -1280,7 +1310,7 @@ static void draw_kept_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
                                 int index)
 {
     draw_art_pixels(gwps, aa, kept_art[index].pixels, kept_art[index].width,
-                    kept_art[index].height);
+                    kept_art[index].height, NULL);
 }
 
 #if defined(ITUNESDB_HAVE_ART) && defined(AUDIO_FAST_SKIP_PREVIEW)
@@ -1333,17 +1363,6 @@ static bool db_art_ready(const struct wps_data *data, int index, int handle)
 #endif
 
 #ifdef ITUNESDB_HAVE_ART
-/* The cover beside the menus. It's larger than any Finder keeps and the panel is rarely
-   on screen when a track changes, so playback doesn't load it, and it's scaled here
-   when it's to be shown, and again only for another cover. */
-#define ART_MENU_SIZE LCD_HEIGHT
-static struct {
-    fb_data pixels[ART_MENU_SIZE * ART_MENU_SIZE];
-    short width, height;
-    uint32_t offset;
-    char path[sizeof(((struct itunesdb_art *)0)->path)];
-} menu_art;
-
 /* the covers made on Updating Library made again: an album's new one in the
    place of its old one, or of another's, which the copies here are known by */
 void skin_forget_db_art(void)
@@ -1353,45 +1372,7 @@ void skin_forget_db_art(void)
         if (kept_art[i].handle < 0)
             kept_art[i].width = 0;
     }
-    menu_art.width = 0;
-}
-
-static bool menu_art_ready(const struct wps_data *data)
-{
-    struct skin_albumart *aa = SKINOFFSETTOPTR(get_skin_buffer((struct wps_data *)data),
-                                               data->albumart);
-    struct mp3entry *id3 = audio_current_track();
-    struct itunesdb_art art;
-    if (!aa || !id3 || !(audio_status() & AUDIO_STATUS_PLAY)
-        || global_settings.album_art == AA_OFF
-        || !itunesdb_find_track_art(id3, id3->path, &art))
-        return false;
-    if (menu_art.width > 0 && menu_art.offset == art.offset
-        && !strcmp(menu_art.path, art.path))
-        return true;
-
-    struct bitmap bm;
-    memset(&bm, 0, sizeof(bm));
-    bm.width = MIN(aa->width, ART_MENU_SIZE);
-    bm.height = MIN(aa->height, ART_MENU_SIZE);
-    bm.data = (unsigned char *)menu_art.pixels;
-    menu_art.width = 0;
-    /* from the cover in the buffer if it's as large as Finder's, as the disk is
-       often off by the time the menus open, and turning it on takes 0.6 s */
-    const struct bitmap *buffered = playback_current_largest_art();
-    const int room = sizeof(bm) + sizeof(menu_art.pixels);
-    int size;
-    if (buffered && buffered->width >= art.width && buffered->height >= art.height)
-        size = itunesdb_scale_art(buffered, &bm, room);
-    else
-        size = itunesdb_load_art(&art, &bm, room);
-    if (size < 0)
-        return false;
-    menu_art.width = bm.width;
-    menu_art.height = bm.height;
-    menu_art.offset = art.offset;
-    strcpy(menu_art.path, art.path);
-    return true;
+    menu_cover_forget();
 }
 #endif /* ITUNESDB_HAVE_ART */
 
@@ -1401,7 +1382,7 @@ bool skin_art_found(const struct wps_data *data, int handle)
 {
     if (data != skin_get_gwps(WPS, SCREEN_MAIN)->data)
 #ifdef ITUNESDB_HAVE_ART
-        return handle >= 0 || menu_art_ready(data);
+        return handle >= 0 || menu_cover_ready(data);
 #else
         return handle >= 0;
 #endif
@@ -1451,7 +1432,7 @@ int skin_art_handle(const struct wps_data *data, int index, int handle)
     if (data != skin_get_gwps(WPS, SCREEN_MAIN)->data)
     {
 #ifdef ITUNESDB_HAVE_ART
-        if (handle < 0 && menu_art_ready(data))
+        if (handle < 0 && menu_cover_ready(data))
             return SKIN_ART_MENU;
 #endif
         return handle;
@@ -1517,7 +1498,11 @@ void wps_display_images(struct gui_wps *gwps, struct viewport* vp)
 #ifdef ITUNESDB_HAVE_ART
         else if (aa && aa->draw_handle == SKIN_ART_MENU)
         {
-            draw_art_pixels(gwps, aa, menu_art.pixels, menu_art.width, menu_art.height);
+            int width, height;
+            const fb_data *pixels = menu_cover_pixels(&width, &height);
+            /* it pans beside the menus, not in the radio's screen */
+            const bool sbs = data == skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data;
+            draw_art_pixels(gwps, aa, pixels, width, height, sbs ? vp : NULL);
             aa->draw_handle = -1;
         }
 #endif

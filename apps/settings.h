@@ -1097,6 +1097,9 @@ struct user_settings
        as one shows (Jump by Letter) */
     bool list_scrollbar;
     bool jump_by_letter;
+    /* Settings > Appearance: the cover beside the menus pans slowly from side
+       to side (Moving Cover) */
+    bool moving_cover;
 };
 
 /* global settings */

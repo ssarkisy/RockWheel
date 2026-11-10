@@ -17917,3 +17917,31 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_MOVING_COVER
+  desc: a setting of Settings > Appearance, after Jump by Letter, not shown with Album Art off: On, the album cover beside the menus pans slowly from side to side while a song plays or is paused, as a long name scrolls; Off, it stays still
+  user: core
+  <source>
+    *: "Moving Cover"
+  </source>
+  <dest>
+    *: "Portada en moviment"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_MOVING_COVER
+  desc: the hint in the band under Settings > Appearance while Moving Cover is selected, in three lines at most: what the user gets from it, and that it uses more battery
+  user: core
+  <source>
+    *: "The cover beside the menus drifts slowly from side to side while music plays. Uses more battery."
+  </source>
+  <dest>
+    *: "La portada al costat dels menús es mou a poc a poc d'un costat a l'altre mentre sona música. Gasta més bateria."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

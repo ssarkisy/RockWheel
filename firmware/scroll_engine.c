@@ -178,15 +178,37 @@ static void scroll_thread(void)
     }
 }
 #else /* !HAVE_REMOTE_LCD */
+static long (*tick_hook)(void);
+
+void scroll_set_tick_hook(long (*hook)(void))
+{
+    tick_hook = hook;
+}
+
 static void scroll_thread(void)
 {
+    long scroll_due = current_tick + lcd_scroll_info.ticks;
+    long hook_due = current_tick;
     while (1)
     {
-        sleep(lcd_scroll_info.ticks);
+        long (*hook)(void) = tick_hook;
+        long due = scroll_due;
+        if (hook && TIME_BEFORE(hook_due, due))
+            due = hook_due;
+        if (TIME_BEFORE(current_tick, due))
+            sleep(due - current_tick);
+
+        if (!TIME_BEFORE(current_tick, scroll_due))
+        {
 #if defined(HAVE_LCD_ENABLE) || defined(HAVE_LCD_SLEEP)
-        if (lcd_active())
+            if (lcd_active())
 #endif
-            lcd_scroll_worker();
+                lcd_scroll_worker();
+            scroll_due = current_tick + lcd_scroll_info.ticks;
+        }
+        hook = tick_hook;
+        if (hook && !TIME_BEFORE(current_tick, hook_due))
+            hook_due = current_tick + MAX(hook(), 1);
     }
 }
 #endif /* !HAVE_REMOTE_LCD */

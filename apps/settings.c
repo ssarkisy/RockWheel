@@ -84,6 +84,7 @@
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 #include "skin_engine/cover_palette.h"
 #endif
+#include "skin_engine/menu_cover.h"
 #include "viewport.h"
 #include "statusbar-skinned.h"
 #include "bootchart.h"
@@ -1037,6 +1038,7 @@ void settings_apply(bool read_disk)
     /* at boot before music, so that the audio buffer has to give way to nothing */
     cover_palette_set_mode(global_settings.cover_colours);
 #endif
+    menu_cover_changed(global_settings.moving_cover);
 #ifdef HAVE_TAGCACHE
     /* and the covers of lists' rows, as theirs; and Albums' rows, which a
        .cfg or a reset may have split by album artists or not */

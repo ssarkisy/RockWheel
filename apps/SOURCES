@@ -119,6 +119,7 @@ gui/viewport.c
 gui/skin_engine/skin_backdrops.c
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 gui/skin_engine/cover_palette.c
+gui/skin_engine/menu_cover.c
 #endif
 gui/skin_engine/skin_display.c
 gui/skin_engine/skin_engine.c
