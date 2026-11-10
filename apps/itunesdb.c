@@ -156,6 +156,9 @@ static void note_art_song(int track, uint64_t dbid)
    otherwise it goes a sector at a time through a buffer of its own */
 #define READ_ALIGN      2048  /* the largest sector there is */
 #define CACHE_SIZE      65536 /* a multiple of READ_ALIGN */
+/* reads of files read through: 1 KB reads of the state and ids files took
+   400 disk commands a sync */
+#define READ_BLOCK      16384
 #define POOL_PER_TRACK  64 /* bytes of path; Finder's take about 35 */
 #define WRITE_BUF_SIZE  32768
 /* more than any file of ours or Finder's should count: a damaged count would
@@ -596,7 +599,14 @@ static int load_known_hashes(int *handle)
     int fd = open(STATE_FILE, O_RDONLY);
     if (fd < 0)
         return 0;
-    *handle = db_alloc(hdr.count * sizeof(uint64_t));
+    /* with a block behind the hashes to read into, given back after */
+    size_t block = READ_BLOCK;
+    *handle = db_alloc(hdr.count * sizeof(uint64_t) + block);
+    if (*handle <= 0)
+    {
+        block = 0;
+        *handle = db_alloc(hdr.count * sizeof(uint64_t));
+    }
     if (*handle <= 0)
     {
         *handle = 0;
@@ -605,12 +615,15 @@ static int load_known_hashes(int *handle)
     }
     core_pin(*handle);
     uint64_t *hashes = core_get_data(*handle);
-    struct state_entry chunk[64];
+    struct state_entry small[64];
+    struct state_entry *chunk = block ? (struct state_entry *)(hashes + hdr.count)
+                                      : small;
+    const size_t per = block ? block / sizeof(*chunk) : ARRAYLEN(small);
     uint32_t n = 0;
     lseek(fd, sizeof(hdr), SEEK_SET);
     while (n < hdr.count)
     {
-        size_t want = MIN(hdr.count - n, ARRAYLEN(chunk));
+        size_t want = MIN(hdr.count - n, per);
         if (read(fd, chunk, want * sizeof(chunk[0]))
             != (ssize_t)(want * sizeof(chunk[0])))
             break;
@@ -618,6 +631,13 @@ static int load_known_hashes(int *handle)
             hashes[n++] = chunk[i].hash;
     }
     close(fd);
+    if (block)
+    {
+        core_unpin(*handle);
+        core_shrink(*handle, hashes, hdr.count * sizeof(uint64_t));
+        core_pin(*handle);
+        hashes = core_get_data(*handle);
+    }
     qsort_yielding(hashes, n, sizeof(uint64_t), cmp_u64);
     return n;
 }
@@ -6100,7 +6120,14 @@ static void note_moved_songs(void)
     const int n = db.count;
     if (n <= 0)
         return;
-    const int handle = db_alloc(n * sizeof(struct id_track));
+    /* with a block behind them for the last sync's, if there's room */
+    size_t block = READ_BLOCK;
+    int handle = db_alloc(n * sizeof(struct id_track) + block);
+    if (handle <= 0)
+    {
+        block = 0;
+        handle = db_alloc(n * sizeof(struct id_track));
+    }
     if (handle <= 0)
         return;
     core_pin(handle);
@@ -6129,10 +6156,12 @@ static void note_moved_songs(void)
         && head[0] == IDS_MAGIC)
     {
         changed = head[1] != (uint32_t)count;
-        struct id_pair old[64];
+        struct id_pair small[64];
+        struct id_pair *old = block ? (struct id_pair *)(ids + n) : small;
+        const size_t old_size = block ? block : sizeof(small);
         int at = 0;
         ssize_t got;
-        while ((got = read(fd, old, sizeof(old))) > 0)
+        while ((got = read(fd, old, old_size)) > 0)
         {
             const int k = got / sizeof(*old);
             for (int j = 0; j < k; j++)

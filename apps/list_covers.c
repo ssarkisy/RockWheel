@@ -1078,6 +1078,11 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
     /* the slide aligned by itunesdb_load_slide() within its room */
     unsigned char *slide = (unsigned char *)(by_key + old_count);
     unsigned char *out = read_aligned(slide + slide_room);
+    /* old covers in consecutive slots read at once, if there's room */
+    const size_t run_room = STRETCH * SLOT_SIZE + READ_ALIGN;
+    unsigned char *run = room >= need + run_room
+                         ? read_aligned(out + STRETCH * SLOT_SIZE) : NULL;
+    int run_first = 0, run_count = 0;
     bool ok = old_count == 0
               || read(old_fd, old, old_count * sizeof(*old))
                  == (ssize_t)(old_count * sizeof(*old));
@@ -1154,8 +1159,34 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
         const off_t old_pos = data_start(old_count) + (off_t)(was >= 0 ? old[was].slot : 0)
                               * SLOT_SIZE;
         struct itunesdb_art art;
-        const bool kept = was >= 0 && lseek(old_fd, old_pos, SEEK_SET) == old_pos
-                          && read(old_fd, cover, SLOT_SIZE) == SLOT_SIZE;
+        bool kept = false;
+        if (was >= 0 && run)
+        {
+            const int slot = old[was].slot;
+            if (slot < run_first || slot >= run_first + run_count)
+            {
+                /* with the next covers that are in the old slots after it */
+                int n = 1;
+                for (; n < STRETCH && s + n < slots; n++)
+                {
+                    const int next = old_cover(by_key, usable_old,
+                                               entries[order[s + n]].key,
+                                               entries[order[s + n]].source);
+                    if (next < 0 || old[next].slot != slot + n)
+                        break;
+                }
+                run_first = slot;
+                run_count = lseek(old_fd, old_pos, SEEK_SET) == old_pos
+                            && read(old_fd, run, n * SLOT_SIZE) == n * SLOT_SIZE
+                            ? n : 0;
+            }
+            kept = slot >= run_first && slot < run_first + run_count;
+            if (kept)
+                memcpy(cover, run + (slot - run_first) * SLOT_SIZE, SLOT_SIZE);
+        }
+        if (!kept)
+            kept = was >= 0 && lseek(old_fd, old_pos, SEEK_SET) == old_pos
+                   && read(old_fd, cover, SLOT_SIZE) == SLOT_SIZE;
         if (!kept && !(album_header_find_art(album_years_first_track(no), &art) > 0
                        && make_cover(&art, cover, slide)))
         {
