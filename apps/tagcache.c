@@ -4083,21 +4083,19 @@ static int tempbuf_sort(int fd, long old_n)
         if (lookup[i]->idlist.id == i)
             continue;
 
-        idlist = &lookup[i]->idlist;
-        while (idlist->next != NULL)
-            idlist = idlist->next;
-
         ALIGN_BUFFER(tempbuf_pos, tempbuf_left, alignof(struct tempbuf_id_list));
         tempbuf_left -= sizeof(struct tempbuf_id_list);
         if (tempbuf_left < 0)
             return -1;
 
-        idlist->next = (struct tempbuf_id_list *)&tempbuf[tempbuf_pos];
+        /* after the head: the order doesn't matter, and walking to the end
+           was quadratic */
+        struct tempbuf_id_list *head = &lookup[i]->idlist;
+        idlist = (struct tempbuf_id_list *)&tempbuf[tempbuf_pos];
         tempbuf_pos += sizeof(struct tempbuf_id_list);
-
-        idlist = idlist->next;
         idlist->id = i;
-        idlist->next = NULL;
+        idlist->next = head->next;
+        head->next = idlist;
 
         do_timed_yield();
     }
