@@ -56,6 +56,7 @@
 #ifdef HAVE_TAGCACHE
 #include "ipod_playlists.h"
 #include "album_header.h"
+#include "album_years.h"
 #endif
 
 #if CONFIG_CHARGING
@@ -955,6 +956,9 @@ static const struct plugin_api rockbox_api = {
 #endif
     font_text_form,
     font_set_text_form,
+    album_years_ready,
+    album_date,
+    album_date_order,
 };
 
 static int plugin_buffer_handle;

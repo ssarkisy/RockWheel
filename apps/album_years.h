@@ -42,7 +42,9 @@ static inline int album_date_year(int32_t date)
 bool album_years_make(void);
 /* made, and for the library as it is */
 bool album_years_ready(void);
-/* an album's year, by its name's and album artist's seeks; 0 if none */
+/* an album's date and its year, by its name's and album artist's seeks; 0 if
+   none */
+int32_t album_date(int32_t album, int32_t albumartist);
 int album_year(int32_t album, int32_t albumartist);
 /* The order of the albums' dates, by year, as Music has releases without a
    day after those with one: those of a year with their day first, then

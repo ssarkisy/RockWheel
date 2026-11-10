@@ -23,6 +23,7 @@
 ****************************************************************************/
 
 #include "plugin.h"
+#include "album_years.h"
 #include "albumart.h"
 #include "lib/read_image.h"
 #include "lib/pluginlib_actions.h"
@@ -434,7 +435,8 @@ struct slide_cache {
 struct album_data {
     int name_idx;    /* offset to the album name */
     int artist_idx;  /* offset to the artist name */
-    int year;        /* album year */
+    int year;        /* album year; its date once take_album_dates() has run:
+                        yyyymmdd, yyyymm00 or the year alone */
     long artist_seek; /* artist taglist position */
     long seek;        /* album taglist position */
     int first_track;  /* its first track in the database, -1 if not known */
@@ -1252,6 +1254,21 @@ static int compare_albums (const void *a_v, const void *b_v)
     int year_a = ((struct album_data *)a_v)->year;
     int year_b = ((struct album_data *)b_v)->year;
 
+#ifdef ITUNESDB_HAVE_ART
+    /* as Music's lists: by album artist, each one's oldest first and those
+       without a date last, then by name; the songs without an album last */
+    const bool untagged_a = album_a == pf_idx.album_untagged_idx;
+    const bool untagged_b = album_b == pf_idx.album_untagged_idx;
+    if (untagged_a != untagged_b)
+        return untagged_a ? 1 : -1;
+    if (artist_a != artist_b)
+        return artist_a < artist_b ? -1 : 1;
+    const int32_t order_a = rb->album_date_order(year_a);
+    const int32_t order_b = rb->album_date_order(year_b);
+    if (order_a != order_b)
+        return !order_a ? 1 : !order_b ? -1 : order_a < order_b ? -1 : 1;
+    return album_a < album_b ? -1 : album_a > album_b;
+#else
     switch (pf_cfg.sort_albums_by)
     {
         case SORT_BY_ARTIST_AND_NAME:
@@ -1283,6 +1300,23 @@ static int compare_albums (const void *a_v, const void *b_v)
     }
 
     return (int)(artist_a - artist_b);
+#endif
+}
+
+/* the albums' dates from Music's table of albums, in place of the years
+   counted here; none for the songs without an album, as Music has them */
+static void take_album_dates(void)
+{
+#ifdef ITUNESDB_HAVE_ART
+    if (!rb->album_years_ready())
+        return;
+    for (int i = 0; i < pf_idx.album_ct; i++)
+    {
+        struct album_data *a = &pf_idx.album_index[i];
+        a->year = a->name_idx == (int)pf_idx.album_untagged_idx ? 0
+                  : rb->album_date(a->seek, a->artist_seek);
+    }
+#endif
 }
 
 static int compare_album_artists (const void *a_v, const void *b_v)
@@ -1890,6 +1924,7 @@ static int create_album_index(void)
     pf_idx.buf_sz = buf_size;
     pf_idx.artist_index = 0;
 
+    take_album_dates();
     rb->qsort(pf_idx.album_index, pf_idx.album_ct,
                           sizeof(struct album_data), compare_albums);
 
@@ -2043,6 +2078,7 @@ static int load_album_index(void){
                 pf_idx.buf = buf;
                 pf_idx.buf_sz = buf_size;
 
+                take_album_dates();
                 rb->qsort(pf_idx.album_index, pf_idx.album_ct,
                           sizeof(struct album_data), compare_albums);
 
@@ -2096,6 +2132,26 @@ static char* get_album_artist(const int slide_index)
         }
     }
     return "?";
+}
+
+/* An album's year, of its date or as counted here; and its artist with it,
+   "LINKIN PARK · 2000" */
+static int album_shown_year(const int slide_index)
+{
+    if (slide_index < 0 || slide_index >= pf_idx.album_ct)
+        return 0;
+    return album_date_year(pf_idx.album_index[slide_index].year);
+}
+
+static const char *get_album_artist_year(const int slide_index, char *buf,
+                                         size_t size)
+{
+    const char *artist = get_album_artist(slide_index);
+    const int year = album_shown_year(slide_index);
+    if (year <= 0)
+        return artist;
+    rb->snprintf(buf, size, "%s · %d", artist, year);
+    return buf;
 }
 
 
@@ -4847,8 +4903,20 @@ static void draw_track_panel(bool loading)
     if (album_idx != (int) pf_idx.album_untagged_idx)
         put_fitted(text_x, py + 1, album, text_w, buf, sizeof(buf));
     rb->lcd_setfont(panel_small_font);
-    put_fitted(text_x, py + PANEL_HEAD - 3 - rb->font_get(panel_small_font)->height,
-               get_album_artist(idx), text_w, buf, sizeof(buf));
+    /* the artist cut short, if it must be, rather than the year after it */
+    const int artist_y = py + PANEL_HEAD - 3 - rb->font_get(panel_small_font)->height;
+    char year[16] = "";
+    if (album_shown_year(idx) > 0)
+        rb->snprintf(year, sizeof(year), " · %d", album_shown_year(idx));
+    const int year_w = rb->lcd_getstringsize(year, NULL, NULL);
+    const char *artist = get_album_artist(idx);
+    rb->font_set_text_form(rb->font_text_form((const unsigned char *)artist, -1));
+    artist = fit_text(artist, text_w - year_w, buf, sizeof(buf));
+    const int artist_w = rb->lcd_getstringsize(artist, NULL, NULL);
+    rb->lcd_putsxy(text_x, artist_y, artist);
+    rb->font_set_text_form(-1);
+    if (*year)
+        rb->lcd_putsxy(text_x + artist_w, artist_y, year);
 
     rb->lcd_setfont(panel_font);
     const int fh = rb->font_get(panel_font)->height;
@@ -6007,10 +6075,10 @@ static void draw_album_text(void)
     }
     albumtxt = get_album_name_idx(albumtxt_index, &album_idx);
 
-    if (pf_cfg.show_year && pf_idx.album_index[albumtxt_index].year > 0)
+    if (pf_cfg.show_year && album_shown_year(albumtxt_index) > 0)
     {
         rb->snprintf(album_and_year, sizeof(album_and_year), "%s – %d",
-             albumtxt, pf_idx.album_index[albumtxt_index].year);
+             albumtxt, album_shown_year(albumtxt_index));
     } else
         rb->snprintf(album_and_year, sizeof(album_and_year), "%s", albumtxt);
 
@@ -6050,7 +6118,9 @@ static void draw_album_text(void)
         if (album_idx != (int) pf_idx.album_untagged_idx)
             mylcd_putsxy(albumtxt_x, albumtxt_y, album_and_year);
 
-        artisttxt = get_album_artist(albumtxt_index);
+        static char artist_and_year[MAX_PATH];
+        artisttxt = (char *)get_album_artist_year(albumtxt_index, artist_and_year,
+                                                  sizeof(artist_and_year));
         if (new_album)
             set_scroll_line(artisttxt, PF_SCROLL_ARTIST);
         artisttxt_x = get_scroll_line_offset(PF_SCROLL_ARTIST);

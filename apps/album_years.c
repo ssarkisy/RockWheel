@@ -283,13 +283,18 @@ static int32_t name_date(const struct album *albums, int first)
     return date;
 }
 
-int album_year(int32_t album, int32_t albumartist)
+int32_t album_date(int32_t album, int32_t albumartist)
 {
     if (!album_years_ready() || count == 0)
         return 0;
     const struct album *albums = core_get_data(handle);
     const int i = album_in(albums, album, albumartist);
-    return i < 0 ? 0 : album_date_year(albums[i].date);
+    return i < 0 ? 0 : albums[i].date;
+}
+
+int album_year(int32_t album, int32_t albumartist)
+{
+    return album_date_year(album_date(album, albumartist));
 }
 
 int album_years_find(int32_t album, int *n)
@@ -473,6 +478,11 @@ unsigned album_years_generation(void)
 
 bool album_years_make(void) { return false; }
 bool album_years_ready(void) { return false; }
+int32_t album_date(int32_t album, int32_t albumartist)
+{
+    (void)album; (void)albumartist;
+    return 0;
+}
 int album_year(int32_t album, int32_t albumartist)
 {
     (void)album; (void)albumartist;
