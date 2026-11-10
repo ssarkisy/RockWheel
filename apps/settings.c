@@ -134,7 +134,7 @@ static char *debug_get_flags(uint32_t flags);
 
 /* A save of config.cfg or .resume.cfg goes to .new, promoted at the next
    boot if whole, the file before it kept as .old: nothing is renamed while
-   in use, as a cut inside a rename can leave two entries on one file. */
+   in use, as a cut inside a rename can leave the file under neither name. */
 #define CONFIGFILE_NEW CONFIGFILE".new"
 #define CONFIGFILE_OLD CONFIGFILE".old"
 #define RESUMEFILE_NEW RESUMEFILE".new"

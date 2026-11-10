@@ -323,6 +323,7 @@ enum add_dir_entry_flags
     DIRENT_TEMPL_WRT   = 0x04, /* use template wrttime */
     DIRENT_TEMPL_ACC   = 0x08, /* use template lstacc time */
     DIRENT_TEMPL_TIMES = 0x0e, /* keep all time fields */
+    DIRENT_RENAME      = 0x10, /* frees file's old entries first */
 };
 
 struct fatlong_parse_state
@@ -1446,6 +1447,45 @@ static union raw_dirent * cache_direntry(struct bpb *fat_bpb,
     return ent;
 }
 
+/* finds a free cluster after oldcluster (0: from nextfree) without taking
+   it */
+static long find_write_cluster(struct bpb *fat_bpb, long oldcluster)
+{
+#ifdef HAVE_FAT16SUPPORT
+    if (UNLIKELY(oldcluster < 0))
+        return 0; /* negative, pseudo-cluster of the root dir */
+                  /* impossible to append something to the root */
+#endif /* HAVE_FAT16SUPPORT */
+
+    long findstart = oldcluster > 0 ?
+        oldcluster + 1 : (long)fat_bpb->fsinfo.nextfree;
+
+    long cluster = find_free_cluster(fat_bpb, findstart);
+
+    if (!cluster)
+    {
+    #ifdef TEST_FAT
+        if (fat_bpb->fsinfo.freecount > 0)
+            panicf("There is free space, but find_free_cluster() "
+                   "didn't find it!\n");
+    #endif
+        DEBUGF("Disk full!\n");
+    }
+
+    return cluster;
+}
+
+/* the new end first: a dirty FAT sector evicted between the two then leaves
+   a cluster taken, never a link to a free one */
+static void link_write_cluster(struct bpb *fat_bpb, long oldcluster,
+                               long cluster)
+{
+    update_fat_entry(fat_bpb, cluster, FAT_EOF_MARK);
+
+    if (oldcluster)
+        update_fat_entry(fat_bpb, oldcluster, cluster);
+}
+
 static long next_write_cluster(struct bpb *fat_bpb, long oldcluster)
 {
     DEBUGF("%s(old:%lx)\n", __func__, oldcluster);
@@ -1459,36 +1499,11 @@ static long next_write_cluster(struct bpb *fat_bpb, long oldcluster)
     if (!cluster)
     {
         /* passed end of existing entries and now need to append */
-    #ifdef HAVE_FAT16SUPPORT
-        if (UNLIKELY(oldcluster < 0))
-            return 0; /* negative, pseudo-cluster of the root dir */
-                      /* impossible to append something to the root */
-    #endif /* HAVE_FAT16SUPPORT */
-
         dc_lock_cache();
 
-        long findstart = oldcluster > 0 ?
-            oldcluster + 1 : (long)fat_bpb->fsinfo.nextfree;
-
-        cluster = find_free_cluster(fat_bpb, findstart);
-
+        cluster = find_write_cluster(fat_bpb, oldcluster);
         if (cluster)
-        {
-            /* create the cluster chain */
-            if (oldcluster)
-                update_fat_entry(fat_bpb, oldcluster, cluster);
-
-            update_fat_entry(fat_bpb, cluster, FAT_EOF_MARK);
-        }
-        else
-        {
-        #ifdef TEST_FAT
-            if (fat_bpb->fsinfo.freecount > 0)
-                panicf("There is free space, but find_free_cluster() "
-                       "didn't find it!\n");
-        #endif
-            DEBUGF("Disk full!\n");
-        }
+            link_write_cluster(fat_bpb, oldcluster, cluster);
 
         dc_unlock_cache();
     }
@@ -1505,7 +1520,15 @@ static int fat_extend_dir(struct bpb *fat_bpb, struct fat_filestr *dirstr)
     int rc;
 
     long cluster    = dirstr->lastcluster;
-    long newcluster = next_write_cluster(fat_bpb, cluster);
+    long newcluster = cluster ? get_next_cluster(fat_bpb, cluster) : 0;
+    const bool add  = !newcluster;
+
+    if (add)
+    {
+        dc_lock_cache();
+        newcluster = find_write_cluster(fat_bpb, cluster);
+        dc_unlock_cache();
+    }
 
     if (!newcluster)
     {
@@ -1530,17 +1553,19 @@ static int fat_extend_dir(struct bpb *fat_bpb, struct fat_filestr *dirstr)
         {
             dc_unlock_cache();
             DEBUGF("Cannot clear cluster %ld\n", newcluster);
-            update_fat_entry(fat_bpb, newcluster, 0);
             FAT_ERROR(-2);
         }
 
-        /* on the disk before the commit that writes the FAT link, unless a
-           dirty FAT sector is evicted meanwhile: a cut then leaves old data
-           read as entries */
         memset(sec, 0, LOG_SECTOR_SIZE(fat_bpb));
         dc_writeback_callback(IF_MV(fat_bpb->volume,) sector, sec);
         dc_unlock_cache();
     }
+
+    /* linked in only once cleared on the disk: an eviction while clearing
+       writes the FAT, and a cut then would leave old data read as entries.
+       Callers hold the writer lock, so no write takes the cluster first. */
+    if (add)
+        link_write_cluster(fat_bpb, cluster, newcluster);
 
     if (!dirstr->fatfilep->firstcluster)
         dirstr->fatfilep->firstcluster = newcluster;
@@ -1816,6 +1841,8 @@ fat_error:
     return rc;
 }
 
+static int free_direntries(struct bpb *fat_bpb, struct fat_file *file);
+
 static int add_dir_entry(struct bpb *fat_bpb, struct fat_filestr *parentstr,
                          struct fat_file *file, const char *name,
                          union raw_dirent *srcent, uint8_t attr,
@@ -1961,6 +1988,26 @@ static int add_dir_entry(struct bpb *fat_bpb, struct fat_filestr *parentstr,
         firstentry = entry - entries_found;
     }
 
+    if (flags & DIRENT_RENAME)
+    {
+        /* the old entries go in a commit before the new ones, unless both
+           short entries are in one sector, written at once: no cut leaves
+           two entries on one chain, which a remove() of either would free
+           under the other */
+        const bool apart =
+            file->dircluster != parentstr->fatfilep->firstcluster ||
+            file->e.entry / DIR_ENTRIES_PER_SECTOR !=
+            (unsigned int)(firstentry + entries_needed - 1) /
+            DIR_ENTRIES_PER_SECTOR;
+
+        rc = free_direntries(fat_bpb, file);
+        if (rc <= 0)
+            FAT_ERROR(rc * 10 - 7);
+
+        if (apart)
+            cache_commit(fat_bpb);
+    }
+
     /* remember the parent directory entry information */
 #ifdef HAVE_MULTIVOLUME
     file->volume     = parentstr->fatfilep->volume;
@@ -2089,6 +2136,35 @@ static int free_direntries(struct bpb *fat_bpb, struct fat_file *file)
     return 1;
 }
 
+/* undoes free_direntries(), which overwrote only each entry's first byte:
+   the long entries' ordinals, the short entry's shortfirst */
+static void NO_INLINE restore_direntries(struct bpb *fat_bpb,
+                                         const struct fat_file *file,
+                                         uint8_t shortfirst)
+{
+    struct fat_file parent;
+    fat_open_internal(IF_MV(file->volume,) file->dircluster, &parent);
+
+    struct fat_filestr parentstr;
+    fat_filestr_init(&parentstr, &parent);
+
+    for (unsigned int ord = file->e.entries; ord-- > 0;)
+    {
+        dc_lock_cache();
+
+        union raw_dirent *ent =
+            cache_direntry(fat_bpb, &parentstr, file->e.entry - ord);
+        if (ent)
+        {
+            ent->data[0] = !ord ? shortfirst :
+                ord | (ord == file->e.entries - 1u ? FATLONG_ORD_F_LAST : 0);
+            dc_dirty_buf(ent);
+        }
+
+        dc_unlock_cache();
+    }
+}
+
 static int free_cluster_chain(struct bpb *fat_bpb, long startcluster)
 {
     for (long last = startcluster, next; last; last = next)
@@ -2173,6 +2249,9 @@ int fat_create_file(struct fat_file *parent, const char *name,
                            attr, DIRENT_TEMPL_TIMES);
         if (rc < 0)
             FAT_ERROR(rc * 10 - 4);
+
+        /* '.' and '..' on the disk before the parent's entry to the folder */
+        cache_commit(fat_bpb);
 
         addflags |= DIRENT_TEMPL_TIMES;
     }
@@ -2300,6 +2379,43 @@ fat_error:
     return rc;
 }
 
+/* points the '..' entry of directory dirfile at parentcluster, or, with -1,
+   only checks that there is one */
+static int set_dotdot(struct bpb *fat_bpb, const struct fat_file *dirfile,
+                      long parentcluster)
+{
+    int rc = 0;
+
+    struct fat_file dir;
+    fat_open_internal(IF_MV(dirfile->volume,) dirfile->firstcluster, &dir);
+
+    struct fat_filestr dirstr;
+    fat_filestr_init(&dirstr, &dir);
+
+    dc_lock_cache();
+
+    union raw_dirent *ent = cache_direntry(fat_bpb, &dirstr, 1);
+    if (!ent)
+        FAT_ERROR(-1);
+
+    if (strncmp("..         ", ent->name, 11))
+    {
+        /* .. entry must be second entry according to FAT spec (p.29) */
+        DEBUGF("Second dir entry is not double-dot!\n");
+        FAT_ERROR(-2);
+    }
+
+    if (parentcluster >= 0)
+    {
+        raw_dirent_set_fstclus(ent, parentcluster);
+        dc_dirty_buf(ent);
+    }
+
+fat_error:
+    dc_unlock_cache();
+    return rc;
+}
+
 int fat_rename(struct fat_file *parent, struct fat_file *file,
                const unsigned char *newname)
 {
@@ -2310,6 +2426,7 @@ int fat_rename(struct fat_file *parent, struct fat_file *file,
     int rc;
     /* save old file; don't change it unless everything succeeds */
     struct fat_file newfile = *file;
+    union raw_dirent rawent;
 
 #ifdef HAVE_MULTIVOLUME
     /* rename only works on the same volume */
@@ -2352,59 +2469,41 @@ int fat_rename(struct fat_file *parent, struct fat_file *file,
         FAT_ERROR(-5);
     }
 
-    union raw_dirent rawent = *ent;
+    rawent = *ent;
 
     dc_unlock_cache();
 
-    /* create new name in new parent directory */
+    /* a moved folder's '..': checked before the old name goes, set after the
+       new one is written */
+    const bool movedir = (rawent.attr & ATTR_DIRECTORY) &&
+                         parent->firstcluster != file->dircluster;
+
+    if (movedir)
+    {
+        rc = set_dotdot(fat_bpb, file, -1);
+        if (rc < 0)
+            FAT_ERROR(rc * 10 - 6);
+    }
+
     fat_filestr_init(&dirstr, parent);
-    rc = add_dir_entry(fat_bpb, &dirstr, &newfile, newname, &rawent,
-                       0, DIRENT_TEMPL_CRT | DIRENT_TEMPL_WRT);
+    rc = add_dir_entry(fat_bpb, &dirstr, &newfile, newname, &rawent, 0,
+                       DIRENT_TEMPL_CRT | DIRENT_TEMPL_WRT | DIRENT_RENAME);
     if (rc == FAT_RC_ENOSPC)
         FAT_ERROR(RC);
     else if (rc < 0)
-        FAT_ERROR(rc * 10 - 6);
+        FAT_ERROR(rc * 10 - 7);
 
-    /* if renaming a directory and it was a move, update the '..' entry to
-       keep it pointing to its parent directory */
-    if ((rawent.attr & ATTR_DIRECTORY) && newfile.dircluster != file->dircluster)
+    if (movedir)
     {
-        /* open the dir that was renamed */
-        fat_open_internal(IF_MV(newfile.volume,) newfile.firstcluster, &dir);
-        fat_filestr_init(&dirstr, &dir);
-
-        /* obtain dot-dot directory entry */
-        dc_lock_cache();
-        ent = cache_direntry(fat_bpb, &dirstr, 1);
-        if (!ent)
-        {
-            dc_unlock_cache();
-            FAT_ERROR(-7);
-        }
-
-        if (strncmp("..         ", ent->name, 11))
-        {
-            /* .. entry must be second entry according to FAT spec (p.29) */
-            DEBUGF("Second dir entry is not double-dot!\n");
-            dc_unlock_cache();
-            FAT_ERROR(-8);
-        }
-
         /* parent cluster is 0 if parent dir is the root - FAT spec (p.29) */
         long parentcluster = 0;
         if (parent->firstcluster != fat_bpb->bpb_rootclus)
             parentcluster = parent->firstcluster;
 
-        raw_dirent_set_fstclus(ent, parentcluster);
-
-        dc_dirty_buf(ent);
-        dc_unlock_cache();
+        rc = set_dotdot(fat_bpb, file, parentcluster);
+        if (rc < 0)
+            FAT_ERROR(rc * 10 - 8);
     }
-
-    /* remove old name */
-    rc = free_direntries(fat_bpb, file);
-    if (rc <= 0)
-        FAT_ERROR(rc * 10 - 9);
 
     /* finally, update old file with new directory entry info */
     *file = newfile;
@@ -2412,7 +2511,17 @@ int fat_rename(struct fat_file *parent, struct fat_file *file,
     rc = 0;
 fat_error:
     if (rc < 0 && !fat_file_is_same(&newfile, file))
+    {
+        /* the new entries off the disk before the old ones are back */
         free_direntries(fat_bpb, &newfile);
+        cache_commit(fat_bpb);
+        restore_direntries(fat_bpb, file, rawent.name[0]);
+    }
+    else if (rc < 0 && newfile.e.entries != file->e.entries)
+    {
+        /* a read failed partway through freeing the old ones */
+        restore_direntries(fat_bpb, file, rawent.name[0]);
+    }
 
     cache_commit(fat_bpb);
     return rc;
