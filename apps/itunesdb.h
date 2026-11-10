@@ -221,6 +221,8 @@ uint32_t itunesdb_cover_image_of(uint64_t key);
 /* the images outside Finder's folder changed since the covers were made, by
    the check after USB: they're to be looked at again */
 bool itunesdb_covers_images_changed(void);
+/* room for a cover more, the next import's kept; else the message (misc.h) */
+bool itunesdb_covers_room(void);
 /* 1 made, 0 not, -1 for no room left on the disk, which ends the making */
 int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm);
 /* how they end: every album looked at, those not being gone; cut short by

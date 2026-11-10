@@ -7675,8 +7675,8 @@ static void prepare_covers(void)
         rb->reset_poweroff_timer();
         if (make_cover(&jobs[i], decode, decode_size, known) < 0)
         {
-            /* the disk nearly full: those made kept, the others as they were */
-            all = false;
+            /* the disk nearly full: the rest at a boot with room */
+            whole = false;
             break;
         }
         rb->yield();
@@ -7774,7 +7774,16 @@ static enum plugin_status prepare_album_list(void)
         else if (!listed)
             covers_later();
 #endif
-        if (listed && save_album_index() == 0)
+        if (listed && save_album_index() < 0)
+        {
+#ifdef HAVE_TC_RAMCACHE
+            /* for want of room, as a rule: the list and the covers at a
+               boot with room */
+            covers_later();
+#endif
+            return PLUGIN_OK;
+        }
+        if (listed)
         {
             /* as init() does for a new list */
             aa_cache.idx = aa_cache.inspected = 0;

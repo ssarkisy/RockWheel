@@ -234,6 +234,12 @@ enum {
                                  a sync: found of those known */
 };
 int tagcache_get_import(int *done, int *total);
+/* an import or a check after USB, or a commit, was left for want of room on
+   the disk since the last call */
+bool tagcache_take_no_space(void);
+/* KB the library's caches, as the covers, leave free: what the next import
+   of the library needs, so that they don't take its room */
+unsigned long tagcache_caches_floor_kb(void);
 /* during a restore: the old counts of Finder's songs are this iTunesDB's */
 bool tagcache_restore_finder(void);
 /* a database of another format built again, until its import is done */

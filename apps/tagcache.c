@@ -580,6 +580,25 @@ static bool tagfile_wbuf_put(int fd, const void *data, size_t len)
     return true;
 }
 
+/* an import, a check or a commit left for want of room on the disk, until
+   tagcache_take_no_space() */
+static volatile bool no_space;
+/* the scan stopped for a failed write or no room: its files are removed */
+static bool scan_failed;
+
+static void scan_write_failed(void)
+{
+    if (errno == ENOSPC)
+        no_space = true;
+    scan_failed = true;
+}
+
+static void scan_put(const void *data, size_t len)
+{
+    if (!scan_failed && !tagfile_wbuf_put(cachefd, data, len))
+        scan_write_failed();
+}
+
 static int total_entry_count = 0;
 static int data_size = 0;
 static int processed_dir_count;
@@ -801,6 +820,63 @@ static void remove_scan_files(void)
     remove_db_file(TAGCACHE_FILE_SORT_SCAN);
 #endif
 }
+
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+static bool room_for(unsigned long need_kb)
+{
+    sector_t free_kb = 0;
+    volume_size(IF_MV(0,) NULL, &free_kb);
+    if (free_kb >= need_kb)
+        return true;
+    logf("no room: %lu KB free, %lu KB needed", (unsigned long)free_kb,
+         need_kb);
+    no_space = true;
+    return false;
+}
+
+static off_t db_file_size(const char *name)
+{
+    const int fd = open_db_fd(name, O_RDONLY);
+    if (fd < 0)
+        return 0;
+    const off_t size = ffilesize(fd);
+    close(fd);
+    return size;
+}
+
+/* KB of the database's files: at least what a commit writes anew beside
+   them */
+static unsigned long db_files_kb(void)
+{
+    char name[32];
+    off_t size = db_file_size(TAGCACHE_FILE_MASTER);
+#ifdef TAGCACHE_SORT_FIELDS
+    size += db_file_size(TAGCACHE_FILE_SORT);
+#endif
+    for (int i = 0; i < TAG_COUNT; i++)
+    {
+        if (TAGCACHE_IS_NUMERIC(i))
+            continue;
+        snprintf(name, sizeof(name), TAGCACHE_FILE_INDEX, i);
+        size += db_file_size(name);
+    }
+    return size / 1024;
+}
+
+/* the larger of the commit's new files (at most the old ones and the new
+   entries) and the files made after it, as Play Counts' stamp and Search's
+   names (a quarter KB a song; a seventh measured with 13k) */
+static bool commit_room(int tmpfd, long new_entries)
+{
+    const unsigned long songs = new_entries
+        + db_file_size(TAGCACHE_FILE_MASTER) / sizeof(struct index_entry);
+    return room_for(MAX(db_files_kb() + ffilesize(tmpfd) / 1024, songs / 4)
+                    + 1024);
+}
+#else
+#define room_for(need_kb) true
+#define commit_room(tmpfd, new_entries) true
+#endif
 
 static int open_tag_fd(struct tagcache_header *hdr, int tag, bool write)
 {
@@ -2834,7 +2910,10 @@ static bool sort_scan_flush(void)
 static void sort_scan_put(const void *data, size_t len)
 {
     if (sort_scan_used + len > sizeof(sort_scan_buf) && !sort_scan_flush())
+    {
+        scan_write_failed();
         return;
+    }
     memcpy(sort_scan_buf + sort_scan_used, data, len);
     sort_scan_used += len;
     sort_scan_header.crc = crc_32(data, len, sort_scan_header.crc);
@@ -2878,8 +2957,10 @@ static void sort_scan_close(void)
 {
     if (sort_scan_fd < 0)
         return;
-    if (sort_scan_flush() && lseek(sort_scan_fd, 0, SEEK_SET) == 0)
-        write(sort_scan_fd, &sort_scan_header, sizeof(sort_scan_header));
+    if (!sort_scan_flush() || lseek(sort_scan_fd, 0, SEEK_SET) != 0
+        || write(sort_scan_fd, &sort_scan_header, sizeof(sort_scan_header))
+           != sizeof(sort_scan_header))
+        scan_write_failed();
     close(sort_scan_fd);
     sort_scan_fd = -1;
 }
@@ -2916,11 +2997,20 @@ static bool open_scan_temp(void)
     if (cachefd < 0)
     {
         logf("master file open failed: %s", TAGCACHE_FILE_TEMP);
+        scan_write_failed();
         return false;
     }
     struct tagcache_header header;
     memset(&header, 0, sizeof(struct tagcache_header));
-    write(cachefd, &header, sizeof(struct tagcache_header));
+    if (write(cachefd, &header, sizeof(struct tagcache_header))
+        != sizeof(struct tagcache_header))
+    {
+        scan_write_failed();
+        close(cachefd);
+        cachefd = -1;
+        remove_scan_files();
+        return false;
+    }
     tagfile_wbuf_used = 0;
     return true;
 }
@@ -2930,7 +3020,7 @@ static inline void write_item(const char *item)
     int len = strlen(item) + 1;
 
     data_size += len;
-    tagfile_wbuf_put(cachefd, item, len);
+    scan_put(item, len);
 }
 
 static int check_if_empty(char **tag)
@@ -3784,7 +3874,7 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
 #endif
 
     /* Write the header */
-    tagfile_wbuf_put(cachefd, &entry, sizeof(struct temp_file_entry));
+    scan_put(&entry, sizeof(struct temp_file_entry));
 
     /* And tags also... Correct order is critical */
     write_item(path);
@@ -5389,6 +5479,7 @@ static bool commit(void)
     int i, len, rc;
     int tmpfd;
     int masterfd;
+    bool no_room;
 #ifdef HAVE_DIRCACHE
     bool dircache_buffer_stolen = false;
 #endif
@@ -5451,6 +5542,13 @@ static bool commit(void)
             remove_scan_files();
             return true;
         }
+    }
+
+    if (!commit_room(tmpfd, tch.entry_count))
+    {
+        close(tmpfd);
+        remove_scan_files();
+        return false;
     }
 
     /* Fully initialize existing headers (if any) before going further. */
@@ -5721,6 +5819,9 @@ static bool commit(void)
     } /*!USR_CANCEL*/
 
 commit_error:
+    /* by the free space, before the undo frees what was written: errno
+       isn't the failed write's here */
+    no_room = !rc && !room_for(1024);
     tc_stat.commit_step = 0;
 #ifdef TAGCACHE_SORT_FIELDS
     sort_pairs = NULL; /* in the buffer */
@@ -5763,6 +5864,10 @@ commit_error:
     }
 #endif /* HAVE_DIRCACHE */
 
+    /* as a commit refused for room: not tried again at each boot without
+       the message */
+    if (no_room)
+        remove_scan_files();
     return rc;
 }
 
@@ -7987,7 +8092,7 @@ static bool check_dir(const char *dirname, int add_files)
         add_files = unignore;
 
     /* Recursively scan the dir. */
-    while (!check_event_queue())
+    while (!scan_failed && !check_event_queue())
     {
         struct dirent *entry = readdir(dir);
         if (entry == NULL)
@@ -8140,6 +8245,29 @@ void tagcache_screensync_enable(bool state)
    didn't reach for ones Finder knows nothing of */
 static bool scan_cut_short;
 
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+/* An import of songs: half a KB a song for the scan's file, the database's
+   files or a quarter KB a song for the commit's, and the reserve */
+static unsigned long import_need_kb(unsigned long songs)
+{
+    return songs / 2 + MAX(db_files_kb(), songs / 4) + LIBRARY_RESERVE_KB;
+}
+
+static bool scan_room(void)
+{
+    return room_for(import_need_kb(MAX(import_total, 0)));
+}
+
+/* the next import's room, and that of the caches made after the covers, as
+   Search's names (a quarter KB a song and 1 MB): else those took the import's */
+unsigned long tagcache_caches_floor_kb(void)
+{
+    const unsigned long songs = db_file_size(TAGCACHE_FILE_MASTER)
+                                / sizeof(struct index_entry);
+    return import_need_kb(songs) + songs / 4 + 1024;
+}
+#endif
+
 #ifndef __PCTOOL__
 /* this is called by the database tool to not pull in global_settings */
 static
@@ -8150,6 +8278,7 @@ void do_tagcache_build(const char *path[])
     bool ret;
 
     scan_cut_short = false;
+    scan_failed = false;
     str_setlen(curpath, 0);
     data_size = 0;
     total_entry_count = 0;
@@ -8279,7 +8408,16 @@ void do_tagcache_build(const char *path[])
     outside_counted = false;
     /* before the walk, which can take Finder's folder first */
     if (import_phase == TAGCACHE_IMPORT_SCANNING)
+    {
         count_outside();
+#ifndef PLUGIN
+        if (!scan_room())
+        {
+            scan_failed = true;
+            ret = false;
+        }
+#endif
+    }
 #endif
     /* check_dir might add new roots */
     for(this = &roots_ll[0]; this; this = this->next)
@@ -8313,12 +8451,15 @@ commit:
     if (cachefd >= 0)
     {
         /* Write the header. */
-        tagfile_wbuf_flush(cachefd);
+        if (!tagfile_wbuf_flush(cachefd))
+            scan_write_failed();
         header.magic = TAGCACHE_MAGIC;
         header.datasize = data_size;
         header.entry_count = total_entry_count;
         lseek(cachefd, 0, SEEK_SET);
-        write(cachefd, &header, sizeof(struct tagcache_header));
+        if (write(cachefd, &header, sizeof(struct tagcache_header))
+            != sizeof(struct tagcache_header))
+            scan_write_failed();
         close(cachefd);
         cachefd = -1;
         /* The check's, cut short as by USB or switching off, isn't left: the
@@ -8326,6 +8467,11 @@ commit:
            again. */
         if (!ret && scan_outside)
             remove_scan_files();
+    }
+    if (scan_failed)
+    {
+        remove_scan_files();
+        ret = false;
     }
 
     if (filenametag_fd >= 0)
@@ -8619,7 +8765,8 @@ static bool update_and_reload(void)
     if (!tc_stat.ready)
         tagcache_commit_finalize();
 #endif
-    return scanned;
+    /* a commit left for room has the import tried again, as a scan cut short */
+    return scanned && !no_space;
 }
 
 /* How many different values a tag has, as artists or albums */
@@ -8636,6 +8783,13 @@ int tagcache_get_tag_count(int tag)
 int tagcache_get_song_count(void)
 {
     return song_count;
+}
+
+bool tagcache_take_no_space(void)
+{
+    const bool was = no_space;
+    no_space = false;
+    return was;
 }
 
 int tagcache_get_import(int *done, int *total)
@@ -8664,6 +8818,7 @@ bool tagcache_check_sync(void)
     if (itunesdb_changed()
         || (restore_pending && !(audio_status() & AUDIO_STATUS_PLAY)))
     {
+        no_space = false;
         import_phase = TAGCACHE_IMPORT_READING;
         queue_post(&tagcache_queue, Q_SYNCED, 0);
         return true;
@@ -8684,6 +8839,7 @@ bool tagcache_check_sync(void)
         return false;
     import_done = import_total = 0;
     outside_known = 0; /* until the pass over those gone says */
+    no_space = false;
     import_phase = TAGCACHE_IMPORT_CHECKING;
     queue_post(&tagcache_queue, Q_CHECK_OUTSIDE, 0);
     return true;

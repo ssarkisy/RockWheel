@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "string-extra.h"
 #include "config.h"
 #include "system.h"
@@ -4927,10 +4928,13 @@ static bool playlist_writer_open(struct playlist_writer *w,
     w->count = 0;
     written_offsets = NULL;
     written_count = 0;
+    errno = 0;
     if (new_playlist)
         w->fd = open_utf8(playlist, O_CREAT|O_WRONLY|O_TRUNC);
     else
         w->fd = open(playlist, O_CREAT|O_WRONLY|O_APPEND, 0666);
+    if (w->fd < 0)
+        library_write_failed();
     if (new_playlist && w->fd >= 0 && w->buf)
     {
         /* after the BOM */
@@ -4949,8 +4953,11 @@ static bool playlist_writer_open(struct playlist_writer *w,
 
 static bool playlist_writer_flush(struct playlist_writer *w)
 {
-    if (w->ok && w->used > 0)
-        w->ok = write(w->fd, w->buf, w->used) == (ssize_t)w->used;
+    if (w->ok && w->used > 0 && write(w->fd, w->buf, w->used) != (ssize_t)w->used)
+    {
+        w->ok = false;
+        library_write_failed();
+    }
     w->used = 0;
     return w->ok;
 }

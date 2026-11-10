@@ -148,6 +148,13 @@ int open_utf8(const char* pathname, int flags);
 int whole_file_open(const char *path);
 bool whole_file_close(int fd, const char *path, bool ok);
 bool whole_file_write(const char *path, const void *data, size_t size);
+/* KB the library's files leave free, for Play Counts, settings and the like */
+#define LIBRARY_RESERVE_KB (4 * 1024)
+/* a whole-file or writer write failed for want of room (by errno), or a
+   check found too little: Updating Library says so; cleared after USB */
+void library_write_failed(void);
+void library_no_room(void);
+bool library_take_no_room(void);
 int string_option(const char *option, const char *const oplist[], bool ignore_case);
 
 #ifdef BOOTFILE

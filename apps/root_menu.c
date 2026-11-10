@@ -1611,6 +1611,117 @@ static bool library_playlists_go_on(void)
     return !held_event;
 }
 
+/* the bytes of text's first line in width: up to a space, or the characters
+   that fit in a line with none, as in Chinese */
+static int line_bytes(const unsigned char *text, int width)
+{
+    int w, h;
+    int fit = font_measurestring(text, -1, width, &w, &h, FONT_UI);
+    if (text[fit] == '\0')
+        return fit;
+    for (int i = fit; i > 0; i--)
+        if (text[i] == ' ')
+            return i;
+    if (fit > 0)
+        return fit;
+    do /* one character at least */
+        fit++;
+    while ((text[fit] & 0xc0) == 0x80);
+    return fit;
+}
+
+/* Not Enough Space under the boot logo until a button is pressed, the theme
+   off */
+static void library_no_space_show(void)
+{
+    const unsigned char *title = str(LANG_NOT_ENOUGH_SPACE);
+    const unsigned char *text = str(LANG_FREE_UP_SPACE);
+    const int width = LCD_WIDTH - 2 * 20;
+    const unsigned char *lines[4];
+    int lens[4], n = 0;
+    while (*text && n < 4)
+    {
+        lines[n] = text;
+        lens[n] = line_bytes(text, width);
+        text += lens[n++];
+        while (*text == ' ')
+            text++;
+    }
+
+    lcd_set_viewport(NULL);
+#if LCD_DEPTH > 1
+    lcd_set_backdrop(NULL);
+#endif
+    lcd_set_background(LCD_BLACK);
+    lcd_clear_display();
+    int w, h;
+    lcd_setfont(FONT_UI);
+    lcd_getstringsize(title, &w, &h);
+    /* where Updating Library's bar is, the logo higher for more lines */
+#ifdef STOCK_BOOT_LOGO
+    int y = MIN(STOCK_BOOT_LOGO_Y + BMPHEIGHT_bootlogo + 22,
+                LCD_HEIGHT - 8 - (n + 1) * h - 4);
+    lcd_bmp(&bm_bootlogo, (LCD_WIDTH - BMPWIDTH_bootlogo) / 2,
+            MIN(STOCK_BOOT_LOGO_Y, y - 10 - BMPHEIGHT_bootlogo));
+#else
+    int y = MIN((LCD_HEIGHT - 96) / 2 + 96 + 22,
+                LCD_HEIGHT - 8 - (n + 1) * h - 4);
+#endif
+    lcd_set_drawmode(DRMODE_FG);
+    lcd_set_foreground(LCD_WHITE);
+    lcd_putsxy((LCD_WIDTH - w) / 2, y, title);
+    y += h + 4;
+    lcd_set_foreground(LCD_RGBPACK(160, 160, 160));
+    for (int i = 0; i < n; i++, y += h)
+    {
+        char line[128];
+        strmemccpy(line, lines[i], MIN(lens[i] + 1, (int)sizeof(line)));
+        lcd_putsxy((LCD_WIDTH - font_getstringsize(line, NULL, NULL, FONT_UI))
+                   / 2, y, line);
+    }
+    lcd_set_drawmode(DRMODE_SOLID);
+    lcd_update();
+    backlight_on();
+    shown_text = NULL; /* Updating Library's screen drawn whole again */
+
+    while (true)
+    {
+        const long button = button_get(true);
+        if (button == SYS_USB_CONNECTED || button == SYS_POWEROFF
+            || button == SYS_REBOOT)
+        {
+            held_event = button;
+            return;
+        }
+        if (IS_SYSEVENT(button))
+            default_event_handler(button);
+        /* a press, not the release of one before nor a turn of the wheel */
+        else if (button != BUTTON_NONE
+                 && !(button & (BUTTON_REL | BUTTON_REPEAT))
+#ifdef BUTTON_SCROLL_FWD
+                 && !(button & (BUTTON_SCROLL_FWD | BUTTON_SCROLL_BACK))
+#endif
+                )
+            break;
+    }
+    /* its release and repeats aren't the menu's; the system's events are
+       answered, as Play held to switch off */
+    long button;
+    do
+    {
+        button = button_get_w_tmo(HZ / 50);
+        if (button == SYS_USB_CONNECTED || button == SYS_POWEROFF
+            || button == SYS_REBOOT)
+        {
+            held_event = button;
+            return;
+        }
+        if (IS_SYSEVENT(button))
+            default_event_handler(button);
+    }
+    while (button != BUTTON_NONE || button_status() != BUTTON_NONE);
+}
+
 #ifdef ITUNESDB_HAVE_ART
 /* whether Cover Flow's album list is of the database: its commit, entries
    and albums' file size, as pictureflow.c's load_album_index() checks them */
@@ -1692,10 +1803,12 @@ void show_library_update(void)
         if (default_event_handler(action) == SYS_USB_CONNECTED)
             break;
     }
+    /* left for want of room: nothing made of it either */
+    bool no_space = phase == TAGCACHE_IMPORT_NONE && tagcache_take_no_space();
     /* a check that took long but found nothing has nothing to make again, nor
        an import that changed neither the database nor the covers, with what
        they make made for this database */
-    const bool imported = phase == TAGCACHE_IMPORT_NONE
+    const bool imported = phase == TAGCACHE_IMPORT_NONE && !no_space
         && ((shown && !checked_only
              && !(itunesdb_import_kept_art() && album_list_current()
                   && tagtree_songs_prepared()))
@@ -1735,7 +1848,8 @@ void show_library_update(void)
     /* the album list of the new database, which Cover Flow itself makes:
        it isn't left for when Cover Flow opens; and the covers after it */
     if ((imported || covers_stale) && phase == TAGCACHE_IMPORT_NONE
-        && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock"))
+        && !no_space && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock")
+        && itunesdb_covers_room())
     {
         library_update_show(str(LANG_PREPARING_ALBUMS), 0);
         plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", ITUNESDB_ALBUM_LIST);
@@ -1768,8 +1882,8 @@ void show_library_update(void)
 #ifdef ITUNESDB_HAVE_ART
     /* those covers made, after the albums' years they're in the order of, and
        Cover Flow's plugin above, which may have made some again */
-    if (phase == TAGCACHE_IMPORT_NONE && !held_event && album_years_ready()
-        && (row_covers_stale || list_covers_stale()))
+    if (phase == TAGCACHE_IMPORT_NONE && !held_event && !no_space
+        && album_years_ready() && (row_covers_stale || list_covers_stale()))
     {
         library_update_show(str(LANG_PREPARING_COVERS), 0);
         list_covers_make(library_update_covers_progress, library_playlists_go_on);
@@ -1777,7 +1891,9 @@ void show_library_update(void)
 #endif
     if (imported && phase == TAGCACHE_IMPORT_NONE && !held_event)
         tagtree_prepare_songs();
-    if (phase == TAGCACHE_IMPORT_NONE && !held_event)
+    /* not by a database the caches couldn't be made for */
+    no_space |= library_take_no_room();
+    if (phase == TAGCACHE_IMPORT_NONE && !held_event && !no_space)
         prepared_commitid = tagcache_get_commitid();
     if (letters_stale && !held_event)
     {
@@ -1798,6 +1914,13 @@ void show_library_update(void)
         ip_synced_load();
         lp_index_all(library_playlists_go_on);
     }
+    no_space |= library_take_no_room();
+    if (no_space && !held_event && !shown)
+    {
+        FOR_NB_SCREENS(i)
+            viewportmanager_theme_enable(i, false, NULL);
+        shown = true;
+    }
     if (shown)
     {
         if (photos_changed && !held_event) /* else made the next time */
@@ -1806,6 +1929,9 @@ void show_library_update(void)
             photos_panel_update();
             skin_reload_while_playing();
         }
+        no_space |= library_take_no_room();
+        if (no_space && !held_event)
+            library_no_space_show();
         lcd_set_background(global_settings.bg_color);
         lcd_set_foreground(global_settings.fg_color);
         lcd_clear_display();

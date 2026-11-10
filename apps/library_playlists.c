@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "string-extra.h"
 #include "system.h"
 #include "kernel.h"
@@ -296,9 +297,13 @@ bool lp_index_write(const char *file, const struct lp_song *songs, int count,
     if (size < 0)
         return false;
     mkdir(LP_DIR);
+    errno = 0;
     const int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd < 0)
+    {
+        library_write_failed();
         return false;
+    }
     const struct lp_head head = {
         LP_MAGIC, LP_VERSION, tagcache_get_commitid(), tagcache_entry_count(),
         size, count, state->lines, state->unmatched, state->pending,
@@ -311,6 +316,7 @@ bool lp_index_write(const char *file, const struct lp_song *songs, int count,
         ok = false;
     if (!ok || rename(tmp, path) < 0)
     {
+        library_write_failed();
         remove(tmp);
         return false;
     }

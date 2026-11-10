@@ -43,6 +43,7 @@
 #include "rbpaths.h"
 #include "tagcache.h"
 #include <ctype.h>
+#include <errno.h>
 #include "logf.h"
 #include "lcd.h"
 #include "metadata.h"
@@ -1453,16 +1454,22 @@ static struct writer out;
 
 static bool writer_open(struct writer *w, const char *file)
 {
+    errno = 0;
     w->fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     w->used = 0;
     w->ok = w->fd >= 0;
+    if (!w->ok)
+        library_write_failed();
     return w->ok;
 }
 
 static void writer_flush(struct writer *w)
 {
     if (w->used && write(w->fd, w->buf, w->used) != (ssize_t)w->used)
+    {
         w->ok = false;
+        library_write_failed();
+    }
     w->used = 0;
 }
 
@@ -1500,7 +1507,10 @@ static bool writer_close(struct writer *w)
 {
     writer_flush(w);
     if (w->fd >= 0 && close(w->fd) < 0)
+    {
         w->ok = false;
+        library_write_failed();
+    }
     w->fd = -1;
     return w->ok;
 }
@@ -3842,7 +3852,7 @@ struct art_image {
 #define COVERS_SLOTS_MAX 26000
 /* the free space a new place leaves at least, in KB: the files grew till the
    disk was full, and then Play Counts and the database had none */
-#define COVERS_FREE_MIN  (64 * 1024)
+#define COVERS_FREE_MIN  tagcache_caches_floor_kb()
 
 struct covers_header {
     uint32_t magic;     /* as an index_header */
@@ -5348,9 +5358,12 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
     /* not read meanwhile from what was open before */
     itunesdb_slides_done();
     int index_fd = open(ART_FILE, O_RDONLY);
+    errno = 0;
     int fd = open(SLIDES_FILE, O_RDWR | O_CREAT, 0666);
     if (fd < 0 || index_fd < 0)
     {
+        if (fd < 0)
+            library_write_failed();
         if (fd >= 0)
             close(fd);
         if (index_fd >= 0)
@@ -5409,6 +5422,7 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
             list_covers_forget();
 #endif
         }
+        errno = 0;
         if (made ? lseek(fd, pos, SEEK_SET) == pos
                    && read(fd, slide_slot, SLIDE_SLOT) == SLIDE_SLOT
                  : make_slide(fd, index_fd, i, key, &size))
@@ -5420,7 +5434,15 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
                                    == SLIDE_MAGIC;
         }
         else
+        {
             complete = false;
+            /* the disk full: the rest at the next boot, and said so */
+            if (errno == ENOSPC)
+            {
+                library_write_failed();
+                break;
+            }
+        }
         yield();
     }
     cpu_boost(false);
@@ -5630,6 +5652,8 @@ struct cover_work {
     bool seen;
 };
 static int work_handle;
+/* COVERS_FREE_MIN, found once a making: it opens the database's files */
+static unsigned long covers_floor_kb;
 static int work_count, work_old, work_room;
 static uint32_t work_slots; /* the places the bitmap after the entries has */
 static bool work_changed;   /* an album made or gone */
@@ -5676,6 +5700,7 @@ static bool write_work(void)
 bool itunesdb_covers_begin(int albums)
 {
     itunesdb_covers_end(COVERS_CUT);
+    covers_floor_kb = COVERS_FREE_MIN;
     /* as the file has it, which USB may have changed */
     forget_index(&covers_index);
     covers_load();
@@ -5971,13 +5996,18 @@ void itunesdb_cover_making(uint64_t key, uint32_t stamp)
         mark_making(key, stamp);
 }
 
-/* room on the disk for one more place of each file */
-static bool covers_room(void)
+/* room on the disk for one more place of each file; Updating Library says
+   so if there's none */
+bool itunesdb_covers_room(void)
 {
+    const unsigned long floor = work_handle > 0 ? covers_floor_kb
+                                                : COVERS_FREE_MIN;
     sector_t free = 0;
     volume_size(IF_MV(0,) NULL, &free);
-    return free >= COVERS_FREE_MIN
-                   + (COVER_SLOT + SLIDE_SLOT) / 1024 + 1;
+    if (free >= floor + (COVER_SLOT + SLIDE_SLOT) / 1024 + 1)
+        return true;
+    library_no_room();
+    return false;
 }
 
 int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm)
@@ -5988,7 +6018,7 @@ int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm)
         mark_making(0, 0); /* cut short, with no album being decoded */
     int i = work_find(key);
     /* a new place, the files growing, only with room left on the disk */
-    if (bm && (i < 0 || !work_entries()[i].e.slot) && !covers_room())
+    if (bm && (i < 0 || !work_entries()[i].e.slot) && !itunesdb_covers_room())
         return -1;
     if (i < 0)
     {

@@ -730,6 +730,7 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
                after USB: it took the plugins' buffer from under the plugin
                itself. Once the dircache is built again, as at boot: before
                it, every folder and file was looked up on the disk. */
+            library_take_no_room(); /* of before the computer had the disk */
             if (library_update_waits())
                 library_update_after_usb();
             else if (tagcache_check_sync())
@@ -1898,11 +1899,36 @@ static void whole_file_temp(char *temp, size_t size, const char *path)
     snprintf(temp, size, "%s.tmp", path);
 }
 
+static volatile bool library_room_short;
+
+void library_write_failed(void)
+{
+    if (errno == ENOSPC)
+        library_room_short = true;
+}
+
+void library_no_room(void)
+{
+    library_room_short = true;
+}
+
+bool library_take_no_room(void)
+{
+    const bool was = library_room_short;
+    library_room_short = false;
+    return was;
+}
+
+/* errno from here to the close is this file's */
 int whole_file_open(const char *path)
 {
     char temp[MAX_PATH];
     whole_file_temp(temp, sizeof(temp), path);
-    return creat(temp, 0666);
+    errno = 0;
+    const int fd = creat(temp, 0666);
+    if (fd < 0)
+        library_write_failed();
+    return fd;
 }
 
 /* ok: each write went well */
@@ -1920,7 +1946,10 @@ bool whole_file_close(int fd, const char *path, bool ok)
         ok = rename(temp, path) == 0;
     }
     if (!ok)
+    {
+        library_write_failed();
         remove(temp);
+    }
     return ok;
 }
 

@@ -1047,6 +1047,17 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
         make_none();
         return;
     }
+    /* the new file beside the old, the next import's room kept: else not
+       made, and said, rather than made in vain at each boot */
+    const sector_t need_kb = (data_start(count) + (off_t)count * SLOT_SIZE)
+                             / 1024 + tagcache_caches_floor_kb();
+    sector_t free_kb = 0;
+    volume_size(IF_MV(0,) NULL, &free_kb);
+    if (free_kb < need_kb)
+    {
+        library_no_room();
+        return;
+    }
     size_t room;
     unsigned char *buf = plugin_get_buffer(&room);
     struct file_header old_h = { 0 };
