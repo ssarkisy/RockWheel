@@ -132,32 +132,74 @@ static char *debug_get_flags(uint32_t flags);
 
 #ifndef __PCTOOL__
 
-#ifdef ROCKBOX_NO_TEMP_SETTINGS_FILE /* Overwrites same file each time */
-#define CONFIGFILE_TEMP CONFIGFILE
-#define RESUMEFILE_TEMP RESUMEFILE
-#define rename_temp_file(a,b,c)
-#else /* creates temp files on save, renames next load, saves old file if desired */
-#define CONFIGFILE_TEMP CONFIGFILE".new"
-#define RESUMEFILE_TEMP RESUMEFILE".new"
+/* A save of config.cfg or .resume.cfg goes to .new, promoted at the next
+   boot if whole, the file before it kept as .old: nothing is renamed while
+   in use, as a cut inside a rename can leave two entries on one file. */
+#define CONFIGFILE_NEW CONFIGFILE".new"
+#define CONFIGFILE_OLD CONFIGFILE".old"
+#define RESUMEFILE_NEW RESUMEFILE".new"
+#define RESUMEFILE_OLD RESUMEFILE".old"
 
 static void debug_available_settings(void);
 
-static void rename_temp_file(const char *tempfile,
-                            const char *file,
-                            const char *oldfile)
+/* Not empty; ours also ends with a line break, which one cut short may
+   lack, and is at most 64 KB. One edited on a computer may lack the break. */
+static bool settings_file_whole(const char *path, bool ours)
 {
-    /* if tempfile does not exist -- Return
-     * if oldfile is supplied     -- Rename file to oldfile
-     * if tempfile does exist     -- Rename tempfile to file
-    */
-    if (file_exists(tempfile))
+    int fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return false;
+
+    off_t size = ffilesize(fd);
+    bool whole = size > 0;
+    if (whole && ours)
     {
-        if (oldfile != NULL && file_exists(file))
-            rename(file, oldfile);
-        rename(tempfile, file);
+        char last;
+        whole = size <= 0x10000 && lseek(fd, -1, SEEK_END) >= 0 &&
+                read(fd, &last, 1) == 1 && last == '\n';
+    }
+
+    close(fd);
+    return whole;
+}
+
+/* Puts a whole new in file's place and file in old's. Each name is removed
+   before another file takes it: renamed over a name, a file has it twice
+   until the one it replaces is gone, and a cut between leaves both. */
+static bool settings_file_replace(const char *new, const char *file,
+                                  const char *old)
+{
+    if (!settings_file_whole(new, true))
+        return false;
+
+    remove(old);
+    if (settings_file_whole(file, false))
+    {
+        if (rename(file, old) < 0)
+            return false;
+    }
+    else
+        remove(file);
+
+    return rename(new, file) == 0;
+}
+
+/* At boot: the last save if whole, else file as it was; an empty or missing
+   file is then old again, or none, so that a first start asks its
+   questions. */
+static void settings_file_recover(const char *file, const char *new,
+                                  const char *old)
+{
+    if (file_exists(new) && !settings_file_replace(new, file, old))
+        remove(new);
+
+    if (!settings_file_whole(file, false))
+    {
+        remove(file);
+        if (settings_file_whole(old, false))
+            rename(old, file);
     }
 }
-#endif /* ndef ROCKBOX_NO_TEMP_SETTINGS_FILE */
 
 #endif // !__PCTOOL__
 
@@ -218,9 +260,8 @@ void settings_load(void)
     logf("\r\n%s()\r\n", __func__);
     debug_available_settings();
 
-    /* make temp files current make current files .old */
-    rename_temp_file(RESUMEFILE_TEMP, RESUMEFILE, RESUMEFILE".old");
-    rename_temp_file(CONFIGFILE_TEMP, CONFIGFILE, CONFIGFILE".old");
+    settings_file_recover(RESUMEFILE, RESUMEFILE_NEW, RESUMEFILE_OLD);
+    settings_file_recover(CONFIGFILE, CONFIGFILE_NEW, CONFIGFILE_OLD);
     first_start = !file_exists(CONFIGFILE);
 
     settings_load_config(CONFIGFILE, false); /* load user_settings items */
@@ -629,13 +670,16 @@ static bool settings_write_config(const char* filename, int options)
     if (fd < 0)
         return false;
 
+    bool ok = true;
     if (options != SETTINGS_SAVE_RESUMEINFO)
     {
-        fdprintf(fd, "# .cfg file created by rockbox %s - "
-                 "http://www.rockbox.org\r\n\r\n", rbversion);
+        int len = snprintf(value, sizeof(value), "# .cfg file created by "
+                           "rockbox %s - http://www.rockbox.org\r\n\r\n",
+                           rbversion);
+        ok = write(fd, value, len) == len;
     }
 
-    for(i=0; i<nb_settings; i++)
+    for(i=0; ok && i<nb_settings; i++)
     {
         const struct settings_list *setting = &settings[i];
         if (!setting->cfg_name || (setting->flags & F_DEPRECATED))
@@ -686,7 +730,9 @@ static bool settings_write_config(const char* filename, int options)
         cfg_to_string(setting, value, MAX_PATH);
         logf("Written: '%s: %s'\r\n",setting->cfg_name, value);
 
-        fdprintf(fd,"%s: %s\r\n",setting->cfg_name,value);
+        /* fdprintf() counts only the bytes that reached the file */
+        ok = fdprintf(fd,"%s: %s\r\n",setting->cfg_name,value) ==
+             (int)(strlen(setting->cfg_name) + strlen(value) + 4);
     } /* for(...) */
 #ifndef __PCTOOL__
     if (options == SETTINGS_SAVE_ALL)
@@ -695,8 +741,19 @@ static bool settings_write_config(const char* filename, int options)
         open_plugin_export(fd);
     }
 #endif
-    close(fd);
-    return true;
+    return close(fd) == 0 && ok;
+}
+
+static bool settings_save_new(const char *new, int options)
+{
+    /* a leftover .new under 64 KB would be overwritten in place, its old
+       tail kept until closed */
+    remove(new);
+    if (settings_write_config(new, options))
+        return true;
+
+    remove(new);
+    return false;
 }
 
 static void flush_global_status_callback(void)
@@ -709,7 +766,7 @@ static void flush_global_status_callback(void)
         DEBUGF("Writing system_status to disk\n");
         logf("Writing system_status to disk");
 
-        settings_write_config(RESUMEFILE_TEMP, SETTINGS_SAVE_RESUMEINFO);
+        settings_save_new(RESUMEFILE_NEW, SETTINGS_SAVE_RESUMEINFO);
     }
 }
 
@@ -720,7 +777,7 @@ static void flush_config_block_callback(void)
         DEBUGF("Writing changed user_settings to disk\n");
         logf("Writing changed user_settings to disk");
 
-        if (!settings_write_config(CONFIGFILE_TEMP, SETTINGS_SAVE_CHANGED))
+        if (!settings_save_new(CONFIGFILE_NEW, SETTINGS_SAVE_CHANGED))
         {
             user_settings_crc = 0;
             DEBUGF("Error failed to write settings to disk\n");
