@@ -50,8 +50,16 @@ void menu_cover_changed(bool on);
 int menu_cover_place(const struct viewport *vp, int x, int y, int width,
                      int height);
 /* No step until it's drawn again: all of the theme drawn again, the theme off
-   or another loaded */
+   or another loaded. The step being sent waited for, HZ/20 at most, and the
+   COP's thread ended once it's done. */
 void menu_cover_stop(void);
+/* before the screen is drawn for a slide: the step being sent waited for */
+void menu_cover_wait(void);
+/* before a plugin: as menu_cover_stop(), the thread ended at once */
+void menu_cover_end(void);
+/* before another thread is made, as the album cover reader's: the COP's
+   ended at once, the cover going on */
+void menu_cover_give_slot(void);
 /* the theme's viewport vp hidden, as when the music stops */
 void menu_cover_hidden(const struct viewport *vp);
 /* the part of the screen it moves in, while it's shown */
@@ -60,6 +68,9 @@ bool menu_cover_area(int *x0, int *y0, int *x1, int *y1);
 #else
 static inline void menu_cover_changed(bool on) { (void)on; }
 static inline void menu_cover_stop(void) {}
+static inline void menu_cover_wait(void) {}
+static inline void menu_cover_end(void) {}
+static inline void menu_cover_give_slot(void) {}
 static inline void menu_cover_hidden(const struct viewport *vp) { (void)vp; }
 #endif
 

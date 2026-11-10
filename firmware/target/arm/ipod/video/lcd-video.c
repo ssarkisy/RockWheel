@@ -98,6 +98,7 @@ enum lcd_status
 struct
 {
     long update_timeout;  /* also used to ensure BCM stays off for >= 50 ms */
+    long show_at;         /* the tick an update sent early is shown at */
     enum lcd_status state;
     bool blocked;
 #if NUM_CORES > 1
@@ -205,8 +206,9 @@ static void lcd_tick(void)
         unsigned data = bcm_read32(BCMA_COMMAND);
         bool bcm_is_busy = (data == BCMCMD_LCD_UPDATE || data == 0xFFFF);
 
-        if (((lcd_state.state == LCD_NEED_UPDATE) && !bcm_is_busy)
-            /* Update requested and BCM is no longer busy. */
+        if (((lcd_state.state == LCD_NEED_UPDATE) && !bcm_is_busy
+             && !TIME_BEFORE(current_tick, lcd_state.show_at))
+            /* Update requested, due and BCM is no longer busy. */
          || (TIME_AFTER(current_tick, lcd_state.update_timeout) && bcm_is_busy))
             /* BCM still busy after timeout, i.e. stalled. */
         {
@@ -295,7 +297,9 @@ static bool lcd_block_tick(void)
     return true;
 }
 
-static void lcd_unblock_and_update(void)
+/* Shown at show_at, by the tick, if that's to come; any other update shows it
+   with its own first */
+static void lcd_unblock_and_update_at(long show_at)
 {
     unsigned data;
     bool bcm_is_busy;
@@ -306,8 +310,15 @@ static void lcd_unblock_and_update(void)
 #endif
     data = bcm_read32(BCMA_COMMAND);
     bcm_is_busy = (data == BCMCMD_LCD_UPDATE || data == 0xFFFF);
+    /* one posted before, due sooner, isn't put off */
+    if (lcd_state.state == LCD_NEED_UPDATE
+        && TIME_BEFORE(lcd_state.show_at, show_at))
+        show_at = lcd_state.show_at;
+    lcd_state.show_at = show_at;
 
-    if (!bcm_is_busy || (lcd_state.state == LCD_INITIAL) ||
+    if (lcd_state.state != LCD_INITIAL && TIME_BEFORE(current_tick, show_at))
+        lcd_state.state = LCD_NEED_UPDATE;
+    else if (!bcm_is_busy || (lcd_state.state == LCD_INITIAL) ||
         TIME_AFTER(current_tick, lcd_state.update_timeout))
     {
         bcm_write32(BCMA_COMMAND, BCMCMD_LCD_UPDATE);  /* Kick off update */
@@ -329,6 +340,11 @@ static void lcd_unblock_and_update(void)
     corelock_unlock(&lcd_state.cl);
 #endif
     restore_irq(oldlevel);
+}
+
+static void lcd_unblock_and_update(void)
+{
+    lcd_unblock_and_update_at(current_tick);
 }
 
 #else /* BOOTLOADER */
@@ -432,39 +448,28 @@ void lcd_init_device(void)
 
 /*** update functions ***/
 
-/* Update a fraction of the display. */
-void lcd_update_rect(int x, int y, int width, int height)
+/* The rectangle within the screen; false if nothing's left of it */
+static bool clip_rect(int *x, int *y, int *width, int *height)
 {
-    const fb_data *addr;
-    unsigned bcmaddr;
+    if (*x + *width >= LCD_WIDTH)
+        *width = LCD_WIDTH - *x;
+    if (*y + *height >= LCD_HEIGHT)
+        *height = LCD_HEIGHT - *y;
 
-    /* the first update as it wakes, which waking waits for, goes through */
-    if (lcd_state.state != LCD_INITIAL && lcd_update_held(&x, &y, &width, &height))
-        return;
-#ifdef HAVE_LCD_SLEEP
-    if (!lcd_state.display_on)
-        return;
-#endif
-
-    if (x + width >= LCD_WIDTH)
-        width = LCD_WIDTH - x;
-    if (y + height >= LCD_HEIGHT)
-        height = LCD_HEIGHT - y;
-
-    if ((width <= 0) || (height <= 0))
-        return; /* Nothing left to do. */
+    if ((*width <= 0) || (*height <= 0))
+        return false; /* Nothing left to do. */
 
     /* Ensure x and width are both even. The BCM doesn't like small unaligned
      * writes and would just ignore them. */
-    width = (width + (x & 1) + 1) & ~1;
-    x &= ~1;
+    *width = (*width + (*x & 1) + 1) & ~1;
+    *x &= ~1;
+    return true;
+}
 
-    /* Prevent the tick from triggering BCM updates while we're writing. */
-    if (!lcd_block_tick())
-        return;
-
-    addr = FBADDR(x, y);
-    bcmaddr = BCMA_CMDPARAM + (LCD_WIDTH*2) * y + (x << 1);
+/* addr, the rectangle's first pixel, to the BCM taken */
+static void write_rect(const fb_data *addr, int x, int y, int width, int height)
+{
+    unsigned bcmaddr = BCMA_CMDPARAM + (LCD_WIDTH*2) * y + (x << 1);
 
     if (width == LCD_WIDTH)
     {
@@ -482,8 +487,51 @@ void lcd_update_rect(int x, int y, int width, int height)
         }
         while (--height > 0);
     }
+}
+
+/* Update a fraction of the display. */
+void lcd_update_rect(int x, int y, int width, int height)
+{
+    /* the first update as it wakes, which waking waits for, goes through */
+    if (lcd_state.state != LCD_INITIAL && lcd_update_held(&x, &y, &width, &height))
+        return;
+#ifdef HAVE_LCD_SLEEP
+    if (!lcd_state.display_on)
+        return;
+#endif
+
+    if (!clip_rect(&x, &y, &width, &height))
+        return;
+
+    /* Prevent the tick from triggering BCM updates while we're writing. */
+    if (!lcd_block_tick())
+        return;
+
+    write_rect(FBADDR(x, y), x, y, width, height);
     lcd_unblock_and_update();
 }
+
+#ifdef HAVE_LCD_SEND_RECT
+extern struct frame_buffer_t lcd_framebuffer_default;
+
+void lcd_send_rect(int x, int y, int width, int height, bool last,
+                   long show_at)
+{
+#ifdef HAVE_LCD_SLEEP
+    if (!lcd_state.display_on)
+        return;
+#endif
+    if (!clip_rect(&x, &y, &width, &height) || !lcd_block_tick())
+        return;
+    /* not FBADDR(): the current viewport is the CPU's, changing meanwhile */
+    write_rect(lcd_framebuffer_default.fb_ptr + y * LCD_WIDTH + x,
+               x, y, width, height);
+    if (last)
+        lcd_unblock_and_update_at(show_at);
+    else
+        lcd_give_bcm();
+}
+#endif
 
 #ifdef HAVE_LCD_UPDATE_FROM
 void lcd_update_from(const fb_data *frame)

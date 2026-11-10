@@ -251,6 +251,12 @@ extern bool lcd_putsxy_scroll_func(int x, int y, const unsigned char *string,
    either core: as Cover Flow shows one from the COP while the next is drawn */
 #define HAVE_LCD_UPDATE_FROM
 extern void lcd_update_from(const fb_data *frame);
+/* Rows of the main framebuffer to the display, from either core and never
+   held, shown once last, at the tick show_at if that's to come: the COP sends
+   a part of the screen a few rows at a time, the CPU's updates going between */
+#define HAVE_LCD_SEND_RECT
+extern void lcd_send_rect(int x, int y, int width, int height, bool last,
+                          long show_at);
 #endif
 
 /* performance function */

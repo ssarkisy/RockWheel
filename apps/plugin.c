@@ -51,6 +51,7 @@
 #include "core_keymap.h"
 #include "language.h"
 #include "statusbar-skinned.h"
+#include "skin_engine/menu_cover.h"
 #include "panic.h"
 #include "on_the_go.h"
 #ifdef HAVE_TAGCACHE
@@ -989,6 +990,7 @@ int plugin_load(const char* plugin, const void* parameter)
 
     /* its screen without a slide to it */
     transition_cancel();
+    menu_cover_end();
 #ifdef HAVE_TAGCACHE
     /* every thread slot it had before, as Cover Flow's two: not one taken by
        an album's cover being read meanwhile */

@@ -24,6 +24,7 @@
 #include "misc.h"
 #include "plugin.h"
 #include "transition.h"
+#include "skin_engine/menu_cover.h"
 
 #if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE && !defined(BOOTLOADER)
 
@@ -201,6 +202,7 @@ void transition_begin(enum transition_dir dir)
     pending_dir = dir;
     pending = true;
     lcd_hold_updates(HOLD_TICKS);
+    menu_cover_wait();
 }
 
 bool transition_pending(void)

@@ -105,6 +105,9 @@ const fb_data *menu_cover_pixels(int *width, int *height)
    2 s rests, first in the middle */
 #define PAN_SPEED   10
 #define PAN_HALVES  (2 * PAN_SPEED)
+/* Drawn and sent this ahead of being shown, by the display's tick; less than
+   a half step, as one frame goes to the display at a time */
+#define PAN_LATENCY MAX(HZ / PAN_HALVES - 1, 1)
 #define PAN_REST    (2 * HZ)
 /* the longest sleep while it can't go or rests, and the most the clock moves
    per look: no jump */
@@ -127,6 +130,7 @@ static bool pan_shown;          /* drawn by the last render of it, theme unchang
 static int pan_h;               /* the half column at x0 on the screen */
 static long pan_clock;
 static long pan_last;           /* the tick of the last look while it could go */
+static long pan_due;            /* the tick the next step's due */
 static bool pan_going;
 
 static long leg_ticks(int halves)
@@ -192,6 +196,182 @@ static bool pan_can_go(void)
         && !TIME_BEFORE(current_tick, action_last_tick() + PAN_AT_REST);
 }
 
+#if NUM_CORES > 1 && defined(HAVE_LCD_SEND_RECT)
+#define PAN_ON_COP
+/* The COP sends each step to the display in one go, a few rows at a time;
+   the CPU's own updates and its codec's decoder, seconds of PCM ahead, wait
+   those few ms. Let in between the parts, a frame of the decoder each time,
+   it made the steps reach the display unevenly, up to HZ/8 late. The CPU
+   composes the step. Of cached memory, the COP reads only the panel's rows of
+   the framebuffer, which the CPU commits first, and writes only its own
+   stack. It takes the BCM past the
+   CPU's holds of the display: the CPU waits for it, HZ/20 at most, before it
+   draws there itself (cop_wait()). */
+#define COP_ROWS 60
+/* Its thread lives only while the cover shows, and is made only with a slot
+   to spare: a codec's decoder on the COP, made as a track starts, finds one.
+   Cover Flow's threads and the album cover reader end it first. */
+#define COP_SPARE_SLOTS 1
+static struct
+{
+    struct semaphore go;
+    volatile bool busy;
+    volatile bool quit;
+    volatile long done_at;
+    int x, y, width, height;
+    long show_at;
+} cop SHAREDBSS_ATTR;
+static long cop_stack[CACHEALIGN_UP(DEFAULT_STACK_SIZE * 2 / sizeof(long))]
+    CACHEALIGN_ATTR;
+static unsigned int cop_thread_id;
+static bool cop_failed;         /* not made: not again until the next stop */
+static bool cop_unusable;       /* stuck or too late: the CPU sends the steps
+                                   till reboot */
+static bool cop_sent;           /* a step given it, not yet seen done */
+static long cop_sent_at;
+static int cop_late;            /* steps in a row that took over HZ/10 */
+static bool cop_overran;        /* a wait gave up: rows it sent since are stale */
+static bool cop_end_due;        /* ended once it's done */
+static volatile bool cop_ending; /* its stack still in use: none made meanwhile */
+
+static void cop_thread(void)
+{
+    while (1)
+    {
+        semaphore_wait(&cop.go, TIMEOUT_BLOCK);
+        if (cop.quit)
+            break;
+        commit_discard_dcache();
+        const int end = cop.y + cop.height;
+        for (int y = cop.y; y < end; y += COP_ROWS)
+            lcd_send_rect(cop.x, y, cop.width, MIN(COP_ROWS, end - y),
+                          y + COP_ROWS >= end, cop.show_at);
+        cop.done_at = current_tick;
+        cop.busy = false;
+    }
+}
+
+static int free_slots(void)
+{
+    struct thread_debug_info info;
+    int n = 0;
+    for (int i = 0; i < MAXTHREADS; i++)
+        n += thread_get_debug_info(i, &info) == 0;
+    return n;
+}
+
+static bool cop_ready(void)
+{
+    if (cop_unusable || cop_failed || cop_ending)
+        return false;
+    if (cop_thread_id)
+        return true;
+    cop_failed = free_slots() <= COP_SPARE_SLOTS;
+    if (cop_failed)
+        return false;
+    cop.quit = false;
+    cop.busy = false;
+    cop_end_due = false;
+    semaphore_init(&cop.go, 1, 0);
+    cop_thread_id = create_thread(cop_thread, cop_stack, sizeof(cop_stack), 0,
+                                  "moving cover" IF_PRIO(, PRIORITY_PLAYBACK)
+                                  IF_COP(, COP));
+    cop_failed = !cop_thread_id;
+    return !cop_failed;
+}
+
+/* The panel's rows the CPU drew in after a wait gave up, sent again over the
+   COP's stale ones once it's done; and the thread ended if that was due. With
+   the current viewport the main one: lcd_update_rect() sends that one's. */
+static void cop_settle(void)
+{
+    if (cop.busy)
+        return;
+    if (cop_overran)
+    {
+        cop_overran = false;
+        struct viewport *vp = lcd_set_viewport_ex(NULL, 0);
+        lcd_update_rect(cop.x, cop.y, cop.width, cop.height);
+        lcd_set_viewport_ex(vp, 0);
+    }
+    if (cop_end_due && cop_thread_id)
+    {
+        const unsigned int id = cop_thread_id;
+        cop_thread_id = 0;
+        cop_end_due = false;
+        cop.quit = true;
+        semaphore_release(&cop.go);
+        cop_ending = true;
+        thread_wait(id);
+        cop_ending = false;
+    }
+}
+
+static void cop_wait_for(long ticks)
+{
+    const long until = current_tick + ticks;
+    while (cop.busy && TIME_BEFORE(current_tick, until))
+        yield();
+    if (cop.busy)
+        cop_overran = true;
+    cop_settle();
+}
+
+static void cop_wait(void)
+{
+    cop_wait_for(HZ/20);
+}
+
+/* Its slot given back: now, before a plugin or the reader, waited for as long
+   as cop_free() would; else once it's done */
+static void cop_end(bool now)
+{
+    cop_failed = false;
+    while (now && cop_ending) /* the scroll thread ending it: its slot too */
+        yield();
+    if (!cop_thread_id)
+        return;
+    cop_end_due = true;
+    cop_wait_for(now ? HZ : HZ/20);
+    if (now && cop_thread_id)
+        cop_unusable = true;
+}
+
+/* False while the step before is still being sent: the step waits, the clock
+   going on. A COP that took over HZ/10 three steps in a row, or HZ for one,
+   isn't used again. */
+static bool cop_free(void)
+{
+    cop_settle();
+    if (!cop_sent)
+        return true;
+    if (cop.busy)
+    {
+        if (TIME_AFTER(current_tick, cop_sent_at + HZ))
+        {
+            cop_unusable = true;
+            cop_sent = false;
+            return true;
+        }
+        return false;
+    }
+    cop_sent = false;
+    if (TIME_AFTER(cop.done_at, cop_sent_at + HZ/10))
+    {
+        if (++cop_late >= 3)
+            cop_unusable = true;
+    }
+    else
+        cop_late = 0;
+    return true;
+}
+#else
+static inline void cop_settle(void) {}
+static inline void cop_wait(void) {}
+static inline void cop_end(bool now) { (void)now; }
+static inline bool cop_free(void) { return true; }
+#endif /* PAN_ON_COP */
+
 #ifdef SIMULATOR
 /* RBSIM_SCRIPT's waitidle waits for a still screen but for this */
 extern volatile long sim_lcd_update_tick;
@@ -229,7 +409,8 @@ static void blend_row(fb_data *dst, const fb_data *src, int n)
         dst[i] = AVG2((uint32_t)src[i], (uint32_t)src[i + 1]);
 }
 
-static void pan_draw(int h)
+/* show_at: the tick that shows it, where the display can wait for one */
+static void pan_draw(int h, long show_at)
 {
     struct viewport *vp = lcd_set_viewport_ex(NULL, 0);
     const int width = pan.x1 - pan.x0;
@@ -241,6 +422,27 @@ static void pan_draw(int h)
         else
             memcpy(FBADDR(pan.x0, y), src, width * sizeof(fb_data));
     }
+#ifdef PAN_ON_COP
+    if (cop_ready())
+    {
+        lcd_set_viewport_ex(vp, 0);
+        commit_dcache();
+        cop.x = pan.x0;
+        cop.y = pan.y0;
+        cop.width = width;
+        cop.height = pan.y1 - pan.y0;
+        cop.show_at = show_at;
+        cop.busy = true;
+        cop_sent = true;
+        cop_sent_at = current_tick;
+        semaphore_release(&cop.go);
+        return;
+    }
+#endif
+#ifdef HAVE_LCD_SEND_RECT
+    lcd_send_rect(pan.x0, pan.y0, width, pan.y1 - pan.y0, true, show_at);
+#else
+    (void)show_at;
 #ifdef SIMULATOR
     const long idle_since = sim_lcd_update_tick;
 #endif
@@ -249,12 +451,14 @@ static void pan_draw(int h)
 #ifdef SIMULATOR
     sim_lcd_update_tick = idle_since;
 #endif
+#endif
     lcd_set_viewport_ex(vp, 0);
 }
 
 /* On the scroll thread: a step when it's due; the ticks until the next look */
 static long pan_tick(void)
 {
+    cop_settle();
     if (!pan_can_go())
     {
         pan_going = false;
@@ -269,9 +473,16 @@ static long pan_tick(void)
     const int h = pan_at(pan_clock, &until);
     if (h != pan_h)
     {
-        pan_draw(h);
+        if (!cop_free())
+            return 1;
+        /* shown PAN_LATENCY after it was due by the clock, not as the thread
+           woke or the frame was ready: the steps go evenly */
+        const bool on_time = !TIME_AFTER(pan_due, now)
+                             && !TIME_AFTER(now, pan_due + PAN_LATENCY);
+        pan_draw(h, (on_time ? pan_due : now) + PAN_LATENCY);
         pan_h = h;
     }
+    pan_due = now + until;
     return MIN(until, PAN_POLL);
 }
 
@@ -320,6 +531,23 @@ int menu_cover_place(const struct viewport *vp, int x, int y, int width,
 void menu_cover_stop(void)
 {
     pan_shown = false;
+    cop_end(false);
+}
+
+void menu_cover_wait(void)
+{
+    cop_wait();
+}
+
+void menu_cover_end(void)
+{
+    pan_shown = false;
+    cop_end(true);
+}
+
+void menu_cover_give_slot(void)
+{
+    cop_end(true);
 }
 
 void menu_cover_hidden(const struct viewport *vp)
@@ -341,7 +569,7 @@ bool menu_cover_area(int *x0, int *y0, int *x1, int *y1)
 
 void menu_cover_changed(bool on)
 {
-    menu_cover_stop();
+    menu_cover_end();
     /* turned on, it starts from the middle, where it's drawn while off */
     pan_clock = 0;
     pan_going = false;

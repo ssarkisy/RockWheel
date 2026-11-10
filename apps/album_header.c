@@ -54,6 +54,7 @@
 #include "itunesdb.h"
 #include "album_header.h"
 #include "list_covers.h"
+#include "gui/skin_engine/menu_cover.h"
 
 #define COVER_SIZE   60
 #define COVER_TOP    6
@@ -376,6 +377,7 @@ bool album_header_reader_start(void)
     if (cover.reading)
         return true;
     cover.reading = true;
+    menu_cover_give_slot();
     if (!create_thread(cover_reader, reader_stack, sizeof(reader_stack), 0,
                        "album cover" IF_PRIO(, PRIORITY_BACKGROUND)
                        IF_COP(, CPU)))
