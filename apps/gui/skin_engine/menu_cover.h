@@ -45,6 +45,10 @@ void menu_cover_forget(void);
 /* the setting, at boot too */
 void menu_cover_changed(bool on);
 
+/* The buffer's cover of the song playing, as one outside Finder has, copied
+   to pan as Finder's: the buffer's may move or go meanwhile. Not while it's
+   off, the cover drawn from the buffer as before. */
+bool menu_cover_take(int handle);
 /* It's to be drawn at x, y of the theme's viewport vp: how much further right
    to draw it, for where it has come to */
 int menu_cover_place(const struct viewport *vp, int x, int y, int width,

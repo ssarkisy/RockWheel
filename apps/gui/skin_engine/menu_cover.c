@@ -28,6 +28,7 @@
 #include "settings.h"
 #include "plugin.h"
 #include "playback.h"
+#include "buffering.h"
 #include "itunesdb.h"
 #include "transition.h"
 #include "statusbar-skinned.h"
@@ -46,6 +47,7 @@ static struct {
     short width, height;
     uint32_t offset;
     char path[sizeof(((struct itunesdb_art *)0)->path)];
+    int handle;         /* the buffer's it was copied from, or -1 for Finder's */
 } menu_art;
 
 void menu_cover_forget(void)
@@ -63,7 +65,7 @@ bool menu_cover_ready(const struct wps_data *data)
         || global_settings.album_art == AA_OFF
         || !itunesdb_find_track_art(id3, id3->path, &art))
         return false;
-    if (menu_art.width > 0 && menu_art.offset == art.offset
+    if (menu_art.width > 0 && menu_art.handle < 0 && menu_art.offset == art.offset
         && !strcmp(menu_art.path, art.path))
         return true;
 
@@ -88,6 +90,7 @@ bool menu_cover_ready(const struct wps_data *data)
     menu_art.height = bm.height;
     menu_art.offset = art.offset;
     strcpy(menu_art.path, art.path);
+    menu_art.handle = -1;
     return true;
 }
 
@@ -484,6 +487,22 @@ static long pan_tick(void)
     }
     pan_due = now + until;
     return MIN(until, PAN_POLL);
+}
+
+bool menu_cover_take(int handle)
+{
+    struct bitmap *bm;
+    if (!global_settings.moving_cover || !(audio_status() & AUDIO_STATUS_PLAY)
+        || bufgetdata(handle, 0, (void *)&bm) <= 0
+        || bm->width > ART_MENU_SIZE || bm->height > ART_MENU_SIZE)
+        return false;
+    if (menu_art.width > 0 && menu_art.handle == handle)
+        return true;
+    memcpy(menu_art.pixels, bm->data, bm->width * bm->height * sizeof(fb_data));
+    menu_art.width = bm->width;
+    menu_art.height = bm->height;
+    menu_art.handle = handle;
+    return true;
 }
 
 int menu_cover_place(const struct viewport *vp, int x, int y, int width,

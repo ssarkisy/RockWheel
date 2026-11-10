@@ -1435,6 +1435,11 @@ int skin_art_handle(const struct wps_data *data, int index, int handle)
         if (handle < 0 && menu_cover_ready(data))
             return SKIN_ART_MENU;
 #endif
+#ifdef HAVE_MENU_COVER
+        if (handle >= 0 && data == skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data
+            && menu_cover_take(handle))
+            return SKIN_ART_MENU;
+#endif
         return handle;
     }
 
