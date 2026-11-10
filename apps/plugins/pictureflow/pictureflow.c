@@ -1255,18 +1255,22 @@ static int compare_albums (const void *a_v, const void *b_v)
     int year_b = ((struct album_data *)b_v)->year;
 
 #ifdef ITUNESDB_HAVE_ART
-    /* as Music's lists: by album artist, each one's oldest first and those
-       without a date last, then by name; the songs without an album last */
+    /* by album artist, each one's oldest first and those without a date
+       last, then by name, as Music's lists; or by date, the oldest first,
+       then by album artist and name. The songs without an album last. */
+    const bool by_year = pf_cfg.sort_albums_by == SORT_BY_YEAR;
     const bool untagged_a = album_a == pf_idx.album_untagged_idx;
     const bool untagged_b = album_b == pf_idx.album_untagged_idx;
     if (untagged_a != untagged_b)
         return untagged_a ? 1 : -1;
-    if (artist_a != artist_b)
+    if (!by_year && artist_a != artist_b)
         return artist_a < artist_b ? -1 : 1;
     const int32_t order_a = rb->album_date_order(year_a);
     const int32_t order_b = rb->album_date_order(year_b);
     if (order_a != order_b)
         return !order_a ? 1 : !order_b ? -1 : order_a < order_b ? -1 : 1;
+    if (artist_a != artist_b)
+        return artist_a < artist_b ? -1 : 1;
     return album_a < album_b ? -1 : album_a > album_b;
 #else
     switch (pf_cfg.sort_albums_by)
@@ -4189,6 +4193,7 @@ static bool sort_albums(int new_sorting, bool from_settings)
     };
 
     drop_frame();
+#ifndef ITUNESDB_HAVE_ART
     /* Only change sorting once artwork has been inspected */
     if (aa_cache.inspected < pf_idx.album_ct)
     {
@@ -4203,6 +4208,7 @@ static bool sort_albums(int new_sorting, bool from_settings)
 #endif
         return false;
     }
+#endif
 
     return_to_idle_state();
 
@@ -5912,32 +5918,51 @@ static int context_menu(void)
         PF_PLAY_LAST,
         PF_GO_TO_ARTIST
     };
+    /* and last Sort By, its value at the right end as in Albums: by album
+       artist or by year */
+    static char sort_by[64];
+    rb->snprintf(sort_by, sizeof(sort_by), "%s\t%s", rb->str(LANG_SORT_BY),
+                 rb->str(pf_cfg.sort_albums_by == SORT_BY_YEAR ? LANG_SORT_YEAR
+                                                               : LANG_ID3_ARTIST));
     MENUITEM_STRINGLIST(playing_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),
                         ID2P(LANG_PLAY_NEXT),
                         ID2P(LANG_PLAY_LAST),
-                        ID2P(LANG_GO_TO_ARTIST));
+                        ID2P(LANG_GO_TO_ARTIST),
+                        sort_by);
     MENUITEM_STRINGLIST(stopped_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),
-                        ID2P(LANG_GO_TO_ARTIST));
+                        ID2P(LANG_GO_TO_ARTIST),
+                        sort_by);
     /* without Go to Artist where it isn't offered, as opened by a file's
-       menu: its rows are the first of those */
+       menu: its rows are the first of those, then Sort By */
     MENUITEM_STRINGLIST(playing_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),
                         ID2P(LANG_PLAY_NEXT),
-                        ID2P(LANG_PLAY_LAST));
+                        ID2P(LANG_PLAY_LAST),
+                        sort_by);
     MENUITEM_STRINGLIST(stopped_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
-                        ID2P(LANG_ADD_TO_PL));
+                        ID2P(LANG_ADD_TO_PL),
+                        sort_by);
     const bool playing = rb->audio_status() & AUDIO_STATUS_PLAY;
     const bool go_to = rb->root_menu_go_to_later(NULL);
+    const int sort_row = (playing ? 4 : 2) + (go_to ? 1 : 0);
 
     int chosen = rb->do_menu(playing ? (go_to ? &playing_menu : &playing_menu_here)
                                      : (go_to ? &stopped_menu : &stopped_menu_here),
                              NULL, NULL, false);
+    if (chosen == sort_row)
+    {
+        sort_albums(pf_cfg.sort_albums_by == SORT_BY_YEAR ? SORT_BY_ARTIST_AND_NAME
+                                                          : SORT_BY_YEAR, true);
+        /* kept at once, as USB or switching off saves nothing of it */
+        configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
+        return 0;
+    }
     if (!playing && go_to && chosen == PF_PLAY_NEXT)
         chosen = PF_GO_TO_ARTIST;
     switch (chosen)
@@ -7764,7 +7789,7 @@ enum plugin_status plugin_start(const void *parameter)
     else
         ret = PLUGIN_OK;
 
-    if ( ret == PLUGIN_OK || ret == PLUGIN_GOTO_WPS)
+    if ( ret == PLUGIN_OK || ret == PLUGIN_GOTO_WPS || ret == PLUGIN_GOTO_ROOT)
     {
         if (pf_state == pf_scrolling)
             pf_cfg.last_album = target;

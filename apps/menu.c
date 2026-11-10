@@ -340,6 +340,22 @@ static const char* get_menu_item_name(int selected_item,
     return P2STR(menu->callback_and_desc->desc);
 }
 
+/* a list of strings some of which have a value, as Cover Flow's Sort By:
+   drawn as a setting's row */
+static bool strings_have_values(const struct menu_item_ex *menu)
+{
+    if ((menu->flags & MENU_TYPE_MASK) != MT_RETURN_ID)
+        return false;
+    for (int i = 0; i < (int)MENU_GET_COUNT(menu->flags); i++)
+    {
+        /* a phrase's id, voice ones among them, has no tab */
+        const unsigned char *s = (const unsigned char *)menu->strings[i];
+        if (P2ID(s) < 0 && strchr((const char *)s, '\t'))
+            return true;
+    }
+    return false;
+}
+
 static bool menu_has_groups(const struct menu_item_ex *menu)
 {
     if ((menu->flags&MENU_TYPE_MASK) != MT_MENU)
@@ -578,7 +594,8 @@ static int init_menu_lists(const struct menu_item_ex *menu,
     gui_synclist_set_before_draw(lists, panel_before_draw);
     if (menu_wide() && menu_has_hints(menu))
         gui_synclist_set_hint_callback(lists, menu_hint);
-    if (menu_shows_values(menu) || menu_has_groups(menu))
+    if (menu_shows_values(menu) || menu_has_groups(menu)
+        || strings_have_values(menu))
     {
         lists->callback_draw_item = menu_draw_value_line;
         lists->callback_is_group = menu_is_group;
