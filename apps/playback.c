@@ -3376,6 +3376,12 @@ static void audio_stop_playback(void)
     pcmbuf_play_stop();
     codec_unload();
 
+    /* The codec marks a track's end automatic as it decodes it, seconds
+       before the end sounds: a stop then, but at the playlist's end, cuts the
+       track short */
+    if (filling != STATE_ENDED)
+        track_event_flags &= ~TEF_AUTO_SKIP;
+
     /* Save resume information  - "filling" might have been set to
        "STATE_ENDED" by caller in order to facilitate end of playlist */
     audio_playlist_track_finish();
