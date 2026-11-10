@@ -168,6 +168,46 @@ static inline void cache_discard_entry(struct disk_cache_entry *dce,
     dce->flags = 0;
 }
 
+/* commit the volume's dirty entries that the client wants on the disk ahead
+   of the others, the highest sector first: a chain grows toward higher
+   clusters, so the entry it gains is there before the one that links it in,
+   unless the search for a free cluster wrapped to a lower one; ordered
+   write-back from ProkBox5g (prokopto-dev), GPLv2+ */
+static void commit_first(IF_MV_NONVOID(int volume))
+{
+    while (1)
+    {
+        int first = -1;
+
+        FOR_EACH_BITARRAY_SET_BIT(&CACHE_VOL_MAP(volume), index)
+        {
+            struct disk_cache_entry *dce = &cache_entry[index];
+
+            if ((dce->flags & DCE_DIRTY) &&
+                (first < 0 || dce->sector > cache_entry[first].sector) &&
+                dc_writeback_first(IF_MV(volume,) dce->sector))
+                first = index;
+        }
+
+        if (first < 0)
+            break;
+
+        dc_writeback_callback(IF_MV(volume,) cache_entry[first].sector,
+                              cache_buffer[first]);
+        cache_entry[first].flags &= ~DCE_DIRTY;
+    }
+}
+
+/* write back a dirty entry being evicted, after those that go first, or
+   with them in their order if it's one */
+static void evict_writeback(IF_MV(int volume,) sector_t sector, void *buf)
+{
+    commit_first(IF_MV(volume));
+
+    if (!dc_writeback_first(IF_MV(volume,) sector))
+        dc_writeback_callback(IF_MV(volume,) sector, buf);
+}
+
 /* search the cache for the specified sector, returning a buffer, either
    to the specified sector, if it exists, or a new/evicted entry that must
    be filled */
@@ -203,7 +243,7 @@ void * dc_cache_probe(IF_MV(int volume,) sector_t sector,
         unsigned int old_mapnum = map_sector(sector);
 
         if (old_flags & DCE_DIRTY)
-            dc_writeback_callback(IF_MV(old_volume,) sector, buf);
+            evict_writeback(IF_MV(old_volume,) sector, buf);
 
         if (mapnum == old_mapnum IF_MV( && volume == old_volume ))
             goto finish_setup;
@@ -256,6 +296,8 @@ void dc_commit_all(IF_MV_NONVOID(int volume))
 {
     DEBUGF("dc_commit_all()\n");
 
+    commit_first(IF_MV(volume));
+
     FOR_EACH_BITARRAY_SET_BIT(&CACHE_VOL_MAP(volume), index)
     {
         struct disk_cache_entry *dce = &cache_entry[index];
@@ -298,7 +340,7 @@ void * dc_get_buffer(void)
         {
             /* must first commit this sector if dirty */
             if (flags & DCE_DIRTY)
-                dc_writeback_callback(IF_MV(dce->volume,) dce->sector, buf);
+                evict_writeback(IF_MV(dce->volume,) dce->sector, buf);
 
             cache_discard_entry(dce, index);
         }

@@ -408,6 +408,17 @@ void dc_writeback_callback(IF_MV(int volume,) sector_t sector, void *buf)
     }
 }
 
+/* The FAT goes to the disk ahead of the folders, so that a cut between them
+   leaves a new cluster taken that no entry points to, not an entry on a
+   cluster the FAT still has free for the next file. An entry lets go of its
+   first cluster in a commit before the one that frees it (remove(),
+   fat_closewrite()). Ordered write-back from ProkBox5g (prokopto-dev),
+   GPLv2+. */
+bool dc_writeback_first(IF_MV(int volume,) sector_t sector)
+{
+    return IS_FAT_SECTOR(&fat_bpbs[IF_MV_VOL(volume)], sector);
+}
+
 static void raw_dirent_set_fstclus(union raw_dirent *ent, long fstclus)
 {
     ent->fstclushi = htole16(fstclus >> 16);
@@ -1523,8 +1534,11 @@ static int fat_extend_dir(struct bpb *fat_bpb, struct fat_filestr *dirstr)
             FAT_ERROR(-2);
         }
 
+        /* on the disk before the commit that writes the FAT link, unless a
+           dirty FAT sector is evicted meanwhile: a cut then leaves old data
+           read as entries */
         memset(sec, 0, LOG_SECTOR_SIZE(fat_bpb));
-        dc_dirty_buf(sec);
+        dc_writeback_callback(IF_MV(fat_bpb->volume,) sector, sec);
         dc_unlock_cache();
     }
 
@@ -2452,14 +2466,13 @@ int fat_closewrite(struct fat_filestr *filestr, uint32_t size,
         return -1;
 
     int rc;
+    long freed = 0;
 
     if (!size && file->firstcluster)
     {
-        /* empty file */
-        rc = update_fat_entry(fat_bpb, file->firstcluster, 0);
-        if (rc < 0)
-            FAT_ERROR(rc * 10 - 2);
-
+        /* empty file: the entry lets go of the cluster a commit before the
+           FAT frees it */
+        freed = file->firstcluster;
         file->firstcluster = 0;
         fat_rewind(filestr);
     }
@@ -2473,6 +2486,14 @@ int fat_closewrite(struct fat_filestr *filestr, uint32_t size,
     else if (fatentp)
     {
         fat_empty_fat_direntry(fatentp);
+    }
+
+    if (freed)
+    {
+        cache_commit(fat_bpb);
+        rc = update_fat_entry(fat_bpb, freed, 0);
+        if (rc < 0)
+            FAT_ERROR(rc * 10 - 2);
     }
 
 #ifdef TEST_FAT
@@ -2956,6 +2977,10 @@ int fat_truncate(const struct fat_filestr *filestr)
         forget_seek_marks();
         if (rc2 < 0)
             FAT_ERROR(rc2 * 10 - 2);
+
+        /* the new end reaches the disk a commit before the tail is freed */
+        if (next)
+            cache_commit(fat_bpb);
     }
 
     int rc2 = free_cluster_chain(fat_bpb, next);

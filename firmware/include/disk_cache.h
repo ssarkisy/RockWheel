@@ -47,6 +47,9 @@ void dc_init(void) INIT_ATTR;
 /* in addition to filling, writeback is implemented by the client */
 extern void dc_writeback_callback(IF_MV(int volume, ) sector_t sector,
                                   void *buf);
+/* true for a sector the client wants on the disk ahead of any other of its
+   volume: each commit and each eviction of another writes those first */
+extern bool dc_writeback_first(IF_MV(int volume, ) sector_t sector);
 
 
 /** These synchronize and can be called by anyone **/
