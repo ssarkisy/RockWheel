@@ -1574,6 +1574,8 @@ static bool lp_play(int song)
 {
     if (global_settings.party_mode || !warn_on_pl_erase())
         return false;
+    /* Now Playing comes later than the slide's usual wait, as from Music */
+    transition_wait(HZ);
     if (lp.state.pending || (song >= 0 && lp.songs[song].line == LP_NO_LINE))
     {
         /* the music from it plays on meanwhile: its file, open, is kept
@@ -1930,8 +1932,9 @@ int lp_view(const char *file, int *selection)
         strmemccpy(title, str(LANG_ON_THE_GO), sizeof(title));
 
     push_current_activity(ACTIVITY_PLAYLISTVIEWER);
-    /* from the screen before, not from Loading */
-    if (!lp.waited)
+    /* from the screen before, not from Loading; nor over a slide begun, as
+       back from Now Playing */
+    if (!lp.waited && !transition_pending())
         transition_begin(TRANSITION_FORWARD);
 
     struct gui_synclist list;
@@ -2029,10 +2032,13 @@ int lp_view(const char *file, int *selection)
                     redraw = true;
                     break;
                 }
+                transition_begin(TRANSITION_FORWARD);
                 if (lp_shuffle_row(row, NULL))
                 {
                     if (lp_play(-1))
                         ret = PLAYLIST_VIEWER_OK;
+                    else
+                        transition_cancel();
                     redraw = true;
                     break;
                 }
@@ -2046,6 +2052,8 @@ int lp_view(const char *file, int *selection)
                 }
                 if (lp_play(row - lp_lead()))
                     ret = PLAYLIST_VIEWER_OK;
+                else
+                    transition_cancel();
                 redraw = true;
                 break;
             case ACTION_STD_CONTEXT:

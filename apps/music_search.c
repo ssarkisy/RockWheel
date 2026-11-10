@@ -2245,6 +2245,9 @@ static bool play_song(int index)
         return false;
     bool ok = tagcache_retrieve(&tcs, idx_id, tag_filename, path, sizeof(path))
               && warn_on_pl_erase();
+    /* Now Playing comes later than the slide's usual wait, as from Music */
+    if (ok)
+        transition_wait(HZ);
     if (ok && !tagtree_play_song_in_library(path))
     {
         cpu_boost(true);
@@ -2258,9 +2261,14 @@ static bool play_song(int index)
 /* what one found opens: the screen to go to, or 0 for the one it was in */
 static int open_result(int g, int index)
 {
-    if (g == GROUP_SONGS)
-        return play_song(index) ? GO_TO_WPS : 0;
     transition_begin(TRANSITION_FORWARD);
+    if (g == GROUP_SONGS)
+    {
+        if (play_song(index))
+            return GO_TO_WPS;
+        transition_cancel();
+        return 0;
+    }
     const struct result *r = &results[group_first[g] + index];
     /* an album by its album artist too, as Albums has the albums of a name
        apart */
