@@ -969,15 +969,16 @@ static bool make_cover(const struct itunesdb_art *art, fb_data *out,
     return true;
 }
 
-/* the albums with covers by their years, those of a year by their numbers,
+/* the albums with covers by their dates, those of a date by their numbers,
    which go by name: as Albums by year has them */
 static int cmp_by_year(const void *a, const void *b)
 {
     const int x = *(const uint16_t *)a, y = *(const uint16_t *)b;
-    const int yx = album_years_year(x), yy = album_years_year(y);
-    const int kx = yx > 0 ? yx : 10000, ky = yy > 0 ? yy : 10000;
-    if (kx != ky)
-        return kx - ky;
+    /* those without a date after them all */
+    const uint32_t ox = album_date_order(album_years_date(x)) - 1;
+    const uint32_t oy = album_date_order(album_years_date(y)) - 1;
+    if (ox != oy)
+        return ox < oy ? -1 : 1;
     return x - y;
 }
 

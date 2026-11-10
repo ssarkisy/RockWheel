@@ -1481,8 +1481,9 @@ static int compare(const void *p1, const void *p2)
     return compare_rows(p1, p2);
 }
 
-/* albums by their years, the oldest first, then those without one, by name:
-   the songs without an album last */
+/* an artist's albums by their years, the oldest first, those of a year by
+   their dates (album_date_order()), then those without one, by name: the
+   songs without an album last */
 static int compare_years(const void *p1, const void *p2)
 {
     const struct tagentry *e1 = p1, *e2 = p2;
@@ -1492,6 +1493,13 @@ static int compare_years(const void *p1, const void *p2)
         if (y1 <= 0 || y2 <= 0)
             return y1 <= 0 && (y2 > 0 || y1 < y2) ? 1 : -1;
         return y1 < y2 ? -1 : 1;
+    }
+    if (y1 > 0)
+    {
+        const int32_t d1 = album_date_order(album_years_row_date(e1->extraseek));
+        const int32_t d2 = album_date_order(album_years_row_date(e2->extraseek));
+        if (d1 != d2)
+            return d1 < d2 ? -1 : 1;
     }
     return compare_rows(e1, e2);
 }
@@ -2446,17 +2454,53 @@ static int32_t row_artist(const struct tagentry *row)
     return n > 1 ? album_years_artist(row->album.no) : -1;
 }
 
-/* the order of the years, the albums without one after, the songs without
-   an album last */
-static int year_key(long year)
+/* the order of the albums' dates (album_date_order()), those without one
+   after, the songs without an album last */
+#define KEY_UNDATED (INT32_MAX - 1)
+#define KEY_LAST    INT32_MAX
+static int32_t date_key(int32_t date, bool unknown)
 {
-    return year > 0 ? (int)year : year == 0 ? 10000 : 10001;
+    if (unknown)
+        return KEY_LAST;
+    const int32_t order = album_date_order(date);
+    return order ? order : KEY_UNDATED;
 }
 
-/* by their years, those of a year in the order they were: through tmp, as
-   many as they are */
-static void sort_by_year(struct tagentry *e, int n, struct tagentry *tmp)
+/* the year of one, 0 for none, YEAR_LAST for the songs without an album */
+static int key_year(int32_t key)
 {
+    return key == KEY_LAST ? YEAR_LAST : key == KEY_UNDATED ? 0 : key / 10000;
+}
+
+/* A row of Albums, by its name's latest date, or its own album's when the
+   albums of a name are apart: or its year alone, of a row whose album the
+   table hasn't numbered in it */
+static int32_t albums_key(const struct tagentry *e)
+{
+    if (e->album.year == YEAR_LAST)
+        return KEY_LAST;
+    int32_t date = 0;
+    if (e->album.no >= 0)
+        date = entries_split ? album_years_date(e->album.no)
+                             : album_years_name_date_of(e->album.no);
+    if (album_date_year(date) != e->album.year)
+        date = e->album.year;
+    return date_key(date, false);
+}
+
+/* By their dates, those of a date in the order they were: each row's key
+   once, sorted with its place through the room for as many rows after them,
+   then each row moved to its place along the cycles of the order */
+struct year_key {
+    int32_t key, row;
+};
+_Static_assert(2 * sizeof(struct year_key) <= sizeof(struct tagentry),
+               "the keys and their merge in the room of as many rows");
+static void sort_by_year(struct tagentry *e, int n, struct tagentry *room)
+{
+    struct year_key *keys = (struct year_key *)room, *tmp = keys + n;
+    for (int i = 0; i < n; i++)
+        keys[i] = (struct year_key){ albums_key(&e[i]), i };
     for (int width = 1; width < n; width *= 2)
     {
         for (int lo = 0; lo < n; lo += 2 * width)
@@ -2464,14 +2508,29 @@ static void sort_by_year(struct tagentry *e, int n, struct tagentry *tmp)
             const int mid = MIN(lo + width, n), hi = MIN(lo + 2 * width, n);
             int a = lo, b = mid, k = lo;
             while (a < mid && b < hi)
-                tmp[k++] = year_key(e[b].album.year) < year_key(e[a].album.year)
-                           ? e[b++] : e[a++];
+                tmp[k++] = keys[b].key < keys[a].key ? keys[b++] : keys[a++];
             while (a < mid)
-                tmp[k++] = e[a++];
+                tmp[k++] = keys[a++];
             while (b < hi)
-                tmp[k++] = e[b++];
+                tmp[k++] = keys[b++];
         }
-        memcpy(e, tmp, n * sizeof(*e));
+        memcpy(keys, tmp, n * sizeof(*keys));
+    }
+    for (int i = 0; i < n; i++)
+    {
+        if (keys[i].row < 0 || keys[i].row == i)
+            continue;
+        const struct tagentry first = e[i];
+        int to = i;
+        while (keys[to].row != i)
+        {
+            const int from = keys[to].row;
+            e[to] = e[from];
+            keys[to].row = -1;
+            to = from;
+        }
+        e[to] = first;
+        keys[to].row = -1;
     }
 }
 
@@ -3179,19 +3238,26 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         entries_two_lines = true;
         entries_split = split;
     }
-    /* Albums by their years, each name's latest, or each album's own when
-       split; those of a year by name, as the database has them already.
-       Through the room after them, without a comparison of names: 1666 names
-       were seconds' work by qsort */
+    /* Albums by their dates, each name's, or each album's own when split;
+       those of a date by name, as the database has them already. Through the
+       room after them, without a comparison of names: 1666 names were
+       seconds' work by qsort. In one line, album.no only for the sort: the
+       year's text, keep_lead(), takes its place after it */
     if (albums && global_settings.albums_sort == 0 && !c->dirfull)
     {
         struct tagentry *entries = get_entries(c);
         const int n = current_entry_count - c->special_entry_count;
         for (i = c->special_entry_count; i < current_entry_count && !entries_two_lines;
              i++)
-            entries[i].album.year = entries[i].extraseek == entries_untagged
-                                    ? YEAR_LAST
-                                    : album_name_year(entries[i].extraseek);
+        {
+            const bool unknown = entries[i].extraseek == entries_untagged;
+            int of_name;
+            const int no = unknown ? -1 : album_years_find(entries[i].extraseek,
+                                                           &of_name);
+            entries[i].album.year = unknown ? YEAR_LAST
+                                            : album_years_name_year_of(no);
+            entries[i].album.no = album_numbers_fit() ? no : -1;
+        }
         sort_by_year(&entries[c->special_entry_count], n,
                      &entries[current_entry_count]);
         entries_years = true;
@@ -5113,7 +5179,7 @@ static bool goto_allsubentries(int newtable)
 }
 
 /* The songs under the row selected, all of them, in the order of the lists
-   it opens: an artist's albums by their years, then each album's songs by
+   it opens: an artist's albums by their dates, then each album's songs by
    disc and track; a genre's by artist first. With one search through the
    database, as the lists would make them, rather than each list opened in
    turn, which for a row of 1,400 albums took minutes. Their
@@ -5122,7 +5188,7 @@ static bool goto_allsubentries(int newtable)
    only its first album. */
 struct gather_key {
     int32_t group;  /* the artist, under a genre */
-    int32_t year;   /* as its album's row has it, in year_key()'s order */
+    int32_t date;   /* its album's row's, in date_key()'s order */
     int32_t album;  /* its seek, which goes as their names (sortkey.h) */
     int32_t order;  /* disc and track, then its number as shown */
     int32_t idx;    /* the song */
@@ -5153,8 +5219,8 @@ static int cmp_gather_key(const void *p1, const void *p2)
     const struct gather_key *a = p1, *b = p2;
     if (a->group != b->group)
         return a->group < b->group ? -1 : 1;
-    if (a->year != b->year)
-        return a->year < b->year ? -1 : 1;
+    if (a->date != b->date)
+        return a->date < b->date ? -1 : 1;
     if (a->album != b->album)
         return a->album < b->album ? -1 : 1;
     if (a->order != b->order)
@@ -5258,8 +5324,7 @@ static int gather_songs(struct tree_context *c, int extra, int32_t row_seek,
     for (int i = 0; i < n; i++)
     {
         struct gather_key *k = &g.keys[i];
-        k->year = year_key(k->album == untagged ? YEAR_LAST
-                                                : album_years_row(k->album));
+        k->date = date_key(album_years_row_date(k->album), k->album == untagged);
         if (untagged_group >= 0 && k->group == untagged_group)
             k->group = INT32_MAX;
     }
@@ -5341,7 +5406,7 @@ static bool goto_all_songs(void)
 /* two songs' keys of one album, as gathered */
 static bool same_album(const struct gather_key *a, const struct gather_key *b)
 {
-    return a->group == b->group && a->year == b->year && a->album == b->album;
+    return a->group == b->group && a->date == b->date && a->album == b->album;
 }
 
 /* Each year's albums with one song here, its singles, after its other albums,
@@ -5352,14 +5417,15 @@ static void singles_last(struct gather_key *keys, int n, struct gather_key *tmp)
     for (int start = 0, end; start < n; start = end)
     {
         for (end = start + 1; end < n && keys[end].group == keys[start].group
-                              && keys[end].year == keys[start].year; end++)
+                              && key_year(keys[end].date)
+                                 == key_year(keys[start].date); end++)
             ;
         int kept = start, singles = 0;
         for (int a = start, b; a < end; a = b)
         {
             for (b = a + 1; b < end && keys[b].album == keys[a].album; b++)
                 ;
-            if (b - a == 1 && keys[a].year != year_key(YEAR_LAST))
+            if (b - a == 1 && keys[a].date != KEY_LAST)
                 tmp[singles++] = keys[a];
             else
             {
@@ -5412,17 +5478,18 @@ static int album_groups(struct tree_context *c, struct tagcache_search *tcs,
         for (end = start + 1; end < n && same_album(&keys[end], &keys[start]);
              end++)
             ;
-        const bool unknown = keys[start].year == year_key(YEAR_LAST);
+        const bool unknown = keys[start].date == KEY_LAST;
         const bool single = !unknown && end - start == 1;
+        const int year = key_year(keys[start].date);
         const bool same_year = start > 0
                                && keys[start - 1].group == keys[start].group
-                               && keys[start - 1].year == keys[start].year;
+                               && key_year(keys[start - 1].date) == year;
         if (single && singles && same_year)
             continue;
         singles = single;
         struct song_group bar = {
             .row = first + start, .album = unknown ? GROUP_UNKNOWN : GROUP_SINGLES,
-            .year = keys[start].year < year_key(0) ? keys[start].year : 0,
+            .year = MAX(year, 0),
             .disc = 0
         };
         int discs = 0;
@@ -5494,7 +5561,7 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
         {
             for (int i = 0; i < n; i++)
             {
-                keys[i].group = keys[i].year = keys[i].album = 0;
+                keys[i].group = keys[i].date = keys[i].album = 0;
                 keys[i].order = tagcache_sort_key(keys[i].idx, tag_title);
             }
             qsort(keys, n, sizeof(*keys), cmp_gather_key);
@@ -5515,7 +5582,7 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
         for (int start = 0, end; start < n; start = end)
         {
             long disc = 0, track = 0;
-            bool numbered = keys[start].year != year_key(YEAR_LAST);
+            bool numbered = keys[start].date != KEY_LAST;
             for (end = start; end < n && same_album(&keys[end], &keys[start]);
                  end++)
             {

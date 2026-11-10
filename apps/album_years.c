@@ -24,27 +24,36 @@
 #include "tagcache.h"
 #include "album_years.h"
 
+int32_t album_date_order(int32_t date)
+{
+    if (date <= 0)
+        return 0;
+    if (date < ALBUM_DATE_MIN)
+        return date * 10000 + 1332;
+    const int month = date / 100 % 100, day = date % 100;
+    return date - month * 100 - day + (month ? month : 13) * 100 + (day ? day : 32);
+}
+
 #ifdef HAVE_TC_RAMCACHE
 
 /* An album: the seeks of its name and album artist in their tags' files,
-   which are the same in memory and on disk, the years, and one of its songs,
+   which are the same in memory and on disk, its date, and one of its songs,
    whose cover is the album's */
 struct album {
     int32_t album, albumartist;
-    int16_t year;
-    int16_t name_year;  /* the latest of the albums of its name */
+    int32_t date;       /* date_of()'s value, 0 for none */
     int32_t first;      /* the song's number in the database */
 };
 
 static int handle;          /* the albums, sorted by name and album artist,
-                               and after them the rows' years */
+                               and after them the rows' dates */
 static int count;
 
-/* A list's rows: their albums' names and years, by the names' seeks, in as
+/* A list's rows: their albums' names and dates, by the names' seeks, in as
    many places as a list of an artist's albums has rows, and more; and the
    first album of the name found among the songs, of its album artist */
 struct row {
-    int32_t album, year, no;
+    int32_t album, date, no;
 };
 #define ROW_PLACES 512
 #define ROWS_MOST  (ROW_PLACES / 4 * 3)
@@ -59,6 +68,41 @@ static uint32_t table_hash;
 static int year_of(int32_t year)
 {
     return year >= 1000 && year <= 2999 ? year : 0;
+}
+
+/* A date as the table has it: of a year it counts, its month and its day
+   only if they can be, else the year alone; 0 for none */
+static int32_t date_of(int32_t value)
+{
+    const int year = year_of(album_date_year(value));
+    if (!year || value < ALBUM_DATE_MIN)
+        return year;
+    const int month = value / 100 % 100, day = value % 100;
+    if (month < 1 || month > 12 || day > 31)
+        return year;
+    return year * 10000 + month * 100 + day;
+}
+
+/* how much of a date there is: 2 with its day, 1 with its month alone, 0 for
+   a year alone */
+static int date_detail(int32_t date)
+{
+    return date < ALBUM_DATE_MIN ? 0 : date % 100 ? 2 : 1;
+}
+
+/* An album's date from one of its songs' after another's, those it had so
+   far, as a name's and a row's from their albums': its year the latest of
+   theirs, as Music has it, and of those of that year the latest date with a
+   day, or else with a month, so that a song added without its day, as a
+   bonus track, leaves the album its day */
+static bool date_after(int32_t date, int32_t had)
+{
+    const int year = album_date_year(date), year_had = album_date_year(had);
+    if (year != year_had)
+        return year > year_had;
+    if (date_detail(date) != date_detail(had))
+        return date_detail(date) > date_detail(had);
+    return date > had;
 }
 
 /* While they're counted: a table of them by their seeks, of a power of two
@@ -76,8 +120,9 @@ static unsigned place_of(int32_t album, int32_t albumartist, unsigned mask)
     return (h ^ (h >> 15)) & mask;
 }
 
-/* a song: its album's year, the latest so far. With the database's memory
-   held still, as it goes through its songs: nothing waits here */
+/* a song: its album's date, as date_after() has it so far. With the
+   database's memory held still, as it goes through its songs: nothing waits
+   here */
 static void count_song(int idx_id, const int32_t *tag_seek, void *data)
 {
     struct counting *c = data;
@@ -85,15 +130,16 @@ static void count_song(int idx_id, const int32_t *tag_seek, void *data)
         return;
     const int32_t album = tag_seek[tag_album];
     const int32_t albumartist = tag_seek[tag_albumartist];
-    const int year = year_of(tag_seek[tag_year]);
+    const int32_t date = date_of(tag_seek[tag_date] ? tag_seek[tag_date]
+                                                     : year_of(tag_seek[tag_year]));
     unsigned i = place_of(album, albumartist, c->mask);
     while (c->table[i].album != -1)
     {
         struct album *a = &c->table[i];
         if (a->album == album && a->albumartist == albumartist)
         {
-            if (year > a->year)
-                a->year = year;
+            if (date_after(date, a->date))
+                a->date = date;
             return;
         }
         i = (i + 1) & c->mask;
@@ -104,7 +150,7 @@ static void count_song(int idx_id, const int32_t *tag_seek, void *data)
         c->full = true;
         return;
     }
-    c->table[i] = (struct album){ album, albumartist, year, 0, idx_id };
+    c->table[i] = (struct album){ album, albumartist, date, idx_id };
     c->used++;
 }
 
@@ -155,14 +201,6 @@ static bool make(void)
                     table[n++] = table[i];
             }
             qsort(table, n, sizeof(*table), cmp_album);
-            for (int i = 0; i < n; )
-            {
-                int end = i, latest = 0;
-                for (; end < n && table[end].album == table[i].album; end++)
-                    latest = MAX(latest, table[end].year);
-                for (; i < end; i++)
-                    table[i].name_year = latest;
-            }
             table_hash = 2166136261u;
             for (int i = 0; i < n; i++)
                 table_hash = ((table_hash ^ (uint32_t)table[i].album) * 16777619u
@@ -233,13 +271,25 @@ static int album_in(const struct album *albums, int32_t album,
     return -1;
 }
 
+/* the date of the albums of a name (date_after()), from the first of them */
+static int32_t name_date(const struct album *albums, int first)
+{
+    int32_t date = 0;
+    for (int i = first; i < count && albums[i].album == albums[first].album; i++)
+    {
+        if (date_after(albums[i].date, date))
+            date = albums[i].date;
+    }
+    return date;
+}
+
 int album_year(int32_t album, int32_t albumartist)
 {
     if (!album_years_ready() || count == 0)
         return 0;
     const struct album *albums = core_get_data(handle);
     const int i = album_in(albums, album, albumartist);
-    return i < 0 ? 0 : albums[i].year;
+    return i < 0 ? 0 : album_date_year(albums[i].date);
 }
 
 int album_years_find(int32_t album, int *n)
@@ -278,16 +328,31 @@ int32_t album_years_artist(int no)
     return a ? a->albumartist : -1;
 }
 
-int album_years_year(int no)
+int32_t album_years_date(int no)
 {
     const struct album *a = album_no(no);
-    return a ? a->year : 0;
+    return a ? a->date : 0;
+}
+
+int album_years_year(int no)
+{
+    return album_date_year(album_years_date(no));
+}
+
+int32_t album_years_name_date_of(int no)
+{
+    const struct album *a = album_no(no);
+    if (!a)
+        return 0;
+    const struct album *albums = core_get_data(handle);
+    while (no > 0 && albums[no - 1].album == a->album)
+        no--;
+    return name_date(albums, no);
 }
 
 int album_years_name_year_of(int no)
 {
-    const struct album *a = album_no(no);
-    return a ? a->name_year : 0;
+    return album_date_year(album_years_name_date_of(no));
 }
 
 int32_t album_years_first_track(int no)
@@ -334,7 +399,7 @@ void album_years_match(const int32_t *tag_seek, void *data)
     struct album *albums = core_get_data(handle);
     const int32_t album = tag_seek[tag_album];
     const int no = album_in(albums, album, tag_seek[tag_albumartist]);
-    const int year = no < 0 ? 0 : albums[no].year;
+    const int32_t date = no < 0 ? 0 : albums[no].date;
     struct row *rows = rows_of(albums);
     unsigned i = place_of(album, 0, ROW_PLACES - 1);
     while (rows[i].album != -1 && rows[i].album != album)
@@ -344,8 +409,8 @@ void album_years_match(const int32_t *tag_seek, void *data)
         rows[i] = (struct row){ album, 0, no };
         rows_used++;
     }
-    if (year > rows[i].year)
-        rows[i].year = year;
+    if (date_after(date, rows[i].date))
+        rows[i].date = date;
 }
 
 /* the row of this name the search was told of, or NULL */
@@ -364,16 +429,21 @@ static const struct row *row_of(const struct album *albums, int32_t album)
     return NULL;
 }
 
-int album_years_row(int32_t album)
+int32_t album_years_row_date(int32_t album)
 {
     if (!album_years_ready() || count == 0)
         return 0;
     const struct album *albums = core_get_data(handle);
     const struct row *row = row_of(albums, album);
     if (row)
-        return row->year;
+        return row->date;
     const int first = first_of(albums, album);
-    return first < 0 ? 0 : albums[first].name_year;
+    return first < 0 ? 0 : name_date(albums, first);
+}
+
+int album_years_row(int32_t album)
+{
+    return album_date_year(album_years_row_date(album));
 }
 
 int album_years_row_album(int32_t album)
@@ -391,7 +461,7 @@ int album_name_year(int32_t album)
         return 0;
     const struct album *albums = core_get_data(handle);
     const int i = first_of(albums, album);
-    return i < 0 ? 0 : albums[i].name_year;
+    return i < 0 ? 0 : album_date_year(name_date(albums, i));
 }
 
 unsigned album_years_generation(void)
@@ -416,6 +486,7 @@ void album_years_match(const int32_t *tag_seek, void *data)
     (void)tag_seek; (void)data;
 }
 int album_years_row(int32_t album) { (void)album; return 0; }
+int32_t album_years_row_date(int32_t album) { (void)album; return 0; }
 int album_years_row_album(int32_t album) { (void)album; return -1; }
 int album_years_find(int32_t album, int *n)
 {
@@ -425,7 +496,9 @@ int album_years_find(int32_t album, int *n)
 }
 int32_t album_years_album(int no) { (void)no; return -1; }
 int32_t album_years_artist(int no) { (void)no; return -1; }
+int32_t album_years_date(int no) { (void)no; return 0; }
 int album_years_year(int no) { (void)no; return 0; }
+int32_t album_years_name_date_of(int no) { (void)no; return 0; }
 int album_years_name_year_of(int no) { (void)no; return 0; }
 int32_t album_years_first_track(int no) { (void)no; return -1; }
 int album_years_count(void) { return 0; }
