@@ -5883,6 +5883,8 @@ static bool track_list_ready(void)
 }
 
 
+static bool menu_was_wide;
+
 static bool context_menu_ready(void)
 {
 #ifdef USEGSLIB
@@ -5909,12 +5911,16 @@ static bool context_menu_ready(void)
     insert_whole_album = (pf_state != pf_show_tracks) || show_tracks_while_browsing;
     FOR_NB_SCREENS(i)
         rb->viewportmanager_theme_enable(i, true, NULL);
+    /* the whole width, for Sort By's value beside it in every language */
+    menu_was_wide = rb->menu_wide();
+    rb->menu_set_wide(true);
 
     return true;
 }
 
 static void context_menu_cleanup(void)
 {
+    rb->menu_set_wide(menu_was_wide);
     FOR_NB_SCREENS(i)
         rb->viewportmanager_theme_undo(i, false);
     if (pf_state != pf_show_tracks)

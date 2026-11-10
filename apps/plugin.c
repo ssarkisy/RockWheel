@@ -960,6 +960,8 @@ static const struct plugin_api rockbox_api = {
     album_years_ready,
     album_date,
     album_date_order,
+    menu_wide,
+    menu_set_wide,
 };
 
 static int plugin_buffer_handle;
