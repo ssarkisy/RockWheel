@@ -760,7 +760,7 @@ static void gui_synclist_scroll_left(struct gui_synclist * lists)
 #else
 #define QUICK_SCROLL_HOLD  HZ
 #endif
-/* rows without a letter skipped at most */
+/* rows without a letter a step skips at most */
 #define QUICK_SCROLL_SKIP  32
 
 static const char *row_initial(struct gui_synclist *lists, int row,
@@ -812,7 +812,9 @@ static int initial_edge(struct gui_synclist *lists, int row, int dir,
 
 /* A step by the letters: down, to the first row of the next one; up, to the
    first of the row's own, or of the one before from there. Past the last or
-   the first, to the list's end, as Unknown Artist's row after the letters */
+   the first, to the list's end, as Unknown Artist's row after the letters;
+   into a longer run without one, as past the letters the database had room
+   for, from where the list goes by rows */
 static int initial_step(struct gui_synclist *lists, int row, int dir)
 {
     char buf[16], own[16];
@@ -831,7 +833,7 @@ static int initial_step(struct gui_synclist *lists, int row, int dir)
                     && !(s = row_initial(lists, to, buf, sizeof(buf))); n++)
     {
         if (n == QUICK_SCROLL_SKIP)
-            return row;
+            return to;
         to += dir;
     }
     if (to < 0 || to >= lists->nb_items)
