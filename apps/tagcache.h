@@ -236,6 +236,10 @@ struct tagcache_runtime {
     long playcount;
     long rating;      /* 0..10 */
     long lastplayed;  /* a serial number, or the time of the play */
+    long playtime;    /* ms, of all its plays */
+    long commitid;    /* of the commit that added it */
+    long lastelapsed; /* where it was left: ms */
+    long lastoffset;  /* and the file's byte */
 };
 bool tagcache_update_runtime(int (*update)(const char *filename,
                                            struct tagcache_runtime *rt,

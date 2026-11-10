@@ -2256,45 +2256,113 @@ static const struct unsent_entry *find_unsent(uint64_t hash)
     return NULL;
 }
 
-/* the entries under their songs' new paths */
-static void unsent_moved(void)
+/* The songs a sync moved, by their old paths' hashes (sort_moved_list()),
+   and for each new path, the old entry's numbers: the pass removes an old
+   entry before it comes to the new one, which the scan added at the end */
+struct moved_song {
+    uint64_t hash;              /* of the new path */
+    struct tagcache_runtime rt; /* of the old entry */
+    bool kept;
+};
+
+static struct {
+    int handle;
+    int count;
+    struct itunesdb_moved *by_old;
+    struct moved_song *by_new;
+} moves;
+
+static int cmp_moved_song(const void *a, const void *b)
 {
+    return cmp_u64(&((const struct moved_song *)a)->hash,
+                   &((const struct moved_song *)b)->hash);
+}
+
+static void load_moves(void)
+{
+    memset(&moves, 0, sizeof(moves));
     const int fd = open(ITUNESDB_MOVED_LIST, O_RDONLY);
     if (fd < 0)
         return;
     const int n = ffilesize(fd) / sizeof(struct itunesdb_moved);
-    const int handle = n > 0 ? db_alloc(n * sizeof(struct itunesdb_moved)) : 0;
-    if (handle > 0)
+    if (n > 0 && n <= COUNT_MAX)
+        moves.handle = db_alloc(n * (sizeof(struct itunesdb_moved)
+                                     + sizeof(struct moved_song)));
+    if (moves.handle > 0)
     {
-        core_pin(handle);
-        struct itunesdb_moved *m = core_get_data(handle);
-        if (read(fd, m, n * sizeof(*m)) == (ssize_t)(n * sizeof(*m)))
+        core_pin(moves.handle);
+        moves.by_old = core_get_data(moves.handle);
+        moves.by_new = (struct moved_song *)(moves.by_old + n);
+        if (read(fd, moves.by_old, n * sizeof(*moves.by_old))
+            == (ssize_t)(n * sizeof(*moves.by_old)))
         {
-            for (uint32_t i = 0; i < uns.hdr.count; i++)
+            moves.count = n;
+            memset(moves.by_new, 0, n * sizeof(*moves.by_new));
+            for (int i = 0; i < n; i++)
             {
-                int lo = 0, hi = n - 1;
-                while (lo <= hi)
-                {
-                    const int mid = (lo + hi) / 2;
-                    if (m[mid].old_hash == uns.e[i].hash)
-                    {
-                        char path[sizeof(m->path)];
-                        strmemccpy(path, m[mid].path, sizeof(path));
-                        uns.e[i].hash = itunesdb_path_hash(path);
-                        break;
-                    }
-                    if (m[mid].old_hash < uns.e[i].hash)
-                        lo = mid + 1;
-                    else
-                        hi = mid - 1;
-                }
+                char *path = moves.by_old[i].path;
+                path[sizeof(moves.by_old[i].path) - 1] = '\0';
+                moves.by_new[i].hash = itunesdb_path_hash(path);
             }
-            qsort(uns.e, uns.hdr.count, sizeof(*uns.e), cmp_unsent);
+            qsort(moves.by_new, n, sizeof(*moves.by_new), cmp_moved_song);
         }
-        core_unpin(handle);
-        core_free(handle);
     }
     close(fd);
+}
+
+static void unload_moves(void)
+{
+    if (moves.handle > 0)
+    {
+        core_unpin(moves.handle);
+        core_free(moves.handle);
+    }
+    memset(&moves, 0, sizeof(moves));
+}
+
+/* the hash of the path a song moved to from this one's, 0 for none */
+static uint64_t moved_to(uint64_t old_hash)
+{
+    int lo = 0, hi = moves.count - 1;
+    while (lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (moves.by_old[mid].old_hash == old_hash)
+            return itunesdb_path_hash(moves.by_old[mid].path);
+        if (moves.by_old[mid].old_hash < old_hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return 0;
+}
+
+static struct moved_song *find_moved(uint64_t hash)
+{
+    int lo = 0, hi = moves.count - 1;
+    while (hash && lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (moves.by_new[mid].hash == hash)
+            return &moves.by_new[mid];
+        if (moves.by_new[mid].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return NULL;
+}
+
+/* the entries under their songs' new paths */
+static void unsent_moved(void)
+{
+    for (uint32_t i = 0; i < uns.hdr.count; i++)
+    {
+        const uint64_t hash = moved_to(uns.e[i].hash);
+        if (hash)
+            uns.e[i].hash = hash;
+    }
+    qsort(uns.e, uns.hdr.count, sizeof(*uns.e), cmp_unsent);
 }
 
 /* Whether Finder took the files that went, by the new iTunesDB: a file
@@ -2377,10 +2445,28 @@ static int update_entry(const char *path, struct tagcache_runtime *rt,
         /* Finder renames and removes the files in its folder as it syncs,
            so one that iTunesDB doesn't list is left from an older sync.
            Only trusted when all of iTunesDB could be read. */
-        return (pend.hdr.complete && itunesdb_synced_path(path)) ? -1 : 0;
+        if (!pend.hdr.complete || !itunesdb_synced_path(path))
+            return 0;
+        struct moved_song *m = find_moved(moved_to(hash));
+        if (m)
+        {
+            m->rt = *rt;
+            m->kept = true;
+        }
+        return -1;
     }
     if (counts_kept)
         return 0;
+    /* a moved song's new entry keeps its old entry's numbers */
+    const struct moved_song *m = find_moved(hash);
+    if (m && m->kept)
+    {
+        rt->lastplayed = m->rt.lastplayed;
+        rt->playtime = m->rt.playtime;
+        rt->commitid = m->rt.commitid;
+        rt->lastelapsed = m->rt.lastelapsed;
+        rt->lastoffset = m->rt.lastoffset;
+    }
     rt->playcount = t->playcount;
     rt->rating = t->rating / 10; /* the database counts half stars */
     const struct unsent_entry *u = find_unsent(hash);
@@ -2653,7 +2739,10 @@ void itunesdb_import(void)
         const int progress = import_progress();
         bool go = true;
         if (!counts_kept)
+        {
+            load_moves();
             go = unsent_begin(progress & IMPORT_PASSING);
+        }
         /* a boot at most, its tries again in it too: a sync's songs wait for
            the import, and would for good with the memory short each time */
         if (!go && (progress & IMPORT_WAITED) && !waited)
@@ -2685,6 +2774,7 @@ void itunesdb_import(void)
                 note_imported();
         }
         unload_unsent();
+        unload_moves();
     }
     logf("itunesdb: %lu tracks imported", (unsigned long)pend.hdr.count);
     unload_pending();

@@ -3568,7 +3568,7 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
 #endif
 #ifndef __PCTOOL__
     /* what iTunesDB says of a file Finder added, as a stock iPod has it */
-    struct tagcache_runtime itdb_rt = { 0, 0, 0 };
+    struct tagcache_runtime itdb_rt = { 0 };
     ret = itunesdb_get_metadata(path, &id3, &itdb_rt);
     if (!ret)
 #endif
@@ -6199,9 +6199,30 @@ bool tagcache_import_changelog(void)
 #endif /* !__PCTOOL__ */
 
 #ifndef __PCTOOL__
+/* the runtime values into an entry: false when it had them */
+static bool runtime_set(struct index_entry *idx,
+                        const struct tagcache_runtime *rt)
+{
+    const long values[] = {
+        rt->playcount, rt->rating, rt->lastplayed, rt->playtime, rt->commitid,
+        rt->lastelapsed, rt->lastoffset
+    };
+    static const unsigned char tags[] = {
+        tag_playcount, tag_rating, tag_lastplayed, tag_playtime, tag_commitid,
+        tag_lastelapsed, tag_lastoffset
+    };
+    bool changed = false;
+    for (unsigned i = 0; i < ARRAYLEN(tags); i++)
+    {
+        changed |= idx->tag_seek[tags[i]] != values[i];
+        idx->tag_seek[tags[i]] = values[i];
+    }
+    return changed;
+}
+
 /* Calls update() with the filename and runtime values of every entry, and
-   writes back the play count and rating if it returns more than 0 and they
-   changed, or removes the entry if it returns less than 0. One pass, for
+   writes them back if it returns more than 0 and they changed, or removes
+   the entry if it returns less than 0. One pass, for
    imports too big to look each file up. False if an entry's counts couldn't
    be written, or it couldn't be removed: the import is then done again, rather
    than noted as done with the disk's old counts and ratings, or a song whose
@@ -6251,7 +6272,9 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
 
         struct tagcache_runtime rt = {
             idx.tag_seek[tag_playcount], idx.tag_seek[tag_rating],
-            idx.tag_seek[tag_lastplayed]
+            idx.tag_seek[tag_lastplayed], idx.tag_seek[tag_playtime],
+            idx.tag_seek[tag_commitid], idx.tag_seek[tag_lastelapsed],
+            idx.tag_seek[tag_lastoffset]
         };
         int action = update(buf, &rt, data);
         if (action < 0)
@@ -6268,16 +6291,13 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
             else
                 failed = true;
         }
-        else if (action > 0
-                 && (rt.playcount != idx.tag_seek[tag_playcount]
-                     || rt.rating != idx.tag_seek[tag_rating]))
+        else if (action > 0 && runtime_set(&idx, &rt))
         {
             /* the disk's copy, written back changed: one that can't be read
                leaves the counts unset, and the import to be done again */
             if (get_index(masterfd, i, &idx, false))
             {
-                idx.tag_seek[tag_playcount] = rt.playcount;
-                idx.tag_seek[tag_rating] = rt.rating;
+                runtime_set(&idx, &rt);
                 idx.flag |= FLAG_DIRTYNUM;
                 failed |= !write_index(masterfd, i, &idx);
             }
