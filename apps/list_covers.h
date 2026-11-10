@@ -70,7 +70,7 @@ void list_covers_opened(void);
    them, as the wheel turns faster than the reader gets the CPU */
 struct gui_synclist;
 void list_covers_draw_soon(struct gui_synclist *list);
-/* the covers made again, or Finder's after an import: those kept may be
+/* the covers made again, or Finder's changed by an import: those kept may be
    other albums', and the file is made again at Updating Library */
 void list_covers_forget(void);
 

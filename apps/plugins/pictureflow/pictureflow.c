@@ -288,7 +288,7 @@ typedef fb_data pix_t;
 
 #define THREAD_STACK_SIZE (DEFAULT_STACK_SIZE * 8)
 #define CACHE_PREFIX PLUGIN_DEMOS_DATA_DIR "/pictureflow"
-#define ALBUM_INDEX CACHE_PREFIX "/pictureflow_album.idx"
+#define ALBUM_INDEX ITUNESDB_ALBUM_INDEX
 
 #define EV_EXIT 9999
 #define EV_WAKEUP 1337

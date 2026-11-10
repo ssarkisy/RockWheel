@@ -560,6 +560,5 @@ void album_header_forget_cover(void)
     cover.width = 0;
     cover.wanted++;
     cover.to_read = false;
-    list_covers_forget();
 #endif
 }

@@ -144,6 +144,12 @@ void itunesdb_set_track_gain(struct mp3entry *id3);
    or an audiobook, or any file with Rockbox's automatic resume on */
 bool itunesdb_resumes(const char *path);
 
+/* whether the last import kept the covers' index and slides as they were,
+   and the database */
+bool itunesdb_import_kept_art(void);
+/* Cover Flow's album list, which Updating Library checks is of the database */
+#define ITUNESDB_ALBUM_INDEX PLUGIN_DEMOS_DATA_DIR "/pictureflow/pictureflow_album.idx"
+
 /* the covers Finder makes for the stock firmware are RGB565 frames */
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH == 16) && (LCD_PIXELFORMAT == RGB565)
 #define ITUNESDB_HAVE_ART

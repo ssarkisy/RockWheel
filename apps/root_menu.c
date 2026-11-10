@@ -1639,6 +1639,35 @@ static bool library_playlists_go_on(void)
     return !held_event;
 }
 
+#ifdef ITUNESDB_HAVE_ART
+/* whether Cover Flow's album list is of the database: its commit, entries
+   and albums' file size, as pictureflow.c's load_album_index() checks them */
+static bool album_list_current(void)
+{
+    struct tagcache_stat *stat = tagcache_get_stat();
+    int32_t head[4];
+    int fd = open(ITUNESDB_ALBUM_INDEX, O_RDONLY);
+    bool current = fd >= 0 && read(fd, head, sizeof(head)) == sizeof(head)
+        && !memcmp(head, "PFIV", 4) && head[1] == tagcache_get_commitid()
+        && head[2] == stat->total_entries;
+    if (fd >= 0)
+        close(fd);
+    if (current)
+    {
+        char file[MAX_PATH];
+        snprintf(file, sizeof(file), "%s/database_%d.tcd", stat->db_path,
+                 tag_album);
+        fd = open(file, O_RDONLY);
+        current = fd >= 0 && ffilesize(fd) == head[3];
+        if (fd >= 0)
+            close(fd);
+    }
+    return current;
+}
+#else
+#define album_list_current() true
+#endif
+
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
  * the step and how far that is under it, until it's done. Menu left it to
@@ -1691,9 +1720,13 @@ void show_library_update(void)
         if (default_event_handler(action) == SYS_USB_CONNECTED)
             break;
     }
-    /* a check that took long but found nothing has nothing to make again */
+    /* a check that took long but found nothing has nothing to make again, nor
+       an import that changed neither the database nor the covers, with what
+       they make made for this database */
     const bool imported = phase == TAGCACHE_IMPORT_NONE
-        && ((shown && !checked_only)
+        && ((shown && !checked_only
+             && !(itunesdb_import_kept_art() && album_list_current()
+                  && tagtree_songs_prepared()))
             || tagcache_get_commitid() != prepared_commitid);
     /* Finder may sync photos only, so this goes by their own database */
     const bool photos_changed = phase == TAGCACHE_IMPORT_NONE && photos_panel_stale();

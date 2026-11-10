@@ -6257,6 +6257,17 @@ void tagtree_prepare_songs(void)
     c->special_entry_count = special;
 }
 
+bool tagtree_songs_prepared(void)
+{
+    struct search_instruction *songs = tagtree_all_songs();
+    struct tagtree_list_header h;
+    int fd;
+    if (!songs || tagtree_songs_slot(songs, &h, &fd) < 0)
+        return false;
+    close(fd);
+    return true;
+}
+
 static int tagtree_play_folder(struct tree_context* c)
 {
     logf( "%s", __func__);

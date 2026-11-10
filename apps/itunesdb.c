@@ -55,6 +55,7 @@
 #include "skin_engine/skin_engine.h"
 #ifdef HAVE_TAGCACHE
 #include "album_header.h"
+#include "list_covers.h"
 #endif
 #endif
 
@@ -4034,7 +4035,10 @@ static bool read_image(off_t pos, struct art_image *image)
     image->offset = frames[best].offset;
     image->file = frames[best].file;
     image->format = frames[best].format;
+    /* all of it set: the index is compared whole with the last one */
+    image->small_offset = 0;
     image->small_file = 0;
+    image->small_format = 0;
     if (small != best
         && frames[small].width * frames[small].height <= SMALL_FRAME_MAX)
     {
@@ -4377,8 +4381,75 @@ static int read_old_slides(uint32_t *count)
     return handle;
 }
 
-static void write_art_index(int old_handle, uint32_t old_count)
+/* The import left the covers' index as it was and made no slide: nothing
+   made from them is made again. The old index by its header and a hash of the
+   rest, before it's removed; and the commit then, which mustn't have changed. */
+static bool art_kept;
+static int kept_commitid;
+struct art_sum {
+    bool had;
+    struct art_header hdr;
+    uint32_t sum;
+};
+static uint32_t index_sum;
+
+typedef uint32_t __attribute__((__may_alias__)) index_word;
+
+/* FNV-1a a word at a time: crc_32() took a table lookup a nibble. Equal
+   bytes hash equal when every piece starts 4-aligned and is whole words, as
+   both sides' do; any other split only looks like a change. */
+static uint32_t index_hash(const void *data, size_t size, uint32_t h)
 {
+    const unsigned char *p = data;
+    size_t i = 0;
+    if (!((uintptr_t)p & 3))
+    {
+        for (; i + 4 <= size; i += 4)
+            h = (h ^ *(const index_word *)(p + i)) * 16777619u;
+    }
+    for (; i < size; i++)
+        h = (h ^ p[i]) * 16777619u;
+    return h;
+}
+
+static void art_file_sum(struct art_sum *a)
+{
+    a->had = false;
+    const int fd = open(ART_FILE, O_RDONLY);
+    const int handle = fd >= 0 ? db_alloc(READ_BLOCK) : 0;
+    if (handle > 0 && read(fd, &a->hdr, sizeof(a->hdr)) == sizeof(a->hdr))
+    {
+        core_pin(handle);
+        a->sum = 2166136261u;
+        ssize_t got;
+        while ((got = read(fd, core_get_data(handle), READ_BLOCK)) > 0)
+            a->sum = index_hash(core_get_data(handle), got, a->sum);
+        a->had = got == 0;
+        core_unpin(handle);
+    }
+    if (handle > 0)
+        core_free(handle);
+    if (fd >= 0)
+        close(fd);
+}
+
+/* the rest of the index, hashed as it's written */
+static void index_put(const void *data, size_t size)
+{
+    writer_put(&out, data, size);
+    index_sum = index_hash(data, size, index_sum);
+}
+
+bool itunesdb_import_kept_art(void)
+{
+    return art_kept && tagcache_get_commitid() == kept_commitid;
+}
+
+/* true once the new index is in place */
+static bool write_art_index(int old_handle, uint32_t old_count,
+                            const struct art_sum *old)
+{
+    bool placed = false;
     struct art_image *images = NULL;
     int art_count = 0;
     int work = 0, slides = 0;
@@ -4430,6 +4501,7 @@ static void write_art_index(int old_handle, uint32_t old_count)
     art_hdr.magic = ART_MAGIC;
     art_hdr.version = ART_VERSION;
     writer_put(&out, &art_hdr, sizeof(art_hdr));
+    index_sum = 2166136261u;
     /* by path hash, which db.by_hash already has them in */
     uint32_t count = 0;
     for (int i = 0; i < db.count; i++)
@@ -4443,11 +4515,11 @@ static void write_art_index(int old_handle, uint32_t old_count)
             t->st.hash, image->offset, image->file,
             art_format_index(image->format), slide_of[db.by_hash[i]]
         };
-        writer_put(&out, &entry, sizeof(entry));
+        index_put(&entry, sizeof(entry));
         count++;
     }
-    writer_put(&out, keys, art_hdr.nslides * sizeof(*keys));
-    writer_put(&out, sources, art_hdr.nslides * sizeof(*sources));
+    index_put(keys, art_hdr.nslides * sizeof(*keys));
+    index_put(sources, art_hdr.nslides * sizeof(*sources));
     /* the count, now that it is known */
     art_hdr.count = count;
     writer_flush(&out);
@@ -4455,9 +4527,17 @@ static void write_art_index(int old_handle, uint32_t old_count)
     writer_put(&out, &art_hdr, sizeof(art_hdr));
     if (writer_close(&out))
     {
+        const bool same = old->had && old->sum == index_sum
+                          && !memcmp(&old->hdr, &art_hdr, sizeof(art_hdr));
+#ifdef HAVE_TAGCACHE
+        /* the lists' covers made again, marked before the index is in place */
+        if (!same)
+            list_covers_forget();
+#endif
         /* the slides to make before the index is complete */
         close(open(SLIDES_TODO, O_WRONLY | O_CREAT | O_TRUNC, 0666));
-        rename(ART_FILE ".tmp", ART_FILE);
+        placed = rename(ART_FILE ".tmp", ART_FILE) == 0;
+        art_kept = same && placed;
     }
     logf("itunesdb: %lu covers, %lu slides", (unsigned long)count,
          (unsigned long)art_hdr.nslides);
@@ -4478,6 +4558,7 @@ done:
         core_unpin(handle);
         core_free(handle);
     }
+    return placed;
 }
 
 /* The index lives in memory, and each frame is read once for all the sizes
@@ -5281,6 +5362,7 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
     uint32_t count = slides_index.count;
     bool complete = true;
     const bool check_all = slides_suspect || file_exists(SLIDES_CHECK);
+    bool remaking = false;
     if (total)
         *total = count;
     cpu_boost(true);
@@ -5317,6 +5399,15 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
             if (colours_handle > 0)
                 slides_made()[i] = 1;
             continue;
+        }
+        if (!remaking)
+        {
+            /* the lists' covers are made of the slides and their colours */
+            remaking = true;
+            art_kept = false;
+#ifdef HAVE_TAGCACHE
+            list_covers_forget();
+#endif
         }
         if (made ? lseek(fd, pos, SEEK_SET) == pos
                    && read(fd, slide_slot, SLIDE_SLOT) == SLIDE_SLOT
@@ -6025,8 +6116,14 @@ void itunesdb_covers_end(int how)
         skin_forget_db_art();
 #ifdef HAVE_TAGCACHE
         album_header_forget_cover();
+        list_covers_forget();
 #endif
     }
+}
+#else /* !ITUNESDB_HAVE_ART */
+bool itunesdb_import_kept_art(void)
+{
+    return false;
 }
 #endif /* ITUNESDB_HAVE_ART */
 
@@ -6259,6 +6356,11 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
        slides are kept where they are the same */
     uint32_t old_slides_count;
     int old_slides_handle = read_old_slides(&old_slides_count);
+    struct art_sum old_art;
+    art_file_sum(&old_art);
+    art_kept = false;
+    kept_commitid = tagcache_get_commitid();
+    bool art_placed = false;
     forget_art();
     remove(ART_FILE);
 #endif
@@ -6281,12 +6383,17 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
         }
 #ifdef ITUNESDB_HAVE_ART
         /* last, as it reads ArtworkDB through the same cache */
-        write_art_index(old_slides_handle, old_slides_count);
+        art_placed = write_art_index(old_slides_handle, old_slides_count,
+                                     &old_art);
 #endif
     }
 #ifdef ITUNESDB_HAVE_ART
     if (old_slides_handle > 0)
         core_free(old_slides_handle);
+#ifdef HAVE_TAGCACHE
+    if (!art_placed)
+        list_covers_forget();
+#endif
 #endif
     db_unload();
     itunesdb_load_tracks();
