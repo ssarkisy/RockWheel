@@ -21,7 +21,7 @@ import re
 import struct
 import sys
 
-LINE_WIDTH = 308  # the band's text, as list.c has it
+LINE_WIDTH = 297  # the band's text, as list.c has it beside the scrollbar
 LINE_BYTES = 192 - 4  # and its buffer for a line, HINT_BYTES
 LINES = 3
 THEME_FONTS = ('18-Inter-SemiBold.fnt', '18-Inter-Bold.fnt')

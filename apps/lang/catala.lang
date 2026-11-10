@@ -17799,7 +17799,7 @@
     *: "In Composers, Shuffle Songs plays your whole library. A composer's albums follow An Artist's Albums."
   </source>
   <dest>
-    *: "A Compositors, Barreja cançons reprodueix tota la biblioteca. Els àlbums d'un compositor segueixen Àlbums d'un artista."
+    *: "A Compositors, Barreja cançons reprodueix tota la biblioteca. Àlbums d'un compositor segueix Àlbums d'un artista."
   </dest>
   <voice>
     *: ""
@@ -17884,6 +17884,20 @@
   </source>
   <dest>
     *: "Cada àlbum mostra la portada al costat del nom, a Àlbums i als àlbums d'un artista, com en un iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "Barra de desplaçament"
   </dest>
   <voice>
     *: ""

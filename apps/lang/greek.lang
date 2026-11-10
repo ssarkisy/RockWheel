@@ -17139,7 +17139,7 @@
     *: "Cover Colours"
   </source>
   <dest>
-    *: "Χρώματα εξωφύλλου"
+    *: "Χρώμα εξωφύλλου"
   </dest>
   <voice>
     *: ""
@@ -20303,7 +20303,7 @@
     *: "Artists in Albums"
   </source>
   <dest>
-    *: "Καλλιτέχνες στα άλμπουμ"
+    *: "Καλλιτέχνες σε άλμπουμ"
   </dest>
   <voice>
     *: ""
@@ -20346,6 +20346,20 @@
   </source>
   <dest>
     *: "Κάθε άλμπουμ δείχνει το εξώφυλλό του δίπλα στο όνομα, στα Άλμπουμ και του καλλιτέχνη, όπως στο iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "Μπάρα κύλισης"
   </dest>
   <voice>
     *: ""

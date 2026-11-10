@@ -21374,7 +21374,7 @@
     *: "In Composers, Shuffle Songs plays your whole library. A composer's albums follow An Artist's Albums."
   </source>
   <dest>
-    *: "În Compozitori, Amestecă cîntecele redă toată biblioteca. Albumele unui compozitor urmează rîndul Albumele unui artist."
+    *: "În Compozitori, Amestecă cîntecele redă toată biblioteca. Albumele unui compozitor urmează Albumele unui artist."
   </dest>
   <voice>
     *: ""
@@ -21459,6 +21459,20 @@
   </source>
   <dest>
     *: "Fiecare album își arată coperta lângă nume, în Albume și în albumele unui artist, ca pe un iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "Bară de derulare"
   </dest>
   <voice>
     *: ""

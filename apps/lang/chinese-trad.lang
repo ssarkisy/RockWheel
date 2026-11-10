@@ -16480,3 +16480,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "捲動軸"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

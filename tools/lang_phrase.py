@@ -26,7 +26,7 @@ language's short form and voice as <file>.short and <file>.voice; # comments.
 name (--name, or the batch's one phrase that isn't a value, or those with short
 forms) measured beside each value in each language, as
 ~/ipod-data/archive/work/settings-1.3/value_fit.py does (24-Inter-Bold and the
-24 px script fonts of themes/fonts, a row's room --room, 286 px in Settings).
+24 px script fonts of themes/fonts, a row's room --room, 275 px in Settings).
 Where a value would hide, the short form is written; with no short form that
 fits, nothing is written. Without BATCH, it only reports.
 
@@ -50,8 +50,9 @@ SKIP = 'walon'
 # be missing there (English is shown), as tools/check_langs.py allows
 NOT_OFFERED = ('hindi', 'thai')
 # every row of Settings had 286 px for its name and value in 1.3's English
-# run (value_fit.py's VALSLACK log: slack + name + value, 55 rows)
-SETTINGS_ROOM = 286
+# run (value_fit.py's VALSLACK log: slack + name + value, 55 rows); 275 in a
+# list longer than the screen, beside the scrollbar's 11
+SETTINGS_ROOM = 275
 FMT = re.compile(r'%[-+ #0]*\d*(?:\.\d+)?(?:hh|h|ll|l|z|j|t)?[diouxXcspfeEgG%]')
 SECTION = re.compile(r'^<(/?)(source|dest|voice)>$')
 

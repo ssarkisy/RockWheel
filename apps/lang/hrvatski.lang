@@ -14955,7 +14955,7 @@
     *: "Group by Album Artist"
   </source>
   <dest>
-    *: "Grupiraj po izvođaču albuma"
+    *: "Po izvođaču albuma"
   </dest>
   <voice>
     *: ""
@@ -17630,6 +17630,20 @@
   </source>
   <dest>
     *: "Svaki album prikazuje svoj omot uz naziv, u Albumima i u albumima izvođača, kao na iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "Traka za pomicanje"
   </dest>
   <voice>
     *: ""

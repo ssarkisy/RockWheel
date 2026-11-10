@@ -240,6 +240,7 @@ MENUITEM_SETTING(list_covers_item, &global_settings.list_covers,
                  list_covers_callback);
 #endif
 #endif
+MENUITEM_SETTING(list_scrollbar_item, &global_settings.list_scrollbar, NULL);
 
 /* Appearance, a folder of Settings: all that changes the look, the whole of
    it first, then Music's lists', then Now Playing's, then the iPod's or iOS's
@@ -252,6 +253,7 @@ MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &list_covers_item,
 #endif
 #endif
+          &list_scrollbar_item,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
           &cover_colours_item, &status_icons_item, &angled_cover_item,
           &status_bar_style_item, &rating_style_item, &progress_bar_style_item,

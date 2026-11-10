@@ -21258,7 +21258,21 @@
     *: "Each album shows its cover beside its name, in Albums and in an artist's albums, as on an iPod classic."
   </source>
   <dest>
-    *: "Chaque album montre sa pochette à côté de son nom, dans Albums et dans les albums d'un artiste, comme sur un iPod classic."
+    *: "Chaque album montre sa pochette à côté de son nom, dans Albums et les albums d'un artiste, comme sur un iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "Barre de défilement"
   </dest>
   <voice>
     *: ""

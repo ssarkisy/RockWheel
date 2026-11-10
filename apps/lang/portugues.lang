@@ -17963,7 +17963,7 @@
     *: "In Composers, Shuffle Songs plays your whole library. A composer's albums follow An Artist's Albums."
   </source>
   <dest>
-    *: "Em Compositores, Modo aleatório reproduz toda a biblioteca. Os álbuns de um compositor seguem Álbuns de um artista."
+    *: "Em Compositores, Modo aleatório reproduz toda a biblioteca. Os álbuns de compositor seguem Álbuns de um artista."
   </dest>
   <voice>
     *: ""
@@ -18048,6 +18048,20 @@
   </source>
   <dest>
     *: "Cada álbum mostra a sua capa junto ao nome, em Álbuns e nos álbuns de um artista, como num iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "Barra de deslocamento"
   </dest>
   <voice>
     *: ""

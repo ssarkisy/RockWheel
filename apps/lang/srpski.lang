@@ -18985,7 +18985,7 @@
     *: "Group by Album Artist"
   </source>
   <dest>
-    *: "Групиши по уметнику албума"
+    *: "По уметнику албума"
   </dest>
   <voice>
     *: ""
@@ -21491,7 +21491,7 @@
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
   </source>
   <dest>
-    *: "Испод назива сваког албума у Албумима су година и уметник, а албуми истог назива приказани су засебно."
+    *: "Испод назива сваког албума у Албумима су година и уметник, а албуми истог назива су засебно."
   </dest>
   <voice>
     *: ""
@@ -21520,6 +21520,20 @@
   </source>
   <dest>
     *: "Сваки албум приказује свој омот поред назива, у Албумима и у албумима уметника, као на iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "Трака за померање"
   </dest>
   <voice>
     *: ""

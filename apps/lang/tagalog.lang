@@ -17462,7 +17462,21 @@
     *: "Each album shows its cover beside its name, in Albums and in an artist's albums, as on an iPod classic."
   </source>
   <dest>
-    *: "Nasa tabi ng pangalan ng bawat album ang cover nito, sa Mga Album at sa mga album ng isang artista, gaya sa iPod classic."
+    *: "Nasa tabi ng pangalan ng bawat album ang cover nito, sa Mga Album at sa mga album ng artista, gaya sa iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "Scrollbar"
   </dest>
   <voice>
     *: ""

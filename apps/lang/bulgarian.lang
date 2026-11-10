@@ -18989,7 +18989,7 @@
     *: "Group by Album Artist"
   </source>
   <dest>
-    *: "По изпълнител на албума"
+    *: "По изпълнител на албум"
   </dest>
   <voice>
     *: ""
@@ -21481,7 +21481,7 @@
     *: "Artists in Albums"
   </source>
   <dest>
-    *: "Изпълнители в албумите"
+    *: "Изпълнители в албуми"
   </dest>
   <voice>
     *: ""
@@ -21524,6 +21524,20 @@
   </source>
   <dest>
     *: "До името на всеки албум е обложката му – в Албуми и в албумите на изпълнител, както на iPod classic."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIST_SCROLLBAR
+  desc: a setting of Settings > Appearance, after Covers in Lists: On, a list longer than the screen has a scrollbar at its right, as on a stock iPod; Off, none, the rows the whole width
+  user: core
+  <source>
+    *: "Scrollbar"
+  </source>
+  <dest>
+    *: "Лента за превъртане"
   </dest>
   <voice>
     *: ""

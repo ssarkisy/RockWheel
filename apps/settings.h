@@ -1092,6 +1092,9 @@ struct user_settings
     /* the albums' covers beside them in Music's lists of albums (Covers in
        Lists) */
     bool list_covers;
+    /* Settings > Appearance: a long list's scrollbar, where the theme's
+       scrollbar puts it (Scrollbar) */
+    bool list_scrollbar;
 };
 
 /* global settings */

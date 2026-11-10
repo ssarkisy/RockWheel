@@ -449,6 +449,51 @@ void list_draw_hint(struct screen *display, struct viewport *band,
     display->set_drawmode(DRMODE_SOLID);
 }
 
+#ifdef HAVE_LCD_COLOR
+/* colours measured on a stock 5G; track[dark][inner, outer] */
+static const unsigned scrollbar_thumb[] = {
+    LCD_RGBPACK(0x29, 0x51, 0xad), LCD_RGBPACK(0x4a, 0x8e, 0xd6),
+    LCD_RGBPACK(0xa5, 0xc7, 0xef), LCD_RGBPACK(0x94, 0xbe, 0xef),
+    LCD_RGBPACK(0x63, 0xa2, 0xe7), LCD_RGBPACK(0x6e, 0xac, 0xf7),
+    LCD_RGBPACK(0x84, 0xc3, 0xff), LCD_RGBPACK(0x9a, 0xdb, 0xff),
+    LCD_RGBPACK(0xad, 0xf4, 0xff), LCD_RGBPACK(0x5a, 0x71, 0x7b),
+};
+static const unsigned char scrollbar_track[2][2][3] = {
+    { { 0xc6, 0xcf, 0xd6 }, { 0xef, 0xf7, 0xff } },
+    { { 0x2a, 0x2d, 0x33 }, { 0x3c, 0x40, 0x48 } },
+};
+
+/* thumb at least square: of 13000 songs it'd be a fraction of a pixel */
+static void list_draw_scrollbar(struct screen *display, int w, int h, bool left,
+                                int items, int first, int last)
+{
+    const int track_w = w - 1;
+    if (track_w < 1 || h < 1 || items <= 0)
+        return;
+    const int thumb_h = MAX(h * (last - first) / items, MIN(track_w, h));
+    const int rest = items - (last - first);
+    const int thumb_y = rest > 0 ? (h - thumb_h) * MAX(MIN(first, rest), 0) / rest : 0;
+    const unsigned char (*track)[3] = scrollbar_track[global_settings.dark_theme];
+    const int d = MAX(track_w - 1, 1);
+
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_foreground(LCD_RGBPACK(0x5a, 0x61, 0x63));
+    display->vline(left ? track_w : 0, 0, h - 1);
+    for (int i = 0; i < track_w; i++)
+    {
+        const int x = left ? track_w - 1 - i : 1 + i;
+        display->set_foreground(LCD_RGBPACK(
+            track[0][0] + (track[1][0] - track[0][0]) * i / d,
+            track[0][1] + (track[1][1] - track[0][1]) * i / d,
+            track[0][2] + (track[1][2] - track[0][2]) * i / d));
+        display->vline(x, 0, h - 1);
+        display->set_foreground(
+            scrollbar_thumb[i * (int)ARRAYLEN(scrollbar_thumb) / track_w]);
+        display->vline(x, thumb_y, thumb_y + thumb_h - 1);
+    }
+}
+#endif
+
 void list_draw(struct screen *display, struct gui_synclist *list)
 {
     int start, end, item_offset, i;
@@ -568,11 +613,20 @@ void list_draw(struct screen *display, struct gui_synclist *list)
              * due to pixelwise rendering */
             vp.height = linedes.height * nb_lines;
 #endif
+#ifdef HAVE_LCD_COLOR
+            /* to the bottom, beside the hints' band too: the same on each row */
+            if (screen == SCREEN_MAIN)
+                vp.height = parent->y + parent->height - list_text_vp->y;
+#endif
             list_text_vp->width -= SCROLLBAR_WIDTH;
+            band.width -= SCROLLBAR_WIDTH;
             if (scrollbar_in_right)
                 vp.x += list_text_vp->width;
             else /* left */
+            {
                 list_text_vp->x += SCROLLBAR_WIDTH;
+                band.x += SCROLLBAR_WIDTH;
+            }
             struct viewport *last = display->set_viewport(&vp);
 
 #ifndef HAVE_TOUCHSCREEN
@@ -586,6 +640,12 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             int scrollbar_min = list->y_pos;
             int scrollbar_max = list->y_pos + list_text_vp->height;
 #endif
+#ifdef HAVE_LCD_COLOR
+            if (screen == SCREEN_MAIN)
+                list_draw_scrollbar(display, vp.width, vp.height, scrollbar_in_left,
+                                    scrollbar_items, scrollbar_min, scrollbar_max);
+            else
+#endif
             gui_scrollbar_draw(display,
                     (scrollbar_in_left? 0: 1), 0, SCROLLBAR_WIDTH-1, vp.height,
                     scrollbar_items, scrollbar_min, scrollbar_max, VERTICAL);
@@ -593,8 +653,6 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         }
         /* shift everything a bit in relation to the title */
         else if (!VP_IS_RTL(list_text_vp) && scrollbar_in_left)
-            indent += SCROLLBAR_WIDTH;
-        else if (VP_IS_RTL(list_text_vp) && scrollbar_in_right)
             indent += SCROLLBAR_WIDTH;
     }
 

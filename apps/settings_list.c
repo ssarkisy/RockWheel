@@ -537,12 +537,17 @@ static const char graphic_numeric[] = "graphic,numeric";
 #endif
 
 #ifdef DEFAULT_THEME_ICLASSIC
-# define SCROLLBAR_DEFAULT SCROLLBAR_OFF
+/* right, 11 px, as a stock 5G's */
+# define SCROLLBAR_DEFAULT SCROLLBAR_RIGHT
+# define SCROLLBAR_WIDTH_DEFAULT 11
 #elif defined(HAVE_TOUCHSCREEN)
 /* on touchscreen, it makes more sense to put the scrollbar on the right */
 # define SCROLLBAR_DEFAULT SCROLLBAR_RIGHT
 #else
 # define SCROLLBAR_DEFAULT SCROLLBAR_LEFT
+#endif
+#ifndef SCROLLBAR_WIDTH_DEFAULT
+# define SCROLLBAR_WIDTH_DEFAULT 6
 #endif
 
 #ifndef __PCTOOL__
@@ -1434,7 +1439,8 @@ const struct settings_list settings[] = {
     CHOICE_SETTING(F_THEMESETTING|F_TEMPVAR, scrollbar,
                   LANG_SCROLL_BAR, SCROLLBAR_DEFAULT, "scrollbar","off,left,right",
                   NULL, 3, ID2P(LANG_OFF), ID2P(LANG_LEFT), ID2P(LANG_RIGHT)),
-    INT_SETTING(F_THEMESETTING, scrollbar_width, LANG_SCROLLBAR_WIDTH, 6,
+    INT_SETTING(F_THEMESETTING, scrollbar_width, LANG_SCROLLBAR_WIDTH,
+                SCROLLBAR_WIDTH_DEFAULT,
                 "scrollbar width",UNIT_INT, 3, MAX(LCD_WIDTH/10,25), 1,
                 NULL, NULL, NULL),
     /* only set by themes, there is no menu entry */
@@ -2768,6 +2774,8 @@ const struct settings_list settings[] = {
                   "album artists", tagtree_album_rows_changed),
     OFFON_SETTING(0, list_covers, LANG_COVERS_IN_LISTS, true,
                   "list covers", list_covers_changed),
+    OFFON_SETTING(0, list_scrollbar, LANG_LIST_SCROLLBAR, true,
+                  "list scrollbar", NULL),
     /* Settings > Music Menu, after the sections: Artists and a genre's
        artists by the albums' artists */
     OFFON_SETTING(0, artists_by_album_artist, LANG_GROUP_BY_ALBUM_ARTIST, true,
