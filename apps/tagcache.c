@@ -3203,6 +3203,11 @@ bool tagcache_restore_finder(void)
     return restore_pending && restore_finder;
 }
 
+bool tagcache_restoring(void)
+{
+    return restore_pending;
+}
+
 static bool restoring(void)
 {
     return restore_pending;
@@ -3394,7 +3399,8 @@ static void restore_free(void)
     restore_count = 0;
 }
 
-/* Finder songs take counts and rating only if iTunesDB hasn't changed since */
+/* Finder songs' counts and ratings too: the import after sets them, from what
+   Finder hasn't had of them */
 static void restore_apply(const char *path, struct temp_file_entry *entry)
 {
     if (restore_handle <= 0)
@@ -3418,14 +3424,10 @@ static void restore_apply(const char *path, struct temp_file_entry *entry)
     core_put_data_pinned(table);
     if (found < 0)
         return;
-    const bool finder = itunesdb_synced_path(path);
     entry->flag |= FLAG_RESTORED;
     for (unsigned i = 0; i < RESTORE_TAGS; i++)
     {
         const int tag = restore_tags[i];
-        if (finder && !restore_finder
-            && (tag == tag_playcount || tag == tag_rating))
-            continue;
         entry->tag_offset[tag] = old.value[i];
         if (old.value[i])
             entry->flag |= FLAG_DIRTYNUM;
@@ -8600,6 +8602,7 @@ static bool restore_set_aside(void)
     }
     else if (!restore_pending || !names_left(names))
         return false;
+    itunesdb_state_aside();
     /* without them nothing is restored, but the build goes on */
     rename_db_file(names, TAGCACHE_FILE_OLD_NAMES);
     /* an old-format journal can't be read: drop it */
@@ -8616,6 +8619,7 @@ static void restore_forget(void)
     remove_db_file(TAGCACHE_FILE_OLD_MASTER);
     remove_db_file(TAGCACHE_FILE_OLD_NAMES);
     remove_db_file(TAGCACHE_FILE_OLD_MARK);
+    remove(ITUNESDB_OLD_STATE);
     restore_pending = false;
 }
 
@@ -9063,7 +9067,7 @@ void tagcache_init(void)
         {
             /* the old firmware's, left by a cut in the set-aside */
             if (fd < 0)
-                itunesdb_forget_state();
+                itunesdb_state_aside();
             sync_found = true;
         }
     }

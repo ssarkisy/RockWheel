@@ -1241,7 +1241,9 @@ void lp_index_all(bool (*go_on)(void))
     {
         /* the songs a sync moved or the database lost, out of or moved in
            each playlist made on the iPod now */
-        remove(ITUNESDB_MOVED_LIST);
+        /* the import may need it again, until its state is written */
+        if (!itunesdb_changed())
+            remove(ITUNESDB_MOVED_LIST);
         remove(LP_GONE);
         remove_gone();
         /* as the pass left it, files it wrote again in their order too */

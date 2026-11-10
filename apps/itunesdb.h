@@ -35,7 +35,7 @@ bool itunesdb_exists(void);
 /* iTunesDB's size and time, which each sync changes */
 bool itunesdb_stamp(uint32_t *size, uint32_t *mtime);
 /* those of the iTunesDB the last import was made from, as itunesdb.dat of any
-   version has them: false without one */
+   version has them, or during a rebuild the one set aside: false without one */
 bool itunesdb_imported_stamp(uint32_t *size, uint32_t *mtime);
 /* the name given to the iPod in Finder, or else "iPod" */
 const char *itunesdb_device_name(void);
@@ -49,10 +49,14 @@ bool itunesdb_synced_path(const char *path);
    once the database has been updated from the files */
 void itunesdb_import(void);
 void itunesdb_forget_state(void);
+/* A database of another format is built again: its state kept as this for the
+   import after, which counts its unsynced plays from it */
+#define ITUNESDB_OLD_STATE ROCKBOX_DIR "/itunesdb_old.dat"
+void itunesdb_state_aside(void);
 
-/* Writes iPod_Control/iTunes/Play Counts like the stock firmware, for Finder
-   to take what was played and rated on the iPod into the library: plays
-   since the last sync and the ratings, in iTunesDB's order */
+/* Writes iPod_Control/iTunes/Play Counts, for Finder to take what was played
+   and rated on the iPod into the library: the plays it hasn't had and the
+   ratings, in iTunesDB's order */
 void itunesdb_write_playcounts(void);
 
 /* The first lines of each playlist file the import writes, by which it knows
@@ -74,8 +78,9 @@ bool itunesdb_own_playlist(const char *file);
    "<hash> <size> <time> <file>", and "dir <folder>" */
 #define ITUNESDB_PLAYLISTS_LIST ROCKBOX_DIR "/itunesdb_playlists.txt"
 /* Songs a sync wrote again under another path, as their dbid has it, by
-   their old path's hash, sorted by it: for the playlists made on the iPod,
-   which keep them, at Updating Library, which then removes the list */
+   their old path's hash, sorted by it: for the import, and for the playlists
+   made on the iPod, which keep them, at Updating Library, which then removes
+   the list once the import is done */
 #define ITUNESDB_MOVED_LIST ROCKBOX_DIR "/itunesdb_moved.dat"
 struct itunesdb_moved {
     uint64_t old_hash;

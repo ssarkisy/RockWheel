@@ -88,8 +88,14 @@ static int db_alloc(size_t size)
 /* A new version re-imports the same iTunesDB leaving the counts (counts_kept);
    the header's start is fixed for good. */
 #define STATE_VERSION   1
+#define STATE_OLD_FILE  ITUNESDB_OLD_STATE
 /* the database's commit id when the last import had gone through all of it */
 #define IMPORTED_FILE   ROCKBOX_DIR "/itunesdb_imported.dat"
+/* how far an import after a sync has got, until it's done: it waited once for
+   a record of the plays Finder hasn't had, or its pass has begun */
+#define PROGRESS_FILE   ROCKBOX_DIR "/itunesdb_progress.dat"
+#define IMPORT_WAITED   0x01
+#define IMPORT_PASSING  0x02
 /* the playlists made from iTunesDB, removed again on the next import */
 #define PLAYLISTS_FILE  ITUNESDB_PLAYLISTS_LIST
 
@@ -176,7 +182,7 @@ struct state_entry {
     uint8_t rating;  /* 0..100, 20 a star */
     uint8_t media;   /* the media type's low byte, which has the video kinds */
     uint8_t flags;   /* ITUNESDB_* */
-    uint8_t unused;
+    uint8_t played;  /* a podcast's mark on the Mac: 1 played, 2 not */
 };
 
 struct track {
@@ -186,6 +192,8 @@ struct track {
     uint32_t album;  /* its album and the album's artist hashed, 0 for none */
     uint32_t pos;    /* of its mhit in iTunesDB */
     uint32_t sound_check; /* Finder's, 0 for none */
+    uint32_t lastplayed;  /* Mac time, 0 for never */
+    uint32_t bookmark;    /* a podcast's place on the Mac, ms */
     struct state_entry st;
     uint64_t dbid;   /* the song's, the same under another path after a sync */
 };
@@ -197,6 +205,7 @@ static struct {
     int cache_len;
     struct track *tracks;
     int count;
+    int shows;
     uint32_t *by_id;   /* indexes of tracks[], by id */
     uint32_t *by_hash; /* and by path hash */
     char *pool;
@@ -342,9 +351,9 @@ bool itunesdb_sync_date(struct tm *tm)
     return true;
 }
 
-static bool read_state_header(struct state_header *hdr)
+static bool read_state_header(const char *file, struct state_header *hdr)
 {
-    int fd = open(STATE_FILE, O_RDONLY);
+    int fd = open(file, O_RDONLY);
     if (fd < 0)
         return false;
     bool ok = read(fd, hdr, sizeof(*hdr)) == sizeof(*hdr)
@@ -360,7 +369,7 @@ bool itunesdb_changed(void)
     struct state_header hdr;
     if (!db_stamp(&size, &mtime))
         return false;
-    return !read_state_header(&hdr) || hdr.db_size != size
+    return !read_state_header(STATE_FILE, &hdr) || hdr.db_size != size
         || hdr.db_mtime != mtime;
 }
 
@@ -372,7 +381,9 @@ bool itunesdb_stamp(uint32_t *size, uint32_t *mtime)
 bool itunesdb_imported_stamp(uint32_t *size, uint32_t *mtime)
 {
     struct state_header hdr;
-    const int fd = open(STATE_FILE, O_RDONLY);
+    int fd = open(STATE_FILE, O_RDONLY);
+    if (fd < 0 && tagcache_restoring())
+        fd = open(STATE_OLD_FILE, O_RDONLY);
     if (fd < 0)
         return false;
     const bool ok = read(fd, &hdr, STATE_STAMP_SIZE) == STATE_STAMP_SIZE
@@ -551,7 +562,7 @@ static int load_known_hashes(int *handle)
 {
     struct state_header hdr;
     *handle = 0;
-    if (!read_state_header(&hdr) || hdr.count == 0)
+    if (!read_state_header(STATE_FILE, &hdr) || hdr.count == 0)
         return 0;
     int fd = open(STATE_FILE, O_RDONLY);
     if (fd < 0)
@@ -827,6 +838,7 @@ static void read_track(off_t pos, struct track *track)
     track->st.rating = p[31];
     track->sound_check = le32(p + 76);
     track->st.playcount = le32(p + 80);
+    track->lastplayed = le32(p + 0x58);
     uint32_t media = 0;
     if (header_len >= 212)
     {
@@ -834,6 +846,11 @@ static void read_track(off_t pos, struct track *track)
         /* its low byte, which has the video kinds: the ones above it, such
            as ringtones and voice memos, are sound */
         track->st.media = media & 0xff;
+        if (media & MEDIA_PODCAST)
+        {
+            track->st.played = p[0xb2];
+            track->bookmark = le32(p + 0x6c);
+        }
     }
     /* The stock firmware remembers the place and leaves the track out of
        Shuffle Songs where iTunes says to, as it does for podcasts and
@@ -1962,7 +1979,7 @@ static void write_playlists(off_t list)
 
 #define PENDING_FILE    ROCKBOX_DIR "/itunesdb_pending.dat"
 #define PENDING_MAGIC   0x50494252 /* "RBIP" */
-#define PENDING_VERSION 1
+#define PENDING_VERSION 2
 
 struct pending_header {
     uint32_t magic;
@@ -1978,19 +1995,31 @@ static struct {
     struct pending_header hdr;
     struct state_entry *tracks; /* in iTunesDB order */
     uint32_t *by_hash;          /* their indexes, by path hash */
+    uint32_t *lastplayed;       /* of each, Mac time */
 } pend;
 
+/* The tracks, then an empty entry for each podcast show, as Finder counts
+   them: it drops a Play Counts with an entry fewer or more than it has
+   tracks. Then the time each was last played. */
 static void write_pending(void)
 {
     struct pending_header hdr = {
-        PENDING_MAGIC, PENDING_VERSION, db_size, db_mtime, db.count,
-        db.complete
+        PENDING_MAGIC, PENDING_VERSION, db_size, db_mtime,
+        db.count + db.shows, db.complete
     };
+    const struct state_entry show = { 0 };
+    const uint32_t never = 0;
     if (!writer_open(&out, PENDING_FILE))
         return;
     writer_put(&out, &hdr, sizeof(hdr));
     for (int i = 0; i < db.count; i++)
         writer_put(&out, &db.tracks[i].st, sizeof(struct state_entry));
+    for (int i = 0; i < db.shows; i++)
+        writer_put(&out, &show, sizeof(show));
+    for (int i = 0; i < db.count; i++)
+        writer_put(&out, &db.tracks[i].lastplayed, sizeof(uint32_t));
+    for (int i = 0; i < db.shows; i++)
+        writer_put(&out, &never, sizeof(never));
     if (!writer_close(&out))
         remove(PENDING_FILE);
 }
@@ -2029,15 +2058,17 @@ static bool load_pending(void)
     if (ok)
     {
         size_t entries = pend.hdr.count * sizeof(struct state_entry);
-        pend.handle = db_alloc(MAX(entries + pend.hdr.count * sizeof(uint32_t),
-                                   sizeof(uint32_t)));
+        size_t times = pend.hdr.count * sizeof(uint32_t);
+        pend.handle = db_alloc(MAX(entries + 2 * times, sizeof(uint32_t)));
         ok = pend.handle > 0;
         if (ok)
         {
             core_pin(pend.handle);
             pend.tracks = core_get_data(pend.handle);
             pend.by_hash = (uint32_t *)((char *)pend.tracks + entries);
-            ok = read(fd, pend.tracks, entries) == (ssize_t)entries;
+            pend.lastplayed = pend.by_hash + pend.hdr.count;
+            ok = read(fd, pend.tracks, entries) == (ssize_t)entries
+                 && read(fd, pend.lastplayed, times) == (ssize_t)times;
         }
     }
     close(fd);
@@ -2105,6 +2136,223 @@ static const struct state_entry *find_pending(uint64_t hash)
     return NULL;
 }
 
+/* What Play Counts has offered Finder, which takes a file whole or drops
+   it: written as USB connects, before Play Counts, for each song whose plays
+   or rating differ from itunesdb.dat, and resolved by the next import, which
+   keeps what Finder didn't take. */
+#define UNSENT_FILE    ROCKBOX_DIR "/itunesdb_unsent.dat"
+#define UNSENT_MAGIC   0x55494252 /* "RBIU" */
+#define UNSENT_VERSION 1
+
+struct unsent_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t db_size;   /* of the iTunesDB of the itunesdb.dat counted from */
+    uint32_t db_mtime;
+    uint32_t count;
+    uint8_t written;    /* a Play Counts of them by the last connection */
+    uint8_t went;       /* one of them went from the disk: Finder read it */
+    uint8_t made;       /* by an import, from the database: made again until
+                           its pass begins, with what was played since */
+    uint8_t unused;
+};
+
+struct unsent_entry {
+    uint64_t hash;
+    uint32_t base;      /* plays in itunesdb.dat */
+    uint32_t played;    /* in the database at the connection */
+    uint32_t went;      /* of them, in files that went from the disk */
+    uint32_t out;       /* in the file on the disk */
+    uint32_t last;      /* last played in the last file that went, Mac time */
+    uint32_t out_last;  /* in the file on the disk */
+    uint8_t base_rating; /* 0..100, itunesdb.dat's */
+    uint8_t rating;     /* the database's */
+    uint8_t unused[6];
+};
+
+static struct {
+    int handle;
+    struct unsent_header hdr;
+    struct unsent_entry *e;     /* by hash */
+    bool taken;                 /* Finder took what went */
+} uns;
+
+static bool playcounts_left(void);
+static bool unsent_make(void);
+
+static void unload_unsent(void)
+{
+    if (uns.handle > 0)
+    {
+        core_unpin(uns.handle);
+        core_free(uns.handle);
+    }
+    memset(&uns, 0, sizeof(uns));
+}
+
+static int cmp_unsent(const void *a, const void *b)
+{
+    return cmp_u64(&((const struct unsent_entry *)a)->hash,
+                   &((const struct unsent_entry *)b)->hash);
+}
+
+/* a Play Counts written and gone from the disk went to Finder: out becomes
+   went */
+static bool load_unsent(void)
+{
+    memset(&uns, 0, sizeof(uns));
+    const int fd = open(UNSENT_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    bool ok = read(fd, &uns.hdr, sizeof(uns.hdr)) == sizeof(uns.hdr)
+        && uns.hdr.magic == UNSENT_MAGIC && uns.hdr.version == UNSENT_VERSION
+        && uns.hdr.count > 0 && uns.hdr.count <= COUNT_MAX;
+    if (ok)
+    {
+        const size_t bytes = uns.hdr.count * sizeof(struct unsent_entry);
+        uns.handle = db_alloc(bytes);
+        ok = uns.handle > 0;
+        if (ok)
+        {
+            core_pin(uns.handle);
+            uns.e = core_get_data(uns.handle);
+            ok = read(fd, uns.e, bytes) == (ssize_t)bytes;
+        }
+    }
+    close(fd);
+    if (!ok)
+    {
+        unload_unsent();
+        return false;
+    }
+    if (uns.hdr.written && !playcounts_left())
+    {
+        uns.hdr.went = true;
+        for (uint32_t i = 0; i < uns.hdr.count; i++)
+        {
+            struct unsent_entry *u = &uns.e[i];
+            u->went += u->out;
+            if (u->out)
+                u->last = u->out_last;
+            u->out = u->out_last = 0;
+        }
+    }
+    return true;
+}
+
+static const struct unsent_entry *find_unsent(uint64_t hash)
+{
+    int lo = 0, hi = (int)uns.hdr.count - 1;
+    while (uns.handle > 0 && lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (uns.e[mid].hash == hash)
+            return &uns.e[mid];
+        if (uns.e[mid].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return NULL;
+}
+
+/* the entries under their songs' new paths */
+static void unsent_moved(void)
+{
+    const int fd = open(ITUNESDB_MOVED_LIST, O_RDONLY);
+    if (fd < 0)
+        return;
+    const int n = ffilesize(fd) / sizeof(struct itunesdb_moved);
+    const int handle = n > 0 ? db_alloc(n * sizeof(struct itunesdb_moved)) : 0;
+    if (handle > 0)
+    {
+        core_pin(handle);
+        struct itunesdb_moved *m = core_get_data(handle);
+        if (read(fd, m, n * sizeof(*m)) == (ssize_t)(n * sizeof(*m)))
+        {
+            for (uint32_t i = 0; i < uns.hdr.count; i++)
+            {
+                int lo = 0, hi = n - 1;
+                while (lo <= hi)
+                {
+                    const int mid = (lo + hi) / 2;
+                    if (m[mid].old_hash == uns.e[i].hash)
+                    {
+                        char path[sizeof(m->path)];
+                        strmemccpy(path, m[mid].path, sizeof(path));
+                        uns.e[i].hash = itunesdb_path_hash(path);
+                        break;
+                    }
+                    if (m[mid].old_hash < uns.e[i].hash)
+                        lo = mid + 1;
+                    else
+                        hi = mid - 1;
+                }
+            }
+            qsort(uns.e, uns.hdr.count, sizeof(*uns.e), cmp_unsent);
+        }
+        core_unpin(handle);
+        core_free(handle);
+    }
+    close(fd);
+}
+
+/* Whether Finder took the files that went, by the new iTunesDB: a file
+   taken gives each song the last play sent, to the second, and no fewer plays
+   than sent. Finder takes or drops a file whole, so the songs vote; with none
+   to say, taken, as a play counted twice on the Mac can't be taken back. */
+static bool unsent_taken(void)
+{
+    int took = 0, dropped = 0;
+    for (uint32_t i = 0; i < uns.hdr.count; i++)
+    {
+        const struct unsent_entry *u = &uns.e[i];
+        const struct state_entry *t = find_pending(u->hash);
+        if (!t)
+            continue;
+        const uint32_t last = pend.lastplayed[t - pend.tracks];
+        if (u->went)
+        {
+            if (u->last && last == u->last)
+                took++;
+            else if (t->playcount < u->base + u->went || last < u->last)
+                dropped++;
+        }
+        else if (u->rating != u->base_rating)
+        {
+            if (t->rating == u->rating)
+                took++;
+            else if (t->rating == u->base_rating)
+                dropped++;
+        }
+    }
+    return uns.hdr.went && took >= dropped;
+}
+
+/* after a sync: the offers made against the iTunesDB the last import was
+   of; false when they can't be known, and the import waits */
+static bool unsent_begin(bool passing)
+{
+    uint32_t size, mtime;
+    const bool usable = load_unsent()
+        && (uns.hdr.db_size != pend.hdr.db_size
+            || uns.hdr.db_mtime != pend.hdr.db_mtime)
+        && (!itunesdb_imported_stamp(&size, &mtime)
+            || (size == uns.hdr.db_size && mtime == uns.hdr.db_mtime))
+        && (!uns.hdr.made || passing);
+    if (!usable)
+    {
+        unload_unsent();
+        if (!unsent_make())
+            return false;
+        if (!load_unsent())
+            return !file_exists(UNSENT_FILE);
+    }
+    unsent_moved();
+    uns.taken = unsent_taken();
+    return true;
+}
+
 /* counts already from this iTunesDB with the unsynced plays (a restore, or a
    new STATE_VERSION): leave them */
 static bool counts_kept;
@@ -2122,7 +2370,8 @@ static int update_entry(const char *path, struct tagcache_runtime *rt,
                         void *data)
 {
     (void)data;
-    const struct state_entry *t = find_pending(itunesdb_path_hash(path));
+    const uint64_t hash = itunesdb_path_hash(path);
+    const struct state_entry *t = find_pending(hash);
     if (!t)
     {
         /* Finder renames and removes the files in its folder as it syncs,
@@ -2134,6 +2383,18 @@ static int update_entry(const char *path, struct tagcache_runtime *rt,
         return 0;
     rt->playcount = t->playcount;
     rt->rating = t->rating / 10; /* the database counts half stars */
+    const struct unsent_entry *u = find_unsent(hash);
+    if (u)
+    {
+        /* taken: what went, as far as the Mac's count has it, as another
+           file of the same iTunesDB may have been dropped */
+        const uint32_t had = uns.taken ? MIN(u->base + u->went, t->playcount)
+                                       : u->base;
+        if (u->played > had)
+            rt->playcount += u->played - had;
+        if (!uns.taken && u->rating != u->base_rating)
+            rt->rating = u->rating / 10;
+    }
     return 1;
 }
 
@@ -2187,9 +2448,47 @@ static void db_unload(void)
     cpu_boost(false);
 }
 
+/* Finder counts each podcast show as a track: the shows are the groups of
+   the podcasts' playlist in the third section, which has them as a header
+   item each above its episodes */
+static int count_shows(off_t list)
+{
+    const unsigned char *p = list >= 0 ? db_record(list, "mhlp", 12) : NULL;
+    if (!p)
+        return 0;
+    const int lists = le32(p + 8);
+    off_t pos = list + le32(p + 4);
+    int shows = 0;
+    for (int i = 0; i < lists; i++)
+    {
+        p = db_record(pos, "mhyp", 44);
+        if (!p)
+            break;
+        const uint32_t total = le32(p + 8);
+        if (p[42] | p[43] << 8)
+        {
+            const int mhods = le32(p + 12), items = le32(p + 16);
+            off_t child = pos + le32(p + 4);
+            for (int k = 0; k < mhods + items; k++)
+            {
+                p = db_record(child, k < mhods ? "mhod" : "mhip", 20);
+                if (!p || le32(p + 8) == 0)
+                    break;
+                if (k >= mhods && le32(p + 16) == 0x100)
+                    shows++;
+                child += le32(p + 8);
+            }
+        }
+        if (total == 0)
+            break;
+        pos += total;
+    }
+    return shows;
+}
+
 static bool db_load(void)
 {
-    off_t tracks_list = -1, pos;
+    off_t tracks_list = -1, podcast_lists = -1, pos;
     const unsigned char *p;
     int sections;
 
@@ -2232,6 +2531,8 @@ static bool db_load(void)
             tracks_list = pos + header_len;
         else if (index == 2)
             playlists_list = pos + header_len;
+        else if (index == 3)
+            podcast_lists = pos + header_len;
         if (total == 0)
             break;
         pos += total;
@@ -2258,6 +2559,7 @@ static bool db_load(void)
 
     if (!read_tracks(tracks_list))
         return false;
+    db.shows = count_shows(podcast_lists);
     for (int i = 0; i < db.count; i++)
         db.by_id[i] = db.by_hash[i] = i;
     /* behind the UI, 13000 tracks kept it waiting 190 ms; the table is
@@ -2279,6 +2581,32 @@ static bool stamp_state(void)
     if (fd < 0)
         return false;
     const bool ok = write(fd, &hdr, sizeof(hdr)) == sizeof(hdr);
+    return close(fd) == 0 && ok;
+}
+
+/* this boot's import waited for its record */
+static bool waited;
+
+static int import_progress(void)
+{
+    uint8_t flags = 0;
+    const int fd = open(PROGRESS_FILE, O_RDONLY);
+    if (fd >= 0)
+    {
+        if (read(fd, &flags, 1) != 1)
+            flags = 0;
+        close(fd);
+    }
+    return flags;
+}
+
+static bool import_progress_set(int flags)
+{
+    const uint8_t b = flags;
+    const int fd = open(PROGRESS_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fd < 0)
+        return false;
+    const bool ok = write(fd, &b, 1) == 1;
     return close(fd) == 0 && ok;
 }
 
@@ -2304,7 +2632,17 @@ void itunesdb_import(void)
         /* A sync with nothing new: nothing to set and nothing to remove. Plays that
            Finder hasn't taken stay, to go in Play Counts next time. */
         if (stamp_state())
+        {
             remove(PENDING_FILE);
+            remove(PROGRESS_FILE);
+            /* what was offered before this sync: none of it was taken, or
+               the counts would differ, and it is all offered again */
+            if (load_unsent() ? (uns.hdr.db_size != pend.hdr.db_size
+                                 || uns.hdr.db_mtime != pend.hdr.db_mtime)
+                              : file_exists(UNSENT_FILE))
+                remove(UNSENT_FILE);
+            unload_unsent();
+        }
     }
     else
     {
@@ -2312,13 +2650,41 @@ void itunesdb_import(void)
         remove(IMPORTED_FILE);
         index_pending();
         counts_kept = counts_of_this_itunesdb();
-        if (tagcache_update_runtime(update_entry, NULL) && write_state())
+        const int progress = import_progress();
+        bool go = true;
+        if (!counts_kept)
+            go = unsent_begin(progress & IMPORT_PASSING);
+        /* a boot at most, its tries again in it too: a sync's songs wait for
+           the import, and would for good with the memory short each time */
+        if (!go && (progress & IMPORT_WAITED) && !waited)
+        {
+            unload_unsent();
+            go = true;
+        }
+        if (!go)
+        {
+            waited = true;
+            /* with the disk full, the pass rather than a wait at every boot */
+            if (!import_progress_set(progress | IMPORT_WAITED))
+            {
+                unload_unsent();
+                go = true;
+            }
+        }
+        if (go)
+            import_progress_set(progress | IMPORT_PASSING);
+        if (go && tagcache_update_runtime(update_entry, NULL) && write_state())
         {
             remove(PENDING_FILE);
+            remove(STATE_OLD_FILE);
+            remove(PROGRESS_FILE);
+            if (!counts_kept)
+                remove(UNSENT_FILE);
             /* one that couldn't read all of iTunesDB has removed nothing */
             if (pend.hdr.complete)
                 note_imported();
         }
+        unload_unsent();
     }
     logf("itunesdb: %lu tracks imported", (unsigned long)pend.hdr.count);
     unload_pending();
@@ -2331,12 +2697,25 @@ void itunesdb_forget_state(void)
 {
     remove(STATE_FILE);
     remove(IMPORTED_FILE);
+    /* as a rebuild sets the database aside, its own go after its import */
+    if (!tagcache_restoring())
+    {
+        remove(STATE_OLD_FILE);
+        remove(UNSENT_FILE);
+        remove(PROGRESS_FILE);
+    }
 }
 
-/* Play Counts, as the stock firmware writes it: a header, then for every
-   track in iTunesDB's order its plays since the sync, when it was last
-   played, and its rating. Finder adds the plays to the library, takes the
-   ratings and removes the file. */
+void itunesdb_state_aside(void)
+{
+    rename(STATE_FILE, STATE_OLD_FILE);
+    remove(IMPORTED_FILE);
+}
+
+/* Play Counts: a header, then for every track in iTunesDB's order the plays
+   Finder hasn't had, when it was last played, and its rating; then an empty
+   entry for each podcast show. Finder adds the plays to the library, takes
+   the ratings and removes the file. */
 
 #define PLAYCOUNTS_FILE  ITUNESDB_DIR "/Play Counts"
 /* Of the Play Counts written here last: its size and time, and the iTunesDB it
@@ -2365,20 +2744,33 @@ static void playcounts_mark_write(void)
     }
 }
 
-/* nothing new to tell Finder: the file it has taken, if it left it */
-static void playcounts_remove_taken(void)
+/* the Play Counts written here last is still on the disk, as Finder hasn't
+   read it */
+static bool playcounts_mark_left(struct playcounts_mark *m)
 {
-    struct playcounts_mark m, now;
-    uint32_t db_size, db_mtime;
+    uint32_t size, mtime;
     const int fd = open(PLAYCOUNTS_MARK, O_RDONLY);
     if (fd < 0)
-        return;
-    const bool read_ok = read(fd, &m, sizeof(m)) == sizeof(m);
+        return false;
+    const bool read_ok = read(fd, m, sizeof(*m)) == sizeof(*m);
     close(fd);
-    if (!read_ok || !dir_file_stamp("Play Counts", &now.size, &now.mtime))
-        return;
-    if (now.size == m.size && now.mtime == m.mtime
-        && db_stamp(&db_size, &db_mtime)
+    return read_ok && dir_file_stamp("Play Counts", &size, &mtime)
+           && size == m->size && mtime == m->mtime;
+}
+
+static bool playcounts_left(void)
+{
+    struct playcounts_mark m;
+    return playcounts_mark_left(&m);
+}
+
+/* nothing new to tell Finder: ours, left unread from before the last sync,
+   whose import has had its plays */
+static void playcounts_remove_taken(void)
+{
+    struct playcounts_mark m;
+    uint32_t db_size, db_mtime;
+    if (playcounts_mark_left(&m) && db_stamp(&db_size, &db_mtime)
         && (db_size != m.db_size || db_mtime != m.db_mtime))
     {
         remove(PLAYCOUNTS_FILE);
@@ -2401,6 +2793,7 @@ struct played {
 };
 
 static struct {
+    int handle;
     struct state_entry *state;   /* in iTunesDB order */
     uint32_t *by_hash;
     struct played *now;
@@ -2438,6 +2831,46 @@ static int read_played(const char *path, struct tagcache_runtime *rt,
             hi = mid - 1;
     }
     return 0; /* only reading */
+}
+
+/* the tracks of a state file, and what the database has of each */
+static bool pc_load(const char *file, uint32_t count)
+{
+    pc.count = count;
+    pc.handle = db_alloc(pc.count * (sizeof(struct state_entry)
+                           + sizeof(uint32_t) + sizeof(struct played)));
+    if (pc.handle <= 0)
+        return false;
+    core_pin(pc.handle);
+    pc.state = core_get_data(pc.handle);
+    pc.by_hash = (uint32_t *)(pc.state + pc.count);
+    pc.now = (struct played *)(pc.by_hash + pc.count);
+    memset(pc.now, 0, pc.count * sizeof(struct played));
+
+    const int fd = open(file, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const ssize_t bytes = pc.count * sizeof(struct state_entry);
+    const bool ok = lseek(fd, sizeof(struct state_header), SEEK_SET)
+                    == sizeof(struct state_header)
+                    && read(fd, pc.state, bytes) == bytes;
+    close(fd);
+    if (!ok)
+        return false;
+    for (int i = 0; i < pc.count; i++)
+        pc.by_hash[i] = i;
+    qsort(pc.by_hash, pc.count, sizeof(uint32_t), cmp_state_hash);
+    return tagcache_update_runtime(read_played, NULL);
+}
+
+static void pc_free(void)
+{
+    if (pc.handle > 0)
+    {
+        core_unpin(pc.handle);
+        core_free(pc.handle);
+    }
+    memset(&pc, 0, sizeof(pc));
 }
 
 static void put32(unsigned char *p, uint32_t v)
@@ -2482,56 +2915,147 @@ static void otg_cleanup(void)
     remove(OTG_MARK);
 }
 
+static uint32_t podcast_bookmark(uint64_t hash);
+
+static uint32_t plays_to_send(int i)
+{
+    const struct played *now = &pc.now[i];
+    const struct unsent_entry *u = find_unsent(pc.state[i].hash);
+    const uint32_t had = pc.state[i].playcount + (u ? u->went : 0);
+    return now->found && now->playcount > had ? now->playcount - had : 0;
+}
+
+static uint32_t sent_time(const struct played *now)
+{
+    return (long)now->lastplayed >= LASTPLAYED_TIME ?
+           now->lastplayed + MAC_EPOCH : 0;
+}
+
+/* what a Play Counts written now offers, by hash; none when nothing differs
+   from itunesdb.dat */
+static bool write_unsent(uint32_t db_size, uint32_t db_mtime, bool written,
+                         bool made)
+{
+    struct unsent_header h = {
+        UNSENT_MAGIC, UNSENT_VERSION, db_size, db_mtime, 0, written,
+        uns.hdr.went, made, 0
+    };
+    if (!writer_open(&out, UNSENT_FILE ".tmp"))
+        return false;
+    writer_put(&out, &h, sizeof(h));
+    for (int k = 0; k < pc.count; k++)
+    {
+        const int i = pc.by_hash[k];
+        const struct state_entry *st = &pc.state[i];
+        const struct played *now = &pc.now[i];
+        if (!now->found)
+            continue;
+        const struct unsent_entry *old = find_unsent(st->hash);
+        struct unsent_entry u = {
+            .hash = st->hash, .base = st->playcount, .played = now->playcount,
+            .went = old ? old->went : 0, .out = plays_to_send(i),
+            .last = old ? old->last : 0,
+            .base_rating = st->rating, .rating = now->rating * 10
+        };
+        u.out_last = u.out ? sent_time(now) : 0;
+        if (u.played > u.base || u.rating != u.base_rating || u.went)
+        {
+            writer_put(&out, &u, sizeof(u));
+            h.count++;
+        }
+    }
+    writer_flush(&out);
+    lseek(out.fd, 0, SEEK_SET);
+    writer_put(&out, &h, sizeof(h));
+    if (!writer_close(&out)
+        || (h.count && rename(UNSENT_FILE ".tmp", UNSENT_FILE) < 0))
+    {
+        remove(UNSENT_FILE ".tmp");
+        return false;
+    }
+    if (!h.count)
+    {
+        remove(UNSENT_FILE ".tmp");
+        remove(UNSENT_FILE);
+    }
+    return true;
+}
+
+/* None to go by, as at the first sync after an update: what the firmware
+   before offered at the connection, from the database against the state the
+   import replaces. Written before the import's pass, which a cut repeats;
+   false when it can't be, and the pass waits a boot, as after it the
+   database would seem to have had nothing to offer. */
+static bool unsent_make(void)
+{
+    struct state_header hdr;
+    const char *file = file_exists(STATE_FILE) || !tagcache_restoring() ?
+                       STATE_FILE : STATE_OLD_FILE;
+    if (!read_state_header(file, &hdr) || hdr.count == 0
+        || (hdr.db_size == pend.hdr.db_size && hdr.db_mtime == pend.hdr.db_mtime))
+    {
+        /* nothing to count from: none to keep, nor one that won't load */
+        remove(UNSENT_FILE);
+        return true;
+    }
+    const bool ok = pc_load(file, hdr.count)
+                    && write_unsent(hdr.db_size, hdr.db_mtime, true, true);
+    pc_free();
+    return ok;
+}
+
+/* what write_unsent() would write without a Play Counts is on the disk */
+static bool unsent_same(void)
+{
+    int k = 0;
+    for (uint32_t j = 0; j < uns.hdr.count; j++)
+    {
+        const struct unsent_entry *u = &uns.e[j];
+        while (k < pc.count && pc.state[pc.by_hash[k]].hash < u->hash)
+            k++;
+        if (k == pc.count || pc.state[pc.by_hash[k]].hash != u->hash)
+            return false;
+        const struct played *now = &pc.now[pc.by_hash[k]];
+        if (!now->found || now->playcount != u->played
+            || now->rating * 10 != u->rating)
+            return false;
+    }
+    return !uns.hdr.written;
+}
+
 void itunesdb_write_playcounts(void)
 {
     struct state_header hdr;
     uint32_t size, mtime;
-    int handle = 0, fd = -1;
     bool changed = false;
 
     /* the entries go in the order of the iTunesDB the state was made from,
        so only when that is the one on the disk */
-    if (!db_stamp(&size, &mtime) || !read_state_header(&hdr)
+    if (!db_stamp(&size, &mtime) || !read_state_header(STATE_FILE, &hdr)
         || hdr.db_size != size || hdr.db_mtime != mtime || hdr.count == 0)
         return;
 
-    pc.count = hdr.count;
-    handle = db_alloc(pc.count * (sizeof(struct state_entry)
-                        + sizeof(uint32_t) + sizeof(struct played)));
-    if (handle <= 0)
-        return;
-    core_pin(handle);
-    pc.state = core_get_data(handle);
-    pc.by_hash = (uint32_t *)(pc.state + pc.count);
-    pc.now = (struct played *)(pc.by_hash + pc.count);
-    memset(pc.now, 0, pc.count * sizeof(struct played));
-
-    fd = open(STATE_FILE, O_RDONLY);
-    if (fd < 0)
-        goto done;
-    lseek(fd, sizeof(hdr), SEEK_SET);
-    ssize_t bytes = pc.count * sizeof(struct state_entry);
-    bool ok = read(fd, pc.state, bytes) == bytes;
-    close(fd);
-    fd = -1;
-    if (!ok)
-        goto done;
-    for (int i = 0; i < pc.count; i++)
-        pc.by_hash[i] = i;
-    qsort(pc.by_hash, pc.count, sizeof(uint32_t), cmp_state_hash);
-
     otg_cleanup();
 
-    if (!tagcache_update_runtime(read_played, NULL))
+    if (!pc_load(STATE_FILE, hdr.count))
         goto done;
+    if (!load_unsent() && file_exists(UNSENT_FILE))
+    {
+        /* what went to Finder is unknown, and would go again */
+        goto done;
+    }
+    if (uns.hdr.db_size != size || uns.hdr.db_mtime != mtime)
+        unload_unsent();
 
-    /* nothing to tell Finder: no file, as after it took the last one */
     for (int i = 0; i < pc.count && !changed; i++)
         changed = pc.now[i].found
-            && (pc.now[i].playcount > pc.state[i].playcount
+            && (plays_to_send(i) > 0
                 || pc.now[i].rating * 10 != pc.state[i].rating);
     if (!changed)
     {
+        /* nothing to tell Finder: no file, as after it took the last one */
+        if (uns.handle > 0 && !unsent_same())
+            write_unsent(size, mtime, false, false);
         playcounts_remove_taken();
         goto done;
     }
@@ -2553,10 +3077,9 @@ void itunesdb_write_playcounts(void)
         uint32_t plays = 0, last = 0, rating = st->rating;
         if (now->found)
         {
-            if (now->playcount > st->playcount)
-                plays = now->playcount - st->playcount;
-            if (plays && (long)now->lastplayed >= LASTPLAYED_TIME)
-                last = now->lastplayed + MAC_EPOCH;
+            plays = plays_to_send(i);
+            if (plays)
+                last = sent_time(now);
             rating = now->rating * 10;
         }
         unsigned char e[PLAYCOUNTS_ENTRY];
@@ -2564,9 +3087,19 @@ void itunesdb_write_playcounts(void)
         put32(e, plays);
         put32(e + 4, last);
         put32(e + 12, rating);
+        /* an episode's place and played mark as the Mac has them, which
+           leaves them there as they are */
+        if (st->media & MEDIA_PODCAST)
+        {
+            put32(e + 8, podcast_bookmark(st->hash));
+            e[0x11] = st->played;
+        }
         writer_put(&out, e, sizeof(e));
     }
-    if (writer_close(&out))
+    /* by another name until what it offers is noted: cut short in between,
+       its plays are taken as offered, and offered again after the next
+       sync */
+    if (writer_close(&out) && write_unsent(size, mtime, true, false))
     {
         remove(PLAYCOUNTS_FILE);
         rename(PLAYCOUNTS_FILE ".tmp", PLAYCOUNTS_FILE);
@@ -2576,11 +3109,8 @@ void itunesdb_write_playcounts(void)
         remove(PLAYCOUNTS_FILE ".tmp");
 
 done:
-    if (fd >= 0)
-        close(fd);
-    core_unpin(handle);
-    core_free(handle);
-    memset(&pc, 0, sizeof(pc));
+    unload_unsent();
+    pc_free();
 }
 
 /* What playback looks up for each track it plays: files of a header that
@@ -2687,7 +3217,7 @@ struct flags_header {
 struct flags_entry {
     uint64_t hash;
     uint32_t flags;
-    uint32_t unused;
+    uint32_t bookmark;  /* a podcast's place on the Mac, ms */
 };
 
 static struct index flags_index = { 0, 0, sizeof(struct flags_entry) };
@@ -2706,7 +3236,7 @@ static void write_flags(void)
         const struct track *t = &db.tracks[db.by_hash[i]];
         if (!t->path || !t->st.flags)
             continue;
-        struct flags_entry entry = { t->st.hash, t->st.flags, 0 };
+        struct flags_entry entry = { t->st.hash, t->st.flags, t->bookmark };
         writer_put(&out, &entry, sizeof(entry));
         hdr.count++;
     }
@@ -2725,6 +3255,12 @@ unsigned itunesdb_hash_flags(uint64_t hash)
     if (flags_index.handle <= 0 || !find_in_index(&flags_index, hash, &entry))
         return 0;
     return entry.flags;
+}
+
+static uint32_t podcast_bookmark(uint64_t hash)
+{
+    struct flags_entry entry;
+    return find_in_index(&flags_index, hash, &entry) ? entry.bookmark : 0;
 }
 
 unsigned itunesdb_track_flags(const char *path)

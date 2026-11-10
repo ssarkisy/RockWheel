@@ -223,6 +223,8 @@ enum {
 int tagcache_get_import(int *done, int *total);
 /* during a restore: the old counts of Finder's songs are this iTunesDB's */
 bool tagcache_restore_finder(void);
+/* a database of another format built again, until its import is done */
+bool tagcache_restoring(void);
 /* main() has taken the boot's memory: a commit may have the rest */
 void tagcache_boot_done(void);
 bool tagcache_check_sync(void);
