@@ -1093,8 +1093,10 @@ struct user_settings
        Lists) */
     bool list_covers;
     /* Settings > Appearance: a long list's scrollbar, where the theme's
-       scrollbar puts it (Scrollbar) */
+       scrollbar puts it (Scrollbar); and the wheel by Quick Scroll's letters
+       as one shows (Jump by Letter) */
     bool list_scrollbar;
+    bool jump_by_letter;
 };
 
 /* global settings */

@@ -21278,3 +21278,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_JUMP_BY_LETTER
+  desc: a setting of Settings > Appearance, after Scrollbar: On, while Quick Scroll's big letter shows over a long list, each step of the wheel goes to the first row of the next or previous letter; Off, the letter shows and the wheel goes by rows
+  user: core
+  <source>
+    *: "Jump by Letter"
+  </source>
+  <dest>
+    *: "Saut par lettre"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

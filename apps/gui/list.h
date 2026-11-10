@@ -249,6 +249,9 @@ struct gui_synclist
        the last frame drawn */
     long initial_until;
     bool initial_shown;
+    /* whether the wheel goes by the letters as it shows: not through a list
+       in chunks, whose rows far off are read from the disk */
+    bool initial_steps;
 
     /* The data that will be passed to the callback function YOU implement */
     void * data;

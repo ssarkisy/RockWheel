@@ -942,6 +942,7 @@ static int update_dir(void)
         list_covers_cancel();
     /* in Music's lists, not the catalogue's of playlists, new first */
     gui_synclist_set_initial_callback(list, id3db ? tree_get_initial : NULL);
+    list->initial_steps = !tc.dirfull;
     /* in the catalogue, not in the file browser showing playlists */
     gui_synclist_set_mark_callback(list, catalog_lead ? tree_get_mark : NULL);
     if(!id3db || global_settings.talk_menu)

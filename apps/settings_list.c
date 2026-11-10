@@ -2776,6 +2776,8 @@ const struct settings_list settings[] = {
                   "list covers", list_covers_changed),
     OFFON_SETTING(0, list_scrollbar, LANG_LIST_SCROLLBAR, true,
                   "list scrollbar", NULL),
+    OFFON_SETTING(0, jump_by_letter, LANG_JUMP_BY_LETTER, true,
+                  "jump by letter", NULL),
     /* Settings > Music Menu, after the sections: Artists and a genre's
        artists by the albums' artists */
     OFFON_SETTING(0, artists_by_album_artist, LANG_GROUP_BY_ALBUM_ARTIST, true,

@@ -189,6 +189,7 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_get_initial = NULL;
     gui_list->initial_until = 0;
     gui_list->initial_shown = false;
+    gui_list->initial_steps = true;
     gui_list->nb_items = 0;
     gui_list->selected_item = 0;
     gui_synclist_init_display_settings(gui_list);
@@ -744,9 +745,144 @@ static void gui_synclist_scroll_left(struct gui_synclist * lists)
     }
 }
 
+/* Quick Scroll: the wheel turned at its stage of four rows a step or faster,
+   through a list of more than a hundred, shows the letter of the row selected
+   over it, as on a stock iPod; while it shows, each step goes a letter, and
+   any keeps it a second more */
+#define QUICK_SCROLL_SPEED 4
+#define QUICK_SCROLL_ROWS  100
+#define QUICK_SCROLL_HOLD  HZ
+/* rows without a letter skipped at most */
+#define QUICK_SCROLL_SKIP  32
+
+static const char *row_initial(struct gui_synclist *lists, int row,
+                               char *buf, size_t size)
+{
+    const char *s = lists->callback_get_initial(row, lists->data, buf, size);
+    return s && *s ? s : NULL;
+}
+
+static bool row_has_initial(struct gui_synclist *lists, int row,
+                            const char *initial)
+{
+    char buf[16];
+    const char *s = row_initial(lists, row, buf, sizeof(buf));
+    return s && !strcmp(s, initial);
+}
+
+/* From a row with the letter, by steps doubling, then halving between a row
+   with it and one without: a row without it next to one with it, -1 or
+   nb_items past an end. The nearest one way as the letter's rows are
+   together, as the list's order has them */
+static int initial_edge(struct gui_synclist *lists, int row, int dir,
+                        const char *initial)
+{
+    int with = row, without, step = 1;
+    for (;;)
+    {
+        without = with + dir * step;
+        if (without < 0 || without >= lists->nb_items)
+        {
+            without = dir > 0 ? lists->nb_items : -1;
+            break;
+        }
+        if (!row_has_initial(lists, without, initial))
+            break;
+        with = without;
+        step *= 2;
+    }
+    while ((without - with) * dir > 1)
+    {
+        const int mid = with + (without - with) / 2;
+        if (row_has_initial(lists, mid, initial))
+            with = mid;
+        else
+            without = mid;
+    }
+    return without;
+}
+
+/* A step by the letters: down, to the first row of the next one; up, to the
+   first of the row's own, or of the one before from there. Past the last or
+   the first, to the list's end, as Unknown Artist's row after the letters */
+static int initial_step(struct gui_synclist *lists, int row, int dir)
+{
+    char buf[16], own[16];
+    const char *s = row_initial(lists, row, buf, sizeof(buf));
+    if (!s)
+        return row;
+    strlcpy(own, s, sizeof(own));
+    if (dir < 0)
+    {
+        const int first = initial_edge(lists, row, -1, own) + 1;
+        if (first < row)
+            return first;
+    }
+    int to = dir > 0 ? initial_edge(lists, row, 1, own) : row - 1;
+    for (int n = 0; to >= 0 && to < lists->nb_items
+                    && !(s = row_initial(lists, to, buf, sizeof(buf))); n++)
+    {
+        if (n == QUICK_SCROLL_SKIP)
+            return row;
+        to += dir;
+    }
+    if (to < 0 || to >= lists->nb_items)
+    {
+        to = dir > 0 ? lists->nb_items - 1 : 0;
+        while (to != row && lists->callback_is_group
+               && lists->callback_is_group(to, lists->data))
+            to -= dir;
+        return to;
+    }
+    if (dir > 0)
+        return to;
+    strlcpy(own, s, sizeof(own));
+    return initial_edge(lists, to, -1, own) + 1;
+}
+
+static bool steps_by_initials(struct gui_synclist *lists, bool quick_step)
+{
+    char buf[16];
+    return lists->callback_get_initial && lists->initial_steps
+           && global_settings.jump_by_letter
+           && (quick_step || (lists->initial_shown && lists->initial_until
+                              && TIME_BEFORE(current_tick, lists->initial_until)))
+           && row_initial(lists, lists->selected_item, buf, sizeof(buf));
+}
+
+static void gui_list_select_by_initials(struct gui_synclist *lists, int dir,
+                                        int steps)
+{
+    int row = lists->selected_item;
+    while (steps-- > 0)
+    {
+        const int to = initial_step(lists, row, dir);
+        if (to == row)
+            break;
+        row = to;
+    }
+    gui_synclist_select_item(lists, row);
+}
+
+#ifdef HAVE_WHEEL_ACCELERATION
+static bool quick_scroll_step(struct gui_synclist *lists, unsigned int wheel_data)
+{
+    return button_wheel_speed(wheel_data) >= QUICK_SCROLL_SPEED
+           && lists->nb_items > QUICK_SCROLL_ROWS;
+}
+#endif
+
 bool gui_synclist_keyclick_callback(int action, void* data)
 {
     struct gui_synclist *lists = (struct gui_synclist *)data;
+
+#ifdef HAVE_WHEEL_ACCELERATION
+    /* no click where a letter step can't move */
+    const int dir = action == ACTION_STD_NEXT || action == ACTION_STD_NEXTREPEAT ? 1
+                  : action == ACTION_STD_PREV || action == ACTION_STD_PREVREPEAT ? -1 : 0;
+    if (dir && steps_by_initials(lists, quick_scroll_step(lists, get_action_data())))
+        return initial_step(lists, lists->selected_item, dir) != lists->selected_item;
+#endif
 
     /* Block the beep if we're at the end of the list and we're not wrapping. */
     if (gui_list_groups_above(lists, lists->selected_item))
@@ -791,13 +927,6 @@ static void _lists_uiviewport_update_callback(unsigned short id,
         gui_synclist_draw(current_lists);
 }
 
-/* Quick Scroll: the wheel turned at its stage of four rows a step or faster,
-   through a list of more than a hundred, shows the letter of the row selected
-   over it, as on a stock iPod, until half a second after the last such step */
-#define QUICK_SCROLL_SPEED 4
-#define QUICK_SCROLL_ROWS  100
-#define QUICK_SCROLL_HOLD  (HZ / 2)
-
 bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
 {
     int action = *actionptr;
@@ -821,7 +950,8 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
        still goes a row a step. */
 #define LONG_LIST 500
     const int speed = button_wheel_speed(wheel_data);
-    quick_step = speed >= QUICK_SCROLL_SPEED && lists->nb_items > QUICK_SCROLL_ROWS;
+    quick_step = quick_scroll_step(lists, wheel_data);
+    const int wheel_steps = MAX(1, button_wheel_steps(wheel_data));
     if (speed > 1 && lists->nb_items > LONG_LIST)
     {
         const unsigned target = (unsigned)lists->nb_items * 256 / LONG_LIST;
@@ -837,6 +967,7 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
 #else
     static int next_item_modifier = 1;
     static int last_accel_tick = 0;
+    const int wheel_steps = 1;
 
     if (IS_SYSEVENT(action))
         return false;
@@ -877,18 +1008,19 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
     /* Disable the skin redraw callback */
     current_lists = NULL;
 
-    /* Quick Scroll's letter from a fast step on, in the same frame; a slower
-       one, to find the row by, leaves it no longer. Any other button takes it
-       off at once, before its screen goes on: drawn without it, the list is
-       what slides away (transition.c), or what shows as the music pauses. */
-    bool taken_off = false;
+    /* Quick Scroll's letter from a fast step on, in the same frame. Any other
+       button takes it off at once, before its screen goes on: drawn without
+       it, the list is what slides away (transition.c), or what shows as the
+       music pauses. */
+    bool taken_off = false, by_initials = false;
     if (lists->callback_get_initial)
     {
         switch (action)
         {
             case ACTION_STD_NEXT: case ACTION_STD_NEXTREPEAT:
             case ACTION_STD_PREV: case ACTION_STD_PREVREPEAT:
-                if (quick_step)
+                by_initials = steps_by_initials(lists, quick_step);
+                if (quick_step || by_initials)
                     lists->initial_until = current_tick + QUICK_SCROLL_HOLD;
                 break;
             case ACTION_NONE: case ACTION_REDRAW:
@@ -979,8 +1111,10 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
             allow_wrap = false; /* Prevent list wraparound on repeating actions */
             /*Fallthrough*/
         case ACTION_STD_PREV:
-
-            gui_list_select_at_offset(lists, -next_item_modifier, allow_wrap);
+            if (by_initials)
+                gui_list_select_by_initials(lists, -1, wheel_steps);
+            else
+                gui_list_select_at_offset(lists, -next_item_modifier, allow_wrap);
 #ifndef HAVE_WHEEL_ACCELERATION
             if (button_queue_count() < FRAMEDROP_TRIGGER)
 #endif
@@ -993,7 +1127,10 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
             allow_wrap = false; /* Prevent list wraparound on repeating actions */
             /*Fallthrough*/
         case ACTION_STD_NEXT:
-            gui_list_select_at_offset(lists, next_item_modifier, allow_wrap);
+            if (by_initials)
+                gui_list_select_by_initials(lists, 1, wheel_steps);
+            else
+                gui_list_select_at_offset(lists, next_item_modifier, allow_wrap);
 #ifndef HAVE_WHEEL_ACCELERATION
             if (button_queue_count() < FRAMEDROP_TRIGGER)
 #endif
