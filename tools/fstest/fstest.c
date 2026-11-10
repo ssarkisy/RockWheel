@@ -9,8 +9,9 @@
 
    fstest list
    fstest setup <scenario> <img> [layout]
-   fstest action <scenario> <img> <journal> [seed]  prints how many writes
-   fstest crash <scenario> <img> <journal> <k> <crash-img> <post-img>
+   fstest action <scenario> <img> <journal> [seed]
+       prints how many writes, and 1 if a rename was in one sector, else 0
+   fstest crash <scenario> <img> <journal> <k> <crash-img> <post-img> [1|0]
    fstest errno <img>
 */
 #include <stdio.h>
@@ -24,6 +25,7 @@
 #include "pathfuncs.h"
 #include "fileobj_mgr.h"
 #include "rb_namespace.h"
+#include "file_internal.h"
 #include "host.h"
 
 #define CLUSTER 32768
@@ -394,6 +396,137 @@ static bool rename_post(char *verdict, size_t max)
     return snprintf(verdict, max, "Play Counts bad"), false;
 }
 
+/* Renames in .rockbox, whose entries the layout moves: the old name's short
+   entry and the new one's fall in one sector in some layouts, in two in
+   others. A file is under one name or the other after a cut, or under none
+   (old entries gone, new ones not yet whole); never under both, which is two
+   entries on one chain. */
+#define RN_FROM  ROCKBOX_DIR "/Road Trip.m3u8.tmp"
+#define RN_TO    ROCKBOX_DIR "/Road Trip.m3u8"
+#define RN_SIZE  40000
+#define RN_SEED  20
+#define MOVE_DIR "/Playlists"
+
+/* set by a rename in one folder whose old short entry and new entries all
+   are in one sector, written at once: no cut leaves the file under none */
+static bool one_sector;
+
+/* the sectors of path's folder holding its first and its short entry */
+static bool entry_sectors(const char *path, unsigned long *first,
+                          unsigned long *last)
+{
+    struct filestr_base stream;
+    if (open_stream_internal(path, FF_ANYTYPE, &stream, NULL) <= 0)
+        return false;
+    const struct fat_dirscan_info *e = &stream.infop->fatfile.e;
+    *first = (e->entry - e->entries + 1) / (512 / 32);
+    *last = e->entry / (512 / 32);
+    close_stream_internal(&stream);
+    return true;
+}
+
+static void rename_in_folder(const char *from, const char *to)
+{
+    unsigned long f0, f1, t0, t1;
+    bool known = entry_sectors(from, &f0, &f1);
+    rename(from, to);
+    one_sector = known && entry_sectors(to, &t0, &t1) && f1 == t0 && t0 == t1;
+}
+
+/* 1 if whole, 0 if missing, -1 if it holds something else */
+static int whole(const char *path, size_t size, unsigned seed)
+{
+    int fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return 0;
+    close(fd);
+    return same_file(path, size, seed) ? 1 : -1;
+}
+
+/* where the file is, from and to each whole or missing */
+static bool moved_post(const char *from, const char *to, char *verdict,
+                       size_t max)
+{
+    int f = whole(from, RN_SIZE, RN_SEED), t = whole(to, RN_SIZE, RN_SEED);
+    snprintf(verdict, max, "%s", f < 0 || t < 0 ? "bad" : f && t ? "both" :
+             f ? "old name" : t ? "new name" :
+             one_sector ? "none in one sector" : "none");
+    return f >= 0 && t >= 0 && !(f && t) && (f || t || !one_sector);
+}
+
+static void rename_new_setup(void)
+{
+    setup_common();
+    put_file(RN_FROM, RN_SIZE, RN_SEED, 4096);
+}
+
+static void rename_new_action(void)
+{
+    rename_in_folder(RN_FROM, RN_TO);
+}
+
+static bool rename_new_post(char *verdict, size_t max)
+{
+    return moved_post(RN_FROM, RN_TO, verdict, max);
+}
+
+/* over an older one of the name: that one is there until the new one is */
+static void rename_over_setup(void)
+{
+    setup_common();
+    put_file(RN_TO, 30000, RN_SEED + 1, 4096);
+    put_file(RN_FROM, RN_SIZE, RN_SEED, 4096);
+}
+
+static bool rename_over_post(char *verdict, size_t max)
+{
+    int t = whole(RN_TO, RN_SIZE, RN_SEED);
+    if (t < 0 && same_file(RN_TO, 30000, RN_SEED + 1))
+        return snprintf(verdict, max, "older one"), true;
+    return snprintf(verdict, max, t > 0 ? "new one" : t ? "bad" : "none"),
+           t > 0;
+}
+
+/* to another folder: the two names always in two sectors */
+static void rename_move_setup(void)
+{
+    rename_new_setup();
+    if (mkdir(MOVE_DIR) < 0)
+        fail("mkdir");
+}
+
+static void rename_move_action(void)
+{
+    rename(RN_FROM, MOVE_DIR "/Road Trip.m3u8");
+}
+
+static bool rename_move_post(char *verdict, size_t max)
+{
+    return moved_post(RN_FROM, MOVE_DIR "/Road Trip.m3u8", verdict, max);
+}
+
+/* a folder with its file moved: its '..' changes too */
+#define RN_DIR ROCKBOX_DIR "/Road Trip"
+
+static void rename_dir_setup(void)
+{
+    setup_common();
+    if (mkdir(RN_DIR) < 0 || mkdir(MOVE_DIR) < 0)
+        fail("mkdir");
+    put_file(RN_DIR "/Road Trip.m3u8", RN_SIZE, RN_SEED, 4096);
+}
+
+static void rename_dir_action(void)
+{
+    rename(RN_DIR, MOVE_DIR "/Road Trip");
+}
+
+static bool rename_dir_post(char *verdict, size_t max)
+{
+    return moved_post(RN_DIR "/Road Trip.m3u8",
+                      MOVE_DIR "/Road Trip/Road Trip.m3u8", verdict, max);
+}
+
 /* a playlist saved into a folder of its own */
 #define NEWDIR_FILE "/Playlists/Road Trip.m3u8"
 
@@ -432,6 +565,76 @@ static void dirgrow_setup(void)
 static void dirgrow_action(void)
 {
     put_file(GROWDIR "/Track 511.m4a", 100, 511, 100);
+}
+
+/* a folder made there: two new clusters, one linked to the full one */
+static void mkdir_grow_action(void)
+{
+    mkdir(GROWDIR "/Live");
+}
+
+/* a move into a full folder, which grows for the new name */
+#define GROW_TO GROWDIR "/Road Trip.m3u8"
+
+static void rename_grow_setup(void)
+{
+    dirgrow_setup();
+    put_file(RN_FROM, RN_SIZE, RN_SEED, 4096);
+}
+
+static void rename_grow_action(void)
+{
+    rename(RN_FROM, GROW_TO);
+}
+
+static bool rename_grow_post(char *verdict, size_t max)
+{
+    return moved_post(RN_FROM, GROW_TO, verdict, max);
+}
+
+/* a rename in a full folder to a longer name: it grows, the same folder */
+#define GS_FROM GROWDIR "/Road Trip.tmp"
+#define GS_TO   GROWDIR "/Road Trip, the long version of the playlist.m3u8"
+
+static void rename_grow_same_setup(void)
+{
+    dirgrow_setup();
+    remove(GROWDIR "/Track 000.m4a");
+    put_file(GS_FROM, RN_SIZE, RN_SEED, 4096);
+}
+
+static void rename_grow_same_action(void)
+{
+    rename_in_folder(GS_FROM, GS_TO);
+}
+
+static bool rename_grow_same_post(char *verdict, size_t max)
+{
+    return moved_post(GS_FROM, GS_TO, verdict, max);
+}
+
+/* a rename of the case alone: the old 8.3 name is still there for the new
+   one's search */
+#define RC_FROM ROCKBOX_DIR "/road trip.m3u8"
+#define RC_TO   ROCKBOX_DIR "/Road Trip.m3u8"
+
+static void rename_case_setup(void)
+{
+    setup_common();
+    put_file(RC_FROM, RN_SIZE, RN_SEED, 4096);
+}
+
+static void rename_case_action(void)
+{
+    rename_in_folder(RC_FROM, RC_TO);
+}
+
+static bool rename_case_post(char *verdict, size_t max)
+{
+    int t = whole(RC_TO, RN_SIZE, RN_SEED);
+    snprintf(verdict, max, "%s", t > 0 ? "present" : t ? "bad" :
+             one_sector ? "none in one sector" : "none");
+    return t > 0 || (!t && !one_sector);
 }
 
 /* O_TRUNC of a file of 64 KB and more: its clusters freed at the open */
@@ -488,8 +691,23 @@ static const struct scenario
     { "resume",         settings_setup, resume_action,   resume_post },
     { "playlist",       playlist_setup, playlist_action, playlist_post },
     { "rename",         rename_setup,   rename_action,   rename_post },
+    { "rename-new",     rename_new_setup,  rename_new_action,
+                        rename_new_post },
+    { "rename-over",    rename_over_setup, rename_new_action,
+                        rename_over_post },
+    { "rename-move",    rename_move_setup, rename_move_action,
+                        rename_move_post },
+    { "rename-dir",     rename_dir_setup,  rename_dir_action,
+                        rename_dir_post },
+    { "rename-grow",    rename_grow_setup, rename_grow_action,
+                        rename_grow_post },
+    { "rename-grow-same", rename_grow_same_setup, rename_grow_same_action,
+                        rename_grow_same_post },
+    { "rename-case",    rename_case_setup, rename_case_action,
+                        rename_case_post },
     { "newdir",         setup_common,   newdir_action,   newdir_post },
     { "dirgrow",        dirgrow_setup,  dirgrow_action,  no_post },
+    { "mkdir-grow",     dirgrow_setup,  mkdir_grow_action, no_post },
     { "trunc",          trunc_setup,    trunc_action,    no_post },
     { "trunc-zero",     trunc_setup,    zero_action,     no_post },
 };
@@ -587,11 +805,12 @@ int main(int argc, char *argv[])
         find(argv[2])->action();
         long n = host_journal_count();
         fs_unmount();
-        printf("%ld\n", n);
+        printf("%ld %d\n", n, one_sector);
     }
-    else if (!strcmp(cmd, "crash") && argc == 8)
+    else if (!strcmp(cmd, "crash") && (argc == 8 || argc == 9))
     {
         const struct scenario *s = find(argv[2]);
+        one_sector = argc == 9 && atoi(argv[8]);
         host_clone(argv[3], argv[6]);
         host_apply(argv[4], argv[6], atol(argv[5]));
         host_clone(argv[6], argv[7]);

@@ -15,13 +15,17 @@ Findings, by kind:
   cross     a cluster in two chains: two files on the same clusters
   loop      a chain that comes back on itself
   badref    a chain or an entry pointing outside the volume
-  stale     a directory cluster that was never written
+  stale     a directory sector that was never written: its old data is read
+            as entries, now or once the folder's entries reach it
   dupname   two entries of one name in a folder
+  nodot     a folder whose first entries aren't '.' and '..': moving it
+            fails, and fsck complains
 and, not errors (fsck mends them, and no file shares a cluster):
   size      a file longer than its chain: fsck shortens it
   lost      clusters taken in the FAT that no file has
   long      a chain longer than its file needs
   fatcopy   the two FATs differ
+  dotdot    a folder's '..' names another folder than its parent
 """
 import struct
 import sys
@@ -32,8 +36,8 @@ CLUSTER = SECTOR * SECPERCLUS
 RESERVED = 32
 STALE = 0xA5
 EOC = 0x0FFFFFF8
-ERRORS = ("free", "cross", "loop", "badref", "stale", "dupname")
-NOTES = ("size", "lost", "long", "fatcopy")
+ERRORS = ("free", "cross", "loop", "badref", "stale", "dupname", "nodot")
+NOTES = ("size", "lost", "long", "fatcopy", "dotdot")
 
 
 def mkfs(path, clusters=256):
@@ -138,22 +142,23 @@ def check(path):
                 return out
             c = nxt
 
-    def walk(start, path):
+    def walk(start, path, dotdot):
         clusters = chain(start, path or "/")
         entries = []
         lfn = ""
         done = False
+        stale = None
+        dots = []
         for c in clusters:
             data = img.cluster(c)
             for s in range(SECPERCLUS):
                 sec = data[s * SECTOR:(s + 1) * SECTOR]
-                if done:
-                    break
                 if sec == bytes([STALE]) * SECTOR:
-                    found["stale"].append("%s: cluster %d sector %d"
-                                          % (path or "/", c, s))
+                    stale = stale or "%s: cluster %d sector %d" \
+                        % (path or "/", c, s)
                     done = True
-                    break
+                if done:
+                    continue
                 for o in range(0, SECTOR, 32):
                     e = sec[o:o + 32]
                     if e[0] == 0:
@@ -169,12 +174,21 @@ def check(path):
                         continue
                     name = lfn or short_name(e)
                     lfn = ""
-                    if attr & 0x08 or name in (".", ".."):
-                        continue
+                    if len(dots) < 2:
+                        dots.append(name)
                     first = (struct.unpack_from("<H", e, 20)[0] << 16) \
                         | struct.unpack_from("<H", e, 26)[0]
+                    if name == ".." and first != dotdot:
+                        found["dotdot"].append("%s: %d, not %d"
+                                               % (path, first, dotdot))
+                    if attr & 0x08 or name in (".", ".."):
+                        continue
                     size = struct.unpack_from("<I", e, 28)[0]
                     entries.append((name, attr, first, size))
+        if stale:
+            found["stale"].append(stale)
+        if path and dots[:2] != [".", ".."]:
+            found["nodot"].append("%s: first entries %s" % (path, dots[:2]))
         seen = set()
         for name, attr, first, size in entries:
             full = (path + "/" + name)
@@ -183,7 +197,7 @@ def check(path):
             seen.add(name.lower())
             if attr & 0x10:
                 if first:
-                    walk(first, full)
+                    walk(first, full, start if path else 0)
                 else:
                     found["badref"].append("%s: folder without cluster" % full)
                 continue
@@ -200,7 +214,7 @@ def check(path):
                 found["long"].append("%s: %d bytes, %d clusters"
                                      % (full, size, len(got)))
 
-    walk(img.rootclus, "")
+    walk(img.rootclus, "", 0)
     lost = [c for c in range(2, img.nclusters + 2)
             if img.fat[c] and c not in owner]
     if lost:

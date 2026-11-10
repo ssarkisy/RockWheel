@@ -15,9 +15,9 @@ A line per scenario: in how many of its runs nothing was found, then a line
 for each other run, by layout and order: what fatimg.py found on the disk as
 the cut left it ("cut") and after the next boot wrote on it ("next boot"),
 at which cuts k, and what the scenario's own check of its files said, if not
-ok. Known and left as they are: a rename cut inside fat_rename(), its two
-entries in two sectors, can leave both on one file (cross) or, renamed over
-another's name, that name twice (dupname).
+ok; with --outcomes, how many cuts left each outcome the scenario's check
+found ok. Known and left as it is: renamed over another's name, a file has
+that name twice (dupname) between its new entry and the other's removal.
 """
 import argparse
 import concurrent.futures
@@ -59,11 +59,11 @@ def kinds(found):
     return sorted(k for k in found if k in fatimg.ERRORS)
 
 
-def cut(fstest, scen, d, k):
+def cut(fstest, scen, d, k, one):
     crash = os.path.join(d, "crash-%d.img" % k)
     post = os.path.join(d, "post-%d.img" % k)
     r = subprocess.run([fstest, "crash", scen, os.path.join(d, "base.img"),
-                        os.path.join(d, "journal"), str(k), crash, post],
+                        os.path.join(d, "journal"), str(k), crash, post, one],
                        capture_output=True, text=True)
     verdict = r.stdout.strip() if r.returncode == 0 else \
         "BAD post failed: " + (r.stderr.strip() or "exit %d" % r.returncode)
@@ -98,16 +98,17 @@ def scenario(fstest, scen, layout, seed, work, verbose, keep):
         return "%s: setup left %s" % (name, ",".join(bad)), set()
     final = os.path.join(d, "final.img")
     sh("cp", "-c", base, final)
-    n = int(sh(fstest, "action", scen, final, os.path.join(d, "journal"),
-               str(seed)))
+    n, one = sh(fstest, "action", scen, final, os.path.join(d, "journal"),
+                str(seed)).split()
+    n = int(n)
     with concurrent.futures.ThreadPoolExecutor(os.cpu_count()) as pool:
-        results = list(pool.map(lambda k: cut(fstest, scen, d, k),
+        results = list(pool.map(lambda k: cut(fstest, scen, d, k, one),
                                 range(n + 1)))
     if not keep:
         os.remove(final)
         if scen != "settings" or layout or seed:
             os.remove(base)
-    crash, post, verdicts, notes = {}, {}, {}, set()
+    crash, post, verdicts, notes, outcomes = {}, {}, {}, set(), {}
     for k, c, p, verdict in results:
         for kind in kinds(c):
             crash.setdefault(kind, []).append(k)
@@ -115,6 +116,8 @@ def scenario(fstest, scen, layout, seed, work, verbose, keep):
             post.setdefault(kind, []).append(k)
         if not verdict.startswith("ok"):
             verdicts.setdefault(verdict, []).append(k)
+        elif verdict[3:]:
+            outcomes[verdict[3:]] = outcomes.get(verdict[3:], 0) + 1
         notes.update(x for x in c if x not in fatimg.ERRORS)
         if verbose:
             print("  k=%d crash %s post %s: %s" % (k, c, p, verdict))
@@ -125,7 +128,7 @@ def scenario(fstest, scen, layout, seed, work, verbose, keep):
         line.append("next boot: %s at k=%s" % (kind, ranges(ks)))
     for verdict, ks in sorted(verdicts.items()):
         line.append("%s at k=%s" % (verdict, ranges(ks)))
-    return "; ".join(line) if len(line) > 1 else None, notes
+    return "; ".join(line) if len(line) > 1 else None, notes, outcomes
 
 
 def main():
@@ -141,6 +144,8 @@ def main():
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--keep", action="store_true",
                     help="keep each scenario's images before and after")
+    ap.add_argument("--outcomes", action="store_true",
+                    help="count the outcomes the scenarios' checks found ok")
     args = ap.parse_args()
     work = os.path.abspath(args.work)
     os.makedirs(work, exist_ok=True)
@@ -155,19 +160,25 @@ def main():
     if args.only:
         names = [s for s in names if s in args.only.split(",")]
     for scen in names:
-        found, notes = [], set()
+        found, notes, outcomes = [], set(), {}
         for layout in range(args.layouts):
             for seed in range(args.seeds):
-                line, more = scenario(fstest, scen, layout, seed,
-                                      os.path.join(work, name), args.verbose,
-                                      args.keep)
+                line, more, seen = scenario(fstest, scen, layout, seed,
+                                            os.path.join(work, name),
+                                            args.verbose, args.keep)
                 notes |= more
+                for o, n in seen.items():
+                    outcomes[o] = outcomes.get(o, 0) + n
                 if line:
                     found.append(line)
         runs = args.layouts * args.seeds
         print("%s: %d of %d runs clean%s" % (
             scen, runs - len(found), runs,
             " (also %s)" % ",".join(sorted(notes)) if notes else ""))
+        if args.outcomes and outcomes:
+            print("  outcomes: " + (", ".join(
+                "%s %d" % o for o in sorted(outcomes.items()))
+                if len(outcomes) <= 8 else "%d different" % len(outcomes)))
         for line in found:
             print("  " + line, flush=True)
     base = os.path.join(work, name, "settings-0-0", "base.img")
