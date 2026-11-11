@@ -2618,6 +2618,12 @@ static bool key_before(const struct song_key *a, const struct song_key *b)
     return a->hi != b->hi ? a->hi < b->hi : a->lo < b->lo;
 }
 
+/* for songs_orders_write(): Songs made by name whatever its Sort By, and
+   then the sort's room in it, NULL for none; of use while the lists' buffers
+   are held still */
+static bool songs_for_orders;
+static struct song_key *songs_orders_keys;
+
 /* The sort's room for n songs, in the names' room past used, nothing
    allocated, so also while music plays: the keys, the albums' keys, then the
    rows' numbers twice, or before them the albums' places by date. NULL
@@ -2637,9 +2643,21 @@ static struct song_key *songs_sort_room(struct tree_context *c, int n, long used
     return (char *)keys + need <= names + c->cache.name_buffer_size ? keys : NULL;
 }
 
-/* Stable, by merges of the rows' numbers, then each row moved along the
-   cycles of the order, in songs_sort_room()'s keys */
-static void sort_songs(struct tree_context *c, int order, struct song_key *keys)
+/* A row of Songs in an order: the row of the list by name that goes there,
+   and what it keeps, its album's number, for its cover, or by year its
+   album's year. As the sort gives them and the orders' file has them */
+struct song_place {
+    uint16_t from;  /* bit 15 marks a row moved */
+    int16_t value;
+};
+_Static_assert(sizeof(struct song_place) <= sizeof(struct song_key),
+               "the places in the keys' room");
+
+/* The list by name sorted into an order, its rows where they were, each
+   given its album's number or year: stable, by merges of the rows' numbers,
+   in songs_sort_room()'s keys, which the places then take */
+static struct song_place *songs_order_sort(struct tree_context *c, int order,
+                                           struct song_key *keys)
 {
     struct tagentry *e = get_entries(c) + c->special_entry_count;
     const int n = current_entry_count - c->special_entry_count;
@@ -2717,22 +2735,212 @@ static void sort_songs(struct tree_context *c, int order, struct song_key *keys)
         yield();
     }
 
+    struct song_place *rows = (struct song_place *)keys;
+    for (int k = 0; k < n; k++)
+        rows[k] = (struct song_place){
+            a[k], order == SONGS_BY_YEAR ? e[a[k]].album.year : e[a[k]].album.no
+        };
+    return rows;
+}
+
+/* The list by name into the order of those places: each row moved along the
+   cycles of the order, then given what it keeps */
+static void songs_order_apply(struct tagentry *e, int n, struct song_place *rows,
+                              int order)
+{
     for (int i = 0; i < n; i++)
     {
-        if ((a[i] & 0x8000) || a[i] == i)
+        if ((rows[i].from & 0x8000) || rows[i].from == i)
             continue;
         const struct tagentry first = e[i];
         int to = i;
-        while (a[to] != i)
+        while (rows[to].from != i)
         {
-            const int from = a[to];
+            const int from = rows[to].from;
             e[to] = e[from];
-            a[to] |= 0x8000;
+            rows[to].from |= 0x8000;
             to = from;
         }
         e[to] = first;
-        a[to] |= 0x8000;
+        rows[to].from |= 0x8000;
     }
+    for (int i = 0; i < n; i++)
+    {
+        if (order == SONGS_BY_YEAR)
+            e[i].album = (typeof(e[i].album)){ .year = rows[i].value, .no = -1 };
+        else
+            e[i].album = (typeof(e[i].album)){ .year = 0, .no = rows[i].value };
+    }
+}
+
+/* Songs' orders kept in a file, so that the list in one opens without its
+   sort, 0.5 s of its 0.7 for 13 000 songs on an iPod. Updating Library
+   writes it (songs_orders_write()), each order's places one after another;
+   a list reads its order's into the sort's room, where the sort puts them */
+#define SONGS_ORDERS_FILE    ROCKBOX_DIR "/songs_orders.dat"
+#define SONGS_ORDERS_MAGIC   0x4f535752 /* "RWSO" */
+/* raised with the keys, their order or the file's layout, and with what is
+   made of the albums' dates: album_date_order(), album_date_year()
+   (album_years.c) and date_key() */
+#define SONGS_ORDERS_VERSION 1
+#define SONGS_ORDERS         3 /* by artist, album and year, in SONGS_BY_'s order */
+struct songs_orders_header {
+    uint32_t magic, version;
+    int32_t commitid;
+    uint32_t room;          /* the lists' size, which decides whether the sort has room */
+    uint32_t songs;         /* places in each order; 0 for none, the sort without room */
+    uint32_t songs_hash, albums_hash;   /* songs_inputs() */
+    uint32_t rows_hash;     /* the list by name the places are of */
+    uint32_t sum[SONGS_ORDERS]; /* of each order's places */
+};
+#define HASH_START 2166136261u
+
+/* All that the sort reads, hashed, so that the file is used only for the
+   same: each song's places in its tags' files, by which the list by name and
+   the keys go, its disc and track, and the artist without a name; the albums
+   of the table of years in their order, each one's seeks, date and whether it
+   has a name */
+struct songs_inputs {
+    uint32_t songs, albums;
+};
+
+#ifdef HAVE_TC_RAMCACHE
+struct songs_hashing {
+    uint32_t hash;
+    int32_t artist, unnamed;
+};
+
+/* with the database's memory held still: nothing waits here */
+static void songs_hash_track(int idx_id, const int32_t *seek, void *data)
+{
+    struct songs_hashing *h = data;
+    const int32_t artist = seek[tag_virt_canonicalartist];
+    const int32_t of[] = {
+        idx_id, seek[tag_title], seek[tag_album], seek[tag_albumartist], artist,
+        seek[tag_discnumber], seek[tag_tracknumber]
+    };
+    h->hash = words_hash(of, sizeof(of), h->hash);
+    /* names are once in a tag's file: one seek at most is of none */
+    if (artist != h->artist)
+    {
+        h->artist = artist;
+        if (!tag_named(tag_virt_canonicalartist, artist))
+            h->unnamed = artist;
+    }
+}
+#endif
+
+static bool songs_inputs(struct songs_inputs *in)
+{
+#ifdef HAVE_TC_RAMCACHE
+    struct songs_hashing h = { HASH_START, -1, -1 };
+    if (!tagcache_for_each_track(songs_hash_track, &h))
+        return false;
+    in->songs = words_hash(&h.unnamed, sizeof(h.unnamed), h.hash);
+    const int32_t albums = album_years_count();
+    uint32_t hash = words_hash(&albums, sizeof(albums), HASH_START);
+    for (int no = 0; no < albums; no++)
+    {
+        const int32_t album = album_years_album(no);
+        const int32_t of[] = {
+            album, album_years_artist(no), album_years_date(no),
+            tag_named(tag_album, album)
+        };
+        hash = words_hash(of, sizeof(of), hash);
+    }
+    in->albums = hash;
+    return true;
+#else
+    (void)in;
+    return false;
+#endif
+}
+
+static uint32_t songs_rows_hash(const struct tagentry *e, int n)
+{
+    uint32_t hash = HASH_START;
+    for (int i = 0; i < n; i++)
+        hash = (hash ^ (uint32_t)e[i].extraseek) * 16777619;
+    return hash;
+}
+
+/* The file open past its header, if it is of the library, the table of
+   years, the rules and the lists' size as they are now: -1 if not, or
+   without it */
+static int songs_orders_open(struct songs_orders_header *h)
+{
+    struct songs_inputs in;
+    const int fd = open(SONGS_ORDERS_FILE, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    if (read(fd, h, sizeof(*h)) == sizeof(*h)
+        && h->magic == SONGS_ORDERS_MAGIC && h->version == SONGS_ORDERS_VERSION
+        && h->commitid == tagcache_get_commitid()
+        && h->room == (uint32_t)tree_get_context()->cache.max_entries
+        && h->songs <= SONGS_SORT_MAX
+        && ffilesize(fd) == (off_t)(sizeof(*h) + SONGS_ORDERS * h->songs
+                                                 * sizeof(struct song_place))
+        && songs_inputs(&in)
+        && h->songs_hash == in.songs && h->albums_hash == in.albums)
+        return fd;
+    close(fd);
+    return -1;
+}
+
+/* each row of the list is in the places once: else the move wouldn't end */
+static bool songs_places_whole(struct song_place *rows, int n)
+{
+    bool whole = true;
+    for (int k = 0; k < n && whole; k++)
+    {
+        const int from = rows[k].from & 0x7fff;
+        whole = from < n && !(rows[from].from & 0x8000);
+        if (whole)
+            rows[from].from |= 0x8000;
+    }
+    for (int k = 0; k < n; k++)
+        rows[k].from &= 0x7fff;
+    return whole;
+}
+
+/* a hard disk asleep isn't woken for the file: flash, or a disk that spins */
+static bool songs_orders_disk_on(void)
+{
+#if defined(SIMULATOR) || !defined(HAVE_DISK_STORAGE)
+    return true;
+#elif (CONFIG_STORAGE & STORAGE_ATA)
+    return ata_disk_isssd() || storage_disk_is_active();
+#else
+    return storage_disk_is_active();
+#endif
+}
+
+/* An order's places for the list by name just made, from the file into the
+   sort's room: NULL if it isn't to be read, or isn't of this list, and then
+   it is sorted. One that says it is, but isn't whole, is removed, for the
+   next Updating Library to write it again */
+static struct song_place *songs_order_read(struct tree_context *c, int order,
+                                           struct song_key *keys)
+{
+    const struct tagentry *e = get_entries(c) + c->special_entry_count;
+    const int n = current_entry_count - c->special_entry_count;
+    struct song_place *rows = (struct song_place *)keys;
+    const ssize_t size = n * sizeof(*rows);
+    struct songs_orders_header h;
+    if (!songs_orders_disk_on())
+        return NULL;
+    const int fd = songs_orders_open(&h);
+    if (fd < 0)
+        return NULL;
+    const bool ok = h.songs == (uint32_t)n && h.rows_hash == songs_rows_hash(e, n)
+        && lseek(fd, sizeof(h) + (order - SONGS_BY_ARTIST) * size, SEEK_SET) >= 0
+        && read(fd, rows, size) == size
+        && words_hash(rows, size, HASH_START) == h.sum[order - SONGS_BY_ARTIST]
+        && songs_places_whole(rows, n);
+    close(fd);
+    if (!ok)
+        remove(SONGS_ORDERS_FILE);
+    return ok ? rows : NULL;
 }
 
 /* A person's albums: an artist's, album artist's or composer's, which go by
@@ -3205,10 +3413,11 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         current_entry_count++;
         c->special_entry_count++;
     }
-    /* and Songs', its rows its titles alone */
+    /* and Songs', its rows its titles alone, not in a format's own order,
+       which another has no list for (below) */
     const bool songs = offset == 0 && level == 0 && tag == tag_title
         && c->currtable == TABLE_NAVIBROWSE && is_songs(csi) && plain
-        && tcs.ramsearch && songs_sortable();
+        && !sort_inverse && !sort_limit && tcs.ramsearch && songs_sortable();
     if (songs)
     {
         *dptr++ = (struct tagentry){
@@ -3406,9 +3615,22 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             current_entry_count--;
             c->special_entry_count--;
         }
-        else if ((songs_by = songs_order()) != SONGS_BY_NAME)
+        else if (!songs_for_orders
+                 && (songs_by = songs_order()) != SONGS_BY_NAME)
         {
-            sort_songs(c, songs_by, keys);
+            struct song_place *rows = songs_order_read(c, songs_by, keys);
+            if (!rows)
+                rows = songs_order_sort(c, songs_by, keys);
+            songs_order_apply(get_entries(c) + c->special_entry_count,
+                              current_entry_count - c->special_entry_count,
+                              rows, songs_by);
+            sort = false;
+        }
+        /* not sorted again below, by a format's names: the file's places
+           are of the list as those in an order have it */
+        if (songs_for_orders)
+        {
+            songs_orders_keys = keys;
             sort = false;
         }
     }
@@ -6475,7 +6697,73 @@ bool tagtree_play_song_in_library(const char *path)
     return ok;
 }
 
-/* At the end of an import: the playlist of the list of all songs, which takes
+/* room for a file of the library's over what its next update keeps */
+static bool library_file_room(unsigned long bytes)
+{
+    sector_t free_kb = 0;
+    volume_size(IF_MV(0,) NULL, &free_kb);
+    return free_kb >= bytes / 1024 + 1 + tagcache_caches_floor_kb();
+}
+
+/* Songs' orders aren't in their file as the library is, and have their room:
+   without it they wait, and nothing says so, as the playlist */
+static bool songs_orders_stale(void)
+{
+    struct songs_orders_header h;
+    if (!songs_sortable() || tagcache_get_song_count() == 0)
+        return false;
+    const int fd = songs_orders_open(&h);
+    if (fd >= 0)
+    {
+        close(fd);
+        return false;
+    }
+    return library_file_room(sizeof(h) + SONGS_ORDERS * tagcache_entry_count()
+                                         * sizeof(struct song_place));
+}
+
+/* At Updating Library: Songs made by name, sorted into each order in turn,
+   the places written. Where the sort has no room, the header alone, which
+   says so for this library and lists' size: else it was tried at each boot.
+   Whole or not at all (whole_file_open()); the list isn't kept */
+static void songs_orders_write(struct tree_context *c)
+{
+    struct songs_inputs in;
+    songs_orders_keys = NULL;
+    songs_for_orders = true;
+    const int count = retrieve_entries(c, 0, true);
+    songs_for_orders = false;
+    kept_hash = 0;
+    if (count <= 0 || !entries_whole || !songs_inputs(&in))
+        return;
+    struct song_key *keys = songs_orders_keys;
+    const int n = keys ? current_entry_count - c->special_entry_count : 0;
+    struct songs_orders_header h = {
+        .magic = SONGS_ORDERS_MAGIC, .version = SONGS_ORDERS_VERSION,
+        .commitid = tagcache_get_commitid(), .room = c->cache.max_entries,
+        .songs = n, .songs_hash = in.songs, .albums_hash = in.albums,
+        .rows_hash = songs_rows_hash(get_entries(c) + c->special_entry_count, n),
+    };
+    const ssize_t size = n * sizeof(struct song_place);
+    const int fd = whole_file_open(SONGS_ORDERS_FILE);
+    if (fd < 0)
+        return;
+    /* the header again at the end, with the places' sums */
+    bool ok = write(fd, &h, sizeof(h)) == sizeof(h);
+    for (int i = 0; i < SONGS_ORDERS && n && ok; i++)
+    {
+        const struct song_place *rows = songs_order_sort(c, SONGS_BY_ARTIST + i,
+                                                         keys);
+        h.sum[i] = words_hash(rows, size, HASH_START);
+        ok = write(fd, rows, size) == size;
+    }
+    ok = ok && lseek(fd, 0, SEEK_SET) == 0
+         && write(fd, &h, sizeof(h)) == sizeof(h);
+    whole_file_close(fd, SONGS_ORDERS_FILE, ok);
+}
+
+/* At Updating Library: Songs' orders into their file, so that the list opens
+   without its sort, and the playlist of the list of all songs, which takes
    seconds to write, so that playing a song of it starts at once. */
 void tagtree_prepare_songs(void)
 {
@@ -6503,15 +6791,19 @@ void tagtree_prepare_songs(void)
     bool ready = tagtree_songs_slot(songs, &h, &fd) >= 0;
     if (ready)
         close(fd);
+    const bool orders = songs_orders_stale();
 
-    if (!ready)
+    if (!ready || orders)
     {
         tree_lock_cache(c);
         core_pin(tagtree_handle);
         cpu_boost(true);
         list_on_boot_screen = true;
         library_update_songs_progress(0, 0);
-        int count = retrieve_entries(c, 0, true);
+        /* first, for the list made next to be read from them */
+        if (orders)
+            songs_orders_write(c);
+        int count = ready ? 0 : retrieve_entries(c, 0, true);
         if (count > 0)
         {
             char file[MAX_PATH];
@@ -6563,22 +6855,20 @@ static bool songs_playlist_room(void)
         return false;
     const off_t paths = ffilesize(fd);
     close(fd);
-    if (paths < 0)
-        return false;
-    sector_t free_kb = 0;
-    volume_size(IF_MV(0,) NULL, &free_kb);
-    return free_kb >= (paths + tagcache_entry_count() * sizeof(uint32_t)) / 1024
-                      + 1 + tagcache_caches_floor_kb();
+    return paths >= 0
+           && library_file_room(paths + tagcache_entry_count() * sizeof(uint32_t));
 }
 
-/* Without room it waits for a song played, and nothing says so: asked at
-   every boot, a write that failed would raise Not Enough Space at each. Not
-   without the database in memory: all songs from the disk took minutes */
+/* Without room the playlist waits for a song played, and nothing says so:
+   asked at every boot, a write that failed would raise Not Enough Space at
+   each. Not without the database in memory: all songs from the disk took
+   minutes */
 bool tagtree_songs_stale(void)
 {
     return song_places_known() && tagcache_get_song_count() != 0
-           && tagtree_all_songs() && !tagtree_songs_prepared()
-           && songs_playlist_room();
+           && tagtree_all_songs()
+           && ((!tagtree_songs_prepared() && songs_playlist_room())
+               || songs_orders_stale());
 }
 
 static int tagtree_play_folder(struct tree_context* c)

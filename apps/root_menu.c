@@ -1890,7 +1890,7 @@ void show_library_update(void)
     }
 #endif
     /* Songs' playlist in the order chosen, if no import nor a song played
-       wrote it: after the albums' years, its order's */
+       wrote it, and its orders' file: after the albums' years they go by */
     const bool songs_stale = phase == TAGCACHE_IMPORT_NONE && !held_event
                              && !imported && !no_space && tagtree_songs_stale();
     if (songs_stale && !shown)

@@ -103,7 +103,8 @@ bool tagtree_shuffle_songs(void);
 void tagtree_prepare_songs(void);
 /* whether Songs' list is made for the database as it is */
 bool tagtree_songs_prepared(void);
-/* Songs' playlist in the order chosen isn't written, and has its room */
+/* Songs' playlist in the order chosen, or the file of its orders, isn't
+   written for the library as it is, and has its room */
 bool tagtree_songs_stale(void);
 bool tagtree_play_song_in_library(const char *path);
 int tagtree_add_to_playlist(const char* playlist, bool new_playlist);
