@@ -924,6 +924,8 @@ static void albumart_callback(int mode)
     /* none in lists either with it off, nor their memory */
     list_covers_apply();
 #endif
+    /* nor the menus' sharp one's */
+    menu_cover_memory();
 }
 #endif
 

@@ -63,12 +63,12 @@ static struct {
 #if defined(HAVE_MENU_COVER) && defined(HAVE_JPEG) && defined(HAVE_TAGCACHE)
 #define MENU_COVER_SHARP
 /* Sharp: the picture in the song's own file, decoded by the album cover
-   reader's thread to the size Finder's was scaled to, takes its place. In a
-   block held only with Moving Cover on, taken without music (sharp_memory()):
-   the pixels, then the decoder's room, its state 12.5 KB, a row of blocks up
-   to 30.7 KB and the scaler's rows 11.5 KB. The UI's thread, the scroll's
-   and the reader's are on one core: none of their changes here has a yield
-   in the middle. */
+   reader's thread to the size Finder's was scaled to, takes its place, moving
+   or still. In a block held while Album Art is on, taken without music
+   (sharp_memory()): the pixels, then the decoder's room, its state 12.5 KB,
+   a row of blocks up to 30.7 KB and the scaler's rows 11.5 KB. The UI's
+   thread, the scroll's and the reader's are on one core: none of their
+   changes here has a yield in the middle. */
 #define SHARP_ROOM  (54 * 1024)
 #define SHARP_BYTES (sizeof(menu_art.pixels) + SHARP_ROOM)
 static struct
@@ -274,6 +274,8 @@ static struct
     int p0, travel;             /* columns at x0: in the middle, at the right end */
 } pan;
 static bool pan_shown;          /* drawn by the last render of it, theme unchanged since */
+static bool pan_still;          /* drawn so, but not to move: Moving Cover
+                                   off, or no room for it */
 static int pan_h;               /* the half column at x0 on the screen */
 static long pan_clock;
 static long pan_last;           /* the tick of the last look while it could go */
@@ -327,10 +329,11 @@ static int pan_at(long t, long *until)
     return leg_moved(t - PAN_REST, until);
 }
 
-static bool pan_can_go(void)
+/* the UI waits, the cover on the screen as it was drawn: a step, or the
+   sharp cover's frame, may be drawn over it */
+static bool cover_idle(void)
 {
-    return pan_shown && global_settings.moving_cover
-        && menu_art.width == pan.width && menu_art.height == pan.height
+    return menu_art.width == pan.width && menu_art.height == pan.height
         && (audio_status() & AUDIO_STATUS_PLAY)
         && !transition_active() && !plugin_is_running()
 #if defined(HAVE_LCD_ENABLE) || defined(HAVE_LCD_SLEEP)
@@ -341,6 +344,11 @@ static bool pan_can_go(void)
 #endif
         && action_waiting() && button_queue_empty()
         && !TIME_BEFORE(current_tick, action_last_tick() + PAN_AT_REST);
+}
+
+static bool pan_can_go(void)
+{
+    return pan_shown && global_settings.moving_cover && cover_idle();
 }
 
 #if NUM_CORES > 1 && defined(HAVE_LCD_SEND_RECT)
@@ -429,10 +437,11 @@ static bool cop_ready(void)
 }
 
 /* a slot for the album cover reader too, this thread's and the spare one
-   left: it's made beside this one, not in its place */
+   left: it's made beside this one, not in its place. None kept for this
+   thread while the cover is still, which doesn't make it. */
 static bool reader_slot(void)
 {
-    const bool made = cop_thread_id || cop_ending || cop_unusable;
+    const bool made = pan_still || cop_thread_id || cop_ending || cop_unusable;
     return free_slots() > COP_SPARE_SLOTS + (made ? 0 : 1);
 }
 
@@ -566,8 +575,9 @@ static void blend_row(fb_data *dst, const fb_data *src, int n)
         dst[i] = AVG2((uint32_t)src[i], (uint32_t)src[i + 1]);
 }
 
-/* show_at: the tick that shows it, where the display can wait for one */
-static void pan_draw(int h, long show_at)
+/* show_at: the tick that shows it, where the display can wait for one. The
+   one frame of a still cover is the CPU's: no thread on the COP for it. */
+static void pan_draw(int h, long show_at, bool still)
 {
     struct viewport *vp = lcd_set_viewport_ex(NULL, 0);
     const int width = pan.x1 - pan.x0;
@@ -580,7 +590,7 @@ static void pan_draw(int h, long show_at)
             memcpy(FBADDR(pan.x0, y), src, width * sizeof(fb_data));
     }
 #ifdef PAN_ON_COP
-    if (cop_ready())
+    if (!still && cop_ready())
     {
         lcd_set_viewport_ex(vp, 0);
         commit_dcache();
@@ -600,6 +610,7 @@ static void pan_draw(int h, long show_at)
     lcd_send_rect(pan.x0, pan.y0, width, pan.y1 - pan.y0, true, show_at);
 #else
     (void)show_at;
+    (void)still;
 #ifdef SIMULATOR
     const long idle_since = sim_lcd_update_tick;
 #endif
@@ -627,6 +638,8 @@ static void pan_boost(bool on)
     (void)on;
 #endif
 }
+
+static long pan_tick(void);
 
 #ifdef MENU_COVER_SHARP
 #if !defined(SIMULATOR) && (CONFIG_STORAGE & STORAGE_ATA) \
@@ -912,8 +925,8 @@ void menu_cover_read(void)
     sharp.held = sharp.shown = sharp.came = true;
 }
 
-/* The block as the settings have it: let go with Moving Cover or Album Art
-   off; taken with both on, only without music, which would stop for it */
+/* The block as Album Art has it: let go with it off; taken with it on, only
+   without music, which would stop for it */
 static void sharp_memory(bool wanted)
 {
     if (!wanted)
@@ -947,17 +960,23 @@ static void sharp_memory(bool wanted)
         sharp.refused = true;
 }
 
-void menu_cover_memory(void)
+/* The scroll thread's hook: for the steps, and with the block alone for a
+   still cover's ask and its one frame. Without either nothing runs. */
+static void hook_set(bool moving)
 {
-    sharp_memory(global_settings.moving_cover
-                 && global_settings.album_art != AA_OFF);
+    scroll_set_tick_hook(moving || sharp.handle ? pan_tick : NULL);
 }
 
-/* the sharp one that came isn't on the screen: the cover drawn again where
-   it is, unless a step is about to draw it */
-static bool sharp_to_draw(long until)
+void menu_cover_memory(void)
 {
-    return sharp.came && until > PAN_LATENCY;
+    sharp_memory(global_settings.album_art != AA_OFF);
+    hook_set(global_settings.moving_cover);
+}
+
+/* the sharp one came and isn't on the screen yet */
+static bool sharp_came(void)
+{
+    return sharp.came;
 }
 
 /* the cover's drawn from the one shown; all of the theme with it, and the
@@ -983,7 +1002,11 @@ static void sharp_tick(void)
 #else
 static inline void sharp_ask(void) {}
 static inline void sharp_memory(bool wanted) { (void)wanted; }
-static inline bool sharp_to_draw(long until) { (void)until; return false; }
+static inline void hook_set(bool moving)
+{
+    scroll_set_tick_hook(moving ? pan_tick : NULL);
+}
+static inline bool sharp_came(void) { return false; }
 static inline void sharp_drawn(bool theme) { (void)theme; }
 static inline void sharp_tick(void) {}
 #endif /* MENU_COVER_SHARP */
@@ -993,13 +1016,20 @@ static long pan_tick(void)
 {
     cop_settle();
     const bool can_go = pan_can_go();
-    if (can_go)
+    const bool still = pan_still && cover_idle();
+    if (can_go || still)
         sharp_ask();
     sharp_tick();
     if (!can_go)
     {
         pan_boost(false);
         pan_going = false;
+        /* still, it only turns sharp: one frame where it is, as a step's */
+        if (still && sharp_came())
+        {
+            pan_draw(2 * pan.p0, current_tick, true);
+            sharp_drawn(false);
+        }
         return PAN_POLL;
     }
     const long now = current_tick;
@@ -1011,7 +1041,8 @@ static long pan_tick(void)
     const int h = pan_at(pan_clock, &until);
     /* not through a rest but its last PAN_POLL */
     pan_boost(h != pan_h || until <= PAN_POLL);
-    if (h != pan_h || sharp_to_draw(until))
+    /* or the sharp one drawn where it is, unless a step is about to */
+    if (h != pan_h || (sharp_came() && until > PAN_LATENCY))
     {
         if (!cop_free())
             return 1;
@@ -1019,7 +1050,7 @@ static long pan_tick(void)
            woke or the frame was ready: the steps go evenly */
         const bool on_time = !TIME_AFTER(pan_due, now)
                              && !TIME_AFTER(now, pan_due + PAN_LATENCY);
-        pan_draw(h, (on_time ? pan_due : now) + PAN_LATENCY);
+        pan_draw(h, (on_time ? pan_due : now) + PAN_LATENCY, false);
         pan_h = h;
         sharp_drawn(false);
     }
@@ -1047,10 +1078,8 @@ bool menu_cover_take(int handle)
 int menu_cover_place(const struct viewport *vp, int x, int y, int width,
                      int height)
 {
-    pan_shown = false;
+    pan_shown = pan_still = false;
     sharp_drawn(true);
-    if (!global_settings.moving_cover)
-        return 0;
     const int left = vp->x + x, top = vp->y + y;
     int x0 = MAX(vp->x, left);
     const int x1 = MIN(MIN(vp->x + vp->width, left + width), LCD_WIDTH);
@@ -1067,7 +1096,7 @@ int menu_cover_place(const struct viewport *vp, int x, int y, int width,
     }
     const int travel = width - (x1 - x0);
     const int p0 = x0 - left;
-    if (x1 <= x0 || y1 <= y0 || travel <= 0 || p0 > travel)
+    if (x1 <= x0 || y1 <= y0)
         return 0;
 
     pan.vp = vp;
@@ -1080,6 +1109,11 @@ int menu_cover_place(const struct viewport *vp, int x, int y, int width,
     pan.row = y0 - top;
     pan.p0 = p0;
     pan.travel = travel;
+    if (!global_settings.moving_cover || travel <= 0 || p0 > travel)
+    {
+        pan_still = true;
+        return 0;
+    }
     long until;
     /* the whole column; a half step is drawn by the next tick */
     pan_h = pan_at(pan_clock, &until) & ~1;
@@ -1089,7 +1123,7 @@ int menu_cover_place(const struct viewport *vp, int x, int y, int width,
 
 void menu_cover_stop(void)
 {
-    pan_shown = false;
+    pan_shown = pan_still = false;
     pan_boost(false);
     cop_end(false);
 }
@@ -1101,7 +1135,7 @@ void menu_cover_wait(void)
 
 void menu_cover_end(void)
 {
-    pan_shown = false;
+    pan_shown = pan_still = false;
     pan_boost(false);
     cop_end(true);
 }
@@ -1132,11 +1166,11 @@ void menu_cover_changed(bool on)
 {
     menu_cover_end();
     sharp_retry();
-    sharp_memory(on && global_settings.album_art != AA_OFF);
+    sharp_memory(global_settings.album_art != AA_OFF);
     /* turned on, it starts from the middle, where it's drawn while off */
     pan_clock = 0;
     pan_going = false;
-    scroll_set_tick_hook(on ? pan_tick : NULL);
+    hook_set(on);
     skin_request_full_update(CUSTOM_STATUSBAR);
 }
 
