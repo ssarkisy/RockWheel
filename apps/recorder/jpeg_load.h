@@ -73,4 +73,11 @@ int clip_jpeg_fd(int fd, int flags,
                  int format,
                  const struct custom_format *cformat);
 
+#ifndef PLUGIN
+/* The decode that reads this file ends at its next row of blocks, as one
+   that failed: 0 or less returned. -1 for none; whoever sets it puts that
+   back before the file is closed. */
+extern volatile int jpeg_stop_fd;
+#endif
+
 #endif /* _JPEG_JPEG_DECODER_H */

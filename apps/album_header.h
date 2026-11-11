@@ -51,6 +51,9 @@ void album_header_reader_wait(void);
    0 none, -1 not known, as with the database busy */
 struct itunesdb_art;
 bool album_header_reader_start(void);
+/* the same for the menus' cover, the thread that moves it left on: its
+   caller has seen a slot free for each */
+bool album_header_reader_start_beside(void);
 int album_header_find_art(int32_t song, struct itunesdb_art *art);
 
 #endif /* _ALBUM_HEADER_H_ */

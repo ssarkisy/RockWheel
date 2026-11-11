@@ -69,6 +69,17 @@ void menu_cover_hidden(const struct viewport *vp);
 /* the part of the screen it moves in, while it's shown */
 bool menu_cover_area(int *x0, int *y0, int *x1, int *y1);
 
+/* The sharp cover's memory as Moving Cover and Album Art have it now: taken
+   only without music, let go with either off. On the UI's thread, not as a
+   theme is drawn. */
+void menu_cover_memory(void);
+/* The album cover reader's part (album_header.c): whether the picture is to
+   be decoded, on its thread; and that given up, as the reader is wanted for
+   a list's covers or to end */
+bool menu_cover_to_read(void);
+void menu_cover_read(void);
+void menu_cover_read_cancel(void);
+
 #else
 static inline void menu_cover_changed(bool on) { (void)on; }
 static inline void menu_cover_stop(void) {}
@@ -76,6 +87,10 @@ static inline void menu_cover_wait(void) {}
 static inline void menu_cover_end(void) {}
 static inline void menu_cover_give_slot(void) {}
 static inline void menu_cover_hidden(const struct viewport *vp) { (void)vp; }
+static inline void menu_cover_memory(void) {}
+static inline bool menu_cover_to_read(void) { return false; }
+static inline void menu_cover_read(void) {}
+static inline void menu_cover_read_cancel(void) {}
 #endif
 
 #endif /* _MENU_COVER_H_ */

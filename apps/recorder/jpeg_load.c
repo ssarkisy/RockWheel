@@ -150,6 +150,11 @@ struct jpeg
 static struct jpeg jpeg;
 #endif
 
+#if !defined(PLUGIN) && !defined(JPEG_FROM_MEM)
+#define JPEG_STOPPABLE
+volatile int jpeg_stop_fd = -1;
+#endif
+
 INLINE unsigned range_limit(int value)
 {
 #if defined(CPU_COLDFIRE)
@@ -1837,6 +1842,10 @@ static void search_restart(struct jpeg *p_jpeg)
 static struct img_part *store_row_jpeg(void *jpeg_args)
 {
     struct jpeg *p_jpeg = (struct jpeg*) jpeg_args;
+#ifdef JPEG_STOPPABLE
+    if (UNLIKELY(p_jpeg->fd == jpeg_stop_fd))
+        return NULL;
+#endif
     int mcu_hscale = (p_jpeg->h_scale[0] +
         p_jpeg->frameheader[0].horizontal_sampling - 1);
     int mcu_vscale = (p_jpeg->v_scale[0] +
@@ -2349,6 +2358,10 @@ int clip_jpeg_fd(int fd, int flags,
         for (row = 0; row < bm->height; row++)
         {
             part = store_row_jpeg(p_jpeg);
+#ifdef JPEG_STOPPABLE
+            if (!part)
+                return 0;
+#endif
 #ifdef HAVE_LCD_COLOR
             if (p_jpeg->blocks > 1 && !p_jpeg->rgb)
             {

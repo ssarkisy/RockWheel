@@ -100,8 +100,8 @@ static struct {
 } cover;
 
 /* The reader's thread, only while it reads, and its stack, 4 KB: its calls go
-   1.2 KB deep at most by their frames in the firmware's code, which leaves
-   room for the calls through pointers that count can't follow */
+   2.2 KB deep at most, in the JPEG decode of the menus' cover, by their
+   frames in the firmware's code */
 static long reader_stack[(DEFAULT_STACK_SIZE + 0xc00) / sizeof(long)];
 /* how long the screen waits for a read that costs no spin-up, from the buffer
    or a disk that's on: about 20-30 ms, which are then without the note */
@@ -314,14 +314,18 @@ static bool album_playing(const struct tagtree_album *album)
    list's rows too, those a frame lacked and those next to them as the wheel
    rests (list_covers.c), after the header's, which its screen waits for.
    Behind the UI, which has the CPU at each of a read's yields before it, as
-   a wheel's step comes; the header's as the UI, which waits for it */
+   a wheel's step comes; the header's as the UI, which waits for it. Last,
+   the menus' cover from its song's own picture (menu_cover.c) */
 static void cover_reader(void)
 {
-    while (cover.to_read || list_covers_to_read())
+    while (cover.to_read || list_covers_to_read() || menu_cover_to_read())
     {
         if (!cover.to_read)
         {
-            list_covers_read();
+            if (list_covers_to_read())
+                list_covers_read();
+            else
+                menu_cover_read();
             continue;
         }
 #ifdef HAVE_PRIORITY_SCHEDULING
@@ -372,17 +376,30 @@ static void cover_reader(void)
     thread_exit();
 }
 
-bool album_header_reader_start(void)
+static bool reader_start(bool give_slot)
 {
     if (cover.reading)
         return true;
     cover.reading = true;
-    menu_cover_give_slot();
+    if (give_slot)
+        menu_cover_give_slot();
     if (!create_thread(cover_reader, reader_stack, sizeof(reader_stack), 0,
                        "album cover" IF_PRIO(, PRIORITY_BACKGROUND)
                        IF_COP(, CPU)))
         cover.reading = false;
     return cover.reading;
+}
+
+bool album_header_reader_start(void)
+{
+    /* a list's covers before the menus' */
+    menu_cover_read_cancel();
+    return reader_start(true);
+}
+
+bool album_header_reader_start_beside(void)
+{
+    return reader_start(false);
 }
 
 /* The album's cover, unless it's the one read last: asked of the reader, its
@@ -557,6 +574,7 @@ void album_header_reader_wait(void)
 #ifdef ITUNESDB_HAVE_ART
     /* the rows' asked for not read: lists' covers wait for the wheel again */
     list_covers_cancel();
+    menu_cover_read_cancel();
     /* the flag drops just before the thread ends, without a yield between */
     while (cover.reading)
         sleep(1);

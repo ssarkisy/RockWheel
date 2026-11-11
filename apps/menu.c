@@ -885,6 +885,7 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
 
         /* query audio status to see if it changed */
         redraw_lists = query_audio_status(&old_audio_status);
+        menu_cover_memory();
 
 #ifdef HAVE_TOUCHSCREEN
         /* need to translate touch actions *first* so the menu callback has
