@@ -53,6 +53,9 @@ bool menu_cover_take(int handle);
    to draw it, for where it has come to */
 int menu_cover_place(const struct viewport *vp, int x, int y, int width,
                      int height);
+/* and what to draw there: the cover's own pixels, or, placed to move, the
+   frame it moves by */
+const fb_data *menu_cover_placed_pixels(const fb_data *pixels);
 /* No step until it's drawn again: all of the theme drawn again, the theme off
    or another loaded. The step being sent waited for, HZ/20 at most, and the
    COP's thread ended once it's done. */
@@ -69,9 +72,10 @@ void menu_cover_hidden(const struct viewport *vp);
 /* the part of the screen it moves in, while it's shown */
 bool menu_cover_area(int *x0, int *y0, int *x1, int *y1);
 
-/* The sharp cover's memory as Album Art has it now: taken only without
-   music, let go with it off; and the scroll thread's hook with it. On the
-   UI's thread, not as a theme is drawn. */
+/* The sharp cover's memory as Album Art has it now, and its moving frames'
+   as Moving Cover has it: taken only without music, let go with either off;
+   and the scroll thread's hook with them. On the UI's thread, not as a
+   theme is drawn. */
 void menu_cover_memory(void);
 /* The album cover reader's part (album_header.c): whether the picture is to
    be decoded, on its thread; and that given up, as the reader is wanted for

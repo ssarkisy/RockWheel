@@ -118,6 +118,16 @@ static struct
     volatile int fd;        /* the song's while it's decoded, or -1 */
     volatile bool hold;     /* the reader waits: little music is buffered */
     volatile bool came;     /* shown, not on the screen yet */
+    /* With Moving Cover on, two more copies of the cover it holds, in a
+       block of their own: a quarter and three quarters of a pixel on, the
+       frames it moves by. A whole pixel's frame is crisp and a half's the
+       mean of two, and one after the other trembled; these are as soft as
+       each other. */
+    int phase_handle;
+    fb_data *phase[2];
+    bool phase_refused;
+    bool phased;            /* they are of the cover it holds */
+    bool job_phases;        /* the reader makes them only: the cover is held */
 } sharp;
 
 static bool same_key(const struct cover_key *key, uint32_t offset,
@@ -190,15 +200,22 @@ static void sharp_panel(int box_width, int box_height)
     sharp.box_now_height = box_height;
 }
 
-/* music plays: a refusal of the block is forgotten, as in sharp_memory() */
+/* music plays: a refusal of a block is forgotten, as in sharp_memory() */
 static void sharp_plays(void)
 {
-    sharp.refused = false;
+    sharp.refused = sharp.phase_refused = false;
 }
 
 static inline const fb_data *art_pixels(void)
 {
     return sharp.shown ? sharp.pixels : menu_art.pixels;
+}
+
+/* the frame of the cover as it moves, at the half column h: NULL without
+   them, as for Finder's */
+static inline const fb_data *moving_pixels(int h)
+{
+    return sharp.shown && sharp.phased ? sharp.phase[h & 1] : NULL;
 }
 #else
 #ifdef HAVE_MENU_COVER
@@ -222,6 +239,7 @@ static inline void sharp_panel(int box_width, int box_height)
 }
 static inline void sharp_plays(void) {}
 static inline const fb_data *art_pixels(void) { return menu_art.pixels; }
+static inline const fb_data *moving_pixels(int h) { (void)h; return NULL; }
 #endif /* MENU_COVER_SHARP */
 
 void menu_cover_forget(void)
@@ -231,7 +249,7 @@ void menu_cover_forget(void)
     job_cancel();
 #ifdef MENU_COVER_SHARP
     /* a cover's key may be another's now: the next track's is taken anew */
-    sharp.held = sharp.failed = sharp.now = false;
+    sharp.held = sharp.phased = sharp.failed = sharp.now = false;
 #endif
 }
 
@@ -633,10 +651,14 @@ static void pan_draw(int h, long show_at, bool still)
 {
     struct viewport *vp = lcd_set_viewport_ex(NULL, 0);
     const int width = pan.x1 - pan.x0;
-    const fb_data *src = art_pixels() + pan.row * menu_art.width + h / 2;
+    /* the sharp cover moving: its frames, made ahead; Finder's, or a sharp
+       one without them: the whole column's, or the mean of two */
+    const fb_data *frame = still ? NULL : moving_pixels(h);
+    const fb_data *src = (frame ? frame : art_pixels())
+                         + pan.row * menu_art.width + h / 2;
     for (int y = pan.y0; y < pan.y1; y++, src += menu_art.width)
     {
-        if (h & 1)
+        if ((h & 1) && !frame)
             blend_row(FBADDR(pan.x0, y), src, width);
         else
             memcpy(FBADDR(pan.x0, y), src, width * sizeof(fb_data));
@@ -787,28 +809,42 @@ static void sharp_look(bool shows)
     const struct cover_key *key = &sharp.now_key;
     if (busy && !same_key(&sharp.job_key, key->offset, key->path))
         job_cancel();
-    if (sharp.to_read || sharp.reading
-        || (sharp.held && same_key(&sharp.key, key->offset, key->path)
-            && sharp.box_width == sharp.box_now_width
-            && sharp.box_height == sharp.box_now_height)
+    const bool has = sharp.held && same_key(&sharp.key, key->offset, key->path)
+                     && sharp.box_width == sharp.box_now_width
+                     && sharp.box_height == sharp.box_now_height;
+    /* it has the cover, but not its moving frames, as with Moving Cover
+       turned on since: the reader makes those */
+    const bool frames = has && sharp.phase[0] && !sharp.phased;
+    if (sharp.to_read || sharp.reading || (has && !frames)
         || (sharp.failed && same_key(&sharp.failed_key, key->offset, key->path))
         || !sharp.now_source || !sharp.box_now_width || !sharp.box_now_height
         || plugin_is_running()
         || TIME_BEFORE(current_tick, sharp.back_off)
         || ms < SHARP_PCM_START)
         return;
-    if (disk_spins()
+    if (!frames && disk_spins()
         && (!shows
             || TIME_BEFORE(current_tick, action_last_tick() + SHARP_REST)
             || !disk_free()))
         return;
     sharp.gave_way = false;
     /* the cover it has is on the screen: the theme takes this one first */
-    if (sharp.shown && (pan_shown || pan_still))
+    if (!frames && sharp.shown && (pan_shown || pan_still))
         return;
     if (!reader_slot())
     {
         sharp.back_off = current_tick + SHARP_AGAIN;
+        return;
+    }
+    sharp.job_phases = frames;
+    if (frames)
+    {
+        sharp.to_read = true;
+        if (!album_header_reader_start_beside())
+        {
+            sharp.to_read = false;
+            sharp.back_off = current_tick + SHARP_AGAIN;
+        }
         return;
     }
     /* the block is this cover's from here: the one it had, if the menus
@@ -816,7 +852,7 @@ static void sharp_look(bool shows)
     if (sharp.shown)
         menu_art.width = 0;
     sharp_undraw();
-    sharp.held = false;
+    sharp.held = sharp.phased = false;
     sharp.job_key = *key;
     sharp.job_frame_width = sharp.now_frame_width;
     sharp.job_frame_height = sharp.now_frame_height;
@@ -1003,6 +1039,39 @@ static bool match_colours(int width, int height, unsigned wanted)
     return true;
 }
 
+/* The two frames the cover moves by, from the block: each pixel three parts
+   of one and one of its neighbour, a quarter of a pixel on, or one and
+   three, three quarters on; the last column its own. False if it was
+   cancelled meanwhile: it yields. */
+static fb_data mix31(unsigned a, unsigned b)
+{
+    return FB_SCALARPACK_LCD(LCD_RGBPACK_LCD(
+        (3 * RGB_UNPACK_RED_LCD(a) + RGB_UNPACK_RED_LCD(b) + 2) >> 2,
+        (3 * RGB_UNPACK_GREEN_LCD(a) + RGB_UNPACK_GREEN_LCD(b) + 2) >> 2,
+        (3 * RGB_UNPACK_BLUE_LCD(a) + RGB_UNPACK_BLUE_LCD(b) + 2) >> 2));
+}
+
+static bool make_phases(int width, int height, unsigned wanted)
+{
+    for (int y = 0; y < height; y++)
+    {
+        const fb_data *row = sharp.pixels + y * width;
+        fb_data *quarter = sharp.phase[0] + y * width;
+        fb_data *three = sharp.phase[1] + y * width;
+        for (int x = 0; x < width - 1; x++)
+        {
+            const unsigned a = FB_UNPACK_SCALAR_LCD(row[x]);
+            const unsigned b = FB_UNPACK_SCALAR_LCD(row[x + 1]);
+            quarter[x] = mix31(a, b);
+            three[x] = mix31(b, a);
+        }
+        quarter[width - 1] = three[width - 1] = row[width - 1];
+        if ((y & 15) == 15 && !reader_yield(wanted))
+            return false;
+    }
+    return true;
+}
+
 /* 1 decoded into the block, to the job's size; 0 not looked at or stopped;
    -1 none that would be sharper, or of the cover's proportions, or that
    decodes, as a progressive one, or a read that failed */
@@ -1048,8 +1117,27 @@ bool menu_cover_to_read(void)
 void menu_cover_read(void)
 {
     const unsigned wanted = sharp.wanted;
-    const int width = sharp.job_width, height = sharp.job_height;
     sharp.to_read = false;
+    if (sharp.job_phases)
+    {
+        /* the cover is held, and may be drawn: only read here; not held any
+           more, or the frames' block let go: nothing to make */
+        if (!sharp.held || !sharp.phase[0])
+            return;
+        sharp.reading = true;
+#ifdef HAVE_ADJUSTABLE_CPU_FREQ
+        cpu_boost(true);
+#endif
+        const bool made = make_phases(sharp.width, sharp.height, wanted);
+#ifdef HAVE_ADJUSTABLE_CPU_FREQ
+        cpu_boost(false);
+#endif
+        sharp.reading = sharp.hold = false;
+        if (made && wanted == sharp.wanted && sharp.held && sharp.phase[0])
+            sharp.phased = true;
+        return;
+    }
+    const int width = sharp.job_width, height = sharp.job_height;
     /* never into the block while it's drawn from, nor into one let go */
     if (sharp.shown || !sharp.pixels)
         return;
@@ -1059,6 +1147,7 @@ void menu_cover_read(void)
     /* a disk that has stopped since the ask isn't woken */
     const int fd = disk_free() ? open(sharp.file, O_RDONLY) : -1;
     int rc = 0;
+    bool phased = false;
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
     /* the scaler does so itself, but a size that needs none (2, 4, 8 times)
        has no boost */
@@ -1085,6 +1174,14 @@ void menu_cover_read(void)
             rc = -1;
         if (rc > 0 && !match_colours(width, height, wanted))
             rc = 0;
+        /* its moving frames with it, so that it comes moving as it stays */
+        if (rc > 0 && sharp.phase[0])
+        {
+            if (make_phases(width, height, wanted))
+                phased = true;
+            else
+                rc = 0;
+        }
     }
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
     cpu_boost(false);
@@ -1111,6 +1208,7 @@ void menu_cover_read(void)
     sharp.box_width = sharp.job_box_width;
     sharp.box_height = sharp.job_box_height;
     sharp.held = true;
+    sharp.phased = phased;
     /* in Finder's place at once, if the menus have that for it */
     if (menu_art.width == width && menu_art.height == height
         && menu_art.handle < 0
@@ -1142,7 +1240,7 @@ static void sharp_memory(bool wanted)
                 break;
             sleep(1);
         }
-        sharp.held = false;
+        sharp.held = sharp.phased = false;
         sharp.pixels = NULL;
         sharp.handle = core_free(sharp.handle);
         return;
@@ -1163,6 +1261,45 @@ static void sharp_memory(bool wanted)
         sharp.refused = true;
 }
 
+/* The moving frames' block as Moving Cover has it, with Album Art's: taken
+   as the cover's, only without music; let go with either off */
+static void phases_memory(bool wanted)
+{
+    if (!wanted || !sharp.handle)
+    {
+        sharp.phase_refused = false;
+        if (!sharp.phase_handle)
+            return;
+        sharp.phased = false;
+        /* as the cover's block: nothing asked or running as this ends */
+        for (;;)
+        {
+            menu_cover_read_cancel();
+            if (!sharp.reading)
+                break;
+            sleep(1);
+        }
+        sharp.phased = false;
+        sharp.phase[0] = sharp.phase[1] = NULL;
+        sharp.phase_handle = core_free(sharp.phase_handle);
+        return;
+    }
+    if (audio_status())
+        sharp.phase_refused = false;
+    if (sharp.phase_handle || sharp.phase_refused || audio_status())
+        return;
+    const int handle = core_alloc_ex(2 * sizeof(menu_art.pixels),
+                                     &buflib_ops_locked);
+    if (handle > 0)
+    {
+        sharp.phase_handle = handle;
+        sharp.phase[0] = core_get_data(handle);
+        sharp.phase[1] = sharp.phase[0] + ART_MENU_SIZE * ART_MENU_SIZE;
+    }
+    else
+        sharp.phase_refused = true;
+}
+
 /* The scroll thread's hook: for the steps, and with the block alone for the
    look and a still cover's one frame. Without either nothing runs. */
 static void hook_set(bool moving)
@@ -1172,7 +1309,10 @@ static void hook_set(bool moving)
 
 void menu_cover_memory(void)
 {
-    sharp_memory(global_settings.album_art != AA_OFF);
+    const bool art = global_settings.album_art != AA_OFF;
+    phases_memory(art && global_settings.moving_cover);
+    sharp_memory(art);
+    phases_memory(art && global_settings.moving_cover);
     hook_set(global_settings.moving_cover);
 }
 
@@ -1196,6 +1336,7 @@ static void sharp_drawn(bool theme)
 #else
 static inline void sharp_look(bool shows) { (void)shows; }
 static inline void sharp_memory(bool wanted) { (void)wanted; }
+static inline void phases_memory(bool wanted) { (void)wanted; }
 static inline void hook_set(bool moving)
 {
     scroll_set_tick_hook(moving ? pan_tick : NULL);
@@ -1312,6 +1453,13 @@ int menu_cover_place(const struct viewport *vp, int x, int y, int width,
     return p0 - pan_h / 2;
 }
 
+const fb_data *menu_cover_placed_pixels(const fb_data *pixels)
+{
+    /* at an even half column, where it's placed */
+    const fb_data *frame = pan_shown ? moving_pixels(0) : NULL;
+    return frame ? frame : pixels;
+}
+
 void menu_cover_stop(void)
 {
     pan_shown = pan_still = false;
@@ -1357,7 +1505,10 @@ void menu_cover_changed(bool on)
 {
     menu_cover_end();
     sharp_retry();
-    sharp_memory(global_settings.album_art != AA_OFF);
+    const bool art = global_settings.album_art != AA_OFF;
+    phases_memory(art && on);
+    sharp_memory(art);
+    phases_memory(art && on);
     /* turned on, it starts from the middle, where it's drawn while off */
     pan_clock = 0;
     pan_going = false;

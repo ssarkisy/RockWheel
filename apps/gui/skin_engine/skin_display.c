@@ -1296,7 +1296,10 @@ static void draw_art_pixels(struct gui_wps *gwps, struct skin_albumart *aa,
         y += (aa->height - height) / 2;
 #ifdef HAVE_MENU_COVER
     if (vp && !aa->reflect)
+    {
         x += menu_cover_place(vp, x, y, width, height);
+        pixels = menu_cover_placed_pixels(pixels);
+    }
 #else
     (void)vp;
 #endif
