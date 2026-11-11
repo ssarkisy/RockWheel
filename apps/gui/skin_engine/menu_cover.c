@@ -34,6 +34,9 @@
 #include "plugin.h"
 #include "playback.h"
 #include "buffering.h"
+#include "pcmbuf.h"
+#include "pcm_mixer.h"
+#include "appevents.h"
 #include "metadata.h"
 #include "bmp.h"
 #include "jpeg_load.h"
@@ -57,47 +60,80 @@ static struct {
     uint32_t offset;
     char path[sizeof(((struct itunesdb_art *)0)->path)];
     int handle;         /* the buffer's it was copied from, or -1 for Finder's */
-    short box_width, box_height; /* what Finder's was scaled to fit */
 } menu_art;
 
 #if defined(HAVE_MENU_COVER) && defined(HAVE_JPEG) && defined(HAVE_TAGCACHE)
 #define MENU_COVER_SHARP
 /* Sharp: the picture in the song's own file, decoded by the album cover
    reader's thread to the size Finder's was scaled to, takes its place, moving
-   or still. In a block held while Album Art is on, taken without music
-   (sharp_memory()): the pixels, then the decoder's room, its state 12.5 KB,
-   a row of blocks up to 30.7 KB and the scaler's rows 11.5 KB. The UI's
-   thread, the scroll's and the reader's are on one core: none of their
-   changes here has a yield in the middle. */
+   or still. From flash as its track starts, to be there when the menus show;
+   from a disk that spins only as the cover shows. In a block held while
+   Album Art is on, taken without music (sharp_memory()): the pixels, then
+   the decoder's room, its state 12.5 KB, a row of blocks up to 30.7 KB and
+   the scaler's rows 11.5 KB. The UI's thread, the scroll's, the audio's and
+   the reader's are on one core: none of their changes here has a yield in
+   the middle. */
 #define SHARP_ROOM  (54 * 1024)
 #define SHARP_BYTES (sizeof(menu_art.pixels) + SHARP_ROOM)
+/* a cover by Finder's, as menu_art's */
+struct cover_key
+{
+    uint32_t offset;
+    char path[sizeof(menu_art.path)];
+};
 static struct
 {
     int handle;             /* the block's, 0 for none */
     fb_data *pixels;        /* its start: it doesn't move */
     bool refused;           /* no room: not again until music has played */
     bool shown;             /* drawn in place of menu_art.pixels */
-    /* the cover it holds: menu_art's key, and the size */
+    /* the cover it holds, and the size */
     bool held;
-    uint32_t offset;
-    char path[sizeof(menu_art.path)];
+    struct cover_key key;
     short width, height, box_width, box_height;
-    /* the picture of the song playing, taken on the UI's thread, not while
-       it's being read */
-    bool has_source;
+    short box_now_width, box_now_height; /* what the theme's panel takes */
+    /* the song playing, by its track's event: its cover, Finder's frame of
+       it, and its own picture's place if that's a JPEG */
+    bool now;
+    struct cover_key now_key;
+    short now_frame_width, now_frame_height;
+    bool now_source;
+    char now_file[MAX_PATH];
+    struct mp3_albumart now_aa;
+    /* the picture asked of the reader, which these aren't changed under */
+    struct cover_key job_key;
+    short job_frame_width, job_frame_height;
+    short job_width, job_height, job_box_width, job_box_height;
     char file[MAX_PATH];
     struct mp3_albumart aa;
-    bool failed;            /* menu_art's has no picture that decodes to it */
-    bool tried;             /* asked for since it was drawn last */
-    /* the reader's: numbered, as another cover or a cancel leaves the one
-       being decoded unshown */
+    bool failed;            /* failed_key's has no picture that decodes to it */
+    struct cover_key failed_key;
+    long back_off;          /* not asked again before this tick */
+    bool gave_way;          /* a decode was given up for the reader's other
+                               work, and none asked since */
+    /* the reader's: numbered, as a cancel leaves the one being decoded
+       unshown */
     volatile unsigned wanted;
     volatile bool to_read, reading;
     volatile int fd;        /* the song's while it's decoded, or -1 */
+    volatile bool hold;     /* the reader waits: little music is buffered */
     volatile bool came;     /* shown, not on the screen yet */
 } sharp;
 
-void menu_cover_read_cancel(void)
+static bool same_key(const struct cover_key *key, uint32_t offset,
+                     const char *path)
+{
+    return key->offset == offset && !strcmp(key->path, path);
+}
+
+static void set_key(struct cover_key *key, uint32_t offset, const char *path)
+{
+    key->offset = offset;
+    strmemccpy(key->path, path, sizeof(key->path));
+}
+
+/* the decode asked for or going on is given up */
+static void job_cancel(void)
 {
     sharp.to_read = false;
     sharp.wanted++;
@@ -105,11 +141,26 @@ void menu_cover_read_cancel(void)
         jpeg_stop_fd = sharp.fd;
 }
 
-/* menu_art's is another now, or none */
-static void sharp_drop(void)
+/* For the reader's other work, which comes first: not asked for 2 s after
+   each ask of that, as after an ask of this that came to nothing; and once
+   a decode was given up for it, not until none has come for 10 s or the
+   theme draws the cover: a list would have it given up at each of its
+   covers. */
+#define SHARP_GIVE_WAY (10 * HZ)
+#define SHARP_AGAIN    (2 * HZ)
+void menu_cover_read_cancel(void)
 {
-    sharp.shown = sharp.came = sharp.failed = sharp.has_source = false;
-    menu_cover_read_cancel();
+    if (sharp.to_read || sharp.reading)
+        sharp.gave_way = true;
+    job_cancel();
+    sharp.back_off = current_tick
+                     + (sharp.gave_way ? SHARP_GIVE_WAY : SHARP_AGAIN);
+}
+
+/* menu_art's is another now, or none: not drawn from the block */
+static void sharp_undraw(void)
+{
+    sharp.shown = sharp.came = false;
 }
 
 /* the settings applied, as after USB: a picture that didn't decode may now */
@@ -122,8 +173,7 @@ static void sharp_retry(void)
 static bool sharp_held(const struct itunesdb_art *art, int box_width,
                        int box_height)
 {
-    if (!sharp.held || sharp.offset != art->offset
-        || strcmp(sharp.path, art->path)
+    if (!sharp.held || !same_key(&sharp.key, art->offset, art->path)
         || sharp.box_width != box_width || sharp.box_height != box_height)
         return false;
     menu_art.width = sharp.width;
@@ -132,25 +182,18 @@ static bool sharp_held(const struct itunesdb_art *art, int box_width,
     return true;
 }
 
-static void sharp_source(const struct mp3entry *id3)
+/* the theme's panel takes a cover this large: the size to decode to before
+   the menus show */
+static void sharp_panel(int box_width, int box_height)
 {
-    /* music plays: a refusal of the block is forgotten, as in sharp_memory() */
+    sharp.box_now_width = box_width;
+    sharp.box_now_height = box_height;
+}
+
+/* music plays: a refusal of the block is forgotten, as in sharp_memory() */
+static void sharp_plays(void)
+{
     sharp.refused = false;
-    if (!sharp.pixels || sharp.shown || sharp.failed || sharp.to_read
-        || sharp.reading)
-        return;
-    /* only JPEG can be decoded */
-    sharp.has_source = id3->has_embedded_albumart
-        && (id3->albumart.type & AA_CLEAR_FLAGS_MASK) == AA_TYPE_JPG;
-    if (sharp.has_source
-        && (sharp.aa.pos != id3->albumart.pos
-            || sharp.aa.size != id3->albumart.size
-            || sharp.aa.type != id3->albumart.type
-            || strcmp(sharp.file, id3->path)))
-    {
-        strmemccpy(sharp.file, id3->path, sizeof(sharp.file));
-        sharp.aa = id3->albumart;
-    }
 }
 
 static inline const fb_data *art_pixels(void)
@@ -164,7 +207,8 @@ bool menu_cover_to_read(void) { return false; }
 void menu_cover_read(void) {}
 void menu_cover_memory(void) {}
 #endif
-static inline void sharp_drop(void) {}
+static inline void job_cancel(void) {}
+static inline void sharp_undraw(void) {}
 static inline void sharp_retry(void) {}
 static inline bool sharp_held(const struct itunesdb_art *art, int box_width,
                               int box_height)
@@ -172,16 +216,22 @@ static inline bool sharp_held(const struct itunesdb_art *art, int box_width,
     (void)art; (void)box_width; (void)box_height;
     return false;
 }
-static inline void sharp_source(const struct mp3entry *id3) { (void)id3; }
+static inline void sharp_panel(int box_width, int box_height)
+{
+    (void)box_width; (void)box_height;
+}
+static inline void sharp_plays(void) {}
 static inline const fb_data *art_pixels(void) { return menu_art.pixels; }
 #endif /* MENU_COVER_SHARP */
 
 void menu_cover_forget(void)
 {
     menu_art.width = 0;
-    sharp_drop();
+    sharp_undraw();
+    job_cancel();
 #ifdef MENU_COVER_SHARP
-    sharp.held = false;
+    /* a cover's key may be another's now: the next track's is taken anew */
+    sharp.held = sharp.failed = sharp.now = false;
 #endif
 }
 
@@ -191,27 +241,27 @@ bool menu_cover_ready(const struct wps_data *data)
                                                data->albumart);
     struct mp3entry *id3 = audio_current_track();
     struct itunesdb_art art;
+    if (aa && data == skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data)
+        sharp_panel(MIN(aa->width, ART_MENU_SIZE),
+                    MIN(aa->height, ART_MENU_SIZE));
     if (!aa || !id3 || !(audio_status() & AUDIO_STATUS_PLAY)
         || global_settings.album_art == AA_OFF
         || !itunesdb_find_track_art(id3, id3->path, &art))
         return false;
+    sharp_plays();
     if (menu_art.width > 0 && menu_art.handle < 0 && menu_art.offset == art.offset
         && !strcmp(menu_art.path, art.path))
-    {
-        sharp_source(id3);
         return true;
-    }
 
     struct bitmap bm;
     memset(&bm, 0, sizeof(bm));
     bm.width = MIN(aa->width, ART_MENU_SIZE);
     bm.height = MIN(aa->height, ART_MENU_SIZE);
     bm.data = (unsigned char *)menu_art.pixels;
+    const int box_width = bm.width, box_height = bm.height;
     menu_art.width = 0;
-    sharp_drop();
-    menu_art.box_width = bm.width;
-    menu_art.box_height = bm.height;
-    if (sharp_held(&art, bm.width, bm.height))
+    sharp_undraw();
+    if (sharp_held(&art, box_width, box_height))
     {
         menu_art.offset = art.offset;
         strcpy(menu_art.path, art.path);
@@ -234,7 +284,8 @@ bool menu_cover_ready(const struct wps_data *data)
     menu_art.offset = art.offset;
     strcpy(menu_art.path, art.path);
     menu_art.handle = -1;
-    sharp_source(id3);
+    /* its decode may have ended during the read above: the block's, then */
+    sharp_held(&art, box_width, box_height);
     return true;
 }
 
@@ -438,10 +489,11 @@ static bool cop_ready(void)
 
 /* a slot for the album cover reader too, this thread's and the spare one
    left: it's made beside this one, not in its place. None kept for this
-   thread while the cover is still, which doesn't make it. */
+   thread with Moving Cover off or the cover still, which don't make it. */
 static bool reader_slot(void)
 {
-    const bool made = pan_still || cop_thread_id || cop_ending || cop_unusable;
+    const bool made = !global_settings.moving_cover || pan_still
+                      || cop_thread_id || cop_ending || cop_unusable;
     return free_slots() > COP_SPARE_SLOTS + (made ? 0 : 1);
 }
 
@@ -648,17 +700,24 @@ static long pan_tick(void);
 #else
 #define DISK_SPINS 0
 #endif
-/* how long the menus rest before it's decoded, and what a disk that spins
-   has left then before it would stop */
+/* from a disk that spins: how long the menus rest before it's decoded, and
+   what the disk has left then before it would stop */
 #define SHARP_REST  (HZ / 2)
 #define SHARP_SPINS (2 * HZ)
+/* The music buffered, in ms, that a decode starts with, as much as the
+   decoder keeps while it waits for the UI (pcmbuf.c's HOLD_DATA), and under
+   which the reader waits for the decoder to fill it again */
+#define SHARP_PCM_START 3000
+#define SHARP_PCM_FLOOR 2000
 
-#if DISK_SPINS
 static bool disk_spins(void)
 {
+#if DISK_SPINS
     return !ata_disk_isssd();
-}
+#else
+    return false;
 #endif
+}
 
 /* Flash, or a disk that spins on: one asleep isn't woken for this */
 static bool disk_free(void)
@@ -676,31 +735,132 @@ static bool disk_free(void)
 #endif
 }
 
-/* On the scroll thread, as the cover shows and the menus rest: the song's
-   picture asked of the reader, once each time the cover's drawn */
-static void sharp_ask(void)
+/* what's buffered to play: 16 bits, two channels */
+static unsigned long pcm_ms(void)
 {
-    if (!sharp.pixels || sharp.shown || sharp.failed || sharp.tried
-        || sharp.to_read || sharp.reading
-        || !sharp.has_source || menu_art.handle >= 0
-        || TIME_BEFORE(current_tick, action_last_tick() + SHARP_REST))
-        return;
-    if (!disk_free())
-        return;
-    sharp.tried = true;
-    if (!reader_slot())
-        return;
-    sharp.held = false;
-    sharp.to_read = true;
-    if (!album_header_reader_start_beside())
-        sharp.to_read = false;
+    return (pcmbuf_get_bufsize() - pcmbuf_free())
+           / (mixer_get_frequency() * 4 / 1000);
 }
 
-/* The picture decoded against Finder's cover, by 8 by 8 parts of the two,
-   every third pixel each way: a part's colours on average, in sixteenths of
-   the display's levels. In the decoder's room, which is free by then. */
+/* A track has begun, on the audio's thread: its cover and its own picture's
+   place, for the look */
+static void track_begun(unsigned short id, void *data)
+{
+    (void)id;
+    const struct mp3entry *id3 = ((struct track_event *)data)->id3;
+    struct itunesdb_art art;
+    sharp.now = itunesdb_find_track_art(id3, id3->path, &art);
+    if (!sharp.now)
+        return;
+    set_key(&sharp.now_key, art.offset, art.path);
+    sharp.now_frame_width = art.width;
+    sharp.now_frame_height = art.height;
+    /* only JPEG can be decoded */
+    sharp.now_source = id3->has_embedded_albumart
+        && (id3->albumart.type & AA_CLEAR_FLAGS_MASK) == AA_TYPE_JPG;
+    strmemccpy(sharp.now_file, id3->path, sizeof(sharp.now_file));
+    sharp.now_aa = id3->albumart;
+}
+
+/* On the scroll thread, at each look, ten a second at least, whatever the
+   screen shows; shows: the cover is on it, the UI idle. The reader is held
+   while little music is buffered, and a disk that spins kept on under a
+   decode. The picture of the song playing is asked of the reader if the
+   block has another's or none, one at a time: a decode for another cover is
+   given up first. */
+static void sharp_look(bool shows)
+{
+    if (!sharp.pixels)
+        return;
+    const bool playing = audio_status() & AUDIO_STATUS_PLAY;
+    const bool busy = sharp.to_read || sharp.reading;
+    const unsigned long ms = pcm_ms();
+    sharp.hold = playing && sharp.reading
+                 && ms < (sharp.hold ? SHARP_PCM_START : SHARP_PCM_FLOOR);
+    jpeg_hold_fd = sharp.hold ? sharp.fd : -1;
+#if DISK_SPINS
+    if (busy && disk_spins())
+        storage_spin();
+#endif
+    if (!playing || !sharp.now)
+        return;
+    const struct cover_key *key = &sharp.now_key;
+    if (busy && !same_key(&sharp.job_key, key->offset, key->path))
+        job_cancel();
+    if (sharp.to_read || sharp.reading
+        || (sharp.held && same_key(&sharp.key, key->offset, key->path)
+            && sharp.box_width == sharp.box_now_width
+            && sharp.box_height == sharp.box_now_height)
+        || (sharp.failed && same_key(&sharp.failed_key, key->offset, key->path))
+        || !sharp.now_source || !sharp.box_now_width || !sharp.box_now_height
+        || plugin_is_running()
+        || TIME_BEFORE(current_tick, sharp.back_off)
+        || ms < SHARP_PCM_START)
+        return;
+    if (disk_spins()
+        && (!shows
+            || TIME_BEFORE(current_tick, action_last_tick() + SHARP_REST)
+            || !disk_free()))
+        return;
+    sharp.gave_way = false;
+    /* the cover it has is on the screen: the theme takes this one first */
+    if (sharp.shown && (pan_shown || pan_still))
+        return;
+    if (!reader_slot())
+    {
+        sharp.back_off = current_tick + SHARP_AGAIN;
+        return;
+    }
+    /* the block is this cover's from here: the one it had, if the menus
+       still have it as theirs, is Finder's again when they're next drawn */
+    if (sharp.shown)
+        menu_art.width = 0;
+    sharp_undraw();
+    sharp.held = false;
+    sharp.job_key = *key;
+    sharp.job_frame_width = sharp.now_frame_width;
+    sharp.job_frame_height = sharp.now_frame_height;
+    sharp.job_box_width = sharp.box_now_width;
+    sharp.job_box_height = sharp.box_now_height;
+    /* the size Finder's frame is scaled to in that box, as itunesdb.c's
+       art_fit() has it */
+    int width = sharp.job_box_width, height = sharp.job_box_height;
+    if (width * sharp.job_frame_height > height * sharp.job_frame_width)
+        width = (height * sharp.job_frame_width + sharp.job_frame_height / 2)
+                / sharp.job_frame_height;
+    else
+        height = (width * sharp.job_frame_height + sharp.job_frame_width / 2)
+                 / sharp.job_frame_width;
+    sharp.job_width = width;
+    sharp.job_height = height;
+    strcpy(sharp.file, sharp.now_file);
+    sharp.aa = sharp.now_aa;
+    sharp.to_read = true;
+    if (!album_header_reader_start_beside())
+    {
+        sharp.to_read = false;
+        sharp.back_off = current_tick + SHARP_AGAIN;
+    }
+}
+
+/* The reader gives the CPU up, and waits while it's held. False if its
+   decode was cancelled meanwhile. */
+static bool reader_yield(unsigned wanted)
+{
+    yield();
+    while (sharp.hold && wanted == sharp.wanted)
+        sleep(1);
+    return wanted == sharp.wanted;
+}
+
+/* The picture decoded against Finder's cover, by 8 by 8 parts of the two: a
+   part's colours on average, in sixteenths of the display's levels. The
+   picture's by every third pixel each way; Finder's from its frame scaled
+   to 120 a side as the screen's copy is: that is the tone to match. All in
+   the decoder's room, which is free by then. */
 #define PARTS       64
 #define PART_STEP   3
+#define FINDER_SIDE 120
 struct part { short own[3], finder[3]; };
 
 static struct part *parts(void)
@@ -716,28 +876,51 @@ static void add_colours(int *sum, fb_data pixel)
     sum[2] += RGB_UNPACK_BLUE_LCD(p);
 }
 
-static void measure_parts(int width, int height)
+/* a part's colours of a picture, every step-th pixel each way */
+static void part_colours(short *colours, int i, const fb_data *pixels,
+                         int width, int height, int step)
+{
+    const int x0 = i % 8 * width / 8, x1 = (i % 8 + 1) * width / 8;
+    const int y0 = i / 8 * height / 8, y1 = (i / 8 + 1) * height / 8;
+    int sum[3] = { 0, 0, 0 }, n = 0;
+    for (int y = y0; y < y1; y += step)
+    {
+        for (int x = x0; x < x1; x += step, n++)
+            add_colours(sum, pixels[y * width + x]);
+    }
+    for (int c = 0; c < 3; c++)
+        colours[c] = n ? sum[c] * 16 / n : 0;
+}
+
+/* 1 measured; 0 cancelled meanwhile; -1 Finder's frame couldn't be read */
+static int measure_parts(int width, int height, unsigned wanted)
 {
     struct part *part = parts();
-    for (int i = 0; i < PARTS; i++, part++)
+    struct bitmap bm;
+    struct itunesdb_art art;
+    memset(&bm, 0, sizeof(bm));
+    bm.width = bm.height = FINDER_SIDE;
+    bm.data = (unsigned char *)(part + PARTS);
+    memset(&art, 0, sizeof(art));
+    strcpy(art.path, sharp.job_key.path);
+    art.offset = sharp.job_key.offset;
+    art.width = sharp.job_frame_width;
+    art.height = sharp.job_frame_height;
+    const int size = itunesdb_load_art(&art, &bm,
+        sizeof(bm) + FINDER_SIDE * FINDER_SIDE * sizeof(fb_data));
+    if (wanted != sharp.wanted)
+        return 0;
+    if (size < 0)
+        return -1;
+    for (int i = 0; i < PARTS; i++)
     {
-        const int x0 = i % 8 * width / 8, x1 = (i % 8 + 1) * width / 8;
-        const int y0 = i / 8 * height / 8, y1 = (i / 8 + 1) * height / 8;
-        int own[3] = { 0, 0, 0 }, finder[3] = { 0, 0, 0 }, n = 0;
-        for (int y = y0; y < y1; y += PART_STEP)
-        {
-            for (int x = x0; x < x1; x += PART_STEP, n++)
-            {
-                add_colours(own, sharp.pixels[y * width + x]);
-                add_colours(finder, menu_art.pixels[y * width + x]);
-            }
-        }
-        for (int c = 0; c < 3; c++)
-        {
-            part->own[c] = n ? own[c] * 16 / n : 0;
-            part->finder[c] = n ? finder[c] * 16 / n : 0;
-        }
+        part_colours(part[i].own, i, sharp.pixels, width, height, PART_STEP);
+        part_colours(part[i].finder, i, (const fb_data *)bm.data, bm.width,
+                     bm.height, 1);
+        if ((i & 7) == 7 && !reader_yield(wanted))
+            return 0;
     }
+    return 1;
 }
 
 /* a part's brightness, in quarters of a level of 255 */
@@ -814,17 +997,13 @@ static bool match_colours(int width, int height, unsigned wanted)
                                 table[1][RGB_UNPACK_GREEN_LCD(p)],
                                 table[2][RGB_UNPACK_BLUE_LCD(p)]));
         }
-        if ((y & 15) == 15)
-        {
-            yield();
-            if (wanted != sharp.wanted)
-                return false;
-        }
+        if ((y & 15) == 15 && !reader_yield(wanted))
+            return false;
     }
     return true;
 }
 
-/* 1 decoded into the block, to menu_art's size; 0 not looked at or stopped;
+/* 1 decoded into the block, to the job's size; 0 not looked at or stopped;
    -1 none that would be sharper, or of the cover's proportions, or that
    decodes, as a progressive one, or a read that failed */
 static int sharp_decode(int fd, int width, int height)
@@ -869,10 +1048,10 @@ bool menu_cover_to_read(void)
 void menu_cover_read(void)
 {
     const unsigned wanted = sharp.wanted;
-    const int width = menu_art.width, height = menu_art.height;
+    const int width = sharp.job_width, height = sharp.job_height;
     sharp.to_read = false;
-    /* never into the block while it's drawn from */
-    if (sharp.shown)
+    /* never into the block while it's drawn from, nor into one let go */
+    if (sharp.shown || !sharp.pixels)
         return;
     sharp.fd = -1;
     /* the block is let go only once this is false */
@@ -894,35 +1073,49 @@ void menu_cover_read(void)
             sharp.fd = -1;
             if (jpeg_stop_fd == fd)
                 jpeg_stop_fd = -1;
+            if (jpeg_hold_fd == fd)
+                jpeg_hold_fd = -1;
         }
         close(fd);
     }
     if (rc > 0 && wanted == sharp.wanted)
     {
-        measure_parts(width, height);
-        if (!same_picture())
+        rc = measure_parts(width, height, wanted);
+        if (rc > 0 && !same_picture())
             rc = -1;
-        else if (!match_colours(width, height, wanted))
+        if (rc > 0 && !match_colours(width, height, wanted))
             rc = 0;
     }
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
     cpu_boost(false);
 #endif
-    sharp.reading = false;
-    if (wanted != sharp.wanted || !rc)
+    sharp.reading = sharp.hold = false;
+    if (wanted != sharp.wanted)
         return;
-    if (rc < 0)
+    if (rc <= 0)
     {
-        sharp.failed = true;
+        /* stopped, or the disk not free: again in a while; no picture that
+           does, or no frame of Finder's: not for this cover */
+        if (!rc)
+            sharp.back_off = current_tick + SHARP_AGAIN;
+        else
+        {
+            sharp.failed = true;
+            sharp.failed_key = sharp.job_key;
+        }
         return;
     }
-    sharp.offset = menu_art.offset;
-    strcpy(sharp.path, menu_art.path);
+    sharp.key = sharp.job_key;
     sharp.width = width;
     sharp.height = height;
-    sharp.box_width = menu_art.box_width;
-    sharp.box_height = menu_art.box_height;
-    sharp.held = sharp.shown = sharp.came = true;
+    sharp.box_width = sharp.job_box_width;
+    sharp.box_height = sharp.job_box_height;
+    sharp.held = true;
+    /* in Finder's place at once, if the menus have that for it */
+    if (menu_art.width == width && menu_art.height == height
+        && menu_art.handle < 0
+        && same_key(&sharp.key, menu_art.offset, menu_art.path))
+        sharp.shown = sharp.came = true;
 }
 
 /* The block as Album Art has it: let go with it off; taken with it on, only
@@ -934,12 +1127,21 @@ static void sharp_memory(bool wanted)
         sharp.refused = false;
         if (!sharp.handle)
             return;
+        remove_event(PLAYBACK_EVENT_TRACK_CHANGE, track_begun);
         /* Finder's scaled again */
         if (sharp.shown)
             menu_art.width = 0;
-        sharp_drop();
-        while (sharp.reading)
+        sharp_undraw();
+        sharp.now = false;
+        /* nothing asked or running as this ends: without the back-off the
+           look could ask again as the reader's done */
+        for (;;)
+        {
+            menu_cover_read_cancel();
+            if (!sharp.reading)
+                break;
             sleep(1);
+        }
         sharp.held = false;
         sharp.pixels = NULL;
         sharp.handle = core_free(sharp.handle);
@@ -955,13 +1157,14 @@ static void sharp_memory(bool wanted)
     {
         sharp.handle = handle;
         sharp.pixels = core_get_data(handle);
+        add_event(PLAYBACK_EVENT_TRACK_CHANGE, track_begun);
     }
     else
         sharp.refused = true;
 }
 
-/* The scroll thread's hook: for the steps, and with the block alone for a
-   still cover's ask and its one frame. Without either nothing runs. */
+/* The scroll thread's hook: for the steps, and with the block alone for the
+   look and a still cover's one frame. Without either nothing runs. */
 static void hook_set(bool moving)
 {
     scroll_set_tick_hook(moving || sharp.handle ? pan_tick : NULL);
@@ -980,27 +1183,18 @@ static bool sharp_came(void)
 }
 
 /* the cover's drawn from the one shown; all of the theme with it, and the
-   reader may be asked again */
+   reader may be asked at once */
 static void sharp_drawn(bool theme)
 {
     sharp.came = false;
     if (theme)
-        sharp.tried = false;
-}
-
-/* On the scroll thread, at each look: a disk that spins is kept from
-   stopping under a decode asked for or going on, which would wake it, as the
-   buffer's fill may end meanwhile and send it to sleep. After the decode it
-   runs out its own timer. */
-static void sharp_tick(void)
-{
-#if DISK_SPINS
-    if ((sharp.to_read || sharp.reading) && disk_spins())
-        storage_spin();
-#endif
+    {
+        sharp.back_off = current_tick;
+        sharp.gave_way = false;
+    }
 }
 #else
-static inline void sharp_ask(void) {}
+static inline void sharp_look(bool shows) { (void)shows; }
 static inline void sharp_memory(bool wanted) { (void)wanted; }
 static inline void hook_set(bool moving)
 {
@@ -1008,7 +1202,6 @@ static inline void hook_set(bool moving)
 }
 static inline bool sharp_came(void) { return false; }
 static inline void sharp_drawn(bool theme) { (void)theme; }
-static inline void sharp_tick(void) {}
 #endif /* MENU_COVER_SHARP */
 
 /* On the scroll thread: a step when it's due; the ticks until the next look */
@@ -1017,9 +1210,7 @@ static long pan_tick(void)
     cop_settle();
     const bool can_go = pan_can_go();
     const bool still = pan_still && cover_idle();
-    if (can_go || still)
-        sharp_ask();
-    sharp_tick();
+    sharp_look(can_go || still);
     if (!can_go)
     {
         pan_boost(false);
@@ -1067,7 +1258,7 @@ bool menu_cover_take(int handle)
         return false;
     if (menu_art.width > 0 && menu_art.handle == handle)
         return true;
-    sharp_drop();
+    sharp_undraw();
     memcpy(menu_art.pixels, bm->data, bm->width * bm->height * sizeof(fb_data));
     menu_art.width = bm->width;
     menu_art.height = bm->height;

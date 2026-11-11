@@ -78,6 +78,9 @@ int clip_jpeg_fd(int fd, int flags,
    that failed: 0 or less returned. -1 for none; whoever sets it puts that
    back before the file is closed. */
 extern volatile int jpeg_stop_fd;
+/* and the decode that reads this one waits before each row, while it is:
+   put back with the other */
+extern volatile int jpeg_hold_fd;
 #endif
 
 #endif /* _JPEG_JPEG_DECODER_H */

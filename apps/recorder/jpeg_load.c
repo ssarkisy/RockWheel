@@ -153,6 +153,7 @@ static struct jpeg jpeg;
 #if !defined(PLUGIN) && !defined(JPEG_FROM_MEM)
 #define JPEG_STOPPABLE
 volatile int jpeg_stop_fd = -1;
+volatile int jpeg_hold_fd = -1;
 #endif
 
 INLINE unsigned range_limit(int value)
@@ -1843,6 +1844,9 @@ static struct img_part *store_row_jpeg(void *jpeg_args)
 {
     struct jpeg *p_jpeg = (struct jpeg*) jpeg_args;
 #ifdef JPEG_STOPPABLE
+    while (UNLIKELY(p_jpeg->fd == jpeg_hold_fd)
+           && p_jpeg->fd != jpeg_stop_fd)
+        sleep(1);
     if (UNLIKELY(p_jpeg->fd == jpeg_stop_fd))
         return NULL;
 #endif
