@@ -17,6 +17,7 @@
  * KIND, either express or implied.
  *
  ****************************************************************************/
+#include <string.h>
 #include "config.h"
 #include "i2c.h"
 #include "rtc.h"
@@ -30,9 +31,28 @@ static const char alarm_disable[] = {
     0x7f, 0x7f, 0x3f, 0x07, 0x3f, 0x1f, 0xff
 };
 
+/* An alarm exactly as rtc_set_alarm() and rtc_enable_alarm(true) leave it:
+   anything else in the registers is not ours to wake for */
+static bool alarm_armed(void)
+{
+    unsigned char at[7];
+
+    if (pcf50605_read_multiple(0x11, at, sizeof(at)) != 0)
+        return false;
+
+    return at[0] == 0
+        && (at[1] & 0x0f) <= 9 && at[1] <= 0x59
+        && (at[2] & 0x0f) <= 9 && at[2] <= 0x23
+        && memcmp(at + 3, alarm_disable + 3, 4) == 0;
+}
+
 void rtc_init(void)
 {
     rtc_check_alarm_started(false);
+    /* the wake bit lives in RAM: a boot between setting the alarm and the
+       power-off would lose it */
+    if (alarm_armed())
+        pcf50605_wakeup_flags |= 0x10;
 }
 
 int rtc_read_datetime(struct tm *tm)
