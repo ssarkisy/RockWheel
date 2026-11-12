@@ -350,14 +350,19 @@ extern void gui_synclist_set_initial_callback(struct gui_synclist *lists,
    the theme is, music stopped */
 extern void list_load_fonts(void);
 extern void list_unload_fonts(void);
+/* this list, and no other from then on, keeps the name of the group its top
+   row is in on the screen: drawn in the top row's place once the name itself
+   has scrolled up past it. NULL for none */
+extern void list_pin_groups(const struct gui_synclist *list);
 extern void list_load_initial_font(void);
 extern bool list_initial_drawn(const char *letter);
 /* the least height of the band of hints, which takes as many rows of the list
    as it needs for three lines of them; 0 for a list without */
 extern int list_hint_band(struct gui_synclist *list, enum screen_type screen);
-/* three lines of hints and their margins, in a font of Now Playing: the room of
-   three rows */
-#define LIST_HINT_BAND 72
+/* three lines of hints and their margins in the theme's font and pitch:
+   Classic's 72, less in a theme of smaller hints, which leaves a row more */
+#define LIST_HINT_BAND (ui_metric(UI_METRIC_HINT_TOP) \
+                        + 3 * ui_metric(UI_METRIC_HINT_PITCH) + 3)
 /* a band of hints with this text, as under Settings' folders, in a viewport
    of the screen: for a screen other than a list's too */
 extern void list_draw_hint(struct screen *display, struct viewport *band,

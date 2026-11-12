@@ -1951,7 +1951,9 @@ static void make_layout(void)
     if (ROUNDED)
     {
         field_h = FIELD_HEIGHT + 2;
-        strip_h = MARKER_H + 6;
+        /* the key and 2 px over and under it: with 3, Modern's list was
+           2 px short of a sixth row, and those went to the letters */
+        strip_h = MARKER_H + 4;
     }
     int lines = (ui.height - field_h - strip_h) / row;
     if (lines < 1)
@@ -2644,6 +2646,7 @@ int music_search_screen(void *param)
     gui_synclist_set_icon_callback(&lists, NULL);
     gui_synclist_set_has_children_callback(&lists, row_has_children);
     lists.callback_is_group = row_is_group;
+    list_pin_groups(&lists);
     lists.callback_draw_item = menu_draw_value_line;
     /* whether the names' file is there for this database, and all of it in
        memory while Search is open */

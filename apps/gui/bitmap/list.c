@@ -236,6 +236,14 @@ void list_load_fonts(void)
     list_fonts_theme = theme;
 }
 
+/* the one list that pins its groups' names, or NULL */
+static const struct gui_synclist *pinned_groups;
+
+void list_pin_groups(const struct gui_synclist *list)
+{
+    pinned_groups = list;
+}
+
 /* The band of hints under a list of settings: the hint of the row selected,
    in three lines at most. 14 px in two lines was too small to read at a
    glance, and 17 px hardly larger. */
@@ -790,15 +798,36 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     const int subline_font = two_lines ? list_subline_font(list_text_vp->font) : -1;
     const bool covers = two_lines && list->callback_get_cover;
 
-    for (i=MAX(start, list->block_rows); i<end && i<list->nb_items; i++)
+    /* A list that pins its groups' names (list_pin_groups()): where the top
+       row is a row of a group whose name has gone up past the screen, that
+       name is drawn there in the row's place, so the group one is in is
+       always named. Not over the last row before the next group's name, nor
+       over the selected row, which is the top one of a page with paginated
+       scrolling */
+    int pinned = -1;
+    if (list == pinned_groups && list->callback_is_group && screen == SCREEN_MAIN
+        && start > 0 && start < list->nb_items
+        && !list->callback_is_group(start, list->data)
+        && !(start >= list->selected_item
+             && start < list->selected_item + list->selected_size)
+        && !(start + 1 < list->nb_items
+             && list->callback_is_group(start + 1, list->data)))
     {
+        pinned = start - 1;
+        while (pinned >= 0 && !list->callback_is_group(pinned, list->data))
+            pinned--;
+    }
+
+    for (int row = MAX(start, list->block_rows); row < end && row < list->nb_items; row++)
+    {
+        i = row == start && pinned >= 0 ? pinned : row;
         /* do the text */
         enum themable_icons icon;
         unsigned const char *s;
         extern char simplelist_buffer[SIMPLELIST_MAX_LINES * SIMPLELIST_MAX_LINELENGTH];
         /*char entry_buffer[MAX_PATH]; use the buffer from gui/list.c instead */
         unsigned char *entry_name;
-        int line = i - start;
+        int line = row - start;
         int line_indent = 0;
         int style = STYLE_DEFAULT;
         bool is_selected = false;
