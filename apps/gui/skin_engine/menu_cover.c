@@ -217,6 +217,12 @@ static inline const fb_data *moving_pixels(int h)
 {
     return sharp.shown && sharp.phased ? sharp.phase[h & 1] : NULL;
 }
+
+/* the sharp cover is drawn, and has no such frames to move by */
+static inline bool sharp_whole(void)
+{
+    return sharp.shown && !sharp.phased;
+}
 #else
 #ifdef HAVE_MENU_COVER
 void menu_cover_read_cancel(void) {}
@@ -240,6 +246,7 @@ static inline void sharp_panel(int box_width, int box_height)
 static inline void sharp_plays(void) {}
 static inline const fb_data *art_pixels(void) { return menu_art.pixels; }
 static inline const fb_data *moving_pixels(int h) { (void)h; return NULL; }
+static inline bool sharp_whole(void) { return false; }
 #endif /* MENU_COVER_SHARP */
 
 void menu_cover_forget(void)
@@ -1406,11 +1413,19 @@ static long pan_tick(void)
     pan_last = now;
     pan_going = true;
     long until;
-    const int h = pan_at(pan_clock, &until);
+    int h = pan_at(pan_clock, &until);
+    /* A sharp cover without its frames goes by whole columns, to the last
+       one passed: half way it would be the mean of two, soft beside the
+       crisp one, and one after the other trembles */
+    const bool whole = sharp_whole();
+    if (whole && (h & 1) && h != pan_h)
+        h += h > pan_h ? -1 : 1;
     /* not through a rest but its last PAN_POLL */
     pan_boost(h != pan_h || until <= PAN_POLL);
-    /* or the sharp one drawn where it is, unless a step is about to */
-    if (h != pan_h || (sharp_came() && until > PAN_LATENCY))
+    /* or the sharp one drawn where it is, unless a step is about to, or it
+       is half way where Finder's was */
+    if (h != pan_h
+        || (sharp_came() && until > PAN_LATENCY && !(whole && (h & 1))))
     {
         if (!cop_free())
             return 1;
