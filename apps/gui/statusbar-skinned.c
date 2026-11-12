@@ -139,21 +139,16 @@ void sb_set_info_vp(enum screen_type screen, OFFSETTYPE(char*) label)
     infovp_label[screen] = label;
 }
 
-struct viewport *sb_skin_get_info_vp(enum screen_type screen)
+/* The lists' viewport as the theme has it now. Not sb_skin_get_info_vp() for
+   what the theme's own render asks: that has all of the theme drawn again
+   when the viewport has changed, from inside the render that changed it. */
+struct viewport *sb_skin_peek_info_vp(enum screen_type screen)
 {
     if (sbs_loaded[screen] == false)
         return NULL;
     struct wps_data *data = skin_get_gwps(CUSTOM_STATUSBAR, screen)->data;
     struct skin_viewport *vp = NULL;
     char *label;
-    if (oldinfovp_label[screen] &&
-        (oldinfovp_label[screen] != infovp_label[screen]))
-    {
-        /* UI viewport changed, so force a redraw */
-        oldinfovp_label[screen] = infovp_label[screen];
-        viewportmanager_theme_enable(screen, false, NULL);
-        viewportmanager_theme_undo(screen, true);
-    }
     if (infovp_label[screen] == VP_DEFAULT_LABEL)
         label = VP_DEFAULT_LABEL_STRING;
     else
@@ -166,6 +161,21 @@ struct viewport *sb_skin_get_info_vp(enum screen_type screen)
     if (vp->parsed_fontid == 1)
         vp->vp.font = screens[screen].getuifont();
     return &vp->vp;
+}
+
+struct viewport *sb_skin_get_info_vp(enum screen_type screen)
+{
+    if (sbs_loaded[screen] == false)
+        return NULL;
+    if (oldinfovp_label[screen] &&
+        (oldinfovp_label[screen] != infovp_label[screen]))
+    {
+        /* UI viewport changed, so force a redraw */
+        oldinfovp_label[screen] = infovp_label[screen];
+        viewportmanager_theme_enable(screen, false, NULL);
+        viewportmanager_theme_undo(screen, true);
+    }
+    return sb_skin_peek_info_vp(screen);
 }
 
 /* Where the title bar's icons begin, in a bar as wide as width over the top

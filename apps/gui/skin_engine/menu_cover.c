@@ -1418,7 +1418,7 @@ int menu_cover_place(const struct viewport *vp, int x, int y, int width,
     const int y0 = MAX(MAX(vp->y, top), 0);
     const int y1 = MIN(MIN(vp->y + vp->height, top + height), LCD_HEIGHT);
     /* right of the list, which is drawn over the cover's left part */
-    const struct viewport *list = sb_skin_get_info_vp(SCREEN_MAIN);
+    const struct viewport *list = sb_skin_peek_info_vp(SCREEN_MAIN);
     if (list && list->y < y1 && list->y + list->height > y0
         && list->x < x1 && list->x + list->width > x0)
     {
