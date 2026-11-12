@@ -370,7 +370,7 @@ cop_init:
     /* Exception vectors */
     .global vectors
 vectors:
-    .word  start
+    .word  jump_to_0_handler
     .word  undef_instr_handler
     .word  software_int_handler
     .word  prefetch_abort_handler
@@ -403,6 +403,17 @@ reserved_handler:
 prefetch_abort_handler:
     sub    r0, lr, #4
     mov    r1, #1
+    b      UIE
+
+/* A call through a null pointer lands on vector 0; nothing else enters the
+   image there after the remap. r0 = the caller's return address.
+ */
+jump_to_0_handler:
+    mov    r0, lr
+    mrs    r2, cpsr
+    msr    cpsr_c, #0xdb /* Undefined mode, IRQ/FIQ disabled */
+    msr    spsr_cxsf, r2 /* the caller's mode, where __get_sp() looks */
+    mov    r1, #5
     b      UIE
 
 #if defined(HAVE_BOOTDATA) && !defined(BOOTLOADER)

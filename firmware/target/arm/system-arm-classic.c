@@ -32,7 +32,8 @@ static const char* const uiename[] = {
     "Prefetch abort",
     "Data abort",
     "Divide by zero",
-    "SWI"
+    "SWI",
+    "Jump to 0"
 };
 
 void __attribute__((weak,naked)) data_abort_handler(void)
