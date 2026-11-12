@@ -22061,3 +22061,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_TRACK_PROTECTED
+  desc: a message shown for a few seconds when Select is pressed on a book or a song that was bought with copy protection and so can't be played on this player; the book or song stays in its list; nothing technical in it, as short as it can be: it is drawn in two or three lines of the screen's width
+  user: core
+  <source>
+    *: "This item is protected and can't be played"
+  </source>
+  <dest>
+    *: "Този обект е защитен и не може да се възпроизведе"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

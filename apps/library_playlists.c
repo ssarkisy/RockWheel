@@ -1578,6 +1578,18 @@ static bool lp_playing(int row, void *data)
    didn't start. */
 static bool lp_play(int song)
 {
+    /* the song chosen is one sold with a lock on it: said, nothing changes */
+    char path[MAX_PATH];
+    struct tagcache_search tcs;
+    if (song >= 0 && tagcache_search(&tcs, tag_filename))
+    {
+        const bool locked = tagcache_retrieve(&tcs, lp.songs[song].idx, tag_filename,
+                                              path, sizeof(path))
+                            && track_protected_splash(path);
+        tagcache_search_finish(&tcs);
+        if (locked)
+            return false;
+    }
     if (global_settings.party_mode || !warn_on_pl_erase())
         return false;
     /* Now Playing comes later than the slide's usual wait, as from Music */

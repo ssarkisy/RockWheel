@@ -109,6 +109,11 @@ void talk_timedate(void);
 /* Ask the user if they really want to erase the current dynamic playlist
  * returns true if the playlist should be replaced */
 bool warn_on_pl_erase(void);
+/* The listener's own choice of a track sold with a lock on it, which nothing
+   here can play: says so, and true. Looked at before the music is changed, in
+   the headers of the file's atoms on the way to its sound's description,
+   wherever in the file they are; only an .m4a, .m4b or .mp4 is opened. */
+bool track_protected_splash(const char *path);
 
 bool show_search_progress(bool init, int count, int current, int total);
 

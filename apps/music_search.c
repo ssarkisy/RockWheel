@@ -2244,7 +2244,7 @@ static bool play_song(int index)
     if (!tagcache_search(&tcs, tag_filename))
         return false;
     bool ok = tagcache_retrieve(&tcs, idx_id, tag_filename, path, sizeof(path))
-              && warn_on_pl_erase();
+              && !track_protected_splash(path) && warn_on_pl_erase();
     /* Now Playing comes later than the slide's usual wait, as from Music */
     if (ok)
         transition_wait(HZ);

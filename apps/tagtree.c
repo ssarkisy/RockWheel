@@ -236,6 +236,7 @@ static int tagtree_free_slot(int first, char *buf, size_t size)
 }
 
 static int tagtree_play_folder(struct tree_context* c);
+static bool row_protected(struct tree_context *c, int row);
 
 /* on the screen of an import, which shows how far it is */
 static bool list_on_boot_screen;
@@ -5607,9 +5608,10 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
                     break;
                 }
                 c->dirlevel--;
-                /* about to create a new current playlist...
-                 allow user to cancel the operation */
-                if (!warn_on_pl_erase())
+                /* a track sold with a lock on it: said, and nothing asked or
+                   changed. Else about to create a new current playlist:
+                   allow user to cancel the operation */
+                if (row_protected(c, c->selected_item) || !warn_on_pl_erase())
                     break;
                 cpu_boost(true);
                 if (tagtree_play_folder(c) >= 0)
@@ -8095,6 +8097,22 @@ bool tagtree_row_mark(bool played)
     return true;
 }
 
+/* the track of this row is one sold with a lock on it: said. Asked as the
+   listener chooses it, before anything is asked or changed */
+static bool row_protected(struct tree_context *c, int row)
+{
+    char path[MAX_PATH];
+    struct tagcache_search tcs;
+    const struct tagentry *entry = tagtree_get_entry(c, row);
+    if (!entry || entry->newtable != TABLE_PLAYTRACK
+        || !tagcache_search(&tcs, tag_filename))
+        return false;
+    const bool found = tagcache_retrieve(&tcs, entry->extraseek, tcs.type, path,
+                                         sizeof(path));
+    tagcache_search_finish(&tcs);
+    return found && track_protected_splash(path);
+}
+
 bool tagtree_row_start_over(void)
 {
     struct tree_context *c = tc;
@@ -8102,7 +8120,7 @@ bool tagtree_row_start_over(void)
     if (!entry)
         return false;
     const int32_t idx = entry->extraseek;
-    if (!warn_on_pl_erase())
+    if (row_protected(c, c->selected_item) || !warn_on_pl_erase())
         return false;
     /* the one playing stopped first: its stop notes its place */
     if (audio_status() & AUDIO_STATUS_PLAY)
@@ -8186,8 +8204,10 @@ static void book_reset(struct tree_context *c, bool finished)
 bool tagtree_book_start_over(void)
 {
     struct tree_context *c = tc;
-    if (!selected_part() || !yesno_pop(ID2P(LANG_START_OVER))
-        || !warn_on_pl_erase())
+    /* its first part, which it would play, is one sold with a lock on it:
+       said before the question, the place and the music left as they are */
+    if (!selected_part() || row_protected(c, c->special_entry_count)
+        || !yesno_pop(ID2P(LANG_START_OVER)) || !warn_on_pl_erase())
         return false;
     /* the one playing stopped first: its stop notes its place */
     if (audio_status() & AUDIO_STATUS_PLAY)

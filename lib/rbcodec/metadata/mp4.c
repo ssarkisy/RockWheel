@@ -55,6 +55,8 @@
 #define MP4_clyr FOURCC(0xa9, 'l', 'y', 'r')
 #define MP4_covr FOURCC('c', 'o', 'v', 'r')
 #define MP4_disk FOURCC('d', 'i', 's', 'k')
+#define MP4_drms FOURCC('d', 'r', 'm', 's')
+#define MP4_enca FOURCC('e', 'n', 'c', 'a')
 #define MP4_esds FOURCC('e', 's', 'd', 's')
 #define MP4_ftyp FOURCC('f', 't', 'y', 'p')
 #define MP4_gnre FOURCC('g', 'n', 'r', 'e')
@@ -1034,6 +1036,65 @@ static uint32_t read_uint32be_at(int fd, off_t pos)
     lseek(fd, pos, SEEK_SET);
     read_uint32be(fd, &value);
     return value;
+}
+
+/* 64 atoms in all, more than the way to a track's stsd has, five levels deep */
+static bool protected_entry(int fd, off_t pos, uint64_t size, int depth,
+                            int *atoms)
+{
+    for (; size >= 8 && *atoms < 64; (*atoms)++)
+    {
+        uint64_t len = read_uint32be_at(fd, pos);
+        uint32_t type = read_uint32be_at(fd, pos + 4);
+        unsigned int head = 8;
+
+        if (len == 1)       /* a size of 64 bits after the type */
+        {
+            read_uint64be(fd, &len);
+            head = 16;
+        }
+        else if (len == 0)  /* to the end */
+            len = size;
+        if (len < head || len > size)
+            return false;
+
+        switch (type)
+        {
+        case MP4_moov:
+        case MP4_trak:
+        case MP4_mdia:
+        case MP4_minf:
+        case MP4_stbl:
+            if (depth < 5
+                && protected_entry(fd, pos + head, len - head, depth + 1, atoms))
+                return true;
+            break;
+        case MP4_stsd:
+            /* version, flags and the count of entries, then the first one */
+            if (len >= head + 16)
+            {
+                type = read_uint32be_at(fd, pos + head + 12);
+                if (type == MP4_drms || type == MP4_enca)
+                    return true;
+            }
+            break;
+        }
+        pos += len;
+        size -= len;
+    }
+    return false;
+}
+
+/* Sound that was sold with a lock on it: a track whose sample entry is Apple's
+ * protected audio ('drms') or the standard's encrypted audio ('enca'), where
+ * a plain file has 'mp4a' or 'alac'. Its tags read as any file's; what plays
+ * it has to have the key, and nothing here does. Reads the headers of the
+ * atoms on the way to stsd, no more. */
+bool mp4_protected(int fd)
+{
+    int atoms = 0;
+
+    return protected_entry(fd, 0, ffilesize(fd), 0, &atoms);
 }
 
 /* Where the contents of the atoms that a QuickTime chapter track's samples

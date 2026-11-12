@@ -378,6 +378,9 @@ struct mp3entry {
 };
 
 unsigned int probe_file_format(const char *filename); /* returns audio_fmt */
+/* an MP4 file's sound was sold with a lock on it and can't be decoded here
+ * (mp4.c) */
+bool mp4_protected(int fd);
 bool get_metadata(struct mp3entry* id3, int fd, const char* trackname);
 bool get_metadata_ex(struct mp3entry* id3, int fd, const char* trackname, int flags);
 bool get_metadata_afmt(struct mp3entry* id3, int fd, const char* trackname, int audio_fmt, int flags);

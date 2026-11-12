@@ -57,6 +57,7 @@
 #include "backlight.h"
 #include "font.h"
 #include "splash.h"
+#include "metadata.h"
 #include "tagcache.h"
 #ifdef HAVE_TAGCACHE
 #include "plugin.h"
@@ -190,6 +191,22 @@ char *output_dyn_value(char *buf,
         talk_fractional(tbuf, value2, P2ID(units[unit_no]));
     }
     return buf;
+}
+
+bool track_protected_splash(const char *path)
+{
+    const unsigned int format = probe_file_format(path);
+    if (format != AFMT_MP4_ALAC && format != AFMT_MP4_AAC
+        && format != AFMT_MP4_AAC_HE)
+        return false;
+    const int fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool locked = mp4_protected(fd);
+    close(fd);
+    if (locked)
+        splash(HZ * 3, ID2P(LANG_TRACK_PROTECTED));
+    return locked;
 }
 
 /* Ask the user if they really want to erase the current dynamic playlist
