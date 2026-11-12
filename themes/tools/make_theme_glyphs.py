@@ -36,8 +36,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..", "..")
 
 # what the list code draws, by the manifest's names
-LIST = ("Chevron", "Speaker", "Shuffle", "Source", "Episode Dots", "Note Small",
-        "Note Header", "Check", "Plus", "Search Keys")
+LIST = ("Chevron", "Speaker", "Source", "Episode Dots", "Note Small", "Note Header",
+        "Check", "Plus", "Search Keys")
 # what the screen shown over USB draws (apps/gui/neo_usb_glyphs.h): the sign
 # while connected and the one once it may be unplugged; of the status line's
 # battery the frames charging and charged

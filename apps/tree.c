@@ -364,14 +364,6 @@ static bool tree_is_playing(int selected_item, void *data)
                                   gui_synclist_playing());
 }
 
-/* a list's Shuffle Songs, drawn with its arrows */
-static bool tree_is_shuffle(int selected_item, void *data)
-{
-    struct tree_context *local_tc = (struct tree_context *)data;
-    return !tree_is_group(selected_item, NULL)
-           && tagtree_row_is_shuffle(local_tc, index_of(selected_item));
-}
-
 /* an album's year before its name, in an artist's albums, and a song's
    number before its title, in an album's songs */
 static const char *tree_get_lead(int selected_item, void *data, char *buf,
@@ -955,7 +947,6 @@ static int update_dir(void)
 #ifdef HAVE_TAGCACHE
     gui_synclist_set_playing_callback(list, id3db ? tree_is_playing : NULL);
     gui_synclist_set_empty_text(list, id3db ? tagtree_empty_text(&tc) : NULL);
-    gui_synclist_set_shuffle_callback(list, id3db ? tree_is_shuffle : NULL);
     /* as wide as the list's years or numbers need, if it has them */
     const int lead_digits = id3db ? tagtree_lead_digits(&tc) : 0;
     gui_synclist_set_lead_callback(list, lead_digits ? tree_get_lead : NULL,
@@ -1383,20 +1374,6 @@ static int dirbrowse(void)
                     else
                         button = ACTION_NONE;
                 }
-                else if (customaction == ONPLAY_CUSTOMACTION_SHUFFLE_LIST)
-                {
-                    /* the list's songs in a new order, as a playlist's Shuffle
-                       Songs; no menu */
-                    if (button == ACTION_STD_OK)
-                    {
-                        transition_begin(TRANSITION_FORWARD);
-                        if (tagtree_shuffle_list(&tc))
-                            return exit_to_new_screen(GO_TO_WPS);
-                        transition_cancel();
-                        reload_dir = true;
-                    }
-                    button = ACTION_NONE;
-                }
                 else if (customaction == ONPLAY_CUSTOMACTION_COVERFLOW)
                 {
                     /* PictureFlow, back to this list when it is left */
@@ -1412,11 +1389,9 @@ static int dirbrowse(void)
         #endif
 #ifdef HAVE_TAGCACHE
 #ifdef HAVE_HOTKEY
-        /* nothing to play or add on a Sort By, nor on Shuffle Songs */
+        /* nothing to play or add on a Sort By */
         if (id3db && button == ACTION_TREE_HOTKEY
-            && (tagtree_get_custom_action(&tc) == ONPLAY_CUSTOMACTION_SORT_BY
-                || tagtree_get_custom_action(&tc)
-                   == ONPLAY_CUSTOMACTION_SHUFFLE_LIST))
+            && tagtree_get_custom_action(&tc) == ONPLAY_CUSTOMACTION_SORT_BY)
             button = ACTION_NONE;
 #endif
         if (on_lead)

@@ -121,10 +121,6 @@ extern const int tagtree_section_lang[MUSIC_SECTIONS];
 bool tagtree_music_empty(void);
 /* the callback of each Music Menu setting */
 void tagtree_music_menu_changed(bool shown);
-/* a list's Shuffle Songs row, and its songs played in a new order: false if
-   none started */
-bool tagtree_row_is_shuffle(struct tree_context *c, int row);
-bool tagtree_shuffle_list(struct tree_context *c);
 int tagtree_load(struct tree_context* c);
 char* tagtree_get_entry_name(struct tree_context *c, int id,
                                     char* buf, size_t bufsize);

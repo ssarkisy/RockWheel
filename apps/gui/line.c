@@ -772,17 +772,6 @@ static const unsigned char speaker_alpha[] = {
     0xfe, 0x0a, 0xf8, 0xff, 0xff, 0xff, 0x76, 0xff, 0x0e, 0xf4, 0xff, 0xff,
     0xff, 0xff, 0xfd, 0xff, 0xeb, 0xff,
 };
-/* the shuffle arrows of a list's Shuffle Songs, by the same tool */
-static const unsigned char shuffle_alpha[] = {
-    0xff, 0xff, 0xff, 0xff, 0xff, 0x9f, 0xf9, 0xff, 0xbd, 0xcb, 0xff, 0xff,
-    0xef, 0x6b, 0x40, 0xfd, 0x01, 0x00, 0xe4, 0xff, 0x1a, 0x00, 0x00, 0xd1,
-    0xbd, 0x8b, 0x40, 0xbf, 0x30, 0x6b, 0x40, 0xfd, 0xff, 0xff, 0x0a, 0x15,
-    0xe3, 0x9f, 0xf9, 0xff, 0xff, 0xff, 0x7f, 0x10, 0xfd, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0x7f, 0x10, 0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0a, 0x15,
-    0xe3, 0x9f, 0xf9, 0xff, 0xbd, 0x8b, 0x40, 0xbf, 0x30, 0x6b, 0x40, 0xfd,
-    0x01, 0x00, 0xe4, 0xff, 0x1a, 0x00, 0x00, 0xd1, 0xbd, 0xcb, 0xff, 0xff,
-    0xef, 0x6b, 0x40, 0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0x9f, 0xf9, 0xff,
-};
 /* the marks of the catalogue's playlists and folders, by the same tool */
 static const unsigned char computer_alpha[] = {
     0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -839,13 +828,12 @@ struct glyph {
     const unsigned char *alpha;
     unsigned char w, h, frame; /* its frame of those one under another */
 };
-enum { GLYPH_CHEVRON, GLYPH_SPEAKER, GLYPH_SHUFFLE, GLYPH_COMPUTER, GLYPH_IPOD,
+enum { GLYPH_CHEVRON, GLYPH_SPEAKER, GLYPH_COMPUTER, GLYPH_IPOD,
        GLYPH_SMALL_NOTE, GLYPH_DOT, GLYPH_HALF_DOT, GLYPH_COUNT };
 static const struct glyph glyphs[UI_THEME_COUNT][GLYPH_COUNT] = {
     [UI_THEME_CLASSIC] = {
         [GLYPH_CHEVRON]    = { chevron_alpha, 9, 11, 0 },
         [GLYPH_SPEAKER]    = { speaker_alpha, 15, 12, 0 },
-        [GLYPH_SHUFFLE]    = { shuffle_alpha, 16, 12, 0 },
         [GLYPH_COMPUTER]   = { computer_alpha, 13, 12, 0 },
         [GLYPH_IPOD]       = { ipod_alpha, 10, 13, 0 },
         [GLYPH_SMALL_NOTE] = { small_note_alpha, 16, 19, 0 },
@@ -855,7 +843,6 @@ static const struct glyph glyphs[UI_THEME_COUNT][GLYPH_COUNT] = {
     [UI_THEME_MODERN] = {
         [GLYPH_CHEVRON]    = { modern_chevron_alpha, MODERN_CHEVRON_W, MODERN_CHEVRON_H, 0 },
         [GLYPH_SPEAKER]    = { modern_speaker_alpha, MODERN_SPEAKER_W, MODERN_SPEAKER_H, 0 },
-        [GLYPH_SHUFFLE]    = { modern_shuffle_alpha, MODERN_SHUFFLE_W, MODERN_SHUFFLE_H, 0 },
         [GLYPH_COMPUTER]   = { modern_source_alpha, MODERN_SOURCE_W, MODERN_SOURCE_H, 0 },
         [GLYPH_IPOD]       = { modern_source_alpha, MODERN_SOURCE_W, MODERN_SOURCE_H, 1 },
         [GLYPH_SMALL_NOTE] = { modern_note_small_alpha, MODERN_NOTE_SMALL_W, MODERN_NOTE_SMALL_H, 0 },
@@ -865,7 +852,6 @@ static const struct glyph glyphs[UI_THEME_COUNT][GLYPH_COUNT] = {
     [UI_THEME_NEO] = {
         [GLYPH_CHEVRON]    = { neo_chevron_alpha, NEO_CHEVRON_W, NEO_CHEVRON_H, 0 },
         [GLYPH_SPEAKER]    = { neo_speaker_alpha, NEO_SPEAKER_W, NEO_SPEAKER_H, 0 },
-        [GLYPH_SHUFFLE]    = { neo_shuffle_alpha, NEO_SHUFFLE_W, NEO_SHUFFLE_H, 0 },
         [GLYPH_COMPUTER]   = { neo_source_alpha, NEO_SOURCE_W, NEO_SOURCE_H, 0 },
         [GLYPH_IPOD]       = { neo_source_alpha, NEO_SOURCE_W, NEO_SOURCE_H, 1 },
         [GLYPH_SMALL_NOTE] = { neo_note_small_alpha, NEO_NOTE_SMALL_W, NEO_NOTE_SMALL_H, 0 },
@@ -884,8 +870,6 @@ static const struct glyph *glyph(int which)
 #define CHEVRON_H    (glyph(GLYPH_CHEVRON)->h)
 #define SPEAKER_W    (glyph(GLYPH_SPEAKER)->w)
 #define SPEAKER_H    (glyph(GLYPH_SPEAKER)->h)
-#define SHUFFLE_W    (glyph(GLYPH_SHUFFLE)->w)
-#define SHUFFLE_H    (glyph(GLYPH_SHUFFLE)->h)
 #define SMALL_NOTE_W (glyph(GLYPH_SMALL_NOTE)->w)
 #define SMALL_NOTE_H (glyph(GLYPH_SMALL_NOTE)->h)
 #define DOT_W        (glyph(GLYPH_DOT)->w)
@@ -1082,16 +1066,6 @@ static void draw_value(struct screen *display, int y, struct line_desc *line)
     vp->font = name_font;
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
-}
-
-int line_shuffle_width(struct screen *display)
-{
-#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-    if (display->screen_type == SCREEN_MAIN)
-        return SHUFFLE_W + CHEVRON_MARGIN;
-#endif
-    (void)display;
-    return 0;
 }
 
 #define MARK_COLUMN 13 /* the widest of them */
@@ -1360,34 +1334,6 @@ void line_draw_lead(struct screen *display, int font, int shift, int x, int y,
     vp->font = name_font;
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
-}
-
-/* before the text, rather than at the end with the speaker and the chevron:
-   that the row isn't a song, seen at once. Left alone by the text scrolling
-   on the selection, which draws from where the text starts. Right to left at
-   the right end, where the text starts, as an album's cover is */
-void line_draw_shuffle(struct screen *display, int x, int y,
-                       const struct line_desc *line)
-{
-#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-    if (!line_shuffle_width(display))
-        return;
-    const struct viewport *vp = *display->current_viewport;
-    if (VP_IS_RTL(vp))
-        x = vp->width - x - SHUFFLE_W;
-    const int height = line->height == -1 ? display->getcharheight() : line->height;
-    const unsigned fg = display->get_foreground();
-    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
-        display->set_foreground(on_selection(line));
-    else
-        display->set_foreground(off_selection(fg));
-    display->set_drawmode(DRMODE_FG);
-    draw_glyph(GLYPH_SHUFFLE, x, y + (height - SHUFFLE_H)/2);
-    display->set_foreground(fg);
-    display->set_drawmode(DRMODE_SOLID);
-#else
-    (void)display; (void)x; (void)y; (void)line;
-#endif
 }
 
 const char *line_fit(const char *text, int font, int width, char *buf,

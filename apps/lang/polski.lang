@@ -21326,13 +21326,13 @@
 </phrase>
 <phrase>
   id: LANG_SHUFFLE_IN_LISTS
-  desc: a row of Settings, after Music Menu, and the title of its screen: which kinds of Music's lists and of playlists have Shuffle Songs as their first row
+  desc: deprecated
   user: core
   <source>
-    *: "Shuffle in Lists"
+    *: ""
   </source>
   <dest>
-    *: "Tasowanie w listach"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21340,13 +21340,13 @@
 </phrase>
 <phrase>
   id: LANG_SHUFFLE_ARTIST_ALBUMS
-  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an artist's or a composer's albums, playing all of their songs
+  desc: deprecated
   user: core
   <source>
-    *: "An Artist's Albums"
+    *: ""
   </source>
   <dest>
-    *: "Albumy wykonawcy"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21354,13 +21354,13 @@
 </phrase>
 <phrase>
   id: LANG_SHUFFLE_ALBUM_SONGS
-  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an album's songs
+  desc: deprecated
   user: core
   <source>
-    *: "An Album's Songs"
+    *: ""
   </source>
   <dest>
-    *: "Utwory albumu"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21368,13 +21368,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_PLAYLISTS
-  desc: the hint in the band under Settings > Shuffle in Lists while Playlists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "Shuffle Songs at the top of a playlist or On-The-Go plays all of its songs in a new order."
+    *: ""
   </source>
   <dest>
-    *: "Tasuj utwory na górze listy odtwarzania lub On-The-Go odtwarza wszystkie jej utwory w nowej kolejności."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21382,13 +21382,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_ARTISTS
-  desc: the hint in the band under Settings > Shuffle in Lists while Artists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Artists, Shuffle Songs plays your whole library; in a genre, all of the genre's songs."
+    *: ""
   </source>
   <dest>
-    *: "W Wykonawcy Tasuj utwory odtwarza całą bibliotekę; w gatunku — wszystkie utwory gatunku."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21396,13 +21396,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_ARTIST
-  desc: the hint in the band under Settings > Shuffle in Lists while An Artist's Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In an artist's or a composer's albums, Shuffle Songs plays all of their songs."
+    *: ""
   </source>
   <dest>
-    *: "W albumach wykonawcy lub kompozytora Tasuj utwory odtwarza wszystkie jego utwory."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21410,13 +21410,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_ALBUMS
-  desc: the hint in the band under Settings > Shuffle in Lists while Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Albums, Shuffle Songs plays your whole library, as in the main menu."
+    *: ""
   </source>
   <dest>
-    *: "W Albumy Tasuj utwory odtwarza całą bibliotekę, jak w menu głównym."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21424,13 +21424,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_ALBUM
-  desc: the hint in the band under Settings > Shuffle in Lists while An Album's Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In an album, Shuffle Songs plays its songs in a new order."
+    *: ""
   </source>
   <dest>
-    *: "W albumie Tasuj utwory odtwarza jego utwory w nowej kolejności."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21438,13 +21438,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_SONGS
-  desc: the hint in the band under Settings > Shuffle in Lists while Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Songs, Shuffle Songs plays your whole library, as in the main menu."
+    *: ""
   </source>
   <dest>
-    *: "W Utwory Tasuj utwory odtwarza całą bibliotekę, jak w menu głównym."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21452,13 +21452,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_GENRES
-  desc: the hint in the band under Settings > Shuffle in Lists while Genres is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Genres, Shuffle Songs plays your whole library. A genre's own list follows Artists."
+    *: ""
   </source>
   <dest>
-    *: "W Gatunki Tasuj utwory odtwarza całą bibliotekę. Lista gatunku podlega wierszowi Wykonawcy."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21466,13 +21466,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_COMPOSERS
-  desc: the hint in the band under Settings > Shuffle in Lists while Composers is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Composers, Shuffle Songs plays your whole library. A composer's albums follow An Artist's Albums."
+    *: ""
   </source>
   <dest>
-    *: "W Kompozytorzy Tasuj utwory odtwarza całą bibliotekę. Albumy kompozytora podlegają wierszowi Albumy wykonawcy."
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21746,7 +21746,7 @@
 </phrase>
 <phrase>
   id: LANG_EPISODES_NEW
-  desc: under a show's name in Music > Podcasts, before the newest episode's date (2 new · 9 Nov): how many of its episodes are new, not yet played; %d is their number, 1 or more, so in a form that fits any number
+  desc: under a show's name in Music > Podcasts, before the newest episode's date (2 new · 9 Nov) or what is left of the one begun (6 new · 13 min left): how many of its episodes are new, not yet played; %d is their number, 1 or more, so in a form that fits any number
   user: core
   <source>
     *: "%d new"

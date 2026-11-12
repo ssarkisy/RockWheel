@@ -396,7 +396,6 @@ static int root_rows;
 
 static struct tagentry* tagtree_get_entry(struct tree_context *c, int id);
 static int tagtree_find_row(struct tree_context *c, const char *name);
-static bool shuffle_row_wanted(struct tree_context *c);
 struct search_instruction;
 static bool section_is(const struct search_instruction *si, int lang);
 static int32_t playing_entry(unsigned long *elapsed);
@@ -885,8 +884,6 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
         of_albums ? global_settings.album_artists : 0,
         of_albums ? list_covers_on() : 0,
         all_songs ? global_settings.all_songs_sort : 0,
-        /* and Shuffle Songs at its top, as Shuffle in Lists has it */
-        csi && c->currtable != TABLE_ROOT ? shuffle_row_wanted(c) : 0,
         /* the episodes' states, which a show's row sums: their places,
            plays and marks, and the one playing, started as it plays */
         podcasts ? tagcache_states_generation() : 0,
@@ -3347,37 +3344,6 @@ static bool album_songs(struct tree_context *c, int level, int tag)
            && !in_section(LANG_PODCASTS) && !in_section(LANG_AUDIOBOOKS);
 }
 
-/* No list has Shuffle Songs at its top any more: Shuffle is one setting,
-   changed in Settings and in Now Playing's menu (the owner's decision,
-   2026-11-11). What made and played the row waits for its removal. */
-static bool shuffle_row_wanted(struct tree_context *c)
-{
-    (void)c;
-    return false;
-}
-
-/* whether the row Shuffle Songs would play the whole library: Shuffle Songs of
-   the main menu's */
-static bool shuffle_row_whole(struct tree_context *c)
-{
-    return c->currtable == TABLE_NAVIBROWSE && c->currextra == 0
-           && csi->clause_count[0] == 0;
-}
-
-/* Shuffle Songs as a list's first row, playing its songs in a new order */
-static const struct tagentry shuffle_row = {
-    .name = ID2P(LANG_SHUFFLE_SONGS), .newtable = TABLE_NAVIBROWSE,
-    .extraseek = -4, /* not <Random>'s, Sort By's nor All Songs' */
-    .customaction = ONPLAY_CUSTOMACTION_SHUFFLE_LIST,
-};
-
-/* each song the list's search finds, for the songs Shuffle Songs would play */
-static void count_match(const int32_t *tag_seek, void *data)
-{
-    (void)tag_seek;
-    (*(int *)data)++;
-}
-
 /* A row's year or number kept as the text before its name: its digits, as
    many as there are, none for none or one of more than four */
 static int keep_lead(struct tagentry *entry, long n)
@@ -3872,25 +3838,12 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         album_years_rows_begin();
         tagcache_search_set_match(&tcs, persons_match, &persons_songs);
     }
-    /* Shuffle Songs at its top, and the songs it would play counted as the
-       search finds them, by a person's albums' own count if it has one: the
-       row goes if they are too few. Those of the whole library are the
-       database's: the search of a list of it goes through its tag's names,
-       not its songs */
-    const bool shuffle = offset == 0 && shuffle_row_wanted(c);
-    const bool whole = shuffle && shuffle_row_whole(c);
-    int list_songs = 0;
-    if (whole)
-        list_songs = tagcache_get_song_count() >= 0 ? tagcache_get_song_count()
-                                                     : tagcache_entry_count();
-    else if (shuffle && !persons)
-        tagcache_search_set_match(&tcs, count_match, &list_songs);
     /* Podcasts' shows counted by the hook; a show's episodes by date. Whole
        lists from memory only */
     const bool books = in_section(LANG_AUDIOBOOKS);
     const bool shows = offset == 0 && level == 0 && tag == tag_album
         && c->currtable == TABLE_NAVIBROWSE
-        && (books || in_section(LANG_PODCASTS)) && tcs.ramsearch && !shuffle;
+        && (books || in_section(LANG_PODCASTS)) && tcs.ramsearch;
     const bool episodes = offset == 0 && tag == tag_title && tcs.ramsearch
         && show_episodes(csi, c->currtable, level);
     const bool parts = offset == 0 && tag == tag_title && tcs.ramsearch
@@ -3963,14 +3916,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     counting.end = (struct show_sums *)song_groups(c);
 
     /* no <All tracks>, <By album> or <Random> entries in the lists: as on a
-       stock iPod, the Music menu has Songs instead. Shuffle Songs first, then
-       Albums' Sort By */
-    if (shuffle)
-    {
-        *dptr++ = shuffle_row;
-        current_entry_count++;
-        c->special_entry_count++;
-    }
+       stock iPod, the Music menu has Songs instead. Albums' Sort By first */
     if (albums)
     {
         dptr->name = ID2P(LANG_SORT_BY);
@@ -4154,19 +4100,6 @@ static int make_entries(struct tree_context *c, int offset, bool init)
                 return current_entry_count;
             }
         }
-    }
-
-    /* Shuffle Songs over four songs or more, and other rows: all of them
-       found, unless the list is in chunks, which has more anyway */
-    if (shuffle && !c->dirfull
-        && ((persons ? persons_songs : list_songs) < 4
-            || current_entry_count == c->special_entry_count))
-    {
-        struct tagentry *entries = get_entries(c);
-        memmove(&entries[0], &entries[1],
-                (current_entry_count - 1) * sizeof(*entries));
-        current_entry_count--;
-        c->special_entry_count--;
     }
 
     /* Songs by its Sort By; by name without the row, whatever the order
@@ -4460,10 +4393,10 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     }
 
     /* All Songs over an artist's albums, two or more of them, as on a stock
-       iPod: one row of the artist's songs, below any rows already at the top,
-       so that Shuffle Songs would stay first. Not if they are more than its
-       list can gather in half the lists' room, with a row to spare at its
-       top; nor over albums with no list below them */
+       iPod: one row of the artist's songs, below any rows already at the
+       top. Not if they are more than its list can gather in half the lists'
+       room, with a row to spare at its top; nor over albums with no list
+       below them */
     if (persons && !c->dirfull
         && current_entry_count - c->special_entry_count >= 2
         && persons_songs < c->cache.max_entries / 2
@@ -4691,10 +4624,10 @@ static int load_root(struct tree_context *c)
 static bool open_at_first_row;
 
 /* The row a list opens at, with none left in it to go back to: its first
-   song, album or artist, past the rows at its top, Shuffle Songs, Sort By or
-   All Songs, a step up from it and in sight (the owner's decision,
-   2026-11-08): an artist's first album, All Songs' first song, and Albums'
-   first album rather than its Sort By */
+   song, album or artist, past the rows at its top, Sort By or All Songs, a
+   step up from it and in sight (the owner's decision, 2026-11-08): an
+   artist's first album, All Songs' first song, and Albums' first album
+   rather than its Sort By */
 static int first_row(struct tree_context *c)
 {
     /* a book's screen opens on its Resume or Listen Again, the row over its
@@ -4868,9 +4801,6 @@ static void place_restore(const struct tagtree_place *place, int *dirlevel,
 static unsigned int saved_starts = ~0u;
 static int32_t saved_commit;
 static uint32_t saved_list, saved_key;
-/* the start of the whole library's Shuffle Songs atop a list of it, which
-   isn't that list's music: no place, as for Shuffle Songs of the main menu */
-static unsigned int unplaced_starts = ~0u;
 
 static void go_to_end(int row, int *dirlevel, int *selected_item);
 
@@ -4892,13 +4822,11 @@ static void kept_place_write(void);
 
 void tagtree_save_place(int dirlevel, int selected_item)
 {
-    /* the place, for Menu over Now Playing to go back to, but none to play
-       from for the whole library's Shuffle Songs */
+    /* the place, for Menu over Now Playing to go back to */
     place_save(&saved_place, dirlevel, selected_item);
-    const bool placed = playlist_start_count() != unplaced_starts;
-    saved_starts = placed ? playlist_start_count() : ~0u;
+    saved_starts = playlist_start_count();
     saved_commit = tagcache_get_commitid();
-    saved_list = placed ? tagtree_queue_list() : 0;
+    saved_list = tagtree_queue_list();
     saved_key = place_key(&saved_place);
     /* kept over a reset, which writes nothing, while the disk is up for the
        playlist started */
@@ -5601,10 +5529,8 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
     bool adjust_selection = true;
 
     dptr = tagtree_get_entry(c, c->selected_item);
-    /* a Sort By, which switches the order, and Shuffle Songs, which plays
-       (tagtree_shuffle_list()): into nothing */
-    if (!dptr || dptr->customaction == ONPLAY_CUSTOMACTION_SORT_BY
-        || dptr->customaction == ONPLAY_CUSTOMACTION_SHUFFLE_LIST)
+    /* a Sort By, which switches the order: into nothing */
+    if (!dptr || dptr->customaction == ONPLAY_CUSTOMACTION_SORT_BY)
         return 0;
 
     c->dirfull = false;
@@ -6735,9 +6661,7 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
         return -1;
     }
     const bool by_name = global_settings.all_songs_sort != 0;
-    /* past Shuffle Songs, over four songs or more, and Sort By */
-    const bool shuffle = shuffle_row_wanted(c);
-    const int first = shuffle ? 2 : 1;
+    const int first = 1; /* past Sort By */
     struct tagentry *entries = get_entries(c);
     char *names = core_get_data(c->cache.name_buffer_handle);
     long used = 0;
@@ -6791,8 +6715,6 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
             used = 0;
         }
     }
-    if (shuffle)
-        entries[0] = shuffle_row;
     entries[first - 1] = (struct tagentry){
         .name = ID2P(LANG_SORT_BY), .newtable = TABLE_NAVIBROWSE,
         .extraseek = -2, /* not <Random>'s */
@@ -7166,14 +7088,6 @@ static uint32_t tagtree_list_id(int table, int extra,
                                 const struct search_instruction *si)
 {
     return list_hash(table, extra, si, si->result_seek, si->result_artist, true);
-}
-
-/* An artist's, a genre's or a composer's songs shuffled, by its Shuffle
-   Songs: an id of their own, which no list has, as there's no list of them */
-static uint32_t shuffled_list_id(struct tree_context *c)
-{
-    return (tagtree_list_id(c->currtable, c->currextra, csi) ^ 0x53485546u)
-           * 16777619u; /* "SHUF" */
 }
 
 static bool tagtree_list_is_all_songs(void)
@@ -7764,136 +7678,6 @@ static int tagtree_play_folder(struct tree_context* c)
     return 0;
 }
 
-/* A list of songs' Shuffle Songs: the playlist of the list, as playing a song
-   of it loads it, written first if it hasn't been, made anew each time rather
-   than gone on with if it plays, which Resume wouldn't give again. */
-static bool shuffle_list_songs(struct tree_context *c)
-{
-    int start = -1; /* no row of it: not the one playing gone on with */
-    /* The music playing would change anyway; stopped first, it doesn't take
-       turns with building the playlist */
-    if (audio_status() & AUDIO_STATUS_PLAY)
-        audio_stop_at_once();
-    loaded_file[0] = '\0';
-    if (c->filesindir - c->special_entry_count
-            > playlist_get_current()->max_playlist_size
-        || tagtree_load_list(c, &start) < 0)
-        return false;
-    playlist_shuffle_songs(current_tick, -1);
-    playlist_start(0, 0, 0);
-    /* the list the music is now from, for its speaker */
-    tagtree_note_queue(loaded_file, tagtree_list_id(c->currtable, c->currextra, csi));
-    if (kept_hash) /* as it is now, the playlist made from it */
-        keep_list(c, kept_count);
-    return true;
-}
-
-/* An artist's, a genre's or a composer's Shuffle Songs: their songs, found as
-   the list's rows were, by the rows chosen on the way and the conditions of all
-   levels, into a playlist file of the first pair, in the database's order:
-   the list of them isn't made. "Skip when shuffling" isn't heeded, as in a
-   playlist: the songs are those of the list (the owner's decision,
-   2026-11-08). The music playing goes on as it's written, the other file of
-   the pair, so that Menu to abort leaves it playing. */
-static bool shuffle_list_found(struct tree_context *c)
-{
-    struct tagcache_search tcs;
-    struct playlist_writer writer;
-    char buf[MAX_PATH], file[MAX_PATH];
-    const int max = playlist_get_current()->max_playlist_size;
-    int added = 0;
-
-    if (!tagcache_search(&tcs, tag_filename))
-        return false;
-    add_level_filters(&tcs, c->currextra);
-    core_pin(tagtree_handle);
-    add_list_clauses(&tcs, csi->tagorder_count - 1);
-    const int slot = tagtree_free_slot(0, file, sizeof(file));
-    const char *name = tagtree_playlist_names[slot];
-    bool ok = playlist_writer_open(&writer, file, true);
-    long last_tick = current_tick + HZ/2; /* progress after half a second */
-    while (ok && added < max && tagcache_get_next(&tcs, buf, sizeof(buf)))
-    {
-        if (!buf[0])
-            continue; /* the entry of a removed file */
-        ok = playlist_writer_add(&writer, buf);
-        added++;
-        if ((added & 63) == 0)
-            yield();
-        if (TIME_AFTER(current_tick, last_tick + HZ/4))
-        {
-            splash_progress(added, added, "%s (%s)", str(LANG_WAIT),
-                            str(LANG_OFF_ABORT)); /* unsaid */
-            if (action_userabort(TIMEOUT_NOBLOCK))
-            {
-                ok = false;
-                break;
-            }
-            last_tick = current_tick;
-        }
-    }
-    tagcache_search_finish(&tcs);
-    core_unpin(tagtree_handle);
-    ok = playlist_writer_close(&writer) && ok && added > 0;
-    /* an id of its own, kept with the file, for Playing From after a boot */
-    const uint32_t id = shuffled_list_id(c);
-    if (ok)
-        tagtree_save_list_index(c, slot, id);
-    if (ok && (audio_status() & AUDIO_STATUS_PLAY))
-        audio_stop_at_once();
-    if (ok && written_offsets)
-        ok = playlist_create_indexed(TAGTREE_PLAYLIST_DIR, name, written_offsets,
-                                     written_count) == 0;
-    else if (ok)
-        ok = playlist_create(TAGTREE_PLAYLIST_DIR, name) == 0;
-    ok = ok && playlist_amount() > 0;
-    if (ok)
-    {
-        playlist_shuffle_songs(current_tick, -1);
-        playlist_start(0, 0, 0);
-        tagtree_note_queue(file, id);
-    }
-    return ok;
-}
-
-/* A list's Shuffle Songs: all of its songs in a new order, from a playlist of
-   them, as a playlist's Shuffle Songs; the setting Shuffle stays as it is, for
-   playing a song (the owner's decision, 2026-11-08). The whole library's as
-   Shuffle Songs in the main menu. False if nothing was started, as when the
-   playlist playing wasn't to be replaced. */
-bool tagtree_shuffle_list(struct tree_context *c)
-{
-    if (global_settings.party_mode && audio_status())
-    {
-        splash(HZ, ID2P(LANG_PARTY_MODE));
-        return false;
-    }
-    if (!warn_on_pl_erase())
-        return false;
-    if (shuffle_row_whole(c))
-    {
-        const bool ok = tagtree_shuffle_songs(false);
-        if (ok)
-            unplaced_starts = playlist_start_count();
-        return ok;
-    }
-
-    /* as when playing a song of a list (tagtree_play_folder()) */
-    transition_wait(HZ);
-    cpu_boost(true);
-    const bool ok = tagtree_get_attr(c) == FILE_ATTR_AUDIO ? shuffle_list_songs(c)
-                                                           : shuffle_list_found(c);
-    cpu_boost(false);
-    return ok;
-}
-
-bool tagtree_row_is_shuffle(struct tree_context *c, int row)
-{
-    return c->currtable != TABLE_ROOT && row >= 0 && row < c->special_entry_count
-           && tagtree_get_entry(c, row)->customaction
-              == ONPLAY_CUSTOMACTION_SHUFFLE_LIST;
-}
-
 static struct tagentry* tagtree_get_entry(struct tree_context *c, int id)
 {
     struct tagentry *entry;
@@ -8158,9 +7942,10 @@ static void plain_text(char *text)
         *text = ' ';
 }
 
-/* A show's second line, from the sums kept as the list was made: what is
-   left of the episode begun, the newest of them; or how many are new and
-   the newest episode's date, "2 new · 9 Nov"; or how many it has */
+/* A show's second line, from the sums kept as the list was made: how many
+   are new, then what is left of the episode begun, the newest of them, "6
+   new · 13 min left", or else the newest episode's date, "2 new · 9 Nov";
+   what is left alone with none new; or how many it has */
 static const char *show_subline(struct tree_context *c,
                                 const struct tagentry *entry, char *buf,
                                 size_t size)
@@ -8170,24 +7955,29 @@ static const char *show_subline(struct tree_context *c,
         return NULL;
     const struct show_sums *sums =
         &((const struct show_sums *)song_groups(c))[-1 - k];
-    if (sums->started_idx >= 0)
-    {
-        long place;
-        if (episode_state(sums->started_idx, &place) == EPISODE_STARTED
-            && left_text(sums->started_idx, place, buf, size))
-            return buf;
-    }
+    char rest[96];
+    long place;
+    rest[0] = '\0';
+    /* nothing written without a place or a length */
+    if (sums->started_idx >= 0
+        && episode_state(sums->started_idx, &place) == EPISODE_STARTED)
+        left_text(sums->started_idx, place, rest, sizeof(rest));
     if (sums->unplayed > 0)
     {
-        char date[64];
+        if (!rest[0])
+            date_text(sums->newest, rest, sizeof(rest));
         const size_t len = snprintf(buf, size, str(LANG_EPISODES_NEW),
                                     (int)sums->unplayed);
         /* the count in blue, as the dot of an episode is */
         if (len < size)
             snprintf(buf + len, size - len,
-                     date_text(sums->newest, date, sizeof(date))
-                     ? "%c \xc2\xb7 %s" : "%c", /* U+00B7 */
-                     SUBLINE_ACCENT_END, date);
+                     rest[0] ? "%c \xc2\xb7 %s" : "%c", /* U+00B7 */
+                     SUBLINE_ACCENT_END, rest);
+        return buf;
+    }
+    if (rest[0])
+    {
+        strlcpy(buf, rest, size);
         return buf;
     }
     snprintf(buf, size, plural_str(sums->episodes, LANG_EPISODES_ONE,

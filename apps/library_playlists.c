@@ -1486,44 +1486,26 @@ static void note_copy_source(const char *file)
     }
 }
 
-/* The rows: Shuffle Songs first, all of the playlist's in random order, as
-   Settings > Shuffle in Lists has it, then its songs; none for one without
-   songs. The rows before the songs: Shuffle Songs' if there is one, for a
-   playlist of as many songs as the lists of Music have it for, its songs of
-   the library, which it plays */
-static int lp_lead(void)
-{
-    return 0; /* no Shuffle Songs row any more: Shuffle is the setting */
-}
-/* and those before the row the catalogue remembers, as it was left: the
-   setting, Reset Settings or songs taken out may have made them others */
-static int lp_selection_lead;
-
-/* and On-The-Go's last, as on a stock iPod: Save Playlist, Clear Playlist */
+/* The rows: the playlist's songs, none for one without songs; and
+   On-The-Go's last, as on a stock iPod: Save Playlist, Clear Playlist */
 static bool is_save_row(int row)
 {
-    return lp.otg && lp.count > 0 && row == lp_lead() + lp.count;
+    return lp.otg && lp.count > 0 && row == lp.count;
 }
 
 static bool is_clear_row(int row)
 {
-    return lp.otg && lp.count > 0 && row == lp_lead() + lp.count + 1;
+    return lp.otg && lp.count > 0 && row == lp.count + 1;
 }
 
 static bool is_song_row(int row)
 {
-    return row >= lp_lead() && row < lp_lead() + lp.count;
+    return row >= 0 && row < lp.count;
 }
 
 static int lp_rows(void)
 {
-    return lp.count > 0 ? lp_lead() + lp.count + (lp.otg ? 2 : 0) : 0;
-}
-
-static bool lp_shuffle_row(int row, void *data)
-{
-    (void)data;
-    return lp_lead() && row == 0;
+    return lp.count > 0 ? lp.count + (lp.otg ? 2 : 0) : 0;
 }
 
 static const char *lp_name(int row, void *data, char *buf, size_t size)
@@ -1531,13 +1513,11 @@ static const char *lp_name(int row, void *data, char *buf, size_t size)
     (void)data;
     (void)buf;
     (void)size;
-    if (lp_shuffle_row(row, NULL))
-        return str(LANG_SHUFFLE_SONGS);
     if (is_save_row(row))
         return str(LANG_SAVE_PLAYLIST);
     if (is_clear_row(row))
         return str(LANG_ON_THE_GO_CLEAR);
-    return lp.pool + lp.names[row - lp_lead()];
+    return lp.pool + lp.names[row];
 }
 
 /* Quick Scroll's letter of a song's row, in a playlist sorted by a column:
@@ -1558,7 +1538,7 @@ static const char *lp_initial(int row, void *data, char *buf, size_t size)
     if (!is_song_row(row) || size < 5)
         return NULL;
     const ucschar_t letter =
-        tagcache_initial(tag, tagcache_sort_key(lp.songs[row - lp_lead()].idx, tag));
+        tagcache_initial(tag, tagcache_sort_key(lp.songs[row].idx, tag));
     if (!letter)
         return NULL;
     *utf8encode(letter, (unsigned char *)buf) = '\0';
@@ -1569,18 +1549,17 @@ static bool lp_playing(int row, void *data)
 {
     (void)data;
     return is_song_row(row) && lp.from_this
-           && gui_synclist_playing() == (long)lp.songs[row - lp_lead()].idx + 1;
+           && gui_synclist_playing() == (long)lp.songs[row].idx + 1;
 }
 
-/* the music from this song on, or with song < 0 all of them shuffled, from
-   the playlist's file, written first if it's behind the list. False if it
-   didn't start. */
+/* the music from this song on, from the playlist's file, written first if
+   it's behind the list. False if it didn't start. */
 static bool lp_play(int song)
 {
     /* the song chosen is one sold with a lock on it: said, nothing changes */
     char path[MAX_PATH];
     struct tagcache_search tcs;
-    if (song >= 0 && tagcache_search(&tcs, tag_filename))
+    if (tagcache_search(&tcs, tag_filename))
     {
         const bool locked = tagcache_retrieve(&tcs, lp.songs[song].idx, tag_filename,
                                               path, sizeof(path))
@@ -1593,7 +1572,7 @@ static bool lp_play(int song)
         return false;
     /* Now Playing comes later than the slide's usual wait, as from Music */
     transition_wait(HZ);
-    if (lp.state.pending || (song >= 0 && lp.songs[song].line == LP_NO_LINE))
+    if (lp.state.pending || lp.songs[song].line == LP_NO_LINE)
     {
         /* the music from it plays on meanwhile: its file, open, is kept
            until it closes */
@@ -1601,7 +1580,7 @@ static bool lp_play(int song)
         if (!lp_write_file(lp.file, lp.songs, lp.total, &lp.state))
             return false;
         lp_index_write(lp.file, lp.songs, lp.total, &lp.state);
-        if (song >= 0 && lp.songs[song].line == LP_NO_LINE)
+        if (lp.songs[song].line == LP_NO_LINE)
             return false;
     }
     char dir[MAX_PATH];
@@ -1621,13 +1600,6 @@ static bool lp_play(int song)
     const int amount = playlist_amount();
     if (amount <= 0)
         return false;
-    if (song < 0)
-    {
-        /* whatever the Shuffle setting, as Shuffle Songs in the main menu */
-        playlist_shuffle_songs(current_tick, -1);
-        playlist_start(0, 0, 0);
-        return true;
-    }
     int start = MIN((int)lp.songs[song].line, amount - 1);
     if (global_settings.playlist_shuffle)
     {
@@ -1959,13 +1931,10 @@ int lp_view(const char *file, int *selection)
     gui_synclist_set_title(&list, title, Icon_Playlist);
     gui_synclist_set_icon_callback(&list, NULL);
     gui_synclist_set_playing_callback(&list, lp_playing);
-    gui_synclist_set_shuffle_callback(&list, lp_shuffle_row);
     gui_synclist_set_initial_callback(&list, lp_initial);
     gui_synclist_set_nb_items(&list, lp_rows());
-    /* at the row it was left at, or a new one at its first song, Shuffle
-       Songs above it */
-    int sel = selection && *selection >= 0
-              ? MAX(*selection - lp_selection_lead + lp_lead(), 0) : lp_lead();
+    /* at the row it was left at, or a new one at its first song */
+    int sel = selection && *selection >= 0 ? *selection : 0;
     if (lp.at_playing)
     {
         const long playing = gui_synclist_song_playing();
@@ -1973,7 +1942,7 @@ int lp_view(const char *file, int *selection)
         {
             if ((long)lp.songs[i].idx + 1 == playing)
             {
-                sel = lp_lead() + i;
+                sel = i;
                 break;
             }
         }
@@ -2050,24 +2019,15 @@ int lp_view(const char *file, int *selection)
                     break;
                 }
                 transition_begin(TRANSITION_FORWARD);
-                if (lp_shuffle_row(row, NULL))
-                {
-                    if (lp_play(-1))
-                        ret = PLAYLIST_VIEWER_OK;
-                    else
-                        transition_cancel();
-                    redraw = true;
-                    break;
-                }
                 /* the song playing, of this list: to it, paused or not */
                 lp.from_this = playing_from(lp.file);
                 if (lp.from_this && gui_synclist_song_playing()
-                                    == (long)lp.songs[row - lp_lead()].idx + 1)
+                                    == (long)lp.songs[row].idx + 1)
                 {
                     ret = PLAYLIST_VIEWER_OK;
                     break;
                 }
-                if (lp_play(row - lp_lead()))
+                if (lp_play(row))
                     ret = PLAYLIST_VIEWER_OK;
                 else
                     transition_cancel();
@@ -2077,12 +2037,11 @@ int lp_view(const char *file, int *selection)
             {
                 if (lp.count <= 0 || !is_song_row(row))
                     break;
-                const int lead = lp_lead();
                 /* On-The-Go's song out at once, as on a stock iPod */
                 if (lp.otg)
-                    lp_remove(row - lead);
+                    lp_remove(row);
                 else
-                    ret = lp_song_menu(row - lead);
+                    ret = lp_song_menu(row);
                 /* a song fewer, perhaps; none left of On-The-Go, back */
                 if (lp.otg && lp.count <= 0)
                 {
@@ -2090,11 +2049,9 @@ int lp_view(const char *file, int *selection)
                     ret = PLAYLIST_VIEWER_CANCEL;
                     break;
                 }
-                /* on the song after it still, Shuffle Songs gone above it
-                   if three are left */
+                /* on the song after it still */
                 gui_synclist_set_nb_items(&list, lp_rows());
-                gui_synclist_select_item(&list, MAX(MIN(row - lead + lp_lead(),
-                                                        lp_rows() - 1), 0));
+                gui_synclist_select_item(&list, MAX(MIN(row, lp_rows() - 1), 0));
                 redraw = true;
                 break;
             }
@@ -2116,10 +2073,7 @@ int lp_view(const char *file, int *selection)
         }
     }
     if (selection)
-    {
         *selection = gui_synclist_get_sel_pos(&list);
-        lp_selection_lead = lp_lead();
-    }
     pop_current_activity_without_refresh();
     if (!was_wide)
         menu_set_wide(false);

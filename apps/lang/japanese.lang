@@ -20715,13 +20715,13 @@
 </phrase>
 <phrase>
   id: LANG_SHUFFLE_IN_LISTS
-  desc: a row of Settings, after Music Menu, and the title of its screen: which kinds of Music's lists and of playlists have Shuffle Songs as their first row
+  desc: deprecated
   user: core
   <source>
-    *: "Shuffle in Lists"
+    *: ""
   </source>
   <dest>
-    *: "リストでシャッフル"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20729,13 +20729,13 @@
 </phrase>
 <phrase>
   id: LANG_SHUFFLE_ARTIST_ALBUMS
-  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an artist's or a composer's albums, playing all of their songs
+  desc: deprecated
   user: core
   <source>
-    *: "An Artist's Albums"
+    *: ""
   </source>
   <dest>
-    *: "アーティストのアルバム"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20743,13 +20743,13 @@
 </phrase>
 <phrase>
   id: LANG_SHUFFLE_ALBUM_SONGS
-  desc: a setting of Settings > Shuffle in Lists, On or Off: Shuffle Songs at the top of an album's songs
+  desc: deprecated
   user: core
   <source>
-    *: "An Album's Songs"
+    *: ""
   </source>
   <dest>
-    *: "アルバムの曲"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20757,13 +20757,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_PLAYLISTS
-  desc: the hint in the band under Settings > Shuffle in Lists while Playlists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "Shuffle Songs at the top of a playlist or On-The-Go plays all of its songs in a new order."
+    *: ""
   </source>
   <dest>
-    *: "プレイリストやOn-The-Goの先頭の「曲をシャッフル」は、すべての曲を新しい順序で再生します。"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20771,13 +20771,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_ARTISTS
-  desc: the hint in the band under Settings > Shuffle in Lists while Artists is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Artists, Shuffle Songs plays your whole library; in a genre, all of the genre's songs."
+    *: ""
   </source>
   <dest>
-    *: "「アーティスト」では「曲をシャッフル」でライブラリ全体を、ジャンルではそのジャンルの全曲を再生します。"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20785,13 +20785,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_ARTIST
-  desc: the hint in the band under Settings > Shuffle in Lists while An Artist's Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In an artist's or a composer's albums, Shuffle Songs plays all of their songs."
+    *: ""
   </source>
   <dest>
-    *: "アーティストや作曲者のアルバムでは、「曲をシャッフル」でその全曲を再生します。"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20799,13 +20799,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_ALBUMS
-  desc: the hint in the band under Settings > Shuffle in Lists while Albums is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Albums, Shuffle Songs plays your whole library, as in the main menu."
+    *: ""
   </source>
   <dest>
-    *: "「アルバム」では「曲をシャッフル」でライブラリ全体を再生します。メインメニューと同じです。"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20813,13 +20813,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_ALBUM
-  desc: the hint in the band under Settings > Shuffle in Lists while An Album's Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In an album, Shuffle Songs plays its songs in a new order."
+    *: ""
   </source>
   <dest>
-    *: "アルバムでは「曲をシャッフル」でその曲を新しい順序で再生します。"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20827,13 +20827,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_SONGS
-  desc: the hint in the band under Settings > Shuffle in Lists while Songs is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Songs, Shuffle Songs plays your whole library, as in the main menu."
+    *: ""
   </source>
   <dest>
-    *: "「曲」では「曲をシャッフル」でライブラリ全体を再生します。メインメニューと同じです。"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20841,13 +20841,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_GENRES
-  desc: the hint in the band under Settings > Shuffle in Lists while Genres is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Genres, Shuffle Songs plays your whole library. A genre's own list follows Artists."
+    *: ""
   </source>
   <dest>
-    *: "「ジャンル」では「曲をシャッフル」でライブラリ全体を再生します。ジャンル内のリストは「アーティスト」に従います。"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -20855,13 +20855,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_SHUFFLE_ROW_COMPOSERS
-  desc: the hint in the band under Settings > Shuffle in Lists while Composers is selected, in three lines at most: where its Shuffle Songs is and what it plays
+  desc: deprecated
   user: core
   <source>
-    *: "In Composers, Shuffle Songs plays your whole library. A composer's albums follow An Artist's Albums."
+    *: ""
   </source>
   <dest>
-    *: "「作曲者」では「曲をシャッフル」でライブラリ全体を再生します。作曲者のアルバムは「アーティストのアルバム」に従います。"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21135,7 +21135,7 @@
 </phrase>
 <phrase>
   id: LANG_EPISODES_NEW
-  desc: under a show's name in Music > Podcasts, before the newest episode's date (2 new · 9 Nov): how many of its episodes are new, not yet played; %d is their number, 1 or more, so in a form that fits any number
+  desc: under a show's name in Music > Podcasts, before the newest episode's date (2 new · 9 Nov) or what is left of the one begun (6 new · 13 min left): how many of its episodes are new, not yet played; %d is their number, 1 or more, so in a form that fits any number
   user: core
   <source>
     *: "%d new"

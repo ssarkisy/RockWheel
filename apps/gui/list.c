@@ -183,7 +183,6 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->callback_draw_block = NULL;
     gui_list->callback_get_subline = NULL;
     gui_list->callback_get_cover = NULL;
-    gui_list->callback_is_shuffle = NULL;
     gui_list->callback_get_hint = NULL;
     gui_list->playing_shown = 0;
     gui_list->callback_get_item_name = callback_get_item_name;
@@ -650,12 +649,6 @@ void gui_synclist_set_cover_callback(struct gui_synclist * lists,
         int (*get_cover)(int item, void *data, const fb_data **pixels))
 {
     lists->callback_get_cover = get_cover;
-}
-
-void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
-                                       list_is_shuffle is_shuffle_callback)
-{
-    lists->callback_is_shuffle = is_shuffle_callback;
 }
 
 void gui_synclist_set_initial_callback(struct gui_synclist *lists,

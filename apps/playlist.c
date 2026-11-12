@@ -4352,11 +4352,6 @@ int playlist_shuffle(int random_seed, int start_index)
                                 global_settings.playlist_shuffle == SHUFFLE_ALBUMS);
 }
 
-int playlist_shuffle_songs(int random_seed, int start_index)
-{
-    return shuffle_new_playlist(random_seed, start_index, false);
-}
-
 int playlist_shuffle_shown(void)
 {
     return global_settings.playlist_shuffle;

@@ -838,17 +838,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             list_text_vp->width - line_indent - LINE_COVER_SIZE : line_indent;
         if (cover != LIST_COVER_NONE)
             line_indent += LINE_COVER_SIZE + COVER_GAP;
-        /* a Shuffle Songs: its arrows where the text would start, the text
-           after them */
-        const int shuffle_x = line_indent;
-        const bool shuffle = list->callback_is_shuffle
-                             && list->callback_is_shuffle(i, list->data)
-                             && line_shuffle_width(display);
-        if (shuffle)
-            line_indent += line_shuffle_width(display);
         /* a playlist's or folder's mark, its name after its column */
         const int mark_x = line_indent;
-        const int mark = !shuffle && list->callback_get_mark ?
+        const int mark = list->callback_get_mark ?
                          list->callback_get_mark(i, list->data) : LINE_MARK_NONE;
         const int mark_w = mark != LINE_MARK_NONE ?
                            line_mark_column(display, mark) : 0;
@@ -857,7 +849,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
            even with its cell empty */
         char lead_buf[12];
         const int lead_x = line_indent;
-        const char *lead = lead_w && !shuffle && mark == LINE_MARK_NONE ?
+        const char *lead = lead_w && mark == LINE_MARK_NONE ?
             list->callback_get_lead(i, list->data, lead_buf, sizeof(lead_buf)) : NULL;
         if (lead)
             line_indent += lead_w;
@@ -1012,9 +1004,6 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                                  - line_ink_left(subline_font, subline) : 0),
                               list_info.y + name_h, SUBLINE_TOP_DY, &linedes,
                               subline);
-        if (shuffle)
-            line_draw_shuffle(display, list_info.x + shuffle_x, list_info.y,
-                              &linedes);
         /* an episode's right to left too, from the other end */
         if (mark != LINE_MARK_NONE)
             line_draw_mark(display, list_info.x

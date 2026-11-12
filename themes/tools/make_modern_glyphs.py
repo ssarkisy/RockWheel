@@ -24,9 +24,8 @@ import sys
 
 from make_theme_glyphs import HERE, ROOT, bmp, ident, read_png, rgb, table
 
-LIST = ("Chevron", "Speaker", "Shuffle", "Source", "Episode Dots", "Note Small",
-        "Note Header", "Check", "Plus", "Search Keys", "Search Field",
-        "Music Marks")
+LIST = ("Chevron", "Speaker", "Source", "Episode Dots", "Note Small", "Note Header",
+        "Check", "Plus", "Search Keys", "Search Field", "Music Marks")
 # what the screen shown over USB draws. The sign is three masks of one canvas:
 # the computer with its cable, the prohibition mark on its screen while it is
 # connected and the check once it may be unplugged; each is kept as its ink's

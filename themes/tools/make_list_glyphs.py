@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Draw the speaker that marks the song playing in a list, as on a stock iPod, the
-shuffle arrows of a list's Shuffle Songs, the marks of the catalogue's playlists and of
-a podcast's episodes, new and begun, and print them as the C arrays apps/gui/line.c
-draws them from; and the note of an album's header without a cover, which
+"""Draw the speaker that marks the song playing in a list, as on a stock iPod, the marks
+of the catalogue's playlists and of a podcast's episodes, new and begun, and print them
+as the C arrays apps/gui/line.c draws them from; and the note of an album's header
+without a cover, which
 apps/album_header.c draws, and of an album's row in a list, which line.c draws: alpha masks in Rockbox' format, 4 bits a pixel from 0 opaque to 15
 transparent, the low nibble first, the rows running on without padding, as the chevron's
 there. The firmware colours them, so they're the same in every theme. Plain Python, no
@@ -52,48 +52,6 @@ def speaker(x, y):
             if math.hypot(x - ex, y - ey) <= WAVE_THICK / 2:
                 return True
     return False
-
-
-# the shuffle arrows, as a stock iPod's: two lines from the left that cross on an S
-# each, then run level to a filled arrowhead at the right end, the upper one coming
-# from below; level on the middles of rows of pixels, sharp there
-SW, SH = 16, 12
-SHUF_Y = (2.5, 9.5)
-SHUF_X0, SHUF_BEND0, SHUF_BEND1 = 0.75, 3.0, 10.5
-SHUF_THICK = 1.5
-HEAD_TIP, HEAD_BASE, HEAD_HALF = 15.5, 11.5, 2.5
-
-
-def shuffle_path(y_from, y_to, steps=48):
-    points = [(SHUF_X0, y_from), (SHUF_BEND0, y_from)]
-    for i in range(1, steps):
-        t = i / steps
-        s = t * t * (3 - 2 * t)  # an S, level at both ends
-        points.append((SHUF_BEND0 + (SHUF_BEND1 - SHUF_BEND0) * t,
-                       y_from + (y_to - y_from) * s))
-    points += [(SHUF_BEND1, y_to), (HEAD_BASE + 0.5, y_to)]
-    return points
-
-
-SHUF_SEGMENTS = []
-for y_from, y_to in ((SHUF_Y[1], SHUF_Y[0]), (SHUF_Y[0], SHUF_Y[1])):
-    path = shuffle_path(y_from, y_to)
-    SHUF_SEGMENTS += list(zip(path, path[1:]))
-
-
-def near_segment(x, y, a, b, r):
-    (ax, ay), (bx, by) = a, b
-    dx, dy = bx - ax, by - ay
-    t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
-    return math.hypot(x - (ax + t * dx), y - (ay + t * dy)) <= r
-
-
-def shuffle(x, y):
-    for cy in SHUF_Y:
-        if HEAD_BASE <= x <= HEAD_TIP:
-            if abs(y - cy) <= HEAD_HALF * (HEAD_TIP - x) / (HEAD_TIP - HEAD_BASE):
-                return True
-    return any(near_segment(x, y, a, b, SHUF_THICK / 2) for a, b in SHUF_SEGMENTS)
 
 
 def rounded_rect_ring(x, y, x0, y0, x1, y1, r, thick):
@@ -229,7 +187,7 @@ def preview(cov, path, k=8):
 
 
 def main():
-    for name, inside, w, h in (('speaker', speaker, W, H), ('shuffle', shuffle, SW, SH),
+    for name, inside, w, h in (('speaker', speaker, W, H),
                                ('computer', computer, COMPUTER_W, COMPUTER_H),
                                ('ipod', ipod, IPOD_W, IPOD_H),
                                ('note', note, NOTE_W, NOTE_H),

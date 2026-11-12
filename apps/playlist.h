@@ -132,10 +132,8 @@ int playlist_create_from_index(const char *dir, const char *file, int fd,
 int playlist_place_of(const char *dir, const char *file, int count,
                       unsigned long seek);
 int playlist_resume(void);
-/* a new playlist shuffled by the setting, albums or songs; and by songs
-   whatever the setting */
+/* a new playlist shuffled by the setting, albums or songs */
 int playlist_shuffle(int random_seed, int start_index);
-int playlist_shuffle_songs(int random_seed, int start_index);
 /* Shuffle as shown beside the music: how its list is ordered; the setting
    with nothing playing, and for a show's or a book's own list */
 int playlist_shuffle_shown(void);

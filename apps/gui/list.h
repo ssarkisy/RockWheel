@@ -66,8 +66,6 @@ typedef bool list_has_children(int selected_item, void * data);
 typedef bool list_is_group(int item, void * data);
 /* whether a row is the song playing, paused too: a speaker at its right end */
 typedef bool list_is_playing(int item, void * data);
-/* whether an item is the list's Shuffle Songs, drawn with shuffle arrows */
-typedef bool list_is_shuffle(int item, void * data);
 /* the hint shown under the list while an item is selected, NULL for none */
 typedef const char *list_get_hint(int item, void * data);
 
@@ -229,7 +227,6 @@ struct gui_synclist
        what a row has there (enum list_cover), the cover's pixels in *pixels
        for LIST_COVER_PIXELS, which stay where they are. Can be NULL */
     int (*callback_get_cover)(int item, void *data, const fb_data **pixels);
-    list_is_shuffle *callback_is_shuffle; /* can be NULL */
     /* a list with hints has a band for them under its rows, can be NULL */
     list_get_hint *callback_get_hint;
     /* the song playing as the list was last drawn (gui_synclist_playing()) */
@@ -345,8 +342,6 @@ extern void gui_synclist_set_cover_callback(struct gui_synclist * lists,
    second lines, lighter than the list's own */
 extern int list_two_lines_height(int font);
 extern int list_subline_font(int list_font);
-extern void gui_synclist_set_shuffle_callback(struct gui_synclist * lists,
-                                              list_is_shuffle is_shuffle_callback);
 extern void gui_synclist_set_hint_callback(struct gui_synclist * lists,
                                            list_get_hint get_hint_callback);
 extern void gui_synclist_set_initial_callback(struct gui_synclist *lists,

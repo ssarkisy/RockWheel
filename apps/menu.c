@@ -185,8 +185,6 @@ static const struct {
     { &global_settings.coverflow_pause, LANG_HINT_COVER_FLOW_PAUSE },
 #ifdef HAVE_TAGCACHE
     { &global_settings.smart_search, LANG_HINT_SMART_SEARCH },
-    /* Shuffle in Lists: where each row of Shuffle Songs is and what it
-       plays */
 #endif
 };
 
