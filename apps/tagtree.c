@@ -7869,10 +7869,8 @@ int tagtree_lead_digits(struct tree_context *c)
 {
     /* of the list made last, which Music's own menu isn't; a year's four,
        unless it's under the name */
-    if (c->currtable == TABLE_ROOT)
+    if (c->currtable == TABLE_ROOT || entries_two_lines)
         return 0;
-    if (entries_two_lines) /* Songs by year: the year stays before the title */
-        return entries_songs_by == SONGS_BY_YEAR ? 4 : 0;
     return entries_years ? 4 : entries_tracks;
 }
 
@@ -8430,11 +8428,26 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
     if (entries_shows)
         return entries_books ? book_subline(c, entry, buf, size)
                              : show_subline(c, entry, buf, size);
-    /* in Songs the artist, and by album the album */
+    /* in Songs the artist, and by album the album; by year the year before
+       the artist, "1979 · Michael Jackson", as an album's row has it */
     if (entry->newtable == TABLE_PLAYTRACK && entries_songs_by >= 0)
-        return song_tag_name(entry->extraseek,
-                             entries_songs_by == SONGS_BY_ALBUM ? tag_album
-                             : tag_virt_canonicalartist, buf, size);
+    {
+        size_t len = 0;
+        if (entries_songs_by == SONGS_BY_YEAR && entry->album.year > 0)
+            len = snprintf(buf, size, "%d \xc2\xb7 ", entry->album.year);
+        if (len >= size)
+            return NULL;
+        const char *name = song_tag_name(entry->extraseek,
+                                         entries_songs_by == SONGS_BY_ALBUM ? tag_album
+                                         : tag_virt_canonicalartist,
+                                         buf + len, size - len);
+        if (!name)
+            return NULL;
+        /* a phrase's text, of a song without the tag, isn't in the buffer */
+        if (name != buf + len)
+            strlcpy(buf + len, name, size - len);
+        return buf;
+    }
     if (entry->newtable == TABLE_PLAYTRACK)
         return song_tag_name(entry->extraseek, entries_initials_tag, buf, size);
     const bool albums = (is_albums(csi) || is_recent(csi)) && c->currextra == 0;
@@ -8494,14 +8507,9 @@ const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
         || row >= c->filesindir)
         return NULL;
     const struct tagentry *entry = tagtree_get_entry(c, row);
-    /* One without a year has a dash in its place, its name in line with the
-       others, which it comes after. In two lines the row keeps its year as a
-       number, with its album's. */
+    /* one without a year has a dash in its place, its name in line with the
+       others, which it comes after */
     static const char no_year[] = "\xe2\x80\x93"; /* U+2013 */
-    if (entry && entries_two_lines)
-        return entry->newtable != TABLE_PLAYTRACK ? NULL
-               : entry->album.year > 0 ? itoa_buf(buf, size, entry->album.year)
-               : no_year;
     if (!entry)
         return NULL;
     /* in Recently Added, whose dated and undated albums are mixed, nothing */
