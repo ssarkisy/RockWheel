@@ -1381,6 +1381,7 @@ static void ram_kinds_refresh(void)
     if (base)
         core_put_data_pinned((void *)base);
     states_generation++;
+    song_count = -1;
 }
 
 /* the index of the entry in memory idx points at, or -1 */
@@ -8879,6 +8880,7 @@ static void load_ramcache(void)
         free_ram_names();
 #endif
     tc_stat.ramcache = loaded;
+    song_count = -1; /* counted again, by the kinds now in memory or without */
 
     /* Stopped by USB, as on connecting the iPod just after it started, it is
        loaded again once idle: taken for a failure, the database was off until
@@ -8922,6 +8924,7 @@ static void reallocate_ramcache(void)
 void tagcache_unload_ramcache(void)
 {
     tc_stat.ramcache = false;
+    song_count = -1;
 #ifndef __PCTOOL__
     free_ram_names();
 #endif
@@ -9165,8 +9168,11 @@ static void count_songs(void)
     if (tc_stat.ramcache)
     {
         tcrc_buffer_lock();
+        /* music alone, as Music's lists: every kind reads 0 without the
+           kinds in memory, and the lists then have every track too */
         for (int i = 0; i < current_tcmh.tch.entry_count; i++)
-            if (!(tcramcache.hdr->indices[i].flag & FLAG_DELETED))
+            if (!(tcramcache.hdr->indices[i].flag & FLAG_DELETED)
+                && ram_kind(i) == 0)
                 count++;
         tcrc_buffer_unlock();
         song_count = count;

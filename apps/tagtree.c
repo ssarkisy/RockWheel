@@ -2903,7 +2903,7 @@ static void songs_order_apply(struct tagentry *e, int n, struct song_place *rows
 /* raised with the keys, their order or the file's layout, and with what is
    made of the albums' dates: album_date_order(), album_date_year()
    (album_years.c) and date_key() */
-#define SONGS_ORDERS_VERSION 1
+#define SONGS_ORDERS_VERSION 2 /* 2: of music alone */
 #define SONGS_ORDERS         3 /* by artist, album and year, in SONGS_BY_'s order */
 struct songs_orders_header {
     uint32_t magic, version;
@@ -3551,6 +3551,37 @@ static int make_all_songs(struct tree_context *c, int extra, bool init);
 
 static bool in_section(int lang);
 
+/* Music's lists but Podcasts' and Audiobooks' are of music alone, when the
+   tracks' kinds are in memory. The same test is in the lists' ids
+   (list_hash()) and the songs' count (count_songs()), so that a list, its
+   playlist's file and a count are always of one set of tracks. */
+static bool music_only(const struct search_instruction *si)
+{
+    return si && tagcache_kinds_known() && !section_is(si, LANG_PODCASTS)
+           && !section_is(si, LANG_AUDIOBOOKS);
+}
+
+static struct tagcache_search_clause music_clause = {
+    .tag = tag_virt_kind, .type = clause_is, .numeric = true, .numeric_data = 0,
+};
+
+/* whether an album of the table of years has a song of music */
+static bool album_has_music(int no)
+{
+    static char buf[TAGCACHE_BUFSZ];
+    struct tagcache_search tcs;
+    const int32_t first = album_years_first_track(no);
+    if (first < 0 || tagcache_track_kind(first) == 0
+        || !tagcache_search(&tcs, tag_title))
+        return true;
+    tagcache_search_add_filter(&tcs, tag_album, album_years_album(no));
+    tagcache_search_add_filter(&tcs, tag_albumartist, album_years_artist(no));
+    tagcache_search_add_clause(&tcs, &music_clause);
+    const bool found = tagcache_get_next(&tcs, buf, sizeof(buf));
+    tagcache_search_finish(&tcs);
+    return found;
+}
+
 /* A list's conditions, of its levels down to last. Podcasts' and Audiobooks'
    name the kind and then say it again by file name and genre, for a database
    not in memory: with the kinds in memory the kind alone is asked, or every
@@ -3559,6 +3590,10 @@ static void add_list_clauses(struct tagcache_search *tcs, int last)
 {
     const int kind = in_section(LANG_PODCASTS) ? 1
                      : in_section(LANG_AUDIOBOOKS) ? 2 : 0;
+    /* Songs' own rows are filtered as they come instead (make_entries()):
+       a condition would bring them in the database's order, not by name */
+    if (music_only(csi) && !is_songs(csi))
+        tagcache_search_add_clause(tcs, &music_clause);
     for (int i = 0; i <= last && i < csi->tagorder_count; i++)
     {
         const struct tagcache_search_clause *first =
@@ -3863,7 +3898,11 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     if (shows)
         tagcache_search_set_match(&tcs, shows_match, &counting);
 
-    if (level || is_basename|| csi->clause_count[0] || TAGCACHE_IS_NUMERIC(tag))
+    /* Songs' rows are the songs': of music alone, as they come by name */
+    const bool songs_music = level == 0 && tag == tag_title
+        && c->currtable == TABLE_NAVIBROWSE && is_songs(csi) && music_only(csi);
+    if (level || is_basename|| csi->clause_count[0] || TAGCACHE_IS_NUMERIC(tag)
+        || (music_only(csi) && !songs_music))
         sort = true;
 
     add_level_filters(&tcs, level);
@@ -3961,7 +4000,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
 
     while (tagcache_get_next(&tcs, tcs_buf, tcs_bufsz))
     {
-        if (composers && !strcmp(tcs.result, UNTAGGED))
+        if ((composers && !strcmp(tcs.result, UNTAGGED))
+            || (songs_music && tagcache_track_kind(tcs.idx_id) != 0))
             continue;
         if (total_count++ < skip)
             continue;
@@ -4217,14 +4257,17 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     {
         struct tagentry *entries = get_entries(c);
         const int first = c->special_entry_count;
+        const bool music = music_only(csi);
         bool split = global_settings.album_artists;
         int more = 0;
         for (i = first; i < current_entry_count && split; i++)
         {
-            int n = 0;
-            if (entries[i].extraseek != entries_untagged)
-                album_years_find(entries[i].extraseek, &n);
-            more += MAX(n - 1, 0);
+            int n = 0, shown = 0;
+            const int no = entries[i].extraseek != entries_untagged
+                           ? album_years_find(entries[i].extraseek, &n) : -1;
+            for (int k = 0; k < n; k++)
+                shown += !music || album_has_music(no + k);
+            more += MAX(shown - 1, 0);
         }
         if (current_entry_count + more + 1 >= c->cache.max_entries / 2)
         {
@@ -4238,14 +4281,33 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             const bool unknown = row.extraseek == entries_untagged;
             int n = 0;
             const int no = unknown ? -1 : album_years_find(row.extraseek, &n);
-            const int rows = split && no >= 0 ? n : 1;
-            for (int k = rows - 1; k >= 0; k--)
+            /* of the name's albums, those of music: a show of the name
+               isn't a row here */
+            int rows = 0, k = n;
+            for (int j = 0; j < n; j++)
+                rows += !music || album_has_music(no + j);
+            const bool each = split && rows > 0;
+            if (!each)
+                rows = 1;
+            while (rows-- > 0)
             {
                 struct tagentry *e = &entries[--to];
                 *e = row;
+                if (each)
+                {
+                    do
+                        k--;
+                    while (k > 0 && music && !album_has_music(no + k));
+                }
+                else
+                {
+                    /* the first of them that has music, for the row's cover */
+                    for (k = 0; music && k < n - 1 && !album_has_music(no + k); k++)
+                        ;
+                }
                 e->album.no = no < 0 ? -1 : no + k;
                 e->album.year = unknown ? YEAR_LAST
-                    : rows > 1 ? album_years_year(no + k)
+                    : each && n > 1 ? album_years_year(no + k)
                     : album_name_year(row.extraseek);
             }
         }
@@ -4418,7 +4480,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             counted = false;
             break;
         }
-        if (!(composers && !strcmp(tcs.result, UNTAGGED)))
+        if (!(composers && !strcmp(tcs.result, UNTAGGED))
+            && !(songs_music && tagcache_track_kind(tcs.idx_id) != 0))
             total_count++;
     }
 
@@ -5135,6 +5198,12 @@ static bool go_to_row(int item_tag, int list_tag, const char *name,
             if (row < 0)
                 row = item_list_row(c, item, item_tag, list_tag, name, artist);
         }
+        /* a show's or a book's name, which Albums of music alone hasn't: the
+           row of its own list */
+        static const int own_lists[] = { LANG_PODCASTS, LANG_AUDIOBOOKS };
+        for (size_t i = 0; own == OWN_BY_ROW && row < 0 && i < ARRAYLEN(own_lists); i++)
+            row = item_list_row(c, root_item_of(own_lists[i]), tag_album,
+                                tag_album, name, -1);
     }
     if (row < 0)
     {
@@ -7193,16 +7262,16 @@ bool tagtree_shuffle_songs(void)
     int seen = 0;
     while (ok && added < max && tagcache_get_next(&tcs, buf, sizeof buf))
     {
-        if (!buf[0])
-            continue; /* the entry of a removed file */
+        /* the entry of a removed file; a podcast or a book, which the
+           count hasn't either */
+        if (!buf[0] || tagcache_track_kind(tcs.idx_id) != 0)
+            continue;
         /* selection sampling: each of the remaining songs gets picked
            with the chance there are slots left for it */
         int i = seen++;
         if (count > max && i < count && rand() % (count - i) >= max - added)
             continue;
-        /* nor a podcast or a book copied by hand */
-        if ((itunesdb_track_flags(buf) & ITUNESDB_SKIP_SHUFFLE)
-            || tagcache_track_kind(tcs.idx_id) != 0)
+        if (itunesdb_track_flags(buf) & ITUNESDB_SKIP_SHUFFLE)
             continue;
         ok = playlist_writer_add(&writer, buf);
         added++;
@@ -7301,6 +7370,9 @@ static uint32_t list_hash(int table, int extra, const struct search_instruction 
         LIST_ID_ADD(0x45504953u); /* "EPIS" */
         LIST_ID_ADD(tree_get_context()->cache.max_entries);
     }
+    /* of music alone: not the id of a file written with every track */
+    if (music_only(si))
+        LIST_ID_ADD(0x4d555349u); /* "MUSI" */
     LIST_ID_ADD(si->tagorder_count);
     for (int i = 0; i < si->tagorder_count; i++)
     {
