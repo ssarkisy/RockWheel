@@ -1393,9 +1393,20 @@ static int go_to_playing_callback(int action, const struct menu_item_ex *this_it
         return ACTION_EXIT_MENUITEM;
     return action;
 }
+/* none for an episode or a book's part: Artists lists music, and its author
+   is no row there */
+static int go_to_artist_callback(int action, const struct menu_item_ex *this_item,
+                                 struct gui_synclist *this_list)
+{
+    const struct mp3entry *id3 = audio_current_track();
+    if (action == ACTION_REQUEST_MENUITEM && id3
+        && tagcache_track_kind(id3->tagcache_idx - 1) != 0)
+        return ACTION_EXIT_MENUITEM;
+    return go_to_playing_callback(action, this_item, this_list);
+}
 MENUITEM_FUNCTION(go_to_artist_item,
                   MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
-                  ID2P(LANG_GO_TO_ARTIST), go_to_artist, go_to_playing_callback,
+                  ID2P(LANG_GO_TO_ARTIST), go_to_artist, go_to_artist_callback,
                   Icon_NOICON);
 MENUITEM_FUNCTION(go_to_album_item,
                   MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
@@ -1476,7 +1487,8 @@ static int song_go_to_callback(int action, const struct menu_item_ex *this_item,
         case CONTEXT_STD:
             return selected_file.path
                    && (selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_AUDIO
-                   && tagtree_ready() && tagcache_is_usable() ?
+                   && tagtree_ready() && tagcache_is_usable()
+                   && (album || tagcache_path_kind(selected_file.path) == 0) ?
                    action : ACTION_EXIT_MENUITEM;
         default:
             return ACTION_EXIT_MENUITEM;

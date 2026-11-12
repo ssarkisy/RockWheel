@@ -5384,8 +5384,10 @@ bool tagtree_row_goes_to(bool album)
     const struct tagentry *entry = tagtree_get_entry(c, c->selected_item);
     if (!entry)
         return false;
+    /* no Go to Artist on an episode or a book's part: Artists lists music */
     if (entry->newtable == TABLE_PLAYTRACK)
-        return !album || !album_list(c);
+        return album ? !album_list(c)
+                     : tagcache_track_kind(entry->extraseek) == 0;
     return !album && c->currtable == TABLE_NAVIBROWSE
            && c->currextra < csi->tagorder_count
            && csi->tagorder[c->currextra] == tag_album;
