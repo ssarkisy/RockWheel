@@ -1207,6 +1207,150 @@ static bool make_phases(int width, int height, unsigned wanted)
     return true;
 }
 
+/* The picture's rows shrunk into the block as the decoder makes them, at
+   the size its IDCT gives: the cover's or more, under twice. Each pixel of
+   the cover is the mean of the picture's it covers, by their parts of 256,
+   as resize.c's scaler has it, but of colours already in RGB, as a picture
+   decoded straight to the size: the scaler takes the mean in YUV. Its
+   tables and rows are at the block's end, where the scaler's rows would
+   be. */
+struct sink_tap
+{
+    uint16_t at[3];     /* the picture's pixels one of the cover's covers */
+    uint16_t part[3];   /* and each one's part of it, of 256 */
+};
+struct sink
+{
+    struct sink_tap column[ART_MENU_SIZE], row[ART_MENU_SIZE];
+    uint8_t line[ART_MENU_SIZE][3];     /* a row of the picture across */
+    uint16_t sum[2][ART_MENU_SIZE][3];  /* the cover's row in the making,
+                                           and the next */
+    int width, height;                  /* the cover's */
+    int next;                           /* its row to come */
+};
+
+static struct sink *sink_at(void)
+{
+    return (struct sink *)((unsigned char *)sharp.pixels + SHARP_BYTES
+                           - sizeof(struct sink));
+}
+
+/* one way: from of the picture's pixels to to of the cover's. The pixels
+   past the last one covered are that one again, of no part. */
+static void sink_taps(struct sink_tap *tap, int from, int to)
+{
+    for (int i = 0; i < to; i++, tap++)
+    {
+        /* in to-ths of a pixel of the picture */
+        const long start = (long)i * from, end = start + from;
+        const int first = start / to, last = (end - 1) / to;
+        int left = 256, most = 0;
+        for (int k = 0; k < 3; k++)
+        {
+            const long a = MAX(start, (long)(first + k) * to);
+            const long b = MIN(end, (long)(first + k + 1) * to);
+            tap->at[k] = MIN(first + k, last);
+            tap->part[k] = b > a ? (b - a) * 256 / from : 0;
+            left -= tap->part[k];
+            if (tap->part[k] > tap->part[most])
+                most = k;
+        }
+        tap->part[most] += left;
+    }
+}
+
+static void sink_row(uint32_t y, void *row_in, struct scaler_context *ctx)
+{
+    struct sink *sink = sink_at();
+    const struct uint8_rgb *in = row_in;
+    const int width = sink->width;
+    for (int x = 0; x < width; x++)
+    {
+        const struct sink_tap *tap = &sink->column[x];
+        const struct uint8_rgb *a = in + tap->at[0], *b = in + tap->at[1],
+                               *c = in + tap->at[2];
+        const unsigned pa = tap->part[0], pb = tap->part[1], pc = tap->part[2];
+        sink->line[x][0] = (a->red * pa + b->red * pb + c->red * pc + 128) >> 8;
+        sink->line[x][1] = (a->green * pa + b->green * pb + c->green * pc
+                            + 128) >> 8;
+        sink->line[x][2] = (a->blue * pa + b->blue * pb + c->blue * pc + 128) >> 8;
+    }
+    /* into the cover's rows it is part of, two at most; the one it ends
+       goes into the block, dithered as bmp.c's output_row_8_native() */
+    for (int j = sink->next; j < sink->height && sink->row[j].at[0] <= y; j++)
+    {
+        const struct sink_tap *tap = &sink->row[j];
+        const unsigned part = tap->part[y - tap->at[0]];
+        uint16_t (*sum)[3] = sink->sum[j & 1];
+        for (int x = 0; x < width; x++)
+        {
+            sum[x][0] += part * sink->line[x][0];
+            sum[x][1] += part * sink->line[x][1];
+            sum[x][2] += part * sink->line[x][2];
+        }
+        if (y != tap->at[2])
+            continue;
+        fb_data *to = sharp.pixels + j * width;
+        const int dy = DITHERY(j);
+        for (int x = 0; x < width; x++)
+        {
+            const int delta = ctx->dither ? DITHERXDY(x, dy) : 127;
+            unsigned r = (sum[x][0] + 128) >> 8, g = (sum[x][1] + 128) >> 8,
+                     b = (sum[x][2] + 128) >> 8;
+            r = (31 * r + (r >> 3) + delta) >> 8;
+            g = (63 * g + (g >> 2) + delta) >> 8;
+            b = (31 * b + (b >> 3) + delta) >> 8;
+            to[x] = FB_RGBPACK_LCD(r, g, b);
+        }
+        memset(sum, 0, sizeof(sink->sum[0]));
+        sink->next = j + 1;
+    }
+}
+
+/* where the decoder's room begins: past all of the block's pixels */
+static unsigned int sink_size(struct bitmap *bm)
+{
+    (void)bm;
+    return sizeof(menu_art.pixels);
+}
+
+/* a side as the decoder's IDCT makes it: an eighth, a quarter, a half or
+   all of it, the smallest not under to (jpeg_load.c's calc_scale()) */
+static int idct_side(int side, int to)
+{
+    int shift = 0;
+    while (shift < 3 && (side << shift) < 8 * to)
+        shift++;
+    return (side << shift) >> 3;
+}
+
+/* The sink for a picture of that size decoded to bm's, which becomes the
+   IDCT's; NULL, and bm as it was, if that is the cover's own size, which
+   needs none, or twice it and over, as of a picture 3840 pixels a side:
+   the scaler's then */
+static const struct custom_format *sink_for(struct bitmap *bm, int own_width,
+                                            int own_height)
+{
+    static const struct custom_format format =
+        { .output_row_8 = sink_row, .get_size = sink_size };
+    const int width = bm->width, height = bm->height;
+    const int from_width = idct_side(own_width, width);
+    const int from_height = idct_side(own_height, height);
+    if ((from_width == width && from_height == height)
+        || from_width >= 2 * width || from_height >= 2 * height)
+        return NULL;
+    struct sink *sink = sink_at();
+    sink_taps(sink->column, from_width, width);
+    sink_taps(sink->row, from_height, height);
+    memset(sink->sum, 0, sizeof(sink->sum));
+    sink->width = width;
+    sink->height = height;
+    sink->next = 0;
+    bm->width = from_width;
+    bm->height = from_height;
+    return &format;
+}
+
 /* 1 decoded into the block, to the job's size; 0 not looked at or stopped;
    -1 none that would be sharper, or of the cover's proportions, or that
    decodes, as a progressive one, or a read that failed */
@@ -1238,8 +1382,12 @@ static int sharp_decode(int fd, int width, int height)
     /* as list_covers.c */
     ata_dma_yield_always(true);
 #endif
+    /* the picture's own size again, of across and down */
+    const struct custom_format *sink = sink_for(&bm, across / height,
+                                                down / width);
     const int rc = clip_jpeg_fd(fd, sharp.aa.type, sharp.aa.size, &bm,
-                                SHARP_BYTES, format | FORMAT_RESIZE, NULL);
+                                SHARP_BYTES - (sink ? sizeof(struct sink) : 0),
+                                format | FORMAT_RESIZE, sink);
 #if DISK_SPINS && defined(HAVE_ATA_DMA)
     ata_dma_yield_always(false);
 #endif
