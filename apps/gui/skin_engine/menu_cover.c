@@ -117,6 +117,8 @@ static struct
     volatile bool to_read, reading;
     volatile int fd;        /* the song's while it's decoded, or -1 */
     volatile bool hold;     /* the reader waits: little music is buffered */
+    unsigned reader;        /* its thread, while it reads */
+    bool raised;            /* that thread has the UI's priority and turn */
     volatile bool came;     /* shown, not on the screen yet */
     /* With Moving Cover on, two more copies of the cover it holds, in a
        block of their own: a quarter and three quarters of a pixel on, the
@@ -767,6 +769,22 @@ static bool disk_free(void)
 #endif
 }
 
+/* The reader's turn. At the background's priority, a block of the picture
+   to a yield, it has what the other threads leave, and at a track's start,
+   as the song is buffered and decoded ahead, they leave little. */
+#define SHARP_PCM_OVER 1000
+static void reader_turn(bool raised)
+{
+    if (raised == sharp.raised)
+        return;
+    sharp.raised = raised;
+#ifdef HAVE_PRIORITY_SCHEDULING
+    thread_set_priority(sharp.reader, raised ? PRIORITY_USER_INTERFACE
+                                             : PRIORITY_BACKGROUND);
+#endif
+    jpeg_turn_thread = raised ? sharp.reader : 0;
+}
+
 /* what's buffered to play: 16 bits, two channels */
 static unsigned long pcm_ms(void)
 {
@@ -811,6 +829,9 @@ static void sharp_look(bool shows)
                                              : SHARP_PCM_FLOOR;
     sharp.hold = playing && sharp.reading && ms < least;
     jpeg_hold_fd = sharp.hold ? sharp.fd : -1;
+    reader_turn(playing && sharp.reading && ms >= least + SHARP_PCM_OVER
+                && action_waiting() && button_queue_empty()
+                && !TIME_BEFORE(current_tick, action_last_tick() + SHARP_REST));
 #if DISK_SPINS
     if (busy && disk_spins())
         storage_spin();
@@ -1157,6 +1178,7 @@ void menu_cover_read(void)
 {
     const unsigned wanted = sharp.wanted;
     sharp.to_read = false;
+    sharp.reader = thread_self();
     if (sharp.job_phases)
     {
         /* the cover is held, and may be drawn: only read here; not held any
@@ -1171,6 +1193,7 @@ void menu_cover_read(void)
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
         cpu_boost(false);
 #endif
+        reader_turn(false);
         sharp.reading = sharp.hold = false;
         if (made && wanted == sharp.wanted && sharp.held && sharp.phase[0])
             sharp.phased = true;
@@ -1225,6 +1248,7 @@ void menu_cover_read(void)
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
     cpu_boost(false);
 #endif
+    reader_turn(false);
     sharp.reading = sharp.hold = false;
     if (wanted != sharp.wanted)
         return;

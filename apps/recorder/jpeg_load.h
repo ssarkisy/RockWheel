@@ -81,6 +81,9 @@ extern volatile int jpeg_stop_fd;
 /* and the decode that reads this one waits, before each row and after each
    block of the picture, while it is: put back with the other */
 extern volatile int jpeg_hold_fd;
+/* and this thread's decodes yield once a tick, not after each block, while
+   the UI waits for a key; 0 for none */
+extern volatile unsigned jpeg_turn_thread;
 #endif
 
 #endif /* _JPEG_JPEG_DECODER_H */

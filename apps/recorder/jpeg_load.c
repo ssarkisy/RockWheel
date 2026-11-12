@@ -156,6 +156,22 @@ volatile int jpeg_stop_fd = -1;
 volatile int jpeg_hold_fd = -1;
 #define JPEG_HELD(p_jpeg) (UNLIKELY((p_jpeg)->fd == jpeg_hold_fd) \
                            && (p_jpeg)->fd != jpeg_stop_fd)
+volatile unsigned jpeg_turn_thread;
+
+/* between two blocks: the thread given its turn goes on to the tick's end,
+   while the UI waits for a key and none has come */
+static inline void block_yield(void)
+{
+    static long turn;
+    if (LIKELY(thread_self() != jpeg_turn_thread) || current_tick != turn
+        || !action_waiting() || !button_queue_empty())
+    {
+        yield();
+        turn = current_tick;
+    }
+}
+#else
+#define block_yield() yield()
 #endif
 
 INLINE unsigned range_limit(int value)
@@ -2011,7 +2027,7 @@ block_end:
                 }
             } /* for blkn */
             /* don't starve other threads while an MCU row decodes */
-            yield();
+            block_yield();
 #ifdef JPEG_STOPPABLE
             while (JPEG_HELD(p_jpeg))
                 sleep(1);
