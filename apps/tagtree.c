@@ -662,9 +662,6 @@ static struct tagtree_place saved_place, go_to_place;
    in its menu, to go back to (tagtree_browse_from_row()); and a place held for
    a moment */
 static struct tagtree_place browse_place, scratch_place;
-/* the list a show's or a book's screen was opened from, where that list was
-   gone to in place itself (own_level) */
-static struct tagtree_place own_place;
 
 /* Artists' search with the other artists at its top, out of tagtree's buffer, as
    go_to_row() makes it: [0] of the albums' artists, [1] of the songs'. Each is
@@ -703,7 +700,7 @@ static int move_callback(int handle, void* current, void* new)
     if (csi && in_buffer(csi, current))
         UPDATE(csi, diff);
     struct tagtree_place *const places[] = {
-        &saved_place, &go_to_place, &browse_place, &scratch_place, &own_place
+        &saved_place, &go_to_place, &browse_place, &scratch_place
     };
     for (size_t i = 0; i < ARRAYLEN(places); i++)
     {
@@ -5113,13 +5110,6 @@ static int find_album_row(struct tree_context *c, const char *name,
 }
 
 static int own_section(int idx);
-static int album_row_section(struct tree_context *c, const struct tagentry *row,
-                             int *song);
-
-/* A show's and a book's own screens, Podcasts' and Audiobooks': a row of
-   theirs in another list of albums opens them (tagtree_enter()), but for
-   the rows go_to_row() enters itself */
-static bool own_screens_off;
 
 /* The list of Music's item entered from Music's own menu, made of list_tag
    as go_to_row() has it, and the row of name in it: -1 without the item or
@@ -5152,8 +5142,8 @@ static int item_list_row(struct tree_context *c, int item, int item_tag,
     return find_album_row(c, name, artist);
 }
 
-/* An album's row asked for by its name alone (Search), for own: the section
-   is by all the songs of the row found */
+/* An album asked for by its name alone (Search), for own: a show's or a
+   book's is the row of its own list, which Albums hasn't */
 #define OWN_BY_ROW (-1)
 
 /* The list of them at the top of Music entered, and the row of name in it, as
@@ -5182,22 +5172,11 @@ static bool go_to_row(int item_tag, int list_tag, const char *name,
             && si->clause_count[0] == 0 && !is_recent(si))
             item = i;
     }
-    /* the rows entered here are entered as they are */
-    own_screens_off = true;
     if (own > 0)
         row = item_list_row(c, root_item_of(own), tag_album, tag_album, name, -1);
     if (row < 0)
     {
         row = item_list_row(c, item, item_tag, list_tag, name, artist);
-        const int lang = own == OWN_BY_ROW && row >= 0 ?
-                         album_row_section(c, tagtree_get_entry(c, row), NULL) : 0;
-        if (lang)
-        {
-            row = item_list_row(c, root_item_of(lang), tag_album, tag_album,
-                                name, -1);
-            if (row < 0)
-                row = item_list_row(c, item, item_tag, list_tag, name, artist);
-        }
         /* a show's or a book's name, which Albums of music alone hasn't: the
            row of its own list */
         static const int own_lists[] = { LANG_PODCASTS, LANG_AUDIOBOOKS };
@@ -5207,13 +5186,11 @@ static bool go_to_row(int item_tag, int list_tag, const char *name,
     }
     if (row < 0)
     {
-        own_screens_off = false;
         place_restore(back, dirlevel, selected_item);
         return false;
     }
     c->selected_item = row;
     tagtree_enter(c, true);
-    own_screens_off = false;
     tagtree_load(c);
     return true;
 }
@@ -5314,19 +5291,10 @@ bool tagtree_go_to_playing(bool artist, int *dirlevel, int *selected_item)
    Cover Flow instead, gone back to at the album of that song */
 static int browse_level = -1;
 static int browse_cover_flow = -1;
-/* And the level of a show's or a book's screen opened from an album's row of
-   a list that was itself gone to in place (own_screen_from_row()): Menu
-   there back to that list, own_place, which goes back in its turn. -1 for
-   none; over browse_level while it is set. */
-static int own_level = -1;
 
 /* The first song of a row that isn't one, of the list: as the list's search
-   finds it, by the rows chosen on the way and the row's own tag. -1 if none.
-   With one_kind, whether the row's other songs are of that song's kind
-   (tagcache_track_kind()) too: they are gone through only if it isn't
-   music's. */
-static int row_first_song(struct tree_context *c, const struct tagentry *entry,
-                          bool *one_kind)
+   finds it, by the rows chosen on the way and the row's own tag. -1 if none */
+static int first_song_of(struct tree_context *c, const struct tagentry *entry)
 {
     struct tagcache_search tcs;
     const int level = c->currextra;
@@ -5346,21 +5314,9 @@ static int row_first_song(struct tree_context *c, const struct tagentry *entry,
     add_list_clauses(&tcs, level);
     char buf[TAGCACHE_BUFSZ];
     const int idx = tagcache_get_next(&tcs, buf, sizeof(buf)) ? tcs.idx_id : -1;
-    if (one_kind)
-    {
-        const int kind = idx >= 0 ? tagcache_track_kind(idx) : 0;
-        *one_kind = true;
-        while (kind && *one_kind && tagcache_get_next(&tcs, buf, sizeof(buf)))
-            *one_kind = tagcache_track_kind(tcs.idx_id) == kind;
-    }
     tagcache_search_finish(&tcs);
     core_unpin(tagtree_handle);
     return idx;
-}
-
-static int first_song_of(struct tree_context *c, const struct tagentry *entry)
-{
-    return row_first_song(c, entry, NULL);
 }
 
 /* the songs of an album's own list: under its row of Albums, of an artist's
@@ -5413,7 +5369,6 @@ static bool browse_to(struct tree_context *c, int idx, bool artist)
     }
     c->selected_item = row;
     browse_level = c->dirlevel;
-    own_level = -1; /* from that screen: back to the first, as any second */
     if (first)
         browse_cover_flow = -1;
     return true;
@@ -5428,156 +5383,6 @@ static int own_section(int idx)
     const int lang = kind == 1 ? LANG_PODCASTS : kind == 2 ? LANG_AUDIOBOOKS : 0;
     const int item = lang ? root_item_of(lang) : -1;
     return item >= 0 && menus[rootmenu]->items[item]->type == menu_next ? lang : 0;
-}
-
-static bool in_own_section(void)
-{
-    return in_section(LANG_PODCASTS) || in_section(LANG_AUDIOBOOKS);
-}
-
-/* The section whose screens an album's row has, by its songs: Podcasts' or
-   Audiobooks' if they are all a show's episodes or all a book's parts, one of
-   them then in *song. 0 for an album of music, and for a name that music and
-   speech share in one row, which opens the list it always did. */
-static int album_row_section(struct tree_context *c, const struct tagentry *row,
-                             int *song)
-{
-    /* music by the album's first song, where the rows have their albums'
-       numbers: nothing searched for */
-    if (!row || (entries_two_lines && row->album.no >= 0
-                 && !own_section(album_years_first_track(row->album.no))))
-        return 0;
-    bool one_kind = false;
-    const int idx = row_first_song(c, row, &one_kind);
-    const int lang = one_kind ? own_section(idx) : 0;
-    if (lang && song)
-        *song = idx;
-    return lang;
-}
-
-/* The row of a show or a book in a list of albums that isn't Podcasts' or
-   Audiobooks': its own screen opened in place, as Go to Album does, Menu
-   there back to this row (Albums' own list of it, in the same way, if that
-   section's list hasn't it). 1 if it is opened; 0 for another row, nothing
-   touched; -1 if it couldn't be, the lists where they were, this one to be
-   loaded again. */
-static int own_screen_from_row(struct tree_context *c, const struct tagentry *row)
-{
-    int idx = -1;
-    if (own_screens_off || c->currtable != TABLE_NAVIBROWSE || !csi
-        || c->currextra >= csi->tagorder_count
-        || csi->tagorder[c->currextra] != tag_album || in_own_section()
-        || c->selected_item < c->special_entry_count || row->customaction
-        || row->newtable == TABLE_PLAYTRACK || row->extraseek < 0
-        || !album_row_section(c, row, &idx))
-        return 0;
-    if (browse_level >= 0 && own_level < 0)
-    {
-        /* this list was gone to in place: the way back from it stays, and
-           the screen has its own back to this list */
-        int dirlevel = c->dirlevel, selected_item = c->selected_item;
-        if (go_to_song(idx, false, &own_place, &dirlevel, &selected_item) < 0)
-        {
-            c->dirlevel = dirlevel;
-            c->selected_item = selected_item;
-            return -1;
-        }
-        own_level = c->dirlevel;
-    }
-    else if (!browse_to(c, idx, false))
-        return -1;
-    /* as it opens from its own list: at its top, not at that song */
-    c->selected_item = first_row(c);
-    return 1;
-}
-
-/* An episode or a book's part chosen where the songs are, in Songs or in
-   Search: played as from its show's or its book's own list, in that list's
-   order. The lists are at that list for the moment, put there straight from
-   the song as queue_is_list_of() knows the list, none of the lists on the
-   way to it made. False if it can't be: nothing is played and the lists are
-   where they were, the one shown to be loaded again. Not for a plugin: the
-   list's playlist is written through the plugin buffer. */
-static bool play_in_own_list(int idx)
-{
-    struct tree_context *c = tree_get_context();
-    struct tagcache_search tcs;
-    const int lang = own_section(idx);
-    const int item = lang ? root_item_of(lang) : -1;
-    if (item < 0 || !song_places_known())
-        return false;
-    struct search_instruction *si = &menus[rootmenu]->items[item]->si;
-    if (si->tagorder_count < 2 || si->tagorder[0] != tag_album
-        || si->tagorder[1] != tag_title)
-        return false;
-    /* nothing its section asks for as it is entered */
-    for (int i = 0; i < si->tagorder_count; i++)
-    {
-        for (int j = 0; j < si->clause_count[i]; j++)
-        {
-            if (si->clause[i][j]->type != clause_logical_or
-                && si->clause[i][j]->source != source_constant)
-                return false;
-        }
-    }
-    int dirlevel = c->dirlevel, selected_item = c->selected_item;
-    /* a book's screen isn't opened: the row it is gone back to stays */
-    const int32_t book = parts_album;
-    const int book_special = parts_special;
-    bool ok = false;
-    place_save(&scratch_place, dirlevel, selected_item);
-    /* as Music's own menu, that section and the album's row entered leave
-       them */
-    menu = menus[rootmenu];
-    csi = si;
-    for (int i = 0; i < MAX_TAGS; i++)
-        csi->result_artist[i] = -1;
-    csi->result_seek[0] = tagcache_sort_key(idx, tag_album);
-    strmemccpy(current_title[0], P2STR(menu->items[item]->name),
-               sizeof(current_title[0]));
-    if (tagcache_search(&tcs, tag_title))
-    {
-        if (!tagcache_retrieve(&tcs, idx, tag_album, current_title[1],
-                               sizeof(current_title[1])))
-            current_title[1][0] = '\0';
-        tagcache_search_finish(&tcs);
-    }
-    table_history[0] = TABLE_ROOT;
-    extra_history[0] = rootmenu;
-    table_history[1] = TABLE_NAVIBROWSE;
-    extra_history[1] = 0;
-    max_history_level = 0;
-    c->currtable = TABLE_NAVIBROWSE;
-    c->currextra = 1;
-    c->dirlevel = 2;
-    c->selected_item = 0;
-    if (tagtree_load(c) > 0 && c->currtable == TABLE_NAVIBROWSE
-        && c->currextra == 1 && in_section(lang))
-    {
-        int row = -1;
-        for (int i = c->special_entry_count; i < c->filesindir && row < 0; i++)
-        {
-            const struct tagentry *entry = tagtree_get_entry(c, i);
-            if (entry && entry->newtable == TABLE_PLAYTRACK
-                && entry->extraseek == idx)
-                row = i;
-        }
-        if (row >= 0)
-        {
-            c->selected_item = row;
-            tree_lock_cache(c);
-            core_pin(tagtree_handle);
-            ok = tagtree_play_folder(c) >= 0;
-            core_unpin(tagtree_handle);
-            tree_unlock_cache(c);
-        }
-    }
-    place_restore(&scratch_place, &dirlevel, &selected_item);
-    c->dirlevel = dirlevel;
-    c->selected_item = selected_item;
-    parts_album = book;
-    parts_special = book_special;
-    return ok;
 }
 
 /* Go to Artist or Go to Album on the row selected (tagtree_row_goes_to()), in
@@ -5613,7 +5418,7 @@ bool tagtree_browse_from_cover_flow(const char *path)
 
 int tagtree_browse_level(void)
 {
-    return own_level >= 0 ? own_level : browse_level;
+    return browse_level;
 }
 
 /* Menu in the list opened in place: back to the song it was opened from, the
@@ -5622,13 +5427,6 @@ int tagtree_browse_level(void)
 bool tagtree_end_browse(int *dirlevel, int *selected_item, char *buf, size_t size)
 {
     struct tagcache_search tcs;
-    if (own_level >= 0)
-    {
-        /* a show's or a book's screen, from the list it was opened in */
-        place_restore(&own_place, dirlevel, selected_item);
-        own_level = -1;
-        return false;
-    }
     place_restore(&browse_place, dirlevel, selected_item);
     browse_level = -1;
     const int idx = browse_cover_flow;
@@ -5644,7 +5442,6 @@ bool tagtree_end_browse(int *dirlevel, int *selected_item, char *buf, size_t siz
    as after Go to over Now Playing, Menu there going up as by hand */
 void tagtree_forget_browse(void)
 {
-    own_level = -1;
     browse_level = -1;
     browse_cover_flow = -1;
 }
@@ -5776,44 +5573,6 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
     if (!dptr || dptr->customaction == ONPLAY_CUSTOMACTION_SORT_BY
         || dptr->customaction == ONPLAY_CUSTOMACTION_SHUFFLE_LIST)
         return 0;
-
-    /* A show or a book where the albums are opens its own screen; an episode
-       or a part where the songs are plays as from its own list. Before the
-       list's memory is held: other lists are gone through. */
-    bool erase_asked = false;
-    if (is_visible)
-    {
-        const int idx = dptr->extraseek, table = dptr->newtable;
-        const int custom = dptr->customaction;
-        const int own = own_screen_from_row(c, dptr);
-        if (own > 0)
-            return 1;
-        if (own == 0 && table == TABLE_PLAYTRACK && !in_own_section()
-            && own_section(idx))
-        {
-            if (global_settings.party_mode && audio_status())
-            {
-                splash(HZ, ID2P(LANG_PARTY_MODE));
-                return 0;
-            }
-            if (row_protected(c, c->selected_item) || !warn_on_pl_erase())
-                return 0;
-            erase_asked = true;
-            cpu_boost(true);
-            const bool played = play_in_own_list(idx);
-            cpu_boost(false);
-            if (played)
-                return 2;
-        }
-        /* not in its own list: as a row of this one, loaded again */
-        if (own < 0 || erase_asked)
-            tagtree_load(c);
-        /* the row again, after the searches or of the list made anew */
-        dptr = tagtree_get_entry(c, c->selected_item);
-        if (!dptr || dptr->extraseek != idx || dptr->newtable != table
-            || dptr->customaction != custom)
-            return 1;
-    }
 
     c->dirfull = false;
     seek = dptr->extraseek;
@@ -5973,8 +5732,7 @@ int tagtree_enter(struct tree_context* c, bool is_visible)
                 /* a track sold with a lock on it: said, and nothing asked or
                    changed. Else about to create a new current playlist:
                    allow user to cancel the operation */
-                if (!erase_asked
-                    && (row_protected(c, c->selected_item) || !warn_on_pl_erase()))
+                if (row_protected(c, c->selected_item) || !warn_on_pl_erase())
                     break;
                 cpu_boost(true);
                 if (tagtree_play_folder(c) >= 0)
@@ -6156,7 +5914,6 @@ void tagtree_artists_grouping_changed(int *dirlevel, int *selected_item)
     artists_place_cut(&saved_place);
     artists_place_cut(&go_to_place);
     artists_place_cut(&browse_place);
-    artists_place_cut(&own_place);
     /* where the lists were left */
     place_save(&scratch_place, *dirlevel, *selected_item);
     if (artists_place_cut(&scratch_place))
@@ -6188,7 +5945,6 @@ void tagtree_sort_by_switched(struct tree_context *c)
         all_songs_place_reset(&saved_place);
         all_songs_place_reset(&go_to_place);
         all_songs_place_reset(&browse_place);
-        all_songs_place_reset(&own_place);
     }
     else if (is_songs(csi))
     {
@@ -6196,7 +5952,6 @@ void tagtree_sort_by_switched(struct tree_context *c)
         songs_place_reset(&saved_place);
         songs_place_reset(&go_to_place);
         songs_place_reset(&browse_place);
-        songs_place_reset(&own_place);
         const int section = section_of(LANG_SONGS);
         if (section >= 0)
             section_rows[section] = -1;
@@ -6212,7 +5967,6 @@ void tagtree_sort_by_switched(struct tree_context *c)
         albums_place_reset(&saved_place, false);
         albums_place_reset(&go_to_place, false);
         albums_place_reset(&browse_place, false);
-        albums_place_reset(&own_place, false);
     }
     settings_save();
 }
@@ -6267,7 +6021,6 @@ static void shuffle_rows_check(struct tree_context *c)
     place_rows_forget(&saved_place);
     place_rows_forget(&go_to_place);
     place_rows_forget(&browse_place);
-    place_rows_forget(&own_place);
     if (c->dirlevel > 0)
         c->selected_item = -1;
     for (int i = 0; i < MUSIC_SECTIONS; i++)
@@ -7606,18 +7359,13 @@ static int tagtree_find_in_playlist(const char *file, const char *line)
 }
 
 /* Plays this song within the list of all songs, from the playlist made for it
-   at the import. False if there isn't one, or it isn't in there. That needs no
-   buffer but its own, so a plugin may call it. A show's episode or a book's
-   part plays within its show or its book instead, but for a plugin, whose
-   buffer that list's playlist would be written through: there as any song. */
+   at the import. False if there isn't one, or it isn't in there. Needs no buffer
+   but its own, so a plugin may call it. */
 bool tagtree_play_song_in_library(const char *path)
 {
     struct tagtree_list_header h;
     char file[MAX_PATH];
     int fd;
-    const int own = plugin_is_running() ? -1 : tagcache_find_entry(path);
-    if (own_section(own) && play_in_own_list(own))
-        return true;
     const struct search_instruction *songs = tagtree_all_songs();
     if (!songs)
         return false;
@@ -8988,12 +8736,7 @@ bool tagtree_row_is_playing(struct tree_context *c, int row, long playing)
     if (!entry || entry->newtable != TABLE_PLAYTRACK || entry->extraseek + 1 != playing)
         return false;
     const uint32_t queue = tagtree_queue_list();
-    if (!queue || queue == tagtree_list_id(c->currtable, c->currextra, csi))
-        return queue != 0;
-    /* an episode or a part among the songs plays in its own list
-       (tagtree_enter()): playing there, it is the one playing here */
-    const int lang = in_own_section() ? 0 : own_section(entry->extraseek);
-    return lang && queue_is_list_of(lang, entry->extraseek);
+    return queue && queue == tagtree_list_id(c->currtable, c->currextra, csi);
 }
 
 int tagtree_get_attr(struct tree_context* c)
