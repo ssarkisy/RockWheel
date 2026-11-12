@@ -242,6 +242,24 @@ struct embedded_lyrics {
     enum character_encoding encoding;
 };
 
+/* Chapters in the file itself: where the tag reader saw them. They are read
+   as the track is buffered to play (apps/chapters.c), not for the database */
+enum chapters_source {
+    CHAPTERS_NONE = 0,
+    CHAPTERS_ID3V23,    /* ID3v2.3 CHAP frames, from the first to the last */
+    CHAPTERS_ID3V24,    /* and ID3v2.4's */
+    CHAPTERS_MP4_CHPL,  /* a Nero chapter list, from its count on */
+    CHAPTERS_MP4_TRACK, /* a QuickTime chapter track, its trak's contents */
+};
+
+struct embedded_chapters {
+    int size;
+    off_t pos;
+    unsigned char source; /* enum chapters_source */
+};
+
+struct chapters;
+
 struct mp3entry {
     char path[MAX_PATH];
     char* title;
@@ -334,6 +352,10 @@ struct mp3entry {
     bool has_embedded_lyrics;
     struct embedded_lyrics embedded_lyrics;
 
+    struct embedded_chapters embedded_chapters;
+    /* of the track playing only: its chapters in the audio buffer's scratch */
+    struct chapters *chapters;
+
     /* Musicbrainz Track ID */
     char* mb_track_id;
 
@@ -362,6 +384,15 @@ bool get_metadata_afmt(struct mp3entry* id3, int fd, const char* trackname, int 
 void adjust_mp3entry(struct mp3entry *entry, void *dest, const void *orig);
 void copy_mp3entry(struct mp3entry *dest, const struct mp3entry *orig);
 void wipe_mp3entry(struct mp3entry *id3);
+
+/* Called by the chapter readers with each chapter's start and its title as
+ * UTF-8 */
+typedef void chapter_add_fn(void *ctx, unsigned long ms, const char *title);
+
+void id3_read_chapters(int fd, int size, bool v24, chapter_add_fn *add,
+                       void *ctx);
+void mp4_read_chapters(int fd, int size, bool nero, chapter_add_fn *add,
+                       void *ctx);
 
 void fill_metadata_from_path(struct mp3entry *id3, const char *trackname);
 int get_audio_base_codec_type(int type);

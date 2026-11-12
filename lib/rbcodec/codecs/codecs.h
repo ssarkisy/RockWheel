@@ -82,7 +82,7 @@
 /* RockWheel's own numbers, apart from Rockbox's, which are under 0x8000, with
  * the sizes of what codecs see of the core in them: raise CODEC_API_REVISION
  * for a change that leaves them */
-#define CODEC_API_REVISION 1
+#define CODEC_API_REVISION 2
 #define CODEC_API_VERSION ((unsigned short)(0x8000 | ((CODEC_API_REVISION * 4099u \
     + sizeof(struct codec_api) * 3u + sizeof(struct mp3entry) * 7u) & 0x7fff)))
 

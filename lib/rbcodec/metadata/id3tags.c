@@ -742,6 +742,104 @@ static void unicode_munge(unsigned char* string, unsigned char* utf8buf, int *le
     }
 }
 
+/* Read the 10-byte header of the next of the "*size" bytes of ID3v2.3 or
+ * 2.4 frames at the file position.  Returns the size of the frame after
+ * the header, or -1 at the end. */
+static long id3_next_frame(int fd, long *size, bool v24,
+                           unsigned char *header)
+{
+    if (*size < 10 || read(fd, header, 10) != 10)
+        return -1;
+
+    long len = v24 ? (long)unsync(header[4], header[5], header[6], header[7])
+                   : (long)bytes2int(header[4], header[5],
+                                     header[6], header[7]);
+    *size -= 10 + len;
+    return (len < 0 || *size < 0) ? -1 : len;
+}
+
+#define ID3_CHAP_BUF 256
+/* the frames walked for chapters and, in each, for its title: a tag of
+ * frames without end is left */
+#define ID3_CHAP_FRAMES 1000
+#define ID3_CHAP_SUBFRAMES 16
+
+/* Find the TIT2 frame in the "size" bytes of frames inside a CHAP frame and
+ * decode it into "title" (ID3_CHAP_BUF bytes), or leave it empty.  "buf"
+ * has ID3_CHAP_BUF + 4 bytes. */
+static void id3_chapter_title(int fd, long size, bool v24,
+                              unsigned char *buf, unsigned char *title)
+{
+    long len;
+    for (int frames = 0; frames < ID3_CHAP_SUBFRAMES
+         && (len = id3_next_frame(fd, &size, v24, buf)) >= 0; frames++)
+    {
+        if (!memcmp(buf, "TIT2", 4) && !buf[9] && len > 1)
+        {
+            int n = read(fd, buf, MIN(len, ID3_CHAP_BUF));
+            if (n <= 1)
+                return;
+
+            /* unicode_munge may look past the end by the second half of a
+             * pair, from an odd place: up to four bytes */
+            memset(buf + n, 0, 4);
+            if (parse_as_utf8((char *)buf, &n))
+            {
+                n = MIN(n, ID3_CHAP_BUF - 1);
+                memcpy(title, buf, n);
+                title[n] = 0;
+            }
+            else
+            {
+                unicode_munge(buf, title, &n, ID3_CHAP_BUF - 1);
+            }
+            return;
+        }
+
+        lseek(fd, len, SEEK_CUR);
+    }
+}
+
+/* Read the chapters from the "size" bytes of ID3v2.3 or 2.4 frames at the
+ * file position, as setid3v2title() found them, and call add() with the
+ * start in ms and the UTF-8 title of each.  Frames other than CHAP, and
+ * CHAP frames with format flags such as compression, are skipped. */
+void id3_read_chapters(int fd, int size, bool v24, chapter_add_fn *add,
+                       void *ctx)
+{
+    unsigned char buf[ID3_CHAP_BUF + 4];
+    unsigned char title[ID3_CHAP_BUF];
+    long left = size;
+    long len;
+
+    for (int frames = 0; frames < ID3_CHAP_FRAMES
+         && (len = id3_next_frame(fd, &left, v24, buf)) >= 0; frames++)
+    {
+        off_t next = lseek(fd, 0, SEEK_CUR) + len;
+
+        if (!memcmp(buf, "CHAP", 4) && !buf[9])
+        {
+            /* An element ID, then the start and end in ms and in bytes,
+             * then frames such as the title */
+            int n = read(fd, buf, MIN(len, ID3_CHAP_BUF));
+            unsigned char *id_end = n > 0 ? memchr(buf, 0, n) : NULL;
+            long used = id_end ? id_end + 17 - buf : len + 1;
+
+            if (used <= n)
+            {
+                unsigned long ms = bytes2int(id_end[1], id_end[2],
+                                             id_end[3], id_end[4]);
+                title[0] = 0;
+                lseek(fd, next - len + used, SEEK_SET);
+                id3_chapter_title(fd, len - used, v24, buf, title);
+                add(ctx, ms, (char *)title);
+            }
+        }
+
+        lseek(fd, next, SEEK_SET);
+    }
+}
+
 /*
  * Sets the title of an MP3 entry based on its ID3v1 tag.
  *
@@ -900,6 +998,8 @@ static void read_frames(int fd, struct mp3entry *entry, char **tdat)
     int i;
     int rc;
     bool itunes_gapless = false;
+    int chapters = 0;
+    off_t chapters_pos = 0;
 
 #ifdef HAVE_ALBUMART
     entry->has_embedded_albumart = false;
@@ -993,6 +1093,8 @@ retry_with_limit:
         lseek(fd, initial_pos, SEEK_SET);
         memset(buffer, 0, buffersize);
         *tdat = NULL;
+        chapters = 0;
+        entry->embedded_chapters.source = CHAPTERS_NONE;
     }
 
     /*
@@ -1023,6 +1125,25 @@ retry_with_limit:
                  * size */
                 framelen = bytes2int(header[4], header[5],
                                      header[6], header[7]);
+            }
+
+            /* Chapters are read as the track is buffered to play, from the
+             * first CHAP frame to the end of the last.  One chapter gives
+             * nothing to skip between. */
+            if (!memcmp(header, "CHAP", 4) && !(flags & 0xff)
+                && !global_unsynch && framelen > 0 && framelen <= size)
+            {
+                off_t end = lseek(fd, 0, SEEK_CUR) + framelen;
+
+                if (chapters++ == 0)
+                    chapters_pos = end - framelen - 10;
+                else
+                {
+                    entry->embedded_chapters.pos = chapters_pos;
+                    entry->embedded_chapters.size = end - chapters_pos;
+                    entry->embedded_chapters.source = version >= ID3_VER_2_4 ?
+                        CHAPTERS_ID3V24 : CHAPTERS_ID3V23;
+                }
             }
         } else {
             if(6 != read(fd, header, 6))
