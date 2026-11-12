@@ -109,6 +109,7 @@
 #include "iap-usb.h"
 #include "logdiskf.h"
 #include "tagcache.h"
+#include "tagtree.h"
 #ifdef HAVE_DIRCACHE
 #include "dircache.h"
 #endif
@@ -2496,6 +2497,7 @@ int playlist_place_of(const char *dir, const char *file, int count,
 
     playlist_write_lock(playlist);
     if (playlist->amount == count && playlist->control_created
+        && playlist->shuffled == SHUFFLE_OFF
         && !(playlist->flags & PLAYLIST_FLAG_MODIFIED)
         && !strcmp(playlist->filename, name))
     {
@@ -4208,6 +4210,16 @@ int playlist_shuffle(int random_seed, int start_index)
 int playlist_shuffle_songs(int random_seed, int start_index)
 {
     return shuffle_new_playlist(random_seed, start_index, false);
+}
+
+int playlist_shuffle_shown(void)
+{
+    const struct playlist_info *playlist = &current_playlist;
+    const int setting = global_settings.playlist_shuffle;
+    if (!playlist->started || !(audio_status() & AUDIO_STATUS_PLAY)
+        || playlist->shuffled == setting || tagtree_queue_in_order())
+        return setting;
+    return playlist->shuffled;
 }
 
 void playlist_reorder(int mode)

@@ -1485,13 +1485,16 @@ static int song_go_to_callback(int action, const struct menu_item_ex *this_item,
 #endif
 
 /* Shuffle, repeat and Sound Check, changed right here by selecting them, with the same effect
-   on what's playing as changing the settings */
+   on what's playing as changing the settings; Shuffle goes on from how the
+   list plays, which a Shuffle Songs row can make other than the setting */
 static int cycle_shuffle(void)
 {
     const struct settings_list *setting =
         find_setting(&global_settings.playlist_shuffle);
 
-    switch (global_settings.playlist_shuffle)
+    /* from how the list plays, which the row shows, to the next mode: the
+       list and the setting both */
+    switch (playlist_shuffle_shown())
     {
         case SHUFFLE_OFF:   global_settings.playlist_shuffle = SHUFFLE_SONGS; break;
         case SHUFFLE_SONGS: global_settings.playlist_shuffle = SHUFFLE_ALBUMS; break;
@@ -1508,7 +1511,7 @@ static char *shuffle_item_name(int selected_item, void *data,
 {
     (void)selected_item; (void)data;
     int value;
-    switch (global_settings.playlist_shuffle)
+    switch (playlist_shuffle_shown())
     {
         case SHUFFLE_SONGS:  value = LANG_SONGS; break;
         case SHUFFLE_ALBUMS: value = LANG_ALBUMS; break;

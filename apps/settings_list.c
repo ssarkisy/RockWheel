@@ -958,8 +958,10 @@ static void shuffle_playlist_callback(int mode)
         && (audio_status() & AUDIO_STATUS_PLAY) == AUDIO_STATUS_PLAY)
     {
         replaygain_update();
-        /* a show's episodes and a book's parts stay in order */
-        if (mode == SHUFFLE_OFF || !tagtree_queue_in_order())
+        /* a show's episodes and a book's parts stay in order; a list that a
+           Shuffle Songs row put in the mode already stays as it is */
+        if (mode != playlist->shuffled
+            && (mode == SHUFFLE_OFF || !tagtree_queue_in_order()))
             playlist_reorder(mode);
     }
     iap_on_shuffle_state(mode);

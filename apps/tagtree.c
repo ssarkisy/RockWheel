@@ -7214,7 +7214,7 @@ bool tagtree_shuffle_songs(void)
         && playlist_create(TAGTREE_PLAYLIST_DIR, name) == 0
         && playlist_amount() > 0)
     {
-        playlist_shuffle(current_tick, -1);
+        playlist_shuffle_songs(current_tick, -1);
         playlist_start(0, 0, 0);
     }
     else
@@ -7818,7 +7818,7 @@ static bool shuffle_list_songs(struct tree_context *c)
             > playlist_get_current()->max_playlist_size
         || tagtree_load_list(c, &start) < 0)
         return false;
-    playlist_shuffle(current_tick, -1);
+    playlist_shuffle_songs(current_tick, -1);
     playlist_start(0, 0, 0);
     /* the list the music is now from, for its speaker */
     tagtree_note_queue(loaded_file, tagtree_list_id(c->currtable, c->currextra, csi));
@@ -7892,7 +7892,7 @@ static bool shuffle_list_found(struct tree_context *c)
     ok = ok && playlist_amount() > 0;
     if (ok)
     {
-        playlist_shuffle(current_tick, -1);
+        playlist_shuffle_songs(current_tick, -1);
         playlist_start(0, 0, 0);
         tagtree_note_queue(file, id);
     }

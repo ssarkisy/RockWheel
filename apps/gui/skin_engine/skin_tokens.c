@@ -1432,7 +1432,7 @@ const char *get_token_value(struct gui_wps *gwps,
             goto gtv_ret_numeric_tag_info;
         }
         case SKIN_TOKEN_PLAYLIST_SHUFFLE:
-            if ( global_settings.playlist_shuffle )
+            if (playlist_shuffle_shown() != SHUFFLE_OFF)
                 return "s";
             else
                 return NULL;

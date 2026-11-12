@@ -1625,7 +1625,7 @@ static bool lp_play(int song)
     if (song < 0)
     {
         /* whatever the Shuffle setting, as Shuffle Songs in the main menu */
-        playlist_shuffle(current_tick, -1);
+        playlist_shuffle_songs(current_tick, -1);
         playlist_start(0, 0, 0);
         return true;
     }

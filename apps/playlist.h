@@ -136,6 +136,9 @@ int playlist_resume(void);
    whatever the setting */
 int playlist_shuffle(int random_seed, int start_index);
 int playlist_shuffle_songs(int random_seed, int start_index);
+/* Shuffle as shown beside the music: how its list is ordered; the setting
+   with nothing playing, and for a show's or a book's own list */
+int playlist_shuffle_shown(void);
 /* the list playing put in the order of a Shuffle mode, the track playing
    kept: sorted, its songs shuffled or its albums */
 void playlist_reorder(int mode);

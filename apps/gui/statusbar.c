@@ -36,6 +36,7 @@
 #include "status.h" /* needed for battery_state global var */
 #include "action.h" /* for keys_locked */
 #include "statusbar.h"
+#include "playlist.h"
 #ifdef HAVE_RECORDING
 #include "audio.h"
 #include "recording.h"
@@ -229,7 +230,7 @@ static struct screen * sb_fill_bar_info(struct gui_statusbar * bar)
             }
     }
     bar->info.volume = global_status.volume;
-    bar->info.shuffle = global_settings.playlist_shuffle != SHUFFLE_OFF;
+    bar->info.shuffle = playlist_shuffle_shown() != SHUFFLE_OFF;
 #ifdef HAS_BUTTON_HOLD
     bar->info.keylock = button_hold();
 #else
