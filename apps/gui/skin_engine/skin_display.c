@@ -1120,6 +1120,35 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             if (pb->slider_centre)
                 yoff -= h / 2;
         }
+#if defined(HAVE_ALBUMART) && defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 \
+    && !defined(DISABLE_ALPHA_BITMAP)
+        /* in a theme with a tone a knob in the fill's grey is the fill's
+           colour too (ui_theme_skin_text()): its shape in that colour.
+           Under Fill it is a picture, coloured as the others are */
+        unsigned knob_colour = 0;
+        bool flat_knob = false;
+        if (img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
+            && display->screen_type == SCREEN_MAIN && ui_theme_current()->cover_tone
+            && !in_tone_fill(gwps, &img->bm))
+        {
+            const fb_data *const pixels = (const fb_data *)img->bm.data;
+            const unsigned plain = FB_UNPACK_SCALAR_LCD(
+                pixels[img->bm.height / 2 * img->bm.width + img->bm.width / 2]);
+            knob_colour = ui_theme_skin_text(plain);
+            flat_knob = knob_colour != plain;
+        }
+        if (flat_knob)
+        {
+            const unsigned old_fg = display->get_foreground();
+            display->set_foreground(knob_colour);
+            display->set_drawmode(DRMODE_FG);
+            lcd_alpha_bitmap_part(img->bm.data + img->bm.alpha_offset, 0, 0,
+                                  ALIGN_UP(img->bm.width, 2), x + xoff, y + yoff, w, h);
+            display->set_drawmode(DRMODE_SOLID);
+            display->set_foreground(old_fg);
+        }
+        else
+#endif
         if (pb->slider_centre)
         {
             /* over the end of the fill, which shows through the corners
