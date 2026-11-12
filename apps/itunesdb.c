@@ -49,6 +49,7 @@
 #include "metadata.h"
 #include "fixedpoint.h"
 #include "itunesdb.h"
+#include "health_log.h"
 #include "crc32.h"
 #include "sortkey.h"
 #ifdef ITUNESDB_HAVE_ART
@@ -369,9 +370,15 @@ static bool dir_file_stamp(const char *name, uint32_t *size, uint32_t *mtime)
     return found;
 }
 
+/* iTunesDB was found in this boot, whether or not it was read then */
+static bool db_seen;
+
 static bool db_stamp(uint32_t *size, uint32_t *mtime)
 {
-    return dir_file_stamp("iTunesDB", size, mtime);
+    const bool found = dir_file_stamp("iTunesDB", size, mtime);
+    if (found)
+        db_seen = true;
+    return found;
 }
 
 bool itunesdb_sync_date(struct tm *tm)
@@ -2113,25 +2120,39 @@ static int cmp_pending_hash(const void *a, const void *b)
 /* what was read from the iTunesDB that is there now */
 static bool load_pending(void)
 {
-    uint32_t size, mtime;
+    uint32_t size = 0, mtime = 0;
+    const char *step = "header"; /* the one that fails, for the health log */
     memset(&pend, 0, sizeof(pend));
     int fd = open(PENDING_FILE, O_RDONLY);
     if (fd < 0)
+    {
+        /* a library without iTunesDB has none to open */
+        if (db_seen)
+            health_note("import not completed: pending not loaded (open): rc"
+                        " %d, errno %d; iTunesDB read %lu/%lx", fd, errno,
+                        (unsigned long)db_size, (unsigned long)db_mtime);
         return false;
+    }
     bool ok = read(fd, &pend.hdr, sizeof(pend.hdr)) == sizeof(pend.hdr)
         && pend.hdr.magic == PENDING_MAGIC
         && pend.hdr.version == PENDING_VERSION
-        && pend.hdr.count <= COUNT_MAX
-        && db_stamp(&size, &mtime) && pend.hdr.db_size == size
-        && pend.hdr.db_mtime == mtime;
+        && pend.hdr.count <= COUNT_MAX;
+    if (ok)
+    {
+        step = "stamp";
+        ok = db_stamp(&size, &mtime) && pend.hdr.db_size == size
+            && pend.hdr.db_mtime == mtime;
+    }
     if (ok)
     {
         size_t entries = pend.hdr.count * sizeof(struct state_entry);
         size_t times = pend.hdr.count * sizeof(uint32_t);
+        step = "alloc";
         pend.handle = db_alloc(MAX(entries + 2 * times, sizeof(uint32_t)));
         ok = pend.handle > 0;
         if (ok)
         {
+            step = "read";
             core_pin(pend.handle);
             pend.tracks = core_get_data(pend.handle);
             pend.by_hash = (uint32_t *)((char *)pend.tracks + entries);
@@ -2140,6 +2161,21 @@ static bool load_pending(void)
                  && read(fd, pend.lastplayed, times) == (ssize_t)times;
         }
     }
+    /* errno is the last error set anywhere: this step's only when "at" is
+       short of "needed" */
+    if (!ok)
+        health_note("import not completed: pending not loaded (%s): at %ld of"
+                    " %ld, %lu needed, errno %d; magic %lx version %lu, %lu"
+                    " songs, handle %d; iTunesDB %lu/%lx, now %lu/%lx",
+                    step, (long)lseek(fd, 0, SEEK_CUR), (long)ffilesize(fd),
+                    (unsigned long)(sizeof(pend.hdr) + pend.hdr.count
+                        * (sizeof(struct state_entry) + sizeof(uint32_t))),
+                    errno, (unsigned long)pend.hdr.magic,
+                    (unsigned long)pend.hdr.version,
+                    (unsigned long)pend.hdr.count, pend.handle,
+                    (unsigned long)pend.hdr.db_size,
+                    (unsigned long)pend.hdr.db_mtime,
+                    (unsigned long)size, (unsigned long)mtime);
     close(fd);
     if (!ok)
     {
@@ -2798,6 +2834,9 @@ void itunesdb_import(void)
                 remove(UNSENT_FILE);
             unload_unsent();
         }
+        else
+            health_note("import not completed: nothing new to set, state not"
+                        " stamped");
     }
     else
     {
@@ -2831,7 +2870,8 @@ void itunesdb_import(void)
         }
         if (go)
             import_progress_set(progress | IMPORT_PASSING);
-        if (go && tagcache_update_runtime(update_entry, NULL) && write_state())
+        const bool set = go && tagcache_update_runtime(update_entry, NULL);
+        if (set && write_state())
         {
             remove(PENDING_FILE);
             remove(STATE_OLD_FILE);
@@ -2842,6 +2882,11 @@ void itunesdb_import(void)
             if (pend.hdr.complete)
                 note_imported();
         }
+        else
+            health_note("import not completed: %s", !go ?
+                        "put off a boot, the plays offered to Finder not known"
+                        : !set ? "counts not set in the database"
+                        : "state not written");
         unload_unsent();
         unload_moves();
     }

@@ -106,6 +106,10 @@ static long power_off_tick = 0;
 
 static uint8_t  multisectors; /* number of supported multisectors */
 
+/* since boot, for ata_get_counters(); written on the CPU only: no thread of
+   the COP's calls the file system */
+static struct ata_counters counters;
+
 #ifdef HAVE_ATA_DMA
 static int dma_mode = 0;
 #endif
@@ -253,6 +257,7 @@ static ICODE_ATTR int wait_for_bsy(void)
         ata_wait_yield(begun);
     } while (TIME_BEFORE(current_tick, timeout));
 
+    counters.bsy_timeouts++;
     return 0; /* timeout */
 }
 
@@ -274,6 +279,7 @@ static ICODE_ATTR int wait_for_rdy(void)
         ata_wait_yield(begun);
     } while (TIME_BEFORE(current_tick, timeout));
 
+    counters.rdy_timeouts++;
     return 0; /* timeout */
 }
 #else
@@ -488,6 +494,8 @@ static int ata_transfer_sectors(uint64_t start,
     void* buf;
     long spinup_start = spinup_start;
     bool read_from_off = false;
+    const bool was_on = ata_state == ATA_ON;
+    bool tried = false;
 #ifdef HAVE_ATA_DMA
     bool usedma = false;
 #endif
@@ -524,10 +532,14 @@ static int ata_transfer_sectors(uint64_t start,
     }
 
  retry:
+    /* back here: ret is -4 to -7, and the drive has been reset for it */
+    if (ret < 0)
+        counters.retried[-ret - 4]++;
     buf = inbuf;
     count = incount;
     while (TIME_BEFORE(current_tick, timeout)) {
         ret = 0;
+        tried = true;
         keep_ata_active();
 
 #ifdef HAVE_ATA_DMA
@@ -675,12 +687,26 @@ static int ata_transfer_sectors(uint64_t start,
         break;
     }
 
+    /* RDY took the transfer's 5 s: it returns 0 with nothing transferred */
+    if (!tried)
+        counters.not_tried++;
+
+    /* not one that began with a wake */
+    if (was_on) {
+        const long took = current_tick - (timeout - READWRITE_TIMEOUT);
+        if (took > counters.longest[write != 0])
+            counters.longest[write != 0] = took;
+    }
+
   error:
     ata_led(false);
 
-    if (ret < 0 && ata_state == ATA_SPINUP) {
-        /* bailed out before updating */
-        ata_state = ATA_ON;
+    if (ret < 0) {
+        counters.failed[-ret - 1]++;
+        if (ata_state == ATA_SPINUP) {
+            /* bailed out before updating */
+            ata_state = ATA_ON;
+        }
     }
 
     return ret;
@@ -1311,6 +1337,11 @@ void ata_set_led_enabled(bool enabled)
 long ata_last_disk_activity(void)
 {
     return last_disk_activity;
+}
+
+const struct ata_counters *ata_get_counters(void)
+{
+    return &counters;
 }
 
 #ifdef HAVE_ATA_DMA

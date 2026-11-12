@@ -107,6 +107,11 @@
 #else/*!defined(PLUGIN)*/
 #define USR_CANCEL (tc_stat.commit_delayed == true)
 #endif /*!defined(PLUGIN)*/
+#if defined(PLUGIN) || defined(__PCTOOL__)
+#define health_note(...) do { } while (0) /* the firmware's own log */
+#else
+#include "health_log.h"
+#endif
 /*
  * Define this to support non-native endian tagcache files.
  * Databases are always written in native endian so this is
@@ -588,6 +593,8 @@ static bool scan_failed;
 
 static void scan_write_failed(void)
 {
+    if (!scan_failed)
+        health_note("library scan stopped: write failed, errno %d", errno);
     if (errno == ENOSPC)
         no_space = true;
     scan_failed = true;
@@ -830,6 +837,8 @@ static bool room_for(unsigned long need_kb)
         return true;
     logf("no room: %lu KB free, %lu KB needed", (unsigned long)free_kb,
          need_kb);
+    health_note("library update stopped: no room, %lu KB free, %lu KB needed",
+                (unsigned long)free_kb, need_kb);
     no_space = true;
     return false;
 }
@@ -9167,6 +9176,11 @@ static void tagcache_thread(void)
                     /* the live smart playlists, by the counts just in */
                     smart_update_after_import();
                 }
+                else
+                    health_note("import not completed: scan file waiting %s",
+                                tc_stat.commit_delayed ?
+                                "for its commit, put off for memory or cancelled"
+                                : "though its commit was not put off");
 #ifdef ITUNESDB_HAVE_ART
                 /* the slides of the new covers, ready for Cover Flow */
                 import_done = import_total = 0;

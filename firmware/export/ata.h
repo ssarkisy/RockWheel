@@ -168,6 +168,21 @@ int ata_num_drives(int first_drive);
 long ata_last_disk_activity(void);
 int ata_spinup_time(void); /* ticks */
 
+/* What went wrong with transfers since boot (ata.c) */
+struct ata_counters
+{
+    unsigned int failed[7];   /* transfers that returned -1 to -7, by code */
+    unsigned int retried[4];  /* errors -4 to -7 in a transfer, each followed
+                                 by a soft reset; -7 is DMA's wait for INTRQ
+                                 timing out */
+    unsigned int not_tried;   /* transfers that returned 0 with nothing
+                                 transferred: the wait for RDY took their 5 s */
+    unsigned int bsy_timeouts;
+    unsigned int rdy_timeouts;
+    long longest[2];          /* read, write: of a drive that was awake, ticks */
+};
+const struct ata_counters *ata_get_counters(void);
+
 #if defined(HAVE_ATA_POWER_OFF) && !defined(BOOTLOADER) && !defined(SIMULATOR)
 /* Flash that doesn't say so, known by how soon it reads after power-on (ata.c).
    The time is the fastest seen, in ms, 0 before one; set, it is kept if faster. */
