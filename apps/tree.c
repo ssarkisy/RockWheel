@@ -827,6 +827,10 @@ static int update_dir(void)
     }
 
 #ifdef HAVE_TAGCACHE
+    /* rows of two lines, as high as they are before a header counts those it
+       takes: a show's episodes are under one */
+    if (id3db && tagtree_rows_two_lines(&tc))
+        gui_synclist_set_subline_callback(list, tree_get_subline);
     /* an album's songs, under its header */
     album_rows = id3db ? album_header_open(&tc, list) : 0;
     album_title_shown = false;
@@ -924,19 +928,15 @@ static int update_dir(void)
     const int lead_digits = id3db ? tagtree_lead_digits(&tc) : 0;
     gui_synclist_set_lead_callback(list, lead_digits ? tree_get_lead : NULL,
                                    lead_digits);
-    /* albums in two lines, each one's year and album artist under its name,
-       and their covers, as Artists in Albums and Covers in Lists have them.
-       A list without covers has none read for the one before, as an album's
-       header's waits for them */
-    if (id3db && tagtree_rows_two_lines(&tc))
+    /* albums in two lines (above), each one's year and album artist under
+       its name, and their covers, as Artists in Albums and Covers in Lists
+       have them. A list without covers has none read for the one before, as
+       an album's header's waits for them */
+    if (id3db && tagtree_rows_covers(&tc))
     {
-        gui_synclist_set_subline_callback(list, tree_get_subline);
-        if (tagtree_rows_covers(&tc))
-        {
-            gui_synclist_set_cover_callback(list, tree_get_cover);
-            gui_synclist_set_before_draw(list, tree_covers_before_draw);
-            list_covers_opened();
-        }
+        gui_synclist_set_cover_callback(list, tree_get_cover);
+        gui_synclist_set_before_draw(list, tree_covers_before_draw);
+        list_covers_opened();
     }
     if (!list->callback_get_cover)
         list_covers_cancel();

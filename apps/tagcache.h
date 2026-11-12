@@ -286,6 +286,10 @@ bool tagcache_read_entries(void (*fn)(int idx_id, const char *filename,
                                       void *data),
                            void *data, bool names);
 bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n);
+/* Where an entry was left, in ms, as it is now, a change queued for it too
+   (tag_lastelapsed): 0 for none, and without the database in memory. As
+   tagcache_get_numbers(), from memory only, for a list's rows as they draw */
+long tagcache_track_place(int idx_id);
 /* A track's rating and plays as the database has them now: one played again
    from the buffer, as by Previous, has those of when it was buffered, which
    playback copies to it again after any change made to it. Its own without

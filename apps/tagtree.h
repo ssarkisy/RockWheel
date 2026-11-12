@@ -163,8 +163,8 @@ const char *tagtree_group_name(struct tree_context *c, int group, char *buf,
    cover, name, album artist, year and songs (album_header.c): the songs of
    one album, all of them, in the order of its discs and tracks, and music.
    False for another list: a part of one, the songs without an album, those
-   of two albums of a name in one row, as without Artists in Albums, a show's
-   or a book's, or any without the database in memory, which the rest is read
+   of two albums of a name in one row, as without Artists in Albums, a
+   book's, or any without the database in memory, which the rest is read
    from. */
 struct tagtree_album {
     int songs;
@@ -174,6 +174,11 @@ struct tagtree_album {
     int32_t album, albumartist; /* their names' seeks, which are the album's */
 };
 bool tagtree_album(struct tree_context *c, struct tagtree_album *album);
+/* It is a show's, in Podcasts, its songs the show's episodes, the newest
+   first, each in two lines: its header has how many they are in place of a
+   year and songs, and albumartist is the author they all have, -1 if they
+   differ; year and longest are 0 */
+bool tagtree_album_is_show(struct tree_context *c);
 /* of its first song, a tag of names' text as the database has it, UNTAGGED
    for none: from its memory only, false without it. Not tag_filename, whose
    path may be read from the disk */

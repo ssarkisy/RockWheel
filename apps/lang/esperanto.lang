@@ -13572,3 +13572,101 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_EPISODES_ONE
+  desc: under a show's name in Music > Podcasts, and in a show's header over its episodes: how many episodes the show has, in lowercase as a count in running text; %d is the episodes: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d episode"
+  </source>
+  <dest>
+    *: "%d epizodo"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EPISODES_FEW
+  desc: as LANG_EPISODES_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d episodes"
+  </source>
+  <dest>
+    *: "%d epizodoj"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EPISODES_MANY
+  desc: as LANG_EPISODES_ONE, for the other numbers: every number but 1 in a language with two forms
+  user: core
+  <source>
+    *: "%d episodes"
+  </source>
+  <dest>
+    *: "%d epizodoj"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_MIN
+  desc: under a podcast episode's title, after its date (20 May 2023 · 22 min): its length in minutes, abbreviated; %d is the minutes, 1 or more
+  user: core
+  <source>
+    *: "%d min"
+  </source>
+  <dest>
+    *: "%d min"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_LEFT
+  desc: under the title of a podcast episode that was started: how much of it is left to hear (28 min left); %s is LANG_TIME_MIN's text
+  user: core
+  <source>
+    *: "%s left"
+  </source>
+  <dest>
+    *: "Restas %s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_DAY_MONTH
+  desc: under a podcast episode's title: its release date, of this year (20 May); %d is the day, %s the month's short name (LANG_MONTH_...), in this order
+  user: core
+  <source>
+    *: "%d %s"
+  </source>
+  <dest>
+    *: "%d %s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_DAY_MONTH_YEAR
+  desc: as LANG_DATE_DAY_MONTH, of another year (20 May 2023): the day, the month, the year, in this order
+  user: core
+  <source>
+    *: "%d %s %d"
+  </source>
+  <dest>
+    *: "%d %s %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

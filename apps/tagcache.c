@@ -6157,6 +6157,20 @@ bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n)
 #endif
 }
 
+long tagcache_track_place(int idx_id)
+{
+#ifdef HAVE_TC_RAMCACHE
+    if (!tc_stat.ready || !tc_stat.ramcache || !tcramcache.hdr || idx_id < 0
+        || idx_id >= current_tcmh.tch.entry_count)
+        return 0;
+    const struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
+    return (idx->flag & FLAG_DELETED) ? 0 : queued_or(tag_lastelapsed, idx_id, idx);
+#else
+    (void)idx_id;
+    return 0;
+#endif
+}
+
 long tagcache_track_rating(const struct mp3entry *id3)
 {
     struct tagcache_numbers n;

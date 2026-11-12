@@ -250,6 +250,8 @@ static bool kept_dirfull, kept_years, kept_two_lines, kept_split;
 static int kept_tracks, kept_groups;
 static int32_t kept_untagged;
 static int kept_initials, kept_initials_tag;
+static int kept_shows;
+static bool kept_episodes;
 /* the rows of the list made are albums with their years */
 static bool entries_years;
 /* each in two lines, its name over its year and its album artist, with its
@@ -277,6 +279,11 @@ static int entries_groups;
    the text that row shows: -1 if none, and in a list of songs, whose seeks are
    of another kind */
 static int32_t entries_untagged = -1;
+/* Podcasts' shows in two lines: how many struct show_sums are kept; 0
+   otherwise */
+static int entries_shows;
+/* a show's episodes: newest first, two lines, no covers */
+static bool entries_episodes;
 /* the list made had all its rows, as it wasn't left before the end */
 static bool entries_whole;
 /* and goes by play statistics, so isn't kept: they change without a new
@@ -300,7 +307,8 @@ struct tagentry {
         char* album_name;   /* a song's, sorted by its album */
         /* an album's, in a list with years: its year, and in a list of two
            lines its number in the table of years (album_years.h), whose
-           cover and album artist the row shows; -1 for none */
+           cover and album artist the row shows; -1 for none. A show's has
+           its sums' number in the year's place (struct show_sums) */
         struct {
             int16_t year, no;
         } album;
@@ -870,6 +878,8 @@ static void keep_list(struct tree_context *c, int count)
     kept_untagged = entries_untagged;
     kept_initials = entries_initials;
     kept_initials_tag = entries_initials_tag;
+    kept_shows = entries_shows;
+    kept_episodes = entries_episodes;
 }
 
 /* the list kept, if it is the one asked for: its count, or else -1 */
@@ -889,6 +899,8 @@ static int kept_list(struct tree_context *c)
     entries_untagged = kept_untagged;
     entries_initials = kept_initials;
     entries_initials_tag = kept_initials_tag;
+    entries_shows = kept_shows; /* with their sums, kept in the names' room */
+    entries_episodes = kept_episodes;
     return kept_count;
 }
 
@@ -2968,11 +2980,108 @@ static void persons_match(const int32_t *tag_seek, void *data)
     album_years_match(tag_seek, NULL);
 }
 
-/* Music's section of this name in tagnavi.config is the one searched */
-static bool in_section(int lang)
+/* the search is that of Music's section of this name in tagnavi.config */
+static bool section_is(const struct search_instruction *si, int lang)
 {
     const int item = root_item_of(lang);
-    return item >= 0 && csi == &menus[rootmenu]->items[item]->si;
+    return item >= 0 && si == &menus[rootmenu]->items[item]->si;
+}
+
+static bool in_section(int lang)
+{
+    return section_is(csi, lang);
+}
+
+/* A show's episodes in Podcasts, by date when the list is whole;
+   list_hash() marks its id */
+static bool show_episodes(const struct search_instruction *si, int table,
+                          int level)
+{
+    return table == TABLE_NAVIBROWSE && si && level > 0
+           && level < si->tagorder_count && si->tagorder[level] == tag_title
+           && si->tagorder[level - 1] == tag_album
+           && section_is(si, LANG_PODCASTS) && song_places_known();
+}
+
+/* Per show, at the end of the names' room, first one last (as
+   song_groups()): filled by the search's match hook */
+struct show_sums {
+    int32_t album;       /* its name's seek, which its row has */
+    int32_t albumartist; /* of the first episode found: its cover's album */
+    int32_t episodes;
+};
+
+struct shows_counting {
+    struct show_sums *end; /* past the first */
+    long room;             /* the names' room */
+    const int *used;       /* and what the rows' names have taken of it */
+    int count, last;
+    bool full;             /* no room: the names have come to the sums */
+};
+
+static void shows_match(const int32_t *tag_seek, void *data)
+{
+    struct shows_counting *s = data;
+    const int32_t album = tag_seek[tag_album];
+    if (!s->full)
+        s->full = *s->used + (long)(s->count * sizeof(*s->end)) > s->room;
+    if (s->full)
+        return;
+    /* the show of the episode before, most often */
+    int i = s->last;
+    if (i >= s->count || s->end[-1 - i].album != album)
+    {
+        for (i = 0; i < s->count && s->end[-1 - i].album != album; i++)
+            ;
+    }
+    if (i == s->count)
+    {
+        if (*s->used + (long)((s->count + 1) * sizeof(*s->end)) > s->room)
+        {
+            s->full = true;
+            return;
+        }
+        s->end[-1 - i] = (struct show_sums){
+            .album = album, .albumartist = tag_seek[tag_albumartist]
+        };
+        s->count++;
+    }
+    s->end[-1 - i].episodes++;
+    s->last = i;
+}
+
+/* An episode's date as its row has it and its list goes by: tag_date, or
+   its year alone, as the albums' dates take a song's; 0 for none */
+static long episode_date(int32_t idx)
+{
+    const long date = tagcache_sort_key(idx, tag_date);
+    const long year = tagcache_sort_key(idx, tag_year);
+    return date > 0 ? date : year > 0 && year < 10000 ? year * 10000 : 0;
+}
+
+/* The newest first: by release date, a month alone after its days and a
+   year alone after its months, those without a date last; of a day, the one
+   added later first, then the larger number, then by title */
+static int compare_episodes(const void *p1, const void *p2)
+{
+    const int32_t a = ((const struct tagentry *)p1)->extraseek;
+    const int32_t b = ((const struct tagentry *)p2)->extraseek;
+    long ka = episode_date(a), kb = episode_date(b);
+    if (ka != kb)
+        return ka > kb ? -1 : 1;
+    ka = tagcache_sort_key(a, tag_dateadded);
+    kb = tagcache_sort_key(b, tag_dateadded);
+    if (ka != kb)
+        return ka > kb ? -1 : 1;
+    ka = MAX(tagcache_sort_key(a, tag_tracknumber), 0);
+    kb = MAX(tagcache_sort_key(b, tag_tracknumber), 0);
+    if (ka != kb)
+        return ka > kb ? -1 : 1;
+    ka = tagcache_sort_key(a, tag_title);
+    kb = tagcache_sort_key(b, tag_title);
+    if (ka != kb)
+        return ka < kb ? -1 : 1;
+    return a < b ? -1 : a > b;
 }
 
 /* An album's songs, in a section of albums: not a show's episodes nor a
@@ -3162,25 +3271,29 @@ static int number_songs(struct tree_context *c, struct tagcache_search *tcs,
    each song's album and album artist the first's, as the database has the
    song's artist for none, and their discs and tracks in order, as by
    tagnavi's fmt_title, though two may share a number. Of the rows past those
-   at the top, from the database's memory, as the list is loaded */
+   at the top, from the database's memory, as the list is loaded.
+   A show's episodes too: year and longest 0, albumartist -1 if authors
+   differ */
 static void album_view_make(struct tree_context *c)
 {
     album_view.songs = 0;
     const int level = c->currextra;
     const int first = c->special_entry_count;
+    const bool show = entries_episodes;
     struct tagcache_numbers numbers;
     if (c->currtable != TABLE_NAVIBROWSE || !csi || c->dirfull
         || current_offset != 0 || current_entry_count != c->filesindir
         || first >= current_entry_count
-        || !album_songs(c, level, csi->tagorder[level])
+        || !(show ? show_episodes(csi, c->currtable, level)
+                  : album_songs(c, level, csi->tagorder[level]))
         || !strcmp(current_title[level], UNTAGGED))
         return;
     const struct tagentry *entries = get_entries(c);
     const int32_t idx = entries[first].extraseek;
-    if (!tagcache_get_numbers(idx, &numbers) || numbers.kind != 0)
+    if (!tagcache_get_numbers(idx, &numbers) || (numbers.kind != 0 && !show))
         return;
     const long album = tagcache_sort_key(idx, tag_album);
-    const long albumartist = tagcache_sort_key(idx, tag_albumartist);
+    long albumartist = tagcache_sort_key(idx, tag_albumartist);
     long disc = 0, track = 0, longest = 0;
     for (int i = first; i < current_entry_count; i++)
     {
@@ -3188,8 +3301,15 @@ static void album_view_make(struct tree_context *c)
         const long d = MAX(tagcache_sort_key(song, tag_discnumber), 0);
         const long t = MAX(tagcache_sort_key(song, tag_tracknumber), 0);
         if (entries[i].newtable != TABLE_PLAYTRACK
-            || tagcache_sort_key(song, tag_album) != album
-            || tagcache_sort_key(song, tag_albumartist) != albumartist
+            || tagcache_sort_key(song, tag_album) != album)
+            return;
+        if (show)
+        {
+            if (tagcache_sort_key(song, tag_albumartist) != albumartist)
+                albumartist = -1;
+            continue;
+        }
+        if (tagcache_sort_key(song, tag_albumartist) != albumartist
             || d < disc || (d == disc && t < track))
             return;
         disc = d;
@@ -3198,7 +3318,7 @@ static void album_view_make(struct tree_context *c)
     }
     album_view = (struct tagtree_album){
         .songs = current_entry_count - first,
-        .year = album_year(album, albumartist),
+        .year = show ? 0 : album_year(album, albumartist),
         .longest = longest,
         .first = idx,
         .album = album,
@@ -3261,6 +3381,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     entries_tracks = 0;
     entries_groups = 0;
     entries_initials = INITIALS_NONE;
+    entries_shows = 0;
+    entries_episodes = false;
     album_view.songs = 0;
 
     /* Show search progress straight away if the disk needs to spin up,
@@ -3337,6 +3459,18 @@ static int make_entries(struct tree_context *c, int offset, bool init)
                                                      : tagcache_entry_count();
     else if (shuffle && !persons)
         tagcache_search_set_match(&tcs, count_match, &list_songs);
+    /* Podcasts' shows counted by the hook; a show's episodes by date. Whole
+       lists from memory only */
+    const bool shows = offset == 0 && level == 0 && tag == tag_album
+        && c->currtable == TABLE_NAVIBROWSE && in_section(LANG_PODCASTS)
+        && tcs.ramsearch && !shuffle;
+    const bool episodes = offset == 0 && tag == tag_title && tcs.ramsearch
+        && show_episodes(csi, c->currtable, level);
+    struct shows_counting counting = {
+        .room = c->cache.name_buffer_size, .used = &namebufused
+    };
+    if (shows)
+        tagcache_search_set_match(&tcs, shows_match, &counting);
 
     if (level || is_basename|| csi->clause_count[0] || TAGCACHE_IS_NUMERIC(tag))
         sort = true;
@@ -3391,6 +3525,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     /* lock buflib out due to possible yields */
     tree_lock_cache(c);
     struct tagentry *dptr = core_get_data(c->cache.entries_handle);
+    counting.end = (struct show_sums *)song_groups(c);
 
     /* no <All tracks>, <By album> or <Random> entries in the lists: as on a
        stock iPod, the Music menu has Songs instead. Shuffle Songs first, then
@@ -3652,6 +3787,39 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         }
         entries_years = true;
     }
+    /* Shows in two lines if all were counted and the sums still fit: sums'
+       number in album.year, cover's album in album.no */
+    if (shows && !c->dirfull && !counting.full && counting.count <= INT16_MAX
+        && current_entry_count > c->special_entry_count
+        && namebufused + (long)(counting.count * sizeof(struct show_sums))
+           <= c->cache.name_buffer_size)
+    {
+        struct tagentry *entries = get_entries(c);
+        const bool numbers = album_years_ready() && album_numbers_fit();
+        for (i = c->special_entry_count; i < current_entry_count; i++)
+        {
+            const int32_t seek = entries[i].extraseek;
+            int k = 0, n;
+            while (k < counting.count && counting.end[-1 - k].album != seek)
+                k++;
+            if (k == counting.count)
+                break;
+            int no = -1;
+            if (numbers && seek != entries_untagged)
+            {
+                no = album_years_number(seek, counting.end[-1 - k].albumartist);
+                if (no < 0)
+                    no = album_years_find(seek, &n);
+            }
+            entries[i].album.year = k;
+            entries[i].album.no = no;
+        }
+        if (i == current_entry_count)
+        {
+            entries_two_lines = true;
+            entries_shows = counting.count;
+        }
+    }
     /* Albums in two lines, as Artists in Albums or Covers in Lists has them:
        each row's album, the first of its name, and the name's year; with
        Artists in Albums, each album of a name several album artists have a
@@ -3725,9 +3893,21 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         entries_years = true;
     }
 
+    /* a show's episodes by date, not by their format's names */
+    const bool by_date = episodes && !c->dirfull && !sort_inverse && !sort_limit;
+    if (by_date)
+    {
+        struct tagentry *entries = get_entries(c);
+        qsort(&entries[c->special_entry_count],
+              current_entry_count - c->special_entry_count,
+              sizeof(struct tagentry), compare_episodes);
+        entries_two_lines = true;
+        entries_episodes = true;
+    }
+
     /* A long list stays in the database's order, as sorted already: 13000 names
        took seconds, and this is the order it always had in chunks */
-    if (sort && current_entry_count <= TAGTREE_SORT_MAX)
+    if (sort && !by_date && current_entry_count <= TAGTREE_SORT_MAX)
     {
         /* by place, as the database has them; a format's names by what they
            show, as they did, files' by their names; songs without their
@@ -3757,7 +3937,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
        a list of the tag alone at the top is in, in chunks too */
     entries_initials_tag = tag;
     if (!formatted && !is_basename && !sort_inverse && !entries_of_stats
-        && !with_album && TAGCACHE_IS_SORTED(tag))
+        && !with_album && !by_date && TAGCACHE_IS_SORTED(tag))
     {
         if (sort && current_entry_count <= TAGTREE_SORT_MAX)
             entries_initials = sort_by_place ? INITIALS_BY_PLACE : INITIALS_BY_NAME;
@@ -6422,6 +6602,13 @@ static uint32_t list_hash(int table, int extra, const struct search_instruction 
         LIST_ID_ADD(songs_order());
         LIST_ID_ADD(tree_get_context()->cache.max_entries);
     }
+    /* a show's episodes by date: not the id of a playlist written by disc
+       and track */
+    if (by_order && show_episodes(si, table, extra))
+    {
+        LIST_ID_ADD(0x45504953u); /* "EPIS" */
+        LIST_ID_ADD(tree_get_context()->cache.max_entries);
+    }
     LIST_ID_ADD(si->tagorder_count);
     for (int i = 0; i < si->tagorder_count; i++)
     {
@@ -7204,7 +7391,71 @@ bool tagtree_rows_two_lines(struct tree_context *c)
 
 bool tagtree_rows_covers(struct tree_context *c)
 {
-    return tagtree_rows_two_lines(c) && list_covers_on();
+    return tagtree_rows_two_lines(c) && !entries_episodes && list_covers_on();
+}
+
+static const char *show_subline(struct tree_context *c,
+                                const struct tagentry *entry, char *buf,
+                                size_t size)
+{
+    const int k = entry->album.year;
+    if (k < 0 || k >= entries_shows)
+        return NULL;
+    const int n = ((const struct show_sums *)song_groups(c))[-1 - k].episodes;
+    snprintf(buf, size, plural_str(n, LANG_EPISODES_ONE, LANG_EPISODES_FEW,
+                                   LANG_EPISODES_MANY), n);
+    return buf;
+}
+
+/* "28 min left" (rounded up; live for the one playing if it remembers its
+   place), else date and length: "20 May 2023 · 22 min", year only if not
+   the clock's */
+static const char *episode_subline(int32_t idx, char *buf, size_t size)
+{
+    const long length = tagcache_sort_key(idx, tag_length);
+    long place = tagcache_track_place(idx);
+    /* the track is taken, under its mutex, for the row playing alone: the
+       list has which that is, once a draw */
+    if (gui_synclist_playing() == idx + 1)
+    {
+        const struct mp3entry *id3 = audio_current_track();
+        if (id3 && id3->tagcache_idx == idx + 1 && itunesdb_resumes(id3->path))
+            place = id3->elapsed;
+    }
+    char mins[32];
+    if (place > 0 && length > 0)
+    {
+        snprintf(mins, sizeof(mins), str(LANG_TIME_MIN),
+                 (int)MAX((length - place + 59999) / 60000, 1));
+        snprintf(buf, size, str(LANG_TIME_LEFT), mins);
+        return buf;
+    }
+    const long date = episode_date(idx);
+    const int year = date / 10000, month = date / 100 % 100, day = date % 100;
+    size_t len = 0;
+    buf[0] = '\0';
+    if (month >= 1 && month <= 12)
+    {
+        const char *name = str(LANG_MONTH_JANUARY + month - 1);
+        const struct tm *tm = get_time();
+        if (!day)
+            len = snprintf(buf, size, "%s %d", name, year);
+        else if (valid_time(tm) && tm->tm_year + 1900 == year)
+            len = snprintf(buf, size, str(LANG_DATE_DAY_MONTH), day, name);
+        else
+            len = snprintf(buf, size, str(LANG_DATE_DAY_MONTH_YEAR), day, name,
+                           year);
+    }
+    else if (year > 0)
+        len = snprintf(buf, size, "%d", year);
+    if (length > 0 && len < size)
+    {
+        snprintf(mins, sizeof(mins), str(LANG_TIME_MIN),
+                 (int)MAX((length + 30000) / 60000, 1));
+        snprintf(buf + len, size - len, "%s%s", len ? " \xc2\xb7 " : "",
+                 mins); /* U+00B7 */
+    }
+    return buf[0] ? buf : NULL;
 }
 
 const char *tagtree_album_subline(int no, int year, bool artist,
@@ -7260,6 +7511,11 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
     const struct tagentry *entry = tagtree_get_entry(c, row);
     if (!entry)
         return NULL;
+    if (entries_episodes)
+        return entry->newtable == TABLE_PLAYTRACK ?
+               episode_subline(entry->extraseek, buf, size) : NULL;
+    if (entries_shows)
+        return show_subline(c, entry, buf, size);
     if (entry->newtable == TABLE_PLAYTRACK)
         return song_tag_name(entry->extraseek, entries_initials_tag, buf, size);
     const bool albums = is_albums(csi) && c->currextra == 0;
@@ -7414,6 +7670,11 @@ bool tagtree_album(struct tree_context *c, struct tagtree_album *album)
         return false;
     *album = album_view;
     return true;
+}
+
+bool tagtree_album_is_show(struct tree_context *c)
+{
+    return c->currtable != TABLE_ROOT && album_view.songs > 0 && entries_episodes;
 }
 
 bool tagtree_album_text(struct tree_context *c, int tag, char *buf, size_t size)
