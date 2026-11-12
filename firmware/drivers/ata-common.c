@@ -43,9 +43,11 @@ int ata_spinup_time(void)
 void ata_get_info(IF_MD(int drive,)struct storage_info *info)
 {
     unsigned short *src,*dest;
-    static char vendor[8];
-    static char product[16];
-    static char revision[4];
+    /* Written a halfword at a time: a char array may land on an odd address,
+       where that store is a data abort on PP502x */
+    static uint16_t vendor[8 / 2];
+    static uint16_t product[16 / 2];
+    static uint16_t revision[4 / 2];
 #ifdef HAVE_MULTIDRIVE
     (void)drive; /* unused for now */
 #endif
@@ -58,22 +60,22 @@ void ata_get_info(IF_MD(int drive,)struct storage_info *info)
 #endif
 
     src = (unsigned short*)&identify_info[27];
-    dest = (unsigned short*)vendor;
+    dest = vendor;
     for (i=0;i<4;i++)
         dest[i] = htobe16(src[i]);
-    info->vendor=vendor;
+    info->vendor=(char *)vendor;
 
     src = (unsigned short*)&identify_info[31];
-    dest = (unsigned short*)product;
+    dest = product;
     for (i=0;i<8;i++)
         dest[i] = htobe16(src[i]);
-    info->product=product;
+    info->product=(char *)product;
 
     src = (unsigned short*)&identify_info[23];
-    dest = (unsigned short*)revision;
+    dest = revision;
     for (i=0;i<2;i++)
         dest[i] = htobe16(src[i]);
-    info->revision=revision;
+    info->revision=(char *)revision;
 }
 #endif
 
