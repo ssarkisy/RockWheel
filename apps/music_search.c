@@ -119,7 +119,10 @@ static const struct {
    and digits too, that begin a word of a name: what may be typed first. With
    the commit of the database they're of. */
 #define LETTERS_FILE    ROCKBOX_DIR "/search_letters.bin"
-#define LETTERS_VERSION 7
+/* 8 with the names of music alone (group_listed()), 9 made without the
+   tracks' kinds in memory: a file of the other is made again, as Music's
+   lists are then the other too */
+#define LETTERS_VERSION (tagcache_kinds_known() ? 8 : 9)
 #define LETTERS_LOW     0x0370
 #define LETTERS_MID     0x1100
 #define LETTERS_HIGH    0x3040
@@ -643,6 +646,10 @@ static int cmp_crc(const void *a, const void *b)
    names, read first: as their crcs, sorted, in the room the caller gives. */
 static struct {
     int files;
+    int group;
+    /* the artists with a song of music: a bit for each place a name starts
+       at in the songs' and the albums' artists' files, NULL for all */
+    uint8_t *music[2];
     struct tagcache_search tcs[2];
     bool searching[2];  /* begun, to be finished */
     bool have[2];       /* its name read, not given yet */
@@ -701,13 +708,65 @@ static bool album_artist(const char *name)
     return false;
 }
 
+#ifdef HAVE_TC_RAMCACHE
+/* the places of the two artists' names of each track: the last of them
+   first, then a bit for each that a song of music has. A name's entry is
+   over 8 bytes, so a bit an 8 bytes tells them apart. */
+static int32_t artists_last[2];
+
+static void artist_places(int idx_id, const int32_t *tag_seek, void *data)
+{
+    const int tags[2] = { group_tag[GROUP_ARTISTS], tag_albumartist };
+    for (int i = 0; i < 2; i++)
+    {
+        const int32_t seek = tag_seek[tags[i]];
+        if (!data)
+            artists_last[i] = MAX(artists_last[i], seek);
+        else if (seek >= 0 && tagcache_track_kind(idx_id) == 0)
+            names_in.music[i][seek >> 6] |= 1 << ((seek >> 3) & 7);
+    }
+}
+#endif
+
+/* Songs of music; artists with a song of music, as Music's Artists lists
+   them, an author of shows or books alone having no row to go to; every
+   album's name, a show's and a book's too, which open their own screens */
+static bool group_listed(int i)
+{
+    if (names_in.group == GROUP_SONGS)
+        return tagcache_track_kind(names_in.tcs[0].idx_id) == 0;
+    const int32_t seek = names_in.tcs[i].result_seek;
+    return names_in.group != GROUP_ARTISTS || !names_in.music[i] || seek < 0
+           || (names_in.music[i][seek >> 6] & (1 << ((seek >> 3) & 7)));
+}
+
 /* the artists' with room for the albums' (albums_read()) */
 static void group_begin(int g, void *room, size_t size)
 {
     names_in.files = g == GROUP_ARTISTS ? 2 : 1;
+    names_in.group = g;
+    names_in.music[0] = names_in.music[1] = NULL;
     names_in.read = 0;
     names_in.albums = NULL;
     names_in.album_count = 0;
+#ifdef HAVE_TC_RAMCACHE
+    artists_last[0] = artists_last[1] = -1;
+    if (g == GROUP_ARTISTS && room && tagcache_kinds_known()
+        && group_tag[g] < TAG_COUNT && tagcache_for_each_track(artist_places, NULL))
+    {
+        /* the bits at the room's end, the albums' artists before them */
+        const size_t bytes[2] = { (artists_last[0] >> 6) + 2,
+                                  (artists_last[1] >> 6) + 2 };
+        if (bytes[0] + bytes[1] < size / 2)
+        {
+            size -= bytes[0] + bytes[1];
+            names_in.music[0] = (uint8_t *)room + size;
+            names_in.music[1] = names_in.music[0] + bytes[0];
+            memset(names_in.music[0], 0, bytes[0] + bytes[1]);
+            tagcache_for_each_track(artist_places, names_in.music);
+        }
+    }
+#endif
     if (g == GROUP_ARTISTS)
         albums_read(room, size);
     for (int i = 0; i < names_in.files; i++)
@@ -724,11 +783,11 @@ static const char *group_next(int32_t *idx_id)
 {
     for (int i = 0; i < names_in.files; i++)
     {
-        if (names_in.searching[i] && !names_in.have[i]
-            && tagcache_get_next(&names_in.tcs[i], names_in.name[i],
-                                 sizeof(names_in.name[i])))
+        while (names_in.searching[i] && !names_in.have[i]
+               && tagcache_get_next(&names_in.tcs[i], names_in.name[i],
+                                    sizeof(names_in.name[i])))
         {
-            names_in.have[i] = true;
+            names_in.have[i] = group_listed(i);
             names_in.read++;
         }
     }
