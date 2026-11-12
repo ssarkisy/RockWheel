@@ -59,6 +59,60 @@ struct filestr_desc
     [0 ... MAX_OPEN_FILES-1] = { .osfd = -1 }
 };
 
+/** Kill point, for tests of what a reset leaves behind.
+    RBSIM_KILL_AT=<n> ends the process right after the n-th operation that
+    changes the disk: an open that may create or empty a file, a write, a
+    truncation, the close of a file open for writing, a rename, a removal, a
+    folder made or removed. The next run is the next boot.
+    RBSIM_FSLOG=<file> appends a numbered line for each of them, which is
+    where to pick n from. Everything written by then stays, which a disk does
+    not promise: the order the FAT's sectors reach it in is tools/fstest's
+    to check. Without the variables nothing is counted. **/
+#define KILLED_STATUS 99
+
+static long changes, kill_at;
+static FILE *changes_log;
+static char written[MAX_OPEN_FILES][MAX_PATH]; /* paths of the files open
+                                                  for writing */
+
+static bool counting(void)
+{
+    static bool ready;
+    if (!ready)
+    {
+        ready = true;
+        const char *s = getenv("RBSIM_KILL_AT");
+        kill_at = s ? atol(s) : 0;
+        s = getenv("RBSIM_FSLOG");
+        changes_log = s ? fopen(s, "a") : NULL;
+        if (changes_log)
+            fprintf(changes_log, "# run, RBSIM_KILL_AT=%ld\n", kill_at);
+    }
+
+    return changes_log || kill_at > 0;
+}
+
+static void disk_changed(const char *fmt, ...)
+{
+    if (!counting())
+        return;
+
+    changes++;
+    if (changes_log)
+    {
+        va_list ap;
+        va_start(ap, fmt);
+        fprintf(changes_log, "%ld ", changes);
+        vfprintf(changes_log, fmt, ap);
+        va_end(ap);
+        fputs(changes == kill_at ? "\n# killed\n" : "\n", changes_log);
+        fflush(changes_log);
+    }
+
+    if (changes == kill_at)
+        _exit(KILLED_STATUS);
+}
+
 static struct filestr_desc * alloc_filestr(int *fildesp)
 {
     for (unsigned int i = 0; i < MAX_OPEN_FILES; i++)
@@ -439,6 +493,14 @@ int sim_open(const char *path, int oflag, ...)
     filestr->volume  = MAX(pprc - 1, 0);
 #endif
     filestr->mounted = true;
+
+    written[fildes][0] = '\0';
+    if (oflag & O_ACCMODE)
+        strlcpy(written[fildes], path, sizeof (written[fildes]));
+    if (oflag & (O_CREAT|O_TRUNC))
+        disk_changed("open %s%s%s", path, oflag & O_CREAT ? " create" : "",
+                     oflag & O_TRUNC ? " trunc" : "");
+
     return fildes;
 }
 
@@ -458,7 +520,12 @@ int sim_close(int fildes)
 
     int osfd = filestr->osfd;
     filestr->osfd = -1;
-    return os_close(osfd);
+    int rc = os_close(osfd);
+
+    if (written[fildes][0])
+        disk_changed("close %s", written[fildes]);
+
+    return rc;
 }
 
 int sim_ftruncate(int fildes, off_t length)
@@ -480,6 +547,9 @@ int sim_ftruncate(int fildes, off_t length)
     if (rc >= 0)
         dircache_ftruncate(xxxxxx);
 #endif
+
+    if (rc >= 0)
+        disk_changed("truncate %s to %ld", written[fildes], (long)length);
 
     return rc;
 }
@@ -524,7 +594,13 @@ ssize_t sim_write(int fildes, const void *buf, size_t nbyte)
     if (!filestr)
         return -1;
 
-    return os_write(filestr->osfd, buf, nbyte);
+    ssize_t rc = os_write(filestr->osfd, buf, nbyte);
+
+    if (rc > 0 && counting())
+        disk_changed("write %s %ld bytes to %ld", written[fildes], (long)rc,
+                     (long)os_lseek(filestr->osfd, 0, SEEK_CUR));
+
+    return rc;
 }
 
 int sim_remove(const char *path)
@@ -540,6 +616,8 @@ int sim_remove(const char *path)
         dircache_remove(xxxxxx);
 #endif
 
+    if (rc >= 0)
+        disk_changed("remove %s", path);
     return rc;
 }
 
@@ -569,6 +647,8 @@ int sim_rename(const char *old, const char *new)
         dircache_rename(xxxxxx);
 #endif
 
+    if (rc >= 0)
+        disk_changed("rename %s to %s", old, new);
     return rc;
 }
 
@@ -718,6 +798,8 @@ int sim_mkdir(const char *path)
         dircache_mkdir(xxxxxx);
 #endif
 
+    if (rc >= 0)
+        disk_changed("mkdir %s", path);
     return rc;
 }
 
@@ -734,6 +816,8 @@ int sim_rmdir(const char *path)
         dircache_rmdir(xxxxxx);
 #endif
 
+    if (rc >= 0)
+        disk_changed("rmdir %s", path);
     return rc;
 }
 
