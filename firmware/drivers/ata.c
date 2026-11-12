@@ -569,14 +569,16 @@ static int ata_transfer_sectors(uint64_t start,
 
     logf("ata XFER (%d) %d @ %llu", write, incount, start);
 
-    timeout = current_tick + READWRITE_TIMEOUT;
-
     ATA_OUT8(ATA_SELECT, ata_device);
     if (!wait_for_rdy())
     {
         ret = -3;
         goto error;
     }
+
+    /* after the wait for RDY: one of 5 s left no try, and the transfer
+       returned 0 */
+    timeout = current_tick + READWRITE_TIMEOUT;
 
  retry:
     /* back here: ret is -4 to -7, and the drive has been reset for it */
