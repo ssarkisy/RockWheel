@@ -197,7 +197,12 @@ struct track {
     uint32_t path;   /* offset in the path pool, 0 for none */
     uint32_t art;    /* the ArtworkDB image id of its cover, 0 for none */
     uint32_t album;  /* its album and the album's artist hashed, 0 for none */
-    uint32_t pos;    /* of its mhit in iTunesDB */
+    union {
+        uint32_t pos;       /* of its mhit in iTunesDB, as it's read */
+        uint32_t notes_end; /* then where the notes' file ends after its
+                               notes: where the one before it ends, if it
+                               has none */
+    };
     uint32_t sound_check; /* Finder's, 0 for none */
     uint32_t lastplayed;  /* Mac time, 0 for never */
     uint32_t bookmark;    /* a podcast's or a book's place on the Mac, ms */
@@ -296,6 +301,13 @@ static bool mhod_string(off_t pos, char *buf, size_t size)
         units--;
     *utf16LEdecode(p, (unsigned char *)buf, units) = '\0';
     return true;
+}
+
+/* the mhod at pos has a string that isn't empty */
+static bool mhod_filled(off_t pos)
+{
+    const unsigned char *p = db_record(pos, "mhod", 40);
+    return p && le32(p + 28) >= 2;
 }
 
 /* the string of the mhod at pos hashed as it is, 0 for an empty one */
@@ -892,18 +904,282 @@ static struct {
 
 static void track_sort_fields(const off_t *name_at, const off_t *sort_at);
 
-static void read_track(off_t pos, struct track *track)
+/* Podcasts' and audiobooks' notes for Now Playing: a header, the texts as UTF-8,
+   NOTES_MAX bytes each at most, then an index by path hash. None kept in memory. */
+#define NOTES_FILE      ROCKBOX_DIR "/itunesdb_notes.dat"
+#define NOTES_MAGIC     0x4e494252 /* "RBIN" */
+#define NOTES_VERSION   1
+#define NOTES_MAX       8192
+
+struct notes_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t count;
+    uint32_t db_size;   /* of the iTunesDB they are from */
+    uint32_t db_mtime;
+    uint32_t index;     /* where the entries are, after the texts */
+};
+
+struct notes_entry {
+    uint64_t hash;
+    uint32_t offset;    /* of its text in the file */
+    uint32_t length;
+};
+
+static struct {
+    int fd;
+    uint32_t end;       /* of the file so far */
+    unsigned char *room; /* what is written next gathers here, if there is room */
+    size_t size, used;
+    bool ok;
+} notes_out = { .fd = -1 };
+
+static unsigned char *notes_room(size_t *size);
+static void notes_room_done(void);
+
+static void notes_flush(void)
+{
+    if (notes_out.used && write(notes_out.fd, notes_out.room, notes_out.used)
+                          != (ssize_t)notes_out.used)
+        notes_out.ok = false;
+    notes_out.used = 0;
+}
+
+/* Through the room, each block of it filled to its end as writer_put() fills
+   its own: a sector at a time was a command to the disk for each */
+static void notes_write(const void *data, size_t len)
+{
+    const unsigned char *from = data;
+    if (!notes_out.room && write(notes_out.fd, from, len) != (ssize_t)len)
+        notes_out.ok = false;
+    while (notes_out.room && len > 0)
+    {
+        const size_t part = MIN(len, notes_out.size - notes_out.used);
+        memcpy(notes_out.room + notes_out.used, from, part);
+        notes_out.used += part;
+        from += part;
+        len -= part;
+        if (notes_out.used == notes_out.size)
+            notes_flush();
+    }
+}
+
+static void notes_begin(void)
+{
+    const struct notes_header blank = { 0 };
+    notes_out.fd = open(NOTES_FILE ".tmp", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    notes_out.end = sizeof(blank);
+    notes_out.ok = notes_out.fd >= 0;
+    notes_out.used = 0;
+    notes_out.room = notes_out.ok ? notes_room(&notes_out.size) : NULL;
+    if (notes_out.ok)
+        notes_write(&blank, sizeof(blank));
+}
+
+/* The string of the mhod at pos, 0 for none, to the file as UTF-8: where the
+   file ends after it. A nil in it would end the text shown: a space. */
+static uint32_t notes_put(off_t pos)
+{
+    const unsigned char *p = pos && notes_out.ok ? db_record(pos, "mhod", 40)
+                                                 : NULL;
+    if (!p)
+        return notes_out.end;
+    uint32_t units = le32(p + 28) / 2;
+    off_t at = pos + 40;
+    size_t total = 0;
+    bool whole = false;
+    while (units > 0 && !whole && notes_out.ok)
+    {
+        unsigned char buf[512];
+        size_t used = 0;
+        const uint32_t n = MIN(units, 160);
+        uint32_t i = 0;
+        p = db_get(at, n * 2);
+        if (!p)
+            break;
+        while (i < n)
+        {
+            unsigned long c = p[2 * i] | p[2 * i + 1] << 8;
+            uint32_t took = 1;
+            if (c >= 0xd800 && c < 0xdc00)
+            {
+                /* a pair, whose other half may be in the next read */
+                if (i + 1 >= n)
+                {
+                    if (n == units)
+                        i = n; /* cut off by the string's end: left out */
+                    break;
+                }
+                const unsigned long low = p[2 * i + 2] | p[2 * i + 3] << 8;
+                const bool pair = low >= 0xdc00 && low < 0xe000;
+                c = pair ? 0x10000 + ((c - 0xd800) << 10) + (low - 0xdc00)
+                         : 0xfffd;
+                took = pair ? 2 : 1;
+            }
+            else if (c >= 0xdc00 && c < 0xe000)
+                c = 0xfffd; /* a second half without its first */
+            if (!c)
+                c = ' ';
+            const size_t len = utf8encode(c, buf + used) - (buf + used);
+            if (total + used + len > NOTES_MAX)
+            {
+                whole = true;
+                break;
+            }
+            used += len;
+            i += took;
+        }
+        /* a lone first half before more of the string: read on from it */
+        if (i == 0 && !whole)
+            i = 1;
+        if (used)
+            notes_write(buf, used);
+        total += used;
+        units -= i;
+        at += 2 * i;
+    }
+    notes_out.end += total;
+    return notes_out.end;
+}
+
+/* The index and the header, and the file takes its name: or none of it. An
+   old file stays until then, and after a failure, when the next boot reads
+   again (itunesdb_notes_ready()); without iTunesDB there is none. */
+static void notes_end(bool loaded)
+{
+    bool ok = loaded && notes_out.ok;
+    struct notes_header hdr = {
+        NOTES_MAGIC, NOTES_VERSION, 0, db_size, db_mtime, notes_out.end
+    };
+    struct notes_entry batch[32];
+    int filled = 0;
+    for (int i = 0; ok && i <= db.count; i++)
+    {
+        if (i < db.count)
+        {
+            const uint32_t k = db.by_hash[i];
+            const struct track *t = &db.tracks[k];
+            const uint32_t start = k ? db.tracks[k - 1].notes_end : sizeof(hdr);
+            if (!t->path || t->notes_end <= start)
+                continue;
+            batch[filled++] = (struct notes_entry){
+                t->st.hash, start, t->notes_end - start
+            };
+            hdr.count++;
+        }
+        if (filled == (int)ARRAYLEN(batch) || (i == db.count && filled))
+        {
+            notes_write(batch, filled * sizeof(batch[0]));
+            ok = notes_out.ok;
+            filled = 0;
+        }
+    }
+    if (notes_out.fd >= 0)
+    {
+        notes_flush();
+        ok = ok && notes_out.ok && lseek(notes_out.fd, 0, SEEK_SET) == 0
+             && write(notes_out.fd, &hdr, sizeof(hdr)) == sizeof(hdr);
+        ok = close(notes_out.fd) == 0 && ok;
+    }
+    notes_out.fd = -1;
+    if (notes_out.room)
+        notes_room_done();
+    notes_out.room = NULL;
+    if (!ok || rename(NOTES_FILE ".tmp", NOTES_FILE) < 0)
+        remove(NOTES_FILE ".tmp");
+    if (!loaded && !itunesdb_exists())
+        remove(NOTES_FILE);
+}
+
+bool itunesdb_notes_ready(void)
+{
+    uint32_t size, mtime;
+    if (!db_stamp(&size, &mtime))
+        return true;
+    struct notes_header hdr;
+    const int fd = open(NOTES_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool ready = read(fd, &hdr, sizeof(hdr)) == sizeof(hdr)
+        && hdr.magic == NOTES_MAGIC && hdr.version == NOTES_VERSION
+        && hdr.db_size == size && hdr.db_mtime == mtime;
+    close(fd);
+    return ready;
+}
+
+/* The entry of hash in the index, searched in windows read into room, the
+   first where its hash would be if they were spread evenly: for a library's
+   worth of notes, one read */
+static bool notes_find(int fd, const struct notes_header *hdr, uint64_t hash,
+                       struct notes_entry *found, void *room, size_t size)
+{
+    const int per = size / sizeof(*found);
+    int lo = 0, hi = (int)hdr->count - 1;
+    int at = (int)(((hash >> 32) * (uint64_t)hdr->count) >> 32);
+    while (lo <= hi && per > 0)
+    {
+        const int first = MAX(lo, MIN(at - per / 2, hi - per + 1));
+        const int n = MIN(per, hi - first + 1);
+        const off_t pos = hdr->index + (off_t)first * sizeof(*found);
+        const ssize_t bytes = n * sizeof(*found);
+        if (lseek(fd, pos, SEEK_SET) != pos || read(fd, room, bytes) != bytes)
+            return false;
+        int low = 0, high = n - 1;
+        while (low <= high)
+        {
+            const int mid = (low + high) / 2;
+            memcpy(found, (const char *)room + mid * sizeof(*found),
+                   sizeof(*found));
+            if (found->hash == hash)
+                return true;
+            if (found->hash < hash)
+                low = mid + 1;
+            else
+                high = mid - 1;
+        }
+        /* before the window, after it, or in it and not there */
+        if (low == 0)
+            hi = first - 1;
+        else if (low == n)
+            lo = first + n;
+        else
+            return false;
+        at = (lo + hi) / 2;
+    }
+    return false;
+}
+
+int itunesdb_read_notes(const char *path, char *buf, size_t size)
+{
+    struct notes_header hdr;
+    struct notes_entry entry;
+    int len = 0;
+    const int fd = open(NOTES_FILE, O_RDONLY);
+    if (fd < 0)
+        return 0;
+    if (read(fd, &hdr, sizeof(hdr)) == sizeof(hdr) && hdr.magic == NOTES_MAGIC
+        && hdr.version == NOTES_VERSION && hdr.count <= COUNT_MAX
+        && notes_find(fd, &hdr, itunesdb_path_hash(path), &entry, buf, size)
+        && lseek(fd, entry.offset, SEEK_SET) == (off_t)entry.offset)
+        len = read(fd, buf, MIN(entry.length, size));
+    close(fd);
+    return MAX(len, 0);
+}
+
+/* the track at pos read; where its notes are in iTunesDB, an episode's or a
+   book's description or else its subtitle, 0 for none */
+static off_t read_track(off_t pos, struct track *track)
 {
     char path[MAX_PATH];
     const unsigned char *p = db_record(pos, "mhit", 12);
     memset(track, 0, sizeof(*track));
     track->pos = pos;
     if (!p)
-        return;
+        return 0;
     uint32_t header_len = le32(p + 4);
     p = db_get(pos, MIN(header_len, 356));
     if (!p || header_len < 0x9c)
-        return;
+        return 0;
     int mhods = le32(p + 12);
     track->id = le32(p + 16);
     track->st.rating = p[31];
@@ -956,6 +1232,7 @@ static void read_track(off_t pos, struct track *track)
     uint32_t album = 0, album_artist = 0, artist = 0;
     off_t name_at[SORTS] = { 0 }, sort_at[SORTS] = { 0 };
     bool sorted = false;
+    off_t notes_at = 0, subtitle_at = 0;
     off_t child = pos + header_len;
     for (int i = 0; i < mhods; i++)
     {
@@ -978,6 +1255,8 @@ static void read_track(off_t pos, struct track *track)
             uint32_t h = mhod_hash(child);
             *(type == 3 ? &album : type == 4 ? &artist : &album_artist) = h;
         }
+        else if (spoken && (type == 14 || type == 18) && mhod_filled(child))
+            *(type == 14 ? &notes_at : &subtitle_at) = child;
         else if (type == 2 && !track->path
                  && mhod_string(child, path, sizeof(path)))
         {
@@ -1005,6 +1284,7 @@ static void read_track(off_t pos, struct track *track)
         new_track_metadata(track);
     if (sorted)
         track_sort_fields(name_at, sort_at);
+    return !track->st.hash ? 0 : notes_at ? notes_at : subtitle_at;
 }
 
 /* how far itunesdb_import_tracks() has read, for its progress screen: the
@@ -1037,7 +1317,10 @@ static bool read_tracks(off_t list)
         if (!p)
             break;
         uint32_t total = le32(p + 8); /* before read_track moves the cache */
-        read_track(pos, &db.tracks[db.count++]);
+        struct track *track = &db.tracks[db.count++];
+        /* its notes to their file, last: its place in iTunesDB, which
+           shares its field, isn't asked for again */
+        track->notes_end = notes_put(read_track(pos, track));
         if (total == 0)
             break;
         pos += total;
@@ -5273,6 +5556,22 @@ static void lock_art(void)
     mutex_lock(&art_lock);
 }
 
+/* The frame's buffer lent to the import's notes while it reads the tracks, when no
+   cover is read: forget_art() has dropped their index, and the lock keeps one of a
+   song outside Finder's folder waiting. In whole sectors. */
+static unsigned char *notes_room(size_t *size)
+{
+    lock_art();
+    frame_path[0] = '\0';
+    *size = sizeof(frame_raw) - sizeof(frame_raw) % 512;
+    return frame_raw;
+}
+
+static void notes_room_done(void)
+{
+    mutex_unlock(&art_lock);
+}
+
 /* the size of a frame in bm: the largest that fits, up or down, keeping the
    shape; false when it's more than max_size holds */
 static bool art_fit(int fw, int fh, int *w, int *h, int max_size)
@@ -6439,6 +6738,16 @@ bool itunesdb_import_kept_art(void)
 {
     return false;
 }
+
+static unsigned char *notes_room(size_t *size)
+{
+    (void)size;
+    return NULL;
+}
+
+static void notes_room_done(void)
+{
+}
 #endif /* ITUNESDB_HAVE_ART */
 
 /* Songs Finder wrote again under another path, as it does a few hundred a
@@ -6678,8 +6987,10 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     remove(ART_FILE);
 #endif
     sort_fields_begin();
+    notes_begin();
     bool loaded = db_load();
     sort_fields_end(loaded);
+    notes_end(loaded);
     metadata_end();
     if (loaded)
     {
@@ -6756,6 +7067,9 @@ bool itunesdb_load_tracks(void)
 #endif
     /* and the Sort fields, which the covers don't wait for */
     if (!itunesdb_sort_ready())
+        return false;
+    /* and the notes of podcasts and audiobooks */
+    if (!itunesdb_notes_ready())
         return false;
     if (flags_index.handle > 0 || !db_stamp(&size, &mtime))
         return true;

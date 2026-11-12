@@ -148,6 +148,14 @@ void itunesdb_save_flags(void);
 /* and at USB and shutdown, after a save that is under way */
 void itunesdb_flush_flags(void);
 
+/* The notes of the podcast or audiobook at path, its description in
+   iTunesDB, as UTF-8 into buf, without an end: their length, 0 for none.
+   buf is also the room the file's index is searched in, a few hundred bytes
+   at least. Reads the disk, three reads: for when the view opens. */
+int itunesdb_read_notes(const char *path, char *buf, size_t size);
+/* and they are noted from this iTunesDB, or there is none */
+bool itunesdb_notes_ready(void);
+
 /* the flags are noted by this firmware, or there is no iTunesDB */
 bool itunesdb_flags_ready(void);
 /* Sound Check's gains are noted from this iTunesDB, or there is none */

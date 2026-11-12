@@ -9584,7 +9584,7 @@ void tagcache_init(void)
         }
     }
     if (sync_found || !itunesdb_gains_ready() || !itunesdb_sort_ready()
-        || !itunesdb_flags_ready())
+        || !itunesdb_flags_ready() || !itunesdb_notes_ready())
         import_phase = TAGCACHE_IMPORT_READING;
 #ifdef ITUNESDB_HAVE_ART
     else if (itunesdb_slides_todo())

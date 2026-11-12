@@ -31,6 +31,8 @@
 #include "settings.h"
 #include "rbunicode.h"
 #include "lyrics.h"
+#include "itunesdb.h"
+#include "tagtree.h"
 #include "skin_engine/cover_palette.h"
 
 /* as read from the file, and as UTF-8 which can take up to twice as much */
@@ -455,6 +457,42 @@ static void wrap_lyrics(int width, int font)
         line_count--;
 }
 
+/* A podcast's or an audiobook's notes where it has no lyrics: its title, its date
+   and length, an empty line, then the import's notes; well inside text[]. */
+static bool read_notes(const struct mp3entry *id3)
+{
+#ifdef HAVE_TAGCACHE
+    if (!(itunesdb_track_flags(id3->path)
+          & (ITUNESDB_PODCAST | ITUNESDB_AUDIOBOOK)))
+        return false;
+    const int n = itunesdb_read_notes(id3->path, (char *)raw, sizeof(raw));
+    if (n <= 0)
+        return false;
+    char date[96];
+    size_t used = 0;
+    if (id3->title && id3->title[0])
+    {
+        /* 255 bytes of it at most, cut between characters */
+        used = MIN(strlen(id3->title), 255);
+        while (used > 0 && (id3->title[used] & 0xc0) == 0x80)
+            used--;
+        memcpy(text, id3->title, used);
+        text[used++] = '\n';
+    }
+    if (id3->tagcache_idx > 0
+        && tagtree_track_date(id3->tagcache_idx - 1, true, date, sizeof(date)))
+        used += snprintf(text + used, sizeof(date) + 1, "%s\n", date);
+    if (used)
+        text[used++] = '\n';
+    memcpy(text + used, raw, n);
+    text[used + n] = '\0';
+    return true;
+#else
+    (void)id3;
+    return false;
+#endif
+}
+
 bool lyrics_load(const struct mp3entry *id3, struct viewport *vp)
 {
     /* taken before the reads: vp is in the skin's memory, which can move
@@ -487,6 +525,8 @@ bool lyrics_load(const struct mp3entry *id3, struct viewport *vp)
         else
             read_embedded(id3); /* the track's own plain text is first */
     }
+    if (!found)
+        found = read_notes(id3);
     if (found)
         wrap_lyrics(width, font);
 
