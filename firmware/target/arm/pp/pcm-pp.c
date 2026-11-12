@@ -427,7 +427,8 @@ void fiq_playback(void)
 #endif /* CPU_PP502x */
 
 static void sink_set_freq(uint16_t freq) {
-    max_dma_chunk_size = hw_freq_sampr[freq] >> 6;
+    /* Whole 32-bit DMA words: 688 bytes at 44.1 kHz, not 689 */
+    max_dma_chunk_size = (hw_freq_sampr[freq] >> 6) & ~3;
     audiohw_set_frequency(freq);
 }
 
