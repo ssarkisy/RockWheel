@@ -3549,6 +3549,32 @@ static void album_view_make(struct tree_context *c)
 
 static int make_all_songs(struct tree_context *c, int extra, bool init);
 
+static bool in_section(int lang);
+
+/* A list's conditions, of its levels down to last. Podcasts' and Audiobooks'
+   name the kind and then say it again by file name and genre, for a database
+   not in memory: with the kinds in memory the kind alone is asked, or every
+   other track had its path copied and its genre compared. */
+static void add_list_clauses(struct tagcache_search *tcs, int last)
+{
+    const int kind = in_section(LANG_PODCASTS) ? 1
+                     : in_section(LANG_AUDIOBOOKS) ? 2 : 0;
+    for (int i = 0; i <= last && i < csi->tagorder_count; i++)
+    {
+        const struct tagcache_search_clause *first =
+            csi->clause_count[i] > 0 ? csi->clause[i][0] : NULL;
+        const bool by_kind = kind && first && first->tag == tag_virt_kind
+            && first->type == clause_is && first->numeric
+            && first->numeric_data == kind && tagcache_kinds_known();
+        for (int j = 0; j < csi->clause_count[i]; j++)
+        {
+            if (by_kind && csi->clause[i][j]->type == clause_logical_or)
+                break;
+            tagcache_search_add_clause(tcs, csi->clause[i][j]);
+        }
+    }
+}
+
 /* Audiobooks' rows, made: a second pass for what is heard of the books begun,
    with the search's conditions again, and those books first, in the order
    they had. buf is the search's room. */
@@ -3563,8 +3589,7 @@ static void books_finish(struct tree_context *c, struct shows_counting *s,
     if (!begun || !tagcache_search(&tcs, tag_album))
         return;
     tagcache_search_set_uniqbuf(&tcs, uniqbuf, UNIQBUF_SIZE);
-    for (int j = 0; j < csi->clause_count[0]; j++)
-        tagcache_search_add_clause(&tcs, csi->clause[0][j]);
+    add_list_clauses(&tcs, 0);
     s->last = 0;
     tagcache_search_set_match(&tcs, books_before_match, s);
     while (tagcache_get_next(&tcs, buf, size))
@@ -3846,13 +3871,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     /* because tagcache saves the clauses, we need to lock the buffer
      * for the entire duration of the search */
     core_pin(tagtree_handle);
-    for (i = 0; i <= level; i++)
-    {
-        int j;
-
-        for (j = 0; j < csi->clause_count[i]; j++)
-            tagcache_search_add_clause(&tcs, csi->clause[i][j]);
-    }
+    add_list_clauses(&tcs, level);
 
     current_offset = offset;
     current_entry_count = 0;
@@ -5255,11 +5274,7 @@ static int row_first_song(struct tree_context *c, const struct tagentry *entry,
     if (artist >= 0)
         tagcache_search_add_filter(&tcs, tag_albumartist, artist);
     core_pin(tagtree_handle);
-    for (int i = 0; i <= level; i++)
-    {
-        for (int j = 0; j < csi->clause_count[i]; j++)
-            tagcache_search_add_clause(&tcs, csi->clause[i][j]);
-    }
+    add_list_clauses(&tcs, level);
     char buf[TAGCACHE_BUFSZ];
     const int idx = tagcache_get_next(&tcs, buf, sizeof(buf)) ? tcs.idx_id : -1;
     if (one_kind)
@@ -6616,11 +6631,7 @@ static int gather_songs(struct tree_context *c, int extra, int32_t row_seek,
             tagcache_search_add_filter(&tcs, tag_albumartist, artist);
     }
     core_pin(tagtree_handle);
-    for (int i = 0; i < csi->tagorder_count; i++)
-    {
-        for (int j = 0; j < csi->clause_count[i]; j++)
-            tagcache_search_add_clause(&tcs, csi->clause[i][j]);
-    }
+    add_list_clauses(&tcs, csi->tagorder_count - 1);
 
     /* past half the lists' room: the songs' rows, written over its start
        one by one, reach a key only after it's read */
@@ -7846,11 +7857,7 @@ static bool shuffle_list_found(struct tree_context *c)
         return false;
     add_level_filters(&tcs, c->currextra);
     core_pin(tagtree_handle);
-    for (int i = 0; i < csi->tagorder_count; i++)
-    {
-        for (int j = 0; j < csi->clause_count[i]; j++)
-            tagcache_search_add_clause(&tcs, csi->clause[i][j]);
-    }
+    add_list_clauses(&tcs, csi->tagorder_count - 1);
     const int slot = tagtree_free_slot(0, file, sizeof(file));
     const char *name = tagtree_playlist_names[slot];
     bool ok = playlist_writer_open(&writer, file, true);

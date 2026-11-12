@@ -320,6 +320,10 @@ long tagcache_states_generation(void);
    Podcasts on its path. From memory: 0 without the database there, for no
    entry, and for a path it hasn't. */
 int tagcache_track_kind(int idx_id);
+/* whether the tracks' kinds are in memory: without them every kind reads 0.
+   They come with the database's paths in memory, so not while it loads, nor
+   with Load to RAM off, nor when their room was not got. */
+bool tagcache_kinds_known(void);
 int tagcache_path_kind(const char *path);
 /* the kind is iTunesDB's: Finder's podcast or book, which has a mark there and
    the Mac's bookmark; another is new until it has a play */

@@ -6290,6 +6290,15 @@ int tagcache_track_kind(int idx_id)
 #endif
 }
 
+bool tagcache_kinds_known(void)
+{
+#ifdef HAVE_TC_RAMCACHE
+    return tc_stat.ready && tc_stat.ramcache && ram_paths_handle > 0;
+#else
+    return false;
+#endif
+}
+
 int tagcache_path_kind(const char *path)
 {
     return tagcache_track_kind(tagcache_find_entry(path));
