@@ -74,12 +74,12 @@ int clip_jpeg_fd(int fd, int flags,
                  const struct custom_format *cformat);
 
 #ifndef PLUGIN
-/* The decode that reads this file ends at its next row of blocks, as one
-   that failed: 0 or less returned. -1 for none; whoever sets it puts that
+/* The decode that reads this file ends at its next block, as one that
+   failed: 0 or less returned. -1 for none; whoever sets it puts that
    back before the file is closed. */
 extern volatile int jpeg_stop_fd;
-/* and the decode that reads this one waits before each row, while it is:
-   put back with the other */
+/* and the decode that reads this one waits, before each row and after each
+   block of the picture, while it is: put back with the other */
 extern volatile int jpeg_hold_fd;
 #endif
 

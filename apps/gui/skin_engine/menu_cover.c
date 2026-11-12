@@ -726,11 +726,14 @@ static long pan_tick(void);
    what the disk has left then before it would stop */
 #define SHARP_REST  (HZ / 2)
 #define SHARP_SPINS (2 * HZ)
-/* The music buffered, in ms, that a decode starts with, as much as the
-   decoder keeps while it waits for the UI (pcmbuf.c's HOLD_DATA), and under
-   which the reader waits for the decoder to fill it again */
-#define SHARP_PCM_START 3000
-#define SHARP_PCM_FLOOR 2000
+/* The music buffered, in ms, under which the reader isn't asked and, at
+   work, waits. From flash, what pcmbuf.c calls low (LOW_DATA): the
+   reader's priority is under the decoder's however full the buffer, so a
+   decoder that wants the CPU is passed over for it once in five switches
+   of threads at most. From a disk that spins, where the reader's reads
+   take the head from the file being buffered, three times that. */
+#define SHARP_PCM_FLOOR      1000
+#define SHARP_PCM_FLOOR_DISK 3000
 
 static bool disk_spins(void)
 {
@@ -797,8 +800,9 @@ static void sharp_look(bool shows)
     const bool playing = audio_status() & AUDIO_STATUS_PLAY;
     const bool busy = sharp.to_read || sharp.reading;
     const unsigned long ms = pcm_ms();
-    sharp.hold = playing && sharp.reading
-                 && ms < (sharp.hold ? SHARP_PCM_START : SHARP_PCM_FLOOR);
+    const unsigned long least = disk_spins() ? SHARP_PCM_FLOOR_DISK
+                                             : SHARP_PCM_FLOOR;
+    sharp.hold = playing && sharp.reading && ms < least;
     jpeg_hold_fd = sharp.hold ? sharp.fd : -1;
 #if DISK_SPINS
     if (busy && disk_spins())
@@ -820,7 +824,7 @@ static void sharp_look(bool shows)
         || !sharp.now_source || !sharp.box_now_width || !sharp.box_now_height
         || plugin_is_running()
         || TIME_BEFORE(current_tick, sharp.back_off)
-        || ms < SHARP_PCM_START)
+        || ms < least)
         return;
     if (!frames && disk_spins()
         && (!shows

@@ -154,6 +154,8 @@ static struct jpeg jpeg;
 #define JPEG_STOPPABLE
 volatile int jpeg_stop_fd = -1;
 volatile int jpeg_hold_fd = -1;
+#define JPEG_HELD(p_jpeg) (UNLIKELY((p_jpeg)->fd == jpeg_hold_fd) \
+                           && (p_jpeg)->fd != jpeg_stop_fd)
 #endif
 
 INLINE unsigned range_limit(int value)
@@ -1844,8 +1846,7 @@ static struct img_part *store_row_jpeg(void *jpeg_args)
 {
     struct jpeg *p_jpeg = (struct jpeg*) jpeg_args;
 #ifdef JPEG_STOPPABLE
-    while (UNLIKELY(p_jpeg->fd == jpeg_hold_fd)
-           && p_jpeg->fd != jpeg_stop_fd)
+    while (JPEG_HELD(p_jpeg))
         sleep(1);
     if (UNLIKELY(p_jpeg->fd == jpeg_stop_fd))
         return NULL;
@@ -2011,6 +2012,12 @@ block_end:
             } /* for blkn */
             /* don't starve other threads while an MCU row decodes */
             yield();
+#ifdef JPEG_STOPPABLE
+            while (JPEG_HELD(p_jpeg))
+                sleep(1);
+            if (UNLIKELY(p_jpeg->fd == jpeg_stop_fd))
+                return NULL;
+#endif
 #ifdef HAVE_LCD_COLOR
             unsigned int xp;
             int yp;
