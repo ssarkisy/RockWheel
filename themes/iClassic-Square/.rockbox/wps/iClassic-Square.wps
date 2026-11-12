@@ -131,7 +131,7 @@
 %al%?ks<%ks|>
 # a book: its author, and what is left of it
 %Vl(book,160,72,148,18,3)%Vf(666666)
-%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
 %Vl(book,160,141,148,16,2)%Vf(767676)
 %al%kl
 %Vl(book,160,121,148,16,2)%Vf(767676)

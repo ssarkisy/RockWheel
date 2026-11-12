@@ -462,7 +462,9 @@ int album_header_open(struct tree_context *c, struct gui_synclist *list)
         || !tagtree_album_text(c, tag_albumartist, text, sizeof(text)))
         text[0] = '\0';
     else if (!strcmp(text, UNTAGGED))
-        strlcpy(text, str(LANG_UNKNOWN_ARTIST), sizeof(text));
+        strlcpy(text, str(tagtree_album_is_book(c) ? LANG_UNKNOWN_AUTHOR
+                                                   : LANG_UNKNOWN_ARTIST),
+                sizeof(text));
     header.artist_form = font_text_form((const unsigned char *)text, -1);
     font_set_text_form(header.artist_form);
     fit_text(header.artist, TEXT_BYTES, text, strlen(text), artist_font(font), width);
@@ -472,11 +474,7 @@ int album_header_open(struct tree_context *c, struct gui_synclist *list)
     int len = 0;
     if (album.year > 0)
         len = snprintf(text, sizeof(text), "%d \xc2\xb7 ", album.year); /* U+00B7 */
-    if (tagtree_album_is_show(c))
-        snprintf(text, sizeof(text),
-                 plural_str(album.songs, LANG_EPISODES_ONE, LANG_EPISODES_FEW,
-                            LANG_EPISODES_MANY), album.songs);
-    else
+    if (!tagtree_album_counts(c, text, sizeof(text)))
         snprintf(text + len, sizeof(text) - len,
                  plural_str(album.songs, LANG_ALBUM_SONGS_ONE,
                             LANG_ALBUM_SONGS_FEW, LANG_ALBUM_SONGS_MANY),

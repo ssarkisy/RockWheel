@@ -284,6 +284,20 @@ static int32_t entries_untagged = -1;
 static int entries_shows;
 /* a show's episodes: newest first, two lines, no covers */
 static bool entries_episodes;
+/* The shows are Audiobooks' books, with a book's sums. And a book's own list,
+   its parts in their order: how many, the row of the one begun or -1 (past
+   the rows at the top), whether all are heard, and their length in ms */
+static bool entries_books;
+static struct book_parts {
+    int parts, current;
+    bool finished;
+    long length;
+} entries_parts;
+static bool kept_books;
+static struct book_parts kept_parts;
+/* the book whose screen was made last, and the rows over its parts then */
+static int32_t parts_album = -1;
+static int parts_special;
 /* the list made had all its rows, as it wasn't left before the end */
 static bool entries_whole;
 /* and goes by play statistics, so isn't kept: they change without a new
@@ -806,7 +820,8 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
     const bool songs = c->currtable == TABLE_NAVIBROWSE && c->currextra == 0
                        && is_songs(csi);
     const bool podcasts = csi && c->currtable != TABLE_ROOT
-                          && section_is(csi, LANG_PODCASTS);
+                          && (section_is(csi, LANG_PODCASTS)
+                              || section_is(csi, LANG_AUDIOBOOKS));
     const uint32_t list[] = {
         c->currtable, c->currextra, (uintptr_t)csi, tagcache_get_commitid(),
         global_settings.interpret_numbers,
@@ -889,6 +904,8 @@ static void keep_list(struct tree_context *c, int count)
     kept_initials_tag = entries_initials_tag;
     kept_shows = entries_shows;
     kept_episodes = entries_episodes;
+    kept_books = entries_books;
+    kept_parts = entries_parts;
 }
 
 /* the list kept, if it is the one asked for: its count, or else -1 */
@@ -910,6 +927,8 @@ static int kept_list(struct tree_context *c)
     entries_initials_tag = kept_initials_tag;
     entries_shows = kept_shows; /* with their sums, kept in the names' room */
     entries_episodes = kept_episodes;
+    entries_books = kept_books;
+    entries_parts = kept_parts;
     return kept_count;
 }
 
@@ -3028,18 +3047,39 @@ static bool show_episodes(const struct search_instruction *si, int table,
            && section_is(si, LANG_PODCASTS) && song_places_known();
 }
 
+/* a book's parts in Audiobooks, in their discs' and tracks' order */
+static bool book_parts(const struct search_instruction *si, int table,
+                       int level)
+{
+    return table == TABLE_NAVIBROWSE && si && level > 0
+           && level < si->tagorder_count && si->tagorder[level] == tag_title
+           && si->tagorder[level - 1] == tag_album
+           && section_is(si, LANG_AUDIOBOOKS) && song_places_known();
+}
+
 /* Per show, at the end of the names' room, first one last (as
-   song_groups()): filled by the search's match hook */
+   song_groups()): filled by the search's match hook. A book's: its parts,
+   those not heard, those begun; its length in ms; the part begun, the first
+   in the book's order, by its key (part_key()) and entry, and the length of
+   the parts before it, summed in a second pass. */
 struct show_sums {
     int32_t album;       /* its name's seek, which its row has */
     int32_t albumartist; /* of the first episode found: its cover's album */
     int32_t episodes;
     int32_t unplayed;    /* those of them that are new */
     int32_t started;     /* and those begun */
-    int32_t newest;      /* the newest one's date, 0 for none */
+    union {
+        int32_t newest;  /* the newest one's date, 0 for none */
+        int32_t length;
+    };
     /* the newest of those begun, whose time left the row shows: its date
        and its entry, -1 for none */
-    int32_t started_date, started_idx;
+    union {
+        int32_t started_date;
+        int32_t before;
+    };
+    int32_t started_idx;
+    int32_t key;
 };
 
 struct shows_counting {
@@ -3048,8 +3088,16 @@ struct shows_counting {
     const int *used;       /* and what the rows' names have taken of it */
     int count, last;
     bool full;             /* no room: the names have come to the sums */
+    bool books;            /* Audiobooks: a book's sums */
     int32_t playing;       /* the entry playing, begun as it plays; -1 */
 };
+
+/* a part's place in its book: its disc, then its track; 0 without either */
+static int32_t part_key(const int32_t *tag_seek)
+{
+    return (MAX(tag_seek[tag_discnumber], 0) << 16)
+           | (MAX(tag_seek[tag_tracknumber], 0) & 0xffff);
+}
 
 /* An episode's date as its row has it and its list goes by: tag_date, or
    its year alone, as the albums' dates take a song's; 0 for none */
@@ -3106,6 +3154,20 @@ static void shows_match(const int32_t *tag_seek, void *data)
     const int state = idx >= 0 && idx == s->playing ? EPISODE_STARTED
                                                     : tagcache_episode_state(idx);
     sums->episodes++;
+    s->last = i;
+    if (s->books)
+    {
+        const int32_t key = part_key(tag_seek);
+        sums->length += MAX(tag_seek[tag_length], 0);
+        if (state == EPISODE_NEW)
+            sums->unplayed++;
+        else if (state == EPISODE_STARTED && (!sums->started++ || key < sums->key))
+        {
+            sums->key = key;
+            sums->started_idx = idx;
+        }
+        return;
+    }
     sums->newest = MAX(sums->newest, date);
     if (state == EPISODE_NEW)
         sums->unplayed++;
@@ -3118,6 +3180,26 @@ static void shows_match(const int32_t *tag_seek, void *data)
         }
     }
     s->last = i;
+}
+
+/* The second pass over Audiobooks: of each book begun, the length of the
+   parts before the one begun */
+static void books_before_match(const int32_t *tag_seek, void *data)
+{
+    struct shows_counting *s = data;
+    const int32_t album = tag_seek[tag_album];
+    int i = s->last;
+    if (i >= s->count || s->end[-1 - i].album != album)
+    {
+        for (i = 0; i < s->count && s->end[-1 - i].album != album; i++)
+            ;
+    }
+    if (i == s->count)
+        return;
+    struct show_sums *sums = &s->end[-1 - i];
+    s->last = i;
+    if (sums->started_idx >= 0 && part_key(tag_seek) < sums->key)
+        sums->before += MAX(tag_seek[tag_length], 0);
 }
 
 static long episode_date(int32_t idx)
@@ -3347,13 +3429,15 @@ static void album_view_make(struct tree_context *c)
     album_view.songs = 0;
     const int level = c->currextra;
     const int first = c->special_entry_count;
-    const bool show = entries_episodes;
+    const bool book = entries_parts.parts > 0;
+    const bool show = entries_episodes || book;
     struct tagcache_numbers numbers;
     if (c->currtable != TABLE_NAVIBROWSE || !csi || c->dirfull
         || current_offset != 0 || current_entry_count != c->filesindir
         || first >= current_entry_count
-        || !(show ? show_episodes(csi, c->currtable, level)
-                  : album_songs(c, level, csi->tagorder[level]))
+        || !(book ? book_parts(csi, c->currtable, level)
+             : show ? show_episodes(csi, c->currtable, level)
+                    : album_songs(c, level, csi->tagorder[level]))
         || !strcmp(current_title[level], UNTAGGED))
         return;
     const struct tagentry *entries = get_entries(c);
@@ -3387,7 +3471,8 @@ static void album_view_make(struct tree_context *c)
     album_view = (struct tagtree_album){
         .songs = current_entry_count - first,
         .year = show ? 0 : album_year(album, albumartist),
-        .longest = longest,
+        /* a book's rows have values too, its parts' starts */
+        .longest = book ? MAX(entries_parts.length, 1) : longest,
         .first = idx,
         .album = album,
         .albumartist = albumartist,
@@ -3395,6 +3480,87 @@ static void album_view_make(struct tree_context *c)
 }
 
 static int make_all_songs(struct tree_context *c, int extra, bool init);
+
+/* Audiobooks' rows, made: a second pass for what is heard of the books begun,
+   with the search's conditions again, and those books first, in the order
+   they had. buf is the search's room. */
+static void books_finish(struct tree_context *c, struct shows_counting *s,
+                         char *buf, size_t size)
+{
+    struct tagentry *entries = get_entries(c);
+    struct tagcache_search tcs;
+    bool begun = false;
+    for (int k = 0; k < s->count && !begun; k++)
+        begun = s->end[-1 - k].started_idx >= 0;
+    if (!begun || !tagcache_search(&tcs, tag_album))
+        return;
+    tagcache_search_set_uniqbuf(&tcs, uniqbuf, UNIQBUF_SIZE);
+    for (int j = 0; j < csi->clause_count[0]; j++)
+        tagcache_search_add_clause(&tcs, csi->clause[0][j]);
+    s->last = 0;
+    tagcache_search_set_match(&tcs, books_before_match, s);
+    while (tagcache_get_next(&tcs, buf, size))
+        ;
+    tagcache_search_finish(&tcs);
+
+    int front = c->special_entry_count;
+    for (int i = front; i < current_entry_count; i++)
+    {
+        const int k = entries[i].album.year;
+        if (k < 0 || k >= s->count || s->end[-1 - k].started_idx < 0)
+            continue;
+        const struct tagentry row = entries[i];
+        memmove(&entries[front + 1], &entries[front],
+                (i - front) * sizeof(*entries));
+        entries[front++] = row;
+    }
+    if (front > c->special_entry_count)
+        entries_initials = INITIALS_NONE; /* not by name from the top */
+}
+
+/* A book's parts, made, in their order: what is heard of it, and the row at
+   their top, Resume for one begun and Listen Again for one heard to its end;
+   a book in one file has its own row for that. */
+static void parts_finish(struct tree_context *c)
+{
+    struct tagentry *entries = get_entries(c);
+    const int first = c->special_entry_count;
+    const int n = current_entry_count - first;
+    if (c->dirfull || n <= 0 || current_entry_count >= c->cache.max_entries)
+        return;
+    const long album = tagcache_sort_key(entries[first].extraseek, tag_album);
+    const int32_t playing = playing_entry(NULL);
+    struct book_parts book = { .parts = n, .current = -1 };
+    int unplayed = 0;
+    for (int i = first; i < current_entry_count; i++)
+    {
+        const int32_t idx = entries[i].extraseek;
+        if (entries[i].newtable != TABLE_PLAYTRACK
+            || tagcache_sort_key(idx, tag_album) != album)
+            return;
+        const int state = idx == playing ? EPISODE_STARTED
+                                         : tagcache_episode_state(idx);
+        book.length += MAX(tagcache_sort_key(idx, tag_length), 0);
+        if (state == EPISODE_STARTED && book.current < 0)
+            book.current = i - first;
+        unplayed += state == EPISODE_NEW;
+    }
+    book.finished = book.current < 0 && !unplayed;
+    entries_parts = book;
+    const unsigned char *name = book.current >= 0 ? ID2P(LANG_BOOKMARK_CONTEXT_RESUME)
+                                : book.finished ? ID2P(LANG_LISTEN_AGAIN) : NULL;
+    /* a book in one file: its own row says it (tagtree_get_entry_name()) */
+    if (n == 1 || !name)
+        return;
+    memmove(&entries[first + 1], &entries[first], n * sizeof(*entries));
+    entries[first] = (struct tagentry){
+        .name = (char *)name, .newtable = TABLE_NAVIBROWSE, .extraseek = -2,
+        .customaction = ONPLAY_CUSTOMACTION_BOOK_RESUME,
+        .album = { .year = 0, .no = -1 }
+    };
+    current_entry_count++;
+    c->special_entry_count++;
+}
 
 /* The rows chosen on the way to the list at level as the search's filters: by
    their tags' seeks, a number's as a condition */
@@ -3451,6 +3617,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     entries_initials = INITIALS_NONE;
     entries_shows = 0;
     entries_episodes = false;
+    entries_books = false;
+    entries_parts.parts = 0;
     album_view.songs = 0;
 
     /* Show search progress straight away if the disk needs to spin up,
@@ -3529,14 +3697,17 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         tagcache_search_set_match(&tcs, count_match, &list_songs);
     /* Podcasts' shows counted by the hook; a show's episodes by date. Whole
        lists from memory only */
+    const bool books = in_section(LANG_AUDIOBOOKS);
     const bool shows = offset == 0 && level == 0 && tag == tag_album
-        && c->currtable == TABLE_NAVIBROWSE && in_section(LANG_PODCASTS)
-        && tcs.ramsearch && !shuffle;
+        && c->currtable == TABLE_NAVIBROWSE
+        && (books || in_section(LANG_PODCASTS)) && tcs.ramsearch && !shuffle;
     const bool episodes = offset == 0 && tag == tag_title && tcs.ramsearch
         && show_episodes(csi, c->currtable, level);
+    const bool parts = offset == 0 && tag == tag_title && tcs.ramsearch
+        && book_parts(csi, c->currtable, level);
     struct shows_counting counting = {
         .room = c->cache.name_buffer_size, .used = &namebufused,
-        .playing = shows ? playing_entry(NULL) : -1
+        .books = books, .playing = shows ? playing_entry(NULL) : -1
     };
     if (shows)
         tagcache_search_set_match(&tcs, shows_match, &counting);
@@ -3887,6 +4058,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         {
             entries_two_lines = true;
             entries_shows = counting.count;
+            entries_books = books;
         }
     }
     /* Albums in two lines, as Artists in Albums or Covers in Lists has them:
@@ -4106,6 +4278,10 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     }
 
     tagcache_search_finish(&tcs);
+    if (entries_books)
+        books_finish(c, &counting, tcs_buf, tcs_bufsz);
+    if (parts && !sort_inverse && !sort_limit)
+        parts_finish(c);
     tree_unlock_cache(c);
     core_unpin(tagtree_handle);
 
@@ -4282,6 +4458,11 @@ static void shuffle_rows_check(struct tree_context *c);
    first album rather than its Sort By */
 static int first_row(struct tree_context *c)
 {
+    /* a book's screen opens on its Resume or Listen Again, the row over its
+       parts */
+    if (c->special_entry_count > 0 && entries_parts.parts > 1
+        && (entries_parts.current >= 0 || entries_parts.finished))
+        return c->special_entry_count - 1;
     return c->special_entry_count;
 }
 
@@ -4361,6 +4542,17 @@ int tagtree_load(struct tree_context* c)
     /* and a list whose row to go back to was forgotten, as its rows moved */
     if (at_first_row || c->selected_item < 0)
         c->selected_item = first_row(c);
+    /* a book's screen made again with Resume now over its parts, or no
+       longer: the row to go back to is the part it was, as many rows on */
+    else if (entries_parts.parts > 0 && album_view.songs > 0
+             && album_view.album == parts_album
+             && c->selected_item >= parts_special)
+        c->selected_item += c->special_entry_count - parts_special;
+    if (entries_parts.parts > 0 && album_view.songs > 0)
+    {
+        parts_album = album_view.album;
+        parts_special = c->special_entry_count;
+    }
 
     /* the list opened in place of a copy's top, at the row it was left by */
     if (artists_copy_left[0])
@@ -6579,7 +6771,9 @@ bool tagtree_shuffle_songs(void)
         int i = seen++;
         if (count > max && i < count && rand() % (count - i) >= max - added)
             continue;
-        if (itunesdb_track_flags(buf) & ITUNESDB_SKIP_SHUFFLE)
+        /* nor a podcast or a book copied by hand */
+        if ((itunesdb_track_flags(buf) & ITUNESDB_SKIP_SHUFFLE)
+            || tagcache_track_kind(tcs.idx_id) != 0)
             continue;
         ok = playlist_writer_add(&writer, buf);
         added++;
@@ -7383,6 +7577,16 @@ char* tagtree_get_entry_name(struct tree_context *c, int id,
         return buf;
     }
 
+    /* a book in one file: its row is Play, Resume or Listen Again */
+    if (c->currtable != TABLE_ROOT && entries_parts.parts == 1
+        && id == c->special_entry_count)
+    {
+        strmemccpy(buf, str(entries_parts.current >= 0 ? LANG_BOOKMARK_CONTEXT_RESUME
+                            : entries_parts.finished ? LANG_LISTEN_AGAIN
+                            : LANG_PLAY), bufsize);
+        return buf;
+    }
+
     unsigned char *name = entry->name;
 
     int lang_id = P2ID(name);
@@ -7482,15 +7686,28 @@ static int episode_state(int32_t idx, long *place)
     return tagcache_episode_state(idx);
 }
 
+/* A podcast's or a book's time in minutes, as every list and Now Playing
+   have it: "45 min" under an hour, "6 h 12 min" from one on, "7 h" for whole
+   hours. Its length. */
+static size_t minutes_text(long minutes, char *buf, size_t size)
+{
+    minutes = MAX(minutes, 1);
+    if (minutes < 60)
+        return snprintf(buf, size, str(LANG_TIME_MIN), (int)minutes);
+    if (minutes % 60 == 0)
+        return snprintf(buf, size, str(LANG_TIME_H), (int)(minutes / 60));
+    return snprintf(buf, size, str(LANG_TIME_H_MIN), (int)(minutes / 60),
+                    (int)(minutes % 60));
+}
+
 const char *tagtree_time_left(unsigned long elapsed, unsigned long length,
                               char *buf, size_t size)
 {
-    char mins[32];
+    char mins[48];
     if (!length)
         return NULL;
     const unsigned long left = length > elapsed ? length - elapsed : 0;
-    snprintf(mins, sizeof(mins), str(LANG_TIME_MIN),
-             (int)MAX((left + 59999) / 60000, 1UL));
+    minutes_text((left + 59999) / 60000, mins, sizeof(mins));
     snprintf(buf, size, str(LANG_TIME_LEFT), mins);
     return buf;
 }
@@ -7558,6 +7775,42 @@ static const char *show_subline(struct tree_context *c,
     return buf;
 }
 
+/* A book's second line, from its sums: its author, then "6 h 12 min left"
+   of one begun whose parts have their numbers, "Finished" for one heard to
+   its end, or else its length */
+static const char *book_subline(struct tree_context *c,
+                                const struct tagentry *entry, char *buf,
+                                size_t size)
+{
+    const int k = entry->album.year;
+    if (k < 0 || k >= entries_shows)
+        return NULL;
+    const struct show_sums *sums =
+        &((const struct show_sums *)song_groups(c))[-1 - k];
+    char text[64];
+    long place;
+    text[0] = '\0';
+    if (sums->started_idx >= 0)
+    {
+        if (episode_state(sums->started_idx, &place) == EPISODE_STARTED
+            && (sums->key > 0 || sums->episodes == 1))
+            tagtree_time_left(sums->before + place, sums->length, text,
+                              sizeof(text));
+    }
+    else if (!sums->unplayed)
+        strlcpy(text, str(LANG_BOOK_FINISHED), sizeof(text));
+    else
+        minutes_text((sums->length + 30000) / 60000, text, sizeof(text));
+#ifdef HAVE_TC_RAMCACHE
+    if (!tagcache_tag_string(tag_albumartist, sums->albumartist, buf, size))
+#endif
+        strlcpy(buf, str(LANG_UNKNOWN_AUTHOR), size);
+    const size_t len = strlen(buf);
+    if (text[0] && len < size)
+        snprintf(buf + len, size - len, " \xc2\xb7 %s", text); /* U+00B7 */
+    return buf;
+}
+
 /* An episode's: "28 min left" once it's begun; else its date and its length
    to the nearest minute, "20 May 2023 · 22 min", those of them it has.
    From the database's memory */
@@ -7568,9 +7821,8 @@ const char *tagtree_track_date(int32_t idx, bool with_length, char *buf,
     const size_t len = date_text(episode_date(idx), buf, size);
     if (length > 0 && len < size)
     {
-        char mins[32];
-        snprintf(mins, sizeof(mins), str(LANG_TIME_MIN),
-                 (int)MAX((length + 30000) / 60000, 1));
+        char mins[48];
+        minutes_text((length + 30000) / 60000, mins, sizeof(mins));
         snprintf(buf + len, size - len, "%s%s", len ? " \xc2\xb7 " : "",
                  mins); /* U+00B7 */
     }
@@ -7648,7 +7900,8 @@ int tagtree_row_episode(bool *marked, bool *playing)
     long place;
     if (!entry)
         return -1;
-    *marked = tagcache_get_numbers(entry->extraseek, &n) && n.kind == 1;
+    *marked = tagcache_get_numbers(entry->extraseek, &n)
+              && tagcache_track_marked(entry->extraseek);
     *playing = playing_entry(NULL) == entry->extraseek;
     return episode_state(entry->extraseek, &place);
 }
@@ -7682,11 +7935,12 @@ bool tagtree_row_mark(bool played)
     /* Finder's episode by its mark alone: a play it didn't have would wait
        for a Mac that may never take it. Another row has no mark and is
        played by a play, a Finder song's sent to the Mac as any is */
-    if (n.kind == 1 ? !tagcache_set_unplayed(idx, path, !played) : !played)
+    const bool marked = tagcache_track_marked(idx);
+    if (marked ? !tagcache_set_unplayed(idx, path, !played) : !played)
         return false;
     tagcache_update_numeric(idx, tag_lastelapsed, 0);
     tagcache_update_numeric(idx, tag_lastoffset, 0);
-    const long stamp = n.kind != 1 && n.playcount <= 0 ? play_stamp() : -1;
+    const long stamp = !marked && n.playcount <= 0 ? play_stamp() : -1;
     if (stamp >= 0)
     {
         tagcache_update_numeric(idx, tag_playcount, 1);
@@ -7721,7 +7975,9 @@ bool tagtree_row_start_over(void)
 
 bool tagtree_rows_states(struct tree_context *c)
 {
-    return c->currtable != TABLE_ROOT && (entries_shows || entries_episodes);
+    /* books have no dots */
+    return c->currtable != TABLE_ROOT
+           && ((entries_shows && !entries_books) || entries_episodes);
 }
 
 int tagtree_entry_mark(struct tree_context *c, int row)
@@ -7811,7 +8067,8 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
         return entry->newtable == TABLE_PLAYTRACK ?
                episode_subline(entry->extraseek, buf, size) : NULL;
     if (entries_shows)
-        return show_subline(c, entry, buf, size);
+        return entries_books ? book_subline(c, entry, buf, size)
+                             : show_subline(c, entry, buf, size);
     if (entry->newtable == TABLE_PLAYTRACK)
         return song_tag_name(entry->extraseek, entries_initials_tag, buf, size);
     const bool albums = is_albums(csi) && c->currextra == 0;
@@ -7973,6 +8230,89 @@ bool tagtree_album_is_show(struct tree_context *c)
     return c->currtable != TABLE_ROOT && album_view.songs > 0 && entries_episodes;
 }
 
+bool tagtree_album_is_book(struct tree_context *c)
+{
+    return c->currtable != TABLE_ROOT && album_view.songs > 0
+           && entries_parts.parts > 0;
+}
+
+const char *tagtree_album_counts(struct tree_context *c, char *buf, size_t size)
+{
+    if (tagtree_album_is_show(c))
+    {
+        snprintf(buf, size, plural_str(album_view.songs, LANG_EPISODES_ONE,
+                                       LANG_EPISODES_FEW, LANG_EPISODES_MANY),
+                 album_view.songs);
+        return buf;
+    }
+    if (!tagtree_album_is_book(c))
+        return NULL;
+    /* "8 parts \xc2\xb7 9 h 5 min", or the length alone of a book in one file */
+    size_t len = 0;
+    if (entries_parts.parts > 1)
+    {
+        len = snprintf(buf, size, plural_str(entries_parts.parts, LANG_PARTS_ONE,
+                                             LANG_PARTS_FEW, LANG_PARTS_MANY),
+                       entries_parts.parts);
+        if (len + 4 < size)
+            len += snprintf(buf + len, size - len, " \xc2\xb7 "); /* U+00B7 */
+    }
+    if (len < size)
+        minutes_text((entries_parts.length + 30000) / 60000, buf + len,
+                     size - len);
+    return buf;
+}
+
+/* a book's rows: at Resume's right the part it goes on with, "Part 3"; at a
+   part's where it starts in the book; at a one-file book's row its length */
+static const char *book_value(struct tree_context *c, int row, char *buf,
+                              size_t size)
+{
+    const int first = c->special_entry_count;
+    if (entries_parts.parts == 1)
+    {
+        minutes_text((entries_parts.length + 30000) / 60000, buf, size);
+        return row == first ? buf : NULL;
+    }
+    if (row < first)
+    {
+        if (entries_parts.current < 0)
+            return NULL;
+        snprintf(buf, size, str(LANG_PART_NUMBER), entries_parts.current + 1);
+        return buf;
+    }
+    long start = 0;
+    for (int i = first; i < row; i++)
+    {
+        const struct tagentry *entry = tagtree_get_entry(c, i);
+        start += entry ? MAX(tagcache_sort_key(entry->extraseek, tag_length), 0)
+                       : 0;
+    }
+    format_time(buf, size, start);
+    return buf;
+}
+
+const char *tagtree_value_widest(struct tree_context *c, char *buf, size_t size)
+{
+    char other[32];
+    if (!tagtree_album_is_book(c))
+        return NULL;
+    if (entries_parts.parts == 1)
+        return book_value(c, c->special_entry_count, buf, size);
+    format_time(buf, size, entries_parts.length);
+    snprintf(other, sizeof(other), str(LANG_PART_NUMBER), entries_parts.parts);
+    if (strlen(other) > strlen(buf))
+        strlcpy(buf, other, size);
+    return buf;
+}
+
+int tagtree_book_resume_row(struct tree_context *c)
+{
+    if (c->currtable == TABLE_ROOT || entries_parts.parts <= 0)
+        return -1;
+    return c->special_entry_count + MAX(entries_parts.current, 0);
+}
+
 bool tagtree_album_text(struct tree_context *c, int tag, char *buf, size_t size)
 {
     struct tagcache_search tcs;
@@ -7990,6 +8330,9 @@ bool tagtree_album_text(struct tree_context *c, int tag, char *buf, size_t size)
 const char *tagtree_entry_length(struct tree_context *c, int row, char *buf,
                                  size_t size)
 {
+    if (c->currtable != TABLE_ROOT && album_view.songs > 0
+        && entries_parts.parts > 0 && row >= 0 && row < c->filesindir)
+        return book_value(c, row, buf, size);
     if (c->currtable == TABLE_ROOT || album_view.songs <= 0
         || row < c->special_entry_count || row >= c->filesindir)
         return NULL;

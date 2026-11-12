@@ -921,7 +921,8 @@ static int update_dir(void)
         if (album.longest > 0)
         {
             char longest[sizeof(list->value_widest)];
-            format_time(longest, sizeof(longest), album.longest);
+            if (!tagtree_value_widest(&tc, longest, sizeof(longest)))
+                format_time(longest, sizeof(longest), album.longest);
             gui_synclist_set_value_callback(list, tree_get_value, longest);
         }
         if (title)
@@ -1347,6 +1348,16 @@ static int dirbrowse(void)
                         reload_dir = true;
                     }
                     button = ACTION_NONE;
+                }
+                else if (customaction == ONPLAY_CUSTOMACTION_BOOK_RESUME)
+                {
+                    /* Resume or Listen Again: as Select on the part it goes
+                       on with, which plays from its place; no menu */
+                    const int row = tagtree_book_resume_row(&tc);
+                    if (button == ACTION_STD_OK && row >= 0)
+                        tc.selected_item = row;
+                    else
+                        button = ACTION_NONE;
                 }
                 else if (customaction == ONPLAY_CUSTOMACTION_SHUFFLE_LIST)
                 {

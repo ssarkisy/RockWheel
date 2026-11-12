@@ -199,6 +199,14 @@ bool tagtree_album(struct tree_context *c, struct tagtree_album *album);
    year and songs, and albumartist is the author they all have, -1 if they
    differ; year and longest are 0 */
 bool tagtree_album_is_show(struct tree_context *c);
+/* Or a book's, in Audiobooks, its songs the book's parts in their order. The
+   header's last line of a show or a book, "3 episodes", "8 parts \xc2\xb7 9 h 5 min",
+   NULL for an album; the widest of a book's values at its rows' right, NULL
+   for an album; and the row Resume or Listen Again plays from, -1 if none. */
+bool tagtree_album_is_book(struct tree_context *c);
+const char *tagtree_album_counts(struct tree_context *c, char *buf, size_t size);
+const char *tagtree_value_widest(struct tree_context *c, char *buf, size_t size);
+int tagtree_book_resume_row(struct tree_context *c);
 /* A track's texts as Podcasts' rows have them: its date, "20 May 2023", with its
    length after it if with_length, and what is left of it, "28 min left"; or NULL. */
 const char *tagtree_track_date(int32_t idx, bool with_length, char *buf,

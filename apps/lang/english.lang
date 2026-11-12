@@ -21947,3 +21947,157 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_TIME_H
+  desc: a podcast's or an audiobook's time of whole hours, in the lists and in Now Playing (7 h); %d is 1 or more; short, as the minutes' form %d min
+  user: core
+  <source>
+    *: "%d h"
+  </source>
+  <dest>
+    *: "%d h"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_H_MIN
+  desc: a podcast's or an audiobook's time from an hour on (6 h 12 min, also in 6 h 12 min left): hours, then minutes 1 to 59, each as its own form has it
+  user: core
+  <source>
+    *: "%d h %d min"
+  </source>
+  <dest>
+    *: "%d h %d min"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BOOK_FINISHED
+  desc: under an audiobook's name in Music > Audiobooks, after its author (Mara Ellison · Finished): the book was heard to its end
+  user: core
+  <source>
+    *: "Finished"
+  </source>
+  <dest>
+    *: "Finished"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PARTS_ONE
+  desc: under an audiobook's name on its own screen (8 parts · 9 h 5 min): how many files the book is in; %d is 1, 21, 31 in the languages that have a form for those
+  user: core
+  <source>
+    *: "%d part"
+  </source>
+  <dest>
+    *: "%d part"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PARTS_FEW
+  desc: as LANG_PARTS_ONE, for the numbers a language has a few-form for (2 to 4, 22 to 24); English: any number but 1
+  user: core
+  <source>
+    *: "%d parts"
+  </source>
+  <dest>
+    *: "%d parts"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PARTS_MANY
+  desc: as LANG_PARTS_ONE, for every other number
+  user: core
+  <source>
+    *: "%d parts"
+  </source>
+  <dest>
+    *: "%d parts"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PART_NUMBER
+  desc: at the right of the row Resume on an audiobook's screen: the part of the book that Resume goes on with (Part 3)
+  user: core
+  <source>
+    *: "Part %d"
+  </source>
+  <dest>
+    *: "Part %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LISTEN_AGAIN
+  desc: the first row of an audiobook's screen when the book was heard to its end: plays it from its start
+  user: core
+  <source>
+    *: "Listen Again"
+  </source>
+  <dest>
+    *: "Listen Again"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_START_OVER
+  desc: in the menu of an audiobook's part (Select held): forgets where the book was left and plays it from its first part, after a yes/no question
+  user: core
+  <source>
+    *: "Start Over"
+  </source>
+  <dest>
+    *: "Start Over"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MARK_AS_FINISHED
+  desc: in the menu of an audiobook's part (Select held): the book counts as heard to its end, after a yes/no question
+  user: core
+  <source>
+    *: "Mark as Finished"
+  </source>
+  <dest>
+    *: "Mark as Finished"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UNKNOWN_AUTHOR
+  desc: in place of the author of an audiobook that has none, in Music > Audiobooks and on its screen
+  user: core
+  <source>
+    *: "Unknown Author"
+  </source>
+  <dest>
+    *: "Unknown Author"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

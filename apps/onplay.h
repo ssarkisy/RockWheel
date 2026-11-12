@@ -31,6 +31,7 @@ enum onplay_custom_action {
     ONPLAY_CUSTOMACTION_SEARCH,
     ONPLAY_CUSTOMACTION_SORT_BY, /* Music > Albums' and All Songs' Sort By */
     ONPLAY_CUSTOMACTION_SHUFFLE_LIST, /* a list's Shuffle Songs, its songs */
+    ONPLAY_CUSTOMACTION_BOOK_RESUME, /* a book's Resume or Listen Again */
 };
 
 enum onplay_return_code {

@@ -218,7 +218,7 @@ struct gui_synclist
     /* its column as wide as the widest of its texts, as the longest length,
        would be with each digit the font's widest: measured once for the list,
        in the font of value_font */
-    char value_widest[10];
+    char value_widest[24];
     int value_font, value_width;
     /* the rows at the list's top drawn as one, as an album's header, which
        scrolls away with the list: none of them selected, nor drawn as rows.

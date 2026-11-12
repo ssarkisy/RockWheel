@@ -89,7 +89,7 @@ struct line_desc {
      * chevron, right of a speaker. "" for none, and none right to left */
     int8_t value_shift;
     int16_t value_font, value_width;
-    char value[10];
+    char value[24];
     /* A part of a taller row, as an album's name over its year and artist:
      * the row's height and the part's top in it, 0 for a line that is a
      * row. The selection's gradient and bevel go over the whole row, part by

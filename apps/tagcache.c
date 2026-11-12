@@ -1185,6 +1185,11 @@ static long ram_paths_count;
 static size_t ram_paths_size, ram_paths_used;
 static bool ram_paths_whole; /* none left out for room */
 
+/* the genre last asked about, and the kind it makes a track: most tracks have
+   the genre of the one before */
+static int32_t kind_genre_seek = -1;
+static uint8_t kind_genre;
+
 static void free_ram_names(void)
 {
     ram_paths_whole = false;
@@ -1206,6 +1211,7 @@ static void free_ram_names(void)
    the dircache finds the files instead. */
 static void ram_names_alloc(long count, size_t paths_size)
 {
+    kind_genre_seek = -1; /* of the database before */
     if (ram_names_handle > 0 && ram_paths_handle > 0
         && ram_names_capacity >= count && ram_paths_count >= count
         && ram_paths_size >= paths_size)
@@ -1262,15 +1268,50 @@ static size_t ram_paths_needed(void)
 /* and a podcast's or a book's mark, not played, as the flags have it
    (ITUNESDB_UNPLAYED): changed here as it changes there */
 #define RAM_KIND_UNPLAYED 0x40
+/* the kind is iTunesDB's: only such a track has a mark there */
+#define RAM_KIND_MARKED 0x20
 #define RAM_KIND_MASK 0x0f
 
+/* The kind of a track iTunesDB doesn't call a podcast or a book, as Podcasts
+   and Audiobooks of tagnavi.config list it: a book by .m4b or its genre, a
+   podcast by its genre; and one outside Finder's folder by a folder named
+   Audiobooks or Podcasts on its way. From memory: no file is read. */
+static int unsynced_kind(long idx_id, const char *path, bool outside)
+{
+    const size_t len = strlen(path);
+    if (len > 4 && !strcasecmp(path + len - 4, ".m4b"))
+        return 2;
+    const int32_t seek = tcramcache.hdr && tcramcache.hdr->tags[tag_genre]
+                         ? tcramcache.hdr->indices[idx_id].tag_seek[tag_genre]
+                         : -1;
+    if (seek >= 0 && seek != kind_genre_seek)
+    {
+        const char *genre = ((const struct tagfile_entry *)
+                             &tcramcache.hdr->tags[tag_genre][seek])->tag_data;
+        kind_genre_seek = seek;
+        kind_genre = !strcasecmp(genre, "Audiobook")
+                     || !strcasecmp(genre, "Audiobooks") ? 2
+                     : !strcasecmp(genre, "Podcast") ? 1 : 0;
+    }
+    if (seek >= 0 && kind_genre)
+        return kind_genre;
+    if (!outside)
+        return 0;
+    return strcasestr(path, "/Audiobooks/") ? 2
+           : strcasestr(path, "/Podcasts/") ? 1 : 0;
+}
+
 /* an entry's kinds byte, by its path and the flags of its hash */
-static uint8_t ram_kind_of(const char *path, uint64_t hash)
+static uint8_t ram_kind_of(long idx_id, const char *path, uint64_t hash)
 {
     const unsigned flags = itunesdb_hash_flags(hash);
-    return ((flags & ITUNESDB_AUDIOBOOK) ? 2 : (flags & ITUNESDB_PODCAST) ? 1 : 0)
+    const bool outside = !itunesdb_synced_path(path);
+    const int synced = (flags & ITUNESDB_AUDIOBOOK) ? 2
+                       : (flags & ITUNESDB_PODCAST) ? 1 : 0;
+    return (synced ? synced | RAM_KIND_MARKED
+                   : unsynced_kind(idx_id, path, outside))
            | ((flags & ITUNESDB_UNPLAYED) ? RAM_KIND_UNPLAYED : 0)
-           | (itunesdb_synced_path(path) ? 0 : RAM_KIND_OUTSIDE);
+           | (outside ? RAM_KIND_OUTSIDE : 0);
 }
 
 static void ram_path_add(long idx_id, const char *path, uint64_t hash)
@@ -1290,7 +1331,7 @@ static void ram_path_add(long idx_id, const char *path, uint64_t hash)
     }
     else
         ram_paths_whole = false;
-    kinds[idx_id] = ram_kind_of(path, hash);
+    kinds[idx_id] = ram_kind_of(idx_id, path, hash);
 }
 
 /* The kinds again from the flags an import has just written, for a database
@@ -1306,10 +1347,10 @@ static void ram_kinds_refresh(void)
     const char *pool = (const char *)(kinds + ram_paths_count);
     for (long i = 0; i < ram_paths_count; i++)
     {
-        if (offsets[i])
+        if (offsets[i] && !(tcramcache.hdr->indices[i].flag & FLAG_DELETED))
         {
             const char *path = pool + offsets[i] - 1;
-            kinds[i] = ram_kind_of(path, itunesdb_path_hash(path));
+            kinds[i] = ram_kind_of(i, path, itunesdb_path_hash(path));
         }
         if ((i & 1023) == 1023)
             yield();
@@ -6217,6 +6258,22 @@ int tagcache_track_kind(int idx_id)
 #endif
 }
 
+int tagcache_path_kind(const char *path)
+{
+    return tagcache_track_kind(tagcache_find_entry(path));
+}
+
+bool tagcache_track_marked(int idx_id)
+{
+#ifdef HAVE_TC_RAMCACHE
+    const uint8_t *kind = tc_stat.ready ? ram_kinds_byte(idx_id) : NULL;
+    return kind && (*kind & RAM_KIND_MARKED);
+#else
+    (void)idx_id;
+    return false;
+#endif
+}
+
 long tagcache_track_place(int idx_id)
 {
 #ifdef HAVE_TC_RAMCACHE
@@ -6249,7 +6306,7 @@ int tagcache_episode_state(int idx_id)
     if (queued_or(tag_lastelapsed, idx_id, idx) > 0)
         return EPISODE_STARTED;
     /* Finder's by its mark; another by its plays, as it has no mark */
-    if (*kind & RAM_KIND_MASK)
+    if (*kind & RAM_KIND_MARKED)
         return (*kind & RAM_KIND_UNPLAYED) ? EPISODE_NEW : EPISODE_PLAYED;
     return queued_or(tag_playcount, idx_id, idx) > 0 ? EPISODE_PLAYED : EPISODE_NEW;
 #else
@@ -6272,7 +6329,7 @@ bool tagcache_set_unplayed(int idx_id, const char *path, bool unplayed)
 {
 #ifdef HAVE_TC_RAMCACHE
     uint8_t *kind = ram_kinds_byte(idx_id);
-    if (!kind || !(*kind & RAM_KIND_MASK) || !itunesdb_set_unplayed(path, unplayed))
+    if (!kind || !(*kind & RAM_KIND_MARKED) || !itunesdb_set_unplayed(path, unplayed))
         return false;
     if (unplayed)
         *kind |= RAM_KIND_UNPLAYED;

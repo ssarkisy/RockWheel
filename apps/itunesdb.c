@@ -4285,7 +4285,8 @@ void itunesdb_set_track_gain(struct mp3entry *id3)
 bool itunesdb_resumes(const char *path)
 {
     return global_settings.autoresume_enable
-           || (itunesdb_track_flags(path) & ITUNESDB_REMEMBERS_PLACE);
+           || (itunesdb_track_flags(path) & ITUNESDB_REMEMBERS_PLACE)
+           || tagcache_path_kind(path) != 0;
 }
 
 #ifdef ITUNESDB_HAVE_ART

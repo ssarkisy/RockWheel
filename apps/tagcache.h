@@ -302,9 +302,16 @@ bool tagcache_set_unplayed(int idx_id, const char *path, bool unplayed);
 /* the changes to places, plays and marks since boot, which the lists with
    the episodes' states go by */
 long tagcache_states_generation(void);
-/* an entry's kind as iTunesDB has it, 0 music, 1 podcast, 2 audiobook: from
-   memory, 0 without the database there or for no entry */
+/* An entry's kind, 0 music, 1 podcast, 2 audiobook: iTunesDB's, or for a track
+   it doesn't call one, a book by .m4b or the genre Audiobook(s), a podcast by
+   the genre Podcast, and outside Finder's folder by a folder Audiobooks or
+   Podcasts on its path. From memory: 0 without the database there, for no
+   entry, and for a path it hasn't. */
 int tagcache_track_kind(int idx_id);
+int tagcache_path_kind(const char *path);
+/* the kind is iTunesDB's: Finder's podcast or book, which has a mark there and
+   the Mac's bookmark; another is new until it has a play */
+bool tagcache_track_marked(int idx_id);
 /* Where an entry was left, in ms, as it is now, a change queued for it too
    (tag_lastelapsed): 0 for none, and without the database in memory. As
    tagcache_get_numbers(), from memory only, for a list's rows as they draw */
