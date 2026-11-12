@@ -17905,7 +17905,7 @@
 </phrase>
 <phrase>
   id: LANG_COVERS_IN_LISTS
-  desc: a setting of Settings > Appearance: each album's cover at the left of its row in Music > Albums and in an artist's albums, as on an iPod classic
+  desc: a setting of Settings > Appearance: each album's cover at the left of its row in Music > Albums and in an artist's albums, and each song's in Music > Songs, whose rows then have a second line, as on an iPod classic
   user: core
   <source>
     *: "Covers in Lists"
@@ -17922,10 +17922,10 @@
   desc: the hint in the band under Settings > Appearance while Covers in Lists is selected, in three lines at most: what the user gets from it
   user: core
   <source>
-    *: "Each album shows its cover beside its name, in Albums and in an artist's albums, as on an iPod classic."
+    *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
   </source>
   <dest>
-    *: "Cada àlbum mostra la portada al costat del nom, a Àlbums i als àlbums d'un artista, com en un iPod classic."
+    *: "Àlbums i cançons mostren la portada, a Àlbums, als àlbums d'un artista i a Cançons, com en un iPod classic."
   </dest>
   <voice>
     *: ""

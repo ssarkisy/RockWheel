@@ -271,6 +271,11 @@ static bool entries_split;
 enum { INITIALS_NONE, INITIALS_BY_PLACE, INITIALS_BY_NAME };
 static int entries_initials;
 static int entries_initials_tag;
+/* Songs' own rows in two lines with their covers, as Covers in Lists has
+   them in every order: the order (SONGS_BY_), which says what is under a
+   title and where its album is; -1 for another list, or Songs in one line */
+static int entries_songs_by = -1;
+static int kept_songs_by;
 /* or songs album by album, each album's by disc and track, with their
    numbers: the digits of the largest, 0 for a list without them */
 static int entries_tracks;
@@ -842,6 +847,7 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
         global_settings.interpret_numbers,
         of_albums || all_songs || songs ? album_years_generation() : 0,
         songs ? songs_order() : 0,
+        songs ? list_covers_on() : 0, /* its rows in one line or two */
         of_albums ? global_settings.albums_sort : 0,
         /* their rows in one line or two, split by album artists or not */
         of_albums ? global_settings.album_artists : 0,
@@ -917,6 +923,7 @@ static void keep_list(struct tree_context *c, int count)
     kept_untagged = entries_untagged;
     kept_initials = entries_initials;
     kept_initials_tag = entries_initials_tag;
+    kept_songs_by = entries_songs_by;
     kept_shows = entries_shows;
     kept_episodes = entries_episodes;
     kept_books = entries_books;
@@ -940,6 +947,7 @@ static int kept_list(struct tree_context *c)
     entries_untagged = kept_untagged;
     entries_initials = kept_initials;
     entries_initials_tag = kept_initials_tag;
+    entries_songs_by = kept_songs_by;
     entries_shows = kept_shows; /* with their sums, kept in the names' room */
     entries_episodes = kept_episodes;
     entries_books = kept_books;
@@ -3802,6 +3810,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     entries_tracks = 0;
     entries_groups = 0;
     entries_initials = INITIALS_NONE;
+    entries_songs_by = -1;
     entries_shows = 0;
     entries_episodes = false;
     entries_books = false;
@@ -4172,11 +4181,13 @@ static int make_entries(struct tree_context *c, int offset, bool init)
        chosen, in chunks or without room for the sort, which the lists' size
        decides: list_hash() has it */
     int songs_by = SONGS_BY_NAME;
+    bool songs_whole = false; /* with its Sort By */
     if (songs)
     {
         struct song_key *keys = c->dirfull ? NULL
             : songs_sort_room(c, current_entry_count - c->special_entry_count,
                               namebufused);
+        songs_whole = keys != NULL;
         if (!keys)
         {
             struct tagentry *entries = get_entries(c);
@@ -4405,14 +4416,21 @@ static int make_entries(struct tree_context *c, int offset, bool init)
                                INITIALS_BY_PLACE : INITIALS_BY_NAME;
     }
     /* by year, the album's year before the title, as Albums by year; by
-       artist or album, that name under the title, and Quick Scroll by it */
+       artist or album, Quick Scroll by that name */
     if (songs_by != SONGS_BY_NAME)
     {
         entries_years = songs_by == SONGS_BY_YEAR;
-        entries_two_lines = !entries_years;
         entries_initials = entries_years ? INITIALS_NONE : INITIALS_BY_PLACE;
         entries_initials_tag = songs_by == SONGS_BY_ARTIST ?
                                tag_virt_canonicalartist : tag_album;
+    }
+    /* With Covers in Lists every order has the cover and a second line, and
+       without it none has: the rows one height in all of them. Not a list
+       in chunks, which has no Sort By. */
+    if (songs_whole && !songs_for_orders && list_covers_on())
+    {
+        entries_two_lines = true;
+        entries_songs_by = songs_by;
     }
 
     /* each song's number and its disc's bar, now that they're in their
@@ -7921,8 +7939,10 @@ int tagtree_lead_digits(struct tree_context *c)
 {
     /* of the list made last, which Music's own menu isn't; a year's four,
        unless it's under the name */
-    if (c->currtable == TABLE_ROOT || entries_two_lines)
+    if (c->currtable == TABLE_ROOT)
         return 0;
+    if (entries_two_lines) /* Songs by year: the year stays before the title */
+        return entries_songs_by == SONGS_BY_YEAR ? 4 : 0;
     return entries_years ? 4 : entries_tracks;
 }
 
@@ -8450,6 +8470,11 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
     if (entries_shows)
         return entries_books ? book_subline(c, entry, buf, size)
                              : show_subline(c, entry, buf, size);
+    /* in Songs the artist, and by album the album */
+    if (entry->newtable == TABLE_PLAYTRACK && entries_songs_by >= 0)
+        return song_tag_name(entry->extraseek,
+                             entries_songs_by == SONGS_BY_ALBUM ? tag_album
+                             : tag_virt_canonicalartist, buf, size);
     if (entry->newtable == TABLE_PLAYTRACK)
         return song_tag_name(entry->extraseek, entries_initials_tag, buf, size);
     const bool albums = (is_albums(csi) || is_recent(csi)) && c->currextra == 0;
@@ -8465,7 +8490,19 @@ int tagtree_entry_album(struct tree_context *c, int row)
         || row >= c->filesindir)
         return -2;
     const struct tagentry *entry = tagtree_get_entry(c, row);
-    return !entry ? -2 : entry->album.no >= 0 ? entry->album.no : -1;
+    if (!entry)
+        return -2;
+    /* Songs by name or by year: its rows keep no album, found as each is
+       drawn, from memory; one without a name has no cover, as by album */
+    if (entry->newtable == TABLE_PLAYTRACK
+        && (entries_songs_by == SONGS_BY_NAME || entries_songs_by == SONGS_BY_YEAR))
+    {
+        const int32_t idx = entry->extraseek;
+        const int no = album_years_number(tagcache_sort_key(idx, tag_album),
+                                          tagcache_sort_key(idx, tag_albumartist));
+        return no >= 0 && tag_named(tag_album, album_years_album(no)) ? no : -1;
+    }
+    return entry->album.no >= 0 ? entry->album.no : -1;
 }
 
 /* Albums' rows, as Artists in Albums has them apart or not: when it's
@@ -8497,6 +8534,10 @@ const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
         || row >= c->filesindir)
         return NULL;
     const struct tagentry *entry = tagtree_get_entry(c, row);
+    /* in two lines the row keeps its year as a number, with its album's */
+    if (entry && entries_two_lines)
+        return entry->newtable == TABLE_PLAYTRACK && entry->album.year > 0 ?
+               itoa_buf(buf, size, entry->album.year) : NULL;
     /* an album without a year at the others' edge in Recently Added, whose
        dated and undated albums are mixed */
     if (!entry || !entry->lead[0])
