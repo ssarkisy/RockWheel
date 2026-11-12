@@ -183,6 +183,11 @@ bool playlist_entries_iterate(const char *filename,
                               struct playlist_insert_context *pl_context,
                               bool (*action_cb)(const char *file_name));
 void playlist_skip_entry(struct playlist_info *playlist, int steps);
+/* The entry of the current playlist steps from the one playing may be passed
+   over, as an episode already played: false for one inserted or queued by
+   hand, which plays as it was asked for. With mark, it is: stepped over
+   from then on as a skipped one, shown as any row, and played when chosen. */
+bool playlist_pass_entry(int steps, bool mark);
 int playlist_delete(struct playlist_info* playlist, int index);
 int playlist_move(struct playlist_info* playlist, int index, int new_index);
 int playlist_randomise(struct playlist_info* playlist, unsigned int seed,

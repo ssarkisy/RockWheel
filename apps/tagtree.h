@@ -60,6 +60,26 @@ bool tagtree_go_to_track(const char *path, bool artist, int *dirlevel,
    tagtree_end_browse(), true if Cover Flow is to open again at the song in buf
    (tagtree_browse_from_cover_flow()). Forgotten as the lists are left. */
 bool tagtree_row_goes_to(bool album);
+/* The file at next is a played episode that the music, going on from the
+   episode at playing, passes over: both Finder's podcasts of one show, the
+   queue that show's own list in Podcasts, as started there or resumed, and
+   Repeat off. From memory only; for the playback's thread as it loads the
+   next track, which leaves out what the listener put in the queue by hand */
+bool tagtree_passes_over(const char *playing, const char *next);
+/* the music playing is a show's or a book's own list, of Podcasts or
+   Audiobooks, which Shuffle leaves in its order. On the UI's thread */
+bool tagtree_queue_in_order(void);
+/* The row selected is an episode of the show listed, in Podcasts: its state
+   (EPISODE_..., tagcache.h), -1 if it isn't one. *marked: Finder's, with a
+   mark to set either way; *playing: the one playing, begun as it plays */
+int tagtree_row_episode(bool *marked, bool *playing);
+/* It marked played or, Finder's only, not played, its place forgotten either
+   way: Finder's by its mark alone, another by a play if it had none. False
+   if nothing was changed */
+bool tagtree_row_mark(bool played);
+/* and played from its start, its place forgotten: as Select, which goes on
+   from the place. False if it didn't start */
+bool tagtree_row_start_over(void);
 bool tagtree_browse_from_row(bool artist);
 bool tagtree_browse_from_cover_flow(const char *path);
 int tagtree_browse_level(void);

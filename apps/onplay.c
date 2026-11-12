@@ -1936,6 +1936,57 @@ MENUITEM_FUNCTION(ipod_delete_item, 0, ID2P(LANG_DELETE),
                   ipod_playlist_delete, ipod_playlist_callback, Icon_NOICON);
 #endif
 
+#ifdef HAVE_TAGCACHE
+/* an episode's own rows: Mark as Played, Mark as Unplayed (Finder's), Start
+   from Beginning on one begun; the one playing has the last alone */
+static int episode_mark(bool played)
+{
+    if (tagtree_row_mark(played))
+        onplay_result = ONPLAY_RELOAD_DIR;
+    return 0;
+}
+static int episode_mark_played(void)
+{
+    return episode_mark(true);
+}
+static int episode_mark_unplayed(void)
+{
+    return episode_mark(false);
+}
+static int episode_start_over(void)
+{
+    onplay_result = tagtree_row_start_over() ? ONPLAY_START_PLAY
+                                             : ONPLAY_RELOAD_DIR;
+    return 0;
+}
+static int episode_callback(int action, const struct menu_item_ex *this_item,
+                            struct gui_synclist *this_list);
+MENUITEM_FUNCTION(episode_start_over_item, 0, ID2P(LANG_START_FROM_BEGINNING),
+                  episode_start_over, episode_callback, Icon_NOICON);
+MENUITEM_FUNCTION(episode_played_item, 0, ID2P(LANG_MARK_AS_PLAYED),
+                  episode_mark_played, episode_callback, Icon_NOICON);
+MENUITEM_FUNCTION(episode_unplayed_item, 0, ID2P(LANG_MARK_AS_UNPLAYED),
+                  episode_mark_unplayed, episode_callback, Icon_NOICON);
+static int episode_callback(int action, const struct menu_item_ex *this_item,
+                            struct gui_synclist *this_list)
+{
+    (void)this_list;
+    if (action != ACTION_REQUEST_MENUITEM)
+        return action;
+    bool marked = false, playing = false;
+    const int state = selected_file.context == CONTEXT_ID3DB ?
+                      tagtree_row_episode(&marked, &playing) : -1;
+    bool shown;
+    if (this_item == &episode_start_over_item)
+        shown = state == EPISODE_STARTED;
+    else if (this_item == &episode_played_item)
+        shown = state >= 0 && state != EPISODE_PLAYED && !playing;
+    else
+        shown = state >= 0 && state != EPISODE_NEW && marked && !playing;
+    return shown ? action : ACTION_EXIT_MENUITEM;
+}
+#endif
+
 /* used when onplay() is not called in the CONTEXT_WPS context: for a song, an album
    or the like, or a playlist, what plays it, at once rather than in a submenu. Its
    title is the name the list shows for it. */
@@ -1951,12 +2002,16 @@ MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
               those of the library too, which the next sync writes again, and
               named a new one by its path with the keyboard; On-The-Go goes to
               the Mac instead */
+#ifdef HAVE_TAGCACHE
+           &episode_start_over_item,
+#endif
            &on_the_go_item,
 #ifdef HAVE_TAGCACHE
            &add_to_playlist_item,
 #endif
            &i_first_pl_item, &i_last_pl_item,
 #ifdef HAVE_TAGCACHE
+           &episode_played_item, &episode_unplayed_item,
            &song_go_to_artist_item, &song_go_to_album_item,
            &remove_song_item,
            &ipod_rename_item, &ipod_move_item, &ipod_delete_item,

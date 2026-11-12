@@ -165,7 +165,8 @@
         0 = Track entry is valid
         1 = Track does not exist on disk and should be skipped
  */
-#define PLAYLIST_SEEK_MASK              0x0FFFFFFF
+/* 27 bits, 128 MB of a playlist's file: the 28th is PLAYLIST_PASSED */
+#define PLAYLIST_SEEK_MASK              0x07FFFFFF
 #define PLAYLIST_INSERT_TYPE_MASK       0xC0000000
 
 #define PLAYLIST_INSERT_TYPE_PREPEND    0x40000000
@@ -174,6 +175,10 @@
 
 #define PLAYLIST_QUEUED                 0x20000000
 #define PLAYLIST_SKIPPED                0x10000000
+/* passed over as it was loaded, as an episode already played: stepped over
+   as one skipped is, but no failed file, and played when it's chosen */
+#define PLAYLIST_PASSED                 0x08000000
+#define PLAYLIST_STEPPED_OVER           (PLAYLIST_SKIPPED | PLAYLIST_PASSED)
 
 static struct playlist_info current_playlist;
 static struct playlist_info on_disk_playlist;
@@ -1703,7 +1708,7 @@ static int calculate_step_count(const struct playlist_info *playlist, int steps)
             index -= playlist->amount;
 
         /* Check if we found a bad entry. */
-        if (playlist->indices[index] & PLAYLIST_SKIPPED)
+        if (playlist->indices[index] & PLAYLIST_STEPPED_OVER)
         {
             steps += direction;
             /* Are all entries bad? */
@@ -1798,7 +1803,7 @@ static int get_next_index(const struct playlist_info* playlist, int steps,
 
     /* No luck if the whole playlist was bad. */
     if (next_index < 0 || next_index >= playlist->amount ||
-        playlist->indices[next_index] & PLAYLIST_SKIPPED)
+        playlist->indices[next_index] & PLAYLIST_STEPPED_OVER)
         return -1;
 
     return next_index;
@@ -2289,7 +2294,7 @@ int playlist_place_of(const char *dir, const char *file, int count,
             const unsigned long index = playlist->indices[i];
             const unsigned long at = index & PLAYLIST_SEEK_MASK;
             if ((index & (PLAYLIST_INSERT_TYPE_MASK | PLAYLIST_QUEUED
-                          | PLAYLIST_SKIPPED))
+                          | PLAYLIST_STEPPED_OVER))
                 || at < last)
             {
                 place = -1;
@@ -3977,6 +3982,23 @@ void playlist_skip_entry(struct playlist_info *playlist, int steps)
     playlist_write_unlock(playlist);
 }
 
+bool playlist_pass_entry(int steps, bool mark)
+{
+    struct playlist_info *playlist = &current_playlist;
+    playlist_write_lock(playlist);
+    int index = playlist->index + calculate_step_count(playlist, steps);
+    if (index < 0)
+        index += playlist->amount;
+    else if (index >= playlist->amount)
+        index -= playlist->amount;
+    const bool by_hand = playlist->indices[index]
+                         & (PLAYLIST_INSERT_TYPE_MASK | PLAYLIST_QUEUED);
+    if (mark && !by_hand)
+        playlist->indices[index] |= PLAYLIST_PASSED;
+    playlist_write_unlock(playlist);
+    return !by_hand;
+}
+
 /* sort currently playing playlist */
 int playlist_sort(struct playlist_info* playlist, bool start_current)
 {
@@ -4018,6 +4040,9 @@ void playlist_start(int start_index, unsigned long elapsed,
 
     playlist->index = start_index;
     playlist->started = true;
+    /* the one chosen plays, passed over before or not */
+    if (start_index >= 0 && start_index < playlist->amount)
+        playlist->indices[start_index] &= ~PLAYLIST_PASSED;
 
     sync_control_unlocked(playlist);
 

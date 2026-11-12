@@ -53,6 +53,7 @@
 
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
+#include "tagtree.h"
 #include "itunesdb.h"
 #ifdef HAVE_ALBUMART
 #include "skin_engine/cover_palette.h"
@@ -2227,6 +2228,21 @@ static bool audio_buffer_codec(struct track_info *track_infop,
 }
 #endif /* HAVE_CODEC_BUFFERING */
 
+#ifdef HAVE_TAGCACHE
+/* The track at path, loaded after the last of the list, is a played episode
+   that a show's own queue passes over (tagtree_passes_over()): never the
+   first loaded, which the listener chose, nor one put in the queue by hand */
+static bool played_episode_next(const char *path)
+{
+    struct track_info prev;
+    if (!track_list_last(0, &prev))
+        return false;
+    const struct mp3entry *id3 = valid_mp3entry(bufgetid3(prev.id3_hid));
+    return id3 && tagtree_passes_over(id3->path, path)
+           && playlist_pass_entry(playlist_peek_offset, false);
+}
+#endif
+
 /* Load metadata for the next track (with bufopen). The rest of the track
    loading will be handled by audio_finish_load_track once the metadata has
    been actually loaded by the buffering thread.
@@ -2292,6 +2308,9 @@ static int audio_load_track(void)
     char path_buf[MAX_PATH + 1];
     const char *path;
 
+    /* episodes passed over as played: no more than the list has, as with
+       Repeat on each has a successor */
+    int passed = 0;
     while (1)
     {
         path = playlist_peek(playlist_peek_offset,
@@ -2301,21 +2320,37 @@ static int audio_load_track(void)
         if (!path)
             break;
 
+        bool played = false;
         /* Test for broken playlists by probing for the files */
         if (file_exists(path))
         {
-            fd = open(path, O_RDONLY);
-            if (fd >= 0)
-                break;
+#ifdef HAVE_TAGCACHE
+            played = passed < playlist_amount() && played_episode_next(path);
+#endif
+            if (!played)
+            {
+                fd = open(path, O_RDONLY);
+                if (fd >= 0)
+                    break;
+            }
         }
         logf("Open failed %s", path);
 
         /* only skip if failed track has a successor in playlist */
         if (!playlist_peek(playlist_peek_offset + 1, NULL, 0))
+        {
+            /* the last is an episode played: the list ends before it */
+            if (played)
+                path = NULL;
             break;
-
-        /* Skip invalid entry from playlist */
-        playlist_skip_entry(NULL, playlist_peek_offset);
+        }
+        passed += played;
+        /* Skip invalid entry from playlist; an episode passed over is no
+           failed file, and has a mark of its own */
+        if (played)
+            playlist_pass_entry(playlist_peek_offset, true);
+        else
+            playlist_skip_entry(NULL, playlist_peek_offset);
 
         /* Sync the playlist if it isn't finished */
         if (playlist_peek(playlist_peek_offset, NULL, 0))

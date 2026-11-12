@@ -948,7 +948,9 @@ static void shuffle_playlist_callback(bool shuffle)
             replaygain_update();
             if (shuffle)
             {
-                playlist_randomise(playlist, current_tick, true);
+                /* a show's episodes and a book's parts stay in order */
+                if (!tagtree_queue_in_order())
+                    playlist_randomise(playlist, current_tick, true);
             }
             else
             {

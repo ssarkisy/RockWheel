@@ -7167,7 +7167,10 @@ static int tagtree_play_folder(struct tree_context* c)
         start_index = percentage_start_index * playlist_get_current()->amount / 100;
     }
 
-    if (global_settings.playlist_shuffle)
+    /* a show's episodes and a book's parts in their order, whatever Shuffle
+       is */
+    if (global_settings.playlist_shuffle
+        && !in_section(LANG_PODCASTS) && !in_section(LANG_AUDIOBOOKS))
     {
         start_index = playlist_shuffle(0, start_index);
         if (!global_settings.play_selected)
@@ -7567,6 +7570,139 @@ static const char *episode_subline(int32_t idx, char *buf, size_t size)
                  mins); /* U+00B7 */
     }
     return buf[0] ? buf : NULL;
+}
+
+/* The music playing is the saved list of the album of the entry idx under
+   Music's section lang, Podcasts or Audiobooks, as it was started there or
+   resumed after a boot: by the list's id, which the queue has */
+static bool queue_is_list_of(int lang, int32_t idx)
+{
+    const int item = tagnavi_loaded && rootmenu >= 0 ? root_item_of(lang) : -1;
+    if (item < 0 || idx < 0 || !song_places_known())
+        return false;
+    const struct search_instruction *si = &menus[rootmenu]->items[item]->si;
+    if (si->tagorder_count < 2 || si->tagorder[0] != tag_album
+        || si->tagorder[1] != tag_title)
+        return false;
+    int seeks[MAX_TAGS] = { tagcache_sort_key(idx, tag_album) };
+    int artists[MAX_TAGS];
+    for (int i = 0; i < MAX_TAGS; i++)
+        artists[i] = -1;
+    const uint32_t queue = tagtree_queue_list();
+    return queue && queue == list_hash(TABLE_NAVIBROWSE, 1, si, seeks, artists,
+                                       true);
+}
+
+bool tagtree_passes_over(const char *playing, const char *next)
+{
+    if (global_settings.repeat_mode != REPEAT_OFF
+        || !(itunesdb_track_flags(next) & ITUNESDB_PODCAST)
+        || !(itunesdb_track_flags(playing) & ITUNESDB_PODCAST))
+        return false;
+    const long a = tagcache_find_entry(playing), b = tagcache_find_entry(next);
+    return a >= 0 && b >= 0 && a != b
+           && tagcache_sort_key(a, tag_album) == tagcache_sort_key(b, tag_album)
+           && tagcache_episode_state(b) == EPISODE_PLAYED
+           && queue_is_list_of(LANG_PODCASTS, a);
+}
+
+bool tagtree_queue_in_order(void)
+{
+    const struct mp3entry *id3 = audio_current_track();
+    const int32_t idx = id3 ? id3->tagcache_idx - 1 : -1;
+    return queue_is_list_of(LANG_PODCASTS, idx)
+           || queue_is_list_of(LANG_AUDIOBOOKS, idx);
+}
+
+/* the row selected, if it's an episode of the show listed: NULL if not */
+static const struct tagentry *selected_episode(void)
+{
+    struct tree_context *c = tc;
+    if (!c || c->currtable == TABLE_ROOT || !entries_episodes || !csi
+        || !tagtree_ready() || !tagcache_is_usable()
+        || c->selected_item < c->special_entry_count
+        || c->selected_item >= c->filesindir)
+        return NULL;
+    const struct tagentry *entry = tagtree_get_entry(c, c->selected_item);
+    return entry && entry->newtable == TABLE_PLAYTRACK ? entry : NULL;
+}
+
+int tagtree_row_episode(bool *marked, bool *playing)
+{
+    const struct tagentry *entry = selected_episode();
+    struct tagcache_numbers n;
+    long place;
+    if (!entry)
+        return -1;
+    *marked = tagcache_get_numbers(entry->extraseek, &n) && n.kind == 1;
+    *playing = playing_entry(NULL) == entry->extraseek;
+    return episode_state(entry->extraseek, &place);
+}
+
+/* the time of a play, as the end of a track notes it; -1 for none */
+static long play_stamp(void)
+{
+    long lastplayed = tagcache_increase_serial();
+#if CONFIG_RTC
+    const long now = mktime(get_time());
+    if (lastplayed >= 0 && now > lastplayed)
+        lastplayed = now;
+#endif
+    return lastplayed;
+}
+
+bool tagtree_row_mark(bool played)
+{
+    const struct tagentry *entry = selected_episode();
+    struct tagcache_numbers n;
+    struct tagcache_search tcs;
+    char path[MAX_PATH];
+    if (!entry || !tagcache_get_numbers(entry->extraseek, &n)
+        || !tagcache_search(&tcs, tag_filename))
+        return false;
+    const int32_t idx = entry->extraseek;
+    const bool found = tagcache_retrieve(&tcs, idx, tcs.type, path, sizeof(path));
+    tagcache_search_finish(&tcs);
+    if (!found)
+        return false;
+    /* Finder's episode by its mark alone: a play it didn't have would wait
+       for a Mac that may never take it. Another row has no mark and is
+       played by a play, a Finder song's sent to the Mac as any is */
+    if (n.kind == 1 ? !tagcache_set_unplayed(idx, path, !played) : !played)
+        return false;
+    tagcache_update_numeric(idx, tag_lastelapsed, 0);
+    tagcache_update_numeric(idx, tag_lastoffset, 0);
+    const long stamp = n.kind != 1 && n.playcount <= 0 ? play_stamp() : -1;
+    if (stamp >= 0)
+    {
+        tagcache_update_numeric(idx, tag_playcount, 1);
+        tagcache_update_numeric(idx, tag_lastplayed, stamp);
+    }
+    return true;
+}
+
+bool tagtree_row_start_over(void)
+{
+    struct tree_context *c = tc;
+    const struct tagentry *entry = selected_episode();
+    if (!entry)
+        return false;
+    const int32_t idx = entry->extraseek;
+    if (!warn_on_pl_erase())
+        return false;
+    /* the one playing stopped first: its stop notes its place */
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        audio_stop_at_once();
+    tagcache_update_numeric(idx, tag_lastelapsed, 0);
+    tagcache_update_numeric(idx, tag_lastoffset, 0);
+    cpu_boost(true);
+    tree_lock_cache(c);
+    core_pin(tagtree_handle);
+    const bool ok = tagtree_play_folder(c) >= 0;
+    core_unpin(tagtree_handle);
+    tree_unlock_cache(c);
+    cpu_boost(false);
+    return ok;
 }
 
 bool tagtree_rows_states(struct tree_context *c)
