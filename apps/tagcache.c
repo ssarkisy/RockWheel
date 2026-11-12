@@ -1177,9 +1177,8 @@ static bool ram_names_overflow; /* then the slow ways are used */
 
 /* And their paths, which are otherwise built from the dircache or read
  * from the disk for each file: Shuffle Songs, a list played and Play
- * Counts take them all. With each entry's kind, for tag_virt_kind. The
- * offsets and kinds are by entry, then come the paths; an offset is one
- * past the path's, 0 for none. */
+ * Counts take them all. The offsets are by entry, then come the paths; an
+ * offset is one past the path's, 0 for none. */
 static int ram_paths_handle;
 static long ram_paths_count;
 static size_t ram_paths_size, ram_paths_used;
@@ -1221,14 +1220,14 @@ static void ram_names_alloc(long count, size_t paths_size)
         ram_paths_used = 0;
         ram_paths_whole = true;
         memset(core_get_data(ram_paths_handle), 0,
-               ram_paths_count * (sizeof(uint32_t) + 1));
+               ram_paths_count * sizeof(uint32_t));
         return;
     }
     free_ram_names();
     if (count <= 0)
         return;
     const size_t need = count * sizeof(struct path_name)
-                        + count * (sizeof(uint32_t) + 1) + paths_size;
+                        + count * sizeof(uint32_t) + paths_size;
     if ((audio_status() & AUDIO_STATUS_PLAY) && core_allocatable() < need)
         return;
 
@@ -1240,11 +1239,10 @@ static void ram_names_alloc(long count, size_t paths_size)
     /* the paths take at most what the filename file has */
     ram_paths_count = count;
     ram_paths_size = paths_size;
-    ram_paths_handle = core_alloc(count * (sizeof(uint32_t) + 1) + paths_size);
+    ram_paths_handle = core_alloc(count * sizeof(uint32_t) + paths_size);
     if (ram_paths_handle > 0)
     {
-        memset(core_get_data(ram_paths_handle), 0,
-               count * (sizeof(uint32_t) + 1));
+        memset(core_get_data(ram_paths_handle), 0, count * sizeof(uint32_t));
         ram_paths_whole = true;
     }
     else
@@ -1271,6 +1269,18 @@ static size_t ram_paths_needed(void)
 /* the kind is iTunesDB's: only such a track has a mark there */
 #define RAM_KIND_MARKED 0x20
 #define RAM_KIND_MASK 0x0f
+
+/* The kinds, a byte an entry, at the end of the database's own memory
+   (allocate_tagcache()): there whenever the database is. In the room of its
+   paths they were gone with it when music playing left it none, and Music's
+   lists and the songs' count go by them. */
+static long ram_kinds_count;
+
+static uint8_t *ram_kinds(void)
+{
+    return (uint8_t *)tcramcache.hdr + tc_stat.ramcache_allocated
+           - ram_kinds_count;
+}
 
 /* The kind of a track iTunesDB doesn't call a podcast or a book, as Podcasts
    and Audiobooks of tagnavi.config list it: a book by .m4b or its genre, a
@@ -1316,12 +1326,13 @@ static uint8_t ram_kind_of(long idx_id, const char *path, uint64_t hash)
 
 static void ram_path_add(long idx_id, const char *path, uint64_t hash)
 {
+    if (tcramcache.hdr && idx_id >= 0 && idx_id < ram_kinds_count)
+        ram_kinds()[idx_id] = ram_kind_of(idx_id, path, hash);
     if (ram_paths_handle <= 0 || idx_id < 0 || idx_id >= ram_paths_count)
         return;
     char *base = core_get_data(ram_paths_handle);
     uint32_t *offsets = (uint32_t *)base;
-    uint8_t *kinds = (uint8_t *)(offsets + ram_paths_count);
-    char *pool = (char *)(kinds + ram_paths_count);
+    char *pool = (char *)(offsets + ram_paths_count);
     size_t len = strlen(path) + 1;
     if (ram_paths_used + len <= ram_paths_size)
     {
@@ -1331,7 +1342,6 @@ static void ram_path_add(long idx_id, const char *path, uint64_t hash)
     }
     else
         ram_paths_whole = false;
-    kinds[idx_id] = ram_kind_of(idx_id, path, hash);
 }
 
 /* The kinds again from the flags an import has just written, for a database
@@ -1339,23 +1349,37 @@ static void ram_path_add(long idx_id, const char *path, uint64_t hash)
    and the marks on the screen were those before it */
 static void ram_kinds_refresh(void)
 {
-    if (!tc_stat.ramcache || ram_paths_handle <= 0)
+#ifdef HAVE_DIRCACHE
+    static char buf[MAX_PATH];
+#endif
+    if (!tc_stat.ramcache || ram_kinds_count <= 0)
         return;
-    const char *base = core_get_data_pinned(ram_paths_handle);
+    /* each file's path from those in memory, or else from the dircache */
+    const char *base = ram_paths_handle > 0
+                       ? core_get_data_pinned(ram_paths_handle) : NULL;
     const uint32_t *offsets = (const uint32_t *)base;
-    uint8_t *kinds = (uint8_t *)(offsets + ram_paths_count);
-    const char *pool = (const char *)(kinds + ram_paths_count);
-    for (long i = 0; i < ram_paths_count; i++)
+    const char *pool = (const char *)(offsets + ram_paths_count);
+    for (long i = 0; i < ram_kinds_count && i < current_tcmh.tch.entry_count; i++)
     {
-        if (offsets[i] && !(tcramcache.hdr->indices[i].flag & FLAG_DELETED))
-        {
-            const char *path = pool + offsets[i] - 1;
-            kinds[i] = ram_kind_of(i, path, itunesdb_path_hash(path));
-        }
+        const struct index_entry *idx = &tcramcache.hdr->indices[i];
+        const char *path = NULL;
+        if (idx->flag & FLAG_DELETED)
+            ;
+        else if (base && i < ram_paths_count && offsets[i])
+            path = pool + offsets[i] - 1;
+#ifdef HAVE_DIRCACHE
+        else if ((idx->flag & FLAG_DIRCACHE)
+                 && dircache_get_fileref_path(&tcrc_dcfrefs[i], buf,
+                                              sizeof(buf)) >= 0)
+            path = buf;
+#endif
+        if (path)
+            ram_kinds()[i] = ram_kind_of(i, path, itunesdb_path_hash(path));
         if ((i & 1023) == 1023)
             yield();
     }
-    core_put_data_pinned((void *)base);
+    if (base)
+        core_put_data_pinned((void *)base);
     states_generation++;
 }
 
@@ -1384,7 +1408,7 @@ static bool ram_path(long idx_id, char *buf, size_t size)
         return false;
     const char *base = core_get_data_pinned(ram_paths_handle);
     const uint32_t *offsets = (const uint32_t *)base;
-    const char *pool = base + ram_paths_count * (sizeof(uint32_t) + 1);
+    const char *pool = base + ram_paths_count * sizeof(uint32_t);
     uint32_t off = offsets[idx_id];
     bool ok = off > 0 && strmemccpy(buf, pool + off - 1, size) != NULL;
     core_put_data_pinned((void *)base);
@@ -1393,22 +1417,19 @@ static bool ram_path(long idx_id, char *buf, size_t size)
 
 static int ram_kind(long idx_id)
 {
-    if (!tc_stat.ramcache || ram_paths_handle <= 0
-        || idx_id < 0 || idx_id >= ram_paths_count)
+    if (!tc_stat.ramcache || !tcramcache.hdr
+        || idx_id < 0 || idx_id >= ram_kinds_count)
         return 0;
-    const uint8_t *kinds = (const uint8_t *)core_get_data(ram_paths_handle)
-                           + ram_paths_count * sizeof(uint32_t);
-    return kinds[idx_id] & RAM_KIND_MASK;
+    return ram_kinds()[idx_id] & RAM_KIND_MASK;
 }
 
 /* the entry's kinds byte in memory, to read or change; NULL without it */
 static uint8_t *ram_kinds_byte(long idx_id)
 {
-    if (!tc_stat.ramcache || ram_paths_handle <= 0
-        || idx_id < 0 || idx_id >= ram_paths_count)
+    if (!tc_stat.ramcache || !tcramcache.hdr
+        || idx_id < 0 || idx_id >= ram_kinds_count)
         return NULL;
-    return (uint8_t *)core_get_data(ram_paths_handle)
-           + ram_paths_count * sizeof(uint32_t) + idx_id;
+    return ram_kinds() + idx_id;
 }
 #endif
 
@@ -5731,7 +5752,8 @@ static bool commit(void)
     {
         tcrc_buffer_lock();
         tempbuf = (char *)(tcramcache.hdr + 1);
-        tempbuf_size = tc_stat.ramcache_allocated - sizeof(struct ramcache_header) - 128;
+        tempbuf_size = tc_stat.ramcache_allocated - sizeof(struct ramcache_header) - 128
+                       - ram_kinds_count;
         tempbuf_size &= ~0x03;
         ramcache_buffer_stolen = true;
     }
@@ -6293,7 +6315,7 @@ int tagcache_track_kind(int idx_id)
 bool tagcache_kinds_known(void)
 {
 #ifdef HAVE_TC_RAMCACHE
-    return tc_stat.ready && tc_stat.ramcache && ram_paths_handle > 0;
+    return tc_stat.ready && tc_stat.ramcache && ram_kinds_count > 0;
 #else
     return false;
 #endif
@@ -7400,6 +7422,7 @@ static bool allocate_tagcache(void)
     tc_stat.ramcache_allocated = 0;
     tcramcache.handle = 0;
     tcramcache.hdr = NULL;
+    ram_kinds_count = 0;
 
     /* Load the header. */
     struct master_header tcmh;
@@ -7418,6 +7441,8 @@ static bool allocate_tagcache(void)
 #ifdef HAVE_DIRCACHE
     alloc_size += tcmh.tch.entry_count*sizeof(struct dircache_fileref);
 #endif
+    /* and the entries' kinds, at its end */
+    alloc_size += tcmh.tch.entry_count;
 
     int handle = core_alloc_ex(alloc_size, &ops);
     if (handle <= 0)
@@ -7426,6 +7451,7 @@ static bool allocate_tagcache(void)
     tcramcache.handle = handle;
     tcramcache.hdr = core_get_data(handle);
     tc_stat.ramcache_allocated = alloc_size;
+    ram_kinds_count = tcmh.tch.entry_count;
 
     memset(tcramcache.hdr, 0, sizeof(struct ramcache_header));
     memcpy(&current_tcmh, &tcmh, sizeof current_tcmh);
@@ -7541,8 +7567,12 @@ static bool load_tagcache(void)
      * may become corrupt. */
 
     bool ok = false;
-    ssize_t bytesleft = tc_stat.ramcache_allocated - sizeof(struct ramcache_header);
+    ssize_t bytesleft = tc_stat.ramcache_allocated - sizeof(struct ramcache_header)
+                        - ram_kinds_count;
     int fd;
+
+    /* a commit borrowed the whole of it; each entry's is set as it loads */
+    memset(ram_kinds(), 0, ram_kinds_count);
 
 #ifdef HAVE_DIRCACHE
     /* Wait for any in-progress dircache build to complete */
@@ -7716,7 +7746,7 @@ static bool load_tagcache(void)
 #ifndef HAVE_DIRCACHE
                     || (!global_settings.tagcache_autoupdate
 #ifndef __PCTOOL__
-                        && ram_names_handle <= 0
+                        && ram_names_handle <= 0 && ram_kinds_count <= 0
 #endif
                        )
 #endif
@@ -7733,18 +7763,20 @@ static bool load_tagcache(void)
                     goto failure;
                 }
 #ifndef __PCTOOL__
+                filename[fe->tag_length] = '\0';
+                const uint64_t hash = filename[0] ? itunesdb_path_hash(filename) : 0;
                 if (ram_names_count >= ram_names_capacity)
                     ram_names_overflow = true;
                 else if (filename[0])
                 {
-                    filename[fe->tag_length] = '\0';
                     struct path_name *names = core_get_data(ram_names_handle);
-                    uint64_t hash = itunesdb_path_hash(filename);
                     names[ram_names_count].hash = hash;
                     names[ram_names_count].idx_id = idx_id;
                     ram_names_count++;
-                    ram_path_add(idx_id, filename, hash);
                 }
+                /* its kind even if the names and paths have no room */
+                if (filename[0])
+                    ram_path_add(idx_id, filename, hash);
 #endif
                 continue;
             }
@@ -7990,8 +8022,7 @@ static void ram_check_file_refs(char *buf, size_t bufsz, bool auto_update,
 {
     const char *base = core_get_data_pinned(ram_paths_handle);
     const uint32_t *offsets = (const uint32_t *)base;
-    const uint8_t *kinds = (const uint8_t *)(offsets + ram_paths_count);
-    const char *pool = (const char *)(kinds + ram_paths_count);
+    const char *pool = (const char *)(offsets + ram_paths_count);
     for (long i = 0; i < current_tcmh.tch.entry_count; i++)
     {
         if (!(i & 63) && check_event_queue())
@@ -8005,7 +8036,8 @@ static void ram_check_file_refs(char *buf, size_t bufsz, bool auto_update,
             import_done = i;
             import_total = 2 * current_tcmh.tch.entry_count;
         }
-        if (check_skips_synced && !(kinds[i] & RAM_KIND_OUTSIDE))
+        if (check_skips_synced && i < ram_kinds_count
+            && !(ram_kinds()[i] & RAM_KIND_OUTSIDE))
             continue;
         uint32_t off = offsets[i];
         /* none for a name empty */
@@ -8861,6 +8893,7 @@ static void load_ramcache(void)
         tcramcache.handle = 0;
         /* or the next commit borrows the freed buffer and panics */
         tc_stat.ramcache_allocated = 0;
+        ram_kinds_count = 0;
         core_free(handle);
     }
 
