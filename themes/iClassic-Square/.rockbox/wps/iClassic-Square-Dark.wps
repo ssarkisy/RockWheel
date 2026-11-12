@@ -138,10 +138,10 @@
 %fB
 %Vl(book,160,121,148,16,2)%Vf(8E9094)
 %al%?ks<%ks|>
-%xl(R,Ratings.bmp,0,0,10)
+%xl(R,Ratings.bmp,0,0,11)
 %xC(R)
 %Vl(song,160,121,66,13,-)
-%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>
+%?rr<%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)|%xd(Rk)>
 # the track's format and bitrate
 %Vl(song,160,140,148,18,4)
 %fB

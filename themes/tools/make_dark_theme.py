@@ -199,7 +199,7 @@ def main():
                  "Memory Access", "Radio Icon", "Stereo Icon", "Repeat Icon", "Shuffle Icon",
                  "Status Shuffle Albums"):
         each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), header_pixel)
-    for name in ("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
+    for name in ("Stars", "Ratings", "Signal", "Volume Left", "Volume Right", "Art Mask",
                  "Scrub Hints"):
         each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), glyph_pixel)
     for name in ("Scrub Knob", "Disk Fill", "Photos Icon"):

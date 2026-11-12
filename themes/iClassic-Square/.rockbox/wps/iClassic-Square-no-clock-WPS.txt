@@ -79,9 +79,9 @@
 %t(8)%al%?pE(15)<%?Fn<%?Ia<%Ia|%?IA<%IA|%Sx(Unknown Artist)>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>;%t(8)%s%al%?pE(15)<%?Fn<%?Ia<%Ia|%?IA<%IA|%Sx(Unknown Artist)>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>;%t(8)%al%?pE(15)<%?Fn<%?Ia<%Ia|%?IA<%IA|%Sx(Unknown Artist)>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>|%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>>
 %V(160,96,157,19,3)%Vf(888888)
 %t(16)%al%?pE(15)<%?Fn<%?Id<%Id|%Sx(Unknown Album)>|%?id<%id|%Sx(Unknown Album)>>|%?id<%id|%Sx(Unknown Album)>>;%t(8)%al%s%?pE(15)<%?Fn<%?Id<%Id|%Sx(Unknown Album)>|%?id<%id|%Sx(Unknown Album)>>|%?id<%id|%Sx(Unknown Album)>>
-%xl(R,Ratings.bmp,0,0,10)
+%xl(R,Ratings.bmp,0,0,11)
 %V(160,116,66,13,-)
-%?pE(15)<%?Fn<|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>|%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>>
+%?pE(15)<%?Fn<|%?rr<%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)|%xd(Rk)>>|%?rr<%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)|%xd(Rk)>>
 %Vl(current,160,134,157,14,2)%Vf(888888)
 %s%al%pp %Sx(of) %pe
 %Vl(next,160,134,157,14,2)%Vf(000000)
