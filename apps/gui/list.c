@@ -43,6 +43,7 @@
 #include "statusbar-skinned.h"
 #include "audio.h"
 #include "wps.h"
+#include "chapters.h"
 
 /* The minimum number of pending button events in queue before starting
  * to limit list drawing interval.
@@ -1121,8 +1122,11 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
                 struct mp3entry *id3 = audio_current_track();
                 if (id3 && id3->elapsed >= DEFAULT_SKIP_THRESH)
                 {
-                    audio_pre_ff_rewind();
-                    audio_ff_rewind(0);
+                    if (!chapters_skip(id3, -1))
+                    {
+                        audio_pre_ff_rewind();
+                        audio_ff_rewind(0);
+                    }
                 }
                 else
                     audio_prev();
@@ -1130,7 +1134,8 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
             return true;
 
         case ACTION_LIST_SKIPNEXT:
-            if (audio_status() & AUDIO_STATUS_PLAY)
+            if ((audio_status() & AUDIO_STATUS_PLAY)
+                && !chapters_skip(audio_current_track(), 1))
                 audio_next();
             return true;
         case ACTION_STD_PREVREPEAT:

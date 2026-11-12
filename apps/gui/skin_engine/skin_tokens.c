@@ -37,6 +37,7 @@
 #include "sound.h"
 #include "debug.h"
 #include "cuesheet.h"
+#include "chapters.h"
 #include "replaygain.h"
 #include "core_alloc.h"
 #include "abrepeat.h"
@@ -619,6 +620,26 @@ const char *get_id3_token(struct wps_token *token, struct mp3entry *id3,
             return NULL;
         }
 #endif
+        /* Nothing for a track without chapters, as any but the one playing.
+           Texts: a number in *intval would pick a conditional's branch. */
+        case SKIN_TOKEN_CHAPTER_NAME:
+            return chapters_name(id3, chapters_at(id3, elapsed), buf, buf_size);
+        case SKIN_TOKEN_CHAPTER_NUMBER:
+        {
+            const int chapter = chapters_at(id3, elapsed);
+            if (chapter < 0)
+                return NULL;
+            snprintf(buf, buf_size, str(LANG_CHAPTER_NUMBER), chapter + 1);
+            return buf;
+        }
+        case SKIN_TOKEN_CHAPTER_COUNT:
+        {
+            const int count = chapters_count(id3);
+            if (!count)
+                return NULL;
+            itoa_buf(buf, buf_size, count);
+            return buf;
+        }
 
             default:
                 return get_filename_token(token, id3->path, buf, buf_size);

@@ -33,6 +33,7 @@
 #include "voice_thread.h"
 #include "metadata.h"
 #include "cuesheet.h"
+#include "chapters.h"
 #include "buffering.h"
 #include "talk.h"
 #include "playlist.h"
@@ -153,7 +154,8 @@ static struct audio_scratch_memory
 {
     struct mp3entry codec_id3; /* (A,C) */
     struct mp3entry unbuffered_id3;
-    struct cuesheet *curr_cue; /* Will follow this structure */
+    struct cuesheet *curr_cue; /* Will follow the chapters */
+    /* The playing track's chapters follow this structure, CHAPTERS_SIZE */
 } * audio_scratch_memory = NULL;
 
 /* These are used to store the current, next and optionally the peek-ahead
@@ -239,7 +241,7 @@ static enum filling_state
 #define TRACK_INFO_CODEC    0
 #endif
 
-#define TRACK_INFO_HANDLES  (3 + TRACK_INFO_AA + TRACK_INFO_CODEC)
+#define TRACK_INFO_HANDLES  (4 + TRACK_INFO_AA + TRACK_INFO_CODEC)
 
 struct track_info
 {
@@ -251,6 +253,7 @@ struct track_info
     struct {
     int id3_hid;                    /* Metadata handle ID */
     int cuesheet_hid;               /* Parsed cuesheet handle ID */
+    int chapters_hid;               /* Its chapters' (struct chapters) */
 #ifdef HAVE_ALBUMART
     int aa_hid[MAX_MULTIPLE_AA];    /* Album art handle IDs */
 #endif
@@ -853,7 +856,7 @@ static void track_list_clear(unsigned int action)
 /* What size is needed for the scratch buffer? */
 static size_t scratch_mem_size(void)
 {
-    size_t size = sizeof (struct audio_scratch_memory);
+    size_t size = sizeof (struct audio_scratch_memory) + CHAPTERS_SIZE;
 
     if (global_settings.cuesheet)
         size += sizeof (struct cuesheet);
@@ -870,12 +873,14 @@ static void scratch_mem_init(void *mem)
     id3_write(CODEC_ID3, NULL);
     ci.id3 = id3_get(CODEC_ID3);
     audio_scratch_memory->curr_cue = NULL;
+    /* the playing track's chapters were in the old one */
+    id3_get(PLAYING_ID3)->chapters = NULL;
 
     if (global_settings.cuesheet)
     {
         audio_scratch_memory->curr_cue =
             SKIPBYTES((struct cuesheet *)audio_scratch_memory,
-                      sizeof (struct audio_scratch_memory));
+                      sizeof (struct audio_scratch_memory) + CHAPTERS_SIZE);
     }
 }
 
@@ -1449,6 +1454,20 @@ static void audio_update_and_announce_next_track(const struct mp3entry *id3_next
                      0,  id3_get(NEXTTRACK_ID3));
 }
 
+/* The chapters of the track PLAYING_ID3 was just written for, from its handle
+   to the scratch, where the id3 then points: together, so that the UI never
+   has one track's id3 with another's chapters. Call with the id3 mutex. */
+static void playing_chapters_sync(int chapters_hid)
+{
+    struct mp3entry *id3 = id3_get(PLAYING_ID3);
+    struct chapters *c = SKIPBYTES((struct chapters *)audio_scratch_memory,
+                                   sizeof (struct audio_scratch_memory));
+
+    id3->chapters = chapters_hid >= 0 && id3->path[0]
+        && bufread(chapters_hid, CHAPTERS_SIZE, c) >= (ssize_t)sizeof (*c)
+        ? c : NULL;
+}
+
 /* Bring the user current mp3entry up to date and set a new offset for the
    buffered metadata */
 static void playing_id3_sync(struct track_info *user_infop, struct audio_resume_info *resume_info, bool skip_resume_adjustments)
@@ -1479,6 +1498,8 @@ static void playing_id3_sync(struct track_info *user_infop, struct audio_resume_
     }
 
     pcm_play_unlock();
+
+    playing_chapters_sync(user_infop->chapters_hid);
 
     id3_mutex_unlock();
 }
@@ -2021,6 +2042,57 @@ static bool audio_load_cuesheet(struct track_info *infop,
     return true;
 }
 
+/* Read the chapters the tags told of - returns false if the buffer is full.
+   A track with a cuesheet plays by that. */
+static bool audio_load_chapters(struct track_info *infop,
+                                const struct mp3entry *track_id3)
+{
+    if (infop->chapters_hid != ERR_HANDLE_NOT_FOUND
+        || !track_id3->embedded_chapters.source)
+        return true;
+
+    int hid = ERR_UNSUPPORTED_TYPE;
+    /* the id3 stays where it is while the file is read */
+    buf_pin_handle(infop->id3_hid, true);
+    int fd = infop->cuesheet_hid >= 0 ? -1 : open(track_id3->path, O_RDONLY);
+
+    if (fd >= 0)
+    {
+        size_t size = 0;
+        int slots = chapters_measure(fd, track_id3, &size);
+
+        if (slots > 0)
+            hid = bufalloc(NULL, size, TYPE_CUESHEET);
+
+        if (hid >= 0)
+        {
+            void *chapters = NULL;
+            buf_pin_handle(hid, true);
+            bool read = bufgetdata(hid, size, &chapters) == (ssize_t)size
+                && chapters_read(fd, track_id3, chapters, slots, size);
+            buf_pin_handle(hid, false);
+
+            if (!read)
+            {
+                bufclose(hid);
+                hid = ERR_UNSUPPORTED_TYPE;
+            }
+        }
+
+        close(fd);
+    }
+    buf_pin_handle(infop->id3_hid, false);
+
+    if (hid == ERR_BUFFER_FULL)
+    {
+        logf("buffer is full for now (%s)", __func__);
+        return false;
+    }
+
+    infop->chapters_hid = hid;
+    return true;
+}
+
 #ifdef HAVE_ALBUMART
 
 void set_albumart_mode(int setting)
@@ -2286,7 +2358,7 @@ static bool played_episode_next(const char *path)
    been actually loaded by the buffering thread.
 
    Each track is arranged in the buffer as follows:
-        <id3|[cuesheet|][album art|][codec|]audio>
+        <id3|[cuesheet|][chapters|][album art|][codec|]audio>
 
    The next will not be loaded until the previous succeeds if the buffer was
    full at the time. To put any metadata after audio would make those handles
@@ -2554,10 +2626,11 @@ static int audio_finish_load_track(struct track_info *infop)
     }
 #endif
 
-    /* Try to load a cuesheet for the track */
-    if (!audio_load_cuesheet(infop, track_id3))
+    /* Try to load a cuesheet for the track, or else its chapters */
+    if (!audio_load_cuesheet(infop, track_id3)
+        || !audio_load_chapters(infop, track_id3))
     {
-        /* No space for cuesheet on buffer, not an error */
+        /* No space for them on buffer, not an error */
         filling = STATE_FULL;
         goto audio_finish_load_track_exit;
     }
@@ -3018,6 +3091,7 @@ static void audio_finalise_track_change(void)
     struct track_info info;
     bool have_info = track_list_current(0, &info);
     struct mp3entry *track_id3 = NULL;
+    int chapters_hid = have_info ? info.chapters_hid : ERR_HANDLE_NOT_FOUND;
 
     /* Update the current cuesheet if any and enabled */
     if (have_info)
@@ -3042,6 +3116,7 @@ static void audio_finalise_track_change(void)
     id3_mutex_lock();
 
     id3_write(PLAYING_ID3, track_id3);
+    playing_chapters_sync(chapters_hid);
 
     /* The skip is technically over */
     skip_pending = TRACK_SKIP_NONE;
@@ -3695,6 +3770,21 @@ static void audio_on_pre_ff_rewind(void)
     pcmbuf_pause(true);
 }
 
+/* Seeks asked for, and those taken up: the position set to the target. For a
+   chapter jump (chapters.c), which must know its own seek from the position
+   before it. One lost on the way is made up when the queue is idle. */
+static unsigned int seeks_posted, seeks_taken;
+
+unsigned int audio_seeks_posted(void)
+{
+    return seeks_posted;
+}
+
+unsigned int audio_seeks_taken(void)
+{
+    return seeks_taken;
+}
+
 /* Seek the playback of the current track to the specified time
    (Q_AUDIO_FF_REWIND) */
 static void audio_on_ff_rewind(long time)
@@ -3731,6 +3821,7 @@ static void audio_on_ff_rewind(long time)
         }
 
         id3->elapsed = time;
+        seeks_taken++;
         queue_reply(&audio_queue, 1);
 
         bool haltres = halt_decoding_track(pending == TRACK_SKIP_AUTO);
@@ -4000,6 +4091,8 @@ void audio_playback_handler(struct queue_event *ev)
 
         case SYS_TIMEOUT:
             LOGFQUEUE_SYS_TIMEOUT("playback < SYS_TIMEOUT");
+            /* the queue is empty, none waits: before anything can yield */
+            seeks_taken = seeks_posted;
             audio_check_fill_waiting();
             break;
 
@@ -4438,6 +4531,7 @@ void audio_pre_ff_rewind_wait(void)
 /* Seek to the new time in the current track */
 void audio_ff_rewind(long time)
 {
+    seeks_posted++;
     LOGFQUEUE("audio > audio Q_AUDIO_FF_REWIND");
     audio_queue_post(Q_AUDIO_FF_REWIND, time);
 }

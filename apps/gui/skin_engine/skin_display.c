@@ -57,6 +57,7 @@
 #endif
 
 #include "cuesheet.h"
+#include "chapters.h"
 #include "playback.h"
 #include "backdrop.h"
 #include "viewport.h"
@@ -229,7 +230,7 @@ void skin_update(enum skinnable_screens skin, enum screen_type screen,
      * This is also safe for skined screen which dont use the id3 */
     struct mp3entry *id3 = get_wps_state()->id3;
     bool cuesheet_update = (id3 != NULL ? cuesheet_subtrack_changed(id3) : false);
-    if (cuesheet_update)
+    if (cuesheet_update || (skin == WPS && chapters_changed(id3)))
         skin_request_full_update(skin);
 
     const bool full = skin_do_full_update(skin, screen);

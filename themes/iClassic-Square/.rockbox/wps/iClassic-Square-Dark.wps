@@ -41,6 +41,9 @@
 # display modes, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
 %?mw<%Vd(info)%?mv(2.0)<%Vd(volume)|%Vd(pb)>|%Vd(info)%Vd(scrub)|%?C<%Vd(bigart)|%Vd(info)%Vd(pb)>|%Vd(lyrics)|%Vd(info)%Vd(rating)|%Vd(info)%Vd(speed)>
+# under the bar, for an episode or a book whose file has chapters, in the normal view and
+# the scrubber
+%?kn<%?mw<%?mv(2.0)<|%Vd(chapter)>|%Vd(chapter)||||>|>
 %?mv(5)<%?St(battery display)<%Vd(title)|%Vd(titlebat)>|%?St(battery display)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>>>
 %Vl(title,6,2,190,14,4)%Vf(F2F2F6)
 %s%al%Sx(Now Playing)
@@ -130,9 +133,11 @@
 # line is drawn again when its branch changes, not when its tag has nothing more to say
 %Vl(episode,160,121,148,16,2)%Vf(8E9094)
 %al%?ks<%ks|>
-# a book: its author, and what is left of it
+# a book: its author, the chapter's name where a song's album is, and what is left of it
 %Vl(book,160,72,148,18,3)%Vf(B4B6BA)
 %t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(book,160,92,148,16,2)%Vf(8E9094)
+%t(16)%al%?kc<%kc|>;%t(8)%al%s%?kc<%kc|>
 %Vl(book,160,141,148,16,2)%Vf(8E9094)
 %al%kl
 %Vl(book,160,121,148,16,2)%Vf(8E9094)
@@ -185,6 +190,11 @@
 %ar%pc
 %Vl(scrub,272,207,48,14,2)%Vf(F2F2F6)
 %al-%pr
+# the chapter an episode is in, "Chapter 2 · Objects and stories", and for a book, whose
+# third line has the name, "Chapter 5 of 12": at the height of the volume view's label,
+# and as that is, after the bars, over the last rows of their reflection
+%Vl(chapter,12,225,296,13,2)%Vf(8E9094)
+%t(16)%ac%?kk<|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>;%t(8)%s%ac%?kk<|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>
 # rating: whole stars in place of the progress bar, the wheel sets them
 %xl(T,Stars.bmp,0,0,6)
 %xC(T)

@@ -181,6 +181,11 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_TRACK_DATE,            "kd", "", SKIN_REFRESH_STATIC),
     TAG(SKIN_TOKEN_TRACK_TIME_LEFT,       "kl", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_TRACK_SPEED,           "ks", "", SKIN_REFRESH_DYNAMIC),
+    /* the chapter's name, "Chapter 2" and how many there are: texts; drawn
+       again with the progress bar */
+    TAG(SKIN_TOKEN_CHAPTER_NAME,          "kc", "", SKIN_REFRESH_PLAYER_PROGRESS),
+    TAG(SKIN_TOKEN_CHAPTER_NUMBER,        "kn", "", SKIN_REFRESH_PLAYER_PROGRESS),
+    TAG(SKIN_TOKEN_CHAPTER_COUNT,         "kt", "", SKIN_REFRESH_PLAYER_PROGRESS),
 
     TAG(SKIN_TOKEN_PEAKMETER,             "pm", "", SKIN_REFRESH_PEAK_METER),
     TAG(SKIN_TOKEN_PEAKMETER_LEFT,        "pL", BAR_PARAMS, SKIN_REFRESH_PEAK_METER),

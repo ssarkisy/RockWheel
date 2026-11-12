@@ -18289,3 +18289,31 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_CHAPTERS
+  desc: a row of Now Playing's menu (Select held) for a track whose file has chapters, and the title of the list it opens: the chapters with the time each starts at
+  user: core
+  <source>
+    *: "Chapters"
+  </source>
+  <dest>
+    *: "Kapituluak"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHAPTER_NUMBER
+  desc: in Now Playing, the chapter the track is in (Chapter 2 · Objects and stories; Chapter 5 of 12), and in the list of chapters the name of one that has none
+  user: core
+  <source>
+    *: "Chapter %d"
+  </source>
+  <dest>
+    *: "%d. kapitulua"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

@@ -48,6 +48,7 @@
 #include "playback.h"
 #include "splash.h"
 #include "cuesheet.h"
+#include "chapters.h"
 #include "ata_idle_notify.h"
 #include "root_menu.h"
 #include "backdrop.h"
@@ -444,6 +445,8 @@ static void prev_track(unsigned long skip_thresh)
             curr_cuesheet_skip(state->id3->cuesheet, -1, state->id3->elapsed);
             return;
         }
+        if (chapters_skip(state->id3, -1))
+            return;
 
         audio_pre_ff_rewind();
         audio_ff_rewind(0);
@@ -463,6 +466,8 @@ static void next_track(void)
             return;
         }
     }
+    if (chapters_skip(state->id3, 1))
+        return;
 
     audio_next();
 }
@@ -852,8 +857,9 @@ static int wheel_steps(void)
 #define SPEECH_FORWARD_MS 30000
 #define BOOK_HOP_MS       30000
 
-/* Previous or Next in a podcast or an audiobook: -15 s / +30 s in the scrubber, 30 s
-   either way in a book that is its playlist's only track. False where it skips. */
+/* Previous or Next in a podcast or an audiobook: -15 s / +30 s in the scrubber;
+   in a book that is its playlist's only track a chapter, or 30 s either way
+   where it has none to go to. False where it skips. */
 static bool speech_hop(int direction)
 {
     struct wps_state *state = get_wps_state();
@@ -866,7 +872,11 @@ static bool speech_hop(int direction)
     if (state->display_mode == WPS_MODE_SCRUB)
         ms = direction < 0 ? -SPEECH_BACK_MS : SPEECH_FORWARD_MS;
     else if (kind == 2 && playlist_amount() == 1)
+    {
+        if (chapters_skip(id3, direction))
+            return true;
         ms = direction * BOOK_HOP_MS;
+    }
     else
         return false;
     long pos = (long)id3->elapsed + state->ff_rewind_count + ms;

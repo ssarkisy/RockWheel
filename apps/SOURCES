@@ -62,6 +62,7 @@ settings_list.c
 shortcuts.c
 status.c
 cuesheet.c
+chapters.c
 talk.c
 tree.c
 #ifdef HAVE_TAGCACHE

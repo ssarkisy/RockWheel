@@ -61,6 +61,7 @@
 #include "ipod_playlists.h"
 #endif
 #include "cuesheet.h"
+#include "chapters.h"
 #include "statusbar-skinned.h"
 #include "pitchscreen.h"
 #include "viewport.h"
@@ -1695,6 +1696,21 @@ MENUITEM_FUNCTION_DYNTEXT(wps_sound_check_item, MENU_EXITAFTERTHISMENU,
 MENUITEM_GROUP(wps_group_playback, ID2P(LANG_PLAYBACK));
 MENUITEM_GROUP(wps_group_settings, ID2P(LANG_SETTINGS));
 
+/* Chapters, of a track playing that has them: their list */
+static int chapters_callback(int action, const struct menu_item_ex *this_item,
+                             struct gui_synclist *this_list)
+{
+    (void)this_item; (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM
+        && !chapters_count(audio_current_track()))
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_FUNCTION(chapters_item,
+                  MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
+                  ID2P(LANG_CHAPTERS), chapters_screen, chapters_callback,
+                  Icon_NOICON);
+
 /* used when onplay() is called in the CONTEXT_WPS context */
 MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
            onplaymenu_callback, Icon_Audio,
@@ -1704,6 +1720,7 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
 #ifdef HAVE_TAGCACHE
            &cover_flow_item, &go_to_artist_item, &go_to_album_item,
 #endif
+           &chapters_item,
            &wps_group_playback,
            &wps_shuffle_item, &wps_repeat_item,
            /* On-The-Go, as on a stock iPod, rather than a playlist picked or
@@ -1801,6 +1818,9 @@ bool onplay_wps_menu_empty(void)
         if (HK_CTX_GET(item, global_settings.context_wps) != HOTKEY_OFF)
             return false;
     }
+    /* Chapters has no setting: there with a track that has them */
+    if (chapters_count(audio_current_track()))
+        return false;
     for (unsigned i = 0; i < ARRAYLEN(wps_rows); i++)
     {
         if (global_settings.wps_menu_show[wps_rows[i].row])
