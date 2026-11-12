@@ -39,9 +39,10 @@
 %?kk<%?mw<%Vd(song)|%Vd(song)|%?C<|%Vd(song)>||%Vd(song)>|%?mw<%Vd(episode)|%Vd(episode)|%?C<|%Vd(episode)>||%Vd(episode)>|%?mw<%Vd(book)|%Vd(book)|%?C<|%Vd(book)>||%Vd(book)>>
 # display modes, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
-%?mw<%Vd(info)%?mv(2.0)<%Vd(volume)|%Vd(pb)>|%Vd(info)%Vd(scrub)|%?C<%Vd(bigart)|%Vd(info)%Vd(pb)>|%Vd(lyrics)|%Vd(info)%Vd(rating)|%Vd(info)%Vd(speed)>
-# under the bar, for a track whose file has chapters, in the normal view and the scrubber
-%?kn<%?mw<%?mv(2.0)<|%Vd(chapter)>|%Vd(chapter)||||>|>
+%?mw<%Vd(info)%?mv(2.0)<%Vd(volume)|%Vd(pb)>|%Vd(info)%Vd(scrub)%?kk<|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(info)%Vd(pb)>|%Vd(lyrics)|%Vd(info)%Vd(rating)|%Vd(info)%Vd(speed)>
+# under the bar, for a track whose file has chapters, in the normal view and the scrubber;
+# a podcast's or an audiobook's scrubber has the hints at the line's ends, and a shorter line
+%?kn<%?mw<%?mv(2.0)<|%Vd(chapter)>|%?kk<%Vd(chapter)|%Vd(chapterscrub)|%Vd(chapterscrub)>||||>|>
 %?mv(5)<%?St(battery display)<%Vd(title)|%Vd(titlebat)>|%?St(battery display)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>>>
 %Vl(title,6,2,190,14,4)%Vf(000000)
 %s%al%Sx(Now Playing)
@@ -189,6 +190,15 @@
 # view's label, and as that is, after the bars, over the last rows of their reflection
 %Vl(chapter,12,225,296,13,2)%Vf(767676)
 %t(16)%ac%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>;%t(8)%s%ac%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>
+%Vl(chapterscrub,48,225,224,13,2)%Vf(767676)
+%t(16)%ac%?kk<|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>;%t(8)%s%ac%?kk<|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>
+# what Previous and Next do in the scrubber of a podcast or an audiobook, 15 seconds back
+# and 30 on: under the two times, at the height of the chapter line
+%xl(Z,Scrub Hints.bmp,0,0,2)
+%Vl(hints,16,225,26,13,-)
+%xd(Za)
+%Vl(hints,278,225,26,13,-)
+%xd(Zb)
 # rating: whole stars in place of the progress bar, the wheel sets them
 %xl(T,Stars.bmp,0,0,6)
 %xC(T)
