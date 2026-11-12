@@ -259,11 +259,17 @@ struct tagcache_runtime {
     long commitid;    /* of the commit that added it */
     long lastelapsed; /* where it was left: ms */
     long lastoffset;  /* and the file's byte */
+    long dateadded;   /* tag_dateadded */
+    long date;        /* tag_date, of release */
+    long year;        /* and its year, tag_year */
 };
 bool tagcache_update_runtime(int (*update)(const char *filename,
                                            struct tagcache_runtime *rt,
                                            void *data),
                              void *data);
+/* As a commit for what's made from the database: for a pass above that was
+   cut short before it could say what it had changed */
+void tagcache_raise_commitid(void);
 void tagcache_update_numeric(int idx_id, int tag, long data);
 /* the changes to ratings, or to play counts and last plays, since boot: as
    many as there were, for what goes by them to know it's out of date */

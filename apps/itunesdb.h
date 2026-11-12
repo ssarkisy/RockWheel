@@ -31,6 +31,11 @@
 
 /* true when Finder has synced since the last import */
 bool itunesdb_changed(void);
+/* The pass of the import after a sync is to be made over the iTunesDB that is
+   there, though it hasn't changed: one was cut short, or the last was an
+   older firmware's, which left the dates of the songs Finder wrote again to
+   the scan (itunesdb_import()). Once: the pass notes itself. */
+bool itunesdb_pass_due(void);
 bool itunesdb_exists(void);
 /* iTunesDB's size and time, which each sync changes */
 bool itunesdb_stamp(uint32_t *size, uint32_t *mtime);

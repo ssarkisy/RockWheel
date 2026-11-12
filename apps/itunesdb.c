@@ -93,8 +93,12 @@ static int db_alloc(size_t size)
    the header's start is fixed for good. */
 #define STATE_VERSION   1
 #define STATE_OLD_FILE  ITUNESDB_OLD_STATE
-/* the database's commit id when the last import had gone through all of it */
+/* the database's commit id when the last import had gone through all of it,
+   then which pass that was and the sum of the dates it set (struct imported):
+   an older firmware wrote and reads the commit id alone */
 #define IMPORTED_FILE   ROCKBOX_DIR "/itunesdb_imported.dat"
+/* 2: the pass sets every song's dates from iTunesDB (update_entry()) */
+#define IMPORT_PASS     2
 /* how far an import after a sync has got, until it's done: it waited once for
    a record of the plays Finder hasn't had, or its pass has begun */
 #define PROGRESS_FILE   ROCKBOX_DIR "/itunesdb_progress.dat"
@@ -206,6 +210,8 @@ struct track {
     uint32_t sound_check; /* Finder's, 0 for none */
     uint32_t lastplayed;  /* Mac time, 0 for never */
     uint32_t bookmark;    /* a podcast's or a book's place on the Mac, ms */
+    uint32_t added;       /* as tag_dateadded, 0 for none */
+    uint32_t released;    /* track_released()'s */
     struct state_entry st;
     uint64_t dbid;   /* the song's, the same under another path after a sync */
 };
@@ -257,6 +263,17 @@ static uint32_t track_date(uint32_t year, uint32_t released)
     if (y < 1000 || y > 2999 || (year != 0 && year != y))
         return 0;
     return y * 10000 + month * 100 + day;
+}
+
+/* A track's tag_date and tag_year in one, as add_metadata() takes them from
+   its mhit: the date, whose year is the year's; without one the year alone,
+   below this; 0 for neither */
+#define RELEASED_DATE 10000
+static uint32_t track_released(const unsigned char *mhit)
+{
+    const uint32_t year = MIN(le32(mhit + 52), 0xffff);
+    const uint32_t date = track_date(year, le32(mhit + 0x8c));
+    return date ? date : MIN(year, RELEASED_DATE - 1);
 }
 
 static const unsigned char *db_get(off_t pos, size_t len)
@@ -1186,6 +1203,9 @@ static off_t read_track(off_t pos, struct track *track)
     track->sound_check = le32(p + 76);
     track->st.playcount = le32(p + 80);
     track->lastplayed = le32(p + 0x58);
+    const uint32_t added = le32(p + 0x68);
+    track->added = added > MAC_EPOCH_OFFSET ? added - MAC_EPOCH_OFFSET : 0;
+    track->released = track_released(p);
     uint32_t media = 0;
     if (header_len >= 212)
     {
@@ -2340,7 +2360,7 @@ static void write_playlists(off_t list)
 
 #define PENDING_FILE    ROCKBOX_DIR "/itunesdb_pending.dat"
 #define PENDING_MAGIC   0x50494252 /* "RBIP" */
-#define PENDING_VERSION 2
+#define PENDING_VERSION 3
 
 struct pending_header {
     uint32_t magic;
@@ -2349,6 +2369,7 @@ struct pending_header {
     uint32_t db_mtime;
     uint32_t count;
     uint32_t complete;  /* every track listed was read */
+    uint32_t dates_sum; /* of the dates after the last plays */
 };
 
 static struct {
@@ -2357,19 +2378,26 @@ static struct {
     struct state_entry *tracks; /* in iTunesDB order */
     uint32_t *by_hash;          /* their indexes, by path hash */
     uint32_t *lastplayed;       /* of each, Mac time */
+    int dates_handle;           /* for the pass alone (load_pending_dates()) */
+    uint32_t *added;            /* of each, struct track's */
+    uint32_t *released;
 } pend;
 
 /* The tracks, then an empty entry for each podcast show, as Finder counts
    them: it drops a Play Counts with an entry fewer or more than it has
-   tracks. Then the time each was last played. */
+   tracks. Then the time each was last played, then when each was added,
+   then when each was released. */
 static void write_pending(void)
 {
     struct pending_header hdr = {
         PENDING_MAGIC, PENDING_VERSION, db_size, db_mtime,
-        db.count + db.shows, db.complete
+        db.count + db.shows, db.complete, 2166136261u
     };
     const struct state_entry show = { 0 };
     const uint32_t never = 0;
+    for (int i = 0; i < db.count; i++)
+        hdr.dates_sum = ((hdr.dates_sum ^ db.tracks[i].added) * 16777619u
+                         ^ db.tracks[i].released) * 16777619u;
     if (!writer_open(&out, PENDING_FILE))
         return;
     writer_put(&out, &hdr, sizeof(hdr));
@@ -2379,6 +2407,14 @@ static void write_pending(void)
         writer_put(&out, &show, sizeof(show));
     for (int i = 0; i < db.count; i++)
         writer_put(&out, &db.tracks[i].lastplayed, sizeof(uint32_t));
+    for (int i = 0; i < db.shows; i++)
+        writer_put(&out, &never, sizeof(never));
+    for (int i = 0; i < db.count; i++)
+        writer_put(&out, &db.tracks[i].added, sizeof(uint32_t));
+    for (int i = 0; i < db.shows; i++)
+        writer_put(&out, &never, sizeof(never));
+    for (int i = 0; i < db.count; i++)
+        writer_put(&out, &db.tracks[i].released, sizeof(uint32_t));
     for (int i = 0; i < db.shows; i++)
         writer_put(&out, &never, sizeof(never));
     if (!writer_close(&out))
@@ -2392,7 +2428,38 @@ static void unload_pending(void)
         core_unpin(pend.handle);
         core_free(pend.handle);
     }
+    if (pend.dates_handle > 0)
+    {
+        core_unpin(pend.dates_handle);
+        core_free(pend.dates_handle);
+    }
     memset(&pend, 0, sizeof(pend));
+}
+
+/* The dates of the pending file loaded, for the pass: a sync with nothing new
+   goes by their sum and doesn't read them. False without them: no pass. */
+static bool load_pending_dates(void)
+{
+    const size_t dates = pend.hdr.count * sizeof(uint32_t);
+    const int fd = open(PENDING_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    pend.dates_handle = db_alloc(MAX(2 * dates, sizeof(uint32_t)));
+    bool ok = pend.dates_handle > 0;
+    if (ok)
+    {
+        core_pin(pend.dates_handle);
+        pend.added = core_get_data(pend.dates_handle);
+        pend.released = pend.added + pend.hdr.count;
+        const off_t at = sizeof(pend.hdr) + pend.hdr.count
+                         * (sizeof(struct state_entry) + sizeof(uint32_t));
+        ok = lseek(fd, at, SEEK_SET) == at
+             && read(fd, pend.added, 2 * dates) == (ssize_t)(2 * dates);
+    }
+    else
+        pend.dates_handle = 0;
+    close(fd);
+    return ok;
 }
 
 static int cmp_pending_hash(const void *a, const void *b)
@@ -2477,16 +2544,26 @@ static void index_pending(void)
     qsort_yielding(pend.by_hash, pend.hdr.count, sizeof(uint32_t), cmp_pending_hash);
 }
 
+/* what IMPORTED_FILE holds */
+struct imported {
+    int32_t commitid;
+    uint32_t pass;      /* IMPORT_PASS */
+    uint32_t dates_sum; /* the pending header's */
+};
+
 /* Whether the tracks and their counts are those of the last import, and the database
    is the one it went through. Compares in the room of the index, not made yet. */
 static bool pending_is_imported(void)
 {
-    int commitid;
+    struct imported was;
     int fd = open(IMPORTED_FILE, O_RDONLY);
     if (fd < 0)
         return false;
-    bool ok = read(fd, &commitid, sizeof(commitid)) == sizeof(commitid)
-        && commitid == tagcache_get_commitid();
+    /* and its dates: one changed on the Mac alone is new, though no count
+       is */
+    bool ok = read(fd, &was, sizeof(was)) == sizeof(was)
+        && was.commitid == tagcache_get_commitid()
+        && was.pass == IMPORT_PASS && was.dates_sum == pend.hdr.dates_sum;
     close(fd);
     if (!ok)
         return false;
@@ -2814,8 +2891,9 @@ static bool unsent_begin(bool passing)
     return true;
 }
 
-/* counts already from this iTunesDB with the unsynced plays (a restore, or a
-   new STATE_VERSION): leave them */
+/* counts already from this iTunesDB with the unsynced plays (a restore, a
+   new STATE_VERSION, or the pass made again over the same iTunesDB,
+   itunesdb_pass_due()): leave them */
 static bool counts_kept;
 
 static bool counts_of_this_itunesdb(void)
@@ -2831,7 +2909,7 @@ static bool place_from_mac(uint64_t hash, struct tagcache_runtime *rt);
 static bool flags_places_wait(void);
 static void flags_places_taken(void);
 
-/* 1 to set the counts, 0 to leave the entry, -1 to remove it */
+/* 1 to set the counts and the dates, 0 to leave the entry, -1 to remove it */
 static int update_entry(const char *path, struct tagcache_runtime *rt,
                         void *data)
 {
@@ -2853,9 +2931,20 @@ static int update_entry(const char *path, struct tagcache_runtime *rt,
         }
         return -1;
     }
+    /* its dates are iTunesDB's whatever became of its file: the scan takes
+       them only for a new path, and not for all of those (metadata_room()) */
+    const size_t track = t - pend.tracks;
+    if (pend.added[track])
+        rt->dateadded = pend.added[track];
+    const uint32_t released = pend.released[track];
+    rt->date = released >= RELEASED_DATE ? released : 0;
+    rt->year = released >= RELEASED_DATE ? released / 10000 : released;
     /* the counts stay, the Mac's place is still taken */
     if (counts_kept)
-        return place_from_mac(hash, rt);
+    {
+        place_from_mac(hash, rt);
+        return 1;
+    }
     /* a moved song's new entry keeps its old entry's numbers */
     const struct moved_song *m = find_moved(hash);
     if (m && m->kept)
@@ -2891,6 +2980,11 @@ static bool write_state(void)
         STATE_MAGIC, STATE_VERSION, pend.hdr.db_size, pend.hdr.db_mtime,
         pend.hdr.count
     };
+    /* The state is of this iTunesDB already, the pass made again over it: a
+       reading that fell short doesn't replace a whole one. The import isn't
+       done: the pending file stays, for the next boot. */
+    if (!pend.hdr.complete && !itunesdb_changed())
+        return false;
     /* not over the old one: Rockbox truncates a file on its close, so a
        cut there left the new header on the old tracks, whose counts Play
        Counts would then give to others */
@@ -3098,15 +3192,46 @@ static bool import_progress_set(int flags)
 
 static void note_imported(void)
 {
-    const int commitid = tagcache_get_commitid();
+    const struct imported now = {
+        tagcache_get_commitid(), IMPORT_PASS, pend.hdr.dates_sum
+    };
     const int fd = open(IMPORTED_FILE, O_WRONLY|O_CREAT|O_TRUNC, 0666);
     if (fd >= 0)
     {
         /* none rather than one cut short */
-        const bool ok = write(fd, &commitid, sizeof(commitid)) == sizeof(commitid);
+        const bool ok = write(fd, &now, sizeof(now)) == sizeof(now);
         if (close(fd) < 0 || !ok)
             remove(IMPORTED_FILE);
     }
+}
+
+bool itunesdb_pass_due(void)
+{
+    uint32_t size, mtime;
+    struct imported was;
+    if (!db_stamp(&size, &mtime))
+        return false;
+    /* one over this iTunesDB that didn't finish, of any version's file */
+    struct pending_header left;
+    int fd = open(PENDING_FILE, O_RDONLY);
+    if (fd >= 0)
+    {
+        const ssize_t stamp = offsetof(struct pending_header, count);
+        const bool this_db = read(fd, &left, stamp) == stamp
+            && left.magic == PENDING_MAGIC && left.db_size == size
+            && left.db_mtime == mtime;
+        close(fd);
+        if (this_db)
+            return true;
+    }
+    /* none: iTunesDB couldn't be read whole, and wouldn't be now */
+    fd = open(IMPORTED_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool ok = read(fd, &was, sizeof(was)) == sizeof(was)
+                    && was.pass >= IMPORT_PASS;
+    close(fd);
+    return !ok;
 }
 
 void itunesdb_import(void)
@@ -3139,8 +3264,18 @@ void itunesdb_import(void)
         /* not the same as what went through all of it, if cut short */
         remove(IMPORTED_FILE);
         index_pending();
+        /* the pending file stays: the next boot's import (itunesdb_pass_due()) */
+        if (!load_pending_dates())
+        {
+            unload_pending();
+            return;
+        }
         counts_kept = counts_of_this_itunesdb();
         const int progress = import_progress();
+        /* a pass begun before and cut short: what it had changed is under
+           the commit id of before it */
+        if (progress & IMPORT_PASSING)
+            tagcache_raise_commitid();
         bool go = true;
         if (!counts_kept)
         {
@@ -6972,7 +7107,9 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     }
     else
         itunesdb_forget_metadata();
-    flags_import_begin(synced);
+    /* the pass made again over the same iTunesDB (itunesdb_pass_due()) has
+       nothing new from the Mac: no place of its to take over the iPod's */
+    flags_import_begin(synced && itunesdb_changed());
     remove(GAINS_FILE);
 #ifdef ITUNESDB_HAVE_ART
     /* the old covers point into ithmb files Finder has rewritten; their

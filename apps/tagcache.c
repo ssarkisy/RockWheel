@@ -6688,11 +6688,11 @@ static bool runtime_set(struct index_entry *idx,
 {
     const long values[] = {
         rt->playcount, rt->rating, rt->lastplayed, rt->playtime, rt->commitid,
-        rt->lastelapsed, rt->lastoffset
+        rt->lastelapsed, rt->lastoffset, rt->dateadded, rt->date, rt->year
     };
     static const unsigned char tags[] = {
         tag_playcount, tag_rating, tag_lastplayed, tag_playtime, tag_commitid,
-        tag_lastelapsed, tag_lastoffset
+        tag_lastelapsed, tag_lastoffset, tag_dateadded, tag_date, tag_year
     };
     bool changed = false;
     for (unsigned i = 0; i < ARRAYLEN(tags); i++)
@@ -6734,6 +6734,7 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
     for (int tag = 0; tag < TAG_COUNT; tag++)
         fds[tag] = -1;
     int deleted = 0;
+    bool redated = false;
     bool failed = false;
 
     for (int i = 0; i < myhdr.tch.entry_count; i++)
@@ -6757,8 +6758,10 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
             idx.tag_seek[tag_playcount], idx.tag_seek[tag_rating],
             idx.tag_seek[tag_lastplayed], idx.tag_seek[tag_playtime],
             idx.tag_seek[tag_commitid], idx.tag_seek[tag_lastelapsed],
-            idx.tag_seek[tag_lastoffset]
+            idx.tag_seek[tag_lastoffset], idx.tag_seek[tag_dateadded],
+            idx.tag_seek[tag_date], idx.tag_seek[tag_year]
         };
+        const long dates[] = { rt.dateadded, rt.date, rt.year };
         int action = update(buf, &rt, data);
         if (action < 0)
         {
@@ -6783,6 +6786,8 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
                 runtime_set(&idx, &rt);
                 idx.flag |= FLAG_DIRTYNUM;
                 failed |= !write_index(masterfd, i, &idx);
+                redated |= rt.dateadded != dates[0] || rt.date != dates[1]
+                           || rt.year != dates[2];
             }
             else
                 failed = true;
@@ -6795,10 +6800,13 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
         lp_gone_flush();
 #endif
         sweep_unused_tags(masterfd, myhdr.tch.entry_count, fds);
-        /* what's made from the database goes by this, and is out of date: Cover Flow's
-           albums and the prepared lists of songs */
-        current_tcmh.commitid++;
     }
+    /* what's made from the database goes by this, and is out of date: Cover Flow's
+       albums and the prepared lists of songs; with a date changed, the albums'
+       dates and the albums added last too */
+    const bool changed = deleted > 0 || redated;
+    if (changed)
+        current_tcmh.commitid++;
 
     for (int tag = 0; tag < TAG_COUNT; tag++)
     {
@@ -6808,12 +6816,23 @@ bool tagcache_update_runtime(int (*update)(const char *filename,
     failed |= close(masterfd) < 0;
     tagcache_search_finish(&tcs);
 #ifdef TAGCACHE_SORT_FIELDS
-    if (update_master_header() && deleted > 0)
+    if (update_master_header() && changed)
         order_mark_follow(current_tcmh.commitid - 1);
 #else
     update_master_header();
 #endif
     return !failed;
+}
+
+void tagcache_raise_commitid(void)
+{
+    current_tcmh.commitid++;
+#ifdef TAGCACHE_SORT_FIELDS
+    if (update_master_header())
+        order_mark_follow(current_tcmh.commitid - 1);
+#else
+    update_master_header();
+#endif
 }
 #endif /* !__PCTOOL__ */
 
@@ -9367,7 +9386,9 @@ static void tagcache_thread(void)
                 /* Finder has synced: the new files first, then what
                    iTunesDB says about them. Cut short, as by USB, all of
                    it is tried again: iTunesDB still differs from its stamp,
-                   so after USB or at the next boot */
+                   so after USB or at the next boot; the pass made again
+                   over the same iTunesDB (itunesdb_pass_due()), at the next
+                   boot alone */
                 cpu_boost(true);
                 if (!update_and_reload())
                 {
@@ -9628,7 +9649,8 @@ void tagcache_init(void)
     strmemccpy(tc_stat.db_path, global_settings.tagcache_db_path,
                sizeof(tc_stat.db_path));
     /* known before the thread starts, for the progress screen */
-    sync_found = itunesdb_changed();
+    /* or as after one, for the pass that sets every song's dates */
+    sync_found = itunesdb_changed() || itunesdb_pass_due();
     restore_read_mark();
     if (restore_set_aside())
         sync_found = true;
