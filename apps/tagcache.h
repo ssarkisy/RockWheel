@@ -324,6 +324,8 @@ int tagcache_track_kind(int idx_id);
    They come with the database's paths in memory, so not while it loads, nor
    with Load to RAM off, nor when their room was not got. */
 bool tagcache_kinds_known(void);
+/* a track's kind, or -1 when the kinds aren't in memory: for a plugin */
+int tagcache_kind_if_known(int idx_id);
 int tagcache_path_kind(const char *path);
 /* the kind is iTunesDB's: Finder's podcast or book, which has a mark there and
    the Mac's bookmark; another is new until it has a play */

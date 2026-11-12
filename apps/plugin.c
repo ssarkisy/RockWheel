@@ -962,6 +962,9 @@ static const struct plugin_api rockbox_api = {
     album_date_order,
     menu_wide,
     menu_set_wide,
+#ifdef HAVE_TAGCACHE
+    tagcache_kind_if_known,
+#endif
 };
 
 static int plugin_buffer_handle;

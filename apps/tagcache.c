@@ -6322,6 +6322,11 @@ bool tagcache_kinds_known(void)
 #endif
 }
 
+int tagcache_kind_if_known(int idx_id)
+{
+    return tagcache_kinds_known() ? tagcache_track_kind(idx_id) : -1;
+}
+
 int tagcache_path_kind(const char *path)
 {
     return tagcache_track_kind(tagcache_find_entry(path));

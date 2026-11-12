@@ -1682,9 +1682,19 @@ static void album_of_other_artist(int idx_id, long album, long artist, int year,
     a->first_track = idx_id;
 }
 
+/* Albums of music alone, as Music's lists, when the tracks' kinds are in
+   memory: a show's or a book's album, which no song of music is of, is left
+   out of the index. The index's stamp says which it was made as. */
+static bool music_only(void)
+{
+    return rb->tagcache_kind_if_known(0) >= 0;
+}
+
 static void album_of_track(int idx_id, const int32_t *tag_seek, void *data)
 {
     (void)data;
+    if (rb->tagcache_kind_if_known(idx_id) > 0)
+        return;
     long album = tag_seek[tag_album], artist = tag_seek[tag_albumartist];
     int year = tag_seek[tag_year];
 
@@ -1759,6 +1769,21 @@ static bool assign_albums_from_ram(void *buf, size_t buf_size)
               compare_album_seeks);
     if (!rb->tagcache_for_each_track(album_of_track, NULL))
         return false;
+    if (music_only())
+    {
+        /* those no song of music was found for go; the albums added for
+           other artists come after them and move down */
+        const struct album_data *extra = pf_idx.album_index + pf_idx.album_ct;
+        int kept = 0;
+        for (int j = 0; j < pf_idx.album_ct; j++)
+        {
+            if (by_seek.seen[j])
+                pf_idx.album_index[kept++] = pf_idx.album_index[j];
+        }
+        rb->memmove(pf_idx.album_index + kept, extra,
+                    by_seek.extra * sizeof(*extra));
+        pf_idx.album_ct = kept;
+    }
     pf_idx.album_ct += by_seek.extra;
     return true;
 }
@@ -1956,7 +1981,9 @@ static void index_stamp(struct pf_index_t *stamp)
     struct tagcache_stat *stat = rb->tagcache_get_stat();
     char file[MAX_PATH];
     stamp->commitid = rb->tagcache_get_commitid();
-    stamp->entries = stat->total_entries;
+    /* below zero for an index of music alone: one made with every album,
+       or the other way round, is made again */
+    stamp->entries = music_only() ? ~stat->total_entries : stat->total_entries;
     stamp->albums_size = -1;
     rb->snprintf(file, sizeof(file), "%s/database_%d.tcd", stat->db_path,
                  tag_album);

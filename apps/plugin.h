@@ -192,7 +192,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 32
+#define PLUGIN_API_REVISION 33
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1165,6 +1165,11 @@ struct plugin_api {
     /* a list the whole width, as the menu over Now Playing (menu.h) */
     bool (*menu_wide)(void);
     void (*menu_set_wide)(bool on);
+#ifdef HAVE_TAGCACHE
+    /* a track's kind: 0 a song, 1 a podcast's episode, 2 a book's part; -1
+       when the kinds aren't in memory (tagcache.h) */
+    int (*tagcache_kind_if_known)(int idx_id);
+#endif
 };
 
 /* plugin header */
