@@ -6207,6 +6207,16 @@ bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n)
 #endif
 }
 
+int tagcache_track_kind(int idx_id)
+{
+#ifdef HAVE_TC_RAMCACHE
+    return tc_stat.ready ? ram_kind(idx_id) : 0;
+#else
+    (void)idx_id;
+    return 0;
+#endif
+}
+
 long tagcache_track_place(int idx_id)
 {
 #ifdef HAVE_TC_RAMCACHE

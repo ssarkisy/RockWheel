@@ -599,6 +599,17 @@ void wps_lyrics_redraw(void)
         draw_lyrics();
 }
 
+/* the track's kind as iTunesDB has it: 0 music, 1 podcast, 2 audiobook */
+static int track_kind(const struct mp3entry *id3)
+{
+#ifdef HAVE_TAGCACHE
+    return id3 ? tagcache_track_kind(id3->tagcache_idx - 1) : 0;
+#else
+    (void)id3;
+    return 0;
+#endif
+}
+
 static bool display_mode_available(enum wps_display_mode mode)
 {
     struct mp3entry *id3 = get_wps_state()->id3;
@@ -608,7 +619,9 @@ static bool display_mode_available(enum wps_display_mode mode)
             return id3 && id3->length;
         case WPS_MODE_RATING:
 #ifdef HAVE_TAGCACHE
-            return id3 && id3->tagcache_idx && global_settings.runtimedb;
+            /* an episode has no stars */
+            return id3 && id3->tagcache_idx && global_settings.runtimedb
+                   && track_kind(id3) != 1;
 #else
             return false;
 #endif
@@ -717,6 +730,45 @@ static int wheel_steps(void)
     return 1;
 }
 
+/* a podcast's or an audiobook's steps: the wheel's in the scrubber, the
+   buttons' there, and the buttons' in a book that is one file */
+#define SPEECH_WHEEL_MS   5000
+#define SPEECH_BACK_MS    15000
+#define SPEECH_FORWARD_MS 30000
+#define BOOK_HOP_MS       30000
+
+/* Previous or Next in a podcast or an audiobook: -15 s / +30 s in the scrubber, 30 s
+   either way in a book that is its playlist's only track. False where it skips. */
+static bool speech_hop(int direction)
+{
+    struct wps_state *state = get_wps_state();
+    follow_track_change();
+    struct mp3entry *id3 = state->id3;
+    const int kind = track_kind(id3);
+    long ms;
+    if (!kind || !id3->length)
+        return false;
+    if (state->display_mode == WPS_MODE_SCRUB)
+        ms = direction < 0 ? -SPEECH_BACK_MS : SPEECH_FORWARD_MS;
+    else if (kind == 2 && playlist_amount() == 1)
+        ms = direction * BOOK_HOP_MS;
+    else
+        return false;
+    long pos = (long)id3->elapsed + state->ff_rewind_count + ms;
+    pos = MAX(0, MIN(pos, (long)id3->length - 1000));
+    state->ff_rewind_count = pos - (long)id3->elapsed;
+    scrub_pending = state->ff_rewind_count != 0;
+    scrub_apply();
+    if (state->display_mode == WPS_MODE_SCRUB)
+    {
+        mode_moved = true;
+        mode_last_used = current_tick;
+    }
+    FOR_NB_SCREENS(i)
+        skin_update(WPS, i, SKIN_REFRESH_PLAYER_PROGRESS | SKIN_REFRESH_DYNAMIC);
+    return true;
+}
+
 static void display_mode_turn(int direction)
 {
     struct wps_state *state = get_wps_state();
@@ -738,8 +790,10 @@ static void display_mode_turn(int direction)
     else if (state->display_mode == WPS_MODE_SCRUB)
     {
         /* a hundredth of the track a wheel step, a few turns for all of it;
-           no acceleration, which made a spot hard to aim at */
-        long step = MAX(id3->length / 100, 1000);
+           no acceleration, which made a spot hard to aim at. Five seconds
+           in a podcast or an audiobook, where a hundredth is half a minute */
+        long step = track_kind(id3) ? SPEECH_WHEEL_MS
+                                    : MAX(id3->length / 100, 1000);
         long pos = id3->elapsed + state->ff_rewind_count
                    + direction * step * wheel_steps();
         pos = MAX(0, MIN(pos, (long)id3->length - 1000));
@@ -1263,6 +1317,8 @@ long gui_wps_show(void)
                 /* prev / restart */
             case ACTION_WPS_SKIPPREV:
                 last_left = current_tick;
+                if (speech_hop(-1))
+                    break;
 
                 /* if we're in A/B repeat mode and the current position
                    is past the A marker, jump back to the A marker... */
@@ -1279,6 +1335,8 @@ long gui_wps_show(void)
                    OR if skip length set, hop by predetermined amount. */
             case ACTION_WPS_SKIPNEXT:
                 last_right = current_tick;
+                if (speech_hop(1))
+                    break;
 
                 /* if we're in A/B repeat mode and the current position is
                    before the A marker, jump to the A marker... */

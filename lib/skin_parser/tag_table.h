@@ -109,6 +109,10 @@ enum skin_token_type {
     SKIN_TOKEN_MENU_WIDE,
     SKIN_TOKEN_VOLUME_PERCENT,
     SKIN_TOKEN_NIGHT_MODE,
+    /* the track's kind, its release date and what is left of it */
+    SKIN_TOKEN_TRACK_KIND,
+    SKIN_TOKEN_TRACK_DATE,
+    SKIN_TOKEN_TRACK_TIME_LEFT,
     SKIN_TOKEN_IMAGE_WIDE_BACKDROP,
     SKIN_TOKEN_BATTERY_VOLTS,
     SKIN_TOKEN_BATTERY_TIME,

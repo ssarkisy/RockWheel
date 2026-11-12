@@ -302,6 +302,9 @@ bool tagcache_set_unplayed(int idx_id, const char *path, bool unplayed);
 /* the changes to places, plays and marks since boot, which the lists with
    the episodes' states go by */
 long tagcache_states_generation(void);
+/* an entry's kind as iTunesDB has it, 0 music, 1 podcast, 2 audiobook: from
+   memory, 0 without the database there or for no entry */
+int tagcache_track_kind(int idx_id);
 /* Where an entry was left, in ms, as it is now, a change queued for it too
    (tag_lastelapsed): 0 for none, and without the database in memory. As
    tagcache_get_numbers(), from memory only, for a list's rows as they draw */

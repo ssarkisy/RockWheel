@@ -7482,18 +7482,26 @@ static int episode_state(int32_t idx, long *place)
     return tagcache_episode_state(idx);
 }
 
-/* "28 min left" of an episode begun, the time left rounded up: NULL
-   without its length */
+const char *tagtree_time_left(unsigned long elapsed, unsigned long length,
+                              char *buf, size_t size)
+{
+    char mins[32];
+    if (!length)
+        return NULL;
+    const unsigned long left = length > elapsed ? length - elapsed : 0;
+    snprintf(mins, sizeof(mins), str(LANG_TIME_MIN),
+             (int)MAX((left + 59999) / 60000, 1UL));
+    snprintf(buf, size, str(LANG_TIME_LEFT), mins);
+    return buf;
+}
+
+/* "28 min left" of an episode begun, by the database's length: NULL without
+   it */
 static const char *left_text(int32_t idx, long place, char *buf, size_t size)
 {
     const long length = tagcache_sort_key(idx, tag_length);
-    char mins[32];
-    if (place <= 0 || length <= 0)
-        return NULL;
-    snprintf(mins, sizeof(mins), str(LANG_TIME_MIN),
-             (int)MAX((length - place + 59999) / 60000, 1));
-    snprintf(buf, size, str(LANG_TIME_LEFT), mins);
-    return buf;
+    return place > 0 && length > 0 ? tagtree_time_left(place, length, buf, size)
+                                   : NULL;
 }
 
 /* A date as the episodes' rows have it, "20 May", with its year if that
@@ -7553,13 +7561,10 @@ static const char *show_subline(struct tree_context *c,
 /* An episode's: "28 min left" once it's begun; else its date and its length
    to the nearest minute, "20 May 2023 · 22 min", those of them it has.
    From the database's memory */
-static const char *episode_subline(int32_t idx, char *buf, size_t size)
+const char *tagtree_track_date(int32_t idx, bool with_length, char *buf,
+                               size_t size)
 {
-    const long length = tagcache_sort_key(idx, tag_length);
-    long place;
-    if (episode_state(idx, &place) == EPISODE_STARTED
-        && left_text(idx, place, buf, size))
-        return buf;
+    const long length = with_length ? tagcache_sort_key(idx, tag_length) : 0;
     const size_t len = date_text(episode_date(idx), buf, size);
     if (length > 0 && len < size)
     {
@@ -7570,6 +7575,15 @@ static const char *episode_subline(int32_t idx, char *buf, size_t size)
                  mins); /* U+00B7 */
     }
     return buf[0] ? buf : NULL;
+}
+
+static const char *episode_subline(int32_t idx, char *buf, size_t size)
+{
+    long place;
+    if (episode_state(idx, &place) == EPISODE_STARTED
+        && left_text(idx, place, buf, size))
+        return buf;
+    return tagtree_track_date(idx, true, buf, size);
 }
 
 /* The music playing is the saved list of the album of the entry idx under

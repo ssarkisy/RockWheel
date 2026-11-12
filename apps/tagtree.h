@@ -199,6 +199,12 @@ bool tagtree_album(struct tree_context *c, struct tagtree_album *album);
    year and songs, and albumartist is the author they all have, -1 if they
    differ; year and longest are 0 */
 bool tagtree_album_is_show(struct tree_context *c);
+/* A track's texts as Podcasts' rows have them: its date, "20 May 2023", with its
+   length after it if with_length, and what is left of it, "28 min left"; or NULL. */
+const char *tagtree_track_date(int32_t idx, bool with_length, char *buf,
+                               size_t size);
+const char *tagtree_time_left(unsigned long elapsed, unsigned long length,
+                              char *buf, size_t size);
 /* The list made last has its rows' states, Podcasts' shows and a show's
    episodes: each row's mark in a column before its name (enum line_mark):
    a dot for a new episode or a show with one, a half dot for one begun,

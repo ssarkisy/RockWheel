@@ -57,6 +57,7 @@
 #include "tdspeed.h"
 #include "viewport.h"
 #include "tagcache.h"
+#include "tagtree.h"
 
 #include "wps_internals.h"
 #include "skin_engine.h"
@@ -590,6 +591,22 @@ const char *get_id3_token(struct wps_token *token, struct mp3entry *id3,
                 *intval = id3->score + 1;
             itoa_buf(buf, buf_size, id3->score);
             return buf;
+        /* from the database's memory by the track's entry there, which it
+           has once it's buffered: music and no date before that */
+        case SKIN_TOKEN_TRACK_KIND:
+        {
+            const int kind = tagcache_track_kind(id3->tagcache_idx - 1);
+            if (intval)
+                *intval = kind + 1;
+            itoa_buf(buf, buf_size, kind);
+            return buf;
+        }
+        case SKIN_TOKEN_TRACK_DATE:
+            return id3->tagcache_idx > 0 ?
+                   tagtree_track_date(id3->tagcache_idx - 1, false, buf,
+                                      buf_size) : NULL;
+        case SKIN_TOKEN_TRACK_TIME_LEFT:
+            return tagtree_time_left(elapsed, length, buf, buf_size);
 #endif
 
             default:
