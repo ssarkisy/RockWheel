@@ -11,7 +11,7 @@ void iap_on_track_playback_index(uint32_t index, bool track_ready);
 void iap_on_tracks_count(uint32_t count);
 void iap_on_play_status(int status /* AUDIO_STATUS_* */);
 void iap_on_volume(int volume);
-void iap_on_shuffle_state(bool state);
+void iap_on_shuffle_state(int state); /* SHUFFLE_OFF, _SONGS, _ALBUMS */
 void iap_on_repeat_state(int state);
 #else
 static inline void iap_on_track_time_position(uint32_t pos_ms) {
@@ -30,7 +30,7 @@ static inline void iap_on_play_status(int status) {
 static inline void iap_on_volume(int volume) {
     (void)volume;
 }
-static inline void iap_on_shuffle_state(bool state) {
+static inline void iap_on_shuffle_state(int state) {
     (void)state;
 }
 static inline void iap_on_repeat_state(int state) {

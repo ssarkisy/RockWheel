@@ -86,7 +86,7 @@ struct resume_info{
     int  resume_seed;
     long resume_elapsed;
     int  repeat_mode;
-    bool shuffle;
+    int  shuffle;
     /* optional values */
     int  pitch;
     int  speed;
@@ -209,7 +209,7 @@ static bool parse_bookmark(char *filenamebuf,
 
         GET_LONG_TOKEN(resume_info->resume_elapsed);
         GET_INT_TOKEN(resume_info->repeat_mode);
-        GET_BOOL_TOKEN(resume_info->shuffle);
+        GET_INT_TOKEN(resume_info->shuffle);
 
         /* extract all optional bookmark tokens */
         if (opt_pitch != 0)
@@ -1114,7 +1114,9 @@ static bool play_bookmark(const char* bookmark)
             ? resume_info.repeat_mode
             : resume_info.repeat_mode == REPEAT_SHUFFLE ? REPEAT_ALL : REPEAT_OFF;
         iap_on_repeat_state(global_settings.repeat_mode);
-        global_settings.playlist_shuffle = resume_info.shuffle;
+        global_settings.playlist_shuffle =
+            resume_info.shuffle == SHUFFLE_ALBUMS ? SHUFFLE_ALBUMS
+            : resume_info.shuffle ? SHUFFLE_SONGS : SHUFFLE_OFF;
         iap_on_shuffle_state(global_settings.playlist_shuffle);
 #if defined(HAVE_PITCHCONTROL)
         sound_set_pitch(resume_info.pitch);

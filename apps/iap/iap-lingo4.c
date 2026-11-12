@@ -2015,14 +2015,7 @@ void iap_handlepkt_mode4(const unsigned int len, const unsigned char *buf)
                 break;
             }
             audio_pause();
-            if(global_settings.playlist_shuffle)
-            {
-                playlist_randomise(NULL, current_tick, true);
-            }
-            else
-            {
-                playlist_sort(NULL, true);
-            }
+            playlist_reorder(global_settings.playlist_shuffle);
             audio_skip(index - playlist_next(0));
             if (!paused)
                 audio_resume();
@@ -2194,7 +2187,7 @@ void iap_handlepkt_mode4(const unsigned int len, const unsigned char *buf)
              */
             unsigned char data[] = {0x04, 0x00, 0x2D,
                                     0x00};
-            data[3] = global_settings.playlist_shuffle ? 1 : 0;
+            data[3] = global_settings.playlist_shuffle;
             iap_send_pkt(data, sizeof(data));
             break;
         }
@@ -2294,19 +2287,14 @@ void iap_handlepkt_mode4(const unsigned int len, const unsigned char *buf)
              *  7   0xNN  Telegram payload checksum byte
              *
              */
-            if(buf[3] && !global_settings.playlist_shuffle)
+            const int mode = buf[3] == 2 ? SHUFFLE_ALBUMS
+                             : buf[3] ? SHUFFLE_SONGS : SHUFFLE_OFF;
+            if(mode != global_settings.playlist_shuffle)
             {
-                global_settings.playlist_shuffle = 1;
+                global_settings.playlist_shuffle = mode;
                 settings_save();
                 if (audio_status() & AUDIO_STATUS_PLAY)
-                    playlist_randomise(NULL, current_tick, true);
-            }
-            else if(!buf[3] && global_settings.playlist_shuffle)
-            {
-                global_settings.playlist_shuffle = 0;
-                settings_save();
-                if (audio_status() & AUDIO_STATUS_PLAY)
-                    playlist_sort(NULL, true);
+                    playlist_reorder(mode);
             }
 
             /* respond with cmd ok packet */

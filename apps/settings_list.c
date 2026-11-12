@@ -951,28 +951,18 @@ static void audiobook_speed_changed(int value)
 }
 #endif
 
-/* perform shuffle/unshuffle of the current playlist based on the boolean provided */
-static void shuffle_playlist_callback(bool shuffle)
+static void shuffle_playlist_callback(int mode)
 {
     struct playlist_info *playlist = playlist_get_current();
-    if (playlist->started)
+    if (playlist->started
+        && (audio_status() & AUDIO_STATUS_PLAY) == AUDIO_STATUS_PLAY)
     {
-        if ((audio_status() & AUDIO_STATUS_PLAY) == AUDIO_STATUS_PLAY)
-        {
-            replaygain_update();
-            if (shuffle)
-            {
-                /* a show's episodes and a book's parts stay in order */
-                if (!tagtree_queue_in_order())
-                    playlist_randomise(playlist, current_tick, true);
-            }
-            else
-            {
-                playlist_sort(playlist, true);
-            }
-        }
+        replaygain_update();
+        /* a show's episodes and a book's parts stay in order */
+        if (mode == SHUFFLE_OFF || !tagtree_queue_in_order())
+            playlist_reorder(mode);
     }
-    iap_on_shuffle_state(shuffle);
+    iap_on_shuffle_state(mode);
 }
 
 static void repeat_mode_callback(int repeat)
@@ -1343,8 +1333,11 @@ const struct settings_list settings[] = {
 #endif
 
     /* playback */
-    OFFON_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, playlist_shuffle,
-                  LANG_SHUFFLE, false, "shuffle", shuffle_playlist_callback),
+    /* "on" is Songs, as a config.cfg of before Albums has it */
+    CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, playlist_shuffle,
+                   LANG_SHUFFLE, SHUFFLE_OFF, "shuffle", "off,on,albums",
+                   shuffle_playlist_callback, 3,
+                   ID2P(LANG_OFF), ID2P(LANG_SONGS), ID2P(LANG_ALBUMS)),
 
     /* as on a stock iPod */
     CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, repeat_mode,

@@ -116,6 +116,14 @@ enum
     NUM_REPEAT_MODES
 };
 
+/* Shuffle: the list's songs at random, or its albums, each in order */
+enum
+{
+    SHUFFLE_OFF = 0,
+    SHUFFLE_SONGS,
+    SHUFFLE_ALBUMS,
+};
+
 /* single mode options */
 enum {
     SINGLE_MODE_OFF = 0,
@@ -735,7 +743,7 @@ struct user_settings
                                    directories within start_directory */
     int  recursive_dir_insert; /* should directories be inserted recursively */
     bool fade_on_stop; /* fade on pause/unpause/stop */
-    bool playlist_shuffle;
+    int  playlist_shuffle; /* SHUFFLE_OFF, SHUFFLE_SONGS, SHUFFLE_ALBUMS */
     bool warnon_erase_dynplaylist; /* warn when erasing dynamic playlist */
     bool keep_current_track_on_replace_playlist;
     bool show_shuffled_adding_options; /* whether to display options for adding shuffled tracks to dynamic playlist */

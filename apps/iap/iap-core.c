@@ -1116,7 +1116,7 @@ void iap_periodic(void)
         {
             IAP_TX_INIT(0x03, 0x09);
             IAP_TX_PUT(0x07);
-            IAP_TX_PUT(shuffle?0x01:0x00);
+            IAP_TX_PUT(shuffle);
             device.changed_notifications |= BIT_N(7);
 
             iap_send_tx();
@@ -1384,25 +1384,15 @@ static int iap_move_callback(int handle, void* current, void* new)
 }
 #endif
 
-/* Change the shuffle state */
-void iap_shuffle_state(const bool state)
+/* Shuffle set by an accessory: SHUFFLE_OFF, _SONGS or _ALBUMS */
+void iap_shuffle_state(int mode)
 {
-    /* Set shuffle to enabled */
-    if(state && !global_settings.playlist_shuffle)
-    {
-        global_settings.playlist_shuffle = 1;
-        settings_save();
-        if (audio_status() & AUDIO_STATUS_PLAY)
-            playlist_randomise(NULL, current_tick, true);
-    }
-    /* Set shuffle to disabled */
-    else if(!state && global_settings.playlist_shuffle)
-    {
-        global_settings.playlist_shuffle = 0;
-        settings_save();
-        if (audio_status() & AUDIO_STATUS_PLAY)
-            playlist_sort(NULL, true);
-    }
+    if (mode == global_settings.playlist_shuffle)
+        return;
+    global_settings.playlist_shuffle = mode;
+    settings_save();
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        playlist_reorder(mode);
 }
 
 /* Change the repeat state */

@@ -189,17 +189,15 @@ IAPBool iap_platform_get_shuffle_setting(struct IAPContext* iap_ctx, uint8_t* st
 IAPBool iap_platform_set_shuffle_setting(struct IAPContext* iap_ctx, uint8_t status) {
     (void)iap_ctx;
 
-    if(status == IAPIPodStateShuffleSettingState_Tracks && !global_settings.playlist_shuffle) {
-        global_settings.playlist_shuffle = true;
+    const int mode = status == IAPIPodStateShuffleSettingState_Albums ? SHUFFLE_ALBUMS
+                     : status == IAPIPodStateShuffleSettingState_Tracks ? SHUFFLE_SONGS
+                     : SHUFFLE_OFF;
+    if(status <= IAPIPodStateShuffleSettingState_Albums
+       && mode != global_settings.playlist_shuffle) {
+        global_settings.playlist_shuffle = mode;
         settings_save();
         if(audio_status() & AUDIO_STATUS_PLAY) {
-            playlist_randomise(NULL, current_tick, true);
-        }
-    } else if(status == IAPIPodStateShuffleSettingState_Off && global_settings.playlist_shuffle) {
-        global_settings.playlist_shuffle = false;
-        settings_save();
-        if(audio_status() & AUDIO_STATUS_PLAY) {
-            playlist_sort(NULL, true);
+            playlist_reorder(mode);
         }
     }
     return iap_true;
@@ -429,8 +427,10 @@ uint8_t _iap_convert_volume(int rb_volume) {
     return normalize_8(rb_volume, sound_min(SOUND_VOLUME), sound_max(SOUND_VOLUME));
 }
 
-uint8_t _iap_convert_shuffle_state(bool rb_state) {
-    return rb_state ? IAPIPodStateShuffleSettingState_Tracks : IAPIPodStateShuffleSettingState_Off;
+uint8_t _iap_convert_shuffle_state(int rb_state) {
+    return rb_state == SHUFFLE_ALBUMS ? IAPIPodStateShuffleSettingState_Albums
+           : rb_state ? IAPIPodStateShuffleSettingState_Tracks
+           : IAPIPodStateShuffleSettingState_Off;
 }
 
 uint8_t _iap_convert_repeat_state(int rb_state) {

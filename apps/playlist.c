@@ -3225,7 +3225,7 @@ int playlist_next(int steps)
             playlist->first_index = 0;
             sort_playlist_unlocked(playlist, false, false);
             randomise_playlist_unlocked(playlist, 0, false, true);
-            global_settings.playlist_shuffle = true;
+            global_settings.playlist_shuffle = SHUFFLE_SONGS;
             iap_on_shuffle_state(global_settings.playlist_shuffle);
 
             playlist->started = true;
@@ -3957,6 +3957,14 @@ int playlist_shuffle(int random_seed, int start_index)
     return playlist->index;
 }
 
+void playlist_reorder(int mode)
+{
+    if (mode == SHUFFLE_OFF)
+        playlist_sort(NULL, true);
+    else
+        playlist_randomise(NULL, current_tick, true);
+}
+
 /* Marks the index of the track to be skipped that is "steps" away from
  * current playing track.
  */
@@ -4358,7 +4366,7 @@ static int pl_save_update_control(struct playlist_info* playlist,
     /* Reset shuffle seed */
     playlist->seed = 0;
     if (playlist == &current_playlist) {
-        global_settings.playlist_shuffle = false;
+        global_settings.playlist_shuffle = SHUFFLE_OFF;
         iap_on_shuffle_state(global_settings.playlist_shuffle);
     }
 

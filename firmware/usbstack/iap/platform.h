@@ -42,7 +42,7 @@ struct Platform {
 /* helper functions */
 uint8_t _iap_convert_play_status(int rb_audio_status);
 uint8_t _iap_convert_volume(int rb_volume);
-uint8_t _iap_convert_shuffle_state(bool rb_state);
+uint8_t _iap_convert_shuffle_state(int rb_state);
 uint8_t _iap_convert_repeat_state(int rb_state);
 uint8_t _iap_convert_battery_level(int rb_battery_level);
 uint8_t _iap_convert_charge_status(enum charge_state_type rb_charge_state);

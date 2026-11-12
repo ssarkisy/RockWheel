@@ -92,7 +92,7 @@ void iap_on_volume(int volume) {
     iap_notify_volume(ctx, _iap_convert_volume(volume), iap_false);
 }
 
-void iap_on_shuffle_state(bool state) {
+void iap_on_shuffle_state(int state) {
     if(!iap_initialized) {
         return;
     }

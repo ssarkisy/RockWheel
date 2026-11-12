@@ -131,6 +131,9 @@ int playlist_place_of(const char *dir, const char *file, int count,
                       unsigned long seek);
 int playlist_resume(void);
 int playlist_shuffle(int random_seed, int start_index);
+/* the list playing put in the order of a Shuffle mode, the track playing
+   kept: sorted, its songs shuffled or its albums */
+void playlist_reorder(int mode);
 /* With the music stopped and the playlist just resumed, all its names to be
    read: the track to resume gone, as over USB, the next one still there
    instead, from its start; none of its files left, the playlist let go of,

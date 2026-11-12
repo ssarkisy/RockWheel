@@ -330,13 +330,11 @@ int skin_get_touchaction(struct gui_wps *gwps, int* edge_offset)
     } break;
 
     case ACTION_TOUCH_SHUFFLE:
-        global_settings.playlist_shuffle = !global_settings.playlist_shuffle;
+        global_settings.playlist_shuffle = global_settings.playlist_shuffle
+                                           ? SHUFFLE_OFF : SHUFFLE_SONGS;
         iap_on_shuffle_state(global_settings.playlist_shuffle);
         replaygain_update();
-        if (global_settings.playlist_shuffle)
-            playlist_randomise(NULL, current_tick, true);
-        else
-            playlist_sort(NULL, true);
+        playlist_reorder(global_settings.playlist_shuffle);
 
         action = ACTION_REDRAW;
         break;

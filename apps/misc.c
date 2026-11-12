@@ -1270,7 +1270,7 @@ static int replaygain_setting_mode(int type)
     switch (type)
     {
     case REPLAYGAIN_SHUFFLE:
-        type = global_settings.playlist_shuffle ?
+        type = global_settings.playlist_shuffle == SHUFFLE_SONGS ?
             REPLAYGAIN_TRACK : REPLAYGAIN_ALBUM;
     case REPLAYGAIN_ALBUM:
     case REPLAYGAIN_TRACK:

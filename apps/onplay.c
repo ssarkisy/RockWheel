@@ -1486,14 +1486,19 @@ static int song_go_to_callback(int action, const struct menu_item_ex *this_item,
 
 /* Shuffle, repeat and Sound Check, changed right here by selecting them, with the same effect
    on what's playing as changing the settings */
-static int toggle_shuffle(void)
+static int cycle_shuffle(void)
 {
     const struct settings_list *setting =
         find_setting(&global_settings.playlist_shuffle);
 
-    global_settings.playlist_shuffle = !global_settings.playlist_shuffle;
+    switch (global_settings.playlist_shuffle)
+    {
+        case SHUFFLE_OFF:   global_settings.playlist_shuffle = SHUFFLE_SONGS; break;
+        case SHUFFLE_SONGS: global_settings.playlist_shuffle = SHUFFLE_ALBUMS; break;
+        default:            global_settings.playlist_shuffle = SHUFFLE_OFF; break;
+    }
     if (setting)
-        setting->bool_setting->option_callback(global_settings.playlist_shuffle);
+        setting->choice_setting->option_callback(global_settings.playlist_shuffle);
     settings_save();
     return 0;
 }
@@ -1502,8 +1507,14 @@ static char *shuffle_item_name(int selected_item, void *data,
                                char *buffer, size_t buffer_len)
 {
     (void)selected_item; (void)data;
-    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_SHUFFLE),
-             str(global_settings.playlist_shuffle ? LANG_ON : LANG_OFF));
+    int value;
+    switch (global_settings.playlist_shuffle)
+    {
+        case SHUFFLE_SONGS:  value = LANG_SONGS; break;
+        case SHUFFLE_ALBUMS: value = LANG_ALBUMS; break;
+        default:             value = LANG_OFF; break;
+    }
+    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_SHUFFLE), str(value));
     return buffer;
 }
 
@@ -1685,7 +1696,7 @@ MENUITEM_FUNCTION_DYNTEXT(wps_brightness_item,
                           NULL, NULL, NULL, Icon_NOICON);
 #endif
 
-MENUITEM_FUNCTION_DYNTEXT(wps_shuffle_item, MENU_EXITAFTERTHISMENU, toggle_shuffle,
+MENUITEM_FUNCTION_DYNTEXT(wps_shuffle_item, MENU_EXITAFTERTHISMENU, cycle_shuffle,
                           shuffle_item_name, NULL, NULL, NULL, Icon_NOICON);
 MENUITEM_FUNCTION_DYNTEXT(wps_repeat_item, MENU_EXITAFTERTHISMENU, cycle_repeat,
                           repeat_item_name, NULL, NULL, NULL, Icon_NOICON);

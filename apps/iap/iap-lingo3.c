@@ -481,7 +481,7 @@ void iap_handlepkt_mode3(const unsigned int len, const unsigned char *buf)
                  */
                 case 0x07:
                 {
-                    IAP_TX_PUT(global_settings.playlist_shuffle?0x01:0x00);
+                    IAP_TX_PUT(global_settings.playlist_shuffle);
 
                     iap_send_tx();
                     break;
@@ -802,15 +802,11 @@ void iap_handlepkt_mode3(const unsigned int len, const unsigned char *buf)
                     switch(buf[0x03])
                     {
                         case 0x00:
-                        {
-                            iap_shuffle_state(false);
-                            cmd_ok(cmd);
-                            break;
-                        }
                         case 0x01:
                         case 0x02:
                         {
-                            iap_shuffle_state(true);
+                            /* off, tracks, albums: as SHUFFLE_OFF and on */
+                            iap_shuffle_state(buf[0x03]);
                             cmd_ok(cmd);
                             break;
                         }

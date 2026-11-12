@@ -229,7 +229,7 @@ void iap_tx_strlcpy(const unsigned char *str);
 void iap_reset_auth(struct auth_t* auth);
 void iap_reset_device(struct device_t* device);
 
-void iap_shuffle_state(bool state);
+void iap_shuffle_state(int mode);
 void iap_repeat_state(unsigned char state);
 void iap_repeat_next(void);
 void iap_fill_power_state(void);
