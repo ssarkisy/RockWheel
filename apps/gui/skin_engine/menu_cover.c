@@ -673,6 +673,8 @@ const fb_data *menu_cover_pixels(int *width, int *height)
 /* the wheel's last step less than this ago, as list_covers.c's AT_REST: the
    lists' frames go first */
 #define PAN_AT_REST (HZ / 30 + 1)
+/* the cover of the song to resume moves this long after the last press */
+#define PAN_RESUME_REST (60 * HZ)
 
 /* Where it was last drawn, by the UI: the part of the screen it shows in, of
    the panel right of the list */
@@ -689,7 +691,7 @@ static bool pan_still;          /* drawn so, but not to move: Moving Cover
                                    off, or no room for it */
 static int pan_h;               /* the half column at x0 on the screen */
 static long pan_clock;
-static long pan_last;           /* the tick of the last look while it could go */
+static long pan_last;           /* the tick of the last look */
 static long pan_due;            /* the tick the next step's due */
 static bool pan_going;
 
@@ -740,12 +742,17 @@ static int pan_at(long t, long *until)
     return leg_moved(t - PAN_REST, until);
 }
 
-/* the UI waits, the cover on the screen as it was drawn: a step, or the
-   sharp cover's frame, may be drawn over it */
-static bool cover_idle(void)
+/* the cover on the screen is one that moves: the playing song's, or with
+   nothing playing the cover of the song to resume, on a lit screen */
+static bool cover_live(void)
 {
     return menu_art.width == pan.width && menu_art.height == pan.height
-        && (audio_status() & AUDIO_STATUS_PLAY)
+        && ((audio_status() & AUDIO_STATUS_PLAY)
+            /* for PAN_RESUME_REST after the last press: it would keep the
+               CPU at work for as long as the screen is lit, with nothing
+               playing */
+            || (resume.has && !audio_status()
+                && !TIME_AFTER(current_tick, action_last_tick() + PAN_RESUME_REST)))
         && !transition_active() && !plugin_is_running()
 #if defined(HAVE_LCD_ENABLE) || defined(HAVE_LCD_SLEEP)
         && lcd_active()
@@ -753,13 +760,30 @@ static bool cover_idle(void)
 #ifdef HAVE_BACKLIGHT
         && is_backlight_on(true)
 #endif
-        && action_waiting() && button_queue_empty()
+        ;
+}
+
+/* the UI waits, the cover on the screen as it was drawn: the sharp cover's
+   frame may be drawn over it */
+static bool cover_idle(void)
+{
+    return cover_live() && action_waiting() && button_queue_empty()
         && !TIME_BEFORE(current_tick, action_last_tick() + PAN_AT_REST);
 }
 
+/* its clock runs: through the wheel's turns too, whose frames then draw it
+   where it has come to */
+static bool pan_live(void)
+{
+    return pan_shown && global_settings.moving_cover && cover_live();
+}
+
+/* and a step may be drawn: the UI waits with nothing in its queue. Between
+   the wheel's steps too: stopped through them it stood for as long as the
+   wheel turned */
 static bool pan_can_go(void)
 {
-    return pan_shown && global_settings.moving_cover && cover_idle();
+    return pan_live() && action_waiting() && button_queue_empty();
 }
 
 #if NUM_CORES > 1 && defined(HAVE_LCD_SEND_RECT)
@@ -2101,23 +2125,24 @@ static long pan_tick(void)
     const bool can_go = pan_can_go();
     const bool still = pan_still && cover_idle();
     sharp_look(can_go || still);
+    const bool live = pan_live();
+    const long now = current_tick;
+    if (live && pan_going)
+        pan_clock += MIN(now - pan_last, PAN_POLL);
+    pan_last = now;
+    pan_going = live;
     if (!can_go)
     {
         pan_boost(false);
-        pan_going = false;
         /* still, it only turns sharp: one frame where it is, as a step's */
         if (still && sharp_came())
         {
             pan_draw(2 * pan.p0, current_tick, true);
             sharp_drawn(false);
         }
-        return PAN_POLL;
+        /* the UI is busy: looked at again soon, for a step between its frames */
+        return live ? 2 : PAN_POLL;
     }
-    const long now = current_tick;
-    if (pan_going)
-        pan_clock += MIN(now - pan_last, PAN_POLL);
-    pan_last = now;
-    pan_going = true;
     long until;
     int h = pan_at(pan_clock, &until);
     /* A sharp cover without its frames goes by whole columns, to the last
@@ -2145,6 +2170,23 @@ static long pan_tick(void)
     }
     pan_due = now + until;
     return MIN(until, PAN_POLL);
+}
+
+void menu_cover_frame_step(void)
+{
+    /* while the UI waits the scroll thread's steps go, evenly */
+    if (!pan_live() || action_waiting())
+        return;
+    cop_settle();
+    long until;
+    int h = pan_at(pan_clock, &until);
+    if (sharp_whole() && (h & 1) && h != pan_h)
+        h += h > pan_h ? -1 : 1;
+    if (h == pan_h || !cop_free())
+        return;
+    pan_draw(h, current_tick + PAN_LATENCY, false);
+    pan_h = h;
+    sharp_drawn(false);
 }
 
 bool menu_cover_take(int handle)

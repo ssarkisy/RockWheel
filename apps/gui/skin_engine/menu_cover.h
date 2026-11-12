@@ -81,6 +81,11 @@ bool menu_cover_area(int *x0, int *y0, int *x1, int *y1);
    and the scroll thread's hook with them. On the UI's thread, not as a
    theme is drawn. */
 void menu_cover_memory(void);
+/* A list's frame is drawn, on the UI's thread: the moving cover's step, if
+   one is due, with it. Through the wheel's turns the UI doesn't wait long
+   enough for the scroll thread's steps, and a list that leaves the pane as
+   it is, as Music's menu, showed the cover standing and then jumping */
+void menu_cover_frame_step(void);
 /* The album cover reader's part (album_header.c): whether the picture is to
    be decoded, on its thread; and that given up, as the reader is wanted for
    a list's covers or to end */
@@ -100,6 +105,7 @@ static inline void menu_cover_end(void) {}
 static inline void menu_cover_give_slot(void) {}
 static inline void menu_cover_hidden(const struct viewport *vp) { (void)vp; }
 static inline void menu_cover_memory(void) {}
+static inline void menu_cover_frame_step(void) {}
 static inline bool menu_cover_to_read(void) { return false; }
 static inline void menu_cover_read(void) {}
 static inline void menu_cover_read_cancel(void) {}

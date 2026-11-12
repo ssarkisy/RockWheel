@@ -33,6 +33,7 @@
 #include "menu.h"
 #include "screen_access.h"
 #include "list.h"
+#include "skin_engine/menu_cover.h"
 #include "scrollbar.h"
 #include "lang.h"
 #include "sound.h"
@@ -307,6 +308,7 @@ void gui_synclist_draw(struct gui_synclist *gui_list)
             list_draw(&screens[i], gui_list);
         skin_mark_dirty(i);
     }
+    menu_cover_frame_step();
 }
 
 /* The rows above this one are all names of groups, or none: on the first row
