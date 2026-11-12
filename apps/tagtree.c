@@ -4538,6 +4538,14 @@ static int make_entries(struct tree_context *c, int offset, bool init)
 
     if (sort_limit)
         total_count = MIN(total_count, sort_limit);
+    /* nothing under the rows at its top, as Composers without composers: an
+       empty list, which says so (tagtree_empty_text()) */
+    if (offset == 0 && total_count == 0
+        && current_entry_count == c->special_entry_count)
+    {
+        current_entry_count = 0;
+        c->special_entry_count = 0;
+    }
     total_count += c->special_entry_count;
 
     if (strip)
@@ -7946,6 +7954,36 @@ int tagtree_lead_digits(struct tree_context *c)
     return entries_years ? 4 : entries_tracks;
 }
 
+const unsigned char *tagtree_empty_text(struct tree_context *c)
+{
+    if (c->currtable == TABLE_ROOT || !csi)
+        return NULL;
+    if (c->currtable != TABLE_NAVIBROWSE)
+        return ID2P(LANG_NO_SONGS);
+    if (c->currextra == 0 && section_is(csi, LANG_PODCASTS))
+        return ID2P(LANG_NO_PODCASTS);
+    if (c->currextra == 0 && section_is(csi, LANG_AUDIOBOOKS))
+        return ID2P(LANG_NO_AUDIOBOOKS);
+    switch (c->currextra < csi->tagorder_count ? csi->tagorder[c->currextra] : -1)
+    {
+        case tag_title:
+        case tag_virt_basename:
+            return ID2P(LANG_NO_SONGS);
+        case tag_album:
+            return ID2P(LANG_NO_ALBUMS);
+        case tag_artist:
+        case tag_albumartist:
+        case tag_virt_canonicalartist:
+            return ID2P(LANG_NO_ARTISTS);
+        case tag_genre:
+            return ID2P(LANG_NO_GENRES);
+        case tag_composer:
+            return ID2P(LANG_NO_COMPOSERS);
+        default:
+            return NULL;
+    }
+}
+
 bool tagtree_rows_two_lines(struct tree_context *c)
 {
     /* of the list made last, which Music's own menu isn't */
@@ -8534,15 +8572,20 @@ const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
         || row >= c->filesindir)
         return NULL;
     const struct tagentry *entry = tagtree_get_entry(c, row);
-    /* in two lines the row keeps its year as a number, with its album's */
+    /* One without a year has a dash in its place, its name in line with the
+       others, which it comes after. In two lines the row keeps its year as a
+       number, with its album's. */
+    static const char no_year[] = "\xe2\x80\x93"; /* U+2013 */
     if (entry && entries_two_lines)
-        return entry->newtable == TABLE_PLAYTRACK && entry->album.year > 0 ?
-               itoa_buf(buf, size, entry->album.year) : NULL;
-    /* an album without a year at the others' edge in Recently Added, whose
-       dated and undated albums are mixed */
-    if (!entry || !entry->lead[0])
-        return !entry || (entries_years && !(c->currextra == 0 && is_recent(csi)))
-               ? NULL : "";
+        return entry->newtable != TABLE_PLAYTRACK ? NULL
+               : entry->album.year > 0 ? itoa_buf(buf, size, entry->album.year)
+               : no_year;
+    if (!entry)
+        return NULL;
+    /* in Recently Added, whose dated and undated albums are mixed, nothing */
+    if (!entry->lead[0])
+        return entries_years && !(c->currextra == 0 && is_recent(csi)) ? no_year
+                                                                         : "";
     const size_t len = entry->lead[sizeof(entry->lead) - 1] ? sizeof(entry->lead)
                                                              : strlen(entry->lead);
     if (len >= size)

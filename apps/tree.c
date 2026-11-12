@@ -934,6 +934,7 @@ static int update_dir(void)
     gui_synclist_set_has_children_callback(list, tree_has_children);
 #ifdef HAVE_TAGCACHE
     gui_synclist_set_playing_callback(list, id3db ? tree_is_playing : NULL);
+    gui_synclist_set_empty_text(list, id3db ? tagtree_empty_text(&tc) : NULL);
     gui_synclist_set_shuffle_callback(list, id3db ? tree_is_shuffle : NULL);
     /* as wide as the list's years or numbers need, if it has them */
     const int lead_digits = id3db ? tagtree_lead_digits(&tc) : 0;

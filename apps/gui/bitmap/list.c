@@ -503,6 +503,21 @@ static void list_draw_scrollbar(struct screen *display, int w, int h, bool left,
 }
 #endif
 
+static const struct gui_synclist *empty_list;
+static const unsigned char *empty_text;
+
+void gui_synclist_set_empty_text(struct gui_synclist *lists,
+                                 const unsigned char *text)
+{
+    if (text)
+    {
+        empty_list = lists;
+        empty_text = text;
+    }
+    else if (empty_list == lists)
+        empty_list = NULL;
+}
+
 void list_draw(struct screen *display, struct gui_synclist *list)
 {
     int start, end, item_offset, i;
@@ -971,6 +986,23 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         line_draw_initial(display, vp.width / 2, vp.height / 2, initial,
                           font_find(INITIAL_FONT), vp.font);
         list->initial_shown = true;
+    }
+    if (list->nb_items == 0 && list == empty_list && screen == SCREEN_MAIN)
+    {
+        /* in the middle of the rows' room, in a hint's grey */
+        struct viewport vp = *list_text_vp;
+        vp.x = parent->x;
+        vp.width = parent->width;
+        vp.flags &= ~VP_FLAG_ALIGNMENT_MASK;
+        display->set_viewport(&vp);
+        const char *text = P2STR(empty_text);
+        int w, h;
+        font_getstringsize(text, &w, &h, vp.font);
+        display->set_foreground(LIST_GROUP_COLOUR);
+        display->set_drawmode(DRMODE_FG);
+        display->putsxy(MAX((vp.width - w) / 2, 0), MAX((vp.height - h) / 2, 0),
+                        text);
+        display->set_drawmode(DRMODE_SOLID);
     }
     display->set_viewport(last_vp);
 }

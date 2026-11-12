@@ -22087,3 +22087,101 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_NO_SONGS
+  desc: in the middle of Music > Songs when that list is empty, in place of a blank screen: one line, the list's own name as the menu has it
+  user: core
+  <source>
+    *: "No Songs"
+  </source>
+  <dest>
+    *: "노래 없음"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_ARTISTS
+  desc: in the middle of Music > Artists when that list is empty, in place of a blank screen: one line, the list's own name as the menu has it
+  user: core
+  <source>
+    *: "No Artists"
+  </source>
+  <dest>
+    *: "아티스트 없음"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_ALBUMS
+  desc: in the middle of Music > Albums when that list is empty, in place of a blank screen: one line, the list's own name as the menu has it
+  user: core
+  <source>
+    *: "No Albums"
+  </source>
+  <dest>
+    *: "앨범 없음"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_GENRES
+  desc: in the middle of Music > Genres when that list is empty, in place of a blank screen: one line, the list's own name as the menu has it
+  user: core
+  <source>
+    *: "No Genres"
+  </source>
+  <dest>
+    *: "장르 없음"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_COMPOSERS
+  desc: in the middle of Music > Composers when that list is empty, in place of a blank screen: one line, the list's own name as the menu has it
+  user: core
+  <source>
+    *: "No Composers"
+  </source>
+  <dest>
+    *: "작곡가 없음"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PODCASTS
+  desc: in the middle of Music > Podcasts when that list is empty, in place of a blank screen: one line, the list's own name as the menu has it
+  user: core
+  <source>
+    *: "No Podcasts"
+  </source>
+  <dest>
+    *: "팟캐스트 없음"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_AUDIOBOOKS
+  desc: in the middle of Music > Audiobooks when that list is empty, in place of a blank screen: one line, the list's own name as the menu has it
+  user: core
+  <source>
+    *: "No Audiobooks"
+  </source>
+  <dest>
+    *: "오디오북 없음"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

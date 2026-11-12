@@ -147,6 +147,8 @@ const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
    years (album_years.h), whose cover it shows: -1 for the note, as Unknown
    Album, -2 for a row without a cover, as Sort By */
 bool tagtree_rows_two_lines(struct tree_context *c);
+/* what the list says when it has no rows, "No Composers": a phrase, or NULL */
+const unsigned char *tagtree_empty_text(struct tree_context *c);
 bool tagtree_rows_covers(struct tree_context *c);
 const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
                                   size_t size);

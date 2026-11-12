@@ -394,6 +394,10 @@ extern int  gui_synclist_get_sel_pos(struct gui_synclist * lists);
 extern void gui_synclist_draw(struct gui_synclist * lists);
 /* As the list is about to be drawn, as the main menu has its panel drawn for
    the selection first: the two go on the screen together then */
+/* what the list says in its middle while it has no rows, a phrase or a
+   text; NULL for nothing. Of one list at a time: Music's. */
+extern void gui_synclist_set_empty_text(struct gui_synclist *lists,
+                                        const unsigned char *text);
 extern void gui_synclist_set_before_draw(struct gui_synclist *lists,
                                          void (*fn)(struct gui_synclist *lists));
 extern void gui_synclist_scroll_stop(struct gui_synclist *lists);
