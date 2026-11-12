@@ -498,10 +498,19 @@ void usb_core_init(void)
 void usb_core_exit(void)
 {
     usb_core_do_set_config(0);
+    /* Leaving USB: give the disk back even with a bus reset pending,
+     * which made the SET_CONFIG(0) above keep it for the host. */
+    usb_release_exclusive_storage();
     if(initialized) {
         usb_drv_exit();
         initialized = false;
     }
+    /* usb_thread drops a reset's deferred notify once extracted. Left set,
+     * the flag would discard every SETUP of the next connection. */
+    bus_reset_pending = false;
+    have_pending_request = false;
+    control_cancelled = false;
+    set_ep0_state(EP0_READY);
     usb_state = DEFAULT;
 #ifdef HAVE_USB_CHARGING_ENABLE
     usb_no_host = false;
