@@ -46,6 +46,16 @@ void tagtree_restore_place(int *dirlevel, int *selected_item);
 bool tagtree_playing_from_known(void);
 /* a playlist file the lists of Music play from, not a playlist of one's own */
 bool tagtree_is_list_file(const char *path);
+/* For a shuffle by albums, which reads its songs' keys rather than make
+   them. The index of the list that playlist's file was written for, open at
+   its count places in the file, which as many entries of the database follow,
+   each song's, -1 for one not known: -1 if the file is no list's of the
+   database as it is. */
+int tagtree_list_index_open(const char *playlist, int *count);
+/* And every entry's key, from the file Updating Library made of them, into
+   buf, *keys where in it: how many, or -1 without a file of the database as
+   it is, or without room for it. */
+int tagtree_album_keys_read(void *buf, size_t size, struct album_key **keys);
 bool tagtree_go_to_from(int *dirlevel, int *selected_item);
 /* it kept over a boot, as the iPod shuts down or USB is connected */
 void tagtree_keep_place(void);
@@ -123,8 +133,9 @@ bool tagtree_shuffle_songs(bool albums);
 void tagtree_prepare_songs(void);
 /* whether Songs' list is made for the database as it is */
 bool tagtree_songs_prepared(void);
-/* Songs' playlist in the order chosen, or the file of its orders, isn't
-   written for the library as it is, and has its room */
+/* Songs' playlist in the order chosen, the file of its orders, or the one of
+   the albums' keys, isn't written for the library as it is, and has its
+   room */
 bool tagtree_songs_stale(void);
 bool tagtree_play_song_in_library(const char *path);
 int tagtree_add_to_playlist(const char* playlist, bool new_playlist);

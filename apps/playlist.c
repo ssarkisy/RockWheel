@@ -1713,8 +1713,9 @@ static int albums_room(const struct playlist_info *playlist)
 #endif
 }
 
-/* a part of a playlist's file or the control file, read once for the tracks
-   whose lines are in it: sorted, they come in their file's order */
+/* a part of a playlist's file, the control file or a list's index, read once
+   for the tracks whose lines or words are in it: sorted, they come in their
+   file's order */
 struct lines_window
 {
     char *buf;
@@ -1725,10 +1726,10 @@ struct lines_window
     bool to_end; /* the file ends in it */
 };
 
-/* The line of the track at seek, up to max bytes of it, into line: its
-   length, or < 0 */
-static ssize_t window_line(struct lines_window *w, int fd, off_t seek,
-                           char *line, size_t max)
+/* The file's bytes from seek, *at, max of them or fewer at its end: how
+   many, or < 0 */
+static ssize_t window_at(struct lines_window *w, int fd, off_t seek,
+                         size_t max, const char **at)
 {
     if (fd != w->fd || seek < w->start || seek >= w->start + w->len
         || (!w->to_end && seek + (off_t)max > w->start + w->len))
@@ -1744,13 +1745,110 @@ static ssize_t window_line(struct lines_window *w, int fd, off_t seek,
         w->start = start;
         w->to_end = (size_t)w->len < w->size;
     }
-    const char *at = w->buf + (seek - w->start);
-    const size_t have = MIN((size_t)(w->start + w->len - seek), max);
-    size_t len = 0;
+    *at = w->buf + (seek - w->start);
+    return MIN((size_t)(w->start + w->len - seek), max);
+}
+
+/* The line of the track at seek, up to max bytes of it, into line: its
+   length, or < 0 */
+static ssize_t window_line(struct lines_window *w, int fd, off_t seek,
+                           char *line, size_t max)
+{
+    const char *at;
+    const ssize_t have = window_at(w, fd, seek, max, &at);
+    ssize_t len = 0;
+    if (have < 0)
+        return -1;
     while (len < have && at[len] != '\n' && at[len] != '\r')
         len++;
     memcpy(line, at, len);
     return len;
+}
+
+/* The keys Updating Library made, for the tracks of a list's playlist: the
+   database's entries' (tagtree_album_keys_read()), and the list's index
+   (tagtree_list_index_open()), which has each song's place in the playlist's
+   file and its entry. Read, a key is the one made of the track's path. */
+struct prepared_keys
+{
+    int fd;                         /* the index, -1 without the keys */
+    int count, next;                /* its songs; the first the place may be of */
+    off_t places;                   /* where they are in it, the entries after */
+    struct lines_window place, entry;
+    const struct album_key *keys;
+    int entries;
+};
+#define PREPARED_WINDOW 4096
+
+/* Out of the room at *buf, which it leaves the rest of, at least floor */
+static void prepared_keys_open(struct prepared_keys *k, const char *file,
+                               char **buf, size_t *size, size_t floor)
+{
+    char *at = *buf;
+    size_t left = *size;
+    struct album_key *keys;
+    k->fd = -1;
+    if (left < 2 * PREPARED_WINDOW + floor + 128)
+        return;
+    /* on the disk's own boundary, as the lines' window, and the keys' */
+    ALIGN_BUFFER(at, left, sizeof(uint64_t));
+    STORAGE_ALIGN_BUFFER(at, left);
+    const int fd = tagtree_list_index_open(file, &k->count);
+    if (fd < 0)
+        return;
+    k->places = lseek(fd, 0, SEEK_CUR);
+    k->next = 0;
+    k->place = (struct lines_window){ .buf = at, .size = PREPARED_WINDOW, .fd = -1 };
+    k->entry = k->place;
+    k->entry.buf += PREPARED_WINDOW;
+    at += 2 * PREPARED_WINDOW;
+    left -= 2 * PREPARED_WINDOW + floor;
+    k->entries = tagtree_album_keys_read(at, left, &keys);
+    if (k->places < 0 || k->entries <= 0)
+    {
+        close(fd);
+        return;
+    }
+    k->keys = keys;
+    k->fd = fd;
+    left += floor - ((char *)(keys + k->entries) - at);
+    *buf = (char *)(keys + k->entries);
+    *size = left;
+}
+
+/* the key of the track at seek in the playlist's file: false without one */
+static bool prepared_key(struct prepared_keys *k, uint32_t seek,
+                         uint32_t *album, unsigned int *order)
+{
+    const char *at;
+    uint32_t place = 0;
+    int32_t id;
+    for (; k->next < k->count; k->next++)
+    {
+        if (window_at(&k->place, k->fd, k->places + k->next * sizeof(place),
+                      sizeof(place), &at) != sizeof(place))
+            break;
+        memcpy(&place, at, sizeof(place));
+        if (place >= seek)
+            break;
+    }
+    if (k->next >= k->count || place != seek)
+        return false;
+    if (window_at(&k->entry, k->fd,
+                  k->places + ((off_t)k->count + k->next) * sizeof(id),
+                  sizeof(id), &at) != sizeof(id))
+    {
+        /* not read: the tracks after it aren't looked for */
+        k->count = 0;
+        return false;
+    }
+    memcpy(&id, at, sizeof(id));
+    k->next++;
+    if (id < 0 || id >= k->entries || !k->keys[id].known)
+        return false;
+    *album = k->keys[id].album;
+    *order = k->keys[id].order;
+    return true;
 }
 
 static uint32_t mix32(uint32_t h)
@@ -1807,6 +1905,11 @@ static int randomise_albums_unlocked(struct playlist_info* playlist,
     struct lines_window w = {
         .buf = (char *)keys + keys_size, .size = room - keys_size, .fd = -1,
     };
+    struct prepared_keys prepared = { .fd = -1 };
+    /* where reading them is less than making the tracks' */
+    if (amount >= tagcache_entry_count() / 16)
+        prepared_keys_open(&prepared, playlist->filename, &w.buf, &w.size,
+                           2 * 512 + 32);
     /* on the disk's own boundary, or the iPod reads into it without DMA */
     STORAGE_ALIGN_BUFFER(w.buf, w.size);
     w.size = MIN(w.size & ~511u, 16u * 1024);
@@ -1817,13 +1920,18 @@ static int randomise_albums_unlocked(struct playlist_info* playlist,
     {
         const unsigned long index = playlist->indices[p];
         const bool control = index & PLAYLIST_INSERT_TYPE_MASK;
-        const int fd = control ? playlist->control_fd : pl_open_playlist(playlist);
         uint32_t album = 0;
         unsigned int order = 0;
-        ssize_t len = fd < 0 ? -1 : window_line(&w, fd, index & PLAYLIST_SEEK_MASK,
-                                                line, MAX_PATH);
         if (index == current)
             current_at = p;
+        /* as made below, of its path */
+        const bool made = !control && prepared.fd >= 0
+                          && prepared_key(&prepared, index & PLAYLIST_SEEK_MASK,
+                                          &album, &order);
+        const int fd = made ? -1 : control ? playlist->control_fd
+                                           : pl_open_playlist(playlist);
+        ssize_t len = fd < 0 ? -1 : window_line(&w, fd, index & PLAYLIST_SEEK_MASK,
+                                                line, MAX_PATH);
         if (len > 0)
         {
             line[len] = '\0';
@@ -1846,6 +1954,8 @@ static int randomise_albums_unlocked(struct playlist_info* playlist,
     }
     if (control_at >= 0)
         lseek(playlist->control_fd, control_at, SEEK_SET);
+    if (prepared.fd >= 0)
+        close(prepared.fd);
 
     qsort(keys, amount, sizeof(*keys), compare_album_keys);
     int first = 0;
@@ -3661,6 +3771,51 @@ static enum playlist_command pl_cmds_run(char cmd)
     return PLAYLIST_COMMAND_ERROR;
 }
 
+/* An order's line of the control file, kept until the line after it: of
+   several with nothing between, each made from the sorted list, the last
+   alone tells, and an order by albums is a pass over every track */
+struct resume_order
+{
+    enum playlist_command command; /* shuffle, unshuffle, or comment for none */
+    int seed, first_index;
+    bool albums;
+};
+
+static void resume_order_unlocked(struct playlist_info *playlist,
+                                  struct resume_order *order, bool *sorted)
+{
+    if (order->command == PLAYLIST_COMMAND_COMMENT)
+        return;
+    playlist->first_index = order->first_index;
+    if (order->command == PLAYLIST_COMMAND_SHUFFLE)
+    {
+        /* Always sort list before shuffling */
+        if (!*sorted)
+            sort_playlist_unlocked(playlist, false, false);
+        if (order->albums)
+            randomise_albums_unlocked(playlist, order->seed, false, false);
+        else
+            randomise_playlist_unlocked(playlist, order->seed, false, false);
+    }
+    else
+        sort_playlist_unlocked(playlist, false, false);
+    *sorted = order->command != PLAYLIST_COMMAND_SHUFFLE;
+    order->command = PLAYLIST_COMMAND_COMMENT;
+}
+
+/* the line read after it is an order's too */
+static void resume_order_drop(struct playlist_info *playlist,
+                              struct resume_order *order, bool *sorted)
+{
+    if (order->command == PLAYLIST_COMMAND_COMMENT)
+        return;
+    /* as it left them */
+    if (order->command == PLAYLIST_COMMAND_SHUFFLE && order->seed)
+        playlist->seed = order->seed;
+    *sorted = false;
+    order->command = PLAYLIST_COMMAND_COMMENT;
+}
+
 /*
  * Restore the playlist state based on control file commands.  Called to
  * resume playback after shutdown.
@@ -3675,6 +3830,7 @@ int playlist_resume(void)
     int total_read = 0;
     int control_file_size = 0;
     bool sorted = true;
+    struct resume_order order = { .command = PLAYLIST_COMMAND_COMMENT };
     int result = -1;
     enum playlist_command (*pl_cmd)(char) = &pl_cmds_start;
 
@@ -3772,6 +3928,11 @@ int playlist_resume(void)
             if((*p == '\n') || (*p == '\r'))
             {
                 *p = '\0';
+
+                if (current_command != PLAYLIST_COMMAND_SHUFFLE
+                    && current_command != PLAYLIST_COMMAND_UNSHUFFLE
+                    && current_command != PLAYLIST_COMMAND_COMMENT)
+                    resume_order_unlocked(playlist, &order, &sorted);
 
                 switch (current_command)
                 {
@@ -3896,8 +4057,6 @@ int playlist_resume(void)
                     case PLAYLIST_COMMAND_SHUFFLE:
                     {
                         /* strp[0]=seed strp[1]=first_index strp[2]="A": albums */
-                        int seed;
-
                         if (!strp[0] || !strp[1])
                         {
                             result = -8;
@@ -3905,25 +4064,11 @@ int playlist_resume(void)
                             break;
                         }
 
-                        if (!sorted)
-                        {
-                            /* Always sort list before shuffling */
-                            sort_playlist_unlocked(playlist, false, false);
-                        }
-
-                        seed = atoi(strp[0]);
-                        playlist->first_index = atoi(strp[1]);
-
-                        if ((strp[2] && strp[2][0] == 'A'
-                             ? randomise_albums_unlocked(playlist, seed, false, false)
-                             : randomise_playlist_unlocked(playlist, seed, false,
-                                                           false)) < 0)
-                        {
-                            result = -9;
-                            goto out;
-                        }
-                        sorted = false;
-
+                        resume_order_drop(playlist, &order, &sorted);
+                        order = (struct resume_order){
+                            PLAYLIST_COMMAND_SHUFFLE, atoi(strp[0]),
+                            atoi(strp[1]), strp[2] && strp[2][0] == 'A'
+                        };
                         break;
                     }
                     case PLAYLIST_COMMAND_UNSHUFFLE:
@@ -3936,15 +4081,10 @@ int playlist_resume(void)
                             break;
                         }
 
-                        playlist->first_index = atoi(strp[0]);
-
-                        if (sort_playlist_unlocked(playlist, false, false) < 0)
-                        {
-                            result = -11;
-                            goto out;
-                        }
-
-                        sorted = true;
+                        resume_order_drop(playlist, &order, &sorted);
+                        order = (struct resume_order){
+                            PLAYLIST_COMMAND_UNSHUFFLE, 0, atoi(strp[0]), false
+                        };
                         break;
                     }
                     case PLAYLIST_COMMAND_RESET:
@@ -4056,11 +4196,15 @@ int playlist_resume(void)
         }
     }
 
+    /* before the index is the resumed one: an order reads the track at it */
+    resume_order_unlocked(playlist, &order, &sorted);
+
     if (global_status.resume_index != -1) {
         playlist->index = global_status.resume_index;
     }
 
 out:
+    resume_order_unlocked(playlist, &order, &sorted);
     playlist_write_unlock(playlist);
 
 out_nolock:

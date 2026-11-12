@@ -283,6 +283,21 @@ long tagcache_find_entry(const char *filename);
    and then track, 16 bits. False for a file that isn't in the database in
    memory or has no album. */
 bool tagcache_album_key(const char *path, uint32_t *album, unsigned int *order);
+/* The same of an entry, for a file of them all made at Updating Library */
+struct album_key {
+    uint32_t album;
+    uint16_t order;
+    uint16_t known;     /* 0: none, as false above */
+};
+/* those of n entries from first, as tagcache_album_key() answers for each
+   one's file: how many, fewer at the database's end, or -1 without the
+   files found in memory */
+int tagcache_album_keys(int first, struct album_key *keys, int n);
+/* All that those keys are made of, hashed: which entries are there, their
+   albums' and album artists' places in the tags' files, discs and tracks.
+   False without the files found in memory, or with two entries of one path,
+   where an entry's key needn't be its file's. */
+bool tagcache_album_keys_inputs(uint32_t *inputs);
 /* what smart playlists go by, of an entry */
 struct tagcache_numbers {
     long length;      /* ms */

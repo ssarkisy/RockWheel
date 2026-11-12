@@ -93,14 +93,17 @@ static const char * const tagtree_list_index_names[TAGTREE_SLOTS] = {
     ROCKBOX_DIR "/tagtree_songs.idx", ROCKBOX_DIR "/tagtree_songs2.idx"
 };
 /* another when the lists' songs are put in another order: an index of the
-   order before played other songs than the rows chosen */
-#define TAGTREE_LIST_MAGIC 0x4c545453 /* "STTL" */
+   order before played other songs than the rows chosen. And with the file's
+   layout: "STTL" had the places alone */
+#define TAGTREE_LIST_MAGIC 0x324c5453 /* "STL2" */
 struct tagtree_list_header {
     uint32_t magic;
     int32_t commitid;   /* of the database */
     uint32_t entries;   /* the list's songs, past its rows at the top */
     uint32_t id;        /* which list, from how it is searched for */
-    uint32_t count;     /* places after this */
+    uint32_t count;     /* places after this, then as many entries of the
+                           database, each song's, -1 for one not known: what a
+                           shuffle by albums finds the songs' keys by */
 };
 
 /* Whether a playlist playing or to be resumed is from this file */
@@ -153,6 +156,34 @@ static void slot_lists_read(void)
         }
         close(fd);
     }
+}
+
+int tagtree_list_index_open(const char *playlist, int *count)
+{
+    /* no path on the stack: any thread that shuffles gets here */
+    const size_t dir = strlen(TAGTREE_PLAYLIST_DIR);
+    if (strncasecmp(playlist, TAGTREE_PLAYLIST_DIR, dir) || playlist[dir] != '/')
+        return -1;
+    for (int i = 0; i < TAGTREE_SLOTS; i++)
+    {
+        struct tagtree_list_header h;
+        if (strcasecmp(playlist + dir + 1, tagtree_playlist_names[i]))
+            continue;
+        const int fd = open(tagtree_list_index_names[i], O_RDONLY);
+        if (fd < 0)
+            break;
+        if (read(fd, &h, sizeof(h)) == sizeof(h) && h.magic == TAGTREE_LIST_MAGIC
+            && h.commitid == tagcache_get_commitid() && h.count > 0
+            && ffilesize(fd) == (off_t)(sizeof(h) + 2 * sizeof(uint32_t)
+                                                    * (off_t)h.count))
+        {
+            *count = h.count;
+            return fd;
+        }
+        close(fd);
+        break;
+    }
+    return -1;
 }
 
 bool tagtree_is_list_file(const char *path)
@@ -6052,15 +6083,19 @@ struct playlist_writer {
     char *buf;
     size_t size, used;
     bool ok;
-    /* of a new file: where each song starts, from the end of the buffer */
+    /* of a new file: where each song starts, from the end of the buffer,
+       and after them the songs' entries of the database */
     uint32_t *offsets;
+    int32_t *ids;
     int count, max;
     uint32_t next;
+    int32_t entry; /* of the song added next, if it's known: -1 after */
 };
 
 /* those of the last new file, until the plugin buffer is used again; none
    if it wasn't finished */
 static uint32_t *written_offsets;
+static int32_t *written_ids;
 static int written_count;
 
 static bool playlist_writer_open(struct playlist_writer *w,
@@ -6071,6 +6106,7 @@ static bool playlist_writer_open(struct playlist_writer *w,
     w->ok = true;
     w->offsets = NULL;
     w->count = 0;
+    w->entry = -1;
     written_offsets = NULL;
     written_count = 0;
     errno = 0;
@@ -6085,12 +6121,13 @@ static bool playlist_writer_open(struct playlist_writer *w,
         /* after the BOM */
         w->next = lseek(w->fd, 0, SEEK_CUR);
         w->max = playlist_get_current()->max_playlist_size;
-        size_t room = w->max * sizeof(uint32_t) + sizeof(uint32_t);
+        size_t room = 2 * w->max * sizeof(uint32_t) + sizeof(uint32_t);
         if (w->size > room + MAX_PATH)
         {
             w->size -= room;
             w->offsets = (uint32_t *)ALIGN_UP((uintptr_t)(w->buf + w->size),
                                               sizeof(uint32_t));
+            w->ids = (int32_t *)w->offsets + w->max;
         }
     }
     return w->fd >= 0 && w->buf && w->size >= MAX_PATH;
@@ -6114,9 +6151,11 @@ static bool playlist_writer_add(struct playlist_writer *w, const char *path)
         return false;
     if (w->offsets && w->count < w->max)
     {
+        w->ids[w->count] = w->entry;
         w->offsets[w->count++] = w->next;
         w->next += len + 1;
     }
+    w->entry = -1;
     memcpy(w->buf + w->used, path, len);
     w->buf[w->used + len] = '\n';
     w->used += len + 1;
@@ -6132,6 +6171,7 @@ static bool playlist_writer_close(struct playlist_writer *w)
     if (ok && w->offsets)
     {
         written_offsets = w->offsets;
+        written_ids = w->ids;
         written_count = w->count;
     }
     return ok;
@@ -6261,9 +6301,10 @@ static bool insert_all_playlist(struct tree_context *c,
             }
         }
 
-        if (!tagcache_retrieve(&tcs, tagtree_get_entry(c, first + i)->extraseek,
-                               tcs.type, buf, sizeof buf))
+        const int entry = tagtree_get_entry(c, first + i)->extraseek;
+        if (!tagcache_retrieve(&tcs, entry, tcs.type, buf, sizeof buf))
             continue;
+        writer.entry = entry;
 
         if (playlist == NULL)
         {
@@ -7149,13 +7190,17 @@ static void tagtree_save_list_index(const struct tree_context *c, int slot,
     if (fd >= 0)
     {
         const ssize_t size = written_count * sizeof(uint32_t);
-        if (write(fd, &h, sizeof(h)) == sizeof(h)
-            && write(fd, written_offsets, size) == size)
+        const bool whole = write(fd, &h, sizeof(h)) == sizeof(h)
+                           && write(fd, written_offsets, size) == size
+                           && write(fd, written_ids, size) == size;
+        close(fd);
+        if (whole)
         {
             slot_lists[slot].id = id;
             slot_lists[slot].commitid = h.commitid;
         }
-        close(fd);
+        else /* its header would say a list is here */
+            remove(tagtree_list_index_names[slot]);
     }
 }
 
@@ -7391,6 +7436,110 @@ static bool songs_orders_stale(void)
                                          * sizeof(struct song_place));
 }
 
+/* Every entry's key for a shuffle by albums (struct album_key), kept in a
+   file, so that the shuffle reads a song's and needn't find it by its path:
+   1.5 s of the 1.8 a shuffle of 13 000 songs took on an iPod. Updating
+   Library writes it; without it, or with one that isn't of the database as it
+   is, the shuffle makes each song's key as before */
+#define ALBUM_KEYS_FILE    ROCKBOX_DIR "/album_keys.dat"
+#define ALBUM_KEYS_MAGIC   0x4b415752 /* "RWAK" */
+/* raised with tagcache_album_key()'s keys or the file's layout */
+#define ALBUM_KEYS_VERSION 1
+struct album_keys_header {
+    uint32_t magic, version;
+    int32_t commitid;
+    uint32_t entries;   /* keys after this; 0 for none, the entries' keys
+                           not their files' (tagcache_album_keys_inputs()) */
+    uint32_t inputs;    /* tagcache_album_keys_inputs() */
+    uint32_t sum;       /* of the keys */
+    uint32_t unused[2];
+};
+
+/* the file's header, if it is of the database as it is now */
+static bool album_keys_current(const struct album_keys_header *h, off_t size)
+{
+    uint32_t inputs;
+    if (h->magic != ALBUM_KEYS_MAGIC || h->version != ALBUM_KEYS_VERSION
+        || h->commitid != tagcache_get_commitid()
+        || size != (off_t)(sizeof(*h) + h->entries * sizeof(struct album_key)))
+        return false;
+    if (!tagcache_album_keys_inputs(&inputs))
+        return h->entries == 0 && tagcache_finds_entries();
+    return h->entries == (uint32_t)tagcache_entry_count() && h->inputs == inputs;
+}
+
+int tagtree_album_keys_read(void *buf, size_t size, struct album_key **keys)
+{
+    struct album_keys_header *h = buf;
+    const int fd = size >= sizeof(*h) ? open(ALBUM_KEYS_FILE, O_RDONLY) : -1;
+    if (fd < 0)
+        return -1;
+    const off_t whole = ffilesize(fd);
+    bool ok = whole > (off_t)sizeof(*h) && (off_t)size >= whole
+              && read(fd, buf, whole) == whole && album_keys_current(h, whole);
+    close(fd);
+    /* one that says it is of this database, but isn't whole, is removed, for
+       the next Updating Library to write it again */
+    if (ok && words_hash(h + 1, whole - sizeof(*h), HASH_START) != h->sum)
+    {
+        remove(ALBUM_KEYS_FILE);
+        ok = false;
+    }
+    *keys = (struct album_key *)(h + 1);
+    return ok ? (int)h->entries : -1;
+}
+
+/* It isn't in its file as the library is, and has its room: without that it
+   waits, and nothing says so */
+static bool album_keys_stale(void)
+{
+    struct album_keys_header h;
+    const int fd = open(ALBUM_KEYS_FILE, O_RDONLY);
+    const bool current = fd >= 0 && read(fd, &h, sizeof(h)) == sizeof(h)
+                         && album_keys_current(&h, ffilesize(fd));
+    if (fd >= 0)
+        close(fd);
+    return !current && tagcache_finds_entries()
+           && library_file_room(sizeof(h) + tagcache_entry_count()
+                                            * sizeof(struct album_key));
+}
+
+/* At Updating Library. Whole or not at all (whole_file_open()); the header
+   alone where the entries' keys aren't their files', which says so for this
+   database: else it was tried at each boot */
+static void album_keys_write(void)
+{
+    struct album_keys_header h = {
+        .magic = ALBUM_KEYS_MAGIC, .version = ALBUM_KEYS_VERSION,
+        .commitid = tagcache_get_commitid(), .sum = HASH_START,
+    };
+    size_t size;
+    struct album_key *keys = plugin_get_buffer(&size);
+    const int room = size / sizeof(*keys);
+    if (!keys || room <= 0 || !tagcache_finds_entries())
+        return;
+    const int entries = tagcache_album_keys_inputs(&h.inputs)
+                        ? tagcache_entry_count() : 0;
+    const int fd = whole_file_open(ALBUM_KEYS_FILE);
+    if (fd < 0)
+        return;
+    /* the header again at the end, with the keys' sum */
+    bool ok = write(fd, &h, sizeof(h)) == sizeof(h);
+    for (int first = 0; first < entries && ok; )
+    {
+        const int n = tagcache_album_keys(first, keys, room);
+        const ssize_t bytes = n * sizeof(*keys);
+        ok = n > 0 && write(fd, keys, bytes) == bytes;
+        if (ok)
+            h.sum = words_hash(keys, bytes, h.sum);
+        first += n;
+    }
+    h.entries = entries;
+    ok = ok && lseek(fd, 0, SEEK_SET) == 0
+         && write(fd, &h, sizeof(h)) == sizeof(h);
+    whole_file_close(fd, ALBUM_KEYS_FILE, ok);
+}
+
 /* At Updating Library: Songs made by name, sorted into each order in turn,
    the places written. Where the sort has no room, the header alone, which
    says so for this library and lists' size: else it was tried at each boot.
@@ -7432,8 +7581,9 @@ static void songs_orders_write(struct tree_context *c)
 }
 
 /* At Updating Library: Songs' orders into their file, so that the list opens
-   without its sort, and the playlist of the list of all songs, which takes
-   seconds to write, so that playing a song of it starts at once. */
+   without its sort, the playlist of the list of all songs, which takes
+   seconds to write, so that playing a song of it starts at once, and the
+   keys a shuffle by albums goes by. */
 void tagtree_prepare_songs(void)
 {
     struct tree_context *c = tree_get_context();
@@ -7461,14 +7611,18 @@ void tagtree_prepare_songs(void)
     if (ready)
         close(fd);
     const bool orders = songs_orders_stale();
+    const bool keys = album_keys_stale();
 
-    if (!ready || orders)
+    if (!ready || orders || keys)
     {
         tree_lock_cache(c);
         core_pin(tagtree_handle);
         cpu_boost(true);
         list_on_boot_screen = true;
         library_update_songs_progress(0, 0);
+        /* before the playlist's writer has the plugins' buffer */
+        if (keys)
+            album_keys_write();
         /* first, for the list made next to be read from them */
         if (orders)
             songs_orders_write(c);
@@ -7537,7 +7691,7 @@ bool tagtree_songs_stale(void)
     return song_places_known() && tagcache_get_song_count() != 0
            && tagtree_all_songs()
            && ((!tagtree_songs_prepared() && songs_playlist_room())
-               || songs_orders_stale());
+               || songs_orders_stale() || album_keys_stale());
 }
 
 static int tagtree_play_folder(struct tree_context* c)

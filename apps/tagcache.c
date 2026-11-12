@@ -2909,6 +2909,28 @@ static char* get_tag_string(const struct index_entry *entry, int tag)
 }
 #endif
 
+#ifdef HAVE_TC_RAMCACHE
+/* with the database's memory held still */
+static bool entry_album_key(const struct index_entry *idx, uint32_t *album,
+                            unsigned int *order)
+{
+    const char *name = get_tag_string(idx, tag_album);
+    if (!name)
+        return false;
+    /* FNV-1a over the name, its end, and the album artist's */
+    uint32_t hash = 2166136261u;
+    do
+        hash = (hash ^ (unsigned char)*name) * 16777619u;
+    while (*name++);
+    for (name = get_tag(idx, tag_albumartist)->tag_data; *name; name++)
+        hash = (hash ^ (unsigned char)*name) * 16777619u;
+    *album = hash;
+    *order = ((MAX(idx->tag_seek[tag_discnumber], 0) & 63) << 10)
+             | (MAX(idx->tag_seek[tag_tracknumber], 0) & 1023);
+    return true;
+}
+#endif
+
 bool tagcache_album_key(const char *path, uint32_t *album, unsigned int *order)
 {
 #ifdef HAVE_TC_RAMCACHE
@@ -2916,25 +2938,72 @@ bool tagcache_album_key(const char *path, uint32_t *album, unsigned int *order)
     if (idx_id < 0)
         return false;
     tcrc_buffer_lock();
-    const struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
-    const char *name = get_tag_string(idx, tag_album);
-    if (name)
-    {
-        /* FNV-1a over the name, its end, and the album artist's */
-        uint32_t hash = 2166136261u;
-        do
-            hash = (hash ^ (unsigned char)*name) * 16777619u;
-        while (*name++);
-        for (name = get_tag(idx, tag_albumartist)->tag_data; *name; name++)
-            hash = (hash ^ (unsigned char)*name) * 16777619u;
-        *album = hash;
-        *order = ((MAX(idx->tag_seek[tag_discnumber], 0) & 63) << 10)
-                 | (MAX(idx->tag_seek[tag_tracknumber], 0) & 1023);
-    }
+    const bool known = entry_album_key(&tcramcache.hdr->indices[idx_id], album,
+                                       order);
     tcrc_buffer_unlock();
-    return name != NULL;
+    return known;
 #else
     (void)path; (void)album; (void)order;
+    return false;
+#endif
+}
+
+int tagcache_album_keys(int first, struct album_key *keys, int n)
+{
+#ifdef HAVE_TC_RAMCACHE
+    if (!tagcache_finds_entries() || first < 0)
+        return -1;
+    n = MIN(n, current_tcmh.tch.entry_count - first);
+    tcrc_buffer_lock();
+    for (int i = 0; i < n; i++)
+    {
+        const struct index_entry *idx = &tcramcache.hdr->indices[first + i];
+        uint32_t album = 0;
+        unsigned int order = 0;
+        const bool known = !(idx->flag & FLAG_DELETED)
+                           && entry_album_key(idx, &album, &order);
+        keys[i] = (struct album_key){ album, order, known };
+    }
+    tcrc_buffer_unlock();
+    return MAX(n, 0);
+#else
+    (void)first; (void)keys; (void)n;
+    return -1;
+#endif
+}
+
+bool tagcache_album_keys_inputs(uint32_t *inputs)
+{
+#if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
+    if (!tagcache_finds_entries())
+        return false;
+    /* a path of two entries is found as either */
+    const struct path_name *names = core_get_data_pinned(ram_names_handle);
+    bool distinct = true;
+    for (long i = 1; i < ram_names_count && distinct; i++)
+        distinct = names[i].hash != names[i - 1].hash;
+    core_put_data_pinned((void *)names);
+    if (!distinct)
+        return false;
+    uint32_t hash = 2166136261u;
+    tcrc_buffer_lock();
+    for (int i = 0; i < current_tcmh.tch.entry_count; i++)
+    {
+        const struct index_entry *idx = &tcramcache.hdr->indices[i];
+        if (idx->flag & FLAG_DELETED)
+            continue;
+        const int32_t of[] = {
+            i, idx->tag_seek[tag_album], idx->tag_seek[tag_albumartist],
+            idx->tag_seek[tag_discnumber], idx->tag_seek[tag_tracknumber]
+        };
+        for (size_t k = 0; k < ARRAYLEN(of); k++)
+            hash = (hash ^ (uint32_t)of[k]) * 16777619u;
+    }
+    tcrc_buffer_unlock();
+    *inputs = hash;
+    return true;
+#else
+    (void)inputs;
     return false;
 #endif
 }
