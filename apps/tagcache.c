@@ -7070,28 +7070,26 @@ static bool refs_pass;
 static bool check_event_queue(void)
 {
 #ifndef __PCTOOL__
-    struct queue_event ev;
-
-    if(!queue_peek(&tagcache_queue, &ev))
-        return false;
-
-    switch (ev.id)
-    {
-        case Q_STOP_SCAN:
-        case SYS_POWEROFF:
-        case SYS_REBOOT:
-        case SYS_USB_CONNECTED:
-            return true;
-        /* that pass gives way to an import or a check, which a screen waits
-           for: the check at boot stood behind it as long. Files lists find
-           by their paths in memory, so references left out cost little. */
-        case Q_SYNCED:
-        case Q_CHECK_OUTSIDE:
-            return refs_pass;
-    }
-#endif /* __PCTOOL__ */
-
+    /* Anywhere in the queue, not its head alone: other broadcasts stand
+       before SYS_USB_CONNECTED (SYS_USB_LUN_LOCKED always, the charger's
+       often), and the thread takes none while it scans. */
+    static const long stops[][2] = {
+        { Q_STOP_SCAN, Q_STOP_SCAN },
+        { SYS_POWEROFF, SYS_POWEROFF },
+        { SYS_REBOOT, SYS_REBOOT },
+        { SYS_USB_CONNECTED, SYS_USB_CONNECTED },
+        /* the last two, in the refs pass only: it gives way to an import or
+           a check, which a screen waits for. Files lists find by their paths
+           in memory, so references left out cost little. */
+        { Q_SYNCED, Q_SYNCED },
+        { Q_CHECK_OUTSIDE, Q_CHECK_OUTSIDE },
+    };
+    /* the count in the flags is of the filters after the first */
+    return queue_peek_ex(&tagcache_queue, NULL,
+                         ARRAYLEN(stops) - (refs_pass ? 1 : 3), stops);
+#else
     return false;
+#endif /* __PCTOOL__ */
 }
 
 #ifdef HAVE_TC_RAMCACHE
