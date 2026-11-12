@@ -20,6 +20,7 @@
 #define DIRFUNCTIONS_DEFINED
 #define FILEFUNCTIONS_DEFINED
 #include "plugin.h"
+#include "photos_panel.h"
 #include "transition.h"
 #include "itunesdb.h"
 #include "root_menu.h"
@@ -968,6 +969,8 @@ static const struct plugin_api rockbox_api = {
     ui_font_file,
     ui_colour,
     ui_metric,
+    photos_panel_show,
+    photos_panel_disk_free,
 };
 
 static int plugin_buffer_handle;

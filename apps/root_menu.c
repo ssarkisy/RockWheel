@@ -821,7 +821,13 @@ static int playlist_view(void * param)
 static int photos(void *param)
 {
     (void)param;
-    switch (plugin_load(PLUGIN_APPS_DIR "/photos.rock", NULL))
+    /* its menu keeps the collage beside it, not the song's cover, which the
+       theme shows by a screen that has no panel */
+    menu_set_selected_panel(MENU_PANEL_PHOTOS);
+    const int status = plugin_load(PLUGIN_APPS_DIR "/photos.rock", NULL);
+    menu_set_selected_panel(MENU_PANEL_NONE);
+    photos_panel_show_end();
+    switch (status)
     {
         case PLUGIN_GOTO_WPS:
             return GO_TO_WPS;
@@ -1977,8 +1983,8 @@ void show_library_update(void)
         if (photos_changed && !held_event) /* else made the next time */
         {
             library_update_show(str(LANG_PREPARING_PHOTOS), 0);
-            photos_panel_update();
-            skin_reload_while_playing();
+            if (photos_panel_update())
+                skin_reload_while_playing();
         }
         no_space |= library_take_no_room();
         if (no_space && !held_event)

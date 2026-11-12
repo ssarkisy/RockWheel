@@ -1932,7 +1932,7 @@ const char *get_token_value(struct gui_wps *gwps,
         case SKIN_TOKEN_PHOTOS_CAPTION:
         {
             /* as a conditional, whether there are any */
-            const int photos = photos_panel_count();
+            const int photos = photos_panel_shown_count();
             if (intval)
                 *intval = photos > 0 ? 1 : 2;
             if (photos <= 0)

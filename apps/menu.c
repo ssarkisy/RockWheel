@@ -906,6 +906,11 @@ enum menu_panel menu_selected_panel(void)
     return selected_panel;
 }
 
+void menu_set_selected_panel(enum menu_panel panel)
+{
+    selected_panel = panel;
+}
+
 static bool wide = false;
 bool menu_wide(void)
 {

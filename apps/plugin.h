@@ -192,7 +192,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 48
+#define PLUGIN_API_REVISION 49
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1176,6 +1176,9 @@ struct plugin_api {
        switches (gui/ui_theme.h) */
     unsigned (*ui_colour)(enum ui_colour role);
     int (*ui_metric)(enum ui_metric metric);
+    /* an album's collage beside Photos' menu (photos_panel.h) */
+    bool (*photos_panel_show)(const fb_data *pixels, int count);
+    bool (*photos_panel_disk_free)(void);
 };
 
 /* plugin header */

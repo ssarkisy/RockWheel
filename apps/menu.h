@@ -145,6 +145,10 @@ enum menu_panel {
     MENU_PANEL_NONE,
 };
 enum menu_panel menu_selected_panel(void);
+/* For a screen that isn't a menu and keeps a row's panel beside it, as Photos'
+   own menu: the theme has it when it's next drawn, and it isn't drawn here.
+   MENU_PANEL_NONE after it, as a menu leaves it. */
+void menu_set_selected_panel(enum menu_panel panel);
 /* Whether a screen is taking the whole width, with nothing of the theme beside it */
 bool menu_wide(void);
 void menu_set_wide(bool wide);

@@ -480,6 +480,7 @@ static int parse_image_load(struct skin_element *element,
     img->cover_tint = false;
     img->cover_keep = false;
     img->note = false;
+    img->photos_panel = false;
 
     if (token->type == SKIN_TOKEN_IMAGE_DISPLAY)
     {
@@ -1358,6 +1359,7 @@ static int parse_progressbar_tag(struct skin_element* element,
             img->cover_tint = false;
             img->cover_keep = false;
             img->note = false;
+            img->photos_panel = false;
             struct skin_token_list *item = new_skin_token_list_item(NULL, img);
             if (!item)
                 return WPS_ERROR_INVALID_PARAM;
@@ -2313,6 +2315,7 @@ static bool load_skin_bitmaps(struct wps_data *wps_data, char *bmpdir)
                 handle = load_skin_bmp(wps_data, img, bmpdir);
                 img->buflib_handle = handle;
                 img->loaded = img->buflib_handle > 0;
+                img->photos_panel = img->loaded && !strcmp(path, PHOTOS_PANEL_FILE);
 
                 if (img->loaded)
                 {

@@ -49,6 +49,9 @@ int skin_get_touchaction(struct gui_wps *gwps, int* edge_offset);
 void skin_disarm_touchregions(struct gui_wps *gwps);
 #endif
 
+/* Photos' collage in the status bar's skin takes these pixels (skin_display.c) */
+bool skin_photos_panel_put(const fb_data *pixels, int width, int height);
+
 /* Do a update_type update of the skinned screen */
 void skin_update(enum skinnable_screens skin, enum screen_type screen,
                  unsigned int update_type);

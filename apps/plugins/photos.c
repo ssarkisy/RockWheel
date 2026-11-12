@@ -52,10 +52,7 @@
 #define GRID_EMPTY  (DARK_THEME ? LCD_RGBPACK(0x24, 0x24, 0x28) : LCD_RGBPACK(0xe8, 0xe8, 0xe8))
 #define GRID_SELECT LCD_RGBPACK(0xf0, 0xb8, 0x20)
 
-#define TITLE_FONT FONT_DIR "/14-Inter-Bold.fnt"
 #define TEXT(id)   ((const char *)rb->str(id))
-#define BATTERY_W  25
-#define BATTERY_H  11
 
 /* a photo and where its frames are */
 struct photo {
@@ -85,10 +82,9 @@ static size_t mem_left;
 
 static fb_data *screen_buf;
 static fb_data grid_buf[GRID_W * GRID_H * 2];
-static fb_data *title_bar;
-static int title_h;
-static int title_font = FONT_UI;
 static int grid_x0, grid_y0;
+/* what the grid has of the screen: under the theme's bar, or all of it */
+static struct viewport grid_area;
 
 /* slideshow settings, as on the stock iPod */
 static const int slide_times[] = { 0, 2, 3, 5, 10, 20 }; /* 0 is manual */
@@ -121,6 +117,8 @@ static const struct button_mapping photos_keys[] = {
 
 /* Menu held: out to the main menu, from whichever screen */
 static bool to_main_menu = false;
+/* Play in a list with nothing playing, or held: out to Now Playing */
+static bool to_now_playing = false;
 
 static const struct button_mapping *get_keys(int context)
 {
@@ -541,68 +539,6 @@ static void close_frames(void)
     grid_ithmb.fd = screen_ithmb.fd = -1;
 }
 
-/* the title bar of the grid, full width, made of the theme's backdrop */
-
-static void init_title_bar(void)
-{
-    struct viewport vp;
-    rb->viewport_set_defaults(&vp, SCREEN_MAIN);
-    title_h = vp.y;
-
-    int font = rb->font_load(TITLE_FONT);
-    if (font >= 0)
-        title_font = font;
-    int font_h = rb->font_get(title_font)->height;
-    if (title_h < font_h + 4)
-        title_h = font_h + 4;
-
-    grid_x0 = (LCD_WIDTH - (GRID_COLS * CELL_W + 1) - (SCROLLBAR_W + 2)) / 2;
-    grid_y0 = title_h + (LCD_HEIGHT - title_h - (GRID_ROWS * CELL_H + 1)) / 2;
-
-    title_bar = alloc(LCD_WIDTH * title_h * sizeof(fb_data));
-    fb_data *backdrop = rb->lcd_get_backdrop();
-    if (!title_bar)
-        return;
-    for (int y = 0; y < title_h; y++)
-    {
-        fb_data colour = backdrop ? backdrop[y * LCD_WIDTH + 1]
-                                  : FB_SCALARPACK_LCD(rb->global_settings->lss_color);
-        for (int x = 0; x < LCD_WIDTH; x++)
-            title_bar[y * LCD_WIDTH + x] = colour;
-    }
-}
-
-static void draw_battery(int x, int y)
-{
-    int level = rb->battery_level();
-    rb->lcd_set_foreground(DARK_THEME ? LCD_RGBPACK(0xb0, 0xb0, 0xb4)
-                                      : LCD_RGBPACK(0x60, 0x60, 0x60));
-    rb->lcd_drawrect(x, y, BATTERY_W - 2, BATTERY_H);
-    rb->lcd_fillrect(x + BATTERY_W - 2, y + 3, 2, BATTERY_H - 6);
-    if (level > 0)
-    {
-        rb->lcd_set_foreground(level <= 10 ? LCD_RGBPACK(0xe0, 0x30, 0x20)
-                                           : LCD_RGBPACK(0x4c, 0xc2, 0x2c));
-        rb->lcd_fillrect(x + 2, y + 2, (BATTERY_W - 6) * level / 100,
-                         BATTERY_H - 4);
-    }
-}
-
-static void draw_title(const char *title)
-{
-    if (title_bar)
-        rb->lcd_bitmap(title_bar, 0, 0, LCD_WIDTH, title_h);
-    rb->lcd_setfont(title_font);
-    rb->lcd_set_drawmode(DRMODE_FG);
-    rb->lcd_set_foreground(rb->global_settings->fg_color);
-    int w, h;
-    rb->lcd_getstringsize(title, &w, &h);
-    rb->lcd_putsxy(6, (title_h - h) / 2, title);
-    rb->lcd_set_drawmode(DRMODE_SOLID);
-    draw_battery(LCD_WIDTH - 6 - BATTERY_W, (title_h - BATTERY_H) / 2);
-    rb->lcd_setfont(FONT_UI);
-}
-
 /* the grid */
 
 static const char *album_name(const struct album *album)
@@ -687,9 +623,10 @@ static void draw_scrollbar(const struct album *album, int top)
 static void draw_grid(const struct album *album, int top, int selected)
 {
     rb->lcd_set_viewport(NULL);
-    draw_title(album_name(album));
+    rb->lcd_set_drawmode(DRMODE_SOLID);
     rb->lcd_set_foreground(rb->global_settings->bg_color);
-    rb->lcd_fillrect(0, title_h, LCD_WIDTH, LCD_HEIGHT - title_h);
+    rb->lcd_fillrect(grid_area.x, grid_area.y, grid_area.width,
+                     grid_area.height);
     for (int i = 0; i < GRID_COLS * GRID_ROWS; i++)
         if (top + i != selected)
             draw_cell(album, top, top + i, false);
@@ -815,6 +752,38 @@ static int view_photos(const struct album *album, int index, bool slideshow)
     return result;
 }
 
+/* The grid's place. It has the theme's own bar over it, the album's name its
+   title, as the lists have: the screen's whole width for it, as a list of
+   songs takes it. A theme whose lists have no room for five rows of
+   thumbnails gives it the screen. */
+static bool place_grid(const struct album *album, bool *was_wide)
+{
+    const int grid_w = GRID_COLS * CELL_W + 1 + SCROLLBAR_W + 2;
+    const int grid_h = GRID_ROWS * CELL_H + 1;
+
+    *was_wide = rb->menu_wide();
+    rb->sb_set_persistent_title(album_name(album), Icon_NOICON, SCREEN_MAIN);
+    if (!*was_wide)
+        rb->menu_set_wide(true);
+    rb->viewport_set_defaults(&grid_area, SCREEN_MAIN);
+    const bool themed = grid_area.width >= grid_w && grid_area.height >= grid_h;
+    if (!themed && !*was_wide)
+        rb->menu_set_wide(false);
+    /* The grid's own turn of the theme, as every screen of the core's that
+       changes the width has. The theme's lists have another viewport at this
+       width, and the status bar's next look at it (sb_skin_get_info_vp())
+       turns the theme off and on to have it all drawn again, which clears
+       what's round the lists' area, the bar's ground too, before the theme
+       is drawn. Opened from the main menu the plugin runs at the bottom of
+       the theme's stack, where toggle_theme() takes that for the boot's
+       first drawing and doesn't have the theme drawn whole after it: the
+       bar's ground stayed the lists' white under its clock and title. */
+    rb->viewportmanager_theme_enable(SCREEN_MAIN, themed, &grid_area);
+    grid_x0 = grid_area.x + (grid_area.width - grid_w) / 2;
+    grid_y0 = grid_area.y + (grid_area.height - grid_h) / 2;
+    return themed;
+}
+
 /* the grid of an album; false on USB */
 static bool browse_album(const struct album *album)
 {
@@ -824,7 +793,8 @@ static bool browse_album(const struct album *album)
         return true;
     }
 
-    rb->viewportmanager_theme_enable(SCREEN_MAIN, false, NULL);
+    bool was_wide;
+    const bool themed = place_grid(album, &was_wide);
     const int page = GRID_COLS * GRID_ROWS;
     int selected = 0, top = 0;
     bool usb = false, done = false;
@@ -849,8 +819,13 @@ static bool browse_album(const struct album *album)
             case ACTION_STD_OK:
             case ACTION_PHOTOS_PLAY:
             {
+                /* a photo has the screen to itself */
+                if (themed)
+                    rb->viewportmanager_theme_enable(SCREEN_MAIN, false, NULL);
                 int shown = view_photos(album, selected,
                                         action == ACTION_PHOTOS_PLAY);
+                if (themed)
+                    rb->viewportmanager_theme_undo(SCREEN_MAIN, false);
                 if (shown < 0)
                 {
                     usb = done = true;
@@ -870,11 +845,6 @@ static bool browse_album(const struct album *album)
                 /* fall through */
             case ACTION_STD_CANCEL:
                 done = true;
-                break;
-            case ACTION_NONE:
-                /* keep the battery current */
-                draw_title(album_name(album));
-                rb->lcd_update_rect(0, 0, LCD_WIDTH, title_h);
                 break;
             default:
                 if (rb->default_event_handler(action) == SYS_USB_CONNECTED)
@@ -907,166 +877,31 @@ static bool browse_album(const struct album *album)
         }
     }
     close_frames();
-    rb->viewportmanager_theme_undo(SCREEN_MAIN, !usb);
+    /* the list that comes next is drawn over it, and goes on the screen with
+       the theme's half */
+    rb->viewportmanager_theme_undo(SCREEN_MAIN, !themed && !usb);
+    if (themed && !was_wide)
+        rb->menu_set_wide(false);
     return !usb;
 }
 
-/* the lists, which look like the rest of the menus */
-
-static bool has_children(int item, void *data)
-{
-    (void)item;
-    (void)data;
-    return true;
-}
-
-static const char *settings_name(int item, void *data, char *buf, size_t len)
-{
-    (void)data;
-    (void)buf;
-    (void)len;
-    static const int names[] = {
-        LANG_TIME_PER_SLIDE, LANG_REPEAT, LANG_SHUFFLE_PHOTOS
-    };
-    return TEXT(names[item]);
-}
-
-static void set_slide_time(void)
-{
-    static char texts[ARRAYLEN(slide_times)][24];
-    struct opt_items items[ARRAYLEN(slide_times)];
-    for (unsigned i = 0; i < ARRAYLEN(slide_times); i++)
-    {
-        if (slide_times[i] == 0)
-            rb->strlcpy(texts[i], TEXT(LANG_SLIDESHOW_MANUAL),
-                        sizeof(texts[i]));
-        else
-            rb->snprintf(texts[i], sizeof(texts[i]),
-                         TEXT(LANG_SLIDE_SECONDS), slide_times[i]);
-        items[i].string = texts[i];
-        items[i].voice_id = -1;
-    }
-    rb->set_option(TEXT(LANG_TIME_PER_SLIDE), &slide_time, RB_INT, items,
-                   ARRAYLEN(slide_times), NULL);
-}
-
-static bool slideshow_settings(void)
-{
-    struct gui_synclist list;
-    rb->gui_synclist_init(&list, settings_name, NULL, false, 1, NULL);
-    list.callback_has_children = has_children;
-    rb->gui_synclist_set_nb_items(&list, 3);
-    rb->gui_synclist_set_title(&list, TEXT(LANG_SLIDESHOW_SETTINGS),
-                               Icon_NOICON);
-    rb->gui_synclist_draw(&list);
-    while (true)
-    {
-        int action = rb->get_action(CONTEXT_LIST, HZ / 2);
-        if (rb->gui_synclist_do_button(&list, &action))
-            continue;
-        switch (action)
-        {
-            case ACTION_STD_OK:
-                switch (rb->gui_synclist_get_sel_pos(&list))
-                {
-                    case 0:
-                        set_slide_time();
-                        break;
-                    case 1:
-                        rb->set_bool_options(TEXT(LANG_REPEAT),
-                                             &slide_repeat,
-                                             TEXT(LANG_ON), LANG_ON,
-                                             TEXT(LANG_OFF), LANG_OFF,
-                                             NULL);
-                        break;
-                    case 2:
-                        rb->set_bool_options(TEXT(LANG_SHUFFLE_PHOTOS),
-                                             &slide_shuffle,
-                                             TEXT(LANG_ON), LANG_ON,
-                                             TEXT(LANG_OFF), LANG_OFF,
-                                             NULL);
-                        break;
-                }
-                rb->gui_synclist_set_title(&list,
-                                           TEXT(LANG_SLIDESHOW_SETTINGS),
-                                           Icon_NOICON);
-                rb->gui_synclist_draw(&list);
-                break;
-            case ACTION_STD_MENU:
-                to_main_menu = true;
-                /* fall through */
-            case ACTION_STD_CANCEL:
-                return true;
-            default:
-                if (rb->default_event_handler(action) == SYS_USB_CONNECTED)
-                    return false;
-                break;
-        }
-    }
-}
-
-static const char *photos_name(int item, void *data, char *buf, size_t len)
-{
-    (void)data;
-    (void)buf;
-    (void)len;
-    if (item == 0)
-        return TEXT(LANG_SLIDESHOW_SETTINGS);
-    return album_name(&albums[item - 1]);
-}
-
-static enum plugin_status photos_menu(void)
-{
-    struct gui_synclist list;
-    rb->gui_synclist_init(&list, photos_name, NULL, false, 1, NULL);
-    list.callback_has_children = has_children;
-    rb->gui_synclist_set_nb_items(&list, album_count + 1);
-    rb->gui_synclist_set_title(&list, TEXT(LANG_PHOTOS), Icon_NOICON);
-    rb->gui_synclist_select_item(&list, album_count > 0 ? 1 : 0);
-    rb->gui_synclist_draw(&list);
-    while (true)
-    {
-        int action = rb->get_action(CONTEXT_LIST, HZ / 2);
-        if (rb->gui_synclist_do_button(&list, &action))
-            continue;
-        switch (action)
-        {
-            case ACTION_STD_OK:
-            {
-                int item = rb->gui_synclist_get_sel_pos(&list);
-                bool ok = (item == 0) ? slideshow_settings()
-                                      : browse_album(&albums[item - 1]);
-                if (!ok)
-                    return PLUGIN_USB_CONNECTED;
-                if (to_main_menu)
-                    return PLUGIN_OK;
-                rb->gui_synclist_set_title(&list, TEXT(LANG_PHOTOS),
-                                           Icon_NOICON);
-                rb->gui_synclist_draw(&list);
-                break;
-            }
-            case ACTION_STD_MENU:
-            case ACTION_STD_CANCEL:
-                return PLUGIN_OK;
-            default:
-                if (rb->default_event_handler(action) == SYS_USB_CONNECTED)
-                    return PLUGIN_USB_CONNECTED;
-                break;
-        }
-    }
-}
-
-/* The collage for the panel beside the main menu: thumbnails from all over the library,
-   on what the panel has there, which the rest of it carries on under the count. As tall
-   as it is in the theme's .sbs. RGB565 and top-down, which read_bmp_fd reads as it is. */
-#define PANEL_W      160
-#define PANEL_H      176
+/* The collages for the panels: thumbnails from all over the library, for the main
+   menu's Photos row, and from all over each album, for the album's row in Photos' menu.
+   Round and between them a collage is the colour a theme's picture is drawn without, so
+   each theme's panel shows there, in its light look and its dark. As tall as it is in
+   the theme's .sbs. */
+#define PANEL_W      PHOTOS_PANEL_W
+#define PANEL_H      PHOTOS_PANEL_H
+#define PANEL_SIZE   (PANEL_W * PANEL_H * sizeof(fb_data))
 #define PANEL_COLS   3
 #define PANEL_ROWS   4
 #define PANEL_LEFT   2
 #define PANEL_TOP    2
 #define PANEL_STEP_X (GRID_W + 3)
 #define PANEL_STEP_Y (GRID_H + 3)
+/* with fewer photos than cells they come again, as many times as it takes to
+   fill it; 0 leaves the cells after the last photo to the panel */
+#define PANEL_REPEAT 1
 
 static void put_le32(unsigned char *p, uint32_t value)
 {
@@ -1076,30 +911,35 @@ static void put_le32(unsigned char *p, uint32_t value)
     p[3] = value >> 24;
 }
 
-static void make_panel(void)
+/* A photo's pixel that happens to be one of the two colours a picture is drawn
+   without (lcd_bitmap_transparent_part()): the nearest blue to it instead */
+static inline fb_data panel_pixel(fb_data pixel)
 {
-    fb_data *panel = alloc(PANEL_W * PANEL_H * sizeof(fb_data));
-    if (!panel || photo_count == 0)
-        return;
+    const unsigned value = FB_UNPACK_SCALAR_LCD(pixel);
+    if (value == TRANSPARENT_COLOR || value == REPLACEWITHFG_COLOR)
+        return FB_SCALARPACK_LCD(value ^ 1);
+    return pixel;
+}
 
-    for (int y = 0; y < PANEL_H; y++)
-    {
-        /* the panel's gradient, from (161,173,185) down to (99,106,114) here */
-        const fb_data line = FB_RGBPACK(161 - 62 * y / PANEL_H, 173 - 67 * y / PANEL_H,
-                                        185 - 71 * y / PANEL_H);
-        for (int x = 0; x < PANEL_W; x++)
-            panel[y * PANEL_W + x] = line;
-    }
+/* A collage of count photos, the library's in photos[] or an album's by its
+   items, into panel */
+static void compose_panel(fb_data *panel, const uint32_t *items, int count)
+{
+    for (int i = 0; i < PANEL_W * PANEL_H; i++)
+        panel[i] = FB_SCALARPACK_LCD(TRANSPARENT_COLOR);
 
     const int cells = PANEL_COLS * PANEL_ROWS;
-    for (int cell = 0; cell < cells; cell++)
+    for (int cell = 0; cell < cells && count > 0; cell++)
     {
-        const int first = photo_count >= cells ? cell * photo_count / cells
-                                               : cell % photo_count;
+        if (!PANEL_REPEAT && cell >= count)
+            break;
+        const int first = count >= cells ? cell * count / cells : cell % count;
         const struct photo *photo = NULL;
-        for (int i = 0; i < photo_count && !photo; i++)
+        /* the next one that has a thumbnail */
+        for (int i = 0; i < count && !photo; i++)
         {
-            const struct photo *p = &photos[(first + i) % photo_count];
+            const int index = (first + i) % count;
+            const struct photo *p = &photos[items ? (int)items[index] : index];
             if (read_frame(&grid_ithmb, p->grid_file, p->grid_offset, grid_buf,
                            grid_stride * GRID_H * sizeof(fb_data)))
                 photo = p;
@@ -1111,15 +951,24 @@ static void make_panel(void)
         const int top = PANEL_TOP + (cell / PANEL_COLS) * PANEL_STEP_Y
                         + (GRID_H - photo->grid_h) / 2;
         for (int y = 0; y < photo->grid_h; y++)
-            rb->memcpy(&panel[(top + y) * PANEL_W + left],
-                       &grid_buf[(photo->grid_y + y) * grid_stride + photo->grid_x],
-                       photo->grid_w * sizeof(fb_data));
+        {
+            const fb_data *from = &grid_buf[(photo->grid_y + y) * grid_stride
+                                            + photo->grid_x];
+            fb_data *to = &panel[(top + y) * PANEL_W + left];
+            for (int x = 0; x < photo->grid_w; x++)
+                to[x] = panel_pixel(from[x]);
+        }
     }
-    close_frames();
+}
+
+/* The main menu's, which a theme loads as a picture: a BMP of RGB565, top-down */
+static void make_panel(fb_data *panel)
+{
+    compose_panel(panel, NULL, photo_count);
 
     /* a BMP header with its three masks of RGB565 */
     static unsigned char header[66];
-    const uint32_t size = PANEL_W * PANEL_H * sizeof(fb_data);
+    const uint32_t size = PANEL_SIZE;
     rb->memset(header, 0, sizeof(header));
     header[0] = 'B';
     header[1] = 'M';
@@ -1144,36 +993,432 @@ static void make_panel(void)
     rb->whole_file_close(fd, PHOTOS_PANEL_FILE, ok);
 }
 
+/* What the albums' collages are made of, as the database was read: the albums
+   in their order, their names, and each one's photos in order with where
+   their thumbnails are. Other albums, other photos in one or other
+   thumbnails give another hash; a database Finder wrote again with the same
+   gives the same. */
+static uint32_t albums_hash(void)
+{
+    uint32_t hash = 0xffffffff;
+    uint32_t words[4] = { album_count, photo_count, grid_stride,
+                          PANEL_REPEAT };
+    hash = rb->crc_32(words, sizeof(words), hash);
+    for (int i = 0; i < album_count; i++)
+    {
+        const struct album *album = &albums[i];
+        words[0] = album->library;
+        words[1] = album->count;
+        hash = rb->crc_32(words, 2 * sizeof(uint32_t), hash);
+        hash = rb->crc_32(album->name, rb->strlen(album->name), hash);
+        for (int j = 0; j < album->count; j++)
+        {
+            const struct photo *photo = &photos[album->items[j]];
+            words[0] = photo->id;
+            words[1] = photo->grid_offset;
+            words[2] = photo->grid_file;
+            words[3] = photo->grid_x | photo->grid_y << 8 | photo->grid_w << 16
+                       | (uint32_t)photo->grid_h << 24;
+            hash = rb->crc_32(words, sizeof(words), hash);
+        }
+    }
+    return hash;
+}
+
+/* the file's header for the database as it was read */
+static void panels_header(unsigned char *header)
+{
+    rb->memset(header, 0, PHOTOS_PANELS_HEADER);
+    put_le32(header, PHOTOS_PANELS_MAGIC);
+    put_le32(header + 4, albums_hash());
+    put_le32(header + 8, album_count);
+}
+
+/* whether the file is the one made of these albums: its header and its size */
+static bool panels_current(void)
+{
+    static unsigned char header[PHOTOS_PANELS_HEADER], now[PHOTOS_PANELS_HEADER];
+    const int fd = rb->open(PHOTOS_PANELS_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    panels_header(now);
+    const bool same = rb->read(fd, header, sizeof(header)) == (ssize_t)sizeof(header)
+                      && !rb->memcmp(header, now, sizeof(header))
+                      && rb->ffilesize(fd) == (off_t)(sizeof(header)
+                                                     + album_count * PANEL_SIZE);
+    rb->close(fd);
+    return same;
+}
+
+/* The albums' collages, the library's first as the main menu has it. Written
+   whole or not at all; false if not. */
+static bool make_panels(fb_data *panel)
+{
+    static unsigned char header[PHOTOS_PANELS_HEADER];
+    panels_header(header);
+    const int fd = rb->whole_file_open(PHOTOS_PANELS_FILE);
+    if (fd < 0)
+        return false;
+    bool ok = rb->write(fd, header, sizeof(header)) == (ssize_t)sizeof(header);
+    for (int i = 0; i < album_count && ok; i++)
+    {
+        const struct album *album = &albums[i];
+        if (album->library)
+            compose_panel(panel, NULL, photo_count);
+        else
+            compose_panel(panel, album->items, album->count);
+        ok = rb->write(fd, panel, PANEL_SIZE) == (ssize_t)PANEL_SIZE;
+        rb->yield();
+    }
+    return rb->whole_file_close(fd, PHOTOS_PANELS_FILE, ok) && ok;
+}
+
+/* An album's collage beside its row in Photos' menu. Two of them in memory the
+   plugin has from its start: the library's, read as the menu opens, which is
+   shown at once and put back on leaving; and the one of the album the
+   selection rests on, read then, if the disk spins: it isn't woken for this,
+   and the library's is shown instead. */
+static fb_data *library_panel, *album_panel;
+static bool panels_ready;
+static int panel_album; /* the album whose collage the theme has; 0 the library */
+static int panel_missed = -1; /* the one not read, the disk asleep: asked less often */
+/* how long the selection rests on a row before its collage is read */
+#define PANEL_REST (HZ / 3)
+
+static bool read_panel(int album, fb_data *panel)
+{
+    const int fd = rb->open(PHOTOS_PANELS_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const off_t pos = PHOTOS_PANELS_HEADER + (off_t)album * PANEL_SIZE;
+    const bool ok = rb->lseek(fd, pos, SEEK_SET) == pos
+                    && rb->read(fd, panel, PANEL_SIZE) == (ssize_t)PANEL_SIZE;
+    rb->close(fd);
+    return ok;
+}
+
+static void open_panels(void)
+{
+    panel_album = 0;
+    panels_ready = library_panel && album_panel && album_count > 0
+                   && albums[0].library && panels_current()
+                   && read_panel(0, library_panel);
+}
+
+static void show_library_panel(void)
+{
+    if (panel_album != 0)
+        rb->photos_panel_show(library_panel, -1);
+    panel_album = 0;
+}
+
+/* the collage for the album the selection has rested on */
+static void show_album_panel(int album)
+{
+    if (!panels_ready || album == panel_album)
+        return;
+    if (album == 0)
+        show_library_panel();
+    else if (albums[album].count == 0)
+    {
+        if (rb->photos_panel_show(NULL, 0))
+            panel_album = album;
+    }
+    else if (!rb->photos_panel_disk_free())
+    {
+        show_library_panel(); /* not another album's beside this one */
+        panel_missed = album;
+    }
+    else if (read_panel(album, album_panel)
+             && rb->photos_panel_show(album_panel, albums[album].count))
+        panel_album = album;
+    else
+    {
+        /* a file that doesn't read, or a theme without the picture: the
+           library's from here on, not asked again while the row is rested on,
+           which would keep the disk awake */
+        show_library_panel();
+        panels_ready = false;
+    }
+}
+
+/* the lists, which look like the rest of the menus */
+
+/* The list on the screen, NULL in the grid, a photo and a setting's screen.
+   The theme drawn whole again, as at a change of track, draws over a part of
+   it: beside the pane, the cover's strip over the rows' right end. The core's
+   lists are drawn again by list_do_action()'s event; these read the keys
+   themselves, so they take the event too. */
+static struct gui_synclist *shown_list;
+
+static void theme_redrawn(unsigned short id, void *data, void *user_data)
+{
+    (void)id;
+    (void)data;
+    (void)user_data;
+    if (shown_list)
+        rb->gui_synclist_draw(shown_list);
+}
+
+static void show_list(struct gui_synclist *list)
+{
+    shown_list = list;
+    rb->gui_synclist_draw(list);
+}
+
+/* A key in a list, by the menus' own keys: Play pauses the music and goes on
+   with it, which the list does itself, and Left and Right go to the songs
+   before and after, as in every menu. Left to the caller with nothing
+   playing, and when Play is held: to Now Playing then, as the menus go. */
+static int get_list_action(struct gui_synclist *list, bool *to_now_playing,
+                           int timeout)
+{
+    int action = rb->get_action(CONTEXT_MAINMENU, timeout);
+    *to_now_playing = false;
+    if (rb->gui_synclist_do_button(list, &action))
+        return ACTION_REDRAW;
+    if (action == ACTION_TREE_WPS
+        || (action == ACTION_TREE_STOP && rb->audio_status()))
+        *to_now_playing = true;
+    return action;
+}
+
+static bool has_children(int item, void *data)
+{
+    (void)item;
+    (void)data;
+    return true;
+}
+
+static const char *settings_name(int item, void *data, char *buf, size_t len)
+{
+    (void)data;
+    (void)buf;
+    (void)len;
+    static const int names[] = {
+        LANG_TIME_PER_SLIDE, LANG_REPEAT, LANG_SHUFFLE_PHOTOS
+    };
+    return TEXT(names[item]);
+}
+
+/* true on USB, as the two below */
+static bool set_slide_time(void)
+{
+    static char texts[ARRAYLEN(slide_times)][24];
+    struct opt_items items[ARRAYLEN(slide_times)];
+    for (unsigned i = 0; i < ARRAYLEN(slide_times); i++)
+    {
+        if (slide_times[i] == 0)
+            rb->strlcpy(texts[i], TEXT(LANG_SLIDESHOW_MANUAL),
+                        sizeof(texts[i]));
+        else
+            rb->snprintf(texts[i], sizeof(texts[i]),
+                         TEXT(LANG_SLIDE_SECONDS), slide_times[i]);
+        items[i].string = texts[i];
+        items[i].voice_id = -1;
+    }
+    return rb->set_option(TEXT(LANG_TIME_PER_SLIDE), &slide_time, RB_INT,
+                          items, ARRAYLEN(slide_times), NULL);
+}
+
+static bool slideshow_settings(void)
+{
+    struct gui_synclist list;
+    rb->gui_synclist_init(&list, settings_name, NULL, false, 1, NULL);
+    list.callback_has_children = has_children;
+    rb->gui_synclist_set_nb_items(&list, 3);
+    rb->gui_synclist_set_title(&list, TEXT(LANG_SLIDESHOW_SETTINGS),
+                               Icon_NOICON);
+    show_list(&list);
+    while (true)
+    {
+        const int action = get_list_action(&list, &to_now_playing, HZ / 2);
+        if (to_now_playing)
+        {
+            shown_list = NULL;
+            return true;
+        }
+        switch (action)
+        {
+            case ACTION_REDRAW:
+                break;
+            case ACTION_STD_OK:
+            {
+                bool usb = false;
+                shown_list = NULL;
+                switch (rb->gui_synclist_get_sel_pos(&list))
+                {
+                    case 0:
+                        usb = set_slide_time();
+                        break;
+                    case 1:
+                        usb = rb->set_bool_options(TEXT(LANG_REPEAT),
+                                                   &slide_repeat,
+                                                   TEXT(LANG_ON), LANG_ON,
+                                                   TEXT(LANG_OFF), LANG_OFF,
+                                                   NULL);
+                        break;
+                    case 2:
+                        usb = rb->set_bool_options(TEXT(LANG_SHUFFLE_PHOTOS),
+                                                   &slide_shuffle,
+                                                   TEXT(LANG_ON), LANG_ON,
+                                                   TEXT(LANG_OFF), LANG_OFF,
+                                                   NULL);
+                        break;
+                }
+                /* connected while a value's screen was open: out, as from
+                   the lists, the albums may be others after it */
+                if (usb)
+                    return false;
+                rb->gui_synclist_set_title(&list,
+                                           TEXT(LANG_SLIDESHOW_SETTINGS),
+                                           Icon_NOICON);
+                show_list(&list);
+                break;
+            }
+            case ACTION_STD_MENU:
+                to_main_menu = true;
+                /* fall through */
+            case ACTION_STD_CANCEL:
+                shown_list = NULL;
+                return true;
+            default:
+                if (rb->default_event_handler(action) == SYS_USB_CONNECTED)
+                {
+                    shown_list = NULL;
+                    return false;
+                }
+                break;
+        }
+    }
+}
+
+static const char *photos_name(int item, void *data, char *buf, size_t len)
+{
+    (void)data;
+    (void)buf;
+    (void)len;
+    if (item == 0)
+        return TEXT(LANG_SLIDESHOW_SETTINGS);
+    return album_name(&albums[item - 1]);
+}
+
+static enum plugin_status photos_menu(void)
+{
+    struct gui_synclist list;
+    rb->gui_synclist_init(&list, photos_name, NULL, false, 1, NULL);
+    list.callback_has_children = has_children;
+    rb->gui_synclist_set_nb_items(&list, album_count + 1);
+    rb->gui_synclist_set_title(&list, TEXT(LANG_PHOTOS), Icon_NOICON);
+    rb->gui_synclist_select_item(&list, album_count > 0 ? 1 : 0);
+    show_list(&list);
+    int rested = rb->gui_synclist_get_sel_pos(&list);
+    long rested_from = *rb->current_tick;
+    while (true)
+    {
+        /* the row's album, the library for itself and Slideshow Settings */
+        const int album = rested > 1 ? rested - 1 : 0;
+        const bool due = panels_ready && album != panel_album;
+        const int action = get_list_action(&list, &to_now_playing,
+                                           due && album != panel_missed
+                                           ? PANEL_REST / 2 : HZ / 2);
+        if (to_now_playing)
+            return PLUGIN_GOTO_WPS;
+        /* not as the wheel passes over the rows: once it has rested on one */
+        const int selected = rb->gui_synclist_get_sel_pos(&list);
+        if (selected != rested)
+        {
+            rested = selected;
+            rested_from = *rb->current_tick;
+            panel_missed = -1;
+        }
+        else if (due && TIME_AFTER(*rb->current_tick, rested_from + PANEL_REST))
+            show_album_panel(album);
+        switch (action)
+        {
+            case ACTION_REDRAW:
+                break;
+            case ACTION_STD_OK:
+            {
+                int item = rb->gui_synclist_get_sel_pos(&list);
+                shown_list = NULL;
+                /* the settings have the library's beside them, also if the
+                   wheel came from an album and didn't rest */
+                if (item == 0 && panels_ready)
+                    show_library_panel();
+                bool ok = (item == 0) ? slideshow_settings()
+                                      : browse_album(&albums[item - 1]);
+                if (!ok)
+                    return PLUGIN_USB_CONNECTED;
+                if (to_now_playing)
+                    return PLUGIN_GOTO_WPS;
+                if (to_main_menu)
+                    return PLUGIN_OK;
+                rb->gui_synclist_set_title(&list, TEXT(LANG_PHOTOS),
+                                           Icon_NOICON);
+                show_list(&list);
+                break;
+            }
+            case ACTION_STD_MENU:
+            case ACTION_STD_CANCEL:
+                return PLUGIN_OK;
+            default:
+                if (rb->default_event_handler(action) == SYS_USB_CONNECTED)
+                    return PLUGIN_USB_CONNECTED;
+                break;
+        }
+    }
+}
+
 enum plugin_status plugin_start(const void *parameter)
 {
     mem = rb->plugin_get_buffer(&mem_left);
 
-    if (parameter && !rb->strcmp(parameter, PHOTOS_PANEL_MAKE))
+    /* at Updating Library: the collages, or the albums' alone, and those only
+       if they aren't of the albums as they are now */
+    const bool make_all = parameter && !rb->strcmp(parameter, PHOTOS_PANEL_MAKE);
+    if (make_all || (parameter && !rb->strcmp(parameter, PHOTOS_PANELS_MAKE)))
     {
-        if (load_database())
-            make_panel();
+        fb_data *panel = alloc(PANEL_SIZE);
+        bool made = false;
+        if (panel && load_database())
+        {
+            if (make_all)
+                make_panel(panel);
+            made = (!make_all && panels_current()) || make_panels(panel);
+            close_frames();
+        }
+        /* Not made, as for want of room: the file there was is of other
+           albums, and with none photos_panel_update() knows to have them
+           made at the next boot */
+        if (!made)
+            rb->remove(PHOTOS_PANELS_FILE);
         return PLUGIN_OK;
     }
 
     screen_buf = alloc(LCD_WIDTH * LCD_HEIGHT * sizeof(fb_data));
+    library_panel = alloc(PANEL_SIZE);
+    album_panel = alloc(PANEL_SIZE);
     if (!screen_buf || !load_database())
     {
         rb->splash(HZ * 2, TEXT(LANG_NO_PHOTOS));
         return PLUGIN_OK;
     }
-    init_title_bar();
-
     configfile_load(CONFIG_FILE, config, ARRAYLEN(config), CONFIG_VERSION);
     int old_time = slide_time;
     bool old_repeat = slide_repeat, old_shuffle = slide_shuffle;
 
+    open_panels();
+    rb->add_event_ex(GUI_EVENT_NEED_UI_UPDATE, false, theme_redrawn, NULL);
     enum plugin_status status = photos_menu();
+    shown_list = NULL;
+    /* the main menu's Photos row has the library's collage */
+    show_library_panel();
+    rb->remove_event_ex(GUI_EVENT_NEED_UI_UPDATE, theme_redrawn, NULL);
 
     if (slide_time != old_time || slide_repeat != old_repeat
         || slide_shuffle != old_shuffle)
         configfile_save(CONFIG_FILE, config, ARRAYLEN(config), CONFIG_VERSION);
     close_frames();
-    if (title_font != FONT_UI)
-        rb->font_unload(title_font);
     return status;
 }

@@ -29,6 +29,11 @@
 #include "string-extra.h"
 #include "photos_panel.h"
 #include "misc.h"
+#include "kernel.h"
+#include "settings.h"
+#include "storage.h"
+#include "viewport.h"
+#include "skin_engine/skin_engine.h"
 
 #define PHOTOS_DIR "/Photos"
 #define PHOTO_DB_NAME "Photo Database"
@@ -147,41 +152,65 @@ static void database_stamp(uint32_t stamp[2])
     closedir(dir);
 }
 
+/* How the collages are made, in their stamp: those made another way, as on
+   the panel's gradient of one theme, or without the albums', are made again
+   once */
+#define PANEL_VERSION 3
+
 static void write_stamp(const uint32_t stamp[2], uint32_t hash)
 {
-    const uint32_t all[3] = { stamp[0], stamp[1], hash };
+    const uint32_t all[4] = { stamp[0], stamp[1], hash, PANEL_VERSION };
     whole_file_write(STAMP_FILE, all, sizeof(all));
 }
 
 bool photos_panel_stale(void)
 {
-    uint32_t now[2], made[3] = { 0, 0, 0 };
+    uint32_t now[2], made[4] = { 0, 0, 0, 0 };
     database_stamp(now);
     const int fd = open(STAMP_FILE, O_RDONLY);
     if (fd >= 0)
     {
-        if (read(fd, made, sizeof(made)) != sizeof(made))
+        if (read(fd, made, sizeof(made)) != sizeof(made)
+            || made[3] != PANEL_VERSION)
             made[0] = made[1] = made[2] = 0;
         close(fd);
     }
-    if (!memcmp(now, made, sizeof(now)))
-        return false;
-    /* the same photos in a database written again: the collage and the skins stay */
-    if (made[2] && images_hash() == made[2]
-        && (photos_panel_count() == 0 || file_exists(PHOTOS_PANEL_FILE)))
-    {
-        write_stamp(now, made[2]);
-        return false;
-    }
-    return true;
+    /* Not stale with the database as it was when the collages were made, or
+       with none and nothing made of one. Written again, its albums may be
+       others with the same photos: photos_panel_update() finds what there
+       is to make. */
+    return memcmp(now, made, sizeof(now)) != 0;
 }
 
-void photos_panel_update(void)
+bool photos_panel_update(void)
 {
-    uint32_t now[2];
+    uint32_t now[2], made[4] = { 0, 0, 0, 0 };
     database_stamp(now);
     remembered_count = -1;
+    const int fd = open(STAMP_FILE, O_RDONLY);
+    if (fd >= 0)
+    {
+        if (read(fd, made, sizeof(made)) != sizeof(made)
+            || made[3] != PANEL_VERSION)
+            made[2] = 0;
+        close(fd);
+    }
+    const uint32_t hash = images_hash();
 
+    if (photos_panel_count() > 0 && made[2] && hash == made[2]
+        && file_exists(PHOTOS_PANEL_FILE))
+    {
+        /* Finder writes the database again at every sync: with the same
+           photos the main menu's collage and the skins stay, and the albums'
+           are made again only if the plugin reads other albums than they
+           were made of */
+        plugin_load(PLUGIN_APPS_DIR "/photos.rock", PHOTOS_PANELS_MAKE);
+        /* not made, as for want of room, the plugin leaves no file of them:
+           tried again at the next boot, the stamp as it was */
+        if (file_exists(PHOTOS_PANELS_FILE))
+            write_stamp(now, hash);
+        return false;
+    }
     if (photos_panel_count() > 0)
     {
         /* the old one put aside: a load refused, as with a plugin open, left
@@ -193,12 +222,72 @@ void photos_panel_update(void)
         if (!file_exists(PHOTOS_PANEL_FILE))
         {
             rename(PHOTOS_PANEL_FILE ".old", PHOTOS_PANEL_FILE);
-            return;
+            return false;
         }
         remove(PHOTOS_PANEL_FILE ".old");
+        /* The main menu's made and the albums' not: the stamp of these
+           photos and of no database's time, so that the next boot tries the
+           albums' alone again. The skins are loaded for the new collage. */
+        if (!file_exists(PHOTOS_PANELS_FILE))
+        {
+            const uint32_t none[2] = { 0, 0 };
+            write_stamp(none, hash);
+            return true;
+        }
     }
     else
+    {
+        /* no photos: the skins only if they have a collage to lose, not at
+           every sync that writes an empty database again */
+        const bool had = file_exists(PHOTOS_PANEL_FILE);
         remove(PHOTOS_PANEL_FILE);
+        remove(PHOTOS_PANELS_FILE);
+        write_stamp(now, hash);
+        return had;
+    }
 
-    write_stamp(now, images_hash());
+    write_stamp(now, hash);
+    return true;
+}
+
+static int shown_count = -1;
+
+int photos_panel_shown_count(void)
+{
+    return shown_count >= 0 ? shown_count : photos_panel_count();
+}
+
+bool photos_panel_show(const fb_data *pixels, int count)
+{
+    if (pixels && !skin_photos_panel_put(pixels, PHOTOS_PANEL_W, PHOTOS_PANEL_H))
+        return false;
+    if (!pixels && count != 0)
+        return false;
+    shown_count = count;
+    /* the list beside it is drawn over the theme next, by the event the theme
+       drawn whole sends, and the two go on the screen together */
+    viewportmanager_redraw_unshown();
+    return true;
+}
+
+void photos_panel_show_end(void)
+{
+    shown_count = -1;
+}
+
+/* as the cover beside the menus has it (disk_free() in menu_cover.c) */
+bool photos_panel_disk_free(void)
+{
+#if !defined(SIMULATOR) && defined(HAVE_DISK_STORAGE) \
+    && (CONFIG_STORAGE & STORAGE_ATA)
+    if (ata_disk_isssd())
+        return true;
+    const long spindown = global_settings.disk_spindown * HZ;
+    return storage_disk_is_active()
+           && (!spindown
+               || TIME_BEFORE(current_tick + 2 * HZ,
+                              storage_last_disk_activity() + spindown));
+#else
+    return true;
+#endif
 }

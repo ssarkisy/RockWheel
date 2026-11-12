@@ -94,6 +94,33 @@ void skin_mark_dirty(enum screen_type screen)
     dirty[screen] = true;
 }
 
+/* Photos' collage in the status bar's skin takes these pixels, for an album's
+   in Photos' menu: the picture the skin loaded, of this size, in its own
+   memory. False if the skin has none such. The theme is to be drawn after. */
+bool skin_photos_panel_put(const fb_data *pixels, int width, int height)
+{
+    struct wps_data *data = skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data;
+    if (!data->wps_loaded)
+        return false;
+    char *skin_buffer = get_skin_buffer(data);
+    for (struct skin_token_list *list = SKINOFFSETTOPTR(skin_buffer, data->images);
+         list; list = SKINOFFSETTOPTR(skin_buffer, list->next))
+    {
+        const struct wps_token *token = SKINOFFSETTOPTR(skin_buffer, list->token);
+        if (!token)
+            continue;
+        const struct gui_img *img = SKINOFFSETTOPTR(skin_buffer, token->value.data);
+        if (!img || !img->loaded || !img->photos_panel || img->buflib_handle <= 0
+            || img->bm.width != width || img->bm.height != height
+            || img->bm.format == FORMAT_MONO || img->bm.alpha_offset > 0)
+            continue;
+        memcpy(core_get_data(img->buflib_handle), pixels,
+               width * height * sizeof(fb_data));
+        return true;
+    }
+    return false;
+}
+
 /* update a skinned screen, update_type is WPS_REFRESH_* values.
  * Usually it should only be WPS_REFRESH_NON_STATIC
  * A full update will be done if required (skin_do_full_update() == true)
@@ -1173,12 +1200,49 @@ static void draw_cover_tinted_image(struct screen *display, const struct gui_img
 }
 #endif
 
+#if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+/* Photos' collage is drawn without the colour of its ground, so that a
+   theme's panel shows round the thumbnails. Where the panel is a backdrop's
+   picture with something on it, as Classic's note, bits of that would show
+   in the gaps: there its place has the panel's plain ground first, each row
+   the backdrop's own at the picture's left edge, in fours, which keeps the
+   dither of a gradient. A limit: this is done whenever the screen has a
+   backdrop at all, not only where its picture lies under the collage, so a
+   theme with a backdrop elsewhere and a plain viewport for the collage would
+   get the backdrop's rows there. None of the three themes is such a one. */
+static void draw_photos_panel_ground(struct screen *display,
+                                     const struct gui_img *img)
+{
+    const fb_data *backdrop = lcd_get_backdrop();
+    const struct viewport *vp = *display->current_viewport;
+    const int left = vp->x + img->x, top = vp->y + img->y;
+    const int width = MIN(img->bm.width, vp->width - img->x);
+    if (!backdrop || display->screen_type != SCREEN_MAIN || left < 0
+        || left + 4 > LCD_WIDTH || width <= 0 || width > LCD_WIDTH)
+        return;
+    static fb_data line[LCD_WIDTH];
+    for (int row = 0; row < img->bm.height; row++)
+    {
+        if (top + row < 0 || top + row >= LCD_HEIGHT)
+            continue;
+        const fb_data *edge = backdrop + (top + row) * LCD_WIDTH + left;
+        for (int x = 0; x < width; x++)
+            line[x] = edge[x & 3];
+        display->bitmap_part(line, 0, 0, width, img->x, img->y + row, width, 1);
+    }
+}
+#endif
+
 void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
                     int subimage, struct viewport* vp)
 {
     struct screen *display = gwps->display;
     img->bm.data = core_get_data(img->buflib_handle);
     display->set_drawmode(DRMODE_SOLID);
+#if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    if (img->photos_panel)
+        draw_photos_panel_ground(display, img);
+#endif
 
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     const struct cover_palette *palette = img->cover_tint ? cover_palette_get() : NULL;
