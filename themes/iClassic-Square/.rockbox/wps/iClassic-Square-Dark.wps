@@ -133,12 +133,12 @@
 # line is drawn again when its branch changes, not when its tag has nothing more to say
 %Vl(episode,160,121,148,16,2)%Vf(8E9094)
 %al%?ks<%ks|>
-# a book: its author, the chapter's name where a song's album is, and its format as a
-# song's; what is left of it the bar's times say
+# a book: its author, the chapter's name where a song's album is, or the book's title for
+# a part without one, and its format as a song's; what is left of it the bar's times say
 %Vl(book,160,72,148,18,3)%Vf(B4B6BA)
 %t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
 %Vl(book,160,92,148,16,2)%Vf(8E9094)
-%t(16)%al%?kc<%kc|>;%t(8)%al%s%?kc<%kc|>
+%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
 %Vl(book,160,140,148,18,4)
 %fB
 %Vl(book,160,121,148,16,2)%Vf(8E9094)
