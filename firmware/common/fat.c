@@ -2184,19 +2184,64 @@ static void NO_INLINE restore_direntries(struct bpb *fat_bpb,
     }
 }
 
-static int free_cluster_chain(struct bpb *fat_bpb, long startcluster)
+/* for a log only: two truncations at once may lose a count */
+static struct fat_free_stops free_stops;
+
+const struct fat_free_stops *fat_get_free_stops(void)
 {
-    for (long last = startcluster, next; last; last = next)
+    return &free_stops;
+}
+
+static void note_free_stop(enum fat_free_stop why, long cluster,
+                           unsigned long freed)
+{
+    if (why == FAT_STOP_RANGE)
+        free_stops.range++;
+    else
+        free_stops.limit++;
+
+    free_stops.last = why;
+    free_stops.cluster = cluster;
+    free_stops.freed = freed;
+}
+
+static inline bool cluster_in_volume(const struct bpb *fat_bpb, long cluster)
+{
+    return (unsigned long)cluster - 2 < fat_bpb->dataclusters;
+}
+
+/* the clusters maxsectors sectors take, the volume's at the most (fat.h) */
+static unsigned long chain_limit(const struct bpb *fat_bpb,
+                                 unsigned long maxsectors)
+{
+    unsigned long clusters = maxsectors / fat_bpb->bpb_secperclus;
+    if (maxsectors % fat_bpb->bpb_secperclus)
+        clusters++;
+
+    return MIN(clusters, fat_bpb->dataclusters);
+}
+
+/* Frees max clusters of the chain at the most, and none from a number that is
+   no cluster of the volume on: see fat.h. 1 if it ended or stopped so, 0 if
+   reading or writing the FAT failed after some were freed, -1 if before. */
+static int free_cluster_chain(struct bpb *fat_bpb, long startcluster,
+                              unsigned long max)
+{
+    unsigned long freed = 0;
+
+    for (long last = startcluster, next; last; last = next, freed++)
     {
+        const bool inside = cluster_in_volume(fat_bpb, last);
+        if (!inside || freed >= max)
+        {
+            note_free_stop(inside ? FAT_STOP_LIMIT : FAT_STOP_RANGE, last,
+                           freed);
+            break;
+        }
+
         next = get_next_cluster(fat_bpb, last);
-        int rc = update_fat_entry(fat_bpb, last, 0);
-        if (LIKELY(rc >= 0 && !startcluster))
-            continue;
-
-        if (rc < 0)
-            return startcluster ? -1 : 0;
-
-        startcluster = 0;
+        if (next < 0 || update_fat_entry(fat_bpb, last, 0) < 0)
+            return freed ? 0 : -1;
     }
 
     return 1;
@@ -2291,8 +2336,8 @@ int fat_create_file(struct fat_file *parent, const char *name,
 
     rc = 0;
 fat_error:
-    if (rc < 0)
-        free_cluster_chain(fat_bpb, file->firstcluster);
+    if (rc < 0) /* a new folder has one */
+        free_cluster_chain(fat_bpb, file->firstcluster, 1);
 
     cache_commit(fat_bpb);
     return rc;
@@ -2353,7 +2398,8 @@ int fat_open_rootdir(IF_MV(int volume,) struct fat_file *dir)
     return 0;
 }
 
-int fat_remove(struct fat_file *file, enum fat_remove_op what)
+int fat_remove(struct fat_file *file, enum fat_remove_op what,
+               unsigned long maxsectors)
 {
     struct bpb * const fat_bpb = FAT_BPB(file->volume);
     if (!fat_bpb)
@@ -2381,11 +2427,12 @@ int fat_remove(struct fat_file *file, enum fat_remove_op what)
     {
         /* mark all clusters in the chain as free */
         DEBUGF("Removing cluster chain: %lX\n", file->firstcluster);
-        rc = free_cluster_chain(fat_bpb, file->firstcluster);
+        rc = free_cluster_chain(fat_bpb, file->firstcluster,
+                                chain_limit(fat_bpb, maxsectors));
         if (rc < 0)
             FAT_ERROR(rc * 10 - 4);
 
-        /* at least the first cluster was freed */
+        /* at least the first cluster was freed, or is left taken */
         file->firstcluster = 0;
 
         if (rc == 0)
@@ -2616,7 +2663,11 @@ int fat_closewrite(struct fat_filestr *filestr, uint32_t size,
         fat_empty_fat_direntry(fatentp);
     }
 
-    if (freed)
+    if (freed && !cluster_in_volume(fat_bpb, freed))
+    {
+        note_free_stop(FAT_STOP_RANGE, freed, 0);
+    }
+    else if (freed)
     {
         cache_commit(fat_bpb);
         rc = update_fat_entry(fat_bpb, freed, 0);
@@ -3084,7 +3135,25 @@ fat_error:
     return rc;
 }
 
-int fat_truncate(const struct fat_filestr *filestr)
+/* A file about to be emptied whose entry names a first cluster that is none
+   lets go of it: neither a cut nor a write can go by that number, and a file
+   that can't be written again is worse than the clusters the entry meant,
+   which stay taken. True if so; the stream is rewound. */
+bool fat_drop_bad_start(struct fat_filestr *filestr)
+{
+    struct fat_file * const file = filestr->fatfilep;
+    struct bpb * const fat_bpb = FAT_BPB(file->volume);
+    if (!fat_bpb || !file->firstcluster ||
+        cluster_in_volume(fat_bpb, file->firstcluster))
+        return false;
+
+    note_free_stop(FAT_STOP_RANGE, file->firstcluster, 0);
+    file->firstcluster = 0;
+    fat_rewind(filestr);
+    return true;
+}
+
+int fat_truncate(const struct fat_filestr *filestr, unsigned long maxsectors)
 {
     DEBUGF("%s(): %lX\n", __func__, filestr->lastcluster);
 
@@ -3096,11 +3165,26 @@ int fat_truncate(const struct fat_filestr *filestr)
 
     long last = filestr->lastcluster;
     long next = 0;
+    unsigned long max = chain_limit(fat_bpb, maxsectors);
 
     /* truncate trailing clusters after the current position */
     if (last)
     {
+        /* the end to keep is no cluster: nothing is written by its number */
+        if (!cluster_in_volume(fat_bpb, last))
+        {
+            note_free_stop(FAT_STOP_RANGE, last, 0);
+            FAT_ERROR(-3);
+        }
+
+        /* the tail's share of the limit */
+        const unsigned long kept = filestr->clusternum + 1;
+        max = max > kept ? max - kept : 0;
+
         next = get_next_cluster(fat_bpb, last);
+        if (next < 0)
+            FAT_ERROR(-4);
+
         int rc2 = update_fat_entry(fat_bpb, last, FAT_EOF_MARK);
         forget_seek_marks();
         if (rc2 < 0)
@@ -3111,7 +3195,7 @@ int fat_truncate(const struct fat_filestr *filestr)
             cache_commit(fat_bpb);
     }
 
-    int rc2 = free_cluster_chain(fat_bpb, next);
+    int rc2 = free_cluster_chain(fat_bpb, next, max);
     if (rc2 <= 0)
     {
         DEBUGF("Failed freeing cluster chain\n");

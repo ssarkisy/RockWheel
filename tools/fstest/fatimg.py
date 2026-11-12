@@ -4,6 +4,7 @@ would, without trusting the file system that wrote it.
 
     python3 -I fatimg.py mkfs <img> [clusters]
     python3 -I fatimg.py check <img>
+    python3 -I fatimg.py damage <img> <kind> <file> <other file>
 
 The geometry is the owner's iPod's: 512-byte sectors, 32 KB clusters. The
 free clusters are filled with STALE, so a directory cluster read before it
@@ -224,8 +225,141 @@ def check(path):
     return {k: v for k, v in found.items() if v}
 
 
+def free_clusters(path):
+    """how many clusters the FAT calls free, and how many FSInfo says"""
+    img = Image(path)
+    info = struct.unpack_from("<I", img.read(1, 1), 488)[0]
+    return sum(1 for c in range(2, img.nclusters + 2) if not img.fat[c]), info
+
+
+def tree(img, start=None, path=""):
+    """every file and folder below a folder, as the entries name them:
+    (path, attr, first cluster, size, the short entry's place in the image,
+    the chain as far as it can be followed)"""
+    def follow(c):
+        out = []
+        while img.valid(c) and c not in out:
+            out.append(c)
+            c = img.fat[c]
+        return out
+
+    out = []
+    lfn = ""
+    for c in follow(start or img.rootclus):
+        data = img.cluster(c)
+        for o in range(0, CLUSTER, 32):
+            e = data[o:o + 32]
+            if e[0] == 0:
+                return out
+            if e[0] == 0xE5:
+                lfn = ""
+                continue
+            if e[11] == 0x0F:
+                lfn = lfn_part(e) + lfn if not e[0] & 0x40 else lfn_part(e)
+                continue
+            name, lfn = lfn or short_name(e), ""
+            if e[11] & 0x08 or name in (".", ".."):
+                continue
+            first = (struct.unpack_from("<H", e, 20)[0] << 16) \
+                | struct.unpack_from("<H", e, 26)[0]
+            at = (img.first_data + (c - 2) * SECPERCLUS) * SECTOR + o
+            full = path + "/" + name
+            out.append((full, e[11], first, struct.unpack_from("<I", e, 28)[0],
+                        at, follow(first)))
+            if e[11] & 0x10:
+                out.extend(tree(img, first, full))
+    return out
+
+
+def damage(path, kind, victim, other):
+    """Damages the chain of victim, a file of four clusters or a folder of
+    one; other is a file of four that is not to suffer:
+      one         its second cluster's link is 1
+      beyond      that link is a number outside the volume, whose place in
+                  a FAT that long would be in other's third cluster
+      cross       its last cluster links into other's second
+      long        its size is 40000 bytes: two clusters, the chain has four
+      loop        its last cluster links back to its second
+      short       its chain ends after two clusters, the rest is free
+      first-one   its entry's first cluster is 1
+      first-beyond  its entry's first cluster is beyond's number
+      dir-beyond  the folder's cluster links outside the volume, as beyond
+    and, after the kind: -small, its size is 40000 bytes too (under 64 KB);
+    -mid, 90000 (in its third cluster); -empty, 0.
+    """
+    size = None
+    for suffix, bytes_ in (("-small", 40000), ("-mid", 90000), ("-empty", 0)):
+        if kind.endswith(suffix):
+            kind, size = kind[:-len(suffix)], bytes_
+    img = Image(path)
+    files = {f[0]: f for f in tree(img)}
+    _, _, _, _, at, a = files[victim]
+    b = files[other][5]
+    fatsz = (img.first_data - RESERVED) // 2
+    # the number whose FAT entry would be 20 bytes into other's third cluster
+    out = ((img.first_data + (b[2] - 2) * SECPERCLUS) - RESERVED) \
+        * (SECTOR // 4) + 5
+    assert not img.valid(out)
+    fat, entry = {}, {}
+    if kind == "one":
+        fat[a[1]] = 1
+    elif kind in ("beyond", "dir-beyond"):
+        fat[a[-1 if kind == "dir-beyond" else 1]] = out
+    elif kind == "cross":
+        fat[a[-1]] = b[1]
+    elif kind == "long":
+        entry[28] = struct.pack("<I", 40000)
+    elif kind == "loop":
+        fat[a[-1]] = a[1]
+    elif kind == "short":
+        fat.update({a[1]: 0x0FFFFFFF, a[2]: 0, a[3]: 0})
+    elif kind in ("first-one", "first-beyond"):
+        first = 1 if kind == "first-one" else out
+        entry[20] = struct.pack("<H", first >> 16)
+        entry[26] = struct.pack("<H", first & 0xFFFF)
+    elif kind != "none":
+        sys.exit("no damage " + kind)
+    if size is not None:
+        entry[28] = struct.pack("<I", size)
+    with open(path, "r+b") as f:
+        for c, v in fat.items():
+            for copy in range(2):
+                f.seek((RESERVED + copy * fatsz) * SECTOR + c * 4)
+                f.write(struct.pack("<I", v))
+        for o, v in entry.items():
+            f.seek(at + o)
+            f.write(v)
+
+
+def strays(before, after, mine):
+    """What an operation on the files and folders named in mine wrote where
+    it had no business: other files' clusters and their FAT entries, and
+    the reserved sectors but FSInfo. before is the image as damaged."""
+    a, b = Image(before), Image(after)
+    out = []
+    for s in range(RESERVED):
+        if s != 1 and a.read(s, 1) != b.read(s, 1):
+            out.append("reserved sector %d" % s)
+    for full, attr, _, _, _, chain in tree(a):
+        if attr & 0x10 or full in mine:
+            continue
+        for i, c in enumerate(chain):
+            if a.fat[c] != b.fat[c]:
+                out.append("%s: FAT entry of its cluster %d was %#x, is %#x"
+                           % (full, i, a.fat[c], b.fat[c]))
+            if a.cluster(c) != b.cluster(c):
+                out.append("%s: data of its cluster %d" % (full, i))
+    a.f.seek(0, 2)
+    b.f.seek(0, 2)
+    if a.f.tell() != b.f.tell():
+        out.append("image size")
+    return out
+
+
 def main():
-    if len(sys.argv) >= 3 and sys.argv[1] == "mkfs":
+    if len(sys.argv) == 6 and sys.argv[1] == "damage":
+        damage(*sys.argv[2:6])
+    elif len(sys.argv) >= 3 and sys.argv[1] == "mkfs":
         mkfs(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else 256)
     elif len(sys.argv) == 3 and sys.argv[1] == "check":
         found = check(sys.argv[2])

@@ -140,7 +140,9 @@ enum fat_remove_op           /* what should fat_remove(), remove? */
     FAT_RM_DATA       = 0x2, /* remove only file data */
     FAT_RM_ALL        = 0x3, /* remove all of above */
 };
-int fat_remove(struct fat_file *file, enum fat_remove_op what);
+/* maxsectors, for FAT_RM_DATA: see FAT_CHAIN_ANY */
+int fat_remove(struct fat_file *file, enum fat_remove_op what,
+               unsigned long maxsectors);
 int fat_rename(struct fat_file *parent, struct fat_file *file,
                const unsigned char *newname);
 int fat_modtime(struct fat_file *parent, struct fat_file *file,
@@ -163,7 +165,37 @@ void fat_rewind(struct fat_filestr *filestr);
 int fat_seek(struct fat_filestr *filestr, unsigned long sector);
 void fat_seek_to_stream(struct fat_filestr *filestr,
                         const struct fat_filestr *filestr_seek_to);
-int fat_truncate(const struct fat_filestr *filestr);
+int fat_truncate(const struct fat_filestr *filestr, unsigned long maxsectors);
+bool fat_drop_bad_start(struct fat_filestr *filestr);
+
+/** Chains freed no further than the file is known to reach **/
+
+/* A chain is freed for as many clusters as maxsectors sectors take, the most
+   the file layer knows the file to have, and no further than a number that
+   is no cluster of the volume: the name still goes and the rest stays taken
+   until a disk check. So a damaged FAT loses space, not another file's data,
+   and a chain longer than its file's size, which a write cut by a reset
+   leaves, loses its tail. A folder's size isn't known: FAT_CHAIN_ANY, which
+   the volume's cluster count bounds. */
+#define FAT_CHAIN_ANY (~0ul)
+
+enum fat_free_stop
+{
+    FAT_STOP_NONE,
+    FAT_STOP_RANGE,           /* at a number outside the volume */
+    FAT_STOP_LIMIT,           /* at the limit */
+};
+
+/* the stops since boot, for a log */
+struct fat_free_stops
+{
+    unsigned int range;       /* how many FAT_STOP_RANGE */
+    unsigned int limit;       /* how many FAT_STOP_LIMIT */
+    enum fat_free_stop last;  /* the last one: which, */
+    long cluster;             /* the number it stopped at, left as it is, */
+    unsigned long freed;      /* and the clusters freed before it */
+};
+const struct fat_free_stops *fat_get_free_stops(void);
 
 /** Maps of files' sectors, for file_map.h, which takes the locks **/
 struct file_map_run;

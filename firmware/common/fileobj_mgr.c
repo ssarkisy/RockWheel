@@ -46,6 +46,9 @@ static struct fileobj_binding
     uint16_t                 writers; /* number of writer streams */
     struct filestr_cache     cache;   /* write mode shared cache */
     file_size_t              size;    /* size of this file */
+    unsigned long            chain;   /* sectors its chain reaches, if more
+                                         than the size's (see
+                                         fileobj_get_chain_sectors()) */
     struct ll_head           list;    /* open streams for this file/dir */
 } fobindings[MAX_FILEOBJS];
 static struct mutex stream_mutexes[MAX_FILEOBJS] SHAREDBSS_ATTR;
@@ -258,6 +261,7 @@ void fileobj_fileop_open(struct filestr_base *stream,
                         (callflags & (FO_DIRECTORY|FO_TRUNC));
         fobp->writers = 0;
         fobp->size    = 0;
+        fobp->chain   = 0;
     }
     else
     {
@@ -375,6 +379,35 @@ file_size_t * fileobj_get_sizep(const struct filestr_base *stream)
         return NULL;
 
     return &((struct fileobj_binding *)stream->bindp)->size;
+}
+
+/* The most sectors the file's cluster chain has, as far as the file layer
+   knows: the limit for freeing it (fat.h). They are the size's, or those it
+   reached before the size went down or a write failed with the chain left
+   as it was. Not known of a folder. */
+unsigned long fileobj_get_chain_sectors(const struct filestr_base *stream)
+{
+    const struct fileobj_binding *fobp =
+        (const struct fileobj_binding *)stream->bindp;
+    if (!fobp || (fobp->flags & FO_DIRECTORY))
+        return FAT_CHAIN_ANY;
+
+    const unsigned int sector_size =
+        fat_file_sector_size(IF_MV(&fobp->bind.info.fatfile));
+    unsigned long sectors = fobp->size / sector_size;
+    if (fobp->size % sector_size)
+        sectors++;
+
+    return MAX(sectors, fobp->chain);
+}
+
+/* the chain reaches that many sectors: no fewer if raise, else as cut to */
+void fileobj_set_chain_sectors(struct filestr_base *stream,
+                               unsigned long sectors, bool raise)
+{
+    struct fileobj_binding *fobp = (struct fileobj_binding *)stream->bindp;
+    if (fobp && !(raise && sectors <= fobp->chain))
+        fobp->chain = sectors;
 }
 
 /* iterate the list of streams for this stream's file */

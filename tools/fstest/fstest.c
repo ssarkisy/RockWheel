@@ -13,7 +13,25 @@
        prints how many writes, and 1 if a rename was in one sector, else 0
    fstest crash <scenario> <img> <journal> <k> <crash-img> <post-img> [1|0]
    fstest errno <img>
+   fstest enospc <img>
+       after "setup dirgrow": errno of a create that finds the folder full
+       on a full volume
    fstest full <img>
+   fstest two <img>
+       after "setup full": a second stream's write fails, having taken a
+       cluster; is the stream right once the first one's sync gave it back
+   fstest wipe <img>
+       removes every file and folder: what the FAT has taken then has leaked
+   fstest damage <operation> <img>
+       of the file whose chain or entry fatimg.py damaged after "setup
+       damage": remove, trunc (written again), cfg (written again as the
+       settings are), touch (opened to be written, and closed), cut (to
+       80000 bytes, in its third cluster), read; or rmdir of the folder
+   fstest mark <img>
+       after "setup damage": a file cut at a sync, its chain then linked
+       into the other file's, removed while open
+   fstest fill <img>
+       the next writer takes every free cluster: is the other file whole
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -668,6 +686,31 @@ static void zero_action(void)
         close(fd);
 }
 
+/* written again shorter, by a cluster: under 64 KB the tail is freed at the
+   close, not at the open */
+#define MIDFILE ROCKBOX_DIR "/mid.dat"
+
+static void trunc_less_setup(void)
+{
+    setup_common();
+    put_file(MIDFILE, 50000, 14, 4096);
+}
+
+static void trunc_less_action(void)
+{
+    put_file(MIDFILE, 10000, 15, 4096);
+}
+
+/* cut to a length that keeps two of its four clusters */
+static void ftruncate_action(void)
+{
+    int fd = open(BIGFILE, O_RDWR);
+    if (fd < 0)
+        return;
+    ftruncate(fd, 40000);
+    close(fd);
+}
+
 /* The scan's file written 8 KB at a time on a volume that fills up, as the
    database's scan writes it: the writes past its last cluster fail, and go
    on once another file is removed */
@@ -735,6 +778,41 @@ static bool full_post(char *verdict, size_t max)
     return same && spare >= 0;
 }
 
+/* Writes larger than a cluster on a volume that fills up: the write that
+   fails has taken clusters by then, which the size doesn't count. The close
+   gives them back; before, a new file's were lost, and an older file kept
+   a chain longer than its size */
+#define BIG_CHUNK 100000
+
+static bool big_write(int fd, size_t size)
+{
+    static char buf[BIG_CHUNK];
+    off_t at = lseek(fd, 0, SEEK_END);
+    bytes(buf, size, FULL_SEED, at);
+    return write(fd, buf, size) == (ssize_t)size;
+}
+
+/* the file's first write is the one that fails */
+static void full_first_action(void)
+{
+    int fd = open(FULL_FILE, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+    if (fd < 0)
+        return;
+    big_write(fd, BIG_CHUNK);
+    close(fd);
+}
+
+/* a file with 20000 bytes in it */
+static void full_big_action(void)
+{
+    int fd = open(FULL_FILE, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+    if (fd < 0)
+        return;
+    big_write(fd, 20000);
+    big_write(fd, BIG_CHUNK);
+    close(fd);
+}
+
 static bool no_post(char *verdict, size_t max)
 {
     verdict[0] = '\0';
@@ -778,7 +856,11 @@ static const struct scenario
     { "mkdir-grow",     dirgrow_setup,  mkdir_grow_action, no_post },
     { "trunc",          trunc_setup,    trunc_action,    no_post },
     { "trunc-zero",     trunc_setup,    zero_action,     no_post },
+    { "trunc-less",     trunc_less_setup, trunc_less_action, no_post },
+    { "ftruncate",      trunc_setup,    ftruncate_action, no_post },
     { "full",           full_setup,     full_action,     full_post },
+    { "full-first",     full_setup,     full_first_action, full_post },
+    { "full-big",       full_setup,     full_big_action, full_post },
 };
 
 static const struct scenario *find(const char *name)
@@ -825,6 +907,300 @@ static void fill_free(void)
     close(fd);
 }
 
+/* Two streams of a file on a full volume. The second's write takes the last
+   free cluster and fails; the first's sync gives the cluster back, and it
+   goes to another file. The second stream must not write by the place it was
+   left at, which is the other file's now. */
+#define TWO_OTHER ROCKBOX_DIR "/other.dat"
+
+static void two_test(void)
+{
+    static char buf[BIG_CHUNK], got[4096];
+    remove(FULL_SPARE);     /* four clusters free: */
+    put_file("/pad.bin", 3 * CLUSTER, 24, 4096);    /* one */
+    int fd1 = open(FULL_FILE, O_CREAT|O_TRUNC|O_RDWR, 0666);
+    int fd2 = open(FULL_FILE, O_WRONLY);
+    if (fd1 < 0 || fd2 < 0)
+        fail("open");
+    bytes(buf, 20000, FULL_SEED, 0);
+    if (write(fd1, buf, 20000) != 20000 || fsync(fd1) < 0)  /* none */
+        fail("write");
+    remove("/pad.bin");
+    put_file("/pad.bin", 2 * CLUSTER, 24, 4096);    /* one */
+    lseek(fd2, 16384, SEEK_SET);
+    bytes(buf, sizeof buf, FULL_SEED, 16384);
+    long failed = write(fd2, buf, sizeof buf);      /* takes it, and fails */
+    if (fsync(fd1) < 0)                             /* gives it back */
+        fail("fsync");
+    put_file(TWO_OTHER, CLUSTER, 25, 4096);         /* which takes it */
+    remove("/pad.bin");
+    /* the file grows to where the second stream was left, by the first */
+    long at = lseek(fd1, 0, SEEK_END);
+    bytes(buf, 2 * CLUSTER - at, FULL_SEED, at);
+    if (write(fd1, buf, 2 * CLUSTER - at) != 2 * CLUSTER - at)
+        fail("write");
+    lseek(fd2, 2 * CLUSTER, SEEK_SET);
+    bytes(buf, 4096, FULL_SEED, 2 * CLUSTER);
+    long more = write(fd2, buf, 4096);
+    int c1 = close(fd1), c2 = close(fd2);
+    /* the file: its bytes of each place, to its end */
+    long size = 0, n;
+    bool same = true;
+    int fd = open(FULL_FILE, O_RDONLY);
+    while (fd >= 0 && same && (n = read(fd, got, sizeof got)) > 0)
+    {
+        bytes(buf, n, FULL_SEED, size);
+        same = !memcmp(got, buf, n);
+        size += n;
+    }
+    close(fd);
+    bool other = same_file(TWO_OTHER, CLUSTER, 25);
+    printf("two streams: %s: the failed write %ld, the one after it %ld, "
+           "closes %d %d, the file %s%ld bytes (%d expected), the other file "
+           "%s\n", same && other && size == 2 * CLUSTER + 4096 && more == 4096
+           && failed < 0 ? "ok" : "BAD", failed, more, c1, c2,
+           same ? "" : "wrong at ", size, 2 * CLUSTER + 4096,
+           other ? "whole" : "NOT WHOLE");
+}
+
+/* what stays taken once everything is removed has leaked */
+static void wipe(const char *dir)
+{
+    char path[MAX_PATH];
+    DIR *d = opendir(dir);
+    if (!d)
+        fail(dir);
+    struct dirent *e;
+    while ((e = readdir(d)))
+    {
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, ".."))
+            continue;
+        snprintf(path, sizeof path, "%s/%s", dir[1] ? dir : "", e->d_name);
+        if (dir_get_info(d, e).attribute & ATTR_DIRECTORY)
+        {
+            wipe(path);
+            if (rmdir(path) < 0)
+                fail(path);
+        }
+        else if (remove(path) < 0)
+            fail(path);
+    }
+    closedir(d);
+}
+
+/** Damage: a FAT whose chains name clusters wrongly (fatimg.py damage). An
+    operation on the damaged file may lose space; it must not touch the
+    other file, nor write anywhere by a number that is no cluster's. **/
+#define DMG_FILE  ROCKBOX_DIR "/victim.dat"
+#define DMG_OTHER ROCKBOX_DIR "/bystander.dat"
+#define DMG_DIR   ROCKBOX_DIR "/emptydir"
+#define DMG_SIZE  100000    /* four clusters, and over O_TRUNC_THRESH */
+
+/* same_file() of a file that long */
+static bool same_long(const char *path, long size, unsigned seed)
+{
+    static char got[4096], want[4096];
+    long total = 0, n;
+    int fd = open(path, O_RDONLY);
+    if (fd < 0)
+        return false;
+    while ((n = read(fd, got, sizeof got)) > 0)
+    {
+        bytes(want, n, seed, total);
+        if (memcmp(got, want, n))
+            break;
+        total += n;
+    }
+    close(fd);
+    return n == 0 && total == size;
+}
+
+static void damage_setup(void)
+{
+    setup_common();
+    put_file(DMG_FILE, DMG_SIZE, 31, 4096);
+    put_file(DMG_OTHER, DMG_SIZE, 32, 4096);
+    if (mkdir(DMG_DIR) < 0)
+        fail("mkdir");
+}
+
+static bool damage_op(const char *op, char *verdict, size_t max)
+{
+    bool ok;
+    errno = 0;
+    if (!strcmp(op, "remove") || !strcmp(op, "rmdir"))
+    {
+        const bool dir = op[1] == 'm';
+        int rc = dir ? rmdir(DMG_DIR) : remove(DMG_FILE);
+        int e = errno;
+        bool gone = dir ? !dir_exists(DMG_DIR) : !file_exists(DMG_FILE);
+        snprintf(verdict, max, "%s %d (errno %d), the name is %s", op, rc,
+                 rc < 0 ? e : 0, gone ? "gone" : "there");
+        ok = rc == 0 && gone;
+    }
+    else if (!strcmp(op, "trunc"))
+    {
+        /* as a file of the database is written again */
+        static char buf[10000];
+        bytes(buf, sizeof buf, 33, 0);
+        int fd = open(DMG_FILE, O_TRUNC|O_WRONLY);
+        int e = errno;
+        long w = fd < 0 ? -1 : write(fd, buf, sizeof buf);
+        int c = fd < 0 ? -1 : close(fd);
+        ok = c == 0 && same_file(DMG_FILE, sizeof buf, 33);
+        snprintf(verdict, max, "open %s (errno %d), write %ld, close %d, "
+                 "the file is %s", fd < 0 ? "failed" : "ok", fd < 0 ? e : 0,
+                 w, c, ok ? "the new one" : "not the new one");
+    }
+    else if (!strcmp(op, "cfg"))
+    {
+        static char got[65536], want[65536];
+        bool saved = cfg_write(DMG_FILE, &cfg_b);
+        int e = errno;
+        size_t len = cfg_text(&cfg_b, want, sizeof want);
+        ok = saved && get_file(DMG_FILE, got, sizeof got) == (long)len
+             && !memcmp(got, want, len);
+        snprintf(verdict, max, "the save %s (errno %d), the file is %s",
+                 saved ? "went well" : "failed", saved ? 0 : e,
+                 ok ? "the new one" : "not the new one");
+    }
+    else if (!strcmp(op, "cut"))
+    {
+        int fd = open(DMG_FILE, O_RDWR);
+        int t = fd < 0 ? -1 : ftruncate(fd, 80000);
+        int e = errno;
+        int c = fd < 0 ? -1 : close(fd);
+        ok = t == 0 && c == 0;
+        snprintf(verdict, max, "ftruncate %s (errno %d), close %d",
+                 t < 0 ? "failed" : "ok", t < 0 ? e : 0, c);
+    }
+    else if (!strcmp(op, "touch"))
+    {
+        int fd = open(DMG_FILE, O_WRONLY);
+        int e = errno;
+        int c = fd < 0 ? -1 : close(fd);
+        ok = c == 0;
+        snprintf(verdict, max, "open %s (errno %d), close %d",
+                 fd < 0 ? "failed" : "ok", fd < 0 ? e : 0, c);
+    }
+    else if (!strcmp(op, "read"))
+    {
+        static char got[4096], want[4096];
+        long total = 0, n = -1;
+        bool right = true;
+        int fd = open(DMG_FILE, O_RDONLY);
+        long size = fd < 0 ? -1 : (long)ffilesize(fd);
+        while (fd >= 0 && (n = read(fd, got, sizeof got)) > 0)
+        {
+            bytes(want, n, 31, total);
+            right = right && !memcmp(got, want, n);
+            total += n;
+        }
+        int e = errno;
+        if (fd >= 0)
+            close(fd);
+        snprintf(verdict, max, "read %ld of %ld bytes, %s, then %ld (errno "
+                 "%d)", total, size,
+                 right ? "all the file's own" : "NOT the file's own", n,
+                 n < 0 ? e : 0);
+        ok = right;
+    }
+    else
+    {
+        fprintf(stderr, "fstest: no operation %s\n", op);
+        exit(2);
+    }
+    return ok;
+}
+
+static const char *errno_name(int e)
+{
+    return e == ENOENT ? "ENOENT" : e == EEXIST ? "EEXIST" :
+           e == EISDIR ? "EISDIR" : e == EINVAL ? "EINVAL" :
+           e == ENOSPC ? "ENOSPC" : e == EBADF ? "EBADF" : e ? "other" : "0";
+}
+
+/* A file removed while open is freed by the limit of that moment: here the
+   chain was two clusters when the file was opened to be emptied, one after
+   the sync that cut it, and is then linked into the other file's, in the
+   FAT on the disk. The limit must be the one cluster. (fstest's fat.c checks
+   a chain's length at a writer's close, so the last close is a reader's.) */
+#define MARK_FILE ROCKBOX_DIR "/mark.dat"
+
+static long first_cluster(const char *path)
+{
+    struct filestr_base stream;
+    if (open_stream_internal(path, FF_ANYTYPE, &stream, NULL) <= 0)
+        fail(path);
+    long cluster = stream.infop->fatfile.firstcluster;
+    close_stream_internal(&stream);
+    return cluster;
+}
+
+static void mark_test(void)
+{
+    static char buf[10000];
+    uint32_t fat[512 / 4];
+    uint64_t start, data;
+    put_file(MARK_FILE, 50000, 35, 4096);
+    bytes(buf, sizeof buf, 36, 0);
+    int fd = open(MARK_FILE, O_TRUNC|O_WRONLY);
+    if (fd < 0 || write(fd, buf, sizeof buf) != sizeof buf || fsync(fd) < 0)
+        fail("write");
+    int rd = open(MARK_FILE, O_RDONLY);
+    if (rd < 0 || close(fd) < 0)
+        fail("open");
+    long mine = first_cluster(MARK_FILE), other = first_cluster(DMG_OTHER);
+    /* the cache emptied, the links are changed below it, in both FATs */
+    dc_lock_cache();
+    dc_commit_all(IF_MV(0));
+    dc_discard_all(IF_MV(0));
+    dc_unlock_cache();
+    fat_get_offsets(IF_MV(0,) &start, &data);
+    const long fatsz = (data / 512 - 32) / 2;
+    if (host_read(32 + other / 128, 1, fat) < 0)
+        fail("FAT");
+    const uint32_t second = fat[other % 128];
+    for (int copy = 0; copy < 2; copy++)
+    {
+        const long sector = 32 + copy * fatsz + mine / 128;
+        if (host_read(sector, 1, fat) < 0)
+            fail("FAT");
+        fat[mine % 128] = second;
+        if (host_write(sector, 1, fat) < 0)
+            fail("FAT");
+    }
+    int rm = remove(MARK_FILE), c = close(rd);
+    put_file(ROCKBOX_DIR "/next.dat", 100, 34, 100);
+    bool whole = same_long(DMG_OTHER, DMG_SIZE, 32);
+    fat_recalc_free(IF_MV(0));
+    fill_free();
+    bool after = same_long(DMG_OTHER, DMG_SIZE, 32);
+    printf("chain mark: %s: remove %d, close %d, the other file is %s, and "
+           "%s after the next writer", rm == 0 && c == 0 && whole && after ?
+           "ok" : "BAD", rm, c, whole ? "whole" : "NOT WHOLE",
+           after ? "whole" : "NOT WHOLE");
+#ifdef FAT_CHAIN_ANY
+    const struct fat_free_stops *s = fat_get_free_stops();
+    printf("; stops: %u range, %u limit", s->range, s->limit);
+#endif
+    printf("\n");
+}
+
+/* a create that needs another cluster for its folder's entry, and none is
+   free */
+static void enospc_test(void)
+{
+    fill_free();
+    errno = 0;
+    int fd = open(GROWDIR "/Track 511.m4a", O_CREAT|O_WRONLY, 0666);
+    printf("open(%s) to create it, the folder and the volume full: fd %d, "
+           "errno %s, ENOSPC expected\n", GROWDIR "/Track 511.m4a", fd,
+           errno_name(errno));
+    if (fd >= 0)
+        close(fd);
+}
+
 static void errno_test(void)
 {
     static const struct { const char *path; int oflag; const char *want; }
@@ -841,9 +1217,7 @@ static void errno_test(void)
         int fd = open(t[i].path, t[i].oflag, 0666);
         int e = errno;
         printf("open(%s): fd %d, errno %s, %s expected\n", t[i].path, fd,
-               e == ENOENT ? "ENOENT" : e == EEXIST ? "EEXIST" :
-               e == EISDIR ? "EISDIR" : e == EINVAL ? "EINVAL" :
-               e == EBADF ? "EBADF" : e ? "other" : "0", t[i].want);
+               errno_name(e), t[i].want);
         if (fd >= 0)
             close(fd);
     }
@@ -932,7 +1306,10 @@ int main(int argc, char *argv[])
     {
         layout = argc == 5 ? atoi(argv[4]) : 0;
         fs_mount(argv[3]);
-        find(argv[2])->setup();
+        if (!strcmp(argv[2], "damage"))
+            damage_setup();
+        else
+            find(argv[2])->setup();
         fs_unmount();
     }
     else if (!strcmp(cmd, "action") && (argc == 5 || argc == 6))
@@ -960,6 +1337,59 @@ int main(int argc, char *argv[])
         fill_free();
         fs_unmount();
         printf("%s %s\n", ok ? "ok" : "BAD", verdict);
+    }
+    else if (!strcmp(cmd, "two") && argc == 3)
+    {
+        fs_mount(argv[2]);
+        two_test();
+        fs_unmount();
+    }
+    else if (!strcmp(cmd, "wipe") && argc == 3)
+    {
+        fs_mount(argv[2]);
+        wipe("/");
+        fs_unmount();
+    }
+    else if (!strcmp(cmd, "damage") && argc == 4)
+    {
+        fs_mount(argv[3]);
+        fat_recalc_free(IF_MV(0));
+        bool ok = damage_op(argv[2], verdict, sizeof verdict);
+        /* the next write commits what the operation left in the cache */
+        put_file(ROCKBOX_DIR "/next.dat", 100, 34, 100);
+        printf("%s %s; the other file is %s", ok ? "ok:" : "failed:", verdict,
+               same_long(DMG_OTHER, DMG_SIZE, 32) ? "whole" : "NOT WHOLE");
+#ifdef FAT_CHAIN_ANY
+        const struct fat_free_stops *s = fat_get_free_stops();
+        if (s->last != FAT_STOP_NONE)
+            printf("; stops: %u range, %u limit, the last at %ld after %lu "
+                   "freed", s->range, s->limit, s->cluster, s->freed);
+        else
+            printf("; stops: none");
+#endif
+        printf("\n");
+        fs_unmount();
+    }
+    else if (!strcmp(cmd, "fill") && argc == 3)
+    {
+        fs_mount(argv[2]);
+        fat_recalc_free(IF_MV(0));
+        fill_free();
+        printf("%s\n", same_long(DMG_OTHER, DMG_SIZE, 32) ?
+               "whole" : "NOT WHOLE");
+        fs_unmount();
+    }
+    else if (!strcmp(cmd, "mark") && argc == 3)
+    {
+        fs_mount(argv[2]);
+        mark_test();
+        fs_unmount();
+    }
+    else if (!strcmp(cmd, "enospc") && argc == 3)
+    {
+        fs_mount(argv[2]);
+        enospc_test();
+        fs_unmount();
     }
     else if (!strcmp(cmd, "errno") && argc == 3)
     {

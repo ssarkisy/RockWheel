@@ -47,6 +47,9 @@ void fileobj_fileop_remove(struct filestr_base *stream,
 void fileobj_fileop_sync(struct filestr_base *stream);
 
 file_size_t * fileobj_get_sizep(const struct filestr_base *stream);
+unsigned long fileobj_get_chain_sectors(const struct filestr_base *stream);
+void fileobj_set_chain_sectors(struct filestr_base *stream,
+                               unsigned long sectors, bool raise);
 unsigned int fileobj_get_flags(const struct filestr_base *stream);
 struct filestr_base * fileobj_get_next_stream(const struct filestr_base *stream,
                                               const struct filestr_base *s);

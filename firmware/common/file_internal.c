@@ -623,6 +623,12 @@ int open_stream_internal(const char *path, unsigned int callflags,
         /* FF_PROBE leaves nothing for caller to clean up */
         if (walk.callflags & FF_PROBE)
             filestr_base_destroy(stream);
+        else if (fileobj_get_flags(stream) & FO_SINGLE)
+        {
+            /* the first stream: the entry's size, the limit when its
+               clusters are freed */
+            *fileobj_get_sizep(stream) = walk.filesize;
+        }
     }
     else
     {
@@ -645,7 +651,8 @@ int close_stream_internal(struct filestr_base *stream)
     if ((foflags & (FO_SINGLE|FO_REMOVED)) == (FO_SINGLE|FO_REMOVED))
     {
         /* nothing is referencing it so now remove the file's data */
-        rc = fat_remove(&stream->infop->fatfile, FAT_RM_DATA);
+        rc = fat_remove(&stream->infop->fatfile, FAT_RM_DATA,
+                        fileobj_get_chain_sectors(stream));
         if (rc < 0)
         {
             DEBUGF("I/O error removing file data: %d\n", rc);
@@ -721,7 +728,7 @@ int remove_stream_internal(const char *path, struct filestr_base *stream,
 
     /* save old info since fat_remove() will destroy the dir info */
     struct file_base_info oldinfo = *stream->infop;
-    rc = fat_remove(&stream->infop->fatfile, FAT_RM_DIRENTRIES);
+    rc = fat_remove(&stream->infop->fatfile, FAT_RM_DIRENTRIES, 0);
     if (rc < 0)
     {
         DEBUGF("I/O error removing dir entries: %d\n", rc);

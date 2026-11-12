@@ -259,9 +259,18 @@ static int ftruncate_internal(struct filestr_desc *file, file_size_t size,
         if (rc2 < 0)
             FILE_ERROR(EIO, rc2 * 10 - 2);
 
-        rc2 = fat_truncate(&file->stream.fatstr);
+        rc2 = fat_truncate(&file->stream.fatstr,
+                           fileobj_get_chain_sectors(&file->stream));
         if (rc2 < 0)
             FILE_ERROR(EIO, rc2 * 10 - 3);
+
+        /* the chain is the new size's now; cut to nothing, it keeps its
+           first cluster until the close */
+        if (rc2 > 0)
+        {
+            fileobj_set_chain_sectors(&file->stream, sector ||
+                !file->stream.fatstr.fatfilep->firstcluster ? 0 : 1, false);
+        }
 
         /* never needs to be done this way again since any data beyond the
            cached size is now gone */
@@ -270,10 +279,12 @@ static int ftruncate_internal(struct filestr_desc *file, file_size_t size,
     /* else just change the cached file size */
 
     if (truncsize < cursize)
-    {
         *file->sizep = truncsize;
+
+    /* also with the size as it was: the chain was cut to it, and a stream
+       whose write failed rests past its end */
+    if (truncsize < cursize || write_now)
         handle_truncate(file, truncsize);
-    }
 
     /* if truncation was partially successful, it effectively destroyed
        everything after the truncation point; still, indicate failure
@@ -439,8 +450,20 @@ static int open_internal_inner2(const char *path,
 
         if (callflags & FO_TRUNC)
         {
-            /* if the file is kind of "big" then free some space now */
-            rc = ftruncate_internal(file, 0, *file->sizep >= O_TRUNC_THRESH);
+            /* if the file is kind of "big" then free some space now; one
+               that let go of a bad first cluster has nothing left to free */
+            const bool now = fat_drop_bad_start(&file->stream.fatstr) ||
+                             *file->sizep >= O_TRUNC_THRESH;
+
+            /* put off, the chain stays as long as the size was */
+            if (!now)
+            {
+                fileobj_set_chain_sectors(&file->stream, filesize_sectors(
+                    fat_file_sector_size(IF_MV(file->stream.fatstr.fatfilep)),
+                    *file->sizep), true);
+            }
+
+            rc = ftruncate_internal(file, 0, now);
             if (rc < 0)
             {
                 DEBUGF("O_TRUNC failed: %d\n", rc);
@@ -791,6 +814,18 @@ file_error:;
 
         if (rc > 0)
             return done;
+    }
+
+    if (write && rc < 0)
+    {
+        /* a write that failed may have taken clusters the size doesn't
+           count: the next sync or the close cuts the chain back to it */
+        unsigned long reached = fat_query_sectornum(&file->stream.fatstr);
+        if (reached > filesize_sectors(sector_size, *file->sizep))
+        {
+            fileobj_set_chain_sectors(&file->stream, reached, true);
+            fileobj_change_flags(&file->stream, FO_TRUNC, FO_TRUNC);
+        }
     }
 
     return rc;
