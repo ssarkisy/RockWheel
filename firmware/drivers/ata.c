@@ -389,12 +389,43 @@ int ata_flush(void)
     return 0;
 }
 
+/* BSY clear without DRQ is a refusal only with ERR or DF. Otherwise the
+   drive has 10-20 ms from that look to raise BSY or DRQ. */
+#define DRQ_WAIT_TICKS 2
+#define DRQ_BSY_AGAIN  8 /* looks that found BSY up again right after it cleared */
+
 static ICODE_ATTR int wait_for_start_of_transfer(void)
 {
-    if (!wait_for_bsy())
-        return 0;
+    long timeout = 0;
+    bool waiting = false;
+    int again = 0;
 
-    return (ATA_IN8(ATA_ALT_STATUS) & (STATUS_BSY|STATUS_DRQ)) == STATUS_DRQ;
+    while (wait_for_bsy())
+    {
+        const int status = ATA_IN8(ATA_ALT_STATUS);
+
+        if (status & STATUS_BSY)
+        {
+            if (++again > DRQ_BSY_AGAIN)
+                break;
+            continue;
+        }
+        if (status & STATUS_DRQ)
+            return 1;
+        if (status & (STATUS_ERR|STATUS_DF))
+            break;
+
+        if (!waiting)
+        {
+            waiting = true;
+            timeout = current_tick + DRQ_WAIT_TICKS;
+        }
+        else if (!TIME_BEFORE(current_tick, timeout))
+            break;
+        yield();
+    }
+
+    return 0;
 }
 
 static ICODE_ATTR int wait_for_end_of_transfer(void)
