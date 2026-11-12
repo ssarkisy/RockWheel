@@ -29,6 +29,10 @@
    touches no file. */
 void health_note(const char *fmt, ...) ATTRIBUTE_PRINTF(1, 2);
 
+/* A line of the volume's free clusters: as USB connects, before the flush;
+   the first flush since boot adds one itself if none came before */
+void health_note_free(void);
+
 /* The lines since the last time, written: from system_flush() only, so as
    USB connects and at power off, not during use */
 void health_flush(void);

@@ -35,6 +35,12 @@
 #define HAVE_ATA_COUNTERS /* firmware/drivers/ata.c is built */
 #endif
 
+#if CONFIG_PLATFORM & PLATFORM_NATIVE
+#include "fat.h"
+#include "mv.h"
+#define HAVE_FAT_LINES /* firmware/common/fat.c is built */
+#endif
+
 #define HEALTH_FILE     ROCKBOX_DIR "/health.log"
 #define HEALTH_OLD_FILE ROCKBOX_DIR "/health.old.log"
 #define HEALTH_FILE_MAX (64 * 1024) /* set aside as the old one from this size */
@@ -144,16 +150,80 @@ static inline void ata_line_written(void)
 }
 #endif
 
+#ifdef HAVE_FAT_LINES
+static bool free_noted; /* since boot */
+
+/* The count is the one kept in memory since the mount (FSInfo's, then every
+   cluster taken or freed): nothing is read from the disk for it. */
+void health_note_free(void)
+{
+    sector_t size_kb, free_kb;
+    const unsigned int cluster_kb = volume_get_cluster_size(IF_MV(0)) / 1024;
+    volume_size(IF_MV(0,) &size_kb, &free_kb);
+    if (!cluster_kb)
+        return;
+
+    free_noted = true;
+    health_note("fat: %lu clusters free of %lu, %u KB each",
+                (unsigned long)(free_kb / cluster_kb),
+                (unsigned long)(size_kb / cluster_kb), cluster_kb);
+}
+
+/* The chains whose freeing stopped short (fat.h), on a line as the drive's,
+   when there are more of either kind than at the last line written */
+static struct fat_free_stops stops_noted, stops_seen;
+
+static int fat_line(char *line, size_t size)
+{
+    /* a copy made without a yield: fat.c changes it under other threads */
+    stops_seen = *fat_get_free_stops();
+    if (stops_seen.range == stops_noted.range
+        && stops_seen.limit == stops_noted.limit)
+        return 0;
+    return snprintf(line, size, "%ld fat: freeing stopped %u times at a"
+                    " number outside the volume, %u at the file's limit; the"
+                    " last, %s, at cluster %ld after %lu freed\n",
+                    current_tick / HZ, stops_seen.range, stops_seen.limit,
+                    stops_seen.last == FAT_STOP_RANGE ? "outside" : "limit",
+                    stops_seen.cluster, stops_seen.freed);
+}
+
+static inline void fat_line_written(void)
+{
+    stops_noted = stops_seen;
+}
+#else
+void health_note_free(void)
+{
+}
+
+static inline int fat_line(char *line, size_t size)
+{
+    (void)line;
+    (void)size;
+    return 0;
+}
+
+static inline void fat_line_written(void)
+{
+}
+#endif
+
 void health_flush(void)
 {
-    /* the drive's line goes to the file itself, after the lines kept: it
-       needs no room among them */
-    char drive[NOTE_MAX];
+#ifdef HAVE_FAT_LINES
+    if (!free_noted) /* the first flush since boot, if no USB came before */
+        health_note_free();
+#endif
+    /* the drive's line and the FAT's go to the file itself, after the lines
+       kept: they need no room among them */
+    char drive[NOTE_MAX], fat[NOTE_MAX];
     const int drive_len = ata_line(drive, sizeof(drive));
+    const int fat_len = fat_line(fat, sizeof(fat));
     /* lines that come while this writes wait for the next time */
     const int len = notes_len;
     const int lost = notes_lost;
-    if (!len && !drive_len)
+    if (!len && !drive_len && !fat_len)
         return;
 
     int fd = open(HEALTH_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -189,7 +259,8 @@ void health_flush(void)
         n = snprintf(text, sizeof(text), "%d more lines found no room\n", lost);
         ok = write(fd, text, n) == n;
     }
-    ok = ok && (!drive_len || write(fd, drive, drive_len) == drive_len);
+    ok = ok && (!drive_len || write(fd, drive, drive_len) == drive_len)
+            && (!fat_len || write(fd, fat, fat_len) == fat_len);
     /* none of it rather than a part: it is all written again next time */
     if (!ok)
         ftruncate(fd, size);
@@ -198,6 +269,8 @@ void health_flush(void)
 
     if (drive_len)
         ata_line_written();
+    if (fat_len)
+        fat_line_written();
     notes_len -= len;
     memmove(notes, notes + len, notes_len);
     notes_lost -= lost;

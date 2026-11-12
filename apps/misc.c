@@ -712,6 +712,7 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
             intptr_t seqnum = button_get_data();
             if (callback != NULL)
                 callback(parameter);
+            health_note_free();
             system_flush();
 #ifdef BOOTFILE
 #if !defined(USB_NONE) && !defined(USB_HANDLED_BY_OF)
