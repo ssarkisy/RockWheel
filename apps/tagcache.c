@@ -3206,7 +3206,8 @@ bool tagcache_find_album_art(const char *filename, struct itunesdb_art *art)
     if (!tc_stat.ready || !tc_stat.ramcache)
         return false;
     const int idx_id = find_entry_ram(filename);
-    if (idx_id < 0)
+    /* its search may have yielded, and the database gone from memory */
+    if (idx_id < 0 || !tc_stat.ready || !tc_stat.ramcache)
         return false;
     /* the names where they are, held still while they're read */
     tcrc_buffer_lock();

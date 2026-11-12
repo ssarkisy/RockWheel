@@ -132,6 +132,22 @@ int playlist_create_from_index(const char *dir, const char *file, int fd,
 int playlist_place_of(const char *dir, const char *file, int count,
                       unsigned long seek);
 int playlist_resume(void);
+/* playlist_resume() with nothing shown and no keys read, for the boot and
+   Updating Library, with nothing playing: the list in memory before Resume
+   Playback is chosen. Given up, and no list left, on any error or once
+   reading the control file and the playlist's file has taken 5 s. The
+   orders the control file asks for, a sort, a shuffle or one by albums,
+   aren't under that limit: each runs to its end, as for Resume Playback.
+   True with the list loaded. */
+bool playlist_preload(void);
+/* The current playlist is as playlist_resume() or playlist_preload() read
+   it, with no change made through the playlist's functions since. Not
+   enough to take it for what the files say: a playlist's file can be
+   written again by others. The caller knows nothing could have, as the main
+   menu does while it has been showing since. */
+bool playlist_resumed(void);
+/* the files it was read from may be others: a library update, USB */
+void playlist_resume_forget(void);
 /* a new playlist shuffled by the setting, albums or songs */
 int playlist_shuffle(int random_seed, int start_index);
 /* Shuffle as shown beside the music: how its list is ordered; the setting

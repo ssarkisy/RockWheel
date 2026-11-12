@@ -225,6 +225,18 @@ static long playlist_stack[(DEFAULT_STACK_SIZE + 0x800)/sizeof(long)];
 static const char dc_thread_playlist_name[] = "playlist cachectrl";
 #endif
 
+/* The current playlist is as playlist_resume() read it, all of its control
+   file, and nothing here has changed it since: dropped by whatever stops the
+   dircache's scan to change it, writes or shuts its control file, or starts
+   it playing. It says nothing of the files, which others write: see
+   playlist_resumed(). */
+static bool resumed;
+/* playlist_preload()'s load: nothing shown, no keys read, given up after
+   resume_deadline */
+static bool resume_quiet;
+static long resume_deadline;
+#define PRELOAD_TICKS (5 * HZ)
+
 #define playlist_read_lock(p)       mutex_lock(&(p)->mutex)
 #define playlist_read_unlock(p)     mutex_unlock(&(p)->mutex)
 #define playlist_write_lock(p)      mutex_lock(&(p)->mutex)
@@ -237,9 +249,13 @@ static const char dc_thread_playlist_name[] = "playlist cachectrl";
                             __func__, ID2P(LANG_PLAYLIST_CONTROL_ACCESS_ERROR)))
 #else
 static void notify_access_error(void) {
+    if (resume_quiet)
+        return;
     splash(HZ*2, ID2P(LANG_PLAYLIST_ACCESS_ERROR));
 }
 static void notify_control_access_error(void) {
+    if (resume_quiet)
+        return;
     splash(HZ*2, ID2P(LANG_PLAYLIST_CONTROL_ACCESS_ERROR));
 }
 #endif
@@ -249,6 +265,8 @@ static void notify_control_access_error(void) {
  */
 static void notify_buffer_full(void)
 {
+    if (resume_quiet)
+        return;
     splash(HZ*2, ID2P(LANG_PLAYLIST_BUFFER_FULL));
 }
 
@@ -265,11 +283,12 @@ static void dc_thread_start(struct playlist_info *playlist, bool is_dirty)
 
 static void dc_thread_stop(struct playlist_info *playlist)
 {
+    /* before each change of the current playlist */
+    if (playlist == &current_playlist)
+        resumed = false;
 #ifdef HAVE_DIRCACHE
     if (playlist == &current_playlist)
         queue_send(&playlist_queue, PLAYLIST_DC_SCAN_STOP, 0);
-#else
-    (void)playlist;
 #endif
 }
 
@@ -319,6 +338,8 @@ static void pl_close_playlist(struct playlist_info *playlist)
  */
 static void pl_close_control(struct playlist_info *playlist)
 {
+    if (playlist == &current_playlist)
+        resumed = false;
     pl_close_fd(&playlist->control_fd);
 }
 
@@ -417,6 +438,8 @@ static int update_control_unlocked(struct playlist_info* playlist,
     int fd = playlist->control_fd;
     int result;
 
+    if (playlist == &current_playlist)
+        resumed = false;
     lseek(fd, 0, SEEK_END);
 
     switch (command)
@@ -761,6 +784,12 @@ static int add_indices_to_playlist(struct playlist_info* playlist,
 
     while(1)
     {
+        /* a quiet load that takes too long is given up */
+        if (resume_quiet && TIME_AFTER(current_tick, resume_deadline))
+        {
+            result = -1;
+            goto exit;
+        }
         nread = read(playlist->fd, (char *)buffer + shift, buflen - shift);
         /* Terminate on EOF */
         if(nread <= 0)
@@ -793,7 +822,7 @@ static int add_indices_to_playlist(struct playlist_info* playlist,
                     dc_init_filerefs(playlist, playlist->amount, 1);
                     playlist->amount++;
 
-                    if (TIME_AFTER(current_tick, loading_tick))
+                    if (!resume_quiet && TIME_AFTER(current_tick, loading_tick))
                     {
                         loading_tick += HZ*10;
                         splash(0, ID2P(LANG_WAIT));
@@ -3869,11 +3898,13 @@ int playlist_resume(void)
     int total_read = 0;
     int control_file_size = 0;
     bool sorted = true;
+    bool complete = false; /* the control file read to its end */
     struct resume_order order = { .command = PLAYLIST_COMMAND_COMMENT };
     int result = -1;
     enum playlist_command (*pl_cmd)(char) = &pl_cmds_start;
 
-    splash(0, ID2P(LANG_WAIT));
+    if (!resume_quiet)
+        splash(0, ID2P(LANG_WAIT));
     cpu_boost(true);
 
     struct playlist_info* playlist = &current_playlist;
@@ -3889,7 +3920,8 @@ int playlist_resume(void)
     handle = alloc_tempbuf(&buflen);
     if (handle < 0)
     {
-        splashf(HZ * 2, "%s(): OOM", __func__);
+        if (!resume_quiet)
+            splashf(HZ * 2, "%s(): OOM", __func__);
         goto out_nolock;
     }
 
@@ -3951,11 +3983,14 @@ int playlist_resume(void)
         for(count=0; count<nread && !exit_loop; count++,p++)
         {
             /* Show a splash while we are loading. */
-            splash_progress((total_read + count), control_file_size,
-                         "%s (%s)", str(LANG_WAIT), str(LANG_OFF_ABORT));
+            if (!resume_quiet)
+                splash_progress((total_read + count), control_file_size,
+                             "%s (%s)", str(LANG_WAIT), str(LANG_OFF_ABORT));
             if (TIME_AFTER(current_tick, last_tick + HZ/4))
             {
-                if (action_userabort(TIMEOUT_NOBLOCK))
+                /* a quiet load reads no keys: given up by its time */
+                if (resume_quiet ? TIME_AFTER(current_tick, resume_deadline)
+                                 : action_userabort(TIMEOUT_NOBLOCK))
                 {
                     useraborted = true;
                     exit_loop = true;
@@ -4029,7 +4064,14 @@ int playlist_resume(void)
                             /* NOTE: add_indices_to_playlist() overwrites the
                                audiobuf so we need to reload control file
                                data */
-                            add_indices_to_playlist(playlist, buffer, buflen);
+                            if (add_indices_to_playlist(playlist, buffer,
+                                                        buflen) < 0
+                                && resume_quiet)
+                            {
+                                /* not a part of it, quietly */
+                                result = -1;
+                                goto out;
+                            }
                         }
                         else if (strp[1][0] != '\0')
                         {
@@ -4197,13 +4239,15 @@ int playlist_resume(void)
 
         if (result < 0 || current_command == PLAYLIST_COMMAND_ERROR)
         {
-            splashf(HZ*2, "Err: %d, %s", result, str(LANG_PLAYLIST_CONTROL_INVALID));
+            if (!resume_quiet)
+                splashf(HZ*2, "Err: %d, %s", result, str(LANG_PLAYLIST_CONTROL_INVALID));
             goto out;
         }
 
         if (useraborted)
         {
-            splash(HZ*2, ID2P(LANG_CANCEL));
+            if (!resume_quiet)
+                splash(HZ*2, ID2P(LANG_CANCEL));
             result = -1;
             goto out;
         }
@@ -4213,7 +4257,8 @@ int playlist_resume(void)
             if ((total_read + count) >= control_file_size)
             {
                 /* no newline at end of control file */
-                splashf(HZ*2, "Err: EOF, %s", str(LANG_PLAYLIST_CONTROL_INVALID));
+                if (!resume_quiet)
+                    splashf(HZ*2, "Err: EOF, %s", str(LANG_PLAYLIST_CONTROL_INVALID));
                 result = -15;
                 goto out;
             }
@@ -4235,6 +4280,17 @@ int playlist_resume(void)
         }
     }
 
+    /* An order, a sort or a shuffle, by albums one pass over every track,
+       can't be given up part way: those of the lines read above ran to
+       their end, and so does the last one here, which a quiet load out of
+       time doesn't begin */
+    if (resume_quiet && TIME_AFTER(current_tick, resume_deadline))
+    {
+        result = -1;
+        goto out;
+    }
+    complete = true;
+
     /* before the index is the resumed one: an order reads the track at it */
     resume_order_unlocked(playlist, &order, &sorted);
 
@@ -4243,6 +4299,13 @@ int playlist_resume(void)
     }
 
 out:
+    if (resume_quiet && !complete)
+    {
+        /* a quiet load that didn't read it all leaves none, as before it:
+           Resume Playback loads it then, and says what's wrong */
+        order.command = PLAYLIST_COMMAND_COMMENT;
+        empty_playlist_unlocked(playlist, true);
+    }
     resume_order_unlocked(playlist, &order, &sorted);
     playlist_write_unlock(playlist);
 
@@ -4251,7 +4314,33 @@ out_nolock:
     talk_buffer_set_policy(TALK_BUFFER_DEFAULT);
     core_free(handle);
     cpu_boost(false);
+    /* all of it read, and nothing has changed it yet */
+    resumed = complete && playlist->control_fd >= 0;
+    DEBUGF("playlist resume: %s, %d tracks, %s\n",
+           resume_quiet ? "quiet" : "shown", playlist->amount,
+           complete ? "all read" : "not all read");
     return result;
+}
+
+bool playlist_preload(void)
+{
+    if (audio_status())
+        return false;
+    resume_quiet = true;
+    resume_deadline = current_tick + PRELOAD_TICKS;
+    playlist_resume();
+    resume_quiet = false;
+    return resumed;
+}
+
+bool playlist_resumed(void)
+{
+    return resumed;
+}
+
+void playlist_resume_forget(void)
+{
+    resumed = false;
 }
 
 /* resume a playlist track with the given crc_32 of the track name. */
@@ -4483,6 +4572,7 @@ void playlist_start(int start_index, unsigned long elapsed,
     start_count++;
     struct playlist_info* playlist = &current_playlist;
     resume_path[0] = '\0'; /* another list, or this one going on */
+    resumed = false;       /* it plays from here: passed, stepped over */
 
     playlist_write_lock(playlist);
 

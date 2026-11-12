@@ -654,6 +654,21 @@ static int shuffle_albums(void* param)
     return tagtree_shuffle_songs(true) ? GO_TO_WPS : GO_TO_PREVIOUS;
 }
 #endif
+/* The list to resume is in memory as its files have it: read under the boot
+   logo, on Updating Library or by the USB screen, with the main menu alone
+   shown since, where nothing writes a playlist's file. Any other screen
+   left for and Resume Playback loads it again, as it always did. */
+static bool resume_fresh;
+
+/* the list for Resume Playback: playlist_resume()'s answer, without the
+   load and its wait when it's there already */
+static int resume_list(void)
+{
+    const bool fresh = resume_fresh;
+    resume_fresh = false; /* it plays, or isn't to be played */
+    return fresh && playlist_resumed() ? 0 : playlist_resume();
+}
+
 static int wpsscrn(void* param)
 {
     int ret_val = GO_TO_PREVIOUS;
@@ -675,6 +690,7 @@ static int wpsscrn(void* param)
 
     if (audstatus)
     {
+        resume_fresh = false; /* nothing to resume: it plays */
         talk_shutup();
         ret_val = gui_wps_show();
     }
@@ -684,7 +700,7 @@ static int wpsscrn(void* param)
                global_status.resume_index,
                (unsigned long)global_status.resume_crc32,
                (unsigned long)global_status.resume_offset);
-        loaded = playlist_resume();
+        loaded = resume_list();
         if (loaded != -1)
         {
             /* its songs may be gone since the boot before, as through
@@ -706,7 +722,7 @@ static int wpsscrn(void* param)
     else if (!file_exists(PLAYLIST_CONTROL_FILE))
         splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
     /* a list played to its end starts again from the top, with no question */
-    else if ((loaded = playlist_resume()) != -1)
+    else if ((loaded = resume_list()) != -1)
     {
         if (loaded >= 0)
             playlist_check_resume();
@@ -1942,6 +1958,13 @@ void show_library_update(void)
         ip_synced_load();
         lp_index_all(library_playlists_go_on);
     }
+    /* The list to resume, read again after all that may have written a
+       playlist's file, while this or the boot's logo shows and the disk
+       spins: Resume Playback then starts at once. For the main menu, which
+       knows nothing wrote one since; not with USB or a switch off waiting */
+    playlist_resume_forget();
+    if (!held_event && get_current_activity() == ACTIVITY_MAINMENU)
+        playlist_preload();
     no_space |= library_take_no_room();
     if (no_space && !held_event && !shown)
     {
@@ -2025,6 +2048,7 @@ void root_menu(void)
     int previous_browser = global_status.last_browser;
     int selected = 0;
     int shortcut_origin = GO_TO_ROOT;
+    bool root_usb = false; /* the main menu itself was left for USB */
 
     push_current_activity(ACTIVITY_MAINMENU);
 #ifdef HAVE_DIRCACHE
@@ -2051,6 +2075,11 @@ void root_menu(void)
     /* the cover of the song to resume, by the library as it is now */
     menu_cover_resume_look();
 #endif
+#ifndef HAVE_TAGCACHE
+    playlist_preload();
+#endif
+    /* until a screen other than the main menu is the first */
+    resume_fresh = playlist_resumed();
 #ifdef STOCK_BOOT_LOGO
     /* the theme the boot turned off, now that the menu shows */
     FOR_NB_SCREENS(i)
@@ -2077,7 +2106,11 @@ void root_menu(void)
         {
             library_update_pending = false;
             if (tagcache_check_sync())
+            {
                 show_library_update();
+                /* read there just now */
+                resume_fresh = playlist_resumed();
+            }
 #ifdef ITUNESDB_HAVE_ART
             menu_cover_resume_look();
 #endif
@@ -2092,6 +2125,14 @@ void root_menu(void)
             list_covers_load();
         }
 #endif
+        /* another screen may write a playlist's file; not the Play button's
+           way to Now Playing, which is Resume Playback's */
+        if (next_screen != GO_TO_ROOT && next_screen != GO_TO_WPS
+            && !(next_screen == GO_TO_PREVIOUS_MUSIC
+                 && previous_music == GO_TO_WPS)
+            && next_screen != MENU_ATTACHED_USB
+            && next_screen != MENU_SELECTED_EXIT)
+            resume_fresh = false;
         switch (next_screen)
         {
             case MENU_ATTACHED_USB:
@@ -2100,18 +2141,29 @@ void root_menu(void)
             case GO_TO_ROOT:
                 if (last_screen != GO_TO_ROOT)
                     selected = get_selection(last_screen);
-                /* the song to resume gone over USB: its list loaded again,
-                   as Resume Playback does, for the next song still there, or
-                   for none and no Resume Playback */
-                if (!audio_status() && playlist_resume_gone()
-                    && playlist_resume() >= 0)
-                    playlist_check_resume();
+                /* USB came to the main menu itself: the list is as the USB
+                   screen, or Updating Library after it, has just read it */
+                if (root_usb)
+                    resume_fresh = !audio_status() && playlist_resumed();
+                root_usb = false;
+                /* the song to resume gone over USB: its list, loaded again
+                   as Resume Playback does unless it's there as just read,
+                   for the next song still there, or for none and no Resume
+                   Playback */
+                if (!audio_status() && playlist_resume_gone())
+                {
+                    if ((resume_fresh && playlist_resumed())
+                        || playlist_resume() >= 0)
+                        playlist_check_resume();
+                    resume_fresh = playlist_resumed(); /* or read just now */
+                }
                 global_status.last_screen = GO_TO_ROOT; /* We've returned to ROOT */
                 /* When we are in the main menu we want the hardware BACK
                  * button to be handled by HOST instead of rockbox */
                 ignore_back_button_stub(true);
 
                 next_screen = do_menu(&root_menu_, &selected, NULL, false);
+                root_usb = next_screen == MENU_ATTACHED_USB;
 #ifdef HAVE_TAGCACHE
                 music_from_main_menu = next_screen == GO_TO_DBBROWSER;
                 if (next_screen == GO_TO_SEARCH)
