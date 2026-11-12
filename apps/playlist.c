@@ -3809,9 +3809,10 @@ static void resume_order_drop(struct playlist_info *playlist,
 {
     if (order->command == PLAYLIST_COMMAND_COMMENT)
         return;
-    /* as it left them */
+    /* its seed stays, as it left it */
     if (order->command == PLAYLIST_COMMAND_SHUFFLE && order->seed)
         playlist->seed = order->seed;
+    /* an order's line was here: sorted before the next shuffle */
     *sorted = false;
     order->command = PLAYLIST_COMMAND_COMMENT;
 }

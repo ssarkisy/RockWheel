@@ -6097,6 +6097,7 @@ struct playlist_writer {
 static uint32_t *written_offsets;
 static int32_t *written_ids;
 static int written_count;
+static void save_slot_index(int slot, uint32_t id, uint32_t entries);
 
 static bool playlist_writer_open(struct playlist_writer *w,
                                  const char *playlist, bool new_playlist)
@@ -7010,8 +7011,8 @@ bool tagtree_shuffle_songs(bool albums)
     if (audio_status() & AUDIO_STATUS_PLAY)
         audio_stop();
     char file[MAX_PATH];
-    const char *name = tagtree_playlist_names[
-        tagtree_free_slot(0, file, sizeof(file))];
+    const int slot = tagtree_free_slot(0, file, sizeof(file));
+    const char *name = tagtree_playlist_names[slot];
     bool ok = playlist_writer_open(&writer, file, true);
     last_tick = current_tick + HZ/2; /* progress after half a second */
     int seen = 0;
@@ -7028,6 +7029,7 @@ bool tagtree_shuffle_songs(bool albums)
             continue;
         if (itunesdb_track_flags(buf) & ITUNESDB_SKIP_SHUFFLE)
             continue;
+        writer.entry = tcs.idx_id;
         ok = playlist_writer_add(&writer, buf);
         added++;
         if ((added & 63) == 0)
@@ -7044,6 +7046,9 @@ bool tagtree_shuffle_songs(bool albums)
     }
     tagcache_search_finish(&tcs);
     ok = playlist_writer_close(&writer) && ok;
+    /* the songs' entries, which Shuffle Albums reads their keys by */
+    if (ok && added > 0)
+        save_slot_index(slot, 0, added);
 
     if (ok && added > 0
         && playlist_create(TAGTREE_PLAYLIST_DIR, name) == 0
@@ -7177,14 +7182,14 @@ static bool tagtree_list_is_all_songs(void)
 }
 
 /* what spares writing the file just written the next time */
-static void tagtree_save_list_index(const struct tree_context *c, int slot,
-                                    uint32_t id)
+/* id 0: the file is no list's, and the index is only its songs' entries,
+   for a shuffle by albums */
+static void save_slot_index(int slot, uint32_t id, uint32_t entries)
 {
     if (!written_offsets)
         return;
     struct tagtree_list_header h = {
-        TAGTREE_LIST_MAGIC, tagcache_get_commitid(),
-        c->filesindir - c->special_entry_count, id, written_count
+        TAGTREE_LIST_MAGIC, tagcache_get_commitid(), entries, id, written_count
     };
     int fd = open(tagtree_list_index_names[slot], O_WRONLY|O_CREAT|O_TRUNC, 0666);
     if (fd >= 0)
@@ -7202,6 +7207,12 @@ static void tagtree_save_list_index(const struct tree_context *c, int slot,
         else /* its header would say a list is here */
             remove(tagtree_list_index_names[slot]);
     }
+}
+
+static void tagtree_save_list_index(const struct tree_context *c, int slot,
+                                    uint32_t id)
+{
+    save_slot_index(slot, id, c->filesindir - c->special_entry_count);
 }
 
 /* The list's playlist from a file written for it before, or from a new one.
