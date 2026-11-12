@@ -47,6 +47,8 @@
 #include "wps_internals.h"
 #include "skin_engine.h"
 #include "menu_cover.h"
+#include "rbpaths.h"
+#include "debug.h"
 
 #ifdef ITUNESDB_HAVE_ART
 
@@ -60,6 +62,8 @@ static struct {
     uint32_t offset;
     char path[sizeof(((struct itunesdb_art *)0)->path)];
     int handle;         /* the buffer's it was copied from, or -1 for Finder's */
+    bool crisp;         /* a picture at its own size, not Finder's scaled:
+                           it moves by whole pixels */
 } menu_art;
 
 #if defined(HAVE_MENU_COVER) && defined(HAVE_JPEG) && defined(HAVE_TAGCACHE)
@@ -108,6 +112,12 @@ static struct
     struct mp3_albumart aa;
     bool failed;            /* failed_key's has no picture that decodes to it */
     struct cover_key failed_key;
+    bool now_large;         /* Finder may have the playing song's cover at
+                               the panel's size: asked without the floor */
+    bool job_fetch;         /* asked so: no decode if it isn't to be had */
+    unsigned job_forgets;   /* kept_forgets at the ask */
+    bool unfetched;         /* unfetched_key's wasn't: by the decode's rules */
+    struct cover_key unfetched_key;
     long back_off;          /* not asked again before this tick */
     bool gave_way;          /* a decode was given up for the reader's other
                                work, and none asked since */
@@ -178,7 +188,7 @@ static void sharp_undraw(void)
 /* the settings applied, as after USB: a picture that didn't decode may now */
 static void sharp_retry(void)
 {
-    sharp.failed = false;
+    sharp.failed = sharp.unfetched = false;
 }
 
 /* the one it holds is this cover, for this box: shown at once */
@@ -220,10 +230,179 @@ static inline const fb_data *moving_pixels(int h)
     return sharp.shown && sharp.phased ? sharp.phase[h & 1] : NULL;
 }
 
-/* the sharp cover is drawn, and has no such frames to move by */
+/* the cover drawn is a crisp one with no such frames to move by: the
+   block's, or one the menus fetched that the block couldn't take */
 static inline bool sharp_whole(void)
 {
-    return sharp.shown && !sharp.phased;
+    return sharp.shown ? !sharp.phased : menu_art.crisp;
+}
+
+static bool disk_free(void);
+
+/* the size Finder's frame is scaled to in a box, as itunesdb.c's art_fit()
+   has it */
+static void cover_fit(int frame_width, int frame_height, int *width,
+                      int *height)
+{
+    if (*width * frame_height > *height * frame_width)
+        *width = (*height * frame_width + frame_height / 2) / frame_height;
+    else
+        *height = (*width * frame_height + frame_width / 2) / frame_width;
+}
+
+/* The decoded covers kept, for the songs Finder wrote no frame of the
+   panel's size for: read back the next time in place of the decode. The
+   owner's exception to making such files at Updating Library only. A table,
+   then up to KEPT_SLOTS slots, each the block's pixels and a sector that
+   says whose they are, written after them; the file grows a slot at a time
+   and, full, the oldest is written over. All of it is dropped when the
+   covers it stands for may have changed: by menu_cover_kept_forget() as
+   an import finds them changed, and at the load if the table isn't of the
+   covers' indexes as they are (identity), as after another firmware's
+   import. A decode asked before a drop isn't stored after it. */
+#define KEPT_FILE    ROCKBOX_DIR "/menu_covers.dat"
+#define KEPT_MAGIC   0x4b4d4252 /* "RBMK" */
+#define KEPT_VERSION 2      /* 2: identity */
+#define KEPT_SLOTS   48
+#define KEPT_TABLE   2048
+#define KEPT_HEAD    512
+#define KEPT_SLOT    ((off_t)(sizeof(menu_art.pixels) + KEPT_HEAD))
+#define KEPT_WRITE   (16 * 1024)
+struct kept_entry
+{
+    uint32_t offset;        /* the cover's key: its place and file's name */
+    uint32_t path;
+    uint32_t serial;        /* in the order stored, from 1; 0 for none */
+    uint16_t width, height;
+};
+static struct
+{
+    uint32_t magic, version;
+    uint32_t serial;        /* the last given */
+    uint32_t identity;      /* itunesdb_covers_identity() as it was stored */
+    struct kept_entry slot[KEPT_SLOTS];
+} kept;
+static bool kept_loaded;
+static int kept_writing = -1;   /* the slot being written, not to be read */
+static unsigned kept_forgets;
+
+static uint32_t kept_path(const char *path)
+{
+    uint32_t hash = 2166136261u;
+    while (*path)
+        hash = (hash ^ (unsigned char)*path++) * 16777619u;
+    return hash;
+}
+
+static off_t kept_place(int slot)
+{
+    return KEPT_TABLE + slot * KEPT_SLOT;
+}
+
+/* the table, once: on the UI's thread or the reader's, never the look's */
+static void kept_load(void)
+{
+    const uint32_t identity = itunesdb_covers_identity();
+    if (kept_loaded || !identity)
+        return;
+    kept_loaded = true;
+    const int fd = open(KEPT_FILE, O_RDONLY);
+    const off_t size = fd >= 0 ? ffilesize(fd) : 0;
+    if (fd < 0 || read(fd, &kept, sizeof(kept)) != sizeof(kept)
+        || kept.magic != KEPT_MAGIC || kept.version != KEPT_VERSION
+        || kept.identity != identity)
+        memset(&kept, 0, sizeof(kept));
+    kept.magic = KEPT_MAGIC;
+    kept.version = KEPT_VERSION;
+    kept.identity = identity;
+    if (fd >= 0)
+        close(fd);
+    /* no slot the file doesn't have */
+    for (int i = 0; i < KEPT_SLOTS; i++)
+    {
+        if (kept_place(i + 1) > size)
+            kept.slot[i].serial = 0;
+    }
+}
+
+static int kept_slot(const struct cover_key *key, int width, int height)
+{
+    if (!kept_loaded)
+        return -1;
+    const uint32_t path = kept_path(key->path);
+    for (int i = 0; i < KEPT_SLOTS; i++)
+    {
+        const struct kept_entry *e = &kept.slot[i];
+        if (e->serial && i != kept_writing && e->offset == key->offset
+            && e->path == path && e->width == width && e->height == height)
+            return i;
+    }
+    return -1;
+}
+
+/* a slot's picture, if its own sector says it is the table's */
+static bool kept_read(int slot, fb_data *to)
+{
+    const struct kept_entry *e = &kept.slot[slot];
+    struct kept_entry head;
+    const off_t place = kept_place(slot);
+    const off_t head_at = place + (off_t)sizeof(menu_art.pixels);
+    const ssize_t size = e->width * e->height * sizeof(fb_data);
+    const int fd = open(KEPT_FILE, O_RDONLY);
+    const bool ok = fd >= 0 && lseek(fd, head_at, SEEK_SET) == head_at
+                    && read(fd, &head, sizeof(head)) == sizeof(head)
+                    && !memcmp(&head, e, sizeof(head))
+                    && lseek(fd, place, SEEK_SET) == place
+                    && read(fd, to, size) == size;
+    if (fd >= 0)
+        close(fd);
+    if (!ok)
+        kept.slot[slot].serial = 0;
+    return ok;
+}
+
+void menu_cover_kept_forget(void)
+{
+    kept_forgets++;
+    memset(&kept, 0, sizeof(kept));
+    kept.magic = KEPT_MAGIC;
+    kept.version = KEPT_VERSION;
+    kept_loaded = true;
+    remove(KEPT_FILE);
+}
+
+/* The cover of key at that size without a decode, into to: 1 from Finder's
+   frame of the panel's size, which the song at file has if Finder was told
+   of the format; 2 as kept after its decode; 0 neither. Reads the disk. */
+static int cover_fetch(const char *file, const struct cover_key *key,
+                       int width, int height, fb_data *to)
+{
+    struct itunesdb_large_art large;
+    if (itunesdb_find_large_art(file, &large) && large.width == width
+        && large.height == height && itunesdb_load_large_art(&large, to) > 0)
+        return 1;
+    kept_load();
+    const int slot = kept_slot(key, width, height);
+    return slot >= 0 && kept_read(slot, to) ? 2 : 0;
+}
+
+/* The block takes the cover the menus have just fetched, if the reader
+   isn't in it: drawn from it then, and its moving frames are the look's to
+   ask. */
+static void sharp_take(const struct cover_key *key, int width, int height,
+                       int box_width, int box_height)
+{
+    if (!sharp.pixels || sharp.to_read || sharp.reading)
+        return;
+    memcpy(sharp.pixels, menu_art.pixels, width * height * sizeof(fb_data));
+    sharp.key = *key;
+    sharp.width = width;
+    sharp.height = height;
+    sharp.box_width = box_width;
+    sharp.box_height = box_height;
+    sharp.held = true;
+    sharp.phased = false;
+    sharp.shown = true;
 }
 #else
 #ifdef HAVE_MENU_COVER
@@ -249,6 +428,9 @@ static inline void sharp_plays(void) {}
 static inline const fb_data *art_pixels(void) { return menu_art.pixels; }
 static inline const fb_data *moving_pixels(int h) { (void)h; return NULL; }
 static inline bool sharp_whole(void) { return false; }
+#ifdef HAVE_MENU_COVER
+void menu_cover_kept_forget(void) {}
+#endif
 #endif /* MENU_COVER_SHARP */
 
 void menu_cover_forget(void)
@@ -259,6 +441,7 @@ void menu_cover_forget(void)
 #ifdef MENU_COVER_SHARP
     /* a cover's key may be another's now: the next track's is taken anew */
     sharp.held = sharp.phased = sharp.failed = sharp.now = false;
+    sharp.unfetched = false;
 #endif
 }
 
@@ -287,6 +470,7 @@ bool menu_cover_ready(const struct wps_data *data)
     bm.data = (unsigned char *)menu_art.pixels;
     const int box_width = bm.width, box_height = bm.height;
     menu_art.width = 0;
+    menu_art.crisp = false;
     sharp_undraw();
     if (sharp_held(&art, box_width, box_height))
     {
@@ -295,8 +479,34 @@ bool menu_cover_ready(const struct wps_data *data)
         menu_art.handle = -1;
         return true;
     }
-    /* from the cover in the buffer if it's as large as Finder's, as the disk is
-       often off by the time the menus open, and turning it on takes 0.6 s */
+#ifdef MENU_COVER_SHARP
+    /* Finder's frame of this size, or the decoded cover kept: there from
+       the first frame, with no decode to wait for */
+    int width = box_width, height = box_height;
+    struct cover_key key;
+    cover_fit(art.width, art.height, &width, &height);
+    set_key(&key, art.offset, art.path);
+    /* not from a disk that has stopped or is about to: Finder's scaled
+       then, and the look asks the reader by its rule */
+    const int fetched = disk_free()
+        ? cover_fetch(id3->path, &key, width, height, menu_art.pixels) : 0;
+    if (fetched)
+    {
+        menu_art.width = width;
+        menu_art.height = height;
+        menu_art.offset = art.offset;
+        strcpy(menu_art.path, art.path);
+        menu_art.handle = -1;
+        menu_art.crisp = true;
+        sharp_take(&key, width, height, box_width, box_height);
+        DEBUGF("menu cover: %s, at the render\n",
+               fetched == 1 ? "Finder's frame" : "kept");
+        return true;
+    }
+#endif
+    /* Finder's scaled: from the cover in the buffer if it's as large, as a
+       disk that spins is often off by the time the menus open, and turning
+       it on takes 0.6 s */
     const struct bitmap *buffered = playback_current_largest_art();
     const int room = sizeof(bm) + sizeof(menu_art.pixels);
     int size;
@@ -805,6 +1015,10 @@ static void track_begun(unsigned short id, void *data)
     set_key(&sharp.now_key, art.offset, art.path);
     sharp.now_frame_width = art.width;
     sharp.now_frame_height = art.height;
+    struct itunesdb_art finders;
+    sharp.now_large = itunesdb_has_large_art()
+                      && itunesdb_find_art(id3->path, &finders)
+                      && finders.offset == art.offset;
     /* only JPEG can be decoded */
     sharp.now_source = id3->has_embedded_albumart
         && (id3->albumart.type & AA_CLEAR_FLAGS_MASK) == AA_TYPE_JPG;
@@ -848,11 +1062,24 @@ static void sharp_look(bool shows)
        turned on since: the reader makes those */
     const bool frames = has && sharp.phase[0] && !sharp.phased;
     if (sharp.to_read || sharp.reading || (has && !frames)
-        || (sharp.failed && same_key(&sharp.failed_key, key->offset, key->path))
-        || !sharp.now_source || !sharp.box_now_width || !sharp.box_now_height
+        || !sharp.box_now_width || !sharp.box_now_height
         || plugin_is_running()
-        || TIME_BEFORE(current_tick, sharp.back_off)
-        || ms < least)
+        || TIME_BEFORE(current_tick, sharp.back_off))
+        return;
+    int width = sharp.box_now_width, height = sharp.box_now_height;
+    cover_fit(sharp.now_frame_width, sharp.now_frame_height, &width, &height);
+    /* to be had by a read: not for the song's own picture nor the music's
+       buffer to wait for */
+    const bool fetch = !frames
+        && !(sharp.unfetched
+             && same_key(&sharp.unfetched_key, key->offset, key->path))
+        && (sharp.now_large || kept_slot(key, width, height) >= 0);
+    if (!fetch
+        && ((!frames
+             && ((sharp.failed
+                  && same_key(&sharp.failed_key, key->offset, key->path))
+                 || !sharp.now_source))
+            || ms < least))
         return;
     if (!frames && disk_spins()
         && (!shows
@@ -890,17 +1117,10 @@ static void sharp_look(bool shows)
     sharp.job_frame_height = sharp.now_frame_height;
     sharp.job_box_width = sharp.box_now_width;
     sharp.job_box_height = sharp.box_now_height;
-    /* the size Finder's frame is scaled to in that box, as itunesdb.c's
-       art_fit() has it */
-    int width = sharp.job_box_width, height = sharp.job_box_height;
-    if (width * sharp.job_frame_height > height * sharp.job_frame_width)
-        width = (height * sharp.job_frame_width + sharp.job_frame_height / 2)
-                / sharp.job_frame_height;
-    else
-        height = (width * sharp.job_frame_height + sharp.job_frame_width / 2)
-                 / sharp.job_frame_width;
     sharp.job_width = width;
     sharp.job_height = height;
+    sharp.job_fetch = fetch;
+    sharp.job_forgets = kept_forgets;
     strcpy(sharp.file, sharp.now_file);
     sharp.aa = sharp.now_aa;
     sharp.to_read = true;
@@ -1401,6 +1621,88 @@ bool menu_cover_to_read(void)
     return sharp.to_read;
 }
 
+/* The cover just decoded, which the block holds and the menus may show,
+   into the kept file, on the reader's thread: as a job, so that the block
+   is neither written nor let go under it; a part at a time, the music's
+   hold and a cancel looked at between. The slot's own sector is in the last
+   part, and the table follows it: cut short, the slot is no one's. */
+static void kept_store(unsigned wanted)
+{
+    if (wanted != sharp.wanted)
+        return;
+    sharp.reading = true;
+    kept_load();
+    /* since the ask: a drop meanwhile, and this cover is of the old ones */
+    const unsigned forgets = sharp.job_forgets;
+    /* past the pixels the decoder's room is free: the sector, and a new
+       file's table, are made there */
+    unsigned char *block = (unsigned char *)sharp.pixels;
+    unsigned char *room = block + sizeof(menu_art.pixels);
+    const int fd = open(KEPT_FILE, O_RDWR | O_CREAT, 0666);
+    const off_t size = fd >= 0 ? ffilesize(fd) : 0;
+    int used = size > KEPT_TABLE ? (size - KEPT_TABLE) / KEPT_SLOT : 0;
+    bool ok = fd >= 0 && kept_loaded && forgets == kept_forgets;
+    kept.identity = itunesdb_covers_identity();
+    if (ok && size < KEPT_TABLE)
+    {
+        memset(kept.slot, 0, sizeof(kept.slot));
+        memset(room, 0, KEPT_TABLE);
+        memcpy(room, &kept, sizeof(kept));
+        ok = lseek(fd, 0, SEEK_SET) == 0
+             && write(fd, room, KEPT_TABLE) == KEPT_TABLE;
+        used = 0;
+    }
+    /* the next of the file, or the oldest's place */
+    int slot = MIN(used, KEPT_SLOTS - 1);
+    if (used >= KEPT_SLOTS)
+    {
+        for (int i = 0; i < KEPT_SLOTS; i++)
+        {
+            if (kept.slot[i].serial < kept.slot[slot].serial)
+                slot = i;
+        }
+    }
+    /* its old picture is no more, before any of it is written over */
+    if (ok && kept.slot[slot].serial)
+    {
+        kept.slot[slot].serial = 0;
+        ok = lseek(fd, 0, SEEK_SET) == 0
+             && write(fd, &kept, sizeof(kept)) == sizeof(kept);
+    }
+    const struct kept_entry entry = {
+        sharp.key.offset, kept_path(sharp.key.path), kept.serial + 1,
+        sharp.width, sharp.height
+    };
+    memset(room, 0, KEPT_HEAD);
+    memcpy(room, &entry, sizeof(entry));
+    kept_writing = slot;
+    ok = ok && lseek(fd, kept_place(slot), SEEK_SET) == kept_place(slot);
+    for (off_t at = 0; ok && at < KEPT_SLOT; at += KEPT_WRITE)
+    {
+        const ssize_t part = MIN(KEPT_WRITE, KEPT_SLOT - at);
+        yield();
+        while (sharp.hold && wanted == sharp.wanted)
+            sleep(1);
+        ok = wanted == sharp.wanted && forgets == kept_forgets
+             && write(fd, block + at, part) == part;
+    }
+    if (ok)
+    {
+        kept.serial = entry.serial;
+        kept.slot[slot] = entry;
+        ok = lseek(fd, 0, SEEK_SET) == 0
+             && write(fd, &kept, sizeof(kept)) == sizeof(kept);
+        if (!ok)
+            kept.slot[slot].serial = 0;
+    }
+    if (fd >= 0)
+        close(fd);
+    kept_writing = -1;
+    reader_turn(false);
+    sharp.reading = sharp.hold = false;
+    DEBUGF("menu cover: %s in slot %d\n", ok ? "kept" : "not kept", slot);
+}
+
 void menu_cover_read(void)
 {
     const unsigned wanted = sharp.wanted;
@@ -1433,9 +1735,30 @@ void menu_cover_read(void)
     sharp.fd = -1;
     /* the block is let go only once this is false */
     sharp.reading = true;
+    /* Finder's frame of this size, or the cover kept: no decode */
     /* a disk that has stopped since the ask isn't woken */
-    const int fd = disk_free() ? open(sharp.file, O_RDONLY) : -1;
-    int rc = 0;
+    const bool disk = disk_free();
+    const int fetched = disk && wanted == sharp.wanted
+        ? cover_fetch(sharp.file, &sharp.job_key, width, height, sharp.pixels)
+        : 0;
+    if (!fetched && sharp.job_fetch)
+    {
+        /* asked for a read alone, before the music's buffer would have a
+           decode: asked again by the decode's rules, or in a while if the
+           disk wasn't to be read */
+        if (wanted == sharp.wanted && disk)
+        {
+            sharp.unfetched = true;
+            sharp.unfetched_key = sharp.job_key;
+        }
+        else if (wanted == sharp.wanted)
+            sharp.back_off = current_tick + SHARP_AGAIN;
+        reader_turn(false);
+        sharp.reading = sharp.hold = false;
+        return;
+    }
+    const int fd = !fetched && disk ? open(sharp.file, O_RDONLY) : -1;
+    int rc = fetched ? 1 : 0;
     bool phased = false;
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
     /* the scaler does so itself, but a size that needs none (2, 4, 8 times)
@@ -1457,7 +1780,9 @@ void menu_cover_read(void)
         jpeg_mem_fd = -1;
         close(fd);
     }
-    if (rc > 0 && wanted == sharp.wanted)
+    /* a fetched one is the cover as it is, held at once: its moving frames
+       are a job of their own, when the music has its floor */
+    if (rc > 0 && wanted == sharp.wanted && !fetched)
     {
         rc = measure_parts(width, height, wanted);
         if (rc > 0 && !same_picture())
@@ -1505,6 +1830,10 @@ void menu_cover_read(void)
         && menu_art.handle < 0
         && same_key(&sharp.key, menu_art.offset, menu_art.path))
         sharp.shown = sharp.came = true;
+    DEBUGF("menu cover: %s, by the reader\n",
+           fetched == 1 ? "Finder's frame" : fetched ? "kept" : "decoded");
+    if (!fetched)
+        kept_store(wanted);
 }
 
 /* The block as Album Art has it: let go with it off; taken with it on, only
@@ -1547,6 +1876,8 @@ static void sharp_memory(bool wanted)
         sharp.handle = handle;
         sharp.pixels = core_get_data(handle);
         add_event(PLAYBACK_EVENT_TRACK_CHANGE, track_begun);
+        /* without music, for the look */
+        kept_load();
     }
     else
         sharp.refused = true;

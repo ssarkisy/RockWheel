@@ -1,6 +1,7 @@
 /* Made by tools/ipod_sysinfo_template.py from the SysInfoExtended of
    an iPod Video 5.5G with Apple's firmware 1.3, as its disk mode gave
-   it; @SERIAL@, @GUID@ and @RAM@ are the iPod's own. */
+   it, with the photo format 1024 added to the album art's; @SERIAL@,
+   @GUID@ and @RAM@ are the iPod's own. */
 static const char ipod_xml_template[] =
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
 "<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
@@ -251,6 +252,29 @@ static const char ipod_xml_template[] =
 "<true/>\n"
 "<key>BackColor</key>\n"
 "<string>FFFFFFFF</string>\n"
+"</dict>\n"
+"<key>1024</key>\n"
+"<dict>\n"
+"<key>FormatId</key>\n"
+"<integer>1024</integer>\n"
+"<key>RenderWidth</key>\n"
+"<integer>320</integer>\n"
+"<key>RenderHeight</key>\n"
+"<integer>240</integer>\n"
+"<key>PixelFormat</key>\n"
+"<string>4C353635</string>\n"
+"<key>Interlaced</key>\n"
+"<false/>\n"
+"<key>ColorAdjustment</key>\n"
+"<integer>0</integer>\n"
+"<key>GammaAdjustment</key>\n"
+"<real>2.2</real>\n"
+"<key>Crop</key>\n"
+"<false/>\n"
+"<key>AlignRowBytes</key>\n"
+"<true/>\n"
+"<key>Rotation</key>\n"
+"<integer>0</integer>\n"
 "</dict>\n"
 "</array>\n"
 "<key>PodcastsSupported</key>\n"

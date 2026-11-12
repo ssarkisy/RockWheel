@@ -83,8 +83,12 @@ void menu_cover_memory(void);
 bool menu_cover_to_read(void);
 void menu_cover_read(void);
 void menu_cover_read_cancel(void);
+/* The covers kept after their decode are dropped: what they stood for,
+   Finder's covers or those made of the songs' own, may be others now */
+void menu_cover_kept_forget(void);
 
 #else
+static inline void menu_cover_kept_forget(void) {}
 static inline void menu_cover_changed(bool on) { (void)on; }
 static inline void menu_cover_stop(void) {}
 static inline void menu_cover_wait(void) {}

@@ -216,6 +216,29 @@ struct itunesdb_art {
 /* the cover Finder made for the file at path */
 bool itunesdb_find_art(const char *path, struct itunesdb_art *art);
 
+/* Finder's larger frame of that cover, if it wrote one (a format the iPod's
+   description must list): the picture, width by height, starts x pixels
+   into row y of a frame pitch pixels a row. find() reads its record from
+   the disk; load() the picture's rows into pixels, through the covers' own
+   room; the bytes, or -1. */
+struct itunesdb_large_art {
+    char path[64];      /* its ithmb file */
+    uint32_t offset;
+    int pitch, x, y, width, height;
+};
+bool itunesdb_find_large_art(const char *path, struct itunesdb_large_art *art);
+/* some cover has one: known without the disk */
+bool itunesdb_has_large_art(void);
+/* false if the cover index on the disk has no file of them made for it, as
+   one an older firmware wrote: the import makes it, once */
+bool itunesdb_large_art_ready(void);
+/* What Finder's covers and the made ones are now, as a number that changes
+   when either's index does: for what is kept of them elsewhere. Without the
+   disk; 0 until the indexes are loaded. */
+uint32_t itunesdb_covers_identity(void);
+int itunesdb_load_large_art(const struct itunesdb_large_art *art,
+                            void *pixels);
+
 /* The covers of the albums of songs copied outside Finder's folder, made on
    Updating Library in Finder's forms, one an album. An album's key: its name
    and album artist, as the database has them (the track's artist without

@@ -59,6 +59,7 @@
 #ifdef HAVE_TAGCACHE
 #include "album_header.h"
 #include "list_covers.h"
+#include "skin_engine/menu_cover.h"
 #endif
 #endif
 
@@ -4440,6 +4441,16 @@ bool itunesdb_resumes(const char *path)
                                5: slides of the larger size Cover Flow
                                   shows */
 #define ART_FORMATS     4
+/* Finder's larger frame of each of ART_FILE's entries, in their order, for
+   the menus' cover: a format the iPod Video's own covers don't have, which
+   Finder writes once the iPod's description lists it (1024: 320x240, the
+   picture 240x240 in the middle). In a file of its own, so that the index
+   and all that reads it are as they were. Made with the index and never
+   kept past it: removed before a new index is put in place. */
+#define LARGE_FILE      ROCKBOX_DIR "/itunesdb_art240.dat"
+#define LARGE_MAGIC     0x4c494252 /* "RBIL" */
+#define LARGE_VERSION   2   /* 2: the sum of the index it goes with */
+#define LARGE_PIXELS    (LCD_HEIGHT * LCD_HEIGHT) /* the most of a picture */
 #define FRAME_MAX       (200 * 200)  /* the iPod Video's largest covers */
 #define SMALL_FRAME_MAX (100 * 100)  /* what they are checked against */
 /* Cover Flow's slides, one an album, made after the import from the cover
@@ -4492,6 +4503,27 @@ struct art_entry {
     uint16_t slide;     /* its album's, from 1; 0 for none */
 };
 
+struct large_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t count;     /* ART_FILE's, whose entries these go with */
+    uint32_t index;     /* and the sum of that file past its header: an
+                           index a firmware without this file made since
+                           is another's */
+    uint32_t format;    /* of the ithmb files, 0 with no such frame */
+    uint32_t pitch;     /* pixels a row of their frames */
+    uint32_t frames;    /* entries that have one */
+};
+
+struct large_entry {
+    uint32_t offset;    /* of the frame in F<format>_<file>.ithmb */
+    uint16_t width;     /* of the picture in it */
+    uint16_t height;
+    uint8_t x, y;       /* where the picture starts in the frame */
+    uint8_t file;       /* from 1; 0 for none */
+    uint8_t unused;
+};
+
 /* a frame in an ithmb file */
 struct art_frame {
     uint32_t offset;
@@ -4539,6 +4571,8 @@ struct art_image {
     uint32_t small_offset;
     uint16_t small_file; /* 0 for none */
     uint16_t small_format;
+    /* its frame over FRAME_MAX, of large_hdr's format */
+    struct large_entry large;
 };
 
 #define COVERS_FILE      ROCKBOX_DIR "/covers.dat"
@@ -4589,6 +4623,8 @@ struct cover_entry {
 
 
 static struct art_header art_hdr;
+/* of the import going on, then of the file loaded */
+static struct large_header large_hdr;
 
 /* the name of an ithmb file in an ArtworkDB mhod, which unlike iTunesDB
    says how it is encoded */
@@ -4640,7 +4676,7 @@ static int art_format_of(uint32_t format, uint32_t width, uint32_t height)
 /* The sizes of the ithmb files, each looked up once: in a sync Finder lists
    the frames of the covers before it writes them, and a frame past the end
    of its file left playback to decode the track's own JPEG, for seconds */
-static struct { uint32_t format, file; off_t size; } ithmb_sizes[8];
+static struct { uint32_t format, file; off_t size; } ithmb_sizes[16];
 static int ithmb_count;
 
 static off_t ithmb_size(uint32_t format, uint32_t file)
@@ -4670,7 +4706,8 @@ static off_t ithmb_size(uint32_t format, uint32_t file)
 /* the largest frame in the mhii at pos that its file has */
 static bool read_image(off_t pos, struct art_image *image)
 {
-    struct { uint32_t format, offset, size, width, height, file; } frames[8];
+    struct { uint32_t format, offset, size, width, height, file;
+             uint32_t vpad, hpad; } frames[8];
     int nframes = 0;
     char name[48];
     const unsigned char *p = db_record(pos, "mhii", 52);
@@ -4695,6 +4732,8 @@ static bool read_image(off_t pos, struct art_image *image)
             frames[nframes].format = le32(p + 16);
             frames[nframes].offset = le32(p + 20);
             frames[nframes].size = le32(p + 24);
+            frames[nframes].vpad = p[28] | p[29] << 8;
+            frames[nframes].hpad = p[30] | p[31] << 8;
             frames[nframes].height = p[32] | p[33] << 8;
             frames[nframes].width = p[34] | p[35] << 8;
             /* ":F1029_1.ithmb" or "F1029_1.ithmb" */
@@ -4713,8 +4752,47 @@ static bool read_image(off_t pos, struct art_image *image)
        made one and else 100x100: it makes the large ones of some covers
        later in a sync, so the first image doesn't tell for all */
     int best = -1, small = -1;
+    memset(&image->large, 0, sizeof(image->large));
     for (int i = 0; i < nframes; i++)
     {
+        /* A frame larger than the covers': never one of those below. Its
+           picture is where the record says, as Finder's 320x240 frames of
+           a square cover have it (paddings 0 and 40, height 240, width
+           field 280): the paddings before the picture, each field to its
+           far edge, and the frame the same padding again after it. Only
+           the padding across is seen in those; a frame padded down is read
+           the same way by guess, and one that isn't of that size by this
+           reading isn't taken: its track's cover is decoded. */
+        const uint32_t pitch = frames[i].width + frames[i].hpad;
+        const uint32_t rows = frames[i].height + frames[i].vpad;
+        if (frames[i].size > FRAME_MAX * 2)
+        {
+            const uint32_t width = frames[i].width - frames[i].hpad;
+            const uint32_t height = frames[i].height - frames[i].vpad;
+            if (!image->large.file && frames[i].file <= 255
+                && frames[i].hpad < frames[i].width && frames[i].hpad <= 255
+                && frames[i].vpad < frames[i].height && frames[i].vpad <= 255
+                && width >= 2 && height >= 2
+                && width * height <= LARGE_PIXELS
+                && pitch <= 2 * LCD_WIDTH
+                && frames[i].size == pitch * rows * 2
+                && (!large_hdr.format
+                    || (large_hdr.format == frames[i].format
+                        && large_hdr.pitch == pitch))
+                && (off_t)frames[i].offset + (off_t)frames[i].size
+                   <= ithmb_size(frames[i].format, frames[i].file))
+            {
+                large_hdr.format = frames[i].format;
+                large_hdr.pitch = pitch;
+                image->large.offset = frames[i].offset;
+                image->large.width = width;
+                image->large.height = height;
+                image->large.x = frames[i].hpad;
+                image->large.y = frames[i].vpad;
+                image->large.file = frames[i].file;
+            }
+            continue;
+        }
         /* a cover that isn't square, 200x189 say, Finder pads with white
            to the square frame: that whole frame is the cover, as on the
            stock firmware, where it was left out for its size */
@@ -5167,6 +5245,7 @@ static bool write_art_index(int old_handle, uint32_t old_count,
     int art_count = 0;
     int work = 0, slides = 0;
     memset(&art_hdr, 0, sizeof(art_hdr));
+    memset(&large_hdr, 0, sizeof(large_hdr));
     ithmb_count = 0;
     int handle = read_images(&images, &art_count);
     if (handle <= 0 || art_hdr.nformats == 0)
@@ -5174,13 +5253,18 @@ static bool write_art_index(int old_handle, uint32_t old_count,
 
     /* for each track its slide, and the tracks with covers by album */
     size_t slide_of_size = ALIGN_UP(db.count * sizeof(uint16_t), 4);
-    work = db_alloc(slide_of_size + (db.count + old_count) * sizeof(uint32_t)
-                    + ALIGN_UP(old_count, 4));
+    const size_t order_size = (db.count + old_count) * sizeof(uint32_t)
+                              + ALIGN_UP(old_count, 4);
+    work = db_alloc(slide_of_size + order_size
+                    + db.count * sizeof(struct large_entry));
     if (work <= 0)
         goto done;
     core_pin(work);
     uint16_t *slide_of = core_get_data(work);
     uint32_t *order = (uint32_t *)((char *)slide_of + slide_of_size);
+    /* the larger frames of the index's entries, in its order */
+    struct large_entry *large = (struct large_entry *)((char *)order
+                                                       + order_size);
     int n = 0;
     for (int i = 0; i < db.count; i++)
     {
@@ -5229,6 +5313,8 @@ static bool write_art_index(int old_handle, uint32_t old_count,
             art_format_index(image->format), slide_of[db.by_hash[i]]
         };
         index_put(&entry, sizeof(entry));
+        large[count] = image->large;
+        large_hdr.frames += image->large.file != 0;
         count++;
     }
     index_put(keys, art_hdr.nslides * sizeof(*keys));
@@ -5245,12 +5331,44 @@ static bool write_art_index(int old_handle, uint32_t old_count,
 #ifdef HAVE_TAGCACHE
         /* the lists' covers made again, marked before the index is in place */
         if (!same)
+        {
             list_covers_forget();
+            menu_cover_kept_forget();
+        }
 #endif
         /* the slides to make before the index is complete */
         close(open(SLIDES_TODO, O_WRONLY | O_CREAT | O_TRUNC, 0666));
+        /* the larger frames' file is never an older index's */
+        remove(LARGE_FILE);
         placed = rename(ART_FILE ".tmp", ART_FILE) == 0;
         art_kept = same && placed;
+        large_hdr.magic = LARGE_MAGIC;
+        large_hdr.version = LARGE_VERSION;
+        large_hdr.count = count;
+        large_hdr.index = index_sum;
+        bool written = false;
+        if (placed && writer_open(&out, LARGE_FILE ".tmp"))
+        {
+            writer_put(&out, &large_hdr, sizeof(large_hdr));
+            writer_put(&out, large, count * sizeof(*large));
+            written = writer_close(&out)
+                      && rename(LARGE_FILE ".tmp", LARGE_FILE) == 0;
+            if (!written)
+                remove(LARGE_FILE ".tmp");
+        }
+        /* not written: its header alone, of no index, says it was tried,
+           and the next boot doesn't import for it again */
+        if (placed && !written)
+        {
+            const int fd = open(LARGE_FILE, O_WRONLY | O_CREAT | O_TRUNC,
+                                0666);
+            large_hdr.frames = 0;
+            if (fd >= 0)
+            {
+                write(fd, &large_hdr, sizeof(large_hdr));
+                close(fd);
+            }
+        }
     }
     logf("itunesdb: %lu covers, %lu slides", (unsigned long)count,
          (unsigned long)art_hdr.nslides);
@@ -5293,11 +5411,19 @@ static uint32_t frame_offset;
    are made meanwhile, and the frame read last is shared */
 static struct mutex art_lock;
 static bool art_lock_ready;
+/* LARGE_FILE is of the index loaded, large_hdr its header */
+static bool large_ok;
+/* the sum of ART_FILE past its header, read once a boot or an import, with
+   its header's count; no index: 0 */
+static uint32_t art_sum_known, art_sum_count;
+static bool art_sum_read;
 
 static void forget_art(void)
 {
     forget_index(&art_index);
     forget_index(&slides_index);
+    large_ok = false;
+    art_sum_read = false;
     if (colours_handle > 0)
         core_free(colours_handle);
     colours_handle = 0;
@@ -5496,6 +5622,147 @@ bool itunesdb_find_art(const char *path, struct itunesdb_art *art)
     if (entry.slide > 0)
         art->colour = slide_colour(entry.slide - 1);
     return true;
+}
+
+static void lock_art(void);
+
+static uint32_t art_sum(void)
+{
+    if (!art_sum_read)
+    {
+        struct art_sum a;
+        art_file_sum(&a);
+        art_sum_read = true;
+        art_sum_known = a.had && a.hdr.magic == ART_MAGIC
+                        && a.hdr.version == ART_VERSION ? a.sum : 0;
+        art_sum_count = a.had ? a.hdr.count : 0;
+    }
+    return art_sum_known;
+}
+
+/* The header of LARGE_FILE if an import made it for the index on the disk:
+   false without, as after a firmware that doesn't know the file imported */
+static bool large_made(struct large_header *h)
+{
+    const int fd = open(LARGE_FILE, O_RDONLY);
+    const bool made = fd >= 0 && read(fd, h, sizeof(*h)) == sizeof(*h)
+                      && h->magic == LARGE_MAGIC
+                      && h->version == LARGE_VERSION
+                      && h->index == art_sum() && h->count == art_sum_count
+                      /* whole, or the header alone of one not written */
+                      && (ffilesize(fd) == (off_t)(sizeof(*h) + h->count
+                                           * sizeof(struct large_entry))
+                          || (!h->frames
+                              && ffilesize(fd) == (off_t)sizeof(*h)));
+    if (fd >= 0)
+        close(fd);
+    return made;
+}
+
+bool itunesdb_large_art_ready(void)
+{
+    struct large_header h;
+    /* no index of this version: nothing to go with, or its own import */
+    return !art_sum() || large_made(&h);
+}
+
+/* its header; used if it has frames. False if it isn't made. */
+static bool load_large(void)
+{
+    struct large_header h;
+    const bool made = large_made(&h);
+    large_ok = made && h.frames && h.count == art_index.count
+               && h.pitch >= 2 && h.pitch <= 2 * LCD_WIDTH;
+    if (large_ok)
+        large_hdr = h;
+    return made;
+}
+
+bool itunesdb_has_large_art(void)
+{
+    return large_ok && large_hdr.frames > 0;
+}
+
+bool itunesdb_find_large_art(const char *path, struct itunesdb_large_art *art)
+{
+    if (!large_ok || !large_hdr.frames || art_index.handle <= 0)
+        return false;
+    /* the entry's place in the index, as find_in_index() looks */
+    const uint64_t hash = itunesdb_path_hash(path);
+    core_pin(art_index.handle);
+    const struct art_entry *entries = core_get_data(art_index.handle);
+    int lo = 0, hi = (int)art_index.count - 1, at = -1;
+    while (lo <= hi && at < 0)
+    {
+        const int mid = (lo + hi) / 2;
+        if (entries[mid].hash == hash)
+            at = mid;
+        else if (entries[mid].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    core_unpin(art_index.handle);
+    if (at < 0)
+        return false;
+
+    struct large_entry e;
+    const off_t pos = sizeof(struct large_header) + (off_t)at * sizeof(e);
+    const int fd = open(LARGE_FILE, O_RDONLY);
+    const bool read_it = fd >= 0 && lseek(fd, pos, SEEK_SET) == pos
+                         && read(fd, &e, sizeof(e)) == sizeof(e);
+    if (fd >= 0)
+        close(fd);
+    /* as read_image() takes them, for a file that was damaged */
+    if (!read_it || !e.file || e.width < 2 || e.height < 2
+        || (uint32_t)e.width * e.height > LARGE_PIXELS
+        || e.x + e.width > large_hdr.pitch
+        || (size_t)snprintf(art->path, sizeof(art->path),
+                            ARTWORK_DIR "/F%lu_%lu.ithmb",
+                            (unsigned long)large_hdr.format,
+                            (unsigned long)e.file) >= sizeof(art->path))
+        return false;
+    art->offset = e.offset;
+    art->pitch = large_hdr.pitch;
+    art->x = e.x;
+    art->y = e.y;
+    art->width = e.width;
+    art->height = e.height;
+    return true;
+}
+
+int itunesdb_load_large_art(const struct itunesdb_large_art *art,
+                            void *pixels)
+{
+    const size_t row = art->pitch * sizeof(fb_data);
+    const int rows_most = (sizeof(frame_raw) - 2 * READ_ALIGN) / row;
+    if (rows_most < 1)
+        return -1;
+    lock_art();
+    /* through the covers' own room, a part of the frame at a time */
+    frame_path[0] = '\0';
+    const int fd = open(art->path, O_RDONLY);
+    bool ok = fd >= 0;
+    for (int y = 0; ok && y < art->height; y += rows_most)
+    {
+        const int rows = MIN(rows_most, art->height - y);
+        const off_t from = (off_t)art->offset + (off_t)(art->y + y) * row;
+        const off_t start = from & ~(off_t)(READ_ALIGN - 1);
+        const size_t skip = from - start, size = rows * row;
+        const size_t want = (skip + size + READ_ALIGN - 1)
+                            & ~(size_t)(READ_ALIGN - 1);
+        /* the last frame of a file may end before the sector does */
+        ok = lseek(fd, start, SEEK_SET) == start
+             && read(fd, frame_raw, want) >= (ssize_t)(skip + size);
+        for (int k = 0; ok && k < rows; k++)
+            memcpy((fb_data *)pixels + (y + k) * art->width,
+                   frame_raw + skip + k * row + art->x * sizeof(fb_data),
+                   art->width * sizeof(fb_data));
+    }
+    if (fd >= 0)
+        close(fd);
+    mutex_unlock(&art_lock);
+    return ok ? (int)(art->width * art->height * sizeof(fb_data)) : -1;
 }
 
 /* the frame read into raw, from the sector it starts in */
@@ -6139,6 +6406,7 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
             art_kept = false;
 #ifdef HAVE_TAGCACHE
             list_covers_forget();
+            menu_cover_kept_forget();
 #endif
         }
         errno = 0;
@@ -6229,6 +6497,9 @@ uint64_t itunesdb_album_key(const char *album, const char *artist,
     return hash ? hash : 1;
 }
 
+/* of the made covers' index in memory, 0 for none */
+static uint32_t covers_sum;
+
 static void covers_load(void)
 {
     /* also with no frames, when no album had a cover: the next making knows
@@ -6236,6 +6507,24 @@ static void covers_load(void)
     covers_have_frames = file_exists(COVERS_FRAMES);
     load_index(&covers_index, COVERS_FILE, &covers_hdr, sizeof(covers_hdr),
                COVERS_MAGIC, COVERS_VERSION);
+    /* what they are, for the covers kept of them (menu_cover.c) */
+    covers_sum = 0;
+    if (covers_index.handle > 0)
+    {
+        core_pin(covers_index.handle);
+        covers_sum = index_hash(core_get_data(covers_index.handle),
+                                covers_index.count
+                                * sizeof(struct cover_entry),
+                                index_hash(&covers_hdr, sizeof(covers_hdr),
+                                           2166136261u));
+        core_unpin(covers_index.handle);
+    }
+}
+
+uint32_t itunesdb_covers_identity(void)
+{
+    /* the index's sum as the boot or the import read it; 0 until then */
+    return art_sum_read ? (art_sum_known ^ covers_sum * 16777619u) | 1 : 0;
 }
 
 static bool cover_art(const struct cover_entry *e, struct itunesdb_art *art)
@@ -6866,6 +7155,7 @@ void itunesdb_covers_end(int how)
 #ifdef HAVE_TAGCACHE
         album_header_forget_cover();
         list_covers_forget();
+        menu_cover_kept_forget();
 #endif
     }
 }
@@ -7123,6 +7413,7 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     bool art_placed = false;
     forget_art();
     remove(ART_FILE);
+    remove(LARGE_FILE);
 #endif
     sort_fields_begin();
     notes_begin();
@@ -7154,7 +7445,10 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
         core_free(old_slides_handle);
 #ifdef HAVE_TAGCACHE
     if (!art_placed)
+    {
         list_covers_forget();
+        menu_cover_kept_forget();
+    }
 #endif
 #endif
     /* no iTunesDB: no flags, as before. One that couldn't be read leaves
@@ -7188,6 +7482,12 @@ bool itunesdb_load_tracks(void)
                ART_MAGIC, ART_VERSION);
     load_slides_index();
     load_colours();
+    /* read here also with no index, for itunesdb_covers_identity() */
+    art_sum();
+    /* the larger frames go with this index or not at all; an index without
+       their file, as one an older firmware made: the import once more */
+    if (art_index.handle > 0 && !load_large())
+        return false;
     /* an index of covers of an older version: made again with the flags,
        once, as it isn't there or is of this one after */
     if (art_index.handle <= 0)
