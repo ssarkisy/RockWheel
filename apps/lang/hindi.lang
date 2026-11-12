@@ -593,6 +593,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_CROSSFEED
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Headphone Crossfeed"
+  </source>
+  <dest>
+    *: "हेडफ़ोन क्रॉसफ़ीड"
+  </dest>
+  <voice>
+    *: "हेडफ़ोन क्रॉसफ़ीड"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_EQUALIZER_ENABLED
   desc: in the equalizer settings menu
   user: core
@@ -6527,10 +6541,10 @@
   desc: a setting of Settings > Appearance: On, Music > Albums shows each album in two lines, its name and under it its year and album artist, and albums of the same name by different album artists are separate rows; Off, Albums as before
   user: core
   <source>
-    *: "Artists in Albums"
+    *: "Artist under Album"
   </source>
   <dest>
-    *: "एल्बमों में कलाकार"
+    *: "एल्बम के नीचे कलाकार"
   </dest>
   <voice>
     *: ""
@@ -7203,6 +7217,90 @@
   </source>
   <dest>
     *: "एल्बम शफ़ल करें"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCAST_SPEED
+  desc: a setting of Settings > Playback: the speed podcasts play at, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Podcast Speed"
+  </source>
+  <dest>
+    *: "पॉडकास्ट की गति"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SPEED
+  desc: a setting of Settings > Playback, after Podcast Speed: the speed audiobooks play at, 0.75×, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Audiobook Speed"
+  </source>
+  <dest>
+    *: "ऑडियोबुक की गति"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_PODCAST_SPEED
+  desc: the hint in the band under Settings > Playback while Podcast Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast podcasts play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "पॉडकास्ट कितनी तेज़ चलते हैं। आवाज़ें स्वाभाविक रहती हैं।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_AUDIOBOOK_SPEED
+  desc: the hint in the band under Settings > Playback while Audiobook Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast audiobooks play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "ऑडियोबुक कितनी तेज़ चलती हैं। आवाज़ें स्वाभाविक रहती हैं।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CROSSFADE
+  desc: the hint in the band under Settings > Playback > Crossfade while Crossfade is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The end of one song blends into the start of the next, with no silence between them."
+  </source>
+  <dest>
+    *: "एक गाने का अंत अगले की शुरुआत में घुल जाता है, बीच में कोई चुप्पी नहीं।"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE
+  desc: the hint in the band under Settings while Shuffle is selected, in three lines at most: Shuffle is Off, Songs or Albums for all the music played, and the main menu's Shuffle Songs sets it to Songs
+  user: core
+  <source>
+    *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+  </source>
+  <dest>
+    *: "बंद, गाने या एल्बम: आपका संगीत कैसे चलता है।"
   </dest>
   <voice>
     *: ""

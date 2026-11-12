@@ -2879,13 +2879,13 @@ const struct settings_list settings[] = {
 #define SPEEDS_OVER_CFG ""
 #endif
 #define SPEECH_SPEED_FLAGS (F_TEMPVAR|F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED)
-    CHOICE_SETTING(SPEECH_SPEED_FLAGS, podcast_speed, LANG_PODCASTS, 0,
+    CHOICE_SETTING(SPEECH_SPEED_FLAGS, podcast_speed, LANG_PODCAST_SPEED, 0,
                    "podcast speed", "normal,1.25x" SPEEDS_OVER_CFG,
                    podcast_speed_changed, PODCAST_SPEEDS,
                    ID2P(LANG_AUDIOBOOK_NORMAL), ID2P(LANG_SPEED_125),
                    ID2P(LANG_SPEED_150), ID2P(LANG_SPEED_175),
                    ID2P(LANG_SPEED_200)),
-    CHOICE_SETTING(SPEECH_SPEED_FLAGS, audiobook_speed, LANG_AUDIOBOOKS, 1,
+    CHOICE_SETTING(SPEECH_SPEED_FLAGS, audiobook_speed, LANG_AUDIOBOOK_SPEED, 1,
                    "audiobook speed", "slower,normal,faster" SPEEDS_OVER_CFG,
                    audiobook_speed_changed, AUDIOBOOK_SPEEDS,
                    ID2P(LANG_SPEED_075), ID2P(LANG_AUDIOBOOK_NORMAL),

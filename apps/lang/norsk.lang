@@ -612,13 +612,13 @@
   desc: in sound settings
   user: core
   <source>
-    *: "Crossfeed"
+    *: "Headphone Crossfeed"
   </source>
   <dest>
-    *: "Stereokrysslyd"
+    *: "Krysslyd for hodetelefoner"
   </dest>
   <voice>
-    *: "Stereokrysslyd"
+    *: "Krysslyd for hodetelefoner"
   </voice>
 </phrase>
 <phrase>
@@ -20346,10 +20346,10 @@
   desc: a setting of Settings > Appearance: On, Music > Albums shows each album in two lines, its name and under it its year and album artist, and albums of the same name by different album artists are separate rows; Off, Albums as before
   user: core
   <source>
-    *: "Artists in Albums"
+    *: "Artist under Album"
   </source>
   <dest>
-    *: "Artister i albumer"
+    *: "Artist under album"
   </dest>
   <voice>
     *: ""
@@ -21022,6 +21022,90 @@
   </source>
   <dest>
     *: "Miks albumer"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCAST_SPEED
+  desc: a setting of Settings > Playback: the speed podcasts play at, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Podcast Speed"
+  </source>
+  <dest>
+    *: "Podcasthastighet"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SPEED
+  desc: a setting of Settings > Playback, after Podcast Speed: the speed audiobooks play at, 0.75×, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Audiobook Speed"
+  </source>
+  <dest>
+    *: "Lydbokhastighet"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_PODCAST_SPEED
+  desc: the hint in the band under Settings > Playback while Podcast Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast podcasts play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "Hvor fort podcaster spilles. Stemmer beholder sin naturlige tonehøyde."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_AUDIOBOOK_SPEED
+  desc: the hint in the band under Settings > Playback while Audiobook Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast audiobooks play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "Hvor fort lydbøker spilles. Stemmer beholder sin naturlige tonehøyde."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CROSSFADE
+  desc: the hint in the band under Settings > Playback > Crossfade while Crossfade is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The end of one song blends into the start of the next, with no silence between them."
+  </source>
+  <dest>
+    *: "Slutten av en sang glir over i starten av den neste, uten stillhet."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE
+  desc: the hint in the band under Settings while Shuffle is selected, in three lines at most: Shuffle is Off, Songs or Albums for all the music played, and the main menu's Shuffle Songs sets it to Songs
+  user: core
+  <source>
+    *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+  </source>
+  <dest>
+    *: "Av, sanger eller albumer: hvordan musikken spilles. «Miks sanger» i hovedmenyen setter den til sanger."
   </dest>
   <voice>
     *: ""

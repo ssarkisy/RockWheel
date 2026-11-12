@@ -409,13 +409,13 @@
   desc: in sound settings
   user: core
   <source>
-    *: "Crossfeed"
+    *: "Headphone Crossfeed"
   </source>
   <dest>
-    *: "交叉供音"
+    *: "耳機交叉供音"
   </dest>
   <voice>
-    *: "交叉供音"
+    *: "耳機交叉供音"
   </voice>
 </phrase>
 <phrase>
@@ -16471,10 +16471,10 @@
   desc: a setting of Settings > Appearance: On, Music > Albums shows each album in two lines, its name and under it its year and album artist, and albums of the same name by different album artists are separate rows; Off, Albums as before
   user: core
   <source>
-    *: "Artists in Albums"
+    *: "Artist under Album"
   </source>
   <dest>
-    *: "專輯中顯示演出者"
+    *: "專輯下顯示演出者"
   </dest>
   <voice>
     *: ""
@@ -17147,6 +17147,90 @@
   </source>
   <dest>
     *: "隨機播放專輯"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCAST_SPEED
+  desc: a setting of Settings > Playback: the speed podcasts play at, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Podcast Speed"
+  </source>
+  <dest>
+    *: "Podcast 速度"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SPEED
+  desc: a setting of Settings > Playback, after Podcast Speed: the speed audiobooks play at, 0.75×, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Audiobook Speed"
+  </source>
+  <dest>
+    *: "有聲書速度"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_PODCAST_SPEED
+  desc: the hint in the band under Settings > Playback while Podcast Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast podcasts play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "Podcast 的播放速度。人聲保持自然音調。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_AUDIOBOOK_SPEED
+  desc: the hint in the band under Settings > Playback while Audiobook Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast audiobooks play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "有聲書的播放速度。人聲保持自然音調。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CROSSFADE
+  desc: the hint in the band under Settings > Playback > Crossfade while Crossfade is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The end of one song blends into the start of the next, with no silence between them."
+  </source>
+  <dest>
+    *: "一首歌的結尾與下一首的開頭相融，中間沒有停頓。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE
+  desc: the hint in the band under Settings while Shuffle is selected, in three lines at most: Shuffle is Off, Songs or Albums for all the music played, and the main menu's Shuffle Songs sets it to Songs
+  user: core
+  <source>
+    *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+  </source>
+  <dest>
+    *: "關、歌曲或專輯：音樂的播放方式。主選單的「隨機播放歌曲」會將其設為歌曲。"
   </dest>
   <voice>
     *: ""

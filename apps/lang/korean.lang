@@ -811,13 +811,13 @@
   desc: in sound settings
   user: core
   <source>
-    *: "Crossfeed"
+    *: "Headphone Crossfeed"
   </source>
   <dest>
-    *: "크로스피드"
+    *: "헤드폰 크로스피드"
   </dest>
   <voice>
-    *: "크로스피드"
+    *: "헤드폰 크로스피드"
   </voice>
 </phrase>
 <phrase>
@@ -21518,10 +21518,10 @@
   desc: a setting of Settings > Appearance: On, Music > Albums shows each album in two lines, its name and under it its year and album artist, and albums of the same name by different album artists are separate rows; Off, Albums as before
   user: core
   <source>
-    *: "Artists in Albums"
+    *: "Artist under Album"
   </source>
   <dest>
-    *: "앨범에 아티스트 표시"
+    *: "앨범 아래 아티스트"
   </dest>
   <voice>
     *: ""
@@ -22194,6 +22194,90 @@
   </source>
   <dest>
     *: "앨범 셔플"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCAST_SPEED
+  desc: a setting of Settings > Playback: the speed podcasts play at, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Podcast Speed"
+  </source>
+  <dest>
+    *: "팟캐스트 속도"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SPEED
+  desc: a setting of Settings > Playback, after Podcast Speed: the speed audiobooks play at, 0.75×, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Audiobook Speed"
+  </source>
+  <dest>
+    *: "오디오북 속도"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_PODCAST_SPEED
+  desc: the hint in the band under Settings > Playback while Podcast Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast podcasts play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "팟캐스트 재생 속도. 목소리 높이는 자연스럽게 유지됩니다."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_AUDIOBOOK_SPEED
+  desc: the hint in the band under Settings > Playback while Audiobook Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast audiobooks play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "오디오북 재생 속도. 목소리 높이는 자연스럽게 유지됩니다."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CROSSFADE
+  desc: the hint in the band under Settings > Playback > Crossfade while Crossfade is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The end of one song blends into the start of the next, with no silence between them."
+  </source>
+  <dest>
+    *: "한 곡의 끝이 다음 곡의 시작과 이어져 무음이 없습니다."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE
+  desc: the hint in the band under Settings while Shuffle is selected, in three lines at most: Shuffle is Off, Songs or Albums for all the music played, and the main menu's Shuffle Songs sets it to Songs
+  user: core
+  <source>
+    *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+  </source>
+  <dest>
+    *: "끔, 노래 또는 앨범: 음악 재생 방식. 메인 메뉴의 “노래 셔플”은 노래로 바꿉니다."
   </dest>
   <voice>
     *: ""

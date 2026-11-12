@@ -797,13 +797,13 @@
   desc: in sound settings
   user: core
   <source>
-    *: "Crossfeed"
+    *: "Headphone Crossfeed"
   </source>
   <dest>
-    *: "Crossfeed"
+    *: "Crossfeed para sa Headphone"
   </dest>
   <voice>
-    *: "Crossfeed"
+    *: "Crossfeed para sa Headphone"
   </voice>
 </phrase>
 <phrase>
@@ -17459,10 +17459,10 @@
   desc: a setting of Settings > Appearance: On, Music > Albums shows each album in two lines, its name and under it its year and album artist, and albums of the same name by different album artists are separate rows; Off, Albums as before
   user: core
   <source>
-    *: "Artists in Albums"
+    *: "Artist under Album"
   </source>
   <dest>
-    *: "Mga Artista sa Album"
+    *: "Artista sa Ilalim ng Album"
   </dest>
   <voice>
     *: ""
@@ -18135,6 +18135,90 @@
   </source>
   <dest>
     *: "Balasa ng Album"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCAST_SPEED
+  desc: a setting of Settings > Playback: the speed podcasts play at, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Podcast Speed"
+  </source>
+  <dest>
+    *: "Bilis ng Podcast"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SPEED
+  desc: a setting of Settings > Playback, after Podcast Speed: the speed audiobooks play at, 0.75×, Normal or 1.25× to 2×
+  user: core
+  <source>
+    *: "Audiobook Speed"
+  </source>
+  <dest>
+    *: "Bilis ng Audiobook"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_PODCAST_SPEED
+  desc: the hint in the band under Settings > Playback while Podcast Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast podcasts play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "Gaano kabilis tumugtog ang mga podcast. Natural pa rin ang tono ng boses."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_AUDIOBOOK_SPEED
+  desc: the hint in the band under Settings > Playback while Audiobook Speed is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "How fast audiobooks play. Voices keep their natural pitch."
+  </source>
+  <dest>
+    *: "Gaano kabilis tumugtog ang mga audiobook. Natural pa rin ang tono ng boses."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_CROSSFADE
+  desc: the hint in the band under Settings > Playback > Crossfade while Crossfade is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "The end of one song blends into the start of the next, with no silence between them."
+  </source>
+  <dest>
+    *: "Ang dulo ng isang kanta ay humahalo sa simula ng kasunod, walang katahimikan."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SHUFFLE
+  desc: the hint in the band under Settings while Shuffle is selected, in three lines at most: Shuffle is Off, Songs or Albums for all the music played, and the main menu's Shuffle Songs sets it to Songs
+  user: core
+  <source>
+    *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+  </source>
+  <dest>
+    *: "Off, kanta o album: paano tumutugtog ang musika mo. Ang “Balasa ng Kanta” sa main menu ay naglalagay nito sa kanta."
   </dest>
   <voice>
     *: ""

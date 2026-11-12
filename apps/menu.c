@@ -154,6 +154,14 @@ static const struct {
 #endif
     { &global_settings.cuesheet, LANG_HINT_CUESHEET },
     { &global_settings.crossfeed, LANG_HINT_CROSSFEED },
+    { &global_settings.playlist_shuffle, LANG_HINT_SHUFFLE },
+#ifdef HAVE_CROSSFADE
+    { &global_settings.crossfade, LANG_HINT_CROSSFADE },
+#endif
+#ifdef HAVE_PITCHCONTROL
+    { &global_settings.podcast_speed, LANG_HINT_PODCAST_SPEED },
+    { &global_settings.audiobook_speed, LANG_HINT_AUDIOBOOK_SPEED },
+#endif
     { &global_settings.bold_text, LANG_HINT_BOLD_TEXT },
 #ifdef HAVE_TAGCACHE
     { &global_settings.album_artists, LANG_HINT_ARTISTS_IN_ALBUMS },
