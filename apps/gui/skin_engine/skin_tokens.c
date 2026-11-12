@@ -607,6 +607,17 @@ const char *get_id3_token(struct wps_token *token, struct mp3entry *id3,
                                       buf_size) : NULL;
         case SKIN_TOKEN_TRACK_TIME_LEFT:
             return tagtree_time_left(elapsed, length, buf, buf_size);
+        case SKIN_TOKEN_TRACK_SPEED:
+        {
+#ifdef HAVE_PITCHCONTROL
+            const int kind = tagcache_track_kind(id3->tagcache_idx - 1);
+            const int *speed = speech_speed_setting(kind);
+            const int percent = speech_speed_percent(kind, speed ? *speed : 0);
+            if (percent != 100 && dsp_timestretch_available())
+                return speech_speed_name(percent, true);
+#endif
+            return NULL;
+        }
 #endif
 
             default:

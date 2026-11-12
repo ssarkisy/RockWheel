@@ -964,10 +964,10 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
     /* the volume alone: only the viewports that show it, the rest as it is
        (not if the colours above had all of it drawn again) */
     const bool volume_only = refresh_mode == SKIN_REFRESH_VOLUME;
-    /* Now Playing's lyrics viewport cleared, as by any full update */
+    /* Now Playing's lyrics or speeds viewport cleared, as by any full update */
     const bool now_playing = get_current_activity() == ACTIVITY_WPS
                              && data == skin_get_gwps(WPS, SCREEN_MAIN)->data;
-    bool lyrics_cleared = false;
+    bool view_cleared = false;
 
     /* Framebuffer is likely dirty */
     if ((refresh_mode&SKIN_REFRESH_ALL) == SKIN_REFRESH_ALL)
@@ -1048,8 +1048,9 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
             if (now_playing && skin_viewport->label != VP_DEFAULT_LABEL)
             {
                 const char *vplabel = SKINOFFSETTOPTR(skin_buffer, skin_viewport->label);
-                if (vplabel && !strcmp(vplabel, "lyrics"))
-                    lyrics_cleared = true;
+                if (vplabel && (!strcmp(vplabel, "lyrics")
+                                || !strcmp(vplabel, "speed")))
+                    view_cleared = true;
             }
         }
         /* render */
@@ -1091,9 +1092,9 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
     /* Restore the default viewport */
     display->set_viewport_ex(NULL, VP_FLAG_VP_SET_CLEAN);
 
-    /* the WPS draws them, as the skin can't wrap text */
-    if (lyrics_cleared)
-        wps_lyrics_redraw();
+    /* the WPS draws them: the skin can't wrap text or lay out a row */
+    if (view_cleared)
+        wps_view_redraw();
 }
 
 static __attribute__((noinline))

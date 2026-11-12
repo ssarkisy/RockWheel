@@ -35,6 +35,7 @@ enum wps_display_mode
     WPS_MODE_ALBUMART,   /* full screen album art */
     WPS_MODE_LYRICS,     /* the wheel scrolls the lyrics */
     WPS_MODE_RATING,     /* the wheel sets the rating */
+    WPS_MODE_SPEED,      /* the wheel sets a podcast's or an audiobook's speed */
     WPS_MODE_COUNT
 };
 
@@ -64,11 +65,11 @@ void wps_do_action(enum wps_do_action_type, bool updatewps);
 
 struct wps_state *get_wps_state(void);
 /* whether the wheel goes through the volume in Now Playing's view, and not the
-   track, the lyrics or the rating */
+   track, the lyrics, the rating or the speeds */
 bool wps_wheel_is_volume(void);
-/* the lyrics drawn again in the view of them, from the skin, after it drew
-   their viewport afresh */
-void wps_lyrics_redraw(void);
+/* the lyrics or the speeds drawn again in the view of them, from the skin,
+   after it drew their viewport afresh */
+void wps_view_redraw(void);
 
 /* in milliseconds */
 #define DEFAULT_SKIP_THRESH          3000l

@@ -105,8 +105,9 @@ void audio_set_playback_frequency(unsigned int sample_rate_hz);
 void set_albumart_mode(int setting);
 #endif
 #ifdef HAVE_PITCHCONTROL
-/* the audiobook speed setting's callback */
-void audio_audiobook_speed_changed(int speed);
+/* A podcast's (kind 1) or an audiobook's (kind 2) speed setting has changed:
+   heard at once in a track of that kind */
+void audio_speech_speed_changed(int kind);
 #endif
 
 size_t audio_get_filebuflen(void);

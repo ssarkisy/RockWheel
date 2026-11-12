@@ -433,6 +433,31 @@ static void draw_bevel(struct screen *display, int x, int y, int width,
 }
 #endif
 
+unsigned line_selection_bar(struct screen *display, int x, int y, int width,
+                            int height)
+{
+#ifdef HAVE_LCD_COLOR
+    if (display->depth >= 16)
+    {
+        struct line_desc line = LINE_DESC_DEFINIT;
+        line.height = height;
+        line.line_color = global_settings.lss_color;
+        line.line_end_color = line.line_color;
+        if (global_settings.cursor_style == SYNCLIST_CURSOR_GRADIENT)
+            line.line_end_color = global_settings.lse_color;
+        display->set_drawmode(DRMODE_FG);
+        display->gradient_fillrect(x, y, width, height, line.line_color,
+                                   line.line_end_color);
+        if (global_settings.list_selector_bevel)
+            draw_bevel(display, x, y, width, height, &line);
+        return global_settings.lst_color;
+    }
+#endif
+    display->set_drawmode(DRMODE_SOLID);
+    display->fillrect(x, y, width, height);
+    return display->get_background();
+}
+
 static void style_line(struct screen *display,
                        int x, int y, struct line_desc *line)
 {

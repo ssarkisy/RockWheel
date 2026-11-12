@@ -38,8 +38,8 @@
 # episode's show, date and time left; a book's author and time left
 %?kk<%?mw<%Vd(song)|%Vd(song)|%?C<|%Vd(song)>||%Vd(song)>|%?mw<%Vd(episode)|%Vd(episode)|%?C<|%Vd(episode)>||%Vd(episode)>|%?mw<%Vd(book)|%Vd(book)|%?C<|%Vd(book)>||%Vd(book)>>
 # display modes, cycled with the centre button:
-# normal | scrubber | album art | lyrics | rating
-%?mw<%Vd(info)%?mv(2.0)<%Vd(volume)|%Vd(pb)>|%Vd(info)%Vd(scrub)|%?C<%Vd(bigart)|%Vd(info)%Vd(pb)>|%Vd(lyrics)|%Vd(info)%Vd(rating)>
+# normal | scrubber | album art | lyrics | rating | speed
+%?mw<%Vd(info)%?mv(2.0)<%Vd(volume)|%Vd(pb)>|%Vd(info)%Vd(scrub)|%?C<%Vd(bigart)|%Vd(info)%Vd(pb)>|%Vd(lyrics)|%Vd(info)%Vd(rating)|%Vd(info)%Vd(speed)>
 %?mv(5)<%?St(battery display)<%Vd(title)|%Vd(titlebat)>|%?St(battery display)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>>>
 %Vl(title,6,2,190,14,4)%Vf(000000)
 %s%al%Sx(Now Playing)
@@ -125,11 +125,17 @@
 %al%kd
 %Vl(episode,160,141,148,16,2)%Vf(767676)
 %al%kl
+# its speed in the stars' row, when it isn't the normal one: in a conditional, as a
+# line is drawn again when its branch changes, not when its tag has nothing more to say
+%Vl(episode,160,121,148,16,2)%Vf(767676)
+%al%?ks<%ks|>
 # a book: its author, and what is left of it
 %Vl(book,160,72,148,18,3)%Vf(666666)
 %t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
 %Vl(book,160,141,148,16,2)%Vf(767676)
 %al%kl
+%Vl(book,160,121,148,16,2)%Vf(767676)
+%al%?ks<%ks|>
 %xl(R,Ratings.bmp,0,0,10)
 %xC(R)
 %xl(g,iOS Ratings.bmp,0,0,10)
@@ -195,3 +201,6 @@
 %Cd%xd(F)%xd(G)
 # lyrics view: the WPS code draws the lyrics into this viewport
 %Vl(lyrics,8,24,304,212,5)%Vf(000000)
+# speed view, of a podcast or an audiobook: the WPS code draws "Speed" and the
+# row of speeds into this viewport, under the cover's reflection
+%Vl(speed,0,203,320,35,2)%Vf(767676)

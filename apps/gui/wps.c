@@ -54,6 +54,8 @@
 #include "quickscreen.h"
 #include "shortcuts.h"
 #include "pitchscreen.h"
+#include "tdspeed.h"
+#include "line.h"
 #include "appevents.h"
 #include "viewport.h"
 #include "pcmbuf.h"
@@ -558,12 +560,18 @@ static void wps_lcd_activation_hook(unsigned short id, void *param)
 /* The scrubber and rating views fall back to the normal view after this
    long without use, as on a stock iPod */
 #define WPS_MODE_TIMEOUT (5*HZ)
-/* A scrub is applied once the wheel has been still for this long */
+/* A scrub is applied, and a speed heard, once the wheel has been still for
+   this long */
 #define SCRUB_SEEK_DELAY (HZ/3)
 
 static long mode_last_used;
 static long scrub_last_turn;
 static bool scrub_pending = false;
+#ifdef HAVE_PITCHCONTROL
+static long speed_last_turn;
+/* the kind whose speed the wheel has set and the music hasn't yet, or 0 */
+static int speed_pending;
+#endif
 /* the wheel scrubbed in this scrubber view, or changed the rating in this
    rating view */
 static bool mode_moved = false;
@@ -589,16 +597,6 @@ static void draw_lyrics(void)
         lyrics_draw(&screens[SCREEN_MAIN], vp);
 }
 
-/* Whatever drew the skin afresh: the WPS's full updates, and those the skin
-   made itself, as when the cover's colours changed at a pause's update. Drawn
-   after the full updates the WPS saw alone, the lyrics were gone after the
-   others, the backdrop's empty bar in their place until the wheel turned. */
-void wps_lyrics_redraw(void)
-{
-    if (get_wps_state()->display_mode == WPS_MODE_LYRICS)
-        draw_lyrics();
-}
-
 /* the track's kind as iTunesDB has it: 0 music, 1 podcast, 2 audiobook */
 static int track_kind(const struct mp3entry *id3)
 {
@@ -607,6 +605,110 @@ static int track_kind(const struct mp3entry *id3)
 #else
     (void)id3;
     return 0;
+#endif
+}
+
+#ifdef HAVE_PITCHCONTROL
+/* the skin's viewport the speeds are drawn in */
+static struct viewport *speed_viewport(void)
+{
+    struct wps_data *data = skin_get_gwps(WPS, SCREEN_MAIN)->data;
+    struct skin_viewport *svp = skin_find_item("speed", SKIN_FIND_VP, data);
+    return svp ? &svp->vp : NULL;
+}
+
+#define SPEED_ROW_GAP 1 /* between "Speed" and the row */
+#define SPEED_BAR_PAD 3 /* of a speed's place left clear either side of the bar */
+
+/* "Speed" over the speeds of the track's kind in a row, the one set on the selection's
+   bar (the text's colour in the cover's colours); left to right in any language. */
+static void draw_speed(void)
+{
+    struct screen *display = &screens[SCREEN_MAIN];
+    struct viewport *vp = speed_viewport();
+    const int kind = track_kind(get_wps_state()->id3);
+    const int count = speech_speed_count(kind);
+    if (!vp || !count)
+        return;
+    const int chosen = *speech_speed_setting(kind);
+    struct viewport *last_vp = display->set_viewport_ex(vp,
+                                                        VP_FLAG_VP_SET_CLEAN);
+    const unsigned fg = display->get_foreground();
+    const int text_h = font_get(vp->font)->height;
+    const int row_y = text_h + SPEED_ROW_GAP, row_h = vp->height - row_y;
+    const int cell = vp->width / count;
+    const int left = (vp->width - cell * count) / 2;
+    const char *name = str(LANG_SPEED);
+    unsigned ground = vp->bg_pattern;
+    bool tinted = false;
+    int w;
+
+    /* a plain background: the backdrop has the empty progress bar here */
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    const struct cover_palette *palette = cover_palette_get();
+    tinted = palette && palette->whole_screen;
+    if (tinted)
+        ground = palette->background;
+    if (!cover_palette_clear(display, vp))
+#endif
+    {
+        display->set_foreground(ground);
+        display->fillrect(0, 0, vp->width, vp->height);
+    }
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_FG);
+    display->getstringsize(name, &w, NULL);
+    display->putsxy((vp->width - w) / 2, 0, name);
+    for (int i = 0; i < count; i++)
+    {
+        const int x = left + i * cell;
+        unsigned ink = fg;
+        if (i == chosen && tinted)
+        {
+            display->fillrect(x + SPEED_BAR_PAD, row_y,
+                              cell - 2 * SPEED_BAR_PAD, row_h);
+            ink = ground;
+        }
+        else if (i == chosen)
+            ink = line_selection_bar(display, x + SPEED_BAR_PAD, row_y,
+                                     cell - 2 * SPEED_BAR_PAD, row_h);
+        name = speech_speed_name(speech_speed_percent(kind, i), true);
+        display->getstringsize(name, &w, NULL);
+        display->set_foreground(ink);
+        display->set_drawmode(DRMODE_FG);
+        const int text_x = x + (cell - w) / 2;
+        display->putsxy(VP_IS_RTL(vp) ? vp->width - w - text_x : text_x,
+                        row_y + (row_h - text_h) / 2, name);
+    }
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+    display->update_viewport();
+    display->set_viewport_ex(last_vp, VP_FLAG_VP_SET_CLEAN);
+}
+
+/* the speed the wheel set, heard and saved */
+static void speed_apply(void)
+{
+    const int kind = speed_pending;
+    if (!kind)
+        return;
+    speed_pending = 0;
+    audio_speech_speed_changed(kind);
+    settings_save();
+}
+#endif /* HAVE_PITCHCONTROL */
+
+/* Whatever drew the skin afresh: the WPS's full updates, and those the skin
+   made itself, as when the cover's colours changed at a pause's update. Drawn
+   after the full updates the WPS saw alone, the lyrics were gone after the
+   others, the backdrop's empty bar in their place until the wheel turned. */
+void wps_view_redraw(void)
+{
+    if (get_wps_state()->display_mode == WPS_MODE_LYRICS)
+        draw_lyrics();
+#ifdef HAVE_PITCHCONTROL
+    else if (get_wps_state()->display_mode == WPS_MODE_SPEED)
+        draw_speed();
 #endif
 }
 
@@ -642,6 +744,14 @@ static bool display_mode_available(enum wps_display_mode mode)
             struct viewport *vp = lyrics_viewport();
             return vp && lyrics_load(id3, vp);
         }
+        case WPS_MODE_SPEED:
+#ifdef HAVE_PITCHCONTROL
+            /* a podcast's or an audiobook's, in a skin with a place for it */
+            return track_kind(id3) && dsp_timestretch_available()
+                   && speed_viewport();
+#else
+            return false;
+#endif
         default:
             return true;
     }
@@ -668,18 +778,22 @@ static void scrub_apply(void)
 static void set_display_mode(enum wps_display_mode mode)
 {
     scrub_apply();
+#ifdef HAVE_PITCHCONTROL
+    speed_apply();
+#endif
     mode_moved = false;
     get_wps_state()->display_mode = mode;
     mode_last_used = current_tick;
     skin_request_full_update(WPS);
 }
 
-/* in the stock iPod's order: the scrubber, the rating, the large cover, the lyrics */
+/* in the stock iPod's order: the scrubber, the rating, the large cover, the
+   lyrics; a podcast's or an audiobook's speeds after the scrubber */
 static void next_display_mode(void)
 {
     static const enum wps_display_mode order[WPS_MODE_COUNT] = {
-        WPS_MODE_VOLUME, WPS_MODE_SCRUB, WPS_MODE_RATING, WPS_MODE_ALBUMART,
-        WPS_MODE_LYRICS,
+        WPS_MODE_VOLUME, WPS_MODE_SCRUB, WPS_MODE_SPEED, WPS_MODE_RATING,
+        WPS_MODE_ALBUMART, WPS_MODE_LYRICS,
     };
     int i = 0;
     while (order[i] != get_wps_state()->display_mode)
@@ -696,26 +810,27 @@ static void follow_track_change(void)
     struct wps_state *state = get_wps_state();
     if (!mode_track_changed)
         return;
-    /* the scrubber and rating views were for the old track, as was a
+    /* the scrubber, rating and speed views were for the old track, as was a
        pending scrub; the album art and lyrics views stay, the skin shows
        the normal view for a track without them */
     mode_track_changed = false;
     scrub_pending = false;
     state->ff_rewind_count = 0;
     if (state->display_mode == WPS_MODE_SCRUB
-        || state->display_mode == WPS_MODE_RATING)
+        || state->display_mode == WPS_MODE_RATING
+        || state->display_mode == WPS_MODE_SPEED)
         set_display_mode(WPS_MODE_VOLUME);
     else if (state->display_mode == WPS_MODE_LYRICS)
         set_display_mode(display_mode_available(WPS_MODE_LYRICS) ?
                          WPS_MODE_LYRICS : WPS_MODE_VOLUME);
 }
 
-/* The wheel in the scrubber, lyrics and rating views */
+/* The wheel in the scrubber, lyrics, rating and speed views */
 bool wps_wheel_is_volume(void)
 {
     const int mode = get_wps_state()->display_mode;
     return mode != WPS_MODE_SCRUB && mode != WPS_MODE_LYRICS
-        && mode != WPS_MODE_RATING;
+        && mode != WPS_MODE_RATING && mode != WPS_MODE_SPEED;
 }
 
 /* The wheel's steps of the press, those the UI was too busy to take included:
@@ -802,6 +917,27 @@ static void display_mode_turn(int direction)
         mode_moved = true;
         scrub_last_turn = current_tick;
     }
+#ifdef HAVE_PITCHCONTROL
+    else if (state->display_mode == WPS_MODE_SPEED)
+    {
+        /* a speed a wheel step, shown at once and heard when the wheel
+           rests: each change has the track decoded again from where it is */
+        const int kind = track_kind(id3);
+        int *speed = speech_speed_setting(kind);
+        if (!speed)
+            return;
+        const int value = MAX(0, MIN(*speed + direction * wheel_steps(),
+                                     speech_speed_count(kind) - 1));
+        mode_moved = true;
+        if (value != *speed)
+        {
+            *speed = value;
+            speed_pending = kind;
+            speed_last_turn = current_tick;
+            draw_speed();
+        }
+    }
+#endif
 #ifdef HAVE_TAGCACHE
     else if (state->display_mode == WPS_MODE_RATING)
     {
@@ -872,8 +1008,13 @@ static void display_mode_tick(void)
     }
     if (scrub_pending && TIME_AFTER(current_tick, scrub_last_turn + SCRUB_SEEK_DELAY))
         scrub_apply();
+#ifdef HAVE_PITCHCONTROL
+    if (speed_pending && TIME_AFTER(current_tick, speed_last_turn + SCRUB_SEEK_DELAY))
+        speed_apply();
+#endif
     if ((state->display_mode == WPS_MODE_SCRUB
-         || state->display_mode == WPS_MODE_RATING)
+         || state->display_mode == WPS_MODE_RATING
+         || state->display_mode == WPS_MODE_SPEED)
         && TIME_AFTER(current_tick, mode_last_used + WPS_MODE_TIMEOUT))
         set_display_mode(WPS_MODE_VOLUME);
 }
@@ -881,6 +1022,9 @@ static void display_mode_tick(void)
 static void gwps_leave_wps(bool theme_enabled)
 {
     scrub_apply();
+#ifdef HAVE_PITCHCONTROL
+    speed_apply();
+#endif
     FOR_NB_SCREENS(i)
     {
         struct gui_wps *gwps = skin_get_gwps(WPS, i);
@@ -1133,8 +1277,8 @@ long gui_wps_show(void)
                     bool full_update = skin_do_full_update(WPS, i);
                     if (update || full_update)
                     {
-                        /* the lyrics, cleared by a full one, the skin draws
-                           again with wps_lyrics_redraw() */
+                        /* the lyrics or the speeds, cleared by a full one,
+                           the skin draws again with wps_view_redraw() */
                         skin_update(WPS, i, full_update ?
                                      SKIN_REFRESH_ALL : SKIN_REFRESH_NON_STATIC);
                     }
@@ -1240,10 +1384,11 @@ long gui_wps_show(void)
                 break;
 
             case ACTION_WPS_NEXT_MODE:
-                /* after a scrub or a rating, back to the track rather than
-                   on to its next view */
+                /* after a scrub, a rating or a speed, back to the track
+                   rather than on to its next view */
                 if ((state->display_mode == WPS_MODE_SCRUB
-                     || state->display_mode == WPS_MODE_RATING) && mode_moved)
+                     || state->display_mode == WPS_MODE_RATING
+                     || state->display_mode == WPS_MODE_SPEED) && mode_moved)
                     set_display_mode(WPS_MODE_VOLUME);
                 else
                     next_display_mode();
@@ -1253,7 +1398,8 @@ long gui_wps_show(void)
             case ACTION_WPS_VOLDOWN:
                 if (state->display_mode == WPS_MODE_SCRUB
                     || state->display_mode == WPS_MODE_LYRICS
-                    || state->display_mode == WPS_MODE_RATING)
+                    || state->display_mode == WPS_MODE_RATING
+                    || state->display_mode == WPS_MODE_SPEED)
                 {
                     display_mode_turn(button == ACTION_WPS_VOLUP ? 1 : -1);
                     update = false;

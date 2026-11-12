@@ -1290,6 +1290,38 @@ void dsp_change_heard_now(void (*change)(void))
         audio_ff_rewind(id3->elapsed);
 }
 
+#ifdef HAVE_PITCHCONTROL
+int *speech_speed_setting(int kind)
+{
+    return kind == 1 ? &global_settings.podcast_speed
+         : kind == 2 ? &global_settings.audiobook_speed : NULL;
+}
+
+int speech_speed_count(int kind)
+{
+    return kind == 1 ? PODCAST_SPEEDS : kind == 2 ? AUDIOBOOK_SPEEDS : 0;
+}
+
+int speech_speed_percent(int kind, int value)
+{
+    const int count = speech_speed_count(kind);
+    if (!count)
+        return 100;
+    return (kind == 1 ? 100 : 75) + 25 * MAX(0, MIN(value, count - 1));
+}
+
+const char *speech_speed_name(int percent, bool as_number)
+{
+    static const short names[] = {
+        LANG_SPEED_075, LANG_SPEED_100, LANG_SPEED_125, LANG_SPEED_150,
+        LANG_SPEED_175, LANG_SPEED_200,
+    };
+    if (percent == 100 && !as_number)
+        return str(LANG_AUDIOBOOK_NORMAL);
+    return str(names[MAX(0, MIN((percent - 75) / 25, (int)ARRAYLEN(names) - 1))]);
+}
+#endif
+
 /* Update DSP's replaygain from global settings */
 void replaygain_update(void)
 {

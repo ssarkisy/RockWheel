@@ -174,6 +174,7 @@ MENUITEM_SETTING(rewind_across_tracks, &global_settings.rewind_across_tracks, NU
 MENUITEM_SETTING_SHARED(resume_rewind, &global_settings.resume_rewind, NULL);
 MENUITEM_SETTING_SHARED(coverflow_pause_item, &global_settings.coverflow_pause, NULL);
 #ifdef HAVE_PITCHCONTROL
+MENUITEM_SETTING_SHARED(podcast_speed, &global_settings.podcast_speed, NULL);
 MENUITEM_SETTING_SHARED(audiobook_speed, &global_settings.audiobook_speed, NULL);
 #endif
 MENUITEM_SETTING(pause_rewind, &global_settings.pause_rewind, NULL);

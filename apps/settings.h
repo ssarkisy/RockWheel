@@ -434,6 +434,16 @@ struct system_status
 /* the looks of Appearance's settings */
 enum { STYLE_IPOD = 0, STYLE_IOS };
 
+#ifdef HAVE_PITCHCONTROL
+/* The fastest a podcast or an audiobook is offered at, in per cent: 200, 175,
+   150 or 125. Their settings' values, config.cfg's names and Now Playing's
+   row of speeds all end here. */
+#define SPEECH_SPEED_TOP 200
+/* a podcast's speeds start at the normal one, an audiobook's a step under it */
+#define PODCAST_SPEEDS   ((SPEECH_SPEED_TOP - 100) / 25 + 1)
+#define AUDIOBOOK_SPEEDS (PODCAST_SPEEDS + 1)
+#endif
+
 struct user_settings
 {
     /* audio settings */
@@ -981,7 +991,7 @@ struct user_settings
     /* Settings > Now Playing Menu: what the menu held Select opens there has */
     bool wps_menu_show[WPS_MENU_ROWS];
 #ifdef HAVE_PITCHCONTROL
-    int audiobook_speed; /* 0 slower, 1 normal, 2 faster */
+    int audiobook_speed; /* 0 is 0.75x, 1 normal, then by 0.25x */
 #endif
 
 #ifdef AUDIOHW_HAVE_DEPTH_3D
@@ -1103,6 +1113,9 @@ struct user_settings
     /* Music > Songs, as its first row sorts it: 0 by name, 1 by artist, 2 by
        album, 3 by year */
     int songs_sort;
+#ifdef HAVE_PITCHCONTROL
+    int podcast_speed; /* 0 normal, then by 0.25x */
+#endif
 };
 
 /* global settings */

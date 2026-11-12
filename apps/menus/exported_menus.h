@@ -49,7 +49,7 @@ extern const struct menu_item_ex
 extern const struct menu_item_ex
         shuffle_item, repeat_mode, replaygain_type, /* playback_menu.c */
 #ifdef HAVE_PITCHCONTROL
-        audiobook_speed,
+        podcast_speed, audiobook_speed,
 #endif
 #ifdef HAVE_CROSSFADE
         crossfade,

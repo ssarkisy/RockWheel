@@ -661,7 +661,7 @@ MAKE_MENU(settings_sound, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_NOICON,
 
 MAKE_MENU(settings_playback, ID2P(LANG_PLAYBACK), NULL, Icon_NOICON,
 #ifdef HAVE_PITCHCONTROL
-          &audiobook_speed,
+          &podcast_speed, &audiobook_speed,
 #endif
 #ifdef HAVE_CROSSFADE
           &crossfade,

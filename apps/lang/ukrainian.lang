@@ -21522,3 +21522,87 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SPEED_075
+  desc: a speed podcasts or audiobooks play at, 0.75 times the normal one: a value of Settings > Playback > Podcasts and Audiobooks, and in the row of speeds in Now Playing; with the decimal mark of the language
+  user: core
+  <source>
+    *: "0.75×"
+  </source>
+  <dest>
+    *: "0,75×"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED_100
+  desc: a speed podcasts or audiobooks play at, 1 times the normal one: a value of Settings > Playback > Podcasts and Audiobooks, and in the row of speeds in Now Playing; with the decimal mark of the language
+  user: core
+  <source>
+    *: "1×"
+  </source>
+  <dest>
+    *: "1×"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED_125
+  desc: a speed podcasts or audiobooks play at, 1.25 times the normal one: a value of Settings > Playback > Podcasts and Audiobooks, and in the row of speeds in Now Playing; with the decimal mark of the language
+  user: core
+  <source>
+    *: "1.25×"
+  </source>
+  <dest>
+    *: "1,25×"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED_150
+  desc: a speed podcasts or audiobooks play at, 1.5 times the normal one: a value of Settings > Playback > Podcasts and Audiobooks, and in the row of speeds in Now Playing; with the decimal mark of the language
+  user: core
+  <source>
+    *: "1.5×"
+  </source>
+  <dest>
+    *: "1,5×"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED_175
+  desc: a speed podcasts or audiobooks play at, 1.75 times the normal one: a value of Settings > Playback > Podcasts and Audiobooks, and in the row of speeds in Now Playing; with the decimal mark of the language
+  user: core
+  <source>
+    *: "1.75×"
+  </source>
+  <dest>
+    *: "1,75×"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPEED_200
+  desc: a speed podcasts or audiobooks play at, 2 times the normal one: a value of Settings > Playback > Podcasts and Audiobooks, and in the row of speeds in Now Playing; with the decimal mark of the language
+  user: core
+  <source>
+    *: "2×"
+  </source>
+  <dest>
+    *: "2×"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

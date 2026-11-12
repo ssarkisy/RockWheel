@@ -937,6 +937,20 @@ static void sound_check_changed(int value)
     dsp_change_heard_now(NULL);
 }
 
+#ifdef HAVE_PITCHCONTROL
+static void podcast_speed_changed(int value)
+{
+    (void)value;
+    audio_speech_speed_changed(1);
+}
+
+static void audiobook_speed_changed(int value)
+{
+    (void)value;
+    audio_speech_speed_changed(2);
+}
+#endif
+
 /* perform shuffle/unshuffle of the current playlist based on the boolean provided */
 static void shuffle_playlist_callback(bool shuffle)
 {
@@ -2875,12 +2889,30 @@ const struct settings_list settings[] = {
     OFFON_SETTING(0, wps_menu_show[WPS_MENU_NIGHT_MODE], LANG_NIGHT_MODE, true,
                   "now playing menu night mode", NULL),
 #ifdef HAVE_PITCHCONTROL
-    /* the stock iPod's Audiobooks setting: the speed of audiobooks only */
-    CHOICE_SETTING(0, audiobook_speed, LANG_AUDIOBOOKS, 1,
-                   "audiobook speed", "slower,normal,faster",
-                   audio_audiobook_speed_changed, 3,
-                   ID2P(LANG_AUDIOBOOK_SLOWER), ID2P(LANG_AUDIOBOOK_NORMAL),
-                   ID2P(LANG_AUDIOBOOK_FASTER)),
+    /* How fast podcasts and audiobooks play, set with Select. config.cfg keeps the
+       stock iPod's slower, normal, faster; then the speeds' names up to the top. */
+#if SPEECH_SPEED_TOP >= 200
+#define SPEEDS_OVER_CFG ",1.5x,1.75x,2x"
+#elif SPEECH_SPEED_TOP >= 175
+#define SPEEDS_OVER_CFG ",1.5x,1.75x"
+#elif SPEECH_SPEED_TOP >= 150
+#define SPEEDS_OVER_CFG ",1.5x"
+#else
+#define SPEEDS_OVER_CFG ""
+#endif
+#define SPEECH_SPEED_FLAGS (F_TEMPVAR|F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED)
+    CHOICE_SETTING(SPEECH_SPEED_FLAGS, podcast_speed, LANG_PODCASTS, 0,
+                   "podcast speed", "normal,1.25x" SPEEDS_OVER_CFG,
+                   podcast_speed_changed, PODCAST_SPEEDS,
+                   ID2P(LANG_AUDIOBOOK_NORMAL), ID2P(LANG_SPEED_125),
+                   ID2P(LANG_SPEED_150), ID2P(LANG_SPEED_175),
+                   ID2P(LANG_SPEED_200)),
+    CHOICE_SETTING(SPEECH_SPEED_FLAGS, audiobook_speed, LANG_AUDIOBOOKS, 1,
+                   "audiobook speed", "slower,normal,faster" SPEEDS_OVER_CFG,
+                   audiobook_speed_changed, AUDIOBOOK_SPEEDS,
+                   ID2P(LANG_SPEED_075), ID2P(LANG_AUDIOBOOK_NORMAL),
+                   ID2P(LANG_SPEED_125), ID2P(LANG_SPEED_150),
+                   ID2P(LANG_SPEED_175), ID2P(LANG_SPEED_200)),
 #endif
    CUSTOM_SETTING(0, root_menu_customized,
                   LANG_ROCKBOX_TITLE, /* lang string here is never actually used */

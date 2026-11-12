@@ -230,5 +230,9 @@ void line_draw_cover(struct screen *display, int x, int y,
 void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
                        int font, int text_font);
 bool line_font_has(int font, const char *text);
+/* The bar a list's selected row has, for what is chosen outside a list, in
+   the current viewport: returns the colour of the text on it */
+unsigned line_selection_bar(struct screen *display, int x, int y, int width,
+                            int height);
 
 #endif /* __LINE_H__*/

@@ -1791,29 +1791,67 @@ static bool autoresumable(struct mp3entry *id3)
 #endif  /* HAVE_TAGCACHE */
 
 #ifdef HAVE_PITCHCONTROL
-/* Audiobooks play at the speed set for them, as on a stock iPod, the rest
-   at the normal speed. Set as the codec starts on a track, which is where
-   the DSP is in the music. */
-static void set_track_speed(const struct mp3entry *id3)
+/* 1 for a podcast, 2 for an audiobook, 0 for music: as the database in memory
+   has it, or by iTunesDB's flags for a track it has no kind of */
+static int speech_kind(const struct mp3entry *id3)
 {
-    static const int32_t speeds[] = {
-        75 * PITCH_SPEED_PRECISION, PITCH_SPEED_100,
-        125 * PITCH_SPEED_PRECISION
-    };
-    int speed = global_settings.audiobook_speed;
-    int32_t factor = PITCH_SPEED_100;
-    if ((itunesdb_track_flags(id3->path) & ITUNESDB_AUDIOBOOK)
-        && speed >= 0 && speed < (int)ARRAYLEN(speeds))
-        factor = speeds[speed];
-    dsp_set_timestretch(factor);
+    int kind = 0;
+#ifdef HAVE_TAGCACHE
+    if (id3->tagcache_idx > 0)
+        kind = tagcache_track_kind(id3->tagcache_idx - 1);
+#endif
+    if (!kind)
+    {
+        const unsigned flags = itunesdb_track_flags(id3->path);
+        kind = (flags & ITUNESDB_AUDIOBOOK) ? 2
+             : (flags & ITUNESDB_PODCAST) ? 1 : 0;
+    }
+    return kind;
 }
 
-void audio_audiobook_speed_changed(int speed)
+/* the kind of the track the DSP's speed was set for last: the codec's */
+static int speed_kind;
+
+/* Podcasts and audiobooks play at the speeds set for them, the rest at the
+   normal one. Set as the codec starts on a track, or goes back to one, which
+   is where the DSP is in the music. */
+static void set_track_speed(const struct mp3entry *id3)
 {
-    (void)speed;
+    const int kind = speech_kind(id3);
+    const int *speed = speech_speed_setting(kind);
+    speed_kind = kind;
+    dsp_set_timestretch(speech_speed_percent(kind, speed ? *speed : 0)
+                        * PITCH_SPEED_PRECISION);
+}
+
+static void set_heard_track_speed(void)
+{
     struct mp3entry *id3 = audio_current_track();
     if (id3)
         set_track_speed(id3);
+}
+
+/* Heard at once in a track of that kind: it is decoded again from where it
+   plays, between a pause's fade out and in, where a seek alone cuts the sound.
+   One being decoded behind another's last seconds takes it from there. */
+void audio_speech_speed_changed(int kind)
+{
+    struct mp3entry *id3 = audio_current_track();
+    if (id3 && speech_kind(id3) == kind)
+    {
+        const bool playing = (audio_status()
+                              & (AUDIO_STATUS_PLAY | AUDIO_STATUS_PAUSE))
+                             == AUDIO_STATUS_PLAY;
+        if (playing)
+            audio_pause();
+        dsp_change_heard_now(set_heard_track_speed);
+        if (playing)
+            audio_resume();
+    }
+    else if (speed_kind == kind)
+        dsp_set_timestretch(speech_speed_percent(kind,
+                                *speech_speed_setting(kind))
+                            * PITCH_SPEED_PRECISION);
 }
 #endif /* HAVE_PITCHCONTROL */
 
@@ -3744,6 +3782,10 @@ static void audio_on_ff_rewind(long time)
             ci.audio_hid = cur_info.audio_hid;
             ci.filesize = buf_filesize(cur_info.audio_hid);
             buf_set_base_handle(cur_info.audio_hid);
+#ifdef HAVE_PITCHCONTROL
+            /* back from the next track, which may play at another speed */
+            set_track_speed(ci_id3);
+#endif
         }
 
         if (!haltres)

@@ -278,6 +278,16 @@ void replaygain_update(void);
    old music. */
 void dsp_change_heard_now(void (*change)(void));
 
+#ifdef HAVE_PITCHCONTROL
+/* How fast a podcast (kind 1) or an audiobook (kind 2) plays: its setting, NULL
+   for music; how many values that has; one of them in per cent; and a speed's
+   phrase, "1.25×", the normal one's "1×" if as_number, as in a row of them */
+int *speech_speed_setting(int kind);
+int speech_speed_count(int kind);
+int speech_speed_percent(int kind, int value);
+const char *speech_speed_name(int percent, bool as_number);
+#endif
+
 void push_current_activity(enum current_activity screen);
 /* Wake Screen's way, for the context a screen waits for a press in (from
    get_action); Search's letters set typing, where ⏮/⏭ type */

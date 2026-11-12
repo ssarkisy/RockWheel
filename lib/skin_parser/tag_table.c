@@ -174,11 +174,13 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_VOLUME_PERCENT,        "nv", "", SKIN_REFRESH_DYNAMIC|SKIN_REFRESH_VOLUME),
     TAG(SKIN_TOKEN_NIGHT_MODE,            "nN", "", SKIN_REFRESH_DYNAMIC),
     /* The track's kind as iTunesDB has it, %?kk<music|podcast|audiobook>;
-       its release date as Podcasts' lists have it, "20 May 2023"; and what
-       is left of it, "28 min left" */
+       its release date as Podcasts' lists have it, "20 May 2023"; what is
+       left of it, "28 min left"; and the speed a podcast or an audiobook
+       plays at, "1.25×", nothing at the normal one */
     TAG(SKIN_TOKEN_TRACK_KIND,            "kk", "", SKIN_REFRESH_STATIC),
     TAG(SKIN_TOKEN_TRACK_DATE,            "kd", "", SKIN_REFRESH_STATIC),
     TAG(SKIN_TOKEN_TRACK_TIME_LEFT,       "kl", "", SKIN_REFRESH_DYNAMIC),
+    TAG(SKIN_TOKEN_TRACK_SPEED,           "ks", "", SKIN_REFRESH_DYNAMIC),
 
     TAG(SKIN_TOKEN_PEAKMETER,             "pm", "", SKIN_REFRESH_PEAK_METER),
     TAG(SKIN_TOKEN_PEAKMETER_LEFT,        "pL", BAR_PARAMS, SKIN_REFRESH_PEAK_METER),
