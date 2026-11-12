@@ -40,6 +40,7 @@
 #include "usb.h"
 #include "panic.h"
 #include "settings.h"
+#include "gui/ui_theme.h"
 #include "settings_list.h"
 #include "option_select.h"
 #include "screens.h"
@@ -175,6 +176,7 @@ static const struct {
 #endif
 #ifdef HAVE_MENU_COVER
     { &global_settings.moving_cover, LANG_HINT_MOVING_COVER },
+    { &global_settings.theme_colour, LANG_HINT_THEME_COLOUR },
 #endif
 #ifdef HAVE_BACKLIGHT
     { &global_settings.wake_screen, LANG_HINT_WAKE_SCREEN },
@@ -396,7 +398,8 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         && info->list->callback_is_group(info->line, info->list->data))
     {
         struct line_desc linedes = *info->linedes;
-        if (!ui_metric(UI_METRIC_GROUP_BAR))
+        const int group_style = ui_metric(UI_METRIC_GROUP_BAR);
+        if (!group_style)
         {
             /* no bar: the name small and quiet, low in its row, over the
                rows it names */
@@ -420,6 +423,42 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         linedes.style = STYLE_COLORBAR;
         linedes.text_color = GROUP_COLOUR;
         linedes.line_color = GROUP_BAR_COLOUR;
+#ifdef HAVE_LCD_COLOR
+        if (group_style == 2 && display->screen_type == SCREEN_MAIN)
+        {
+            /* a band as high as the row, a hairline on its first and last
+               rows; the name in the theme's font for it and the rows' own
+               ink (a grey read poorly at that size), in the band's middle,
+               where the rows' text starts */
+            const int name_font = info->vp->font;
+            const int font = font_find(ui_font_file(UI_FONT_GROUP));
+            display->put_line(info->x, info->y, &linedes, "");
+            const unsigned old_fg = display->get_foreground();
+            display->set_drawmode(DRMODE_SOLID);
+            display->set_foreground(ui_colour(UI_COLOUR_GROUP_RULE));
+            display->hline(0, info->vp->width - 1, info->y);
+            display->hline(0, info->vp->width - 1, info->y + linedes.height - 1);
+            display->set_foreground(ui_colour(UI_COLOUR_TEXT));
+            display->set_drawmode(DRMODE_FG);
+            if (font >= 0)
+                info->vp->font = font;
+            /* a name too long for the band is cut with an ellipsis, at the
+               values' margin */
+            char fitted[MAX_PATH];
+            text = line_fit(text, info->vp->font,
+                            info->vp->width - info->x - info->item_indent
+                            - VALUE_MARGIN, fitted, sizeof(fitted));
+            if (text)
+                display->putsxy(info->x + info->item_indent,
+                                info->y + (linedes.height
+                                           - (int)font_get(info->vp->font)->height) / 2,
+                                text);
+            info->vp->font = name_font;
+            display->set_drawmode(DRMODE_SOLID);
+            display->set_foreground(old_fg);
+            return;
+        }
+#endif
         display->put_line(info->x, info->y, &linedes, "$*s$*t", info->item_indent,
                           info->item_offset, text);
         return;
@@ -491,10 +530,29 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
     const bool chevron = info->list->callback_has_children
         && (!ui_metric(UI_METRIC_ROW_RIGHT)
             || info->list->callback_has_children(info->line, info->list->data));
-    const int x = info->vp->width - width -
+    const int right = info->vp->width -
         (chevron ? VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
-    if (x < info->x + info->item_indent + name_width + VALUE_GAP)
-        return;
+    const int least = info->x + info->item_indent + name_width + VALUE_GAP;
+    const char *value = tab + 1;
+    char fitted[MAX_PATH];
+    int x = right - width;
+    if (x < least)
+    {
+        /* no room after the name: none, or by the theme the value cut
+           short with an ellipsis, if that leaves enough of it to read */
+        if (!ui_metric(UI_METRIC_VALUE_CUT) || right - least < LIGHT_LEAST)
+            return;
+        /* cut short in the form of the whole, and drawn in it */
+        font_set_text_form(font_text_form((const unsigned char *)value, -1));
+        value = line_fit(value, font, right - least, fitted, sizeof(fitted));
+        if (!value)
+        {
+            font_set_text_form(-1);
+            return;
+        }
+        font_getstringsize(value, &width, NULL, font);
+        x = right - width;
+    }
 
     const unsigned old_fg = display->get_foreground();
     display->set_foreground(info->is_selected ? ui_colour(UI_COLOUR_VALUE_SELECTED)
@@ -502,7 +560,8 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
     display->set_drawmode(DRMODE_FG);
     info->vp->font = font;
     display->putsxy(x, info->y + (info->linedes->height - height) / 2
-                    + font_get(name_font)->ascent - font_get(font)->ascent, tab + 1);
+                    + font_get(name_font)->ascent - font_get(font)->ascent, value);
+    font_set_text_form(-1);
     info->vp->font = name_font;
     display->set_drawmode(DRMODE_SOLID);
     display->set_foreground(old_fg);

@@ -829,6 +829,10 @@ static void draw_glyph(int which, int x, int y)
    row's end out itself */
 static unsigned on_selection(const struct line_desc *line)
 {
+    /* a row a list colours without selecting it: its own colour, not the
+       selected row's */
+    if (!(line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT)))
+        return (unsigned)line->text_color;
     return ui_metric(UI_METRIC_ROW_RIGHT) ? ui_colour(UI_COLOUR_VALUE_SELECTED)
                                           : (unsigned)line->text_color;
 }
@@ -1213,14 +1217,20 @@ int line_value_width(int font, const char *text)
 }
 
 /* right-aligned, 9 under 10, which right-to-left text mirrors to the name's
-   side too: placed as if each of its digits were as wide as the widest, as
-   the theme's all are, rather than measured row by row. A year fills its
-   column as before */
+   side too: a number by its own width, so that its last digit ends the
+   column in a font whose digits differ in width as in one whose digits are
+   all as wide. The dash of an album without a year is not measured: it
+   stands where a text of as many digits as it has bytes would start */
 void line_draw_lead(struct screen *display, int font, int shift, int x, int y,
                     const struct line_desc *line, const char *text,
                     int width, int digit)
 {
-    const int lead_w = digit * (int)strlen(text);
+    int lead_w = digit * (int)strlen(text);
+    const char *p = text;
+    while (*p >= '0' && *p <= '9')
+        p++;
+    if (!*p)
+        font_getstringsize(text, &lead_w, NULL, font);
     if (width == ui_metric(UI_METRIC_LEAD_COLUMN) && lead_w + LEAD_GAP <= width)
         x += (width - LEAD_GAP - lead_w) / 2; /* in the middle of its cell */
     else
@@ -1413,6 +1423,82 @@ void line_round_corners(struct screen *display, int x, int y, int w, int h, int 
 #endif
 }
 
+void line_fill_rounded_over(struct screen *display, int x, int y, int w, int h,
+                            int r, unsigned colour)
+{
+    const unsigned fg = display->get_foreground();
+    display->set_foreground(colour);
+    display->set_drawmode(DRMODE_SOLID);
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    r = MIN(r, MIN(w, h) / 2);
+    if (r <= 0 || r > 16 || display->screen_type != SCREEN_MAIN)
+#endif
+    {
+        display->fillrect(x, y, w, h);
+        display->set_foreground(fg);
+        return;
+    }
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    display->fillrect(x, y + r, w, h - 2 * r);
+    display->fillrect(x + r, y, w - 2 * r, r);
+    display->fillrect(x + r, y + h - r, w - 2 * r, r);
+    display->set_drawmode(DRMODE_FG);
+    for (int row = 0; row < r; row++)
+    {
+        /* the colour over each pixel by how much of it is inside the
+           rounding: the left corner's row, and the right one's mirrored */
+        unsigned char left[8] = { 0 }, right[8] = { 0 };
+        for (int i = 0; i < r; i++)
+        {
+            int cover = 0;
+            for (int k = 0; k < 16; k++)
+            {
+                const int dx = 8 * r - (8 * i + 2 * (k & 3) + 1);
+                const int dy = 8 * r - (8 * row + 2 * (k >> 2) + 1);
+                cover += dx * dx + dy * dy <= 64 * r * r;
+            }
+            const unsigned a = 15 - cover * 15 / 16; /* 0 is all of it */
+            left[i / 2] |= a << (i & 1 ? 4 : 0);
+            right[(r - 1 - i) / 2] |= a << ((r - 1 - i) & 1 ? 4 : 0);
+        }
+        lcd_alpha_bitmap_part(left, 0, 0, r, x, y + row, r, 1);
+        lcd_alpha_bitmap_part(right, 0, 0, r, x + w - r, y + row, r, 1);
+        lcd_alpha_bitmap_part(left, 0, 0, r, x, y + h - 1 - row, r, 1);
+        lcd_alpha_bitmap_part(right, 0, 0, r, x + w - r, y + h - 1 - row, r, 1);
+    }
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+#endif
+}
+
+void line_draw_note(const unsigned char *alpha, int w, int h, int x, int y)
+{
+    line_draw_note_rows(alpha, w, w, h, x, y);
+}
+
+void line_draw_note_rows(const unsigned char *alpha, int stride, int w, int h,
+                         int x, int y)
+{
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    const unsigned top = ui_colour(UI_COLOUR_NOTE_TOP);
+    const unsigned foot = ui_colour(UI_COLOUR_NOTE_FOOT);
+    lcd_set_drawmode(DRMODE_FG);
+    if (top == foot || h < 2)
+    {
+        lcd_set_foreground(top);
+        lcd_alpha_bitmap_part(alpha, 0, 0, stride, x, y, w, h);
+        return;
+    }
+    for (int row = 0; row < h; row++)
+    {
+        lcd_set_foreground(mix_color(top, foot, row * 100 / (h - 1)));
+        lcd_alpha_bitmap_part(alpha, 0, row, stride, x, y + row, w, 1);
+    }
+#else
+    (void)alpha; (void)stride; (void)w; (void)h; (void)x; (void)y;
+#endif
+}
+
 void line_draw_cover(struct screen *display, int x, int y,
                      const fb_data *pixels)
 {
@@ -1432,10 +1518,9 @@ void line_draw_cover(struct screen *display, int x, int y,
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (display->screen_type == SCREEN_MAIN)
     {
-        display->set_foreground(LIST_GROUP_COLOUR);
-        display->set_drawmode(DRMODE_FG);
-        draw_glyph(GLYPH_SMALL_NOTE, x + (LINE_COVER_SIZE - SMALL_NOTE_W) / 2,
-                   y + (LINE_COVER_SIZE - SMALL_NOTE_H) / 2);
+        const struct glyph *const g = glyph(GLYPH_SMALL_NOTE);
+        line_draw_note(g->alpha, g->w, g->h, x + (LINE_COVER_SIZE - g->w) / 2,
+                       y + (LINE_COVER_SIZE - g->h) / 2);
     }
 #endif
     display->set_foreground(fg);
@@ -1628,6 +1713,8 @@ static int decoration_width(struct screen *display, const struct line_desc *line
             left = row_right(display, line, false) - line->value_width;
         else if (line->style & STYLE_CHEVRON)
             return CHEVRON_W + CHEVRON_MARGIN + 4;
+        else if (line->height <= 0) /* no list's row: a skin's line, a message's */
+            return 0;
         else /* to two pixels inside the selection's end */
             return ui_metric(UI_METRIC_SELECTION_INSET_X) + 2;
         return display->getwidth() - left + ui_metric(UI_METRIC_ROW_RIGHT_GAP);

@@ -35,6 +35,7 @@
 #include "gui/ui_theme.h"
 #ifndef BOOTLOADER
 #include "misc.h" /* get_current_activity */
+#include "line.h"
 #include "transition.h"
 #endif
 
@@ -54,6 +55,42 @@ static long progress_next_tick, talked_tick;
 #endif
 
 #define RECT_SPACING 3
+
+/* A theme's plaque for a message on the main screen: its text's distance
+   from its sides, and from its top and foot; false for the frame */
+static bool splash_plaque(const struct screen *screen, int *pad_x, int *pad_y)
+{
+    *pad_x = *pad_y = RECT_SPACING;
+#if defined(HAVE_LCD_COLOR) && !defined(BOOTLOADER)
+    if (screen->screen_type == SCREEN_MAIN && ui_metric(UI_METRIC_SPLASH_RADIUS) > 0)
+    {
+        *pad_x = ui_metric(UI_METRIC_SPLASH_PAD_X);
+        *pad_y = ui_metric(UI_METRIC_SPLASH_PAD_Y);
+        return true;
+    }
+#else
+    (void)screen;
+#endif
+    return false;
+}
+
+#if defined(HAVE_LCD_COLOR) && !defined(BOOTLOADER)
+/* Whether the plaque of this size is on the screen already, as when a
+   progress is drawn again in place: the pixels beside each corner have its
+   colour. Its corners are blended with what is under them, so they are
+   drawn once */
+static bool plaque_shown(const struct viewport *vp, int r, unsigned colour)
+{
+    const int x0 = vp->x, x1 = vp->x + vp->width - 1;
+    const int y0 = vp->y, y1 = vp->y + vp->height - 1;
+    const int at[8][2] = { { x0 + r, y0 }, { x1 - r, y0 }, { x0, y0 + r }, { x1, y0 + r },
+                           { x0, y1 - r }, { x1, y1 - r }, { x0 + r, y1 }, { x1 - r, y1 } };
+    for (int i = 0; i < 8; i++)
+        if (FB_UNPACK_SCALAR_LCD(*FBADDR(at[i][0], at[i][1])) != colour)
+            return false;
+    return true;
+}
+#endif
 #define SPLASH_MEMORY_INTERVAL (HZ)
 
 /* splash_internal does the actual drawing of the splash box and text
@@ -121,8 +158,10 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
     int x = 0, w = 0;
     int y;
     int space_w, chr_h;
-    int width = vp->width - RECT_SPACING*2;
-    int height = vp->height;
+    int pad_x, pad_y;
+    const bool plaque = splash_plaque(screen, &pad_x, &pad_y);
+    int width = vp->width - pad_x*2;
+    int height = vp->height - (plaque ? pad_y*2 : 0);
 
     /* prevent screen artifacts by keeping the max width / height seen */
     int maxw = max_width[screen->screen_type];
@@ -278,8 +317,8 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
 
     screen->scroll_stop();
 
-    width = maxw + 2*RECT_SPACING;
-    height = maxh + 2*RECT_SPACING;
+    width = maxw + 2*pad_x;
+    height = maxh + 2*pad_y;
 
     if (width > vp->width)
         width = vp->width;
@@ -295,9 +334,32 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
         vp->flags |=  VP_FLAG_ALIGN_CENTER;
 
     /* prevent artifacts by locking to max width & height observed on repeated calls */
-    max_width[screen->screen_type] = width - 2*RECT_SPACING;
-    max_height[screen->screen_type] = height - 2*RECT_SPACING;
+    max_width[screen->screen_type] = width - 2*pad_x;
+    max_height[screen->screen_type] = height - 2*pad_y;
 
+#if defined(HAVE_LCD_COLOR) && !defined(BOOTLOADER)
+    if (plaque)
+    {
+        /* dark, rounded, without a frame, over what the screen shows; its
+           ground is the plaque's for what is drawn in it after the text */
+        const unsigned fill = ui_colour(UI_COLOUR_SPLASH_FILL);
+        const int r = MIN(ui_metric(UI_METRIC_SPLASH_RADIUS), MIN(width, height) / 2);
+        vp->bg_pattern = fill;
+        if (plaque_shown(vp, r, fill))
+        {
+            /* all but its corners */
+            screen->set_foreground(fill);
+            screen->set_drawmode(DRMODE_SOLID);
+            screen->fillrect(0, r, width, height - 2 * r);
+            screen->fillrect(r, 0, width - 2 * r, height);
+        }
+        else
+            line_fill_rounded_over(screen, 0, 0, width, height, r, fill);
+        screen->set_foreground(ui_colour(UI_COLOUR_SPLASH_TEXT));
+        vp->drawmode = DRMODE_FG;
+        goto text;
+    }
+#endif
 #if LCD_DEPTH > 1
     unsigned fg = 0, bg = 0;
     bool broken = false;
@@ -355,18 +417,21 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
 #endif
     screen->draw_border_viewport();
 
+#if defined(HAVE_LCD_COLOR) && !defined(BOOTLOADER)
+text:
+#endif
     /* center y within the available splash box */
     if (y < maxh)
-        y = (maxh - y) / 2;
+        y = (maxh - y) / 2 + (plaque ? pad_y : 0);
     else
-        y = RECT_SPACING;
+        y = pad_y;
 
     /* print the message to screen */
     for(int i = 0; i < line && y < height; i++, y+= chr_h)
     {
         if (lines[i].len > 0)
         {
-            x = lines[i].x;
+            x = lines[i].x + (plaque && has_tabs ? pad_x : 0);
             screen->putsxyf(x, y, "%.*s", lines[i].len, lines[i].str);
         }
     }
@@ -457,11 +522,18 @@ void splash_progress(int current, int total, const char *fmt, ...)
         va_start(ap, fmt);
         if (splash_internal(screen, fmt, ap, &vp, 1))
         {
+            int pad_x, pad_y;
+            const bool plaque = splash_plaque(screen, &pad_x, &pad_y);
             int size = screen->getcharheight();
-            int x = RECT_SPACING;
-            int y = vp.height - size - RECT_SPACING;
-            int w = vp.width - RECT_SPACING * 2;
+            int x = pad_x;
+            int y = vp.height - size - pad_y;
+            int w = vp.width - pad_x * 2;
             int h = size;
+            if (plaque) /* a thin bar in the middle of its line */
+            {
+                h = 5;
+                y += (size - h) / 2;
+            }
 #ifdef HAVE_LCD_COLOR
             const int sb_flags = HORIZONTAL | FOREGROUND;
 #else

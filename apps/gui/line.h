@@ -229,12 +229,24 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
    radius r, their pixels mixed with the ground */
 void line_fill_rounded(struct screen *display, int x, int y, int w, int h,
                        int r, unsigned colour);
+/* The same over whatever the screen shows there: its corners' pixels blended
+   with what is under them, so not to be drawn twice over itself */
+void line_fill_rounded_over(struct screen *display, int x, int y, int w, int h,
+                            int r, unsigned colour);
 /* The column of a text's first glyph in that font where its ink starts: for
    two texts in two fonts to start at the same pixel */
 int line_ink_left(int font, const char *text);
 /* The corners of a picture w by h at x, y painted over in the ground's
    colour, to a rounding of radius r; nothing for 0 */
 void line_round_corners(struct screen *display, int x, int y, int w, int h, int r);
+/* A missing cover's note, a mask of w by h as a font's glyphs have alpha, at
+   x, y: in the theme's colours for it, from its top row to its foot */
+void line_draw_note(const unsigned char *alpha, int w, int h, int x, int y);
+/* the same of a mask whose rows are stride pixels apart, as a picture's
+   alpha is kept: each row starts a byte. Blended over what the screen shows:
+   the caller has just filled its place */
+void line_draw_note_rows(const unsigned char *alpha, int stride, int w, int h,
+                         int x, int y);
 void line_draw_cover(struct screen *display, int x, int y,
                      const fb_data *pixels);
 /* Quick Scroll's letter, or a year, in a box of its own around it, its middle

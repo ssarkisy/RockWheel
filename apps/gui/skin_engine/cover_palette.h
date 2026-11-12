@@ -53,6 +53,23 @@ struct cover_palette
 
 /* The colour of a cover */
 uint32_t cover_palette_colour(const fb_data *pixels, int width, int height);
+/* its hue in degrees */
+int cover_palette_hue(uint32_t colour);
+/* A flat surface of a theme in a tone: the hue at a saturation and a
+   lightness, both out of 1000, in the screen's 16 bits; lighter (in a dark
+   look darker) by 5 of the 1000 at a time until text reads on it at 4.5 to 1.
+   The lightness it came to goes to shown_lightness, if given */
+unsigned cover_palette_surface(int hue, int saturation, int lightness, bool dark,
+                               unsigned text, int *shown_lightness);
+/* A mark of a theme (a missing cover's note) in a tone: its own lightness at
+   the hue and saturation, in the screen's 16 bits. Nothing is read on it, so
+   it is not moved for any text */
+unsigned cover_palette_toned(unsigned colour, int hue, int saturation);
+/* The same for an outline of a pixel on that ground: darker (in a dark look
+   lighter) by 5 of the 1000 at a time until it stands 2 to 1 on it, which
+   the yellows and greens don't at a middle lightness on a light ground */
+unsigned cover_palette_outline(unsigned colour, int hue, int saturation, bool dark,
+                               unsigned ground);
 /* For a new value of the setting, or the first at boot: gets or frees the memory of
    the whole screen */
 void cover_palette_set_mode(int mode);
@@ -64,10 +81,24 @@ bool cover_palette_update(int art_handle, uint32_t colour);
 #define COVER_ART_BY_COLOUR (-1000)
 /* Before the theme changes: what's worked out from its images goes */
 void cover_palette_theme_changed(void);
+/* Now Playing is left, or a screen comes over it that isn't its own: a
+   theme's tone goes back to its user's colour before that screen is drawn,
+   and Now Playing takes the cover's again when it is next drawn */
+void cover_palette_leave(void);
 /* NULL if Now Playing has its usual colours */
 const struct cover_palette *cover_palette_get(void);
 /* The colour for a grey the theme's text is in */
 unsigned cover_palette_text_colour(unsigned colour);
+/* The colour for a pixel of a picture of a theme with a tone, whose shape is
+   in its alpha: the outline of a small star not set in the theme's colour for
+   it, whatever Cover Colours is. With Text and Stars, of a picture marked to
+   take the cover's colour, the text's greys in the text's and a paler mark as
+   it is; with Fill every grey of any picture in the colour of its part, on
+   the status line (status) as it reads there */
+unsigned cover_palette_mark_colour(unsigned colour, bool status);
+/* Whether a theme with a tone has Now Playing filled with the cover's colour,
+   and then the colour of the bar's fill in *bar, if given */
+bool cover_palette_tone_filled(unsigned *bar);
 struct viewport;
 /* the same for the text of a viewport, which in the status bar may keep it */
 unsigned cover_palette_text_colour_in(unsigned colour, const struct viewport *vp);

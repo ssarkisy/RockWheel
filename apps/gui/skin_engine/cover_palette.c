@@ -194,6 +194,77 @@ static void readable_colour(int hue, int saturation, int lightness, int rgb[3])
     }
 }
 
+int cover_palette_hue(uint32_t colour)
+{
+    const int rgb[3] = { (colour >> 16) & 0xff, (colour >> 8) & 0xff, colour & 0xff };
+    int hsl[3];
+    rgb_to_hsl(rgb, hsl);
+    return hsl[0];
+}
+
+unsigned cover_palette_toned(unsigned colour, int hue, int saturation)
+{
+    const int plain[3] = { RGB_UNPACK_RED(colour), RGB_UNPACK_GREEN(colour),
+                           RGB_UNPACK_BLUE(colour) };
+    int hsl[3], rgb[3];
+
+    rgb_to_hsl(plain, hsl);
+    hsl_to_rgb(hue, saturation, hsl[2], rgb);
+    return LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+}
+
+#define OUTLINE_CONTRAST 200
+
+unsigned cover_palette_outline(unsigned colour, int hue, int saturation, bool dark,
+                               unsigned ground)
+{
+    const int plain[3] = { RGB_UNPACK_RED(colour), RGB_UNPACK_GREEN(colour),
+                           RGB_UNPACK_BLUE(colour) };
+    const int under[3] = { RGB_UNPACK_RED(ground), RGB_UNPACK_GREEN(ground),
+                           RGB_UNPACK_BLUE(ground) };
+    int hsl[3], rgb[3];
+    unsigned packed;
+
+    rgb_to_hsl(plain, hsl);
+    for (int lightness = hsl[2];; lightness += dark ? 5 : -5)
+    {
+        hsl_to_rgb(hue, saturation, lightness, rgb);
+        packed = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+        const int shown[3] = { RGB_UNPACK_RED(packed), RGB_UNPACK_GREEN(packed),
+                               RGB_UNPACK_BLUE(packed) };
+        if (contrast(shown, under) >= OUTLINE_CONTRAST || lightness <= 0
+            || lightness >= 1000)
+            return packed;
+    }
+}
+
+/* 4.5 to 1 by contrast(), which reads up to 0.01 over the exact ratio */
+#define SURFACE_CONTRAST 452
+
+unsigned cover_palette_surface(int hue, int saturation, int lightness, bool dark,
+                               unsigned text, int *shown_lightness)
+{
+    const int ink[3] = { RGB_UNPACK_RED(text), RGB_UNPACK_GREEN(text),
+                         RGB_UNPACK_BLUE(text) };
+    int rgb[3];
+    unsigned packed;
+
+    for (;; lightness += dark ? -5 : 5)
+    {
+        hsl_to_rgb(hue, saturation, lightness, rgb);
+        packed = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+        const int shown[3] = { RGB_UNPACK_RED(packed), RGB_UNPACK_GREEN(packed),
+                               RGB_UNPACK_BLUE(packed) };
+        if (contrast(shown, ink) >= SURFACE_CONTRAST || lightness <= 0
+            || lightness >= 1000)
+        {
+            if (shown_lightness)
+                *shown_lightness = lightness;
+            return packed;
+        }
+    }
+}
+
 /* the colour as the screen shows it, in 16 bits */
 static void as_shown(const int rgb[3], int out[3])
 {
@@ -1155,8 +1226,147 @@ static void make_text_palette(struct cover_palette *palette, int hue, bool grey)
     }
 }
 
+/* A cover's colour too near grey to give a theme with a tone its hue: its
+   saturation, how far apart its parts are of its brightest, under this of
+   100; or the parts under TONE_FAINT_LEVELS of 255 apart, which a nearly
+   black one's are whatever that ratio. cover_palette_colour() calls a cover
+   grey only when next to none of its pixels has a colour, and counts one by
+   its saturation of its lightness, 18 %, which near white a difference of
+   a few levels has: a nearly white cover's faint warmth came out as an
+   orange screen at the tone's depth */
+#define TONE_FAINT_SATURATION 12
+#define TONE_FAINT_LEVELS     12
+
+static bool tone_faint(uint32_t colour)
+{
+    const int r = (colour >> 16) & 0xff, g = (colour >> 8) & 0xff, b = colour & 0xff;
+    const int hi = MAX(MAX(r, g), b), chroma = hi - MIN(MIN(r, g), b);
+    return chroma < TONE_FAINT_LEVELS || chroma * 100 < TONE_FAINT_SATURATION * hi;
+}
+
+/* Fill in a theme with a tone, which has no backdrop: Classic's colours of the
+   cover, flat. What the texts' and the marks' roles don't hold: the texts and
+   glyphs of the status line, on its shade; the bar's fill; a quiet mark, as a
+   large star not set */
+static struct
+{
+    unsigned status_ink, status_secondary, bar, quiet;
+} tone_fill;
+
+/* 4.5 and 7 to 1 by contrast(), which reads a saturated colour up to 0.07
+   over the exact ratio at the first and 0.2 at the second */
+#define TONE_TEXT_CONTRAST  464
+#define TONE_TITLE_CONTRAST 724
+/* and a colour near black up to 0.15: on a ground of a middle lightness
+   the texts are that */
+#define TONE_FILL_CONTRAST  472
+
+static void make_tone_fill_palette(struct cover_palette *palette, uint32_t colour,
+                                   bool grey, struct ui_theme_fill *surfaces)
+{
+    unsigned *const role[4] = { &palette->ink, &palette->secondary, &palette->muted,
+                                &palette->format };
+    const int *const header_ink = screen_colours.header_ink;
+    int ground[3], shade[3], shown[3], rgb[3];
+
+    make_fill_palette(palette, colour, grey);
+    /* the ground as Classic paints it, the nearest of the screen's colours */
+    unpack_rgb(pack_nearest(screen_colours.background), ground);
+    palette->background = LCD_RGBPACK(ground[0], ground[1], ground[2]);
+    /* Classic's texts, each taken on where it falls short on that ground as
+       the screen shows them */
+    for (int i = 0; i < 4; i++)
+    {
+        rgb[0] = RGB_UNPACK_RED(*role[i]);
+        rgb[1] = RGB_UNPACK_GREEN(*role[i]);
+        rgb[2] = RGB_UNPACK_BLUE(*role[i]);
+        readable_on(rgb, ground, i == 0 ? TONE_TITLE_CONTRAST : TONE_FILL_CONTRAST, rgb);
+        *role[i] = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+    }
+    palette->format_half = over_background(rgb, ground, 128);
+    palette->format_quarter = over_background(rgb, ground, 64);
+
+    /* the status line: Classic's shade of the ground, flat, taken on from
+       its ink until that reads on it as shown */
+    const int away = header_ink[0] ? 0 : 255;
+    memcpy(shade, screen_colours.header_background, sizeof(shade));
+    for (int n = 0; n < 100; n++)
+    {
+        as_shown(shade, shown);
+        if (contrast(shown, header_ink) >= TONE_FILL_CONTRAST)
+            break;
+        for (int i = 0; i < 3; i++)
+            shade[i] += (away - shade[i]) * 25 / 1000
+                      + (away > shade[i] ? 1 : away < shade[i] ? -1 : 0);
+    }
+    as_shown(shade, shown);
+    const unsigned *const text[2] = { &palette->ink, &palette->secondary };
+    unsigned *const on_shade[2] = { &tone_fill.status_ink, &tone_fill.status_secondary };
+    for (int i = 0; i < 2; i++)
+    {
+        rgb[0] = RGB_UNPACK_RED(*text[i]);
+        rgb[1] = RGB_UNPACK_GREEN(*text[i]);
+        rgb[2] = RGB_UNPACK_BLUE(*text[i]);
+        readable_on(rgb, shown, TONE_FILL_CONTRAST, rgb);
+        *on_shade[i] = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+    }
+
+    const int *const fill = screen_colours.flat_fill, *const track = screen_colours.flat_track;
+    tone_fill.bar = LCD_RGBPACK(fill[0], fill[1], fill[2]);
+    /* a mark that is seen, not read: 2.5 to 1 */
+    contrasting_ink(ground, header_ink[0] != 0, 45, 250, rgb);
+    tone_fill.quiet = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+
+    surfaces->ground = palette->background;
+    surfaces->status = LCD_RGBPACK(shade[0], shade[1], shade[2]);
+    /* the bar's track, Classic's step from the ground: hairlines and a
+       missing cover's tile too */
+    surfaces->track = LCD_RGBPACK(track[0], track[1], track[2]);
+    surfaces->note_top = palette->secondary;
+    surfaces->note_foot = tone_fill.quiet;
+    /* the outline of a small star not set: a line of a pixel */
+    surfaces->outline = palette->muted;
+}
+
+/* Text and Stars in a theme with a tone: Classic's roles of the text in the
+   cover's hue, each as clear of the theme's ground (in its user's colour) as
+   Classic has it of white or of the dark ground. Its stars are pictures
+   with their shape in their alpha: cover_palette_mark_colour() */
+static void make_tone_text_palette(struct cover_palette *palette, int hue)
+{
+    const unsigned packed = ui_colour(UI_COLOUR_GROUND);
+    const int ground[3] = { RGB_UNPACK_RED(packed), RGB_UNPACK_GREEN(packed),
+                            RGB_UNPACK_BLUE(packed) };
+    /* saturation and lightness of the ink, the second, the muted and the
+       format's, light then dark: make_text_palette()'s */
+    static const short roles[2][4][2] = {
+        { { 652, 280 }, { 420, 350 }, { 285, 400 }, { 588, 300 } },
+        { { 652, 720 }, { 420, 720 }, { 285, 620 }, { 588, 760 } },
+    };
+    const short (*const role)[2] = roles[global_settings.dark_theme];
+    unsigned *const out[4] = { &palette->ink, &palette->secondary, &palette->muted,
+                               &palette->format };
+    int rgb[3];
+
+    palette->whole_screen = false;
+    screen_colours.fill = false;
+    for (int i = 0; i < 4; i++)
+    {
+        hsl_to_rgb(hue, role[i][0], role[i][1], rgb);
+        /* the title's and the lyrics' 7 to 1, the rest 4.5: of a saturated
+           colour contrast() reads up to 0.07 over the exact ratio there, 0.2
+           at 7 to 1 */
+        readable_on(rgb, ground, i == 0 ? TONE_TITLE_CONTRAST : TONE_TEXT_CONTRAST, rgb);
+        *out[i] = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+    }
+    palette->format_half = over_background(rgb, ground, 128);
+    palette->format_quarter = over_background(rgb, ground, 64);
+}
+
 static struct cover_palette palette;
 static bool active = false;
+/* a theme's tone is the cover's now, not its user's */
+static bool tone_shown;
 static int palette_handle = -1;
 static int palette_mode = COVER_COLOURS_OFF;
 static uint32_t palette_colour; /* what it's from, while active */
@@ -1165,8 +1375,12 @@ static bool cover_gone = false;
 
 static bool set_inactive(void)
 {
+    const bool toned = tone_shown;
+    tone_shown = false;
+    if (toned)
+        ui_theme_cover_tone(-1);
     if (!active)
-        return false;
+        return toned;
     active = false;
     /* off the tinted one, if it's up */
     if (tinted_backdrop_id >= 0 && lcd_get_backdrop() == buffers->backdrop)
@@ -1178,6 +1392,9 @@ void cover_palette_set_mode(int mode)
 {
     mode = ui_theme_cover_colours(mode); /* the setting's callback gives its value */
     palette_handle = -1;
+    /* a theme with a tone draws no backdrop in the cover's colours */
+    if (ui_theme_current()->cover_tone)
+        mode = MIN(mode, COVER_COLOURS_TEXT);
     if (mode != buffers_mode)
         buffers_refused = false;
     buffers_mode = mode;
@@ -1207,7 +1424,7 @@ bool cover_palette_update(int art_handle, uint32_t colour)
 
     if (art_handle < 0 && art_handle != COVER_ART_BY_COLOUR)
     {
-        if (!active)
+        if (!active && !tone_shown)
             return false;
         if (!cover_gone)
         {
@@ -1237,14 +1454,14 @@ bool cover_palette_update(int art_handle, uint32_t colour)
     }
 
     /* the rest of an album */
-    if (active && palette_handle != -1 && colour == palette_colour)
+    if ((active || tone_shown) && palette_handle != -1 && colour == palette_colour)
     {
         palette_handle = art_handle;
         return false;
     }
 
     /* without the memory for it, which was asked for when it was chosen */
-    if (mode >= COVER_COLOURS_SCREEN && !buffers)
+    if (mode >= COVER_COLOURS_SCREEN && !buffers && !ui_theme_current()->cover_tone)
         mode = COVER_COLOURS_TEXT;
 
     static struct cover_palette next;
@@ -1256,6 +1473,49 @@ bool cover_palette_update(int art_handle, uint32_t colour)
         rgb_to_hsl(rgb, hsl);
     }
     memset(&next, 0, sizeof(next));
+    if (ui_theme_current()->cover_tone)
+    {
+        /* A theme with a tone, which takes no memory for any of these. Text
+           and Stars: its surfaces in its user's colour, the text's roles in
+           the cover's hue. Whole Screen: its surfaces in the cover's hue,
+           the status line's too. A grey cover, and one nearly grey, leaves
+           both as with Off.
+           Fill: Classic's, all of it flat in the cover's own colour, a grey
+           one's too, the status line a shade of it */
+        palette_handle = art_handle;
+        palette_colour = colour;
+        if ((grey || tone_faint(colour)) && mode != COVER_COLOURS_FILL)
+            return set_inactive();
+        bool changed;
+        if (mode == COVER_COLOURS_FILL)
+        {
+            struct ui_theme_fill surfaces;
+            make_tone_fill_palette(&next, colour, grey, &surfaces);
+            changed = !active || !tone_shown || memcmp(&next, &palette, sizeof(palette));
+            palette = next;
+            active = true;
+            changed |= ui_theme_cover_fill(&surfaces);
+            tone_shown = true;
+        }
+        else if (mode == COVER_COLOURS_TEXT)
+        {
+            changed = tone_shown;
+            tone_shown = false;
+            ui_theme_cover_tone(-1);
+            make_tone_text_palette(&next, hsl[0]);
+            changed |= !active || memcmp(&next, &palette, sizeof(palette));
+            palette = next;
+            active = true;
+        }
+        else
+        {
+            changed = active;
+            active = false;
+            changed |= ui_theme_cover_tone(hsl[0]) || !tone_shown;
+            tone_shown = true;
+        }
+        return changed;
+    }
     cpu_boost(true);
     if (mode == COVER_COLOURS_FILL)
         make_fill_palette(&next, colour, grey);
@@ -1311,6 +1571,15 @@ fb_data *cover_palette_backdrop(int backdrop_id)
 {
     return active && palette.whole_screen && backdrop_id == tinted_backdrop_id
            ? buffers->backdrop : NULL;
+}
+
+void cover_palette_leave(void)
+{
+    if (tone_shown)
+    {
+        set_inactive();
+        palette_handle = -1;
+    }
 }
 
 const struct cover_palette *cover_palette_get(void)
@@ -1394,6 +1663,11 @@ void cover_palette_keep_ink(const fb_data *src, fb_data *dst, int count)
 
 unsigned cover_palette_text_colour_in(unsigned colour, const struct viewport *vp)
 {
+    /* a theme with a tone under Fill: what stands on the status line's shade */
+    if (tone_shown && active && palette.whole_screen)
+        return vp->y + vp->height <= ui_metric(UI_METRIC_STATUS_ROWS)
+               ? cover_palette_mark_colour(colour, true)
+               : cover_palette_text_colour(colour);
     if (global_settings.status_icons == STATUS_ICONS_OWN && active
         && palette.whole_screen && vp->y < HEADER_HEIGHT)
     {
@@ -1429,6 +1703,42 @@ unsigned cover_palette_text_colour(unsigned colour)
     if (green < 0xc0)
         return palette.muted;
     return colour;
+}
+
+unsigned cover_palette_mark_colour(unsigned colour, bool status)
+{
+    const int green = RGB_UNPACK_GREEN(colour);
+    /* a star not set is known by the grey the look's table names it with */
+    if (colour == ui_theme_look(global_settings.dark_theme)
+                      ->colour[UI_COLOUR_RATING_UNSET])
+        return ui_colour(UI_COLOUR_RATING_UNSET);
+    if (!active)
+        return colour;
+    if (palette.whole_screen)
+    {
+        /* Fill: the theme's four greys, from the ink's to the palest, are
+           the ink, the second text, the bar's fill and a quiet mark; the
+           first two on the status line as they read on its shade */
+        const int level = global_settings.dark_theme ? 0xff - green : green;
+        if (level < 0x40)
+            return status ? tone_fill.status_ink : palette.ink;
+        if (level < 0x5c)
+            return status ? tone_fill.status_secondary : palette.secondary;
+        return (global_settings.dark_theme ? green >= 0x80 : green < 0x80)
+               ? tone_fill.bar : tone_fill.quiet;
+    }
+    if (global_settings.dark_theme)
+        return green >= 0xe0 ? palette.ink : green >= 0xa0 ? palette.secondary : colour;
+    return green < 0x40 ? palette.ink : green < 0x70 ? palette.secondary : colour;
+}
+
+bool cover_palette_tone_filled(unsigned *bar)
+{
+    if (!tone_shown || !active || !palette.whole_screen)
+        return false;
+    if (bar)
+        *bar = tone_fill.bar;
+    return true;
 }
 
 unsigned cover_palette_dimmed(unsigned ink, unsigned dim, unsigned ground)

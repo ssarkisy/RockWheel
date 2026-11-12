@@ -771,6 +771,8 @@ static void init(void)
     {
         splash(HZ*2, str(LANG_RESET_DONE_CLEAR));
         settings_reset();
+        /* the default theme's names and tone, not those of the one loaded */
+        night_mode_boot();
     }
 #endif
     CHART(">init_battery_tables");

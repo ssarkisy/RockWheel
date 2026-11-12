@@ -42,6 +42,7 @@ bool night_mode_poll(int context);
 
 /* Callbacks of the settings */
 void dark_theme_changed(bool dark);
+void theme_colour_changed(int colour);
 void ui_theme_changed(int theme);
 /* the theme's files loaded anew with the music stopped: after the setting
    changed otherwise than by its row, as by a config file */
@@ -64,5 +65,8 @@ void night_mode_toggle(void);
 
 /* What the theme's change means for Now Playing, once: true if it has to be set up again */
 bool night_mode_theme_changed(void);
+/* the theme's colours alone have changed, its tone: Now Playing sets
+   itself up again at ACTION_REDRAW as after a change of theme */
+void night_mode_colours_changed(void);
 
 #endif /* _NIGHT_MODE_H_ */

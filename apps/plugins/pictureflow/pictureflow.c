@@ -4833,7 +4833,8 @@ static void update_scroll_animation(void)
 #if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
 /* The tracks on the back of the cover, as a stock iPod shows them: a panel in
    the middle with the album and its artist at its top, in the theme's colours of
-   a selection, its tracks and their lengths under them, the covers aside behind */
+   a selection (or, by the theme, on the panel's ground over a hairline), its
+   tracks and their lengths under them, the covers aside behind */
 #define PANEL_W      (LCD_WIDTH * 5 / 8)
 #define PANEL_X      ((LCD_WIDTH - PANEL_W) / 2)
 #define PANEL_HEAD   40
@@ -4939,13 +4940,27 @@ static void draw_track_panel(bool loading)
     rb->lcd_set_drawmode(DRMODE_SOLID);
     rb->lcd_set_foreground(edge);
     rb->lcd_drawrect(px - 1, py - 1, PANEL_W + 2, PANEL_H + 2);
+    /* by the theme the head isn't in the selection's colours, under which
+       the first track would not read as selected: the album in the panel's
+       ink on its paper, the artist in the theme's small grey, a hairline
+       under them */
+    const bool plain_head = rb->ui_metric(UI_METRIC_PANEL_HEAD_PLAIN);
     rb->lcd_set_foreground(paper);
-    rb->lcd_fillrect(px, py + PANEL_HEAD, PANEL_W, PANEL_H - PANEL_HEAD);
-    panel_gradient(px, py, PANEL_W, PANEL_HEAD);
+    if (plain_head)
+    {
+        rb->lcd_fillrect(px, py, PANEL_W, PANEL_H);
+        rb->lcd_set_foreground(edge);
+        rb->lcd_hline(px, px + PANEL_W - 1, py + PANEL_HEAD - 1);
+    }
+    else
+    {
+        rb->lcd_fillrect(px, py + PANEL_HEAD, PANEL_W, PANEL_H - PANEL_HEAD);
+        panel_gradient(px, py, PANEL_W, PANEL_HEAD);
+    }
 
     /* the album and its artist */
     rb->lcd_set_drawmode(DRMODE_FG);
-    rb->lcd_set_foreground(sel_ink);
+    rb->lcd_set_foreground(plain_head ? ink : sel_ink);
     int album_idx = 0;
     const int idx = center_slide.slide_index;
     const char *album = get_album_name_idx(idx, &album_idx);
@@ -4954,6 +4969,8 @@ static void draw_track_panel(bool loading)
     if (album_idx != (int) pf_idx.album_untagged_idx)
         put_fitted(text_x, py + 1, album, text_w, buf, sizeof(buf));
     rb->lcd_setfont(panel_small_font);
+    if (plain_head)
+        rb->lcd_set_foreground(rb->ui_colour(UI_COLOUR_VALUE));
     /* the artist cut short, if it must be, rather than the year after it */
     const int artist_y = py + PANEL_HEAD - 3 - rb->font_get(panel_small_font)->height;
     char year[16] = "";

@@ -56,7 +56,11 @@
 #include "list_covers.h"
 #include "gui/skin_engine/menu_cover.h"
 
-#define COVER_SIZE   60
+#define COVER_MAX    60
+/* the cover's side: the theme's, 60 without one of its own */
+#define COVER_SIZE   (ui_metric(UI_METRIC_HEADER_COVER_SIZE) > 0 \
+                      ? MIN(ui_metric(UI_METRIC_HEADER_COVER_SIZE), COVER_MAX) \
+                      : COVER_MAX)
 #define COVER_TOP    ui_metric(UI_METRIC_HEADER_COVER_TOP)
 #define COVER_GAP    ui_metric(UI_METRIC_HEADER_COVER_GAP) /* from the cover to the texts */
 #define TEXT_MARGIN  ui_metric(UI_METRIC_HEADER_TEXT_MARGIN) /* the texts' at the other end, as a setting's value's */
@@ -72,6 +76,7 @@
 
 static struct {
     int rows;  /* of the list, 0 without a header */
+    int slack; /* the rows' height over what the cover and the texts take */
     int lines; /* the name's */
     char name[NAME_LINES][TEXT_BYTES];
     char artist[TEXT_BYTES];
@@ -85,7 +90,7 @@ static struct {
    while width is 0, and only the UI draws them; the two threads are on one
    core, and none of their changes here has a yield in the middle */
 static struct {
-    fb_data pixels[COVER_SIZE * COVER_SIZE];
+    fb_data pixels[COVER_MAX * COVER_MAX];
     volatile int width, height;
     bool known;
     int32_t album, albumartist;
@@ -475,6 +480,7 @@ int album_header_open(struct tree_context *c, struct gui_synclist *list)
     lay_out(header.lines, font, font, &l);
     const int row = list->line_height[SCREEN_MAIN];
     header.rows = (l.foot + HEADER_FOOT + row - 1) / row;
+    header.slack = header.rows * row - (l.foot + HEADER_FOOT);
 #ifdef ITUNESDB_HAVE_ART
     find_cover(&album);
 #endif
@@ -505,17 +511,13 @@ static void draw_cover(struct screen *display, int x, int y)
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (display->screen_type == SCREEN_MAIN)
     {
-        display->set_foreground(LIST_GROUP_COLOUR);
-        display->set_drawmode(DRMODE_FG);
         if (global_settings.ui_theme == UI_THEME_NEO)
-            lcd_alpha_bitmap_part(neo_note_header_alpha, 0, 0, NEO_NOTE_HEADER_W,
-                                  x + (COVER_SIZE - NEO_NOTE_HEADER_W) / 2,
-                                  y + (COVER_SIZE - NEO_NOTE_HEADER_H) / 2,
-                                  NEO_NOTE_HEADER_W, NEO_NOTE_HEADER_H);
+            line_draw_note(neo_note_header_alpha, NEO_NOTE_HEADER_W, NEO_NOTE_HEADER_H,
+                           x + (COVER_SIZE - NEO_NOTE_HEADER_W) / 2,
+                           y + (COVER_SIZE - NEO_NOTE_HEADER_H) / 2);
         else
-            lcd_alpha_bitmap_part(note_alpha, 0, 0, NOTE_W,
-                                  x + (COVER_SIZE - NOTE_W) / 2,
-                                  y + (COVER_SIZE - NOTE_H) / 2, NOTE_W, NOTE_H);
+            line_draw_note(note_alpha, NOTE_W, NOTE_H, x + (COVER_SIZE - NOTE_W) / 2,
+                           y + (COVER_SIZE - NOTE_H) / 2);
     }
 #endif
     line_round_corners(display, x, y, COVER_SIZE, COVER_SIZE, radius);
@@ -530,6 +532,11 @@ void album_header_draw(struct screen *display, int y, void *data)
     const int list_font = vp->font;
     const unsigned fg = display->get_foreground();
     const int pad = global_settings.list_text_padding;
+    /* in the middle of its rows' height, where the theme has it so: its own
+       insets can then be small enough for two rows of two lines, and three
+       rows of one line keep it clear of their ends */
+    if (ui_metric(UI_METRIC_HEADER_CENTRED))
+        y += header.slack / 2;
     /* right to left, the cover at the right end and the texts left of it:
        the viewport puts them at the distance from that end */
     draw_cover(display, VP_IS_RTL(vp) ? vp->width - pad - COVER_SIZE : pad,

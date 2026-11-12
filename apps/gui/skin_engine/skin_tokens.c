@@ -61,6 +61,7 @@
 #include "tagtree.h"
 
 #include "wps_internals.h"
+#include "skin_display.h"
 #include "skin_engine.h"
 #include "statusbar-skinned.h"
 #include "root_menu.h"
@@ -1228,6 +1229,123 @@ static const char* get_qs_token_value(struct wps_token *token, char *buf, int bu
    and the original value of *intval, inclusive).
    When not treating a conditional/enum, intval should be NULL.
 */
+/* text of len bytes in buf of size bytes: letters off its end, and the spaces
+   before them, until it fits width in font with an ellipsis after it */
+void skin_fit_with_ellipsis(char *buf, size_t len, size_t size, int font, int width)
+{
+    static const char ellipsis[] = "\xe2\x80\xa6";
+    if (size <= sizeof(ellipsis))
+        return;
+    len = MIN(len, size - sizeof(ellipsis));
+    while (len > 0)
+    {
+        do
+            len--;
+        while (len > 0 && ((unsigned char)buf[len] & 0xc0) == 0x80);
+        while (len > 0 && buf[len - 1] == ' ')
+            len--;
+        strcpy(buf + len, ellipsis);
+        int w;
+        font_getstringsize(buf, &w, NULL, font);
+        if (w <= width)
+            break;
+    }
+}
+
+/* The title on two lines (%nw, %nW): the lines as last worked out, kept for
+   as long as the title, the font and the width are the same, so a refresh
+   compares and measures nothing. Nothing is allocated */
+#define TITLE_LINE_SIZE 128
+static struct
+{
+    uint32_t crc;
+    int font, width;
+    bool made;
+    char line[2][TITLE_LINE_SIZE];
+} title_wrap;
+
+static int text_width(const char *text, int font)
+{
+    int w;
+    font_getstringsize(text, &w, NULL, font);
+    return w;
+}
+
+/* as many whole letters of text as size has room for, into line */
+static size_t copy_letters(char *line, const char *text, size_t size)
+{
+    size_t len = strlen(text);
+    if (len >= size)
+    {
+        len = size - 1;
+        while (len > 0 && ((unsigned char)text[len] & 0xc0) == 0x80)
+            len--;
+    }
+    memcpy(line, text, len);
+    line[len] = '\0';
+    return len;
+}
+
+void skin_title_wrap_reset(void)
+{
+    title_wrap.made = false;
+}
+
+static void title_wrap_make(const char *title, int font, int width)
+{
+    /* the title is copied before anything is measured: a measure may read a
+       glyph from the disk and yield, and the next track's title is in an
+       entry that others take meanwhile */
+    static char text[2 * TITLE_LINE_SIZE];
+    const size_t whole = strlen(title);
+    const uint32_t crc = crc_32(title, whole, 0xffffffff);
+    if (title_wrap.made && crc == title_wrap.crc && font == title_wrap.font
+        && width == title_wrap.width)
+        return;
+    const size_t all = copy_letters(text, title, sizeof(text));
+    const bool more = all < whole;
+    title_wrap.crc = crc;
+    title_wrap.font = font;
+    title_wrap.width = width;
+    title_wrap.made = true;
+    char *first = title_wrap.line[0], *second = title_wrap.line[1];
+    second[0] = '\0';
+    if (!more && copy_letters(first, text, TITLE_LINE_SIZE) == all
+        && text_width(first, font) <= width)
+        return;
+    /* the words that fit the first line: up to each space in turn */
+    size_t fits = 0;
+    for (size_t at = 0; at < all && at < TITLE_LINE_SIZE; at++)
+    {
+        if (text[at] != ' ' || (at > 0 && text[at - 1] == ' '))
+            continue;
+        memcpy(first, text, at);
+        first[at] = '\0';
+        if (text_width(first, font) > width)
+            break;
+        fits = at;
+    }
+    if (fits == 0)
+    {
+        /* a first word wider than the line: its letters that fit */
+        fits = copy_letters(first, text, TITLE_LINE_SIZE);
+        while (fits > 0 && text_width(first, font) > width)
+        {
+            do
+                fits--;
+            while (fits > 0 && ((unsigned char)first[fits] & 0xc0) == 0x80);
+            first[fits] = '\0';
+        }
+    }
+    first[fits] = '\0';
+    const char *rest = text + fits;
+    while (*rest == ' ')
+        rest++;
+    const size_t len = copy_letters(second, rest, TITLE_LINE_SIZE);
+    if (more || len < strlen(rest) || text_width(second, font) > width)
+        skin_fit_with_ellipsis(second, len, TITLE_LINE_SIZE, font, width);
+}
+
 const char *get_token_value(struct gui_wps *gwps,
                            struct wps_token *token, int offset,
                            char *buf, int buf_size,
@@ -1716,11 +1834,57 @@ const char *get_token_value(struct gui_wps *gwps,
             itoa_buf(buf, buf_size, numeric_ret);
             numeric_buf = buf;
             goto gtv_ret_numeric_tag_info;
+        case SKIN_TOKEN_DEVICE_NAME_FIT:
+        {
+            /* whole letters as far as the viewport being drawn has room,
+               then an ellipsis: a line that doesn't scroll is cut by the
+               pixel, through its last letter */
+            const char *name = itunesdb_device_name();
+            const struct viewport *vp = *gwps->display->current_viewport;
+            int width;
+            font_getstringsize(name, &width, NULL, vp->font);
+            if (width <= vp->width)
+                return name;
+            skin_fit_with_ellipsis(buf, strlcpy(buf, name, buf_size), buf_size,
+                              vp->font, vp->width);
+            return buf;
+        }
 #else
         case SKIN_TOKEN_DEVICE_NAME:
         case SKIN_TOKEN_DEVICE_NAME_LENGTH:
+        case SKIN_TOKEN_DEVICE_NAME_FIT:
             return NULL;
 #endif
+        case SKIN_TOKEN_TITLE_LINE:
+        case SKIN_TOKEN_TITLE_WRAPS:
+        {
+            /* the title as %it gives it, or else the file's name as %fn */
+            struct wps_token source = { .type = SKIN_TOKEN_METADATA_TRACK_TITLE };
+            const char *title = try_id3_token(&source, offset, buf, buf_size,
+                                              limit, NULL);
+            if (!title || !*title)
+            {
+                source.type = SKIN_TOKEN_FILE_NAME;
+                title = try_id3_token(&source, offset, buf, buf_size, limit, NULL);
+            }
+            if (!title || !*title)
+                return NULL;
+            const struct viewport *vp = *gwps->display->current_viewport;
+            if (token->type == SKIN_TOKEN_TITLE_WRAPS)
+            {
+                const struct skin_viewport *svp = skin_find_item(
+                    SKINOFFSETTOPTR(get_skin_buffer(data), token->value.data),
+                    SKIN_FIND_VP, data);
+                if (!svp)
+                    return NULL;
+                vp = &svp->vp;
+            }
+            title_wrap_make(title, vp->font, vp->width);
+            if (token->type == SKIN_TOKEN_TITLE_WRAPS)
+                return title_wrap.line[1][0] ? "w" : NULL;
+            const char *line = title_wrap.line[token->value.i == 2];
+            return *line ? line : NULL;
+        }
         case SKIN_TOKEN_MENU_WIDE:
             return menu_wide() ? "w" : NULL;
         case SKIN_TOKEN_VOLUME_PERCENT:

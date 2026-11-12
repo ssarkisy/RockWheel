@@ -83,6 +83,14 @@ int skin_art_handle(const struct wps_data *data, int index, int handle);
 bool skin_art_found(const struct wps_data *data, int handle);
 bool skin_art_available(int handle);
 bool skin_art_colours_update(const struct wps_data *data);
+/* The tone has changed in a theme whose surfaces take one: every
+   viewport of the main screen's loaded skins gets its background in it */
+void skin_surfaces_changed(void);
+/* a viewport's background in the tone: Now Playing's status line may keep
+   the user's colour under a cover's */
+struct viewport;
+unsigned skin_surface(const struct wps_data *data, const struct viewport *vp,
+                      unsigned plain);
 bool skin_art_kept_expired(void);
 #endif
 void skin_backdrop_load_setting(void);

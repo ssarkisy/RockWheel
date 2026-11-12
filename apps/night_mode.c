@@ -36,6 +36,7 @@
 #include "viewport.h"
 #include "gui/skin_engine/skin_engine.h"
 #include "gui/skin_engine/cover_palette.h"
+#include "album_header.h"
 #include "night_mode.h"
 #include "gui/lyrics.h"
 #include "gui/list.h"
@@ -58,20 +59,15 @@ static bool theme_changed;
    out afterwards */
 static bool settings_loaded;
 
-/* whether the Theme row shows: a theme other than Classic has been set, by
-   config.cfg's "ui theme" until the new themes are complete */
-static bool theme_row;
-
 static void theme_set_names(bool dark)
 {
     ui_theme_to_settings(dark);
-    if (global_settings.ui_theme != UI_THEME_CLASSIC)
-        theme_row = true;
 }
 
+/* the Theme row shows always, now that there is a theme besides Classic */
 bool ui_theme_row_shown(void)
 {
-    return theme_row;
+    return true;
 }
 
 /* Music goes on: only the images change, and each has the size it had */
@@ -92,6 +88,11 @@ static void theme_apply(void)
     screens[SCREEN_MAIN].set_foreground(global_settings.fg_color);
     screens[SCREEN_MAIN].set_background(global_settings.bg_color);
     skin_reload_while_playing();
+    theme_changed = true;
+}
+
+void night_mode_colours_changed(void)
+{
     theme_changed = true;
 }
 
@@ -262,6 +263,10 @@ void night_mode_boot(void)
         night_settings_on();
     else if (!s->night_mode && s->night_changed)
         night_settings_off(true);
+    ui_theme_set_colour(s->theme_colour);
+    /* a reset or a loaded file may have changed the theme without
+       ui_theme_switch(): an album's cover was read at the old one's size */
+    album_header_forget_cover();
     theme_set_names(s->dark_theme);
     settings_loaded = true;
 }
@@ -360,6 +365,8 @@ void ui_theme_switch(void)
     cover_palette_theme_changed();
     /* the old theme's go before the new one's come, for their places */
     list_unload_fonts();
+    /* an album's cover was read at the old theme's size */
+    album_header_forget_cover();
     theme_set_names(global_settings.dark_theme);
     screens[SCREEN_MAIN].set_foreground(global_settings.fg_color);
     screens[SCREEN_MAIN].set_background(global_settings.bg_color);
@@ -375,6 +382,15 @@ void ui_theme_changed(int theme)
     (void)theme;
     if (settings_loaded)
         ui_theme_switch();
+}
+
+void theme_colour_changed(int colour)
+{
+    if (!settings_loaded)
+        return;
+    /* Now Playing's text in a cover's colour was made for the old ground */
+    cover_palette_theme_changed();
+    ui_theme_set_colour(colour);
 }
 
 void night_mode_changed(bool on)

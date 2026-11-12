@@ -1209,6 +1209,44 @@ static int no_click(int action)
     return action;
 }
 
+#ifdef SIMULATOR
+#include <stdlib.h>
+/* The simulator only, for a picture of a message over any screen:
+   RBSIM_SPLASH="<seconds>:<text>" shows the text, a \n in it starting a new
+   line, for three seconds once the simulator has run that long; a text
+   that starts with % as a progress of three steps, a second each */
+static bool sim_splash_poll(void)
+{
+    static bool shown;
+    const char *s = shown ? NULL : getenv("RBSIM_SPLASH");
+    if (!s || TIME_BEFORE(current_tick, atoi(s) * HZ))
+        return false;
+    shown = true;
+    char text[128];
+    size_t n = 0;
+    for (s = strchr(s, ':'); s && *++s && n < sizeof(text) - 1; n++)
+    {
+        if (s[0] == '\\' && s[1] == 'n')
+        {
+            text[n] = '\n';
+            s++;
+        }
+        else
+            text[n] = *s;
+    }
+    text[n] = '\0';
+    if (text[0] != '%')
+        splashf(3 * HZ, "%s", text);
+    else
+        for (int i = 1; i <= 3; i++)
+        {
+            splash_progress(i, 3, "%s", text + 1);
+            sleep(HZ);
+        }
+    return true;
+}
+#endif
+
 static int get_action_worker(action_last_t *last, action_cur_t *cur)
 {
     send_event(GUI_EVENT_ACTIONUPDATE, NULL);
@@ -1220,6 +1258,10 @@ static int get_action_worker(action_last_t *last, action_cur_t *cur)
 
     if (night_mode_poll(cur->context))
         return no_click(ACTION_REDRAW);
+#ifdef SIMULATOR
+    if (!asking_abort && sim_splash_poll())
+        return no_click(ACTION_REDRAW);
+#endif
 
     wake_screen_context(cur->context);
 #ifdef HAVE_WHEEL_ACCELERATION

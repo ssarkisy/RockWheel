@@ -1042,6 +1042,10 @@ static void display_mode_tick(void)
 
 static void gwps_leave_wps(bool theme_enabled)
 {
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    /* a theme's tone is its user's again before another screen is drawn */
+    cover_palette_leave();
+#endif
     scrub_apply();
 #ifdef HAVE_PITCHCONTROL
     speed_apply();

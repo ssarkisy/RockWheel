@@ -111,6 +111,8 @@ struct gui_img {
     bool cover_tint;        /* takes the colour of the cover */
     bool cover_keep;        /* its colours are its own in the cover's, as the
                                battery's charge, unless the setting says */
+    bool note;              /* a missing cover's note: its alpha alone is
+                               drawn, in the theme's colours for a note */
 };
 
 struct image_display {
@@ -211,6 +213,7 @@ struct skin_viewport {
     int16_t parsed_fontid;
     char hidden_flags;
     bool is_infovp;
+    unsigned plain_bg;    /* its background as the skin has it: vp's is in the theme's tone */
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && (LCD_REMOTE_DEPTH > 1))
     bool output_to_backdrop_buffer;
     bool fgbg_changed;
@@ -283,6 +286,11 @@ struct playlistviewer {
 #define WPS_ALBUMART_ALIGN_TOP      1    /* y align:   top */
 #define WPS_ALBUMART_ALIGN_BOTTOM   4    /* y align:   bottom */
 
+/* a %Cr cover's reflection as Classic has it: its rows, and its strength of
+   256 at its top, down to none */
+#define SKIN_REFLECTION_ROWS  22
+#define SKIN_REFLECTION_ALPHA 128
+
 struct skin_albumart {
     /* Album art support */
     int16_t x;
@@ -294,6 +302,8 @@ struct skin_albumart {
     unsigned char yalign; /* WPS_ALBUMART_ALIGN_TOP, _CENTER, _BOTTOM */
     unsigned char state; /* WPS_ALBUMART_NONE, _CHECK, _LOAD */
     bool reflect;        /* with its reflection under it: %Cr */
+    bool angled_only;    /* %Cr(rows, strength): so only with Angled Cover */
+    unsigned char reflect_rows, reflect_alpha;
 
     int draw_handle;
 };

@@ -153,12 +153,10 @@ set_of() {
         "$(pretendard "$wght")" > /dev/null
     }
 }
-set_of 22-Inter-SemiBold 600 15 17   17     # Neo title; Modern pane caption
-set_of 19-Inter-Medium   500 13 15   15     # Neo row
-set_of 17-Inter-Regular  400 12 13   13     # Neo text
+set_of 19-Inter-SemiBold 600 13 15   15     # Neo row
+set_of 17-Inter-Medium-13 500 12 13  13     # Neo text, values
 set_of 15-Inter-Medium   500 11 12   12     # Neo label
 set_of 15-Inter-SemiBold 600 11 12   12     # Neo name
-set_of 15-Inter-Regular  400 11 12   12     # Neo sub
 set_of 14-Inter-Medium   500 10 11   11.67  # Neo small
 set_of 20-Inter-SemiBold 600 14 15.5 15.5   # Modern titles
 set_of 18-Inter-Regular  400 12 14   14     # Modern row

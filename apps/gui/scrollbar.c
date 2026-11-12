@@ -188,26 +188,16 @@ void gui_scrollbar_draw(struct screen * screen, int x, int y,
     screen->fillrect(inner_x, inner_y, inner_wd, inner_ht);
 }
 
-void gui_bitmap_scrollbar_draw(struct screen * screen, struct bitmap *bm, int x, int y,
-                        int width, int height, int items,
-                        int min_shown, int max_shown,
-                        unsigned flags)
+void gui_bitmap_scrollbar_part(const struct bitmap *bm, int *px, int *py,
+                               int *pwidth, int *pheight, int items,
+                               int min_shown, int max_shown, unsigned flags,
+                               int *pstartx, int *pstarty)
 {
+    int x = *px, y = *py, width = *pwidth, height = *pheight;
     int start;
     int size;
     int inner_len;
     int startx = 0, starty = 0;
-
-    screen->set_drawmode(DRMODE_SOLID|DRMODE_INVERSEVID);
-
-    /* clear pixels in progress bar */
-    if ((flags&DONT_CLEAR_EXCESS) == 0)
-        screen->fillrect(x, y, width, height);
-
-    screen->set_drawmode(DRMODE_SOLID);
-
-    if (flags & INNER_NOFILL)
-        return;
 
     if (flags & INVERTFILL)
     {
@@ -243,6 +233,34 @@ void gui_bitmap_scrollbar_draw(struct screen * screen, struct bitmap *bm, int x,
     else if (bm->height < starty + height)
         height = bm->height - starty;
 
+    *px = x;
+    *py = y;
+    *pwidth = width;
+    *pheight = height;
+    *pstartx = startx;
+    *pstarty = starty;
+}
+
+void gui_bitmap_scrollbar_draw(struct screen * screen, struct bitmap *bm, int x, int y,
+                        int width, int height, int items,
+                        int min_shown, int max_shown,
+                        unsigned flags)
+{
+    int startx, starty;
+
+    screen->set_drawmode(DRMODE_SOLID|DRMODE_INVERSEVID);
+
+    /* clear pixels in progress bar */
+    if ((flags&DONT_CLEAR_EXCESS) == 0)
+        screen->fillrect(x, y, width, height);
+
+    screen->set_drawmode(DRMODE_SOLID);
+
+    if (flags & INNER_NOFILL)
+        return;
+
+    gui_bitmap_scrollbar_part(bm, &x, &y, &width, &height, items, min_shown,
+                              max_shown, flags, &startx, &starty);
     screen->bmp_part(bm, startx, starty, x, y, width, height);
 }
 

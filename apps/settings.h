@@ -1107,6 +1107,9 @@ struct user_settings
     bool main_menu_shuffle_albums;
     /* Settings > Appearance > Theme: UI_THEME_* (gui/ui_theme.h) */
     int ui_theme;
+    /* Settings > Appearance > Colour, in a theme that has a tone: one of
+       enum ui_tone_colour (gui/ui_theme.h) */
+    int theme_colour;
 };
 
 /* global settings */

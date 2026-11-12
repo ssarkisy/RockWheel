@@ -40,7 +40,7 @@ mkdir -p "$out"
 font() {
     name=$1 file=$2 size=$3
     shift 3
-    "$build/convttf" -s 32 -l 9839 -W -A -p "$size" "$@" \
+    "$build/convttf" -s 32 -l 9839 ${digits--W} -A -p "$size" "$@" \
         -o "$out/$name" "$ttf/$file" > /dev/null
 }
 
@@ -59,18 +59,22 @@ font 12-Inter-SemiBold.fnt Inter-SemiBold.ttf 11    # iClassic bitrate
 # Neo's and Modern's, by the em of their mockups: -X 72 makes -p the em in
 # pixels (convttf's own 60 makes it 5/6 of -p, as above), -X 36 half of it.
 # Named after the line height convttf gives them, as the rest.
-font 22-Inter-SemiBold.fnt Inter-SemiBold.ttf 17 -X 72  # Neo title; Modern pane caption
-font 19-Inter-Medium.fnt   Inter-Medium.ttf   15 -X 72  # Neo row
-font 17-Inter-Regular.fnt  Inter-Regular.ttf  13 -X 72  # Neo text
+# Their digits are Inter's own, each as wide as it is (-w): all as wide, a 1
+# stood apart in its cell and 13188 read as "1 31 88". Times and counts are
+# set from a side, so they stay in place; a file Classic names too is above.
+digits=-w
+font 19-Inter-SemiBold.fnt Inter-SemiBold.ttf 15 -X 72  # Neo row
+# 13 px, not the 17-Inter-Medium above, which is 12.5
+font 17-Inter-Medium-13.fnt Inter-Medium.ttf  13 -X 72  # Neo text, values
 font 15-Inter-Medium.fnt   Inter-Medium.ttf   12 -X 72  # Neo label
 font 15-Inter-SemiBold.fnt Inter-SemiBold.ttf 12 -X 72  # Neo name
-font 15-Inter-Regular.fnt  Inter-Regular.ttf  12 -X 72  # Neo sub
 font 14-Inter-Medium.fnt   Inter-Medium.ttf   11 -X 72  # Neo small
 font 29-Inter-Bold.fnt     Inter-Bold.ttf     23 -X 72  # Modern large title: Latin, Greek, Cyrillic only
 font 20-Inter-SemiBold.fnt Inter-SemiBold.ttf 31 -X 36  # Modern titles, 15.5
 font 18-Inter-Regular.fnt  Inter-Regular.ttf  14 -X 72  # Modern row
 font 14-Inter-Regular.fnt  Inter-Regular.ttf  11 -X 72  # Modern values
 font 13-Inter-Regular.fnt  Inter-Regular.ttf  10 -X 72  # Modern small
+unset digits
 
 # Quick Scroll's letter over a list (apps/gui/bitmap/list.c), 52 px with
 # capitals 32 px tall: Inter Bold cut to what it shows first, the capitals of

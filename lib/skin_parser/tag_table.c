@@ -67,6 +67,10 @@ static const struct tag_info legal_tags[] =
     /* this grey image, loaded before, takes the colour of the cover */
     TAG(SKIN_TOKEN_IMAGE_COVER_TINT,      "xC", "S", 0|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_COVER_KEEP,      "xK", "S", 0|NOBREAK),
+    /* this image, loaded before, is a missing cover's note: only its alpha is
+       drawn, in the theme's two colours for a note from its top row to its
+       foot, as the lists draw theirs; its own colour is not shown */
+    TAG(SKIN_TOKEN_IMAGE_NOTE,            "xN", "S", 0|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_PRELOAD_DISPLAY, "xd", "S|[IT]I", 0),
     /* the backdrop while Settings is selected in the main menu; before %X,
        as tags are looked for in this order */
@@ -165,13 +169,26 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_FORMAT_BITRATE,        "fB", "", SKIN_REFRESH_STATIC),
     TAG(SKIN_TOKEN_DEVICE_NAME,           "nn", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_DEVICE_NAME_LENGTH,    "nl", "", SKIN_REFRESH_DYNAMIC),
+    /* the name, ending in an ellipsis if its viewport is narrower than it */
+    TAG(SKIN_TOKEN_DEVICE_NAME_FIT,       "ne", "", SKIN_REFRESH_DYNAMIC),
+    /* %nw(1), %nw(2): the track's title, as %?it<%it|%fn>, on two lines of the
+       viewport it is drawn in: broken at a space, what is past the second
+       line cut at a letter with an ellipsis; never scrolled. %nW(label): set
+       when the title takes both lines in the viewport of that label */
+    TAG(SKIN_TOKEN_TITLE_LINE,            "nw", "I", SKIN_REFRESH_STATIC),
+    TAG(SKIN_TOKEN_TITLE_WRAPS,           "nW", "S", SKIN_REFRESH_STATIC),
+    /* on a line that doesn't scroll: its text, if wider than the viewport,
+       ends at a whole letter with an ellipsis */
+    TAG(SKIN_TOKEN_LINE_CUT,              "nx", "", 0),
     TAG(SKIN_TOKEN_DISK_FREE,             "nf", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_DISK_USED,             "nu", BAR_PARAMS, SKIN_REFRESH_DYNAMIC),
-    /* the disk's size as text; its use as a ring and a clock's dial, each
-       filling its viewport, drawn by the skin's code */
+    /* the disk's size as text; its use as a ring in the middle of its
+       viewport, drawn by the skin's code */
     TAG(SKIN_TOKEN_DISK_TOTAL,            "nT", "", SKIN_REFRESH_STATIC),
     TAG(SKIN_TOKEN_DISK_RING,             "nR", "", SKIN_REFRESH_STATIC),
-    TAG(SKIN_TOKEN_CLOCK_DIAL,            "nD", "", SKIN_REFRESH_DYNAMIC),
+    /* its viewport's corners rounded as the theme rounds a cover of that
+       place, in the screen's ground: a tile where a cover is missing */
+    TAG(SKIN_TOKEN_ROUND_CORNERS,         "nc", "", SKIN_REFRESH_STATIC),
     TAG(SKIN_TOKEN_MENU_SETTINGS_SELECTED, "LS", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_MENU_WIDE,             "LW", "", SKIN_REFRESH_DYNAMIC),
     /* the volume by the share of the volume bar, as "Volume: 62%", or with
@@ -248,8 +265,11 @@ static const struct tag_info legal_tags[] =
 
     TAG(SKIN_TOKEN_LOAD_FONT,             "Fl" , "IF|I", 0|NOBREAK),
     /* the cover of the %Cl before it with its reflection under it, and angled
-       if the setting says, as Now Playing on a stock iPod has it */
-    TAG(SKIN_TOKEN_ALBUMART_REFLECT,      "Cr" , "", 0|NOBREAK),
+       if the setting says, as Now Playing on a stock iPod has it. With the
+       reflection's rows and its strength of 256 at its top, the theme's own:
+       only with Angled Cover, its corners square, and plain without, as
+       without the tag */
+    TAG(SKIN_TOKEN_ALBUMART_REFLECT,      "Cr" , "|II", 0|NOBREAK),
     TAG(SKIN_TOKEN_ALBUMART_LOAD,         "Cl" , "[iP][iP][iP][iP]|ss", 0|NOBREAK),
     TAG(SKIN_TOKEN_ALBUMART_DISPLAY,      "Cd" , "", SKIN_REFRESH_STATIC),
     TAG(SKIN_TOKEN_ALBUMART_FOUND,        "C" , "", SKIN_REFRESH_STATIC),

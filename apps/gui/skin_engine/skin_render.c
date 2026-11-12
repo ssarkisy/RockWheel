@@ -28,10 +28,14 @@
 #include "core_alloc.h"
 #include "kernel.h"
 #include "appevents.h"
+#include "button.h"
+#include "statusbar-skinned.h"
 #ifdef HAVE_ALBUMART
 #include "albumart.h"
 #endif
 #include "settings.h"
+#include "line.h"
+#include "gui/ui_theme.h"
 #include "skin_display.h"
 #include "menu_cover.h"
 #include "skin_engine.h"
@@ -66,6 +70,7 @@ struct skin_draw_info {
     struct align_pos align;
     bool no_line_break;
     bool line_scrolls;
+    bool line_cut; /* %nx */
     bool force_redraw;
 
     char *buf;
@@ -141,7 +146,7 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
 #endif
             }
             else
-                skin_vp->vp.bg_pattern = col->colour;
+                skin_vp->vp.bg_pattern = skin_surface(data, &skin_vp->vp, col->colour);
             skin_vp->fgbg_changed = true;
         }
         break;
@@ -277,9 +282,17 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             if (do_refresh)
                 draw_disk_ring(gwps);
             break;
-        case SKIN_TOKEN_CLOCK_DIAL:
+        case SKIN_TOKEN_ROUND_CORNERS:
             if (do_refresh)
-                draw_clock_dial(gwps);
+            {
+                struct screen *display = gwps->display;
+                struct viewport *vp = *display->current_viewport;
+                const unsigned tile = vp->bg_pattern;
+                vp->bg_pattern = global_settings.bg_color;
+                line_round_corners(display, 0, 0, vp->width, vp->height,
+                                   ui_metric(UI_METRIC_COVER_RADIUS));
+                vp->bg_pattern = tile;
+            }
             break;
         case SKIN_TOKEN_IMAGE_DISPLAY:
         {
@@ -296,6 +309,11 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             if (!id) break;
             const char* label = SKINOFFSETTOPTR(skin_buffer, id->label);
             struct gui_img *img = skin_find_item(label,SKIN_FIND_IMAGE, data);
+            /* a note's rows are each blended in a colour of their own: only
+               when its viewport is drawn whole, cleared before, not at
+               every update of it; nothing else draws in its place between */
+            if (img && img->note && !(info->refresh_type & SKIN_REFRESH_STATIC))
+                break;
             if (img && img->loaded)
             {
                 if (SKINOFFSETTOPTR(skin_buffer, id->token) == NULL)
@@ -395,6 +413,23 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             return false;
     }
     return true;
+}
+
+/* A viewport of the status-bar skin that lies over the lists' area has been
+   cleared as it was hidden: on an update that isn't of the whole skin the
+   list under it would stay wiped, as a selected row's end under the strip
+   beside the main menu's cover when the cover goes */
+static bool ui_overdrawn;
+
+static void note_ui_overdrawn(const struct gui_wps *gwps, const struct viewport *vp)
+{
+    if (gwps->display->screen_type != SCREEN_MAIN
+        || gwps->data != skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data)
+        return;
+    const struct viewport *ui = sb_skin_peek_info_vp(SCREEN_MAIN);
+    if (ui && vp->x < ui->x + ui->width && ui->x < vp->x + vp->width
+        && vp->y < ui->y + ui->height && ui->y < vp->y + vp->height)
+        ui_overdrawn = true;
 }
 
 static void do_tags_in_hidden_conditional(struct skin_element* branch,
@@ -497,6 +532,7 @@ static void do_tags_in_hidden_conditional(struct skin_element* branch,
                             gwps->display->set_viewport_ex(&info->skin_vp->vp, VP_FLAG_VP_SET_CLEAN);
 #endif
                             skin_viewport->hidden_flags |= VP_DRAW_HIDDEN;
+                            note_ui_overdrawn(gwps, &skin_viewport->vp);
                         }
                     }
                 }
@@ -621,6 +657,8 @@ static bool skin_render_line(struct skin_element* line, struct skin_draw_info *i
                     info->no_line_break = true;
                 if (child->tag->type == SKIN_TOKEN_SUBLINE_SCROLL)
                     info->line_scrolls = true;
+                if (child->tag->type == SKIN_TOKEN_LINE_CUT)
+                    info->line_cut = true;
 
                 fix_line_alignment(info, child);
 
@@ -836,6 +874,7 @@ void skin_render_viewport(struct skin_element* viewport, struct gui_wps *gwps,
         linebuf[0] = '\0';
         info.no_line_break = false;
         info.line_scrolls = false;
+        info.line_cut = false;
         info.force_redraw = false;
         info.bar_count = 0;
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && (LCD_REMOTE_DEPTH > 1))
@@ -882,7 +921,7 @@ void skin_render_viewport(struct skin_element* viewport, struct gui_wps *gwps,
                     0, info.line_number*h, skin_viewport->vp.width, h);
             }
             write_line(display, align, info.line_number,
-                    info.line_scrolls, &info.line_desc);
+                    info.line_scrolls, info.line_cut, &info.line_desc);
             /* A line of no text with a bar, as one in a conditional that has
                changed: the line is cleared before its text, and the bar went
                with it, the backdrop under it shown until the next update. The
@@ -1096,6 +1135,16 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
         /* If this is the UI viewport then let the UI know
          * to redraw itself */
         send_event(GUI_EVENT_NEED_UI_UPDATE, NULL);
+        ui_overdrawn = false;
+    }
+    else if (ui_overdrawn)
+    {
+        /* all of the skin and the list again, at once: as a change of track
+           asks for it */
+        ui_overdrawn = false;
+        skin_request_full_update(CUSTOM_STATUSBAR);
+        sb_skin_force_next_update();
+        button_queue_post(BUTTON_NONE, 0);
     }
     /* Restore the default viewport */
     display->set_viewport_ex(NULL, VP_FLAG_VP_SET_CLEAN);
@@ -1159,6 +1208,7 @@ void skin_render_playlistviewer(struct playlistviewer* viewer,
         linebuf[0] = '\0';
         info.no_line_break = false;
         info.line_scrolls = false;
+        info.line_cut = false;
         info.force_redraw = false;
 
         info.cur_align_start = info.buf;
@@ -1185,7 +1235,7 @@ void skin_render_playlistviewer(struct playlistviewer* viewer,
                     0, info.line_number*h, vp->width, h);
             }
             write_line(display, align, info.line_number,
-                    info.line_scrolls, &info.line_desc);
+                    info.line_scrolls, info.line_cut, &info.line_desc);
         }
         info.line_number++;
         info.offset++;

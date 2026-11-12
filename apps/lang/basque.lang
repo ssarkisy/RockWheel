@@ -18586,3 +18586,213 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_THEME_COLOUR
+  desc: a row of Settings > Appearance in a theme that is tinted: the colour of the tint, its value one of the colours' names
+  user: core
+  <source>
+    *: "Colour"
+  </source>
+  <dest>
+    *: "Kolorea"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_RED
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Red"
+  </source>
+  <dest>
+    *: "Gorria"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_YELLOW
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Yellow"
+  </source>
+  <dest>
+    *: "Horia"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_GREEN
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Green"
+  </source>
+  <dest>
+    *: "Berdea"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_TEAL
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Teal"
+  </source>
+  <dest>
+    *: "Turkesa"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_BLUE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Blue"
+  </source>
+  <dest>
+    *: "Urdina"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_PURPLE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Purple"
+  </source>
+  <dest>
+    *: "Morea"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_PINK
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Pink"
+  </source>
+  <dest>
+    *: "Arrosa"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_ORANGE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Orange"
+  </source>
+  <dest>
+    *: "Laranja"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_DESERT
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Desert"
+  </source>
+  <dest>
+    *: "Basamortua"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_OLIVE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Olive"
+  </source>
+  <dest>
+    *: "Oliba"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_GLACIER
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Glacier"
+  </source>
+  <dest>
+    *: "Glaziarra"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_DEEP_BLUE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Deep Blue"
+  </source>
+  <dest>
+    *: "Urdin iluna"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_BURGUNDY
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Burgundy"
+  </source>
+  <dest>
+    *: "Granatea"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_THEME_COLOUR
+  desc: the hint in the band under Settings > Appearance while Colour is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Every screen takes on the colour you choose."
+  </source>
+  <dest>
+    *: "Pantaila guztiek aukeratzen duzun kolorea hartzen dute."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

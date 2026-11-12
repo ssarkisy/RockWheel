@@ -30,10 +30,8 @@
 
 void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewport);
 /* in the middle of the viewport, in its colours: the disk's use as a ring,
-   the used part in the foreground over a track in the theme's ground; and a
-   clock's dial with its hands at the time it is */
+   the used part in the foreground over a track in the theme's ground */
 void draw_disk_ring(struct gui_wps *gwps);
-void draw_clock_dial(struct gui_wps *gwps);
 void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
                       int line, struct progressbar *pb);
 void draw_playlist_viewer_list(struct gui_wps *gwps, struct playlistviewer *viewer);
@@ -57,7 +55,13 @@ int evaluate_conditional(struct gui_wps *gwps, int offset,
    scroll indicates whether the line is a scrolling one or not.
 */
 void write_line(struct screen *display, struct align_pos *format_align,
-                int line, bool scroll, struct line_desc *line_desc);
+                int line, bool scroll, bool cut, struct line_desc *line_desc);
+/* the title's lines (%nw) are worked out anew: a skin is loaded, and a font
+   may be another in the same slot */
+void skin_title_wrap_reset(void);
+/* text of len bytes in buf of size bytes: letters off its end, and the spaces
+   before them, until it fits width in font with an ellipsis after it */
+void skin_fit_with_ellipsis(char *buf, size_t len, size_t size, int font, int width);
 void draw_peakmeters(struct gui_wps *gwps, int line_number,
                      struct viewport *viewport);
 #ifdef HAVE_ALBUMART

@@ -41,9 +41,9 @@ typeface, still draw Hangul in those sizes.
 
 The fonts of the themes to come, Neo and Modern, are made by the same two
 scripts, from Inter Regular too, at the em sizes of their mockups and named
-after their line heights as the rest: `22-Inter-SemiBold` (17 px), `19-Inter-Medium`
-(15), `17-Inter-Regular` (13), `15-Inter-Medium`, `-SemiBold` and `-Regular` (12)
-and `14-Inter-Medium` (11) for Neo; `29-Inter-Bold` (23), `20-Inter-SemiBold`
+after their line heights as the rest: `19-Inter-SemiBold` (15 px),
+`17-Inter-Medium-13` (13), `15-Inter-Medium` and `-SemiBold` (12) and
+`14-Inter-Medium` (11) for Neo, whose title is `18-Inter-SemiBold`; `29-Inter-Bold` (23), `20-Inter-SemiBold`
 (15.5), `18-Inter-Regular` (14), `14-Inter-Regular` (11) and `13-Inter-Regular`
 (10) for Modern. iClassic Square loads none of them. Each has the other
 alphabets in its own weight and size, but `29-Inter-Bold`, a large title's,

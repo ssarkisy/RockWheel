@@ -1958,8 +1958,9 @@ static void make_layout(void)
         strip_h += spare - spare / 2;
     }
     field_vp = strip_vp = ui;
-    if (ROUNDED && font_find(ui_font_file(UI_FONT_MENU_VALUE)) >= 0)
-        strip_vp.font = font_find(ui_font_file(UI_FONT_MENU_VALUE));
+    /* the letters in the hints' font: 13 px Medium in Neo */
+    if (ROUNDED && font_find(ui_font_file(UI_FONT_HINT)) >= 0)
+        strip_vp.font = font_find(ui_font_file(UI_FONT_HINT));
     text_colour = ui.fg_pattern;
     field_vp.height = field_h;
     strip_vp.y = ui.y + field_h;
@@ -2131,7 +2132,7 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
         const int h = ROUNDED ? MARKER_H : (pf->height + 2) | 1;
         const int x = cx - w / 2, y = cy - h / 2;
         if (ROUNDED)
-            line_fill_rounded(display, x, y, w, h, 5, FIELD_FILL);
+            line_fill_rounded(display, x, y, w, h, 5, global_settings.lss_color);
         else if (in_results)
             fill_rounded(display, x, y, w, h, FIELD_FILL, FIELD_FILL);
         else

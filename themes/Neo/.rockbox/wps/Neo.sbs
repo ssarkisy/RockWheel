@@ -2,52 +2,56 @@
 %wd
 %Fl(2,15-Inter-Medium.fnt)
 %Fl(3,15-Inter-SemiBold.fnt)
-%Fl(4,15-Inter-Regular.fnt)
 %xl(B,Battery.bmp,0,0,24)
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,0,0)
 %xl(N,Night.bmp,0,0)
-%?LW<%VI(wide)%Vd(rulewide)%Vd(clockwide)%Vd(titlewide)%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>|%VI(half)%Vd(rulehalf)%Vd(column)%Vd(name)%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)|%Vd(hplayn0)>>
-# the pane by the row selected: Settings, Extras, Photos, or the music
-%?LW<|%?LS<%Vd(surface)%Vd(ring)%Vd(about)|%Vd(surface)%Vd(dial)%Vd(extras)|%Vd(surface)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
+%?LW<%VI(wide)%Vd(rulewide)%Vd(clockwide)%Vd(titlewide)%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>|%VI(half)%Vd(rulehalf)%Vd(column)%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%Vd(hnamen1)>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%Vd(hnamen0)>>>
+# the pane by the row selected: Settings, Photos, or the music, which Extras has too
+%?LW<|%?LS<%Vd(surface)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(surface)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
 # the cover fills the pane, nothing over it: Finder's 240 px frame, its middle 160
 %Cl(0,0,240,240,c,c)
 %Vl(a,120,0,200,240,-)
 %Cd
 %Vl(a,120,0,40,240,-)
-# the lists: under the status line's 22 px and its hairline, rows of 30; beside
-# the pane 156 wide, so that the selected row ends at 150
-%Vi(wide,0,34,320,194,1)%Vf(292421)%Vb(EFEBE7)
-%Vi(half,0,34,156,194,1)%Vf(292421)%Vb(EFEBE7)
-# hairlines: row 22 under the status line, over the menu only beside the pane,
-# and column 159 between the menu and the pane
-%Vl(rulewide,0,22,320,1,-)%Vb(E7DFD6)
-%Vl(rulehalf,0,22,159,1,-)%Vb(E7DFD6)
+# the lists: under the status line and its hairline, rows of 30; beside the
+# pane 156 wide, so that the selected row ends at 150
+%Vi(wide,0,23,320,216,1)%Vf(292421)%Vb(EFEBE7)
+%Vi(half,0,23,156,216,1)%Vf(292421)%Vb(EFEBE7)
+# hairlines: under the status line, over the menu only beside the pane, and
+# column 159 between the menu and the pane
+%Vl(rulewide,0,20,320,1,-)%Vb(E7DFD6)
+%Vl(rulehalf,0,20,159,1,-)%Vb(E7DFD6)
 %Vl(column,159,0,1,240,-)%Vb(E7DFD6)
 # a screen that takes the whole width: the clock, its title, the glyphs
-%Vl(clockwide,16,4,64,15,2)%Vf(6B6963)
+%Vl(clockwide,14,2,64,15,3)%Vf(52514A)
 %al%?cf<%cH:%cM|%cl:%cM>
-%Vl(titlewide,84,4,152,15,3)%Vf(292421)
+%Vl(titlewide,84,2,152,15,3)%Vf(292421)
 %s%ac%Lt
-%Vl(bat,285,6,19,10,-)
+%Vl(bat,287,4,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%Vl(playn0,271,6,8,10,-)
+%Vl(playn0,273,4,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(moon,269,6,10,10,-)
+%Vl(moon,271,4,10,10,-)
 %xd(N)
-%Vl(playn1,255,6,8,10,-)
+%Vl(playn1,257,4,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-# beside the pane: the name given in Finder in the main menu, a menu's title
-%Vl(name,16,4,84,15,3)%Vf(292421)
-%al%?if(%Li, =, 33)<%nn|%s%Lt>
-%Vl(hbat,125,6,19,10,-)
+# beside the pane: the clock in the main menu, where a screen of the whole
+# width has it; a menu's title in any other
+%Vl(hclock,14,2,64,15,3)%Vf(52514A)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(hbat,127,4,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%Vl(hplayn0,111,6,8,10,-)
+%Vl(hplayn0,113,4,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(hmoon,109,6,10,10,-)
+%Vl(hnamen0,14,2,93,15,3)%Vf(292421)
+%al%s%Lt
+%Vl(hmoon,111,4,10,10,-)
 %xd(N)
-%Vl(hplayn1,95,6,8,10,-)
+%Vl(hplayn1,97,4,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(hnamen1,14,2,77,15,3)%Vf(292421)
+%al%s%Lt
 # the pane without a cover: a surface, and on it by the row
 %Vl(surface,160,0,160,240,-)%Vb(E7E3DE)
 # Settings: the disk's use as a ring round (240, 96), the used part in the
@@ -56,29 +60,26 @@
 %nR
 %Vl(about,160,157,160,19,1)%Vf(292421)%Vb(E7E3DE)
 %s%ac%nf
-%Vl(about,160,180,160,15,4)%Vf(635D5A)%Vb(E7E3DE)
+%Vl(about,160,180,160,15,2)%Vf(52514A)%Vb(E7E3DE)
 %ac%nT
-# Extras: a clock's dial round (240, 104) at the time it is, and what is there
-%Vl(dial,200,64,80,80,-)%Vf(6B6963)%Vb(E7E3DE)
-%nD
-%Vl(extras,160,168,160,15,4)%Vf(635D5A)%Vb(E7E3DE)
-%s%ac%Sx(Clock) · %Sx(Games) · %Sx(Calendar)
-%Vl(collage,160,0,160,176,-)
+%Vl(collage,160,0,160,176,-)%Vb(E7E3DE)
 %xl(Q,/.rockbox/photos_panel.bmp,0,0)
 %xd(Q)
-%Vl(photocount,160,200,160,15,2)%Vf(635D5A)%Vb(E7E3DE)
+%Vl(photocount,160,200,160,15,2)%Vf(52514A)%Vb(E7E3DE)
 %s%ac%nP
 %xl(I,Photos Pane.bmp,0,0)
 %Vl(nophotos,212,82,56,44,-)%Vb(E7E3DE)
 %xd(I)
-%Vl(photocaption,160,160,160,15,2)%Vf(635D5A)%Vb(E7E3DE)
+%Vl(photocaption,160,160,160,15,2)%Vf(52514A)%Vb(E7E3DE)
 %ac%nP
 # nothing playing, or a track without a cover: the note, and under it the
-# library's count or the track
+# library's count or the track. A note is its mask, drawn in the theme's two
+# colours for it (%xN), which take the theme's tone as the surfaces do
 %xl(O,Note Pane.bmp,0,0)
-%Vl(note,212,76,56,56,-)%Vb(E7E3DE)
+%xN(O)
+%Vl(note,198,62,84,84,-)%Vb(E7E3DE)
 %xd(O)
-%Vl(stopped,160,160,160,15,2)%Vf(635D5A)%Vb(E7E3DE)
+%Vl(stopped,160,160,160,15,2)%Vf(52514A)%Vb(E7E3DE)
 %ac%ns
-%Vl(normal,168,160,144,15,2)%Vf(635D5A)%Vb(E7E3DE)
+%Vl(normal,168,160,144,15,2)%Vf(52514A)%Vb(E7E3DE)
 %s%ac%?it<%it|%?fn<%fn|>>

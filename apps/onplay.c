@@ -37,6 +37,7 @@
 #include "screens.h"
 #include "tree.h"
 #include "settings.h"
+#include "gui/ui_theme.h"
 #include "playlist_viewer.h"
 #include "talk.h"
 #include "onplay.h"

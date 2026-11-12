@@ -64,7 +64,9 @@
 
 #include "wps_internals.h"
 #include "skin_engine.h"
+#include "skin_display.h"
 #include "settings.h"
+#include "gui/ui_theme.h"
 #include "settings_list.h"
 #include "rbpaths.h"
 #include "pathfuncs.h"
@@ -410,6 +412,19 @@ static int parse_image_cover_keep(struct skin_element *element,
     return 0;
 }
 
+static int parse_image_note(struct skin_element *element,
+                            struct wps_token *token,
+                            struct wps_data *wps_data)
+{
+    (void)token;
+    struct gui_img *img = skin_find_item(get_param_text(element, 0),
+                                         SKIN_FIND_IMAGE, wps_data);
+    if (!img)
+        return WPS_ERROR_INVALID_PARAM;
+    img->note = true;
+    return 0;
+}
+
 static int parse_image_load(struct skin_element *element,
                             struct wps_token *token,
                             struct wps_data *wps_data)
@@ -464,6 +479,7 @@ static int parse_image_load(struct skin_element *element,
     img->dither = false;
     img->cover_tint = false;
     img->cover_keep = false;
+    img->note = false;
 
     if (token->type == SKIN_TOKEN_IMAGE_DISPLAY)
     {
@@ -759,7 +775,7 @@ static int parse_viewportcolour(struct skin_element *element,
         default:
 #if defined(HAVE_LCD_COLOR)
             fg_color = global_settings.fg_color;
-            bg_color = global_settings.bg_color;
+            bg_color = ui_theme_plain_ground();
 #elif LCD_DEPTH > 1
             fg_color = LCD_DEFAULT_FG;
             bg_color = LCD_DEFAULT_BG;
@@ -787,7 +803,7 @@ static int parse_viewportcolour(struct skin_element *element,
         if (token->type == SKIN_TOKEN_VIEWPORT_FGCOLOUR)
             curr_vp->vp.fg_pattern = colour->colour;
         else
-            curr_vp->vp.bg_pattern = colour->colour;
+            curr_vp->vp.bg_pattern = curr_vp->plain_bg = colour->colour;
     }
     return 0;
 }
@@ -1341,6 +1357,7 @@ static int parse_progressbar_tag(struct skin_element* element,
             img->is_9_segment = false;
             img->cover_tint = false;
             img->cover_keep = false;
+            img->note = false;
             struct skin_token_list *item = new_skin_token_list_item(NULL, img);
             if (!item)
                 return WPS_ERROR_INVALID_PARAM;
@@ -1546,7 +1563,6 @@ static int parse_albumart_reflect(struct skin_element *element,
                                   struct wps_token *token,
                                   struct wps_data *wps_data)
 {
-    (void)element;
     (void)token;
     struct skin_albumart *aa = SKINOFFSETTOPTR(skin_buffer, wps_data->albumart2);
     if (!aa)
@@ -1554,6 +1570,14 @@ static int parse_albumart_reflect(struct skin_element *element,
     if (!aa)
         return WPS_ERROR_INVALID_PARAM;
     aa->reflect = true;
+    if (element->params_count >= 2)
+    {
+        /* no further than the space under a cover goes */
+        aa->angled_only = true;
+        aa->reflect_rows = MIN(MAX(get_param(element, 0)->data.number, 0),
+                               SKIN_REFLECTION_ROWS);
+        aa->reflect_alpha = MIN(MAX(get_param(element, 1)->data.number, 0), 255);
+    }
     return 0;
 }
 
@@ -1581,6 +1605,9 @@ static int parse_albumart_load(struct skin_element* element,
     aa->height =  percent_parse_param(get_param(element, 3), curr_vp->vp.height);
     aa->draw_handle = -1;
     aa->reflect = false;
+    aa->angled_only = false;
+    aa->reflect_rows = SKIN_REFLECTION_ROWS;
+    aa->reflect_alpha = SKIN_REFLECTION_ALPHA;
 
     /* if we got here, we parsed everything ok .. ! */
     if (aa->width < 0)
@@ -2446,6 +2473,12 @@ static int convert_viewport(struct wps_data *data, struct skin_element* element)
         first_viewport = element;
 
     viewport_set_defaults(&skin_vp->vp, curr_screen);
+    skin_vp->plain_bg = skin_vp->vp.bg_pattern;
+#ifdef HAVE_LCD_COLOR
+    /* the settings' ground is in the theme's tone */
+    if (curr_screen == SCREEN_MAIN && ui_theme_current()->cover_tone)
+        skin_vp->plain_bg = ui_theme_plain_ground();
+#endif
 
 #if (LCD_DEPTH > 1) || (defined(HAVE_REMOTE_LCD) && (LCD_REMOTE_DEPTH > 1))
     skin_vp->output_to_backdrop_buffer = false;
@@ -2690,7 +2723,11 @@ static int skin_element_callback(struct skin_element* element, void* data)
                     break;
                 case SKIN_TOKEN_VIEWPORT_ENABLE:
                 case SKIN_TOKEN_UIVIEWPORT_ENABLE:
+                case SKIN_TOKEN_TITLE_WRAPS:
                     token->value.data = get_param(element, 0)->data.text;
+                    break;
+                case SKIN_TOKEN_TITLE_LINE:
+                    token->value.i = get_param(element, 0)->data.number;
                     break;
                 case SKIN_TOKEN_IMAGE_PRELOAD_DISPLAY:
                 case SKIN_TOKEN_IMAGE_DISPLAY_9SEGMENT:
@@ -2701,6 +2738,9 @@ static int skin_element_callback(struct skin_element* element, void* data)
                     break;
                 case SKIN_TOKEN_IMAGE_COVER_KEEP:
                     function = parse_image_cover_keep;
+                    break;
+                case SKIN_TOKEN_IMAGE_NOTE:
+                    function = parse_image_note;
                     break;
                 case SKIN_TOKEN_IMAGE_PRELOAD:
                 case SKIN_TOKEN_IMAGE_DISPLAY:
@@ -2803,6 +2843,7 @@ bool skin_data_load(enum skinnable_screens skin, enum screen_type screen,
     char *wps_buffer = NULL;
     if (!wps_data || !buf)
         return false;
+    skin_title_wrap_reset();
     int i;
     for (i=0;i<MAXUSERFONTS;i++)
     {

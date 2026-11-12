@@ -41,7 +41,6 @@
 #include "scrollbar.h"
 #include "screen_access.h"
 #include "line.h"
-#include "timefuncs.h"
 #include "gui/ui_theme.h"
 #include "playlist.h"
 #include "audio.h"
@@ -395,7 +394,6 @@ static unsigned long peak_bar_hold(struct progressbar *pb, unsigned long end,
    the white behind */
 #define FORMAT_BAR_HALF     LCD_RGBPACK(0x9a, 0x9b, 0x9b)
 #define FORMAT_BAR_QUARTER  LCD_RGBPACK(0xcc, 0xcd, 0xcd)
-#define BITRATE_COLOUR  LCD_RGBPACK(0x8a, 0x8d, 0x8a)
 #define FORMAT_TEXT_X   12
 #define FORMAT_TEXT_Y   1
 #define BITRATE_GAP     7
@@ -440,7 +438,7 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
     unsigned colour = dark ? LCD_RGBPACK(0xd8, 0xda, 0xdc) : FORMAT_COLOUR,
              half = dark ? LCD_RGBPACK(0x74, 0x75, 0x76) : FORMAT_BAR_HALF,
              quarter = dark ? LCD_RGBPACK(0x43, 0x44, 0x45) : FORMAT_BAR_QUARTER,
-             bitrate_colour = dark ? LCD_RGBPACK(0x8e, 0x90, 0x94) : BITRATE_COLOUR;
+             bitrate_colour = ui_colour(UI_COLOUR_BITRATE);
 #ifdef HAVE_ALBUMART
     const struct cover_palette *palette = cover_palette_get();
     if (palette)
@@ -498,9 +496,56 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
 static bool in_cover_colours(const struct gui_wps *gwps, const struct bitmap *bm)
 {
     const struct cover_palette *palette = cover_palette_get();
+    /* (a theme with a tone has its own way: draw_marks_part()) */
     return palette && palette->whole_screen && bm->format != FORMAT_MONO
-        && gwps->data == skin_get_gwps(WPS, SCREEN_MAIN)->data;
+        && gwps->data == skin_get_gwps(WPS, SCREEN_MAIN)->data
+        && !ui_theme_current()->cover_tone;
 }
+
+/* A part of a picture of a theme with a tone whose shape is in its alpha, as
+   its stars and glyphs: each pixel's colour by cover_palette_mark_colour(),
+   its alpha kept. A line at a time, the line's alpha after its pixels;
+   nothing is taken for it. No wider than the screen */
+static void draw_marks_part(struct screen *display, const struct bitmap *bm,
+                            int src_x, int src_y, int x, int y, int width, int height)
+{
+    static uint32_t line[(LCD_WIDTH * sizeof(fb_data) + LCD_WIDTH / 2) / 4 + 2];
+    const struct viewport *const vp = *display->current_viewport;
+    const bool status = vp->y + y + height <= ui_metric(UI_METRIC_STATUS_ROWS);
+    const int alpha_stride = (bm->width + 1) / 2;
+    const fb_data *row = (const fb_data *)bm->data + bm->width * src_y;
+    const unsigned char *alpha = bm->data + bm->alpha_offset + src_y * alpha_stride;
+    fb_data *const pixels = (fb_data *)line;
+    struct bitmap line_bm = *bm;
+
+    line_bm.data = (void *)line;
+    line_bm.height = 1;
+    line_bm.alpha_offset = bm->width * sizeof(fb_data);
+    for (int i = 0; i < height; i++, row += bm->width, alpha += alpha_stride)
+    {
+        for (int c = 0; c < bm->width; c++)
+            pixels[c] = FB_SCALARPACK(
+                cover_palette_mark_colour(FB_UNPACK_SCALAR_LCD(row[c]), status));
+        memcpy((unsigned char *)line + line_bm.alpha_offset, alpha, alpha_stride);
+        display->bmp_part(&line_bm, src_x, 0, x, y + i, width, 1);
+    }
+}
+
+/* whether a picture of Now Playing is drawn so: any with alpha once a theme
+   with a tone has the screen filled with the cover's colour */
+static bool in_tone_fill(const struct gui_wps *gwps, const struct bitmap *bm)
+{
+    return bm->alpha_offset > 0 && bm->format != FORMAT_MONO && bm->width <= LCD_WIDTH
+        && gwps->display->screen_type == SCREEN_MAIN
+        && gwps->data == skin_get_gwps(WPS, SCREEN_MAIN)->data
+        && cover_palette_tone_filled(NULL);
+}
+#endif
+
+#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && !defined(DISABLE_ALPHA_BITMAP)
+extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
+                                  int src_y, int stride, int x, int y,
+                                  int width, int height);
 #endif
 
 /* What the fill of a bar is drawn from, in the colours of the cover if they are on the
@@ -536,6 +581,11 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
                           int src_x, int src_y, int x, int y, int width, int height)
 {
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    if (in_tone_fill(gwps, bm))
+    {
+        draw_marks_part(gwps->display, bm, src_x, src_y, x, y, width, height);
+        return;
+    }
     if (width <= LCD_WIDTH && in_cover_colours(gwps, bm))
     {
         static fb_data line[LCD_WIDTH];
@@ -872,6 +922,19 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         /* a shorter bar's track: the image's two ends, each half of the bar */
         const int first = inset > 0 ? width / 2 : pb->width;
         const int second = inset > 0 ? width - first : 0;
+#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && !defined(DISABLE_ALPHA_BITMAP)
+        /* A track of one colour, its shape in its alpha: in that colour's
+           tone, where the theme's surfaces have one */
+        unsigned plain = 0, toned = 0;
+        if (img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
+            && display->screen_type == SCREEN_MAIN)
+        {
+            const fb_data *const pixels = (const fb_data *)img->bm.data;
+            plain = FB_UNPACK_SCALAR_LCD(
+                pixels[img->bm.height / 2 * img->bm.width + img->bm.width / 2]);
+            toned = ui_theme_surface(plain);
+        }
+#endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
         /* the iOS look's track, of its own shade with the cover's colours: the
            theme's tinted went with the background */
@@ -887,6 +950,23 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             if (second > 0)
                 display->bmp_part(&flat, flat.width - second, 0, x + first, y,
                                   second, height);
+        }
+        else
+#endif
+#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && !defined(DISABLE_ALPHA_BITMAP)
+        if (toned != plain)
+        {
+            const unsigned char *const alpha = img->bm.data + img->bm.alpha_offset;
+            const int stride = ALIGN_UP(img->bm.width, 2);
+            const unsigned old_fg = display->get_foreground();
+            display->set_foreground(toned);
+            display->set_drawmode(DRMODE_FG);
+            lcd_alpha_bitmap_part(alpha, 0, 0, stride, x, y, first, height);
+            if (second > 0)
+                lcd_alpha_bitmap_part(alpha, img->bm.width - second, 0, stride,
+                                      x + first, y, second, height);
+            display->set_drawmode(DRMODE_SOLID);
+            display->set_foreground(old_fg);
         }
         else
 #endif
@@ -906,6 +986,32 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         {
             char *img_data = core_get_data(img->buflib_handle);
             img->bm.data = img_data;
+#if defined(HAVE_ALBUMART) && defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 \
+    && !defined(DISABLE_ALPHA_BITMAP)
+            /* a theme with a tone under Fill: the fill's shape in the
+               colour Classic gives the bar, what the scrollbar would draw
+               of it */
+            unsigned bar_colour;
+            if (in_tone_fill(gwps, &img->bm) && cover_palette_tone_filled(&bar_colour))
+            {
+                int fx = x, fy = y, fw = width, fh = height, sx, sy;
+                if (!(flags & DONT_CLEAR_EXCESS))
+                    screen_clear_area(display, x, y, width, height);
+                gui_bitmap_scrollbar_part(&img->bm, &fx, &fy, &fw, &fh, length, 0,
+                                          end, flags, &sx, &sy);
+                if (!(flags & INNER_NOFILL) && fw > 0 && fh > 0)
+                {
+                    const unsigned old_fg = display->get_foreground();
+                    display->set_foreground(bar_colour);
+                    display->set_drawmode(DRMODE_FG);
+                    lcd_alpha_bitmap_part(img->bm.data + img->bm.alpha_offset, sx, sy,
+                                          ALIGN_UP(img->bm.width, 2), fx, fy, fw, fh);
+                    display->set_drawmode(DRMODE_SOLID);
+                    display->set_foreground(old_fg);
+                }
+            }
+            else
+#endif
             gui_bitmap_scrollbar_draw(display, tinted_bar_bitmap(gwps, &img->bm),
                                     x, y, width, height,
                                     length, 0, end, flags);
@@ -1106,7 +1212,33 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
 
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     const struct cover_palette *palette = img->cover_tint ? cover_palette_get() : NULL;
-    if (palette && !palette->whole_screen)
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    /* A note: its place in the viewport's ground, then its mask blended over
+       that in the theme's two colours for a note, so that drawn again it is
+       the same. It is shown only as its viewport is drawn whole (%xd) */
+    if (img->note && img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
+        && display->screen_type == SCREEN_MAIN)
+    {
+        const unsigned fg = display->get_foreground();
+        const int stride = ALIGN_UP(img->bm.width, 2);
+        display->set_drawmode(DRMODE_SOLID | DRMODE_INVERSEVID);
+        display->fillrect(img->x, img->y, img->bm.width, img->subimage_height);
+        line_draw_note_rows(img->bm.data + img->bm.alpha_offset
+                            + img->subimage_height * subimage * (stride / 2),
+                            stride, img->bm.width, img->subimage_height,
+                            img->x, img->y);
+        display->set_foreground(fg);
+        display->set_drawmode(DRMODE_SOLID);
+    }
+    else
+#endif
+    /* a theme with a tone: its stars, whatever Cover Colours is, as the
+       outline of one not set is in the user's colour */
+    if (img->cover_tint && img->bm.alpha_offset > 0 && img->bm.width <= LCD_WIDTH
+        && img->bm.format != FORMAT_MONO && ui_theme_current()->cover_tone)
+        draw_marks_part(display, &img->bm, 0, img->subimage_height * subimage,
+                        img->x, img->y, img->bm.width, img->subimage_height);
+    else if (palette && !palette->whole_screen)
         draw_cover_tinted_image(display, img, subimage, palette->star);
     else
 #endif
@@ -1203,8 +1335,6 @@ static void keep_album_art(int index, int handle)
 #define ANGLE_LEFT  1   /* the left edge out of the space towards the screen's */
 #define ANGLE_DROP  2   /* its middle below the space's */
 #define ART_SPILL   12  /* how far past the space a cover can go */
-#define REFLECTION_ROWS  22
-#define REFLECTION_ALPHA 128 /* of 256, at its top, down to none */
 
 #if LCD_DEPTH == 16
 /* a of 256 of one, the rest of the other */
@@ -1218,6 +1348,8 @@ static fb_data mix_pixel(fb_data one, fb_data other, int a)
 
 /* the background of each row of the area, as beside the cover */
 static fb_data cover_bg[LCD_HEIGHT];
+/* the reflection's strength of 256 at its top, of the cover being drawn */
+static int reflection_alpha;
 
 /* A column of the cover in the area's column px, from the source column sx:
    its top and height in 16.16 rows of the area, and its reflection under it,
@@ -1253,7 +1385,7 @@ static void draw_cover_column(const struct viewport *area, const fb_data *src,
             const long below = MAX(mid - bottom, 0);
             int sy = sh - 1 - (int)(((int64_t)below * rows) >> 32);
             sy = MAX(0, MIN(sy, sh - 1));
-            const int a = REFLECTION_ALPHA * (fade - below) / fade;
+            const int a = reflection_alpha * (fade - below) / fade;
             if (a > 0)
                 under = mix_pixel(src[sy * stride + sx], bg, a);
         }
@@ -1281,8 +1413,10 @@ static void draw_cover(struct gui_wps *gwps, struct skin_albumart *aa,
     struct screen *display = gwps->display;
 #if LCD_DEPTH == 16
     /* the cover a theme asks for so with %Cr, as Now Playing's */
-    if (aa->reflect && w > 1 && h > 1)
+    if (aa->reflect && (!aa->angled_only || global_settings.angled_cover)
+        && w > 1 && h > 1)
     {
+        reflection_alpha = aa->reflect_alpha;
         struct viewport *vp = display->set_viewport(NULL);
         display->set_viewport(vp);
         /* the space with room around it, and the reflection under it */
@@ -1290,7 +1424,7 @@ static void draw_cover(struct gui_wps *gwps, struct skin_albumart *aa,
         area.x = MAX(vp->x + x - ART_SPILL, 0);
         area.y = MAX(vp->y + y - ART_SPILL, 0);
         area.width = MIN(vp->x + x + w + ART_SPILL, LCD_WIDTH) - area.x;
-        area.height = MIN(vp->y + y + h + REFLECTION_ROWS, LCD_HEIGHT) - area.y;
+        area.height = MIN(vp->y + y + h + aa->reflect_rows, LCD_HEIGHT) - area.y;
         const int ax = vp->x + x - area.x, ay = vp->y + y - area.y;
         /* the background left of it, where nothing is drawn over the backdrop:
            right of it the text starts */
@@ -1350,14 +1484,14 @@ static void clear_cover_reflection(struct gui_wps *gwps, struct skin_albumart *a
 {
 #if LCD_DEPTH == 16
     struct screen *display = gwps->display;
-    if (!aa->reflect)
+    if (!aa->reflect || (aa->angled_only && !global_settings.angled_cover))
         return;
     struct viewport *vp = display->set_viewport(NULL);
     struct viewport area = *vp;
     area.x = MAX(vp->x + x - ART_SPILL, 0);
     area.y = MAX(vp->y + y - ART_SPILL, 0);
     area.width = MIN(vp->x + x + w + ART_SPILL, LCD_WIDTH) - area.x;
-    area.height = MIN(vp->y + y + h + REFLECTION_ROWS, LCD_HEIGHT) - area.y;
+    area.height = MIN(vp->y + y + h + aa->reflect_rows, LCD_HEIGHT) - area.y;
     display->set_viewport(&area);
     display->set_drawmode(DRMODE_SOLID | DRMODE_INVERSEVID);
     display->fillrect(0, 0, area.width, area.height);
@@ -1669,7 +1803,7 @@ int evaluate_conditional(struct gui_wps *gwps, int offset,
    scroll indicates whether the line is a scrolling one or not.
 */
 void write_line(struct screen *display, struct align_pos *format_align,
-                int line, bool scroll, struct line_desc *linedes)
+                int line, bool scroll, bool cut, struct line_desc *linedes)
 {
     int left_width = 0;
     int center_width = 0, center_xpos;
@@ -1784,6 +1918,27 @@ void write_line(struct screen *display, struct align_pos *format_align,
         }
     } /* (center_width == 0 && right_width != 0)*/
 
+    if (cut && !scroll)
+    {
+        /* the one text of the line that is wider than the viewport (%nx);
+           a line is drawn by the UI's thread alone */
+        static char fitted[160];
+        int *width = left_width > viewport_width ? &left_width
+                   : center_width > viewport_width ? &center_width
+                   : right_width > viewport_width ? &right_width : NULL;
+        if (width)
+        {
+            char **text = width == &left_width ? &format_align->left
+                        : width == &center_width ? &format_align->center
+                        : &format_align->right;
+            const size_t len = strlcpy(fitted, *text, sizeof(fitted));
+            skin_fit_with_ellipsis(fitted, MIN(len, sizeof(fitted) - 1), sizeof(fitted),
+                                   (*display->current_viewport)->font, viewport_width);
+            *text = fitted;
+            display->getstringsize((unsigned char *)fitted, width, &string_height);
+        }
+    }
+
     if (scroll && ((left_width > scroll_width) ||
                    (center_width > scroll_width) ||
                    (right_width > scroll_width)))
@@ -1894,69 +2049,6 @@ void draw_disk_ring(struct gui_wps *gwps)
         }
     }
     display->set_foreground(arc);
-#else
-    (void)gwps;
-#endif
-}
-
-/* sixty steps of a turn from 12 o'clock: the sine of each in 1024ths, for a
-   quarter; the rest by symmetry */
-static int turn_sin(int step)
-{
-    static const short quarter[16] = { 0, 107, 213, 316, 416, 512, 602, 685,
-                                       761, 828, 887, 935, 974, 1002, 1018, 1024 };
-    step = ((step % 60) + 60) % 60;
-    if (step <= 15)
-        return quarter[step];
-    if (step <= 30)
-        return quarter[30 - step];
-    if (step <= 45)
-        return -quarter[step - 30];
-    return -quarter[60 - step];
-}
-
-void draw_clock_dial(struct gui_wps *gwps)
-{
-#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && CONFIG_RTC
-    struct screen *display = gwps->display;
-    struct viewport *vp = *display->current_viewport;
-    const unsigned surface = vp->bg_pattern, hand = vp->fg_pattern;
-    const unsigned rim = ui_colour(UI_COLOUR_QUIET);
-    const int cx = vp->width / 2, cy = vp->height / 2;
-    const int r = MIN(cx, cy) - 1; /* the rim's middle, a pixel and a half thick */
-    display->set_drawmode(DRMODE_SOLID);
-    display->set_foreground(surface);
-    display->fillrect(0, 0, vp->width, vp->height);
-    /* the rim: each pixel by how far its middle is from the circle, in
-       eighths of a pixel, without a root: between the squares of r - 3/4
-       and r + 3/4 whole, a pixel either side of those half */
-    const long in = (8L * r - 6) * (8L * r - 6), out = (8L * r + 6) * (8L * r + 6);
-    const long in2 = (8L * r - 12) * (8L * r - 12), out2 = (8L * r + 12) * (8L * r + 12);
-    for (int y = -r - 2; y <= r + 2; y++)
-    {
-        for (int x = -r - 2; x <= r + 2; x++)
-        {
-            const long d = (8L * x + 4) * (8L * x + 4) + (8L * y + 4) * (8L * y + 4);
-            if (d < in2 || d > out2)
-                continue;
-            display->set_foreground(d >= in && d <= out ? rim
-                                    : mix_colours(surface, rim, 7));
-            display->drawpixel(cx + x, cy + y);
-        }
-    }
-    const struct tm *tm = get_time();
-    const int minute = tm->tm_min, hour = (tm->tm_hour % 12) * 5 + tm->tm_min / 12;
-    display->set_foreground(hand);
-    /* the hour's hand two pixels thick, the minute's one and longer */
-    const int hx = turn_sin(hour) * (r / 2) / 1024, hy = -turn_sin(hour + 15) * (r / 2) / 1024;
-    display->drawline(cx, cy, cx + hx, cy + hy);
-    display->drawline(cx - 1, cy, cx - 1 + hx, cy + hy);
-    display->drawline(cx, cy - 1, cx + hx, cy - 1 + hy);
-    display->drawline(cx - 1, cy - 1, cx - 1 + hx, cy - 1 + hy);
-    const int mx = turn_sin(minute) * (r * 3 / 4) / 1024;
-    const int my = -turn_sin(minute + 15) * (r * 3 / 4) / 1024;
-    display->drawline(cx, cy, cx + mx, cy + my);
-    display->drawline(cx - 1, cy - 1, cx - 1 + mx, cy - 1 + my);
 #else
     (void)gwps;
 #endif

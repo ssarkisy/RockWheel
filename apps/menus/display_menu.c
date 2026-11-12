@@ -26,6 +26,7 @@
 #include "lang.h"
 #include "action.h"
 #include "settings.h"
+#include "gui/ui_theme.h"
 #include "menu.h"
 #include "tree.h"
 #include "list.h"
@@ -198,7 +199,8 @@ MENUITEM_SETTING_SHARED(brightness_item, &global_settings.brightness, NULL);
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 MENUITEM_SETTING_SHARED(cover_colours_item, &global_settings.cover_colours, NULL);
-/* only the modes that colour the screen's images colour the icons */
+/* only the modes that colour the screen's images colour the icons; a theme
+   that takes the cover's tone leaves its status glyphs as they are */
 static int status_icons_callback(int action,
                                  const struct menu_item_ex *this_item,
                                  struct gui_synclist *this_list)
@@ -206,7 +208,8 @@ static int status_icons_callback(int action,
     (void)this_item;
     (void)this_list;
     if (action == ACTION_REQUEST_MENUITEM
-        && global_settings.cover_colours < COVER_COLOURS_SCREEN)
+        && (global_settings.cover_colours < COVER_COLOURS_SCREEN
+            || ui_theme_current()->cover_tone))
         return ACTION_EXIT_MENUITEM;
     return action;
 }
@@ -254,6 +257,19 @@ MENUITEM_SETTING(list_covers_item, &global_settings.list_covers,
 #endif
 MENUITEM_SETTING(list_scrollbar_item, &global_settings.list_scrollbar, NULL);
 MENUITEM_SETTING(jump_by_letter_item, &global_settings.jump_by_letter, NULL);
+/* Colour: only in a theme that has a tone */
+static int theme_colour_callback(int action,
+                                 const struct menu_item_ex *this_item,
+                                 struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM && !ui_theme_current()->cover_tone)
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_SETTING(theme_colour_item, &global_settings.theme_colour,
+                 theme_colour_callback);
 #ifdef HAVE_MENU_COVER
 /* none with Album Art off, as there's no cover beside the menus then */
 static int moving_cover_callback(int action,
@@ -275,6 +291,7 @@ MENUITEM_SETTING(moving_cover_item, &global_settings.moving_cover,
    look of its parts */
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &ui_theme_item, &dark_theme_item,
+          &theme_colour_item,
 #ifdef HAVE_TAGCACHE
           &album_artists_item,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)

@@ -984,9 +984,25 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                            list_info.y, &linedes, lead, lead_w,
                            list->lead_digit);
         if (cover != LIST_COVER_NONE)
-            line_draw_cover(display, list_info.x + cover_x,
-                            list_info.y + (row_h - LINE_COVER_SIZE) / 2,
+        {
+            const int cover_y = list_info.y + (row_h - LINE_COVER_SIZE) / 2;
+            line_draw_cover(display, list_info.x + cover_x, cover_y,
                             cover == LIST_COVER_PIXELS ? cover_pixels : NULL);
+#ifdef HAVE_LCD_COLOR
+            const int radius = ui_metric(UI_METRIC_ROW_COVER_RADIUS);
+            if (radius > 0)
+            {
+                /* its corners in what is under it, the selection's colour
+                   on the selected row */
+                const unsigned ground = display->get_background();
+                if (is_selected)
+                    display->set_background(linedes.line_color);
+                line_round_corners(display, list_info.x + cover_x, cover_y,
+                                   LINE_COVER_SIZE, LINE_COVER_SIZE, radius);
+                display->set_background(ground);
+            }
+#endif
+        }
         linedes.height = row_h;
         linedes.row_height = 0;
         linedes.text_dy = row_text_dy;

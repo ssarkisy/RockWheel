@@ -59,6 +59,13 @@ extern void gui_bitmap_scrollbar_draw(struct screen * screen, struct bitmap *bm,
                             int width, int height, int items,
                             int min_shown, int max_shown,
                             unsigned flags);
+/* What of its bitmap gui_bitmap_scrollbar_draw() draws for these, and where:
+   the place and size given become the part's, startx and starty where it
+   starts in the bitmap. For a caller that draws the part itself */
+extern void gui_bitmap_scrollbar_part(const struct bitmap *bm, int *x, int *y,
+                            int *width, int *height, int items,
+                            int min_shown, int max_shown, unsigned flags,
+                            int *startx, int *starty);
 extern void show_busy_slider(struct screen *s, int x, int y,
                             int width, int height);
 #endif /* _GUI_SCROLLBAR_H_ */

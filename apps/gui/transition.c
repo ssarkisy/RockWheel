@@ -251,10 +251,15 @@ void transition_run(void)
     const bool new_wps = get_current_activity() == ACTIVITY_WPS;
     const bool still = old_wps != new_wps;
     moving.on = false;
-    if (still)
-        memcpy(new_pic + rows * LCD_WIDTH, row(0), top * LCD_WIDTH * sizeof(fb_data));
-    else
+    if (!still)
         bar_plan(width);
+    /* a list that gets wider or narrower in a theme whose bar can't be read,
+       one without a backdrop: all of both screens slide, their titles too.
+       The new title and its panel's top, which is in the title's rows, came
+       at once over the old screen, the panel below still on its way */
+    const bool whole = !still && !moving.on && width != old_width && top > 0;
+    if (still || whole)
+        memcpy(new_pic + rows * LCD_WIDTH, row(0), top * LCD_WIDTH * sizeof(fb_data));
     if (width != old_width || still)
         width = LCD_WIDTH;
 
@@ -265,7 +270,7 @@ void transition_run(void)
     lcd_own_updates(true);
     if (moving.on)
         bar_draw(moving.from, bar_shift(0, width));
-    if (top > 0 && !still)
+    if (top > 0 && !still && !whole)
         lcd_update_rect(0, 0, LCD_WIDTH, top);
     if (width < LCD_WIDTH)
         lcd_update_rect(width, top, LCD_WIDTH - width, rows);
@@ -287,10 +292,10 @@ void transition_run(void)
         int off = width - width * left * left * left
                           / (SLIDE_TICKS * SLIDE_TICKS * SLIDE_TICKS);
         int keep = width - off;
-        if (still)
+        if (still || whole)
         {
             /* the screen that isn't Now Playing as it would slide, Now
-               Playing where it is */
+               Playing where it is; or both sliding */
             for (int y = 0; y < LCD_HEIGHT; y++)
             {
                 fb_data *dst = row(y);

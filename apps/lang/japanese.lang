@@ -21724,3 +21724,213 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_THEME_COLOUR
+  desc: a row of Settings > Appearance in a theme that is tinted: the colour of the tint, its value one of the colours' names
+  user: core
+  <source>
+    *: "Colour"
+  </source>
+  <dest>
+    *: "カラー"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_RED
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Red"
+  </source>
+  <dest>
+    *: "レッド"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_YELLOW
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Yellow"
+  </source>
+  <dest>
+    *: "イエロー"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_GREEN
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Green"
+  </source>
+  <dest>
+    *: "グリーン"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_TEAL
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Teal"
+  </source>
+  <dest>
+    *: "ティール"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_BLUE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Blue"
+  </source>
+  <dest>
+    *: "ブルー"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_PURPLE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Purple"
+  </source>
+  <dest>
+    *: "パープル"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_PINK
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Pink"
+  </source>
+  <dest>
+    *: "ピンク"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_ORANGE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Orange"
+  </source>
+  <dest>
+    *: "オレンジ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_DESERT
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Desert"
+  </source>
+  <dest>
+    *: "デザート"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_OLIVE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Olive"
+  </source>
+  <dest>
+    *: "オリーブ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_GLACIER
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Glacier"
+  </source>
+  <dest>
+    *: "グレイシャー"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_DEEP_BLUE
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Deep Blue"
+  </source>
+  <dest>
+    *: "ディープブルー"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_BURGUNDY
+  desc: a value of Colour under Settings > Appearance, a row of its list: the name of a colour the theme is tinted in
+  user: core
+  <source>
+    *: "Burgundy"
+  </source>
+  <dest>
+    *: "バーガンディ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_THEME_COLOUR
+  desc: the hint in the band under Settings > Appearance while Colour is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Every screen takes on the colour you choose."
+  </source>
+  <dest>
+    *: "すべての画面が選んだカラーになります。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

@@ -26,6 +26,7 @@
 #include "action.h"
 #include "crc32.h"
 #include "settings.h"
+#include "gui/ui_theme.h"
 #include "font.h"
 #include "rbpaths.h"
 #include "wps.h"
@@ -273,6 +274,35 @@ void skin_reload_while_playing(void)
     playback_hold_aa_slots(false);
 }
 
+unsigned skin_surface(const struct wps_data *data, const struct viewport *vp,
+                      unsigned plain)
+{
+    if (data == &skins[WPS][SCREEN_MAIN].data
+        && vp->y + vp->height <= ui_metric(UI_METRIC_STATUS_ROWS))
+        return ui_theme_status_surface(plain);
+    return ui_theme_surface(plain);
+}
+
+static void skin_surfaces(struct wps_data *data)
+{
+    if (!data->wps_loaded || !ui_theme_current()->cover_tone)
+        return;
+    char *const buffer = get_skin_buffer(data);
+    for (struct skin_element *viewport = SKINOFFSETTOPTR(buffer, data->tree);
+         viewport; viewport = SKINOFFSETTOPTR(buffer, viewport->next))
+    {
+        struct skin_viewport *const svp = SKINOFFSETTOPTR(buffer, viewport->data);
+        if (svp)
+            svp->vp.bg_pattern = skin_surface(data, &svp->vp, svp->plain_bg);
+    }
+}
+
+void skin_surfaces_changed(void)
+{
+    for (int skin = 0; skin < SKINNABLE_SCREENS_COUNT; skin++)
+        skin_surfaces(&skins[skin][SCREEN_MAIN].data);
+}
+
 static void skin_load(enum skinnable_screens skin, enum screen_type screen,
                       const char *filename)
 {
@@ -295,6 +325,8 @@ static void skin_load(enum skinnable_screens skin, enum screen_type screen,
     }
 
     skins[skin][screen].needs_full_update = true;
+    if (screen == SCREEN_MAIN)
+        skin_surfaces(&skins[skin][screen].data); /* read plain */
     skin_helpers[skin]->process(screen, &skins[skin][screen].data, false);
 #ifdef HAVE_BACKDROP_IMAGE
     if (loaded)

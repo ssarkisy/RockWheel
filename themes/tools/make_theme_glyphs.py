@@ -5,16 +5,20 @@
 
 The folder is the export of the mockups' own drawing code (names, sizes and
 frames in its manifest.json: nothing of them is written here). A mask is black
-with alpha, its frames stacked top to bottom. Written, for theme "neo":
+with alpha, its frames stacked top to bottom; a coloured glyph (the notes of
+a missing cover) is a file a look, as drawn, with a mask of its shape beside
+it as "<Name> Mask": the firmware draws the mask in the theme's two colours
+for a note, so the coloured files are not read. Written, for theme "neo":
 
 - apps/gui/neo_glyphs.h: the masks the lists draw themselves (LIST below), as
   tables of alpha in the format of an anti-aliased font's glyphs (4 bits from
   0 opaque to 15 clear, low nibble first, rows run on), with each one's
-  width, height and count of frames;
+  width, height and count of frames; of a coloured glyph its mask;
 - themes/Neo/.rockbox/wps/Neo/<Name>.bmp and Neo-Dark/<Name>.bmp: the masks
   the skins show (SKIN below), in the colour each has in that look, 32-bit
   with the mask as alpha, so they sit on any ground; frames top to bottom
-  as %xl takes them. And the bar's two capsules, which are no glyphs.
+  as %xl takes them; of a coloured glyph its mask, which the skin draws as
+  a note (%xN). And the bar's two capsules, which are no glyphs.
 - themes/tools/neo_glyph_sizes.txt: their sizes, for make_neo_theme.py,
   which places them.
 
@@ -34,29 +38,45 @@ ROOT = os.path.join(HERE, "..", "..")
 # what the list code draws, by the manifest's names
 LIST = ("Chevron", "Speaker", "Shuffle", "Source", "Episode Dots", "Note Small",
         "Note Header", "Check", "Plus", "Search Keys")
+# what the screen shown over USB draws (apps/gui/neo_usb_glyphs.h): the sign
+# while connected and the one once it may be unplugged; of the status line's
+# battery the frames charging and charged
+USB = (("USB", None), ("USB Check", None), ("Battery", (0, 2)))
 # what the skins show: name -> the role of its colour
-SKIN = {"Battery": "TERTIARY", "Playing Status": "TERTIARY", "Hold": "TERTIARY",
-        "Night": "TERTIARY", "Repeat": "TERTIARY", "Shuffle": "TERTIARY",
+# (the status line's are the small text's grey: the third was too pale on the LCD)
+SKIN = {"Battery": "DENSE", "Playing Status": "DENSE", "Hold": "DENSE",
+        "Night": "DENSE", "Repeat": "DENSE", "Shuffle": "DENSE",
         "Knob": "SECONDARY", "Volume Left": "TERTIARY",
-        "Volume Right": "TERTIARY", "Note Playing": "TERTIARY", "Note Large": "TERTIARY",
-        "Note Pane": "TERTIARY", "Photos Pane": "TERTIARY"}
-# the set stars over the unset ones, in one bitmap: name -> its ground, and
+        "Volume Right": "TERTIARY", "Note Playing": "SECONDARY",
+        "Note Large": "SECONDARY", "Note Pane": "SECONDARY",
+        "Photos Pane": "TERTIARY"}
+# the set stars over the unset ones, in one bitmap: name -> its ground,
 # whether a first frame of the ground alone is added (the small ones have no
-# frame of none)
-STARS = {"Ratings": ("Ratings Ground", True), "Stars": ("Stars Ground", False)}
-# Now Playing's bar: its track and its fill, capsules 3 px thick in a box as
-# high as the knob, which the skin's bar draws inside its own height
-BAR = (216, 11, 3)
+# frame of none), the roles of the set and the unset ones' colours, and
+# whether the ground is an outline. An outline is left out wherever a set
+# star has ink, so a pixel is wholly the one colour or the other: the
+# firmware knows the outline by its grey (UNSET) and draws it in the user's
+# colour. So no other pixel of a picture the skin marks %xC (these two) may
+# come to that grey in the screen's 16 bits: checked below
+STARS = {"Ratings": ("Ratings Ground", True, "PRIMARY", "UNSET", True),
+         "Stars": ("Stars Ground", False, "DENSE", "TERTIARY", False)}
+# Now Playing's bar: its track and its fill, capsules 5 px thick in a box as
+# high as the knob, which the skin's bar draws inside its own height; and the
+# volume's, shorter between its marks
+BAR = (292, 11, 5)
+VOLUME_BAR = 256
 LOOKS = {  # as apps/gui/ui_theme.c and make_neo_theme.py have them
     "Neo":      dict(PAPER="EFEBE7", PRIMARY="292421", SECONDARY="6B6963",
-                     TERTIARY="A59E94", TRACK="E7DFD6", SELECTED="DEDBD6"),
+                     TERTIARY="A59E94", TRACK="E7DFD6", SELECTED="DEDBD6",
+                     DENSE="52514A", BARTRACK="D6D3CE", UNSET="8C8E8C"),
     "Neo-Dark": dict(PAPER="211C18", PRIMARY="EFEBE7", SECONDARY="A59E94",
-                     TERTIARY="6B6963", TRACK="313029", SELECTED="312C29"),
+                     TERTIARY="6B6963", TRACK="313029", SELECTED="312C29",
+                     DENSE="B5B2A5", BARTRACK="423C39", UNSET="7B797B"),
 }
 
 
-def read_png(path):
-    """rows of alpha of an 8-bit RGBA PNG, not interlaced"""
+def read_png(path, colours=False):
+    """rows of alpha of an 8-bit RGBA PNG, not interlaced, or of (r, g, b, a)"""
     b = open(path, "rb").read()
     assert b[:8] == b"\x89PNG\r\n\x1a\n", path
     pos, data, w = 8, b"", 0
@@ -89,7 +109,8 @@ def read_png(path):
                 p = a + up - c
                 pa, pb, pc = abs(p - a), abs(p - up), abs(p - c)
                 line[i] = (line[i] + (a if pa <= pb and pa <= pc else up if pb <= pc else c)) & 255
-        rows.append(bytes(line[3::4]))
+        rows.append([tuple(line[i:i + 4]) for i in range(0, stride, 4)] if colours
+                    else bytes(line[3::4]))
         prev = line
     return w, h, rows
 
@@ -124,6 +145,10 @@ def rgb(hexs):
     return tuple(int(hexs[i:i + 2], 16) for i in (0, 2, 4))
 
 
+def rgb565(colour):
+    return colour[0] >> 3, colour[1] >> 2, colour[2] >> 3
+
+
 def main():
     folder = sys.argv[1]
     theme = sys.argv[2] if len(sys.argv) > 2 else "neo"
@@ -132,10 +157,15 @@ def main():
     digest = hashlib.sha256(open(manifest_path, "rb").read()).hexdigest()
     glyphs = {g["name"]: g for g in json.load(open(manifest_path))["themes"][theme]}
 
-    def load(name):
+    def load(name, look=None):
+        """a mask's alpha; with look, a coloured glyph's pixels in that look"""
         g = glyphs[name]
-        assert g["kind"] == "mask", name
-        w, h, rows = read_png(os.path.join(folder, g["files"][0]))
+        if look is None and g["kind"] == "coloured":
+            g = dict(glyphs[name + " Mask"], name=name)
+        assert g["kind"] == ("mask" if look is None else "coloured"), name
+        file = g["files"][0] if look is None else next(
+            f for f in g["files"] if "/%s/" % look in f)
+        w, h, rows = read_png(os.path.join(folder, file), look is not None)
         assert w == g["width"] and h == g["height"] * g["frames"], (name, w, h)
         return g, rows
 
@@ -157,6 +187,24 @@ def main():
     with open(os.path.join(ROOT, "apps", "gui", "neo_glyphs.h"), "w") as f:
         f.write("\n".join(out) + "\n")
 
+    # the screen shown over USB is built in, as no file can be read then
+    out = out[:4]
+    for name, kept in USB:
+        g, rows = load(name)
+        h = g["height"]
+        if kept:
+            rows = [row for f in kept for row in rows[f * h:(f + 1) * h]]
+        c = ident(name)
+        data = table(rows)
+        out.append("#define NEO_USB_%s_W %d" % (c.upper(), g["width"]))
+        out.append("#define NEO_USB_%s_H %d" % (c.upper(), h))
+        out.append("static const unsigned char neo_usb_%s_alpha[] = {" % c)
+        for i in range(0, len(data), 12):
+            out.append("    " + " ".join("0x%02x," % v for v in data[i:i + 12]))
+        out.append("};")
+    with open(os.path.join(ROOT, "apps", "gui", "neo_usb_glyphs.h"), "w") as f:
+        f.write("\n".join(out) + "\n")
+
     sizes = []
     for look, colours in LOOKS.items():
         folder_out = os.path.join(ROOT, "themes", "Neo", ".rockbox", "wps", look)
@@ -164,16 +212,16 @@ def main():
         for name, role in SKIN.items():
             g, rows = load(name)
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(rows),
-                rgb(colours[role]), rows)
+                rgb(colours[role]) if role else None, rows)
             if look == "Neo":
                 sizes.append("%s %d %d %d" % (name.replace(" ", "_"), g["width"], g["height"],
                                               g["frames"]))
-        for name, (ground_name, none) in STARS.items():
+        for name, (ground_name, none, set_role, unset_role, outline) in STARS.items():
             g, rows = load(name)
             gg, ground = load(ground_name)
             assert (gg["width"], gg["height"]) == (g["width"], g["height"]), name
             h = g["height"]
-            ink, quiet = rgb(colours["SECONDARY"]), rgb(colours["TERTIARY"])
+            ink, quiet = rgb(colours[set_role]), rgb(colours[unset_role])
             out = []
             for f in range(-1 if none else 0, g["frames"]):
                 for y in range(h):
@@ -181,22 +229,34 @@ def main():
                     for x in range(g["width"]):
                         a = rows[f * h + y][x] if f >= 0 else 0
                         under = ground[y][x] * (255 - a) // 255
+                        if outline and a:
+                            under = 0
                         total = a + under
                         row.append(tuple((ink[k] * a + quiet[k] * under) // max(total, 1)
                                          for k in range(3)) + (total,))
+                        is_outline = outline and under > 0
+                        assert is_outline or not total or rgb565(row[-1]) != rgb565(
+                            rgb(colours["UNSET"])), (
+                            "%s (%s) frame %d (%d, %d): a pixel that is no outline has the "
+                            "outline's grey" % (name, look, f, x, y))
                     out.append(row)
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(out), None, out)
             if look == "Neo":
                 sizes.append("%s %d %d %d" % (name, g["width"], h, len(out) // h))
-        # a capsule 3 px thick is whole pixels: a bar with its four corners cut
+        # a capsule 5 px thick in whole pixels: a bar with its four corners cut;
+        # its track a step darker than the ground, which the LCD shows
         w, h, thick = BAR
         top = (h - thick) // 2
-        capsule = [bytes(0 if not top <= y < top + thick
-                         or (x in (0, w - 1) and y in (top, top + thick - 1)) else 255
-                         for x in range(w)) for y in range(h)]
-        bmp(os.path.join(folder_out, "Bar Track.bmp"), w, h, rgb(colours["TRACK"]), capsule)
-        bmp(os.path.join(folder_out, "Bar Fill.bmp"), w, h, rgb(colours["SECONDARY"]), capsule)
+        for name, width in (("Bar", w), ("Volume", VOLUME_BAR)):
+            capsule = [bytes(0 if not top <= y < top + thick
+                             or (x in (0, width - 1) and y in (top, top + thick - 1)) else 255
+                             for x in range(width)) for y in range(h)]
+            bmp(os.path.join(folder_out, name + " Track.bmp"), width, h,
+                rgb(colours["BARTRACK"]), capsule)
+            bmp(os.path.join(folder_out, name + " Fill.bmp"), width, h,
+                rgb(colours["SECONDARY"]), capsule)
     sizes.append("Bar %d %d 1" % BAR[:2])
+    sizes.append("Volume_Bar %d %d 1" % (VOLUME_BAR, BAR[1]))
     # for make_neo_theme.py, which places them by these
     with open(os.path.join(HERE, "neo_glyph_sizes.txt"), "w") as f:
         f.write("# name width height frames, from manifest.json sha256 %s\n" % digest)

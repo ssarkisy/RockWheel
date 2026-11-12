@@ -1,4 +1,4 @@
-# name width height frames, from manifest.json sha256 353710b4df5c52cd2ac06d136b493b6437cc03ca77190453101bb643a2b7437c
+# name width height frames, from manifest.json sha256 0b1671f42d8c57d0e32aa9e92e9a914b2ea62379ca63612fe4ce64131da8b430
 Battery 19 10 24
 Playing_Status 8 10 4
 Hold 8 10 1
@@ -10,8 +10,9 @@ Volume_Left 7 10 1
 Volume_Right 15 10 1
 Note_Playing 54 54 1
 Note_Large 84 84 1
-Note_Pane 56 56 1
+Note_Pane 84 84 1
 Photos_Pane 56 44 1
-Ratings 57 10 11
+Ratings 76 12 11
 Stars 121 17 6
-Bar 216 11 1
+Bar 292 11 1
+Volume_Bar 256 11 1

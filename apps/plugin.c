@@ -966,6 +966,8 @@ static const struct plugin_api rockbox_api = {
     tagcache_kind_if_known,
 #endif
     ui_font_file,
+    ui_colour,
+    ui_metric,
 };
 
 static int plugin_buffer_handle;

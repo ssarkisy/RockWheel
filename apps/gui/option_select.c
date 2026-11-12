@@ -34,6 +34,7 @@
 #include "splash.h"
 #include "menu.h"
 #include "quickscreen.h"
+#include "gui/ui_theme.h"
 
 /* HASFLAG compares value to flags returns true if set, false otherwise */
 #define HASFLAG(settings_list, flag) ((settings_list->flags & (flag)) == (flag))
@@ -485,6 +486,70 @@ static void val_to_selection(const struct settings_list *setting, int oldvalue,
     }
 }
 
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
+                                  int src_y, int stride, int x, int y,
+                                  int width, int height);
+/* A colour's row in Settings > Appearance > Colour: its name, and at the
+   row's end, where a value ends, a disc of the colour 12 px across in a ring
+   of a pixel in the third grey. How much of each pixel is outside a disc of
+   12 and of 10 px, in sixteenths, a row after another */
+#define SWATCH 12
+static const unsigned char swatch_ring[SWATCH * SWATCH / 2] = {
+    0xff, 0x8f, 0x03, 0x30, 0xf8, 0xff,
+    0xef, 0x03, 0x00, 0x00, 0x30, 0xfe,
+    0x3f, 0x00, 0x00, 0x00, 0x00, 0xf3,
+    0x08, 0x00, 0x00, 0x00, 0x00, 0x80,
+    0x03, 0x00, 0x00, 0x00, 0x00, 0x30,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x03, 0x00, 0x00, 0x00, 0x00, 0x30,
+    0x08, 0x00, 0x00, 0x00, 0x00, 0x80,
+    0x3f, 0x00, 0x00, 0x00, 0x00, 0xf3,
+    0xef, 0x03, 0x00, 0x00, 0x30, 0xfe,
+    0xff, 0x8f, 0x03, 0x30, 0xf8, 0xff,
+};
+static const unsigned char swatch_fill[(SWATCH - 2) * (SWATCH - 2) / 2] = {
+    0xff, 0x4b, 0x00, 0xb4, 0xff,
+    0x7f, 0x00, 0x00, 0x00, 0xf7,
+    0x0b, 0x00, 0x00, 0x00, 0xb0,
+    0x04, 0x00, 0x00, 0x00, 0x40,
+    0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00,
+    0x04, 0x00, 0x00, 0x00, 0x40,
+    0x0b, 0x00, 0x00, 0x00, 0xb0,
+    0x7f, 0x00, 0x00, 0x00, 0xf7,
+    0xff, 0x4b, 0x00, 0xb4, 0xff,
+};
+
+static void colour_row_draw(struct list_putlineinfo_t *info)
+{
+    struct screen *const display = info->display;
+    if (info->is_title)
+    {
+        display->put_line(info->x, info->y, info->linedes, "$t", info->dsp_text);
+        return;
+    }
+    display->put_line(info->x, info->y, info->linedes, "$*s$*t", info->item_indent,
+                      info->item_offset, info->dsp_text);
+    if (display->screen_type != SCREEN_MAIN)
+        return;
+    const bool rtl = VP_IS_RTL(info->vp);
+    const int margin = ui_metric(UI_METRIC_VALUE_MARGIN);
+    const int x = rtl ? margin : info->vp->width - margin - SWATCH;
+    const int y = info->y + (info->linedes->height - SWATCH) / 2;
+    const unsigned old_fg = display->get_foreground();
+    display->set_drawmode(DRMODE_FG);
+    display->set_foreground(ui_colour(UI_COLOUR_QUIET));
+    lcd_alpha_bitmap_part(swatch_ring, 0, 0, SWATCH, x, y, SWATCH, SWATCH);
+    display->set_foreground(ui_theme_colour_swatch(info->line));
+    lcd_alpha_bitmap_part(swatch_fill, 0, 0, SWATCH - 2, x + 1, y + 1,
+                          SWATCH - 2, SWATCH - 2);
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_foreground(old_fg);
+}
+#endif
+
 bool option_screen(const struct settings_list *setting,
                    struct viewport parent[NB_SCREENS],
                    bool use_temp_var, const unsigned char* option_title)
@@ -526,6 +591,10 @@ bool option_screen(const struct settings_list *setting,
         title = P2STR(option_title);
 
     gui_synclist_set_title(&lists, title, Icon_Questionmark);
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (setting->setting == &global_settings.theme_colour)
+        lists.callback_draw_item = colour_row_draw;
+#endif
     if(global_settings.talk_menu)
         gui_synclist_set_voice_callback(&lists, option_talk);
 

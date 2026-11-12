@@ -26,6 +26,7 @@
 #include "lang.h"
 #include "action.h"
 #include "settings.h"
+#include "night_mode.h"
 #include "power.h"
 #include "powermgmt.h"
 #include "menu.h"
@@ -76,6 +77,9 @@ static int reset_settings(void)
     strmemccpy(lang, global_settings.lang_file, sizeof(lang));
     settings_reset();
     strmemccpy(global_settings.lang_file, lang, sizeof(global_settings.lang_file));
+    /* as after a config is loaded: the default theme's names, and its tone
+       or none, in place of those of the theme left */
+    night_mode_boot();
     settings_save();
     settings_apply(true);
     settings_apply_skins();

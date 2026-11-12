@@ -50,6 +50,11 @@
 #include "bitmaps/usbbattery.h"
 #include "power.h"
 #include "itunesdb.h"
+#include "string-extra.h"
+#include "gui/ui_theme.h"
+#include "skin_engine/skin_display.h"
+#include "skin_engine/cover_palette.h"
+#include "line.h"
 #else
 #include "bitmaps/usblogo.h"
 #endif
@@ -160,9 +165,11 @@ static bool ipod_usb_charging;
 static bool ipod_usb_ejected;
 static struct viewport *ipod_usb_parent;
 
-/* There's no ejecting in the simulator, which has no USB storage */
+/* There's no ejecting in the simulator, which has no USB storage: the screen
+   after it shows if RBSIM_USB_EJECTED is set */
 #ifdef SIMULATOR
-#define ipod_usb_is_ejected() false
+#include <stdlib.h>
+#define ipod_usb_is_ejected() (getenv("RBSIM_USB_EJECTED") != NULL)
 #else
 #define ipod_usb_is_ejected() usb_storage_ejected()
 #endif
@@ -236,9 +243,9 @@ static void ipod_usb_dark_bitmap(struct screen *screen, const fb_data *data, int
 /* While files can still be read: what's measured stays in the font's cache */
 /* The fonts' files are closed during USB, so what's shown has to be in their caches by
    then. Arabic is drawn with other letters than its text has, in their joined forms. */
-static void ipod_usb_cache_letters(const char *text)
+static void ipod_usb_cache_letters(const char *text, int font)
 {
-    struct font *pf = font_get(FONT_UI);
+    struct font *pf = font_get(font);
     const ucschar_t *ucs = bidi_l2v(text, 1);
     const int form = font_han_form(ucs);
     for (; *ucs; ucs++)
@@ -246,6 +253,93 @@ static void ipod_usb_cache_letters(const char *text)
         ucschar_t glyph;
         font_get_width(font_for_char(pf, *ucs, form, &glyph), glyph);
     }
+}
+
+static void ipod_usb_draw_centred(struct screen *screen, const char *text,
+                                  int middle)
+{
+    int width, height;
+    screen->getstringsize(text, &width, &height);
+    screen->putsxy((LCD_WIDTH - width) / 2, middle - height / 2, text);
+}
+
+/* Neo's: its status line with the name and the battery over a hairline, a
+   bold sign in the notes' two tones and the words under it, on the theme's
+   ground. The places are its skins' (themes/tools/make_neo_theme.py) and its
+   mockup's. */
+#include "neo_usb_glyphs.h"
+#define NEO_USB_STATUS  20  /* the status line's rows; the hairline is the next */
+#define NEO_USB_MARGIN  14
+#define NEO_USB_NAME_Y  2
+#define NEO_USB_FOOT    14  /* the row under the battery's feet */
+#define NEO_USB_GAP     6   /* between the name and the battery */
+#define NEO_USB_SIGN_X  118
+#define NEO_USB_SIGN_Y  56
+#define NEO_USB_TEXT_Y  162 /* the middle of it */
+#define NEO_USB_BATTERY_X (LCD_WIDTH - NEO_USB_MARGIN - NEO_USB_BATTERY_W)
+
+extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
+                                  int src_y, int stride, int x, int y,
+                                  int width, int height);
+
+static char neo_usb_name[64];
+static int neo_usb_font;
+
+/* the name in the status line's font, whole letters of it and an ellipsis if
+   it is wider than the room left of the battery: fitted now, for the cache */
+static void neo_usb_prepare(void)
+{
+    neo_usb_font = font_find(FONT_DIR "/15-Inter-SemiBold.fnt");
+    if (neo_usb_font < 0)
+        neo_usb_font = font_find(ui_font_file(UI_FONT_HINT));
+    if (neo_usb_font < 0)
+        neo_usb_font = FONT_UI;
+    const int room = NEO_USB_BATTERY_X - NEO_USB_GAP - NEO_USB_MARGIN;
+    int width;
+    strmemccpy(neo_usb_name, ipod_usb_name, sizeof(neo_usb_name));
+    font_getstringsize(neo_usb_name, &width, NULL, neo_usb_font);
+    if (width > room)
+        skin_fit_with_ellipsis(neo_usb_name, strlen(neo_usb_name), sizeof(neo_usb_name),
+                               neo_usb_font, room);
+    ipod_usb_cache_letters(neo_usb_name, neo_usb_font);
+}
+
+static void neo_usb_draw(struct screen *screen)
+{
+    /* the surfaces in the theme's tone, as on every screen */
+    ipod_usb_charging = charging_state();
+    screen->set_drawmode(DRMODE_SOLID);
+    screen->set_foreground(ui_colour(UI_COLOUR_GROUND));
+    screen->fillrect(0, 0, LCD_WIDTH, LCD_HEIGHT);
+    /* the hairlines' */
+    screen->set_foreground(ui_colour(UI_COLOUR_SEARCH_RULE));
+    screen->hline(0, LCD_WIDTH - 1, NEO_USB_STATUS);
+
+    screen->set_drawmode(DRMODE_FG);
+    screen->set_foreground(ui_colour(UI_COLOUR_VALUE));
+    lcd_alpha_bitmap_part(neo_usb_battery_alpha, 0,
+                          ipod_usb_charging ? 0 : NEO_USB_BATTERY_H, NEO_USB_BATTERY_W,
+                          NEO_USB_BATTERY_X, NEO_USB_FOOT - NEO_USB_BATTERY_H,
+                          NEO_USB_BATTERY_W, NEO_USB_BATTERY_H);
+    /* the sign, one mask a state, as a missing cover's note is drawn: its
+       rows from the note's top colour to its foot's, over the ground just
+       filled */
+    if (ipod_usb_ejected)
+        line_draw_note(neo_usb_usb_check_alpha, NEO_USB_USB_CHECK_W,
+                       NEO_USB_USB_CHECK_H, NEO_USB_SIGN_X, NEO_USB_SIGN_Y);
+    else
+        line_draw_note(neo_usb_usb_alpha, NEO_USB_USB_W, NEO_USB_USB_H,
+                       NEO_USB_SIGN_X, NEO_USB_SIGN_Y);
+    screen->set_drawmode(DRMODE_FG);
+
+    screen->set_foreground(ui_colour(UI_COLOUR_TEXT));
+    screen->setfont(neo_usb_font);
+    screen->putsxy(NEO_USB_MARGIN, NEO_USB_NAME_Y, neo_usb_name);
+    screen->setfont(FONT_UI);
+    ipod_usb_draw_centred(screen, str(ipod_usb_ejected ? LANG_USB_OK_TO_DISCONNECT
+                                                       : LANG_USB_DO_NOT_DISCONNECT),
+                          NEO_USB_TEXT_Y);
+    screen->set_drawmode(DRMODE_SOLID);
 }
 
 static void ipod_usb_prepare(void)
@@ -256,8 +350,10 @@ static void ipod_usb_prepare(void)
     font_getstringsize(ipod_usb_name, NULL, NULL, FONT_UI);
     font_getstringsize(str(LANG_USB_DO_NOT_DISCONNECT), NULL, NULL, FONT_UI);
     font_getstringsize(str(LANG_USB_OK_TO_DISCONNECT), NULL, NULL, FONT_UI);
-    ipod_usb_cache_letters(str(LANG_USB_DO_NOT_DISCONNECT));
-    ipod_usb_cache_letters(str(LANG_USB_OK_TO_DISCONNECT));
+    ipod_usb_cache_letters(str(LANG_USB_DO_NOT_DISCONNECT), FONT_UI);
+    ipod_usb_cache_letters(str(LANG_USB_OK_TO_DISCONNECT), FONT_UI);
+    if (global_settings.ui_theme == UI_THEME_NEO)
+        neo_usb_prepare();
 }
 
 /* The two frames of the bitmap: charging, and on power but not charging */
@@ -290,14 +386,6 @@ static void ipod_usb_draw_battery(struct screen *screen)
                                     BMPWIDTH_usbbattery, IPOD_USB_BATTERY_H);
 }
 
-static void ipod_usb_draw_centred(struct screen *screen, const char *text,
-                                  int middle)
-{
-    int width, height;
-    screen->getstringsize(text, &width, &height);
-    screen->putsxy((LCD_WIDTH - width) / 2, middle - height / 2, text);
-}
-
 static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
 {
     struct viewport *last_vp = screen->set_viewport(parent);
@@ -306,6 +394,14 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
     ipod_usb_ejected = ipod_usb_is_ejected();
     screen->backlight_on();
     screen->set_drawmode(DRMODE_SOLID);
+
+    if (global_settings.ui_theme == UI_THEME_NEO)
+    {
+        neo_usb_draw(screen);
+        screen->update();
+        screen->set_viewport(last_vp);
+        return;
+    }
 
     for (int y = 0; y < IPOD_USB_TITLE_H; y++)
     {
@@ -369,6 +465,16 @@ static void ipod_usb_update(void)
 
     if (charging_state() == ipod_usb_charging)
         return;
+    if (global_settings.ui_theme == UI_THEME_NEO)
+    {
+        /* all of it, a few fills, and as Classic's battery without the
+           backlight coming on */
+        struct viewport *last_vp = screen->set_viewport(ipod_usb_parent);
+        neo_usb_draw(screen);
+        screen->update();
+        screen->set_viewport(last_vp);
+        return;
+    }
 
     struct viewport *last_vp = screen->set_viewport(ipod_usb_parent);
     screen->set_drawmode(DRMODE_SOLID);
@@ -519,6 +625,10 @@ void gui_usb_screen_run(bool early_usb, intptr_t seqnum)
     if (in_usb_screen)
         return;
     in_usb_screen = true;
+#endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+    /* over Now Playing, which is left only after this: not in its cover's tone */
+    cover_palette_leave();
 #endif
 
     struct usb_screen_vps_t usb_screen_vps_ar[NB_SCREENS];
