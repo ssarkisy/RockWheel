@@ -1282,6 +1282,89 @@ static uint8_t *ram_kinds(void)
            - ram_kinds_count;
 }
 
+/* Before the kinds, a bit for each 8 bytes of the names' files of the tags
+   Music lists by: set where a name starts that a song of music has (a name's
+   entry is over 8 bytes). The tags' bits one after another, as far in as
+   their last names; the room is for all the database's data, so it fits. */
+static const int music_tags[] = {
+    tag_artist, tag_album, tag_genre, tag_composer, tag_albumartist,
+    tag_virt_canonicalartist
+};
+static long music_names_room;                     /* bytes, 0 for none */
+static int32_t music_names_at[ARRAYLEN(music_tags)]; /* -1 not marked */
+
+static uint8_t *music_names(void)
+{
+    return ram_kinds() - music_names_room;
+}
+
+static void music_names_make(void)
+{
+    int32_t last[ARRAYLEN(music_tags)];
+    for (size_t t = 0; t < ARRAYLEN(music_tags); t++)
+    {
+        music_names_at[t] = -1;
+        last[t] = -1;
+    }
+    if (!tc_stat.ramcache || !tcramcache.hdr || music_names_room <= 0
+        || ram_kinds_count <= 0)
+        return;
+    const long count = MIN(current_tcmh.tch.entry_count, ram_kinds_count);
+    for (long i = 0; i < count; i++)
+    {
+        const struct index_entry *idx = &tcramcache.hdr->indices[i];
+        for (size_t t = 0; t < ARRAYLEN(music_tags) && !(idx->flag & FLAG_DELETED); t++)
+            last[t] = MAX(last[t], idx->tag_seek[music_tags[t]]);
+    }
+    long at = 0;
+    for (size_t t = 0; t < ARRAYLEN(music_tags); t++)
+    {
+        const long bytes = (last[t] >> 6) + 2;
+        if (at + bytes > music_names_room)
+            return; /* the tags after it stay unmarked */
+        music_names_at[t] = at;
+        at += bytes;
+    }
+    uint8_t *bits = music_names();
+    memset(bits, 0, at);
+    for (long i = 0; i < count; i++)
+    {
+        const struct index_entry *idx = &tcramcache.hdr->indices[i];
+        if ((idx->flag & FLAG_DELETED) || (ram_kinds()[i] & RAM_KIND_MASK))
+            continue;
+        for (size_t t = 0; t < ARRAYLEN(music_tags); t++)
+        {
+            const int32_t seek = idx->tag_seek[music_tags[t]];
+            if (seek >= 0 && music_names_at[t] >= 0)
+                bits[music_names_at[t] + (seek >> 6)] |= 1 << ((seek >> 3) & 7);
+        }
+    }
+}
+
+static int music_tag(int tag)
+{
+    for (size_t t = 0; t < ARRAYLEN(music_tags); t++)
+    {
+        if (music_tags[t] == tag)
+            return music_names_at[t] >= 0 ? (int)t : -1;
+    }
+    return -1;
+}
+
+bool tagcache_names_marked(int tag)
+{
+    return tc_stat.ready && tc_stat.ramcache && tcramcache.hdr
+           && music_tag(tag) >= 0;
+}
+
+bool tagcache_name_has_music(int tag, int32_t seek)
+{
+    if (!tagcache_names_marked(tag) || seek < 0)
+        return true;
+    return music_names()[music_names_at[music_tag(tag)] + (seek >> 6)]
+           & (1 << ((seek >> 3) & 7));
+}
+
 /* The kind of a track iTunesDB doesn't call a podcast or a book, as Podcasts
    and Audiobooks of tagnavi.config list it: a book by .m4b or its genre, a
    podcast by its genre; and one outside Finder's folder by a folder named
@@ -1380,6 +1463,7 @@ static void ram_kinds_refresh(void)
     }
     if (base)
         core_put_data_pinned((void *)base);
+    music_names_make();
     states_generation++;
     song_count = -1;
 }
@@ -5754,7 +5838,7 @@ static bool commit(void)
         tcrc_buffer_lock();
         tempbuf = (char *)(tcramcache.hdr + 1);
         tempbuf_size = tc_stat.ramcache_allocated - sizeof(struct ramcache_header) - 128
-                       - ram_kinds_count;
+                       - ram_kinds_count - music_names_room;
         tempbuf_size &= ~0x03;
         ramcache_buffer_stolen = true;
     }
@@ -7429,6 +7513,7 @@ static bool allocate_tagcache(void)
     tcramcache.handle = 0;
     tcramcache.hdr = NULL;
     ram_kinds_count = 0;
+    music_names_room = 0;
 
     /* Load the header. */
     struct master_header tcmh;
@@ -7447,8 +7532,9 @@ static bool allocate_tagcache(void)
 #ifdef HAVE_DIRCACHE
     alloc_size += tcmh.tch.entry_count*sizeof(struct dircache_fileref);
 #endif
-    /* and the entries' kinds, at its end */
-    alloc_size += tcmh.tch.entry_count;
+    /* and the entries' kinds, at its end, the names' bits before them */
+    const long names_room = tcmh.tch.datasize / 64 + 2 * ARRAYLEN(music_tags);
+    alloc_size += tcmh.tch.entry_count + names_room;
 
     int handle = core_alloc_ex(alloc_size, &ops);
     if (handle <= 0)
@@ -7458,6 +7544,7 @@ static bool allocate_tagcache(void)
     tcramcache.hdr = core_get_data(handle);
     tc_stat.ramcache_allocated = alloc_size;
     ram_kinds_count = tcmh.tch.entry_count;
+    music_names_room = names_room;
 
     memset(tcramcache.hdr, 0, sizeof(struct ramcache_header));
     memcpy(&current_tcmh, &tcmh, sizeof current_tcmh);
@@ -7574,7 +7661,7 @@ static bool load_tagcache(void)
 
     bool ok = false;
     ssize_t bytesleft = tc_stat.ramcache_allocated - sizeof(struct ramcache_header)
-                        - ram_kinds_count;
+                        - ram_kinds_count - music_names_room;
     int fd;
 
     /* a commit borrowed the whole of it; each entry's is set as it loads */
@@ -8885,6 +8972,7 @@ static void load_ramcache(void)
         free_ram_names();
 #endif
     tc_stat.ramcache = loaded;
+    music_names_make();
     song_count = -1; /* counted again, by the kinds now in memory or without */
 
     /* Stopped by USB, as on connecting the iPod just after it started, it is
@@ -8901,6 +8989,7 @@ static void load_ramcache(void)
         /* or the next commit borrows the freed buffer and panics */
         tc_stat.ramcache_allocated = 0;
         ram_kinds_count = 0;
+    music_names_room = 0;
         core_free(handle);
     }
 

@@ -3564,6 +3564,10 @@ static struct tagcache_search_clause music_clause = {
     .tag = tag_virt_kind, .type = clause_is, .numeric = true, .numeric_data = 0,
 };
 
+/* A list of names that the names' own marks filter (make_entries()): then
+   its search has no condition and makes no pass over the tracks */
+static bool music_by_names;
+
 /* whether an album of the table of years has a song of music */
 static bool album_has_music(int no)
 {
@@ -3591,7 +3595,7 @@ static void add_list_clauses(struct tagcache_search *tcs, int last)
                      : in_section(LANG_AUDIOBOOKS) ? 2 : 0;
     /* Songs' own rows are filtered as they come instead (make_entries()):
        a condition would bring them in the database's order, not by name */
-    if (music_only(csi) && !is_songs(csi))
+    if (music_only(csi) && !is_songs(csi) && !music_by_names)
         tagcache_search_add_clause(tcs, &music_clause);
     for (int i = 0; i <= last && i < csi->tagorder_count; i++)
     {
@@ -3900,8 +3904,13 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     /* Songs' rows are the songs': of music alone, as they come by name */
     const bool songs_music = level == 0 && tag == tag_title
         && c->currtable == TABLE_NAVIBROWSE && is_songs(csi) && music_only(csi);
+    /* Artists, Albums, Genres, Composers: the names as they come, sorted,
+       those without a song of music passed over by their marks */
+    const bool names_music = level == 0 && c->currtable == TABLE_NAVIBROWSE
+        && csi->clause_count[0] == 0 && music_only(csi)
+        && tagcache_names_marked(tag);
     if (level || is_basename|| csi->clause_count[0] || TAGCACHE_IS_NUMERIC(tag)
-        || (music_only(csi) && !songs_music))
+        || (music_only(csi) && !songs_music && !names_music))
         sort = true;
 
     add_level_filters(&tcs, level);
@@ -3909,7 +3918,9 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     /* because tagcache saves the clauses, we need to lock the buffer
      * for the entire duration of the search */
     core_pin(tagtree_handle);
+    music_by_names = names_music;
     add_list_clauses(&tcs, level);
+    music_by_names = false;
 
     current_offset = offset;
     current_entry_count = 0;
@@ -4000,7 +4011,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     while (tagcache_get_next(&tcs, tcs_buf, tcs_bufsz))
     {
         if ((composers && !strcmp(tcs.result, UNTAGGED))
-            || (songs_music && tagcache_track_kind(tcs.idx_id) != 0))
+            || (songs_music && tagcache_track_kind(tcs.idx_id) != 0)
+            || (names_music && !tagcache_name_has_music(tag, tcs.result_seek)))
             continue;
         if (total_count++ < skip)
             continue;
@@ -4480,7 +4492,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             break;
         }
         if (!(composers && !strcmp(tcs.result, UNTAGGED))
-            && !(songs_music && tagcache_track_kind(tcs.idx_id) != 0))
+            && !(songs_music && tagcache_track_kind(tcs.idx_id) != 0)
+            && !(names_music && !tagcache_name_has_music(tag, tcs.result_seek)))
             total_count++;
     }
 

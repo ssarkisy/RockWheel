@@ -321,9 +321,16 @@ long tagcache_states_generation(void);
    entry, and for a path it hasn't. */
 int tagcache_track_kind(int idx_id);
 /* whether the tracks' kinds are in memory: without them every kind reads 0.
-   They come with the database's paths in memory, so not while it loads, nor
-   with Load to RAM off, nor when their room was not got. */
+   They are in the database's own memory: not while it loads, nor with Load
+   to RAM off. */
 bool tagcache_kinds_known(void);
+/* Whether a name of a tag's file, by its place there, is of a song of music:
+   an artist, an album, a genre or a composer that Music lists. Marked for
+   every name as the database loads and as the kinds are made again, so a
+   list of names needs no pass over the tracks. tagcache_names_marked() says
+   whether a tag's names are; an unmarked one's all read true. */
+bool tagcache_names_marked(int tag);
+bool tagcache_name_has_music(int tag, int32_t seek);
 /* a track's kind, or -1 when the kinds aren't in memory: for a plugin */
 int tagcache_kind_if_known(int idx_id);
 int tagcache_path_kind(const char *path);
