@@ -1295,6 +1295,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "एल्बम"
+  </dest>
+  <voice>
+    *: "एल्बम"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_SHUFFLE_SONGS
   desc: Database menu
   user: core
@@ -1320,6 +1334,20 @@
   </dest>
   <voice>
     *: "हाल ही में जोड़े गए"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "गाने"
+  </dest>
+  <voice>
+    *: "गाने"
   </voice>
 </phrase>
 <phrase>

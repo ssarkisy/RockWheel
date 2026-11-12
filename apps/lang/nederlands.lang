@@ -908,10 +908,10 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "Willekeurige volgorde (shuffle)"
+    *: "Shuffle"
   </dest>
   <voice>
-    *: "Willekeurige volgorde (shuffle)"
+    *: "Shuffle"
   </voice>
 </phrase>
 <phrase>

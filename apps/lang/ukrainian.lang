@@ -16368,10 +16368,10 @@
     *: "Albums"
   </source>
   <dest>
-    *: "Треки"
+    *: "Альбоми"
   </dest>
   <voice>
-    *: "Треки"
+    *: "Альбоми"
   </voice>
 </phrase>
 <phrase>

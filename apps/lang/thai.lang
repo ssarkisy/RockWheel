@@ -2525,6 +2525,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_ALBUMS
+  desc: Database menu
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "อัลบั้ม"
+  </dest>
+  <voice>
+    *: "อัลบั้ม"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_SHUFFLE_SONGS
   desc: Database menu
   user: core
@@ -2550,6 +2564,20 @@
   </dest>
   <voice>
     *: "เพิ่มล่าสุด"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONGS
+  desc: in the Music menu, all songs sorted by title
+  user: core
+  <source>
+    *: "Songs"
+  </source>
+  <dest>
+    *: "เพลง"
+  </dest>
+  <voice>
+    *: "เพลง"
   </voice>
 </phrase>
 <phrase>
