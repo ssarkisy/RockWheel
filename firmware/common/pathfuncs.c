@@ -21,6 +21,7 @@
 #include <ctype.h>
 #include "system.h"
 #include "pathfuncs.h"
+#include "rbpaths.h"
 #include "string-extra.h"
 #include <stdio.h>
 #include "file_internal.h"
@@ -624,4 +625,57 @@ ssize_t parse_path_component(const char **pathp, const char **namep)
     *namep = name;
 
     return p - name;
+}
+
+/** Changes to the files, for what is kept in memory of them **/
+
+static volatile unsigned int file_changes;
+
+static bool has_nocase(const char *s, const char *word)
+{
+    const size_t len = strlen(word);
+    for (; *s; s++)
+    {
+        if (!strncasecmp(s, word, len))
+            return true;
+    }
+    return false;
+}
+
+/* The firmware's own files, which it writes at any time and no playlist is
+   made of: under ROCKBOX_DIR on any volume, except the playlists there (the
+   control file, the lists the database's songs are played from, saved
+   ones). Anything not plainly so counts: a path with "..", which may lead
+   out of it, or ROCKBOX_DIR itself. */
+static bool path_is_firmwares(const char *path)
+{
+    const char *p, *dir = ROCKBOX_DIR;
+    if (!path)
+        return false;
+#ifdef HAVE_MULTIVOLUME
+    path_strip_volume(path, &p, false);
+#else
+    p = path; /* no volume's name to pass: a bootloader, the host's tools */
+#endif
+    if (*p != PATH_SEPCH)
+        return false;
+    p = GOBBLE_PATH_SEPCH(p);
+    dir = GOBBLE_PATH_SEPCH(dir);
+    const size_t len = strlen(dir);
+    if (!len || strncasecmp(p, dir, len) || p[len] != PATH_SEPCH)
+        return false;
+    p += len;
+    return !has_nocase(p, "..") && !has_nocase(p, ".m3u")
+           && !has_nocase(p, "playlist_control");
+}
+
+void file_change_note(const char *path)
+{
+    if (!path_is_firmwares(path))
+        file_changes++;
+}
+
+unsigned int file_change_count(void)
+{
+    return file_changes;
 }

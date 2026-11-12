@@ -228,9 +228,35 @@ static const char dc_thread_playlist_name[] = "playlist cachectrl";
 /* The current playlist is as playlist_resume() read it, all of its control
    file, and nothing here has changed it since: dropped by whatever stops the
    dircache's scan to change it, writes or shuts its control file, or starts
-   it playing. It says nothing of the files, which others write: see
+   it playing. What others change is resume_inputs' to tell: see
    playlist_resumed(). */
 static bool resumed;
+/* What a load is made of besides this file's own doing, as it was when the
+   load began: unequal later, the list in memory may not be what a load would
+   make now. Compared, never waited for: nothing is read from the disk. */
+struct resume_inputs
+{
+    unsigned int files; /* file_change_count(): any file outside ROCKBOX_DIR,
+                           any playlist or control file in it */
+    uint32_t settings;  /* settings_crc(): every setting, changed however */
+    int commitid;       /* the database a shuffle by albums takes its keys */
+    int entries;        /* from, and whether it finds songs by their paths */
+    bool finds;
+};
+static struct resume_inputs resume_inputs;
+
+static struct resume_inputs resume_inputs_now(void)
+{
+    return (struct resume_inputs){
+        file_change_count(), settings_crc(),
+#ifdef HAVE_TAGCACHE
+        tagcache_get_commitid(), tagcache_entry_count(),
+        tagcache_finds_entries(),
+#else
+        0, 0, false,
+#endif
+    };
+}
 /* playlist_preload()'s load: nothing shown, no keys read, given up after
    resume_deadline */
 static bool resume_quiet;
@@ -2481,6 +2507,7 @@ struct playlist_info* playlist_load(const char* dir, const char* file,
         playlist->max_playlist_size = current_playlist.max_playlist_size;
         playlist->indices = current_playlist.indices;
         current_playlist.started = false;
+        resumed = false; /* its indices are this one's from here */
     }
 
     new_playlist_unlocked(playlist, dir, file);
@@ -3909,6 +3936,8 @@ int playlist_resume(void)
 
     struct playlist_info* playlist = &current_playlist;
     dc_thread_stop(playlist);
+    /* before any of them is read: a change while it loads tells too */
+    resume_inputs = resume_inputs_now();
 
     if (core_allocatable() < (1 << 10))
         talk_buffer_set_policy(TALK_BUFFER_LOOSE); /* back off voice buffer */
@@ -3938,6 +3967,9 @@ int playlist_resume(void)
         goto out;
 
     playlist->control_fd = open(playlist->control_filename, O_RDWR);
+    /* the load's own one change, the control file opened to be written
+       to later: any other since it began leaves the counts unequal */
+    resume_inputs.files++;
     if (playlist->control_fd < 0)
     {
         notify_control_access_error();
@@ -4330,11 +4362,29 @@ bool playlist_preload(void)
     resume_deadline = current_tick + PRELOAD_TICKS;
     playlist_resume();
     resume_quiet = false;
-    return resumed;
+    return playlist_resumed();
 }
 
 bool playlist_resumed(void)
 {
+    if (!resumed)
+        return false;
+    const struct resume_inputs now = resume_inputs_now();
+    const bool same = now.files == resume_inputs.files
+                      && now.settings == resume_inputs.settings
+                      && now.commitid == resume_inputs.commitid
+                      && now.entries == resume_inputs.entries
+                      && now.finds == resume_inputs.finds;
+    if (!same)
+    {
+        DEBUGF("playlist resume: stale, files %u/%u, settings %d, database %d\n",
+               now.files, resume_inputs.files,
+               now.settings != resume_inputs.settings,
+               now.commitid != resume_inputs.commitid
+               || now.entries != resume_inputs.entries
+               || now.finds != resume_inputs.finds);
+        resumed = false; /* for good: told once */
+    }
     return resumed;
 }
 

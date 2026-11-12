@@ -472,6 +472,9 @@ int sim_get_os_path(char *buffer, const char *path, size_t bufsize)
 
 int sim_open(const char *path, int oflag, ...)
 {
+    /* as the iPod's file layer does, at the same calls */
+    if (oflag & (O_ACCMODE|O_CREAT|O_TRUNC))
+        file_change_note(path);
     int fildes;
     struct filestr_desc *filestr = alloc_filestr(&fildes);
     if (!filestr)
@@ -605,6 +608,7 @@ ssize_t sim_write(int fildes, const void *buf, size_t nbyte)
 
 int sim_remove(const char *path)
 {
+    file_change_note(path);
     char ospath[SIM_TMPBUF_MAX_PATH];
     if (sim_get_os_path(ospath, path, sizeof (ospath)) < 0)
         return -1;
@@ -623,6 +627,8 @@ int sim_remove(const char *path)
 
 int sim_rename(const char *old, const char *new)
 {
+    file_change_note(old);
+    file_change_note(new);
     char osold[SIM_TMPBUF_MAX_PATH];
     int pprc1 = sim_get_os_path(osold, old, sizeof (osold));
     if (pprc1 < 0)
@@ -654,6 +660,7 @@ int sim_rename(const char *old, const char *new)
 
 int sim_modtime(const char *path, time_t modtime)
 {
+    file_change_note(path);
     char ospath[SIM_TMPBUF_MAX_PATH];
 
     if (sim_get_os_path(ospath, path, sizeof (ospath)) < 0)
@@ -787,6 +794,7 @@ struct sim_dirent * sim_readdir(DIR *dirp)
 
 int sim_mkdir(const char *path)
 {
+    file_change_note(path);
     char ospath[SIM_TMPBUF_MAX_PATH];
     if (sim_get_os_path(ospath, path, sizeof (ospath)) < 0)
         return -1;
@@ -805,6 +813,7 @@ int sim_mkdir(const char *path)
 
 int sim_rmdir(const char *path)
 {
+    file_change_note(path);
     char ospath[SIM_TMPBUF_MAX_PATH];
     if (sim_get_os_path(ospath, path, sizeof (ospath)) < 0)
         return -1;

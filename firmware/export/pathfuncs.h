@@ -101,6 +101,14 @@ size_t path_append(char *buffer, const char *basepath, const char *component,
                    size_t bufsize);
 ssize_t parse_path_component(const char **pathp, const char **namep);
 
+/* The file layer's note of a path about to be changed: opened for writing,
+   created, emptied, removed, renamed, a folder made or removed, a time set.
+   Counted unless it is certainly ROCKBOX_DIR's own and no playlist's: see
+   pathfuncs.c. Only a count: no lock, nothing read, from any thread. */
+void file_change_note(const char *path);
+/* how many were counted: unequal after any of them */
+unsigned int file_change_count(void);
+
 /* return true if path begins with a root '/' component and is not NULL */
 static inline bool path_is_absolute(const char *path)
 {

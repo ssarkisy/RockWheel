@@ -140,13 +140,16 @@ int playlist_resume(void);
    aren't under that limit: each runs to its end, as for Resume Playback.
    True with the list loaded. */
 bool playlist_preload(void);
-/* The current playlist is as playlist_resume() or playlist_preload() read
-   it, with no change made through the playlist's functions since. Not
-   enough to take it for what the files say: a playlist's file can be
-   written again by others. The caller knows nothing could have, as the main
-   menu does while it has been showing since. */
+/* The current playlist is what playlist_resume() would read now: as it or
+   playlist_preload() read it, with no change made through the playlist's
+   functions since, and none since that load began to what it was made of:
+   no file outside ROCKBOX_DIR and no playlist or control file in it opened
+   to be written, made, removed or renamed (file_change_note()), no setting
+   changed, the database the same. Any of them, or a doubt, and it is false
+   from then on; nothing is read from the disk to tell. */
 bool playlist_resumed(void);
-/* the files it was read from may be others: a library update, USB */
+/* what it was read from may be other in a way those don't tell: a library
+   update, USB, a plugin */
 void playlist_resume_forget(void);
 /* a new playlist shuffled by the setting, albums or songs */
 int playlist_shuffle(int random_seed, int start_index);

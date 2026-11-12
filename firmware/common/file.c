@@ -544,6 +544,9 @@ file_error:
 static int open_internal_locked(const char *path, int oflag,
                                 unsigned int callflags)
 {
+    /* whether or not it comes to it */
+    if (oflag & (O_ACCMODE|O_CREAT|O_TRUNC))
+        file_change_note(path);
     file_internal_lock_WRITER();
     int rc = open_internal_inner1(path, oflag, callflags);
     file_internal_unlock_WRITER();
@@ -1031,6 +1034,7 @@ file_error:
 int rbfs_remove(const char *path)
 {
     DEBUGF("remove(path=\"%s\")\n", path);
+    file_change_note(path);
 
     file_internal_lock_WRITER();
     int rc = remove_stream_internal(path, NULL, FF_FILE);
@@ -1042,6 +1046,8 @@ int rbfs_remove(const char *path)
 int rbfs_rename(const char *old, const char *new)
 {
     DEBUGF("rename(old=\"%s\",new=\"%s\")\n", old, new);
+    file_change_note(old);
+    file_change_note(new);
 
     int rc, open1rc = -1, open2rc = -1;
     struct filestr_base oldstr, newstr;
@@ -1189,6 +1195,7 @@ file_error:
 int rbfs_modtime(const char *path, time_t modtime)
 {
     DEBUGF("modtime(path=\"%s\",modtime=%d)\n", path, (int) modtime);
+    file_change_note(path);
 
     int rc, open1rc = -1;
     struct filestr_base pathstr;

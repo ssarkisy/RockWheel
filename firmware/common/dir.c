@@ -235,6 +235,7 @@ void rbfs_rewinddir(DIR *dirp)
 int rbfs_mkdir(const char *path)
 {
     DEBUGF("mkdir(path=\"%s\")\n", path);
+    file_change_note(path);
 
     int rc;
 
@@ -272,6 +273,7 @@ file_error:
 int rbfs_rmdir(const char *name)
 {
     DEBUGF("rmdir(name=\"%s\")\n", name);
+    file_change_note(name);
 
     if (name)
     {

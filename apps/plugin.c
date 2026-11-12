@@ -999,6 +999,9 @@ int plugin_load(const char* plugin, const void* parameter)
     if (!plugin)
         return PLUGIN_ERROR;
 
+    /* a plugin has the playlist and the settings by their addresses: the
+       list read for Resume Playback isn't taken for what a load would give */
+    playlist_resume_forget();
     /* its screen without a slide to it */
     transition_cancel();
     menu_cover_end();

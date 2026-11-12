@@ -317,6 +317,9 @@ void settings_load(void) INIT_ATTR;
 bool settings_first_start(void);
 bool settings_load_config(const char* file, bool apply);
 
+/* of the settings as they are in memory now, saved or not: unequal after
+   any change of one */
+uint32_t settings_crc(void);
 void status_save(bool force);
 int settings_save(void);
 
