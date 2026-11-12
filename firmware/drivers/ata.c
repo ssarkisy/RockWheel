@@ -408,6 +408,8 @@ static ICODE_ATTR int wait_for_start_of_transfer(void)
         {
             if (++again > DRQ_BSY_AGAIN)
                 break;
+            if (again == 1 && !waiting)
+                counters.drq_waits++;
             continue;
         }
         if (status & STATUS_DRQ)
@@ -419,6 +421,8 @@ static ICODE_ATTR int wait_for_start_of_transfer(void)
         {
             waiting = true;
             timeout = current_tick + DRQ_WAIT_TICKS;
+            if (!again)
+                counters.drq_waits++;
         }
         else if (!TIME_BEFORE(current_tick, timeout))
             break;
@@ -542,7 +546,7 @@ static int ata_transfer_sectors(uint64_t start,
     long spinup_start = spinup_start;
     bool read_from_off = false;
     const bool was_on = ata_state == ATA_ON;
-    bool tried = false;
+    long began;
 #ifdef HAVE_ATA_DMA
     bool usedma = false;
 #endif
@@ -569,6 +573,8 @@ static int ata_transfer_sectors(uint64_t start,
 
     logf("ata XFER (%d) %d @ %llu", write, incount, start);
 
+    began = current_tick; /* for the longest: the wait for RDY counts */
+
     ATA_OUT8(ATA_SELECT, ata_device);
     if (!wait_for_rdy())
     {
@@ -588,7 +594,6 @@ static int ata_transfer_sectors(uint64_t start,
     count = incount;
     while (TIME_BEFORE(current_tick, timeout)) {
         ret = 0;
-        tried = true;
         keep_ata_active();
 
 #ifdef HAVE_ATA_DMA
@@ -738,13 +743,9 @@ static int ata_transfer_sectors(uint64_t start,
         break;
     }
 
-    /* RDY took the transfer's 5 s: it returns 0 with nothing transferred */
-    if (!tried)
-        counters.not_tried++;
-
     /* not one that began with a wake */
     if (was_on) {
-        const long took = current_tick - (timeout - READWRITE_TIMEOUT);
+        const long took = current_tick - began;
         if (took > counters.longest[write != 0])
             counters.longest[write != 0] = took;
     }

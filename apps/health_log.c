@@ -110,21 +110,24 @@ static int ata_line(char *line, size_t size)
     by_code(retried, sizeof(retried), c->retried, ARRAYLEN(c->retried), 4,
             &retries);
     const long rd = c->longest[0], wr = c->longest[1];
-    ata_seen.events = failures + retries + c->not_tried + c->bsy_timeouts
-                      + c->rdy_timeouts;
+    ata_seen.events = failures + retries + c->bsy_timeouts + c->rdy_timeouts
+                      + c->drq_waits;
     ata_seen.longest[0] = rd;
     ata_seen.longest[1] = wr;
     if (ata_seen.events == ata_noted.events
         && (rd < HZ || rd <= ata_noted.longest[0])
         && (wr < HZ || wr <= ata_noted.longest[1]))
         return 0;
+    char waited[32] = ""; /* said only when it happened */
+    if (c->drq_waits)
+        snprintf(waited, sizeof(waited), "; waited for DRQ %u", c->drq_waits);
     int len = snprintf(line, size, "%ld ata: failed %u%s; errors"
-                " retried %u%s; returned as done without transferring %u;"
+                " retried %u%s;"
                 " timeouts intrq %u bsy %u rdy %u; longest read %ld.%02ld s,"
-                " write %ld.%02ld s\n", current_tick / HZ, failures, failed,
-                retries, retried, c->not_tried, c->retried[3],
+                " write %ld.%02ld s%s\n", current_tick / HZ, failures, failed,
+                retries, retried, c->retried[3],
                 c->bsy_timeouts, c->rdy_timeouts, rd / HZ,
-                rd % HZ * 100 / HZ, wr / HZ, wr % HZ * 100 / HZ);
+                rd % HZ * 100 / HZ, wr / HZ, wr % HZ * 100 / HZ, waited);
     if (len >= (int)size) /* cut: it still ends its line */
     {
         len = size - 1;

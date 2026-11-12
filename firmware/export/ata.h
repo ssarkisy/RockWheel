@@ -175,11 +175,12 @@ struct ata_counters
     unsigned int retried[4];  /* errors -4 to -7 in a transfer, each followed
                                  by a soft reset; -7 is DMA's wait for INTRQ
                                  timing out */
-    unsigned int not_tried;   /* transfers that returned 0 with nothing
-                                 transferred: the wait for RDY took their 5 s */
     unsigned int bsy_timeouts;
     unsigned int rdy_timeouts;
     long longest[2];          /* read, write: of a drive that was awake, ticks */
+    unsigned int drq_waits;   /* starts of a block that found neither DRQ nor an
+                                 error at the first look and were waited for:
+                                 before, each was a reset and a retry */
 };
 const struct ata_counters *ata_get_counters(void);
 
