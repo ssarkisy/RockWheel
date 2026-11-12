@@ -153,6 +153,10 @@ struct progressbar {
 
     OFFSETTYPE(struct gui_img *) backdrop;
     const struct settings_list *setting;
+    /* shorter by this at each end for a track of 1 h / 10 h or more */
+    int16_t inset, inset_long;
+    /* the bar draws its times at this y, -1: none */
+    int16_t times_y;
 };
 
 struct draw_rectangle {

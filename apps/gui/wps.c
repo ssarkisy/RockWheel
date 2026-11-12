@@ -565,17 +565,19 @@ static void wps_lcd_activation_hook(unsigned short id, void *param)
 /* The scrubber and rating views fall back to the normal view after this
    long without use, as on a stock iPod */
 #define WPS_MODE_TIMEOUT (5*HZ)
-/* A scrub is applied, and a speed heard, once the wheel has been still for
-   this long */
+/* A scrub is applied once the wheel has been still for this long */
 #define SCRUB_SEEK_DELAY (HZ/3)
 
 static long mode_last_used;
 static long scrub_last_turn;
 static bool scrub_pending = false;
 #ifdef HAVE_PITCHCONTROL
-static long speed_last_turn;
-/* the kind whose speed the wheel has set and the music hasn't yet, or 0 */
-static int speed_pending;
+/* The speed the wheel is on in the speed view, its place among the kind's, or
+   -1: set, heard and saved as the view is left by Select, by its timeout or
+   with Now Playing, not as the wheel turns, which has the track decoded
+   again from where it is at each change. */
+static int speed_choice = -1;
+static int speed_choice_kind;
 #endif
 /* the wheel scrubbed in this scrubber view, or changed the rating in this
    rating view */
@@ -625,8 +627,9 @@ static struct viewport *speed_viewport(void)
 #define SPEED_ROW_GAP 1 /* between "Speed" and the row */
 #define SPEED_BAR_PAD 3 /* of a speed's place left clear either side of the bar */
 
-/* "Speed" over the speeds of the track's kind in a row, the one set on the selection's
-   bar (the text's colour in the cover's colours); left to right in any language. */
+/* "Speed" over the speeds of the track's kind in a row, the one the wheel is on, or
+   the one set, on the selection's bar (the text's colour in the cover's colours); left
+   to right in any language. */
 static void draw_speed(void)
 {
     struct screen *display = &screens[SCREEN_MAIN];
@@ -635,7 +638,8 @@ static void draw_speed(void)
     const int count = speech_speed_count(kind);
     if (!vp || !count)
         return;
-    const int chosen = *speech_speed_setting(kind);
+    const int chosen = speed_choice >= 0 && speed_choice_kind == kind ?
+                       speed_choice : *speech_speed_setting(kind);
     struct viewport *last_vp = display->set_viewport_ex(vp,
                                                         VP_FLAG_VP_SET_CLEAN);
     const unsigned fg = display->get_foreground();
@@ -691,14 +695,16 @@ static void draw_speed(void)
     display->set_viewport_ex(last_vp, VP_FLAG_VP_SET_CLEAN);
 }
 
-/* the speed the wheel set, heard and saved */
+/* the speed the wheel chose: set, heard and saved, if it's another */
 static void speed_apply(void)
 {
-    const int kind = speed_pending;
-    if (!kind)
+    const int choice = speed_choice;
+    int *speed = choice >= 0 ? speech_speed_setting(speed_choice_kind) : NULL;
+    speed_choice = -1;
+    if (!speed || *speed == choice)
         return;
-    speed_pending = 0;
-    audio_speech_speed_changed(kind);
+    *speed = choice;
+    audio_speech_speed_changed(speed_choice_kind);
     settings_save();
 }
 #endif /* HAVE_PITCHCONTROL */
@@ -821,6 +827,12 @@ static void follow_track_change(void)
     mode_track_changed = false;
     scrub_pending = false;
     state->ff_rewind_count = 0;
+#ifdef HAVE_PITCHCONTROL
+    /* a speed chosen and not yet set goes with a track of another kind; one of
+       the same kind has it as the view closes */
+    if (track_kind(state->id3) != speed_choice_kind)
+        speed_choice = -1;
+#endif
     if (state->display_mode == WPS_MODE_SCRUB
         || state->display_mode == WPS_MODE_RATING
         || state->display_mode == WPS_MODE_SPEED)
@@ -930,20 +942,20 @@ static void display_mode_turn(int direction)
 #ifdef HAVE_PITCHCONTROL
     else if (state->display_mode == WPS_MODE_SPEED)
     {
-        /* a speed a wheel step, shown at once and heard when the wheel
-           rests: each change has the track decoded again from where it is */
+        /* a speed a wheel step: chosen, and set as the view is left */
         const int kind = track_kind(id3);
-        int *speed = speech_speed_setting(kind);
+        const int *speed = speech_speed_setting(kind);
         if (!speed)
             return;
-        const int value = MAX(0, MIN(*speed + direction * wheel_steps(),
+        const int from = speed_choice >= 0 && speed_choice_kind == kind ?
+                         speed_choice : *speed;
+        const int value = MAX(0, MIN(from + direction * wheel_steps(),
                                      speech_speed_count(kind) - 1));
         mode_moved = true;
-        if (value != *speed)
+        if (value != from)
         {
-            *speed = value;
-            speed_pending = kind;
-            speed_last_turn = current_tick;
+            speed_choice = value;
+            speed_choice_kind = kind;
             draw_speed();
         }
     }
@@ -1018,10 +1030,6 @@ static void display_mode_tick(void)
     }
     if (scrub_pending && TIME_AFTER(current_tick, scrub_last_turn + SCRUB_SEEK_DELAY))
         scrub_apply();
-#ifdef HAVE_PITCHCONTROL
-    if (speed_pending && TIME_AFTER(current_tick, speed_last_turn + SCRUB_SEEK_DELAY))
-        speed_apply();
-#endif
     if ((state->display_mode == WPS_MODE_SCRUB
          || state->display_mode == WPS_MODE_RATING
          || state->display_mode == WPS_MODE_SPEED)

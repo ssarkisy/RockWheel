@@ -788,6 +788,24 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         flags |= BORDER_NOFILL;
     }
 
+    const bool track_bar = pb->type == SKIN_TOKEN_PROGRESSBAR && (flags&HORIZONTAL)
+                           && display->screen_type == SCREEN_MAIN;
+    const int inset = !track_bar || !id3 ? 0
+                      : id3->length >= 10 * 3600 * 1000 ? pb->inset_long
+                      : id3->length >= 3600 * 1000 ? pb->inset : 0;
+    const struct gui_img *knob = SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->slider);
+    const int knob_half = knob && pb->slider_centre ? knob->bm.width / 2 : 0;
+    x += inset;
+    width -= 2 * inset;
+    if (track_bar && pb->times_y >= 0)
+    {
+        /* the times' places, clear of the knob's */
+        const int times_h = font_get(vp->font)->height;
+        screen_clear_area(display, 0, pb->times_y, x - knob_half, times_h);
+        screen_clear_area(display, x + width + knob_half, pb->times_y,
+                          vp->width - (x + width + knob_half), times_h);
+    }
+
     if (SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->slider))
     {
         struct gui_img *img = SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->slider);
@@ -818,10 +836,35 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         }
     }
 
+#if LCD_DEPTH >= 16
+    if (inset > 0)
+    {
+        /* The ends of the place as the screen is beside it: from the backdrop,
+           whole patterns of its dither away (16 px), which has the empty bar
+           here. Without one the clears above and the bar's own leave them
+           plain. */
+        const fb_data *backdrop = lcd_get_backdrop();
+        const int away = (inset + 15) & ~15;
+        const int top = vp->y + y, left = vp->x + pb->x;
+        if (backdrop && left >= away && left + pb->width + away <= LCD_WIDTH)
+        {
+            display->bitmap_part(backdrop, left - away, top,
+                                 STRIDE(SCREEN_MAIN, LCD_WIDTH, LCD_HEIGHT),
+                                 pb->x, y, inset, height);
+            display->bitmap_part(backdrop, left + pb->width - inset + away, top,
+                                 STRIDE(SCREEN_MAIN, LCD_WIDTH, LCD_HEIGHT),
+                                 pb->x + pb->width - inset, y, inset, height);
+        }
+    }
+#endif
+
     if (SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->backdrop))
     {
         struct gui_img *img = SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->backdrop);
         img->bm.data = core_get_data(img->buflib_handle);
+        /* a shorter bar's track: the image's two ends, each half of the bar */
+        const int first = inset > 0 ? width / 2 : pb->width;
+        const int second = inset > 0 ? width - first : 0;
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
         /* the iOS look's track, of its own shade with the cover's colours: the
            theme's tinted went with the background */
@@ -833,11 +876,19 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         {
             struct bitmap flat = img->bm;
             flat.data = track;
-            display->bmp_part(&flat, 0, 0, x, y, pb->width, height);
+            display->bmp_part(&flat, 0, 0, x, y, first, height);
+            if (second > 0)
+                display->bmp_part(&flat, flat.width - second, 0, x + first, y,
+                                  second, height);
         }
         else
 #endif
-        draw_bmp_part(gwps, &img->bm, 0, 0, x, y, pb->width, height);
+        {
+            draw_bmp_part(gwps, &img->bm, 0, 0, x, y, first, height);
+            if (second > 0)
+                draw_bmp_part(gwps, &img->bm, img->bm.width - second, 0,
+                              x + first, y, second, height);
+        }
         flags |= DONT_CLEAR_EXCESS;
     }
 
@@ -949,6 +1000,30 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         else
             draw_bmp_part(gwps, &img->bm, 0, 0, x + xoff, y + yoff, w, h);
         drawing_knob = false;
+    }
+
+    if (track_bar && pb->times_y >= 0 && id3)
+    {
+        /* as the skin's %pc and -%pr; left to right in any language */
+        const unsigned long played = id3->elapsed + state->ff_rewind_count;
+        const unsigned fg = display->get_foreground();
+        const unsigned vp_flags = vp->flags;
+        char text[16];
+        int w;
+        vp->flags &= ~VP_FLAG_ALIGNMENT_MASK;
+        display->set_foreground(vp->fg_pattern);
+        display->set_drawmode(DRMODE_FG);
+        format_time(text, sizeof(text), played);
+        display->getstringsize(text, &w, NULL);
+        display->putsxy((x - w) / 2, pb->times_y, text);
+        text[0] = '-';
+        format_time(text + 1, sizeof(text) - 1, id3->length - played);
+        display->getstringsize(text, &w, NULL);
+        display->putsxy(x + width + (vp->width - x - width - w) / 2,
+                        pb->times_y, text);
+        display->set_drawmode(DRMODE_SOLID);
+        display->set_foreground(fg);
+        vp->flags = vp_flags;
     }
 
     if (pb->type == SKIN_TOKEN_PROGRESSBAR)

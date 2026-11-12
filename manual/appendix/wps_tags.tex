@@ -829,6 +829,17 @@ display cycling round the defined sublines. See
     pixels (default 1). With a fill image the held peak is drawn from that
     part of the image, so for a bar drawn as LED segments set it to the size
     of one segment.
+  \item[times] -- for the track's progress bar (\config{\%pb}): the bar
+    draws the two times itself, in its viewport's font and colour: the time
+    played in the middle of the room before the bar and the time left
+    (``-1:23'') in the middle of the room after it. The next param is their
+    y in the viewport. Give the bar a viewport as wide as the row.
+  \item[inset] -- for the track's progress bar (\config{\%pb}), with
+    ``times'' or without: the next two params are how many pixels shorter
+    the bar is at each end for a track of an hour or more, and for one of
+    ten hours or more, to make room for times with hours. The empty bar
+    under it, the backdrop's or the ``backdrop'' image's, is drawn as much
+    shorter.
     \opt{touchscreen}{
         \item[notouch] -- don't create the touchregion for progress/volume bars.
         \item[touchlabel] -- the next option sets the label of the bar touch area, for linking with the \%Tl tag.

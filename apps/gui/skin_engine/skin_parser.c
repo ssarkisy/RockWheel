@@ -1064,6 +1064,8 @@ static int parse_progressbar_tag(struct skin_element* element,
     pb->setting = NULL;
     pb->invert_fill_direction = false;
     pb->horizontal = true;
+    pb->inset = pb->inset_long = 0;
+    pb->times_y = -1;
 
     if (element->params_count == 0)
     {
@@ -1143,7 +1145,7 @@ static int parse_progressbar_tag(struct skin_element* element,
     {
         eINVERT = 0, eNOFILL, eNOBORDER, eNOBAR, eSLIDER, eIMAGE,
         eBACKDROP, eVERTICAL, eHORIZONTAL, eNOTOUCH, eSETTING, eSETTING_OFFSET,
-        eHOLD, eSLIDERCENTRE, e_PB_TAG_COUNT
+        eHOLD, eSLIDERCENTRE, eINSET, eTIMES, e_PB_TAG_COUNT
     };
 
     static const char *pb_options[e_PB_TAG_COUNT + 1] = {[eINVERT] = "invert",
@@ -1152,7 +1154,8 @@ static int parse_progressbar_tag(struct skin_element* element,
                  [eVERTICAL] = "vertical", [eHORIZONTAL] = "horizontal",
                  [eNOTOUCH] = "notouch", [eSETTING] = "setting",
                  [eSETTING_OFFSET] = "soffset", [eHOLD] = "hold",
-                 [eSLIDERCENTRE] = "slidercentre",
+                 [eSLIDERCENTRE] = "slidercentre", [eINSET] = "inset",
+                 [eTIMES] = "times",
                  [e_PB_TAG_COUNT] = NULL};
     int pb_op;
 
@@ -1173,6 +1176,35 @@ static int parse_progressbar_tag(struct skin_element* element,
             pb->nobar = true;
         else if (pb_op == eSLIDERCENTRE)
             pb->slider_centre = true;
+        else if (pb_op == eINSET || pb_op == eTIMES)
+        {
+            /* the two insets, or the times' y */
+            for (int n = pb_op == eINSET ? 2 : 1; n > 0; n--)
+            {
+                if (curr_param+1 >= element->params_count)
+                    return -1;
+                curr_param++;
+                param++;
+                int number = -1;
+                if (param->type == INTEGER)
+                    number = param->data.number;
+                else if (param->type == STRING)
+                {
+                    text = SKINOFFSETTOPTR(skin_buffer, param->data.text);
+                    if (isdigit(*text))
+                        number = atoi(text);
+                }
+                if (number < 0 || number >= (pb_op == eINSET ? pb->width / 2
+                                                             : vp->height))
+                    return WPS_ERROR_INVALID_PARAM;
+                if (pb_op == eTIMES)
+                    pb->times_y = number;
+                else if (n == 2)
+                    pb->inset = number;
+                else
+                    pb->inset_long = number;
+            }
+        }
         else if (pb_op == eHOLD)
         {
             pb->hold = true;
