@@ -360,6 +360,17 @@ static void gui_list_put_selection_on_screen(struct gui_synclist * gui_list,
     {
         new_start_item = gui_list->selected_item + scroll_limit_down - nb_lines;
     }
+    /* On the first row the cursor can be on, the top if that row shows from
+       there: what is above it whole. The rule for a list moved up looks one
+       row over the selection, and an album's header is three rows: where
+       the list had moved down by fewer rows than the header has, less one,
+       as it does when the selection goes just past the screen's end and
+       back, or in a list a row longer than the screen, the start stayed
+       there and the header was cut */
+    if (!gui_list->scroll_paginated && gui_list->selected_size < nb_lines
+        && gui_list->selected_item + scroll_limit_down <= nb_lines
+        && gui_list_groups_above(gui_list, gui_list->selected_item))
+        new_start_item = 0;
     if (new_start_item < 0)
         gui_list->start_item[screen] = 0;
     else if (new_start_item > bottom)
