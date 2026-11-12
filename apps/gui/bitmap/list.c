@@ -198,10 +198,27 @@ static bool draw_title(struct screen *display,
     return true;
 }
 
+/* The lists' lighter fonts, which no skin names: loaded after the skins',
+   music stopped, and kept for good as Quick Scroll's letter is. Now Playing
+   and the album's header are bold, in the skins' fonts */
+#define HINT_FONT    FONT_DIR "/18-Inter-SemiBold.fnt"
+#define LEAD_FONT    FONT_DIR "/17-Inter-SemiBold.fnt"
+#define VALUE_FONT   FONT_DIR "/17-Inter-Medium.fnt"
+#define SUBLINE_FONT FONT_DIR "/14-Inter-SemiBold.fnt" /* the status bar's too */
+
+void list_load_fonts(void)
+{
+    static const char *const fonts[] = { HINT_FONT, LEAD_FONT, VALUE_FONT };
+    for (size_t i = 0; i < ARRAYLEN(fonts); i++)
+    {
+        if (font_find(fonts[i]) < 0)
+            font_load_ex(fonts[i], 0, global_settings.glyphs_to_cache);
+    }
+}
+
 /* The band of hints under a list of settings: the hint of the row selected,
-   in three lines at most of a font of Now Playing, which its skin keeps loaded
-   from boot, found by its path rather than loaded for it. 14 px in two lines
-   was too small to read at a glance, and 17 px hardly larger. */
+   in three lines at most. 14 px in two lines was too small to read at a
+   glance, and 17 px hardly larger. */
 #define HINT_X      6
 #define HINT_TOP    6
 #define HINT_PITCH  21
@@ -210,52 +227,32 @@ static bool draw_title(struct screen *display,
 
 static int hint_font(void)
 {
-    int font = font_find(FONT_DIR "/18-Inter-SemiBold.fnt");
-    if (font < 0)
-        font = font_find(FONT_DIR "/18-Inter-Bold.fnt"); /* with Bold Text */
-    return font; /* -1, as for a moment as the theme loads: the band empty */
+    return font_find(HINT_FONT); /* -1 without its file: the band empty */
 }
 
-/* Albums' years and songs' numbers, lighter than the names they're before:
-   in the font of Now Playing's song, which its skin keeps loaded from boot.
-   In the list's own as the theme loads, or with a theme without it. */
+/* Albums' years and songs' numbers, lighter than the names they're before.
+   In the list's own without its file. */
 static int list_lead_font(int list_font)
 {
-    int font = font_find(FONT_DIR "/17-Inter-SemiBold.fnt");
-    if (font < 0)
-        font = font_find(FONT_DIR "/17-Inter-Bold.fnt"); /* with Bold Text */
+    const int font = font_find(LEAD_FONT);
     return font < 0 ? list_font : font;
 }
 
-/* Songs' lengths at the right of an album's rows, in the font of Now
-   Playing's artist: lighter than the numbers before the names, whose column
-   is narrow. Bold with Bold Text, as the theme has it then. In the list's own
-   as the theme loads, or with a theme without them. */
+/* Songs' lengths at the right of an album's rows: lighter than the numbers
+   before the names, whose column is narrow. In the list's own without its
+   file. */
 static int list_value_font(int list_font)
 {
-    static const char *const fonts[2] = {
-        FONT_DIR "/17-Inter-Medium.fnt", FONT_DIR "/17-Inter-Bold.fnt"
-    };
-    const int first = global_settings.bold_text ? 1 : 0;
-    int font = font_find(fonts[first]);
-    if (font < 0)
-        font = font_find(fonts[!first]);
+    const int font = font_find(VALUE_FONT);
     return font < 0 ? list_font : font;
 }
 
-/* The second line of a row of two, as an album's year and artist, in the font
-   of Now Playing's year: smaller and lighter than the name over it. Bold with
-   Bold Text, as the theme has it then. In the list's own as the theme loads,
-   or with a theme without them. */
+/* The second line of a row of two, as an album's year and artist: smaller
+   and lighter than the name over it. In the list's own as the theme loads,
+   or with a theme without it. */
 int list_subline_font(int list_font)
 {
-    static const char *const fonts[2] = {
-        FONT_DIR "/14-Inter-SemiBold.fnt", FONT_DIR "/14-Inter-Bold.fnt"
-    };
-    const int first = global_settings.bold_text ? 1 : 0;
-    int font = font_find(fonts[first]);
-    if (font < 0)
-        font = font_find(fonts[!first]);
+    const int font = font_find(SUBLINE_FONT);
     return font < 0 ? list_font : font;
 }
 

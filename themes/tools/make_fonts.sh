@@ -47,11 +47,11 @@ font() {
 # menus and titles: 5 more pixels of line height, 2 of them above the text
 # so that it sits in the middle of the selection bar
 font 24-Inter-Bold.fnt     Inter-Bold.ttf     18 -r 3 -Ta-2
-font 18-Inter-SemiBold.fnt Inter-SemiBold.ttf 17    # iClassic lyrics, hints
-font 17-Inter-SemiBold.fnt Inter-SemiBold.ttf 15    # iClassic track info
-font 17-Inter-Medium.fnt   Inter-Medium.ttf   15    # iClassic album
-font 18-Inter-Bold.fnt     Inter-Bold.ttf     17    # the lyrics, hints, Bold Text
-font 17-Inter-Bold.fnt     Inter-Bold.ttf     15    # track info, Bold Text
+font 18-Inter-SemiBold.fnt Inter-SemiBold.ttf 17    # the hint band under settings
+font 17-Inter-SemiBold.fnt Inter-SemiBold.ttf 15    # lists' years and track numbers
+font 17-Inter-Medium.fnt   Inter-Medium.ttf   15    # lists' durations
+font 18-Inter-Bold.fnt     Inter-Bold.ttf     17    # iClassic lyrics
+font 17-Inter-Bold.fnt     Inter-Bold.ttf     15    # iClassic track info, album header
 font 14-Inter-SemiBold.fnt Inter-SemiBold.ttf 13    # small text, lyrics
 font 14-Inter-Bold.fnt     Inter-Bold.ttf     13    # iClassic screen titles
 font 12-Inter-SemiBold.fnt Inter-SemiBold.ttf 11    # iClassic bitrate

@@ -37,7 +37,6 @@
 #include "gui/skin_engine/skin_engine.h"
 #include "gui/skin_engine/cover_palette.h"
 #include "night_mode.h"
-#include "gui/lyrics.h"
 
 /* What the mode has changed, and so what it has the old value of */
 #define NIGHT_CHANGED_DARK   0x01
@@ -350,19 +349,6 @@ void dark_theme_changed(bool dark)
     (void)dark;
     if (settings_loaded)
         apply_theme();
-}
-
-void bold_text_changed(bool bold)
-{
-    (void)bold;
-    if (!settings_loaded)
-        return;
-    /* as the dark theme comes: the music goes on, and the fonts the skins
-       still use stay */
-    splash(0, ID2P(LANG_THEME_APPLYING));
-    skin_reload_while_playing();
-    lyrics_forget(); /* wrapped again in the new font, of the same height */
-    theme_changed = true;
 }
 
 void night_mode_changed(bool on)

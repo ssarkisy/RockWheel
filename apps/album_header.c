@@ -164,29 +164,18 @@ extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int width, int height);
 #endif
 
-/* A font of the theme's, which its skins keep loaded from boot, found by its
-   file: the bold one with Bold Text, as the theme has it then. The list's
-   with a theme without either */
-static int theme_font(const char *regular, const char *bold, int list_font)
-{
-    const bool heavier = global_settings.bold_text;
-    int font = font_find(heavier ? bold : regular);
-    if (font < 0)
-        font = font_find(heavier ? regular : bold);
-    return font < 0 ? list_font : font;
-}
-
-/* the album artist's, as Now Playing's artist, and the year's, as its time */
+/* Now Playing's bold fonts, which its skin keeps loaded from boot, found by
+   their files. The list's with a theme without them */
 static int artist_font(int list_font)
 {
-    return theme_font(FONT_DIR "/17-Inter-Medium.fnt", FONT_DIR "/17-Inter-Bold.fnt",
-                      list_font);
+    const int font = font_find(FONT_DIR "/17-Inter-Bold.fnt");
+    return font < 0 ? list_font : font;
 }
 
 static int counts_font(int list_font)
 {
-    return theme_font(FONT_DIR "/14-Inter-SemiBold.fnt", FONT_DIR "/14-Inter-Bold.fnt",
-                      list_font);
+    const int font = font_find(FONT_DIR "/14-Inter-Bold.fnt");
+    return font < 0 ? list_font : font;
 }
 
 /* where the texts go, from the header's top, by their fonts: the name's line

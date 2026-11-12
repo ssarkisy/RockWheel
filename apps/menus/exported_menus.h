@@ -71,7 +71,7 @@ extern const struct menu_item_ex
         cover_colours_item, status_icons_item, angled_cover_item,
 #endif
         codepage_setting,
-        dark_theme_item, bold_text_item, appearance_menu,
+        dark_theme_item, appearance_menu,
         night_menu, night_row,                      /* display_menu.c   */
         battery_capacity, ipod_keyclick_menu,       /* settings_menu.c  */
         sleep_timer_item, language_item, wps_menu_items, wps_menu_row,

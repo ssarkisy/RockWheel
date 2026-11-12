@@ -241,7 +241,7 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_DISABLE_THEME,         "wd", "", 0|NOBREAK),
     TAG(SKIN_TOKEN_DRAW_INBUILTBAR,       "wi", "", SKIN_REFRESH_STATIC|NOBREAK),
 
-    TAG(SKIN_TOKEN_LOAD_FONT,             "Fl" , "IF|iF", 0|NOBREAK),
+    TAG(SKIN_TOKEN_LOAD_FONT,             "Fl" , "IF|I", 0|NOBREAK),
     /* the cover of the %Cl before it with its reflection under it, and angled
        if the setting says, as Now Playing on a stock iPod has it */
     TAG(SKIN_TOKEN_ALBUMART_REFLECT,      "Cr" , "", 0|NOBREAK),

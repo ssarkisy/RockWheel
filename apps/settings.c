@@ -475,7 +475,6 @@ bool settings_load_config(const char* file, bool apply)
         return false;
 
     const bool old_dark = global_settings.dark_theme;
-    const bool old_bold = global_settings.bold_text;
     if (apply)
         night_mode_settings_loading();
 
@@ -511,8 +510,7 @@ bool settings_load_config(const char* file, bool apply)
         night_mode_boot();
         settings_save();
         settings_apply(true);
-        if (theme_changed || global_settings.dark_theme != old_dark
-            || global_settings.bold_text != old_bold)
+        if (theme_changed || global_settings.dark_theme != old_dark)
         {
             settings_apply_skins();
             lyrics_forget(); /* wrapped again in the theme's fonts */

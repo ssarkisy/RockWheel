@@ -162,7 +162,6 @@ static const struct {
     { &global_settings.podcast_speed, LANG_HINT_PODCAST_SPEED },
     { &global_settings.audiobook_speed, LANG_HINT_AUDIOBOOK_SPEED },
 #endif
-    { &global_settings.bold_text, LANG_HINT_BOLD_TEXT },
 #ifdef HAVE_TAGCACHE
     { &global_settings.album_artists, LANG_HINT_ARTISTS_IN_ALBUMS },
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)

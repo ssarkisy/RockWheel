@@ -231,7 +231,10 @@ static void skins_reload(bool stop_audio)
        fonts' places; its memory taken with the music stopped: at boot, or at
        a change of theme if it isn't loaded yet */
     if (stop_audio)
+    {
+        list_load_fonts();
         list_load_initial_font();
+    }
 
     /* any backdrop that was loaded with "-" has to be reloaded because
      * the setting may have changed, which it hasn't for skins swapped while playing:

@@ -1060,7 +1060,7 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
 
     if ( fonts_held )
     {
-        /* skins coming with other fonts, as for Bold Text: one held for the
+        /* skins coming with other fonts: one held for the
            skins before that none has taken again makes way first, its memory
            with it, rather than the new one taking more, which the audio
            buffer gave, stopping the music; and rather than failing with

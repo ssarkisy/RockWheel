@@ -48,7 +48,7 @@ enum {
     FONT_SYSFIXED = -1, /* system fixed pitch font*/
     FONT_FIRSTUSERFONT = 0, /* first id for the user fonts */
 };
-/* 16: the theme's 7, the fallback, one's own Hangul's three and the
+/* 16: the theme's 9, the fallback, one's own Hangul's three and the
    quick-scroll letter, with room to spare. A place costs a few bytes; it's the
    fonts loaded that take memory */
 #define MAXUSERFONTS 16

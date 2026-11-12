@@ -221,7 +221,6 @@ MENUITEM_SETTING(progress_bar_style_item, &global_settings.progress_bar_style, N
 #endif
 
 MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);
-MENUITEM_SETTING_SHARED(bold_text_item, &global_settings.bold_text, NULL);
 #ifdef HAVE_TAGCACHE
 /* the look of Music's lists of albums */
 MENUITEM_SETTING(album_artists_item, &global_settings.album_artists, NULL);
@@ -263,7 +262,7 @@ MENUITEM_SETTING(moving_cover_item, &global_settings.moving_cover,
    it first, then Music's lists', then Now Playing's, then the iPod's or iOS's
    look of its parts */
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
-          &dark_theme_item, &bold_text_item,
+          &dark_theme_item,
 #ifdef HAVE_TAGCACHE
           &album_artists_item,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)

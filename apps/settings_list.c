@@ -1659,7 +1659,6 @@ const struct settings_list settings[] = {
                 NULL, NULL, backlight_set_brightness),
 #endif
     OFFON_SETTING(0, dark_theme, LANG_DARK_THEME, false, "dark theme", dark_theme_changed),
-    OFFON_SETTING(0, bold_text, LANG_BOLD_TEXT, false, "bold text", bold_text_changed),
     OFFON_SETTING(0, night_mode, LANG_NIGHT_MODE, false, "night mode", night_mode_changed),
     OFFON_SETTING(0, night_dark, LANG_DARK_THEME, true, "night dark theme",
                   night_action_changed),

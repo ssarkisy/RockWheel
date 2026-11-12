@@ -19150,13 +19150,13 @@
 </phrase>
 <phrase>
   id: LANG_BOLD_TEXT
-  desc: in the settings, under Display: whether Now Playing shows its text in bold, as Bold Text in iOS's Accessibility
+  desc: deprecated
   user: core
   <source>
-    *: "Bold Text"
+    *: ""
   </source>
   <dest>
-    *: "Kalın Metin"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -19500,13 +19500,13 @@
 </phrase>
 <phrase>
   id: LANG_HINT_BOLD_TEXT
-  desc: the hint in the band under Settings > Appearance while Bold Text is selected, in three lines at most: what the user gets from it
+  desc: deprecated
   user: core
   <source>
-    *: "Song details on Now Playing in bold, easier to read at a glance."
+    *: ""
   </source>
   <dest>
-    *: "Şimdi Çalınan’daki şarkı bilgileri kalın, bir bakışta daha kolay okunur."
+    *: ""
   </dest>
   <voice>
     *: ""
