@@ -17774,6 +17774,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_RECENTLY_ADDED
+  desc: Database menu
+  user: core
+  <source>
+    *: "Recently Added"
+  </source>
+  <dest>
+    *: "最近追加した項目"
+  </dest>
+  <voice>
+    *: "最近追加した項目"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_GO_TO_ARTIST
   desc: in the menu over Now Playing, goes to the artist of the track playing in the Music lists
   user: core

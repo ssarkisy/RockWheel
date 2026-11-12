@@ -2779,6 +2779,8 @@ const struct settings_list settings[] = {
                   "music menu composers", tagtree_music_menu_changed),
     OFFON_SETTING(0, music_menu_show[9], LANG_AUDIOBOOKS, true,
                   "music menu audiobooks", tagtree_music_menu_changed),
+    OFFON_SETTING(0, music_menu_recently_added, LANG_RECENTLY_ADDED, true,
+                  "music menu recently added", tagtree_music_menu_changed),
     /* Music > Albums' first row, Sort By, and nowhere in Settings */
     CHOICE_SETTING(0, albums_sort, LANG_SORT_BY, 0, "albums sort", "year,name",
                    NULL, 2, ID2P(LANG_SORT_YEAR), ID2P(LANG_SORT_NAME)),

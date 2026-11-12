@@ -82,6 +82,12 @@ int32_t album_years_first_track(int no);
 int album_years_count(void);
 uint32_t album_years_hash(void);
 
+/* The 50 albums added last, by the latest tag_dateadded of their songs that
+   aren't a podcast's or a book's, the newest first; those of one second by
+   album artist, then date, then name. How many, and the i-th one's number. */
+int album_years_recent_count(void);
+int album_years_recent(int i);
+
 /* The dates and years of a list's rows of albums among some songs only, as
    an artist's: a row's is the latest, by date_after(), of the albums its
    songs are on. Begun before the rows' search, which tells

@@ -58,6 +58,14 @@ struct row {
 #define ROW_PLACES 512
 #define ROWS_MOST  (ROW_PLACES / 4 * 3)
 static int rows_used;
+/* The albums added last, by their numbers, the newest first: picked while
+   they're counted, as an album's latest tag_dateadded isn't kept after */
+#define RECENT_MOST 50
+struct recent {
+    int32_t added, albumartist, order, album;
+};
+static int32_t recent_no[RECENT_MOST];
+static int recent_count;
 static int made_commitid = -1;
 static unsigned generation;
 /* of the albums' seeks as numbered, for what's kept by their numbers to
@@ -109,6 +117,7 @@ static bool date_after(int32_t date, int32_t had)
    of places, an album in each place used */
 struct counting {
     struct album *table;
+    int32_t *added;     /* of each place's album, the latest; 0 for none */
     unsigned mask;
     int used, most;
     bool full;
@@ -120,9 +129,16 @@ static unsigned place_of(int32_t album, int32_t albumartist, unsigned mask)
     return (h ^ (h >> 15)) & mask;
 }
 
-/* a song: its album's date, as date_after() has it so far. With the
-   database's memory held still, as it goes through its songs: nothing waits
-   here */
+/* not a podcast's episode nor a book's part, by the kind Podcasts and
+   Audiobooks list by; music without the kinds in memory */
+static bool is_music(int idx_id)
+{
+    return tagcache_track_kind(idx_id) == 0;
+}
+
+/* a song: its album's date, as date_after() has it so far, and when it was
+   added, if after the album's songs so far. With the database's memory held
+   still, as it goes through its songs: nothing waits here */
 static void count_song(int idx_id, const int32_t *tag_seek, void *data)
 {
     struct counting *c = data;
@@ -140,6 +156,8 @@ static void count_song(int idx_id, const int32_t *tag_seek, void *data)
         {
             if (date_after(date, a->date))
                 a->date = date;
+            if (tag_seek[tag_dateadded] > c->added[i] && is_music(idx_id))
+                c->added[i] = tag_seek[tag_dateadded];
             return;
         }
         i = (i + 1) & c->mask;
@@ -151,8 +169,55 @@ static void count_song(int idx_id, const int32_t *tag_seek, void *data)
         return;
     }
     c->table[i] = (struct album){ album, albumartist, date, idx_id };
+    c->added[i] = tag_seek[tag_dateadded] > 0 && is_music(idx_id)
+                  ? tag_seek[tag_dateadded] : 0;
     c->used++;
 }
+
+/* newest first; of one second by the album artists' places, then the albums'
+   dates, the oldest first and those without one last, then the names' places */
+static bool recent_before(const struct recent *a, const struct recent *b)
+{
+    if (a->added != b->added)
+        return a->added > b->added;
+    if (a->albumartist != b->albumartist)
+        return a->albumartist < b->albumartist;
+    if (a->order != b->order)
+        return a->order < b->order;
+    return a->album < b->album;
+}
+
+/* the albums counted into list, the RECENT_MOST newest in their order: those
+   with a date added and a name; how many */
+static int recent_pick(const struct counting *c, struct recent *list)
+{
+    int n = 0;
+    for (unsigned i = 0; i <= c->mask; i++)
+    {
+        const struct album *a = &c->table[i];
+        char probe[2];
+        if (a->album == -1 || c->added[i] <= 0)
+            continue;
+        const int32_t order = album_date_order(a->date);
+        const struct recent r = { c->added[i], a->albumartist,
+                                  order ? order : INT32_MAX, a->album };
+        if (n == RECENT_MOST && !recent_before(&r, &list[n - 1]))
+            continue;
+        if (!tagcache_tag_string(tag_album, a->album, probe, sizeof(probe)))
+            continue;
+        int k = n < RECENT_MOST ? n++ : n - 1;
+        for (; k > 0 && recent_before(&r, &list[k - 1]); k--)
+            list[k] = list[k - 1];
+        list[k] = r;
+    }
+    return n;
+}
+
+_Static_assert(RECENT_MOST * sizeof(struct recent)
+               <= ROW_PLACES * sizeof(struct row), "picked in the rows' room");
+
+static int album_in(const struct album *albums, int32_t album,
+                    int32_t albumartist);
 
 static int cmp_album(const void *a, const void *b)
 {
@@ -169,6 +234,7 @@ static bool make(void)
     if (handle > 0)
         handle = core_free(handle);
     count = 0;
+    recent_count = 0;
     made_commitid = -1;
     if (!tagcache_finds_entries())
         return false;
@@ -179,7 +245,9 @@ static bool make(void)
         places *= 2;
     for (;;)
     {
-        handle = core_alloc(places * sizeof(struct album)
+        /* with each place's date added while they're counted, and the
+           newest picked in the rows' room, not yet used */
+        handle = core_alloc(places * (sizeof(struct album) + sizeof(int32_t))
                             + ROW_PLACES * sizeof(struct row));
         if (handle <= 0)
         {
@@ -189,10 +257,13 @@ static bool make(void)
         struct album *table = core_get_data_pinned(handle);
         for (unsigned i = 0; i < places; i++)
             table[i].album = -1;
-        struct counting c = { table, places - 1, 0, places / 4 * 3, false };
+        struct counting c = { table, (int32_t *)(table + places), places - 1,
+                              0, places / 4 * 3, false };
         const bool ok = tagcache_for_each_track(count_song, &c);
         if (ok && !c.full)
         {
+            struct recent *newest = (struct recent *)(c.added + places);
+            const int picked = recent_pick(&c, newest);
             /* together at the start, sorted, and the room after them let go */
             int n = 0;
             for (unsigned i = 0; i < places; i++)
@@ -205,6 +276,11 @@ static bool make(void)
             for (int i = 0; i < n; i++)
                 table_hash = ((table_hash ^ (uint32_t)table[i].album) * 16777619u
                               ^ (uint32_t)table[i].albumartist) * 16777619u;
+            count = n;
+            for (int i = 0; i < picked; i++)
+                recent_no[i] = album_in(table, newest[i].album,
+                                        newest[i].albumartist);
+            recent_count = picked;
             core_put_data_pinned(table);
             if (n > 0)
                 core_shrink(handle, core_get_data(handle), n * sizeof(*table)
@@ -212,7 +288,6 @@ static bool make(void)
             else
                 handle = core_free(handle);
             rows_used = ROWS_MOST; /* none begun */
-            count = n;
             made_commitid = tagcache_get_commitid();
             generation++;
             return true;
@@ -226,7 +301,7 @@ static bool make(void)
 }
 
 /* at full speed: 142 ms for 1688 albums of 13180 songs on an iPod at boot
-   without it */
+   without it, before Recently Added's part of the pass */
 bool album_years_make(void)
 {
     cpu_boost(true);
@@ -383,6 +458,16 @@ uint32_t album_years_hash(void)
     return album_years_ready() ? table_hash : 0;
 }
 
+int album_years_recent_count(void)
+{
+    return album_years_ready() ? recent_count : 0;
+}
+
+int album_years_recent(int i)
+{
+    return i >= 0 && i < album_years_recent_count() ? recent_no[i] : -1;
+}
+
 static struct row *rows_of(const struct album *albums)
 {
     return (struct row *)(albums + count);
@@ -525,5 +610,7 @@ int album_years_name_year_of(int no) { (void)no; return 0; }
 int32_t album_years_first_track(int no) { (void)no; return -1; }
 int album_years_count(void) { return 0; }
 uint32_t album_years_hash(void) { return 0; }
+int album_years_recent_count(void) { return 0; }
+int album_years_recent(int i) { (void)i; return -1; }
 
 #endif /* HAVE_TC_RAMCACHE */

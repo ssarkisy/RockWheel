@@ -14318,6 +14318,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_RECENTLY_ADDED
+  desc: Database menu
+  user: core
+  <source>
+    *: "Recently Added"
+  </source>
+  <dest>
+    *: "Nedavno dodano"
+  </dest>
+  <voice>
+    *: "Nedavno dodano"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_VIEW_ALBUMART
   desc: WPS context menu
   user: core

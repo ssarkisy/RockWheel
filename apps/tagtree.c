@@ -570,7 +570,8 @@ static int extra_history[MAX_DIR_LEVELS];
 
 /* The sections of Music that Settings > Music Menu shows or not, by their
    names in tagnavi.config, in the order of global_settings.music_menu_show.
-   One the file has that isn't here is always shown. */
+   One the file has that isn't here is always shown, but Recently Added, by
+   its own setting. */
 const int tagtree_section_lang[MUSIC_SECTIONS] = {
     LANG_COVER_FLOW, LANG_SEARCH, LANG_PLAYLISTS, LANG_ARTISTS, LANG_ALBUMS,
     LANG_SONGS, LANG_PODCASTS, LANG_GENRES, LANG_COMPOSERS, LANG_AUDIOBOOKS,
@@ -580,9 +581,21 @@ static bool root_all_items;
 /* since the shown ones changed, the rows to go back to are of others */
 static bool root_rows_changed;
 
+/* Recently Added's row, by a setting of its own: only with albums to list,
+   the albums' table made. And as Music's menu last had it, -1 before that:
+   the rows below it move as it comes or goes (tagtree_albums_reordered()) */
+static bool recent_row(void)
+{
+    return global_settings.music_menu_recently_added
+           && album_years_recent_count() > 0;
+}
+static int recent_row_seen = -1;
+
 static bool root_item_shown(const struct menu_entry *item)
 {
     const int lang = P2ID((const unsigned char *)item->name);
+    if (lang == LANG_RECENTLY_ADDED)
+        return recent_row();
     for (int i = 0; i < MUSIC_SECTIONS; i++)
     {
         if (tagtree_section_lang[i] == lang)
@@ -2569,10 +2582,18 @@ static bool list_of_stats(int group, int tag, int level)
     return false;
 }
 
+/* Music > Recently Added, in Albums' form in tagnavi.config: its top is the
+   albums added last, not a search (make_recent()) */
+static bool is_recent(const struct search_instruction *si)
+{
+    return section_is(si, LANG_RECENTLY_ADDED);
+}
+
 /* Music > Albums: the album tag alone, at the top, as go_to_row() finds it */
 static bool is_albums(const struct search_instruction *si)
 {
-    return si && si->tagorder[0] == tag_album && si->clause_count[0] == 0;
+    return si && si->tagorder[0] == tag_album && si->clause_count[0] == 0
+           && !is_recent(si);
 }
 
 /* the albums' numbers fit in their rows (struct tagentry's album): a table of
@@ -3299,6 +3320,9 @@ static int shuffle_row_kind(struct tree_context *c)
     const int level = c->currextra;
     if (c->currtable != TABLE_NAVIBROWSE || level >= csi->tagorder_count)
         return -1;
+    /* Recently Added's top isn't the whole library */
+    if (level == 0 && is_recent(csi))
+        return -1;
     const int tag = csi->tagorder[level];
     const bool whole = level == 0 && csi->clause_count[0] == 0;
     const int above = level > 0 ? csi->tagorder[level - 1] : -1;
@@ -3627,6 +3651,62 @@ static void add_level_filters(struct tagcache_search *tcs, int level)
     }
 }
 
+/* Music > Recently Added, as Albums' rows, from the table without a search;
+   a name's albums one row without Artists in Albums; in one line the year
+   before the name */
+static int make_recent(struct tree_context *c)
+{
+    const bool numbers = album_numbers_fit();
+    const bool two_lines = numbers && (global_settings.album_artists
+                                       || list_covers_on());
+    const bool split = two_lines && global_settings.album_artists;
+    long used = 0;
+    int n = 0;
+    tree_lock_cache(c);
+    struct tagentry *entries = get_entries(c);
+    char *names = core_get_data(c->cache.name_buffer_handle);
+    for (int i = 0; i < album_years_recent_count() && n < c->cache.max_entries;
+         i++)
+    {
+        const int no = album_years_recent(i);
+        const int32_t seek = album_years_album(no);
+        /* a name's albums in one row: had already, by a newer one */
+        int k = split ? n : 0;
+        while (k < n && entries[k].extraseek != seek)
+            k++;
+        char *name = names + used;
+        const long room = c->cache.name_buffer_size - used;
+        if (no < 0 || k < n || room < TAG_MAXLEN
+            || !tagcache_tag_string(tag_album, seek, name, room))
+            continue;
+        used += strlen(name) + 1;
+        entries[n] = (struct tagentry){
+            .name = name, .newtable = TABLE_NAVIBROWSE, .extraseek = seek,
+            .customaction = ONPLAY_NO_CUSTOMACTION,
+            .album = { .year = split ? album_years_year(no)
+                                     : album_name_year(seek),
+                       .no = numbers ? no : -1 }
+        };
+        if (!two_lines)
+            keep_lead(&entries[n], entries[n].album.year);
+        n++;
+    }
+    tree_unlock_cache(c);
+
+    current_offset = 0;
+    current_entry_count = n;
+    c->special_entry_count = 0;
+    c->dirfull = false;
+    entries_years = !two_lines;
+    entries_two_lines = two_lines;
+    entries_split = split;
+    entries_untagged = -1;
+    entries_initials_tag = tag_album;
+    entries_of_stats = false;
+    entries_whole = true;
+    return n;
+}
+
 static int make_entries(struct tree_context *c, int offset, bool init)
 {
     logf( "%s", __func__);
@@ -3676,6 +3756,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
 
     if (c->currtable == TABLE_ALLSUBENTRIES)
         return make_all_songs(c, c->currextra - 2, init);
+    if (c->currtable == TABLE_NAVIBROWSE && level == 0 && is_recent(csi))
+        return make_recent(c);
 
     if (c->currtable == TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS)
     {
@@ -4422,6 +4504,8 @@ static int load_root(struct tree_context *c)
     /* Music's own menu without the sections turned off in Music Menu: a row
        goes into the item of its extraseek, not of its number */
     const bool all = root_all_items || c->currextra != rootmenu;
+    if (c->currextra == rootmenu)
+        recent_row_seen = recent_row();
     int rows = 0;
     for (i = 0; i < menu->itemcount; i++)
     {
@@ -4968,7 +5052,7 @@ static bool go_to_row(int item_tag, int list_tag, const char *name,
         {
             const struct search_instruction *si = &menu->items[i]->si;
             if (menu->items[i]->type == menu_next && si->tagorder[0] == item_tag
-                && si->clause_count[0] == 0)
+                && si->clause_count[0] == 0 && !is_recent(si))
                 row = i;
         }
     }
@@ -5631,10 +5715,11 @@ void tagtree_to_top(struct tree_context* c)
    gone back to, were of the sections it showed before. Music opens at its
    first row then. */
 /* the rows of Albums in the other order: a place in it, at its first row (-1,
-   as tagtree_load() finds it) */
-static void albums_place_reset(struct tagtree_place *place)
+   as tagtree_load() finds it); or one in Recently Added */
+static void albums_place_reset(struct tagtree_place *place, bool recent)
 {
-    if (!is_albums(place->csi) || place->dirlevel < 1)
+    if (!(recent ? is_recent(place->csi) : is_albums(place->csi))
+        || place->dirlevel < 1)
         return;
     if (place->dirlevel == 1)
         place->selected_item = -1;
@@ -5647,12 +5732,17 @@ static void albums_place_reset(struct tagtree_place *place)
    by its years, which weren't there */
 void tagtree_albums_reordered(void)
 {
+    if (recent_row_seen >= 0 && recent_row_seen != recent_row())
+        tagtree_music_menu_changed(true);
     const int section = section_of(LANG_ALBUMS);
     if (section >= 0)
         section_rows[section] = -1;
-    albums_place_reset(&saved_place);
-    albums_place_reset(&go_to_place);
-    if (is_albums(csi) && max_history_level >= 1)
+    albums_place_reset(&saved_place, false);
+    albums_place_reset(&go_to_place, false);
+    /* and Recently Added, whose rows are the table's too */
+    albums_place_reset(&saved_place, true);
+    albums_place_reset(&go_to_place, true);
+    if ((is_albums(csi) || is_recent(csi)) && max_history_level >= 1)
     {
         selected_item_history[1] = -1;
         max_history_level = 1;
@@ -5747,9 +5837,9 @@ void tagtree_sort_by_switched(struct tree_context *c)
         const int section = section_of(LANG_ALBUMS);
         if (section >= 0)
             section_rows[section] = -1;
-        albums_place_reset(&saved_place);
-        albums_place_reset(&go_to_place);
-        albums_place_reset(&browse_place);
+        albums_place_reset(&saved_place, false);
+        albums_place_reset(&go_to_place, false);
+        albums_place_reset(&browse_place, false);
     }
     settings_save();
 }
@@ -8204,7 +8294,7 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
                              : show_subline(c, entry, buf, size);
     if (entry->newtable == TABLE_PLAYTRACK)
         return song_tag_name(entry->extraseek, entries_initials_tag, buf, size);
-    const bool albums = is_albums(csi) && c->currextra == 0;
+    const bool albums = (is_albums(csi) || is_recent(csi)) && c->currextra == 0;
     return tagtree_album_subline(entry->album.no, entry->album.year,
                                  entries_split || !albums,
                                  albums ? NULL : current_title[c->currextra],
@@ -8249,8 +8339,11 @@ const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
         || row >= c->filesindir)
         return NULL;
     const struct tagentry *entry = tagtree_get_entry(c, row);
+    /* an album without a year at the others' edge in Recently Added, whose
+       dated and undated albums are mixed */
     if (!entry || !entry->lead[0])
-        return !entry || entries_years ? NULL : "";
+        return !entry || (entries_years && !(c->currextra == 0 && is_recent(csi)))
+               ? NULL : "";
     const size_t len = entry->lead[sizeof(entry->lead) - 1] ? sizeof(entry->lead)
                                                              : strlen(entry->lead);
     if (len >= size)

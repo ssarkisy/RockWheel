@@ -1116,6 +1116,8 @@ struct user_settings
 #ifdef HAVE_PITCHCONTROL
     int podcast_speed; /* 0 normal, then by 0.25x */
 #endif
+    /* Settings > Music Menu: Recently Added */
+    bool music_menu_recently_added;
 };
 
 /* global settings */

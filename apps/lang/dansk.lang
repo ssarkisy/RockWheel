@@ -14454,6 +14454,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_RECENTLY_ADDED
+  desc: Database menu
+  user: core
+  <source>
+    *: "Recently Added"
+  </source>
+  <dest>
+    *: "Tilføjet for nylig"
+  </dest>
+  <voice>
+    *: "Tilføjet for nylig"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_VIEW_ALBUMART
   desc: WPS context menu
   user: core

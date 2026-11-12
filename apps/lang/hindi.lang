@@ -1309,6 +1309,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_RECENTLY_ADDED
+  desc: Database menu
+  user: core
+  <source>
+    *: "Recently Added"
+  </source>
+  <dest>
+    *: "हाल ही में जोड़े गए"
+  </dest>
+  <voice>
+    *: "हाल ही में जोड़े गए"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_FLIP_DISPLAY
   desc: in settings_menu, option to turn display+buttos by 180 degrees
   user: core

@@ -17,7 +17,10 @@ BATCH, a .json (see tools/lang_phrase.example.json) or a .tsv, lists phrases:
   have its text, or nothing is written.
   Without "after": a change of an existing phrase, of the fields given: the
   translations listed (a voice equal to the old text follows it), and desc,
-  user, english or voice in every file. No other line moves.
+  user, english or voice in every file. No other line moves. A language
+  listed that lacks the phrase, as an upstream one never translated there,
+  gets it where English has it; not a phrase with targets besides "*", which
+  is refused.
   A translation's voice is "" when English's is "", else its full text.
 A .tsv has one line per field: id<TAB>key<TAB>value, the keys as above, a
 language's short form and voice as <file>.short and <file>.voice; # comments.
@@ -283,8 +286,10 @@ def apply(phrases, files, en, errors):
         else:
             for f in targets:
                 if not f.has(pid):
-                    if f.name in tr or f is en:
+                    if f is en:
                         errors.append('%s.lang has no %s to change' % (f.name, pid))
+                    elif f.name in tr:
+                        complete(f, p, en, errors)
                     continue
                 try:
                     what = change(f, p, en)
@@ -293,6 +298,54 @@ def apply(phrases, files, en, errors):
                     continue
                 if what:
                     f.changed.append('%s (%s)' % (pid, ', '.join(what)))
+
+
+def complete(f, p, en, errors):
+    """a phrase English has and this language lacks, as an upstream one never
+    translated: put where English has it, with English's desc, user and
+    source, or the batch's"""
+    pid = p['id']
+    try:
+        start, end = en.span(pid)
+    except ValueError as e:
+        errors.append(str(e))
+        return
+    head, targets = {}, set()
+    sect = None
+    for n in range(start + 1, end - 1):
+        line = en.lines[n].strip()
+        m = SECTION.match(line)
+        if m:
+            sect = None if m.group(1) else m.group(2)
+            continue
+        m = re.match(r'^([^:]+):\s*(.*)$', line)
+        if m and sect:
+            targets.add(m.group(1).strip())
+        elif m and m.group(1) in ('desc', 'user'):
+            head.setdefault(m.group(1), m.group(2))
+    # one line a section is all block() writes: a phrase of several targets
+    # would lose them
+    if targets != {'*'} or en.get(pid, 'source') == 'none':
+        errors.append('%s has targets besides "*" in english.lang (%s): add it to %s.lang by hand'
+                      % (pid, ', '.join(sorted(targets - {'*'})) or 'none on *', f.name))
+        return
+    order = en.order
+    anchor = next((x for x in reversed(order[:order.index(pid)]) if f.has(x)), None)
+    if anchor is None:
+        errors.append('%s.lang has nothing before %s' % (f.name, pid))
+        return
+    source = quoted(p['english']) if 'english' in p else en.get(pid, 'source')
+    dest = p['translations'][f.name]
+    voiced = p['voice'] if 'voice' in p else unquote(en.get(pid, 'voice') or '')
+    voice = p['voices'].get(f.name, dest if voiced not in ('', 'none') else '')
+    try:
+        f.insert_after(anchor, pid, block(pid, p.get('desc', head.get('desc', '')),
+                                          p.get('user', head.get('user', 'core')),
+                                          source, quoted(dest), quoted(voice)))
+    except ValueError as e:
+        errors.append(str(e))
+        return
+    f.added.append(pid)
 
 
 def change(f, p, en):

@@ -2539,6 +2539,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_RECENTLY_ADDED
+  desc: Database menu
+  user: core
+  <source>
+    *: "Recently Added"
+  </source>
+  <dest>
+    *: "เพิ่มล่าสุด"
+  </dest>
+  <voice>
+    *: "เพิ่มล่าสุด"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_BRIGHTNESS
   desc: in settings_menu
   user: core

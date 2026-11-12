@@ -13135,6 +13135,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_RECENTLY_ADDED
+  desc: Database menu
+  user: core
+  <source>
+    *: "Recently Added"
+  </source>
+  <dest>
+    *: "最近加入"
+  </dest>
+  <voice>
+    *: "最近加入"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_VIEW_ALBUMART
   desc: WPS context menu
   user: core
