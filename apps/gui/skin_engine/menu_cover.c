@@ -1047,6 +1047,27 @@ static bool match_colours(int width, int height, unsigned wanted)
    of one and one of its neighbour, a quarter of a pixel on, or one and
    three, three quarters on; the last column its own. False if it was
    cancelled meanwhile: it yields. */
+#if LCD_PIXELFORMAT == RGB565 && LCD_DEPTH == 16
+/* the three colours at once: apart in a word, with room over each for the
+   sum of four, which mix_pixel() divides and packs */
+#define MIX_APART 0x07e0f81fu
+#define MIX_ROUND 0x00401002u
+static inline uint32_t mix_apart(fb_data pixel)
+{
+    return (pixel | (uint32_t)pixel << 16) & MIX_APART;
+}
+
+static inline fb_data mix_pixel(uint32_t sum)
+{
+    sum = ((sum + MIX_ROUND) >> 2) & MIX_APART;
+    return sum | sum >> 16;
+}
+#else
+static inline uint32_t mix_apart(fb_data pixel)
+{
+    return FB_UNPACK_SCALAR_LCD(pixel);
+}
+
 static fb_data mix31(unsigned a, unsigned b)
 {
     return FB_SCALARPACK_LCD(LCD_RGBPACK_LCD(
@@ -1054,6 +1075,7 @@ static fb_data mix31(unsigned a, unsigned b)
         (3 * RGB_UNPACK_GREEN_LCD(a) + RGB_UNPACK_GREEN_LCD(b) + 2) >> 2,
         (3 * RGB_UNPACK_BLUE_LCD(a) + RGB_UNPACK_BLUE_LCD(b) + 2) >> 2));
 }
+#endif
 
 static bool make_phases(int width, int height, unsigned wanted)
 {
@@ -1062,12 +1084,18 @@ static bool make_phases(int width, int height, unsigned wanted)
         const fb_data *row = sharp.pixels + y * width;
         fb_data *quarter = sharp.phase[0] + y * width;
         fb_data *three = sharp.phase[1] + y * width;
+        uint32_t a = mix_apart(row[0]);
         for (int x = 0; x < width - 1; x++)
         {
-            const unsigned a = FB_UNPACK_SCALAR_LCD(row[x]);
-            const unsigned b = FB_UNPACK_SCALAR_LCD(row[x + 1]);
+            const uint32_t b = mix_apart(row[x + 1]);
+#ifdef MIX_APART
+            quarter[x] = mix_pixel(3 * a + b);
+            three[x] = mix_pixel(a + 3 * b);
+#else
             quarter[x] = mix31(a, b);
             three[x] = mix31(b, a);
+#endif
+            a = b;
         }
         quarter[width - 1] = three[width - 1] = row[width - 1];
         if ((y & 15) == 15 && !reader_yield(wanted))
