@@ -277,6 +277,12 @@ long tagcache_runtime_generation(bool ratings);
 int tagcache_entry_count(void);
 bool tagcache_finds_entries(void);
 long tagcache_find_entry(const char *filename);
+/* A file's album, for an order of albums that an update of the database
+   leaves as it was: a hash of the album's name and its album artist's, not
+   their places in the database. And the song's place in the album, by disc
+   and then track, 16 bits. False for a file that isn't in the database in
+   memory or has no album. */
+bool tagcache_album_key(const char *path, uint32_t *album, unsigned int *order);
 /* what smart playlists go by, of an entry */
 struct tagcache_numbers {
     long length;      /* ms */

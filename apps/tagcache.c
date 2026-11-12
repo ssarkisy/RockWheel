@@ -2790,21 +2790,53 @@ static void fill_date(struct mp3entry *id3, char *buf, long remaining,
 }
 #endif
 
-#if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
+#ifdef HAVE_TC_RAMCACHE
 static struct tagfile_entry *get_tag(const struct index_entry *entry, int tag)
 {
     return (struct tagfile_entry *)&tcramcache.hdr->tags[tag][entry->tag_seek[tag]];
-}
-
-static long get_tag_numeric(const struct index_entry *entry, int tag, int idx_id)
-{
-    return check_virtual_tags(tag, idx_id, entry);
 }
 
 static char* get_tag_string(const struct index_entry *entry, int tag)
 {
     char* s = get_tag(entry, tag)->tag_data;
     return strcmp(s, UNTAGGED) ? s : NULL;
+}
+#endif
+
+bool tagcache_album_key(const char *path, uint32_t *album, unsigned int *order)
+{
+#ifdef HAVE_TC_RAMCACHE
+    const long idx_id = tagcache_find_entry(path);
+    if (idx_id < 0)
+        return false;
+    tcrc_buffer_lock();
+    const struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
+    const char *name = get_tag_string(idx, tag_album);
+    if (name)
+    {
+        /* FNV-1a over the name, its end, and the album artist's */
+        uint32_t hash = 2166136261u;
+        do
+            hash = (hash ^ (unsigned char)*name) * 16777619u;
+        while (*name++);
+        for (name = get_tag(idx, tag_albumartist)->tag_data; *name; name++)
+            hash = (hash ^ (unsigned char)*name) * 16777619u;
+        *album = hash;
+        *order = ((MAX(idx->tag_seek[tag_discnumber], 0) & 63) << 10)
+                 | (MAX(idx->tag_seek[tag_tracknumber], 0) & 1023);
+    }
+    tcrc_buffer_unlock();
+    return name != NULL;
+#else
+    (void)path; (void)album; (void)order;
+    return false;
+#endif
+}
+
+#if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
+static long get_tag_numeric(const struct index_entry *entry, int tag, int idx_id)
+{
+    return check_virtual_tags(tag, idx_id, entry);
 }
 
 /* The rating of a file, from the database in RAM, or 0: it's not in the file */

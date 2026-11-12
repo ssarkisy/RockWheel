@@ -85,6 +85,8 @@ struct playlist_info
     int last_shuffled_start; /* number of tracks when insert last
                                     shuffled command start */
     int  seed;           /* shuffle seed                            */
+    int  shuffled;       /* how it is ordered now: SHUFFLE_OFF, _SONGS,
+                            _ALBUMS, whatever the setting is         */
     unsigned long created_tick;
     struct mutex mutex; /* mutex for control file access    */
 #ifdef HAVE_DIRCACHE
@@ -130,7 +132,10 @@ int playlist_create_from_index(const char *dir, const char *file, int fd,
 int playlist_place_of(const char *dir, const char *file, int count,
                       unsigned long seek);
 int playlist_resume(void);
+/* a new playlist shuffled by the setting, albums or songs; and by songs
+   whatever the setting */
 int playlist_shuffle(int random_seed, int start_index);
+int playlist_shuffle_songs(int random_seed, int start_index);
 /* the list playing put in the order of a Shuffle mode, the track playing
    kept: sorted, its songs shuffled or its albums */
 void playlist_reorder(int mode);
@@ -195,6 +200,8 @@ int playlist_delete(struct playlist_info* playlist, int index);
 int playlist_move(struct playlist_info* playlist, int index, int new_index);
 int playlist_randomise(struct playlist_info* playlist, unsigned int seed,
                        bool start_current);
+int playlist_randomise_albums(struct playlist_info* playlist, unsigned int seed,
+                              bool start_current);
 int playlist_sort(struct playlist_info* playlist, bool start_current);
 bool playlist_modified(const struct playlist_info* playlist);
 void playlist_set_modified(struct playlist_info* playlist, bool modified);

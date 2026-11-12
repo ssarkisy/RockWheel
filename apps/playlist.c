@@ -108,6 +108,7 @@
 #include "plugin.h" /* To borrow a temp buffer to rewrite a .m3u8 file */
 #include "iap-usb.h"
 #include "logdiskf.h"
+#include "tagcache.h"
 #ifdef HAVE_DIRCACHE
 #include "dircache.h"
 #endif
@@ -436,7 +437,8 @@ static int update_control_unlocked(struct playlist_info* playlist,
         result = fdprintf(fd, "D:%d\n", i1);
         break;
     case PLAYLIST_COMMAND_SHUFFLE:
-        result = fdprintf(fd, "S:%d:%d\n", i1, i2);
+        /* s1 "A": by albums. A firmware of before reads it as by songs */
+        result = fdprintf(fd, s1 ? "S:%d:%d:%s\n" : "S:%d:%d\n", i1, i2, s1);
         break;
     case PLAYLIST_COMMAND_UNSHUFFLE:
         result = fdprintf(fd, "U:%d\n", i1);
@@ -490,6 +492,7 @@ static void empty_playlist_unlocked(struct playlist_info* playlist, bool resume)
     playlist->filename[0] = '\0';
 
     playlist->seed = 0;
+    playlist->shuffled = SHUFFLE_OFF;
 
     playlist->utf8 = true;
     playlist->control_created = false;
@@ -1551,6 +1554,9 @@ static void find_and_set_playlist_index_unlocked(struct playlist_info* playlist,
     }
 }
 
+static int sort_playlist_unlocked(struct playlist_info* playlist,
+                                  bool start_current, bool write);
+
 /*
  * randomly rearrange the array of indices for the playlist.  If start_current
  * is true then update the index to the new index of the current playing track
@@ -1563,6 +1569,11 @@ static int randomise_playlist_unlocked(struct playlist_info* playlist,
     int candidate;
     unsigned long current = playlist->indices[playlist->index];
     int need_reseed = 0;
+
+    /* from the list's own order, as Resume shuffles it: a shuffled one
+       shuffled again gave another order than its control file's */
+    if (playlist->shuffled != SHUFFLE_OFF)
+        sort_playlist_unlocked(playlist, false, false);
 
     /* If seed is supplied, use it to ensure repeatability */
     if (seed)
@@ -1600,6 +1611,7 @@ static int randomise_playlist_unlocked(struct playlist_info* playlist,
     playlist->last_insert_pos = -1;
 
     playlist->seed = seed;
+    playlist->shuffled = SHUFFLE_SONGS;
 
     if (write)
     {
@@ -1667,12 +1679,211 @@ static int sort_playlist_unlocked(struct playlist_info* playlist,
 
     /* indices have been moved so last insert position is no longer valid */
     playlist->last_insert_pos = -1;
+    playlist->shuffled = SHUFFLE_OFF;
 
     if (write && playlist->control_fd >= 0)
     {
         playlist->first_index = 0;
         update_control_unlocked(playlist, PLAYLIST_COMMAND_UNSHUFFLE,
             playlist->first_index, -1, NULL, NULL, NULL);
+    }
+
+    return 0;
+}
+
+/* An album shuffle's room: 8 bytes a track for its key, then the paths'
+   buffers and a window on the playlist's file. On the iPod the current
+   playlist's dircache references, reset after: music may be playing, so
+   nothing is allocated. */
+#ifdef HAVE_DIRCACHE
+#define ALBUMS_ROOM_ENTRY sizeof(struct dircache_fileref)
+#else
+#define ALBUMS_ROOM_ENTRY 12
+static int albums_room_handle;
+#endif
+static int indices_handle;
+
+static int albums_room(const struct playlist_info *playlist)
+{
+#ifdef HAVE_DIRCACHE
+    return playlist->dcfrefs_handle;
+#else
+    return playlist == &current_playlist ? albums_room_handle : 0;
+#endif
+}
+
+/* a part of a playlist's file or the control file, read once for the tracks
+   whose lines are in it: sorted, they come in their file's order */
+struct lines_window
+{
+    char *buf;
+    size_t size;
+    int fd;
+    off_t start;
+    ssize_t len;
+    bool to_end; /* the file ends in it */
+};
+
+/* The line of the track at seek, up to max bytes of it, into line: its
+   length, or < 0 */
+static ssize_t window_line(struct lines_window *w, int fd, off_t seek,
+                           char *line, size_t max)
+{
+    if (fd != w->fd || seek < w->start || seek >= w->start + w->len
+        || (!w->to_end && seek + (off_t)max > w->start + w->len))
+    {
+        const off_t start = seek - seek % 512;
+        w->fd = -1;
+        if (lseek(fd, start, SEEK_SET) != start)
+            return -1;
+        w->len = read(fd, w->buf, w->size);
+        if (w->len <= seek - start)
+            return -1;
+        w->fd = fd;
+        w->start = start;
+        w->to_end = (size_t)w->len < w->size;
+    }
+    const char *at = w->buf + (seek - w->start);
+    const size_t have = MIN((size_t)(w->start + w->len - seek), max);
+    size_t len = 0;
+    while (len < have && at[len] != '\n' && at[len] != '\r')
+        len++;
+    memcpy(line, at, len);
+    return len;
+}
+
+static uint32_t mix32(uint32_t h)
+{
+    h ^= h >> 16;
+    h *= 0x85ebca6bu;
+    h ^= h >> 13;
+    h *= 0xc2b2ae35u;
+    return h ^ (h >> 16);
+}
+
+static int compare_album_keys(const void *a, const void *b)
+{
+    const uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
+    return (x > y) - (x < y);
+}
+
+/*
+ * The playlist by albums: each album's tracks together, by disc and track,
+ * the albums in the order the seed and their names give. A track without an
+ * album, or outside the database, is of its folder's. With start_current the
+ * track playing stays, its album the first.
+ */
+static int randomise_albums_unlocked(struct playlist_info* playlist,
+                                     unsigned int seed, bool start_current,
+                                     bool write)
+{
+    const int amount = playlist->amount;
+    const int handle = albums_room(playlist);
+    const size_t paths = 3 * (MAX_PATH + 1);
+    const size_t room = playlist->max_playlist_size * ALBUMS_ROOM_ENTRY;
+    const size_t keys_size = amount * sizeof(uint64_t) + paths;
+    /* a track's place is 16 bits of its key; the window, two sectors once
+       it is aligned */
+    if (handle <= 0 || amount > 0xffff
+        || room < keys_size + 2 * 512 + 32)
+        return randomise_playlist_unlocked(playlist, seed, start_current, write);
+    if (amount <= 0)
+        return 0;
+
+    const unsigned long current = playlist->indices[playlist->index];
+    /* always from the list's own order, as Resume makes it */
+    sort_playlist_unlocked(playlist, false, false);
+    while (!seed)
+        seed = prng_newseed();
+    const uint32_t salt = mix32(seed);
+
+    cpu_boost(true);
+    if (playlist == &current_playlist)
+        core_pin(indices_handle);
+    uint64_t *keys = core_get_data_pinned(handle);
+    char *path = (char *)(keys + amount);
+    char *line = path + MAX_PATH + 1, *temp = line + MAX_PATH + 1;
+    struct lines_window w = {
+        .buf = (char *)keys + keys_size, .size = room - keys_size, .fd = -1,
+    };
+    /* on the disk's own boundary, or the iPod reads into it without DMA */
+    STORAGE_ALIGN_BUFFER(w.buf, w.size);
+    w.size = MIN(w.size & ~511u, 16u * 1024);
+    const off_t control_at = playlist->control_fd >= 0
+                             ? lseek(playlist->control_fd, 0, SEEK_CUR) : -1;
+    int current_at = -1;
+    for (int p = 0; p < amount; p++)
+    {
+        const unsigned long index = playlist->indices[p];
+        const bool control = index & PLAYLIST_INSERT_TYPE_MASK;
+        const int fd = control ? playlist->control_fd : pl_open_playlist(playlist);
+        uint32_t album = 0;
+        unsigned int order = 0;
+        ssize_t len = fd < 0 ? -1 : window_line(&w, fd, index & PLAYLIST_SEEK_MASK,
+                                                line, MAX_PATH);
+        if (index == current)
+            current_at = p;
+        if (len > 0)
+        {
+            line[len] = '\0';
+            if (!control && !playlist->utf8)
+                convert_m3u_name(line, len, MAX_PATH + 1, temp);
+            len = format_track_path(path, line, MAX_PATH, playlist->filename,
+                                    playlist->dirlen);
+        }
+        if (len > 0 && !tagcache_album_key(path, &album, &order))
+        {
+            /* its folder */
+            const char *end = strrchr(path, '/');
+            album = 2166136261u;
+            for (const char *c = path; end && c < end; c++)
+                album = (album ^ (unsigned char)*c) * 16777619u;
+        }
+        keys[p] = (uint64_t)mix32(album ^ salt) << 32 | order << 16 | p;
+        if ((p & 63) == 63)
+            yield();
+    }
+    if (control_at >= 0)
+        lseek(playlist->control_fd, control_at, SEEK_SET);
+
+    qsort(keys, amount, sizeof(*keys), compare_album_keys);
+    int first = 0;
+    uint32_t rank = keys[0] >> 32;
+    for (int i = 0; i < amount; i++)
+    {
+        const int p = keys[i] & 0xffff;
+        if ((uint32_t)(keys[i] >> 32) != rank)
+        {
+            rank = keys[i] >> 32;
+            first = i;
+        }
+        if (start_current && p == current_at)
+        {
+            playlist->index = i;
+            playlist->first_index = first;
+        }
+        keys[i] = playlist->indices[p];
+    }
+    for (int i = 0; i < amount; i++)
+        playlist->indices[i] = keys[i];
+    core_put_data_pinned(keys);
+    if (playlist == &current_playlist)
+        core_unpin(indices_handle);
+    /* the room is the references' again */
+    dc_init_filerefs(playlist, 0, playlist->max_playlist_size);
+    cpu_boost(false);
+
+    if (start_current && playlist == &current_playlist)
+        iap_on_track_playback_index(rotate_index(playlist, playlist->index), true);
+
+    playlist->last_insert_pos = -1;
+    playlist->seed = seed;
+    playlist->shuffled = SHUFFLE_ALBUMS;
+
+    if (write)
+    {
+        update_control_unlocked(playlist, PLAYLIST_COMMAND_SHUFFLE, seed,
+            playlist->first_index, "A", NULL, NULL);
     }
 
     return 0;
@@ -1978,7 +2189,6 @@ static struct buflib_callbacks ops = {
     .move_callback = move_callback,
     .shrink_callback = NULL,
 };
-static int indices_handle;
 
 /******************************************************************************/
 /******************************************************************************/
@@ -2030,6 +2240,8 @@ void playlist_init(void)
                             &playlist_queue_sender_list, playlist_thread_id);
 
     dc_thread_start(&current_playlist, false);
+#else
+    albums_room_handle = core_alloc(playlist->max_playlist_size * ALBUMS_ROOM_ENTRY);
 #endif /* HAVE_DIRCACHE */
 }
 
@@ -2230,8 +2442,7 @@ int playlist_create_from_index(const char *dir, const char *file, int fd,
     {
         uint32_t offsets[256];
         int have = 0;
-        /* in one read where the places are of that size, not the simulator's. It's
-           the only one of the indices' uses that lets others run meanwhile. */
+        /* in one read where the places are of that size, not the simulator's */
         if (sizeof(*playlist->indices) == sizeof(uint32_t))
         {
             const ssize_t bytes = count * sizeof(uint32_t);
@@ -3361,6 +3572,32 @@ int playlist_randomise(struct playlist_info* playlist, unsigned int seed,
     return result;
 }
 
+int playlist_randomise_albums(struct playlist_info* playlist, unsigned int seed,
+                              bool start_current)
+{
+    int result;
+
+    if (!playlist)
+        playlist = &current_playlist;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    check_control(playlist);
+
+    result = randomise_albums_unlocked(playlist, seed, start_current, true);
+    if (result != -1 && (audio_status() & AUDIO_STATUS_PLAY) &&
+        playlist->started)
+    {
+        audio_flush_and_reload_tracks();
+    }
+
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, true);
+
+    return result;
+}
+
 /*
  * Removes all tracks, from the playlist, leaving the presently playing
  * track queued.
@@ -3656,7 +3893,7 @@ int playlist_resume(void)
                     }
                     case PLAYLIST_COMMAND_SHUFFLE:
                     {
-                        /* strp[0]=seed strp[1]=first_index */
+                        /* strp[0]=seed strp[1]=first_index strp[2]="A": albums */
                         int seed;
 
                         if (!strp[0] || !strp[1])
@@ -3675,8 +3912,10 @@ int playlist_resume(void)
                         seed = atoi(strp[0]);
                         playlist->first_index = atoi(strp[1]);
 
-                        if (randomise_playlist_unlocked(playlist, seed, false,
-                                false) < 0)
+                        if ((strp[2] && strp[2][0] == 'A'
+                             ? randomise_albums_unlocked(playlist, seed, false, false)
+                             : randomise_playlist_unlocked(playlist, seed, false,
+                                                           false)) < 0)
                         {
                             result = -9;
                             goto out;
@@ -3934,7 +4173,7 @@ void playlist_set_last_shuffled_start(void)
 }
 
 /* shuffle newly created playlist using specified random seed */
-int playlist_shuffle(int random_seed, int start_index)
+static int shuffle_new_playlist(int random_seed, int start_index, bool albums)
 {
     struct playlist_info* playlist = &current_playlist;
     bool start_current = false;
@@ -3949,7 +4188,10 @@ int playlist_shuffle(int random_seed, int start_index)
         start_current = true;
     }
 
-    randomise_playlist_unlocked(playlist, random_seed, start_current, true);
+    if (albums)
+        randomise_albums_unlocked(playlist, random_seed, start_current, true);
+    else
+        randomise_playlist_unlocked(playlist, random_seed, start_current, true);
 
     playlist_write_unlock(playlist);
     dc_thread_start(playlist, true);
@@ -3957,10 +4199,23 @@ int playlist_shuffle(int random_seed, int start_index)
     return playlist->index;
 }
 
+int playlist_shuffle(int random_seed, int start_index)
+{
+    return shuffle_new_playlist(random_seed, start_index,
+                                global_settings.playlist_shuffle == SHUFFLE_ALBUMS);
+}
+
+int playlist_shuffle_songs(int random_seed, int start_index)
+{
+    return shuffle_new_playlist(random_seed, start_index, false);
+}
+
 void playlist_reorder(int mode)
 {
     if (mode == SHUFFLE_OFF)
         playlist_sort(NULL, true);
+    else if (mode == SHUFFLE_ALBUMS)
+        playlist_randomise_albums(NULL, current_tick, true);
     else
         playlist_randomise(NULL, current_tick, true);
 }
@@ -4365,6 +4620,7 @@ static int pl_save_update_control(struct playlist_info* playlist,
 
     /* Reset shuffle seed */
     playlist->seed = 0;
+    playlist->shuffled = SHUFFLE_OFF;
     if (playlist == &current_playlist) {
         global_settings.playlist_shuffle = SHUFFLE_OFF;
         iap_on_shuffle_state(global_settings.playlist_shuffle);
