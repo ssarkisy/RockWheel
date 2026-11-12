@@ -154,6 +154,11 @@
 #endif
 #endif /* SDL */
 
+/* Without it tags go into the database as read, and it sorts differently */
+#if MEMORYSIZE >= 4 && !defined(HAVE_UTF8_NORMALIZE)
+#error HAVE_UTF8_NORMALIZE is not defined (tools/root.make)
+#endif
+
 // #define AUTOROCK /* define this to check for "autostart.rock" on boot */
 /* Alternatively, you can define autostart plugin path and its argument: */
 // #define AUTOROCK     VIEWERS_DATA_DIR"/imageviewer.rock"

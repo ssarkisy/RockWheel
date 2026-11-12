@@ -27,7 +27,7 @@ INCLUDES += -I$(ROOTDIR)/apps/gui \
             -I$(APPSDIR) \
             -I$(BUILDDIR)
 
-OTHERLIBS := $(FIXEDPOINTLIB) $(LIBUTF8PROC)
+OTHERLIBS := $(FIXEDPOINTLIB)
 
 .SECONDEXPANSION: # $$(OBJ) is not populated until after this
 

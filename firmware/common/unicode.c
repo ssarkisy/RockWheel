@@ -43,10 +43,6 @@
 #define O_NOISODECODE 0
 #endif
 
-#ifdef UTF8PROC_EXPORTS
-#include "utf8proc.h"
-#endif
-
 #define getle16(p) (p[0] | (p[1] << 8))
 #define getbe16(p) ((p[0] << 8) | p[1])
 
@@ -655,32 +651,11 @@ const char * get_codepage_name(int cp)
     return cp_info[cp].name;
 }
 
-#ifdef UTF8PROC_EXPORTS
-static utf8proc_int32_t normbuf[2048];
-static struct mutex norm_mutex SHAREDBSS_ATTR;
-
-void utf8_normalize(char *string)
-{
-    utf8proc_ssize_t result, orig;
-
-    if (!string || !*string)
-         return;
-
-    mutex_lock(&norm_mutex);
-    orig = strlen(string);
-    result = utf8proc_decompose(string, 0, normbuf, sizeof(normbuf)/4 -1, UTF8PROC_NULLTERM);
-    if (result > 0) {
-        result = utf8proc_reencode(normbuf, result, UTF8PROC_NULLTERM|UTF8PROC_COMPOSE|UTF8PROC_STABLE);
-        if (result > 0 && result <= orig && strcmp((char*)normbuf, string))
-            strcpy(string, (char*)normbuf);
-    }
-    mutex_unlock(&norm_mutex);
-}
-
+#ifdef HAVE_UTF8_NORMALIZE
+/* utf8_normalize() is in nfc.c */
 void unicode_init(void)
 {
     cp_lock_init();
-    mutex_init(&norm_mutex);
 }
 
 #endif

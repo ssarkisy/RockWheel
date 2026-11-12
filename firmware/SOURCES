@@ -329,6 +329,9 @@ common/strlcpy.c
 common/strmemccpy.c
 common/timefuncs.c
 common/unicode.c
+#ifdef HAVE_UTF8_NORMALIZE
+common/nfc.c
+#endif
 common/vuprintf.c
 common/zip.c
 common/adler32.c

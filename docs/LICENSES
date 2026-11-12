@@ -167,7 +167,7 @@ From: https://git.alsa-project.org/?p=alsa-utils.git
  */
 
 *************************************************************************
-In: lib/utf8proc
+In: lib/utf8proc, firmware/common/nfc_table.h
 From: https://github.com/JuliaStrings/utf8proc.git
 *************************************************************************
 # utf8proc license ##

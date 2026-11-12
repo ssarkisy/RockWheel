@@ -62,6 +62,12 @@ endif
 
 all: $(DEPFILE) build
 
+# utf8_normalize() is firmware/common/nfc.c; lib/utf8proc only makes and
+# checks its table (tools/nfctest). Set before the SOURCES files are read.
+ifeq (,$(NO_UTF8PROC))
+  DEFINES += -DHAVE_UTF8_NORMALIZE
+endif
+
 # Subdir makefiles. their primary purpose is to populate SRC, OTHER_SRC,
 # ASMDEFS_SRC and CORE_LIBS. But they also define special dependencies and
 # compile rules
@@ -98,10 +104,6 @@ ifndef APP_TYPE
   ifeq (arch_arm,$(ARCH))
     include $(ROOTDIR)/lib/arm_support/arm_support.make
   endif
-endif
-
-ifeq (,$(NO_UTF8PROC))
-  include $(ROOTDIR)/lib/utf8proc/utf8proc.make
 endif
 
 ifeq (,$(findstring checkwps,$(APP_TYPE)))

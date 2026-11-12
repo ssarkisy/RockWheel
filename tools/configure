@@ -4772,7 +4772,8 @@ if [ "$ARG_STACK_PROTECTOR" != "" ]; then
     fi
 fi
 
-# We generally want utf8proc.  Exceptions are:
+# We generally want utf8_normalize() (firmware/common/nfc.c; utf8proc itself
+# is no longer linked).  Exceptions are:
 #   Bootloaders, checkwps, warble, <4MB RAM
 #   and (temporarily) imx233
 if [ "$apps" = "bootloader" -o "$app_type" = "checkwps" -o "$app_type" = "warble" -o "$memory" -lt "4" ]; then

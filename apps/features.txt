@@ -324,7 +324,7 @@ lto
 usbdac
 #endif
 
-#if defined(UTF8PROC_EXPORTS)
+#if defined(HAVE_UTF8_NORMALIZE)
 utf8proc
 #endif
 

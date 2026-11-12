@@ -4,3 +4,6 @@ v2.12.0 - f72a4023617e2d879f2ca93086fd02bc7e3149fe
 
 Minor modifications to silence build warnings with our toolchains and
 disable functions that require malloc()
+
+No longer linked into the firmware: it is the input of tools/nfctest, which
+makes and checks firmware/common/nfc_table.h (run.sh --update after an update).

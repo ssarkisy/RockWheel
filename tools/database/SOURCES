@@ -10,6 +10,9 @@ database.c
 ../../firmware/common/strlcpy.c
 ../../firmware/common/strcasestr.c
 ../../firmware/common/unicode.c
+#ifdef HAVE_UTF8_NORMALIZE
+../../firmware/common/nfc.c
+#endif
 ../../firmware/target/hosted/debug-hosted.c
 ../../firmware/logf.c
 #ifdef WIN32

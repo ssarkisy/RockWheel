@@ -26,7 +26,7 @@
 #include "logf.h"
 #include "metadata.h"
 
-#ifdef UTF8PROC_EXPORTS
+#ifdef HAVE_UTF8_NORMALIZE
 #include "rbunicode.h"
 #endif
 
@@ -483,7 +483,7 @@ bool get_metadata_afmt(struct mp3entry* id3, int fd, const char* trackname, int 
         wipe_mp3entry(id3); /* ensure the mp3entry is clear */
     }
 
-#ifdef UTF8PROC_EXPORTS
+#ifdef HAVE_UTF8_NORMALIZE
     if (success && (flags & METADATA_EXCLUDE_NORMALIZE) == 0) {
         utf8_normalize(id3->title);
         utf8_normalize(id3->artist);
