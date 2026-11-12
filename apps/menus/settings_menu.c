@@ -394,6 +394,7 @@ MENUITEM_SETTING(main_menu_s9, &global_settings.main_menu_show[MAIN_MENU_SECTION
 MENUITEM_SETTING(main_menu_photos, &global_settings.main_menu_show[MAIN_MENU_PHOTOS], NULL);
 MENUITEM_SETTING(main_menu_extras, &global_settings.main_menu_show[MAIN_MENU_EXTRAS], NULL);
 MENUITEM_SETTING(main_menu_shuffle, &global_settings.main_menu_show[MAIN_MENU_SHUFFLE_SONGS], NULL);
+MENUITEM_SETTING(main_menu_shuffle_albums, &global_settings.main_menu_shuffle_albums, NULL);
 /* as root_menu.c has Photos */
 #if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_WIDTH == 320) && (LCD_HEIGHT == 240)
 #define MAIN_MENU_PHOTOS_ITEM &main_menu_photos,
@@ -404,7 +405,8 @@ MAKE_MENU(main_menu_items, ID2P(LANG_MAIN_MENU), NULL, Icon_NOICON,
           &main_menu_music, &main_menu_s0, &main_menu_s1, &main_menu_s2,
           &main_menu_s3, &main_menu_s4, &main_menu_s5, &main_menu_s6,
           &main_menu_s7, &main_menu_s8, &main_menu_s9, MAIN_MENU_PHOTOS_ITEM
-          &main_menu_extras, &main_menu_shuffle, &main_menu_reset_item);
+          &main_menu_extras, &main_menu_shuffle, &main_menu_shuffle_albums,
+          &main_menu_reset_item);
 
 static int main_menu_open(void)
 {
@@ -420,27 +422,6 @@ static int music_menu_open(void)
 MENUITEM_FUNCTION(music_menu_row, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_MUSIC_MENU),
                   music_menu_open, NULL, Icon_NOICON);
 
-/* Shuffle in Lists: the kinds of list with Shuffle Songs at the top, each On
-   or Off, a hint under each saying where and what it plays. No row to reset
-   them, all on at first: Reset Settings does that */
-MENUITEM_SETTING(shuffle_rows_0, &global_settings.shuffle_rows_show[0], NULL);
-MENUITEM_SETTING(shuffle_rows_1, &global_settings.shuffle_rows_show[1], NULL);
-MENUITEM_SETTING(shuffle_rows_2, &global_settings.shuffle_rows_show[2], NULL);
-MENUITEM_SETTING(shuffle_rows_3, &global_settings.shuffle_rows_show[3], NULL);
-MENUITEM_SETTING(shuffle_rows_4, &global_settings.shuffle_rows_show[4], NULL);
-MENUITEM_SETTING(shuffle_rows_5, &global_settings.shuffle_rows_show[5], NULL);
-MENUITEM_SETTING(shuffle_rows_6, &global_settings.shuffle_rows_show[6], NULL);
-MENUITEM_SETTING(shuffle_rows_7, &global_settings.shuffle_rows_show[7], NULL);
-MAKE_MENU(shuffle_rows_items, ID2P(LANG_SHUFFLE_IN_LISTS), NULL, Icon_NOICON,
-          &shuffle_rows_0, &shuffle_rows_1, &shuffle_rows_2, &shuffle_rows_3,
-          &shuffle_rows_4, &shuffle_rows_5, &shuffle_rows_6, &shuffle_rows_7);
-
-static int shuffle_rows_open(void)
-{
-    return open_rows(&shuffle_rows_items);
-}
-MENUITEM_FUNCTION(shuffle_rows_row, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_SHUFFLE_IN_LISTS),
-                  shuffle_rows_open, NULL, Icon_NOICON);
 #endif
 
 #ifdef HAVE_USB_CHARGING_ENABLE

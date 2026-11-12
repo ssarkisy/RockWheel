@@ -149,6 +149,7 @@ static void note_music_origin(int screen)
         case GO_TO_PLAYLIST_VIEWER: /* within what's playing */
             return;
         case GO_TO_SHUFFLE_SONGS: /* from the main menu */
+        case GO_TO_SHUFFLE_ALBUMS:
             music_origin_screen = GO_TO_ROOT;
             break;
 #ifdef HAVE_TAGCACHE
@@ -644,7 +645,12 @@ static int recscrn(void* param)
 static int shuffle_songs(void* param)
 {
     (void)param;
-    return tagtree_shuffle_songs() ? GO_TO_WPS : GO_TO_PREVIOUS;
+    return tagtree_shuffle_songs(false) ? GO_TO_WPS : GO_TO_PREVIOUS;
+}
+static int shuffle_albums(void* param)
+{
+    (void)param;
+    return tagtree_shuffle_songs(true) ? GO_TO_WPS : GO_TO_PREVIOUS;
 }
 #endif
 static int wpsscrn(void* param)
@@ -858,6 +864,7 @@ static const struct root_items items[] = {
     [GO_TO_EXTRAS] = { miscscrn, (struct menu_item_ex*)&extras_menu, NULL },
 #ifdef HAVE_TAGCACHE
     [GO_TO_SHUFFLE_SONGS] = { shuffle_songs, NULL, NULL },
+    [GO_TO_SHUFFLE_ALBUMS] = { shuffle_albums, NULL, NULL },
 #endif
 #ifdef HAVE_PHOTOS_MENU
     [GO_TO_PHOTOS] = { photos, NULL, NULL },
@@ -898,6 +905,8 @@ MENUITEM_RETURNVALUE(db_browser, ID2P(LANG_MUSIC), GO_TO_DBBROWSER,
                         item_callback, Icon_Audio);
 MENUITEM_RETURNVALUE(shuffle_songs_item, ID2P(LANG_SHUFFLE_SONGS),
                         GO_TO_SHUFFLE_SONGS, item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(shuffle_albums_item, ID2P(LANG_SHUFFLE_ALBUMS),
+                        GO_TO_SHUFFLE_ALBUMS, item_callback, Icon_Audio);
 /* Music's sections, in the main menu if Settings > Main Menu has them; Playlists
    is the item below */
 MENUITEM_RETURNVALUE(cover_flow_item, ID2P(LANG_COVER_FLOW), GO_TO_COVER_FLOW,
@@ -967,6 +976,7 @@ static struct menu_table menu_table[] = {
 #ifdef HAVE_TAGCACHE
     { "database", &db_browser },
     { "shuffle_songs", &shuffle_songs_item },
+    { "shuffle_albums", &shuffle_albums_item },
     { "cover_flow", &cover_flow_item },
     { "search", &search_item },
     { "artists", &artists_item },
@@ -1071,9 +1081,9 @@ void root_menu_set_default(void* setting, void* defaultval)
 #ifdef HAVE_TAGCACHE
     char order[] = "bookmarks, database, cover_flow, search, playlists, artists, "
                    "albums, songs, podcasts, genres, composers, audiobooks, "
-                   "photos, extras, settings, shuffle_songs, wps";
+                   "photos, extras, settings, shuffle_songs, shuffle_albums, wps";
 #else
-    char order[] = "bookmarks, database, photos, extras, settings, shuffle_songs, wps";
+    char order[] = "bookmarks, database, photos, extras, settings, shuffle_songs, shuffle_albums, wps";
 #endif
     (void)defaultval;
 
@@ -1124,6 +1134,8 @@ static const struct {
    tagnavi.config has it, Music only with a section of its own to show */
 static bool main_menu_has(const struct menu_item_ex *item)
 {
+    if (item == &shuffle_albums_item)
+        return global_settings.main_menu_shuffle_albums;
     for (unsigned i = 0; i < ARRAYLEN(main_menu_rows); i++)
     {
         if (main_menu_rows[i].item != item)
@@ -1221,7 +1233,8 @@ static inline int load_screen(int screen)
         old_previous = GO_TO_ROOT;
 #ifdef HAVE_TAGCACHE
     /* an action rather than a screen, never to be gone back or booted to */
-    bool is_action = (screen == GO_TO_SHUFFLE_SONGS);
+    bool is_action = (screen == GO_TO_SHUFFLE_SONGS
+                      || screen == GO_TO_SHUFFLE_ALBUMS);
 #else
     bool is_action = false;
 #endif

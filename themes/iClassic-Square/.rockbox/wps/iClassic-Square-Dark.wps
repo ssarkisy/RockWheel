@@ -76,17 +76,19 @@
 %?St(status bar style)<%?mh<%xd(h)|>|%?mh<%xd(H)|>>
 %xl(r,Status Repeat.bmp,0,0,4)
 %xl(S,Status Shuffle.bmp,0,0)
+%xl(A,Status Shuffle Albums.bmp,0,0)
 %xl(e,iOS Repeat.bmp,0,0,4)
 %xl(u,iOS Shuffle.bmp,0,0)
-# repeat and shuffle, in the status bar on every view
+%xl(a,iOS Shuffle Albums.bmp,0,0)
+# repeat and shuffle, in the status bar on every view; Shuffle by albums has its own icon
 %Vl(nonumbat,228,2,16,16,-)
 %?St(status bar style)<%?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>|%?ps<%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>|>>
 %Vl(nonumbat,249,2,16,16,-)
-%?St(status bar style)<%?ps<%xd(S)|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>|%?ps<%xd(u)|%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>>>
+%?St(status bar style)<%?ps<%?pa<%xd(A)|%xd(S)>|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>|%?ps<%?pa<%xd(a)|%xd(u)>|%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>>>
 %Vl(numbat,193,2,16,16,-)
 %?St(status bar style)<%?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>|%?ps<%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>|>>
 %Vl(numbat,214,2,16,16,-)
-%?St(status bar style)<%?ps<%xd(S)|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>|%?ps<%xd(u)|%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>>>
+%?St(status bar style)<%?ps<%?pa<%xd(A)|%xd(S)>|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>|%?ps<%?pa<%xd(a)|%xd(u)>|%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>>>
 # Night Mode on: the moon, just left of the icons beside the battery, which move up
 # when shuffle or repeat is off. After them, as a viewport drawn later over another
 # would wipe it on a full redraw, as at a track change, and with both on it stays

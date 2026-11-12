@@ -958,8 +958,8 @@ static void shuffle_playlist_callback(int mode)
         && (audio_status() & AUDIO_STATUS_PLAY) == AUDIO_STATUS_PLAY)
     {
         replaygain_update();
-        /* a show's episodes and a book's parts stay in order; a list that a
-           Shuffle Songs row put in the mode already stays as it is */
+        /* a show's episodes and a book's parts stay in order; a list in
+           the mode already, as one just started by it, stays as it is */
         if (mode != playlist->shuffled
             && (mode == SHUFFLE_OFF || !tagtree_queue_in_order()))
             playlist_reorder(mode);
@@ -2805,27 +2805,6 @@ const struct settings_list settings[] = {
        artists by the albums' artists */
     OFFON_SETTING(0, artists_by_album_artist, LANG_GROUP_BY_ALBUM_ARTIST, true,
                   "group by album artist", root_menu_artists_grouping_changed),
-    /* Settings > Shuffle in Lists, in the order of SHUFFLE_ROW_...: the lists
-       see it changed as they're loaded (tagtree.c), the playlists as they
-       open (library_playlists.c) */
-    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_PLAYLISTS], LANG_PLAYLISTS, true,
-                  "shuffle row playlists", NULL),
-    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_ARTISTS], LANG_ARTISTS, true,
-                  "shuffle row artists", NULL),
-    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_ARTIST],
-                  LANG_SHUFFLE_ARTIST_ALBUMS, true,
-                  "shuffle row artist albums", NULL),
-    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_ALBUMS], LANG_ALBUMS, true,
-                  "shuffle row albums", NULL),
-    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_ALBUM],
-                  LANG_SHUFFLE_ALBUM_SONGS, true,
-                  "shuffle row album songs", NULL),
-    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_SONGS], LANG_SONGS, true,
-                  "shuffle row songs", NULL),
-    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_GENRES], LANG_GENRES, true,
-                  "shuffle row genres", NULL),
-    OFFON_SETTING(0, shuffle_rows_show[SHUFFLE_ROW_COMPOSERS], LANG_COMPOSERS, true,
-                  "shuffle row composers", NULL),
     /* Settings > Main Menu: Music's sections are off, as on a stock iPod */
     OFFON_SETTING(0, main_menu_show[MAIN_MENU_MUSIC], LANG_MUSIC, true,
                   "main menu music", NULL),
@@ -2855,6 +2834,8 @@ const struct settings_list settings[] = {
                   "main menu extras", NULL),
     OFFON_SETTING(0, main_menu_show[MAIN_MENU_SHUFFLE_SONGS], LANG_SHUFFLE_SONGS, true,
                   "main menu shuffle songs", NULL),
+    OFFON_SETTING(0, main_menu_shuffle_albums, LANG_SHUFFLE_ALBUMS, false,
+                  "main menu shuffle albums", NULL),
 #endif
     /* Settings > Now Playing Menu: all of it, as it was */
     OFFON_SETTING(0, wps_menu_show[WPS_MENU_COVER_FLOW], LANG_COVER_FLOW, true,

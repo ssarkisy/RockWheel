@@ -22108,3 +22108,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SHUFFLE_ALBUMS
+  desc: an item of the main menu, after Shuffle Songs, hidden until Settings > Main Menu shows it, and its row there: sets Shuffle to Albums and plays all the music an album at a time, the albums in a random order
+  user: core
+  <source>
+    *: "Shuffle Albums"
+  </source>
+  <dest>
+    *: "Amestecă albume"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

@@ -112,6 +112,7 @@ enum {
     GO_TO_EXTRAS,
 #ifdef HAVE_TAGCACHE
     GO_TO_SHUFFLE_SONGS, /* an action, not a screen to come back to */
+    GO_TO_SHUFFLE_ALBUMS, /* as well */
 #endif
     GO_TO_PHOTOS,
 #ifdef HAVE_TAGCACHE

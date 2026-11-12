@@ -228,25 +228,6 @@ enum {  ALARM_START_WPS = 0,
 /* Cover Flow, Search, Playlists, Artists, Albums, Songs, Podcasts, Genres,
    Composers, Audiobooks: each one shown in Music or not (tagtree.c) */
 #define MUSIC_SECTIONS 10
-/* the rows of Settings > Shuffle in Lists: the kinds of list with Shuffle
-   Songs at the top, by what each shows, in the order of Music's sections; a
-   genre's artists go by Artists, a composer's albums by An Artist's Albums
-   (tagtree.c, library_playlists.c) */
-enum {
-    SHUFFLE_ROW_PLAYLISTS,
-    SHUFFLE_ROW_ARTISTS,
-    SHUFFLE_ROW_ARTIST,     /* An Artist's Albums */
-    SHUFFLE_ROW_ALBUMS,
-    SHUFFLE_ROW_ALBUM,      /* An Album's Songs */
-    SHUFFLE_ROW_SONGS,
-    SHUFFLE_ROW_GENRES,
-    SHUFFLE_ROW_COMPOSERS,
-    SHUFFLE_ROWS
-};
-/* a list of fewer songs than this has none: two or three songs are no
-   order to change (the owner's decision, 2026-11-08) */
-#define SHUFFLE_ROW_MIN_SONGS 4
-
 /* the rows of Settings > Main Menu: Music, its sections, Photos, Extras,
    Shuffle Songs */
 enum {
@@ -1100,9 +1081,6 @@ struct user_settings
     /* All Songs, as its first row sorts it: 0 by album, 1 by name. After the
        rest, as albums_sort */
     int all_songs_sort;
-    /* Settings > Shuffle in Lists: Shuffle Songs at the top of each kind of
-       list (SHUFFLE_ROW_...). After the rest, as albums_sort */
-    bool shuffle_rows_show[SHUFFLE_ROWS];
     /* Music > Albums: each album's year and album artist under its name, and
        the albums of a name of several album artists apart (Settings >
        Appearance > Artists in Albums). After the rest, as albums_sort */
@@ -1126,6 +1104,8 @@ struct user_settings
 #endif
     /* Settings > Music Menu: Recently Added */
     bool music_menu_recently_added;
+    /* Settings > Main Menu: Shuffle Albums, after Shuffle Songs; off at first */
+    bool main_menu_shuffle_albums;
 };
 
 /* global settings */

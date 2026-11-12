@@ -119,7 +119,7 @@ int tagtree_load(struct tree_context* c);
 char* tagtree_get_entry_name(struct tree_context *c, int id,
                                     char* buf, size_t bufsize);
 bool tagtree_current_playlist_insert(int position, bool queue);
-bool tagtree_shuffle_songs(void);
+bool tagtree_shuffle_songs(bool albums);
 void tagtree_prepare_songs(void);
 /* whether Songs' list is made for the database as it is */
 bool tagtree_songs_prepared(void);

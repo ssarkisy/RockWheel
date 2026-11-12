@@ -40,6 +40,7 @@
 #include "tagcache.h"
 #include "itunesdb.h"
 #include "tagtree.h"
+#include "iap-usb.h"
 #include "sortkey.h"
 #include "root_menu.h"
 #include "timefuncs.h"
@@ -3315,53 +3316,13 @@ static bool album_songs(struct tree_context *c, int level, int tag)
            && !in_section(LANG_PODCASTS) && !in_section(LANG_AUDIOBOOKS);
 }
 
-/* The kind of list whose Shuffle Songs row Settings > Shuffle in Lists turns
-   on or off (SHUFFLE_ROW_...), by what the list shows: a genre's artists go
-   by Artists, a composer's albums by An Artist's Albums, as an artist's All
-   Songs does. -1 for a list without one: Podcasts' and Audiobooks', whose
-   episodes and parts are listed in their order, and those of one's own
-   tagnavi. The whole library under Artists, Albums, Songs, Genres and
-   Composers, which have no condition at their top. */
-static int shuffle_row_kind(struct tree_context *c)
-{
-    if (!csi || in_section(LANG_PODCASTS) || in_section(LANG_AUDIOBOOKS))
-        return -1;
-    if (c->currtable == TABLE_ALLSUBENTRIES)
-        return SHUFFLE_ROW_ARTIST;
-    const int level = c->currextra;
-    if (c->currtable != TABLE_NAVIBROWSE || level >= csi->tagorder_count)
-        return -1;
-    /* Recently Added's top isn't the whole library */
-    if (level == 0 && is_recent(csi))
-        return -1;
-    const int tag = csi->tagorder[level];
-    const bool whole = level == 0 && csi->clause_count[0] == 0;
-    const int above = level > 0 ? csi->tagorder[level - 1] : -1;
-    switch (tag)
-    {
-        case tag_title:
-            return whole ? SHUFFLE_ROW_SONGS
-                   : above == tag_album ? SHUFFLE_ROW_ALBUM : -1;
-        case tag_album:
-            return whole ? SHUFFLE_ROW_ALBUMS
-                   : persons_albums(c, level, tag) ? SHUFFLE_ROW_ARTIST : -1;
-        case tag_virt_canonicalartist:
-        case tag_artist:
-        case tag_albumartist:
-            return whole || above == tag_genre ? SHUFFLE_ROW_ARTISTS : -1;
-        case tag_genre:
-            return whole ? SHUFFLE_ROW_GENRES : -1;
-        case tag_composer:
-            return whole ? SHUFFLE_ROW_COMPOSERS : -1;
-    }
-    return -1;
-}
-
-/* whether the list has Shuffle Songs at its top, as it has songs enough */
+/* No list has Shuffle Songs at its top any more: Shuffle is one setting,
+   changed in Settings and in Now Playing's menu (the owner's decision,
+   2026-11-11). What made and played the row waits for its removal. */
 static bool shuffle_row_wanted(struct tree_context *c)
 {
-    const int kind = shuffle_row_kind(c);
-    return kind >= 0 && global_settings.shuffle_rows_show[kind];
+    (void)c;
+    return false;
 }
 
 /* whether the row Shuffle Songs would play the whole library: Shuffle Songs of
@@ -4167,7 +4128,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     /* Shuffle Songs over four songs or more, and other rows: all of them
        found, unless the list is in chunks, which has more anyway */
     if (shuffle && !c->dirfull
-        && ((persons ? persons_songs : list_songs) < SHUFFLE_ROW_MIN_SONGS
+        && ((persons ? persons_songs : list_songs) < 4
             || current_entry_count == c->special_entry_count))
     {
         struct tagentry *entries = get_entries(c);
@@ -4697,7 +4658,6 @@ static int load_root(struct tree_context *c)
 /* the list entered last has no row left in it to go back to: it opens at
    first_row() as it's loaded */
 static bool open_at_first_row;
-static void shuffle_rows_check(struct tree_context *c);
 
 /* The row a list opens at, with none left in it to go back to: its first
    song, album or artist, past the rows at its top, Shuffle Songs, Sort By or
@@ -4722,7 +4682,6 @@ int tagtree_load(struct tree_context* c)
     int table = c->currtable;
     const bool at_first_row = open_at_first_row;
     open_at_first_row = false;
-    shuffle_rows_check(c);
 
     c->dirsindir = 0;
 
@@ -4968,7 +4927,9 @@ bool tagtree_go_to_from(int *dirlevel, int *selected_item)
    USB is connected, not as music starts, which it would make wait: its
    pointers as the menus' and searches' numbers */
 #define KEPT_PLACE_FILE  ROCKBOX_DIR "/tagtree_from.dat"
-#define KEPT_PLACE_MAGIC 0x50465752 /* "RWFP" */
+/* "RWF2": the rows of a file from before, with Shuffle Songs at the lists'
+   tops, would be one off */
+#define KEPT_PLACE_MAGIC 0x32465752
 struct kept_place {
     uint32_t magic;
     uint32_t size;          /* of the place, as this build has it */
@@ -6025,49 +5986,6 @@ void tagtree_music_menu_changed(bool shown)
     root_rows_changed = true;
 }
 
-/* the rows remembered in the lists below Music's own menu, at their first
-   rows instead */
-static void place_rows_forget(struct tagtree_place *place)
-{
-    for (int i = 1; i < MAX_DIR_LEVELS; i++)
-        place->selected_item_history[i] = -1;
-    if (place->dirlevel > 0)
-        place->selected_item = -1;
-    place->max_history_level = MIN(place->max_history_level, place->dirlevel);
-}
-
-/* Shuffle in Lists as the lists' rows were last made by: Reset Settings, a
-   .cfg loaded and Settings from the Shortcuts menu change it without its
-   callback, so each load looks */
-static bool shuffle_rows_seen[SHUFFLE_ROWS];
-static bool shuffle_rows_known;
-
-/* Shuffle in Lists changed since the lists were loaded last: a list's rows
-   move by one where its Shuffle Songs comes or goes, so the rows remembered
-   to go back to are forgotten, the lists opened at their first rows. Seldom
-   done; the list kept is made again, its hash having the setting. */
-static void shuffle_rows_check(struct tree_context *c)
-{
-    const bool changed = shuffle_rows_known
-        && memcmp(shuffle_rows_seen, global_settings.shuffle_rows_show,
-                  sizeof(shuffle_rows_seen));
-    memcpy(shuffle_rows_seen, global_settings.shuffle_rows_show,
-           sizeof(shuffle_rows_seen));
-    shuffle_rows_known = true;
-    if (!changed)
-        return;
-    for (int i = 1; i < MAX_DIR_LEVELS; i++)
-        selected_item_history[i] = -1;
-    max_history_level = 0;
-    place_rows_forget(&saved_place);
-    place_rows_forget(&go_to_place);
-    place_rows_forget(&browse_place);
-    if (c->dirlevel > 0)
-        c->selected_item = -1;
-    for (int i = 0; i < MUSIC_SECTIONS; i++)
-        section_rows[i] = -1;
-}
-
 int tagtree_get_filename(struct tree_context* c, char *buf, int buflen)
 {
     struct tagcache_search tcs;
@@ -6776,7 +6694,7 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
     }
     const bool by_name = global_settings.all_songs_sort != 0;
     /* past Shuffle Songs, over four songs or more, and Sort By */
-    const bool shuffle = n >= SHUFFLE_ROW_MIN_SONGS && shuffle_row_wanted(c);
+    const bool shuffle = shuffle_row_wanted(c);
     const int first = shuffle ? 2 : 1;
     struct tagentry *entries = get_entries(c);
     char *names = core_get_data(c->cache.name_buffer_handle);
@@ -7029,7 +6947,7 @@ bool tagtree_get_subentry_filename(char *buf, size_t bufsize)
  * stock iPod, but for podcasts and audiobooks. When there are more than the
  * playlist can hold, a random selection fills it. False if nothing could
  * be played. */
-bool tagtree_shuffle_songs(void)
+bool tagtree_shuffle_songs(bool albums)
 {
     struct tagcache_search tcs;
     struct playlist_writer writer;
@@ -7090,7 +7008,11 @@ bool tagtree_shuffle_songs(void)
         && playlist_create(TAGTREE_PLAYLIST_DIR, name) == 0
         && playlist_amount() > 0)
     {
-        playlist_shuffle_songs(current_tick, -1);
+        /* the setting is what plays: Songs or Albums from here on */
+        global_settings.playlist_shuffle = albums ? SHUFFLE_ALBUMS : SHUFFLE_SONGS;
+        settings_save();
+        iap_on_shuffle_state(global_settings.playlist_shuffle);
+        playlist_shuffle(current_tick, -1);
         playlist_start(0, 0, 0);
     }
     else
@@ -7785,7 +7707,7 @@ bool tagtree_shuffle_list(struct tree_context *c)
         return false;
     if (shuffle_row_whole(c))
     {
-        const bool ok = tagtree_shuffle_songs();
+        const bool ok = tagtree_shuffle_songs(false);
         if (ok)
             unplaced_starts = playlist_start_count();
         return ok;

@@ -198,7 +198,8 @@ def main():
     progress_fill(os.path.join(LIGHT, "PB.bmp"), os.path.join(DARK, "PB.bmp"))
     for name in ("Battery", "Playing Status", "Hold Icon", "Status Repeat", "Status Shuffle", "Status Night",
                  "Memory Access", "Radio Icon", "Stereo Icon", "Repeat Icon", "Shuffle Icon",
-                 "iOS Playing Status", "iOS Hold", "iOS Repeat", "iOS Shuffle"):
+                 "iOS Playing Status", "iOS Hold", "iOS Repeat", "iOS Shuffle",
+                 "Status Shuffle Albums", "iOS Shuffle Albums"):
         each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), header_pixel)
     for name in ("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
                  "iOS Stars", "iOS Ratings", "iOS Track", "iOS PB",

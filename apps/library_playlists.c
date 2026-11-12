@@ -1493,8 +1493,7 @@ static void note_copy_source(const char *file)
    the library, which it plays */
 static int lp_lead(void)
 {
-    return global_settings.shuffle_rows_show[SHUFFLE_ROW_PLAYLISTS]
-           && lp.total >= SHUFFLE_ROW_MIN_SONGS ? 1 : 0;
+    return 0; /* no Shuffle Songs row any more: Shuffle is the setting */
 }
 /* and those before the row the catalogue remembers, as it was left: the
    setting, Reset Settings or songs taken out may have made them others */

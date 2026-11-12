@@ -4214,12 +4214,7 @@ int playlist_shuffle_songs(int random_seed, int start_index)
 
 int playlist_shuffle_shown(void)
 {
-    const struct playlist_info *playlist = &current_playlist;
-    const int setting = global_settings.playlist_shuffle;
-    if (!playlist->started || !(audio_status() & AUDIO_STATUS_PLAY)
-        || playlist->shuffled == setting || tagtree_queue_in_order())
-        return setting;
-    return playlist->shuffled;
+    return global_settings.playlist_shuffle;
 }
 
 void playlist_reorder(int mode)

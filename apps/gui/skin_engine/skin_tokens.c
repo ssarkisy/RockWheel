@@ -1437,6 +1437,8 @@ const char *get_token_value(struct gui_wps *gwps,
                 return "s";
             else
                 return NULL;
+        case SKIN_TOKEN_PLAYLIST_SHUFFLE_ALBUMS:
+            return playlist_shuffle_shown() == SHUFFLE_ALBUMS ? "a" : NULL;
             break;
 
         case SKIN_TOKEN_VOLUME:
