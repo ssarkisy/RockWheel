@@ -533,8 +533,10 @@ static int go_to_browse(bool found, unsigned int starts)
 int root_menu_go_to_playing(bool artist)
 {
     const unsigned int starts = playlist_start_count();
-    return MAX(go_to_browse(tagtree_go_to_playing(artist, &last_db_dirlevel,
-                                                  &last_db_selection), starts), 0);
+    /* once: MAX() would open the lists a second time for a screen to go to */
+    const int screen = go_to_browse(tagtree_go_to_playing(artist, &last_db_dirlevel,
+                                                          &last_db_selection), starts);
+    return MAX(screen, 0);
 }
 
 int root_menu_go_to_track(const char *path, bool artist)
@@ -547,8 +549,9 @@ int root_menu_go_to_track(const char *path, bool artist)
 int root_menu_playing_from(void)
 {
     const unsigned int starts = playlist_start_count();
-    return MAX(go_to_browse(tagtree_go_to_from(&last_db_dirlevel,
-                                               &last_db_selection), starts), 0);
+    const int screen = go_to_browse(tagtree_go_to_from(&last_db_dirlevel,
+                                                       &last_db_selection), starts);
+    return MAX(screen, 0);
 }
 
 
