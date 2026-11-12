@@ -1,0 +1,83 @@
+# Modern: the status bar and the main menu's pane. Made by themes/tools/make_modern_theme.py
+%wd
+%Fl(2,14-Inter-SemiBold.fnt)
+%Fl(3,18-Inter-SemiBold.fnt)
+%Fl(4,14-Inter-Medium.fnt)
+%Fl(5,17-Inter-SemiBold.fnt)
+# an album's name over its songs is in this one (apps/gui/ui_theme.c)
+%Fl(6,20-Inter-SemiBold.fnt)
+%xl(B,Battery.bmp,0,0,24)
+%xl(P,Playing Status.bmp,0,0,4)
+%xl(H,Hold.bmp,1,0)
+%xl(N,Night.bmp,0,0)
+# beside the pane the bar is as wide as the menu: the clock and the glyphs,
+# no title; the pane has the screen's whole height
+%?LW<%VI(wide)%Vd(bar)%Vd(rule)%Vd(clock)%Vd(title)%Vd(bat)%Vd(play)%?nN<%Vd(moon)>|%VI(half)%Vd(barh)%Vd(ruleh)%Vd(clock)%Vd(bath)%Vd(playh)%?nN<%Vd(moonh)>>
+# the pane by the row selected: Settings, Photos, or the music, which Extras has too
+%?LW<|%?LS<%Vd(pane)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(pane)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
+# the cover fills the pane, nothing over it: Finder's 240 px frame, its middle
+# 176 columns. It is drawn from 32 columns before the pane, which are the
+# menu's and its bar's, drawn after it
+%Cl(0,0,240,240,c,c)
+%Vl(a,112,0,208,240,-)
+%Cd
+%Vl(a,112,0,32,240,-)%Vb(FFFFFF)
+# the lists: under the status bar, rows of 26; beside the pane 144 wide
+%Vi(wide,0,28,320,212,1)%Vf(000000)%Vb(FFFFFF)
+%Vi(half,0,28,144,212,1)%Vf(000000)%Vb(FFFFFF)
+# the status bar across every screen: its ground, the hairline under it, the
+# clock, the title in the middle, the glyphs
+%Vl(bar,0,0,320,23,-)%Vb(F7F7F7)
+%Vl(rule,0,23,320,1,-)%Vb(E6E7EF)
+%Vl(barh,0,0,144,23,-)%Vb(F7F7F7)
+%Vl(ruleh,0,23,144,1,-)%Vb(E6E7EF)
+%Vl(clock,12,5,56,14,2)%Vf(000000)%Vb(F7F7F7)
+%al%?cf<%cH:%cM|%cl:%cM>
+# the name given in Finder in the main menu; a menu's title
+%Vl(title,72,5,168,14,2)%Vf(000000)%Vb(F7F7F7)
+%s%ac%?if(%Li, =, 33)<%nn|%Lt>
+%Vl(bat,284,7,24,10,-)%Vb(F7F7F7)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(play,263,7,10,10,-)%Vb(F7F7F7)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(moon,247,7,10,10,-)%Vb(F7F7F7)
+%xd(N)
+%Vl(bath,112,7,24,10,-)%Vb(F7F7F7)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(playh,91,7,10,10,-)%Vb(F7F7F7)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(moonh,75,7,10,10,-)%Vb(F7F7F7)
+%xd(N)
+# the pane without a cover: a surface with a hairline at its left, and on it by the row
+%Vl(pane,144,0,176,240,-)%Vb(EFF3F7)
+%Vl(pane,144,0,1,240,-)%Vb(E6E7EF)
+# each picture and its caption are one block in the middle of the pane's
+# height, the caption's capitals 8 rows under the picture
+# Settings: the disk's use as a ring, the used part in the accent on a track
+# of the theme's (apps/gui/ui_theme.c); what is free, and the whole
+%Vl(ring,192,61,80,80,-)%Vf(FF2D52)%Vb(EFF3F7)
+%nR
+%Vl(about,152,145,160,18,3)%Vf(000000)%Vb(EFF3F7)
+%s%ac%nf
+%Vl(about,152,166,160,14,4)%Vf(525152)%Vb(EFF3F7)
+%ac%nT
+# the collage leaves out what is round and between its photos: the pane shows there
+%Vl(collage,152,24,160,176,-)%Vb(EFF3F7)
+%xl(Q,/.rockbox/photos_panel.bmp,0,0)
+%xd(Q)
+%Vl(photocount,152,205,160,14,4)%Vf(525152)%Vb(EFF3F7)
+%s%ac%nP
+%xl(I,Photos Pane.bmp,0,0)
+%Vl(nophotos,204,90,56,44,-)%Vb(EFF3F7)
+%xd(I)
+%Vl(photocaption,152,139,160,14,4)%Vf(525152)%Vb(EFF3F7)
+%ac%nP
+# nothing playing, or a track without a cover: the note, and under it the
+# library's count or the track
+%xl(O,Note Pane.bmp,0,0)
+%Vl(note,190,70,84,84,-)%Vb(EFF3F7)
+%xd(O)
+%Vl(stopped,152,159,160,14,4)%Vf(525152)%Vb(EFF3F7)
+%ac%ns
+%Vl(normal,152,158,160,17,5)%Vf(000000)%Vb(EFF3F7)
+%s%ac%?it<%it|%?fn<%fn|>>

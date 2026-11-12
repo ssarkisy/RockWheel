@@ -155,6 +155,11 @@ void menu_draw_value_line(struct list_putlineinfo_t *info);
 /* in a row's text for that, before a lighter text drawn right after the
    name, as an album's artist in Search's list */
 #define MENU_LIGHT_SEP '\x1f'
+/* before a row's value that is one of On and Off and changes in place: a
+   theme with switches draws one for it, another the text after it */
+#define MENU_SWITCH_OFF '\x1d'
+#define MENU_SWITCH_ON  '\x1e'
+#define MENU_SWITCH(on) ((on) ? MENU_SWITCH_ON : MENU_SWITCH_OFF)
 /* From a screen a menu has opened: Menu has been held, so leave for the main menu */
 void menu_request_root(void);
 int do_menu(const struct menu_item_ex *menu, int *start_selected,

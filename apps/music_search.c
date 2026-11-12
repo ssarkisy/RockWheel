@@ -1913,12 +1913,19 @@ static void strip_settle(void)
    px apart, the one chosen on a rounded rectangle of 22 by 24, its keys from
    the theme's glyphs, no rule under them */
 #include "gui/neo_glyphs.h"
+#include "gui/modern_glyphs.h"
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
 #endif
-#define ROUNDED       (ui_metric(UI_METRIC_SELECTION_RADIUS) > 0)
+#define ROUNDED       (ui_metric(UI_METRIC_SELECTION_RADIUS) > 0 \
+                       || ui_metric(UI_METRIC_SEARCH_RADIUS) > 0)
+/* Modern's: the field's own corners, a magnifier in it, the marker's corners
+   tighter, its keys' glyphs */
+#define MODERN        (ui_metric(UI_METRIC_SEARCH_RADIUS) > 0)
+#define FIELD_RADIUS  (MODERN ? ui_metric(UI_METRIC_SEARCH_RADIUS) \
+                              : ui_metric(UI_METRIC_SELECTION_RADIUS))
 #define FIELD_HEIGHT  26
 #define LETTER_PITCH  24
 #define MARKER_W      22
@@ -2024,8 +2031,7 @@ static void draw_field(struct screen *display)
 {
     const int line = font_get(field_vp.font)->height;
     /* as wide as the selected row, or from where the rows' text starts */
-    const int x = ui_metric(UI_METRIC_SELECTION_RADIUS) ? global_settings.list_text_padding
-                                                        : 6;
+    const int x = ROUNDED ? global_settings.list_text_padding : 6;
     const int w = field_vp.width - 2 * x;
     const int h = ROUNDED ? FIELD_HEIGHT : line + 2;
     const int y = ROUNDED ? 0 : (field_vp.height - h) / 2;
@@ -2034,27 +2040,48 @@ static void draw_field(struct screen *display)
     display->set_viewport(&field_vp);
     display->clear_viewport();
     if (ROUNDED)
-        line_fill_rounded(display, x, y, w, h, ui_metric(UI_METRIC_SELECTION_RADIUS),
-                          FIELD_FILL);
+        line_fill_rounded(display, x, y, w, h, FIELD_RADIUS, FIELD_FILL);
     else
         fill_rounded(display, x, y, w, h, FIELD_FILL, FIELD_FILL);
 
     /* its end, if it is longer than the field */
     const char *text = naming ? name_text : query;
     display->getstringsize(text, &text_w, &text_h);
-    while (*text && text_w > w - 20)
+    while (*text && text_w > w - (MODERN ? 40 : 20))
     {
         text = (const char *)utf8decode((const unsigned char *)text, &(ucschar_t){0});
         display->getstringsize(text, &text_w, &text_h);
     }
+    int text_x = x + 8;
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (MODERN)
+    {
+        /* the magnifier, the text after it */
+        display->set_foreground(ui_colour(UI_COLOUR_QUIET));
+        display->set_drawmode(DRMODE_FG);
+        lcd_alpha_bitmap_part(modern_search_field_alpha, 0, 0, MODERN_SEARCH_FIELD_W,
+                              x + 8, y + (h - MODERN_SEARCH_FIELD_H) / 2,
+                              MODERN_SEARCH_FIELD_W, MODERN_SEARCH_FIELD_H);
+        text_x = x + 28;
+    }
+#endif
     display->set_foreground(text_colour);
     display->set_drawmode(DRMODE_FG);
-    display->putsxy(x + 8, y + (h - text_h) / 2, text);
+    display->putsxy(text_x, y + (h - text_h) / 2, text);
     display->set_drawmode(DRMODE_SOLID);
     if (!in_results)
     {
-        display->set_foreground(global_settings.lse_color);
-        display->fillrect(x + 8 + text_w + 1, y + 3, 2, h - 6);
+        if (MODERN)
+        {
+            /* a line of a pixel in the accent */
+            display->set_foreground(ui_colour(UI_COLOUR_ACCENT));
+            display->vline(text_x + text_w + 2, y + 6, y + h - 7);
+        }
+        else
+        {
+            display->set_foreground(global_settings.lse_color);
+            display->fillrect(text_x + text_w + 1, y + 3, 2, h - 6);
+        }
     }
     display->set_foreground(text_colour);
     display->update_viewport();
@@ -2132,7 +2159,13 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
         const int h = ROUNDED ? MARKER_H : (pf->height + 2) | 1;
         const int x = cx - w / 2, y = cy - h / 2;
         if (ROUNDED)
-            line_fill_rounded(display, x, y, w, h, 5, global_settings.lss_color);
+            /* where the selection is a bar of the accent, the key has it
+               only while the letters are being chosen: the field's quiet
+               fill once a result is selected, as two bars read as two
+               selections */
+            line_fill_rounded(display, x, y, w, h, MODERN ? 3 : 5,
+                              in_results && ui_metric(UI_METRIC_SELECTION_INK) ?
+                              FIELD_FILL : (unsigned)global_settings.lss_color);
         else if (in_results)
             fill_rounded(display, x, y, w, h, FIELD_FILL, FIELD_FILL);
         else
@@ -2140,13 +2173,28 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
                          global_settings.lse_color);
     }
     unsigned colour = letter_possible(i) ? GREY_TEXT : DIM_TEXT;
-    if (chosen && (in_results || ROUNDED))
+    if (chosen && ROUNDED && !in_results && ui_metric(UI_METRIC_SELECTION_INK))
+        colour = global_settings.lst_color; /* on the accent's bar */
+    else if (chosen && (in_results || ROUNDED))
         colour = text_colour;
     else if (chosen)
         colour = global_settings.lst_color;
     display->set_foreground(colour);
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-    if (ROUNDED && (strip.c[i] == STRIP_SPACE || strip.c[i] == STRIP_DELETE))
+    if (MODERN && (strip.c[i] == STRIP_DONE || strip.c[i] == STRIP_DELETE))
+    {
+        /* Modern's keys: delete, then return; its space is draw_space()'s */
+        display->set_drawmode(DRMODE_FG);
+        lcd_alpha_bitmap_part(modern_search_keys_alpha, 0,
+                              strip.c[i] == STRIP_DONE ? MODERN_SEARCH_KEYS_H : 0,
+                              MODERN_SEARCH_KEYS_W, cx - MODERN_SEARCH_KEYS_W / 2,
+                              cy - MODERN_SEARCH_KEYS_H / 2,
+                              MODERN_SEARCH_KEYS_W, MODERN_SEARCH_KEYS_H);
+        display->set_drawmode(DRMODE_SOLID);
+        return;
+    }
+    if (ROUNDED && !MODERN
+        && (strip.c[i] == STRIP_SPACE || strip.c[i] == STRIP_DELETE))
     {
         /* the theme's keys: delete, then space */
         display->set_drawmode(DRMODE_FG);

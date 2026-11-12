@@ -1707,13 +1707,6 @@ const struct settings_list settings[] = {
                    "cover,battery,own", NULL, 3, ID2P(LANG_COVER_COLOURS),
                    ID2P(LANG_STATUS_ICONS_BATTERY), ID2P(LANG_STATUS_ICONS_OWN)),
     OFFON_SETTING(0, angled_cover, LANG_ANGLED_COVER, false, "angled cover", NULL),
-    /* the theme shows its own or Linus's icons in the style of iOS 13, by these */
-    CHOICE_SETTING(0, status_bar_style, LANG_STATUS_BAR, STYLE_IPOD, "status bar style",
-                   "ipod,ios", NULL, 2, ID2P(LANG_STYLE_IPOD), ID2P(LANG_STYLE_IOS)),
-    CHOICE_SETTING(0, rating_style, LANG_RATING_STYLE, STYLE_IPOD, "rating style",
-                   "ipod,ios", NULL, 2, ID2P(LANG_STYLE_IPOD), ID2P(LANG_STYLE_IOS)),
-    CHOICE_SETTING(0, progress_bar_style, LANG_PROGRESS_BAR, STYLE_IPOD, "progress bar style",
-                   "ipod,ios", NULL, 2, ID2P(LANG_STYLE_IPOD), ID2P(LANG_STYLE_IOS)),
 #endif
     /* backlight fading */
 #if defined(HAVE_BACKLIGHT_FADING_INT_SETTING)
@@ -2778,8 +2771,9 @@ const struct settings_list settings[] = {
     /* by name, so the row's order is free; only on Select, as it stops the
        music and loads the theme */
     CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, ui_theme, LANG_THEME,
-                   UI_THEME_CLASSIC, "ui theme", "classic,neo", ui_theme_changed, 2,
-                   ID2P(LANG_THEME_CLASSIC), ID2P(LANG_THEME_NEO)),
+                   UI_THEME_CLASSIC, "ui theme", "classic,modern,neo", ui_theme_changed, 3,
+                   ID2P(LANG_THEME_CLASSIC), ID2P(LANG_THEME_MODERN),
+                   ID2P(LANG_THEME_NEO)),
     /* Music > Albums' first row, Sort By, and nowhere in Settings */
     CHOICE_SETTING(0, albums_sort, LANG_SORT_BY, 0, "albums sort", "year,name",
                    NULL, 2, ID2P(LANG_SORT_YEAR), ID2P(LANG_SORT_NAME)),

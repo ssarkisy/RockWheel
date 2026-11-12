@@ -10978,13 +10978,13 @@
 </phrase>
 <phrase>
   id: LANG_RATING_STYLE
-  desc: in Appearance: the look of the stars of a song's rating in Now Playing
+  desc: deprecated
   user: core
   <source>
-    *: "Rating"
+    *: ""
   </source>
   <dest>
-    *: "Hinnang"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -10992,13 +10992,13 @@
 </phrase>
 <phrase>
   id: LANG_PROGRESS_BAR
-  desc: in Appearance: the look of the bar of how far a song has played, in Now Playing
+  desc: deprecated
   user: core
   <source>
-    *: "Progress Bar"
+    *: ""
   </source>
   <dest>
-    *: "Edenemisriba"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -11006,13 +11006,13 @@
 </phrase>
 <phrase>
   id: LANG_STYLE_IPOD
-  desc: a value of the settings in Appearance: as the iPod has it
+  desc: deprecated
   user: core
   <source>
-    *: "iPod"
+    *: ""
   </source>
   <dest>
-    *: "iPod"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -11020,13 +11020,13 @@
 </phrase>
 <phrase>
   id: LANG_STYLE_IOS
-  desc: a value of the settings in Appearance: in the style of iOS 13, as Linus drew it
+  desc: deprecated
   user: core
   <source>
-    *: "iOS"
+    *: ""
   </source>
   <dest>
-    *: "iOS"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -14810,6 +14810,20 @@
   </source>
   <dest>
     *: "Kõik ekraanid saavad teie valitud värvi."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_THEME_MODERN
+  desc: a value of Theme under Settings > Appearance: the name of a look, a proper name kept as it is
+  user: core
+  <source>
+    *: "Modern"
+  </source>
+  <dest>
+    *: "Modern"
   </dest>
   <voice>
     *: ""

@@ -34,6 +34,7 @@
 #include "itunesdb.h"
 #include "tagtree.h"
 #include "skin_engine/cover_palette.h"
+#include "ui_theme.h"
 
 /* as read from the file, and as UTF-8 which can take up to twice as much */
 #define LYRICS_RAW_SIZE  8192
@@ -607,6 +608,8 @@ void lyrics_draw(struct screen *display, struct viewport *vp)
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
         dim = cover_palette_dimmed(fg, dim, ground);
 #endif
+        if (ui_metric(UI_METRIC_LYRICS_DIM) && display->screen_type == SCREEN_MAIN)
+            dim = ui_colour(UI_COLOUR_LYRICS_DIM);
     }
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)

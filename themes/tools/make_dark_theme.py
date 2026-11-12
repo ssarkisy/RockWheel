@@ -5,8 +5,7 @@
 #   themes/tools/make_dark_theme.py
 #
 # BMPs of 24 bits are worked on by the Python standard library, and of 32 their colours,
-# their alpha kept. Scrub Knob.bmp reads well on both, so it's copied. The iOS look's
-# battery is made for each by make_ios_icons.py, whose outline is fainter on dark.
+# their alpha kept. Scrub Knob.bmp reads well on both, so it's copied.
 
 import os
 import re
@@ -198,12 +197,9 @@ def main():
     progress_fill(os.path.join(LIGHT, "PB.bmp"), os.path.join(DARK, "PB.bmp"))
     for name in ("Battery", "Playing Status", "Hold Icon", "Status Repeat", "Status Shuffle", "Status Night",
                  "Memory Access", "Radio Icon", "Stereo Icon", "Repeat Icon", "Shuffle Icon",
-                 "iOS Playing Status", "iOS Hold", "iOS Repeat", "iOS Shuffle",
-                 "Status Shuffle Albums", "iOS Shuffle Albums"):
+                 "Status Shuffle Albums"):
         each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), header_pixel)
     for name in ("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
-                 "iOS Stars", "iOS Ratings", "iOS Track", "iOS PB",
-                 "iOS Knob Small", "iOS Knob", "iOS Volume Left", "iOS Volume Right",
                  "Scrub Hints"):
         each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), glyph_pixel)
     for name in ("Scrub Knob", "Disk Fill", "Photos Icon"):

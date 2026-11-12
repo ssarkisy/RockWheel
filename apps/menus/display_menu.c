@@ -198,7 +198,25 @@ MENUITEM_SETTING(lcd_sleep_after_backlight_off,
 MENUITEM_SETTING_SHARED(brightness_item, &global_settings.brightness, NULL);
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-MENUITEM_SETTING_SHARED(cover_colours_item, &global_settings.cover_colours, NULL);
+/* a theme that takes nothing from the cover has neither row: the setting is
+   as Off there */
+static bool theme_has_cover_colours(void)
+{
+    return ui_theme_current()->cover_colours || ui_theme_current()->cover_tone;
+}
+
+static int cover_colours_callback(int action,
+                                  const struct menu_item_ex *this_item,
+                                  struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM && !theme_has_cover_colours())
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_SETTING_SHARED(cover_colours_item, &global_settings.cover_colours,
+                        cover_colours_callback);
 /* only the modes that colour the screen's images colour the icons; a theme
    that takes the cover's tone leaves its status glyphs as they are */
 static int status_icons_callback(int action,
@@ -209,32 +227,28 @@ static int status_icons_callback(int action,
     (void)this_list;
     if (action == ACTION_REQUEST_MENUITEM
         && (global_settings.cover_colours < COVER_COLOURS_SCREEN
-            || ui_theme_current()->cover_tone))
+            || ui_theme_current()->cover_tone || !theme_has_cover_colours()))
         return ACTION_EXIT_MENUITEM;
     return action;
 }
 MENUITEM_SETTING_SHARED(status_icons_item, &global_settings.status_icons,
                         status_icons_callback);
-MENUITEM_SETTING_SHARED(angled_cover_item, &global_settings.angled_cover, NULL);
-
-/* the theme's look of each, as the iPod's or as iOS 13's */
-MENUITEM_SETTING(status_bar_style_item, &global_settings.status_bar_style, NULL);
-MENUITEM_SETTING(rating_style_item, &global_settings.rating_style, NULL);
-MENUITEM_SETTING(progress_bar_style_item, &global_settings.progress_bar_style, NULL);
-#endif
-
-/* Theme: not shown until a theme other than Classic has been set */
-static int ui_theme_callback(int action,
-                             const struct menu_item_ex *this_item,
-                             struct gui_synclist *this_list)
+/* not in a theme whose skin never turns the cover */
+static int angled_cover_callback(int action,
+                                 const struct menu_item_ex *this_item,
+                                 struct gui_synclist *this_list)
 {
     (void)this_item;
     (void)this_list;
-    if (action == ACTION_REQUEST_MENUITEM && !ui_theme_row_shown())
+    if (action == ACTION_REQUEST_MENUITEM && ui_theme_current()->flat_cover)
         return ACTION_EXIT_MENUITEM;
     return action;
 }
-MENUITEM_SETTING(ui_theme_item, &global_settings.ui_theme, ui_theme_callback);
+MENUITEM_SETTING_SHARED(angled_cover_item, &global_settings.angled_cover,
+                        angled_cover_callback);
+#endif
+
+MENUITEM_SETTING(ui_theme_item, &global_settings.ui_theme, NULL);
 MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);
 #ifdef HAVE_TAGCACHE
 /* the look of Music's lists of albums */
@@ -287,8 +301,7 @@ MENUITEM_SETTING(moving_cover_item, &global_settings.moving_cover,
 #endif
 
 /* Appearance, a folder of Settings: all that changes the look, the whole of
-   it first, then Music's lists', then Now Playing's, then the iPod's or iOS's
-   look of its parts */
+   it first, then Music's lists', then Now Playing's */
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &ui_theme_item, &dark_theme_item,
           &theme_colour_item,
@@ -304,7 +317,6 @@ MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
           &cover_colours_item, &status_icons_item, &angled_cover_item,
-          &status_bar_style_item, &rating_style_item, &progress_bar_style_item,
 #endif
           );
 

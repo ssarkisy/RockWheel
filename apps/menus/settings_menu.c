@@ -25,6 +25,7 @@
 #include "config.h"
 #include "lang.h"
 #include "action.h"
+#include "gui/ui_theme.h"
 #include "settings.h"
 #include "rbpaths.h"
 #include "menu.h"
@@ -308,7 +309,22 @@ WPS_MENU_SETTING(wps_menu_sound_check, WPS_MENU_SOUND_CHECK);
 WPS_MENU_SETTING(wps_menu_brightness, WPS_MENU_BRIGHTNESS);
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-WPS_MENU_SETTING(wps_menu_cover_colours, WPS_MENU_COVER_COLOURS);
+/* not in a theme that takes nothing from the cover, whose menu has no such
+   row to show */
+static int wps_menu_cover_colours_callback(int action,
+                                           const struct menu_item_ex *this_item,
+                                           struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM && !ui_theme_current()->cover_colours
+        && !ui_theme_current()->cover_tone)
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_SETTING(wps_menu_cover_colours,
+                 &global_settings.wps_menu_show[WPS_MENU_COVER_COLOURS],
+                 wps_menu_cover_colours_callback);
 #endif
 WPS_MENU_SETTING(wps_menu_dark_theme, WPS_MENU_DARK_THEME);
 WPS_MENU_SETTING(wps_menu_night_mode, WPS_MENU_NIGHT_MODE);

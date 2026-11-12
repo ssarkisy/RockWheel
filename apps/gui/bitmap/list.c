@@ -640,7 +640,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
 
     /* draw the scrollbar if its needed */
     const int capsule = screen == SCREEN_MAIN ? ui_metric(UI_METRIC_SCROLLBAR_CAPSULE) : 0;
-    if (list->scrollbar != SCROLLBAR_OFF && !capsule)
+    const int bar_line = screen == SCREEN_MAIN ? ui_metric(UI_METRIC_SCROLLBAR_LINE) : 0;
+    if (list->scrollbar != SCROLLBAR_OFF && !capsule && !bar_line)
     {
         /* if the scrollbar is shown the text viewport needs to shrink */
         if (nb_lines < list->nb_items)
@@ -748,6 +749,33 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     char initial_buf[16];
     const char *initial = list_initial(list, screen, initial_buf, sizeof(initial_buf));
 
+#ifdef HAVE_LCD_COLOR
+    /* the theme's line of a pixel over the rows' end, on a track as long as
+       the rows' room but a pixel at each end: at least 14 px. Drawn after
+       the rows, and by a row that scrolls after itself */
+    struct line_bar bar;
+    const bool has_bar = bar_line && list->scrollbar != SCROLLBAR_OFF
+                         && nb_lines < list->nb_items;
+    if (has_bar)
+    {
+        const int top = (show_title ? title_text[screen].height : 0) + 1;
+        const int track = (list_hint_band(list, screen) > 0 ?
+            nb_lines * list->line_height[screen]
+            : parent->height - (show_title ? title_text[screen].height : 0)) - 2;
+        const int thumb = MAX(14, track * nb_lines / list->nb_items);
+        const int rest = list->nb_items - nb_lines;
+        const int ty = top + (track - thumb) * MAX(MIN(list_start_item, rest), 0) / rest;
+        bar.x = parent->x + (VP_IS_RTL(parent) ? bar_line
+                                               : parent->width - 1 - bar_line);
+        bar.top = parent->y + top;
+        bar.bottom = bar.top + track - 1;
+        bar.thumb_top = parent->y + ty;
+        bar.thumb_bottom = bar.thumb_top + thumb - 1;
+        bar.sel_top = 0;
+        bar.sel_bottom = -1;
+    }
+    line_set_bar(has_bar ? &bar : NULL);
+#endif
     /* the block at the top, as much of it as shows: what's above the
        viewport cut off */
     if (start < list->block_rows && screen == SCREEN_MAIN)
@@ -793,8 +821,12 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             else
                 line_indent *= character_width;
         }
-        /* the padding moves the text only, the selection stays full width */
-        line_indent += indent + global_settings.list_text_padding;
+        /* the padding moves the text only, the selection stays full width;
+           a list with covers has its own in a theme that names one, for
+           every row, so that the rows without a cover start where the covers do */
+        line_indent += indent + (covers && ui_metric(UI_METRIC_ROW_COVER_INSET) ?
+                                 ui_metric(UI_METRIC_ROW_COVER_INSET)
+                                 : global_settings.list_text_padding);
         /* an album's cover, or the note in its place, where the text would
            start, the text after their column; at the right end right to
            left, as the text starts there */
@@ -886,6 +918,16 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             }
 #endif
             is_selected = true;
+#ifdef HAVE_LCD_COLOR
+            /* the scrollbar over it in its text's colour, for it too when
+               it scrolls */
+            if (has_bar && ui_metric(UI_METRIC_SELECTION_INK))
+            {
+                bar.sel_top = list_text_vp->y + line * linedes.height + draw_offset;
+                bar.sel_bottom = bar.sel_top + linedes.height - 1;
+                line_set_bar(&bar);
+            }
+#endif
         }
         
 #ifdef HAVE_LCD_COLOR
@@ -1003,10 +1045,37 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             }
 #endif
         }
+#ifdef HAVE_LCD_COLOR
+        /* the theme's hairline on the last row of a row not selected, from
+           where its name starts to the list's end; none under a group's name */
+        if (screen == SCREEN_MAIN && ui_metric(UI_METRIC_ROW_RULE) && !is_selected
+            /* nor over the selected row's bar, where everything on it is
+               in one colour */
+            && !(ui_metric(UI_METRIC_SELECTION_INK) && show_cursor
+                 && i + 1 == list->selected_item)
+            && !(list->callback_is_group && list->callback_is_group(i, list->data))
+            /* nor over a group's band, which has its own */
+            && !(ui_metric(UI_METRIC_GROUP_BAR) == 2 && list->callback_is_group
+                 && i + 1 < list->nb_items
+                 && list->callback_is_group(i + 1, list->data)))
+        {
+            const int from = list_info.x + line_indent;
+            display->set_foreground(ui_colour(UI_COLOUR_ROW_RULE));
+            display->set_drawmode(DRMODE_SOLID);
+            if (VP_IS_RTL(list_text_vp))
+                display->hline(0, list_text_vp->width - 1 - from, list_info.y + row_h - 1);
+            else
+                display->hline(from, list_text_vp->width - 1, list_info.y + row_h - 1);
+            display->set_foreground(global_settings.fg_color);
+        }
+#endif
         linedes.height = row_h;
         linedes.row_height = 0;
         linedes.text_dy = row_text_dy;
     }
+#ifdef HAVE_LCD_COLOR
+    line_set_bar(NULL);
+#endif
     if (hint)
         list_draw_hint(display, &band, hint);
 #ifdef HAVE_LCD_COLOR
@@ -1029,6 +1098,14 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         display->fillrect(tx, ty + 1, capsule, thumb - 2);
         display->hline(tx + 1, tx + capsule - 2, ty);
         display->hline(tx + 1, tx + capsule - 2, ty + thumb - 1);
+        display->set_foreground(global_settings.fg_color);
+    }
+#endif
+#ifdef HAVE_LCD_COLOR
+    if (has_bar)
+    {
+        display->set_viewport(parent);
+        line_draw_bar(display, &bar, bar.top, bar.bottom - bar.top + 1);
         display->set_foreground(global_settings.fg_color);
     }
 #endif

@@ -35,24 +35,21 @@
 %Vl(clock,5,3,211,14,2)%Vf(F2F2F6)
 %t(10)%s%al%Sx(FM Radio);%t(30)%s%al%?cf<%cH:%cM|%cl:%cM %cP>
 %xl(B,Battery.bmp,0,0,24)
-%xl(b,iOS Battery.bmp,0,0,24)
 %V(291,4,25,11,-)
-%?St(status bar style)<%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>|%?bp<%?bc<%t(1.0)%xd(ba);%t(1.0)%xd(bb)|%xd(bc)>|%?bl<%xd(bd)|%xd(bd)|%xd(be)|%xd(bf)|%xd(bg)|%xd(bh)|%xd(bi)|%xd(bj)|%xd(bk)|%xd(bl)|%xd(bm)|%xd(bn)|%xd(bo)|%xd(bp)|%xd(bq)|%xd(br)|%xd(bs)|%xd(bt)|%xd(bu)|%xd(bv)|%xd(bw)|%xd(bx)|%xd(bx)|%xd(bx)>>>
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %?St(battery display)<%Vd(nonumbat)|%Vd(numbat)>
 %Vl(numbat,255,3,32,12,2)%Vf(F2F2F6)
 %ac%bl%%
 %xl(P,Playing Status.bmp,0,0,4)
-%xl(p,iOS Playing Status.bmp,0,0,4)
 %Vl(numbat,236,3,16,13,-)
-%?St(status bar style)<%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>|%?mp<|%xd(pa)|%xd(pb)|%xd(pc)|%xd(pd)|||%xd(pa)|%xd(pb)>>
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
 %Vl(nonumbat,271,3,16,13,-)
-%?St(status bar style)<%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>|%?mp<|%xd(pa)|%xd(pb)|%xd(pc)|%xd(pd)|||%xd(pa)|%xd(pb)>>
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
 %xl(h,Hold Icon.bmp,0,1)
-%xl(H,iOS Hold.bmp,0,1)
 %Vl(numbat,218,3,13,13,-)
-%?St(status bar style)<%?mh<%xd(h)|>|%?mh<%xd(H)|>>
+%?mh<%xd(h)|>
 %Vl(nonumbat,253,2,13,13,-)
-%?St(status bar style)<%?mh<%xd(h)|>|%?mh<%xd(H)|>>
+%?mh<%xd(h)|>
 %xl(s,Stereo Icon.bmp,0,0)
 %V(295,21,17,14,-)
 %?ts<%xd(s)|>

@@ -420,9 +420,6 @@ struct system_status
     char browse_last_folder[MAX_PATH];/* only saved if keep_directory = true */
 };
 
-/* the looks of Appearance's settings */
-enum { STYLE_IPOD = 0, STYLE_IOS };
-
 #ifdef HAVE_PITCHCONTROL
 /* The fastest a podcast or an audiobook is offered at, in per cent: 200, 175,
    150 or 125. Their settings' values, config.cfg's names and Now Playing's
@@ -829,10 +826,6 @@ struct user_settings
     int cover_colours; /* Now Playing takes colours from the cover: COVER_COLOURS_* */
     int status_icons; /* what of the status bar takes them: STATUS_ICONS_* */
     bool angled_cover; /* Now Playing's cover turned away, as on an iPod classic */
-    /* Appearance: each of these as the iPod's or as iOS 13's: STYLE_* */
-    int status_bar_style;
-    int rating_style;
-    int progress_bar_style;
 
     bool dark_theme;
     bool night_mode;

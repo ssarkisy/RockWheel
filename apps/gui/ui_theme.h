@@ -24,7 +24,8 @@
    role, one entry a theme, each with a light and a dark set. Values are read
    at the moment of use, the theme (global_settings.ui_theme) and Dark Theme
    with them. */
-enum { UI_THEME_CLASSIC, UI_THEME_NEO, UI_THEME_COUNT };
+/* in the order of the Theme row's values */
+enum { UI_THEME_CLASSIC, UI_THEME_MODERN, UI_THEME_NEO, UI_THEME_COUNT };
 
 /* Classic's, where a constant is needed: the settings' defaults */
 #define UI_CLASSIC_SKIN          "iClassic-Square"
@@ -73,6 +74,13 @@ enum ui_colour {
     UI_COLOUR_COVER_TILE,     /* a cover's place without a cover, under its note */
     UI_COLOUR_NOTE_TOP,       /* that note, from its top row to its foot */
     UI_COLOUR_NOTE_FOOT,
+    UI_COLOUR_ACCENT,         /* a mark before a name, the speaker, Search's caret */
+    UI_COLOUR_ROW_RULE,       /* the hairline under a row */
+    UI_COLOUR_SWITCH_ON,
+    UI_COLOUR_SWITCH_OFF,
+    UI_COLOUR_SCROLLBAR_LINE, /* the track of a scrollbar that is a line */
+    UI_COLOUR_LYRICS_DIM,     /* lyrics' lines not sung now, with UI_METRIC_LYRICS_DIM */
+    UI_COLOUR_RING_TRACK,     /* the disk's ring's part not used, with UI_METRIC_RING_TRACK */
     UI_COLOUR_COUNT
 };
 
@@ -139,7 +147,8 @@ enum ui_metric {
     UI_METRIC_SCROLLBAR_CAPSULE, /* 0 the theme's scrollbar, else a capsule's width in the gutter */
     /* a group's name: 0 small and low in its row; 1 on a bar, as a row's
        name is; 2 a band as high as the row with a hairline over and under
-       it, the name in the group's font in its middle */
+       it, the name in the group's font in its middle; 3 no bar, the name
+       in the group's font and the theme's accent, low in its row */
     UI_METRIC_GROUP_BAR,
     UI_METRIC_LEAD_COLUMN,    /* the least width of the column of numbers before names, 0 for none */
     UI_METRIC_SUBLINE_INK,    /* a second line starts where its name's ink does, not its cell */
@@ -147,6 +156,27 @@ enum ui_metric {
     UI_METRIC_ROW_TEXT_DY,    /* a name's shift from the middle of a row of one line */
     UI_METRIC_COVER_RADIUS,   /* Now Playing's covers' corners, 0 for square */
     UI_METRIC_ROW_COVER_RADIUS, /* a row's cover's or tile's corners, 0 for square */
+    UI_METRIC_ROW_RULE,       /* a hairline under each row not selected, from its name's start */
+    UI_METRIC_SCROLLBAR_LINE, /* the scrollbar a line of a pixel on a track, so far from the list's end */
+    UI_METRIC_SWITCHES,       /* On and Off as a switch at the row's end */
+    UI_METRIC_ACCENT_MARKS,   /* the speaker and the marks before names in the accent */
+    UI_METRIC_MENU_MARKS,     /* Music's rows each with its mark */
+    UI_METRIC_SEARCH_RADIUS,  /* Search's field's corners where the selection has none: its shapes as a rounded theme's */
+    UI_METRIC_LYRICS_DIM,     /* lyrics' other lines in the theme's grey, not half way to the ground */
+    /* the selected row a bar of one colour with everything on it in the
+       selection's text colour: the marks before a name and the speaker too,
+       the scrollbar's thumb beside it, a ring round a switch; no hairline
+       over it */
+    UI_METRIC_SELECTION_INK,
+    UI_METRIC_PLAYING_SUBLINE, /* the playing song's second line in the accent */
+    /* a list with covers: where its covers stand from the list's edge, and
+       its rows without one start there too; 0 for the text's inset */
+    UI_METRIC_ROW_COVER_INSET,
+    UI_METRIC_RING_TRACK,     /* the disk's ring's track in the theme's colour, not the ground's */
+    /* with UI_METRIC_ROW_RIGHT: the chevron's right edge so far from the
+       row's end, nearer than UI_METRIC_CHEVRON_MARGIN, and the value beside
+       it as much nearer; 0 for that margin */
+    UI_METRIC_CHEVRON_INSET,
     UI_METRIC_COUNT
 };
 
@@ -161,6 +191,9 @@ enum ui_font {
     UI_FONT_MENU_VALUE,   /* a setting's value at the right of its row */
     UI_FONT_GROUP,        /* a group's name */
     UI_FONT_INITIAL,
+    /* a theme's own, NULL for the list's: found by their files, which the
+       theme's skin loads */
+    UI_FONT_HEADER_NAME,  /* an album's name over its songs */
     UI_FONT_COUNT
 };
 
@@ -196,6 +229,7 @@ struct ui_theme {
        cover on its flat surfaces, on every screen: the ground, the selected
        row, fields, tiles, hairlines, a bar's track; texts and glyphs stay */
     bool cover_tone;
+    bool flat_cover;       /* Now Playing's cover is never turned: no Angled Cover row */
     const char *font[UI_FONT_COUNT]; /* files, with their folder */
     short metric[UI_METRIC_COUNT];
     unsigned scrollbar_thumb[UI_SCROLLBAR_THUMB_STEPS]; /* across it */

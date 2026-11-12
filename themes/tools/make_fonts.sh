@@ -69,7 +69,6 @@ font 17-Inter-Medium-13.fnt Inter-Medium.ttf  13 -X 72  # Neo text, values
 font 15-Inter-Medium.fnt   Inter-Medium.ttf   12 -X 72  # Neo label
 font 15-Inter-SemiBold.fnt Inter-SemiBold.ttf 12 -X 72  # Neo name
 font 14-Inter-Medium.fnt   Inter-Medium.ttf   11 -X 72  # Neo small
-font 29-Inter-Bold.fnt     Inter-Bold.ttf     23 -X 72  # Modern large title: Latin, Greek, Cyrillic only
 font 20-Inter-SemiBold.fnt Inter-SemiBold.ttf 31 -X 36  # Modern titles, 15.5
 font 18-Inter-Regular.fnt  Inter-Regular.ttf  14 -X 72  # Modern row
 font 14-Inter-Regular.fnt  Inter-Regular.ttf  11 -X 72  # Modern values

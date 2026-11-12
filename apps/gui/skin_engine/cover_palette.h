@@ -120,18 +120,12 @@ void cover_palette_keep_ink(const fb_data *src, fb_data *dst, int count);
 /* A line of a bitmap of the theme in the colours of the whole screen, for this line
    of the screen */
 void cover_palette_tint_line(const fb_data *src, fb_data *dst, int count, int y);
-/* the same for the iOS bar's knob, its colour that of the bar's fill */
-void cover_palette_knob_line(const fb_data *src, fb_data *dst, int count, int y);
 /* after it, the pixels of src with a colour of their own back in dst, as the
    battery's charge: its colour says something */
 void cover_palette_keep_colours(const fb_data *src, fb_data *dst, int count);
-/* The fill of a progress bar in those colours, or NULL if it's too large. A flat
-   one, of iOS's look, has the colour of its corner round it, which is the
-   screen's, and no reflection under it. */
+/* The fill of a progress bar in those colours, or NULL if it's too large */
 struct bitmap;
-void *cover_palette_bar(const struct bitmap *bm, bool flat);
-/* the iOS look's track under the bar, flat as its fill, or NULL as the theme has it */
-void *cover_palette_bar_track(const struct bitmap *bm);
+void *cover_palette_bar(const struct bitmap *bm);
 /* Clears the viewport to the plain background of the whole screen, if it's on */
 struct screen;
 bool cover_palette_clear(struct screen *display, const struct viewport *vp);

@@ -118,6 +118,7 @@ static long reader_stack[(DEFAULT_STACK_SIZE + 0xc00) / sizeof(long)];
    alpha format (4 bits from 0 opaque to 15 transparent, low nibble first,
    rows run on without padding): made by themes/tools/make_list_glyphs.py */
 #include "gui/neo_glyphs.h"
+#include "gui/modern_glyphs.h"
 #define NOTE_W 29
 #define NOTE_H 35
 static const unsigned char note_alpha[] = {
@@ -175,6 +176,14 @@ extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
 static int artist_font(int list_font)
 {
     const int font = font_find(ui_font_file(UI_FONT_HEADER_ARTIST));
+    return font < 0 ? list_font : font;
+}
+
+/* the name's: the theme's for it, which its skin keeps loaded, or the list's */
+static int name_font(int list_font)
+{
+    const char *const file = ui_font_file(UI_FONT_HEADER_NAME);
+    const int font = file ? font_find(file) : -1;
     return font < 0 ? list_font : font;
 }
 
@@ -450,7 +459,7 @@ int album_header_open(struct tree_context *c, struct gui_synclist *list)
         return 0;
     header.name_form = font_text_form((const unsigned char *)text, -1);
     font_set_text_form(header.name_form);
-    header.lines = wrap_name(text, font, width);
+    header.lines = wrap_name(text, name_font(font), width);
 
     /* none for a show whose episodes' authors differ */
     if (album.albumartist < 0
@@ -477,7 +486,7 @@ int album_header_open(struct tree_context *c, struct gui_synclist *list)
     fit_text(header.counts, TEXT_BYTES, text, strlen(text), counts_font(font), width);
 
     struct layout l;
-    lay_out(header.lines, font, font, &l);
+    lay_out(header.lines, name_font(font), font, &l);
     const int row = list->line_height[SCREEN_MAIN];
     header.rows = (l.foot + HEADER_FOOT + row - 1) / row;
     header.slack = header.rows * row - (l.foot + HEADER_FOOT);
@@ -511,7 +520,12 @@ static void draw_cover(struct screen *display, int x, int y)
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (display->screen_type == SCREEN_MAIN)
     {
-        if (global_settings.ui_theme == UI_THEME_NEO)
+        if (global_settings.ui_theme == UI_THEME_MODERN)
+            line_draw_note(modern_note_header_alpha, MODERN_NOTE_HEADER_W,
+                           MODERN_NOTE_HEADER_H,
+                           x + (COVER_SIZE - MODERN_NOTE_HEADER_W) / 2,
+                           y + (COVER_SIZE - MODERN_NOTE_HEADER_H) / 2);
+        else if (global_settings.ui_theme == UI_THEME_NEO)
             line_draw_note(neo_note_header_alpha, NEO_NOTE_HEADER_W, NEO_NOTE_HEADER_H,
                            x + (COVER_SIZE - NEO_NOTE_HEADER_W) / 2,
                            y + (COVER_SIZE - NEO_NOTE_HEADER_H) / 2);
@@ -543,11 +557,12 @@ void album_header_draw(struct screen *display, int y, void *data)
                y + COVER_TOP);
 
     struct layout l;
-    lay_out(header.lines, list_font, list_font, &l);
+    lay_out(header.lines, name_font(list_font), list_font, &l);
     const int x = pad + COVER_SIZE + COVER_GAP;
     display->set_drawmode(DRMODE_FG);
     display->set_foreground(fg);
     font_set_text_form(header.name_form);
+    vp->font = name_font(list_font);
     for (int k = 0; k < header.lines; k++)
         display->putsxy(x, y + l.name[k], header.name[k]);
     display->set_foreground(LIST_VALUE_COLOUR);

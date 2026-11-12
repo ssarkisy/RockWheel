@@ -171,7 +171,14 @@ int line_shuffle_width(struct screen *display);
 /* The marks of the catalogue's playlists and folders before their names, in a
    column of their own: a computer for those synced from it, an iPod for those
    made on it */
+#define LINE_MARK_MENU_COUNT 11
 enum line_mark { LINE_MARK_NONE, LINE_MARK_COMPUTER, LINE_MARK_IPOD,
+                 /* a theme's own, in the same column: a plus before a row
+                    that makes something new, the column empty, and Music's
+                    rows' marks, LINE_MARK_MENU and the row's number in
+                    LINE_MARK_MENU_COUNT */
+                 LINE_MARK_PLUS, LINE_MARK_BLANK, LINE_MARK_MENU,
+                 LINE_MARK_MENU_LAST = LINE_MARK_MENU + LINE_MARK_MENU_COUNT - 1,
                  /* and of a podcast's episodes, in a narrower column: a dot
                     for a new one, a half dot for one begun, and the column
                     empty for another, its name in line with theirs */
@@ -202,6 +209,23 @@ void line_draw_mark(struct screen *display, int x, int y,
                     const struct line_desc *line, int mark);
 void line_draw_shuffle(struct screen *display, int x, int y,
                        const struct line_desc *line);
+/* A list's scrollbar that is a line of a pixel over its rows' end: its column
+   and the first and last rows of its track and of its thumb, of the screen.
+   A row whose text scrolls paints itself again from its start to its end,
+   over the bar: line_set_bar() names the bar for the rows put after it, NULL
+   for none, and each of them draws its own rows of the bar again after
+   itself. On the main screen. */
+struct line_bar {
+    int16_t x, top, bottom, thumb_top, thumb_bottom;
+    /* the selected row's rows where the theme has everything on it in its
+       text's colour (UI_METRIC_SELECTION_INK): the thumb so there and no
+       track; sel_bottom under sel_top for none */
+    int16_t sel_top, sel_bottom;
+};
+void line_set_bar(const struct line_bar *bar);
+/* the bar's rows from y, of the screen, in the viewport set */
+void line_draw_bar(struct screen *display, const struct line_bar *bar,
+                   int y, int height);
 /* the scrolling of the text of the parts of taller rows stopped, as a list's
    is as it's drawn again */
 void line_scroll_stop_parts(struct screen *display);

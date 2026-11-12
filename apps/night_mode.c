@@ -64,12 +64,6 @@ static void theme_set_names(bool dark)
     ui_theme_to_settings(dark);
 }
 
-/* the Theme row shows always, now that there is a theme besides Classic */
-bool ui_theme_row_shown(void)
-{
-    return true;
-}
-
 /* Music goes on: only the images change, and each has the size it had */
 void ui_theme_switch(void);
 static void theme_apply(void)

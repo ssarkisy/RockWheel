@@ -8530,6 +8530,32 @@ int tagtree_entry_mark(struct tree_context *c, int row)
            : state == EPISODE_STARTED ? LINE_MARK_HALF : LINE_MARK_EMPTY;
 }
 
+bool tagtree_is_music_menu(struct tree_context *c)
+{
+    return c->currtable == TABLE_ROOT && c->currextra == rootmenu;
+}
+
+int tagtree_music_row_kind(struct tree_context *c, int row)
+{
+    static const int kinds[] = {
+        LANG_COVER_FLOW, LANG_SEARCH, LANG_PLAYLISTS, LANG_ARTISTS, LANG_ALBUMS,
+        LANG_SONGS, LANG_RECENTLY_ADDED, LANG_PODCASTS, LANG_GENRES,
+        LANG_COMPOSERS, LANG_AUDIOBOOKS,
+    };
+    if (!tagtree_is_music_menu(c) || row < 0 || row >= c->filesindir)
+        return -1;
+    const struct tagentry *entry = tagtree_get_entry(c, row);
+    if (!entry)
+        return -1;
+    const int lang = P2ID((const unsigned char *)entry->name);
+    for (size_t i = 0; i < ARRAYLEN(kinds); i++)
+    {
+        if (kinds[i] == lang)
+            return i;
+    }
+    return -1;
+}
+
 const char *tagtree_album_subline(int no, int year, bool artist,
                                   const char *except, char *buf, size_t size)
 {

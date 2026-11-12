@@ -1587,7 +1587,8 @@ static char *sound_check_item_name(int selected_item, void *data,
                                    char *buffer, size_t buffer_len)
 {
     (void)selected_item; (void)data;
-    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_REPLAYGAIN_MODE),
+    snprintf(buffer, buffer_len, "%s\t%c%s", str(LANG_REPLAYGAIN_MODE),
+             MENU_SWITCH(global_settings.replaygain_settings.type != REPLAYGAIN_OFF),
              str(global_settings.replaygain_settings.type == REPLAYGAIN_OFF ?
                  LANG_OFF : LANG_ON));
     return buffer;
@@ -1626,7 +1627,8 @@ static char *dark_theme_item_name(int selected_item, void *data,
                                   char *buffer, size_t buffer_len)
 {
     (void)selected_item; (void)data;
-    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_DARK_THEME),
+    snprintf(buffer, buffer_len, "%s\t%c%s", str(LANG_DARK_THEME),
+             MENU_SWITCH(global_settings.dark_theme),
              str(global_settings.dark_theme ? LANG_ON : LANG_OFF));
     return buffer;
 }
@@ -1645,7 +1647,8 @@ static char *night_mode_item_name(int selected_item, void *data,
                                   char *buffer, size_t buffer_len)
 {
     (void)selected_item; (void)data;
-    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_NIGHT_MODE),
+    snprintf(buffer, buffer_len, "%s\t%c%s", str(LANG_NIGHT_MODE),
+             MENU_SWITCH(global_settings.night_mode),
              str(global_settings.night_mode ? LANG_ON : LANG_OFF));
     return buffer;
 }
@@ -1817,7 +1820,17 @@ static int wps_row(const struct menu_item_ex *item)
     for (unsigned i = 0; i < ARRAYLEN(wps_rows); i++)
     {
         if (wps_rows[i].item == item)
+        {
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+            /* not in a theme that takes nothing from the cover, where the
+               setting is as Off */
+            if (item == &wps_cover_colours_item
+                && !ui_theme_current()->cover_colours
+                && !ui_theme_current()->cover_tone)
+                return 0;
+#endif
             return global_settings.wps_menu_show[wps_rows[i].row];
+        }
     }
     return -1;
 }
@@ -1848,7 +1861,7 @@ bool onplay_wps_menu_empty(void)
         return false;
     for (unsigned i = 0; i < ARRAYLEN(wps_rows); i++)
     {
-        if (global_settings.wps_menu_show[wps_rows[i].row])
+        if (wps_row(wps_rows[i].item))
             return false;
     }
     return true;

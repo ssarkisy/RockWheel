@@ -241,6 +241,29 @@ static const char *setting_value(const struct settings_list *setting,
                                   option_value_as_int(setting));
 }
 
+/* A setting that is one of On and Off, changed in place: whether it is on,
+   -1 for another kind, as a setting of two other words (Inverse, Normal). A
+   choice of those two words is one too, as Sound Check */
+static int setting_switch(const struct settings_list *setting)
+{
+    if (HASFLAG(setting, F_BOOL_SETTING))
+        return setting->bool_setting->lang_yes == LANG_SET_BOOL_YES
+               && setting->bool_setting->lang_no == LANG_SET_BOOL_NO ?
+               *(bool *)setting->setting : -1;
+    if (HASFLAG(setting, F_CHOICE_SETTING) && !HASFLAG(setting, F_CHOICETALKS)
+        && setting->choice_setting->count == 2)
+    {
+        const unsigned char **desc = setting->choice_setting->desc;
+        const int first = P2ID(desc[0]), second = P2ID(desc[1]);
+        const int value = option_value_as_int(setting);
+        if (value >= 0 && value < 2
+            && ((first == LANG_ON && second == LANG_OFF)
+                || (first == LANG_OFF && second == LANG_ON)))
+            return P2ID(desc[value]) == LANG_ON;
+    }
+    return -1;
+}
+
 /* Submenus, screens and actions lead to more, settings don't unless they open a
    screen; nor does Shuffle Songs, as on a stock iPod */
 static bool menu_has_children(int selected_item, void * data)
@@ -334,8 +357,13 @@ static const char* get_menu_item_name(int selected_item,
         if (!menu_shows_values((const struct menu_item_ex *)data))
             return str(v->lang_id);
         char value[64];
-        snprintf(buffer, buffer_len, "%s\t%s", str(v->lang_id),
-                 setting_value(v, value, sizeof(value)));
+        const int on = setting_switch(v);
+        if (on >= 0)
+            snprintf(buffer, buffer_len, "%s\t%c%s", str(v->lang_id),
+                     MENU_SWITCH(on), setting_value(v, value, sizeof(value)));
+        else
+            snprintf(buffer, buffer_len, "%s\t%s", str(v->lang_id),
+                     setting_value(v, value, sizeof(value)));
         return buffer;
     }
     return P2STR(menu->callback_and_desc->desc);
@@ -399,22 +427,32 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
     {
         struct line_desc linedes = *info->linedes;
         const int group_style = ui_metric(UI_METRIC_GROUP_BAR);
-        if (!group_style)
+        if (!group_style || group_style == 3)
         {
             /* no bar: the name small and quiet, low in its row, over the
-               rows it names */
+               rows it names; or (3) a heading in the theme's accent, its
+               font's cell two rows over the row's end */
             const int name_font = info->vp->font;
             const int font = font_find(ui_font_file(UI_FONT_GROUP));
             linedes.style = STYLE_DEFAULT;
             display->put_line(info->x, info->y, &linedes, "");
             const unsigned old_fg = display->get_foreground();
-            display->set_foreground(GROUP_COLOUR);
+            display->set_foreground(group_style ? ui_colour(UI_COLOUR_ACCENT)
+                                                : GROUP_COLOUR);
             display->set_drawmode(DRMODE_FG);
             if (font >= 0)
                 info->vp->font = font;
-            display->putsxy(info->x + info->item_indent,
-                            info->y + linedes.height - 6
-                            - (int)font_get(info->vp->font)->height, text);
+            /* a heading too long for the row is cut with an ellipsis, at
+               the values' margin; the small name is left to the row's end */
+            char fitted[MAX_PATH];
+            if (group_style)
+                text = line_fit(text, info->vp->font,
+                                info->vp->width - info->x - info->item_indent
+                                - VALUE_MARGIN, fitted, sizeof(fitted));
+            if (text)
+                display->putsxy(info->x + info->item_indent,
+                                info->y + linedes.height - (group_style ? 2 : 6)
+                                - (int)font_get(info->vp->font)->height, text);
             info->vp->font = name_font;
             display->set_drawmode(DRMODE_SOLID);
             display->set_foreground(old_fg);
@@ -519,21 +557,65 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
 
     int name_width, width, height;
     display->getstringsize(name, &name_width, &height);
+    const int name_end = info->x + info->item_indent + name_width + VALUE_GAP;
+    /* On or Off that changes in place: the theme's switch at the row's end
+       if it fits beside the name, or the word */
+    const char *value = tab + 1;
+    const bool is_switch = *value == MENU_SWITCH_ON || *value == MENU_SWITCH_OFF;
+    if (is_switch)
+    {
+        const bool on = *value++ == MENU_SWITCH_ON;
+#ifdef HAVE_LCD_COLOR
+        if (ui_metric(UI_METRIC_SWITCHES) && display->screen_type == SCREEN_MAIN
+            && name_end <= info->vp->width - VALUE_MARGIN - 27)
+        {
+            /* a capsule of 27 by 16, its knob 12 px, white; at the other
+               end right to left */
+            const int x = VP_IS_RTL(info->vp) ? VALUE_MARGIN
+                                              : info->vp->width - VALUE_MARGIN - 27;
+            const int y = info->y + (info->linedes->height - 16) / 2;
+            const unsigned old_fg = display->get_foreground();
+            const unsigned old_bg = display->get_background();
+            const unsigned colour = ui_colour(on ? UI_COLOUR_SWITCH_ON
+                                                 : UI_COLOUR_SWITCH_OFF);
+            if (info->is_selected)
+                display->set_background(global_settings.lss_color);
+            /* on a bar of one colour, a ring in the bar's text's colour
+               round it: the green stood on the accent without an edge */
+            if (info->is_selected && ui_metric(UI_METRIC_SELECTION_INK))
+            {
+                line_fill_rounded(display, x - 1, y - 1, 29, 18, 9,
+                                  global_settings.lst_color);
+                display->set_background(global_settings.lst_color);
+            }
+            line_fill_rounded(display, x, y, 27, 16, 8, colour);
+            display->set_background(colour);
+            line_fill_rounded(display, x + (on ? 13 : 2), y + 2, 12, 12, 6,
+                              LCD_RGBPACK(0xff, 0xff, 0xff));
+            display->set_background(old_bg);
+            display->set_foreground(old_fg);
+            display->set_drawmode(DRMODE_SOLID);
+            return;
+        }
+#endif
+    }
     /* the value in the theme's font for it, on the name's baseline */
     const int name_font = info->vp->font;
     int font = font_find(ui_font_file(UI_FONT_MENU_VALUE));
     if (font < 0)
         font = name_font;
-    font_getstringsize(tab + 1, &width, NULL, font);
+    font_getstringsize(value, &width, NULL, font);
     /* left of where a chevron can come in the list; or, where the theme
-       lays the row's end out itself, of this row's own, selected or not */
+       lays the row's end out itself, of this row's own, selected or not.
+       Right to left no row has a chevron: where every row that leads on
+       would have one, their values end with the others' */
     const bool chevron = info->list->callback_has_children
         && (!ui_metric(UI_METRIC_ROW_RIGHT)
-            || info->list->callback_has_children(info->line, info->list->data));
+            || info->list->callback_has_children(info->line, info->list->data))
+        && !(ui_metric(UI_METRIC_CHEVRON_ALL) && VP_IS_RTL(info->vp));
     const int right = info->vp->width -
         (chevron ? VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
-    const int least = info->x + info->item_indent + name_width + VALUE_GAP;
-    const char *value = tab + 1;
+    const int least = name_end;
     char fitted[MAX_PATH];
     int x = right - width;
     if (x < least)

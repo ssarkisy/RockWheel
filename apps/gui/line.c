@@ -62,8 +62,62 @@ struct line_desc_scroll {
        its whole width; the text scrolls in part_vps. NULL for another line */
     struct viewport *row_vp;
     int part_top, full_width;
+    /* the list's scrollbar that is a line, which the row is under */
+    struct line_bar bar;
+    bool has_bar;
     bool used;
 };
+
+static struct line_bar list_bar;
+static bool list_bar_set;
+
+void line_set_bar(const struct line_bar *bar)
+{
+    list_bar_set = bar != NULL;
+    if (bar)
+        list_bar = *bar;
+}
+
+void line_draw_bar(struct screen *display, const struct line_bar *bar,
+                   int y, int height)
+{
+#ifdef HAVE_LCD_COLOR
+    const struct viewport *vp = *display->current_viewport;
+    const int x = bar->x - vp->x;
+    const int last = y + height - 1;
+    const unsigned fg = display->get_foreground();
+    display->set_drawmode(DRMODE_SOLID);
+    if (MAX(y, bar->top) <= MIN(last, bar->bottom))
+    {
+        display->set_foreground(ui_colour(UI_COLOUR_SCROLLBAR_LINE));
+        display->vline(x, MAX(y, bar->top) - vp->y, MIN(last, bar->bottom) - vp->y);
+    }
+    if (MAX(y, bar->thumb_top) <= MIN(last, bar->thumb_bottom))
+    {
+        display->set_foreground(ui_colour(UI_COLOUR_SCROLLBAR_THUMB));
+        display->vline(x, MAX(y, bar->thumb_top) - vp->y,
+                       MIN(last, bar->thumb_bottom) - vp->y);
+    }
+    /* over the selected row: its bar again in the track's place, and the
+       thumb in its text's colour */
+    const int sel_top = MAX(MAX(y, bar->top), bar->sel_top);
+    const int sel_bottom = MIN(MIN(last, bar->bottom), bar->sel_bottom);
+    if (sel_top <= sel_bottom)
+    {
+        display->set_foreground(global_settings.lss_color);
+        display->vline(x, sel_top - vp->y, sel_bottom - vp->y);
+        if (MAX(sel_top, bar->thumb_top) <= MIN(sel_bottom, bar->thumb_bottom))
+        {
+            display->set_foreground(global_settings.lst_color);
+            display->vline(x, MAX(sel_top, bar->thumb_top) - vp->y,
+                           MIN(sel_bottom, bar->thumb_bottom) - vp->y);
+        }
+    }
+    display->set_foreground(fg);
+#else
+    (void)display; (void)bar; (void)y; (void)height;
+#endif
+}
 
 /* The rows of a part of a taller row as a viewport of the row's, which the
    part's text is drawn in: its font's cell is taller than the part, and what
@@ -129,6 +183,9 @@ static void scroller(struct scrollinfo *s, struct screen *display)
         draw_value(display, line->part_top, &line->desc);
         if (line->desc.style & STYLE_CHEVRON)
             draw_chevron(display, line->part_top, &line->desc);
+        if (line->has_bar)
+            line_draw_bar(display, &line->bar, line->row_vp->y,
+                          line->row_vp->height);
         display->set_viewport(part);
     }
     else
@@ -146,6 +203,8 @@ static void scroller(struct scrollinfo *s, struct screen *display)
         draw_value(display, y, &line->desc);
         if (line->desc.style & STYLE_CHEVRON)
             draw_chevron(display, y, &line->desc);
+        if (line->has_bar)
+            line_draw_bar(display, &line->bar, vp->y + y, line->desc.height);
     }
 }
 
@@ -245,6 +304,9 @@ static void put_text(struct screen *display,
         line_data->row_vp = part_vp ? vp : NULL;
         line_data->part_top = part_top;
         line_data->full_width = vp_width;
+        line_data->has_bar = list_bar_set && display->screen_type == SCREEN_MAIN;
+        if (line_data->has_bar)
+            line_data->bar = list_bar;
         scrolls = display->putsxy_scroll_func(x, y, text,
             scrollers[display->screen_type], line_data, text_skip_pixels);
         line_data->used = scrolls;
@@ -770,8 +832,9 @@ static const unsigned char half_dot_alpha[] = {
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
-/* The marks by theme: Classic's above, Neo's from its mockup's export */
+/* The marks by theme: Classic's above, Neo's and Modern's from their mockups' export */
 #include "neo_glyphs.h"
+#include "modern_glyphs.h"
 struct glyph {
     const unsigned char *alpha;
     unsigned char w, h, frame; /* its frame of those one under another */
@@ -788,6 +851,16 @@ static const struct glyph glyphs[UI_THEME_COUNT][GLYPH_COUNT] = {
         [GLYPH_SMALL_NOTE] = { small_note_alpha, 16, 19, 0 },
         [GLYPH_DOT]        = { dot_alpha, 7, 7, 0 },
         [GLYPH_HALF_DOT]   = { half_dot_alpha, 7, 7, 0 },
+    },
+    [UI_THEME_MODERN] = {
+        [GLYPH_CHEVRON]    = { modern_chevron_alpha, MODERN_CHEVRON_W, MODERN_CHEVRON_H, 0 },
+        [GLYPH_SPEAKER]    = { modern_speaker_alpha, MODERN_SPEAKER_W, MODERN_SPEAKER_H, 0 },
+        [GLYPH_SHUFFLE]    = { modern_shuffle_alpha, MODERN_SHUFFLE_W, MODERN_SHUFFLE_H, 0 },
+        [GLYPH_COMPUTER]   = { modern_source_alpha, MODERN_SOURCE_W, MODERN_SOURCE_H, 0 },
+        [GLYPH_IPOD]       = { modern_source_alpha, MODERN_SOURCE_W, MODERN_SOURCE_H, 1 },
+        [GLYPH_SMALL_NOTE] = { modern_note_small_alpha, MODERN_NOTE_SMALL_W, MODERN_NOTE_SMALL_H, 0 },
+        [GLYPH_DOT]        = { modern_episode_dots_alpha, MODERN_EPISODE_DOTS_W, MODERN_EPISODE_DOTS_H, 0 },
+        [GLYPH_HALF_DOT]   = { modern_episode_dots_alpha, MODERN_EPISODE_DOTS_W, MODERN_EPISODE_DOTS_H, 1 },
     },
     [UI_THEME_NEO] = {
         [GLYPH_CHEVRON]    = { neo_chevron_alpha, NEO_CHEVRON_W, NEO_CHEVRON_H, 0 },
@@ -843,12 +916,20 @@ static unsigned off_selection(unsigned colour)
 }
 #endif
 
+/* how much nearer the row's end than its margin a theme has the chevron,
+   and with it the value beside it and where a name stops before them */
+static int chevron_shift(void)
+{
+    const int inset = ui_metric(UI_METRIC_CHEVRON_INSET);
+    return inset ? CHEVRON_MARGIN - inset : 0;
+}
+
 static void draw_chevron(struct screen *display, int y, struct line_desc *line)
 {
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (display->screen_type == SCREEN_MAIN)
     {
-        int x = display->getwidth() - CHEVRON_W - CHEVRON_MARGIN;
+        int x = display->getwidth() - CHEVRON_W - CHEVRON_MARGIN + chevron_shift();
         const bool selected = line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT);
         const unsigned fg = display->get_foreground();
         /* on a row not selected, which only the theme with one on every
@@ -915,7 +996,7 @@ static int row_right(struct screen *display, const struct line_desc *line,
     const int gap = ui_metric(UI_METRIC_ROW_RIGHT_GAP);
     int right = display->getwidth() - ui_metric(UI_METRIC_ROW_RIGHT);
     if (line->style & STYLE_CHEVRON)
-        right -= gap;
+        right -= gap - chevron_shift();
     if (past_value && has_value(display, line))
         right -= line->value_width + gap;
     return right;
@@ -948,7 +1029,10 @@ static void draw_speaker(struct screen *display, int y, struct line_desc *line)
     }
     const bool selected = line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT);
     const unsigned fg = display->get_foreground();
-    if (ui_metric(UI_METRIC_ROW_RIGHT))
+    if (ui_metric(UI_METRIC_ACCENT_MARKS))
+        display->set_foreground(selected && ui_metric(UI_METRIC_SELECTION_INK) ?
+                                on_selection(line) : ui_colour(UI_COLOUR_ACCENT));
+    else if (ui_metric(UI_METRIC_ROW_RIGHT))
         display->set_foreground(selected ? on_selection(line) : LIST_VALUE_COLOUR);
     else if (!selected)
         display->set_foreground(speaker_colour());
@@ -1011,7 +1095,9 @@ int line_shuffle_width(struct screen *display)
 }
 
 #define MARK_COLUMN 13 /* the widest of them */
-#define MARK_GAP    4  /* and the names close after it */
+/* and the names close after it; 22 px from the mark's start to the name's
+   where the theme has marks of its own */
+#define MARK_GAP    (ui_metric(UI_METRIC_ACCENT_MARKS) ? 9 : 4)
 int line_mark_width(struct screen *display)
 {
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
@@ -1072,6 +1158,28 @@ void line_draw_mark(struct screen *display, int x, int y,
     }
     if (!line_mark_width(display))
         return;
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    const unsigned fg = display->get_foreground();
+    if (mark >= LINE_MARK_PLUS)
+    {
+        /* the theme's own, in its accent: Modern alone has them */
+        const bool plus = mark == LINE_MARK_PLUS;
+        const int w = plus ? MODERN_PLUS_W : MODERN_MUSIC_MARKS_W;
+        const int h = plus ? MODERN_PLUS_H : MODERN_MUSIC_MARKS_H;
+        if (mark == LINE_MARK_BLANK)
+            return;
+        display->set_foreground(ui_metric(UI_METRIC_SELECTION_INK)
+                                && (line->style & (STYLE_COLORBAR|STYLE_GRADIENT)) ?
+                                on_selection(line) : ui_colour(UI_COLOUR_ACCENT));
+        display->set_drawmode(DRMODE_FG);
+        lcd_alpha_bitmap_part(plus ? modern_plus_alpha : modern_music_marks_alpha,
+                              0, plus ? 0 : (mark - LINE_MARK_MENU) * h, w,
+                              x + (MARK_COLUMN - w - (w > MARK_COLUMN)) / 2,
+                              y + (height - h) / 2, w, h);
+        display->set_foreground(fg);
+        display->set_drawmode(DRMODE_SOLID);
+        return;
+    }
     int which;
     switch (mark)
     {
@@ -1085,8 +1193,6 @@ void line_draw_mark(struct screen *display, int x, int y,
             return;
     }
     const int w = glyph(which)->w, h = glyph(which)->h;
-    const int height = line->height == -1 ? display->getcharheight() : line->height;
-    const unsigned fg = display->get_foreground();
     if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
         display->set_foreground(on_selection(line));
     else if (line->style & STYLE_INVERT) /* as the text on the bar */
@@ -1362,6 +1468,10 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
         colour = accent_colour = display->get_background();
     else if (ui_metric(UI_METRIC_ROW_RIGHT))
         accent_colour = global_settings.fg_color; /* the row's news, as its name */
+    /* the playing song's, in the theme's accent where it isn't selected */
+    if (ui_metric(UI_METRIC_PLAYING_SUBLINE) && (line->style & STYLE_PLAYING)
+        && !(line->style & (STYLE_COLORBAR|STYLE_GRADIENT|STYLE_INVERT)))
+        colour = ui_colour(UI_COLOUR_ACCENT);
 #endif
     display->set_drawmode(DRMODE_FG);
     vp->font = font;
@@ -1712,7 +1822,7 @@ static int decoration_width(struct screen *display, const struct line_desc *line
         else if (has_value(display, line))
             left = row_right(display, line, false) - line->value_width;
         else if (line->style & STYLE_CHEVRON)
-            return CHEVRON_W + CHEVRON_MARGIN + 4;
+            return CHEVRON_W + CHEVRON_MARGIN + 4 - chevron_shift();
         else if (line->height <= 0) /* no list's row: a skin's line, a message's */
             return 0;
         else /* to two pixels inside the selection's end */

@@ -51,43 +51,36 @@
 %Vl(clock,6,2,155,14,4)%Vf(000000)
 %s%al%?pS(15)<%Sx(Now Playing)|%?cf<%cH:%cM|%cl:%cM %cP>>
 %xl(B,Battery.bmp,0,0,24)
-%xl(b,iOS Battery.bmp,0,0,24)
 # its charge in its own colours in the cover's, unless the setting says
 %xK(B)
-%xK(b)
 %V(291,4,25,11,-)
-%?St(status bar style)<%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>|%?bp<%?bc<%t(1.0)%xd(ba);%t(1.0)%xd(bb)|%xd(bc)>|%?bl<%xd(bd)|%xd(bd)|%xd(be)|%xd(bf)|%xd(bg)|%xd(bh)|%xd(bi)|%xd(bj)|%xd(bk)|%xd(bl)|%xd(bm)|%xd(bn)|%xd(bo)|%xd(bp)|%xd(bq)|%xd(br)|%xd(bs)|%xd(bt)|%xd(bu)|%xd(bv)|%xd(bw)|%xd(bx)|%xd(bx)|%xd(bx)>>>
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %?St(battery display)<%Vd(nonumbat)|%Vd(numbat)>
 %?nN<%?St(battery display)<%?ps<%?mm<%Vd(night2)|%Vd(night3)|%Vd(night3)|%Vd(night3)|%Vd(night3)>|%?mm<%Vd(night1)|%Vd(night2)|%Vd(night2)|%Vd(night2)|%Vd(night2)>>|%?ps<%?mm<%Vd(nightnum2)|%Vd(nightnum3)|%Vd(nightnum3)|%Vd(nightnum3)|%Vd(nightnum3)>|%?mm<%Vd(nightnum1)|%Vd(nightnum2)|%Vd(nightnum2)|%Vd(nightnum2)|%Vd(nightnum2)>>>|>
 %Vl(numbat,255,3,32,12,2)%Vf(000000)
 %ac%bl%%
 %xl(P,Playing Status.bmp,0,0,4)
-%xl(p,iOS Playing Status.bmp,0,0,4)
 %Vl(numbat,236,3,16,13,-)
-%?St(status bar style)<%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>|%?mp<|%xd(pa)|%xd(pb)|%xd(pc)|%xd(pd)>>
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
 %Vl(nonumbat,271,3,16,13,-)
-%?St(status bar style)<%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>|%?mp<|%xd(pa)|%xd(pb)|%xd(pc)|%xd(pd)>>
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
 %xl(h,Hold Icon.bmp,0,1)
-%xl(H,iOS Hold.bmp,0,1)
 %Vl(numbat,180,3,13,13,-)
-%?St(status bar style)<%?mh<%xd(h)|>|%?mh<%xd(H)|>>
+%?mh<%xd(h)|>
 %Vl(nonumbat,215,3,13,13,-)
-%?St(status bar style)<%?mh<%xd(h)|>|%?mh<%xd(H)|>>
+%?mh<%xd(h)|>
 %xl(r,Status Repeat.bmp,0,0,4)
 %xl(S,Status Shuffle.bmp,0,0)
 %xl(A,Status Shuffle Albums.bmp,0,0)
-%xl(e,iOS Repeat.bmp,0,0,4)
-%xl(u,iOS Shuffle.bmp,0,0)
-%xl(a,iOS Shuffle Albums.bmp,0,0)
 # repeat and shuffle, in the status bar on every view; Shuffle by albums has its own icon
 %Vl(nonumbat,228,2,16,16,-)
-%?St(status bar style)<%?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>|%?ps<%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>|>>
+%?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>
 %Vl(nonumbat,249,2,16,16,-)
-%?St(status bar style)<%?ps<%?pa<%xd(A)|%xd(S)>|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>|%?ps<%?pa<%xd(a)|%xd(u)>|%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>>>
+%?ps<%?pa<%xd(A)|%xd(S)>|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>
 %Vl(numbat,193,2,16,16,-)
-%?St(status bar style)<%?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>|%?ps<%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>|>>
+%?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>
 %Vl(numbat,214,2,16,16,-)
-%?St(status bar style)<%?ps<%?pa<%xd(A)|%xd(S)>|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>|%?ps<%?pa<%xd(a)|%xd(u)>|%?mm<|%xd(ea)|%xd(eb)|%t(1.0)%xd(ec);%t(1.0)%xd(ea)|%xd(ed)>>>
+%?ps<%?pa<%xd(A)|%xd(S)>|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>
 # Night Mode on: the moon, just left of the icons beside the battery, which move up
 # when shuffle or repeat is off. After them, as a viewport drawn later over another
 # would wipe it on a full redraw, as at a track change, and with both on it stays
@@ -146,10 +139,8 @@
 %al%?ks<%ks|>
 %xl(R,Ratings.bmp,0,0,10)
 %xC(R)
-%xl(g,iOS Ratings.bmp,0,0,10)
-%xC(g)
 %Vl(song,160,121,66,13,-)
-%?St(rating style)<%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>|%?rr<|%xd(ga)|%xd(gb)|%xd(gc)|%xd(gd)|%xd(ge)|%xd(gf)|%xd(gg)|%xd(gh)|%xd(gi)|%xd(gj)>>
+%?rr<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)>
 # the track's format and bitrate
 %Vl(song,160,140,148,18,4)
 %fB
@@ -159,34 +150,26 @@
 %s%al%pp %Sx(of) %pe
 # The bar with its times, in the row's whole width: what is played in the middle of
 # the room before the bar and what is left in the middle of the room after it, their
-# digits (rows 3 to 10 of the text's 14) level with the middle of the bar's body in
-# either style. The bar is 8 px shorter at each end for a track of an hour or more
-# and 14 px for one of ten, for times with hours.
-# The iOS bar: its fill over its track, which hides the theme's, and its knob,
-# small as it plays and large as it's moved, by a held button (fast forward and
-# rewind), the wheel or the volume
-%xl(k,iOS Track.bmp,0,0)
-%xl(o,iOS Knob Small.bmp,0,0)
-%xl(O,iOS Knob.bmp,0,0)
+# digits (rows 3 to 10 of the text's 14) level with the middle of the bar's body.
+# The bar is 8 px shorter at each end for a track of an hour or more and 14 px
+# for one of ten, for times with hours.
 %Vl(pb,0,206,320,23,2)%Vf(000000)
-%?St(progress bar style)<%pb(58,0,204,23,PB.bmp,times,0,inset,8,14)|%?mp<%pb(58,0,204,23,iOS PB.bmp,backdrop,k,slider,o,slidercentre,times,0,inset,8,14)|%pb(58,0,204,23,iOS PB.bmp,backdrop,k,slider,o,slidercentre,times,0,inset,8,14)|%pb(58,0,204,23,iOS PB.bmp,backdrop,k,slider,o,slidercentre,times,0,inset,8,14)|%pb(58,0,204,23,iOS PB.bmp,backdrop,k,slider,O,slidercentre,times,0,inset,8,14)|%pb(58,0,204,23,iOS PB.bmp,backdrop,k,slider,O,slidercentre,times,0,inset,8,14)>>
+%pb(58,0,204,23,PB.bmp,times,0,inset,8,14)
 %Vl(volume,51,206,218,23,-)
-%?St(progress bar style)<%pv(7,0,204,23,PB.bmp)|%pv(7,0,204,23,iOS PB.bmp,backdrop,k,slider,O,slidercentre)>
+%pv(7,0,204,23,PB.bmp)
 %xl(V,Volume Right.bmp,0,0)
-%xl(W,iOS Volume Right.bmp,0,0)
 %Vl(volume,273,203,21,21,-)
-%?St(progress bar style)<%xd(V)|%xd(W)>
+%xd(V)
 %xl(v,Volume Left.bmp,0,0)
-%xl(w,iOS Volume Left.bmp,0,0)
 %Vl(volume,34,204,13,19,-)
-%?St(progress bar style)<%xd(v)|%xd(w)>
+%xd(v)
 # under the bar: the volume, and the limit, if one is set
 %Vl(volume,58,225,204,13,2)%Vf(000000)
 %ac%nv
 # scrubber: the progress bar with a slider, the wheel moves it
 %xl(K,Scrub Knob.bmp,0,0)
 %Vl(scrub,0,206,320,23,2)%Vf(000000)
-%?St(progress bar style)<%pb(58,0,204,23,PB.bmp,slider,K,slidercentre,times,0,inset,8,14)|%pb(58,0,204,23,iOS PB.bmp,backdrop,k,slider,O,slidercentre,times,0,inset,8,14)>
+%pb(58,0,204,23,PB.bmp,slider,K,slidercentre,times,0,inset,8,14)
 # the chapter a song or an episode is in, "Chapter 2 · Objects and stories", and for a
 # book, whose third line has the name, "Chapter 5 of 12": at the height of the volume
 # view's label, and as that is, after the bars, over the last rows of their reflection
@@ -204,10 +187,8 @@
 # rating: whole stars in place of the progress bar, the wheel sets them
 %xl(T,Stars.bmp,0,0,6)
 %xC(T)
-%xl(j,iOS Stars.bmp,0,0,6)
-%xC(j)
 %Vl(rating,58,206,204,24,-)
-%?St(rating style)<%?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>|%?rr<%xd(ja)|%xd(jb)|%xd(jb)|%xd(jc)|%xd(jc)|%xd(jd)|%xd(jd)|%xd(je)|%xd(je)|%xd(jf)|%xd(jf)>>
+%?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>
 # album art view: a second, large album art; the small one above is
 # hidden with the rest of the "info" viewports
 %xl(F,Art Mask.bmp,0,0)

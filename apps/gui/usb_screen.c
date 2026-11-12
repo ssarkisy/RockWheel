@@ -342,6 +342,127 @@ static void neo_usb_draw(struct screen *screen)
     screen->set_drawmode(DRMODE_SOLID);
 }
 
+/* Modern's: its status bar, a band over a hairline, with the name in its
+   middle, or from the left where it is too wide for that, and the battery;
+   on the theme's ground a computer in the quiet grey, on its screen a
+   prohibition mark in the theme's accent or, once it may be unplugged, a check in the
+   green of a switch that is on, and the words under it. The sign and the
+   words are one block in the middle of the rows under the bar: as much
+   ground over the sign as under the words' baseline.
+   The places and the bar's two colours are its skins'
+   (themes/tools/make_modern_theme.py). */
+#include "modern_usb_glyphs.h"
+#define MODERN_USB_STATUS  23  /* the bar's rows; the hairline is the next */
+#define MODERN_USB_MARGIN  12
+#define MODERN_USB_NAME_Y  5
+#define MODERN_USB_GAP     6   /* between the name and the battery */
+#define MODERN_USB_TEXT_GAP 16 /* from the sign's foot to the words' cell */
+#define MODERN_USB_BATTERY_X (LCD_WIDTH - MODERN_USB_MARGIN - MODERN_USB_BATTERY_FRAME_W)
+#define MODERN_USB_BATTERY_Y 7
+
+static char modern_usb_name[64];
+static int modern_usb_font, modern_usb_name_x;
+
+/* fitted and measured now, for the cache, as Neo's */
+static void modern_usb_prepare(void)
+{
+    modern_usb_font = font_find(FONT_DIR "/14-Inter-SemiBold.fnt");
+    if (modern_usb_font < 0)
+        modern_usb_font = FONT_UI;
+    const int room = MODERN_USB_BATTERY_X - MODERN_USB_GAP - MODERN_USB_MARGIN;
+    int width;
+    strmemccpy(modern_usb_name, ipod_usb_name, sizeof(modern_usb_name));
+    font_getstringsize(modern_usb_name, &width, NULL, modern_usb_font);
+    if (width > room)
+    {
+        skin_fit_with_ellipsis(modern_usb_name, strlen(modern_usb_name),
+                               sizeof(modern_usb_name), modern_usb_font, room);
+        font_getstringsize(modern_usb_name, &width, NULL, modern_usb_font);
+    }
+    /* in the middle if that is clear of the battery */
+    modern_usb_name_x = (LCD_WIDTH - width) / 2;
+    if (modern_usb_name_x + width > MODERN_USB_BATTERY_X - MODERN_USB_GAP)
+        modern_usb_name_x = MODERN_USB_MARGIN;
+    ipod_usb_cache_letters(modern_usb_name, modern_usb_font);
+}
+
+static void modern_usb_draw(struct screen *screen)
+{
+    const bool dark = global_settings.dark_theme;
+    const struct ui_theme_look *const look = ui_theme_look(dark);
+    ipod_usb_charging = charging_state();
+    screen->set_drawmode(DRMODE_SOLID);
+    screen->set_foreground(look->colour[UI_COLOUR_GROUND]);
+    screen->fillrect(0, MODERN_USB_STATUS, LCD_WIDTH, LCD_HEIGHT - MODERN_USB_STATUS);
+    screen->set_foreground(dark ? LCD_RGBPACK(0x10, 0x10, 0x10)
+                                : LCD_RGBPACK(0xf7, 0xf7, 0xf7));
+    screen->fillrect(0, 0, LCD_WIDTH, MODERN_USB_STATUS);
+    screen->set_foreground(dark ? LCD_RGBPACK(0x20, 0x24, 0x29)
+                                : LCD_RGBPACK(0xe6, 0xe7, 0xef));
+    screen->hline(0, LCD_WIDTH - 1, MODERN_USB_STATUS);
+
+    /* the battery's frame, and its charge in the green of a switch that is on */
+    screen->set_drawmode(DRMODE_FG);
+    screen->set_foreground(look->colour[UI_COLOUR_QUIET]);
+    lcd_alpha_bitmap_part(modern_usb_battery_frame_alpha, 0, 0,
+                          MODERN_USB_BATTERY_FRAME_W, MODERN_USB_BATTERY_X,
+                          MODERN_USB_BATTERY_Y, MODERN_USB_BATTERY_FRAME_W,
+                          MODERN_USB_BATTERY_FRAME_H);
+    /* the sign's three masks are of one canvas, each kept as its ink's box */
+    const int ascent = font_get(FONT_UI)->ascent;
+    const int ground = LCD_HEIGHT - (MODERN_USB_STATUS + 1);
+    const int sign_x = (LCD_WIDTH - MODERN_USB_SIGN_W) / 2;
+    const int sign_y = MODERN_USB_STATUS + 1 - MODERN_USB_USB_Y
+        + (ground - (MODERN_USB_USB_H + MODERN_USB_TEXT_GAP + ascent)) / 2;
+    const int text_y = sign_y + MODERN_USB_USB_Y + MODERN_USB_USB_H + MODERN_USB_TEXT_GAP;
+    lcd_alpha_bitmap_part(modern_usb_usb_alpha, 0, 0, MODERN_USB_USB_W,
+                          sign_x + MODERN_USB_USB_X, sign_y + MODERN_USB_USB_Y,
+                          MODERN_USB_USB_W, MODERN_USB_USB_H);
+    screen->set_foreground(look->colour[UI_COLOUR_ACCENT]);
+    if (!ipod_usb_ejected)
+        lcd_alpha_bitmap_part(modern_usb_usb_stop_alpha, 0, 0, MODERN_USB_USB_STOP_W,
+                              sign_x + MODERN_USB_USB_STOP_X,
+                              sign_y + MODERN_USB_USB_STOP_Y,
+                              MODERN_USB_USB_STOP_W, MODERN_USB_USB_STOP_H);
+    screen->set_foreground(look->colour[UI_COLOUR_SWITCH_ON]);
+    if (ipod_usb_ejected)
+        lcd_alpha_bitmap_part(modern_usb_usb_check_alpha, 0, 0, MODERN_USB_USB_CHECK_W,
+                              sign_x + MODERN_USB_USB_CHECK_X,
+                              sign_y + MODERN_USB_USB_CHECK_Y,
+                              MODERN_USB_USB_CHECK_W, MODERN_USB_USB_CHECK_H);
+    lcd_alpha_bitmap_part(modern_usb_battery_charge_alpha, 0,
+                          ipod_usb_charging ? 0 : MODERN_USB_BATTERY_CHARGE_H,
+                          MODERN_USB_BATTERY_CHARGE_W, MODERN_USB_BATTERY_X,
+                          MODERN_USB_BATTERY_Y, MODERN_USB_BATTERY_CHARGE_W,
+                          MODERN_USB_BATTERY_CHARGE_H);
+
+    screen->set_foreground(look->colour[UI_COLOUR_TEXT]);
+    screen->setfont(modern_usb_font);
+    screen->putsxy(modern_usb_name_x, MODERN_USB_NAME_Y, modern_usb_name);
+    screen->setfont(FONT_UI);
+    const char *const words = str(ipod_usb_ejected ? LANG_USB_OK_TO_DISCONNECT
+                                                   : LANG_USB_DO_NOT_DISCONNECT);
+    int width;
+    screen->getstringsize(words, &width, NULL);
+    screen->putsxy((LCD_WIDTH - width) / 2, text_y, words);
+    screen->set_drawmode(DRMODE_SOLID);
+}
+
+/* a theme's own look of the screen, where it has one: Classic's is below */
+static bool theme_usb_look(void)
+{
+    return global_settings.ui_theme == UI_THEME_NEO
+        || global_settings.ui_theme == UI_THEME_MODERN;
+}
+
+static void theme_usb_draw(struct screen *screen)
+{
+    if (global_settings.ui_theme == UI_THEME_MODERN)
+        modern_usb_draw(screen);
+    else
+        neo_usb_draw(screen);
+}
+
 static void ipod_usb_prepare(void)
 {
 #ifdef HAVE_TAGCACHE
@@ -354,6 +475,8 @@ static void ipod_usb_prepare(void)
     ipod_usb_cache_letters(str(LANG_USB_OK_TO_DISCONNECT), FONT_UI);
     if (global_settings.ui_theme == UI_THEME_NEO)
         neo_usb_prepare();
+    else if (global_settings.ui_theme == UI_THEME_MODERN)
+        modern_usb_prepare();
 }
 
 /* The two frames of the bitmap: charging, and on power but not charging */
@@ -395,9 +518,9 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
     screen->backlight_on();
     screen->set_drawmode(DRMODE_SOLID);
 
-    if (global_settings.ui_theme == UI_THEME_NEO)
+    if (theme_usb_look())
     {
-        neo_usb_draw(screen);
+        theme_usb_draw(screen);
         screen->update();
         screen->set_viewport(last_vp);
         return;
@@ -465,12 +588,12 @@ static void ipod_usb_update(void)
 
     if (charging_state() == ipod_usb_charging)
         return;
-    if (global_settings.ui_theme == UI_THEME_NEO)
+    if (theme_usb_look())
     {
         /* all of it, a few fills, and as Classic's battery without the
            backlight coming on */
         struct viewport *last_vp = screen->set_viewport(ipod_usb_parent);
-        neo_usb_draw(screen);
+        theme_usb_draw(screen);
         screen->update();
         screen->set_viewport(last_vp);
         return;

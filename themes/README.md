@@ -43,11 +43,10 @@ The fonts of the themes to come, Neo and Modern, are made by the same two
 scripts, from Inter Regular too, at the em sizes of their mockups and named
 after their line heights as the rest: `19-Inter-SemiBold` (15 px),
 `17-Inter-Medium-13` (13), `15-Inter-Medium` and `-SemiBold` (12) and
-`14-Inter-Medium` (11) for Neo, whose title is `18-Inter-SemiBold`; `29-Inter-Bold` (23), `20-Inter-SemiBold`
+`14-Inter-Medium` (11) for Neo, whose title is `18-Inter-SemiBold`; `20-Inter-SemiBold`
 (15.5), `18-Inter-Regular` (14), `14-Inter-Regular` (11) and `13-Inter-Regular`
 (10) for Modern. iClassic Square loads none of them. Each has the other
-alphabets in its own weight and size, but `29-Inter-Bold`, a large title's,
-which has Latin, Greek and Cyrillic only. The ideographs and kana are 10 px at
+alphabets in its own weight and size. The ideographs and kana are 10 px at
 the least and Hangul 11.67, taller than the Latin of the smallest fonts and cut
 to their lines. Of the ideographs' other forms these fonts have those the 24,
 17 and 14 px ones differ in. `tools/font_coverage.py` lists what each file
@@ -78,12 +77,6 @@ Changes from the originals:
 - Now Playing's cover has a reflection under it, and is angled with the
   Angled Cover setting, where the WPS asks for it with `%Cr` after its `%Cl`.
 - A dark version, `iClassic-Square-Dark`, which the Dark Theme setting shows.
-- The iOS look of Display → Appearance: the status bar's icons, the rating's
-  stars and the progress bar as Linus (u/Linusssk) drew them in the style of
-  iOS 13's Music for iPodWizard, used with his permission. The skins show them
-  or the theme's own by the settings (`%?St(status bar style)` and the others).
-  The bar's knob and the volume's speakers are drawn by `make_ios_icons.py` as
-  plain shapes, not by him.
 
 The extra bitmaps are drawn by the scripts in `tools/`, which are run again
 after a change, in this order:
@@ -92,8 +85,6 @@ after a change, in this order:
   `make_usb_screen.py`, `make_about_panel.py`: bitmaps of their own.
 - `make_menu_icons.py`: the backdrops' placeholder note and its reflection, and
   the original theme's battery out of their status bar, where the skins draw one.
-- `make_ios_icons.py <folder of Linus's BMPs>`: the iOS look's bitmaps, and the
-  dark theme's battery.
 - `make_dark_theme.py`: the dark theme, all of it from the light one.
 
 To try them in the simulator, copy them over the simulator disk:

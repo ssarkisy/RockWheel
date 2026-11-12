@@ -557,7 +557,7 @@ static struct bitmap *tinted_bar_bitmap(const struct gui_wps *gwps, struct bitma
 
     if (in_cover_colours(gwps, bm) && bm->alpha_offset == 0)
     {
-        void *pixels = cover_palette_bar(bm, global_settings.progress_bar_style == STYLE_IOS);
+        void *pixels = cover_palette_bar(bm);
         if (pixels)
         {
             tinted = *bm;
@@ -573,8 +573,6 @@ static struct bitmap *tinted_bar_bitmap(const struct gui_wps *gwps, struct bitma
 
 /* the image being drawn keeps its own colours, as the battery does */
 static bool keep_own_colours;
-/* or is the iOS bar's knob, in the colour of the bar's fill */
-static bool drawing_knob;
 
 /* A bitmap of the theme, in the colours of the cover if they are on the whole screen */
 static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
@@ -626,10 +624,7 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
             line_bm.alpha_offset = bm->width * sizeof(fb_data);
             for (int i = 0; i < height; i++, row += bm->width, alpha += alpha_stride)
             {
-                if (drawing_knob)
-                    cover_palette_knob_line(row, pixels, bm->width, top + i);
-                else
-                    cover_palette_tint_line(row, pixels, bm->width, top + i);
+                cover_palette_tint_line(row, pixels, bm->width, top + i);
                 if (own_ink)
                     cover_palette_keep_ink(row, pixels, bm->width);
                 else if (keep_own_colours)
@@ -645,10 +640,7 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
         line_bm.height = 1;
         for (int i = 0; i < height; i++, row += bm->width)
         {
-            if (drawing_knob)
-                cover_palette_knob_line(row, line, width, top + i);
-            else
-                cover_palette_tint_line(row, line, width, top + i);
+            cover_palette_tint_line(row, line, width, top + i);
             if (own_ink)
                 cover_palette_keep_ink(row, line, width);
             else if (keep_own_colours)
@@ -935,24 +927,6 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             toned = ui_theme_surface(plain);
         }
 #endif
-#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-        /* the iOS look's track, of its own shade with the cover's colours: the
-           theme's tinted went with the background */
-        void *track = NULL;
-        if (global_settings.progress_bar_style == STYLE_IOS && in_cover_colours(gwps, &img->bm)
-            && img->bm.alpha_offset == 0)
-            track = cover_palette_bar_track(&img->bm);
-        if (track)
-        {
-            struct bitmap flat = img->bm;
-            flat.data = track;
-            display->bmp_part(&flat, 0, 0, x, y, first, height);
-            if (second > 0)
-                display->bmp_part(&flat, flat.width - second, 0, x + first, y,
-                                  second, height);
-        }
-        else
-#endif
 #if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && !defined(DISABLE_ALPHA_BITMAP)
         if (toned != plain)
         {
@@ -1099,9 +1073,6 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             if (pb->slider_centre)
                 yoff -= h / 2;
         }
-#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-        drawing_knob = global_settings.progress_bar_style == STYLE_IOS;
-#endif
         if (pb->slider_centre)
         {
             /* over the end of the fill, which shows through the corners
@@ -1112,7 +1083,6 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         }
         else
             draw_bmp_part(gwps, &img->bm, 0, 0, x + xoff, y + yoff, w, h);
-        drawing_knob = false;
     }
 
     if (track_bar && pb->times_y >= 0 && id3)
@@ -1186,8 +1156,8 @@ static void draw_cover_tinted_image(struct screen *display, const struct gui_img
         for (int x = 0; x < width; x++)
         {
             /* by its green, the theme's stars being grey: on the dark theme, which
-               has them light on dark, by its lightest part, as the iOS look's red
-               star had the green of a shade near the background */
+               has them light on dark, by its lightest part, as a coloured star
+               has the green of a shade near the background */
             const unsigned px = FB_UNPACK_SCALAR_LCD(row[x]);
             const int level = global_settings.dark_theme
                 ? MAX(MAX(RGB_UNPACK_RED(px), RGB_UNPACK_GREEN(px)), RGB_UNPACK_BLUE(px))
@@ -2026,7 +1996,8 @@ void draw_disk_ring(struct gui_wps *gwps)
     volume_size(IF_MV(0,) &size, &free);
     const int used = size > 0 ? (int)((uint64_t)(size - free) * 256 / size) : 0;
     const unsigned surface = vp->bg_pattern, arc = vp->fg_pattern;
-    const unsigned track = global_settings.bg_color;
+    const unsigned track = ui_metric(UI_METRIC_RING_TRACK) ?
+        ui_colour(UI_COLOUR_RING_TRACK) : (unsigned)global_settings.bg_color;
     const int cx = vp->width / 2, cy = vp->height / 2;
     display->set_drawmode(DRMODE_SOLID);
     for (int y = -NEO_RING_Q; y < NEO_RING_Q; y++)

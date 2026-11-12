@@ -241,6 +241,12 @@ const char *tagtree_time_left(unsigned long elapsed, unsigned long length,
    LINE_MARK_NONE for a row at its top */
 bool tagtree_rows_states(struct tree_context *c);
 int tagtree_entry_mark(struct tree_context *c, int row);
+/* Music's own menu, each row's number among the eleven a theme has marks
+   for (LINE_MARK_MENU_COUNT): Cover Flow, Search, Playlists, Artists, Albums,
+   Songs, Recently Added, Podcasts, Genres, Composers, Audiobooks; -1 for
+   another row, or another list */
+int tagtree_music_row_kind(struct tree_context *c, int row);
+bool tagtree_is_music_menu(struct tree_context *c);
 /* of its first song, a tag of names' text as the database has it, UNTAGGED
    for none: from its memory only, false without it. Not tag_filename, whose
    path may be read from the disk */

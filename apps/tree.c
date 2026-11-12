@@ -472,8 +472,18 @@ static void tree_before_draw(struct gui_synclist *list)
 static int tree_get_mark(int selected_item, void *data)
 {
     struct tree_context *local_tc = (struct tree_context *)data;
-    if (tree_is_group(selected_item, NULL) || catalog_lead_row(selected_item))
+    if (tree_is_group(selected_item, NULL))
         return LINE_MARK_NONE;
+    /* a plus before New Playlist and New Folder where the theme has one */
+    if (catalog_lead_row(selected_item))
+    {
+        if (!ui_metric(UI_METRIC_MENU_MARKS))
+            return LINE_MARK_NONE;
+        /* Move Here makes nothing new: its name in line with the others' */
+        return selected_item == LEAD_FIRST
+               && (local_tc->browse->flags & BROWSE_PICK_FOLDER) ? LINE_MARK_BLANK
+                                                                  : LINE_MARK_PLUS;
+    }
     if (catalog_otg_row(selected_item))
         return LINE_MARK_IPOD;
     struct entry *entry = get_valid_entry(__func__, local_tc,
@@ -481,6 +491,16 @@ static int tree_get_mark(int selected_item, void *data)
     char path[MAX_PATH];
     ft_assemble_path(path, sizeof(path), local_tc->currdir, entry->name);
     return ip_is_synced(path) ? LINE_MARK_COMPUTER : LINE_MARK_IPOD;
+}
+#endif
+
+#ifdef HAVE_TAGCACHE
+/* the theme's mark of a row of Music's own menu, each name after its column */
+static int tree_get_menu_mark(int selected_item, void *data)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    const int kind = tagtree_music_row_kind(local_tc, index_of(selected_item));
+    return kind < 0 ? LINE_MARK_BLANK : LINE_MARK_MENU + kind;
 }
 #endif
 
@@ -958,7 +978,10 @@ static int update_dir(void)
     /* in the catalogue, not in the file browser showing playlists */
     gui_synclist_set_mark_callback(list, catalog_lead ? tree_get_mark
                                    : id3db && tagtree_rows_states(&tc) ?
-                                     tree_get_state : NULL);
+                                     tree_get_state
+                                   : id3db && ui_metric(UI_METRIC_MENU_MARKS)
+                                     && tagtree_is_music_menu(&tc) ?
+                                     tree_get_menu_mark : NULL);
     if(!id3db || global_settings.talk_menu)
 #endif
     {
