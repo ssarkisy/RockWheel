@@ -37,6 +37,8 @@
 #include "gui/skin_engine/skin_engine.h"
 #include "gui/skin_engine/cover_palette.h"
 #include "night_mode.h"
+#include "gui/lyrics.h"
+#include "gui/list.h"
 
 /* What the mode has changed, and so what it has the old value of */
 #define NIGHT_CHANGED_DARK   0x01
@@ -56,31 +58,33 @@ static bool theme_changed;
    out afterwards */
 static bool settings_loaded;
 
-/* The theme with a dark version. A theme of someone's own stays as it is. */
-static bool theme_has_dark(void)
-{
-    return !strcmp(global_settings.wps_file, ui_theme_look(false)->skin)
-        || !strcmp(global_settings.wps_file, ui_theme_look(true)->skin);
-}
+/* whether the Theme row shows: a theme other than Classic has been set, by
+   config.cfg's "ui theme" until the new themes are complete */
+static bool theme_row;
 
 static void theme_set_names(bool dark)
 {
-    const struct ui_theme_look *const look = ui_theme_look(dark);
-    const char *const name = look->skin;
-    strmemccpy(global_settings.wps_file, name, sizeof(global_settings.wps_file));
-    strmemccpy(global_settings.sbs_file, name, sizeof(global_settings.sbs_file));
-    strmemccpy(global_settings.fms_file, name, sizeof(global_settings.fms_file));
-    strmemccpy(global_settings.backdrop_file, look->backdrop,
-               sizeof(global_settings.backdrop_file));
-    global_settings.fg_color = look->colour[UI_COLOUR_TEXT];
-    global_settings.bg_color = look->colour[UI_COLOUR_GROUND];
+    ui_theme_to_settings(dark);
+    if (global_settings.ui_theme != UI_THEME_CLASSIC)
+        theme_row = true;
+}
+
+bool ui_theme_row_shown(void)
+{
+    return theme_row;
 }
 
 /* Music goes on: only the images change, and each has the size it had */
+void ui_theme_switch(void);
 static void theme_apply(void)
 {
-    if (!theme_has_dark())
+    /* skins loaded since that aren't the theme's, as a file picked in the
+       browser: theirs may be other fonts and covers' sizes */
+    if (!ui_theme_in_settings())
+    {
+        ui_theme_switch();
         return;
+    }
     /* whatever the screen shows is drawn anew when it's done */
     splash(0, ID2P(LANG_THEME_APPLYING));
     cover_palette_theme_changed();
@@ -258,8 +262,7 @@ void night_mode_boot(void)
         night_settings_on();
     else if (!s->night_mode && s->night_changed)
         night_settings_off(true);
-    if (theme_has_dark())
-        theme_set_names(s->dark_theme);
+    theme_set_names(s->dark_theme);
     settings_loaded = true;
 }
 
@@ -344,6 +347,34 @@ void dark_theme_changed(bool dark)
     (void)dark;
     if (settings_loaded)
         apply_theme();
+}
+
+/* Another theme, or skins that aren't the table's: other fonts, skins and
+   sizes of covers, so the music stops, and stays stopped; Now Playing takes
+   it up where it was, as after any stop */
+void ui_theme_switch(void)
+{
+    splash(0, ID2P(LANG_THEME_APPLYING));
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        audio_stop();
+    cover_palette_theme_changed();
+    /* the old theme's go before the new one's come, for their places */
+    list_unload_fonts();
+    theme_set_names(global_settings.dark_theme);
+    screens[SCREEN_MAIN].set_foreground(global_settings.fg_color);
+    screens[SCREEN_MAIN].set_background(global_settings.bg_color);
+    /* the list's font and the covers' buffers, then the skins and their fonts */
+    settings_apply(true);
+    settings_apply_skins();
+    lyrics_forget();
+    theme_changed = true;
+}
+
+void ui_theme_changed(int theme)
+{
+    (void)theme;
+    if (settings_loaded)
+        ui_theme_switch();
 }
 
 void night_mode_changed(bool on)

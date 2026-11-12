@@ -41,6 +41,8 @@
 #include "scrollbar.h"
 #include "screen_access.h"
 #include "line.h"
+#include "timefuncs.h"
+#include "gui/ui_theme.h"
 #include "playlist.h"
 #include "audio.h"
 #include "tagcache.h"
@@ -1335,6 +1337,11 @@ static void draw_cover(struct gui_wps *gwps, struct skin_albumart *aa,
     }
 #endif
     display->bitmap_part(src, 0, 0, stride, x, y, MIN(w, sw), MIN(h, sh));
+    /* Now Playing's, where the theme rounds them: not the one that fills the
+       main menu's pane */
+    if (aa->width > 0 && aa->width < 240)
+        line_round_corners(display, x, y, MIN(w, sw), MIN(h, sh),
+                           ui_metric(UI_METRIC_COVER_RADIUS));
 }
 
 /* where Now Playing's cover and its reflection were, the backdrop again */
@@ -1840,6 +1847,121 @@ void draw_peakmeters(struct gui_wps *gwps, int line_number,
 #ifdef HAVE_ALBUMART
 /* Draw the album art bitmap from the given handle ID onto the given WPS.
    Call with clear = true to clear the bitmap instead of drawing it. */
+#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16
+#include "neo_ring.h"
+
+static unsigned mix_colours(unsigned from, unsigned to, int sixteenths)
+{
+    int r = RGB_UNPACK_RED(from), g = RGB_UNPACK_GREEN(from), b = RGB_UNPACK_BLUE(from);
+    r += ((int)RGB_UNPACK_RED(to) - r) * sixteenths / 16;
+    g += ((int)RGB_UNPACK_GREEN(to) - g) * sixteenths / 16;
+    b += ((int)RGB_UNPACK_BLUE(to) - b) * sixteenths / 16;
+    return LCD_RGBPACK(r, g, b);
+}
+#endif
+
+/* By the table of a quarter of it: each pixel's share of the ring and its
+   place on the turn, clockwise from 12 o'clock, the used part first */
+void draw_disk_ring(struct gui_wps *gwps)
+{
+#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16
+    struct screen *display = gwps->display;
+    struct viewport *vp = *display->current_viewport;
+    sector_t size = 0, free = 0;
+    volume_size(IF_MV(0,) &size, &free);
+    const int used = size > 0 ? (int)((uint64_t)(size - free) * 256 / size) : 0;
+    const unsigned surface = vp->bg_pattern, arc = vp->fg_pattern;
+    const unsigned track = global_settings.bg_color;
+    const int cx = vp->width / 2, cy = vp->height / 2;
+    display->set_drawmode(DRMODE_SOLID);
+    for (int y = -NEO_RING_Q; y < NEO_RING_Q; y++)
+    {
+        for (int x = -NEO_RING_Q; x < NEO_RING_Q; x++)
+        {
+            const int qx = x >= 0 ? x : -1 - x, qy = y < 0 ? -1 - y : y;
+            const int cover = neo_ring_cover[qy * NEO_RING_Q + qx];
+            if (!cover)
+                continue;
+            /* the quarters clockwise from the top right one: in the second
+               and the fourth the turn runs along the other axis */
+            const int quarter = x >= 0 ? (y < 0 ? 0 : 1) : (y < 0 ? 3 : 2);
+            const int turn = 64 * quarter
+                + (quarter & 1 ? neo_ring_turn[qx * NEO_RING_Q + qy]
+                               : neo_ring_turn[qy * NEO_RING_Q + qx]);
+            display->set_foreground(mix_colours(surface, turn < used ? arc : track,
+                                                cover + 1));
+            display->drawpixel(cx + x, cy + y);
+        }
+    }
+    display->set_foreground(arc);
+#else
+    (void)gwps;
+#endif
+}
+
+/* sixty steps of a turn from 12 o'clock: the sine of each in 1024ths, for a
+   quarter; the rest by symmetry */
+static int turn_sin(int step)
+{
+    static const short quarter[16] = { 0, 107, 213, 316, 416, 512, 602, 685,
+                                       761, 828, 887, 935, 974, 1002, 1018, 1024 };
+    step = ((step % 60) + 60) % 60;
+    if (step <= 15)
+        return quarter[step];
+    if (step <= 30)
+        return quarter[30 - step];
+    if (step <= 45)
+        return -quarter[step - 30];
+    return -quarter[60 - step];
+}
+
+void draw_clock_dial(struct gui_wps *gwps)
+{
+#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && CONFIG_RTC
+    struct screen *display = gwps->display;
+    struct viewport *vp = *display->current_viewport;
+    const unsigned surface = vp->bg_pattern, hand = vp->fg_pattern;
+    const unsigned rim = ui_colour(UI_COLOUR_QUIET);
+    const int cx = vp->width / 2, cy = vp->height / 2;
+    const int r = MIN(cx, cy) - 1; /* the rim's middle, a pixel and a half thick */
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_foreground(surface);
+    display->fillrect(0, 0, vp->width, vp->height);
+    /* the rim: each pixel by how far its middle is from the circle, in
+       eighths of a pixel, without a root: between the squares of r - 3/4
+       and r + 3/4 whole, a pixel either side of those half */
+    const long in = (8L * r - 6) * (8L * r - 6), out = (8L * r + 6) * (8L * r + 6);
+    const long in2 = (8L * r - 12) * (8L * r - 12), out2 = (8L * r + 12) * (8L * r + 12);
+    for (int y = -r - 2; y <= r + 2; y++)
+    {
+        for (int x = -r - 2; x <= r + 2; x++)
+        {
+            const long d = (8L * x + 4) * (8L * x + 4) + (8L * y + 4) * (8L * y + 4);
+            if (d < in2 || d > out2)
+                continue;
+            display->set_foreground(d >= in && d <= out ? rim
+                                    : mix_colours(surface, rim, 7));
+            display->drawpixel(cx + x, cy + y);
+        }
+    }
+    const struct tm *tm = get_time();
+    const int minute = tm->tm_min, hour = (tm->tm_hour % 12) * 5 + tm->tm_min / 12;
+    display->set_foreground(hand);
+    /* the hour's hand two pixels thick, the minute's one and longer */
+    const int hx = turn_sin(hour) * (r / 2) / 1024, hy = -turn_sin(hour + 15) * (r / 2) / 1024;
+    display->drawline(cx, cy, cx + hx, cy + hy);
+    display->drawline(cx - 1, cy, cx - 1 + hx, cy + hy);
+    display->drawline(cx, cy - 1, cx + hx, cy - 1 + hy);
+    display->drawline(cx - 1, cy - 1, cx - 1 + hx, cy - 1 + hy);
+    const int mx = turn_sin(minute) * (r * 3 / 4) / 1024;
+    const int my = -turn_sin(minute + 15) * (r * 3 / 4) / 1024;
+    display->drawline(cx, cy, cx + mx, cy + my);
+    display->drawline(cx - 1, cy - 1, cx - 1 + mx, cy - 1 + my);
+#else
+    (void)gwps;
+#endif
+}
+
 void draw_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
                     int handle_id, bool clear)
 {

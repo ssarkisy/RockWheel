@@ -21,8 +21,10 @@
 #include <stdbool.h>
 
 /* The look that isn't in the skins: colours, list metrics and font files by
-   role, one entry a theme, each with a light and a dark set. Classic is the
-   only one. Values are read at the moment of use, Dark Theme with them. */
+   role, one entry a theme, each with a light and a dark set. Values are read
+   at the moment of use, the theme (global_settings.ui_theme) and Dark Theme
+   with them. */
+enum { UI_THEME_CLASSIC, UI_THEME_NEO, UI_THEME_COUNT };
 
 /* Classic's, where a constant is needed: the settings' defaults */
 #define UI_CLASSIC_SKIN          "iClassic-Square"
@@ -54,6 +56,16 @@ enum ui_colour {
     UI_COLOUR_SEARCH_FIELD,
     UI_COLOUR_SEARCH_RULE,
     UI_COLOUR_SEARCH_DIM,     /* a letter no name goes on with */
+    UI_COLOUR_SELECTOR_START, /* the selected row's, its start and end one for a flat one */
+    UI_COLOUR_SELECTOR_END,
+    UI_COLOUR_SELECTOR_TEXT,
+    UI_COLOUR_QUIET,          /* a chevron on a row not selected, a song's number */
+    UI_COLOUR_LEAD,           /* a year or a number before a name */
+    UI_COLOUR_HINT_TEXT,
+    UI_COLOUR_HINT_BAND,
+    UI_COLOUR_SCROLLBAR_THUMB, /* of a capsule */
+    UI_COLOUR_INITIAL_TEXT,   /* Quick Scroll's letter */
+    UI_COLOUR_COVER_TILE,     /* a cover's place without a cover, under its note */
     UI_COLOUR_COUNT
 };
 
@@ -86,6 +98,27 @@ enum ui_metric {
     UI_METRIC_HEADER_ARTIST_GAP,
     UI_METRIC_HEADER_COUNTS_GAP,
     UI_METRIC_HEADER_FOOT,
+    UI_METRIC_HEADER_COVER_RADIUS,
+    /* the selected row: 0 for a bar of the row's width, else the radius of a
+       rounded rectangle inset from the row's sides and, in a row of one
+       line, from its top and bottom */
+    UI_METRIC_SELECTION_RADIUS,
+    UI_METRIC_SELECTION_INSET_X,
+    UI_METRIC_SELECTION_INSET_Y,
+    UI_METRIC_CHEVRON_ALL,    /* on every row that leads on, not the selected one alone */
+    UI_METRIC_CHEVRON_ON_PLAY, /* on the main menu's row that plays, as a stock iPod's Now Playing */
+    UI_METRIC_PANE_LEFT,      /* the main menu's pane's first column; 0: where the list beside it ends */
+    /* the right end of a row: 0 as Classic lays it out, else where a value
+       ends, the chevron's left a pixel before, and the gaps between them */
+    UI_METRIC_ROW_RIGHT,
+    UI_METRIC_ROW_RIGHT_GAP,
+    UI_METRIC_SCROLLBAR_CAPSULE, /* 0 the theme's scrollbar, else a capsule's width in the gutter */
+    UI_METRIC_GROUP_BAR,      /* a group's name on a bar, or low in its row without */
+    UI_METRIC_LEAD_COLUMN,    /* the least width of the column of numbers before names, 0 for none */
+    UI_METRIC_SUBLINE_INK,    /* a second line starts where its name's ink does, not its cell */
+    UI_METRIC_HINT_RULE,      /* a line of a pixel over the hints, as wide as their text */
+    UI_METRIC_ROW_TEXT_DY,    /* a name's shift from the middle of a row of one line */
+    UI_METRIC_COVER_RADIUS,   /* Now Playing's covers' corners, 0 for square */
     UI_METRIC_COUNT
 };
 
@@ -97,6 +130,8 @@ enum ui_font {
     UI_FONT_SUBLINE,
     UI_FONT_HEADER_ARTIST,
     UI_FONT_HEADER_COUNTS,
+    UI_FONT_MENU_VALUE,   /* a setting's value at the right of its row */
+    UI_FONT_GROUP,        /* a group's name */
     UI_FONT_INITIAL,
     UI_FONT_COUNT
 };
@@ -115,6 +150,9 @@ struct ui_theme_look {
 
 struct ui_theme {
     struct ui_theme_look look[2]; /* light, dark */
+    const char *list_font; /* the name the "font" setting has for font[UI_FONT_LIST] */
+    bool selector_bevel;
+    bool cover_colours;    /* Now Playing's, as Classic has them; else as Off */
     const char *font[UI_FONT_COUNT]; /* files, with their folder */
     short metric[UI_METRIC_COUNT];
     unsigned scrollbar_thumb[UI_SCROLLBAR_THUMB_STEPS]; /* across it */
@@ -126,5 +164,16 @@ const struct ui_theme_look *ui_theme_look(bool dark);
 unsigned ui_colour(enum ui_colour role);
 int ui_metric(enum ui_metric metric);
 const char *ui_font_file(enum ui_font role);
+/* Cover Colours as the theme takes the setting's value */
+int ui_theme_cover_colours(int mode);
+/* Whether a setting's variable is the theme's to set, from the table: its
+   value isn't written to config.cfg in a theme other than Classic, so that a
+   firmware without that theme reads Classic's */
+bool ui_theme_owns(const void *variable);
+/* The theme's names, font and colours into the settings, for Dark Theme or not */
+void ui_theme_to_settings(bool dark);
+/* whether the skins and the list's font the settings name are the theme's,
+   of either look */
+bool ui_theme_in_settings(void);
 
 #endif /* _UI_THEME_H_ */

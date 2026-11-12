@@ -42,6 +42,12 @@ bool night_mode_poll(int context);
 
 /* Callbacks of the settings */
 void dark_theme_changed(bool dark);
+void ui_theme_changed(int theme);
+/* the theme's files loaded anew with the music stopped: after the setting
+   changed otherwise than by its row, as by a config file */
+void ui_theme_switch(void);
+/* whether Settings > Appearance has the Theme row */
+bool ui_theme_row_shown(void);
 void night_mode_changed(bool on);
 void night_action_changed(bool on);
 void night_brightness_changed(int value);

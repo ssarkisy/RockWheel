@@ -273,6 +273,14 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             if (do_refresh)
                 draw_format_bitrate(gwps, info->skin_vp);
             break;
+        case SKIN_TOKEN_DISK_RING:
+            if (do_refresh)
+                draw_disk_ring(gwps);
+            break;
+        case SKIN_TOKEN_CLOCK_DIAL:
+            if (do_refresh)
+                draw_clock_dial(gwps);
+            break;
         case SKIN_TOKEN_IMAGE_DISPLAY:
         {
             struct gui_img *img = SKINOFFSETTOPTR(skin_buffer, token->value.data);

@@ -18529,3 +18529,62 @@
     *: ""
   </voice>
 </phrase>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_THEME
+  desc: in the settings, under Appearance: the row that picks the look of the whole interface, one of a fixed list (Classic, Neo); its value shows at the row's right end
+  user: core
+  <source>
+    *: "Theme"
+  </source>
+  <dest>
+    *: "Teema"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_THEME_CLASSIC
+  desc: a value of Theme under Settings > Appearance: the look of an iPod classic, the one RockWheel has had; short, it shows beside the row's name
+  user: core
+  <source>
+    *: "Classic"
+  </source>
+  <dest>
+    *: "Klassinen"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_THEME_NEO
+  desc: a value of Theme under Settings > Appearance: the name of a look, a proper name kept as it is
+  user: core
+  <source>
+    *: "Neo"
+  </source>
+  <dest>
+    *: "Neo"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DISK_TOTAL_GB
+  desc: under the free space beside Settings in the main menu, small: the size of the whole disk in units of 1000, as LANG_DISK_FREE_GB has what is free
+  user: core
+  <source>
+    *: "%d GB total"
+  </source>
+  <dest>
+    *: "Yhteensä %d Gt"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

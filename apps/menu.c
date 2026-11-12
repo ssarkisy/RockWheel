@@ -258,8 +258,11 @@ static bool menu_has_children(int selected_item, void * data)
                 || (item->flags & MENU_FUNC_OPENS_SCREEN);
         case MT_RETURN_VALUE:
 #ifdef HAVE_TAGCACHE
+            /* nor, in a theme whose actions have none, the row that plays:
+               Now Playing or Resume Playback */
             return item->value != GO_TO_SHUFFLE_SONGS
-                   && item->value != GO_TO_SHUFFLE_ALBUMS;
+                   && item->value != GO_TO_SHUFFLE_ALBUMS
+                   && (item->value != GO_TO_WPS || ui_metric(UI_METRIC_CHEVRON_ON_PLAY));
 #else
             return true;
 #endif
@@ -393,6 +396,27 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         && info->list->callback_is_group(info->line, info->list->data))
     {
         struct line_desc linedes = *info->linedes;
+        if (!ui_metric(UI_METRIC_GROUP_BAR))
+        {
+            /* no bar: the name small and quiet, low in its row, over the
+               rows it names */
+            const int name_font = info->vp->font;
+            const int font = font_find(ui_font_file(UI_FONT_GROUP));
+            linedes.style = STYLE_DEFAULT;
+            display->put_line(info->x, info->y, &linedes, "");
+            const unsigned old_fg = display->get_foreground();
+            display->set_foreground(GROUP_COLOUR);
+            display->set_drawmode(DRMODE_FG);
+            if (font >= 0)
+                info->vp->font = font;
+            display->putsxy(info->x + info->item_indent,
+                            info->y + linedes.height - 6
+                            - (int)font_get(info->vp->font)->height, text);
+            info->vp->font = name_font;
+            display->set_drawmode(DRMODE_SOLID);
+            display->set_foreground(old_fg);
+            return;
+        }
         linedes.style = STYLE_COLORBAR;
         linedes.text_color = GROUP_COLOUR;
         linedes.line_color = GROUP_BAR_COLOUR;
@@ -456,9 +480,19 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
 
     int name_width, width, height;
     display->getstringsize(name, &name_width, &height);
-    display->getstringsize(tab + 1, &width, &height);
+    /* the value in the theme's font for it, on the name's baseline */
+    const int name_font = info->vp->font;
+    int font = font_find(ui_font_file(UI_FONT_MENU_VALUE));
+    if (font < 0)
+        font = name_font;
+    font_getstringsize(tab + 1, &width, NULL, font);
+    /* left of where a chevron can come in the list; or, where the theme
+       lays the row's end out itself, of this row's own, selected or not */
+    const bool chevron = info->list->callback_has_children
+        && (!ui_metric(UI_METRIC_ROW_RIGHT)
+            || info->list->callback_has_children(info->line, info->list->data));
     const int x = info->vp->width - width -
-        (info->list->callback_has_children ? VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
+        (chevron ? VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
     if (x < info->x + info->item_indent + name_width + VALUE_GAP)
         return;
 
@@ -466,7 +500,10 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
     display->set_foreground(info->is_selected ? ui_colour(UI_COLOUR_VALUE_SELECTED)
                                                   : VALUE_COLOUR);
     display->set_drawmode(DRMODE_FG);
-    display->putsxy(x, info->y + (info->linedes->height - height) / 2, tab + 1);
+    info->vp->font = font;
+    display->putsxy(x, info->y + (info->linedes->height - height) / 2
+                    + font_get(name_font)->ascent - font_get(font)->ascent, tab + 1);
+    info->vp->font = name_font;
     display->set_drawmode(DRMODE_SOLID);
     display->set_foreground(old_fg);
 }

@@ -475,6 +475,7 @@ bool settings_load_config(const char* file, bool apply)
         return false;
 
     const bool old_dark = global_settings.dark_theme;
+    const int old_theme = global_settings.ui_theme;
     if (apply)
         night_mode_settings_loading();
 
@@ -509,6 +510,12 @@ bool settings_load_config(const char* file, bool apply)
     {
         night_mode_boot();
         settings_save();
+        /* another theme: all of it, the music stopped before anything loads */
+        if (global_settings.ui_theme != old_theme)
+        {
+            ui_theme_switch();
+            return true;
+        }
         settings_apply(true);
         if (theme_changed || global_settings.dark_theme != old_dark)
         {
@@ -682,6 +689,11 @@ static bool settings_write_config(const char* filename, int options)
     {
         const struct settings_list *setting = &settings[i];
         if (!setting->cfg_name || (setting->flags & F_DEPRECATED))
+            continue;
+        /* a theme's names, font and colours are the table's, not the file's:
+           a firmware without the theme reads Classic's there */
+        if (global_settings.ui_theme != UI_THEME_CLASSIC
+            && ui_theme_owns(setting->setting))
             continue;
 
         switch (options)
@@ -1034,7 +1046,7 @@ void settings_apply(bool read_disk)
 
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     /* at boot before music, so that the audio buffer has to give way to nothing */
-    cover_palette_set_mode(global_settings.cover_colours);
+    cover_palette_set_mode(ui_theme_cover_colours(global_settings.cover_colours));
 #endif
     menu_cover_changed(global_settings.moving_cover);
 #ifdef HAVE_TAGCACHE

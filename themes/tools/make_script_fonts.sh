@@ -8,9 +8,10 @@
 #
 # with notosansjp, notosanssc, notosanstc, notosanshebrew, vazirmatn and
 # ibmplexsansthai in the first, each with its TTF and OFL.txt, and
-# Pretendard-SemiBold.otf, Pretendard-Medium.otf and LICENSE.txt in the second.
-# Run it after make_fonts.sh, whose eight fonts of the menus and the text it
-# merges into (merge_fonts.py); again on its own output, it makes the same.
+# Pretendard-SemiBold.otf, -Medium.otf, -Regular.otf, -Light.otf and LICENSE.txt
+# in the second.
+# Run it after make_fonts.sh, whose fonts of the menus and the text it merges
+# into (merge_fonts.py); again on its own output, it makes the same.
 #
 # The alphabets come in the three sizes of the theme's fonts first, outside
 # the theme: the ideographs and kana as tall as the capitals of Inter beside
@@ -40,8 +41,12 @@ a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da $src/notosanssc
 696249a2c74b39ffdef55de4df2809c5b639d3ff80d618d8160a095d2fd49dca $src/vazirmatn/Vazirmatn[wght].ttf
 f88fbe0a3717c93deddf4b13e50a05c9adcd38f58d675d9d5d0b869961851667 $src/ibmplexsansthai/IBMPlexSansThai-Bold.ttf
 9d7526a0c8dfad63c49815d0cce9eea1026f018468b81c579997e953620a67d3 $src/ibmplexsansthai/IBMPlexSansThai-SemiBold.ttf
+46ba1b7365cc2c583914f23914cce46e836a72662e34f6e3029b15aaa10b792e $src/ibmplexsansthai/IBMPlexSansThai-Medium.ttf
+eee061d1bac39be40f9bb94498898cd1894f5d3d9a2f0ee6cbd48a6bd03d052b $src/ibmplexsansthai/IBMPlexSansThai-Regular.ttf
 c89bc43027dc7cde5726e96223376f8eec09302b2fc1f8147fd5b57cfc376118 $otf/Pretendard-SemiBold.otf
-d39e50e4bb52b4993b6a4eeb821a171254745bd824446af01e1f616b89fface0 $otf/Pretendard-Medium.otf" |
+d39e50e4bb52b4993b6a4eeb821a171254745bd824446af01e1f616b89fface0 $otf/Pretendard-Medium.otf
+3ffbacde6ab8411f1d2db54bb9b1f0b3ee2a738932033722cf0388c06aed1c93 $otf/Pretendard-Regular.otf
+51418ee96ef96e9059db88d7da82f24fada1f4aca70d5157c878ea6b460dd343 $otf/Pretendard-Light.otf" |
 while read -r sum file; do
     [ "$(shasum -a 256 "$file" | cut -d' ' -f1)" = "$sum" ] \
         || { echo "$file isn't the one the theme's fonts were made of" >&2; exit 1; }
@@ -66,7 +71,7 @@ weight() {
             -o "$build/$3" > /dev/null
         echo "$build/$3"
     else
-        case $2 in 700) w=Bold ;; *) w=SemiBold ;; esac
+        case $2 in 700) w=Bold ;; 500) w=Medium ;; 400) w=Regular ;; *) w=SemiBold ;; esac
         ls "$src/$1"/*-$w.ttf | head -1
     fi
 }
@@ -103,7 +108,64 @@ hangul 24 Pretendard-SemiBold.otf 18
 hangul 17 Pretendard-Medium.otf   15
 hangul 14 Pretendard-SemiBold.otf 14
 
-"$python" "$here/merge_fonts.py" "$out" "$build" "$root/firmware/font_han_forms.h"
+# Neo's and Modern's fonts, each with the alphabets in its own weight and size.
+# px <em>: convttf's options for an em of that many pixels
+px() {
+    case $1 in
+        *.5)   echo "-X 36 -p $(echo "$1" | sed 's/\.5$//' | awk '{ print 2 * $1 + 1 }')" ;;
+        11.67) echo "-X 60 -p 14" ;;
+        *)     echo "-X 72 -p $1" ;;
+    esac
+}
+# pretendard <weight>: its file a weight lighter than Inter's, as above
+pretendard() {
+    case $1 in 600) w=Medium ;; 500) w=Regular ;; *) w=Light ;; esac
+    echo "$otf/Pretendard-$w.otf"
+}
+# set <font> <weight> <ideographs' em> <the others' em> <Hangul's em>
+# The ideographs and kana as tall as Inter's capitals, 10 px at the least, under
+# which they can't be read; Hangul 11.67 at the least, as the 14 px fonts' above:
+# in the smallest fonts both are taller than the Latin beside them, cut to the
+# line where they don't fit (merge_fonts.py counts those).
+: > "$build/sets.txt"
+set_of() {
+    name=$1 wght=$2 han=$3 em=$4 hangul=$5
+    echo "$name" >> "$build/sets.txt"
+    # shellcheck disable=SC2046
+    for r in JP SC TC; do
+        family=notosans$(echo $r | tr A-Z a-z)
+        ttf=$(weight $family "$wght" "$family-$wght.ttf")
+        "$build/convttf" -s 12288 -l 40959 -A $(px "$han") -o "$build/$name-Han-$r.fnt" "$ttf" > /dev/null
+        "$build/convttf" -s 63744 -l 64255 -A $(px "$han") -o "$build/$name-Compat-$r.fnt" "$ttf" > /dev/null
+        "$build/convttf" -s 65280 -l 65519 -A $(px "$han") -o "$build/$name-Wide-$r.fnt" "$ttf" > /dev/null
+    done
+    # shellcheck disable=SC2046
+    {
+    "$build/convttf" -s 1424 -l 1535 -A $(px "$em") -o "$build/$name-Hebrew.fnt" \
+        "$(weight notosanshebrew "$wght" "notosanshebrew-$wght.ttf")" > /dev/null
+    ttf=$(weight vazirmatn "$wght" "vazirmatn-$wght.ttf")
+    "$build/convttf" -s 1536 -l 1791 -A $(px "$em") -o "$build/$name-Arabic.fnt" "$ttf" > /dev/null
+    "$build/convttf" -s 64336 -l 65023 -A $(px "$em") -o "$build/$name-ArabicA.fnt" "$ttf" > /dev/null
+    "$build/convttf" -s 65136 -l 65279 -A $(px "$em") -o "$build/$name-ArabicB.fnt" "$ttf" > /dev/null
+    "$build/convttf" -s 3584 -l 3711 -A $(px "$em") -o "$build/$name-Thai.fnt" \
+        "$(weight ibmplexsansthai "$wght" "ibmplexsansthai-$wght.ttf")" > /dev/null
+    "$build/convttf" -s 12593 -l 55203 -A $(px "$hangul") -o "$build/$name-Hangul.fnt" \
+        "$(pretendard "$wght")" > /dev/null
+    }
+}
+set_of 22-Inter-SemiBold 600 15 17   17     # Neo title; Modern pane caption
+set_of 19-Inter-Medium   500 13 15   15     # Neo row
+set_of 17-Inter-Regular  400 12 13   13     # Neo text
+set_of 15-Inter-Medium   500 11 12   12     # Neo label
+set_of 15-Inter-SemiBold 600 11 12   12     # Neo name
+set_of 15-Inter-Regular  400 11 12   12     # Neo sub
+set_of 14-Inter-Medium   500 10 11   11.67  # Neo small
+set_of 20-Inter-SemiBold 600 14 15.5 15.5   # Modern titles
+set_of 18-Inter-Regular  400 12 14   14     # Modern row
+set_of 14-Inter-Regular  400 10 11   11.67  # Modern values
+set_of 13-Inter-Regular  400 10 10   11.67  # Modern small
+
+"$python" "$here/merge_fonts.py" "$out" "$build" "$root/firmware/font_han_forms.h" "$build/sets.txt"
 
 # licence <from> <to>: with the line ends git keeps
 licence() {

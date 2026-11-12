@@ -1176,6 +1176,7 @@ static bool set_inactive(void)
 
 void cover_palette_set_mode(int mode)
 {
+    mode = ui_theme_cover_colours(mode); /* the setting's callback gives its value */
     palette_handle = -1;
     if (mode != buffers_mode)
         buffers_refused = false;
@@ -1193,7 +1194,7 @@ void cover_palette_set_mode(int mode)
 
 bool cover_palette_update(int art_handle, uint32_t colour)
 {
-    int mode = global_settings.cover_colours;
+    int mode = ui_theme_cover_colours(global_settings.cover_colours);
     if (mode != palette_mode)
         palette_handle = -1;
     palette_mode = mode;

@@ -192,7 +192,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 34
+#define PLUGIN_API_REVISION 36
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1170,6 +1170,8 @@ struct plugin_api {
        when the kinds aren't in memory (tagcache.h) */
     int (*tagcache_kind_if_known)(int idx_id);
 #endif
+    /* a font file of the theme by its role, which it keeps loaded (gui/ui_theme.h) */
+    const char *(*ui_font_file)(enum ui_font role);
 };
 
 /* plugin header */

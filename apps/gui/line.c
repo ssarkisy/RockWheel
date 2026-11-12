@@ -433,6 +433,93 @@ static void draw_bevel(struct screen *display, int x, int y, int width,
 }
 #endif
 
+/* The selection as a rounded rectangle in colour, on the ground: the rows
+   top to top + height of one row_h high, from clip_x to the right, the rest
+   of it left alone. Its corners' pixels are the colour mixed with the ground
+   by how much of each is inside the rounding, set rather than blended, so
+   that drawing a strip of it again gives the same. */
+static void selection_rounded(struct screen *display, int clip_x, int y,
+                              int top, int height, int row_h, int inset_y,
+                              unsigned colour)
+{
+    const int r = ui_metric(UI_METRIC_SELECTION_RADIUS);
+    const int x0 = ui_metric(UI_METRIC_SELECTION_INSET_X);
+    const int x1 = display->getwidth() - x0; /* past its last column */
+    const int h = row_h - 2 * inset_y;
+    const unsigned ground = display->get_background();
+    const unsigned fg = display->get_foreground();
+    display->set_drawmode(DRMODE_SOLID);
+    for (int row = MAX(top, inset_y); row < MIN(top + height, row_h - inset_y); row++)
+    {
+        const int edge = MIN(row - inset_y, h - 1 - (row - inset_y));
+        const int yy = y + row - top;
+        int in = 0; /* the columns of a corner in this row */
+        if (edge < r)
+        {
+            in = r;
+            for (int i = 0; i < r; i++)
+            {
+                /* by 4x4 points of the pixel, in eighths */
+                int cover = 0;
+                for (int k = 0; k < 16; k++)
+                {
+                    const int dx = 8 * r - (8 * i + 2 * (k & 3) + 1);
+                    const int dy = 8 * r - (8 * edge + 2 * (k >> 2) + 1);
+                    cover += dx * dx + dy * dy <= 64 * r * r;
+                }
+                if (!cover)
+                    continue;
+                display->set_foreground(mix_color(ground, colour, cover * 100 / 16));
+                if (x0 + i >= clip_x)
+                    display->drawpixel(x0 + i, yy);
+                if (x1 - 1 - i >= clip_x)
+                    display->drawpixel(x1 - 1 - i, yy);
+            }
+        }
+        display->set_foreground(colour);
+        if (MAX(x0 + in, clip_x) <= x1 - 1 - in)
+            display->hline(MAX(x0 + in, clip_x), x1 - 1 - in, yy);
+    }
+    display->set_foreground(fg);
+}
+
+void line_fill_rounded(struct screen *display, int x, int y, int w, int h,
+                       int r, unsigned colour)
+{
+    const unsigned ground = display->get_background();
+    const unsigned fg = display->get_foreground();
+    display->set_drawmode(DRMODE_SOLID);
+    r = MIN(r, MIN(w, h) / 2);
+    for (int row = 0; row < h; row++)
+    {
+        const int edge = MIN(row, h - 1 - row);
+        int in = 0;
+        if (edge < r)
+        {
+            in = r;
+            for (int i = 0; i < r; i++)
+            {
+                int cover = 0;
+                for (int k = 0; k < 16; k++)
+                {
+                    const int dx = 8 * r - (8 * i + 2 * (k & 3) + 1);
+                    const int dy = 8 * r - (8 * edge + 2 * (k >> 2) + 1);
+                    cover += dx * dx + dy * dy <= 64 * r * r;
+                }
+                if (!cover)
+                    continue;
+                display->set_foreground(mix_color(ground, colour, cover * 100 / 16));
+                display->drawpixel(x + i, y + row);
+                display->drawpixel(x + w - 1 - i, y + row);
+            }
+        }
+        display->set_foreground(colour);
+        if (x + in <= x + w - 1 - in)
+            display->hline(x + in, x + w - 1 - in, y + row);
+    }
+    display->set_foreground(fg);
+}
+
 unsigned line_selection_bar(struct screen *display, int x, int y, int width,
                             int height)
 {
@@ -506,6 +593,23 @@ static void style_line(struct screen *display,
         {
             /* of a part, the whole row's gradient from the part's top */
             const int row = line->row_height > 0 ? line->row_height : height;
+            if (ui_metric(UI_METRIC_SELECTION_RADIUS) > 0
+                && display->screen_type == SCREEN_MAIN)
+            {
+                /* the ground under it first, as the default style has it,
+                   but the gutter right of it, where the scrollbar is */
+                display->set_drawmode(DRMODE_BG | DRMODE_INVERSEVID);
+                display->fillrect(x, y, width - x
+                                  - ui_metric(UI_METRIC_SELECTION_INSET_X), bar_height);
+                /* an item of several lines is one rectangle over them all */
+                selection_rounded(display, x, y,
+                                  row * line->line + line->row_top, bar_height,
+                                  row * line->nlines,
+                                  line->row_height > 0 ? 0
+                                  : ui_metric(UI_METRIC_SELECTION_INSET_Y),
+                                  line->line_color);
+                break;
+            }
             display->set_drawmode(DRMODE_FG);
             display->gradient_fillrect_part(x, y, width, bar_height,
                                             line->line_color,
@@ -587,8 +691,6 @@ static int line_middle(struct screen *display, int y,
 /* drawn like anti-aliased glyphs: 9x11, lines 2.6 pixels thick, in Rockbox'
    alpha format (4 bits from 0 opaque to 15 transparent, low nibble first,
    rows run on without padding) */
-#define CHEVRON_W 9
-#define CHEVRON_H 11
 static const unsigned char chevron_alpha[] = {
     0x3a, 0xf7, 0xff, 0xff, 0x5f, 0x00, 0xd3, 0xff, 0xff, 0x2d, 0x00, 0x90,
     0xff, 0xff, 0x5e, 0x00, 0x50, 0xfe, 0xff, 0xaf, 0x01, 0x20, 0xfd, 0xff,
@@ -598,8 +700,6 @@ static const unsigned char chevron_alpha[] = {
 };
 /* the speaker of the song playing, in the same format: made by
    themes/tools/make_list_glyphs.py */
-#define SPEAKER_W 15
-#define SPEAKER_H 12
 static const unsigned char speaker_alpha[] = {
     0xff, 0xff, 0xff, 0xdf, 0xff, 0xbf, 0xfe, 0xff, 0xff, 0xff, 0x6f, 0xf7,
     0xef, 0x40, 0xff, 0xff, 0xff, 0x4e, 0x70, 0xef, 0xaf, 0x80, 0xff, 0xff,
@@ -611,8 +711,6 @@ static const unsigned char speaker_alpha[] = {
     0xff, 0xff, 0xfd, 0xff, 0xeb, 0xff,
 };
 /* the shuffle arrows of a list's Shuffle Songs, by the same tool */
-#define SHUFFLE_W 16
-#define SHUFFLE_H 12
 static const unsigned char shuffle_alpha[] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0x9f, 0xf9, 0xff, 0xbd, 0xcb, 0xff, 0xff,
     0xef, 0x6b, 0x40, 0xfd, 0x01, 0x00, 0xe4, 0xff, 0x1a, 0x00, 0x00, 0xd1,
@@ -624,8 +722,6 @@ static const unsigned char shuffle_alpha[] = {
     0xef, 0x6b, 0x40, 0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0x9f, 0xf9, 0xff,
 };
 /* the marks of the catalogue's playlists and folders, by the same tool */
-#define COMPUTER_W 13
-#define COMPUTER_H 12
 static const unsigned char computer_alpha[] = {
     0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x00, 0xf0, 0xff, 0xff, 0xff,
@@ -635,8 +731,6 @@ static const unsigned char computer_alpha[] = {
     0xff, 0x00, 0xf0, 0xff, 0xff, 0xff, 0x2f, 0x00, 0x00, 0x20, 0xff, 0xff,
     0xff, 0x02, 0x00, 0x00, 0xf2, 0xff,
 };
-#define IPOD_W 10
-#define IPOD_H 13
 static const unsigned char ipod_alpha[] = {
     0x07, 0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,
     0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff,
@@ -647,8 +741,6 @@ static const unsigned char ipod_alpha[] = {
 };
 /* the note on the tile in place of a cover in an album's row, the one of an
    album's header (album_header.c) smaller, by the same tool */
-#define SMALL_NOTE_W 16
-#define SMALL_NOTE_H 19
 static const unsigned char small_note_alpha[] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xef, 0x7a, 0xa3, 0xff, 0xff, 0xff, 0xdf,
     0x6a, 0x02, 0x00, 0x90, 0xff, 0xff, 0x6d, 0x02, 0x00, 0x00, 0x00, 0x90,
@@ -665,15 +757,11 @@ static const unsigned char small_note_alpha[] = {
     0xdf, 0xdb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 };
 /* the marks of a podcast's episodes, new and begun, by the same tool */
-#define DOT_W 7
-#define DOT_H 7
 static const unsigned char dot_alpha[] = {
     0xaf, 0x02, 0xa2, 0xaf, 0x00, 0x00, 0xa0, 0x02, 0x00, 0x00, 0x02, 0x00,
     0x00, 0x00, 0x02, 0x00, 0x00, 0xa2, 0x00, 0x00, 0xa0, 0xaf, 0x02, 0xa2,
     0xff,
 };
-#define HALF_DOT_W 7
-#define HALF_DOT_H 7
 static const unsigned char half_dot_alpha[] = {
     0xaf, 0x02, 0xa2, 0xaf, 0x00, 0x76, 0xa0, 0x02, 0x70, 0x7f, 0x02, 0x00,
     0xf7, 0x0b, 0x02, 0x70, 0x7f, 0xa2, 0x00, 0x76, 0xa0, 0xaf, 0x02, 0xa2,
@@ -682,6 +770,73 @@ static const unsigned char half_dot_alpha[] = {
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
+/* The marks by theme: Classic's above, Neo's from its mockup's export */
+#include "neo_glyphs.h"
+struct glyph {
+    const unsigned char *alpha;
+    unsigned char w, h, frame; /* its frame of those one under another */
+};
+enum { GLYPH_CHEVRON, GLYPH_SPEAKER, GLYPH_SHUFFLE, GLYPH_COMPUTER, GLYPH_IPOD,
+       GLYPH_SMALL_NOTE, GLYPH_DOT, GLYPH_HALF_DOT, GLYPH_COUNT };
+static const struct glyph glyphs[UI_THEME_COUNT][GLYPH_COUNT] = {
+    [UI_THEME_CLASSIC] = {
+        [GLYPH_CHEVRON]    = { chevron_alpha, 9, 11, 0 },
+        [GLYPH_SPEAKER]    = { speaker_alpha, 15, 12, 0 },
+        [GLYPH_SHUFFLE]    = { shuffle_alpha, 16, 12, 0 },
+        [GLYPH_COMPUTER]   = { computer_alpha, 13, 12, 0 },
+        [GLYPH_IPOD]       = { ipod_alpha, 10, 13, 0 },
+        [GLYPH_SMALL_NOTE] = { small_note_alpha, 16, 19, 0 },
+        [GLYPH_DOT]        = { dot_alpha, 7, 7, 0 },
+        [GLYPH_HALF_DOT]   = { half_dot_alpha, 7, 7, 0 },
+    },
+    [UI_THEME_NEO] = {
+        [GLYPH_CHEVRON]    = { neo_chevron_alpha, NEO_CHEVRON_W, NEO_CHEVRON_H, 0 },
+        [GLYPH_SPEAKER]    = { neo_speaker_alpha, NEO_SPEAKER_W, NEO_SPEAKER_H, 0 },
+        [GLYPH_SHUFFLE]    = { neo_shuffle_alpha, NEO_SHUFFLE_W, NEO_SHUFFLE_H, 0 },
+        [GLYPH_COMPUTER]   = { neo_source_alpha, NEO_SOURCE_W, NEO_SOURCE_H, 0 },
+        [GLYPH_IPOD]       = { neo_source_alpha, NEO_SOURCE_W, NEO_SOURCE_H, 1 },
+        [GLYPH_SMALL_NOTE] = { neo_note_small_alpha, NEO_NOTE_SMALL_W, NEO_NOTE_SMALL_H, 0 },
+        [GLYPH_DOT]        = { neo_episode_dots_alpha, NEO_EPISODE_DOTS_W, NEO_EPISODE_DOTS_H, 0 },
+        [GLYPH_HALF_DOT]   = { neo_episode_dots_alpha, NEO_EPISODE_DOTS_W, NEO_EPISODE_DOTS_H, 1 },
+    },
+};
+
+static const struct glyph *glyph(int which)
+{
+    const int theme = global_settings.ui_theme;
+    return &glyphs[theme >= 0 && theme < UI_THEME_COUNT ? theme : UI_THEME_CLASSIC][which];
+}
+
+#define CHEVRON_W    (glyph(GLYPH_CHEVRON)->w)
+#define CHEVRON_H    (glyph(GLYPH_CHEVRON)->h)
+#define SPEAKER_W    (glyph(GLYPH_SPEAKER)->w)
+#define SPEAKER_H    (glyph(GLYPH_SPEAKER)->h)
+#define SHUFFLE_W    (glyph(GLYPH_SHUFFLE)->w)
+#define SHUFFLE_H    (glyph(GLYPH_SHUFFLE)->h)
+#define SMALL_NOTE_W (glyph(GLYPH_SMALL_NOTE)->w)
+#define SMALL_NOTE_H (glyph(GLYPH_SMALL_NOTE)->h)
+#define DOT_W        (glyph(GLYPH_DOT)->w)
+#define DOT_H        (glyph(GLYPH_DOT)->h)
+
+static void draw_glyph(int which, int x, int y)
+{
+    const struct glyph *const g = glyph(which);
+    lcd_alpha_bitmap_part(g->alpha, 0, g->frame * g->h, g->w, x, y, g->w, g->h);
+}
+
+/* a decoration's colour on the selected row, and on another: the selection's
+   text and the colour given, or the theme's own quiet ones where it lays the
+   row's end out itself */
+static unsigned on_selection(const struct line_desc *line)
+{
+    return ui_metric(UI_METRIC_ROW_RIGHT) ? ui_colour(UI_COLOUR_VALUE_SELECTED)
+                                          : (unsigned)line->text_color;
+}
+
+static unsigned off_selection(unsigned colour)
+{
+    return ui_metric(UI_METRIC_ROW_RIGHT) ? ui_colour(UI_COLOUR_QUIET) : colour;
+}
 #endif
 
 static void draw_chevron(struct screen *display, int y, struct line_desc *line)
@@ -690,11 +845,20 @@ static void draw_chevron(struct screen *display, int y, struct line_desc *line)
     if (display->screen_type == SCREEN_MAIN)
     {
         int x = display->getwidth() - CHEVRON_W - CHEVRON_MARGIN;
-        style_strip(display, x - CHEVRON_MARGIN, y, line);
+        const bool selected = line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT);
+        const unsigned fg = display->get_foreground();
+        /* on a row not selected, which only the theme with one on every
+           row has, the list's ground is there already */
+        if (selected || !ui_metric(UI_METRIC_CHEVRON_ALL))
+            style_strip(display, x - (ui_metric(UI_METRIC_ROW_RIGHT) ?
+                                      ui_metric(UI_METRIC_ROW_RIGHT_GAP) - 2
+                                      : CHEVRON_MARGIN), y, line);
+        if (ui_metric(UI_METRIC_ROW_RIGHT))
+            display->set_foreground(selected ? on_selection(line)
+                                             : ui_colour(UI_COLOUR_QUIET));
         display->set_drawmode(DRMODE_FG);
-        lcd_alpha_bitmap_part(chevron_alpha, 0, 0, CHEVRON_W,
-                              x, line_middle(display, y, line, CHEVRON_H),
-                              CHEVRON_W, CHEVRON_H);
+        draw_glyph(GLYPH_CHEVRON, x, line_middle(display, y, line, CHEVRON_H));
+        display->set_foreground(fg);
         return;
     }
 #endif
@@ -737,6 +901,23 @@ static bool has_value(struct screen *display, const struct line_desc *line)
     return line->value[0] && display->screen_type == SCREEN_MAIN && !lang_is_rtl();
 }
 
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+/* Where the theme lays the row's end out itself: the column a value ends
+   before, right of the chevron's place if the row has one; or, past the
+   value too, the one the speaker ends before */
+static int row_right(struct screen *display, const struct line_desc *line,
+                     bool past_value)
+{
+    const int gap = ui_metric(UI_METRIC_ROW_RIGHT_GAP);
+    int right = display->getwidth() - ui_metric(UI_METRIC_ROW_RIGHT);
+    if (line->style & STYLE_CHEVRON)
+        right -= gap;
+    if (past_value && has_value(display, line))
+        right -= line->value_width + gap;
+    return right;
+}
+#endif
+
 /* The speaker of the song playing at the right end of its line, as on a stock
    iPod: in the blue of the selection's end on the list, and as the selection's
    text on it, on a strip of the line's own background, which goes on under
@@ -757,16 +938,18 @@ static void draw_speaker(struct screen *display, int y, struct line_desc *line)
             x -= CHEVRON_W + CHEVRON_MARGIN;
         if (has_value(display, line))
             x -= line->value_width + CHEVRON_MARGIN;
+        if (ui_metric(UI_METRIC_ROW_RIGHT))
+            x = row_right(display, line, true) - SPEAKER_W;
         style_strip(display, x - CHEVRON_MARGIN, y, line);
     }
     const bool selected = line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT);
     const unsigned fg = display->get_foreground();
-    if (!selected)
+    if (ui_metric(UI_METRIC_ROW_RIGHT))
+        display->set_foreground(selected ? on_selection(line) : LIST_VALUE_COLOUR);
+    else if (!selected)
         display->set_foreground(speaker_colour());
     display->set_drawmode(DRMODE_FG);
-    lcd_alpha_bitmap_part(speaker_alpha, 0, 0, SPEAKER_W,
-                          x, line_middle(display, y, line, SPEAKER_H),
-                          SPEAKER_W, SPEAKER_H);
+    draw_glyph(GLYPH_SPEAKER, x, line_middle(display, y, line, SPEAKER_H));
     display->set_foreground(fg);
 #else
     (void)display; (void)y; (void)line;
@@ -784,18 +967,22 @@ static void draw_value(struct screen *display, int y, struct line_desc *line)
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (line->style & STYLE_CHEVRON)
         right -= CHEVRON_W + CHEVRON_MARGIN;
+    if (ui_metric(UI_METRIC_ROW_RIGHT))
+        right = row_right(display, line, false);
 #endif
     const int height = line->height == -1 ? display->getcharheight() : line->height;
     struct viewport *vp = *display->current_viewport;
     const int name_font = vp->font;
     /* in line with the name, in a row of two parts too */
-    y += height/2 - display->getcharheight()/2 + line->text_dy + line->value_shift;
+    /* but not with the theme's shift of a name in a row of one line */
+    y += height/2 - display->getcharheight()/2 + line->text_dy + line->value_shift
+         - (line->row_height <= 0 ? ui_metric(UI_METRIC_ROW_TEXT_DY) : 0);
     int width;
     font_getstringsize(line->value, &width, NULL, line->value_font);
     const unsigned fg = display->get_foreground();
 #ifdef HAVE_LCD_COLOR
     if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
-        display->set_foreground(line->text_color);
+        display->set_foreground(on_selection(line));
     else if (line->style & STYLE_INVERT)
         display->set_foreground(display->get_background());
     else
@@ -855,16 +1042,15 @@ static void draw_state(struct screen *display, int x, int y,
     const int height = line->height == -1 ? display->getcharheight() : line->height;
     const unsigned fg = display->get_foreground();
     if (line->style & (STYLE_COLORBAR|STYLE_GRADIENT))
-        display->set_foreground(line->text_color);
+        display->set_foreground(on_selection(line));
     else if (line->style & STYLE_INVERT)
         display->set_foreground(display->get_background());
     else
-        display->set_foreground(speaker_colour());
+        display->set_foreground(off_selection(speaker_colour()));
     display->set_drawmode(DRMODE_FG);
-    lcd_alpha_bitmap_part(mark == LINE_MARK_NEW ? dot_alpha : half_dot_alpha,
-                          0, 0, DOT_W, x + (lang_is_rtl() ? STATE_GAP : 0),
-                          y + (height - DOT_H) / 2 + line->text_dy,
-                          DOT_W, DOT_H);
+    draw_glyph(mark == LINE_MARK_NEW ? GLYPH_DOT : GLYPH_HALF_DOT,
+               x + (lang_is_rtl() ? STATE_GAP : 0),
+               y + (height - DOT_H) / 2 + line->text_dy);
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
 }
@@ -882,28 +1068,29 @@ void line_draw_mark(struct screen *display, int x, int y,
     }
     if (!line_mark_width(display))
         return;
-    const unsigned char *alpha;
-    int w, h;
+    int which;
     switch (mark)
     {
         case LINE_MARK_COMPUTER:
-            alpha = computer_alpha; w = COMPUTER_W; h = COMPUTER_H;
+            which = GLYPH_COMPUTER;
             break;
         case LINE_MARK_IPOD:
-            alpha = ipod_alpha; w = IPOD_W; h = IPOD_H;
+            which = GLYPH_IPOD;
             break;
         default:
             return;
     }
+    const int w = glyph(which)->w, h = glyph(which)->h;
     const int height = line->height == -1 ? display->getcharheight() : line->height;
     const unsigned fg = display->get_foreground();
     if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
-        display->set_foreground(line->text_color);
+        display->set_foreground(on_selection(line));
     else if (line->style & STYLE_INVERT) /* as the text on the bar */
         display->set_foreground(display->get_background());
+    else
+        display->set_foreground(off_selection(fg));
     display->set_drawmode(DRMODE_FG);
-    lcd_alpha_bitmap_part(alpha, 0, 0, w, x + (MARK_COLUMN - w) / 2,
-                          y + (height - h) / 2, w, h);
+    draw_glyph(which, x + (MARK_COLUMN - w) / 2, y + (height - h) / 2);
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
 #else
@@ -923,7 +1110,8 @@ int line_lead_width(struct screen *display, int font, int digits, int *digit)
         widest = MAX(widest, w);
     }
     *digit = widest;
-    return digits * widest + LEAD_GAP;
+    /* at least the theme's column, in which a short one is centred */
+    return MAX(digits * widest + LEAD_GAP, ui_metric(UI_METRIC_LEAD_COLUMN));
 }
 
 /* The rows of its line a glyph's ink takes, its pixels at least half drawn:
@@ -953,6 +1141,40 @@ static bool glyph_ink(int font, ucschar_t ch, int *top, int *bottom)
         }
     }
     return *top >= 0;
+}
+
+int line_ink_left(int font, const char *text)
+{
+    struct font *pf = font_get(font);
+    ucschar_t ch;
+    if (!text || !*text || !pf->depth)
+        return 0;
+    utf8decode((const unsigned char *)text, &ch);
+    font_lock(font, true);
+    const int width = font_get_width(pf, ch);
+    const unsigned char *bits = font_get_bits(pf, ch);
+    int left = 0;
+    /* a letter the font hasn't is another font's glyph, of another height
+       and depth: not read as this one's */
+    if (ch != (ucschar_t)pf->defaultchar
+        && bits == font_get_bits(pf, pf->defaultchar))
+        bits = NULL;
+    for (int x = 0; bits && x < width; x++)
+    {
+        bool ink = false;
+        for (int row = 0; row < (int)pf->height && !ink; row++)
+        {
+            const int p = row * width + x;
+            ink = ((bits[p >> 1] >> ((p & 1) * 4)) & 0xf) < 8;
+        }
+        if (ink)
+        {
+            left = x;
+            break;
+        }
+    }
+    font_lock(font, false);
+    return left;
 }
 
 int line_lead_shift(int name_font, int font)
@@ -998,7 +1220,11 @@ void line_draw_lead(struct screen *display, int font, int shift, int x, int y,
                     const struct line_desc *line, const char *text,
                     int width, int digit)
 {
-    x += width - LEAD_GAP - digit * (int)strlen(text);
+    const int lead_w = digit * (int)strlen(text);
+    if (width == ui_metric(UI_METRIC_LEAD_COLUMN) && lead_w + LEAD_GAP <= width)
+        x += (width - LEAD_GAP - lead_w) / 2; /* in the middle of its cell */
+    else
+        x += width - LEAD_GAP - lead_w;
     const int height = line->height == -1 ? display->getcharheight() : line->height;
     struct viewport *vp = *display->current_viewport;
     const int name_font = vp->font;
@@ -1006,11 +1232,11 @@ void line_draw_lead(struct screen *display, int font, int shift, int x, int y,
     const unsigned fg = display->get_foreground();
 #ifdef HAVE_LCD_COLOR
     if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
-        display->set_foreground(line->text_color);
+        display->set_foreground(on_selection(line));
     else if (line->style & STYLE_INVERT) /* as the text on the bar */
         display->set_foreground(display->get_background());
     else
-        display->set_foreground(LIST_VALUE_COLOUR);
+        display->set_foreground(ui_colour(UI_COLOUR_LEAD));
 #endif
     display->set_drawmode(DRMODE_FG);
     vp->font = font;
@@ -1036,10 +1262,11 @@ void line_draw_shuffle(struct screen *display, int x, int y,
     const int height = line->height == -1 ? display->getcharheight() : line->height;
     const unsigned fg = display->get_foreground();
     if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
-        display->set_foreground(line->text_color);
+        display->set_foreground(on_selection(line));
+    else
+        display->set_foreground(off_selection(fg));
     display->set_drawmode(DRMODE_FG);
-    lcd_alpha_bitmap_part(shuffle_alpha, 0, 0, SHUFFLE_W,
-                          x, y + (height - SHUFFLE_H)/2, SHUFFLE_W, SHUFFLE_H);
+    draw_glyph(GLYPH_SHUFFLE, x, y + (height - SHUFFLE_H)/2);
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
 #else
@@ -1117,9 +1344,14 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
     accent_colour = speaker_colour();
 #endif
     if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
-        colour = accent_colour = line->text_color;
+    {
+        colour = on_selection(line);
+        accent_colour = line->text_color;
+    }
     else if (line->style & STYLE_INVERT) /* as the text on the bar */
         colour = accent_colour = display->get_background();
+    else if (ui_metric(UI_METRIC_ROW_RIGHT))
+        accent_colour = global_settings.fg_color; /* the row's news, as its name */
 #endif
     display->set_drawmode(DRMODE_FG);
     vp->font = font;
@@ -1143,6 +1375,44 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
     display->set_drawmode(DRMODE_SOLID);
 }
 
+void line_round_corners(struct screen *display, int x, int y, int w, int h, int r)
+{
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (r <= 0 || r > 16 || display->screen_type != SCREEN_MAIN)
+        return;
+    const unsigned fg = display->get_foreground();
+    display->set_foreground(display->get_background());
+    display->set_drawmode(DRMODE_FG);
+    for (int row = 0; row < r; row++)
+    {
+        /* the ground over each pixel by how much of it is outside the
+           rounding: the left corner's row, and the right one's mirrored */
+        unsigned char left[8] = { 0 }, right[8] = { 0 };
+        for (int i = 0; i < r; i++)
+        {
+            int cover = 0;
+            for (int k = 0; k < 16; k++)
+            {
+                const int dx = 8 * r - (8 * i + 2 * (k & 3) + 1);
+                const int dy = 8 * r - (8 * row + 2 * (k >> 2) + 1);
+                cover += dx * dx + dy * dy <= 64 * r * r;
+            }
+            const unsigned a = cover > 8 ? cover - 1 : cover; /* 15 is none */
+            left[i / 2] |= a << (i & 1 ? 4 : 0);
+            right[(r - 1 - i) / 2] |= a << ((r - 1 - i) & 1 ? 4 : 0);
+        }
+        lcd_alpha_bitmap_part(left, 0, 0, r, x, y + row, r, 1);
+        lcd_alpha_bitmap_part(right, 0, 0, r, x + w - r, y + row, r, 1);
+        lcd_alpha_bitmap_part(left, 0, 0, r, x, y + h - 1 - row, r, 1);
+        lcd_alpha_bitmap_part(right, 0, 0, r, x + w - r, y + h - 1 - row, r, 1);
+    }
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+#else
+    (void)display; (void)x; (void)y; (void)w; (void)h; (void)r;
+#endif
+}
+
 void line_draw_cover(struct screen *display, int x, int y,
                      const fb_data *pixels)
 {
@@ -1156,7 +1426,7 @@ void line_draw_cover(struct screen *display, int x, int y,
     }
     /* as an album's header has it in its cover's place, smaller */
     const unsigned fg = display->get_foreground();
-    display->set_foreground(LIST_GROUP_BAR_COLOUR);
+    display->set_foreground(ui_colour(UI_COLOUR_COVER_TILE));
     display->set_drawmode(DRMODE_SOLID);
     display->fillrect(x, y, LINE_COVER_SIZE, LINE_COVER_SIZE);
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
@@ -1164,10 +1434,8 @@ void line_draw_cover(struct screen *display, int x, int y,
     {
         display->set_foreground(LIST_GROUP_COLOUR);
         display->set_drawmode(DRMODE_FG);
-        lcd_alpha_bitmap_part(small_note_alpha, 0, 0, SMALL_NOTE_W,
-                              x + (LINE_COVER_SIZE - SMALL_NOTE_W) / 2,
-                              y + (LINE_COVER_SIZE - SMALL_NOTE_H) / 2,
-                              SMALL_NOTE_W, SMALL_NOTE_H);
+        draw_glyph(GLYPH_SMALL_NOTE, x + (LINE_COVER_SIZE - SMALL_NOTE_W) / 2,
+                   y + (LINE_COVER_SIZE - SMALL_NOTE_H) / 2);
     }
 #endif
     display->set_foreground(fg);
@@ -1303,7 +1571,7 @@ void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
         lcd_alpha_bitmap_part(mask, 0, 0, w, x, y + row, w, 1);
     }
 
-    display->set_foreground(LCD_WHITE);
+    display->set_foreground(ui_colour(UI_COLOUR_INITIAL_TEXT));
     if (pf)
     {
         /* the capitals' middle in the box's, as the digits of a year have it
@@ -1350,6 +1618,20 @@ static int decoration_width(struct screen *display, const struct line_desc *line
         return 0;
     int width = has_value(display, line) ? line->value_width + CHEVRON_MARGIN : 0;
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (ui_metric(UI_METRIC_ROW_RIGHT))
+    {
+        /* from the leftmost of them, a gap before it, to the row's end */
+        int left;
+        if (line->style & STYLE_PLAYING)
+            left = row_right(display, line, true) - SPEAKER_W;
+        else if (has_value(display, line))
+            left = row_right(display, line, false) - line->value_width;
+        else if (line->style & STYLE_CHEVRON)
+            return CHEVRON_W + CHEVRON_MARGIN + 4;
+        else /* to two pixels inside the selection's end */
+            return ui_metric(UI_METRIC_SELECTION_INSET_X) + 2;
+        return display->getwidth() - left + ui_metric(UI_METRIC_ROW_RIGHT_GAP);
+    }
     if (line->style & STYLE_PLAYING)
         width += SPEAKER_W + CHEVRON_MARGIN;
     if (line->style & STYLE_CHEVRON)

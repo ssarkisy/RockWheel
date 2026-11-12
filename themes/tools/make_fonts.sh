@@ -2,19 +2,19 @@
 # Make the Inter fonts the iPod themes use, from the static TTFs of an Inter
 # release (https://github.com/rsms/inter/releases, extras/ttf/ in the zip):
 #
-#     themes/tools/make_fonts.sh <folder with Inter-Bold.ttf, Inter-SemiBold.ttf, Inter-Medium.ttf>
+#     themes/tools/make_fonts.sh <folder with Inter-Bold.ttf, Inter-SemiBold.ttf, Inter-Medium.ttf, Inter-Regular.ttf>
 #
 # Needs a C compiler and FreeType (on macOS: brew install freetype) to build
 # Rockbox's tools/convttf, and fontTools (pip install fonttools; PYTHON names
 # a python3 with it) for the font of Quick Scroll. The fonts are anti-aliased
 # and named after their line height, like the fonts they replace. Run
-# make_script_fonts.sh after it, which gives the 24, 18, 17 and 14 px ones the
-# other alphabets.
+# make_script_fonts.sh after it, which gives all but the 12, 29 and 53 px ones
+# the other alphabets, and font_coverage.py to see what each file has.
 set -e
 
 here=$(cd "$(dirname "$0")" && pwd)
 root="$here/../.."
-ttf=${1:?usage: $0 <folder with Inter-Bold.ttf, Inter-SemiBold.ttf and Inter-Medium.ttf>}
+ttf=${1:?usage: $0 <folder with Inter-Bold.ttf, Inter-SemiBold.ttf, Inter-Medium.ttf and Inter-Regular.ttf>}
 out="$here/../fonts/.rockbox/fonts"
 build=$(mktemp -d)
 trap 'rm -rf "$build"' EXIT
@@ -55,6 +55,22 @@ font 17-Inter-Bold.fnt     Inter-Bold.ttf     15    # iClassic track info, album
 font 14-Inter-SemiBold.fnt Inter-SemiBold.ttf 13    # small text, lyrics
 font 14-Inter-Bold.fnt     Inter-Bold.ttf     13    # iClassic screen titles
 font 12-Inter-SemiBold.fnt Inter-SemiBold.ttf 11    # iClassic bitrate
+
+# Neo's and Modern's, by the em of their mockups: -X 72 makes -p the em in
+# pixels (convttf's own 60 makes it 5/6 of -p, as above), -X 36 half of it.
+# Named after the line height convttf gives them, as the rest.
+font 22-Inter-SemiBold.fnt Inter-SemiBold.ttf 17 -X 72  # Neo title; Modern pane caption
+font 19-Inter-Medium.fnt   Inter-Medium.ttf   15 -X 72  # Neo row
+font 17-Inter-Regular.fnt  Inter-Regular.ttf  13 -X 72  # Neo text
+font 15-Inter-Medium.fnt   Inter-Medium.ttf   12 -X 72  # Neo label
+font 15-Inter-SemiBold.fnt Inter-SemiBold.ttf 12 -X 72  # Neo name
+font 15-Inter-Regular.fnt  Inter-Regular.ttf  12 -X 72  # Neo sub
+font 14-Inter-Medium.fnt   Inter-Medium.ttf   11 -X 72  # Neo small
+font 29-Inter-Bold.fnt     Inter-Bold.ttf     23 -X 72  # Modern large title: Latin, Greek, Cyrillic only
+font 20-Inter-SemiBold.fnt Inter-SemiBold.ttf 31 -X 36  # Modern titles, 15.5
+font 18-Inter-Regular.fnt  Inter-Regular.ttf  14 -X 72  # Modern row
+font 14-Inter-Regular.fnt  Inter-Regular.ttf  11 -X 72  # Modern values
+font 13-Inter-Regular.fnt  Inter-Regular.ttf  10 -X 72  # Modern small
 
 # Quick Scroll's letter over a list (apps/gui/bitmap/list.c), 52 px with
 # capitals 32 px tall: Inter Bold cut to what it shows first, the capitals of

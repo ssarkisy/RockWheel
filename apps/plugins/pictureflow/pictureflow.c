@@ -4855,10 +4855,11 @@ static struct frame_buffer_t *panel_fb; /* NULL for the screen's */
 static void load_panel_fonts(void)
 {
     const int glyphs = rb->global_settings->glyphs_to_cache;
-    /* bold, as Now Playing has them */
-    int id = rb->font_load_ex(FONT_DIR "/17-Inter-Bold.fnt", 0, glyphs);
+    /* an album header's two, which the theme has loaded: no memory is taken
+       for them here, under the music */
+    int id = rb->font_load_ex(rb->ui_font_file(UI_FONT_HEADER_ARTIST), 0, glyphs);
     panel_font = id >= 0 ? id : FONT_UI;
-    id = rb->font_load_ex(FONT_DIR "/14-Inter-Bold.fnt", 0, glyphs);
+    id = rb->font_load_ex(rb->ui_font_file(UI_FONT_HEADER_COUNTS), 0, glyphs);
     panel_small_font = id >= 0 ? id : FONT_UI;
 }
 

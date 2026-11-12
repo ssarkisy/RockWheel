@@ -7,9 +7,8 @@ don't, with the lines they'd take, and exits with 1 then.
 
     python3 tools/check_hints.py apps/lang themes/fonts/.rockbox/fonts
 
-The theme's 18-Inter-SemiBold draws them, and 18-Inter-Bold with Bold Text;
-both are checked. They have every alphabet the iPod has fonts of; what they
-haven't comes from 16-GNU-Unifont. The ideographs and kana are in the forms of
+The theme's 18-Inter-SemiBold draws them. It has every alphabet the iPod has
+fonts of; what it hasn't comes from 16-GNU-Unifont. The ideographs and kana are in the forms of
 the language, Japan's or Taiwan's under those menus, past U+FFFF in the fonts
 (firmware/font_han_forms.h), some a pixel wider or narrower than China's.
 Arabic is measured in the joined forms of its letters, which are what's drawn,
@@ -24,7 +23,7 @@ import sys
 LINE_WIDTH = 297  # the band's text, as list.c has it beside the scrollbar
 LINE_BYTES = 192 - 4  # and its buffer for a line, HINT_BYTES
 LINES = 3
-THEME_FONTS = ('18-Inter-SemiBold.fnt', '18-Inter-Bold.fnt')
+THEME_FONTS = ('18-Inter-SemiBold.fnt',)
 
 
 class Font:

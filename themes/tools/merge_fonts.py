@@ -4,12 +4,16 @@ typefaces: Hangul, the ideographs and kana, Hebrew, Arabic and Thai, each glyph
 on the Inter font's baseline and cut to its line, as firmware/font.c drew them
 from fonts of their own before. Run by make_script_fonts.sh.
 
-    merge_fonts.py <theme fonts folder> <sources folder> <C header>
+    merge_fonts.py <theme fonts folder> <sources folder> <C header> [<list of fonts with sources of their own>]
 
 The sources are the fonts make_script_fonts.sh makes of each alphabet in three
 sizes, 24, 17 and 14. Each font gets the sources of its line height or the one
 below, Hangul those of its height or the one above: the 18s Hangul of 24 and
-the rest of 17. The ideographs and kana are Noto Sans SC's on their codes, or
+the rest of 17. A font named in the list, a name a line, has sources of its own
+instead, "<its name>-Hebrew.fnt" and so on, in its weight and size; the forms
+and the C header are still worked out from the three sizes alone, so adding
+such a font changes neither the header nor the fonts there were, and a form
+that differs only in the new font's size is drawn as SC's. The ideographs and kana are Noto Sans SC's on their codes, or
 TC's or JP's where SC hasn't one; those Noto Sans JP or TC draws otherwise in
 any size, by a pixel, are placed from U+10000, JP's and then TC's, each in the
 order of its codes, and the C header, which firmware/font.c includes, says
@@ -136,7 +140,7 @@ class Sources:
         self.fonts = {}
 
     def get(self, size, name):
-        key = "%d-%s" % (size, name)
+        key = "%s-%s" % (size, name)
         if key not in self.fonts:
             self.fonts[key] = Fnt(os.path.join(self.folder, key + ".fnt"))
         return self.fonts[key]
@@ -186,9 +190,9 @@ def other_forms(src, form):
     return codes
 
 
-def merge(base, src, forms, check, height_of):
+def merge(base, src, forms, check, height_of, own=None):
     H, A = base.height, base.ascent
-    below, above = size_below(height_of), size_above(height_of)
+    below, above = (own, own) if own else (size_below(height_of), size_above(height_of))
     glyphs, cuts = {}, 0
 
     def put(c, f, at=None):
@@ -221,7 +225,7 @@ def merge(base, src, forms, check, height_of):
     hidden = HIDDEN
     for form, codes in forms:
         for c in codes:
-            put(c, src.han(below, c, form), hidden)
+            put(c, src.han(below, c, form) or src.han(below, c), hidden)
             hidden += 1
 
     first, last = base.first, hidden - 1
@@ -317,11 +321,13 @@ def main():
     for form in ("JP", "TC"):
         forms.append((form, other_forms(src, form)))
         print("%s forms: %d" % (form, len(forms[-1][1])))
-    for name in FONTS:
+    own = [l.strip() for l in open(sys.argv[4])] if len(sys.argv) > 4 else []
+    for name in FONTS + tuple(n for n in own if n):
         path = os.path.join(theme, name + ".fnt")
         base = Fnt(path)
         data, maxwidth, cuts, count = merge(base, src, forms, forms_check(forms),
-                                            int(name.split("-")[0]))
+                                            int(name.split("-")[0]),
+                                            name if name in own else None)
         with open(path, "wb") as f:
             f.write(data)
         print("%-18s %5d glyphs, %8d bytes, widest %d, %d with ink cut off"

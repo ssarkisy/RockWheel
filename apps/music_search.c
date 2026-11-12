@@ -1909,6 +1909,21 @@ static void strip_settle(void)
 /* a letter no name goes on with */
 #define DIM_TEXT   ui_colour(UI_COLOUR_SEARCH_DIM)
 
+/* Neo's shapes: a rounded field 26 px high, the letters in the text font 24
+   px apart, the one chosen on a rounded rectangle of 22 by 24, its keys from
+   the theme's glyphs, no rule under them */
+#include "gui/neo_glyphs.h"
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
+                                  int src_y, int stride, int x, int y,
+                                  int width, int height);
+#endif
+#define ROUNDED       (ui_metric(UI_METRIC_SELECTION_RADIUS) > 0)
+#define FIELD_HEIGHT  26
+#define LETTER_PITCH  24
+#define MARKER_W      22
+#define MARKER_H      24
+
 static struct viewport field_vp, strip_vp, list_vp[NB_SCREENS];
 /* the theme's, as set_foreground() changes the viewport's own */
 static unsigned text_colour;
@@ -1922,17 +1937,29 @@ static void make_layout(void)
     struct viewport ui;
     viewport_set_defaults(&ui, SCREEN_MAIN);
     const int line = font_get(ui.font)->height;
+    /* the list's rows are the theme's, or the font's cell */
+    const int row = ui_metric(UI_METRIC_ROW_HEIGHT) > 0 ?
+                    ui_metric(UI_METRIC_ROW_HEIGHT) : line;
     int field_h = line + 8, strip_h = line + 10;
-    int lines = (ui.height - field_h - strip_h) / line;
+    if (ROUNDED)
+    {
+        field_h = FIELD_HEIGHT + 2;
+        strip_h = MARKER_H + 6;
+    }
+    int lines = (ui.height - field_h - strip_h) / row;
     if (lines < 1)
         lines = 1;
-    int spare = ui.height - field_h - strip_h - lines * line;
-    if (spare > 0)
+    int spare = ui.height - field_h - strip_h - lines * row;
+    if (spare > 0 && ROUNDED)
+        strip_h += spare; /* the field stays at the top */
+    else if (spare > 0)
     {
         field_h += spare / 2;
         strip_h += spare - spare / 2;
     }
     field_vp = strip_vp = ui;
+    if (ROUNDED && font_find(ui_font_file(UI_FONT_MENU_VALUE)) >= 0)
+        strip_vp.font = font_find(ui_font_file(UI_FONT_MENU_VALUE));
     text_colour = ui.fg_pattern;
     field_vp.height = field_h;
     strip_vp.y = ui.y + field_h;
@@ -1943,7 +1970,7 @@ static void make_layout(void)
         if (i == SCREEN_MAIN)
         {
             list_vp[i].y = strip_vp.y + strip_h;
-            list_vp[i].height = lines * line;
+            list_vp[i].height = lines * row;
         }
     }
 
@@ -1965,6 +1992,8 @@ static void make_layout(void)
         display->getstringsize((char *)utf8, &w, &h);
         pitch = MAX(pitch, w + 8);
     }
+    if (ROUNDED)
+        pitch = MAX(pitch, LETTER_PITCH);
     display->set_viewport(last);
 }
 
@@ -1993,13 +2022,21 @@ static void fill_rounded(struct screen *display, int x, int y, int w, int h,
 static void draw_field(struct screen *display)
 {
     const int line = font_get(field_vp.font)->height;
-    const int x = 6, w = field_vp.width - 12;
-    const int y = (field_vp.height - line - 2) / 2, h = line + 2;
+    /* as wide as the selected row, or from where the rows' text starts */
+    const int x = ui_metric(UI_METRIC_SELECTION_RADIUS) ? global_settings.list_text_padding
+                                                        : 6;
+    const int w = field_vp.width - 2 * x;
+    const int h = ROUNDED ? FIELD_HEIGHT : line + 2;
+    const int y = ROUNDED ? 0 : (field_vp.height - h) / 2;
     int text_w, text_h;
 
     display->set_viewport(&field_vp);
     display->clear_viewport();
-    fill_rounded(display, x, y, w, h, FIELD_FILL, FIELD_FILL);
+    if (ROUNDED)
+        line_fill_rounded(display, x, y, w, h, ui_metric(UI_METRIC_SELECTION_RADIUS),
+                          FIELD_FILL);
+    else
+        fill_rounded(display, x, y, w, h, FIELD_FILL, FIELD_FILL);
 
     /* its end, if it is longer than the field */
     const char *text = naming ? name_text : query;
@@ -2090,20 +2127,37 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
     if (chosen)
     {
         /* odd, so that its middle is a pixel and not between two */
-        const int w = pitch | 1, h = (pf->height + 2) | 1;
+        const int w = ROUNDED ? MARKER_W : pitch | 1;
+        const int h = ROUNDED ? MARKER_H : (pf->height + 2) | 1;
         const int x = cx - w / 2, y = cy - h / 2;
-        if (in_results)
+        if (ROUNDED)
+            line_fill_rounded(display, x, y, w, h, 5, FIELD_FILL);
+        else if (in_results)
             fill_rounded(display, x, y, w, h, FIELD_FILL, FIELD_FILL);
         else
             fill_rounded(display, x, y, w, h, global_settings.lss_color,
                          global_settings.lse_color);
     }
     unsigned colour = letter_possible(i) ? GREY_TEXT : DIM_TEXT;
-    if (chosen && in_results)
+    if (chosen && (in_results || ROUNDED))
         colour = text_colour;
     else if (chosen)
         colour = global_settings.lst_color;
     display->set_foreground(colour);
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (ROUNDED && (strip.c[i] == STRIP_SPACE || strip.c[i] == STRIP_DELETE))
+    {
+        /* the theme's keys: delete, then space */
+        display->set_drawmode(DRMODE_FG);
+        lcd_alpha_bitmap_part(neo_search_keys_alpha, 0,
+                              strip.c[i] == STRIP_SPACE ? NEO_SEARCH_KEYS_H : 0,
+                              NEO_SEARCH_KEYS_W, cx - NEO_SEARCH_KEYS_W / 2,
+                              cy - NEO_SEARCH_KEYS_H / 2,
+                              NEO_SEARCH_KEYS_W, NEO_SEARCH_KEYS_H);
+        display->set_drawmode(DRMODE_SOLID);
+        return;
+    }
+#endif
     if (strip.c[i] == STRIP_SPACE)
         draw_space(display, cx, cy);
     else if (strip.c[i] == STRIP_DELETE)
@@ -2150,7 +2204,8 @@ static void draw_strip(struct screen *display)
     }
     draw_strip_item(display, strip.pos, mid, true);
     display->set_foreground(RULE);
-    display->hline(0, strip_vp.width - 1, strip_vp.height - 1);
+    if (!ROUNDED)
+        display->hline(0, strip_vp.width - 1, strip_vp.height - 1);
     display->set_foreground(text_colour);
     display->update_viewport();
 }

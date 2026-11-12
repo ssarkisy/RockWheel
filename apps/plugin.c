@@ -965,6 +965,7 @@ static const struct plugin_api rockbox_api = {
 #ifdef HAVE_TAGCACHE
     tagcache_kind_if_known,
 #endif
+    ui_font_file,
 };
 
 static int plugin_buffer_handle;

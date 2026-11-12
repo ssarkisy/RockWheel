@@ -1105,6 +1105,8 @@ struct user_settings
     bool music_menu_recently_added;
     /* Settings > Main Menu: Shuffle Albums, after Shuffle Songs; off at first */
     bool main_menu_shuffle_albums;
+    /* Settings > Appearance > Theme: UI_THEME_* (gui/ui_theme.h) */
+    int ui_theme;
 };
 
 /* global settings */

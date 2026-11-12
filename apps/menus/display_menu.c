@@ -220,6 +220,18 @@ MENUITEM_SETTING(rating_style_item, &global_settings.rating_style, NULL);
 MENUITEM_SETTING(progress_bar_style_item, &global_settings.progress_bar_style, NULL);
 #endif
 
+/* Theme: not shown until a theme other than Classic has been set */
+static int ui_theme_callback(int action,
+                             const struct menu_item_ex *this_item,
+                             struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM && !ui_theme_row_shown())
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_SETTING(ui_theme_item, &global_settings.ui_theme, ui_theme_callback);
 MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);
 #ifdef HAVE_TAGCACHE
 /* the look of Music's lists of albums */
@@ -262,7 +274,7 @@ MENUITEM_SETTING(moving_cover_item, &global_settings.moving_cover,
    it first, then Music's lists', then Now Playing's, then the iPod's or iOS's
    look of its parts */
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
-          &dark_theme_item,
+          &ui_theme_item, &dark_theme_item,
 #ifdef HAVE_TAGCACHE
           &album_artists_item,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)

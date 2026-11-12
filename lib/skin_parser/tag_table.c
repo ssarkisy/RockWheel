@@ -167,6 +167,11 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_DEVICE_NAME_LENGTH,    "nl", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_DISK_FREE,             "nf", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_DISK_USED,             "nu", BAR_PARAMS, SKIN_REFRESH_DYNAMIC),
+    /* the disk's size as text; its use as a ring and a clock's dial, each
+       filling its viewport, drawn by the skin's code */
+    TAG(SKIN_TOKEN_DISK_TOTAL,            "nT", "", SKIN_REFRESH_STATIC),
+    TAG(SKIN_TOKEN_DISK_RING,             "nR", "", SKIN_REFRESH_STATIC),
+    TAG(SKIN_TOKEN_CLOCK_DIAL,            "nD", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_MENU_SETTINGS_SELECTED, "LS", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_MENU_WIDE,             "LW", "", SKIN_REFRESH_DYNAMIC),
     /* the volume by the share of the volume bar, as "Volume: 62%", or with

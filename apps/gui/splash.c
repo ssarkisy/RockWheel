@@ -32,6 +32,7 @@
 #include "strptokspn_r.h"
 #include "scrollbar.h"
 #include "font.h"
+#include "gui/ui_theme.h"
 #ifndef BOOTLOADER
 #include "misc.h" /* get_current_activity */
 #include "transition.h"
@@ -341,6 +342,17 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
 #endif
         vp->drawmode = DRMODE_SOLID;
 
+#ifdef HAVE_LCD_COLOR
+    /* a quiet line round it where the theme draws no bars */
+    if (screen->screen_type == SCREEN_MAIN && ui_metric(UI_METRIC_SELECTION_RADIUS) > 0)
+    {
+        const unsigned text = screen->get_foreground();
+        screen->set_foreground(ui_colour(UI_COLOUR_QUIET));
+        screen->draw_border_viewport();
+        screen->set_foreground(text);
+    }
+    else
+#endif
     screen->draw_border_viewport();
 
     /* center y within the available splash box */

@@ -2775,6 +2775,11 @@ const struct settings_list settings[] = {
                   "music menu audiobooks", tagtree_music_menu_changed),
     OFFON_SETTING(0, music_menu_recently_added, LANG_RECENTLY_ADDED, true,
                   "music menu recently added", tagtree_music_menu_changed),
+    /* by name, so the row's order is free; only on Select, as it stops the
+       music and loads the theme */
+    CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, ui_theme, LANG_THEME,
+                   UI_THEME_CLASSIC, "ui theme", "classic,neo", ui_theme_changed, 2,
+                   ID2P(LANG_THEME_CLASSIC), ID2P(LANG_THEME_NEO)),
     /* Music > Albums' first row, Sort By, and nowhere in Settings */
     CHOICE_SETTING(0, albums_sort, LANG_SORT_BY, 0, "albums sort", "year,name",
                    NULL, 2, ID2P(LANG_SORT_YEAR), ID2P(LANG_SORT_NAME)),

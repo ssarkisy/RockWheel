@@ -225,6 +225,16 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
    NULL for the note on a tile in its place, as an album without one has and
    one not read yet */
 #define LINE_COVER_SIZE 32
+/* A rectangle in colour on the viewport's ground, its corners rounded to
+   radius r, their pixels mixed with the ground */
+void line_fill_rounded(struct screen *display, int x, int y, int w, int h,
+                       int r, unsigned colour);
+/* The column of a text's first glyph in that font where its ink starts: for
+   two texts in two fonts to start at the same pixel */
+int line_ink_left(int font, const char *text);
+/* The corners of a picture w by h at x, y painted over in the ground's
+   colour, to a rounding of radius r; nothing for 0 */
+void line_round_corners(struct screen *display, int x, int y, int w, int h, int r);
 void line_draw_cover(struct screen *display, int x, int y,
                      const fb_data *pixels);
 /* Quick Scroll's letter, or a year, in a box of its own around it, its middle

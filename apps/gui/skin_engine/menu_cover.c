@@ -2059,6 +2059,9 @@ int menu_cover_place(const struct viewport *vp, int x, int y, int width,
         if (list->x > x0)
             return 0;
         x0 = list->x + list->width;
+        /* or from where the theme's pane begins, right of a list that ends
+           short of it and of a line between them */
+        x0 = MAX(x0, ui_metric(UI_METRIC_PANE_LEFT));
     }
     const int travel = width - (x1 - x0);
     const int p0 = x0 - left;

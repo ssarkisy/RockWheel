@@ -1791,6 +1791,14 @@ const char *get_token_value(struct gui_wps *gwps,
                          (int)(bytes / 1000000));
             return buf;
         }
+        case SKIN_TOKEN_DISK_TOTAL:
+        {
+            sector_t size = 0, free = 0;
+            volume_size(IF_MV(0,) &size, &free);
+            snprintf(buf, buf_size, str(LANG_DISK_TOTAL_GB),
+                     (int)((uint64_t)size * 1024 / 1000000000));
+            return buf;
+        }
         case SKIN_TOKEN_DISK_USED:
         {
             sector_t size = 0, free = 0;

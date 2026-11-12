@@ -17,6 +17,7 @@
  * KIND, either express or implied.
  *
  ****************************************************************************/
+#include "gui/ui_theme.h"
 #include "config.h"
 #include "yesno.h"
 #include "system.h"
@@ -244,6 +245,12 @@ enum yesno_res gui_syncyesno_run_w_tmo(int ticks, enum yesno_res tmo_default_res
         screens[i].scroll_stop();
         sb_set_persistent_title(title, Icon_NOICON, i);
         viewportmanager_theme_enable(i, true, &(yn[i].vp));
+        /* from where the theme's rows start, where it insets them */
+        if (i == SCREEN_MAIN && ui_metric(UI_METRIC_SELECTION_RADIUS) > 0)
+        {
+            yn[i].vp.x += global_settings.list_text_padding;
+            yn[i].vp.width -= 2 * global_settings.list_text_padding;
+        }
 
         yn[i].vp_lines = viewport_get_nb_lines(&(yn[i].vp));
     }

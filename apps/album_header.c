@@ -112,6 +112,7 @@ static long reader_stack[(DEFAULT_STACK_SIZE + 0xc00) / sizeof(long)];
 /* The note on the tile in the cover's place, the menus' panel's, in Rockbox'
    alpha format (4 bits from 0 opaque to 15 transparent, low nibble first,
    rows run on without padding): made by themes/tools/make_list_glyphs.py */
+#include "gui/neo_glyphs.h"
 #define NOTE_W 29
 #define NOTE_H 35
 static const unsigned char note_alpha[] = {
@@ -483,6 +484,7 @@ int album_header_open(struct tree_context *c, struct gui_synclist *list)
 /* the cover, or the note on a tile of a group's grey, as a slide without one */
 static void draw_cover(struct screen *display, int x, int y)
 {
+    const int radius = ui_metric(UI_METRIC_HEADER_COVER_RADIUS);
 #ifdef ITUNESDB_HAVE_ART
     if (cover.width > 0)
     {
@@ -491,10 +493,13 @@ static void draw_cover(struct screen *display, int x, int y)
                              x + (COVER_SIZE - cover.width) / 2,
                              y + (COVER_SIZE - cover.height) / 2,
                              cover.width, cover.height);
+        /* a square one's corners, where the theme rounds them */
+        if (cover.width == COVER_SIZE && cover.height == COVER_SIZE)
+            line_round_corners(display, x, y, COVER_SIZE, COVER_SIZE, radius);
         return;
     }
 #endif
-    display->set_foreground(LIST_GROUP_BAR_COLOUR);
+    display->set_foreground(ui_colour(UI_COLOUR_COVER_TILE));
     display->set_drawmode(DRMODE_SOLID);
     display->fillrect(x, y, COVER_SIZE, COVER_SIZE);
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
@@ -502,11 +507,18 @@ static void draw_cover(struct screen *display, int x, int y)
     {
         display->set_foreground(LIST_GROUP_COLOUR);
         display->set_drawmode(DRMODE_FG);
-        lcd_alpha_bitmap_part(note_alpha, 0, 0, NOTE_W,
-                              x + (COVER_SIZE - NOTE_W) / 2,
-                              y + (COVER_SIZE - NOTE_H) / 2, NOTE_W, NOTE_H);
+        if (global_settings.ui_theme == UI_THEME_NEO)
+            lcd_alpha_bitmap_part(neo_note_header_alpha, 0, 0, NEO_NOTE_HEADER_W,
+                                  x + (COVER_SIZE - NEO_NOTE_HEADER_W) / 2,
+                                  y + (COVER_SIZE - NEO_NOTE_HEADER_H) / 2,
+                                  NEO_NOTE_HEADER_W, NEO_NOTE_HEADER_H);
+        else
+            lcd_alpha_bitmap_part(note_alpha, 0, 0, NOTE_W,
+                                  x + (COVER_SIZE - NOTE_W) / 2,
+                                  y + (COVER_SIZE - NOTE_H) / 2, NOTE_W, NOTE_H);
     }
 #endif
+    line_round_corners(display, x, y, COVER_SIZE, COVER_SIZE, radius);
 }
 
 void album_header_draw(struct screen *display, int y, void *data)

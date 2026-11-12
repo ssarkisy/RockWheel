@@ -198,23 +198,42 @@ static bool draw_title(struct screen *display,
     return true;
 }
 
-/* The lists' lighter fonts, which no skin names: loaded after the skins',
-   music stopped, and kept for good as Quick Scroll's letter is. Now Playing
-   and the album's header are bold, in the skins' fonts */
+/* The lists' fonts other than the names', by the theme's table: loaded after
+   the skins', music stopped, and kept until another theme comes, the lists'
+   own whatever skin names them too */
 #define HINT_FONT    ui_font_file(UI_FONT_HINT)
 #define LEAD_FONT    ui_font_file(UI_FONT_LEAD)
 #define VALUE_FONT   ui_font_file(UI_FONT_VALUE)
 #define SUBLINE_FONT ui_font_file(UI_FONT_SUBLINE) /* the status bar's too */
 
+static int list_font_ids[UI_FONT_INITIAL - UI_FONT_HINT];
+static const struct ui_theme *list_fonts_theme;
+
+void list_unload_fonts(void)
+{
+    for (size_t i = 0; list_fonts_theme && i < ARRAYLEN(list_font_ids); i++)
+    {
+        if (list_font_ids[i] >= 0)
+            font_unload(list_font_ids[i]);
+    }
+    list_fonts_theme = NULL;
+}
+
 void list_load_fonts(void)
 {
-    static const enum ui_font fonts[] = { UI_FONT_HINT, UI_FONT_LEAD, UI_FONT_VALUE };
-    for (size_t i = 0; i < ARRAYLEN(fonts); i++)
+    /* every role but the list's own and Quick Scroll's: a file of two roles,
+       or of a skin's too, is loaded once and counted for each */
+    const struct ui_theme *const theme = ui_theme_current();
+    if (list_fonts_theme != theme)
+        list_unload_fonts();
+    /* one refused before is asked for again */
+    for (size_t i = 0; i < ARRAYLEN(list_font_ids); i++)
     {
-        const char *const file = ui_font_file(fonts[i]);
-        if (font_find(file) < 0)
-            font_load_ex(file, 0, global_settings.glyphs_to_cache);
+        if (list_fonts_theme != theme || list_font_ids[i] < 0)
+            list_font_ids[i] = font_load_ex(ui_font_file(UI_FONT_HINT + i), 0,
+                                            global_settings.glyphs_to_cache);
     }
+    list_fonts_theme = theme;
 }
 
 /* The band of hints under a list of settings: the hint of the row selected,
@@ -411,13 +430,18 @@ void list_draw_hint(struct screen *display, struct viewport *band,
     band->font = font < 0 ? FONT_UI : font;
     display->set_viewport(band);
     /* its own grey, as a group's bar, over the theme's backdrop */
-    display->set_foreground(LIST_GROUP_BAR_COLOUR);
+    display->set_foreground(ui_colour(UI_COLOUR_HINT_BAND));
     display->set_drawmode(DRMODE_SOLID);
     display->fillrect(0, 0, band->width, band->height);
     if (!text || !*text || font < 0)
         return;
+    if (ui_metric(UI_METRIC_HINT_RULE))
+    {
+        display->set_foreground(ui_colour(UI_COLOUR_SEARCH_RULE));
+        display->hline(HINT_X, band->width - HINT_X - 1, 0);
+    }
     const int width = band->width - 2 * HINT_X;
-    display->set_foreground(LIST_GROUP_COLOUR);
+    display->set_foreground(ui_colour(UI_COLOUR_HINT_TEXT));
     display->set_drawmode(DRMODE_FG);
     const char *p = text;
     for (int i = 0; i < HINT_LINES && *p; i++)
@@ -568,6 +592,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     }
 
     linedes.height = list->line_height[screen];
+    const int row_text_dy = screen == SCREEN_MAIN ? ui_metric(UI_METRIC_ROW_TEXT_DY) : 0;
+    linedes.text_dy = row_text_dy;
     /* a list may show no selection, a size of 0, as Search's while its
        letters are typed: then its lines are each of one, as when it shows one */
     const int item_lines = MAX(list->selected_size, 1);
@@ -613,7 +639,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
 #endif
 
     /* draw the scrollbar if its needed */
-    if (list->scrollbar != SCROLLBAR_OFF)
+    const int capsule = screen == SCREEN_MAIN ? ui_metric(UI_METRIC_SCROLLBAR_CAPSULE) : 0;
+    if (list->scrollbar != SCROLLBAR_OFF && !capsule)
     {
         /* if the scrollbar is shown the text viewport needs to shrink */
         if (nb_lines < list->nb_items)
@@ -878,7 +905,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             style |= STYLE_PLAYING;
 
         /* it's at the right end, over the start of right-to-left text */
-        if (is_selected && global_settings.list_selector_chevron
+        if ((is_selected || ui_metric(UI_METRIC_CHEVRON_ALL))
+            && global_settings.list_selector_chevron
             && !lang_is_rtl()
             && list->callback_has_children
             && list->callback_has_children(i, list->data))
@@ -934,7 +962,12 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         callback_draw_item(&list_info);
         if (subline)
             line_draw_subline(display, subline_font,
-                              list_info.x + line_indent + (have_icons ? icon_w : 0),
+                              list_info.x + line_indent + (have_icons ? icon_w : 0)
+                              /* its first letter's ink under the name's: the
+                                 two fonts' glyphs start at other columns */
+                              + (ui_metric(UI_METRIC_SUBLINE_INK) && !VP_IS_RTL(list_text_vp) ?
+                                 line_ink_left(list_text_vp->font, entry_name)
+                                 - line_ink_left(subline_font, subline) : 0),
                               list_info.y + name_h, SUBLINE_TOP_DY, &linedes,
                               subline);
         if (shuffle)
@@ -956,10 +989,33 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                             cover == LIST_COVER_PIXELS ? cover_pixels : NULL);
         linedes.height = row_h;
         linedes.row_height = 0;
-        linedes.text_dy = 0;
+        linedes.text_dy = row_text_dy;
     }
     if (hint)
         list_draw_hint(display, &band, hint);
+#ifdef HAVE_LCD_COLOR
+    /* the theme's capsule in the gutter right of the rows, which keep their
+       width: no track, at least 14 px, 2 px from the list's ends */
+    if (capsule && list->scrollbar != SCROLLBAR_OFF && nb_lines < list->nb_items)
+    {
+        display->set_viewport(parent);
+        /* beside the rows, not on beside a band of hints under them */
+        const int room = list_hint_band(list, screen) > 0 ?
+            nb_lines * list->line_height[screen]
+            : parent->height - (show_title ? title_text[screen].height : 0);
+        const int top = show_title ? title_text[screen].height : 0;
+        const int thumb = MAX(14, room * nb_lines / list->nb_items);
+        const int rest = list->nb_items - nb_lines;
+        const int ty = top + 2 + (room - 4 - thumb) * MAX(MIN(list_start_item, rest), 0) / rest;
+        const int tx = VP_IS_RTL(parent) ? 1 : parent->width - capsule - 1;
+        display->set_foreground(ui_colour(UI_COLOUR_SCROLLBAR_THUMB));
+        display->set_drawmode(DRMODE_SOLID);
+        display->fillrect(tx, ty + 1, capsule, thumb - 2);
+        display->hline(tx + 1, tx + capsule - 2, ty);
+        display->hline(tx + 1, tx + capsule - 2, ty + thumb - 1);
+        display->set_foreground(global_settings.fg_color);
+    }
+#endif
     if (initial)
     {
         /* in the middle of the rows and of the list's width, from the left
