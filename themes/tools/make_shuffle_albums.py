@@ -1,66 +1,47 @@
 #!/usr/bin/env python3
-# Makes the status bar's icon of Shuffle by albums from the one of Shuffle by songs, in
-# both looks of iClassic Square: the crossing arrows with an album between their tails.
+# Makes the iOS look's status icon of Shuffle by albums, "iOS Shuffle Albums.bmp", from
+# the Classic look's, "Status Shuffle Albums.bmp", which is drawn by hand (two covers
+# changing places; the owner's choice, 2026-11-11):
 #
-#     themes/tools/make_shuffle_albums.py [block|lines|disc] [--to DIR]
+#     themes/tools/make_shuffle_albums.py
 #
-# The marks, of the icon's darkest colour, at the left between the two tails: a block,
-# a second line under each tail, or a ring. Without a name, the block. With --to, the
-# two files go to DIR under the variant's name instead of into the theme, for a sheet
-# to choose from. Run make_dark_theme.py after it.
+# The same shape in the ink of "iOS Shuffle.bmp", each pixel as opaque as it is dark in
+# the Classic one, whose magenta is empty. Run make_dark_theme.py after it.
 import os
 import struct
-import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 THEME = os.path.join(HERE, '..', 'iClassic-Square', '.rockbox', 'wps', 'iClassic-Square')
-# (x, y) from the top left of the 16x16 icon
-MARKS = {
-    'Status Shuffle': {
-        'block': [(x, y) for y in (6, 7, 8) for x in (0, 1, 2)],
-        'lines': [(x, 6) for x in range(4)] + [(x, 12) for x in range(4)],
-        'disc': [(1, 5), (2, 5), (0, 6), (3, 6), (0, 7), (3, 7), (1, 8), (2, 8)],
-    },
-    'iOS Shuffle': {
-        'block': [(x, y) for y in (7, 8, 9) for x in (1, 2, 3)],
-        'lines': [(x, 7) for x in range(1, 5)] + [(x, 13) for x in range(1, 5)],
-        'disc': [(2, 6), (3, 6), (1, 7), (4, 7), (1, 8), (4, 8), (2, 9), (3, 9)],
-    },
-}
+PAPER = 214  # the status bar's lightness, where the icon's ink has thinned to nothing
 
 
-def make(name, variant, out):
-    data = bytearray(open(os.path.join(THEME, name + '.bmp'), 'rb').read())
+def pixels(data):
     start, = struct.unpack_from('<I', data, 10)
     width, height = struct.unpack_from('<ii', data, 18)
     size = struct.unpack_from('<H', data, 28)[0] // 8
     row = (width * size + 3) // 4 * 4
-
-    def at(x, y):
-        return start + (height - 1 - y if height > 0 else y) * row + x * size
-
-    pixels = [bytes(data[at(x, y):at(x, y) + size]) for y in range(abs(height))
-              for x in range(width)]
-    if size == 4:
-        ink = max(pixels, key=lambda p: p[3])
-    else:
-        ink = min((p for p in pixels if p != b'\xff\x00\xff'), key=sum)
-    for x, y in MARKS[name][variant]:
-        data[at(x, y):at(x, y) + size] = ink
-    open(out, 'wb').write(data)
+    return [start + (height - 1 - y if height > 0 else y) * row + x * size
+            for y in range(abs(height)) for x in range(width)], size
 
 
 def main():
-    args = sys.argv[1:]
-    to = None
-    if '--to' in args:
-        to = args[args.index('--to') + 1]
-        del args[args.index('--to'):args.index('--to') + 2]
-    variant = args[0] if args else 'block'
-    for name in MARKS:
-        out = os.path.join(to, '%s %s.bmp' % (name, variant)) if to \
-            else os.path.join(THEME, name + ' Albums.bmp')
-        make(name, variant, out)
+    classic = open(os.path.join(THEME, 'Status Shuffle Albums.bmp'), 'rb').read()
+    out = bytearray(open(os.path.join(THEME, 'iOS Shuffle.bmp'), 'rb').read())
+    from_at, from_size = pixels(classic)
+    to_at, to_size = pixels(out)
+    assert len(from_at) == len(to_at) and from_size == 3 and to_size == 4
+    ink = max((bytes(out[at:at + 4]) for at in to_at), key=lambda p: p[3])
+    grey = [sum(classic[at:at + 3]) / 3 for at in from_at
+            if classic[at:at + 3] != b'\xff\x00\xff']
+    darkest = min(grey)
+    for src, dst in zip(from_at, to_at):
+        p = classic[src:src + 3]
+        if p == b'\xff\x00\xff':
+            out[dst:dst + 4] = b'\0\0\0\0'
+            continue
+        cover = (PAPER - sum(p) / 3) / (PAPER - darkest)
+        out[dst:dst + 4] = ink[:3] + bytes([round(255 * min(max(cover, 0), 1))])
+    open(os.path.join(THEME, 'iOS Shuffle Albums.bmp'), 'wb').write(out)
 
 
 if __name__ == '__main__':

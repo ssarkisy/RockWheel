@@ -8392,6 +8392,9 @@ const char *tagtree_album_subline(int no, int year, bool artist,
     return buf[0] ? buf : NULL;
 }
 
+/* in a list by years, where the year of a row without one would be */
+#define NO_YEAR "\xe2\x80\x93" /* U+2013 */
+
 /* under a song's title in Songs by artist or by album */
 static const char *song_tag_name(int32_t idx, int tag, char *buf, size_t size)
 {
@@ -8428,21 +8431,35 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
     if (entries_shows)
         return entries_books ? book_subline(c, entry, buf, size)
                              : show_subline(c, entry, buf, size);
-    /* in Songs the artist, and by album the album; by year the year before
-       the artist, "1979 · Michael Jackson", as an album's row has it */
+    /* In Songs the artist; by year the year before it, "1979 · Michael
+       Jackson", as an album's row has it; by album the album before it,
+       "Golden Hour · Anders Holm", or the one of them the song has */
     if (entry->newtable == TABLE_PLAYTRACK && entries_songs_by >= 0)
     {
+        static const char dot[] = " \xc2\xb7 "; /* U+00B7 */
+        const int32_t idx = entry->extraseek;
+        const bool by_album = entries_songs_by == SONGS_BY_ALBUM
+            && tag_named(tag_album, tagcache_sort_key(idx, tag_album));
+        const bool artist = !by_album
+            || tag_named(tag_virt_canonicalartist,
+                         tagcache_sort_key(idx, tag_virt_canonicalartist));
         size_t len = 0;
         if (entries_songs_by == SONGS_BY_YEAR && entry->album.year > 0)
-            len = snprintf(buf, size, "%d \xc2\xb7 ", entry->album.year);
-        if (len >= size)
-            return NULL;
-        const char *name = song_tag_name(entry->extraseek,
-                                         entries_songs_by == SONGS_BY_ALBUM ? tag_album
-                                         : tag_virt_canonicalartist,
+            len = snprintf(buf, size, "%d%s", entry->album.year, dot);
+        else if (entries_songs_by == SONGS_BY_YEAR)
+            len = snprintf(buf, size, "%s%s", NO_YEAR, dot);
+        else if (by_album && song_tag_name(idx, tag_album, buf, size) == buf)
+        {
+            len = strlen(buf);
+            if (artist)
+                len += strlcpy(buf + len, dot, size - len);
+        }
+        if (len >= size || !artist)
+            return len ? buf : NULL;
+        const char *name = song_tag_name(idx, tag_virt_canonicalartist,
                                          buf + len, size - len);
         if (!name)
-            return NULL;
+            return len ? buf : NULL;
         /* a phrase's text, of a song without the tag, isn't in the buffer */
         if (name != buf + len)
             strlcpy(buf + len, name, size - len);
@@ -8451,6 +8468,18 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
     if (entry->newtable == TABLE_PLAYTRACK)
         return song_tag_name(entry->extraseek, entries_initials_tag, buf, size);
     const bool albums = (is_albums(csi) || is_recent(csi)) && c->currextra == 0;
+    /* Albums by Year: one without a year has the dash where its year would be */
+    if (is_albums(csi) && c->currextra == 0 && global_settings.albums_sort == 0
+        && entry->album.year <= 0 && entry->extraseek != entries_untagged)
+    {
+        const size_t len = snprintf(buf, size, "%s \xc2\xb7 ", NO_YEAR);
+        if (len >= size)
+            return NULL;
+        if (!tagtree_album_subline(entry->album.no, 0, entries_split, NULL,
+                                   buf + len, size - len))
+            buf[strlen(NO_YEAR)] = '\0';
+        return buf;
+    }
     return tagtree_album_subline(entry->album.no, entry->album.year,
                                  entries_split || !albums,
                                  albums ? NULL : current_title[c->currextra],
@@ -8509,7 +8538,7 @@ const char *tagtree_entry_lead(struct tree_context *c, int row, char *buf,
     const struct tagentry *entry = tagtree_get_entry(c, row);
     /* one without a year has a dash in its place, its name in line with the
        others, which it comes after */
-    static const char no_year[] = "\xe2\x80\x93"; /* U+2013 */
+    static const char no_year[] = NO_YEAR;
     if (!entry)
         return NULL;
     /* in Recently Added, whose dated and undated albums are mixed, nothing */
