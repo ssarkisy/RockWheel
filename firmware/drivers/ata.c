@@ -406,6 +406,22 @@ static ICODE_ATTR int wait_for_end_of_transfer(void)
            == STATUS_RDY;
 }
 
+/* ATA: a PIO cycle before the status is read after a block written. A flash
+   drive behind a bridge, one sector to a block, was looked at too soon at
+   80 MHz and reset for it. Linux waits 10 us here; 9-10 by the timer's
+   grain. */
+#define PIO_WRITE_SETTLE_USEC 10
+
+static inline void pio_write_settle(void)
+{
+#ifdef USEC_TIMER
+    const unsigned long begun = USEC_TIMER;
+    while (USEC_TIMER - begun < PIO_WRITE_SETTLE_USEC);
+#else
+    (void)ATA_IN8(ATA_ALT_STATUS); /* the cycle, as ATA would have it spent */
+#endif
+}
+
 #if (CONFIG_LED == LED_REAL)
 /* Conditionally block LED access for the ATA driver, so the LED can be
  * (mis)used for other purposes */
@@ -644,8 +660,10 @@ static int ata_transfer_sectors(uint64_t start,
 
                 wordcount = sectors * log_sector_size / 2;
 
-                if (write)
+                if (write) {
                     copy_write_sectors(buf, wordcount);
+                    pio_write_settle();
+                }
                 else
                     copy_read_sectors(buf, wordcount);
 
