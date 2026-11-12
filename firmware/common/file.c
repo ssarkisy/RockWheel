@@ -531,7 +531,13 @@ static int open_internal_inner1(const char *path, int oflag,
 
 file_error:
     if (fildes >= 0)
+    {
+        /* the stream is closed by now, so this closes nothing and sets
+           EBADF: the errno to report is the open's own */
+        int err = errno;
         rbfs_close(fildes);
+        errno = err;
+    }
     return rc;
 }
 
