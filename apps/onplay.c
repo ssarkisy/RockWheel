@@ -1959,6 +1959,39 @@ static int episode_start_over(void)
                                              : ONPLAY_RELOAD_DIR;
     return 0;
 }
+/* A book's part in Audiobooks: Start Over for a book begun, Mark as Finished
+   for one not heard to its end, unless it plays */
+static int book_start_over(void)
+{
+    onplay_result = tagtree_book_start_over() ? ONPLAY_START_PLAY
+                                              : ONPLAY_RELOAD_DIR;
+    return 0;
+}
+static int book_finish(void)
+{
+    if (tagtree_book_finish())
+        onplay_result = ONPLAY_RELOAD_DIR;
+    return 0;
+}
+static int book_callback(int action, const struct menu_item_ex *this_item,
+                         struct gui_synclist *this_list);
+MENUITEM_FUNCTION(book_start_over_item, 0, ID2P(LANG_START_OVER),
+                  book_start_over, book_callback, Icon_NOICON);
+MENUITEM_FUNCTION(book_finish_item, 0, ID2P(LANG_MARK_AS_FINISHED),
+                  book_finish, book_callback, Icon_NOICON);
+static int book_callback(int action, const struct menu_item_ex *this_item,
+                         struct gui_synclist *this_list)
+{
+    (void)this_list;
+    if (action != ACTION_REQUEST_MENUITEM)
+        return action;
+    bool playing = false;
+    const int state = selected_file.context == CONTEXT_ID3DB ?
+                      tagtree_row_book(&playing) : -1;
+    const bool shown = this_item == &book_start_over_item ? state == 1
+                       : state >= 0 && state != 2 && !playing;
+    return shown ? action : ACTION_EXIT_MENUITEM;
+}
 static int episode_callback(int action, const struct menu_item_ex *this_item,
                             struct gui_synclist *this_list);
 MENUITEM_FUNCTION(episode_start_over_item, 0, ID2P(LANG_START_FROM_BEGINNING),
@@ -2003,7 +2036,7 @@ MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
               named a new one by its path with the keyboard; On-The-Go goes to
               the Mac instead */
 #ifdef HAVE_TAGCACHE
-           &episode_start_over_item,
+           &episode_start_over_item, &book_start_over_item,
 #endif
            &on_the_go_item,
 #ifdef HAVE_TAGCACHE
@@ -2011,7 +2044,7 @@ MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
 #endif
            &i_first_pl_item, &i_last_pl_item,
 #ifdef HAVE_TAGCACHE
-           &episode_played_item, &episode_unplayed_item,
+           &episode_played_item, &episode_unplayed_item, &book_finish_item,
            &song_go_to_artist_item, &song_go_to_album_item,
            &remove_song_item,
            &ipod_rename_item, &ipod_move_item, &ipod_delete_item,

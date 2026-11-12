@@ -207,6 +207,15 @@ bool tagtree_album_is_book(struct tree_context *c);
 const char *tagtree_album_counts(struct tree_context *c, char *buf, size_t size);
 const char *tagtree_value_widest(struct tree_context *c, char *buf, size_t size);
 int tagtree_book_resume_row(struct tree_context *c);
+/* The row selected is a part of the book listed: 0 if the book is new, 1 if
+   begun, 2 if heard to its end, -1 if it is none; *playing if a part of it
+   plays. Start Over, after a yes/no question, forgets the book's place and
+   plays it from its first part; Mark as Finished forgets it and counts every
+   part as heard: Finder's by its mark, without a play, another by a play if
+   it has none. False if nothing was done. */
+int tagtree_row_book(bool *playing);
+bool tagtree_book_start_over(void);
+bool tagtree_book_finish(void);
 /* A track's texts as Podcasts' rows have them: its date, "20 May 2023", with its
    length after it if with_length, and what is left of it, "28 min left"; or NULL. */
 const char *tagtree_track_date(int32_t idx, bool with_length, char *buf,

@@ -316,6 +316,12 @@ bool tagcache_track_marked(int idx_id);
    (tag_lastelapsed): 0 for none, and without the database in memory. As
    tagcache_get_numbers(), from memory only, for a list's rows as they draw */
 long tagcache_track_place(int idx_id);
+/* A book has one place: the other parts of the book the entry is a part of
+   (its album's tracks of kind 2) lose theirs, those that have one, but not the
+   entry playing (-1 for none): its stored place is the book's until it stops
+   or plays out. Queued as a place is; from memory, nothing without the
+   database there. */
+void tagcache_book_one_place(int idx_id, int playing);
 /* A track's rating and plays as the database has them now: one played again
    from the buffer, as by Previous, has those of when it was buffered, which
    playback copies to it again after any change made to it. Its own without

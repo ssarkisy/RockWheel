@@ -1606,6 +1606,19 @@ static int compare_with_albums(const void *p1, const void *p2)
     return compare_rows(e1, e2);
 }
 
+/* the entry of the book's part playing now, -1 for none: from its track
+   change to its finish, which a rewind to its start isn't */
+static int book_playing = -1;
+
+static void note_book_playing(const struct mp3entry *id3)
+{
+    /* by its path where it has no entry yet: the first track's change comes
+       before its load, which gives it one */
+    const long playing = id3->tagcache_idx > 0 ? id3->tagcache_idx - 1
+                         : tagcache_find_entry(id3->path);
+    book_playing = tagcache_track_kind(playing) == 2 ? playing : -1;
+}
+
 static void tagtree_buffer_event(unsigned short id, void *ev_data)
 {
     (void)id;
@@ -1639,6 +1652,18 @@ static void tagtree_buffer_event(unsigned short id, void *ev_data)
         id3->playtime   = tagcache_get_numeric(&tcs, tag_playtime);
 
         logf("-> %ld/%ld", id3->playcount, id3->playtime);
+    }
+
+    /* A book has one place: as a part is loaded to play, the others lose
+       theirs, but for the one playing now, whose stored place is the book's
+       until it stops. A part loaded behind the playing one lost its own at
+       that one's load, and starts at 0:00. */
+    if (tagcache_track_kind(tcs.idx_id) == 2)
+    {
+        /* resumed before the database was in memory, its start noted none */
+        if (book_playing < 0)
+            note_book_playing(audio_current_track());
+        tagcache_book_one_place(tcs.idx_id, book_playing);
     }
 
     if (autoresume)
@@ -1676,6 +1701,15 @@ static void tagtree_track_change_event(unsigned short id, void *ev_data)
     (void)id;
     struct mp3entry *id3 = ((struct track_event *)ev_data)->id3;
     struct tagcache_numbers n;
+    note_book_playing(id3);
+    /* A part that starts with no place has a nominal one, the book's: one
+       reached by playing out, or chosen, had none until it stopped */
+    if (book_playing >= 0 && itunesdb_resumes(id3->path)
+        && tagcache_track_place(book_playing) <= 0)
+    {
+        tagcache_update_numeric(book_playing, tag_lastelapsed, 1);
+        tagcache_book_one_place(book_playing, -1);
+    }
     if (!id3->tagcache_idx || !global_settings.runtimedb
         || !tagcache_get_numbers(id3->tagcache_idx - 1, &n))
         return;
@@ -1702,6 +1736,9 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
         return;
     }
     tagcache_idx--;
+    const bool part = tagcache_idx == book_playing;
+    if (part && !(te->flags & TEF_REWIND))
+        book_playing = -1;
 
     bool auto_skip = te->flags & TEF_AUTO_SKIP;
     bool runtimedb = global_settings.runtimedb;
@@ -1797,6 +1834,9 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
         unsigned long offset = auto_skip ? 0 : id3->offset;
         tagcache_update_numeric(tagcache_idx, tag_lastelapsed, elapsed);
         tagcache_update_numeric(tagcache_idx, tag_lastoffset, offset);
+        /* a part stopped at a place: the book's one place now */
+        if (part && elapsed > 0)
+            tagcache_book_one_place(tagcache_idx, -1);
 
         logf("tagtree_track_finish_event: Save resume for %s: %lX %lX",
              str_or_empty(id3->title), elapsed, offset);
@@ -7971,6 +8011,99 @@ bool tagtree_row_start_over(void)
     tree_unlock_cache(c);
     cpu_boost(false);
     return ok;
+}
+
+/* the list is a book's parts and the row selected one of them */
+static bool selected_part(void)
+{
+    struct tree_context *c = tc;
+    return c && c->currtable != TABLE_ROOT && entries_parts.parts > 0 && csi
+           && tagtree_ready() && tagcache_is_usable()
+           && c->selected_item >= c->special_entry_count
+           && c->selected_item < c->filesindir;
+}
+
+int tagtree_row_book(bool *playing)
+{
+    struct tree_context *c = tc;
+    if (!selected_part())
+        return -1;
+    const struct mp3entry *id3 = audio_current_track();
+    const int32_t now = (audio_status() & AUDIO_STATUS_PLAY) && id3
+                        ? id3->tagcache_idx - 1 : -2;
+    *playing = false;
+    for (int i = c->special_entry_count; i < c->filesindir && !*playing; i++)
+    {
+        const struct tagentry *entry = tagtree_get_entry(c, i);
+        *playing = entry && entry->extraseek == now;
+    }
+    return entries_parts.current >= 0 ? 1 : entries_parts.finished ? 2 : 0;
+}
+
+/* every part's place forgotten; with finished, each counted as heard: Finder's
+   by its mark alone, as its episode is, another by a play if it has none */
+static void book_reset(struct tree_context *c, bool finished)
+{
+    struct tagcache_search tcs;
+    char path[MAX_PATH];
+    const bool paths = finished && tagcache_search(&tcs, tag_filename);
+    for (int i = c->special_entry_count; i < c->filesindir; i++)
+    {
+        const struct tagentry *entry = tagtree_get_entry(c, i);
+        struct tagcache_numbers n;
+        if (!entry || !tagcache_get_numbers(entry->extraseek, &n))
+            continue;
+        const int32_t idx = entry->extraseek;
+        tagcache_update_numeric(idx, tag_lastelapsed, 0);
+        tagcache_update_numeric(idx, tag_lastoffset, 0);
+        if (!finished)
+            continue;
+        if (tagcache_track_marked(idx))
+        {
+            if (paths && tagcache_retrieve(&tcs, idx, tcs.type, path, sizeof(path)))
+                tagcache_set_unplayed(idx, path, false);
+        }
+        else if (n.playcount <= 0)
+        {
+            const long stamp = play_stamp();
+            if (stamp >= 0)
+            {
+                tagcache_update_numeric(idx, tag_playcount, 1);
+                tagcache_update_numeric(idx, tag_lastplayed, stamp);
+            }
+        }
+    }
+    if (paths)
+        tagcache_search_finish(&tcs);
+}
+
+bool tagtree_book_start_over(void)
+{
+    struct tree_context *c = tc;
+    if (!selected_part() || !yesno_pop(ID2P(LANG_START_OVER))
+        || !warn_on_pl_erase())
+        return false;
+    /* the one playing stopped first: its stop notes its place */
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        audio_stop_at_once();
+    book_reset(c, false);
+    c->selected_item = c->special_entry_count;
+    cpu_boost(true);
+    tree_lock_cache(c);
+    core_pin(tagtree_handle);
+    const bool ok = tagtree_play_folder(c) >= 0;
+    core_unpin(tagtree_handle);
+    tree_unlock_cache(c);
+    cpu_boost(false);
+    return ok;
+}
+
+bool tagtree_book_finish(void)
+{
+    if (!selected_part() || !yesno_pop(ID2P(LANG_MARK_AS_FINISHED)))
+        return false;
+    book_reset(tc, true);
+    return true;
 }
 
 bool tagtree_rows_states(struct tree_context *c)

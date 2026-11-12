@@ -6274,6 +6274,32 @@ bool tagcache_track_marked(int idx_id)
 #endif
 }
 
+void tagcache_book_one_place(int idx_id, int playing)
+{
+#ifdef HAVE_TC_RAMCACHE
+    if (!tc_stat.ready || !tc_stat.ramcache || !tcramcache.hdr || idx_id < 0
+        || idx_id >= current_tcmh.tch.entry_count)
+        return;
+    const int32_t album = tcramcache.hdr->indices[idx_id].tag_seek[tag_album];
+    for (int i = 0; i < current_tcmh.tch.entry_count; i++)
+    {
+        /* the memory's place again at each: a queued change may wait */
+        const struct index_entry *idx = &tcramcache.hdr->indices[i];
+        if (i == idx_id || i == playing || idx->tag_seek[tag_album] != album
+            || (idx->flag & FLAG_DELETED) || ram_kind(i) != 2)
+            continue;
+        const bool place = queued_or(tag_lastelapsed, i, idx) > 0;
+        const bool offset = queued_or(tag_lastoffset, i, idx) > 0;
+        if (place)
+            tagcache_update_numeric(i, tag_lastelapsed, 0);
+        if (offset)
+            tagcache_update_numeric(i, tag_lastoffset, 0);
+    }
+#else
+    (void)idx_id; (void)playing;
+#endif
+}
+
 long tagcache_track_place(int idx_id)
 {
 #ifdef HAVE_TC_RAMCACHE
