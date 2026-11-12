@@ -36,13 +36,13 @@
 
 %Vl(t,6,2,110,14,3)%Vf(F2F2F6)
 #%s%al%?if(%Li, =, 0)<|%?if(%Li, <=, 32)<%Lt|%?if(%Li, =, 33)<iPod|>>>
-# the title of the list, the name given in Finder in the main menu, which stays still
-%al%?if(%Li, =, 33)<%nn|%s%Lt>
+# the title of the list; in the main menu the time
+%al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
 %Vl(titlewide,6,2,250,14,3)%Vf(F2F2F6)
 %s%al%Lt
 # the same, shorter, beside the moon of Night Mode
 %Vl(tn,6,2,94,14,3)%Vf(F2F2F6)
-%al%?if(%Li, =, 33)<%nn|%s%Lt>
+%al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
 %Vl(titlewiden,6,2,244,14,3)%Vf(F2F2F6)
 %s%al%Lt
 %xl(N,Status Night.bmp,0,0)
