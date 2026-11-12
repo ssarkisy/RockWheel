@@ -943,19 +943,26 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         const int second = inset > 0 ? width - first : 0;
 #if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && !defined(DISABLE_ALPHA_BITMAP)
         /* A track of one colour, its shape in its alpha: in that colour's
-           tone, where the theme's surfaces have one */
-        unsigned plain = 0, toned = 0;
+           tone, where the theme's surfaces have one. Under a tone's Fill
+           also where the cover's track is the picture's own grey: as a
+           picture it would take a quiet mark's colour (draw_marks_part()) */
+        unsigned toned = 0;
+        bool flat = false;
         if (img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
             && display->screen_type == SCREEN_MAIN)
         {
             const fb_data *const pixels = (const fb_data *)img->bm.data;
-            plain = FB_UNPACK_SCALAR_LCD(
+            const unsigned plain = FB_UNPACK_SCALAR_LCD(
                 pixels[img->bm.height / 2 * img->bm.width + img->bm.width / 2]);
             toned = ui_theme_surface(plain);
+            flat = toned != plain;
+#ifdef HAVE_ALBUMART
+            flat = flat || in_tone_fill(gwps, &img->bm);
+#endif
         }
 #endif
 #if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && !defined(DISABLE_ALPHA_BITMAP)
-        if (toned != plain)
+        if (flat)
         {
             const unsigned char *const alpha = img->bm.data + img->bm.alpha_offset;
             const int stride = ALIGN_UP(img->bm.width, 2);
@@ -993,7 +1000,20 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
                colour Classic gives the bar, what the scrollbar would draw
                of it */
             unsigned bar_colour;
-            if (in_tone_fill(gwps, &img->bm) && cover_palette_tone_filled(&bar_colour))
+            bool flat_fill = in_tone_fill(gwps, &img->bm)
+                             && cover_palette_tone_filled(&bar_colour);
+            /* and without Fill, a fill in a grey the theme gives its tone
+               (ui_theme_skin_text()): its shape in that colour */
+            if (!flat_fill && img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
+                && display->screen_type == SCREEN_MAIN && ui_theme_current()->cover_tone)
+            {
+                const fb_data *const pixels = (const fb_data *)img->bm.data;
+                const unsigned plain = FB_UNPACK_SCALAR_LCD(
+                    pixels[img->bm.height / 2 * img->bm.width + img->bm.width / 2]);
+                bar_colour = ui_theme_skin_text(plain);
+                flat_fill = bar_colour != plain;
+            }
+            if (flat_fill)
             {
                 int fx = x, fy = y, fw = width, fh = height, sx, sy;
                 if (!(flags & DONT_CLEAR_EXCESS))
@@ -1266,8 +1286,9 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
     }
     else
 #endif
-    /* a theme with a tone: its stars, whatever Cover Colours is, as the
-       outline of one not set is in the user's colour */
+    /* a theme with a tone: its stars, whatever Cover Colours is: the
+       outline of one not set has a colour of its own
+       (cover_palette_mark_colour()) */
     if (img->cover_tint && img->bm.alpha_offset > 0 && img->bm.width <= LCD_WIDTH
         && img->bm.format != FORMAT_MONO && ui_theme_current()->cover_tone)
         draw_marks_part(display, &img->bm, 0, img->subimage_height * subimage,
@@ -2060,8 +2081,13 @@ void draw_disk_ring(struct gui_wps *gwps)
     volume_size(IF_MV(0,) &size, &free);
     const int used = size > 0 ? (int)((uint64_t)(size - free) * 256 / size) : 0;
     const unsigned surface = vp->bg_pattern, arc = vp->fg_pattern;
+    /* the free part: the theme's colour for it; in a theme with a tone a
+       third of the arc's colour over the pane, which the ground's colour
+       did not show on; else the ground's colour */
     const unsigned track = ui_metric(UI_METRIC_RING_TRACK) ?
-        ui_colour(UI_COLOUR_RING_TRACK) : (unsigned)global_settings.bg_color;
+        ui_colour(UI_COLOUR_RING_TRACK) :
+        ui_theme_current()->cover_tone ? mix_colours(surface, arc, 5) :
+        (unsigned)global_settings.bg_color;
     const int cx = vp->width / 2, cy = vp->height / 2;
     display->set_drawmode(DRMODE_SOLID);
     for (int y = -NEO_RING_Q; y < NEO_RING_Q; y++)

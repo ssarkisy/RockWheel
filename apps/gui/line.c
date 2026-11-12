@@ -1413,7 +1413,10 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
     else if (line->style & STYLE_INVERT) /* as the text on the bar */
         colour = accent_colour = display->get_background();
     else if (ui_metric(UI_METRIC_ROW_RIGHT))
-        accent_colour = global_settings.fg_color; /* the row's news, as its name */
+        /* the row's news, as its name; in a theme with a tone a tint of
+           the user's colour, as the small text beside it is */
+        accent_colour = ui_theme_current()->cover_tone ? ui_colour(UI_COLOUR_ACCENT)
+                                                       : (unsigned)global_settings.fg_color;
     /* the playing song's, in the theme's accent where it isn't selected */
     if (ui_metric(UI_METRIC_PLAYING_SUBLINE) && (line->style & STYLE_PLAYING)
         && !(line->style & (STYLE_COLORBAR|STYLE_GRADIENT|STYLE_INVERT)))

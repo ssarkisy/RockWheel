@@ -214,32 +214,55 @@ unsigned cover_palette_toned(unsigned colour, int hue, int saturation)
 }
 
 #define OUTLINE_CONTRAST 200
+/* 4.5 to 1 by contrast(), which reads up to 0.01 over the exact ratio */
+#define SURFACE_CONTRAST 452
+/* and for a text's tint, which may be near black, where it reads up to 0.15
+   over */
+#define TINT_CONTRAST 472
+
+/* the hue from a lightness on, darker (in a dark look lighter) by 5 of the
+   1000 at a time until it stands on the ground with the contrast */
+static unsigned standing_on(int hue, int saturation, int lightness, bool dark,
+                            unsigned ground, int target)
+{
+    const int under[3] = { RGB_UNPACK_RED(ground), RGB_UNPACK_GREEN(ground),
+                           RGB_UNPACK_BLUE(ground) };
+    int rgb[3];
+    unsigned packed;
+
+    for (;; lightness += dark ? 5 : -5)
+    {
+        hsl_to_rgb(hue, saturation, lightness, rgb);
+        packed = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+        const int shown[3] = { RGB_UNPACK_RED(packed), RGB_UNPACK_GREEN(packed),
+                               RGB_UNPACK_BLUE(packed) };
+        if (contrast(shown, under) >= target || lightness <= 0
+            || lightness >= 1000)
+            return packed;
+    }
+}
 
 unsigned cover_palette_outline(unsigned colour, int hue, int saturation, bool dark,
                                unsigned ground)
 {
     const int plain[3] = { RGB_UNPACK_RED(colour), RGB_UNPACK_GREEN(colour),
                            RGB_UNPACK_BLUE(colour) };
-    const int under[3] = { RGB_UNPACK_RED(ground), RGB_UNPACK_GREEN(ground),
-                           RGB_UNPACK_BLUE(ground) };
-    int hsl[3], rgb[3];
-    unsigned packed;
+    int hsl[3];
 
     rgb_to_hsl(plain, hsl);
-    for (int lightness = hsl[2];; lightness += dark ? 5 : -5)
-    {
-        hsl_to_rgb(hue, saturation, lightness, rgb);
-        packed = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-        const int shown[3] = { RGB_UNPACK_RED(packed), RGB_UNPACK_GREEN(packed),
-                               RGB_UNPACK_BLUE(packed) };
-        if (contrast(shown, under) >= OUTLINE_CONTRAST || lightness <= 0
-            || lightness >= 1000)
-            return packed;
-    }
+    return standing_on(hue, saturation, hsl[2], dark, ground, OUTLINE_CONTRAST);
 }
 
-/* 4.5 to 1 by contrast(), which reads up to 0.01 over the exact ratio */
-#define SURFACE_CONTRAST 452
+unsigned cover_palette_text_tint(int hue, int saturation, int lightness, bool dark,
+                                 unsigned ground)
+{
+    return standing_on(hue, saturation, lightness, dark, ground, TINT_CONTRAST);
+}
+
+unsigned cover_palette_under_white(int hue, int saturation, int lightness)
+{
+    return standing_on(hue, saturation, lightness, false, LCD_WHITE, SURFACE_CONTRAST);
+}
 
 unsigned cover_palette_surface(int hue, int saturation, int lightness, bool dark,
                                unsigned text, int *shown_lightness)
@@ -1626,10 +1649,13 @@ unsigned cover_palette_text_colour(unsigned colour)
 unsigned cover_palette_mark_colour(unsigned colour, bool status)
 {
     const int green = RGB_UNPACK_GREEN(colour);
-    /* a star not set is known by the grey the look's table names it with */
+    /* a star not set is known by the grey the look's table names it with:
+       the theme's colour for it; under Text and Stars the cover's muted one,
+       as the stars set are in the cover's colours there */
     if (colour == ui_theme_look(global_settings.dark_theme)
                       ->colour[UI_COLOUR_RATING_UNSET])
-        return ui_colour(UI_COLOUR_RATING_UNSET);
+        return active && !palette.whole_screen ? palette.muted
+                                               : ui_colour(UI_COLOUR_RATING_UNSET);
     if (!active)
         return colour;
     if (palette.whole_screen)

@@ -463,9 +463,9 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         if (group_style == 2 && display->screen_type == SCREEN_MAIN)
         {
             /* a band as high as the row, a hairline on its first and last
-               rows; the name in the theme's font for it and the rows' own
-               ink (a grey read poorly at that size), in the band's middle,
-               where the rows' text starts */
+               rows; the name in the theme's font and colour for it (a
+               grey read poorly at that size), in the band's middle, where
+               the rows' text starts */
             const int name_font = info->vp->font;
             const int font = font_find(ui_font_file(UI_FONT_GROUP));
             display->put_line(info->x, info->y, &linedes, "");
@@ -474,7 +474,7 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
             display->set_foreground(ui_colour(UI_COLOUR_GROUP_RULE));
             display->hline(0, info->vp->width - 1, info->y);
             display->hline(0, info->vp->width - 1, info->y + linedes.height - 1);
-            display->set_foreground(ui_colour(UI_COLOUR_TEXT));
+            display->set_foreground(ui_colour(UI_COLOUR_GROUP_NAME));
             display->set_drawmode(DRMODE_FG);
             if (font >= 0)
                 info->vp->font = font;

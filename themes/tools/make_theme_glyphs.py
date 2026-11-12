@@ -146,7 +146,11 @@ def rgb(hexs):
 
 
 def rgb565(colour):
-    return colour[0] >> 3, colour[1] >> 2, colour[2] >> 3
+    """the colour's 16 bits as the firmware's loader makes them, rounded
+    (apps/recorder/bmp.c, no dither)"""
+    r, g, b = colour[:3]
+    return ((31 * r + (r >> 3) + 127) >> 8, (63 * g + (g >> 2) + 127) >> 8,
+            (31 * b + (b >> 3) + 127) >> 8)
 
 
 def main():

@@ -24,7 +24,7 @@
 %Vl(rulehalf,0,20,159,1,-)%Vb(313029)
 %Vl(column,159,0,1,240,-)%Vb(313029)
 # a screen that takes the whole width: the clock, its title, the glyphs
-%Vl(clockwide,14,2,64,15,3)%Vf(B5B2A5)
+%Vl(clockwide,14,2,64,15,3)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(titlewide,84,2,152,15,3)%Vf(EFEBE7)
 %s%ac%Lt
@@ -38,7 +38,7 @@
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 # beside the pane: the clock in the main menu, where a screen of the whole
 # width has it; a menu's title in any other
-%Vl(hclock,14,2,64,15,3)%Vf(B5B2A5)
+%Vl(hclock,14,2,64,15,3)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(hbat,127,4,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
@@ -67,7 +67,9 @@
 %xd(Q)
 %Vl(photocount,160,200,160,15,2)%Vf(B5B2A5)%Vb(312C29)
 %s%ac%nP
+# no photos: their mark, a mask in the note's two colours as the note is
 %xl(I,Photos Pane.bmp,0,0)
+%xN(I)
 %Vl(nophotos,212,82,56,44,-)%Vb(312C29)
 %xd(I)
 %Vl(photocaption,160,160,160,15,2)%Vf(B5B2A5)%Vb(312C29)

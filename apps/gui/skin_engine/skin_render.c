@@ -137,7 +137,7 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             if (!col) return false;
             if (token->type == SKIN_TOKEN_VIEWPORT_FGCOLOUR)
             {
-                skin_vp->vp.fg_pattern = col->colour;
+                skin_vp->vp.fg_pattern = ui_theme_skin_text(col->colour);
 #ifdef HAVE_ALBUMART
                 if (cover_palette_get()
                     && data == skin_get_gwps(WPS, SCREEN_MAIN)->data)

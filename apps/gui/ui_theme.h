@@ -81,6 +81,7 @@ enum ui_colour {
     UI_COLOUR_SCROLLBAR_LINE, /* the track of a scrollbar that is a line */
     UI_COLOUR_LYRICS_DIM,     /* lyrics' lines not sung now, with UI_METRIC_LYRICS_DIM */
     UI_COLOUR_RING_TRACK,     /* the disk's ring's part not used, with UI_METRIC_RING_TRACK */
+    UI_COLOUR_GROUP_NAME,     /* a group's name on its band, with UI_METRIC_GROUP_BAR 2 */
     UI_COLOUR_COUNT
 };
 
@@ -244,6 +245,12 @@ const char *ui_font_file(enum ui_font role);
 /* Cover Colours as the theme takes the setting's value: Off in a theme that
    takes nothing from the cover */
 int ui_theme_cover_colours(int mode);
+/* A text's or a mark's colour in a skin, as it is now: in a theme with a
+   tone the skins' dense grey (small text; UI_COLOUR_VALUE) and second grey
+   (the disk's ring, a bar's fill; UI_COLOUR_NOTE_TOP) are names for the
+   tone's colours of them, else as given. A skin's text that is to stay
+   grey has a grey of its own (the clock: make_neo_theme.py's CLOCK) */
+unsigned ui_theme_skin_text(unsigned colour);
 /* A surface's colour (a ground, a fill, a hairline) as it is now: in the
    tone of a theme that has one, else as given */
 unsigned ui_theme_surface(unsigned colour);

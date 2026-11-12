@@ -70,6 +70,14 @@ unsigned cover_palette_toned(unsigned colour, int hue, int saturation);
    the yellows and greens don't at a middle lightness on a light ground */
 unsigned cover_palette_outline(unsigned colour, int hue, int saturation, bool dark,
                                unsigned ground);
+/* the hue from a lightness on, darker until white text reads on it, 4.5 to 1:
+   the selected row of a theme with a tone */
+unsigned cover_palette_under_white(int hue, int saturation, int lightness);
+/* A text in a tone on a surface of it: the hue at a saturation, from a
+   lightness on darker (in a dark look lighter) the same way until it reads
+   on the surface at 4.5 to 1 */
+unsigned cover_palette_text_tint(int hue, int saturation, int lightness, bool dark,
+                                 unsigned ground);
 /* For a new value of the setting, or the first at boot: gets or frees the memory of
    the whole screen */
 void cover_palette_set_mode(int mode);
@@ -91,7 +99,7 @@ const struct cover_palette *cover_palette_get(void);
 unsigned cover_palette_text_colour(unsigned colour);
 /* The colour for a pixel of a picture of a theme with a tone, whose shape is
    in its alpha: the outline of a small star not set in the theme's colour for
-   it, whatever Cover Colours is. With Text and Stars, of a picture marked to
+   it, or with Text and Stars the cover's muted one. With Text and Stars, of a picture marked to
    take the cover's colour, the text's greys in the text's and a paler mark as
    it is; with Fill every grey of any picture in the colour of its part, on
    the status line (status) as it reads there */
@@ -100,7 +108,9 @@ unsigned cover_palette_mark_colour(unsigned colour, bool status);
    and then the colour of the bar's fill in *bar, if given */
 bool cover_palette_tone_filled(unsigned *bar);
 struct viewport;
-/* the same for the text of a viewport, which in the status bar may keep it */
+/* cover_palette_text_colour() for the text of a viewport: in the status bar
+   it may keep its colour (Classic's Status Icons), or under a tone's Fill
+   takes the one that reads on the status line's shade */
 unsigned cover_palette_text_colour_in(unsigned colour, const struct viewport *vp);
 /* the lines of the lyrics not sung now, dim, from the half way colour: clear
    enough of the ground to read, 3 to 1, and still apart from the ink */

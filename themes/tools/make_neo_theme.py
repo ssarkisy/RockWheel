@@ -25,13 +25,16 @@ OUT = os.path.join(HERE, "..", "Neo", ".rockbox", "wps")
 
 COLOURS = {
     # DENSE: small text, the clock (#56524D, #B8B1A8 as the screen has them);
-    # SECONDARY is left to the bar's fill and the ring
+    # SECONDARY is left to the bar's fill and the ring. CLOCK is the status
+    # glyphs' grey, a step of the screen's from DENSE: the small text takes
+    # the user's colour, which is known by DENSE; the clock stays as the
+    # battery beside it is
     "Neo":      dict(PAPER="EFEBE7", PRIMARY="292421", SECONDARY="6B6963",
                      TERTIARY="A59E94", TRACK="E7DFD6", SELECTED="DEDBD6",
-                     SURFACE="E7E3DE", DENSE="52514A"),
+                     SURFACE="E7E3DE", DENSE="52514A", CLOCK="524D4A"),
     "Neo-Dark": dict(PAPER="211C18", PRIMARY="EFEBE7", SECONDARY="A59E94",
                      TERTIARY="6B6963", TRACK="313029", SELECTED="312C29",
-                     SURFACE="312C29", DENSE="B5B2A5"),
+                     SURFACE="312C29", DENSE="B5B2A5", CLOCK="B5AEA5"),
 }
 
 SIZES = {}
@@ -81,7 +84,7 @@ def status(width, modes, prefix="", name=None):
     at the left of a screen of the whole width."""
     out = []
     if name:
-        out += ["%%Vl(%sclock,%d,%d,64,15,3)%%Vf(DENSE)" % (prefix, MARGIN, TEXT_Y), CLOCK]
+        out += ["%%Vl(%sclock,%d,%d,64,15,3)%%Vf(CLOCK)" % (prefix, MARGIN, TEXT_Y), CLOCK]
 
     def vp(tag, name, x):
         w, h, _ = SIZES[name]
@@ -172,7 +175,7 @@ SBS = """\
 %Vl(rulehalf,0,{status},159,1,-)%Vb(TRACK)
 %Vl(column,159,0,1,240,-)%Vb(TRACK)
 # a screen that takes the whole width: the clock, its title, the glyphs
-%Vl(clockwide,{margin},{text_y},64,15,3)%Vf(DENSE)
+%Vl(clockwide,{margin},{text_y},64,15,3)%Vf(CLOCK)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(titlewide,84,{text_y},152,15,3)%Vf(PRIMARY)
 %s%ac%Lt
@@ -195,7 +198,9 @@ SBS = """\
 %xd(Q)
 %Vl(photocount,160,200,160,15,2)%Vf(DENSE)%Vb(SURFACE)
 %s%ac%nP
+# no photos: their mark, a mask in the note's two colours as the note is
 %xl(I,Photos Pane.bmp,0,0)
+%xN(I)
 %Vl(nophotos,{photos_x},{photos_y},{photos_w},{photos_h},-)%Vb(SURFACE)
 %xd(I)
 %Vl(photocaption,160,160,160,15,2)%Vf(DENSE)%Vb(SURFACE)
@@ -237,7 +242,7 @@ WPS = """\
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware
 # gives what lies in these rows a shade of the cover's colour
 %V(0,0,320,{status},-)
-%V({margin},{text_y},64,15,5)%Vf(DENSE)
+%V({margin},{text_y},64,15,5)%Vf(CLOCK)
 %al%?cf<%cH:%cM|%cl:%cM>
 %V(100,{text_y},120,15,5)%Vf(PRIMARY)
 %s%ac%Sx(Now Playing)
@@ -275,9 +280,10 @@ WPS = """\
 # five stars, the set ones and the outlines of the unset in one picture, their
 # foot 6 clear rows over the format's sign, a column left of the texts' edge,
 # where a star's point is; the set ones take the cover's colour with the text,
-# an outline is in the user's colour (%xC). The firmware knows an outline's
-# pixel by its grey: make_theme_glyphs.py fails if another pixel of a %xC
-# picture has it
+# an outline the theme's colour for it, or under Text and Stars the cover's
+# muted one (%xC). The firmware knows an
+# outline's pixel by its grey: make_theme_glyphs.py fails if another pixel
+# of a %xC picture has it
 %xl(G,Ratings.bmp,0,0,{ratings_n})
 %xC(G)
 %Vl(stars,{ratings_x},{stars_y},{ratings_w},{ratings_h},-)

@@ -26,7 +26,7 @@
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware
 # gives what lies in these rows a shade of the cover's colour
 %V(0,0,320,20,-)
-%V(14,2,64,15,5)%Vf(52514A)
+%V(14,2,64,15,5)%Vf(524D4A)
 %al%?cf<%cH:%cM|%cl:%cM>
 %V(100,2,120,15,5)%Vf(292421)
 %s%ac%Sx(Now Playing)
@@ -106,9 +106,10 @@
 # five stars, the set ones and the outlines of the unset in one picture, their
 # foot 6 clear rows over the format's sign, a column left of the texts' edge,
 # where a star's point is; the set ones take the cover's colour with the text,
-# an outline is in the user's colour (%xC). The firmware knows an outline's
-# pixel by its grey: make_theme_glyphs.py fails if another pixel of a %xC
-# picture has it
+# an outline the theme's colour for it, or under Text and Stars the cover's
+# muted one (%xC). The firmware knows an
+# outline's pixel by its grey: make_theme_glyphs.py fails if another pixel
+# of a %xC picture has it
 %xl(G,Ratings.bmp,0,0,11)
 %xC(G)
 %Vl(stars,163,148,76,12,-)

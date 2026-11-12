@@ -371,6 +371,9 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_GROUP_BAR]       = RGB(0xde, 0xdb, 0xd6),
                     /* the band's own tone: no line shows on it */
                     [UI_COLOUR_GROUP_RULE]      = RGB(0xde, 0xdb, 0xd6),
+                    /* the ink where there is no tone to take: in one the
+                       name is a deep tint of the user's colour (tone_make()) */
+                    [UI_COLOUR_GROUP_NAME]      = RGB(0x29, 0x24, 0x21),
                     [UI_COLOUR_VALUE]           = RGB(0x52, 0x51, 0x4a),
                     /* small text is a denser grey than the second, which
                        was pale on the LCD: #56524D and #B8B1A8 as the screen
@@ -421,6 +424,7 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_GROUP_TEXT]      = RGB(0xb5, 0xb2, 0xa5),
                     [UI_COLOUR_GROUP_BAR]       = RGB(0x31, 0x2c, 0x29),
                     [UI_COLOUR_GROUP_RULE]      = RGB(0x31, 0x2c, 0x29),
+                    [UI_COLOUR_GROUP_NAME]      = RGB(0xef, 0xeb, 0xe7),
                     [UI_COLOUR_VALUE]           = RGB(0xb5, 0xb2, 0xa5),
                     [UI_COLOUR_VALUE_SELECTED]  = RGB(0xef, 0xeb, 0xe7),
                     [UI_COLOUR_INITIAL_BOX]     = RGB(0x31, 0x34, 0x39),
@@ -517,12 +521,13 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SELECTION_RADIUS]     = 7,
             [UI_METRIC_SELECTION_INSET_X]    = 6,
             [UI_METRIC_SELECTION_INSET_Y]    = 2,
-            [UI_METRIC_CHEVRON_ALL]          = 0,
+            [UI_METRIC_CHEVRON_ALL]          = 1,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
             [UI_METRIC_PANE_LEFT]            = 160,
             [UI_METRIC_ROW_RIGHT]            = 18,
             [UI_METRIC_ROW_RIGHT_GAP]        = 10,
             [UI_METRIC_SCROLLBAR_CAPSULE]    = 3,
+            [UI_METRIC_SELECTION_INK]        = 1,
             [UI_METRIC_GROUP_BAR]            = 2,
             [UI_METRIC_LEAD_COLUMN]          = 24,
             [UI_METRIC_SUBLINE_INK]          = 1,
@@ -566,11 +571,11 @@ struct ui_tone {
 
 #define TONE_BRIGHT_LIGHT 500
 #define TONE_BRIGHT_DARK  450
-/* The depth: a bright colour's saturation by look. The LCD shows far less
-   of a colour than these numbers say: at 50 / 45 with the surfaces 2 %
-   lighter (1.5 to 2 % darker in the dark look) the ground was nearly white
-   on it */
-static const short tone_depth[2] = { 700, 650 };
+/* The depth: a bright colour's saturation by look. The grounds stay light
+   (dark in the dark look) and pale on the LCD; the colour is carried by
+   the selected row, the small text and the marks (tone_make()). Deeper
+   grounds, to 62 % lightness, were tried on the device and not taken */
+static const short tone_depth[2] = { 500, 450 };
 
 /* the colours a user chooses from, in the order of enum ui_tone_colour */
 static const struct ui_tone tone_set[UI_TONE_COUNT] = {
@@ -598,17 +603,31 @@ static const struct {
     unsigned plain[2];
     short lightness[2];
 } tone_surfaces[] = {
-    { { RGB(0xef, 0xeb, 0xe7), RGB(0x21, 0x1c, 0x18) }, { 880, 150 } },
-    { { RGB(0xe7, 0xe3, 0xde), RGB(0x31, 0x2c, 0x29) }, { 840, 205 } },
-    { { RGB(0xe7, 0xdf, 0xd6), RGB(0x31, 0x30, 0x29) }, { 825, 210 } },
-    { { RGB(0xde, 0xdb, 0xd6), RGB(0x31, 0x2c, 0x29) }, { 810, 205 } },
-    { { RGB(0xc6, 0xcf, 0xde), RGB(0x31, 0x34, 0x39) }, { 740, 255 } },
-    { { RGB(0xd6, 0xd3, 0xce), RGB(0x42, 0x3c, 0x39) }, { 760, 280 } },
+    { { RGB(0xef, 0xeb, 0xe7), RGB(0x21, 0x1c, 0x18) }, { 900, 135 } },
+    { { RGB(0xe7, 0xe3, 0xde), RGB(0x31, 0x2c, 0x29) }, { 860, 190 } },
+    { { RGB(0xe7, 0xdf, 0xd6), RGB(0x31, 0x30, 0x29) }, { 845, 195 } },
+    { { RGB(0xde, 0xdb, 0xd6), RGB(0x31, 0x2c, 0x29) }, { 830, 190 } },
+    { { RGB(0xc6, 0xcf, 0xde), RGB(0x31, 0x34, 0x39) }, { 760, 235 } },
+    { { RGB(0xd6, 0xd3, 0xce), RGB(0x42, 0x3c, 0x39) }, { 780, 260 } },
 };
 /* entries of it */
 #define TONE_GROUND    0
 #define TONE_PANE      1
 #define TONE_SELECTION 4
+/* A section's name on its band: the tone's hue at twice the colour's own
+   saturation, whatever the depth, from this lightness on (light, dark)
+   until it reads on the band; a grey or the ink did not say whose colour
+   the screen is in */
+static const short tone_name_lightness[2] = { 300, 750 };
+/* The selected row carries white text: the user's colour at twice its own
+   saturation, no more than this, from this lightness (light, dark) down
+   until white reads on it */
+#define TONE_ROW_SATURATION 700
+static const short tone_row_lightness[2] = { 520, 460 };
+/* Small text is not a grey but a tint of the user's colour, from this
+   lightness on until it reads on the deepest surface it stands on */
+static const short tone_small_lightness[2] = { 360, 720 };
+#define TONE_TRACK 5
 
 /* The tone the theme is in, or NULL in a theme without one, and the
    surfaces' and the note's roles in it for the look it was made for */
@@ -691,6 +710,10 @@ static unsigned tone_of(const struct ui_tone *in, unsigned colour, bool dark)
     if (in == &tone_filled)
         return surface == TONE_GROUND || surface == TONE_PANE ? tone_fill.ground
                                                               : tone_fill.track;
+    if (surface == TONE_SELECTION)
+        return cover_palette_under_white(in->hue,
+                                         MIN(in->saturation[dark] * 2, TONE_ROW_SATURATION),
+                                         tone_row_lightness[dark]);
     const int saturation = tone_saturation(in, dark);
     const unsigned *const plain = ui_theme_look(dark)->colour;
     int lightness = tone_surfaces[surface].lightness[dark] + in->shift[dark];
@@ -708,12 +731,10 @@ static unsigned tone_of(const struct ui_tone *in, unsigned colour, bool dark)
                               &pane);
         lightness = dark ? MIN(lightness, pane + step) : MAX(lightness, pane + step);
     }
-    /* the palest thing read on it: the small text's grey, or on the
-       selected row its ink */
+    /* the palest thing read on it: the small text's grey, which its tint
+       is no paler than */
     return cover_palette_surface(in->hue, saturation, lightness, dark,
-                                 plain[surface == TONE_SELECTION
-                                       ? UI_COLOUR_VALUE_SELECTED
-                                       : UI_COLOUR_VALUE], NULL);
+                                 plain[UI_COLOUR_VALUE], NULL);
 }
 
 static void tone_make(bool dark)
@@ -741,6 +762,45 @@ static void tone_make(bool dark)
         cover_palette_outline(look->colour[UI_COLOUR_RATING_UNSET], tone->hue,
                               tone_saturation(tone, dark), dark,
                               tone_colour[UI_COLOUR_GROUND]);
+    tone_colour[UI_COLOUR_GROUP_NAME] =
+        cover_palette_text_tint(tone->hue, MIN(tone->saturation[dark] * 2, 1000),
+                                tone_name_lightness[dark], dark,
+                                tone_colour[UI_COLOUR_GROUP_BAR]);
+    {
+        /* white on the selected row and on Quick Scroll's box, which is
+           in the row's colour */
+        static const unsigned char on_row[] = {
+            UI_COLOUR_VALUE_SELECTED, UI_COLOUR_SELECTOR_TEXT, UI_COLOUR_INITIAL_TEXT,
+        };
+        static const unsigned char small[] = {
+            UI_COLOUR_GROUP_TEXT, UI_COLOUR_VALUE, UI_COLOUR_SEARCH_SECOND,
+            UI_COLOUR_LEAD, UI_COLOUR_BITRATE, UI_COLOUR_HINT_TEXT,
+            /* and the marks before a name: a show's "2 new", the speaker */
+            UI_COLOUR_ACCENT,
+        };
+        static const unsigned char quiet[] = {
+            UI_COLOUR_QUIET, UI_COLOUR_SEARCH_DIM, UI_COLOUR_SCROLLBAR_THUMB,
+        };
+        const unsigned tint =
+            cover_palette_text_tint(tone->hue, MIN(tone->saturation[dark] * 2, 1000),
+                                    tone_small_lightness[dark], dark,
+                                    tone_of(tone, tone_surfaces[TONE_TRACK].plain[dark],
+                                            dark));
+        for (unsigned i = 0; i < ARRAYLEN(on_row); i++)
+            tone_colour[on_row[i]] = LCD_WHITE;
+        for (unsigned i = 0; i < ARRAYLEN(small); i++)
+            tone_colour[small[i]] = tint;
+        /* a chevron on a row not selected, a song's number, the
+           scrollbar's thumb: the selected row's colour, which shows on the
+           ground whatever the hue; a letter no name goes on with is
+           nearly a grey, 2 to 1 on the ground: in the colour it read as a
+           letter to choose */
+        for (unsigned i = 0; i < ARRAYLEN(quiet); i++)
+            tone_colour[quiet[i]] = quiet[i] == UI_COLOUR_SEARCH_DIM
+                ? cover_palette_outline(look->colour[quiet[i]], tone->hue, 120, dark,
+                                        tone_colour[UI_COLOUR_GROUND])
+                : tone_colour[UI_COLOUR_SELECTOR_START];
+    }
 }
 #endif
 
@@ -806,6 +866,8 @@ static void tone_to_settings(void)
     s->bg_color = ui_colour(UI_COLOUR_GROUND);
     s->lss_color = ui_colour(UI_COLOUR_SELECTOR_START);
     s->lse_color = ui_colour(UI_COLOUR_SELECTOR_END);
+    /* white in a tone, on a row in the user's colour */
+    s->lst_color = ui_colour(UI_COLOUR_SELECTOR_TEXT);
 }
 
 #ifdef HAVE_COVER_TONE
@@ -819,6 +881,25 @@ static void tone_changed(const struct ui_tone *to)
     skin_surfaces_changed();
 }
 #endif
+
+unsigned ui_theme_skin_text(unsigned colour)
+{
+#ifdef HAVE_COVER_TONE
+    if (tone && tone != &tone_filled)
+    {
+        const unsigned *const plain =
+            ui_theme_look(global_settings.dark_theme)->colour;
+        /* the ring of the disk's use and a bar's fill (draw_progressbar()),
+           in the skins' second grey: the selected row's colour */
+        if (colour == plain[UI_COLOUR_NOTE_TOP])
+            return tone_colour[UI_COLOUR_SELECTOR_START];
+        /* small text, in the skins' dense grey: the tint the lists' is */
+        if (colour == plain[UI_COLOUR_VALUE])
+            return tone_colour[UI_COLOUR_VALUE];
+    }
+#endif
+    return colour;
+}
 
 unsigned ui_theme_colour_swatch(int colour)
 {
@@ -961,6 +1042,7 @@ void ui_theme_to_settings(bool dark)
         s->bg_color = tone_colour[UI_COLOUR_GROUND];
         s->lss_color = tone_colour[UI_COLOUR_SELECTOR_START];
         s->lse_color = tone_colour[UI_COLOUR_SELECTOR_END];
+        s->lst_color = tone_colour[UI_COLOUR_SELECTOR_TEXT];
     }
 #endif
 }
