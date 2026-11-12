@@ -243,6 +243,19 @@ static void put_icon(struct screen *display, int x, int y,
 }
 
 
+/* text in width, ending in "…" if it is wider: its buffer in a frame of
+   its own, which only the UI's draws have */
+static NO_INLINE void put_fitted(struct screen *display, int x, int y,
+                                 const char *text, int font, int width)
+{
+    char fitted[MAX_PATH];
+    /* cut short in the form of the whole, as when it isn't */
+    font_set_text_form(font_text_form((const unsigned char *)text, -1));
+    const char *shown = line_fit(text, font, width, fitted, sizeof(fitted));
+    display->putsxy_scroll_func(x, y, shown ? shown : "", NULL, NULL, 0);
+    font_set_text_form(-1);
+}
+
 static void put_text(struct screen *display,
                       int x, int y, struct line_desc *line,
                       const char *text, bool prevent_scroll,
@@ -311,6 +324,15 @@ static void put_text(struct screen *display,
             scrollers[display->screen_type], line_data, text_skip_pixels);
         line_data->used = scrolls;
     }
+    /* A row's name too long for its place ends in "…" in a theme with a
+       place at every row's right end (UI_METRIC_ROW_RIGHT): cut bare before
+       a chevron it read as a fault. Not the scroller's draws of the row
+       that scrolls (prevent_scroll), which show the text's parts as they
+       are, on a thread with a small stack */
+    else if (!prevent_scroll && display->screen_type == SCREEN_MAIN
+             && ui_metric(UI_METRIC_ROW_RIGHT) && line->height > 0
+             && !VP_IS_RTL(vp) && text_skip_pixels == 0 && vp->width > x)
+        put_fitted(display, x, y, text, vp->font, vp->width - x);
     else
         display->putsxy_scroll_func(x, y, text, NULL, NULL, text_skip_pixels);
     if (part_vp)
