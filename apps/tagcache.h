@@ -334,6 +334,9 @@ bool tagcache_name_has_music(int tag, int32_t seek);
 /* a track's kind, or -1 when the kinds aren't in memory: for a plugin */
 int tagcache_kind_if_known(int idx_id);
 int tagcache_path_kind(const char *path);
+/* Of the track playing: by its entry, or by its file while it has none, as
+   after a track change until it is buffered */
+int tagcache_id3_kind(const struct mp3entry *id3);
 /* the kind is iTunesDB's: Finder's podcast or book, which has a mark there and
    the Mac's bookmark; another is new until it has a play */
 bool tagcache_track_marked(int idx_id);

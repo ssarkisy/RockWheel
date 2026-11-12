@@ -592,11 +592,12 @@ const char *get_id3_token(struct wps_token *token, struct mp3entry *id3,
                 *intval = id3->score + 1;
             itoa_buf(buf, buf_size, id3->score);
             return buf;
-        /* from the database's memory by the track's entry there, which it
-           has once it's buffered: music and no date before that */
+        /* From the database's memory. The kind by the track's file until
+           it has its entry there, once it's buffered: or a book's part had a
+           song's lines after each track change. No date before that. */
         case SKIN_TOKEN_TRACK_KIND:
         {
-            const int kind = tagcache_track_kind(id3->tagcache_idx - 1);
+            const int kind = tagcache_id3_kind(id3);
             if (intval)
                 *intval = kind + 1;
             itoa_buf(buf, buf_size, kind);
@@ -611,7 +612,7 @@ const char *get_id3_token(struct wps_token *token, struct mp3entry *id3,
         case SKIN_TOKEN_TRACK_SPEED:
         {
 #ifdef HAVE_PITCHCONTROL
-            const int kind = tagcache_track_kind(id3->tagcache_idx - 1);
+            const int kind = tagcache_id3_kind(id3);
             const int *speed = speech_speed_setting(kind);
             const int percent = speech_speed_percent(kind, speed ? *speed : 0);
             if (percent != 100 && dsp_timestretch_available())

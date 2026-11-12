@@ -611,7 +611,7 @@ static void draw_lyrics(void)
 static int track_kind(const struct mp3entry *id3)
 {
 #ifdef HAVE_TAGCACHE
-    return id3 ? tagcache_track_kind(id3->tagcache_idx - 1) : 0;
+    return id3 ? tagcache_id3_kind(id3) : 0;
 #else
     (void)id3;
     return 0;

@@ -6416,6 +6416,12 @@ int tagcache_path_kind(const char *path)
     return tagcache_track_kind(tagcache_find_entry(path));
 }
 
+int tagcache_id3_kind(const struct mp3entry *id3)
+{
+    return id3->tagcache_idx > 0 ? tagcache_track_kind(id3->tagcache_idx - 1)
+                                 : tagcache_path_kind(id3->path);
+}
+
 bool tagcache_track_marked(int idx_id)
 {
 #ifdef HAVE_TC_RAMCACHE
