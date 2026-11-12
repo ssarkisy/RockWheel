@@ -5193,6 +5193,10 @@ static int first_song_of(struct tree_context *c, const struct tagentry *entry)
         return -1;
     add_level_filters(&tcs, level);
     tagcache_search_add_filter(&tcs, csi->tagorder[level], entry->extraseek);
+    /* of an album whose name several album artists have, its own song */
+    const int32_t artist = row_artist(entry);
+    if (artist >= 0)
+        tagcache_search_add_filter(&tcs, tag_albumartist, artist);
     core_pin(tagtree_handle);
     for (int i = 0; i <= level; i++)
     {
