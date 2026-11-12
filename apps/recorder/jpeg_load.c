@@ -912,9 +912,31 @@ INLINE void jpeg_putc(struct jpeg* p_jpeg)
 }
 #else
 
+#ifdef JPEG_STOPPABLE
+volatile int jpeg_mem_fd = -1;
+const unsigned char *jpeg_mem;
+size_t jpeg_mem_size;
+static size_t mem_at;       /* how far into them the decode has read */
+#endif
+
+/* the picture's next bytes: its file's, or the memory's it was read into */
+static int source_read(struct jpeg* p_jpeg, size_t count)
+{
+#ifdef JPEG_STOPPABLE
+    if (p_jpeg->fd == jpeg_mem_fd)
+    {
+        count = MIN(count, jpeg_mem_size - mem_at);
+        memcpy(p_jpeg->buf, jpeg_mem + mem_at, count);
+        mem_at += count;
+        return count;
+    }
+#endif
+    return read(p_jpeg->fd, p_jpeg->buf, count);
+}
+
 static int read_buf(struct jpeg* p_jpeg, size_t count)
 {
-    return read(p_jpeg->fd, p_jpeg->buf, count);
+    return source_read(p_jpeg, count);
 }
 
 INLINE void fill_buf(struct jpeg* p_jpeg)
@@ -928,7 +950,7 @@ INLINE void fill_buf(struct jpeg* p_jpeg)
 #ifdef HAVE_ALBUMART
 static int read_buf_id3_unsync(struct jpeg* p_jpeg, size_t count)
 {
-    count = read(p_jpeg->fd, p_jpeg->buf, count);
+    count = source_read(p_jpeg, count);
     return id3_unsynchronize(p_jpeg->buf, count, (bool*) &p_jpeg->custom_param);
 }
 
@@ -973,6 +995,16 @@ static unsigned char *jpeg_getc(struct jpeg* p_jpeg)
 
 static bool skip_bytes_seek(struct jpeg* p_jpeg)
 {
+#ifdef JPEG_STOPPABLE
+    /* buf_left is under 0 by what's skipped past the buffer's end */
+    if (p_jpeg->fd == jpeg_mem_fd)
+    {
+        if (mem_at - p_jpeg->buf_left > jpeg_mem_size)
+            return false;
+        mem_at -= p_jpeg->buf_left;
+    }
+    else
+#endif
     if (UNLIKELY(lseek(p_jpeg->fd, -p_jpeg->buf_left, SEEK_CUR) < 0))
         return false;
     p_jpeg->buf_left = 0;
@@ -2170,6 +2202,10 @@ int clip_jpeg_fd(int fd, int flags,
     p_jpeg->data = data;
 #else
     p_jpeg->fd = fd;
+#ifdef JPEG_STOPPABLE
+    if (fd == jpeg_mem_fd)
+        mem_at = 0;
+#endif
     if (p_jpeg->len == 0)
         p_jpeg->len = ffilesize(p_jpeg->fd);
 

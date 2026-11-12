@@ -921,6 +921,81 @@ static bool reader_yield(unsigned wanted)
     return wanted == sharp.wanted;
 }
 
+/* The picture read whole into the moving frames' block, which is free until
+   they are made, if it's there and holds it: both passes of the decoder
+   then read memory, and the file isn't sought twice. 32 KB at a time, as
+   the buffering thread reads, the hold and the stop looked at between.
+   1 read; 0 no room for it: from the file, as without the block; -1
+   stopped, not read, or turned down by its first bytes */
+#define SHARP_READ (32 * 1024)
+
+/* The picture's frame, if it's in these first bytes of it: one the decoder
+   doesn't take (process_markers()), or of a size sharp_decode() turns
+   down. False if the frame isn't found there: that is for the decoder. */
+static bool frame_no_use(const unsigned char *at, size_t length, int width,
+                         int height)
+{
+    if (length < 2 || at[0] != 0xff || at[1] != 0xd8)
+        return false;
+    for (size_t i = 2; i + 9 <= length; )
+    {
+        const unsigned marker = at[i + 1];
+        const size_t segment = at[i + 2] << 8 | at[i + 3];
+        if (at[i] != 0xff)
+            return false;
+        if (marker == 0xff)
+        {
+            i++;
+            continue;
+        }
+        if (marker == 0xc0 || marker == 0xc1)
+        {
+            const long across = (long)(at[i + 7] << 8 | at[i + 8]) * height;
+            const long down = (long)(at[i + 5] << 8 | at[i + 6]) * width;
+            return across < (long)width * height || down < (long)width * height
+                   || (across > down ? across - down : down - across) * 100
+                      > across * 3;
+        }
+        if (marker > 0xc0 && marker <= 0xcf && marker != 0xc4
+            && marker != 0xcc)
+            return true;
+        /* the picture's data, or no segment with a length */
+        if (marker < 0xc0 || (marker >= 0xd0 && marker <= 0xda)
+            || segment < 2)
+            return false;
+        i += 2 + segment;
+    }
+    return false;
+}
+
+static int picture_whole(int fd, int width, int height)
+{
+    const size_t size = sharp.aa.size;
+    unsigned char *room = (unsigned char *)sharp.phase[0];
+    if (!room || !size || size > 2 * sizeof(menu_art.pixels)
+        || (sharp.aa.type & AA_FLAG_VORBIS_BASE64))
+        return 0;
+    if (lseek(fd, sharp.aa.pos, SEEK_SET) < 0)
+        return -1;
+    for (size_t at = 0; at < size; at += SHARP_READ)
+    {
+        const ssize_t part = MIN(SHARP_READ, size - at);
+        if (read(fd, room + at, part) != part)
+            return -1;
+        if (!at && !(sharp.aa.type & AA_FLAG_ID3_UNSYNC)
+            && frame_no_use(room, part, width, height))
+            return -1;
+        while (sharp.hold && jpeg_stop_fd != fd)
+            sleep(1);
+        if (jpeg_stop_fd == fd)
+            return -1;
+    }
+    jpeg_mem = room;
+    jpeg_mem_size = size;
+    jpeg_mem_fd = fd;
+    return 1;
+}
+
 /* The picture decoded against Finder's cover, by 8 by 8 parts of the two: a
    part's colours on average, in sixteenths of the display's levels. The
    picture's by every third pixel each way; Finder's from its frame scaled
@@ -1141,8 +1216,12 @@ static int sharp_decode(int fd, int width, int height)
     memset(&bm, 0, sizeof(bm));
     bm.data = (unsigned char *)sharp.pixels;
     const int format = FORMAT_NATIVE | FORMAT_DITHER;
-    /* its own size first, which is all this reads */
-    if (lseek(fd, sharp.aa.pos, SEEK_SET) < 0)
+    /* read whole where there's room; else its own size first, which is
+       all that pass reads */
+    const int whole = picture_whole(fd, width, height);
+    if (whole < 0)
+        return jpeg_stop_fd == fd ? 0 : -1;
+    if (!whole && lseek(fd, sharp.aa.pos, SEEK_SET) < 0)
         return 0;
     if (clip_jpeg_fd(fd, sharp.aa.type, sharp.aa.size, &bm, SHARP_BYTES,
                      format | FORMAT_RETURN_SIZE, NULL) <= 0)
@@ -1151,7 +1230,7 @@ static int sharp_decode(int fd, int width, int height)
     if (bm.width < width || bm.height < height
         || (across > down ? across - down : down - across) * 100 > across * 3)
         return -1;
-    if (lseek(fd, sharp.aa.pos, SEEK_SET) < 0)
+    if (!whole && lseek(fd, sharp.aa.pos, SEEK_SET) < 0)
         return 0;
     bm.width = width;
     bm.height = height;
@@ -1227,6 +1306,7 @@ void menu_cover_read(void)
             if (jpeg_hold_fd == fd)
                 jpeg_hold_fd = -1;
         }
+        jpeg_mem_fd = -1;
         close(fd);
     }
     if (rc > 0 && wanted == sharp.wanted)

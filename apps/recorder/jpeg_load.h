@@ -74,6 +74,14 @@ int clip_jpeg_fd(int fd, int flags,
                  const struct custom_format *cformat);
 
 #ifndef PLUGIN
+/* The decode that reads this file takes the picture out of memory: its
+   bytes, from the place in the file it would be read at, are the
+   jpeg_mem_size at jpeg_mem, and each pass starts at their first. Not a
+   picture in an Ogg file's comments. -1 for none; put back before the
+   file is closed. */
+extern volatile int jpeg_mem_fd;
+extern const unsigned char *jpeg_mem;
+extern size_t jpeg_mem_size;
 /* The decode that reads this file ends at its next block, as one that
    failed: 0 or less returned. -1 for none; whoever sets it puts that
    back before the file is closed. */
