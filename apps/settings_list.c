@@ -348,10 +348,10 @@ static const char graphic_numeric[] = "graphic,numeric";
 /* The stock iPod look: iClassic Square from themes/, which buildzip.pl
    installs for this screen size */
 #define DEFAULT_THEME_ICLASSIC
-#define DEFAULT_WPSNAME  "iClassic-Square"
-#define DEFAULT_SBSNAME  "iClassic-Square"
-#define DEFAULT_FMS_NAME "iClassic-Square"
-#define DEFAULT_FONTNAME "24-Inter-Bold"
+#define DEFAULT_WPSNAME  UI_CLASSIC_SKIN
+#define DEFAULT_SBSNAME  UI_CLASSIC_SKIN
+#define DEFAULT_FMS_NAME UI_CLASSIC_SKIN
+#define DEFAULT_FONTNAME UI_CLASSIC_FONT
 #else
 #define DEFAULT_WPSNAME  "cabbiev2"
 #define DEFAULT_SBSNAME  "-"
@@ -434,15 +434,15 @@ static const char graphic_numeric[] = "graphic,numeric";
 #endif /* HAVE_REMOTE_LCD */
 
 #ifdef DEFAULT_THEME_ICLASSIC
-#define DEFAULT_THEME_FOREGROUND LCD_RGBPACK(0x00, 0x00, 0x00)
-#define DEFAULT_THEME_BACKGROUND LCD_RGBPACK(0xff, 0xff, 0xff)
-#define DEFAULT_THEME_SELECTOR_START LCD_RGBPACK(0x6b, 0xa6, 0xde)
-#define DEFAULT_THEME_SELECTOR_END LCD_RGBPACK(0x18, 0x6d, 0xbd)
-#define DEFAULT_THEME_SELECTOR_TEXT LCD_RGBPACK(0xff, 0xff, 0xff)
-#define DEFAULT_BACKDROP    BACKDROP_DIR "/iClassic_bd.bmp"
+#define DEFAULT_THEME_FOREGROUND UI_CLASSIC_TEXT
+#define DEFAULT_THEME_BACKGROUND UI_CLASSIC_GROUND
+#define DEFAULT_THEME_SELECTOR_START UI_CLASSIC_SELECTOR_START
+#define DEFAULT_THEME_SELECTOR_END UI_CLASSIC_SELECTOR_END
+#define DEFAULT_THEME_SELECTOR_TEXT UI_CLASSIC_SELECTOR_TEXT
+#define DEFAULT_BACKDROP    UI_CLASSIC_BACKDROP
 #define DEFAULT_STATUSBAR   STATUSBAR_OFF
 #define DEFAULT_SHOW_ICONS  false
-#define DEFAULT_LIST_TEXT_PADDING 5
+#define DEFAULT_LIST_TEXT_PADDING UI_CLASSIC_TEXT_INSET
 #define DEFAULT_LIST_SELECTOR_STYLE true /* bevel and chevron */
 #else
 #define DEFAULT_THEME_FOREGROUND LCD_RGBPACK(0xce, 0xcf, 0xce)

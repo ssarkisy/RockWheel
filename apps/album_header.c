@@ -57,17 +57,17 @@
 #include "gui/skin_engine/menu_cover.h"
 
 #define COVER_SIZE   60
-#define COVER_TOP    6
-#define COVER_GAP    10 /* from the cover to the texts */
-#define TEXT_MARGIN  6  /* the texts' at the other end, as a setting's value's */
-#define NAME_TOP     5
+#define COVER_TOP    ui_metric(UI_METRIC_HEADER_COVER_TOP)
+#define COVER_GAP    ui_metric(UI_METRIC_HEADER_COVER_GAP) /* from the cover to the texts */
+#define TEXT_MARGIN  ui_metric(UI_METRIC_HEADER_TEXT_MARGIN) /* the texts' at the other end, as a setting's value's */
+#define NAME_TOP     ui_metric(UI_METRIC_HEADER_NAME_TOP)
 #define NAME_LINES   2
 /* a name's two lines closer than its font's cells, which have room above
    the capitals; the artist's line just under it, and the year's */
-#define NAME_LEADING 2
-#define ARTIST_GAP   1
-#define COUNTS_GAP   2
-#define HEADER_FOOT  6  /* below the lowest of the cover and the texts */
+#define NAME_LEADING ui_metric(UI_METRIC_HEADER_NAME_LEADING)
+#define ARTIST_GAP   ui_metric(UI_METRIC_HEADER_ARTIST_GAP)
+#define COUNTS_GAP   ui_metric(UI_METRIC_HEADER_COUNTS_GAP)
+#define HEADER_FOOT  ui_metric(UI_METRIC_HEADER_FOOT) /* below the lowest of the cover and the texts */
 #define TEXT_BYTES   192
 
 static struct {
@@ -168,13 +168,13 @@ extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
    their files. The list's with a theme without them */
 static int artist_font(int list_font)
 {
-    const int font = font_find(FONT_DIR "/17-Inter-Bold.fnt");
+    const int font = font_find(ui_font_file(UI_FONT_HEADER_ARTIST));
     return font < 0 ? list_font : font;
 }
 
 static int counts_font(int list_font)
 {
-    const int font = font_find(FONT_DIR "/14-Inter-Bold.fnt");
+    const int font = font_find(ui_font_file(UI_FONT_HEADER_COUNTS));
     return font < 0 ? list_font : font;
 }
 
@@ -194,7 +194,7 @@ static void lay_out(int lines, int name_font, int list_font, struct layout *l)
     l->artist = l->name[lines - 1] + name_h + ARTIST_GAP;
     l->counts = l->artist + font_get(artist_font(list_font))->height + COUNTS_GAP;
     l->foot = MAX(COVER_TOP + COVER_SIZE,
-                  l->counts + font_get(counts_font(list_font))->height);
+                  l->counts + (int)font_get(counts_font(list_font))->height);
 }
 
 /* len bytes of text into buf, or as many as fit in width with "…" after

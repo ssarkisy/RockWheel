@@ -201,27 +201,28 @@ static bool draw_title(struct screen *display,
 /* The lists' lighter fonts, which no skin names: loaded after the skins',
    music stopped, and kept for good as Quick Scroll's letter is. Now Playing
    and the album's header are bold, in the skins' fonts */
-#define HINT_FONT    FONT_DIR "/18-Inter-SemiBold.fnt"
-#define LEAD_FONT    FONT_DIR "/17-Inter-SemiBold.fnt"
-#define VALUE_FONT   FONT_DIR "/17-Inter-Medium.fnt"
-#define SUBLINE_FONT FONT_DIR "/14-Inter-SemiBold.fnt" /* the status bar's too */
+#define HINT_FONT    ui_font_file(UI_FONT_HINT)
+#define LEAD_FONT    ui_font_file(UI_FONT_LEAD)
+#define VALUE_FONT   ui_font_file(UI_FONT_VALUE)
+#define SUBLINE_FONT ui_font_file(UI_FONT_SUBLINE) /* the status bar's too */
 
 void list_load_fonts(void)
 {
-    static const char *const fonts[] = { HINT_FONT, LEAD_FONT, VALUE_FONT };
+    static const enum ui_font fonts[] = { UI_FONT_HINT, UI_FONT_LEAD, UI_FONT_VALUE };
     for (size_t i = 0; i < ARRAYLEN(fonts); i++)
     {
-        if (font_find(fonts[i]) < 0)
-            font_load_ex(fonts[i], 0, global_settings.glyphs_to_cache);
+        const char *const file = ui_font_file(fonts[i]);
+        if (font_find(file) < 0)
+            font_load_ex(file, 0, global_settings.glyphs_to_cache);
     }
 }
 
 /* The band of hints under a list of settings: the hint of the row selected,
    in three lines at most. 14 px in two lines was too small to read at a
    glance, and 17 px hardly larger. */
-#define HINT_X      6
-#define HINT_TOP    6
-#define HINT_PITCH  21
+#define HINT_X      ui_metric(UI_METRIC_HINT_X)
+#define HINT_TOP    ui_metric(UI_METRIC_HINT_TOP)
+#define HINT_PITCH  ui_metric(UI_METRIC_HINT_PITCH)
 #define HINT_LINES  3
 #define HINT_BYTES  192
 
@@ -263,11 +264,11 @@ int list_subline_font(int list_font)
    two lines read as one row, closer than to the next one's name. The name's
    cell starts a row above its part and ends four rows into the next, which
    it draws nothing in (line.c keeps it to its part) */
-#define NAME_PART_CUT  5 /* the name's cell's rows outside what it draws */
-#define SUBLINE_GAP    3
-#define NAME_TEXT_DY   2 /* its cell two rows lower than in the middle of its part */
-#define SUBLINE_TOP_DY 0
-#define COVER_GAP      8 /* from a cover to the text */
+#define NAME_PART_CUT  ui_metric(UI_METRIC_NAME_PART_CUT) /* the name's cell's rows outside what it draws */
+#define SUBLINE_GAP    ui_metric(UI_METRIC_SUBLINE_GAP)
+#define NAME_TEXT_DY   ui_metric(UI_METRIC_NAME_TEXT_DY) /* its cell's rows lower than in the middle of its part */
+#define SUBLINE_TOP_DY ui_metric(UI_METRIC_SUBLINE_TOP_DY)
+#define COVER_GAP      ui_metric(UI_METRIC_ROW_COVER_GAP) /* from a cover to the text */
 static int list_name_height(int font)
 {
     return font_get(font)->height - NAME_PART_CUT;
@@ -285,7 +286,7 @@ int list_two_lines_height(int font)
    for the disk. It gives its place up to any font loaded later with every
    place taken, a theme's or the library's, and comes again with the theme
    next; meanwhile the letter is in the list's own font. */
-#define INITIAL_FONT   FONT_DIR "/53-Inter-Letters.fnt"
+#define INITIAL_FONT   ui_font_file(UI_FONT_INITIAL)
 #define INITIAL_GLYPHS 160 /* more than it has: all of it read */
 
 void list_load_initial_font(void)
@@ -456,19 +457,6 @@ void list_draw_hint(struct screen *display, struct viewport *band,
 }
 
 #ifdef HAVE_LCD_COLOR
-/* colours measured on a stock 5G; track[dark][inner, outer] */
-static const unsigned scrollbar_thumb[] = {
-    LCD_RGBPACK(0x29, 0x51, 0xad), LCD_RGBPACK(0x4a, 0x8e, 0xd6),
-    LCD_RGBPACK(0xa5, 0xc7, 0xef), LCD_RGBPACK(0x94, 0xbe, 0xef),
-    LCD_RGBPACK(0x63, 0xa2, 0xe7), LCD_RGBPACK(0x6e, 0xac, 0xf7),
-    LCD_RGBPACK(0x84, 0xc3, 0xff), LCD_RGBPACK(0x9a, 0xdb, 0xff),
-    LCD_RGBPACK(0xad, 0xf4, 0xff), LCD_RGBPACK(0x5a, 0x71, 0x7b),
-};
-static const unsigned char scrollbar_track[2][2][3] = {
-    { { 0xc6, 0xcf, 0xd6 }, { 0xef, 0xf7, 0xff } },
-    { { 0x2a, 0x2d, 0x33 }, { 0x3c, 0x40, 0x48 } },
-};
-
 /* thumb at least square: of 13000 songs it'd be a fraction of a pixel */
 static void list_draw_scrollbar(struct screen *display, int w, int h, bool left,
                                 int items, int first, int last)
@@ -479,11 +467,14 @@ static void list_draw_scrollbar(struct screen *display, int w, int h, bool left,
     const int thumb_h = MAX(h * (last - first) / items, MIN(track_w, h));
     const int rest = items - (last - first);
     const int thumb_y = rest > 0 ? (h - thumb_h) * MAX(MIN(first, rest), 0) / rest : 0;
-    const unsigned char (*track)[3] = scrollbar_track[global_settings.dark_theme];
+    /* the theme's: the track from inner to outer, the thumb across */
+    const unsigned char (*track)[3] =
+        ui_theme_look(global_settings.dark_theme)->scrollbar_track;
+    const unsigned *const scrollbar_thumb = ui_theme_current()->scrollbar_thumb;
     const int d = MAX(track_w - 1, 1);
 
     display->set_drawmode(DRMODE_SOLID);
-    display->set_foreground(LCD_RGBPACK(0x5a, 0x61, 0x63));
+    display->set_foreground(ui_colour(UI_COLOUR_SCROLLBAR_EDGE));
     display->vline(left ? track_w : 0, 0, h - 1);
     for (int i = 0; i < track_w; i++)
     {
@@ -494,7 +485,7 @@ static void list_draw_scrollbar(struct screen *display, int w, int h, bool left,
             track[0][2] + (track[1][2] - track[0][2]) * i / d));
         display->vline(x, 0, h - 1);
         display->set_foreground(
-            scrollbar_thumb[i * (int)ARRAYLEN(scrollbar_thumb) / track_w]);
+            scrollbar_thumb[i * UI_SCROLLBAR_THUMB_STEPS / track_w]);
         display->vline(x, thumb_y, thumb_y + thumb_h - 1);
     }
 }

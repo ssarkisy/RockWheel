@@ -121,7 +121,10 @@ int list_get_nb_lines(struct gui_synclist *list, enum screen_type screen)
 void list_init_item_height(struct gui_synclist *list, enum screen_type screen)
 {
     struct viewport *vp = list->parent[screen];
-    int line_height = font_get(vp->font)->height;
+    /* the theme's, or the font's cell */
+    int line_height = ui_metric(UI_METRIC_ROW_HEIGHT);
+    if (line_height <= 0)
+        line_height = font_get(vp->font)->height;
     if (list->callback_get_subline && screen == SCREEN_MAIN)
         line_height = list_two_lines_height(vp->font);
 #ifdef HAVE_TOUCHSCREEN

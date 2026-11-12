@@ -1903,15 +1903,11 @@ static void strip_settle(void)
 }
 
 /* Drawing */
-#define GREY_TEXT  (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa2, 0xa8) \
-                                               : LCD_RGBPACK(0x66, 0x66, 0x66))
-#define FIELD_FILL (global_settings.dark_theme ? LCD_RGBPACK(0x2c, 0x2e, 0x33) \
-                                               : LCD_RGBPACK(0xe6, 0xe8, 0xec))
-#define RULE       (global_settings.dark_theme ? LCD_RGBPACK(0x3a, 0x3c, 0x42) \
-                                               : LCD_RGBPACK(0xd4, 0xd6, 0xda))
+#define GREY_TEXT  ui_colour(UI_COLOUR_SEARCH_SECOND)
+#define FIELD_FILL ui_colour(UI_COLOUR_SEARCH_FIELD)
+#define RULE       ui_colour(UI_COLOUR_SEARCH_RULE)
 /* a letter no name goes on with */
-#define DIM_TEXT   (global_settings.dark_theme ? LCD_RGBPACK(0x4a, 0x4c, 0x52) \
-                                               : LCD_RGBPACK(0xc8, 0xca, 0xce))
+#define DIM_TEXT   ui_colour(UI_COLOUR_SEARCH_DIM)
 
 static struct viewport field_vp, strip_vp, list_vp[NB_SCREENS];
 /* the theme's, as set_foreground() changes the viewport's own */

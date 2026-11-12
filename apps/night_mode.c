@@ -56,29 +56,24 @@ static bool theme_changed;
    out afterwards */
 static bool settings_loaded;
 
-#define THEME_LIGHT_NAME "iClassic-Square"
-#define THEME_DARK_NAME THEME_LIGHT_NAME "-Dark"
-
 /* The theme with a dark version. A theme of someone's own stays as it is. */
 static bool theme_has_dark(void)
 {
-    return !strcmp(global_settings.wps_file, THEME_LIGHT_NAME)
-        || !strcmp(global_settings.wps_file, THEME_DARK_NAME);
+    return !strcmp(global_settings.wps_file, ui_theme_look(false)->skin)
+        || !strcmp(global_settings.wps_file, ui_theme_look(true)->skin);
 }
 
 static void theme_set_names(bool dark)
 {
-    const char *const name = dark ? THEME_DARK_NAME : THEME_LIGHT_NAME;
+    const struct ui_theme_look *const look = ui_theme_look(dark);
+    const char *const name = look->skin;
     strmemccpy(global_settings.wps_file, name, sizeof(global_settings.wps_file));
     strmemccpy(global_settings.sbs_file, name, sizeof(global_settings.sbs_file));
     strmemccpy(global_settings.fms_file, name, sizeof(global_settings.fms_file));
-    strmemccpy(global_settings.backdrop_file,
-               dark ? BACKDROP_DIR "/iClassic_bd_dark.bmp" : BACKDROP_DIR "/iClassic_bd.bmp",
+    strmemccpy(global_settings.backdrop_file, look->backdrop,
                sizeof(global_settings.backdrop_file));
-    global_settings.fg_color = dark ? LCD_RGBPACK(0xf2, 0xf2, 0xf6) : LCD_RGBPACK(0, 0, 0);
-    global_settings.bg_color = dark ? LCD_RGBPACK(THEME_DARK_BG_R, THEME_DARK_BG_G,
-                                                  THEME_DARK_BG_B)
-                                    : LCD_RGBPACK(0xff, 0xff, 0xff);
+    global_settings.fg_color = look->colour[UI_COLOUR_TEXT];
+    global_settings.bg_color = look->colour[UI_COLOUR_GROUND];
 }
 
 /* Music goes on: only the images change, and each has the size it had */

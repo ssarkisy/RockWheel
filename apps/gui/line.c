@@ -582,7 +582,7 @@ static int line_middle(struct screen *display, int y,
 /* The chevron at the right end of a line of an item that leads to more, as
    on a stock iPod. It goes over whatever text scrolled there, on a strip of
    the line's own background. */
-#define CHEVRON_MARGIN 6
+#define CHEVRON_MARGIN ui_metric(UI_METRIC_CHEVRON_MARGIN)
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
 /* drawn like anti-aliased glyphs: 9x11, lines 2.6 pixels thick, in Rockbox'
    alpha format (4 bits from 0 opaque to 15 transparent, low nibble first,
@@ -911,7 +911,7 @@ void line_draw_mark(struct screen *display, int x, int y,
 #endif
 }
 
-#define LEAD_GAP 8 /* as a setting's value from its name */
+#define LEAD_GAP ui_metric(UI_METRIC_LEAD_GAP) /* as a setting's value from its name */
 int line_lead_width(struct screen *display, int font, int digits, int *digit)
 {
     (void)display;
@@ -1176,8 +1176,8 @@ void line_draw_cover(struct screen *display, int x, int y,
 
 /* Quick Scroll's box: as tall as three rows of the menus or two of 36 px, as
    wide or as its text and a margin each side, its corners rounded */
-#define INITIAL_HEIGHT 72
-#define INITIAL_MARGIN 16
+#define INITIAL_HEIGHT ui_metric(UI_METRIC_INITIAL_HEIGHT)
+#define INITIAL_MARGIN ui_metric(UI_METRIC_INITIAL_MARGIN)
 #define INITIAL_RADIUS 11
 #define INITIAL_CHARS  8   /* of its text, at most */
 

@@ -378,9 +378,9 @@ static bool menu_is_group(int item, void *data)
 #define VALUE_COLOUR LIST_VALUE_COLOUR
 #define GROUP_COLOUR LIST_GROUP_COLOUR
 #define GROUP_BAR_COLOUR LIST_GROUP_BAR_COLOUR
-#define VALUE_MARGIN 6
-#define VALUE_MARGIN_CHEVRON 21
-#define VALUE_GAP 8
+#define VALUE_MARGIN ui_metric(UI_METRIC_VALUE_MARGIN)
+#define VALUE_MARGIN_CHEVRON ui_metric(UI_METRIC_VALUE_MARGIN_CHEVRON)
+#define VALUE_GAP ui_metric(UI_METRIC_VALUE_GAP)
 #define LIGHT_LEAST 40 /* the room a lighter text after a name needs at least */
 void menu_draw_value_line(struct list_putlineinfo_t *info)
 {
@@ -431,7 +431,8 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         const int y = info->y + info->linedes->height / 2 - height / 2
                       + font_get(name_font)->ascent - font_get(font)->ascent;
         const unsigned old_fg = display->get_foreground();
-        display->set_foreground(info->is_selected ? LCD_WHITE : VALUE_COLOUR);
+        display->set_foreground(info->is_selected ? ui_colour(UI_COLOUR_VALUE_SELECTED)
+                                                  : VALUE_COLOUR);
         display->set_drawmode(DRMODE_FG);
         info->vp->font = font;
         display->putsxy(x, y, fit);
@@ -462,7 +463,8 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         return;
 
     const unsigned old_fg = display->get_foreground();
-    display->set_foreground(info->is_selected ? LCD_WHITE : VALUE_COLOUR);
+    display->set_foreground(info->is_selected ? ui_colour(UI_COLOUR_VALUE_SELECTED)
+                                                  : VALUE_COLOUR);
     display->set_drawmode(DRMODE_FG);
     display->putsxy(x, info->y + (info->linedes->height - height) / 2, tab + 1);
     display->set_drawmode(DRMODE_SOLID);

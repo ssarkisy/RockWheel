@@ -29,6 +29,7 @@
 #include "skin_engine/skin_engine.h"
 #endif
 #include "line.h"
+#include "ui_theme.h"
 
 #define SCROLLBAR_WIDTH global_settings.scrollbar_width
 
@@ -70,22 +71,16 @@ typedef bool list_is_shuffle(int item, void * data);
 /* the hint shown under the list while an item is selected, NULL for none */
 typedef const char *list_get_hint(int item, void * data);
 
-/* the colours of a group's bar in a list of settings, and of the band of
-   hints under one, and of their text */
-#define LIST_GROUP_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa6, 0xb0) \
-                                                      : LCD_RGBPACK(0x60, 0x66, 0x70))
-#define LIST_GROUP_BAR_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0x2c, 0x2e, 0x33) \
-                                                          : LCD_RGBPACK(0xe6, 0xe8, 0xec))
-/* a value's grey, as a setting's at the right end of its row, and an album's
-   year or a song's number before its name */
-#define LIST_VALUE_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0xa0, 0xa2, 0xa8) \
-                                                      : LCD_RGBPACK(0x66, 0x66, 0x66))
-/* Quick Scroll's box over a list, with its letter in white, and how much of
-   the list it hides, in sixteenths: dark over the light theme's, and lighter
-   than the dark one's list, over whose black a dark box didn't show */
-#define LIST_INITIAL_COLOUR (global_settings.dark_theme ? LCD_RGBPACK(0x5a, 0x5c, 0x64) \
-                                                        : LCD_BLACK)
-#define LIST_INITIAL_OPACITY (global_settings.dark_theme ? 13 : 11)
+/* the theme's colours (gui/ui_theme.c): a group's bar in a list of settings
+   and the band of hints under one, and their text; a value's grey, as a
+   setting's at the right end of its row, and an album's year or a song's
+   number before its name; Quick Scroll's box over a list, with its letter in
+   white, and how much of the list it hides, in sixteenths */
+#define LIST_GROUP_COLOUR     ui_colour(UI_COLOUR_GROUP_TEXT)
+#define LIST_GROUP_BAR_COLOUR ui_colour(UI_COLOUR_GROUP_BAR)
+#define LIST_VALUE_COLOUR     ui_colour(UI_COLOUR_VALUE)
+#define LIST_INITIAL_COLOUR   ui_colour(UI_COLOUR_INITIAL_BOX)
+#define LIST_INITIAL_OPACITY  ui_metric(UI_METRIC_INITIAL_OPACITY)
 /*
  * Text callback
  *  - selected_item : an integer that tells the number of the item to display

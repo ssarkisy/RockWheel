@@ -21,10 +21,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* The plain background of the dark theme, as in themes/tools/make_dark_theme.py */
-#define THEME_DARK_BG_R 18
-#define THEME_DARK_BG_G 18
-#define THEME_DARK_BG_B 20
+#include "gui/ui_theme.h"
+
+/* The plain background of the dark theme */
+#define THEME_DARK_BG_R UI_CLASSIC_DARK_GROUND_R
+#define THEME_DARK_BG_G UI_CLASSIC_DARK_GROUND_G
+#define THEME_DARK_BG_B UI_CLASSIC_DARK_GROUND_B
 
 /* At boot, after the settings are read and before they're applied: the theme's files
    and what the mode has changed, for the time it is now */

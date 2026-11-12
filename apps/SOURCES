@@ -90,6 +90,7 @@ gui/icon.c
 gui/list.c
 gui/transition.c
 gui/line.c
+gui/ui_theme.c
 gui/bitmap/list.c
 gui/bitmap/list-skinned.c
 gui/option_select.c
