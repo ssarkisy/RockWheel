@@ -384,7 +384,9 @@ static unsigned long peak_bar_hold(struct progressbar *pb, unsigned long end,
 #if LCD_DEPTH >= 16
 /* Three bars of a sound wave, the format, and the bitrate in lighter letters on the
    same baseline. The font of the viewport is for the format, and a viewport the theme
-   names "bitrate" and doesn't show gives the one for the bitrate. */
+   names "bitrate" and doesn't show gives the one for the bitrate. Right to left the
+   line is its mirror in the viewport: the texts by putsxy(), which mirrors there, and
+   the bars column for column, as they have no direction of their own to keep. */
 #define FORMAT_COLOUR   LCD_RGBPACK(0x35, 0x38, 0x38)
 /* The bars are a pixel and a half wide and go half a pixel into their first and
    last rows, in the middle of the capitals: a half and a quarter of the colour over
@@ -448,19 +450,22 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
     }
 #endif
 
+    const bool rtl = VP_IS_RTL(vp);
     display->set_drawmode(DRMODE_SOLID);
     for (int i = 0; i < (int)ARRAYLEN(bars); i++)
     {
-        const int x = bars[i].x, top = bars[i].top, bottom = bars[i].bottom;
+        const int x = rtl ? vp->width - 1 - bars[i].x : bars[i].x,
+                  beside = rtl ? x - 1 : x + 1;
+        const int top = bars[i].top, bottom = bars[i].bottom;
         display->set_foreground(colour);
         display->vline(x, top + 1, bottom - 1);
         display->set_foreground(half);
-        display->vline(x + 1, top + 1, bottom - 1);
+        display->vline(beside, top + 1, bottom - 1);
         display->drawpixel(x, top);
         display->drawpixel(x, bottom);
         display->set_foreground(quarter);
-        display->drawpixel(x + 1, top);
-        display->drawpixel(x + 1, bottom);
+        display->drawpixel(beside, top);
+        display->drawpixel(beside, bottom);
     }
 
     display->set_drawmode(DRMODE_FG);
