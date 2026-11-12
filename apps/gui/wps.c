@@ -445,7 +445,9 @@ static void prev_track(unsigned long skip_thresh)
             curr_cuesheet_skip(state->id3->cuesheet, -1, state->id3->elapsed);
             return;
         }
-        if (chapters_skip(state->id3, -1))
+        /* in the scrubber a song's buttons are the track's, as they were */
+        if (state->display_mode != WPS_MODE_SCRUB
+            && chapters_skip(state->id3, -1))
             return;
 
         audio_pre_ff_rewind();
@@ -466,7 +468,8 @@ static void next_track(void)
             return;
         }
     }
-    if (chapters_skip(state->id3, 1))
+    if (state->display_mode != WPS_MODE_SCRUB
+        && chapters_skip(state->id3, 1))
         return;
 
     audio_next();

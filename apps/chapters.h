@@ -42,6 +42,9 @@ struct chapters {
     uint16_t names;             /* bytes of names used */
     int16_t current;            /* as chapters_changed() last saw it */
     int16_t jumped;             /* the chapter a jump went to, -1 for none */
+    int32_t passed;             /* ms the jumps went over, less those gone back */
+    int32_t again;              /* what was heard as a jump to 0:00 was asked,
+                                   for its finish event; -1 for none */
     struct chapter ch[];
 };
 
@@ -52,8 +55,8 @@ int chapters_measure(int fd, const struct mp3entry *id3, size_t *size);
 bool chapters_read(int fd, const struct mp3entry *id3, struct chapters *c,
                    int slots, size_t size);
 
-/* The playing track's, by its id3, if it is an episode or a book: 0 chapters
-   without them, as for a song whatever its tags say */
+/* The playing track's, by its id3: 0 chapters without them, and for a song
+   shorter than ten minutes whatever its file has */
 int chapters_count(const struct mp3entry *id3);
 /* The chapter at this time, -1 before the first or without chapters. A jump
    lands where the codec can, some way before the chapter's start, and paused
@@ -70,6 +73,11 @@ bool chapters_changed(struct mp3entry *id3);
    start, or to the one before in its first three seconds. False where there
    is no such chapter, for the caller to skip as for a track without. */
 bool chapters_skip(const struct mp3entry *id3, int direction);
+/* How far into the track it was listened to, for the count of a play: the
+   position less what chapter jumps passed over, so that a track skipped
+   through by its chapters is not one played. "again": the track begins
+   again (its finish event at a seek to 0:00), and that is forgotten. */
+unsigned long chapters_heard(const struct mp3entry *id3, bool again);
 /* The list of the playing track's chapters: 0 as it's left, GO_TO_WPS after
    a chapter is chosen, GO_TO_ROOT */
 int chapters_screen(void);

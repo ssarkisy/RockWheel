@@ -59,6 +59,7 @@
 #include "storage.h"
 #include "dir.h"
 #include "playback.h"
+#include "chapters.h"
 #include "strnatcmp.h"
 #include "panic.h"
 #include "onplay.h"
@@ -1776,8 +1777,9 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
        What plays from where it was left is played when it ends, as the
        place says nothing of how long it was listened to. The autoresume
        point is always processed. */
+    const unsigned long heard = chapters_heard(id3, te->flags & TEF_REWIND);
     if (runtimedb && (id3->elapsed == 0
-        || (id3->elapsed < 60 * 1000 && !auto_skip)
+        || (heard < 60 * 1000 && !auto_skip)
         || (autoresume && !auto_skip)
         ))
     {

@@ -138,6 +138,8 @@ bool chapters_read(int fd, const struct mp3entry *id3, struct chapters *c,
     memset(c, 0, fixed);
     c->slots = slots;
     c->current = c->jumped = -1;
+    c->passed = 0;
+    c->again = -1;
     struct fill f = { c, size - fixed };
     read_file(fd, id3, fill_add, &f);
 
@@ -165,6 +167,10 @@ bool chapters_read(int fd, const struct mp3entry *id3, struct chapters *c,
     return kept >= 2;
 }
 
+/* A song has chapters as a long recording has, a mix or a concert: one
+   shorter than this, or of unknown length, is a track without them */
+#define CHAPTERS_SONG_MS (10 * 60 * 1000)
+
 /* Whatever the scratch holds, nothing is read outside its CHAPTERS_SIZE */
 static struct chapters *chapters_of(const struct mp3entry *id3)
 {
@@ -174,8 +180,8 @@ static struct chapters *chapters_of(const struct mp3entry *id3)
            > CHAPTERS_SIZE)
         return NULL;
 #ifdef HAVE_TAGCACHE
-    /* an episode's and a book's: a song is a song */
-    if (!tagcache_track_kind(id3->tagcache_idx - 1))
+    if (id3->length < CHAPTERS_SONG_MS
+        && !tagcache_track_kind(id3->tagcache_idx - 1))
         return NULL;
 #endif
     return c;
@@ -252,8 +258,38 @@ bool chapters_changed(struct mp3entry *id3)
     return true;
 }
 
-static void jump_to(struct chapters *c, int chapter)
+unsigned long chapters_heard(const struct mp3entry *id3, bool again)
 {
+    struct chapters *c = chapters_of(id3);
+    if (!c)
+        return id3->elapsed;
+    long heard = (long)id3->elapsed - c->passed;
+    if (again)
+    {
+        /* a jump's own: jumps asked for after it are in "passed" already */
+        if (c->again >= 0)
+            heard = c->again;
+        else
+            c->passed = 0;
+        c->again = -1;
+    }
+    return MAX(heard, 0);
+}
+
+static void jump_to(struct chapters *c, const struct mp3entry *id3, int chapter)
+{
+    const uint32_t start = c->ch[chapter].start;
+    /* from the chapter a jump just went to, where the position may not be yet */
+    const uint32_t from = jump_holds(c, id3) ? c->ch[c->jumped].start
+                                             : id3->elapsed;
+    if (start)
+        c->passed += (int32_t)(start - from);
+    else if (c->again < 0)
+    {
+        /* the track begins again: its finish event comes as the seek is taken */
+        c->again = MAX((long)from - c->passed, 0);
+        c->passed = 0;
+    }
     c->jumped = chapter;
     audio_pre_ff_rewind();
     audio_ff_rewind(c->ch[chapter].start);
@@ -276,7 +312,7 @@ bool chapters_skip(const struct mp3entry *id3, int direction)
         to--;
     if (to < 0 || to >= c->count)
         return false;
-    jump_to(c, to);
+    jump_to(c, id3, to);
     return true;
 }
 
@@ -370,7 +406,7 @@ int chapters_screen(void)
                 }
                 transition_begin(TRANSITION_FORWARD);
                 if (row != chapters_at(list_id3, list_id3->elapsed))
-                    jump_to(c, row);
+                    jump_to(c, list_id3, row);
                 ret = GO_TO_WPS;
                 break;
             }
