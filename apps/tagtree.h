@@ -179,6 +179,12 @@ bool tagtree_album(struct tree_context *c, struct tagtree_album *album);
    year and songs, and albumartist is the author they all have, -1 if they
    differ; year and longest are 0 */
 bool tagtree_album_is_show(struct tree_context *c);
+/* The list made last has its rows' states, Podcasts' shows and a show's
+   episodes: each row's mark in a column before its name (enum line_mark):
+   a dot for a new episode or a show with one, a half dot for one begun,
+   LINE_MARK_EMPTY for the rest; LINE_MARK_NONE for a row at its top */
+bool tagtree_rows_states(struct tree_context *c);
+int tagtree_entry_mark(struct tree_context *c, int row);
 /* of its first song, a tag of names' text as the database has it, UNTAGGED
    for none: from its memory only, false without it. Not tag_filename, whose
    path may be read from the disk */

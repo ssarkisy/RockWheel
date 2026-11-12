@@ -1164,6 +1164,9 @@ static long find_path_name(int handle, long count, const char *path,
     core_put_data_pinned(names);
     return found;
 }
+
+/* the changes to places, plays and marks since boot */
+static long states_generation;
 #endif /* !__PCTOOL__ */
 
 #if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
@@ -1256,6 +1259,19 @@ static size_t ram_paths_needed(void)
 /* with the kind, for a file outside Finder's folder: the check of those after
    USB passes over the others without a look at their paths */
 #define RAM_KIND_OUTSIDE 0x80
+/* and a podcast's or a book's mark, not played, as the flags have it
+   (ITUNESDB_UNPLAYED): changed here as it changes there */
+#define RAM_KIND_UNPLAYED 0x40
+#define RAM_KIND_MASK 0x0f
+
+/* an entry's kinds byte, by its path and the flags of its hash */
+static uint8_t ram_kind_of(const char *path, uint64_t hash)
+{
+    const unsigned flags = itunesdb_hash_flags(hash);
+    return ((flags & ITUNESDB_AUDIOBOOK) ? 2 : (flags & ITUNESDB_PODCAST) ? 1 : 0)
+           | ((flags & ITUNESDB_UNPLAYED) ? RAM_KIND_UNPLAYED : 0)
+           | (itunesdb_synced_path(path) ? 0 : RAM_KIND_OUTSIDE);
+}
 
 static void ram_path_add(long idx_id, const char *path, uint64_t hash)
 {
@@ -1274,10 +1290,32 @@ static void ram_path_add(long idx_id, const char *path, uint64_t hash)
     }
     else
         ram_paths_whole = false;
-    unsigned flags = itunesdb_hash_flags(hash);
-    kinds[idx_id] = ((flags & ITUNESDB_AUDIOBOOK) ? 2 :
-                     (flags & ITUNESDB_PODCAST) ? 1 : 0)
-                    | (itunesdb_synced_path(path) ? 0 : RAM_KIND_OUTSIDE);
+    kinds[idx_id] = ram_kind_of(path, hash);
+}
+
+/* The kinds again from the flags an import has just written, for a database
+   that stays in memory: a sync that adds or removes no file makes no commit,
+   and the marks on the screen were those before it */
+static void ram_kinds_refresh(void)
+{
+    if (!tc_stat.ramcache || ram_paths_handle <= 0)
+        return;
+    const char *base = core_get_data_pinned(ram_paths_handle);
+    const uint32_t *offsets = (const uint32_t *)base;
+    uint8_t *kinds = (uint8_t *)(offsets + ram_paths_count);
+    const char *pool = (const char *)(kinds + ram_paths_count);
+    for (long i = 0; i < ram_paths_count; i++)
+    {
+        if (offsets[i])
+        {
+            const char *path = pool + offsets[i] - 1;
+            kinds[i] = ram_kind_of(path, itunesdb_path_hash(path));
+        }
+        if ((i & 1023) == 1023)
+            yield();
+    }
+    core_put_data_pinned((void *)base);
+    states_generation++;
 }
 
 /* the index of the entry in memory idx points at, or -1 */
@@ -1319,7 +1357,17 @@ static int ram_kind(long idx_id)
         return 0;
     const uint8_t *kinds = (const uint8_t *)core_get_data(ram_paths_handle)
                            + ram_paths_count * sizeof(uint32_t);
-    return kinds[idx_id] & ~RAM_KIND_OUTSIDE;
+    return kinds[idx_id] & RAM_KIND_MASK;
+}
+
+/* the entry's kinds byte in memory, to read or change; NULL without it */
+static uint8_t *ram_kinds_byte(long idx_id)
+{
+    if (!tc_stat.ramcache || ram_paths_handle <= 0
+        || idx_id < 0 || idx_id >= ram_paths_count)
+        return NULL;
+    return (uint8_t *)core_get_data(ram_paths_handle)
+           + ram_paths_count * sizeof(uint32_t) + idx_id;
 }
 #endif
 
@@ -6058,6 +6106,8 @@ void tagcache_update_numeric(int idx_id, int tag, long data)
         rating_generation++;
     else if (tag == tag_playcount || tag == tag_lastplayed)
         plays_generation++;
+    if (tag == tag_playcount || tag == tag_lastelapsed)
+        states_generation++;
     queue_command(CMD_UPDATE_NUMERIC, idx_id, tag, data);
 }
 
@@ -6168,6 +6218,61 @@ long tagcache_track_place(int idx_id)
 #else
     (void)idx_id;
     return 0;
+#endif
+}
+
+long tagcache_states_generation(void)
+{
+    return states_generation;
+}
+
+int tagcache_episode_state(int idx_id)
+{
+#ifdef HAVE_TC_RAMCACHE
+    if (!tc_stat.ready || !tc_stat.ramcache || !tcramcache.hdr || idx_id < 0
+        || idx_id >= current_tcmh.tch.entry_count)
+        return EPISODE_PLAYED;
+    const struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
+    const uint8_t *kind = ram_kinds_byte(idx_id);
+    if ((idx->flag & FLAG_DELETED) || !kind)
+        return EPISODE_PLAYED;
+    if (queued_or(tag_lastelapsed, idx_id, idx) > 0)
+        return EPISODE_STARTED;
+    /* Finder's by its mark; another by its plays, as it has no mark */
+    if (*kind & RAM_KIND_MASK)
+        return (*kind & RAM_KIND_UNPLAYED) ? EPISODE_NEW : EPISODE_PLAYED;
+    return queued_or(tag_playcount, idx_id, idx) > 0 ? EPISODE_PLAYED : EPISODE_NEW;
+#else
+    (void)idx_id;
+    return EPISODE_PLAYED;
+#endif
+}
+
+int tagcache_match_entry(const int32_t *tag_seek)
+{
+#ifdef HAVE_TC_RAMCACHE
+    return ram_entry_id((const struct index_entry *)tag_seek);
+#else
+    (void)tag_seek;
+    return -1;
+#endif
+}
+
+bool tagcache_set_unplayed(int idx_id, const char *path, bool unplayed)
+{
+#ifdef HAVE_TC_RAMCACHE
+    uint8_t *kind = ram_kinds_byte(idx_id);
+    if (!kind || !(*kind & RAM_KIND_MASK) || !itunesdb_set_unplayed(path, unplayed))
+        return false;
+    if (unplayed)
+        *kind |= RAM_KIND_UNPLAYED;
+    else
+        *kind &= ~RAM_KIND_UNPLAYED;
+    states_generation++;
+    return true;
+#else
+    (void)idx_id; (void)path; (void)unplayed;
+    return false;
 #endif
 }
 
@@ -9158,6 +9263,9 @@ static void tagcache_thread(void)
                 cpu_boost(true);
                 import_total = itunesdb_import_tracks(true, &import_done,
                                               &import_total);
+#ifdef HAVE_TC_RAMCACHE
+                ram_kinds_refresh();
+#endif
                 cpu_boost(false);
                 import_done = 0;
                 import_phase = TAGCACHE_IMPORT_SCANNING;
@@ -9183,6 +9291,8 @@ static void tagcache_thread(void)
                 if (!db_file_exists(TAGCACHE_FILE_TEMP))
                 {
                     itunesdb_import();
+                    /* a place the pass took from the Mac, for the lists */
+                    states_generation++;
                     /* itunesdb.dat now matches, or there's no iTunesDB:
                        the statistics are all back */
                     if (!itunesdb_changed())
@@ -9306,6 +9416,8 @@ static void tagcache_thread(void)
                      && (audio_status() & AUDIO_STATUS_PLAY); wait += HZ / 20)
                     sleep(HZ / 20);
                 run_command_queue(true);
+                /* the marks made on the iPod, for the import after the sync */
+                itunesdb_flush_flags();
                 itunesdb_write_playcounts();
                 cpu_boost(false);
                 usb_acknowledge(SYS_USB_CONNECTED_ACK, ev.data);
@@ -9331,6 +9443,7 @@ void tagcache_shutdown(void)
 {
     /* Flush the command queue. */
     run_command_queue(true);
+    itunesdb_flush_flags();
 
 #if defined(HAVE_EEPROM_SETTINGS) && defined(HAVE_TC_RAMCACHE)
     if (tc_stat.ramcache)
@@ -9460,7 +9573,8 @@ void tagcache_init(void)
             sync_found = true;
         }
     }
-    if (sync_found || !itunesdb_gains_ready() || !itunesdb_sort_ready())
+    if (sync_found || !itunesdb_gains_ready() || !itunesdb_sort_ready()
+        || !itunesdb_flags_ready())
         import_phase = TAGCACHE_IMPORT_READING;
 #ifdef ITUNESDB_HAVE_ART
     else if (itunesdb_slides_todo())

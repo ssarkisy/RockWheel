@@ -788,8 +788,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         const int mark_x = line_indent;
         const int mark = !shuffle && list->callback_get_mark ?
                          list->callback_get_mark(i, list->data) : LINE_MARK_NONE;
-        if (mark != LINE_MARK_NONE)
-            line_indent += line_mark_width(display);
+        const int mark_w = mark != LINE_MARK_NONE ?
+                           line_mark_column(display, mark) : 0;
+        line_indent += mark_w;
         /* an album's year or a song's number, its name after their column,
            even with its cell empty */
         char lead_buf[12];
@@ -936,9 +937,12 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         if (shuffle)
             line_draw_shuffle(display, list_info.x + shuffle_x, list_info.y,
                               &linedes);
+        /* an episode's right to left too, from the other end */
         if (mark != LINE_MARK_NONE)
-            line_draw_mark(display, list_info.x + mark_x, list_info.y,
-                           &linedes, mark);
+            line_draw_mark(display, list_info.x
+                           + (VP_IS_RTL(list_text_vp) && mark >= LINE_MARK_NEW ?
+                              list_text_vp->width - mark_x - mark_w : mark_x),
+                           list_info.y, &linedes, mark);
         if (lead && *lead)
             line_draw_lead(display, lead_font, lead_shift, list_info.x + lead_x,
                            list_info.y, &linedes, lead, lead_w,

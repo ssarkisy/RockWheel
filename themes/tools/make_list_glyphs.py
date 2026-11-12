@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Draw the speaker that marks the song playing in a list, as on a stock iPod, the
-shuffle arrows of a list's Shuffle Songs and the marks of the catalogue's playlists, and print them as the C arrays apps/gui/line.c
+shuffle arrows of a list's Shuffle Songs, the marks of the catalogue's playlists and of
+a podcast's episodes, new and begun, and print them as the C arrays apps/gui/line.c
 draws them from; and the note of an album's header without a cover, which
 apps/album_header.c draws, and of an album's row in a list, which line.c draws: alpha masks in Rockbox' format, 4 bits a pixel from 0 opaque to 15
 transparent, the low nibble first, the rows running on without padding, as the chevron's
@@ -165,6 +166,22 @@ def small_note(x, y):
     return Note.inside(x / SMALL_NOTE_SCALE, y / SMALL_NOTE_SCALE)
 
 
+# the marks of a podcast's episodes: a dot for a new one, and for one begun a
+# ring of the same size with its left half filled
+DOT_W = DOT_H = 7
+DOT_R = 3.5
+RING_THICK = 1.25
+
+
+def dot(x, y):
+    return math.hypot(x - DOT_W / 2, y - DOT_H / 2) <= DOT_R
+
+
+def half_dot(x, y):
+    r = math.hypot(x - DOT_W / 2, y - DOT_H / 2)
+    return r <= DOT_R and (x <= DOT_W / 2 or r >= DOT_R - RING_THICK)
+
+
 def coverage(inside, w, h):
     rows = []
     for py in range(h):
@@ -216,7 +233,9 @@ def main():
                                ('computer', computer, COMPUTER_W, COMPUTER_H),
                                ('ipod', ipod, IPOD_W, IPOD_H),
                                ('note', note, NOTE_W, NOTE_H),
-                               ('small_note', small_note, SMALL_NOTE_W, SMALL_NOTE_H)):
+                               ('small_note', small_note, SMALL_NOTE_W, SMALL_NOTE_H),
+                               ('dot', dot, DOT_W, DOT_H),
+                               ('half_dot', half_dot, DOT_W, DOT_H)):
         cov = coverage(inside, w, h)
         print('#define %s_W %d' % (name.upper(), w))
         print('#define %s_H %d' % (name.upper(), h))

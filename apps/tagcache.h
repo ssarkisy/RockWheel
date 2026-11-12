@@ -286,6 +286,22 @@ bool tagcache_read_entries(void (*fn)(int idx_id, const char *filename,
                                       void *data),
                            void *data, bool names);
 bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n);
+/* A podcast episode as its lists mark it: started, with a place; new, not
+   played and without one, by the Mac's mark until one made on the iPod, or
+   for a file without that mark by its plays; else played. As it is now, with
+   the changes queued, from memory only: played without the database there */
+enum { EPISODE_PLAYED, EPISODE_NEW, EPISODE_STARTED };
+int tagcache_episode_state(int idx_id);
+/* the entry a search's match is of (tagcache_search_set_match()), -1 when
+   the search isn't through the database's memory */
+int tagcache_match_entry(const int32_t *tag_seek);
+/* The mark of a podcast or audiobook Finder synced, not played or played, in
+   memory and in the flags (itunesdb_set_unplayed()): false for an entry
+   without one. path is the entry's file */
+bool tagcache_set_unplayed(int idx_id, const char *path, bool unplayed);
+/* the changes to places, plays and marks since boot, which the lists with
+   the episodes' states go by */
+long tagcache_states_generation(void);
 /* Where an entry was left, in ms, as it is now, a change queued for it too
    (tag_lastelapsed): 0 for none, and without the database in memory. As
    tagcache_get_numbers(), from memory only, for a list's rows as they draw */

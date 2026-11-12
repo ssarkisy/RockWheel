@@ -639,6 +639,21 @@ static const unsigned char small_note_alpha[] = {
     0x6f, 0x00, 0x00, 0xf9, 0x08, 0x00, 0xe5, 0xff, 0xff, 0x68, 0xc7, 0xff,
     0xdf, 0xdb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 };
+/* the marks of a podcast's episodes, new and begun, by the same tool */
+#define DOT_W 7
+#define DOT_H 7
+static const unsigned char dot_alpha[] = {
+    0xaf, 0x02, 0xa2, 0xaf, 0x00, 0x00, 0xa0, 0x02, 0x00, 0x00, 0x02, 0x00,
+    0x00, 0x00, 0x02, 0x00, 0x00, 0xa2, 0x00, 0x00, 0xa0, 0xaf, 0x02, 0xa2,
+    0xff,
+};
+#define HALF_DOT_W 7
+#define HALF_DOT_H 7
+static const unsigned char half_dot_alpha[] = {
+    0xaf, 0x02, 0xa2, 0xaf, 0x00, 0x76, 0xa0, 0x02, 0x70, 0x7f, 0x02, 0x00,
+    0xf7, 0x0b, 0x02, 0x70, 0x7f, 0xa2, 0x00, 0x76, 0xa0, 0xaf, 0x02, 0xa2,
+    0xff,
+};
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
@@ -791,11 +806,55 @@ int line_mark_width(struct screen *display)
     return 0;
 }
 
+#define STATE_GAP 5 /* from an episode's mark to its name */
+int line_mark_column(struct screen *display, int mark)
+{
+    if (mark < LINE_MARK_NEW)
+        return line_mark_width(display);
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type == SCREEN_MAIN)
+        return DOT_W + STATE_GAP;
+#endif
+    return 0;
+}
+
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+/* An episode's mark at the start of its column, the names' end of it right
+   to left: in the speaker's colour, as the selection's text on it; in the
+   middle of the name's capitals */
+static void draw_state(struct screen *display, int x, int y,
+                       const struct line_desc *line, int mark)
+{
+    if (mark == LINE_MARK_EMPTY || !line_mark_column(display, mark))
+        return;
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    const unsigned fg = display->get_foreground();
+    if (line->style & (STYLE_COLORBAR|STYLE_GRADIENT))
+        display->set_foreground(line->text_color);
+    else if (line->style & STYLE_INVERT)
+        display->set_foreground(display->get_background());
+    else
+        display->set_foreground(speaker_colour());
+    display->set_drawmode(DRMODE_FG);
+    lcd_alpha_bitmap_part(mark == LINE_MARK_NEW ? dot_alpha : half_dot_alpha,
+                          0, 0, DOT_W, x + (lang_is_rtl() ? STATE_GAP : 0),
+                          y + (height - DOT_H) / 2 + line->text_dy,
+                          DOT_W, DOT_H);
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+}
+#endif
+
 /* in the middle of their column, in the colour of the names */
 void line_draw_mark(struct screen *display, int x, int y,
                     const struct line_desc *line, int mark)
 {
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (mark >= LINE_MARK_NEW)
+    {
+        draw_state(display, x, y, line, mark);
+        return;
+    }
     if (!line_mark_width(display))
         return;
     const unsigned char *alpha;

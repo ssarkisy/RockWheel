@@ -30,6 +30,7 @@
 #include "config.h"
 #include "system.h"
 #include "kernel.h"
+#include "ata_idle_notify.h"
 #include "file.h"
 #include "dir.h"
 #include "mv.h"
@@ -188,7 +189,7 @@ struct state_entry {
     uint8_t rating;  /* 0..100, 20 a star */
     uint8_t media;   /* the media type's low byte, which has the video kinds */
     uint8_t flags;   /* ITUNESDB_* */
-    uint8_t played;  /* a podcast's mark on the Mac: 1 played, 2 not */
+    uint8_t played;  /* a podcast's or a book's mark on the Mac: 1 played, 2 not */
 };
 
 struct track {
@@ -199,7 +200,7 @@ struct track {
     uint32_t pos;    /* of its mhit in iTunesDB */
     uint32_t sound_check; /* Finder's, 0 for none */
     uint32_t lastplayed;  /* Mac time, 0 for never */
-    uint32_t bookmark;    /* a podcast's place on the Mac, ms */
+    uint32_t bookmark;    /* a podcast's or a book's place on the Mac, ms */
     struct state_entry st;
     uint64_t dbid;   /* the song's, the same under another path after a sync */
 };
@@ -916,7 +917,8 @@ static void read_track(off_t pos, struct track *track)
         /* its low byte, which has the video kinds: the ones above it, such
            as ringtones and voice memos, are sound */
         track->st.media = media & 0xff;
-        if (media & MEDIA_PODCAST)
+        /* a book's too: Play Counts gives them back as they are */
+        if (media & (MEDIA_PODCAST | MEDIA_AUDIOBOOK))
         {
             track->st.played = p[0xb2];
             track->bookmark = le32(p + 0x6c);
@@ -2481,7 +2483,10 @@ static bool unsent_taken(void)
     {
         const struct unsent_entry *u = &uns.e[i];
         const struct state_entry *t = find_pending(u->hash);
-        if (!t)
+        /* a podcast or an audiobook can't say: Finder leaves an episode's
+           count at 0 though it's played, which read as a file dropped at
+           every sync after */
+        if (!t || (t->media & (MEDIA_PODCAST | MEDIA_AUDIOBOOK)))
             continue;
         const uint32_t last = pend.lastplayed[t - pend.tracks];
         if (u->went)
@@ -2538,6 +2543,11 @@ static bool counts_of_this_itunesdb(void)
             && size == pend.hdr.db_size && mtime == pend.hdr.db_mtime);
 }
 
+/* the Mac's places the pass takes, which the flags have (below) */
+static bool place_from_mac(uint64_t hash, struct tagcache_runtime *rt);
+static bool flags_places_wait(void);
+static void flags_places_taken(void);
+
 /* 1 to set the counts, 0 to leave the entry, -1 to remove it */
 static int update_entry(const char *path, struct tagcache_runtime *rt,
                         void *data)
@@ -2560,8 +2570,9 @@ static int update_entry(const char *path, struct tagcache_runtime *rt,
         }
         return -1;
     }
+    /* the counts stay, the Mac's place is still taken */
     if (counts_kept)
-        return 0;
+        return place_from_mac(hash, rt);
     /* a moved song's new entry keeps its old entry's numbers */
     const struct moved_song *m = find_moved(hash);
     if (m && m->kept)
@@ -2586,6 +2597,7 @@ static int update_entry(const char *path, struct tagcache_runtime *rt,
         if (!uns.taken && u->rating != u->base_rating)
             rt->rating = u->rating / 10;
     }
+    place_from_mac(hash, rt);
     return 1;
 }
 
@@ -2818,10 +2830,11 @@ void itunesdb_import(void)
 {
     if (!load_pending())
         return; /* the next boot reads iTunesDB again */
-    if (pending_is_imported())
+    if (pending_is_imported() && !flags_places_wait())
     {
         /* A sync with nothing new: nothing to set and nothing to remove. Plays that
-           Finder hasn't taken stay, to go in Play Counts next time. */
+           Finder hasn't taken stay, to go in Play Counts next time. A place
+           moved on the Mac alone is new, though the counts aren't. */
         if (stamp_state())
         {
             remove(PENDING_FILE);
@@ -2876,6 +2889,7 @@ void itunesdb_import(void)
             remove(PENDING_FILE);
             remove(STATE_OLD_FILE);
             remove(PROGRESS_FILE);
+            flags_places_taken();
             if (!counts_kept)
                 remove(UNSENT_FILE);
             /* one that couldn't read all of iTunesDB has removed nothing */
@@ -3291,9 +3305,9 @@ void itunesdb_write_playcounts(void)
         put32(e, plays);
         put32(e + 4, last);
         put32(e + 12, rating);
-        /* an episode's place and played mark as the Mac has them, which
-           leaves them there as they are */
-        if (st->media & MEDIA_PODCAST)
+        /* an episode's or a book's place and played mark as the Mac has
+           them, which leaves them there as they are */
+        if (st->media & (MEDIA_PODCAST | MEDIA_AUDIOBOOK))
         {
             put32(e + 8, podcast_bookmark(st->hash));
             e[0x11] = st->played;
@@ -3405,10 +3419,18 @@ static bool find_in_index(struct index *index, uint64_t hash, void *entry)
     return found;
 }
 
-/* the tracks with flags */
+/* The tracks with flags. Version 3 has the marks of podcasts and audiobooks
+   in the flags (ITUNESDB_MAC_UNPLAYED and after) and a book's bookmark; its
+   header and entries are laid out as version 2's, which a firmware of
+   either takes for none of its own and reads iTunesDB again. Written whole
+   by an import and, as a mark changes, by itunesdb_save_flags(), each to a
+   file of its own beside it that then takes its name: a cut leaves the old
+   file or the new, never a part of one. */
 #define FLAGS_FILE      ROCKBOX_DIR "/itunesdb_flags.dat"
 #define FLAGS_MAGIC     0x46494252 /* "RBIF" */
-#define FLAGS_VERSION   2
+#define FLAGS_VERSION   3
+#define FLAGS_VERSION_2 2
+#define FLAGS_SPOKEN    (ITUNESDB_PODCAST | ITUNESDB_AUDIOBOOK)
 
 struct flags_header {
     uint32_t magic;
@@ -3421,15 +3443,87 @@ struct flags_header {
 struct flags_entry {
     uint64_t hash;
     uint32_t flags;
-    uint32_t bookmark;  /* a podcast's place on the Mac, ms */
+    uint32_t bookmark;  /* a podcast's or a book's place on the Mac, ms */
 };
 
 static struct index flags_index = { 0, 0, sizeof(struct flags_entry) };
+/* the header of the file the index is from, which a save writes again */
+static struct flags_header flags_hdr;
+/* The marks in memory are newer than the file's; each change counted; and
+   the file is being written, by an import or a save, one at a time: these
+   change without a yield between a test and a set, the threads on one core */
+static bool flags_dirty, flags_busy;
+static unsigned flags_changes;
+/* the version of the file the import found, whose entries are in memory
+   until its own are written: 0 for none */
+static int flags_old_version;
+/* and the import is a sync's, whose pass takes the Mac's places */
+static bool flags_synced;
+
+/* An import begins: the flags of the one before stay in memory, and their
+   file where it is, for this one's to go by */
+static void flags_import_begin(bool synced)
+{
+    while (flags_busy)
+        sleep(1);
+    flags_busy = true;
+    flags_synced = synced;
+    flags_old_version = FLAGS_VERSION;
+    if (flags_index.handle <= 0)
+    {
+        struct flags_header hdr = { 0 };
+        load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
+                   FLAGS_MAGIC, FLAGS_VERSION);
+        if (flags_index.handle <= 0)
+        {
+            load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
+                       FLAGS_MAGIC, FLAGS_VERSION_2);
+            flags_old_version = flags_index.handle > 0 ? FLAGS_VERSION_2 : 0;
+        }
+    }
+}
+
+/* and ends, its file written or not: the old flags forgotten, for
+   itunesdb_load_tracks() to read what is there */
+static void flags_import_end(void)
+{
+    forget_index(&flags_index);
+    flags_old_version = 0;
+    flags_dirty = false;
+    flags_busy = false;
+}
+
+/* A podcast's or a book's marks: the iPod's own if the Mac's is as before,
+   else the Mac's; and whether the import's pass takes the Mac's place */
+static uint32_t spoken_marks(const struct track *t)
+{
+    struct flags_entry old;
+    const bool had = flags_old_version
+                     && find_in_index(&flags_index, t->st.hash, &old);
+    const bool marked = had && flags_old_version == FLAGS_VERSION;
+    const bool mac_unplayed = t->st.played == 2;
+    const bool same = marked && !(old.flags & ITUNESDB_MAC_UNPLAYED) == !mac_unplayed;
+    uint32_t marks = mac_unplayed ? ITUNESDB_MAC_UNPLAYED : 0;
+    if (same)
+        marks |= old.flags & ITUNESDB_UNPLAYED;
+    else if (mac_unplayed)
+        marks |= ITUNESDB_UNPLAYED;
+    /* Only a sync's import is followed by the pass. A track new to the
+       flags, a bookmark moved, or the Mac's mark turned to played, which
+       takes the iPod's place with it; an older version's bookmark counts as
+       the same: it had none of a book's. One not taken yet stays so. */
+    if (flags_synced && (!had || (marked && (old.bookmark != t->bookmark
+                                             || (!same && !mac_unplayed)))))
+        marks |= ITUNESDB_PLACE_FROM_MAC;
+    else if (marked)
+        marks |= old.flags & ITUNESDB_PLACE_FROM_MAC;
+    return marks;
+}
 
 static void write_flags(void)
 {
     if (!writer_open(&out, FLAGS_FILE ".tmp"))
-        return;
+        return; /* the old file stays, with its marks */
     struct flags_header hdr = {
         FLAGS_MAGIC, FLAGS_VERSION, 0, db_size, db_mtime
     };
@@ -3441,6 +3535,8 @@ static void write_flags(void)
         if (!t->path || !t->st.flags)
             continue;
         struct flags_entry entry = { t->st.hash, t->st.flags, t->bookmark };
+        if (t->st.flags & FLAGS_SPOKEN)
+            entry.flags |= spoken_marks(t);
         writer_put(&out, &entry, sizeof(entry));
         hdr.count++;
     }
@@ -3448,9 +3544,137 @@ static void write_flags(void)
     writer_flush(&out);
     lseek(out.fd, 0, SEEK_SET);
     writer_put(&out, &hdr, sizeof(hdr));
-    if (writer_close(&out))
-        rename(FLAGS_FILE ".tmp", FLAGS_FILE);
+    /* over the old file, which was there until now; none rather than the
+       old one if this couldn't be written, as before: read again next boot */
+    if (!writer_close(&out) || rename(FLAGS_FILE ".tmp", FLAGS_FILE) < 0)
+    {
+        remove(FLAGS_FILE ".tmp");
+        remove(FLAGS_FILE);
+    }
     logf("itunesdb: %lu tracks with flags", (unsigned long)hdr.count);
+}
+
+/* the entry of this hash in memory, to change in place: NULL for none. Not
+   kept over a yield */
+static struct flags_entry *flags_entry_of(uint64_t hash)
+{
+    if (flags_index.handle <= 0)
+        return NULL;
+    struct flags_entry *entries = core_get_data(flags_index.handle);
+    int lo = 0, hi = (int)flags_index.count - 1;
+    while (lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (entries[mid].hash == hash)
+            return &entries[mid];
+        if (entries[mid].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return NULL;
+}
+
+void itunesdb_save_flags(void)
+{
+    if (!flags_dirty || flags_busy || flags_index.handle <= 0
+        || flags_hdr.magic != FLAGS_MAGIC || flags_hdr.version != FLAGS_VERSION
+        || flags_hdr.count != flags_index.count)
+        return;
+    flags_busy = true;
+    const unsigned changes = flags_changes;
+    const ssize_t size = flags_index.count * sizeof(struct flags_entry);
+    const int fd = open(FLAGS_FILE ".new", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    bool ok = fd >= 0;
+    if (ok)
+    {
+        core_pin(flags_index.handle);
+        ok = write(fd, &flags_hdr, sizeof(flags_hdr)) == sizeof(flags_hdr)
+             && write(fd, core_get_data(flags_index.handle), size) == size;
+        core_unpin(flags_index.handle);
+        ok = close(fd) == 0 && ok;
+    }
+    if (ok && rename(FLAGS_FILE ".new", FLAGS_FILE) == 0)
+        flags_dirty = changes != flags_changes;
+    else
+        remove(FLAGS_FILE ".new");
+    flags_busy = false;
+}
+
+void itunesdb_flush_flags(void)
+{
+    /* a save under way, as the idle disk's, has what was marked before it:
+       this one after it, a few seconds at most */
+    for (int wait = 0; flags_busy && wait < 5 * HZ; wait++)
+        sleep(1);
+    itunesdb_save_flags();
+}
+
+bool itunesdb_set_unplayed(const char *path, bool unplayed)
+{
+    struct flags_entry *e = flags_entry_of(itunesdb_path_hash(path));
+    if (!e || !(e->flags & FLAGS_SPOKEN))
+        return false;
+    if (!(e->flags & ITUNESDB_UNPLAYED) != !unplayed)
+    {
+        e->flags ^= ITUNESDB_UNPLAYED;
+        flags_changes++;
+        flags_dirty = true;
+        register_storage_idle_func(itunesdb_save_flags);
+    }
+    return true;
+}
+
+/* the Mac's places are taken: none is again by a pass repeated */
+static void flags_places_taken(void)
+{
+    if (flags_index.handle <= 0)
+        return;
+    struct flags_entry *entries = core_get_data(flags_index.handle);
+    bool changed = false;
+    for (uint32_t i = 0; i < flags_index.count; i++)
+    {
+        changed = changed || (entries[i].flags & ITUNESDB_PLACE_FROM_MAC);
+        entries[i].flags &= ~ITUNESDB_PLACE_FROM_MAC;
+    }
+    if (changed)
+    {
+        flags_changes++;
+        flags_dirty = true;
+        itunesdb_save_flags();
+    }
+}
+
+/* a place of the Mac's waits for the import's pass */
+static bool flags_places_wait(void)
+{
+    if (flags_index.handle <= 0)
+        return false;
+    const struct flags_entry *entries = core_get_data(flags_index.handle);
+    for (uint32_t i = 0; i < flags_index.count; i++)
+    {
+        if ((entries[i].flags & ITUNESDB_PLACE_FROM_MAC)
+            && (entries[i].bookmark
+                || !(entries[i].flags & ITUNESDB_MAC_UNPLAYED)))
+            return true;
+    }
+    return false;
+}
+
+bool itunesdb_flags_ready(void)
+{
+    uint32_t size, mtime;
+    if (!db_stamp(&size, &mtime))
+        return true;
+    struct flags_header hdr;
+    const int fd = open(FLAGS_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool ready = read(fd, &hdr, sizeof(hdr)) == sizeof(hdr)
+        && hdr.magic == FLAGS_MAGIC && hdr.version == FLAGS_VERSION
+        && (hdr.count > 0 || (hdr.db_size == size && hdr.db_mtime == mtime));
+    close(fd);
+    return ready;
 }
 
 unsigned itunesdb_hash_flags(uint64_t hash)
@@ -3465,6 +3689,21 @@ static uint32_t podcast_bookmark(uint64_t hash)
 {
     struct flags_entry entry;
     return find_in_index(&flags_index, hash, &entry) ? entry.bookmark : 0;
+}
+
+/* An episode's or a book's place as the Mac has it, into rt, if the import
+   flagged it: a bookmark moved there, or none once the Mac calls it played.
+   False for a track whose place stays the iPod's */
+static bool place_from_mac(uint64_t hash, struct tagcache_runtime *rt)
+{
+    struct flags_entry entry;
+    if (!find_in_index(&flags_index, hash, &entry)
+        || !(entry.flags & ITUNESDB_PLACE_FROM_MAC)
+        || (!entry.bookmark && (entry.flags & ITUNESDB_MAC_UNPLAYED)))
+        return false;
+    rt->lastelapsed = entry.bookmark;
+    rt->lastoffset = 0;
+    return true;
 }
 
 unsigned itunesdb_track_flags(const char *path)
@@ -6423,8 +6662,7 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     }
     else
         itunesdb_forget_metadata();
-    forget_index(&flags_index);
-    remove(FLAGS_FILE);
+    flags_import_begin(synced);
     remove(GAINS_FILE);
 #ifdef ITUNESDB_HAVE_ART
     /* the old covers point into ithmb files Finder has rewritten; their
@@ -6470,6 +6708,11 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
         list_covers_forget();
 #endif
 #endif
+    /* no iTunesDB: no flags, as before. One that couldn't be read leaves
+       the old ones, with the marks made on the iPod, for the next try */
+    if (!loaded && !itunesdb_exists())
+        remove(FLAGS_FILE);
+    flags_import_end();
     db_unload();
     itunesdb_load_tracks();
     read_done = read_total = NULL;
@@ -6486,6 +6729,8 @@ bool itunesdb_load_tracks(void)
 #endif
     load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
                FLAGS_MAGIC, FLAGS_VERSION);
+    if (flags_index.handle > 0)
+        flags_hdr = hdr;
     /* what an older firmware didn't note */
     if (!itunesdb_gains_ready())
         return false;

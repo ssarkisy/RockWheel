@@ -98,6 +98,14 @@ uint64_t itunesdb_path_hash(const char *path);
 #define ITUNESDB_AUDIOBOOK       0x02 /* plays at the audiobook speed */
 #define ITUNESDB_SKIP_SHUFFLE    0x04 /* not in Shuffle Songs */
 #define ITUNESDB_PODCAST         0x08
+/* Of a podcast or an audiobook, in the flags' file alone, not in the counts'
+   (itunesdb.dat). The Mac's mark at the last import, "not played"; the mark
+   as it is now, the Mac's until an episode ends or is marked on the iPod,
+   and the Mac's again when the Mac changes its own; and the Mac's place is
+   another than at the import before, for the import's pass to take */
+#define ITUNESDB_MAC_UNPLAYED    0x10
+#define ITUNESDB_UNPLAYED        0x20
+#define ITUNESDB_PLACE_FROM_MAC  0x40
 
 /* Notes what playback needs from iTunesDB: the tracks with flags and where
    each cover is. Until then no track has flags and the covers come from the
@@ -129,6 +137,19 @@ void itunesdb_forget_metadata(void);
 unsigned itunesdb_track_flags(const char *path);
 unsigned itunesdb_hash_flags(uint64_t hash);
 
+/* The mark of the podcast or audiobook at path, not played or played, as a
+   listener or an episode's end makes it: in memory, and in the flags' file
+   once the disk is next idle (itunesdb_save_flags()). False for a file
+   without flags, as one outside Finder's folder */
+bool itunesdb_set_unplayed(const char *path, bool unplayed);
+/* the marks changed since the flags' file was written, written: as the disk
+   is idle, at shutdown and before USB. Nothing is allocated */
+void itunesdb_save_flags(void);
+/* and at USB and shutdown, after a save that is under way */
+void itunesdb_flush_flags(void);
+
+/* the flags are noted by this firmware, or there is no iTunesDB */
+bool itunesdb_flags_ready(void);
 /* Sound Check's gains are noted from this iTunesDB, or there is none */
 bool itunesdb_gains_ready(void);
 /* and the Sort fields of its tracks (tagcache.h), which the database sorts

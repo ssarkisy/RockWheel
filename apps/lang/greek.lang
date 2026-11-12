@@ -20561,3 +20561,59 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_EPISODES_NEW
+  desc: under a show's name in Music > Podcasts, before the newest episode's date (2 new · 9 Nov): how many of its episodes are new, not yet played; %d is their number, 1 or more, so in a form that fits any number
+  user: core
+  <source>
+    *: "%d new"
+  </source>
+  <dest>
+    *: "Νέα: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MARK_AS_PLAYED
+  desc: in the menu of a podcast episode (Select held on it in Music > Podcasts): marks the episode as played, its dot goes and it is passed over after the episode before it
+  user: core
+  <source>
+    *: "Mark as Played"
+  </source>
+  <dest>
+    *: "Σήμανση ως αναπαραγμένο"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MARK_AS_UNPLAYED
+  desc: in the menu of a podcast episode: marks a played or started episode as new again, with its dot, and forgets its place
+  user: core
+  <source>
+    *: "Mark as Unplayed"
+  </source>
+  <dest>
+    *: "Σήμανση ως μη αναπαραγμένο"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_START_FROM_BEGINNING
+  desc: in the menu of a podcast episode that was started: plays it from its start instead of from where it was left
+  user: core
+  <source>
+    *: "Start from Beginning"
+  </source>
+  <dest>
+    *: "Αναπαραγωγή από την αρχή"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

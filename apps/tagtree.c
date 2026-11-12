@@ -344,6 +344,9 @@ static int root_rows;
 static struct tagentry* tagtree_get_entry(struct tree_context *c, int id);
 static int tagtree_find_row(struct tree_context *c, const char *name);
 static bool shuffle_row_wanted(struct tree_context *c);
+struct search_instruction;
+static bool section_is(const struct search_instruction *si, int lang);
+static int32_t playing_entry(unsigned long *elapsed);
 
 #define SEARCHSTR_SIZE 256
 
@@ -802,6 +805,8 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
     const bool all_songs = c->currtable == TABLE_ALLSUBENTRIES;
     const bool songs = c->currtable == TABLE_NAVIBROWSE && c->currextra == 0
                        && is_songs(csi);
+    const bool podcasts = csi && c->currtable != TABLE_ROOT
+                          && section_is(csi, LANG_PODCASTS);
     const uint32_t list[] = {
         c->currtable, c->currextra, (uintptr_t)csi, tagcache_get_commitid(),
         global_settings.interpret_numbers,
@@ -814,6 +819,10 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
         all_songs ? global_settings.all_songs_sort : 0,
         /* and Shuffle Songs at its top, as Shuffle in Lists has it */
         csi && c->currtable != TABLE_ROOT ? shuffle_row_wanted(c) : 0,
+        /* the episodes' states, which a show's row sums: their places,
+           plays and marks, and the one playing, started as it plays */
+        podcasts ? tagcache_states_generation() : 0,
+        podcasts ? playing_entry(NULL) + 1 : 0,
 #ifdef HAVE_TC_RAMCACHE
         /* the songs' numbers, which come from the database's memory */
         tagcache_is_in_ram(),
@@ -1658,6 +1667,9 @@ static void tagtree_track_change_event(unsigned short id, void *ev_data)
     id3->rating = n.rating;
 }
 
+/* an episode left this close to its end counts as played */
+#define EPISODE_END_MS 60000
+
 static void tagtree_track_finish_event(unsigned short id, void *ev_data)
 {
     (void)id;
@@ -1675,6 +1687,19 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
     bool auto_skip = te->flags & TEF_AUTO_SKIP;
     bool runtimedb = global_settings.runtimedb;
     bool autoresume = itunesdb_resumes(id3->path);
+
+    /* an episode left in its last minute, or the last half of a shorter
+       one, ends as one that plays out; either way its mark comes off */
+    if ((itunesdb_track_flags(id3->path) & ITUNESDB_PODCAST) && id3->elapsed > 0)
+    {
+        const unsigned long left = id3->length > id3->elapsed ?
+                                   id3->length - id3->elapsed : 0;
+        if (!auto_skip && id3->length > 0
+            && left <= MIN(EPISODE_END_MS, id3->length / 2))
+            auto_skip = true;
+        if (auto_skip)
+            tagcache_set_unplayed(tagcache_idx, id3->path, false);
+    }
 
     /* A play is a minute of a track, or all of a shorter one: neither
        skipping on after a few seconds nor only a full play to the end.
@@ -3009,6 +3034,12 @@ struct show_sums {
     int32_t album;       /* its name's seek, which its row has */
     int32_t albumartist; /* of the first episode found: its cover's album */
     int32_t episodes;
+    int32_t unplayed;    /* those of them that are new */
+    int32_t started;     /* and those begun */
+    int32_t newest;      /* the newest one's date, 0 for none */
+    /* the newest of those begun, whose time left the row shows: its date
+       and its entry, -1 for none */
+    int32_t started_date, started_idx;
 };
 
 struct shows_counting {
@@ -3017,7 +3048,29 @@ struct shows_counting {
     const int *used;       /* and what the rows' names have taken of it */
     int count, last;
     bool full;             /* no room: the names have come to the sums */
+    int32_t playing;       /* the entry playing, begun as it plays; -1 */
 };
+
+/* An episode's date as its row has it and its list goes by: tag_date, or
+   its year alone, as the albums' dates take a song's; 0 for none */
+static long seek_date(const int32_t *tag_seek)
+{
+    const long date = tag_seek[tag_date], year = tag_seek[tag_year];
+    return date > 0 ? date : year > 0 && year < 10000 ? year * 10000 : 0;
+}
+
+/* the entry of the track playing, if it remembers its place and has one, -1
+   for none, and where it is: an episode is begun as it plays. UI thread */
+static int32_t playing_entry(unsigned long *elapsed)
+{
+    const struct mp3entry *id3 = audio_current_track();
+    if (!(audio_status() & AUDIO_STATUS_PLAY) || !id3 || id3->tagcache_idx <= 0
+        || id3->elapsed == 0 || !itunesdb_resumes(id3->path))
+        return -1;
+    if (elapsed)
+        *elapsed = id3->elapsed;
+    return id3->tagcache_idx - 1;
+}
 
 static void shows_match(const int32_t *tag_seek, void *data)
 {
@@ -3042,16 +3095,31 @@ static void shows_match(const int32_t *tag_seek, void *data)
             return;
         }
         s->end[-1 - i] = (struct show_sums){
-            .album = album, .albumartist = tag_seek[tag_albumartist]
+            .album = album, .albumartist = tag_seek[tag_albumartist],
+            .started_idx = -1
         };
         s->count++;
     }
-    s->end[-1 - i].episodes++;
+    struct show_sums *sums = &s->end[-1 - i];
+    const int32_t idx = tagcache_match_entry(tag_seek);
+    const long date = seek_date(tag_seek);
+    const int state = idx >= 0 && idx == s->playing ? EPISODE_STARTED
+                                                    : tagcache_episode_state(idx);
+    sums->episodes++;
+    sums->newest = MAX(sums->newest, date);
+    if (state == EPISODE_NEW)
+        sums->unplayed++;
+    else if (state == EPISODE_STARTED)
+    {
+        if (!sums->started++ || date > sums->started_date)
+        {
+            sums->started_date = date;
+            sums->started_idx = idx;
+        }
+    }
     s->last = i;
 }
 
-/* An episode's date as its row has it and its list goes by: tag_date, or
-   its year alone, as the albums' dates take a song's; 0 for none */
 static long episode_date(int32_t idx)
 {
     const long date = tagcache_sort_key(idx, tag_date);
@@ -3467,7 +3535,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     const bool episodes = offset == 0 && tag == tag_title && tcs.ramsearch
         && show_episodes(csi, c->currtable, level);
     struct shows_counting counting = {
-        .room = c->cache.name_buffer_size, .used = &namebufused
+        .room = c->cache.name_buffer_size, .used = &namebufused,
+        .playing = shows ? playing_entry(NULL) : -1
     };
     if (shows)
         tagcache_search_set_match(&tcs, shows_match, &counting);
@@ -7394,6 +7463,59 @@ bool tagtree_rows_covers(struct tree_context *c)
     return tagtree_rows_two_lines(c) && !entries_episodes && list_covers_on();
 }
 
+/* An episode's place and state as its row has them: the database's, or
+   begun as it plays. The track is taken, under its mutex, for the row
+   playing alone: the list has which that is, once a draw */
+static int episode_state(int32_t idx, long *place)
+{
+    unsigned long elapsed = 0;
+    if (idx >= 0 && gui_synclist_playing() == idx + 1
+        && playing_entry(&elapsed) == idx)
+    {
+        *place = elapsed;
+        return EPISODE_STARTED;
+    }
+    *place = tagcache_track_place(idx);
+    return tagcache_episode_state(idx);
+}
+
+/* "28 min left" of an episode begun, the time left rounded up: NULL
+   without its length */
+static const char *left_text(int32_t idx, long place, char *buf, size_t size)
+{
+    const long length = tagcache_sort_key(idx, tag_length);
+    char mins[32];
+    if (place <= 0 || length <= 0)
+        return NULL;
+    snprintf(mins, sizeof(mins), str(LANG_TIME_MIN),
+             (int)MAX((length - place + 59999) / 60000, 1));
+    snprintf(buf, size, str(LANG_TIME_LEFT), mins);
+    return buf;
+}
+
+/* A date as the episodes' rows have it, "20 May", with its year if that
+   isn't the clock's, "20 May 2023"; a month and its year, or a year alone:
+   its length, 0 for none */
+static size_t date_text(long date, char *buf, size_t size)
+{
+    const int year = date / 10000, month = date / 100 % 100, day = date % 100;
+    buf[0] = '\0';
+    if (month >= 1 && month <= 12)
+    {
+        const char *name = str(LANG_MONTH_JANUARY + month - 1);
+        const struct tm *tm = get_time();
+        if (!day)
+            return snprintf(buf, size, "%s %d", name, year);
+        if (valid_time(tm) && tm->tm_year + 1900 == year)
+            return snprintf(buf, size, str(LANG_DATE_DAY_MONTH), day, name);
+        return snprintf(buf, size, str(LANG_DATE_DAY_MONTH_YEAR), day, name, year);
+    }
+    return year > 0 ? snprintf(buf, size, "%d", year) : 0;
+}
+
+/* A show's second line, from the sums kept as the list was made: what is
+   left of the episode begun, the newest of them; or how many are new and
+   the newest episode's date, "2 new · 9 Nov"; or how many it has */
 static const char *show_subline(struct tree_context *c,
                                 const struct tagentry *entry, char *buf,
                                 size_t size)
@@ -7401,61 +7523,85 @@ static const char *show_subline(struct tree_context *c,
     const int k = entry->album.year;
     if (k < 0 || k >= entries_shows)
         return NULL;
-    const int n = ((const struct show_sums *)song_groups(c))[-1 - k].episodes;
-    snprintf(buf, size, plural_str(n, LANG_EPISODES_ONE, LANG_EPISODES_FEW,
-                                   LANG_EPISODES_MANY), n);
+    const struct show_sums *sums =
+        &((const struct show_sums *)song_groups(c))[-1 - k];
+    if (sums->started_idx >= 0)
+    {
+        long place;
+        if (episode_state(sums->started_idx, &place) == EPISODE_STARTED
+            && left_text(sums->started_idx, place, buf, size))
+            return buf;
+    }
+    if (sums->unplayed > 0)
+    {
+        char date[64];
+        const size_t len = snprintf(buf, size, str(LANG_EPISODES_NEW),
+                                    (int)sums->unplayed);
+        if (date_text(sums->newest, date, sizeof(date)) && len < size)
+            snprintf(buf + len, size - len, " \xc2\xb7 %s", date); /* U+00B7 */
+        return buf;
+    }
+    snprintf(buf, size, plural_str(sums->episodes, LANG_EPISODES_ONE,
+                                   LANG_EPISODES_FEW, LANG_EPISODES_MANY),
+             (int)sums->episodes);
     return buf;
 }
 
-/* "28 min left" (rounded up; live for the one playing if it remembers its
-   place), else date and length: "20 May 2023 · 22 min", year only if not
-   the clock's */
+/* An episode's: "28 min left" once it's begun; else its date and its length
+   to the nearest minute, "20 May 2023 · 22 min", those of them it has.
+   From the database's memory */
 static const char *episode_subline(int32_t idx, char *buf, size_t size)
 {
     const long length = tagcache_sort_key(idx, tag_length);
-    long place = tagcache_track_place(idx);
-    /* the track is taken, under its mutex, for the row playing alone: the
-       list has which that is, once a draw */
-    if (gui_synclist_playing() == idx + 1)
-    {
-        const struct mp3entry *id3 = audio_current_track();
-        if (id3 && id3->tagcache_idx == idx + 1 && itunesdb_resumes(id3->path))
-            place = id3->elapsed;
-    }
-    char mins[32];
-    if (place > 0 && length > 0)
-    {
-        snprintf(mins, sizeof(mins), str(LANG_TIME_MIN),
-                 (int)MAX((length - place + 59999) / 60000, 1));
-        snprintf(buf, size, str(LANG_TIME_LEFT), mins);
+    long place;
+    if (episode_state(idx, &place) == EPISODE_STARTED
+        && left_text(idx, place, buf, size))
         return buf;
-    }
-    const long date = episode_date(idx);
-    const int year = date / 10000, month = date / 100 % 100, day = date % 100;
-    size_t len = 0;
-    buf[0] = '\0';
-    if (month >= 1 && month <= 12)
-    {
-        const char *name = str(LANG_MONTH_JANUARY + month - 1);
-        const struct tm *tm = get_time();
-        if (!day)
-            len = snprintf(buf, size, "%s %d", name, year);
-        else if (valid_time(tm) && tm->tm_year + 1900 == year)
-            len = snprintf(buf, size, str(LANG_DATE_DAY_MONTH), day, name);
-        else
-            len = snprintf(buf, size, str(LANG_DATE_DAY_MONTH_YEAR), day, name,
-                           year);
-    }
-    else if (year > 0)
-        len = snprintf(buf, size, "%d", year);
+    const size_t len = date_text(episode_date(idx), buf, size);
     if (length > 0 && len < size)
     {
+        char mins[32];
         snprintf(mins, sizeof(mins), str(LANG_TIME_MIN),
                  (int)MAX((length + 30000) / 60000, 1));
         snprintf(buf + len, size - len, "%s%s", len ? " \xc2\xb7 " : "",
                  mins); /* U+00B7 */
     }
     return buf[0] ? buf : NULL;
+}
+
+bool tagtree_rows_states(struct tree_context *c)
+{
+    return c->currtable != TABLE_ROOT && (entries_shows || entries_episodes);
+}
+
+int tagtree_entry_mark(struct tree_context *c, int row)
+{
+    if (!tagtree_rows_states(c) || row < c->special_entry_count
+        || row >= c->filesindir)
+        return LINE_MARK_NONE;
+    const struct tagentry *entry = tagtree_get_entry(c, row);
+    if (!entry)
+        return LINE_MARK_NONE;
+    long place;
+    int state = EPISODE_PLAYED;
+    if (entries_episodes)
+    {
+        if (entry->newtable == TABLE_PLAYTRACK)
+            state = episode_state(entry->extraseek, &place);
+    }
+    else if (entry->album.year >= 0 && entry->album.year < entries_shows)
+    {
+        /* a new one before one begun, which its second line has */
+        const struct show_sums *sums = &((const struct show_sums *)
+                                         song_groups(c))[-1 - entry->album.year];
+        if (sums->unplayed > 0)
+            state = EPISODE_NEW;
+        else if (sums->started_idx >= 0
+                 && episode_state(sums->started_idx, &place) == EPISODE_STARTED)
+            state = EPISODE_STARTED;
+    }
+    return state == EPISODE_NEW ? LINE_MARK_NEW
+           : state == EPISODE_STARTED ? LINE_MARK_HALF : LINE_MARK_EMPTY;
 }
 
 const char *tagtree_album_subline(int no, int year, bool artist,

@@ -484,6 +484,16 @@ static int tree_get_mark(int selected_item, void *data)
 }
 #endif
 
+#ifdef HAVE_TAGCACHE
+/* the mark of a podcast's show or episode, new or begun, before its name */
+static int tree_get_state(int selected_item, void *data)
+{
+    struct tree_context *local_tc = (struct tree_context *)data;
+    return tree_is_group(selected_item, NULL) ? LINE_MARK_NONE
+           : tagtree_entry_mark(local_tc, index_of(selected_item));
+}
+#endif
+
 /* Folders, database levels and playlists lead to more, tracks don't */
 static bool tree_has_children(int selected_item, void * data)
 {
@@ -944,7 +954,9 @@ static int update_dir(void)
     gui_synclist_set_initial_callback(list, id3db ? tree_get_initial : NULL);
     list->initial_steps = !tc.dirfull;
     /* in the catalogue, not in the file browser showing playlists */
-    gui_synclist_set_mark_callback(list, catalog_lead ? tree_get_mark : NULL);
+    gui_synclist_set_mark_callback(list, catalog_lead ? tree_get_mark
+                                   : id3db && tagtree_rows_states(&tc) ?
+                                     tree_get_state : NULL);
     if(!id3db || global_settings.talk_menu)
 #endif
     {

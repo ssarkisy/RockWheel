@@ -171,8 +171,15 @@ int line_shuffle_width(struct screen *display);
 /* The marks of the catalogue's playlists and folders before their names, in a
    column of their own: a computer for those synced from it, an iPod for those
    made on it */
-enum line_mark { LINE_MARK_NONE, LINE_MARK_COMPUTER, LINE_MARK_IPOD };
+enum line_mark { LINE_MARK_NONE, LINE_MARK_COMPUTER, LINE_MARK_IPOD,
+                 /* and of a podcast's episodes, in a narrower column: a dot
+                    for a new one, a half dot for one begun, and the column
+                    empty for another, its name in line with theirs */
+                 LINE_MARK_NEW, LINE_MARK_HALF, LINE_MARK_EMPTY };
 int line_mark_width(struct screen *display);
+/* the column of this mark, 0 where it isn't drawn: an episode's right to
+   left too, at x from the other end, as the covers' */
+int line_mark_column(struct screen *display, int mark);
 /* A short text before the name, as an album's year or a song's number: grey,
    as a setting's value, in a column as wide as so many of the font's widest
    digit and a gap, against the gap's side of it, as numbers in a column go.
