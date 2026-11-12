@@ -1223,8 +1223,8 @@ void menu_cover_read(void)
         return;
     if (rc <= 0)
     {
-        /* stopped, or the disk not free: again in a while; no picture that
-           does, or no frame of Finder's: not for this cover */
+        /* not opened, or the disk not free: again in a while; no picture
+           that does, or no frame of Finder's: not for this cover */
         if (!rc)
             sharp.back_off = current_tick + SHARP_AGAIN;
         else
@@ -1272,7 +1272,7 @@ static void sharp_memory(bool wanted)
                 break;
             sleep(1);
         }
-        sharp.held = sharp.phased = false;
+        sharp.held = sharp.phased = sharp.gave_way = false;
         sharp.pixels = NULL;
         sharp.handle = core_free(sharp.handle);
         return;
@@ -1314,6 +1314,10 @@ static void phases_memory(bool wanted)
         sharp.phased = false;
         sharp.phase[0] = sharp.phase[1] = NULL;
         sharp.phase_handle = core_free(sharp.phase_handle);
+        /* a decode given up for this is asked again at once, the cover
+           alone */
+        sharp.back_off = current_tick;
+        sharp.gave_way = false;
         return;
     }
     if (audio_status())
