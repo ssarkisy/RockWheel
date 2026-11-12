@@ -182,7 +182,7 @@ bool photos_panel_stale(void)
     return memcmp(now, made, sizeof(now)) != 0;
 }
 
-bool photos_panel_update(void)
+bool photos_panel_update(void (*making)(void))
 {
     uint32_t now[2], made[4] = { 0, 0, 0, 0 };
     database_stamp(now);
@@ -213,6 +213,10 @@ bool photos_panel_update(void)
     }
     if (photos_panel_count() > 0)
     {
+        /* other photos: the collages are made, which takes a while and
+           is said; a sync that wrote the same photos again says nothing */
+        if (making)
+            making();
         /* the old one put aside: a load refused, as with a plugin open, left
            it there, and its stamp was written as if it were made again */
         remove(PHOTOS_PANEL_FILE ".old"); /* of a make cut short */

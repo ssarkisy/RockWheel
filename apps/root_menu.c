@@ -1783,6 +1783,12 @@ static bool album_list_current(void)
 #define album_list_current() true
 #endif
 
+/* the collages are to be made of other photos: said on the update's screen */
+static void photos_making(void)
+{
+    library_update_show(str(LANG_PREPARING_PHOTOS), 0);
+}
+
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
  * the step and how far that is under it, until it's done. Menu left it to
@@ -1975,8 +1981,7 @@ void show_library_update(void)
     {
         if (photos_changed && !held_event) /* else made the next time */
         {
-            library_update_show(str(LANG_PREPARING_PHOTOS), 0);
-            if (photos_panel_update())
+            if (photos_panel_update(photos_making))
                 skin_reload_while_playing();
         }
         no_space |= library_take_no_room();

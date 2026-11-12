@@ -55,8 +55,12 @@ int photos_panel_count(void);
 bool photos_panel_stale(void);
 
 /* Makes them anew, or removes them if there are no photos. True if the main menu's was
-   made or removed: the skins have to be loaded again to show that. */
-bool photos_panel_update(void);
+   made or removed: the skins have to be loaded again to show that. making, if given,
+   is called before the collages are made of other photos than they were: for the
+   screen to say so. A database written again with the same photos, as by every
+   sync, calls nothing: the main menu's collage stays, and the albums' are made
+   again, unsaid, only if the albums are others. */
+bool photos_panel_update(void (*making)(void));
 
 /* For Photos' menu: the collage in the theme takes these pixels, PHOTOS_PANEL_W by
    PHOTOS_PANEL_H, and its caption this count of photos; the theme is drawn again, not
