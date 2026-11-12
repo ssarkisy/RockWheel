@@ -42,6 +42,12 @@
 #include "jpeg_load.h"
 #include "album_header.h"
 #include "itunesdb.h"
+#include "tagcache.h"
+#include "playlist.h"
+#include "dircache.h"
+#if CONFIG_TUNER
+#include "radio.h"
+#endif
 #include "transition.h"
 #include "statusbar-skinned.h"
 #include "wps_internals.h"
@@ -433,9 +439,87 @@ void menu_cover_kept_forget(void) {}
 #endif
 #endif /* MENU_COVER_SHARP */
 
+/* Without music the menus show the cover of the song Resume Playback would
+   go on with, still, until another plays. Looked for as the menus are first
+   drawn after a boot, USB, a stop or another resume point: the one the
+   menus or the block have if it's that song's, else read from a disk that
+   spins. What a look came to stands for the resume point it was for, so a
+   draw compares a few numbers; one that only a stopped disk left without
+   is made again once the disk spins. */
+static struct {
+    bool looked;        /* has is the answer for index and crc */
+    bool has;           /* menu_art's, or the block's, is its cover */
+    bool waits;         /* none only for the disk, which had stopped */
+    int index;
+    uint32_t crc;
+} resume;
+
+/* as disk_free(): without the block's code nothing here spares the disk */
+static bool resume_disk_free(void)
+{
+#ifdef MENU_COVER_SHARP
+    return disk_free();
+#else
+    return true;
+#endif
+}
+
+void menu_cover_resume_look(void)
+{
+    resume.looked = false;
+}
+
+/* the answer stands: nothing to find or to read at this draw */
+static bool resume_looked(void)
+{
+    return resume.looked && resume.index == global_status.resume_index
+        && resume.crc == global_status.resume_crc32
+        /* the cover let go since, as with Album Art off: looked for again */
+        && (!resume.has || menu_art.width > 0)
+        && !(resume.waits && resume_disk_free());
+}
+
+/* The cover of the song to resume, by the file the status keeps: none for a
+   file that isn't the resume point's or is gone. On the iPod the file is
+   looked up in the dircache, and its cover in the covers' indexes and the
+   database in memory; the simulator reads the disk for the file and the
+   tags. Where the dircache isn't ready the disk would be read for the
+   file: not one that has stopped. */
+static bool resume_find(const char **file, struct itunesdb_art *art)
+{
+    resume.looked = true;
+    resume.has = resume.waits = false;
+    resume.index = global_status.resume_index;
+    resume.crc = global_status.resume_crc32;
+    *file = playlist_resume_file();
+    if (!*file)
+        return false;
+#ifdef HAVE_DIRCACHE
+    struct dircache_info info;
+    dircache_get_info(&info);
+    const bool cached = info.status == DIRCACHE_READY;
+#else
+    const bool cached = false;
+#endif
+    if (!cached && !resume_disk_free())
+    {
+        resume.waits = true;
+        return false;
+    }
+    if (!file_exists(*file))
+        return false;
+    /* Finder's, else, for a song outside its folder, its album's */
+    return itunesdb_find_art(*file, art)
+#ifdef HAVE_TAGCACHE
+        || tagcache_find_album_art(*file, art)
+#endif
+        ;
+}
+
 void menu_cover_forget(void)
 {
     menu_art.width = 0;
+    resume.looked = false;
     sharp_undraw();
     job_cancel();
 #ifdef MENU_COVER_SHARP
@@ -451,17 +535,45 @@ bool menu_cover_ready(const struct wps_data *data)
                                                data->albumart);
     struct mp3entry *id3 = audio_current_track();
     struct itunesdb_art art;
-    if (aa && data == skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data)
+    const bool panel = aa
+        && data == skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data;
+    if (panel)
         sharp_panel(MIN(aa->width, ART_MENU_SIZE),
                     MIN(aa->height, ART_MENU_SIZE));
-    if (!aa || !id3 || !(audio_status() & AUDIO_STATUS_PLAY)
-        || global_settings.album_art == AA_OFF
-        || !itunesdb_find_track_art(id3, id3->path, &art))
+    if (!aa || global_settings.album_art == AA_OFF)
         return false;
-    sharp_plays();
+    const bool playing = id3 && (audio_status() & AUDIO_STATUS_PLAY);
+    const char *file;
+    if (playing)
+    {
+        /* what the menus have from here may be another song's */
+        resume.looked = false;
+        if (!itunesdb_find_track_art(id3, id3->path, &art))
+            return false;
+        sharp_plays();
+        file = id3->path;
+    }
+    else
+    {
+        /* the song to resume: beside the menus only, with nothing else to
+           hear, as the radio */
+        if (!panel || audio_status()
+#if CONFIG_TUNER
+            || get_radio_status() != FMRADIO_OFF
+#endif
+            || global_status.resume_index == -1)
+            return false;
+        if (resume_looked())
+            return resume.has;
+        if (!resume_find(&file, &art))
+            return false;
+    }
     if (menu_art.width > 0 && menu_art.handle < 0 && menu_art.offset == art.offset
         && !strcmp(menu_art.path, art.path))
+    {
+        resume.has = !playing;
         return true;
+    }
 
     struct bitmap bm;
     memset(&bm, 0, sizeof(bm));
@@ -477,6 +589,7 @@ bool menu_cover_ready(const struct wps_data *data)
         menu_art.offset = art.offset;
         strcpy(menu_art.path, art.path);
         menu_art.handle = -1;
+        resume.has = !playing;
         return true;
     }
 #ifdef MENU_COVER_SHARP
@@ -489,7 +602,7 @@ bool menu_cover_ready(const struct wps_data *data)
     /* not from a disk that has stopped or is about to: Finder's scaled
        then, and the look asks the reader by its rule */
     const int fetched = disk_free()
-        ? cover_fetch(id3->path, &key, width, height, menu_art.pixels) : 0;
+        ? cover_fetch(file, &key, width, height, menu_art.pixels) : 0;
     if (fetched)
     {
         menu_art.width = width;
@@ -501,13 +614,22 @@ bool menu_cover_ready(const struct wps_data *data)
         sharp_take(&key, width, height, box_width, box_height);
         DEBUGF("menu cover: %s, at the render\n",
                fetched == 1 ? "Finder's frame" : "kept");
+        resume.has = !playing;
         return true;
+    }
+    /* the song to resume has Finder's scaled, never a decode, and a disk
+       that has stopped isn't started for it: none until it spins */
+    if (!playing && !disk_free())
+    {
+        resume.waits = true;
+        return false;
     }
 #endif
     /* Finder's scaled: from the cover in the buffer if it's as large, as a
        disk that spins is often off by the time the menus open, and turning
        it on takes 0.6 s */
-    const struct bitmap *buffered = playback_current_largest_art();
+    const struct bitmap *buffered = playing ? playback_current_largest_art()
+                                            : NULL;
     const int room = sizeof(bm) + sizeof(menu_art.pixels);
     int size;
     if (buffered && buffered->width >= art.width && buffered->height >= art.height)
@@ -523,6 +645,7 @@ bool menu_cover_ready(const struct wps_data *data)
     menu_art.handle = -1;
     /* its decode may have ended during the read above: the block's, then */
     sharp_held(&art, box_width, box_height);
+    resume.has = !playing;
     return true;
 }
 
@@ -2034,6 +2157,7 @@ bool menu_cover_take(int handle)
     if (menu_art.width > 0 && menu_art.handle == handle)
         return true;
     sharp_undraw();
+    resume.looked = false; /* the menus' is this song's from here */
     memcpy(menu_art.pixels, bm->data, bm->width * bm->height * sizeof(fb_data));
     menu_art.width = bm->width;
     menu_art.height = bm->height;

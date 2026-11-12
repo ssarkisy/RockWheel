@@ -28,11 +28,15 @@ struct wps_data;
 
 #ifdef ITUNESDB_HAVE_ART
 /* %?C beside the menus: whether the song playing has a cover of Finder's,
-   loaded if not yet */
+   loaded if not yet; with nothing playing, the song Resume Playback would go
+   on with, its cover read once from a disk that spins */
 bool menu_cover_ready(const struct wps_data *data);
 const fb_data *menu_cover_pixels(int *width, int *height);
 /* the covers made again on Updating Library */
 void menu_cover_forget(void);
+/* the song to resume is looked up again at the next draw: after a boot's
+   Updating Library and after USB, where its file or its cover may be others */
+void menu_cover_resume_look(void);
 #endif
 
 /* With Moving Cover, that cover pans slowly from side to side in the part of

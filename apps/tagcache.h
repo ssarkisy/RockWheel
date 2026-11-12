@@ -209,6 +209,9 @@ void tagcache_search_finish(struct tagcache_search *tcs);
 long tagcache_get_numeric(const struct tagcache_search *tcs, int tag);
 /* for a file of iTunesDB's whose own tags are empty */
 bool tagcache_fill_text(struct mp3entry *id3, const char *filename);
+/* the cover of a file's album, by the database's tags of it */
+struct itunesdb_art;
+bool tagcache_find_album_art(const char *filename, struct itunesdb_art *art);
 /* a song's tag_date and year from a tag's text, or NULL: year in as its
    parser took it, and out */
 void tagcache_song_date(long *year, long *date, const char *text);

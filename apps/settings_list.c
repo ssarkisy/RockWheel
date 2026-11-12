@@ -1187,6 +1187,7 @@ const struct settings_list settings[] = {
 #endif
     SYSTEM_STATUS(0, resume_index,   -1,     "IDX"),
     SYSTEM_STATUS(0, resume_crc32,   -1,     "CRC"),
+    SYSTEM_STATUS_TEXT_SETTING(0, resume_file, "resume file", "", NULL, NULL),
     SYSTEM_STATUS(0, resume_elapsed, -1,     "ELA"),
     SYSTEM_STATUS(0, resume_offset,  -1,     "OFF"),
     SYSTEM_STATUS(0, resume_modified, 0,     "PLM"),

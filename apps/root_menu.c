@@ -30,6 +30,7 @@
 #include "font.h"
 #include "root_menu.h"
 #include "gui/skin_engine/skin_engine.h"
+#include "gui/skin_engine/menu_cover.h"
 #include "photos_panel.h"
 #include "itunesdb.h"
 #include "lang.h"
@@ -2046,6 +2047,10 @@ void root_menu(void)
         tagcache_check_sync();
     show_library_update();
 #endif
+#ifdef ITUNESDB_HAVE_ART
+    /* the cover of the song to resume, by the library as it is now */
+    menu_cover_resume_look();
+#endif
 #ifdef STOCK_BOOT_LOGO
     /* the theme the boot turned off, now that the menu shows */
     FOR_NB_SCREENS(i)
@@ -2073,6 +2078,9 @@ void root_menu(void)
             library_update_pending = false;
             if (tagcache_check_sync())
                 show_library_update();
+#ifdef ITUNESDB_HAVE_ART
+            menu_cover_resume_look();
+#endif
         }
         /* the albums' years, if USB during Updating Library left them
            unmade, or the database changed since: as the menu shows, in a

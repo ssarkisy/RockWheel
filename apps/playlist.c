@@ -2372,12 +2372,16 @@ void playlist_shutdown(void)
     struct playlist_info* playlist = &current_playlist;
     /* its name while it can be read, for playlist_resume_gone(); after USB
        without a resume since, the control file is shut, and the name is the
-       one before */
+       one before. With no list loaded since the boot, the one the status
+       keeps: the track gone over USB is then seen without Resume Playback */
     char name[MAX_PATH];
+    const char *kept;
     if (playlist->control_fd >= 0 && global_status.resume_index >= 0
         && get_track_filename(playlist, global_status.resume_index,
                               name, sizeof(name)) == 0)
         strmemccpy(resume_path, name, sizeof(resume_path));
+    else if (playlist->control_fd < 0 && (kept = playlist_resume_file()))
+        strmemccpy(resume_path, kept, sizeof(resume_path));
     playlist_write_lock(playlist);
     logf("Closing Control %s", __func__);
     pl_close_playlist(playlist);
@@ -2826,18 +2830,10 @@ int playlist_get_display_index(void)
     return (index+1);
 }
 
-/* returns the crc32 of the filename of the track at the specified index */
-unsigned int playlist_get_filename_crc32(struct playlist_info *playlist,
-                                         int index)
+/* the crc32 of a track's filename, as the resume point has it */
+static unsigned int filename_crc32(const char *filename)
 {
     const char *basename;
-    char filename[MAX_PATH]; /* path name of mp3 file */
-    if (!playlist)
-        playlist = &current_playlist;
-
-    if (get_track_filename(playlist, index, filename, sizeof(filename)) != 0)
-        return -1;
-
 #ifdef HAVE_MULTIVOLUME
     /* remove the volume identifier it might change just use the relative part*/
     path_strip_volume(filename, &basename, false);
@@ -2846,6 +2842,47 @@ unsigned int playlist_get_filename_crc32(struct playlist_info *playlist,
         basename = filename;
     NOTEF("%s: %s", __func__, basename);
     return crc_32(basename, strlen(basename), -1);
+}
+
+/* returns the crc32 of the filename of the track at the specified index */
+unsigned int playlist_get_filename_crc32(struct playlist_info *playlist,
+                                         int index)
+{
+    char filename[MAX_PATH]; /* path name of mp3 file */
+    if (!playlist)
+        playlist = &current_playlist;
+
+    if (get_track_filename(playlist, index, filename, sizeof(filename)) != 0)
+        return -1;
+
+    return filename_crc32(filename);
+}
+
+/* The resume point's crc32, for the track at index of the current playlist,
+   and its filename kept with it in the status: after a boot the playlist
+   isn't loaded until it's resumed, and the menus show that track's cover.
+   Both of one read of the name; neither if it can't be read. */
+static unsigned int resume_point_crc32(int index)
+{
+    char filename[MAX_PATH];
+    unsigned int crc = -1;
+    if (get_track_filename(&current_playlist, index, filename,
+                           sizeof(filename)) != 0)
+        filename[0] = '\0';
+    else
+        crc = filename_crc32(filename);
+    strmemccpy(global_status.resume_file, filename,
+               sizeof(global_status.resume_file));
+    return crc;
+}
+
+const char *playlist_resume_file(void)
+{
+    const char *file = global_status.resume_file;
+    if (global_status.resume_index < 0 || !file[0]
+        || filename_crc32(file) != global_status.resume_crc32)
+        return NULL;
+    return file;
 }
 
 /* returns index of first track in playlist */
@@ -2951,6 +2988,7 @@ void playlist_check_resume(void)
         playlist_write_unlock(playlist);
         dc_thread_start(playlist, false);
         global_status.resume_index = -1;
+        global_status.resume_file[0] = '\0';
         global_status.resume_elapsed = 0;
         global_status.resume_offset = 0;
         status_save(false);
@@ -2960,7 +2998,7 @@ void playlist_check_resume(void)
     {
         /* the track played gone: the next one there, from its start */
         global_status.resume_index = index;
-        global_status.resume_crc32 = playlist_get_filename_crc32(playlist, index);
+        global_status.resume_crc32 = resume_point_crc32(index);
         global_status.resume_elapsed = 0;
         global_status.resume_offset = 0;
         status_save(false);
@@ -4488,13 +4526,15 @@ int playlist_update_resume_info(const struct mp3entry* id3)
                         (playlist->flags & PLAYLIST_FLAG_MODIFIED));
     if (id3)
     {
+        /* or the name kept is another's: the index and its crc32 are set
+           without it as a file is played from its folder */
         if (global_status.resume_index  != playlist->index ||
             global_status.resume_elapsed != id3->elapsed ||
             global_status.resume_offset != id3->offset ||
-            global_status.resume_modified != pl_modified)
+            global_status.resume_modified != pl_modified ||
+            strcmp(global_status.resume_file, id3->path))
         {
-            unsigned int crc = playlist_get_filename_crc32(playlist,
-                                                           playlist->index);
+            unsigned int crc = resume_point_crc32(playlist->index);
             global_status.resume_index  = playlist->index;
             global_status.resume_crc32 = crc;
             global_status.resume_elapsed = id3->elapsed;
@@ -4507,6 +4547,7 @@ int playlist_update_resume_info(const struct mp3entry* id3)
     {
         global_status.resume_index  = -1;
         global_status.resume_crc32 = -1;
+        global_status.resume_file[0] = '\0';
         global_status.resume_elapsed = -1;
         global_status.resume_offset = -1;
         global_status.resume_modified = 0;

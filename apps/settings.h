@@ -418,6 +418,8 @@ struct system_status
 
     int resume_modified; /* playlist is modified (=> warn before erase) */
     char browse_last_folder[MAX_PATH];/* only saved if keep_directory = true */
+    char resume_file[MAX_PATH]; /* the file at resume_index, of resume_crc32:
+                                   see playlist_resume_file() */
 };
 
 #ifdef HAVE_PITCHCONTROL

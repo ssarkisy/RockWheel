@@ -96,6 +96,7 @@
 #include "bmp.h"
 #include "icons.h"
 #include "lyrics.h"
+#include "gui/skin_engine/menu_cover.h"
 #endif /* !__PCTOOL__ */
 #include "bookmark.h"
 #include "wps.h"
@@ -755,6 +756,10 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
                 library_update_after_usb();
             else if (tagcache_check_sync())
                 show_library_update();
+#endif
+#ifdef ITUNESDB_HAVE_ART
+            /* the song to resume, or its cover, may be another after USB */
+            menu_cover_resume_look();
 #endif
             system_restore_database();
             return SYS_USB_CONNECTED;

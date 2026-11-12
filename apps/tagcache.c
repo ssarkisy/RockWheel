@@ -3194,6 +3194,56 @@ bool tagcache_fill_text(struct mp3entry *id3, const char *filename)
 }
 #endif
 
+#ifndef __PCTOOL__
+/* The cover of the album of a file outside Finder's folder, by its tags in
+   the database as itunesdb_find_track_art() takes a playing song's: none
+   for a song without an album. From memory alone on the iPod, nothing
+   copied; the simulator's from the disk. */
+bool tagcache_find_album_art(const char *filename, struct itunesdb_art *art)
+{
+#ifdef ITUNESDB_HAVE_ART
+#if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
+    if (!tc_stat.ready || !tc_stat.ramcache)
+        return false;
+    const int idx_id = find_entry_ram(filename);
+    if (idx_id < 0)
+        return false;
+    /* the names where they are, held still while they're read */
+    tcrc_buffer_lock();
+    const struct index_entry *entry = &tcramcache.hdr->indices[idx_id];
+    const char *album = get_tag_string(entry, tag_album);
+    const char *artist = get_tag_string(entry, tag_albumartist);
+    if (!artist || !*artist)
+        artist = get_tag_string(entry, tag_artist);
+    const bool found = album && *album
+        && itunesdb_find_album_art(album, artist, filename, art);
+    tcrc_buffer_unlock();
+    return found;
+#else
+    struct tagcache_search tcs;
+    char album[MAX_PATH], artist[MAX_PATH];
+    if (read_lock || !tagcache_find_index(&tcs, filename))
+        return false;
+    bool found = tagcache_retrieve(&tcs, tcs.idx_id, tag_album, album,
+                                   sizeof(album))
+                 && *album && strcmp(album, UNTAGGED);
+    if (found
+        && (!tagcache_retrieve(&tcs, tcs.idx_id, tag_albumartist, artist,
+                               sizeof(artist))
+            || !*artist || !strcmp(artist, UNTAGGED))
+        && !tagcache_retrieve(&tcs, tcs.idx_id, tag_artist, artist,
+                              sizeof(artist)))
+        artist[0] = '\0';
+    tagcache_search_finish(&tcs);
+    return found && itunesdb_find_album_art(album, artist, filename, art);
+#endif
+#else
+    (void)filename; (void)art;
+    return false;
+#endif
+}
+#endif /* !__PCTOOL__ */
+
 #ifdef TAGCACHE_SORT_FIELDS
 /* The Sort fields the scan finds in the tags of songs outside Finder's
    folder, for the commit (load_sort_pairs()): in a file of their own made

@@ -160,6 +160,9 @@ int playlist_next(int steps);
 bool playlist_next_dir(int direction);
 int playlist_get_resume_info(int *resume_index);
 int playlist_update_resume_info(const struct mp3entry* id3);
+/* the file of the track to resume, as the status keeps it, or NULL: none to
+   resume, none kept, or one that isn't the resume point's by its crc32 */
+const char *playlist_resume_file(void);
 int playlist_get_display_index(void);
 int playlist_amount(void);
 void playlist_set_last_shuffled_start(void);

@@ -467,7 +467,12 @@ bool settings_load_config(const char* file, bool apply)
 {
     logf("%s()\r\n", __func__);
     int fd;
-    char line[128];
+    /* the longest line, the status' "resume file": cut at 127 as it was, a
+       longer path was read as another, and its end as a line of its own.
+       Not on the stack, the main thread's, under the settings applied
+       below: only that thread loads a file, at boot and from a list, and
+       no line is read once they're applied */
+    static char line[MAX_PATH + 16];
     bool theme_changed = false;
     bool import_open_plugins = false;
     fd = open_utf8(file, O_RDONLY);
@@ -659,6 +664,9 @@ static bool is_changed(const struct settings_list *setting)
         break;
     case F_T_CHARPTR:
     case F_T_UCHARPTR:
+        /* the status' own are '.resume.cfg's, as its numbers above */
+        if (setting->flags & F_RESUMESETTING)
+            return false;
         if (!strcmp((char*)setting->setting, setting->default_val.charptr))
             return false;
         break;
