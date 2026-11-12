@@ -222,10 +222,10 @@ const char *tagtree_track_date(int32_t idx, bool with_length, char *buf,
                                size_t size);
 const char *tagtree_time_left(unsigned long elapsed, unsigned long length,
                               char *buf, size_t size);
-/* The list made last has its rows' states, Podcasts' shows and a show's
-   episodes: each row's mark in a column before its name (enum line_mark):
-   a dot for a new episode or a show with one, a half dot for one begun,
-   LINE_MARK_EMPTY for the rest; LINE_MARK_NONE for a row at its top */
+/* The list made last has its rows' states, a show's episodes: each row's
+   mark in a column before its name (enum line_mark): a dot for a new
+   episode, a half dot for one begun, LINE_MARK_EMPTY for the rest;
+   LINE_MARK_NONE for a row at its top */
 bool tagtree_rows_states(struct tree_context *c);
 int tagtree_entry_mark(struct tree_context *c, int row);
 /* of its first song, a tag of names' text as the database has it, UNTAGGED

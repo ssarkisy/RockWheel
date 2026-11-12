@@ -1081,29 +1081,62 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
                        const char *text)
 {
     struct viewport *vp = *display->current_viewport;
-    char buf[MAX_PATH];
+    char buf[MAX_PATH], accent[48];
+    const int width = vp->width - x - decoration_width(display, line);
     /* cut short in the form of the whole, as when it isn't */
     font_set_text_form(font_text_form((const unsigned char *)text, -1));
-    text = line_fit(text, font, vp->width - x - decoration_width(display, line),
-                    buf, sizeof(buf));
-    if (!text)
+    /* the accented start is a run of its own, placed as in the whole */
+    const char *end = strchr(text, SUBLINE_ACCENT_END), *first = NULL;
+    int first_w = 0, text_w = 0;
+    if (end)
+    {
+        size_t n = MIN((size_t)(end - text), sizeof(accent) - 1);
+        while (n > 0 && (text[n] & 0xc0) == 0x80) /* whole letters */
+            n--;
+        memcpy(accent, text, n);
+        accent[n] = '\0';
+        first = line_fit(accent, font, width, buf, sizeof(buf));
+        text = first == accent ? end + 1 : NULL; /* nothing after a cut one */
+        if (first)
+            font_getstringsize(first, &first_w, NULL, font);
+    }
+    if (text)
+        text = line_fit(text, font, width - first_w, buf, sizeof(buf));
+    if (!text && !first)
     {
         font_set_text_form(-1);
         return;
     }
+    if (text && first && VP_IS_RTL(vp))
+        font_getstringsize(text, &text_w, NULL, font);
     const int name_font = vp->font;
     const unsigned fg = display->get_foreground();
 #ifdef HAVE_LCD_COLOR
+    unsigned colour = LIST_VALUE_COLOUR, accent_colour = LIST_VALUE_COLOUR;
+#ifndef DISABLE_ALPHA_BITMAP
+    accent_colour = speaker_colour();
+#endif
     if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
-        display->set_foreground(line->text_color);
+        colour = accent_colour = line->text_color;
     else if (line->style & STYLE_INVERT) /* as the text on the bar */
-        display->set_foreground(display->get_background());
-    else
-        display->set_foreground(LIST_VALUE_COLOUR);
+        colour = accent_colour = display->get_background();
 #endif
     display->set_drawmode(DRMODE_FG);
     vp->font = font;
-    display->putsxy(x, y + top_dy, text);
+    if (first)
+    {
+#ifdef HAVE_LCD_COLOR
+        display->set_foreground(accent_colour);
+#endif
+        display->putsxy(x + text_w, y + top_dy, first);
+    }
+    if (text)
+    {
+#ifdef HAVE_LCD_COLOR
+        display->set_foreground(colour);
+#endif
+        display->putsxy(x + (text_w ? 0 : first_w), y + top_dy, text);
+    }
     font_set_text_form(-1);
     vp->font = name_font;
     display->set_foreground(fg);

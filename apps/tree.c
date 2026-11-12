@@ -485,7 +485,7 @@ static int tree_get_mark(int selected_item, void *data)
 #endif
 
 #ifdef HAVE_TAGCACHE
-/* the mark of a podcast's show or episode, new or begun, before its name */
+/* the mark of a podcast's episode, new or begun, before its name */
 static int tree_get_state(int selected_item, void *data)
 {
     struct tree_context *local_tc = (struct tree_context *)data;

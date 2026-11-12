@@ -212,8 +212,12 @@ const char *line_fit(const char *text, int font, int width, char *buf,
 /* The second line of a row of two, as an album's year and artist under its
    name: in font, grey as a setting's value, as the selection's text on it,
    from x of the part put at y, its cell top_dy pixels below the part's top,
-   and cut short with "…" before the speaker and the chevron. The part's
-   background is drawn already, by a put_line() of no text */
+   and cut short with "…" before the speaker and the chevron. Its start up to
+   a SUBLINE_ACCENT_END, which isn't drawn, is in the speaker's blue instead,
+   as a show's new episodes: who makes a line of a tag's text takes the mark
+   out of it. The part's background is drawn already, by a put_line() of no
+   text */
+#define SUBLINE_ACCENT_END '\x1f'
 void line_draw_subline(struct screen *display, int font, int x, int y,
                        int top_dy, const struct line_desc *line,
                        const char *text);

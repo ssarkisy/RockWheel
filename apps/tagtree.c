@@ -7875,6 +7875,13 @@ static size_t date_text(long date, char *buf, size_t size)
     return year > 0 ? snprintf(buf, size, "%d", year) : 0;
 }
 
+/* a tag's text in a second line: the accent's mark in it is a space */
+static void plain_text(char *text)
+{
+    while ((text = strchr(text, SUBLINE_ACCENT_END)))
+        *text = ' ';
+}
+
 /* A show's second line, from the sums kept as the list was made: what is
    left of the episode begun, the newest of them; or how many are new and
    the newest episode's date, "2 new · 9 Nov"; or how many it has */
@@ -7899,8 +7906,12 @@ static const char *show_subline(struct tree_context *c,
         char date[64];
         const size_t len = snprintf(buf, size, str(LANG_EPISODES_NEW),
                                     (int)sums->unplayed);
-        if (date_text(sums->newest, date, sizeof(date)) && len < size)
-            snprintf(buf + len, size - len, " \xc2\xb7 %s", date); /* U+00B7 */
+        /* the count in blue, as the dot of an episode is */
+        if (len < size)
+            snprintf(buf + len, size - len,
+                     date_text(sums->newest, date, sizeof(date))
+                     ? "%c \xc2\xb7 %s" : "%c", /* U+00B7 */
+                     SUBLINE_ACCENT_END, date);
         return buf;
     }
     snprintf(buf, size, plural_str(sums->episodes, LANG_EPISODES_ONE,
@@ -7939,6 +7950,7 @@ static const char *book_subline(struct tree_context *c,
     if (!tagcache_tag_string(tag_albumartist, sums->albumartist, buf, size))
 #endif
         strlcpy(buf, str(LANG_UNKNOWN_AUTHOR), size);
+    plain_text(buf);
     const size_t len = strlen(buf);
     if (text[0] && len < size)
         snprintf(buf + len, size - len, " \xc2\xb7 %s", text); /* U+00B7 */
@@ -8202,9 +8214,8 @@ bool tagtree_book_finish(void)
 
 bool tagtree_rows_states(struct tree_context *c)
 {
-    /* books have no dots */
-    return c->currtable != TABLE_ROOT
-           && ((entries_shows && !entries_books) || entries_episodes);
+    /* shows and books have no dots */
+    return c->currtable != TABLE_ROOT && entries_episodes;
 }
 
 int tagtree_entry_mark(struct tree_context *c, int row)
@@ -8217,22 +8228,8 @@ int tagtree_entry_mark(struct tree_context *c, int row)
         return LINE_MARK_NONE;
     long place;
     int state = EPISODE_PLAYED;
-    if (entries_episodes)
-    {
-        if (entry->newtable == TABLE_PLAYTRACK)
-            state = episode_state(entry->extraseek, &place);
-    }
-    else if (entry->album.year >= 0 && entry->album.year < entries_shows)
-    {
-        /* a new one before one begun, which its second line has */
-        const struct show_sums *sums = &((const struct show_sums *)
-                                         song_groups(c))[-1 - entry->album.year];
-        if (sums->unplayed > 0)
-            state = EPISODE_NEW;
-        else if (sums->started_idx >= 0
-                 && episode_state(sums->started_idx, &place) == EPISODE_STARTED)
-            state = EPISODE_STARTED;
-    }
+    if (entry->newtable == TABLE_PLAYTRACK)
+        state = episode_state(entry->extraseek, &place);
     return state == EPISODE_NEW ? LINE_MARK_NEW
            : state == EPISODE_STARTED ? LINE_MARK_HALF : LINE_MARK_EMPTY;
 }
@@ -8256,6 +8253,7 @@ const char *tagtree_album_subline(int no, int year, bool artist,
             memcpy(buf + len, dot, gap);
         else
             buf[len] = '\0';
+        plain_text(buf);
     }
 #else
     (void)no; (void)artist; (void)except;
@@ -8270,7 +8268,10 @@ static const char *song_tag_name(int32_t idx, int tag, char *buf, size_t size)
     if (!tagcache_is_in_ram())
         return NULL;
     if (tagcache_tag_string(tag, tagcache_sort_key(idx, tag), buf, size))
+    {
+        plain_text(buf);
         return buf;
+    }
     return untagged_name(tag);
 #else
     (void)idx; (void)tag; (void)buf; (void)size;
