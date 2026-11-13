@@ -455,7 +455,7 @@ static void save_stopwatch(void)
 
 enum plugin_status plugin_start(const void* parameter)
 {
-    struct viewport vp, *last_vp;
+    struct viewport vp, text_vp, *last_vp;
     struct screen *display;
     char buf[32];
     int button;
@@ -474,6 +474,11 @@ enum plugin_status plugin_start(const void* parameter)
     }
 
     rb->viewport_set_defaults(&vp, SCREEN_MAIN);
+    /* the times start where the lists' text does in the theme, not at the
+       screen's edge */
+    text_vp = vp;
+    text_vp.x += rb->ui_metric(UI_METRIC_TEXT_INSET);
+    text_vp.width -= 2 * rb->ui_metric(UI_METRIC_TEXT_INSET);
     display = rb->screens[SCREEN_MAIN];
 
     display->setfont(FONT_UI);
@@ -496,6 +501,9 @@ enum plugin_status plugin_start(const void* parameter)
         if(update_lap)
         {
             display->clear_viewport();
+            display->set_viewport(&text_vp);
+            /* the laps scroll in this one: the clear above stops only its own */
+            display->scroll_stop_viewport(&text_vp);
             display->puts(0, TIMER_Y, buf);
             lap_start = curr_lap - lap_scroll;
             for (lap = lap_start; lap > lap_start - lines; lap--)
@@ -512,7 +520,11 @@ enum plugin_status plugin_start(const void* parameter)
             update_lap = false;
         }
         else
+        {
+            display->set_viewport(&text_vp);
             display->puts(0, TIMER_Y, buf);
+        }
+        display->set_viewport(&vp);
         display->update_viewport();
         display->set_viewport(last_vp);
         if (!counting)
