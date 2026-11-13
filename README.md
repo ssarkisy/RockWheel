@@ -64,7 +64,7 @@ If you use it on a hard drive, please open an issue and say how it goes.
 
 - Music you bought from iTunes plays, apart from old copy-protected purchases, which the iPod lists and tells you it can't play. The same goes for protected audiobooks. Apple Music subscription tracks aren't supported.
 - RockWheel doesn't play video. The stock firmware stays on the iPod and shares the same library: to watch your videos, turn the Hold switch on while the iPod starts.
-- What you play of a podcast on the iPod — where you stopped, what you finished — stays on the iPod: Podcasts on your Mac doesn't take it.
+- What you play of a podcast on the iPod — where you stopped, what you finished — doesn't reach Podcasts on your Mac yet. This is still being investigated.
 - The sharp covers Finder prepares have been tried with Finder on macOS 26 only, not with iTunes on Windows or iOpenPod.
 - Song titles in Hindi and Thai show, though their combining marks can be out of place, and those two languages aren't offered for the menus.
 - Search can't type Chinese characters or Japanese kanji. Names written in them show in the library, but aren't found by Search.
@@ -446,6 +446,7 @@ Planned:
 - Port to the iPod Photo.
 - Port to the iPod classic 6G and 7G.
 - Apple iPod Radio Remote: button fixes, FM radio.
+- Podcast progress from the iPod in Podcasts on your Mac.
 - Playlists in Search, and smart playlists by date added and last played.
 - A sleep timer that waits for the end of an episode.
 - Custom EQ presets from files.

@@ -112,4 +112,4 @@ What has been tried: one iPod, a 5.5G, with Finder on macOS 26. iTunes on Window
 
 - If you sync podcasts with Finder on macOS 26, your song plays and ratings did not reach your Mac under 1.3.1 — nor under Apple's firmware — and could be lost on the iPod at the next sync. 1.4 gets them through, and keeps any that a sync doesn't take until the next connection.
 - Plays lost before the update can't be brought back by it.
-- Your place in an episode and its played mark stay on the iPod: Podcasts on the Mac (macOS 26) doesn't take them.
+- Your place in an episode and its played mark don't reach Podcasts on the Mac (macOS 26) yet. This is still being investigated, for a later release.
