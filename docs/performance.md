@@ -23,7 +23,7 @@ The same work done by Rockbox's own code, as plain Rockbox does it.
 | Checking every file's path at each start, 13,000 songs | 84 s in the background | **skipped** |
 | Removing 50 songs deleted from the iPod | 8.5 s | **0.7 s** |
 | A band of the EQ, per sample | 50 cycles | **31 cycles** |
-| Changing the theme while music plays | 8 s | **0.45–0.65 s** |
+| Switching between light and dark while music plays (1.3) | 8 s | **0.45–0.65 s** |
 | Parsing the skins, at every start | 282 ms | **54 ms** |
 | Writing over USB | 6.6 MB/s | **8.4–8.7 MB/s** |
 
@@ -39,6 +39,24 @@ Work that plain Rockbox doesn't do, timed against the RockWheel build the work s
 | Opening the menu over Now Playing after a pause | 0.78 s | **0.13 s** |
 | The library's fonts after a sync, 13,000 songs | 5.2 s | **0.6 s** |
 | Finding 2,000 songs copied outside Finder, after USB | 1.14 s | **0.18 s** |
+
+## New in 1.4
+
+Times for what 1.4 adds, on the test iPod with about 13,000 songs.
+
+| | RockWheel 1.4 |
+|---|---:|
+| Opening Albums, 1,698 albums | **0.08 s** |
+| Opening Artists | **0.011 s** |
+| Opening Audiobooks | **0.12 s** |
+| Opening Songs sorted by artist, album or year | **0.36 s**; by name 0.20 s |
+| Starting a song from Songs with Shuffle on Albums, 13,188 songs | **0.70 s**, 0.40 s of it for the shuffle |
+| Shuffle Songs from the main menu, 13,188 songs | **about 1.5 s** |
+| Reading Resume Playback's list while the iPod starts, 13,188 songs | **0.33 s**, so that Resume Playback starts without "Loading…" |
+| The sharp cover beside the main menu, drawn from the song's file | **2.5–3.9 s** after the track starts for ordinary covers; 3.2 s for a 600-pixel cover in FLAC, 13.2 s in Apple Lossless |
+| A full library rebuild, now that the fonts come ready | **34 s shorter** |
+| A sync that changes only plays, ratings or playlists | **about 1 s shorter**: Cover Flow's albums and the lists' covers are left as they are |
+| The firmware file | **about 125 KB smaller** than 1.3.1's, with all of 1.4's features |
 
 ## Compared with the stock firmware
 
