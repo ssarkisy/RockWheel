@@ -1,14 +1,14 @@
-# iPod theme
+# iPod themes
 
-The theme for the iPod Video (320x240), kept here in the layout it is installed
-in (`<theme>/.rockbox/...`). The menus don't offer another one. Its dark version,
-`iClassic-Square-Dark`, is made from it by `tools/make_dark_theme.py`.
+The themes for the iPod Video (320x240), each kept here in the layout it is
+installed in (`<theme>/.rockbox/...`): iClassic Square, which Settings calls
+Classic, Modern and Neo, each with a dark version beside it.
 
-It's licensed under Creative Commons Attribution-Share Alike 3.0
+iClassic Square is licensed under Creative Commons Attribution-Share Alike 3.0
 (http://creativecommons.org/licenses/by-sa/3.0/), and so are the changes made
-to it here.
+to it here. Modern and Neo were made for RockWheel.
 
-`fonts/` holds the fonts it uses: Inter (https://rsms.me/inter/), converted with
+`fonts/` holds the fonts they use: Inter (https://rsms.me/inter/), converted with
 `tools/make_fonts.sh`, under the SIL Open Font License 1.1 (`fonts/OFL.txt`,
 installed as `Inter-OFL.txt`). The fonts it came with had no Cyrillic. Letters
 Inter doesn't have come from GNU Unifont, which Rockbox also carries in the
@@ -39,9 +39,9 @@ and the hints, between two sizes, have the menus' Hangul and the 17s' rest.
 One's own `24-`, `17-` and `14-Hangul.fnt`, made by `tools/convttf` from another
 typeface, still draw Hangul in those sizes.
 
-The fonts of the themes to come, Neo and Modern, are made by the same two
-scripts, from Inter Regular too, at the em sizes of their mockups and named
-after their line heights as the rest: `19-Inter-SemiBold` (15 px),
+The fonts of Neo and Modern are made by the same two scripts, from Inter
+Regular too, at the em sizes of their mockups and named after their line
+heights as the rest: `19-Inter-SemiBold` (15 px),
 `17-Inter-Medium-13` (13), `15-Inter-Medium` and `-SemiBold` (12) and
 `14-Inter-Medium` (11) for Neo, whose title is `18-Inter-SemiBold`; `20-Inter-SemiBold`
 (15.5), `18-Inter-Regular` (14), `14-Inter-Regular` (11) and `13-Inter-Regular`
@@ -86,6 +86,11 @@ after a change, in this order:
 - `make_menu_icons.py`: the backdrops' placeholder note and its reflection, and
   the original theme's battery out of their status bar, where the skins draw one.
 - `make_dark_theme.py`: the dark theme, all of it from the light one.
+
+Modern's and Neo's skins, light and dark, are written by `make_modern_theme.py`
+and `make_neo_theme.py`, and their glyphs come from the mockups' export through
+`make_modern_glyphs.py` and `make_theme_glyphs.py`. None of these skins is edited
+by hand.
 
 To try them in the simulator, copy them over the simulator disk:
 
