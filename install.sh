@@ -219,6 +219,41 @@ add_bootloader() {
         || die "The bootloader didn't end up on the iPod."
 }
 
+# Stops before anything is changed if the archive's files don't fit: cut
+# short, a copy leaves the new firmware with some of the old one's fonts and
+# languages. What the archive replaces on the iPod gives its room back, so an
+# update needs far less than a first install; a plain Rockbox folder that is
+# moved aside gives none. 40 MB are kept spare for the file system's clusters
+# and the ._ files unzip writes on a Mac until they are removed.
+check_room() {
+    local zip="$1" mount="$2" moving="$3" need free have=0
+    need=$(unzip -l "$zip" | tail -1 | awk '{ print int($1 / 1024) + 1 }')
+    if [ "$moving" != 1 ]; then
+        have=$(unzip -Z1 "$zip" | grep -v '/$' | while IFS= read -r f; do
+                   [ -f "$mount/$f" ] && stat -f %z "$mount/$f"
+               done | awk '{ s += $1 } END { print int(s / 1024) }')
+    fi
+    free=$(df -k "$mount" | tail -1 | awk '{ print $4 }')
+    need=$((need - have + 40960))
+    if [ "$free" -lt "$need" ]; then
+        die "The iPod needs $(( (need - free) / 1024 + 1 )) MB more free space for this update. Free some up (remove a few albums in Finder) and run the installer again. Nothing has been changed on the iPod."
+    fi
+}
+
+# Before the bootloader goes on and before an old folder is moved aside, so
+# that a refusal leaves the iPod as it was
+ensure_room() {
+    local part="${DISK}s2" mount="" moving=0
+    [ "$DRY_RUN" = 1 ] && return
+    diskutil mount "$part" >/dev/null 2>&1
+    mount=$(disk_value MountPoint "$part")
+    [ -n "$mount" ] && [ -d "$mount" ] || die "Couldn't mount the iPod's music partition."
+    if [ -d "$mount/.rockbox" ] && [ ! -f "$mount/.rockbox/wps/iClassic-Square/About Backdrop.bmp" ]; then
+        moving=1
+    fi
+    check_room "$FILES/rockbox.zip" "$mount" "$moving"
+}
+
 copy_firmware() {
     local part="${DISK}s2" mount=""
     step "Copying the firmware"
@@ -410,6 +445,7 @@ else
 fi
 
 [ "$FORMAT_NEEDED" = 1 ] && format_data
+ensure_room
 
 if [ "$HAS_BOOTLOADER" = 1 ]; then
     say ""

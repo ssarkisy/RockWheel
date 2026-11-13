@@ -238,6 +238,41 @@ function Expand-Into([string]$Zip, [string]$Root) {
     }
 }
 
+# Stops before anything is changed if the archive's files don't fit: cut
+# short, a copy leaves the new firmware with some of the old one's fonts and
+# languages. What the archive replaces on the iPod gives its room back, so an
+# update needs far less than a first install; a plain Rockbox folder that is
+# moved aside gives none. 40 MB are kept spare for the file system's clusters.
+function Test-Room([string]$Zip, [string]$Root, [bool]$Moving) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $need = [long]0
+    $z = [IO.Compression.ZipFile]::OpenRead($Zip)
+    try {
+        foreach ($e in $z.Entries) {
+            if ($e.FullName.EndsWith('/')) { continue }
+            $need += $e.Length
+            $target = Get-IPodPath $Root $e.FullName
+            if (-not $Moving -and (Test-Path -LiteralPath $target -PathType Leaf)) { $need -= (Get-Item -LiteralPath $target -Force).Length }
+        }
+    } finally {
+        $z.Dispose()
+    }
+    $need += 40MB
+    $free = (New-Object IO.DriveInfo ([IO.Path]::GetPathRoot($Root))).AvailableFreeSpace
+    if ($free -lt $need) {
+        $more = [long][Math]::Ceiling(($need - $free) / 1MB)
+        Die "The iPod needs $more MB more free space for this update. Free some up (remove a few albums in iTunes) and run the installer again. Nothing has been changed on the iPod."
+    }
+}
+
+# Before the bootloader goes on and before an old folder is moved aside, so
+# that a refusal leaves the iPod as it was
+function Confirm-Room([string]$Root) {
+    if ($DryRun) { return }
+    $moving = (Test-Path -LiteralPath (Join-Path $Root '.rockbox')) -and -not (Test-Path -LiteralPath (Get-IPodPath $Root $Marker))
+    Test-Room (Join-Path $script:Files 'rockbox.zip') $Root $moving
+}
+
 function Copy-Firmware([string]$Root) {
     Step 'Copying the firmware'
     if (Would 'copy the files of rockbox.zip to the iPod') { return }
@@ -449,6 +484,7 @@ function Invoke-Install {
 
     $root = "$letter\"
     $fresh = -not $ipod.HasBootloader
+    Confirm-Room $root
     if ($ipod.HasBootloader) {
         Say ''
         Say 'The bootloader is already installed, so this only updates the firmware files.'
