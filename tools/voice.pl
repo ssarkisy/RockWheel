@@ -652,7 +652,7 @@ sub generatevstringclips {
     read(LANGFILE, $buf, 10);
     my ($cookie, $version, $targetid, $options, $idcount, $size, $offset) = unpack($format, $buf);
 
-    die "Invalid vstrings header\n" if ($cookie != 0x9a || $version != 0x06 ||
+    die "Invalid vstrings header\n" if ($cookie != 0x9a || $version != 0x86 ||
 					$offset != 10);
     # Read in strings
     my %vids;

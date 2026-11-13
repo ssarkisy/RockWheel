@@ -13,7 +13,7 @@
 # Cookie and binary version for the binary lang file
 my $LANGUAGE_COOKIE   = 0x1a;
 my $VOICE_COOKIE      = 0x9a;
-my $LANGUAGE_VERSION  = 0x06;
+my $LANGUAGE_VERSION  = 0x86; # as apps/language.c
 my $LANGUAGE_FLAG_RTL = 0x01;
 my $LANGUAGE_FLAG_UNITS_FIRST = 0x02;
 

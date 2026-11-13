@@ -39,7 +39,11 @@
 /* These defines must match the initial bytes in the binary lang file */
 /* See tools/genlang (TODO: Use common include for both) */
 #define LANGUAGE_COOKIE   0x1a
-#define LANGUAGE_VERSION  0x06
+/* RockWheel's own count from 0x86 (upstream's is 0x06): raised whenever a
+   phrase is put before the last one of english.lang, which moves the numbers
+   of those after it. A .lng of another count is refused, English shows, and
+   the release's own .lng files take its place */
+#define LANGUAGE_VERSION  0x86
 
 #define LANGUAGE_FLAG_RTL         0x01
 #define LANGUAGE_FLAG_UNITS_FIRST 0x02
