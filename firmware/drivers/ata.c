@@ -35,6 +35,7 @@
 #include "storage.h"
 #include "logf.h"
 #include "backlight.h"
+#include "usb.h"
 
 #define SELECT_DEVICE1  0x10
 #define SELECT_LBA      0x40
@@ -136,14 +137,25 @@ static inline bool ata_sleep_timed_out(void)
 /* Flash, as an iFlash is, keeps its power while the screen is lit, as the disk is
    wanted the most then. Asleep with it, it wakes with a reset, without the quarter
    second for its voltage and all that comes after: in 35-50 ms on an iFlash, against
-   0.6-0.75 s from power off. A disk that spins goes off as it always has. */
+   0.6-0.75 s from power off. A disk that spins goes off as it always has.
+   Flash keeps it too for as long as a computer has the disk: the screen is
+   dark for most of a sync, and each time the power came back a Mac's reads
+   failed for seconds after, on an iPod whose cable was at its limit. The
+   computer feeds the iPod then, so the battery isn't what pays for it. */
 static inline bool ata_keeps_power(void)
 {
-#if !defined(BOOTLOADER) && defined(HAVE_BACKLIGHT)
-    return ata_disk_isssd() && is_backlight_on(true);
-#else
-    return false;
+#ifndef BOOTLOADER
+    if (!ata_disk_isssd())
+        return false;
+#ifdef HAVE_USBSTACK
+    if (usb_exclusive_storage())
+        return true;
 #endif
+#ifdef HAVE_BACKLIGHT
+    return is_backlight_on(true);
+#endif
+#endif
+    return false;
 }
 #endif
 
