@@ -250,6 +250,9 @@ bool tagcache_restoring(void);
 /* main() has taken the boot's memory: a commit may have the rest */
 void tagcache_boot_done(void);
 bool tagcache_check_sync(void);
+bool tagcache_covers_can_change(void);
+bool tagcache_covers_changing(void);
+void tagcache_covers_changed(bool changed);
 /* the sum of the images outside Finder's folder, by the last check after USB
    that went through: false without one */
 bool tagcache_outside_images(uint32_t *sum);

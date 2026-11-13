@@ -201,6 +201,7 @@ gui/usb_screen.c
 tagcache.c
 sortkey.c
 itunesdb.c
+synced_covers.c
 smart_playlists.c
 library_playlists.c
 ipod_playlists.c

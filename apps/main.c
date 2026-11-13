@@ -62,6 +62,9 @@
 #include "plugin.h"
 #include "misc.h"
 #include "dircache.h"
+#ifdef HAVE_TAGCACHE
+#include "synced_covers.h"
+#endif
 #include "drive_info.h"
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
@@ -480,6 +483,9 @@ static void init(void)
     dsp_init();
     settings_reset();
     settings_load();
+#ifdef HAVE_TAGCACHE
+    synced_covers_boot();
+#endif
     night_mode_boot();
     settings_apply(true);
     init_battery_tables();
@@ -752,6 +758,10 @@ static void init(void)
     CHART(">settings_load");
     settings_load();
     CHART("<settings_load");
+#ifdef HAVE_TAGCACHE
+    /* before USB can read the description */
+    synced_covers_boot();
+#endif
     drive_info_init();
     night_mode_boot();
 

@@ -95,6 +95,7 @@
 #include "lang.h"
 #include "eeprom_settings.h"
 #include "itunesdb.h"
+#include "root_menu.h"
 #include "audio.h"
 #ifndef PLUGIN
 #include "music_search.h"
@@ -346,6 +347,7 @@ enum tagcache_queue {
     Q_REBUILD,
     Q_IMPORT_ITUNES,
     Q_SYNCED,
+    Q_COVERS_CHANGED,
     Q_CHECK_OUTSIDE,
     Q_LOAD_RAM,
 
@@ -9340,6 +9342,70 @@ int tagcache_get_import(int *done, int *total)
     return phase;
 }
 
+/* The artwork was renamed by a menu and the covers' index isn't made for it
+   yet: owed from tagcache_covers_changed() until the pass has run, which
+   USB, come between, must not hand the disk over without. Claimed from
+   before the rename. */
+static volatile bool covers_pass_owed, covers_claimed;
+
+/* as a boot does for what an older firmware didn't note; on the thread */
+static void covers_pass(void)
+{
+    cpu_boost(true);
+    import_phase = TAGCACHE_IMPORT_READING;
+    itunesdb_import_tracks(false, &import_done, &import_total);
+#ifdef HAVE_TC_RAMCACHE
+    ram_kinds_refresh();
+#endif
+#ifdef ITUNESDB_HAVE_ART
+    if (itunesdb_slides_todo())
+    {
+        import_done = import_total = 0;
+        import_phase = TAGCACHE_IMPORT_SLIDES;
+        itunesdb_make_slides(&import_done, &import_total, check_event_queue);
+    }
+#endif
+    covers_pass_owed = covers_claimed = false;
+    import_phase = TAGCACHE_IMPORT_NONE;
+    cpu_boost(false);
+}
+
+/* The computer's artwork is set aside or put back by a menu, not under
+   music. No import runs and none can start: asked before the question. */
+bool tagcache_covers_can_change(void)
+{
+    return tc_stat.initialized && import_phase == TAGCACHE_IMPORT_NONE;
+}
+
+/* The import is taken before the folder is renamed, so that none other
+   starts between: false if one runs. Followed by tagcache_covers_changed(). */
+bool tagcache_covers_changing(void)
+{
+    if (!tagcache_covers_can_change())
+        return false;
+    covers_claimed = true;
+    import_phase = TAGCACHE_IMPORT_READING;
+    return true;
+}
+
+/* changed: the covers' index is made for what is there, on the update's
+   screen; else the import taken is let go */
+void tagcache_covers_changed(bool changed)
+{
+    if (!changed)
+    {
+        covers_claimed = false;
+        import_phase = TAGCACHE_IMPORT_NONE;
+        return;
+    }
+    /* the marks first, as before any import; then owed, with no yield
+       before the post. USB's event, come meanwhile, waits for this while
+       the claim is held, and its wait for the disconnection drops the post */
+    itunesdb_flush_flags();
+    covers_pass_owed = true;
+    queue_post(&tagcache_queue, Q_COVERS_CHANGED, 0);
+}
+
 /* What a boot does after a sync, for one over Rockbox's own USB mode, which
    doesn't reboot: true when there is an import, which tagcache_get_import()
    then follows. Without a sync, the songs outside Finder's folder are looked
@@ -9730,6 +9796,12 @@ static void tagcache_thread(void)
                 cpu_boost(false);
                 break ;
 
+            case Q_COVERS_CHANGED:
+                /* unless USB, come first, has had it made */
+                if (covers_pass_owed)
+                    covers_pass();
+                break ;
+
             case Q_CHECK_OUTSIDE:
                 /* The songs outside Finder's folder: those gone first, so
                    that a file moved or renamed has its counts and rating back
@@ -9822,6 +9894,16 @@ static void tagcache_thread(void)
                    its fade-out is over, which was after Play Counts was
                    written, so that it came a sync late or not at all */
                 cpu_boost(true);
+                /* The artwork a menu is renaming, or has: its covers' index
+                   first, so that the computer doesn't get the disk with an
+                   index of the folder that moved. The menu's thread doesn't
+                   read its queue from the claim to the screen, and says
+                   within moments whether the folder moved. */
+                for (int wait = 0; wait < 5 * HZ && covers_claimed
+                     && !covers_pass_owed; wait++)
+                    sleep(1);
+                if (covers_pass_owed)
+                    covers_pass();
                 /* the stop notes the play before the status drops; 3 s was
                    short of a disk spinning up for the track the audio thread
                    was opening. Still bounded, for a stop that waited on this
@@ -9836,6 +9918,15 @@ static void tagcache_thread(void)
                 cpu_boost(false);
                 usb_acknowledge(SYS_USB_CONNECTED_ACK, ev.data);
                 usb_wait_for_disconnect(&tagcache_queue);
+                /* owed after all, the menu's word come late: its post was
+                   dropped by the wait. A sync of that connection is taken
+                   in as the menu shows next. */
+                if (covers_pass_owed)
+                {
+                    covers_pass();
+                    if (itunesdb_changed())
+                        library_update_after_usb();
+                }
                 break ;
         }
     }
@@ -9991,7 +10082,7 @@ void tagcache_init(void)
     if (sync_found || !itunesdb_gains_ready() || !itunesdb_sort_ready()
         || !itunesdb_flags_ready() || !itunesdb_notes_ready()
 #ifdef ITUNESDB_HAVE_ART
-        || !itunesdb_large_art_ready()
+        || !itunesdb_large_art_ready() || itunesdb_art_orphaned()
 #endif
         )
         import_phase = TAGCACHE_IMPORT_READING;

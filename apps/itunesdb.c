@@ -50,6 +50,7 @@
 #include "metadata.h"
 #include "fixedpoint.h"
 #include "itunesdb.h"
+#include "synced_covers.h"
 #include "health_log.h"
 #include "crc32.h"
 #include "sortkey.h"
@@ -3876,17 +3877,18 @@ static unsigned flags_changes;
 /* the version of the file the import found, whose entries are in memory
    until its own are written: 0 for none */
 static int flags_old_version;
-/* and the import is a sync's, whose pass takes the Mac's places */
-static bool flags_synced;
+/* and the import is of an iTunesDB not taken in yet, a sync's: its pass
+   takes the Mac's places. The covers' pass may be the first over it */
+static bool flags_new_itunesdb;
 
 /* An import begins: the flags of the one before stay in memory, and their
    file where it is, for this one's to go by */
-static void flags_import_begin(bool synced)
+static void flags_import_begin(bool new_itunesdb)
 {
     while (flags_busy)
         sleep(1);
     flags_busy = true;
-    flags_synced = synced;
+    flags_new_itunesdb = new_itunesdb;
     flags_old_version = FLAGS_VERSION;
     if (flags_index.handle <= 0)
     {
@@ -3927,11 +3929,11 @@ static uint32_t spoken_marks(const struct track *t)
         marks |= old.flags & ITUNESDB_UNPLAYED;
     else if (mac_unplayed)
         marks |= ITUNESDB_UNPLAYED;
-    /* Only a sync's import is followed by the pass. A track new to the
+    /* Only the pass over an iTunesDB not taken in yet. A track new to the
        flags, a bookmark moved, or the Mac's mark turned to played, which
        takes the iPod's place with it; an older version's bookmark counts as
        the same: it had none of a book's. One not taken yet stays so. */
-    if (flags_synced && (!had || (marked && (old.bookmark != t->bookmark
+    if (flags_new_itunesdb && (!had || (marked && (old.bookmark != t->bookmark
                                              || (!same && !mac_unplayed)))))
         marks |= ITUNESDB_PLACE_FROM_MAC;
     else if (marked)
@@ -5392,6 +5394,19 @@ done:
     return placed;
 }
 
+/* The artwork is back in place without its index: an index of no version,
+   which the next boot's import makes anew, should the one now be cut */
+void itunesdb_art_due(void)
+{
+    const uint32_t stub[2] = { ART_MAGIC, 0 };
+    const int fd = open(ART_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fd >= 0)
+    {
+        write(fd, stub, sizeof(stub));
+        close(fd);
+    }
+}
+
 /* The index lives in memory, and each frame is read once for all the sizes
    a theme shows it at, into a buffer of its own */
 
@@ -5659,6 +5674,13 @@ static bool large_made(struct large_header *h)
     return made;
 }
 
+/* An index of this version whose ArtworkDB is gone, as set aside and the
+   import after it cut: itunesdb_load_tracks() has the boot import for it */
+bool itunesdb_art_orphaned(void)
+{
+    return art_sum() && !file_exists(ARTWORKDB_FILE);
+}
+
 bool itunesdb_large_art_ready(void)
 {
     struct large_header h;
@@ -5676,6 +5698,11 @@ static bool load_large(void)
     if (large_ok)
         large_hdr = h;
     return made;
+}
+
+uint32_t itunesdb_art_count(void)
+{
+    return art_index.handle > 0 ? index_hdr.count : 0;
 }
 
 bool itunesdb_has_large_art(void)
@@ -7398,8 +7425,11 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     else
         itunesdb_forget_metadata();
     /* the pass made again over the same iTunesDB (itunesdb_pass_due()) has
-       nothing new from the Mac: no place of its to take over the iPod's */
-    flags_import_begin(synced && itunesdb_changed());
+       nothing new from the Mac: no place of its to take over the iPod's.
+       One without a sync over an iTunesDB whose sync is still to be taken
+       in, as Rebuild Synced Covers' then, takes them as that sync's would:
+       its import after keeps them, and would see no bookmark moved */
+    flags_import_begin(itunesdb_changed());
     remove(GAINS_FILE);
 #ifdef ITUNESDB_HAVE_ART
     /* the old covers point into ithmb files Finder has rewritten; their
@@ -7412,7 +7442,13 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     kept_commitid = tagcache_get_commitid();
     bool art_placed = false;
     forget_art();
-    remove(ART_FILE);
+    /* with artwork there, an index of no version until the new one is in
+       place: cut short, the next boot's import makes it
+       (itunesdb_load_tracks()), also when nothing else is left to make */
+    if (file_exists(ARTWORKDB_FILE))
+        itunesdb_art_due();
+    else
+        remove(ART_FILE);
     remove(LARGE_FILE);
 #endif
     sort_fields_begin();
@@ -7450,6 +7486,9 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
         menu_cover_kept_forget();
     }
 #endif
+    /* no index of this artwork: none due either */
+    if (!art_placed)
+        remove(ART_FILE);
 #endif
     /* no iTunesDB: no flags, as before. One that couldn't be read leaves
        the old ones, with the marks made on the iPod, for the next try */
@@ -7484,6 +7523,14 @@ bool itunesdb_load_tracks(void)
     load_colours();
     /* read here also with no index, for itunesdb_covers_identity() */
     art_sum();
+    /* an index of artwork that is gone, as set aside and the import after
+       it cut: the import now, which has none then */
+    if (itunesdb_art_orphaned())
+        return false;
+    /* the artwork set aside for the computer to make anew goes once covers
+       of the new are in the index; here, as a cut after the import's index
+       has no import at the next boot */
+    synced_covers_imported(art_index.handle > 0 && index_hdr.count > 0);
     /* the larger frames go with this index or not at all; an index without
        their file, as one an older firmware made: the import once more */
     if (art_index.handle > 0 && !load_large())

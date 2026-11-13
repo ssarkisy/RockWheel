@@ -58,6 +58,9 @@ void root_menu(void) NORETURN_ATTR;
 #ifdef HAVE_TAGCACHE
 /* the boot logo and the import's progress, while there is an import */
 void show_library_update(void);
+/* the bytes of text's first line in width, in the UI's font: up to a space,
+   or the characters that fit in a line with none */
+int text_line_bytes(const unsigned char *text, int width);
 /* After USB, once the screen it came in has closed: from within a plugin's,
    it took the plugins' buffer from under the plugin itself */
 void library_update_after_usb(void);

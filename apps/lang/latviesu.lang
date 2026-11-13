@@ -22483,3 +22483,115 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_REBUILD_COVERS
+  desc: a row of Settings, before Reset Settings, an action with no value: the covers the computer put on the iPod at a sync are set aside, and the next sync makes every one again. 'Synced' is the covers that come with a sync, not the ones inside the songs' files
+  user: core
+  <source>
+    *: "Rebuild Synced Covers"
+  </source>
+  <dest>
+    *: "Izveidot sinhronizētos vākus no jauna"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_REBUILD_COVERS
+  desc: the hint in the band under Settings while Rebuild Synced Covers is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+  </source>
+  <dest>
+    *: "Nākamajā sinhronizācijā dators visus vākus izveido no jauna, ar asiem galvenajai izvēlnei."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REBUILD_COVERS_ABOUT
+  desc: on the question's screen of Rebuild Synced Covers, wrapped in lines: one sentence, as the hint under the row has said what it is for: until the next sync the synced covers are missing. Finder and Mac are names kept as they are
+  user: core
+  <source>
+    *: "Until the next sync with Finder on a Mac, synced covers are not shown."
+  </source>
+  <dest>
+    *: "Līdz nākamajai sinhronizācijai ar Finder Mac datorā sinhronizētie vāki netiek rādīti."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REBUILD_COVERS_SPACE
+  desc: under it, a line: the free space the new covers need, then the free space on the iPod, each a size with its unit as '3.2 GB'; both %s kept in this order
+  user: core
+  <source>
+    *: "Space needed: %s. Free: %s."
+  </source>
+  <dest>
+    *: "Vajadzīgā vieta: %s. Brīva: %s."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REBUILD_COVERS_MUSIC_STOPS
+  desc: last on the question's screens of Rebuild Synced Covers, only while music plays: confirming stops it
+  user: core
+  <source>
+    *: "Music will stop."
+  </source>
+  <dest>
+    *: "Mūzika apstāsies."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REBUILD_COVERS_NEXT_SYNC
+  desc: a message after Rebuild Synced Covers is confirmed, and the first lines of its screen when selected again before a sync
+  user: core
+  <source>
+    *: "The covers will be made at the next sync."
+  </source>
+  <dest>
+    *: "Vāki tiks izveidoti nākamajā sinhronizācijā."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REBUILD_COVERS_PUT_BACK
+  desc: the question of Rebuild Synced Covers selected again before a sync: Select brings back the covers that were set aside
+  user: core
+  <source>
+    *: "Put the old covers back?"
+  </source>
+  <dest>
+    *: "Vai atlikt atpakaļ vecos vākus?"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REBUILD_COVERS_CANNOT
+  desc: a message of Rebuild Synced Covers on an iPod where it can't be done; nothing was changed
+  user: core
+  <source>
+    *: "Covers can't be rebuilt on this iPod."
+  </source>
+  <dest>
+    *: "Šajā iPod vākus nevar izveidot no jauna."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

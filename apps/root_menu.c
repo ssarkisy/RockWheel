@@ -1645,7 +1645,7 @@ static bool library_playlists_go_on(void)
 
 /* the bytes of text's first line in width: up to a space, or the characters
    that fit in a line with none, as in Chinese */
-static int line_bytes(const unsigned char *text, int width)
+int text_line_bytes(const unsigned char *text, int width)
 {
     int w, h;
     int fit = font_measurestring(text, -1, width, &w, &h, FONT_UI);
@@ -1674,7 +1674,7 @@ static void library_no_space_show(void)
     while (*text && n < 4)
     {
         lines[n] = text;
-        lens[n] = line_bytes(text, width);
+        lens[n] = text_line_bytes(text, width);
         text += lens[n++];
         while (*text == ' ')
             text++;

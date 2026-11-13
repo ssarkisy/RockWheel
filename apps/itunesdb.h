@@ -229,9 +229,17 @@ struct itunesdb_large_art {
 bool itunesdb_find_large_art(const char *path, struct itunesdb_large_art *art);
 /* some cover has one: known without the disk */
 bool itunesdb_has_large_art(void);
+/* the songs with a cover of the computer's, by the index in memory */
+uint32_t itunesdb_art_count(void);
+/* the artwork was put back in place: its index is made at the next boot's
+   import, unless one is before */
+void itunesdb_art_due(void);
 /* false if the cover index on the disk has no file of them made for it, as
    one an older firmware wrote: the import makes it, once */
 bool itunesdb_large_art_ready(void);
+/* the cover index on the disk is of artwork that is gone: the import, which
+   removes it */
+bool itunesdb_art_orphaned(void);
 /* What Finder's covers and the made ones are now, as a number that changes
    when either's index does: for what is kept of them elsewhere. Without the
    disk; 0 until the indexes are loaded. */

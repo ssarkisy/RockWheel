@@ -32,6 +32,7 @@
 #include "font.h"
 #include "file.h"
 #include "menu.h"
+#include "itunesdb.h"
 #include "onplay.h"
 #include "transition.h"
 #include "button.h"
@@ -188,8 +189,17 @@ static const struct {
 #endif
 };
 
+#if defined(HAVE_TAGCACHE) && defined(ITUNESDB_HAVE_ART)
+extern const struct menu_item_ex rebuild_covers_item;
+#endif
+
 static const char *item_hint(const struct menu_item_ex *item)
 {
+#if defined(HAVE_TAGCACHE) && defined(ITUNESDB_HAVE_ART)
+    /* an action, which has no variable */
+    if (item == &rebuild_covers_item)
+        return str(LANG_HINT_REBUILD_COVERS);
+#endif
     if ((item->flags & MENU_TYPE_MASK) != MT_SETTING)
         return NULL;
     for (unsigned i = 0; i < ARRAYLEN(hints); i++)

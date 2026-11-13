@@ -52,6 +52,11 @@
 #include "disk.h"
 #include "tagcache.h"
 #include "itunesdb.h"
+#include "synced_covers.h"
+#include "root_menu.h"
+#include "gui/skin_engine/menu_cover.h"
+#include "gcc_extensions.h"
+#include "viewport.h"
 #include "core_alloc.h"
 #include "file.h"
 
@@ -104,6 +109,176 @@ MENUITEM_FUNCTION_W_PARAM(save_sound_item, 0, ID2P(LANG_SAVE_SOUND),
                           NULL, Icon_NOICON);
 MENUITEM_FUNCTION(reset_settings_item, 0, ID2P(LANG_RESET),
                   reset_settings, NULL, Icon_NOICON);
+
+#if defined(HAVE_TAGCACHE) && defined(ITUNESDB_HAVE_ART)
+/* Rebuild Synced Covers: the computer's artwork is set aside, and the next
+   sync makes every cover again, with the frames the main menu's cover is
+   read from. Pressed again before that sync, it offers the old ones back. */
+#define COVERS_LINES    10
+#define COVERS_LINE     128
+/* what a song's covers take in all of Finder's sizes: frames of 20,000,
+   80,000 and 153,600 bytes, and its part of ArtworkDB */
+#define COVERS_KB       254
+#define COVERS_MARGIN   (32 * 1024) /* KB left free past them */
+
+struct covers_text
+{
+    char text[COVERS_LINES][COVERS_LINE];
+    const char *lines[COVERS_LINES];
+    int count;
+};
+
+/* the text in the lines of the question's screen, by words */
+static void covers_text_add(struct covers_text *t, const unsigned char *text)
+{
+    struct viewport vp;
+    viewport_set_defaults(&vp, SCREEN_MAIN);
+    const int width = vp.width - 2 * global_settings.list_text_padding - 12;
+    while (*text && t->count < COVERS_LINES)
+    {
+        const int len = text_line_bytes(text, width);
+        strmemccpy(t->text[t->count], text, MIN(len + 1, COVERS_LINE));
+        t->lines[t->count] = t->text[t->count];
+        t->count++;
+        text += len;
+        while (*text == ' ')
+            text++;
+    }
+}
+
+/* In units of 1000, as the main menu's "49 GB Free", with a tenth under
+   100 GB: what is needed rounded up and what is free down, neither shown as
+   more room than there is. The comparison is exact: within a tenth of the
+   limit the two can read the other way round. */
+static void covers_size(char *buf, size_t len, sector_t kib, bool up)
+{
+    const uint64_t bytes = (uint64_t)kib * 1024;
+    const bool gb = bytes >= 1000000000;
+    const bool tenths = gb && bytes < 100000000000ull;
+    const uint32_t unit = !gb ? 1000000 : tenths ? 100000000 : 1000000000;
+    const int n = (bytes + (up ? unit - 1 : 0)) / unit;
+    /* the phrase with its number, which then gets its tenth */
+    char whole[24], number[16];
+    snprintf(whole, sizeof(whole), str(gb ? LANG_ABOUT_GB : LANG_ABOUT_MB),
+             tenths ? n / 10 : n);
+    snprintf(number, sizeof(number), "%d", n / 10);
+    const char *at = tenths ? strstr(whole, number) : NULL;
+    if (at)
+        snprintf(buf, len, "%.*s%d%s%d%s", (int)(at - whole), whole, n / 10,
+                 str(LANG_POINT), n % 10, at + strlen(number));
+    else
+        strmemccpy(buf, whole, len);
+}
+
+/* The questions' screens, their texts gone from the stack before Updating
+   Library, which the main thread's 8 KB are for: true for Select.
+   put_back: the old covers back; else the new artwork beside the old, which
+   stays until it is there, and false also with no room for it, after saying so. */
+static NO_INLINE bool covers_ask(bool put_back, bool playing)
+{
+    struct covers_text t;
+    t.count = 0;
+    if (put_back)
+    {
+        covers_text_add(&t, str(LANG_REBUILD_COVERS_NEXT_SYNC));
+        covers_text_add(&t, str(LANG_REBUILD_COVERS_PUT_BACK));
+    }
+    else
+    {
+        sector_t size, free;
+        volume_size(IF_MV(0,) &size, &free);
+        const sector_t needed = (sector_t)itunesdb_art_count() * COVERS_KB
+                                + COVERS_MARGIN;
+        char needed_text[24], free_text[24], space[COVERS_LINE];
+        covers_size(needed_text, sizeof(needed_text), needed, true);
+        covers_size(free_text, sizeof(free_text), free, false);
+        snprintf(space, sizeof(space), str(LANG_REBUILD_COVERS_SPACE),
+                 needed_text, free_text);
+        if (free < needed)
+        {
+            splashf(HZ * 5, "%s\n%s", str(LANG_NOT_ENOUGH_SPACE), space);
+            return false;
+        }
+        covers_text_add(&t, str(LANG_REBUILD_COVERS_ABOUT));
+        covers_text_add(&t, space);
+    }
+    if (playing)
+        covers_text_add(&t, str(LANG_REBUILD_COVERS_MUSIC_STOPS));
+    const struct text_message message = { t.lines, t.count };
+    return gui_syncyesno_run_w_title(str(LANG_REBUILD_COVERS), &message,
+                                     NULL, NULL) == YESNO_YES;
+}
+
+static int rebuild_covers(void)
+{
+    const bool playing = audio_status() != 0;
+    const bool put_back = synced_covers_waiting();
+    /* an import still under way behind the menus, as one USB cut short:
+       the covers' index couldn't be made for the change */
+    if (!tagcache_covers_can_change())
+    {
+        splash(HZ * 3, ID2P(LANG_TAGCACHE_BUSY));
+        return 0;
+    }
+    enum synced_covers_description described = DESCRIPTION_READY;
+    if (!put_back)
+    {
+        /* it takes memory: under music after the question, which stops it */
+        if (!playing)
+            described = synced_covers_describe();
+        if (described == DESCRIPTION_UNKNOWN)
+        {
+            splash(HZ * 3, ID2P(LANG_REBUILD_COVERS_CANNOT));
+            return 0;
+        }
+        /* none to set aside: the next sync makes them as it is */
+        if (!synced_covers_present())
+        {
+            splash(HZ * 3, ID2P(LANG_REBUILD_COVERS_NEXT_SYNC));
+            return 0;
+        }
+    }
+    if (!covers_ask(put_back, playing))
+        return 0;
+    if (playing)
+    {
+        audio_stop();
+        if (!put_back)
+            described = synced_covers_describe();
+    }
+    /* the import is taken before the folder is renamed: none other starts
+       between, and the index is never left for artwork that moved */
+    bool moved = false;
+    const bool taken = described != DESCRIPTION_UNKNOWN
+                       && tagcache_covers_changing();
+    if (taken)
+    {
+        moved = put_back ? synced_covers_put_back() : synced_covers_set_aside();
+        /* the covers' index for the artwork as it is now */
+        tagcache_covers_changed(moved);
+    }
+    if (moved)
+    {
+        show_library_update();
+        /* USB, come before the pass could be made, cut the screen short:
+           the pass is made after it, and is waited for here too */
+        int done, total;
+        if (tagcache_get_import(&done, &total) != TAGCACHE_IMPORT_NONE)
+            show_library_update();
+        /* the cover of the song to resume, by the artwork as it is now */
+        menu_cover_resume_look();
+    }
+    if (put_back ? !moved : moved)
+        splash(HZ * 3, ID2P(LANG_REBUILD_COVERS_NEXT_SYNC));
+    else if (!put_back)
+        splash(HZ * 3, taken || described == DESCRIPTION_UNKNOWN ?
+               ID2P(LANG_REBUILD_COVERS_CANNOT) : ID2P(LANG_TAGCACHE_BUSY));
+    return 0;
+}
+
+MENUITEM_FUNCTION(rebuild_covers_item, 0, ID2P(LANG_REBUILD_COVERS),
+                  rebuild_covers, NULL, Icon_NOICON);
+#endif
 
 MAKE_MENU(manage_settings, ID2P(LANG_MANAGE_MENU), NULL, Icon_Config,
           &browse_configs, &reset_settings_item,
@@ -711,7 +886,11 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &timedate_item,
 #endif
         &language_item,
-        &show_legal_item, &reset_settings_item,
+        &show_legal_item,
+#if defined(HAVE_TAGCACHE) && defined(ITUNESDB_HAVE_ART)
+        &rebuild_covers_item,
+#endif
+        &reset_settings_item,
         );
 /*    MAIN MENU                    */
 /***********************************/
