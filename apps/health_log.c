@@ -41,6 +41,12 @@
 #define HAVE_FAT_LINES /* firmware/common/fat.c is built */
 #endif
 
+#if defined(HAVE_USBSTACK) && CONFIG_USBOTG == USBOTG_ARC \
+    && (CONFIG_PLATFORM & PLATFORM_NATIVE)
+#include "usb_drv.h"
+#define HAVE_USB_COUNTERS /* firmware/target/arm/usb-drv-arc.c is built */
+#endif
+
 #define HEALTH_FILE     ROCKBOX_DIR "/health.log"
 #define HEALTH_OLD_FILE ROCKBOX_DIR "/health.old.log"
 #define HEALTH_FILE_MAX (64 * 1024) /* set aside as the old one from this size */
@@ -153,6 +159,50 @@ static inline void ata_line_written(void)
 }
 #endif
 
+#ifdef HAVE_USB_COUNTERS
+/* The bus's counters on a line with the flush's second, when one has grown
+   since the last line written: as the computer connects next, or at power
+   off, never while it has the disk. Its length, 0 for none. */
+static unsigned int usb_noted, usb_seen;
+
+static int usb_line(char *line, size_t size)
+{
+    const struct usb_drv_counters *c = usb_drv_get_counters();
+
+    usb_seen = c->resets + c->error_ints + c->halted + c->buffer_errors
+               + c->xact_errors + c->prime_failed;
+    if (usb_seen == usb_noted)
+        return 0;
+    int len = snprintf(line, size, "%ld usb: resets in use %u; error"
+                " interrupts %u; transfers halted %u, buffer %u, no answer"
+                " %u; not taken %u\n", current_tick / HZ, c->resets,
+                c->error_ints, c->halted, c->buffer_errors, c->xact_errors,
+                c->prime_failed);
+    if (len >= (int)size) /* cut: it still ends its line */
+    {
+        len = size - 1;
+        line[len - 1] = '\n';
+    }
+    return len;
+}
+
+static inline void usb_line_written(void)
+{
+    usb_noted = usb_seen;
+}
+#else
+static inline int usb_line(char *line, size_t size)
+{
+    (void)line;
+    (void)size;
+    return 0;
+}
+
+static inline void usb_line_written(void)
+{
+}
+#endif
+
 #ifdef HAVE_FAT_LINES
 static bool free_noted; /* since boot */
 
@@ -218,15 +268,16 @@ void health_flush(void)
     if (!free_noted) /* the first flush since boot, if no USB came before */
         health_note_free();
 #endif
-    /* the drive's line and the FAT's go to the file itself, after the lines
-       kept: they need no room among them */
-    char drive[NOTE_MAX], fat[NOTE_MAX];
+    /* the drive's line, the bus's and the FAT's go to the file itself, after
+       the lines kept: they need no room among them */
+    char drive[NOTE_MAX], usb[NOTE_MAX], fat[NOTE_MAX];
     const int drive_len = ata_line(drive, sizeof(drive));
+    const int usb_len = usb_line(usb, sizeof(usb));
     const int fat_len = fat_line(fat, sizeof(fat));
     /* lines that come while this writes wait for the next time */
     const int len = notes_len;
     const int lost = notes_lost;
-    if (!len && !drive_len && !fat_len)
+    if (!len && !drive_len && !usb_len && !fat_len)
         return;
 
     int fd = open(HEALTH_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -263,6 +314,7 @@ void health_flush(void)
         ok = write(fd, text, n) == n;
     }
     ok = ok && (!drive_len || write(fd, drive, drive_len) == drive_len)
+            && (!usb_len || write(fd, usb, usb_len) == usb_len)
             && (!fat_len || write(fd, fat, fat_len) == fat_len);
     /* none of it rather than a part: it is all written again next time */
     if (!ok)
@@ -272,6 +324,8 @@ void health_flush(void)
 
     if (drive_len)
         ata_line_written();
+    if (usb_len)
+        usb_line_written();
     if (fat_len)
         fat_line_written();
     notes_len -= len;

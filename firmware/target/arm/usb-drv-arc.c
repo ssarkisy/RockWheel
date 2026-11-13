@@ -345,6 +345,21 @@ static struct queue_head qh_array[USB_NUM_ENDPOINTS*2]
 
 static int pending_device_address = -1;
 
+/* written in the interrupt and in prime_transfer() with interrupts off */
+static struct usb_drv_counters counters;
+static bool bulk_done; /* a transfer other than control since the last bus reset */
+/* A bus reset after such transfers, counted only once a transfer other than
+   control is done after it: the connection went on after it. Pulling the
+   cable can look like a reset to the controller, which runs on until the
+   iPod sees the power gone, HZ/5 later: counted at once, that made one at
+   the end of every clean connection */
+static bool reset_pending;
+
+const struct usb_drv_counters *usb_drv_get_counters(void)
+{
+    return &counters;
+}
+
 static struct semaphore transfer_completion_signal[USB_NUM_ENDPOINTS*2]
     SHAREDBSS_ATTR;
 
@@ -502,6 +517,10 @@ static void init_endpoint(int ep, int type, int mps) {
 /* manual: 32.14.1 Device Controller Initialization */
 void usb_drv_init(void)
 {
+    /* a connection's first reset begins it: left set from the last
+       connection, this counted that reset as one of a connection in use */
+    bulk_done = false;
+    reset_pending = false;
     /* USB core decides */
     usb_drv_reset();
 
@@ -567,6 +586,10 @@ void usb_drv_int(void)
     /* Reset invalidates all old completions, including the audio ring.
      * Do not dispatch a simultaneous SOF or IOC using stale descriptors. */
     if (status & USBSTS_RESET) {
+        if (bulk_done) {
+            reset_pending = true;
+            bulk_done = false;
+        }
         REG_USBSTS = status;
         bus_reset();
         address_status = false;
@@ -597,6 +620,7 @@ void usb_drv_int(void)
     /* error interrupt */
     if (status & USBSTS_ERR) {
         REG_USBSTS = USBSTS_ERR;
+        counters.error_ints++;
         logf("usb error int");
     }
 
@@ -1006,8 +1030,13 @@ static int prime_transfer(int ep_num, void* ptr, int len, bool send, bool wait)
     }
 
 pt_error:
-    if(rc<0)
+    if(rc<0) {
+        /* -1 is a bus reset come in between and -4 a new SETUP: neither
+           is the controller's doing */
+        if(rc == -2 || rc == -3)
+            counters.prime_failed++;
         restore_irq(oldlevel);
+    }
 
     /* Error status must make sure an abandoned wakeup signal isn't left */
     if (rc < 0 && wait) {
@@ -1142,6 +1171,14 @@ static void transfer_completed(void)
                         logf("skip half finished transfer");
                         goto Lskip;
                     }
+                    if(ep != EP_CONTROL) {
+                        if(td->size_ioc_sts & DTD_STATUS_HALTED)
+                            counters.halted++;
+                        if(td->size_ioc_sts & DTD_STATUS_DATA_BUFF_ERR)
+                            counters.buffer_errors++;
+                        if(td->size_ioc_sts & DTD_STATUS_TRANSACTION_ERR)
+                            counters.xact_errors++;
+                    }
                     length += ((td->reserved & DTD_RESERVED_LENGTH_MASK) -
                         ((td->size_ioc_sts & DTD_PACKET_SIZE) >> DTD_LENGTH_BIT_POS));
                     td=(struct transfer_descriptor*) td->next_td_ptr;
@@ -1158,6 +1195,13 @@ static void transfer_completed(void)
                 if(qh->wait) {
                     qh->wait=0;
                     semaphore_release(&transfer_completion_signal[pipe]);
+                }
+                if(ep != EP_CONTROL) {
+                    bulk_done = true;
+                    if (reset_pending) {
+                        counters.resets++;
+                        reset_pending = false;
+                    }
                 }
 
                 complete_transfer(ep, dir?USB_DIR_IN:USB_DIR_OUT,

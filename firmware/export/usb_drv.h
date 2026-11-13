@@ -117,6 +117,25 @@ int usb_drv_port_speed(void);
 void usb_drv_cancel_all_transfers(void);
 void usb_drv_set_test_mode(int mode);
 bool usb_drv_connected(void);
+
+#if CONFIG_USBOTG == USBOTG_ARC
+/* What went wrong on the bus since boot (usb-drv-arc.c), which nothing else
+   tells: a computer that gets no answer just resets the device and goes on */
+struct usb_drv_counters
+{
+    unsigned int resets;        /* bus resets after a transfer other than
+                                   control was done (bulk for the disk),
+                                   counted once such a transfer follows:
+                                   of a connection in use, not those it
+                                   begins with nor the unplugging */
+    unsigned int error_ints;    /* the controller's error interrupts */
+    unsigned int halted;        /* such transfers that ended halted, */
+    unsigned int buffer_errors; /* with data not taken or given in time, */
+    unsigned int xact_errors;   /* or with no good answer from the host */
+    unsigned int prime_failed;  /* transfers the controller didn't take */
+};
+const struct usb_drv_counters *usb_drv_get_counters(void);
+#endif
 #ifdef USB_HAS_ISOCHRONOUS
 /* returns the last received frame number (the 11-bit number contained in the last SOF):
  * - full-speed: the host sends one SOF every 1ms (so 1000 SOF/s)
