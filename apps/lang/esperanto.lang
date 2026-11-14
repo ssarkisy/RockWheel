@@ -10634,7 +10634,7 @@
 </phrase>
 <phrase>
   id: LANG_APPEARANCE
-  desc: a folder of Settings: all that changes the look, Dark Theme and Bold Text, Now Playing's cover colours and cover, and the iPod's or iOS's look of the status bar, the rating and the progress bar
+  desc: a folder of Settings: all that changes the look. The theme, its dark look and colour first, then sections for the lists, the main menu and Now Playing
   user: core
   <source>
     *: "Appearance"
@@ -14606,6 +14606,20 @@
   </source>
   <dest>
     *: "Kovriloj ne refareblas en ĉi tiu iPod."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_APPEARANCE_LISTS
+  desc: a section's name in Settings > Appearance, over the settings of the lists: Artist under Album, Covers in Lists, Scrollbar, Jump by Letter. Shown on its own bar, as a heading
+  user: core
+  <source>
+    *: "Lists"
+  </source>
+  <dest>
+    *: "Listoj"
   </dest>
   <voice>
     *: ""

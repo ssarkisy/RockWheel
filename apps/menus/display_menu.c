@@ -300,11 +300,21 @@ MENUITEM_SETTING(moving_cover_item, &global_settings.moving_cover,
                  moving_cover_callback);
 #endif
 
-/* Appearance, a folder of Settings: all that changes the look, the whole of
-   it first, then Music's lists', then Now Playing's */
+/* Appearance, a folder of Settings: all that changes the look, the theme
+   first, without a heading of its own, then a section each for the lists, the
+   main menu and Now Playing. A section whose rows are all hidden, by the
+   theme or with Album Art off, goes with them (init_menu_lists()) */
+MENUITEM_GROUP(appearance_group_lists, ID2P(LANG_APPEARANCE_LISTS));
+#ifdef HAVE_MENU_COVER
+MENUITEM_GROUP(appearance_group_main_menu, ID2P(LANG_MAIN_MENU));
+#endif
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+MENUITEM_GROUP(appearance_group_now_playing, ID2P(LANG_NOW_PLAYING));
+#endif
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &ui_theme_item, &dark_theme_item,
           &theme_colour_item,
+          &appearance_group_lists,
 #ifdef HAVE_TAGCACHE
           &album_artists_item,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
@@ -313,9 +323,11 @@ MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
 #endif
           &list_scrollbar_item, &jump_by_letter_item,
 #ifdef HAVE_MENU_COVER
+          &appearance_group_main_menu,
           &moving_cover_item,
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
+          &appearance_group_now_playing,
           &cover_colours_item, &status_icons_item, &angled_cover_item,
 #endif
           );
