@@ -395,7 +395,11 @@ int ata_flush(void)
 {
     if (ata_state >= ATA_SPINUP) {
         mutex_lock(&ata_mutex);
-        ata_perform_flush_cache();
+        /* looked at again under the lock, as ata_sleepnow() does: a drive
+           that went to standby meanwhile has nothing to flush, and a flush
+           could spin it up behind the driver's back */
+        if (ata_state == ATA_ON)
+            ata_perform_flush_cache();
         mutex_unlock(&ata_mutex);
     }
     return 0;
