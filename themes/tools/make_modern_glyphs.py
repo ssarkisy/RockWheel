@@ -5,7 +5,7 @@
 
 As make_theme_glyphs.py does Neo's, whose reader and writers it uses: names,
 sizes and frames are the manifest's, but for Playlists' marks, drawn by its
-catalogue_marks(). Written:
+catalogue_marks(); Shuffle's first frame is SHUFFLE_SONGS below. Written:
 
 - apps/gui/modern_glyphs.h: the masks the lists draw themselves (LIST below),
   as tables of alpha;
@@ -43,6 +43,25 @@ SKIN = {"Battery": None, "Playing Status": "ACCENT", "Hold": "ACCENT",
         "Night": "ACCENT", "Photos Pane": "MUTED", "Note Pane": None,
         "Repeat": "ACCENTTEXT", "Shuffle": "ACCENTTEXT", "Knob": "ACCENT",
         "Volume Left": "SMALL", "Note Playing": None, "Note Large": None}
+# Shuffle's first frame ('songs') instead of the export's, whose one diagonal
+# came out as two stubs: two curves crossing, one under the other with a gap,
+# drawn 16 times as large and box-filtered down; the strokes in and out and the
+# heads crisp, as Repeat's. Alpha, rows of 17. The second frame is the export's.
+SHUFFLE_SONGS = (
+    (  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 255,   0,   0,   0),
+    (  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 255, 255,   0,   0),
+    (255, 255, 255, 255, 179,  61,   0,   0,  61, 180, 222, 255, 255, 255, 255, 255,   0),
+    (255, 255, 255, 255, 255, 251,  75,  40, 251, 255, 255, 255, 255, 255, 255, 255,   0),
+    (  0,   0,   0,   0,  88, 237, 228,  28, 188,  88,   0,   0,   0, 255, 255,   0,   0),
+    (  0,   0,   0,   0,   0, 136, 243, 141,  30,   0,   0,   0,   0, 255,   0,   0,   0),
+    (  0,   0,   0,   0,   0,  21, 241, 235,  19,   0,   0,   0,   0,   0,   0,   0,   0),
+    (  0,   0,   0,   0,   0,  40, 141, 237, 124,   0,   0,   0,   0, 255,   0,   0,   0),
+    (  0,   0,   0,   0,  72, 198,  28, 230, 247,  72,   0,   0,   0, 255, 255,   0,   0),
+    (255, 255, 255, 255, 246, 249,  39,  75, 249, 246, 219, 255, 255, 255, 255, 255,   0),
+    (255, 255, 255, 255, 184,  63,   0,   0,  63, 184, 244, 255, 255, 255, 255, 255,   0),
+    (  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 255, 255,   0,   0),
+    (  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 255,   0,   0,   0),
+)
 # the set stars over the five unset ones' outlines, in one bitmap: name -> its
 # ground, the set ones' colour, and whether a first frame of the ground alone
 # is added (the small ones have no frame of none)
@@ -80,6 +99,10 @@ def main():
             f for f in g["files"] if "/%s/" % look in f)
         w, h, rows = read_png(os.path.join(folder, file), look is not None)
         assert w == g["width"] and h == g["height"] * g["frames"], (name, w, h)
+        if name == "Shuffle":
+            assert len(SHUFFLE_SONGS) == g["height"]
+            assert all(len(row) == w for row in SHUFFLE_SONGS)
+            rows = [bytes(row) for row in SHUFFLE_SONGS] + rows[g["height"]:]
         return g, rows
 
     out = ["/* Made by themes/tools/make_modern_glyphs.py from the mockups' export of",
