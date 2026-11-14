@@ -805,8 +805,9 @@ buflib_allocatable(struct buflib_context* ctx)
         }
 
         /* an unmovable section resets the count as free space
-         * can't be contigous */
-        if (!IS_MOVABLE(block))
+         * can't be contigous; a pinned block can't move either,
+         * as move_block() refuses it */
+        if (!IS_MOVABLE(block) || block[BUFLIB_IDX_PIN].pincount > 0)
         {
             if (max_free_space < free_space)
                 max_free_space = free_space;
@@ -816,6 +817,11 @@ buflib_allocatable(struct buflib_context* ctx)
 
     /* select the best */
     max_free_space = MAX(max_free_space, free_space);
+    /* a block in a hole needs room for its header too, as
+     * free_space_at_end() allows for; buflib_alloc_maximum() asks for
+     * exactly this size, which must fit */
+    max_free_space = max_free_space > BUFLIB_NUM_FIELDS ?
+                     max_free_space - BUFLIB_NUM_FIELDS : 0;
     max_free_space *= sizeof(union buflib_data);
     max_free_space = MAX(max_free_space, free_space_at_end(ctx));
 

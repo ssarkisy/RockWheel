@@ -1288,6 +1288,7 @@ void* plugin_get_buffer(size_t *buffer_size)
 /* Returns a pointer to the mp3 buffer.
    Playback gets stopped, to avoid conflicts.
    Talk buffer is stolen as well.
+   NULL with a size of 0 if the memory can't be had.
  */
 static void* plugin_get_audio_buffer(size_t *buffer_size)
 {
@@ -1295,12 +1296,19 @@ static void* plugin_get_audio_buffer(size_t *buffer_size)
     {
         plugin_buffer_handle = core_alloc_maximum(&plugin_buffer_size,
                                                   &buflib_ops_locked);
+        /* a failed one leaves no handle, and its size isn't what was given */
+        if (plugin_buffer_handle <= 0)
+        {
+            plugin_buffer_handle = 0;
+            plugin_buffer_size = 0;
+        }
     }
 
     if (buffer_size)
         *buffer_size = plugin_buffer_size;
 
-    return core_get_data(plugin_buffer_handle);
+    return plugin_buffer_handle > 0 ? core_get_data(plugin_buffer_handle)
+                                    : NULL;
 }
 
 static void plugin_release_audio_buffer(void)

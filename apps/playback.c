@@ -4423,6 +4423,9 @@ void audio_hard_stop(void)
 #endif
     /* Stop PCM */
     pcm_play_stop();
+    /* the next play lays out a new buffer instead of running on the freed
+       one: a ROLO that fails returns to the player */
+    buffer_state = AUDIOBUF_STATE_TRASHED;
     audiobuf_handle = core_free(audiobuf_handle);
 }
 
