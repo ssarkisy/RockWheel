@@ -279,6 +279,10 @@ static const struct tag_info legal_tags[] =
 
 
     TAG(SKIN_TOKEN_LIST_TITLE_TEXT,       "Lt" , "", SKIN_REFRESH_DYNAMIC),
+    /* %Lf(label): set when the screen's title (%Lt) is no wider than the
+       viewport of that label, in its font; or when there is no such
+       viewport. A theme gives a longer title another place by it */
+    TAG(SKIN_TOKEN_LIST_TITLE_FITS,       "Lf" , "S", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_LIST_ITEM_TEXT,        "LT", "|IS",  SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_LIST_ITEM_ROW,         "LR", "",  SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_LIST_ITEM_COLUMN,      "LC", "",  SKIN_REFRESH_DYNAMIC),

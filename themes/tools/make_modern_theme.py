@@ -98,15 +98,39 @@ def battery():
         f[0], f[1], f[2], "|".join([levels[0]] + levels + [levels[-1]] * 2))
 
 
+def glyphs_x(right=320 - MARGIN):
+    """the bar's glyphs' left columns: the battery, play or pause or the
+    padlock, Night Mode's moon"""
+    bat_x = right - SIZES["Battery"][0]
+    play_x = bat_x - 11 - SIZES["Playing_Status"][0]
+    moon_x = play_x - 6 - SIZES["Night"][0]
+    return bat_x, play_x, moon_x
+
+
+def long_title():
+    """A title wider than its place between the clock and the glyphs takes
+    the clock's too (%Lf): left-aligned from the margin to 6 px before the
+    leftmost glyph shown, the moon (longm), the playing status or the
+    padlock (longp), or the battery (long); never scrolled, ended in an
+    ellipsis if it is wider still. Its viewports, and which shows"""
+    bat_x, play_x, moon_x = glyphs_x()
+    out = []
+    for tag, x in (("longm", moon_x), ("longp", play_x), ("long", bat_x)):
+        out += ["%%Vl(%s,%d,%d,%d,14,2)%%Vf(INK)%%Vb(TOP)" % (tag, MARGIN, TEXT_Y,
+                                                            x - 6 - MARGIN),
+                "%al%nx%Lt"]
+    shown = "%Vd(longp)"
+    show = "%%?nN<%%Vd(longm)|%%?mh<%s|%%?mp<%%Vd(long)|%s|%s|%s|%s>>>" % ((shown,) * 5)
+    return "\n".join(out), "%%?Lf(title)<%%Vd(clock)%%Vd(title)|%s>" % show
+
+
 def status(right=320 - MARGIN, suffix=""):
     """The bar's glyphs, each where the mockup has it: the battery at the
     side margin, play or pause or the padlock left of it, Night Mode's moon
     left of those. From right leftwards; with suffix
     after their viewports' names for a second bar."""
     out = []
-    bat_x = right - SIZES["Battery"][0]
-    play_x = bat_x - 11 - SIZES["Playing_Status"][0]
-    moon_x = play_x - 6 - SIZES["Night"][0]
+    bat_x, play_x, moon_x = glyphs_x(right)
 
     def vp(tag, name, x):
         w, h, _ = SIZES[name]
@@ -152,7 +176,7 @@ SBS = """\
 {images}
 # beside the pane the bar is as wide as the menu: the clock and the glyphs,
 # no title; the pane has the screen's whole height
-%?LW<%VI(wide)%Vd(bar)%Vd(rule)%Vd(clock)%Vd(title){show}|%VI(half)%Vd(barh)%Vd(ruleh)%Vd(clock){showh}>
+%?LW<%VI(wide)%Vd(bar)%Vd(rule){title}{show}|%VI(half)%Vd(barh)%Vd(ruleh)%Vd(clock){showh}>
 # the pane by the row selected: Settings, Photos, or the music, which Extras has too
 %?LW<|%?LS<%Vd(pane)%Vd(ring)%Vd(about)|{music}|%Vd(pane)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|{music}>>
 # the cover fills the pane, nothing over it: Finder's 240 px frame, its middle
@@ -173,9 +197,11 @@ SBS = """\
 %Vl(ruleh,0,{bar_rows},{split},1,-)%Vb(RULE)
 %Vl(clock,{margin},{text_y},56,14,2)%Vf(INK)%Vb(TOP)
 %al%?cf<%cH:%cM|%cl:%cM>
-# the name given in Finder in the main menu; a menu's title
+# the name given in Finder in the main menu; a menu's title, which takes
+# the clock's place too if it is wider (long_title())
 %Vl(title,72,{text_y},168,14,2)%Vf(INK)%Vb(TOP)
-%s%ac%?if(%Li, =, 33)<%nn|%Lt>
+%ac%?if(%Li, =, 33)<%nn|%Lt>
+{long_vps}
 {vps}
 {vpsh}
 # the pane without a cover: a surface with a hairline at its left, and on it by the row
@@ -330,6 +356,7 @@ WPS = """\
 
 def sbs():
     vps, show = status()
+    long_vps, title = long_title()
     # the menu's bar: its glyphs end 8 px before the pane
     vpsh, showh = status(SPLIT - 8, "h")
     music = ("%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"
@@ -359,7 +386,7 @@ def sbs():
     note_y, stopped_y = block(note[1], CELL_14)
     normal_y = note_y + note[1] + PANE_GAP - CELL_17_SEMIBOLD[0]
     return fill(SBS, images=images(), show=show, vps=vps, showh=showh, vpsh=vpsh,
-                music=music, margin=MARGIN,
+                title=title, long_vps=long_vps, music=music, margin=MARGIN,
                 text_y=TEXT_Y, status=STATUS, bar_rows=STATUS - 1, list_top=LIST_TOP,
                 list_rows=LIST_ROWS, split=SPLIT, pane_w=pane_w, pane_h=240 - STATUS,
                 cover_x=SPLIT - cut, cover_y=0, cover_w=pane_w + cut,

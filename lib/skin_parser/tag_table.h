@@ -351,6 +351,10 @@ enum skin_token_type {
     SKIN_TOKEN_SUBSTRING,
 
     SKIN_TOKEN_DRAWRECTANGLE,
+
+    /* last, so that no other token's number moves: the screen's title fits
+       a viewport (%Lf) */
+    SKIN_TOKEN_LIST_TITLE_FITS,
 };
 
 /*

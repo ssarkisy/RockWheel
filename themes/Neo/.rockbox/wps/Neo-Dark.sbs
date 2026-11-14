@@ -6,7 +6,7 @@
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,0,0)
 %xl(N,Night.bmp,0,0)
-%?LW<%VI(wide)%Vd(rulewide)%Vd(clockwide)%Vd(titlewide)%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>|%VI(half)%Vd(rulehalf)%Vd(column)%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%Vd(hnamen1)>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%Vd(hnamen0)>>>
+%?LW<%VI(wide)%Vd(rulewide)%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>|%VI(half)%Vd(rulehalf)%Vd(column)%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen1p)|%?mp<%Vd(hnamen1)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)>>>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen0p)|%?mp<%Vd(hnamen0)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)>>>>>
 # the pane by the row selected: Settings, Photos, or the music, which Extras has too
 %?LW<|%?LS<%Vd(surface)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(surface)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
 # the cover fills the pane, nothing over it: Finder's 240 px frame, its middle 160
@@ -23,11 +23,21 @@
 %Vl(rulewide,0,20,320,1,-)%Vb(313029)
 %Vl(rulehalf,0,20,159,1,-)%Vb(313029)
 %Vl(column,159,0,1,240,-)%Vb(313029)
-# a screen that takes the whole width: the clock, its title, the glyphs
+# a screen that takes the whole width: the clock, its title, the glyphs;
+# a title wider than its place between them takes the clock's too
+# (%Lf, title_vps())
 %Vl(clockwide,14,2,64,15,3)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(titlewide,84,2,152,15,3)%Vf(EFEBE7)
-%s%ac%Lt
+%ac%Lt
+%Vl(longn0p,14,2,253,15,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(longn0,14,2,267,15,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(longn1p,14,2,237,15,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(longn1,14,2,251,15,3)%Vf(EFEBE7)
+%al%nx%Lt
 %Vl(bat,287,4,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(playn0,273,4,8,10,-)
@@ -44,14 +54,18 @@
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(hplayn0,113,4,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(hnamen0,14,2,93,15,3)%Vf(EFEBE7)
-%al%s%Lt
+%Vl(hnamen0p,14,2,93,15,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(hnamen0,14,2,107,15,3)%Vf(EFEBE7)
+%al%nx%Lt
 %Vl(hmoon,111,4,10,10,-)
 %xd(N)
 %Vl(hplayn1,97,4,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(hnamen1,14,2,77,15,3)%Vf(EFEBE7)
-%al%s%Lt
+%Vl(hnamen1p,14,2,77,15,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(hnamen1,14,2,91,15,3)%Vf(EFEBE7)
+%al%nx%Lt
 # the pane without a cover: a surface, and on it by the row
 %Vl(surface,160,0,160,240,-)%Vb(312C29)
 # Settings: the disk's use as a ring round (240, 96), the used part in the

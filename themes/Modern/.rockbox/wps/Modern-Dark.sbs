@@ -11,7 +11,7 @@
 %xl(N,Night.bmp,0,0)
 # beside the pane the bar is as wide as the menu: the clock and the glyphs,
 # no title; the pane has the screen's whole height
-%?LW<%VI(wide)%Vd(bar)%Vd(rule)%Vd(clock)%Vd(title)%Vd(bat)%Vd(play)%?nN<%Vd(moon)>|%VI(half)%Vd(barh)%Vd(ruleh)%Vd(clock)%Vd(bath)%Vd(playh)%?nN<%Vd(moonh)>>
+%?LW<%VI(wide)%Vd(bar)%Vd(rule)%?Lf(title)<%Vd(clock)%Vd(title)|%?nN<%Vd(longm)|%?mh<%Vd(longp)|%?mp<%Vd(long)|%Vd(longp)|%Vd(longp)|%Vd(longp)|%Vd(longp)>>>>%Vd(bat)%Vd(play)%?nN<%Vd(moon)>|%VI(half)%Vd(barh)%Vd(ruleh)%Vd(clock)%Vd(bath)%Vd(playh)%?nN<%Vd(moonh)>>
 # the pane by the row selected: Settings, Photos, or the music, which Extras has too
 %?LW<|%?LS<%Vd(pane)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(pane)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
 # the cover fills the pane, nothing over it: Finder's 240 px frame, its middle
@@ -32,9 +32,16 @@
 %Vl(ruleh,0,23,160,1,-)%Vb(202429)
 %Vl(clock,12,5,56,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%?cf<%cH:%cM|%cl:%cM>
-# the name given in Finder in the main menu; a menu's title
+# the name given in Finder in the main menu; a menu's title, which takes
+# the clock's place too if it is wider (long_title())
 %Vl(title,72,5,168,14,2)%Vf(FFFFFF)%Vb(101010)
-%s%ac%?if(%Li, =, 33)<%nn|%Lt>
+%ac%?if(%Li, =, 33)<%nn|%Lt>
+%Vl(longm,12,5,229,14,2)%Vf(FFFFFF)%Vb(101010)
+%al%nx%Lt
+%Vl(longp,12,5,245,14,2)%Vf(FFFFFF)%Vb(101010)
+%al%nx%Lt
+%Vl(long,12,5,266,14,2)%Vf(FFFFFF)%Vb(101010)
+%al%nx%Lt
 %Vl(bat,284,7,24,10,-)%Vb(101010)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(play,263,7,10,10,-)%Vb(101010)

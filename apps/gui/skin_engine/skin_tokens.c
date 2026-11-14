@@ -1480,6 +1480,18 @@ const char *get_token_value(struct gui_wps *gwps,
             goto gtv_ret_numeric_tag_info;
         case SKIN_TOKEN_LIST_TITLE_TEXT:
             return sb_get_title(gwps->display->screen_type);
+        case SKIN_TOKEN_LIST_TITLE_FITS:
+        {
+            /* one string's width a time the bar is drawn */
+            const struct skin_viewport *svp = skin_find_item(
+                SKINOFFSETTOPTR(get_skin_buffer(data), token->value.data),
+                SKIN_FIND_VP, data);
+            const char *title = sb_get_title(gwps->display->screen_type);
+            int width = 0;
+            if (svp && title)
+                font_getstringsize(title, &width, NULL, svp->vp.font);
+            return !svp || width <= svp->vp.width ? "f" : NULL;
+        }
         case SKIN_TOKEN_LIST_TITLE_ICON:
             numeric_ret = sb_get_icon(gwps->display->screen_type);
             itoa_buf(buf, buf_size, numeric_ret);

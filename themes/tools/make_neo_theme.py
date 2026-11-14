@@ -98,15 +98,38 @@ def battery():
         f[0], f[1], f[2], "|".join([levels[0]] + levels + [levels[-1]] * 2))
 
 
+def title_vps(label, night, rooms, text):
+    """A title left of the glyphs, from the margin to a gap before the
+    leftmost one shown: the playing status's place (<label>n<night>p), or the
+    moon or the battery past it when it shows nothing (<label>n<night>)"""
+    return ["%%Vl(%sn%dp,%d,%d,%d,15,3)%%Vf(PRIMARY)" % (label, night, MARGIN, TEXT_Y, rooms[0]),
+            text,
+            "%%Vl(%sn%d,%d,%d,%d,15,3)%%Vf(PRIMARY)" % (label, night, MARGIN, TEXT_Y, rooms[1]),
+            text]
+
+
+def title_show(label, night):
+    """which of those: the padlock or the playing status shown, or nothing"""
+    shown, empty = "%%Vd(%sn%dp)" % (label, night), "%%Vd(%sn%d)" % (label, night)
+    return "%%?mh<%s|%%?mp<%s|%s|%s|%s|%s>>" % (shown, empty, shown, shown, shown, shown)
+
+
+# a title that doesn't fit its place: left-aligned, never scrolled, ended in
+# an ellipsis if it is wider still (%nx)
+TITLE = "%al%nx%Lt"
+
+
 def status(width, prefix="", name=None):
     """The glyphs' viewports and the line that shows them: from the right the
     battery, Night Mode's moon, play or pause or the padlock (Now Playing's
     shuffle and repeat stand under the line). What is left of an absent one
     moves up, so each has a viewport for every place it can be in. name: the
-    text left of them, in a viewport that ends a gap before the leftmost; in
-    the main menu (its title's icon, 33) the clock stands there instead, as
-    it does at the left of a screen of the whole width."""
+    text left of them (title_vps()); in the main menu (its title's icon, 33)
+    the clock stands there instead, as it does at the left of a screen of
+    the whole width. Also the rooms left of the glyphs, by Night Mode: with
+    the playing status's place and without"""
     out = []
+    rooms = []
     if name:
         out += ["%%Vl(%sclock,%d,%d,64,15,3)%%Vf(CLOCK)" % (prefix, MARGIN, TEXT_Y), CLOCK]
 
@@ -128,17 +151,18 @@ def status(width, prefix="", name=None):
             at -= GAP + SIZES["Night"][0]
             out += [vp("moon", "Night", at), "%xd(N)"]
             this.append("%%Vd(%smoon)" % prefix)
+        past = at
         at -= GAP + SIZES["Playing_Status"][0]
         out += [vp("play" + tag, "Playing_Status", at), state]
         this.append("%%Vd(%splay%s)" % (prefix, tag))
+        rooms.append((at - GAP - MARGIN, past - GAP - MARGIN))
         if name:
-            out += ["%%Vl(%sname%s,%d,%d,%d,15,3)%%Vf(PRIMARY)" % (
-                prefix, tag, MARGIN, TEXT_Y, at - GAP - MARGIN), name]
-            this.append("%%?if(%%Li, =, 33)<%%Vd(%sclock)|%%Vd(%sname%s)>" % (
-                prefix, prefix, tag))
+            out += title_vps(prefix + "name", night, rooms[night], name)
+            this.append("%%?if(%%Li, =, 33)<%%Vd(%sclock)|%s>" % (
+                prefix, title_show(prefix + "name", night)))
         branches.append("".join(this))
     show = "%%Vd(%sbat)%%?nN<%s|%s>" % (prefix, branches[1], branches[0])
-    return "\n".join(out), show
+    return "\n".join(out), show, rooms
 
 
 def images(modes):
@@ -165,7 +189,7 @@ SBS = """\
 %Fl(2,15-Inter-Medium.fnt)
 %Fl(3,15-Inter-SemiBold.fnt)
 {images}
-%?LW<%VI(wide)%Vd(rulewide)%Vd(clockwide)%Vd(titlewide){wide}|%VI(half)%Vd(rulehalf)%Vd(column){half}>
+%?LW<%VI(wide)%Vd(rulewide){title}{wide}|%VI(half)%Vd(rulehalf)%Vd(column){half}>
 # the pane by the row selected: Settings, Photos, or the music, which Extras has too
 %?LW<|%?LS<%Vd(surface)%Vd(ring)%Vd(about)|{music}|%Vd(surface)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|{music}>>
 # the cover fills the pane, nothing over it: Finder's 240 px frame, its middle 160
@@ -182,11 +206,14 @@ SBS = """\
 %Vl(rulewide,0,{status},320,1,-)%Vb(TRACK)
 %Vl(rulehalf,0,{status},159,1,-)%Vb(TRACK)
 %Vl(column,159,0,1,240,-)%Vb(TRACK)
-# a screen that takes the whole width: the clock, its title, the glyphs
+# a screen that takes the whole width: the clock, its title, the glyphs;
+# a title wider than its place between them takes the clock's too
+# (%Lf, title_vps())
 %Vl(clockwide,{margin},{text_y},64,15,3)%Vf(CLOCK)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(titlewide,84,{text_y},152,15,3)%Vf(PRIMARY)
-%s%ac%Lt
+%ac%Lt
+{long_vps}
 {wide_vps}
 # beside the pane: the clock in the main menu, where a screen of the whole
 # width has it; a menu's title in any other
@@ -353,13 +380,17 @@ WPS = """\
 
 
 def sbs():
-    wide_vps, wide = status(320)
-    half_vps, half = status(160, "h", "%al%s%Lt")
+    wide_vps, wide, rooms = status(320)
+    half_vps, half, _ = status(160, "h", TITLE)
+    long_vps = "\n".join(title_vps("long", 0, rooms[0], TITLE)
+                         + title_vps("long", 1, rooms[1], TITLE))
+    title = "%%?Lf(titlewide)<%%Vd(clockwide)%%Vd(titlewide)|%%?nN<%s|%s>>" % (
+        title_show("long", 1), title_show("long", 0))
     music = ("%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"
              "|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>")
     note, photos = SIZES["Note_Pane"], SIZES["Photos_Pane"]
     return fill(SBS, images=images(False), wide=wide, half=half, wide_vps=wide_vps,
-                half_vps=half_vps, music=music, margin=MARGIN, text_y=TEXT_Y,
+                half_vps=half_vps, long_vps=long_vps, title=title, music=music, margin=MARGIN, text_y=TEXT_Y,
                 status=STATUS, list_top=LIST_TOP, list_rows=LIST_ROWS,
                 photos_x=240 - photos[0] // 2, photos_y=104 - photos[1] // 2,
                 photos_w=photos[0], photos_h=photos[1],
@@ -388,7 +419,7 @@ LEFT = "%nx%al%kl%ar%?ks< %ks|>"
 
 
 def wps():
-    vps, show = status(320)
+    vps, show, _ = status(320)
     ratings, stars = SIZES["Ratings"], SIZES["Stars"]
     left, right = SIZES["Volume_Left"], SIZES["Volume_Right"]
     note, large = SIZES["Note_Playing"], SIZES["Note_Large"]
