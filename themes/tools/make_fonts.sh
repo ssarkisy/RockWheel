@@ -71,8 +71,6 @@ font 15-Inter-SemiBold.fnt Inter-SemiBold.ttf 12 -X 72  # Neo name
 font 14-Inter-Medium.fnt   Inter-Medium.ttf   11 -X 72  # Neo small
 font 20-Inter-SemiBold.fnt Inter-SemiBold.ttf 31 -X 36  # Modern titles, 15.5
 font 18-Inter-Regular.fnt  Inter-Regular.ttf  14 -X 72  # Modern row
-font 14-Inter-Regular.fnt  Inter-Regular.ttf  11 -X 72  # Modern values
-font 13-Inter-Regular.fnt  Inter-Regular.ttf  10 -X 72  # Modern small
 unset digits
 
 # Quick Scroll's letter over a list (apps/gui/bitmap/list.c), 52 px with

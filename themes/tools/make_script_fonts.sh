@@ -160,8 +160,6 @@ set_of 15-Inter-SemiBold 600 11 12   12     # Neo name
 set_of 14-Inter-Medium   500 10 11   11.67  # Neo small
 set_of 20-Inter-SemiBold 600 14 15.5 15.5   # Modern titles
 set_of 18-Inter-Regular  400 12 14   14     # Modern row
-set_of 14-Inter-Regular  400 10 11   11.67  # Modern values
-set_of 13-Inter-Regular  400 10 10   11.67  # Modern small
 
 "$python" "$here/merge_fonts.py" "$out" "$build" "$root/firmware/font_han_forms.h" "$build/sets.txt"
 

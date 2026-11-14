@@ -215,6 +215,36 @@ static bool is_fallback_file(const char *path)
     return !strcmp(path, FALLBACK_FONT) || (dash && !strcmp(dash, "-Hangul.fnt"));
 }
 
+/* Two fonts that 1.4.0 shipped and nothing loads, removed by their shipped
+   sizes so that a file of one's own under the name stays. A theme sets the
+   lists' font itself (ui_theme_to_settings()), so none is one chosen */
+static void font_remove_unused(void)
+{
+    static const struct {
+        const char *name;
+        off_t size;
+    } unused[] = {
+        { "13-Inter-Regular", 5471753 }, { "14-Inter-Regular", 5851181 },
+    };
+    char path[MAX_PATH];
+    for (size_t i = 0; i < ARRAYLEN(unused); i++)
+    {
+        snprintf(path, sizeof(path), FONT_DIR "/%s.fnt", unused[i].name);
+        const int fd = open(path, O_RDONLY);
+        if (fd < 0)
+            continue;
+        const off_t size = ffilesize(fd);
+        close(fd);
+        if (size != unused[i].size)
+            continue;
+        /* its glyph cache first: cut short, this runs again */
+        char gc[MAX_PATH];
+        snprintf(gc, sizeof(gc), FONT_DIR "/%s.gc", unused[i].name);
+        remove(gc);
+        remove(path);
+    }
+}
+
 /* Old Library and scripts files and the theme's old Hangul (by their shipped
    sizes, so one's own stay), while fonts/scripts or library.stamp exists */
 static void font_remove_old(void)
@@ -284,6 +314,7 @@ void font_load_fallback(void)
         return;
     hangul_looked_for = true;
     font_remove_old();
+    font_remove_unused();
     for (size_t i = 0; i < ARRAYLEN(hangul_heights); i++)
     {
         char path[MAX_PATH];
