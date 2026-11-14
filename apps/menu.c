@@ -235,7 +235,11 @@ static bool setting_changes_in_place(const struct settings_list *setting)
 {
     return setting && (HASFLAG(setting, F_BOOL_SETTING)
                        || (HASFLAG(setting, F_CHOICE_SETTING)
-                           && setting->choice_setting->count <= IN_PLACE_CHOICES));
+                           && setting->choice_setting->count <= IN_PLACE_CHOICES
+                           /* but the theme, whose every change stops the
+                              music and loads one: its list, to choose the
+                              one wanted at once */
+                           && setting->setting != &global_settings.ui_theme));
 }
 
 static const char *setting_value(const struct settings_list *setting,
@@ -1386,9 +1390,14 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
                         redraw_lists = true;
                         break;
                     }
+                    const int theme = global_settings.ui_theme;
                     transition_begin(TRANSITION_FORWARD);
                     do_setting_from_menu(temp, vps);
-                    transition_begin(TRANSITION_BACK);
+                    /* back with a slide, but not off the old theme's
+                       screen into another: it comes up whole, as after a
+                       change in place */
+                    if (global_settings.ui_theme == theme)
+                        transition_begin(TRANSITION_BACK);
                     init_menu_lists(menu, &lists, selected, false, vps, buf, sizeof buf);
                     redraw_lists = true;
 

@@ -2776,8 +2776,9 @@ const struct settings_list settings[] = {
     OFFON_SETTING(0, music_menu_recently_added, LANG_RECENTLY_ADDED, true,
                   "music menu recently added", tagtree_music_menu_changed),
     /* by name, so the row's order is free; only on Select, as it stops the
-       music and loads the theme */
-    CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, ui_theme, LANG_THEME,
+       music and loads the theme. Its list turns a copy, as every list is
+       drawn in the theme the setting names */
+    CHOICE_SETTING(F_TEMPVAR|F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, ui_theme, LANG_THEME,
                    UI_THEME_CLASSIC, "ui theme", "classic,modern,neo", ui_theme_changed, 3,
                    ID2P(LANG_THEME_CLASSIC), ID2P(LANG_THEME_MODERN),
                    ID2P(LANG_THEME_NEO)),
