@@ -1339,8 +1339,11 @@ static int picture_whole(int fd, int width, int height)
 {
     const size_t size = sharp.aa.size;
     unsigned char *room = (unsigned char *)sharp.phase[0];
+    /* only a picture stored as its bytes: a Vorbis one is base64, and an
+       ID3 one with unsync is longer in the file than its size by the 0x00s
+       put in it, so its end would be cut. Those are decoded from the file */
     if (!room || !size || size > 2 * sizeof(menu_art.pixels)
-        || (sharp.aa.type & AA_FLAG_VORBIS_BASE64))
+        || (sharp.aa.type & (AA_FLAG_VORBIS_BASE64 | AA_FLAG_ID3_UNSYNC)))
         return 0;
     if (lseek(fd, sharp.aa.pos, SEEK_SET) < 0)
         return -1;
@@ -1349,8 +1352,7 @@ static int picture_whole(int fd, int width, int height)
         const ssize_t part = MIN(SHARP_READ, size - at);
         if (read(fd, room + at, part) != part)
             return -1;
-        if (!at && !(sharp.aa.type & AA_FLAG_ID3_UNSYNC)
-            && frame_no_use(room, part, width, height))
+        if (!at && frame_no_use(room, part, width, height))
             return -1;
         while (sharp.hold && jpeg_stop_fd != fd)
             sleep(1);
