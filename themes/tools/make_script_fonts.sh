@@ -157,7 +157,6 @@ set_of 17-Inter-Medium-13 500 12 13  13     # hints, Neo's texts
 set_of 15-Inter-Medium   500 11 12   12     # second lines, values
 set_of 15-Inter-SemiBold 600 11 12   12     # Neo name
 set_of 14-Inter-Medium   500 10 11   11.67  # small text
-set_of 18-Inter-Regular  400 12 14   14     # menus' values
 
 "$python" "$here/merge_fonts.py" "$out" "$build" "$root/firmware/font_han_forms.h" "$build/sets.txt"
 

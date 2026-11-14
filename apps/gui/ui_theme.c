@@ -273,16 +273,16 @@ static const struct ui_theme ui_themes[] = {
         .cover_colours = false,
         .font = {
             [UI_FONT_LIST]          = FONT_DIR "/19-Inter-SemiBold.fnt",
-            /* a hint 13 px and a setting's value 14 Regular beside its
-               name's 15 SemiBold, as Neo's: at 11 px both were hard to read
-               on the LCD */
+            /* a hint 13 px and a setting's value 14 px SemiBold beside its
+               name's 15, as Neo's: at 11 px both were hard to read on the
+               LCD */
             [UI_FONT_HINT]          = FONT_DIR "/17-Inter-Medium-13.fnt",
             [UI_FONT_LEAD]          = FONT_DIR "/15-Inter-Medium.fnt",
             [UI_FONT_VALUE]         = FONT_DIR "/15-Inter-Medium.fnt",
             [UI_FONT_SUBLINE]       = FONT_DIR "/15-Inter-Medium.fnt",
             [UI_FONT_HEADER_ARTIST] = FONT_DIR "/17-Inter-Medium.fnt",
             [UI_FONT_HEADER_COUNTS] = FONT_DIR "/14-Inter-Medium.fnt",
-            [UI_FONT_MENU_VALUE]    = FONT_DIR "/18-Inter-Regular.fnt",
+            [UI_FONT_MENU_VALUE]    = FONT_DIR "/18-Inter-SemiBold.fnt",
             /* Neo's title, which the skins load too */
             [UI_FONT_GROUP]         = FONT_DIR "/18-Inter-SemiBold.fnt",
             [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
@@ -304,6 +304,9 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_VALUE_MARGIN]         = 12,
             [UI_METRIC_VALUE_MARGIN_CHEVRON] = 24,
             [UI_METRIC_VALUE_GAP]            = 12,
+            /* too long beside its name, cut with an ellipsis as Neo's: in
+               SemiBold some left out a value altogether */
+            [UI_METRIC_VALUE_CUT]            = 1,
             [UI_METRIC_HINT_X]               = 8,
             [UI_METRIC_HINT_TOP]             = 10,
             [UI_METRIC_HINT_PITCH]           = 18,
@@ -480,15 +483,15 @@ static const struct ui_theme ui_themes[] = {
         .cover_tone = true,
         .font = {
             [UI_FONT_LIST]          = FONT_DIR "/19-Inter-SemiBold.fnt",
-            /* a hint 13 px, a setting's value 14 Regular beside its name's
-               15 SemiBold: at 12 and 13 px they were small on the LCD */
+            /* a hint 13 px, a setting's value 14 px SemiBold beside its
+               name's 15: at 12 and 13 px they were small on the LCD */
             [UI_FONT_HINT]          = FONT_DIR "/17-Inter-Medium-13.fnt",
             [UI_FONT_LEAD]          = FONT_DIR "/15-Inter-Medium.fnt",
             [UI_FONT_VALUE]         = FONT_DIR "/15-Inter-Medium.fnt",
             [UI_FONT_SUBLINE]       = FONT_DIR "/15-Inter-Medium.fnt",
             [UI_FONT_HEADER_ARTIST] = FONT_DIR "/17-Inter-Medium-13.fnt",
             [UI_FONT_HEADER_COUNTS] = FONT_DIR "/15-Inter-Medium.fnt",
-            [UI_FONT_MENU_VALUE]    = FONT_DIR "/18-Inter-Regular.fnt",
+            [UI_FONT_MENU_VALUE]    = FONT_DIR "/18-Inter-SemiBold.fnt",
             /* a section's name 14 px SemiBold on its band (the skins'
                font, loaded already): at 11 px low in its row it did not
                read as a section on the LCD */

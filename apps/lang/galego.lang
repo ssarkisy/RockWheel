@@ -1218,7 +1218,7 @@
     *: "Sleep Timer"
   </source>
   <dest>
-    *: "Temporizador de Apagado"
+    *: "Temporizador"
   </dest>
   <voice>
     *: "Temporizador de apagdo"

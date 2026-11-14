@@ -1055,10 +1055,10 @@
     *: "Sleep Timer"
   </source>
   <dest>
-    *: "Temporizador de apagado"
+    *: "Temporizador"
   </dest>
   <voice>
-    *: "Temporizador de apagado"
+    *: "Temporizador"
   </voice>
 </phrase>
 <phrase>
@@ -1923,7 +1923,7 @@
     *: "12 Hour Clock"
   </source>
   <dest>
-    *: "Reloj 12 horas (AM/PM)"
+    *: "Reloj 12 horas"
   </dest>
   <voice>
     *: "Reloj doce horas"

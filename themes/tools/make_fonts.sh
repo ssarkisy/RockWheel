@@ -2,7 +2,7 @@
 # Make the Inter fonts the iPod themes use, from the static TTFs of an Inter
 # release (https://github.com/rsms/inter/releases, extras/ttf/ in the zip):
 #
-#     themes/tools/make_fonts.sh <folder with Inter-Bold.ttf, Inter-SemiBold.ttf, Inter-Medium.ttf, Inter-Regular.ttf>
+#     themes/tools/make_fonts.sh <folder with Inter-Bold.ttf, Inter-SemiBold.ttf, Inter-Medium.ttf>
 #
 # Needs a C compiler and FreeType (on macOS: brew install freetype) to build
 # Rockbox's tools/convttf, and fontTools (pip install fonttools; PYTHON names
@@ -14,7 +14,7 @@ set -e
 
 here=$(cd "$(dirname "$0")" && pwd)
 root="$here/../.."
-ttf=${1:?usage: $0 <folder with Inter-Bold.ttf, Inter-SemiBold.ttf, Inter-Medium.ttf and Inter-Regular.ttf>}
+ttf=${1:?usage: $0 <folder with Inter-Bold.ttf, Inter-SemiBold.ttf and Inter-Medium.ttf>}
 out="$here/../fonts/.rockbox/fonts"
 build=$(mktemp -d)
 trap 'rm -rf "$build"' EXIT
@@ -69,7 +69,6 @@ font 17-Inter-Medium-13.fnt Inter-Medium.ttf  13 -X 72  # hints, Neo's texts
 font 15-Inter-Medium.fnt   Inter-Medium.ttf   12 -X 72  # second lines, values
 font 15-Inter-SemiBold.fnt Inter-SemiBold.ttf 12 -X 72  # Neo name
 font 14-Inter-Medium.fnt   Inter-Medium.ttf   11 -X 72  # small text
-font 18-Inter-Regular.fnt  Inter-Regular.ttf  14 -X 72  # menus' values
 unset digits
 
 # Quick Scroll's letter over a list (apps/gui/bitmap/list.c), 52 px with
