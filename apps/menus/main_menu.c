@@ -638,10 +638,10 @@ static int info_action_callback(int action, struct gui_synclist *lists)
     if (valid_time(tm))
     {
 /* INFO_DATE */
-        simplelist_addline("%s %d %d",
-            str(LANG_MONTH_JANUARY + tm->tm_mon),
-            tm->tm_mday,
-            tm->tm_year+1900);
+        char date[48];
+        format_date_text(date, sizeof(date), DATE_DAY_MONTH_YEAR,
+                         tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+        simplelist_addline("%s", date);
 /* INFO_TIME */
         simplelist_addline("%02d:%02d:%02d %s",
             global_settings.timeformat == 0 ? tm->tm_hour :
@@ -728,7 +728,7 @@ static void about_add_size(int lang_id, sector_t kib)
 
 static void about_prepare(void)
 {
-    char value[32];
+    char value[48];
     about_count = 0;
 
     const char *device = itunesdb_device_name();
@@ -762,8 +762,8 @@ static void about_prepare(void)
     struct tm tm;
     if (itunesdb_sync_date(&tm))
     {
-        snprintf(value, sizeof(value), "%02d.%02d.%04d", tm.tm_mday, tm.tm_mon + 1,
-                 tm.tm_year + 1900);
+        format_date_text(value, sizeof(value), DATE_DAY_MONTH_YEAR,
+                         tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
         about_add(str(LANG_ABOUT_LAST_SYNC), value);
     }
 

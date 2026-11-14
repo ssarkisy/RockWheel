@@ -13219,13 +13219,13 @@
 </phrase>
 <phrase>
   id: LANG_DATE_DAY_MONTH
-  desc: under a podcast episode's title: its release date, of this year (20 May); %d is the day, %s the month's short name (LANG_MONTH_...), in this order
+  desc: deprecated
   user: core
   <source>
-    *: "%d %s"
+    *: ""
   </source>
   <dest>
-    *: "%d %s"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -13233,13 +13233,13 @@
 </phrase>
 <phrase>
   id: LANG_DATE_DAY_MONTH_YEAR
-  desc: as LANG_DATE_DAY_MONTH, of another year (20 May 2023): the day, the month, the year, in this order
+  desc: deprecated
   user: core
   <source>
-    *: "%d %s %d"
+    *: ""
   </source>
   <dest>
-    *: "%d %s %d"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -14335,6 +14335,384 @@
   </source>
   <dest>
     *: "تكتسب الخلفيات والنصوص الصغيرة مسحة من اللون أيضًا."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_FORMAT_DAY_MONTH
+  desc: a date without its year, in the language's own order and words, as under a podcast episode's title (9 Nov; in US English Nov 9): {d} is the day, {M} the month's name as a date has it (LANG_DATE_JANUARY...); a language that writes the month in digits has {m} for its number, {mm} for it in two digits and {dd} for the day in two; any other text shows as it is
+  user: core
+  <source>
+    *: "{d} {M}"
+  </source>
+  <dest>
+    *: "{d} {M}"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_FORMAT_DAY_MONTH_YEAR
+  desc: as LANG_DATE_FORMAT_DAY_MONTH with the year, {y}: a podcast episode's date of another year, the date in Settings > Date and Time, About's Last Sync and Track Info (20 May 2023; in US English May 20, 2023)
+  user: core
+  <source>
+    *: "{d} {M} {y}"
+  </source>
+  <dest>
+    *: "{d} {M}، {y}"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_FORMAT_MONTH_YEAR
+  desc: a month and its year without a day, as the month of Calendar or a date tagged with no day (Nov 2026): {M} is the month's name as it has it (LANG_DATE_STANDALONE_JANUARY...), {m} or {mm} its number, {y} the year
+  user: core
+  <source>
+    *: "{M} {y}"
+  </source>
+  <dest>
+    *: "{M} {y}"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_JANUARY
+  desc: the month's name in a date, beside the day, for {M} of LANG_DATE_FORMAT_DAY_MONTH: January, abbreviated as a date abbreviates it, in the case and letter case the date needs, which can differ from LANG_MONTH_JANUARY's name standing alone (20 мая, 9 nov.)
+  user: core
+  <source>
+    *: "Jan"
+  </source>
+  <dest>
+    *: "يناير"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_FEBRUARY
+  desc: as LANG_DATE_JANUARY, for February
+  user: core
+  <source>
+    *: "Feb"
+  </source>
+  <dest>
+    *: "فبراير"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_MARCH
+  desc: as LANG_DATE_JANUARY, for March
+  user: core
+  <source>
+    *: "Mar"
+  </source>
+  <dest>
+    *: "مارس"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_APRIL
+  desc: as LANG_DATE_JANUARY, for April
+  user: core
+  <source>
+    *: "Apr"
+  </source>
+  <dest>
+    *: "أبريل"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_MAY
+  desc: as LANG_DATE_JANUARY, for May
+  user: core
+  <source>
+    *: "May"
+  </source>
+  <dest>
+    *: "مايو"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_JUNE
+  desc: as LANG_DATE_JANUARY, for June
+  user: core
+  <source>
+    *: "Jun"
+  </source>
+  <dest>
+    *: "يونيو"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_JULY
+  desc: as LANG_DATE_JANUARY, for July
+  user: core
+  <source>
+    *: "Jul"
+  </source>
+  <dest>
+    *: "يوليو"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_AUGUST
+  desc: as LANG_DATE_JANUARY, for August
+  user: core
+  <source>
+    *: "Aug"
+  </source>
+  <dest>
+    *: "أغسطس"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_SEPTEMBER
+  desc: as LANG_DATE_JANUARY, for September
+  user: core
+  <source>
+    *: "Sep"
+  </source>
+  <dest>
+    *: "سبتمبر"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_OCTOBER
+  desc: as LANG_DATE_JANUARY, for October
+  user: core
+  <source>
+    *: "Oct"
+  </source>
+  <dest>
+    *: "أكتوبر"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_NOVEMBER
+  desc: as LANG_DATE_JANUARY, for November
+  user: core
+  <source>
+    *: "Nov"
+  </source>
+  <dest>
+    *: "نوفمبر"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_DECEMBER
+  desc: as LANG_DATE_JANUARY, for December
+  user: core
+  <source>
+    *: "Dec"
+  </source>
+  <dest>
+    *: "ديسمبر"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_JANUARY
+  desc: the month's name in a month and its year, without a day, for {M} of LANG_DATE_FORMAT_MONTH_YEAR (Nov 2026; Calendar's month): January as the language writes it there, which in languages with cases is the name standing alone (май 2023, not мая as beside a day), and can differ from LANG_MONTH_JANUARY of the Set Date screen
+  user: core
+  <source>
+    *: "Jan"
+  </source>
+  <dest>
+    *: "يناير"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_FEBRUARY
+  desc: as LANG_DATE_STANDALONE_JANUARY, for February
+  user: core
+  <source>
+    *: "Feb"
+  </source>
+  <dest>
+    *: "فبراير"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_MARCH
+  desc: as LANG_DATE_STANDALONE_JANUARY, for March
+  user: core
+  <source>
+    *: "Mar"
+  </source>
+  <dest>
+    *: "مارس"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_APRIL
+  desc: as LANG_DATE_STANDALONE_JANUARY, for April
+  user: core
+  <source>
+    *: "Apr"
+  </source>
+  <dest>
+    *: "أبريل"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_MAY
+  desc: as LANG_DATE_STANDALONE_JANUARY, for May
+  user: core
+  <source>
+    *: "May"
+  </source>
+  <dest>
+    *: "مايو"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_JUNE
+  desc: as LANG_DATE_STANDALONE_JANUARY, for June
+  user: core
+  <source>
+    *: "Jun"
+  </source>
+  <dest>
+    *: "يونيو"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_JULY
+  desc: as LANG_DATE_STANDALONE_JANUARY, for July
+  user: core
+  <source>
+    *: "Jul"
+  </source>
+  <dest>
+    *: "يوليو"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_AUGUST
+  desc: as LANG_DATE_STANDALONE_JANUARY, for August
+  user: core
+  <source>
+    *: "Aug"
+  </source>
+  <dest>
+    *: "أغسطس"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_SEPTEMBER
+  desc: as LANG_DATE_STANDALONE_JANUARY, for September
+  user: core
+  <source>
+    *: "Sep"
+  </source>
+  <dest>
+    *: "سبتمبر"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_OCTOBER
+  desc: as LANG_DATE_STANDALONE_JANUARY, for October
+  user: core
+  <source>
+    *: "Oct"
+  </source>
+  <dest>
+    *: "أكتوبر"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_NOVEMBER
+  desc: as LANG_DATE_STANDALONE_JANUARY, for November
+  user: core
+  <source>
+    *: "Nov"
+  </source>
+  <dest>
+    *: "نوفمبر"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DATE_STANDALONE_DECEMBER
+  desc: as LANG_DATE_STANDALONE_JANUARY, for December
+  user: core
+  <source>
+    *: "Dec"
+  </source>
+  <dest>
+    *: "ديسمبر"
   </dest>
   <voice>
     *: ""

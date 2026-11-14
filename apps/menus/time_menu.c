@@ -93,7 +93,7 @@ static void draw_timedate(struct viewport *vp, struct screen *display)
 {
     struct tm *tm = get_time();
     int line;
-    char time[16], date[16];
+    char time[16], date[48];
     const char *t = time, *d = date;
     if (vp->height == 0)
         return;
@@ -113,10 +113,8 @@ static void draw_timedate(struct viewport *vp, struct screen *display)
                             tm->tm_sec, 
                         global_settings.timeformat == 0 ? "" :
                                 tm->tm_hour>11 ? " P" : " A");
-        snprintf(date, sizeof(date), "%s %d %d", 
-                str(LANG_MONTH_JANUARY + tm->tm_mon),
-                    tm->tm_mday,
-                    tm->tm_year+1900);
+        format_date_text(date, sizeof(date), DATE_DAY_MONTH_YEAR,
+                         tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
     }
     else
     {

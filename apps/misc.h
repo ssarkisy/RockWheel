@@ -93,6 +93,21 @@ const char *format_time_auto(char *buffer, int buf_len, long value,
  */
 void format_time(char* buf, int buf_size, long t);
 
+/* The forms of a date format_date_text() writes, each a phrase of the
+   language's: the day and the month (9 Nov), the year too (9 Nov 2026), or
+   a month and its year (Nov 2026) */
+enum date_form
+{
+    DATE_DAY_MONTH,
+    DATE_DAY_MONTH_YEAR,
+    DATE_MONTH_YEAR,
+};
+
+/* A date in the language's order and words, its month 1-12: the length
+   written, cut between characters where buf is too small */
+size_t format_date_text(char *buf, size_t size, enum date_form form,
+                        int year, int month, int day);
+
 const char* format_sleeptimer(char* buffer, size_t buffer_size,
                               int value, const char* unit);
 

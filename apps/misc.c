@@ -1747,6 +1747,102 @@ void format_time(char* buf, int buf_size, long t)
              hashours+1, units_in[UNIT_IDX_MIN], units_in[UNIT_IDX_SEC]);
 }
 
+/* a month's name is its January's id plus the month less one */
+_Static_assert(LANG_DATE_DECEMBER == LANG_DATE_JANUARY + 11
+               && LANG_DATE_STANDALONE_DECEMBER == LANG_DATE_STANDALONE_JANUARY + 11,
+               "the months' phrases aren't in a row");
+
+/* The form's phrase with its fields filled: {d} the day, {M} the month's
+   name, {y} the year, {m} the month in digits, {dd} and {mm} the day and the
+   month in two. Other text, a brace that is none of them too, as it is. {M}
+   is the name beside a day (LANG_DATE_JANUARY...), and in a month and its
+   year the one without a day (LANG_DATE_STANDALONE_JANUARY...): languages
+   with cases need both, Russian's "20 мая 2023 г." and "май 2023 г." */
+size_t format_date_text(char *buf, size_t size, enum date_form form,
+                        int year, int month, int day)
+{
+    static const short formats[] =
+    {
+        [DATE_DAY_MONTH] = LANG_DATE_FORMAT_DAY_MONTH,
+        [DATE_DAY_MONTH_YEAR] = LANG_DATE_FORMAT_DAY_MONTH_YEAR,
+        [DATE_MONTH_YEAR] = LANG_DATE_FORMAT_MONTH_YEAR,
+    };
+    const int names = form == DATE_MONTH_YEAR ? LANG_DATE_STANDALONE_JANUARY
+                                              : LANG_DATE_JANUARY;
+    const char *p = str(formats[form]);
+    size_t len = 0;
+    if (!size)
+        return 0;
+    while (*p)
+    {
+        char num[12];
+        const char *s = p;
+        size_t n = 1;
+        const char *end = *p == '{' ? strchr(p + 1, '}') : NULL;
+        /* {x} or {xx} */
+        if (end && (end - p == 2 || (end - p == 3 && p[2] == p[1])))
+        {
+            const bool two = end - p == 3;
+            s = num;
+            switch (p[1])
+            {
+                case 'd':
+                    snprintf(num, sizeof(num), two ? "%02d" : "%d", day);
+                    break;
+                case 'm':
+                    snprintf(num, sizeof(num), two ? "%02d" : "%d", month);
+                    break;
+                case 'y':
+                    if (two)
+                        s = NULL;
+                    else
+                        snprintf(num, sizeof(num), "%d", year);
+                    break;
+                case 'M':
+                    if (two)
+                        s = NULL;
+                    else if (month >= 1 && month <= 12)
+                        s = str(names + month - 1);
+                    else
+                        s = "";
+                    break;
+                default:
+                    s = NULL;
+                    break;
+            }
+        }
+        size_t step;
+        if (s && s != p)
+        {
+            n = strlen(s);
+            step = end - p + 1;
+        }
+        else
+        {
+            /* a character of the phrase's own */
+            s = p;
+            while (((unsigned char)p[n] & 0xc0) == 0x80)
+                n++;
+            step = n;
+        }
+        if (len + n >= size)
+        {
+            /* what fits of it, not part of a character */
+            n = size - 1 - len;
+            while (n > 0 && ((unsigned char)s[n] & 0xc0) == 0x80)
+                n--;
+            memcpy(buf + len, s, n);
+            len += n;
+            break;
+        }
+        memcpy(buf + len, s, n);
+        len += n;
+        p += step;
+    }
+    buf[len] = '\0';
+    return len;
+}
+
 const char* format_sleeptimer(char* buffer, size_t buffer_size,
                               int value, const char* unit)
 {

@@ -971,6 +971,7 @@ static const struct plugin_api rockbox_api = {
     ui_metric,
     photos_panel_show,
     photos_panel_disk_free,
+    format_date_text,
 };
 
 static int plugin_buffer_handle;

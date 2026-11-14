@@ -7978,13 +7978,13 @@ static size_t date_text(long date, char *buf, size_t size)
     buf[0] = '\0';
     if (month >= 1 && month <= 12)
     {
-        const char *name = str(LANG_MONTH_JANUARY + month - 1);
         const struct tm *tm = get_time();
+        enum date_form form = DATE_DAY_MONTH_YEAR;
         if (!day)
-            return snprintf(buf, size, "%s %d", name, year);
-        if (valid_time(tm) && tm->tm_year + 1900 == year)
-            return snprintf(buf, size, str(LANG_DATE_DAY_MONTH), day, name);
-        return snprintf(buf, size, str(LANG_DATE_DAY_MONTH_YEAR), day, name, year);
+            form = DATE_MONTH_YEAR;
+        else if (valid_time(tm) && tm->tm_year + 1900 == year)
+            form = DATE_DAY_MONTH;
+        return format_date_text(buf, size, form, year, month, day);
     }
     return year > 0 ? snprintf(buf, size, "%d", year) : 0;
 }

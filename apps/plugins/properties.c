@@ -251,8 +251,9 @@ static bool determine_props_type(const char *file)
                 rb->snprintf(str_size, sizeof str_size, "%lu %s",
                              display_size, rb->str(lang_size_unit));
                 rb->gmtime_r(&info.mtime, &tm);
-                rb->snprintf(str_date, sizeof str_date, "%04d/%02d/%02d",
-                             tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+                rb->format_date_text(str_date, sizeof str_date,
+                                     DATE_DAY_MONTH_YEAR, tm.tm_year + 1900,
+                                     tm.tm_mon + 1, tm.tm_mday);
                 rb->snprintf(str_time, sizeof str_time, "%02d:%02d:%02d",
                              tm.tm_hour, tm.tm_min, tm.tm_sec);
 

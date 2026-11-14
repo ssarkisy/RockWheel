@@ -596,8 +596,15 @@ static const char * id3_get_or_speak_info(int selected_item, void* data,
                 /* as the database reads it: the date, else the year alone,
                    without a time or what can't be a date */
                 tagcache_song_date(&year, &date, id3->year_string);
-                if (date)
+                /* shown in the language's words, spoken in digits */
+                if (date && say_it)
                     tagcache_date_text(buffer, buffer_len, date);
+                else if (date)
+                    format_date_text(buffer, buffer_len,
+                                     date % 100 ? DATE_DAY_MONTH_YEAR
+                                                : DATE_MONTH_YEAR,
+                                     date / 10000, date / 100 % 100,
+                                     date % 100);
 #endif
                 if (date || (id3->year_string && (year < 1000 || year > 2999)))
                 {
@@ -740,8 +747,9 @@ static const char * id3_get_or_speak_info(int selected_item, void* data,
                 if (!tm)
                     return NULL;
 
-                snprintf(buffer, buffer_len, "%04d/%02d/%02d",
-                         tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+                format_date_text(buffer, buffer_len, DATE_DAY_MONTH_YEAR,
+                                 tm->tm_year + 1900, tm->tm_mon + 1,
+                                 tm->tm_mday);
 
                 val = buffer;
                 if (say_it)

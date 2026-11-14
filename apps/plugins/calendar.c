@@ -730,8 +730,8 @@ static void draw_calendar(struct shown *shown)
     shown->lastday = wday;
     rb->lcd_set_drawmode(DRMODE_SOLID);
     /* The month in the corner, its box as wide as the language's name needs */
-    rb->snprintf(label, sizeof(label), "%s %04d",
-                 rb->str(LANG_MONTH_JANUARY + shown->mon - 1), shown->year);
+    rb->format_date_text(label, sizeof(label), DATE_MONTH_YEAR, shown->year,
+                         shown->mon, 1);
     rb->lcd_getstringsize(label, &label_w, NULL);
     label_x = LCD_WIDTH - label_w - 4;
     if (label_x < 2)
