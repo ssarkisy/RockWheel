@@ -54,6 +54,19 @@ static inline bool name_is_dot_dot(const char *name)
     return name[0] == '.' && name[1] == '.' && !name[2];
 }
 
+bool macos_dot_name(const char *name);
+
+/* A name the Mac keeps for itself on a FAT disk, which no list shows and
+   neither the library nor a playlist takes: the AppleDouble "._" file it
+   writes beside each file it copies with attributes, .DS_Store, and its
+   folders, as .Trashes, .Spotlight-V100 and .fseventsd. Lists and scans pass
+   over them and leave them there: Finder needs them. The name ends at its
+   end or at a '/'. A name without a dot first costs one compare. */
+static inline bool is_macos_name(const char *name)
+{
+    return name[0] == '.' && macos_dot_name(name);
+}
+
 /* return a pointer to the character following path separators */
 #define GOBBLE_PATH_SEPCH(p) \
     ({ int _c;                          \

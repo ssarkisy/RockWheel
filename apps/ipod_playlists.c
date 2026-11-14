@@ -25,6 +25,7 @@
 #include "core_alloc.h"
 #include "misc.h"
 #include "dir.h"
+#include "pathfuncs.h"
 #include "lang.h"
 #include "settings.h"
 #include "splash.h"
@@ -148,8 +149,12 @@ bool ip_is_smart(const char *path)
     return listed(path, smart_at, smart_count);
 }
 
+/* a playlist's name or path, not that of the Mac's "._" file beside one */
 static bool is_playlist_name(const char *name)
 {
+    const char *base = strrchr(name, '/');
+    if (is_macos_name(base ? base + 1 : name))
+        return false;
     const char *ext = strrchr(name, '.');
     return ext && (!strcasecmp(ext, ".m3u8") || !strcasecmp(ext, ".m3u"));
 }

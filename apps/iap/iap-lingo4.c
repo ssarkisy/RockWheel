@@ -20,6 +20,7 @@
 #include "iap-core.h"
 #include "iap-lingo.h"
 #include "dir.h"
+#include "pathfuncs.h"
 #include "settings.h"
 #include "filetree.h"
 #include "wps.h"
@@ -81,7 +82,8 @@ static void get_playlist_name(unsigned char *dest,
     while ((nbr < item_offset) && ((playlist_file = readdir(dp)) != NULL))
     {
         /*Increment only if there is a playlist extension*/
-        if ((extension=strrchr(playlist_file->d_name, '.')) != NULL){
+        if (!is_macos_name(playlist_file->d_name)
+            && (extension=strrchr(playlist_file->d_name, '.')) != NULL){
             if ((strcmp(extension, ".m3u") == 0 ||
                  strcmp(extension, ".m3u8") == 0))
                 nbr++;
@@ -122,7 +124,8 @@ static unsigned long nbr_total_playlists(void)
     while ((playlist_file = readdir(dp)) != NULL)
     {
         /*Increment only if there is a playlist extension*/
-        if ((extension=strrchr(playlist_file->d_name, '.')) != NULL)
+        if (!is_macos_name(playlist_file->d_name)
+            && (extension=strrchr(playlist_file->d_name, '.')) != NULL)
         {
             if ((strcmp(extension, ".m3u") == 0 ||
                  strcmp(extension, ".m3u8") == 0))

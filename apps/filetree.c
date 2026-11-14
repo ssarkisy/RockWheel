@@ -403,6 +403,11 @@ int ft_load(struct tree_context* c, const char* tempdir)
             continue;
         }
 
+        /* the Mac's own also with all files shown, as a folder played or put
+           in a playlist is loaded */
+        if (is_macos_name(entry->d_name))
+            continue;
+
         if (*c->dirfilter == SHOW_PLUGINS && (dptr->attr & ATTR_DIRECTORY) &&
             (dptr->attr &
             (ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID | ATTR_VOLUME)) != 0) {

@@ -627,6 +627,29 @@ ssize_t parse_path_component(const char **pathp, const char **namep)
     return p - name;
 }
 
+/* is_macos_name() past its first compare. Not every name with a dot first,
+   as the file browser hides: "...Baby One More Time" is an album's. The
+   Trash counts too, the Mac's and Linux's: its songs went into the library. */
+bool macos_dot_name(const char *name)
+{
+    static const char * const own[] = {
+        ".DS_Store", ".Trashes", ".Spotlight-V100", ".fseventsd",
+        ".TemporaryItems", ".DocumentRevisions-V100", ".Trash",
+    };
+    if (name[0] != '.')
+        return false;
+    /* AppleDouble, and the .Trash-1000 that Linux makes */
+    if (name[1] == '_' || !strncmp(name, ".Trash-", 7))
+        return true;
+    for (size_t i = 0; i < ARRAYLEN(own); i++)
+    {
+        const size_t len = strlen(own[i]);
+        if (!strncasecmp(name, own[i], len) && IS_COMP_TERMINATOR(name[len]))
+            return true;
+    }
+    return false;
+}
+
 /** Changes to the files, for what is kept in memory of them **/
 
 static volatile unsigned int file_changes;

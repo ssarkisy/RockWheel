@@ -1127,7 +1127,8 @@ static const struct {
     { "korean", "한국어" },             { "japanese", "日本語" },
     { "chinese-simp", "简体中文" },     { "chinese-trad", "繁體中文" },
 };
-#define MAX_LANGS 64
+/* those the build makes, the table's, and room for others put there */
+#define MAX_LANGS (ARRAYLEN(lang_names) + 16)
 
 static int lang_name_index(const char *file)
 {
@@ -1157,8 +1158,12 @@ int language_screen(void)
     if (!dir)
         return 0;
     struct dirent *entry;
-    while (count < MAX_LANGS && (entry = readdir(dir)))
+    while (count < (int)MAX_LANGS && (entry = readdir(dir)))
     {
+        /* the Mac's "._" file beside each is none: it took the slots of the
+           languages read after it */
+        if (is_macos_name(entry->d_name))
+            continue;
         char *ext = strrchr(entry->d_name, '.');
         if (!ext || strcasecmp(ext, ".lng") || ext - entry->d_name >= MAX_FILENAME)
             continue;
@@ -1180,6 +1185,9 @@ int language_screen(void)
         order[pos] = count++;
     }
     closedir(dir);
+    /* no language to choose from: set_option can't show an empty list */
+    if (!count)
+        return 0;
 
     for (int i = 0; i < count; i++)
     {
@@ -1195,7 +1203,7 @@ int language_screen(void)
 
     int choice = current;
     set_option(str(LANG_LANGUAGE), &choice, RB_INT, items, count, NULL);
-    if (count && choice != current)
+    if (choice != current)
     {
         /* as choosing the file in a browser does */
         char path[MAX_PATH];

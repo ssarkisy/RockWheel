@@ -8128,32 +8128,6 @@ failure:
 }
 #endif /* HAVE_TC_RAMCACHE */
 
-/* A name of macOS's own, passed over: the Trash, whose songs went into the
-   library, and the "._" file beside each one copied to FAT with its attributes,
-   which every scan opened and turned down. Not every name with a dot first, as
-   the file browser hides: "...Baby One More Time" is an album's. name ends at
-   a '/' or at its end. */
-static bool hidden_name(const char *name)
-{
-    static const char * const folders[] = {
-        ".Trashes", ".Spotlight-V100", ".fseventsd", ".TemporaryItems",
-        ".DocumentRevisions-V100", ".Trash",
-    };
-    if (name[0] != '.')
-        return false;
-    /* and .Trash-1000 as Linux makes */
-    if (name[1] == '_' || !strncmp(name, ".Trash-", 7))
-        return true;
-    for (size_t i = 0; i < ARRAYLEN(folders); i++)
-    {
-        size_t len = strlen(folders[i]);
-        if (!strncasecmp(name, folders[i], len)
-            && (name[len] == '\0' || name[len] == '/'))
-            return true;
-    }
-    return false;
-}
-
 /* What the stock firmware keeps in iPod_Control besides the songs, as the
    games iTunes puts on an iPod with their sounds (Games_RO): no music of the
    library, though the scan after a sync took their .wav files for songs, an
@@ -8173,12 +8147,14 @@ static bool ipod_control_private(const char *path)
     return len != 5 || strncasecmp(rest, "Music", 5);
 }
 
-/* a path with such a name in it */
+/* a path with a name of macOS's own in it (is_macos_name()): the "._" file
+   beside each song copied with its attributes, which every scan opened and
+   turned down, and the Trash, whose songs went into the library */
 static bool hidden_path(const char *path)
 {
     for (const char *s = path; (s = strchr(s, '/')); s++)
     {
-        if (hidden_name(s + 1))
+        if (is_macos_name(s + 1))
             return true;
     }
     return false;
@@ -8712,7 +8688,7 @@ static bool check_dir(const char *dirname, int add_files)
             break;
         }
 
-        if (is_dotdir_name(entry->d_name) || hidden_name(entry->d_name))
+        if (is_dotdir_name(entry->d_name) || is_macos_name(entry->d_name))
             continue;
 
         struct dirinfo info = dir_get_info(dir, entry);
@@ -8791,7 +8767,7 @@ static int count_dir(bool add_files)
     struct dirent *entry;
     while (!check_event_queue() && (entry = readdir(dir)) != NULL)
     {
-        if (is_dotdir_name(entry->d_name) || hidden_name(entry->d_name))
+        if (is_dotdir_name(entry->d_name) || is_macos_name(entry->d_name))
             continue;
         struct dirinfo info = dir_get_info(dir, entry);
         size_t len = strlen(countpath);
