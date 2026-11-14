@@ -521,6 +521,9 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SELECTION_RADIUS]     = 7,
             [UI_METRIC_SELECTION_INSET_X]    = 6,
             [UI_METRIC_SELECTION_INSET_Y]    = 2,
+            /* a row's cover 2 px inside the selection on every side, as over
+               and under it: the rows without one start there too */
+            [UI_METRIC_ROW_COVER_INSET]      = 8,
             [UI_METRIC_CHEVRON_ALL]          = 1,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
             [UI_METRIC_PANE_LEFT]            = 160,
