@@ -589,12 +589,14 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     /* a list of hints: its rows, and the band below them to the end with the
        hint of the row selected. A row without one has the rows go on over the
        band, though the list scrolls as if it were there: no row moves as the
-       hints come and go, and the selection never goes under it */
+       hints come and go, and the selection never goes under it. So do they
+       while the hint waits for the wheel to rest (list_hint_waits()) */
     struct viewport band = *list_text_vp;
     const char *hint = NULL;
     if (list_hint_band(list, screen) > 0)
     {
-        hint = list->callback_get_hint(list->selected_item, list->data);
+        hint = list_hint_waits(list) ? NULL
+               : list->callback_get_hint(list->selected_item, list->data);
         if (hint && *hint)
         {
             list_text_vp->height = nb_lines * list->line_height[screen];

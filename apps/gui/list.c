@@ -94,6 +94,20 @@ int list_hint_band(struct gui_synclist *list, enum screen_type screen)
     return list->callback_get_hint && screen == SCREEN_MAIN ? LIST_HINT_BAND : 0;
 }
 
+/* A hint shows once the wheel has rested this long after its last step (the
+   owner tunes it on the iPod), the whole list drawn again with it: shown at
+   each step, the band came and went as the wheel passed rows with and
+   without one. Here, not in struct gui_synclist, which plugins see: the list
+   whose hint waits, and when it's due */
+#define HINT_DELAY (HZ / 2)
+static const struct gui_synclist *hint_waiting;
+static long hint_due;
+
+bool list_hint_waits(const struct gui_synclist *list)
+{
+    return list == hint_waiting && TIME_BEFORE(current_tick, hint_due);
+}
+
 static int list_nb_lines(struct gui_synclist *list, enum screen_type screen)
 {
     struct viewport *vp = list->parent[screen];
@@ -232,6 +246,10 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->selection_look = menu_in_settings() ? LIST_SELECTION_SETTINGS
                                                   : LIST_SELECTION_THEME;
 #endif
+    /* a list made anew, as a folder entered or left or a value changed,
+       shows its hint at once */
+    if (hint_waiting == gui_list)
+        hint_waiting = NULL;
 }
 
 int gui_list_get_item_offset(struct gui_synclist * gui_list,
@@ -947,6 +965,16 @@ bool gui_synclist_keyclick_callback(int action, void* data)
  * two functions in the correct order or the list wont work.
  */
 
+/* a step of the wheel that moved the selection from was: the hint waits until
+   it rests. One at an end that didn't, as without wraparound, leaves it */
+static void hint_wait(const struct gui_synclist *lists, int was)
+{
+    if (!lists->callback_get_hint || lists->selected_item == was)
+        return;
+    hint_waiting = lists;
+    hint_due = current_tick + HINT_DELAY;
+}
+
 static void _lists_uiviewport_update_callback(unsigned short id,
                                               void *data, void *userdata)
 {
@@ -1039,6 +1067,18 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
     /* Disable the skin redraw callback */
     current_lists = NULL;
 
+    /* the hint held back, as the wheel rests: the whole list again with it,
+       where the selected row has one */
+    if (hint_waiting == lists && action == ACTION_NONE
+        && lists->callback_get_hint && !TIME_BEFORE(current_tick, hint_due))
+    {
+        hint_waiting = NULL;
+        const char *hint = lists->callback_get_hint(lists->selected_item,
+                                                    lists->data);
+        if (hint && *hint)
+            gui_synclist_draw(lists);
+    }
+
     /* Quick Scroll's letter from a fast step on, in the same frame. Any other
        button takes it off at once, before its screen goes on: drawn without
        it, the list is what slides away (transition.c), or what shows as the
@@ -1080,6 +1120,7 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
 
     /* repeat actions block list wraparound */
     bool allow_wrap = lists->wraparound;
+    const int was = lists->selected_item;
 
     switch (action)
     {
@@ -1157,6 +1198,7 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
                 gui_list_select_by_initials(lists, -1, wheel_steps);
             else
                 gui_list_select_at_offset(lists, -next_item_modifier, allow_wrap);
+            hint_wait(lists, was);
 #ifndef HAVE_WHEEL_ACCELERATION
             if (button_queue_count() < FRAMEDROP_TRIGGER)
 #endif
@@ -1173,6 +1215,7 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
                 gui_list_select_by_initials(lists, 1, wheel_steps);
             else
                 gui_list_select_at_offset(lists, next_item_modifier, allow_wrap);
+            hint_wait(lists, was);
 #ifndef HAVE_WHEEL_ACCELERATION
             if (button_queue_count() < FRAMEDROP_TRIGGER)
 #endif
@@ -1274,6 +1317,13 @@ int list_do_action_timeout(struct gui_synclist *lists, int timeout)
 #ifdef HAVE_WHEEL_POSITION
         delay = MIN(delay, QUICK_SCROLL_LOOK);
 #endif
+        if (timeout > delay || timeout == TIMEOUT_BLOCK)
+            timeout = delay;
+    }
+    /* the hint held back, as it's due */
+    if (hint_waiting == lists)
+    {
+        const long delay = MAX(hint_due - current_tick, 0);
         if (timeout > delay || timeout == TIMEOUT_BLOCK)
             timeout = delay;
     }

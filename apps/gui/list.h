@@ -369,6 +369,9 @@ extern bool list_initial_drawn(const char *letter);
 /* the least height of the band of hints, which takes as many rows of the list
    as it needs for three lines of them; 0 for a list without */
 extern int list_hint_band(struct gui_synclist *list, enum screen_type screen);
+/* whether the hint of the list's selected row is held back, as the wheel
+   turns: the rows go on over its band as for a row without one */
+extern bool list_hint_waits(const struct gui_synclist *list);
 /* three lines of hints and their margins in the theme's font and pitch:
    Classic's 72, less in a theme of smaller hints, which leaves a row more */
 #define LIST_HINT_BAND (ui_metric(UI_METRIC_HINT_TOP) \
