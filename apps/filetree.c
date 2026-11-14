@@ -306,11 +306,13 @@ static int compare(const void* p1, const void* p2)
 /* The playlists' catalogue as Playlists' Sort By has it: Finder's smart
    playlists first, then the folders, then the other playlists, each group in
    its place either way; in each, by name from A to Z or exactly back. Names
-   starting with a digit first, as Finder has them, and not last as in Music's
-   lists: these are names people give, as dates; then by the rules of Music's
-   lists (sortkey.c), numbers by value, The/A/An set aside, the alphabet the
-   database was sorted with first (sortkey_get_first()). A name without its
-   extension, as shown, so that "Mix" goes before "Mix 2" */
+   starting with a mark first, by all of it, marks too, as Music's sidebar has
+   "★ – dislike" to "★★★★★"; then those starting with a digit, as Finder has
+   them, and not last as in Music's lists: these are names people give, as
+   dates; then by the rules of Music's lists (sortkey.c), numbers by value,
+   The/A/An set aside, the alphabet the database was sorted with first
+   (sortkey_get_first()). A name without its extension, as shown, so that
+   "Mix" goes before "Mix 2" */
 static int catalogue_group(const struct entry *e)
 {
     return (e->attr & ENTRY_SMART_PLAYLIST) ? 0 : (e->attr & ATTR_DIRECTORY) ? 1 : 2;
@@ -334,9 +336,24 @@ static int compare_catalogue(const void *p1, const void *p2)
         if (ext && ext != b)
             *ext = '\0';
     }
-    const bool digit_a = sortkey_group(sortkey_start(a, true)) == SORTKEY_DIGITS;
-    const bool digit_b = sortkey_group(sortkey_start(b, true)) == SORTKEY_DIGITS;
-    int d = digit_a != digit_b ? (digit_a ? -1 : 1) : sortkey_compare(a, b);
+    /* from the name's start: its first mark, digit or letter */
+    const bool mark_a = sortkey_group(a) == SORTKEY_MARKS;
+    const bool mark_b = sortkey_group(b) == SORTKEY_MARKS;
+    int d;
+    if (mark_a != mark_b)
+        d = mark_a ? -1 : 1;
+    else if (mark_a)
+    {
+        d = sortkey_compare_from(a, b);
+        if (!d)
+            d = strcmp(a, b);
+    }
+    else
+    {
+        const bool digit_a = sortkey_group(sortkey_start(a, true)) == SORTKEY_DIGITS;
+        const bool digit_b = sortkey_group(sortkey_start(b, true)) == SORTKEY_DIGITS;
+        d = digit_a != digit_b ? (digit_a ? -1 : 1) : sortkey_compare(a, b);
+    }
     if (!d)
         d = strcmp(e1->name, e2->name); /* "Mix.m3u" and "Mix.m3u8" */
     return global_settings.playlists_sort ? -d : d;
