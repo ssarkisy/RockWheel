@@ -7608,7 +7608,7 @@
     *: "Any Other = No"
   </source>
   <dest>
-    *: "Any Other = 否"
+    *: "其他鍵 = 否"
   </dest>
   <voice>
     *: ""

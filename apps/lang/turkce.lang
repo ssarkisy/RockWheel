@@ -261,7 +261,7 @@
     *: "Any Other = No"
   </source>
   <dest>
-    *: "İptal etmek içim Play harici bir tuşa bas."
+    *: "Diğer tuşlar = Hayır"
   </dest>
   <voice>
     *: ""

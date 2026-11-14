@@ -280,7 +280,7 @@
     archosplayer: none
   </source>
   <dest>
-    *: "Any Other = Άκυρο"
+    *: "Οποιοδήποτε άλλο = Άκυρο"
     archosplayer: none
   </dest>
   <voice>

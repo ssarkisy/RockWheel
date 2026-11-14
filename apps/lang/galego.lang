@@ -7657,7 +7657,7 @@
     archosplayer: none
   </source>
   <dest>
-    *: "Any Other = Non"
+    *: "Calquera outro = Non"
     archosplayer: none
   </dest>
   <voice>
