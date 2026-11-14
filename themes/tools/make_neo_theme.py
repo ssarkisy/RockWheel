@@ -65,10 +65,12 @@ TEXT_Y = STATUS - 18    # the status line's text, a cell of 15
 FOOT = STATUS - 6       # the row under the status glyphs' feet
 GAP = 6                 # between them
 # Now Playing: the cover 12 rows under the hairline, its reflection of 22 rows
-# under it; the bar's box, as high as the knob, and the line of the times
-# under it, where they were with the cover 12 rows lower
+# under it; the bar's box, as high as the knob, clear of the reflection, and
+# the line of the times under it, ending 12 rows over the screen's foot as
+# the cover starts 12 under the hairline. The rating view's stars stand where
+# the bar is
 COVER, COVER_Y = 136, 32
-BAR_Y, TIMES_Y = 193, 205
+BAR_Y, TIMES_Y = 202, 214
 REFLECTION = 22         # rows, as REFLECT_LIGHT and REFLECT_DARK have them
 # the song's details beside the cover: one block in the middle of its height,
 # of these rows each line has, with these clear rows over some
@@ -539,7 +541,9 @@ def wps():
                 bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (MARGIN, bar_w, bar_h),
                 volume_bar="%d,0,%d,%d,Volume Fill.bmp,backdrop,W" % (
                     volume_x, volume_w, bar_h),
-                lyrics_h=BAR_Y - 5 - 28, speed_y=BAR_Y - 3,
+                # the speeds' 44 rows from the bar, but on the screen: a skin
+                # with a viewport past its foot doesn't load at all
+                lyrics_h=BAR_Y - 5 - 28, speed_y=min(BAR_Y - 3, 240 - 44),
                 bar_y=BAR_Y, bar_h=bar_h, times_y=TIMES_Y, times_right=320 - MARGIN - 64,
                 under_x=MARGIN + 68, under_w=grid - 136,
                 marks_y=BAR_Y + 1, left_x=left_x, left_w=left[0], left_h=left[1],

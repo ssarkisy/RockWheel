@@ -229,41 +229,41 @@
 # scrolled, and the time left
 %xl(K,Bar Track.bmp,0,0)
 %xl(k,Knob.bmp,0,0)
-%Vl(pb,0,193,320,11,-)
+%Vl(pb,0,202,320,11,-)
 %pb(14,0,292,11,Bar Fill.bmp,backdrop,K)
-%Vl(pb,14,205,64,14,4)%Vf(524D4A)
+%Vl(pb,14,214,64,14,4)%Vf(524D4A)
 %al%pc
-%Vl(pb,242,205,64,14,4)%Vf(524D4A)
+%Vl(pb,242,214,64,14,4)%Vf(524D4A)
 %ar-%pr
 # the scrubber: the same with its knob
-%Vl(scrub,0,193,320,11,-)
+%Vl(scrub,0,202,320,11,-)
 %pb(14,0,292,11,Bar Fill.bmp,backdrop,K,slider,k,slidercentre)
-%Vl(scrub,14,205,64,14,4)%Vf(524D4A)
+%Vl(scrub,14,214,64,14,4)%Vf(524D4A)
 %al%pc
-%Vl(scrub,242,205,64,14,4)%Vf(524D4A)
+%Vl(scrub,242,214,64,14,4)%Vf(524D4A)
 %ar-%pr
-%Vl(under,82,205,156,14,4)%Vf(524D4A)
+%Vl(under,82,214,156,14,4)%Vf(524D4A)
 %nx%ac%?kn<%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>|>
 # a podcast's or a book's scrubber: what Previous and Next do there
-%Vl(hints,82,205,156,14,4)%Vf(524D4A)
+%Vl(hints,82,214,156,14,4)%Vf(524D4A)
 %ac-15 / +30
 # the volume in the bar's place, as the wheel turns, shorter between its marks,
 # whose ink is as far from it on either side
 %xl(W,Volume Track.bmp,0,0)
 %xl(v,Volume Left.bmp,0,0)
 %xl(V,Volume Right.bmp,0,0)
-%Vl(volume,0,193,320,11,-)
+%Vl(volume,0,202,320,11,-)
 %pv(32,0,256,11,Volume Fill.bmp,backdrop,W)
-%Vl(volume,20,194,7,10,-)
+%Vl(volume,20,203,7,10,-)
 %xd(v)
-%Vl(volume,293,194,15,10,-)
+%Vl(volume,293,203,15,10,-)
 %xd(V)
-%Vl(volume,14,205,292,14,4)%Vf(524D4A)
+%Vl(volume,14,214,292,14,4)%Vf(524D4A)
 %ac%nv
 # rating: five large stars in the bar's place, the wheel sets them
 %xl(T,Stars.bmp,0,0,6)
 %xC(T)
-%Vl(rating,99,192,121,17,-)
+%Vl(rating,99,201,121,17,-)
 %?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>
 # the large cover, and the note in its place
 %Vl(bigart,60,30,200,200,-)
@@ -275,5 +275,5 @@
 %xd(L)%nc
 # the lyrics, lines of the text font, over the bar; and the speeds: the WPS
 # code draws into these
-%Vl(lyrics,14,28,292,160,3)%Vf(292421)
-%Vl(speed,0,190,320,44,4)%Vf(52514A)
+%Vl(lyrics,14,28,292,169,3)%Vf(292421)
+%Vl(speed,0,196,320,44,4)%Vf(52514A)
