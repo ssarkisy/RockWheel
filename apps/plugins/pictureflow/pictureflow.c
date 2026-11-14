@@ -6990,8 +6990,11 @@ static int pictureflow_main(void)
                                           rb->global_status->resume_offset);
             break;
         case ACTION_TREE_STOP:
-            /* held, to the track playing, as from the lists */
-            if (rb->audio_status())
+            /* held, to Now Playing if it has a song, as from the lists:
+               stopped, it shows it paused and starts nothing; the core's
+               now_playing_available() */
+            if (rb->audio_status() || rb->global_status->resume_index != -1
+                || rb->file_exists(PLAYLIST_CONTROL_FILE))
                 return PLUGIN_GOTO_WPS;
             break;
 #endif

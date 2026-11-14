@@ -1812,12 +1812,15 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
     /* A play is a minute of a track, or all of a shorter one: neither
        skipping on after a few seconds nor only a full play to the end.
        What plays from where it was left is played when it ends, as the
-       place says nothing of how long it was listened to. The autoresume
-       point is always processed. */
+       place says nothing of how long it was listened to, unless nothing
+       of it sounded: opened paused at its place, as by a held Play, and
+       left so, as at the power-off that held on. The autoresume point is
+       always processed. */
     const unsigned long heard = chapters_heard(id3, te->flags & TEF_REWIND);
     if (runtimedb && (id3->elapsed == 0
         || (heard < 60 * 1000 && !auto_skip)
         || (autoresume && !auto_skip)
+        || audio_paused_unheard()
         ))
     {
         logf("not db logging unplayed or skipped track");

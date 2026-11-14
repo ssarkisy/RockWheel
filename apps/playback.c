@@ -183,6 +183,7 @@ struct audio_resume_info
 {
     unsigned long elapsed;
     unsigned long offset;
+    bool paused; /* from stopped: paused from the start (audio_play_paused()) */
 };
 
 /* Peeking functions can yield and mess us up */
@@ -342,6 +343,11 @@ static enum track_skip_type
 /* Used to indicate status for the events. Must be separate to satisfy all
    clients so the correct metadata is read when sending the change events. */
 static unsigned int track_event_flags = TEF_NONE; /* (A, O-) */
+
+/* Started paused (audio_play_paused()) and nothing has sounded since: a
+   track that finishes so was not played, though its place may be far in.
+   Until it's resumed, or the music stops. (A) */
+static bool paused_unheard = false;
 
 /* Pending manual track skip offset */
 static int skip_offset = 0; /* (A, O) */
@@ -1040,6 +1046,9 @@ static int shrink_callback(int handle, unsigned hints, void* start, size_t old_s
      * processed once. */
     bool play_queued = queue_peek_ex(&audio_queue, &ev, QPEEK_REMOVE_EVENTS,
                                      filter_list);
+    /* a start asked for paused stays so; music playing goes on playing */
+    resume.paused = play_queued
+                    && ((struct audio_resume_info *)ev.data)->paused;
 
     if (playing && (elapsed > 0 || offset > 0))
     {
@@ -1432,7 +1441,8 @@ static void audio_playlist_track_finish(void)
     playlist_update_resume_info(filling == STATE_ENDED ? NULL : id3);
     if (id3)
     {
-        add_playbacklog(id3);
+        if (!paused_unheard)
+            add_playbacklog(id3);
         send_track_event(PLAYBACK_EVENT_TRACK_FINISH,
                          track_event_flags, id3);
     }
@@ -1709,12 +1719,15 @@ static bool audio_get_track_metadata(int offset, struct mp3entry *id3)
     return false;
 }
 
-/* Get resume rewind adjusted progress from the ID3 */
+/* Get resume rewind adjusted progress from the ID3; none while nothing has
+   sounded since a start paused, whose place stays as shown and Play plays
+   from: silent rewinds there would add up at each hold to the power-off */
 static void resume_rewind_adjust_progress(const struct mp3entry *id3,
                                           unsigned long *elapsed,
                                           unsigned long *offset)
 {
-    unsigned int rewind = MAX(global_settings.resume_rewind, 0);
+    unsigned int rewind = paused_unheard ? 0
+                          : MAX(global_settings.resume_rewind, 0);
     unsigned long d_e = rewind*1000;
     *elapsed = id3->elapsed - MIN(id3->elapsed, d_e);
     unsigned long d_o = rewind * id3->bitrate * (1000/8);
@@ -3392,7 +3405,7 @@ static void audio_start_playback(const struct audio_resume_info *resume_info,
         return;
     }
 #endif
-    static struct audio_resume_info resume = { 0, 0 };
+    static struct audio_resume_info resume = { 0, 0, false };
     enum play_status old_status = play_status;
 
     /* something chosen to play; a changed queue was counted afresh at its
@@ -3488,17 +3501,24 @@ static void audio_start_playback(const struct audio_resume_info *resume_info,
         sound_set_volume(global_status.volume);
 #endif
 
-        /* Be sure channel is audible */
-        pcmbuf_fade(false, true);
+        /* Be sure channel is audible; paused from the start, muted as a
+           pause leaves it, for the resume to fade in with Fade on Stop or
+           else set it full at once */
+        const bool paused = resume_info && resume_info->paused;
+        pcmbuf_fade(false, !paused);
 
         /* Update our state */
-        play_status = PLAY_PLAYING;
+        play_status = paused ? PLAY_PAUSED : PLAY_PLAYING;
+        paused_unheard = paused;
         iap_on_play_status(play_status);
     }
 
-    /* Codec's position should be available as soon as it knows it */
+    /* Codec's position should be available as soon as it knows it; paused
+       from the start, the place asked for until it sounds, which a stop
+       before then keeps exactly */
     position_key = pcmbuf_get_position_key();
-    pcmbuf_sync_position_update();
+    if (!paused_unheard)
+        pcmbuf_sync_position_update();
 
     /* Start fill from beginning of playlist */
     playlist_peek_offset = -1;
@@ -3594,6 +3614,7 @@ static void audio_stop_playback(void)
     /* Update our state */
     ff_rw_mode = false;
     play_status = PLAY_STOPPED;
+    paused_unheard = false;
     iap_on_play_status(play_status);
 
     wipe_track_metadata(true);
@@ -3616,6 +3637,8 @@ static void audio_on_pause(bool pause)
         return;
 
     play_status = pause ? PLAY_PAUSED : PLAY_PLAYING;
+    if (!pause)
+        paused_unheard = false;
     iap_on_play_status(play_status);
 
     if (!pause && codec_skip_pending)
@@ -3897,7 +3920,7 @@ static void audio_on_ff_rewind(long time)
         if (finish_load)
         {
             // track is not yet loaded so simply update resume details for upcoming finish_load_track and quit
-            playing_id3_sync(&cur_info, &(struct audio_resume_info){ time, 0 }, true);
+            playing_id3_sync(&cur_info, &(struct audio_resume_info){ time, 0, false }, true);
             return;
         }
 
@@ -4430,7 +4453,22 @@ void audio_play(unsigned long elapsed, unsigned long offset)
 
     LOGFQUEUE("audio >| audio Q_AUDIO_PLAY: %lu %lX", elapsed, offset);
     audio_queue_send(Q_AUDIO_PLAY,
-                     (intptr_t)&(struct audio_resume_info){ elapsed, offset });
+                     (intptr_t)&(struct audio_resume_info){ elapsed, offset, false });
+}
+
+/* audio_play() from stopped, but paused from the start: the track loads and
+   decodes, and nothing sounds until audio_resume(), which plays it from
+   there. Playing or paused already, as audio_play(). */
+void audio_play_paused(unsigned long elapsed, unsigned long offset)
+{
+    LOGFQUEUE("audio >| audio Q_AUDIO_PLAY paused: %lu %lX", elapsed, offset);
+    audio_queue_send(Q_AUDIO_PLAY,
+                     (intptr_t)&(struct audio_resume_info){ elapsed, offset, true });
+}
+
+bool audio_paused_unheard(void)
+{
+    return paused_unheard;
 }
 
 /* Stop playback if playing */

@@ -120,6 +120,9 @@ unsigned int playback_status(void);
 
 struct mp3entry* get_temp_mp3entry(struct mp3entry *free);
 
+/* started paused (audio_play_paused()), and nothing has sounded since: the
+   track that finishes was not played */
+bool audio_paused_unheard(void);
 void allocate_playback_log(void);
 void add_playbacklog(struct mp3entry *id3);
 

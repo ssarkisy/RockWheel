@@ -50,6 +50,7 @@
 #include "rbunicode.h"
 #include "on_the_go.h"
 #include "library_playlists.h"
+#include "root_menu.h"
 
 /* Rockbox's viewer read them a window of 200 lines at a time from the file,
    again as it scrolled past one, and looked up each title as it showed,
@@ -1975,9 +1976,6 @@ int lp_view(const char *file, int *selection)
         int action;
         if (list_do_action(CONTEXT_TREE | ALLOW_SOFTLOCK, HZ / 2, &list, &action))
             continue;
-        /* holding Play goes to the song playing, if there is one */
-        if (action == ACTION_TREE_STOP && audio_status())
-            action = ACTION_TREE_WPS;
         const int row = gui_synclist_get_sel_pos(&list);
         switch (action)
         {
@@ -2061,6 +2059,12 @@ int lp_view(const char *file, int *selection)
                 break;
             case ACTION_TREE_WPS:
                 if (audio_status())
+                    ret = PLAYLIST_VIEWER_OK;
+                break;
+            case ACTION_TREE_STOP:
+                /* holding Play goes to Now Playing, if it has a song: stopped,
+                   it shows it paused and starts nothing (wpsscrn()) */
+                if (now_playing_available())
                     ret = PLAYLIST_VIEWER_OK;
                 break;
             case ACTION_STD_MENU:

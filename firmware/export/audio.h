@@ -47,6 +47,9 @@
 
 void audio_init(void) INIT_ATTR;
 void audio_play(unsigned long elapsed, unsigned long offset);
+/* audio_play() from stopped, paused from the start: nothing sounds and the
+   place stays until audio_resume() */
+void audio_play_paused(unsigned long elapsed, unsigned long offset);
 void audio_stop(void);
 void audio_stop_at_once(void);
 /* Stops audio from serving playback and frees resources*/

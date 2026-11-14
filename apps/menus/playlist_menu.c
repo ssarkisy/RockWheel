@@ -114,11 +114,14 @@ int save_playlist_screen(struct playlist_info* playlist)
 
 static int playlist_view_(void)
 {
-    /* this result is the viewer being left for the track playing */
+    /* this result is the viewer being left for the track playing, or for
+       the one stopped by holding Play, which Now Playing shows paused */
     const bool to_track = playlist_viewer_ex(NULL, NULL) == PLAYLIST_VIEWER_OK;
     FOR_NB_SCREENS(i) /* Playlist Viewer defers skin updates when popping its activity */
         skin_update(CUSTOM_STATUSBAR, i, SKIN_REFRESH_ALL);
-    return to_track && audio_status() ? GO_TO_PREVIOUS_MUSIC : 0;
+    return to_track && (audio_status()
+                        || action_last_action() == ACTION_TREE_STOP)
+           ? GO_TO_PREVIOUS_MUSIC : 0;
 }
 MENUITEM_FUNCTION(create_playlist_item, 0, ID2P(LANG_CREATE_PLAYLIST),
                   create_playlist, NULL, Icon_NOICON);

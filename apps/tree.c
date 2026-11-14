@@ -1725,8 +1725,9 @@ static int dirbrowse(void)
                 break;
 
             case ACTION_TREE_STOP:
-                /* holding Play goes to the track playing, if there is one */
-                if (audio_status())
+                /* holding Play goes to Now Playing, if it has a song: stopped,
+                   it shows it paused and starts nothing (wpsscrn()) */
+                if (now_playing_available())
                     return exit_to_new_screen(GO_TO_PREVIOUS_MUSIC);
                 break;
 

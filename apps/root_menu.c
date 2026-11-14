@@ -669,11 +669,23 @@ static int resume_list(void)
     return playlist_resumed() ? 0 : playlist_resume();
 }
 
+bool now_playing_available(void)
+{
+    return audio_status() || global_status.resume_index != -1
+           || file_exists(PLAYLIST_CONTROL_FILE);
+}
+
 static int wpsscrn(void* param)
 {
     int ret_val = GO_TO_PREVIOUS;
     int audstatus = audio_status();
     int loaded; /* playlist_resume()'s answer */
+    /* opened by Play held in a list, a menu, Cover Flow or Photos, which go
+       here then if now_playing_available(), with the music stopped: the song
+       paused at its place, which Play plays from. Nothing sounds and the place
+       stays, also at the power-off that a hold held on comes to. No button is
+       taken on the way here, so the hold is still the last action. */
+    const bool paused = !audstatus && action_last_action() == ACTION_TREE_STOP;
     (void)param;
     /* the theme isn't drawn first: Now Playing clears the screen and draws
        it then, if it shows it at all. Drawn whole after a list it took
@@ -710,10 +722,16 @@ static int wpsscrn(void* param)
                 splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
             else
             {
-                playlist_resume_track(global_status.resume_index,
-                    global_status.resume_crc32,
-                    global_status.resume_elapsed,
-                    global_status.resume_offset);
+                if (paused)
+                    playlist_resume_track_paused(global_status.resume_index,
+                        global_status.resume_crc32,
+                        global_status.resume_elapsed,
+                        global_status.resume_offset);
+                else
+                    playlist_resume_track(global_status.resume_index,
+                        global_status.resume_crc32,
+                        global_status.resume_elapsed,
+                        global_status.resume_offset);
                 ret_val = gui_wps_show();
             }
         }
@@ -729,7 +747,10 @@ static int wpsscrn(void* param)
             splash(HZ*2, ID2P(LANG_NOTHING_TO_RESUME));
         else
         {
-            playlist_start(0, 0, 0);
+            if (paused)
+                playlist_start_paused(0, 0, 0);
+            else
+                playlist_start(0, 0, 0);
             ret_val = gui_wps_show();
         }
     }
@@ -1213,8 +1234,7 @@ static int item_callback(int action,
             {
                 /* as Now Playing on a stock iPod: none with nothing to play,
                    rather than Resume Playback that plays nothing */
-                if (!audio_status() && global_status.resume_index == -1
-                    && !file_exists(PLAYLIST_CONTROL_FILE))
+                if (!now_playing_available())
                     return ACTION_EXIT_MENUITEM;
             }
 #ifdef HAVE_TAGCACHE
@@ -1273,6 +1293,17 @@ static int screen_section(int screen)
     }
 }
 
+/* where Now Playing was opened from, for root_menu_power_off() */
+static int screen_before_wps = GO_TO_ROOT;
+
+void root_menu_power_off(void)
+{
+    /* A song a held Play showed paused and that never sounded: Start Screen's
+       Previous Screen boots where the hold was, as Now Playing would play it */
+    if (audio_paused_unheard() && global_status.last_screen == GO_TO_WPS)
+        global_status.last_screen = (char)screen_before_wps;
+}
+
 static inline int load_screen(int screen)
 {
     /* set the global_status.last_screen before entering,
@@ -1293,6 +1324,8 @@ static inline int load_screen(int screen)
 #endif
     if (!is_action)
     {
+        if (screen == GO_TO_WPS && global_status.last_screen != GO_TO_WPS)
+            screen_before_wps = global_status.last_screen;
         global_status.last_screen = (char)screen;
         status_save(false);
     }

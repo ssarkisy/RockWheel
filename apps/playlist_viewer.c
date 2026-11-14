@@ -62,6 +62,7 @@
 #ifdef HAVE_TAGCACHE
 #include "library_playlists.h"
 #endif
+#include "root_menu.h"
 
 /* Maximum number of tracks we can have loaded at one time                   */
 #define MAX_PLAYLIST_ENTRIES 200
@@ -1077,8 +1078,10 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
             if (reload || viewer.moving_track >= 0)
                 gui_synclist_draw(&playlist_lists);
         }
-        /* holding Play goes to the track playing, if there is one */
-        if (button == ACTION_TREE_STOP && audio_status())
+        /* holding Play goes to Now Playing, if it has a song: stopped, it
+           shows it paused and starts nothing (wpsscrn()); a song being moved
+           is let go of instead */
+        if (button == ACTION_TREE_STOP && now_playing_available())
             button = ACTION_TREE_WPS;
 
         if (on_clear && button == ACTION_STD_OK)

@@ -173,6 +173,12 @@ void playlist_resume_track(int start_index, unsigned int crc,
 unsigned int playlist_start_count(void);
 void playlist_start(int start_index, unsigned long elapsed,
                     unsigned long offset);
+/* the two above with the music paused at the place from the start
+   (audio_play_paused()), for it stopped: nothing sounds until it's resumed */
+void playlist_resume_track_paused(int start_index, unsigned int crc,
+                                  unsigned long elapsed, unsigned long offset);
+void playlist_start_paused(int start_index, unsigned long elapsed,
+                           unsigned long offset);
 bool playlist_check(int steps);
 const char *playlist_peek(int steps, char* buf, size_t buf_size);
 int playlist_next(int steps);

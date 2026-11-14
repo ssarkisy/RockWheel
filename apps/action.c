@@ -1198,6 +1198,11 @@ long action_last_tick(void)
     return action_last.tick;
 }
 
+int action_last_action(void)
+{
+    return action_last.action;
+}
+
 bool action_waiting(void)
 {
     return waiting;

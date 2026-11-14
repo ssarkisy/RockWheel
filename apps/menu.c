@@ -1200,8 +1200,9 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
         }
         else if (action == ACTION_TREE_STOP)
         {
-            /* holding Play goes to the track playing, if there is one */
-            if (audio_status())
+            /* holding Play goes to Now Playing, if it has a song: stopped,
+               it shows it paused and starts nothing (wpsscrn()) */
+            if (now_playing_available())
             {
                 ret = GO_TO_PREVIOUS_MUSIC;
                 done = true;

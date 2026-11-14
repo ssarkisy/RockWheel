@@ -4402,9 +4402,12 @@ void playlist_resume_forget(void)
     resumed = false;
 }
 
-/* resume a playlist track with the given crc_32 of the track name. */
-void playlist_resume_track(int start_index, unsigned int crc,
-                           unsigned long elapsed, unsigned long offset)
+static void start_playing(int start_index, unsigned long elapsed,
+                          unsigned long offset, bool paused);
+
+static void resume_track(int start_index, unsigned int crc,
+                         unsigned long elapsed, unsigned long offset,
+                         bool paused)
 {
     int i;
     unsigned int tmp_crc;
@@ -4417,13 +4420,26 @@ void playlist_resume_track(int start_index, unsigned int crc,
         tmp_crc = playlist_get_filename_crc32(playlist, index);
         if (tmp_crc == crc)
         {
-            playlist_start(index, elapsed, offset);
+            start_playing(index, elapsed, offset, paused);
             return;
         }
     }
 
     /* If we got here the file wasnt found, so start from the beginning */
-    playlist_start(0, 0, 0);
+    start_playing(0, 0, 0, paused);
+}
+
+/* resume a playlist track with the given crc_32 of the track name. */
+void playlist_resume_track(int start_index, unsigned int crc,
+                           unsigned long elapsed, unsigned long offset)
+{
+    resume_track(start_index, crc, elapsed, offset, false);
+}
+
+void playlist_resume_track_paused(int start_index, unsigned int crc,
+                                  unsigned long elapsed, unsigned long offset)
+{
+    resume_track(start_index, crc, elapsed, offset, true);
 }
 
 /*
@@ -4625,8 +4641,8 @@ unsigned int playlist_start_count(void)
     return start_count;
 }
 
-void playlist_start(int start_index, unsigned long elapsed,
-                    unsigned long offset)
+static void start_playing(int start_index, unsigned long elapsed,
+                          unsigned long offset, bool paused)
 {
     start_count++;
     struct playlist_info* playlist = &current_playlist;
@@ -4647,8 +4663,25 @@ void playlist_start(int start_index, unsigned long elapsed,
 
     wps_playlist_percent_prepare();
 
-    audio_play(elapsed, offset);
-    audio_resume();
+    if (paused)
+        audio_play_paused(elapsed, offset);
+    else
+    {
+        audio_play(elapsed, offset);
+        audio_resume();
+    }
+}
+
+void playlist_start(int start_index, unsigned long elapsed,
+                    unsigned long offset)
+{
+    start_playing(start_index, elapsed, offset, false);
+}
+
+void playlist_start_paused(int start_index, unsigned long elapsed,
+                           unsigned long offset)
+{
+    start_playing(start_index, elapsed, offset, true);
 }
 
 void playlist_sync(struct playlist_info* playlist)

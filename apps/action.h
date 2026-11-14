@@ -405,6 +405,9 @@ int get_action(int context, int timeout);
 bool action_dark_return_taken(void);
 /* the tick of the last button's action, as of a step of the wheel */
 long action_last_tick(void);
+/* the action looked up for the last button get_action() took: kept through
+   timeouts and system events, which have none */
+int action_last_action(void);
 /* the UI's thread waits in get_action() for a button: it draws nothing */
 bool action_waiting(void);
 

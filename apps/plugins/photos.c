@@ -1169,7 +1169,9 @@ static void show_list(struct gui_synclist *list)
 /* A key in a list, by the menus' own keys: Play pauses the music and goes on
    with it, which the list does itself, and Left and Right go to the songs
    before and after, as in every menu. Left to the caller with nothing
-   playing, and when Play is held: to Now Playing then, as the menus go. */
+   playing, and when Play is held: to Now Playing then, as the menus go, if
+   it has a song (the core's now_playing_available()); stopped, it shows it
+   paused and starts nothing. */
 static int get_list_action(struct gui_synclist *list, bool *to_now_playing,
                            int timeout)
 {
@@ -1178,7 +1180,9 @@ static int get_list_action(struct gui_synclist *list, bool *to_now_playing,
     if (rb->gui_synclist_do_button(list, &action))
         return ACTION_REDRAW;
     if (action == ACTION_TREE_WPS
-        || (action == ACTION_TREE_STOP && rb->audio_status()))
+        || (action == ACTION_TREE_STOP
+            && (rb->audio_status() || rb->global_status->resume_index != -1
+                || rb->file_exists(PLAYLIST_CONTROL_FILE))))
         *to_now_playing = true;
     return action;
 }

@@ -55,6 +55,13 @@ int root_menu_go_to_album(const char *name, int32_t artist);
 void root_menu_artists_grouping_changed(bool on);
 #endif
 void root_menu(void) NORETURN_ATTR;
+/* Whether Now Playing has a song: one playing or paused, one stopped at a
+   place to resume, or a list played to its end, which starts again from its
+   first. The main menu has its row then, and holding Play goes there,
+   showing a song stopped paused (wpsscrn()) */
+bool now_playing_available(void);
+/* the boot screen to save at the power-off, before the status is saved */
+void root_menu_power_off(void);
 #ifdef HAVE_TAGCACHE
 /* the boot logo and the import's progress, while there is an import */
 void show_library_update(void);
