@@ -115,6 +115,10 @@ int             font_spacing = 0; /* letters as wide as the font advances them *
    side bearings of a small size in places */
 int             linear_spacing = 0;
 float           linear_extra = 0.0f;
+/* -K: the same for the digits 0-9 only, the other letters as the rest of
+   the options make them */
+int             digit_linear_spacing = 0;
+float           digit_linear_extra = 0.0f;
 int             trimming    = 0;
 int             trim_dp     = 0; /* trim descent percent */
 int             trim_da     = 0; /* trim descnet actual  */
@@ -226,6 +230,8 @@ void usage(void)
         "           which sets letters with straight sides, as iP, against each other)\n"
         "    -k N   As -A, with the advance unhinted plus N pixels (0.33: a third\n"
         "           more on average), each letter rounded to whole pixels\n"
+        "    -K N   As -k N for the digits 0-9 only, the other letters as the\n"
+        "           rest of the options make them\n"
     };
     fprintf(stderr, "%s", help);
     exit( 1 );
@@ -529,6 +535,14 @@ void print_raw_glyph( FT_Face face)
     printf("----End-----\n");
 }
 
+/* the advance unhinted plus extra pixels and the -c space, rounded */
+static int linear_width( FT_Face face, float extra, unsigned spacing )
+{
+    /* linearHoriAdvance is 16.16, the rest 26.6 */
+    return ((face->glyph->linearHoriAdvance >> 10)
+            + (FT_Pos)(extra * (1<<6) + 0.5f) + spacing + 32) >> 6;
+}
+
 int glyph_width( FT_Face face, FT_Long code, FT_Long digit_width )
 {
     int width;
@@ -545,10 +559,10 @@ int glyph_width( FT_Face face, FT_Long code, FT_Long digit_width )
         pitch = ABS(face->glyph->bitmap.pitch);
         h_adv = face->glyph->metrics.horiAdvance >> 6;
         width = (face->glyph->metrics.width + spacing) >> 6;
-        if (font_spacing && linear_spacing)
-            /* linearHoriAdvance is 16.16, the rest 26.6 */
-            width = ((face->glyph->linearHoriAdvance >> 10)
-                     + (FT_Pos)(linear_extra * (1<<6) + 0.5f) + spacing + 32) >> 6;
+        if (digit_linear_spacing && code >= '0' && code <= '9')
+            width = linear_width(face, digit_linear_extra, spacing);
+        else if (font_spacing && linear_spacing)
+            width = linear_width(face, linear_extra, spacing);
         else if (font_spacing)
             width = (face->glyph->metrics.horiAdvance + spacing + 32) >> 6;
 
@@ -860,7 +874,8 @@ void convttf(char* path, char* destfile, FT_Long face_index)
         err = 0;
         /* insert empty pixels on the left */
         col_off = w - stride;
-        if (font_spacing && !(code >= '0' && code <= '9' && digit_width))
+        if ((font_spacing || (digit_linear_spacing && code >= '0' && code <= '9'))
+            && !(code >= '0' && code <= '9' && digit_width))
         {
             /* where the font puts it, as far as it fits */
             if (slot->bitmap_left < col_off)
@@ -1344,6 +1359,19 @@ void getopts(int *pac, char ***pav)
                     av++; ac--;
                     if (ac > 0)
                         linear_extra = atof(av[0]);
+                }
+                break;
+            case 'K':     /* As -k, for the digits only */
+                digit_linear_spacing = 1;
+                if (*p) {
+                    digit_linear_extra = atof(p);
+                    while (*p && *p != ' ')
+                        p++;
+                }
+                else {
+                    av++; ac--;
+                    if (ac > 0)
+                        digit_linear_extra = atof(av[0]);
                 }
                 break;
 

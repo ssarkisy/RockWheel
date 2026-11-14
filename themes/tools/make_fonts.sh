@@ -68,7 +68,10 @@ font 12-Inter-SemiBold.fnt Inter-SemiBold.ttf 11    # iClassic bitrate
 # where letters then touch.
 digits=-w
 small="-k 0.33"
-font 19-Inter-SemiBold.fnt Inter-SemiBold.ttf 15 -X 72  # rows
+# The rows' digits only spaced so (-K 0.33), their letters as they are. Hinted,
+# a 1, a 2 and a 5 had no blank column on their right, which most other digits
+# have, and the gaps between digits came out uneven: 2017 read as "20 17".
+font 19-Inter-SemiBold.fnt Inter-SemiBold.ttf 15 -X 72 -K 0.33  # rows
 # 13 px, not the 17-Inter-Medium above, which is 12.5
 font 17-Inter-Medium-13.fnt Inter-Medium.ttf  13 -X 72 $small  # hints, Neo's texts
 font 15-Inter-Medium.fnt   Inter-Medium.ttf   12 -X 72 $small  # second lines, values
