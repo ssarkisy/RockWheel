@@ -62,14 +62,19 @@ font 12-Inter-SemiBold.fnt Inter-SemiBold.ttf 11    # iClassic bitrate
 # Their digits are Inter's own, each as wide as it is (-w): all as wide, a 1
 # stood apart in its cell and 13188 read as "1 31 88". Times and counts are
 # set from a side, so they stay in place; a file Classic names too is above.
+# The small ones a third of a pixel apart more on average (-k 0.33): each
+# letter its advance unhinted plus that, rounded. The hinted one, in whole
+# pixels, takes Inter's small side bearings away in places at 11-13 px,
+# where letters then touch.
 digits=-w
+small="-k 0.33"
 font 19-Inter-SemiBold.fnt Inter-SemiBold.ttf 15 -X 72  # rows
 # 13 px, not the 17-Inter-Medium above, which is 12.5
-font 17-Inter-Medium-13.fnt Inter-Medium.ttf  13 -X 72  # hints, Neo's texts
-font 15-Inter-Medium.fnt   Inter-Medium.ttf   12 -X 72  # second lines, values
-font 15-Inter-SemiBold.fnt Inter-SemiBold.ttf 12 -X 72  # Neo name
-font 14-Inter-Medium.fnt   Inter-Medium.ttf   11 -X 72  # small text
-unset digits
+font 17-Inter-Medium-13.fnt Inter-Medium.ttf  13 -X 72 $small  # hints, Neo's texts
+font 15-Inter-Medium.fnt   Inter-Medium.ttf   12 -X 72 $small  # second lines, values
+font 15-Inter-SemiBold.fnt Inter-SemiBold.ttf 12 -X 72 $small  # Neo name
+font 14-Inter-Medium.fnt   Inter-Medium.ttf   11 -X 72 $small  # small text
+unset digits small
 
 # Quick Scroll's letter over a list (apps/gui/bitmap/list.c), 52 px with
 # capitals 32 px tall: Inter Bold cut to what it shows first, the capitals of

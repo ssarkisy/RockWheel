@@ -109,6 +109,12 @@ int             dump_glyphs = 0;
 int             digits_equally_wide = 1; /* Try to make digits equally wide */
 int             digits_force_wide = 0; /* ... even if the font's are not */
 int             font_spacing = 0; /* letters as wide as the font advances them */
+/* -k: the advance unhinted, the outline's, plus this many pixels, each
+   letter rounded to whole ones: on average that much more room between
+   letters than the font's, where the hinted advance (-A) loses the small
+   side bearings of a small size in places */
+int             linear_spacing = 0;
+float           linear_extra = 0.0f;
 int             trimming    = 0;
 int             trim_dp     = 0; /* trim descent percent */
 int             trim_da     = 0; /* trim descnet actual  */
@@ -218,6 +224,8 @@ void usage(void)
         "    -A     Space letters as the font does: each as wide as its advance,\n"
         "           its image at its left bearing (otherwise as wide as the image,\n"
         "           which sets letters with straight sides, as iP, against each other)\n"
+        "    -k N   As -A, with the advance unhinted plus N pixels (0.33: a third\n"
+        "           more on average), each letter rounded to whole pixels\n"
     };
     fprintf(stderr, "%s", help);
     exit( 1 );
@@ -537,7 +545,11 @@ int glyph_width( FT_Face face, FT_Long code, FT_Long digit_width )
         pitch = ABS(face->glyph->bitmap.pitch);
         h_adv = face->glyph->metrics.horiAdvance >> 6;
         width = (face->glyph->metrics.width + spacing) >> 6;
-        if (font_spacing)
+        if (font_spacing && linear_spacing)
+            /* linearHoriAdvance is 16.16, the rest 26.6 */
+            width = ((face->glyph->linearHoriAdvance >> 10)
+                     + (FT_Pos)(linear_extra * (1<<6) + 0.5f) + spacing + 32) >> 6;
+        else if (font_spacing)
             width = (face->glyph->metrics.horiAdvance + spacing + 32) >> 6;
 
         if(pitch == 0)    pitch = h_adv;
@@ -1320,6 +1332,19 @@ void getopts(int *pac, char ***pav)
                 font_spacing = 1;
                 while (*p && *p != ' ')
                     p++;
+                break;
+            case 'k':     /* The font's spacing unhinted, plus N pixels */
+                font_spacing = linear_spacing = 1;
+                if (*p) {
+                    linear_extra = atof(p);
+                    while (*p && *p != ' ')
+                        p++;
+                }
+                else {
+                    av++; ac--;
+                    if (ac > 0)
+                        linear_extra = atof(av[0]);
+                }
                 break;
 
             default:

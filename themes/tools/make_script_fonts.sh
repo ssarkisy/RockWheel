@@ -121,14 +121,18 @@ pretendard() {
     case $1 in 600) w=Medium ;; 500) w=Regular ;; *) w=Light ;; esac
     echo "$otf/Pretendard-$w.otf"
 }
-# set <font> <weight> <ideographs' em> <the others' em> <Hangul's em>
+# set <font> <weight> <ideographs' em> <the others' em> <Hangul's em> [<Hebrew's
+# and Thai's spacing>]
+# The small ones' Hebrew and Thai a third of a pixel apart more (-k 0.33), as
+# make_fonts.sh spaces their Inter: their letters touched too. Not Arabic's,
+# which join, nor the ideographs, kana and Hangul, set in squares of their own.
 # The ideographs and kana as tall as Inter's capitals, 10 px at the least, under
 # which they can't be read; Hangul 11.67 at the least, as the 14 px fonts' above:
 # in the smallest fonts both are taller than the Latin beside them, cut to the
 # line where they don't fit (merge_fonts.py counts those).
 : > "$build/sets.txt"
 set_of() {
-    name=$1 wght=$2 han=$3 em=$4 hangul=$5
+    name=$1 wght=$2 han=$3 em=$4 hangul=$5 spacing=${6:--A}
     echo "$name" >> "$build/sets.txt"
     # shellcheck disable=SC2046
     for r in JP SC TC; do
@@ -140,23 +144,23 @@ set_of() {
     done
     # shellcheck disable=SC2046
     {
-    "$build/convttf" -s 1424 -l 1535 -A $(px "$em") -o "$build/$name-Hebrew.fnt" \
+    "$build/convttf" -s 1424 -l 1535 $spacing $(px "$em") -o "$build/$name-Hebrew.fnt" \
         "$(weight notosanshebrew "$wght" "notosanshebrew-$wght.ttf")" > /dev/null
     ttf=$(weight vazirmatn "$wght" "vazirmatn-$wght.ttf")
     "$build/convttf" -s 1536 -l 1791 -A $(px "$em") -o "$build/$name-Arabic.fnt" "$ttf" > /dev/null
     "$build/convttf" -s 64336 -l 65023 -A $(px "$em") -o "$build/$name-ArabicA.fnt" "$ttf" > /dev/null
     "$build/convttf" -s 65136 -l 65279 -A $(px "$em") -o "$build/$name-ArabicB.fnt" "$ttf" > /dev/null
-    "$build/convttf" -s 3584 -l 3711 -A $(px "$em") -o "$build/$name-Thai.fnt" \
+    "$build/convttf" -s 3584 -l 3711 $spacing $(px "$em") -o "$build/$name-Thai.fnt" \
         "$(weight ibmplexsansthai "$wght" "ibmplexsansthai-$wght.ttf")" > /dev/null
     "$build/convttf" -s 12593 -l 55203 -A $(px "$hangul") -o "$build/$name-Hangul.fnt" \
         "$(pretendard "$wght")" > /dev/null
     }
 }
 set_of 19-Inter-SemiBold 600 13 15   15     # rows
-set_of 17-Inter-Medium-13 500 12 13  13     # hints, Neo's texts
-set_of 15-Inter-Medium   500 11 12   12     # second lines, values
-set_of 15-Inter-SemiBold 600 11 12   12     # Neo name
-set_of 14-Inter-Medium   500 10 11   11.67  # small text
+set_of 17-Inter-Medium-13 500 12 13  13    "-k 0.33"  # hints, Neo's texts
+set_of 15-Inter-Medium   500 11 12   12    "-k 0.33"  # second lines, values
+set_of 15-Inter-SemiBold 600 11 12   12    "-k 0.33"  # Neo name
+set_of 14-Inter-Medium   500 10 11   11.67 "-k 0.33"  # small text
 
 "$python" "$here/merge_fonts.py" "$out" "$build" "$root/firmware/font_han_forms.h" "$build/sets.txt"
 
