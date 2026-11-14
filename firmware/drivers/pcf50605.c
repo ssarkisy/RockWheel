@@ -33,7 +33,9 @@
 #include "pcf5060x.h"
 #include "pcf50605.h"
 
+#ifdef HAVE_RTC_ALARM
 unsigned char pcf50605_wakeup_flags = 0;
+#endif
 
 int pcf50605_read(int address)
 {
@@ -69,11 +71,15 @@ int pcf50605_write_multiple(int address, const unsigned char* buf, int count)
 /* The following command puts the iPod into a deep sleep.  Warning
    from the good people of ipodlinux - never issue this command
    without setting CHGWAK or EXTONWAK if you ever want to be able to
-   power on your iPod again. */
+   power on your iPod again. The whole register is written: RTCWAK,
+   which Apple's bootloader sets at every boot, only for an alarm. */
 void pcf50605_standby_mode(void)
 {
-    pcf50605_write(PCF5060X_OOCC1,
-                   GOSTDBY | CHGWAK | EXTONWAK | pcf50605_wakeup_flags);
+    pcf50605_write(PCF5060X_OOCC1, GOSTDBY | CHGWAK | EXTONWAK
+#ifdef HAVE_RTC_ALARM
+                   | pcf50605_wakeup_flags
+#endif
+                   );
 }
 
 void pcf50605_init(void)

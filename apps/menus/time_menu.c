@@ -168,8 +168,7 @@ static int time_menu_callback(int action,
     return action;
 }
 
-/* without the radio's: its clock from RDS, and what the alarm wakes to, as there's
-   no radio or recording to wake to */
+/* without the radio's clock from RDS */
 MAKE_MENU(time_menu, ID2P(LANG_TIME_MENU), time_menu_callback, Icon_NOICON,
           &time_set,
 #ifdef HAVE_RTC_ALARM

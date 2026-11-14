@@ -39,11 +39,12 @@
 /* These defines must match the initial bytes in the binary lang file */
 /* See tools/genlang (TODO: Use common include for both) */
 #define LANGUAGE_COOKIE   0x1a
-/* RockWheel's own count from 0x86 (upstream's is 0x06): raised whenever a
-   phrase is put before the last one of english.lang, which moves the numbers
-   of those after it. A .lng of another count is refused, English shows, and
-   the release's own .lng files take its place */
-#define LANGUAGE_VERSION  0x86
+/* RockWheel's own count from 0x86 (upstream's is 0x06): raised whenever the
+   phrases' numbers move, by a phrase put before the last one of english.lang
+   or by a feature the target gains or loses (0x87: the iPod Video's alarm).
+   A .lng of another count is refused, English shows, and the release's own
+   .lng files take its place */
+#define LANGUAGE_VERSION  0x87
 
 #define LANGUAGE_FLAG_RTL         0x01
 #define LANGUAGE_FLAG_UNITS_FIRST 0x02

@@ -21,7 +21,9 @@
 #ifndef PCF50605_H
 #define PCF50605_H
 
+#ifdef HAVE_RTC_ALARM
 extern unsigned char pcf50605_wakeup_flags;
+#endif
 
 int pcf50605_read(int address);
 int pcf50605_read_multiple(int address, unsigned char* buf, int count);

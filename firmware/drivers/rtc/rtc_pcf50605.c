@@ -31,8 +31,9 @@ static const char alarm_disable[] = {
     0x7f, 0x7f, 0x3f, 0x07, 0x3f, 0x1f, 0xff
 };
 
-/* An alarm exactly as rtc_set_alarm() and rtc_enable_alarm(true) leave it:
-   anything else in the registers is not ours to wake for */
+/* An alarm exactly as rtc_set_alarm() and rtc_enable_alarm(true) leave it,
+   in this build or an earlier one: anything else in the registers is not
+   ours */
 static bool alarm_armed(void)
 {
     unsigned char at[7];
@@ -46,6 +47,7 @@ static bool alarm_armed(void)
         && memcmp(at + 3, alarm_disable + 3, 4) == 0;
 }
 
+#ifdef HAVE_RTC_ALARM
 void rtc_init(void)
 {
     rtc_check_alarm_started(false);
@@ -54,6 +56,18 @@ void rtc_init(void)
     if (alarm_armed())
         pcf50605_wakeup_flags |= 0x10;
 }
+#else
+/* Without the alarm (the iPod Video since RockWheel 1.4.1), one an earlier
+   version set still matches every day and wakes the iPod whenever the wake
+   bit is left set: Apple's bootloader sets it at every boot. Disarmed once,
+   as rtc_enable_alarm(false) did; this firmware's power-off clears the bit
+   (pcf50605_standby_mode()) */
+void rtc_init(void)
+{
+    if (alarm_armed())
+        pcf50605_write(0x17, 0x99);
+}
+#endif /* HAVE_RTC_ALARM */
 
 int rtc_read_datetime(struct tm *tm)
 {
@@ -99,6 +113,7 @@ int rtc_write_datetime(const struct tm *tm)
     return 1;
 }
 
+#ifdef HAVE_RTC_ALARM
 /**
  * Checks the PCF interrupt 1 register bit 7 to see if an alarm interrupt has
  * triggered since last we checked.
@@ -184,3 +199,4 @@ void rtc_get_alarm(int *h, int *m)
     *m = BCD2DEC(buf[0]);
     *h = BCD2DEC(buf[1]);
 }
+#endif /* HAVE_RTC_ALARM */

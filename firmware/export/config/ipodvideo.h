@@ -76,8 +76,9 @@
 /* define this if you have a real-time clock */
 #define CONFIG_RTC RTC_PCF50605
 
-/* Define if the device can wake from an RTC alarm */
-#define HAVE_RTC_ALARM
+/* No HAVE_RTC_ALARM, though the PMU can wake the iPod: an alarm's wake can't
+   be told from the clock on every iPod, and Hold at that time starts Apple's
+   firmware. rtc_init() disarms an alarm an earlier version left in the PMU */
 
 /* Define this if you can switch on/off the accessory power supply */
 #define HAVE_ACCESSORY_SUPPLY
