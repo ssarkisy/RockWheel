@@ -40,10 +40,12 @@
 #include "root_menu.h"
 #include "ipod_playlists.h"
 
-/* The hashes of the paths in the import's list, sorted: a playlist's mark as
-   the catalogue draws it, without opening the file. 300 playlists, 2.4 KB. */
+/* The hashes of the paths in the import's list, sorted: whether a playlist or
+   folder is synced, without opening the file. 300 playlists, 2.4 KB. And at
+   the end of the same room, those of its smart ones, sorted too */
 static int synced_handle;
 static int synced_count;
+static int smart_count, smart_at;
 
 static int cmp_hash(const void *a, const void *b)
 {
@@ -51,11 +53,14 @@ static int cmp_hash(const void *a, const void *b)
     return x < y ? -1 : x > y;
 }
 
-/* the path of a line of the list, past its hash, size and time, or "dir " */
+/* the path of a line of the list, past its hash, size and time, or "dir ";
+   none for a smart one's mark */
 static const char *list_path(char *line)
 {
     if (!strncmp(line, "dir ", 4))
         return line + 4;
+    if (!strncmp(line, "smart ", 6))
+        return NULL;
     for (int field = 0; field < 3; field++)
     {
         line = strchr(line, ' ');
@@ -70,7 +75,7 @@ void ip_synced_load(void)
 {
     if (synced_handle > 0)
         synced_handle = core_free(synced_handle);
-    synced_count = 0;
+    synced_count = smart_count = 0;
     int fd = open(ITUNESDB_PLAYLISTS_LIST, O_RDONLY);
     if (fd < 0)
         return;
@@ -96,27 +101,30 @@ void ip_synced_load(void)
         return;
     }
     char line[MAX_PATH + 64];
-    while (synced_count < lines && read_line(fd, line, sizeof(line)) > 0)
+    while (synced_count + smart_count < lines && read_line(fd, line, sizeof(line)) > 0)
     {
+        uint64_t *hashes = core_get_data(synced_handle);
         const char *path = list_path(line);
         if (path && path[0] == '/')
-        {
-            uint64_t *hashes = core_get_data(synced_handle);
             hashes[synced_count++] = itunesdb_path_hash(path);
-        }
+        else if (!strncmp(line, "smart /", 7))
+            hashes[lines - ++smart_count] = itunesdb_path_hash(line + 6);
     }
     close(fd);
-    qsort(core_get_data(synced_handle), synced_count, sizeof(uint64_t),
-          cmp_hash);
+    uint64_t *hashes = core_get_data(synced_handle);
+    qsort(hashes, synced_count, sizeof(uint64_t), cmp_hash);
+    qsort(hashes + lines - smart_count, smart_count, sizeof(uint64_t), cmp_hash);
+    smart_at = lines - smart_count;
 }
 
-bool ip_is_synced(const char *path)
+/* the hash among n sorted ones from first, of the room's */
+static bool listed(const char *path, int first, int n)
 {
-    if (synced_count == 0)
+    if (n == 0)
         return false;
     const uint64_t hash = itunesdb_path_hash(path);
-    const uint64_t *hashes = core_get_data(synced_handle);
-    int lo = 0, hi = synced_count - 1;
+    const uint64_t *hashes = (const uint64_t *)core_get_data(synced_handle) + first;
+    int lo = 0, hi = n - 1;
     while (lo <= hi)
     {
         const int mid = (lo + hi) / 2;
@@ -128,6 +136,16 @@ bool ip_is_synced(const char *path)
             hi = mid - 1;
     }
     return false;
+}
+
+bool ip_is_synced(const char *path)
+{
+    return listed(path, 0, synced_count);
+}
+
+bool ip_is_smart(const char *path)
+{
+    return listed(path, smart_at, smart_count);
 }
 
 static bool is_playlist_name(const char *name)
@@ -192,6 +210,85 @@ bool ip_folder_editable(const char *path)
     bool synced = false;
     walk(p, strlen(p), 0, synced_in, 0, &synced);
     return !synced;
+}
+
+/* the catalogue's top folder, without a separator at its end */
+static bool top_folder(char *root, size_t size)
+{
+    if (!catalog_directory_name(root, size))
+        return false;
+    size_t n = strlen(root);
+    while (n > 1 && root[n - 1] == '/')
+        root[--n] = '\0';
+    return true;
+}
+
+/* A name in the folder of path not taken by a playlist or folder: path's
+   own with " 2", " 3"... after it, before its extension if it's a file's */
+static bool spare_name(char *path, size_t size, bool dir)
+{
+    char stem[MAX_PATH], ext[8] = "";
+    strmemccpy(stem, path, sizeof(stem));
+    char *dot = dir ? NULL : strrchr(stem, '.');
+    if (dot && dot > strrchr(stem, '/'))
+    {
+        strmemccpy(ext, dot, sizeof(ext));
+        *dot = '\0';
+    }
+    for (int n = 2; n < 1000; n++)
+    {
+        char name[MAX_PATH + 16];
+        if ((size_t)snprintf(path, size, "%s %d%s", stem, n, ext) >= size)
+            break;
+        snprintf(name, sizeof(name), "%s %d", stem, n);
+        if (dir_exists(name))
+            continue;
+        snprintf(name, sizeof(name), "%s %d.m3u8", stem, n);
+        if (file_exists(name))
+            continue;
+        snprintf(name, sizeof(name), "%s %d.m3u", stem, n);
+        if (!file_exists(name))
+            return true;
+    }
+    strmemccpy(path, stem, size);
+    strlcat(path, ext, size);
+    return false;
+}
+
+void ip_own_place(char *path, size_t size)
+{
+    char root[MAX_PATH], p[MAX_PATH];
+    if (!top_folder(root, sizeof(root)))
+        return;
+    /* from its folder up to the top, none of the computer's */
+    const uint64_t top = itunesdb_path_hash(root);
+    strmemccpy(p, path, sizeof(p));
+    bool own = false;
+    for (char *end = strrchr(p, '/'); end; end = strrchr(p, '/'))
+    {
+        if (end == p)
+        {
+            own = !root[1]; /* the top is the disk's */
+            break;
+        }
+        *end = '\0';
+        if (itunesdb_path_hash(p) == top)
+        {
+            own = true;
+            break;
+        }
+        if (ip_is_synced(p))
+            break;
+    }
+    const char *base = strrchr(path, '/');
+    if (!own && base)
+    {
+        snprintf(p, sizeof(p), "%s%s", root, base);
+        strmemccpy(path, p, size);
+    }
+    /* not over one the computer synced, which the next sync writes again */
+    if (file_exists(path) && (ip_is_synced(path) || itunesdb_own_playlist(path)))
+        spare_name(path, size, false);
 }
 
 /* The folder a name is typed for, its name as it is if renamed, and whether
@@ -298,6 +395,7 @@ static void moved(const char *from, const char *to, bool dir)
     else
         lp_index_moved(from, to);
     lp_source_moved(from, to);
+    catalog_playlist_moved(from, to);
 }
 
 int ip_rename(const char *path, char *renamed, size_t size)
@@ -415,6 +513,129 @@ int ip_delete(const char *path, const char *title)
     return 1;
 }
 
+/* An own playlist or folder found in a folder from Music, to the top: by
+   its name, or "Name 2" and so on if that's taken there. A playlist's
+   bookmark beside it goes with it, and a Mac's ._ file of it goes */
+static bool gather_one(const char *path, const char *top, bool dir)
+{
+    const char *base = strrchr(path, '/');
+    /* off the main thread's stack, under the indexes' moves: this isn't
+       entered again while it runs, nor elsewhere than at Updating Library */
+    static char to[MAX_PATH], a[MAX_PATH + 8], b[MAX_PATH + 8];
+    if (!base || (size_t)snprintf(to, sizeof(to), "%s%s", top, base) >= sizeof(to))
+        return false;
+    strmemccpy(a, to, sizeof(a));
+    char *dot = dir ? NULL : strrchr(a, '.');
+    if (dot && dot > strrchr(a, '/'))
+        *dot = '\0';
+    bool taken = dir_exists(a);
+    if ((size_t)snprintf(b, sizeof(b), "%s.m3u8", a) < sizeof(b))
+        taken |= file_exists(b);
+    if ((size_t)snprintf(b, sizeof(b), "%s.m3u", a) < sizeof(b))
+        taken |= file_exists(b);
+    if (taken && !spare_name(to, sizeof(to), dir))
+        return false;
+    if (rename(path, to) < 0)
+        return false;
+    moved(path, to, dir);
+    if (!dir && (size_t)snprintf(a, sizeof(a), "%s.bmark", path) < sizeof(a)
+        && (size_t)snprintf(b, sizeof(b), "%s.bmark", to) < sizeof(b)
+        && file_exists(a))
+        rename(a, b);
+    if ((size_t)snprintf(a, sizeof(a), "%.*s/._%s", (int)(base - path), path,
+                         base + 1) < sizeof(a))
+        remove(a);
+    return true;
+}
+
+/* The own ones in a folder from Music, or in an own folder in one that holds
+   some of the import's: each own folder with none of the import's in it moved
+   whole, each own playlist on its own, and those other folders gone through
+   the same way */
+static void gather_from(char *path, size_t len, int depth, const char *top)
+{
+    /* one at a time, the folder read again after each: none skipped as the
+       entries move; none tried twice, as one that didn't move stops it */
+    for (int moves = 0; moves < 1000; moves++)
+    {
+        DIR *dir = opendir(path);
+        if (!dir)
+            return;
+        bool found = false, is_dir = false;
+        struct dirent *e;
+        while (!found && (e = readdir(dir)))
+        {
+            if (e->d_name[0] == '.')
+                continue;
+            is_dir = dir_get_info(dir, e).attribute & ATTR_DIRECTORY;
+            if ((size_t)snprintf(path + len, MAX_PATH - len, "/%s", e->d_name)
+                >= MAX_PATH - len)
+                continue;
+            if (is_dir)
+                found = !ip_is_synced(path) && ip_folder_editable(path);
+            else
+                found = is_playlist_name(path) && !ip_is_synced(path)
+                        && !itunesdb_own_playlist(path);
+            if (!found)
+                path[len] = '\0';
+        }
+        closedir(dir);
+        if (!found || !gather_one(path, top, is_dir))
+            break;
+        path[len] = '\0';
+    }
+    path[len] = '\0';
+    if (depth >= 8)
+        return;
+    DIR *dir = opendir(path);
+    if (!dir)
+        return;
+    struct dirent *e;
+    while ((e = readdir(dir)))
+    {
+        if (e->d_name[0] == '.'
+            || !(dir_get_info(dir, e).attribute & ATTR_DIRECTORY)
+            || (size_t)snprintf(path + len, MAX_PATH - len, "/%s", e->d_name)
+               >= MAX_PATH - len)
+            continue;
+        /* the import's own are gone through by their lines in its list */
+        if (!ip_is_synced(path))
+            gather_from(path, strlen(path), depth + 1, top);
+        path[len] = '\0';
+    }
+    closedir(dir);
+    path[len] = '\0';
+}
+
+void ip_gather_own(void)
+{
+    /* off the main thread's stack, as gather_one()'s */
+    static char top[MAX_PATH], line[MAX_PATH + 64];
+    if (synced_count == 0 || !top_folder(top, sizeof(top)))
+        return;
+    int fd = open(ITUNESDB_PLAYLISTS_LIST, O_RDONLY);
+    if (fd < 0)
+        return;
+    const size_t top_len = strlen(top);
+    while (read_line(fd, line, sizeof(line)) > 0)
+    {
+        /* a folder the import made below the top, as Playlists' folder is
+           now: not the top itself, if it was set to one of them, whose own
+           would be moved into it again and again, nor one of another */
+        if (strncmp(line, "dir /", 5))
+            continue;
+        const size_t len = strlen(line + 4);
+        if (len >= MAX_PATH || (top_len > 1
+            && (len <= top_len + 1 || strncasecmp(line + 4, top, top_len)
+                || line[4 + top_len] != '/')))
+            continue;
+        /* the line's folder gone through in the line's own room */
+        memmove(line, line + 4, len + 1);
+        gather_from(line, len, 0, top);
+    }
+    close(fd);
+}
+
 static long size_of(const char *file)
 {
     const int fd = open(file, O_RDONLY);
@@ -464,13 +685,13 @@ bool ip_add_selection(const char *target)
     return true;
 }
 
-/* the iPod's own and the folders, of the catalogue picked from */
+/* the iPod's own playlists and folders, of the catalogue picked from: those
+   of Unsynced, none synced from the computer, which the next sync
+   writes again */
 static bool own_only(char *name, int attr, struct tree_context *tc)
 {
-    if (attr & ATTR_DIRECTORY)
-        return true;
     const char *ext = strrchr(name, '.');
-    if (ext && !strcasecmp(ext, ".m3u"))
+    if (!(attr & ATTR_DIRECTORY) && ext && !strcasecmp(ext, ".m3u"))
         return false;
     char path[MAX_PATH];
     ft_assemble_path(path, sizeof(path), tc->currdir, name);

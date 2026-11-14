@@ -27,6 +27,9 @@ bool catalog_directory_name(char *dirbuf, size_t dirbuf_sz);
 /* the catalogue opened again at this playlist, as after On-The-Go was saved
    as it */
 void catalog_select_playlist(const char *path);
+/* a playlist or folder moved: that playlist, or one in that folder, the
+   catalogue's last still */
+void catalog_playlist_moved(const char *from, const char *to);
 
 /* Set the playlist catalog dir */
 void catalog_set_directory(const char* directory);

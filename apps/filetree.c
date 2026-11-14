@@ -46,6 +46,8 @@
 #include "keyboard.h"
 #ifdef HAVE_TAGCACHE
 #include "library_playlists.h"
+#include "sortkey.h"
+#include "ipod_playlists.h"
 #include "root_menu.h"
 #endif
 
@@ -300,6 +302,47 @@ static int compare(const void* p1, const void* p2)
     return 0; /* never reached */
 }
 
+#ifdef HAVE_TAGCACHE
+/* The playlists' catalogue as Playlists' Sort By has it: Finder's smart
+   playlists first, then the folders, then the other playlists, each group in
+   its place either way; in each, by name from A to Z or exactly back. Names
+   starting with a digit first, as Finder has them, and not last as in Music's
+   lists: these are names people give, as dates; then by the rules of Music's
+   lists (sortkey.c), numbers by value, The/A/An set aside, the alphabet the
+   database was sorted with first (sortkey_get_first()). A name without its
+   extension, as shown, so that "Mix" goes before "Mix 2" */
+static int catalogue_group(const struct entry *e)
+{
+    return (e->attr & ENTRY_SMART_PLAYLIST) ? 0 : (e->attr & ATTR_DIRECTORY) ? 1 : 2;
+}
+
+static int compare_catalogue(const void *p1, const void *p2)
+{
+    const struct entry *e1 = p1, *e2 = p2;
+    const int groups = catalogue_group(e1) - catalogue_group(e2);
+    if (groups)
+        return groups;
+    char a[MAX_PATH], b[MAX_PATH];
+    strmemccpy(a, e1->name, sizeof(a));
+    strmemccpy(b, e2->name, sizeof(b));
+    if (!(e1->attr & ATTR_DIRECTORY))
+    {
+        char *ext = strrchr(a, '.');
+        if (ext && ext != a)
+            *ext = '\0';
+        ext = strrchr(b, '.');
+        if (ext && ext != b)
+            *ext = '\0';
+    }
+    const bool digit_a = sortkey_group(sortkey_start(a, true)) == SORTKEY_DIGITS;
+    const bool digit_b = sortkey_group(sortkey_start(b, true)) == SORTKEY_DIGITS;
+    int d = digit_a != digit_b ? (digit_a ? -1 : 1) : sortkey_compare(a, b);
+    if (!d)
+        d = strcmp(e1->name, e2->name); /* "Mix.m3u" and "Mix.m3u8" */
+    return global_settings.playlists_sort ? -d : d;
+}
+#endif
+
 /* load and sort directory into the tree's cache. returns NULL on failure. */
 int ft_load(struct tree_context* c, const char* tempdir)
 {
@@ -426,6 +469,18 @@ int ft_load(struct tree_context* c, const char* tempdir)
 
         ++files_in_dir;
 
+#ifdef HAVE_TAGCACHE
+        /* the catalogue's smart playlists, which it lists first */
+        if (*c->dirfilter == SHOW_M3U && file_attr == FILE_ATTR_M3U)
+        {
+            char path[MAX_PATH];
+            ft_assemble_path(path, sizeof(path), tempdir ? tempdir : c->currdir,
+                             entry->d_name);
+            if (ip_is_smart(path))
+                dptr->attr |= ENTRY_SMART_PLAYLIST;
+        }
+#endif
+
         dptr->name = core_get_data(c->cache.name_buffer_handle)+name_buffer_used;
         dptr->time_write = info.mtime;
         strcpy(dptr->name, (char *)entry->d_name);
@@ -441,11 +496,7 @@ int ft_load(struct tree_context* c, const char* tempdir)
     /* allow directories to be sorted into file list */
     cmp_data.sort_dir = (*c->dirfilter == SHOW_PLUGINS) ? SORT_AS_FILE : c->sort_dir;
 
-    /* the playlist catalogue lists the newest first, as each file of the
-       library's has the time the playlist was last changed; its folders come
-       first, by name */
-    cmp_data.sort_file = (*c->dirfilter == SHOW_M3U) ?
-                         SORT_DATE_REVERSED : global_settings.sort_file;
+    cmp_data.sort_file = global_settings.sort_file;
 
     if (global_settings.sort_case)
     {
@@ -462,7 +513,12 @@ int ft_load(struct tree_context* c, const char* tempdir)
             cmp_data._compar = strncasecmp;
     }
 
+#ifdef HAVE_TAGCACHE
+    qsort(tree_get_entries(c), files_in_dir, sizeof(struct entry),
+          *c->dirfilter == SHOW_M3U ? compare_catalogue : compare);
+#else
     qsort(tree_get_entries(c), files_in_dir, sizeof(struct entry), compare);
+#endif
 
     /* If thumbnail talking is enabled, make an extra run to mark files with
        associated thumbnails, so we don't do unsuccessful spinups later. */

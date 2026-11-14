@@ -1114,6 +1114,9 @@ struct user_settings
        the settings (%St) */
     int np_rating;
     bool np_format;
+    /* Playlists, as its first row and each of its folders' sorts them: 0 by
+       name from A to Z, 1 from Z to A */
+    int playlists_sort;
 };
 
 /* global settings */

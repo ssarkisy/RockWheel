@@ -1402,9 +1402,10 @@ static void playlist_dir(char *buf, size_t size)
 /* The playlists file lists those of the last import, a line each:
    "<hash> <size> <time> <file>" with the hash and size of what was written and
    the time the playlist was last changed in the library, which the file has as
-   its own so that the newest come first; and "dir <folder>" for each folder it
-   made. Each file costs the iPod's flash a good part of a second to remove and
-   write again, so those that would come out the same are left. */
+   its own, followed by "smart <file>" for a smart one; and "dir <folder>"
+   for each folder it made. Each file costs the iPod's flash a good part of
+   a second to remove and write again, so those that would come out the same
+   are left. */
 
 /* As many playlists and folders as there are: iTunesDB says how many
    playlists, and the files are given room for their lines. Of 256 playlists
@@ -1518,6 +1519,8 @@ static enum old_list load_old_playlists(int playlists)
         /* none of one too long, or too short to hold what it should */
         if (line[0] == '\0' || (line[0] != '/' && strlen(line) < 18))
             continue;
+        if (!strncmp(line, "smart /", 7))
+            continue; /* the mark of the playlist on the line before */
         if (!strncmp(line, "dir /", 5))
         {
             size_t len = strlen(line + 4) + 1;
@@ -1919,6 +1922,8 @@ static struct {
     struct folder {
         uint64_t id, parent;
         uint32_t name;          /* in names */
+        uint32_t made_at;       /* its place this time, 1 past its offset in
+                                   made, 0 until its first playlist's */
     } *folders;
     struct placed {
         uint64_t id, parent;
@@ -1995,6 +2000,7 @@ static void load_folders(void)
                 continue;
             memcpy(fld.names + used, rest, len);
             f->name = used;
+            f->made_at = 0;
             used += len;
             fld.folder_count++;
         }
@@ -2024,7 +2030,7 @@ static void forget_folders(void)
     fld.made_count = 0;
 }
 
-static const struct folder *find_folder(uint64_t id)
+static struct folder *find_folder(uint64_t id)
 {
     for (int i = 0; id && i < fld.folder_count; i++)
     {
@@ -2045,14 +2051,44 @@ static bool made_before(const char *path)
     return false;
 }
 
+/* a folder noted as made, or kept, this time: 1 past its offset in made, 0
+   if it isn't */
+static uint32_t made_now(const char *path)
+{
+    for (size_t k = 0; k < fld.made_len; k += strlen(fld.made + k) + 1)
+    {
+        if (!strcasecmp(fld.made + k, path))
+            return k + 1;
+    }
+    return 0;
+}
+
+/* another of Music's folders beside this one, in the same folder, by this
+   name as its own on the disk would be */
+static bool sibling_named(const struct folder *f, const char *name)
+{
+    for (int i = 0; i < fld.folder_count; i++)
+    {
+        const struct folder *o = &fld.folders[i];
+        if (o == f || o->parent != f->parent)
+            continue;
+        char clean[MAX_PATH / 4];
+        clean_name(clean, sizeof(clean), fld.names + o->name, "Folder");
+        if (!strcasecmp(clean, name))
+            return true;
+    }
+    return false;
+}
+
 /* The folder in the playlists' one of the folder with this id, made if it isn't
    there, with those it's in: false if it's too deep, in itself, too long or
-   can't be made */
+   can't be made. Each folder's place is chosen once an import, by its first
+   playlist, and its others go there */
 static bool folder_dir(char *buf, size_t size, const char *dir, uint64_t id)
 {
-    const struct folder *chain[MAX_FOLDER_DEPTH];
+    struct folder *chain[MAX_FOLDER_DEPTH];
     int depth = 0;
-    for (const struct folder *f = find_folder(id); f; f = find_folder(f->parent))
+    for (struct folder *f = find_folder(id); f; f = find_folder(f->parent))
     {
         if (depth == MAX_FOLDER_DEPTH)
             return false;
@@ -2066,26 +2102,47 @@ static bool folder_dir(char *buf, size_t size, const char *dir, uint64_t id)
     strmemccpy(buf, dir, size);
     for (int i = depth - 1; i >= 0; i--)
     {
+        if (chain[i]->made_at)
+        {
+            strmemccpy(buf, fld.made + chain[i]->made_at - 1, size);
+            continue;
+        }
         char clean[MAX_PATH / 4];
         clean_name(clean, sizeof(clean), fld.names + chain[i]->name, "Folder");
         const size_t len = strlen(buf);
         if ((size_t)snprintf(buf + len, size - len, "/%s", clean) >= size - len)
             return false;
-        /* one that was there already is the user's, and is never removed */
-        const bool made = mkdir(buf) == 0;
+        bool made = mkdir(buf) == 0;
         if (!made && !dir_exists(buf))
             return false;
-        if (!made && !made_before(buf) && !fld.claim)
-            continue;
-        /* noted once, to be removed when it's left empty */
-        bool noted = false;
-        for (size_t k = 0; k < fld.made_len && !noted; k += strlen(fld.made + k) + 1)
-            noted = !strcasecmp(fld.made + k, buf);
+        /* one that was there already, and no import made, is the user's, in
+           Unsynced, and is never written into: this one beside it as
+           "Name 2", the first of those free or one an import made before,
+           as a playlist does by a file of the user's; and none another
+           folder of Music's has this time. With no list, all are taken to be
+           the import's */
+        int num = 1;
+        while (!made && (made_now(buf) || (!made_before(buf) && !fld.claim)))
+        {
+            /* the next name, but none another folder of Music's beside it
+               has: its "Name 2" keeps its own */
+            do
+            {
+                if (++num == 100 || (size_t)snprintf(buf + len, size - len, "/%s %d",
+                                                     clean, num) >= size - len)
+                    return false;
+            } while (sibling_named(chain[i], buf + len + 1));
+            made = mkdir(buf) == 0;
+            if (!made && !dir_exists(buf))
+                return false;
+        }
+        /* noted once, to be removed when it's left empty; and its place for
+           the folder's other playlists */
         const size_t n = strlen(buf) + 1;
-        if (!noted && fld.made_count < fld.capacity
-            && fld.made_len + n <= fld.made_size)
+        if (fld.made_count < fld.capacity && fld.made_len + n <= fld.made_size)
         {
             memcpy(fld.made + fld.made_len, buf, n);
+            chain[i]->made_at = fld.made_len + 1;
             fld.made_len += n;
             fld.made_count++;
         }
@@ -2211,6 +2268,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     struct smart_rules smart;
     memset(&smart, 0, sizeof(smart));
     bool live = false, ruled = false;
+    bool by_rules = false; /* a smart one, live or not */
     off_t child = pos + header_len;
     for (int i = 0; i < mhods; i++)
     {
@@ -2225,7 +2283,10 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
         if (type == 1)
             mhod_string(child, name, sizeof(name));
         else if (type == 50)
+        {
             live = smart_prefs(child, total, &smart);
+            by_rules = true;
+        }
         else if (type == 51)
             ruled = smart_rule_list(child, total, &smart);
         child += total;
@@ -2281,7 +2342,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
             hash = 0;
         }
     }
-    /* its time as the file's, so that the newest are listed first */
+    /* its time as the file's: when it was last changed in the library */
     if (time && (!same || o->time != time))
         modtime(file, time);
     pls.written[pls.written_count++] = itunesdb_path_hash(file);
@@ -2291,6 +2352,10 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     list_line(list_fd, "%08lx%08lx %lu %lu %s\n", (unsigned long)(hash >> 32),
               (unsigned long)(uint32_t)hash, (unsigned long)size,
               (unsigned long)time, file);
+    /* and a line of its own if it's a smart one, which Playlists lists
+       first: a line a version before passes over */
+    if (by_rules)
+        list_line(list_fd, "smart %s\n", file);
 }
 
 static void write_playlists(off_t list)

@@ -132,19 +132,28 @@ static struct entry *get_valid_entry(const char* funcname,
     return entry;
 }
 
-/* Playlists with folders among them, as Settings lists its groups: the folders,
-   which come first, under a name of their own, and then the playlists under
-   theirs, so that the one isn't taken for the other. */
-static int catalog_folders; /* the folders before the playlists, or 0 if not both */
 /* On-The-Go, as on a stock iPod: a row of its own, the last of the catalogue's
    top, when it's viewed; none of the catalogue's entries */
 static bool catalog_otg, catalog_otg_empty;
 static bool catalog_on_otg; /* the cursor was on it, and goes back there */
-/* New Playlist and New Folder, the first rows of each level of the catalogue
-   as it's viewed; Move Here and New Folder as a folder is picked */
-static int catalog_lead;
-#define LEAD_FIRST  0
-#define LEAD_FOLDER 1
+/* The rows of the catalogue before its entries, a kind each: as it's viewed,
+   Sort By over each level, Unsynced at its top, and New Playlist and New
+   Folder in Unsynced and its folders; as a playlist is picked, New
+   Playlist and New Folder; as a folder is, Move Here and New Folder */
+enum {
+    LEAD_SORT_BY, LEAD_UNSYNCED, LEAD_NEW_PLAYLIST, LEAD_NEW_FOLDER,
+    LEAD_MOVE_HERE,
+};
+static unsigned char catalog_leads[3];
+static int catalog_lead; /* how many */
+/* Unsynced, viewed: the catalogue's top as its playlists and folders
+   that aren't synced from the computer, shown where they are on the disk
+   (a virtual folder: viewing it moves nothing); below the top, a folder in
+   Unsynced, not one from Music */
+static bool catalog_mine;
+/* the lead row of this kind selected as the list is loaded next, -1 for
+   the entry's */
+static int catalog_select = -1;
 #ifdef HAVE_TAGCACHE
 /* In Music, an album's songs under its header (album_header.c): the rows it
    takes at the top, which aren't entries, and none selects; 0 for another
@@ -156,38 +165,66 @@ static bool album_title_shown;
 #define album_rows 0
 #endif
 
+/* the catalogue as Playlists shows it, not as one of it is picked */
+static bool catalog_viewed(void)
+{
+    return *tc.dirfilter == SHOW_M3U && tc.browse
+           && (tc.browse->flags & BROWSE_ON_THE_GO);
+}
+
+/* Unsynced shown, in place of the catalogue's top */
+static bool catalog_in_mine(void)
+{
+    return catalog_mine && tc.dirlevel == 0 && catalog_viewed();
+}
+
 static void catalog_count(void)
 {
-    catalog_folders = 0;
-    catalog_lead = *tc.dirfilter == SHOW_M3U && tc.browse
-                   && (tc.browse->flags & (BROWSE_ON_THE_GO | BROWSE_PICK_FOLDER
-                                           | BROWSE_PICK_PLAYLIST))
-                   ? 2 : 0;
-    catalog_otg = *tc.dirfilter == SHOW_M3U && tc.browse
-                  && (tc.browse->flags & BROWSE_ON_THE_GO) && tc.dirlevel == 0;
-    if (catalog_otg)
-        catalog_otg_empty = otg_empty();
-    if (*tc.dirfilter != SHOW_M3U)
+    catalog_lead = 0;
+    catalog_otg = false;
+    if (*tc.dirfilter != SHOW_M3U || !tc.browse)
         return;
-    const struct entry *entries = tree_get_entries(&tc);
-    int folders = 0;
-    while (folders < tc.filesindir && (entries[folders].attr & ATTR_DIRECTORY))
-        folders++;
-    if (folders > 0 && folders < tc.filesindir)
-        catalog_folders = folders;
+    const unsigned flags = tc.browse->flags;
+    bool makes = false;
+    if (flags & BROWSE_ON_THE_GO)
+    {
+        catalog_leads[catalog_lead++] = LEAD_SORT_BY;
+        if (tc.dirlevel == 0 && !catalog_mine)
+        {
+            catalog_leads[catalog_lead++] = LEAD_UNSYNCED;
+            catalog_otg = true;
+            catalog_otg_empty = otg_empty();
+        }
+        else
+            /* only in Unsynced and its folders, where all that isn't
+               the computer's is: none in a folder from Music, at any
+               depth */
+            makes = catalog_mine;
+    }
+    else if (flags & BROWSE_PICK_FOLDER)
+    {
+        catalog_leads[catalog_lead++] = LEAD_MOVE_HERE;
+        catalog_leads[catalog_lead++] = LEAD_NEW_FOLDER;
+    }
+    else if (flags & BROWSE_PICK_PLAYLIST)
+        makes = true;
+    if (makes)
+    {
+        catalog_leads[catalog_lead++] = LEAD_NEW_PLAYLIST;
+        catalog_leads[catalog_lead++] = LEAD_NEW_FOLDER;
+    }
 }
 
 /* The bars of groups among a list's rows, each over the entry it starts with:
-   the catalogue's two, or in Music an album's discs and All Songs' albums, as
-   the list was made. The rows past catalog_lead are then as many more than
-   the entries. */
+   in Music an album's discs and All Songs' albums, as the list was made. The
+   rows past catalog_lead are then as many more than the entries. */
 static int group_count(void)
 {
 #ifdef HAVE_TAGCACHE
     if (*tc.dirfilter == SHOW_ID3DB)
         return tagtree_group_count(&tc);
 #endif
-    return catalog_folders ? 2 : 0;
+    return 0;
 }
 
 static int group_at(int group)
@@ -196,7 +233,8 @@ static int group_at(int group)
     if (*tc.dirfilter == SHOW_ID3DB)
         return tagtree_group_at(&tc, group);
 #endif
-    return group ? catalog_folders : 0;
+    (void)group;
+    return 0;
 }
 
 /* Of the rows past catalog_lead, the groups' before row, by halves: each
@@ -228,6 +266,17 @@ static int group_of(int row)
 static bool catalog_lead_row(int row)
 {
     return row < catalog_lead;
+}
+
+/* the row of the lead of this kind, -1 if the list has none */
+static int catalog_lead_of(int kind)
+{
+    for (int row = 0; row < catalog_lead; row++)
+    {
+        if (catalog_leads[row] == kind)
+            return row;
+    }
+    return -1;
 }
 
 /* the rows of an album's header, the entries and their groups' names, and
@@ -302,12 +351,12 @@ static const char* tree_get_filename(int selected_item, void *data,
     struct tree_context * local_tc=(struct tree_context *)data;
     char *name;
     int attr=0;
-    const int group = group_of(selected_item);
 #ifdef HAVE_TAGCACHE
     bool id3db = *(local_tc->dirfilter) == SHOW_ID3DB;
 
     if (id3db)
     {
+        const int group = group_of(selected_item);
         /* an album's header, which is drawn whole rather than by rows */
         if (selected_item < album_rows)
             return "";
@@ -323,11 +372,25 @@ static const char* tree_get_filename(int selected_item, void *data,
         if (catalog_otg_row(selected_item))
             return str(LANG_ON_THE_GO);
         if (catalog_lead_row(selected_item))
-            return str(selected_item == LEAD_FOLDER ? LANG_NEW_FOLDER :
-                       (tc.browse->flags & BROWSE_PICK_FOLDER) ? LANG_MOVE_HERE
-                                                               : LANG_NEW_PLAYLIST);
-        if (group >= 0)
-            return str(group ? LANG_PLAYLISTS : LANG_FOLDERS);
+        {
+            switch (catalog_leads[selected_item])
+            {
+                case LEAD_SORT_BY:
+                    /* as a setting, its value at the right end */
+                    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_SORT_BY),
+                             str(global_settings.playlists_sort ? LANG_SORT_Z_A
+                                                                : LANG_SORT_A_Z));
+                    return buffer;
+                case LEAD_UNSYNCED:
+                    return str(LANG_UNSYNCED);
+                case LEAD_NEW_FOLDER:
+                    return str(LANG_NEW_FOLDER);
+                case LEAD_MOVE_HERE:
+                    return str(LANG_MOVE_HERE);
+                default:
+                    return str(LANG_NEW_PLAYLIST);
+            }
+        }
         struct entry *entry = get_valid_entry(__func__, local_tc,
                                               index_of(selected_item));
         name = entry->name;
@@ -457,32 +520,37 @@ static void tree_before_draw(struct gui_synclist *list)
 #endif
 
 #ifdef HAVE_TAGCACHE
-/* The mark before a playlist's or folder's name in Playlists: a computer for
-   one synced from Finder, as the import's list has it, an iPod for one made
-   on the iPod or put there by hand, and On-The-Go. New Playlist, New Folder
-   and Move Here are names alone, as the groups' */
+/* The mark before a row's name in Playlists: a playlist's, On-The-Go's too,
+   whatever made it, but a smart one's of its own; and a folder's, On This
+   iPod's too. Sort By has none, and New Playlist, New Folder and Move Here the
+   theme's own, if any */
 static int tree_get_mark(int selected_item, void *data)
 {
     struct tree_context *local_tc = (struct tree_context *)data;
-    if (tree_is_group(selected_item, NULL))
-        return LINE_MARK_NONE;
-    /* a plus before New Playlist and New Folder where the theme has one */
     if (catalog_lead_row(selected_item))
     {
-        if (!ui_metric(UI_METRIC_MENU_MARKS))
-            return LINE_MARK_NONE;
-        /* Move Here makes nothing new: its name in line with the others' */
-        return selected_item == LEAD_FIRST
-               && (local_tc->browse->flags & BROWSE_PICK_FOLDER) ? LINE_MARK_BLANK
-                                                                  : LINE_MARK_PLUS;
+        switch (catalog_leads[selected_item])
+        {
+            case LEAD_SORT_BY:
+                return LINE_MARK_NONE;
+            case LEAD_UNSYNCED:
+                return LINE_MARK_FOLDER;
+            case LEAD_MOVE_HERE:
+                /* it makes nothing new: its name in line with the others' */
+                return ui_metric(UI_METRIC_MENU_MARKS) ? LINE_MARK_BLANK
+                                                       : LINE_MARK_NONE;
+            default:
+                /* a plus before New Playlist and New Folder */
+                return ui_metric(UI_METRIC_MENU_MARKS) ? LINE_MARK_PLUS
+                                                       : LINE_MARK_NONE;
+        }
     }
     if (catalog_otg_row(selected_item))
-        return LINE_MARK_IPOD;
-    struct entry *entry = get_valid_entry(__func__, local_tc,
-                                          index_of(selected_item));
-    char path[MAX_PATH];
-    ft_assemble_path(path, sizeof(path), local_tc->currdir, entry->name);
-    return ip_is_synced(path) ? LINE_MARK_COMPUTER : LINE_MARK_IPOD;
+        return LINE_MARK_PLAYLIST;
+    const struct entry *entry = get_valid_entry(__func__, local_tc,
+                                                index_of(selected_item));
+    return entry->attr & ATTR_DIRECTORY ? LINE_MARK_FOLDER
+           : entry->attr & ENTRY_SMART_PLAYLIST ? LINE_MARK_SMART : LINE_MARK_PLAYLIST;
 }
 #endif
 
@@ -519,7 +587,10 @@ static bool tree_has_children(int selected_item, void * data)
 #endif
     if (catalog_otg_row(selected_item))
         return !catalog_otg_empty;
-    if (tree_is_group(selected_item, NULL) || catalog_lead_row(selected_item))
+    /* Unsynced does, even empty: New Playlist is in it */
+    if (catalog_lead_row(selected_item))
+        return catalog_leads[selected_item] == LEAD_UNSYNCED;
+    if (tree_is_group(selected_item, NULL))
         return false;
     struct entry *entry = get_valid_entry(__func__, local_tc, index_of(selected_item));
     return (entry->attr & ATTR_DIRECTORY)
@@ -829,15 +900,20 @@ static int update_dir(void)
         }
     }
     /* if selected item is undefined */
+    bool forgotten = false;
     if (tc.selected_item == -1)
     {
         if (!id3db)
             /* use lastfile to determine the selected item */
             tc.selected_item = tree_get_file_position(lastfile);
 
-        /* If the file doesn't exists, select the first one (default) */
+        /* If the file doesn't exists, select the first one (default); at
+           the catalogue's top, Unsynced, the first past Sort By */
         if(tc.selected_item < 0)
+        {
             tc.selected_item = 0;
+            forgotten = true;
+        }
         changed = true;
     }
     if (changed)
@@ -883,6 +959,8 @@ static int update_dir(void)
                 if (subdir != NULL)
                     title = subdir + 1; /* step past the separator */
             }
+            if (catalog_in_mine())
+                title = str(LANG_UNSYNCED);
         }
         else
         {
@@ -918,7 +996,8 @@ static int update_dir(void)
        album's header, rows none selects too, whatever the album's discs */
     if (group_count() || album_rows)
         list->callback_is_group = tree_is_group;
-    if (group_count())
+    /* and the catalogue's Sort By, its value at the right end */
+    if (group_count() || catalog_lead_of(LEAD_SORT_BY) >= 0)
         list->callback_draw_item = menu_draw_value_line;
 #ifdef HAVE_TAGCACHE
     /* a Sort By, its value at the right end as a setting's */
@@ -984,12 +1063,21 @@ static int update_dir(void)
     if( tc.selected_item >= tc.filesindir)
         tc.selected_item=tc.filesindir-1;
 
-    /* back on On-The-Go, unless it was saved as a playlist, which the cursor
-       goes to */
-    if (catalog_otg && ((catalog_on_otg && !catalog_otg_empty) || tc.filesindir <= 0))
-        gui_synclist_select_item(list, catalog_rows());
-    else
-        gui_synclist_select_item(list, tc.filesindir > 0 ? row_of(tc.selected_item) : 0);
+    /* on a row before the entries if one is to be; back on On-The-Go,
+       unless it was saved as a playlist, which the cursor goes to; on On
+       This iPod if the entry is forgotten; or on the entry, or with none,
+       the first row past Sort By */
+    int row = catalog_select >= 0 ? catalog_lead_of(catalog_select) : -1;
+    catalog_select = -1;
+    if (row < 0 && catalog_otg && catalog_on_otg && !catalog_otg_empty)
+        row = catalog_rows();
+    if (row < 0 && forgotten)
+        row = catalog_lead_of(LEAD_UNSYNCED);
+    if (row < 0 && tc.filesindir > 0)
+        row = row_of(tc.selected_item);
+    if (row < 0)
+        row = catalog_lead > 1 && catalog_leads[0] == LEAD_SORT_BY ? 1 : 0;
+    gui_synclist_select_item(list, row);
     gui_synclist_draw(list);
     gui_synclist_speak_item(list);
     return tc.filesindir;
@@ -1237,6 +1325,46 @@ static int tree_cover_flow(const char *at, char *buf)
 }
 #endif
 
+#ifdef HAVE_TAGCACHE
+bool tree_catalog_show_item(char *name, int attr, struct tree_context *c)
+{
+    (void)attr;
+    if (c->dirlevel != 0)
+        return true;
+    char path[MAX_PATH];
+    ft_assemble_path(path, sizeof(path), c->currdir, name);
+    return ip_is_synced(path) != catalog_mine;
+}
+
+/* Of the catalogue opened at a file, as it gives it below its root: whether
+   it's in Unsynced, as it or its folder at the top is there and not
+   synced */
+static bool catalog_opens_mine(const char *root, const char *rel)
+{
+    if (!rel || !*rel)
+        return false;
+    const char *end = strchr(rel, '/');
+    char top[MAX_PATH], path[MAX_PATH];
+    strmemccpy(top, rel, MIN(end ? (size_t)(end - rel) + 1 : sizeof(top),
+                             sizeof(top)));
+    if (path_append(path, root, top, sizeof(path)) >= sizeof(path))
+        return false;
+    return (file_exists(path) || dir_exists(path)) && !ip_is_synced(path);
+}
+
+/* Playlists' Sort By selected: the other order, of each level; the cursor
+   back on each level above by its row's name */
+static void catalog_sort_switched(void)
+{
+    global_settings.playlists_sort = !global_settings.playlists_sort;
+    settings_save();
+    for (int level = 0; level < tc.dirlevel && level < MAX_DIR_LEVELS; level++)
+        tc.selected_item_history[level] = -1;
+    catalog_select = LEAD_SORT_BY;
+    reload_dir = true;
+}
+#endif
+
 /* main loop, handles key events */
 static int dirbrowse(void)
 {
@@ -1258,8 +1386,9 @@ static int dirbrowse(void)
     else
 #endif
         curr_context=CONTEXT_TREE;
-    /* in Music, a row forgotten opens the list at its first, as it's loaded */
-    if (tc.selected_item < 0 && !id3db)
+    /* in Music, a row forgotten opens the list at its first, as it's loaded;
+       the catalogue's looked for once it's read as it's shown (update_dir) */
+    if (tc.selected_item < 0 && !id3db && *tc.dirfilter != SHOW_M3U)
         tc.selected_item = 0;
 #ifdef HAVE_TAGCACHE
     lasttable = -1;
@@ -1396,35 +1525,52 @@ static int dirbrowse(void)
 #endif
         if (on_lead)
         {
-            /* New Playlist, New Folder, or as a folder is picked, Move Here:
-               this one */
+            const int lead = catalog_leads[lead_row];
             if (button == ACTION_STD_OK)
             {
                 char made[MAX_PATH];
                 int r;
-                if (lead_row == LEAD_FIRST
-                    && (tc.browse->flags & BROWSE_PICK_FOLDER))
+                switch (lead)
                 {
-                    tc.browse->flags |= BROWSE_SELECTED;
-                    strmemccpy(tc.browse->buf, currdir, tc.browse->bufsize);
-                    return exit_to_new_screen(GO_TO_PREVIOUS);
+                    case LEAD_SORT_BY:
+                        /* the list again in the other order at once, its row
+                           still selected, as Albums' */
+                        catalog_sort_switched();
+                        break;
+                    case LEAD_UNSYNCED:
+                        catalog_mine = true;
+                        tc.selected_item = 0;
+                        reload_dir = true;
+                        transition_begin(TRANSITION_FORWARD);
+                        break;
+                    case LEAD_MOVE_HERE:
+                        tc.browse->flags |= BROWSE_SELECTED;
+                        strmemccpy(tc.browse->buf, currdir, tc.browse->bufsize);
+                        return exit_to_new_screen(GO_TO_PREVIOUS);
+                    default:
+                        r = lead == LEAD_NEW_FOLDER ?
+                            ip_new_folder(currdir, made, sizeof(made))
+                            : ip_new_playlist(currdir, made, sizeof(made));
+                        if (r < 0)
+                            return exit_to_new_screen(GO_TO_ROOT);
+                        /* a new one picked at once, to add to */
+                        if (r > 0 && lead == LEAD_NEW_PLAYLIST
+                            && (tc.browse->flags & BROWSE_PICK_PLAYLIST))
+                        {
+                            tc.browse->flags |= BROWSE_SELECTED;
+                            strmemccpy(tc.browse->buf, made, tc.browse->bufsize);
+                            return exit_to_new_screen(GO_TO_PREVIOUS);
+                        }
+                        if (r > 0)
+                            tree_select_after_reload(made);
+                        else
+                        {
+                            /* the screen of the name was over it */
+                            reload_dir = true;
+                            catalog_select = lead;
+                        }
+                        break;
                 }
-                r = lead_row == LEAD_FOLDER ? ip_new_folder(currdir, made, sizeof(made))
-                                            : ip_new_playlist(currdir, made, sizeof(made));
-                if (r < 0)
-                    return exit_to_new_screen(GO_TO_ROOT);
-                /* a new one picked at once, to add to */
-                if (r > 0 && lead_row == LEAD_FIRST
-                    && (tc.browse->flags & BROWSE_PICK_PLAYLIST))
-                {
-                    tc.browse->flags |= BROWSE_SELECTED;
-                    strmemccpy(tc.browse->buf, made, tc.browse->bufsize);
-                    return exit_to_new_screen(GO_TO_PREVIOUS);
-                }
-                if (r > 0)
-                    tree_select_after_reload(made);
-                else
-                    reload_dir = true; /* the screen of the name over it */
             }
             /* Menu, Play, USB and the rest as on any row */
             if (button == ACTION_STD_OK || button == ACTION_STD_CONTEXT
@@ -1536,6 +1682,16 @@ static int dirbrowse(void)
                     return exit_to_new_screen(GO_TO_PREVIOUS);
                 }
 #endif
+                /* out of Unsynced: on its row at the top */
+                if (catalog_in_mine())
+                {
+                    catalog_mine = false;
+                    catalog_on_otg = false;
+                    catalog_select = LEAD_UNSYNCED;
+                    reload_dir = true;
+                    transition_begin(TRANSITION_BACK);
+                    break;
+                }
                 if (*tc.dirfilter > NUM_FILTER_MODES && tc.dirlevel < 1) {
                     transition_begin(TRANSITION_BACK);
                     exit_func = true;
@@ -1896,6 +2052,18 @@ int rockbox_browse(struct browse_context *browse)
             while (rel && *rel == '/')
                 rel++;
             const char *sub = rel ? strrchr(rel, '/') : NULL;
+#ifdef HAVE_TAGCACHE
+            if (*tc.dirfilter == SHOW_M3U && (browse->flags & BROWSE_ON_THE_GO))
+            {
+                /* back on On-The-Go, at the top, if the cursor was on it
+                   and it's still there (update_dir), rather than at the
+                   playlist chosen before it */
+                if (catalog_on_otg && !otg_empty())
+                    rel = sub = NULL;
+                /* in Unsynced, if it is there or in one of its folders */
+                catalog_mine = catalog_opens_mine(browse->root, rel);
+            }
+#endif
             if (sub && *tc.dirfilter == SHOW_M3U)
             {
                 /* a playlist in a folder of the catalogue's: back in that
@@ -1935,6 +2103,10 @@ int rockbox_browse(struct browse_context *browse)
                 set_current_file_ex(browse->root, browse->selected);
                 /* set_current_file changes dirlevel, change it back */
                 tc.dirlevel = 0;
+                /* the catalogue's top read again as it's shown, On This
+                   iPod's or what's synced, and the file looked for there */
+                if (*tc.dirfilter == SHOW_M3U)
+                    tc.selected_item = -1;
             }
 
             ret_val = dirbrowse();

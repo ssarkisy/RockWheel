@@ -4,7 +4,8 @@
     themes/tools/make_theme_glyphs.py <folder with manifest.json and <theme>/*.png> [<theme>]
 
 The folder is the export of the mockups' own drawing code (names, sizes and
-frames in its manifest.json: nothing of them is written here). A mask is black
+frames in its manifest.json: nothing of them is written here), but for
+Playlists' marks, drawn here (catalogue_marks()). A mask is black
 with alpha, its frames stacked top to bottom; a coloured glyph (the notes of
 a missing cover) is a file a look, as drawn, with a mask of its shape beside
 it as "<Name> Mask": the firmware draws the mask in the theme's two colours
@@ -26,6 +27,7 @@ Run again after the export changes; the manifest's sha256 is in the header.
 """
 import hashlib
 import json
+import math
 import os
 import re
 import struct
@@ -35,9 +37,13 @@ import zlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..", "..")
 
-# what the list code draws, by the manifest's names
-LIST = ("Chevron", "Speaker", "Source", "Episode Dots", "Note Small", "Note Header",
-        "Check", "Plus", "Search Keys")
+# what the list code draws, by the manifest's names; "Catalogue Marks" is drawn
+# here (catalogue_marks() below), not exported
+LIST = ("Chevron", "Speaker", "Catalogue Marks", "Smart Gear", "Episode Dots",
+        "Note Small", "Note Header", "Check", "Plus", "Search Keys")
+# its width in Neo, a pixel narrower than Classic's and Modern's, as Neo's
+# glyphs are; and "Smart Gear" (smart_gear() below)
+NEO_CATALOGUE_W = 12
 # what the screen shown over USB draws (apps/gui/neo_usb_glyphs.h): the sign
 # while connected and the one once it may be unplugged; of the status line's
 # battery the frames charging and charged
@@ -189,6 +195,77 @@ def disc(size, height):
     return shape(size, height, inside)
 
 
+def catalogue_marks(w):
+    """Playlists' marks before the names, filled, which read better than
+    outlines at this size: two frames of w by 11, one for every playlist
+    whatever made it, three lines and a note as Music's, and one for every
+    folder. The lines 2 px thick with round ends on whole rows; the note's
+    stem 1.4 px, its flag a band down to the right, its head an oval tilted
+    up. As a mask, a glyph's dict as the manifest has it, and its rows"""
+    k = w - 13
+
+    def ellipse(x, y, cx, cy, rx, ry, angle):
+        c, s = math.cos(angle), math.sin(angle)
+        u, v = (x - cx) * c + (y - cy) * s, -(x - cx) * s + (y - cy) * c
+        return (u / rx) ** 2 + (v / ry) ** 2 <= 1
+
+    def line(x, y, right, top):
+        r = 1
+        cx = min(max(x, r), right - r)
+        return (x - cx) ** 2 + (y - top - r) ** 2 <= r * r
+
+    def rounded(x, y, x0, y0, x1, y1, r):
+        if x < x0 or x > x1 or y < y0 or y > y1:
+            return False
+        cx, cy = min(max(x, x0 + r), x1 - r), min(max(y, y0 + r), y1 - r)
+        return (x - cx) ** 2 + (y - cy) ** 2 <= r * r
+
+    def playlist(x, y):
+        if any(line(x, y, right, top) for top, right in ((1, 7 + k), (4, 7 + k), (7, 4 + k))):
+            return True
+        sx = 10.1 + k
+        if sx <= x <= sx + 1.4 and 0.3 <= y <= 9:
+            return True
+        d = (x - sx - 1.4) * 0.9
+        if sx + 1.4 <= x <= w and 0.3 + d <= y <= 2.4 + d:
+            return True
+        return ellipse(x, y, sx - 0.95, 9.0, 2.2, 1.7, math.radians(-22))
+
+    def folder(x, y):
+        # its tab at the top left, its right side slanting, on the body
+        if rounded(x, y, 0, 0, 7 + k, 4, 1.0) and x - 5 - k <= y:
+            return True
+        return rounded(x, y, 0, 2, w, 11, 1.5)
+
+    g = {"name": "Catalogue Marks", "width": w, "height": 11, "frames": 2, "kind": "mask"}
+    return g, shape(w, 11, playlist) + shape(w, 11, folder)
+
+
+def gear(cx, cy, r_out, r_body, r_hole, teeth, tooth_w, phase):
+    """inside a filled gear: a disc of r_body with teeth tooth_w across out to
+    r_out, the first at phase, a hole of r_hole at its centre"""
+    def inside(x, y):
+        dx, dy = x - cx, y - cy
+        r = math.hypot(dx, dy)
+        if r <= r_hole or r > r_out:
+            return False
+        if r <= r_body:
+            return True
+        step = 2 * math.pi / teeth
+        a = (math.atan2(dy, dx) - phase + step / 2) % step - step / 2
+        return abs(r * math.sin(a)) <= tooth_w / 2 and math.cos(a) > 0
+    return inside
+
+
+def smart_gear():
+    """The mark of Finder's smart playlists in Playlists, as Music marks them:
+    a filled gear, 11 by 11, eight teeth on the grid (owner, 2026-11-13; a
+    small gear on the playlist's mark couldn't be made out). As a mask, a
+    glyph's dict as the manifest has it, and its rows"""
+    g = {"name": "Smart Gear", "width": 11, "height": 11, "frames": 1, "kind": "mask"}
+    return g, shape(11, 11, gear(5.5, 5.5, 5.5, 3.7, 1.5, 8, 2.0, 0))
+
+
 def main():
     folder = sys.argv[1]
     theme = sys.argv[2] if len(sys.argv) > 2 else "neo"
@@ -213,8 +290,10 @@ def main():
            "   glyphs (manifest.json sha256 %s):" % digest,
            "   made anew when that changes, not edited. Alpha as an anti-aliased font's",
            "   glyphs have it; frames one under another. */"]
+    drawn = {"Catalogue Marks": catalogue_marks(NEO_CATALOGUE_W),
+             "Smart Gear": smart_gear()}
     for name in LIST:
-        g, rows = load(name)
+        g, rows = drawn[name] if name in drawn else load(name)
         c = ident(name)
         data = table(rows)
         out.append("#define NEO_%s_W %d" % (c.upper(), g["width"]))

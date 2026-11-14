@@ -60,6 +60,7 @@
 #include "tagtree.h"
 #include "library_playlists.h"
 #include "ipod_playlists.h"
+#include "filetree.h"
 #endif
 #include "cuesheet.h"
 #include "chapters.h"
@@ -1908,10 +1909,15 @@ static int ipod_playlist_rename(void)
     return 0;
 }
 
+/* the folders a playlist made on the iPod may go to: those of On This
+   iPod, none synced from the computer */
 static bool folders_only(char *name, int attr, struct tree_context *tc)
 {
-    (void)name; (void)tc;
-    return attr & ATTR_DIRECTORY;
+    if (!(attr & ATTR_DIRECTORY))
+        return false;
+    char path[MAX_PATH];
+    ft_assemble_path(path, sizeof(path), tc->currdir, name);
+    return !ip_is_synced(path);
 }
 
 static int ipod_playlist_move(void)

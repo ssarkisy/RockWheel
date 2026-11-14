@@ -50,6 +50,7 @@
 #include "on_the_go.h"
 #ifdef HAVE_TAGCACHE
 #include "library_playlists.h"
+#include "ipod_playlists.h"
 #endif
 
 /* Use for recursive directory search */
@@ -180,6 +181,23 @@ void catalog_select_playlist(const char *path)
     strmemccpy(most_recent_playlist, path, sizeof(most_recent_playlist));
 }
 
+void catalog_playlist_moved(const char *from, const char *to)
+{
+    /* one buffer: on the main thread's stack, under a move's other work, from
+       Updating Library and from Rename and Move to Folder */
+    char buf[MAX_PATH];
+    strmemccpy(buf, from, sizeof(buf));
+    tidy_path(buf);
+    const size_t len = strlen(buf);
+    if (!len || strncasecmp(most_recent_playlist, buf, len)
+        || (most_recent_playlist[len] && most_recent_playlist[len] != PATH_SEPCH))
+        return;
+    strmemccpy(buf, to, sizeof(buf));
+    tidy_path(buf);
+    if (strlcat(buf, most_recent_playlist + len, sizeof(buf)) < sizeof(buf))
+        strmemccpy(most_recent_playlist, buf, sizeof(most_recent_playlist));
+}
+
 /* a playlist's screen: from the database, as Songs is, the import's and the
    iPod's own alike; as Rockbox has it without the database */
 static int view_playlist(char *file, int *selection)
@@ -209,6 +227,9 @@ static int display_playlists(char* playlist, enum catbrowse_status_flags status)
     struct browse_context browse = {
         .dirfilter = SHOW_M3U,
         .flags = BROWSE_SELECTONLY | (view ? BROWSE_ON_THE_GO : BROWSE_NO_CONTEXT_MENU),
+#ifdef HAVE_TAGCACHE
+        .callback_show_item = view ? tree_catalog_show_item : NULL,
+#endif
         .title = str(LANG_PLAYLISTS),
         .icon = Icon_Playlist,
         .root = selected_playlist,
@@ -492,6 +513,10 @@ bool catalog_pick_new_playlist_name(char *pl_name, size_t buf_size,
 {
     char bmark_file[MAX_PATH + 7], *p;
     bool do_save = false;
+#ifdef HAVE_TAGCACHE
+    /* offered where it will go: in Unsynced (ip_own_place()) */
+    ip_own_place(pl_name, buf_size);
+#endif
     while (!do_save && !remove_extension(pl_name) &&
            !kbd_input(pl_name, buf_size - 7, NULL))
     {
@@ -502,18 +527,23 @@ bool catalog_pick_new_playlist_name(char *pl_name, size_t buf_size,
 
             /* prevent illegal characters */
             fix_path_part(p, 1, strlen(p + 1));
-
-            /* Create dir if necessary */
-            if (do_save && p != (char *) pl_name)
-            {
-                *p = '\0';
-                do_save = dir_exists(pl_name) || mkdir(pl_name) == 0;
-                if (!do_save)
-                    splashf(HZ*2, ID2P(LANG_CATALOG_NO_DIRECTORY), pl_name);
-                *p = PATH_SEPCH;
-            }
         }
         apply_playlist_extension(pl_name, buf_size);
+#ifdef HAVE_TAGCACHE
+        /* and saved there, whatever folder was typed */
+        if (do_save)
+            ip_own_place(pl_name, buf_size);
+#endif
+        /* Create dir if necessary */
+        p = strrchr(pl_name, PATH_SEPCH);
+        if (do_save && p != (char *) pl_name)
+        {
+            *p = '\0';
+            do_save = dir_exists(pl_name) || mkdir(pl_name) == 0;
+            if (!do_save)
+                splashf(HZ*2, ID2P(LANG_CATALOG_NO_DIRECTORY), pl_name);
+            *p = PATH_SEPCH;
+        }
 
         /* warn before overwriting existing (different) playlist */
         if (do_save && (!curr_pl_name || strcmp(curr_pl_name, pl_name)))

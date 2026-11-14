@@ -4,7 +4,8 @@
     themes/tools/make_modern_glyphs.py <folder with manifest.json and modern/*.png>
 
 As make_theme_glyphs.py does Neo's, whose reader and writers it uses: names,
-sizes and frames are the manifest's. Written:
+sizes and frames are the manifest's, but for Playlists' marks, drawn by its
+catalogue_marks(). Written:
 
 - apps/gui/modern_glyphs.h: the masks the lists draw themselves (LIST below),
   as tables of alpha;
@@ -22,10 +23,14 @@ import json
 import os
 import sys
 
-from make_theme_glyphs import HERE, ROOT, bmp, capsule, disc, ident, read_png, rgb, table
+from make_theme_glyphs import (HERE, ROOT, bmp, capsule, catalogue_marks, disc, ident,
+                               read_png, rgb, smart_gear, table)
 
-LIST = ("Chevron", "Speaker", "Source", "Episode Dots", "Note Small", "Note Header",
-        "Check", "Plus", "Search Keys", "Search Field", "Music Marks")
+# "Catalogue Marks", Playlists' marks, are drawn by catalogue_marks(), 13 px wide,
+# and the smart playlists' by smart_gear()
+LIST = ("Chevron", "Speaker", "Catalogue Marks", "Smart Gear", "Episode Dots",
+        "Note Small", "Note Header", "Check", "Plus", "Search Keys", "Search Field",
+        "Music Marks")
 # what the screen shown over USB draws. The sign is three masks of one canvas:
 # the computer with its cable, the prohibition mark on its screen while it is
 # connected and the check once it may be unplugged; each is kept as its ink's
@@ -82,8 +87,9 @@ def main():
            "   %s): made anew when" % digest,
            "   that changes, not edited. Alpha as an anti-aliased font's glyphs have it;",
            "   frames one under another. */"]
+    drawn = {"Catalogue Marks": catalogue_marks(13), "Smart Gear": smart_gear()}
     for name in LIST:
-        g, rows = load(name)
+        g, rows = drawn[name] if name in drawn else load(name)
         c = ident(name)
         data = table(rows)
         out.append("#define MODERN_%s_W %d" % (c.upper(), g["width"]))

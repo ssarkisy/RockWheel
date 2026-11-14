@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Draw the speaker that marks the song playing in a list, as on a stock iPod, the marks
-of the catalogue's playlists and of a podcast's episodes, new and begun, and print them
+of the catalogue's playlists and folders and of a podcast's episodes, new and begun, and print them
 as the C arrays apps/gui/line.c draws them from; and the note of an album's header
 without a cover, which
 apps/album_header.c draws, and of an album's row in a list, which line.c draws: alpha masks in Rockbox' format, 4 bits a pixel from 0 opaque to 15
@@ -72,33 +72,76 @@ def rounded_rect(x, y, x0, y0, x1, y1, r):
     return rounded_rect_ring(x, y, x0, y0, x1, y1, r, 1000)
 
 
-# the marks of the catalogue's playlists and folders, before their names: a
-# computer for those synced from it and an iPod for those made on it. One
-# family: solid, what's in
-# them cut out, two pixels of it everywhere, their edges on the pixels' edges,
-# which keeps them sharp
-COMPUTER_W, COMPUTER_H = 13, 12
+def ellipse(x, y, cx, cy, rx, ry, angle):
+    """inside an ellipse turned by angle"""
+    c, s = math.cos(angle), math.sin(angle)
+    dx, dy = x - cx, y - cy
+    u, v = dx * c + dy * s, -dx * s + dy * c
+    return (u / rx) ** 2 + (v / ry) ** 2 <= 1
 
 
-def computer(x, y):
-    # a display, its screen cut out, on a neck and a foot
-    if rounded_rect(x, y, 0, 0, 13, 9, 1.5):
-        return not (2 <= x <= 11 and 2 <= y <= 7)
-    if 5 <= x <= 8 and 9 <= y <= 10:
+def quad(x, y, pts):
+    """inside a convex polygon, its points clockwise on screen"""
+    n = len(pts)
+    for i in range(n):
+        (ax, ay), (bx, by) = pts[i], pts[(i + 1) % n]
+        if (bx - ax) * (y - ay) - (by - ay) * (x - ax) < 0:
+            return False
+    return True
+
+
+# the marks of the catalogue's playlists and folders, before their names, filled,
+# which read better than outlines at this size: one for every playlist, whatever
+# made it, lines and a note as Music's, and one for every folder. Solid, the lines
+# two pixels thick with their edges on the pixels' edges, which keeps them sharp
+PLAYLIST_W, PLAYLIST_H = 13, 11
+
+
+def playlist(x, y):
+    # three lines, the last shorter, before the note
+    for top, right in ((1, 7), (4, 7), (7, 4)):
+        if 0 <= x <= right and top <= y <= top + 2:
+            return True
+    # its stem, and its flag down to the right
+    if 10 <= x <= 11.6 and 0 <= y <= 9:
         return True
-    return rounded_rect(x, y, 3, 10, 10, 12, 0.8)
+    if quad(x, y, ((11.6, 0), (13, 1.5), (13, 3.7), (11.6, 2.2))):
+        return True
+    # its head, an oval tilted up to the right, left of the stem's foot
+    return ellipse(x, y, 9.1, 9.0, 2.3, 1.75, math.radians(-22))
 
 
-IPOD_W, IPOD_H = 10, 13
+FOLDER_W, FOLDER_H = 13, 10
 
 
-def ipod(x, y):
-    # a classic iPod: its screen and its wheel cut out
-    if not rounded_rect(x, y, 0, 0, 10, 13, 1.5):
-        return False
-    if 2 <= x <= 8 and 2 <= y <= 5:
-        return False
-    return math.hypot(x - 5, y - 9) > 2
+def folder(x, y):
+    # its tab at the top left, the right side slanting, on the body
+    if rounded_rect(x, y, 0, 0, 7, 4, 1.0) and x - 5 <= y:
+        return True
+    return rounded_rect(x, y, 0, 2, 13, 10, 1.4)
+
+
+def gear(cx, cy, r_out, r_body, r_hole, teeth, tooth_w, phase):
+    """inside a filled gear: a disc of r_body with teeth tooth_w across out to
+    r_out, the first at phase, a hole of r_hole at its centre"""
+    def inside(x, y):
+        dx, dy = x - cx, y - cy
+        r = math.hypot(dx, dy)
+        if r <= r_hole or r > r_out:
+            return False
+        if r <= r_body:
+            return True
+        step = 2 * math.pi / teeth
+        a = (math.atan2(dy, dx) - phase + step / 2) % step - step / 2
+        return abs(r * math.sin(a)) <= tooth_w / 2 and math.cos(a) > 0
+    return inside
+
+
+# the mark of Finder's smart playlists, as Music marks them: a filled gear,
+# eight teeth on the grid (owner, 2026-11-13; a small gear on the playlist's
+# mark couldn't be made out)
+SMART_GEAR_W = SMART_GEAR_H = 11
+smart_gear = gear(5.5, 5.5, 5.5, 3.7, 1.5, 8, 2.0, 0)
 
 
 # the note on the tile in place of an album's cover in its header, when it has none
@@ -188,8 +231,9 @@ def preview(cov, path, k=8):
 
 def main():
     for name, inside, w, h in (('speaker', speaker, W, H),
-                               ('computer', computer, COMPUTER_W, COMPUTER_H),
-                               ('ipod', ipod, IPOD_W, IPOD_H),
+                               ('playlist', playlist, PLAYLIST_W, PLAYLIST_H),
+                               ('folder', folder, FOLDER_W, FOLDER_H),
+                               ('smart_gear', smart_gear, SMART_GEAR_W, SMART_GEAR_H),
                                ('note', note, NOTE_W, NOTE_H),
                                ('small_note', small_note, SMALL_NOTE_W, SMALL_NOTE_H),
                                ('dot', dot, DOT_W, DOT_H),

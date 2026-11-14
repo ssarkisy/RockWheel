@@ -80,7 +80,8 @@ void itunesdb_write_playcounts(void);
 /* one of the import's, by its second line */
 bool itunesdb_own_playlist(const char *file);
 /* The playlists the last import wrote and the folders it made, a line each:
-   "<hash> <size> <time> <file>", and "dir <folder>" */
+   "<hash> <size> <time> <file>", and "dir <folder>"; after a smart
+   playlist's, "smart <file>" (none before 1.4.1) */
 #define ITUNESDB_PLAYLISTS_LIST ROCKBOX_DIR "/itunesdb_playlists.txt"
 /* Songs a sync wrote again under another path, as their dbid has it, by
    their old path's hash, sorted by it: for the import, and for the playlists

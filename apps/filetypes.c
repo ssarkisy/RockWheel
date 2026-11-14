@@ -560,7 +560,9 @@ static int find_attr(int attr)
         return 0;
     for (i=1; i<filetype_count; i++)
     {
-        if ((attr>>8) == filetypes[i].attr)
+        /* the type's bits alone: the catalogue's entries carry one more
+           (ENTRY_SMART_PLAYLIST, tree.h) */
+        if (((attr & FILE_ATTR_MASK) >> 8) == filetypes[i].attr)
             return i;
     }
     return -1;

@@ -2795,6 +2795,9 @@ const struct settings_list settings[] = {
                    "name,artist,album,year", NULL, 4, ID2P(LANG_SORT_NAME),
                    ID2P(LANG_SORT_ARTIST), ID2P(LANG_SORT_ALBUM),
                    ID2P(LANG_SORT_YEAR)),
+    /* and Playlists', one for its top and all its folders */
+    CHOICE_SETTING(0, playlists_sort, LANG_SORT_BY, 0, "playlists sort",
+                   "a-z,z-a", NULL, 2, ID2P(LANG_SORT_A_Z), ID2P(LANG_SORT_Z_A)),
     /* Settings > Appearance: Albums' rows with each album's year and album
        artist under its name, and the albums' covers beside them in their
        lists */

@@ -54,6 +54,9 @@ struct entry {
    in its entry's attributes: no chevron, and nothing to open. The volume's
    label's bit, which no file of a list has. */
 #define ENTRY_EMPTY_PLAYLIST    ATTR_VOLUME_ID
+/* One of Finder's smart playlists, as the import's list marks it, which the
+   catalogue lists first: a bit past the attributes' and the file types' */
+#define ENTRY_SMART_PLAYLIST    0x10000
 
 
 struct tree_context;
@@ -128,6 +131,9 @@ void set_current_file(const char *path);
 /* the cursor on this file or folder of the folder viewed, as the list is
    loaded again after it was made or renamed */
 void tree_select_after_reload(const char *path);
+/* Playlists' callback_show_item: at the catalogue's top the playlists and
+   folders synced from the computer, and in Unsynced those that aren't */
+bool tree_catalog_show_item(char *name, int attr, struct tree_context *c);
 int rockbox_browse(struct browse_context *browse);
 int create_playlist(void);
 void resume_directory(const char *dir);

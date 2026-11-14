@@ -1976,6 +1976,9 @@ static void library_update_screen(const char *words)
         smart_update_at_boot();
         /* the marks of the synced ones, as this import left them */
         ip_synced_load();
+        /* the iPod's own found among them moved to Unsynced, before
+           their lists of songs are made */
+        ip_gather_own();
         lp_index_all(library_playlists_go_on);
     }
     /* The list to resume, read again after all that may have written a

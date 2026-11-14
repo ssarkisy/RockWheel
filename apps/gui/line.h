@@ -169,10 +169,11 @@ void vput_line(struct screen *display,
                const char *fmt, va_list ap);
 
 /* The marks of the catalogue's playlists and folders before their names, in a
-   column of their own: a computer for those synced from it, an iPod for those
-   made on it */
+   column of their own: one for every playlist, whatever made it, one for
+   every folder, and one for Finder's smart playlists, as Music marks them */
 #define LINE_MARK_MENU_COUNT 11
-enum line_mark { LINE_MARK_NONE, LINE_MARK_COMPUTER, LINE_MARK_IPOD,
+enum line_mark { LINE_MARK_NONE, LINE_MARK_PLAYLIST, LINE_MARK_FOLDER,
+                 LINE_MARK_SMART,
                  /* a theme's own, in the same column: a plus before a row
                     that makes something new, the column empty, and Music's
                     rows' marks, LINE_MARK_MENU and the row's number in

@@ -18993,6 +18993,48 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_UNSYNCED
+  desc: Playlists: the folder at the top of the list holding the playlists and folders that aren't synced from the computer, those made on the iPod or put there by hand. Its name says what they are, a property, not an error: not 'Not Synced' (reads as a failure), not 'On This iPod' (every playlist is). Also the title of its screen
+  user: core
+  <source>
+    *: "Unsynced"
+  </source>
+  <dest>
+    *: "Sinkronizatu gabe"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SORT_A_Z
+  desc: Playlists, Sort By: by name from the first letter of the alphabet to the last, as the list puts the menu language's own alphabet first. A value at the right end of the row: as short as can be, the alphabet's first and last letters with an en dash
+  user: core
+  <source>
+    *: "A–Z"
+  </source>
+  <dest>
+    *: "A–Z"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SORT_Z_A
+  desc: Playlists, Sort By: by name from the last letter of the alphabet to the first, the reverse of LANG_SORT_A_Z, in the same letters swapped
+  user: core
+  <source>
+    *: "Z–A"
+  </source>
+  <dest>
+    *: "Z–A"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_SORTING_FOR_LANGUAGE
   desc: under the boot logo, the one line of Updating Library's screen while the library is sorted again for the menu language just chosen, in place of its steps' names; one line of 24 px bold text, at most about 300 px wide
   user: core
