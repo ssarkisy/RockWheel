@@ -2776,8 +2776,9 @@ const struct settings_list settings[] = {
                    ID2P(LANG_THEME_CLASSIC), ID2P(LANG_THEME_MODERN),
                    ID2P(LANG_THEME_NEO)),
     /* Music > Albums' first row, Sort By, and nowhere in Settings */
-    CHOICE_SETTING(0, albums_sort, LANG_SORT_BY, 0, "albums sort", "year,name",
-                   NULL, 2, ID2P(LANG_SORT_YEAR), ID2P(LANG_SORT_NAME)),
+    CHOICE_SETTING(0, albums_sort, LANG_SORT_BY, 0, "albums sort",
+                   "year,name,artist", NULL, 3, ID2P(LANG_SORT_YEAR),
+                   ID2P(LANG_SORT_NAME), ID2P(LANG_SORT_ARTIST)),
     /* and an artist's All Songs', one for all of them */
     CHOICE_SETTING(0, all_songs_sort, LANG_SORT_BY, 0, "all songs sort",
                    "album,name", NULL, 2, ID2P(LANG_SORT_ALBUM),

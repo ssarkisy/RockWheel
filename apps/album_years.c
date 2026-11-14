@@ -46,7 +46,8 @@ struct album {
 };
 
 static int handle;          /* the albums, sorted by name and album artist,
-                               and after them the rows' dates */
+                               after them the rows' dates, then each album's
+                               place by artist */
 static int count;
 
 /* A list's rows: their albums' names and dates, by the names' seeks, in as
@@ -58,6 +59,9 @@ struct row {
 #define ROW_PLACES 512
 #define ROWS_MOST  (ROW_PLACES / 4 * 3)
 static int rows_used;
+/* the places by artist made, which a table of more albums than they count
+   hasn't */
+static bool by_artist;
 /* The albums added last, by their numbers, the newest first: picked while
    they're counted, as an album's latest tag_dateadded isn't kept after */
 #define RECENT_MOST 50
@@ -229,12 +233,64 @@ static int cmp_album(const void *a, const void *b)
     return 0;
 }
 
+/* Albums by Artist's order while it's made: each album's artist's seek, or
+   past all of them for one without a name, then its date and number */
+static const struct album *order_albums;
+static const int32_t *order_artists;
+
+static int cmp_by_artist(const void *a, const void *b)
+{
+    const int x = *(const uint16_t *)a, y = *(const uint16_t *)b;
+    if (order_artists[x] != order_artists[y])
+        return order_artists[x] < order_artists[y] ? -1 : 1;
+    /* those without a date after the artist's others */
+    const uint32_t dx = album_date_order(order_albums[x].date) - 1;
+    const uint32_t dy = album_date_order(order_albums[y].date) - 1;
+    if (dx != dy)
+        return dx < dy ? -1 : 1;
+    return x - y;
+}
+
+static struct row *rows_of(const struct album *albums)
+{
+    return (struct row *)(albums + count);
+}
+
+static uint16_t *places_of(const struct album *albums)
+{
+    return (uint16_t *)(rows_of(albums) + ROW_PLACES);
+}
+
+/* Each album's place by artist, after the rows' room, the sort's room after
+   them: the order of their numbers, then the artists' seeks */
+static void place_by_artist(struct album *albums, int n)
+{
+    uint16_t *places = places_of(albums);
+    uint16_t *order = places + n;
+    int32_t *artists = (int32_t *)ALIGN_UP((uintptr_t)(order + n),
+                                           sizeof(int32_t));
+    for (int i = 0; i < n; i++)
+    {
+        char probe[2];
+        order[i] = i;
+        artists[i] = tagcache_tag_string(tag_albumartist, albums[i].albumartist,
+                                         probe, sizeof(probe))
+                     ? albums[i].albumartist : INT32_MAX;
+    }
+    order_albums = albums;
+    order_artists = artists;
+    qsort(order, n, sizeof(*order), cmp_by_artist);
+    for (int k = 0; k < n; k++)
+        places[order[k]] = k;
+}
+
 static bool make(void)
 {
     if (handle > 0)
         handle = core_free(handle);
     count = 0;
     recent_count = 0;
+    by_artist = false;
     made_commitid = -1;
     if (!tagcache_finds_entries())
         return false;
@@ -281,10 +337,17 @@ static bool make(void)
                 recent_no[i] = album_in(table, newest[i].album,
                                         newest[i].albumartist);
             recent_count = picked;
+            /* by artist, in the room the counting had, now that the newest
+               are picked: 20 bytes a place, of which the albums, three
+               quarters at most, take 16 bytes each and this 8 */
+            by_artist = n > 0 && n <= INT16_MAX; /* as the lists number them */
+            if (by_artist)
+                place_by_artist(table, n);
             core_put_data_pinned(table);
             if (n > 0)
                 core_shrink(handle, core_get_data(handle), n * sizeof(*table)
-                                    + ROW_PLACES * sizeof(struct row));
+                                    + ROW_PLACES * sizeof(struct row)
+                                    + (by_artist ? n * sizeof(uint16_t) : 0));
             else
                 handle = core_free(handle);
             rows_used = ROWS_MOST; /* none begun */
@@ -458,6 +521,13 @@ uint32_t album_years_hash(void)
     return album_years_ready() ? table_hash : 0;
 }
 
+int album_years_artist_place(int no)
+{
+    if (!by_artist || !album_no(no))
+        return -1;
+    return places_of(core_get_data(handle))[no];
+}
+
 int album_years_recent_count(void)
 {
     return album_years_ready() ? recent_count : 0;
@@ -466,11 +536,6 @@ int album_years_recent_count(void)
 int album_years_recent(int i)
 {
     return i >= 0 && i < album_years_recent_count() ? recent_no[i] : -1;
-}
-
-static struct row *rows_of(const struct album *albums)
-{
-    return (struct row *)(albums + count);
 }
 
 void album_years_rows_begin(void)
@@ -610,6 +675,7 @@ int album_years_name_year_of(int no) { (void)no; return 0; }
 int32_t album_years_first_track(int no) { (void)no; return -1; }
 int album_years_count(void) { return 0; }
 uint32_t album_years_hash(void) { return 0; }
+int album_years_artist_place(int no) { (void)no; return -1; }
 int album_years_recent_count(void) { return 0; }
 int album_years_recent(int i) { (void)i; return -1; }
 
