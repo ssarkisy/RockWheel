@@ -1519,6 +1519,9 @@ static int library_update_percent(int phase, int done, int total)
 
 /* what the screen shows now */
 static const char *shown_text;
+/* while set, the words of every step: the library sorted again for the menu
+   language chosen is one thing to the user, whatever it makes again */
+static const char *update_words;
 static int shown_percent;
 static long shown_at;
 
@@ -1526,6 +1529,8 @@ static long shown_at;
    second as the theme's backdrop can come back meanwhile */
 static void library_update_show(const char *text, int percent)
 {
+    if (update_words)
+        text = update_words;
     const bool same_screen = text == shown_text
         && TIME_BEFORE(current_tick, shown_at + HZ);
     if (same_screen && percent == shown_percent)
@@ -1587,10 +1592,14 @@ static void library_update_show(const char *text, int percent)
 static void library_update_forward(const char *text, int done, int total)
 {
     static int percent;
+    static const char *step;
     /* a step of its own, also when shown from 0 under the same words: Search's
        letters and the library's playlists are both Updating Library */
-    if (shown_text != text || shown_percent < percent)
+    /* and under update_words' one line, by the step's own words */
+    if (shown_text != (update_words ? update_words : text) || step != text
+        || shown_percent < percent)
         percent = 0;
+    step = text;
     if (total > 0)
         percent = MAX(percent, 100 * MIN(done, total) / total);
     library_update_show(text, percent);
@@ -1794,8 +1803,11 @@ static void photos_making(void)
  * the step and how far that is under it, until it's done. Menu left it to
  * finish behind the menu, where it took the memory of music started then,
  * which stopped, and the caches made here weren't. */
-void show_library_update(void)
+static void library_update_screen(const char *words)
 {
+    /* for this screen, not one shown within it, as after USB */
+    const char *outer = update_words;
+    update_words = words;
     int done, total, phase;
     bool shown = false;
     /* The check after USB of the songs outside Finder's folder shows only once
@@ -1890,7 +1902,10 @@ void show_library_update(void)
         && itunesdb_covers_room())
     {
         library_update_show(str(LANG_PREPARING_ALBUMS), 0);
+        /* it clears the screen as it starts and ends: drawn whole again */
+        shown_text = NULL;
         plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", ITUNESDB_ALBUM_LIST);
+        shown_text = NULL;
     }
 #endif
     /* the rest after USB or switching off, come meanwhile: what they'd go
@@ -1999,6 +2014,12 @@ void show_library_update(void)
         held_event = 0;
         default_event_handler(event);
     }
+    update_words = outer;
+}
+
+void show_library_update(void)
+{
+    library_update_screen(NULL);
 }
 #endif /* HAVE_TAGCACHE */
 
@@ -2041,6 +2062,31 @@ static bool database_ram_wait(void)
 #endif
 
 static bool library_update_pending = false;
+
+#ifdef HAVE_TAGCACHE
+/* The menu language chosen has other alphabets first than the library was
+   sorted with: sorted again for it at once, the music stopped as for another
+   theme, on Updating Library's screen, and what's made of the order made
+   again, as after a sync. True if it was. One that can't be now, with
+   another import, waits for the next boot or Updating Library. */
+bool library_language_changed(void)
+{
+    if (!tagcache_language_resort_due())
+        return false;
+    /* the language written at the next idle of the disk: a boot cut short
+       before has the old one, and sorts by the one written */
+    settings_save();
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        audio_stop();
+    if (!tagcache_resort_for_language())
+        return false;
+    library_update_screen(str(LANG_SORTING_FOR_LANGUAGE));
+#ifdef ITUNESDB_HAVE_ART
+    menu_cover_resume_look();
+#endif
+    return true;
+}
+#endif
 
 void library_update_after_usb(void)
 {

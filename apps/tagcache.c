@@ -202,10 +202,16 @@
 #define TAGCACHE_FILE_SORT_SCAN  "database_sort_tmp.tcd"
 struct order_mark {
     uint32_t magic;
-    uint32_t rules;     /* SORTKEY_RULES_VERSION */
+    uint32_t rules;     /* ORDER_RULES() */
     int32_t commitid;   /* of the database sorted */
     uint32_t finder;    /* the crc of Finder's Sort fields it had */
 };
+/* The rules: SORTKEY_RULES_VERSION, and above it the alphabets sorted before
+   the Latin one, the menu language's (sortkey.h); none, as in the marks from
+   before there were any, leaves it the version alone */
+#define ORDER_RULES(first)   (SORTKEY_RULES_VERSION | (uint32_t)(first) << 16)
+#define ORDER_VERSION(rules) ((rules) & 0xffff)
+#define ORDER_FIRST(rules)   ((rules) >> 16)
 /* After the mark, the letters Quick Scroll shows over lists of names
    (sortkey_initial()), as the tag files it marks have them: for each tag a
    list can be of, where each letter begins in its file, noted as the commit
@@ -213,6 +219,8 @@ struct order_mark {
    tag's ideographs, each a letter of its own, may run out of its room: from
    the last place kept on, the letter isn't known. */
 #define INITIALS_PER_TAG 96
+/* Han's letters at most, of a commit that has it first (tempbuf_sort()) */
+#define INITIALS_HAN_FIRST 40
 static const unsigned char initial_tags[] = {
     tag_artist, tag_album, tag_genre, tag_title, tag_composer, tag_albumartist,
     tag_virt_canonicalartist,
@@ -350,6 +358,7 @@ enum tagcache_queue {
     Q_COVERS_CHANGED,
     Q_CHECK_OUTSIDE,
     Q_LOAD_RAM,
+    Q_RESORT,
 
     /* Internal tagcache command queue. */
     CMD_UPDATE_MASTER_HEADER,
@@ -406,6 +415,9 @@ static struct master_header current_tcmh;
 
 /* a commit of no new entries goes through, to sort the database again */
 static bool commit_resorting;
+/* the alphabets the commit sorts before the Latin one (sortkey.h): the menu
+   language's; none for the commit's plugin and the PC's database tool */
+static unsigned commit_first;
 
 
 #ifdef HAVE_TC_RAMCACHE
@@ -4434,7 +4446,7 @@ static bool tempbuf_insert(char *str, int id, int idx_id, bool unique)
         }
 #endif
         key = sortkey_start(key, article);
-        index[tempbufidx].group = 1 + sortkey_group(key);
+        index[tempbufidx].group = 1 + sortkey_group_with(key, commit_first);
     }
     index[tempbufidx].key = key - index[tempbufidx].str;
     crc_next[tempbufidx] = crc_heads[crc32 & crc_mask];
@@ -4454,7 +4466,8 @@ static int compare(const void *p1, const void *p2)
         return e1->group < e2->group ? -1 : 1;
     if (e1->group == GROUP_UNTAGGED)
         return 0;
-    const int d = sortkey_compare_from(e1->str + e1->key, e2->str + e2->key);
+    const int d = sortkey_compare_from_with(e1->str + e1->key,
+                                            e2->str + e2->key, commit_first);
     return d ? d : strcmp(e1->str, e2->str);
 }
 
@@ -4537,6 +4550,13 @@ static int tempbuf_sort(int fd, long old_n)
     const int initials_of = initial_slot(sort_build_tag);
     if (initials_of >= 0)
         initials.count[initials_of] = 0;
+    /* Han first, as for Chinese and Japanese: each ideograph a letter of its
+       own, which took all the room from the alphabets after them. 40 of them,
+       about what an English menu left Han in a mixed library, then none for
+       the rest, so the alphabets after them keep their letters */
+    const bool han_first = commit_first & SORTKEY_FIRST(SORTKEY_ALPHABET_HAN);
+    int han_letters = 0;
+    ucschar_t han_last = 0;
 #endif
     off_t pos = lseek(fd, 0, SEEK_CUR);
     tagfile_wbuf_used = 0;
@@ -4555,8 +4575,19 @@ static int tempbuf_sort(int fd, long old_n)
         index[i].seek = pos;
 #ifdef TAGCACHE_SORT_FIELDS
         if (initials_of >= 0)
-            initial_note(initials_of, pos, index[i].group == GROUP_UNTAGGED ? 0
-                         : sortkey_initial(index[i].str + index[i].key));
+        {
+            ucschar_t letter = index[i].group == GROUP_UNTAGGED ? 0
+                               : sortkey_initial(index[i].str + index[i].key);
+            if (han_first && sortkey_alphabet_of(letter) == SORTKEY_ALPHABET_HAN)
+            {
+                if (letter != han_last)
+                    han_letters++;
+                han_last = letter;
+                if (han_letters > INITIALS_HAN_FIRST)
+                    letter = 0;
+            }
+            initial_note(initials_of, pos, letter);
+        }
 #endif
         length = strlen(index[i].str) + 1;
         fe.tag_length = length;
@@ -5562,7 +5593,7 @@ static bool write_sort_files(void)
 static bool write_order_mark(int32_t commitid)
 {
     const struct order_mark mark = {
-        ORDER_MAGIC, SORTKEY_RULES_VERSION, commitid, sort_finder_crc
+        ORDER_MAGIC, ORDER_RULES(commit_first), commitid, sort_finder_crc
     };
     int fd = open_db_fd(TAGCACHE_FILE_ORDER_NEW, O_WRONLY | O_CREAT | O_TRUNC);
     if (fd < 0)
@@ -5588,7 +5619,8 @@ static void initials_load(void)
     if (fd < 0)
         return;
     bool ok = read(fd, &mark, sizeof(mark)) == sizeof(mark)
-              && mark.magic == ORDER_MAGIC && mark.rules == SORTKEY_RULES_VERSION
+              && mark.magic == ORDER_MAGIC
+              && ORDER_VERSION(mark.rules) == SORTKEY_RULES_VERSION
               && mark.commitid == mh.commitid
               && read(fd, &initials, sizeof(initials)) == sizeof(initials);
     close(fd);
@@ -5596,6 +5628,40 @@ static void initials_load(void)
         ok = initials.count[i] <= INITIALS_PER_TAG;
     if (ok)
         initials_commit = mark.commitid;
+}
+
+/* The alphabets the tag files were sorted with first, as their mark says,
+   which the lists go by: none without a mark of these rules and of this
+   database, as the files of an older firmware, the commit's plugin or the
+   PC's tool have, which sort with none. At boot, after a commit a reboot cut
+   short is done or undone. */
+static void order_first_load(void)
+{
+    struct master_header mh;
+    struct order_mark mark;
+    unsigned first = 0;
+    int fd = open_master_fd(&mh, false);
+    if (fd >= 0)
+    {
+        close(fd);
+        fd = open_db_fd(TAGCACHE_FILE_ORDER, O_RDONLY);
+    }
+    if (fd >= 0)
+    {
+        if (read(fd, &mark, sizeof(mark)) == sizeof(mark)
+            && mark.magic == ORDER_MAGIC
+            && ORDER_VERSION(mark.rules) == SORTKEY_RULES_VERSION
+            && mark.commitid == mh.commitid)
+            first = ORDER_FIRST(mark.rules);
+        close(fd);
+    }
+    sortkey_set_first(first);
+}
+
+/* the alphabets the menu language has first, which a commit sorts with */
+static unsigned language_first(void)
+{
+    return sortkey_language_first((const char *)global_settings.lang_file);
 }
 
 /* Songs taken out of the database, and the counts of a changelog, leave the
@@ -5915,6 +5981,10 @@ static bool commit(void)
 #ifdef HAVE_EEPROM_SETTINGS
     remove_db_file(TAGCACHE_STATEFILE);
 #endif
+#ifdef TAGCACHE_SORT_FIELDS
+    /* by the menu language as it is now */
+    commit_first = language_first();
+#endif
 
     /* At first be sure to unload the ramcache! */
 #ifdef HAVE_TC_RAMCACHE
@@ -6154,6 +6224,8 @@ static bool commit(void)
             goto commit_error;
 #ifdef TAGCACHE_SORT_FIELDS
         initials_commit = tcmh.commitid;
+        /* the lists by the files as they're sorted now */
+        sortkey_set_first(commit_first);
 #endif
 
         logf("tagcache committed");
@@ -7599,15 +7671,16 @@ static bool check_event_queue(void)
         { SYS_POWEROFF, SYS_POWEROFF },
         { SYS_REBOOT, SYS_REBOOT },
         { SYS_USB_CONNECTED, SYS_USB_CONNECTED },
-        /* the last two, in the refs pass only: it gives way to an import or
-           a check, which a screen waits for. Files lists find by their paths
-           in memory, so references left out cost little. */
+        /* the last three, in the refs pass only: it gives way to an import,
+           a check or a sort, which a screen waits for. Files lists find by
+           their paths in memory, so references left out cost little. */
         { Q_SYNCED, Q_SYNCED },
         { Q_CHECK_OUTSIDE, Q_CHECK_OUTSIDE },
+        { Q_RESORT, Q_RESORT },
     };
     /* the count in the flags is of the filters after the first */
     return queue_peek_ex(&tagcache_queue, NULL,
-                         ARRAYLEN(stops) - (refs_pass ? 1 : 3), stops);
+                         ARRAYLEN(stops) - (refs_pass ? 1 : 4), stops);
 #else
     return false;
 #endif /* __PCTOOL__ */
@@ -9186,8 +9259,8 @@ static void reload_after_commit(void)
 
 /* Whether the tag files are sorted otherwise than by these rules and the Sort
    fields Finder's songs have now: by an older firmware, by the commit's
-   plugin, or before a sync changed the Sort fields. At boot, from the order's
-   mark and two headers. */
+   plugin, before a sync changed the Sort fields, or for a menu language with
+   other alphabets first. At boot, from the order's mark and two headers. */
 static bool order_stale(void)
 {
     struct master_header mh;
@@ -9204,15 +9277,16 @@ static bool order_stale(void)
         && ffilesize(fd) == (off_t)(sizeof(mark) + sizeof(initials));
     close(fd);
     return !read_whole || mark.magic != ORDER_MAGIC
-           || mark.rules != SORTKEY_RULES_VERSION
+           || mark.rules != ORDER_RULES(language_first())
            || mark.commitid != mh.commitid
            || mark.finder != finder_sort_crc();
 }
 
 /* The database sorted again if it's stale, by a commit of no new entries but
    of every tag file, under the import's screen: once at the first boot after
-   an update, and after a sync that changed Sort fields. Its new commit id has
-   the caches made from it made again, as after a sync. True once sorted. */
+   an update, after a sync that changed Sort fields, and once the menu language
+   has other alphabets first. Its new commit id has the caches made from it
+   made again, as after a sync. True once sorted. */
 static bool resort_if_stale(void)
 {
     if (!order_stale())
@@ -9447,6 +9521,37 @@ bool tagcache_check_sync(void)
 }
 
 
+#ifdef TAGCACHE_SORT_FIELDS
+/* Q_RESORT posted and not taken yet: USB's wait for the disconnection drops
+   it, and the phase it set would stay */
+static volatile bool resort_owed;
+
+/* The menu language has other alphabets first than the database was sorted
+   with, and it can be sorted again now: not with another import. Else the
+   next boot or Updating Library sorts it. */
+bool tagcache_language_resort_due(void)
+{
+    return tc_stat.initialized && tc_stat.ready
+           && import_phase == TAGCACHE_IMPORT_NONE
+           && language_first() != sortkey_get_first();
+}
+
+/* and begun, on Updating Library's screen, which tagcache_get_import() then
+   follows as after a sync: not under music, whose buffer the commit would
+   take */
+bool tagcache_resort_for_language(void)
+{
+    if (!tagcache_language_resort_due() || (audio_status() & AUDIO_STATUS_PLAY))
+        return false;
+    import_done = import_total = 0;
+    no_space = false;
+    resort_owed = true;
+    import_phase = TAGCACHE_IMPORT_SAVING;
+    queue_post(&tagcache_queue, Q_RESORT, 0);
+    return true;
+}
+#endif /* TAGCACHE_SORT_FIELDS */
+
 static void count_songs(void)
 {
     int count = 0;
@@ -9580,6 +9685,9 @@ static void tagcache_thread(void)
     bool check_done = false;
     cpu_boost(true);
     commit_recover();
+#ifdef TAGCACHE_SORT_FIELDS
+    order_first_load();
+#endif
     /* If the previous cache build/update was interrupted, commit
      * the changes first in foreground. After a sync the import does,
      * behind its progress screen. One of no new entries, as a sort cut
@@ -9650,11 +9758,11 @@ static void tagcache_thread(void)
 #endif
     }
 
-    /* Sorted by older rules, or before Sort fields an import took in, as
-       after an update: sorted again once, before the menu. After a sync, the
-       import's commit does; and not with the scan's file still waiting,
-       which the sort would commit too, behind the menu: there was no screen
-       for it. */
+    /* Sorted by older rules, before Sort fields an import took in, as after
+       an update, or for another menu language's first alphabets: sorted
+       again once, before the menu. After a sync, the import's commit does;
+       and not with the scan's file still waiting, which the sort would
+       commit too, behind the menu: there was no screen for it. */
 #ifdef HAVE_TC_RAMCACHE
     bool refs_due = false; /* the check of the files after the load, below */
 #endif
@@ -9828,6 +9936,31 @@ static void tagcache_thread(void)
                 cpu_boost(false);
                 break ;
 
+#ifdef TAGCACHE_SORT_FIELDS
+            case Q_RESORT:
+                /* for the menu language, as after a sync: in memory again
+                   before the screen goes, for the caches made then. Not
+                   when USB has taken it back meanwhile (resort_owed cleared
+                   after the wait): the post-USB check sorts then, under its
+                   screen */
+                if (!resort_owed)
+                    break;
+                resort_owed = false;
+                cpu_boost(true);
+                if (resort_if_stale())
+                {
+                    import_phase = TAGCACHE_IMPORT_LOADING;
+#ifdef HAVE_TC_RAMCACHE
+                    reload_after_commit();
+                    if (!tc_stat.ready)
+                        tagcache_commit_finalize();
+#endif
+                }
+                import_phase = TAGCACHE_IMPORT_NONE;
+                cpu_boost(false);
+                break ;
+#endif
+
             case Q_START_SCAN:
                 check_done = false;
                 /* fallthrough */
@@ -9927,6 +10060,17 @@ static void tagcache_thread(void)
                     if (itunesdb_changed())
                         library_update_after_usb();
                 }
+#ifdef TAGCACHE_SORT_FIELDS
+                /* and the sort for the menu language, its post dropped too:
+                   its phase let go, the check after USB sorts it, as the
+                   menu shows next */
+                if (resort_owed)
+                {
+                    resort_owed = false;
+                    import_phase = TAGCACHE_IMPORT_NONE;
+                    library_update_after_usb();
+                }
+#endif
                 break ;
         }
     }

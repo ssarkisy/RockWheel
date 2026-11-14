@@ -46,6 +46,7 @@
 #include "keyboard.h"
 #ifdef HAVE_TAGCACHE
 #include "library_playlists.h"
+#include "root_menu.h"
 #endif
 
 #ifdef HAVE_MULTIVOLUME
@@ -711,7 +712,11 @@ int ft_enter(struct tree_context* c)
                 splash(0, ID2P(LANG_WAIT));
                 if (!settings_load_config(buf,true))
                     break;
-                splash(HZ, ID2P(LANG_SETTINGS_LOADED));
+#ifdef HAVE_TAGCACHE
+                /* of another language: the library in its order at once */
+                if (!library_language_changed())
+#endif
+                    splash(HZ, ID2P(LANG_SETTINGS_LOADED));
                 break;
 
             case FILE_ATTR_BMARK:
@@ -731,7 +736,11 @@ int ft_enter(struct tree_context* c)
                 talk_init(); /* use voice of same language */
                 viewportmanager_theme_changed(THEME_LANGUAGE);
                 settings_apply_skins();
-                splash(HZ, ID2P(LANG_LANGUAGE_LOADED));
+#ifdef HAVE_TAGCACHE
+                /* the library in its alphabets' order at once */
+                if (!library_language_changed())
+#endif
+                    splash(HZ, ID2P(LANG_LANGUAGE_LOADED));
                 break;
 
             case FILE_ATTR_FONT:

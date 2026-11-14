@@ -56,8 +56,9 @@
    that, in groups as Music has them. The wheel goes along the letters and
    Select adds one; Play goes down into what was found and Menu back up. */
 
-/* the row of letters: the menu language's alphabet, the Latin one, those of the
-   other alphabets the library's names are written in, and the digits, then a
+/* the row of letters: the alphabet the lists have first, if any, in the menu
+   language's letters if it's that language's own; the Latin one; those of the
+   other alphabets the library's names are written in; and the digits, then a
    space and a delete, around in a ring */
 #define STRIP_SPACE  1
 #define STRIP_DELETE 2
@@ -77,41 +78,44 @@ enum script { SCRIPT_LATIN, SCRIPT_GREEK, SCRIPT_CYRILLIC, SCRIPT_ARMENIAN,
 static const struct {
     ucschar_t first, last;
     const char *letters;
+    unsigned char alphabet; /* sortkey.h's */
 } scripts[SCRIPTS] = {
-    [SCRIPT_LATIN]    = { 'a', 'z', "ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
-    [SCRIPT_GREEK]    = { 0x3b1, 0x3c9, "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" },
-    [SCRIPT_CYRILLIC] = { 0x430, 0x4ff, "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ" },
-    [SCRIPT_ARMENIAN] = { 0x561, 0x586, NULL },
-    [SCRIPT_HEBREW]   = { 0x5d0, 0x5ea, "אבגדהוזחטיכלמנסעפצקרשת" },
-    [SCRIPT_ARABIC]   = { 0x620, 0x6ff, "ابتثجحخدذرزسشصضطظعغفقكلمنهوي" },
+    [SCRIPT_LATIN]    = { 'a', 'z', "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+                          SORTKEY_ALPHABET_LATIN },
+    [SCRIPT_GREEK]    = { 0x3b1, 0x3c9, "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ",
+                          SORTKEY_ALPHABET_GREEK },
+    [SCRIPT_CYRILLIC] = { 0x430, 0x4ff, "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ",
+                          SORTKEY_ALPHABET_CYRILLIC },
+    [SCRIPT_ARMENIAN] = { 0x561, 0x586, NULL, SORTKEY_ALPHABET_ARMENIAN },
+    [SCRIPT_HEBREW]   = { 0x5d0, 0x5ea, "אבגדהוזחטיכלמנסעפצקרשת",
+                          SORTKEY_ALPHABET_HEBREW },
+    [SCRIPT_ARABIC]   = { 0x620, 0x6ff, "ابتثجحخدذرزسشصضطظعغفقكلمنهوي",
+                          SORTKEY_ALPHABET_ARABIC },
     [SCRIPT_THAI]     = { 0xe01, 0xe45,
-                          "กขคฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ" },
-    [SCRIPT_GEORGIAN] = { 0x10d0, 0x10ff, NULL },
+                          "กขคฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ",
+                          SORTKEY_ALPHABET_THAI },
+    [SCRIPT_GEORGIAN] = { 0x10d0, 0x10ff, NULL, SORTKEY_ALPHABET_GEORGIAN },
     [SCRIPT_HANGUL]   = { 0x3131, 0x3163,
-                          "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ" "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅛㅜㅠㅡㅣ" },
+                          "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ" "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅛㅜㅠㅡㅣ",
+                          SORTKEY_ALPHABET_HANGUL },
     [SCRIPT_KANA]     = { 0x3041, 0x3096,
                           "あいうえおかきくけこさしすせそたちつてとなにぬねの"
-                          "はひふへほまみむめもやゆよらりるれろわをん" },
+                          "はひふへほまみむめもやゆよらりるれろわをん",
+                          SORTKEY_ALPHABET_KANA },
 };
 static const char digit_letters[] = "0123456789";
 
-/* the menu language's alphabet, first */
-static const struct {
-    const char *lang;     /* as global_settings.lang_file names it */
-    enum script script;
-    const char *letters;  /* its own, or NULL for the alphabet's */
-} native_letters[] = {
-    { "russian",   SCRIPT_CYRILLIC, NULL },
-    { "ukrainian", SCRIPT_CYRILLIC, "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ" },
-    { "bulgarian", SCRIPT_CYRILLIC, "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯ" },
-    { "srpski",    SCRIPT_CYRILLIC, "АБВГДЂЕЖЗИЈКЛЉМНЊОПРСТЋУФХЦЧЏШ" },
-    { "greek",     SCRIPT_GREEK,    NULL },
-    { "hebrew",    SCRIPT_HEBREW,   NULL },
-    { "arabic",    SCRIPT_ARABIC,   NULL },
-    { "thai",      SCRIPT_THAI,     NULL },
-    { "korean",    SCRIPT_HANGUL,   NULL },
-    { "japanese",  SCRIPT_KANA,     NULL },
-};
+/* The ring's alphabet of those sortkey.h has first, as Japanese's kana of
+   its kana and Han: -1 for none, as for Han alone, which isn't typed */
+static int first_script(unsigned first)
+{
+    for (int s = 0; s < SCRIPTS; s++)
+    {
+        if (first & SORTKEY_FIRST(scripts[s].alphabet))
+            return s;
+    }
+    return -1;
+}
 
 /* The letters of the alphabets other than the Latin one that the library's
    names have, a bit each, as Updating Library finds them: from U+0370 to
@@ -1345,23 +1349,22 @@ static void make_strip(void)
     read_letters(&f, false);
     memcpy(word_starts, f.starts, sizeof(word_starts));
     word_starts_known = f.version == LETTERS_VERSION;
-    int set = 0, native = -1;
+    int set = 0;
     strip.count = 0;
     strip.pitch_font = -1;
     /* room kept for the digits, the space and the delete, which come last */
     strip.room = STRIP_MAX - (int)(sizeof(digit_letters) - 1) - 2;
-    for (size_t i = 0; i < ARRAYLEN(native_letters); i++)
-    {
-        if (!strcmp((const char *)global_settings.lang_file, native_letters[i].lang))
-            native = i;
-    }
+    /* first as the lists have it, with the menu language's own letters of it */
+    const unsigned first = sortkey_get_first();
+    const int native = first_script(first);
+    const struct sortkey_language *lang =
+        sortkey_language((const char *)global_settings.lang_file);
     if (native >= 0)
-        add_script(native_letters[native].script, native_letters[native].letters,
+        add_script(native, lang && lang->first == first ? lang->letters : NULL,
                    f.present, set++);
     for (int s = 0; s < SCRIPTS; s++)
     {
-        if ((native < 0 || s != (int)native_letters[native].script)
-            && (s == SCRIPT_LATIN || script_present(s, f.present)))
+        if (s != native && (s == SCRIPT_LATIN || script_present(s, f.present)))
             add_script(s, NULL, f.present, set++);
     }
     strip.room = STRIP_MAX;
@@ -1433,21 +1436,16 @@ static void make_name_strip(void)
     strip.pitch_font = -1;
     strip.room = STRIP_MAX;
     add_letter(STRIP_SHIFT, set++);
-    for (size_t i = 0; i < ARRAYLEN(native_letters); i++)
+    const struct sortkey_language *own = sortkey_language(lang);
+    const int s = own ? first_script(own->first) : -1;
+    if (s == SCRIPT_KANA)
     {
-        if (strcmp(lang, native_letters[i].lang))
-            continue;
-        const enum script s = native_letters[i].script;
-        if (s == SCRIPT_KANA)
-        {
-            add_letters(hiragana_letters, set++);
-            add_letters(katakana_letters, set++);
-        }
-        else if (s != SCRIPT_THAI)
-            add_letters(!strcmp(lang, "russian") ? russian_letters :
-                        native_letters[i].letters ? native_letters[i].letters
-                                                  : scripts[s].letters, set++);
+        add_letters(hiragana_letters, set++);
+        add_letters(katakana_letters, set++);
     }
+    else if (s >= 0 && s != SCRIPT_THAI)
+        add_letters(!strcmp(lang, "russian") ? russian_letters :
+                    own->letters ? own->letters : scripts[s].letters, set++);
     for (size_t i = 0; i < ARRAYLEN(latin_letters); i++)
     {
         if (!strcmp(lang, latin_letters[i].lang))

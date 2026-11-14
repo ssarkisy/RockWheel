@@ -1210,7 +1210,12 @@ int language_screen(void)
         talk_init();
         viewportmanager_theme_changed(THEME_LANGUAGE);
         settings_apply_skins();
-        splash(HZ, ID2P(LANG_LANGUAGE_LOADED));
+#ifdef HAVE_TAGCACHE
+        /* the library in its alphabets' order at once, Updating Library
+           saying that the language is in */
+        if (!library_language_changed())
+#endif
+            splash(HZ, ID2P(LANG_LANGUAGE_LOADED));
     }
     return 0;
 }

@@ -24,6 +24,56 @@
    its 1667 albums and 15 of its 12,047 song names where it does, and those
    by its Sort fields. */
 
+/* The menu languages of other alphabets than the Latin one, and the letters
+   of Search's ring for those whose alphabet has more or fewer */
+static const struct sortkey_language languages[] = {
+    { "russian",   SORTKEY_FIRST(SORTKEY_ALPHABET_CYRILLIC), NULL },
+    { "ukrainian", SORTKEY_FIRST(SORTKEY_ALPHABET_CYRILLIC),
+                   "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ" },
+    { "bulgarian", SORTKEY_FIRST(SORTKEY_ALPHABET_CYRILLIC),
+                   "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯ" },
+    { "srpski",    SORTKEY_FIRST(SORTKEY_ALPHABET_CYRILLIC),
+                   "АБВГДЂЕЖЗИЈКЛЉМНЊОПРСТЋУФХЦЧЏШ" },
+    { "greek",     SORTKEY_FIRST(SORTKEY_ALPHABET_GREEK),    NULL },
+    { "hebrew",    SORTKEY_FIRST(SORTKEY_ALPHABET_HEBREW),   NULL },
+    { "arabic",    SORTKEY_FIRST(SORTKEY_ALPHABET_ARABIC),   NULL },
+    { "thai",      SORTKEY_FIRST(SORTKEY_ALPHABET_THAI),     NULL },
+    { "korean",    SORTKEY_FIRST(SORTKEY_ALPHABET_HANGUL),   NULL },
+    { "japanese",  SORTKEY_FIRST(SORTKEY_ALPHABET_KANA)
+                   | SORTKEY_FIRST(SORTKEY_ALPHABET_HAN),    NULL },
+    { "chinese-simp", SORTKEY_FIRST(SORTKEY_ALPHABET_HAN),   NULL },
+    { "chinese-trad", SORTKEY_FIRST(SORTKEY_ALPHABET_HAN),   NULL },
+};
+
+const struct sortkey_language *sortkey_language(const char *lang)
+{
+    for (size_t i = 0; i < sizeof(languages) / sizeof(languages[0]); i++)
+    {
+        if (!strcmp(lang, languages[i].lang))
+            return &languages[i];
+    }
+    return NULL;
+}
+
+unsigned sortkey_language_first(const char *lang)
+{
+    const struct sortkey_language *l = sortkey_language(lang);
+    return l ? l->first : 0;
+}
+
+/* those of the database's files */
+static unsigned db_first;
+
+void sortkey_set_first(unsigned first)
+{
+    db_first = first;
+}
+
+unsigned sortkey_get_first(void)
+{
+    return db_first;
+}
+
 /* U+00C0 to U+00FF, then U+0100 to U+017F, by their letters; ' ' between words */
 static const char latin1_base[] =
     "aaaaaaaceeeeiiiidnooooo ouuuuyts"
@@ -200,7 +250,7 @@ ucschar_t sortkey_fold(ucschar_t c)
 #define KEY_END    0x00000000u
 #define KEY_MARK   0x01000000u  /* | the mark's weight */
 #define KEY_NUMBER 0x02000000u
-#define KEY_LETTER 0x04000000u  /* | its alphabet << 21 | the letter folded */
+#define KEY_LETTER 0x04000000u  /* | alphabet_place() << 21 | the letter folded */
 #define IS_MARK(key) ((key) - KEY_MARK < KEY_NUMBER - KEY_MARK)
 
 struct unit {
@@ -244,43 +294,59 @@ static uint32_t mark_weight(ucschar_t c)
     return 64 + c; /* the others after those, by their code */
 }
 
-/* The alphabets after the Latin one, in the order of Unicode's collation
-   table and of Search's alphabets: a letter beyond fold()'s Latin ones, as
-   the Icelandic "Þ", is one of its own after z */
+/* The alphabet of a letter folded */
 static uint32_t alphabet(ucschar_t f)
 {
     if (f < 0x80)
-        return 0;
+        return SORTKEY_ALPHABET_LATIN;
     if (f < 0x370)
-        return 1;
+        return SORTKEY_ALPHABET_PAST_Z;
     if (f < 0x400)
-        return 2;                                   /* Greek */
+        return SORTKEY_ALPHABET_GREEK;
     if (f < 0x530)
-        return 3;                                   /* Cyrillic */
+        return SORTKEY_ALPHABET_CYRILLIC;
     if (f < 0x590)
-        return 4;                                   /* Armenian */
+        return SORTKEY_ALPHABET_ARMENIAN;
     if (f < 0x600)
-        return 5;                                   /* Hebrew */
+        return SORTKEY_ALPHABET_HEBREW;
     if (f < 0x700)
-        return 6;                                   /* Arabic */
+        return SORTKEY_ALPHABET_ARABIC;
     if (f >= 0xe00 && f < 0xe80)
-        return 7;                                   /* Thai */
+        return SORTKEY_ALPHABET_THAI;
     if (f >= 0x10a0 && f < 0x1100)
-        return 8;                                   /* Georgian */
+        return SORTKEY_ALPHABET_GEORGIAN;
     if ((f >= 0x1100 && f < 0x1200) || (f >= 0x3130 && f < 0x3190)
         || (f >= 0xac00 && f < 0xd7b0))
-        return 9;                                   /* Hangul */
+        return SORTKEY_ALPHABET_HANGUL;
     if (f >= 0x3040 && f < 0x3100)
-        return 10;                                  /* kana */
+        return SORTKEY_ALPHABET_KANA;
     if ((f >= 0x3400 && f < 0xa000) || (f >= 0xf900 && f < 0xfb00))
-        return 11;                                  /* Han */
-    return 12;
+        return SORTKEY_ALPHABET_HAN;
+    return SORTKEY_ALPHABET_OTHER;
+}
+
+enum sortkey_alphabet sortkey_alphabet_of(ucschar_t letter)
+{
+    return alphabet(sortkey_fold(letter));
+}
+
+/* An alphabet's place in a letter's key: those first, in their order, ahead
+   of the Latin one, and the others after them in theirs; without any first,
+   the alphabet itself, as the keys were before there were */
+static inline uint32_t alphabet_place(uint32_t a, unsigned first)
+{
+    if (!first)
+        return a;
+    if (first & SORTKEY_FIRST(a))
+        return (first & (SORTKEY_FIRST(a) - 1)) != 0; /* 0, or 1 for a second */
+    return a + 2;
 }
 
 static const unsigned char digit_chars[] = "0123456789";
 
-/* the unit at p into u; where the next starts */
-static const unsigned char *next_unit(const unsigned char *p, struct unit *u)
+/* the unit at p into u, with those alphabets first; where the next starts */
+static const unsigned char *next_unit(const unsigned char *p, struct unit *u,
+                                      unsigned first)
 {
     for (;;)
     {
@@ -305,7 +371,9 @@ static const unsigned char *next_unit(const unsigned char *p, struct unit *u)
                 return p;
             }
             if ((c | 0x20) - 'a' < 26)
-                u->key = KEY_LETTER | (c | 0x20);
+                u->key = KEY_LETTER
+                         | alphabet_place(SORTKEY_ALPHABET_LATIN, first) << 21
+                         | (c | 0x20);
             else
                 u->key = KEY_MARK | mark_weight(c);
             return p + 1;
@@ -326,7 +394,8 @@ static const unsigned char *next_unit(const unsigned char *p, struct unit *u)
         }
         if (uc == 0xde || uc == 0xfe)
         {
-            u->key = KEY_LETTER | alphabet(0xfe) << 21 | 0xfe; /* Þ þ */
+            u->key = KEY_LETTER | alphabet_place(alphabet(0xfe), first) << 21
+                     | 0xfe; /* Þ þ */
             return p;
         }
         /* the symbols and punctuation of Latin-1, of the blocks from
@@ -352,7 +421,7 @@ static const unsigned char *next_unit(const unsigned char *p, struct unit *u)
             u->count = 1;
         }
         else
-            u->key = KEY_LETTER | alphabet(f) << 21 | f;
+            u->key = KEY_LETTER | alphabet_place(alphabet(f), first) << 21 | f;
         return p;
     }
 }
@@ -379,7 +448,7 @@ const char *sortkey_start(const char *name, bool article)
     for (const unsigned char *q = p; ; )
     {
         struct unit u;
-        const unsigned char *next = next_unit(q, &u);
+        const unsigned char *next = next_unit(q, &u, 0);
         if (u.key == KEY_END)
             return (const char *)p;
         if (!IS_MARK(u.key))
@@ -388,16 +457,21 @@ const char *sortkey_start(const char *name, bool article)
     }
 }
 
-int sortkey_group(const char *start)
+int sortkey_group_with(const char *start, unsigned first)
 {
     struct unit u;
-    next_unit((const unsigned char *)start, &u);
+    next_unit((const unsigned char *)start, &u, first);
     if (u.key >= KEY_LETTER)
-        return u.key < (KEY_LETTER | 0x80) ? SORTKEY_LATIN : SORTKEY_LETTERS;
+    {
+        const uint32_t place = (u.key - KEY_LETTER) >> 21;
+        const uint32_t latin = alphabet_place(SORTKEY_ALPHABET_LATIN, first);
+        return place < latin ? SORTKEY_FIRST_LETTERS
+               : place == latin ? SORTKEY_LATIN : SORTKEY_LETTERS;
+    }
     return u.key == KEY_NUMBER ? SORTKEY_DIGITS : SORTKEY_MARKS;
 }
 
-int sortkey_compare_from(const char *s1, const char *s2)
+int sortkey_compare_from_with(const char *s1, const char *s2, unsigned first)
 {
     const unsigned char *a = (const unsigned char *)s1;
     const unsigned char *b = (const unsigned char *)s2;
@@ -412,8 +486,8 @@ int sortkey_compare_from(const char *s1, const char *s2)
             b++;
         }
         struct unit ua, ub;
-        a = next_unit(a, &ua);
-        b = next_unit(b, &ub);
+        a = next_unit(a, &ua, first);
+        b = next_unit(b, &ub, first);
         if (ua.key != ub.key)
             return ua.key < ub.key ? -1 : 1;
         if (ua.key == KEY_END)
@@ -427,6 +501,16 @@ int sortkey_compare_from(const char *s1, const char *s2)
                 return d < 0 ? -1 : 1;
         }
     }
+}
+
+int sortkey_group(const char *start)
+{
+    return sortkey_group_with(start, db_first);
+}
+
+int sortkey_compare_from(const char *a, const char *b)
+{
+    return sortkey_compare_from_with(a, b, db_first);
 }
 
 int sortkey_compare(const char *s1, const char *s2)
@@ -484,7 +568,7 @@ static const uint16_t kana_rows[][2] = {
 ucschar_t sortkey_initial(const char *start)
 {
     struct unit u;
-    next_unit((const unsigned char *)start, &u);
+    next_unit((const unsigned char *)start, &u, 0);
     if (u.key < KEY_LETTER)
         return '#';
     /* the letter folded, below its alphabet's bits */

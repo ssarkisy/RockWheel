@@ -250,6 +250,11 @@ bool tagcache_restoring(void);
 /* main() has taken the boot's memory: a commit may have the rest */
 void tagcache_boot_done(void);
 bool tagcache_check_sync(void);
+/* the menu language's alphabets come first otherwise than the database's,
+   which can be sorted again now; and that sort begun, as
+   tagcache_check_sync() begins an import */
+bool tagcache_language_resort_due(void);
+bool tagcache_resort_for_language(void);
 bool tagcache_covers_can_change(void);
 bool tagcache_covers_changing(void);
 void tagcache_covers_changed(bool changed);

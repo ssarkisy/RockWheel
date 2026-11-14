@@ -22609,3 +22609,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SORTING_FOR_LANGUAGE
+  desc: under the boot logo, the one line of Updating Library's screen while the library is sorted again for the menu language just chosen, in place of its steps' names; one line of 24 px bold text, at most about 300 px wide
+  user: core
+  <source>
+    *: "Sorting for New Language"
+  </source>
+  <dest>
+    *: "Kārto izvēlētajai valodai"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
