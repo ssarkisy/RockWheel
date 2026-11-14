@@ -2147,7 +2147,29 @@ void write_line(struct screen *display, struct align_pos *format_align,
     /* there is a left string, need to merge left and right */
     if (center_width == 0 && right_width != 0)
     {
-        if (left_width != 0 && left_width + space_width > right_xpos) {
+        if (left_width != 0 && left_width + space_width > right_xpos
+            && cut && !scroll && right_xpos > space_width)
+        {
+            /* A line cut short (%nx), not scrolled: the right text stays
+               whole where it is, and the left one ends with "…" a space
+               before it, as Now Playing's time left beside the speed; more
+               room between them is the right text's own leading spaces. A
+               language written right to left mirrors the viewport: the left
+               text at its right end, the right one at its left. Without
+               %nx, or with a right text as wide as the line, they merge as
+               below. A line is drawn by the UI's thread alone. */
+            static char left_fitted[160];
+            const size_t len = strlcpy(left_fitted, format_align->left,
+                                       sizeof(left_fitted));
+            skin_fit_with_ellipsis(left_fitted, MIN(len, sizeof(left_fitted) - 1),
+                                   sizeof(left_fitted),
+                                   (*display->current_viewport)->font,
+                                   right_xpos - space_width);
+            format_align->left = left_fitted;
+            display->getstringsize((unsigned char *)left_fitted, &left_width,
+                                   &string_height);
+        }
+        else if (left_width != 0 && left_width + space_width > right_xpos) {
             /* replace the former separator '\0' of left and
                 right string with a space */
             *(--format_align->right) = ' ';

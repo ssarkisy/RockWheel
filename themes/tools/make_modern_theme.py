@@ -387,6 +387,14 @@ def detail_block(parts):
     return out
 
 
+# An episode's time left, and at the right end the speed where it isn't the
+# normal one, always whole. Where both don't fit, the time left ends with "…"
+# before the speed (%nx with a left and a right text, write_line() in
+# apps/gui/skin_engine/skin_display.c), two spaces apart: the one the cut
+# leaves and the speed's own. With no speed, the time left has the whole width.
+LEFT = "%nx%al%kl%ar%?ks< %ks|>"
+
+
 def wps():
     vps, show = status()
     ratings, stars = SIZES["Ratings"], SIZES["Stars"]
@@ -410,7 +418,7 @@ def wps():
         "chapter": (5, "SMALL", "%s%al%?kc<%kc|%id>"),
         "count": (5, "SMALL", "%al%pp %Sx(of) %pe"),
         "format": (5, "SMALL", "%fB"),
-        "left": (5, "SMALL", "%al%kl%?ks< · %ks|>"),
+        "left": (5, "SMALL", LEFT),
         "speed": (5, "SMALL", "%al%?ks<%ks|>"),
     }
 

@@ -31,6 +31,14 @@ ARTIST = "%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>"
 AUTHOR = "%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>"
 ALBUM = "%?id<%id|%Sx(Unknown Album)>"
 CHAPTER = "%?kc<%kc|%id>"
+# An episode's time left, and at the right end the speed where it isn't the
+# normal one, always whole. Where both don't fit, the time left ends with "…"
+# before the speed (%nx with a left and a right text, write_line() in
+# apps/gui/skin_engine/skin_display.c), two spaces apart: the one the cut
+# leaves and the speed's own. With no speed, the time left has the whole width.
+LEFT = "%nx%al%kl%ar%?ks< %ks|>"
+
+
 LINES = {
     "title": (1, 21, "000000", "%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>"),
     "artist": (3, 18, "666666", "%%t(8)%%al%s;%%t(8)%%s%%al%s;%%t(8)%%al%s" % ((ARTIST,) * 3)),
@@ -41,7 +49,7 @@ LINES = {
     "chapter": (2, 18, "767676", "%%t(16)%%al%s;%%t(8)%%al%%s%s" % ((CHAPTER,) * 2)),
     "count": (2, 14, "767676", "%s%al%pp %Sx(of) %pe"),
     "format": (4, 18, None, "%fB"),
-    "left": (2, 16, "767676", "%al%kl%?ks< · %ks|>"),
+    "left": (2, 16, "767676", LEFT),
     "speed": (2, 16, "767676", "%al%?ks<%ks|>"),
 }
 SMALL_UNDER_LARGE = ("date", "chapter")
