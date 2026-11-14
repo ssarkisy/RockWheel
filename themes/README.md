@@ -76,15 +76,24 @@ Changes from the originals:
   is playing.
 - Now Playing's cover has a reflection under it, and is angled with the
   Angled Cover setting, where the WPS asks for it with `%Cr` after its `%Cl`.
+- Now Playing's details stand beside the cover as one block in the middle of
+  its height, as on a stock iPod: the title, artist, album, the song's place
+  in its list, then the stars and the format as Settings > Appearance says
+  (Rating, Format and Bitrate). A skin places nothing by what it shows, so
+  each combination has viewports of its own; `make_classic_np.py` writes
+  them, between the lines of the WPS that name it.
+- Shuffle and repeat stand in Now Playing's top right corner, under the status
+  bar, as on a stock iPod; the status bar has neither.
 - A dark version, `iClassic-Square-Dark`, which the Dark Theme setting shows.
 
 The extra bitmaps are drawn by the scripts in `tools/`, which are run again
 after a change, in this order:
 
-- `make_assets.py`, `make_status_icons.py`, `make_night_icon.py`,
+- `make_assets.py`, `make_night_icon.py`,
   `make_usb_screen.py`, `make_about_panel.py`: bitmaps of their own.
 - `make_menu_icons.py`: the backdrops' placeholder note and its reflection, and
   the original theme's battery out of their status bar, where the skins draw one.
+- `make_classic_np.py`: the details of Now Playing, in the light theme's WPS.
 - `make_dark_theme.py`: the dark theme, all of it from the light one.
 
 Modern's and Neo's skins, light and dark, are written by `make_modern_theme.py`

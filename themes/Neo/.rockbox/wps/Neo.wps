@@ -4,6 +4,7 @@
 %Fl(3,17-Inter-Medium-13.fnt)
 %Fl(4,14-Inter-Medium.fnt)
 %Fl(5,15-Inter-SemiBold.fnt)
+%Fl(6,15-Inter-Medium.fnt)
 %xl(B,Battery.bmp,0,0,24)
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,0,0)
@@ -12,15 +13,20 @@
 %xl(R,Repeat.bmp,0,0,4)
 # the views, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
-%?mw<%?nW(title)<%Vd(title)|%Vd(titlea)>%?mv(2.0)<%Vd(volume)|%Vd(pb)%Vd(under)>|%?nW(title)<%Vd(title)|%Vd(titlea)>%Vd(scrub)%?kk<%Vd(under)|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(bignote)>|%Vd(lyrics)%Vd(pb)|%?nW(title)<%Vd(title)|%Vd(titlea)>%Vd(rating)|%?nW(title)<%Vd(title)|%Vd(titlea)>%Vd(speed)>
-# under the title by the track's kind: a song's artist and album; an
-# episode's show and date; a book's author and chapter: 4 px under the
-# title's last line, so higher under a title of one line (a) than of two (b).
-# By the cover's foot a song's stars and format, an episode's time left, the speed
-%?mw<%?nW(title)<%?kk<%Vd(song)%Vd(songb)|%Vd(episode)%Vd(episodeb)|%Vd(book)%Vd(bookb)>|%?kk<%Vd(song)%Vd(songa)|%Vd(episode)%Vd(episodea)|%Vd(book)%Vd(booka)>>|%?nW(title)<%?kk<%Vd(song)%Vd(songb)|%Vd(episode)%Vd(episodeb)|%Vd(book)%Vd(bookb)>|%?kk<%Vd(song)%Vd(songa)|%Vd(episode)%Vd(episodea)|%Vd(book)%Vd(booka)>>|||%?nW(title)<%?kk<%Vd(song)%Vd(songb)|%Vd(episode)%Vd(episodeb)|%Vd(book)%Vd(bookb)>|%?kk<%Vd(song)%Vd(songa)|%Vd(episode)%Vd(episodea)|%Vd(book)%Vd(booka)>>|%?nW(title)<%?kk<%Vd(song)%Vd(songb)|%Vd(episode)%Vd(episodeb)|%Vd(book)%Vd(bookb)>|%?kk<%Vd(song)%Vd(songa)|%Vd(episode)%Vd(episodea)|%Vd(book)%Vd(booka)>>>
-%?mw<%?kk<%Vd(stars)||>|%?kk<%Vd(stars)||>||||>
-# the cover, its corners rounded by the theme; without one, a note on a tile
-# rounded as it is (%nc)
+%?mw<%?mv(2.0)<%Vd(volume)|%Vd(pb)%Vd(under)>|%Vd(scrub)%?kk<%Vd(under)|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(bignote)>|%Vd(lyrics)%Vd(pb)|%Vd(rating)|%Vd(speed)>
+# The track's details beside the cover, one block in the middle of its
+# height, as on a stock iPod: the title on one line or two; a song's artist,
+# album and place in its list, then its stars and its format as the settings
+# say (Rating, Format and Bitrate); an episode's show, date, place and time
+# left; a book's author, chapter, place and speed. Skins place nothing by
+# what is shown, so each of these has its viewports, named by what it holds:
+# s<lines><stars><format>, e<lines>, b<lines><speed>. The rating view leaves
+# the small stars out, the speed view a book's speed: neither moves as it is set
+%?if(%mw, <, 3)<%?kk<%?nW(title)<%?St(now playing format)<%?St(now playing rating)<%Vd(s211)|%?rr<%Vd(s201)|%Vd(s211)>|%Vd(s201)>|%?St(now playing rating)<%Vd(s210)|%?rr<%Vd(s200)|%Vd(s210)>|%Vd(s200)>>|%?St(now playing format)<%?St(now playing rating)<%Vd(s111)|%?rr<%Vd(s101)|%Vd(s111)>|%Vd(s101)>|%?St(now playing rating)<%Vd(s110)|%?rr<%Vd(s100)|%Vd(s110)>|%Vd(s100)>>>|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%?ks<%Vd(b21)|%Vd(b20)>|%?ks<%Vd(b11)|%Vd(b10)>>>|%?mw<||||%?kk<%?nW(title)<%?St(now playing format)<%Vd(s201)|%Vd(s200)>|%?St(now playing format)<%Vd(s101)|%Vd(s100)>>|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%?ks<%Vd(b21)|%Vd(b20)>|%?ks<%Vd(b11)|%Vd(b10)>>>|%?kk<|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%Vd(b20)|%Vd(b10)>>>>
+# repeat and shuffle under the status line's right end, repeat at the margin
+%?mw<%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)|||%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)>
+# the cover, its top corners rounded by the theme; without one, a note on a
+# tile rounded all round (%nc)
 %?mw<%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%Vd(spill)|%Vd(spill)|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>>
 # the status line: the clock, the title, the glyphs, a hairline under it. Its
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware
@@ -31,115 +37,215 @@
 %V(100,2,120,15,5)%Vf(292421)
 %s%ac%Sx(Now Playing)
 %V(0,20,320,1,-)%Vb(E7DFD6)
-%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)%?ps<%Vd(shufn1)%Vd(repn1s1)|%Vd(repn1s0)>|%Vd(playn0)%?ps<%Vd(shufn0)%Vd(repn0s1)|%Vd(repn0s0)>>
+%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>
 %Vl(bat,287,4,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(playn0,273,4,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(shufn0,255,3,12,11,-)
-%?pa<%xd(Sb)|%xd(Sa)>
-%Vl(repn0s1,237,3,12,11,-)
-%?mm<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>
-%Vl(repn0s0,255,3,12,11,-)
-%?mm<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>
 %Vl(moon,271,4,10,10,-)
 %xd(N)
 %Vl(playn1,257,4,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(shufn1,239,3,12,11,-)
-%?pa<%xd(Sb)|%xd(Sa)>
-%Vl(repn1s1,221,3,12,11,-)
-%?mm<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>
-%Vl(repn1s0,239,3,12,11,-)
-%?mm<|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>
-# with Angled Cover it is turned, its corners square, over a faint reflection
-# of 10 rows, which ends above the bar; plain and rounded without
+%Vl(mode1,294,25,12,11,-)
+%?mm<%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>
+%Vl(mode2,276,25,12,11,-)
+%?mm<|%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>>
+# over a reflection of 22 rows, its foot square, which the reflection
+# goes on from; with Angled Cover turned, its corners all square
 %Cl(0,0,136,136,c,c)
-%Cr(10,56)
+%Cr
 # where it is not shown, the ground where a turned cover and its reflection
-# were, before what is drawn there: 12 px past the cover's place, 10 rows under.
+# were, before what is drawn there: 12 px past the cover's place but under the
+# hairline, 22 rows under it.
 # It must stay defined before noart, bigart, bignote and lyrics: viewports are
 # drawn in the file's order, and it clears where they draw
-%Vl(spill,2,32,160,158,-)
-%Vl(art,14,44,136,136,-)
+%Vl(spill,2,21,160,169,-)
+%Vl(art,14,32,136,136,-)
 %Cd
 %xl(O,Note Playing.bmp,41,41)
 %xN(O)
-%Vl(noart,14,44,136,136,-)%Vb(DEDBD6)
+%Vl(noart,14,32,136,136,-)%Vb(DEDBD6)
 %xd(O)%nc
-# the title beside it on one line or two, which never scroll: %nw breaks it at
-# a space and ends the second with an ellipsis
-# (a viewport for each, so that one line's does not lie over what is under it)
-%Vl(title,164,46,142,36,2)%Vf(292421)
-%nw(1)
-%nw(2)
-%Vl(titlea,164,46,142,18,2)%Vf(292421)
-%nw(1)
-%Vl(songa,164,68,142,17,3)%Vf(292421)
-%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
-%Vl(songa,164,85,142,17,3)%Vf(52514A)
-%s%al%?id<%id|%Sx(Unknown Album)>
-%Vl(episodea,164,68,142,17,3)%Vf(292421)
-%s%al%?id<%id|%Sx(Unknown Album)>
-%Vl(episodea,164,85,142,17,3)%Vf(52514A)
-%al%kd
-%Vl(booka,164,68,142,17,3)%Vf(292421)
-%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
-%Vl(booka,164,85,142,17,3)%Vf(52514A)
-%s%al%?kc<%kc|%id>
-%Vl(songb,164,86,142,17,3)%Vf(292421)
-%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
-%Vl(songb,164,103,142,17,3)%Vf(52514A)
-%s%al%?id<%id|%Sx(Unknown Album)>
-%Vl(episodeb,164,86,142,17,3)%Vf(292421)
-%s%al%?id<%id|%Sx(Unknown Album)>
-%Vl(episodeb,164,103,142,17,3)%Vf(52514A)
-%al%kd
-%Vl(bookb,164,86,142,17,3)%Vf(292421)
-%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
-%Vl(bookb,164,103,142,17,3)%Vf(52514A)
-%s%al%?kc<%kc|%id>
-%Vl(episode,164,165,142,14,4)%Vf(52514A)
-%al%kl%?ks< · %ks|>
-%Vl(book,164,165,142,14,4)%Vf(52514A)
-%al%?ks<%ks|>
-# five stars, the set ones and the outlines of the unset in one picture, their
-# foot 6 clear rows over the format's sign, a column left of the texts' edge,
-# where a star's point is; the set ones take the cover's colour with the text,
-# an outline the theme's colour for it, or under Text and Stars the cover's
-# muted one (%xC). The firmware knows an
+# The title on one line or two, which never scroll: %nw breaks it at a space
+# and ends the second with an ellipsis. %?nW asks this viewport, never shown,
+# whether it takes two
+%Vl(title,164,0,142,36,2)
+# five stars, the set ones and the outlines of the unset in one picture, a
+# column left of the texts' edge, where a star's point is; the set ones take
+# the cover's colour with the text, an outline the theme's colour for it, or
+# under Text and Stars the cover's muted one (%xC). The firmware knows an
 # outline's pixel by its grey: make_theme_glyphs.py fails if another pixel
 # of a %xC picture has it
 %xl(G,Ratings.bmp,0,0,11)
 %xC(G)
-%Vl(stars,163,148,76,12,-)
-%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
-# the format and the bitrate under them
-%Vl(song,164,165,142,14,4)%Vf(52514A)
+%Vl(s100,164,66,142,18,2)%Vf(292421)
+%nw(1)
+%Vl(s100,164,84,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s100,164,100,142,16,6)%Vf(524D4A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(s100,164,120,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(s101,164,57,142,18,2)%Vf(292421)
+%nw(1)
+%Vl(s101,164,75,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s101,164,91,142,16,6)%Vf(524D4A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(s101,164,111,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(s101,164,130,142,14,4)%Vf(524D4A)
 %fB
+%Vl(s110,164,57,142,18,2)%Vf(292421)
+%nw(1)
+%Vl(s110,164,75,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s110,164,91,142,16,6)%Vf(524D4A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(s110,164,111,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(s110,163,131,76,12,-)
+%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s111,164,49,142,18,2)%Vf(292421)
+%nw(1)
+%Vl(s111,164,67,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s111,164,83,142,16,6)%Vf(524D4A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(s111,164,103,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(s111,163,123,76,12,-)
+%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s111,164,138,142,14,4)%Vf(524D4A)
+%fB
+%Vl(e1,164,57,142,18,2)%Vf(292421)
+%nw(1)
+%Vl(e1,164,75,142,16,6)%Vf(52514A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(e1,164,91,142,16,6)%Vf(524D4A)
+%al%kd
+%Vl(e1,164,111,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(e1,164,130,142,14,4)%Vf(524D4A)
+%al%kl%?ks< · %ks|>
+%Vl(b10,164,66,142,18,2)%Vf(292421)
+%nw(1)
+%Vl(b10,164,84,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b10,164,100,142,16,6)%Vf(524D4A)
+%s%al%?kc<%kc|%id>
+%Vl(b10,164,120,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(b11,164,57,142,18,2)%Vf(292421)
+%nw(1)
+%Vl(b11,164,75,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b11,164,91,142,16,6)%Vf(524D4A)
+%s%al%?kc<%kc|%id>
+%Vl(b11,164,111,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(b11,164,130,142,14,4)%Vf(524D4A)
+%al%?ks<%ks|>
+%Vl(s200,164,57,142,36,2)%Vf(292421)
+%nw(1)
+%nw(2)
+%Vl(s200,164,93,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s200,164,109,142,16,6)%Vf(524D4A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(s200,164,129,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(s201,164,48,142,36,2)%Vf(292421)
+%nw(1)
+%nw(2)
+%Vl(s201,164,84,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s201,164,100,142,16,6)%Vf(524D4A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(s201,164,120,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(s201,164,139,142,14,4)%Vf(524D4A)
+%fB
+%Vl(s210,164,48,142,36,2)%Vf(292421)
+%nw(1)
+%nw(2)
+%Vl(s210,164,84,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s210,164,100,142,16,6)%Vf(524D4A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(s210,164,120,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(s210,163,140,76,12,-)
+%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s211,164,40,142,36,2)%Vf(292421)
+%nw(1)
+%nw(2)
+%Vl(s211,164,76,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s211,164,92,142,16,6)%Vf(524D4A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(s211,164,112,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(s211,163,132,76,12,-)
+%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s211,164,147,142,14,4)%Vf(524D4A)
+%fB
+%Vl(e2,164,48,142,36,2)%Vf(292421)
+%nw(1)
+%nw(2)
+%Vl(e2,164,84,142,16,6)%Vf(52514A)
+%s%al%?id<%id|%Sx(Unknown Album)>
+%Vl(e2,164,100,142,16,6)%Vf(524D4A)
+%al%kd
+%Vl(e2,164,120,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(e2,164,139,142,14,4)%Vf(524D4A)
+%al%kl%?ks< · %ks|>
+%Vl(b20,164,57,142,36,2)%Vf(292421)
+%nw(1)
+%nw(2)
+%Vl(b20,164,93,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b20,164,109,142,16,6)%Vf(524D4A)
+%s%al%?kc<%kc|%id>
+%Vl(b20,164,129,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(b21,164,48,142,36,2)%Vf(292421)
+%nw(1)
+%nw(2)
+%Vl(b21,164,84,142,16,6)%Vf(52514A)
+%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b21,164,100,142,16,6)%Vf(524D4A)
+%s%al%?kc<%kc|%id>
+%Vl(b21,164,120,142,14,4)%Vf(524D4A)
+%al%pp %Sx(of) %pe
+%Vl(b21,164,139,142,14,4)%Vf(524D4A)
+%al%?ks<%ks|>
+# never shown, it only gives %fB the font of the bitrate
 %Vl(bitrate,0,0,1,1,4)
-# the bar: a capsule 5 px thick across the grid, in a box as high as the knob;
-# under it on one line the time played, the song's place in its list or the
-# chapter it is in, cut with an ellipsis and never scrolled, and the time left
+# the bar: a capsule across the grid, in a box as high as the knob (the
+# pictures are make_theme_glyphs.py's); under it on one line the time played,
+# the chapter of a track that has them, cut with an ellipsis and never
+# scrolled, and the time left
 %xl(K,Bar Track.bmp,0,0)
 %xl(k,Knob.bmp,0,0)
 %Vl(pb,0,193,320,11,-)
 %pb(14,0,292,11,Bar Fill.bmp,backdrop,K)
-%Vl(pb,14,205,64,14,4)%Vf(52514A)
+%Vl(pb,14,205,64,14,4)%Vf(524D4A)
 %al%pc
-%Vl(pb,242,205,64,14,4)%Vf(52514A)
+%Vl(pb,242,205,64,14,4)%Vf(524D4A)
 %ar-%pr
 # the scrubber: the same with its knob
 %Vl(scrub,0,193,320,11,-)
 %pb(14,0,292,11,Bar Fill.bmp,backdrop,K,slider,k,slidercentre)
-%Vl(scrub,14,205,64,14,4)%Vf(52514A)
+%Vl(scrub,14,205,64,14,4)%Vf(524D4A)
 %al%pc
-%Vl(scrub,242,205,64,14,4)%Vf(52514A)
+%Vl(scrub,242,205,64,14,4)%Vf(524D4A)
 %ar-%pr
-%Vl(under,82,205,156,14,4)%Vf(52514A)
-%nx%ac%?kn<%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>|%pp %Sx(of) %pe>
+%Vl(under,82,205,156,14,4)%Vf(524D4A)
+%nx%ac%?kn<%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>|>
 # a podcast's or a book's scrubber: what Previous and Next do there
-%Vl(hints,82,205,156,14,4)%Vf(52514A)
+%Vl(hints,82,205,156,14,4)%Vf(524D4A)
 %ac-15 / +30
 # the volume in the bar's place, as the wheel turns, shorter between its marks,
 # whose ink is as far from it on either side
@@ -152,15 +258,13 @@
 %xd(v)
 %Vl(volume,293,194,15,10,-)
 %xd(V)
-%Vl(volume,14,205,292,14,4)%Vf(52514A)
+%Vl(volume,14,205,292,14,4)%Vf(524D4A)
 %ac%nv
 # rating: five large stars in the bar's place, the wheel sets them
 %xl(T,Stars.bmp,0,0,6)
 %xC(T)
 %Vl(rating,99,192,121,17,-)
 %?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>
-%Vl(rating,14,215,292,14,4)%Vf(52514A)
-%ac%pp %Sx(of) %pe
 # the large cover, and the note in its place
 %Vl(bigart,60,30,200,200,-)
 %Cl(0,0,200,200,c,c)

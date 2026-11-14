@@ -247,6 +247,8 @@ static int angled_cover_callback(int action,
 MENUITEM_SETTING_SHARED(angled_cover_item, &global_settings.angled_cover,
                         angled_cover_callback);
 #endif
+MENUITEM_SETTING(np_rating_item, &global_settings.np_rating, NULL);
+MENUITEM_SETTING(np_format_item, &global_settings.np_format, NULL);
 
 MENUITEM_SETTING(ui_theme_item, &global_settings.ui_theme, NULL);
 MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);
@@ -308,9 +310,7 @@ MENUITEM_GROUP(appearance_group_lists, ID2P(LANG_APPEARANCE_LISTS));
 #ifdef HAVE_MENU_COVER
 MENUITEM_GROUP(appearance_group_main_menu, ID2P(LANG_MAIN_MENU));
 #endif
-#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
 MENUITEM_GROUP(appearance_group_now_playing, ID2P(LANG_NOW_PLAYING));
-#endif
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &ui_theme_item, &dark_theme_item,
           &theme_colour_item,
@@ -326,10 +326,11 @@ MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &appearance_group_main_menu,
           &moving_cover_item,
 #endif
-#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
           &appearance_group_now_playing,
+#if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
           &cover_colours_item, &status_icons_item, &angled_cover_item,
 #endif
+          &np_rating_item, &np_format_item,
           );
 
 /* after the screen of a value of the mode */

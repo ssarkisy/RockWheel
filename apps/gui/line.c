@@ -1466,7 +1466,9 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
     display->set_drawmode(DRMODE_SOLID);
 }
 
-void line_round_corners(struct screen *display, int x, int y, int w, int h, int r)
+/* the top corners, and the bottom ones too unless top_only */
+static void round_corners(struct screen *display, int x, int y, int w, int h, int r,
+                          bool top_only)
 {
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (r <= 0 || r > 16 || display->screen_type != SCREEN_MAIN)
@@ -1494,14 +1496,26 @@ void line_round_corners(struct screen *display, int x, int y, int w, int h, int 
         }
         lcd_alpha_bitmap_part(left, 0, 0, r, x, y + row, r, 1);
         lcd_alpha_bitmap_part(right, 0, 0, r, x + w - r, y + row, r, 1);
+        if (top_only)
+            continue;
         lcd_alpha_bitmap_part(left, 0, 0, r, x, y + h - 1 - row, r, 1);
         lcd_alpha_bitmap_part(right, 0, 0, r, x + w - r, y + h - 1 - row, r, 1);
     }
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
 #else
-    (void)display; (void)x; (void)y; (void)w; (void)h; (void)r;
+    (void)display; (void)x; (void)y; (void)w; (void)h; (void)r; (void)top_only;
 #endif
+}
+
+void line_round_corners(struct screen *display, int x, int y, int w, int h, int r)
+{
+    round_corners(display, x, y, w, h, r, false);
+}
+
+void line_round_top_corners(struct screen *display, int x, int y, int w, int r)
+{
+    round_corners(display, x, y, w, r, r, true);
 }
 
 void line_fill_rounded_over(struct screen *display, int x, int y, int w, int h,

@@ -22,7 +22,7 @@ import json
 import os
 import sys
 
-from make_theme_glyphs import HERE, ROOT, bmp, ident, read_png, rgb, table
+from make_theme_glyphs import HERE, ROOT, bmp, capsule, disc, ident, read_png, rgb, table
 
 LIST = ("Chevron", "Speaker", "Source", "Episode Dots", "Note Small", "Note Header",
         "Check", "Plus", "Search Keys", "Search Field", "Music Marks")
@@ -37,19 +37,20 @@ USB = (("Battery Frame", None), ("Battery Charge", (0, 2)))
 SKIN = {"Battery": None, "Playing Status": "ACCENT", "Hold": "ACCENT",
         "Night": "ACCENT", "Photos Pane": "MUTED", "Note Pane": None,
         "Repeat": "ACCENTTEXT", "Shuffle": "ACCENTTEXT", "Knob": "ACCENT",
-        "Knob Small": "ACCENT", "Volume Left": "SMALL",
-        "Note Playing": None, "Note Large": None}
+        "Volume Left": "SMALL", "Note Playing": None, "Note Large": None}
 # the set stars over the five unset ones' outlines, in one bitmap: name -> its
 # ground, the set ones' colour, and whether a first frame of the ground alone
 # is added (the small ones have no frame of none)
 STARS = {"Ratings": ("Ratings Ground", "SMALL", True),
          "Stars": ("Stars Ground", "ACCENT", False)}
-# Now Playing's bars, track and fill: a capsule 5 px thick in a box as high as
+# Now Playing's bars, track and fill: a capsule 9 px thick in a box as high as
 # the knob, which the skin's bar draws inside its own height; and the lyrics
-# view's, 6 px thick, without a knob
-BARS = {"Bar": (296, 11, 5), "Thick Bar": (296, 6, 6)}
-# the knob at rest is a slider of the bar: an image as high as the bar's box
-PAD = {"Knob Small": 11}
+# view's, as thick, without a knob
+BARS = {"Bar": (296, 11, 9), "Thick Bar": (296, 9, 9)}
+# the knob at rest, a dot as thick as the bar at the fill's end: a slider of
+# the bar, so a picture as high as the bar's box, drawn here (the export's is
+# the 5 px bar's)
+KNOB_SMALL = (9, 11)
 LOOKS = {  # as apps/gui/ui_theme.c and make_modern_theme.py have them
     "Modern":      dict(GROUND="FFFFFF", INK="000000", SMALL="525152",
                         MUTED="73757B", ACCENT="FF2D52", ACCENTTEXT="DE244A",
@@ -136,12 +137,6 @@ def main():
         os.makedirs(folder_out, exist_ok=True)
         for name, role in SKIN.items():
             g, rows = load(name, None if role else "dark" if "Dark" in look else "light")
-            if name in PAD:
-                # as high as the bar's box, the glyph in its middle
-                above = (PAD[name] - len(rows)) // 2
-                clear = bytes(g["width"])
-                rows = ([clear] * above + list(rows)
-                        + [clear] * (PAD[name] - len(rows) - above))
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(rows),
                 rgb(colours[role]) if role else None, rows)
             if look == "Modern":
@@ -168,20 +163,17 @@ def main():
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(stars), None, stars)
             if look == "Modern":
                 sizes.append("%s %d %d %d" % (name, g["width"], h, len(stars) // h))
-        # a bar 3 px thick is whole pixels with its four corners cut; a
-        # thicker one has its ends stepped
+        # the bars, their ends round, and the dot at rest
         for name, (w, h, thick) in BARS.items():
-            top = (h - thick) // 2
-            def inset(y):
-                edge = min(y - top, top + thick - 1 - y)
-                return max(0, (2 if thick > 4 else 1) - edge)
-            capsule = [bytes(255 if top <= y < top + thick
-                             and inset(y) <= x < w - inset(y) else 0
-                             for x in range(w)) for y in range(h)]
+            rows = capsule(w, h, thick)
             bmp(os.path.join(folder_out, name + " Track.bmp"), w, h,
-                rgb(colours["TRACK"]), capsule)
+                rgb(colours["TRACK"]), rows)
             bmp(os.path.join(folder_out, name + " Fill.bmp"), w, h,
-                rgb(colours["ACCENT"]), capsule)
+                rgb(colours["ACCENT"]), rows)
+        size, h = KNOB_SMALL
+        bmp(os.path.join(folder_out, "Knob Small.bmp"), size, h, rgb(colours["ACCENT"]),
+            disc(size, h))
+    sizes.append("Knob_Small %d %d 1" % (KNOB_SMALL[0], KNOB_SMALL[0]))
     for name, (w, h, thick) in BARS.items():
         sizes.append("%s %d %d 1" % (name.replace(" ", "_"), w, h))
     with open(os.path.join(HERE, "modern_glyph_sizes.txt"), "w") as f:

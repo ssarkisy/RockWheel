@@ -33,13 +33,18 @@
 %Fl(6,12-Inter-SemiBold.fnt,32)
 %Fl(7,17-Inter-Bold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
-%?mw<%Vd(current)|%Vd(current)|%?C<|%Vd(current)>||%Vd(current)>
-# under the title, by the track's kind: a song's artist, album, stars and format; an
-# episode's show, date and time left; a book's author, chapter and format
-%?kk<%?mw<%Vd(song)|%Vd(song)|%?C<|%Vd(song)>||%Vd(song)>|%?mw<%Vd(episode)|%Vd(episode)|%?C<|%Vd(episode)>||%Vd(episode)>|%?mw<%Vd(book)|%Vd(book)|%?C<|%Vd(book)>||%Vd(book)>>
+# begin: made by themes/tools/make_classic_np.py, not edited here
+# the details' viewports by the track and the settings, and the modes; the
+# rating view leaves the small stars out, the speed view a book's speed:
+# neither moves as it is set
+%?if(%mw, <, 3)<%?kk<%?St(now playing format)<%?St(now playing rating)<%Vd(s11)|%?rr<%Vd(s01)|%Vd(s11)>|%Vd(s01)>|%?St(now playing rating)<%Vd(s10)|%?rr<%Vd(s00)|%Vd(s10)>|%Vd(s00)>>|%Vd(e)|%?St(now playing format)<%?ks<%Vd(b11)|%Vd(b01)>|%?ks<%Vd(b10)|%Vd(b00)>>>|%?mw<||%?C<|%?kk<%?St(now playing format)<%?St(now playing rating)<%Vd(s11)|%?rr<%Vd(s01)|%Vd(s11)>|%Vd(s01)>|%?St(now playing rating)<%Vd(s10)|%?rr<%Vd(s00)|%Vd(s10)>|%Vd(s00)>>|%Vd(e)|%?St(now playing format)<%?ks<%Vd(b11)|%Vd(b01)>|%?ks<%Vd(b10)|%Vd(b00)>>>>||%?kk<%?St(now playing format)<%Vd(s01)|%Vd(s00)>|%Vd(e)|%?St(now playing format)<%?ks<%Vd(b11)|%Vd(b01)>|%?ks<%Vd(b10)|%Vd(b00)>>>|%?kk<|%Vd(e)|%?St(now playing format)<%Vd(b01)|%Vd(b00)>>>>
+%?if(%mw, <, 3)<%Vd(mode1)%Vd(mode2)|%?mw<||%?C<|%Vd(mode1)%Vd(mode2)>||%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)>>
+# end: made by themes/tools/make_classic_np.py
 # display modes, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
 %?mw<%Vd(info)%?mv(2.0)<%Vd(volume)|%Vd(pb)>|%Vd(info)%Vd(scrub)%?kk<|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(info)%Vd(pb)>|%Vd(lyrics)|%Vd(info)%Vd(rating)|%Vd(info)%Vd(speed)>
+# without a cover, the backdrop again where its reflection, or the turned one, was
+%?C<|%?mw<%Vd(spill)|%Vd(spill)|%Vd(spill)||%Vd(spill)|%Vd(spill)>>
 # under the bar, for a track whose file has chapters, in the normal view and the scrubber;
 # a podcast's or an audiobook's scrubber has the hints at the line's ends, and a shorter line
 %?kn<%?mw<%?mv(2.0)<|%Vd(chapter)>|%?kk<%Vd(chapter)|%Vd(chapterscrub)|%Vd(chapterscrub)>||||>|>
@@ -56,7 +61,7 @@
 %V(291,4,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %?St(battery display)<%Vd(nonumbat)|%Vd(numbat)>
-%?nN<%?St(battery display)<%?ps<%?mm<%Vd(night2)|%Vd(night3)|%Vd(night3)|%Vd(night3)|%Vd(night3)>|%?mm<%Vd(night1)|%Vd(night2)|%Vd(night2)|%Vd(night2)|%Vd(night2)>>|%?ps<%?mm<%Vd(nightnum2)|%Vd(nightnum3)|%Vd(nightnum3)|%Vd(nightnum3)|%Vd(nightnum3)>|%?mm<%Vd(nightnum1)|%Vd(nightnum2)|%Vd(nightnum2)|%Vd(nightnum2)|%Vd(nightnum2)>>>|>
+%?nN<%?St(battery display)<%Vd(night)|%Vd(nightnum)>|>
 %Vl(numbat,255,3,32,12,2)%Vf(000000)
 %ac%bl%%
 %xl(P,Playing Status.bmp,0,0,4)
@@ -69,34 +74,11 @@
 %?mh<%xd(h)|>
 %Vl(nonumbat,215,3,13,13,-)
 %?mh<%xd(h)|>
-%xl(r,Status Repeat.bmp,0,0,4)
-%xl(S,Status Shuffle.bmp,0,0)
-%xl(A,Status Shuffle Albums.bmp,0,0)
-# repeat and shuffle, in the status bar on every view; Shuffle by albums has its own icon
-%Vl(nonumbat,228,2,16,16,-)
-%?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>
-%Vl(nonumbat,249,2,16,16,-)
-%?ps<%?pa<%xd(A)|%xd(S)>|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>
-%Vl(numbat,193,2,16,16,-)
-%?ps<%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>|>
-%Vl(numbat,214,2,16,16,-)
-%?ps<%?pa<%xd(A)|%xd(S)>|%?mm<|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>>
-# Night Mode on: the moon, just left of the icons beside the battery, which move up
-# when shuffle or repeat is off. After them, as a viewport drawn later over another
-# would wipe it on a full redraw, as at a track change, and with both on it stays
-# left of the hold icon, clear of the titles, which are narrower for it.
+# Night Mode on: the moon, just left of the play glyph beside the battery
 %xl(N,Status Night.bmp,0,0)
-%Vl(night1,249,2,16,16,-)
+%Vl(night,249,2,16,16,-)
 %xd(N)
-%Vl(night2,228,2,16,16,-)
-%xd(N)
-%Vl(night3,198,2,16,16,-)
-%xd(N)
-%Vl(nightnum1,214,2,16,16,-)
-%xd(N)
-%Vl(nightnum2,193,2,16,16,-)
-%xd(N)
-%Vl(nightnum3,163,2,16,16,-)
+%Vl(nightnum,214,2,16,16,-)
 %xd(N)
 #%?C<%Vd(aa)|>
 #%xl(w,FrameTop.bmp,0,0)
@@ -107,47 +89,116 @@
 # with its reflection under it, angled if the setting says
 %Cr
 #%Vl(aa,7,39,144,142,-)
+# 12 px round the cover's place, as far as a turned one goes, and the reflection's 22
+# rows under it; before the cover's viewport, which draws over it
+%Vl(spill,0,33,160,170,-)
 %Vl(info,12,45,136,136,-)
 %Cd
-%Vl(current,160,50,148,21,1)%Vf(000000)
-%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
-%Vl(song,160,72,148,18,3)%Vf(666666)
-%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
-%Vl(song,160,90,148,18,7)%Vf(767676)
-%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
-# an episode: its show where a song's artist is, its date under it, and what is left of
-# it where a song's format is; no stars
-%Vl(episode,160,72,148,18,3)%Vf(666666)
-%t(8)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%s%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%?id<%id|%Sx(Unknown Album)>
-%Vl(episode,160,92,148,16,2)%Vf(767676)
-%al%kd
-%Vl(episode,160,141,148,16,2)%Vf(767676)
-%al%kl
-# its speed in the stars' row, when it isn't the normal one: in a conditional, as a
-# line is drawn again when its branch changes, not when its tag has nothing more to say
-%Vl(episode,160,121,148,16,2)%Vf(767676)
-%al%?ks<%ks|>
-# a book: its author, the chapter's name where a song's album is, or the book's title for
-# a part without one, and its format as a song's; what is left of it the bar's times say
-%Vl(book,160,72,148,18,3)%Vf(666666)
-%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
-%Vl(book,160,92,148,16,2)%Vf(767676)
-%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
-%Vl(book,160,140,148,18,4)
-%fB
-%Vl(book,160,121,148,16,2)%Vf(767676)
-%al%?ks<%ks|>
+# begin: made by themes/tools/make_classic_np.py, not edited here
+# the details; five stars of the Ratings picture, the set ones over the outlines
 %xl(R,Ratings.bmp,0,0,11)
 %xC(R)
-%Vl(song,160,121,66,13,-)
+%Vl(s00,160,76,148,21,1)%Vf(000000)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(s00,160,97,148,18,3)%Vf(666666)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s00,160,115,148,18,7)%Vf(767676)
+%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
+%Vl(s00,159,137,149,14,2)%Vf(767676)
+%s%al%pp %Sx(of) %pe
+%Vl(s01,160,64,148,21,1)%Vf(000000)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(s01,160,85,148,18,3)%Vf(666666)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s01,160,103,148,18,7)%Vf(767676)
+%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
+%Vl(s01,159,125,149,14,2)%Vf(767676)
+%s%al%pp %Sx(of) %pe
+%Vl(s01,160,144,148,18,4)
+%fB
+%Vl(s10,160,66,148,21,1)%Vf(000000)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(s10,160,87,148,18,3)%Vf(666666)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s10,160,105,148,18,7)%Vf(767676)
+%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
+%Vl(s10,159,127,149,14,2)%Vf(767676)
+%s%al%pp %Sx(of) %pe
+%Vl(s10,160,147,66,13,-)
 %?rr<%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)|%xd(Rk)>
-# the track's format and bitrate
-%Vl(song,160,140,148,18,4)
+%Vl(s11,160,56,148,21,1)%Vf(000000)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(s11,160,77,148,18,3)%Vf(666666)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s11,160,95,148,18,7)%Vf(767676)
+%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
+%Vl(s11,159,117,149,14,2)%Vf(767676)
+%s%al%pp %Sx(of) %pe
+%Vl(s11,160,137,66,13,-)
+%?rr<%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)|%xd(Rk)>
+%Vl(s11,160,153,148,18,4)
+%fB
+%Vl(e,160,65,148,21,1)%Vf(000000)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(e,160,86,148,18,3)%Vf(666666)
+%t(8)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%s%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%?id<%id|%Sx(Unknown Album)>
+%Vl(e,160,106,148,16,2)%Vf(767676)
+%al%kd
+%Vl(e,159,126,149,14,2)%Vf(767676)
+%s%al%pp %Sx(of) %pe
+%Vl(e,160,145,148,16,2)%Vf(767676)
+%al%kl%?ks< · %ks|>
+%Vl(b00,160,76,148,21,1)%Vf(000000)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(b00,160,97,148,18,3)%Vf(666666)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b00,160,117,148,16,2)%Vf(767676)
+%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
+%Vl(b00,159,137,149,14,2)%Vf(767676)
+%s%al%pp %Sx(of) %pe
+%Vl(b01,160,64,148,21,1)%Vf(000000)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(b01,160,85,148,18,3)%Vf(666666)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b01,160,105,148,16,2)%Vf(767676)
+%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
+%Vl(b01,159,125,149,14,2)%Vf(767676)
+%s%al%pp %Sx(of) %pe
+%Vl(b01,160,144,148,18,4)
+%fB
+%Vl(b10,160,65,148,21,1)%Vf(000000)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(b10,160,86,148,18,3)%Vf(666666)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b10,160,106,148,16,2)%Vf(767676)
+%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
+%Vl(b10,159,126,149,14,2)%Vf(767676)
+%s%al%pp %Sx(of) %pe
+%Vl(b10,160,145,148,16,2)%Vf(767676)
+%al%?ks<%ks|>
+%Vl(b11,160,55,148,21,1)%Vf(000000)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(b11,160,76,148,18,3)%Vf(666666)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b11,160,96,148,16,2)%Vf(767676)
+%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
+%Vl(b11,159,116,149,14,2)%Vf(767676)
+%s%al%pp %Sx(of) %pe
+%Vl(b11,160,135,148,16,2)%Vf(767676)
+%al%?ks<%ks|>
+%Vl(b11,160,154,148,18,4)
 %fB
 # never shown, it only gives %fB the font of the bitrate
 %Vl(bitrate,0,0,1,1,6)
-%Vl(current,159,159,149,14,2)%Vf(767676)
-%s%al%pp %Sx(of) %pe
+# repeat and shuffle under the status bar's right end, repeat at the column's edge
+%xl(r,Repeat Icon.bmp,0,0,4)
+%xl(S,Shuffle Icon.bmp,0,0)
+%xl(A,Status Shuffle Albums.bmp,2,2)
+%Vl(mode1,290,22,19,20,-)
+%?mm<%?ps<%?pa<%xd(A)|%xd(S)>|>|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>
+%Vl(mode2,267,22,19,20,-)
+%?mm<|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>>
+# end: made by themes/tools/make_classic_np.py
 # The bar with its times, in the row's whole width: what is played in the middle of
 # the room before the bar and what is left in the middle of the room after it, their
 # digits (rows 3 to 10 of the text's 14) level with the middle of the bar's body.

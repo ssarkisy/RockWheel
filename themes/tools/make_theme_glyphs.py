@@ -60,10 +60,10 @@ SKIN = {"Battery": "DENSE", "Playing Status": "DENSE", "Hold": "DENSE",
 # come to that grey in the screen's 16 bits: checked below
 STARS = {"Ratings": ("Ratings Ground", True, "PRIMARY", "UNSET", True),
          "Stars": ("Stars Ground", False, "DENSE", "TERTIARY", False)}
-# Now Playing's bar: its track and its fill, capsules 5 px thick in a box as
+# Now Playing's bar: its track and its fill, capsules 9 px thick in a box as
 # high as the knob, which the skin's bar draws inside its own height; and the
 # volume's, shorter between its marks
-BAR = (292, 11, 5)
+BAR = (292, 11, 9)
 VOLUME_BAR = 256
 LOOKS = {  # as apps/gui/ui_theme.c and make_neo_theme.py have them
     "Neo":      dict(PAPER="EFEBE7", PRIMARY="292421", SECONDARY="6B6963",
@@ -151,6 +151,42 @@ def rgb565(colour):
     r, g, b = colour[:3]
     return ((31 * r + (r >> 3) + 127) >> 8, (63 * g + (g >> 2) + 127) >> 8,
             (31 * b + (b >> 3) + 127) >> 8)
+
+
+def shape(width, height, inside):
+    """rows of alpha of a shape, by how many of 4 by 4 points of each pixel
+    inside(x, y) takes in"""
+    rows = []
+    for y in range(height):
+        row = bytearray(width)
+        for x in range(width):
+            n = sum(inside(x + (i + 0.5) / 4, y + (j + 0.5) / 4)
+                    for i in range(4) for j in range(4))
+            row[x] = (n * 255 + 8) // 16
+        rows.append(bytes(row))
+    return rows
+
+
+def capsule(width, height, thick):
+    """a bar thick px high in the middle of the height, its ends round"""
+    r = thick / 2
+    top = (height - thick) // 2
+    middle = top + r
+
+    def inside(x, y):
+        cx = min(max(x, r), width - r)
+        return (x - cx) ** 2 + (y - middle) ** 2 <= r * r
+    return shape(width, height, inside)
+
+
+def disc(size, height):
+    """a round dot size px across, in the middle of the height"""
+    r = size / 2
+    top = (height - size) // 2
+
+    def inside(x, y):
+        return (x - r) ** 2 + (y - top - r) ** 2 <= r * r
+    return shape(size, height, inside)
 
 
 def main():
@@ -247,18 +283,15 @@ def main():
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(out), None, out)
             if look == "Neo":
                 sizes.append("%s %d %d %d" % (name, g["width"], h, len(out) // h))
-        # a capsule 5 px thick in whole pixels: a bar with its four corners cut;
-        # its track a step darker than the ground, which the LCD shows
+        # the capsules, their ends round; the track a step darker than the
+        # ground, which the LCD shows
         w, h, thick = BAR
-        top = (h - thick) // 2
         for name, width in (("Bar", w), ("Volume", VOLUME_BAR)):
-            capsule = [bytes(0 if not top <= y < top + thick
-                             or (x in (0, width - 1) and y in (top, top + thick - 1)) else 255
-                             for x in range(width)) for y in range(h)]
+            rows = capsule(width, h, thick)
             bmp(os.path.join(folder_out, name + " Track.bmp"), width, h,
-                rgb(colours["BARTRACK"]), capsule)
+                rgb(colours["BARTRACK"]), rows)
             bmp(os.path.join(folder_out, name + " Fill.bmp"), width, h,
-                rgb(colours["SECONDARY"]), capsule)
+                rgb(colours["SECONDARY"]), rows)
     sizes.append("Bar %d %d 1" % BAR[:2])
     sizes.append("Volume_Bar %d %d 1" % (VOLUME_BAR, BAR[1]))
     # for make_neo_theme.py, which places them by these

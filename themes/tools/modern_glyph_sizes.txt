@@ -8,11 +8,11 @@ Note_Pane 84 84 1
 Repeat 17 13 4
 Shuffle 17 13 2
 Knob 11 11 1
-Knob_Small 5 5 1
 Volume_Left 12 10 1
 Note_Playing 58 58 1
 Note_Large 100 100 1
 Ratings 76 12 11
 Stars 142 22 6
+Knob_Small 9 9 1
 Bar 296 11 1
-Thick_Bar 296 6 1
+Thick_Bar 296 9 1

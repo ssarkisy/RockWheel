@@ -409,21 +409,30 @@ static unsigned long peak_bar_hold(struct progressbar *pb, unsigned long end,
     return level;
 }
 
+#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && !defined(DISABLE_ALPHA_BITMAP)
+extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
+                                  int src_y, int stride, int x, int y,
+                                  int width, int height);
+#endif
+
 #if LCD_DEPTH >= 16
-/* Three bars of a sound wave, the format, and the bitrate in lighter letters on the
-   same baseline. The font of the viewport is for the format, and a viewport the theme
-   names "bitrate" and doesn't show gives the one for the bitrate. Right to left the
-   line is its mirror in the viewport: the texts by putsxy(), which mirrors there, and
-   the bars column for column, as they have no direction of their own to keep. */
-#define FORMAT_COLOUR   LCD_RGBPACK(0x35, 0x38, 0x38)
-/* The bars are a pixel and a half wide and go half a pixel into their first and
-   last rows, in the middle of the capitals: a half and a quarter of the colour over
-   the white behind */
-#define FORMAT_BAR_HALF     LCD_RGBPACK(0x9a, 0x9b, 0x9b)
-#define FORMAT_BAR_QUARTER  LCD_RGBPACK(0xcc, 0xcd, 0xcd)
+/* Three bars of a sound wave, the format, and the bitrate on the same baseline (in
+   Classic in lighter letters), all three in the theme's colour for the bitrate, or
+   under Cover Colours the colour of the lines over it. The font of the viewport is
+   for the format, and a viewport the theme names "bitrate" and doesn't show gives
+   the one for the bitrate. Right to left the line is its mirror in the viewport:
+   the texts by putsxy(), which mirrors there, and the bars column for column, as
+   they have no direction of their own to keep. */
 #define FORMAT_TEXT_X   12
 #define FORMAT_TEXT_Y   1
 #define BITRATE_GAP     7
+/* The bars are a pixel and a half wide and go half a pixel into their first and
+   last rows, in the middle of the capitals: in alpha as a font's (0 all of the
+   colour, 15 none), half and a quarter of it there over what is behind */
+#define FORMAT_BAR_FULL     0
+#define FORMAT_BAR_HALF     7
+#define FORMAT_BAR_QUARTER  11
+#define FORMAT_BAR_ROWS     16
 
 void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewport)
 {
@@ -461,48 +470,61 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
 
     const char *format = get_codec_string(codec);
     const unsigned old_fg = display->get_foreground();
-    const bool dark = global_settings.dark_theme;
-    unsigned colour = dark ? LCD_RGBPACK(0xd8, 0xda, 0xdc) : FORMAT_COLOUR,
-             half = dark ? LCD_RGBPACK(0x74, 0x75, 0x76) : FORMAT_BAR_HALF,
-             quarter = dark ? LCD_RGBPACK(0x43, 0x44, 0x45) : FORMAT_BAR_QUARTER,
-             bitrate_colour = ui_colour(UI_COLOUR_BITRATE);
+    /* a theme with a tone has it neutral, as the album's line over it: not
+       the tint its small text takes */
+    unsigned colour = ui_theme_current()->cover_tone
+        ? ui_theme_look(global_settings.dark_theme)->colour[UI_COLOUR_BITRATE]
+        : ui_colour(UI_COLOUR_BITRATE);
 #ifdef HAVE_ALBUMART
     const struct cover_palette *palette = cover_palette_get();
+    /* under Cover Colours as the lines over it: Neo's neutral ones take
+       the secondary colour, Classic's the muted one */
     if (palette)
-    {
-        colour = palette->format;
-        half = palette->format_half;
-        quarter = palette->format_quarter;
-        bitrate_colour = palette->muted;
-    }
+        colour = ui_theme_current()->cover_tone ? palette->secondary : palette->muted;
 #endif
+    display->set_foreground(colour);
 
     const bool rtl = VP_IS_RTL(vp);
-    display->set_drawmode(DRMODE_SOLID);
-    for (int i = 0; i < (int)ARRAYLEN(bars); i++)
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type == SCREEN_MAIN)
     {
-        const int x = rtl ? vp->width - 1 - bars[i].x : bars[i].x,
-                  beside = rtl ? x - 1 : x + 1;
-        const int top = bars[i].top, bottom = bars[i].bottom;
-        display->set_foreground(colour);
-        display->vline(x, top + 1, bottom - 1);
-        display->set_foreground(half);
-        display->vline(beside, top + 1, bottom - 1);
-        display->drawpixel(x, top);
-        display->drawpixel(x, bottom);
-        display->set_foreground(quarter);
-        display->drawpixel(beside, top);
-        display->drawpixel(beside, bottom);
+        /* each bar's two columns, the colour's own and the half pixel
+           beside it, one at a time: a row of two pixels a byte, the first
+           in its low nibble, the second clear */
+        display->set_drawmode(DRMODE_FG);
+        for (int i = 0; i < (int)ARRAYLEN(bars); i++)
+        {
+            unsigned char column[FORMAT_BAR_ROWS];
+            const int top = bars[i].top, bottom = bars[i].bottom;
+            for (int side = 0; side < 2; side++)
+            {
+                for (int r = top; r <= bottom; r++)
+                {
+                    const bool end = r == top || r == bottom;
+                    column[r] = 0xf0 | (side ? (end ? FORMAT_BAR_QUARTER : FORMAT_BAR_HALF)
+                                             : (end ? FORMAT_BAR_HALF : FORMAT_BAR_FULL));
+                }
+                const int x = bars[i].x + side;
+                lcd_alpha_bitmap_part(column, 0, top, 2, rtl ? vp->width - 1 - x : x,
+                                      top, 1, bottom - top + 1);
+            }
+        }
+    }
+    else
+#endif
+    {
+        display->set_drawmode(DRMODE_SOLID);
+        for (int i = 0; i < (int)ARRAYLEN(bars); i++)
+            display->vline(rtl ? vp->width - 1 - bars[i].x : bars[i].x,
+                           bars[i].top + 1, bars[i].bottom - 1);
     }
 
     display->set_drawmode(DRMODE_FG);
-    display->set_foreground(colour);
     display->putsxy(FORMAT_TEXT_X, FORMAT_TEXT_Y, format);
     display->getstringsize(format, &format_width, &format_height);
 
     snprintf(bitrate, sizeof(bitrate), str(LANG_BITRATE_KBPS), id3->bitrate);
     vp->font = bitrate_font;
-    display->set_foreground(bitrate_colour);
     display->putsxy(FORMAT_TEXT_X + format_width + BITRATE_GAP,
                     FORMAT_TEXT_Y + font_get(format_font)->ascent
                     - font_get(bitrate_font)->ascent, bitrate);
@@ -567,12 +589,6 @@ static bool in_tone_fill(const struct gui_wps *gwps, const struct bitmap *bm)
         && gwps->data == skin_get_gwps(WPS, SCREEN_MAIN)->data
         && cover_palette_tone_filled(NULL);
 }
-#endif
-
-#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && !defined(DISABLE_ALPHA_BITMAP)
-extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
-                                  int src_y, int stride, int x, int y,
-                                  int width, int height);
 #endif
 
 /* What the fill of a bar is drawn from, in the colours of the cover if they are on the
@@ -1488,6 +1504,25 @@ static void draw_cover_column(const struct viewport *area, const fb_data *src,
             *fb = under;
     }
 }
+
+/* Angled Cover, where the theme's cover turns: Modern's never does, whatever
+   the setting says from another theme */
+static bool cover_angled(void)
+{
+    return global_settings.angled_cover && !ui_theme_current()->flat_cover;
+}
+
+/* the reflection's room round the space (x, y, w, h) of vp: under the status
+   line, whose hairline Neo's cover is 12 rows under */
+static void cover_area(const struct viewport *vp, const struct skin_albumart *aa,
+                       int x, int y, int w, int h, struct viewport *area)
+{
+    *area = *vp;
+    area->x = MAX(vp->x + x - ART_SPILL, 0);
+    area->y = MAX(vp->y + y - ART_SPILL, ui_metric(UI_METRIC_STATUS_ROWS));
+    area->width = MIN(vp->x + x + w + ART_SPILL, LCD_WIDTH) - area->x;
+    area->height = MIN(vp->y + y + h + aa->reflect_rows, LCD_HEIGHT) - area->y;
+}
 #endif
 
 static void draw_cover(struct gui_wps *gwps, struct skin_albumart *aa,
@@ -1497,18 +1532,15 @@ static void draw_cover(struct gui_wps *gwps, struct skin_albumart *aa,
     struct screen *display = gwps->display;
 #if LCD_DEPTH == 16
     /* the cover a theme asks for so with %Cr, as Now Playing's */
-    if (aa->reflect && (!aa->angled_only || global_settings.angled_cover)
+    if (aa->reflect && (!aa->angled_only || cover_angled())
         && w > 1 && h > 1)
     {
         reflection_alpha = aa->reflect_alpha;
         struct viewport *vp = display->set_viewport(NULL);
         display->set_viewport(vp);
         /* the space with room around it, and the reflection under it */
-        struct viewport area = *vp;
-        area.x = MAX(vp->x + x - ART_SPILL, 0);
-        area.y = MAX(vp->y + y - ART_SPILL, 0);
-        area.width = MIN(vp->x + x + w + ART_SPILL, LCD_WIDTH) - area.x;
-        area.height = MIN(vp->y + y + h + aa->reflect_rows, LCD_HEIGHT) - area.y;
+        struct viewport area;
+        cover_area(vp, aa, x, y, w, h, &area);
         const int ax = vp->x + x - area.x, ay = vp->y + y - area.y;
         /* the background left of it, where nothing is drawn over the backdrop:
            right of it the text starts */
@@ -1522,7 +1554,7 @@ static void draw_cover(struct gui_wps *gwps, struct skin_albumart *aa,
             display->hline(0, area.width - 1, r);
         }
 
-        if (global_settings.angled_cover)
+        if (cover_angled())
         {
             const int near_h = h * ANGLE_NEAR / 256;
             const int pw = near_h * ANGLE_WIDTH / 256;
@@ -1548,6 +1580,11 @@ static void draw_cover(struct gui_wps *gwps, struct skin_albumart *aa,
             for (int c = 0; c < MIN(w, sw); c++)
                 draw_cover_column(&area, src, stride, c, sh, ax + c,
                                   (long)ay << 16, (long)MIN(h, sh) << 16);
+            /* rounded at the top where the theme rounds its covers, square
+               at the foot, which the reflection goes on from */
+            area.bg_pattern = cover_bg[MAX(ay, 0)];
+            line_round_top_corners(display, ax, ay, MIN(w, sw),
+                                   ui_metric(UI_METRIC_COVER_RADIUS));
         }
         display->set_foreground(vp->fg_pattern);
         display->set_viewport(vp);
@@ -1568,14 +1605,11 @@ static void clear_cover_reflection(struct gui_wps *gwps, struct skin_albumart *a
 {
 #if LCD_DEPTH == 16
     struct screen *display = gwps->display;
-    if (!aa->reflect || (aa->angled_only && !global_settings.angled_cover))
+    if (!aa->reflect || (aa->angled_only && !cover_angled()))
         return;
     struct viewport *vp = display->set_viewport(NULL);
-    struct viewport area = *vp;
-    area.x = MAX(vp->x + x - ART_SPILL, 0);
-    area.y = MAX(vp->y + y - ART_SPILL, 0);
-    area.width = MIN(vp->x + x + w + ART_SPILL, LCD_WIDTH) - area.x;
-    area.height = MIN(vp->y + y + h + aa->reflect_rows, LCD_HEIGHT) - area.y;
+    struct viewport area;
+    cover_area(vp, aa, x, y, w, h, &area);
     display->set_viewport(&area);
     display->set_drawmode(DRMODE_SOLID | DRMODE_INVERSEVID);
     display->fillrect(0, 0, area.width, area.height);

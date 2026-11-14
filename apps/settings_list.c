@@ -1709,6 +1709,12 @@ const struct settings_list settings[] = {
                    ID2P(LANG_STATUS_ICONS_BATTERY), ID2P(LANG_STATUS_ICONS_OWN)),
     OFFON_SETTING(0, angled_cover, LANG_ANGLED_COVER, false, "angled cover", NULL),
 #endif
+    /* what Now Playing shows under a song's place in its list: the themes'
+       skins ask for these by name, so every build has them */
+    CHOICE_SETTING(0, np_rating, LANG_NP_RATING, 0, "now playing rating",
+                   "always,rated,never", NULL, 3, ID2P(LANG_ALWAYS),
+                   ID2P(LANG_NP_RATING_RATED), ID2P(LANG_NEVER)),
+    OFFON_SETTING(0, np_format, LANG_NP_FORMAT, false, "now playing format", NULL),
     /* backlight fading */
 #if defined(HAVE_BACKLIGHT_FADING_INT_SETTING)
     TABLE_SETTING_LIST(F_TIME_SETTING | F_ALLOW_ARBITRARY_VALS, backlight_fade_in,

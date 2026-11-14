@@ -31,11 +31,16 @@ COLOURS = {
     # battery beside it is
     "Neo":      dict(PAPER="EFEBE7", PRIMARY="292421", SECONDARY="6B6963",
                      TERTIARY="A59E94", TRACK="E7DFD6", SELECTED="DEDBD6",
-                     SURFACE="E7E3DE", DENSE="52514A", CLOCK="524D4A"),
+                     SURFACE="E7E3DE", DENSE="52514A", CLOCK="524D4A",
+                     NEUTRAL="524D4A"),
     "Neo-Dark": dict(PAPER="211C18", PRIMARY="EFEBE7", SECONDARY="A59E94",
                      TERTIARY="6B6963", TRACK="313029", SELECTED="312C29",
-                     SURFACE="312C29", DENSE="B5B2A5", CLOCK="B5AEA5"),
+                     SURFACE="312C29", DENSE="B5B2A5", CLOCK="B5AEA5",
+                     NEUTRAL="B5AEA5"),
 }
+# NEUTRAL: Now Playing's grey that stays grey, a step from DENSE as CLOCK is:
+# of a song's details only the artist takes the user's colour (DENSE), the
+# album, the place in the list, the format and the times under the bar not
 
 SIZES = {}
 for line in open(os.path.join(HERE, "neo_glyph_sizes.txt")):
@@ -50,13 +55,23 @@ LIST_TOP, LIST_ROWS = 23, 216
 TEXT_Y = STATUS - 18    # the status line's text, a cell of 15
 FOOT = STATUS - 6       # the row under the status glyphs' feet
 GAP = 6                 # between them
-# Now Playing: the cover; the title's two lines of 18 beside it; the bar's box,
-# as high as the knob, and the line under it. As much ground over the cover,
-# from the hairline, as under that line's baseline (TIMES_Y + 11) to the
-# screen's foot: 23 rows each
-COVER, COVER_Y = 136, 44
-TITLE_Y, TITLE_LINE = COVER_Y + 2, 18
-BAR_Y, TIMES_Y = COVER_Y + 149, COVER_Y + 161
+# Now Playing: the cover 12 rows under the hairline, its reflection of 22 rows
+# under it; the bar's box, as high as the knob, and the line of the times
+# under it, where they were with the cover 12 rows lower
+COVER, COVER_Y = 136, 32
+BAR_Y, TIMES_Y = 193, 205
+REFLECTION = 22         # rows, as the firmware's default %Cr has them
+# the song's details beside the cover: one block in the middle of its height,
+# of these rows each line has, with these clear rows over some
+TITLE_LINE = 18         # 18-Inter-SemiBold, one line or two
+DETAIL = 16             # artist and album, 15-Inter-Medium
+SMALL = 14              # the place in the list, the format, an episode's time left
+COUNT_GAP = 4           # over the place in the list
+STARS_GAP = 6           # over the stars
+FORMAT_GAP = 5          # over the format, or what is left of an episode or a book
+FORMAT_UNDER_STARS = 3  # over the format, under the stars
+# the modes: under the status line's right end, 4 rows under the hairline
+MODES_Y = STATUS + 5
 
 
 CLOCK = "%al%?cf<%cH:%cM|%cl:%cM>"
@@ -74,14 +89,14 @@ def battery():
         f[0], f[1], f[2], "|".join([levels[0]] + levels + [levels[-1]] * 2))
 
 
-def status(width, modes, prefix="", name=None):
+def status(width, prefix="", name=None):
     """The glyphs' viewports and the line that shows them: from the right the
-    battery, Night Mode's moon, play or pause or the padlock, and in Now
-    Playing shuffle and repeat. What is left of an absent one moves up, so
-    each has a viewport for every place it can be in. name: the text left of
-    them, in a viewport that ends a gap before the leftmost; in the main
-    menu (its title's icon, 33) the clock stands there instead, as it does
-    at the left of a screen of the whole width."""
+    battery, Night Mode's moon, play or pause or the padlock (Now Playing's
+    shuffle and repeat stand under the line). What is left of an absent one
+    moves up, so each has a viewport for every place it can be in. name: the
+    text left of them, in a viewport that ends a gap before the leftmost; in
+    the main menu (its title's icon, 33) the clock stands there instead, as
+    it does at the left of a screen of the whole width."""
     out = []
     if name:
         out += ["%%Vl(%sclock,%d,%d,64,15,3)%%Vf(CLOCK)" % (prefix, MARGIN, TEXT_Y), CLOCK]
@@ -93,8 +108,7 @@ def status(width, modes, prefix="", name=None):
     x = width - MARGIN - SIZES["Battery"][0]
     out += [vp("bat", "Battery", x), battery()]
     play = frames("P", 4)
-    rep = frames("R", 4)
-    # %mp: stopped, playing, paused, forward, rewind; %mm: off, all, one, shuffle, A-B
+    # %mp: stopped, playing, paused, forward, rewind
     state = "%%?mh<%%xd(H)|%%?mp<|%s|%s|%s|%s>>" % (play[0], play[1], play[2], play[3])
     branches = []
     for night in (0, 1):
@@ -113,21 +127,6 @@ def status(width, modes, prefix="", name=None):
                 prefix, tag, MARGIN, TEXT_Y, at - GAP - MARGIN), name]
             this.append("%%?if(%%Li, =, 33)<%%Vd(%sclock)|%%Vd(%sname%s)>" % (
                 prefix, prefix, tag))
-        if modes:
-            inner = []
-            for shuffle in (1, 0):
-                a = at
-                t = tag + "s%d" % shuffle
-                s = ""
-                if shuffle:
-                    a -= GAP + SIZES["Shuffle"][0]
-                    out += [vp("shuf" + tag, "Shuffle", a), "%?pa<%xd(Sb)|%xd(Sa)>"]
-                    s = "%%Vd(%sshuf%s)" % (prefix, tag)
-                a -= GAP + SIZES["Repeat"][0]
-                out += [vp("rep" + t, "Repeat", a),
-                        "%%?mm<|%s|%s|%s|%s>" % (rep[0], rep[1], rep[2], rep[3])]
-                inner.append(s + "%%Vd(%srep%s)" % (prefix, t))
-            this.append("%%?ps<%s|%s>" % (inner[0], inner[1]))
         branches.append("".join(this))
     show = "%%Vd(%sbat)%%?nN<%s|%s>" % (prefix, branches[1], branches[0])
     return "\n".join(out), show
@@ -225,18 +224,24 @@ WPS = """\
 %Fl(3,17-Inter-Medium-13.fnt)
 %Fl(4,14-Inter-Medium.fnt)
 %Fl(5,15-Inter-SemiBold.fnt)
+%Fl(6,15-Inter-Medium.fnt)
 {images}
 # the views, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
-%?mw<%?nW(title)<%Vd(title)|%Vd(titlea)>%?mv(2.0)<%Vd(volume)|%Vd(pb)%Vd(under)>|%?nW(title)<%Vd(title)|%Vd(titlea)>%Vd(scrub)%?kk<%Vd(under)|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(bignote)>|%Vd(lyrics)%Vd(pb)|%?nW(title)<%Vd(title)|%Vd(titlea)>%Vd(rating)|%?nW(title)<%Vd(title)|%Vd(titlea)>%Vd(speed)>
-# under the title by the track's kind: a song's artist and album; an
-# episode's show and date; a book's author and chapter: 4 px under the
-# title's last line, so higher under a title of one line (a) than of two (b).
-# By the cover's foot a song's stars and format, an episode's time left, the speed
-{lines}
-%?mw<%?kk<%Vd(stars)||>|%?kk<%Vd(stars)||>||||>
-# the cover, its corners rounded by the theme; without one, a note on a tile
-# rounded as it is (%nc)
+%?mw<%?mv(2.0)<%Vd(volume)|%Vd(pb)%Vd(under)>|%Vd(scrub)%?kk<%Vd(under)|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(bignote)>|%Vd(lyrics)%Vd(pb)|%Vd(rating)|%Vd(speed)>
+# The track's details beside the cover, one block in the middle of its
+# height, as on a stock iPod: the title on one line or two; a song's artist,
+# album and place in its list, then its stars and its format as the settings
+# say (Rating, Format and Bitrate); an episode's show, date, place and time
+# left; a book's author, chapter, place and speed. Skins place nothing by
+# what is shown, so each of these has its viewports, named by what it holds:
+# s<lines><stars><format>, e<lines>, b<lines><speed>. The rating view leaves
+# the small stars out, the speed view a book's speed: neither moves as it is set
+{block}
+# repeat and shuffle under the status line's right end, repeat at the margin
+%?mw<{show_modes}|{show_modes}|||{show_modes}|{show_modes}>
+# the cover, its top corners rounded by the theme; without one, a note on a
+# tile rounded all round (%nc)
 %?mw<%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%Vd(spill)|%Vd(spill)|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>>
 # the status line: the clock, the title, the glyphs, a hairline under it. Its
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware
@@ -249,12 +254,14 @@ WPS = """\
 %V(0,{status},320,1,-)%Vb(TRACK)
 %?nN<{show}
 {vps}
-# with Angled Cover it is turned, its corners square, over a faint reflection
-# of 10 rows, which ends above the bar; plain and rounded without
+{mode_vps}
+# over a reflection of {reflection} rows, its foot square, which the reflection
+# goes on from; with Angled Cover turned, its corners all square
 %Cl(0,0,{cover},{cover},c,c)
-%Cr(10,56)
+%Cr
 # where it is not shown, the ground where a turned cover and its reflection
-# were, before what is drawn there: 12 px past the cover's place, 10 rows under.
+# were, before what is drawn there: 12 px past the cover's place but under the
+# hairline, {reflection} rows under it.
 # It must stay defined before noart, bigart, bignote and lyrics: viewports are
 # drawn in the file's order, and it clears where they draw
 %Vl(spill,{spill_x},{spill_y},{spill_w},{spill_h},-)
@@ -264,56 +271,44 @@ WPS = """\
 %xN(O)
 %Vl(noart,{margin},{cover_y},{cover},{cover},-)%Vb(SELECTED)
 %xd(O)%nc
-# the title beside it on one line or two, which never scroll: %nw breaks it at
-# a space and ends the second with an ellipsis
-# (a viewport for each, so that one line's does not lie over what is under it)
-%Vl(title,{col},{title_y},{col_w},{title_h},2)%Vf(PRIMARY)
-%nw(1)
-%nw(2)
-%Vl(titlea,{col},{title_y},{col_w},{title_line},2)%Vf(PRIMARY)
-%nw(1)
-{line_vps}
-%Vl(episode,{col},{foot_y},{col_w},14,4)%Vf(DENSE)
-%al%kl%?ks< · %ks|>
-%Vl(book,{col},{foot_y},{col_w},14,4)%Vf(DENSE)
-%al%?ks<%ks|>
-# five stars, the set ones and the outlines of the unset in one picture, their
-# foot 6 clear rows over the format's sign, a column left of the texts' edge,
-# where a star's point is; the set ones take the cover's colour with the text,
-# an outline the theme's colour for it, or under Text and Stars the cover's
-# muted one (%xC). The firmware knows an
+# The title on one line or two, which never scroll: %nw breaks it at a space
+# and ends the second with an ellipsis. %?nW asks this viewport, never shown,
+# whether it takes two
+%Vl(title,{col},0,{col_w},{title_h},2)
+# five stars, the set ones and the outlines of the unset in one picture, a
+# column left of the texts' edge, where a star's point is; the set ones take
+# the cover's colour with the text, an outline the theme's colour for it, or
+# under Text and Stars the cover's muted one (%xC). The firmware knows an
 # outline's pixel by its grey: make_theme_glyphs.py fails if another pixel
 # of a %xC picture has it
 %xl(G,Ratings.bmp,0,0,{ratings_n})
 %xC(G)
-%Vl(stars,{ratings_x},{stars_y},{ratings_w},{ratings_h},-)
-{small_stars}
-# the format and the bitrate under them
-%Vl(song,{col},{foot_y},{col_w},14,4)%Vf(DENSE)
-%fB
+{block_vps}
+# never shown, it only gives %fB the font of the bitrate
 %Vl(bitrate,0,0,1,1,4)
-# the bar: a capsule 5 px thick across the grid, in a box as high as the knob;
-# under it on one line the time played, the song's place in its list or the
-# chapter it is in, cut with an ellipsis and never scrolled, and the time left
+# the bar: a capsule across the grid, in a box as high as the knob (the
+# pictures are make_theme_glyphs.py's); under it on one line the time played,
+# the chapter of a track that has them, cut with an ellipsis and never
+# scrolled, and the time left
 %xl(K,Bar Track.bmp,0,0)
 %xl(k,Knob.bmp,0,0)
 %Vl(pb,0,{bar_y},320,{bar_h},-)
 %pb({bar})
-%Vl(pb,{margin},{times_y},64,14,4)%Vf(DENSE)
+%Vl(pb,{margin},{times_y},64,14,4)%Vf(NEUTRAL)
 %al%pc
-%Vl(pb,{times_right},{times_y},64,14,4)%Vf(DENSE)
+%Vl(pb,{times_right},{times_y},64,14,4)%Vf(NEUTRAL)
 %ar-%pr
 # the scrubber: the same with its knob
 %Vl(scrub,0,{bar_y},320,{bar_h},-)
 %pb({bar},slider,k,slidercentre)
-%Vl(scrub,{margin},{times_y},64,14,4)%Vf(DENSE)
+%Vl(scrub,{margin},{times_y},64,14,4)%Vf(NEUTRAL)
 %al%pc
-%Vl(scrub,{times_right},{times_y},64,14,4)%Vf(DENSE)
+%Vl(scrub,{times_right},{times_y},64,14,4)%Vf(NEUTRAL)
 %ar-%pr
-%Vl(under,{under_x},{times_y},{under_w},14,4)%Vf(DENSE)
-%nx%ac%?kn<%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>|%pp %Sx(of) %pe>
+%Vl(under,{under_x},{times_y},{under_w},14,4)%Vf(NEUTRAL)
+%nx%ac%?kn<%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>|>
 # a podcast's or a book's scrubber: what Previous and Next do there
-%Vl(hints,{under_x},{times_y},{under_w},14,4)%Vf(DENSE)
+%Vl(hints,{under_x},{times_y},{under_w},14,4)%Vf(NEUTRAL)
 %ac-15 / +30
 # the volume in the bar's place, as the wheel turns, shorter between its marks,
 # whose ink is as far from it on either side
@@ -326,15 +321,13 @@ WPS = """\
 %xd(v)
 %Vl(volume,{right_x},{marks_y},{right_w},{right_h},-)
 %xd(V)
-%Vl(volume,{margin},{times_y},{grid},14,4)%Vf(DENSE)
+%Vl(volume,{margin},{times_y},{grid},14,4)%Vf(NEUTRAL)
 %ac%nv
 # rating: five large stars in the bar's place, the wheel sets them
 %xl(T,Stars.bmp,0,0,{stars_n})
 %xC(T)
 %Vl(rating,{stars_x},{rating_y},{stars_w},{stars_h},-)
 {big_stars}
-%Vl(rating,{margin},{rating_text_y},{grid},14,4)%Vf(DENSE)
-%ac%pp %Sx(of) %pe
 # the large cover, and the note in its place
 %Vl(bigart,60,30,200,200,-)
 %Cl(0,0,200,200,c,c)
@@ -351,8 +344,8 @@ WPS = """\
 
 
 def sbs():
-    wide_vps, wide = status(320, False)
-    half_vps, half = status(160, False, "h", "%al%s%Lt")
+    wide_vps, wide = status(320)
+    half_vps, half = status(160, "h", "%al%s%Lt")
     music = ("%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"
              "|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>")
     note, photos = SIZES["Note_Pane"], SIZES["Photos_Pane"]
@@ -365,11 +358,24 @@ def sbs():
                 note_w=note[0], note_h=note[1])
 
 
+def detail_block(parts):
+    """parts: (what, rows, clear rows over it); each one's top row, the block
+    in the middle of the cover's height"""
+    y = COVER_Y + COVER // 2 - sum(rows + gap for _, rows, gap in parts) // 2
+    out = []
+    for what, rows, gap in parts:
+        y += gap
+        out.append((what, y, rows))
+        y += rows
+    return out
+
+
 def wps():
-    vps, show = status(320, True)
+    vps, show = status(320)
     ratings, stars = SIZES["Ratings"], SIZES["Stars"]
     left, right = SIZES["Volume_Left"], SIZES["Volume_Right"]
     note, large = SIZES["Note_Playing"], SIZES["Note_Large"]
+    repeat, shuffle = SIZES["Repeat"], SIZES["Shuffle"]
     bar_w, bar_h, _ = SIZES["Bar"]
     volume_w = SIZES["Volume_Bar"][0]
     # the marks' ink 6 px from the bar's ends: the left one's ends a column
@@ -382,35 +388,106 @@ def wps():
     grid = 320 - 2 * MARGIN
     col = MARGIN + COVER + 14
     col_w = 320 - MARGIN - col
-    # the two lines under the title, for each kind, under one line and under two
-    texts = {
-        "song": ("%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>",
-                 "%s%al%?id<%id|%Sx(Unknown Album)>"),
-        "episode": ("%s%al%?id<%id|%Sx(Unknown Album)>", "%al%kd"),
-        "book": ("%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>", "%s%al%?kc<%kc|%id>"),
+
+    # each line of the block: its viewport's font and colour, and its text
+    line = {
+        "artist": (6, "DENSE", "%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>"),
+        "album": (6, "NEUTRAL", "%s%al%?id<%id|%Sx(Unknown Album)>"),
+        "show": (6, "DENSE", "%s%al%?id<%id|%Sx(Unknown Album)>"),
+        "date": (6, "NEUTRAL", "%al%kd"),
+        "author": (6, "DENSE", "%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>"),
+        "chapter": (6, "NEUTRAL", "%s%al%?kc<%kc|%id>"),
+        "count": (4, "NEUTRAL", "%al%pp %Sx(of) %pe"),
+        "format": (4, "NEUTRAL", "%fB"),
+        "left": (4, "NEUTRAL", "%al%kl%?ks< · %ks|>"),
+        "speed": (4, "NEUTRAL", "%al%?ks<%ks|>"),
     }
-    line_vps = []
-    for suffix, count in (("a", 1), ("b", 2)):
-        y = TITLE_Y + count * TITLE_LINE + 4
-        for kind, (first, second) in texts.items():
-            line_vps += ["%%Vl(%s%s,%d,%d,%d,17,3)%%Vf(PRIMARY)" % (kind, suffix, col, y, col_w),
-                         first,
-                         "%%Vl(%s%s,%d,%d,%d,17,3)%%Vf(DENSE)" % (kind, suffix, col, y + 17, col_w),
-                         second]
-    kinds = "%%?kk<%%Vd(song)%%Vd(song%s)|%%Vd(episode)%%Vd(episode%s)|%%Vd(book)%%Vd(book%s)>"
-    under = "%%?nW(title)<%s|%s>" % (kinds % ("b", "b", "b"), kinds % ("a", "a", "a"))
-    lines = "%%?mw<%s|%s|||%s|%s>" % (under, under, under, under)
+
+    def title(lines):
+        return [("title%d" % lines, TITLE_LINE * lines, 0)]
+
+    def details(first, second):
+        return [(first, DETAIL, 0), (second, DETAIL, 0), ("count", SMALL, COUNT_GAP)]
+
+    variants = {}
+    for lines in (1, 2):
+        for stars_on in (0, 1):
+            for format_on in (0, 1):
+                parts = title(lines) + details("artist", "album")
+                if stars_on:
+                    parts.append(("stars", ratings[1], STARS_GAP))
+                if format_on:
+                    parts.append(("format", SMALL,
+                                  FORMAT_UNDER_STARS if stars_on else FORMAT_GAP))
+                variants["s%d%d%d" % (lines, stars_on, format_on)] = parts
+        variants["e%d" % lines] = title(lines) + details("show", "date") + [
+            ("left", SMALL, FORMAT_GAP)]
+        for speed_on in (0, 1):
+            variants["b%d%d" % (lines, speed_on)] = title(lines) + details(
+                "author", "chapter") + ([("speed", SMALL, FORMAT_GAP)] if speed_on else [])
+    block_vps = []
+    for label, parts in variants.items():
+        for what, y, rows in detail_block(parts):
+            if what.startswith("title"):
+                block_vps += ["%%Vl(%s,%d,%d,%d,%d,2)%%Vf(PRIMARY)" % (label, col, y, col_w, rows),
+                              "%nw(1)"] + (["%nw(2)"] if what == "title2" else [])
+            elif what == "stars":
+                block_vps += ["%%Vl(%s,%d,%d,%d,%d,-)" % (label, col - 1, y, ratings[0], rows),
+                              "%%?rr<%s>" % "|".join(r)]
+            else:
+                font, colour, text = line[what]
+                block_vps += ["%%Vl(%s,%d,%d,%d,%d,%d)%%Vf(%s)" % (
+                    label, col, y, col_w, rows, font, colour), text]
+
+    def choose(view):
+        """the block's viewports by the track and the settings, in a view"""
+        def song(lines):
+            def stars(format_on):
+                on, off = ("%%Vd(s%d%d%d)" % (lines, s, format_on) for s in (1, 0))
+                if view == "rating":
+                    return off
+                # Rating: Always, Only Rated (%rr: none, then by half stars), Never
+                return "%%?St(now playing rating)<%s|%%?rr<%s|%s>|%s>" % (on, off, on, off)
+            return "%%?St(now playing format)<%s|%s>" % (stars(1), stars(0))
+
+        def book(lines):
+            if view == "speed":
+                return "%%Vd(b%d0)" % lines
+            return "%%?ks<%%Vd(b%d1)|%%Vd(b%d0)>" % (lines, lines)
+
+        def by_title(kind):
+            return "%%?nW(title)<%s|%s>" % (kind(2), kind(1))
+        # a song has no speed view
+        return "%%?kk<%s|%s|%s>" % ("" if view == "speed" else by_title(song),
+                                     by_title(lambda n: "%%Vd(e%d)" % n), by_title(book))
+    # one choice for the normal view and the scrubber (%mw: 1, 2), as a skin
+    # keeps each written: the tree is in memory while the theme is
+    block = "%%?if(%%mw, <, 3)<%s|%%?mw<||||%s|%s>>" % (choose("normal"), choose("rating"),
+                                                       choose("speed"))
+
+    # repeat at the margin, shuffle left of it, or in its place with repeat off
+    # (%mm: off, all, one, shuffle, A-B)
+    rep = frames("R", repeat[2])
+    shuf = "%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>"
+    mode1_x = 320 - MARGIN - repeat[0]
+    mode2_x = mode1_x - GAP - shuffle[0]
+    mode_vps = "\n".join([
+        "%%Vl(mode1,%d,%d,%d,%d,-)" % (mode1_x, MODES_Y, repeat[0], repeat[1]),
+        "%%?mm<%s|%s>" % (shuf, "|".join(rep)),
+        "%%Vl(mode2,%d,%d,%d,%d,-)" % (mode2_x, MODES_Y, shuffle[0], shuffle[1]),
+        "%%?mm<|%s>" % "|".join([shuf] * 4)])
+
+    spill_y = max(COVER_Y - 12, STATUS + 1)
     # %rr: none, then by half stars; the rating view has whole stars
     text = fill(WPS, images=images(True), vps=vps, margin=MARGIN, text_y=TEXT_Y,
-                status=STATUS, lines=lines, line_vps="\n".join(line_vps),
-                cover=COVER, cover_y=COVER_Y, spill_x=MARGIN - 12, spill_y=COVER_Y - 12,
-                spill_w=COVER + 24, spill_h=COVER + 12 + 10, col=col, col_w=col_w, grid=grid,
-                title_y=TITLE_Y, title_h=2 * TITLE_LINE, title_line=TITLE_LINE,
-                ratings_x=col - 1, stars_y=COVER_Y + COVER - 20 - ratings[1],
-                foot_y=COVER_Y + COVER - 15,
+                status=STATUS, block=block, block_vps="\n".join(block_vps),
+                show_modes="%Vd(mode1)%Vd(mode2)", mode_vps=mode_vps,
+                reflection=REFLECTION,
+                cover=COVER, cover_y=COVER_Y, spill_x=MARGIN - 12, spill_y=spill_y,
+                spill_w=COVER + 24, spill_h=COVER_Y + COVER + REFLECTION - spill_y,
+                col=col, col_w=col_w, grid=grid, title_h=2 * TITLE_LINE,
                 noart_x=(COVER - note[0]) // 2, noart_y=(COVER - note[1]) // 2,
-                ratings_n=ratings[2], ratings_w=ratings[0], ratings_h=ratings[1],
-                small_stars="%%?rr<%s>" % "|".join(r),
+                ratings_n=ratings[2],
                 bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (MARGIN, bar_w, bar_h),
                 volume_bar="%d,0,%d,%d,Volume Fill.bmp,backdrop,W" % (
                     volume_x, volume_w, bar_h),
@@ -420,7 +497,7 @@ def wps():
                 marks_y=BAR_Y + 1, left_x=left_x, left_w=left[0], left_h=left[1],
                 right_x=right_x, right_w=right[0], right_h=right[1],
                 stars_n=stars[2], stars_x=(320 - stars[0]) // 2, stars_w=stars[0],
-                stars_h=stars[1], rating_y=BAR_Y - 1, rating_text_y=TIMES_Y + 10,
+                stars_h=stars[1], rating_y=BAR_Y - 1,
                 big_stars="%%?rr<%s>" % "|".join([t[0]] + [t[(i + 1) // 2]
                                                             for i in range(1, 11)]),
                 large_x=(200 - large[0]) // 2, large_y=(200 - large[1]) // 2)

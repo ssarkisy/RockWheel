@@ -195,12 +195,12 @@ def main():
     list_backdrop(os.path.join(LIGHT, "Wide Backdrop.bmp"), os.path.join(DARK, "Wide Backdrop.bmp"), False)
     now_playing_backdrop(os.path.join(LIGHT, "iClassic_bg.bmp"), os.path.join(DARK, "iClassic_bg.bmp"))
     progress_fill(os.path.join(LIGHT, "PB.bmp"), os.path.join(DARK, "PB.bmp"))
-    for name in ("Battery", "Playing Status", "Hold Icon", "Status Repeat", "Status Shuffle", "Status Night",
-                 "Memory Access", "Radio Icon", "Stereo Icon", "Repeat Icon", "Shuffle Icon",
-                 "Status Shuffle Albums"):
+    for name in ("Battery", "Playing Status", "Hold Icon", "Status Night",
+                 "Memory Access", "Radio Icon", "Stereo Icon"):
         each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), header_pixel)
+    # Now Playing's modes stand under the status bar, on the ground
     for name in ("Stars", "Ratings", "Signal", "Volume Left", "Volume Right", "Art Mask",
-                 "Scrub Hints"):
+                 "Scrub Hints", "Repeat Icon", "Shuffle Icon", "Status Shuffle Albums"):
         each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), glyph_pixel)
     for name in ("Scrub Knob", "Disk Fill", "Photos Icon"):
         shutil.copy(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"))

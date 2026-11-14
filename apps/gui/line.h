@@ -257,6 +257,9 @@ int line_ink_left(int font, const char *text);
 /* The corners of a picture w by h at x, y painted over in the ground's
    colour, to a rounding of radius r; nothing for 0 */
 void line_round_corners(struct screen *display, int x, int y, int w, int h, int r);
+/* Only the top two, of a picture w wide at x, y: one whose reflection under
+   it goes on from its foot */
+void line_round_top_corners(struct screen *display, int x, int y, int w, int r);
 /* A missing cover's note, a mask of w by h as a font's glyphs have alpha, at
    x, y: in the theme's colours for it, from its top row to its foot */
 void line_draw_note(const unsigned char *alpha, int w, int h, int x, int y);

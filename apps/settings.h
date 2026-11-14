@@ -1108,6 +1108,12 @@ struct user_settings
     /* Settings > Appearance > Colour, in a theme that has a tone: one of
        enum ui_tone_colour (gui/ui_theme.h) */
     int theme_colour;
+    /* Settings > Appearance, Now Playing: a song's stars there, 0 always,
+       1 only once it has a rating, 2 never (Rating); and its format and
+       bitrate (Format and Bitrate). The skins read them, by their names in
+       the settings (%St) */
+    int np_rating;
+    bool np_format;
 };
 
 /* global settings */

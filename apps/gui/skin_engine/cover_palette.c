@@ -324,14 +324,6 @@ static void readable_on(const int rgb[3], const int ground[3], int target, int o
     memcpy(out, c, sizeof(c));
 }
 
-/* c of 256 of the colour over the background */
-static unsigned over_background(const int rgb[3], const int background[3], int c)
-{
-    return LCD_RGBPACK(background[0] + (rgb[0] - background[0]) * c / 256,
-                       background[1] + (rgb[1] - background[1]) * c / 256,
-                       background[2] + (rgb[2] - background[2]) * c / 256);
-}
-
 /* The dark theme's background */
 static const int dark_background[3] = { THEME_DARK_BG_R, THEME_DARK_BG_G, THEME_DARK_BG_B };
 
@@ -990,10 +982,6 @@ static void make_fill_palette(struct cover_palette *palette, uint32_t colour, bo
     palette->secondary = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
     contrasting_ink(bg, light, 72, 450, rgb);
     palette->muted = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-    contrasting_ink(bg, light, 92, 450, rgb);
-    palette->format = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-    palette->format_half = over_background(rgb, bg, 128);
-    palette->format_quarter = over_background(rgb, bg, 64);
 
     /* the status bar: a shade of the background that its ink can be read on */
     const int *const header_ink = light ? white : black;
@@ -1075,11 +1063,6 @@ static void make_screen_palette(struct cover_palette *palette, int hue, bool gre
         hsl_to_rgb(hue, s * 160, 640, rgb);
         readable_on(rgb, low, 450, rgb);
         palette->muted = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-        hsl_to_rgb(hue, s * 220, 860, rgb);
-        readable_on(rgb, low, 450, rgb);
-        palette->format = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-        palette->format_half = over_background(rgb, low, 128);
-        palette->format_quarter = over_background(rgb, low, 64);
         return;
     }
     hsl_to_rgb(hue, s * 340, 949, screen_colours.background);
@@ -1097,11 +1080,6 @@ static void make_screen_palette(struct cover_palette *palette, int hue, bool gre
     hsl_to_rgb(hue, s * 140, 380, rgb);
     readable_on(rgb, back, 450, rgb);
     palette->muted = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-    hsl_to_rgb(hue, s * 220, 200, rgb);
-    readable_on(rgb, back, 450, rgb);
-    palette->format = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-    palette->format_half = over_background(rgb, screen_colours.background, 128);
-    palette->format_quarter = over_background(rgb, screen_colours.background, 64);
 }
 
 static void make_text_palette(struct cover_palette *palette, int hue, bool grey)
@@ -1121,10 +1099,6 @@ static void make_text_palette(struct cover_palette *palette, int hue, bool grey)
         palette->secondary = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
         readable_on_dark(hue, s * 285, 620, rgb);
         palette->muted = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-        readable_on_dark(hue, s * 588, 760, rgb);
-        palette->format = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-        palette->format_half = over_background(rgb, dark_background, 128);
-        palette->format_quarter = over_background(rgb, dark_background, 64);
         /* the stars are light on dark in these images: their shades go up to the ink */
         for (int i = 0; i < COVER_PALETTE_STAR_KEPT; i++)
         {
@@ -1144,10 +1118,6 @@ static void make_text_palette(struct cover_palette *palette, int hue, bool grey)
     palette->secondary = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
     readable_colour(hue, s * 285, 400, rgb);
     palette->muted = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-    readable_colour(hue, s * 588, 300, rgb);
-    palette->format = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
-    palette->format_half = over_background(rgb, white, 128);
-    palette->format_quarter = over_background(rgb, white, 64);
 
     /* Black becomes the ink and white stays, so the stars keep their volume. Their
        images have a light background, which fades to its own grey on the way up to
@@ -1205,8 +1175,7 @@ static struct
 static void make_tone_fill_palette(struct cover_palette *palette, uint32_t colour,
                                    bool grey, struct ui_theme_fill *surfaces)
 {
-    unsigned *const role[4] = { &palette->ink, &palette->secondary, &palette->muted,
-                                &palette->format };
+    unsigned *const role[3] = { &palette->ink, &palette->secondary, &palette->muted };
     const int *const header_ink = screen_colours.header_ink;
     int ground[3], shade[3], shown[3], rgb[3];
 
@@ -1216,7 +1185,7 @@ static void make_tone_fill_palette(struct cover_palette *palette, uint32_t colou
     palette->background = LCD_RGBPACK(ground[0], ground[1], ground[2]);
     /* Classic's texts, each taken on where it falls short on that ground as
        the screen shows them */
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < (int)ARRAYLEN(role); i++)
     {
         rgb[0] = RGB_UNPACK_RED(*role[i]);
         rgb[1] = RGB_UNPACK_GREEN(*role[i]);
@@ -1224,8 +1193,6 @@ static void make_tone_fill_palette(struct cover_palette *palette, uint32_t colou
         readable_on(rgb, ground, i == 0 ? TONE_TITLE_CONTRAST : TONE_FILL_CONTRAST, rgb);
         *role[i] = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
     }
-    palette->format_half = over_background(rgb, ground, 128);
-    palette->format_quarter = over_background(rgb, ground, 64);
 
     /* the status line: Classic's shade of the ground, flat, taken on from
        its ink until that reads on it as shown */
@@ -1278,20 +1245,19 @@ static void make_tone_text_palette(struct cover_palette *palette, int hue)
     const unsigned packed = ui_colour(UI_COLOUR_GROUND);
     const int ground[3] = { RGB_UNPACK_RED(packed), RGB_UNPACK_GREEN(packed),
                             RGB_UNPACK_BLUE(packed) };
-    /* saturation and lightness of the ink, the second, the muted and the
-       format's, light then dark: make_text_palette()'s */
-    static const short roles[2][4][2] = {
-        { { 652, 280 }, { 420, 350 }, { 285, 400 }, { 588, 300 } },
-        { { 652, 720 }, { 420, 720 }, { 285, 620 }, { 588, 760 } },
+    /* saturation and lightness of the ink, the second and the muted, light
+       then dark: make_text_palette()'s */
+    static const short roles[2][3][2] = {
+        { { 652, 280 }, { 420, 350 }, { 285, 400 } },
+        { { 652, 720 }, { 420, 720 }, { 285, 620 } },
     };
     const short (*const role)[2] = roles[global_settings.dark_theme];
-    unsigned *const out[4] = { &palette->ink, &palette->secondary, &palette->muted,
-                               &palette->format };
+    unsigned *const out[3] = { &palette->ink, &palette->secondary, &palette->muted };
     int rgb[3];
 
     palette->whole_screen = false;
     screen_colours.fill = false;
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < (int)ARRAYLEN(out); i++)
     {
         hsl_to_rgb(hue, role[i][0], role[i][1], rgb);
         /* the title's and the lyrics' 7 to 1, the rest 4.5: of a saturated
@@ -1300,8 +1266,6 @@ static void make_tone_text_palette(struct cover_palette *palette, int hue)
         readable_on(rgb, ground, i == 0 ? TONE_TITLE_CONTRAST : TONE_TEXT_CONTRAST, rgb);
         *out[i] = LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
     }
-    palette->format_half = over_background(rgb, ground, 128);
-    palette->format_quarter = over_background(rgb, ground, 64);
 }
 
 static struct cover_palette palette;

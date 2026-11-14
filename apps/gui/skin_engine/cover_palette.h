@@ -46,7 +46,7 @@ struct cover_palette
 {
     bool whole_screen;
     unsigned background;
-    unsigned ink, secondary, muted, format, format_half, format_quarter;
+    unsigned ink, secondary, muted;
     /* a shade of grey in the theme's stars, by its 6 bits of green */
     fb_data star[COVER_PALETTE_STAR_KEPT];
 };

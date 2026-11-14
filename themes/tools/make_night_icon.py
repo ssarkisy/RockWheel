@@ -4,7 +4,7 @@
 #     themes/tools/make_night_icon.py
 #
 # Needs Pillow. A crescent, shaded from top to bottom like the hold icon's lock, drawn
-# at eight times the size and brought down. As in make_status_icons.py, a partly covered
+# at eight times the size and brought down. A partly covered
 # pixel gets the colour of the bar in its row, and an empty one the magenta that skins
 # take as transparent. Run make_dark_theme.py after it.
 import os
