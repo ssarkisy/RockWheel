@@ -250,6 +250,10 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
    NULL for the note on a tile in its place, as an album without one has and
    one not read yet */
 #define LINE_COVER_SIZE 32
+#ifdef HAVE_LCD_COLOR
+/* c1 moved pct percent of the way to c2, as a colour at pct % opacity over c1 */
+unsigned line_mix_color(unsigned c1, unsigned c2, int pct);
+#endif
 /* A rectangle in colour on the viewport's ground, its corners rounded to
    radius r, their pixels mixed with the ground */
 void line_fill_rounded(struct screen *display, int x, int y, int w, int h,

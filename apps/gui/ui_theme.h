@@ -160,7 +160,7 @@ enum ui_metric {
     UI_METRIC_ROW_COVER_RADIUS, /* a row's cover's or tile's corners, 0 for square */
     UI_METRIC_ROW_RULE,       /* a hairline under each row not selected, from its name's start */
     UI_METRIC_SCROLLBAR_LINE, /* the scrollbar a line of a pixel on a track, so far from the list's end */
-    UI_METRIC_SWITCHES,       /* On and Off as a switch at the row's end */
+    UI_METRIC_SWITCHES,       /* On and Off as a switch at the row's end: 1 iOS 13's, 2 iOS 26's */
     UI_METRIC_ACCENT_MARKS,   /* the speaker and the marks before names in the accent */
     UI_METRIC_MENU_MARKS,     /* Music's rows each with its mark */
     UI_METRIC_SEARCH_RADIUS,  /* Search's field's corners where the selection has none: its shapes as a rounded theme's */

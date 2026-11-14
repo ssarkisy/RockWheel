@@ -18915,7 +18915,7 @@
     *: "Group by Album Artist"
   </source>
   <dest>
-    *: "Csoportosítás albumelőadó szerint"
+    *: "Albumelőadó szerint"
   </dest>
   <voice>
     *: ""

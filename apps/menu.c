@@ -428,6 +428,51 @@ static bool menu_is_group(int item, void *data)
 #define VALUE_MARGIN_CHEVRON ui_metric(UI_METRIC_VALUE_MARGIN_CHEVRON)
 #define VALUE_GAP ui_metric(UI_METRIC_VALUE_GAP)
 #define LIGHT_LEAST 40 /* the room a lighter text after a name needs at least */
+
+#ifdef HAVE_LCD_COLOR
+/* Neo's switch, iOS 26's at rest (owner, roadmap 1.4.1 A16): a capsule track
+   46 x 22 at the row's end, 10 px from it as in the owner's mockup
+   (141-mock/toggles), and a white capsule knob 59 % of the track's width,
+   7 % of its height inside it (2 px at the least). On, the track is in the
+   selected row's colour, the section's under Multicolor; off, a neutral grey.
+   On the selected row, which has that colour, variant A: on, a white track
+   and the knob in the row's colour; off, a white track at 30 % over the row
+   and a white knob. Each edge mixed with what it stands on */
+#define NEO_SWITCH_W     46
+#define NEO_SWITCH_H     22
+#define NEO_SWITCH_RIGHT 10
+static void neo_switch(struct screen *display, const struct list_putlineinfo_t *info,
+                       bool on, bool inked)
+{
+    const int inset = MAX(2, (NEO_SWITCH_H * 7 + 50) / 100);
+    const int knob_w = (NEO_SWITCH_W * 59 + 50) / 100;
+    const int knob_h = NEO_SWITCH_H - 2 * inset;
+    const int x = VP_IS_RTL(info->vp) ? NEO_SWITCH_RIGHT
+                  : info->vp->width - NEO_SWITCH_RIGHT - NEO_SWITCH_W;
+    const int y = info->y + (info->linedes->height - NEO_SWITCH_H) / 2;
+    const unsigned row = info->linedes->line_color;
+    unsigned track = ui_colour(on ? UI_COLOUR_SELECTOR_START : UI_COLOUR_SWITCH_OFF);
+    unsigned knob = LCD_WHITE;
+    if (inked)
+    {
+        track = on ? LCD_WHITE : line_mix_color(row, LCD_WHITE, 30);
+        if (on)
+            knob = row;
+    }
+    const unsigned old_fg = display->get_foreground();
+    const unsigned old_bg = display->get_background();
+    if (info->is_selected)
+        display->set_background(row);
+    line_fill_rounded(display, x, y, NEO_SWITCH_W, NEO_SWITCH_H, NEO_SWITCH_H / 2, track);
+    display->set_background(track);
+    line_fill_rounded(display, on ? x + NEO_SWITCH_W - inset - knob_w : x + inset,
+                      y + inset, knob_w, knob_h, knob_h / 2, knob);
+    display->set_background(old_bg);
+    display->set_foreground(old_fg);
+    display->set_drawmode(DRMODE_SOLID);
+}
+#endif
+
 void menu_draw_value_line(struct list_putlineinfo_t *info)
 {
     struct screen *display = info->display;
@@ -584,7 +629,13 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
     {
         const bool on = *value++ == MENU_SWITCH_ON;
 #ifdef HAVE_LCD_COLOR
-        if (ui_metric(UI_METRIC_SWITCHES) && display->screen_type == SCREEN_MAIN
+        if (ui_metric(UI_METRIC_SWITCHES) == 2 && display->screen_type == SCREEN_MAIN
+            && name_end <= info->vp->width - NEO_SWITCH_RIGHT - NEO_SWITCH_W)
+        {
+            neo_switch(display, info, on, inked);
+            return;
+        }
+        if (ui_metric(UI_METRIC_SWITCHES) == 1 && display->screen_type == SCREEN_MAIN
             && name_end <= info->vp->width - VALUE_MARGIN - 27)
         {
             /* a capsule of 27 by 16, its knob 12 px, white; at the other

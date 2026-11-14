@@ -433,6 +433,10 @@ static const struct ui_theme ui_themes[] = {
                        Colours' text roles take as they take that grey
                        (make_neo_theme.py's ACCENT) */
                     [UI_COLOUR_ACCENT]          = RGB(0x52, 0x55, 0x4a),
+                    /* a switch that is off: iOS's #D1D1D6 as the screen's
+                       16 bits have it nearest without its cast of pink;
+                       one on is in the selected row's colour */
+                    [UI_COLOUR_SWITCH_OFF]      = RGB(0xce, 0xce, 0xd6),
                 },
                 .scrollbar_track = { { 0xef, 0xeb, 0xe7 }, { 0xef, 0xeb, 0xe7 } },
                 .initial_opacity = 16,
@@ -472,6 +476,8 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_NOTE_TOP]        = RGB(0xa5, 0x9e, 0x94),
                     [UI_COLOUR_NOTE_FOOT]       = RGB(0x6b, 0x69, 0x63),
                     [UI_COLOUR_ACCENT]          = RGB(0xb5, 0xb6, 0xa5),
+                    /* #58585C, as the screen has it */
+                    [UI_COLOUR_SWITCH_OFF]      = RGB(0x5a, 0x59, 0x5a),
                 },
                 .scrollbar_track = { { 0x21, 0x1c, 0x18 }, { 0x21, 0x1c, 0x18 } },
                 .initial_opacity = 16,
@@ -562,6 +568,8 @@ static const struct ui_theme ui_themes[] = {
             /* Now Playing's covers square, as on a stock iPod */
             [UI_METRIC_COVER_RADIUS]         = 0,
             [UI_METRIC_ROW_COVER_RADIUS]     = 4,
+            /* iOS 26's, 46 x 22 (menu.c) */
+            [UI_METRIC_SWITCHES]             = 2,
         },
         /* one quiet tone across it */
         .scrollbar_thumb = {

@@ -494,6 +494,11 @@ static unsigned mix_color(unsigned c1, unsigned c2, int pct)
     return LCD_RGBPACK(r, g, b);
 }
 
+unsigned line_mix_color(unsigned c1, unsigned c2, int pct)
+{
+    return mix_color(c1, c2, pct);
+}
+
 /* A lighter top and a darker bottom edge on a gradient selection bar, as
    on a stock iPod */
 static void draw_bevel(struct screen *display, int x, int y, int width,
