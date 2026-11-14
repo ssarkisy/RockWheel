@@ -348,10 +348,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Reproduint"
+    *: "Ara sona"
   </dest>
   <voice>
-    *: "Reproduint"
+    *: "Ara sona"
   </voice>
 </phrase>
 <phrase>
@@ -376,10 +376,10 @@
     *: "Settings"
   </source>
   <dest>
-    *: "Preferències"
+    *: "Configuració"
   </dest>
   <voice>
-    *: "Preferències"
+    *: "Configuració"
   </voice>
 </phrase>
 <phrase>
@@ -13277,10 +13277,10 @@
     *: "Slideshow Settings"
   </source>
   <dest>
-    *: "Preferències de projecció"
+    *: "Configuració de projecció"
   </dest>
   <voice>
-    *: "Preferències de projecció"
+    *: "Configuració de projecció"
   </voice>
 </phrase>
 <phrase>
@@ -15307,7 +15307,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "Torna a «Reproduint»"
+    *: "Torna a «Ara sona»"
   </dest>
   <voice>
     *: ""
@@ -15601,7 +15601,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "Menú Reproduint"
+    *: "Menú Ara sona"
   </dest>
   <voice>
     *: ""
@@ -15615,7 +15615,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "Reinicia el menú Reproduint"
+    *: "Reinicia el menú Ara sona"
   </dest>
   <voice>
     *: ""
@@ -15755,7 +15755,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "«Reproduint» pren els colors de la portada de cada àlbum."
+    *: "«Ara sona» pren els colors de la portada de cada àlbum."
   </dest>
   <voice>
     *: ""
@@ -15783,7 +15783,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "La portada a «Reproduint» es veu una mica girada, com en un iPod classic."
+    *: "La portada a «Ara sona» es veu una mica girada, com en un iPod classic."
   </dest>
   <voice>
     *: ""
@@ -15811,7 +15811,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Quan la pantalla s’apaga amb música, torna «Reproduint» i la roda ajusta el volum."
+    *: "Quan la pantalla s’apaga amb música, torna «Ara sona» i la roda ajusta el volum."
   </dest>
   <voice>
     *: ""

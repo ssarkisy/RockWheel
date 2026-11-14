@@ -74,7 +74,7 @@
     *: "Off"
   </source>
   <dest>
-    *: "Wył·"
+    *: "Wył."
   </dest>
   <voice>
     *: "Wyłącz"
@@ -1129,10 +1129,10 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "Tasuj"
+    *: "Pomieszaj"
   </dest>
   <voice>
-    *: "Tasuj"
+    *: "Pomieszaj"
   </voice>
 </phrase>
 <phrase>
@@ -16511,10 +16511,10 @@
     *: "Shuffle Songs"
   </source>
   <dest>
-    *: "Tasuj utwory"
+    *: "Pomieszaj utwory"
   </dest>
   <voice>
-    *: "Tasuj utwory"
+    *: "Pomieszaj utwory"
   </voice>
 </phrase>
 <phrase>
@@ -17314,7 +17314,7 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "Tasuj"
+    *: "Pomieszaj"
   </dest>
   <voice>
     *: ""
@@ -17748,10 +17748,10 @@
     *: "Shuffle Photos"
   </source>
   <dest>
-    *: "Tasuj zdjęcia"
+    *: "Pomieszaj zdjęcia"
   </dest>
   <voice>
-    *: "Tasuj zdjęcia"
+    *: "Pomieszaj zdjęcia"
   </voice>
 </phrase>
 <phrase>
@@ -17860,10 +17860,10 @@
     *: "Acoustic"
   </source>
   <dest>
-    *: "Akustyczny"
+    *: "Akustyczna"
   </dest>
   <voice>
-    *: "Akustyczny"
+    *: "Akustyczna"
   </voice>
 </phrase>
 <phrase>
@@ -17874,10 +17874,10 @@
     *: "Bass Booster"
   </source>
   <dest>
-    *: "Wzmocnienie basów"
+    *: "Więcej basów"
   </dest>
   <voice>
-    *: "Wzmocnienie basów"
+    *: "Więcej basów"
   </voice>
 </phrase>
 <phrase>
@@ -17888,10 +17888,10 @@
     *: "Bass Reducer"
   </source>
   <dest>
-    *: "Redukcja basów"
+    *: "Mniej basów"
   </dest>
   <voice>
-    *: "Redukcja basów"
+    *: "Mniej basów"
   </voice>
 </phrase>
 <phrase>
@@ -17902,10 +17902,10 @@
     *: "Classical"
   </source>
   <dest>
-    *: "Klasyczny"
+    *: "Klasyczna"
   </dest>
   <voice>
-    *: "Klasyczny"
+    *: "Klasyczna"
   </voice>
 </phrase>
 <phrase>
@@ -17916,10 +17916,10 @@
     *: "Dance"
   </source>
   <dest>
-    *: "Taneczny"
+    *: "Dance"
   </dest>
   <voice>
-    *: "Taneczny"
+    *: "Dance"
   </voice>
 </phrase>
 <phrase>
@@ -17930,10 +17930,10 @@
     *: "Deep"
   </source>
   <dest>
-    *: "Głęboki"
+    *: "Głębia"
   </dest>
   <voice>
-    *: "Głęboki"
+    *: "Głębia"
   </voice>
 </phrase>
 <phrase>
@@ -17944,10 +17944,10 @@
     *: "Electronic"
   </source>
   <dest>
-    *: "Elektroniczny"
+    *: "Elektroniczna"
   </dest>
   <voice>
-    *: "Elektroniczny"
+    *: "Elektroniczna"
   </voice>
 </phrase>
 <phrase>
@@ -17958,10 +17958,10 @@
     *: "Flat"
   </source>
   <dest>
-    *: "Płaski"
+    *: "Korekcja zerowa"
   </dest>
   <voice>
-    *: "Płaski"
+    *: "Korekcja zerowa"
   </voice>
 </phrase>
 <phrase>
@@ -17972,10 +17972,10 @@
     *: "Hip Hop"
   </source>
   <dest>
-    *: "Hip-hop"
+    *: "Hip Hop"
   </dest>
   <voice>
-    *: "Hip-hop"
+    *: "Hip Hop"
   </voice>
 </phrase>
 <phrase>
@@ -18000,10 +18000,10 @@
     *: "Latin"
   </source>
   <dest>
-    *: "Latynoski"
+    *: "Latynoska"
   </dest>
   <voice>
-    *: "Latynoski"
+    *: "Latynoska"
   </voice>
 </phrase>
 <phrase>
@@ -18042,10 +18042,10 @@
     *: "Piano"
   </source>
   <dest>
-    *: "Fortepian"
+    *: "Pianino"
   </dest>
   <voice>
-    *: "Fortepian"
+    *: "Pianino"
   </voice>
 </phrase>
 <phrase>
@@ -18112,10 +18112,10 @@
     *: "Spoken Word"
   </source>
   <dest>
-    *: "Słowo mówione"
+    *: "Recytacje"
   </dest>
   <voice>
-    *: "Słowo mówione"
+    *: "Recytacje"
   </voice>
 </phrase>
 <phrase>
@@ -18126,10 +18126,10 @@
     *: "Treble Booster"
   </source>
   <dest>
-    *: "Wzmocnienie wysokich"
+    *: "Więcej sopranów"
   </dest>
   <voice>
-    *: "Wzmocnienie wysokich"
+    *: "Więcej sopranów"
   </voice>
 </phrase>
 <phrase>
@@ -18140,10 +18140,10 @@
     *: "Treble Reducer"
   </source>
   <dest>
-    *: "Redukcja wysokich"
+    *: "Mniej sopranów"
   </dest>
   <voice>
-    *: "Redukcja wysokich"
+    *: "Mniej sopranów"
   </voice>
 </phrase>
 <phrase>
@@ -18154,10 +18154,10 @@
     *: "Vocal Booster"
   </source>
   <dest>
-    *: "Wzmocnienie wokalu"
+    *: "Więcej wokalu"
   </dest>
   <voice>
-    *: "Wzmocnienie wokalu"
+    *: "Więcej wokalu"
   </voice>
 </phrase>
 <phrase>
@@ -22186,7 +22186,7 @@
     *: "Shuffle Albums"
   </source>
   <dest>
-    *: "Tasuj albumy"
+    *: "Pomieszaj albumy"
   </dest>
   <voice>
     *: ""
@@ -22270,7 +22270,7 @@
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
-    *: "Wył., utwory lub albumy: jak gra twoja muzyka. „Tasuj utwory” w menu głównym przełącza na utwory."
+    *: "Wył., utwory lub albumy: jak gra twoja muzyka. „Pomieszaj utwory” w menu głównym przełącza na utwory."
   </dest>
   <voice>
     *: ""

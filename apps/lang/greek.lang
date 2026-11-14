@@ -352,10 +352,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Tώρα παίζει"
+    *: "Παίζει τώρα"
   </dest>
   <voice>
-    *: "Tώρα παίζει"
+    *: "Παίζει τώρα"
   </voice>
 </phrase>
 <phrase>
@@ -17839,7 +17839,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "Στο «Tώρα παίζει»"
+    *: "Στο «Παίζει τώρα»"
   </dest>
   <voice>
     *: ""
@@ -18133,7 +18133,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "Μενού Τώρα παίζει"
+    *: "Μενού Παίζει τώρα"
   </dest>
   <voice>
     *: ""
@@ -18147,7 +18147,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "Επαναφορά μενού Τώρα παίζει"
+    *: "Επαναφορά μενού Παίζει τώρα"
   </dest>
   <voice>
     *: ""
@@ -18287,7 +18287,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "Το «Tώρα παίζει» παίρνει τα χρώματα του εξωφύλλου κάθε άλμπουμ."
+    *: "Το «Παίζει τώρα» παίρνει τα χρώματα του εξωφύλλου κάθε άλμπουμ."
   </dest>
   <voice>
     *: ""
@@ -18315,7 +18315,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "Το εξώφυλλο στο «Tώρα παίζει» στρέφεται ελαφρά στο πλάι, όπως σε ένα iPod classic."
+    *: "Το εξώφυλλο στο «Παίζει τώρα» στρέφεται ελαφρά στο πλάι, όπως σε ένα iPod classic."
   </dest>
   <voice>
     *: ""
@@ -18343,7 +18343,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Όταν η οθόνη σβήνει ενώ παίζει μουσική, επιστρέφει το «Tώρα παίζει» και ο τροχός ρυθμίζει την ένταση."
+    *: "Όταν η οθόνη σβήνει ενώ παίζει μουσική, επιστρέφει το «Παίζει τώρα» και ο τροχός ρυθμίζει την ένταση."
   </dest>
   <voice>
     *: ""

@@ -1681,10 +1681,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Kontrola zvuku"
+    *: "Vyrovnání hlasitosti"
   </dest>
   <voice>
-    *: "Kontrola zvuku"
+    *: "Vyrovnání hlasitosti"
   </voice>
 </phrase>
 <phrase>
@@ -7044,10 +7044,10 @@
     *: "Album Artist"
   </source>
   <dest>
-    *: "Autor alba"
+    *: "Umělec alba"
   </dest>
   <voice>
-    *: "Autor alba"
+    *: "Umělec alba"
   </voice>
 </phrase>
 <phrase>
@@ -15678,10 +15678,10 @@
     *: "Album Artists"
   </source>
   <dest>
-    *: "Autoři albumů"
+    *: "Umělci alb"
   </dest>
   <voice>
-    *: "Autoři albumů"
+    *: "Umělci alb"
   </voice>
 </phrase>
 <phrase>
@@ -16084,10 +16084,10 @@
     *: "Artists"
   </source>
   <dest>
-    *: "Autoři"
+    *: "Umělci"
   </dest>
   <voice>
-    *: "Autoři"
+    *: "Umělci"
   </voice>
 </phrase>
 <phrase>
@@ -16196,7 +16196,7 @@
     *: "Go to Artist"
   </source>
   <dest>
-    *: "Přejít na autora"
+    *: "Přejít na umělce"
   </dest>
   <voice>
     *: ""
@@ -16826,7 +16826,7 @@
     *: "Group by Album Artist"
   </source>
   <dest>
-    *: "Seskupit podle autora alba"
+    *: "Seskupit podle umělce alba"
   </dest>
   <voice>
     *: ""
@@ -17204,7 +17204,7 @@
     *: "Unknown Artist"
   </source>
   <dest>
-    *: "Neznámý autor"
+    *: "Neznámý umělec"
   </dest>
   <voice>
     *: ""
@@ -19402,7 +19402,7 @@
     *: "Artist under Album"
   </source>
   <dest>
-    *: "Autor pod albem"
+    *: "Umělec pod albem"
   </dest>
   <voice>
     *: ""
@@ -19416,7 +19416,7 @@
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
   </source>
   <dest>
-    *: "Pod názvem každého alba v Albech je rok a autor a alba se stejným názvem jsou zvlášť."
+    *: "Pod názvem každého alba v Albech je rok a umělec a alba se stejným názvem jsou zvlášť."
   </dest>
   <voice>
     *: ""
@@ -19444,7 +19444,7 @@
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
   </source>
   <dest>
-    *: "Alba a skladby mají u názvu obal, v Albech, v albech autora i ve Skladbách, jako na iPod classic."
+    *: "Alba a skladby mají u názvu obal, v Albech, v albech umělce i ve Skladbách, jako na iPod classic."
   </dest>
   <voice>
     *: ""
@@ -19514,7 +19514,7 @@
     *: "Artist"
   </source>
   <dest>
-    *: "Autor"
+    *: "Umělec"
   </dest>
   <voice>
     *: ""
@@ -19990,7 +19990,7 @@
     *: "No Artists"
   </source>
   <dest>
-    *: "Žádní autoři"
+    *: "Žádní umělci"
   </dest>
   <voice>
     *: ""

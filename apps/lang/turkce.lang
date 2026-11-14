@@ -505,7 +505,7 @@
     *: "Resume"
   </source>
   <dest>
-    *: "Yükle"
+    *: "Sürdür"
   </dest>
   <voice>
     *: "yükle"
@@ -15605,10 +15605,10 @@
     *: "Play Next"
   </source>
   <dest>
-    *: "Bir Sonrakini Oynat"
+    *: "Sıradaki Yap"
   </dest>
   <voice>
-    *: "Bir Sonrakini Oynat"
+    *: "Sıradaki Yap"
   </voice>
 </phrase>
 <phrase>
@@ -15633,10 +15633,10 @@
     *: "Play Last"
   </source>
   <dest>
-    *: "Sonuncuyu Oynat"
+    *: "En Son Oynat"
   </dest>
   <voice>
-    *: "Sonuncuyu Oynat"
+    *: "En Son Oynat"
   </voice>
 </phrase>
 <phrase>
@@ -16589,10 +16589,10 @@
     *: "Recently Added"
   </source>
   <dest>
-    *: "Yakın Zamanda Eklendi"
+    *: "Son Eklenen"
   </dest>
   <voice>
-    *: "Yakın Zamanda Eklendi"
+    *: "Son Eklenen"
   </voice>
 </phrase>
 <phrase>

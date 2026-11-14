@@ -7263,10 +7263,10 @@
     *: "Delete"
   </source>
   <dest>
-    *: "מחק"
+    *: "מחיקה"
   </dest>
   <voice>
-    *: "מחק"
+    *: "מחיקה"
   </voice>
 </phrase>
 <phrase>

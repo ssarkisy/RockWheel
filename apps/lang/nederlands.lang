@@ -15612,10 +15612,10 @@
     *: "Play Next"
   </source>
   <dest>
-    *: "Speel volgende"
+    *: "Speel hierna af"
   </dest>
   <voice>
-    *: "Speel volgende"
+    *: "Speel hierna af"
   </voice>
 </phrase>
 <phrase>
@@ -15640,10 +15640,10 @@
     *: "Play Last"
   </source>
   <dest>
-    *: "Laatste Afspelen"
+    *: "Speel als laatste af"
   </dest>
   <voice>
-    *: "Laatste Afspelen"
+    *: "Speel als laatste af"
   </voice>
 </phrase>
 <phrase>
@@ -17213,7 +17213,7 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "Willekeurig"
+    *: "Shuffle"
   </dest>
   <voice>
     *: ""
@@ -17773,10 +17773,10 @@
     *: "Bass Booster"
   </source>
   <dest>
-    *: "Meer bas"
+    *: "Meer lage tonen"
   </dest>
   <voice>
-    *: "Meer bas"
+    *: "Meer lage tonen"
   </voice>
 </phrase>
 <phrase>
@@ -17787,10 +17787,10 @@
     *: "Bass Reducer"
   </source>
   <dest>
-    *: "Minder bas"
+    *: "Minder lage tonen"
   </dest>
   <voice>
-    *: "Minder bas"
+    *: "Minder lage tonen"
   </voice>
 </phrase>
 <phrase>
@@ -17857,10 +17857,10 @@
     *: "Flat"
   </source>
   <dest>
-    *: "Vlak"
+    *: "Neutraal"
   </dest>
   <voice>
-    *: "Vlak"
+    *: "Neutraal"
   </voice>
 </phrase>
 <phrase>
@@ -18011,10 +18011,10 @@
     *: "Spoken Word"
   </source>
   <dest>
-    *: "Gesproken woord"
+    *: "Gesproken tekst"
   </dest>
   <voice>
-    *: "Gesproken woord"
+    *: "Gesproken tekst"
   </voice>
 </phrase>
 <phrase>
@@ -18053,10 +18053,10 @@
     *: "Vocal Booster"
   </source>
   <dest>
-    *: "Meer zang"
+    *: "Stemversterking"
   </dest>
   <voice>
-    *: "Meer zang"
+    *: "Stemversterking"
   </voice>
 </phrase>
 <phrase>
@@ -18333,7 +18333,7 @@
     *: "Cover Colours"
   </source>
   <dest>
-    *: "Hoeskleuren"
+    *: "Illustratiekleuren"
   </dest>
   <voice>
     *: ""
@@ -18767,7 +18767,7 @@
     *: "Angled Cover"
   </source>
   <dest>
-    *: "Schuine hoes"
+    *: "Schuine illustratie"
   </dest>
   <voice>
     *: ""
@@ -19425,7 +19425,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "‘Speelt nu af’ neemt de kleuren van de hoes van elk album over."
+    *: "‘Speelt nu af’ neemt de kleuren van de illustratie van elk album over."
   </dest>
   <voice>
     *: ""
@@ -19439,7 +19439,7 @@
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
-    *: "Ook de statusbalk neemt de kleuren van de hoes over. ‘Eigen batterij’ houdt de lading groen."
+    *: "Ook de statusbalk neemt de kleuren van de illustratie over. ‘Eigen batterij’ houdt de lading groen."
   </dest>
   <voice>
     *: ""
@@ -19453,7 +19453,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "De hoes in ‘Speelt nu af’ draait een beetje weg, zoals op een iPod classic."
+    *: "De illustratie in ‘Speelt nu af’ draait een beetje weg, zoals op een iPod classic."
   </dest>
   <voice>
     *: ""
@@ -21399,7 +21399,7 @@
     *: "Up Next"
   </source>
   <dest>
-    *: "Hierna"
+    *: "Volgende"
   </dest>
   <voice>
     *: ""
@@ -21441,7 +21441,7 @@
     *: "Covers in Lists"
   </source>
   <dest>
-    *: "Hoezen in lijsten"
+    *: "Illustraties in lijsten"
   </dest>
   <voice>
     *: ""
@@ -21455,7 +21455,7 @@
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
   </source>
   <dest>
-    *: "Albums en nummers tonen hun hoes, in Albums, bij albums van een artiest en in Nummers, zoals op een iPod classic."
+    *: "Albums en nummers tonen hun illustratie, in Albums, bij albums van een artiest en in Nummers, zoals op een iPod classic."
   </dest>
   <voice>
     *: ""
@@ -21497,7 +21497,7 @@
     *: "Moving Cover"
   </source>
   <dest>
-    *: "Bewegende hoes"
+    *: "Bewegende illustratie"
   </dest>
   <voice>
     *: ""
@@ -21511,7 +21511,7 @@
     *: "The cover beside the menus drifts slowly from side to side while music plays. Uses more battery."
   </source>
   <dest>
-    *: "De hoes naast de menu's schuift langzaam heen en weer terwijl er muziek speelt. Gebruikt meer batterij."
+    *: "De illustratie naast de menu's schuift langzaam heen en weer terwijl er muziek speelt. Gebruikt meer batterij."
   </dest>
   <voice>
     *: ""
@@ -22466,7 +22466,7 @@
     *: "Rebuild Synced Covers"
   </source>
   <dest>
-    *: "Sync-hoezen opnieuw maken"
+    *: "Sync-illustraties opnieuw maken"
   </dest>
   <voice>
     *: ""
@@ -22480,7 +22480,7 @@
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
-    *: "Bij de volgende synchronisatie maakt de computer alle hoezen opnieuw, met scherpe voor het hoofdmenu."
+    *: "Bij de volgende synchronisatie maakt de computer alle illustraties opnieuw, met scherpe voor het hoofdmenu."
   </dest>
   <voice>
     *: ""
@@ -22494,7 +22494,7 @@
     *: "Until the next sync with Finder on a Mac, synced covers are not shown."
   </source>
   <dest>
-    *: "Tot de volgende synchronisatie met de Finder op een Mac worden gesynchroniseerde hoezen niet getoond."
+    *: "Tot de volgende synchronisatie met de Finder op een Mac worden gesynchroniseerde illustraties niet getoond."
   </dest>
   <voice>
     *: ""
@@ -22536,7 +22536,7 @@
     *: "The covers will be made at the next sync."
   </source>
   <dest>
-    *: "De hoezen worden bij de volgende synchronisatie gemaakt."
+    *: "De illustraties worden bij de volgende synchronisatie gemaakt."
   </dest>
   <voice>
     *: ""
@@ -22550,7 +22550,7 @@
     *: "Put the old covers back?"
   </source>
   <dest>
-    *: "Oude hoezen terugzetten?"
+    *: "Oude illustraties terugzetten?"
   </dest>
   <voice>
     *: ""
@@ -22564,7 +22564,7 @@
     *: "Covers can't be rebuilt on this iPod."
   </source>
   <dest>
-    *: "Op deze iPod kunnen de hoezen niet opnieuw worden gemaakt."
+    *: "Op deze iPod kunnen de illustraties niet opnieuw worden gemaakt."
   </dest>
   <voice>
     *: ""

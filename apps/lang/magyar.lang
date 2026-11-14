@@ -344,10 +344,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Most játszom"
+    *: "Lejátszás alatt"
   </dest>
   <voice>
-    *: "Most játszom"
+    *: "Lejátszás alatt"
   </voice>
 </phrase>
 <phrase>
@@ -1475,10 +1475,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Hangellenőrzés"
+    *: "Normalizálás"
   </dest>
   <voice>
-    *: "Hangellenőrzés"
+    *: "Normalizálás"
   </voice>
 </phrase>
 <phrase>
@@ -17137,7 +17137,7 @@
     *: "Do not disconnect."
   </source>
   <dest>
-    *: "Ne csatlakoztassa le!"
+    *: "Ne válassza le."
   </dest>
   <voice>
     *: ""
@@ -17151,7 +17151,7 @@
     *: "OK to disconnect."
   </source>
   <dest>
-    *: "Lecsatlakoztatható."
+    *: "Leválaszthatja."
   </dest>
   <voice>
     *: ""
@@ -18971,7 +18971,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "Vissza: „Most játszom”"
+    *: "Vissza: „Lejátszás alatt”"
   </dest>
   <voice>
     *: ""
@@ -19265,7 +19265,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "Most játszom menü"
+    *: "Lejátszás alatt menü"
   </dest>
   <voice>
     *: ""
@@ -19279,7 +19279,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "Most játszom menü visszaállítása"
+    *: "Lejátszás alatt menü visszaállítása"
   </dest>
   <voice>
     *: ""
@@ -19419,7 +19419,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "A „Most játszom” felveszi minden album borítójának színeit."
+    *: "A „Lejátszás alatt” képernyő felveszi minden album borítójának színeit."
   </dest>
   <voice>
     *: ""
@@ -19447,7 +19447,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "A borító a „Most játszom” képernyőn kissé elfordul, mint egy iPod classic készüléken."
+    *: "A borító a „Lejátszás alatt” képernyőn kissé elfordul, mint egy iPod classic készüléken."
   </dest>
   <voice>
     *: ""
@@ -19475,7 +19475,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Ha zene közben elsötétül a képernyő, visszatér a „Most játszom”, így a tárcsa a hangerőt állítja."
+    *: "Ha zene közben elsötétül a képernyő, visszatér a „Lejátszás alatt” képernyő, így a tárcsa a hangerőt állítja."
   </dest>
   <voice>
     *: ""

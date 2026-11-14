@@ -343,10 +343,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "In Riproduzione"
+    *: "In riproduzione"
   </dest>
   <voice>
-    *: "In Riproduzione"
+    *: "In riproduzione"
   </voice>
 </phrase>
 <phrase>
@@ -6081,10 +6081,10 @@
     *: "Search in Playlist"
   </source>
   <dest>
-    *: "Ricerca nella playlist"
+    *: "Cerca nella playlist"
   </dest>
   <voice>
-    *: "Ricerca nella playlist"
+    *: "Cerca nella playlist"
   </voice>
 </phrase>
 <phrase>
@@ -9660,10 +9660,10 @@
     *: "Search Results"
   </source>
   <dest>
-    *: "Risultati Ricerca"
+    *: "Risultati ricerca"
   </dest>
   <voice>
-    *: "Risultati Ricerca"
+    *: "Risultati ricerca"
   </voice>
 </phrase>
 <phrase>
@@ -15604,10 +15604,10 @@
     *: "Play Next"
   </source>
   <dest>
-    *: "Riproduci Successivo"
+    *: "Riproduci come successivo"
   </dest>
   <voice>
-    *: "Riproduci Successivo"
+    *: "Riproduci come successivo"
   </voice>
 </phrase>
 <phrase>
@@ -15632,10 +15632,10 @@
     *: "Play Last"
   </source>
   <dest>
-    *: "Riproduci Ultimo"
+    *: "Riproduci per ultimo"
   </dest>
   <voice>
-    *: "Riproduci Ultimo"
+    *: "Riproduci per ultimo"
   </voice>
 </phrase>
 <phrase>
@@ -15646,10 +15646,10 @@
     *: "Play Last Shuffled"
   </source>
   <dest>
-    *: "Riproduci Ultimo Casualmente"
+    *: "Riproduci per ultimo in ordine casuale"
   </dest>
   <voice>
-    *: "Riproduci Ultimo Casualmente"
+    *: "Riproduci per ultimo in ordine casuale"
   </voice>
 </phrase>
 <phrase>
@@ -16504,10 +16504,10 @@
     *: "Shuffle Songs"
   </source>
   <dest>
-    *: "Brani Casuali"
+    *: "Brani casuali"
   </dest>
   <voice>
-    *: "Brani Casuali"
+    *: "Brani casuali"
   </voice>
 </phrase>
 <phrase>
@@ -16560,10 +16560,10 @@
     *: "Search"
   </source>
   <dest>
-    *: "Ricerca"
+    *: "Cerca"
   </dest>
   <voice>
-    *: "Ricerca"
+    *: "Cerca"
   </voice>
 </phrase>
 <phrase>
@@ -17237,7 +17237,7 @@
     *: "Do not disconnect."
   </source>
   <dest>
-    *: "Non scollegare."
+    *: "Non disconnetterlo."
   </dest>
   <voice>
     *: ""
@@ -17251,7 +17251,7 @@
     *: "OK to disconnect."
   </source>
   <dest>
-    *: "OK, scollega."
+    *: "Ora lo puoi disconnettere."
   </dest>
   <voice>
     *: ""
@@ -19071,7 +19071,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "A «In Riproduzione»"
+    *: "A «In riproduzione»"
   </dest>
   <voice>
     *: ""
@@ -19519,7 +19519,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "«In Riproduzione» prende i colori della copertina di ogni album."
+    *: "«In riproduzione» prende i colori della copertina di ogni album."
   </dest>
   <voice>
     *: ""
@@ -19547,7 +19547,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "La copertina su «In Riproduzione» è leggermente ruotata, come su un iPod classic."
+    *: "La copertina su «In riproduzione» è leggermente ruotata, come su un iPod classic."
   </dest>
   <voice>
     *: ""
@@ -19575,7 +19575,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Quando lo schermo si spegne durante la musica, torna «In Riproduzione» e la rotella regola il volume."
+    *: "Quando lo schermo si spegne durante la musica, torna «In riproduzione» e la rotella regola il volume."
   </dest>
   <voice>
     *: ""
@@ -19603,7 +19603,7 @@
     *: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
-    *: "La Ricerca propone solo le lettere che portano a un nome, così arrivi prima."
+    *: "«Cerca» propone solo le lettere che portano a un nome, così arrivi prima."
   </dest>
   <voice>
     *: ""
@@ -21647,7 +21647,7 @@
     *: "%d episode"
   </source>
   <dest>
-    *: "%d episodio"
+    *: "%d puntata"
   </dest>
   <voice>
     *: ""
@@ -21661,7 +21661,7 @@
     *: "%d episodes"
   </source>
   <dest>
-    *: "%d episodi"
+    *: "%d puntate"
   </dest>
   <voice>
     *: ""
@@ -21675,7 +21675,7 @@
     *: "%d episodes"
   </source>
   <dest>
-    *: "%d episodi"
+    *: "%d puntate"
   </dest>
   <voice>
     *: ""
@@ -22179,7 +22179,7 @@
     *: "Shuffle Albums"
   </source>
   <dest>
-    *: "Album Casuali"
+    *: "Album casuali"
   </dest>
   <voice>
     *: ""
@@ -22263,7 +22263,7 @@
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
-    *: "No, brani o album: come suona la tua musica. «Brani Casuali» nel menu principale lo imposta su brani."
+    *: "Disattivato, brani o album: come suona la tua musica. «Brani casuali» nel menu principale lo imposta su brani."
   </dest>
   <voice>
     *: ""

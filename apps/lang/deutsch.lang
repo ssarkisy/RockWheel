@@ -255,10 +255,10 @@
     *: "Are You Sure?"
   </source>
   <dest>
-    *: "Sind Sie sicher?"
+    *: "Bist du sicher?"
   </dest>
   <voice>
-    *: "Sind Sie sicher?"
+    *: "Bist du sicher?"
   </voice>
 </phrase>
 <phrase>
@@ -363,10 +363,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Spielt gerade"
+    *: "Jetzt läuft"
   </dest>
   <voice>
-    *: "Spielt gerade"
+    *: "Jetzt läuft"
   </voice>
 </phrase>
 <phrase>
@@ -439,10 +439,10 @@
     *: "Playlists"
   </source>
   <dest>
-    *: "Wiedergabelisten"
+    *: "Playlists"
   </dest>
   <voice>
-    *: "Wiedergabelisten"
+    *: "Playlists"
   </voice>
 </phrase>
 <phrase>
@@ -551,10 +551,10 @@
     *: "Resume"
   </source>
   <dest>
-    *: "Abspielen"
+    *: "Fortsetzen"
   </dest>
   <voice>
-    *: "Abspielen"
+    *: "Fortsetzen"
   </voice>
 </phrase>
 <phrase>
@@ -5617,10 +5617,10 @@
     *: "View Current Playlist"
   </source>
   <dest>
-    *: "Zeige aktuelle Wiedergabeliste"
+    *: "Zeige aktuelle Playlist"
   </dest>
   <voice>
-    *: "Zeige aktuelle Wiedergabeliste"
+    *: "Zeige aktuelle Playlist"
   </voice>
 </phrase>
 <phrase>
@@ -5771,10 +5771,10 @@
     *: "Erase dynamic playlist?"
   </source>
   <dest>
-    *: "Dynamische Wiedergabeliste löschen?"
+    *: "Dynamische Playlist löschen?"
   </dest>
   <voice>
-    *: "Dynamische Wiedergabeliste löschen?"
+    *: "Dynamische Playlist löschen?"
   </voice>
 </phrase>
 <phrase>
@@ -6085,10 +6085,10 @@
     *: "Search in Playlist"
   </source>
   <dest>
-    *: "Wiedergabeliste durchsuchen"
+    *: "Playlist durchsuchen"
   </dest>
   <voice>
-    *: "Wiedergabeliste durchsuchen"
+    *: "Playlist durchsuchen"
   </voice>
 </phrase>
 <phrase>
@@ -6127,10 +6127,10 @@
     *: "Add to New Playlist"
   </source>
   <dest>
-    *: "Zu neuer Wiedergabeliste hinzufügen"
+    *: "Zu neuer Playlist hinzufügen"
   </dest>
   <voice>
-    *: "Zu neuer Wiedergabeliste hinzufügen"
+    *: "Zu neuer Playlist hinzufügen"
   </voice>
 </phrase>
 <phrase>
@@ -6155,10 +6155,10 @@
     *: "No Playlists"
   </source>
   <dest>
-    *: "Keine Wiedergabelisten"
+    *: "Keine Playlists"
   </dest>
   <voice>
-    *: "Keine Wiedergabelisten"
+    *: "Keine Playlists"
   </voice>
 </phrase>
 <phrase>
@@ -6845,10 +6845,10 @@
     *: "End of Song List"
   </source>
   <dest>
-    *: "Wiedergabeliste zu Ende"
+    *: "Playlist zu Ende"
   </dest>
   <voice>
-    *: "Wiedergabeliste zu Ende"
+    *: "Playlist zu Ende"
   </voice>
 </phrase>
 <phrase>
@@ -6929,10 +6929,10 @@
     *: "Playlist control file is invalid"
   </source>
   <dest>
-    *: "Wiedergabelisten-Steuerdatei ist ungültig"
+    *: "Playlist-Steuerdatei ist ungültig"
   </dest>
   <voice>
-    *: "Wiedergabelisten-Steuerdatei ist ungültig"
+    *: "Playlist-Steuerdatei ist ungültig"
   </voice>
 </phrase>
 <phrase>
@@ -11186,10 +11186,10 @@
     *: "Current Playlist"
   </source>
   <dest>
-    *: "Aktuelle Wiedergabeliste"
+    *: "Aktuelle Playlist"
   </dest>
   <voice>
-    *: "Aktuelle Wiedergabeliste"
+    *: "Aktuelle Playlist"
   </voice>
 </phrase>
 <phrase>
@@ -15581,7 +15581,7 @@
     *: "Add to Playlist..."
   </source>
   <dest>
-    *: "Zu Wiedergabeliste hinzufügen..."
+    *: "Zur Playlist hinzufügen..."
   </dest>
   <voice>
     *: "Zu Wiedergabeliste hinzufügen"
@@ -15595,10 +15595,10 @@
     *: "Add to Existing Playlist"
   </source>
   <dest>
-    *: "Zu existierender Wiedergabeliste hinzufügen"
+    *: "Zu existierender Playlist hinzufügen"
   </dest>
   <voice>
-    *: "Zu existierender Wiedergabeliste hinzufügen"
+    *: "Zu existierender Playlist hinzufügen"
   </voice>
 </phrase>
 <phrase>
@@ -15623,10 +15623,10 @@
     *: "Play Next"
   </source>
   <dest>
-    *: "Spiele als Nächstes"
+    *: "Als Nächstes wiedergeben"
   </dest>
   <voice>
-    *: "Spiele als Nächstes"
+    *: "Als Nächstes wiedergeben"
   </voice>
 </phrase>
 <phrase>
@@ -16523,10 +16523,10 @@
     *: "Shuffle Songs"
   </source>
   <dest>
-    *: "Zufallswiedergabe"
+    *: "Zufällige Titel"
   </dest>
   <voice>
-    *: "Zufallswiedergabe"
+    *: "Zufällige Titel"
   </voice>
 </phrase>
 <phrase>
@@ -16607,10 +16607,10 @@
     *: "Recently Added"
   </source>
   <dest>
-    *: "Kürzlich hinzugefügt"
+    *: "Zuletzt hinzugefügt"
   </dest>
   <voice>
-    *: "Kürzlich hinzugefügt"
+    *: "Zuletzt hinzugefügt"
   </voice>
 </phrase>
 <phrase>
@@ -17872,10 +17872,10 @@
     *: "Acoustic"
   </source>
   <dest>
-    *: "Akustik"
+    *: "Acoustic"
   </dest>
   <voice>
-    *: "Akustik"
+    *: "Acoustic"
   </voice>
 </phrase>
 <phrase>
@@ -17956,10 +17956,10 @@
     *: "Electronic"
   </source>
   <dest>
-    *: "Elektronisch"
+    *: "Electronic"
   </dest>
   <voice>
-    *: "Elektronisch"
+    *: "Electronic"
   </voice>
 </phrase>
 <phrase>
@@ -17984,10 +17984,10 @@
     *: "Hip Hop"
   </source>
   <dest>
-    *: "Hip-Hop"
+    *: "Hip Hop"
   </dest>
   <voice>
-    *: "Hip-Hop"
+    *: "Hip Hop"
   </voice>
 </phrase>
 <phrase>
@@ -18054,10 +18054,10 @@
     *: "Piano"
   </source>
   <dest>
-    *: "Klavier"
+    *: "Piano"
   </dest>
   <voice>
-    *: "Klavier"
+    *: "Piano"
   </voice>
 </phrase>
 <phrase>
@@ -18166,10 +18166,10 @@
     *: "Vocal Booster"
   </source>
   <dest>
-    *: "Mehr Stimme"
+    *: "Sprachanhebung"
   </dest>
   <voice>
-    *: "Mehr Stimme"
+    *: "Sprachanhebung"
   </voice>
 </phrase>
 <phrase>
@@ -18404,7 +18404,7 @@
     *: "Free up space on your iPod to update its library."
   </source>
   <dest>
-    *: "Geben Sie Speicherplatz auf dem iPod frei, um die Mediathek zu aktualisieren."
+    *: "Gib Speicherplatz auf dem iPod frei, um die Mediathek zu aktualisieren."
   </dest>
   <voice>
     *: ""
@@ -19090,7 +19090,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "Zurück zu „Spielt gerade“"
+    *: "Zurück zu „Jetzt läuft“"
   </dest>
   <voice>
     *: ""
@@ -19160,7 +19160,7 @@
     *: "Covers in an unsupported format: %d. Save them as standard JPEG."
   </source>
   <dest>
-    *: "Cover in nicht unterstütztem Format: %d. Speichern Sie sie als Standard-JPEG."
+    *: "Cover in nicht unterstütztem Format: %d. Speichere sie als Standard-JPEG."
   </dest>
   <voice>
     *: ""
@@ -19216,7 +19216,7 @@
     *: "Clear Playlist"
   </source>
   <dest>
-    *: "Wiedergabeliste löschen"
+    *: "Playlist leeren"
   </dest>
   <voice>
     *: ""
@@ -19230,7 +19230,7 @@
     *: "New Playlist"
   </source>
   <dest>
-    *: "Neue Wiedergabeliste"
+    *: "Neue Playlist"
   </dest>
   <voice>
     *: ""
@@ -19258,7 +19258,7 @@
     *: "Save Playlist"
   </source>
   <dest>
-    *: "Wiedergabeliste speichern"
+    *: "Playlist sichern"
   </dest>
   <voice>
     *: ""
@@ -19314,7 +19314,7 @@
     *: "Delete Folder and %d Playlists"
   </source>
   <dest>
-    *: "Ordner und %d Wiedergabelisten löschen"
+    *: "Ordner und %d Playlists löschen"
   </dest>
   <voice>
     *: ""
@@ -19384,7 +19384,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "Menü „Spielt gerade“"
+    *: "Menü „Jetzt läuft“"
   </dest>
   <voice>
     *: ""
@@ -19398,7 +19398,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "Menü „Spielt gerade“ zurücksetzen"
+    *: "Menü „Jetzt läuft“ zurücksetzen"
   </dest>
   <voice>
     *: ""
@@ -19468,7 +19468,7 @@
     *: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
-    *: "Songs und Hörbücher laufen ein paar Sekunden vor der Stelle weiter, an der Sie aufgehört haben."
+    *: "Titel und Hörbücher laufen ein paar Sekunden vor der Stelle weiter, an der du aufgehört hast."
   </dest>
   <voice>
     *: ""
@@ -19496,7 +19496,7 @@
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
-    *: "Ein Album in einer einzigen Datei wird dank der .cue-Datei daneben als einzelne Songs gespielt."
+    *: "Ein Album in einer einzigen Datei wird dank der .cue-Datei daneben als einzelne Titel gespielt."
   </dest>
   <voice>
     *: ""
@@ -19538,7 +19538,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "„Spielt gerade“ nimmt die Farben des jeweiligen Albumcovers an."
+    *: "„Jetzt läuft“ nimmt die Farben des jeweiligen Albumcovers an."
   </dest>
   <voice>
     *: ""
@@ -19566,7 +19566,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "Das Cover in „Spielt gerade“ ist leicht gedreht, wie beim iPod classic."
+    *: "Das Cover in „Jetzt läuft“ ist leicht gedreht, wie beim iPod classic."
   </dest>
   <voice>
     *: ""
@@ -19580,7 +19580,7 @@
     *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
   </source>
   <dest>
-    *: "Mit „Select und Menu“ regeln Sie die Lautstärke und wechseln Songs, während der Bildschirm dunkel bleibt."
+    *: "Mit „Select und Menu“ regelst du die Lautstärke und wechselst Titel, während der Bildschirm dunkel bleibt."
   </dest>
   <voice>
     *: ""
@@ -19594,7 +19594,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Wird der Bildschirm bei Musik dunkel, erscheint wieder „Spielt gerade“, und das Rad regelt die Lautstärke."
+    *: "Wird der Bildschirm bei Musik dunkel, erscheint wieder „Jetzt läuft“, und das Rad regelt die Lautstärke."
   </dest>
   <voice>
     *: ""
@@ -19622,7 +19622,7 @@
     *: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
-    *: "„Suche“ bietet nur Buchstaben an, die zu einem Namen führen, so sind Sie schneller am Ziel."
+    *: "„Suche“ bietet nur Buchstaben an, die zu einem Namen führen, so bist du schneller am Ziel."
   </dest>
   <voice>
     *: ""
@@ -19762,7 +19762,7 @@
     *: "You have finished the game!"
   </source>
   <dest>
-    *: "Sie haben das Spiel durchgespielt!"
+    *: "Du hast das Spiel durchgespielt!"
   </dest>
   <voice>
     *: ""
@@ -19888,7 +19888,7 @@
     *: "The ball got lost. The round starts again, and you keep your lives."
   </source>
   <dest>
-    *: "Der Ball ist verloren gegangen. Die Runde beginnt neu, und Ihre Leben bleiben erhalten."
+    *: "Der Ball ist verloren gegangen. Die Runde beginnt neu, und deine Leben bleiben erhalten."
   </dest>
   <voice>
     *: ""
@@ -19902,7 +19902,7 @@
     *: "Break all the bricks with the ball, and catch it with the paddle each time it comes down, or you lose a life. Clear the wall to go on to the next level. At the top are your lives beside a ball, your score in the middle and the level on the right."
   </source>
   <dest>
-    *: "Zerschlagen Sie mit dem Ball alle Steine und fangen Sie ihn jedes Mal mit dem Schläger, wenn er herunterkommt, sonst verlieren Sie ein Leben. Ist die Mauer abgeräumt, geht es ins nächste Level. Oben stehen Ihre Leben neben einem Ball, in der Mitte Ihre Punkte und rechts das Level."
+    *: "Zerschlage mit dem Ball alle Steine und fang ihn jedes Mal mit dem Schläger, wenn er herunterkommt, sonst verlierst du ein Leben. Ist die Mauer abgeräumt, geht es ins nächste Level. Oben stehen deine Leben neben einem Ball, in der Mitte deine Punkte und rechts das Level."
   </dest>
   <voice>
     *: ""
@@ -19916,7 +19916,7 @@
     *: "Turn the wheel, or hold ◀ or ▶, to move the paddle. Press Select to launch the ball, and to shoot once the paddle has guns. Press Menu to pause and see the menu."
   </source>
   <dest>
-    *: "Drehen Sie das Rad oder halten Sie ◀ oder ▶, um den Schläger zu bewegen. Drücken Sie Select, um den Ball loszuschicken und, sobald der Schläger Kanonen hat, zu schießen. Drücken Sie Menu, um zu pausieren und das Menü zu sehen."
+    *: "Dreh das Rad oder halte ◀ oder ▶, um den Schläger zu bewegen. Drück Select, um den Ball loszuschicken und, sobald der Schläger Kanonen hat, zu schießen. Drück Menu, um zu pausieren und das Menü zu sehen."
   </dest>
   <voice>
     *: ""
@@ -19930,7 +19930,7 @@
     *: "Catch the falling letters for their powers: L gives you a life, B another ball, G makes the ball stick to the paddle, F gives the paddle guns, E makes it longer, and N brings it back to normal."
   </source>
   <dest>
-    *: "Fangen Sie die fallenden Buchstaben für ihre Kräfte: L gibt Ihnen ein Leben, B einen weiteren Ball, G lässt den Ball am Schläger kleben, F gibt dem Schläger Kanonen, E macht ihn länger und N macht ihn wieder normal."
+    *: "Fang die fallenden Buchstaben für ihre Kräfte: L gibt dir ein Leben, B einen weiteren Ball, G lässt den Ball am Schläger kleben, F gibt dem Schläger Kanonen, E macht ihn länger und N macht ihn wieder normal."
   </dest>
   <voice>
     *: ""
@@ -19944,7 +19944,7 @@
     *: "Keep away from D, which costs a life, S, which makes the paddle shorter, and FL, which swaps ◀ and ▶ for ten seconds."
   </source>
   <dest>
-    *: "Meiden Sie D, das ein Leben kostet, S, das den Schläger verkürzt, und FL, das ◀ und ▶ zehn Sekunden lang vertauscht."
+    *: "Meide D, das ein Leben kostet, S, das den Schläger verkürzt, und FL, das ◀ und ▶ zehn Sekunden lang vertauscht."
   </dest>
   <voice>
     *: ""
@@ -19972,7 +19972,7 @@
     *: "Swap two jewels side by side so that three or more of a kind line up, and they vanish. Each match fills the bar on the right, and a full bar takes you to the next level. The game ends when no swap can make a match."
   </source>
   <dest>
-    *: "Tauschen Sie zwei benachbarte Juwelen, sodass drei oder mehr gleiche in einer Reihe liegen, dann verschwinden sie. Jede Reihe füllt den Balken rechts, und ein voller Balken bringt Sie ins nächste Level. Das Spiel endet, wenn kein Tausch mehr eine Reihe ergibt."
+    *: "Tausche zwei benachbarte Juwelen, sodass drei oder mehr gleiche in einer Reihe liegen, dann verschwinden sie. Jede Reihe füllt den Balken rechts, und ein voller Balken bringt dich ins nächste Level. Das Spiel endet, wenn kein Tausch mehr eine Reihe ergibt."
   </dest>
   <voice>
     *: ""
@@ -19986,7 +19986,7 @@
     *: "In Puzzle, each of the ten boards has a few pieces with links. Swap and clear the jewels around them until every link meets the link of another piece."
   </source>
   <dest>
-    *: "Im Modus Puzzle hat jedes der zehn Spielfelder ein paar Teile mit Verbindungen. Tauschen und entfernen Sie die Juwelen um sie herum, bis jede Verbindung auf die Verbindung eines anderen Teils trifft."
+    *: "Im Modus Puzzle hat jedes der zehn Spielfelder ein paar Teile mit Verbindungen. Tausche und entferne die Juwelen um sie herum, bis jede Verbindung auf die Verbindung eines anderen Teils trifft."
   </dest>
   <voice>
     *: ""
@@ -20000,7 +20000,7 @@
     *: "Turn the wheel to move through the board, or press ◀, ▶, Menu and Play to move left, right, up and down. Press Select on a jewel, then ◀, ▶, Menu or Play to swap it with its neighbour that way. Hold Select for the menu."
   </source>
   <dest>
-    *: "Drehen Sie das Rad, um sich über das Spielfeld zu bewegen, oder drücken Sie ◀, ▶, Menu und Play für links, rechts, oben und unten. Drücken Sie Select auf einem Juwel, dann ◀, ▶, Menu oder Play, um es mit seinem Nachbarn in dieser Richtung zu tauschen. Halten Sie Select für das Menü."
+    *: "Dreh das Rad, um dich über das Spielfeld zu bewegen, oder drück ◀, ▶, Menu und Play für links, rechts, oben und unten. Drück Select auf einem Juwel, dann ◀, ▶, Menu oder Play, um es mit seinem Nachbarn in dieser Richtung zu tauschen. Halte Select für das Menü."
   </dest>
   <voice>
     *: ""
@@ -20070,7 +20070,7 @@
     *: "Open every square that hides no mine. A number on a square tells how many mines touch it, and the first square you open is never a mine."
   </source>
   <dest>
-    *: "Decken Sie jedes Feld auf, unter dem keine Mine liegt. Eine Zahl auf einem Feld gibt an, wie viele Minen es berühren, und das erste Feld, das Sie aufdecken, ist nie eine Mine."
+    *: "Decke jedes Feld auf, unter dem keine Mine liegt. Eine Zahl auf einem Feld gibt an, wie viele Minen es berühren, und das erste Feld, das du aufdeckst, ist nie eine Mine."
   </dest>
   <voice>
     *: ""
@@ -20084,7 +20084,7 @@
     *: "Turn the wheel to go through the field square by square, or press ◀, ▶, Menu and Play to move left, right, up and down."
   </source>
   <dest>
-    *: "Drehen Sie das Rad, um Feld für Feld über das Spielfeld zu gehen, oder drücken Sie ◀, ▶, Menu und Play für links, rechts, oben und unten."
+    *: "Dreh das Rad, um Feld für Feld über das Spielfeld zu gehen, oder drück ◀, ▶, Menu und Play für links, rechts, oben und unten."
   </dest>
   <voice>
     *: ""
@@ -20098,7 +20098,7 @@
     *: "Press Select to put a flag on a square you think hides a mine, and again to take it off. Hold Select to open the square."
   </source>
   <dest>
-    *: "Drücken Sie Select, um eine Flagge auf ein Feld zu setzen, unter dem Sie eine Mine vermuten, und nochmals, um sie zu entfernen. Halten Sie Select, um das Feld aufzudecken."
+    *: "Drück Select, um eine Flagge auf ein Feld zu setzen, unter dem du eine Mine vermutest, und nochmals, um sie zu entfernen. Halte Select, um das Feld aufzudecken."
   </dest>
   <voice>
     *: ""
@@ -20112,7 +20112,7 @@
     *: "Once a square is open, press Select and Play together to see how many flags you've placed and how many mines there are. Press Select and Menu together to leave Minesweeper. When a game ends, the whole field shows; press any button to go back to the menu."
   </source>
   <dest>
-    *: "Sobald ein Feld aufgedeckt ist, drücken Sie Select und Play zusammen, um zu sehen, wie viele Flaggen Sie gesetzt haben und wie viele Minen es gibt. Drücken Sie Select und Menu zusammen, um Minesweeper zu verlassen. Am Ende eines Spiels wird das ganze Spielfeld gezeigt; drücken Sie eine beliebige Taste, um zum Menü zurückzukehren."
+    *: "Sobald ein Feld aufgedeckt ist, drück Select und Play zusammen, um zu sehen, wie viele Flaggen du gesetzt hast und wie viele Minen es gibt. Drück Select und Menu zusammen, um Minesweeper zu verlassen. Am Ende eines Spiels wird das ganze Spielfeld gezeigt; drück eine beliebige Taste, um zum Menü zurückzukehren."
   </dest>
   <voice>
     *: ""
@@ -20182,7 +20182,7 @@
     *: "Move all the cards onto the four piles at the top right, each by suit from ace to king. In the seven columns, put each card on one a rank higher and of the other colour; only a king goes into an empty column. Menu turns over cards from the deck at the top left, one or three at a time as set in Draw Cards."
   </source>
   <dest>
-    *: "Legen Sie alle Karten auf die vier Ablagestapel oben rechts, jeden in einer Farbe vom Ass bis zum König. In den sieben Spalten legen Sie jede Karte auf eine um eins höhere, abwechselnd rot und schwarz; in eine leere Spalte kommt nur ein König. Menu deckt Karten vom Ziehstapel oben links auf, eine oder drei auf einmal, wie unter „Karten aufdecken“ eingestellt."
+    *: "Leg alle Karten auf die vier Ablagestapel oben rechts, jeden in einer Farbe vom Ass bis zum König. In den sieben Spalten legst du jede Karte auf eine um eins höhere, abwechselnd rot und schwarz; in eine leere Spalte kommt nur ein König. Menu deckt Karten vom Ziehstapel oben links auf, eine oder drei auf einmal, wie unter „Karten aufdecken“ eingestellt."
   </dest>
   <voice>
     *: ""
@@ -20224,7 +20224,7 @@
     *: "Play puts the turned card where the cursor is. Hold ▶ to send the turned card to its pile, or hold Menu to send the card under the cursor to its pile. Hold Select for the menu."
   </source>
   <dest>
-    *: "Play legt die aufgedeckte Karte dorthin, wo der Cursor steht. Halten Sie ▶, um die aufgedeckte Karte auf ihren Ablagestapel zu schicken, oder halten Sie Menu, um die Karte unter dem Cursor auf ihren Ablagestapel zu schicken. Halten Sie Select für das Menü."
+    *: "Play legt die aufgedeckte Karte dorthin, wo der Cursor steht. Halte ▶, um die aufgedeckte Karte auf ihren Ablagestapel zu schicken, oder halte Menu, um die Karte unter dem Cursor auf ihren Ablagestapel zu schicken. Halte Select für das Menü."
   </dest>
   <voice>
     *: ""
@@ -20476,7 +20476,7 @@
     *: "Place your bet"
   </source>
   <dest>
-    *: "Ihr Einsatz"
+    *: "Dein Einsatz"
   </dest>
   <voice>
     *: ""
@@ -20518,7 +20518,7 @@
     *: "Get closer to 21 than the dealer without going over. Cards count as their number, J, Q and K as 10, and an ace as 1 or 11. The dealer takes cards until reaching 17 or more. A win pays your bet, and a blackjack, 21 with your first two cards, pays 3 to 2."
   </source>
   <dest>
-    *: "Kommen Sie näher an 21 als die Bank, ohne darüber zu gehen. Karten zählen ihren Zahlenwert, B, D und K zählen 10 und ein Ass 1 oder 11. Die Bank zieht Karten, bis sie 17 oder mehr hat. Ein Sieg zahlt Ihren Einsatz, und ein Blackjack, 21 mit den ersten beiden Karten, zahlt 3 zu 2."
+    *: "Komm näher an 21 als die Bank, ohne darüber zu gehen. Karten zählen ihren Zahlenwert, B, D und K zählen 10 und ein Ass 1 oder 11. Die Bank zieht Karten, bis sie 17 oder mehr hat. Ein Sieg zahlt deinen Einsatz, und ein Blackjack, 21 mit den ersten beiden Karten, zahlt 3 zu 2."
   </dest>
   <voice>
     *: ""
@@ -20532,7 +20532,7 @@
     *: "Select takes another card, and ▶ stands. ◀ doubles down on your first two cards: your bet doubles, and you take one more card only. Menu leaves the hand for the menu, and Resume Game goes back to it."
   </source>
   <dest>
-    *: "Select zieht eine weitere Karte, und ▶ bleibt stehen. ◀ verdoppelt bei Ihren ersten beiden Karten: Ihr Einsatz verdoppelt sich, und Sie erhalten nur noch eine Karte. Menu verlässt die Hand für das Menü, und „Spiel fortsetzen“ kehrt zu ihr zurück."
+    *: "Select zieht eine weitere Karte, und ▶ bleibt stehen. ◀ verdoppelt bei deinen ersten beiden Karten: Dein Einsatz verdoppelt sich, und du erhältst nur noch eine Karte. Menu verlässt die Hand für das Menü, und „Spiel fortsetzen“ kehrt zu ihr zurück."
   </dest>
   <voice>
     *: ""
@@ -20546,7 +20546,7 @@
     *: "Before each hand, set your bet: ◀ and ▶ change it by 1, the wheel by 10, and Select deals. Menu ends the game. You start with $1000, and the game is over when less than $10 is left."
   </source>
   <dest>
-    *: "Legen Sie vor jeder Hand Ihren Einsatz fest: ◀ und ▶ ändern ihn um 1, das Rad um 10, und Select teilt aus. Menu beendet das Spiel. Sie beginnen mit $1000, und das Spiel ist vorbei, wenn weniger als $10 übrig sind."
+    *: "Leg vor jeder Hand deinen Einsatz fest: ◀ und ▶ ändern ihn um 1, das Rad um 10, und Select teilt aus. Menu beendet das Spiel. Du beginnst mit $1000, und das Spiel ist vorbei, wenn weniger als $10 übrig sind."
   </dest>
   <voice>
     *: ""
@@ -20560,7 +20560,7 @@
     *: "When the dealer shows an ace, you can buy insurance for up to half your bet; it pays 2 to 1 if the dealer has blackjack. Two cards of the same rank can be split into two hands, each with your bet. In a question, ◀ and ▶ choose Yes or No, Select answers, and Menu answers No."
   </source>
   <dest>
-    *: "Zeigt die Bank ein Ass, können Sie eine Versicherung bis zur Hälfte Ihres Einsatzes nehmen; sie zahlt 2 zu 1, wenn die Bank Blackjack hat. Zwei Karten gleichen Rangs können in zwei Hände geteilt werden, jede mit Ihrem Einsatz. Bei einer Frage wählen ◀ und ▶ Ja oder Nein, Select antwortet, und Menu antwortet Nein."
+    *: "Zeigt die Bank ein Ass, kannst du eine Versicherung bis zur Hälfte deines Einsatzes nehmen; sie zahlt 2 zu 1, wenn die Bank Blackjack hat. Zwei Karten gleichen Rangs können in zwei Hände geteilt werden, jede mit deinem Einsatz. Bei einer Frage wählen ◀ und ▶ Ja oder Nein, Select antwortet, und Menu antwortet Nein."
   </dest>
   <voice>
     *: ""
@@ -21036,7 +21036,7 @@
     *: "Your current game will be lost."
   </source>
   <dest>
-    *: "Ihr aktuelles Spiel geht verloren."
+    *: "Dein aktuelles Spiel geht verloren."
   </dest>
   <voice>
     *: ""
@@ -22282,7 +22282,7 @@
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
-    *: "Aus, Titel oder Alben: wie deine Musik spielt. „Zufallswiedergabe“ im Hauptmenü stellt auf Titel."
+    *: "Aus, Titel oder Alben: wie deine Musik spielt. „Zufällige Titel“ im Hauptmenü stellt auf Titel."
   </dest>
   <voice>
     *: ""

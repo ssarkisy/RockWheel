@@ -1489,10 +1489,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "Kontrola zvuku"
+    *: "Vyrovnávanie hlasitosti"
   </dest>
   <voice>
-    *: "Kontrola zvuku"
+    *: "Vyrovnávanie hlasitosti"
   </voice>
 </phrase>
 <phrase>

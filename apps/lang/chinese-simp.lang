@@ -114,10 +114,10 @@
     *: "Always"
   </source>
   <dest>
-    *: "总是开启"
+    *: "始终"
   </dest>
   <voice>
-    *: "总是开启"
+    *: "始终"
   </voice>
 </phrase>
 <phrase>
@@ -198,10 +198,10 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "常规"
+    *: "通用"
   </dest>
   <voice>
-    *: "常规"
+    *: "通用"
   </voice>
 </phrase>
 <phrase>
@@ -3374,10 +3374,10 @@
     *: "Delete"
   </source>
   <dest>
-    *: "刪除"
+    *: "删除"
   </dest>
   <voice>
-    *: "刪除"
+    *: "删除"
   </voice>
 </phrase>
 <phrase>
@@ -3419,7 +3419,7 @@
     *: "Delete?"
   </source>
   <dest>
-    *: "确认刪除?"
+    *: "确认删除？"
   </dest>
   <voice>
     *: "确认刪除吗"
@@ -7203,10 +7203,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "正在播放"
+    *: "播放中"
   </dest>
   <voice>
-    *: "正在播放"
+    *: "播放中"
   </voice>
 </phrase>
 <phrase>
@@ -8508,10 +8508,10 @@
     *: "Album Artist"
   </source>
   <dest>
-    *: "专辑艺术家"
+    *: "专辑艺人"
   </dest>
   <voice>
-    *: "专辑艺术家"
+    *: "专辑艺人"
   </voice>
 </phrase>
 <phrase>
@@ -16357,10 +16357,10 @@
     *: "Album Artists"
   </source>
   <dest>
-    *: "专辑艺术家"
+    *: "专辑艺人"
   </dest>
   <voice>
-    *: "专辑艺术家"
+    *: "专辑艺人"
   </voice>
 </phrase>
 <phrase>
@@ -16455,10 +16455,10 @@
     *: "Artists"
   </source>
   <dest>
-    *: "艺术家"
+    *: "艺人"
   </dest>
   <voice>
-    *: "艺术家"
+    *: "艺人"
   </voice>
 </phrase>
 <phrase>
@@ -16497,10 +16497,10 @@
     *: "Shuffle Songs"
   </source>
   <dest>
-    *: "随机乐曲"
+    *: "随机播放歌曲"
   </dest>
   <voice>
-    *: "随机乐曲"
+    *: "随机播放歌曲"
   </voice>
 </phrase>
 <phrase>
@@ -17608,7 +17608,7 @@
     *: "%d Minutes"
   </source>
   <dest>
-    *: "%d 分钟"
+    *: "%d分钟"
   </dest>
   <voice>
     *: ""
@@ -17650,10 +17650,10 @@
     *: "Genres"
   </source>
   <dest>
-    *: "流派"
+    *: "类型"
   </dest>
   <voice>
-    *: "流派"
+    *: "类型"
   </voice>
 </phrase>
 <phrase>
@@ -17678,10 +17678,10 @@
     *: "Audiobooks"
   </source>
   <dest>
-    *: "有声读物"
+    *: "有声书"
   </dest>
   <voice>
-    *: "有声读物"
+    *: "有声书"
   </voice>
 </phrase>
 <phrase>
@@ -17776,7 +17776,7 @@
     *: "%d Seconds"
   </source>
   <dest>
-    *: "%d 秒"
+    *: "%d秒"
   </dest>
   <voice>
     *: ""
@@ -17818,7 +17818,7 @@
     *: "%d Song"
   </source>
   <dest>
-    *: "%d 首歌曲"
+    *: "%d首歌曲"
   </dest>
   <voice>
     *: ""
@@ -17832,7 +17832,7 @@
     *: "%d Songs"
   </source>
   <dest>
-    *: "%d 首歌曲"
+    *: "%d首歌曲"
   </dest>
   <voice>
     *: ""
@@ -17846,7 +17846,7 @@
     *: "%d Songs"
   </source>
   <dest>
-    *: "%d 首歌曲"
+    *: "%d首歌曲"
   </dest>
   <voice>
     *: ""
@@ -17930,10 +17930,10 @@
     *: "Deep"
   </source>
   <dest>
-    *: "深沉"
+    *: "低沉"
   </dest>
   <voice>
-    *: "深沉"
+    *: "低沉"
   </voice>
 </phrase>
 <phrase>
@@ -17958,10 +17958,10 @@
     *: "Flat"
   </source>
   <dest>
-    *: "平坦"
+    *: "平缓"
   </dest>
   <voice>
-    *: "平坦"
+    *: "平缓"
   </voice>
 </phrase>
 <phrase>
@@ -17972,10 +17972,10 @@
     *: "Hip Hop"
   </source>
   <dest>
-    *: "嘻哈"
+    *: "嘻哈音乐"
   </dest>
   <voice>
-    *: "嘻哈"
+    *: "嘻哈音乐"
   </voice>
 </phrase>
 <phrase>
@@ -18000,10 +18000,10 @@
     *: "Latin"
   </source>
   <dest>
-    *: "拉丁"
+    *: "拉丁乐"
   </dest>
   <voice>
-    *: "拉丁"
+    *: "拉丁乐"
   </voice>
 </phrase>
 <phrase>
@@ -18028,10 +18028,10 @@
     *: "Lounge"
   </source>
   <dest>
-    *: "沙发音乐"
+    *: "休闲音乐"
   </dest>
   <voice>
-    *: "沙发音乐"
+    *: "休闲音乐"
   </voice>
 </phrase>
 <phrase>
@@ -18042,10 +18042,10 @@
     *: "Piano"
   </source>
   <dest>
-    *: "钢琴"
+    *: "钢琴曲"
   </dest>
   <voice>
-    *: "钢琴"
+    *: "钢琴曲"
   </voice>
 </phrase>
 <phrase>
@@ -18056,10 +18056,10 @@
     *: "Pop"
   </source>
   <dest>
-    *: "流行"
+    *: "流行乐"
   </dest>
   <voice>
-    *: "流行"
+    *: "流行乐"
   </voice>
 </phrase>
 <phrase>
@@ -18112,10 +18112,10 @@
     *: "Spoken Word"
   </source>
   <dest>
-    *: "语音"
+    *: "诵读音乐"
   </dest>
   <voice>
-    *: "语音"
+    *: "诵读音乐"
   </voice>
 </phrase>
 <phrase>
@@ -18406,7 +18406,7 @@
     *: "Go to Artist"
   </source>
   <dest>
-    *: "转到艺术家"
+    *: "转到艺人"
   </dest>
   <voice>
     *: ""
@@ -18728,7 +18728,7 @@
     *: "%d Photo"
   </source>
   <dest>
-    *: "%d 张照片"
+    *: "%d张照片"
   </dest>
   <voice>
     *: ""
@@ -18742,7 +18742,7 @@
     *: "%d Photos"
   </source>
   <dest>
-    *: "%d 张照片"
+    *: "%d张照片"
   </dest>
   <voice>
     *: ""
@@ -18756,7 +18756,7 @@
     *: "%d Photos"
   </source>
   <dest>
-    *: "%d 张照片"
+    *: "%d张照片"
   </dest>
   <voice>
     *: ""
@@ -19022,7 +19022,7 @@
     *: "Group by Album Artist"
   </source>
   <dest>
-    *: "按专辑艺术家分组"
+    *: "按专辑艺人分组"
   </dest>
   <voice>
     *: ""
@@ -19078,7 +19078,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "返回正在播放"
+    *: "返回播放中"
   </dest>
   <voice>
     *: ""
@@ -19302,7 +19302,7 @@
     *: "Delete Folder and %d Playlists"
   </source>
   <dest>
-    *: "删除文件夹及 %d 个播放列表"
+    *: "删除文件夹及%d个播放列表"
   </dest>
   <voice>
     *: ""
@@ -19372,7 +19372,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "正在播放菜单"
+    *: "播放中菜单"
   </dest>
   <voice>
     *: ""
@@ -19386,7 +19386,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "重置正在播放菜单"
+    *: "重置播放中菜单"
   </dest>
   <voice>
     *: ""
@@ -19400,7 +19400,7 @@
     *: "Unknown Artist"
   </source>
   <dest>
-    *: "未知艺术家"
+    *: "未知艺人"
   </dest>
   <voice>
     *: ""
@@ -19428,7 +19428,7 @@
     *: "Unknown Genre"
   </source>
   <dest>
-    *: "未知流派"
+    *: "未知类型"
   </dest>
   <voice>
     *: ""
@@ -19526,7 +19526,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "正在播放界面会采用每张专辑封面的颜色。"
+    *: "播放中界面会采用每张专辑封面的颜色。"
   </dest>
   <voice>
     *: ""
@@ -19554,7 +19554,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "正在播放中的封面会稍微侧转，就像 iPod classic 上一样。"
+    *: "播放中界面的封面会稍微侧转，就像 iPod classic 上一样。"
   </dest>
   <voice>
     *: ""
@@ -19582,7 +19582,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "播放音乐时屏幕变暗后，会回到正在播放，用转盘即可调节音量。"
+    *: "播放音乐时屏幕变暗后，会回到播放中界面，用转盘即可调节音量。"
   </dest>
   <voice>
     *: ""
@@ -19680,7 +19680,7 @@
     *: "Level %d"
   </source>
   <dest>
-    *: "第 %d 关"
+    *: "第%d关"
   </dest>
   <voice>
     *: ""
@@ -20338,7 +20338,7 @@
     *: "Hand %d: %s"
   </source>
   <dest>
-    *: "第 %d 手：%s"
+    *: "第%d手：%s"
   </dest>
   <voice>
     *: ""
@@ -20674,7 +20674,7 @@
     *: "%s (years: %d)"
   </source>
   <dest>
-    *: "%s（%d 年）"
+    *: "%s（%d年）"
   </dest>
   <voice>
     *: ""
@@ -21290,7 +21290,7 @@
     *: "%d song"
   </source>
   <dest>
-    *: "%d 首歌曲"
+    *: "%d首歌曲"
   </dest>
   <voice>
     *: ""
@@ -21304,7 +21304,7 @@
     *: "%d songs"
   </source>
   <dest>
-    *: "%d 首歌曲"
+    *: "%d首歌曲"
   </dest>
   <voice>
     *: ""
@@ -21318,7 +21318,7 @@
     *: "%d songs"
   </source>
   <dest>
-    *: "%d 首歌曲"
+    *: "%d首歌曲"
   </dest>
   <voice>
     *: ""
@@ -21514,7 +21514,7 @@
     *: "Artist under Album"
   </source>
   <dest>
-    *: "专辑下显示艺术家"
+    *: "专辑下显示艺人"
   </dest>
   <voice>
     *: ""
@@ -21528,7 +21528,7 @@
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
   </source>
   <dest>
-    *: "“专辑”中每张专辑名称下方显示年份和艺术家，同名专辑分开列出。"
+    *: "“专辑”中每张专辑名称下方显示年份和艺人，同名专辑分开列出。"
   </dest>
   <voice>
     *: ""
@@ -21556,7 +21556,7 @@
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
   </source>
   <dest>
-    *: "专辑和歌曲旁显示封面，在“专辑”、艺术家的专辑和“歌曲”中，如同 iPod classic。"
+    *: "专辑和歌曲旁显示封面，在“专辑”、艺人的专辑和“歌曲”中，如同 iPod classic。"
   </dest>
   <voice>
     *: ""
@@ -21626,7 +21626,7 @@
     *: "Artist"
   </source>
   <dest>
-    *: "艺术家"
+    *: "艺人"
   </dest>
   <voice>
     *: ""
@@ -21654,7 +21654,7 @@
     *: "%d episode"
   </source>
   <dest>
-    *: "%d 个单集"
+    *: "%d个单集"
   </dest>
   <voice>
     *: ""
@@ -21668,7 +21668,7 @@
     *: "%d episodes"
   </source>
   <dest>
-    *: "%d 个单集"
+    *: "%d个单集"
   </dest>
   <voice>
     *: ""
@@ -21682,7 +21682,7 @@
     *: "%d episodes"
   </source>
   <dest>
-    *: "%d 个单集"
+    *: "%d个单集"
   </dest>
   <voice>
     *: ""
@@ -21696,7 +21696,7 @@
     *: "%d min"
   </source>
   <dest>
-    *: "%d 分钟"
+    *: "%d分钟"
   </dest>
   <voice>
     *: ""
@@ -21752,7 +21752,7 @@
     *: "%d new"
   </source>
   <dest>
-    *: "%d 个新单集"
+    *: "%d个新单集"
   </dest>
   <voice>
     *: ""
@@ -21892,7 +21892,7 @@
     *: "%d h"
   </source>
   <dest>
-    *: "%d 小时"
+    *: "%d小时"
   </dest>
   <voice>
     *: ""
@@ -21906,7 +21906,7 @@
     *: "%d h %d min"
   </source>
   <dest>
-    *: "%d 小时 %d 分钟"
+    *: "%d小时%d分钟"
   </dest>
   <voice>
     *: ""
@@ -21934,7 +21934,7 @@
     *: "%d part"
   </source>
   <dest>
-    *: "%d 个部分"
+    *: "%d个部分"
   </dest>
   <voice>
     *: ""
@@ -21948,7 +21948,7 @@
     *: "%d parts"
   </source>
   <dest>
-    *: "%d 个部分"
+    *: "%d个部分"
   </dest>
   <voice>
     *: ""
@@ -21962,7 +21962,7 @@
     *: "%d parts"
   </source>
   <dest>
-    *: "%d 个部分"
+    *: "%d个部分"
   </dest>
   <voice>
     *: ""
@@ -21976,7 +21976,7 @@
     *: "Part %d"
   </source>
   <dest>
-    *: "第 %d 部分"
+    *: "第%d部分"
   </dest>
   <voice>
     *: ""
@@ -22060,7 +22060,7 @@
     *: "Chapter %d"
   </source>
   <dest>
-    *: "第 %d 章"
+    *: "第%d章"
   </dest>
   <voice>
     *: ""
@@ -22102,7 +22102,7 @@
     *: "No Artists"
   </source>
   <dest>
-    *: "没有艺术家"
+    *: "没有艺人"
   </dest>
   <voice>
     *: ""
@@ -22130,7 +22130,7 @@
     *: "No Genres"
   </source>
   <dest>
-    *: "没有流派"
+    *: "没有类型"
   </dest>
   <voice>
     *: ""
@@ -22172,7 +22172,7 @@
     *: "No Audiobooks"
   </source>
   <dest>
-    *: "没有有声读物"
+    *: "没有有声书"
   </dest>
   <voice>
     *: ""
@@ -22186,7 +22186,7 @@
     *: "Shuffle Albums"
   </source>
   <dest>
-    *: "随机专辑"
+    *: "随机播放专辑"
   </dest>
   <voice>
     *: ""
@@ -22214,7 +22214,7 @@
     *: "Audiobook Speed"
   </source>
   <dest>
-    *: "有声读物速度"
+    *: "有声书速度"
   </dest>
   <voice>
     *: ""
@@ -22242,7 +22242,7 @@
     *: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
-    *: "有声读物的播放速度。人声保持自然音调。"
+    *: "有声书的播放速度。人声保持自然音调。"
   </dest>
   <voice>
     *: ""
@@ -22270,7 +22270,7 @@
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
-    *: "关、歌曲或专辑：音乐的播放方式。主菜单的“随机乐曲”会将其设为歌曲。"
+    *: "关闭、歌曲或专辑：音乐的播放方式。主菜单的“随机播放歌曲”会将其设为歌曲。"
   </dest>
   <voice>
     *: ""

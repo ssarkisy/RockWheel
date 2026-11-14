@@ -51,7 +51,7 @@
     *: "On"
   </source>
   <dest>
-    *: "Vklop"
+    *: "Vklopljeno"
   </dest>
   <voice>
     *: ""
@@ -65,7 +65,7 @@
     *: "Off"
   </source>
   <dest>
-    *: "Izkljuci"
+    *: "Izklopljeno"
   </dest>
   <voice>
     *: ""
@@ -480,7 +480,7 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "Nakljucno"
+    *: "Naključno"
   </dest>
   <voice>
     *: ""
@@ -1349,7 +1349,7 @@
     *: "Delete"
   </source>
   <dest>
-    *: "Brisi"
+    *: "Izbriši"
   </dest>
   <voice>
     *: ""
@@ -4107,10 +4107,10 @@
     *: "Resume"
   </source>
   <dest>
-    *: "Resume"
+    *: "Nadaljuj"
   </dest>
   <voice>
-    *: "Resume"
+    *: "Nadaljuj"
   </voice>
 </phrase>
 <phrase>
@@ -10819,10 +10819,10 @@
     *: "Playlists"
   </source>
   <dest>
-    *: "Seznam predvajanja"
+    *: "Seznami predvajanja"
   </dest>
   <voice>
-    *: "Seznam predvajanja"
+    *: "Seznami predvajanja"
   </voice>
 </phrase>
 <phrase>

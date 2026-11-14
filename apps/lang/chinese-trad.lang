@@ -42,10 +42,10 @@
     *: "No"
   </source>
   <dest>
-    *: "不"
+    *: "否"
   </dest>
   <voice>
-    *: "不"
+    *: "否"
   </voice>
 </phrase>
 <phrase>
@@ -84,10 +84,10 @@
     *: "Always"
   </source>
   <dest>
-    *: "永遠"
+    *: "總是"
   </dest>
   <voice>
-    *: "永遠"
+    *: "總是"
   </voice>
 </phrase>
 <phrase>
@@ -933,10 +933,10 @@
     *: "Repeat"
   </source>
   <dest>
-    *: "重覆"
+    *: "重複"
   </dest>
   <voice>
-    *: "重覆"
+    *: "重複"
   </voice>
 </phrase>
 <phrase>
@@ -1794,10 +1794,10 @@
     *: "Sleep Timer"
   </source>
   <dest>
-    *: "睡眠定時"
+    *: "睡眠計時器"
   </dest>
   <voice>
-    *: "睡眠定時"
+    *: "睡眠計時器"
   </voice>
 </phrase>
 <phrase>
@@ -7289,10 +7289,10 @@
     *: "Resume"
   </source>
   <dest>
-    *: "恢復播發"
+    *: "繼續播放"
   </dest>
   <voice>
-    *: "恢復播發"
+    *: "繼續播放"
   </voice>
 </phrase>
 <phrase>
@@ -7382,10 +7382,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "正在播放"
+    *: "播放中"
   </dest>
   <voice>
-    *: "正在播放"
+    *: "播放中"
   </voice>
 </phrase>
 <phrase>
@@ -8762,10 +8762,10 @@
     *: "Album Artist"
   </source>
   <dest>
-    *: "專輯演出者"
+    *: "專輯藝人"
   </dest>
   <voice>
-    *: "專輯演出者"
+    *: "專輯藝人"
   </voice>
 </phrase>
 <phrase>
@@ -8908,10 +8908,10 @@
     *: "Settings"
   </source>
   <dest>
-    *: "設置"
+    *: "設定"
   </dest>
   <voice>
-    *: "設置"
+    *: "設定"
   </voice>
 </phrase>
 <phrase>
@@ -12442,10 +12442,10 @@
     *: "Album Artists"
   </source>
   <dest>
-    *: "專輯演出者"
+    *: "專輯藝人"
   </dest>
   <voice>
-    *: "專輯演出者"
+    *: "專輯藝人"
   </voice>
 </phrase>
 <phrase>
@@ -13072,10 +13072,10 @@
     *: "Artists"
   </source>
   <dest>
-    *: "演出者"
+    *: "藝人"
   </dest>
   <voice>
-    *: "演出者"
+    *: "藝人"
   </voice>
 </phrase>
 <phrase>
@@ -13184,7 +13184,7 @@
     *: "Go to Artist"
   </source>
   <dest>
-    *: "前往演出者"
+    *: "前往藝人"
   </dest>
   <voice>
     *: ""
@@ -13842,7 +13842,7 @@
     *: "Group by Album Artist"
   </source>
   <dest>
-    *: "依專輯演出者分組"
+    *: "依專輯藝人分組"
   </dest>
   <voice>
     *: ""
@@ -13898,7 +13898,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "返回正在播放"
+    *: "返回播放中"
   </dest>
   <voice>
     *: ""
@@ -14192,7 +14192,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "正在播放選單"
+    *: "播放中選單"
   </dest>
   <voice>
     *: ""
@@ -14206,7 +14206,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "重置正在播放選單"
+    *: "重置播放中選單"
   </dest>
   <voice>
     *: ""
@@ -14220,7 +14220,7 @@
     *: "Unknown Artist"
   </source>
   <dest>
-    *: "未知的演出者"
+    *: "未知的藝人"
   </dest>
   <voice>
     *: ""
@@ -14346,7 +14346,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "正在播放畫面會採用每張專輯封面的顏色。"
+    *: "播放中畫面會採用每張專輯封面的顏色。"
   </dest>
   <voice>
     *: ""
@@ -14374,7 +14374,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "正在播放中的封面會稍微側轉，就像 iPod classic 上一樣。"
+    *: "播放中畫面的封面會稍微側轉，就像 iPod classic 上一樣。"
   </dest>
   <voice>
     *: ""
@@ -14402,7 +14402,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "播放音樂時螢幕變暗後，會回到正在播放，用轉盤即可調整音量。"
+    *: "播放音樂時螢幕變暗後，會回到播放中畫面，用轉盤即可調整音量。"
   </dest>
   <voice>
     *: ""
@@ -16474,7 +16474,7 @@
     *: "Artist under Album"
   </source>
   <dest>
-    *: "專輯下顯示演出者"
+    *: "專輯下顯示藝人"
   </dest>
   <voice>
     *: ""
@@ -16488,7 +16488,7 @@
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
   </source>
   <dest>
-    *: "「專輯」中每張專輯名稱下方顯示年份和演出者，同名專輯分開列出。"
+    *: "「專輯」中每張專輯名稱下方顯示年份和藝人，同名專輯分開列出。"
   </dest>
   <voice>
     *: ""
@@ -16516,7 +16516,7 @@
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
   </source>
   <dest>
-    *: "專輯和歌曲旁顯示封面，在「專輯」、演出者的專輯和「歌曲」中，如同 iPod classic。"
+    *: "專輯和歌曲旁顯示封面，在「專輯」、藝人的專輯和「歌曲」中，如同 iPod classic。"
   </dest>
   <voice>
     *: ""
@@ -16586,7 +16586,7 @@
     *: "Artist"
   </source>
   <dest>
-    *: "演出者"
+    *: "藝人"
   </dest>
   <voice>
     *: ""
@@ -17062,7 +17062,7 @@
     *: "No Artists"
   </source>
   <dest>
-    *: "沒有演出者"
+    *: "沒有藝人"
   </dest>
   <voice>
     *: ""

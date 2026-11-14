@@ -100,10 +100,10 @@
     *: "Always"
   </source>
   <dest>
-    *: "常時"
+    *: "常に"
   </dest>
   <voice>
-    *: "常時"
+    *: "常に"
   </voice>
 </phrase>
 <phrase>
@@ -1697,11 +1697,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "ヘッドホンを抜くと停止"
+    headphone_detection: "ヘッドフォンを抜くと停止"
   </dest>
   <voice>
     *: none
-    headphone_detection: "ヘッドホンを抜くと停止"
+    headphone_detection: "ヘッドフォンを抜くと停止"
   </voice>
 </phrase>
 <phrase>
@@ -2336,10 +2336,10 @@
     *: "Never"
   </source>
   <dest>
-    *: "決して"
+    *: "なし"
   </dest>
   <voice>
-    *: "決して"
+    *: "なし"
   </voice>
 </phrase>
 <phrase>
@@ -11664,11 +11664,11 @@
   </source>
   <dest>
     *: none
-    hardware_click: "ヘッドホン"
+    hardware_click: "ヘッドフォン"
   </dest>
   <voice>
     *: none
-    hardware_click: "ヘッドホン"
+    hardware_click: "ヘッドフォン"
   </voice>
 </phrase>
 <phrase>
@@ -15817,10 +15817,10 @@
     *: "Play Next"
   </source>
   <dest>
-    *: "次へ"
+    *: "次に再生"
   </dest>
   <voice>
-    *: "次へ"
+    *: "次に再生"
   </voice>
 </phrase>
 <phrase>
@@ -15845,10 +15845,10 @@
     *: "Play Last"
   </source>
   <dest>
-    *: "ラストプレー"
+    *: "最後に再生"
   </dest>
   <voice>
-    *: "ラストプレー"
+    *: "最後に再生"
   </voice>
 </phrase>
 <phrase>
@@ -16535,7 +16535,7 @@
     *: "Do not disconnect."
   </source>
   <dest>
-    *: "接続を解除しないでください。"
+    *: "コンピュータから取り外さないでください。"
   </dest>
   <voice>
     *: ""
@@ -16549,7 +16549,7 @@
     *: "OK to disconnect."
   </source>
   <dest>
-    *: "接続を解除できます。"
+    *: "コンピュータから取り外せます。"
   </dest>
   <voice>
     *: ""
@@ -16717,7 +16717,7 @@
     *: "Available"
   </source>
   <dest>
-    *: "空き"
+    *: "利用可能"
   </dest>
   <voice>
     *: ""
@@ -16927,10 +16927,10 @@
     *: "Podcasts"
   </source>
   <dest>
-    *: "Podcast"
+    *: "ポッドキャスト"
   </dest>
   <voice>
-    *: "Podcast"
+    *: "ポッドキャスト"
   </voice>
 </phrase>
 <phrase>
@@ -17165,10 +17165,10 @@
     *: "Bass Booster"
   </source>
   <dest>
-    *: "低音ブースト"
+    *: "低音ブースター"
   </dest>
   <voice>
-    *: "低音ブースト"
+    *: "低音ブースター"
   </voice>
 </phrase>
 <phrase>
@@ -17179,10 +17179,10 @@
     *: "Bass Reducer"
   </source>
   <dest>
-    *: "低音カット"
+    *: "低音リデューサー"
   </dest>
   <voice>
-    *: "低音カット"
+    *: "低音リデューサー"
   </voice>
 </phrase>
 <phrase>
@@ -17389,10 +17389,10 @@
     *: "Small Speakers"
   </source>
   <dest>
-    *: "小型スピーカー"
+    *: "スモールスピーカー"
   </dest>
   <voice>
-    *: "小型スピーカー"
+    *: "スモールスピーカー"
   </voice>
 </phrase>
 <phrase>
@@ -17403,10 +17403,10 @@
     *: "Spoken Word"
   </source>
   <dest>
-    *: "音声"
+    *: "スポークンワード"
   </dest>
   <voice>
-    *: "音声"
+    *: "スポークンワード"
   </voice>
 </phrase>
 <phrase>
@@ -17417,10 +17417,10 @@
     *: "Treble Booster"
   </source>
   <dest>
-    *: "高音ブースト"
+    *: "高音ブースター"
   </dest>
   <voice>
-    *: "高音ブースト"
+    *: "高音ブースター"
   </voice>
 </phrase>
 <phrase>
@@ -17431,10 +17431,10 @@
     *: "Treble Reducer"
   </source>
   <dest>
-    *: "高音カット"
+    *: "高音リデューサー"
   </dest>
   <voice>
-    *: "高音カット"
+    *: "高音リデューサー"
   </voice>
 </phrase>
 <phrase>
@@ -17445,10 +17445,10 @@
     *: "Vocal Booster"
   </source>
   <dest>
-    *: "ボーカルブースト"
+    *: "ボーカルブースター"
   </dest>
   <voice>
-    *: "ボーカルブースト"
+    *: "ボーカルブースター"
   </voice>
 </phrase>
 <phrase>
@@ -17501,10 +17501,10 @@
     *: "Updating Library"
   </source>
   <dest>
-    *: "ライブラリを更新中"
+    *: "ライブラリをアップデート中"
   </dest>
   <voice>
-    *: "ライブラリを更新中"
+    *: "ライブラリをアップデート中"
   </voice>
 </phrase>
 <phrase>
@@ -17823,7 +17823,7 @@
     *: "Cover Colours"
   </source>
   <dest>
-    *: "カバーの色"
+    *: "アートワークの色"
   </dest>
   <voice>
     *: ""
@@ -18859,7 +18859,7 @@
     *: "With Resume, the music also plays again once the headphones are back in."
   </source>
   <dest>
-    *: "レジュームなら、ヘッドホンを挿し直したときに音楽も再び流れます。"
+    *: "レジュームなら、ヘッドフォンを挿し直したときに音楽も再び流れます。"
   </dest>
   <voice>
     *: ""
@@ -18887,7 +18887,7 @@
     *: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
-    *: "古いステレオ録音も、ヘッドホンで左右に分かれすぎず聞こえます。"
+    *: "古いステレオ録音も、ヘッドフォンで左右に分かれすぎず聞こえます。"
   </dest>
   <voice>
     *: ""
@@ -18915,7 +18915,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "再生中画面がアルバムごとにカバーの色に染まります。"
+    *: "再生中画面がアルバムごとにアートワークの色に染まります。"
   </dest>
   <voice>
     *: ""
@@ -18929,7 +18929,7 @@
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
-    *: "ステータスバーもカバーの色になります。バッテリーは元の色を選ぶと、残量表示は緑のままです。"
+    *: "ステータスバーもアートワークの色になります。バッテリーは元の色を選ぶと、残量表示は緑のままです。"
   </dest>
   <voice>
     *: ""
@@ -18943,7 +18943,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "再生中画面のカバーが、iPod classicのように少し斜めを向きます。"
+    *: "再生中画面のアートワークが、iPod classicのように少し斜めを向きます。"
   </dest>
   <voice>
     *: ""
@@ -18985,7 +18985,7 @@
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
-    *: "Cover Flowを開くと音楽が一時停止し、カバーが全速で流れます。"
+    *: "Cover Flowを開くと音楽が一時停止し、アートワークが全速で流れます。"
   </dest>
   <voice>
     *: ""
@@ -21547,7 +21547,7 @@
     *: "No Podcasts"
   </source>
   <dest>
-    *: "Podcastがありません"
+    *: "ポッドキャストなし"
   </dest>
   <voice>
     *: ""
@@ -21589,7 +21589,7 @@
     *: "Podcast Speed"
   </source>
   <dest>
-    *: "Podcastの速度"
+    *: "ポッドキャストの速度"
   </dest>
   <voice>
     *: ""
@@ -21617,7 +21617,7 @@
     *: "How fast podcasts play. Voices keep their natural pitch."
   </source>
   <dest>
-    *: "Podcastの再生速度。声の高さは自然なままです。"
+    *: "ポッドキャストの再生速度。声の高さは自然なままです。"
   </dest>
   <voice>
     *: ""

@@ -344,10 +344,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Tocando"
+    *: "Reproduzindo"
   </dest>
   <voice>
-    *: "Tocando"
+    *: "Reproduzindo"
   </voice>
 </phrase>
 <phrase>
@@ -372,10 +372,10 @@
     *: "Settings"
   </source>
   <dest>
-    *: "Opções"
+    *: "Ajustes"
   </dest>
   <voice>
-    *: "Opções"
+    *: "Ajustes"
   </voice>
 </phrase>
 <phrase>
@@ -6163,10 +6163,10 @@
     *: "Search in Playlist"
   </source>
   <dest>
-    *: "Procurar na Playlist"
+    *: "Buscar na Playlist"
   </dest>
   <voice>
-    *: "Procurar na Playlist"
+    *: "Buscar na Playlist"
   </voice>
 </phrase>
 <phrase>
@@ -16547,10 +16547,10 @@
     *: "Shuffle Songs"
   </source>
   <dest>
-    *: "Embaralhar músicas"
+    *: "Músicas Aleatórias"
   </dest>
   <voice>
-    *: "Embaralhar músicas"
+    *: "Músicas Aleatórias"
   </voice>
 </phrase>
 <phrase>
@@ -16603,10 +16603,10 @@
     *: "Search"
   </source>
   <dest>
-    *: "Procurar"
+    *: "Buscar"
   </dest>
   <voice>
-    *: "Procurar"
+    *: "Buscar"
   </voice>
 </phrase>
 <phrase>
@@ -16631,10 +16631,10 @@
     *: "Recently Added"
   </source>
   <dest>
-    *: "Adicionados recentemente"
+    *: "Adições Recentes"
   </dest>
   <voice>
-    *: "Adicionados recentemente"
+    *: "Adições Recentes"
   </voice>
 </phrase>
 <phrase>
@@ -17480,10 +17480,10 @@
     *: "Slideshow Settings"
   </source>
   <dest>
-    *: "Opções da Apresentação"
+    *: "Ajustes da Apresentação"
   </dest>
   <voice>
-    *: "Opções da Apresentação"
+    *: "Ajustes da Apresentação"
   </voice>
 </phrase>
 <phrase>
@@ -18838,7 +18838,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "Voltar para “Tocando”"
+    *: "Voltar para “Reproduzindo”"
   </dest>
   <voice>
     *: ""
@@ -19132,7 +19132,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "Menu Tocando"
+    *: "Menu Reproduzindo"
   </dest>
   <voice>
     *: ""
@@ -19146,7 +19146,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "Redefinir Menu Tocando"
+    *: "Redefinir Menu Reproduzindo"
   </dest>
   <voice>
     *: ""
@@ -19286,7 +19286,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "“Tocando” ganha as cores da capa de cada álbum."
+    *: "“Reproduzindo” ganha as cores da capa de cada álbum."
   </dest>
   <voice>
     *: ""
@@ -19314,7 +19314,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "A capa em “Tocando” fica levemente virada, como no iPod classic."
+    *: "A capa em “Reproduzindo” fica levemente virada, como no iPod classic."
   </dest>
   <voice>
     *: ""
@@ -19342,7 +19342,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Quando a tela apaga durante a música, “Tocando” volta, e a roda ajusta o volume."
+    *: "Quando a tela apaga durante a música, “Reproduzindo” volta, e a roda ajusta o volume."
   </dest>
   <voice>
     *: ""
@@ -19370,7 +19370,7 @@
     *: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
-    *: "“Procurar” mostra só as letras que levam a um nome, para você chegar mais rápido."
+    *: "“Buscar” mostra só as letras que levam a um nome, para você chegar mais rápido."
   </dest>
   <voice>
     *: ""
@@ -21246,7 +21246,7 @@
     *: "Playing From"
   </source>
   <dest>
-    *: "Tocando de"
+    *: "Reproduzindo de"
   </dest>
   <voice>
     *: ""
@@ -21946,7 +21946,7 @@
     *: "Shuffle Albums"
   </source>
   <dest>
-    *: "Embaralhar álbuns"
+    *: "Álbuns Aleatórios"
   </dest>
   <voice>
     *: ""
@@ -22030,7 +22030,7 @@
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
-    *: "Desligado, músicas ou álbuns: como sua música toca. “Embaralhar músicas” no menu principal muda para músicas."
+    *: "Desligado, músicas ou álbuns: como sua música toca. “Músicas Aleatórias” no menu principal muda para músicas."
   </dest>
   <voice>
     *: ""

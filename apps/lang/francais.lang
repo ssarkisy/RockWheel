@@ -373,10 +373,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "En lecture"
+    *: "À l’écoute"
   </dest>
   <voice>
-    *: "En lecture"
+    *: "À l’écoute"
   </voice>
 </phrase>
 <phrase>
@@ -6683,10 +6683,10 @@
     *: "Delete"
   </source>
   <dest>
-    *: "Effacer"
+    *: "Supprimer"
   </dest>
   <voice>
-    *: "Effacer"
+    *: "Supprimer"
   </voice>
 </phrase>
 <phrase>
@@ -15754,10 +15754,10 @@
     *: "Play Next"
   </source>
   <dest>
-    *: "Ajouter à la suite"
+    *: "Lire ensuite"
   </dest>
   <voice>
-    *: "Ajouter à la suite"
+    *: "Lire ensuite"
   </voice>
 </phrase>
 <phrase>
@@ -18808,7 +18808,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "Retour à « En lecture »"
+    *: "Retour à « À l’écoute »"
   </dest>
   <voice>
     *: ""
@@ -19102,7 +19102,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "Menu En lecture"
+    *: "Menu À l’écoute"
   </dest>
   <voice>
     *: ""
@@ -19116,7 +19116,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "Réinitialiser le menu En lecture"
+    *: "Réinitialiser le menu À l’écoute"
   </dest>
   <voice>
     *: ""
@@ -19256,7 +19256,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "« En lecture » prend les couleurs de la pochette de chaque album."
+    *: "« À l’écoute » prend les couleurs de la pochette de chaque album."
   </dest>
   <voice>
     *: ""
@@ -19284,7 +19284,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "La pochette dans « En lecture » est légèrement tournée, comme sur un iPod classic."
+    *: "La pochette dans « À l’écoute » est légèrement tournée, comme sur un iPod classic."
   </dest>
   <voice>
     *: ""
@@ -19312,7 +19312,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Quand l’écran s’éteint pendant la musique, « En lecture » revient et la molette règle le volume."
+    *: "Quand l’écran s’éteint pendant la musique, « À l’écoute » revient et la molette règle le volume."
   </dest>
   <voice>
     *: ""
@@ -21230,7 +21230,7 @@
     *: "Up Next"
   </source>
   <dest>
-    *: "À suivre"
+    *: "File d’attente"
   </dest>
   <voice>
     *: ""

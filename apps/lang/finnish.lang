@@ -8683,10 +8683,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Toistaa"
+    *: "Toistossa nyt"
   </dest>
   <voice>
-    *: "Toistaa"
+    *: "Toistossa nyt"
   </voice>
 </phrase>
 <phrase>
@@ -14435,10 +14435,10 @@
     *: "Shuffle Songs"
   </source>
   <dest>
-    *: "Sekoita kaikki"
+    *: "Sekoita kappaleet"
   </dest>
   <voice>
-    *: "Sekoita kaikki"
+    *: "Sekoita kappaleet"
   </voice>
 </phrase>
 <phrase>
@@ -15485,7 +15485,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "Toistaa-valikko"
+    *: "Toistossa nyt -valikko"
   </dest>
   <voice>
     *: ""
@@ -15499,7 +15499,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "Nollaa Toistaa-valikko"
+    *: "Nollaa Toistossa nyt -valikko"
   </dest>
   <voice>
     *: ""
@@ -15639,7 +15639,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "Toistaa-näkymä saa kunkin albumin kansikuvan värit."
+    *: "Toistossa nyt -näkymä saa kunkin albumin kansikuvan värit."
   </dest>
   <voice>
     *: ""
@@ -15667,7 +15667,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "Kansikuva Toistaa-näkymässä on hieman käännetty, kuten iPod classic -soittimessa."
+    *: "Kansikuva Toistossa nyt -näkymässä on hieman käännetty, kuten iPod classic -soittimessa."
   </dest>
   <voice>
     *: ""
@@ -15695,7 +15695,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Kun näyttö pimenee musiikin aikana, Toistaa-näkymä palaa, ja kiekko säätää äänenvoimakkuutta."
+    *: "Kun näyttö pimenee musiikin aikana, Toistossa nyt -näkymä palaa, ja kiekko säätää äänenvoimakkuutta."
   </dest>
   <voice>
     *: ""
@@ -18523,7 +18523,7 @@
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
-    *: "Pois, kappaleet tai albumit: miten musiikkisi soi. Päävalikon ”Sekoita kaikki” vaihtaa kappaleisiin."
+    *: "Pois, kappaleet tai albumit: miten musiikkisi soi. Päävalikon ”Sekoita kappaleet” vaihtaa kappaleisiin."
   </dest>
   <voice>
     *: ""

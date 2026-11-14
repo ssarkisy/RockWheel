@@ -52,10 +52,10 @@
     *: "On"
   </source>
   <dest>
-    *: "Вкл"
+    *: "Увімк."
   </dest>
   <voice>
-    *: "Ввiмкнути"
+    *: "Ввімкнути"
   </voice>
 </phrase>
 <phrase>
@@ -66,7 +66,7 @@
     *: "Off"
   </source>
   <dest>
-    *: "Вимк"
+    *: "Вимк."
   </dest>
   <voice>
     *: "Вимкнути"
@@ -192,10 +192,10 @@
     *: "Cancelled"
   </source>
   <dest>
-    *: "Вiдмiнено"
+    *: "Відмінено"
   </dest>
   <voice>
-    *: "Вiдмiнено"
+    *: "Відмінено"
   </voice>
 </phrase>
 <phrase>
@@ -234,10 +234,10 @@
     *: "Are You Sure?"
   </source>
   <dest>
-    *: "Ви Впевненi?"
+    *: "Ви Впевнені?"
   </dest>
   <voice>
-    *: "Ви Впевненi?"
+    *: "Ви Впевнені?"
   </voice>
 </phrase>
 <phrase>
@@ -253,10 +253,10 @@
     vibe500: "OK = Yes"
   </source>
   <dest>
-    *: "ВIДТВОР. = Так"
+    *: "ВІДТВОР. = Так"
     cowond2*: "Меню або прав. верх. = Так"
     creativezen*,gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "ВИБРАТИ = так"
-    iriverh100,iriverh120,iriverh300: "НАВIГ. = Так"
+    iriverh100,iriverh120,iriverh300: "НАВІГ. = Так"
     mrobe500: "ВІДТВ, ВИМКН., або правю верх. = Так"
     vibe500: "OK = Так"
   </dest>
@@ -272,7 +272,7 @@
     *: "Any Other = No"
   </source>
   <dest>
-    *: "Будь-яка Iнша Кнопка = Нi"
+    *: "Будь-яка Інша Кнопка = Ні"
   </dest>
   <voice>
     *: ""
@@ -342,10 +342,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "Вiдтворення"
+    *: "Зараз грає"
   </dest>
   <voice>
-    *: "Вiдтворення"
+    *: "Зараз грає"
   </voice>
 </phrase>
 <phrase>
@@ -418,10 +418,10 @@
     *: "Playlists"
   </source>
   <dest>
-    *: "Списки Вiдтворення"
+    *: "Підбірки"
   </dest>
   <voice>
-    *: "Списки Вiдтворення"
+    *: "Підбірки"
   </voice>
 </phrase>
 <phrase>
@@ -614,10 +614,10 @@
     *: "Volume"
   </source>
   <dest>
-    *: "Гучнiсть"
+    *: "Гучність"
   </dest>
   <voice>
-    *: "Гучнiсть"
+    *: "Гучність"
   </voice>
 </phrase>
 <phrase>
@@ -1121,10 +1121,10 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "Перемiшувати"
+    *: "Перемішувати"
   </dest>
   <voice>
-    *: "Перемiшувати"
+    *: "Перемішувати"
   </voice>
 </phrase>
 <phrase>
@@ -1149,10 +1149,10 @@
     *: "All"
   </source>
   <dest>
-    *: "Всi"
+    *: "Всі"
   </dest>
   <voice>
-    *: "Всi"
+    *: "Всі"
   </voice>
 </phrase>
 <phrase>
@@ -1278,10 +1278,10 @@
     *: "Party Mode"
   </source>
   <dest>
-    *: "Режим Вечiрки"
+    *: "Режим Вечірки"
   </dest>
   <voice>
-    *: "Режим Вечiрки"
+    *: "Режим Вечірки"
   </voice>
 </phrase>
 <phrase>
@@ -1504,10 +1504,10 @@
     *: "Album Gain"
   </source>
   <dest>
-    *: "Пiдсилення Альбому"
+    *: "Підсилення Альбому"
   </dest>
   <voice>
-    *: "Пiдсилення Альбому"
+    *: "Підсилення Альбому"
   </voice>
 </phrase>
 <phrase>
@@ -2031,10 +2031,10 @@
     *: "Gather Runtime Data"
   </source>
   <dest>
-    *: "Збирати Данi про Треки"
+    *: "Збирати Дані про Треки"
   </dest>
   <voice>
-    *: "Збирати Данi про Треки"
+    *: "Збирати Дані про Треки"
   </voice>
 </phrase>
 <phrase>
@@ -2115,10 +2115,10 @@
     *: "[All tracks]"
   </source>
   <dest>
-    *: "[Всi треки]"
+    *: "[Всі треки]"
   </dest>
   <voice>
-    *: "Всi треки"
+    *: "Всі треки"
   </voice>
 </phrase>
 <phrase>
@@ -2202,10 +2202,10 @@
     *: "Backlight"
   </source>
   <dest>
-    *: "Пiдсвiтка"
+    *: "Підсвітка"
   </dest>
   <voice>
-    *: "Пiдсвiтка"
+    *: "Підсвітка"
   </voice>
 </phrase>
 <phrase>
@@ -2298,10 +2298,10 @@
     *: "First Buttonpress Enables Backlight Only"
   </source>
   <dest>
-    *: "Перше натискання кнопки тiльки вмик. пiдсвiтку"
+    *: "Перше натискання кнопки тільки вмик. підсвітку"
   </dest>
   <voice>
-    *: "Перше натискання кнопки тiльки вмика пiдсвiтку"
+    *: "Перше натискання кнопки тільки вмика підсвітку"
   </voice>
 </phrase>
 <phrase>
@@ -2345,11 +2345,11 @@
   </source>
   <dest>
     *: none
-    backlight_brightness: "Яскравiсть"
+    backlight_brightness: "Яскравість"
   </dest>
   <voice>
     *: none
-    backlight_brightness: "Яскравiсть"
+    backlight_brightness: "Яскравість"
   </voice>
 </phrase>
 <phrase>
@@ -2617,10 +2617,10 @@
     *: "Show Icons"
   </source>
   <dest>
-    *: "Показувати Iконки"
+    *: "Показувати Іконки"
   </dest>
   <voice>
-    *: "Показувати Iконки"
+    *: "Показувати Іконки"
   </voice>
 </phrase>
 <phrase>
@@ -3495,10 +3495,10 @@
   </source>
   <dest>
     *: none
-    rtc: "ВВIМК. = Встановити"
+    rtc: "ВВІМК. = Встановити"
     aigoerosq,erosqnative,gogearsa9200,samsungyh*,xduoox3*: "ПРОГРАВ. = Встановити"
     gigabeat*,iaudiom5,iaudiox5,ipod*,iriverh10,iriverh10_5gb,mrobe100,sansac200*,sansaclip*,sansaconnect,sansae200*,sansafuze*: "ВИБРАТИ = Встановити"
-    iriverh100,iriverh120,iriverh300: "НАВIГ. = Встановити"
+    iriverh100,iriverh120,iriverh300: "НАВІГ. = Встановити"
     mpiohd300: "ENTER = Встановити"
     mrobe500: "СЕРЦЕ = Встановити"
     vibe500: "OK = Встановити"
@@ -3838,10 +3838,10 @@
     *: "Idle Poweroff"
   </source>
   <dest>
-    *: "Вимкнення при Неактивностi"
+    *: "Вимкнення при Неактивності"
   </dest>
   <voice>
-    *: "Вимкнення при Неактивностi"
+    *: "Вимкнення при Неактивності"
   </voice>
 </phrase>
 <phrase>
@@ -3852,10 +3852,10 @@
     *: "Sleep Timer"
   </source>
   <dest>
-    *: "Таймер Сну Пристрою"
+    *: "Таймер сну"
   </dest>
   <voice>
-    *: "Таймер Сну Пристрою"
+    *: "Таймер сну"
   </voice>
 </phrase>
 <phrase>
@@ -4321,10 +4321,10 @@
     *: "Cleared"
   </source>
   <dest>
-    *: "Налаштування Скинутi"
+    *: "Налаштування Скинуті"
   </dest>
   <voice>
-    *: "Налаштування Скинутi"
+    *: "Налаштування Скинуті"
   </voice>
 </phrase>
 <phrase>
@@ -5626,10 +5626,10 @@
     *: "View Current Playlist"
   </source>
   <dest>
-    *: "Переглянути Поточний Список Вiдтвореня"
+    *: "Переглянути поточну підбірку"
   </dest>
   <voice>
-    *: "Переглянути Поточний Список Вiдтвореня"
+    *: "Переглянути поточну підбірку"
   </voice>
 </phrase>
 <phrase>
@@ -5654,10 +5654,10 @@
     *: "Show Indices"
   </source>
   <dest>
-    *: "Показати Iндекси"
+    *: "Показати Індекси"
   </dest>
   <voice>
-    *: "Показати Iндекси"
+    *: "Показати Індекси"
   </voice>
 </phrase>
 <phrase>
@@ -5780,10 +5780,10 @@
     *: "Erase dynamic playlist?"
   </source>
   <dest>
-    *: "Очистити динамiчний вписок вiдтворення?"
+    *: "Очистити динамічну підбірку?"
   </dest>
   <voice>
-    *: "Очистити динамiчний вписок вiдтворення?"
+    *: "Очистити динамічну підбірку?"
   </voice>
 </phrase>
 <phrase>
@@ -5827,7 +5827,7 @@
     ipodmini1g,ipodmini2g,iriverh10: "Акумулятор: %d%% %dh %dm"
   </dest>
   <voice>
-    *: "Рiвень Заряду Акумулятору"
+    *: "Рівень Заряду Акумулятору"
   </voice>
 </phrase>
 <phrase>
@@ -6024,10 +6024,10 @@
     *: "Queue Last"
   </source>
   <dest>
-    *: "В Чергу Останнiм"
+    *: "В Чергу Останнім"
   </dest>
   <voice>
-    *: "В Чергу Останнiм"
+    *: "В Чергу Останнім"
   </voice>
 </phrase>
 <phrase>
@@ -6038,10 +6038,10 @@
     *: "Queue Shuffled"
   </source>
   <dest>
-    *: "В Чергу у Випадкове Мiсце"
+    *: "В Чергу у Випадкове Місце"
   </dest>
   <voice>
-    *: "В Чергу у Випадкове Мiсце"
+    *: "В Чергу у Випадкове Місце"
   </voice>
 </phrase>
 <phrase>
@@ -6052,7 +6052,7 @@
     *: "Inserted %d tracks (%s)"
   </source>
   <dest>
-    *: "Вставлено %d трекiв (%s)"
+    *: "Вставлено %d треків (%s)"
   </dest>
   <voice>
     *: "треки вставлено"
@@ -6066,10 +6066,10 @@
     *: "Queued %d tracks (%s)"
   </source>
   <dest>
-    *: "Черга %d трекiв (%s)"
+    *: "Черга %d треків (%s)"
   </dest>
   <voice>
-    *: "треки у черзi"
+    *: "треки у черзі"
   </voice>
 </phrase>
 <phrase>
@@ -6094,10 +6094,10 @@
     *: "Search in Playlist"
   </source>
   <dest>
-    *: "Пошук у Списку Вiдтворення"
+    *: "Пошук у підбірці"
   </dest>
   <voice>
-    *: "Пошук у Списку Вiдтворення"
+    *: "Пошук у підбірці"
   </voice>
 </phrase>
 <phrase>
@@ -6122,10 +6122,10 @@
     *: "Reshuffle"
   </source>
   <dest>
-    *: "Перемiшати"
+    *: "Перемішати"
   </dest>
   <voice>
-    *: "Перемiшати"
+    *: "Перемішати"
   </voice>
 </phrase>
 <phrase>
@@ -6136,10 +6136,10 @@
     *: "Add to New Playlist"
   </source>
   <dest>
-    *: "Додати до Нового Списку Вiдтворення"
+    *: "Додати до нової підбірки"
   </dest>
   <voice>
-    *: "Додати до Нового Списку Вiдтворення"
+    *: "Додати до нової підбірки"
   </voice>
 </phrase>
 <phrase>
@@ -6164,10 +6164,10 @@
     *: "No Playlists"
   </source>
   <dest>
-    *: "Вiдсутнiй Список Вiдтворення"
+    *: "Немає підбірок"
   </dest>
   <voice>
-    *: "Вiдсутнiй Список Вiдтворення"
+    *: "Немає підбірок"
   </voice>
 </phrase>
 <phrase>
@@ -6262,10 +6262,10 @@
     *: "Show Track Info"
   </source>
   <dest>
-    *: "Iнформацiя про Трек"
+    *: "Інформація про Трек"
   </dest>
   <voice>
-    *: "Iнформацiя про Трек"
+    *: "Інформація про Трек"
   </voice>
 </phrase>
 <phrase>
@@ -6360,10 +6360,10 @@
     *: "Length"
   </source>
   <dest>
-    *: "Тривалiсть"
+    *: "Тривалість"
   </dest>
   <voice>
-    *: "Тривалiсть"
+    *: "Тривалість"
   </voice>
 </phrase>
 <phrase>
@@ -6472,10 +6472,10 @@
     *: "Track Gain"
   </source>
   <dest>
-    *: "Пiдсилення Треку"
+    *: "Підсилення Треку"
   </dest>
   <voice>
-    *: "Пiдсилення Треку"
+    *: "Підсилення Треку"
   </voice>
 </phrase>
 <phrase>
@@ -6514,10 +6514,10 @@
     *: "Rename"
   </source>
   <dest>
-    *: "Переiменувати"
+    *: "Переіменувати"
   </dest>
   <voice>
-    *: "Переiменувати"
+    *: "Переіменувати"
   </voice>
 </phrase>
 <phrase>
@@ -6615,7 +6615,7 @@
     *: "Видалити?"
   </dest>
   <voice>
-    *: "Дiйсно видалити?"
+    *: "Дійсно видалити?"
   </voice>
 </phrase>
 <phrase>
@@ -6727,10 +6727,10 @@
     *: "Properties"
   </source>
   <dest>
-    *: "Властивостi"
+    *: "Властивості"
   </dest>
   <voice>
-    *: "Властивостi"
+    *: "Властивості"
   </voice>
 </phrase>
 <phrase>
@@ -6854,10 +6854,10 @@
     *: "End of Song List"
   </source>
   <dest>
-    *: "Кiнець Списку Пiсень"
+    *: "Кінець Списку Пісень"
   </dest>
   <voice>
-    *: "Кiнець Списку Пiсень"
+    *: "Кінець Списку Пісень"
   </voice>
 </phrase>
 <phrase>
@@ -6882,10 +6882,10 @@
     *: "Nothing to resume"
   </source>
   <dest>
-    *: "Нiчого продовжувати"
+    *: "Нічого продовжувати"
   </dest>
   <voice>
-    *: "Нiчого продовжувати"
+    *: "Нічого продовжувати"
   </voice>
 </phrase>
 <phrase>
@@ -6938,10 +6938,10 @@
     *: "Playlist control file is invalid"
   </source>
   <dest>
-    *: "Файл контролю списку вiдтворення пошкоджено"
+    *: "Файл контролю підбірки пошкоджено"
   </dest>
   <voice>
-    *: "Файл контролю списку вiдтворення пошкоджено"
+    *: "Файл контролю підбірки пошкоджено"
   </voice>
 </phrase>
 <phrase>
@@ -7115,13 +7115,13 @@
     iriverh100,iriverh120,iriverh300: "STOP to abort"
   </source>
   <dest>
-    *: "OFF для вiдмiни"
-    gigabeatfx: "POWER для вiдмiни"
-    gigabeats,sansafuzeplus: "BACK для вiдмiни"
-    iaudiom5,iaudiox5: "Довге натискання PLAY для вiдмiни"
-    ipod*: "PLAY/PAUSE для вiдмiни"
-    iriverh10,iriverh10_5gb,sansac200*,sansae200*,vibe500: "PREV для вiдмiни"
-    iriverh100,iriverh120,iriverh300: "STOP для вiдмiни"
+    *: "OFF для відміни"
+    gigabeatfx: "POWER для відміни"
+    gigabeats,sansafuzeplus: "BACK для відміни"
+    iaudiom5,iaudiox5: "Довге натискання PLAY для відміни"
+    ipod*: "PLAY/PAUSE для відміни"
+    iriverh10,iriverh10_5gb,sansac200*,sansae200*,vibe500: "PREV для відміни"
+    iriverh100,iriverh120,iriverh300: "STOP для відміни"
   </dest>
   <voice>
     *: ""
@@ -7275,10 +7275,10 @@
     *: "Please reboot to enable"
   </source>
   <dest>
-    *: "Перезавантажте для прийняття змiн"
+    *: "Перезавантажте для прийняття змін"
   </dest>
   <voice>
-    *: "Перезавантажте для прийняття змiн"
+    *: "Перезавантажте для прийняття змін"
   </voice>
 </phrase>
 <phrase>
@@ -7306,10 +7306,10 @@
     *: "WARNING! Low Battery!"
   </source>
   <dest>
-    *: "УВАГА! Низький рiвень заряду акумулятора!"
+    *: "УВАГА! Низький рівень заряду акумулятора!"
   </dest>
   <voice>
-    *: "УВАГА! Низький рiвень заряду акумулятора!"
+    *: "УВАГА! Низький рівень заряду акумулятора!"
   </voice>
 </phrase>
 <phrase>
@@ -7320,10 +7320,10 @@
     *: "Battery empty! RECHARGE!"
   </source>
   <dest>
-    *: "Акумулятор на межi! ЗАРЯДIТЬ!"
+    *: "Акумулятор на межі! ЗАРЯДІТЬ!"
   </dest>
   <voice>
-    *: "Акумулятор на межi! ЗАРЯДIТЬ!"
+    *: "Акумулятор на межі! ЗАРЯДІТЬ!"
   </voice>
 </phrase>
 <phrase>
@@ -8684,10 +8684,10 @@
     *: "Games"
   </source>
   <dest>
-    *: "Iгри"
+    *: "Ігри"
   </dest>
   <voice>
-    *: "Iгри"
+    *: "Ігри"
   </voice>
 </phrase>
 <phrase>
@@ -9210,10 +9210,10 @@
     *: "Unknown"
   </source>
   <dest>
-    *: "Невiдомо"
+    *: "Невідомо"
   </dest>
   <voice>
-    *: "Невiдомо"
+    *: "Невідомо"
   </voice>
 </phrase>
 <phrase>
@@ -9673,10 +9673,10 @@
     *: "Search Results"
   </source>
   <dest>
-    *: "Пошук Результатiв"
+    *: "Пошук Результатів"
   </dest>
   <voice>
-    *: "Пошук Результатiв"
+    *: "Пошук Результатів"
   </voice>
 </phrase>
 <phrase>
@@ -9904,10 +9904,10 @@
     *: "Speed"
   </source>
   <dest>
-    *: "Швидкiсть"
+    *: "Швидкість"
   </dest>
   <voice>
-    *: "Швидкiсть"
+    *: "Швидкість"
   </voice>
 </phrase>
 <phrase>
@@ -10065,10 +10065,10 @@
     *: "Filesize"
   </source>
   <dest>
-    *: "Розмiр Файлу"
+    *: "Розмір Файлу"
   </dest>
   <voice>
-    *: "Розмiр Файлу"
+    *: "Розмір Файлу"
   </voice>
 </phrase>
 <phrase>
@@ -10138,10 +10138,10 @@
     *: "Current Playlist"
   </source>
   <dest>
-    *: "Поточний список"
+    *: "Поточна підбірка"
   </dest>
   <voice>
-    *: "Поточний список"
+    *: "Поточна підбірка"
   </voice>
 </phrase>
 <phrase>
@@ -15687,10 +15687,10 @@
     *: "Add to Playlist..."
   </source>
   <dest>
-    *: "Додати до списку відтворення"
+    *: "Додати до підбірки"
   </dest>
   <voice>
-    *: "Додати до списку відтворення"
+    *: "Додати до підбірки"
   </voice>
 </phrase>
 <phrase>
@@ -15701,10 +15701,10 @@
     *: "Add to Existing Playlist"
   </source>
   <dest>
-    *: "Додати до існуючого списку відтворення"
+    *: "Додати до наявної підбірки"
   </dest>
   <voice>
-    *: "Додати до існуючого списку відтворення"
+    *: "Додати до наявної підбірки"
   </voice>
 </phrase>
 <phrase>
@@ -16825,10 +16825,10 @@
     *: "Playlist finished. Play again?"
   </source>
   <dest>
-    *: "Список відтворення завершено. Пограти ще раз?"
+    *: "Підбірку завершено. Відтворити ще раз?"
   </dest>
   <voice>
-    *: "Список відтворення завершено. Пограти ще раз?"
+    *: "Підбірку завершено. Відтворити ще раз?"
   </voice>
 </phrase>
 <phrase>
@@ -18800,7 +18800,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "До „Вiдтворення“"
+    *: "До „Зараз грає“"
   </dest>
   <voice>
     *: ""
@@ -18926,7 +18926,7 @@
     *: "Clear Playlist"
   </source>
   <dest>
-    *: "Очистити список відтворення"
+    *: "Очистити підбірку"
   </dest>
   <voice>
     *: ""
@@ -18940,7 +18940,7 @@
     *: "New Playlist"
   </source>
   <dest>
-    *: "Новий список відтворення"
+    *: "Нова підбірка"
   </dest>
   <voice>
     *: ""
@@ -18968,7 +18968,7 @@
     *: "Save Playlist"
   </source>
   <dest>
-    *: "Зберегти список відтворення"
+    *: "Зберегти підбірку"
   </dest>
   <voice>
     *: ""
@@ -19024,7 +19024,7 @@
     *: "Delete Folder and %d Playlists"
   </source>
   <dest>
-    *: "Видалити папку і списки відтворення: %d"
+    *: "Видалити папку і підбірки: %d"
   </dest>
   <voice>
     *: ""
@@ -19094,7 +19094,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "Меню «Відтворення»"
+    *: "Меню «Зараз грає»"
   </dest>
   <voice>
     *: ""
@@ -19108,7 +19108,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "Скидання меню «Відтворення»"
+    *: "Скидання меню «Зараз грає»"
   </dest>
   <voice>
     *: ""
@@ -19248,7 +19248,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "„Вiдтворення“ забарвлюється в кольори обкладинки кожного альбому."
+    *: "Екран „Зараз грає“ забарвлюється в кольори обкладинки кожного альбому."
   </dest>
   <voice>
     *: ""
@@ -19276,7 +19276,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "Обкладинка у „Вiдтворення“ злегка повернута, як на iPod classic."
+    *: "Обкладинка на екрані „Зараз грає“ злегка повернута, як на iPod classic."
   </dest>
   <voice>
     *: ""
@@ -19304,7 +19304,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Коли екран гасне під час музики, повертається „Вiдтворення“, і колесо змінює гучність."
+    *: "Коли екран гасне під час музики, повертається „Зараз грає“, і колесо змінює гучність."
   </dest>
   <voice>
     *: ""
@@ -21222,7 +21222,7 @@
     *: "Up Next"
   </source>
   <dest>
-    *: "Далі"
+    *: "На черзі"
   </dest>
   <voice>
     *: ""

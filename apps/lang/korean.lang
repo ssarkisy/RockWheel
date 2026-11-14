@@ -53,10 +53,10 @@
     *: "No"
   </source>
   <dest>
-    *: "아니오"
+    *: "아니요"
   </dest>
   <voice>
-    *: "아니오"
+    *: "아니요"
   </voice>
 </phrase>
 <phrase>
@@ -287,7 +287,7 @@
     *: "Any Other = No"
   </source>
   <dest>
-    *: "기타 = 아니오"
+    *: "기타 = 아니요"
   </dest>
   <voice>
     *: ""
@@ -433,10 +433,10 @@
     *: "Playlists"
   </source>
   <dest>
-    *: "재생목록"
+    *: "플레이리스트"
   </dest>
   <voice>
-    *: "재생목록"
+    *: "플레이리스트"
   </voice>
 </phrase>
 <phrase>
@@ -629,10 +629,10 @@
     *: "Volume"
   </source>
   <dest>
-    *: "볼륨"
+    *: "음량"
   </dest>
   <voice>
-    *: "볼륨"
+    *: "음량"
   </voice>
 </phrase>
 <phrase>
@@ -884,10 +884,10 @@
     *: "Equalizer"
   </source>
   <dest>
-    *: "이퀄라이저"
+    *: "EQ"
   </dest>
   <voice>
-    *: "이퀄라이저"
+    *: "EQ"
   </voice>
 </phrase>
 <phrase>
@@ -1136,10 +1136,10 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "셔플"
+    *: "임의 재생"
   </dest>
   <voice>
-    *: "셔플"
+    *: "임의 재생"
   </voice>
 </phrase>
 <phrase>
@@ -1519,10 +1519,10 @@
     *: "Replaygain Type"
   </source>
   <dest>
-    *: "사운드 체크"
+    *: "사운드 자동 조절"
   </dest>
   <voice>
-    *: "사운드 체크"
+    *: "사운드 자동 조절"
   </voice>
 </phrase>
 <phrase>
@@ -3867,10 +3867,10 @@
     *: "Sleep Timer"
   </source>
   <dest>
-    *: "절전 타이머"
+    *: "잠자기 타이머"
   </dest>
   <voice>
-    *: "절전 타이머"
+    *: "잠자기 타이머"
   </voice>
 </phrase>
 <phrase>
@@ -5641,10 +5641,10 @@
     *: "View Current Playlist"
   </source>
   <dest>
-    *: "현재 재생목록 보기"
+    *: "현재 플레이리스트 보기"
   </dest>
   <voice>
-    *: "현재 재생목록 보기"
+    *: "현재 플레이리스트 보기"
   </voice>
 </phrase>
 <phrase>
@@ -5795,10 +5795,10 @@
     *: "Erase dynamic playlist?"
   </source>
   <dest>
-    *: "현재 재생목록을 삭제할까요?"
+    *: "현재 플레이리스트를 삭제할까요?"
   </dest>
   <voice>
-    *: "현재 재생목록을 삭제할까요?"
+    *: "현재 플레이리스트를 삭제할까요?"
   </voice>
 </phrase>
 <phrase>
@@ -6109,10 +6109,10 @@
     *: "Search in Playlist"
   </source>
   <dest>
-    *: "재생목록에서 검색"
+    *: "플레이리스트에서 검색"
   </dest>
   <voice>
-    *: "재생목록에서 검색"
+    *: "플레이리스트에서 검색"
   </voice>
 </phrase>
 <phrase>
@@ -6151,10 +6151,10 @@
     *: "Add to New Playlist"
   </source>
   <dest>
-    *: "새 재생목록에 추가"
+    *: "새로운 플레이리스트에 추가"
   </dest>
   <voice>
-    *: "새 재생목록에 추가"
+    *: "새로운 플레이리스트에 추가"
   </voice>
 </phrase>
 <phrase>
@@ -6179,10 +6179,10 @@
     *: "No Playlists"
   </source>
   <dest>
-    *: "재생목록 없음"
+    *: "플레이리스트 없음"
   </dest>
   <voice>
-    *: "재생목록 없음"
+    *: "플레이리스트 없음"
   </voice>
 </phrase>
 <phrase>
@@ -6953,10 +6953,10 @@
     *: "Playlist control file is invalid"
   </source>
   <dest>
-    *: "재생목록 제어 파일이 잘못됨"
+    *: "플레이리스트 제어 파일이 잘못됨"
   </dest>
   <voice>
-    *: "재생목록 제어 파일이 잘못됨"
+    *: "플레이리스트 제어 파일이 잘못됨"
   </voice>
 </phrase>
 <phrase>
@@ -11252,10 +11252,10 @@
     *: "Current Playlist"
   </source>
   <dest>
-    *: "현재 재생목록"
+    *: "현재 플레이리스트"
   </dest>
   <voice>
-    *: "현재 재생목록"
+    *: "현재 플레이리스트"
   </voice>
 </phrase>
 <phrase>
@@ -11314,10 +11314,10 @@
     *: "Default Sleep Timer Duration"
   </source>
   <dest>
-    *: "기본 절전 타이머 기간"
+    *: "기본 잠자기 타이머 기간"
   </dest>
   <voice>
-    *: "기본 절전 타이머 기간"
+    *: "기본 잠자기 타이머 기간"
   </voice>
 </phrase>
 <phrase>
@@ -11328,10 +11328,10 @@
     *: "Start Sleep Timer on Boot"
   </source>
   <dest>
-    *: "부팅 시 절전 타이머 시작"
+    *: "부팅 시 잠자기 타이머 시작"
   </dest>
   <voice>
-    *: "부팅 시 절전 타이머 시작"
+    *: "부팅 시 잠자기 타이머 시작"
   </voice>
 </phrase>
 <phrase>
@@ -11342,10 +11342,10 @@
     *: "Cancel Sleep Timer"
   </source>
   <dest>
-    *: "절전 타이머 취소"
+    *: "잠자기 타이머 취소"
   </dest>
   <voice>
-    *: "절전 타이머 취소"
+    *: "잠자기 타이머 취소"
   </voice>
 </phrase>
 <phrase>
@@ -11460,10 +11460,10 @@
     *: "Restart Sleep Timer on Keypress"
   </source>
   <dest>
-    *: "키를 누를 때 절전 타이머 다시 시작"
+    *: "키를 누를 때 잠자기 타이머 다시 시작"
   </dest>
   <voice>
-    *: "키를 누를 때 절전 타이머 다시 시작"
+    *: "키를 누를 때 잠자기 타이머 다시 시작"
   </voice>
 </phrase>
 <phrase>
@@ -11505,10 +11505,10 @@
     *: "Start Sleep Timer"
   </source>
   <dest>
-    *: "절전 타이머 시작"
+    *: "잠자기 타이머 시작"
   </dest>
   <voice>
-    *: "절전 타이머 시작"
+    *: "잠자기 타이머 시작"
   </voice>
 </phrase>
 <phrase>
@@ -11921,10 +11921,10 @@
     *: "Maximum Volume Limit"
   </source>
   <dest>
-    *: "볼륨 제한"
+    *: "음량 제한"
   </dest>
   <voice>
-    *: "볼륨 제한"
+    *: "음량 제한"
   </voice>
 </phrase>
 <phrase>
@@ -12400,10 +12400,10 @@
     *: "Never"
   </source>
   <dest>
-    *: "절대 안 함"
+    *: "안 함"
   </dest>
   <voice>
-    *: "절대 안 함"
+    *: "안 함"
   </voice>
 </phrase>
 <phrase>
@@ -15455,10 +15455,10 @@
     *: "Play Shuffled"
   </source>
   <dest>
-    *: "셔플 재생"
+    *: "임의 재생"
   </dest>
   <voice>
-    *: "셔플 재생"
+    *: "임의 재생"
   </voice>
 </phrase>
 <phrase>
@@ -15576,7 +15576,7 @@
     *: "Add to Playlist..."
   </source>
   <dest>
-    *: "재생목록에 추가..."
+    *: "플레이리스트에 추가..."
   </dest>
   <voice>
     *: "재생목록에 추가"
@@ -15590,10 +15590,10 @@
     *: "Add to Existing Playlist"
   </source>
   <dest>
-    *: "기존 재생목록에 추가"
+    *: "기존 플레이리스트에 추가"
   </dest>
   <voice>
-    *: "기존 재생목록에 추가"
+    *: "기존 플레이리스트에 추가"
   </voice>
 </phrase>
 <phrase>
@@ -15632,10 +15632,10 @@
     *: "Add Shuffled"
   </source>
   <dest>
-    *: "셔플하여 추가"
+    *: "임의 순서로 추가"
   </dest>
   <voice>
-    *: "셔플하여 추가"
+    *: "임의 순서로 추가"
   </voice>
 </phrase>
 <phrase>
@@ -15660,10 +15660,10 @@
     *: "Play Last Shuffled"
   </source>
   <dest>
-    *: "마지막으로 셔플하여 재생"
+    *: "마지막으로 임의 재생"
   </dest>
   <voice>
-    *: "마지막으로 셔플하여 재생"
+    *: "마지막으로 임의 재생"
   </voice>
 </phrase>
 <phrase>
@@ -16229,10 +16229,10 @@
     *: "View Album Art"
   </source>
   <dest>
-    *: "앨범 아트 보기"
+    *: "앨범 표지 보기"
   </dest>
   <voice>
-    *: "앨범 아트 보기"
+    *: "앨범 표지 보기"
   </voice>
 </phrase>
 <phrase>
@@ -16336,10 +16336,10 @@
     *: "Playlist finished. Play again?"
   </source>
   <dest>
-    *: "재생목록을 끝냈습니다. 다시 재생할까요?"
+    *: "플레이리스트를 끝냈습니다. 다시 재생할까요?"
   </dest>
   <voice>
-    *: "재생목록을 끝냈습니다. 다시 재생할까요?"
+    *: "플레이리스트를 끝냈습니다. 다시 재생할까요?"
   </voice>
 </phrase>
 <phrase>
@@ -16518,10 +16518,10 @@
     *: "Shuffle Songs"
   </source>
   <dest>
-    *: "노래 셔플"
+    *: "노래 임의 재생"
   </dest>
   <voice>
-    *: "노래 셔플"
+    *: "노래 임의 재생"
   </voice>
 </phrase>
 <phrase>
@@ -16602,10 +16602,10 @@
     *: "Recently Added"
   </source>
   <dest>
-    *: "최근 추가"
+    *: "최근 추가된 항목"
   </dest>
   <voice>
-    *: "최근 추가"
+    *: "최근 추가된 항목"
   </voice>
 </phrase>
 <phrase>
@@ -17321,7 +17321,7 @@
     *: "Shuffle"
   </source>
   <dest>
-    *: "셔플"
+    *: "임의 재생"
   </dest>
   <voice>
     *: ""
@@ -17419,7 +17419,7 @@
     *: "Used"
   </source>
   <dest>
-    *: "사용"
+    *: "사용된 공간"
   </dest>
   <voice>
     *: ""
@@ -17433,7 +17433,7 @@
     *: "Available"
   </source>
   <dest>
-    *: "남은 공간"
+    *: "사용 가능"
   </dest>
   <voice>
     *: ""
@@ -17755,10 +17755,10 @@
     *: "Shuffle Photos"
   </source>
   <dest>
-    *: "사진 셔플"
+    *: "사진 임의 재생"
   </dest>
   <voice>
-    *: "사진 셔플"
+    *: "사진 임의 재생"
   </voice>
 </phrase>
 <phrase>
@@ -17867,10 +17867,10 @@
     *: "Acoustic"
   </source>
   <dest>
-    *: "어쿠스틱"
+    *: "Acoustic"
   </dest>
   <voice>
-    *: "어쿠스틱"
+    *: "Acoustic"
   </voice>
 </phrase>
 <phrase>
@@ -17881,10 +17881,10 @@
     *: "Bass Booster"
   </source>
   <dest>
-    *: "저음 강화"
+    *: "Bass Booster"
   </dest>
   <voice>
-    *: "저음 강화"
+    *: "Bass Booster"
   </voice>
 </phrase>
 <phrase>
@@ -17895,10 +17895,10 @@
     *: "Bass Reducer"
   </source>
   <dest>
-    *: "저음 감소"
+    *: "Bass Reducer"
   </dest>
   <voice>
-    *: "저음 감소"
+    *: "Bass Reducer"
   </voice>
 </phrase>
 <phrase>
@@ -17909,10 +17909,10 @@
     *: "Classical"
   </source>
   <dest>
-    *: "클래식"
+    *: "Classical"
   </dest>
   <voice>
-    *: "클래식"
+    *: "Classical"
   </voice>
 </phrase>
 <phrase>
@@ -17923,10 +17923,10 @@
     *: "Dance"
   </source>
   <dest>
-    *: "댄스"
+    *: "Dance"
   </dest>
   <voice>
-    *: "댄스"
+    *: "Dance"
   </voice>
 </phrase>
 <phrase>
@@ -17937,10 +17937,10 @@
     *: "Deep"
   </source>
   <dest>
-    *: "딥"
+    *: "Deep"
   </dest>
   <voice>
-    *: "딥"
+    *: "Deep"
   </voice>
 </phrase>
 <phrase>
@@ -17951,10 +17951,10 @@
     *: "Electronic"
   </source>
   <dest>
-    *: "일렉트로닉"
+    *: "Electronic"
   </dest>
   <voice>
-    *: "일렉트로닉"
+    *: "Electronic"
   </voice>
 </phrase>
 <phrase>
@@ -17965,10 +17965,10 @@
     *: "Flat"
   </source>
   <dest>
-    *: "플랫"
+    *: "Flat"
   </dest>
   <voice>
-    *: "플랫"
+    *: "Flat"
   </voice>
 </phrase>
 <phrase>
@@ -17979,10 +17979,10 @@
     *: "Hip Hop"
   </source>
   <dest>
-    *: "힙합"
+    *: "Hip Hop"
   </dest>
   <voice>
-    *: "힙합"
+    *: "Hip Hop"
   </voice>
 </phrase>
 <phrase>
@@ -17993,10 +17993,10 @@
     *: "Jazz"
   </source>
   <dest>
-    *: "재즈"
+    *: "Jazz"
   </dest>
   <voice>
-    *: "재즈"
+    *: "Jazz"
   </voice>
 </phrase>
 <phrase>
@@ -18007,10 +18007,10 @@
     *: "Latin"
   </source>
   <dest>
-    *: "라틴"
+    *: "Latin"
   </dest>
   <voice>
-    *: "라틴"
+    *: "Latin"
   </voice>
 </phrase>
 <phrase>
@@ -18021,10 +18021,10 @@
     *: "Loudness"
   </source>
   <dest>
-    *: "라우드니스"
+    *: "Loudness"
   </dest>
   <voice>
-    *: "라우드니스"
+    *: "Loudness"
   </voice>
 </phrase>
 <phrase>
@@ -18035,10 +18035,10 @@
     *: "Lounge"
   </source>
   <dest>
-    *: "라운지"
+    *: "Lounge"
   </dest>
   <voice>
-    *: "라운지"
+    *: "Lounge"
   </voice>
 </phrase>
 <phrase>
@@ -18049,10 +18049,10 @@
     *: "Piano"
   </source>
   <dest>
-    *: "피아노"
+    *: "Piano"
   </dest>
   <voice>
-    *: "피아노"
+    *: "Piano"
   </voice>
 </phrase>
 <phrase>
@@ -18063,10 +18063,10 @@
     *: "Pop"
   </source>
   <dest>
-    *: "팝"
+    *: "Pop"
   </dest>
   <voice>
-    *: "팝"
+    *: "Pop"
   </voice>
 </phrase>
 <phrase>
@@ -18091,10 +18091,10 @@
     *: "Rock"
   </source>
   <dest>
-    *: "록"
+    *: "Rock"
   </dest>
   <voice>
-    *: "록"
+    *: "Rock"
   </voice>
 </phrase>
 <phrase>
@@ -18105,10 +18105,10 @@
     *: "Small Speakers"
   </source>
   <dest>
-    *: "소형 스피커"
+    *: "Small Speakers"
   </dest>
   <voice>
-    *: "소형 스피커"
+    *: "Small Speakers"
   </voice>
 </phrase>
 <phrase>
@@ -18119,10 +18119,10 @@
     *: "Spoken Word"
   </source>
   <dest>
-    *: "음성"
+    *: "Spoken Word"
   </dest>
   <voice>
-    *: "음성"
+    *: "Spoken Word"
   </voice>
 </phrase>
 <phrase>
@@ -18133,10 +18133,10 @@
     *: "Treble Booster"
   </source>
   <dest>
-    *: "고음 강화"
+    *: "Treble Booster"
   </dest>
   <voice>
-    *: "고음 강화"
+    *: "Treble Booster"
   </voice>
 </phrase>
 <phrase>
@@ -18147,10 +18147,10 @@
     *: "Treble Reducer"
   </source>
   <dest>
-    *: "고음 감소"
+    *: "Treble Reducer"
   </dest>
   <voice>
-    *: "고음 감소"
+    *: "Treble Reducer"
   </voice>
 </phrase>
 <phrase>
@@ -18161,10 +18161,10 @@
     *: "Vocal Booster"
   </source>
   <dest>
-    *: "보컬 강화"
+    *: "Vocal Booster"
   </dest>
   <voice>
-    *: "보컬 강화"
+    *: "Vocal Booster"
   </voice>
 </phrase>
 <phrase>
@@ -18329,10 +18329,10 @@
     *: "Preparing Covers"
   </source>
   <dest>
-    *: "앨범 아트 준비 중"
+    *: "앨범 표지 준비 중"
   </dest>
   <voice>
-    *: "앨범 아트 준비 중"
+    *: "앨범 표지 준비 중"
   </voice>
 </phrase>
 <phrase>
@@ -18441,7 +18441,7 @@
     *: "Cover Colours"
   </source>
   <dest>
-    *: "커버 색상"
+    *: "앨범 표지 색상"
   </dest>
   <voice>
     *: ""
@@ -18511,7 +18511,7 @@
     *: "Volume Limit"
   </source>
   <dest>
-    *: "볼륨 제한"
+    *: "음량 제한"
   </dest>
   <voice>
     *: ""
@@ -18875,7 +18875,7 @@
     *: "Angled Cover"
   </source>
   <dest>
-    *: "기울어진 앨범 아트"
+    *: "기울어진 앨범 표지"
   </dest>
   <voice>
     *: ""
@@ -18889,7 +18889,7 @@
     *: "Appearance"
   </source>
   <dest>
-    *: "테마"
+    *: "화면 모드"
   </dest>
   <voice>
     *: ""
@@ -19099,7 +19099,7 @@
     *: "No"
   </source>
   <dest>
-    *: "아니오"
+    *: "아니요"
   </dest>
   <voice>
     *: ""
@@ -19155,7 +19155,7 @@
     *: "Covers in an unsupported format: %d. Save them as standard JPEG."
   </source>
   <dest>
-    *: "지원되지 않는 형식의 앨범 아트: %d. 표준 JPEG로 저장하세요."
+    *: "지원되지 않는 형식의 앨범 표지: %d. 표준 JPEG로 저장하세요."
   </dest>
   <voice>
     *: ""
@@ -19211,7 +19211,7 @@
     *: "Clear Playlist"
   </source>
   <dest>
-    *: "재생목록 지우기"
+    *: "플레이리스트 지우기"
   </dest>
   <voice>
     *: ""
@@ -19225,7 +19225,7 @@
     *: "New Playlist"
   </source>
   <dest>
-    *: "새 재생목록"
+    *: "새로운 플레이리스트"
   </dest>
   <voice>
     *: ""
@@ -19253,7 +19253,7 @@
     *: "Save Playlist"
   </source>
   <dest>
-    *: "재생목록 저장"
+    *: "플레이리스트 저장"
   </dest>
   <voice>
     *: ""
@@ -19309,7 +19309,7 @@
     *: "Delete Folder and %d Playlists"
   </source>
   <dest>
-    *: "폴더와 재생목록 %d개 삭제"
+    *: "폴더와 플레이리스트 %d개 삭제"
   </dest>
   <voice>
     *: ""
@@ -19533,7 +19533,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "지금 재생 중 화면이 앨범마다 커버 색으로 물듭니다."
+    *: "지금 재생 중 화면이 각 앨범 표지의 색으로 물듭니다."
   </dest>
   <voice>
     *: ""
@@ -19547,7 +19547,7 @@
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
-    *: "상태 표시줄도 커버 색을 따릅니다. 배터리 원래 색을 고르면 배터리는 초록색으로 남습니다."
+    *: "상태 표시줄도 앨범 표지 색을 따릅니다. 배터리 원래 색을 고르면 배터리는 초록색으로 남습니다."
   </dest>
   <voice>
     *: ""
@@ -19561,7 +19561,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "지금 재생 중 화면의 커버가 iPod classic처럼 살짝 비스듬히 돌아갑니다."
+    *: "지금 재생 중 화면의 앨범 표지가 iPod classic처럼 살짝 비스듬히 돌아갑니다."
   </dest>
   <voice>
     *: ""
@@ -19575,7 +19575,7 @@
     *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
   </source>
   <dest>
-    *: "Select 및 Menu로 하면 화면이 꺼진 채로 볼륨을 조절하고 곡을 넘길 수 있습니다."
+    *: "Select 및 Menu로 하면 화면이 꺼진 채로 음량을 조절하고 곡을 넘길 수 있습니다."
   </dest>
   <voice>
     *: ""
@@ -19589,7 +19589,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "음악이 나오는 동안 화면이 꺼지면 지금 재생 중 화면으로 돌아와 휠로 볼륨을 조절합니다."
+    *: "음악이 나오는 동안 화면이 꺼지면 지금 재생 중 화면으로 돌아와 휠로 음량을 조절합니다."
   </dest>
   <voice>
     *: ""
@@ -19603,7 +19603,7 @@
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
-    *: "Cover Flow가 열려 있는 동안 음악이 일시 정지되어 커버가 최고 속도로 넘어갑니다."
+    *: "Cover Flow가 열려 있는 동안 음악이 일시 정지되어 앨범 표지가 최고 속도로 넘어갑니다."
   </dest>
   <voice>
     *: ""
@@ -20555,7 +20555,7 @@
     *: "When the dealer shows an ace, you can buy insurance for up to half your bet; it pays 2 to 1 if the dealer has blackjack. Two cards of the same rank can be split into two hands, each with your bet. In a question, ◀ and ▶ choose Yes or No, Select answers, and Menu answers No."
   </source>
   <dest>
-    *: "딜러가 A를 보이면 베팅의 절반까지 보험을 들 수 있으며, 딜러가 블랙잭이면 보험은 2 대 1로 받습니다. 같은 숫자의 카드 두 장은 각각 베팅하여 두 핸드로 스플릿할 수 있습니다. 질문에서는 ◀와 ▶로 ‘예’ 또는 ‘아니오’를 고르고 Select로 답하며, Menu는 ‘아니오’로 답합니다."
+    *: "딜러가 A를 보이면 베팅의 절반까지 보험을 들 수 있으며, 딜러가 블랙잭이면 보험은 2 대 1로 받습니다. 같은 숫자의 카드 두 장은 각각 베팅하여 두 핸드로 스플릿할 수 있습니다. 질문에서는 ◀와 ▶로 ‘예’ 또는 ‘아니요’를 고르고 Select로 답하며, Menu는 ‘아니요’로 답합니다."
   </dest>
   <voice>
     *: ""
@@ -21507,7 +21507,7 @@
     *: "Up Next"
   </source>
   <dest>
-    *: "다음 재생"
+    *: "재생 대기 목록"
   </dest>
   <voice>
     *: ""
@@ -21549,7 +21549,7 @@
     *: "Covers in Lists"
   </source>
   <dest>
-    *: "목록에 커버 표시"
+    *: "목록에 앨범 표지 표시"
   </dest>
   <voice>
     *: ""
@@ -21563,7 +21563,7 @@
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
   </source>
   <dest>
-    *: "앨범, 아티스트의 앨범, 노래에서 앨범과 노래 옆에 커버가 표시됩니다. iPod classic처럼."
+    *: "앨범, 아티스트의 앨범, 노래에서 앨범과 노래 옆에 앨범 표지가 표시됩니다. iPod classic처럼."
   </dest>
   <voice>
     *: ""
@@ -21605,7 +21605,7 @@
     *: "Moving Cover"
   </source>
   <dest>
-    *: "움직이는 앨범 아트"
+    *: "움직이는 앨범 표지"
   </dest>
   <voice>
     *: ""
@@ -21619,7 +21619,7 @@
     *: "The cover beside the menus drifts slowly from side to side while music plays. Uses more battery."
   </source>
   <dest>
-    *: "음악이 재생되는 동안 메뉴 옆의 앨범 아트가 천천히 좌우로 움직입니다. 배터리를 더 사용합니다."
+    *: "음악이 재생되는 동안 메뉴 옆의 앨범 표지가 천천히 좌우로 움직입니다. 배터리를 더 사용합니다."
   </dest>
   <voice>
     *: ""
@@ -21773,7 +21773,7 @@
     *: "Mark as Played"
   </source>
   <dest>
-    *: "재생함으로 표시"
+    *: "재생된 항목으로 표시"
   </dest>
   <voice>
     *: ""
@@ -21787,7 +21787,7 @@
     *: "Mark as Unplayed"
   </source>
   <dest>
-    *: "재생 안 함으로 표시"
+    *: "재생되지 않은 항목으로 표시"
   </dest>
   <voice>
     *: ""
@@ -22193,7 +22193,7 @@
     *: "Shuffle Albums"
   </source>
   <dest>
-    *: "앨범 셔플"
+    *: "앨범 임의 재생"
   </dest>
   <voice>
     *: ""
@@ -22277,7 +22277,7 @@
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
-    *: "끔, 노래 또는 앨범: 음악 재생 방식. 메인 메뉴의 “노래 셔플”은 노래로 바꿉니다."
+    *: "끔, 노래 또는 앨범: 음악 재생 방식. 메인 메뉴의 “노래 임의 재생”은 노래로 바꿉니다."
   </dest>
   <voice>
     *: ""
@@ -22574,7 +22574,7 @@
     *: "Rebuild Synced Covers"
   </source>
   <dest>
-    *: "동기화된 커버 다시 만들기"
+    *: "동기화된 앨범 표지 다시 만들기"
   </dest>
   <voice>
     *: ""
@@ -22588,7 +22588,7 @@
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
-    *: "다음 동기화 때 컴퓨터가 모든 커버를 다시 만들며, 메인 메뉴용 선명한 커버도 포함됩니다."
+    *: "다음 동기화 때 컴퓨터가 모든 앨범 표지를 다시 만듭니다."
   </dest>
   <voice>
     *: ""
@@ -22602,7 +22602,7 @@
     *: "Until the next sync with Finder on a Mac, synced covers are not shown."
   </source>
   <dest>
-    *: "다음에 Mac의 Finder와 동기화할 때까지 동기화된 커버는 표시되지 않습니다."
+    *: "다음에 Mac의 Finder와 동기화할 때까지 동기화된 앨범 표지는 표시되지 않습니다."
   </dest>
   <voice>
     *: ""
@@ -22616,7 +22616,7 @@
     *: "Space needed: %s. Free: %s."
   </source>
   <dest>
-    *: "필요한 공간: %s. 여유 공간: %s."
+    *: "필요한 공간: %s. 사용 가능: %s."
   </dest>
   <voice>
     *: ""
@@ -22644,7 +22644,7 @@
     *: "The covers will be made at the next sync."
   </source>
   <dest>
-    *: "커버는 다음 동기화 때 만들어집니다."
+    *: "앨범 표지는 다음 동기화 때 만들어집니다."
   </dest>
   <voice>
     *: ""
@@ -22658,7 +22658,7 @@
     *: "Put the old covers back?"
   </source>
   <dest>
-    *: "이전 커버를 되돌릴까요?"
+    *: "이전 앨범 표지를 되돌릴까요?"
   </dest>
   <voice>
     *: ""
@@ -22672,7 +22672,7 @@
     *: "Covers can't be rebuilt on this iPod."
   </source>
   <dest>
-    *: "이 iPod에서는 커버를 다시 만들 수 없습니다."
+    *: "이 iPod에서는 앨범 표지를 다시 만들 수 없습니다."
   </dest>
   <voice>
     *: ""

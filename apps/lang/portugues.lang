@@ -54,10 +54,10 @@
     *: "On"
   </source>
   <dest>
-    *: "Activado"
+    *: "Ativado"
   </dest>
   <voice>
-    *: "Activado"
+    *: "Ativado"
   </voice>
 </phrase>
 <phrase>
@@ -68,10 +68,10 @@
     *: "Off"
   </source>
   <dest>
-    *: "Desactivado"
+    *: "Desativado"
   </dest>
   <voice>
-    *: "Desactivado"
+    *: "Desativado"
   </voice>
 </phrase>
 <phrase>
@@ -754,10 +754,10 @@
     *: "Reset Settings"
   </source>
   <dest>
-    *: "Repôr Opções Iniciais"
+    *: "Repor definições"
   </dest>
   <voice>
-    *: "Repôr Opções Iniciais"
+    *: "Repor definições"
   </voice>
 </phrase>
 <phrase>
@@ -6179,10 +6179,10 @@
     *: "Nothing to resume"
   </source>
   <dest>
-    *: "Nada Para Resumir"
+    *: "Nada para retomar"
   </dest>
   <voice>
-    *: "Nada Para Resumir"
+    *: "Nada para retomar"
   </voice>
 </phrase>
 <phrase>
@@ -7146,10 +7146,10 @@
     *: "Now Playing"
   </source>
   <dest>
-    *: "A Reproduzir Agora"
+    *: "A reproduzir"
   </dest>
   <voice>
-    *: "A Reproduzir Agora"
+    *: "A reproduzir"
   </voice>
 </phrase>
 <phrase>
@@ -9167,10 +9167,10 @@
     *: "Settings"
   </source>
   <dest>
-    *: "Opções"
+    *: "Definições"
   </dest>
   <voice>
-    *: "Opções"
+    *: "Definições"
   </voice>
 </phrase>
 <phrase>
@@ -9687,10 +9687,10 @@
     *: "Resume"
   </source>
   <dest>
-    *: "Resumir"
+    *: "Retomar"
   </dest>
   <voice>
-    *: "Resumir"
+    *: "Retomar"
   </voice>
 </phrase>
 <phrase>
@@ -12965,7 +12965,7 @@
     *: "OK to disconnect."
   </source>
   <dest>
-    *: "Desligar agora."
+    *: "Pode desligar."
   </dest>
   <voice>
     *: ""
@@ -13441,10 +13441,10 @@
     *: "Slideshow Settings"
   </source>
   <dest>
-    *: "Opções do diaporama"
+    *: "Definições do diaporama"
   </dest>
   <voice>
-    *: "Opções do diaporama"
+    *: "Definições do diaporama"
   </voice>
 </phrase>
 <phrase>
@@ -15471,7 +15471,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "Ir a «A Reproduzir Agora»"
+    *: "Ir a «A reproduzir»"
   </dest>
   <voice>
     *: ""
@@ -15765,7 +15765,7 @@
     *: "Now Playing Menu"
   </source>
   <dest>
-    *: "Menu A Reproduzir"
+    *: "Menu A reproduzir"
   </dest>
   <voice>
     *: ""
@@ -15779,7 +15779,7 @@
     *: "Reset Now Playing Menu"
   </source>
   <dest>
-    *: "Repor Menu A Reproduzir"
+    *: "Repor menu A reproduzir"
   </dest>
   <voice>
     *: ""
@@ -15919,7 +15919,7 @@
     *: "Now Playing takes on the colours of each album's cover."
   </source>
   <dest>
-    *: "«A Reproduzir Agora» ganha as cores da capa de cada álbum."
+    *: "«A reproduzir» ganha as cores da capa de cada álbum."
   </dest>
   <voice>
     *: ""
@@ -15947,7 +15947,7 @@
     *: "The cover on Now Playing turns slightly away, as on an iPod classic."
   </source>
   <dest>
-    *: "A capa em «A Reproduzir Agora» fica ligeiramente virada, como num iPod classic."
+    *: "A capa em «A reproduzir» fica ligeiramente virada, como num iPod classic."
   </dest>
   <voice>
     *: ""
@@ -15975,7 +15975,7 @@
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
-    *: "Quando o ecrã se apaga com música, volta «A Reproduzir Agora» e a roda ajusta o volume."
+    *: "Quando o ecrã se apaga com música, volta «A reproduzir» e a roda ajusta o volume."
   </dest>
   <voice>
     *: ""

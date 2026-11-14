@@ -10646,10 +10646,10 @@
     *: "of"
   </source>
   <dest>
-    *: "phần"
+    *: "/"
   </dest>
   <voice>
-    *: "phần"
+    *: "/"
   </voice>
 </phrase>
 <phrase>

@@ -694,6 +694,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_BOOKMARK_CONTEXT_RESUME
+  desc: bookmark context menu, resume this bookmark
+  user: core
+  <source>
+    *: "Resume"
+  </source>
+  <dest>
+    *: "Daŭrigi"
+  </dest>
+  <voice>
+    *: "Daŭrigi"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_BOOKMARK_SETTINGS
   desc: in general settings
   user: core

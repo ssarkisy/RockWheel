@@ -2525,6 +2525,62 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_MENU_QUIT
+  desc: in various menus
+  user: core
+  <source>
+    *: "Quit"
+  </source>
+  <dest>
+    *: "ออก"
+  </dest>
+  <voice>
+    *: "ออก"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHESSBOX_MENU_NEW_GAME
+  desc: in the chessbox menu
+  user: core
+  <source>
+    *: "New Game"
+  </source>
+  <dest>
+    *: "เกมใหม่"
+  </dest>
+  <voice>
+    *: "เกมใหม่"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHESSBOX_MENU_RESUME_GAME
+  desc: in the chessbox menu
+  user: core
+  <source>
+    *: "Resume Game"
+  </source>
+  <dest>
+    *: "เล่นเกมต่อ"
+  </dest>
+  <voice>
+    *: "เล่นเกมต่อ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LEGAL_NOTICES
+  desc: in system menu
+  user: core
+  <source>
+    *: "Legal"
+  </source>
+  <dest>
+    *: "ข้อมูลทางกฎหมาย"
+  </dest>
+  <voice>
+    *: "ข้อมูลทางกฎหมาย"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_ALBUMS
   desc: Database menu
   user: core
@@ -2567,6 +2623,132 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_MUSIC
+  desc: in the main menu, the database browser, as on a stock iPod
+  user: core
+  <source>
+    *: "Music"
+  </source>
+  <dest>
+    *: "เพลง"
+  </dest>
+  <voice>
+    *: "เพลง"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS
+  desc: in the main menu, a few plugins, as on a stock iPod
+  user: core
+  <source>
+    *: "Extras"
+  </source>
+  <dest>
+    *: "เพิ่มเติม"
+  </dest>
+  <voice>
+    *: "เพิ่มเติม"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Clock"
+  </source>
+  <dest>
+    *: "นาฬิกา"
+  </dest>
+  <voice>
+    *: "นาฬิกา"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Brick"
+  </source>
+  <dest>
+    *: "ทุบอิฐ"
+  </dest>
+  <voice>
+    *: "ทุบอิฐ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Solitaire"
+  </source>
+  <dest>
+    *: "โซลิแทร์"
+  </dest>
+  <voice>
+    *: "โซลิแทร์"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Calendar"
+  </source>
+  <dest>
+    *: "ปฏิทิน"
+  </dest>
+  <voice>
+    *: "ปฏิทิน"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_STOPWATCH
+  desc: in the Extras menu
+  user: core
+  <source>
+    *: "Stopwatch"
+  </source>
+  <dest>
+    *: "นาฬิกาจับเวลา"
+  </dest>
+  <voice>
+    *: "นาฬิกาจับเวลา"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ABOUT
+  desc: in the settings, the Rockbox info screen, as on a stock iPod
+  user: core
+  <source>
+    *: "About"
+  </source>
+  <dest>
+    *: "เกี่ยวกับ"
+  </dest>
+  <voice>
+    *: "เกี่ยวกับ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_TIMER_MINUTES
+  desc: a duration in the stock iPod style Sleep Timer list, %d is the minutes
+  user: core
+  <source>
+    *: "%d Minutes"
+  </source>
+  <dest>
+    *: "%d นาที"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_SONGS
   desc: in the Music menu, all songs sorted by title
   user: core
@@ -2578,6 +2760,720 @@
   </dest>
   <voice>
     *: "เพลง"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Podcasts"
+  </source>
+  <dest>
+    *: "พ็อดคาสท์"
+  </dest>
+  <voice>
+    *: "พ็อดคาสท์"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GENRES
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Genres"
+  </source>
+  <dest>
+    *: "ประเภท"
+  </dest>
+  <voice>
+    *: "ประเภท"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COMPOSERS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Composers"
+  </source>
+  <dest>
+    *: "ผู้แต่ง"
+  </dest>
+  <voice>
+    *: "ผู้แต่ง"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS
+  desc: in the Music menu
+  user: core
+  <source>
+    *: "Audiobooks"
+  </source>
+  <dest>
+    *: "หนังสือเสียง"
+  </dest>
+  <voice>
+    *: "หนังสือเสียง"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS
+  desc: in the main menu, the photos Finder syncs, as on a stock iPod
+  user: core
+  <source>
+    *: "Photos"
+  </source>
+  <dest>
+    *: "รูปภาพ"
+  </dest>
+  <voice>
+    *: "รูปภาพ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTO_LIBRARY
+  desc: in Photos, the album with all the photos
+  user: core
+  <source>
+    *: "Photo Library"
+  </source>
+  <dest>
+    *: "คลังรูปภาพ"
+  </dest>
+  <voice>
+    *: "คลังรูปภาพ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_SETTINGS
+  desc: in Photos
+  user: core
+  <source>
+    *: "Slideshow Settings"
+  </source>
+  <dest>
+    *: "การตั้งค่าสไลด์โชว์"
+  </dest>
+  <voice>
+    *: "การตั้งค่าสไลด์โชว์"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TIME_PER_SLIDE
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Time Per Slide"
+  </source>
+  <dest>
+    *: "เวลาต่อสไลด์"
+  </dest>
+  <voice>
+    *: "เวลาต่อสไลด์"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SHUFFLE_PHOTOS
+  desc: in Photos > Slideshow Settings
+  user: core
+  <source>
+    *: "Shuffle Photos"
+  </source>
+  <dest>
+    *: "สุ่มรูปภาพ"
+  </dest>
+  <voice>
+    *: "สุ่มรูปภาพ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDESHOW_MANUAL
+  desc: in Time Per Slide, change the photos by hand
+  user: core
+  <source>
+    *: "Manual"
+  </source>
+  <dest>
+    *: "ด้วยตนเอง"
+  </dest>
+  <voice>
+    *: "ด้วยตนเอง"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLIDE_SECONDS
+  desc: in Time Per Slide, %d is the seconds
+  user: core
+  <source>
+    *: "%d Seconds"
+  </source>
+  <dest>
+    *: "%d วินาที"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NO_PHOTOS
+  desc: in Photos, when Finder has synced none
+  user: core
+  <source>
+    *: "No Photos"
+  </source>
+  <dest>
+    *: "ไม่มีรูปภาพ"
+  </dest>
+  <voice>
+    *: "ไม่มีรูปภาพ"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLURAL_FORMS
+  desc: the plural forms of this language for counts: one-other like English, or one-few-many like Russian; not spoken
+  user: core
+  <source>
+    *: "one-other"
+  </source>
+  <dest>
+    *: "one-other"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_ONE
+  desc: the library under the note in the main menu when nothing plays, %d is the songs: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d Song"
+  </source>
+  <dest>
+    *: "%d เพลง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_FEW
+  desc: as LANG_SONG_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d เพลง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_MANY
+  desc: as LANG_SONG_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d Songs"
+  </source>
+  <dest>
+    *: "%d เพลง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ACOUSTIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Acoustic"
+  </source>
+  <dest>
+    *: "อะคูสติก"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Booster"
+  </source>
+  <dest>
+    *: "ตัวเพิ่มเสียงเบส"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_BASS_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Bass Reducer"
+  </source>
+  <dest>
+    *: "ตัวลดเสียงเบส"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CLASSICAL
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Classical"
+  </source>
+  <dest>
+    *: "คลาสสิก"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DANCE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Dance"
+  </source>
+  <dest>
+    *: "แดนซ์"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_DEEP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Deep"
+  </source>
+  <dest>
+    *: "ดีป"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ELECTRONIC
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Electronic"
+  </source>
+  <dest>
+    *: "อิเล็กทรอนิกส์"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FLAT
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Flat"
+  </source>
+  <dest>
+    *: "แฟลต"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIP_HOP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Hip Hop"
+  </source>
+  <dest>
+    *: "ฮิปฮอป"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_JAZZ
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Jazz"
+  </source>
+  <dest>
+    *: "แจ๊ส"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LATIN
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Latin"
+  </source>
+  <dest>
+    *: "ละติน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUDNESS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Loudness"
+  </source>
+  <dest>
+    *: "ความดัง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOUNGE
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Lounge"
+  </source>
+  <dest>
+    *: "เลาจ์"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PIANO
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Piano"
+  </source>
+  <dest>
+    *: "เปียโน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_POP
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Pop"
+  </source>
+  <dest>
+    *: "ป็อป"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RNB
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "R&B"
+  </source>
+  <dest>
+    *: "อาร์แอนด์บี"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_ROCK
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Rock"
+  </source>
+  <dest>
+    *: "ร็อค"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SMALL_SPEAKERS
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Small Speakers"
+  </source>
+  <dest>
+    *: "ลำโพงขนาดเล็ก"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SPOKEN_WORD
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Spoken Word"
+  </source>
+  <dest>
+    *: "คำพูด"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Booster"
+  </source>
+  <dest>
+    *: "ตัวเพิ่มเสียงแหลม"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TREBLE_REDUCER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Treble Reducer"
+  </source>
+  <dest>
+    *: "ตัวลดเสียงแหลม"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_VOCAL_BOOSTER
+  desc: in the iPod's EQ list, one of iTunes' equalizer presets
+  user: core
+  <source>
+    *: "Vocal Booster"
+  </source>
+  <dest>
+    *: "ตัวเพิ่มเสียงร้อง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_SLOWER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Slower"
+  </source>
+  <dest>
+    *: "ช้าลง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_NORMAL
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Normal"
+  </source>
+  <dest>
+    *: "ปกติ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOK_FASTER
+  desc: in the iPod settings, how fast audiobooks play
+  user: core
+  <source>
+    *: "Faster"
+  </source>
+  <dest>
+    *: "เร็วขึ้น"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_LIBRARY
+  desc: under the boot logo while the database takes in the songs of a sync
+  user: core
+  <source>
+    *: "Updating Library"
+  </source>
+  <dest>
+    *: "กำลังอัปเดตคลังเพลง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SONG_COUNT_UNKNOWN
+  desc: under the note in the main menu, instead of LANG_SONG_COUNT_ONE until the songs are counted
+  user: core
+  <source>
+    *: "Calculating…"
+  </source>
+  <dest>
+    *: "กำลังคำนวณ…"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Blackjack"
+  </source>
+  <dest>
+    *: "แบล็คแจ็ค"
+  </dest>
+  <voice>
+    *: "แบล็คแจ็ค"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Jewels"
+  </source>
+  <dest>
+    *: "อัญมณี"
+  </dest>
+  <voice>
+    *: "อัญมณี"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER
+  desc: in the Extras > Games menu
+  user: core
+  <source>
+    *: "Minesweeper"
+  </source>
+  <dest>
+    *: "เก็บกู้ระเบิด"
+  </dest>
+  <voice>
+    *: "เก็บกู้ระเบิด"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_READING_LIBRARY
+  desc: under the boot logo, the step of an import that reads what Finder wrote
+  user: core
+  <source>
+    *: "Reading Library"
+  </source>
+  <dest>
+    *: "กำลังอ่านคลังเพลง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CHECKING_SONGS
+  desc: under the boot logo, the step of an import that checks the song files
+  user: core
+  <source>
+    *: "Checking Songs"
+  </source>
+  <dest>
+    *: "กำลังตรวจสอบเพลง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UPDATING_PLAY_COUNTS
+  desc: under the boot logo, the step of an import that sets ratings and play counts
+  user: core
+  <source>
+    *: "Updating Play Counts"
+  </source>
+  <dest>
+    *: "กำลังอัปเดตจำนวนครั้งที่เล่น"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_COVERS
+  desc: under the boot logo, the step of an import that makes the covers of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Covers"
+  </source>
+  <dest>
+    *: "กำลังเตรียมปก"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PREPARING_ALBUMS
+  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  user: core
+  <source>
+    *: "Preparing Albums"
+  </source>
+  <dest>
+    *: "กำลังเตรียมอัลบั้ม"
+  </dest>
+  <voice>
+    *: ""
   </voice>
 </phrase>
 <phrase>
@@ -11756,10 +12652,10 @@
     *: "of"
   </source>
   <dest>
-    *: "of"
+    *: "จาก"
   </dest>
   <voice>
-    *: "of"
+    *: "จาก"
   </voice>
 </phrase>
 <phrase>
@@ -12249,6 +13145,68 @@
   </dest>
   <voice>
     *: "ขนาดไฟล์"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_SOFTWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Headphones"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "หูฟัง"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "หูฟัง"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEYCLICK_HARDWARE
+  desc: in keyclick settings menu
+  user: core
+  <source>
+    *: none
+    hardware_click: "Speaker"
+  </source>
+  <dest>
+    *: none
+    hardware_click: "ลำโพง"
+  </dest>
+  <voice>
+    *: none
+    hardware_click: "ลำโพง"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_LIMIT
+  desc: in sound_settings
+  user: core
+  <source>
+    *: "Volume Limit"
+  </source>
+  <dest>
+    *: "จำกัดความดัง"
+  </dest>
+  <voice>
+    *: "จำกัดความดัง"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AFR
+  desc: in sound settings
+  user: core
+  <source>
+    *: "Auditory Fatigue Reduction"
+  </source>
+  <dest>
+    *: "ลดความล้าของหู"
+  </dest>
+  <voice>
+    *: "ลดความล้าของหู"
   </voice>
 </phrase>
 <phrase>
@@ -13092,6 +14050,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_PREPARING_SONGS
+  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  user: core
+  <source>
+    *: "Preparing Songs"
+  </source>
+  <dest>
+    *: "กำลังเตรียมเพลง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_NOT_ENOUGH_SPACE
   desc: the title of a screen under the boot logo, shown until a button is pressed, at each start or USB connection while the disk has too little free space for the library to be updated after a sync or a copy of songs
   user: core
@@ -13758,6 +14730,1644 @@
   </source>
   <dest>
     *: "การค้นหาจะแสดงเฉพาะตัวอักษรที่นำไปสู่ชื่อ จึงเจอเร็วขึ้น"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_HELP
+  desc: in the games' menus (Brick, Jewels, Minesweeper): the item that opens how to play, and the title of that screen
+  user: extras
+  <source>
+    *: "Help"
+  </source>
+  <dest>
+    *: "วิธีใช้"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_HIGH_SCORES
+  desc: in the games' menus, and the title centred above every game's table of best scores; at most about 25 letters
+  user: extras
+  <source>
+    *: "High Scores"
+  </source>
+  <dest>
+    *: "คะแนนสูงสุด"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_SCORE
+  desc: in every game's table of best scores: the heading of the points column; at most about 12 letters
+  user: extras
+  <source>
+    *: "Score"
+  </source>
+  <dest>
+    *: "คะแนน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_LEVEL
+  desc: the heading of the level column in the table of best scores, and in Jewels above the level number in a narrow side panel; about 6 letters at most, as Jewels leaves out a longer word and shows the number alone
+  user: extras
+  <source>
+    *: "Level"
+  </source>
+  <dest>
+    *: "ด่าน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_LEVEL_N
+  desc: a game's level, %d is its number: a message in Jewels when a new level starts, and in Brick under the bricks while the ball waits on the paddle
+  user: extras
+  <source>
+    *: "Level %d"
+  </source>
+  <dest>
+    *: "ด่าน %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_NEW_HIGH_SCORE
+  desc: a message when a game ends with the best score so far
+  user: extras
+  <source>
+    *: "New High Score"
+  </source>
+  <dest>
+    *: "คะแนนสูงสุดใหม่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_SAVING
+  desc: a message while a game is kept for later on quitting it
+  user: extras
+  <source>
+    *: "Saving game…"
+  </source>
+  <dest>
+    *: "กำลังบันทึกเกม…"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_OVER
+  desc: when a game ends: a message in Jewels when no move is left, and in Brick centred on the field when the last life is gone, where it may run to two lines
+  user: extras
+  <source>
+    *: "Game Over"
+  </source>
+  <dest>
+    *: "จบเกม"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_CONGRATULATIONS
+  desc: shown when the last level of a game is done, above "You have finished the game!"
+  user: extras
+  <source>
+    *: "Congratulations!"
+  </source>
+  <dest>
+    *: "ยินดีด้วย!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_FINISHED
+  desc: shown when the last level of a game is done, below "Congratulations!"; it may run to two lines
+  user: extras
+  <source>
+    *: "You have finished the game!"
+  </source>
+  <dest>
+    *: "คุณเล่นจบเกมแล้ว!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_YOU_WIN
+  desc: a message when a game is won, in Minesweeper when every square without a mine is open
+  user: extras
+  <source>
+    *: "You Win!"
+  </source>
+  <dest>
+    *: "คุณชนะ!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_YOU_LOSE
+  desc: a message when a game is lost, in Minesweeper when a mine is opened
+  user: extras
+  <source>
+    *: "You Lose!"
+  </source>
+  <dest>
+    *: "คุณแพ้!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_SAVE_FAILED
+  desc: a message when a game couldn't be kept for later on quitting it
+  user: extras
+  <source>
+    *: "Couldn't save the game"
+  </source>
+  <dest>
+    *: "บันทึกเกมไม่ได้"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_LOAD_FAILED
+  desc: a message when a game kept from last time can't be read, so a new one starts
+  user: extras
+  <source>
+    *: "Couldn't open the saved game"
+  </source>
+  <dest>
+    *: "เปิดเกมที่บันทึกไว้ไม่ได้"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_DIFFICULTY
+  desc: in a game's menu: the item, and the title of the setting, that chooses how hard the game is (in Brick: Easy or Normal)
+  user: extras
+  <source>
+    *: "Difficulty"
+  </source>
+  <dest>
+    *: "ความยาก"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_GAME_MODE
+  desc: in a game's menu: the item, and the title of the setting, that chooses the kind of game (in Jewels: Normal or Puzzle)
+  user: extras
+  <source>
+    *: "Mode"
+  </source>
+  <dest>
+    *: "โหมด"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_CONTINUE
+  desc: in Brick, centred in the field while the game is paused after its menu; Select is the iPod's centre button, keep its name as the iPod's own phrases call it; it may run to two lines
+  user: extras
+  <source>
+    *: "Press Select to continue"
+  </source>
+  <dest>
+    *: "กด Select เพื่อเล่นต่อ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_DELETE_SAVE
+  desc: in Brick's menu: removes the game kept from last time; one line of a menu
+  user: extras
+  <source>
+    *: "Delete Saved Game"
+  </source>
+  <dest>
+    *: "ลบเกมที่บันทึกไว้"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_BALL_LOST
+  desc: in Brick, a message when the ball slips off the screen by a fault of the game: the round starts over and no life is lost
+  user: extras
+  <source>
+    *: "The ball got lost. The round starts again, and you keep your lives."
+  </source>
+  <dest>
+    *: "ลูกบอลหายไป รอบนี้จะเริ่มใหม่ และคุณยังมีชีวิตเท่าเดิม"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_HELP_GOAL
+  desc: in Brick's help, the first paragraph: the aim of the game, and what the three numbers at the top of the screen mean
+  user: extras
+  <source>
+    *: "Break all the bricks with the ball, and catch it with the paddle each time it comes down, or you lose a life. Clear the wall to go on to the next level. At the top are your lives beside a ball, your score in the middle and the level on the right."
+  </source>
+  <dest>
+    *: "ใช้ลูกบอลทุบอิฐให้หมด และรับลูกด้วยไม้ตีทุกครั้งที่ลูกตกลงมา ไม่อย่างนั้นจะเสียหนึ่งชีวิต ทำลายกำแพงจนหมดเพื่อไปด่านถัดไป ด้านบนจะแสดงจำนวนชีวิตข้างรูปลูกบอล คะแนนตรงกลาง และด่านทางขวา"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_HELP_CONTROLS
+  desc: in Brick's help, the iPod's buttons: keep ◀ and ▶ as they are, and Select and Menu as the iPod's own phrases name those buttons
+  user: extras
+  <source>
+    *: "Turn the wheel, or hold ◀ or ▶, to move the paddle. Press Select to launch the ball, and to shoot once the paddle has guns. Press Menu to pause and see the menu."
+  </source>
+  <dest>
+    *: "หมุนวงล้อ หรือกด ◀ หรือ ▶ ค้างไว้ เพื่อเลื่อนไม้ตี กด Select เพื่อปล่อยลูกบอล และเพื่อยิงเมื่อไม้ตีมีปืน กด Menu เพื่อหยุดชั่วคราวและดูเมนู"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_HELP_CATCH
+  desc: in Brick's help, the good pieces that fall from broken bricks; keep the letters L, B, G, F, E and N as they are, they are drawn on the pieces
+  user: extras
+  <source>
+    *: "Catch the falling letters for their powers: L gives you a life, B another ball, G makes the ball stick to the paddle, F gives the paddle guns, E makes it longer, and N brings it back to normal."
+  </source>
+  <dest>
+    *: "รับตัวอักษรที่ตกลงมาเพื่อรับพลัง: L ให้ชีวิตเพิ่ม B ให้ลูกบอลอีกลูก G ทำให้ลูกบอลติดไม้ตี F ให้ไม้ตีมีปืน E ทำให้ไม้ตียาวขึ้น และ N ทำให้กลับเป็นปกติ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BRICK_HELP_AVOID
+  desc: in Brick's help, the bad pieces that fall from broken bricks; keep the letters D, S and FL and the signs ◀ and ▶ as they are, they are drawn on the pieces or are the iPod's buttons
+  user: extras
+  <source>
+    *: "Keep away from D, which costs a life, S, which makes the paddle shorter, and FL, which swaps ◀ and ▶ for ten seconds."
+  </source>
+  <dest>
+    *: "หลบ D ซึ่งทำให้เสียหนึ่งชีวิต S ซึ่งทำให้ไม้ตีสั้นลง และ FL ซึ่งสลับ ◀ กับ ▶ เป็นเวลาสิบวินาที"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS_PUZZLE
+  desc: in Jewels, a value of Mode beside Normal: ten set boards whose linked pieces must be joined, instead of play for points
+  user: extras
+  <source>
+    *: "Puzzle"
+  </source>
+  <dest>
+    *: "ปริศนา"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS_HELP_GOAL
+  desc: in Jewels' help, the first paragraph: how the game is played in Normal mode
+  user: extras
+  <source>
+    *: "Swap two jewels side by side so that three or more of a kind line up, and they vanish. Each match fills the bar on the right, and a full bar takes you to the next level. The game ends when no swap can make a match."
+  </source>
+  <dest>
+    *: "สลับอัญมณีสองเม็ดที่อยู่ติดกัน ให้ชนิดเดียวกันเรียงกันตั้งแต่สามเม็ดขึ้นไป แล้วอัญมณีเหล่านั้นจะหายไป การจับคู่แต่ละครั้งจะเติมแถบทางขวา และเมื่อแถบเต็มคุณจะไปด่านถัดไป เกมจบเมื่อไม่มีการสลับใดที่ทำให้จับคู่ได้"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS_HELP_PUZZLE
+  desc: in Jewels' help, the second paragraph: the aim of the Puzzle mode; Puzzle is the mode's name in the menu, as LANG_JEWELS_PUZZLE
+  user: extras
+  <source>
+    *: "In Puzzle, each of the ten boards has a few pieces with links. Swap and clear the jewels around them until every link meets the link of another piece."
+  </source>
+  <dest>
+    *: "ในโหมดปริศนา กระดานทั้งสิบแต่ละกระดานมีชิ้นที่มีจุดเชื่อมอยู่ไม่กี่ชิ้น สลับและเคลียร์อัญมณีรอบ ๆ จนจุดเชื่อมทุกจุดต่อกับจุดเชื่อมของอีกชิ้นหนึ่ง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_JEWELS_HELP_CONTROLS
+  desc: in Jewels' help, the iPod's buttons: keep ◀ and ▶ as they are, and Menu, Play and Select as the iPod's own phrases name those buttons
+  user: extras
+  <source>
+    *: "Turn the wheel to move through the board, or press ◀, ▶, Menu and Play to move left, right, up and down. Press Select on a jewel, then ◀, ▶, Menu or Play to swap it with its neighbour that way. Hold Select for the menu."
+  </source>
+  <dest>
+    *: "หมุนวงล้อเพื่อเลื่อนไปทั่วกระดาน หรือกด ◀ ▶ Menu และ Play เพื่อเลื่อนไปซ้าย ขวา ขึ้น และลง กด Select บนอัญมณี แล้วกด ◀ ▶ Menu หรือ Play เพื่อสลับกับเม็ดข้างเคียงในทิศนั้น กด Select ค้างไว้เพื่อเปิดเมนู"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_MINES
+  desc: in Minesweeper's menu: the item, and the title of the setting, for how many of the field's squares hide a mine, given in %
+  user: extras
+  <source>
+    *: "Mines"
+  </source>
+  <dest>
+    *: "ทุ่นระเบิด"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_ROWS
+  desc: in Minesweeper's menu: the item, and the title of the setting, for the field's height in squares
+  user: extras
+  <source>
+    *: "Rows"
+  </source>
+  <dest>
+    *: "แถว"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_COLUMNS
+  desc: in Minesweeper's menu: the item, and the title of the setting, for the field's width in squares
+  user: extras
+  <source>
+    *: "Columns"
+  </source>
+  <dest>
+    *: "คอลัมน์"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_FLAGS_MINES
+  desc: in Minesweeper, a message on Select and Play together: the first %d is how many squares you have flagged, the second how many mines the field has; one form for any number, no plurals
+  user: extras
+  <source>
+    *: "Flags: %d, mines: %d"
+  </source>
+  <dest>
+    *: "ธง: %d, ทุ่นระเบิด: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_HELP_GOAL
+  desc: in Minesweeper's help, the first paragraph: the aim of the game
+  user: extras
+  <source>
+    *: "Open every square that hides no mine. A number on a square tells how many mines touch it, and the first square you open is never a mine."
+  </source>
+  <dest>
+    *: "เปิดทุกช่องที่ไม่มีทุ่นระเบิดซ่อนอยู่ ตัวเลขบนช่องบอกว่ามีทุ่นระเบิดอยู่รอบช่องนั้นกี่ลูก และช่องแรกที่คุณเปิดจะไม่มีทุ่นระเบิดแน่นอน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_HELP_MOVE
+  desc: in Minesweeper's help, moving the cursor with the iPod's buttons: keep ◀ and ▶ as they are, and Menu and Play as the iPod's own phrases name those buttons
+  user: extras
+  <source>
+    *: "Turn the wheel to go through the field square by square, or press ◀, ▶, Menu and Play to move left, right, up and down."
+  </source>
+  <dest>
+    *: "หมุนวงล้อเพื่อเลื่อนไปทีละช่อง หรือกด ◀ ▶ Menu และ Play เพื่อเลื่อนไปซ้าย ขวา ขึ้น และลง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_HELP_SELECT
+  desc: in Minesweeper's help: a short press of the iPod's centre button flags a square, holding it opens the square; Select as the iPod's own phrases name that button
+  user: extras
+  <source>
+    *: "Press Select to put a flag on a square you think hides a mine, and again to take it off. Hold Select to open the square."
+  </source>
+  <dest>
+    *: "กด Select เพื่อปักธงบนช่องที่คิดว่ามีทุ่นระเบิด และกดอีกครั้งเพื่อเอาธงออก กด Select ค้างไว้เพื่อเปิดช่อง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MINESWEEPER_HELP_MORE
+  desc: in Minesweeper's help, the last paragraph: the counts shown by Select and Play pressed together, leaving the game with Select and Menu together, and the field shown after a game
+  user: extras
+  <source>
+    *: "Once a square is open, press Select and Play together to see how many flags you've placed and how many mines there are. Press Select and Menu together to leave Minesweeper. When a game ends, the whole field shows; press any button to go back to the menu."
+  </source>
+  <dest>
+    *: "เมื่อเปิดช่องแล้ว กด Select พร้อมกับ Play เพื่อดูว่าปักธงไปกี่ช่องและมีทุ่นระเบิดกี่ลูก กด Select พร้อมกับ Menu เพื่อออกจากเกมเก็บกู้ระเบิด เมื่อเกมจบ จะแสดงทั้งสนาม กดปุ่มใดก็ได้เพื่อกลับไปที่เมนู"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_DRAW_CARDS
+  desc: in Solitaire's menu before a game starts, the row and the title of the choice of how many cards Menu turns over from the deck at once
+  user: extras
+  <source>
+    *: "Draw Cards"
+  </source>
+  <dest>
+    *: "จั่วไพ่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_DRAW_ONE
+  desc: in Solitaire, a choice of Draw Cards: Menu turns over one card from the deck at once
+  user: extras
+  <source>
+    *: "One at a Time"
+  </source>
+  <dest>
+    *: "ทีละใบ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_DRAW_THREE
+  desc: in Solitaire, a choice of Draw Cards: Menu turns over three cards from the deck at once, of which only the top one can be played
+  user: extras
+  <source>
+    *: "Three at a Time"
+  </source>
+  <dest>
+    *: "ทีละสามใบ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_RESUMING
+  desc: in Solitaire, a message for a second as it opens straight on the game left with Quit last time, rather than on its menu
+  user: extras
+  <source>
+    *: "Resuming game…"
+  </source>
+  <dest>
+    *: "กำลังเล่นเกมต่อ…"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_HELP_AIM
+  desc: in Solitaire's Help, the first paragraph: the aim and the rules. Menu is the iPod's Menu button, named as the iPod's manual in your language names it
+  user: extras
+  <source>
+    *: "Move all the cards onto the four piles at the top right, each by suit from ace to king. In the seven columns, put each card on one a rank higher and of the other colour; only a king goes into an empty column. Menu turns over cards from the deck at the top left, one or three at a time as set in Draw Cards."
+  </source>
+  <dest>
+    *: "ย้ายไพ่ทั้งหมดไปไว้ที่สี่กองด้านบนขวา แต่ละกองเรียงตามดอกจาก A ถึง K ในเจ็ดคอลัมน์ ให้วางไพ่แต่ละใบบนไพ่ที่สูงกว่าหนึ่งแต้มและต่างสี มีเพียง K เท่านั้นที่วางในคอลัมน์ว่างได้ Menu จะเปิดไพ่จากสำรับด้านบนซ้ายทีละหนึ่งหรือสามใบ ตามที่ตั้งไว้ใน จั่วไพ่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_HELP_MOVE
+  desc: in Solitaire's Help, the second paragraph: moving the cursor. ◀ and ▶ are the iPod's Previous and Next buttons, kept as these signs; the wheel is the click wheel
+  user: extras
+  <source>
+    *: "◀ and ▶ move between the columns; past the first or the last one, they go to the turned card beside the deck. The wheel moves up and down a column, and along the top row between the turned card and the four piles."
+  </source>
+  <dest>
+    *: "◀ และ ▶ เลื่อนไปมาระหว่างคอลัมน์ ถ้าเลยคอลัมน์แรกหรือคอลัมน์สุดท้าย จะไปที่ไพ่ที่เปิดอยู่ข้างสำรับ วงล้อเลื่อนขึ้นลงในคอลัมน์ และเลื่อนไปตามแถวบนระหว่างไพ่ที่เปิดอยู่กับสี่กอง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_HELP_SELECT
+  desc: in Solitaire's Help, the third paragraph: moving cards. Select and Menu are the iPod's buttons of those names, as the iPod's manual in your language names them
+  user: extras
+  <source>
+    *: "Select picks up the card under the cursor. Select on another column or pile moves it there with the cards on it, or puts it back if it can't go there. Select on the same card again sends it to its pile if it fits. Menu also puts back a card picked up."
+  </source>
+  <dest>
+    *: "Select หยิบไพ่ใต้เคอร์เซอร์ขึ้นมา Select บนคอลัมน์หรือกองอื่นจะย้ายไพ่ไปที่นั่นพร้อมไพ่ที่ทับอยู่ หรือวางคืนที่เดิมถ้าไปที่นั่นไม่ได้ Select บนไพ่ใบเดิมอีกครั้งจะส่งไพ่ไปที่กองของมันถ้าวางได้ Menu ก็วางไพ่ที่หยิบขึ้นมาคืนได้เช่นกัน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOLITAIRE_HELP_SHORTCUTS
+  desc: in Solitaire's Help, the last paragraph: the buttons held. Play, Menu and Select are the iPod's buttons, ▶ its Next button kept as this sign; the turned card is the face-up card beside the deck at the top left
+  user: extras
+  <source>
+    *: "Play puts the turned card where the cursor is. Hold ▶ to send the turned card to its pile, or hold Menu to send the card under the cursor to its pile. Hold Select for the menu."
+  </source>
+  <dest>
+    *: "Play วางไพ่ที่เปิดอยู่ตรงตำแหน่งเคอร์เซอร์ กด ▶ ค้างไว้เพื่อส่งไพ่ที่เปิดอยู่ไปที่กองของมัน หรือกด Menu ค้างไว้เพื่อส่งไพ่ใต้เคอร์เซอร์ไปที่กองของมัน กด Select ค้างไว้เพื่อเปิดเมนู"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_DEALER
+  desc: in Blackjack, at the top left of the table above the dealer's cards, on one row with the money; left out if they don't both fit, so at most 12 letters
+  user: extras
+  <source>
+    *: "Dealer"
+  </source>
+  <dest>
+    *: "เจ้ามือ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_PLAYER
+  desc: in Blackjack, at the left just below the line across the table, above your cards, on one row with the total; left out if they don't both fit, so at most 12 letters
+  user: extras
+  <source>
+    *: "Player"
+  </source>
+  <dest>
+    *: "ผู้เล่น"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_MONEY
+  desc: in Blackjack, at the top right of the table before the money you have besides your bet, like $990; at most 12 letters
+  user: extras
+  <source>
+    *: "Money"
+  </source>
+  <dest>
+    *: "เงิน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_BET
+  desc: in Blackjack, at the bottom right of the table before the money staked on this hand, like $10; at most 12 letters
+  user: extras
+  <source>
+    *: "Bet"
+  </source>
+  <dest>
+    *: "เดิมพัน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_TOTAL
+  desc: in Blackjack, at the right just below the line across the table, before the points your cards add up to, like 18; at most 12 letters
+  user: extras
+  <source>
+    *: "Total"
+  </source>
+  <dest>
+    *: "รวม"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_BUST
+  desc: in Blackjack, the result of a hand, centred on the table: your cards went over 21, so the bet is lost; at most 24 letters
+  user: extras
+  <source>
+    *: "Bust!"
+  </source>
+  <dest>
+    *: "แต้มเกิน!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_PUSH
+  desc: in Blackjack, the result of a hand, centred on the table: a tie with the dealer, so you get your bet back; at most 24 letters
+  user: extras
+  <source>
+    *: "Push"
+  </source>
+  <dest>
+    *: "เสมอ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_GOT_BLACKJACK
+  desc: in Blackjack, the result of a hand, centred on the table: 21 with your first two cards, which pays 3 to 2; at most 24 letters
+  user: extras
+  <source>
+    *: "Blackjack!"
+  </source>
+  <dest>
+    *: "แบล็คแจ็ค!"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HAND_RESULT
+  desc: in Blackjack, after a split into two hands, the result of each in turn, centred on the table: %d is 1 or 2, %s the result, like You Win! or Bust!; at most 10 letters besides the result
+  user: extras
+  <source>
+    *: "Hand %d: %s"
+  </source>
+  <dest>
+    *: "มือ %d: %s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_DEALER_HAS_IT
+  desc: in Blackjack, a message after the question about insurance: the dealer's two cards make 21, so an insurance bought pays 2 to 1
+  user: extras
+  <source>
+    *: "Dealer has blackjack"
+  </source>
+  <dest>
+    *: "เจ้ามือได้แบล็คแจ็ค"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_DEALER_HASNT_IT
+  desc: in Blackjack, a message after the question about insurance: the dealer's two cards don't make 21, so an insurance bought is lost and the hand goes on
+  user: extras
+  <source>
+    *: "Dealer doesn't have blackjack"
+  </source>
+  <dest>
+    *: "เจ้ามือไม่ได้แบล็คแจ็ค"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_NO_MONEY_SPLIT
+  desc: in Blackjack, a message when your first two cards are of the same rank but the money left can't stake a second bet on a second hand
+  user: extras
+  <source>
+    *: "Not enough money to split"
+  </source>
+  <dest>
+    *: "เงินไม่พอที่จะแยกมือ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_NO_MONEY_DOUBLE
+  desc: in Blackjack, a message when ◀ asks to double the bet for one last card but the money left can't cover it
+  user: extras
+  <source>
+    *: "Not enough money to double down"
+  </source>
+  <dest>
+    *: "เงินไม่พอที่จะดับเบิล"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_NO_MONEY_LEFT
+  desc: in Blackjack, a message when less than the smallest bet, $10, is left, so the game is over
+  user: extras
+  <source>
+    *: "Not enough money to continue"
+  </source>
+  <dest>
+    *: "เงินไม่พอที่จะเล่นต่อ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_SPLIT_Q
+  desc: in Blackjack, a question in a box at the bottom of the table when your first two cards are of the same rank: make them two hands, each with a bet? Yes or No follows it in the box; at most 24 letters
+  user: extras
+  <source>
+    *: "Split?"
+  </source>
+  <dest>
+    *: "แยกมือหรือไม่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_INSURANCE_Q
+  desc: in Blackjack, a question in a box at the bottom of the table when the dealer's card shown is an ace: bet up to half your bet that the dealer has blackjack? Yes or No follows it in the box; at most 24 letters
+  user: extras
+  <source>
+    *: "Buy insurance?"
+  </source>
+  <dest>
+    *: "ซื้อประกันหรือไม่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_PLAY_AGAIN
+  desc: in Blackjack, a question in a box at the bottom of the table after a hand's result: deal another hand? Yes or No follows it in the box; at most 24 letters
+  user: extras
+  <source>
+    *: "Play again?"
+  </source>
+  <dest>
+    *: "เล่นอีกครั้งหรือไม่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_PLACE_BET
+  desc: in Blackjack, the first line of the box before each hand where you set your bet, above the amount, like $10; at most 26 letters
+  user: extras
+  <source>
+    *: "Place your bet"
+  </source>
+  <dest>
+    *: "วางเดิมพัน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HOW_MUCH
+  desc: in Blackjack, the first line of the box where you set how much insurance to buy, above the amount; at most 26 letters
+  user: extras
+  <source>
+    *: "How much?"
+  </source>
+  <dest>
+    *: "เท่าไร"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_WHEEL
+  desc: in Blackjack's box for a bet, a line of its own before ±10: turning the click wheel changes the bet by 10, as the lines ▶ +1 and ◀ −1 above it tell of those buttons; at most 16 letters
+  user: extras
+  <source>
+    *: "Wheel"
+  </source>
+  <dest>
+    *: "วงล้อ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HELP_AIM
+  desc: in Blackjack's Help, the first paragraph: the aim and the rules; J, Q and K are the jack, queen and king, written as the cards in your language mark them
+  user: extras
+  <source>
+    *: "Get closer to 21 than the dealer without going over. Cards count as their number, J, Q and K as 10, and an ace as 1 or 11. The dealer takes cards until reaching 17 or more. A win pays your bet, and a blackjack, 21 with your first two cards, pays 3 to 2."
+  </source>
+  <dest>
+    *: "ทำแต้มให้ใกล้ 21 มากกว่าเจ้ามือโดยไม่เกิน ไพ่มีแต้มตามตัวเลข J Q และ K นับเป็น 10 และ A นับเป็น 1 หรือ 11 เจ้ามือจะจั่วไพ่จนได้ 17 ขึ้นไป ถ้าชนะจะได้เงินเท่าเดิมพัน และแบล็คแจ็ค คือได้ 21 จากไพ่สองใบแรก จ่าย 3 ต่อ 2"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HELP_KEYS
+  desc: in Blackjack's Help, the second paragraph: the buttons during a hand. Select and Menu are the iPod's buttons, ◀ and ▶ its Previous and Next buttons kept as these signs; Resume Game as that row of the game's menu is translated
+  user: extras
+  <source>
+    *: "Select takes another card, and ▶ stands. ◀ doubles down on your first two cards: your bet doubles, and you take one more card only. Menu leaves the hand for the menu, and Resume Game goes back to it."
+  </source>
+  <dest>
+    *: "Select จั่วไพ่อีกใบ และ ▶ หยุดจั่ว ◀ ดับเบิลด้วยไพ่สองใบแรก: เดิมพันจะเพิ่มเป็นสองเท่า และคุณจะได้ไพ่อีกเพียงใบเดียว Menu ออกจากมือนี้ไปที่เมนู และ เล่นเกมต่อ จะกลับมาที่มือนี้"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HELP_BET
+  desc: in Blackjack's Help, the third paragraph: the bet. ◀ and ▶ are the iPod's Previous and Next buttons kept as these signs, the wheel its click wheel, Select and Menu its buttons; the amounts are dollars
+  user: extras
+  <source>
+    *: "Before each hand, set your bet: ◀ and ▶ change it by 1, the wheel by 10, and Select deals. Menu ends the game. You start with $1000, and the game is over when less than $10 is left."
+  </source>
+  <dest>
+    *: "ก่อนแต่ละมือ ให้ตั้งเดิมพัน: ◀ และ ▶ ปรับทีละ 1 วงล้อปรับทีละ 10 และ Select แจกไพ่ Menu จบเกม คุณเริ่มด้วยเงิน $1000 และเกมจะจบเมื่อเหลือเงินน้อยกว่า $10"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BLACKJACK_HELP_QUESTIONS
+  desc: in Blackjack's Help, the last paragraph: insurance, splitting and answering the questions the game asks. ◀ and ▶ are the iPod's Previous and Next buttons kept as these signs; Yes and No as the answers are translated
+  user: extras
+  <source>
+    *: "When the dealer shows an ace, you can buy insurance for up to half your bet; it pays 2 to 1 if the dealer has blackjack. Two cards of the same rank can be split into two hands, each with your bet. In a question, ◀ and ▶ choose Yes or No, Select answers, and Menu answers No."
+  </source>
+  <dest>
+    *: "เมื่อเจ้ามือเปิด A คุณซื้อประกันได้สูงสุดครึ่งหนึ่งของเดิมพัน ซึ่งจ่าย 2 ต่อ 1 ถ้าเจ้ามือได้แบล็คแจ็ค ไพ่สองใบที่มีแต้มเท่ากันแยกเป็นสองมือได้ แต่ละมือใช้เดิมพันเท่าเดิม เมื่อเกมถาม ◀ และ ▶ เลือก ใช่ หรือ ไม่ใช่ Select ตอบ และ Menu ตอบ ไม่ใช่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_EVENTS
+  desc: in Calendar, the title of the list of a day's events, which Select opens on a day that has any
+  user: extras
+  <source>
+    *: "Events"
+  </source>
+  <dest>
+    *: "กิจกรรม"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_EVENT_ADDED
+  desc: in Calendar, a message once a new event's text is typed and kept
+  user: extras
+  <source>
+    *: "Event Added"
+  </source>
+  <dest>
+    *: "เพิ่มกิจกรรมแล้ว"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_EVENT_NOT_ADDED
+  desc: in Calendar, a message when typing a new event is cancelled or left empty, or it couldn't be kept
+  user: extras
+  <source>
+    *: "Event Not Added"
+  </source>
+  <dest>
+    *: "ไม่ได้เพิ่มกิจกรรม"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_NEW_WEEKLY
+  desc: in Calendar, a row of a day's menu: type in an event that comes back every week on this weekday
+  user: extras
+  <source>
+    *: "New Weekly Event"
+  </source>
+  <dest>
+    *: "กิจกรรมใหม่ทุกสัปดาห์"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_NEW_MONTHLY
+  desc: in Calendar, a row of a day's menu: type in an event that comes back every month on this day of the month
+  user: extras
+  <source>
+    *: "New Monthly Event"
+  </source>
+  <dest>
+    *: "กิจกรรมใหม่ทุกเดือน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_NEW_YEARLY
+  desc: in Calendar, a row of a day's menu: type in an event that comes back every year on this date, such as a birthday
+  user: extras
+  <source>
+    *: "New Yearly Event"
+  </source>
+  <dest>
+    *: "กิจกรรมใหม่ทุกปี"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_NEW_ONE_TIME
+  desc: in Calendar, a row of a day's menu: type in an event for this date only
+  user: extras
+  <source>
+    *: "New One-Time Event"
+  </source>
+  <dest>
+    *: "กิจกรรมใหม่ครั้งเดียว"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_FIRST_DAY_OF_WEEK
+  desc: in Calendar, a row of a day's menu and the title of its choice: the weekday the calendar's columns start with
+  user: extras
+  <source>
+    *: "First Day of Week"
+  </source>
+  <dest>
+    *: "วันแรกของสัปดาห์"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CALENDAR_EVENT_YEARS
+  desc: in Calendar's list of a day's events, a yearly event: %s is its text, %d how many years since the year it was set on (an age or anniversary); keep a form that reads right with any number, as 'years: %d' does, and %s before %d
+  user: extras
+  <source>
+    *: "%s (years: %d)"
+  </source>
+  <dest>
+    *: "%s (ปี: %d)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_ANALOG
+  desc: in Clock, a mode: a round face with hands; also the row of its settings and their title
+  user: extras
+  <source>
+    *: "Analog"
+  </source>
+  <dest>
+    *: "อนาล็อก"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_DIGITAL
+  desc: in Clock, a mode: the time in big digits; also the row of its settings and their title
+  user: extras
+  <source>
+    *: "Digital"
+  </source>
+  <dest>
+    *: "ดิจิทัล"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_BINARY
+  desc: in Clock, a mode: the hours, minutes and seconds as rows of lit and unlit dots, binary digits
+  user: extras
+  <source>
+    *: "Binary"
+  </source>
+  <dest>
+    *: "ไบนารี"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SHOW_DATE
+  desc: in Clock's Analog settings: whether the date shows in digits in the lower corner, beside the face
+  user: extras
+  <source>
+    *: "Show Date"
+  </source>
+  <dest>
+    *: "แสดงวันที่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SHOW_SECOND_HAND
+  desc: in Clock's Analog settings: whether the face has a hand for the seconds
+  user: extras
+  <source>
+    *: "Show Second Hand"
+  </source>
+  <dest>
+    *: "แสดงเข็มวินาที"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SHOW_HOUR_MARKS
+  desc: in Clock's Analog settings: whether small squares mark the 12 hours around the face
+  user: extras
+  <source>
+    *: "Show Hour Marks"
+  </source>
+  <dest>
+    *: "แสดงขีดชั่วโมง"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SHOW_SECONDS
+  desc: in Clock's Digital settings: whether the seconds show in big digits under the hours and minutes
+  user: extras
+  <source>
+    *: "Show Seconds"
+  </source>
+  <dest>
+    *: "แสดงวินาที"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_BLINKING_COLON
+  desc: in Clock's Digital settings: whether the colon between the hours and the minutes blinks every second
+  user: extras
+  <source>
+    *: "Blinking Colon"
+  </source>
+  <dest>
+    *: "โคลอนกะพริบ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_DATE_FORMAT
+  desc: in Clock's settings: the order of the day, the month and the year in the date it shows in digits, or no date
+  user: extras
+  <source>
+    *: "Date Format"
+  </source>
+  <dest>
+    *: "รูปแบบวันที่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_NO_DATE
+  desc: a value of Date Format in Clock: the clock shows no date
+  user: extras
+  <source>
+    *: "No Date"
+  </source>
+  <dest>
+    *: "ไม่แสดงวันที่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_MONTH_DAY_YEAR
+  desc: a value of Date Format in Clock: the date in digits with the month first, as 11/07/2026
+  user: extras
+  <source>
+    *: "Month/Day/Year"
+  </source>
+  <dest>
+    *: "เดือน/วัน/ปี"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_DAY_MONTH_YEAR
+  desc: a value of Date Format in Clock: the date in digits with the day first, as 07/11/2026
+  user: extras
+  <source>
+    *: "Day/Month/Year"
+  </source>
+  <dest>
+    *: "วัน/เดือน/ปี"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_YEAR_MONTH_DAY
+  desc: a value of Date Format in Clock: the date in digits with the year first, as 2026/11/07
+  user: extras
+  <source>
+    *: "Year/Month/Day"
+  </source>
+  <dest>
+    *: "ปี/เดือน/วัน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_ALWAYS_OFF
+  desc: a value of Backlight in Clock's settings, beside Always On: the screen's light stays off while the clock shows
+  user: extras
+  <source>
+    *: "Always Off"
+  </source>
+  <dest>
+    *: "ปิดตลอด"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_USE_SYSTEM_SETTING
+  desc: a value of Backlight in Clock's settings: the light goes off after the time set in the iPod's own Settings
+  user: extras
+  <source>
+    *: "Use System Setting"
+  </source>
+  <dest>
+    *: "ใช้การตั้งค่าระบบ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLOCK_SAVE_ON_EXIT
+  desc: in Clock's settings, Yes or No: whether the clock keeps its mode and settings for next time as you leave it
+  user: extras
+  <source>
+    *: "Save on Exit"
+  </source>
+  <dest>
+    *: "บันทึกเมื่อออก"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ROCKBLOX
+  desc: a game's name in Extras > Games and atop its own menu (a falling-blocks game); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Rockblox"
+  </source>
+  <dest>
+    *: "Rockblox"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_2048
+  desc: a game's name in Extras > Games and atop its own menu (slide tiles to add them up to 2048); a translator may keep it as it is
+  user: core
+  <source>
+    *: "2048"
+  </source>
+  <dest>
+    *: "2048"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU
+  desc: a game's name in Extras > Games and atop its own menu; a translator may keep it as it is
+  user: core
+  <source>
+    *: "Sudoku"
+  </source>
+  <dest>
+    *: "ซูโดกุ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOKOBAN
+  desc: a game's name in Extras > Games and atop its own menu (push boxes onto their places); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Sokoban"
+  </source>
+  <dest>
+    *: "โซโคบัน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI
+  desc: a game's name in Extras > Games and atop its own menu (the board game also called Othello); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Reversi"
+  </source>
+  <dest>
+    *: "รีเวอร์ซี"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SPACEROCKS
+  desc: a game's name in Extras > Games and atop its own menu (shoot the asteroids from a small ship); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Space Rocks"
+  </source>
+  <dest>
+    *: "Space Rocks"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BUBBLES
+  desc: a game's name in Extras > Games and atop its own menu (shoot coloured bubbles to pop groups of three); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Bubbles"
+  </source>
+  <dest>
+    *: "บับเบิล"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_CLIX
+  desc: a game's name in Extras > Games and atop its own menu (clear groups of same-coloured blocks); a translator may keep it as it is
+  user: core
+  <source>
+    *: "Clix"
+  </source>
+  <dest>
+    *: "Clix"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_2048_GAME_LOST
+  desc: in 2048, the second line under "Are You Sure?" before a new game or quitting without saving: the game in progress is thrown away
+  user: extras
+  <source>
+    *: "Your current game will be lost."
+  </source>
+  <dest>
+    *: "เกมที่เล่นอยู่จะหายไป"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_COLOURED_NUMBERS
+  desc: in Sudoku's menu, a setting On or Off: the digits on the board are drawn in colours instead of black
+  user: extras
+  <source>
+    *: "Coloured Numbers"
+  </source>
+  <dest>
+    *: "ตัวเลขสี"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_SHOW_MARKINGS
+  desc: in Sudoku's menu, a setting On or Off: shows the small pencil marks of the digits that might go in a cell, which Play puts there
+  user: extras
+  <source>
+    *: "Show Markings"
+  </source>
+  <dest>
+    *: "แสดงเครื่องหมาย"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_REVERT
+  desc: in Sudoku's menu: puts the board back as it was when last saved
+  user: extras
+  <source>
+    *: "Revert to Saved"
+  </source>
+  <dest>
+    *: "กลับไปที่บันทึกไว้"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_START_OVER
+  desc: in Sudoku's menu: clears the digits the player entered and keeps the puzzle's own
+  user: extras
+  <source>
+    *: "Start Over"
+  </source>
+  <dest>
+    *: "เริ่มต้นใหม่"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_ENTER_PUZZLE
+  desc: in Sudoku's menu: opens an empty board to set a puzzle's given digits by hand, as one from a newspaper
+  user: extras
+  <source>
+    *: "Enter a Puzzle"
+  </source>
+  <dest>
+    *: "ป้อนโจทย์"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SUDOKU_SAVE_AS
+  desc: in Sudoku's Edit menu, while entering a puzzle by hand: saves it under a name typed with the keyboard
+  user: extras
+  <source>
+    *: "Save As"
+  </source>
+  <dest>
+    *: "บันทึกเป็น"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOKOBAN_DEFAULT_LEVELS
+  desc: in Sokoban's menu: loads the levels that come with the game and starts again from the first
+  user: extras
+  <source>
+    *: "Load Default Levels"
+  </source>
+  <dest>
+    *: "โหลดด่านเริ่มต้น"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_PASS
+  desc: in Reversi's menu: gives the turn to the other side without placing a disc
+  user: extras
+  <source>
+    *: "Pass"
+  </source>
+  <dest>
+    *: "ผ่าน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_BLACK_PLAYER
+  desc: in Reversi's menu and atop its choices: who plays the black discs, a human or the iPod
+  user: extras
+  <source>
+    *: "Black Player"
+  </source>
+  <dest>
+    *: "ผู้เล่นฝ่ายดำ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_WHITE_PLAYER
+  desc: in Reversi's menu and atop its choices: who plays the white discs, a human or the iPod
+  user: extras
+  <source>
+    *: "White Player"
+  </source>
+  <dest>
+    *: "ผู้เล่นฝ่ายขาว"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_HUMAN
+  desc: in Reversi, a choice for Black Player and White Player: a person plays that side with the buttons
+  user: extras
+  <source>
+    *: "Human"
+  </source>
+  <dest>
+    *: "คน"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_COMPUTER_EASY
+  desc: in Reversi, a choice for Black Player and White Player: the iPod plays that side with random moves
+  user: extras
+  <source>
+    *: "Computer (Easy)"
+  </source>
+  <dest>
+    *: "คอมพิวเตอร์ (ง่าย)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_COMPUTER_MEDIUM
+  desc: in Reversi, a choice for Black Player and White Player: the iPod plays that side and looks for its best move
+  user: extras
+  <source>
+    *: "Computer (Medium)"
+  </source>
+  <dest>
+    *: "คอมพิวเตอร์ (ปานกลาง)"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_CURSOR_WRAP
+  desc: in Reversi's menu and atop its choices: where the cursor goes when moved past the board's edge; the choices are Off, Same Line and Next Line
+  user: extras
+  <source>
+    *: "Cursor Wrap"
+  </source>
+  <dest>
+    *: "เคอร์เซอร์วนรอบ"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_WRAP_SAME_LINE
+  desc: in Reversi, a choice for Cursor Wrap: past the edge the cursor comes back at the other end of the same row or column
+  user: extras
+  <source>
+    *: "Same Line"
+  </source>
+  <dest>
+    *: "บรรทัดเดิม"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REVERSI_WRAP_NEXT_LINE
+  desc: in Reversi, a choice for Cursor Wrap: past the edge the cursor goes on to the start of the next row or column
+  user: extras
+  <source>
+    *: "Next Line"
+  </source>
+  <dest>
+    *: "บรรทัดถัดไป"
   </dest>
   <voice>
     *: ""
@@ -14639,7 +17249,7 @@
     *: "No Genres"
   </source>
   <dest>
-    *: "ไม่มีแนวเพลง"
+    *: "ไม่มีประเภท"
   </dest>
   <voice>
     *: ""
@@ -14667,7 +17277,7 @@
     *: "No Podcasts"
   </source>
   <dest>
-    *: "ไม่มีพอดแคสต์"
+    *: "ไม่มีพ็อดคาสท์"
   </dest>
   <voice>
     *: ""
@@ -14709,7 +17319,7 @@
     *: "Podcast Speed"
   </source>
   <dest>
-    *: "ความเร็วพอดแคสต์"
+    *: "ความเร็วพ็อดคาสท์"
   </dest>
   <voice>
     *: ""
@@ -14737,7 +17347,7 @@
     *: "How fast podcasts play. Voices keep their natural pitch."
   </source>
   <dest>
-    *: "ความเร็วในการเล่นพอดแคสต์ เสียงพูดคงระดับเสียงเดิม"
+    *: "ความเร็วในการเล่นพ็อดคาสท์ เสียงพูดคงระดับเสียงเดิม"
   </dest>
   <voice>
     *: ""

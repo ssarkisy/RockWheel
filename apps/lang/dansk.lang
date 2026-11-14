@@ -826,10 +826,10 @@
     *: "View Current Playlist"
   </source>
   <dest>
-    *: "Vis nuværende sætliste"
+    *: "Vis nuværende playliste"
   </dest>
   <voice>
-    *: "Vis nuværende sætliste"
+    *: "Vis nuværende playliste"
   </voice>
 </phrase>
 <phrase>
@@ -5868,10 +5868,10 @@
     *: "Playlist control file is invalid"
   </source>
   <dest>
-    *: "Sætliste kontrol fil er ugyldig"
+    *: "Playliste kontrol fil er ugyldig"
   </dest>
   <voice>
-    *: "Sætliste kontrol fil er ugyldig"
+    *: "Playliste kontrol fil er ugyldig"
   </voice>
 </phrase>
 <phrase>
@@ -6626,7 +6626,7 @@
     *: "Erase dynamic playlist?"
   </source>
   <dest>
-    *: "Slet dynamisk sætliste?"
+    *: "Slet dynamisk playliste?"
   </dest>
   <voice>
     *: "Vil du slette dynamisk sætliste?"
@@ -6902,10 +6902,10 @@
     *: "Search in Playlist"
   </source>
   <dest>
-    *: "Søg i sætliste"
+    *: "Søg i playliste"
   </dest>
   <voice>
-    *: "Søg i sætliste"
+    *: "Søg i playliste"
   </voice>
 </phrase>
 <phrase>
@@ -7608,10 +7608,10 @@
     *: "Add to New Playlist"
   </source>
   <dest>
-    *: "Tilføj til ny sætliste"
+    *: "Tilføj til ny playliste"
   </dest>
   <voice>
-    *: "Tilføj til ny sætliste"
+    *: "Tilføj til ny playliste"
   </voice>
 </phrase>
 <phrase>
@@ -7715,10 +7715,10 @@
     *: "No Playlists"
   </source>
   <dest>
-    *: "Ingen sætlister"
+    *: "Ingen playlister"
   </dest>
   <voice>
-    *: "Ingen sætlister"
+    *: "Ingen playlister"
   </voice>
 </phrase>
 <phrase>
@@ -9466,11 +9466,11 @@
     archosplayer: "End of List"
   </source>
   <dest>
-    *: "Slut på sætliste"
+    *: "Slut på playliste"
     archosplayer: "Liste slut"
   </dest>
   <voice>
-    *: "Slut på sætliste"
+    *: "Slut på playliste"
   </voice>
 </phrase>
 <phrase>
@@ -9706,10 +9706,10 @@
     *: "Playlists"
   </source>
   <dest>
-    *: "Sætlister"
+    *: "Playlister"
   </dest>
   <voice>
-    *: "Sætlister"
+    *: "Playlister"
   </voice>
 </phrase>
 <phrase>
@@ -12304,10 +12304,10 @@
     *: "Current Playlist"
   </source>
   <dest>
-    *: "Nuværende sætliste"
+    *: "Nuværende playliste"
   </dest>
   <voice>
-    *: "Nuværende sætliste"
+    *: "Nuværende playliste"
   </voice>
 </phrase>
 <phrase>
@@ -14265,10 +14265,10 @@
     *: "Add to Playlist..."
   </source>
   <dest>
-    *: "Føj til sætliste..."
+    *: "Føj til playliste..."
   </dest>
   <voice>
-    *: "Føj til sætliste..."
+    *: "Føj til playliste..."
   </voice>
 </phrase>
 <phrase>
@@ -14279,10 +14279,10 @@
     *: "Add to Existing Playlist"
   </source>
   <dest>
-    *: "Til eksisterende sætliste"
+    *: "Til eksisterende playliste"
   </dest>
   <voice>
-    *: "Til eksisterende sætliste"
+    *: "Til eksisterende playliste"
   </voice>
 </phrase>
 <phrase>
@@ -14489,10 +14489,10 @@
     *: "Playlist finished. Play again?"
   </source>
   <dest>
-    *: "Sætliste slut. Afspil igen?"
+    *: "Playliste slut. Afspil igen?"
   </dest>
   <voice>
-    *: "Sætliste slut. Afspil igen?"
+    *: "Playliste slut. Afspil igen?"
   </voice>
 </phrase>
 <phrase>
@@ -15343,7 +15343,7 @@
     *: "Clear Playlist"
   </source>
   <dest>
-    *: "Ryd sætliste"
+    *: "Ryd playliste"
   </dest>
   <voice>
     *: ""
@@ -15357,7 +15357,7 @@
     *: "New Playlist"
   </source>
   <dest>
-    *: "Ny sætliste"
+    *: "Ny playliste"
   </dest>
   <voice>
     *: ""
@@ -15385,7 +15385,7 @@
     *: "Save Playlist"
   </source>
   <dest>
-    *: "Gem sætliste"
+    *: "Gem playliste"
   </dest>
   <voice>
     *: ""
@@ -15441,7 +15441,7 @@
     *: "Delete Folder and %d Playlists"
   </source>
   <dest>
-    *: "Slet mappe og %d sætlister"
+    *: "Slet mappe og %d playlister"
   </dest>
   <voice>
     *: ""
