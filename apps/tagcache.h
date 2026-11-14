@@ -235,6 +235,8 @@ enum {
     TAGCACHE_IMPORT_SLIDES,   /* only those, without a sync */
     TAGCACHE_IMPORT_CHECKING, /* the songs outside Finder's folder, without
                                  a sync: found of those known */
+    TAGCACHE_IMPORT_PLAYLISTS, /* Finder's playlists alone, after an update
+                                  (itunesdb_playlists_due()) */
 };
 int tagcache_get_import(int *done, int *total);
 /* an import or a check after USB, or a commit, was left for want of room on

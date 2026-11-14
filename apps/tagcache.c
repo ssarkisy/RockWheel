@@ -9739,6 +9739,24 @@ static void tagcache_thread(void)
         import_phase = TAGCACHE_IMPORT_NONE;
 #endif
     }
+    /* and Finder's playlists, of a list an older firmware wrote, which lacks
+       what the lists go by now, as the smart ones' marks: made again from the
+       iTunesDB the last import took in, under the screen tagcache_init() put
+       up for them or for a step before or after, which it goes back to. Until
+       a list of this version is written, at each boot without a sync, but
+       not over an iTunesDB whose playlists couldn't be read. Not while a
+       scan's file waits, which the boot asks about first: at a boot without
+       one */
+    bool playlists_made = false;
+    if (!sync_found && waiting <= 0 && itunesdb_playlists_due())
+    {
+        const int phase = import_phase;
+        import_done = import_total = 0;
+        import_phase = TAGCACHE_IMPORT_PLAYLISTS;
+        itunesdb_import_playlists(&import_done, &import_total);
+        import_phase = phase;
+        playlists_made = true;
+    }
 
     /* Sorted by older rules, before Sort fields an import took in, as after
        an update, or for another menu language's first alphabets: sorted
@@ -9774,6 +9792,29 @@ static void tagcache_thread(void)
        an import after a sync wait for it */
     if (!tc_stat.ready)
         tagcache_commit_finalize();
+#ifdef HAVE_TC_RAMCACHE
+    /* After Finder's playlists alone, in memory before the screen goes, as
+       after the sort: the boot's menu didn't wait for it under that screen,
+       and Updating Library's smart playlists and lists of songs go by it.
+       The check of the files is left to the pass behind the menu. */
+    if (playlists_made && global_settings.tagcache_ram && !tc_stat.ramcache
+        && tc_stat.ready)
+    {
+        const int phase = import_phase;
+        /* shown as the playlists' step, the same words: as LOADING,
+           Updating Library would make Cover Flow's albums and the songs
+           again */
+        import_phase = TAGCACHE_IMPORT_PLAYLISTS;
+        load_ramcache();
+        refs_due = tc_stat.ramcache;
+        import_phase = phase;
+    }
+#else
+    (void)playlists_made;
+#endif
+    /* the screen tagcache_init() put up for them */
+    if (import_phase == TAGCACHE_IMPORT_PLAYLISTS)
+        import_phase = TAGCACHE_IMPORT_NONE;
 
 #ifdef ITUNESDB_HAVE_ART
     /* Cover Flow's slides that an import without a sync left to make, or
@@ -10220,6 +10261,10 @@ void tagcache_init(void)
        waiting, which the boot asks about first and whose commit sorts it */
     else if (temp_entries() <= 0 && order_stale())
         import_phase = TAGCACHE_IMPORT_SAVING;
+    /* Finder's playlists made again, of a list an older firmware wrote; but
+       for a scan's file waiting, as above */
+    else if (temp_entries() <= 0 && itunesdb_playlists_due())
+        import_phase = TAGCACHE_IMPORT_PLAYLISTS;
     mutex_init(&command_queue_mutex);
     queue_init(&tagcache_queue, true);
     create_thread(tagcache_thread, tagcache_stack,

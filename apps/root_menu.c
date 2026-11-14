@@ -1543,7 +1543,8 @@ static const char *library_update_step(int phase)
         case TAGCACHE_IMPORT_COVERS:
         case TAGCACHE_IMPORT_SLIDES:
             return str(LANG_PREPARING_COVERS);
-        default: /* the commit, and loading it into memory */
+        default: /* the commit, loading it into memory, and Finder's
+                    playlists made again */
             return str(LANG_UPDATING_LIBRARY);
     }
 }
@@ -1859,12 +1860,13 @@ static void library_update_screen(const char *words)
     if (prepared_commitid < 0)
         prepared_commitid = commitid; /* as the boot has them */
     const long quiet_until = current_tick + HZ / 2;
-    bool checked_only = true;
+    bool library_kept = true; /* only the check, or Finder's playlists */
     while ((phase = tagcache_get_import(&done, &total))
            != TAGCACHE_IMPORT_NONE)
     {
-        if (phase != TAGCACHE_IMPORT_CHECKING)
-            checked_only = false;
+        if (phase != TAGCACHE_IMPORT_CHECKING
+            && phase != TAGCACHE_IMPORT_PLAYLISTS)
+            library_kept = false;
         if (!shown && phase == TAGCACHE_IMPORT_CHECKING
             && tagcache_get_commitid() == commitid
             && TIME_BEFORE(current_tick, quiet_until))
@@ -1894,10 +1896,11 @@ static void library_update_screen(const char *words)
     /* left for want of room: nothing made of it either */
     bool no_space = phase == TAGCACHE_IMPORT_NONE && tagcache_take_no_space();
     /* a check that took long but found nothing has nothing to make again, nor
-       an import that changed neither the database nor the covers, with what
-       they make made for this database */
+       Finder's playlists made again alone, nor an import that changed neither
+       the database nor the covers, with what they make made for this
+       database */
     const bool imported = phase == TAGCACHE_IMPORT_NONE && !no_space
-        && ((shown && !checked_only
+        && ((shown && !library_kept
              && !(itunesdb_import_kept_art() && album_list_current()
                   && tagtree_songs_prepared()))
             || tagcache_get_commitid() != prepared_commitid);

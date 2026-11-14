@@ -81,7 +81,8 @@ void itunesdb_write_playcounts(void);
 bool itunesdb_own_playlist(const char *file);
 /* The playlists the last import wrote and the folders it made, a line each:
    "<hash> <size> <time> <file>", and "dir <folder>"; after a smart
-   playlist's, "smart <file>" (none before 1.4.1) */
+   playlist's, "smart <file>"; and first "version <n>" (neither before
+   1.4.1) */
 #define ITUNESDB_PLAYLISTS_LIST ROCKBOX_DIR "/itunesdb_playlists.txt"
 /* Songs a sync wrote again under another path, as their dbid has it, by
    their old path's hash, sorted by it: for the import, and for the playlists
@@ -126,6 +127,16 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
    firmware before this: the counts are then still to be kept, as they hold
    plays Finder hasn't had, but the tracks are to be imported again. */
 bool itunesdb_load_tracks(void);
+
+/* The playlists the last import wrote, listed by a firmware before this,
+   which noted less of them (the smart ones' marks): true when they're to be
+   made again at boot under Updating Library, from the iTunesDB the last
+   import took in, until a list of this version is written; but not over an
+   iTunesDB whose playlists couldn't be read. A file the list has as iTunesDB
+   has it stays, though the iPod may have written it since, as a live smart
+   one; those that move, as into a folder of their own, are written. */
+bool itunesdb_playlists_due(void);
+void itunesdb_import_playlists(volatile int *done, volatile int *total);
 
 /* What iTunesDB says of a file Finder added since the last import, as its
    tags would, its play count and rating, and its dates of release and when

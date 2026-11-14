@@ -1399,13 +1399,26 @@ static void playlist_dir(char *buf, size_t size)
     strmemccpy(buf, dir, size);
 }
 
-/* The playlists file lists those of the last import, a line each:
-   "<hash> <size> <time> <file>" with the hash and size of what was written and
-   the time the playlist was last changed in the library, which the file has as
-   its own, followed by "smart <file>" for a smart one; and "dir <folder>"
-   for each folder it made. Each file costs the iPod's flash a good part of
-   a second to remove and write again, so those that would come out the same
-   are left. */
+/* The playlists file lists those of the last import, a line each, after
+   "version <n>": "<hash> <size> <time> <file>" with the hash and size of what
+   was written and the time the playlist was last changed in the library,
+   which the file has as its own, followed by "smart <file>" for a smart one;
+   and "dir <folder>" for each folder it made. Each file costs the iPod's flash
+   a good part of a second to remove and write again, so those that would come
+   out the same are left. */
+
+/* What the list has, which the lists go by: 2, the smart ones' lines, and
+   Music's folders apart from the user's of the same name (1.4.1). A list of
+   an older version, or of none as 1.4.0 and before wrote it, has the
+   playlists made again at each boot without a sync until one of this version
+   is written (itunesdb_playlists_due()). The version's line is too short for
+   a playlist's, and 1.4.0's readers pass over it. */
+#define PLAYLISTS_VERSION 2
+/* The size and time of the iTunesDB whose playlists the boot's pass
+   (itunesdb_import_playlists()) couldn't read: not tried again over it, as
+   it would fail the same way; the next sync's import makes them. A write of
+   it cut short leaves it short, and the pass is tried again. */
+#define PLAYLISTS_FAILED ROCKBOX_DIR "/itunesdb_playlists_failed.dat"
 
 /* As many playlists and folders as there are: iTunesDB says how many
    playlists, and the files are given room for their lines. Of 256 playlists
@@ -1516,8 +1529,10 @@ static enum old_list load_old_playlists(int playlists)
     while (read_list_line(fd, line, sizeof(line)) > 0)
     {
         char *file = line;
-        /* none of one too long, or too short to hold what it should */
-        if (line[0] == '\0' || (line[0] != '/' && strlen(line) < 18))
+        /* none of one too long, or too short to hold what it should, nor the
+           version's */
+        if (line[0] == '\0' || (line[0] != '/' && strlen(line) < 18)
+            || !strncmp(line, "version ", 8))
             continue;
         if (!strncmp(line, "smart /", 7))
             continue; /* the mark of the playlist on the line before */
@@ -1666,6 +1681,40 @@ static void remove_own_files(const char *dir, int depth)
             remove(file);
     }
     closedir(d);
+}
+
+/* A folder at path whose content is all the import's own, as a pass cut
+   short leaves one unlisted: its playlists with the mark, and folders of the
+   same; not an empty one, as the user makes, nor one with anything else. A
+   Mac's dot files don't count. The path is as it was after. */
+static bool imports_only(char *path, size_t size, int depth)
+{
+    DIR *d = opendir(path);
+    if (!d)
+        return false;
+    const size_t len = strlen(path);
+    bool any = false, only = true;
+    struct dirent *entry;
+    while (only && (entry = readdir(d)))
+    {
+        if (entry->d_name[0] == '.')
+            continue;
+        any = true;
+        if ((size_t)snprintf(path + len, size - len, "/%s", entry->d_name)
+            >= size - len)
+            only = false;
+        else if (dir_get_info(d, entry).attribute & ATTR_DIRECTORY)
+            only = depth < MAX_FOLDER_DEPTH
+                   && imports_only(path, size, depth + 1);
+        else
+        {
+            const char *ext = strrchr(entry->d_name, '.');
+            only = ext && !strcasecmp(ext, ".m3u8") && own_playlist(path);
+        }
+        path[len] = '\0';
+    }
+    closedir(d);
+    return any && only;
 }
 
 static int cmp_dir_depth(const void *a, const void *b)
@@ -2120,9 +2169,11 @@ static bool folder_dir(char *buf, size_t size, const char *dir, uint64_t id)
            "Name 2", the first of those free or one an import made before,
            as a playlist does by a file of the user's; and none another
            folder of Music's has this time. With no list, all are taken to be
-           the import's */
+           the import's; so is one that holds only the import's, unlisted, as
+           an import cut short leaves it */
         int num = 1;
-        while (!made && (made_now(buf) || (!made_before(buf) && !fld.claim)))
+        while (!made && (made_now(buf) || (!made_before(buf) && !fld.claim
+                                           && !imports_only(buf, size, 0))))
         {
             /* the next name, but none another folder of Music's beside it
                has: its "Name 2" keeps its own */
@@ -2232,9 +2283,10 @@ static bool smart_rule_list(off_t pos, uint32_t total, struct smart_rules *r)
     return true;
 }
 
-/* the mhyp at pos as a playlist file, listed in the playlists file */
+/* the mhyp at pos as a playlist file, listed in the playlists file; alone,
+   at boot without a sync (itunesdb_import_playlists()) */
 static void write_playlist(off_t pos, const char *dir, int list_fd,
-                           struct writer *w)
+                           struct writer *w, bool alone)
 {
     char name[MAX_PATH / 2], file[MAX_PATH], folder[MAX_PATH];
     /* as before this playlist: a read of its own that failed sets it */
@@ -2314,7 +2366,10 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
         int fd = open(file, O_RDONLY);
         if (fd >= 0)
         {
-            same = ffilesize(fd) == (off_t)size;
+            /* or, alone, as the iPod has written it since, as a live smart
+               one by its own ratings and songs: iTunesDB's isn't new, and a
+               sync's import writes it */
+            same = alone || ffilesize(fd) == (off_t)size;
             close(fd);
         }
     }
@@ -2358,13 +2413,18 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
         list_line(list_fd, "smart %s\n", file);
 }
 
-static void write_playlists(off_t list)
+/* alone: all that's taken in, at boot without a sync
+   (itunesdb_import_playlists()), into the bar's second half as they're
+   written. False when iTunesDB's playlists couldn't all be read, as they
+   wouldn't the next time either */
+static bool write_playlists(off_t list, bool alone)
 {
     char dir[MAX_PATH];
     const unsigned char *p = list >= 0 ? db_record(list, "mhlp", 12) : NULL;
+    bool readable = p != NULL;
     const enum old_list old = load_old_playlists(p ? (int)le32(p + 8) : 0);
     if (old == LIST_NO_ROOM)
-        return;
+        return readable;
     const bool listed = old == LIST_READ;
     load_folders();
     fld.claim = !listed;
@@ -2372,6 +2432,7 @@ static void write_playlists(off_t list)
     int list_fd = open(PLAYLISTS_TEMP, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (p && list_fd >= 0)
     {
+        list_line(list_fd, "version %d\n", PLAYLISTS_VERSION);
         smart_import_begin();
         off_t pos = list + le32(p + 4);
         int count = le32(p + 8);
@@ -2386,13 +2447,15 @@ static void write_playlists(off_t list)
                 break;
             }
             uint32_t total = le32(p + 8);
-            write_playlist(pos, dir, list_fd, &out);
+            write_playlist(pos, dir, list_fd, &out, alone);
             if (total == 0)
             {
                 pls.read_failed |= i < count - 1;
                 break;
             }
             pos += total;
+            if (alone)
+                reading(1, i + 1, count);
             yield();
         }
         /* A folder is made for a playlist in it, or in one in it, and not for
@@ -2408,9 +2471,12 @@ static void write_playlists(off_t list)
            one */
         /* the rules of all, or the old ones */
         smart_import_end(!pls.read_failed);
+        readable = !pls.read_failed;
         if (close(list_fd) < 0 || pls.list_failed || pls.read_failed
             || rename(PLAYLISTS_TEMP, PLAYLISTS_FILE) < 0)
             remove(PLAYLISTS_TEMP);
+        else
+            remove(PLAYLISTS_FAILED); /* of an iTunesDB before */
     }
     else if (list_fd >= 0)
     {
@@ -2419,6 +2485,7 @@ static void write_playlists(off_t list)
     }
     forget_old_playlists();
     forget_folders();
+    return readable;
 }
 
 /* Ratings and play counts. iTunesDB is read once, at boot after a sync,
@@ -7529,7 +7596,7 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
         write_gains();
         if (synced)
         {
-            write_playlists(playlists_list);
+            write_playlists(playlists_list, false);
             write_pending();
             /* only from all of iTunesDB: a song missing would seem gone */
             if (db.complete)
@@ -7564,6 +7631,58 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     itunesdb_load_tracks();
     read_done = read_total = NULL;
     return count;
+}
+
+struct playlists_failed {
+    uint32_t size, mtime;   /* of iTunesDB, as db_stamp() has them */
+};
+
+bool itunesdb_playlists_due(void)
+{
+    uint32_t size, mtime;
+    if (!db_stamp(&size, &mtime))
+        return false;
+    int fd = open(PLAYLISTS_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    char line[16];
+    bool due = read_line(fd, line, sizeof(line)) <= 0
+               || strncmp(line, "version ", 8)
+               || strtoul(line + 8, NULL, 10) < PLAYLISTS_VERSION;
+    close(fd);
+    /* not over this iTunesDB again if its playlists couldn't be read */
+    struct playlists_failed failed;
+    if (due && (fd = open(PLAYLISTS_FAILED, O_RDONLY)) >= 0)
+    {
+        due = read(fd, &failed, sizeof(failed)) != sizeof(failed)
+              || failed.size != size || failed.mtime != mtime;
+        close(fd);
+    }
+    return due;
+}
+
+void itunesdb_import_playlists(volatile int *done, volatile int *total)
+{
+    read_done = done;
+    read_total = total;
+    /* the songs read for their paths: none of their notes go to a file,
+       which notes_end() of an import before may have left ok but closed */
+    notes_out.ok = false;
+    const bool readable = db_load() && write_playlists(playlists_list, true);
+    db_unload();
+    read_done = read_total = NULL;
+    /* as it would be the next time: noted, and left for the next sync. A list
+       that couldn't be written, as with the disk full, is tried again */
+    struct playlists_failed failed;
+    if (!readable && db_stamp(&failed.size, &failed.mtime))
+    {
+        const int fd = open(PLAYLISTS_FAILED, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd >= 0)
+        {
+            write(fd, &failed, sizeof(failed));
+            close(fd);
+        }
+    }
 }
 
 bool itunesdb_load_tracks(void)
