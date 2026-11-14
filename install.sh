@@ -63,6 +63,12 @@ would() {
     return 1
 }
 
+# Run as /bin/bash -c "$(curl ...)" --games, bash takes the first word after the
+# script for its $0: an option there is the first of the options
+case "$0" in
+    -*) set -- "$0" "$@" ;;
+esac
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run)   DRY_RUN=1 ;;
@@ -71,7 +77,9 @@ while [ $# -gt 0 ]; do
         --games)     GAMES=yes ;;
         --no-games)  GAMES=no ;;
         --from)      shift; FROM="${1:-}"; [ -n "$FROM" ] || die "--from needs a folder" ;;
-        -h|--help)   sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help)   if [ -f "$0" ]; then sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+                     else say "Options: --dry-run --folders --games --no-games --from DIR --uninstall"; fi
+                     exit 0 ;;
         *)           die "Unknown option: $1" ;;
     esac
     shift
@@ -305,8 +313,12 @@ copy_games() {
         return
     fi
     if [ "$GAMES" != "yes" ] && [ "$have" = 0 ]; then
-        [ -n "$mount" ] && [ -f "$declined" ] && return
         say ""
+        if [ -n "$mount" ] && [ -f "$declined" ]; then
+            say "    The extra games are left out, as you chose before. To add them, run"
+            say "    this again with --games at the end."
+            return
+        fi
         if [ "$DRY_RUN" = 1 ]; then
             say "    Would ask whether to add $count games from Rockbox to Extras > Games."
             return
@@ -315,7 +327,8 @@ copy_games() {
         case "$REPLY" in
             [yY]|[yY][eE][sS]) ;;
             *)  [ -n "$mount" ] && : > "$declined"
-                say "    Not added. Run this with --games to add them later."
+                say "    Not added, and not asked again. To add them later, run this again"
+                say "    with --games at the end."
                 return ;;
         esac
     fi

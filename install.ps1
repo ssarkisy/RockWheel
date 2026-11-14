@@ -319,8 +319,12 @@ function Copy-Games([string]$Root) {
         return
     }
     if (-not $Games -and -not $have) {
-        if (Test-Path -LiteralPath $declined) { return }
         Say ''
+        if (Test-Path -LiteralPath $declined) {
+            Say '    The extra games are left out, as you chose before. To add them, run the'
+            Say '    installer again with -Games, as Options in the README shows.'
+            return
+        }
         if ($DryRun) {
             Say "    Would ask whether to add $count games from Rockbox to Extras > Games."
             return
@@ -328,7 +332,8 @@ function Copy-Games([string]$Root) {
         $r = Read-Host "Add $count games from Rockbox to Extras > Games? About $mb MB. [y/N]"
         if ($r -notmatch '^(y|yes)$') {
             New-Item -ItemType File -Force -Path $declined | Out-Null
-            Say '    Not added. Run this with -Games to add them later.'
+            Say '    Not added, and not asked again. To add them later, run the installer'
+            Say '    again with -Games, as Options in the README shows.'
             return
         }
     }

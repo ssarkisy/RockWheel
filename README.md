@@ -104,7 +104,7 @@ Connect the iPod, open Terminal and paste this:
 
 It downloads the files and checks them, finds the iPod, checks that it's an iPod Video and that there's room, converts it if it has to, installs Rockbox's bootloader and the firmware, and ejects it. macOS asks for your password, because the bootloader goes straight onto the disk.
 
-It also asks whether to add eight more games to Extras. Press Return to leave them out.
+It also asks whether to add eight more games to Extras. Press Return to leave them out. The answer is kept, and updates don't ask again; to add the games later, run the same command with `--games` at the end.
 
 ### On Windows
 
@@ -128,7 +128,19 @@ To hear about new versions, choose Watch, then Custom, then Releases, at the top
 
 ### Options
 
-Download the installer and run it with an option: [`install.sh`](install.sh) on a Mac, as `bash install.sh --dry-run`, or [`install.ps1`](install.ps1) on Windows, as `powershell -ExecutionPolicy Bypass -File .\install.ps1 -DryRun`.
+Add the option at the end of the install command. On a Mac:
+
+```sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ssarkisy/RockWheel/main/install.sh)" --games
+```
+
+On Windows, where `irm … | iex` can't take an option, paste this form instead:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ssarkisy/RockWheel/main/install.ps1))) -Games
+```
+
+Or download the installer and run it with the option: [`install.sh`](install.sh) as `bash install.sh --dry-run`, [`install.ps1`](install.ps1) as `powershell -ExecutionPolicy Bypass -File .\install.ps1 -DryRun`.
 
 | | On a Mac | On Windows |
 |---|---|---|
