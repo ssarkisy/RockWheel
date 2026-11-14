@@ -374,6 +374,14 @@ static struct
 static bool codec_skip_pending = false;
 static int  codec_skip_status;
 static bool codec_seeking = false;          /* Codec seeking ack expected? */
+
+/* Tracks in a row that played nothing (CODEC_ERROR_SILENT). With Repeat, a
+   queue in which nothing plays would go round without end, the disk
+   spinning: it ends once each of its entries has failed in turn, or Repeat
+   One's track twice. 1000 bounds a huge queue; a lower cap would end a queue
+   at a long run of unplayable files before the ones after it that play. */
+#define SILENT_FAILS_MAX 1000
+static int silent_fails;
 static unsigned int position_key = 0;
 
 #define PLAYBACK_LOG_PATH ROCKBOX_DIR "/playback.log"
@@ -1258,7 +1266,8 @@ static void audio_handle_track_load_status(int trackstat)
             break;
 
     case LOAD_TRACK_ERR_START_CODEC:
-        audio_queue_post(Q_AUDIO_CODEC_COMPLETE, CODEC_ERROR);
+        /* nothing of it played */
+        audio_queue_post(Q_AUDIO_CODEC_COMPLETE, CODEC_ERROR_SILENT);
         break;
 
     default:
@@ -3263,6 +3272,20 @@ static bool audio_can_change_track(int *trackstat, enum pcm_track_change_type *t
     return true;
 }
 
+/* How many tracks in a row may play nothing before the queue ends */
+static int silent_fails_limit(void)
+{
+    /* each repeat brings the same track back */
+    if (global_settings.repeat_mode == REPEAT_ONE
+#ifdef AB_REPEAT_ENABLE
+        || global_settings.repeat_mode == REPEAT_AB
+#endif
+        )
+        return 2;
+    /* Repeat All goes round in the same order, shuffled or not */
+    return MAX(MIN(playlist_amount(), SILENT_FAILS_MAX), 1);
+}
+
 /* Codec has completed decoding the track
    (usually Q_AUDIO_CODEC_COMPLETE) */
 static void audio_on_codec_complete(int status)
@@ -3302,9 +3325,21 @@ static void audio_on_codec_complete(int status)
 
     codec_skip_pending = false;
 
+    track_event_flags = TEF_AUTO_SKIP;
+
+    if (status != CODEC_ERROR_SILENT)
+        silent_fails = 0;
+    else if (++silent_fails >= silent_fails_limit())
+    {
+        /* nothing in this queue plays: it ends here as at its last track */
+        logf("%s(): %d tracks played nothing", __func__, silent_fails);
+        silent_fails = 0;
+        audio_monitor_end_of_playlist();
+        return;
+    }
+
     int trackstat = LOAD_TRACK_OK;
 
-    track_event_flags = TEF_AUTO_SKIP;
     skip_pending = TRACK_SKIP_AUTO;
 
     enum pcm_track_change_type type;
@@ -3359,6 +3394,11 @@ static void audio_start_playback(const struct audio_resume_info *resume_info,
 #endif
     static struct audio_resume_info resume = { 0, 0 };
     enum play_status old_status = play_status;
+
+    /* something chosen to play; a changed queue was counted afresh at its
+       flush (audio_on_audio_flush()), before this restart */
+    if (!(flags & AUDIO_START_RESTART))
+        silent_fails = 0;
 
     bool skip_resume_adjustments = false;
     if (resume_info)
@@ -3622,6 +3662,7 @@ static void audio_on_skip(void)
 
     /* Manual skip */
     track_event_flags = TEF_NONE;
+    silent_fails = 0;
 
     if (toskip == 1 && global_settings.repeat_mode == REPEAT_ONE)
     {
@@ -3726,6 +3767,7 @@ static void audio_on_dir_skip(int direction)
 
     /* Manual skip */
     track_event_flags = TEF_NONE;
+    silent_fails = 0;
 
     audio_playlist_track_finish();
 
@@ -3926,6 +3968,10 @@ static void audio_on_ff_rewind(long time)
 static void audio_on_audio_flush(void)
 {
     logf("%s", __func__);
+
+    /* a queue edited, reordered or set to repeat otherwise: the tracks
+       tried so far no longer say whether any of it plays */
+    silent_fails = 0;
 
     if (track_list_empty())
         return; /* Nothing to flush out */

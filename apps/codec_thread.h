@@ -51,6 +51,10 @@ size_t codec_finish_stream(void);
 void codec_unload(void);
 int codec_loaded(void);
 
+/* The status audio is given for a track that ended in an error before any
+   PCM: nothing of it played */
+#define CODEC_ERROR_SILENT (-2)
+
 /* */
 
 #endif /* _CODEC_THREAD_H */

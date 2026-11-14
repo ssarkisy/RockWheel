@@ -224,10 +224,14 @@ void codec_thread_do_callback(void (*fn)(void), unsigned int *id)
 
 /** --- codec API callbacks --- **/
 
+static bool run_made_pcm; /* this run of the codec gave PCM */
+
 static void codec_pcmbuf_insert_callback(
         const void *ch1, const void *ch2, int count)
 {
     struct dsp_buffer src;
+    if (count > 0)
+        run_made_pcm = true;
     src.remcount  = count;
     src.pin[0]    = ch1;
     src.pin[1]    = ch2;
@@ -540,12 +544,16 @@ static void run_codec(void)
         buf_pin_handle(ci.audio_hid, true);
     }
 
+    run_made_pcm = false;
     status = codec_run_proc();
 
     if (!encoder)
     {
         /* Codec is done with it - let it move */
         buf_pin_handle(ci.audio_hid, false);
+
+        if (status == CODEC_ERROR && !run_made_pcm)
+            status = CODEC_ERROR_SILENT;
 
         /* Notify audio that we're done for better or worse - advise of the
            status */
