@@ -864,6 +864,12 @@ static int update_dir(void)
 #endif
 
     tree_set_width();
+#ifdef HAVE_TAGCACHE
+    /* Multicolor's colours of the section of Music the list is in (tagtree_enter()
+       and the go-tos set it), before the list's viewports are */
+    if (id3db)
+        ui_theme_set_section(tagtree_list_kind(&tc), true);
+#endif
     /* Ensure that list is initialized before update_dir returns */
     gui_synclist_init(list, &tree_get_filename, &tc, false, 1, NULL);
 

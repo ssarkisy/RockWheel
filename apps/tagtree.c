@@ -8379,6 +8379,13 @@ bool tagtree_is_music_menu(struct tree_context *c)
     return c->currtable == TABLE_ROOT && c->currextra == rootmenu;
 }
 
+int tagtree_list_kind(struct tree_context *c)
+{
+    if (c->currtable == TABLE_ROOT || !csi)
+        return 0;
+    return section_is(csi, LANG_PODCASTS) ? 1 : section_is(csi, LANG_AUDIOBOOKS) ? 2 : 0;
+}
+
 int tagtree_music_row_kind(struct tree_context *c, int row)
 {
     static const int kinds[] = {

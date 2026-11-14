@@ -57,6 +57,7 @@
 #include "action.h"
 #include "yesno.h"
 #include "viewport.h"
+#include "gui/ui_theme.h"
 
 #include "tree.h"
 #if CONFIG_TUNER
@@ -188,6 +189,9 @@ int root_menu_cover_flow(const char *at, char *go_to)
 #endif
     while (true)
     {
+        /* Music's, from wherever it opens, without the status line, which
+           the screen it goes back to draws in its own again */
+        ui_theme_set_section(UI_SECTION_MUSIC, false);
         cover_flow_go_to[0] = '\0';
 #ifdef HAVE_TAGCACHE
         cover_flow_go_to_offered = true;
@@ -469,6 +473,9 @@ static int browser(void* param)
             if (music_from_main_menu)
                 tagtree_to_top(tc);
             music_from_main_menu = false;
+            /* before the status line is drawn as it opens; a level gone to
+               sets its own (update_dir()) */
+            ui_theme_set_section(tagtree_list_kind(tc), true);
             push_current_activity(ACTIVITY_DATABASEBROWSER);
         break;
 #endif /*HAVE_TAGCACHE*/
@@ -524,11 +531,16 @@ static int go_to_browse(bool found, unsigned int starts)
 {
     if (!found)
         return -1;
+    /* the screen gone back to in its own section again, as Playlists after
+       a podcast's lists */
+    const int section = ui_theme_section();
     const int screen = browser((void*)GO_TO_DBBROWSER);
     const bool started = playlist_start_count() != starts;
     if (started)
         note_music_origin(GO_TO_DBBROWSER);
     tagtree_end_go_to(!started, &last_db_dirlevel, &last_db_selection);
+    if (screen == GO_TO_PREVIOUS)
+        ui_theme_set_section(section, true);
     return screen == GO_TO_PREVIOUS ? 0 : screen;
 }
 
@@ -560,14 +572,8 @@ int root_menu_playing_from(void)
 int root_menu_go_to_name(int tag, const char *name)
 {
     const unsigned int starts = playlist_start_count();
-    if (!tagtree_go_to_name(tag, name, &last_db_dirlevel, &last_db_selection))
-        return -1;
-    const int screen = browser((void*)GO_TO_DBBROWSER);
-    const bool started = playlist_start_count() != starts;
-    if (started)
-        note_music_origin(GO_TO_DBBROWSER);
-    tagtree_end_go_to(!started, &last_db_dirlevel, &last_db_selection);
-    return screen == GO_TO_PREVIOUS ? 0 : screen;
+    return go_to_browse(tagtree_go_to_name(tag, name, &last_db_dirlevel,
+                                           &last_db_selection), starts);
 }
 
 int root_menu_go_to_album(const char *name, int32_t artist)
@@ -1236,6 +1242,37 @@ static int get_selection(int last_screen)
     return 0;
 }
 
+/* Multicolor's section of a screen of the main menu's, set as it opens
+   (ui_theme_set_section()); -1 for one that sets its own: Music's lists by
+   the level they open at, Now Playing by its track, which Shuffle goes to,
+   Cover Flow (root_menu_cover_flow()); and the current playlist, which keeps
+   the one of the screen it's opened over */
+static int screen_section(int screen)
+{
+    switch (screen)
+    {
+#ifdef HAVE_TAGCACHE
+        case GO_TO_DBBROWSER:
+        case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
+        case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
+        case GO_TO_AUDIOBOOKS:
+        case GO_TO_SHUFFLE_SONGS:
+        case GO_TO_SHUFFLE_ALBUMS:
+        case GO_TO_COVER_FLOW:
+#endif
+        case GO_TO_WPS:
+        case GO_TO_PLAYLIST_VIEWER:
+            return -1;
+#ifdef HAVE_TAGCACHE
+        case GO_TO_SEARCH:
+#endif
+        case GO_TO_PLAYLISTS_SCREEN:
+            return UI_SECTION_MUSIC;
+        default:
+            return UI_SECTION_SYSTEM;
+    }
+}
+
 static inline int load_screen(int screen)
 {
     /* set the global_status.last_screen before entering,
@@ -1267,6 +1304,7 @@ static inline int load_screen(int screen)
     else if (screen == GO_TO_SYSTEM_SCREEN)
         activity =  ACTIVITY_SYSTEMSCREEN;
 
+    ui_theme_set_section(screen_section(screen), true);
     if (activity != ACTIVITY_UNKNOWN)
         push_current_activity(activity);
 
@@ -2192,6 +2230,7 @@ void root_menu(void)
                 /* When we are in the main menu we want the hardware BACK
                  * button to be handled by HOST instead of rockbox */
                 ignore_back_button_stub(true);
+                ui_theme_set_section(UI_SECTION_SYSTEM, true);
 
                 next_screen = do_menu(&root_menu_, &selected, NULL, false);
 #ifdef HAVE_TAGCACHE

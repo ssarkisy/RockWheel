@@ -492,7 +492,8 @@ extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int width, int height);
 /* A colour's row in Settings > Appearance > Colour: its name, and at the
    row's end, where a value ends, a disc of the colour 14 px across in a white
-   ring of 2 px, which shows on the selected row too. How much of each pixel
+   ring of 2 px, which shows on the selected row too; Multicolor's in its
+   sections' colours, a quarter each. How much of each pixel
    is outside a disc of 18 and of 14 px, in sixteenths, a row after another */
 #define SWATCH 18
 #define SWATCH_RING 2
@@ -553,10 +554,18 @@ static void colour_row_draw(struct list_putlineinfo_t *info)
     display->set_drawmode(DRMODE_FG);
     display->set_foreground(LCD_WHITE);
     lcd_alpha_bitmap_part(swatch_ring, 0, 0, SWATCH, x, y, SWATCH, SWATCH);
-    display->set_foreground(ui_theme_colour_swatch(info->line));
-    lcd_alpha_bitmap_part(swatch_fill, 0, 0, SWATCH - 2 * SWATCH_RING,
-                          x + SWATCH_RING, y + SWATCH_RING,
-                          SWATCH - 2 * SWATCH_RING, SWATCH - 2 * SWATCH_RING);
+    /* by quarters, clockwise from the top left: Multicolor's each in a
+       colour of its own */
+    const int fill = SWATCH - 2 * SWATCH_RING, half = fill / 2;
+    for (int quarter = 0; quarter < 4; quarter++)
+    {
+        const int dx = quarter == 1 || quarter == 2 ? half : 0;
+        const int dy = quarter >= 2 ? half : 0;
+        display->set_foreground(ui_theme_colour_swatch(info->line, quarter));
+        lcd_alpha_bitmap_part(swatch_fill, dx, dy, fill,
+                              x + SWATCH_RING + dx, y + SWATCH_RING + dy,
+                              dx ? fill - half : half, dy ? fill - half : half);
+    }
     display->set_drawmode(DRMODE_SOLID);
     display->set_foreground(old_fg);
 }

@@ -998,13 +998,20 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
     volume_area.x0 = volume_area.y0 = volume_area.x1 = volume_area.y1 = 0;
 
 #ifdef HAVE_ALBUMART
-    if (data->playback_aa_slot >= 0 && data == skin_get_gwps(WPS, SCREEN_MAIN)->data
-        && skin_art_colours_update(data))
+    if (data == skin_get_gwps(WPS, SCREEN_MAIN)->data)
     {
-        /* all in the new colours in one go */
-        refresh_mode = old_refresh_mode = SKIN_REFRESH_ALL;
-        display->set_viewport_ex(NULL, 0);
-        display->clear_viewport();
+        /* Multicolor's colours of the track's section first: the cover's
+           are made on its ground */
+        bool anew = skin_section_update();
+        if (data->playback_aa_slot >= 0 && skin_art_colours_update(data))
+            anew = true;
+        if (anew)
+        {
+            /* all in the new colours in one go */
+            refresh_mode = old_refresh_mode = SKIN_REFRESH_ALL;
+            display->set_viewport_ex(NULL, 0);
+            display->clear_viewport();
+        }
     }
 #endif
 

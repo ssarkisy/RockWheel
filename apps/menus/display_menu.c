@@ -273,7 +273,7 @@ MENUITEM_SETTING(list_covers_item, &global_settings.list_covers,
 #endif
 MENUITEM_SETTING(list_scrollbar_item, &global_settings.list_scrollbar, NULL);
 MENUITEM_SETTING(jump_by_letter_item, &global_settings.jump_by_letter, NULL);
-/* Colour: only in a theme that has a tone */
+/* Colour and Tinted Background: only in a theme that has a tone */
 static int theme_colour_callback(int action,
                                  const struct menu_item_ex *this_item,
                                  struct gui_synclist *this_list)
@@ -285,6 +285,8 @@ static int theme_colour_callback(int action,
     return action;
 }
 MENUITEM_SETTING(theme_colour_item, &global_settings.theme_colour,
+                 theme_colour_callback);
+MENUITEM_SETTING(tinted_background_item, &global_settings.tinted_background,
                  theme_colour_callback);
 #ifdef HAVE_MENU_COVER
 /* none with Album Art off, as there's no cover beside the menus then */
@@ -313,7 +315,7 @@ MENUITEM_GROUP(appearance_group_main_menu, ID2P(LANG_MAIN_MENU));
 MENUITEM_GROUP(appearance_group_now_playing, ID2P(LANG_NOW_PLAYING));
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &ui_theme_item, &dark_theme_item,
-          &theme_colour_item,
+          &theme_colour_item, &tinted_background_item,
           &appearance_group_lists,
 #ifdef HAVE_TAGCACHE
           &album_artists_item,

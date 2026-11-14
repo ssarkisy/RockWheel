@@ -1752,6 +1752,26 @@ bool skin_art_available(int handle)
     return handle >= 0;
 }
 
+bool skin_section_update(void)
+{
+    if (!ui_theme_multicolor())
+        return false;
+    int kind = 0;
+#ifdef HAVE_TAGCACHE
+    const struct mp3entry *id3 = get_wps_state()->id3;
+    if (id3)
+        kind = tagcache_id3_kind(id3);
+#endif
+    /* the status line is Now Playing's own, drawn whole with the rest */
+    if (!ui_theme_set_section(kind == UI_SECTION_PODCASTS || kind == UI_SECTION_AUDIOBOOKS
+                              ? kind : UI_SECTION_MUSIC, false))
+        return false;
+#if defined(HAVE_ALBUMART) && LCD_DEPTH >= 16
+    cover_palette_theme_changed();
+#endif
+    return true;
+}
+
 /* Now Playing's colours for the cover it shows */
 bool skin_art_colours_update(const struct wps_data *data)
 {

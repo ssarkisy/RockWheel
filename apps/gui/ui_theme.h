@@ -205,14 +205,28 @@ enum ui_font {
 
 #define UI_SCROLLBAR_THUMB_STEPS 10
 
-/* The colours of a theme with a tone, as its user chooses among them */
+/* The colours of a theme with a tone, as its user chooses among them.
+   Multicolor, first as in macOS, is a colour a section (enum ui_section) */
 enum ui_tone_colour {
+    UI_TONE_MULTICOLOR,
     UI_TONE_RED, UI_TONE_YELLOW, UI_TONE_GREEN, UI_TONE_TEAL, UI_TONE_BLUE,
     UI_TONE_PURPLE, UI_TONE_PINK, UI_TONE_ORANGE, UI_TONE_DESERT,
     UI_TONE_OLIVE, UI_TONE_GLACIER, UI_TONE_DEEP_BLUE, UI_TONE_BURGUNDY,
     UI_TONE_COUNT
 };
-#define UI_TONE_DEFAULT UI_TONE_DESERT
+#define UI_TONE_DEFAULT UI_TONE_MULTICOLOR
+
+/* What the screen shown belongs to, as an app on a Mac: Multicolor gives each
+   its own colour. The first three are the database's kinds of track
+   (tagcache.h): Music's lists, Cover Flow, Search and Playlists, and Now
+   Playing with a song; Podcasts' and Audiobooks' lists, and Now Playing with
+   one of theirs. The main menu, Settings, Extras, Photos and the rest are
+   the system's */
+enum ui_section {
+    UI_SECTION_MUSIC, UI_SECTION_PODCASTS, UI_SECTION_AUDIOBOOKS,
+    UI_SECTION_SYSTEM,
+    UI_SECTION_COUNT
+};
 
 struct ui_theme_look {
     const char *skin;      /* the base name of its .wps, .sbs and .fms */
@@ -233,7 +247,9 @@ struct ui_theme {
        it takes the hue at its own lightness) */
     /* The theme is never plain. The colour its user chose lies as a
        cover on its flat surfaces, on every screen: the ground, the selected
-       row, fields, tiles, hairlines, a bar's track; texts and glyphs stay */
+       row, fields, tiles, hairlines, a bar's track; texts and glyphs stay.
+       Without Tinted Background only on the selected row, the rest in
+       neutral greys */
     bool cover_tone;
     bool flat_cover;       /* Now Playing's cover is never turned: no Angled Cover row */
     const char *font[UI_FONT_COUNT]; /* files, with their folder */
@@ -251,10 +267,11 @@ const char *ui_font_file(enum ui_font role);
    takes nothing from the cover */
 int ui_theme_cover_colours(int mode);
 /* A text's or a mark's colour in a skin, as it is now: in a theme with a
-   tone the skins' dense grey (small text; UI_COLOUR_VALUE) and second grey
-   (the disk's ring, a bar's fill; UI_COLOUR_NOTE_TOP) are names for the
-   tone's colours of them, else as given. A skin's text that is to stay
-   grey has a grey of its own (the clock: make_neo_theme.py's CLOCK) */
+   tone the skins' dense grey (small text; UI_COLOUR_VALUE), second grey
+   (the disk's ring, a bar's fill; UI_COLOUR_NOTE_TOP) and the look's
+   UI_COLOUR_ACCENT (Now Playing's artist) are names for the tone's colours
+   of them, else as given. A skin's text that is to stay grey has a grey of
+   its own (the clock: make_neo_theme.py's CLOCK) */
 unsigned ui_theme_skin_text(unsigned colour);
 /* A surface's colour (a ground, a fill, a hairline) as it is now: in the
    tone of a theme that has one, else as given */
@@ -264,17 +281,36 @@ unsigned ui_theme_surface(unsigned colour);
 unsigned ui_theme_status_surface(unsigned colour);
 /* the ground as the look's table has it, for a skin being read */
 unsigned ui_theme_plain_ground(void);
-/* The user's colour, one of enum ui_tone_colour (the setting's value as it
-   is taken: at boot, and on Select). In a theme with a tone the table is
-   made and the skins' viewports set, and the screen is to be drawn again
-   whole: nothing is loaded */
-void ui_theme_set_colour(int colour);
-/* that colour as a mark beside its name in the list of them, by look */
-unsigned ui_theme_colour_swatch(int colour);
+/* The user's colour, one of enum ui_tone_colour, and whether it tints the
+   surfaces and small text too or only the selection and the marks (Tinted
+   Background): the settings' values as they are taken, at boot and on
+   Select. In a theme with a tone the tables are made, one a section for
+   Multicolor, and the skins' viewports set, and the screen is to be drawn
+   again whole: nothing is loaded */
+void ui_theme_set_colour(int colour, bool tinted);
+/* that colour as a mark beside its name in the list of them, by look: a
+   quarter of it, 0 the top left one and the rest clockwise, which are
+   Multicolor's sections' colours and a colour's own */
+unsigned ui_theme_colour_swatch(int colour, int quarter);
+/* The section of the screen about to be drawn (enum ui_section), set before
+   it is: by the main menu's screens, the lists as they open a level, Cover
+   Flow, and Now Playing by its track. Under Multicolor its colours are the
+   section's, made beforehand: true if they changed, and the skins' viewports
+   are set, the status line is to be drawn whole and the lists' viewports
+   anew; with status_line, a screen under the status line's skin, its ground
+   round the lists cleared in the new tint. Now Playing's tone by a cover
+   stays until it goes (a negative hue, ui_theme_cover_tone()): it goes to
+   the section's */
+bool ui_theme_set_section(int section, bool status_line);
+/* the section last set, to set again on going back to its screen */
+int ui_theme_section(void);
+/* the section changes the colours: Multicolor, in a theme with a tone */
+bool ui_theme_multicolor(void);
 /* Now Playing's tone in a theme that has one: the hue of the playing
-   track's cover on the whole screen; a negative hue for the user's colour
-   again. True if the colours changed: the table is made and the skins'
-   viewports set, and the caller draws the screen again whole */
+   track's cover on the whole screen, its surfaces and small text tinted with
+   or without Tinted Background; a negative hue for the user's colour again.
+   True if the colours changed: the table is made and the skins' viewports
+   set, and the caller draws the screen again whole */
 bool ui_theme_cover_tone(int hue);
 /* Now Playing under Cover Colours' Fill in a theme with a tone: no hue but
    the colours Classic makes of the cover, as the screen has them. The

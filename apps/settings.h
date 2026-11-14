@@ -1106,7 +1106,7 @@ struct user_settings
     /* Settings > Appearance > Theme: UI_THEME_* (gui/ui_theme.h) */
     int ui_theme;
     /* Settings > Appearance > Colour, in a theme that has a tone: one of
-       enum ui_tone_colour (gui/ui_theme.h) */
+       enum ui_tone_colour (gui/ui_theme.h), Multicolor first */
     int theme_colour;
     /* Settings > Appearance, Now Playing: a song's stars there, 0 always,
        1 only once it has a rating, 2 never (Rating); and its format and
@@ -1117,6 +1117,10 @@ struct user_settings
     /* Playlists, as its first row and each of its folders' sorts them: 0 by
        name from A to Z, 1 from Z to A */
     int playlists_sort;
+    /* Settings > Appearance > Tinted Background, in a theme that has a tone:
+       the colour tints the surfaces and small text too, not only the
+       selection and the marks */
+    bool tinted_background;
 };
 
 /* global settings */

@@ -26,6 +26,7 @@
 #include "ui_theme.h"
 #include "screen_access.h"
 #include "viewport.h"
+#include "appevents.h"
 #include "statusbar-skinned.h"
 #include "night_mode.h"
 #include "skin_engine/skin_engine.h"
@@ -384,7 +385,8 @@ static const struct ui_theme ui_themes[] = {
                     /* the band's own tone: no line shows on it */
                     [UI_COLOUR_GROUP_RULE]      = RGB(0xde, 0xdb, 0xd6),
                     /* the ink where there is no tone to take: in one the
-                       name is a deep tint of the user's colour (tone_make()) */
+                       name is a deep tint of the user's colour, or without
+                       Tinted Background a neutral grey (tone_make()) */
                     [UI_COLOUR_GROUP_NAME]      = RGB(0x29, 0x24, 0x21),
                     [UI_COLOUR_VALUE]           = RGB(0x52, 0x51, 0x4a),
                     /* small text is a denser grey than the second, which
@@ -423,6 +425,11 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_COVER_TILE]      = RGB(0xe7, 0xdf, 0xd6),
                     [UI_COLOUR_NOTE_TOP]        = RGB(0x6b, 0x69, 0x63),
                     [UI_COLOUR_NOTE_FOOT]       = RGB(0xa5, 0x9e, 0x94),
+                    /* Now Playing's artist: a name for the accent, a step
+                       of the screen's from the dense grey, which Cover
+                       Colours' text roles take as they take that grey
+                       (make_neo_theme.py's ACCENT) */
+                    [UI_COLOUR_ACCENT]          = RGB(0x52, 0x55, 0x4a),
                 },
                 .scrollbar_track = { { 0xef, 0xeb, 0xe7 }, { 0xef, 0xeb, 0xe7 } },
                 .initial_opacity = 16,
@@ -461,6 +468,7 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_COVER_TILE]      = RGB(0x31, 0x30, 0x29),
                     [UI_COLOUR_NOTE_TOP]        = RGB(0xa5, 0x9e, 0x94),
                     [UI_COLOUR_NOTE_FOOT]       = RGB(0x6b, 0x69, 0x63),
+                    [UI_COLOUR_ACCENT]          = RGB(0xb5, 0xb6, 0xa5),
                 },
                 .scrollbar_track = { { 0x21, 0x1c, 0x18 }, { 0x21, 0x1c, 0x18 } },
                 .initial_opacity = 16,
@@ -593,7 +601,8 @@ struct ui_tone {
    grounds, to 62 % lightness, were tried on the device and not taken */
 static const short tone_depth[2] = { 500, 450 };
 
-/* the colours a user chooses from, in the order of enum ui_tone_colour */
+/* the colours a user chooses from, in the order of enum ui_tone_colour;
+   Multicolor's are its sections' */
 static const struct ui_tone tone_set[UI_TONE_COUNT] = {
     [UI_TONE_RED]       = {   0, { 500, 450 }, {   0,   0 } },
     [UI_TONE_YELLOW]    = {  55, { 500, 450 }, {   0,   0 } },
@@ -608,6 +617,15 @@ static const struct ui_tone tone_set[UI_TONE_COUNT] = {
     [UI_TONE_GLACIER]   = { 205, { 200, 200 }, { -10,  20 } },
     [UI_TONE_DEEP_BLUE] = { 232, { 300, 550 }, { -30,  10 } },
     [UI_TONE_BURGUNDY]  = { 345, { 260, 520 }, { -30, -10 } },
+};
+/* Multicolor's, a section's each, as apps' own on a Mac: Music's red-pink,
+   Podcasts' purple (the selected row #732DDE as the screen has it, as in
+   the owner's Apple Podcasts), Books' orange; the system's blue */
+static const struct ui_tone tone_sections[UI_SECTION_COUNT] = {
+    [UI_SECTION_MUSIC]      = { 352, { 500, 450 }, { 0, 0 } },
+    [UI_SECTION_PODCASTS]   = { 263, { 500, 450 }, { 0, 0 } },
+    [UI_SECTION_AUDIOBOOKS] = {  35, { 500, 450 }, { 0, 0 } },
+    [UI_SECTION_SYSTEM]     = { 211, { 500, 450 }, { 0, 0 } },
 };
 
 /* A surface's lightness in a tone, out of 1000, by look. A surface is known
@@ -630,6 +648,26 @@ static const struct {
 #define TONE_GROUND    0
 #define TONE_PANE      1
 #define TONE_SELECTION 4
+#define TONE_TRACK     5
+#define TONE_SURFACES  ARRAYLEN(tone_surfaces)
+/* Without Tinted Background the user's tone leaves the surfaces in a Mac's
+   greys, by the entries above: a white ground, light grey panes, bars and
+   fields; in the dark look neutral dark greys, a step apart. The selected
+   row keeps the colour. Small text and a section's name are a neutral grey,
+   the owner's #5A5C62 and #A5A2A5, at least 4.5 to 1 on a group's band; the
+   marks and the accent stay in the colour. The mockup's greys (roadmap
+   1.4.1 A19) and those as the screen's 16 bits have them nearest without a
+   cast: its #F2F2F7 came to #F7F3F7, the pink of its pane, #1C1C1E to a
+   green, #A5A2A5 to a hint of pink */
+static const unsigned tone_neutral[2][TONE_SURFACES] = {
+    { RGB(0xff, 0xff, 0xff), RGB(0xef, 0xef, 0xf7), RGB(0xe6, 0xe7, 0xef),
+      RGB(0xe6, 0xe7, 0xef), 0, RGB(0xce, 0xce, 0xd6) },
+    { RGB(0x19, 0x18, 0x19), RGB(0x29, 0x28, 0x29), RGB(0x3a, 0x39, 0x3a),
+      RGB(0x3a, 0x39, 0x3a), 0, RGB(0x4a, 0x49, 0x4a) },
+};
+static const unsigned tone_neutral_small[2] = {
+    RGB(0x5a, 0x5d, 0x63), RGB(0xa5, 0xa6, 0xa5),
+};
 /* A section's name on its band: the tone's hue at twice the colour's own
    saturation, whatever the depth, from this lightness on (light, dark)
    until it reads on the band; a grey or the ink did not say whose colour
@@ -643,21 +681,31 @@ static const short tone_row_lightness[2] = { 520, 460 };
 /* Small text is not a grey but a tint of the user's colour, from this
    lightness on until it reads on the deepest surface it stands on */
 static const short tone_small_lightness[2] = { 360, 720 };
-#define TONE_TRACK 5
 
-/* The tone the theme is in, or NULL in a theme without one, and the
-   surfaces' and the note's roles in it for the look it was made for */
-static const struct ui_tone *tone;
-static unsigned tone_colour[UI_COLOUR_COUNT];
-/* the colours of skins' viewports asked for since the tone was made */
-static struct {
+/* A tone made for a look: its table of the colours' roles, and each
+   surface's colour (tone_surfaces) */
+struct tone_made {
     const struct ui_tone *in;
-    unsigned plain, toned;
-} tone_seen[12];
-static int tone_seen_count;
-/* the user's colour, as the setting had it when it was last taken */
+    unsigned colour[UI_COLOUR_COUNT];
+    unsigned surface[TONE_SURFACES];
+};
+/* The user's, made as the theme, the look or the settings are taken: the
+   colour chosen in the first, or Multicolor's one a section, so that going
+   to another section makes nothing; and Now Playing's, a cover's tone or
+   its Fill */
+static struct tone_made tone_user[UI_SECTION_COUNT];
+static struct tone_made tone_np;
+/* The tone the theme is in, or NULL in a theme without one, and its table
+   for the look it was made for */
+static const struct ui_tone *tone;
+static const struct tone_made *tone_now;
+/* the user's colour and Tinted Background, as the settings had them when
+   they were last taken, and the section of the screen shown */
 static int tone_choice = UI_TONE_DEFAULT;
-/* each colour as a mark beside its name, light and dark */
+static bool tone_tinted;
+static int tone_section = UI_SECTION_SYSTEM;
+/* each colour as a mark beside its name, light and dark; Multicolor's are
+   its sections' selected rows */
 static const unsigned tone_swatch[UI_TONE_COUNT][2] = {
     [UI_TONE_RED]       = { RGB(0xd6, 0x38, 0x39), RGB(0xd6, 0x51, 0x52) },
     [UI_TONE_YELLOW]    = { RGB(0xe7, 0xd3, 0x29), RGB(0xe7, 0xd7, 0x42) },
@@ -674,7 +722,8 @@ static const unsigned tone_swatch[UI_TONE_COUNT][2] = {
     [UI_TONE_BURGUNDY]  = { RGB(0x73, 0x20, 0x31), RGB(0x8c, 0x28, 0x42) },
 };
 /* Now Playing's, by Cover Colours' Whole Screen: the hue of the playing
-   track's cover at the bright colours' saturation and lightness */
+   track's cover at the bright colours' saturation and lightness, its
+   surfaces tinted whatever Tinted Background says */
 static struct ui_tone tone_cover = { 0, { 500, 450 }, { 0, 0 } };
 /* and by its Fill: no tone of a hue but these colours (its numbers are not
    read) */
@@ -720,9 +769,11 @@ static int tone_saturation(const struct ui_tone *in, bool dark)
     return MIN(s, 1000);
 }
 
-static unsigned tone_of(const struct ui_tone *in, unsigned colour, bool dark)
+/* a surface's colour in a tone, an entry of tone_surfaces; neutral, in the
+   greys but for the selected row */
+static unsigned tone_of(const struct ui_tone *in, int surface, bool neutral,
+                        bool dark)
 {
-    const int surface = tone_surface_of(colour, dark);
     if (in == &tone_filled)
         return surface == TONE_GROUND || surface == TONE_PANE ? tone_fill.ground
                                                               : tone_fill.track;
@@ -730,6 +781,8 @@ static unsigned tone_of(const struct ui_tone *in, unsigned colour, bool dark)
         return cover_palette_under_white(in->hue,
                                          MIN(in->saturation[dark] * 2, TONE_ROW_SATURATION),
                                          tone_row_lightness[dark]);
+    if (neutral)
+        return tone_neutral[dark][surface];
     const int saturation = tone_saturation(in, dark);
     const unsigned *const plain = ui_theme_look(dark)->colour;
     int lightness = tone_surfaces[surface].lightness[dark] + in->shift[dark];
@@ -753,35 +806,37 @@ static unsigned tone_of(const struct ui_tone *in, unsigned colour, bool dark)
                                  plain[UI_COLOUR_VALUE], NULL);
 }
 
-static void tone_make(bool dark)
+static void tone_make(struct tone_made *made, const struct ui_tone *in,
+                      bool neutral, bool dark)
 {
     const struct ui_theme_look *const look = ui_theme_look(dark);
-    tone_seen_count = 0;
-    if (!tone)
-        return;
-    memcpy(tone_colour, look->colour, sizeof(tone_colour));
+    unsigned *const colour = made->colour;
+    made->in = in;
+    for (unsigned i = 0; i < TONE_SURFACES; i++)
+        made->surface[i] = tone_of(in, i, neutral, dark);
+    memcpy(colour, look->colour, sizeof(made->colour));
     for (unsigned i = 0; i < ARRAYLEN(tone_roles); i++)
-        tone_colour[tone_roles[i]] = tone_of(tone, look->colour[tone_roles[i]], dark);
-    if (tone == &tone_filled)
+        colour[tone_roles[i]] =
+            made->surface[tone_surface_of(look->colour[tone_roles[i]], dark)];
+    if (in == &tone_filled)
     {
-        tone_colour[UI_COLOUR_NOTE_TOP] = tone_fill.note_top;
-        tone_colour[UI_COLOUR_NOTE_FOOT] = tone_fill.note_foot;
-        tone_colour[UI_COLOUR_RATING_UNSET] = tone_fill.outline;
+        colour[UI_COLOUR_NOTE_TOP] = tone_fill.note_top;
+        colour[UI_COLOUR_NOTE_FOOT] = tone_fill.note_foot;
+        colour[UI_COLOUR_RATING_UNSET] = tone_fill.outline;
         return;
     }
     for (unsigned i = 0; i < ARRAYLEN(tone_marks); i++)
-        tone_colour[tone_marks[i]] = cover_palette_toned(look->colour[tone_marks[i]],
-                                                         tone->hue,
-                                                         tone_saturation(tone, dark));
+        colour[tone_marks[i]] = cover_palette_toned(look->colour[tone_marks[i]],
+                                                    in->hue, tone_saturation(in, dark));
     /* a star not set: an outline of a pixel, which has to show on the ground */
-    tone_colour[UI_COLOUR_RATING_UNSET] =
-        cover_palette_outline(look->colour[UI_COLOUR_RATING_UNSET], tone->hue,
-                              tone_saturation(tone, dark), dark,
-                              tone_colour[UI_COLOUR_GROUND]);
-    tone_colour[UI_COLOUR_GROUP_NAME] =
-        cover_palette_text_tint(tone->hue, MIN(tone->saturation[dark] * 2, 1000),
-                                tone_name_lightness[dark], dark,
-                                tone_colour[UI_COLOUR_GROUP_BAR]);
+    colour[UI_COLOUR_RATING_UNSET] =
+        cover_palette_outline(look->colour[UI_COLOUR_RATING_UNSET], in->hue,
+                              tone_saturation(in, dark), dark,
+                              colour[UI_COLOUR_GROUND]);
+    colour[UI_COLOUR_GROUP_NAME] = neutral ? tone_neutral_small[dark]
+        : cover_palette_text_tint(in->hue, MIN(in->saturation[dark] * 2, 1000),
+                                  tone_name_lightness[dark], dark,
+                                  colour[UI_COLOUR_GROUP_BAR]);
     {
         /* white on the selected row and on Quick Scroll's box, which is
            in the row's colour */
@@ -791,32 +846,52 @@ static void tone_make(bool dark)
         static const unsigned char small[] = {
             UI_COLOUR_GROUP_TEXT, UI_COLOUR_VALUE, UI_COLOUR_SEARCH_SECOND,
             UI_COLOUR_LEAD, UI_COLOUR_BITRATE, UI_COLOUR_HINT_TEXT,
-            /* and the marks before a name: a show's "2 new", the speaker */
+            /* and the marks before a name: a show's "2 new", the speaker;
+               Now Playing's artist. The accent, in the colour when the
+               rest is a neutral grey */
             UI_COLOUR_ACCENT,
         };
         static const unsigned char quiet[] = {
             UI_COLOUR_QUIET, UI_COLOUR_SEARCH_DIM, UI_COLOUR_SCROLLBAR_THUMB,
         };
         const unsigned tint =
-            cover_palette_text_tint(tone->hue, MIN(tone->saturation[dark] * 2, 1000),
+            cover_palette_text_tint(in->hue, MIN(in->saturation[dark] * 2, 1000),
                                     tone_small_lightness[dark], dark,
-                                    tone_of(tone, tone_surfaces[TONE_TRACK].plain[dark],
-                                            dark));
+                                    made->surface[TONE_TRACK]);
         for (unsigned i = 0; i < ARRAYLEN(on_row); i++)
-            tone_colour[on_row[i]] = LCD_WHITE;
+            colour[on_row[i]] = LCD_WHITE;
         for (unsigned i = 0; i < ARRAYLEN(small); i++)
-            tone_colour[small[i]] = tint;
+            colour[small[i]] = neutral && small[i] != UI_COLOUR_ACCENT
+                               ? tone_neutral_small[dark] : tint;
         /* a chevron on a row not selected, a song's number, the
            scrollbar's thumb: the selected row's colour, which shows on the
            ground whatever the hue; a letter no name goes on with is
            nearly a grey, 2 to 1 on the ground: in the colour it read as a
-           letter to choose */
+           letter to choose. A grey with the rest */
         for (unsigned i = 0; i < ARRAYLEN(quiet); i++)
-            tone_colour[quiet[i]] = quiet[i] == UI_COLOUR_SEARCH_DIM
-                ? cover_palette_outline(look->colour[quiet[i]], tone->hue, 120, dark,
-                                        tone_colour[UI_COLOUR_GROUND])
-                : tone_colour[UI_COLOUR_SELECTOR_START];
+            colour[quiet[i]] = quiet[i] == UI_COLOUR_SEARCH_DIM
+                ? cover_palette_outline(look->colour[quiet[i]], in->hue,
+                                        neutral ? 0 : 120, dark,
+                                        colour[UI_COLOUR_GROUND])
+                : colour[UI_COLOUR_SELECTOR_START];
     }
+}
+
+/* the user's tones made for a look: the colour chosen, or Multicolor's
+   one a section */
+static void tone_make_user(bool dark)
+{
+    if (tone_choice == UI_TONE_MULTICOLOR)
+        for (int i = 0; i < UI_SECTION_COUNT; i++)
+            tone_make(&tone_user[i], &tone_sections[i], !tone_tinted, dark);
+    else
+        tone_make(&tone_user[0], &tone_set[tone_choice], !tone_tinted, dark);
+}
+
+/* and the one of the screen's section */
+static const struct tone_made *tone_user_now(void)
+{
+    return &tone_user[tone_choice == UI_TONE_MULTICOLOR ? tone_section : 0];
 }
 #endif
 
@@ -824,33 +899,16 @@ unsigned ui_colour(enum ui_colour role)
 {
 #ifdef HAVE_COVER_TONE
     if (tone)
-        return tone_colour[role];
+        return tone_now->colour[role];
 #endif
     return ui_theme_look(global_settings.dark_theme)->colour[role];
 }
-
-#ifdef HAVE_COVER_TONE
-static unsigned tone_surface(const struct ui_tone *in, unsigned colour)
-{
-    for (int i = 0; i < tone_seen_count; i++)
-        if (tone_seen[i].plain == colour && tone_seen[i].in == in)
-            return tone_seen[i].toned;
-    const unsigned toned = tone_of(in, colour, global_settings.dark_theme);
-    if (tone_seen_count < (int)ARRAYLEN(tone_seen))
-    {
-        tone_seen[tone_seen_count].in = in;
-        tone_seen[tone_seen_count].plain = colour;
-        tone_seen[tone_seen_count++].toned = toned;
-    }
-    return toned;
-}
-#endif
 
 unsigned ui_theme_surface(unsigned colour)
 {
 #ifdef HAVE_COVER_TONE
     if (tone)
-        return tone_surface(tone, colour);
+        return tone_now->surface[tone_surface_of(colour, global_settings.dark_theme)];
 #endif
     return colour;
 }
@@ -860,12 +918,10 @@ unsigned ui_theme_status_surface(unsigned colour)
 #ifdef HAVE_COVER_TONE
     /* under Fill a shade of the ground, its hairline the track's colour */
     if (tone == &tone_filled)
-        return tone_of(tone, colour, global_settings.dark_theme) == tone_fill.ground
-               ? tone_fill.status : tone_fill.track;
-    if (tone)
-        return tone_surface(tone, colour);
+        return ui_theme_surface(colour) == tone_fill.ground ? tone_fill.status
+                                                            : tone_fill.track;
 #endif
-    return colour;
+    return ui_theme_surface(colour);
 }
 
 unsigned ui_theme_plain_ground(void)
@@ -887,11 +943,11 @@ static void tone_to_settings(void)
 }
 
 #ifdef HAVE_COVER_TONE
-/* the table for the tone, and the main screen's and the skins' grounds */
-static void tone_changed(const struct ui_tone *to)
+/* a tone's table in use, and the main screen's and the skins' grounds */
+static void tone_use(const struct tone_made *made)
 {
-    tone = to;
-    tone_make(global_settings.dark_theme);
+    tone = made->in;
+    tone_now = made;
     tone_to_settings();
     screens[SCREEN_MAIN].set_background(global_settings.bg_color);
     skin_surfaces_changed();
@@ -908,35 +964,61 @@ unsigned ui_theme_skin_text(unsigned colour)
         /* the ring of the disk's use and a bar's fill (draw_progressbar()),
            in the skins' second grey: the selected row's colour */
         if (colour == plain[UI_COLOUR_NOTE_TOP])
-            return tone_colour[UI_COLOUR_SELECTOR_START];
+            return tone_now->colour[UI_COLOUR_SELECTOR_START];
         /* small text, in the skins' dense grey: the tint the lists' is */
         if (colour == plain[UI_COLOUR_VALUE])
-            return tone_colour[UI_COLOUR_VALUE];
+            return tone_now->colour[UI_COLOUR_VALUE];
+        /* Now Playing's artist: the accent, the colour's on a neutral
+           ground too */
+        if (colour == plain[UI_COLOUR_ACCENT])
+            return tone_now->colour[UI_COLOUR_ACCENT];
     }
 #endif
     return colour;
 }
 
-unsigned ui_theme_colour_swatch(int colour)
+unsigned ui_theme_colour_swatch(int colour, int quarter)
 {
 #ifdef HAVE_COVER_TONE
-    return tone_swatch[colour >= 0 && colour < UI_TONE_COUNT ? colour : UI_TONE_DEFAULT]
-                      [global_settings.dark_theme];
+    const bool dark = global_settings.dark_theme;
+    if (colour < 0 || colour >= UI_TONE_COUNT)
+        colour = UI_TONE_DEFAULT;
+    if (colour == UI_TONE_MULTICOLOR)
+    {
+        /* its sections round it as on a colour wheel: Music's red, Books'
+           orange, the system's blue, Podcasts' purple */
+        static const unsigned char round[4] = {
+            UI_SECTION_MUSIC, UI_SECTION_AUDIOBOOKS, UI_SECTION_SYSTEM,
+            UI_SECTION_PODCASTS,
+        };
+        const struct ui_tone *const in = &tone_sections[round[quarter & 3]];
+        return cover_palette_under_white(in->hue,
+                                         MIN(in->saturation[dark] * 2, TONE_ROW_SATURATION),
+                                         tone_row_lightness[dark]);
+    }
+    return tone_swatch[colour][dark];
 #else
     (void)colour;
+    (void)quarter;
     return 0;
 #endif
 }
 
-void ui_theme_set_colour(int colour)
+void ui_theme_set_colour(int colour, bool tinted)
 {
 #ifdef HAVE_COVER_TONE
-    tone_choice = colour >= 0 && colour < UI_TONE_COUNT ? colour : UI_TONE_DEFAULT;
-    /* (a cover's tone goes as Now Playing is left, to the colour set here) */
-    if (!tone || tone == &tone_set[tone_choice] || tone == &tone_cover
-        || tone == &tone_filled)
+    if (colour < 0 || colour >= UI_TONE_COUNT)
+        colour = UI_TONE_DEFAULT;
+    const bool same = colour == tone_choice && tinted == tone_tinted;
+    tone_choice = colour;
+    tone_tinted = tinted;
+    if (!tone || same)
         return;
-    tone_changed(&tone_set[tone_choice]);
+    tone_make_user(global_settings.dark_theme);
+    /* (a cover's tone goes as Now Playing is left, to the user's made here) */
+    if (tone == &tone_cover || tone == &tone_filled)
+        return;
+    tone_use(tone_user_now());
     /* the status line and the pane whole, and the lists' viewports anew.
        The status-bar skin is asked for all of itself: at the first level of
        screens the theme's toggle clears round the list and asks only for
@@ -947,6 +1029,55 @@ void ui_theme_set_colour(int colour)
     night_mode_colours_changed();
 #else
     (void)colour;
+    (void)tinted;
+#endif
+}
+
+bool ui_theme_set_section(int section, bool status_line)
+{
+#ifdef HAVE_COVER_TONE
+    if (section < 0 || section >= UI_SECTION_COUNT)
+        return false;
+    tone_section = section;
+    if (!ui_theme_multicolor() || tone == &tone_cover || tone == &tone_filled
+        || tone_now == &tone_user[section])
+        return false;
+    const struct tone_made *const was = tone_now;
+    tone_use(&tone_user[section]);
+    skin_request_full_update(CUSTOM_STATUSBAR);
+    /* Tinted grounds: the status line's own too, round the lists, which a
+       list drawn anew doesn't clear. Neutral ones are the same in every
+       section, the selected row's colour drawn with the rows */
+    bool grounds = false;
+    for (unsigned i = 0; i < TONE_SURFACES; i++)
+        grounds |= i != TONE_SELECTION && was->surface[i] != tone_now->surface[i];
+    if (status_line && grounds)
+        viewportmanager_theme_changed(THEME_STATUSBAR);
+    else
+        send_event(GUI_EVENT_THEME_CHANGED, NULL);
+    return true;
+#else
+    (void)section;
+    (void)status_line;
+    return false;
+#endif
+}
+
+int ui_theme_section(void)
+{
+#ifdef HAVE_COVER_TONE
+    return tone_section;
+#else
+    return UI_SECTION_SYSTEM;
+#endif
+}
+
+bool ui_theme_multicolor(void)
+{
+#ifdef HAVE_COVER_TONE
+    return tone && tone_choice == UI_TONE_MULTICOLOR;
+#else
+    return false;
 #endif
 }
 
@@ -959,7 +1090,7 @@ bool ui_theme_cover_tone(int hue)
     {
         if (tone != &tone_cover && tone != &tone_filled)
             return false;
-        tone_changed(&tone_set[tone_choice]);
+        tone_use(tone_user_now());
         /* the lists' status line has the same glyphs in the same places
            and wouldn't draw them again on the new ground */
         skin_request_full_update(CUSTOM_STATUSBAR);
@@ -969,11 +1100,12 @@ bool ui_theme_cover_tone(int hue)
         return false;
     unsigned old[UI_COLOUR_COUNT];
     const bool was_cover = tone == &tone_cover;
-    memcpy(old, tone_colour, sizeof(old));
+    memcpy(old, tone_now->colour, sizeof(old));
     tone_cover.hue = hue;
-    tone_changed(&tone_cover);
+    tone_make(&tone_np, &tone_cover, false, global_settings.dark_theme);
+    tone_use(&tone_np);
     /* two hues may come to the same colours of the screen's 16 bits */
-    return !was_cover || memcmp(old, tone_colour, sizeof(old));
+    return !was_cover || memcmp(old, tone_np.colour, sizeof(old));
 #else
     (void)hue;
     return false;
@@ -988,7 +1120,8 @@ bool ui_theme_cover_fill(const struct ui_theme_fill *fill)
     if (tone == &tone_filled && !memcmp(fill, &tone_fill, sizeof(tone_fill)))
         return false;
     tone_fill = *fill;
-    tone_changed(&tone_filled);
+    tone_make(&tone_np, &tone_filled, false, global_settings.dark_theme);
+    tone_use(&tone_np);
     return true;
 #else
     (void)fill;
@@ -1051,14 +1184,17 @@ void ui_theme_to_settings(bool dark)
 #ifdef HAVE_COVER_TONE
     /* a theme with a tone is never without it: made here for this look,
        before the skins are read, so that they come up in it */
-    tone = theme->cover_tone ? &tone_set[tone_choice] : NULL;
-    tone_make(dark);
-    if (tone)
+    tone = NULL;
+    tone_now = NULL;
+    if (theme->cover_tone)
     {
-        s->bg_color = tone_colour[UI_COLOUR_GROUND];
-        s->lss_color = tone_colour[UI_COLOUR_SELECTOR_START];
-        s->lse_color = tone_colour[UI_COLOUR_SELECTOR_END];
-        s->lst_color = tone_colour[UI_COLOUR_SELECTOR_TEXT];
+        tone_make_user(dark);
+        tone_now = tone_user_now();
+        tone = tone_now->in;
+        s->bg_color = tone_now->colour[UI_COLOUR_GROUND];
+        s->lss_color = tone_now->colour[UI_COLOUR_SELECTOR_START];
+        s->lse_color = tone_now->colour[UI_COLOUR_SELECTOR_END];
+        s->lst_color = tone_now->colour[UI_COLOUR_SELECTOR_TEXT];
     }
 #endif
 }

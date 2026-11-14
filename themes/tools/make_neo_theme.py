@@ -37,15 +37,19 @@ COLOURS = {
     "Neo":      dict(PAPER="EFEBE7", PRIMARY="292421", SECONDARY="6B6963",
                      TERTIARY="A59E94", TRACK="E7DFD6", SELECTED="DEDBD6",
                      SURFACE="E7E3DE", DENSE="52514A", CLOCK="524D4A",
-                     NEUTRAL="524D4A", REFLECT=REFLECT_LIGHT),
+                     NEUTRAL="524D4A", ACCENT="52554A", REFLECT=REFLECT_LIGHT),
     "Neo-Dark": dict(PAPER="211C18", PRIMARY="EFEBE7", SECONDARY="A59E94",
                      TERTIARY="6B6963", TRACK="313029", SELECTED="312C29",
                      SURFACE="312C29", DENSE="B5B2A5", CLOCK="B5AEA5",
-                     NEUTRAL="B5AEA5", REFLECT=REFLECT_DARK),
+                     NEUTRAL="B5AEA5", ACCENT="B5B6A5", REFLECT=REFLECT_DARK),
 }
 # NEUTRAL: Now Playing's grey that stays grey, a step from DENSE as CLOCK is:
-# of a song's details only the artist takes the user's colour (DENSE), the
-# album, the place in the list, the format and the times under the bar not
+# of a song's details only the artist takes the user's colour (ACCENT), the
+# album, the place in the list, the format and the times under the bar not.
+# ACCENT is the look's UI_COLOUR_ACCENT in ui_theme.c, a step from DENSE the
+# other way: the artist stays in the colour where the small text is a neutral
+# grey (Tinted Background off), and is the cover's second text under Cover
+# Colours as DENSE is
 
 SIZES = {}
 for line in open(os.path.join(HERE, "neo_glyph_sizes.txt")):
@@ -396,11 +400,11 @@ def wps():
 
     # each line of the block: its viewport's font and colour, and its text
     line = {
-        "artist": (6, "DENSE", "%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>"),
+        "artist": (6, "ACCENT", "%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>"),
         "album": (6, "NEUTRAL", "%s%al%?id<%id|%Sx(Unknown Album)>"),
-        "show": (6, "DENSE", "%s%al%?id<%id|%Sx(Unknown Album)>"),
+        "show": (6, "ACCENT", "%s%al%?id<%id|%Sx(Unknown Album)>"),
         "date": (6, "NEUTRAL", "%al%kd"),
-        "author": (6, "DENSE", "%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>"),
+        "author": (6, "ACCENT", "%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>"),
         "chapter": (6, "NEUTRAL", "%s%al%?kc<%kc|%id>"),
         "count": (4, "NEUTRAL", "%al%pp %Sx(of) %pe"),
         "format": (4, "NEUTRAL", "%fB"),

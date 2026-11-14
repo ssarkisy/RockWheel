@@ -22536,10 +22536,10 @@
   desc: the hint in the band under Settings > Appearance while Colour is selected, in three lines at most: what the user gets from it
   user: core
   <source>
-    *: "Every screen takes on the colour you choose."
+    *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
   </source>
   <dest>
-    *: "Wszystkie ekrany przyjmują wybrany kolor."
+    *: "W trybie Wielokolorowy Muzyka, Podcasty i Audiobooki mają własne kolory. Inny kolor: na każdym ekranie."
   </dest>
   <voice>
     *: ""
@@ -22792,6 +22792,48 @@
   </source>
   <dest>
     *: "Sortowanie dla wybranego języka"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_MULTICOLOR
+  desc: a value of Colour under Settings > Appearance, first in its list, as the first accent colour of macOS: each section in a colour of its own, as apps are on a Mac (Music red-pink, Podcasts purple, Audiobooks orange, the rest blue). macOS's own word for it
+  user: core
+  <source>
+    *: "Multicolour"
+  </source>
+  <dest>
+    *: "Wielokolorowy"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TINTED_BACKGROUND
+  desc: a setting of Settings > Appearance, under Colour, On or Off: on, the colour chosen tints the screens' backgrounds, bars and small text too; off, they stay neutral greys and white, and the colour is on the selected row and the marks only
+  user: core
+  <source>
+    *: "Tinted Background"
+  </source>
+  <dest>
+    *: "Zabarwione tło"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_TINTED_BACKGROUND
+  desc: the hint in the band under Settings > Appearance while Tinted Background is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Backgrounds and small text take on a tint of the colour too."
+  </source>
+  <dest>
+    *: "Tła i drobny tekst również nabierają odcienia koloru."
   </dest>
   <voice>
     *: ""

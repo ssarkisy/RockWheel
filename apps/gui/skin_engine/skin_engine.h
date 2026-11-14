@@ -86,6 +86,10 @@ int skin_art_handle(const struct wps_data *data, int index, int handle);
 bool skin_art_found(const struct wps_data *data, int handle);
 bool skin_art_available(int handle);
 bool skin_art_colours_update(const struct wps_data *data);
+/* Now Playing in its track's section, for Multicolor's colours
+   (ui_theme_set_section()): true if they changed, and a cover's colours
+   made on the old ground are to be made again */
+bool skin_section_update(void);
 /* The tone has changed in a theme whose surfaces take one: every
    viewport of the main screen's loaded skins gets its background in it */
 void skin_surfaces_changed(void);

@@ -243,6 +243,9 @@ int tagtree_entry_mark(struct tree_context *c, int row);
    another row, or another list */
 int tagtree_music_row_kind(struct tree_context *c, int row);
 bool tagtree_is_music_menu(struct tree_context *c);
+/* the kind of track (tagcache.h) of the section of Music the list is in: 1
+   in Podcasts, 2 in Audiobooks, 0 in Music's own menu and the rest */
+int tagtree_list_kind(struct tree_context *c);
 /* of its first song, a tag of names' text as the database has it, UNTAGGED
    for none: from its memory only, false without it. Not tag_filename, whose
    path may be read from the disk */

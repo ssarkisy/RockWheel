@@ -2965,18 +2965,25 @@ const struct settings_list settings[] = {
 #endif
     /* Settings > Appearance > Colour: the tone of a theme that has one, in
        the order of enum ui_tone_colour; taken on Select, as it draws the
-       screen again */
+       screen again. Read by name: Multicolor came first in 1.4.1, the
+       default for a config.cfg that names none, as 1.4.0's default Desert
+       wasn't written */
     CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, theme_colour,
                    LANG_THEME_COLOUR, UI_TONE_DEFAULT, "theme colour",
-                   "red,yellow,green,teal,blue,purple,pink,orange,desert,olive,"
-                   "glacier,deep blue,burgundy", theme_colour_changed,
-                   UI_TONE_COUNT, ID2P(LANG_COLOUR_RED), ID2P(LANG_COLOUR_YELLOW),
+                   "multicolor,red,yellow,green,teal,blue,purple,pink,orange,"
+                   "desert,olive,glacier,deep blue,burgundy", theme_colour_changed,
+                   UI_TONE_COUNT, ID2P(LANG_COLOUR_MULTICOLOR),
+                   ID2P(LANG_COLOUR_RED), ID2P(LANG_COLOUR_YELLOW),
                    ID2P(LANG_COLOUR_GREEN), ID2P(LANG_COLOUR_TEAL),
                    ID2P(LANG_COLOUR_BLUE), ID2P(LANG_COLOUR_PURPLE),
                    ID2P(LANG_COLOUR_PINK), ID2P(LANG_COLOUR_ORANGE),
                    ID2P(LANG_COLOUR_DESERT), ID2P(LANG_COLOUR_OLIVE),
                    ID2P(LANG_COLOUR_GLACIER), ID2P(LANG_COLOUR_DEEP_BLUE),
                    ID2P(LANG_COLOUR_BURGUNDY)),
+    /* Settings > Appearance > Tinted Background: off, the surfaces are
+       neutral greys and the colour is the selection's and the marks' */
+    OFFON_SETTING(0, tinted_background, LANG_TINTED_BACKGROUND, false,
+                  "tinted background", tinted_background_changed),
 };
 
 const int nb_settings = sizeof(settings)/sizeof(*settings);

@@ -18787,10 +18787,10 @@
   desc: the hint in the band under Settings > Appearance while Colour is selected, in three lines at most: what the user gets from it
   user: core
   <source>
-    *: "Every screen takes on the colour you choose."
+    *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
   </source>
   <dest>
-    *: "Pantaila guztiek aukeratzen duzun kolorea hartzen dute."
+    *: "Koloreanitzean, Musikak, Podcastek eta Audioliburuek beren kolorea dute. Beste koloreak pantaila guztietan."
   </dest>
   <voice>
     *: ""
@@ -19043,6 +19043,48 @@
   </source>
   <dest>
     *: "Hizkuntza berrirako ordenatzen"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COLOUR_MULTICOLOR
+  desc: a value of Colour under Settings > Appearance, first in its list, as the first accent colour of macOS: each section in a colour of its own, as apps are on a Mac (Music red-pink, Podcasts purple, Audiobooks orange, the rest blue). macOS's own word for it
+  user: core
+  <source>
+    *: "Multicolour"
+  </source>
+  <dest>
+    *: "Koloreanitza"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_TINTED_BACKGROUND
+  desc: a setting of Settings > Appearance, under Colour, On or Off: on, the colour chosen tints the screens' backgrounds, bars and small text too; off, they stay neutral greys and white, and the colour is on the selected row and the marks only
+  user: core
+  <source>
+    *: "Tinted Background"
+  </source>
+  <dest>
+    *: "Atzealde tindatua"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_TINTED_BACKGROUND
+  desc: the hint in the band under Settings > Appearance while Tinted Background is selected, in three lines at most: what the user gets from it
+  user: core
+  <source>
+    *: "Backgrounds and small text take on a tint of the colour too."
+  </source>
+  <dest>
+    *: "Atzealdeek eta testu txikiak ere kolorearen ñabardura hartzen dute."
   </dest>
   <voice>
     *: ""
