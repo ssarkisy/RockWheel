@@ -449,10 +449,10 @@
     *: "System"
   </source>
   <dest>
-    *: "Системни"
+    *: "Система"
   </dest>
   <voice>
-    *: "Системни"
+    *: "Система"
   </voice>
 </phrase>
 <phrase>
@@ -22717,6 +22717,20 @@
   </source>
   <dest>
     *: "Формат и битрейт"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SETTINGS_MENUS
+  desc: a section's name on the main Settings screen, over Main Menu, Music Menu and Now Playing Menu (the settings of those menus). Shown on its own bar, as a heading
+  user: core
+  <source>
+    *: "Menus"
+  </source>
+  <dest>
+    *: "Менюта"
   </dest>
   <voice>
     *: ""

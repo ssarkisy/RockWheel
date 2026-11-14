@@ -861,16 +861,24 @@ MAKE_MENU(settings_general, ID2P(LANG_GENERAL_SETTINGS), NULL, Icon_NOICON,
 #endif
           &ipod_keyclick_menu);
 
-/* Two screens: what's changed often on the first, the menus' rows and General
-   on the second, then what's set once, the timer, the clock and the language,
-   at the end. 1.2's list had grown to four screens with Rockbox's groups, and
-   the iPod classic's order kept the EQ, Sound Check and Volume Limit apart.
-   Rockbox's full settings menus are not shown. */
+/* About, then sections: the music's settings with the sleep timer, which
+   stops it; the screen's; the menus' rows; and the system's at the end:
+   General, the clock, the language, Legal, Rebuild Synced Covers and Reset.
+   A section's name is a bar none selects (MENUITEM_GROUP). 1.2's list had
+   grown to four screens with Rockbox's groups, and the iPod classic's order
+   kept the EQ, Sound Check and Volume Limit apart. Rockbox's full settings
+   menus are not shown. */
+MENUITEM_GROUP(settings_group_music, ID2P(LANG_MUSIC));
+MENUITEM_GROUP(settings_group_display, ID2P(LANG_DISPLAY));
+MENUITEM_GROUP(settings_group_menus, ID2P(LANG_SETTINGS_MENUS));
+MENUITEM_GROUP(settings_group_system, ID2P(LANG_SYSTEM));
 MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         Icon_Submenu_Entered,
         &show_info_item,
+        &settings_group_music,
         &shuffle_item, &repeat_mode,
-        &settings_sound, &settings_playback,
+        &settings_sound, &settings_playback, &sleep_timer_item,
+        &settings_group_display,
 #ifdef HAVE_BACKLIGHT
         &backlight_timeout,
 #endif
@@ -878,10 +886,13 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &brightness_item,
 #endif
         &night_row, &appearance_menu,
+        &settings_group_menus,
 #ifdef HAVE_TAGCACHE
         &main_menu_row, &music_menu_row,
 #endif
-        &wps_menu_row, &settings_general, &sleep_timer_item,
+        &wps_menu_row,
+        &settings_group_system,
+        &settings_general,
 #if CONFIG_RTC
         &timedate_item,
 #endif

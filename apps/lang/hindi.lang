@@ -1334,6 +1334,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_DISPLAY
+  desc: in settings_menu()
+  user: core
+  <source>
+    *: "Display"
+  </source>
+  <dest>
+    *: "डिस्प्ले"
+  </dest>
+  <voice>
+    *: "डिस्प्ले"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_LCD_MENU
   desc: in the display sub menu
   user: core
@@ -10446,6 +10460,20 @@
   </source>
   <dest>
     *: "फ़ॉर्मैट और बिट दर"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SETTINGS_MENUS
+  desc: a section's name on the main Settings screen, over Main Menu, Music Menu and Now Playing Menu (the settings of those menus). Shown on its own bar, as a heading
+  user: core
+  <source>
+    *: "Menus"
+  </source>
+  <dest>
+    *: "मेनू"
   </dest>
   <voice>
     *: ""

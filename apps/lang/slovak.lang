@@ -22721,6 +22721,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_SETTINGS_MENUS
+  desc: a section's name on the main Settings screen, over Main Menu, Music Menu and Now Playing Menu (the settings of those menus). Shown on its own bar, as a heading
+  user: core
+  <source>
+    *: "Menus"
+  </source>
+  <dest>
+    *: "Ponuky"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_SORTING_FOR_LANGUAGE
   desc: under the boot logo, the one line of Updating Library's screen while the library is sorted again for the menu language just chosen, in place of its steps' names; one line of 24 px bold text, at most about 300 px wide
   user: core
