@@ -52,7 +52,7 @@ COLOURS = {
 # Colours as DENSE is
 
 SIZES = {}
-for line in open(os.path.join(HERE, "neo_glyph_sizes.txt")):
+for line in open(os.path.join(HERE, "neo_glyph_sizes.txt"), encoding="utf-8"):
     if not line.startswith("#"):
         name, w, h, count = line.split()
         SIZES[name] = (int(w), int(h), int(count))
@@ -562,7 +562,7 @@ def main():
         for ext, text in (("sbs", sbs()), ("wps", wps())):
             for role, value in colours.items():
                 text = text.replace("(%s)" % role, "(%s)" % value)
-            with open(os.path.join(OUT, "%s.%s" % (name, ext)), "w") as f:
+            with open(os.path.join(OUT, "%s.%s" % (name, ext)), "w", encoding="utf-8") as f:
                 f.write(text)
 
 
