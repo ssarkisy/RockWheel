@@ -176,9 +176,16 @@ def each_pixel(src, dst, fn):
     write_bmp(dst, [[fn(p) for p in row] for row in rows], alpha)
 
 
+# Now Playing's reflection under the cover: on the dark ground a cover's dark
+# foot was lost at the default's half strength (owner, 2026-11-13); the light
+# skin keeps %Cr's default, 22 rows from 128 of 256
+DARK_REFLECTION = "%Cr(22,176)"
+
+
 def skin(name):
     with open(os.path.join(ROOT, "wps", "iClassic-Square." + name), encoding="utf-8") as f:
         text = f.read()
+    text = re.sub(r"^%Cr$", DARK_REFLECTION, text, flags=re.M)
     text = re.sub(r"%Vf\((\w{6})\)", lambda m: "%Vf(" + TEXT.get(m.group(1), m.group(1)) + ")", text)
     text = re.sub(r"%Vb\((\w{6})\)", lambda m: "%Vb(" + BACK.get(m.group(1), m.group(1)) + ")", text)
     with open(os.path.join(ROOT, "wps", "iClassic-Square-Dark." + name), "w", encoding="utf-8") as f:

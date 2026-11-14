@@ -51,9 +51,13 @@ enum line_styles {
     /* Modifier for a speaker at the right end of the line, for the song
      * playing, paused too */
     STYLE_PLAYING    = 0x40,
+    /* Modifier for a selected line of STYLE_COLORBAR or _GRADIENT whose
+     * colours are its background's and its text's alone: what else is on
+     * it, a value, a mark, the chevron, as on a line not selected */
+    STYLE_NAME_ONLY  = 0x80,
     /* These are used internally */
     _STYLE_DECO_MASK = 0x0f,
-    _STYLE_MODE_MASK = 0x7F,
+    _STYLE_MODE_MASK = 0xFF,
 };
 
 struct line_desc {
@@ -213,8 +217,10 @@ struct line_bar {
     int16_t x, top, bottom, thumb_top, thumb_bottom;
     /* the selected row's rows where the theme has everything on it in its
        text's colour (UI_METRIC_SELECTION_INK): the thumb so there and no
-       track; sel_bottom under sel_top for none */
+       track; sel_bottom under sel_top for none. The row's colour and its
+       text's, set with them: a row of STYLE_NAME_ONLY sets none */
     int16_t sel_top, sel_bottom;
+    unsigned sel_ground, sel_ink;
 };
 void line_set_bar(const struct line_bar *bar);
 /* the bar's rows from y, of the screen, in the viewport set */

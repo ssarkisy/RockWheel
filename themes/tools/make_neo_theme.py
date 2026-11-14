@@ -23,6 +23,11 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "Neo", ".rockbox", "wps")
 
+# the reflection's rows and its strength at the top, of 256: the firmware's
+# default %Cr in the light skin; on the dark paper a cover's dark foot was
+# lost at half, so the dark skin's starts stronger (owner, 2026-11-13)
+REFLECT_LIGHT, REFLECT_DARK = "22,128", "22,176"
+
 COLOURS = {
     # DENSE: small text, the clock (#56524D, #B8B1A8 as the screen has them);
     # SECONDARY is left to the bar's fill and the ring. CLOCK is the status
@@ -32,11 +37,11 @@ COLOURS = {
     "Neo":      dict(PAPER="EFEBE7", PRIMARY="292421", SECONDARY="6B6963",
                      TERTIARY="A59E94", TRACK="E7DFD6", SELECTED="DEDBD6",
                      SURFACE="E7E3DE", DENSE="52514A", CLOCK="524D4A",
-                     NEUTRAL="524D4A"),
+                     NEUTRAL="524D4A", REFLECT=REFLECT_LIGHT),
     "Neo-Dark": dict(PAPER="211C18", PRIMARY="EFEBE7", SECONDARY="A59E94",
                      TERTIARY="6B6963", TRACK="313029", SELECTED="312C29",
                      SURFACE="312C29", DENSE="B5B2A5", CLOCK="B5AEA5",
-                     NEUTRAL="B5AEA5"),
+                     NEUTRAL="B5AEA5", REFLECT=REFLECT_DARK),
 }
 # NEUTRAL: Now Playing's grey that stays grey, a step from DENSE as CLOCK is:
 # of a song's details only the artist takes the user's colour (DENSE), the
@@ -60,7 +65,7 @@ GAP = 6                 # between them
 # under it, where they were with the cover 12 rows lower
 COVER, COVER_Y = 136, 32
 BAR_Y, TIMES_Y = 193, 205
-REFLECTION = 22         # rows, as the firmware's default %Cr has them
+REFLECTION = 22         # rows, as REFLECT_LIGHT and REFLECT_DARK have them
 # the song's details beside the cover: one block in the middle of its height,
 # of these rows each line has, with these clear rows over some
 TITLE_LINE = 18         # 18-Inter-SemiBold, one line or two
@@ -240,8 +245,8 @@ WPS = """\
 {block}
 # repeat and shuffle under the status line's right end, repeat at the margin
 %?mw<{show_modes}|{show_modes}|||{show_modes}|{show_modes}>
-# the cover, its top corners rounded by the theme; without one, a note on a
-# tile rounded all round (%nc)
+# the cover, its top corners as round as the theme has them; without one, a
+# note on a tile with all its corners so (%nc)
 %?mw<%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%Vd(spill)|%Vd(spill)|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>>
 # the status line: the clock, the title, the glyphs, a hairline under it. Its
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware
@@ -258,7 +263,7 @@ WPS = """\
 # over a reflection of {reflection} rows, its foot square, which the reflection
 # goes on from; with Angled Cover turned, its corners all square
 %Cl(0,0,{cover},{cover},c,c)
-%Cr
+%Cr(REFLECT)
 # where it is not shown, the ground where a turned cover and its reflection
 # were, before what is drawn there: 12 px past the cover's place but under the
 # hairline, {reflection} rows under it.

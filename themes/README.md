@@ -42,11 +42,11 @@ typeface, still draw Hangul in those sizes.
 The fonts of Neo and Modern are made by the same two scripts, from Inter
 Regular too, at the em sizes of their mockups and named after their line
 heights as the rest: `19-Inter-SemiBold` (15 px),
-`17-Inter-Medium-13` (13), `15-Inter-Medium` and `-SemiBold` (12) and
-`14-Inter-Medium` (11) for Neo, whose title is `18-Inter-SemiBold`;
-`20-Inter-SemiBold` (15.5) and `18-Inter-Regular` (14) for Modern. iClassic
-Square loads none of them. Each has the other alphabets in its own weight and
-size. The ideographs and kana are 10 px at
+`17-Inter-Medium-13` (13), `15-Inter-Medium` (12) and `14-Inter-Medium` (11)
+for Neo and Modern, whose titles are `18-Inter-SemiBold`; `15-Inter-SemiBold`
+(12) for Neo alone; `18-Inter-Regular` (14) for the values in the menus of
+both. iClassic Square loads none of them. Each has the other alphabets in its
+own weight and size. The ideographs and kana are 10 px at
 the least and Hangul 11.67, taller than the Latin of the smallest fonts and cut
 to their lines. Of the ideographs' other forms these fonts have those the 24,
 17 and 14 px ones differ in. `tools/font_coverage.py` lists what each file

@@ -2030,9 +2030,16 @@ static void fill_rounded(struct screen *display, int x, int y, int w, int h,
 static void draw_field(struct screen *display)
 {
     const int line = font_get(field_vp.font)->height;
-    /* as wide as the selected row, or from where the rows' text starts */
-    const int x = ROUNDED ? global_settings.list_text_padding : 6;
-    const int w = field_vp.width - 2 * x;
+    /* as wide as the selected row; in a rounded theme from where the covers
+       of the results' rows stand, or their text where the theme has no place
+       of its own for the covers, to where the text ends. Right to left the
+       covers are at the other end */
+    const int pad = global_settings.list_text_padding;
+    const int inset = ui_metric(UI_METRIC_ROW_COVER_INSET);
+    const int covers = ROUNDED ? (inset ? inset : pad) : 6;
+    const int end = ROUNDED ? pad : 6;
+    const int x = VP_IS_RTL(&field_vp) ? end : covers;
+    const int w = field_vp.width - covers - end;
     const int h = ROUNDED ? FIELD_HEIGHT : line + 2;
     const int y = ROUNDED ? 0 : (field_vp.height - h) / 2;
     int text_w, text_h;

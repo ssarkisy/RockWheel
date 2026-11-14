@@ -13,27 +13,33 @@
 # covers, so Dark Theme comes with the music playing.
 #
 # The places are the mockup's: a status bar of 24 rows across every screen,
-# its last row a hairline; the lists under it, rows of 26; the main menu 144
-# wide beside a pane of 176 by 216, which the cover fills.
+# its last row a hairline; the lists under it, in Neo's rows of 30 (roadmap
+# 1.4.1, A16); the main menu 160 wide, as Classic's and Neo's, beside a pane
+# of 160, which the cover fills.
 
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "Modern", ".rockbox", "wps")
 
+# the reflection's rows and its strength at the top, of 256: the firmware's
+# default %Cr in the light skin; on black a cover's dark foot was lost at
+# half, so the dark skin's starts stronger (owner, 2026-11-13)
+REFLECT_LIGHT, REFLECT_DARK = "22,128", "22,176"
+
 COLOURS = {
     "Modern":      dict(GROUND="FFFFFF", INK="000000", SMALL="525152",
                         MUTED="73757B", ACCENT="FF2D52", ACCENTTEXT="DE244A",
                         TOP="F7F7F7", RULE="E6E7EF", PANE="EFF3F7",
                         TILE="EFF3F7",
-                        COLUMN="E6E7EF"),
+                        COLUMN="E6E7EF", REFLECT=REFLECT_LIGHT),
     "Modern-Dark": dict(GROUND="000000", INK="FFFFFF", SMALL="B4B6BD",
                         MUTED="8C8E94", ACCENT="FF345A", ACCENTTEXT="FF345A",
                         TOP="101010", RULE="202429", PANE="000000",
                         # a missing cover's tile, as a row's (UI_COLOUR_COVER_TILE):
                         # on the pane's black the note had no tile
                         TILE="181C20",
-                        COLUMN="181818"),
+                        COLUMN="181818", REFLECT=REFLECT_DARK),
 }
 
 SIZES = {}
@@ -44,10 +50,10 @@ for line in open(os.path.join(HERE, "modern_glyph_sizes.txt")):
 
 STATUS = 24             # the status bar's rows, the last its hairline
 MARGIN = 12             # the sides'
-# to the screen's foot: eight rows of 26, or six of the 35 a row of two lines
-# has, which 208 px cut to five
+# to the screen's foot: seven rows of 30, or five of the 36 a row of two lines
+# has and a part of the sixth
 LIST_TOP, LIST_ROWS = 28, 212
-SPLIT = 144             # the main menu's width; the pane is the rest
+SPLIT = 160             # the main menu's width; the pane is the rest
 TEXT_Y = 5              # the status bar's text, a cell of 14 with its baseline on row 16
 GLYPH_Y = 7             # its glyphs' top
 # the pane's pictures and their captions: clear rows from a picture to its
@@ -57,15 +63,15 @@ PANE_GAP = 8
 CELL_14 = (3, 10)             # 14-Inter-Medium
 CELL_17_SEMIBOLD = (4, 12)
 CELL_18_SEMIBOLD = (3, 13)
-# Now Playing: the cover, its reflection under it, of the rows the firmware's
-# default %Cr has, and the column beside it
+# Now Playing: the cover, its reflection under it (REFLECT_LIGHT/DARK's rows),
+# and the column beside it
 COVER_TOP, COVER = 36, 140
 REFLECTION = 22
 COL = 168               # the column's left edge
 STAR_SHIFT = 1          # the stars' row left of the text's edge
 # the song's details: one block in the middle of the cover's height, of these
 # rows each line has, with these clear rows over some
-TITLE_ROWS = 20         # 20-Inter-SemiBold
+TITLE_ROWS = 18         # 18-Inter-SemiBold, Neo's title
 ARTIST_ROWS = 17        # 17-Inter-Medium, with a clear row over it and the next
 SMALL_ROWS = 14         # 14-Inter-Medium: the album, the place in the list, the format
 LINE_GAP = 1
@@ -139,11 +145,10 @@ SBS = """\
 # Modern: the status bar and the main menu's pane. Made by themes/tools/make_modern_theme.py
 %wd
 %Fl(2,14-Inter-SemiBold.fnt)
+# an album's name over its songs is in this one too (apps/gui/ui_theme.c)
 %Fl(3,18-Inter-SemiBold.fnt)
 %Fl(4,14-Inter-Medium.fnt)
 %Fl(5,17-Inter-SemiBold.fnt)
-# an album's name over its songs is in this one (apps/gui/ui_theme.c)
-%Fl(6,20-Inter-SemiBold.fnt)
 {images}
 # beside the pane the bar is as wide as the menu: the clock and the glyphs,
 # no title; the pane has the screen's whole height
@@ -151,13 +156,13 @@ SBS = """\
 # the pane by the row selected: Settings, Photos, or the music, which Extras has too
 %?LW<|%?LS<%Vd(pane)%Vd(ring)%Vd(about)|{music}|%Vd(pane)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|{music}>>
 # the cover fills the pane, nothing over it: Finder's 240 px frame, its middle
-# 176 columns. It is drawn from 32 columns before the pane, which are the
+# {pane_w} columns. It is drawn from {cover_cut} columns before the pane, which are the
 # menu's and its bar's, drawn after it
 %Cl(0,0,240,240,c,c)
 %Vl(a,{cover_x},{cover_y},{cover_w},{cover_h},-)
 %Cd
 %Vl(a,{cover_x},{cover_y},{cover_cut},{cover_h},-)%Vb(GROUND)
-# the lists: under the status bar, rows of 26; beside the pane 144 wide
+# the lists: under the status bar, rows of 30; beside the pane {split} wide
 %Vi(wide,0,{list_top},320,{list_rows},1)%Vf(INK)%Vb(GROUND)
 %Vi(half,0,{list_top},{split},{list_rows},1)%Vf(INK)%Vb(GROUND)
 # the status bar across every screen: its ground, the hairline under it, the
@@ -212,7 +217,7 @@ WPS = """\
 # Modern: Now Playing. Made by themes/tools/make_modern_theme.py
 %wd
 %Fl(2,14-Inter-SemiBold.fnt)
-%Fl(3,20-Inter-SemiBold.fnt)
+%Fl(3,18-Inter-SemiBold.fnt)
 %Fl(4,17-Inter-Medium.fnt)
 %Fl(5,14-Inter-Medium.fnt)
 {images}
@@ -230,8 +235,8 @@ WPS = """\
 {block}
 # repeat and shuffle under the status bar's right end, repeat at the margin
 %?mw<{show_modes}|{show_modes}|||{show_modes}|{show_modes}>
-# the cover, 140 px, its top corners rounded by the theme; without one, a note
-# on a tile
+# the cover, 140 px, turned with Angled Cover; without one, a note on a tile.
+# Their corners as round as the theme has them (UI_METRIC_COVER_RADIUS, %nc)
 %?mw<%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%Vd(spill)|%Vd(spill)|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>>
 # the status bar, as the lists have it
 %V(0,0,320,{bar_rows},-)%Vb(TOP)
@@ -245,13 +250,16 @@ WPS = """\
 %xl(R,Repeat.bmp,0,0,{repeat_n})
 %xl(S,Shuffle.bmp,0,0,{shuffle_n})
 {mode_vps}
-# over a reflection, its foot square, which the reflection goes on from
+# over a reflection, its foot square, which the reflection goes on from; with
+# Angled Cover turned
 %Cl(0,0,140,140,c,c)
-%Cr
-# where it is not shown, the ground where its reflection was, before what is
-# drawn there. It must stay defined before noart, bigart, bignote and lyrics:
-# viewports are drawn in the file's order, and it clears where they draw
-%Vl(spill,{margin},{reflection_y},140,{reflection},-)
+%Cr(REFLECT)
+# where it is not shown, the ground where a turned cover and its reflection
+# were, before what is drawn there: 12 px past the cover's place but under the
+# hairline, {reflection} rows under it.
+# It must stay defined before noart, bigart, bignote and lyrics: viewports are
+# drawn in the file's order, and it clears where they draw
+%Vl(spill,{spill_x},{spill_y},{spill_w},{spill_h},-)
 %Vl(art,{margin},{cover_top},140,140,-)
 %Cd
 %xl(O,Note Playing.bmp,{noart_x},{noart_y})
@@ -329,6 +337,8 @@ def sbs():
     note, photos = SIZES["Note_Pane"], SIZES["Photos_Pane"]
     pane_w = 320 - SPLIT
     centre = SPLIT + pane_w // 2
+    # the frame's columns left of its middle's, under the menu
+    cut = (240 - pane_w) // 2
 
     def block(picture, first, last=None, pitch=0):
         """Where a picture so high and its caption go: the picture's top row
@@ -352,8 +362,8 @@ def sbs():
                 music=music, margin=MARGIN,
                 text_y=TEXT_Y, status=STATUS, bar_rows=STATUS - 1, list_top=LIST_TOP,
                 list_rows=LIST_ROWS, split=SPLIT, pane_w=pane_w, pane_h=240 - STATUS,
-                cover_x=SPLIT - 32, cover_y=0, cover_w=pane_w + 32,
-                cover_h=240, cover_cut=32,
+                cover_x=SPLIT - cut, cover_y=0, cover_w=pane_w + cut,
+                cover_h=240, cover_cut=cut,
                 ring_x=centre - 40, caption_x=SPLIT + 8, caption_w=pane_w - 16,
                 collage_x=centre - 80,
                 pane_gap=PANE_GAP, ring_y=ring_y - 1, free_y=free_y, total_y=free_y + 21,
@@ -465,13 +475,18 @@ def wps():
 
     grid = 320 - 2 * MARGIN
     reflection_foot = COVER_TOP + COVER + REFLECTION
+    # as far round the cover's place as a turned one goes (ART_SPILL in
+    # skin_display.c), under the status bar
+    spill_y = max(COVER_TOP - 12, STATUS)
     speed_y = reflection_foot
     return fill(WPS, images=images(), show=show, vps=vps, margin=MARGIN,
                 text_y=TEXT_Y, bar_rows=STATUS - 1, block=block,
                 block_vps="\n".join(block_vps), show_modes="%Vd(mode1)%Vd(mode2)",
                 mode_vps=mode_vps, repeat_n=repeat[2], shuffle_n=shuffle[2],
                 cover_top=COVER_TOP, star_shift=STAR_SHIFT,
-                reflection_y=COVER_TOP + COVER, reflection=REFLECTION,
+                reflection=REFLECTION,
+                spill_x=MARGIN - 12, spill_y=spill_y, spill_w=COVER + 24,
+                spill_h=reflection_foot - spill_y,
                 noart_x=(140 - note[0]) // 2, noart_y=(140 - note[1]) // 2,
                 ratings_n=ratings[2],
                 bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (MARGIN, bar_w, bar_h),

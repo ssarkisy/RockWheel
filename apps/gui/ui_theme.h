@@ -82,6 +82,7 @@ enum ui_colour {
     UI_COLOUR_LYRICS_DIM,     /* lyrics' lines not sung now, with UI_METRIC_LYRICS_DIM */
     UI_COLOUR_RING_TRACK,     /* the disk's ring's part not used, with UI_METRIC_RING_TRACK */
     UI_COLOUR_GROUP_NAME,     /* a group's name on its band, with UI_METRIC_GROUP_BAR 2 */
+    UI_COLOUR_SETTINGS_SELECTOR, /* Settings' selected row, with UI_METRIC_SETTINGS_SELECTION */
     UI_COLOUR_COUNT
 };
 
@@ -178,6 +179,10 @@ enum ui_metric {
        row's end, nearer than UI_METRIC_CHEVRON_MARGIN, and the value beside
        it as much nearer; 0 for that margin */
     UI_METRIC_CHEVRON_INSET,
+    /* the selected row of Settings' lists (LIST_SELECTION_SETTINGS) in
+       UI_COLOUR_SETTINGS_SELECTOR, its name in the accent and everything else
+       on it as on a row not selected; the other lists keep the theme's */
+    UI_METRIC_SETTINGS_SELECTION,
     UI_METRIC_COUNT
 };
 

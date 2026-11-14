@@ -162,6 +162,13 @@ struct list_selection_color
 };
 #endif
 
+#ifdef HAVE_LCD_COLOR
+/* A list's selected row: in the theme's colours, as the settings have them
+   (lss_color, lse_color, lst_color), or in those the theme has for Settings
+   (UI_METRIC_SETTINGS_SELECTION), where it has them */
+enum list_selection { LIST_SELECTION_THEME, LIST_SELECTION_SETTINGS };
+#endif
+
 struct gui_synclist
 {
     /*flags to hold settings show: icons, scrollbar etc..*/
@@ -256,6 +263,9 @@ struct gui_synclist
     int title_color;
     list_get_color *callback_get_item_color;
     struct list_selection_color *selection_color;
+    /* its selected row's look, enum list_selection: a list made in Settings
+       has Settings' (menu_in_settings()) */
+    unsigned char selection_look;
 #endif
     struct viewport *parent[NB_SCREENS];
 

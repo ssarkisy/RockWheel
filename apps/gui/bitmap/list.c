@@ -239,6 +239,15 @@ void list_load_fonts(void)
 /* the one list that pins its groups' names, or NULL */
 static const struct gui_synclist *pinned_groups;
 
+#ifdef HAVE_LCD_COLOR
+/* whether the list's selected row is in the theme's colours for Settings */
+static bool settings_selection(const struct gui_synclist *list)
+{
+    return list->selection_look == LIST_SELECTION_SETTINGS
+           && ui_metric(UI_METRIC_SETTINGS_SELECTION);
+}
+#endif
+
 void list_pin_groups(const struct gui_synclist *list)
 {
     pinned_groups = list;
@@ -937,15 +946,28 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                 linedes.line_color = global_settings.lss_color;
                 linedes.line_end_color = global_settings.lse_color;
             }
+            /* or in Settings' colours of the theme, where it has them:
+               the row's and its name's alone */
+            if (settings_selection(list) && !list->selection_color
+                && (style & (STYLE_COLORBAR|STYLE_GRADIENT)))
+            {
+                style |= STYLE_NAME_ONLY;
+                linedes.line_color = ui_colour(UI_COLOUR_SETTINGS_SELECTOR);
+                linedes.line_end_color = linedes.line_color;
+                linedes.text_color = ui_colour(UI_COLOUR_ACCENT);
+            }
 #endif
             is_selected = true;
 #ifdef HAVE_LCD_COLOR
             /* the scrollbar over it in its text's colour, for it too when
                it scrolls */
-            if (has_bar && ui_metric(UI_METRIC_SELECTION_INK))
+            if (has_bar && ui_metric(UI_METRIC_SELECTION_INK)
+                && !(style & STYLE_NAME_ONLY))
             {
                 bar.sel_top = list_text_vp->y + line * linedes.height + draw_offset;
                 bar.sel_bottom = bar.sel_top + linedes.height - 1;
+                bar.sel_ground = linedes.line_color;
+                bar.sel_ink = linedes.text_color;
                 line_set_bar(&bar);
             }
 #endif

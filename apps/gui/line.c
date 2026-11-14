@@ -104,11 +104,11 @@ void line_draw_bar(struct screen *display, const struct line_bar *bar,
     const int sel_bottom = MIN(MIN(last, bar->bottom), bar->sel_bottom);
     if (sel_top <= sel_bottom)
     {
-        display->set_foreground(global_settings.lss_color);
+        display->set_foreground(bar->sel_ground);
         display->vline(x, sel_top - vp->y, sel_bottom - vp->y);
         if (MAX(sel_top, bar->thumb_top) <= MIN(sel_bottom, bar->thumb_bottom))
         {
-            display->set_foreground(global_settings.lst_color);
+            display->set_foreground(bar->sel_ink);
             display->vline(x, MAX(sel_top, bar->thumb_top) - vp->y,
                            MIN(sel_bottom, bar->thumb_bottom) - vp->y);
         }
@@ -920,6 +920,14 @@ static unsigned off_selection(unsigned colour)
 {
     return ui_metric(UI_METRIC_ROW_RIGHT) ? ui_colour(UI_COLOUR_QUIET) : colour;
 }
+
+/* whether the line is of one of these styles in the colours of its selection
+   or its list for what is on it besides its text: not one whose selection is
+   of its background and its text alone (STYLE_NAME_ONLY) */
+static bool coloured(const struct line_desc *line, int styles)
+{
+    return (line->style & styles) && !(line->style & STYLE_NAME_ONLY);
+}
 #endif
 
 /* how much nearer the row's end than its margin a theme has the chevron,
@@ -945,8 +953,8 @@ static void draw_chevron(struct screen *display, int y, struct line_desc *line)
                                       ui_metric(UI_METRIC_ROW_RIGHT_GAP) - 2
                                       : CHEVRON_MARGIN), y, line);
         if (ui_metric(UI_METRIC_ROW_RIGHT))
-            display->set_foreground(selected ? on_selection(line)
-                                             : ui_colour(UI_COLOUR_QUIET));
+            display->set_foreground(coloured(line, STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT) ?
+                                    on_selection(line) : ui_colour(UI_COLOUR_QUIET));
         display->set_drawmode(DRMODE_FG);
         draw_glyph(GLYPH_CHEVRON, x, line_middle(display, y, line, CHEVRON_H));
         display->set_foreground(fg);
@@ -1033,7 +1041,7 @@ static void draw_speaker(struct screen *display, int y, struct line_desc *line)
             x = row_right(display, line, true) - SPEAKER_W;
         style_strip(display, x - CHEVRON_MARGIN, y, line);
     }
-    const bool selected = line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT);
+    const bool selected = coloured(line, STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT);
     const unsigned fg = display->get_foreground();
     if (ui_metric(UI_METRIC_ACCENT_MARKS))
         display->set_foreground(selected && ui_metric(UI_METRIC_SELECTION_INK) ?
@@ -1075,7 +1083,7 @@ static void draw_value(struct screen *display, int y, struct line_desc *line)
     font_getstringsize(line->value, &width, NULL, line->value_font);
     const unsigned fg = display->get_foreground();
 #ifdef HAVE_LCD_COLOR
-    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
+    if (coloured(line, STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
         display->set_foreground(on_selection(line));
     else if (line->style & STYLE_INVERT)
         display->set_foreground(display->get_background());
@@ -1127,7 +1135,7 @@ static void draw_state(struct screen *display, int x, int y,
         return;
     const int height = line->height == -1 ? display->getcharheight() : line->height;
     const unsigned fg = display->get_foreground();
-    if (line->style & (STYLE_COLORBAR|STYLE_GRADIENT))
+    if (coloured(line, STYLE_COLORBAR|STYLE_GRADIENT))
         display->set_foreground(on_selection(line));
     else if (line->style & STYLE_INVERT)
         display->set_foreground(display->get_background());
@@ -1165,7 +1173,7 @@ void line_draw_mark(struct screen *display, int x, int y,
         if (mark == LINE_MARK_BLANK)
             return;
         display->set_foreground(ui_metric(UI_METRIC_SELECTION_INK)
-                                && (line->style & (STYLE_COLORBAR|STYLE_GRADIENT)) ?
+                                && coloured(line, STYLE_COLORBAR|STYLE_GRADIENT) ?
                                 on_selection(line) : ui_colour(UI_COLOUR_ACCENT));
         display->set_drawmode(DRMODE_FG);
         lcd_alpha_bitmap_part(plus ? modern_plus_alpha : modern_music_marks_alpha,
@@ -1189,7 +1197,7 @@ void line_draw_mark(struct screen *display, int x, int y,
             return;
     }
     const int w = glyph(which)->w, h = glyph(which)->h;
-    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
+    if (coloured(line, STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
         display->set_foreground(on_selection(line));
     else if (line->style & STYLE_INVERT) /* as the text on the bar */
         display->set_foreground(display->get_background());
@@ -1343,7 +1351,7 @@ void line_draw_lead(struct screen *display, int font, int shift, int x, int y,
     y += height/2 - display->getcharheight()/2 + shift;
     const unsigned fg = display->get_foreground();
 #ifdef HAVE_LCD_COLOR
-    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
+    if (coloured(line, STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
         display->set_foreground(on_selection(line));
     else if (line->style & STYLE_INVERT) /* as the text on the bar */
         display->set_foreground(display->get_background());
@@ -1427,7 +1435,7 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
 #ifndef DISABLE_ALPHA_BITMAP
     accent_colour = speaker_colour();
 #endif
-    if (line->style & (STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
+    if (coloured(line, STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
     {
         colour = on_selection(line);
         accent_colour = line->text_color;
@@ -1441,7 +1449,7 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
                                                        : (unsigned)global_settings.fg_color;
     /* the playing song's, in the theme's accent where it isn't selected */
     if (ui_metric(UI_METRIC_PLAYING_SUBLINE) && (line->style & STYLE_PLAYING)
-        && !(line->style & (STYLE_COLORBAR|STYLE_GRADIENT|STYLE_INVERT)))
+        && !coloured(line, STYLE_COLORBAR|STYLE_GRADIENT|STYLE_INVERT))
         colour = ui_colour(UI_COLOUR_ACCENT);
 #endif
     display->set_drawmode(DRMODE_FG);

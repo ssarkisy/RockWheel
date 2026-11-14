@@ -540,8 +540,9 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         const int y = info->y + info->linedes->height / 2 - height / 2
                       + font_get(name_font)->ascent - font_get(font)->ascent;
         const unsigned old_fg = display->get_foreground();
-        display->set_foreground(info->is_selected ? ui_colour(UI_COLOUR_VALUE_SELECTED)
-                                                  : VALUE_COLOUR);
+        display->set_foreground(info->is_selected
+                                && !(info->linedes->style & STYLE_NAME_ONLY) ?
+                                ui_colour(UI_COLOUR_VALUE_SELECTED) : VALUE_COLOUR);
         display->set_drawmode(DRMODE_FG);
         info->vp->font = font;
         display->putsxy(x, y, fit);
@@ -569,6 +570,10 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
     /* On or Off that changes in place: the theme's switch at the row's end
        if it fits beside the name, or the word */
     const char *value = tab + 1;
+    /* the selection's colours on what is beside the name, or not: on
+       Settings' selection that has its own (STYLE_NAME_ONLY), as on any row */
+    const bool inked = info->is_selected
+                       && !(info->linedes->style & STYLE_NAME_ONLY);
     const bool is_switch = *value == MENU_SWITCH_ON || *value == MENU_SWITCH_OFF;
     if (is_switch)
     {
@@ -587,14 +592,14 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
             const unsigned colour = ui_colour(on ? UI_COLOUR_SWITCH_ON
                                                  : UI_COLOUR_SWITCH_OFF);
             if (info->is_selected)
-                display->set_background(global_settings.lss_color);
+                display->set_background(info->linedes->line_color);
             /* on a bar of one colour, a ring in the bar's text's colour
                round it: the green stood on the accent without an edge */
-            if (info->is_selected && ui_metric(UI_METRIC_SELECTION_INK))
+            if (inked && ui_metric(UI_METRIC_SELECTION_INK))
             {
                 line_fill_rounded(display, x - 1, y - 1, 29, 18, 9,
-                                  global_settings.lst_color);
-                display->set_background(global_settings.lst_color);
+                                  info->linedes->text_color);
+                display->set_background(info->linedes->text_color);
             }
             line_fill_rounded(display, x, y, 27, 16, 8, colour);
             display->set_background(colour);
@@ -645,8 +650,7 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
     }
 
     const unsigned old_fg = display->get_foreground();
-    display->set_foreground(info->is_selected ? ui_colour(UI_COLOUR_VALUE_SELECTED)
-                                                  : VALUE_COLOUR);
+    display->set_foreground(inked ? ui_colour(UI_COLOUR_VALUE_SELECTED) : VALUE_COLOUR);
     display->set_drawmode(DRMODE_FG);
     info->vp->font = font;
     display->putsxy(x, info->y + (info->linedes->height - height) / 2
@@ -950,6 +954,15 @@ void menu_request_root(void)
     root_requested = true;
 }
 
+/* the menu the outermost do_menu() opened, NULL with none open: the lists
+   made meanwhile are in its tree */
+static const struct menu_item_ex *tree_root;
+
+bool menu_in_settings(void)
+{
+    return tree_root == &main_menu_;
+}
+
 /* The theme drawn again for it, over a part of the list, which is drawn next:
    the two go on the screen together then. Shown at once, the album art's strip
    over the list's right end took off that of the selection for the time the
@@ -1016,6 +1029,10 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
     /* a menu that came in with a slide goes with one, and one opened by an
        item's function, which came at once, goes at once too */
     const bool slid_in = transition_pending();
+    /* one opened from another's row is in that one's tree */
+    const struct menu_item_ex *const outer_root = tree_root;
+    if (!tree_root)
+        tree_root = start_menu;
 
     int old_audio_status = audio_status();
 
@@ -1488,5 +1505,6 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
 #endif
     /* the next screen draws it: drawn here it'd show for a moment before that */
     selected_panel = MENU_PANEL_NONE;
+    tree_root = outer_root;
     return ret;
 }

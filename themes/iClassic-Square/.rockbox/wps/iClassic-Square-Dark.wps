@@ -88,7 +88,7 @@
 #%xl(z,FrameBottom.bmp,0,136)
 %Cl(0,0,136,136,c,c)
 # with its reflection under it, angled if the setting says
-%Cr
+%Cr(22,176)
 #%Vl(aa,7,39,144,142,-)
 # 12 px round the cover's place, as far as a turned one goes, and the reflection's 22
 # rows under it; before the cover's viewport, which draws over it

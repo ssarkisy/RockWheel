@@ -215,9 +215,10 @@ static bool is_fallback_file(const char *path)
     return !strcmp(path, FALLBACK_FONT) || (dash && !strcmp(dash, "-Hangul.fnt"));
 }
 
-/* Two fonts that 1.4.0 shipped and nothing loads, removed by their shipped
-   sizes so that a file of one's own under the name stays. A theme sets the
-   lists' font itself (ui_theme_to_settings()), so none is one chosen */
+/* Fonts that 1.4.0 shipped and nothing loads, removed by their shipped sizes
+   so that a file of one's own under the name stays: Modern's old ones. A
+   theme sets the lists' font itself (ui_theme_to_settings()), so none is one
+   chosen */
 static void font_remove_unused(void)
 {
     static const struct {
@@ -225,6 +226,7 @@ static void font_remove_unused(void)
         off_t size;
     } unused[] = {
         { "13-Inter-Regular", 5471753 }, { "14-Inter-Regular", 5851181 },
+        { "20-Inter-SemiBold", 10776441 },
     };
     char path[MAX_PATH];
     for (size_t i = 0; i < ARRAYLEN(unused); i++)

@@ -166,6 +166,10 @@ void menu_draw_value_line(struct list_putlineinfo_t *info);
 #define MENU_SWITCH(on) ((on) ? MENU_SWITCH_ON : MENU_SWITCH_OFF)
 /* From a screen a menu has opened: Menu has been held, so leave for the main menu */
 void menu_request_root(void);
+/* Whether Settings is open: the outermost menu open is it, and whatever is
+   made now is in its tree, its folders' lists and the lists of values opened
+   from them */
+bool menu_in_settings(void);
 int do_menu(const struct menu_item_ex *menu, int *start_selected,
             struct viewport parent[NB_SCREENS], bool hide_theme);
 

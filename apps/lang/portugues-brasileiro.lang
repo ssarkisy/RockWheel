@@ -18838,7 +18838,7 @@
     *: "Return to Now Playing"
   </source>
   <dest>
-    *: "Voltar para “Reproduzindo”"
+    *: "Voltar a “Reproduzindo”"
   </dest>
   <voice>
     *: ""

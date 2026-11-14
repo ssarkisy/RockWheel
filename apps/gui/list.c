@@ -229,6 +229,8 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     gui_list->title_color = -1;
     gui_list->callback_get_item_color = NULL;
     gui_list->selection_color = NULL;
+    gui_list->selection_look = menu_in_settings() ? LIST_SELECTION_SETTINGS
+                                                  : LIST_SELECTION_THEME;
 #endif
 }
 

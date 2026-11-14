@@ -304,7 +304,8 @@ struct skin_albumart {
     unsigned char yalign; /* WPS_ALBUMART_ALIGN_TOP, _CENTER, _BOTTOM */
     unsigned char state; /* WPS_ALBUMART_NONE, _CHECK, _LOAD */
     bool reflect;        /* with its reflection under it: %Cr */
-    bool angled_only;    /* %Cr(rows, strength): so only with Angled Cover */
+    /* %Cr(rows, strength): its rows, at most the default's, and its strength
+       at the top of 256 (a dark skin's stronger) */
     unsigned char reflect_rows, reflect_alpha;
 
     int draw_handle;

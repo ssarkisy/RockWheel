@@ -57,20 +57,19 @@ font 14-Inter-Bold.fnt     Inter-Bold.ttf     13    # iClassic screen titles
 font 12-Inter-SemiBold.fnt Inter-SemiBold.ttf 11    # iClassic bitrate
 
 # Neo's and Modern's, by the em of their mockups: -X 72 makes -p the em in
-# pixels (convttf's own 60 makes it 5/6 of -p, as above), -X 36 half of it.
+# pixels (convttf's own 60 makes it 5/6 of -p, as above).
 # Named after the line height convttf gives them, as the rest.
 # Their digits are Inter's own, each as wide as it is (-w): all as wide, a 1
 # stood apart in its cell and 13188 read as "1 31 88". Times and counts are
 # set from a side, so they stay in place; a file Classic names too is above.
 digits=-w
-font 19-Inter-SemiBold.fnt Inter-SemiBold.ttf 15 -X 72  # Neo row
+font 19-Inter-SemiBold.fnt Inter-SemiBold.ttf 15 -X 72  # rows
 # 13 px, not the 17-Inter-Medium above, which is 12.5
-font 17-Inter-Medium-13.fnt Inter-Medium.ttf  13 -X 72  # Neo text, values
-font 15-Inter-Medium.fnt   Inter-Medium.ttf   12 -X 72  # Neo label
+font 17-Inter-Medium-13.fnt Inter-Medium.ttf  13 -X 72  # hints, Neo's texts
+font 15-Inter-Medium.fnt   Inter-Medium.ttf   12 -X 72  # second lines, values
 font 15-Inter-SemiBold.fnt Inter-SemiBold.ttf 12 -X 72  # Neo name
-font 14-Inter-Medium.fnt   Inter-Medium.ttf   11 -X 72  # Neo small
-font 20-Inter-SemiBold.fnt Inter-SemiBold.ttf 31 -X 36  # Modern titles, 15.5
-font 18-Inter-Regular.fnt  Inter-Regular.ttf  14 -X 72  # Modern row
+font 14-Inter-Medium.fnt   Inter-Medium.ttf   11 -X 72  # small text
+font 18-Inter-Regular.fnt  Inter-Regular.ttf  14 -X 72  # menus' values
 unset digits
 
 # Quick Scroll's letter over a list (apps/gui/bitmap/list.c), 52 px with

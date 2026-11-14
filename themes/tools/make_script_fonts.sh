@@ -112,7 +112,6 @@ hangul 14 Pretendard-SemiBold.otf 14
 # px <em>: convttf's options for an em of that many pixels
 px() {
     case $1 in
-        *.5)   echo "-X 36 -p $(echo "$1" | sed 's/\.5$//' | awk '{ print 2 * $1 + 1 }')" ;;
         11.67) echo "-X 60 -p 14" ;;
         *)     echo "-X 72 -p $1" ;;
     esac
@@ -153,13 +152,12 @@ set_of() {
         "$(pretendard "$wght")" > /dev/null
     }
 }
-set_of 19-Inter-SemiBold 600 13 15   15     # Neo row
-set_of 17-Inter-Medium-13 500 12 13  13     # Neo text, values
-set_of 15-Inter-Medium   500 11 12   12     # Neo label
+set_of 19-Inter-SemiBold 600 13 15   15     # rows
+set_of 17-Inter-Medium-13 500 12 13  13     # hints, Neo's texts
+set_of 15-Inter-Medium   500 11 12   12     # second lines, values
 set_of 15-Inter-SemiBold 600 11 12   12     # Neo name
-set_of 14-Inter-Medium   500 10 11   11.67  # Neo small
-set_of 20-Inter-SemiBold 600 14 15.5 15.5   # Modern titles
-set_of 18-Inter-Regular  400 12 14   14     # Modern row
+set_of 14-Inter-Medium   500 10 11   11.67  # small text
+set_of 18-Inter-Regular  400 12 14   14     # menus' values
 
 "$python" "$here/merge_fonts.py" "$out" "$build" "$root/firmware/font_han_forms.h" "$build/sets.txt"
 

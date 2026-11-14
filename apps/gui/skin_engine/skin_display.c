@@ -1505,8 +1505,8 @@ static void draw_cover_column(const struct viewport *area, const fb_data *src,
     }
 }
 
-/* Angled Cover, where the theme's cover turns: Modern's never does, whatever
-   the setting says from another theme */
+/* Angled Cover, where the theme's cover turns: never in a theme whose cover is
+   flat (ui_theme.flat_cover), whatever the setting says from another theme */
 static bool cover_angled(void)
 {
     return global_settings.angled_cover && !ui_theme_current()->flat_cover;
@@ -1532,8 +1532,7 @@ static void draw_cover(struct gui_wps *gwps, struct skin_albumart *aa,
     struct screen *display = gwps->display;
 #if LCD_DEPTH == 16
     /* the cover a theme asks for so with %Cr, as Now Playing's */
-    if (aa->reflect && (!aa->angled_only || cover_angled())
-        && w > 1 && h > 1)
+    if (aa->reflect && w > 1 && h > 1)
     {
         reflection_alpha = aa->reflect_alpha;
         struct viewport *vp = display->set_viewport(NULL);
@@ -1605,7 +1604,7 @@ static void clear_cover_reflection(struct gui_wps *gwps, struct skin_albumart *a
 {
 #if LCD_DEPTH == 16
     struct screen *display = gwps->display;
-    if (!aa->reflect || (aa->angled_only && !cover_angled()))
+    if (!aa->reflect)
         return;
     struct viewport *vp = display->set_viewport(NULL);
     struct viewport area;

@@ -1575,7 +1575,6 @@ static int parse_albumart_reflect(struct skin_element *element,
     if (element->params_count >= 2)
     {
         /* no further than the space under a cover goes */
-        aa->angled_only = true;
         aa->reflect_rows = MIN(MAX(get_param(element, 0)->data.number, 0),
                                SKIN_REFLECTION_ROWS);
         aa->reflect_alpha = MIN(MAX(get_param(element, 1)->data.number, 0), 255);
@@ -1607,7 +1606,6 @@ static int parse_albumart_load(struct skin_element* element,
     aa->height =  percent_parse_param(get_param(element, 3), curr_vp->vp.height);
     aa->draw_handle = -1;
     aa->reflect = false;
-    aa->angled_only = false;
     aa->reflect_rows = SKIN_REFLECTION_ROWS;
     aa->reflect_alpha = SKIN_REFLECTION_ALPHA;
 
