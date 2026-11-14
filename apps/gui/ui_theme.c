@@ -592,6 +592,172 @@ const struct ui_theme_look *ui_theme_look(bool dark)
     return &ui_theme_current()->look[dark];
 }
 
+/* the section of the screen shown, whose colours Multicolor's are */
+static int tone_section = UI_SECTION_SYSTEM;
+
+#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16
+#define HAVE_ACCENT
+/* Classic's colour: a macOS accent colour in place of its blue wherever that
+   is, by the approved mockup's rule (roadmap 1.4.1 A2, accent_mock.py). The
+   selection with its bevel, and what takes its colours from the settings'
+   (the speaker and the marks, Search's key, Cover Flow's selection); the
+   scrollbar; the skins' pictures that take it (%xA): Now Playing's bar and
+   the status line's play glyph. The status line, the panes and the missing
+   covers' tiles stay as they are.
+   A colour of the blue family, a hue of 185 to 235 degrees and over 6 %
+   saturation, takes the accent's hue, and its saturation is scaled by the
+   accent's; its value is scaled by the accent's from 50 % saturation on,
+   less so down to 12 % and not at all below, so that a pale tint keeps its
+   lightness. Classic's darker end #186DBD is macOS's Blue at 87 % of its
+   saturation and 74 % of its value, so each colour's end is it at the same,
+   and Blue is Classic's own. A colour's value is lowered until white on the
+   middle of the selection reads 2.7 to 1 (accent_mock.py's 2.65, the
+   owner's Yellow); Yellow is a warm gold (42 degrees, 80 % saturation), as
+   macOS's selection under white */
+struct ui_accent {
+    short hue;     /* in tenths of a degree */
+    short s, v;    /* saturation and value, out of ACCENT_ONE */
+};
+#define ACCENT_ONE 10000
+static const struct ui_accent accent_set[UI_ACCENT_COUNT] = {
+    [UI_ACCENT_PURPLE]   = { 2928, 7857,  8784 }, /* #CB30E0 */
+    [UI_ACCENT_PINK]     = { 3318, 6802,  9686 }, /* #F74F9E */
+    [UI_ACCENT_RED]      = { 3588, 7804, 10000 }, /* #FF383C */
+    [UI_ACCENT_ORANGE]   = {  282, 8431, 10000 }, /* #FF8D28 */
+    [UI_ACCENT_YELLOW]   = {  420, 8000,  9000 }, /* #FFCC00 */
+    [UI_ACCENT_GREEN]    = { 1351, 7387,  7804 }, /* #34C759 */
+    [UI_ACCENT_GRAPHITE] = { 2400,  340,  5765 }, /* #8E8E93 */
+};
+/* Multicolor's, a section's each as Neo's: Music's red-pink #FA2D48,
+   Podcasts' purple #732DDE, Books' orange #FF9500; the system's is Classic's
+   blue */
+static const struct ui_accent accent_sections[UI_SECTION_SYSTEM] = {
+    [UI_SECTION_MUSIC]      = { 3521,  8200,  9804 },
+    [UI_SECTION_PODCASTS]   = { 2637,  7973,  8706 },
+    [UI_SECTION_AUDIOBOOKS] = {  351, 10000, 10000 },
+};
+static int accent_choice = UI_ACCENT_DEFAULT;
+/* the theme's colours taken (ui_theme_to_settings()): at boot the setting's
+   value comes first and is only kept */
+static bool accent_taken;
+/* Classic's colour now, NULL for its own blue and in another theme; and
+   made of it, the selection's ends, the scrollbar's thumb and its track by
+   look */
+static const struct ui_accent *accent;
+static unsigned accent_selector[2];
+static unsigned accent_thumb[UI_SCROLLBAR_THUMB_STEPS];
+static unsigned char accent_track[2][2][3];
+/* the pictures' colours seen last and what they came to, by a hash of the
+   colour, half for the status line's: a colour no other comes to marks one
+   unused, black's to white */
+#define ACCENT_SEEN 64
+static struct { unsigned from, to; } accent_seen[2 * ACCENT_SEEN];
+
+static const struct ui_accent *accent_of(int colour, int section)
+{
+    if (colour == UI_ACCENT_MULTICOLOR)
+        return section >= 0 && section < UI_SECTION_SYSTEM ? &accent_sections[section]
+                                                           : NULL;
+    return colour > UI_ACCENT_BLUE && colour < UI_ACCENT_COUNT ? &accent_set[colour] : NULL;
+}
+
+/* a colour in an accent, 8 bits a part; any_hue, of the blue family
+   whatever its hue (the scrollbar's thumb, which goes to cyan); keep_pale,
+   one of 12 % saturation or less as it is */
+static void accent_rgb(const struct ui_accent *a, int rgb[3], bool any_hue,
+                       bool keep_pale)
+{
+    const int r = rgb[0], g = rgb[1], b = rgb[2];
+    const int hi = MAX(r, MAX(g, b)), lo = MIN(r, MIN(g, b)), d = hi - lo;
+    /* over 6 % saturation; blue the most, and 240 + 60 (r - g) / d degrees
+       from 185 to 235 */
+    if (d * 50 <= hi * 3)
+        return;
+    if (!any_hue && (b != hi || 12 * (g - r) < d || 12 * (g - r) > 11 * d))
+        return;
+    const int s = d * ACCENT_ONE / hi;
+    if (keep_pale && s <= 1200)
+        return;
+    const int f = MIN(MAX((s - 1200) * ACCENT_ONE / 3800, 0), ACCENT_ONE);
+    const int s2 = MIN(s * a->s / ACCENT_ONE, ACCENT_ONE);
+    /* in hundredths of a level */
+    const int v2 = MIN(hi * (ACCENT_ONE + (a->v - ACCENT_ONE) * f / ACCENT_ONE) / 100,
+                       25500);
+    const int part = a->hue % 600;
+    const int p = v2 * (ACCENT_ONE - s2) / ACCENT_ONE;
+    const int q = v2 * (ACCENT_ONE - s2 * part / 600) / ACCENT_ONE;
+    const int t = v2 * (ACCENT_ONE - s2 * (600 - part) / 600) / ACCENT_ONE;
+    int out[3];
+    switch (a->hue / 600)
+    {
+        case 0:  out[0] = v2; out[1] = t;  out[2] = p;  break;
+        case 1:  out[0] = q;  out[1] = v2; out[2] = p;  break;
+        case 2:  out[0] = p;  out[1] = v2; out[2] = t;  break;
+        case 3:  out[0] = p;  out[1] = q;  out[2] = v2; break;
+        case 4:  out[0] = t;  out[1] = p;  out[2] = v2; break;
+        default: out[0] = v2; out[1] = p;  out[2] = q;  break;
+    }
+    for (int i = 0; i < 3; i++)
+        rgb[i] = (out[i] + 50) / 100;
+}
+
+static unsigned accent_colour(const struct ui_accent *a, unsigned colour,
+                              bool any_hue, bool keep_pale)
+{
+    int rgb[3] = { RGB_UNPACK_RED(colour), RGB_UNPACK_GREEN(colour),
+                   RGB_UNPACK_BLUE(colour) };
+    accent_rgb(a, rgb, any_hue, keep_pale);
+    return LCD_RGBPACK(rgb[0], rgb[1], rgb[2]);
+}
+
+/* Classic's colour as the theme, the setting and the section have it, and
+   what is made of it: true if it changed */
+static bool accent_update(void)
+{
+    const struct ui_accent *const was = accent;
+    accent = global_settings.ui_theme == UI_THEME_CLASSIC
+             ? accent_of(accent_choice, tone_section) : NULL;
+    if (accent == was)
+        return false;
+    const struct ui_theme *const classic = &ui_themes[UI_THEME_CLASSIC];
+    for (int i = 0; i < 2; i++)
+        accent_selector[i] = accent
+            ? accent_colour(accent, classic->look[0].colour[UI_COLOUR_SELECTOR_START + i],
+                            false, false)
+            : classic->look[0].colour[UI_COLOUR_SELECTOR_START + i];
+    for (int i = 0; i < UI_SCROLLBAR_THUMB_STEPS; i++)
+        accent_thumb[i] = accent ? accent_colour(accent, classic->scrollbar_thumb[i],
+                                                 true, false)
+                                 : classic->scrollbar_thumb[i];
+    for (int dark = 0; dark < 2; dark++)
+        for (int i = 0; i < 2; i++)
+        {
+            int rgb[3];
+            for (int k = 0; k < 3; k++)
+                rgb[k] = classic->look[dark].scrollbar_track[i][k];
+            if (accent)
+                accent_rgb(accent, rgb, false, false);
+            for (int k = 0; k < 3; k++)
+                accent_track[dark][i][k] = rgb[k];
+        }
+    for (unsigned i = 0; i < ARRAYLEN(accent_seen); i++)
+    {
+        accent_seen[i].from = LCD_BLACK;
+        accent_seen[i].to = LCD_WHITE;
+    }
+    return true;
+}
+
+/* the selection's colours in the settings, which the lists and the rest
+   read, and the status line drawn whole for its play glyph */
+static void accent_to_settings(void)
+{
+    global_settings.lss_color = accent_selector[0];
+    global_settings.lse_color = accent_selector[1];
+    skin_request_full_update(CUSTOM_STATUSBAR);
+}
+#endif /* HAVE_ACCENT */
+
 #if defined(HAVE_ALBUMART) && defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16
 #define HAVE_COVER_TONE
 /* A tone: a hue in degrees, and by look (light, dark) the surfaces'
@@ -711,10 +877,9 @@ static struct tone_made tone_np;
 static const struct ui_tone *tone;
 static const struct tone_made *tone_now;
 /* the user's colour and Tinted Background, as the settings had them when
-   they were last taken, and the section of the screen shown */
+   they were last taken */
 static int tone_choice = UI_TONE_DEFAULT;
 static bool tone_tinted;
-static int tone_section = UI_SECTION_SYSTEM;
 /* each colour as a mark beside its name, light and dark; Multicolor's are
    its sections' selected rows */
 static const unsigned tone_swatch[UI_TONE_COUNT][2] = {
@@ -912,7 +1077,109 @@ unsigned ui_colour(enum ui_colour role)
     if (tone)
         return tone_now->colour[role];
 #endif
+#ifdef HAVE_ACCENT
+    if (accent && (role == UI_COLOUR_SELECTOR_START || role == UI_COLOUR_SELECTOR_END))
+        return accent_selector[role - UI_COLOUR_SELECTOR_START];
+#endif
     return ui_theme_look(global_settings.dark_theme)->colour[role];
+}
+
+const unsigned *ui_theme_scrollbar_thumb(void)
+{
+#ifdef HAVE_ACCENT
+    if (accent)
+        return accent_thumb;
+#endif
+    return ui_theme_current()->scrollbar_thumb;
+}
+
+const unsigned char (*ui_theme_scrollbar_track(void))[3]
+{
+#ifdef HAVE_ACCENT
+    if (accent)
+        return accent_track[global_settings.dark_theme ? 1 : 0];
+#endif
+    return ui_theme_look(global_settings.dark_theme)->scrollbar_track;
+}
+
+void ui_theme_set_accent(int colour)
+{
+#ifdef HAVE_ACCENT
+    if (colour < 0 || colour >= UI_ACCENT_COUNT)
+        colour = UI_ACCENT_DEFAULT;
+    accent_choice = colour;
+    if (!accent_taken || global_settings.ui_theme != UI_THEME_CLASSIC || !accent_update())
+        return;
+    accent_to_settings();
+    /* the status line whole, and the lists' viewports anew, as a change of
+       Neo's colour does */
+    sb_skin_force_next_update();
+    viewportmanager_theme_changed(THEME_STATUSBAR);
+    night_mode_colours_changed();
+#else
+    (void)colour;
+#endif
+}
+
+unsigned ui_theme_accent_swatch(int colour, int quarter)
+{
+#ifdef HAVE_ACCENT
+    /* Multicolor's sections round it as Neo's: Music, Books, the system,
+       Podcasts */
+    static const signed char round[4] = {
+        UI_SECTION_MUSIC, UI_SECTION_AUDIOBOOKS, UI_SECTION_SYSTEM,
+        UI_SECTION_PODCASTS,
+    };
+    const struct ui_accent *const a = accent_of(colour, round[quarter & 3]);
+    const unsigned *const plain =
+        &ui_themes[UI_THEME_CLASSIC].look[0].colour[UI_COLOUR_SELECTOR_START];
+    int mid[3];
+    for (int k = 0; k < 3; k++)
+        mid[k] = 0;
+    for (int i = 0; i < 2; i++)
+    {
+        int rgb[3] = { RGB_UNPACK_RED(plain[i]), RGB_UNPACK_GREEN(plain[i]),
+                       RGB_UNPACK_BLUE(plain[i]) };
+        if (a)
+            accent_rgb(a, rgb, false, false);
+        for (int k = 0; k < 3; k++)
+            mid[k] += rgb[k];
+    }
+    return LCD_RGBPACK(mid[0] / 2, mid[1] / 2, mid[2] / 2);
+#else
+    (void)colour;
+    (void)quarter;
+    return 0;
+#endif
+}
+
+bool ui_theme_accent_shown(void)
+{
+#ifdef HAVE_ACCENT
+    return accent != NULL;
+#else
+    return false;
+#endif
+}
+
+unsigned ui_theme_accent(unsigned colour, bool status)
+{
+#ifdef HAVE_ACCENT
+    if (!accent)
+        return colour;
+    const unsigned hash = (colour ^ (colour >> 6) ^ (colour >> 11)) % ACCENT_SEEN
+                          + (status ? ACCENT_SEEN : 0);
+    if (accent_seen[hash].from != colour
+        || (colour == LCD_BLACK && accent_seen[hash].to != LCD_BLACK))
+    {
+        accent_seen[hash].from = colour;
+        accent_seen[hash].to = accent_colour(accent, colour, false, status);
+    }
+    return accent_seen[hash].to;
+#else
+    (void)status;
+    return colour;
+#endif
 }
 
 unsigned ui_theme_surface(unsigned colour)
@@ -1046,10 +1313,20 @@ void ui_theme_set_colour(int colour, bool tinted)
 
 bool ui_theme_set_section(int section, bool status_line)
 {
-#ifdef HAVE_COVER_TONE
     if (section < 0 || section >= UI_SECTION_COUNT)
         return false;
     tone_section = section;
+#ifdef HAVE_ACCENT
+    if (global_settings.ui_theme == UI_THEME_CLASSIC)
+    {
+        if (accent_choice != UI_ACCENT_MULTICOLOR || !accent_update())
+            return false;
+        accent_to_settings();
+        send_event(GUI_EVENT_THEME_CHANGED, NULL);
+        return true;
+    }
+#endif
+#ifdef HAVE_COVER_TONE
     if (!ui_theme_multicolor() || tone == &tone_cover || tone == &tone_filled
         || tone_now == &tone_user[section])
         return false;
@@ -1068,7 +1345,6 @@ bool ui_theme_set_section(int section, bool status_line)
         send_event(GUI_EVENT_THEME_CHANGED, NULL);
     return true;
 #else
-    (void)section;
     (void)status_line;
     return false;
 #endif
@@ -1076,15 +1352,15 @@ bool ui_theme_set_section(int section, bool status_line)
 
 int ui_theme_section(void)
 {
-#ifdef HAVE_COVER_TONE
     return tone_section;
-#else
-    return UI_SECTION_SYSTEM;
-#endif
 }
 
 bool ui_theme_multicolor(void)
 {
+#ifdef HAVE_ACCENT
+    if (global_settings.ui_theme == UI_THEME_CLASSIC)
+        return accent_choice == UI_ACCENT_MULTICOLOR;
+#endif
 #ifdef HAVE_COVER_TONE
     return tone && tone_choice == UI_TONE_MULTICOLOR;
 #else
@@ -1192,6 +1468,16 @@ void ui_theme_to_settings(bool dark)
     s->lst_color = look->colour[UI_COLOUR_SELECTOR_TEXT];
     s->list_selector_bevel = theme->selector_bevel;
     s->list_text_padding = theme->metric[UI_METRIC_TEXT_INSET];
+#ifdef HAVE_ACCENT
+    /* Classic in its user's colour, if not its own */
+    accent_taken = true;
+    accent_update();
+    if (accent)
+    {
+        s->lss_color = accent_selector[0];
+        s->lse_color = accent_selector[1];
+    }
+#endif
 #ifdef HAVE_COVER_TONE
     /* a theme with a tone is never without it: made here for this look,
        before the skins are read, so that they come up in it */

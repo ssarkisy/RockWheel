@@ -1121,6 +1121,9 @@ struct user_settings
        the colour tints the surfaces and small text too, not only the
        selection and the marks */
     bool tinted_background;
+    /* Settings > Appearance > Colour in Classic: one of enum ui_accent_colour
+       (gui/ui_theme.h), Multicolor first, its own blue the default */
+    int classic_colour;
 };
 
 /* global settings */

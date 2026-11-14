@@ -616,11 +616,46 @@ static struct bitmap *tinted_bar_bitmap(const struct gui_wps *gwps, struct bitma
 
 /* the image being drawn keeps its own colours, as the battery does */
 static bool keep_own_colours;
+/* and is in the theme's accent (%xA) */
+static bool accent_image;
 
-/* A bitmap of the theme, in the colours of the cover if they are on the whole screen */
+#if LCD_DEPTH >= 16
+/* A line of a picture that takes Classic's colour, in it if it has one (as
+   it has a line of the screen's width at most): the line at the screen's
+   row y, whose pale tints are the status line's own there; else the
+   picture's own */
+static const fb_data *accent_row(bool accent, const fb_data *row, int count, int y)
+{
+    static fb_data line[LCD_WIDTH];
+    if (!accent)
+        return row;
+    const bool status = y < UI_CLASSIC_STATUS_ROWS;
+    fb_data from = 0, to = 0;
+    for (int i = 0; i < count; i++)
+    {
+        /* whole rows of a colour, as a bar's */
+        if (i == 0 || row[i] != from)
+        {
+            from = row[i];
+            to = FB_SCALARPACK(ui_theme_accent(FB_UNPACK_SCALAR_LCD(from), status));
+        }
+        line[i] = to;
+    }
+    return line;
+}
+#endif
+
+/* A bitmap of the theme, in the colours of the cover if they are on the whole screen,
+   and in Classic's colour if it takes it */
 static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
                           int src_x, int src_y, int x, int y, int width, int height)
 {
+#if LCD_DEPTH >= 16
+    const bool accent = accent_image && ui_theme_accent_shown()
+                        && bm->format != FORMAT_MONO && bm->width <= LCD_WIDTH
+                        && gwps->display->screen_type == SCREEN_MAIN;
+    const int top = (*gwps->display->current_viewport)->y + y;
+#endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     if (in_tone_fill(gwps, bm))
     {
@@ -631,10 +666,11 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
     {
         static fb_data line[LCD_WIDTH];
         struct bitmap line_bm = *bm;
-        const int top = (*gwps->display->current_viewport)->y + y;
         const fb_data *row = (const fb_data *)bm->data + src_y * bm->width + src_x;
 
-        /* an icon of the status bar as the theme has it, if it reads so there */
+        /* an icon of the status bar as the theme has it, if it reads so there:
+           in Classic's colour, its own then; tinted, the picture's shades as
+           they are, which the cover's colours are made for */
         bool own_ink = false;
         if (global_settings.status_icons == STATUS_ICONS_OWN
             && cover_palette_in_status_bar(top))
@@ -643,7 +679,8 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
             int most = 0;
             const fb_data *r = row;
             for (int i = 0; i < height; i++, r += bm->width)
-                cover_palette_status_bar_contrast(r, width, left, top + i, &most);
+                cover_palette_status_bar_contrast(accent_row(accent, r, width, top + i),
+                                                  width, left, top + i, &most);
             own_ink = most >= COVER_PALETTE_ICON_CONTRAST;
         }
 
@@ -669,9 +706,11 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
             {
                 cover_palette_tint_line(row, pixels, bm->width, top + i);
                 if (own_ink)
-                    cover_palette_keep_ink(row, pixels, bm->width);
+                    cover_palette_keep_ink(accent_row(accent, row, bm->width, top + i),
+                                           pixels, bm->width);
                 else if (keep_own_colours)
-                    cover_palette_keep_colours(row, pixels, bm->width);
+                    cover_palette_keep_colours(accent_row(accent, row, bm->width, top + i),
+                                               pixels, bm->width);
                 memcpy((unsigned char *)alpha_line + line_bm.alpha_offset, alpha, alpha_stride);
                 gwps->display->bmp_part(&line_bm, src_x, 0, x, y + i, width, 1);
             }
@@ -685,15 +724,79 @@ static void draw_bmp_part(struct gui_wps *gwps, const struct bitmap *bm,
         {
             cover_palette_tint_line(row, line, width, top + i);
             if (own_ink)
-                cover_palette_keep_ink(row, line, width);
+                cover_palette_keep_ink(accent_row(accent, row, width, top + i), line, width);
             else if (keep_own_colours)
-                cover_palette_keep_colours(row, line, width);
+                cover_palette_keep_colours(accent_row(accent, row, width, top + i),
+                                           line, width);
             gwps->display->bmp_part(&line_bm, 0, 0, x, y + i, width, 1);
         }
         return;
     }
 #endif
+#if LCD_DEPTH >= 16
+    if (accent)
+    {
+        /* a line at a time, as above: the line's alpha after its pixels */
+        static uint32_t accent_line[(LCD_WIDTH * sizeof(fb_data) + LCD_WIDTH / 2) / 4 + 2];
+        struct bitmap line_bm = *bm;
+        const fb_data *row = (const fb_data *)bm->data + src_y * bm->width;
+        const int alpha_stride = (bm->width + 1) / 2;
+        const unsigned char *alpha = bm->data + bm->alpha_offset + src_y * alpha_stride;
+        line_bm.data = (void *)accent_line;
+        line_bm.height = 1;
+        if (bm->alpha_offset > 0)
+            line_bm.alpha_offset = bm->width * sizeof(fb_data);
+        for (int i = 0; i < height; i++, row += bm->width, alpha += alpha_stride)
+        {
+            memcpy(accent_line, accent_row(true, row, bm->width, top + i),
+                   bm->width * sizeof(fb_data));
+            if (bm->alpha_offset > 0)
+                memcpy((unsigned char *)accent_line + line_bm.alpha_offset, alpha,
+                       alpha_stride);
+            gwps->display->bmp_part(&line_bm, src_x, 0, x, y + i, width, 1);
+        }
+        return;
+    }
+#endif
     gwps->display->bmp_part(bm, src_x, src_y, x, y, width, height);
+}
+
+/* A bar's fill that takes Classic's colour, in it as gui_bitmap_scrollbar_draw()
+   draws the picture: false if it isn't drawn so. Not in the cover's colours, whose
+   bar is the picture's own tinted (tinted_bar_bitmap()) */
+static bool draw_accent_bar(struct gui_wps *gwps, struct gui_img *img, int x, int y,
+                            int width, int height, int items, int max_shown,
+                            unsigned flags)
+{
+#if LCD_DEPTH >= 16
+    struct screen *const display = gwps->display;
+    if (!img->accent || !ui_theme_accent_shown() || display->screen_type != SCREEN_MAIN)
+        return false;
+#ifdef HAVE_ALBUMART
+    if (in_cover_colours(gwps, &img->bm))
+        return false;
+#endif
+    display->set_drawmode(DRMODE_SOLID|DRMODE_INVERSEVID);
+    if (!(flags & DONT_CLEAR_EXCESS))
+        display->fillrect(x, y, width, height);
+    display->set_drawmode(DRMODE_SOLID);
+    if (flags & INNER_NOFILL)
+        return true;
+    int src_x, src_y;
+    gui_bitmap_scrollbar_part(&img->bm, &x, &y, &width, &height, items, 0, max_shown,
+                              flags, &src_x, &src_y);
+    if (width > 0 && height > 0)
+    {
+        accent_image = true;
+        draw_bmp_part(gwps, &img->bm, src_x, src_y, x, y, width, height);
+        accent_image = false;
+    }
+    return true;
+#else
+    (void)gwps; (void)img; (void)x; (void)y; (void)width; (void)height;
+    (void)items; (void)max_shown; (void)flags;
+    return false;
+#endif
 }
 
 /* When the volume bar was last drawn, a change of the volume to draw still, and
@@ -1049,9 +1152,10 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             }
             else
 #endif
-            gui_bitmap_scrollbar_draw(display, tinted_bar_bitmap(gwps, &img->bm),
-                                    x, y, width, height,
-                                    length, 0, end, flags);
+            if (!draw_accent_bar(gwps, img, x, y, width, height, length, end, flags))
+                gui_bitmap_scrollbar_draw(display, tinted_bar_bitmap(gwps, &img->bm),
+                                          x, y, width, height,
+                                          length, 0, end, flags);
         }
         else
             gui_scrollbar_draw(display, x, y, width, height,
@@ -1105,7 +1209,11 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             hw = MIN(hw, img->bm.width - bx);
             hh = MIN(hh, img->bm.height - by);
             if (hw > 0 && hh > 0)
+            {
+                accent_image = img->accent;
                 draw_bmp_part(gwps, &img->bm, bx, by, hx, hy, hw, hh);
+                accent_image = false;
+            }
         }
         else if (hw > 0 && hh > 0)
             display->fillrect(hx, hy, hw, hh);
@@ -1348,9 +1456,11 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
     {
         keep_own_colours = img->cover_keep
                            && global_settings.status_icons != STATUS_ICONS_COVER;
+        accent_image = img->accent;
         draw_bmp_part(gwps, &img->bm, 0, img->subimage_height * subimage,
                       img->x, img->y, img->bm.width, img->subimage_height);
         keep_own_colours = false;
+        accent_image = false;
     }
 }
 
@@ -1767,7 +1877,9 @@ bool skin_section_update(void)
                               ? kind : UI_SECTION_MUSIC, false))
         return false;
 #if defined(HAVE_ALBUMART) && LCD_DEPTH >= 16
-    cover_palette_theme_changed();
+    /* (Classic's colour changes no ground of the cover's colours) */
+    if (ui_theme_current()->cover_tone)
+        cover_palette_theme_changed();
 #endif
     return true;
 }

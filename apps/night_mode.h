@@ -44,6 +44,7 @@ bool night_mode_poll(int context);
 void dark_theme_changed(bool dark);
 void theme_colour_changed(int colour);
 void tinted_background_changed(bool tinted);
+void classic_colour_changed(int colour);
 void ui_theme_changed(int theme);
 /* the theme's files loaded anew with the music stopped: after the setting
    changed otherwise than by its row, as by a config file */

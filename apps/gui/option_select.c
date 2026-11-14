@@ -534,6 +534,10 @@ static const unsigned char swatch_fill[(SWATCH - 2 * SWATCH_RING) * (SWATCH - 2 
     0xff, 0xef, 0x38, 0x00, 0x83, 0xfe, 0xff,
 };
 
+/* the colours of the list shown: Neo's (ui_theme_colour_swatch()) or
+   Classic's (ui_theme_accent_swatch()) */
+static unsigned (*colour_swatch)(int colour, int quarter);
+
 static void colour_row_draw(struct list_putlineinfo_t *info)
 {
     struct screen *const display = info->display;
@@ -561,7 +565,7 @@ static void colour_row_draw(struct list_putlineinfo_t *info)
     {
         const int dx = quarter == 1 || quarter == 2 ? half : 0;
         const int dy = quarter >= 2 ? half : 0;
-        display->set_foreground(ui_theme_colour_swatch(info->line, quarter));
+        display->set_foreground(colour_swatch(info->line, quarter));
         lcd_alpha_bitmap_part(swatch_fill, dx, dy, fill,
                               x + SWATCH_RING + dx, y + SWATCH_RING + dy,
                               dx ? fill - half : half, dy ? fill - half : half);
@@ -613,8 +617,13 @@ bool option_screen(const struct settings_list *setting,
 
     gui_synclist_set_title(&lists, title, Icon_Questionmark);
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-    if (setting->setting == &global_settings.theme_colour)
+    if (setting->setting == &global_settings.theme_colour
+        || setting->setting == &global_settings.classic_colour)
+    {
+        colour_swatch = setting->setting == &global_settings.theme_colour
+                        ? ui_theme_colour_swatch : ui_theme_accent_swatch;
         lists.callback_draw_item = colour_row_draw;
+    }
 #endif
     if(global_settings.talk_menu)
         gui_synclist_set_voice_callback(&lists, option_talk);

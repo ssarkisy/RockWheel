@@ -115,6 +115,8 @@ struct gui_img {
                                drawn, in the theme's colours for a note */
     bool photos_panel;      /* Photos' collage (photos_panel.h): drawn on the
                                panel's ground where a backdrop is under it */
+    bool accent;            /* in the theme's accent, as Classic's colour has
+                               it (%xA) */
 };
 
 struct image_display {

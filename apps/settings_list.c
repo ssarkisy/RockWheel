@@ -2984,6 +2984,18 @@ const struct settings_list settings[] = {
        neutral greys and the colour is the selection's and the marks' */
     OFFON_SETTING(0, tinted_background, LANG_TINTED_BACKGROUND, false,
                   "tinted background", tinted_background_changed),
+    /* Settings > Appearance > Colour in Classic, in the order of enum
+       ui_accent_colour; taken on Select, as it draws the screen again. Read
+       by name; Blue, Classic's own, the default */
+    CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, classic_colour,
+                   LANG_THEME_COLOUR, UI_ACCENT_DEFAULT, "classic colour",
+                   "multicolor,blue,purple,pink,red,orange,yellow,green,graphite",
+                   classic_colour_changed, UI_ACCENT_COUNT,
+                   ID2P(LANG_COLOUR_MULTICOLOR), ID2P(LANG_COLOUR_BLUE),
+                   ID2P(LANG_COLOUR_PURPLE), ID2P(LANG_COLOUR_PINK),
+                   ID2P(LANG_COLOUR_RED), ID2P(LANG_COLOUR_ORANGE),
+                   ID2P(LANG_COLOUR_YELLOW), ID2P(LANG_COLOUR_GREEN),
+                   ID2P(LANG_COLOUR_GRAPHITE)),
 };
 
 const int nb_settings = sizeof(settings)/sizeof(*settings);

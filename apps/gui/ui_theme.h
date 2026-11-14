@@ -43,6 +43,8 @@ enum { UI_THEME_CLASSIC, UI_THEME_MODERN, UI_THEME_NEO, UI_THEME_COUNT };
 #define UI_CLASSIC_DARK_GROUND_R 18
 #define UI_CLASSIC_DARK_GROUND_G 18
 #define UI_CLASSIC_DARK_GROUND_B 20
+/* the status line's rows, with the hairline under it */
+#define UI_CLASSIC_STATUS_ROWS   19
 
 enum ui_colour {
     UI_COLOUR_TEXT,
@@ -216,6 +218,18 @@ enum ui_tone_colour {
 };
 #define UI_TONE_DEFAULT UI_TONE_MULTICOLOR
 
+/* Classic's colours, as its user chooses among them, macOS's accent colours:
+   Multicolor first, as in macOS, a colour a section as Neo's; its own blue
+   as the default; the Appearance pane's Pink, not systemPink, which is
+   nearly Red */
+enum ui_accent_colour {
+    UI_ACCENT_MULTICOLOR,
+    UI_ACCENT_BLUE, UI_ACCENT_PURPLE, UI_ACCENT_PINK, UI_ACCENT_RED,
+    UI_ACCENT_ORANGE, UI_ACCENT_YELLOW, UI_ACCENT_GREEN, UI_ACCENT_GRAPHITE,
+    UI_ACCENT_COUNT
+};
+#define UI_ACCENT_DEFAULT UI_ACCENT_BLUE
+
 /* What the screen shown belongs to, as an app on a Mac: Multicolor gives each
    its own colour. The first three are the database's kinds of track
    (tagcache.h): Music's lists, Cover Flow, Search and Playlists, and Now
@@ -300,12 +314,35 @@ unsigned ui_theme_colour_swatch(int colour, int quarter);
    anew; with status_line, a screen under the status line's skin, its ground
    round the lists cleared in the new tint. Now Playing's tone by a cover
    stays until it goes (a negative hue, ui_theme_cover_tone()): it goes to
-   the section's */
+   the section's. Classic's Multicolor changes its colour alone: its
+   selection, which the lists take as they draw, and its pictures, the
+   status line drawn whole */
 bool ui_theme_set_section(int section, bool status_line);
 /* the section last set, to set again on going back to its screen */
 int ui_theme_section(void);
-/* the section changes the colours: Multicolor, in a theme with a tone */
+/* the section changes the colours: Multicolor, in a theme with a tone or
+   in Classic */
 bool ui_theme_multicolor(void);
+/* Classic's colour, one of enum ui_accent_colour: the setting's value as it
+   is taken, at boot and on Select. In Classic the selection and the rest
+   (ui_theme_accent()) are in it from now, and the screen is to be drawn
+   again whole: nothing is loaded */
+void ui_theme_set_accent(int colour);
+/* that colour as a mark beside its name in the list of them, by quarters as
+   ui_theme_colour_swatch(): the middle of its selection */
+unsigned ui_theme_accent_swatch(int colour, int quarter);
+/* Whether Classic is in a colour other than its own blue: the pictures of
+   its skins that take it (%xA, Now Playing's bar and the status line's play
+   glyph) are drawn in it, by ui_theme_accent() */
+bool ui_theme_accent_shown(void);
+/* A colour of such a picture in Classic's colour, or as it is if it isn't
+   of the blue family; with status, in the status line, a pale tint too,
+   which is the status line's own and stays */
+unsigned ui_theme_accent(unsigned colour, bool status);
+/* the scrollbar's thumb across it and its track, inner then outer in 8-bit
+   parts, as the theme and its colour have them now */
+const unsigned *ui_theme_scrollbar_thumb(void);
+const unsigned char (*ui_theme_scrollbar_track(void))[3];
 /* Now Playing's tone in a theme that has one: the hue of the playing
    track's cover on the whole screen, its surfaces and small text tinted with
    or without Tinted Background; a negative hue for the user's colour again.

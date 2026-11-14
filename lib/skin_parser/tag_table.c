@@ -71,6 +71,9 @@ static const struct tag_info legal_tags[] =
        drawn, in the theme's two colours for a note from its top row to its
        foot, as the lists draw theirs; its own colour is not shown */
     TAG(SKIN_TOKEN_IMAGE_NOTE,            "xN", "S", 0|NOBREAK),
+    /* this image, loaded before (a bar's by its file's name), is in the
+       theme's accent: Classic's blue in its user's colour (ui_theme_accent()) */
+    TAG(SKIN_TOKEN_IMAGE_ACCENT,          "xA", "S", 0|NOBREAK),
     TAG(SKIN_TOKEN_IMAGE_PRELOAD_DISPLAY, "xd", "S|[IT]I", 0),
     /* the backdrop while Settings is selected in the main menu; before %X,
        as tags are looked for in this order */

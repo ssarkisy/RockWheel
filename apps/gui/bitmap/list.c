@@ -509,9 +509,8 @@ static void list_draw_scrollbar(struct screen *display, int w, int h, bool left,
     const int rest = items - (last - first);
     const int thumb_y = rest > 0 ? (h - thumb_h) * MAX(MIN(first, rest), 0) / rest : 0;
     /* the theme's: the track from inner to outer, the thumb across */
-    const unsigned char (*track)[3] =
-        ui_theme_look(global_settings.dark_theme)->scrollbar_track;
-    const unsigned *const scrollbar_thumb = ui_theme_current()->scrollbar_thumb;
+    const unsigned char (*track)[3] = ui_theme_scrollbar_track();
+    const unsigned *const scrollbar_thumb = ui_theme_scrollbar_thumb();
     const int d = MAX(track_w - 1, 1);
 
     display->set_drawmode(DRMODE_SOLID);

@@ -65,6 +65,8 @@
 %Vl(numbat,255,3,32,12,2)%Vf(000000)
 %ac%bl%%
 %xl(P,Playing Status.bmp,0,0,4)
+# the play glyph and the bar take Classic's colour, if it has one other than its blue
+%xA(P)
 %Vl(numbat,236,3,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
 %Vl(nonumbat,271,3,16,13,-)
@@ -206,6 +208,7 @@
 # for one of ten, for times with hours.
 %Vl(pb,0,206,320,23,2)%Vf(000000)
 %pb(58,0,204,23,PB.bmp,times,0,inset,8,14)
+%xA(PB.bmp)
 %Vl(volume,51,206,218,23,-)
 %pv(7,0,204,23,PB.bmp)
 %xl(V,Volume Right.bmp,0,0)

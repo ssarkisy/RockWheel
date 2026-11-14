@@ -425,6 +425,19 @@ static int parse_image_note(struct skin_element *element,
     return 0;
 }
 
+static int parse_image_accent(struct skin_element *element,
+                              struct wps_token *token,
+                              struct wps_data *wps_data)
+{
+    (void)token;
+    struct gui_img *img = skin_find_item(get_param_text(element, 0),
+                                         SKIN_FIND_IMAGE, wps_data);
+    if (!img)
+        return WPS_ERROR_INVALID_PARAM;
+    img->accent = true;
+    return 0;
+}
+
 static int parse_image_load(struct skin_element *element,
                             struct wps_token *token,
                             struct wps_data *wps_data)
@@ -481,6 +494,7 @@ static int parse_image_load(struct skin_element *element,
     img->cover_keep = false;
     img->note = false;
     img->photos_panel = false;
+    img->accent = false;
 
     if (token->type == SKIN_TOKEN_IMAGE_DISPLAY)
     {
@@ -1360,6 +1374,7 @@ static int parse_progressbar_tag(struct skin_element* element,
             img->cover_keep = false;
             img->note = false;
             img->photos_panel = false;
+            img->accent = false;
             struct skin_token_list *item = new_skin_token_list_item(NULL, img);
             if (!item)
                 return WPS_ERROR_INVALID_PARAM;
@@ -2742,6 +2757,9 @@ static int skin_element_callback(struct skin_element* element, void* data)
                     break;
                 case SKIN_TOKEN_IMAGE_NOTE:
                     function = parse_image_note;
+                    break;
+                case SKIN_TOKEN_IMAGE_ACCENT:
+                    function = parse_image_accent;
                     break;
                 case SKIN_TOKEN_IMAGE_PRELOAD:
                 case SKIN_TOKEN_IMAGE_DISPLAY:

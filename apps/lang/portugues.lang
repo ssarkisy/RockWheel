@@ -19750,3 +19750,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COLOUR_GRAPHITE
+  desc: a value of Colour under Settings > Appearance in the Classic theme, a row of its list: macOS's accent colour Graphite, a neutral grey; macOS's own word for it
+  user: core
+  <source>
+    *: "Graphite"
+  </source>
+  <dest>
+    *: "Grafite"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

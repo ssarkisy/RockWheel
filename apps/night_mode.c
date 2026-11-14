@@ -258,6 +258,7 @@ void night_mode_boot(void)
     else if (!s->night_mode && s->night_changed)
         night_settings_off(true);
     ui_theme_set_colour(s->theme_colour, s->tinted_background);
+    ui_theme_set_accent(s->classic_colour);
     /* a reset or a loaded file may have changed the theme without
        ui_theme_switch(): an album's cover was read at the old one's size */
     album_header_forget_cover();
@@ -393,6 +394,13 @@ void tinted_background_changed(bool tinted)
         return;
     cover_palette_theme_changed();
     ui_theme_set_colour(global_settings.theme_colour, tinted);
+}
+
+void classic_colour_changed(int colour)
+{
+    if (!settings_loaded)
+        return;
+    ui_theme_set_accent(colour);
 }
 
 void night_mode_changed(bool on)

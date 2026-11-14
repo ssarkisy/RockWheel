@@ -178,6 +178,7 @@ static const struct {
 #ifdef HAVE_MENU_COVER
     { &global_settings.moving_cover, LANG_HINT_MOVING_COVER },
     { &global_settings.theme_colour, LANG_HINT_THEME_COLOUR },
+    { &global_settings.classic_colour, LANG_HINT_THEME_COLOUR },
     { &global_settings.tinted_background, LANG_HINT_TINTED_BACKGROUND },
 #endif
 #ifdef HAVE_BACKLIGHT

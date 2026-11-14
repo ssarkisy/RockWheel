@@ -41,6 +41,7 @@
 %Vl(numbat,255,3,32,12,2)%Vf(F2F2F6)
 %ac%bl%%
 %xl(P,Playing Status.bmp,0,0,4)
+%xA(P)
 %Vl(numbat,236,3,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
 %Vl(nonumbat,271,3,16,13,-)
@@ -79,6 +80,7 @@
 %?mv(2.0)<%Vd(volume)|%Vd(pb)>
 %Vl(pb,58,206,204,23,-) 
 %pb(0,0,204,23,PB.bmp)
+%xA(PB.bmp)
 %Vl(volume,58,206,204,23,-)
 %pv(0,0,204,23,PB.bmp)
 %xl(V,Volume Right.bmp,0,0)
