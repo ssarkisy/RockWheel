@@ -1,4 +1,4 @@
-![RockWheel. Your iPod Video, the way it should have aged.](docs/images/banner-1.4.png)
+![RockWheel. Your iPod Video, the way it should have aged.](docs/images/banner-1.4.1.png)
 
 RockWheel is free, open-source firmware for the iPod Video, 5th and 5.5th generation, built on [Rockbox](https://www.rockbox.org). It brings Finder and iTunes sync to a familiar iPod interface, with Cover Flow, Live Lyrics, podcasts and audiobooks, three themes and FLAC playback.
 
@@ -6,11 +6,20 @@ Sync your music as usual, or copy files directly onto the iPod. Both appear in t
 
 **[Features](#features) · [Compatibility](#will-it-work-on-my-ipod) · [Install](#install) · [Update](#update) · [Build](#build-from-source)**
 
-![Cover Flow, Now Playing, Settings and the main menu](docs/screenshots/1.4/banner.png)
+![Cover Flow, Now Playing, Settings and the main menu](docs/screenshots/1.4.1/banner.png)
 
 ## Features
 
 [Sync with Finder or iTunes](#syncing-with-finder-and-itunes) as you always have. Your songs, playlists, covers and ratings arrive as synced, and what you play and rate on the iPod goes back to your computer.
+
+**New in 1.4.1**
+
+- [Now Playing as on a stock iPod](#now-playing): the song beside its cover, with its place in the list.
+- [Neo in Multicolor](#themes): music, podcasts and audiobooks, each in a color of its own.
+- [Classic in the color of your choice](#themes), and [Modern](#themes) with larger type.
+- [Playlists you made on the iPod](#playlists) together in one folder, and smart playlists together at the top.
+- [Albums by artist](#artists-albums-and-songs).
+- [Settings in sections](#a-familiar-interface).
 
 **New in 1.4**
 
@@ -81,7 +90,7 @@ RockWheel needs the iPod formatted as FAT32.
 - **An iPod set up by iTunes on Windows** already is. Installing keeps everything on it, and your library is ready at the first start.
 - **An iPod formatted on a Mac** isn't, and converting it erases the iPod. First sync it once, and back up anything else you keep on it: your music comes back with a sync, but play counts and ratings not yet synced don't. On a Mac, the installer converts it for you, and stops unless you type `ERASE`. On Windows, restore it in iTunes on that PC first, which makes it FAT32.
 
-RockWheel takes about 145 MB on the iPod, most of it typefaces, so that every theme can show every alphabet. Have about 180 MB free.
+RockWheel takes about 120 MB on the iPod, most of it typefaces, so that every theme can show every alphabet. Have about 160 MB free.
 
 The stock firmware stays on the iPod, with the same library.
 
@@ -138,7 +147,7 @@ The installer does these steps for you, and with `--dry-run` it shows what it wo
 
 1. **Make sure the iPod is FAT32.** `sudo ipodpatcher --scan` shows the iPod's disk, such as `/dev/disk4`, and `macpod` if it's Mac-formatted. Converting erases the iPod: run `sudo ipodpatcher /dev/disk4 --convert`, with the disk the scan showed. On iPods with 2048-byte sectors, which the official `ipodpatcher` refuses, it then prints the command that formats the music partition, with the right disk in it: run it as printed.
 2. **Install the Rockbox bootloader** with `sudo ipodpatcher --add-bootloader bootloader-ipodvideo.ipod`, using the file from [Releases](../../releases). Given no disk, it finds the iPod by itself, and stops if there's none or more than one. The official [Rockbox Utility](https://www.rockbox.org/wiki/RockboxUtility), run as root, works too.
-3. **Copy the firmware.** Download `rockbox.zip` from [Releases](../../releases) and unzip it at the root of the iPod. It needs about 180 MB free; if the copy stops for lack of room, free some and unzip it again. For the extra games, unzip `rockbox-games.zip` there too. If you had plain Rockbox before, move the old `.rockbox` folder out of the way first.
+3. **Copy the firmware.** Download `rockbox.zip` from [Releases](../../releases) and unzip it at the root of the iPod. It needs about 160 MB free; if the copy stops for lack of room, free some and unzip it again. For the extra games, unzip `rockbox-games.zip` there too. If you had plain Rockbox before, move the old `.rockbox` folder out of the way first.
 4. **Restart and sync.** Eject, restart with Menu and Select, connect it again and sync from Finder. When you unplug, the library updates.
 
 </details>
@@ -150,7 +159,7 @@ Users have installed it this way. If anything goes differently, please open an i
 
 1. **Make sure the iPod is FAT32.** An iPod set up by iTunes on Windows already is. If your iPod is Mac-formatted, restore it in iTunes on Windows to convert it to FAT32; this erases everything on it.
 2. **Install the Rockbox bootloader** with the official [Rockbox Utility](https://www.rockbox.org/wiki/RockboxUtility), run as administrator. Choose the iPod Video and install only the bootloader, not Rockbox itself. If your iPod already starts Rockbox, skip this step.
-3. **Copy the firmware.** Download `rockbox.zip` from [Releases](../../releases) and extract it to the iPod's drive, so that the `.rockbox` folder is at the top of it. It needs about 180 MB free; if the copy stops for lack of room, free some and extract it again. For the extra games, extract `rockbox-games.zip` the same way. If you had plain Rockbox before, rename its `.rockbox` folder first.
+3. **Copy the firmware.** Download `rockbox.zip` from [Releases](../../releases) and extract it to the iPod's drive, so that the `.rockbox` folder is at the top of it. It needs about 160 MB free; if the copy stops for lack of room, free some and extract it again. For the extra games, extract `rockbox-games.zip` the same way. If you had plain Rockbox before, rename its `.rockbox` folder first.
 4. **Restart and sync.** Eject the iPod, unplug it and hold Menu and Select until it restarts. The first start reads your library, so give it a moment. Then sync from iTunes as usual.
 
 </details>
@@ -159,7 +168,7 @@ Users have installed it this way. If anything goes differently, please open an i
 
 Run the same command as for installing, on a Mac or on Windows. Your settings, library, play counts and games are kept. It asks for your password or permission, and once, whether to add the games.
 
-The first start after updating to 1.4 prepares the library again, once, and keeps your plays, ratings and places. 1.4 is larger than earlier versions: have about 180 MB free. [Updating to 1.4](docs/updating-to-1.4.md) tells what else changes.
+The first start after updating from 1.3 or earlier prepares the library again, once, and keeps your plays, ratings and places. [Updating to 1.4](docs/updating-to-1.4.md) tells what else changes. What 1.4.1 changes for an existing install is in its [release notes](https://github.com/ssarkisy/RockWheel/releases/tag/v1.4.1).
 
 If you installed by hand, unzip `rockbox.zip` to the iPod again, replacing the files, and `rockbox-games.zip` too if you added the games. Do both at every update: games from an older version don't open with a newer firmware. Saved games and high scores are kept.
 
@@ -187,7 +196,7 @@ To remove RockWheel, run the installer with `--uninstall` on a Mac or `-Uninstal
 | Cover Flow | No | Plugin: builds its own cache first, then covers load as you scroll | **Built in, with kinetic scrolling and covers prepared ahead** |
 | Live Lyrics | No | Plugin | **Built into Now Playing** |
 | Now Playing in the colors of the album | No | No | **Yes** |
-| Themes | One | Many, made by the community | **Three, each light or dark** |
+| Themes | One | Many, made by the community | **Three, each light or dark, in colors you choose** |
 | Night Mode, on a schedule | No | No | **Yes** |
 | Videos | Yes | Converted files, or through the stock firmware | **Through the stock firmware** |
 | Open source | No | Yes | **Yes, GPL** |
@@ -204,7 +213,7 @@ The measurements, compared with Rockbox and the stock firmware, and how they wer
 
 Plug it in and it appears in Finder as an iPod, or in iTunes on Windows, and [iOpenPod](https://github.com/TheRealSavi/iOpenPod) syncs it too. Sync the way you always have, unplug, and your library is ready.
 
-<img src="docs/screenshots/1.4/usb.png" width="320" alt="Do not disconnect screen"> <img src="docs/screenshots/1.4/updating-library.png" width="320" alt="Library update with a progress bar">
+<img src="docs/screenshots/1.4.1/usb.png" width="320" alt="Do not disconnect screen"> <img src="docs/screenshots/1.4.1/updating-library.png" width="320" alt="Library update with a progress bar">
 
 Your songs, playlists, ratings, covers, podcasts and audiobooks arrive just as they were synced. It works both ways: what you play and rate on the iPod is on your computer after the next sync. There's no extra app to install on your computer, and nothing to set up.
 
@@ -235,15 +244,15 @@ A song you delete from the iPod leaves the library the next time you unplug, and
 
 Everything is in the order you know from Music on your Mac: The Killers under K, accents and capitals aside, and a name filed where its Sort field puts it.
 
-<img src="docs/screenshots/1.4/albums.png" width="320" alt="Albums, each in two lines with its cover, year and artist"> <img src="docs/screenshots/1.4/album.png" width="320" alt="An album opened under its cover, with track numbers and lengths">
+<img src="docs/screenshots/1.4.1/albums.png" width="320" alt="Albums, each in two lines with its cover, year and artist"> <img src="docs/screenshots/1.4.1/album.png" width="320" alt="An album opened under its cover, with track numbers and lengths">
 
 Artists lists album artists, so an album stays whole under one name. Open an artist, and their albums are in the order they came out, the year beside each, with All Songs above them.
 
-Albums shows each album with its cover, its year and its artist. An album opens under its cover, with the track numbers before the titles and the lengths after them, and its discs apart.
+Albums shows each album with its cover, its year and its artist, by year, by name or by artist: Sort By, at the top of the list, steps through them. By artist, each artist's albums are in the order they came out. An album opens under its cover, with the track numbers before the titles and the lengths after them, and its discs apart.
 
-Songs sorts by name, artist, album or year: Sort By, at the top of the list, steps through them. Recently Added has the fifty albums that arrived last.
+Songs sorts by name, artist, album or year in the same way. Recently Added has the fifty albums that arrived last.
 
-<img src="docs/screenshots/1.4/songs-by-artist.png" width="320" alt="Songs sorted by artist, each with its cover and a second line"> <img src="docs/screenshots/1.4/big-letter.png" width="320" alt="A large letter over the list while the wheel turns fast">
+<img src="docs/screenshots/1.4.1/albums-by-artist.png" width="320" alt="Albums sorted by artist, each with its cover and year"> <img src="docs/screenshots/1.4.1/big-letter.png" width="320" alt="A large letter over the list while the wheel turns fast">
 
 Turn the wheel fast in a long list and a large letter appears. From then on each step is a letter, until you lift your thumb.
 
@@ -253,17 +262,17 @@ Hold Select on any song to go to its artist or its album. Covers in lists, the s
 
 Podcasts and audiobooks you sync have their own places in Music, apart from your songs.
 
-<img src="docs/screenshots/1.4/podcasts.png" width="320" alt="Podcasts: shows with their covers and how many episodes are new"> <img src="docs/screenshots/1.4/podcast-show.png" width="320" alt="A show opened: its newest episodes, with dots for the ones not yet played">
+<img src="docs/screenshots/1.4.1/podcasts.png" width="320" alt="Podcasts: shows with their covers and how many episodes are new"> <img src="docs/screenshots/1.4.1/podcast-show.png" width="320" alt="A show opened: its newest episodes, with dots for the ones not yet played">
 
 **Podcasts** lists your shows with their covers, and tells you at a glance what's waiting: how many episodes are new, and how much is left of the one you began. Inside a show the newest episode comes first. A dot marks an episode you haven't heard and a half dot one you've begun. When an episode ends, the next one you haven't heard begins.
 
-<img src="docs/screenshots/1.4/audiobooks.png" width="320" alt="Audiobooks: books with their authors and the time left"> <img src="docs/screenshots/1.4/audiobook.png" width="320" alt="A book opened: Resume, and its parts with their times">
+<img src="docs/screenshots/1.4.1/audiobooks.png" width="320" alt="Audiobooks: books with their authors and the time left"> <img src="docs/screenshots/1.4.1/audiobook.png" width="320" alt="A book opened: Resume, and its parts with their times">
 
 **Audiobooks** lists your books with their authors and how much is left, the ones you've begun first. A book remembers one place, however many files it's made of: Resume takes you back to it.
 
 Each has its own speed, from Normal to 2×, and audiobooks can also play slower. The voice keeps its pitch, and music always plays at its own speed. Set it in Settings, under Playback, or right in Now Playing: press Select past the scrubber.
 
-<img src="docs/screenshots/1.4/now-playing-episode.png" width="320" alt="Now Playing of an episode, with the show, the date and the chapter under the bar"> <img src="docs/screenshots/1.4/speed.png" width="320" alt="The speed of a podcast, chosen with the wheel">
+<img src="docs/screenshots/1.4.1/now-playing-episode.png" width="320" alt="Now Playing of an episode, with the show, the date and the chapter under the bar"> <img src="docs/screenshots/1.4.1/speed.png" width="320" alt="The speed of a podcast, chosen with the wheel">
 
 In Now Playing, a podcast shows its show, its date and the time left, and the scrubber's buttons go back 15 seconds and forward 30. Where a song has its lyrics, an episode has its notes.
 
@@ -279,7 +288,7 @@ A song counts as a long recording from ten minutes: a mix or a concert in one fi
 
 Turn the wheel along the ring of letters and press Select to add one. Artists, albums and songs appear below as you type. As you scroll through them, the top of the list keeps telling you whether you're among artists, albums or songs.
 
-<img src="docs/screenshots/1.4/search.png" width="320" alt="Search with two letters typed, and an artist, an album and a song found">
+<img src="docs/screenshots/1.4.1/search.png" width="320" alt="Search with two letters typed, and an artist, an album and a song found">
 
 With Smart Search, on by default, the wheel passes over letters that wouldn't find anything, so a name is usually a few presses away.
 
@@ -291,19 +300,19 @@ Next (⏭) adds a space, Previous (⏮) deletes a letter, and Play (⏯) takes y
 
 ### Playlists
 
-A playlist opens as quickly as Songs, its songs in the order you sorted them in on your computer.
+Playlists are in the order of Music on your Mac, A to Z or Z to A, in the folders you synced. A playlist opens as quickly as Songs, its songs in the order you sorted them in on your computer.
 
-<img src="docs/screenshots/1.4/playlists.png" width="320" alt="Playlists: New Playlist and New Folder, a synced folder, then synced and local playlists and On-The-Go"> <img src="docs/screenshots/1.4/playlist.png" width="320" alt="A playlist opened">
+<img src="docs/screenshots/1.4.1/playlists.png" width="320" alt="Playlists: Sort By, Unsynced, smart playlists with a gear, then folders and playlists"> <img src="docs/screenshots/1.4.1/playlists-unsynced.png" width="320" alt="Unsynced opened: New Playlist, New Folder and the playlists made on the iPod">
 
-Smart playlists that go by rating, play count or kind of media update right on the iPod, with their limits by number of songs or by time. Give a song five stars and it's in your five-star playlist at once. Those with other rules, such as when a song was last played, stay as they were synced until the next sync.
+Smart playlists stand together at the top, each marked with a gear. Those that go by rating, play count or kind of media update right on the iPod, with their limits by number of songs or by time. Give a song five stars and it's in your five-star playlist at once. Those with other rules, such as when a song was last played, stay as they were synced until the next sync.
 
-Make playlists of your own on the iPod. New Playlist and New Folder are at the top of Playlists, and you name them with the click wheel.
+Make playlists of your own on the iPod. They live in Unsynced, at the top of Playlists, with New Playlist and New Folder, and you name them with the click wheel.
 
 To add music, hold Select on a song, album, artist or playlist in Music or Search, on an album in Cover Flow, or in Now Playing, and choose Add to Playlist, or Add to On-The-Go for the quickest way.
 
-Hold Select on a playlist of your own to rename it, move it to a folder or delete it, and on one of its songs to remove it. When On-The-Go is how you want it, Save Playlist turns it into a playlist of its own.
+Hold Select on a playlist of your own to rename it, move it to a folder or delete it, and on one of its songs to remove it. When On-The-Go is how you want it, Save Playlist turns it into a playlist of its own in Unsynced.
 
-A computer icon marks a synced playlist. An iPod icon marks a local playlist you can edit, whether you created it on the iPod or copied it into /Playlists. Local playlists stay on the iPod: Finder and iTunes don't bring them into your library. A song you delete leaves them, and a song a sync moves stays in them.
+Unsynced also holds the playlists you copy into /Playlists yourself. They stay on the iPod: Finder and iTunes don't bring them into your library. A song you delete leaves them, and a song a sync moves stays in them.
 
 Finder leaves playlist folders behind when it syncs an iPod Video. The installer can bring them over from Music on a Mac or from iTunes on Windows: see the [options](#options).
 
@@ -311,7 +320,7 @@ Finder leaves playlist folders behind when it syncs an iPod Video. The installer
 
 The iPod Video never had Cover Flow. Here it's built in, laid out as on an iPod classic: large covers standing close together, on white, or on black in the dark theme.
 
-<img src="docs/screenshots/1.4/cover-flow.png" width="320" alt="Cover Flow on white, the album in the middle and its neighbors close beside it"> <img src="docs/screenshots/1.4/cover-flow-album.png" width="320" alt="An album's songs and their lengths, opened in Cover Flow">
+<img src="docs/screenshots/1.4.1/cover-flow.png" width="320" alt="Cover Flow on white, the album in the middle and its neighbors close beside it"> <img src="docs/screenshots/1.4.1/cover-flow-album.png" width="320" alt="An album's songs and their lengths, opened in Cover Flow">
 
 Scrolling has weight. Flick the wheel and the covers pick up the speed of your thumb, glide on their own and settle gently on an album. Flick again to go faster, or rest your thumb to stop.
 
@@ -325,15 +334,17 @@ On the test iPod, thousands of covers go by without waiting for any of them to l
 
 ### Now Playing
 
+Now Playing is laid out as on a stock iPod: the song's title, artist and album stand beside the cover, centered against it, with its place in the list and its rating, and Shuffle and Repeat show in the corner. The rating and the song's format and bitrate are customizable, in Settings, under Appearance.
+
+<img src="docs/screenshots/1.4.1/now-playing.png" width="320" alt="Now Playing, the song beside its cover over its reflection, with the stars, the format and bitrate, and Shuffle and Repeat in the corner"> <img src="docs/screenshots/1.4.1/large-art.png" width="320" alt="Large album art view">
+
 Press Select to move from the cover to the scrubber, your rating, a large cover and the lyrics. The lyrics follow the song line by line when the song has time-synced lyrics in it. For music you copy onto the iPod, an `.lrc` file with the same name beside the song works too. A podcast or an audiobook has its speed and its notes among these views.
 
-<img src="docs/screenshots/1.4/now-playing.png" width="320" alt="Now Playing, the cover over its reflection, with the format and bitrate beside a small sound wave"> <img src="docs/screenshots/1.4/large-art.png" width="320" alt="Large album art view">
-
-<img src="docs/screenshots/1.4/lyrics.png" width="320" alt="Time-synced lyrics"> <img src="docs/screenshots/1.4/rating.png" width="320" alt="Rating a track with the wheel">
+<img src="docs/screenshots/1.4.1/lyrics.png" width="320" alt="Time-synced lyrics"> <img src="docs/screenshots/1.4.1/rating.png" width="320" alt="Rating a track with the wheel">
 
 Hold Select for a short menu. From there you can open Cover Flow, go to the song's artist or album, open the list the music is playing from, see what's up next, jump to a chapter, add the song to On-The-Go or a playlist, or change shuffle, repeat, the volume limit, the EQ, Sound Check, brightness, colors, the dark theme and Night Mode. The menu is customizable.
 
-<img src="docs/screenshots/1.4/menu.png" width="320" alt="The menu you get by holding Select in Now Playing"> <img src="docs/screenshots/1.4/menu-settings.png" width="320" alt="The same menu further down, with Volume Limit, EQ, Sound Check, Brightness, Cover Colors, Dark Theme and Night Mode">
+<img src="docs/screenshots/1.4.1/menu.png" width="320" alt="The menu you get by holding Select in Now Playing"> <img src="docs/screenshots/1.4.1/menu-settings.png" width="320" alt="The same menu further down, with Volume Limit, EQ, Sound Check, Brightness, Cover Colors, Dark Theme and Night Mode">
 
 ### Shuffle
 
@@ -353,7 +364,7 @@ The volume, the volume limit and Night Mode's volume are all in percent. The vol
 
 Sound Check plays your songs at about the same loudness, using the levels your computer has already worked out.
 
-<img src="docs/screenshots/1.4/eq.png" width="320" alt="The EQ, with a row for each pair of headphones"> <img src="docs/screenshots/1.4/eq-model.png" width="320" alt="The presets for one pair of headphones">
+<img src="docs/screenshots/1.4.1/eq.png" width="320" alt="The EQ, with a row for each pair of headphones"> <img src="docs/screenshots/1.4.1/eq-model.png" width="320" alt="The presets for one pair of headphones">
 
 The EQ has all 22 presets from iTunes, tuned as they are there. It also has presets for three pairs of headphones: the 7Hz Zero 2 earphones, the Koss KPH30i, and the Sony WH-1000XM4C, by cable in Active Mode (headphones switched on).
 
@@ -363,47 +374,51 @@ The EQ has all 22 presets from iTunes, tuned as they are there. It also has pres
 
 RockWheel comes in three themes, and each of them can be light or dark.
 
-<img src="docs/screenshots/1.4/modern-home.png" width="320" alt="The main menu in Modern"> <img src="docs/screenshots/1.4/neo-home.png" width="320" alt="The main menu in Neo">
+<img src="docs/screenshots/1.4.1/modern-home.png" width="320" alt="The main menu in Modern"> <img src="docs/screenshots/1.4.1/neo-home.png" width="320" alt="The main menu in Neo">
 
-**Classic** is the iPod you remember: the same menus, the same Now Playing.
+**Classic** is the iPod you remember: the same menus, the same Now Playing, in the accent color of your choice, from blue to graphite.
 
-**Modern** is white and spare, with a single accent color. The row you're on is a bar of it from edge to edge, the names of sections and the artist in Now Playing are written in it, and a small chevron marks every row that leads somewhere.
+<img src="docs/screenshots/1.4.1/classic-accents.png" width="640" alt="Classic's main menu in six accent colors">
 
-<img src="docs/screenshots/1.4/modern-now-playing.png" width="320" alt="Now Playing in Modern"> <img src="docs/screenshots/1.4/neo-now-playing.png" width="320" alt="Now Playing in Neo, centered under the cover">
+**Modern** is white and spare, with a single accent color and large, clear type. The row you're on is a bar of it from edge to edge, the names of sections and the artist in Now Playing are written in it, and a small chevron marks every row that leads somewhere. Settings take a light gray instead, as in Music on your Mac.
 
-**Neo** is flat and quiet, and it's yours: you choose its color from thirteen, from Desert to Deep Blue, and every screen takes it up. The row you're on, the small print under a name, the progress bar and its knob are all in your color.
+<img src="docs/screenshots/1.4.1/modern-now-playing.png" width="320" alt="Now Playing in Modern"> <img src="docs/screenshots/1.4.1/modern-settings.png" width="320" alt="Settings in Modern, with a light gray selection">
 
-<img src="docs/screenshots/1.4/neo-colors.png" width="320" alt="Neo's thirteen colors, each beside its name"> <img src="docs/screenshots/1.4/neo-dark.png" width="320" alt="Neo in the dark, in another color">
+**Neo** is flat and quiet. In Multicolor, as on a Mac, your music is in red, your podcasts in purple, your audiobooks in orange, and everything else in blue. Or choose one of thirteen colors, from Desert to Deep Blue, for every screen. The color is on the row you're on, the icons, the artist and the bars, over a neutral background that can take on a tint of it.
+
+<img src="docs/screenshots/1.4.1/neo-albums.png" width="320" alt="Albums in Neo, in red"> <img src="docs/screenshots/1.4.1/neo-podcasts.png" width="320" alt="Podcasts in Neo, in purple">
+
+<img src="docs/screenshots/1.4.1/neo-now-playing.png" width="320" alt="Now Playing in Neo"> <img src="docs/screenshots/1.4.1/neo-dark.png" width="320" alt="Neo's main menu in the dark">
 
 Choose a theme in Settings, under Appearance. Changing it stops the music; Resume Playback takes it up where it stopped.
 
 ### A familiar interface
 
-<img src="docs/screenshots/1.4/home-playing.png" width="320" alt="Main menu with the playing album beside it"> <img src="docs/screenshots/1.4/home-settings.png" width="320" alt="Main menu with the iPod's name and free space">
+<img src="docs/screenshots/1.4.1/home-playing.png" width="320" alt="Main menu with the playing album beside it"> <img src="docs/screenshots/1.4.1/home-settings.png" width="320" alt="Main menu with the iPod's name and free space">
 
-<img src="docs/screenshots/1.4/settings.png" width="320" alt="Settings, with Sound, Playback and Appearance as folders"> <img src="docs/screenshots/1.4/settings-hint.png" width="320" alt="Settings' General folder, with a short hint under the setting chosen">
+<img src="docs/screenshots/1.4.1/settings.png" width="320" alt="Settings in sections: Music, Display, Menus and System"> <img src="docs/screenshots/1.4.1/settings-hint.png" width="320" alt="Settings' General folder, with a short hint under the setting chosen">
 
 The main menu is the one you remember, with the time at the top. Beside it you see the album that's playing, its cover sharp at its full size, a collage of your photos, or your iPod and its free space. When nothing is playing, the cover is that of the song Resume Playback will start with, and Resume Playback starts at once. With Moving Cover, the cover drifts slowly from side to side.
 
 For music you sync, Finder prepares that cover at the size of the screen, so it's sharp the moment a song starts. For music you copy yourself, the iPod draws it from the picture in the song a few seconds in, and keeps it for next time. Music synced before 1.4 can have its covers prepared again: choose Rebuild Synced Covers in Settings, then sync.
 
-Settings are in folders, as on later iPods, with a short hint where an option's name doesn't say enough. The main menu and the Music menu are customizable: put Artists or Songs right in the main menu, or hide what you never use.
+Settings are in sections and folders, as on later iPods, with a short hint where an option's name doesn't say enough. The main menu and the Music menu are customizable: put Artists or Songs right in the main menu, or hide what you never use.
 
 The menus come in more than forty languages. Song titles in Korean, Japanese, Chinese, Hebrew, Arabic and Thai show out of the box, in typefaces made for them.
 
 ### The look of Now Playing
 
-In the Classic theme, Now Playing comes in the style of the iPod Video, the cover standing over its reflection, or of the iPod classic, with Angled Cover turning it slightly away.
+In every theme, Now Playing comes in the style of the iPod Video, the cover standing over its reflection, or of the iPod classic, with Angled Cover turning it slightly away.
 
-<img src="docs/screenshots/1.4/now-playing.png" width="320" alt="Now Playing as set at first, in the style of the iPod Video: the cover over its reflection, the stars not set drawn as outlines"> <img src="docs/screenshots/1.4/now-playing-angled.png" width="320" alt="Now Playing with the angled cover">
+<img src="docs/screenshots/1.4.1/now-playing.png" width="320" alt="Now Playing as set at first, in the style of the iPod Video: the cover over its reflection"> <img src="docs/screenshots/1.4.1/now-playing-angled.png" width="320" alt="Now Playing with the angled cover">
 
 ### Colors from the album
 
 Now Playing can take on the colors of the album you're listening to, and the screen changes together with the cover.
 
-<img src="docs/screenshots/1.4/cover-fill-dark.png" width="320" alt="Now Playing filled with the deep purple of the cover"> <img src="docs/screenshots/1.4/cover-fill-light.png" width="320" alt="Now Playing filled with the warm yellow of the cover">
+<img src="docs/screenshots/1.4.1/cover-fill-dark.png" width="320" alt="Now Playing filled with the deep purple of the cover"> <img src="docs/screenshots/1.4.1/cover-fill-light.png" width="320" alt="Now Playing filled with the warm yellow of the cover">
 
-<img src="docs/screenshots/1.4/cover-whole-screen.png" width="320" alt="Now Playing with a soft tint of the cover's teal"> <img src="docs/screenshots/1.4/cover-text.png" width="320" alt="Now Playing with its text and stars in the color of the cover">
+<img src="docs/screenshots/1.4.1/cover-whole-screen.png" width="320" alt="Now Playing with a soft tint of the cover's teal"> <img src="docs/screenshots/1.4.1/cover-text.png" width="320" alt="Now Playing with its text and stars in the color of the cover">
 
 **Fill** paints the screen in the album's color, so the cover melts into it. The text turns light or dark to stay easy to read.
 
@@ -421,9 +436,9 @@ It's off by default. To turn it on, hold Select in Now Playing and choose Cover 
 
 The whole iPod can go dark, in any theme: the menus, Now Playing, the dialogs, even the clock. To turn it on, hold Select in Now Playing, or find Dark Theme in Settings, under Appearance. The colors from the album work in the dark too.
 
-<img src="docs/screenshots/1.4/dark-now-playing.png" width="320" alt="Now Playing in the dark theme"> <img src="docs/screenshots/1.4/dark-home.png" width="320" alt="The main menu in the dark theme, with the playing album beside it">
+<img src="docs/screenshots/1.4.1/dark-now-playing.png" width="320" alt="Now Playing in the dark theme"> <img src="docs/screenshots/1.4.1/dark-home.png" width="320" alt="The main menu in the dark theme, with the playing album beside it">
 
-<img src="docs/screenshots/1.4/dark-settings.png" width="320" alt="Settings in the dark theme"> <img src="docs/screenshots/1.4/night-mode.png" width="320" alt="Night Mode and what it does when it's on">
+<img src="docs/screenshots/1.4.1/dark-settings.png" width="320" alt="Settings in the dark theme"> <img src="docs/screenshots/1.4.1/night-mode.png" width="320" alt="Night Mode and what it does when it's on">
 
 **Night Mode** is for the end of the day. It makes the iPod dark, silences the wheel, dims the screen and lowers the volume limit. You choose which of these it does, how dim the screen gets and how quiet the music.
 
@@ -431,28 +446,37 @@ It can also keep its own hours. Give it a start and an end, and it turns on and 
 
 ## Photos and Extras
 
-<img src="docs/screenshots/1.4/home-photos.png" width="320" alt="Main menu with a collage of your photos beside it"> <img src="docs/screenshots/1.3/photos.png" width="320" alt="Photo browser">
+<img src="docs/screenshots/1.4.1/home-photos.png" width="320" alt="Main menu with a collage of your photos beside it"> <img src="docs/screenshots/1.4.1/photos.png" width="320" alt="Photo browser">
 
 Photos you sync show in the familiar grid and full screen. A collage of them sits beside the main menu, and each album has one of its own. Play pauses the music while you look.
 
 Extras has a clock, a calendar, a stopwatch and five games: Brick, Solitaire, Jewels, Minesweeper and Blackjack. When you install, you can add eight more games from Rockbox: Rockblox, 2048, Sudoku, Sokoban, Reversi, Space Rocks, Bubbles and Clix. In Reversi, the iPod plays the other side.
 
-<img src="docs/screenshots/1.4/games.png" width="320" alt="Extras, Games: thirteen games in alphabetical order">
+<img src="docs/screenshots/1.4.1/games.png" width="320" alt="Extras, Games: thirteen games in alphabetical order">
 
 ## What's next
 
-Planned:
+These are plans, and the versions they're under are approximate.
 
-- Port to the iPod Photo.
-- Port to the iPod classic 6G and 7G.
+Next, in 1.5:
+
+- Longer battery life: sleep instead of switching off, and less work for the processor in every format and in the EQ.
+- A faster iPod: lists, Search, library updates after copying music, and the import of thousands of playlists.
+- Scrobbling to Last.fm.
+
+Then, in 1.6:
+
+- Notes, Contacts, Calendar and world clocks, and the games Music Quiz and Parachute, as on a stock iPod.
+- An EQ you shape yourself.
 - Apple iPod Radio Remote: button fixes, FM radio.
 - Podcast progress from the iPod in Podcasts on your Mac.
 - Playlists in Search, and smart playlists by date added and last played.
-- A sleep timer that waits for the end of an episode.
-- Custom EQ presets from files.
-- Faster cover preparation for copied music.
-- Faster library updates after copying music.
-- Faster import of thousands of playlists.
+- A sleep timer that waits for the end of an episode or a chapter.
+
+Later:
+
+- Port to the iPod Photo.
+- Port to the iPod classic 6G and 7G.
 - A backup of play counts and ratings for copied music, off the iPod.
 
 ## Build from source
@@ -473,8 +497,8 @@ For the simulator, which is how the screenshots here were made, use `--type=s` a
 RockWheel is built entirely on [Rockbox](https://www.rockbox.org) and the work of its contributors, from commit `f3ffe789ef`. **Please report RockWheel's bugs here, not to the Rockbox project.**
 
 - **Code:** GNU GPL, version 2 or later. See [LICENSE](LICENSE).
-- **Fixes from other projects:** several reliability fixes follow [ProkBox5g](https://github.com/prokbox/prokbox5g) by prokopto-dev, and a USB fix comes from [PodBox](https://github.com/anthonyfletcher/podbox), through Rockbox. Each is credited in its commit.
-- **Theme:** Classic is modified from iClassic Square by Humberto Santana, derived from iLike by Alan Brito and Hayden Pearce, under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). See [themes/README.md](themes/README.md).
+- **Fixes from other projects:** fixes made in Rockbox since then are carried over; several reliability fixes follow [ProkBox5g](https://github.com/prokbox/prokbox5g) by prokopto-dev; a USB fix and a memory fix come from [PodBox](https://github.com/anthonyfletcher/podbox), the first through Rockbox. Each is credited in its commit.
+- **Themes:** Classic is modified from iClassic Square by Humberto Santana, derived from iLike by Alan Brito and Hayden Pearce. Modern and Neo are designed by Sergei Sarkisian. All three are under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/); Modern and Neo also under the GNU GPL, version 2 or later, at your choice, as their icons are built into the firmware too. See [themes/README.md](themes/README.md).
 - **Fonts:** [Inter](https://rsms.me/inter/) for the menus and Now Playing. For other alphabets, [Pretendard](https://github.com/orioncactus/pretendard) for Korean, [Noto Sans JP, SC and TC](https://fonts.google.com/noto) for Japanese and Chinese, Noto Sans Hebrew, [Vazirmatn](https://github.com/rastikerdar/vazirmatn) for Arabic and [IBM Plex Sans Thai](https://github.com/IBM/plex) for Thai. All of them are under the SIL Open Font License, and installed with it. GNU Unifont, from Rockbox, covers the letters none of them has.
 
 The screenshots come from the simulator, with a made-up library: the artists, albums, covers, lyrics, podcasts, audiobooks, playlists and photos were generated for them. The disk size and the ratings in them are set by hand.
