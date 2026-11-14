@@ -36,6 +36,9 @@
 struct gui_yesno
 {
     struct viewport vp;
+    /* the theme's whole area for the screen, which vp is inset in: cleared
+       with it, or the list under the question showed in its margins */
+    struct viewport ground;
     const struct text_message * main_message;
     struct screen * display;
     int vp_lines;
@@ -84,14 +87,17 @@ static void gui_yesno_draw(struct gui_yesno * yn)
     enum yesno_res def_res = yn->tmo_default_res;
     const struct text_message *main_message = yn->main_message;
     int line_shift = 0;
-    struct viewport *last_vp = display->set_viewport_ex(vp, VP_FLAG_VP_SET_CLEAN);
+    struct viewport *ground = &yn->ground;
+    struct viewport *last_vp = display->set_viewport_ex(ground, VP_FLAG_VP_SET_CLEAN);
 
-    /* do our own clear to avoid stopping scrolling */
-    int oldmode = vp->drawmode;
-    vp->drawmode ^= DRMODE_INVERSEVID;
-    vp->drawmode |= DRMODE_SOLID;
-    display->fillrect(0, 0, vp->width, vp->height);
-    vp->drawmode = oldmode;
+    /* do our own clear to avoid stopping scrolling: all of the screen's
+       area, its margins too */
+    int oldmode = ground->drawmode;
+    ground->drawmode ^= DRMODE_INVERSEVID;
+    ground->drawmode |= DRMODE_SOLID;
+    display->fillrect(0, 0, ground->width, ground->height);
+    ground->drawmode = oldmode;
+    display->set_viewport_ex(vp, VP_FLAG_VP_SET_CLEAN);
 
     if(main_message->nb_lines + 3 < vp_lines)
         line_shift = 1;
@@ -167,6 +173,9 @@ static void gui_yesno_draw(struct gui_yesno * yn)
         }
     }
 #endif
+    /* all of it to the LCD, the cleared margins with the text: the LCD
+       takes only the rectangle of the viewport updated */
+    display->set_viewport_ex(ground, VP_FLAG_VP_SET_CLEAN);
     display->update_viewport();
     display->set_viewport(last_vp);
 }
@@ -182,10 +191,16 @@ static void gui_yesno_draw_result(struct gui_yesno * yn, const struct text_messa
 {
     struct viewport *vp = &yn->vp;
     struct screen * display=yn->display;
-    struct viewport *last_vp = display->set_viewport_ex(vp, VP_FLAG_VP_SET_CLEAN);
+    struct viewport *last_vp = display->set_viewport_ex(&yn->ground, VP_FLAG_VP_SET_CLEAN);
 
+    /* the question's lines stopped (they scroll in vp, which clearing the
+       ground leaves going), the answer's drawn, and all of it to the LCD
+       in one go */
+    display->clear_viewport();
+    display->set_viewport_ex(vp, VP_FLAG_VP_SET_CLEAN);
     display->clear_viewport();
     put_message(display, message, 0, yn->vp_lines);
+    display->set_viewport_ex(&yn->ground, VP_FLAG_VP_SET_CLEAN);
     display->update_viewport();
     display->set_viewport(last_vp);
 }
@@ -245,8 +260,11 @@ enum yesno_res gui_syncyesno_run_w_tmo(int ticks, enum yesno_res tmo_default_res
         screens[i].scroll_stop();
         sb_set_persistent_title(title, Icon_NOICON, i);
         viewportmanager_theme_enable(i, true, &(yn[i].vp));
-        /* from where the theme's rows start, where it insets them */
-        if (i == SCREEN_MAIN && ui_metric(UI_METRIC_SELECTION_RADIUS) > 0)
+        yn[i].ground = yn[i].vp;
+        /* the text from where the theme's rows have theirs, and as far
+           from the right edge: at the edge in Classic and Modern it touched
+           the screen's */
+        if (i == SCREEN_MAIN)
         {
             yn[i].vp.x += global_settings.list_text_padding;
             yn[i].vp.width -= 2 * global_settings.list_text_padding;
