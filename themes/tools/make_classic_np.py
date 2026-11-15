@@ -22,7 +22,7 @@ WPS = os.path.join(HERE, "..", "iClassic-Square", ".rockbox", "wps", "iClassic-S
 BEGIN = "# begin: made by themes/tools/make_classic_np.py, not edited here"
 END = "# end: made by themes/tools/make_classic_np.py"
 
-COVER_Y, COVER = 45, 136
+COVER_Y, COVER = 41, 136
 COL, COL_W = 160, 148
 # each line: its viewport's font, rows, colour (None: the firmware's, %fB's)
 # and text; a line of the 14 px font after one of 17 stands 2 rows into its

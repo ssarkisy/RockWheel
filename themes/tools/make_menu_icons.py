@@ -32,7 +32,7 @@ WPS = os.path.join(THEME, 'wps', 'iClassic-Square')
 SS = 8  # samples per pixel on each axis
 
 PANEL_X = 160
-ART = (12, 45, 148, 181)  # the placeholder art in Now Playing's backdrop
+ART = (12, 41, 148, 177)  # the placeholder art in Now Playing's backdrop
 # Its reflection, as the firmware draws one under a cover (skin_display.c): so many
 # rows, from this much of the art at the top to none. The original theme's shadow and
 # gradient around and under it go, from x 9 to 150 and down to the screen's foot,

@@ -64,12 +64,13 @@ LIST_TOP, LIST_ROWS = 23, 216
 TEXT_Y = STATUS - 18    # the status line's text, a cell of 15
 FOOT = STATUS - 6       # the row under the status glyphs' feet
 GAP = 6                 # between them
-# Now Playing: the cover 12 rows under the hairline, its reflection of 22 rows
-# under it; the bar's box, as high as the knob, clear of the reflection, and
-# the line of the times under it, ending 12 rows over the screen's foot as
-# the cover starts 12 under the hairline. The rating view's stars stand where
+# Now Playing: the cover 18 rows under the hairline, its reflection of 22 rows
+# under it, so the rows left free over the cover and under the reflection
+# split about 3:1, as in Modern (owner, 2026-11-14); the bar's box, as high as
+# the knob, clear of the reflection, and the line of the times under it,
+# ending 12 rows over the screen's foot. The rating view's stars stand where
 # the bar is
-COVER, COVER_Y = 136, 32
+COVER, COVER_Y = 136, 38
 BAR_Y, TIMES_Y = 202, 214
 REFLECTION = 22         # rows, as REFLECT_LIGHT and REFLECT_DARK have them
 # the song's details beside the cover: one block in the middle of its height,

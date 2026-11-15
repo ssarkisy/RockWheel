@@ -24,7 +24,7 @@ HEADER_SCALE = 0.30
 HEADER_HEIGHT = 18    # above its dark line
 BAR_X, BAR_Y, BAR_W, BAR_H, BAR_REFLECTION = 58, 206, 204, 14, 9
 REFLECTION_ALPHA = 0.26
-ART = (12, 45, 148, 181)
+ART = (12, 41, 148, 177)
 # the placeholder's reflection, as make_menu_icons.py and the firmware make it
 ART_REFLECTION_ROWS = 22
 ART_REFLECTION_ALPHA = 128 / 256
