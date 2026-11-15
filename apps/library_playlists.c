@@ -51,6 +51,7 @@
 #include "on_the_go.h"
 #include "library_playlists.h"
 #include "root_menu.h"
+#include "list_covers.h"
 
 /* Rockbox's viewer read them a window of 200 lines at a time from the file,
    again as it scrolled past one, and looked up each title as it showed,
@@ -1279,6 +1280,7 @@ static struct {
     bool waited;            /* Loading was shown as it opened */
     bool at_playing;        /* opened at the song playing */
     bool unloaded;          /* it couldn't be read as it was opened */
+    bool covers;            /* its rows in two lines with covers */
     unsigned int gen;       /* of the plugin buffer, which a plugin takes */
 } lp;
 
@@ -1551,6 +1553,50 @@ static bool lp_playing(int row, void *data)
     (void)data;
     return is_song_row(row) && lp.from_this
            && gui_synclist_playing() == (long)lp.songs[row].idx + 1;
+}
+
+/* With Covers in Lists, a song's row as Songs has it: its artist under its
+   title, and its album's cover at its left, from memory as it's drawn */
+static const char *lp_subline(int row, void *data, char *buf, size_t size)
+{
+    (void)data;
+    return is_song_row(row) ? tagtree_song_subline(lp.songs[row].idx, buf, size)
+                            : NULL;
+}
+
+static int lp_cover(int row, void *data, const fb_data **pixels)
+{
+    (void)data;
+    return is_song_row(row) ?
+           list_covers_get(tagtree_song_album(lp.songs[row].idx), pixels)
+           : LIST_COVER_NONE;
+}
+
+/* Before each frame, as Songs' (tree.c): what it lacks counted anew, its
+   rows' covers read now if they can be at once, and the covers of the rows
+   next to those shown asked for after theirs, the way the list went first,
+   as far again as it went, at least a screen */
+static void lp_before_draw(struct gui_synclist *list)
+{
+    static int last_start;
+    list_covers_frame();
+    list_covers_draw_soon(list);
+    const int start = list->start_item[SCREEN_MAIN];
+    const int shown = list_get_nb_lines(list, SCREEN_MAIN);
+    const bool down = start >= last_start;
+    const int far = MIN(shown + 2 * abs(start - last_start), 32);
+    last_start = start;
+    for (int k = 0; k < far + shown; k++)
+    {
+        const bool forward = k < far ? down : !down;
+        const int d = k < far ? k : k - far;
+        const int row = forward ? start + shown + d : start - 1 - d;
+        if (!is_song_row(row))
+            continue;
+        const int album = tagtree_song_album(lp.songs[row].idx);
+        if (album >= 0)
+            list_covers_ahead(album);
+    }
 }
 
 /* the music from this song on, from the playlist's file, written first if
@@ -1933,6 +1979,17 @@ int lp_view(const char *file, int *selection)
     gui_synclist_set_icon_callback(&list, NULL);
     gui_synclist_set_playing_callback(&list, lp_playing);
     gui_synclist_set_initial_callback(&list, lp_initial);
+    /* the covers' memory, if turned on as music played, which has stopped;
+       one line without them, as Songs has then. On-The-Go keeps one line */
+    list_covers_apply();
+    lp.covers = !lp.otg && list_covers_on();
+    if (lp.covers)
+    {
+        gui_synclist_set_subline_callback(&list, lp_subline);
+        gui_synclist_set_cover_callback(&list, lp_cover);
+        gui_synclist_set_before_draw(&list, lp_before_draw);
+        list_covers_opened();
+    }
     gui_synclist_set_nb_items(&list, lp_rows());
     /* at the row it was left at, or a new one at its first song */
     int sel = selection && *selection >= 0 ? *selection : 0;
@@ -1973,8 +2030,18 @@ int lp_view(const char *file, int *selection)
             gui_synclist_draw(&list);
         }
         redraw = false;
-        int action;
-        if (list_do_action(CONTEXT_TREE | ALLOW_SOFTLOCK, HZ / 2, &list, &action))
+        /* as list_do_action(), and the covers the reader reads as the wheel
+           rests drawn as they come, as in tree.c */
+        int timeout = list_do_action_timeout(&list, HZ / 2);
+        if (lp.covers)
+            timeout = list_covers_timeout(timeout);
+        keyclick_set_callback(gui_synclist_keyclick_callback, &list);
+        int action = get_action(CONTEXT_TREE | ALLOW_SOFTLOCK, timeout);
+        if (lp.covers && action != ACTION_NONE)
+            list_covers_input();
+        if (lp.covers && list_covers_poll())
+            redraw = true;
+        if (gui_synclist_do_button(&list, &action))
             continue;
         const int row = gui_synclist_get_sel_pos(&list);
         switch (action)

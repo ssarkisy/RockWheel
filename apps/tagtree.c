@@ -8544,16 +8544,25 @@ int tagtree_entry_album(struct tree_context *c, int row)
     if (!entry)
         return -2;
     /* Songs by name or by year: its rows keep no album, found as each is
-       drawn, from memory; one without a name has no cover, as by album */
+       drawn, from memory */
     if (entry->newtable == TABLE_PLAYTRACK
         && (entries_songs_by == SONGS_BY_NAME || entries_songs_by == SONGS_BY_YEAR))
-    {
-        const int32_t idx = entry->extraseek;
-        const int no = album_years_number(tagcache_sort_key(idx, tag_album),
-                                          tagcache_sort_key(idx, tag_albumartist));
-        return no >= 0 && tag_named(tag_album, album_years_album(no)) ? no : -1;
-    }
+        return tagtree_song_album(entry->extraseek);
     return entry->album.no >= 0 ? entry->album.no : -1;
+}
+
+/* one without an album's name has no cover, as by album */
+int tagtree_song_album(int32_t idx)
+{
+    const int no = album_years_number(tagcache_sort_key(idx, tag_album),
+                                      tagcache_sort_key(idx, tag_albumartist));
+    return no >= 0 && tag_named(tag_album, album_years_album(no)) ? no : -1;
+}
+
+/* as tagtree_entry_subline() has it for Songs by name */
+const char *tagtree_song_subline(int32_t idx, char *buf, size_t size)
+{
+    return song_tag_name(idx, tag_virt_canonicalartist, buf, size);
 }
 
 /* Albums' rows, as Artists in Albums has them apart or not: when it's

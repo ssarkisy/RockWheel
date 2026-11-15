@@ -165,6 +165,12 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
 const char *tagtree_album_subline(int no, int year, bool artist,
                                   const char *except, char *buf, size_t size);
 int tagtree_entry_album(struct tree_context *c, int row);
+/* A song's row in a list of songs of another screen, as a playlist's, by
+   its entry in the database, as Songs by name has it: its album by its
+   number, -1 for the note; and its second line, its artist, written to buf,
+   or the phrase for none; NULL without the database in memory */
+int tagtree_song_album(int32_t idx);
+const char *tagtree_song_subline(int32_t idx, char *buf, size_t size);
 /* Artists in Albums switched, by its setting or as settings are applied:
    Albums' rows are others, and the places in it at their first */
 void tagtree_album_rows_changed(bool on);
