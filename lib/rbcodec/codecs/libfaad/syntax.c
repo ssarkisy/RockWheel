@@ -2050,8 +2050,22 @@ static uint8_t spectral_data(NeAACDecHandle hDecoder, ic_stream *ics, bitfile *l
 #ifdef SFBO_PRINT
                 printf("%d\n", ics->sect_sfb_offset[g][ics->sect_start[g][i]]);
 #endif
-                for (k = ics->sect_sfb_offset[g][ics->sect_start[g][i]];
-                     k < ics->sect_sfb_offset[g][ics->sect_end[g][i]]; k += inc)
+                k = ics->sect_sfb_offset[g][ics->sect_start[g][i]];
+#ifdef FAAD_HUFF_ASM
+                if (k < ics->sect_sfb_offset[g][ics->sect_end[g][i]])
+                {
+                    /* the codewords the loop below would decode (inc is 2
+                       or 4), as many as the assembly takes */
+                    const int shift = (inc == 4) ? 2 : 1;
+                    uint16_t n = (ics->sect_sfb_offset[g][ics->sect_end[g][i]]
+                                  - k + inc - 1) >> shift;
+                    uint16_t done = huffman_spectral_section(sect_cb, ld,
+                                                     &spectral_data[p], n);
+                    k += done << shift;
+                    p += done << shift;
+                }
+#endif
+                for (; k < ics->sect_sfb_offset[g][ics->sect_end[g][i]]; k += inc)
                 {
                     if ((result = huffman_spectral_data(sect_cb, ld, &spectral_data[p])) > 0)
                         return result;

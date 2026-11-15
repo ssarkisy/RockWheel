@@ -526,6 +526,26 @@ static const real_t pow2sf_tab[] = {
   - Within a scalefactor window band, the coefficients are in ascending
     spectral order.
 */
+#if defined(FIXED_POINT) && defined(BIG_IQ_TABLE) && defined(CPU_ARM_CLASSIC) \
+    && defined(ROCKBOX_LITTLE_ENDIAN)
+/* specrec_arm.S: the loops over a group's bands and windows below */
+#define FAAD_IQ_ASM
+struct faad_iq_group
+{
+    const int16_t *q;           /* advanced past what the group takes */
+    real_t *out;
+    const uint16_t *swb_offset;
+    const int16_t *scale_factors;
+    unsigned num_swb;
+    unsigned windows;
+    unsigned win_inc;
+    int exp_base;
+    const real_t *tab;
+    const real_t *pow2;
+};
+int faad_iq_group_arm(struct faad_iq_group *job);
+#endif
+
 static const real_t pow2_table[] ICONST_ATTR =
 {
     COEF_CONST(1.0),
@@ -547,6 +567,40 @@ static uint8_t quant_to_spec(NeAACDecHandle hDecoder,
 
     k = 0;
     gindex = 0;
+
+#ifdef FAAD_IQ_ASM
+    {
+        /* exp below for a scale factor of 0 */
+        int exp_base = -25;
+        if (hDecoder->object_type == LD)
+            exp_base -= 6;
+        else if (ics->window_sequence == EIGHT_SHORT_SEQUENCE)
+            exp_base -= 4;
+        else
+            exp_base -= 7;
+
+        for (g = 0; g < ics->num_window_groups; g++)
+        {
+            struct faad_iq_group job;
+            job.q = &quant_data[k];
+            job.out = &spec_data[gindex];
+            job.swb_offset = ics->swb_offset;
+            job.scale_factors = ics->scale_factors[g];
+            job.num_swb = ics->num_swb;
+            job.windows = ics->window_group_length[g];
+            job.win_inc = ics->swb_offset[ics->num_swb];
+            job.exp_base = exp_base;
+            job.tab = tab;
+            job.pow2 = pow2_table;
+            error |= faad_iq_group_arm(&job);
+            /* gincrease: what the group took */
+            gindex += job.q - &quant_data[k];
+            k = job.q - quant_data;
+        }
+    }
+    (void)sfb; (void)win; (void)width; (void)bin; (void)wa; (void)wb; (void)scf;
+    return error;
+#endif
 
     for (g = 0; g < ics->num_window_groups; g++)
     {

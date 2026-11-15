@@ -32,6 +32,12 @@
 #include "is.h"
 #include "pns.h"
 
+#if defined(CPU_ARM_CLASSIC) && defined(ROCKBOX_LITTLE_ENDIAN)
+/* specrec_arm.S: the loop over a band below */
+#define FAAD_MS_ASM
+void faad_ms_band_arm(real_t *l, real_t *r, unsigned n);
+#endif
+
 void ms_decode(ic_stream *ics, ic_stream *icsr, real_t *l_spec, real_t *r_spec,
                uint16_t frame_len)
 {
@@ -57,12 +63,19 @@ void ms_decode(ic_stream *ics, ic_stream *icsr, real_t *l_spec, real_t *r_spec,
                         !is_intensity(icsr, g, sfb) && !is_noise(ics, g, sfb))
                     {
                         k = (group*nshort) + ics->swb_offset[sfb];
+#ifdef FAAD_MS_ASM
+                        if (ics->swb_offset[sfb+1] > ics->swb_offset[sfb])
+                            faad_ms_band_arm(&l_spec[k], &r_spec[k],
+                                ics->swb_offset[sfb+1] - ics->swb_offset[sfb]);
+                        (void)i;
+#else
                         for (i = ics->swb_offset[sfb]; i < ics->swb_offset[sfb+1]; i++, k++)
                         {
                             /* L' = L+R, R' = L-R */
                             l_spec[k] = l_spec[k] + r_spec[k];
                             r_spec[k] = l_spec[k] - (r_spec[k]<<1);
                         }
+#endif
                     }
                 }
                 group++;

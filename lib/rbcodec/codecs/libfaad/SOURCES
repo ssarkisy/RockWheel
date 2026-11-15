@@ -14,8 +14,10 @@ ps_syntax.c
 pulse.c
 sbr_dct.c
 #if defined(CPU_ARM_CLASSIC)
+huffman_arm.S
 sbr_dct_arm.S
 sbr_qmf_arm.S
+specrec_arm.S
 #endif
 sbr_dec.c
 sbr_e_nf.c

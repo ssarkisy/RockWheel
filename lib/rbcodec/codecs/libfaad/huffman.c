@@ -340,6 +340,81 @@ static void vcb11_check_LAV(uint8_t cb, int16_t *sp)
 }
 #endif
 
+#ifdef FAAD_HUFF_ASM
+/* huffman_arm.S: the job's first four words are a bitfile's bufa, bufb,
+   bits_left and tail */
+struct faad_huff_job
+{
+    uint32_t bufa;
+    uint32_t bufb;
+    uint32_t bits_left;
+    uint32_t *tail;
+    uint32_t *limit;
+    const void *tab1;
+    const void *tab2;
+};
+int faad_huff_section_arm(struct faad_huff_job *job, unsigned cb,
+                          int16_t *sp, int16_t *end);
+
+/* n codewords of book cb into sp, as n calls of huffman_spectral_data() would
+   decode them; returns how many it decoded, fewer when it stops early (near
+   the end of the buffer, or before an escape no valid stream has). Books
+   1-11 only. Every first-step index plus its extra bits stays inside the
+   second-step table, and every tree walk ends on a leaf inside its table,
+   so the offset checks that return 10 in the C can't fail. A codebook
+   change must keep this. */
+uint16_t huffman_spectral_section(uint8_t cb, bitfile *ld, int16_t *sp,
+                                  uint16_t n)
+{
+    struct faad_huff_job job;
+    uint32_t loads;
+    int shift, done;
+
+    if (cb == ZERO_HCB || cb > ESC_HCB || ld->error || ld->no_more_reading
+        || ld->bytes_used >= ld->buffer_size)
+        return 0;
+    /* the words it may load and keep bytes_used below buffer_size, as no
+       state but the position changes then; a codeword takes at most two */
+    loads = (ld->buffer_size - ld->bytes_used - 1) / 4;
+    if (loads < 2)
+        return 0;
+
+    job.bufa = ld->bufa;
+    job.bufb = ld->bufb;
+    job.bits_left = ld->bits_left;
+    job.tail = ld->tail;
+    job.limit = ld->tail + (loads - 2);
+    switch (cb)
+    {
+    case 3:
+        job.tab1 = hcb3;
+        job.tab2 = NULL;
+        break;
+    case 5: case 7: case 9:
+        job.tab1 = hcb_bin_table[cb];
+        job.tab2 = NULL;
+        break;
+    case 1: case 2: case 4:
+        job.tab1 = hcb_table[cb];
+        job.tab2 = hcb_2_quad_table[cb];
+        break;
+    default:
+        job.tab1 = hcb_table[cb];
+        job.tab2 = hcb_2_pair_table[cb];
+        break;
+    }
+    shift = (cb >= FIRST_PAIR_HCB) ? 1 : 2;    /* values a codeword: 2 or 4 */
+    done = faad_huff_section_arm(&job, cb, sp, sp + (n << shift)) >> shift;
+
+    ld->bytes_used += 4 * (job.tail - ld->tail);
+    ld->bufa = job.bufa;
+    ld->bufb = job.bufb;
+    ld->bits_left = job.bits_left;
+    ld->tail = job.tail;
+    return done;
+}
+#endif /* FAAD_HUFF_ASM */
+
 uint8_t huffman_spectral_data(uint8_t cb, bitfile *ld, int16_t *sp)
 {
     switch (cb)

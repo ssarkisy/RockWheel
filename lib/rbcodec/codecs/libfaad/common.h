@@ -42,7 +42,8 @@ extern "C" {
 #define IBSS_ATTR_FAAD_XLR
 
 #elif (CONFIG_CPU == PP5022) || (CONFIG_CPU == PP5024) || (CONFIG_CPU == S5L8702)
-/* Enough IRAM to move additional data and code to it. */
+/* Enough IRAM to move additional data and code to it. huffman_arm.S and
+   specrec_arm.S copy this list and the next one for their own sections. */
 #define IBSS_ATTR_FAAD_LARGE_IRAM   IBSS_ATTR
 #define ICODE_ATTR_FAAD_LARGE_IRAM  ICODE_ATTR
 #define ICONST_ATTR_FAAD_LARGE_IRAM ICONST_ATTR

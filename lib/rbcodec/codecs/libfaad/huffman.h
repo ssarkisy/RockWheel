@@ -32,7 +32,16 @@ extern "C" {
 #endif
 
 int8_t huffman_scale_factor(bitfile *ld);
+#if defined(CPU_ARM_CLASSIC) && defined(ROCKBOX_LITTLE_ENDIAN)
+/* huffman_arm.S decodes the spectral codewords, and huffman_spectral_data()
+   only what it leaves */
+#define FAAD_HUFF_ASM
+uint16_t huffman_spectral_section(uint8_t cb, bitfile *ld, int16_t *sp,
+                                  uint16_t n);
+uint8_t huffman_spectral_data(uint8_t cb, bitfile *ld, int16_t *sp);
+#else
 uint8_t huffman_spectral_data(uint8_t cb, bitfile *ld, int16_t *sp) ICODE_ATTR_FAAD_LARGE_IRAM;
+#endif
 #ifdef ERROR_RESILIENCE
 int8_t huffman_spectral_data_2(uint8_t cb, bits_t *ld, int16_t *sp);
 #endif
