@@ -4027,6 +4027,7 @@ int playlist_resume(void)
         int count;
         enum playlist_command current_command = PLAYLIST_COMMAND_COMMENT;
         int last_newline = 0;
+        int line_start = 0; /* where the line being read began */
         int str_count = -1;
         bool newline = true;
         bool exit_loop = false;
@@ -4260,6 +4261,7 @@ int playlist_resume(void)
             else if(newline)
             {
                 newline = false;
+                line_start = count;
                 current_command = (*pl_cmd)(*p);
                 str_count = -1;
                 strp[0] = NULL;
@@ -4293,6 +4295,19 @@ int playlist_resume(void)
                     }
                 }
             }
+        }
+
+        /* A last line with no newline was cut as it was written, by a power
+           cut or a full disk (fsync() drops a last sector it has no room
+           for); the lines before it are whole. Read up to it, and cut it off
+           so that the next line written begins a line: kept, it failed
+           every resume until another list was played. Not a cut header. */
+        if (!newline && !exit_loop && pl_cmd == &pl_cmds_run
+            && total_read + count >= control_file_size
+            && ftruncate(playlist->control_fd, total_read + line_start) == 0)
+        {
+            sync_control_unlocked(playlist);
+            break;
         }
 
         if (result < 0 || current_command == PLAYLIST_COMMAND_ERROR)
