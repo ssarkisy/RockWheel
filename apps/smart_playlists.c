@@ -501,6 +501,36 @@ static bool next_record(int fd, off_t *pos, struct smart_record *rec,
     return true;
 }
 
+bool smart_import_keep(const char *file)
+{
+    if (import_fd < 0 || !import_ok)
+        return false;
+    const int fd = open(SMART_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    bool found = false;
+    struct smart_head head;
+    if (read(fd, &head, sizeof(head)) == sizeof(head)
+        && head.magic == SMART_MAGIC && head.version == SMART_VERSION)
+    {
+        char name[MAX_PATH];
+        off_t pos = sizeof(head);
+        struct smart_record rec;
+        for (uint32_t i = 0; i < head.count
+                             && next_record(fd, &pos, &rec, name, sizeof(name)); i++)
+        {
+            if (lp_same_file(name, file))
+            {
+                smart_import_note(file, rec.time, &rec.rules);
+                found = true;
+                break;
+            }
+        }
+    }
+    close(fd);
+    return found;
+}
+
 /* Those of the rules file not known to be right, or the one of that file
    only: each worked out from the numbers of the database in memory, into its
    index, and with files into its file too, but for the one the music is

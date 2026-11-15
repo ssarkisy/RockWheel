@@ -132,9 +132,10 @@ bool itunesdb_load_tracks(void);
    which noted less of them (the smart ones' marks): true when they're to be
    made again at boot under Updating Library, from the iTunesDB the last
    import took in, until a list of this version is written; but not over an
-   iTunesDB whose playlists couldn't be read. A file the list has as iTunesDB
-   has it stays, though the iPod may have written it since, as a live smart
-   one; those that move, as into a folder of their own, are written. */
+   iTunesDB whose playlists couldn't be read, or whose songs found no memory
+   through a boot's tries. A file the list has as iTunesDB has it stays,
+   though the iPod may have written it since, as a live smart one; those that
+   move, as into a folder of their own, are written. */
 bool itunesdb_playlists_due(void);
 void itunesdb_import_playlists(volatile int *done, volatile int *total);
 

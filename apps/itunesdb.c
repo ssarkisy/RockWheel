@@ -86,6 +86,11 @@ static int db_alloc(size_t size)
     return handle;
 }
 
+/* No memory for iTunesDB's songs (db_load()), as when the boot takes it all
+   for a moment (the menus' parse in tagtree_init()): the boot's pass of the
+   playlists tries again in a moment (itunesdb_import_playlists()) */
+static bool memory_short;
+
 
 /* what the last import was made from, and the tracks in iTunesDB order with
    the counts they had then, which Play Counts entries are made against */
@@ -1415,9 +1420,10 @@ static void playlist_dir(char *buf, size_t size)
    a playlist's, and 1.4.0's readers pass over it. */
 #define PLAYLISTS_VERSION 2
 /* The size and time of the iTunesDB whose playlists the boot's pass
-   (itunesdb_import_playlists()) couldn't read: not tried again over it, as
-   it would fail the same way; the next sync's import makes them. A write of
-   it cut short leaves it short, and the pass is tried again. */
+   (itunesdb_import_playlists()) couldn't read, or whose songs found no memory
+   at any of its tries: not tried again over it, as it would fail the same
+   way; the next sync's import makes them. A write of it cut short leaves it
+   short, and the pass is tried again. */
 #define PLAYLISTS_FAILED ROCKBOX_DIR "/itunesdb_playlists_failed.dat"
 
 /* As many playlists and folders as there are: iTunesDB says how many
@@ -1442,6 +1448,7 @@ static struct {
         uint32_t time;          /* the file's, 0 if not set */
         uint32_t file;          /* offset of its name in the buffer */
         bool older;             /* listed by a version that didn't mark its files */
+        bool smart;             /* with a smart one's line after it */
     } *lists;
     char *names;
     /* the folders made, as offsets of their names */
@@ -1454,6 +1461,11 @@ static struct {
     /* a record of the playlists in iTunesDB couldn't be read, as of one cut
        short by a sync left off: the playlists after it would have looked gone */
     bool read_failed;
+    /* one of iTunesDB's couldn't be written, as with the disk full: its old
+       one may be any of those not written again, under its old name or in its
+       old folder, so none of them goes this time (remove_old_playlists()). The
+       file in its place, if any, stays as it was, though it's another's. */
+    bool lost;
 } pls;
 
 /* the last import's list as found */
@@ -1535,7 +1547,13 @@ static enum old_list load_old_playlists(int playlists)
             || !strncmp(line, "version ", 8))
             continue;
         if (!strncmp(line, "smart /", 7))
-            continue; /* the mark of the playlist on the line before */
+        {
+            /* the mark of the playlist on the line before */
+            if (pls.count > 0
+                && !strcasecmp(pls.names + pls.lists[pls.count - 1].file, line + 6))
+                pls.lists[pls.count - 1].smart = true;
+            continue;
+        }
         if (!strncmp(line, "dir /", 5))
         {
             size_t len = strlen(line + 4) + 1;
@@ -1554,6 +1572,7 @@ static enum old_list load_old_playlists(int playlists)
         o->size = 0;
         o->time = 0;
         o->older = true;
+        o->smart = false;
         if (line[0] != '/')
         {
             /* not from an older version, which listed only the files */
@@ -1654,8 +1673,9 @@ static bool listed_own(const struct old_playlist *o)
     return ext && !strcasecmp(ext, ".m3u8") && (o->older || own_playlist(file));
 }
 
-/* our files in a folder and those in it, not written again */
-static void remove_own_files(const char *dir, int depth)
+/* our files in a folder and those in it, not written again; with one of
+   iTunesDB's lost, kept and listed, what they hold not known */
+static void remove_own_files(const char *dir, int depth, int list_fd)
 {
     DIR *d = opendir(dir);
     if (!d)
@@ -1672,13 +1692,18 @@ static void remove_own_files(const char *dir, int depth)
         if (dir_get_info(d, entry).attribute & ATTR_DIRECTORY)
         {
             if (depth < MAX_FOLDER_DEPTH)
-                remove_own_files(file, depth + 1);
+                remove_own_files(file, depth + 1, list_fd);
             continue;
         }
         const char *ext = strrchr(entry->d_name, '.');
         if (ext && !strcasecmp(ext, ".m3u8")
             && !written_playlist(itunesdb_path_hash(file)) && own_playlist(file))
-            remove(file);
+        {
+            if (pls.lost)
+                list_line(list_fd, "0000000000000000 0 0 %s\n", file);
+            else
+                remove(file);
+        }
     }
     closedir(d);
 }
@@ -1724,20 +1749,49 @@ static int cmp_dir_depth(const void *a, const void *b)
     return (int)strlen(y) - (int)strlen(x);
 }
 
+/* One of the last import's that stays as it is, with one of iTunesDB's lost:
+   listed again as it was, a smart one with its mark and rules, to go once an
+   import has written them all. Smart by its line, or by the rules the last
+   import noted, as a list of 1.4.0 has no such lines */
+static void keep_old_playlist(const struct old_playlist *o, int list_fd)
+{
+    const char *file = pls.names + o->file;
+    const unsigned long high = (unsigned long)(o->hash >> 32);
+    const unsigned long low = (unsigned long)(uint32_t)o->hash;
+    if (o->older)
+    {
+        /* without a time, as that version listed it: ours without the mark */
+        if (file_exists(file))
+            list_line(list_fd, "%08lx%08lx %lu %s\n", high, low,
+                      (unsigned long)o->size, file);
+        return;
+    }
+    list_line(list_fd, "%08lx%08lx %lu %lu %s\n", high, low,
+              (unsigned long)o->size, (unsigned long)o->time, file);
+    if (smart_import_keep(file) || o->smart)
+        list_line(list_fd, "smart %s\n", file);
+}
+
 /* The old ones not written again go, as Finder removed them; when there was no
-   list to go by, any of ours found. Then the folders made for them that are left
-   empty, the deepest first: one that can't go yet, as something is in it, is
-   listed again to be tried the next time. */
+   list to go by, any of ours found. With one of iTunesDB's lost, they stay.
+   Then the folders made for them that are left empty, the deepest first: one
+   that can't go yet, as something is in it, is listed again to be tried the
+   next time. */
 static void remove_old_playlists(const char *dir, bool listed, const char *made,
                                  size_t made_len, int list_fd)
 {
     for (int i = 0; i < pls.count; i++)
     {
-        if (!written_playlist(pls.lists[i].file_hash) && listed_own(&pls.lists[i]))
-            remove(pls.names + pls.lists[i].file);
+        const struct old_playlist *o = &pls.lists[i];
+        if (written_playlist(o->file_hash) || !listed_own(o))
+            continue;
+        if (pls.lost)
+            keep_old_playlist(o, list_fd);
+        else
+            remove(pls.names + o->file);
     }
     if (!listed)
-        remove_own_files(dir, 0);
+        remove_own_files(dir, 0, list_fd);
     qsort(pls.dirs, pls.dir_count, sizeof(uint32_t), cmp_dir_depth);
     for (int i = 0; i < pls.dir_count; i++)
     {
@@ -2009,12 +2063,13 @@ static uint64_t parse_id(const char *s, const char **end)
     return id;
 }
 
-static void load_folders(void)
+/* false if there was no memory for them */
+static bool load_folders(void)
 {
     memset(&fld, 0, sizeof(fld));
     int fd = open(FOLDERS_FILE, O_RDONLY);
     if (fd < 0)
-        return;
+        return true;
     const off_t size = ffilesize(fd);
     const int lines = count_lines(fd);
     fld.capacity = lines;
@@ -2025,7 +2080,7 @@ static void load_folders(void)
     {
         fld.handle = 0;
         close(fd);
-        return;
+        return false;
     }
     core_pin(fld.handle);
     fld.folders = core_get_data(fld.handle);
@@ -2063,6 +2118,7 @@ static void load_folders(void)
         }
     }
     close(fd);
+    return true;
 }
 
 static void forget_folders(void)
@@ -2376,7 +2432,8 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     if (!same)
     {
         /* the old one stays whole until the new one is all written, and as it
-           is if that can't be, to be written the next time */
+           is if that can't be, to be written the next time; one elsewhere, as
+           under the playlist's old name, too (pls.lost) */
         bool ok = writer_open(w, PLAYLIST_TEMP);
         if (ok)
         {
@@ -2386,12 +2443,18 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
                the file may be new without it being so. */
             lp_index_forget(file);
             /* not one cut short in place of the whole one */
-            ok = writer_close(w) && pls.read_failed == read_failed
-                 && rename(PLAYLIST_TEMP, file) == 0;
+            ok = writer_close(w) && pls.read_failed == read_failed;
+            /* nor without its name, for which its folder may have no room */
+            if (ok && rename(PLAYLIST_TEMP, file) < 0)
+            {
+                library_write_failed();
+                ok = false;
+            }
         }
         if (!ok)
         {
             remove(PLAYLIST_TEMP);
+            pls.lost = true;
             if (!file_exists(file))
                 return;
             hash = 0;
@@ -2426,7 +2489,15 @@ static bool write_playlists(off_t list, bool alone)
     if (old == LIST_NO_ROOM)
         return readable;
     const bool listed = old == LIST_READ;
-    load_folders();
+    /* the pass with no memory for the folders would put their playlists in
+       the top one: they're left as they are instead, for the next boot, as
+       with no room for the old list. A sync's import goes on, as before. */
+    if (!load_folders() && alone)
+    {
+        forget_old_playlists();
+        forget_folders();
+        return readable;
+    }
     fld.claim = !listed;
     playlist_dir(dir, sizeof(dir));
     int list_fd = open(PLAYLISTS_TEMP, O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -3222,7 +3293,10 @@ static bool db_load(void)
     size_t cache_size = STORAGE_PAD(CACHE_SIZE + 4);
     cache_handle = db_alloc(cache_size);
     if (cache_handle <= 0)
+    {
+        memory_short = true;
         return false;
+    }
     core_pin(cache_handle);
     void *cache = core_get_data(cache_handle);
     STORAGE_ALIGN_BUFFER(cache, cache_size);
@@ -3262,7 +3336,10 @@ static bool db_load(void)
     db.pool_size = db.count * POOL_PER_TRACK;
     table_handle = db_alloc(MAX(table_size + db.pool_size, sizeof(uint32_t)));
     if (table_handle <= 0)
+    {
+        memory_short = true;
         return false;
+    }
     core_pin(table_handle);
     metadata_room(db.count);
     db.tracks = core_get_data(table_handle);
@@ -7661,6 +7738,11 @@ bool itunesdb_playlists_due(void)
     return due;
 }
 
+/* tries of the pass with no memory for iTunesDB's songs, a quarter of a
+   second apart: the boot's menus hold all that's free only while
+   tagtree_init() reads them */
+#define PLAYLISTS_TRIES 5
+
 void itunesdb_import_playlists(volatile int *done, volatile int *total)
 {
     read_done = done;
@@ -7668,11 +7750,21 @@ void itunesdb_import_playlists(volatile int *done, volatile int *total)
     /* the songs read for their paths: none of their notes go to a file,
        which notes_end() of an import before may have left ok but closed */
     notes_out.ok = false;
-    const bool readable = db_load() && write_playlists(playlists_list, true);
-    db_unload();
+    bool readable;
+    for (int tries = 1; ; tries++)
+    {
+        memory_short = false;
+        readable = db_load() && write_playlists(playlists_list, true);
+        db_unload();
+        if (!memory_short || tries == PLAYLISTS_TRIES)
+            break;
+        sleep(HZ / 4);
+    }
     read_done = read_total = NULL;
-    /* as it would be the next time: noted, and left for the next sync. A list
-       that couldn't be written, as with the disk full, is tried again */
+    /* as it would be the next time: noted, and left for the next sync, also
+       when the songs found no memory at any try. A list that couldn't be
+       written, as with the disk full, is tried again at the next boot, and so
+       are the playlists with no room for the old list or the folders */
     struct playlists_failed failed;
     if (!readable && db_stamp(&failed.size, &failed.mtime))
     {

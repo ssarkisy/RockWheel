@@ -48,6 +48,9 @@ struct smart_rules {
 void smart_import_begin(void);
 void smart_import_note(const char *file, uint32_t time,
                        const struct smart_rules *rules);
+/* or for one the last import wrote, kept as it is: its rules as the last
+   import's file has them; false if it has none */
+bool smart_import_keep(const char *file);
 void smart_import_end(bool complete);
 /* whether the iPod can work it out by itself */
 bool smart_rules_supported(const struct smart_rules *rules);
