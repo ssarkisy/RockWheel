@@ -83,15 +83,38 @@ static int8_t *bit_buffer;
 #if MAX_BLOCKSIZE > 4608
 #define FRAME_COPY_SIZE MAX_FRAMESIZE
 #else
-/* Blocks are capped at 4608 samples here (see bitstream.h): size for the
-   largest stereo frame, 24 bit with verbatim subframes, plus headers. */
+/* The static sample buffers take blocks of up to 4608 samples here (see
+   bitstream.h): size for the largest stereo frame of those, 24 bit with
+   verbatim subframes, plus headers. Larger blocks may get a larger copy
+   buffer (flac_init()). */
 #define FRAME_COPY_SIZE (MAX_BLOCKSIZE * 2 * 3 + 64)
 #endif
 /* Largest frame the current stream can contain */
 static size_t frame_bound;
-static uint8_t frame_copy[FRAME_COPY_SIZE];
+static uint8_t frame_copy_buf[FRAME_COPY_SIZE];
+static uint8_t *frame_copy;     /* frame_copy_buf, or a large block's own */
 #endif
 static size_t buff_size;
+
+/* FLAC's subset allows blocks of up to 16384 samples above 48 kHz: ffmpeg
+   writes 8192 at 96 kHz, 16384 at 192 kHz. Blocks larger than the static
+   buffers are decoded into buffers from the codec's own memory
+   (codec_malloc(), in DRAM where the static ones may be in IRAM), taken at
+   the start of each such track. */
+#define LARGE_BLOCKSIZE 16384
+
+static bool alloc_large_blocks(FLACContext* fc)
+{
+    /* two at least: a mono frame's decorrelation shifts the second
+       channel's too, in place, as with the static buffers */
+    for (int ch = 0; ch < MAX(fc->channels, 2); ch++)
+    {
+        fc->decoded[ch] = codec_calloc(fc->max_blocksize, sizeof(int32_t));
+        if (fc->decoded[ch] == NULL)
+            return false;
+    }
+    return true;
+}
 
 static bool flac_init(FLACContext* fc, int first_frame_offset)
 {
@@ -163,10 +186,10 @@ static bool flac_init(FLACContext* fc, int first_frame_offset)
             fc->filesize = ci->filesize;
             fc->min_blocksize = (buf[0] << 8) | buf[1];
             int max_blocksize = (buf[2] << 8) | buf[3];
-            if (max_blocksize > MAX_BLOCKSIZE)
+            if (max_blocksize > LARGE_BLOCKSIZE)
             {
                 LOGF("FLAC: Maximum blocksize is too large (%d > %d)\n",
-                     max_blocksize, MAX_BLOCKSIZE);
+                     max_blocksize, LARGE_BLOCKSIZE);
                 return false;
             }
             fc->max_blocksize = max_blocksize;
@@ -183,6 +206,12 @@ static bool flac_init(FLACContext* fc, int first_frame_offset)
                     LOGF("FLAC: Too many channels (%d > %d)\n",
                          fc->channels, MAX_CHANNELS);
                     return false;
+            }
+
+            if (fc->max_blocksize > MAX_BLOCKSIZE && !alloc_large_blocks(fc))
+            {
+                LOGF("FLAC: No memory for blocks of %d\n", fc->max_blocksize);
+                return false;
             }
 
             /* totalsamples is a 36-bit field, but we assume <= 32 bits are
@@ -239,8 +268,18 @@ static bool flac_init(FLACContext* fc, int first_frame_offset)
            frame_bound = ((size_t)fc->max_blocksize * fc->channels * fc->bps
                           + 7) / 8 + 64;
        }
+       frame_copy = frame_copy_buf;
        if (frame_bound > FRAME_COPY_SIZE)
-           frame_bound = FRAME_COPY_SIZE;
+       {
+           /* a large block's frames get a buffer of their size, if there
+              is room */
+           uint8_t *large = fc->max_blocksize > MAX_BLOCKSIZE ?
+                            codec_malloc(frame_bound) : NULL;
+           if (large)
+               frame_copy = large;
+           else
+               frame_bound = FRAME_COPY_SIZE;
+       }
 #endif
        /* length is 0 when STREAMINFO has no total sample count */
        fc->bitrate = fc->length ? ((int64_t) (fc->filesize-fc->metadatalength) * 8)
