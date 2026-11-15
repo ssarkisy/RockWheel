@@ -452,8 +452,8 @@ static int rotate_index(const struct playlist_info* playlist, int index)
 }
 
 /* What is written is kept once synced: the iPod's FAT records a file's new
-   size only at fsync or close, and a reset (Menu+Select, a crash, a flat
-   battery) loses the lines after the last sync */
+   size only at fsync or close, and a reset (Menu+Select, a crash, a power
+   cut) loses the lines after the last sync */
 static void sync_control_unlocked(struct playlist_info* playlist)
 {
     if (playlist->control_fd >= 0)
@@ -3561,6 +3561,10 @@ int playlist_move(struct playlist_info* playlist, int index, int new_index)
                                             new_index, queue, -1);
     if (result == -1)
         goto out;
+    /* synced, as remove_track_unlocked() syncs the delete's line: unsynced,
+       a reset resumed the list without the track, or from its top if it
+       was the one playing */
+    sync_control_unlocked(playlist);
 
     if (current)
     {
