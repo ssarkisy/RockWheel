@@ -316,6 +316,11 @@ static bool read_mp4_esds(int fd, struct mp3entry* id3, uint32_t* size)
         {
             id3->frequency = sample_rates[index];
         }
+#ifndef CODEC_AAC_SBR_DEC
+        /* Without the SBR decoder only the AAC core is decoded, at this
+           rate: SBR's, read below, would play it too fast */
+        const unsigned long core_frequency = id3->frequency;
+#endif
 
         if (type == 5)
         {
@@ -381,6 +386,7 @@ static bool read_mp4_esds(int fd, struct mp3entry* id3, uint32_t* size)
 #ifndef CODEC_AAC_SBR_DEC
         //SBR_DEC is disabled so disable sbr implicit signalling
         sbr_signaled = true;
+        id3->frequency = core_frequency;
 #endif
         if (!sbr && !sbr_signaled && id3->frequency <= 24000)
         {
@@ -418,8 +424,9 @@ static void read_mp4_tag_i_from_n(int fd, int *i, char** i_from_n_string, uint32
     }
 }
 
+/* *smpb is set when iTunSMPB gives the trims */
 static bool read_mp4_tags(int fd, struct mp3entry* id3,
-                          uint32_t size_left)
+                          uint32_t size_left, bool *smpb)
 {
     uint32_t size;
     uint32_t type;
@@ -661,6 +668,7 @@ static bool read_mp4_tags(int fd, struct mp3entry* id3,
                     read_mp4_tag_string(fd, size, &value_p, &length, &any);
                     id3->lead_trim = get_itunes_int32(value, 1);
                     id3->tail_trim = get_itunes_int32(value, 2);
+                    *smpb = true;
                     DEBUGF("AAC: lead_trim %d, tail_trim %d\n",
                         id3->lead_trim, id3->tail_trim);
                 }
@@ -722,6 +730,9 @@ struct mp4_tracks {
         uint32_t size;
         off_t pos;      /* of the contents of the trak atom */
     } trak[MP4_MAX_TRACKS];
+    /* lead_trim is iTunSMPB's, which counts as stts does, not chpl's,
+       which counts at id3->frequency */
+    bool smpb_lead;
 };
 
 static bool read_mp4_container(int fd, struct mp3entry* id3,
@@ -827,7 +838,7 @@ static bool read_mp4_container(int fd, struct mp3entry* id3,
             /* We need at least a size of 8 to read the next atom. */
             if (handler == MP4_mdir && size>8)
             {
-                rc = read_mp4_tags(fd, id3, size);
+                rc = read_mp4_tags(fd, id3, size, &tracks->smpb_lead);
                 size = 0;
             }
             break;
@@ -885,6 +896,7 @@ static bool read_mp4_container(int fd, struct mp3entry* id3,
                     read_uint32be(fd, &n);
                     read_uint32be(fd, &l);
 
+#ifdef CODEC_AAC_SBR_DEC
                     /* Some AAC file use HE profile. In this case the number
                      * of output samples is doubled to a maximum of 2048
                      * samples per frame. This means that files which already
@@ -895,9 +907,20 @@ static bool read_mp4_container(int fd, struct mp3entry* id3,
                         l *= 2;
                         id3->needs_upsampling_correction = true;
                     }
+#else
+                    /* Only the AAC core is decoded, 1024 samples a frame at
+                     * most: longer frames mean the file counts at the SBR
+                     * rate, two for each sample decoded. */
+                    if (id3->codectype==AFMT_MP4_AAC_HE && l>1024)
+                        id3->needs_upsampling_correction = true;
+#endif
 
                     id3->samples += (uint64_t) n * l;
                 }
+#ifndef CODEC_AAC_SBR_DEC
+                if (id3->needs_upsampling_correction)
+                    id3->samples /= 2;
+#endif
 
                 size = 0;
             }
@@ -989,8 +1012,10 @@ static bool read_mp4_container(int fd, struct mp3entry* id3,
                  * lead_trim if it is under a second, an encoder's delay */
                 if (chapters > 0) {
                     read_uint64be(fd, &timestamp);
-                    if (timestamp < 10000000)
+                    if (timestamp < 10000000) {
                         id3->lead_trim = (timestamp * id3->frequency) / 10000000;
+                        tracks->smpb_lead = false;
+                    }
                 }
 
                 /* One chapter gives nothing to skip between.  A list cut
@@ -1340,6 +1365,17 @@ bool get_mp4_metadata(int fd, struct mp3entry* id3)
             logf("Not an ALAC or AAC file");
             return false;
         }
+
+#ifndef CODEC_AAC_SBR_DEC
+        /* The trims are of the samples decoded: of the core's, half as
+           many as iTunSMPB counts in a file counted at the SBR rate */
+        if (id3->needs_upsampling_correction)
+        {
+            if (tracks.smpb_lead)
+                id3->lead_trim /= 2;
+            id3->tail_trim /= 2;
+        }
+#endif
 
         id3->length = ((int64_t) id3->samples * 1000) / id3->frequency;
 

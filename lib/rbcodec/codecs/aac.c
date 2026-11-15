@@ -328,7 +328,11 @@ enum codec_status codec_run(void)
     int err;
     uint32_t seek_idx = 0;
     uint32_t s = 0;
+    /* decoded samples per sample the file counts: 2 where SBR is decoded */
     uint32_t sbr_fac = 1;
+    /* samples the file counts per decoded sample: 2 where the file counts at
+       the SBR rate and only the core is decoded */
+    uint32_t core_div = 1;
     unsigned char c = 0;
     long action;
     intptr_t param;
@@ -384,6 +388,11 @@ enum codec_status codec_run(void)
     } else {
         sbr_fac = 1;
     }
+#else
+    /* Only the AAC core is decoded, at the rate the metadata gave: a file
+     * counted at the SBR rate counts two samples for each one decoded */
+    if (ci->id3->needs_upsampling_correction)
+        core_div = 2;
 #endif
 
     i = 0;
@@ -394,10 +403,11 @@ enum codec_status codec_run(void)
     } else if (file_offset > 0) {
         /* Resume the desired (byte) position. Important: When resuming SBR
          * upsampling files the resulting sound_samples_done must be expanded
-         * by a factor of 2. This is done via using sbr_fac. */
+         * by a factor of 2. This is done via using sbr_fac; core_div does
+         * the opposite. */
         if (m4a_seek_raw(&demux_res, &input_stream, file_offset,
                          &sound_samples_done, &i, &seek_idx)) {
-            sound_samples_done *= sbr_fac;
+            sound_samples_done = sound_samples_done * sbr_fac / core_div;
         } else {
             sound_samples_done = 0;
         }
@@ -431,11 +441,13 @@ enum codec_status codec_run(void)
             /* Seek to the desired time position. Important: When seeking in SBR
              * upsampling files the seek_time must be divided by 2 when calling
              * m4a_seek and the resulting sound_samples_done must be expanded
-             * by a factor 2. This is done via using sbr_fac. */
+             * by a factor 2. This is done via using sbr_fac; core_div does
+             * the opposite. */
             if (m4a_seek(&demux_res, &input_stream,
-                         (uint64_t) param * ci->id3->frequency / sbr_fac / 1000ULL,
+                         (uint64_t) param * ci->id3->frequency * core_div
+                         / sbr_fac / 1000ULL,
                          &sound_samples_done, &i, &seek_idx)) {
-                sound_samples_done *= sbr_fac;
+                sound_samples_done = sound_samples_done * sbr_fac / core_div;
                 elapsed_time = sound_samples_done * 1000LL / ci->id3->frequency;
                 ci->set_elapsed(elapsed_time);
 
@@ -552,7 +564,7 @@ enum codec_status codec_run(void)
                 // Size of the last frame
                 // Currently ignored if time_to_sample table fails to fit.
                 const uint32_t sample_duration = (demux_res.num_time_to_samples > 0 && demux_res.time_to_sample) ?
-                    demux_res.time_to_sample[demux_res.num_time_to_samples - 1].sample_duration :
+                    demux_res.time_to_sample[demux_res.num_time_to_samples - 1].sample_duration / core_div :
                     frame_samples;
 
                 /* Currently limited to at most one frame of tail_trim.

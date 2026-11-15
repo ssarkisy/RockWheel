@@ -307,7 +307,9 @@ struct mp3entry {
     bool has_toc;           /* True if there is a VBR header in the file */
     unsigned char toc[100]; /* table of contents */
 
-    /* Added for AAC HE SBR */
+    /* Added for AAC HE SBR: the file counts the AAC core's samples, which
+       SBR doubles; without CODEC_AAC_SBR_DEC, it counts at the SBR rate,
+       twice the core's samples decoded */
     bool needs_upsampling_correction; /* flag used by aac codec */
 
     /* these following two fields are used for local buffering */
