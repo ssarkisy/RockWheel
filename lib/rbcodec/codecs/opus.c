@@ -133,23 +133,43 @@ static bool alloc_ogg_buffers(ogg_sync_state *oy, ogg_stream_state *os,
     return false;
 }
 
+/* Searched a block at a time: byte by byte through the codec API, a picture
+   of 300 KB in OpusTags held a track's start for 2.7 s on the iPod */
+#define SCAN_BLOCK 4096
+
+/* Find the first copy of what, len bytes of it, at or after pos: leave the
+   stream there and return 1, or at the end of the file and return 0 */
+static int find_in_stream(uint64_t pos, const char *what, size_t len)
+{
+    while (pos + len <= (uint64_t)ci->filesize && ci->seek_buffer(pos)) {
+        size_t got;
+        const char *buf = ci->request_buffer(&got, SCAN_BLOCK);
+        if (buf == NULL || got < len)
+            break;
+        /* where a copy can start in this block; the rest begins the next */
+        const char *p = buf, *end = buf + got - len + 1;
+        while ((p = ci->memchr(p, what[0], end - p)) != NULL) {
+            if (memcmp(p, what, len) == 0) {
+                ci->seek_buffer(pos + (p - buf));
+                return 1;
+            }
+            p++;
+        }
+        pos += got - len + 1;
+    }
+    ci->seek_buffer(ci->filesize);
+    return 0;
+}
+
 /* seek to ogg page after given file position */
 static int seek_ogg_page(uint64_t filepos)
 {
+    /* A page of no continued packet, as the first after the headers: its
+       version and header type are both 0 */
     const char synccode[] = "OggS\0"; /* Note: there are two nulls here */
-    char buf[sizeof(synccode)];
-    ci->seek_buffer(filepos);
-    while (ci->read_filebuf(buf, 1) == 1) {
-        if (buf[0] == synccode[0]) {
-            if (ci->read_filebuf(&buf[1], sizeof(buf) - 1) != sizeof(buf) - 1)
-                break;
-            if (memcmp(buf, synccode, sizeof(buf)) == 0) {
-                ci->seek_buffer(ci->curpos - sizeof(buf));
-                LOGF("next page %jd", (intmax_t) ci->curpos);
-                return 1;
-            } else
-                ci->seek_buffer(ci->curpos - (sizeof(buf) - 1));
-        }
+    if (find_in_stream(filepos, synccode, sizeof(synccode))) {
+        LOGF("next page %jd", (intmax_t) ci->curpos);
+        return 1;
     }
     return 0;
 }
@@ -158,21 +178,42 @@ static int seek_ogg_page(uint64_t filepos)
 static int seek_opus_tags(void)
 {
     const char synccode[] = "OpusTags";
-    char buf[sizeof(synccode) - 1]; /* Exclude null */
-    ci->seek_buffer(0);
-    while (ci->read_filebuf(buf, 1) == 1) {
-        if (buf[0] == synccode[0]) {
-            if (ci->read_filebuf(&buf[1], sizeof(buf) - 1) != sizeof(buf) - 1)
-                break;
-            if (memcmp(buf, synccode, sizeof(buf)) == 0) {
-                ci->seek_buffer(ci->curpos - sizeof(buf));
-                LOGF("OpusTags %jd", (intmax_t) ci->curpos);
-                return 1;
-            } else
-                ci->seek_buffer(ci->curpos - (sizeof(buf) - 1));
-        }
+    if (find_in_stream(0, synccode, sizeof(synccode) - 1)) { /* Exclude null */
+        LOGF("OpusTags %jd", (intmax_t) ci->curpos);
+        return 1;
     }
     /* comment header not found probably invalid file */
+    return 0;
+}
+
+/* Where seek_opus_tags() and then seek_ogg_page() lead in a well-formed
+   stream, found from page header to page header without reading the pages:
+   the first page after the one OpusTags begins whose version and header type
+   are 0, as "OggS\0\0" finds: no continued packet, nor the stream's first or
+   last page. Returns 0, the stream left anywhere, if the pages don't add up. */
+static int seek_audio_page(void)
+{
+    uint64_t pos = 0;
+    bool tags = false;
+
+    while (pos + 27 <= (uint64_t)ci->filesize && ci->seek_buffer(pos)) {
+        size_t got;
+        const unsigned char *p = ci->request_buffer(&got, 27 + 255 + 8);
+        /* a page, of version 0 */
+        if (p == NULL || got < 27 || memcmp(p, "OggS", 5) != 0)
+            return 0;
+        if (tags && p[5] == 0)
+            return 1;
+        unsigned int segments = p[26], body = 0;
+        if (got < 27 + segments)
+            return 0;
+        for (unsigned int i = 0; i < segments; i++)
+            body += p[27 + i];
+        if (!tags)
+            tags = got >= 27 + segments + 8 &&
+                   memcmp(&p[27 + segments], "OpusTags", 8) == 0;
+        pos += 27 + segments + body;
+    }
     return 0;
 }
 
@@ -590,7 +631,9 @@ enum codec_status codec_run(void)
                     /* seek buffer directly to the first audio packet to avoid
                        allocating space for huge comment packets
                        (embedded Album Art) */
-                        if (seek_opus_tags())
+                        if (seek_audio_page()) {
+                            LOGF("audio page %jd", (intmax_t) ci->curpos);
+                        } else if (seek_opus_tags())
                             seek_ogg_page(ci->curpos);
                         else {
                             LOGF("Could not find comment header");
