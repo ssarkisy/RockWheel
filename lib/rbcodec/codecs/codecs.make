@@ -172,6 +172,10 @@ $(CODECDIR)/aac_bsf.codec : $(CODECDIR)/libfaad.a
 
 $(CODECS): $(CODEC_LIBS) # this must be last in codec dependency list
 
+# libgcc for the compiler's helper functions; warble with clang on macOS has
+# them in clang's own runtime and no libgcc (warble.make)
+CODEC_LIBGCC ?= -lgcc
+
 # pattern rule for compiling codecs
 $(CODECDIR)/%.o: $(RBCODECLIB_DIR)/codecs/%.c
 	$(SILENT)mkdir -p $(dir $@)
@@ -188,11 +192,11 @@ $(CODECDIR)/%-pre.map: $(CODEC_CRT0) $(CODECLINK_LDS) $(CODECDIR)/%.o $(CODEC_LI
 	$(call PRINTS,LD $(@F))$(CC) $(CODECFLAGS) -o $(CODECDIR)/$*-pre.elf \
 		$(filter %.o, $^) \
 		$(filter-out $(CODECLIB),$(filter %.a, $+)) $(CODECLIB) \
-		-lgcc $(subst .map,-pre.map,$(CODECLDFLAGS))
+		$(CODEC_LIBGCC) $(subst .map,-pre.map,$(CODECLDFLAGS))
 
 $(CODECDIR)/%.codec: $(CODECDIR)/%.o
 	$(call PRINTS,LD $(@F))$(CC) $(CODECFLAGS) -o $(CODECDIR)/$*.elf \
 		$(filter %.o, $^) \
 		$(filter %.a, $+) \
-		-lgcc $(CODECLDFLAGS)
+		$(CODEC_LIBGCC) $(CODECLDFLAGS)
 	$(SILENT)$(call objcopy_plugin,$(CODECDIR)/$*.elf,$@)

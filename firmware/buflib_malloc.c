@@ -39,8 +39,10 @@ static struct buflib_malloc_handle *get_free_handle(struct buflib_context *ctx)
     struct buflib_malloc_handle *h;
     for (size_t i = 0; i < ctx->num_allocs; ++i)
     {
+        /* free by its data, not its size: an allocation of 0 bytes is a
+           handle of its own, as with the memory pool */
         h = &ctx->allocs[i];
-        if (h->size == 0)
+        if (!h->data)
             return h;
     }
 
@@ -50,6 +52,7 @@ static struct buflib_malloc_handle *get_free_handle(struct buflib_context *ctx)
         panicf("buflib %p handle OOM", ctx);
 
     h = &ctx->allocs[ctx->num_allocs - 1];
+    h->data = NULL;
     h->size = 0;
     return h;
 }
@@ -106,7 +109,7 @@ int buflib_alloc_ex(struct buflib_context *ctx, size_t size,
 {
     struct buflib_malloc_handle *handle = get_free_handle(ctx);
 
-    handle->data = malloc(size);
+    handle->data = malloc(size ? size : 1);
     handle->user = handle->data;
     handle->size = size;
     handle->pin_count = 0;
@@ -187,6 +190,7 @@ int buflib_free(struct buflib_context *ctx, int handle)
     struct buflib_malloc_handle *h = get_handle(ctx, handle);
 
     free(h->data);
+    h->data = NULL;
     h->size = 0;
 
     return 0;

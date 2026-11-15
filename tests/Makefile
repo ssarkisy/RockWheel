@@ -1,0 +1,158 @@
+#             __________               __   ___.
+#   Open      \______   \ ____   ____ |  | _\_ |__   _______  ___
+#   Source     |       _//  _ \_/ ___\|  |/ /| __ \ /  _ \  \/  /
+#   Jukebox    |    |   (  <_> )  \___|    < | \_\ (  <_> > <  <
+#   Firmware   |____|_  /\____/ \___  >__|_ \|___  /\____/__/\_ \
+#                     \/            \/     \/    \/            \/
+#
+# Tests on the Mac: the firmware's own sources built for the host with clang,
+# AddressSanitizer and UBSan, the firmware they call stubbed; and the codecs
+# through warble against fixtures made by codecs/make_fixtures.sh.
+#
+#   make -C tests check          everything; non-zero on a failure
+#   make -C tests check-keys     the sort and album keys
+#   make -C tests check-itunesdb iTunesDB and ArtworkDB, whole and damaged
+#   make -C tests check-codecs   the codecs through warble
+#   make -C tests clean
+#
+# Built under tests/build. The sources are built with the simulator's
+# configuration of the iPod Video (include/autoconf.h), as the simulator
+# builds them, but with buflib's malloc backend, so that ASan sees each
+# allocation on its own. include/autoconf.h is configure's output, kept: made
+# again when configure's template of it changes.
+#
+# Needs Xcode's Command Line Tools; check-codecs also SDL2's headers and
+# sdl2-config (Homebrew's sdl2), which configure asks for and warble.c
+# includes. The library itself isn't linked (lib/sdl_stub.c).
+
+ROOT    := $(abspath $(CURDIR)/..)
+TESTS   := $(CURDIR)
+BUILD   := $(TESTS)/build
+OBJ     := $(BUILD)/obj
+
+HOST_CC ?= clang
+PYTHON  ?= python3
+
+# Every error ends the test, but for those ubsan.supp lists: an alignment
+# error is reported by a handler that can go on, which reads the list
+SANITIZE := -fsanitize=address,undefined -fno-sanitize-recover=all \
+            -fsanitize-recover=alignment -fno-omit-frame-pointer
+export UBSAN_OPTIONS := suppressions=$(TESTS)/ubsan.supp:halt_on_error=1:print_stacktrace=1
+export ASAN_OPTIONS := suppressions=$(TESTS)/asan.supp
+
+SIM_INC := -I$(TESTS)/include -I$(TESTS)/lib \
+	-I$(ROOT)/firmware/target/arm/ipod/video \
+	-I$(ROOT)/firmware/target/hosted/sdl -I$(ROOT)/firmware/target/hosted \
+	-I$(ROOT)/firmware/target/arm/ipod -I$(ROOT)/firmware/target/arm/pp \
+	-I$(ROOT)/firmware/target/arm -I$(ROOT)/firmware \
+	-I$(ROOT)/firmware/export -I$(ROOT)/firmware/drivers \
+	-I$(ROOT)/firmware/include -I$(ROOT)/firmware/kernel/include \
+	-I$(ROOT)/apps -I$(ROOT)/apps/gui -I$(ROOT)/apps/recorder \
+	-I$(ROOT)/apps/radio -I$(ROOT)/lib/rbcodec -I$(ROOT)/lib/rbcodec/codecs \
+	-I$(ROOT)/lib/rbcodec/dsp -I$(ROOT)/lib/rbcodec/metadata \
+	-I$(ROOT)/lib/fixedpoint -I$(ROOT)/lib/skin_parser \
+	-I$(ROOT)/lib/tlsf/src -I$(ROOT)/uisimulator/common
+SIM_DEF := -DROCKBOX -DMEMORYSIZE=64 -DIPOD_VIDEO -DTARGET_ID=15 \
+	-DTARGET_NAME=\"ipodvideo\" -DSIMULATOR -DHAVE_UTF8_NORMALIZE \
+	-DCONFIG_BUFLIB_BACKEND=1 -D_FORTIFY_SOURCE=0
+
+CFLAGS := -std=gnu11 -g -O1 $(SANITIZE) $(SIM_INC) $(SIM_DEF) \
+	-Wno-pointer-sign -Wno-unknown-warning-option
+LDFLAGS := $(SANITIZE)
+
+# the firmware's sources the tests link, as they are
+FIRMWARE_SRC := firmware/common/unicode.c firmware/common/pathfuncs.c \
+	firmware/common/crc32.c firmware/common/strmemccpy.c \
+	firmware/core_alloc.c firmware/buflib_malloc.c \
+	lib/fixedpoint/fixedpoint.c apps/sortkey.c
+FIRMWARE_OBJ := $(addprefix $(OBJ)/,$(FIRMWARE_SRC:.c=.o))
+# the tests' own: the checks, and the firmware the sources call
+LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o
+
+.PHONY: all check check-keys check-itunesdb check-codecs clean
+all: $(BUILD)/test_keys $(BUILD)/test_itunesdb
+
+check: check-keys check-itunesdb check-codecs
+
+$(OBJ)/%.o: $(ROOT)/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -MMD -c $< -o $@
+
+$(OBJ)/lib/%.o: $(TESTS)/lib/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -MMD -c $< -o $@
+
+$(OBJ)/keys/%.o: $(TESTS)/keys/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -MMD -c $< -o $@
+
+$(OBJ)/itunesdb/%.o: $(TESTS)/itunesdb/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -MMD -c $< -o $@
+
+# The keys: sortkey.c, album_years.c's album_date_order() and itunesdb.c's
+# itunesdb_album_key()
+$(BUILD)/test_keys: $(OBJ)/keys/test_keys.o $(OBJ)/apps/album_years.o \
+		$(OBJ)/apps/itunesdb.o $(FIRMWARE_OBJ) $(LIB_OBJ)
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+check-keys: $(BUILD)/test_keys
+	@$(BUILD)/test_keys
+
+# iTunesDB and ArtworkDB: test_itunesdb.c builds itunesdb.c itself, to reach
+# its parser's static functions
+$(BUILD)/test_itunesdb: $(OBJ)/itunesdb/test_itunesdb.o $(FIRMWARE_OBJ) \
+		$(LIB_OBJ)
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+# made again for each run: an import leaves its files in the case's folder
+ITUNESDB_CASES := $(BUILD)/itunesdb-cases
+check-itunesdb: $(BUILD)/test_itunesdb
+	@rm -rf $(ITUNESDB_CASES)
+	@$(PYTHON) -I -B $(TESTS)/itunesdb/make_itunesdb.py $(ITUNESDB_CASES)
+	@$(BUILD)/test_itunesdb $(ITUNESDB_CASES)
+
+# warble, from its own configure in build/warble, with clang and ASan; only
+# the codecs the fixtures need, and without SDL (lib/sdl_stub.c). DEBUG makes
+# its codecs copied, not stripped by an objcopy macOS doesn't have.
+WARBLE_DIR    := $(BUILD)/warble
+WARBLE        := $(WARBLE_DIR)/warble.ipodvideo
+WARBLE_CODECS := mpa aac alac flac vorbis opus wavpack
+WARBLE_SAN    := -fsanitize=address -fno-omit-frame-pointer
+WARBLE_MAKE   := $(MAKE) -C $(WARBLE_DIR) CC=$(HOST_CC) \
+	CPP="$(HOST_CC) -E" AR=ar RANLIB=ranlib DEBUG=-DDEBUG \
+	EXTRA_DEFINES="-DDEBUG -DWARBLE $(WARBLE_SAN)" \
+	LDOPTS="-lm -L$(OBJ)/warble -lsdlstub $(WARBLE_SAN)" \
+	CODECS="$(foreach c,$(WARBLE_CODECS),$(WARBLE_DIR)/lib/rbcodec/codecs/$(c).codec)"
+
+$(WARBLE_DIR)/Makefile:
+	@echo CONFIGURE warble
+	@mkdir -p $(WARBLE_DIR)
+	@cd $(WARBLE_DIR) && $(ROOT)/tools/configure --target=ipodvideo --type=w \
+		> configure.log 2>&1
+
+$(OBJ)/warble/libsdlstub.a: $(TESTS)/lib/sdl_stub.c
+	@mkdir -p $(dir $@)
+	@$(HOST_CC) -g $(WARBLE_SAN) -c $< -o $(OBJ)/warble/sdl_stub.o
+	@ar rcs $@ $(OBJ)/warble/sdl_stub.o
+
+.PHONY: warble
+warble: $(WARBLE_DIR)/Makefile $(OBJ)/warble/libsdlstub.a
+	@echo MAKE warble
+	@$(WARBLE_MAKE) > $(WARBLE_DIR)/make.log 2>&1 \
+		|| { tail -40 $(WARBLE_DIR)/make.log; exit 1; }
+
+check-codecs: warble
+	@$(PYTHON) -I -B $(TESTS)/codecs/check_codecs.py $(WARBLE) \
+		$(TESTS)/codecs/fixtures $(TESTS)/codecs/expected.txt
+
+clean:
+	rm -rf $(BUILD)
+
+-include $(shell find $(OBJ) -name '*.d' 2>/dev/null)

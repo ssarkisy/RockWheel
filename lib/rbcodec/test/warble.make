@@ -15,6 +15,17 @@ RBCODEC_CFLAGS += -D_FILE_H_ #-DLOGF_H -DDEBUG_H -D_KERNEL_H_ # will be removed 
 
 SRC= $(call preprocess, $(ROOTDIR)/lib/rbcodec/test/SOURCES)
 
+# macOS lacks glibc's <endian.h> and <byteswap.h>, and its fortified
+# <string.h> makes strlcpy() a macro, which firmware/common/strlcpy.c defines
+ifeq ($(UNAME),Darwin)
+INCLUDES += -I$(ROOTDIR)/lib/rbcodec/test/darwin
+GCCOPTS += -D_FORTIFY_SOURCE=0
+# Apple clang has no libgcc
+ifneq (,$(findstring clang,$(shell $(CC) --version 2>/dev/null)))
+CODEC_LIBGCC :=
+endif
+endif
+
 INCLUDES += -I$(ROOTDIR)/lib/rbcodec/test \
 	-I$(ROOTDIR)/apps -I$(ROOTDIR)/apps/gui \
 	-I$(FIRMDIR)/kernel/include \

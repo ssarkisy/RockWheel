@@ -31,6 +31,11 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#include <sanitizer/asan_interface.h>
+#endif
+#endif
 #include "buffering.h" /* TYPE_PACKET_AUDIO */
 #include "kernel.h"
 #include "core_alloc.h"
@@ -503,6 +508,8 @@ static void ci_set_elapsed(unsigned long value)
 }
 
 static char *input_buffer = 0;
+/* its size, and how much of it advance_buffer has gone past */
+static size_t input_buffer_size, input_buffer_used;
 
 /*
  * Read part of the input file into a provided buffer.
@@ -538,9 +545,10 @@ static void *ci_request_buffer(size_t *realsize, size_t reqsize)
     if (!rbcodec_format_is_atomic(ci.id3->codectype))
         reqsize = MIN(reqsize, 32 * 1024);
     input_buffer = malloc(reqsize);
-    *realsize = read(input_fd, input_buffer, reqsize);
-    if (*realsize < 0)
-        *realsize = 0;
+    ssize_t got = read(input_fd, input_buffer, reqsize);
+    *realsize = got > 0 ? got : 0;
+    input_buffer_size = *realsize;
+    input_buffer_used = 0;
     lseek(input_fd, -*realsize, SEEK_CUR);
     return input_buffer;
 }
@@ -548,13 +556,23 @@ static void *ci_request_buffer(size_t *realsize, size_t reqsize)
 /*
  * Advance the current position in the input file.
  *
- * This automatically updates the current offset. This invalidates buffers
- * returned by request_buffer.
+ * This automatically updates the current offset. As in the firmware's ring
+ * buffer, the part of the last buffer requested past the advance stays valid
+ * until the next request, read or seek, which the pipelined MP3 decoder
+ * (mpa.c) relies on; the part advanced over is invalid, as the firmware may
+ * fill it again: with AddressSanitizer, a read of it is reported.
  */
 static void ci_advance_buffer(size_t amount)
 {
-    free(input_buffer);
-    input_buffer = NULL;
+    if (input_buffer) {
+        size_t over = MIN(amount, input_buffer_size - input_buffer_used);
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+        ASAN_POISON_MEMORY_REGION(input_buffer + input_buffer_used, over);
+#endif
+#endif
+        input_buffer_used += over;
+    }
 
     lseek(input_fd, amount, SEEK_CUR);
     ci.curpos += amount;

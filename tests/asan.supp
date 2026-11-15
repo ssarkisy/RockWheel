@@ -1,0 +1,16 @@
+# AddressSanitizer errors the tests let pass, each a finding of the host
+# tests left as it is: the tests don't change the firmware's build.
+#
+# libwavpack (upstream's): read_next_header() shifts its header buffer down
+# with memcpy() when it searches for the next block, the two ranges
+# overlapping. Undefined in C; the firmware's memcpy copies upwards, which
+# gives what memmove() would.
+#
+# What the rule passes is wider than that overlap: any error ASan reports
+# from an intercepted function (memcpy, memmove, read, strlen and the like)
+# while read_next_header() is anywhere on the stack, also through the codec
+# API, so a read() past its 32-byte buffer through ci_read_filebuf() would
+# pass too. A memcpy the compiler inlines and instruments itself
+# (__asan_memcpy) still reports. It goes when wputils.c uses memmove() there,
+# a change of the codec's own.
+interceptor_via_fun:read_next_header

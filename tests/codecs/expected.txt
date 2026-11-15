@@ -1,0 +1,29 @@
+# The codecs' fixtures (make_fixtures.sh), as check_codecs.py checks them:
+# <file> <lossless|lossy> <source> <rate decoded> <sum of the decoded PCM>
+# The source is source_pcm.py's <rate>:<channels>:<bits>:<seconds>. A lossless
+# file decodes to it exactly; a lossy one to the sum noted for it, at the rate
+# given and for as long as its source.
+# A lossy file's sum is of that file as committed, decoded by the codecs' C
+# built with the compiler below: a new compiler can change it where a codec's
+# C is undefined, as UBSan finds in libfaad's shifts. A sum that changes is
+# looked into, and noted again (check_codecs.py --record) only from a commit
+# known to decode right; the files themselves are not made again
+# (make_fixtures.sh).
+# Recorded with: Apple clang version 21.0.0 (clang-2100.1.1.101), arm64
+mp3-128.mp3 lossy 44100:2:16:3 44100 4442aa8fa5170798b15c84aacbe66d45a95a8f364ebd35564fc5022452ba055f
+mp3-v6-mono.mp3 lossy 44100:1:16:2 44100 8d1c5344055307c7df99ed00a086bfc1d0ccbe8c9ac7f1faa67553643e291a8a
+aac-lc-128.m4a lossy 44100:2:16:3 44100 1249bf6da7b6170b209d81a59c30f400eacecec44c20fd6bdeb7d85fea2f5766
+he-aac-v1-48.m4a lossy 44100:2:16:3 22050 9177b0ef88ecb907e852231d82ebc686fd6c183bb6f85020fad5237f9c7514da
+he-aac-v2-32.m4a lossy 44100:2:16:3 22050 5bee853c3e2a08a6bd84a05ce57c4d45c9cb7b7e0f67b1b3363eb674a19bd4e3
+alac-16.m4a lossless 44100:2:16:2 44100 -
+alac-24-48k.m4a lossless 48000:2:24:1 48000 -
+flac-16.flac lossless 44100:2:16:2 44100 -
+flac-16-b8192.flac lossless 44100:2:16:1.5 44100 -
+flac-16-b16384.flac lossless 44100:2:16:1.5 44100 -
+flac-24-96k.flac lossless 96000:2:24:0.75 96000 -
+flac-16-mono-22k.flac lossless 22050:1:16:2 22050 -
+vorbis-q4.ogg lossy 44100:2:16:3 44100 20fc4eafbf6047e038c9f36463d8c5a352b326c9e04996e272a2a26d07bfe7d2
+opus-96.opus lossy 48000:2:16:3 48000 cc58a7109961b2571d3cdb456e287fc6c3637ca65d929dda163c960179d137cf
+opus-bigtags.opus lossy 48000:2:16:1 48000 18a6bf31e26cb923132ef510121f762a65bd0945751c8de4076d32e61f59a916
+wavpack-16.wv lossless 44100:2:16:1.5 44100 -
+wavpack-24-48k.wv lossless 48000:2:24:0.75 48000 -
