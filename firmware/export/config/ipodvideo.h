@@ -229,7 +229,7 @@
 /* start with a logo on black, the way the stock firmware starts, instead of
    the Rockbox logo and version; its top where the stock boot screen has one */
 #define STOCK_BOOT_LOGO
-#define STOCK_BOOT_LOGO_Y 69
+#define STOCK_BOOT_LOGO_Y 81
 
 /* Define this if you have adjustable CPU frequency */
 #define HAVE_ADJUSTABLE_CPU_FREQ
