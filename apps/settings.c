@@ -392,7 +392,17 @@ bool string_to_cfg(const char *name, char* value, bool *theme_changed)
 #endif
             if (setting_get_cfgvals(setting) == NULL)
             {
-                *(int*)setting->setting = atoi(value);
+                int v = atoi(value);
+                /* a value no menu gives, from a damaged or hand-made .cfg:
+                   kept in its range, which some give high to low, as code
+                   divides and loops by them */
+                if (flags & F_INT_SETTING)
+                {
+                    const struct int_setting *info = setting->int_setting;
+                    v = MIN(MAX(v, MIN(info->min, info->max)),
+                            MAX(info->min, info->max));
+                }
+                *(int*)setting->setting = v;
                 logf("Val: %s\r\n",value);
             }
             else
