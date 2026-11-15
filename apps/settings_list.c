@@ -89,6 +89,7 @@
 #endif
 #include "skin_engine/menu_cover.h"
 #include "night_mode.h"
+#include "scrobbler.h"
 
 #define UNUSED {.RESERVED=NULL}
 #define INT(a) {.int_ = a}
@@ -2996,6 +2997,12 @@ const struct settings_list settings[] = {
                    ID2P(LANG_COLOUR_RED), ID2P(LANG_COLOUR_ORANGE),
                    ID2P(LANG_COLOUR_YELLOW), ID2P(LANG_COLOUR_GREEN),
                    ID2P(LANG_COLOUR_GRAPHITE)),
+#ifdef HAVE_SCROBBLER
+    /* Settings > Playback > Last.fm: the plays in /.scrobbler.log, for an
+       uploader to send to Last.fm */
+    OFFON_SETTING(0, scrobbler, LANG_LASTFM, false, "last.fm",
+                  scrobbler_setting),
+#endif
 };
 
 const int nb_settings = sizeof(settings)/sizeof(*settings);

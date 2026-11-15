@@ -35,6 +35,7 @@
 #include "misc.h"
 #include "playback.h"
 #include "pcm_sampr.h"
+#include "scrobbler.h"
 #ifdef HAVE_PLAY_FREQ
 #include "talk.h"
 #include "exported_menus.h"
@@ -173,6 +174,9 @@ MENUITEM_SETTING(prevent_skip, &global_settings.prevent_skip, NULL);
 MENUITEM_SETTING(rewind_across_tracks, &global_settings.rewind_across_tracks, NULL);
 MENUITEM_SETTING_SHARED(resume_rewind, &global_settings.resume_rewind, NULL);
 MENUITEM_SETTING_SHARED(coverflow_pause_item, &global_settings.coverflow_pause, NULL);
+#ifdef HAVE_SCROBBLER
+MENUITEM_SETTING_SHARED(lastfm_item, &global_settings.scrobbler, NULL);
+#endif
 #ifdef HAVE_PITCHCONTROL
 MENUITEM_SETTING_SHARED(podcast_speed, &global_settings.podcast_speed, NULL);
 MENUITEM_SETTING_SHARED(audiobook_speed, &global_settings.audiobook_speed, NULL);

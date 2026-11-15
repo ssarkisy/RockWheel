@@ -33,6 +33,7 @@
 #include "photos_panel.h"
 #include "misc.h"
 #include "exported_menus.h"
+#include "scrobbler.h"
 #include "tree.h"
 #include "storage.h"
 #ifdef HAVE_RECORDING
@@ -849,7 +850,11 @@ MAKE_MENU(settings_playback, ID2P(LANG_PLAYBACK), NULL, Icon_NOICON,
 #ifdef HAVE_HEADPHONE_DETECTION
           &unplug_mode,
 #endif
-          &cuesheet, &coverflow_pause_item);
+          &cuesheet, &coverflow_pause_item
+#ifdef HAVE_SCROBBLER
+          , &lastfm_item
+#endif
+          );
 
 /* General: the wheel and the buttons, the dark screen's and Search's */
 MAKE_MENU(settings_general, ID2P(LANG_GENERAL_SETTINGS), NULL, Icon_NOICON,

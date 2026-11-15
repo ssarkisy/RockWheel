@@ -23,6 +23,7 @@
 #include "menu.h"
 /* not needed for plugins */
 #ifndef PLUGIN 
+#include "scrobbler.h"   /* HAVE_SCROBBLER */
 
 extern const struct menu_item_ex 
         display_menu,               /* display_menu.c   */
@@ -58,6 +59,9 @@ extern const struct menu_item_ex
         unplug_mode,
 #endif
         resume_rewind, cuesheet, coverflow_pause_item,
+#ifdef HAVE_SCROBBLER
+        lastfm_item,
+#endif
         volume_limit, balance, crossfeed, afr_enabled, /* sound_menu.c  */
         ipod_eq_menu, ipod_eq_row,                  /* eq_menu.c        */
 #ifdef HAVE_BACKLIGHT

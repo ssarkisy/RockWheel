@@ -67,6 +67,9 @@ talk.c
 tree.c
 #ifdef HAVE_TAGCACHE
 tagtree.c
+#if CONFIG_RTC
+scrobbler.c
+#endif
 album_header.c
 list_covers.c
 music_search.c

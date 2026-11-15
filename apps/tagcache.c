@@ -102,6 +102,7 @@
 #include "smart_playlists.h"
 #include "library_playlists.h"
 #include "timefuncs.h"
+#include "scrobbler.h"
 #endif
 #endif
 #define USR_CANCEL false
@@ -6587,6 +6588,49 @@ bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n)
 #endif
 }
 
+#ifdef HAVE_TC_RAMCACHE
+/* the entry in memory, NULL without it */
+static const struct index_entry *ram_entry(int idx_id)
+{
+    if (!tc_stat.ready || !tc_stat.ramcache || !tcramcache.hdr || idx_id < 0
+        || idx_id >= current_tcmh.tch.entry_count)
+        return NULL;
+    const struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
+    return idx->flag & FLAG_DELETED ? NULL : idx;
+}
+#endif
+
+bool tagcache_get_string(int idx_id, int tag, char *buf, size_t size)
+{
+#ifdef HAVE_TC_RAMCACHE
+    const struct index_entry *idx = ram_entry(idx_id);
+    if (!idx || !size || tag < 0 || tag >= TAG_COUNT
+        || TAGCACHE_IS_NUMERIC(tag) || !tcramcache.hdr->tags[tag])
+        return false;
+    const char *s = get_tag_string(idx, tag);
+    if (!s)
+        return false;
+    strmemccpy(buf, s, size);
+    return true;
+#else
+    (void)idx_id; (void)tag; (void)buf; (void)size;
+    return false;
+#endif
+}
+
+long tagcache_get_numeric_ram(int idx_id, int tag)
+{
+#ifdef HAVE_TC_RAMCACHE
+    const struct index_entry *idx = ram_entry(idx_id);
+    if (!idx || tag < 0 || tag >= TAG_COUNT || !TAGCACHE_IS_NUMERIC(tag))
+        return -1;
+    return idx->tag_seek[tag];
+#else
+    (void)idx_id; (void)tag;
+    return -1;
+#endif
+}
+
 int tagcache_track_kind(int idx_id)
 {
 #ifdef HAVE_TC_RAMCACHE
@@ -10071,6 +10115,8 @@ static void tagcache_thread(void)
                 /* the marks made on the iPod, for the import after the sync */
                 itunesdb_flush_flags();
                 itunesdb_write_playcounts();
+                /* and for Last.fm, the song that stopped as well */
+                scrobbler_flush();
                 cpu_boost(false);
                 usb_acknowledge(SYS_USB_CONNECTED_ACK, ev.data);
                 usb_wait_for_disconnect(&tagcache_queue);

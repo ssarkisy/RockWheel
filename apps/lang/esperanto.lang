@@ -15185,3 +15185,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_LASTFM
+  desc: in the settings, the last row under Playback, with On or Off: whether the iPod keeps the songs played in the log /.scrobbler.log, for the user to send to Last.fm from a computer. Last.fm is the service's name and stays as it is
+  user: core
+  <source>
+    *: "Last.fm"
+  </source>
+  <dest>
+    *: "Last.fm"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

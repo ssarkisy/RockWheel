@@ -326,6 +326,12 @@ bool tagcache_read_entries(void (*fn)(int idx_id, const char *filename,
                                       void *data),
                            void *data, bool names);
 bool tagcache_get_numbers(int idx_id, struct tagcache_numbers *n);
+/* An entry's name of a string tag into buf, cut to size, as the lists show
+   it: false for none, as for <Untagged>. And a numeric tag that isn't a
+   virtual one, as tag_tracknumber: -1 for none. From memory only (nothing
+   yields, no file is read), as tagcache_get_numbers(). */
+bool tagcache_get_string(int idx_id, int tag, char *buf, size_t size);
+long tagcache_get_numeric_ram(int idx_id, int tag);
 /* A podcast episode as its lists mark it: started, with a place; new, not
    played and without one, by the Mac's mark until one made on the iPod, or
    for a file without that mark by its plays; else played. As it is now, with

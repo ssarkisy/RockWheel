@@ -112,6 +112,7 @@ static long lasttime = 0;
 
 #include "dsp_proc_settings.h"
 #include "playback.h"
+#include "scrobbler.h"
 #ifdef HAVE_RECORDING
 #include "enc_config.h"
 #endif
@@ -1060,6 +1061,10 @@ void settings_apply(bool read_disk)
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     /* at boot before music, so that the audio buffer has to give way to nothing */
     cover_palette_set_mode(ui_theme_cover_colours(global_settings.cover_colours));
+#endif
+#ifdef HAVE_SCROBBLER
+    /* and Last.fm's log's, the same way */
+    scrobbler_apply(global_settings.scrobbler);
 #endif
     menu_cover_changed(global_settings.moving_cover);
 #ifdef HAVE_TAGCACHE

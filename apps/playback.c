@@ -50,6 +50,7 @@
 #include "audiohw.h"
 #include "general.h"
 #include "iap-usb.h"
+#include "scrobbler.h"
 #include <stdio.h>
 
 #ifdef HAVE_TAGCACHE
@@ -1428,6 +1429,13 @@ static void send_track_event(unsigned int id, unsigned int flags,
 {
     if (id3 == id3_get(PLAYING_ID3))
         flags |= TEF_CURRENT;
+
+    /* the plays for Last.fm, called here rather than added as handlers of
+       these events: the event table has little room left */
+    if (id == PLAYBACK_EVENT_TRACK_CHANGE)
+        scrobbler_track_change(id3);
+    else if (id == PLAYBACK_EVENT_TRACK_FINISH)
+        scrobbler_track_finish(id3, flags);
 
     send_event(id, &(struct track_event){ .flags = flags, .id3 = id3 });
 }
@@ -3592,6 +3600,7 @@ static void audio_stop_playback(void)
 
     /* Save resume information  - "filling" might have been set to
        "STATE_ENDED" by caller in order to facilitate end of playlist */
+    scrobbler_stopping();
     audio_playlist_track_finish();
 
     skip_pending = TRACK_SKIP_NONE;
@@ -3625,6 +3634,7 @@ static void audio_stop_playback(void)
     filling = STATE_IDLE;
     cancel_cpu_boost();
     add_playbacklog(NULL); /* flush playback log */
+    scrobbler_stopped();
 }
 
 /* Pause the playback of the current track
@@ -3640,6 +3650,7 @@ static void audio_on_pause(bool pause)
     if (!pause)
         paused_unheard = false;
     iap_on_play_status(play_status);
+    scrobbler_pause(pause);
 
     if (!pause && codec_skip_pending)
     {
@@ -3886,6 +3897,7 @@ static void audio_on_ff_rewind(long time)
         }
 
         id3->elapsed = time;
+        scrobbler_seek();
         seeks_taken++;
         queue_reply(&audio_queue, 1);
 
@@ -4325,6 +4337,7 @@ void audio_pcmbuf_position_callback(unsigned long elapsed, off_t offset,
         id3->elapsed = elapsed;
         id3->offset = offset;
         iap_on_track_time_position(elapsed);
+        scrobbler_position(elapsed);
     }
 }
 

@@ -102,6 +102,7 @@
 #include "wps.h"
 #include "playback.h"
 #include "voice_thread.h"
+#include "scrobbler.h"
 
 #ifdef BOOTFILE
 #if !defined(USB_NONE) && !defined(USB_HANDLED_BY_OF) \
@@ -370,6 +371,7 @@ bool settings_parseline(char* line, char** name, char** value)
 
 static void system_flush(void)
 {
+    scrobbler_flush();
     playlist_shutdown();
     tree_flush();
     open_plugin_cache_flush();

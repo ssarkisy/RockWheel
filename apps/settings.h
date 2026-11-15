@@ -1124,6 +1124,9 @@ struct user_settings
     /* Settings > Appearance > Colour in Classic: one of enum ui_accent_colour
        (gui/ui_theme.h), Multicolor first, its own blue the default */
     int classic_colour;
+    /* Settings > Playback > Last.fm: the plays in /.scrobbler.log
+       (scrobbler.h); off at first */
+    bool scrobbler;
 };
 
 /* global settings */
