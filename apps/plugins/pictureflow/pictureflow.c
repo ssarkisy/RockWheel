@@ -6160,7 +6160,10 @@ static void draw_album_text(void)
        names blinked as the covers rolled by. */
     albumtxt_index = center_index;
     if ( pf_state == pf_scrolling ) {
-        int part = (slide_frame & 0xffff) / 255;
+        /* where the covers are in this frame: slide_frame is set to a new
+           centre as they reach it, which going left read as the whole way
+           to the next one, and the album beyond showed for a frame */
+        int part = fade;
         if (step < 0)
             part = 255 - part;
         if (part > 128)
