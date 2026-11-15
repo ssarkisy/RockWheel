@@ -92,7 +92,8 @@ unsigned int audio_track_count(void);
 long audio_filebufused(void);
 void audio_pre_ff_rewind(void);
 /* how many seeks audio_ff_rewind() has asked for, and how many of them the
-   audio thread has taken up, the position then being the seek's target */
+   audio thread has taken up (the position then being the seek's target) or a
+   later seek has superseded */
 unsigned int audio_seeks_posted(void);
 unsigned int audio_seeks_taken(void);
 void audio_pre_ff_rewind_wait(void);

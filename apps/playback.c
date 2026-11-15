@@ -3846,9 +3846,10 @@ static void audio_on_pre_ff_rewind(void)
     pcmbuf_pause(true);
 }
 
-/* Seeks asked for, and those taken up: the position set to the target. For a
-   chapter jump (chapters.c), which must know its own seek from the position
-   before it. One lost on the way is made up when the queue is idle. */
+/* Seeks asked for, and those taken up: the position set to the target, or the
+   seek superseded by a later one (audio_ff_rewind()). For a chapter jump
+   (chapters.c), which must know its own seek from the position before it.
+   One lost on the way is made up when the queue is idle. */
 static unsigned int seeks_posted, seeks_taken;
 
 unsigned int audio_seeks_posted(void)
@@ -4619,6 +4620,10 @@ void audio_prev_dir(void)
 /* Pause playback in order to start a seek that flushes the old audio */
 void audio_pre_ff_rewind(void)
 {
+    /* as for the seek: an older pre-seek still waiting goes, so that at most
+       one waits, the newest, at the queue's end (audio_ff_rewind()) */
+    queue_peek_ex(&audio_queue, NULL, QPEEK_REMOVE_EVENTS,
+                  QPEEK_FILTER1(Q_AUDIO_PRE_FF_REWIND));
     LOGFQUEUE("audio > audio Q_AUDIO_PRE_FF_REWIND");
     audio_queue_post(Q_AUDIO_PRE_FF_REWIND, 0);
 }
@@ -4633,6 +4638,16 @@ void audio_pre_ff_rewind_wait(void)
 /* Seek to the new time in the current track */
 void audio_ff_rewind(long time)
 {
+    /* A seek still waiting is superseded by this one, so at most one waits.
+       Scrubbing while the audio thread is busy for seconds (decoding a large
+       cover of the track loaded ahead) otherwise posts more than the queue
+       holds, and the iPod's queue has no overflow check: an overrun
+       overwrites waiting events. A superseded seek to 0 doesn't log the
+       track's play, as a rewind taken up does; accepted, the window being a
+       Previous or a jump to 0 followed by another seek within a busy spell. */
+    if (queue_peek_ex(&audio_queue, NULL, QPEEK_REMOVE_EVENTS,
+                      QPEEK_FILTER1(Q_AUDIO_FF_REWIND)))
+        seeks_taken++; /* superseded counts as taken */
     seeks_posted++;
     LOGFQUEUE("audio > audio Q_AUDIO_FF_REWIND");
     audio_queue_post(Q_AUDIO_FF_REWIND, time);
