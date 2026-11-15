@@ -451,10 +451,22 @@ static int rotate_index(const struct playlist_info* playlist, int index)
     return index;
 }
 
+/* What is written is kept once synced: the iPod's FAT records a file's new
+   size only at fsync or close, and a reset (Menu+Select, a crash, a flat
+   battery) loses the lines after the last sync */
 static void sync_control_unlocked(struct playlist_info* playlist)
 {
     if (playlist->control_fd >= 0)
         fsync(playlist->control_fd);
+}
+
+/* An order's line, a shuffle or unshuffle: synced at once in a list started;
+   one about to start is synced by start_playing(). Unsynced, a reset resumed
+   the list in its old order, the Shuffle setting already changed. */
+static void sync_order_unlocked(struct playlist_info* playlist)
+{
+    if (playlist->started)
+        sync_control_unlocked(playlist);
 }
 
 static int update_control_unlocked(struct playlist_info* playlist,
@@ -1246,6 +1258,10 @@ static int create_and_play_dir(int direction, bool play_last)
     {
         ft_build_playlist(tree_get_context(), 0);
 
+        /* before its shuffle: it plays on with no start_playing() to sync
+           the order's line */
+        current_playlist.started = true;
+
         if (global_settings.playlist_shuffle)
              playlist_shuffle(0, -1);
 
@@ -1253,8 +1269,6 @@ static int create_and_play_dir(int direction, bool play_last)
             index = current_playlist.amount - 1;
         else
             index = 0;
-
-        current_playlist.started = true;
     }
 
     /* we've overwritten the dircache when getting the next/previous dir,
@@ -1673,6 +1687,7 @@ static int randomise_playlist_unlocked(struct playlist_info* playlist,
     {
         update_control_unlocked(playlist, PLAYLIST_COMMAND_SHUFFLE, seed,
             playlist->first_index, NULL, NULL, NULL);
+        sync_order_unlocked(playlist);
     }
 
     /* Reseed the PRNG if we used a fixed seed */
@@ -1742,6 +1757,7 @@ static int sort_playlist_unlocked(struct playlist_info* playlist,
         playlist->first_index = 0;
         update_control_unlocked(playlist, PLAYLIST_COMMAND_UNSHUFFLE,
             playlist->first_index, -1, NULL, NULL, NULL);
+        sync_order_unlocked(playlist);
     }
 
     return 0;
@@ -2050,6 +2066,7 @@ static int randomise_albums_unlocked(struct playlist_info* playlist,
     {
         update_control_unlocked(playlist, PLAYLIST_COMMAND_SHUFFLE, seed,
             playlist->first_index, "A", NULL, NULL);
+        sync_order_unlocked(playlist);
     }
 
     return 0;
