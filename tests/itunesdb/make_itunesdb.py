@@ -500,10 +500,9 @@ def damaged_itunesdb(db):
         # read past them as 8cc113a9d3 does, and loop-mhit, which reads two
         # tracks twice and calls it complete: neither is right to pin.
         if name.startswith('loop-mhsd'):
-            expect.append('known timeout read_device_name() follows the '
-                          'sections with no count: one whose length leads '
-                          'back, as on the 32-bit offsets of the iPod, is a '
-                          'loop')
+            # the second section leading back to the first: the playlists'
+            # section, the third, isn't reached, nor the name in it
+            expect.append('name iPod')
         yield name, bad, expect
 
 
@@ -585,8 +584,8 @@ def main():
     # (each image names one song: the second song of the album has none)
     case('old-mhit', itunesdb(old_mhit=True), artwork(old=True),
          ['tracks 4', 'complete 1', 'paths 4', 'covers 2'])
-    # an odd number of songs: the import's records of their tags after a
-    # table of as many 32-bit offsets (ubsan.supp)
+    # an odd number of songs: the import's records of their tags, which start
+    # with a uint64_t, after a table of as many 32-bit offsets
     case('odd-tracks', itunesdb(tracks=TRACKS[:3]), artwork(),
          ['tracks 3', 'complete 1', 'paths 3', 'covers 3'])
     # no songs

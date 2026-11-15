@@ -499,20 +499,24 @@ static bool read_device_name(void)
         return false;
 
     off_t pos = 0;
-    if (!read_at(fd, pos, h, 16) || memcmp(h, "mhbd", 4))
+    if (!read_at(fd, pos, h, 24) || memcmp(h, "mhbd", 4))
         goto done;
+    int sections = le32(h + 20);
     pos += le32(h + 4);
 
-    /* the list of playlists */
-    while (1)
+    /* the list of playlists, among mhbd's sections as db_load() counts them.
+       Each record must lie further on: on the iPod's 32-bit offsets a
+       damaged length can lead back to an earlier one, for ever */
+    for (int i = 0; ; i++)
     {
-        if (!read_at(fd, pos, h, 16) || memcmp(h, "mhsd", 4))
+        if (i >= sections || !read_at(fd, pos, h, 16) || memcmp(h, "mhsd", 4))
             goto done;
         if (le32(h + 12) == 2)
             break;
-        if (le32(h + 8) == 0)
+        off_t next = pos + le32(h + 8);
+        if (next <= pos)
             goto done;
-        pos += le32(h + 8);
+        pos = next;
     }
     pos += le32(h + 4);
     if (!read_at(fd, pos, h, 16) || memcmp(h, "mhlp", 4))
@@ -542,9 +546,10 @@ static bool read_device_name(void)
             }
             break;
         }
-        if (le32(h + 8) == 0)
+        off_t next = pos + le32(h + 8);
+        if (next <= pos)
             break;
-        pos += le32(h + 8);
+        pos = next;
     }
 done:
     close(fd);
@@ -606,6 +611,13 @@ static struct {
     int known;
     bool full;          /* no room for more records */
 } meta;
+
+/* the bytes of the table before the pool: the records start with a uint64_t,
+   and an odd count of 32-bit offsets would leave them 4 off a multiple of 8 */
+static size_t meta_table_size(int count)
+{
+    return ALIGN_UP(count * sizeof(uint32_t), 8);
+}
 
 void itunesdb_forget_metadata(void)
 {
@@ -794,7 +806,7 @@ static void metadata_room(int tracks)
     size_t pool = count * META_PER_TRACK;
     while (1)
     {
-        meta.handle = db_alloc(count * sizeof(uint32_t) + pool);
+        meta.handle = db_alloc(meta_table_size(count) + pool);
         if (meta.handle > 0 || pool < 64*1024)
             break;
         pool /= 2;
@@ -807,7 +819,7 @@ static void metadata_room(int tracks)
     }
     core_pin(meta.handle);
     meta.by_hash = core_get_data(meta.handle);
-    meta.pool = (char *)(meta.by_hash + count);
+    meta.pool = (char *)meta.by_hash + meta_table_size(count);
     meta.pool_size = pool;
     meta.capacity = count;
 }
@@ -845,10 +857,10 @@ static void metadata_end(void)
     qsort(meta.by_hash, meta.count, sizeof(uint32_t), cmp_meta);
     core_unpin(meta.handle);
     core_shrink(meta.handle, meta.by_hash,
-                meta.capacity * sizeof(uint32_t) + meta.pool_used);
+                meta_table_size(meta.capacity) + meta.pool_used);
     core_pin(meta.handle);
     meta.by_hash = core_get_data(meta.handle);
-    meta.pool = (char *)(meta.by_hash + meta.capacity);
+    meta.pool = (char *)meta.by_hash + meta_table_size(meta.capacity);
     meta.pool_size = meta.pool_used;
 }
 

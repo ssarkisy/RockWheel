@@ -1,9 +1,3 @@
 # UBSan errors the tests let pass, each a finding of the host tests left as
-# it is on the iPod; the firmware's build is not changed by the tests.
-#
-# itunesdb.c: metadata_room() puts the records' pool right after a table of
-# 32-bit offsets, so with an odd number of songs every struct meta_record,
-# which starts with a uint64_t, is 4 bytes off 8. The PP5022's ARMv4 reads a
-# 64-bit value as two words, which need only 4: right on the iPod, wrong on a
-# CPU with LDRD's alignment. Shown by the case odd-tracks.
-alignment:cmp_meta
+# it is on the iPod; the firmware's build is not changed by the tests. None
+# at present.
