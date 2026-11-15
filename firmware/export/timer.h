@@ -30,6 +30,9 @@
 #endif
 
 /* NOTE: if unreg cb is defined you are in charge of calling timer_unregister() */
+/* reg_prio: a higher one takes the timer from a lower one, whose unregister
+ * callback is called; an equal or lower one fails. Plugins use 1, the
+ * backlight fade and profile.c 0, the PP502x iPods' wheel click -1. */
 bool timer_register(int reg_prio, void (*unregister_callback)(void),
                     long cycles, void (*timer_callback)(void)
                     IF_COP(,int core));
@@ -40,7 +43,7 @@ void timers_adjust_prescale(int multiplier, bool enable_irq);
 
 /* NOTE: unregister callbacks are not called by timer_unregister()
 * the unregister_callback only gets called when your timer gets 
-* overwritten by a lower priority timer using timer_register() */
+* overwritten by a higher priority timer using timer_register() */
 void timer_unregister(void);
 
 /* target-specific interface */

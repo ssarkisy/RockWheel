@@ -19,13 +19,18 @@
 ****************************************************************************/
 
 #include <stdbool.h>
+#include <limits.h>
 #include "config.h"
 #include "cpu.h"
 #include "system.h"
 #include "timer.h"
 #include "logf.h"
 
-static int timer_prio = -1;
+/* Free: taken at any priority, a negative one too. The iPod's wheel click
+   registers below the backlight fade's 0, so a fade can take it from a click. */
+#define TIMER_PRIO_FREE INT_MIN
+
+static int timer_prio = TIMER_PRIO_FREE;
 void SHAREDBSS_ATTR (*pfn_timer)(void) = NULL;      /* timer callback */
 void SHAREDBSS_ATTR (*pfn_unregister)(void) = NULL; /* unregister callback */
 
@@ -55,13 +60,13 @@ bool timer_set_period(long cycles)
 
 /* NOTE: unregister callbacks are not called by timer_unregister()
 * the unregister_callback only gets called when your timer gets 
-* overwritten by a lower priority timer using timer_register() */
+* overwritten by a higher priority timer using timer_register() */
 void timer_unregister(void)
 {
     timer_stop();
 
     pfn_timer = NULL;
     pfn_unregister = NULL;
-    timer_prio = -1;
+    timer_prio = TIMER_PRIO_FREE;
 }
 

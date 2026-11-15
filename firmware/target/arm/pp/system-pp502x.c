@@ -659,6 +659,11 @@ void system_exception_wait(void)
     /* FIXME: we just need the right buttons */
     CPU_INT_DIS = -1;
     COP_INT_DIS = -1;
+#if defined(IPOD_ARCH) && defined(HAVE_HARDWARE_CLICK)
+    /* a wheel click ends by the timer's interrupt (piezo.c), which won't
+       come now: its tone would sound until a reset */
+    PWM0_CTRL = 0;
+#endif
 
     /* Halt */
     PROC_CTL(CURRENT_CORE) = 0x40000000;
