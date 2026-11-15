@@ -466,7 +466,11 @@ buflib_compact_and_shrink(struct buflib_context *ctx, unsigned shrink_hints)
             {
                 size_t free_space = (-before->val) * sizeof(union buflib_data);
                 size_t wanted = shrink_hints & BUFLIB_SHRINK_SIZE_MASK;
-                if (wanted < free_space) /* no shrink needed? */
+                /* no shrink needed. Asked to shrink by nothing, a callback
+                   did and said it shrank, and buflib_alloc_ex(), wanting a
+                   handle beside a last block that can't move, asked again
+                   for ever */
+                if (wanted <= free_space)
                     continue;
                 wanted -= free_space;
                 shrink_hints = pos_hints | wanted;
@@ -804,15 +808,15 @@ buflib_allocatable(struct buflib_context* ctx)
             continue;
         }
 
-        /* an unmovable section resets the count as free space
-         * can't be contigous; a pinned block can't move either,
-         * as move_block() refuses it */
-        if (!IS_MOVABLE(block) || block[BUFLIB_IDX_PIN].pincount > 0)
-        {
-            if (max_free_space < free_space)
-                max_free_space = free_space;
-            free_space = 0;
-        }
+        /* any block ends the free space before it: with the pool counted
+         * as compact, as now, buflib_alloc_ex() compacts no further and
+         * takes a free block as it is. A compaction leaves free space only
+         * before a block that didn't move: unmovable, pinned, or whose
+         * callback refused then (BUFLIB_CB_CANNOT_MOVE); one unpinned since
+         * is still where it was. */
+        if (max_free_space < free_space)
+            max_free_space = free_space;
+        free_space = 0;
     }
 
     /* select the best */
@@ -929,6 +933,9 @@ buflib_shrink(struct buflib_context* ctx, int handle, void* new_start, size_t ne
         union buflib_data *free_before = find_block_before(ctx, block, true);
         if (free_before)
             free_before->val += block->val;
+        /* free space before a block, as a free leaves it: the movable
+           blocks are no longer together */
+        ctx->compact = false;
 
         /* We didn't handle size changes yet, assign block to the new one
          * the code below the wants block whether it changed or not */
@@ -943,11 +950,13 @@ buflib_shrink(struct buflib_context* ctx, int handle, void* new_start, size_t ne
         else if (old_next_block->val < 0)
         {   /* enlarge next block by moving it up */
             new_next_block->val = old_next_block->val - (old_next_block - new_next_block);
+            ctx->compact = false;
         }
         else if (old_next_block != new_next_block)
         {   /* creating a hole */
             /* must be negative to indicate being unallocated */
             new_next_block->val = new_next_block - old_next_block;
+            ctx->compact = false;
         }
     }
 
