@@ -22,8 +22,9 @@
 %?if(%mw, <, 3)<%?kk<%?St(now playing format)<%?St(now playing rating)<%Vd(s11)|%?rr<%Vd(s01)|%Vd(s11)>|%Vd(s01)>|%?St(now playing rating)<%Vd(s10)|%?rr<%Vd(s00)|%Vd(s10)>|%Vd(s00)>>|%Vd(e)|%?ks<%Vd(b1)|%Vd(b0)>>|%?mw<||||%?kk<%?St(now playing format)<%Vd(s01)|%Vd(s00)>|%Vd(e)|%?ks<%Vd(b1)|%Vd(b0)>>|%?kk<|%Vd(e)|%Vd(b0)>>>
 # repeat and shuffle under the status bar's right end, repeat at the margin
 %?mw<%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)|||%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)>
-# the cover, 140 px, turned with Angled Cover; without one, a note on a tile.
-# Their corners as round as the theme has them (UI_METRIC_COVER_RADIUS, %nc)
+# the cover, 140 px, turned with Angled Cover; without one, a note on a tile
+# of its size (%nc), which the firmware draws as the cover: its reflection,
+# its corners as round as the theme has them (UI_METRIC_COVER_RADIUS), turned
 %?mw<%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%Vd(spill)|%Vd(spill)|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>>
 # the status bar, as the lists have it
 %V(0,0,320,23,-)%Vb(101010)

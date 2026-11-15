@@ -261,8 +261,9 @@ WPS = """\
 {block}
 # repeat and shuffle under the status bar's right end, repeat at the margin
 %?mw<{show_modes}|{show_modes}|||{show_modes}|{show_modes}>
-# the cover, 140 px, turned with Angled Cover; without one, a note on a tile.
-# Their corners as round as the theme has them (UI_METRIC_COVER_RADIUS, %nc)
+# the cover, 140 px, turned with Angled Cover; without one, a note on a tile
+# of its size (%nc), which the firmware draws as the cover: its reflection,
+# its corners as round as the theme has them (UI_METRIC_COVER_RADIUS), turned
 %?mw<%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%Vd(spill)|%Vd(spill)|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>>
 # the status bar, as the lists have it
 %V(0,0,320,{bar_rows},-)%Vb(TOP)

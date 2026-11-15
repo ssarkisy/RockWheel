@@ -26,7 +26,8 @@
 # repeat and shuffle under the status line's right end, repeat at the margin
 %?mw<%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)|||%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)>
 # the cover, its top corners as round as the theme has them; without one, a
-# note on a tile with all its corners so (%nc)
+# note on a tile of its size (%nc), which the firmware draws as the cover:
+# its reflection and corners, turned with Angled Cover
 %?mw<%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%Vd(spill)|%Vd(spill)|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>>
 # the status line: the clock, the title, the glyphs, a hairline under it. Its
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware

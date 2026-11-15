@@ -283,10 +283,17 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
                 draw_disk_ring(gwps);
             break;
         case SKIN_TOKEN_ROUND_CORNERS:
+        {
+            struct screen *display = gwps->display;
+            struct viewport *vp = *display->current_viewport;
+#ifdef HAVE_ALBUMART
+            /* at every update too: a cover's placeholder keeps its images
+               for when it is drawn whole */
+            if (skin_cover_placeholder(gwps, vp, do_refresh))
+                break;
+#endif
             if (do_refresh)
             {
-                struct screen *display = gwps->display;
-                struct viewport *vp = *display->current_viewport;
                 const unsigned tile = vp->bg_pattern;
                 vp->bg_pattern = global_settings.bg_color;
                 line_round_corners(display, 0, 0, vp->width, vp->height,
@@ -294,6 +301,7 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
                 vp->bg_pattern = tile;
             }
             break;
+        }
         case SKIN_TOKEN_IMAGE_DISPLAY:
         {
             struct gui_img *img = SKINOFFSETTOPTR(skin_buffer, token->value.data);

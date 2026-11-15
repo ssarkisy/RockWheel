@@ -82,6 +82,8 @@ const fb_data *skin_backdrop_buffer(int backdrop_id);
 #define SKIN_ART_KEPT (-2)
 /* or for the cover beside the menus, made for it */
 #define SKIN_ART_MENU (-3)
+/* or none, in Now Playing: the theme's placeholder in its place, if it has one */
+#define SKIN_ART_NONE (-4)
 int skin_art_handle(const struct wps_data *data, int index, int handle);
 bool skin_art_found(const struct wps_data *data, int handle);
 bool skin_art_available(int handle);

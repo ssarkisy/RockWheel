@@ -85,6 +85,8 @@ Changes from the originals:
   is playing.
 - Now Playing's cover has a reflection under it, and is angled with the
   Angled Cover setting, where the WPS asks for it with `%Cr` after its `%Cl`.
+  Without a cover, the backdrop's note in its place is drawn the same way,
+  turned with Angled Cover, over the flat reflection the backdrop has for it.
 - Now Playing's details stand beside the cover as one block in the middle of
   its height, as on a stock iPod: the title, artist, album, the song's place
   in its list, then the stars and the format as Settings > Appearance says

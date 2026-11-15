@@ -250,6 +250,19 @@ void skin_forget_shown(void)
 #endif
 }
 
+/* Now Playing's kept cover has had its time (skin_art_kept_expired()): the
+   update that finds it draws all of Now Playing, the %Cd's placeholder too */
+static bool kept_art_expired(enum skinnable_screens skin,
+                             enum screen_type screen)
+{
+#ifdef HAVE_ALBUMART
+    return skin == WPS && screen == SCREEN_MAIN && skin_art_kept_expired();
+#else
+    (void)skin; (void)screen;
+    return false;
+#endif
+}
+
 void skin_update(enum skinnable_screens skin, enum screen_type screen,
                  unsigned int update_type)
 {
@@ -261,7 +274,8 @@ void skin_update(enum skinnable_screens skin, enum screen_type screen,
     if (cuesheet_update || (skin == WPS && chapters_changed(id3)))
         skin_request_full_update(skin);
 
-    const bool full = skin_do_full_update(skin, screen);
+    const bool expired = kept_art_expired(skin, screen);
+    const bool full = skin_do_full_update(skin, screen) || expired;
     const unsigned int refresh = full ? SKIN_REFRESH_ALL : update_type;
     if (skin == CUSTOM_STATUSBAR && screen == SCREEN_MAIN
         && (refresh & SKIN_REFRESH_ALL) == SKIN_REFRESH_ALL)
@@ -293,7 +307,8 @@ void skin_update_volume(enum skinnable_screens skin, enum screen_type screen)
 {
     struct gui_wps *gwps = skin_get_gwps(skin, screen);
     int x, y, width, height;
-    if (skin_do_full_update(skin, screen))
+    const bool expired = kept_art_expired(skin, screen);
+    if (skin_do_full_update(skin, screen) || expired)
         skin_request_full_update(skin);
     /* the rest as often as Now Playing's own updates: the wheel turning on,
        they waited for it to stop, the time and the scrolling lines */
@@ -1500,10 +1515,12 @@ static void art_seen(int index, int handle)
     }
 }
 
+/* Until skin_art_kept_expired() has said its time is up, which a full update
+   follows: by the time alone, %?C could go without it in an update that
+   doesn't draw the %Cd, and a theme's note under it would show flat */
 static bool art_is_kept(int index)
 {
-    return kept_art[index].keeping
-           && TIME_BEFORE(current_tick, kept_art[index].until);
+    return kept_art[index].keeping;
 }
 
 static void keep_album_art(int index, int handle)
@@ -1765,6 +1782,93 @@ static void draw_kept_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
                     kept_art[index].height, NULL);
 }
 
+/* A %Cr cover's space with no cover shows the theme's placeholder, a note on
+   a tile. It is drawn as the cover would be, so that Now Playing looks the
+   same with a cover and without: its reflection under it, turned with Angled
+   Cover, the ground beside it over what lay round it (Classic's backdrop has
+   a flat reflection of its own under the note). */
+#if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+/* the %nc viewport that stands for it, pending until its images are drawn */
+static struct {
+    const struct wps_data *data;
+    struct skin_albumart *aa;
+    int index;
+    bool whole;     /* its viewport drawn whole, not at an update */
+} placeholder;
+
+/* Classic's: the backdrop's picture in the space of the %Cd, read in place.
+   The backdrop is a buffer apart from the frame (or the cover's tinted copy
+   of it), laid out as the frame is; with none there is nothing to draw */
+static void draw_backdrop_placeholder(struct gui_wps *gwps,
+                                      struct skin_albumart *aa)
+{
+    const fb_data *backdrop = lcd_get_backdrop();
+    const struct viewport *vp = *gwps->display->current_viewport;
+    const int x = vp->x + aa->x, y = vp->y + aa->y;
+    if (!aa->reflect || !backdrop || gwps->display->screen_type != SCREEN_MAIN
+        || aa->width <= 1 || aa->height <= 1 || x < 0 || y < 0
+        || x + aa->width > LCD_WIDTH || y + aa->height > LCD_HEIGHT)
+        return;
+    draw_cover(gwps, aa, backdrop + y * LCD_FBWIDTH + x, LCD_FBWIDTH,
+               aa->width, aa->height, aa->x, aa->y, aa->width, aa->height);
+}
+
+/* Modern's and Neo's: the tile as its viewport has drawn it, copied first, as
+   the cover is drawn over its place. The copy goes where the last cover is
+   kept between tracks, which holds nothing to show while the note does, and
+   is then taken as empty: the next cover is copied there again, or read
+   again from the database */
+static void draw_tile_placeholder(struct gui_wps *gwps)
+{
+    struct skin_albumart *aa = placeholder.aa;
+    const int index = placeholder.index;
+    const struct viewport *vp = *gwps->display->current_viewport;
+    const int w = vp->width, h = vp->height;
+    if (art_is_kept(index) || vp->x < 0 || vp->y < 0
+        || vp->x + w > LCD_WIDTH || vp->y + h > LCD_HEIGHT)
+        return;
+    fb_data *copy = kept_art[index].pixels;
+    kept_art[index].width = 0;
+    for (int r = 0; r < h; r++)
+        memcpy(copy + r * w, vp->buffer->get_address_fn(vp->x, vp->y + r),
+               w * sizeof(fb_data));
+    draw_cover(gwps, aa, copy, w, w, h, 0, 0, w, h);
+}
+#endif
+
+/* A viewport with %nc of a %Cr cover's size is Modern's and Neo's
+   placeholder for it: drawn whole, it is drawn as the cover after the
+   viewport's images, its note; at an update its images aren't drawn, as they
+   would come flat over it turned. True if so, and then its corners are the
+   cover's to round */
+bool skin_cover_placeholder(struct gui_wps *gwps, const struct viewport *vp,
+                            bool whole)
+{
+#if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    const struct wps_data *data = gwps->data;
+    if (data != skin_get_gwps(WPS, SCREEN_MAIN)->data)
+        return false;
+    for (int i = 0; i < 2; i++)
+    {
+        struct skin_albumart *aa = SKINOFFSETTOPTR(get_skin_buffer(gwps->data),
+                                        i ? data->albumart2 : data->albumart);
+        if (aa && aa->reflect && aa->width == vp->width
+            && aa->height == vp->height && aa->width > 1 && aa->height > 1
+            && aa->width <= ART_KEPT_SIZE && aa->height <= ART_KEPT_SIZE)
+        {
+            placeholder.data = data;
+            placeholder.aa = aa;
+            placeholder.index = i;
+            placeholder.whole = whole;
+            return true;
+        }
+    }
+#else
+    (void)gwps; (void)vp; (void)whole;
+#endif
+    return false;
+}
+
 #if defined(ITUNESDB_HAVE_ART) && defined(AUDIO_FAST_SKIP_PREVIEW)
 /* The cover Finder made for the track Now Playing shows, when the buffer has none of it:
    while a skip is on its way to a track that isn't in the buffer, as Now Playing already
@@ -1914,7 +2018,8 @@ int skin_art_handle(const struct wps_data *data, int index, int handle)
             && menu_cover_take(handle))
             return SKIN_ART_MENU;
 #endif
-        return handle;
+        /* none: the buffer's errors, -2 on, would read as the SKIN_ART_ ones */
+        return handle >= 0 ? handle : -1;
     }
 
 #if defined(ITUNESDB_HAVE_ART) && defined(AUDIO_FAST_SKIP_PREVIEW)
@@ -1928,7 +2033,7 @@ int skin_art_handle(const struct wps_data *data, int index, int handle)
     art_seen(index, handle);
     if (handle < 0 && kept_art[index].width > 0 && art_is_kept(index))
         return SKIN_ART_KEPT;
-    return handle;
+    return handle < 0 ? SKIN_ART_NONE : handle;
 }
 
 /* True once, when the time for it is up with no cover there: the note can show */
@@ -1985,10 +2090,24 @@ void wps_display_images(struct gui_wps *gwps, struct viewport* vp)
             aa->draw_handle = -1;
         }
 #endif
+        else if (aa && aa->draw_handle == SKIN_ART_NONE)
+        {
+#if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+            draw_backdrop_placeholder(gwps, aa);
+#endif
+            aa->draw_handle = -1;
+        }
     }
 #endif
+#if defined(HAVE_ALBUMART) && LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    const bool placeholder_here = placeholder.aa && placeholder.data == data;
+    /* a cover's placeholder: its note only with its tile, drawn whole */
+    const bool images = !placeholder_here || placeholder.whole;
+#else
+    const bool images = true;
+#endif
     struct skin_token_list *list = SKINOFFSETTOPTR(get_skin_buffer(data), data->images);
-    while (list)
+    while (images && list)
     {
         struct wps_token *token = SKINOFFSETTOPTR(get_skin_buffer(data), list->token);
         struct gui_img *img = NULL;
@@ -2009,6 +2128,12 @@ void wps_display_images(struct gui_wps *gwps, struct viewport* vp)
         }
         list = SKINOFFSETTOPTR(get_skin_buffer(data), list->next);
     }
+#if defined(HAVE_ALBUMART) && LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
+    /* the placeholder's tile with its note on it, now drawn as its cover */
+    if (placeholder_here && placeholder.whole)
+        draw_tile_placeholder(gwps);
+    placeholder.aa = NULL;
+#endif
 
     display->set_drawmode(DRMODE_SOLID);
 }

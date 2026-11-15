@@ -33,16 +33,16 @@ Modern is a clean, flat list interface:
   songs or the song's title. Beside Settings it shows the disk's use as a ring,
   with the free space and the disk's size; beside Photos, a collage of the
   photos.
-- Now Playing has a square 140 px cover at the left with a reflection under
-  it. Beside it, as one block centred on the cover's height: the title, the
-  artist in the accent, the album, the song's place in its list, then the stars
-  and the format and bitrate if the settings show them. A podcast episode shows
-  its show, date and time left; an audiobook its author, chapter and speed.
-  Across the screen under them is a capsule progress bar in the accent with
-  the times under its ends; at rest its knob is a dot at the end of the fill.
-  Turning the wheel shows the volume in the bar's place, and the volume as
-  text under it. Repeat and shuffle stand under the right end of the status
-  bar.
+- Now Playing has a square 140 px cover at the left with a reflection under it;
+  without a cover, its note on a tile has one too. Beside it, as one block
+  centred on the cover's height: the title, the artist in the accent, the album,
+  the song's place in its list, then the stars and the format and bitrate if the
+  settings show them. A podcast episode shows its show, date and time left; an
+  audiobook its author, chapter and speed. Across the screen under them is a
+  capsule progress bar in the accent with the times under its ends; at rest its
+  knob is a dot at the end of the fill. Turning the wheel shows the volume in
+  the bar's place, and the volume as text under it. Repeat and shuffle stand
+  under the right end of the status bar.
 - The centre button steps through the other views where they apply: the
   scrubber, the speed of a podcast or an audiobook, the rating (five large
   stars), a large cover and the lyrics.
@@ -59,7 +59,8 @@ change how it looks:
 - **Dark Theme** (Settings > Appearance): the dark version. It changes while
   music plays.
 - **Angled Cover** (Appearance > Now Playing): Now Playing's cover is turned
-  in perspective above its reflection. Off, it faces the front.
+  in perspective above its reflection, and so is the note shown without a
+  cover. Off, it faces the front.
 - **Rating** (Always, Only Rated, Never) and **Format and Bitrate**
   (Appearance > Now Playing): whether Now Playing shows the stars, and the
   format and bitrate, under the song's place in its list.
@@ -223,7 +224,7 @@ changed there, that Modern's skins use. What they draw is in
 
 | Tag | What it does |
 |---|---|
-| `%Cr(rows,strength)` | Draws the cover of the `%Cl` before it with a reflection under it, that many rows high, at that strength out of 256 at its top. With Angled Cover the cover is turned in perspective. |
+| `%Cr(rows,strength)` | Draws the cover of the `%Cl` before it with a reflection under it, that many rows high, at that strength out of 256 at its top. With Angled Cover the cover is turned in perspective. A track with no cover gets the theme's placeholder drawn the same way: a `%nc` viewport of the cover's size, or the backdrop's picture under a `%Cd` that has no cover. |
 | `%fB` | The format and bitrate, after a small mark of a sound wave. The bitrate takes the font of a hidden viewport labelled `bitrate`. |
 | `%kk` | The track's kind, for `%?kk<song\|podcast\|audiobook>`. |
 | `%kd` | A podcast episode's release date. |
@@ -234,7 +235,7 @@ changed there, that Modern's skins use. What they draw is in
 | `%LS` | Which main menu row with a pane of its own is selected: Settings, Extras, Photos, or none of them. |
 | `%LW` | True when a screen takes the whole width, with no pane beside it. |
 | `%mw` | Now Playing's view: normal, scrubber, large cover, lyrics, rating or speed. |
-| `%nc` | Rounds the viewport's corners as the theme rounds a cover there (`UI_METRIC_COVER_RADIUS`). |
+| `%nc` | Rounds the viewport's corners as the theme rounds a cover there (`UI_METRIC_COVER_RADIUS`). In Now Playing a viewport of the size of a `%Cr` cover stands for that cover: what it shows, with its images, is drawn as the cover is, with its reflection, turned with Angled Cover. Its images are drawn only when the viewport is drawn whole, not at the updates between. |
 | `%nf`, `%nT` | The disk's free space ("116 GB Free") and its size. |
 | `%nn` | The player's name, as the synced library has it. |
 | `%nN` | True while Night Mode is on. |

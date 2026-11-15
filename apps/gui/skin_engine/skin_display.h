@@ -69,6 +69,12 @@ void draw_peakmeters(struct gui_wps *gwps, int line_number,
    Call with clear = true to clear the bitmap instead of drawing it. */
 void draw_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
                     int handle_id, bool clear);
+/* %nc's viewport vp: true if it is Now Playing's and of the size of a cover
+   drawn with its reflection (%Cr), the placeholder for that cover. Drawn
+   whole, it is drawn as the cover after the viewport's images; at an update
+   (not whole) its images are left as they are. Its corners are the cover's */
+bool skin_cover_placeholder(struct gui_wps *gwps, const struct viewport *vp,
+                            bool whole);
 #endif
 
 #endif
