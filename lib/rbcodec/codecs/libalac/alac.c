@@ -229,6 +229,69 @@ static inline int32_t entropy_decode_value(alac_file* alac,
     return x;
 }
 
+/* After a sample that leaves the history below 128, a run of zeros may
+ * follow: its length, written as a value with a parameter of its own, then
+ * that many zero samples, no more than the frame has left. Returns the
+ * index of the last sample the run fills, or output_count for an empty
+ * run. */
+static int entropy_zero_run(alac_file *alac,
+                            int32_t *output_buffer,
+                            int output_count,
+                            int output_size,
+                            int history,
+                            int *sign_modifier,
+                            int rice_kmodifier_mask) ICODE_ATTR_ALAC;
+static int entropy_zero_run(alac_file *alac,
+                            int32_t *output_buffer,
+                            int output_count,
+                            int output_size,
+                            int history,
+                            int *sign_modifier,
+                            int rice_kmodifier_mask)
+{
+    int32_t block_size;
+    int k;
+
+    *sign_modifier = 1;
+
+    k = count_leading_zeros(history) + ((history + 16) / 64) - 24;
+
+    // note: block_size is always 16bit
+    block_size = entropy_decode_value(alac, 16, k) & rice_kmodifier_mask;
+
+    if (block_size > 0xFFFF)
+        *sign_modifier = 0;
+
+    // got block_size 0s, no more than the frame has left
+    if (block_size > output_size - output_count - 1)
+        block_size = output_size - output_count - 1;
+    if (block_size > 0)
+    {
+        memset(&output_buffer[output_count + 1], 0,
+               block_size * sizeof(*output_buffer));
+        output_count += block_size;
+    }
+
+    return output_count;
+}
+
+#if defined(CPU_ARM_CLASSIC) && !defined(ALAC_NO_ASM)
+#define ALAC_RICE_ASM
+/* The common path of entropy_rice_decode()'s loop, in arm.S; the field
+ * offsets are the assembly's */
+struct alac_rice
+{
+    const unsigned char *buffer;  /* in */
+    int index;                    /* in and out: bits past buffer */
+    int history;                  /* in and out */
+    int zero_run;                 /* out: a run of zeros follows */
+    int kmodifier;                /* in, 1 to 17 */
+    int historymult;              /* in */
+};
+
+int alac_rice_decode_arm(int32_t *out, int n, struct alac_rice *st);
+#endif
+
 static void entropy_rice_decode(alac_file* alac,
                          int32_t* output_buffer,
                          int output_size,
@@ -255,8 +318,45 @@ static void entropy_rice_decode(alac_file* alac,
         int32_t        decoded_value;
         int32_t        final_value;
         int32_t        k;
-        uint32_t       x = (history >> 9) + 3;
-        
+        uint32_t       x;
+
+#ifdef ALAC_RICE_ASM
+        /* The assembly decodes every sample it can, then this loop takes
+         * the one it stopped before, or the run of zeros after the last one
+         * it decoded. It needs a sign modifier of 0 and a history of 0 or
+         * more; a sign modifier of 0 here implies the latter. */
+        if (sign_modifier == 0 && history >= 0 && rice_kmodifier <= 17)
+        {
+            struct alac_rice st;
+
+            st.buffer = alac->input_buffer;
+            st.index = alac->input_buffer_bitaccumulator;
+            st.history = history;
+            st.kmodifier = rice_kmodifier;
+            st.historymult = rice_historymult;
+            output_count += alac_rice_decode_arm(output_buffer + output_count,
+                                                 output_size - output_count,
+                                                 &st);
+            alac->input_buffer += st.index >> 3;
+            alac->input_buffer_bitaccumulator = st.index & 7;
+            history = st.history;
+
+            if (st.zero_run)
+            {
+                output_count = entropy_zero_run(alac, output_buffer,
+                                                output_count - 1, output_size,
+                                                history, &sign_modifier,
+                                                rice_kmodifier_mask);
+                history = 0;
+                continue;
+            }
+            if (output_count >= output_size)
+                break;
+        }
+#endif
+
+        x = (history >> 9) + 3;
+
 #ifdef CLZ_BY_TABLE
         if (x < 0x10000)
         {
@@ -294,28 +394,10 @@ static void entropy_rice_decode(alac_file* alac,
         // special case, for compressed blocks of 0
         if ((history < 128) && (output_count + 1 < output_size))
         {
-            int32_t        block_size;
-            
-            sign_modifier = 1;
-            
-            k = count_leading_zeros(history) + ((history + 16) / 64) - 24;
-            
-            // note: block_size is always 16bit
-            block_size = entropy_decode_value(alac, 16, k) & rice_kmodifier_mask;
-            
-            if (block_size > 0xFFFF)
-                sign_modifier = 0;
-
-            // got block_size 0s, no more than the frame has left
-            if (block_size > output_size - output_count - 1)
-                block_size = output_size - output_count - 1;
-            if (block_size > 0)
-            {
-                memset(&output_buffer[output_count + 1], 0, 
-                       block_size * sizeof(*output_buffer));
-                output_count += block_size;
-            }
-            
+            output_count = entropy_zero_run(alac, output_buffer, output_count,
+                                            output_size, history,
+                                            &sign_modifier,
+                                            rice_kmodifier_mask);
             history = 0;
         }
     }
@@ -327,6 +409,34 @@ static void entropy_rice_decode(alac_file* alac,
                      ((v < 0) ? (-1) : \
                                 ((v > 0) ? (1) : \
                                            (0)))
+
+#if defined(CPU_ARM_CLASSIC) && !defined(ALAC_NO_ASM)
+#define ALAC_FIR_ASM
+/* The adaptive filter after its warm-up at orders 1 to 8, in arm.S, with
+ * the residuals read from the output buffer and the coefficients held in
+ * 32 bits: see fir_asm_fits() */
+void alac_fir_adapt_arm(int32_t *buffer_out, int count, int16_t *coefs,
+                        int order, int quant, int readsamplesize);
+
+/* Each coefficient moves at most one step a sample, so none can wrap at 16
+ * bits in count samples if each is that far from the limit. Samples of at
+ * most 31 bits keep a difference of two from wrapping, so its sign is the
+ * one the C tests: the first sample, copied as it came, as well as those
+ * sign-extended from readsamplesize. */
+static inline int fir_asm_fits(const int16_t *coefs, int n, int count,
+                               int quant, int readsamplesize, int32_t first)
+{
+    int j;
+
+    if (quant < 1 || readsamplesize < 1 || readsamplesize > 31 ||
+        first < -0x40000000 || first > 0x3fffffff)
+        return 0;
+    for (j = 0; j < n; j++)
+        if (coefs[j] > 32767 - count || coefs[j] < -32768 + count)
+            return 0;
+    return 1;
+}
+#endif
 
 static void predictor_decompress_fir_adapt(int32_t *error_buffer,
                                            int32_t *buffer_out,
@@ -388,6 +498,24 @@ static void predictor_decompress_fir_adapt(int32_t *error_buffer,
         }
     }
 
+#ifdef ALAC_FIR_ASM
+    /* the orders encoders use: Apple's 4 and 8, ffmpeg's 4 to 6 by default
+       (it writes up to 30 when asked; those go to the C below) */
+    if (predictor_coef_num <= 8 && output_size > predictor_coef_num + 1 &&
+        error_buffer == buffer_out &&
+        fir_asm_fits(predictor_coef_table, predictor_coef_num,
+                     output_size - predictor_coef_num - 1,
+                     predictor_quantitization, readsamplesize, buffer_out[0]))
+    {
+        alac_fir_adapt_arm(buffer_out, output_size - predictor_coef_num - 1,
+                           predictor_coef_table, predictor_coef_num,
+                           predictor_quantitization, readsamplesize);
+        return;
+    }
+    /* Only a rare frame gets here, and the general case decodes orders 4
+     * and 8 exactly as the unrolled copies below do: this build compiles
+     * those copies out */
+#else
     /* 4 and 8 are very common cases (the only ones i've seen).
 
       The following code is an initial attempt to unroll and optimise
@@ -532,6 +660,7 @@ static void predictor_decompress_fir_adapt(int32_t *error_buffer,
         }
         return;
     } 
+#endif /* ALAC_FIR_ASM */
 
     /* general case */
     if (predictor_coef_num > 0)
@@ -711,6 +840,18 @@ static void deinterlace_24(int32_t *buffer0, int32_t *buffer1,
     }
     
 }
+
+#if defined(CPU_ARM_CLASSIC) && !defined(ALAC_NO_ASM)
+#define ALAC_D24_ASM
+/* deinterlace_24() in arm.S for a stereo frame with one uncompressed byte a
+ * sample, reading those bytes from the frame at lows, where they are
+ * interleaved left and right, each straddling two bytes at bit offset
+ * 8 - lows_shift */
+void alac_deinterlace_24_arm(int32_t *buffer0, int32_t *buffer1,
+                             const unsigned char *lows, int count,
+                             int lows_shift, int interlacing_shift,
+                             int interlacing_leftweight);
+#endif
 
 static inline int decode_frame_mono(
                     alac_file *alac,
@@ -912,6 +1053,10 @@ static inline int decode_frame_stereo(
     int infosamplesize = alac->setinfo_sample_size;
     int outputsamples = alac->setinfo_max_samples_per_frame;
     int uncompressed_bytes;
+#ifdef ALAC_D24_ASM
+    const unsigned char *lows = NULL;
+    int lows_shift = 0;
+#endif
 
     uint8_t interlacing_shift;
     uint8_t interlacing_leftweight;
@@ -987,6 +1132,15 @@ static inline int decode_frame_stereo(
         }
 
         /*********************/
+#ifdef ALAC_D24_ASM
+        if (uncompressed_bytes == 1 && infosamplesize == 24)
+        { /* the merge reads them where they are */
+            lows = alac->input_buffer;
+            lows_shift = 8 - alac->input_buffer_bitaccumulator;
+            alac->input_buffer += 2 * outputsamples;
+        }
+        else
+#endif
         if (uncompressed_bytes)
         { /* see mono case */
             int i;
@@ -1112,6 +1266,15 @@ static inline int decode_frame_stereo(
     }
     case 24:
     {
+#ifdef ALAC_D24_ASM
+        if (lows)
+        {
+            alac_deinterlace_24_arm(outputbuffer[0], outputbuffer[1], lows,
+                                    outputsamples, lows_shift,
+                                    interlacing_shift, interlacing_leftweight);
+            break;
+        }
+#endif
         deinterlace_24(outputbuffer[0],
                        outputbuffer[1],
                        uncompressed_bytes,
