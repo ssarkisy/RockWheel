@@ -616,6 +616,7 @@ static int roll_settle_time; /* in 1/16 frames: how fast it slows */
 #ifdef HAVE_WHEEL_POSITION
 static bool wheel_timer_set;
 static bool wheel_events = true; /* the driver's, off over the covers */
+static bool wheel_waking; /* the touch that lit the dark screen goes on */
 static void wheel_start(void);
 static void wheel_clicks_taken(void);
 #else
@@ -706,12 +707,16 @@ static volatile unsigned slides_arrived;
     performing buffer-shifting operations.
 */
 static struct mutex buf_ctx_mutex;
-/* The track list has buf_ctx, from create_track_index() to
-   free_borrowed_tracks(), and leaving must let it go or the slide thread never
-   ends. Only that says so here: unlocking hands the mutex over at once to a
-   thread of higher priority, so a flag of all holders was cleared after the
-   next holder had set it. */
+/* The main thread has buf_ctx from create_track_index() or Select until the
+   album's closing ends, so that no slide loads while it turns, or until the
+   tracks made ahead are done (prepare_ahead()); leaving must let it go or the
+   slide thread never ends. Only that says so here: unlocking hands the mutex
+   over at once to a thread of higher priority, so a flag of all holders was
+   cleared after the next holder had set it. The tracks' room, borrowed below
+   the slides', stays theirs without it (tracks_unlock()). */
 static bool buf_ctx_locked;
+/* the slide thread has slides to load, from its wakeup until a load finds none */
+static volatile bool thread_loading;
 
 static int cover_animation_keyframe;
 #if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
@@ -807,6 +812,60 @@ static inline void buf_ctx_lock(void)
 static inline void buf_ctx_unlock(void)
 {
     rb->mutex_unlock(&buf_ctx_mutex);
+}
+
+static void tracks_lock(void)
+{
+    if (!buf_ctx_locked)
+    {
+        buf_ctx_lock();
+        buf_ctx_locked = true;
+    }
+}
+
+/* buf_ctx back to the slide thread, the tracks kept: their room is below the
+   slides', which only borrowing and giving back move, with buf_ctx */
+static void tracks_unlock(void)
+{
+    if (buf_ctx_locked)
+    {
+        buf_ctx_locked = false;
+        buf_ctx_unlock();
+    }
+}
+
+/* What the health log is told as Cover Flow quits (cf_marks_note()): ticks,
+   and microseconds for the work at Select and the frames */
+static struct {
+    long opened_at;         /* 0 when not counting: Updating Library's run */
+    long boosted;           /* Cover Flow's own 80 MHz */
+    long boosted_at;
+    int opened, ready;      /* albums opened, and of them made ahead */
+    unsigned long made_most, made_all; /* the making at Select, when not */
+    int prepared;           /* steps made ahead at rest */
+    unsigned long prepared_most;
+    unsigned long frame_in, frame_out; /* the longest frame opening, closing */
+    int frame_in_key;       /* the key frame that one reached */
+    int darks, sleeps;      /* the screen went dark, and the iPod to sleep */
+    long dark_after, sleep_after; /* the last of each, after the last use */
+} cf_marks;
+
+/* Cover Flow's hold of the 80 MHz, one at most: up while the covers move, the
+   slides load or a card is made, down at rest. The boost is counted, so each
+   up has its one down, as it quits too (cleanup()). */
+static bool pf_boosted;
+static void pf_boost(bool on)
+{
+    if (on == pf_boosted)
+        return;
+    pf_boosted = on;
+#ifdef HAVE_ADJUSTABLE_CPU_FREQ
+    rb->cpu_boost(on);
+#endif
+    if (on)
+        cf_marks.boosted_at = *rb->current_tick;
+    else
+        cf_marks.boosted += *rb->current_tick - cf_marks.boosted_at;
 }
 
 static bool check_database(void)
@@ -1213,6 +1272,19 @@ static void set_scroll_line_in(const char *str, enum pf_scroll_line_type type,
 static void set_scroll_line(const char *str, enum pf_scroll_line_type type)
 {
     set_scroll_line_in(str, type, LCD_WIDTH, true);
+}
+
+/* a line set before from its start again, after the delay, as if just set:
+   the chosen track's, set as the card was made ahead */
+static void restart_scroll_line(enum pf_scroll_line_type type)
+{
+    struct pf_scroll_line *s = &scroll_lines[type];
+    if (s->step)
+    {
+        s->step = scroll_line_info.step;
+        s->offset = 0;
+    }
+    s->start_tick = *rb->current_tick + scroll_line_info.delay;
 }
 
 static int get_scroll_line_offset(enum pf_scroll_line_type type)
@@ -2279,12 +2351,24 @@ static int compare_tracks (const void *a_v, const void *b_v)
 
 
 
+#define TRACKS_BORROW (16 * 1024)
+/* kept from one album to the next up to this: a bigger album's room is given
+   back once it's closed, else the slides it pushed out stay out */
+#define TRACKS_KEEP   (64 * 1024)
+#if CARD_FRAME_COUNT > 0
+/* the album not made ahead: without tracks to show, or too many to keep */
+static int prepare_failed = -1;
+#endif
 static bool track_buffer_avail(size_t needed)
 {
     size_t total_out = 0;
     size_t out = 0;
     if (pf_tracks.borrowed == 0 && pf_tracks.used == 0)
     {
+        /* what most albums take, rather than all that's free: it's kept from
+           one album to the next, below the slides, as each borrowing or
+           giving back moves every slide */
+        out = MAX(needed, TRACKS_BORROW);
         pf_tracks.names = rb->buflib_buffer_out(&buf_ctx, &out);
         pf_tracks.borrowed = out;
     }
@@ -2365,11 +2449,7 @@ static void create_track_index(const int slide_index)
 {
     char tcs_buf[TAGCACHE_BUFSZ];
     const long tcs_bufsz = sizeof(tcs_buf);
-    if (!buf_ctx_locked)
-    {
-        buf_ctx_lock();
-        buf_ctx_locked = true;
-    }
+    tracks_lock();
     if ( slide_index == pf_tracks.cur_idx )
         return;
     /* another album's in what's borrowed: over it */
@@ -2448,14 +2528,36 @@ fail:
 */
 static inline void free_borrowed_tracks(void)
 {
-    if (!buf_ctx_locked)
-        return; /* none */
-    rb->buflib_buffer_in(&buf_ctx, pf_tracks.borrowed);
+    if (pf_tracks.borrowed)
+    {
+        tracks_lock();
+        rb->buflib_buffer_in(&buf_ctx, pf_tracks.borrowed);
+    }
     pf_tracks.borrowed = 0;
     pf_tracks.used = 0;
     pf_tracks.cur_idx = -1;
-    buf_ctx_locked = false;
-    buf_ctx_unlock();
+#if CARD_FRAME_COUNT > 0
+    card_drawn = false; /* of those tracks */
+    prepare_failed = -1; /* as the albums may be sorted again */
+#endif
+    tracks_unlock();
+}
+
+/* The tracks done with: kept for the album to open again at once, as giving
+   their room back moves every slide, unless they took more than TRACKS_KEEP;
+   then it's given back and the slides it pushed out are loaded again */
+static void tracks_done(void)
+{
+    if (pf_tracks.borrowed > TRACKS_KEEP)
+    {
+        free_borrowed_tracks();
+        rb->queue_post(&thread_q, EV_WAKEUP, 0);
+    }
+    else
+    {
+        reset_track_list();
+        tracks_unlock();
+    }
 }
 
 /* Fills mp3entry with metadata retrieved from  RAM, if possible, or by reading from
@@ -3006,6 +3108,7 @@ static void thread(void)
                 /* we just woke up */
                 break;
             case SYS_USB_CONNECTED:
+                thread_loading = false;
                 /* The queue gets the broadcasts, so USB waits for this
                    thread too: without the ack the computer never got the
                    disk. It is the computer's until it is let go. */
@@ -3023,6 +3126,7 @@ static void thread(void)
         }
 
         if(ev.id != SYS_TIMEOUT) {
+            thread_loading = true;
             while ( rb->queue_empty(&thread_q) ) {
                 buf_ctx_lock();
                 bool slide_loaded = load_new_slide();
@@ -3032,6 +3136,8 @@ static void thread(void)
                 slides_arrived++;
                 rb->yield();
             }
+            /* or another wakeup, which sets it again at once */
+            thread_loading = false;
         }
     }
 }
@@ -5144,6 +5250,33 @@ static bool make_card(void)
 }
 #endif /* ITUNESDB_HAVE_ART && HAVE_LCD_COLOR */
 
+/* The session's lines for the health log, in memory until USB or the sleep:
+   how long Cover Flow held 80 MHz, how albums opened, and when the screen went
+   dark and the iPod to sleep in it */
+static void cf_marks_note(void)
+{
+    if (!cf_marks.opened_at)
+        return;
+    const long open = *rb->current_tick - cf_marks.opened_at;
+    rb->health_note("cover flow: %ld s, 80 MHz its own %ld.%ld s; opened %d,"
+                    " %d made ahead, %d at Select (most %lu ms, all %lu ms);"
+                    " made ahead %d steps (most %lu ms); longest frame opening"
+                    " %lu ms at key %d, closing %lu ms",
+                    open / HZ, cf_marks.boosted / HZ,
+                    cf_marks.boosted % HZ * 10 / HZ, cf_marks.opened,
+                    cf_marks.ready, cf_marks.opened - cf_marks.ready,
+                    cf_marks.made_most / 1000, cf_marks.made_all / 1000,
+                    cf_marks.prepared, cf_marks.prepared_most / 1000,
+                    cf_marks.frame_in / 1000, cf_marks.frame_in_key,
+                    cf_marks.frame_out / 1000);
+    if (cf_marks.darks || cf_marks.sleeps)
+        rb->health_note("cover flow: screen dark %d times, the last %ld s after"
+                        " a use; asleep %d times, the last %ld s after",
+                        cf_marks.darks, cf_marks.dark_after / HZ,
+                        cf_marks.sleeps, cf_marks.sleep_after / HZ);
+    cf_marks.opened_at = 0;
+}
+
 /**
   Cleanup the plugin
 */
@@ -5165,9 +5298,8 @@ static void cleanup(void)
         buf_ctx_unlock();
     }
 
-#ifdef HAVE_ADJUSTABLE_CPU_FREQ
-    rb->cpu_boost(false);
-#endif
+    pf_boost(false);
+    cf_marks_note();
     end_pf_thread();
 #ifdef PF_COP_FROM
     end_cop_thread();
@@ -5581,7 +5713,8 @@ static void update_cover_out_animation(void)
 #if CARD_FRAME_COUNT > 0
         card_drawn = false;
 #endif
-        free_borrowed_tracks();
+        /* its tracks kept, for it to open again from the first at once */
+        tracks_done();
         set_cover_animation(0);
         pf_state = pf_idle;
         return;
@@ -5590,8 +5723,8 @@ static void update_cover_out_animation(void)
 }
 
 /* From the tracks back to the covers: the card of them as they are now, which
-   turns back into the cover. They're let go once it's closed, as the album may
-   open again on the way, as it was */
+   turns back into the cover. They're kept, as the album may open again on the
+   way, as it was, or once it's closed, from its first */
 static void start_cover_out(void)
 {
     cover_animation_keyframe = 0;
@@ -5620,7 +5753,7 @@ static void skip_animation_to_show_tracks(void)
 */
 static void skip_animation_to_idle_state(void)
 {
-    free_borrowed_tracks();
+    tracks_done(); /* as at the end of a closing */
     pf_state = pf_idle;
     cover_animation_keyframe = 0;
     card_frame = 0;
@@ -6269,6 +6402,7 @@ static void draw_album_text(void)
 */
 static void error_wait(const char *message)
 {
+    pf_boost(false);
     rb->splashf(0, "%s. Press any button to continue.", message);
     while (rb->get_action(CONTEXT_STD, 1) == ACTION_NONE)
         rb->yield();
@@ -6281,9 +6415,10 @@ static bool init(void)
     void * buf;
     size_t buf_size;
 
-#ifdef HAVE_ADJUSTABLE_CPU_FREQ
-    rb->cpu_boost(true); /* revert in cleanup */
-#endif
+    rb->memset(&cf_marks, 0, sizeof(cf_marks));
+    cf_marks.opened_at = *rb->current_tick;
+    /* while it opens; then the main loop's, as the covers move */
+    pf_boost(true);
 
     wants_to_quit = false;
 #if defined(ITUNESDB_HAVE_ART) && defined(HAVE_LCD_COLOR)
@@ -6309,8 +6444,12 @@ static bool init(void)
         pf_cfg.auto_wps = 2;
 #endif
 
+#ifndef ITUNESDB_HAVE_ART
     if(pf_cfg.backlight_mode == 0)
         backlight_ignore_timeout(); /* restore in cleanup */
+#endif
+    /* else the screen goes dark and the iPod to sleep as anywhere, whatever
+       an old config says: no menu here sets it */
 
 #if PF_PLAYBACK_CAPABLE
     buf = rb->plugin_get_buffer(&buf_size);
@@ -6550,6 +6689,7 @@ static bool prompt_reinit(void)
 {
     const struct text_message prompt = {
       (const char*[]) {ID2P(LANG_TAGCACHE_BUSY), ID2P(LANG_TAGCACHE_UPDATE)}, 2};
+    pf_boost(false); /* a question, as the menus */
 #ifdef USEGSLIB
     grey_show(false);
 #endif
@@ -6714,6 +6854,7 @@ static void wheel_start(void)
 {
     rb->memset(&wheel, 0, sizeof(wheel));
     wheel.position = -1;
+    wheel_waking = false;
     wheel_clicks_taken();
     wheel_timer_set = rb->timer_register(1, NULL, TIMER_FREQ / WHEEL_READS,
                                          wheel_read IF_COP(, CPU));
@@ -6738,7 +6879,7 @@ static void wheel_events_on(bool on)
    nowhere, and a short quick swipe as far as it deserves. A finger put back on the
    wheel adds that to what they have, so that turn after turn speeds them up; held
    still it stops them, and turning the other way turns them back. */
-static void watch_wheel(void)
+static void watch_wheel(bool lit)
 {
     /* the slides it stepped: one each WHEEL_SLIDE_CLICKS this way, counted
        again from a turn back */
@@ -6746,8 +6887,30 @@ static void watch_wheel(void)
     const int moved = clicks - wheel_clicks_seen;
     wheel_clicks_seen = clicks;
     const bool covers = pf_state == pf_idle || pf_state == pf_scrolling;
+    /* The touch that lights the dark screen only lights it, as its first
+       press would: its clicks aren't steps, nor its flick a glide, until the
+       finger is off or still a moment with the screen lit. The driver's
+       events are off meanwhile, in the tracks too, so it doesn't click */
+    if (!lit)
+        wheel_waking = true;
     if (wheel_timer_set)
-        wheel_events_on(!covers);
+        wheel_events_on(!covers && !wheel_waking);
+    if (wheel_waking)
+    {
+        if (roll_speed && !roll_free)
+        {
+            /* dark under a finger on the wheel (Hold): they run down as
+               after a lift with nothing given, not on to the last album */
+            roll_free = true;
+            roll_aim = 0;
+            roll_carry = 0;
+        }
+        wheel_clicks_taken();
+        if (lit && (wheel.position < 0
+                    || TIME_AFTER(*rb->current_tick, wheel.moved_at + HZ / 4)))
+            wheel_waking = false;
+        return;
+    }
     if (!covers)
         wheel_clicks_part = 0; /* the tracks and a cover turning go by its events */
     else
@@ -6881,12 +7044,97 @@ static void anim_clock_tick(bool animating)
     }
     else
     {
-        const unsigned long us = MIN(now - anim_clock,
+        const unsigned long took = now - anim_clock;
+        if (pf_state == pf_cover_in && took > cf_marks.frame_in)
+        {
+            cf_marks.frame_in = took;
+            cf_marks.frame_in_key = cover_animation_keyframe;
+        }
+        else if (pf_state == pf_cover_out && took > cf_marks.frame_out)
+            cf_marks.frame_out = took;
+        const unsigned long us = MIN(took,
                                      (unsigned long)ANIM_FRAME_US * ANIM_MOST / ANIM_ONE);
         anim_part = us * ANIM_ONE / ANIM_FRAME_US;
     }
     anim_clock = now;
 }
+
+/* the last time the covers moved, the wheel turned or a button was pressed */
+static long used_at;
+static long last_use(void)
+{
+#ifdef HAVE_WHEEL_POSITION
+    if (TIME_AFTER(wheel.moved_at, used_at))
+        return wheel.moved_at;
+#endif
+    return used_at;
+}
+
+/* slides for the thread to load, or a wakeup it hasn't seen yet */
+static bool slides_pending(void)
+{
+    return thread_loading || !rb->queue_empty(&thread_q);
+}
+
+/* one of these lines moving on the screen now, rather than waiting at an end:
+   each of its steps draws a frame of the covers */
+static bool line_moves(unsigned lines)
+{
+    for (int i = 0; i < PF_MAX_SCROLL_LINES; i++)
+        if ((lines & (1u << i)) && scroll_lines[i].step
+            && !TIME_BEFORE(*rb->current_tick, scroll_lines[i].start_tick))
+            return true;
+    return false;
+}
+
+#if CARD_FRAME_COUNT > 0
+/* The covers still on an album this long, its tracks and card are made then,
+   so that Select opens it at once: longer than the stops of a turn of two
+   covers a second, and shorter than a look before a press */
+#define PREPARE_REST        (HZ * 2 / 5)
+
+/* The covers still on an album for PREPARE_REST and the slide thread through:
+   its tracks, then its card, a step a turn of the loop, on which Select opens
+   it at once. Not while anything moves, nor with slides to load, as making the
+   tracks takes buf_ctx for a while. */
+static void prepare_ahead(void)
+{
+    const int idx = center_slide.slide_index;
+    if (pf_state != pf_idle || !card || idx == prepare_failed
+        || (card_drawn && card_album == idx && pf_tracks.cur_idx == idx)
+        || TIME_BEFORE(*rb->current_tick, last_use() + PREPARE_REST)
+        || slides_pending())
+        return;
+#ifdef HAVE_TC_RAMCACHE
+    if (!rb->tagcache_is_in_ram())
+        return; /* from the disk, with its wait shown, at Select */
+#endif
+    pf_boost(true); /* the next turn lets it go */
+    const unsigned long start = anim_now();
+    if (pf_tracks.cur_idx != idx)
+    {
+        create_track_index(idx);
+        if (pf_tracks.count == 0 || pf_tracks.borrowed > TRACKS_KEEP)
+        {
+            /* made again at Select, as before, which then turns back or
+               gives the room back at the close: not kept at rest */
+            free_borrowed_tracks();
+            rb->queue_post(&thread_q, EV_WAKEUP, 0);
+            prepare_failed = idx;
+        }
+        else
+        {
+            reset_track_list();
+            tracks_unlock();
+        }
+    }
+    else
+        make_card();
+    const unsigned long took = anim_now() - start;
+    cf_marks.prepared++;
+    cf_marks.prepared_most = MAX(cf_marks.prepared_most, took);
+}
+#endif
 
 /**
   Main function that also contain the main plasma
@@ -6912,24 +7160,59 @@ static int pictureflow_main(void)
 
     wheel_start();
 
+    used_at = *rb->current_tick;
+    bool was_lit = true;
     while (true) {
         current_update = *rb->current_tick;
         frames++;
-        /* The disk sleeps 5 s after it was last used and is off 2 s later: the
-           next cover read while scrolling would hold the animation until it
-           is back. It stays on while the covers are open. */
-        rb->storage_spin();
 
         /* Initial rendering */
         instant_update = false;
 
+        /* The screen dark, at its timeout as anywhere: nothing still is drawn
+           until it's lit again, and then it is */
+#ifdef HAS_BUTTON_HOLD
+        /* on Hold its own setting, by default off */
+        const bool lit = rb->is_backlight_on(rb->button_hold());
+#else
+        const bool lit = rb->is_backlight_on(false);
+#endif
+        if (was_lit && !lit)
+        {
+            cf_marks.darks++;
+            cf_marks.dark_after = current_update - last_use();
+        }
+        was_lit = lit;
+
         const unsigned lines_moved = update_scroll_lines();
 #ifdef HAVE_WHEEL_POSITION
-        watch_wheel();
+        watch_wheel(lit);
 #endif
         const bool animating = pf_state == pf_scrolling || pf_state == pf_cover_in
                                || pf_state == pf_cover_out;
         anim_clock_tick(animating);
+        if (animating)
+            used_at = *rb->current_tick;
+        /* 80 MHz while they move, a slide loads, just after a use (a step of
+           the tracks), or while a line moves on the screen: each of its steps
+           draws the covers again, about a step's time at 30 MHz. Not at rest,
+           where the iPod can then sleep at its lower clock. */
+        const bool loading = slides_pending() && !buf_ctx_locked;
+        pf_boost(animating || loading
+                 || TIME_BEFORE(*rb->current_tick, last_use() + HZ / 2)
+                 || (lit && line_moves(pf_state == pf_show_tracks
+                                       ? 1u << PF_SCROLL_TRACK
+                                       : pf_state == pf_idle
+                                       ? 1u << PF_SCROLL_ALBUM | 1u << PF_SCROLL_ARTIST
+                                       : 0)));
+        /* The disk sleeps 5 s after it was last used and is off 2 s later: the
+           next cover read while scrolling would hold the animation until it
+           is back. It is kept on while they move or load, and while the screen
+           is lit, at most 30 s, the longest timeout short of always on; then
+           it's let go, as anywhere: else the iPod never slept in here. */
+        if (animating || loading
+            || (lit && TIME_BEFORE(*rb->current_tick, last_use() + 30 * HZ)))
+            rb->storage_spin();
         /* the music decoded ahead of the covers, and while they move not, as
            long as there's 3 s of it: it is made up when they stop */
         if (animating)
@@ -6990,9 +7273,10 @@ static int pictureflow_main(void)
             case pf_show_tracks:
                 /* the covers behind it were drawn 16 times a second, which
                    held the music back from getting ahead */
-                if (idle_shown && !(lines_moved & (1u << PF_SCROLL_TRACK))
-                    && !pf_cfg.show_fps)
+                if (!lit || (idle_shown && !(lines_moved & (1u << PF_SCROLL_TRACK))
+                             && !pf_cfg.show_fps))
                 {
+                    idle_shown = idle_shown && lit;
                     drawn = false;
                     break;
                 }
@@ -7002,10 +7286,11 @@ static int pictureflow_main(void)
                 break;
             case pf_idle:
                 show_tracks_while_browsing = false;
-                if (idle_shown
+                if (!lit || (idle_shown
                     && !(lines_moved & (1u << PF_SCROLL_ALBUM | 1u << PF_SCROLL_ARTIST))
-                    && idle_slides == slides_arrived && !pf_cfg.show_fps)
+                    && idle_slides == slides_arrived && !pf_cfg.show_fps))
                 {
+                    idle_shown = idle_shown && lit;
                     drawn = false;
                     break;
                 }
@@ -7092,6 +7377,10 @@ static int pictureflow_main(void)
             if (is_initial_slide == false)
                 mylcd_update();
         }
+#if CARD_FRAME_COUNT > 0
+        else
+            prepare_ahead(); /* between frames, still */
+#endif
         rb->yield();
 
         /*/ Handle buttons */
@@ -7103,6 +7392,15 @@ static int pictureflow_main(void)
             get_context_map);
         if (button != ACTION_NONE)
             idle_shown = false;
+        if (button != ACTION_NONE && !IS_SYSEVENT(button))
+            used_at = *rb->current_tick;
+#ifdef SYS_SLEEP_FLUSH
+        else if (button == SYS_SLEEP_FLUSH) /* the iPod falls asleep */
+        {
+            cf_marks.sleeps++;
+            cf_marks.sleep_after = *rb->current_tick - last_use();
+        }
+#endif
 #ifdef HAVE_WHEEL_POSITION
         /* a button may open a menu or a question, which go by the wheel's
            events: they're back until the next frame of the covers */
@@ -7173,6 +7471,7 @@ static int pictureflow_main(void)
 #endif
             FOR_NB_SCREENS(i)
                 rb->viewportmanager_theme_enable(i, true, NULL);
+            pf_boost(false); /* a menu, as anywhere */
             ret = main_menu();
             FOR_NB_SCREENS(i)
                 rb->viewportmanager_theme_undo(i, false);
@@ -7310,6 +7609,7 @@ static int pictureflow_main(void)
                     skip_animation_to_idle_state();
 
                 drop_frame();
+                pf_boost(false); /* a menu, as anywhere */
                 if (context_menu_ready())
                 {
                     ret = context_menu();
@@ -7340,9 +7640,28 @@ static int pictureflow_main(void)
 #endif
                 {
 #if CARD_FRAME_COUNT > 0
-                    /* the album's tracks and its card before it moves: where the
-                       cover turns to its edge, finding them held it up there */
-                    make_card();
+                    /* the album's tracks and its card before it moves, unless
+                       the covers' rest made them (prepare_ahead()): where the
+                       cover turns to its edge, finding them held it up there.
+                       No slide loads while it turns. */
+                    pf_boost(true);
+                    const int idx = center_slide.slide_index;
+                    const unsigned long start = anim_now();
+                    tracks_lock();
+                    cf_marks.opened++;
+                    if (card_drawn && card_album == idx && pf_tracks.cur_idx == idx)
+                    {
+                        cf_marks.ready++;
+                        /* the chosen track's name from where the card has it */
+                        restart_scroll_line(PF_SCROLL_TRACK);
+                    }
+                    else
+                    {
+                        make_card();
+                        const unsigned long took = anim_now() - start;
+                        cf_marks.made_all += took;
+                        cf_marks.made_most = MAX(cf_marks.made_most, took);
+                    }
 #endif
                     pf_state = pf_cover_in;
                 }
@@ -7947,9 +8266,7 @@ static enum plugin_status prepare_album_list(void)
            && TIME_BEFORE(*rb->current_tick, ramcache_until))
         rb->sleep(HZ / 10);
 #endif
-#ifdef HAVE_ADJUSTABLE_CPU_FREQ
-    rb->cpu_boost(true); /* revert in cleanup */
-#endif
+    pf_boost(true); /* down in cleanup */
     rb->memset(&aa_cache, 0, sizeof(struct albumart_t));
     config_set_defaults(&pf_cfg);
     configfile_load(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);

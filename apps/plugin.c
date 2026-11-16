@@ -23,6 +23,7 @@
 #include "photos_panel.h"
 #include "transition.h"
 #include "itunesdb.h"
+#include "health_log.h"
 #include "root_menu.h"
 #include "open_plugin.h"
 #include <ctype.h>
@@ -972,6 +973,7 @@ static const struct plugin_api rockbox_api = {
     photos_panel_show,
     photos_panel_disk_free,
     format_date_text,
+    health_note,
 };
 
 static int plugin_buffer_handle;
