@@ -38,4 +38,9 @@ void health_note_free(void);
    misc.c); not during use */
 void health_flush(void);
 
+/* As the computer lets the disk go: the time it had it is left out of the
+   next line of the CPU's clocks, the USB stack's boost being no use of the
+   iPod's */
+void health_usb_ended(void);
+
 #endif

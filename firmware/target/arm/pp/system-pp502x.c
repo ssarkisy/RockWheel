@@ -27,6 +27,7 @@
 #endif
 #include "button-target.h"
 #include "usb_drv.h"
+#include "cpu_time.h"
 
 /* Bit 0 - 20: Cached Address */
 #define CACHE_ADDRESS_MASK ((1<<21)-1)
@@ -365,6 +366,12 @@ void set_cpu_frequency(long frequency)
 static void pp_set_cpu_frequency(long frequency)
 #endif
 {
+#ifdef HAVE_CPU_TIME
+    /* before the switch; under the frequency's lock, as cpu_boost(),
+       cpu_idle_mode() and panicf() call it, unlike the boot's first call and
+       the debug screen's */
+    cpu_time_clock(frequency);
+#endif
     switch (frequency)
     {
       /* Note1: The PP5022 PLL must be run at >= 96MHz

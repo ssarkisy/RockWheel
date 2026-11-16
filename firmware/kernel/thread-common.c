@@ -336,3 +336,12 @@ int thread_get_debug_info(unsigned int thread_id,
 
     return ret;
 }
+
+/*---------------------------------------------------------------------------
+ * The calling thread's name: it can't end while it runs, so no lock
+ *---------------------------------------------------------------------------
+ */
+const char * thread_self_name(void)
+{
+    return __running_self_entry()->name;
+}

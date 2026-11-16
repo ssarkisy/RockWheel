@@ -27,6 +27,7 @@
 #include "rbpaths.h"
 #include "timefuncs.h"
 #include "version.h"
+#include "cpu_time.h"
 #include "health_log.h"
 
 #if (CONFIG_STORAGE & STORAGE_ATA) && (CONFIG_PLATFORM & PLATFORM_NATIVE) \
@@ -262,22 +263,166 @@ static inline void fat_line_written(void)
 }
 #endif
 
+#ifdef HAVE_CPU_TIME
+#define CPU_LINE_MIN (60 * 1000000ull) /* the least time a line tells of */
+#define CPU_NAMES    8 /* threads kept by name; any more go as others */
+
+/* The time no line has told of yet: each flush takes the firmware's into it,
+   and it is kept until a line of a minute or more is written */
+static struct
+{
+    uint64_t usec[CPU_TIME_CLOCKS];
+    unsigned int raised;
+    struct
+    {
+        char name[CPU_TIME_NAME];
+        uint64_t usec;
+    } held[CPU_NAMES];
+    uint64_t others;
+} cpu_kept;
+
+/* not on the stack, which already has the flush's other lines, as deep in
+   a screen's or a plugin's calls as the USB came */
+static struct cpu_time cpu_taken;
+static char cpu_text[384];
+
+static void cpu_take(void)
+{
+    cpu_time_take(&cpu_taken);
+    for (int c = 0; c < CPU_TIME_CLOCKS; c++)
+        cpu_kept.usec[c] += cpu_taken.usec[c];
+    cpu_kept.raised += cpu_taken.raised;
+
+    for (int i = 0; i < CPU_TIME_HELD; i++)
+    {
+        const uint64_t usec = cpu_taken.held[i].usec;
+        if (!usec)
+            continue;
+        const char *name = i == CPU_TIME_HELD - 1 ? "ended threads"
+                         : cpu_taken.held[i].name[0] ? cpu_taken.held[i].name
+                         : "unnamed";
+        int k = 0;
+        while (k < CPU_NAMES && cpu_kept.held[k].name[0]
+               && strcmp(cpu_kept.held[k].name, name))
+            k++;
+        if (k == CPU_NAMES)
+            cpu_kept.others += usec;
+        else
+        {
+            strcpy(cpu_kept.held[k].name, name);
+            cpu_kept.held[k].usec += usec;
+        }
+    }
+}
+
+/* ", name 12.3 s" at len, as far as the line has room; its new length */
+static int cpu_held_text(int len, const char *sep, const char *name,
+                         uint64_t usec)
+{
+    const unsigned long tenths = (usec + 50000) / 100000;
+    len = MIN(len, (int)sizeof(cpu_text) - 1);
+    return len + snprintf(cpu_text + len, sizeof(cpu_text) - len,
+                          "%s%s %lu.%lu s", sep, name, tenths / 10,
+                          tenths % 10);
+}
+
+/* The time at each clock since the last line, or since boot, with the USB
+   sessions left out, and the threads that held the boost up longest; with
+   the flush's second. Its length, 0 for none: under a minute is kept for the
+   next. Holds overlap, and so may add up to more than the time at 80 MHz. */
+static int cpu_line(const char **text)
+{
+    const size_t size = sizeof(cpu_text);
+    char *line = cpu_text;
+    *text = line;
+    cpu_take();
+
+    uint64_t total = 0;
+    for (int c = 0; c < CPU_TIME_CLOCKS; c++)
+        total += cpu_kept.usec[c];
+    if (total < CPU_LINE_MIN)
+        return 0;
+
+    unsigned int pm[CPU_TIME_CLOCKS]; /* per mille, rounded */
+    for (int c = 0; c < CPU_TIME_CLOCKS; c++)
+        pm[c] = (cpu_kept.usec[c] * 1000 + total / 2) / total;
+    const unsigned long secs = (total + 500000) / 1000000;
+    const unsigned long secs_80 = (cpu_kept.usec[CPU_TIME_80MHZ] + 500000)
+                                  / 1000000;
+    int len = snprintf(line, size, "%ld cpu: %lu s since start or the last"
+                " cpu line, USB not counted; 24 MHz %u.%u%%, 30 MHz %u.%u%%,"
+                " 80 MHz %u.%u%% (%lu s, raised %u time%s)", current_tick / HZ,
+                secs, pm[CPU_TIME_24MHZ] / 10, pm[CPU_TIME_24MHZ] % 10,
+                pm[CPU_TIME_30MHZ] / 10, pm[CPU_TIME_30MHZ] % 10,
+                pm[CPU_TIME_80MHZ] / 10, pm[CPU_TIME_80MHZ] % 10, secs_80,
+                cpu_kept.raised, cpu_kept.raised == 1 ? "" : "s");
+
+    /* the three that held it longest, then the rest together; one that
+       would read 0.0 s goes with the rest */
+    bool told[CPU_NAMES] = { false };
+    uint64_t others = cpu_kept.others;
+    int listed = 0;
+    for (; listed < 3; listed++)
+    {
+        int best = -1;
+        for (int k = 0; k < CPU_NAMES; k++)
+            if (!told[k] && cpu_kept.held[k].usec >= 50000
+                && (best < 0
+                    || cpu_kept.held[k].usec > cpu_kept.held[best].usec))
+                best = k;
+        if (best < 0)
+            break;
+        told[best] = true;
+        len = cpu_held_text(len, listed ? ", " : "; boosted by ",
+                            cpu_kept.held[best].name, cpu_kept.held[best].usec);
+    }
+    for (int k = 0; k < CPU_NAMES; k++)
+        if (!told[k])
+            others += cpu_kept.held[k].usec;
+    if (others >= 50000)
+        len = cpu_held_text(len, listed ? ", " : "; boosted by ", "others",
+                            others);
+    len = MIN(len, (int)size - 2); /* cut: it still ends its line */
+    line[len++] = '\n';
+    line[len] = '\0';
+    return len;
+}
+
+static inline void cpu_line_written(void)
+{
+    memset(&cpu_kept, 0, sizeof(cpu_kept));
+}
+#endif /* HAVE_CPU_TIME */
+
+void health_usb_ended(void)
+{
+#ifdef HAVE_CPU_TIME
+    cpu_time_take(&cpu_taken); /* and dropped */
+#endif
+}
+
 void health_flush(void)
 {
 #ifdef HAVE_FAT_LINES
     if (!free_noted) /* the first flush since boot, if no USB came before */
         health_note_free();
 #endif
-    /* the drive's line, the bus's and the FAT's go to the file itself, after
-       the lines kept: they need no room among them */
+    /* the drive's line, the bus's, the FAT's and the clocks' go to the file
+       itself, after the lines kept: they need no room among them */
     char drive[NOTE_MAX], usb[NOTE_MAX], fat[NOTE_MAX];
     const int drive_len = ata_line(drive, sizeof(drive));
     const int usb_len = usb_line(usb, sizeof(usb));
     const int fat_len = fat_line(fat, sizeof(fat));
+    const char *cpu = NULL;
+#ifdef HAVE_CPU_TIME
+    const int cpu_len = cpu_line(&cpu);
+#else
+    const int cpu_len = 0;
+#endif
     /* lines that come while this writes wait for the next time */
     const int len = notes_len;
     const int lost = notes_lost;
-    if (!len && !drive_len && !usb_len && !fat_len)
+    if (!len && !drive_len && !usb_len && !fat_len && !cpu_len)
         return;
 
     int fd = open(HEALTH_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -315,7 +460,8 @@ void health_flush(void)
     }
     ok = ok && (!drive_len || write(fd, drive, drive_len) == drive_len)
             && (!usb_len || write(fd, usb, usb_len) == usb_len)
-            && (!fat_len || write(fd, fat, fat_len) == fat_len);
+            && (!fat_len || write(fd, fat, fat_len) == fat_len)
+            && (!cpu_len || write(fd, cpu, cpu_len) == cpu_len);
     /* none of it rather than a part: it is all written again next time */
     if (!ok)
         ftruncate(fd, size);
@@ -328,6 +474,10 @@ void health_flush(void)
         usb_line_written();
     if (fat_len)
         fat_line_written();
+#ifdef HAVE_CPU_TIME
+    if (cpu_len)
+        cpu_line_written();
+#endif
     notes_len -= len;
     memmove(notes, notes + len, notes_len);
     notes_lost -= lost;

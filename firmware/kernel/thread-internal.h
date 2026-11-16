@@ -137,12 +137,11 @@ struct thread_entry
 #endif
 };
 
-/* Thread ID, 32 bits = |VVVVVVVV|VVVVVVVV|VVVVVVVV|SSSSSSSS| */
+/* Thread ID, 32 bits = |VVVVVVVV|VVVVVVVV|VVVVVVVV|SSSSSSSS|; the slot's
+   macros are in thread.h */
 #define THREAD_ID_VERSION_SHIFT 8
 #define THREAD_ID_VERSION_MASK  0xffffff00
-#define THREAD_ID_SLOT_MASK     0x000000ff
 #define THREAD_ID_INIT(n)       ((1u << THREAD_ID_VERSION_SHIFT) | (n))
-#define THREAD_ID_SLOT(id)      ((id) & THREAD_ID_SLOT_MASK)
 
 #define DEADBEEF ((uintptr_t)0xdeadbeefdeadbeefull)
 

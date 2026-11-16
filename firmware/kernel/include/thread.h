@@ -175,6 +175,15 @@ unsigned int switch_core(unsigned int new_core);
 /* Return the id of the calling thread. */
 unsigned int thread_self(void);
 
+/* A thread id's slot, 0 to MAXTHREADS - 1 (the id's layout is in
+   thread-internal.h) */
+#define THREAD_ID_SLOT_MASK     0x000000ff
+#define THREAD_ID_SLOT(id)      ((id) & THREAD_ID_SLOT_MASK)
+
+/* The calling thread's name as it was created, NULL for none: valid while
+   that thread runs */
+const char * thread_self_name(void);
+
 /* Debugging info - only! */
 #if NUM_CORES > 1
 struct core_debug_info

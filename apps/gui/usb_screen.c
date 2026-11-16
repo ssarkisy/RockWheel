@@ -66,6 +66,7 @@
 #if (CONFIG_STORAGE & STORAGE_MMC)
 #include "ata_mmc.h"
 #endif
+#include "health_log.h"
 
 struct usb_screen_vps_t
 {
@@ -799,6 +800,7 @@ void gui_usb_screen_run(bool early_usb, intptr_t seqnum)
     usb_acknowledge(SYS_USB_CONNECTED_ACK, seqnum);
     usb_screens_draw(usb_screen_vps_ar);
     handle_usb_events(title);
+    health_usb_ended();
 
 #if defined(USB_ENABLE_HID)
     if (global_settings.usb_hid)
