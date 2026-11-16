@@ -62,7 +62,8 @@ bool list_covers_poll(void);
    reading its own rows' covers (list_covers_draw_soon()) */
 void list_covers_input(void);
 /* a list with covers opened: flash asleep or off woken meanwhile, without
-   waiting for it, as its covers are read next */
+   waiting for it, as its covers are read next; or, on, the covers' map made
+   again if the disk's files changed */
 void list_covers_opened(void);
 /* Before each frame, after list_covers_frame(): the covers of the rows it
    draws that aren't kept read now, on the UI's thread, by the file's sectors

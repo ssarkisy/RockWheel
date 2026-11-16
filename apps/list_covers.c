@@ -139,14 +139,17 @@ static unsigned char *read_aligned(unsigned char *p)
    move, so that the lists draw from it and the reader writes into it as it
    is, each at its own time. The covers by their slots in the file, the
    stages each thread reads into, and the map of where the covers are on the
-   disk: made as the file's index is taken in, with the reader stopped, or
-   again on the reader's thread as the wheel rests, and read by either */
+   disk: made as the file's index is taken in, with the reader stopped; again,
+   as the disk's files change, on the UI's thread, kept only if the file is in
+   the sectors checked before, or on the reader's as the wheel rests; read by
+   either */
 struct covers {
     fb_data pixels[KEPT][SIDE * SIDE];
     int16_t slot[KEPT];         /* the file's slot each place has, -1 for none */
     uint32_t shown[KEPT];       /* the frame it was last drawn or read in */
     unsigned char stage[READ_COVERS * SLOT_SIZE + READ_ALIGN];
-    /* the UI's, which reads as the reader waits on the disk with its own */
+    /* the UI's, which reads as the reader waits on the disk with its own;
+       and where the UI makes the map again (map_current_now()) */
     unsigned char stage_now[READ_NOW_COVERS * SLOT_SIZE + READ_ALIGN];
 #ifdef HAVE_FILE_MAP
     struct file_map map;        /* its runs 0 for none: read by the file's name */
@@ -169,8 +172,11 @@ static off_t index_data;
 static int index_slots;
 #ifdef HAVE_FILE_MAP
 /* the runs of the map that were checked against the file, kept as it's let
-   go of as a read fails; 0 as the file is made again */
+   go of as a read fails; 0 as the file is made again or taken in */
 static int map_checked;
+/* the reader in the middle of its read by the map, or of making it again:
+   the map is its own until it's done */
+static volatile bool reader_mapping;
 #endif
 /* how many times they were forgotten, as a read in the middle is of before */
 static unsigned forgets;
@@ -300,6 +306,54 @@ static void map_again(void)
     map_covers(fd, true);
     close(fd);
 }
+
+/* The map made again on the UI's thread, as a frame or a list opening finds
+   the disk's files changed since it was made: any file's clusters freed, as
+   by a file written whole when music starts from a list or the status is
+   saved. Kept only if the file is in the sectors checked before, which needs
+   no covers read to check it, so that the frames read by it at once, not
+   once the wheel rests; otherwise left to the reader, which checks it. Not
+   while the reader uses the map; tried once until the files change again */
+static void map_current_now(void)
+{
+    static struct file_map tried;
+    if (reader_mapping || map_checked <= 0 || file_map_current(&covers->map)
+        || file_map_current(&tried))
+        return;
+    const int fd = open(COVERS_FILE, O_RDONLY);
+    if (fd < 0)
+    {
+        /* none of that name: one there later is another file, which the
+           reader checks in full */
+        if (!reader_mapping)
+            map_checked = 0;
+        return;
+    }
+    struct file_map_run *runs =
+        (struct file_map_run *)read_aligned(covers->stage_now);
+    const int n = file_map(fd, index_data, (off_t)index_slots * SLOT_SIZE,
+                           &tried, runs, MAP_RUNS);
+    /* the reader may have come to the map as this waited on the disk: tried
+       again while the map stays stale */
+    if (reader_mapping)
+        tried.gen = covers->map.gen;
+    else if (n == map_checked
+             && !memcmp(runs, covers->runs, n * sizeof(*runs)))
+        covers->map = tried;
+    close(fd);
+}
+
+/* the disk on for a read before a frame: flash that's on, not a hard disk,
+   whose seek would hold the wheel; any disk that's active where flash isn't
+   told apart */
+static bool disk_on(void)
+{
+#if FLASH_WAKES
+    return ata_disk_isssd() && ata_disk_is_on();
+#else
+    return storage_disk_is_active();
+#endif
+}
 #endif /* HAVE_FILE_MAP */
 
 static void forget(void)
@@ -323,6 +377,7 @@ void list_covers_load(void)
 #ifdef HAVE_FILE_MAP
     if (covers)
         covers->map.runs = 0;
+    map_checked = 0;
 #endif
     const int count = album_years_count();
     if (!covers || count <= 0)
@@ -598,6 +653,10 @@ void list_covers_opened(void)
     if (covers)
         wake_ahead();
 #endif
+#ifdef HAVE_FILE_MAP
+    if (covers && disk_on())
+        map_current_now();
+#endif
 }
 
 int list_covers_timeout(int timeout)
@@ -672,27 +731,29 @@ static bool read_by_name(off_t pos, ssize_t size, unsigned char *stage)
 }
 
 /* The covers a frame lacks read before it's drawn: by the file's sectors,
-   with a map good, from a disk that's on, not coming on, which would hold the
-   UI as long. Flash asleep woken meanwhile, the UI not waiting, for the next
-   frame; a disk asleep left to the reader as the wheel rests. In the
-   simulator by the file's name, which costs it nothing of the iPod's */
+   with a map good, made again first if the disk's files changed, from a disk
+   that's on, not coming on, which would hold the UI as long. Flash asleep
+   woken meanwhile, the UI not waiting, for the next frame; a hard disk left
+   to the reader as the wheel rests. In the simulator by the file's name,
+   which costs it nothing of the iPod's */
 static bool reads_now(void)
 {
 #if defined(HAVE_FILE_MAP)
-    if (covers->map.runs <= 0 || !file_map_current(&covers->map))
+    /* no map checked, or a read by it failed with the files as they are: by
+       the file's name, from the reader */
+    const bool stale = !file_map_current(&covers->map);
+    if (map_checked <= 0 || (covers->map.runs <= 0 && !stale))
         return false;
+    if (!disk_on())
+    {
 #if FLASH_WAKES
-    /* a hard disk's seek waited out before each frame would hold the wheel:
-       its covers come from the reader as the wheel rests */
-    if (!ata_disk_isssd())
-        return false;
-    if (ata_disk_is_on())
-        return true;
-    wake_ahead();
-    return false;
-#else
-    return storage_disk_is_active();
+        wake_ahead();
 #endif
+        return false;
+    }
+    if (stale)
+        map_current_now();
+    return covers->map.runs > 0 && file_map_current(&covers->map);
 #elif defined(SIMULATOR)
     return true;
 #else
@@ -707,7 +768,7 @@ static bool read_now(off_t pos, ssize_t size, unsigned char *stage)
     if (rc == 0)
         return true;
     /* the disk's files changed meanwhile, or it failed: the reader reads by
-       the file's name, and maps it again once they change */
+       the file's name, and it's mapped again once they change */
     covers->map.runs = 0;
     return false;
 #else
@@ -824,6 +885,7 @@ void list_covers_read(void)
 #endif
     bool ok = false;
 #ifdef HAVE_FILE_MAP
+    reader_mapping = true;
     /* made again as the disk's files have changed since it was made or tried,
        as the wheel rests: while it turns, a read without a good map hasn't
        come this far (above) */
@@ -838,6 +900,7 @@ void list_covers_read(void)
         if (!ok)
             covers->map.runs = 0;
     }
+    reader_mapping = false;
 #endif
     if (!ok && !wheel_turning())
         ok = read_by_name(pos, size, stage);
