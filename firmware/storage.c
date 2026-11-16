@@ -43,7 +43,9 @@ static unsigned int num_drives;
 /* defaults: override elsewhere target-wise if they must be different */
 #if (CONFIG_STORAGE & STORAGE_ATA)
  #ifndef ATA_THREAD_STACK_SIZE
-  #define ATA_THREAD_STACK_SIZE     (DEFAULT_STACK_SIZE*2)
+  /* its idle callbacks save the settings, the place and the marks: their
+     creates and renames reach ~1.9 KB, more with a long name */
+  #define ATA_THREAD_STACK_SIZE     (DEFAULT_STACK_SIZE*4)
  #endif
 #endif
 #if (CONFIG_STORAGE & STORAGE_MMC)
