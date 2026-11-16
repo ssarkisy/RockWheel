@@ -345,7 +345,9 @@ extern void gui_synclist_set_subline_callback(struct gui_synclist * lists,
 /* what a row has in the column of covers: nothing, as Sort By, which has no
    column; the note, as an album without a cover or with one not read yet;
    or its cover */
-enum list_cover { LIST_COVER_NONE, LIST_COVER_NOTE, LIST_COVER_PIXELS };
+enum list_cover { LIST_COVER_NONE, LIST_COVER_NOTE, LIST_COVER_PIXELS,
+                  /* its picture isn't shown: the "?" (cover_caution.h) */
+                  LIST_COVER_UNSUPPORTED };
 extern void gui_synclist_set_cover_callback(struct gui_synclist * lists,
         int (*get_cover)(int item, void *data, const fb_data **pixels));
 /* the height of a row of two lines in a list in font; and the font of their

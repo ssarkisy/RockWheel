@@ -261,6 +261,9 @@ static int list_covers_callback(int action,
 }
 MENUITEM_SETTING(list_covers_item, &global_settings.list_covers,
                  list_covers_callback);
+/* why a cover isn't shown, in its place: Now Playing's, the menus' and the
+   lists' */
+MENUITEM_SETTING(cover_caution_item, &global_settings.cover_caution, NULL);
 #endif
 #endif
 MENUITEM_SETTING(list_scrollbar_item, &global_settings.list_scrollbar, NULL);
@@ -325,7 +328,7 @@ MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
 #ifdef HAVE_TAGCACHE
           &album_artists_item,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-          &list_covers_item,
+          &list_covers_item, &cover_caution_item,
 #endif
 #endif
           &list_scrollbar_item, &jump_by_letter_item,

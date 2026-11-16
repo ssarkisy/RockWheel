@@ -50,6 +50,7 @@
 #include "metadata.h"
 #include "fixedpoint.h"
 #include "itunesdb.h"
+#include "covers_table.h"
 #include "synced_covers.h"
 #include "health_log.h"
 #include "crc32.h"
@@ -4693,7 +4694,8 @@ bool itunesdb_resumes(const char *path)
 #define LARGE_MAGIC     0x4c494252 /* "RBIL" */
 #define LARGE_VERSION   2   /* 2: the sum of the index it goes with */
 #define LARGE_PIXELS    (LCD_HEIGHT * LCD_HEIGHT) /* the most of a picture */
-#define FRAME_MAX       (200 * 200)  /* the iPod Video's largest covers */
+#define FRAME_SIDE      200
+#define FRAME_MAX       (FRAME_SIDE * FRAME_SIDE) /* the iPod Video's largest covers */
 #define SMALL_FRAME_MAX (100 * 100)  /* what they are checked against */
 /* Cover Flow's slides, one an album, made after the import from the cover
    of one of its first tracks: column after column as PictureFlow draws
@@ -4827,8 +4829,11 @@ struct art_image {
 /* the numbers of their slides, past Finder's, which have 16 bits */
 #define COVER_SLIDE_BASE (1 << 20)
 /* places at most: a file's offsets stop at 2 GB, and a table read damaged
-   can't point past them */
+   can't point past them; and 16 bits in a song's picture's entry */
 #define COVERS_SLOTS_MAX 26000
+#if COVERS_SLOTS_MAX >= 0x8000
+#error "a song's picture's slot has 15 bits (pictures_of_songs())"
+#endif
 /* the free space a new place leaves at least, in KB: the files grew till the
    disk was full, and then Play Counts and the database had none */
 #define COVERS_FREE_MIN  tagcache_caches_floor_kb()
@@ -4862,6 +4867,90 @@ struct cover_entry {
 /* the sum of the images outside Finder's folder the covers were last made
    with: changed, as by a cover saved again, they're looked at again */
 #define COVERS_IMAGES    ROCKBOX_DIR "/covers_images.dat"
+
+/* The songs the covers are made for, each by its own picture: every song
+   Finder has no cover of. A song with no picture has an entry too, so that
+   the next making doesn't read its tags again. The file, written whole:
+   - its header;
+   - the songs' entries (struct song_record), by their paths' hashes;
+   - those of them with a cover or a reason it has none, as kept in memory
+     for the songs that play (struct covers_song_ram), in the same order;
+   - the pictures they have (struct song_picture), by their slots.
+   Its slots are those of COVERS_FRAMES and COVERS_SLIDES, which the albums'
+   covers take too, an album's being the same slot as its song's. */
+#define COVERS_SONGS     ROCKBOX_DIR "/covers_songs.dat"
+#define SONGS_MAGIC      0x53434252 /* "RBCS" */
+#define SONGS_VERSION    2
+/* The 240 px picture of each of the songs' pictures, as Finder's 1024 frame
+   for the menus' pane: a header, written last, then the pixels, each in
+   whole sectors. Numbered apart from the slots, which the albums' covers
+   take too: by slot, each album's left a blank place, hundreds of MB for a
+   library whose albums an older firmware made. */
+#define COVERS_LARGE     ROCKBOX_DIR "/covers_large.dat"
+#define COVER_LARGE_MAGIC 0x4c434252 /* "RBCL" */
+#define COVER_LARGE_SIDE ITUNESDB_LARGE_SIDE
+#define COVER_LARGE_SLOT ((off_t)ALIGN_UP(sizeof(struct large_slot) \
+                          + COVER_LARGE_SIDE * COVER_LARGE_SIDE * sizeof(fb_data), \
+                          2048))
+/* the large pictures at most, as a file's offsets stop at 2 GB */
+#define COVERS_LARGE_MAX ((uint32_t)(0x7fffffff / COVER_LARGE_SLOT))
+/* in a song's entry: seen by the making going on, which no file has */
+#define SONG_SEEN        0x80
+/* its file changed since its cover was made, which a making cut short
+   hasn't made again: none shown, as the song's tags may not be read yet
+   to tell (song_cover()) */
+#define SONG_STALE       0x40
+
+struct songs_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t count;     /* songs */
+    uint32_t shown;     /* of them with a cover or a reason */
+    uint32_t pictures;
+    /* covers.dat's entries' sum when this was written with them: another's,
+       as an older firmware's making, may have given their slots to other
+       covers, and then neither this nor COVERS_LARGE is taken */
+    uint32_t covers;
+    uint32_t sum;       /* of the songs' entries */
+    uint32_t shown_sum; /* of the rest */
+    uint32_t whole;     /* 0 for a making cut short */
+    /* the song whose picture was being decoded, and how many makings were
+       cut short at it one after another: given up at two */
+    uint32_t making_mtime;
+    uint64_t making;
+    uint32_t making_tries;
+    uint32_t unused;
+};
+
+struct song_record {
+    uint64_t path;      /* itunesdb_path_hash() */
+    uint32_t size;      /* of the file */
+    uint32_t mtime;     /* of the file, as the database has it; 0 for one a
+                           computer made, which the next making checks */
+    uint32_t pic_pos;   /* where the picture is in the file, 0 for the
+                           folder's image */
+    uint32_t pic_size;  /* its bytes */
+    uint32_t source;    /* the stamp of the folder's image, 0 for the song's
+                           own picture or none */
+    uint32_t crc, adler; /* of its bytes, as covers_crc32() and _adler32() */
+    uint32_t word;      /* COVERS_WORD() */
+    uint32_t check;     /* covers_file_check() */
+    uint32_t unused;
+};
+
+struct song_picture {
+    uint16_t slot;
+    uint16_t large;     /* its place in COVERS_LARGE, from 1; 0 for none */
+    uint16_t width, height; /* of its frame */
+    uint32_t colour;
+    uint32_t crc;       /* which its large picture's header has */
+};
+
+struct large_slot {
+    uint32_t magic;
+    uint16_t width, height;
+    uint32_t crc, adler;
+};
 
 
 static struct art_header art_hdr;
@@ -5577,10 +5666,7 @@ static bool write_art_index(int old_handle, uint32_t old_count,
 #ifdef HAVE_TAGCACHE
         /* the lists' covers made again, marked before the index is in place */
         if (!same)
-        {
             list_covers_forget();
-            menu_cover_kept_forget();
-        }
 #endif
         /* the slides to make before the index is complete */
         close(open(SLIDES_TODO, O_WRONLY | O_CREAT | O_TRUNC, 0666));
@@ -5867,6 +5953,7 @@ static bool art_place(uint8_t format, uint8_t file, uint32_t offset,
     art->height = f->height;
     art->slide = 0;
     art->colour = COVER_COLOUR_UNKNOWN;
+    art->reason = ITUNESDB_COVER_SHOWN;
     return true;
 }
 
@@ -6677,7 +6764,6 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
             art_kept = false;
 #ifdef HAVE_TAGCACHE
             list_covers_forget();
-            menu_cover_kept_forget();
 #endif
         }
         errno = 0;
@@ -6768,8 +6854,91 @@ uint64_t itunesdb_album_key(const char *album, const char *artist,
     return hash ? hash : 1;
 }
 
-/* of the made covers' index in memory, 0 for none */
+/* the sum of covers.dat's entries, which the songs' file goes with; 0 for
+   none */
 static uint32_t covers_sum;
+
+/* The songs' covers in memory, for the songs that play: those with a cover
+   or a reason, and their pictures; taken as covers.dat is, at boot and after
+   a making */
+static struct index songs_index = { 0, 0, sizeof(struct covers_song_ram) };
+static struct index pictures_index = { 0, 0, sizeof(struct song_picture) };
+/* COVERS_SONGS goes with covers.dat: its slots and COVERS_LARGE's are its */
+static bool songs_trusted;
+
+static uint32_t covers_entries_sum(const struct cover_entry *e, uint32_t n)
+{
+    return n ? index_hash(e, n * sizeof(*e), 2166136261u) : 0;
+}
+
+/* the header of the songs' file, if it's of this version; false without */
+static bool songs_header_read(int fd, struct songs_header *h)
+{
+    return read(fd, h, sizeof(*h)) == sizeof(*h) && h->magic == SONGS_MAGIC
+           && h->version == SONGS_VERSION && h->count <= COUNT_MAX
+           && h->shown <= h->count && h->pictures <= h->shown
+           && ffilesize(fd) == (off_t)(sizeof(*h)
+                                       + h->count * sizeof(struct song_record)
+                                       + h->shown * sizeof(struct covers_song_ram)
+                                       + h->pictures * sizeof(struct song_picture));
+}
+
+/* A part of the file into memory, if its sum is as said: 0 without */
+static int songs_part_load(int fd, off_t pos, size_t size, uint32_t *sum)
+{
+    int handle = size ? db_alloc(size) : 0;
+    if (handle <= 0)
+        return 0;
+    core_pin(handle);
+    void *data = core_get_data(handle);
+    const bool ok = lseek(fd, pos, SEEK_SET) == pos
+                    && read(fd, data, size) == (ssize_t)size;
+    if (ok)
+        *sum = index_hash(data, size, *sum);
+    core_unpin(handle);
+    if (!ok)
+        core_free(handle);
+    return ok ? handle : 0;
+}
+
+static void songs_load(void)
+{
+    forget_index(&songs_index);
+    forget_index(&pictures_index);
+    songs_trusted = false;
+    struct songs_header h;
+    const int fd = open(COVERS_SONGS, O_RDONLY);
+    if (fd < 0)
+        return;
+    if (songs_header_read(fd, &h) && h.covers == covers_sum)
+    {
+        songs_trusted = true;
+        const off_t at = sizeof(h) + (off_t)h.count * sizeof(struct song_record);
+        const size_t shown = h.shown * sizeof(struct covers_song_ram);
+        uint32_t sum = 2166136261u;
+        const int songs = songs_part_load(fd, at, shown, &sum);
+        const int pictures = songs_part_load(fd, at + shown,
+                                             h.pictures * sizeof(struct song_picture),
+                                             &sum);
+        /* the pictures' part may have none, as of songs whose pictures
+           are none of them shown */
+        if (songs > 0 && (pictures > 0 || !h.pictures) && sum == h.shown_sum)
+        {
+            songs_index.handle = songs;
+            songs_index.count = h.shown;
+            pictures_index.handle = pictures;
+            pictures_index.count = h.pictures;
+        }
+        else
+        {
+            if (songs > 0)
+                core_free(songs);
+            if (pictures > 0)
+                core_free(pictures);
+        }
+    }
+    close(fd);
+}
 
 static void covers_load(void)
 {
@@ -6778,28 +6947,21 @@ static void covers_load(void)
     covers_have_frames = file_exists(COVERS_FRAMES);
     load_index(&covers_index, COVERS_FILE, &covers_hdr, sizeof(covers_hdr),
                COVERS_MAGIC, COVERS_VERSION);
-    /* what they are, for the covers kept of them (menu_cover.c) */
     covers_sum = 0;
     if (covers_index.handle > 0)
     {
-        core_pin(covers_index.handle);
-        covers_sum = index_hash(core_get_data(covers_index.handle),
-                                covers_index.count
-                                * sizeof(struct cover_entry),
-                                index_hash(&covers_hdr, sizeof(covers_hdr),
-                                           2166136261u));
-        core_unpin(covers_index.handle);
+        const struct cover_entry *e = core_get_data_pinned(covers_index.handle);
+        covers_sum = covers_entries_sum(e, covers_index.count);
+        core_put_data_pinned((void *)e);
     }
-}
-
-uint32_t itunesdb_covers_identity(void)
-{
-    /* the index's sum as the boot or the import read it; 0 until then */
-    return art_sum_read ? (art_sum_known ^ covers_sum * 16777619u) | 1 : 0;
+    songs_load();
 }
 
 static bool cover_art(const struct cover_entry *e, struct itunesdb_art *art)
 {
+    art->reason = ITUNESDB_COVER_SHOWN;
+    if (!e->slot && e->width == COVER_UNSHOWN)
+        art->reason = e->height;
     /* none with its frames gone, the track's own then */
     if (!covers_have_frames || !e->slot || e->slot > COVERS_SLOTS_MAX
         || !e->width || !e->height || e->width * e->height > FRAME_MAX)
@@ -6817,20 +6979,96 @@ bool itunesdb_find_album_art(const char *album, const char *artist,
                              const char *path, struct itunesdb_art *art)
 {
     struct cover_entry e;
+    art->reason = ITUNESDB_COVER_SHOWN;
     return covers_index.handle > 0
            && find_in_index(&covers_index,
                             itunesdb_album_key(album, artist, path), &e)
            && cover_art(&e, art);
 }
 
+/* the picture in a slot, of the songs' */
+static bool song_picture_of(uint32_t slot, struct song_picture *p)
+{
+    if (pictures_index.handle <= 0)
+        return false;
+    core_pin(pictures_index.handle);
+    const struct song_picture *e = core_get_data(pictures_index.handle);
+    int lo = 0, hi = (int)pictures_index.count - 1;
+    bool found = false;
+    while (lo <= hi && !found)
+    {
+        const int mid = (lo + hi) / 2;
+        if (e[mid].slot == slot)
+        {
+            *p = e[mid];
+            found = true;
+        }
+        else if (e[mid].slot < slot)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    core_unpin(pictures_index.handle);
+    return found;
+}
+
+/* The cover made of the song's own picture: 1 into art; 0 none known of the
+   song; -1 none, as its file changed since, or with art->reason why its
+   picture isn't shown */
+static int song_cover(const struct mp3entry *id3, const char *path,
+                      struct itunesdb_art *art)
+{
+    if (songs_index.handle <= 0)
+        return 0;
+    core_pin(songs_index.handle);
+    const struct covers_song_ram *e =
+        covers_song_find(core_get_data(songs_index.handle), songs_index.count,
+                         itunesdb_path_hash(path));
+    const struct covers_song_ram song = e ? *e : (struct covers_song_ram){ 0 };
+    core_unpin(songs_index.handle);
+    if (!e)
+        return 0;
+    if (COVERS_FLAGS_OF(song.word) & SONG_STALE)
+        return -1;
+    /* the file it was made of, by the tags read of it now: not of a track
+       known only by its path yet, as the one a skip goes to */
+    if (id3 && id3->filesize && !strcmp(id3->path, path)
+        && covers_file_check(id3->filesize,
+                             id3->has_embedded_albumart ? id3->albumart.pos : 0,
+                             id3->has_embedded_albumart ? id3->albumart.size : 0)
+           != song.check)
+        return -1;
+    art->reason = COVERS_REASON_OF(song.word);
+    const uint32_t slot = COVERS_SLOT_OF(song.word);
+    struct song_picture p;
+    if (!slot || slot > COVERS_SLOTS_MAX || !covers_have_frames
+        || !song_picture_of(slot, &p) || !p.width || !p.height
+        || p.width * p.height > FRAME_MAX)
+        return -1;
+    strmemccpy(art->path, COVERS_FRAMES, sizeof(art->path));
+    art->offset = (slot - 1) * COVER_SLOT;
+    art->width = p.width;
+    art->height = p.height;
+    art->slide = COVER_SLIDE_BASE + slot;
+    art->colour = p.colour;
+    art->reason = ITUNESDB_COVER_SHOWN;
+    return 1;
+}
+
 bool itunesdb_find_track_art(const struct mp3entry *id3, const char *path,
                              struct itunesdb_art *art)
 {
+    art->reason = ITUNESDB_COVER_SHOWN;
     /* Finder's first, the track's own */
     if (itunesdb_find_art(path, art))
         return true;
-    /* not for a song without an album, whose folder's cover is for Cover
-       Flow: singles in one folder each show their own */
+    /* then the one made of its own picture, which a track whose picture
+       isn't shown or whose file has changed goes without */
+    const int own = song_cover(id3, path, art);
+    if (own)
+        return own > 0;
+    /* then its album's, for a track with no picture of its own; not for a
+       song without an album, whose folder's cover is for Cover Flow */
     if (!id3 || !tag_given(id3->album))
         return false;
     /* the album artist as the database takes it: the track's artist's
@@ -6876,6 +7114,18 @@ static int load_cover_slide(const struct itunesdb_art *art, void *buf,
    is made at the next Updating Library */
 #define COVERS_CUT_SHORT (-1)
 
+/* the songs' file is whole and goes with covers.dat as loaded */
+static bool songs_whole(void)
+{
+    struct songs_header h;
+    const int fd = open(COVERS_SONGS, O_RDONLY);
+    const bool whole = fd >= 0 && songs_header_read(fd, &h) && h.whole
+                       && h.covers == covers_sum;
+    if (fd >= 0)
+        close(fd);
+    return whole;
+}
+
 bool itunesdb_covers_stale(void)
 {
     /* after a database's change they're made anyway; this is for a first
@@ -6888,7 +7138,8 @@ bool itunesdb_covers_stale(void)
                 && h.version == COVERS_VERSION
                 && h.commitid != COVERS_CUT_SHORT;
     close(fd);
-    return !made;
+    /* and the songs' own, which the albums' of an older firmware haven't */
+    return !made || !songs_whole();
 }
 
 /* the table written whole, through a file of its own: the writer shared with
@@ -6908,6 +7159,29 @@ static bool write_covers(const struct cover_entry *entries, int n, bool whole)
 }
 
 static void covers_images_made(void);
+static bool write_songs(const struct song_record *songs, int n,
+                        uint32_t covers, bool whole);
+
+/* The songs' file as it is said to be whole, for this table: what a making
+   cut short made is kept, those it found changed and didn't make again
+   being said to be (SONG_STALE). None, of another table's. */
+static void songs_said_whole(uint32_t covers)
+{
+    struct songs_header h;
+    int fd = open(COVERS_SONGS, O_RDWR);
+    const bool kept = fd >= 0 && songs_header_read(fd, &h)
+                      && h.covers == covers;
+    if (kept)
+    {
+        h.whole = 1;
+        if (lseek(fd, 0, SEEK_SET) == 0)
+            write(fd, &h, sizeof(h));
+    }
+    if (fd >= 0)
+        close(fd);
+    if (!kept)
+        write_songs(NULL, 0, covers, true);
+}
 
 void itunesdb_covers_skip(void)
 {
@@ -6918,10 +7192,16 @@ void itunesdb_covers_skip(void)
     covers_load();
     const struct cover_entry *old = covers_index.handle > 0
         ? core_get_data_pinned(covers_index.handle) : NULL;
-    write_covers(old, old ? (int)covers_index.count : 0, true);
+    const int n = old ? (int)covers_index.count : 0;
+    const bool written = write_covers(old, n, true);
+    const uint32_t sum = covers_entries_sum(old, n);
     if (old)
         core_put_data_pinned((void *)old);
+    /* the songs' as they are, for the same database */
+    if (written && !songs_whole())
+        songs_said_whole(sum);
     covers_images_made();
+    covers_load();
 }
 
 /* Making them: the table as it was, then those put meanwhile; each with
@@ -6934,7 +7214,12 @@ static int work_handle;
 /* COVERS_FREE_MIN, found once a making: it opens the database's files */
 static unsigned long covers_floor_kb;
 static int work_count, work_old, work_room;
-static uint32_t work_slots; /* the places the bitmap after the entries has */
+/* the places the bitmaps after the entries have: of the albums' and of the
+   songs', a place being free when neither has it; then one of the large
+   pictures' places, COVERS_LARGE_MAX */
+static uint32_t work_slots;
+/* below them, none free: where the next free one is looked for from */
+static uint32_t slot_hint, large_hint;
 static bool work_changed;   /* an album made or gone */
 static bool work_marked;    /* the file said to be in the making */
 /* the entries the table on disk has, -1 when it isn't the one the making
@@ -6943,6 +7228,20 @@ static int work_disk_count;
 /* the album a making before was cut short at, and how many times */
 static uint64_t work_prev;
 static uint32_t work_prev_stamp, work_prev_tries;
+
+/* The songs a making has: those of the file, by their paths, then those put
+   since; and the pictures they have, by their sums */
+static int songs_handle, pictures_handle;
+static int songs_old, songs_count, songs_room;
+static size_t pictures_room;
+static bool songs_sorted;   /* all of them by their paths, none put since */
+static bool songs_changed;
+static bool songs_images_changed;
+/* the song whose decode a making before was cut short at, how many times,
+   and whether it's given up */
+static uint64_t songs_prev;
+static uint32_t songs_prev_mtime, songs_prev_tries;
+static bool songs_prev_given_up;
 
 static struct cover_work *work_entries(void)
 {
@@ -6953,6 +7252,29 @@ static struct cover_work *work_entries(void)
 static uint8_t *work_used(void)
 {
     return (uint8_t *)(work_entries() + work_room);
+}
+
+/* and whether a song has it */
+static uint8_t *songs_used(void)
+{
+    return work_used() + (work_slots + 7) / 8;
+}
+
+/* whether a large picture has a place in COVERS_LARGE */
+static uint8_t *large_used(void)
+{
+    return songs_used() + (work_slots + 7) / 8;
+}
+#define LARGE_USED_SIZE ((COVERS_LARGE_MAX + 1 + 7) / 8)
+
+static struct song_record *song_records(void)
+{
+    return core_get_data(songs_handle);
+}
+
+static struct covers_picture *pictures(void)
+{
+    return core_get_data(pictures_handle);
 }
 
 static int work_find(uint64_t key);
@@ -6976,7 +7298,148 @@ static bool write_work(void)
     return whole_file_close(fd, COVERS_FILE, ok);
 }
 
-bool itunesdb_covers_begin(int albums)
+static void songs_work_free(void)
+{
+    if (songs_handle > 0)
+        core_free(songs_handle);
+    if (pictures_handle > 0)
+        core_free(pictures_handle);
+    songs_handle = pictures_handle = 0;
+}
+
+/* The songs of the file into the making, if it goes with covers.dat as
+   loaded: their count, and the highest slot they have. Without, the large
+   pictures go too, as their slots may be others' now. */
+static bool songs_work_load(int songs, uint32_t *top)
+{
+    struct songs_header h;
+    int fd = open(COVERS_SONGS, O_RDONLY);
+    const bool valid = fd >= 0 && songs_header_read(fd, &h);
+    const bool trusted = valid && h.covers == covers_sum;
+    songs_prev = 0;
+    songs_prev_tries = 0;
+    songs_prev_given_up = false;
+    if (valid && h.making)
+    {
+        songs_prev = h.making;
+        songs_prev_mtime = h.making_mtime;
+        songs_prev_tries = h.making_tries;
+        songs_prev_given_up = h.making_tries >= 2;
+    }
+    songs_old = trusted ? (int)h.count : 0;
+    songs_room = songs_old + MAX(songs, 0) + 1;
+    songs_handle = db_alloc(songs_room * sizeof(struct song_record));
+    /* the file's pictures, and one more at most for each song */
+    pictures_room = covers_pictures_room((trusted ? h.pictures : 0)
+                                         + MAX(songs, 0) + 1);
+    pictures_handle = songs_handle > 0
+        ? db_alloc(pictures_room * sizeof(struct covers_picture)) : 0;
+    if (songs_handle <= 0 || pictures_handle <= 0)
+    {
+        if (fd >= 0)
+            close(fd);
+        songs_work_free();
+        return false;
+    }
+    memset(pictures(), 0, pictures_room * sizeof(struct covers_picture));
+    bool ok = true;
+    if (songs_old)
+    {
+        core_pin(songs_handle);
+        const ssize_t size = songs_old * sizeof(struct song_record);
+        ok = read(fd, song_records(), size) == size
+             && index_hash(song_records(), size, 2166136261u) == h.sum;
+        core_unpin(songs_handle);
+    }
+    /* the pictures' sizes and colours, from the part after the songs' own,
+       by their slots: each song's into the table by its sums */
+    if (ok && songs_old && h.pictures)
+    {
+        const off_t at = sizeof(h) + (off_t)h.count * sizeof(struct song_record)
+                         + (off_t)h.shown * sizeof(struct covers_song_ram);
+        const size_t size = h.pictures * sizeof(struct song_picture);
+        const int part = db_alloc(size);
+        ok = part > 0 && lseek(fd, at, SEEK_SET) == at;
+        if (ok)
+        {
+            core_pin(part);
+            core_pin(songs_handle);
+            core_pin(pictures_handle);
+            const struct song_picture *sp = core_get_data(part);
+            const struct song_record *r = song_records();
+            ok = read(fd, (void *)sp, size) == (ssize_t)size;
+            for (int k = 0; ok && k < songs_old; k++)
+            {
+                const uint32_t slot = COVERS_SLOT_OF(r[k].word);
+                int lo = 0, hi = (int)h.pictures - 1, at_pic = -1;
+                while (slot && lo <= hi && at_pic < 0)
+                {
+                    const int mid = (lo + hi) / 2;
+                    if (sp[mid].slot == slot)
+                        at_pic = mid;
+                    else if (sp[mid].slot < slot)
+                        lo = mid + 1;
+                    else
+                        hi = mid - 1;
+                }
+                if (at_pic < 0)
+                    continue;
+                struct covers_picture *t =
+                    covers_picture_place(pictures(), pictures_room, r[k].crc,
+                                         r[k].adler, r[k].pic_size);
+                if (t && !t->size)
+                {
+                    t->crc = r[k].crc;
+                    t->adler = r[k].adler;
+                    t->size = r[k].pic_size;
+                    t->slot = slot;
+                    t->large = sp[at_pic].large <= COVERS_LARGE_MAX
+                               ? sp[at_pic].large : 0;
+                    t->width = sp[at_pic].width;
+                    t->height = sp[at_pic].height;
+                    t->colour = sp[at_pic].colour;
+                }
+            }
+            core_unpin(pictures_handle);
+            core_unpin(songs_handle);
+            core_unpin(part);
+        }
+        if (part > 0)
+            core_free(part);
+    }
+    if (fd >= 0)
+        close(fd);
+    if (!ok)
+    {
+        /* damaged: all made again */
+        songs_old = 0;
+        memset(pictures(), 0, pictures_room * sizeof(struct covers_picture));
+    }
+    if (!trusted || !ok)
+    {
+        remove(COVERS_LARGE);
+        /* and the menus' pane's covers test builds before this kept,
+           which nothing reads now: once, as the songs' are first made */
+        remove(ROCKBOX_DIR "/menu_covers.dat");
+    }
+    songs_count = songs_old;
+    songs_sorted = true;
+    songs_changed = !trusted || !ok;
+    *top = 0;
+    const struct song_record *r = song_records();
+    for (int i = 0; i < songs_old; i++)
+    {
+        /* a slot past the files' bounds, as of a file read damaged: the
+           song's made again */
+        if (COVERS_SLOT_OF(r[i].word) > COVERS_SLOTS_MAX)
+            song_records()[i].mtime = 0;
+        else
+            *top = MAX(*top, COVERS_SLOT_OF(r[i].word));
+    }
+    return true;
+}
+
+bool itunesdb_covers_begin(int albums, int songs, bool images_changed)
 {
     itunesdb_covers_end(COVERS_CUT);
     covers_floor_kb = COVERS_FREE_MIN;
@@ -7001,30 +7464,55 @@ bool itunesdb_covers_begin(int albums)
         work_prev_stamp = h.making_stamp;
         work_prev_tries = h.making_tries;
     }
+    uint32_t songs_top;
+    if (!songs_work_load(songs, &songs_top))
+        return false;
+    songs_images_changed = images_changed;
     /* and one for an album given up */
     work_room = work_old + MAX(albums, 0) + 1;
     const struct cover_entry *old = work_old ? core_get_data(covers_index.handle)
                                              : NULL;
-    uint32_t top = 0;
+    uint32_t top = songs_top;
     for (int i = 0; i < work_old; i++)
     {
         if (old[i].slot <= COVERS_SLOTS_MAX)
             top = MAX(top, old[i].slot);
     }
-    /* places for every album there can be, past those taken */
-    work_slots = top + MAX(albums, 0) + 1;
+    /* places for every album and every picture there can be, past those
+       taken */
+    work_slots = top + MAX(albums, 0) + MAX(songs, 0) + 1;
     work_handle = db_alloc(MAX(work_room, 1) * sizeof(struct cover_work)
-                           + (work_slots + 7) / 8);
+                           + 2 * ((work_slots + 7) / 8) + LARGE_USED_SIZE);
     if (work_handle <= 0)
     {
         work_handle = 0;
+        songs_work_free();
         return false;
     }
     /* again, as the allocation may have moved it */
     old = work_old ? core_get_data(covers_index.handle) : NULL;
     struct cover_work *w = work_entries();
     uint8_t *used = work_used();
-    memset(used, 0, (work_slots + 7) / 8);
+    memset(used, 0, 2 * ((work_slots + 7) / 8) + LARGE_USED_SIZE);
+    uint8_t *song_used = songs_used();
+    const struct song_record *r = song_records();
+    for (int i = 0; i < songs_old; i++)
+    {
+        const uint32_t slot = COVERS_SLOT_OF(r[i].word);
+        if (slot && slot < work_slots)
+            song_used[slot / 8] |= 1 << (slot % 8);
+    }
+    /* the large pictures' places the file's pictures have: none given to
+       another in this making, as the songs' file it started from may be
+       taken again after a reset */
+    uint8_t *large = large_used();
+    const struct covers_picture *t = pictures();
+    for (size_t i = 0; i < pictures_room; i++)
+    {
+        if (t[i].size && t[i].large)
+            large[t[i].large / 8] |= 1 << (t[i].large % 8);
+    }
+    slot_hint = large_hint = 1;
     bool dropped = false;
     for (int i = 0; i < work_old; i++)
     {
@@ -7116,38 +7604,6 @@ int itunesdb_cover_known(uint64_t key, uint32_t stamp)
     return e->width == COVER_UNSHOWN ? -2 : -1;
 }
 
-void itunesdb_cover_image(uint64_t key, uint32_t image)
-{
-    if (work_handle <= 0)
-        return;
-    int i = work_find(key);
-    if (i >= 0 && work_entries()[i].e.image != image)
-    {
-        work_entries()[i].e.image = image;
-        work_changed = true;
-    }
-}
-
-uint32_t itunesdb_cover_image_of(uint64_t key)
-{
-    if (work_handle <= 0)
-        return 0;
-    int i = work_find(key);
-    return i >= 0 ? work_entries()[i].e.image : 0;
-}
-
-void itunesdb_cover_unshown(uint64_t key)
-{
-    if (work_handle <= 0)
-        return;
-    int i = work_find(key);
-    if (i >= 0 && !work_entries()[i].e.slot)
-    {
-        work_entries()[i].e.width = COVER_UNSHOWN;
-        work_changed = true;
-    }
-}
-
 static uint32_t covers_images;
 static bool covers_images_read, covers_images_had;
 
@@ -7184,25 +7640,74 @@ static void covers_images_made(void)
     }
 }
 
-/* the first place no album has, taken; 0 for none left */
-static uint32_t free_slot(void)
+static bool slot_taken(const uint8_t *used, uint32_t slot)
 {
-    uint8_t *used = work_used();
-    for (uint32_t slot = 1; slot < work_slots && slot <= COVERS_SLOTS_MAX; slot++)
+    return slot < work_slots && (used[slot / 8] & (1 << (slot % 8)));
+}
+
+static void slot_take(uint8_t *used, uint32_t slot)
+{
+    if (slot && slot < work_slots)
+        used[slot / 8] |= 1 << (slot % 8);
+}
+
+/* the first place neither an album nor a song has, taken for one or the
+   other; 0 for none left */
+static uint32_t free_slot(bool song)
+{
+    for (uint32_t slot = slot_hint; slot < work_slots && slot <= COVERS_SLOTS_MAX;
+         slot++)
     {
-        if (!(used[slot / 8] & (1 << (slot % 8))))
+        if (!slot_taken(work_used(), slot) && !slot_taken(songs_used(), slot))
         {
-            used[slot / 8] |= 1 << (slot % 8);
+            slot_take(song ? songs_used() : work_used(), slot);
+            slot_hint = slot + 1;
             return slot;
         }
     }
     return 0;
 }
 
-static void release_slot(uint32_t slot)
+/* a place let go of, of used: another's then, if the other bitmap hasn't it */
+static void slot_drop(uint8_t *used, uint32_t slot)
 {
     if (slot && slot < work_slots)
-        work_used()[slot / 8] &= ~(1 << (slot % 8));
+    {
+        used[slot / 8] &= ~(1 << (slot % 8));
+        slot_hint = MIN(slot_hint, slot);
+    }
+}
+
+/* an album's place let go of */
+static void release_slot(uint32_t slot)
+{
+    slot_drop(work_used(), slot);
+}
+
+/* the first large picture's place no picture has, taken; 0 for none left */
+static uint32_t free_large(void)
+{
+    uint8_t *used = large_used();
+    for (uint32_t large = large_hint; large <= COVERS_LARGE_MAX; large++)
+    {
+        if (!(used[large / 8] & (1 << (large % 8))))
+        {
+            used[large / 8] |= 1 << (large % 8);
+            large_hint = large + 1;
+            return large;
+        }
+    }
+    return 0;
+}
+
+/* one taken here and not written: another's then */
+static void drop_large(uint32_t large)
+{
+    if (large && large <= COVERS_LARGE_MAX)
+    {
+        large_used()[large / 8] &= ~(1 << (large % 8));
+        large_hint = MIN(large_hint, large);
+    }
 }
 
 /* data at pos of the file, blank places put before it where it's shorter */
@@ -7269,24 +7774,95 @@ static void mark_making(uint64_t key, uint32_t stamp)
     work_marked = true;
 }
 
-void itunesdb_cover_making(uint64_t key, uint32_t stamp)
-{
-    if (work_handle > 0)
-        mark_making(key, stamp);
-}
-
-/* room on the disk for one more place of each file; Updating Library says
-   so if there's none */
-bool itunesdb_covers_room(void)
+/* room on the disk for the files to grow by this many bytes, the floor
+   kept; Updating Library says so if there's none */
+static bool covers_room_kb(off_t grow)
 {
     const unsigned long floor = work_handle > 0 ? covers_floor_kb
                                                 : COVERS_FREE_MIN;
     sector_t free = 0;
     volume_size(IF_MV(0,) NULL, &free);
-    if (free >= floor + (COVER_SLOT + SLIDE_SLOT) / 1024 + 1)
+    if (free >= floor + grow / 1024 + 1)
         return true;
     library_no_room();
     return false;
+}
+
+/* room for one more place of each file, as a making starts */
+bool itunesdb_covers_room(void)
+{
+    return covers_room_kb(COVER_SLOT + SLIDE_SLOT + COVER_LARGE_SLOT);
+}
+
+/* what the file grows by to hold end bytes */
+static off_t file_growth(const char *path, off_t end)
+{
+    const int fd = open(path, O_RDONLY);
+    const off_t size = fd >= 0 ? ffilesize(fd) : 0;
+    if (fd >= 0)
+        close(fd);
+    return MAX(end - MAX(size, 0), 0);
+}
+
+/* Room for a picture's frame and slide at slot and its large picture at
+   large (0 for none): what each file grows by, blank places before it from
+   where it ends, as write_slot() puts them. Asked only when one grows: one
+   written over in its place takes nothing more. */
+static bool covers_room_at(uint32_t slot, uint32_t large)
+{
+    const off_t grow = file_growth(COVERS_FRAMES, (off_t)slot * COVER_SLOT)
+                       + file_growth(COVERS_SLIDES, (off_t)slot * SLIDE_SLOT)
+                       + (large ? file_growth(COVERS_LARGE,
+                                              (off_t)large * COVER_LARGE_SLOT)
+                                : 0);
+    return !grow || covers_room_kb(grow);
+}
+
+/* A slot's frame of bm's picture, w by h, and its slide, into the files, and
+   the colour of the slide; with art_lock held. A slide cut short by
+   switching off isn't taken for one: its header goes last, as make_slide()
+   writes it. */
+static bool write_frame(uint32_t slot, uint64_t key, const fb_data *frame,
+                        int fw, int fh, uint32_t *colour)
+{
+    struct slide_header *head = (struct slide_header *)slide_slot;
+    fb_data *pixels = (fb_data *)(slide_slot + sizeof(*head));
+    memset(slide_slot, 0, sizeof(slide_slot));
+    /* the slide, the largest that fits, keeping the shape */
+    int w = ITUNESDB_SLIDE_SIZE, h = ITUNESDB_SLIDE_SIZE;
+    if (fw > fh)
+        h = (w * fh + fw / 2) / fw;
+    else
+        w = (h * fw + fh / 2) / fh;
+    cpu_boost(true);
+    scale_frame(frame, fw, fh, pixels, w, h, true);
+    cpu_boost(false);
+    head->magic = 0;
+    head->width = w;
+    head->height = h;
+    head->key = key;
+    *colour = cover_palette_colour(pixels, h, w);
+    /* a frame read last of this place is another album's now */
+    frame_path[0] = '\0';
+    itunesdb_slides_done();
+    int frames = open(COVERS_FRAMES, O_RDWR | O_CREAT, 0666);
+    int slides = open(COVERS_SLIDES, O_RDWR | O_CREAT, 0666);
+    const off_t slide_pos = (off_t)(slot - 1) * SLIDE_SLOT;
+    bool ok = frames >= 0 && slides >= 0
+              && write_slot(frames, (off_t)(slot - 1) * COVER_SLOT, frame,
+                            fw * fh * sizeof(fb_data))
+              && write_slot(slides, slide_pos, slide_slot, SLIDE_SLOT);
+    if (ok)
+    {
+        head->magic = SLIDE_MAGIC;
+        ok = lseek(slides, slide_pos, SEEK_SET) == slide_pos
+             && write(slides, head, sizeof(*head)) == sizeof(*head);
+    }
+    if (frames >= 0)
+        ok = close(frames) == 0 && ok;
+    if (slides >= 0)
+        ok = close(slides) == 0 && ok;
+    return ok;
 }
 
 int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm)
@@ -7296,9 +7872,6 @@ int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm)
     if (!work_marked)
         mark_making(0, 0); /* cut short, with no album being decoded */
     int i = work_find(key);
-    /* a new place, the files growing, only with room left on the disk */
-    if (bm && (i < 0 || !work_entries()[i].e.slot) && !itunesdb_covers_room())
-        return -1;
     if (i < 0)
     {
         if (work_count >= work_room)
@@ -7314,68 +7887,553 @@ int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm)
     e.image = 0;
     bool ok = true;
     const uint32_t had_slot = e.slot;
-    if (bm && bm->width > 0 && bm->height > 0
-        && bm->width * bm->height <= FRAME_MAX
-        && (e.slot || (e.slot = free_slot())))
-    {
-        const int fw = bm->width, fh = bm->height;
-        lock_art();
-        /* the slide, the largest that fits, keeping the shape */
-        struct slide_header *head = (struct slide_header *)slide_slot;
-        fb_data *pixels = (fb_data *)(slide_slot + sizeof(*head));
-        memset(slide_slot, 0, sizeof(slide_slot));
-        int w = ITUNESDB_SLIDE_SIZE, h = ITUNESDB_SLIDE_SIZE;
-        if (fw > fh)
-            h = (w * fh + fw / 2) / fw;
-        else
-            w = (h * fw + fh / 2) / fh;
-        cpu_boost(true);
-        scale_frame((const fb_data *)bm->data, fw, fh, pixels, w, h, true);
-        cpu_boost(false);
-        /* its header last, as make_slide() writes it: a slide cut short by
-           switching off isn't taken for one */
-        head->magic = 0;
-        head->width = w;
-        head->height = h;
-        head->key = key;
-        e.colour = cover_palette_colour(pixels, h, w);
-        /* a frame read last of this place is another album's now */
-        frame_path[0] = '\0';
-        itunesdb_slides_done();
-        int frames = open(COVERS_FRAMES, O_RDWR | O_CREAT, 0666);
-        int slides = open(COVERS_SLIDES, O_RDWR | O_CREAT, 0666);
-        const off_t slide_pos = (off_t)(e.slot - 1) * SLIDE_SLOT;
-        ok = frames >= 0 && slides >= 0
-             && write_slot(frames, (e.slot - 1) * COVER_SLOT, bm->data,
-                           fw * fh * sizeof(fb_data))
-             && write_slot(slides, slide_pos, slide_slot, SLIDE_SLOT);
-        if (ok)
-        {
-            head->magic = SLIDE_MAGIC;
-            ok = lseek(slides, slide_pos, SEEK_SET) == slide_pos
-                 && write(slides, head, sizeof(*head)) == sizeof(*head);
-        }
-        if (frames >= 0)
-            ok = close(frames) == 0 && ok;
-        if (slides >= 0)
-            ok = close(slides) == 0 && ok;
-        mutex_unlock(&art_lock);
-        if (ok)
-        {
-            e.width = fw;
-            e.height = fh;
-        }
-    }
-    if (!ok || !e.width)
-    {
-        /* none: its place for another */
-        release_slot(e.slot ? e.slot : had_slot);
+    /* a place of its own, not a song's, which keeps its picture */
+    if (e.slot && slot_taken(songs_used(), e.slot))
         e.slot = 0;
+    if (bm && bm->width > 0 && bm->height > 0
+        && bm->width * bm->height <= FRAME_MAX)
+    {
+        const bool new_slot = !e.slot;
+        if (new_slot)
+            e.slot = free_slot(false);
+        /* the files growing, only with room left on the disk; none, or no
+           place left, ends the making, the rest at a boot with room */
+        ok = e.slot && covers_room_at(e.slot, 0);
+        if (ok)
+        {
+            lock_art();
+            ok = write_frame(e.slot, key, (const fb_data *)bm->data,
+                             bm->width, bm->height, &e.colour);
+            mutex_unlock(&art_lock);
+        }
+        if (ok)
+        {
+            e.width = bm->width;
+            e.height = bm->height;
+        }
+        else
+        {
+            /* not known, but as one to make again; its place, written in
+               part, for another */
+            if (new_slot)
+                release_slot(e.slot);
+            e.stamp = 0;
+            e.slot = 0;
+        }
     }
+    if (!e.width)
+        e.slot = 0;
+    /* none, or another: its old place for another */
+    if (had_slot != e.slot)
+        release_slot(had_slot);
     work_entries()[i].e = e;
     work_entries()[i].seen = true;
     work_changed = true;
-    return ok ? 1 : 0;
+    return ok ? 1 : -1;
+}
+
+/** The songs' own **/
+
+static int cmp_song_record(const void *a, const void *b)
+{
+    const uint64_t x = ((const struct song_record *)a)->path;
+    const uint64_t y = ((const struct song_record *)b)->path;
+    return (x > y) - (x < y);
+}
+
+/* the song's entry, -1 for none: the old ones by their paths, then those put
+   since */
+static int song_find(uint64_t path)
+{
+    const struct song_record *r = song_records();
+    int lo = 0, hi = songs_old - 1;
+    while (lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (r[mid].path == path)
+            return mid;
+        if (r[mid].path < path)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    for (int i = songs_old; i < songs_count; i++)
+    {
+        if (r[i].path == path)
+            return i;
+    }
+    return -1;
+}
+
+/* all of them by their paths, as the albums look up their songs */
+static void songs_sort(void)
+{
+    if (songs_sorted || songs_handle <= 0)
+        return;
+    core_pin(songs_handle);
+    qsort(song_records(), songs_count, sizeof(struct song_record),
+          cmp_song_record);
+    core_unpin(songs_handle);
+    songs_old = songs_count;
+    songs_sorted = true;
+}
+
+int itunesdb_song_known(uint64_t path, uint32_t mtime, uint32_t source)
+{
+    if (songs_handle <= 0)
+        return 0;
+    const int i = song_find(path);
+    if (i < 0)
+        return 0;
+    struct song_record *r = &song_records()[i];
+    /* one a computer made has no time of the iPod's: its picture is read
+       again, once, and not decoded if it is as said */
+    if (!r->mtime)
+        return 0;
+    /* changed: its cover isn't shown until it's made again, which a making
+       cut short may leave for the next */
+    if (r->mtime != mtime)
+    {
+        r->word |= (uint32_t)SONG_STALE << COVERS_FLAGS_SHIFT;
+        return 0;
+    }
+    /* a cover of the folder's image, or none, which one may give now */
+    if (songs_images_changed && !(COVERS_FLAGS_OF(r->word) & SONG_SEEN)
+        && (r->source || !COVERS_SLOT_OF(r->word)))
+    {
+        if (source == ~0u)
+            return 2;
+        if (source != r->source)
+        {
+            r->word |= (uint32_t)SONG_STALE << COVERS_FLAGS_SHIFT;
+            return 0;
+        }
+    }
+    /* its file as its entry was made of again, as put back with its time:
+       its cover is shown again */
+    if (COVERS_FLAGS_OF(r->word) & SONG_STALE)
+    {
+        r->word &= ~((uint32_t)SONG_STALE << COVERS_FLAGS_SHIFT);
+        songs_changed = true;
+    }
+    r->word |= (uint32_t)SONG_SEEN << COVERS_FLAGS_SHIFT;
+    return 1;
+}
+
+/* the song's entry as given, with this word: in place of its old one, or new */
+static bool song_record_put(const struct itunesdb_song_cover *song,
+                            uint32_t word)
+{
+    int i = song_find(song->path);
+    if (i < 0)
+    {
+        if (songs_count >= songs_room)
+            return false;
+        i = songs_count++;
+        songs_sorted = false;
+    }
+    struct song_record *r = &song_records()[i];
+    memset(r, 0, sizeof(*r));
+    r->path = song->path;
+    r->size = song->size;
+    r->mtime = song->mtime;
+    r->pic_pos = song->pic_pos;
+    r->pic_size = song->pic_size;
+    r->source = song->source;
+    r->crc = song->crc;
+    r->adler = song->adler;
+    r->check = song->check;
+    r->word = word | (uint32_t)SONG_SEEN << COVERS_FLAGS_SHIFT;
+    songs_changed = true;
+    return true;
+}
+
+int itunesdb_song_picture(const struct itunesdb_song_cover *song)
+{
+    if (songs_handle <= 0 || work_handle <= 0)
+        return 0;
+    if (songs_prev_given_up && song->path == songs_prev
+        && song->mtime == songs_prev_mtime)
+    {
+        song_record_put(song, COVERS_WORD(0, ITUNESDB_COVER_UNREADABLE, 0));
+        return -1;
+    }
+    if (!song->pic_size)
+        return 0;
+    const struct covers_picture *p =
+        covers_picture_place(pictures(), pictures_room, song->crc,
+                             song->adler, song->pic_size);
+    if (!p || !p->size)
+        return 0;
+    song_record_put(song, COVERS_WORD(p->slot, 0, 0));
+    return 1;
+}
+
+void itunesdb_song_making(const struct itunesdb_song_cover *song)
+{
+    if (songs_handle <= 0)
+        return;
+    if (!work_marked)
+        mark_making(0, 0);
+    /* in the file's header, kept as it is otherwise: a new one if there is
+       none of this version */
+    struct songs_header h;
+    int fd = open(COVERS_SONGS, O_RDWR);
+    if (fd < 0 || !songs_header_read(fd, &h))
+    {
+        if (fd >= 0)
+            close(fd);
+        memset(&h, 0, sizeof(h));
+        h.magic = SONGS_MAGIC;
+        h.version = SONGS_VERSION;
+        fd = creat(COVERS_SONGS, 0666);
+    }
+    if (fd < 0)
+        return;
+    h.whole = 0;
+    h.making_tries = song->path == songs_prev && song->mtime == songs_prev_mtime
+                     ? songs_prev_tries + 1 : 1;
+    h.making = song->path;
+    h.making_mtime = song->mtime;
+    if (lseek(fd, 0, SEEK_SET) == 0)
+        write(fd, &h, sizeof(h));
+    close(fd);
+}
+
+/* A song's picture, bm, into p's slot: its frame, slide and colour made of
+   it, or with adopt only its large picture, the rest an album's cover of it
+   made before; the frame's size and the colour into p. Its large picture
+   into p's large place, if it has one and the picture is as large: else
+   none, p->large 0, the pane showing the frame larger. False for the frame
+   or slide not written. bm's pixels are changed. */
+static bool write_picture(struct bitmap *bm, bool adopt,
+                          struct covers_picture *p)
+{
+    const uint32_t slot = p->slot;
+    const int w = bm->width, h = bm->height;
+    int fw = p->width, fh = p->height;
+    bool ok = true;
+    lock_art();
+    if (!adopt)
+    {
+        /* the frame, 200 by 200 at most, from the picture, each pixel the
+           mean of those it covers; its slide and colour from it */
+        fw = fh = FRAME_SIDE;
+        covers_fit(w, h, &fw, &fh);
+        fb_data *frame = (fb_data *)frame_raw;
+        frame_path[0] = '\0';
+        frame_buf = NULL;
+        cpu_boost(true);
+        /* a picture smaller than the frame, which the decoder didn't make
+           larger, is scaled up */
+        if (fw <= w && fh <= h)
+            covers_area_scale((const fb_data *)bm->data, w, h, frame, fw, fh,
+                              (uint32_t *)slide_slot);
+        else
+            scale_frame((const fb_data *)bm->data, w, h, frame, fw, fh, false);
+        cpu_boost(false);
+        ok = write_frame(slot, ((uint64_t)p->crc << 32) | p->adler, frame, fw,
+                         fh, &p->colour);
+        p->width = fw;
+        p->height = fh;
+    }
+    /* the large one at the size the menus' pane fits the frame to */
+    int lw = COVER_LARGE_SIDE, lh = COVER_LARGE_SIDE;
+    covers_fit(fw, fh, &lw, &lh);
+    bool large = false;
+    if (ok && p->large && lw <= w && lh <= h)
+    {
+        if (lw != w || lh != h)
+        {
+            cpu_boost(true);
+            /* shrinking a row at a time, its own pixels can take it */
+            covers_area_scale((const fb_data *)bm->data, w, h,
+                              (fb_data *)bm->data, lw, lh,
+                              (uint32_t *)slide_slot);
+            cpu_boost(false);
+        }
+        const struct large_slot head = { COVER_LARGE_MAGIC, lw, lh,
+                                         p->crc, p->adler };
+        const off_t pos = (off_t)(p->large - 1) * COVER_LARGE_SLOT;
+        const int fd = open(COVERS_LARGE, O_RDWR | O_CREAT, 0666);
+        static const struct large_slot none;
+        /* its header last, none until then: one cut short isn't taken */
+        large = fd >= 0 && write_slot(fd, pos, &none, sizeof(none))
+                && write_slot(fd, pos + sizeof(head), bm->data,
+                              lw * lh * sizeof(fb_data))
+                && lseek(fd, pos, SEEK_SET) == pos
+                && write(fd, &head, sizeof(head)) == sizeof(head);
+        if (fd >= 0)
+            large = close(fd) == 0 && large;
+    }
+    mutex_unlock(&art_lock);
+    /* without it, the pane shows the frame larger */
+    if (!large)
+    {
+        drop_large(p->large);
+        p->large = 0;
+    }
+    return ok;
+}
+
+int itunesdb_song_put(const struct itunesdb_song_cover *song,
+                      const struct bitmap *bm, int reason)
+{
+    if (songs_handle <= 0 || work_handle <= 0)
+        return 0;
+    if (!work_marked)
+        mark_making(0, 0);
+    uint32_t slot = 0;
+    if (bm && bm->width > 0 && bm->height > 0 && song->pic_size
+        && bm->width <= COVER_LARGE_SIDE && bm->height <= COVER_LARGE_SIDE)
+    {
+        struct covers_picture *p =
+            covers_picture_place(pictures(), pictures_room, song->crc,
+                                 song->adler, song->pic_size);
+        /* the table full, as it can't be: none put, the song made again
+           the next time */
+        if (!p)
+            return 0;
+        if (p->size)
+            slot = p->slot; /* made since it was asked */
+        else
+        {
+            struct covers_picture made = { song->crc, song->adler,
+                                           song->pic_size, 0, 0, 0, 0,
+                                           COVER_COLOUR_UNKNOWN };
+            /* an album's cover made of this song before: its frame, slide
+               and colour as they are, a song's now too */
+            const int a = work_find(song->album);
+            const struct cover_entry *e = a >= 0 ? &work_entries()[a].e : NULL;
+            const bool adopt = e && song->album && e->stamp == song->album_stamp
+                && e->slot && e->slot < work_slots && covers_have_frames
+                && !slot_taken(songs_used(), e->slot)
+                && e->width && e->height && e->width * e->height <= FRAME_MAX;
+            if (adopt)
+            {
+                made.slot = e->slot;
+                made.width = e->width;
+                made.height = e->height;
+                made.colour = e->colour;
+                slot_take(songs_used(), made.slot);
+            }
+            else
+                made.slot = free_slot(true);
+            made.large = made.slot ? free_large() : 0;
+            /* No place left, no room on the disk for what the files grow
+               by, or the frame not written: the making ends with nothing
+               put, the rest made at a boot with room. A song put as having
+               none was so for good. */
+            if (!made.slot || !covers_room_at(made.slot, made.large)
+                || !write_picture((struct bitmap *)bm, adopt, &made))
+            {
+                slot_drop(songs_used(), made.slot);
+                drop_large(made.large);
+                return -1;
+            }
+            /* again: the table may have moved meanwhile */
+            p = covers_picture_place(pictures(), pictures_room, song->crc,
+                                     song->adler, song->pic_size);
+            if (p)
+                *p = made;
+            slot = made.slot;
+        }
+        reason = ITUNESDB_COVER_SHOWN;
+    }
+    return song_record_put(song, COVERS_WORD(slot, slot ? 0 : reason, 0))
+           ? 1 : 0;
+}
+
+bool itunesdb_song_usable(uint64_t song)
+{
+    if (songs_handle <= 0)
+        return false;
+    songs_sort();
+    const int k = song_find(song);
+    return k >= 0 && COVERS_SLOT_OF(song_records()[k].word)
+           && !(COVERS_FLAGS_OF(song_records()[k].word) & SONG_STALE);
+}
+
+int itunesdb_cover_of_song(uint64_t key, uint32_t stamp, uint64_t song)
+{
+    if (work_handle <= 0 || songs_handle <= 0)
+        return 0;
+    songs_sort();
+    const int k = song_find(song);
+    uint32_t slot = 0;
+    int reason = ITUNESDB_COVER_SHOWN;
+    struct covers_picture p = { 0 };
+    if (k >= 0)
+    {
+        const struct song_record *r = &song_records()[k];
+        /* none of a song changed since, which a making with songs left out
+           for room didn't make again */
+        const bool stale = COVERS_FLAGS_OF(r->word) & SONG_STALE;
+        slot = stale ? 0 : COVERS_SLOT_OF(r->word);
+        reason = stale ? ITUNESDB_COVER_SHOWN : COVERS_REASON_OF(r->word);
+        const struct covers_picture *t =
+            slot ? covers_picture_place(pictures(), pictures_room, r->crc,
+                                        r->adler, r->pic_size) : NULL;
+        if (t && t->size && t->slot == slot)
+            p = *t;
+        else
+            slot = 0;
+    }
+    int i = work_find(key);
+    if (i < 0)
+    {
+        if (work_count >= work_room)
+            return 0;
+        i = work_count++;
+        memset(&work_entries()[i], 0, sizeof(struct cover_work));
+        work_entries()[i].e.key = key;
+    }
+    struct cover_entry *e = &work_entries()[i].e;
+    work_entries()[i].seen = true;
+    const bool was_unshown = !e->slot && e->width == COVER_UNSHOWN;
+    struct cover_entry now = *e;
+    now.stamp = stamp;
+    now.image = 0;
+    now.slot = slot;
+    if (slot)
+    {
+        now.width = p.width;
+        now.height = p.height;
+        now.colour = p.colour;
+    }
+    else
+    {
+        now.width = reason ? COVER_UNSHOWN : 0;
+        now.height = reason;
+        now.colour = COVER_COLOUR_UNKNOWN;
+    }
+    if (now.stamp != e->stamp || now.slot != e->slot || now.width != e->width
+        || now.height != e->height || now.colour != e->colour
+        || now.image != e->image)
+    {
+        if (e->slot != slot)
+        {
+            release_slot(e->slot);
+            slot_take(work_used(), slot);
+        }
+        *e = now;
+        work_changed = true;
+    }
+    if (slot)
+        return 1;
+    return reason && !was_unshown ? 2 : reason ? 1 : 0;
+}
+
+static int cmp_picture_slot(const void *a, const void *b)
+{
+    return (int)((const struct covers_picture *)a)->slot
+           - (int)((const struct covers_picture *)b)->slot;
+}
+
+/* the pictures the songs to be written have, at the start of the table by
+   their slots, a slot once: how many */
+static int pictures_of_songs(const struct song_record *songs, int n)
+{
+    /* a slot has 15 bits at most (COVERS_SLOTS_MAX): the 16th marks it */
+    const uint16_t mark = 0x8000;
+    struct covers_picture *t = pictures();
+    for (int i = 0; i < n; i++)
+    {
+        if (!COVERS_SLOT_OF(songs[i].word))
+            continue;
+        struct covers_picture *p =
+            covers_picture_place(t, pictures_room, songs[i].crc,
+                                 songs[i].adler, songs[i].pic_size);
+        if (p && p->size && p->slot == COVERS_SLOT_OF(songs[i].word))
+            p->slot |= mark;
+    }
+    int count = 0;
+    for (size_t i = 0; i < pictures_room; i++)
+    {
+        if (t[i].size && (t[i].slot & mark))
+        {
+            struct covers_picture p = t[i];
+            p.slot &= ~mark;
+            t[count++] = p;
+        }
+    }
+    /* by slot, each once: songs of one picture share a slot */
+    qsort(t, count, sizeof(*t), cmp_picture_slot);
+    int unique = 0;
+    for (int i = 0; i < count; i++)
+    {
+        if (!unique || t[unique - 1].slot != t[i].slot)
+            t[unique++] = t[i];
+    }
+    return unique;
+}
+
+/* The entries made of the songs written through slide_slot, art_lock held:
+   a write() each was 13 000 and more */
+struct songs_out {
+    int fd;
+    size_t used;
+    bool ok;
+};
+
+static void songs_out_flush(struct songs_out *o)
+{
+    if (o->ok && o->used)
+        o->ok = write(o->fd, slide_slot, o->used) == (ssize_t)o->used;
+    o->used = 0;
+}
+
+static void songs_out_put(struct songs_out *o, const void *data, size_t size,
+                          uint32_t *sum)
+{
+    *sum = index_hash(data, size, *sum);
+    if (o->used + size > sizeof(slide_slot))
+        songs_out_flush(o);
+    memcpy(slide_slot + o->used, data, size);
+    o->used += size;
+}
+
+/* The songs' file, whole, with the parts kept in memory made of n songs, by
+   their paths, whose pictures are first in the pictures' table then (or
+   none) */
+static bool write_songs(const struct song_record *songs, int n,
+                        uint32_t covers, bool whole)
+{
+    struct songs_header h = { .magic = SONGS_MAGIC, .version = SONGS_VERSION,
+                              .count = n, .covers = covers, .whole = whole };
+    int pics = songs ? pictures_of_songs(songs, n) : 0;
+    const int fd = whole_file_open(COVERS_SONGS);
+    if (fd < 0)
+        return false;
+    bool ok = write(fd, &h, sizeof(h)) == sizeof(h);
+    const ssize_t size = n * sizeof(*songs);
+    h.sum = n ? index_hash(songs, size, 2166136261u) : 2166136261u;
+    ok = ok && (!n || write(fd, songs, size) == size);
+    h.shown_sum = 2166136261u;
+    lock_art();
+    struct songs_out out = { fd, 0, ok };
+    for (int i = 0; i < n; i++)
+    {
+        if (!COVERS_SLOT_OF(songs[i].word) && !COVERS_REASON_OF(songs[i].word))
+            continue;
+        const struct covers_song_ram e = { songs[i].path, songs[i].word,
+                                           songs[i].check };
+        songs_out_put(&out, &e, sizeof(e), &h.shown_sum);
+        h.shown++;
+    }
+    const struct covers_picture *t = songs ? pictures() : NULL;
+    for (int i = 0; i < pics; i++)
+    {
+        const struct song_picture p = { t[i].slot, t[i].large, t[i].width,
+                                        t[i].height, t[i].colour, t[i].crc };
+        songs_out_put(&out, &p, sizeof(p), &h.shown_sum);
+        h.pictures++;
+    }
+    songs_out_flush(&out);
+    mutex_unlock(&art_lock);
+    ok = out.ok && lseek(fd, 0, SEEK_SET) == 0
+         && write(fd, &h, sizeof(h)) == sizeof(h);
+    return whole_file_close(fd, COVERS_SONGS, ok);
 }
 
 static int cmp_cover(const void *a, const void *b)
@@ -7388,7 +8446,10 @@ static int cmp_cover(const void *a, const void *b)
 void itunesdb_covers_end(int how)
 {
     if (work_handle <= 0)
+    {
+        songs_work_free();
         return;
+    }
     const bool whole = how != COVERS_CUT;
     core_pin(work_handle);
     struct cover_work *w = work_entries();
@@ -7409,16 +8470,47 @@ void itunesdb_covers_end(int how)
     /* written only for a change, or to say where a making stopped, or after
        a making stopped: an update of Finder's songs alone left it as it was */
     const bool write = work_changed || !whole || itunesdb_covers_stale();
+    bool written = false;
     if (write)
-        write_covers(entries, n, whole);
+        written = write_covers(entries, n, whole);
+    const uint32_t sum = written ? covers_entries_sum(entries, n) : covers_sum;
     core_unpin(work_handle);
     core_free(work_handle);
     work_handle = 0;
+
+    /* the songs: those not seen are gone after a whole making, and the rest
+       is kept; written for a change, a making cut short or covers.dat
+       written */
+    bool songs_written = false;
+    if (songs_handle > 0)
+    {
+        songs_sort();
+        core_pin(songs_handle);
+        struct song_record *r = song_records();
+        int kept = 0;
+        for (int i = 0; i < songs_count; i++)
+        {
+            const bool seen = COVERS_FLAGS_OF(r[i].word) & SONG_SEEN;
+            r[i].word &= ~((uint32_t)SONG_SEEN << COVERS_FLAGS_SHIFT);
+            if (seen || how != COVERS_WHOLE)
+                r[kept++] = r[i];
+            else
+                songs_changed = true;
+        }
+        if (songs_changed || written || !whole || !songs_whole())
+        {
+            core_pin(pictures_handle);
+            songs_written = write_songs(r, kept, sum, whole);
+            core_unpin(pictures_handle);
+        }
+        core_unpin(songs_handle);
+    }
+    songs_work_free();
     if (whole)
         covers_images_made();
-    /* the new table in memory, for the tracks played from now on, and none
+    /* the new tables in memory, for the tracks played from now on, and none
        of the copies of the covers before */
-    if (write)
+    if (write || songs_written)
     {
         forget_index(&covers_index);
         covers_load();
@@ -7426,9 +8518,75 @@ void itunesdb_covers_end(int how)
 #ifdef HAVE_TAGCACHE
         album_header_forget_cover();
         list_covers_forget();
-        menu_cover_kept_forget();
 #endif
     }
+}
+
+/* the large picture's place of the song's picture in our slot, 0 for none */
+static uint32_t slot_large(uint32_t slot, struct song_picture *p)
+{
+    return songs_trusted && slot && slot <= COVERS_SLOTS_MAX
+           && song_picture_of(slot, p) && p->large <= COVERS_LARGE_MAX
+           ? p->large : 0;
+}
+
+/* The large picture of our slot, if its file has it and goes with the
+   table: its record, with the frame's size it was made for */
+static bool find_large_slot(uint32_t slot, int frame_w, int frame_h,
+                            struct itunesdb_large_art *large)
+{
+    struct song_picture p;
+    const uint32_t at = slot_large(slot, &p);
+    if (!at)
+        return false;
+    int lw = COVER_LARGE_SIDE, lh = COVER_LARGE_SIDE;
+    covers_fit(frame_w, frame_h, &lw, &lh);
+    struct large_slot head;
+    const off_t pos = (off_t)(at - 1) * COVER_LARGE_SLOT;
+    const int fd = open(COVERS_LARGE, O_RDONLY);
+    const bool ok = fd >= 0 && lseek(fd, pos, SEEK_SET) == pos
+                    && read(fd, &head, sizeof(head)) == sizeof(head)
+                    && head.magic == COVER_LARGE_MAGIC
+                    && head.width == lw && head.height == lh
+                    /* the song's picture's, as the table has its sum */
+                    && head.crc == p.crc;
+    if (fd >= 0)
+        close(fd);
+    if (!ok)
+        return false;
+    strmemccpy(large->path, COVERS_LARGE, sizeof(large->path));
+    large->offset = pos + sizeof(head);
+    large->pitch = lw;
+    large->x = large->y = 0;
+    large->width = lw;
+    large->height = lh;
+    return true;
+}
+
+/* the slot of our cover at art, 0 for one of Finder's */
+static uint32_t art_slot(const struct itunesdb_art *art)
+{
+    if (strcmp(art->path, COVERS_FRAMES) || art->offset % COVER_SLOT)
+        return 0;
+    return art->offset / COVER_SLOT + 1;
+}
+
+bool itunesdb_find_large_of(const char *path, const struct itunesdb_art *art,
+                            struct itunesdb_large_art *large)
+{
+    const uint32_t slot = art_slot(art);
+    return slot ? find_large_slot(slot, art->width, art->height, large)
+                : itunesdb_find_large_art(path, large);
+}
+
+bool itunesdb_has_large_of(const char *path, const struct itunesdb_art *art)
+{
+    struct song_picture p;
+    if (art_slot(art))
+        return slot_large(art_slot(art), &p) != 0;
+    struct itunesdb_art finders;
+    return itunesdb_has_large_art() && itunesdb_find_art(path, &finders)
+           && finders.offset == art->offset && !strcmp(finders.path, art->path);
 }
 #else /* !ITUNESDB_HAVE_ART */
 bool itunesdb_import_kept_art(void)
@@ -7725,10 +8883,7 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
         core_free(old_slides_handle);
 #ifdef HAVE_TAGCACHE
     if (!art_placed)
-    {
         list_covers_forget();
-        menu_cover_kept_forget();
-    }
 #endif
     /* no index of this artwork: none due either */
     if (!art_placed)
@@ -7833,8 +8988,6 @@ bool itunesdb_load_tracks(void)
                ART_MAGIC, ART_VERSION);
     load_slides_index();
     load_colours();
-    /* read here also with no index, for itunesdb_covers_identity() */
-    art_sum();
     /* an index of artwork that is gone, as set aside and the import after
        it cut: the import now, which has none then */
     if (itunesdb_art_orphaned())

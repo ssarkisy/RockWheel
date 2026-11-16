@@ -39,8 +39,7 @@
 #include "metadata.h"
 /*
  * Returns the handle id of the buffered albumart for the given slot id; if
- * none, ERR_UNSUPPORTED_TYPE once the track is known to have none for it,
- * ERR_HANDLE_NOT_DONE while its cover decodes as the track starts
+ * none, ERR_UNSUPPORTED_TYPE once the track is known to have none for it
  **/
 int playback_current_aa_hid(int slot);
 bool playback_current_has_art(void);
@@ -50,6 +49,9 @@ struct bitmap *playback_current_largest_art(void);
    thread other than the UI's, which audio_current_track() isn't for */
 struct bitmap *playback_current_largest_art_of(long *tagcache_idx);
 uint32_t playback_current_cover_colour(void);
+/* Why the user's current track has no cover, its picture being in a format
+   that isn't shown (enum itunesdb_cover_reason); 0 for a cover, or none */
+int playback_current_cover_reason(void);
 #ifdef AUDIO_FAST_SKIP_PREVIEW
 struct itunesdb_art;
 bool playback_skip_art(struct itunesdb_art *art);
@@ -83,9 +85,9 @@ struct itunesdb_art;
 
 struct bufopen_bitmap_data {
     struct dim *dim;
-    struct mp3_albumart *embedded_albumart;
-    const struct itunesdb_art *ipod_art; /* a cover Finder made */
-    bool defer; /* set aside the room only: bufdecode_bitmap() decodes later */
+    /* a cover Finder made, or Updating Library: playback has no other; NULL
+       for an image file, as the radio's */
+    const struct itunesdb_art *ipod_art;
 };
 
 #endif /* HAVE_ALBUMART */

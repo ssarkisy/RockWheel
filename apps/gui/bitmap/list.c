@@ -34,6 +34,7 @@
 #include "action.h"
 #include "screen_access.h"
 #include "list.h"
+#include "cover_caution.h"
 #include "scrollbar.h"
 #include "lang.h"
 #include "language.h"
@@ -1069,8 +1070,12 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         if (cover != LIST_COVER_NONE)
         {
             const int cover_y = list_info.y + (row_h - LINE_COVER_SIZE) / 2;
-            line_draw_cover(display, list_info.x + cover_x, cover_y,
-                            cover == LIST_COVER_PIXELS ? cover_pixels : NULL);
+            if (cover == LIST_COVER_UNSUPPORTED)
+                cover_caution_tile(display, list_info.x + cover_x, cover_y,
+                                   LINE_COVER_SIZE, false);
+            else
+                line_draw_cover(display, list_info.x + cover_x, cover_y,
+                                cover == LIST_COVER_PIXELS ? cover_pixels : NULL);
 #ifdef HAVE_LCD_COLOR
             const int radius = ui_metric(UI_METRIC_ROW_COVER_RADIUS);
             if (radius > 0)

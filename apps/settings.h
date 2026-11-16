@@ -1136,6 +1136,9 @@ struct user_settings
        2 days or Never (sleep_poweroff_apply()) */
     int sleep_poweroff;
 #endif
+    /* Settings > Appearance > Missing Covers Caution: a song whose picture
+       isn't shown says why in the cover's place (cover_caution.h) */
+    bool cover_caution;
 };
 
 /* global settings */

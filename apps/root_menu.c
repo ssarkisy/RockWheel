@@ -1949,7 +1949,6 @@ static void library_update_screen(const char *words)
        from the database in memory, without which it finds no album */
     const struct tagcache_stat *tc = tagcache_get_stat();
     const bool covers_stale = phase == TAGCACHE_IMPORT_NONE
-                              && global_settings.album_art != AA_OFF
                               && tc->ready && tc->ramcache
                               && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock")
                               && (itunesdb_covers_stale()

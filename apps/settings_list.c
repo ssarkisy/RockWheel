@@ -918,6 +918,14 @@ static void playback_frequency_callback(int sample_rate_hz)
 #endif /* HAVE_PLAY_FREQ */
 
 #ifdef HAVE_ALBUMART
+/* Now Playing and the pane drawn again with it, or without */
+static void cover_caution_changed(bool on)
+{
+    (void)on;
+    skin_request_full_update(WPS);
+    skin_request_full_update(CUSTOM_STATUSBAR);
+}
+
 static void albumart_callback(int mode)
 {
     set_albumart_mode(mode);
@@ -1372,6 +1380,10 @@ const struct settings_list settings[] = {
                    albumart_callback, 3,
                    ID2P(LANG_OFF), ID2P(LANG_PREFER_EMBEDDED),
                    ID2P(LANG_PREFER_IMAGE_FILE)),
+    /* Settings > Appearance: a song whose picture isn't shown says why in
+       the cover's place (cover_caution.h) */
+    OFFON_SETTING(0, cover_caution, LANG_MISSING_COVERS_CAUTION, true,
+                  "missing covers caution", cover_caution_changed),
 #endif
 
     /* LCD */

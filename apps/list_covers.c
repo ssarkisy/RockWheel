@@ -55,12 +55,17 @@
 #include "album_years.h"
 #include "album_header.h"
 #include "list_covers.h"
+#include "gui/cover_caution.h"
 
 #ifdef ITUNESDB_HAVE_ART
 
 #define SIDE        LINE_COVER_SIZE
 #define SLOT_SIZE   (SIDE * SIDE * (int)sizeof(fb_data)) /* a sector, read as one */
 #define NO_SLOT     0xffff
+/* in the slots kept in memory, an album without one whose picture isn't
+   shown, by its reason */
+#define REASON_SLOT 0xfff0
+#define REASON_MOST 3
 
 /* The file: its header, an entry for each album of the table of years by its
    number, and from a sector's start on the covers, one a slot, of the albums
@@ -86,7 +91,8 @@ struct file_entry {
     uint64_t key;       /* itunesdb_album_key() of its name and album artist */
     uint32_t source;    /* of the cover its slot was made of, 0 for none */
     uint16_t slot;      /* NO_SLOT for none */
-    uint16_t unused;
+    uint16_t reason;    /* with none, why its picture isn't shown
+                           (itunesdb.h); 0 in an older firmware's */
 };
 
 static off_t data_start(uint32_t count)
@@ -343,7 +349,9 @@ void list_covers_load(void)
                 break;
             uint16_t *slots = core_get_data(index_handle);
             for (size_t k = 0; k < got / sizeof(*e); k++)
-                slots[n++] = e[k].slot < h.slots ? e[k].slot : NO_SLOT;
+                slots[n++] = e[k].slot < h.slots ? e[k].slot
+                             : e[k].reason && e[k].reason <= REASON_MOST
+                             ? REASON_SLOT + e[k].reason : NO_SLOT;
         }
         if (n == count)
         {
@@ -439,12 +447,25 @@ void list_covers_forget(void)
 
 /* an album's slot in the file, -1 for none or none known, as with the file
    of another table */
-static int slot_of(int no)
+/* the album's slot in the file, -1 for none; with none, why its picture
+   isn't shown into *reason, if asked */
+static int slot_reason(int no, int *reason)
 {
     if (!covers || no < 0 || no >= index_count || !index_ready())
         return -1;
     const int slot = ((const uint16_t *)core_get_data(index_handle))[no];
+    if (slot > REASON_SLOT && slot <= REASON_SLOT + REASON_MOST)
+    {
+        if (reason)
+            *reason = slot - REASON_SLOT;
+        return -1;
+    }
     return slot == NO_SLOT ? -1 : slot;
+}
+
+static int slot_of(int no)
+{
+    return slot_reason(no, NULL);
 }
 
 static int kept_place(int slot)
@@ -471,9 +492,11 @@ static void want(int16_t *list, int *count, int slot)
 
 int list_covers_get(int no, const fb_data **pixels)
 {
-    const int slot = slot_of(no);
+    int reason = 0;
+    const int slot = slot_reason(no, &reason);
     if (slot < 0)
-        return LIST_COVER_NOTE;
+        return reason && cover_caution_on() ? LIST_COVER_UNSUPPORTED
+                                            : LIST_COVER_NOTE;
     const int place = kept_place(slot);
     if (place >= 0)
     {
@@ -847,7 +870,7 @@ bool list_covers_stale(void)
     /* made whether the setting is on or not, so that turning it on shows them
        at once; none without anything to make them from */
     const struct tagcache_stat *tc = tagcache_get_stat();
-    if (global_settings.album_art == AA_OFF || !tc->ready || !tc->ramcache)
+    if (!tc->ready || !tc->ramcache)
         return false;
     if (file_exists(COVERS_TODO))
         return true;
@@ -1112,10 +1135,11 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
     {
         struct itunesdb_art art;
         const int32_t song = album_years_first_track(no);
+        art.reason = 0;
         const bool found = song >= 0 && album_header_find_art(song, &art) > 0;
         entries[no] = (struct file_entry){
             .key = album_key(no), .source = found ? art_source(&art) : 0,
-            .slot = NO_SLOT,
+            .slot = NO_SLOT, .reason = found ? 0 : art.reason,
         };
         if (found)
             order[slots++] = no;
@@ -1140,7 +1164,8 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
                 && old_h.slots == (uint32_t)slots;
     for (int no = 0; no < count && same; no++)
         same = old[no].key == entries[no].key && old[no].source == entries[no].source
-               && old[no].slot == entries[no].slot;
+               && old[no].slot == entries[no].slot
+               && old[no].reason == entries[no].reason;
     if (same)
     {
         close(old_fd);

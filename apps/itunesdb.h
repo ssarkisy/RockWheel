@@ -214,6 +214,18 @@ struct itunesdb_art {
     int width, height;  /* of the frame */
     int slide;          /* its album's slide for Cover Flow, 0 for none */
     uint32_t colour;    /* its album's colour: see cover_palette.h */
+    int reason;         /* none found: why the picture there is isn't shown
+                           (enum itunesdb_cover_reason), 0 for no picture */
+};
+
+/* Why a song with a picture has no cover: one the core's decoder can't read,
+   known as Updating Library prepared it */
+enum itunesdb_cover_reason {
+    ITUNESDB_COVER_SHOWN = 0,   /* or no picture */
+    ITUNESDB_COVER_PNG,         /* a PNG, in the song or as its folder's image */
+    ITUNESDB_COVER_PROGRESSIVE, /* a progressive JPEG */
+    ITUNESDB_COVER_UNREADABLE,  /* another kind, damaged, or one that crashed
+                                   or hung the decoder */
 };
 
 /* Cover Flow's slides, one an album, made after an import: covers this
@@ -225,6 +237,10 @@ struct itunesdb_art {
 #define ITUNESDB_SLIDE_ROOM 2048
 #define ITUNESDB_SLIDE_SIZE MIN(MAX(LCD_HEIGHT * 17 / 30, LCD_WIDTH * 2 / 5), \
                                 LCD_HEIGHT * 2 / 3)
+
+/* the side of the larger picture, Finder's 1024 frame's and the one
+   Updating Library makes, as the menus' pane shows it */
+#define ITUNESDB_LARGE_SIDE LCD_HEIGHT
 
 /* the cover Finder made for the file at path */
 bool itunesdb_find_art(const char *path, struct itunesdb_art *art);
@@ -240,8 +256,13 @@ struct itunesdb_large_art {
     int pitch, x, y, width, height;
 };
 bool itunesdb_find_large_art(const char *path, struct itunesdb_large_art *art);
-/* some cover has one: known without the disk */
-bool itunesdb_has_large_art(void);
+/* That frame of the cover at art, whichever's it is, Finder's or one made on
+   Updating Library (240 px a side at most, its shape as art's frame's):
+   find() reads its record from the disk, has() tells without the disk if
+   there may be one */
+bool itunesdb_find_large_of(const char *path, const struct itunesdb_art *art,
+                            struct itunesdb_large_art *large);
+bool itunesdb_has_large_of(const char *path, const struct itunesdb_art *art);
 /* the songs with a cover of the computer's, by the index in memory */
 uint32_t itunesdb_art_count(void);
 /* the artwork was put back in place: its index is made at the next boot's
@@ -253,22 +274,25 @@ bool itunesdb_large_art_ready(void);
 /* the cover index on the disk is of artwork that is gone: the import, which
    removes it */
 bool itunesdb_art_orphaned(void);
-/* What Finder's covers and the made ones are now, as a number that changes
-   when either's index does: for what is kept of them elsewhere. Without the
-   disk; 0 until the indexes are loaded. */
-uint32_t itunesdb_covers_identity(void);
 int itunesdb_load_large_art(const struct itunesdb_large_art *art,
                             void *pixels);
 
-/* The covers of the albums of songs copied outside Finder's folder, made on
-   Updating Library in Finder's forms, one an album. An album's key: its name
-   and album artist, as the database has them (the track's artist without
-   one), Latin letters in either case as one; or else the folder of path. */
+/* The covers of songs Finder made none for, made on Updating Library in
+   Finder's forms: the 200 px frame, its slide and the 240 px picture of each
+   song's own picture, found by the song's path, one for each picture however
+   many songs have it; and one an album, for Cover Flow, the lists and the
+   album's header, found by the album. An album's key: its name and album
+   artist, as the database has them (the track's artist without one), Latin
+   letters in either case as one; or else the folder of path. */
 struct mp3entry;
 uint64_t itunesdb_album_key(const char *album, const char *artist,
                             const char *path);
-/* the cover of the track at path with these tags: Finder's, or else its
-   album's */
+/* The cover of the track at path with these tags: Finder's, or else the one
+   made of its own picture, or else its album's. Without the disk. A song
+   whose file has changed since its own was made (by id3's size and picture,
+   when id3 is of path and read from the file) has none, rather than the old
+   one. False with
+   art->reason set for a picture that isn't shown. */
 bool itunesdb_find_track_art(const struct mp3entry *id3, const char *path,
                              struct itunesdb_art *art);
 /* an album's of ours, by what itunesdb_album_key() takes */
@@ -276,36 +300,70 @@ bool itunesdb_find_album_art(const char *album, const char *artist,
                              const char *path, struct itunesdb_art *art);
 /* not made yet for the database as it is now */
 bool itunesdb_covers_stale(void);
-/* Making them, by Cover Flow's plugin: begin with room for this many albums;
-   for each, known() when made from the same stamp, and kept: 1, or -1 when
-   none was found then, -2 when it was in a format not shown, 0 when not made
-   so; or else put() with its frame, up
-   to 200 by 200, or NULL for none found, and making() before decoding it;
-   then end(). */
-bool itunesdb_covers_begin(int albums);
+/* Making them, by Cover Flow's plugin, on Updating Library: begin() with
+   room for this many albums and songs, and whether the images outside
+   Finder's folder changed since the last making. Then the songs: for each
+   song Finder has no cover of, song_known(); for one to be made, its
+   picture's sums to song_picture(), and, if that isn't known, song_making()
+   before its decode and song_put() with the picture, up to 240 by 240, or
+   none and why. Then the albums: for one with a song of Finder's,
+   cover_known() and cover_put() with Finder's frame, up to 200 by 200; for
+   the others, cover_of_song() of the song whose cover it takes. Then
+   end(). */
+bool itunesdb_covers_begin(int albums, int songs, bool images_changed);
 /* none to be made for this database, as without the room for it */
 void itunesdb_covers_skip(void);
 int itunesdb_cover_known(uint64_t key, uint32_t stamp);
-/* said just before an album's cover is decoded: an album the making is cut
-   short at twice, as by a cover that crashes the decoder, is given up */
-void itunesdb_cover_making(uint64_t key, uint32_t stamp);
-/* put() of none, its cover in a format that isn't shown, as PNG: known()
-   says -2 for it then */
-void itunesdb_cover_unshown(uint64_t key);
-/* after put(), the stamp of the image in the album's folder it was made of,
-   0 for none; image_of() says the one kept, for the images changed */
-void itunesdb_cover_image(uint64_t key, uint32_t image);
-uint32_t itunesdb_cover_image_of(uint64_t key);
+
+/* A song as the making takes it: its path's itunesdb_path_hash(), its file's
+   size and time, covers_file_check() of its tags, where its picture is (in
+   the file, or the folder's image of that stamp, 0 for the song's own), and
+   that picture's sums; and its album's key and the stamp a making of the
+   album would have from it, for a cover of the album made before from this
+   song, which its own is then made into */
+struct itunesdb_song_cover {
+    uint64_t path;
+    uint32_t size, mtime, check;
+    uint32_t pic_pos, pic_size, source;
+    uint32_t crc, adler;
+    uint64_t album;
+    uint32_t album_stamp;
+};
+/* The song known as it is: 1 kept as it was; 0 to be made; 2 to be asked
+   again with source, the stamp of its folder's image now (0 for none), when
+   the images changed and its cover may come of one; source ~0 when not
+   known yet */
+int itunesdb_song_known(uint64_t path, uint32_t mtime, uint32_t source);
+/* 1 its picture is one made already, and the song has it now; 0 it is to be
+   decoded; -1 a decode of it was cut short twice, by a crash or a hang, and
+   the song has none, as unreadable */
+int itunesdb_song_picture(const struct itunesdb_song_cover *song);
+/* said just before the song's picture is decoded */
+void itunesdb_song_making(const struct itunesdb_song_cover *song);
+/* the song's picture decoded into bm, up to 240 by 240; or NULL with why
+   there is none (enum itunesdb_cover_reason, 0 for no picture). 1 made, 0
+   not; -1 with nothing put, for no room left on the disk, no place left or
+   a write failed, which ends the making: the rest at the next one. */
+int itunesdb_song_put(const struct itunesdb_song_cover *song,
+                      const struct bitmap *bm, int reason);
+/* An album without a song of Finder's takes the cover of its first song
+   whose picture is shown, which song_usable() tells after the songs are
+   made; with none, its first song's, which is none or why its picture
+   isn't shown. cover_of_song() gives it that song's: 1 made or kept, 2 one
+   of a picture not shown that wasn't before, 0 none. */
+bool itunesdb_song_usable(uint64_t song);
+int itunesdb_cover_of_song(uint64_t key, uint32_t stamp, uint64_t song);
 /* the images outside Finder's folder changed since the covers were made, by
    the check after USB: they're to be looked at again */
 bool itunesdb_covers_images_changed(void);
 /* room for a cover more, the next import's kept; else the message (misc.h) */
 bool itunesdb_covers_room(void);
-/* 1 made, 0 not, -1 for no room left on the disk, which ends the making */
+/* 1 made, 0 not; -1 for no room left on the disk, no place left or a write
+   failed, which ends the making, the album made again at the next */
 int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm);
-/* how they end: every album looked at, those not being gone; cut short by
-   Menu or USB, the rest made the next time; or the albums known not all of
-   them, those not seen kept */
+/* how they end: every album and song looked at, those not being gone; cut
+   short by Menu or USB, the rest made the next time; or not all of them
+   known, those not seen kept */
 #define COVERS_CUT    0
 #define COVERS_WHOLE  1
 #define COVERS_PARTLY 2

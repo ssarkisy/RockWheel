@@ -1481,12 +1481,9 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
 
 #ifdef HAVE_ALBUMART
 /* The next track's cover takes a moment to load, and with no cover there the
-   backdrop's note would show until then. So the last one stays that long: a copy,
-   as the buffer may have dropped it. Not for a track known to have none; for one
-   whose cover decodes as it starts (playback.c, audio_defer_albumart()), until
-   that's done, as the note between the two covers flashed. */
-#define ART_KEPT_TIME   (HZ * 3 / 4)
-#define ART_DECODE_KEPT_TIME (HZ * 3)
+   backdrop's note would show until then. So the last one stays that long
+   (COVER_KEPT_TIME, as its colours): a copy, as the buffer may have dropped it.
+   Not for a track known to have none. */
 #define ART_KEPT_SIZE   200
 
 static struct {
@@ -1501,7 +1498,6 @@ static struct {
     bool had_cover; /* it had one when last looked at */
     bool keeping;   /* it has none now, and the copy stays until then */
     long until;
-    long since;     /* the tick the keeping began */
 } kept_art[2];
 
 static void art_seen(int index, int handle)
@@ -1525,11 +1521,8 @@ static void art_seen(int index, int handle)
     {
         kept_art[index].had_cover = false;
         kept_art[index].keeping = true;
-        kept_art[index].since = current_tick;
-        kept_art[index].until = current_tick + ART_KEPT_TIME;
+        kept_art[index].until = current_tick + COVER_KEPT_TIME;
     }
-    if (handle == ERR_HANDLE_NOT_DONE && kept_art[index].keeping)
-        kept_art[index].until = kept_art[index].since + ART_DECODE_KEPT_TIME;
 }
 
 /* Until skin_art_kept_expired() has said its time is up, which a full update
@@ -1901,6 +1894,20 @@ static bool shown_db_art(int handle, struct itunesdb_art *art)
            && itunesdb_find_track_art(id3, id3->path, art);
 }
 
+/* A handle not found yet, of a playing track the database has no cover of
+   either (shown_db_art() having missed): none, as every cover is made at
+   Updating Library. Playback says so as it reads the track's tags; a skip
+   landing before that kept the last cover under the new title for
+   COVER_KEPT_TIME. */
+static int settled_handle(int handle)
+{
+    const struct mp3entry *id3 = get_wps_state()->id3;
+    return handle == ERR_HANDLE_NOT_FOUND && id3 && id3->path[0]
+           && global_settings.album_art != AA_OFF
+           && (audio_status() & AUDIO_STATUS_PLAY)
+           ? ERR_UNSUPPORTED_TYPE : handle;
+}
+
 /* That cover, in the copy kept between covers */
 static bool db_art_ready(const struct wps_data *data, int index, int handle)
 {
@@ -1967,6 +1974,7 @@ bool skin_art_found(const struct wps_data *data, int handle)
         art_seen(0, 0); /* as one it has */
         return true;
     }
+    handle = settled_handle(handle);
 #endif
     art_seen(0, handle);
     return handle >= 0 || art_is_kept(0);
@@ -2018,6 +2026,9 @@ bool skin_art_colours_update(const struct wps_data *data)
         if (art.colour != COVER_COLOUR_UNKNOWN)
             return cover_palette_update(COVER_ART_BY_COLOUR, art.colour);
     }
+    else
+        return cover_palette_update(settled_handle(handle),
+                                    playback_current_cover_colour());
 #endif
     return cover_palette_update(handle, playback_current_cover_colour());
 }
@@ -2046,6 +2057,9 @@ int skin_art_handle(const struct wps_data *data, int index, int handle)
         art_seen(index, 0);
         return SKIN_ART_KEPT;
     }
+    struct itunesdb_art art;
+    if (!shown_db_art(handle, &art))
+        handle = settled_handle(handle);
 #endif
     art_seen(index, handle);
     if (handle < 0 && kept_art[index].width > 0 && art_is_kept(index))

@@ -208,9 +208,6 @@ static struct albumart_slot
     int used;           /* Counter; increments if something uses it */
 } albumart_slots[MAX_MULTIPLE_AA]; /* (A,O) */
 
-static char last_folder_aa_path[MAX_PATH] = "\0";
-static int last_folder_aa_hid[MAX_MULTIPLE_AA] = {0};
-
 #define FOREACH_ALBUMART(i) for (int i = 0; i < MAX_MULTIPLE_AA; i++)
 #endif /* HAVE_ALBUMART */
 
@@ -232,7 +229,7 @@ static enum filling_state
 
 /* Track info - holds information about each track in the buffer */
 #ifdef HAVE_ALBUMART
-#define TRACK_INFO_AA       (2 * MAX_MULTIPLE_AA + 1)
+#define TRACK_INFO_AA       MAX_MULTIPLE_AA
 #else
 #define TRACK_INFO_AA       0
 #endif
@@ -258,9 +255,6 @@ struct track_info
     int chapters_hid;               /* Its chapters' (struct chapters) */
 #ifdef HAVE_ALBUMART
     int aa_hid[MAX_MULTIPLE_AA];    /* Album art handle IDs */
-    int aa_wait_hid[MAX_MULTIPLE_AA]; /* Set aside for a cover to decode
-                                       when the track plays */
-    int aa_raw_hid;                 /* Those covers' embedded bytes */
 #endif
 #ifdef HAVE_CODEC_BUFFERING
     int codec_hid;                  /* Buffered codec handle ID */
@@ -269,6 +263,8 @@ struct track_info
     }; };
 #ifdef HAVE_ALBUMART
     uint32_t cover_colour;          /* The colour of the cover, if known */
+    uint8_t cover_reason;           /* none: why its picture isn't shown
+                                       (enum itunesdb_cover_reason) */
 #endif
 };
 
@@ -544,6 +540,7 @@ static void track_info_wipe(struct track_info *infop)
         infop->handle[i] = ERR_HANDLE_NOT_FOUND;
 #ifdef HAVE_ALBUMART
     infop->cover_colour = COVER_COLOUR_UNKNOWN;
+    infop->cover_reason = 0;
 #endif
 }
 
@@ -676,20 +673,6 @@ static bool track_list_commit_buf_info(struct track_buf_info *tbip,
     return true;
 }
 
-#ifdef HAVE_ALBUMART
-static inline void clear_cached_aa_handles(int* aa_handles)
-{
-    if (last_folder_aa_path[0] == 0)
-        return;
-
-    FOREACH_ALBUMART(i)
-    {
-        if (aa_handles[i] == last_folder_aa_hid[i])
-            aa_handles[i] = 0;
-    }
-}
-#endif //HAVE_ALBUMART
-
 /* Free the track buffer entry and possibly remove it from the list if it
    was succesfully added at some point */
 static void track_list_free_buf_info(struct track_buf_info *tbip)
@@ -731,9 +714,6 @@ static void track_list_free_buf_info(struct track_buf_info *tbip)
     /* No movement allowed during bufclose calls */
     buf_pin_handle(hid, true);
 
-#ifdef HAVE_ALBUMART
-    clear_cached_aa_handles(tbip->info.aa_hid);
-#endif
     FOR_EACH_TRACK_INFO_HANDLE(i)
         bufclose(tbip->info.handle[i]);
 
@@ -923,21 +903,6 @@ size_t audio_buffer_available(void)
     return MAX(core_size, size);
 }
 
-#ifdef HAVE_ALBUMART
-static void clear_last_folder_album_art(void)
-{
-    if(last_folder_aa_path[0] == 0)
-        return;
-
-    last_folder_aa_path[0] = 0;
-    FOREACH_ALBUMART(i)
-    {
-        bufclose(last_folder_aa_hid[i]);
-        last_folder_aa_hid[i] = 0;
-    }
-}
-#endif
-
 /* Set up the audio buffer for playback
  * filebuflen must be pre-initialized with the maximum size */
 static void audio_reset_buffer_noalloc(
@@ -973,10 +938,6 @@ static void audio_reset_buffer_noalloc(
     scratch_mem_init(filebuf);
     filebuf += allocsize;
     filebuflen -= allocsize;
-
-#ifdef HAVE_ALBUMART
-    clear_last_folder_album_art();
-#endif
 
     buffering_reset(filebuf, filebuflen);
 
@@ -1655,13 +1616,20 @@ static void buf_read_cuesheet(int handle_id)
    and its cover with it */
 static struct itunesdb_art skip_art;
 static int skip_art_offset = 0; /* the skip it's of, 0 for none */
+/* or, for one without a cover, why its picture isn't shown, and the skip;
+   and the skip to one known to have none */
+static int skip_reason, skip_reason_offset, skip_none_offset;
 
 static void note_skip_art(int offset, const struct mp3entry *id3, const char *path)
 {
-    if (id3 == id3_get(PLAYING_PEEK_ID3))
-        skip_art_offset = global_settings.album_art != AA_OFF
-                          && itunesdb_find_track_art(id3, path, &skip_art)
-                          ? offset : 0;
+    if (id3 != id3_get(PLAYING_PEEK_ID3))
+        return;
+    const bool looked = global_settings.album_art != AA_OFF;
+    const bool found = looked && itunesdb_find_track_art(id3, path, &skip_art);
+    skip_art_offset = found ? offset : 0;
+    skip_none_offset = looked && !found ? offset : 0;
+    skip_reason = looked && !found ? skip_art.reason : 0;
+    skip_reason_offset = skip_reason ? offset : 0;
 }
 #endif
 
@@ -2136,166 +2104,43 @@ void set_albumart_mode(int setting)
     albumart_mode = setting;
 }
 
-static int load_album_art_from_path(char *path, struct bufopen_bitmap_data *user_data, bool is_current_track, int i)
-{
-    user_data->embedded_albumart = NULL;
-
-    bool same_path = strcmp(last_folder_aa_path, path) == 0;
-    if (same_path && last_folder_aa_hid[i] != 0)
-        return last_folder_aa_hid[i];
-
-    // To simplify caching logic a bit we keep track only for first AA path
-    // If other album arts use different path (like dimension specific arts) just skip caching for them
-    bool is_cacheable = i == 0 && (is_current_track || last_folder_aa_path[0] == 0);
-    if (!same_path && is_cacheable)
-    {
-        clear_last_folder_album_art();
-        strcpy(last_folder_aa_path, path);
-    }
-    int hid = bufopen(path, 0, TYPE_BITMAP, user_data);
-    if (hid != ERR_BUFFER_FULL && (same_path || is_cacheable))
-        last_folder_aa_hid[i] = hid;
-    return hid;
-}
-
-/* A cover embedded in a track is decoded only once the codec has the track,
-   after its audio has opened (audio_on_decode_albumart()): decoded as a track
-   loaded ahead, a large one kept the audio thread from the playing track for
-   seconds, and again after each rebuffer of it, as during a scrub; decoded as
-   the track to play loaded, before its audio, it held back the sound as long.
-   Its bytes are read now, as the disk reads the audio, so the decode wakes no
-   disk. Returns the handle set aside for the bitmap, or < 0 as bufopen(). */
-static int audio_defer_albumart(struct track_info *infop,
+#ifdef ITUNESDB_HAVE_ART
+/* The track's cover, if it has one: only a cover made already, Finder's, or
+   one Updating Library made of the song's own picture or its album's
+   (itunesdb.h). Nothing is decoded as music plays, nor read from the song's
+   file or its folder: a song without one shows none, and its reason, if its
+   picture is in a format that isn't shown. Looked up as its tags are read,
+   before a frequency switch or a full buffer leaves its covers for later. */
+static bool audio_find_albumart(struct track_info *infop,
                                 const struct mp3entry *track_id3,
-                                struct bufopen_bitmap_data *user_data)
+                                struct itunesdb_art *art)
 {
-    if (infop->aa_raw_hid < 0)
-    {
-        int hid = bufopen_embedded_art(track_id3->path, &track_id3->albumart);
-        if (hid < 0)
-            return hid;
-        infop->aa_raw_hid = hid;
-    }
-    user_data->defer = true;
-    int hid = bufopen(track_id3->path, 0, TYPE_BITMAP, user_data);
-    user_data->defer = false;
-    return hid;
+    art->reason = 0;
+    const bool found = global_settings.album_art != AA_OFF
+                       && itunesdb_find_track_art(track_id3, track_id3->path,
+                                                  art);
+    infop->cover_reason = found ? 0 : art->reason;
+    if (found)
+        infop->cover_colour = art->colour;
+    return found;
 }
-
-/* Whether the track the codec has has a cover set aside: then one decode of
-   it, the smallest first, waits in the queue. As it starts, or as it loads if
-   the codec got to it first. */
-static void audio_queue_decode_albumart(void)
-{
-    struct track_info info;
-    if (!track_list_current(0, &info) || info.aa_raw_hid < 0)
-        return;
-    if (!queue_peek_ex(&audio_queue, NULL, 0,
-                       QPEEK_FILTER1(Q_AUDIO_DECODE_ART)))
-        audio_queue_post(Q_AUDIO_DECODE_ART, 0);
-}
-
-/* One cover of the track the codec has, set aside as it loaded: one a
-   message, the smallest first, so that a seek or a skip waits for one decode
-   at most (Q_AUDIO_DECODE_ART) */
-static void audio_on_decode_albumart(void)
-{
-    struct track_info info;
-    if (!track_list_current(0, &info) || info.aa_raw_hid < 0)
-        return;
-
-    int i = -1;
-    FOREACH_ALBUMART(j)
-    {
-        if (info.aa_wait_hid[j] >= 0
-            && (i < 0 || albumart_slots[j].dim.width * albumart_slots[j].dim.height
-                         < albumart_slots[i].dim.width * albumart_slots[i].dim.height))
-            i = j;
-    }
-
-    if (i >= 0)
-    {
-        int rc = -1;
-        const struct mp3entry *id3 = bufgetid3(info.id3_hid);
-        if (id3)
-        {
-            /* the id3 may move as the decode yields */
-            struct mp3_albumart aa = id3->albumart;
-#ifdef HAVE_PRIORITY_SCHEDULING
-            /* The first, Now Playing's, at the audio thread's own priority:
-               over the UI, and over the codec once it has 1.6 s to play
-               (pcmbuf.c). The others with the UI, which draws the first as
-               it's done: over it, the screen waited for the next decode. */
-            int prio = -1;
-            FOREACH_ALBUMART(j)
-            {
-                if (info.aa_hid[j] >= 0 && prio < 0)
-                    prio = thread_set_priority(thread_self(),
-                                               PRIORITY_USER_INTERFACE);
-            }
+#else
+struct itunesdb_art;
 #endif
-            rc = bufdecode_bitmap(info.aa_wait_hid[i], info.aa_raw_hid, &aa);
-#ifdef HAVE_PRIORITY_SCHEDULING
-            if (prio >= 0)
-                thread_set_priority(thread_self(), prio);
-#endif
-        }
-        if (rc > 0)
-        {
-            logf("Decoded album art:%dx%d", albumart_slots[i].dim.width,
-                 albumart_slots[i].dim.height);
-            info.aa_hid[i] = info.aa_wait_hid[i];
-        }
-        else
-        {
-            /* as a failed decode when loaded: no cover in this slot */
-            bufclose(info.aa_wait_hid[i]);
-            info.aa_hid[i] = ERR_UNSUPPORTED_TYPE;
-        }
-        info.aa_wait_hid[i] = ERR_HANDLE_NOT_FOUND;
-    }
 
-    bool more = false;
-    FOREACH_ALBUMART(j)
-        more |= info.aa_wait_hid[j] >= 0;
-    if (!more)
-    {
-        bufclose(info.aa_raw_hid);
-        info.aa_raw_hid = ERR_HANDLE_NOT_FOUND;
-    }
-    track_info_sync(&info);
-
-    if (more)
-        audio_queue_post(Q_AUDIO_DECODE_ART, 0);
-
-    /* Now Playing's cover, if it's of this track: otherwise it looks when
-       it next wakes */
-    struct track_info user_cur;
-    if (i >= 0 && track_list_user_current(0, &user_cur)
-        && user_cur.self_hid == info.self_hid)
-        button_queue_post(BUTTON_NONE, 0);
-}
-
-/* Load any album art for the file - returns false if the buffer is full */
-static int audio_load_albumart(struct track_info *infop,
-                                struct mp3entry *track_id3, bool is_current_track)
+/* Load any album art for the file - returns false if the buffer is full: the
+   cover ipod_art found above, NULL for none, which marks each handle none */
+static int audio_load_albumart(struct track_info *infop, bool is_current_track,
+                               const struct itunesdb_art *ipod_art)
 {
 #ifdef ITUNESDB_HAVE_ART
-    /* the cover Finder made for the stock firmware: no JPEG to decode */
-    struct itunesdb_art ipod_art;
-    bool have_ipod_art = global_settings.album_art != AA_OFF
-                         && itunesdb_find_track_art(track_id3, track_id3->path,
-                                                    &ipod_art);
-    if (have_ipod_art)
-        infop->cover_colour = ipod_art.colour;
+    const bool have_ipod_art = ipod_art != NULL;
 #ifdef HAVE_SKIP_ART
     /* The track starting now: Now Playing reads its cover from the iPod's covers itself,
        as at a skip, and the audio opens without waiting for it. A track loaded ahead
        has its covers in the buffer for when it starts. */
-    if (have_ipod_art && is_current_track
-        && global_settings.album_art != AA_PREFER_IMAGE_FILE)
+    if (have_ipod_art && is_current_track)
     {
-        clear_last_folder_album_art();
         track_info_sync(infop);
         button_queue_post(BUTTON_NONE, 0);
         return true;
@@ -2324,78 +2169,32 @@ static int audio_load_albumart(struct track_info *infop,
     for (int n = 0; n < MAX_MULTIPLE_AA; n++)
     {
         int i = order[n];
-        struct bufopen_bitmap_data user_data;
         int *aa_hid = &infop->aa_hid[i];
         int hid = ERR_UNSUPPORTED_TYPE;
-        bool checked_image_file = false;
 
         /* albumart_slots may change during a yield of bufopen,
          * but that's no problem */
         if (!albumart_slots[i].used)
             continue;
         rank++;
-#ifdef ITUNESDB_HAVE_ART
         /* Larger than Finder's covers and only for the panel beside the menus, which
            makes it when it shows: scaling it took longer than the rest of a cover, for
            every track, with the screen and the music waiting */
-        if (have_ipod_art && rank >= 2)
+        if (rank >= 2)
             continue;
-#endif
-        if (*aa_hid >= 0 || *aa_hid == ERR_UNSUPPORTED_TYPE
-            || infop->aa_wait_hid[i] >= 0)
+        if (*aa_hid >= 0 || *aa_hid == ERR_UNSUPPORTED_TYPE)
             continue;
-
-        memset(&user_data, 0, sizeof(user_data));
-        user_data.dim = &albumart_slots[i].dim;
-
-        char path[MAX_PATH];
-        if(global_settings.album_art == AA_PREFER_IMAGE_FILE)
-        {
-            if (find_albumart(track_id3, path, sizeof(path),
-                          &albumart_slots[i].dim))
-            {
-                hid = load_album_art_from_path(path, &user_data, is_current_track, i);
-            }
-            checked_image_file = true;
-        }
 
 #ifdef ITUNESDB_HAVE_ART
-        if (have_ipod_art && hid < 0 && hid != ERR_BUFFER_FULL)
+        if (have_ipod_art)
         {
-            if (is_current_track)
-                clear_last_folder_album_art();
-            user_data.ipod_art = &ipod_art;
-            hid = bufopen(ipod_art.path, 0, TYPE_BITMAP, &user_data);
-            user_data.ipod_art = NULL;
+            struct bufopen_bitmap_data user_data;
+            memset(&user_data, 0, sizeof(user_data));
+            user_data.dim = &albumart_slots[i].dim;
+            user_data.ipod_art = ipod_art;
+            hid = bufopen(ipod_art->path, 0, TYPE_BITMAP, &user_data);
         }
 #endif
-
-        /* We can only decode jpeg for embedded AA */
-        if (global_settings.album_art != AA_OFF &&
-            hid < 0 && hid != ERR_BUFFER_FULL &&
-            track_id3->has_embedded_albumart && (track_id3->albumart.type & AA_CLEAR_FLAGS_MASK) == AA_TYPE_JPG)
-        {
-            if (is_current_track)
-                clear_last_folder_album_art();
-            /* only the bytes as yet */
-            hid = audio_defer_albumart(infop, track_id3, &user_data);
-            if (hid >= 0)
-            {
-                infop->aa_wait_hid[i] = hid;
-                continue;
-            }
-        }
-
-        if (global_settings.album_art != AA_OFF && !checked_image_file &&
-            hid < 0 && hid != ERR_BUFFER_FULL)
-        {
-            /* No embedded AA or it couldn't be loaded - try other sources */
-            if (find_albumart(track_id3, path, sizeof(path),
-                              &albumart_slots[i].dim))
-            {
-                hid = load_album_art_from_path(path, &user_data, is_current_track, i);
-            }
-        }
 
         if (hid == ERR_BUFFER_FULL)
         {
@@ -2417,8 +2216,8 @@ static int audio_load_albumart(struct track_info *infop,
             }
             else
             {
-                logf("Loaded album art:%dx%d", user_data.dim->width,
-                     user_data.dim->height);
+                logf("Loaded album art:%dx%d", albumart_slots[i].dim.width,
+                     albumart_slots[i].dim.height);
             }
 
             *aa_hid = hid;
@@ -2765,6 +2564,21 @@ static int audio_finish_load_track(struct track_info *infop)
     /* Sound Check: while the disk is reading anyway */
     itunesdb_set_track_gain(track_id3);
 
+#ifdef HAVE_ALBUMART
+    /* Whether it has a cover, known before the exits below: one with none
+       has each handle said to be none at once. A frequency switch or a full
+       buffer left them unknown, and the cover kept of the track before
+       showed under its title until the skip to it was over. */
+    const struct itunesdb_art *ipod_art = NULL;
+#ifdef ITUNESDB_HAVE_ART
+    struct itunesdb_art found_art;
+    if (audio_find_albumart(infop, track_id3, &found_art))
+        ipod_art = &found_art;
+#endif
+    if (!ipod_art)
+        audio_load_albumart(infop, false, NULL);
+#endif
+
     struct track_info user_cur;
 
 #ifdef HAVE_PLAY_FREQ
@@ -2794,7 +2608,8 @@ static int audio_finish_load_track(struct track_info *infop)
 
 #ifdef HAVE_ALBUMART
     /* Try to load album art for the track */
-    int retval = audio_load_albumart(infop, track_id3, infop->self_hid == cur_info.self_hid);
+    int retval = audio_load_albumart(infop, infop->self_hid == cur_info.self_hid,
+                                     ipod_art);
     if (retval == ERR_BITMAP_TOO_LARGE)
     {
         /* No space for album art on buffer because the file is larger than the buffer.
@@ -2927,11 +2742,6 @@ audio_finish_load_track_exit:
         logf("Track info sync failed");
         trackstat = LOAD_TRACK_ERR_FINISH_FAILED;
     }
-#ifdef HAVE_ALBUMART
-    /* the codec got to it as it loaded: a cover set aside before then */
-    else if (trackstat >= LOAD_TRACK_OK && infop->self_hid == cur_info.self_hid)
-        audio_queue_decode_albumart();
-#endif
 
     if (trackstat < LOAD_TRACK_OK)
     {
@@ -3329,12 +3139,6 @@ static void audio_begin_track_change(enum pcm_track_change_type type,
             {
                 if (track_skip_is_manual)
                     playing_id3_sync(&info, NULL, true);
-#ifdef HAVE_ALBUMART
-                /* its covers, as the codec starts: an automatic change
-                   is heard once the PCM buffer has played out, by when
-                   they're there */
-                audio_queue_decode_albumart();
-#endif
                 return;
             }
         }
@@ -3765,9 +3569,6 @@ static void audio_stop_playback(void)
     iap_on_play_status(play_status);
 
     wipe_track_metadata(true);
-#ifdef HAVE_ALBUMART
-    clear_last_folder_album_art();
-#endif
     /* Go idle */
     filling = STATE_IDLE;
     cancel_cpu_boost();
@@ -4299,10 +4100,6 @@ void audio_playback_handler(struct queue_event *ev)
             break;
 
 #ifdef HAVE_ALBUMART
-        case Q_AUDIO_DECODE_ART:
-            LOGFQUEUE("playback < Q_AUDIO_DECODE_ART");
-            audio_on_decode_albumart();
-            break;
 #endif
 
         /** Miscellaneous messages **/
@@ -4717,7 +4514,8 @@ void audio_skip(int offset)
            processed one */
         skip_offset = accum;
 #ifdef HAVE_SKIP_ART
-        skip_art_offset = 0; /* until the preview below finds it */
+        /* until the preview below finds it */
+        skip_art_offset = skip_reason_offset = skip_none_offset = 0;
 #endif
         pcmbuf_skip_requested();
 
@@ -4823,13 +4621,17 @@ void audio_flush_and_reload_tracks(void)
 static bool track_list_cover_current(struct track_info *infop)
 {
     const int offset = skip_offset + skip_under_way;
-    bool have_info = track_list_user_current(offset, infop);
-
-    /* Give the actual position a go */
-    if (!have_info && abs(offset) <= 1)
-        have_info = track_list_user_current(0, infop);
-
-    return have_info;
+    if (track_list_user_current(offset, infop))
+        return true;
+    /* The one playing, for a skip on its way to a track that isn't in the
+       buffer: only if it is the track Now Playing shows already
+       (audio_current_track()). Another's cover and colours were drawn under
+       the title of the one the skip goes to, as long as the skip waited. */
+    if (offset == 0 || abs(offset) > 1 || !track_list_user_current(0, infop))
+        return false;
+    const struct mp3entry *shown = id3_get(PLAYING_PEEK_ID3);
+    const struct mp3entry *id3 = bufgetid3(infop->id3_hid);
+    return shown && id3 && shown->path[0] && !strcmp(shown->path, id3->path);
 }
 
 /* Return which album art handle is current for the user in the given slot */
@@ -4852,14 +4654,21 @@ int playback_current_aa_hid(int slot)
     struct track_info user_cur;
 
     if ((unsigned)slot < MAX_MULTIPLE_AA && track_list_cover_current(&user_cur))
-    {
-        /* one that decodes now the track has started: there soon (not one
-           of a track ahead that a skip on its way shows) */
-        if (user_cur.aa_hid[slot] < 0 && user_cur.aa_wait_hid[slot] >= 0
-            && skip_offset + skip_under_way == 0)
-            return ERR_HANDLE_NOT_DONE;
         return user_cur.aa_hid[slot];
-    }
+#ifdef HAVE_SKIP_ART
+    /* a skip on its way to a track that isn't in the buffer, which its
+       preview found to have no cover: none, as of a track loaded, rather
+       than the last cover kept under its title (skin_display.c) */
+    id3_mutex_lock();
+    const int offset = skip_offset + skip_under_way;
+    const bool none = (unsigned)slot < MAX_MULTIPLE_AA && offset != 0
+                      && skip_none_offset == offset
+                      && play_status != PLAY_STOPPED
+                      && !track_list_user_current(offset, NULL);
+    id3_mutex_unlock();
+    if (none)
+        return ERR_UNSUPPORTED_TYPE;
+#endif
 
     return ERR_HANDLE_NOT_FOUND;
 }
@@ -4909,6 +4718,27 @@ uint32_t playback_current_cover_colour(void)
 
     return track_list_cover_current(&user_cur) ? user_cur.cover_colour
                                                : COVER_COLOUR_UNKNOWN;
+}
+
+/* Why the user's current track has no cover, its picture being in a format
+   that isn't shown: of the track a skip is on its way to if that isn't in
+   the buffer. 0 for a cover, or no picture. */
+int playback_current_cover_reason(void)
+{
+    int reason = 0;
+    struct track_info user_cur;
+    id3_mutex_lock();
+#ifdef HAVE_SKIP_ART
+    const int offset = skip_offset + skip_under_way;
+    if (offset != 0 && play_status != PLAY_STOPPED
+        && !track_list_user_current(offset, NULL))
+        reason = skip_reason_offset == offset ? skip_reason : 0;
+    else
+#endif
+    if (track_list_cover_current(&user_cur))
+        reason = user_cur.cover_reason;
+    id3_mutex_unlock();
+    return reason;
 }
 
 #ifdef HAVE_SKIP_ART

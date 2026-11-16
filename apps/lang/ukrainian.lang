@@ -23079,3 +23079,115 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COVER_PNG
+  desc: in a song's cover place (Now Playing's tile, its full view, the menus' pane), when its picture is a PNG, which the iPod can't show: the problem. Wrapped to the place, two or three short lines; no word wider than 110 pixels in the small font
+  user: core
+  <source>
+    *: "PNG cover not supported"
+  </source>
+  <dest>
+    *: "Обкладинка PNG не підтримується"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_PNG_ACTION
+  desc: under LANG_COVER_PNG: what to do on the computer. Short; no word wider than 110 pixels in the small font
+  user: core
+  <source>
+    *: "Save it as JPEG"
+  </source>
+  <dest>
+    *: "Збережіть її як JPEG"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_PROGRESSIVE
+  desc: in a song's cover place, when its picture is a progressive JPEG, which the iPod can't show: the problem. Wrapped to the place; no word wider than 110 pixels in the small font
+  user: core
+  <source>
+    *: "Progressive JPEG not supported"
+  </source>
+  <dest>
+    *: "Прогресивний JPEG не підтримується"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_PROGRESSIVE_ACTION
+  desc: under LANG_COVER_PROGRESSIVE: what to do on the computer, a standard (baseline) JPEG. Short; no word wider than 110 pixels in the small font
+  user: core
+  <source>
+    *: "Save it as standard JPEG"
+  </source>
+  <dest>
+    *: "Збережіть її як звичайний JPEG"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_UNREADABLE
+  desc: in a song's cover place, when its picture is another kind the iPod can't read, or damaged: the problem. Wrapped to the place; no word wider than 110 pixels in the small font
+  user: core
+  <source>
+    *: "Cover can't be read"
+  </source>
+  <dest>
+    *: "Обкладинку не прочитати"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVER_UNREADABLE_ACTION
+  desc: under LANG_COVER_UNREADABLE: what to do on the computer. Short; no word wider than 110 pixels in the small font
+  user: core
+  <source>
+    *: "Save it again as JPEG"
+  </source>
+  <dest>
+    *: "Збережіть її знову як JPEG"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_MISSING_COVERS_CAUTION
+  desc: a setting in Settings > Appearance, under Covers in Lists, On or Off: whether a song whose cover can't be shown says why in the cover's place (LANG_COVER_PNG and the others) rather than the note of a song without one. Its value is shown beside it on the row
+  user: core
+  <source>
+    *: "Missing Covers Caution"
+  </source>
+  <dest>
+    *: "Чому немає обкладинки"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_MISSING_COVERS_CAUTION
+  desc: the hint in the band under Settings > Appearance while Missing Covers Caution is selected, in three lines at most: what it does
+  user: core
+  <source>
+    *: "Says why a cover can't be shown and how to fix it."
+  </source>
+  <dest>
+    *: "Пояснює, чому обкладинку не можна показати і як це виправити."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

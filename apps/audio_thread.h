@@ -87,11 +87,6 @@ enum
 #endif
     /* -> audio */
     Q_AUDIO_REMAKE_AUDIO_BUFFER, /* buffer needs to be reinitialized */
-
-#ifdef HAVE_ALBUMART
-    /* audio -> audio */
-    Q_AUDIO_DECODE_ART,         /* decode a cover of the track that plays */
-#endif
 };
 
 /* (*) If you change these, you must check audio_clear_track_notifications

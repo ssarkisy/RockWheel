@@ -23,6 +23,7 @@
 #include "photos_panel.h"
 #include "transition.h"
 #include "itunesdb.h"
+#include "covers_table.h"
 #include "health_log.h"
 #include "root_menu.h"
 #include "open_plugin.h"
@@ -944,11 +945,17 @@ static const struct plugin_api rockbox_api = {
     library_update_covers_progress,
     itunesdb_covers_skip,
     library_update_hold,
-    itunesdb_cover_making,
-    itunesdb_cover_unshown,
-    itunesdb_cover_image,
-    itunesdb_cover_image_of,
     itunesdb_covers_images_changed,
+    itunesdb_path_hash,
+    itunesdb_song_known,
+    itunesdb_song_picture,
+    itunesdb_song_making,
+    itunesdb_song_put,
+    itunesdb_cover_of_song,
+    itunesdb_song_usable,
+    covers_crc32,
+    covers_adler32,
+    covers_file_check,
 #endif
     otg_add_file,
     lang_extras_load,

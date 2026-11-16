@@ -37,6 +37,10 @@ enum { STATUS_ICONS_COVER = 0, STATUS_ICONS_BATTERY, STATUS_ICONS_OWN };
 #define COVER_COLOUR_GREY    0x01000000u
 #define COVER_COLOUR_UNKNOWN 0xffffffffu
 
+/* How long a cover that has gone stays on Now Playing, and its colours with
+   it, for the next one to come */
+#define COVER_KEPT_TIME (HZ * 3 / 4)
+
 #define COVER_PALETTE_STAR_LEVELS 64
 #define COVER_PALETTE_STAR_FADE   48 /* where it starts to fade to grey */
 #define COVER_PALETTE_STAR_KEPT   60 /* from here on a shade is left as it is */
@@ -53,8 +57,6 @@ struct cover_palette
 
 /* The colour of a cover */
 uint32_t cover_palette_colour(const fb_data *pixels, int width, int height);
-/* its hue in degrees */
-int cover_palette_hue(uint32_t colour);
 /* A flat surface of a theme in a tone: the hue at a saturation and a
    lightness, both out of 1000, in the screen's 16 bits; lighter (in a dark
    look darker) by 5 of the 1000 at a time until text reads on it at 4.5 to 1.

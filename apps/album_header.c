@@ -54,6 +54,7 @@
 #include "itunesdb.h"
 #include "album_header.h"
 #include "list_covers.h"
+#include "gui/cover_caution.h"
 #include "gui/skin_engine/menu_cover.h"
 
 #define COVER_MAX    60
@@ -92,6 +93,7 @@ static struct {
 static struct {
     fb_data pixels[COVER_MAX * COVER_MAX];
     volatile int width, height;
+    volatile int reason; /* none: why its picture isn't shown (itunesdb.h) */
     bool known;
     int32_t album, albumartist;
     int commit;
@@ -276,6 +278,7 @@ static struct {
 int album_header_find_art(int32_t song, struct itunesdb_art *art)
 {
     struct tagcache_search *tcs = &finding.tcs;
+    art->reason = 0;
     if (!tagcache_search(tcs, tag_title))
         return -1;
     int found = -1;
@@ -367,6 +370,7 @@ static void cover_reader(void)
         }
         if (wanted == cover.wanted)
         {
+            cover.reason = found == 0 ? art.reason : 0;
             cover.width = size < 0 ? 0 : bm.width;
             cover.height = bm.height;
             cover.known = found == 0 || size >= 0;
@@ -419,6 +423,7 @@ static void find_cover(const struct tagtree_album *album)
     cover.albumartist = album->albumartist;
     cover.commit = commit;
     cover.width = 0;
+    cover.reason = 0;
     cover.song = album->first;
     cover.playing = album_playing(album);
     cover.wanted++;
@@ -511,6 +516,13 @@ static void draw_cover(struct screen *display, int x, int y)
         /* a square one's corners, where the theme rounds them */
         if (cover.width == COVER_SIZE && cover.height == COVER_SIZE)
             line_round_corners(display, x, y, COVER_SIZE, COVER_SIZE, radius);
+        return;
+    }
+    /* one whose picture isn't shown: the "?" in the note's place */
+    if (cover.reason && cover_caution_on())
+    {
+        cover_caution_tile(display, x, y, COVER_SIZE, true);
+        line_round_corners(display, x, y, COVER_SIZE, COVER_SIZE, radius);
         return;
     }
 #endif
@@ -616,6 +628,7 @@ void album_header_forget_cover(void)
     /* one being read too, which is of the covers before */
     cover.known = false;
     cover.width = 0;
+    cover.reason = 0;
     cover.wanted++;
     cover.to_read = false;
 #endif

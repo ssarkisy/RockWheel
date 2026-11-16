@@ -1261,6 +1261,9 @@ void settings_apply(bool read_disk)
     lcd_scroll_delay(global_settings.scroll_delay);
 
 #ifdef HAVE_ALBUMART
+    /* covers always shown: no menu has the setting, and an Off read from
+       an older or upstream .cfg hid them with no way back */
+    global_settings.album_art = AA_PREFER_EMBEDDED;
     set_albumart_mode(global_settings.album_art);
 #endif
 

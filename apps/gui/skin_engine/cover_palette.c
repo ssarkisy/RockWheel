@@ -35,9 +35,6 @@
 #define HUE_BINS 36
 #define HUE_BIN_WIDTH 10
 
-/* How long a cover that has gone keeps its colours, for the next one to come */
-#define KEPT_TIME HZ
-
 #define ABS_DIFF(a, b) ((a) > (b) ? (a) - (b) : (b) - (a))
 
 struct hue_bin
@@ -192,14 +189,6 @@ static void readable_colour(int hue, int saturation, int lightness, int rgb[3])
             return;
         lightness -= 5;
     }
-}
-
-int cover_palette_hue(uint32_t colour)
-{
-    const int rgb[3] = { (colour >> 16) & 0xff, (colour >> 8) & 0xff, colour & 0xff };
-    int hsl[3];
-    rgb_to_hsl(rgb, hsl);
-    return hsl[0];
 }
 
 unsigned cover_palette_toned(unsigned colour, int hue, int saturation)
@@ -1331,12 +1320,20 @@ bool cover_palette_update(int art_handle, uint32_t colour)
     {
         if (!active && !tone_shown)
             return false;
+        /* a track known to have none: the theme's at once, as its note
+           shows (skin_display.c's art_seen()) */
+        if (art_handle == ERR_UNSUPPORTED_TYPE)
+        {
+            palette_handle = -1;
+            cover_gone = false;
+            return set_inactive();
+        }
         if (!cover_gone)
         {
             cover_gone = true;
             gone_since = current_tick;
         }
-        else if (TIME_AFTER(current_tick, gone_since + KEPT_TIME))
+        else if (TIME_AFTER(current_tick, gone_since + COVER_KEPT_TIME))
         {
             palette_handle = -1;
             cover_gone = false;

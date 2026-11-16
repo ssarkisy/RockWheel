@@ -75,11 +75,6 @@ bool buffering_reset(char *buf, size_t buflen);
 int bufopen(const char *file, off_t offset, enum data_type type,
             void *user_data);
 int bufalloc(const void *src, size_t size, enum data_type type);
-#ifdef HAVE_ALBUMART
-struct mp3_albumart;
-int bufopen_embedded_art(const char *file, const struct mp3_albumart *aa);
-int bufdecode_bitmap(int handle_id, int raw_id, const struct mp3_albumart *aa);
-#endif
 bool bufclose(int handle_id);
 int bufseek(int handle_id, size_t newpos);
 int bufadvance(int handle_id, off_t offset);

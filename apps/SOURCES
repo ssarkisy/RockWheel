@@ -94,6 +94,7 @@ gui/icon.c
 gui/list.c
 gui/transition.c
 gui/line.c
+gui/cover_caution.c
 gui/ui_theme.c
 gui/bitmap/list.c
 gui/bitmap/list-skinned.c
@@ -205,6 +206,7 @@ gui/usb_screen.c
 tagcache.c
 sortkey.c
 itunesdb.c
+covers_table.c
 synced_covers.c
 smart_playlists.c
 library_playlists.c

@@ -647,6 +647,9 @@ sub buildzip {
     if(-e "$temp_dir/rocks/demos/pictureflow.rock") {
         copy("$ROOT/apps/plugins/bitmaps/native/pictureflow_emptyslide.136x136x16.bmp",
              "$temp_dir/rocks/demos/pictureflow_emptyslide.bmp");
+        # an album whose cover isn't shown, as Missing Covers Caution has it
+        copy("$ROOT/apps/plugins/bitmaps/native/pictureflow_unshownslide.136x136x16.bmp",
+             "$temp_dir/rocks/demos/pictureflow_unshownslide.bmp");
         my ($pf_logo);
         if ($width < 200) {
             $pf_logo = "pictureflow_logo.100x18x16.bmp";

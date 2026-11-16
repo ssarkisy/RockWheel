@@ -12,6 +12,7 @@
 #   make -C tests check          everything; non-zero on a failure
 #   make -C tests check-keys     the sort and album keys
 #   make -C tests check-itunesdb iTunesDB and ArtworkDB, whole and damaged
+#   make -C tests check-covers   the prepared covers' sums and tables
 #   make -C tests check-codecs   the codecs through warble
 #   make -C tests check-wheel    the click wheel's policy, and its drivers
 #                                against 1be9ae95b6's (wheel/ref)
@@ -74,12 +75,13 @@ FIRMWARE_OBJ := $(addprefix $(OBJ)/,$(FIRMWARE_SRC:.c=.o))
 # the tests' own: the checks, and the firmware the sources call
 LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o
 
-.PHONY: all check check-keys check-itunesdb check-codecs check-wheel \
-	check-disk check-lines clean
-all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_wheel
+.PHONY: all check check-keys check-itunesdb check-covers check-codecs \
+	check-wheel check-disk check-lines clean
+all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_covers \
+	$(BUILD)/test_wheel
 
-check: check-keys check-itunesdb check-wheel check-codecs check-disk \
-	check-lines
+check: check-keys check-itunesdb check-covers check-wheel check-codecs \
+	check-disk check-lines
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -96,6 +98,11 @@ $(OBJ)/keys/%.o: $(TESTS)/keys/%.c
 	@echo CC $(subst $(ROOT)/,,$<)
 	@$(HOST_CC) $(CFLAGS) -MMD -c $< -o $@
 
+$(OBJ)/covers/%.o: $(TESTS)/covers/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -MMD -c $< -o $@
+
 $(OBJ)/itunesdb/%.o: $(TESTS)/itunesdb/%.c
 	@mkdir -p $(dir $@)
 	@echo CC $(subst $(ROOT)/,,$<)
@@ -104,7 +111,8 @@ $(OBJ)/itunesdb/%.o: $(TESTS)/itunesdb/%.c
 # The keys: sortkey.c, album_years.c's album_date_order() and itunesdb.c's
 # itunesdb_album_key()
 $(BUILD)/test_keys: $(OBJ)/keys/test_keys.o $(OBJ)/apps/album_years.o \
-		$(OBJ)/apps/itunesdb.o $(FIRMWARE_OBJ) $(LIB_OBJ)
+		$(OBJ)/apps/itunesdb.o $(OBJ)/apps/covers_table.o $(FIRMWARE_OBJ) \
+		$(LIB_OBJ)
 	@echo LD $(notdir $@)
 	@$(HOST_CC) $(LDFLAGS) -o $@ $^
 
@@ -113,10 +121,19 @@ check-keys: $(BUILD)/test_keys
 
 # iTunesDB and ArtworkDB: test_itunesdb.c builds itunesdb.c itself, to reach
 # its parser's static functions
-$(BUILD)/test_itunesdb: $(OBJ)/itunesdb/test_itunesdb.o $(FIRMWARE_OBJ) \
-		$(LIB_OBJ)
+$(BUILD)/test_itunesdb: $(OBJ)/itunesdb/test_itunesdb.o \
+		$(OBJ)/apps/covers_table.o $(FIRMWARE_OBJ) $(LIB_OBJ)
 	@echo LD $(notdir $@)
 	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+# The covers' parts that need no disk: covers_table.c
+$(BUILD)/test_covers: $(OBJ)/covers/test_covers.o $(OBJ)/apps/covers_table.o \
+		$(OBJ)/lib/check.o
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+check-covers: $(BUILD)/test_covers
+	@$(BUILD)/test_covers
 
 # made again for each run: an import leaves its files in the case's folder
 ITUNESDB_CASES := $(BUILD)/itunesdb-cases

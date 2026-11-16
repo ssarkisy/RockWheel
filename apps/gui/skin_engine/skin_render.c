@@ -56,6 +56,7 @@
 #include "list.h"
 #include "wps.h"
 #include "strmemccpy.h"
+#include "cover_caution.h"
 
 #define MAX_LINE 1024
 
@@ -1023,6 +1024,9 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
     }
 #endif
 
+    /* the menus' pane as the skin has it, if the caution was drawn there */
+    cover_caution_before(gwps, refresh_mode);
+
     /* the volume alone: only the viewports that show it, the rest as it is
        (not if the colours above had all of it drawn again) */
     const bool volume_only = refresh_mode == SKIN_REFRESH_VOLUME;
@@ -1163,6 +1167,8 @@ void skin_render(struct gui_wps *gwps, unsigned refresh_mode)
     }
     /* Restore the default viewport */
     display->set_viewport_ex(NULL, VP_FLAG_VP_SET_CLEAN);
+    /* why a song has no cover, over its note, in this frame */
+    cover_caution_render(gwps);
 
     /* the WPS draws them: the skin can't wrap text or lay out a row */
     if (view_cleared)

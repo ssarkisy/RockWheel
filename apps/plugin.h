@@ -192,7 +192,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 64
+#define PLUGIN_API_REVISION 65
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1126,7 +1126,7 @@ struct plugin_api {
     bool (*itunesdb_find_album_art)(const char *album, const char *artist,
                                     const char *path, struct itunesdb_art *art);
     bool (*itunesdb_covers_stale)(void);
-    bool (*itunesdb_covers_begin)(int albums);
+    bool (*itunesdb_covers_begin)(int albums, int songs, bool images_changed);
     int (*itunesdb_cover_known)(uint64_t key, uint32_t stamp);
     int (*itunesdb_cover_put)(uint64_t key, uint32_t stamp,
                               const struct bitmap *bm);
@@ -1135,11 +1135,20 @@ struct plugin_api {
     void (*library_update_covers_progress)(int done, int total);
     void (*itunesdb_covers_skip)(void);
     void (*library_update_hold)(long event);
-    void (*itunesdb_cover_making)(uint64_t key, uint32_t stamp);
-    void (*itunesdb_cover_unshown)(uint64_t key);
-    void (*itunesdb_cover_image)(uint64_t key, uint32_t image);
-    uint32_t (*itunesdb_cover_image_of)(uint64_t key);
     bool (*itunesdb_covers_images_changed)(void);
+    /* each song's own (itunesdb.h, covers_table.h) */
+    uint64_t (*itunesdb_path_hash)(const char *path);
+    int (*itunesdb_song_known)(uint64_t path, uint32_t mtime, uint32_t source);
+    int (*itunesdb_song_picture)(const struct itunesdb_song_cover *song);
+    void (*itunesdb_song_making)(const struct itunesdb_song_cover *song);
+    int (*itunesdb_song_put)(const struct itunesdb_song_cover *song,
+                             const struct bitmap *bm, int reason);
+    int (*itunesdb_cover_of_song)(uint64_t key, uint32_t stamp, uint64_t song);
+    bool (*itunesdb_song_usable)(uint64_t song);
+    uint32_t (*covers_crc32)(uint32_t crc, const void *data, size_t size);
+    uint32_t (*covers_adler32)(uint32_t adler, const void *data, size_t size);
+    uint32_t (*covers_file_check)(uint32_t file_size, uint32_t pic_pos,
+                                  uint32_t pic_size);
 #endif
     /* a song at the end of On-The-Go (on_the_go.h), as Cover Flow adds them */
     bool (*otg_add_file)(const char *path);

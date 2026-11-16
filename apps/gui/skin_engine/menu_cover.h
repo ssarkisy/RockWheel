@@ -31,6 +31,9 @@ struct wps_data;
    loaded if not yet; with nothing playing, the song Resume Playback would go
    on with, its cover read once from a disk that spins */
 bool menu_cover_ready(const struct wps_data *data);
+/* why the song the pane is of, playing or to resume, has no cover, its
+   picture being in a format that isn't shown (itunesdb.h); 0 for none */
+int menu_cover_reason(void);
 const fb_data *menu_cover_pixels(int *width, int *height);
 /* the covers made again on Updating Library */
 void menu_cover_forget(void);
@@ -86,18 +89,14 @@ void menu_cover_memory(void);
    enough for the scroll thread's steps, and a list that leaves the pane as
    it is, as Music's menu, showed the cover standing and then jumping */
 void menu_cover_frame_step(void);
-/* The album cover reader's part (album_header.c): whether the picture is to
-   be decoded, on its thread; and that given up, as the reader is wanted for
-   a list's covers or to end */
+/* The album cover reader's part (album_header.c): whether the panel's
+   picture is to be read, or its moving frames made, on its thread; and that
+   given up, as the reader is wanted for a list's covers or to end */
 bool menu_cover_to_read(void);
 void menu_cover_read(void);
 void menu_cover_read_cancel(void);
-/* The covers kept after their decode are dropped: what they stood for,
-   Finder's covers or those made of the songs' own, may be others now */
-void menu_cover_kept_forget(void);
 
 #else
-static inline void menu_cover_kept_forget(void) {}
 static inline void menu_cover_changed(bool on) { (void)on; }
 static inline void menu_cover_stop(void) {}
 static inline void menu_cover_wait(void) {}
