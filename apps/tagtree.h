@@ -109,6 +109,16 @@ bool tagtree_has_section(int lang);
 bool tagtree_go_to_section(int lang, int *dirlevel, int *selected_item);
 /* the same at a place in it restored, from Now Playing to where music started */
 void tagtree_resume_section(int lang, int *dirlevel, int *selected_item);
+/* A section's place as Menu leaves it, before tagtree_end_go_to(); kept for
+   the main menu's place in this slot (0 or 1); and that place back after
+   tagtree_resume_section(), as a held Menu switches to it */
+void tagtree_section_left(int dirlevel, int selected_item);
+void tagtree_section_keep(int slot);
+void tagtree_section_back(int slot, int *dirlevel, int *selected_item);
+/* Music's own place, as its lists were left for the main menu, kept for its
+   place in this slot; and back, as a held Menu switches to it */
+void tagtree_music_keep(int slot, int dirlevel, int selected_item);
+void tagtree_music_back(int slot, int *dirlevel, int *selected_item);
 int tagtree_go_to_level(void);
 void tagtree_end_go_to(bool go_back, int *dirlevel, int *selected_item);
 int tagtree_enter(struct tree_context* c, bool is_visible);

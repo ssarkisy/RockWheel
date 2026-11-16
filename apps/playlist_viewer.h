@@ -23,6 +23,9 @@
 #define _PLAYLIST_VIEWER_H_
 
 enum playlist_viewer_result playlist_viewer(void);
+/* The playing list, viewed next, opens at the row Menu held left it at, for
+   a held Menu's switch back to it; off again with false */
+void playlist_viewer_reopen_left(bool on);
 enum playlist_viewer_result playlist_viewer_ex(const char* filename,
                                                int* most_recent_selection);
 bool search_playlist(void);

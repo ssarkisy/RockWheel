@@ -700,6 +700,18 @@ static struct tagtree_place saved_place, go_to_place;
    in its menu, to go back to (tagtree_browse_from_row()); and a place held for
    a moment */
 static struct tagtree_place browse_place, scratch_place;
+/* where a section was when Menu left it last, after which Music's own place is
+   back; and as kept for each of the main menu's two places, which a held
+   Menu switches to (tagtree_section_back()), as Music's own place is kept
+   for them (tagtree_music_back()): other screens move the lists meanwhile.
+   Each fixed up as the others are, by Music's settings. */
+static struct tagtree_place section_left_place, section_kept_place[2],
+                           music_kept_place[2];
+#define KEPT_PLACES 4
+static struct tagtree_place *const kept_places[KEPT_PLACES] = {
+    &section_kept_place[0], &section_kept_place[1],
+    &music_kept_place[0], &music_kept_place[1],
+};
 
 /* Artists' search with the other artists at its top, out of tagtree's buffer, as
    go_to_row() makes it: [0] of the albums' artists, [1] of the songs'. Each is
@@ -738,7 +750,9 @@ static int move_callback(int handle, void* current, void* new)
     if (csi && in_buffer(csi, current))
         UPDATE(csi, diff);
     struct tagtree_place *const places[] = {
-        &saved_place, &go_to_place, &browse_place, &scratch_place
+        &saved_place, &go_to_place, &browse_place, &scratch_place,
+        &section_left_place, &section_kept_place[0], &section_kept_place[1],
+        &music_kept_place[0], &music_kept_place[1]
     };
     for (size_t i = 0; i < ARRAYLEN(places); i++)
     {
@@ -5687,6 +5701,31 @@ void tagtree_resume_section(int lang, int *dirlevel, int *selected_item)
     go_to_level = 1;
 }
 
+void tagtree_section_left(int dirlevel, int selected_item)
+{
+    place_save(&section_left_place, dirlevel, selected_item);
+}
+
+void tagtree_section_keep(int slot)
+{
+    section_kept_place[slot] = section_left_place;
+}
+
+void tagtree_section_back(int slot, int *dirlevel, int *selected_item)
+{
+    place_restore(&section_kept_place[slot], dirlevel, selected_item);
+}
+
+void tagtree_music_keep(int slot, int dirlevel, int selected_item)
+{
+    place_save(&music_kept_place[slot], dirlevel, selected_item);
+}
+
+void tagtree_music_back(int slot, int *dirlevel, int *selected_item)
+{
+    place_restore(&music_kept_place[slot], dirlevel, selected_item);
+}
+
 int tagtree_go_to_level(void)
 {
     return go_to_level;
@@ -6019,6 +6058,11 @@ void tagtree_albums_reordered(void)
     /* and Recently Added, whose rows are the table's too */
     albums_place_reset(&saved_place, true);
     albums_place_reset(&go_to_place, true);
+    for (int i = 0; i < KEPT_PLACES; i++)
+    {
+        albums_place_reset(kept_places[i], false);
+        albums_place_reset(kept_places[i], true);
+    }
     if ((is_albums(csi) || is_recent(csi)) && max_history_level >= 1)
     {
         selected_item_history[1] = -1;
@@ -6064,6 +6108,8 @@ void tagtree_artists_grouping_changed(int *dirlevel, int *selected_item)
     artists_place_cut(&saved_place);
     artists_place_cut(&go_to_place);
     artists_place_cut(&browse_place);
+    for (int i = 0; i < KEPT_PLACES; i++)
+        artists_place_cut(kept_places[i]);
     /* where the lists were left */
     place_save(&scratch_place, *dirlevel, *selected_item);
     if (artists_place_cut(&scratch_place))
@@ -6095,6 +6141,8 @@ void tagtree_sort_by_switched(struct tree_context *c)
         all_songs_place_reset(&saved_place);
         all_songs_place_reset(&go_to_place);
         all_songs_place_reset(&browse_place);
+        for (int i = 0; i < KEPT_PLACES; i++)
+            all_songs_place_reset(kept_places[i]);
     }
     else if (is_songs(csi))
     {
@@ -6102,6 +6150,8 @@ void tagtree_sort_by_switched(struct tree_context *c)
         songs_place_reset(&saved_place);
         songs_place_reset(&go_to_place);
         songs_place_reset(&browse_place);
+        for (int i = 0; i < KEPT_PLACES; i++)
+            songs_place_reset(kept_places[i]);
         const int section = section_of(LANG_SONGS);
         if (section >= 0)
             section_rows[section] = -1;
@@ -6117,6 +6167,8 @@ void tagtree_sort_by_switched(struct tree_context *c)
         albums_place_reset(&saved_place, false);
         albums_place_reset(&go_to_place, false);
         albums_place_reset(&browse_place, false);
+        for (int i = 0; i < KEPT_PLACES; i++)
+            albums_place_reset(kept_places[i], false);
     }
     settings_save();
 }
@@ -6131,6 +6183,12 @@ void tagtree_music_menu_changed(bool shown)
         saved_place.selected_item = 0;
     if (go_to_place.dirlevel == 0)
         go_to_place.selected_item = 0;
+    for (int i = 0; i < 2; i++)
+    {
+        music_kept_place[i].selected_item_history[0] = 0;
+        if (music_kept_place[i].dirlevel == 0)
+            music_kept_place[i].selected_item = 0;
+    }
     root_rows_changed = true;
 }
 

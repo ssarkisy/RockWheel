@@ -85,6 +85,21 @@
 
 static struct wps_state wps_state;
 
+/* Now Playing left for the main menu from its menu, or from what that opened,
+   by Menu held there; and to open with that menu over it again, as a held
+   Menu in the main menu switches back to it */
+static bool menu_left, reopen_menu;
+
+bool wps_left_from_menu(void)
+{
+    return menu_left;
+}
+
+void wps_reopen_menu(bool on)
+{
+    reopen_menu = on;
+}
+
 /* initial setup of wps_data  */
 static void wps_state_init(void);
 static void track_info_callback(unsigned short id, void *param);
@@ -1245,7 +1260,11 @@ long gui_wps_show(void)
     }
 #endif
     long button = 0;
-    bool restore = true;
+    /* its menu first, at once, where it was left: Now Playing isn't drawn
+       before it */
+    bool menu_first = reopen_menu && !onplay_wps_menu_empty();
+    reopen_menu = menu_left = false;
+    bool restore = !menu_first;
     bool exit = false;
     bool bookmark = false;
     bool update = false;
@@ -1290,7 +1309,7 @@ long gui_wps_show(void)
             gwps_enter_wps(theme_enabled);
             theme_enabled = true;
         }
-        else
+        else if (!menu_first)
         {
             gwps_caption_backlight(state);
 
@@ -1323,7 +1342,8 @@ long gui_wps_show(void)
         if (button && !IS_SYSEVENT(button) )
             storage_spin();
 
-        button = skin_wait_for_action(WPS, CONTEXT_WPS|ALLOW_SOFTLOCK, HZ/5);
+        button = menu_first ? ACTION_WPS_CONTEXT
+                            : skin_wait_for_action(WPS, CONTEXT_WPS|ALLOW_SOFTLOCK, HZ/5);
 
         /* Exit if audio has stopped playing. This happens e.g. at end of
            playlist or if using the sleep timer. */
@@ -1368,16 +1388,28 @@ long gui_wps_show(void)
             case ACTION_WPS_CONTEXT:
             {
                 /* nothing in it, by Settings > Now Playing Menu: nothing
-                   to leave Now Playing for, nor to draw again */
+                   to leave Now Playing for, nor to draw again; drawn now,
+                   if it was to open first */
                 if (!hotkey && onplay_wps_menu_empty())
+                {
+                    if (menu_first)
+                        restore = true;
+                    menu_first = false;
                     break;
+                }
                 /* Now Playing as it is, before leaving it draws the menus'
-                   screen: the menu slides over it */
-                if (!hotkey)
-                    transition_begin(TRANSITION_FORWARD);
-                gwps_leave_wps(true);
+                   screen: the menu slides over it; or, not drawn at all, the
+                   menu at once */
+                if (!menu_first)
+                {
+                    if (!hotkey)
+                        transition_begin(TRANSITION_FORWARD);
+                    gwps_leave_wps(true);
+                }
+                menu_first = false;
                 int retval = onplay(state->id3->path,
                        FILE_ATTR_AUDIO, CONTEXT_WPS, hotkey, ONPLAY_NO_CUSTOMACTION);
+                menu_left = !hotkey && retval == ONPLAY_MAINMENU && audio_status();
                 /* if music is stopped in the context menu we want to exit the wps */
                 if (retval == ONPLAY_MAINMENU
                     || !audio_status())

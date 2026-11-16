@@ -405,6 +405,10 @@ int get_action(int context, int timeout);
 bool action_dark_return_taken(void);
 /* the tick of the last button's action, as of a step of the wheel */
 long action_last_tick(void);
+/* How long this button, alone, has been held down, 0 if it isn't: from its
+   press, whichever screens have taken its events since, and only while the
+   buttons down now (button_status()) are it alone */
+long action_held_ticks(int button);
 /* the action looked up for the last button get_action() took: kept through
    timeouts and system events, which have none */
 int action_last_action(void);

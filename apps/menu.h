@@ -177,6 +177,14 @@ void menu_request_root(void);
    made now is in its tree, its folders' lists and the lists of values opened
    from them */
 bool menu_in_settings(void);
+/* Where the last outermost menu was left, kept for the main menu's place in
+   this slot (0 or 1); and the next outermost menu opened there, if it is the
+   one kept, entering its row again if enter: for a held Menu's switch */
+void menu_keep_left(int slot);
+void menu_reopen_left(int slot, bool enter);
+/* Whether the menu item's function running now was entered so, by a reopen
+   with enter, and not by the user */
+bool menu_entering_again(void);
 int do_menu(const struct menu_item_ex *menu, int *start_selected,
             struct viewport parent[NB_SCREENS], bool hide_theme);
 
