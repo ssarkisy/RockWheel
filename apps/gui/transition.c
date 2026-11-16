@@ -275,8 +275,9 @@ void transition_run(void)
     if (width < LCD_WIDTH)
         lcd_update_rect(width, top, LCD_WIDTH - width, rows);
 
-    /* a frame of the whole width is 12 ms boosted, more than the tick it has:
-       unboosted, every other position was dropped */
+    /* a frame of the whole width is 12 ms boosted (16 on the iPod Photo,
+       paced to its panel), more than the tick it has: unboosted, every other
+       position was dropped */
     cpu_boost(true);
     const long start = current_tick;
     long now = start;

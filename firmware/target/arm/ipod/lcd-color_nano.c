@@ -31,12 +31,27 @@
 #include "system.h"
 #include "hwcompat.h"
 #include "backlight-target.h"
+#include "backlight.h"
 
 /* LCD command codes for HD66789R */
 #define LCD_CNTL_RAM_ADDR_SET           0x21
 #define LCD_CNTL_WRITE_TO_GRAM          0x22
 #define LCD_CNTL_HORIZ_RAM_ADDR_POS     0x44
 #define LCD_CNTL_VERT_RAM_ADDR_POS      0x45
+
+#if CONFIG_LCD == LCD_IPODCOLOR
+/* lcd_type 0 and 2: the panel is portrait, 176 by 220. It refreshes its
+   lines one after another, each one of our columns, from our right edge
+   leftwards. Register 0x18 sets the order it takes pixels in:
+   - ROWS, as lcd_init_device() sets it: along our rows. Each row crossed the
+     refresh, so a picture changing showed in diagonal pieces for a frame;
+   - COLUMNS, as Apple's firmware sets it for each update: along the panel's
+     lines, each of our columns top to bottom, from the right one leftwards.
+     The refresh then shows every column whole, the old one or the new. */
+#define LCD_TYPE0_ENTRY_MODE            0x18
+#define LCD_TYPE0_ENTRY_ROWS            0x6
+#define LCD_TYPE0_ENTRY_COLUMNS         0x0
+#endif
 
 /*** globals ***/
 int lcd_type = 1; /* 0,2 = "old" Color/Photo; 1,3 = similar to HD66789R */
@@ -173,6 +188,10 @@ static void lcd_setup_drawing_region(int x, int y, int width, int height)
 
     /* setup the drawing region */
     if ((lcd_type&1) == 0) {
+#if CONFIG_LCD == LCD_IPODCOLOR
+        /* lcd_update_rect() leaves the panel taking columns */
+        lcd_cmd_data(LCD_TYPE0_ENTRY_MODE, LCD_TYPE0_ENTRY_ROWS);
+#endif
         /* x0 and x1 need to be swapped until 
          * proper direction setup is added */
         lcd_cmd_data(0x12, y0);      /* start vert */
@@ -276,15 +295,173 @@ static void lcd_write_line(int count, unsigned long *src)
     } while (count > 0);
 }
 
+/* The rectangle within the screen; false if nothing's left of it. Out of the
+   screen, the panel's region and the count of pixels sent wouldn't agree */
+static bool clip_rect(int *x, int *y, int *width, int *height)
+{
+    if (*x < 0)
+    {
+        *width += *x;
+        *x = 0;
+    }
+    if (*y < 0)
+    {
+        *height += *y;
+        *y = 0;
+    }
+    if (*x + *width > LCD_WIDTH)
+        *width = LCD_WIDTH - *x;
+    if (*y + *height > LCD_HEIGHT)
+        *height = LCD_HEIGHT - *y;
+
+    if ((*width <= 0) || (*height <= 0))
+        return false; /* Nothing left to do. */
+
+    return true;
+}
+
+#if CONFIG_LCD == LCD_IPODCOLOR
+/* Writes 'pairs' pairs of pixels down a column, from 'src', to LCD IF. Not
+   inlined: its loop stays in registers then */
+static NO_INLINE void lcd_write_column(const fb_data *src, int pairs)
+{
+    do {
+        unsigned long p = src[0] | ((unsigned long)src[LCD_WIDTH] << 16);
+        src += 2*LCD_WIDTH;
+#if LCD_PIXELFORMAT == RGB565
+        p = ((p & 0x00ff00ff) << 8) | ((p >> 8) & 0x00ff00ff); /* as above */
+#endif
+        while (!(LCD2_BLOCK_CTRL & LCD2_BLOCK_TXOK)); /* FIFO wait */
+        LCD2_BLOCK_DATA = p;                          /* output 2 pixels */
+    } while (--pairs);
+}
+
+/* lcd_type 0 and 2: the panel's region for a rectangle sent column by
+   column, in the order the panel refreshes them (LCD_TYPE0_ENTRY_COLUMNS) */
+static void lcd_columns_region(int x, int y, int width, int height)
+{
+    lcd_cmd_data(LCD_TYPE0_ENTRY_MODE, LCD_TYPE0_ENTRY_COLUMNS);
+    lcd_cmd_data(0x12, y);                                 /* start vert */
+    lcd_cmd_data(0x13, (LCD_WIDTH - 1) - (x + width - 1)); /* start horiz */
+    lcd_cmd_data(0x15, y + height - 1);                    /* end vert */
+    lcd_cmd_data(0x16, (LCD_WIDTH - 1) - x);               /* end horiz */
+}
+
+/* The panel's frame time. A write that crosses the screen as fast as the
+   refresh does can't meet it, wherever each starts, so each column gets
+   1/LCD_WIDTH of a frame. Faster or slower, the two would meet in about
+   |1 - write/frame| of whole-screen updates, fewer of narrower ones, and
+   that frame would show the picture cut along a column. On the iPod Photo
+   M9829 the refresh is 60 Hz: 16.667 ms per screen showed no tearing,
+   16.0 and 16.333 a rare cut, 15 and 17 more */
+#define LCD_FRAME_US        16667
+/* Paced from this height: text lines, 12 px and up in the 220x176 themes,
+   and list rows, 22 and up, are. Thinner bars aren't: Updating Library's,
+   6 px, Modern's and Neo's, 9 and 11. From one of their steps to the next
+   only a bar's end changes, so a cut through it can't show */
+#define LCD_PACE_HEIGHT     12
+/* The LCD bus runs at the CPU's clock, a pixel in about 25 of its cycles:
+   a screen takes 12 ms at 80 MHz, 31 at 30 */
+#define LCD_BUS_CYCLES_PX   26
+
+/* lcd_type 0 and 2: the rectangle column by column, in the order the panel
+   refreshes them, at the panel's pace */
+static void lcd_update_rect_columns(int x, int y, int width, int height)
+{
+    /* paced where a cut could be seen: not in a bar, nor with the backlight
+       off, unless boosted for a whole screen, as for a button's redraw, which
+       may come before the backlight thread lights the screen */
+    bool pace = height >= LCD_PACE_HEIGHT;
+#if defined(HAVE_BACKLIGHT) && !defined(BOOTLOADER)
+    if (pace && !is_backlight_on(true))
+        pace = cpu_frequency == CPUFREQ_MAX &&
+               width == LCD_WIDTH && height == LCD_HEIGHT;
+#endif
+
+    /* the pixels go in pairs down each column */
+    height += y & 1;
+    y &= ~1;
+    height = (height + 1) & ~1;
+
+    /* a column's slot, in 1/16 us */
+    const unsigned long step = (LCD_FRAME_US << 4) / LCD_WIDTH;
+
+#if defined(HAVE_ADJUSTABLE_CPU_FREQ) && !defined(BOOTLOADER)
+    /* boosted if its columns don't fit their slots at this clock, as a
+       whole screen's don't at 30 MHz. Not with interrupts off (a panic's
+       screen); nor on the COP, by choice: nothing there needs the pace */
+    const bool boost = pace && cpu_frequency != CPUFREQ_MAX &&
+                       irq_enabled() && CURRENT_CORE == CPU &&
+                       (unsigned long)height * (LCD_BUS_CYCLES_PX << 4) >
+                       step * (cpu_frequency / 1000000);
+    if (boost)
+        cpu_boost(true);
+#endif
+
+    lcd_columns_region(x, y, width, height);
+
+    /* horiz runs against our x: the rightmost column goes first */
+    const fb_data *column = FBADDR(x + width - 1, y);
+    const int column_bytes = height * sizeof(fb_data);
+    unsigned long slot = USEC_TIMER << 4;
+
+    while (width > 0) {
+        int c, columns = width;
+
+        /* calculate how much we can do in one go */
+        if (columns * column_bytes > 0x10000)
+            columns = 0x10000 / column_bytes;
+
+        LCD2_BLOCK_CTRL   = 0x10000080;
+        LCD2_BLOCK_CONFIG = 0xc0010000 | (columns * column_bytes - 1);
+        LCD2_BLOCK_CTRL   = 0x34000000;
+
+        for (c = 0; c < columns; c++, column--) {
+            lcd_write_column(column, height / 2);
+
+            /* to the next column's slot, if there's one */
+            slot += step;
+            if (pace && (c < columns - 1 || width > columns))
+                while ((long)(slot - (USEC_TIMER << 4)) > 0);
+        }
+
+        /* transfer of the block finished */
+        while (!(LCD2_BLOCK_CTRL & LCD2_BLOCK_READY));
+        LCD2_BLOCK_CONFIG = 0;
+
+        width -= columns;
+    }
+
+#if defined(HAVE_ADJUSTABLE_CPU_FREQ) && !defined(BOOTLOADER)
+    if (boost)
+        cpu_boost(false);
+#endif
+}
+#endif /* CONFIG_LCD == LCD_IPODCOLOR */
+
 /* Update a fraction of the display. */
 void lcd_update_rect(int x, int y, int width, int height)
 {
     unsigned long *addr;
 
-    /* Ensure both x and width are even to be able to read 32-bit aligned 
-     * data from lcd_framebuffer */
-    x     =  x & ~1;            /* use the smaller even number */
-    width = (width + 1) & ~1;   /* use the bigger even number  */
+    /* a screen drawn in full before it shows, as for the menus' slide: the
+       driver holds its updates, as the iPod Video's does */
+    if (lcd_update_held(&x, &y, &width, &height))
+        return;
+
+    if (!clip_rect(&x, &y, &width, &height))
+        return;
+
+#if CONFIG_LCD == LCD_IPODCOLOR
+    if ((lcd_type&1) == 0) {
+        lcd_update_rect_columns(x, y, width, height);
+        return;
+    }
+#endif
+
+    /* x and width even, to read the framebuffer 32 bits at a time */
+    width = (width + (x & 1) + 1) & ~1;
+    x &= ~1;
 
     lcd_setup_drawing_region(x, y, width, height);
 
