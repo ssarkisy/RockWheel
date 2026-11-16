@@ -2,10 +2,12 @@
 """The crash test of the file system, every scenario cut after each of its
 writes in turn (see fstest.c, and fatimg.py for what is checked):
 
-    python3 -I tools/fstest/run.py [--rev <commit>] [--only a,b] [--work <dir>]
+    python3 -I tools/fstest/run.py [--rev <commit> | --src <tree>]
+                                   [--only a,b] [--work <dir>]
 
 --rev builds the file system of another commit instead of the working tree,
-as the control that the test finds what it looks for. Each scenario runs over
+as the control that the test finds what it looks for; --src that of another
+tree's files, such as an export of the index. Each scenario runs over
 --layouts layouts of .rockbox (that many more files in it each time, so its
 entries fall elsewhere in the folder's sectors), each with the cache's slots
 dealt in --seeds orders; --memory 4 gives a cache small enough to evict. The
@@ -280,6 +282,7 @@ def scenario(fstest, scen, layout, seed, work, verbose, keep):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--rev")
+    ap.add_argument("--src")
     ap.add_argument("--only")
     ap.add_argument("--work", default=os.path.join(HERE, "work"))
     ap.add_argument("--layouts", type=int, default=8)
@@ -297,6 +300,9 @@ def main():
     os.makedirs(work, exist_ok=True)
     if args.rev:
         src, name = export(args.rev, work), args.rev
+    elif args.src:
+        src = os.path.abspath(args.src)
+        name = os.path.basename(os.path.normpath(src))
     else:
         src, name = os.path.abspath(os.path.join(HERE, "..", "..")), "tree"
     if args.memory != 32:

@@ -1071,25 +1071,6 @@ static void entry_run(const char *path, unsigned long *first,
     close_stream_internal(&stream);
 }
 
-/* A cut inside the removal of a run that crosses two sectors may free its
-   long entries and not its short one, which then shows its file under the
-   8.3 name; it predates the stray fix and is not one. Taken only for a file
-   whole as one of UNSENT's, and counted. */
-static int short_left;
-
-static bool short_unsent(const char *name, const char *path)
-{
-    for (const char *p = name; *p; p++)
-        if (*p == ' ' || (*p >= 'a' && *p <= 'z'))
-            return false;
-    if (strncmp(name, "ITUNES", 6) ||
-        !(same_file(path, 30000, 31) || same_file(path, 46000, 32) ||
-          same_file(path, 2000, 3)))
-        return false;
-    short_left++;
-    return true;
-}
-
 /* Every name the folder shows: one that may be there by allowed(), and, for
    database_<n>.tcd and Track <n>.m4a, its file whole. The first that may not
    goes to the verdict; how many of the numbered ones to count. */
@@ -1127,6 +1108,7 @@ static bool listing_ok(const char *dir,
 
 static bool rockbox_name(const char *name, const char *path)
 {
+    (void)path;
     for (unsigned i = 0; i < sizeof dirs / sizeof *dirs; i++)
         if (!strcmp(name, dirs[i]))
             return true;
@@ -1135,8 +1117,7 @@ static bool rockbox_name(const char *name, const char *path)
            !strcmp(name, "itunesdb_unsent.dat.new") ||
            !strcmp(name, "itunesdb_unsent.dat.old") ||
            !strcmp(name, "a new folder of ours") ||
-           !strcmp(name, "emptied") ||
-           short_unsent(name, path);
+           !strcmp(name, "emptied");
 }
 
 /* what a file is: "whole", "none", or "part" if it may be cut short (its
@@ -1190,15 +1171,12 @@ static bool plain_post(char *verdict, size_t max)
              file_state(UNSENT ".new", 46000, 32, false, &ok),
              file_state(UNSENT ".old", 30000, 31, false, &ok));
     ok = ok && (old > 0 || new >= 0);
-    short_left = 0;
     if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
         return false;
-    const bool left = short_left;
     ok = boot_write(boot, sizeof boot) && ok;
     if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
         return false;
-    snprintf(verdict, max, "%s%s; %s", line, left ? ", an 8.3 name" : "",
-             boot);
+    snprintf(verdict, max, "%s; %s", line, boot);
     return ok;
 }
 
@@ -1248,15 +1226,12 @@ static bool stray_post(char *verdict, size_t max)
     snprintf(line, sizeof line, "name %s, .tmp %s",
              file_state(UNSENT, 46000, 32, false, &ok),
              file_state(UNSENT ".tmp", 46000, 32, true, &ok));
-    short_left = 0;
     if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
         return false;
-    const bool left = short_left;
     ok = boot_write(boot, sizeof boot) && ok;
     if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
         return false;
-    snprintf(verdict, max, "%s%s; %s", line, left ? ", an 8.3 name" : "",
-             boot);
+    snprintf(verdict, max, "%s; %s", line, boot);
     return ok;
 }
 
@@ -1455,6 +1430,105 @@ static bool rename_cross_post(char *verdict, size_t max)
     return found == 1 && !other;
 }
 
+/* A remove whose run crosses a sector (layouts 0-3) or a cluster (4-7),
+   with 1 to 4 of its 5 entries before the boundary. Its short entry's sector
+   goes to the disk first: a cut leaves the file under its name or gone,
+   never under its 8.3 name, and nothing else changes. The entries ahead of
+   it are another system's: 8.3 names in lower case as Windows writes them,
+   an entry each (so that the run can start anywhere); a file of ours
+   follows it. */
+#define RM_DIR   "/R"
+#define RM_FILE  RM_DIR "/Track 07, a song whose name takes five.m4a"
+#define RM_AFTER RM_DIR "/after.dat"
+#define RM_BOOT  RM_DIR "/next boot.dat"
+#define RM_SIZE  40000
+#define RM_SEED  70
+
+static unsigned long rm_split(void)
+{
+    return 1 + layout % 4;
+}
+
+static unsigned long rm_first(void)
+{
+    return (layout < 4 ? 16 : CLUSTER / 32) - rm_split();
+}
+
+static void remove_cross_setup(void)
+{
+    uint8_t sec[512];
+    unsigned long first, last;
+    put_file("/filler.bin", 10 * CLUSTER, 1, 65536);
+    if (mkdir(RM_DIR) < 0)
+        fail("mkdir");
+    /* entries 2 to the run's first: f0002.dat on, short ones, NTRes lower
+       case, empty */
+    long c = first_cluster(RM_DIR);
+    cache_drop();
+    for (unsigned long i = 2; i < rm_first(); i++)
+    {
+        uint64_t s = entry_sector(c, i);
+        if (host_read(s, 1, sec) < 0)
+            fail("read");
+        uint8_t *e = sec + i % 16 * 32;
+        memset(e, 0, 32);
+        snprintf((char *)e, 12, "F%04lu   DAT", i);
+        e[11] = 0x20;                   /* archive */
+        e[12] = 0x18;                   /* name and extension lower case */
+        e[24] = 0x21;                   /* 2016-01-01 */
+        e[25] = 0x48;
+        if (host_write(s, 1, sec) < 0)
+            fail("write");
+    }
+    put_file(RM_FILE, RM_SIZE, RM_SEED, 4096);
+    put_file(RM_AFTER, 100, 71, 100);
+    entry_run(RM_FILE, &first, &last);
+    if (first != rm_first() || last != first + 4)
+        fail("layout");
+}
+
+static void remove_cross_action(void)
+{
+    remove(RM_FILE);
+}
+
+/* the run's first entry as the post finds it: after.dat's, 5 entries on,
+   tells it (a crash's run has no layout) */
+static unsigned long rm_seen;
+
+static bool remove_cross_name(const char *name, const char *path)
+{
+    unsigned long n;
+    char c;
+    if (sscanf(name, "f%lu.da%c", &n, &c) == 2 && c == 't')
+        return n >= 2 && n < rm_seen && same_file(path, 0, 0);
+    return (!strcmp(name, strrchr(RM_FILE, '/') + 1) &&
+            same_file(path, RM_SIZE, RM_SEED)) ||
+           (!strcmp(name, "after.dat") && same_file(path, 100, 71)) ||
+           (!strcmp(name, "next boot.dat") && same_file(path, 100, 72));
+}
+
+static bool remove_cross_post(char *verdict, size_t max)
+{
+    int n, after;
+    unsigned long last;
+    entry_run(RM_AFTER, &rm_seen, &last);
+    rm_seen -= 5;
+    const bool there = file_exists(RM_FILE);
+    if (!listing_ok(RM_DIR, remove_cross_name, &n, verdict, max))
+        return false;
+    /* the others: the f entries and after.dat, and the file if there */
+    const int others = (int)rm_seen - 2 + 1;
+    bool ok = n == others + there && same_file(RM_AFTER, 100, 71);
+    put_file(RM_BOOT, 100, 72, 100);
+    if (!listing_ok(RM_DIR, remove_cross_name, &after, verdict, max))
+        return false;
+    ok = ok && after == n + 1;
+    snprintf(verdict, max, "the file %s, %d names then %d%s",
+             there ? "there" : "gone", n, after, ok ? "" : ", WRONG COUNT");
+    return ok;
+}
+
 static bool no_post(char *verdict, size_t max)
 {
     verdict[0] = '\0';
@@ -1524,6 +1598,8 @@ static const struct scenario
                         stray_grow_post },
     { "rename-cross",   rename_cross_setup, rename_cross_action,
                         rename_cross_post },
+    { "remove-cross",   remove_cross_setup, remove_cross_action,
+                        remove_cross_post },
 };
 
 static const struct scenario *find(const char *name)

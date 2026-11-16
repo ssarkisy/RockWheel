@@ -1079,6 +1079,12 @@ static void update_fsinfo32(struct bpb *fat_bpb)
         return;
     }
 
+    /* dirtied only for a change: the same bytes again would be one more
+       write in every commit, and one more place for a cut to fall */
+    if (BYTES2INT32(fsinfo, FSINFO_FREECOUNT) == fat_bpb->fsinfo.freecount &&
+        BYTES2INT32(fsinfo, FSINFO_NEXTFREE) == fat_bpb->fsinfo.nextfree)
+        return;
+
     INT322BYTES(fsinfo, FSINFO_FREECOUNT, fat_bpb->fsinfo.freecount);
     INT322BYTES(fsinfo, FSINFO_NEXTFREE, fat_bpb->fsinfo.nextfree);
     dc_dirty_buf(fsinfo);
@@ -1864,7 +1870,8 @@ fat_error:
     return rc;
 }
 
-static int free_direntries(struct bpb *fat_bpb, struct fat_file *file);
+static int free_direntries(struct bpb *fat_bpb, struct fat_file *file,
+                           bool shortfirst);
 
 /* Readies the count entries from first for a new run, before any entry is
    written: each must be free. By the FAT spec the entries from the folder's
@@ -2087,7 +2094,7 @@ static int add_dir_entry(struct bpb *fat_bpb, struct fat_filestr *parentstr,
             (unsigned int)(firstentry + entries_needed - 1) /
             DIR_ENTRIES_PER_SECTOR;
 
-        rc = free_direntries(fat_bpb, file);
+        rc = free_direntries(fat_bpb, file, false);
         if (rc <= 0)
             FAT_ERROR(rc * 10 - 7);
 
@@ -2177,7 +2184,15 @@ fat_error:
     return rc;
 }
 
-static int free_direntries(struct bpb *fat_bpb, struct fat_file *file)
+/* A remove (shortfirst) frees the short entry first, with a commit before
+   each earlier sector of the run: a cut leaves long entries without their
+   short one, which no reader shows, never the file under its 8.3 name alone.
+   Once the short entry is freed, a sector of long entries that can't be read
+   still counts as success: the file is gone either way. A rename frees them
+   in the folder's order, in one commit: there a cut that leaves the 8.3 name
+   keeps a file the other order would lose. */
+static int free_direntries(struct bpb *fat_bpb, struct fat_file *file,
+                           bool shortfirst)
 {
     /* open the parent directory */
     struct fat_file parent;
@@ -2186,13 +2201,16 @@ static int free_direntries(struct bpb *fat_bpb, struct fat_file *file)
     struct fat_filestr parentstr;
     fat_filestr_init(&parentstr, &parent);
 
-    for (unsigned int entries = file->e.entries,
-                      entry = file->e.entry - entries + 1;
-         entries; entries--, entry++)
+    for (unsigned int i = 0; i < file->e.entries; i++)
     {
-        DEBUGF("Clearing dir entry %d (%d/%d)\n",
-               entry, entries - file->e.entries + 1, file->e.entries);
+        unsigned int entry = shortfirst ? file->e.entry - i :
+                             file->e.entry - file->e.entries + 1 + i;
 
+        DEBUGF("Clearing dir entry %d (%d/%d)\n",
+               entry, i + 1, file->e.entries);
+
+        if (shortfirst && i && (entry + 1) % DIR_ENTRIES_PER_SECTOR == 0)
+            cache_commit(fat_bpb);
 
         dc_lock_cache();
 
@@ -2201,8 +2219,11 @@ static int free_direntries(struct bpb *fat_bpb, struct fat_file *file)
         {
             dc_unlock_cache();
 
-            if (entries == file->e.entries)
+            if (!i)
                 return -1; /* nothing at all freed */
+
+            if (shortfirst)
+                break; /* the short entry is free: the file is gone */
 
             /* longname already destroyed; revert to shortname */
             file->e.entries = 1;
@@ -2486,7 +2507,7 @@ int fat_remove(struct fat_file *file, enum fat_remove_op what,
     {
         /* free everything in the parent directory */
         DEBUGF("Removing dir entries: %lX\n", file->dircluster);
-        rc = free_direntries(fat_bpb, file);
+        rc = free_direntries(fat_bpb, file, true);
         if (rc <= 0)
             FAT_ERROR(rc * 10 - 3);
     }
@@ -2647,7 +2668,7 @@ fat_error:
     if (rc < 0 && !fat_file_is_same(&newfile, file))
     {
         /* the new entries off the disk before the old ones are back */
-        free_direntries(fat_bpb, &newfile);
+        free_direntries(fat_bpb, &newfile, false);
         cache_commit(fat_bpb);
         restore_direntries(fat_bpb, file, rawent.name[0]);
     }
