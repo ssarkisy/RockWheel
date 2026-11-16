@@ -54,9 +54,9 @@
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(moonh,91,7,10,10,-)%Vb(F7F7F7)
 %xd(N)
-# the pane without a cover: a surface with a hairline at its left, and on it by the row
+# the pane without a cover: a surface, and on it by the row; a hairline at
+# its left (below, after the collage, which would clear it)
 %Vl(pane,160,0,160,240,-)%Vb(EFF3F7)
-%Vl(pane,160,0,1,240,-)%Vb(E6E7EF)
 # each picture and its caption are one block in the middle of the pane's
 # height, the caption's capitals 8 rows under the picture
 # Settings: the disk's use as a ring, the used part in the accent on a track
@@ -78,6 +78,7 @@
 %xd(I)
 %Vl(photocaption,168,139,144,14,4)%Vf(525152)%Vb(EFF3F7)
 %ac%nP
+%Vl(pane,160,0,1,240,-)%Vb(E6E7EF)
 # nothing playing, or a track without a cover: the note, and under it the
 # library's count or the track
 %xl(O,Note Pane.bmp,0,0)

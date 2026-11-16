@@ -281,9 +281,9 @@ SBS = """\
 {long_vps}
 {vps}
 {vpsh}
-# the pane without a cover: a surface with a hairline at its left, and on it by the row
+# the pane without a cover: a surface, and on it by the row; a hairline at
+# its left (below, after the collage, which would clear it)
 %Vl(pane,{split},0,{pane_w},240,-)%Vb(PANE)
-%Vl(pane,{split},0,1,240,-)%Vb(COLUMN)
 # each picture and its caption are one block in the middle of the pane's
 # height, the caption's capitals {pane_gap} rows under the picture
 # Settings: the disk's use as a ring, the used part in the accent on a track
@@ -305,6 +305,7 @@ SBS = """\
 %xd(I)
 %Vl(photocaption,{caption_x},{nophotos_y},{caption_w},14,4)%Vf(SMALL)%Vb(PANE)
 %ac%nP
+%Vl(pane,{split},0,1,240,-)%Vb(COLUMN)
 # nothing playing, or a track without a cover: the note, and under it the
 # library's count or the track
 %xl(O,Note Pane.bmp,0,0)
