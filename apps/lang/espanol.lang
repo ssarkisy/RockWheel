@@ -5536,7 +5536,7 @@
     *: "Headphone Crossfeed"
   </source>
   <dest>
-    *: "Crossfeed para auriculares"
+    *: "Crossfeed auriculares"
   </dest>
   <voice>
     *: "Crossfeed para auriculares"
@@ -22654,7 +22654,7 @@
     *: "Format and Bitrate"
   </source>
   <dest>
-    *: "Formato y velocidad de bits"
+    *: "Formato y bitrate"
   </dest>
   <voice>
     *: ""
