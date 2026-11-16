@@ -1980,9 +1980,11 @@ int lp_view(const char *file, int *selection)
     gui_synclist_set_playing_callback(&list, lp_playing);
     gui_synclist_set_initial_callback(&list, lp_initial);
     /* the covers' memory, if turned on as music played, which has stopped;
-       one line without them, as Songs has then. On-The-Go keeps one line */
+       one line without them, as Songs has then. On-The-Go's Save Playlist
+       and Clear Playlist have neither, their names in the middle of a row as
+       high */
     list_covers_apply();
-    lp.covers = !lp.otg && list_covers_on();
+    lp.covers = list_covers_on();
     if (lp.covers)
     {
         gui_synclist_set_subline_callback(&list, lp_subline);

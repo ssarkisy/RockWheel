@@ -23,6 +23,7 @@
  * multi-screen support, rewrote a lot of code
  */
 #include <string.h>
+#include <stdlib.h>
 #include "playlist.h"
 #include "audio.h"
 #include "screens.h"
@@ -56,10 +57,10 @@
 #include "storage.h"
 #endif
 
-#if defined (HAVE_TAGCACHE) && defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
-#include "tagcache.h"
-#endif
 #ifdef HAVE_TAGCACHE
+#include "tagcache.h"
+#include "tagtree.h"
+#include "list_covers.h"
 #include "library_playlists.h"
 #endif
 #include "root_menu.h"
@@ -92,7 +93,10 @@ struct playlist_entry {
     int  index;                 /* Playlist index                            */
     int  display_index;         /* Display index                             */
     int  attr;                  /* Is track queued?; Is track marked as bad? */
+    long idx;                   /* its entry in the database, PV_IDX_UNKNOWN
+                                   until its row needs it, -1 for none       */
 };
+#define PV_IDX_UNKNOWN (-2)
 
 enum direction
 {
@@ -152,6 +156,8 @@ struct playlist_viewer {
     /* On-The-Go, as on a stock iPod: Clear Playlist its last row, a held Select
        removes a song at once, and what changed is kept, unasked */
     bool on_the_go;
+    /* Up Next's rows in two lines with covers, as Songs has them */
+    bool covers;
 };
 
 struct playlist_search_data
@@ -229,6 +235,7 @@ static int playlist_entry_load(struct playlist_entry *entry, int index,
         entry->index = info.index;
         entry->display_index = info.display_index;
         entry->attr = info.attr & (PLAYLIST_ATTR_SKIPPED | PLAYLIST_ATTR_QUEUED);
+        entry->idx = PV_IDX_UNKNOWN;
         return len;
     }
     return -1;
@@ -854,6 +861,69 @@ static bool update_playing(void)
     return true;
 }
 
+#ifdef HAVE_TAGCACHE
+/* A song's entry in the database, by its path from the database's table of
+   them in memory: once, as its row is first drawn or its cover asked for
+   ahead, and kept with its place in the buffer until that's loaded again */
+static long pv_track_idx(struct playlist_entry *track)
+{
+    if (track->idx == PV_IDX_UNKNOWN)
+        track->idx = tagcache_find_entry(track->name);
+    return track->idx;
+}
+
+/* Up Next with Covers in Lists, as Songs has its rows: the artist under the
+   title and the album's cover at the left; a file the database hasn't, its
+   name alone beside the note */
+static const char *playlist_callback_subline(int selected_item, void *data,
+                                             char *buf, size_t size)
+{
+    if (pv_clear_row(selected_item))
+        return NULL;
+    const long idx = pv_track_idx(pv_get_track(data, selected_item));
+    return idx >= 0 ? tagtree_song_subline(idx, buf, size) : NULL;
+}
+
+static int playlist_callback_cover(int selected_item, void *data,
+                                   const fb_data **pixels)
+{
+    if (pv_clear_row(selected_item))
+        return LIST_COVER_NONE;
+    const long idx = pv_track_idx(pv_get_track(data, selected_item));
+    return list_covers_get(idx >= 0 ? tagtree_song_album(idx) : -1, pixels);
+}
+
+/* Before each frame, as Songs' (tree.c), but of the rows next to those shown
+   only those the buffer has, none loaded for it */
+static void playlist_before_draw(struct gui_synclist *list)
+{
+    static int last_start;
+    list_covers_frame();
+    list_covers_draw_soon(list);
+    const int start = list->start_item[SCREEN_MAIN];
+    const int shown = list_get_nb_lines(list, SCREEN_MAIN);
+    const bool down = start >= last_start;
+    const int far = MIN(shown + 2 * abs(start - last_start), 32);
+    last_start = start;
+    for (int k = 0; k < far + shown; k++)
+    {
+        const bool forward = k < far ? down : !down;
+        const int d = k < far ? k : k - far;
+        const int row = forward ? start + shown + d : start - 1 - d;
+        if (row < 0 || row >= viewer.num_tracks)
+            continue;
+        const int i = playlist_buffer_get_index(&viewer.buffer,
+                                                get_track_num(&viewer, row));
+        if (i < 0 || i >= viewer.buffer.num_loaded)
+            continue;
+        const long idx = pv_track_idx(&viewer.buffer.tracks[i]);
+        const int album = idx >= 0 ? tagtree_song_album(idx) : -1;
+        if (album >= 0)
+            list_covers_ahead(album);
+    }
+}
+#endif /* HAVE_TAGCACHE */
+
 static int playlist_callback_voice(int selected_item, void *data)
 {
     struct playlist_viewer *local_viewer = (struct playlist_viewer *)data;
@@ -902,8 +972,27 @@ static int playlist_callback_voice(int selected_item, void *data)
 static void update_gui(struct gui_synclist * playlist_lists, bool init)
 {
     if (init)
+    {
         gui_synclist_init(playlist_lists, playlist_callback_name,
                           &viewer, false, 1, NULL);
+#ifdef HAVE_TAGCACHE
+        /* Up Next's songs as Songs has them, with the covers' memory taken
+           already: none is taken while music plays (list_covers.h); one line
+           without, as Songs then. A playlist file viewed keeps one line */
+        list_covers_apply();
+        viewer.covers = !viewer.playlist && tagcache_finds_entries()
+                        && list_covers_on();
+        if (viewer.covers)
+        {
+            gui_synclist_set_subline_callback(playlist_lists,
+                                              playlist_callback_subline);
+            gui_synclist_set_cover_callback(playlist_lists,
+                                            playlist_callback_cover);
+            gui_synclist_set_before_draw(playlist_lists, playlist_before_draw);
+            list_covers_opened();
+        }
+#endif
+    }
     gui_synclist_set_nb_items(playlist_lists, pv_rows());
     gui_synclist_set_voice_callback(playlist_lists,
                                     global_settings.talk_file?
@@ -1059,8 +1148,23 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
         else if (update_playing())
             gui_synclist_draw(&playlist_lists);
 
-        /* Timeout so we can determine if play status has changed */
-        bool res = list_do_action(CONTEXT_TREE|ALLOW_SOFTLOCK, HZ/2, &playlist_lists, &button);
+        /* Timeout so we can determine if play status has changed: as
+           list_do_action(), and the covers the reader reads as the wheel
+           rests drawn as they come, as in tree.c */
+        int timeout = list_do_action_timeout(&playlist_lists, HZ/2);
+#ifdef HAVE_TAGCACHE
+        if (viewer.covers)
+            timeout = list_covers_timeout(timeout);
+#endif
+        keyclick_set_callback(gui_synclist_keyclick_callback, &playlist_lists);
+        button = get_action(CONTEXT_TREE|ALLOW_SOFTLOCK, timeout);
+#ifdef HAVE_TAGCACHE
+        if (viewer.covers && button != ACTION_NONE)
+            list_covers_input();
+        if (viewer.covers && list_covers_poll())
+            gui_synclist_draw(&playlist_lists);
+#endif
+        bool res = gui_synclist_do_button(&playlist_lists, &button);
         /* during moving, another redraw is going to be needed,
          * since viewer.selected_track is updated too late (after the first draw)
          * drawing the moving item needs it */
