@@ -26,14 +26,21 @@
    what each function returned, the state it left, every call it made of the
    firmware below (the database, the queue, yields, reads), and every file
    in the folder afterwards, byte for byte (one over 4 KB by its size and
-   SHA-256). The Makefile compares the two traces (check-lines).
+   SHA-256). The runs without a failure go to one trace, which the Makefile
+   compares between the two builds; those with a failed read or write go to
+   another, which since a failed read stops the readers (fix-read) is the
+   tree's own, held by fault-baseline.txt (check-lines).
 
    The cases: playlists written for the readers' corners (CRLF, no last
    '\n', a BOM, notes, empty files and lines, a '\r' alone, a line as long as
    the buffer or longer, a block that ends inside a CRLF, a '\0') and random
    ones of all of those; each read by every function, with the buffers at
    their least and larger, with reads cut short at random, and with the n-th
-   read or write failing. */
+   read or write failing. After a failed read of the playlist a function
+   reads, or a failed write of a playlist's .tmp, no playlist may be shorter
+   or gone, none may be rewritten, and the function must say it failed: the
+   runs where that doesn't hold are counted, and the tree's build fails on
+   any (LINES_STRICT). */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +59,8 @@ struct stubs stubs;
 struct user_settings global_settings;
 volatile long current_tick;
 
-static FILE *trace;
+/* the runs without a failure, and those with one */
+static FILE *trace, *trace_clean, *trace_faults;
 #define T(...) fprintf(trace, __VA_ARGS__)
 
 /* the bytes, escaped, so that the trace is text */
@@ -102,7 +110,34 @@ static struct {
     long fail_read;     /* the n-th read fails, from 1; 0 for none */
     long fail_write;
     long reads, writes;
+    char read_failed[MAX_PATH];  /* the file of the read that failed */
+    char write_failed[MAX_PATH];
 } faults;
+
+/* each file open by its descriptor, to know which one a failure was of */
+int simfs_sim_open(const char *name, int oflag, ...);
+static char fd_path[256][MAX_PATH];
+
+int sim_open(const char *name, int oflag, ...)
+{
+    int mode = 0666;
+    if (oflag & O_CREAT)
+    {
+        va_list ap;
+        va_start(ap, oflag);
+        mode = va_arg(ap, int);
+        va_end(ap);
+    }
+    const int fd = simfs_sim_open(name, oflag, mode);
+    if (fd >= 0 && fd < (int)ARRAYLEN(fd_path))
+        snprintf(fd_path[fd], MAX_PATH, "%s", name);
+    return fd;
+}
+
+static const char *path_of(int fd)
+{
+    return fd >= 0 && fd < (int)ARRAYLEN(fd_path) ? fd_path[fd] : "";
+}
 
 ssize_t sim_read(int fildes, void *buf, size_t nbyte)
 {
@@ -110,6 +145,7 @@ ssize_t sim_read(int fildes, void *buf, size_t nbyte)
     if (faults.fail_read && faults.reads == faults.fail_read)
     {
         T("  read %ld fails\n", faults.reads);
+        snprintf(faults.read_failed, MAX_PATH, "%s", path_of(fildes));
         return -1;
     }
     if (faults.short_reads && nbyte > 1)
@@ -128,6 +164,7 @@ ssize_t sim_write(int fildes, const void *buf, size_t nbyte)
     if (faults.fail_write && faults.writes == faults.fail_write)
     {
         T("  write %ld fails\n", faults.writes);
+        snprintf(faults.write_failed, MAX_PATH, "%s", path_of(fildes));
         return -1;
     }
     return simfs_sim_write(fildes, buf, nbyte);
@@ -662,7 +699,8 @@ static void faults_end(void)
 {
     T("  reads %ld writes %ld yields %ld\n", faults.reads, faults.writes,
       stubs.yields);
-    memset(&faults, 0, sizeof(faults));
+    faults.short_reads = false;
+    faults.fail_read = faults.fail_write = 0;
 }
 
 static void t_state(const struct lp_state *st)
@@ -687,16 +725,140 @@ static int setup_index(const char *path, struct lp_state *st)
     return n;
 }
 
+/* ---- what a failure may not do (fix-read) ---- */
+
+#ifndef LINES_NAME
+#define LINES_NAME "?"
+#endif
+
+static bool is_playlist(const char *path)
+{
+    return !strncmp(path, PLAYLIST_DIR "/", sizeof(PLAYLIST_DIR))
+           || !strcmp(path, OTG_FILE);
+}
+
+/* the playlists in the folder, with their bytes, and whether an index is */
+#define SNAP_MAX 8
+struct snap_file {
+    char path[MAX_PATH];
+    char *data;
+    size_t size;
+};
+struct snap {
+    int count;
+    bool index;
+    struct snap_file f[SNAP_MAX];
+};
+static struct snap before, after, *snapping;
+
+static void snap_one(const char *path, const void *data, size_t n)
+{
+    if (strstr(path, ".idx"))
+        snapping->index = true;
+    if (!is_playlist(path) || snapping->count == SNAP_MAX)
+        return;
+    struct snap_file *f = &snapping->f[snapping->count++];
+    snprintf(f->path, sizeof(f->path), "%s", path);
+    f->data = malloc(n + 1);
+    memcpy(f->data, data, n);
+    f->size = n;
+}
+
+static void snap_take(struct snap *s)
+{
+    for (int i = 0; i < s->count; i++)
+        free(s->f[i].data);
+    s->count = 0;
+    s->index = false;
+    snapping = s;
+    host_each_file(snap_one);
+}
+
+static char case_name[64], run_label[128];
+static long checked, violations;
+
+/* each run's trace: that of the runs with a failure, or the other */
+static void run_stream(int mode)
+{
+    trace = mode >= 2 ? trace_faults : trace_clean;
+}
+
+static void run_head(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(run_label, sizeof(run_label), fmt, ap);
+    va_end(ap);
+    T("%s\n", run_label);
+}
+
+static void violation(const char *what)
+{
+    violations++;
+#ifdef LINES_STRICT
+    if (violations <= 20)
+        fprintf(stderr, "test_lines: %s,%s: %s\n", case_name, run_label, what);
+#else
+    (void)what;
+#endif
+}
+
+/* After a failed read of the playlist the function reads as lines (subject),
+   or a failed write of a playlist's .tmp: every playlist there still, none
+   shorter, none changed but by what an append added, and the failure said;
+   lp_index_appended()'s index dropped */
+static void check_failure(char kind, const char *subject, bool said_failed)
+{
+    const size_t wl = strlen(faults.write_failed);
+    const bool read_failed = faults.read_failed[0]
+                             && !strcmp(faults.read_failed, subject);
+    const bool tmp_failed = wl > 4 && !strcmp(faults.write_failed + wl - 4, ".tmp")
+                            && (strstr(faults.write_failed, ".m3u8.tmp")
+                                || strstr(faults.write_failed, ".m3u.tmp"));
+    if (!read_failed && !(tmp_failed && strchr("cpr", kind)))
+        return;
+    checked++;
+    snap_take(&after);
+    bool same = after.count == before.count;
+    for (int i = 0; i < before.count; i++)
+    {
+        const struct snap_file *b = &before.f[i], *a = NULL;
+        for (int j = 0; j < after.count && !a; j++)
+            if (!strcmp(after.f[j].path, b->path))
+                a = &after.f[j];
+        if (!a)
+        {
+            violation("a playlist is gone");
+            return;
+        }
+        if (a->size < b->size)
+        {
+            violation("a playlist is shorter");
+            return;
+        }
+        same = same && a->size == b->size && !memcmp(a->data, b->data, b->size);
+    }
+    if (kind != 'a' && !same)
+        violation("a playlist was rewritten");
+    else if (!said_failed)
+        violation("it said it didn't fail");
+    else if (kind == 'x' && after.index)
+        violation("the playlist's index was kept");
+}
+
 static void run_build(const struct text *t, size_t size, int max, int mode)
 {
     static char buf[16384];
     struct lp_state st;
+    run_stream(mode);
     host_fresh();
     host_put(file, t->data, t->size);
-    T(" build size %zu max %d mode %d\n", size, max, mode);
+    run_head(" build size %zu max %d mode %d", size, max, mode);
+    snap_take(&before);
     faults_start(mode, size * 31 + max);
     const int n = lp_index_build(file, songs, max, buf, size, &st);
     faults_end();
+    check_failure('b', file, n < 0);
     T("  returned %d\n", n);
     t_state(&st);
     t_songs(n);
@@ -706,18 +868,21 @@ static void run_appended(const struct text *t, size_t cut, bool indexed,
                          bool playing, int mode)
 {
     struct lp_state st;
+    run_stream(mode);
     host_fresh();
     host_put(file, t->data, cut);
-    T(" appended cut %zu indexed %d playing %d mode %d\n", cut, indexed,
-      playing, mode);
+    run_head(" appended cut %zu indexed %d playing %d mode %d", cut, indexed,
+             playing, mode);
     if (indexed)
         T("  setup %d\n", setup_index(file, &st));
     host_put(file, t->data, t->size);
     audio_now = playing ? AUDIO_STATUS_PLAY : 0;
     playing_name = playing ? file : NULL;
+    snap_take(&before);
     faults_start(mode, cut * 7 + indexed);
     lp_index_appended(file, cut);
     faults_end();
+    check_failure('x', file, true);
     audio_now = 0;
     playing_name = NULL;
     t_files();
@@ -726,13 +891,16 @@ static void run_appended(const struct text *t, size_t cut, bool indexed,
 static void run_clean(const struct text *t, size_t size, int mode)
 {
     static char buf[16384];
+    run_stream(mode);
     host_fresh();
     host_put(file, t->data, t->size);
     note_gone(t);
-    T(" clean size %zu mode %d\n", size, mode);
+    run_head(" clean size %zu mode %d", size, mode);
+    snap_take(&before);
     faults_start(mode, size * 13);
     const bool changed = clean_playlist(file, buf, size);
     faults_end();
+    check_failure('c', file, !changed);
     gone_set = NULL;
     gone_count = 0;
     T("  returned %d\n", changed);
@@ -743,16 +911,19 @@ static char pool[32768];
 
 static void run_copy(const struct text *t, size_t room, bool second, int mode)
 {
+    run_stream(mode);
     host_fresh();
     host_put(file, t->data, t->size);
     lp.pool = pool;
     lp.pool_used = 100;
     lp.pool_size = lp.pool_used + room;
     playing_name = second ? LP_PLAYING : NULL;
-    T(" copy room %zu second %d mode %d\n", room, second, mode);
+    run_head(" copy room %zu second %d mode %d", room, second, mode);
+    snap_take(&before);
     faults_start(mode, room * 3 + second);
     const char *copy = make_copy(file);
     faults_end();
+    check_failure('p', file, !copy);
     playing_name = NULL;
     t_str("  returned", copy);
     t_files();
@@ -762,6 +933,7 @@ static void run_remove(const struct text *t, int which, size_t room, bool otg,
                        int mode)
 {
     struct lp_state st;
+    run_stream(mode);
     host_fresh();
     const char *path = otg ? OTG_FILE : file;
     host_put(path, t->data, t->size);
@@ -778,11 +950,13 @@ static void run_remove(const struct text *t, int which, size_t room, bool otg,
     lp.pool = pool;
     lp.pool_used = 64;
     lp.pool_size = lp.pool_used + room;
-    T(" remove song %d of %d room %zu otg %d mode %d\n", song, n, room, otg,
-      mode);
+    run_head(" remove song %d of %d room %zu otg %d mode %d", song, n, room,
+             otg, mode);
+    snap_take(&before);
     faults_start(mode, room * 5 + song);
     const bool ok = lp_remove(song);
     faults_end();
+    check_failure('r', path, !ok);
     T("  returned %d total %d lines %u\n", ok, lp.total, lp.state.lines);
     t_songs(lp.total);
     t_files();
@@ -791,6 +965,7 @@ static void run_remove(const struct text *t, int which, size_t room, bool otg,
 static void run_append(const struct text *t, size_t size, int target_kind,
                        int mode)
 {
+    run_stream(mode);
     host_fresh();
     host_put(file, t->data, t->size);
     const char *target = target_kind == 0 ? OTG_FILE
@@ -800,10 +975,12 @@ static void run_append(const struct text *t, size_t size, int target_kind,
     else if (target_kind == 2)
         host_put(target, "/Music/A/old.mp3", 16);
     plugin_size = size;
-    T(" append size %zu target %d mode %d\n", size, target_kind, mode);
+    run_head(" append size %zu target %d mode %d", size, target_kind, mode);
+    snap_take(&before);
     faults_start(mode, size * 11 + target_kind);
     const bool ok = playlist_file_append_playlist(target, file);
     faults_end();
+    check_failure('a', file, !ok);
     T("  returned %d\n", ok);
     t_files();
 }
@@ -812,8 +989,13 @@ static void run_append(const struct text *t, size_t size, int target_kind,
 static void run_all(const struct text *t, const char *name, bool all)
 {
     snprintf(file, sizeof(file), PLAYLIST_DIR "/%s", name);
-    T("case %s\n", name);
-    t_bytes(" playlist", t->data, t->size);
+    snprintf(case_name, sizeof(case_name), "%s", name);
+    for (int k = 0; k < 2; k++)
+    {
+        trace = k ? trace_faults : trace_clean;
+        T("case %s\n", name);
+        t_bytes(" playlist", t->data, t->size);
+    }
     const int modes = all ? 12 : 4;
     for (int m = 0; m < modes; m++)
     {
@@ -849,16 +1031,23 @@ static void too_long(int sig)
 
 int main(int argc, char **argv)
 {
-    if (argc != 2)
+    if (argc != 3)
     {
-        fprintf(stderr, "usage: %s <folder>\n", argv[0]);
+        fprintf(stderr, "usage: %s <folder> <trace of the faults' runs>\n",
+                argv[0]);
         return 2;
     }
     signal(SIGALRM, too_long);
     alarm(300);
     host_root(argv[1]);
     simfs_root(argv[1]);
-    trace = stdout;
+    trace = trace_clean = stdout;
+    trace_faults = fopen(argv[2], "w");
+    if (!trace_faults)
+    {
+        perror(argv[2]);
+        return 2;
+    }
     static const char *const names[] = { "corner.m3u8", "corner.m3u" };
     static const size_t blocks[] = { 2 * MAX_PATH, 777, 4096 };
     for (int k = 0; k < CORNERS; k++)
@@ -888,8 +1077,15 @@ int main(int argc, char **argv)
         run_all(&t, name, false);
         free(t.data);
     }
-    fprintf(stderr, "lines: reads that ended inside a CRLF: %ld\n",
-            crlf_splits);
+    fprintf(stderr, "lines (%s): reads that ended inside a CRLF: %ld; runs "
+            "whose playlist's read or .tmp's write failed: %ld, a playlist "
+            "shorter, gone or rewritten or the failure unsaid in %ld\n",
+            LINES_NAME, crlf_splits, checked, violations);
+    fclose(trace_faults);
     host_remove_root();
+#ifdef LINES_STRICT
+    return violations ? 1 : 0;
+#else
     return 0;
+#endif
 }

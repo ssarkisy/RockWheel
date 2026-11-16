@@ -228,14 +228,19 @@ check-disk: $(foreach c,$(DISK_CONFIGS),$(BUILD)/disk/test_disk_$(c))
 # library_playlists.c's and on_the_go.c's readers of a playlist's lines:
 # lines/test_lines.c built with BASE's files (lines/ref/, made by
 # lines/make_ref.py from git) and with the tree's, which read through
-# line_reader.c; each runs the same cases, and their traces are compared.
-# simfs.c's read and write go through the test's, which cut reads short and
-# fail them. lines/unused.c stands in for the firmware the two files call
-# from what the test doesn't run.
+# line_reader.c; each runs the same cases. The traces of the runs without a
+# failure are compared between the two; that of the runs with one, where a
+# failed read now stops the readers, is the tree's against
+# lines/fault-baseline.txt (make lines-baseline makes it again, for a change
+# meant). The tree's build also fails if a failure left a playlist shorter,
+# gone or rewritten. simfs.c's open, read and write go through the test's,
+# which cut reads short and fail them. lines/unused.c stands in for the
+# firmware the two files call from what the test doesn't run.
 LINES_DEF_ref := -DLP_SOURCE=\"$(TESTS)/lines/ref/library_playlists.c\" \
-	-DOTG_SOURCE=\"$(TESTS)/lines/ref/on_the_go.c\"
+	-DOTG_SOURCE=\"$(TESTS)/lines/ref/on_the_go.c\" -DLINES_NAME=\"ref\"
 LINES_DEF_new := -DLP_SOURCE=\"$(ROOT)/apps/library_playlists.c\" \
-	-DOTG_SOURCE=\"$(ROOT)/apps/on_the_go.c\"
+	-DOTG_SOURCE=\"$(ROOT)/apps/on_the_go.c\" -DLINES_NAME=\"new\" \
+	-DLINES_STRICT
 LINES_OBJ := $(OBJ)/lines/host.o $(OBJ)/lines/simfs.o $(OBJ)/lines/unused.o \
 	$(FIRMWARE_OBJ)
 LINES_CFLAGS := -I$(TESTS)/lines $(CFLAGS) -Wno-format-security \
@@ -250,8 +255,8 @@ $(OBJ)/lines/test_lines_ref.o $(OBJ)/lines/test_lines_new.o: \
 $(OBJ)/lines/simfs.o: $(TESTS)/lib/simfs.c
 	@mkdir -p $(dir $@)
 	@echo CC lines/simfs.o
-	@$(HOST_CC) $(CFLAGS) -Dsim_read=simfs_sim_read \
-		-Dsim_write=simfs_sim_write -MMD -c $< -o $@
+	@$(HOST_CC) $(CFLAGS) -Dsim_open=simfs_sim_open \
+		-Dsim_read=simfs_sim_read -Dsim_write=simfs_sim_write -MMD -c $< -o $@
 
 $(OBJ)/lines/host.o $(OBJ)/lines/unused.o: $(OBJ)/lines/%.o: $(TESTS)/lines/%.c
 	@mkdir -p $(dir $@)
@@ -272,12 +277,24 @@ LINES_RUN := $(BUILD)/lines
 check-lines: $(BUILD)/test_lines_ref $(BUILD)/test_lines_new
 	@$(PYTHON) -I -B $(TESTS)/lines/make_ref.py --check > /dev/null
 	@mkdir -p $(LINES_RUN)
-	@$(BUILD)/test_lines_ref $(LINES_RUN)/disk-ref > $(LINES_RUN)/ref.txt
-	@$(BUILD)/test_lines_new $(LINES_RUN)/disk-new > $(LINES_RUN)/new.txt
+	@$(BUILD)/test_lines_ref $(LINES_RUN)/disk-ref \
+		$(LINES_RUN)/ref-faults.txt > $(LINES_RUN)/ref.txt
+	@$(BUILD)/test_lines_new $(LINES_RUN)/disk-new \
+		$(LINES_RUN)/new-faults.txt > $(LINES_RUN)/new.txt
 	@cmp $(LINES_RUN)/ref.txt $(LINES_RUN)/new.txt
-	@echo "lines: $$(grep -c '^case' $(LINES_RUN)/ref.txt) playlists," \
-		"$$(grep -c '^ [a-z]' $(LINES_RUN)/ref.txt) runs," \
+	@echo "lines: without a failure, $$(grep -c '^case' $(LINES_RUN)/ref.txt)" \
+		"playlists, $$(grep -c '^ [a-z]' $(LINES_RUN)/ref.txt) runs," \
 		"$$(wc -c < $(LINES_RUN)/ref.txt | tr -d ' ') bytes of trace, the same"
+	@$(PYTHON) -I -B $(TESTS)/lines/baseline.py --check \
+		$(LINES_RUN)/new-faults.txt $(TESTS)/lines/fault-baseline.txt
+
+.PHONY: lines-baseline
+lines-baseline: $(BUILD)/test_lines_new
+	@mkdir -p $(LINES_RUN)
+	@$(BUILD)/test_lines_new $(LINES_RUN)/disk-new \
+		$(LINES_RUN)/new-faults.txt > $(LINES_RUN)/new.txt
+	@$(PYTHON) -I -B $(TESTS)/lines/baseline.py --write \
+		$(LINES_RUN)/new-faults.txt $(TESTS)/lines/fault-baseline.txt
 
 # warble, from its own configure in build/warble, with clang and ASan; only
 # the codecs the fixtures need, and without SDL (lib/sdl_stub.c). DEBUG makes

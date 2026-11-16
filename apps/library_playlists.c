@@ -384,6 +384,11 @@ void lp_index_appended(const char *file, long old_size)
     line_reader_init(&lines, fd, buf, sizeof(buf));
     while (line_read(&lines))
     {
+        if (lines.failed)
+        {
+            ok = false;
+            break;
+        }
         char *line;
         size_t len;
         while ((line = line_next(&lines, &len)))
@@ -470,6 +475,8 @@ int lp_index_build(const char *file, struct lp_song *songs, int max,
     line_reader_init(&lines, fd, buf, size);
     while (!full && line_read(&lines))
     {
+        if (lines.failed)
+            break;
         char *line;
         size_t len;
         while ((line = line_next(&lines, &len)))
@@ -508,6 +515,8 @@ int lp_index_build(const char *file, struct lp_song *songs, int max,
         yield();
     }
     close(fd);
+    if (lines.failed)
+        return -1;
     /* those past max not counted: not in the file's order then */
     state->lines = line_no;
     return count;
@@ -827,6 +836,11 @@ static bool clean_playlist(const char *file, char *buf, size_t size)
     line_reader_init(&lines, fd, buf, size);
     while (ok && line_read(&lines))
     {
+        if (lines.failed)
+        {
+            ok = false;
+            break;
+        }
         char *line;
         size_t len;
         while ((line = line_next(&lines, &len)))
@@ -1312,6 +1326,11 @@ static const char *make_copy(const char *file)
     line_reader_init(&lines, fd, in, in_size);
     while (ok && line_read(&lines))
     {
+        if (lines.failed)
+        {
+            ok = false;
+            break;
+        }
         char *line;
         size_t len;
         while ((line = line_next(&lines, &len)))
@@ -1327,7 +1346,7 @@ static const char *make_copy(const char *file)
                 const size_t slen = strlen(song);
                 if (put + slen + 1 > out_size)
                 {
-                    ok = write(wfd, out, put) == (ssize_t)put;
+                    ok = ok && write(wfd, out, put) == (ssize_t)put;
                     put = 0;
                 }
                 if (slen + 1 <= out_size)
@@ -1672,6 +1691,11 @@ static bool lp_remove(int song)
     line_reader_init(&lines, fd, in, in_size);
     while (ok && line_read(&lines))
     {
+        if (lines.failed)
+        {
+            ok = false;
+            break;
+        }
         char *line;
         size_t len;
         while ((line = line_next(&lines, &len)))
@@ -1692,7 +1716,7 @@ static bool lp_remove(int song)
                 const size_t tlen = strlen(text);
                 if (put + tlen + 1 > out_size)
                 {
-                    ok = write(wfd, out, put) == (ssize_t)put;
+                    ok = ok && write(wfd, out, put) == (ssize_t)put;
                     put = 0;
                 }
                 if (tlen + 1 <= out_size)

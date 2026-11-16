@@ -47,8 +47,9 @@ struct line_reader {
     off_t start;    /* buf's place in the file, from where the reader began */
     off_t at;       /* the line line_next() gave last, from there too */
     bool end;       /* read to the end, or a read failed */
-    bool failed;    /* a read failed, taken as the end: the block of it has
-                       the last line */
+    bool failed;    /* a read failed: no block after it, and it isn't the
+                       file's end, so each caller stops here, before the
+                       block's lines */
 };
 
 void line_reader_init(struct line_reader *r, int fd, char *buf, size_t size);
