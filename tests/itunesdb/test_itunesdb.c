@@ -19,12 +19,12 @@
  ****************************************************************************/
 
 /* iTunesDB and ArtworkDB read as after a sync: the tracks as db_load() has
-   them, the whole import (itunesdb_import_tracks()) with its playlists and
-   its index of covers, then the iPod's name. Each case of make_itunesdb.py's
-   is an iPod's folder, read in a process of its own, so that each starts as
-   at boot and a crash or a hang is that case's. A case gives what its
-   "expect" says, and every one, whole or damaged, without a sanitizer error
-   and within its time. */
+   them, the whole import (itunesdb_import_tracks()) with its playlists, its
+   index of covers and its records of the tracks' tags, then the iPod's name.
+   Each case of make_itunesdb.py's is an iPod's folder, read in a process of
+   its own, so that each starts as at boot and a crash or a hang is that
+   case's. A case gives what its "expect" says, and every one, whole or
+   damaged, without a sanitizer error and within its time. */
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -103,6 +103,10 @@ static const char *const outcome_names[] = {
 
 #define WANT_PATHS 4
 #define WANT_PLAYLISTS 4
+#define WANT_META 4
+/* a "meta" line's fields: the path, title, artist, album, album artist,
+   year, plays and rating */
+#define META_FIELDS 8
 /* the expectations of a case, -1 or "" for none */
 static struct {
     int tracks, loaded, complete, paths, covers, shows;
@@ -114,6 +118,11 @@ static struct {
         int count;
     } playlists[WANT_PLAYLISTS];
     int nplaylists;
+    char unwritten[WANT_PLAYLISTS][MAX_PATH];
+    int nunwritten;
+    char meta[WANT_META][META_FIELDS][MAX_PATH];
+    int nmeta;
+    char notes_path[MAX_PATH], notes[512];
     int known;          /* the outcome of a failure left as it is, or 0 */
     char why[512];
 } want;
@@ -174,6 +183,28 @@ static void read_expect(const char *dir)
             while ((field = strtok(NULL, "\t")) && pl->count < WANT_PATHS)
                 snprintf(pl->paths[pl->count++], MAX_PATH, "%s", field);
         }
+        else if (!strcmp(line, "notes"))
+        {
+            /* "<path>\t<text>" */
+            char *text = strchr(arg, '\t');
+            if (text)
+                *text++ = '\0';
+            snprintf(want.notes_path, sizeof(want.notes_path), "%s", arg);
+            snprintf(want.notes, sizeof(want.notes), "%s", text ? text : "");
+        }
+        else if (!strcmp(line, "unwritten") && want.nunwritten < WANT_PLAYLISTS)
+            snprintf(want.unwritten[want.nunwritten++], MAX_PATH, "%s", arg);
+        else if (!strcmp(line, "meta") && want.nmeta < WANT_META)
+        {
+            /* "<path>\t<title>\t…", a field "" where a tag is none */
+            char *rest = arg;
+            for (int k = 0; k < META_FIELDS; k++)
+            {
+                const char *field = rest ? strsep(&rest, "\t") : "";
+                snprintf(want.meta[want.nmeta][k], MAX_PATH, "%s", field);
+            }
+            want.nmeta++;
+        }
     }
     fclose(f);
 }
@@ -198,6 +229,57 @@ static void check_playlist(int n)
     }
     fclose(f);
     CHECK_EQ(songs, want.playlists[n].count);
+}
+
+/* no playlist written as this file */
+static void check_unwritten(int n)
+{
+    char path[MAX_PATH * 2];
+    FILE *f = fopen(simfs_path(want.unwritten[n], path, sizeof(path)), "r");
+    CHECK(f == NULL);
+    if (f)
+        fclose(f);
+}
+
+/* what the import's records give for the track at path, as a "meta" line's
+   fields; false for none */
+static bool track_meta(const char *path, char fields[META_FIELDS][MAX_PATH])
+{
+    static struct mp3entry id3;
+    struct tagcache_runtime rt;
+    long date, added;
+    memset(&rt, 0, sizeof(rt));
+    if (!itunesdb_get_metadata(path, &id3, &rt, &date, &added))
+        return false;
+    const char *const tags[] = { id3.title, id3.artist, id3.album,
+                                 id3.albumartist };
+    snprintf(fields[0], MAX_PATH, "%s", path);
+    for (int k = 0; k < 4; k++)
+        snprintf(fields[1 + k], MAX_PATH, "%s", tags[k] ? tags[k] : "");
+    snprintf(fields[5], MAX_PATH, "%d", (int)id3.year);
+    snprintf(fields[6], MAX_PATH, "%ld", (long)rt.playcount);
+    snprintf(fields[7], MAX_PATH, "%ld", (long)rt.rating);
+    return true;
+}
+
+static void check_meta(int n)
+{
+    static char got[META_FIELDS][MAX_PATH];
+    const bool found = track_meta(want.meta[n][0], got);
+    CHECK(found);
+    for (int k = 1; found && k < META_FIELDS; k++)
+    {
+        CHECK(!strcmp(got[k], want.meta[n][k]));
+        if (strcmp(got[k], want.meta[n][k]))
+            fprintf(stderr, "    %s, field %d: \"%s\", not \"%s\"\n",
+                    want.meta[n][0], k, got[k], want.meta[n][k]);
+    }
+}
+
+static int cmp_u32(const void *a, const void *b)
+{
+    uint32_t x = *(const uint32_t *)a, y = *(const uint32_t *)b;
+    return (x > y) - (x < y);
 }
 
 static struct track *track_by_id(uint32_t id)
@@ -280,6 +362,40 @@ static int run_case(const char *dir, const char *name)
         CHECK_EQ(paths, want.paths);
     for (int i = 0; i < want.nabsent; i++)
         CHECK(!loaded || !track_by_id(want.absent[i]));
+    /* no track read twice: each id is once in the cases' files, and a record
+       read again, as by a loop, would give one twice. Their paths, for the
+       import's records after it. */
+    const int tracks_read = loaded ? db.count : 0;
+    uint32_t *ids = calloc(tracks_read + 1, sizeof(*ids));
+    char **read_paths = calloc(tracks_read + 1, sizeof(*read_paths));
+    for (int i = 0; i < tracks_read; i++)
+    {
+        ids[i] = db.tracks[i].id;
+        read_paths[i] = db.tracks[i].path ? strdup(db.pool + db.tracks[i].path)
+                                          : NULL;
+    }
+    qsort(ids, tracks_read, sizeof(*ids), cmp_u32);
+    for (int i = 1; i < tracks_read; i++)
+        CHECK(ids[i] == 0 || ids[i] != ids[i - 1]);
+    free(ids);
+    /* nor an image of ArtworkDB twice, read as write_art_index() reads them,
+       sorted by id */
+    if (loaded)
+    {
+        struct art_image *images = NULL;
+        int nimages = 0;
+        memset(&art_hdr, 0, sizeof(art_hdr));
+        memset(&large_hdr, 0, sizeof(large_hdr));
+        ithmb_count = 0;
+        const int handle = read_images(&images, &nimages);
+        for (int i = 1; handle > 0 && i < nimages; i++)
+            CHECK(images[i].id != images[i - 1].id);
+        if (handle > 0)
+        {
+            core_unpin(handle);
+            core_free(handle);
+        }
+    }
     /* with TESTS_ACTUAL set, what was read, for writing expectations: in the
        case's folder as "actual" */
     FILE *actual = NULL;
@@ -309,6 +425,36 @@ static int run_case(const char *dir, const char *name)
         CHECK_EQ(itunesdb_art_count(), want.covers);
     for (int i = 0; i < want.nplaylists; i++)
         check_playlist(i);
+    for (int i = 0; i < want.nunwritten; i++)
+        check_unwritten(i);
+    /* the import's records of the tracks' tags: those expected, and every
+       track's asked for, read where they are */
+    for (int i = 0; i < want.nmeta; i++)
+        check_meta(i);
+    /* a podcast's notes, as Now Playing reads them */
+    if (want.notes_path[0])
+    {
+        char text[1024];
+        const int len = itunesdb_read_notes(want.notes_path, text,
+                                            sizeof(text) - 1);
+        text[len] = '\0';
+        CHECK(!strcmp(text, want.notes));
+        if (strcmp(text, want.notes))
+            fprintf(stderr, "    notes \"%s\", not \"%s\"\n", text, want.notes);
+    }
+    for (int i = 0; i < tracks_read; i++)
+    {
+        static char got[META_FIELDS][MAX_PATH];
+        if (read_paths[i] && track_meta(read_paths[i], got) && actual)
+        {
+            fprintf(actual, "meta");
+            for (int k = 0; k < META_FIELDS; k++)
+                fprintf(actual, "%c%s", k ? '\t' : ' ', got[k]);
+            fprintf(actual, "\n");
+        }
+        free(read_paths[i]);
+    }
+    free(read_paths);
 
     /* and the name, as the main menu shows it: last, as a loop there would
        leave the rest unread */

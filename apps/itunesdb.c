@@ -54,6 +54,7 @@
 #include "health_log.h"
 #include "crc32.h"
 #include "sortkey.h"
+#include "mh_walk.h"
 #ifdef ITUNESDB_HAVE_ART
 #include "skin_engine/cover_palette.h"
 #include "skin_engine/skin_engine.h"
@@ -244,6 +245,14 @@ static uint32_t le32(const unsigned char *p)
     return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24;
 }
 
+/* the bytes of the string of an iTunesDB mhod, at least 40 of it read: as
+   many as it says, but within its record, which its total length ends */
+static uint32_t mhod_string_size(const unsigned char *p)
+{
+    const uint32_t total = le32(p + 8);
+    return total > 40 ? MIN(le32(p + 28), total - 40) : 0;
+}
+
 /* seconds from 1904 to 1970, for the times of iTunesDB */
 #define MAC_EPOCH_OFFSET 2082844800u
 
@@ -316,7 +325,7 @@ static bool mhod_string(off_t pos, char *buf, size_t size)
     const unsigned char *p = db_record(pos, "mhod", 40);
     if (!p)
         return false;
-    size_t units = MIN(le32(p + 28) / 2, (size - 1) / 3);
+    size_t units = MIN(mhod_string_size(p) / 2, (size - 1) / 3);
     p = db_get(pos + 40, units * 2);
     if (!p)
         return false;
@@ -331,7 +340,7 @@ static bool mhod_string(off_t pos, char *buf, size_t size)
 static bool mhod_filled(off_t pos)
 {
     const unsigned char *p = db_record(pos, "mhod", 40);
-    return p && le32(p + 28) >= 2;
+    return p && mhod_string_size(p) >= 2;
 }
 
 /* the string of the mhod at pos hashed as it is, 0 for an empty one */
@@ -340,7 +349,7 @@ static uint32_t mhod_hash(off_t pos)
     const unsigned char *p = db_record(pos, "mhod", 40);
     if (!p)
         return 0;
-    size_t len = MIN(le32(p + 28), 1024);
+    size_t len = MIN(mhod_string_size(p), 1024);
     p = len ? db_get(pos + 40, len) : NULL;
     if (!p)
         return 0;
@@ -483,7 +492,8 @@ static bool device_name_read = false;
 
 static bool read_at(int fd, off_t pos, void *buf, size_t size)
 {
-    return lseek(fd, pos, SEEK_SET) == pos
+    /* lseek()'s -1 for a failure would pass for a pos of -1 */
+    return pos >= 0 && lseek(fd, pos, SEEK_SET) == pos
            && read(fd, buf, size) == (ssize_t)size;
 }
 
@@ -498,44 +508,50 @@ static bool read_device_name(void)
     if (fd < 0)
         return false;
 
-    off_t pos = 0;
+    off_t pos = 0, end;
     if (!read_at(fd, pos, h, 24) || memcmp(h, "mhbd", 4))
         goto done;
     int sections = le32(h + 20);
-    pos += le32(h + 4);
+    end = record_end(pos, h, MH_FILE_END);
+    pos = next_record(pos, le32(h + 4), end);
 
-    /* the list of playlists, among mhbd's sections as db_load() counts them.
-       Each record must lie further on: on the iPod's 32-bit offsets a
-       damaged length can lead back to an earlier one, for ever */
+    /* the list of playlists, among mhbd's sections as db_load() counts them */
     for (int i = 0; ; i++)
     {
         if (i >= sections || !read_at(fd, pos, h, 16) || memcmp(h, "mhsd", 4))
             goto done;
-        if (le32(h + 12) == 2)
-            break;
-        off_t next = pos + le32(h + 8);
-        if (next <= pos)
+        const off_t next = record_end(pos, h, end);
+        if (next < 0)
             goto done;
+        if (le32(h + 12) == 2)
+        {
+            end = next;
+            break;
+        }
         pos = next;
     }
-    pos += le32(h + 4);
+    pos = next_record(pos, le32(h + 4), end);
     if (!read_at(fd, pos, h, 16) || memcmp(h, "mhlp", 4))
         goto done;
-    pos += le32(h + 4);
+    pos = next_record(pos, le32(h + 4), end);
 
     /* the first of them, if it's the hidden one */
     if (!read_at(fd, pos, h, 44) || memcmp(h, "mhyp", 4) || le32(h + 20) == 0)
         goto done;
     int mhods = le32(h + 12);
-    pos += le32(h + 4);
+    end = record_end(pos, h, end);
+    pos = next_record(pos, le32(h + 4), end);
 
     for (int i = 0; i < mhods; i++)
     {
         if (!read_at(fd, pos, h, 40) || memcmp(h, "mhod", 4))
             goto done;
+        const off_t next = record_end(pos, h, end);
+        if (next < 0)
+            goto done;
         if (le32(h + 12) == 1)
         {
-            size_t units = MIN(le32(h + 28), sizeof(text)) / 2;
+            size_t units = MIN(mhod_string_size(h), sizeof(text)) / 2;
             if (read_at(fd, pos + 40, text, units * 2))
             {
                 /* not half of a pair: the decoder would take both */
@@ -546,9 +562,6 @@ static bool read_device_name(void)
             }
             break;
         }
-        off_t next = pos + le32(h + 8);
-        if (next <= pos)
-            break;
         pos = next;
     }
 done:
@@ -612,8 +625,10 @@ static struct {
     bool full;          /* no room for more records */
 } meta;
 
-/* the bytes of the table before the pool: the records start with a uint64_t,
-   and an odd count of 32-bit offsets would leave them 4 off a multiple of 8 */
+/* the bytes of the table before the pool: a multiple of 8, so that the
+   records, which start with a uint64_t, are aligned as far as the allocation
+   is (on the host and the simulator; buflib gives the iPod 4, where ARMv4
+   reads a uint64_t as two words) */
 static size_t meta_table_size(int count)
 {
     return ALIGN_UP(count * sizeof(uint32_t), 8);
@@ -716,8 +731,9 @@ static bool known_hash(const uint64_t *hashes, int count, uint64_t hash)
     return false;
 }
 
-/* the record of a track into the pool, false when it doesn't fit */
-static bool add_metadata(const struct track *t)
+/* the record of a track into the pool, false when it doesn't fit; its mhit
+   ends at end */
+static bool add_metadata(const struct track *t, off_t end)
 {
     static char strings[ID3V2_BUF_SIZE];
     off_t mhods_at[META_STRINGS] = { 0 };
@@ -747,21 +763,20 @@ static bool add_metadata(const struct track *t)
     if (!r.year)
         r.year = r.date / 10000;
 
-    off_t child = t->pos + header_len;
+    off_t child = next_record(t->pos, header_len, end);
     for (int i = 0; i < mhods; i++)
     {
         p = db_record(child, "mhod", 16);
-        if (!p)
+        const off_t next = p ? record_end(child, p, end) : -1;
+        if (next < 0)
             break;
-        uint32_t total = le32(p + 8), type = le32(p + 12);
+        const uint32_t type = le32(p + 12);
         for (int k = 0; k < META_STRINGS; k++)
         {
             if (meta_mhods[k] == type)
                 mhods_at[k] = child;
         }
-        if (total == 0)
-            break;
-        child += total;
+        child = next;
     }
 
     size_t used = 0;
@@ -824,8 +839,8 @@ static void metadata_room(int tracks)
     meta.capacity = count;
 }
 
-/* a track just read, its mhit still in the cache */
-static void new_track_metadata(const struct track *t)
+/* a track just read, its mhit, which ends at end, still in the cache */
+static void new_track_metadata(const struct track *t, off_t end)
 {
     if (!meta.reading || meta.full || meta.handle <= 0)
         return;
@@ -833,7 +848,7 @@ static void new_track_metadata(const struct track *t)
                              core_get_data(meta.known_handle) : NULL;
     if (known_hash(hashes, meta.known, t->st.hash))
         return;
-    if (meta.count >= meta.capacity || !add_metadata(t))
+    if (meta.count >= meta.capacity || !add_metadata(t, end))
         meta.full = true;
 }
 
@@ -1020,7 +1035,7 @@ static uint32_t notes_put(off_t pos)
                                                  : NULL;
     if (!p)
         return notes_out.end;
-    uint32_t units = le32(p + 28) / 2;
+    uint32_t units = mhod_string_size(p) / 2;
     off_t at = pos + 40;
     size_t total = 0;
     bool whole = false;
@@ -1202,9 +1217,10 @@ int itunesdb_read_notes(const char *path, char *buf, size_t size)
     return MAX(len, 0);
 }
 
-/* the track at pos read; where its notes are in iTunesDB, an episode's or a
-   book's description or else its subtitle, 0 for none */
-static off_t read_track(off_t pos, struct track *track)
+/* the track at pos read, its mhit ending at end; where its notes are in
+   iTunesDB, an episode's or a book's description or else its subtitle, 0 for
+   none */
+static off_t read_track(off_t pos, off_t end, struct track *track)
 {
     char path[MAX_PATH];
     const unsigned char *p = db_record(pos, "mhit", 12);
@@ -1272,13 +1288,14 @@ static off_t read_track(off_t pos, struct track *track)
     off_t name_at[SORTS] = { 0 }, sort_at[SORTS] = { 0 };
     bool sorted = false;
     off_t notes_at = 0, subtitle_at = 0;
-    off_t child = pos + header_len;
+    off_t child = next_record(pos, header_len, end);
     for (int i = 0; i < mhods; i++)
     {
         p = db_record(child, "mhod", 16);
-        if (!p)
+        const off_t next = p ? record_end(child, p, end) : -1;
+        if (next < 0)
             break;
-        uint32_t total = le32(p + 8), type = le32(p + 12);
+        const uint32_t type = le32(p + 12);
         for (int k = 0; sorts.writing && k < SORTS; k++)
         {
             if (type == sorted_mhods[k])
@@ -1312,15 +1329,13 @@ static off_t read_track(off_t pos, struct track *track)
                 track->st.hash = itunesdb_path_hash(path);
             }
         }
-        if (total == 0)
-            break;
-        child += total;
+        child = next;
     }
     if (album)
         track->album = (album * 31 + (album_artist ? album_artist : artist))
                        | 1;
     if (track->st.hash)
-        new_track_metadata(track);
+        new_track_metadata(track, end);
     if (sorted)
         track_sort_fields(name_at, sort_at);
     return !track->st.hash ? 0 : notes_at ? notes_at : subtitle_at;
@@ -1339,12 +1354,13 @@ static void reading(int part, int done, int of)
     }
 }
 
-static bool read_tracks(off_t list)
+/* the list of tracks at list, in the section that ends at end */
+static bool read_tracks(off_t list, off_t end)
 {
     const unsigned char *p = db_record(list, "mhlt", 12);
     if (!p)
         return false;
-    off_t pos = list + le32(p + 4);
+    off_t pos = next_record(list, le32(p + 4), end);
     int listed = le32(p + 8);
     int count = MIN(listed, db.count);
     db.count = 0;
@@ -1353,23 +1369,24 @@ static bool read_tracks(off_t list)
     for (int i = 0; i < count; i++)
     {
         p = db_record(pos, "mhit", 12);
-        if (!p)
+        const off_t next = p ? record_end(pos, p, end) : -1;
+        if (next < 0)
             break;
-        uint32_t total = le32(p + 8); /* before read_track moves the cache */
         struct track *track = &db.tracks[db.count++];
         /* its notes to their file, last: its place in iTunesDB, which
            shares its field, isn't asked for again */
-        track->notes_end = notes_put(read_track(pos, track));
-        if (total == 0)
-            break;
-        pos += total;
+        track->notes_end = notes_put(read_track(pos, next, track));
+        pos = next;
         if ((i & 255) == 0)
         {
             reading(0, i, count);
             yield();
         }
     }
-    db.complete = db.count == listed;
+    /* and the last ending where the section does: a count damaged down, as
+       by a bit, would pass for all of them, and the import take the rest out
+       of the database */
+    db.complete = db.count == listed && pos == end;
     /* an iTunesDB of no songs is read whole too: after the last song is taken
        off, the import takes them all out of the database */
     return db.count > 0 || db.complete;
@@ -1974,11 +1991,11 @@ static void playlist_line(struct writer *w, const char *line, uint64_t *hash,
         writer_line(w, line);
 }
 
-/* the lines of a playlist's items from child on, into w if there is one,
-   and their hash and size; the videos are left out. How many are written,
-   and how many videos there were. Its order as Finder shows it, if not its
-   own, on a line of the head. */
-static int playlist_items(off_t child, int items, uint32_t sort,
+/* the lines of a playlist's items from child on, to its end at end, into w
+   if there is one, and their hash and size; the videos are left out. How many
+   are written, and how many videos there were. Its order as Finder shows it,
+   if not its own, on a line of the head. */
+static int playlist_items(off_t child, off_t end, int items, uint32_t sort,
                           struct writer *w, uint64_t *hash, uint32_t *size,
                           int *videos)
 {
@@ -1999,12 +2016,12 @@ static int playlist_items(off_t child, int items, uint32_t sort,
     for (int i = 0; i < items; i++)
     {
         p = db_record(child, "mhip", 28);
-        if (!p)
+        const off_t next = p ? record_end(child, p, end) : -1;
+        if (next < 0)
         {
             pls.read_failed = true;
             break;
         }
-        uint32_t total = le32(p + 8);
         struct track *t = find_by_id(le32(p + 24));
         if (t && (t->st.media & MEDIA_VIDEO))
             (*videos)++;
@@ -2013,12 +2030,7 @@ static int playlist_items(off_t child, int items, uint32_t sort,
             playlist_line(w, db.pool + t->path, hash, size);
             written++;
         }
-        if (total == 0)
-        {
-            pls.read_failed |= i < items - 1;
-            break;
-        }
-        child += total;
+        child = next;
     }
     return written;
 }
@@ -2351,9 +2363,9 @@ static bool smart_rule_list(off_t pos, uint32_t total, struct smart_rules *r)
     return true;
 }
 
-/* the mhyp at pos as a playlist file, listed in the playlists file; alone,
-   at boot without a sync (itunesdb_import_playlists()) */
-static void write_playlist(off_t pos, const char *dir, int list_fd,
+/* the mhyp at pos, which ends at end, as a playlist file, listed in the
+   playlists file; alone, at boot without a sync (itunesdb_import_playlists()) */
+static void write_playlist(off_t pos, off_t end, const char *dir, int list_fd,
                            struct writer *w, bool alone)
 {
     char name[MAX_PATH / 2], file[MAX_PATH], folder[MAX_PATH];
@@ -2389,11 +2401,12 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     memset(&smart, 0, sizeof(smart));
     bool live = false, ruled = false;
     bool by_rules = false; /* a smart one, live or not */
-    off_t child = pos + header_len;
+    off_t child = next_record(pos, header_len, end);
     for (int i = 0; i < mhods; i++)
     {
         p = db_record(child, "mhod", 16);
-        if (!p || le32(p + 8) == 0)
+        const off_t next = p ? record_end(child, p, end) : -1;
+        if (next < 0)
         {
             pls.read_failed = true;
             return;
@@ -2409,7 +2422,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
         }
         else if (type == 51)
             ruled = smart_rule_list(child, total, &smart);
-        child += total;
+        child = next;
     }
 
     /* what it would hold, then the file only if that changed; none for one of
@@ -2417,7 +2430,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
     uint64_t hash;
     uint32_t size;
     int videos;
-    if (playlist_items(child, items, sort, NULL, &hash, &size, &videos) == 0
+    if (playlist_items(child, end, items, sort, NULL, &hash, &size, &videos) == 0
         && videos > 0)
         return;
     /* in its folder, if the folders are known */
@@ -2449,7 +2462,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
         bool ok = writer_open(w, PLAYLIST_TEMP);
         if (ok)
         {
-            playlist_items(child, items, sort, w, &hash, &size, &videos);
+            playlist_items(child, end, items, sort, w, &hash, &size, &videos);
             /* its list of songs is of the file before: one the same size,
                of the same database, still looked like it. Gone first, as
                the file may be new without it being so. */
@@ -2492,7 +2505,7 @@ static void write_playlist(off_t pos, const char *dir, int list_fd,
    (itunesdb_import_playlists()), into the bar's second half as they're
    written. False when iTunesDB's playlists couldn't all be read, as they
    wouldn't the next time either */
-static bool write_playlists(off_t list, bool alone)
+static bool write_playlists(off_t list, off_t end, bool alone)
 {
     char dir[MAX_PATH];
     const unsigned char *p = list >= 0 ? db_record(list, "mhlp", 12) : NULL;
@@ -2517,26 +2530,21 @@ static bool write_playlists(off_t list, bool alone)
     {
         list_line(list_fd, "version %d\n", PLAYLISTS_VERSION);
         smart_import_begin();
-        off_t pos = list + le32(p + 4);
+        off_t pos = next_record(list, le32(p + 4), end);
         int count = le32(p + 8);
 
         mkdir(dir);
         for (int i = 0; i < count; i++)
         {
             p = db_record(pos, "mhyp", 12);
-            if (!p)
+            const off_t next = p ? record_end(pos, p, end) : -1;
+            if (next < 0)
             {
                 pls.read_failed = true;
                 break;
             }
-            uint32_t total = le32(p + 8);
-            write_playlist(pos, dir, list_fd, &out, alone);
-            if (total == 0)
-            {
-                pls.read_failed |= i < count - 1;
-                break;
-            }
-            pos += total;
+            write_playlist(pos, next, dir, list_fd, &out, alone);
+            pos = next;
             if (alone)
                 reading(1, i + 1, count);
             yield();
@@ -3221,7 +3229,8 @@ static bool write_state(void)
 /* iTunesDB and its tracks, for the import and for the covers */
 
 static int cache_handle, table_handle;
-static off_t playlists_list;
+/* the list of playlists (section 2) in iTunesDB, and its section's end */
+static off_t playlists_list, playlists_end;
 
 /* after every db_load(), loaded or not */
 static void db_unload(void)
@@ -3248,51 +3257,52 @@ static void db_unload(void)
 /* Finder counts each podcast show as a track: the shows are the groups of
    the podcasts' playlist in the third section, which has them as a header
    item each above its episodes */
-static int count_shows(off_t list)
+static int count_shows(off_t list, off_t end)
 {
     const unsigned char *p = list >= 0 ? db_record(list, "mhlp", 12) : NULL;
     if (!p)
         return 0;
     const int lists = le32(p + 8);
-    off_t pos = list + le32(p + 4);
+    off_t pos = next_record(list, le32(p + 4), end);
     int shows = 0;
     for (int i = 0; i < lists; i++)
     {
         p = db_record(pos, "mhyp", 44);
-        if (!p)
+        const off_t next = p ? record_end(pos, p, end) : -1;
+        if (next < 0)
             break;
-        const uint32_t total = le32(p + 8);
         if (p[42] | p[43] << 8)
         {
             const int mhods = le32(p + 12), items = le32(p + 16);
-            off_t child = pos + le32(p + 4);
-            for (int k = 0; k < mhods + items; k++)
+            off_t child = next_record(pos, le32(p + 4), next);
+            for (int k = 0; k < (int64_t)mhods + items; k++)
             {
                 p = db_record(child, k < mhods ? "mhod" : "mhip", 20);
-                if (!p || le32(p + 8) == 0)
+                const off_t after = p ? record_end(child, p, next)
+                                      : -1;
+                if (after < 0)
                     break;
                 if (k >= mhods && le32(p + 16) == 0x100)
                     shows++;
-                child += le32(p + 8);
+                child = after;
             }
         }
-        if (total == 0)
-            break;
-        pos += total;
+        pos = next;
     }
     return shows;
 }
 
 static bool db_load(void)
 {
-    off_t tracks_list = -1, podcast_lists = -1, pos;
+    off_t tracks_list = -1, tracks_end = -1, podcast_lists = -1;
+    off_t podcasts_end = -1, pos, end;
     const unsigned char *p;
     int sections;
 
     memset(&db, 0, sizeof(db));
     /* fd 0 is a file on the iPod */
     db.fd = -1;
-    playlists_list = -1;
+    playlists_list = playlists_end = -1;
     /* before anything can fail, as db_unload() undoes it */
     cpu_boost(true);
     if (!db_stamp(&db_size, &db_mtime))
@@ -3318,24 +3328,33 @@ static bool db_load(void)
     p = db_record(0, "mhbd", 24);
     if (!p)
         return false;
-    pos = le32(p + 4);
+    end = record_end(0, p, MH_FILE_END);
+    pos = next_record(0, le32(p + 4), end);
     sections = le32(p + 20);
     for (int i = 0; i < sections; i++)
     {
         p = db_record(pos, "mhsd", 16);
-        if (!p)
+        const off_t next = p ? record_end(pos, p, end) : -1;
+        if (next < 0)
             break;
-        uint32_t header_len = le32(p + 4), total = le32(p + 8);
-        uint32_t index = le32(p + 12);
+        const off_t list = next_record(pos, le32(p + 4), next);
+        const uint32_t index = le32(p + 12);
         if (index == 1)
-            tracks_list = pos + header_len;
+        {
+            tracks_list = list;
+            tracks_end = next;
+        }
         else if (index == 2)
-            playlists_list = pos + header_len;
+        {
+            playlists_list = list;
+            playlists_end = next;
+        }
         else if (index == 3)
-            podcast_lists = pos + header_len;
-        if (total == 0)
-            break;
-        pos += total;
+        {
+            podcast_lists = list;
+            podcasts_end = next;
+        }
+        pos = next;
     }
     if (tracks_list < 0 || !(p = db_record(tracks_list, "mhlt", 12)))
         return false;
@@ -3360,9 +3379,9 @@ static bool db_load(void)
     db.pool = (char *)(db.by_hash + db.count);
     db.pool_used = 1; /* offset 0 means no path */
 
-    if (!read_tracks(tracks_list))
+    if (!read_tracks(tracks_list, tracks_end))
         return false;
-    db.shows = count_shows(podcast_lists);
+    db.shows = count_shows(podcast_lists, podcasts_end);
     for (int i = 0; i < db.count; i++)
         db.by_id[i] = db.by_hash[i] = i;
     /* behind the UI, 13000 tracks kept it waiting 190 ms; the table is
@@ -4500,7 +4519,7 @@ static void sort_field_put(int tag, const char *name, const char *value)
 static bool mhod_empty(off_t pos)
 {
     const unsigned char *p = pos ? db_record(pos, "mhod", 40) : NULL;
-    return !p || le32(p + 28) == 0;
+    return !p || mhod_string_size(p) == 0;
 }
 
 /* A track's Sort fields for each tag the database has its names in, as the
@@ -4851,13 +4870,16 @@ static struct large_header large_hdr;
 
 /* the name of an ithmb file in an ArtworkDB mhod, which unlike iTunesDB
    says how it is encoded */
-static void read_artwork_name(off_t pos, char *buf, size_t size)
+static void read_artwork_name(off_t pos, off_t end, char *buf, size_t size)
 {
     const unsigned char *p = db_record(pos, "mhod", 36);
     buf[0] = '\0';
-    if (!p)
+    /* the record within its mhni, which ends at end, and the name within it,
+       as an iTunesDB string (mhod_string_size()) */
+    if (!p || record_end(pos, p, end) < 0)
         return;
-    size_t len = le32(p + 24);
+    const uint32_t total = le32(p + 8);
+    size_t len = total > 36 ? MIN(le32(p + 24), total - 36) : 0;
     if (p[28] == 2)
     {
         size_t units = MIN(len / 2, (size - 1) / 3);
@@ -4926,8 +4948,9 @@ static off_t ithmb_size(uint32_t format, uint32_t file)
     return size;
 }
 
-/* the largest frame in the mhii at pos that its file has */
-static bool read_image(off_t pos, struct art_image *image)
+/* the largest frame in the mhii at pos, which ends at end, that its file
+   has */
+static bool read_image(off_t pos, off_t end, struct art_image *image)
 {
     struct { uint32_t format, offset, size, width, height, file;
              uint32_t vpad, hpad; } frames[8];
@@ -4941,17 +4964,20 @@ static bool read_image(off_t pos, struct art_image *image)
     image->id = le32(p + 16);
     image->source = le32(p + 48);
 
-    off_t child = pos + header_len;
+    off_t child = next_record(pos, header_len, end);
     for (int i = 0; i < children && nframes < (int)ARRAYLEN(frames); i++)
     {
         p = db_record(child, "mhod", 14);
-        if (!p)
+        const off_t next = p ? record_end(child, p, end) : -1;
+        if (next < 0)
             break;
-        uint32_t len = le32(p + 4), total = le32(p + 8);
-        if ((p[12] | p[13] << 8) == 2
-            && (p = db_record(child + len, "mhni", 36)))
+        /* a frame: its mhni after the mhod's header, within it */
+        const off_t mhni = (p[12] | p[13] << 8) == 2
+                           ? next_record(child, le32(p + 4), next) : -1;
+        if (mhni >= 0 && (p = db_record(mhni, "mhni", 36)))
         {
-            uint32_t mhni_len = le32(p + 4);
+            const off_t mhni_end = record_end(mhni, p, next);
+            const off_t name_at = next_record(mhni, le32(p + 4), mhni_end);
             frames[nframes].format = le32(p + 16);
             frames[nframes].offset = le32(p + 20);
             frames[nframes].size = le32(p + 24);
@@ -4960,15 +4986,13 @@ static bool read_image(off_t pos, struct art_image *image)
             frames[nframes].height = p[32] | p[33] << 8;
             frames[nframes].width = p[34] | p[35] << 8;
             /* ":F1029_1.ithmb" or "F1029_1.ithmb" */
-            read_artwork_name(child + len + mhni_len, name, sizeof(name));
+            read_artwork_name(name_at, mhni_end, name, sizeof(name));
             const char *n = strrchr(name, '_');
             frames[nframes].file = n ? atoi(n + 1) : 0;
             if (frames[nframes].file > 0)
                 nframes++;
         }
-        if (total == 0)
-            break;
-        child += total;
+        child = next;
     }
 
     /* the largest RGB565 frame of the image, which is 200x200 where Finder
@@ -5148,17 +5172,19 @@ static int read_images(struct art_image **images, int *count)
     db.cache_pos = db.cache_len = 0;
     if (db.fd < 0 || !(p = db_record(0, "mhfd", 24)))
         return -1;
-    off_t pos = le32(p + 4);
+    const off_t end = record_end(0, p, MH_FILE_END);
+    off_t pos = next_record(0, le32(p + 4), end);
     int sections = le32(p + 20);
     for (int i = 0; i < sections; i++)
     {
         p = db_record(pos, "mhsd", 14);
-        if (!p)
+        const off_t next = p ? record_end(pos, p, end) : -1;
+        if (next < 0)
             break;
-        uint32_t header_len = le32(p + 4), total = le32(p + 8);
-        if ((p[12] | p[13] << 8) == 1 && (p = db_record(pos + header_len, "mhli", 12)))
+        const off_t list = next_record(pos, le32(p + 4), next);
+        if ((p[12] | p[13] << 8) == 1 && (p = db_record(list, "mhli", 12)))
         {
-            off_t item = pos + header_len + le32(p + 4);
+            off_t item = next_record(list, le32(p + 4), next);
             int n = le32(p + 8);
             if ((uint32_t)n > COUNT_MAX)
                 return -1;
@@ -5172,19 +5198,18 @@ static int read_images(struct art_image **images, int *count)
             for (int k = 0; k < n; k++)
             {
                 p = db_record(item, "mhii", 28);
-                if (!p)
+                const off_t item_end = p ? record_end(item, p, next)
+                                         : -1;
+                if (item_end < 0)
                     break;
-                uint32_t item_total = le32(p + 8);
                 uint64_t song = le32(p + 20) | (uint64_t)le32(p + 24) << 32;
-                if (read_image(item, &(*images)[*count]))
+                if (read_image(item, item_end, &(*images)[*count]))
                 {
                     if (songs > 0 && song)
                         art_song_found(song, (*images)[*count].id);
                     (*count)++;
                 }
-                if (item_total == 0)
-                    break;
-                item += item_total;
+                item = item_end;
                 if ((k & 255) == 0)
                 {
                     reading(1, k, n);
@@ -5195,9 +5220,7 @@ static int read_images(struct art_image **images, int *count)
             qsort(*images, *count, sizeof(struct art_image), cmp_image);
             return handle;
         }
-        if (total == 0)
-            break;
-        pos += total;
+        pos = next;
     }
     return -1;
 }
@@ -7685,7 +7708,7 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
         write_gains();
         if (synced)
         {
-            write_playlists(playlists_list, false);
+            write_playlists(playlists_list, playlists_end, false);
             write_pending();
             /* only from all of iTunesDB: a song missing would seem gone */
             if (db.complete)
@@ -7766,7 +7789,8 @@ void itunesdb_import_playlists(volatile int *done, volatile int *total)
     for (int tries = 1; ; tries++)
     {
         memory_short = false;
-        readable = db_load() && write_playlists(playlists_list, true);
+        readable = db_load() && write_playlists(playlists_list, playlists_end,
+                                                true);
         db_unload();
         if (!memory_short || tries == PLAYLISTS_TRIES)
             break;

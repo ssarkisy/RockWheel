@@ -28,6 +28,7 @@
 #include "lib/helper.h"
 #include "lib/configfile.h"
 #include "photos_panel.h"
+#include "mh_walk.h"
 
 #define PHOTOS_DIR  "/Photos"
 #define PHOTO_DB    PHOTOS_DIR "/Photo Database"
@@ -151,7 +152,8 @@ static int db_cache_len;
 
 static const unsigned char *db_get(off_t pos, size_t len)
 {
-    if (len > sizeof(db_cache) || pos < 0)
+    /* the end not past 2^31, which the 32-bit sum below would wrap */
+    if (len > sizeof(db_cache) || pos < 0 || pos > 0x7fffffff - (off_t)len)
         return NULL;
     if (pos < db_cache_pos || pos + (off_t)len > db_cache_pos + db_cache_len)
     {
@@ -187,14 +189,16 @@ static const unsigned char *db_record(off_t pos, const char *tag, size_t len)
     return NULL;
 }
 
-/* the text of a string mhod as UTF-8 */
-static void mhod_text(off_t pos, char *buf, size_t size)
+/* the text of a string mhod as UTF-8, its parent ending at end: the record
+   within it, and the text within the record */
+static void mhod_text(off_t pos, off_t end, char *buf, size_t size)
 {
     buf[0] = '\0';
     const unsigned char *p = db_record(pos, "mhod", 36);
-    if (!p)
+    if (!p || record_end(pos, p, end) < 0)
         return;
-    size_t len = le32(p + 24);
+    const uint32_t total = le32(p + 8);
+    size_t len = total > 36 ? MIN(le32(p + 24), total - 36) : 0;
     int encoding = p[28];
     if (encoding == 2)
     {
@@ -239,10 +243,12 @@ static int ithmb_number(const char *name)
     return (n > 0 && n < 256) ? n : 0;
 }
 
-static void parse_mhni(off_t pos, struct photo *photo)
+/* the frame at pos, in its mhod, which ends at end */
+static void parse_mhni(off_t pos, off_t end, struct photo *photo)
 {
     const unsigned char *p = db_record(pos, "mhni", 36);
-    if (!p)
+    const off_t mhni_end = p ? record_end(pos, p, end) : -1;
+    if (mhni_end < 0)
         return;
     uint32_t header_len = le32(p + 4);
     int format = le32(p + 16);
@@ -254,7 +260,8 @@ static void parse_mhni(off_t pos, struct photo *photo)
     int width = (int16_t)le16(p + 34);
 
     char name[96];
-    mhod_text(pos + header_len, name, sizeof(name));
+    mhod_text(next_record(pos, header_len, mhni_end), mhni_end, name,
+              sizeof(name));
     int number = ithmb_number(name);
 
     if (format == GRID_FORMAT && size % (GRID_H * 2) == 0
@@ -283,7 +290,8 @@ static void parse_mhni(off_t pos, struct photo *photo)
     }
 }
 
-static void parse_mhii(off_t pos, struct photo *photo)
+/* the photo at pos, which ends at end */
+static void parse_mhii(off_t pos, off_t end, struct photo *photo)
 {
     const unsigned char *p = db_record(pos, "mhii", 20);
     rb->memset(photo, 0, sizeof(*photo));
@@ -293,22 +301,21 @@ static void parse_mhii(off_t pos, struct photo *photo)
     int children = le32(p + 12);
     photo->id = le32(p + 16);
 
-    off_t child = pos + header_len;
+    off_t child = next_record(pos, header_len, end);
     for (int i = 0; i < children; i++)
     {
         p = db_record(child, "mhod", 14);
-        if (!p)
+        const off_t next = p ? record_end(child, p, end) : -1;
+        if (next < 0)
             break;
-        uint32_t len = le32(p + 4), total = le32(p + 8);
         if (le16(p + 12) == 2) /* a thumbnail */
-            parse_mhni(child + len, photo);
-        if (total == 0)
-            break;
-        child += total;
+            parse_mhni(next_record(child, le32(p + 4), next), next, photo);
+        child = next;
     }
 }
 
-static void parse_mhba(off_t pos, struct album *album)
+/* the album at pos, which ends at end */
+static void parse_mhba(off_t pos, off_t end, struct album *album)
 {
     const unsigned char *p = db_record(pos, "mhba", 31);
     rb->memset(album, 0, sizeof(*album));
@@ -319,18 +326,16 @@ static void parse_mhba(off_t pos, struct album *album)
     int mhias = le32(p + 16);
     album->library = (p[30] == 1);
 
-    off_t child = pos + header_len;
+    off_t child = next_record(pos, header_len, end);
     for (int i = 0; i < mhods; i++)
     {
         p = db_record(child, "mhod", 14);
-        if (!p)
+        const off_t next = p ? record_end(child, p, end) : -1;
+        if (next < 0)
             return;
-        uint32_t total = le32(p + 8);
         if (le16(p + 12) == 1) /* the album name */
-            mhod_text(child, album->name, sizeof(album->name));
-        if (total == 0)
-            return;
-        child += total;
+            mhod_text(child, end, album->name, sizeof(album->name));
+        child = next;
     }
 
     /* checked before the product, which a broken count can wrap */
@@ -342,15 +347,17 @@ static void parse_mhba(off_t pos, struct album *album)
     for (int i = 0; i < mhias; i++)
     {
         p = db_record(child, "mhia", 20);
-        if (!p)
+        const off_t next = p ? record_end(child, p, end) : -1;
+        if (next < 0)
             break;
         album->items[album->count++] = le32(p + 16);
-        child += le32(p + 8);
+        child = next;
     }
 }
 
-/* the items of the image (mhli) or album (mhla) list at pos */
-static bool parse_list(off_t pos, bool images)
+/* the items of the image (mhli) or album (mhla) list at pos, in the section
+   that ends at end */
+static bool parse_list(off_t pos, off_t end, bool images)
 {
     const unsigned char *p = db_record(pos, images ? "mhli" : "mhla", 12);
     if (!p)
@@ -379,20 +386,18 @@ static bool parse_list(off_t pos, bool images)
             return false;
     }
 
-    off_t item = pos + header_len;
+    off_t item = next_record(pos, header_len, end);
     for (int i = 0; i < count; i++)
     {
         p = db_get(item, 12);
-        if (!p)
+        const off_t next = p ? record_end(item, p, end) : -1;
+        if (next < 0)
             break;
-        uint32_t total = le32(p + 8); /* before parsing reloads the cache */
         if (images)
-            parse_mhii(item, &photos[photo_count++]);
+            parse_mhii(item, next, &photos[photo_count++]);
         else
-            parse_mhba(item, &albums[album_count++]);
-        if (total == 0)
-            break;
-        item += total;
+            parse_mhba(item, next, &albums[album_count++]);
+        item = next;
     }
     return true;
 }
@@ -430,23 +435,22 @@ static bool load_database(void)
     const unsigned char *p = db_record(0, "mhfd", 24);
     if (p)
     {
-        uint32_t header_len = le32(p + 4);
+        const off_t end = record_end(0, p, MH_FILE_END);
         int sections = le32(p + 20);
-        off_t pos = header_len;
+        off_t pos = next_record(0, le32(p + 4), end);
         for (int i = 0; i < sections; i++)
         {
             p = db_record(pos, "mhsd", 14);
-            if (!p)
+            const off_t next = p ? record_end(pos, p, end) : -1;
+            if (next < 0)
                 break;
-            uint32_t len = le32(p + 4), total = le32(p + 8);
+            const off_t list = next_record(pos, le32(p + 4), next);
             int index = le16(p + 12);
             if (index == 1 && !photos)
-                parse_list(pos + len, true);
+                parse_list(list, next, true);
             else if (index == 2 && !albums)
-                parse_list(pos + len, false);
-            if (total == 0)
-                break;
-            pos += total;
+                parse_list(list, next, false);
+            pos = next;
         }
     }
     rb->close(db_fd);

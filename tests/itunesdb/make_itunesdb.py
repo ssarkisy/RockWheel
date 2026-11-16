@@ -31,13 +31,24 @@ iPod's paths under it and a file "expect" of what reading it gives:
     shows <n>       the podcast shows counted
     name <text>     the iPod's name (itunesdb_device_name())
     playlist <file>\t<song>\t...  a playlist written, its songs in order
+    unwritten <file>  no playlist written as this file
+    notes <path>\t<text>  the notes of the podcast at this path, as Now
+                    Playing reads them (itunesdb_read_notes())
+    meta <path>\t<title>\t<artist>\t<album>\t<album artist>\t<year>\t<plays>\t<rating>
+                    what the import's records give for the track at this
+                    path (itunesdb_get_metadata()), "" for a tag it hasn't
     survive         only that nothing breaks: no sanitizer error, no hang
     known <how> <why>  a failure known and left as it is, of this kind
                     (check, timeout, crash): reported, not counted
 
-A damaged case expects what the parser of 8cc113a9d3 gives where that is
-plainly right (damaged_itunesdb(), damaged_artworkdb()), and only to survive
-elsewhere. The file "count" says how many cases there are. Run with
+Every case also reads no track twice, and asks the import's records for
+every track read. A damaged case expects what reading it gives where that is
+plainly right (damaged_itunesdb(), damaged_artworkdb(), combos(), pins()),
+and only to survive elsewhere. A record lies within its parent, after the
+parent's header, with its own header within it, or it isn't read and its walk
+ends there (mh_walk.h); a string is read within its record
+(mhod_string_size()); the tracks are all read when they end where their
+section does. The file "count" says how many cases there are. Run with
 python3 -I -B; writes only under the folder it's given.
 """
 
@@ -135,8 +146,11 @@ def mhip(track_id, group_flag=0, group_id=0, group_ref=0):
     return bytes(h) + pos
 
 
-def mhyp(name, items, *, hidden=0, podcast=0, pid=0, sort=1, extra_mhods=()):
-    mhods = [mhod_string(1, name)] + list(extra_mhods)
+def mhyp(name, items, *, hidden=0, podcast=0, pid=0, sort=1, extra_mhods=(),
+         name_after=0):
+    """name_after: as many mhods of type 100 before its name"""
+    mhods = ([mhod_raw(100, le32(0) * 4)] * name_after
+             + [mhod_string(1, name)] + list(extra_mhods))
     h = bytearray(0x6c)
     h[0:4] = b'mhyp'
     put32(h, 4, 0x6c)
@@ -203,29 +217,57 @@ TRACKS = [
 ]
 
 
+# a podcast's subtitle and description, its notes in Now Playing: the
+# description, or else the subtitle
+NOTES = {104: ('A subtitle', 'The notes of the episode')}
+
+
+def meta(tid, old_mhit=False, **tags):
+    """the "meta" line of a track of TRACKS, its tags as tags gives them
+    instead"""
+    for t, title, artist, album, path, extra in TRACKS:
+        if t == tid:
+            break
+    fields = dict(path=path.replace(':', '/'), title=title, artist=artist,
+                  album=album,
+                  album_artist='Test Band' if tid < 103 and not old_mhit else '',
+                  year=extra.get('year', 0), plays=extra.get('plays', 0),
+                  rating=extra.get('rating', 0) // 10)
+    fields.update(tags)
+    return 'meta ' + '\t'.join(str(fields[k]) for k in (
+        'path', 'title', 'artist', 'album', 'album_artist', 'year', 'plays',
+        'rating'))
+
+
 def itunesdb(name='Test iPod', tracks=TRACKS, old_mhit=False,
-             list_name='Road Trip'):
+             list_name='Road Trip', name_after=0, podcasts_first=False):
     items = []
     for tid, title, artist, album, path, extra in tracks:
         extra = dict(extra)
+        notes = [mhod_string(18, NOTES[tid][0]), mhod_string(14, NOTES[tid][1])
+                 ] if tid in NOTES else []
         if old_mhit:
             art = extra.pop('art_id', 0)
             extra['art_count'] = 1 if art else 0
-            items.append(mhit(tid, track_mhods(title, artist, album, path),
+            items.append(mhit(tid, track_mhods(title, artist, album, path)
+                              + notes,
                               header_len=0x9c, dbid=0x1000 + tid, **extra))
         else:
             items.append(mhit(tid, track_mhods(title, artist, album, path,
-                                               'Test Band' if tid < 103 else None),
-                              dbid=0x1000 + tid, **extra))
+                                               'Test Band' if tid < 103 else None)
+                              + notes, dbid=0x1000 + tid, **extra))
     ids = [t[0] for t in tracks]
-    master = mhyp(name, [mhip(i) for i in ids], hidden=1, pid=1)
+    master = mhyp(name, [mhip(i) for i in ids], hidden=1, pid=1,
+                  name_after=name_after)
     road = mhyp(list_name, [mhip(i) for i in (102, 101, 103)], pid=2)
     smart = mhyp('Loved', [mhip(102)], pid=3, extra_mhods=smart_mhods())
     podcasts = mhyp('Podcasts', [mhip(0, 0x100, 900), mhip(104, 0, 0, 900)],
                     podcast=1, pid=4)
     lists = [master, road, smart]
+    # podcasts_first: the podcasts' playlist first in its section, not last
     return mhbd([mhsd(1, mhlt(items)),
-                 mhsd(3, mhlp(lists + [podcasts])),
+                 mhsd(3, mhlp([podcasts] + lists if podcasts_first
+                              else lists + [podcasts])),
                  mhsd(2, mhlp(lists))])
 
 
@@ -274,30 +316,37 @@ def mhii(image_id, song_dbid, frames):
     return bytes(h) + body
 
 
-def artworkdb(images):
+def artworkdb(images, images_last=False):
+    """images_last: after the albums' section and one of files (type 3)"""
     items = b''.join(images)
     mhli = pad(b'mhli' + le32(0x5c) + le32(len(images)), 0x5c) + items
     sd1 = pad(b'mhsd' + le32(0x60) + le32(0x60 + len(mhli)) + le16(1), 0x60) + mhli
     mhla = pad(b'mhla' + le32(0x5c) + le32(0), 0x5c)
     sd2 = pad(b'mhsd' + le32(0x60) + le32(0x60 + len(mhla)) + le16(2), 0x60) + mhla
-    body = sd1 + sd2
+    sections = [sd1, sd2]
+    if images_last:
+        mhlf = pad(b'mhlf' + le32(0x5c) + le32(0), 0x5c)
+        sd3 = pad(b'mhsd' + le32(0x60) + le32(0x60 + len(mhlf)) + le16(3),
+                  0x60) + mhlf
+        sections = [sd2, sd3, sd1]
+    body = b''.join(sections)
     h = bytearray(0x84)
     h[0:4] = b'mhfd'
     put32(h, 4, 0x84)
     put32(h, 8, 0x84 + len(body))
     put32(h, 16, 2)
-    put32(h, 20, 2)
+    put32(h, 20, len(sections))
     return bytes(h) + body
 
 
-def artwork(old=False):
+def artwork(old=False, images_last=False):
     """two covers, each in both sizes, one after the other in the files"""
     images = []
     for n, (image_id, tid) in enumerate(((201, 101), (202, 103))):
         frames = [mhni(fmt, n * w * h * 2, w, h, 1)
                   for fmt, (w, h) in FORMATS.items()]
         images.append(mhii(image_id, 0x1000 + tid if old else 0, frames))
-    return artworkdb(images)
+    return artworkdb(images, images_last)
 
 
 # the records of a file, by their tags: (offset, tag)
@@ -416,6 +465,15 @@ def u32(data, off):
     return struct.unpack_from('<I', data, off)[0]
 
 
+def broken(kind, value):
+    """a record whose damaged length doesn't keep it within its parent, or
+    its header within it, isn't read, and its walk ends there (mh_walk.h):
+    any total damaged (0, past the end, negative, less than its header), a
+    loop's total that leads back, a header of 0 or past the total. A header
+    of 3 keeps it: what comes after it isn't found."""
+    return kind in ('total', 'loop') or (kind == 'hlen' and value != 'tiny')
+
+
 def damaged_itunesdb(db):
     """iTunesDB damaged, with what reading it gives: where that is plainly
     right, and, marked "as 8cc113a9d3 does", where it is what that parser
@@ -436,6 +494,7 @@ def damaged_itunesdb(db):
     first_mhod = mhits[0] + u32(db, mhits[0] + 4)
     whole = ['tracks 4', 'complete 1', 'paths 4']
     none = ['loaded 0', 'tracks 0']
+    playlists = max(o for o, t in recs if t == 'mhsd')
     for name, bad, how in damaged(db):
         kind, tag, off = how['kind'], how.get('tag'), how.get('off')
         value = how.get('value')
@@ -443,13 +502,23 @@ def damaged_itunesdb(db):
         if kind == 'cut':
             # a track has its path when its record is there up to it
             expect = ['paths %d' % sum(e <= how['cut'] for e in path_ends)]
-        elif tag in ('mhsd', 'mhbd') and kind == 'hlen' and off <= mhsd1:
-            # the sections, or the tracks', not found
-            expect = none
+        elif tag == 'mhbd' and kind == 'total' and value in ('past', 'max'):
+            # longer than the file: the file ends its sections as well
+            expect = list(whole)
+        elif tag == 'mhbd' and kind in ('hlen', 'total'):
+            # broken, or its sections not found
+            expect = none + ['name iPod']
+        elif tag == 'mhsd' and off == mhsd1 and kind in ('hlen', 'total'):
+            # the tracks' section broken, and the walk of the sections ends
+            # there; with a header of 3 its list isn't found, and the walk
+            # goes on to the name
+            expect = none + ['name ' + ('iPod' if broken(kind, value)
+                                        else 'Test iPod')]
+        elif tag == 'mhsd' and off == playlists:
+            # the playlists' section, the last: the name in it not found
+            expect = list(whole) + ['name iPod']
         elif off is not None and off >= tracks_end:
             # past the tracks, in the playlists: the tracks are all read
-            expect = list(whole)
-        elif tag in ('mhbd', 'mhsd') and kind == 'total':
             expect = list(whole)
         elif tag == 'mhbd' and kind == 'count':
             # the sections read until the next record isn't one; a negative
@@ -458,47 +527,50 @@ def damaged_itunesdb(db):
         elif tag == 'mhlt' and kind == 'hlen':
             expect = none
         elif tag == 'mhlt' and kind in ('total', 'count'):
-            # its count (at 8): more than COUNT_MAX, or negative, is refused,
-            # and none reads none, a library emptied (itunesdb.c's comments);
-            # more than there are reads those there are, incomplete; fewer
-            # reads as many, complete (as 8cc113a9d3 does)
-            expect = {'zero': ['loaded 1', 'tracks 0', 'complete 1'],
-                      'tiny': ['tracks 3', 'complete 1', 'paths 3'],
+            # its count (at 8): more than COUNT_MAX, or negative, is refused;
+            # more than there are reads those there are, fewer as many, and
+            # either is incomplete, as the last read doesn't end where the
+            # section does. None, with tracks after it, isn't a library
+            # emptied but one not read.
+            expect = {'tiny': ['tracks 3', 'complete 0', 'paths 3'],
                       'past': ['tracks 4', 'complete 0', 'paths 4'],
                       'most': ['tracks 4', 'complete 0', 'paths 4']
                       }.get(value, none)
-        elif tag == 'mhit' and kind == 'hlen':
-            # its header unreadable: no path. One shorter than any mhit's
-            # (0x9c) is read as no track (P2 of review-1); either is counted
-            # among the tracks, and the read complete (as 8cc113a9d3 does)
+        elif tag == 'mhit' and broken(kind, value):
+            # the track broken: those before it, once each, incomplete; with
+            # none before it, not loaded
             k = mhits.index(off)
-            expect = ['tracks 4', 'complete 1', 'paths 3']
-            if value in ('zero', 'tiny'):
-                expect.append('absent %d' % ids[k])
-        elif tag == 'mhit' and kind == 'total':
-            # the next record not found: those read so far, incomplete
-            k = mhits.index(off) + 1
-            expect = ['tracks %d' % k, 'complete %d' % (k == len(mhits)),
-                      'paths %d' % k]
+            expect = (['tracks %d' % k, 'complete 0', 'paths %d' % k] if k
+                      else list(none)) + ['absent %d' % i for i in ids[k:]]
+        elif tag == 'mhit' and kind == 'hlen':
+            # a header of 3, shorter than any mhit's (0x9c): read as no track
+            # (P2 of review-1), its mhods not found, but counted among the
+            # tracks, and the read complete (as 8cc113a9d3 does)
+            k = mhits.index(off)
+            expect = ['tracks 4', 'complete 1', 'paths 3', 'absent %d' % ids[k]]
         elif tag == 'mhit' and kind == 'count':
             # mhods read until the next record isn't one; a negative count
             # reads none, so no path (as 8cc113a9d3 does)
             expect = (['tracks 4', 'complete 1', 'paths 3'] if value == 'neg'
                       else list(whole))
-        elif tag == 'mhod' and off == first_mhod and kind == 'total':
-            # the first track's title: its path beyond it not reached
+        elif tag == 'mhod' and broken(kind, value) and mhits[0] < off < mhits[1]:
+            # one of the first track's mhods broken, its title's, or its
+            # path's that leads back to it: the path not read
             expect = ['tracks 4', 'complete 1', 'paths 3']
         elif tag == 'mhod' and off == first_mhod and kind == 'hlen':
-            # a string's mhod is read at its fixed offsets, libgpod's, not by
-            # the length its header gives
+            # a header of 3: a string's mhod is read at its fixed offsets,
+            # libgpod's, not by the length its header gives
             expect = list(whole)
-        elif kind == 'loop' and tag == 'mhod':
-            # the path's mhod leading back to the title's: the mhods are
-            # read as many times as the track counts them, the path first
-            expect = list(whole)
-        # Left to survive: the strings' lengths past their records (strlen-),
-        # read past them as 8cc113a9d3 does, and loop-mhit, which reads two
-        # tracks twice and calls it complete: neither is right to pin.
+        elif kind == 'strlen' and mhits[0] < off < mhits[1]:
+            # a string of the first track longer than its record: read to the
+            # record's end, which is the string's; one of 7 bytes, 3 units
+            field, text = {1: ('title', TRACKS[0][1]), 2: ('path', TRACKS[0][4]),
+                           3: ('album', TRACKS[0][3])}[u32(db, off + 12)]
+            if value == 'odd':
+                text = text[:3]
+            if field == 'path':
+                text = text.replace(':', '/')
+            expect = list(whole) + [meta(101, **{field: text})]
         if name.startswith('loop-mhsd'):
             # the second section leading back to the first: the playlists'
             # section, the third, isn't reached, nor the name in it
@@ -522,6 +594,8 @@ def damaged_artworkdb(art):
         name_ends.append([n + 0x4c + u32(art, n + 0x4c + 8) for n, t in recs
                           if t == 'mhni' and o < n < stop])
     songs = (2, 1)
+    # the first image's first frame: its mhod
+    first_frame = images[0] + u32(art, images[0] + 4)
 
     def covers(found):
         return ['covers %d' % sum(s for s, f in zip(songs, found) if f)]
@@ -532,19 +606,31 @@ def damaged_artworkdb(art):
         expect = []
         if kind == 'cut':
             expect = covers([min(e) <= how['cut'] for e in name_ends])
+        elif tag == 'mhfd' and kind == 'total':
+            # longer than the file, which ends its sections as well; broken
+            expect = covers([value in ('past', 'max')] * 2)
         elif kind == 'hlen' and (tag in ('mhfd', 'mhli')
                                  or (tag == 'mhsd' and off == sections[0])):
+            expect = covers([False, False])
+        elif tag == 'mhsd' and off == sections[0] and kind == 'total':
+            # the images' section broken
             expect = covers([False, False])
         elif tag == 'mhli' and kind in ('total', 'count'):
             # its count: none, or more than COUNT_MAX, or negative, is no
             # cover (as itunesdb.c's COUNT_MAX means); more than there are,
             # all
             expect = covers([value in ('tiny', 'past', 'most')] * 2)
+        elif tag == 'mhii' and broken(kind, value):
+            # the image broken, and the walk of the images ends there
+            k = images.index(off)
+            expect = covers([i < k for i in range(len(images))])
         elif tag == 'mhii' and kind == 'hlen':
+            # a header of 3: that image's frames not found
             expect = covers([off != images[0], off != images[1]])
-        elif tag == 'mhii' and kind == 'total':
-            # the next image not found
-            expect = covers([True, off != images[0]])
+        elif tag == 'mhod' and off == first_frame and broken(kind, value):
+            # the first frame's mhod broken: the walk of the image's frames
+            # ends at it, and the image has none
+            expect = covers([False, True])
         elif kind in ('count', 'loop', 'strlen', 'hlen', 'total') \
                 and not (kind == 'count' and value == 'neg'):
             # the frames' own records, the album list, the file's total:
@@ -562,6 +648,216 @@ def playlist(file, ids):
     return '\t'.join(['playlist ' + file] + [PATHS[i] for i in ids])
 
 
+ROAD_TRIP = playlist('/Playlists/Road Trip.m3u8', (102, 101, 103))
+LOVED = playlist('/Playlists/Loved.m3u8', (102,))
+
+
+def looped(data, first, second, count_at, count=0x7fffffff):
+    """the record at second leading back to the one at first, and the count
+    at count_at, which bounds that walk, too big to end it"""
+    b = bytearray(data)
+    put32(b, second + 8, (first - second) & 0xffffffff)
+    put32(b, count_at, count)
+    return bytes(b)
+
+
+def combos(db, art, whole):
+    """A loop of records in each walk, with the count that bounds the walk
+    too big to end it: on the iPod's 32-bit offsets a length can lead back,
+    and went round for minutes there (review-1 of itdbfix, N4). The walk ends
+    where the next record isn't further on; what is before it is read as
+    without the loop. As (name, iTunesDB, ArtworkDB, expect); whole is the
+    expect of db and art."""
+    def within(data, tag, start):
+        end = start + u32(data, start + 8)
+        return [o for o, t in records(data) if t == tag and start < o < end]
+
+    def name(data, at, count_at, field):
+        file = 'itunesdb' if data[:4] == b'mhbd' else 'artworkdb'
+        return '%s-loop-%s@%d+count-%s+%d@%d' % (
+            file, data[at:at + 4].decode(), at,
+            data[count_at:count_at + 4].decode(), field, count_at)
+
+    tracks_only = ['tracks 4', 'complete 1', 'paths 4']
+    sections = {u32(db, o + 12): o for o, t in records(db) if t == 'mhsd'}
+    order = sorted(sections.values())
+    # the sections, the podcasts' (3) after the tracks' (1), the playlists'
+    # (2) last: the one that leads back isn't read, nor what comes after it,
+    # and at the second that leaves the shows, the playlists and the name
+    # unread
+    second, last = order[1], order[2]
+    unread = ['unwritten /Playlists/Road Trip.m3u8',
+              'unwritten /Playlists/Loved.m3u8']
+    yield (name(db, second, 0, 20), looped(db, order[0], second, 20), art,
+           tracks_only + ['shows 0', 'covers 3', 'name iPod'] + unread)
+    yield (name(db, last, 0, 20), looped(db, order[0], last, 20), art,
+           tracks_only + ['shows 1', 'covers 3', 'name iPod'] + unread)
+    # the tracks: those before the loop, incomplete; the count no more than
+    # COUNT_MAX, as more isn't read at all
+    mhlt = sections[1] + u32(db, sections[1] + 4)
+    mhits = within(db, 'mhit', sections[1])
+    yield (name(db, mhits[1], mhlt, 8),
+           looped(db, mhits[0], mhits[1], mhlt + 8, 1 << 20), art,
+           ['tracks 1', 'complete 0', 'paths 1', 'absent 102', 'absent 103',
+            'absent 104'])
+    # a track's mhods: the path leading back to the title isn't read, and
+    # the track has no path, nor its cover, nor a place in a playlist
+    mhods = within(db, 'mhod', mhits[0])
+    yield (name(db, mhods[1], mhits[0], 12),
+           looped(db, mhods[0], mhods[1], mhits[0] + 12), art,
+           ['tracks 4', 'complete 1', 'paths 3', 'covers 2', 'shows 1',
+            'name Test iPod', LOVED,
+            playlist('/Playlists/Road Trip.m3u8', (102, 103))])
+    # the playlists (section 2): the one leading back isn't read, nor those
+    # after it, and the old list is kept
+    mhlp = sections[2] + u32(db, sections[2] + 4)
+    lists = within(db, 'mhyp', sections[2])
+    yield (name(db, lists[1], mhlp, 8),
+           looped(db, lists[0], lists[1], mhlp + 8), art,
+           tracks_only + ['name Test iPod'] + unread)
+    # a playlist's songs: it not written, those after it are
+    items = within(db, 'mhip', lists[1])
+    yield (name(db, items[1], lists[1], 16),
+           looped(db, items[0], items[1], lists[1] + 16), art,
+           tracks_only + ['name Test iPod', LOVED,
+                          'unwritten /Playlists/Road Trip.m3u8'])
+    # a smart playlist's mhods, its rules leading back to its limits
+    mhods = within(db, 'mhod', lists[2])
+    yield (name(db, mhods[2], lists[2], 12),
+           looped(db, mhods[1], mhods[2], lists[2] + 12), art,
+           tracks_only + ['name Test iPod', ROAD_TRIP,
+                          'unwritten /Playlists/Loved.m3u8'])
+    # the podcasts' playlists (section 3), counted for the shows: the shows'
+    # list past the loop, none counted
+    mhlp = sections[3] + u32(db, sections[3] + 4)
+    lists = within(db, 'mhyp', sections[3])
+    yield (name(db, lists[1], mhlp, 8),
+           looped(db, lists[0], lists[1], mhlp + 8), art,
+           [w for w in whole if w != 'shows 1'] + ['shows 0'])
+    # the shows' items: the show's header before the loop
+    items = within(db, 'mhip', lists[3])
+    yield (name(db, items[1], lists[3], 16),
+           looped(db, items[0], items[1], lists[3] + 16), art, whole)
+    # the name, after two other mhods of the hidden playlist (section 2), as
+    # read_device_name() looks for it
+    named = itunesdb(name_after=2)
+    sections = {u32(named, o + 12): o for o, t in records(named)
+                if t == 'mhsd'}
+    master = within(named, 'mhyp', sections[2])[0]
+    mhods = within(named, 'mhod', master)
+    yield ('name-after-mhods', named, art, whole)
+    yield (name(named, mhods[1], master, 12),
+           looped(named, mhods[0], mhods[1], master + 12), art,
+           [w for w in whole if not w.startswith('name ')] + ['name iPod'])
+
+    # ArtworkDB: the images, the first before the loop
+    found = ['tracks 4', 'paths 4']
+    mhli = [o for o, t in records(art) if t == 'mhli'][0]
+    images = [o for o, t in records(art) if t == 'mhii']
+    yield (name(art, images[1], mhli, 8), db,
+           looped(art, images[0], images[1], mhli + 8, 1 << 20),
+           found + ['covers 2'])
+    # an image's frames: the first before the loop, which the image keeps
+    frames = [o for o in within(art, 'mhod', images[0])
+              if u32(art, o + 12) & 0xffff == 2]
+    yield (name(art, frames[1], images[0], 12), db,
+           looped(art, frames[0], frames[1], images[0] + 12),
+           found + ['covers 3'])
+    # the images' section after the albums' and the files': read, and past
+    # a loop of those two, not
+    later = artwork(images_last=True)
+    sections = [o for o, t in records(later) if t == 'mhsd']
+    yield ('images-last', db, later, found + ['covers 3'])
+    yield (name(later, sections[1], 0, 20), db,
+           looped(later, sections[0], sections[1], 20), found + ['covers 0'])
+
+
+def notes(tid, text):
+    """the notes of a podcast, as Now Playing reads them"""
+    return 'notes %s\t%s' % (PATHS[tid], text)
+
+
+def pins(db, art):
+    """Cases each of a bound the others leave free (review-1 of itdbwalks,
+    N2), as combos() has them"""
+    recs = records(db)
+    mhits = [o for o, t in recs if t == 'mhit']
+    tracks_only = ['tracks 4', 'complete 1', 'paths 4']
+    # a length of 0, with a count too big to end its walk: not a record, or
+    # the walk would read it again and again. The first track's path's.
+    path = [o for o, t in recs if t == 'mhod' and mhits[0] < o < mhits[1]
+            and u32(db, o + 12) == 2][0]
+    b = bytearray(db)
+    put32(b, path + 8, 0)
+    put32(b, mhits[0] + 12, 0x7fffffff)
+    yield ('itunesdb-total-mhod@%d-zero+count-mhit+12@%d' % (path, mhits[0]),
+           bytes(b), art, ['tracks 4', 'complete 1', 'paths 3'])
+    # the podcast's description, its notes, with a total that leaves it a
+    # byte of text: no notes, and its subtitle instead
+    k = [t[0] for t in TRACKS].index(104)
+    desc = [o for o, t in recs if t == 'mhod' and o > mhits[k]
+            and u32(db, o + 12) == 14][0]
+    b = bytearray(db)
+    put32(b, desc + 8, 41)
+    yield ('itunesdb-notes-past-record', bytes(b), art,
+           tracks_only + [notes(104, NOTES[104][0])])
+    # the names of both frames of the second image, their totals cut to
+    # ":F", which names no file: the image has no frame, its song no cover
+    arecs = records(art)
+    second = [o for o, t in arecs if t == 'mhii'][1]
+    b = bytearray(art)
+    for o, t in arecs:
+        if t == 'mhod' and o > second and u32(art, o + 12) & 0xffff == 3:
+            put32(b, o + 8, 40)
+    yield ('artworkdb-names-past-record', db, bytes(b),
+           ['tracks 4', 'paths 4', 'covers 2'])
+    # a record a byte past its parent, inside the parent's parent, at each
+    # level whose children are bounded by it (review-2 of itdbwalks, N2): the
+    # last item of Road Trip, the name of the hidden playlist, which the
+    # iPod's name is, and the header item of the podcasts' show, its playlist
+    # first in its section so that the section goes on after it
+    def within(start, data=db):
+        end = start + u32(data, start + 8)
+        return end, [o for o, t in records(data) if start < o < end]
+
+    sections = {u32(db, o + 12): o for o, t in recs if t == 'mhsd'}
+    lists2 = [o for o in within(sections[2])[1] if db[o:o + 4] == b'mhyp']
+    road_end, road = within(lists2[1])
+    item = [o for o in road if db[o:o + 4] == b'mhip'][-1]
+    b = bytearray(db)
+    put32(b, item + 8, u32(db, item + 8) + 1)
+    yield ('itunesdb-mhip@%d-past-mhyp' % item, bytes(b), art,
+           tracks_only + ['name Test iPod', LOVED,
+                          'unwritten /Playlists/Road Trip.m3u8'])
+    master_end, master = within(lists2[0])
+    name = [o for o in master if db[o:o + 4] == b'mhod'][0]
+    b = bytearray(db)
+    put32(b, name + 8, master_end - name + 1)
+    yield ('itunesdb-mhod@%d-past-mhyp' % name, bytes(b), art,
+           tracks_only + ['name iPod', ROAD_TRIP, LOVED])
+    first = itunesdb(podcasts_first=True)
+    yield ('podcasts-first', first, art,
+           tracks_only + ['shows 1', 'name Test iPod', ROAD_TRIP, LOVED])
+    section = [o for o, t in records(first) if t == 'mhsd'
+               and u32(first, o + 12) == 3][0]
+    show = [o for o in within(section, first)[1]
+            if first[o:o + 4] == b'mhyp'][0]
+    show_end, items = within(show, first)
+    header = [o for o in items if first[o:o + 4] == b'mhip'][0]
+    b = bytearray(first)
+    put32(b, header + 8, show_end - header + 1)
+    yield ('itunesdb-mhip@%d-past-mhyp' % header, bytes(b), art,
+           tracks_only + ['shows 0', 'name Test iPod', ROAD_TRIP, LOVED])
+    # the same names' records longer than their mhni, the frame's record:
+    # outside it, not read, though their text is whole
+    b = bytearray(art)
+    for o, t in arecs:
+        if t == 'mhod' and o > second and u32(art, o + 12) & 0xffff == 3:
+            put32(b, o + 8, u32(art, o + 8) + 100)
+    yield ('artworkdb-names-past-mhni', db, bytes(b),
+           ['tracks 4', 'paths 4', 'covers 2'])
+
+
 def main():
     root = sys.argv[1]
     os.makedirs(root)
@@ -575,19 +871,22 @@ def main():
     db = itunesdb()
     art = artwork()
     whole_expect = ['tracks 4', 'loaded 1', 'complete 1', 'paths 4',
-                    'name Test iPod', 'covers 3', 'shows 1',
-                    playlist('/Playlists/Road Trip.m3u8', (102, 101, 103)),
-                    playlist('/Playlists/Loved.m3u8', (102,))]
-    case('whole', db, art, whole_expect)
+                    'name Test iPod', 'covers 3', 'shows 1', ROAD_TRIP,
+                    LOVED]
+    case('whole', db, art,
+         whole_expect + [meta(t[0]) for t in TRACKS]
+         + [notes(104, NOTES[104][1])])
 
     # a database of iTunes before 7: the short mhit, covers by the songs' dbids
     # (each image names one song: the second song of the album has none)
     case('old-mhit', itunesdb(old_mhit=True), artwork(old=True),
-         ['tracks 4', 'complete 1', 'paths 4', 'covers 2'])
+         ['tracks 4', 'complete 1', 'paths 4', 'covers 2']
+         + [meta(t[0], old_mhit=True) for t in TRACKS])
     # an odd number of songs: the import's records of their tags, which start
     # with a uint64_t, after a table of as many 32-bit offsets
     case('odd-tracks', itunesdb(tracks=TRACKS[:3]), artwork(),
-         ['tracks 3', 'complete 1', 'paths 3', 'covers 3'])
+         ['tracks 3', 'complete 1', 'paths 3', 'covers 3']
+         + [meta(t[0]) for t in TRACKS[:3]])
     # no songs
     case('no-tracks', itunesdb(tracks=[]), None,
          ['tracks 0', 'loaded 1', 'complete 1', 'name Test iPod'])
@@ -608,6 +907,10 @@ def main():
         case('itunesdb-' + name, bad, art, expect)
     for name, bad, expect in damaged_artworkdb(art):
         case('artworkdb-' + name, db, bad, ['tracks 4', 'paths 4'] + expect)
+    for name, bad_db, bad_art, expect in combos(db, art, whole_expect):
+        case(name, bad_db, bad_art, expect)
+    for name, bad_db, bad_art, expect in pins(db, art):
+        case(name, bad_db, bad_art, expect)
     with open(os.path.join(root, 'count'), 'w') as f:
         f.write('%d\n' % made)
     print('%d cases in %s' % (made, root))

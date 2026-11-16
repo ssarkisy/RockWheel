@@ -28,6 +28,7 @@
 #include "system.h"
 #include "string-extra.h"
 #include "photos_panel.h"
+#include "mh_walk.h"
 #include "misc.h"
 #include "kernel.h"
 #include "settings.h"
@@ -46,26 +47,31 @@ static uint32_t le32(const unsigned char *p)
     return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24;
 }
 
-/* The place of the section with the list of images, and its sizes, or -1 */
+/* The place of the section with the list of images, and its sizes, or -1.
+   The sections walked as mh_walk.h has it: on the UI thread, which a loop of
+   them would hold. */
 static off_t images_section(int fd, uint32_t *header, uint32_t *total)
 {
     unsigned char h[24];
     if (read(fd, h, sizeof(h)) != sizeof(h) || memcmp(h, "mhfd", 4))
         return -1;
-    off_t pos = le32(h + 4);
+    const off_t end = record_end(0, h, MH_FILE_END);
+    off_t pos = next_record(0, le32(h + 4), end);
     const int sections = le32(h + 20);
     for (int i = 0; i < sections; i++)
     {
-        if (lseek(fd, pos, SEEK_SET) != pos || read(fd, h, 14) != 14
-            || memcmp(h, "mhsd", 4))
+        /* lseek()'s -1 for a failure would pass for a pos of -1 */
+        if (pos < 0 || lseek(fd, pos, SEEK_SET) != pos
+            || read(fd, h, 14) != 14 || memcmp(h, "mhsd", 4))
+            return -1;
+        const off_t next = record_end(pos, h, end);
+        if (next < 0)
             return -1;
         *header = le32(h + 4);
         *total = le32(h + 8);
         if (h[12] == 1)
             return pos;
-        if (*total == 0)
-            return -1;
-        pos += *total;
+        pos = next;
     }
     return -1;
 }
