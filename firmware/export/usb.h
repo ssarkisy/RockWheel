@@ -311,6 +311,11 @@ void usb_set_skip_first_drive(bool skip);
 /* read the iPod's description, which mass storage gives a computer as
  * Apple's firmware does; false when the disk has none */
 bool usb_storage_load_ipod_xml(void);
+#ifdef IPOD_COLOR
+/* the USB serial number Apple's disk mode gives the iPod photo, into 17
+ * chars; false when the flash holds no GUID */
+bool usb_storage_ipod_serial(char *serial);
+#endif
 #endif
 
 #if !defined(SIMULATOR) && !defined(USB_NONE)

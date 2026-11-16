@@ -1839,13 +1839,23 @@ static char ipod_xml[IPOD_XML_PAGE * IPOD_XML_PAGES + 1];
 static int ipod_xml_size;
 static char ipod_revision[5] = "1.62";
 
+#if defined(IPOD_VIDEO) || defined(IPOD_COLOR)
 #ifdef IPOD_VIDEO
 #include "ipod_sysinfo_5g.h"
+#else
+#include "ipod_sysinfo_photo.h"
+#include "hwcompat.h"
+#endif
 
 /* Apple's SysCfg in the flash: "SCfg", the number of entries at 0x14, and
    from 0x18 entries of a tag and 16 bytes, all little-endian, so the tags
    read backwards */
+#ifdef IPOD_VIDEO
 #define IPOD_SYSCFG ((const unsigned char *)0x20004000)
+#else
+/* the iPod photo's: its hardware revision is at 0x84 of it (hwcompat.h) */
+#define IPOD_SYSCFG ((const unsigned char *)0x20002000)
+#endif
 
 static const unsigned char *syscfg_entry(const unsigned char *cfg,
                                          const char *tag)
@@ -1862,9 +1872,53 @@ static const unsigned char *syscfg_entry(const unsigned char *cfg,
     return NULL;
 }
 
+#ifdef IPOD_COLOR
+/* The FireWire GUID, as Apple's flash makes it of "FwId" (code at 0xee2c of
+   an iPod Video's flash, which has both forms): where its fourth byte is 0,
+   as on the iPod photo, its first three are the GUID's low 24 bits, under
+   Apple's 0x000A270002; otherwise the eight from its fifth on are the whole
+   GUID, as on the iPod Video. False when that isn't Apple's, or is blank. */
+static bool ipod_guid(const unsigned char *fw, uint32_t *high, uint32_t *low)
+{
+    if(fw[3] == 0) {
+        *low = fw[0] | fw[1] << 8 | (uint32_t)fw[2] << 16;
+        if(*low == 0 || *low == 0xffffff)
+            return false;
+        *low |= 0x02000000;
+        *high = 0x000a2700;
+        return true;
+    }
+    *low = fw[4] | fw[5] << 8 | fw[6] << 16 | (uint32_t)fw[7] << 24;
+    *high = fw[8] | fw[9] << 8 | fw[10] << 16 | (uint32_t)fw[11] << 24;
+    return (*high & 0xffffff00) == 0x000a2700
+        && *low != 0 && *low != 0xffffffff;
+}
+
+/* The USB serial number as Apple's disk mode gives it on the iPod photo:
+   "000000" and the GUID's low 24 bits where the flash keeps only those
+   (Finder takes 0x000A270002 for the rest), else the whole GUID's 16 hex
+   digits. Into serial[17]; false without a GUID, and then the computer gets
+   Apple's disk mode, never a serial number of zeros. */
+bool usb_storage_ipod_serial(char *serial)
+{
+    const unsigned char *fw = syscfg_entry(IPOD_SYSCFG, "dIwF");
+    uint32_t high, low;
+    if(!fw || !ipod_guid(fw, &high, &low))
+        return false;
+    if(fw[3] == 0)
+        snprintf(serial, 17, "000000%06lX", (unsigned long)(low & 0xffffff));
+    else
+        snprintf(serial, 17, "%08lX%08lX", (unsigned long)high,
+                 (unsigned long)low);
+    return true;
+}
+#endif /* IPOD_COLOR */
+
 /* Without the file Apple's firmware gave, as on an iPod RockWheel was put on
    from scratch: the description of a 5.5G with this iPod's own serial
-   number, FireWire GUID and RAM, which is all that differs between them */
+   number, FireWire GUID and RAM, which is all that differs between them.
+   On the iPod photo, of an iPod photo with its serial number and FireWire
+   GUID, and the updater family Apple's firmware gives its revision. */
 static bool make_ipod_xml(const unsigned char *cfg, int ram_mb)
 {
     const unsigned char *sn = syscfg_entry(cfg, "mNrS");
@@ -1879,13 +1933,26 @@ static bool make_ipod_xml(const unsigned char *cfg, int ram_mb)
     serial[i] = '\0';
     if(i == 0)
         return false;
+#ifdef IPOD_COLOR
+    /* the GUID the USB serial number is made of */
+    uint32_t high, low;
+    if(!ipod_guid(fw, &high, &low))
+        return false;
+    snprintf(guid, sizeof(guid), "%08lX%08lX", (unsigned long)high,
+             (unsigned long)low);
+#else
     /* as the USB serial, from the same two words */
     snprintf(guid, sizeof(guid), "%08lX%08lX",
              (unsigned long)(fw[8] | fw[9] << 8 | fw[10] << 16
                              | (uint32_t)fw[11] << 24),
              (unsigned long)(fw[4] | fw[5] << 8 | fw[6] << 16
                              | (uint32_t)fw[7] << 24));
+#endif
     snprintf(ram, sizeof(ram), "%d", ram_mb);
+#ifdef IPOD_COLOR
+    /* from revision 0x60004 on, as Apple's firmware 1.2.1 has it */
+    const char *updater = IPOD_HW_REVISION >= 0x60004 ? "11" : "5";
+#endif
 
     const char *t = ipod_xml_template;
     int n = 0;
@@ -1898,6 +1965,10 @@ static bool make_ipod_xml(const unsigned char *cfg, int ram_mb)
                 value = guid, t += 6;
             else if(!strncmp(t, "@RAM@", 5))
                 value = ram, t += 5;
+#ifdef IPOD_COLOR
+            else if(!strncmp(t, "@UPDATER@", 9))
+                value = updater, t += 9;
+#endif
         }
         if(value)
             while(*value && n < (int)sizeof(ipod_xml) - 1)
@@ -1909,14 +1980,50 @@ static bool make_ipod_xml(const unsigned char *cfg, int ram_mb)
     ipod_xml[n] = '\0';
     return true;
 }
-#endif /* IPOD_VIDEO */
+
+#ifdef IPOD_COLOR
+/* Whether the description read from the file is this iPod's: its
+   FireWireGUID the one the USB serial number is made of. Another iPod's,
+   copied or restored from a backup, would have Finder hang at Loading. */
+static bool ipod_xml_is_ours(void)
+{
+    static const char key[] = "<key>FireWireGUID</key>";
+    const unsigned char *fw = syscfg_entry(IPOD_SYSCFG, "dIwF");
+    uint32_t high, low;
+    char guid[17];
+    if(!fw || !ipod_guid(fw, &high, &low))
+        return false;
+    snprintf(guid, sizeof(guid), "%08lX%08lX", (unsigned long)high,
+             (unsigned long)low);
+    const char *v = strstr(ipod_xml, key);
+    if(!v)
+        return false;
+    v += sizeof(key) - 1;
+    while(*v == ' ' || *v == '\t' || *v == '\r' || *v == '\n')
+        v++;
+    if(strncmp(v, "<string>", 8))
+        return false;
+    v += 8;
+    return !strncasecmp(v, guid, 16) && v[16] == '<';
+}
+#endif
+#endif /* IPOD_VIDEO || IPOD_COLOR */
 
 bool usb_storage_load_ipod_xml(void)
 {
+#ifdef IPOD_COLOR
+    /* Finder takes no iPod whose USB serial number disagrees with its
+       description's GUID: without a GUID, file or not, Apple's disk mode */
+    char usb_serial[17];
+    if(!usb_storage_ipod_serial(usb_serial))
+        return false;
+#endif
     int fd = open(IPOD_XML_FILE, O_RDONLY);
     if(fd < 0) {
 #ifdef IPOD_VIDEO
         if(!make_ipod_xml(IPOD_SYSCFG, probed_ramsize))
+#elif defined(IPOD_COLOR)
+        if(!make_ipod_xml(IPOD_SYSCFG, 0)) /* its description has no RAM */
 #endif
             return false;
     }
@@ -1925,6 +2032,11 @@ bool usb_storage_load_ipod_xml(void)
         close(fd);
         ipod_xml_size = n > 0 ? n : 0;
         ipod_xml[ipod_xml_size] = '\0';
+#ifdef IPOD_COLOR
+        /* another iPod's file: this one's own description instead */
+        if(!ipod_xml_is_ours() && !make_ipod_xml(IPOD_SYSCFG, 0))
+            return false;
+#endif
     }
 
 

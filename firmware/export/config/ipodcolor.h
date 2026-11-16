@@ -194,8 +194,21 @@
 #define USB_PRODUCT_ID 0x1204
 #define HAVE_USB_HID_MOUSE
 
-/* a computer gets Apple's disk mode: the iPod restarts into it once
-   connected */
+/* Rockbox's own USB mode answers as Apple's firmware does, with its names and
+   an iPod photo's description, so that Finder sees an iPod photo and syncs
+   it, as on the iPod Video. A build with USB_ALWAYS_APPLE_DISK_MODE defined
+   restarts into Apple's disk mode instead, as before. */
+/* #define USB_ALWAYS_APPLE_DISK_MODE */
+#ifndef USB_ALWAYS_APPLE_DISK_MODE
+#define USB_IPOD_IDENTITY
+
+/* the part of a USB write taken at a time, and the blocks of one command
+   written while the next comes in, as on the iPod Video */
+#define USB_WRITE_BUFFER_SIZE (1024*32)
+#define USB_WRITE_BEHIND
+#endif
+
+/* without a description, hand a computer over to Apple's disk mode instead */
 #define USB_APPLE_DISK_MODE
 
 /* start with a logo on black, the way the stock firmware starts, instead

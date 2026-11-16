@@ -318,9 +318,31 @@ static void usb_core_control_request_handler(struct usb_ctrlrequest* req, uint8_
  * computing the length of the descriptor
  */
 
+#if defined(IPOD_COLOR) && defined(USB_IPOD_IDENTITY) && !defined(BOOTLOADER)
+/* the iPod photo's serial number is all made in usb_storage.c */
+#define USB_SERIAL_MADE_ELSEWHERE
+#endif
+#ifndef USB_SERIAL_MADE_ELSEWHERE
 static const short hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
                         '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-#if defined(IPOD_ARCH) && defined(CPU_PP)
+#endif
+#ifdef USB_SERIAL_MADE_ELSEWHERE
+static void set_serial_descriptor(void)
+{
+    /* Apple's disk mode's (usb_storage.c), which Finder checks against the
+       description's GUID; without one, none, and the iPod restarts into
+       Apple's disk mode once connected */
+    char serial[17];
+    int i;
+    if(!usb_storage_ipod_serial(serial)) {
+        device_descriptor.iSerialNumber = 0;
+        return;
+    }
+    for(i = 0; serial[i]; i++)
+        usb_string_iSerial.wString[i] = serial[i];
+    usb_string_iSerial.bLength = 2 + 2 * i;
+}
+#elif defined(IPOD_ARCH) && defined(CPU_PP)
 static void set_serial_descriptor(void)
 {
 #ifdef IPOD_VIDEO
