@@ -2866,11 +2866,122 @@ struct song_place {
 _Static_assert(sizeof(struct song_place) <= sizeof(struct song_key),
                "the places in the keys' room");
 
+/* the row x goes before the row y in an order: by key, or by row where the
+   keys are equal, as a stable sort of the rows by name keeps them */
+static bool songs_row_before(const struct song_key *keys, int x, int y)
+{
+    return key_before(&keys[x], &keys[y])
+           || (!key_before(&keys[y], &keys[x]) && x < y);
+}
+
+/* The rows a[] in the order of their keys, stable, by merges, with b of as
+   many for room: the one of the two they end in */
+static uint16_t *songs_rows_sort(const struct song_key *keys, int n,
+                                 uint16_t *a, uint16_t *b)
+{
+    for (int width = 1; width < n; width *= 2)
+    {
+        for (int lo = 0; lo < n; lo += 2 * width)
+        {
+            const int mid = MIN(lo + width, n), hi = MIN(lo + 2 * width, n);
+            int x = lo, y = mid, k = lo;
+            while (x < mid && y < hi)
+                b[k++] = key_before(&keys[a[y]], &keys[a[x]]) ? a[y++] : a[x++];
+            while (x < mid)
+                b[k++] = a[x++];
+            while (y < hi)
+                b[k++] = a[y++];
+        }
+        uint16_t *t = a;
+        a = b;
+        b = t;
+        /* for the codec: nothing but this room is used across it */
+        yield();
+    }
+    return a;
+}
+
+/* An order made before, the sort's hint at Updating Library
+   (songs_orders_put()): its rows, the entries of the list by name it's of,
+   each entry's row in this list (0xffff for none), and room for n rows and
+   n bits */
+struct songs_hint {
+    const struct song_place *old;
+    const int32_t *ids;
+    int n_old;
+    const uint16_t *row_of;
+    int entries;
+    uint16_t *c;
+    uint8_t *seen;
+};
+#define SONGS_ROW_NONE 0xffffu
+
+/* The n rows of an order from its hint: the old list's in their order, as
+   this list's rows, then the rows that weren't among them sorted and merged
+   in, with a and b of n for room. Then proved: every row once, each before
+   the next (songs_row_before()). The rows sorted are in that one order, so
+   it's the sort's own. NULL if not proved, or if half the rows or more
+   weren't in the old list: the caller sorts them. */
+static const uint16_t *songs_order_from_hint(const struct song_key *keys, int n,
+                                             const struct songs_hint *t,
+                                             uint16_t *a, uint16_t *b)
+{
+    uint16_t *const c = t->c;
+    const size_t bits = (n + 7) / 8;
+    int m = 0;
+    memset(t->seen, 0, bits);
+    for (int k = 0; k < t->n_old; k++)
+    {
+        const int from = t->old[k].from;
+        if (from >= t->n_old)
+            return NULL;
+        const int32_t id = t->ids[from];
+        const int row = id >= 0 && id < t->entries ? t->row_of[id]
+                                                    : (int)SONGS_ROW_NONE;
+        if (row >= n || (t->seen[row >> 3] & (1 << (row & 7))))
+            continue;
+        t->seen[row >> 3] |= 1 << (row & 7);
+        a[m++] = row;
+    }
+    if (2 * m <= n)
+        return NULL;
+    /* the new ones, in their order by name, sorted by key: stable */
+    int added = 0;
+    for (int row = 0; row < n; row++)
+    {
+        if (!(t->seen[row >> 3] & (1 << (row & 7))))
+            b[added++] = row;
+    }
+    const uint16_t *more = songs_rows_sort(keys, added, b, c);
+    /* the two merged into c, or into b if the new ones are in c */
+    uint16_t *out = more == c ? b : c;
+    int x = 0, y = 0, k = 0;
+    while (x < m && y < added)
+        out[k++] = songs_row_before(keys, more[y], a[x]) ? more[y++] : a[x++];
+    while (x < m)
+        out[k++] = a[x++];
+    while (y < added)
+        out[k++] = more[y++];
+    /* proved */
+    memset(t->seen, 0, bits);
+    for (k = 0; k < n; k++)
+    {
+        const int row = out[k];
+        if (row >= n || (t->seen[row >> 3] & (1 << (row & 7)))
+            || (k > 0 && !songs_row_before(keys, out[k - 1], row)))
+            return NULL;
+        t->seen[row >> 3] |= 1 << (row & 7);
+    }
+    return out;
+}
+
 /* The list by name sorted into an order, its rows where they were, each
    given its album's number or year: stable, by merges of the rows' numbers,
-   in songs_sort_room()'s keys, which the places then take */
+   in songs_sort_room()'s keys, which the places then take; or from the
+   order made before, the hint, if that proves the same */
 static struct song_place *songs_order_sort(struct tree_context *c, int order,
-                                           struct song_key *keys)
+                                           struct song_key *keys,
+                                           const struct songs_hint *hint)
 {
     struct tagentry *e = get_entries(c) + c->special_entry_count;
     const int n = current_entry_count - c->special_entry_count;
@@ -2926,32 +3037,20 @@ static struct song_place *songs_order_sort(struct tree_context *c, int order,
             e[i].album = (typeof(e[i].album)){ .year = 0, .no = album ? no : -1 };
     }
 
-    for (int i = 0; i < n; i++)
-        a[i] = i;
-    for (int width = 1; width < n; width *= 2)
+    const uint16_t *sorted = hint ? songs_order_from_hint(keys, n, hint, a, b)
+                                  : NULL;
+    if (!sorted)
     {
-        for (int lo = 0; lo < n; lo += 2 * width)
-        {
-            const int mid = MIN(lo + width, n), hi = MIN(lo + 2 * width, n);
-            int x = lo, y = mid, k = lo;
-            while (x < mid && y < hi)
-                b[k++] = key_before(&keys[a[y]], &keys[a[x]]) ? a[y++] : a[x++];
-            while (x < mid)
-                b[k++] = a[x++];
-            while (y < hi)
-                b[k++] = a[y++];
-        }
-        uint16_t *t = a;
-        a = b;
-        b = t;
-        /* for the codec: nothing but this room is used across it */
-        yield();
+        for (int i = 0; i < n; i++)
+            a[i] = i;
+        sorted = songs_rows_sort(keys, n, a, b);
     }
 
     struct song_place *rows = (struct song_place *)keys;
     for (int k = 0; k < n; k++)
         rows[k] = (struct song_place){
-            a[k], order == SONGS_BY_YEAR ? e[a[k]].album.year : e[a[k]].album.no
+            sorted[k], order == SONGS_BY_YEAR ? e[sorted[k]].album.year
+                                              : e[sorted[k]].album.no
         };
     return rows;
 }
@@ -4187,7 +4286,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             {
                 struct song_place *rows = songs_order_read(c, songs_by, keys);
                 if (!rows)
-                    rows = songs_order_sort(c, songs_by, keys);
+                    rows = songs_order_sort(c, songs_by, keys, NULL);
                 songs_order_apply(get_entries(c) + c->special_entry_count,
                                   current_entry_count - c->special_entry_count,
                                   rows, songs_by);
@@ -7605,6 +7704,97 @@ static void songs_orders_write(struct tree_context *c)
         songs_orders_put(c, songs_orders_keys);
 }
 
+/* songs_orders_put()'s hints: the orders' file there now, before it's made
+   again, and the entries of the list by name it's of, as the Songs list's
+   index of the same database has them in its own order, or in one of these;
+   then each entry's row in the list by name e of n now. In the plugins'
+   buffer, free at Updating Library. False without them, or if those
+   entries aren't of the orders' list (their rows' hash). A hint needs no
+   more: the sort proves what it gives (songs_order_from_hint()). */
+static bool songs_hint_load(struct songs_hint hint[SONGS_ORDERS],
+                            const struct tagentry *e, int n)
+{
+    struct songs_orders_header h;
+    size_t room = 0;
+    unsigned char *buf = plugin_is_running() ? NULL : plugin_get_buffer(&room);
+    const int fd = buf ? open(SONGS_ORDERS_FILE, O_RDONLY) : -1;
+    if (fd < 0)
+        return false;
+    const int entries = tagcache_entry_count();
+    bool ok = read(fd, &h, sizeof(h)) == sizeof(h)
+        && h.magic == SONGS_ORDERS_MAGIC && h.version == SONGS_ORDERS_VERSION
+        && h.songs > 0 && h.songs <= SONGS_SORT_MAX && entries > 0
+        && ffilesize(fd) == (off_t)(sizeof(h) + SONGS_ORDERS * h.songs
+                                                * sizeof(struct song_place));
+    const int m = ok ? (int)h.songs : 0;
+    /* the old orders, the index's entries, them by name, the rows of the
+       entries, then the sort's room and bits */
+    struct song_place *old = (struct song_place *)buf;
+    int32_t *listed = (int32_t *)(old + SONGS_ORDERS * m);
+    int32_t *ids = listed + m;
+    uint16_t *row_of = (uint16_t *)(ids + m);
+    uint16_t *more = (uint16_t *)ALIGN_UP((uintptr_t)(row_of + entries),
+                                          sizeof(uint32_t));
+    uint8_t *seen = (uint8_t *)(more + n);
+    const ssize_t places = SONGS_ORDERS * m * sizeof(*old);
+    ok = ok && seen + (n + 7) / 8 <= buf + room
+         && read(fd, old, places) == places;
+    close(fd);
+    /* the Songs list's index of that database, of as many songs */
+    bool listed_ok = false;
+    for (int slot = TAGTREE_SLOT_SONGS;
+         slot < TAGTREE_SLOTS && ok && !listed_ok; slot++)
+    {
+        struct tagtree_list_header lh;
+        const int ifd = open(tagtree_list_index_names[slot], O_RDONLY);
+        if (ifd < 0)
+            continue;
+        listed_ok = read(ifd, &lh, sizeof(lh)) == sizeof(lh)
+            && lh.magic == TAGTREE_LIST_MAGIC && lh.commitid == h.commitid
+            && lh.count == (uint32_t)m && lh.entries == (uint32_t)m
+            && lseek(ifd, sizeof(lh) + m * sizeof(uint32_t), SEEK_SET) >= 0
+            && read(ifd, listed, m * sizeof(*listed))
+               == (ssize_t)(m * sizeof(*listed));
+        close(ifd);
+    }
+    ok = ok && listed_ok;
+    /* by name, or in one of the orders, as Sort By had it */
+    bool by_name = false;
+    for (int order = -1; order < SONGS_ORDERS && ok && !by_name; order++)
+    {
+        if (order < 0)
+            memcpy(ids, listed, m * sizeof(*ids));
+        else
+        {
+            memset(ids, 0xff, m * sizeof(*ids));
+            for (int k = 0; k < m; k++)
+            {
+                const int from = old[order * m + k].from;
+                if (from < m)
+                    ids[from] = listed[k];
+            }
+        }
+        uint32_t hash = HASH_START;
+        for (int k = 0; k < m; k++)
+            hash = (hash ^ (uint32_t)ids[k]) * 16777619;
+        by_name = hash == h.rows_hash;
+    }
+    if (!by_name)
+        return false;
+    memset(row_of, 0xff, entries * sizeof(*row_of));
+    for (int i = 0; i < n; i++)
+    {
+        const int32_t id = e[i].extraseek;
+        if (id >= 0 && id < entries)
+            row_of[id] = i;
+    }
+    for (int order = 0; order < SONGS_ORDERS; order++)
+        hint[order] = (struct songs_hint){
+            old + order * m, ids, m, row_of, entries, more, seen
+        };
+    return true;
+}
+
 /* The orders' file of the list by name the tree has, as found, with the
    sort's room for its songs; or the header alone without it */
 static void songs_orders_put(struct tree_context *c, struct song_key *keys)
@@ -7613,6 +7803,10 @@ static void songs_orders_put(struct tree_context *c, struct song_key *keys)
     if (!songs_inputs(&in))
         return;
     const int n = keys ? current_entry_count - c->special_entry_count : 0;
+    /* the orders made before, before they're made again */
+    struct songs_hint hint[SONGS_ORDERS];
+    const bool hinted = n > 0
+        && songs_hint_load(hint, get_entries(c) + c->special_entry_count, n);
     struct songs_orders_header h = {
         .magic = SONGS_ORDERS_MAGIC, .version = SONGS_ORDERS_VERSION,
         .commitid = tagcache_get_commitid(), .room = c->cache.max_entries,
@@ -7627,8 +7821,9 @@ static void songs_orders_put(struct tree_context *c, struct song_key *keys)
     bool ok = write(fd, &h, sizeof(h)) == sizeof(h);
     for (int i = 0; i < SONGS_ORDERS && n && ok; i++)
     {
-        const struct song_place *rows = songs_order_sort(c, SONGS_BY_ARTIST + i,
-                                                         keys);
+        const struct song_place *rows =
+            songs_order_sort(c, SONGS_BY_ARTIST + i, keys,
+                             hinted ? &hint[i] : NULL);
         h.sum[i] = words_hash(rows, size, HASH_START);
         ok = write(fd, rows, size) == size;
     }

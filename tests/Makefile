@@ -22,6 +22,8 @@
 #   make -C tests check-panic    the crash record, its copies and their vote
 #   make -C tests check-fw       file_write.c with each operation failing or
 #                                cut
+#   make -C tests check-orders   the Songs orders' sort from a hint, and its
+#                                proof
 #   make -C tests clean
 #
 # Built under tests/build. The sources are built with the simulator's
@@ -81,12 +83,13 @@ LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o \
 	$(OBJ)/apps/file_write.o
 
 .PHONY: all check check-keys check-itunesdb check-covers check-codecs \
-	check-wheel check-disk check-lines check-panic check-fw clean
+	check-wheel check-disk check-lines check-panic check-fw check-orders clean
 all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_covers \
-	$(BUILD)/test_wheel $(BUILD)/test_panic_record $(BUILD)/test_fw
+	$(BUILD)/test_wheel $(BUILD)/test_panic_record $(BUILD)/test_fw \
+	$(BUILD)/test_orders
 
 check: check-keys check-itunesdb check-covers check-wheel check-codecs \
-	check-disk check-lines check-panic check-fw
+	check-disk check-lines check-panic check-fw check-orders
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -154,6 +157,26 @@ $(BUILD)/test_panic_record: $(OBJ)/panic/test_panic_record.o \
 
 check-panic: $(BUILD)/test_panic_record
 	@$(BUILD)/test_panic_record
+
+# The Songs orders' sort from the order made before, and its proof:
+# orders/make_src.py takes the parts out of apps/tagtree.c as they are
+$(BUILD)/orders/orders_src.c: $(ROOT)/apps/tagtree.c $(TESTS)/orders/make_src.py
+	@mkdir -p $(dir $@)
+	@$(PYTHON) -I -B $(TESTS)/orders/make_src.py $@
+
+$(OBJ)/orders/test_orders.o: $(TESTS)/orders/test_orders.c \
+		$(BUILD)/orders/orders_src.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -DORDERS_SRC=\"$(BUILD)/orders/orders_src.c\" \
+		-MMD -c $< -o $@
+
+$(BUILD)/test_orders: $(OBJ)/orders/test_orders.o $(FIRMWARE_OBJ) $(LIB_OBJ)
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+check-orders: $(BUILD)/test_orders
+	@$(BUILD)/test_orders
 
 # made again for each run: an import leaves its files in the case's folder
 ITUNESDB_CASES := $(BUILD)/itunesdb-cases
