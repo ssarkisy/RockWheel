@@ -691,7 +691,7 @@ static void style_line(struct screen *display,
                 selection_rounded(display, x, y,
                                   row * line->line + line->row_top, bar_height,
                                   row * line->nlines,
-                                  line->row_height > 0 ? 0
+                                  line->row_height > 0 || line->bar_whole ? 0
                                   : ui_metric(UI_METRIC_SELECTION_INSET_Y),
                                   line->line_color);
                 break;

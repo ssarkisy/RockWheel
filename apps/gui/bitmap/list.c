@@ -878,6 +878,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             list_text_vp->width - line_indent - LINE_COVER_SIZE : line_indent;
         if (cover != LIST_COVER_NONE)
             line_indent += LINE_COVER_SIZE + COVER_GAP;
+        /* in a list of covers, every row's bar the whole row's, as in a row
+           of two lines, with a cover in it at the same margin */
+        linedes.bar_whole = covers;
         /* a playlist's or folder's mark, its name after its column */
         const int mark_x = line_indent;
         const int mark = list->callback_get_mark ?

@@ -101,6 +101,11 @@ struct line_desc {
      * whole row's height. text_dy moves the text down from the part's middle */
     int16_t row_height, row_top;
     int8_t text_dy;
+    /* A selected line of one part whose bar goes over its row's whole
+     * height, as a row of two parts' does, for the theme's inset rows
+     * (UI_METRIC_SELECTION_INSET_Y): a row with a cover, which sits in the
+     * bar with the same margin in both */
+    bool bar_whole;
 };
 
 /* default initializer, can be used for static initialitation also.
