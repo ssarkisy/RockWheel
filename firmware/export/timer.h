@@ -41,8 +41,9 @@ bool timer_set_period(long cycles);
 void timers_adjust_prescale(int multiplier, bool enable_irq);
 #endif
 
-/* NOTE: unregister callbacks are not called by timer_unregister()
-* the unregister_callback only gets called when your timer gets 
+/* NOTE: unregister callbacks are not called by timer_unregister(), except
+* a negative priority's, by any timer_unregister(), its owner's too.
+* Otherwise the unregister_callback only gets called when your timer gets
 * overwritten by a higher priority timer using timer_register() */
 void timer_unregister(void);
 

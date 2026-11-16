@@ -58,15 +58,23 @@ bool timer_set_period(long cycles)
     return timer_set(cycles, false);
 }
 
-/* NOTE: unregister callbacks are not called by timer_unregister()
-* the unregister_callback only gets called when your timer gets 
+/* NOTE: unregister callbacks are not called by timer_unregister(), except
+* a negative priority's: any timer_unregister(), its owner's too, takes the
+* timer from it. Some plugins unregister without owning the timer, which
+* would drop the interrupt that ends the iPod wheel click's tone.
+* Otherwise the unregister_callback only gets called when your timer gets
 * overwritten by a higher priority timer using timer_register() */
 void timer_unregister(void)
 {
+    void (*lost)(void) = timer_prio < 0 ? pfn_unregister : NULL;
+
     timer_stop();
 
     pfn_timer = NULL;
     pfn_unregister = NULL;
     timer_prio = TIMER_PRIO_FREE;
+
+    if (lost)
+        lost();
 }
 
