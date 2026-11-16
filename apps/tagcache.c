@@ -6788,7 +6788,9 @@ long tagcache_track_playcount(const struct mp3entry *id3)
 
 /* What an entry sorts by for a tag, from the database in memory: a number's
    value, or for a string of a sorted file its place there, which goes as the
-   alphabet. 0 without the memory. */
+   alphabet. 0 without the memory; -1 for a string of an entry deleted since,
+   which names nothing (tagcache_tag_string() refuses it) and goes before
+   every name. */
 long tagcache_sort_key(int idx_id, int tag)
 {
 #ifdef HAVE_TC_RAMCACHE
@@ -6796,7 +6798,15 @@ long tagcache_sort_key(int idx_id, int tag)
        changes: nothing waited for in the middle of a sort */
     if (tc_stat.ramcache && idx_id >= 0 && idx_id < current_tcmh.tch.entry_count
         && (TAGCACHE_IS_NUMERIC(tag) || TAGCACHE_IS_SORTED(tag)))
-        return tcramcache.hdr->indices[idx_id].tag_seek[tag];
+    {
+        const struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
+        /* a deleted entry's string places are sums of the strings now
+           (delete_entry_in()), not places: one read there would leave the
+           tag's file */
+        if ((idx->flag & FLAG_DELETED) && !TAGCACHE_IS_NUMERIC(tag))
+            return -1;
+        return idx->tag_seek[tag];
+    }
 #endif
     (void)idx_id;
     (void)tag;
