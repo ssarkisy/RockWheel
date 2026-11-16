@@ -296,7 +296,7 @@ static int classic_colour_callback(int action,
 }
 MENUITEM_SETTING(classic_colour_item, &global_settings.classic_colour,
                  classic_colour_callback);
-#ifdef HAVE_MENU_COVER
+#ifdef HAVE_MOVING_COVER
 /* none with Album Art off, as there's no cover beside the menus then */
 static int moving_cover_callback(int action,
                                  const struct menu_item_ex *this_item,
@@ -311,13 +311,18 @@ static int moving_cover_callback(int action,
 MENUITEM_SETTING(moving_cover_item, &global_settings.moving_cover,
                  moving_cover_callback);
 #endif
+#ifdef UI_MAIN_MENU_PANE
+/* the iPod photo's main menu with its pane, or the screen's width: with
+   Album Art off too, as the pane then shows the note */
+MENUITEM_SETTING(menu_pane_item, &global_settings.menu_pane, NULL);
+#endif
 
 /* Appearance, a folder of Settings: all that changes the look, the theme
    first, without a heading of its own, then a section each for the lists, the
    main menu and Now Playing. A section whose rows are all hidden, by the
    theme or with Album Art off, goes with them (init_menu_lists()) */
 MENUITEM_GROUP(appearance_group_lists, ID2P(LANG_APPEARANCE_LISTS));
-#ifdef HAVE_MENU_COVER
+#if defined(HAVE_MOVING_COVER) || defined(UI_MAIN_MENU_PANE)
 MENUITEM_GROUP(appearance_group_main_menu, ID2P(LANG_MAIN_MENU));
 #endif
 MENUITEM_GROUP(appearance_group_now_playing, ID2P(LANG_NOW_PLAYING));
@@ -332,9 +337,14 @@ MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
 #endif
 #endif
           &list_scrollbar_item, &jump_by_letter_item,
-#ifdef HAVE_MENU_COVER
+#if defined(HAVE_MOVING_COVER) || defined(UI_MAIN_MENU_PANE)
           &appearance_group_main_menu,
+#endif
+#ifdef HAVE_MOVING_COVER
           &moving_cover_item,
+#endif
+#ifdef UI_MAIN_MENU_PANE
+          &menu_pane_item,
 #endif
           &appearance_group_now_playing,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)

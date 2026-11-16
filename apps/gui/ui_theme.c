@@ -175,8 +175,6 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_CHEVRON_ALL]          = 0,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 1,
             [UI_METRIC_GROUP_BAR]            = 1,
-            /* no pane: the main menu takes the screen's width */
-            [UI_METRIC_PANE_LEFT]            = LCD_WIDTH,
         },
 #else
         .cover_colours = true,
@@ -397,8 +395,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SELECTION_RADIUS]     = 0,
             [UI_METRIC_CHEVRON_ALL]          = 1,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
-            /* no pane: the main menu takes the screen's width */
-            [UI_METRIC_PANE_LEFT]            = LCD_WIDTH,
+            /* the main menu's pane, right of the list and its hairline */
+            [UI_METRIC_PANE_LEFT]            = 110,
             [UI_METRIC_ROW_RIGHT]            = 9,
             [UI_METRIC_ROW_RIGHT_GAP]        = 12,
             [UI_METRIC_GROUP_BAR]            = 3,
@@ -714,8 +712,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_ROW_COVER_INSET]      = 8,
             [UI_METRIC_CHEVRON_ALL]          = 1,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
-            /* no pane: the main menu takes the screen's width */
-            [UI_METRIC_PANE_LEFT]            = LCD_WIDTH,
+            /* the main menu's pane, right of the list and its hairline */
+            [UI_METRIC_PANE_LEFT]            = 110,
             [UI_METRIC_ROW_RIGHT]            = 17,
             [UI_METRIC_ROW_RIGHT_GAP]        = 7,
             [UI_METRIC_SCROLLBAR_CAPSULE]    = 3,

@@ -30,7 +30,8 @@ struct wps_data;
 /* The cover in the main menu's pane, and in the radio's screen: only where
    the themes have the pane. Without it nothing here is built, its memory
    neither, and a theme's %C beside the menus shows the buffer's cover. */
-#if defined(ITUNESDB_HAVE_ART) && defined(UI_MENU_PANE)
+#if defined(ITUNESDB_HAVE_ART) \
+    && (defined(UI_MENU_PANE) || defined(UI_MAIN_MENU_PANE))
 #define HAVE_MENU_ART
 
 /* %?C beside the menus: whether the song playing has a cover of Finder's,
@@ -53,13 +54,24 @@ static inline void menu_cover_resume_look(void) {}
 
 /* With Moving Cover, that cover pans slowly from side to side in the part of
    the theme's panel the list leaves, as a long name scrolls: the scroll
-   thread moves it. */
+   thread moves it. Where it stands still, as with Moving Cover off, the
+   rest is the same: the sharp cover decoded from the song's own picture
+   and kept, drawn by the same thread once it comes. */
 #if defined(HAVE_MENU_ART) && !defined(HAVE_REMOTE_LCD) \
     && LCD_STRIDEFORMAT != VERTICAL_STRIDE && !defined(BOOTLOADER)
 #define HAVE_MENU_COVER
+/* The iPod photo's pane is 110 px of a 176 px cover: no Moving Cover, its
+   row nor its frames (UI_MAIN_MENU_PANE) */
+#ifdef UI_MENU_PANE
+#define HAVE_MOVING_COVER
+#endif
 
 /* the setting, at boot too */
 void menu_cover_changed(bool on);
+#ifdef UI_MAIN_MENU_PANE
+/* Cover Beside Menu's: the sharp cover's memory with the pane */
+void menu_cover_pane_changed(bool on);
+#endif
 
 /* The buffer's cover of the song playing, as one outside Finder has, copied
    to pan as Finder's: the buffer's may move or go meanwhile. Not while it's
@@ -107,6 +119,9 @@ void menu_cover_read_cancel(void);
 
 #else
 static inline void menu_cover_changed(bool on) { (void)on; }
+#ifdef UI_MAIN_MENU_PANE
+static inline void menu_cover_pane_changed(bool on) { (void)on; }
+#endif
 static inline void menu_cover_stop(void) {}
 static inline void menu_cover_wait(void) {}
 static inline void menu_cover_end(void) {}

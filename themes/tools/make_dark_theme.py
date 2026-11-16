@@ -24,7 +24,6 @@ HEADER_HEIGHT = 18    # above its dark line
 BAR_H, BAR_REFLECTION = 14, 9
 REFLECTION_ALPHA = 0.26
 ART_REFLECTION_ALPHA = 128 / 256
-PANEL_X = 160         # the panel beside the lists, dark in both
 
 
 def screen(root, **places):
@@ -42,6 +41,7 @@ VIDEO = screen(os.path.join(HERE, "..", "iClassic-Square", ".rockbox"),
                SKINS=("wps", "sbs", "fms"),
                PANELS=(("backdrops", "iClassic_bd.bmp", True), ("wps", "About Backdrop.bmp", True),
                        ("wps", "Wide Backdrop.bmp", False)),
+               PANEL_X=160,  # the panel beside the lists, dark in both
                HEADER_GLYPHS=("Battery", "Playing Status", "Hold Icon", "Status Night",
                               "Memory Access", "Radio Icon", "Stereo Icon"),
                GROUND_GLYPHS=("Stars", "Ratings", "Signal", "Volume Left", "Volume Right",
@@ -52,7 +52,9 @@ PHOTO = screen(os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox"
                BAR_X=40, BAR_Y=143, BAR_W=140, ART=(9, 31, 105, 127),
                ART_REFLECTION_ROWS=14, LIGHT_REFLECTION="%Cr(14,128)",
                SKINS=("wps", "sbs"),
-               PANELS=(("backdrops", "iClassic_bd.bmp", False),),
+               PANELS=(("backdrops", "iClassic_bd.bmp", True),
+                       ("wps", "Wide Backdrop.bmp", False)),
+               PANEL_X=110,  # the main menu's pane
                HEADER_GLYPHS=("Battery", "Playing Status", "Hold Icon", "Status Night"),
                GROUND_GLYPHS=("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
                               "Scrub Hints", "Repeat Icon", "Shuffle Icon",

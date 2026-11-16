@@ -23362,3 +23362,20 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COVER_BESIDE_MENU
+  desc: a setting of Settings > Appearance on the iPod photo, in its Main Menu section: On, the main menu has a pane at its right with the cover of the song playing or of the one Resume Playback goes on with, and the menu's names have less room; Off, the main menu takes the screen's whole width with no cover beside it
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Cover Beside Menu"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Borító a menü mellett"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>

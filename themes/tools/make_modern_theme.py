@@ -19,8 +19,10 @@
 #
 # Each screen has its skins: the iPod Video's 320x240 in Modern/.rockbox, the
 # iPod photo's 220x176 in Modern/220x176/.rockbox, its own layout below
-# (LAYOUTS) by the same rules, in smaller fonts and with no pane: its main
-# menu takes the screen's width, as a stock iPod photo's.
+# (LAYOUTS) by the same rules, in smaller fonts. Its pane is beside the main
+# menu alone, 110 px, and shows the music whatever row is selected; every
+# other list, Music's menu too, takes the screen's width, as does the main
+# menu with Cover Beside Menu off (the firmware's %LW).
 
 import os
 import struct
@@ -126,7 +128,10 @@ PHOTO = dict(
     BIG=140, BIG_X=40, BIG_Y=26,    # Finder's frame of the iPod photo, 140 px
     LYRICS_Y=21, LYRICS_H=120,
     THICK_Y=143, LOWTIME_W=80,
-    SBS_FONTS=("14-Inter-SemiBold",),
+    # the main menu's pane: its first column, which has its hairline; the
+    # cover fills its height, Finder's frame at the pane's size
+    PANE=110, PANE_COVER=176,
+    SBS_FONTS=("14-Inter-SemiBold", "14-Inter-Medium"),
     WPS_FONTS=("14-Inter-SemiBold", "15-Inter-SemiBold", "15-Inter-Medium",
                "14-Inter-Medium"),
 )
@@ -310,22 +315,38 @@ SBS = """\
 %s%ac%?it<%it|%?fn<%fn|>>
 """
 
-# The iPod photo's: no pane beside the main menu, whose list takes the
-# screen's width as every other does, as on a stock iPod photo
-SBS_FULL = """\
-# Modern: the status bar over the lists, which take the screen's whole width.
-# Made by themes/tools/make_modern_theme.py
+# The iPod photo's: the pane beside the main menu alone, the music in it
+# whatever row is selected; the rest, and the main menu with Cover Beside
+# Menu off, take the screen's width as on a stock iPod photo
+SBS_PHOTO = """\
+# Modern: the status bar, and the main menu's pane or the lists of the
+# screen's whole width. Made by themes/tools/make_modern_theme.py
 %wd
 {fonts}
 {images}
-%VI(wide)%Vd(bar)%Vd(rule)%?if(%Li, =, 33)<%Vd(clock)|{title}>{show}
-# the lists: under the status bar, rows of 22
+# beside the pane the bar is as wide as the menu: the clock and the glyphs;
+# the pane has the screen's whole height
+%?LW<%VI(wide)%Vd(bar)%Vd(rule)%?if(%Li, =, 33)<%Vd(clock)|{title}>{show}|%VI(half)%Vd(barh)%Vd(ruleh)%Vd(clock){showh}>
+# the pane: the song's cover, or the note and under it the library's count
+# or the track
+%?LW<|{music}>
+# the cover fills the pane, nothing over it, as on the Video: Finder's {cover}
+# px, its middle {pane_w} columns. It is drawn from {cover_cut} columns before the pane,
+# which are the menu's and its bar's, drawn after it
+%Cl(0,0,{cover},{cover},c,c)
+%Vl(a,{cover_x},0,{cover_w},{h},-)
+%Cd
+%Vl(a,{cover_x},0,{cover_cut},{h},-)%Vb(GROUND)
+# the lists: under the status bar, rows of 22; beside the pane {pane} wide
 %Vi(wide,0,{list_top},{w},{list_rows},1)%Vf(INK)%Vb(GROUND)
+%Vi(half,0,{list_top},{pane},{list_rows},1)%Vf(INK)%Vb(GROUND)
 # the status bar across every screen: its ground, the hairline under it, the
 # clock, the title in the middle, the glyphs; in the main menu the clock
-# alone, as beside the pane on a larger screen
+# alone
 %Vl(bar,0,0,{w},{bar_rows},-)%Vb(TOP)
 %Vl(rule,0,{bar_rows},{w},1,-)%Vb(RULE)
+%Vl(barh,0,0,{pane},{bar_rows},-)%Vb(TOP)
+%Vl(ruleh,0,{bar_rows},{pane},1,-)%Vb(RULE)
 %Vl(clock,{margin},{text_y},{clock_w},14,2)%Vf(INK)%Vb(TOP)
 %al%?cf<%cH:%cM|%cl:%cM>
 # a menu's title, which takes the clock's place too if it is wider (long_title())
@@ -333,6 +354,19 @@ SBS_FULL = """\
 %ac%Lt
 {long_vps}
 {vps}
+{vpsh}
+# the pane without a cover: a surface with a hairline at its left, the note
+# on it and its caption, one block in the middle of the pane's height, the
+# caption's capitals {pane_gap} rows under the note
+%Vl(pane,{pane},0,{pane_w},{h},-)%Vb(PANE)
+%Vl(pane,{pane},0,1,{h},-)%Vb(COLUMN)
+%xl(O,Note Pane.bmp,0,0)
+%Vl(note,{note_x},{note_y},{note_w},{note_h},-)%Vb(PANE)
+%xd(O)
+%Vl(stopped,{caption_x},{stopped_y},{caption_w},14,3)%Vf(SMALL)%Vb(PANE)
+%ac%ns
+%Vl(normal,{caption_x},{normal_y},{caption_w},14,2)%Vf(INK)%Vb(PANE)
+%s%ac%?it<%it|%?fn<%fn|>>
 """
 
 WPS = """\
@@ -457,10 +491,29 @@ def sbs():
     vps, show = status()
     long_vps, title = long_title()
     if SPLIT is None:
-        return fill(SBS_FULL, fonts=fonts(SBS_FONTS), images=images(), show=show, vps=vps,
-                    title=title, long_vps=long_vps, margin=MARGIN, text_y=TEXT_Y,
-                    bar_rows=STATUS - 1, list_top=LIST_TOP, list_rows=LIST_ROWS, w=W,
-                    clock_w=CLOCK_W, title_x=TITLE_X, title_w=TITLE_W)
+        # the menu's bar: its glyphs end 8 px before the pane, as on the Video
+        vpsh, showh = status(PANE - 8, "h")
+        music = ("%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"
+                 "|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)"
+                 "|%Vd(stopped)>>")
+        note = SIZES["Note_Pane"]
+        pane_w = W - PANE
+        cut = (PANE_COVER - pane_w) // 2
+        # the note and its caption, from its capitals to the row they stand
+        # on, one block in the middle of the screen's height; a title in
+        # 14-Inter-SemiBold stands as the count in 14-Inter-Medium
+        note_y = (H - (note[1] + PANE_GAP + CELL_14[1] - CELL_14[0] + 1)) // 2
+        caption_y = note_y + note[1] + PANE_GAP - CELL_14[0]
+        return fill(SBS_PHOTO, fonts=fonts(SBS_FONTS), images=images(), show=show, vps=vps,
+                    showh=showh, vpsh=vpsh, title=title, long_vps=long_vps, music=music,
+                    margin=MARGIN, text_y=TEXT_Y, bar_rows=STATUS - 1, list_top=LIST_TOP,
+                    list_rows=LIST_ROWS, w=W, h=H, clock_w=CLOCK_W, title_x=TITLE_X,
+                    title_w=TITLE_W, pane=PANE, pane_w=pane_w, cover=PANE_COVER,
+                    cover_x=PANE - cut, cover_w=W - (PANE - cut), cover_cut=cut,
+                    pane_gap=PANE_GAP, note_x=PANE + (pane_w - note[0]) // 2,
+                    note_y=note_y, note_w=note[0], note_h=note[1],
+                    caption_x=PANE + 6, caption_w=pane_w - 12,
+                    stopped_y=caption_y, normal_y=caption_y)
     # the menu's bar: its glyphs end 8 px before the pane
     vpsh, showh = status(SPLIT - 8, "h")
     music = ("%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"

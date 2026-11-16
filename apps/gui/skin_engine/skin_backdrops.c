@@ -273,7 +273,7 @@ void skin_backdrop_set_buffer(int backdrop_id, struct skin_viewport *svp)
 /* What a skin should have behind it right now */
 int skin_shown_backdrop(const struct wps_data *data)
 {
-    if (data->wide_backdrop_id >= 0 && menu_wide())
+    if (data->wide_backdrop_id >= 0 && menu_theme_wide())
         return data->wide_backdrop_id;
     /* Extras has the same panel as Settings */
     if (data->about_backdrop_id >= 0

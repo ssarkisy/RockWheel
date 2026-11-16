@@ -1,19 +1,35 @@
-# Neo: the status line over the lists, which take the screen's whole width.
-# Made by themes/tools/make_neo_theme.py
+# Neo: the status line, and the main menu's pane or the lists of the screen's
+# whole width. Made by themes/tools/make_neo_theme.py
 %wd
+%Fl(2,14-Inter-Medium.fnt)
 %Fl(3,14-Inter-SemiBold.fnt)
 %xl(B,Battery.bmp,0,0,24)
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,0,0)
 %xl(N,Night.bmp,0,0)
-%VI(wide)%Vd(rulewide)%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>
-# the lists: under the status line and its hairline
+%?LW<%VI(wide)%Vd(rulewide)%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>|%VI(half)%Vd(rulehalf)%Vd(column)%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen1p)|%?mp<%Vd(hnamen1)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)>>>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen0p)|%?mp<%Vd(hnamen0)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)>>>>>
+# the pane: the song's cover, or the note and under it the library's count
+# or the track
+%?LW<|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>
+# the cover fills the pane, nothing over it, as on the Video: Finder's
+# 176 px, its middle 110 columns. It is drawn from 33 columns
+# before the pane, which are the menu's, drawn after it
+%Cl(0,0,176,176,c,c)
+%Vl(a,77,0,143,176,-)
+%Cd
+%Vl(a,77,0,33,176,-)
+# the lists: under the status line and its hairline; beside the pane 106
+# wide, so that the selected row ends 6 px short of the hairline
 %Vi(wide,0,18,220,158,1)%Vf(EFEBE7)%Vb(211C18)
-# the hairline under the status line
+%Vi(half,0,18,106,158,1)%Vf(EFEBE7)%Vb(211C18)
+# hairlines: under the status line, over the menu only beside the pane, and
+# column 109 between the menu and the pane
 %Vl(rulewide,0,16,220,1,-)%Vb(313029)
-# the clock, the title, the glyphs; in the main menu the clock alone, as
-# beside the pane on a larger screen; a title wider than its place between
-# them takes the clock's too (%Lf, title_vps())
+%Vl(rulehalf,0,16,109,1,-)%Vb(313029)
+%Vl(column,109,0,1,176,-)%Vb(313029)
+# a screen of the whole width: the clock, the title, the glyphs; in the main
+# menu the clock alone; a title wider than its place between them takes the
+# clock's too (%Lf, title_vps())
 %Vl(clockwide,10,2,48,14,3)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(titlewide,58,2,104,14,3)%Vf(EFEBE7)
@@ -34,3 +50,34 @@
 %xd(N)
 %Vl(playn1,163,3,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+# beside the pane: the clock, and the glyphs at the menu's end
+%Vl(hclock,10,2,48,14,3)%Vf(B5AEA5)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(hbat,81,3,19,10,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(hplayn0,68,3,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(hnamen0p,10,2,53,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(hnamen0,10,2,66,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(hmoon,66,3,10,10,-)
+%xd(N)
+%Vl(hplayn1,53,3,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(hnamen1p,10,2,38,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(hnamen1,10,2,51,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+# the pane without a cover: a surface, and on it the note, a mask drawn in
+# the theme's two colours for it (%xN), which take the theme's tone as the
+# surfaces do
+%Vl(surface,110,0,110,176,-)%Vb(312C29)
+%xl(O,Note Pane.bmp,0,0)
+%xN(O)
+%Vl(note,123,33,84,84,-)%Vb(312C29)
+%xd(O)
+%Vl(stopped,110,129,110,14,2)%Vf(B5B2A5)%Vb(312C29)
+%ac%ns
+%Vl(normal,116,129,98,14,2)%Vf(B5B2A5)%Vb(312C29)
+%s%ac%?it<%it|%?fn<%fn|>>

@@ -151,6 +151,13 @@ enum menu_panel menu_selected_panel(void);
 void menu_set_selected_panel(enum menu_panel panel);
 /* Whether a screen is taking the whole width, with nothing of the theme beside it */
 bool menu_wide(void);
+#ifdef UI_MAIN_MENU_PANE
+/* and as the theme lays it out (%LW, a wide backdrop): the main menu too
+   with Cover Beside Menu off */
+bool menu_theme_wide(void);
+#else
+#define menu_theme_wide() menu_wide()
+#endif
 void menu_set_wide(bool wide);
 /* the same, the theme drawn so when it next is: for Now Playing next, which
    has the screen without it. Drawn at once, it took 110-230 ms then. */

@@ -2867,6 +2867,12 @@ const struct settings_list settings[] = {
                   "jump by letter", NULL),
     OFFON_SETTING(0, moving_cover, LANG_MOVING_COVER, false,
                   "moving cover", menu_cover_changed),
+#ifdef UI_MAIN_MENU_PANE
+    /* Settings > Appearance: the iPod photo's main menu with the cover
+       beside it, or the screen's width */
+    OFFON_SETTING(0, menu_pane, LANG_COVER_BESIDE_MENU, true,
+                  "cover beside menu", menu_cover_pane_changed),
+#endif
     /* Settings > Music Menu, after the sections: Artists and a genre's
        artists by the albums' artists */
     OFFON_SETTING(0, artists_by_album_artist, LANG_GROUP_BY_ALBUM_ARTIST, true,

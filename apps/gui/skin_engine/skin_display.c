@@ -1484,7 +1484,12 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
    backdrop's note would show until then. So the last one stays that long
    (COVER_KEPT_TIME, as its colours): a copy, as the buffer may have dropped it.
    Not for a track known to have none. */
+#ifdef UI_220X176
+/* the iPod photo's Now Playing shows 96 and Finder's 140 at the most */
+#define ART_KEPT_SIZE   140
+#else
 #define ART_KEPT_SIZE   200
+#endif
 
 static struct {
     fb_data pixels[ART_KEPT_SIZE * ART_KEPT_SIZE];

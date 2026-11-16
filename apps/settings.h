@@ -32,6 +32,7 @@
 #include "audio.h"
 #include "dsp_proc_settings.h"
 #include "gui/list.h"
+#include "gui/ui_theme.h" /* UI_MAIN_MENU_PANE */
 
 struct opt_items {
     unsigned const char* string;
@@ -1139,6 +1140,11 @@ struct user_settings
     /* Settings > Appearance > Missing Covers Caution: a song whose picture
        isn't shown says why in the cover's place (cover_caution.h) */
     bool cover_caution;
+#ifdef UI_MAIN_MENU_PANE
+    /* Settings > Appearance > Cover Beside Menu: the iPod photo's main menu
+       with its pane; off, it takes the screen's width (menu_theme_wide()) */
+    bool menu_pane;
+#endif
 };
 
 /* global settings */

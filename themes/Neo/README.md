@@ -113,10 +113,15 @@ written by the same script with the 320x240 ones by the same rules (its
 Inter SemiBold of 12 px (`15-Inter-SemiBold`), 31 px for a row of two lines,
 with covers of 29 px (`LINE_COVER_SIZE`); Now Playing's cover 96 px, the details beside it in
 the same fonts a step smaller. The glyphs are the same pictures at their own
-sizes; only the bars are made for this width, by `make_theme_glyphs.py`. There is no pane: the
-main menu takes the screen's width, as on a stock iPod photo, so the pane's
-cover, note and disk ring aren't shown there. The theme's fonts and metrics
-for this screen are in `apps/gui/ui_theme.c`, under `UI_220X176`.
+sizes; only the bars are made for this width, by `make_theme_glyphs.py`. The pane
+is beside the main menu alone, 110 px from column 110 to the screen's right,
+and shows the music whatever row is selected: the cover of the song playing
+or to resume at 176 px, its middle 110 columns, or without one the note and
+its caption. There is no disk ring or Photos
+collage. Every other list, Music's menu too, takes the screen's width, and
+so does the main menu with Settings > Appearance > Cover Beside Menu off
+(`%LW`). The theme's fonts and metrics for this screen are in
+`apps/gui/ui_theme.c`, under `UI_220X176`.
 
 ## Author and licence
 

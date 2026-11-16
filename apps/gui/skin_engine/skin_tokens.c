@@ -1898,7 +1898,7 @@ const char *get_token_value(struct gui_wps *gwps,
             return *line ? line : NULL;
         }
         case SKIN_TOKEN_MENU_WIDE:
-            return menu_wide() ? "w" : NULL;
+            return menu_theme_wide() ? "w" : NULL;
         case SKIN_TOKEN_VOLUME_PERCENT:
         {
             /* as much of the bar as it fills, rounded, or a step of the limit's

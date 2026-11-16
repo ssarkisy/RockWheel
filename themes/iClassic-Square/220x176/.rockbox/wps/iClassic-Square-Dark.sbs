@@ -7,28 +7,51 @@
 #
 # The iPod photo's 220x176 screen: RockWheel's 320x240 skin of the same name
 # (themes/iClassic-Square/.rockbox/wps) laid out for it, with the same pictures
-# at their own sizes (themes/tools/make_classic_220x176.py). No pane beside
-# the main menu: every list takes the screen's width.
+# at their own sizes (themes/tools/make_classic_220x176.py). The pane is beside
+# the main menu alone and shows the music whatever row is selected; every other
+# list takes the screen's width, as does the main menu with Cover Beside Menu
+# off (the firmware's %LW).
 #
 # SBS File
 #
 %wd
 %Fl(2,14-Inter-SemiBold.fnt,512)
 %Fl(3,14-Inter-Bold.fnt,512)
-%?nN<%Vd(titlen)%Vd(night)|%Vd(title)>%Vd(bat)%Vd(play)
-# the lists, under the status bar
-%Vi(-,0,19,220,157,1)%Vf(F2F2F6)%Vb(121214)
+%?LW<%VI(wide)%?nN<%Vd(titlen)%Vd(night)|%Vd(title)>%Vd(bat)%Vd(play)|%VI(half)%?nN<%Vd(tn)%Vd(hnight)|%Vd(t)>%Vd(hbat)%Vd(hplay)>
+# beside the main menu, its pane: the song's cover, or the note in the
+# backdrop and under it the library's count or the track
+%?LW<|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>
+# the cover fills the pane, as on the Video: Finder's 176 px, its middle 110
+# columns. It is drawn from 33 columns before the pane, which are the menu's,
+# drawn after it
+%Cl(0,0,176,176,c,c)
+%Vl(a,77,0,143,176,-)
+%Cd
+%Vl(a,77,0,33,176,-)
+# the lists, under the status bar: half the width beside the pane, or a
+# screen that takes it all, which has the Wide Backdrop
+%Vi(wide,0,19,220,157,1)%Vf(F2F2F6)%Vb(121214)
+%Vi(half,0,19,110,157,1)%Vf(F2F2F6)%Vb(121214)
+%XW(Wide Backdrop.bmp)
 # the title of the list; in the main menu the time; shorter beside the moon
-# of Night Mode
+# of Night Mode, and beside the pane
 %Vl(title,6,2,161,14,3)%Vf(F2F2F6)
 %al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
 %Vl(titlen,6,2,144,14,3)%Vf(F2F2F6)
 %al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
+%Vl(t,6,2,60,14,3)%Vf(F2F2F6)
+%al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
+%Vl(tn,6,2,44,14,3)%Vf(F2F2F6)
+%al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
 %xl(N,Status Night.bmp,0,0)
 %Vl(night,154,2,16,16,-)
 %xd(N)
+%Vl(hnight,52,2,16,16,-)
+%xd(N)
 %xl(B,Battery.bmp,0,0,24)
 %Vl(bat,191,4,25,11,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(hbat,84,4,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %xl(h,Hold Icon.bmp,0,1)
 %xl(P,Playing Status.bmp,0,0,4)
@@ -36,3 +59,15 @@
 %xA(P)
 %Vl(play,171,3,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(hplay,68,3,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+# nothing playing: the library under the note, as on a stock iPod; a track
+# without a cover: its title, artist and album, as on the Video
+%Vl(stopped,113,112,104,20,1)%Vf(ebeced)
+%ac%ns
+%Vl(normal,113,112,104,20,1)%Vf(ebeced)
+%t(6)%s%ac%?it<%it|%?fn<%fn|>>;%t(12)%ac%?it<%it|%?fn<%fn|>>
+%Vl(normal,113,133,104,16,2)%Vf(ebeced)
+%t(6)%ac%?fn<%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>|>;%t(6)%s%ac%?fn<%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>|>;%t(6)%ac%?fn<%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>|>
+%Vl(normal,113,149,104,16,2)%Vf(ebeced)
+%t(12)%ac%?fn<%?id<%id|%Sx(Unknown Album)>|>;%t(6)%s%ac%?fn<%?id<%id|%Sx(Unknown Album)>|>

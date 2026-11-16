@@ -32,10 +32,14 @@ enum { UI_THEME_CLASSIC, UI_THEME_MODERN, UI_THEME_NEO, UI_THEME_COUNT };
 /* The iPod photo's screen: each theme with fonts and metrics of its own here
    (ui_theme.c), and skins (themes/<theme>/220x176) */
 #define UI_220X176
+/* Its main menu alone has a pane, the cover of the song playing or to
+   resume whatever row is selected; every other list, Music's menu too,
+   takes the screen's width. Settings > Appearance > Cover Beside Menu turns
+   the pane off (global_settings.menu_pane, menu_theme_wide()). */
+#define UI_MAIN_MENU_PANE
 #else
-/* Every theme's main menu has a pane beside the list: the song's cover
-   (menu_cover.c), or the Photos collage (photos_panel.c). At 220x176 the
-   main menu is the screen's whole width. */
+/* Every theme's main menu and Music's have a pane beside the list: the
+   song's cover (menu_cover.c), or the Photos collage (photos_panel.c). */
 #define UI_MENU_PANE
 #endif
 

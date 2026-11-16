@@ -20,8 +20,10 @@
 #
 # Each screen has its skins: the iPod Video's 320x240 in Neo/.rockbox, the
 # iPod photo's 220x176 in Neo/220x176/.rockbox, its own layout below (LAYOUTS)
-# by the same rules, in smaller fonts and with no pane: its main menu takes
-# the screen's width, as a stock iPod photo's.
+# by the same rules, in smaller fonts. Its pane is beside the main menu alone,
+# 110 px right of a hairline on column 109, and shows the music whatever row
+# is selected; every other list, Music's menu too, takes the screen's width,
+# as does the main menu with Cover Beside Menu off (the firmware's %LW).
 
 import os
 import struct
@@ -141,7 +143,10 @@ PHOTO = dict(
     LYRICS_Y=22,
     SPEED_H=40,
     VOLUME_BAR=160,
-    SBS_FONTS=(None, "14-Inter-SemiBold"),
+    # the main menu's pane: its first column, right of the hairline; the
+    # cover fills its height, Finder's frame at the pane's size
+    PANE=110, PANE_COVER=176,
+    SBS_FONTS=("14-Inter-Medium", "14-Inter-SemiBold"),
     WPS_FONTS=("15-Inter-SemiBold", "15-Inter-Medium", "14-Inter-Medium",
                "14-Inter-SemiBold", "14-Inter-Medium"),
 )
@@ -327,28 +332,58 @@ SBS = """\
 %s%ac%?it<%it|%?fn<%fn|>>
 """
 
-# The iPod photo's: no pane beside the main menu, whose list takes the
-# screen's width as every other does, as on a stock iPod photo
-SBS_FULL = """\
-# Neo: the status line over the lists, which take the screen's whole width.
-# Made by themes/tools/make_neo_theme.py
+# The iPod photo's: the pane beside the main menu alone, the music in it
+# whatever row is selected; the rest, and the main menu with Cover Beside
+# Menu off, take the screen's width as on a stock iPod photo
+SBS_PHOTO = """\
+# Neo: the status line, and the main menu's pane or the lists of the screen's
+# whole width. Made by themes/tools/make_neo_theme.py
 %wd
 {fonts}
 {images}
-%VI(wide)%Vd(rulewide)%?if(%Li, =, 33)<%Vd(clockwide)|{title}>{wide}
-# the lists: under the status line and its hairline
+%?LW<%VI(wide)%Vd(rulewide)%?if(%Li, =, 33)<%Vd(clockwide)|{title}>{wide}|%VI(half)%Vd(rulehalf)%Vd(column){half}>
+# the pane: the song's cover, or the note and under it the library's count
+# or the track
+%?LW<|{music}>
+# the cover fills the pane, nothing over it, as on the Video: Finder's
+# {cover} px, its middle {pane_w} columns. It is drawn from {cut} columns
+# before the pane, which are the menu's, drawn after it
+%Cl(0,0,{cover},{cover},c,c)
+%Vl(a,{cover_x},0,{cover_w},{h},-)
+%Cd
+%Vl(a,{cover_x},0,{cut},{h},-)
+# the lists: under the status line and its hairline; beside the pane {half_w}
+# wide, so that the selected row ends 6 px short of the hairline
 %Vi(wide,0,{list_top},{w},{list_rows},1)%Vf(PRIMARY)%Vb(PAPER)
-# the hairline under the status line
+%Vi(half,0,{list_top},{half_w},{list_rows},1)%Vf(PRIMARY)%Vb(PAPER)
+# hairlines: under the status line, over the menu only beside the pane, and
+# column {column} between the menu and the pane
 %Vl(rulewide,0,{status},{w},1,-)%Vb(TRACK)
-# the clock, the title, the glyphs; in the main menu the clock alone, as
-# beside the pane on a larger screen; a title wider than its place between
-# them takes the clock's too (%Lf, title_vps())
+%Vl(rulehalf,0,{status},{column},1,-)%Vb(TRACK)
+%Vl(column,{column},0,1,{h},-)%Vb(TRACK)
+# a screen of the whole width: the clock, the title, the glyphs; in the main
+# menu the clock alone; a title wider than its place between them takes the
+# clock's too (%Lf, title_vps())
 %Vl(clockwide,{margin},{text_y},{clock_w},{cell},3)%Vf(CLOCK)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(titlewide,{title_x},{text_y},{title_w},{cell},3)%Vf(PRIMARY)
 %ac%Lt
 {long_vps}
 {wide_vps}
+# beside the pane: the clock, and the glyphs at the menu's end
+{half_vps}
+# the pane without a cover: a surface, and on it the note, a mask drawn in
+# the theme's two colours for it (%xN), which take the theme's tone as the
+# surfaces do
+%Vl(surface,{pane},0,{pane_w},{h},-)%Vb(SURFACE)
+%xl(O,Note Pane.bmp,0,0)
+%xN(O)
+%Vl(note,{note_x},{note_y},{note_w},{note_h},-)%Vb(SURFACE)
+%xd(O)
+%Vl(stopped,{pane},{caption_y},{pane_w},{cell},2)%Vf(DENSE)%Vb(SURFACE)
+%ac%ns
+%Vl(normal,{caption_x},{caption_y},{caption_w},{cell},2)%Vf(DENSE)%Vb(SURFACE)
+%s%ac%?it<%it|%?fn<%fn|>>
 """
 
 WPS = """\
@@ -486,16 +521,27 @@ def sbs():
                          + title_vps("long", 1, rooms[1], TITLE))
     title = "%%?Lf(titlewide)<%%Vd(clockwide)%%Vd(titlewide)|%%?nN<%s|%s>>" % (
         title_show("long", 1), title_show("long", 0))
-    if W < 320:
-        return fill(SBS_FULL, fonts=fonts(SBS_FONTS), images=images(False), wide=wide,
-                    wide_vps=wide_vps, long_vps=long_vps, title=title, margin=MARGIN,
-                    text_y=TEXT_Y, cell=CELL, clock_w=CLOCK_W, title_x=TITLE_X,
-                    title_w=TITLE_W, status=STATUS, list_top=LIST_TOP,
-                    list_rows=LIST_ROWS, w=W)
-    half_vps, half, _ = status(160, "h", TITLE)
     music = ("%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"
              "|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>")
     note, photos = SIZES["Note_Pane"], SIZES["Photos_Pane"]
+    if W < 320:
+        # the pane's note and caption one block in its middle, the caption's
+        # capitals 12 rows under the note
+        half_vps, half, _ = status(PANE, "h", TITLE)
+        pane_w = W - PANE
+        cut = (PANE_COVER - pane_w) // 2
+        note_y = (H - (note[1] + 12 + CELL)) // 2
+        return fill(SBS_PHOTO, fonts=fonts(SBS_FONTS), images=images(False), wide=wide,
+                    half=half, wide_vps=wide_vps, half_vps=half_vps, long_vps=long_vps,
+                    title=title, music=music, margin=MARGIN, text_y=TEXT_Y, cell=CELL,
+                    clock_w=CLOCK_W, title_x=TITLE_X, title_w=TITLE_W, status=STATUS,
+                    list_top=LIST_TOP, list_rows=LIST_ROWS, w=W, h=H,
+                    half_w=PANE - 4, column=PANE - 1, pane=PANE, pane_w=pane_w,
+                    cover=PANE_COVER, cover_x=PANE - cut, cover_w=W - (PANE - cut),
+                    cut=cut, note_x=PANE + (pane_w - note[0]) // 2, note_y=note_y,
+                    note_w=note[0], note_h=note[1], caption_y=note_y + note[1] + 12,
+                    caption_x=PANE + 6, caption_w=pane_w - 12)
+    half_vps, half, _ = status(160, "h", TITLE)
     return fill(SBS, fonts=fonts(SBS_FONTS), images=images(False), wide=wide, half=half,
                 wide_vps=wide_vps,
                 half_vps=half_vps, long_vps=long_vps, title=title, music=music, margin=MARGIN, text_y=TEXT_Y,

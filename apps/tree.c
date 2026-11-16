@@ -827,13 +827,18 @@ static int tree_get_file_position(char * filename)
 /* As on an iPod classic, the theme's panel is beside the menus, the main
    menu's and Music's, and the lists from there on have the whole width, for
    long names: Artists and deeper, and the playlists. Other browsers, such as
-   the fonts' in Settings, keep the width they were opened with */
+   the fonts' in Settings, keep the width they were opened with. On the iPod
+   photo the pane is the main menu's alone: Music's menu has the width too */
 static void tree_set_width(void)
 {
     bool wide;
 #ifdef HAVE_TAGCACHE
     if (*tc.dirfilter == SHOW_ID3DB)
+#ifdef UI_MAIN_MENU_PANE
+        wide = true;
+#else
         wide = tc.dirlevel > 0;
+#endif
     else
 #endif
     if (*tc.dirfilter == SHOW_M3U)

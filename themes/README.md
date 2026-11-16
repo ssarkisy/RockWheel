@@ -8,9 +8,10 @@ The iPod photo's 220x176 screen has each theme's own skins, in
 `<theme>/220x176/.rockbox/...`, which `tools/buildzip.pl` installs for that
 screen instead. They are the same themes laid out by the same rules for a
 screen three quarters as high, in smaller fonts and with the same glyphs at
-their own sizes: none of their pictures is scaled. There is no pane beside the
-main menu on that screen: every list takes the screen's width, as on a stock
-iPod photo. Modern's and Neo's are written by their scripts with the 320x240
+their own sizes: none of their pictures is scaled. The pane is beside the main
+menu alone and shows the music; every other list takes the screen's width, as
+on a stock iPod photo, and so does the main menu with Settings > Appearance >
+Cover Beside Menu off. Modern's and Neo's are written by their scripts with the 320x240
 ones; Classic's pictures by `tools/make_classic_220x176.py` from its 320x240
 ones, its skins by hand as those are.
 

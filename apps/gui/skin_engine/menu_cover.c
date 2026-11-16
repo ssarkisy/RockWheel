@@ -534,6 +534,22 @@ const fb_data *menu_cover_pixels(int *width, int *height)
 
 #ifdef HAVE_MENU_COVER
 
+/* The setting, where the cover can move (HAVE_MOVING_COVER); else it never
+   does, whatever a .cfg says */
+#ifdef HAVE_MOVING_COVER
+#define MOVING(on) (on)
+#else
+#define MOVING(on) ((void)(on), false)
+#endif
+/* the cover beside the menus is drawn: Album Art on, and on the iPod photo
+   its pane (Cover Beside Menu) */
+#ifdef UI_MAIN_MENU_PANE
+#define ART_SHOWN() (global_settings.album_art != AA_OFF \
+                     && global_settings.menu_pane)
+#else
+#define ART_SHOWN() (global_settings.album_art != AA_OFF)
+#endif
+
 /* 10 px/s in half steps, one every HZ/20: a whole step jerks at this speed;
    2 s rests, first in the middle */
 #define PAN_SPEED   10
@@ -650,7 +666,7 @@ static bool cover_idle(void)
    where it has come to */
 static bool pan_live(void)
 {
-    return pan_shown && global_settings.moving_cover && cover_live();
+    return pan_shown && MOVING(global_settings.moving_cover) && cover_live();
 }
 
 /* and a step may be drawn: the UI waits with nothing in its queue. Between
@@ -751,7 +767,7 @@ static bool cop_ready(void)
    thread with Moving Cover off or the cover still, which don't make it. */
 static bool reader_slot(void)
 {
-    const bool made = !global_settings.moving_cover || pan_still
+    const bool made = !MOVING(global_settings.moving_cover) || pan_still
                       || cop_thread_id || cop_ending || cop_unusable;
     return free_slots() > COP_SPARE_SLOTS + (made ? 0 : 1);
 }
@@ -1341,11 +1357,11 @@ static void hook_set(bool moving)
 
 void menu_cover_memory(void)
 {
-    const bool art = global_settings.album_art != AA_OFF;
-    phases_memory(art && global_settings.moving_cover);
+    const bool art = ART_SHOWN();
+    phases_memory(art && MOVING(global_settings.moving_cover));
     sharp_memory(art);
-    phases_memory(art && global_settings.moving_cover);
-    hook_set(global_settings.moving_cover);
+    phases_memory(art && MOVING(global_settings.moving_cover));
+    hook_set(MOVING(global_settings.moving_cover));
 }
 
 /* the sharp one came and isn't on the screen yet */
@@ -1451,7 +1467,8 @@ void menu_cover_frame_step(void)
 bool menu_cover_take(int handle)
 {
     struct bitmap *bm;
-    if (!global_settings.moving_cover || !(audio_status() & AUDIO_STATUS_PLAY)
+    if (!MOVING(global_settings.moving_cover)
+        || !(audio_status() & AUDIO_STATUS_PLAY)
         || bufgetdata(handle, 0, (void *)&bm) <= 0
         || bm->width > ART_MENU_SIZE || bm->height > ART_MENU_SIZE)
         return false;
@@ -1503,7 +1520,7 @@ int menu_cover_place(const struct viewport *vp, int x, int y, int width,
     pan.row = y0 - top;
     pan.p0 = p0;
     pan.travel = travel;
-    if (!global_settings.moving_cover || travel <= 0 || p0 > travel)
+    if (!MOVING(global_settings.moving_cover) || travel <= 0 || p0 > travel)
     {
         pan_still = true;
         return 0;
@@ -1567,15 +1584,26 @@ void menu_cover_changed(bool on)
 {
     menu_cover_end();
     sharp_retry();
-    const bool art = global_settings.album_art != AA_OFF;
-    phases_memory(art && on);
+    const bool art = ART_SHOWN();
+    phases_memory(art && MOVING(on));
     sharp_memory(art);
-    phases_memory(art && on);
+    phases_memory(art && MOVING(on));
     /* turned on, it starts from the middle, where it's drawn while off */
     pan_clock = 0;
     pan_going = false;
-    hook_set(on);
+    hook_set(MOVING(on));
     skin_request_full_update(CUSTOM_STATUSBAR);
 }
+
+#ifdef UI_MAIN_MENU_PANE
+/* Off, the block is let go at once; on, it's taken without music, as with
+   Album Art turned on. The main menu's look changes at its next draw. */
+void menu_cover_pane_changed(bool on)
+{
+    (void)on;
+    menu_cover_memory();
+    skin_request_full_update(CUSTOM_STATUSBAR);
+}
+#endif
 
 #endif /* HAVE_MENU_COVER */

@@ -13,8 +13,10 @@
 # make_menu_icons.py's drawing, its strokes on whole pixels. Then
 # make_classic_np.py writes the details' part of the skin and
 # make_dark_theme.py the dark theme, as for 320x240. The skins themselves,
-# iClassic-Square.sbs and .wps, are edited by hand. There is no pane beside
-# the main menu on this screen: no About or Wide Backdrop, no Photos.
+# iClassic-Square.sbs and .wps, are edited by hand. The main menu has a pane
+# of the music alone, in the lists' backdrop as on the Video; the other
+# lists, and the main menu with Cover Beside Menu off, have the Wide
+# Backdrop. No About Backdrop, no Photos.
 
 import os
 import shutil
@@ -37,6 +39,11 @@ BAR_X, BAR_Y, BAR_W = 40, 143, 140
 TROUGH = (58, 206, 262, 230)
 FILL_W = 204
 ART_MASK = (40, 157)            # either side of the album art view's 140 px
+# the main menu's pane, from this column to the screen's right; the note,
+# Now Playing's, in the middle of this box over the captions, as the skin
+# (iClassic-Square.sbs) has them
+PANE = 110
+PANE_NOTE = (PANE, 24, W, 104)
 
 GLYPHS = ("Battery", "Playing Status", "Hold Icon", "Status Night", "Status Shuffle Albums",
           "Repeat Icon", "Shuffle Icon", "Ratings", "Stars", "Scrub Knob", "Scrub Hints",
@@ -77,6 +84,24 @@ def list_backdrop():
     return crop(read_bmp(os.path.join(LIGHT, "Wide Backdrop.bmp")), (0, W), 0, H)
 
 
+def pane_backdrop(screen):
+    """the lists' backdrop with the main menu's pane: the Video's panel's
+    gradient from the top to the foot, and on it the note where the cover
+    goes without one, as make_menu_icons.py draws them there"""
+    rows = [list(row) for row in screen]
+    gradient = icons.panel_gradient()
+    for y in range(H):
+        rows[y][PANE:W] = [gradient[y * (len(gradient) - 1) // (H - 1)]] * (W - PANE)
+    dx, dy = icons.optical_offset(Note)
+    radius = icons.SHADOW_RADIUS
+    icons.SHADOW_RADIUS = 2         # the shadow as much smaller
+    left, top, right, bottom = PANE_NOTE
+    icons.draw(rows, Note, left + (right - left - Note.W) // 2 - dx,
+               top + (bottom - top - Note.H) // 2 - dy)
+    icons.SHADOW_RADIUS = radius
+    return rows
+
+
 def now_playing(screen):
     rows = [list(row) for row in screen]
     # the cover's place without one: the panel's gradient, the note, the
@@ -114,7 +139,8 @@ def main():
     os.makedirs(wps, exist_ok=True)
     os.makedirs(os.path.join(OUT, "backdrops"), exist_ok=True)
     screen = list_backdrop()
-    write_bmp(os.path.join(OUT, "backdrops", "iClassic_bd.bmp"), screen)
+    write_bmp(os.path.join(OUT, "backdrops", "iClassic_bd.bmp"), pane_backdrop(screen))
+    write_bmp(os.path.join(wps, "Wide Backdrop.bmp"), screen)
     write_bmp(os.path.join(wps, "iClassic_bg.bmp"), now_playing(screen))
     write_bmp(os.path.join(wps, "PB.bmp"),
               shortened(read_bmp(os.path.join(LIGHT, "PB.bmp")), BAR_W))

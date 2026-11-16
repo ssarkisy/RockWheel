@@ -1,19 +1,35 @@
-# Modern: the status bar over the lists, which take the screen's whole width.
-# Made by themes/tools/make_modern_theme.py
+# Modern: the status bar, and the main menu's pane or the lists of the
+# screen's whole width. Made by themes/tools/make_modern_theme.py
 %wd
 %Fl(2,14-Inter-SemiBold.fnt)
+%Fl(3,14-Inter-Medium.fnt)
 %xl(B,Battery.bmp,0,0,24)
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,1,0)
 %xl(N,Night.bmp,0,0)
-%VI(wide)%Vd(bar)%Vd(rule)%?if(%Li, =, 33)<%Vd(clock)|%?Lf(title)<%Vd(clock)%Vd(title)|%?nN<%Vd(longm)|%?mh<%Vd(longp)|%?mp<%Vd(long)|%Vd(longp)|%Vd(longp)|%Vd(longp)|%Vd(longp)>>>>>%Vd(bat)%Vd(play)%?nN<%Vd(moon)>
-# the lists: under the status bar, rows of 22
+# beside the pane the bar is as wide as the menu: the clock and the glyphs;
+# the pane has the screen's whole height
+%?LW<%VI(wide)%Vd(bar)%Vd(rule)%?if(%Li, =, 33)<%Vd(clock)|%?Lf(title)<%Vd(clock)%Vd(title)|%?nN<%Vd(longm)|%?mh<%Vd(longp)|%?mp<%Vd(long)|%Vd(longp)|%Vd(longp)|%Vd(longp)|%Vd(longp)>>>>>%Vd(bat)%Vd(play)%?nN<%Vd(moon)>|%VI(half)%Vd(barh)%Vd(ruleh)%Vd(clock)%Vd(bath)%Vd(playh)%?nN<%Vd(moonh)>>
+# the pane: the song's cover, or the note and under it the library's count
+# or the track
+%?LW<|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>
+# the cover fills the pane, nothing over it, as on the Video: Finder's 176
+# px, its middle 110 columns. It is drawn from 33 columns before the pane,
+# which are the menu's and its bar's, drawn after it
+%Cl(0,0,176,176,c,c)
+%Vl(a,77,0,143,176,-)
+%Cd
+%Vl(a,77,0,33,176,-)%Vb(FFFFFF)
+# the lists: under the status bar, rows of 22; beside the pane 110 wide
 %Vi(wide,0,19,220,157,1)%Vf(000000)%Vb(FFFFFF)
+%Vi(half,0,19,110,157,1)%Vf(000000)%Vb(FFFFFF)
 # the status bar across every screen: its ground, the hairline under it, the
 # clock, the title in the middle, the glyphs; in the main menu the clock
-# alone, as beside the pane on a larger screen
+# alone
 %Vl(bar,0,0,220,16,-)%Vb(F7F7F7)
 %Vl(rule,0,16,220,1,-)%Vb(E6E7EF)
+%Vl(barh,0,0,110,16,-)%Vb(F7F7F7)
+%Vl(ruleh,0,16,110,1,-)%Vb(E6E7EF)
 %Vl(clock,9,1,44,14,2)%Vf(000000)%Vb(F7F7F7)
 %al%?cf<%cH:%cM|%cl:%cM>
 # a menu's title, which takes the clock's place too if it is wider (long_title())
@@ -31,3 +47,21 @@
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(moon,154,3,10,10,-)%Vb(F7F7F7)
 %xd(N)
+%Vl(bath,78,3,24,10,-)%Vb(F7F7F7)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(playh,60,3,10,10,-)%Vb(F7F7F7)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(moonh,45,3,10,10,-)%Vb(F7F7F7)
+%xd(N)
+# the pane without a cover: a surface with a hairline at its left, the note
+# on it and its caption, one block in the middle of the pane's height, the
+# caption's capitals 8 rows under the note
+%Vl(pane,110,0,110,176,-)%Vb(EFF3F7)
+%Vl(pane,110,0,1,176,-)%Vb(E6E7EF)
+%xl(O,Note Pane.bmp,0,0)
+%Vl(note,123,38,84,84,-)%Vb(EFF3F7)
+%xd(O)
+%Vl(stopped,116,127,98,14,3)%Vf(525152)%Vb(EFF3F7)
+%ac%ns
+%Vl(normal,116,127,98,14,2)%Vf(000000)%Vb(EFF3F7)
+%s%ac%?it<%it|%?fn<%fn|>>

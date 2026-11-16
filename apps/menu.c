@@ -176,7 +176,7 @@ static const struct {
     { &global_settings.status_icons, LANG_HINT_STATUS_ICONS },
     { &global_settings.angled_cover, LANG_HINT_ANGLED_COVER },
 #endif
-#ifdef HAVE_MENU_COVER
+#ifdef HAVE_MOVING_COVER
     { &global_settings.moving_cover, LANG_HINT_MOVING_COVER },
 #endif
     { &global_settings.theme_colour, LANG_HINT_THEME_COLOUR },
@@ -962,6 +962,13 @@ bool menu_wide(void)
 {
     return wide;
 }
+
+#ifdef UI_MAIN_MENU_PANE
+bool menu_theme_wide(void)
+{
+    return wide || !global_settings.menu_pane;
+}
+#endif
 
 void menu_set_wide(bool on)
 {

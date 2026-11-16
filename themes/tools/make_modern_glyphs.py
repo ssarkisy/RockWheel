@@ -76,8 +76,9 @@ BARS = {"Bar": (296, 11, 9), "Thick Bar": (296, 9, 9)}
 # the screens' folders and their bars' widths: the iPod photo's from margin to
 # margin of 9 px, as the Video's of 12 (make_modern_theme.py)
 BAR_WIDTHS = {"": 296, "220x176": 202}
-# the main menu's pane's, which the iPod photo's screen has none of
-PANE = ("Photos Pane", "Note Pane")
+# the main menu's pane's that the iPod photo's screen has none of: its pane
+# shows the music alone, its note the Video's picture
+PANE = ("Photos Pane",)
 # the knob at rest, a dot as thick as the bar at the fill's end: a slider of
 # the bar, so a picture as high as the bar's box, drawn here (the export's is
 # the 5 px bar's)
