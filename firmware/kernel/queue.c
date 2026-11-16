@@ -18,6 +18,7 @@
  *
  ****************************************************************************/
 #include <string.h>
+#include "string-extra.h"
 #include "kernel-internal.h"
 #include "queue.h"
 #include "general.h"
@@ -30,6 +31,110 @@ static struct
     struct corelock cl;
 #endif
 } all_queues SHAREDBSS_ATTR;
+
+/****************************************************************************
+ * Full kernel tables, counted (kernel.h)
+ ****************************************************************************/
+
+/* Uncached: both cores count. Its lock is the innermost one, taken after a
+   queue's or the broadcast list's, never before. */
+static struct
+{
+    struct kernel_overflows c;
+    IF_COP( struct corelock cl; )
+} overflows SHAREDBSS_ATTR;
+
+void kernel_count_overflow(enum kernel_table table)
+{
+    int oldlevel = disable_irq_save();
+    corelock_lock(&overflows.cl);
+    overflows.c.tables[table]++;
+    corelock_unlock(&overflows.cl);
+    restore_irq(oldlevel);
+}
+
+void kernel_get_overflows(struct kernel_overflows *copy)
+{
+    int oldlevel = disable_irq_save();
+    corelock_lock(&overflows.cl);
+    *copy = overflows.c;
+    corelock_unlock(&overflows.cl);
+    restore_irq(oldlevel);
+}
+
+/* The queue each thread last blocked on, by its slot, with its id: a full
+   queue is counted against that thread's name. Each written by its own
+   thread; uncached, as a full queue on either core reads them. */
+static struct
+{
+    struct event_queue *q;
+    uint32_t id;
+} queue_waiters[MAXTHREADS] SHAREDBSS_ATTR;
+
+static inline void queue_note_waiter(struct event_queue *q,
+                                     struct thread_entry *current)
+{
+    unsigned int slot = THREAD_ID_SLOT(current->id);
+    queue_waiters[slot].q = q;
+    queue_waiters[slot].id = current->id;
+}
+
+/* The thread the queue was given to for queue_send(), else the one that
+   last blocked on it, if it still runs */
+static const char * queue_owner_name(struct event_queue *q)
+{
+    struct thread_entry *thread = QUEUE_GET_THREAD(q);
+
+    if(thread == NULL || thread->name == NULL)
+    {
+        thread = NULL;
+        for(unsigned int i = 0; i < MAXTHREADS; i++)
+        {
+            struct thread_entry *t = __thread_slot_entry(i);
+            if(queue_waiters[i].q == q && queue_waiters[i].id == t->id)
+            {
+                thread = t;
+                break;
+            }
+        }
+    }
+
+    if(thread == NULL || thread->name == NULL || thread->name[0] == '\0')
+        return "unknown";
+
+    return thread->name;
+}
+
+/* An event dropped from q, full, with IRQs off: counted by the owner's name */
+static void queue_count_dropped(struct event_queue *q)
+{
+    const char *name = queue_owner_name(q);
+    unsigned int i;
+
+    corelock_lock(&overflows.cl);
+
+    for(i = 0; i < KERNEL_FULL_QUEUE_OWNERS; i++)
+    {
+        char *owner = overflows.c.queues[i].owner;
+
+        if(owner[0] == '\0')
+        {
+            strlcpy(owner, name, sizeof(overflows.c.queues[i].owner));
+            break;
+        }
+
+        /* as stored: cut to the size */
+        if(!strncmp(owner, name, sizeof(overflows.c.queues[i].owner) - 1))
+            break;
+    }
+
+    if(i < KERNEL_FULL_QUEUE_OWNERS)
+        overflows.c.queues[i].dropped++;
+    else
+        overflows.c.dropped_others++;
+
+    corelock_unlock(&overflows.cl);
+}
 
 /****************************************************************************
  * Queue handling stuff
@@ -179,6 +284,49 @@ static inline void queue_do_fetch_sender(struct queue_sender_list *send,
 #define queue_do_fetch_sender(send, rd)
 #endif /* HAVE_EXTENDED_MESSAGING_AND_NAME */
 
+/* Room for one more in q, full, with its lock held and IRQs off: counts and
+   drops its oldest event that no thread waits on a reply for. The others keep
+   their order, and the new one goes at the tail, read once. Only if every
+   event waits for a reply (QUEUE_LENGTH threads sending to one queue: none)
+   does the oldest go, with the default reply. */
+static void NO_INLINE queue_make_room(struct event_queue *q)
+{
+    unsigned int rd = q->read;
+
+    queue_count_dropped(q);
+
+#ifdef HAVE_EXTENDED_MESSAGING_AND_NAME
+    struct queue_sender_list *send = q->send;
+
+    if(send)
+    {
+        unsigned int i = rd, wr = q->write;
+
+        while(i != wr && send->senders[i & QUEUE_LENGTH_MASK])
+            i++;
+
+        if(i == wr)
+            i = rd;
+
+        queue_release_sender(&send->senders[i & QUEUE_LENGTH_MASK], 0);
+
+        /* Slide the older ones forward into the gap, senders with them */
+        for(; i != rd; i--)
+        {
+            unsigned int dst = i & QUEUE_LENGTH_MASK;
+            unsigned int src = (i - 1) & QUEUE_LENGTH_MASK;
+
+            q->events[dst] = q->events[src];
+            send->senders[dst] = send->senders[src];
+        }
+
+        send->senders[rd & QUEUE_LENGTH_MASK] = NULL;
+    }
+#endif /* HAVE_EXTENDED_MESSAGING_AND_NAME */
+
+    q->read = rd + 1;
+}
+
 static void queue_wake_waiter_inner(struct thread_entry *thread)
 {
     wakeup_thread(thread, WAKEUP_DEFAULT);
@@ -218,6 +366,7 @@ void queue_init(struct event_queue *q, bool register_queue)
 
         if(p - queues >= MAX_NUM_QUEUES)
         {
+            kernel_count_overflow(KERNEL_TABLE_QUEUES);
             panicf("queue_init->out of queues");
         }
 
@@ -299,6 +448,7 @@ void queue_wait(struct event_queue *q, struct queue_event *ev)
             break;
 
         struct thread_entry *current = __running_self_entry();
+        queue_note_waiter(q, current);
         block_thread(current, TIMEOUT_BLOCK, &q->queue, NULL);
 
         corelock_unlock(&q->cl);
@@ -355,6 +505,7 @@ void queue_wait_w_tmo(struct event_queue *q, struct queue_event *ev, int ticks)
         ASSERT_CPU_MODE(CPU_MODE_THREAD_CONTEXT, oldlevel);
 
         struct thread_entry *current = __running_self_entry();
+        queue_note_waiter(q, current);
         block_thread(current, ticks, &q->queue, NULL);
 
         corelock_unlock(&q->cl);
@@ -414,15 +565,18 @@ void queue_post(struct event_queue *q, long id, intptr_t data)
     oldlevel = disable_irq_save();
     corelock_lock(&q->cl);
 
-    wr = q->write++ & QUEUE_LENGTH_MASK;
+    if(UNLIKELY(q->write - q->read >= QUEUE_LENGTH))
+    {
+        KERNEL_ASSERT(false, "queue_post ovf q=%p", q);
+        queue_make_room(q);
+    }
 
-    KERNEL_ASSERT((q->write - q->read) <= QUEUE_LENGTH,
-                  "queue_post ovf q=%p", q);
+    wr = q->write++ & QUEUE_LENGTH_MASK;
 
     q->events[wr].id   = id;
     q->events[wr].data = data;
 
-    /* overflow protect - unblock any thread waiting at this index */
+    /* The slot was free: a sender left there (none should be) is released */
     queue_do_unblock_sender(q->send, wr);
 
     /* Wakeup a waiting thread if any */
@@ -446,10 +600,13 @@ intptr_t queue_send(struct event_queue *q, long id, intptr_t data)
 
     corelock_lock(&q->cl);
 
-    wr = q->write++ & QUEUE_LENGTH_MASK;
+    if(UNLIKELY(q->write - q->read >= QUEUE_LENGTH))
+    {
+        KERNEL_ASSERT(false, "queue_send ovf q=%p", q);
+        queue_make_room(q);
+    }
 
-    KERNEL_ASSERT((q->write - q->read) <= QUEUE_LENGTH,
-                  "queue_send ovf q=%p", q);
+    wr = q->write++ & QUEUE_LENGTH_MASK;
 
     q->events[wr].id   = id;
     q->events[wr].data = data;
@@ -460,7 +617,8 @@ intptr_t queue_send(struct event_queue *q, long id, intptr_t data)
         struct thread_entry **spp = &send->senders[wr];
         struct thread_entry *current = __running_self_entry();
 
-        /* overflow protect - unblock any thread waiting at this index */
+        /* The slot was free: a sender left there (none should be) is
+           released */
         queue_release_sender(spp, 0);
 
         /* Wakeup a waiting thread if any */
@@ -615,6 +773,13 @@ bool queue_peek_ex(struct event_queue *q, struct queue_event *ev,
                 if(q->send)
                     q->send->senders[dst] = q->send->senders[src];
             }
+
+            /* Slot r is outside the queue now. Its sender, if any, moved
+               with its event or was taken above: a copy left there would be
+               released by the next event written to the slot, wherever that
+               thread waits then. */
+            if(q->send)
+                q->send->senders[r & QUEUE_LENGTH_MASK] = NULL;
         }
 
         break;

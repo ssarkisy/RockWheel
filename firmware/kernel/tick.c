@@ -19,6 +19,7 @@
  ****************************************************************************/
 
 #include "config.h"
+#include "kernel.h"
 #include "tick.h"
 #include "general.h"
 #include "panic.h"
@@ -52,6 +53,7 @@ int tick_add_task(void (*f)(void))
     }
     else
     {
+        kernel_count_overflow(KERNEL_TABLE_TICK_TASKS);
         panicf("Error! tick_add_task(): out of tasks");
     }
 

@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include "events.h"
+#include "kernel.h"
 #include "panic.h"
 
 #define MAX_SYS_EVENTS 28
@@ -67,6 +68,7 @@ static bool do_add_event(unsigned short id, bool oneshot,
         return true;
     }
 
+    kernel_count_overflow(KERNEL_TABLE_EVENTS);
     panicf("event line full");
     return false;
 }

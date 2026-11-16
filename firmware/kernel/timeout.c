@@ -92,6 +92,10 @@ void timeout_register(struct timeout *tmo, timeout_cb_type callback,
         tmo->data = data;
         tmo->expires = current_tick + ticks;
     }
+    else
+    {
+        kernel_count_overflow(KERNEL_TABLE_TIMEOUTS);
+    }
 
     restore_irq(oldlevel);
 }

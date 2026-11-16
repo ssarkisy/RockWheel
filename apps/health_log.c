@@ -204,6 +204,51 @@ static inline void usb_line_written(void)
 }
 #endif
 
+/* The kernel's full tables (kernel.h) on a line as the drive's, when they
+   were found full more times than at the last line written. Those that panic
+   next are left to the panic record. Its length, 0 for none. */
+static unsigned int kernel_noted, kernel_seen;
+
+static int kernel_line(char *line, size_t size)
+{
+    struct kernel_overflows k;
+    kernel_get_overflows(&k);
+
+    unsigned int dropped = k.dropped_others;
+    for (int i = 0; i < KERNEL_FULL_QUEUE_OWNERS; i++)
+        dropped += k.queues[i].dropped;
+    kernel_seen = dropped + k.tables[KERNEL_TABLE_TIMEOUTS];
+    if (kernel_seen == kernel_noted)
+        return 0;
+
+    int len = snprintf(line, size, "%ld kernel: events dropped from full"
+                       " queues %u", current_tick / HZ, dropped);
+    const char *sep = " (read by ";
+    for (int i = 0; i < KERNEL_FULL_QUEUE_OWNERS && len < (int)size; i++)
+    {
+        if (!k.queues[i].dropped)
+            continue;
+        k.queues[i].owner[sizeof(k.queues[i].owner) - 1] = '\0';
+        len += snprintf(line + len, size - len, "%s%s %u", sep,
+                        k.queues[i].owner, k.queues[i].dropped);
+        sep = ", ";
+    }
+    if (k.dropped_others && len < (int)size)
+        len += snprintf(line + len, size - len, "%sothers %u", sep,
+                        k.dropped_others);
+    if (dropped && len < (int)size)
+        len += snprintf(line + len, size - len, ")");
+    if (len < (int)size)
+        len += snprintf(line + len, size - len, "; timeouts lost %u\n",
+                        k.tables[KERNEL_TABLE_TIMEOUTS]);
+    if (len >= (int)size) /* cut: it still ends its line */
+    {
+        len = size - 1;
+        line[len - 1] = '\n';
+    }
+    return len;
+}
+
 #ifdef HAVE_FAT_LINES
 static bool free_noted; /* since boot */
 
@@ -407,12 +452,13 @@ void health_flush(void)
     if (!free_noted) /* the first flush since boot, if no USB came before */
         health_note_free();
 #endif
-    /* the drive's line, the bus's, the FAT's and the clocks' go to the file
-       itself, after the lines kept: they need no room among them */
-    char drive[NOTE_MAX], usb[NOTE_MAX], fat[NOTE_MAX];
+    /* the drive's line, the bus's, the FAT's, the kernel's and the clocks' go
+       to the file itself, after the lines kept: they need no room among them */
+    char drive[NOTE_MAX], usb[NOTE_MAX], fat[NOTE_MAX], kernel[NOTE_MAX];
     const int drive_len = ata_line(drive, sizeof(drive));
     const int usb_len = usb_line(usb, sizeof(usb));
     const int fat_len = fat_line(fat, sizeof(fat));
+    const int kernel_len = kernel_line(kernel, sizeof(kernel));
     const char *cpu = NULL;
 #ifdef HAVE_CPU_TIME
     const int cpu_len = cpu_line(&cpu);
@@ -422,7 +468,7 @@ void health_flush(void)
     /* lines that come while this writes wait for the next time */
     const int len = notes_len;
     const int lost = notes_lost;
-    if (!len && !drive_len && !usb_len && !fat_len && !cpu_len)
+    if (!len && !drive_len && !usb_len && !fat_len && !kernel_len && !cpu_len)
         return;
 
     int fd = open(HEALTH_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -461,6 +507,7 @@ void health_flush(void)
     ok = ok && (!drive_len || write(fd, drive, drive_len) == drive_len)
             && (!usb_len || write(fd, usb, usb_len) == usb_len)
             && (!fat_len || write(fd, fat, fat_len) == fat_len)
+            && (!kernel_len || write(fd, kernel, kernel_len) == kernel_len)
             && (!cpu_len || write(fd, cpu, cpu_len) == cpu_len);
     /* none of it rather than a part: it is all written again next time */
     if (!ok)
@@ -474,6 +521,8 @@ void health_flush(void)
         usb_line_written();
     if (fat_len)
         fat_line_written();
+    if (kernel_len)
+        kernel_noted = kernel_seen;
 #ifdef HAVE_CPU_TIME
     if (cpu_len)
         cpu_line_written();

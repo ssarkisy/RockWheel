@@ -47,4 +47,35 @@
 #define TIMEOUT_BLOCK   -1
 #define TIMEOUT_NOBLOCK  0
 
+/* The kernel's fixed tables found full since boot (queue.c): for the health
+   log, and for the panic record where a panic follows */
+enum kernel_table
+{
+    KERNEL_TABLE_TIMEOUTS,   /* timeout_register(): not registered */
+    KERNEL_TABLE_TICK_TASKS, /* tick_add_task(): panics next */
+    KERNEL_TABLE_EVENTS,     /* add_event(): panics next */
+    KERNEL_TABLE_QUEUES,     /* queue_init() to receive broadcasts: panics
+                                next */
+    KERNEL_TABLE_COUNT
+};
+
+#define KERNEL_FULL_QUEUE_OWNERS 4
+
+struct kernel_overflows
+{
+    unsigned int tables[KERNEL_TABLE_COUNT];
+    /* Events dropped from full queues, by the name the thread waiting on the
+       queue had then: the first names to come, then the rest together */
+    struct
+    {
+        unsigned int dropped;
+        char owner[16]; /* "" while unused */
+    } queues[KERNEL_FULL_QUEUE_OWNERS];
+    unsigned int dropped_others;
+};
+
+/* Both from either core, in an interrupt or a thread */
+void kernel_count_overflow(enum kernel_table table);
+void kernel_get_overflows(struct kernel_overflows *copy);
+
 #endif /* KERNEL_H */
