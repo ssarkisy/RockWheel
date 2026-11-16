@@ -661,22 +661,22 @@ static const struct ui_theme ui_themes[] = {
         },
         .metric = {
             [UI_METRIC_ROW_HEIGHT]           = 22,
-            [UI_METRIC_TEXT_INSET]           = 12,
+            [UI_METRIC_TEXT_INSET]           = 6,
             [UI_METRIC_INITIAL_HEIGHT]       = 64,
-            [UI_METRIC_INITIAL_MARGIN]       = 12,
+            [UI_METRIC_INITIAL_MARGIN]       = 6,
             [UI_METRIC_SPLASH_RADIUS]        = 7,
             [UI_METRIC_SPLASH_PAD_X]         = 10,
             [UI_METRIC_SPLASH_PAD_Y]         = 5,
             [UI_METRIC_STATUS_ROWS]          = 17,
             [UI_METRIC_PANEL_HEAD_PLAIN]     = 1,
-            [UI_METRIC_CHEVRON_MARGIN]       = 11,
+            [UI_METRIC_CHEVRON_MARGIN]       = 6,
             [UI_METRIC_LEAD_GAP]             = 6,
-            /* a value ends at 203, or at 196 before a chevron */
-            [UI_METRIC_VALUE_MARGIN]         = 17,
-            [UI_METRIC_VALUE_MARGIN_CHEVRON] = 24,
+            /* a value ends at 209, or at 202 before a chevron */
+            [UI_METRIC_VALUE_MARGIN]         = 11,
+            [UI_METRIC_VALUE_MARGIN_CHEVRON] = 18,
             [UI_METRIC_VALUE_GAP]            = 7,
             [UI_METRIC_VALUE_CUT]            = 1,
-            [UI_METRIC_HINT_X]               = 12,
+            [UI_METRIC_HINT_X]               = 6,
             [UI_METRIC_HINT_TOP]             = 4,
             [UI_METRIC_HINT_PITCH]           = 15,
             /* 31 px: the name's part 16, its cell of 15 at its top, a row
@@ -694,7 +694,7 @@ static const struct ui_theme ui_themes[] = {
                cover 38 px and 3 over and under it */
             [UI_METRIC_HEADER_COVER_TOP]     = 3,
             [UI_METRIC_HEADER_COVER_GAP]     = 8,
-            [UI_METRIC_HEADER_TEXT_MARGIN]   = 12,
+            [UI_METRIC_HEADER_TEXT_MARGIN]   = 6,
             [UI_METRIC_HEADER_NAME_TOP]      = 1,
             [UI_METRIC_HEADER_NAME_LEADING]  = 0,
             [UI_METRIC_HEADER_ARTIST_GAP]    = 0,
@@ -704,19 +704,22 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HEADER_COVER_SIZE]    = 38,
             [UI_METRIC_HEADER_CENTRED]       = 1,
             [UI_METRIC_SELECTION_RADIUS]     = 5,
-            /* the scrollbar's capsule in the gutter it leaves, 2 px from
-               it, as the Video's */
-            [UI_METRIC_SELECTION_INSET_X]    = 6,
+            /* narrow sides on a narrow screen (owner, 2026-11-16): the
+               selection 2 px from the screen's edges, the names and the
+               chevrons 4 px inside it; the scrollbar's capsule of 2 px at
+               the edge, the rows a pixel narrower while it shows, so that a
+               column stays between them (list.c) */
+            [UI_METRIC_SELECTION_INSET_X]    = 2,
             [UI_METRIC_SELECTION_INSET_Y]    = 1,
             /* a row's cover 2 px inside the selection's sides */
-            [UI_METRIC_ROW_COVER_INSET]      = 8,
+            [UI_METRIC_ROW_COVER_INSET]      = 4,
             [UI_METRIC_CHEVRON_ALL]          = 1,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
             /* the main menu's pane, right of the list and its hairline */
             [UI_METRIC_PANE_LEFT]            = 110,
-            [UI_METRIC_ROW_RIGHT]            = 17,
+            [UI_METRIC_ROW_RIGHT]            = 12,
             [UI_METRIC_ROW_RIGHT_GAP]        = 7,
-            [UI_METRIC_SCROLLBAR_CAPSULE]    = 3,
+            [UI_METRIC_SCROLLBAR_CAPSULE]    = 2,
             [UI_METRIC_SELECTION_INK]        = 1,
             [UI_METRIC_GROUP_BAR]            = 2,
             [UI_METRIC_LEAD_COLUMN]          = 18,

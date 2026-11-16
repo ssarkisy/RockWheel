@@ -112,7 +112,11 @@ written by the same script with the 320x240 ones by the same rules (its
 `PHOTO` layout): a status line of 16 px with its hairline; rows of 22 px in
 Inter SemiBold of 12 px (`15-Inter-SemiBold`), 31 px for a row of two lines,
 with covers of 29 px (`LINE_COVER_SIZE`); Now Playing's cover 96 px, the details beside it in
-the same fonts a step smaller. The glyphs are the same pictures at their own
+the same fonts a step smaller. Its sides are narrower, for the narrower
+screen: the selection 2 px from the screen's edges, the names and the
+chevrons 4 px inside it, the status line 4 px from the edges, and the
+scrollbar's capsule 2 px wide at the edge, the rows a pixel narrower while it
+shows. The glyphs are the same pictures at their own
 sizes; only the bars are made for this width, by `make_theme_glyphs.py`. The pane
 is beside the main menu alone, 110 px from column 110 to the screen's right,
 and shows by the row selected, as on the Video: beside Settings the disk's

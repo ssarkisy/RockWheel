@@ -19,10 +19,11 @@
 %Vl(a,77,0,143,176,-)
 %Cd
 %Vl(a,77,0,33,176,-)
-# the lists: under the status line and its hairline; beside the pane 106
-# wide, so that the selected row ends 6 px short of the hairline
+# the lists: under the status line and its hairline; beside the pane 109
+# wide, so that the selected row ends as far from the hairline as it starts
+# from the screen's edge
 %Vi(wide,0,18,220,158,1)%Vf(EFEBE7)%Vb(211C18)
-%Vi(half,0,18,106,158,1)%Vf(EFEBE7)%Vb(211C18)
+%Vi(half,0,18,109,158,1)%Vf(EFEBE7)%Vb(211C18)
 # hairlines: under the status line, over the menu only beside the pane, and
 # column 109 between the menu and the pane
 %Vl(rulewide,0,16,220,1,-)%Vb(313029)
@@ -31,44 +32,44 @@
 # a screen of the whole width: the clock, the title, the glyphs; in the main
 # menu the clock alone; a title wider than its place between them takes the
 # clock's too (%Lf, title_vps())
-%Vl(clockwide,10,2,48,14,3)%Vf(B5AEA5)
+%Vl(clockwide,4,2,48,14,3)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(titlewide,58,2,104,14,3)%Vf(EFEBE7)
 %ac%Lt
-%Vl(longn0p,10,2,163,14,3)%Vf(EFEBE7)
+%Vl(longn0p,4,2,175,14,3)%Vf(EFEBE7)
 %al%nx%Lt
-%Vl(longn0,10,2,176,14,3)%Vf(EFEBE7)
+%Vl(longn0,4,2,188,14,3)%Vf(EFEBE7)
 %al%nx%Lt
-%Vl(longn1p,10,2,148,14,3)%Vf(EFEBE7)
+%Vl(longn1p,4,2,160,14,3)%Vf(EFEBE7)
 %al%nx%Lt
-%Vl(longn1,10,2,161,14,3)%Vf(EFEBE7)
+%Vl(longn1,4,2,173,14,3)%Vf(EFEBE7)
 %al%nx%Lt
-%Vl(bat,191,3,19,10,-)
+%Vl(bat,197,3,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%Vl(playn0,178,3,8,10,-)
+%Vl(playn0,184,3,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(moon,176,3,10,10,-)
+%Vl(moon,182,3,10,10,-)
 %xd(N)
-%Vl(playn1,163,3,8,10,-)
+%Vl(playn1,169,3,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 # beside the pane: the clock, and the glyphs at the menu's end
-%Vl(hclock,10,2,48,14,3)%Vf(B5AEA5)
+%Vl(hclock,4,2,48,14,3)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
-%Vl(hbat,81,3,19,10,-)
+%Vl(hbat,87,3,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%Vl(hplayn0,68,3,8,10,-)
+%Vl(hplayn0,74,3,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(hnamen0p,10,2,53,14,3)%Vf(EFEBE7)
+%Vl(hnamen0p,4,2,65,14,3)%Vf(EFEBE7)
 %al%nx%Lt
-%Vl(hnamen0,10,2,66,14,3)%Vf(EFEBE7)
+%Vl(hnamen0,4,2,78,14,3)%Vf(EFEBE7)
 %al%nx%Lt
-%Vl(hmoon,66,3,10,10,-)
+%Vl(hmoon,72,3,10,10,-)
 %xd(N)
-%Vl(hplayn1,53,3,8,10,-)
+%Vl(hplayn1,59,3,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(hnamen1p,10,2,38,14,3)%Vf(EFEBE7)
+%Vl(hnamen1p,4,2,50,14,3)%Vf(EFEBE7)
 %al%nx%Lt
-%Vl(hnamen1,10,2,51,14,3)%Vf(EFEBE7)
+%Vl(hnamen1,4,2,63,14,3)%Vf(EFEBE7)
 %al%nx%Lt
 # the pane's surface, under all but a cover
 %Vl(surface,110,0,110,176,-)%Vb(312C29)

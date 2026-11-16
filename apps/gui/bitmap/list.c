@@ -715,6 +715,20 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             indent += SCROLLBAR_WIDTH;
     }
 
+    /* the theme's capsule (below) beside rows that keep their width, but
+       where the selection's side leaves it no more than its own width: then
+       the rows are a pixel narrower while it shows, a column between them.
+       A group's band, a row's whole ground, keeps the width (below) */
+    const bool narrowed = capsule && list->scrollbar != SCROLLBAR_OFF
+                          && nb_lines < list->nb_items
+                          && ui_metric(UI_METRIC_SELECTION_INSET_X) <= capsule;
+    if (narrowed)
+    {
+        list_text_vp->width -= 1;
+        if (VP_IS_RTL(list_text_vp))
+            list_text_vp->x += 1;
+    }
+
     display->set_viewport(list_text_vp);
     int icon_w = list_icon_width(screen);
     int character_width = display->getcharwidth();
@@ -1049,7 +1063,24 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             linedes.text_dy = NAME_TEXT_DY;
         }
 
+        /* a group's band, and its name pinned at the top, to the screen's
+           edge under the capsule as without it: the column the rows gave up
+           is the list's own while this draws (the current viewport) */
+        const bool band = narrowed && list->callback_is_group
+                          && list->callback_is_group(i, list->data);
+        if (band)
+        {
+            list_text_vp->width += 1;
+            if (VP_IS_RTL(list_text_vp))
+                list_text_vp->x -= 1;
+        }
         callback_draw_item(&list_info);
+        if (band)
+        {
+            list_text_vp->width -= 1;
+            if (VP_IS_RTL(list_text_vp))
+                list_text_vp->x += 1;
+        }
         if (subline)
             line_draw_subline(display, subline_font,
                               list_info.x + line_indent + (have_icons ? icon_w : 0)
@@ -1129,7 +1160,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         list_draw_hint(display, &band, hint);
 #ifdef HAVE_LCD_COLOR
     /* the theme's capsule in the gutter right of the rows, which keep their
-       width: no track, at least 14 px, 2 px from the list's ends */
+       width but where it would touch them (above): no track, at least 14 px,
+       2 px from the list's top and foot */
     if (capsule && list->scrollbar != SCROLLBAR_OFF && nb_lines < list->nb_items)
     {
         display->set_viewport(parent);
@@ -1141,12 +1173,20 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         const int thumb = MAX(14, room * nb_lines / list->nb_items);
         const int rest = list->nb_items - nb_lines;
         const int ty = top + 2 + (room - 4 - thumb) * MAX(MIN(list_start_item, rest), 0) / rest;
-        const int tx = VP_IS_RTL(parent) ? 1 : parent->width - capsule - 1;
+        /* 1 px from the edge, or at it where the selection leaves no room
+           for that (the rows narrower then, above) */
+        const int edge = ui_metric(UI_METRIC_SELECTION_INSET_X) - capsule >= 3;
+        const int tx = VP_IS_RTL(parent) ? edge : parent->width - capsule - edge;
         display->set_foreground(ui_colour(UI_COLOUR_SCROLLBAR_THUMB));
         display->set_drawmode(DRMODE_SOLID);
-        display->fillrect(tx, ty + 1, capsule, thumb - 2);
-        display->hline(tx + 1, tx + capsule - 2, ty);
-        display->hline(tx + 1, tx + capsule - 2, ty + thumb - 1);
+        if (capsule < 3) /* too narrow for round ends: square ones */
+            display->fillrect(tx, ty, capsule, thumb);
+        else
+        {
+            display->fillrect(tx, ty + 1, capsule, thumb - 2);
+            display->hline(tx + 1, tx + capsule - 2, ty);
+            display->hline(tx + 1, tx + capsule - 2, ty + thumb - 1);
+        }
         display->set_foreground(global_settings.fg_color);
     }
 #endif

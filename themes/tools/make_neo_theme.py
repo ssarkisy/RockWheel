@@ -72,6 +72,9 @@ VIDEO = dict(
     OUT=os.path.join(HERE, "..", "Neo", ".rockbox", "wps"),
     STATUS=20,              # the status line's rows; the hairline is the next
     MARGIN=14,              # the sides': the clock's start, the glyphs' end
+    # the status line's sides, and the list's width beside the pane (the
+    # iPod photo's: its narrow sides, ui_theme.c)
+    SBS_MARGIN=14, HALF_W=156,
     # the lists' area: seven rows of 30 or six of 36; apps/gui/ui_theme.c has
     # the rows' insets
     LIST_TOP=23, LIST_ROWS=216,
@@ -123,7 +126,7 @@ VIDEO = dict(
 PHOTO = dict(
     W=220, H=176,
     OUT=os.path.join(HERE, "..", "Neo", "220x176", ".rockbox", "wps"),
-    STATUS=16, MARGIN=10,
+    STATUS=16, MARGIN=10, SBS_MARGIN=4, HALF_W=109,
     LIST_TOP=18, LIST_ROWS=158,
     TEXT_Y=2, CELL=14, FOOT=13, GAP=5,
     CLOCK_W=48,
@@ -355,7 +358,8 @@ SBS_PHOTO = """\
 %Cd
 %Vl(a,{cover_x},0,{cut},{h},-)
 # the lists: under the status line and its hairline; beside the pane {half_w}
-# wide, so that the selected row ends 6 px short of the hairline
+# wide, so that the selected row ends as far from the hairline as it starts
+# from the screen's edge
 %Vi(wide,0,{list_top},{w},{list_rows},1)%Vf(PRIMARY)%Vb(PAPER)
 %Vi(half,0,{list_top},{half_w},{list_rows},1)%Vf(PRIMARY)%Vb(PAPER)
 # hairlines: under the status line, over the menu only beside the pane, and
@@ -542,6 +546,16 @@ def fonts(names):
 
 
 def sbs():
+    """the status bar's skin, its sides SBS_MARGIN; Now Playing's are MARGIN"""
+    global MARGIN
+    keep, MARGIN = MARGIN, SBS_MARGIN
+    try:
+        return sbs_text()
+    finally:
+        MARGIN = keep
+
+
+def sbs_text():
     wide_vps, wide, rooms = status(W)
     long_vps = "\n".join(title_vps("long", 0, rooms[0], TITLE)
                          + title_vps("long", 1, rooms[1], TITLE))
@@ -567,7 +581,7 @@ def sbs():
                     title=title, music=music, margin=MARGIN, text_y=TEXT_Y, cell=CELL,
                     clock_w=CLOCK_W, title_x=TITLE_X, title_w=TITLE_W, status=STATUS,
                     list_top=LIST_TOP, list_rows=LIST_ROWS, w=W, h=H,
-                    half_w=PANE - 4, column=PANE - 1, pane=PANE, pane_w=pane_w,
+                    half_w=HALF_W, column=PANE - 1, pane=PANE, pane_w=pane_w,
                     cover=PANE_COVER, cover_x=PANE - cut, cover_w=W - (PANE - cut),
                     cut=cut, note_x=PANE + (pane_w - note[0]) // 2, note_y=note_y,
                     note_w=note[0], note_h=note[1], caption_y=note_y + note[1] + 12,
