@@ -446,11 +446,11 @@ static fb_data pack_nearest(const int rgb[3])
 /* Colours of a backdrop this takes at most */
 #define BACKDROP_COLOURS 256
 
-/* Where the theme has these */
-#define HEADER_HEIGHT    19
-#define BAR_X            58
-#define BAR_Y            206
-#define BAR_WIDTH        204
+/* Where the theme has these: the status bar, Classic's (ui_theme.h); the
+   progress bar's body and its reflection under it, the rows of its picture
+   and of its trough in the backdrop on either screen. Where the bar stands
+   is its skin's (find_bar()) */
+#define HEADER_HEIGHT    UI_CLASSIC_STATUS_ROWS
 #define BAR_HEIGHT       14 /* with its reflection under it */
 #define BAR_REFLECTION   9
 #define REFLECTION_ALPHA 67 /* of 256, where it starts */
@@ -731,12 +731,117 @@ static int reflection_alpha(int row)
     return REFLECTION_ALPHA * (BAR_REFLECTION - row) / BAR_REFLECTION;
 }
 
+/* the first progress bar under an element of a skin's tree and those after it */
+static const struct progressbar *first_bar(char *buf, const struct skin_element *e)
+{
+    for (; e; e = SKINOFFSETTOPTR(buf, e->next))
+    {
+        if (e->type == TAG)
+        {
+            const struct wps_token *token = SKINOFFSETTOPTR(buf, e->data);
+            if (token && token->type == SKIN_TOKEN_PROGRESSBAR)
+                return SKINOFFSETTOPTR(buf, token->value.data);
+        }
+        /* the children, an array of their offsets */
+        const OFFSETTYPE(struct skin_element *) *kids = SKINOFFSETTOPTR(buf, e->children);
+        for (int i = 0; kids && i < e->children_count; i++)
+        {
+            const struct progressbar *bar = first_bar(buf, SKINOFFSETTOPTR(buf, kids[i]));
+            if (bar)
+                return bar;
+        }
+    }
+    return NULL;
+}
+
+/* Now Playing's progress bar where its skin has it, in the screen's pixels:
+   the bar of its viewport "pb", whose picture is the bar's body over its
+   reflection, the trough's in the backdrop under it. False for a skin
+   without one there */
+static bool find_bar(struct wps_data *data, int *x, int *y, int *width)
+{
+    char *buf = get_skin_buffer(data);
+    /* a skin whose tree wasn't kept, as for want of room, has none to walk */
+    if (!data->wps_loaded || !buf)
+        return false;
+    for (const struct skin_element *e = SKINOFFSETTOPTR(buf, data->tree); e;
+         e = SKINOFFSETTOPTR(buf, e->next))
+    {
+        const struct skin_viewport *svp = SKINOFFSETTOPTR(buf, e->data);
+        const char *label = svp && svp->label != VP_DEFAULT_LABEL ?
+                            SKINOFFSETTOPTR(buf, svp->label) : NULL;
+        if (!label || strcmp(label, "pb"))
+            continue;
+        const OFFSETTYPE(struct skin_element *) *kids = SKINOFFSETTOPTR(buf, e->children);
+        const struct progressbar *bar = kids && e->children_count ?
+            first_bar(buf, SKINOFFSETTOPTR(buf, kids[0])) : NULL;
+        if (!bar || bar->x < 0 || bar->y < 0
+            || svp->vp.x + bar->x + bar->width > LCD_WIDTH
+            || svp->vp.y + bar->y + BAR_HEIGHT + BAR_REFLECTION > LCD_HEIGHT)
+            return false;
+        *x = svp->vp.x + bar->x;
+        *y = svp->vp.y + bar->y;
+        *width = bar->width;
+        return true;
+    }
+    return false;
+}
+
+/* The empty bar a shade of the track's tone, a step from the background,
+   with the rows of the theme's: it stayed the light theme's on every cover,
+   and the fill read on it from as little as 1 to 1 */
+static void fill_bar(const fb_data *src, int bar_x, int bar_y, int bar_width)
+{
+    struct screen_buffers *const b = buffers;
+    int track_hsl[3], sum = 0;
+    rgb_to_hsl(screen_colours.flat_track, track_hsl);
+    for (int y = 0; y < BAR_HEIGHT; y++)
+    {
+        for (int x = 0; x < bar_width; x++)
+        {
+            int rgb[3];
+            unpack_rgb(src[(bar_y + y) * LCD_WIDTH + bar_x + x], rgb);
+            sum += (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
+        }
+    }
+    const int mean = sum / (BAR_HEIGHT * bar_width);
+    for (int y = 0; y < BAR_HEIGHT; y++)
+    {
+        const fb_data *from = &src[(bar_y + y) * LCD_WIDTH + bar_x];
+        fb_data *to = &b->backdrop[(bar_y + y) * LCD_WIDTH + bar_x];
+        fb_data last = 0, shade = 0;
+        for (int x = 0; x < bar_width; x++)
+        {
+            if (x == 0 || from[x] != last)
+            {
+                int rgb[3];
+                last = from[x];
+                unpack_rgb(last, rgb);
+                const int luma = (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
+                const int lightness = track_hsl[2] + (luma - mean) * 1000 / 255 * 40 / 100;
+                hsl_to_rgb(track_hsl[0], track_hsl[1], MAX(MIN(lightness, 980), 20), rgb);
+                shade = pack_nearest(rgb);
+            }
+            to[x] = shade;
+        }
+    }
+    for (int y = 0; y < BAR_REFLECTION; y++)
+    {
+        const int alpha = reflection_alpha(y);
+        const fb_data *row = &b->backdrop[(bar_y + BAR_HEIGHT - 1 - y) * LCD_WIDTH + bar_x];
+        fb_data *dst = &b->backdrop[(bar_y + BAR_HEIGHT + y) * LCD_WIDTH + bar_x];
+        for (int x = 0; x < bar_width; x++)
+            dst[x] = reflected(row[x], alpha);
+    }
+}
+
 /* A plain background with the cover on it, so nothing of the theme's shadows and
    reflections, but for the status bar and the empty progress bar */
 static void fill_backdrop(void)
 {
     struct screen_buffers *const b = buffers;
-    const int id = skin_get_gwps(WPS, SCREEN_MAIN)->data->backdrop_id;
+    struct wps_data *data = skin_get_gwps(WPS, SCREEN_MAIN)->data;
+    const int id = data->backdrop_id;
     const fb_data *src = skin_backdrop_buffer(id);
 
     tinted_backdrop_id = -1;
@@ -761,49 +866,9 @@ static void fill_backdrop(void)
         b->backdrop[(HEADER_HEIGHT - 1) * LCD_WIDTH + x] = pack_nearest(out);
     }
 
-    /* The empty bar a shade of the track's tone, a step from the background,
-       with the rows of the theme's: it stayed the light theme's on every cover,
-       and the fill read on it from as little as 1 to 1 */
-    int track_hsl[3], sum = 0;
-    rgb_to_hsl(screen_colours.flat_track, track_hsl);
-    for (int y = 0; y < BAR_HEIGHT; y++)
-    {
-        for (int x = 0; x < BAR_WIDTH; x++)
-        {
-            int rgb[3];
-            unpack_rgb(src[(BAR_Y + y) * LCD_WIDTH + BAR_X + x], rgb);
-            sum += (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
-        }
-    }
-    const int mean = sum / (BAR_HEIGHT * BAR_WIDTH);
-    for (int y = 0; y < BAR_HEIGHT; y++)
-    {
-        const fb_data *from = &src[(BAR_Y + y) * LCD_WIDTH + BAR_X];
-        fb_data *to = &b->backdrop[(BAR_Y + y) * LCD_WIDTH + BAR_X];
-        fb_data last = 0, shade = 0;
-        for (int x = 0; x < BAR_WIDTH; x++)
-        {
-            if (x == 0 || from[x] != last)
-            {
-                int rgb[3];
-                last = from[x];
-                unpack_rgb(last, rgb);
-                const int luma = (54 * rgb[0] + 183 * rgb[1] + 19 * rgb[2]) >> 8;
-                const int lightness = track_hsl[2] + (luma - mean) * 1000 / 255 * 40 / 100;
-                hsl_to_rgb(track_hsl[0], track_hsl[1], MAX(MIN(lightness, 980), 20), rgb);
-                shade = pack_nearest(rgb);
-            }
-            to[x] = shade;
-        }
-    }
-    for (int y = 0; y < BAR_REFLECTION; y++)
-    {
-        const int alpha = reflection_alpha(y);
-        const fb_data *row = &b->backdrop[(BAR_Y + BAR_HEIGHT - 1 - y) * LCD_WIDTH + BAR_X];
-        fb_data *dst = &b->backdrop[(BAR_Y + BAR_HEIGHT + y) * LCD_WIDTH + BAR_X];
-        for (int x = 0; x < BAR_WIDTH; x++)
-            dst[x] = reflected(row[x], alpha);
-    }
+    int bar_x, bar_y, bar_width;
+    if (find_bar(data, &bar_x, &bar_y, &bar_width))
+        fill_bar(src, bar_x, bar_y, bar_width);
     cpu_boost(false);
     tinted_backdrop_id = id;
 }
@@ -889,7 +954,8 @@ void *cover_palette_bar(const struct bitmap *bm)
     if (!screen_colours.fill)
     {
         for (int y = 0; y < bm->height; y++)
-            cover_palette_tint_line(src + y * width, b->bar + y * width, width, BAR_Y);
+            cover_palette_tint_line(src + y * width, b->bar + y * width, width,
+                                    HEADER_HEIGHT); /* under the status bar */
         return b->bar;
     }
 
@@ -1447,9 +1513,10 @@ bool cover_palette_update(int art_handle, uint32_t colour)
     return changed;
 }
 
-/* From a part of the backdrop with nothing in it, with the same dither */
-#define PLAIN_BACKDROP_X 304
-#define PLAIN_BACKDROP_Y 40
+/* From a part of the backdrop with nothing in it, with the same dither: right
+   of Now Playing's texts, a little under the status bar */
+#define PLAIN_BACKDROP_X (LCD_WIDTH - 16)
+#define PLAIN_BACKDROP_Y (HEADER_HEIGHT + 21)
 
 bool cover_palette_clear(struct screen *display, const struct viewport *vp)
 {

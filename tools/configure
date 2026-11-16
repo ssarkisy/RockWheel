@@ -1962,7 +1962,9 @@ fi
     arm7tdmicc
     tool="$rootdir/tools/scramble -add=ipco"
     bmp2rb_mono="$rootdir/tools/bmp2rb -f 0"
-    bmp2rb_native="$rootdir/tools/bmp2rb -f 5"
+    # RGB565 as the framebuffer is, the LCD driver swapping the bytes for the
+    # panel (ipodcolor.h)
+    bmp2rb_native="$rootdir/tools/bmp2rb -f 4"
     output="rockbox.ipod"
     appextra=""
     plugins="yes"

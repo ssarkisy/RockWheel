@@ -51,6 +51,7 @@
 #include "action.h"
 #include "gui/skin_engine/skin_engine.h"
 #include "gui/skin_engine/menu_cover.h"
+#include "synced_covers.h"
 #include "menus/exported_menus.h"
 #include "string-extra.h"
 #include "root_menu.h"
@@ -200,13 +201,13 @@ static const struct {
 #endif
 };
 
-#if defined(HAVE_TAGCACHE) && defined(ITUNESDB_HAVE_ART)
+#if defined(HAVE_TAGCACHE) && defined(HAVE_SYNCED_MENU_COVERS)
 extern const struct menu_item_ex rebuild_covers_item;
 #endif
 
 static const char *item_hint(const struct menu_item_ex *item)
 {
-#if defined(HAVE_TAGCACHE) && defined(ITUNESDB_HAVE_ART)
+#if defined(HAVE_TAGCACHE) && defined(HAVE_SYNCED_MENU_COVERS)
     /* an action, which has no variable */
     if (item == &rebuild_covers_item)
         return str(LANG_HINT_REBUILD_COVERS);

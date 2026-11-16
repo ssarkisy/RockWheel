@@ -55,7 +55,10 @@
 /* sqrt(220^2 + 176^2) / 2.0 = 140.9 */
 #define LCD_DPI 141
 #define LCD_DEPTH  16   /* 65536 colours */
-#define LCD_PIXELFORMAT RGB565SWAPPED /* rgb565 byte-swapped */
+/* The panel takes its pixels byte-swapped, but the framebuffer is RGB565 as
+   on the iPod Video, as Finder's covers and the themes' pictures are:
+   lcd_update_rect() swaps the bytes on the way out */
+#define LCD_PIXELFORMAT RGB565
 
 /* Define this if the LCD can shut down */
 #define HAVE_LCD_SHUTDOWN
@@ -77,8 +80,9 @@
 /* define this if you have a real-time clock */
 #define CONFIG_RTC RTC_PCF50605
 
-/* Define if the device can wake from an RTC alarm */
-#define HAVE_RTC_ALARM
+/* No HAVE_RTC_ALARM, though the PMU can wake the iPod: an alarm's wake can't
+   be told from the clock on every iPod, and Hold at that time starts Apple's
+   firmware. As on the iPod Video */
 
 /* Define this if you can switch on/off the accessory power supply */
 #define HAVE_ACCESSORY_SUPPLY
@@ -89,8 +93,9 @@
 /* The number of bytes reserved for loadable codecs */
 #define CODEC_SIZE 0x80000
 
-/* The number of bytes reserved for loadable plugins */
-#define PLUGIN_BUFFER_SIZE 0x80000
+/* The number of bytes reserved for loadable plugins: Cover Flow keeps its
+   covers in them while music plays, as on the iPod Video */
+#define PLUGIN_BUFFER_SIZE 0x200000
 
 /* Define this if you have the WM8975 audio codec */
 #define HAVE_WM8975
@@ -116,7 +121,7 @@
 /* define to activate advanced wheel acceleration code */
 #define HAVE_WHEEL_ACCELERATION
 /* define from which rotation speed [degree/sec] on the acceleration starts */
-#define WHEEL_ACCEL_START 270
+#define WHEEL_ACCEL_START 360
 /* define type of acceleration (1 = ^2, 2 = ^3, 3 = ^4) */
 #define WHEEL_ACCELERATION 3
 
@@ -188,6 +193,16 @@
 #define USB_VENDOR_ID 0x05ac
 #define USB_PRODUCT_ID 0x1204
 #define HAVE_USB_HID_MOUSE
+
+/* a computer gets Apple's disk mode: the iPod restarts into it once
+   connected */
+#define USB_APPLE_DISK_MODE
+
+/* start with a logo on black, the way the stock firmware starts, instead
+   of the Rockbox logo: 12 px over the middle of the screen, which leaves
+   room under it for Updating Library's bar and line */
+#define STOCK_BOOT_LOGO
+#define STOCK_BOOT_LOGO_Y 36
 
 /* Define this if you have adjustable CPU frequency */
 #define HAVE_ADJUSTABLE_CPU_FREQ

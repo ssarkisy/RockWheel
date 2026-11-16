@@ -107,7 +107,15 @@ static struct {
 } job IBSS_ATTR;
 
 static mad_fixed_t decoded_pcm[DECODE_QUEUE][2][1152] MEM_ALIGN_ATTR;
+#if CONFIG_CPU == PP5020
+/* The PP5020 has 48 KB of IRAM for a codec, not the PP5022's 80: the frame
+   the DSP works on goes to DRAM, as only the CPU reaches it. stream_buffer,
+   which only MP3 in ASF fills, could go instead, with the COP reading it
+   uncached: which costs less is to be measured */
+static mad_fixed_t dsp_pcm[2][1152] MEM_ALIGN_ATTR;
+#else
 static mad_fixed_t dsp_pcm[2][1152] IBSS_ATTR MEM_ALIGN_ATTR;
+#endif
 
 static inline mad_fixed_t *decoded_samples(unsigned int n, int ch)
 {

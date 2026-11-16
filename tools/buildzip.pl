@@ -661,10 +661,10 @@ sub buildzip {
 
     }
 
-    # RockWheel, the iPod Video build: only the plugins its menus open, with
-    # their data, and the viewers of those; or, for its second archive, only
-    # Rockbox's games of ROCKWHEEL_GAMES
-    if ($modelname =~ /\bipodvideo\b/ && -e "$ROOT/apps/plugins/ROCKWHEEL") {
+    # RockWheel, the iPod Video and Photo builds: only the plugins its menus
+    # open, with their data, and the viewers of those; or, for its second
+    # archive, only Rockbox's games of ROCKWHEEL_GAMES
+    if ($modelname =~ /\b(ipodvideo|ipodcolor)\b/ && -e "$ROOT/apps/plugins/ROCKWHEEL") {
         my $list = sub {
             open my $fh, "$ROOT/apps/plugins/$_[0]" or die "can't open $_[0]";
             my @names = grep { /\S/ && !/^#/ } map { s/\s+//gr } <$fh>;

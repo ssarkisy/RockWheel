@@ -528,9 +528,11 @@ static void stop_scrolls(struct screen *display, struct wps_data *data,
 }
 
 /* the theme's own skins, for which the places are known; another's shows
-   the note */
+   the note. The places are the iPod Video's skins': the iPod photo's, of the
+   same names, show the note */
 static bool skins_own(void)
 {
+#if (LCD_WIDTH == 320) && (LCD_HEIGHT == 240)
     const struct ui_theme *theme = ui_theme_current();
     for (int dark = 0; dark < 2; dark++)
     {
@@ -539,6 +541,7 @@ static bool skins_own(void)
             && !strcmp((const char *)global_settings.sbs_file, skin))
             return true;
     }
+#endif
     return false;
 }
 

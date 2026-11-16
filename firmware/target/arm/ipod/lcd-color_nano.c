@@ -261,8 +261,17 @@ void lcd_blit_yuv(unsigned char * const src[3],
 static void lcd_write_line(int count, unsigned long *src)
 {
     do {
+#if LCD_PIXELFORMAT == RGB565
+        /* the panel takes each pixel's bytes the other way round than the
+           framebuffer, which is RGB565 as on the iPod Video (ipodcolor.h) */
+        unsigned long p = *src++;
+        p = ((p & 0x00ff00ff) << 8) | ((p >> 8) & 0x00ff00ff);
+        while (!(LCD2_BLOCK_CTRL & LCD2_BLOCK_TXOK)); /* FIFO wait */
+        LCD2_BLOCK_DATA = p;                          /* output 2 pixels */
+#else
         while (!(LCD2_BLOCK_CTRL & LCD2_BLOCK_TXOK)); /* FIFO wait */
         LCD2_BLOCK_DATA = *src++;                     /* output 2 pixels */
+#endif
         count -= 2;
     } while (count > 0);
 }

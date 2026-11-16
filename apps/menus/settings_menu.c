@@ -408,7 +408,9 @@ MENUITEM_SETTING(main_menu_s6, &global_settings.main_menu_show[MAIN_MENU_SECTION
 MENUITEM_SETTING(main_menu_s7, &global_settings.main_menu_show[MAIN_MENU_SECTION + 7], NULL);
 MENUITEM_SETTING(main_menu_s8, &global_settings.main_menu_show[MAIN_MENU_SECTION + 8], NULL);
 MENUITEM_SETTING(main_menu_s9, &global_settings.main_menu_show[MAIN_MENU_SECTION + 9], NULL);
+#if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_WIDTH == 320) && (LCD_HEIGHT == 240)
 MENUITEM_SETTING(main_menu_photos, &global_settings.main_menu_show[MAIN_MENU_PHOTOS], NULL);
+#endif
 MENUITEM_SETTING(main_menu_extras, &global_settings.main_menu_show[MAIN_MENU_EXTRAS], NULL);
 MENUITEM_SETTING(main_menu_shuffle, &global_settings.main_menu_show[MAIN_MENU_SHUFFLE_SONGS], NULL);
 MENUITEM_SETTING(main_menu_shuffle_albums, &global_settings.main_menu_shuffle_albums, NULL);

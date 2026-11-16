@@ -43,6 +43,7 @@
 #include "misc.h"
 #include "bidi.h"
 #include "icons.h"
+#include "skin_engine/cover_palette.h"
 
 #ifdef USB_IPOD_IDENTITY
 #include "bitmaps/nodisconnect.h"
@@ -53,7 +54,6 @@
 #include "string-extra.h"
 #include "gui/ui_theme.h"
 #include "skin_engine/skin_display.h"
-#include "skin_engine/cover_palette.h"
 #include "line.h"
 #else
 #include "bitmaps/usblogo.h"

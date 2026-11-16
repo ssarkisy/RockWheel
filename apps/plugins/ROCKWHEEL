@@ -1,9 +1,8 @@
-# The plugins the iPod Video build (RockWheel) installs, by name as in
+# The plugins the iPod Video and Photo builds (RockWheel) install, by name as in
 # CATEGORIES; a file of data goes with its plugin when its name starts with
 # the plugin's, as pictureflow_splash.bmp. RockWheel's menus
 # open only these: Extras and its games, Photos, the playing time of the
-# playlist, the track info and a long tag of it, Cover Flow of the Music
-# menu.
+# playlist, the track info and a long tag of it, Cover Flow of the Music menu.
 photos
 clock
 calendar

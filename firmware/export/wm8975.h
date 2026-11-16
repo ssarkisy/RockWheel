@@ -24,7 +24,12 @@
 #define AUDIOHW_CAPS (BASS_CAP | TREBLE_CAP | LINEOUT_CAP | \
                       LIN_GAIN_CAP | MIC_GAIN_CAP)
 
-AUDIOHW_SETTING(VOLUME,     "dB", 0, 1, -74,  6, -25)
+/* The volume goes up to 0 dB, as the WM8758's on the iPod Video, on every iPod
+   with this codec (4G, Photo/Color, Nano 1G/2G, the Nano 3G's WM1870). The
+   amplifier has 6 dB more, which only make up for the EQ's precut, as over
+   0 dB loud music would clip in it */
+AUDIOHW_SETTING(VOLUME,     "dB", 0, 1, -74,  0, -25)
+#define AUDIOHW_VOLUME_HEADROOM 6 /* dB */
 AUDIOHW_SETTING(BASS,       "dB", 0, 1,  -6,  9,   0)
 AUDIOHW_SETTING(TREBLE,     "dB", 0, 1,  -6,  9,   0)
 #ifdef HAVE_RECORDING

@@ -111,7 +111,7 @@ MENUITEM_FUNCTION_W_PARAM(save_sound_item, 0, ID2P(LANG_SAVE_SOUND),
 MENUITEM_FUNCTION(reset_settings_item, 0, ID2P(LANG_RESET),
                   reset_settings, NULL, Icon_NOICON);
 
-#if defined(HAVE_TAGCACHE) && defined(ITUNESDB_HAVE_ART)
+#if defined(HAVE_TAGCACHE) && defined(HAVE_SYNCED_MENU_COVERS)
 /* Rebuild Synced Covers: the computer's artwork is set aside, and the next
    sync makes every cover again, with the frames the main menu's cover is
    read from. Pressed again before that sync, it offers the old ones back. */
@@ -911,7 +911,7 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
 #endif
         &language_item,
         &show_legal_item,
-#if defined(HAVE_TAGCACHE) && defined(ITUNESDB_HAVE_ART)
+#if defined(HAVE_TAGCACHE) && defined(HAVE_SYNCED_MENU_COVERS)
         &rebuild_covers_item,
 #endif
         &reset_settings_item,

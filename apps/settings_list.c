@@ -598,6 +598,9 @@ static int32_t getlang_time_unit_0_is_off(int value, int unit)
 }
 
 #if defined(HAVE_BACKLIGHT) || defined(HAVE_LCD_SLEEP_SETTING)
+/* the Backlight Timer has its own (formatter_backlight()) */
+#if defined(HAVE_REMOTE_LCD) || defined(HAVE_LCD_SLEEP_SETTING) \
+    || defined(HAVE_BUTTON_LIGHT)
 static const char* formatter_time_unit_0_is_always(char *buffer, size_t buffer_size,
                                     int val, const char *unit)
 {
@@ -609,6 +612,7 @@ static const char* formatter_time_unit_0_is_always(char *buffer, size_t buffer_s
         return str(LANG_ALWAYS);
     return buffer;
 }
+#endif
 
 static int32_t getlang_time_unit_0_is_always(int value, int unit)
 {
@@ -1145,12 +1149,27 @@ static void start_in_callback(int var)
 }
 
 /* The volume as the iPod's settings show it, by the share of the volume bar it fills
-   rather than in dB: Off at the top, then 95% down to 5% in steps of 5, each the whole
-   dB nearest it on this codec's scale of -90 to 0 dB, with the bar's mapping */
+   rather than in dB: Off at the top, then 95% down to 5% in steps of 5, each a whole
+   dB of the bar's curve on the codec's scale. The wheel's steps between these are
+   the curve's own (volume_of_step() in misc.c): a value off the curve made a step up
+   quieter. NIGHT_VOLUME_DEFAULT is the 60% one */
+#ifdef HAVE_WM8975
+/* the WM8975's scale of -74 to 0 dB (iPod Photo/Color), the curve as the target's
+   fixed point has it */
+const int volume_steps[VOLUME_STEPS] = {
+    0, -1, -3, -4, -6, -7, -9, -10, -12, -14, -17, -19, -22, -25, -28, -32, -37, -42,
+    -49, -59
+};
+#define NIGHT_VOLUME_DEFAULT -12
+#else
+/* the WM8758's scale of -90 to 0 dB (iPod Video), the whole dB nearest the exact
+   curve: the fixed point's but at 10%, -53 against -54, and still rising there */
 const int volume_steps[VOLUME_STEPS] = {
     0, -1, -3, -4, -6, -7, -9, -11, -13, -15, -17, -20, -23, -26, -30, -34, -39, -45,
     -53, -66
 };
+#define NIGHT_VOLUME_DEFAULT -13
+#endif
 
 /* volume limiter */
 static void volume_limit_load_from_cfg(void* var, char*value)
@@ -1518,10 +1537,10 @@ const struct settings_list settings[] = {
 #if CONFIG_CPU == PP5002 || CONFIG_CPU == PP5020 || CONFIG_CPU == PP5022
                   /** Slow CPU benefits greatly from building smaller playlists
                   On the iPod Mini 2nd gen, creating a playlist of 2000 entries takes around 10 seconds.
-                  The iPod Video plays a whole library like the stock iPod; the
-                  database writes its playlists to a file and loads that,
-                  which is quick (tagtree.c) */
-#ifdef IPOD_VIDEO
+                  The iPod Video and Photo play a whole library like the stock
+                  iPod; the database writes its playlists to a file and loads
+                  that, which is quick (tagtree.c) */
+#if defined(IPOD_VIDEO) || defined(IPOD_COLOR)
                   32000,
 #else
                   2000,
@@ -1703,7 +1722,8 @@ const struct settings_list settings[] = {
 #endif
     OFFON_SETTING(0, night_limit, LANG_NIGHT_LIMIT, true, "night limit", night_action_changed),
     /* by the volume bar, as the limit is, without its Off */
-    TABLE_SETTING_LIST(F_NO_WRAP, night_volume, LANG_NIGHT_VOLUME, -13, "night volume",
+    TABLE_SETTING_LIST(F_NO_WRAP, night_volume, LANG_NIGHT_VOLUME, NIGHT_VOLUME_DEFAULT,
+                       "night volume",
                        NULL, UNIT_INT, formatter_volume_step, NULL, NULL,
                        VOLUME_STEPS - 1, volume_steps + 1),
     OFFON_SETTING(0, night_schedule, LANG_NIGHT_ON_SCHEDULE, false, "night schedule",

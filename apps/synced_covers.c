@@ -42,6 +42,7 @@
 #define ASIDE_DB            ASIDE_DIR "/ArtworkDB"
 #define ASIDE_FILES         64 /* more ithmb files than Finder makes */
 
+#ifdef HAVE_SYNCED_MENU_COVERS
 #define KEY_SPECS   "<key>ImageSpecifications</key>"
 #define KEY_COVERS  "<key>AlbumArt</key>"
 #define KEY_FORMAT  "<key>1024</key>"
@@ -240,6 +241,7 @@ enum synced_covers_description synced_covers_describe(void)
         close(fd);
     return is;
 }
+#endif /* HAVE_SYNCED_MENU_COVERS */
 
 /* What goes from the folder set aside besides ArtworkDB:
    F<format>_<number>.ithmb, as Finder names the frames' files, and what a
@@ -295,6 +297,7 @@ static void aside_remove(void)
     rmdir(ASIDE_DIR);
 }
 
+#ifdef HAVE_SYNCED_MENU_COVERS
 bool synced_covers_waiting(void)
 {
     return file_exists(ASIDE_DB);
@@ -331,6 +334,7 @@ bool synced_covers_put_back(void)
     itunesdb_art_due();
     return rename(ASIDE_DIR, COVERS_DIR) == 0;
 }
+#endif /* HAVE_SYNCED_MENU_COVERS */
 
 void synced_covers_imported(bool covers)
 {
@@ -340,10 +344,12 @@ void synced_covers_imported(bool covers)
 
 void synced_covers_boot(void)
 {
+#ifdef HAVE_SYNCED_MENU_COVERS
     /* as a cut left them (fw_recover()), before USB reads the description */
     static const char *const kept[] = { DESCRIPTION_FILE, DESCRIPTION_KEPT };
     fw_recover_files(DESCRIPTION_DIR, kept, ARRAYLEN(kept), description_whole);
     synced_covers_describe();
+#endif
     if (dir_exists(ASIDE_DIR) && !file_exists(ASIDE_DB))
         aside_remove();
 }

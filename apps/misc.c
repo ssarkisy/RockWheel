@@ -2468,8 +2468,8 @@ static int volume_of_step(int step, int count)
         return min;
     if (step >= count)
         return max;
-    /* at a step of the limit's, the volume its table has: the curve's fixed
-       point came a dB under it at 10%, which the wheel then didn't reach */
+    /* at a step of the limit's, the volume its table has: on the Video the
+       curve's fixed point is a dB under it at 10%, which the wheel didn't reach */
     if ((step * 100) % (count * 5) == 0)
     {
         const int i = (100 - step * 100 / count) / 5;

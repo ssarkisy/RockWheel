@@ -1612,7 +1612,8 @@ static void library_update_show(const char *text, int percent)
     if (!same_screen)
         shown_at = current_tick;
 
-    const int bar_w = 140, bar_h = 6;
+    /* 140 px on the iPod Video's screen, 96 on the iPod photo's */
+    const int bar_w = LCD_WIDTH * 7 / 16, bar_h = 6;
     lcd_set_viewport(NULL);
 #if LCD_DEPTH > 1
     lcd_set_backdrop(NULL);

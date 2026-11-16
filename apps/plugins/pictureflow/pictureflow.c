@@ -3990,7 +3990,10 @@ struct slide_cols {
 #define STRIP_W 8   /* a cache line of each row of the framebuffer */
 #endif
 
-#if NUM_CORES > 1 && LCD_STRIDEFORMAT != VERTICAL_STRIDE && LCD_DEPTH == 16
+/* only with rows of whole cache lines: a row of the iPod Photo's 220 pixels is
+   half a line out on every other one, where both cores would write one line */
+#if NUM_CORES > 1 && LCD_STRIDEFORMAT != VERTICAL_STRIDE && LCD_DEPTH == 16 \
+    && (LCD_WIDTH * 2) % CACHEALIGN_SIZE == 0
 /* The COP draws from this column on to start with (cop_from), always at the
    start of a cache line in every row of the framebuffer, so that the cores
    never share one there */
