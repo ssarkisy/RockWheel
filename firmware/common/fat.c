@@ -1721,7 +1721,7 @@ static int write_longname(struct bpb *fat_bpb, struct fat_filestr *parentstr,
                           struct fat_file *file, const unsigned char *name,
                           unsigned long ucslen, const unsigned char *shortname,
                           union raw_dirent *srcent, uint8_t attr,
-                          unsigned int flags)
+                          unsigned int flags, bool inorder)
 {
     DEBUGF("%s(file:0x%lx, first:%d, num:%d, name:%s)\n", __func__,
            file->firstcluster, file->e.entry - file->e.entries + 1,
@@ -1773,22 +1773,23 @@ static int write_longname(struct bpb *fat_bpb, struct fat_filestr *parentstr,
     const unsigned int longentries = file->e.entries - 1;
     const unsigned int firstentry  = file->e.entry - longentries;
 
+    /* The entries are free (ready_run()). Unless a rename keeps both short
+       entries in one sector (add_dir_entry(); inorder false), the run's
+       sectors reach the disk in the folder's order, a commit before each
+       next one: a cut leaves long entries without their short one, never the
+       end mark (0x00) ahead of the run's later entries. Where such a
+       rename's run crosses a sector, it ends before the old short entry, so
+       before the end mark; its sectors go in the caller's one commit. */
+
     /* longame entries */
     for (unsigned int i = 0; i < longentries; i++)
     {
+        if (inorder && i && (firstentry + i) % DIR_ENTRIES_PER_SECTOR == 0)
+            cache_commit(fat_bpb);
+
         ent = cache_direntry(fat_bpb, parentstr, firstentry + i);
         if (!ent)
             FAT_ERROR(-2);
-
-        /* verify this entry is free */
-        if (ent->name[0] && ent->name[0] != 0xe5)
-        {
-            panicf("Dir entry %d in sector %x is not free! "
-                   "%02x %02x %02x %02x",
-                   i + firstentry, (unsigned)parentstr->lastsector,
-                   (unsigned)ent->data[0], (unsigned)ent->data[1],
-                   (unsigned)ent->data[2], (unsigned)ent->data[3]);
-        }
 
         memset(ent->data, 0, DIR_ENTRY_SIZE);
 
@@ -1812,6 +1813,9 @@ static int write_longname(struct bpb *fat_bpb, struct fat_filestr *parentstr,
 
     /* shortname entry */
     DEBUGF("Shortname '%s'\n", shortname);
+
+    if (inorder && longentries && file->e.entry % DIR_ENTRIES_PER_SECTOR == 0)
+        cache_commit(fat_bpb);
 
     ent = cache_direntry(fat_bpb, parentstr, file->e.entry);
     if (!ent)
@@ -1862,6 +1866,63 @@ fat_error:
 
 static int free_direntries(struct bpb *fat_bpb, struct fat_file *file);
 
+/* Readies the count entries from first for a new run, before any entry is
+   written: each must be free. By the FAT spec the entries from the folder's
+   end mark (0x00) on, at end (-1: none found), are free and no reader shows
+   them, but a cut may have left live ones there: another system's, or ours
+   before write_longname() kept a run's sectors in order. Those the run takes,
+   and the entry after it, which becomes the end mark, are cleared and
+   committed first, so that once the run replaces the end mark, even cut
+   between its sectors, no hidden entry shows after it. */
+static int ready_run(struct bpb *fat_bpb, struct fat_filestr *dirstr,
+                     int first, int count, int end)
+{
+    int rc = 0;
+    bool cleared = false;
+
+    dc_lock_cache();
+
+    for (int entry = first; entry <= first + count; entry++)
+    {
+        const bool past = end >= 0 && entry >= end;
+        if (entry == first + count && !past)
+            break;
+
+        union raw_dirent *ent = cache_direntry(fat_bpb, dirstr, entry);
+        if (!ent)
+        {
+            if (entry == first + count &&
+                (dirstr->eof || entry >= MAX_DIRENTRIES))
+                break; /* the folder ends with the run */
+
+            FAT_ERROR(-1);
+        }
+
+        if (!past)
+        {
+            if (ent->name[0] && ent->name[0] != 0xe5)
+            {
+                DEBUGF("Dir entry %d is not free\n", entry);
+                FAT_ERROR(-2);
+            }
+        }
+        else if (ent->name[0])
+        {
+            DEBUGF("Clearing dir entry %d past the end\n", entry);
+            memset(ent->data, 0, DIR_ENTRY_SIZE);
+            dc_dirty_buf(ent);
+            cleared = true;
+        }
+    }
+
+fat_error:
+    if (cleared)
+        cache_commit(fat_bpb);
+
+    dc_unlock_cache();
+    return rc;
+}
+
 static int add_dir_entry(struct bpb *fat_bpb, struct fat_filestr *parentstr,
                          struct fat_file *file, const char *name,
                          union raw_dirent *srcent, uint8_t attr,
@@ -1907,7 +1968,7 @@ static int add_dir_entry(struct bpb *fat_bpb, struct fat_filestr *parentstr,
                             / FATLONG_NAME_CHARS + 1;
     }
 
-    int entry = 0, entries_found = 0, firstentry = -1;
+    int entry = 0, entries_found = 0, firstentry = -1, endentry = -1;
     const int entperclus = DIR_ENTRIES_PER_SECTOR*fat_bpb->bpb_secperclus;
 
     /* step 1: search for a sufficiently-long run of free entries and check
@@ -1935,6 +1996,7 @@ static int add_dir_entry(struct bpb *fat_bpb, struct fat_filestr *parentstr,
         {
         case 0:    /* all remaining entries in cluster are free */
             DEBUGF("Found end of dir %d\n", entry);
+            endentry = entry;
             int found = entperclus - (entry % entperclus);
             entries_found += found;
             entry += found; /* move entry passed end of cluster */
@@ -2007,13 +2069,19 @@ static int add_dir_entry(struct bpb *fat_bpb, struct fat_filestr *parentstr,
         firstentry = entry - entries_found;
     }
 
+    rc = ready_run(fat_bpb, parentstr, firstentry, entries_needed, endentry);
+    if (rc < 0)
+        FAT_ERROR(rc * 10 - 8);
+
+    bool apart = true;
+
     if (flags & DIRENT_RENAME)
     {
         /* the old entries go in a commit before the new ones, unless both
            short entries are in one sector, written at once: no cut leaves
            two entries on one chain, which a remove() of either would free
            under the other */
-        const bool apart =
+        apart =
             file->dircluster != parentstr->fatfilep->firstcluster ||
             file->e.entry / DIR_ENTRIES_PER_SECTOR !=
             (unsigned int)(firstentry + entries_needed - 1) /
@@ -2038,7 +2106,7 @@ static int add_dir_entry(struct bpb *fat_bpb, struct fat_filestr *parentstr,
     /* step 3: add entry */
     DEBUGF("Adding longname to entry %d\n", firstentry);
     rc = write_longname(fat_bpb, parentstr, file, name, ucslen,
-                        shortname, srcent, attr, flags);
+                        shortname, srcent, attr, flags, apart);
     if (rc < 0)
         FAT_ERROR(rc * 10 - 6);
 
@@ -3268,6 +3336,9 @@ int fat_readdir(struct fat_filestr *dirstr, struct fat_dirscan_info *scan,
 
         if (ent->name[0] == 0xe5)
         {
+            /* long entries are right before their short one: any before a
+               free entry have none, and name nothing after it */
+            lnparse.ord_max = 0;
             scan->entries = 0;
             continue; /* free entry */
         }

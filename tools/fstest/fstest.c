@@ -32,6 +32,13 @@
        into the other file's, removed while open
    fstest fill <img>
        the next writer takes every free cluster: is the other file whole
+   fstest cut <img> <journal> <k> <out>
+       out: img after the first k writes of the journal, nothing more
+   fstest ls <img>
+       every folder's entries as readdir() gives them: name, attributes, size
+   fstest l1 <img>
+       the name readdir() gives a short-only entry after long entries and a
+       free one (fat_readdir()'s parse reset)
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -253,12 +260,13 @@ static bool cfg_check(const char *file, const struct cfg *const *saves,
    own: its entries fall in other places of the folder's sectors */
 static int layout;
 
+static const char *const dirs[] = { "rocks", "codecs", "langs", "wps",
+                                    "themes", "fonts", "playlists" };
+
 /* a .rockbox of a used iPod ahead of what a scenario writes, and a file
    that brings the clusters it allocates up to the FAT's second sector */
 static void setup_common(void)
 {
-    static const char *dirs[] = { "rocks", "codecs", "langs", "wps",
-                                  "themes", "fonts", "playlists" };
     char path[MAX_PATH];
     put_file("/filler.bin", 100 * CLUSTER, 1, 65536);
     if (mkdir(ROCKBOX_DIR) < 0)
@@ -995,6 +1003,458 @@ static bool cache_post(char *verdict, size_t max)
 }
 #endif /* HAVE_FILE_WRITE */
 
+/* A folder's end mark, an entry starting with 0x00, with live entries after
+   it. A cut leaves it where a new run of entries at the folder's end crosses
+   two sectors and the cache writes the later one first; another system's cut
+   may leave it too. By the FAT spec nothing follows the end mark: the
+   entries after it are free, and no reader shows them. Our code must grow
+   such a folder without a panic, show none of them, and find its own new
+   files. */
+#define UNSENT ROCKBOX_DIR "/itunesdb_unsent.dat"
+
+static long first_cluster(const char *path);
+
+/* the cache written and emptied, so that the image can be edited below it */
+static void cache_drop(void)
+{
+    dc_lock_cache();
+    dc_commit_all(IF_MV(0));
+    dc_discard_all(IF_MV(0));
+    dc_unlock_cache();
+}
+
+/* the image's sector of entry i of the folder whose first cluster is c */
+static uint64_t entry_sector(long c, unsigned long i)
+{
+    uint64_t start, data;
+    uint32_t fat[512 / 4];
+    fat_get_offsets(IF_MV(0,) &start, &data);
+    for (unsigned long n = i / (CLUSTER / 32); n; n--)
+    {
+        if (host_read(32 + c / 128, 1, fat) < 0)
+            fail("FAT");
+        c = fat[c % 128] & 0x0fffffff;
+    }
+    return data / 512 + (uint64_t)(c - 2) * (CLUSTER / 512)
+           + i % (CLUSTER / 32) / 16;
+}
+
+/* entries from..to of folder dir all zeros on the disk, as the clearing of
+   a new cluster leaves them */
+static void zero_entries(const char *dir, unsigned long from,
+                         unsigned long to)
+{
+    uint8_t sec[512];
+    long c = first_cluster(dir);
+    cache_drop();
+    for (unsigned long i = from; i <= to; i++)
+    {
+        uint64_t s = entry_sector(c, i);
+        if (host_read(s, 1, sec) < 0)
+            fail("read");
+        memset(sec + i % 16 * 32, 0, 32);
+        if (host_write(s, 1, sec) < 0)
+            fail("write");
+    }
+}
+
+/* the places of path's first entry and its short entry in its folder */
+static void entry_run(const char *path, unsigned long *first,
+                      unsigned long *last)
+{
+    struct filestr_base stream;
+    if (open_stream_internal(path, FF_ANYTYPE, &stream, NULL) <= 0)
+        fail(path);
+    const struct fat_dirscan_info *e = &stream.infop->fatfile.e;
+    *first = e->entry - e->entries + 1;
+    *last = e->entry;
+    close_stream_internal(&stream);
+}
+
+/* A cut inside the removal of a run that crosses two sectors may free its
+   long entries and not its short one, which then shows its file under the
+   8.3 name; it predates the stray fix and is not one. Taken only for a file
+   whole as one of UNSENT's, and counted. */
+static int short_left;
+
+static bool short_unsent(const char *name, const char *path)
+{
+    for (const char *p = name; *p; p++)
+        if (*p == ' ' || (*p >= 'a' && *p <= 'z'))
+            return false;
+    if (strncmp(name, "ITUNES", 6) ||
+        !(same_file(path, 30000, 31) || same_file(path, 46000, 32) ||
+          same_file(path, 2000, 3)))
+        return false;
+    short_left++;
+    return true;
+}
+
+/* Every name the folder shows: one that may be there by allowed(), and, for
+   database_<n>.tcd and Track <n>.m4a, its file whole. The first that may not
+   goes to the verdict; how many of the numbered ones to count. */
+static bool listing_ok(const char *dir,
+                       bool (*allowed)(const char *, const char *),
+                       int *count, char *verdict, size_t max)
+{
+    char path[MAX_PATH];
+    DIR *d = opendir(dir);
+    if (!d)
+        return snprintf(verdict, max, "%s unreadable", dir), false;
+    struct dirent *e;
+    bool ok = true;
+    *count = 0;
+    while (ok && (e = readdir(d)))
+    {
+        int n;
+        char c;
+        snprintf(path, sizeof path, "%s/%s", dir, e->d_name);
+        if (sscanf(e->d_name, "database_%d.tc%c", &n, &c) == 2 && c == 'd')
+            ok = same_file(path, 2000 + n * 100, n);
+        else if (sscanf(e->d_name, "Track %d.m4%c", &n, &c) == 2 && c == 'a')
+            ok = n < 508 && same_file(path, 0, n);
+        else if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, ".."))
+            continue;
+        else
+            ok = allowed(e->d_name, path);
+        if (!ok)
+            snprintf(verdict, max, "%s shows %s", dir, e->d_name);
+        (*count)++;
+    }
+    closedir(d);
+    return ok;
+}
+
+static bool rockbox_name(const char *name, const char *path)
+{
+    for (unsigned i = 0; i < sizeof dirs / sizeof *dirs; i++)
+        if (!strcmp(name, dirs[i]))
+            return true;
+    return !strcmp(name, "itunesdb_unsent.dat") ||
+           !strcmp(name, "itunesdb_unsent.dat.tmp") ||
+           !strcmp(name, "itunesdb_unsent.dat.new") ||
+           !strcmp(name, "itunesdb_unsent.dat.old") ||
+           !strcmp(name, "a new folder of ours") ||
+           !strcmp(name, "emptied") ||
+           short_unsent(name, path);
+}
+
+/* what a file is: "whole", "none", or "part" if it may be cut short (its
+   write cut) and isn't whole; "bad" if it may not */
+static const char *file_state(const char *path, size_t size, unsigned seed,
+                              bool part, bool *ok)
+{
+    int w = whole(path, size, seed);
+    if (w < 0 && !part)
+        *ok = false;
+    return w > 0 ? "whole" : !w ? "none" : part ? "part" : "bad";
+}
+
+/* the next boot writes a file and renames it over the name, as settings and
+   the import do in .rockbox at each boot; it must succeed and be found */
+static bool boot_write(char *verdict, size_t max)
+{
+    put_file(UNSENT ".tmp", 2000, 3, 4096);
+    int rc = rename(UNSENT ".tmp", UNSENT);
+    bool ok = rc == 0 && same_file(UNSENT, 2000, 3);
+    snprintf(verdict, max, "the boot's rename %d, %s", rc,
+             ok ? "found" : "NOT FOUND");
+    return ok;
+}
+
+/* the old one to .old, the new one to the name, .old removed: plain calls,
+   as fstest-plain-end-scenario.diff of health2 */
+static void plain_setup(void)
+{
+    setup_common();
+    put_file(UNSENT, 30000, 31, 4096);
+    put_file(UNSENT ".new", 46000, 32, 4096);
+}
+
+static void plain_action(void)
+{
+    remove(UNSENT ".old");
+    rename(UNSENT, UNSENT ".old");
+    rename(UNSENT ".new", UNSENT);
+    remove(UNSENT ".old");
+}
+
+static bool plain_post(char *verdict, size_t max)
+{
+    char line[100], boot[100];
+    bool ok = true;
+    int n;
+    int old = whole(UNSENT, 30000, 31), new = whole(UNSENT, 46000, 32);
+    snprintf(line, sizeof line, "name %s, .new %s, .old %s",
+             old > 0 ? "old" : new > 0 ? "new" : !old ? "none" : "bad",
+             file_state(UNSENT ".new", 46000, 32, false, &ok),
+             file_state(UNSENT ".old", 30000, 31, false, &ok));
+    ok = ok && (old > 0 || new >= 0);
+    short_left = 0;
+    if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
+        return false;
+    const bool left = short_left;
+    ok = boot_write(boot, sizeof boot) && ok;
+    if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
+        return false;
+    snprintf(verdict, max, "%s%s; %s", line, left ? ", an 8.3 name" : "",
+             boot);
+    return ok;
+}
+
+/* a cut's: the run of a file at the folder's end, its entries in the
+   sectors before its short entry's zeros, or its first entry if all are in
+   one sector; 4 entries, which cross a sector in one layout */
+#define HIDDEN_CUT ROCKBOX_DIR "/hidden by a cut, a longer name.dat"
+
+static void stray_cut_setup(void)
+{
+    unsigned long first, last;
+    setup_common();
+    put_file(HIDDEN_CUT, 20000, 41, 4096);
+    entry_run(HIDDEN_CUT, &first, &last);
+    zero_entries(ROCKBOX_DIR, first,
+                 last / 16 * 16 > first ? last / 16 * 16 - 1 : first);
+}
+
+/* another system's: a whole file's entries after the end mark, the zeros
+   before them two entries or, in odd layouts, three */
+#define HIDDEN_RUN ROCKBOX_DIR "/hidden whole file.dat"
+
+static void stray_run_setup(void)
+{
+    unsigned long first, last;
+    const char *gone = layout & 1 ? ROCKBOX_DIR "/a gone file.dat" :
+                                    ROCKBOX_DIR "/gone.dat";
+    setup_common();
+    put_file(gone, 100, 40, 100);
+    put_file(HIDDEN_RUN, 20000, 41, 4096);
+    entry_run(gone, &first, &last);
+    zero_entries(ROCKBOX_DIR, first, last);
+}
+
+/* our code grows it: a file written and renamed to its name */
+static void stray_action(void)
+{
+    put_file(UNSENT ".tmp", 46000, 32, 4096);
+    rename(UNSENT ".tmp", UNSENT);
+}
+
+static bool stray_post(char *verdict, size_t max)
+{
+    char line[100], boot[100];
+    bool ok = true;
+    int n;
+    snprintf(line, sizeof line, "name %s, .tmp %s",
+             file_state(UNSENT, 46000, 32, false, &ok),
+             file_state(UNSENT ".tmp", 46000, 32, true, &ok));
+    short_left = 0;
+    if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
+        return false;
+    const bool left = short_left;
+    ok = boot_write(boot, sizeof boot) && ok;
+    if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
+        return false;
+    snprintf(verdict, max, "%s%s; %s", line, left ? ", an 8.3 name" : "",
+             boot);
+    return ok;
+}
+
+/* a folder made there */
+static void stray_mkdir_action(void)
+{
+    mkdir(ROCKBOX_DIR "/a new folder of ours");
+}
+
+static bool stray_mkdir_post(char *verdict, size_t max)
+{
+    char boot[100];
+    int n;
+    if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
+        return false;
+    bool ok = boot_write(boot, sizeof boot);
+    if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
+        return false;
+    snprintf(verdict, max, "folder %s; %s",
+             dir_exists(ROCKBOX_DIR "/a new folder of ours") ? "made" : "none",
+             boot);
+    return ok;
+}
+
+/* rmdir of a folder whose only file is behind its end mark: the folder is
+   empty to every reader, and goes; the file's cluster stays lost */
+#define EMPTIED ROCKBOX_DIR "/emptied"
+
+static void stray_rmdir_setup(void)
+{
+    unsigned long first, last;
+    setup_common();
+    if (mkdir(EMPTIED) < 0)
+        fail("mkdir");
+    put_file(EMPTIED "/hidden whole file.dat", 20000, 41, 4096);
+    entry_run(EMPTIED "/hidden whole file.dat", &first, &last);
+    zero_entries(EMPTIED, first, first);
+}
+
+static void stray_rmdir_action(void)
+{
+    rmdir(EMPTIED);
+}
+
+static bool stray_rmdir_post(char *verdict, size_t max)
+{
+    char boot[100];
+    int n;
+    const bool there = dir_exists(EMPTIED);
+    if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
+        return false;
+    bool ok = !there || rmdir(EMPTIED) == 0;
+    ok = boot_write(boot, sizeof boot) && ok;
+    if (!listing_ok(ROCKBOX_DIR, rockbox_name, &n, verdict, max))
+        return false;
+    snprintf(verdict, max, "folder %s%s; %s", there ? "there" : "gone",
+             ok ? "" : ", NOT REMOVED", boot);
+    return ok;
+}
+
+/* Across clusters: /Music's first cluster full, two files in its second;
+   the last three of the first removed, and the first of those made the end
+   mark, so the second cluster's entries are after it. A name of seven
+   entries doesn't fit before the cluster's end: the folder's second cluster
+   is cleared and taken again. One of six fits, and ends at the second
+   cluster's first entry. */
+#define GROW_SIX   GROWDIR "/Track 600, a song whose name takes six entries " \
+                   "in all.m4a"
+#define GROW_SEVEN GROWDIR "/Track 601, a song whose name takes seven " \
+                   "entries in the folder all.m4a"
+#define GROW_BOOT  GROWDIR "/After the cut.m4a"
+
+static void stray_grow_setup(void)
+{
+    char path[MAX_PATH];
+    dirgrow_setup();
+    put_file(GROWDIR "/Track 511.m4a", 0, 511, 1);
+    put_file(GROWDIR "/Track 512.m4a", 0, 512, 1);
+    for (int i = 508; i <= 510; i++)
+    {
+        snprintf(path, sizeof path, GROWDIR "/Track %03d.m4a", i);
+        if (remove(path) < 0)
+            fail(path);
+    }
+    /* '.', '..', then two entries a file: Track 508's first is 1018 */
+    zero_entries(GROWDIR, 1018, 1018);
+}
+
+static void stray_grow_action(void)
+{
+    put_file(GROW_SEVEN, 100, 601, 100);
+}
+
+static void stray_grow_fit_action(void)
+{
+    put_file(GROW_SIX, 100, 600, 100);
+}
+
+static bool grow_name(const char *name, const char *path)
+{
+    (void)path;
+    return !strcmp(name, strrchr(GROW_SIX, '/') + 1) ||
+           !strcmp(name, strrchr(GROW_SEVEN, '/') + 1) ||
+           !strcmp(name, strrchr(GROW_BOOT, '/') + 1);
+}
+
+static bool stray_grow_post(char *verdict, size_t max)
+{
+    bool ok = true;
+    int n;
+    const char *six = file_state(GROW_SIX, 100, 600, true, &ok),
+               *seven = file_state(GROW_SEVEN, 100, 601, true, &ok);
+    if (!listing_ok(GROWDIR, grow_name, &n, verdict, max))
+        return false;
+    put_file(GROW_BOOT, 100, 700, 100);
+    ok = ok && same_file(GROW_BOOT, 100, 700);
+    int after;
+    if (!listing_ok(GROWDIR, grow_name, &after, verdict, max))
+        return false;
+    snprintf(verdict, max, "six %s, seven %s, %d names then %d", six, seven,
+             n, after);
+    return ok && after == n + 1;
+}
+
+/* A rename in one folder whose old and new short entries share a sector
+   (fat.c's "apart" false), the new run starting in the sector before, in a
+   gap of freed entries: that sector is written once, with the old entries
+   freed and the new short one (afc96dd7bd). A cut leaves the file under the
+   old name, the new one or the new 8.3 name, never none. From review 1. */
+#define RX_DIR  "/T"
+#define RX_FROM RX_DIR "/Road Trip.m3u8.tmp"
+#define RX_TO   RX_DIR "/Road Trip.m3u8"
+
+static void rename_cross_setup(void)
+{
+    char path[MAX_PATH];
+    unsigned long first, last;
+    put_file("/filler.bin", 10 * CLUSTER, 1, 65536);
+    if (mkdir(RX_DIR) < 0)
+        fail("mkdir");
+    for (int i = 0; i < 6; i++)
+    {
+        snprintf(path, sizeof path, RX_DIR "/f%d.dat", i);
+        put_file(path, 100, 50 + i, 100);
+    }
+    put_file(RX_DIR "/g0.dat", 100, 60, 100);
+    put_file(RX_DIR "/g1.dat", 100, 61, 100);
+    put_file(RX_FROM, RN_SIZE, RN_SEED, 4096);
+    /* '.', '..', f0-f5 at 2-13, g0 and g1 at 14-17, the file at 18-20;
+       the new name then takes 14-16, across sectors 0 and 1 */
+    entry_run(RX_FROM, &first, &last);
+    if (first != 18 || last != 20)
+        fail("layout");
+    if (remove(RX_DIR "/g0.dat") < 0 || remove(RX_DIR "/g1.dat") < 0)
+        fail("remove");
+}
+
+static void rename_cross_action(void)
+{
+    rename(RX_FROM, RX_TO);
+}
+
+/* the file's bytes under exactly one name, 8.3 names counted; nothing else
+   but f0-f5 */
+static bool rename_cross_post(char *verdict, size_t max)
+{
+    char path[MAX_PATH], names[160] = "";
+    int found = 0;
+    bool other = false;
+    DIR *d = opendir(RX_DIR);
+    if (!d)
+        return snprintf(verdict, max, "folder unreadable"), false;
+    struct dirent *e;
+    while ((e = readdir(d)))
+    {
+        int n;
+        char c;
+        snprintf(path, sizeof path, RX_DIR "/%s", e->d_name);
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..") ||
+            (sscanf(e->d_name, "f%d.da%c", &n, &c) == 2 && c == 't' &&
+             same_file(path, 100, 50 + n)))
+            continue;
+        if (same_file(path, RN_SIZE, RN_SEED))
+            found++;
+        else
+        {
+            other = true;
+            strlcat(names, "?", sizeof names);
+        }
+        strlcat(names, e->d_name, sizeof names);
+        strlcat(names, "|", sizeof names);
+    }
+    closedir(d);
+    snprintf(verdict, max, "%s %s", found == 1 ? "under" : found ? "TWICE" :
+             "LOST", names);
+    return found == 1 && !other;
+}
+
 static bool no_post(char *verdict, size_t max)
 {
     verdict[0] = '\0';
@@ -1052,6 +1512,18 @@ static const struct scenario
     { "keep-old",       keep_old_setup, recover_action,  keep_post },
     { "cache",          keep_setup,     cache_action,    cache_post },
 #endif
+    { "plain-end",      plain_setup,    plain_action,    plain_post },
+    { "stray-cut",      stray_cut_setup, stray_action,   stray_post },
+    { "stray-run",      stray_run_setup, stray_action,   stray_post },
+    { "stray-mkdir",    stray_run_setup, stray_mkdir_action,
+                        stray_mkdir_post },
+    { "stray-rmdir",    stray_rmdir_setup, stray_rmdir_action,
+                        stray_rmdir_post },
+    { "stray-grow",     stray_grow_setup, stray_grow_action, stray_grow_post },
+    { "stray-grow-fit", stray_grow_setup, stray_grow_fit_action,
+                        stray_grow_post },
+    { "rename-cross",   rename_cross_setup, rename_cross_action,
+                        rename_cross_post },
 };
 
 static const struct scenario *find(const char *name)
@@ -1483,6 +1955,80 @@ static void full_test(const char *img)
     fs_unmount();
 }
 
+/* every folder's entries below dir as readdir() gives them */
+static void ls_tree(const char *dir, int depth)
+{
+    char path[MAX_PATH];
+    DIR *d = opendir(dir);
+    if (!d)
+    {
+        printf("%s: unreadable\n", dir);
+        return;
+    }
+    struct dirent *e;
+    while ((e = readdir(d)))
+    {
+        struct dirinfo info = dir_get_info(d, e);
+        snprintf(path, sizeof path, "%s/%s", dir[1] ? dir : "", e->d_name);
+        printf("%s %02x %ld\n", path, info.attribute, (long)info.size);
+        if ((info.attribute & ATTR_DIRECTORY) && strcmp(e->d_name, ".") &&
+            strcmp(e->d_name, "..") && depth < 8)
+            ls_tree(path, depth + 1);
+    }
+    closedir(d);
+}
+
+static uint8_t short_checksum(const char *name)
+{
+    uint8_t sum = 0;
+    for (int i = 0; i < 11; i++)
+        sum = (sum << 7) + (sum >> 1) + (uint8_t)name[i];
+    return sum;
+}
+
+/* Long entries complete but without their short one, then a free entry,
+   then a short-only entry whose 8.3 name gives the long entries' checksum
+   (1 in 256 by chance; here the same name): it must read as its 8.3 name */
+static void l1_test(void)
+{
+    static const char longname[] = "Long name.txt";  /* one long entry */
+    static const char shortname[] = "LONGNA~1TXT";
+    static const unsigned char at[13] = { 1, 3, 5, 7, 9, 14, 16, 18, 20, 22,
+                                          24, 28, 30 };
+    uint8_t sec[512];
+    if (mkdir("/L1") < 0)
+        fail("mkdir");
+    long c = first_cluster("/L1");
+    cache_drop();
+    uint64_t s = entry_sector(c, 2);
+    if (host_read(s, 1, sec) < 0)
+        fail("read");
+    uint8_t *e = sec + 2 * 32;
+    memset(e, 0, 3 * 32);
+    e[0] = 0x41;                    /* ord 1, the last */
+    e[11] = 0x0f;
+    e[13] = short_checksum(shortname);
+    for (int i = 0; i < 13; i++)
+        e[at[i]] = longname[i];
+    e[32] = 0xe5;                   /* the free entry */
+    memcpy(e + 64, shortname, 11);  /* the short-only entry */
+    e[64 + 11] = 0x20;
+    if (host_write(s, 1, sec) < 0)
+        fail("write");
+    DIR *d = opendir("/L1");
+    struct dirent *de;
+    const char *name = "nothing";
+    static char got[MAX_PATH];
+    while (d && (de = readdir(d)))
+        if (strcmp(de->d_name, ".") && strcmp(de->d_name, ".."))
+            name = strcpy(got, de->d_name);
+    if (d)
+        closedir(d);
+    printf("long entries, a free one, a short-only entry: %s: read as %s, "
+           "LONGNA~1.TXT expected\n",
+           !strcmp(name, "LONGNA~1.TXT") ? "ok" : "BAD", name);
+}
+
 int main(int argc, char *argv[])
 {
     const char *cmd = argc > 1 ? argv[1] : "";
@@ -1590,6 +2136,23 @@ int main(int argc, char *argv[])
     }
     else if (!strcmp(cmd, "full") && argc == 3)
         full_test(argv[2]);
+    else if (!strcmp(cmd, "cut") && argc == 6)
+    {
+        host_clone(argv[2], argv[5]);
+        host_apply(argv[3], argv[5], atol(argv[4]));
+    }
+    else if (!strcmp(cmd, "ls") && argc == 3)
+    {
+        fs_mount(argv[2]);
+        ls_tree("/", 0);
+        fs_unmount();
+    }
+    else if (!strcmp(cmd, "l1") && argc == 3)
+    {
+        fs_mount(argv[2]);
+        l1_test();
+        fs_unmount();
+    }
     else
     {
         fprintf(stderr, "usage: see the top of fstest.c\n");

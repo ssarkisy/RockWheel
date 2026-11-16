@@ -19,10 +19,15 @@ ok; with --outcomes, how many cuts left each outcome the scenario's check
 found ok. Known and left as it is: renamed over another's name, a file has
 that name twice (dupname) between its new entry and the other's removal.
 After a scenario's runs, "leaks": in how many of them the whole scenario,
-then everything removed, left clusters taken that a fresh volume has free.
+then everything removed, left clusters taken that a fresh volume has free,
+beyond those its setup left lost on purpose (the stray scenarios' files
+behind a folder's end mark).
 Then, without cuts, what errno open() sets, and the FAT's sectors each write
 past a full volume's last cluster reads (fstest full), and whether a second
 stream of a file is right after its write failed there (fstest two).
+
+Then "l1" (--only l1): the name readdir() gives a short-only entry after
+long entries that have no short one and a free entry.
 
 Last, "damage" (--only damage for these alone): a file's or a folder's chain
 or entry damaged by fatimg.py, then removed, written again or read. A line
@@ -225,9 +230,13 @@ def scenario(fstest, scen, layout, seed, work, verbose, keep):
     fatimg.mkfs(base)
     fresh = fatimg.free_clusters(base)[0]
     sh(fstest, "setup", scen, base, str(layout))
-    bad = kinds(fatimg.check(base))
+    found = fatimg.check(base)
+    bad = kinds(found)
     if bad:
         return "%s: setup left %s" % (name, ",".join(bad)), set(), {}, False
+    # a setup may leave clusters lost on purpose (the stray scenarios' files
+    # behind the end mark): those are not the scenario's leak
+    fresh -= int(found.get("lost", ["0"])[0].split()[0])
     final = os.path.join(d, "final.img")
     sh("cp", "-c", base, final)
     ok, said = run(fstest, "action", scen, final, os.path.join(d, "journal"),
@@ -351,6 +360,14 @@ def main():
         print("%s%s%s" % ("" if ok else "two streams: BAD: ", said,
                           "; check: " + ",".join(sorted(found))
                           if found else ""))
+        os.remove(img)
+    if not args.only or "l1" in args.only.split(","):
+        # long entries without their short one, a free entry, then a
+        # short-only entry of their checksum (fstest l1)
+        img = os.path.join(work, name, "l1.img")
+        fatimg.mkfs(img)
+        ok, said = run(fstest, "l1", img)
+        print(said if ok else "l1: BAD: " + said)
         os.remove(img)
     if not args.only or "mark" in args.only.split(","):
         # the limit of a file cut at a sync and removed while open
