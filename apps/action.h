@@ -409,6 +409,9 @@ long action_last_tick(void);
    press, whichever screens have taken its events since, and only while the
    buttons down now (button_status()) are it alone */
 long action_held_ticks(int button);
+/* The wheel's click (keyclick_once()), once the screen opening next has
+   drawn and waits for a button: for a held Menu's switch */
+void action_click_after_draw(void);
 /* the action looked up for the last button get_action() took: kept through
    timeouts and system events, which have none */
 int action_last_action(void);

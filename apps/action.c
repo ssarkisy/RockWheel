@@ -352,6 +352,14 @@ static void note_held(int button)
     }
 }
 
+/* a click as the next screen has drawn (action_click_after_draw()) */
+static bool click_after_draw;
+
+void action_click_after_draw(void)
+{
+    click_after_draw = true;
+}
+
 long action_held_ticks(int button)
 {
     return held_buttons == button && button_status() == button
@@ -1295,7 +1303,15 @@ static int get_action_worker(action_last_t *last, action_cur_t *cur)
        a list that loads asks whether to stop, which may show a splash: the
        screen isn't there yet */
     if (!asking_abort)
+    {
         transition_run();
+        /* the screen is there, and the click due for its coming sounds */
+        if (click_after_draw)
+        {
+            click_after_draw = false;
+            keyclick_once();
+        }
+    }
 
     if (night_mode_poll(cur->context))
         return no_click(ACTION_REDRAW);

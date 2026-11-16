@@ -1587,8 +1587,10 @@ int root_menu_switch_held(void)
     else if (p->screen == GO_TO_DBBROWSER || p->parent == GO_TO_DBBROWSER)
         tagtree_music_back(i, &last_db_dirlevel, &last_db_selection);
 #endif
-    /* the rest of the hold, its release too, goes nowhere in the place */
+    /* the rest of the hold, its release too, goes nowhere in the place; the
+       wheel's click as the place has drawn, saying the switch is done */
     action_wait_for_release();
+    action_click_after_draw();
     going_back = true;
     return p->screen;
 #else
