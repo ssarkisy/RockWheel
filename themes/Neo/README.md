@@ -15,18 +15,18 @@ Neo is calm and airy:
 - Flat surfaces, no gradients, and a lot of space. Fine type: Inter SemiBold
   and Medium at 11 to 15 px. Warm near-black text.
 - It is never plain. One colour, chosen under Colour, carries the theme: the
-  selected row, the switches, the chevrons and the scrollbar, the marks before
-  names, the speaker of the song playing, Now Playing's artist and progress
-  bar, and the disk's ring. With Tinted Background off, the default, the
-  surfaces are neutral: a white ground with light grey panes, bands and
-  fields, and grey small text. With it on, the surfaces take a pale tint of
-  the colour, and small text and section names a deeper one.
+  selected row, the chevrons and the scrollbar, the marks before names, the
+  speaker of the song playing, Now Playing's artist and progress bar, and the
+  disk's ring. With Tinted Background off, the default, the surfaces are
+  neutral: a white ground with light grey panes, bands and fields, and grey
+  small text. With it on, the surfaces take a pale tint of the colour, and
+  small text and section names a deeper one.
 - Rows 30 px high in Inter SemiBold, 36 px for a row of two lines. The
   selected row is a rounded rectangle inset from the row's sides, in the
   colour, with white text. A chevron on every row that leads on. A section's
-  name stands on a band as high as a row. On and Off values are capsule
-  switches, in the colour when on and grey when off. The scrollbar is a slim
-  capsule, and a message stands on a dark rounded plaque.
+  name stands on a band as high as a row. On and Off are words at the row's
+  end, as in Classic. The scrollbar is a slim capsule, and a message stands
+  on a dark rounded plaque.
 - A status line 20 px high, on the screen's own ground, with a hairline under
   it: the clock at the left, the screen's title in the middle, and at the
   right, from the edge inwards, the battery, a moon while Night Mode is on,
@@ -345,9 +345,9 @@ font role does. The main values:
   `UI_METRIC_VALUE_GAP` place the chevron and the value;
   `UI_METRIC_VALUE_CUT` 1, a value too long beside its name ends in an
   ellipsis.
-- **Switches:** `UI_METRIC_SWITCHES` 2, a capsule of 46 by 22 px with a
-  capsule knob, on in the selected row's colour, off in
-  `UI_COLOUR_SWITCH_OFF` (`neo_switch()` in `apps/menu.c`).
+- **On and Off:** `UI_METRIC_SWITCHES` 0, the words in the value's font and
+  colour, as in Classic. A switch on the selected row stood in the row's own
+  colour, and On looked like Off.
 - **Other parts:** `UI_METRIC_GROUP_BAR` 2, a section's name on a band;
   `UI_METRIC_SCROLLBAR_CAPSULE` 3, the scrollbar's width;
   `UI_METRIC_SPLASH_RADIUS` 9 with `UI_METRIC_SPLASH_PAD_X` and
@@ -362,6 +362,6 @@ font role does. The main values:
   above.
 
 The selection and insets are drawn in `apps/gui/bitmap/list.c` and
-`apps/gui/line.c`; the switches, section names and values in `apps/menu.c`.
+`apps/gui/line.c`; the section names and values in `apps/menu.c`.
 The list marks for each theme are the `glyphs[]` table in `apps/gui/line.c`,
 and the USB screen is in `apps/gui/usb_screen.c`.
