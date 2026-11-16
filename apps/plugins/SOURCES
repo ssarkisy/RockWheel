@@ -133,7 +133,8 @@ amaze.c
 rockblox1d.c
 brickmania.c
 calendar.c
-#if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_WIDTH == 320) && (LCD_HEIGHT == 240) && (LCD_PIXELFORMAT == RGB565)
+#if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_PIXELFORMAT == RGB565) && \
+    (((LCD_WIDTH == 320) && (LCD_HEIGHT == 240)) || ((LCD_WIDTH == 220) && (LCD_HEIGHT == 176)))
 photos.c
 #endif
 maze.c

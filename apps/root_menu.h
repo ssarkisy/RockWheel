@@ -23,6 +23,15 @@
 #include "config.h"
 #include "gcc_extensions.h"
 
+/* Photos, in the main menu and its settings: its plugin is made for the iPod
+   Video's and the iPod photo's screens and keys, and apps/plugins/SOURCES
+   builds it there alone */
+#if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_PIXELFORMAT == RGB565) \
+    && (((LCD_WIDTH == 320) && (LCD_HEIGHT == 240)) \
+        || ((LCD_WIDTH == 220) && (LCD_HEIGHT == 176)))
+#define HAVE_PHOTOS_MENU
+#endif
+
 /* Cover Flow, by plugin_load, which knows if it starts the music: at the album
    of the song at, if not NULL. Its Go to Artist leaves it for that song's album
    artist's albums, Menu there back to Cover Flow at that album: in lists of

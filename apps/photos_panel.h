@@ -23,6 +23,13 @@
 #include <stdbool.h>
 #include "rbpaths.h"
 #include "lcd.h"
+#include "gui/ui_theme.h"
+
+/* The collages below, only where the main menu has its pane (ui_theme.h);
+   Photos goes without them on the iPod photo's full-width menu */
+#ifdef UI_MENU_PANE
+#define HAVE_PHOTOS_PANEL
+#endif
 
 /* What shows beside the main menu when Photos is selected: a collage of the photos,
    which the Photos plugin makes when it's given this as its parameter. The theme names

@@ -835,9 +835,8 @@ static int playlist_view(void * param)
     return GO_TO_PREVIOUS;
 }
 
-/* the Photos plugin is made for the iPod Video screen and keys */
-#if (CONFIG_KEYPAD == IPOD_4G_PAD) && (LCD_WIDTH == 320) && (LCD_HEIGHT == 240)
-#define HAVE_PHOTOS_MENU
+/* Photos, where its plugin is made for the screen (root_menu.h) */
+#ifdef HAVE_PHOTOS_MENU
 static int photos(void *param)
 {
     (void)param;
@@ -1865,11 +1864,13 @@ static bool album_list_current(void)
 #define album_list_current() true
 #endif
 
+#if defined(HAVE_PHOTOS_MENU) && defined(HAVE_PHOTOS_PANEL)
 /* the collages are to be made of other photos: said on the update's screen */
 static void photos_making(void)
 {
     library_update_show(str(LANG_PREPARING_PHOTOS), 0);
 }
+#endif
 
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
@@ -1939,8 +1940,14 @@ static void library_update_screen(const char *words)
              && !(itunesdb_import_kept_art() && album_list_current()
                   && tagtree_songs_prepared()))
             || tagcache_get_commitid() != prepared_commitid);
+#if defined(HAVE_PHOTOS_MENU) && defined(HAVE_PHOTOS_PANEL)
     /* Finder may sync photos only, so this goes by their own database */
     const bool photos_changed = phase == TAGCACHE_IMPORT_NONE && photos_panel_stale();
+#else
+    /* no collages without Photos, whose plugin makes them, nor without the
+       main menu's pane they are shown in */
+    const bool photos_changed = false;
+#endif
     /* the letters of the tags' alphabets, which Search types with */
     bool letters_stale = phase == TAGCACHE_IMPORT_NONE
                          && music_search_letters_stale();
@@ -2072,11 +2079,13 @@ static void library_update_screen(const char *words)
     }
     if (shown)
     {
+#if defined(HAVE_PHOTOS_MENU) && defined(HAVE_PHOTOS_PANEL)
         if (photos_changed && !held_event) /* else made the next time */
         {
             if (photos_panel_update(photos_making))
                 skin_reload_while_playing();
         }
+#endif
         no_space |= library_take_no_room();
         if (no_space && !held_event)
             library_no_space_show();

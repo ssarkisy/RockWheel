@@ -18,11 +18,11 @@
  *
  ****************************************************************************/
 
-/* Photos, as on a stock iPod Video: the albums Finder syncs, a grid of
-   thumbnails, full screen photos and a slideshow. Reads Photos/Photo Database
-   and the thumbnails Finder scales for the iPod into Photos/Thumbs/F*.ithmb,
-   which are RGB565 frames ready for the screen. The record layouts are the
-   ones libgpod documents. */
+/* Photos, as on a stock iPod Video or iPod photo: the albums Finder syncs, a
+   grid of thumbnails, full screen photos and a slideshow. Reads Photos/Photo
+   Database and the thumbnails Finder scales for the iPod into
+   Photos/Thumbs/F*.ithmb, which are RGB565 frames scaled for the screen. The
+   record layouts are the ones libgpod documents. */
 
 #include "plugin.h"
 #include "lib/helper.h"
@@ -35,6 +35,7 @@
 #define CONFIG_FILE "photos.cfg"
 #define CONFIG_VERSION 1
 
+#if (LCD_WIDTH == 320) && (LCD_HEIGHT == 240)
 /* the two of the iPod Video formats shown here */
 #define GRID_FORMAT   1036 /* 50x41 thumbnails */
 #define GRID_W        50
@@ -45,6 +46,29 @@
    framed in yellow, and a scrollbar */
 #define GRID_COLS   6
 #define GRID_ROWS   5
+#else
+/* The iPod photo's, as the description RockWheel's USB mode gives Finder
+   has them (ImageSpecifications, ipod_sysinfo_photo.h): those of Apple's
+   firmware 1.0, where 1.2.1 and its disk mode have 1020 'B565' for the full
+   screen instead. 1009 41x30, cut to fill, its rows 42 pixels for the 4
+   bytes they are aligned to; 1015 130x88, fitted, read only to tell how 1013
+   is kept; 1013 the full screen, fitted, by the description kept as the
+   panel takes it: rows of 176 pixels, each one of the screen's columns. How
+   a synced frame really lies is told by the photos (SCREEN_TURNED). */
+#define GRID_FORMAT   1009
+#define GRID_W        41
+#define GRID_H        30
+#define SCREEN_FORMAT 1013
+#define SCREEN_TURNED
+#define SCREEN_REF_FORMAT 1015
+#define SCREEN_REF_W  130
+#define SCREEN_REF_H  88
+
+/* the grid as on the stock iPod photo: 25 thumbnails, five rows of five,
+   in thin lines, the selected one framed in yellow, and a scrollbar */
+#define GRID_COLS   5
+#define GRID_ROWS   5
+#endif
 #define CELL_W      (GRID_W + 1) /* a thumbnail and the line left of it */
 #define CELL_H      (GRID_H + 1)
 #define SCROLLBAR_W 6
@@ -60,9 +84,14 @@ struct photo {
     uint32_t id;
     uint32_t grid_offset;
     uint32_t screen_offset;
-    uint8_t grid_file;    /* N of F1036_N.ithmb, 0 when missing */
-    uint8_t screen_file;  /* N of F1024_N.ithmb, 0 when missing */
+    uint8_t grid_file;    /* N of F<GRID_FORMAT>_N.ithmb, 0 when missing */
+    uint8_t screen_file;  /* N of F<SCREEN_FORMAT>_N.ithmb, 0 when missing */
     uint8_t grid_x, grid_y, grid_w, grid_h; /* the picture in its thumbnail */
+#ifdef SCREEN_TURNED
+    uint32_t ref_offset;
+    uint8_t ref_file;     /* N of F1015_N.ithmb, 0 when missing */
+    uint8_t ref_x, ref_y, ref_w, ref_h; /* the picture in it */
+#endif
 };
 
 struct album {
@@ -235,7 +264,7 @@ static void mhod_text(off_t pos, off_t end, char *buf, size_t size)
     }
 }
 
-/* N of ":Thumbs:F1024_N.ithmb" */
+/* N of ":Thumbs:F1024_N.ithmb" and the like */
 static int ithmb_number(const char *name)
 {
     const char *p = rb->strrchr(name, '_');
@@ -288,6 +317,21 @@ static void parse_mhni(off_t pos, off_t end, struct photo *photo)
         photo->screen_file = number;
         photo->screen_offset = offset;
     }
+#ifdef SCREEN_TURNED
+    else if (format == SCREEN_REF_FORMAT
+             && size == SCREEN_REF_W * SCREEN_REF_H * 2
+             && hpad >= 0 && vpad >= 0 && width > 0 && height > 0
+             && hpad + width <= SCREEN_REF_W
+             && vpad + height <= SCREEN_REF_H)
+    {
+        photo->ref_file = number;
+        photo->ref_offset = offset;
+        photo->ref_x = hpad;
+        photo->ref_y = vpad;
+        photo->ref_w = width;
+        photo->ref_h = height;
+    }
+#endif
 }
 
 /* the photo at pos, which ends at end */
@@ -534,6 +578,10 @@ static bool read_frame(struct ithmb *file, int number, uint32_t offset,
         && rb->read(file->fd, buf, size) == (ssize_t)size;
 }
 
+#ifdef SCREEN_TURNED
+static struct ithmb ref_ithmb = { SCREEN_REF_FORMAT, 0, -1 };
+#endif
+
 static void close_frames(void)
 {
     if (grid_ithmb.fd >= 0)
@@ -541,6 +589,11 @@ static void close_frames(void)
     if (screen_ithmb.fd >= 0)
         rb->close(screen_ithmb.fd);
     grid_ithmb.fd = screen_ithmb.fd = -1;
+#ifdef SCREEN_TURNED
+    if (ref_ithmb.fd >= 0)
+        rb->close(ref_ithmb.fd);
+    ref_ithmb.fd = -1;
+#endif
 }
 
 /* the grid */
@@ -642,11 +695,179 @@ static void draw_grid(const struct album *album, int top, int selected)
 
 /* full screen and the slideshow */
 
+#ifdef SCREEN_TURNED
+/* How the full screen frames are kept. The iPod photo's description says
+   little-endian, 176x220 with a Rotation of 270; libgpod's tables, made from
+   what iTunes wrote, big-endian turned by 90; neither says which way round.
+   So a photo tells: its frame read each way is held against its 1015 (or
+   else its thumbnail), which both write upright and little-endian, and the
+   nearest is taken when it's clearly so. Until a photo has told, and for
+   good after WAY_TRIES that didn't, the description's as the panel takes
+   it: a quarter anticlockwise, the frame's row m the screen's column
+   LCD_WIDTH - 1 - m, from the top. */
+enum {
+    TURN_ANTICLOCKWISE, /* row m: column LCD_WIDTH - 1 - m, top down */
+    TURN_CLOCKWISE,     /* row m: column m, bottom up */
+    TURN_NONE,          /* the screen's rows */
+    TURNS
+};
+#define WAYS        (2 * TURNS) /* the turns little-endian, then big */
+#define WAY_TRIES   8
+static int screen_way = TURN_ANTICLOCKWISE;
+static bool screen_way_known = false;
+static int screen_way_tries = 0;
+static fb_data *frame_buf; /* the frame as read */
+
+/* the frame's pixel at the screen's x, y, read the way way says */
+static fb_data frame_pixel(const fb_data *frame, int way, int x, int y)
+{
+    fb_data p;
+    switch (way % TURNS)
+    {
+        case TURN_ANTICLOCKWISE:
+            p = frame[(LCD_WIDTH - 1 - x) * LCD_HEIGHT + y];
+            break;
+        case TURN_CLOCKWISE:
+            p = frame[x * LCD_HEIGHT + LCD_HEIGHT - 1 - y];
+            break;
+        default:
+            p = frame[y * LCD_WIDTH + x];
+            break;
+    }
+    return way >= TURNS ? (fb_data)(p << 8 | p >> 8) : p;
+}
+
+/* the frame in frame_buf as the screen's rows into screen_buf, the way
+   screen_way says: a row of the frame a column of the screen at a time */
+static void unturn_frame(void)
+{
+    const int turn = screen_way % TURNS;
+    const bool swap = screen_way >= TURNS;
+    const fb_data *from = frame_buf;
+    if (turn == TURN_NONE)
+    {
+        for (int i = 0; i < LCD_WIDTH * LCD_HEIGHT; i++, from++)
+            screen_buf[i] = swap ? (fb_data)(*from << 8 | *from >> 8) : *from;
+        return;
+    }
+    for (int m = 0; m < LCD_WIDTH; m++)
+    {
+        /* anticlockwise: column LCD_WIDTH - 1 - m, top down; clockwise:
+           column m, bottom up */
+        fb_data *to = turn == TURN_ANTICLOCKWISE
+                      ? screen_buf + LCD_WIDTH - 1 - m
+                      : screen_buf + (LCD_HEIGHT - 1) * LCD_WIDTH + m;
+        const int step = turn == TURN_ANTICLOCKWISE ? LCD_WIDTH : -LCD_WIDTH;
+        for (int c = 0; c < LCD_HEIGHT; c++, from++, to += step)
+            *to = swap ? (fb_data)(*from << 8 | *from >> 8) : *from;
+    }
+}
+
+/* The mean colour of each of the 3x3 parts of the middle half of a picture
+   at x, y, w by h: of the frame read the way way, or with way < 0 of
+   pixels, upright and little-endian, stride a row. 8 bits a channel. */
+static void middle_parts(const fb_data *pixels, int stride, int way, int x,
+                         int y, int w, int h, int parts[9][3])
+{
+    for (int i = 0; i < 9; i++)
+    {
+        const int x0 = x + w / 4 + (i % 3) * w / 6;
+        const int x1 = x + w / 4 + (i % 3 + 1) * w / 6;
+        const int y0 = y + h / 4 + (i / 3) * h / 6;
+        const int y1 = y + h / 4 + (i / 3 + 1) * h / 6;
+        int sum[3] = { 0, 0, 0 }, n = 0;
+        for (int v = y0; v < y1; v++)
+            for (int u = x0; u < x1; u++)
+            {
+                const fb_data p = way < 0 ? pixels[v * stride + u]
+                                          : frame_pixel(pixels, way, u, v);
+                sum[0] += (p >> 11) << 3;
+                sum[1] += ((p >> 5) & 63) << 2;
+                sum[2] += (p & 31) << 3;
+                n++;
+            }
+        for (int c = 0; c < 3; c++)
+            parts[i][c] = n ? sum[c] / n : 0;
+    }
+}
+
+/* The way the frame in frame_buf is kept, told by the photo's other
+   picture, read into screen_buf, which isn't drawn from yet */
+static void tell_screen_way(const struct photo *photo)
+{
+    if (screen_way_known || screen_way_tries >= WAY_TRIES)
+        return;
+    int ref[9][3], parts[9][3];
+    /* its picture's place on the screen: the 1015's fitted the same way,
+       or the thumbnail's cut to its shape out of the middle */
+    int w = LCD_WIDTH, h = LCD_HEIGHT;
+    if (read_frame(&ref_ithmb, photo->ref_file, photo->ref_offset, screen_buf,
+                   SCREEN_REF_W * SCREEN_REF_H * sizeof(fb_data)))
+    {
+        middle_parts(screen_buf, SCREEN_REF_W, -1, photo->ref_x, photo->ref_y,
+                     photo->ref_w, photo->ref_h, ref);
+        if (photo->ref_w * LCD_HEIGHT >= photo->ref_h * LCD_WIDTH)
+            h = MAX(LCD_WIDTH * photo->ref_h / photo->ref_w, 4);
+        else
+            w = MAX(LCD_HEIGHT * photo->ref_w / photo->ref_h, 4);
+    }
+    else if (read_frame(&grid_ithmb, photo->grid_file, photo->grid_offset,
+                        screen_buf, grid_stride * GRID_H * sizeof(fb_data)))
+    {
+        middle_parts(screen_buf, grid_stride, -1, photo->grid_x,
+                     photo->grid_y, photo->grid_w, photo->grid_h, ref);
+        if (photo->grid_w * LCD_HEIGHT >= photo->grid_h * LCD_WIDTH)
+            h = LCD_WIDTH * photo->grid_h / photo->grid_w;
+        else
+            w = LCD_HEIGHT * photo->grid_w / photo->grid_h;
+    }
+    else
+        return;
+    screen_way_tries++;
+    int best = -1, best_diff = 0, second_diff = 0;
+    for (int way = 0; way < WAYS; way++)
+    {
+        middle_parts(frame_buf, 0, way, (LCD_WIDTH - w) / 2,
+                     (LCD_HEIGHT - h) / 2, w, h, parts);
+        int diff = 0;
+        for (int i = 0; i < 9; i++)
+            for (int c = 0; c < 3; c++)
+                diff += abs(parts[i][c] - ref[i][c]);
+        if (best < 0 || diff < best_diff)
+        {
+            /* the first way has no runner-up yet: any other one sets it */
+            second_diff = best < 0 ? 0x7fffffff : best_diff;
+            best = way;
+            best_diff = diff;
+        }
+        else if (diff < second_diff)
+            second_diff = diff;
+    }
+    /* near, 40 a channel at most, and twice as near as any other way: a
+       picture much alike turned round, or of one colour, doesn't tell */
+    if (best_diff <= 9 * 3 * 40 && 2 * best_diff < second_diff)
+    {
+        screen_way = best;
+        screen_way_known = true;
+    }
+}
+#endif /* SCREEN_TURNED */
+
 static void show_photo(const struct photo *photo)
 {
+#ifdef SCREEN_TURNED
+    if (read_frame(&screen_ithmb, photo->screen_file, photo->screen_offset,
+                   frame_buf, LCD_WIDTH * LCD_HEIGHT * sizeof(fb_data)))
+    {
+        tell_screen_way(photo);
+        unturn_frame();
+        rb->lcd_bitmap(screen_buf, 0, 0, LCD_WIDTH, LCD_HEIGHT);
+    }
+#else
     if (read_frame(&screen_ithmb, photo->screen_file, photo->screen_offset,
                    screen_buf, LCD_WIDTH * LCD_HEIGHT * sizeof(fb_data)))
         rb->lcd_bitmap(screen_buf, 0, 0, LCD_WIDTH, LCD_HEIGHT);
+#endif
     else
     {
         rb->lcd_set_foreground(LCD_BLACK);
@@ -889,6 +1110,7 @@ static bool browse_album(const struct album *album)
     return !usb;
 }
 
+#ifdef HAVE_PHOTOS_PANEL
 /* The collages for the panels: thumbnails from all over the library, for the main
    menu's Photos row, and from all over each album, for the album's row in Photos' menu.
    Round and between them a collage is the colour a theme's picture is drawn without, so
@@ -1145,6 +1367,22 @@ static void show_album_panel(int album)
         panels_ready = false;
     }
 }
+#else
+/* no main menu's pane (photos_panel.h), nor collages for it */
+static const bool panels_ready = false;
+static int panel_album;
+static int panel_missed = -1;
+#define PANEL_REST (HZ / 3)
+
+static void show_library_panel(void)
+{
+}
+
+static void show_album_panel(int album)
+{
+    (void)album;
+}
+#endif /* HAVE_PHOTOS_PANEL */
 
 /* the lists, which look like the rest of the menus */
 
@@ -1382,6 +1620,7 @@ enum plugin_status plugin_start(const void *parameter)
 {
     mem = rb->plugin_get_buffer(&mem_left);
 
+#ifdef HAVE_PHOTOS_PANEL
     /* at Updating Library: the collages, or the albums' alone, and those only
        if they aren't of the albums as they are now */
     const bool make_all = parameter && !rb->strcmp(parameter, PHOTOS_PANEL_MAKE);
@@ -1403,10 +1642,20 @@ enum plugin_status plugin_start(const void *parameter)
             rb->remove(PHOTOS_PANELS_FILE);
         return PLUGIN_OK;
     }
+#else
+    (void)parameter;
+#endif
 
     screen_buf = alloc(LCD_WIDTH * LCD_HEIGHT * sizeof(fb_data));
+#ifdef SCREEN_TURNED
+    frame_buf = alloc(LCD_WIDTH * LCD_HEIGHT * sizeof(fb_data));
+    if (!frame_buf)
+        screen_buf = NULL;
+#endif
+#ifdef HAVE_PHOTOS_PANEL
     library_panel = alloc(PANEL_SIZE);
     album_panel = alloc(PANEL_SIZE);
+#endif
     if (!screen_buf || !load_database())
     {
         rb->splash(HZ * 2, TEXT(LANG_NO_PHOTOS));
@@ -1416,7 +1665,9 @@ enum plugin_status plugin_start(const void *parameter)
     int old_time = slide_time;
     bool old_repeat = slide_repeat, old_shuffle = slide_shuffle;
 
+#ifdef HAVE_PHOTOS_PANEL
     open_panels();
+#endif
     rb->add_event_ex(GUI_EVENT_NEED_UI_UPDATE, false, theme_redrawn, NULL);
     enum plugin_status status = photos_menu();
     shown_list = NULL;
