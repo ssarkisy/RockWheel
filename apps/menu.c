@@ -189,6 +189,12 @@ static const struct {
 #ifdef HAVE_TAGCACHE
     { &global_settings.smart_search, LANG_HINT_SMART_SEARCH },
 #endif
+#ifdef HAVE_IDLE_SLEEP
+#if BATTERY_CAPACITY_INC > 0
+    { &global_settings.battery_capacity, LANG_HINT_BATTERY_CAPACITY },
+#endif
+    { &global_settings.sleep_poweroff, LANG_HINT_SLEEP_POWEROFF },
+#endif
 };
 
 #if defined(HAVE_TAGCACHE) && defined(ITUNESDB_HAVE_ART)

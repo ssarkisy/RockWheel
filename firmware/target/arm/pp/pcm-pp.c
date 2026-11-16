@@ -27,6 +27,7 @@
 #include "pcm_sampr.h"
 #include "pcm-internal.h"
 #include "pcm_sink.h"
+#include "dac_standby.h"
 
 /** DMA **/
 
@@ -464,12 +465,32 @@ static void sink_start_pcm(void)
     dma_tx_start(true);
 }
 
+#ifdef HAVE_DAC_STANDBY
+unsigned int dac_fifo_gave_up;
+/* the FIFO empties in well under a millisecond while the codec clocks it */
+#define FIFO_EMPTY_WAIT_USEC 20000
+#endif
+
 static void sink_stop_pcm(void)
 {
     dma_tx_stop();
 
     /* Wait for FIFO to empty */
+#ifdef HAVE_DAC_STANDBY
+    /* not for ever, also in the FIQ: with the codec in standby by a start
+       that missed dac_wake(), nothing would clock it out */
+    const unsigned long start = USEC_TIMER;
+    while (!IIS_TX_IS_EMPTY)
+    {
+        if (USEC_TIMER - start > FIFO_EMPTY_WAIT_USEC)
+        {
+            dac_fifo_gave_up++;
+            break;
+        }
+    }
+#else
     while (!IIS_TX_IS_EMPTY);
+#endif
 
     dma_play_data.state = 0;
 }

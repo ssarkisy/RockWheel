@@ -41,6 +41,12 @@
 #include "sound.h"
 #include "font.h"
 #include "logf.h"
+#include "dac_standby.h"
+#ifdef HAVE_IDLE_SLEEP
+#include "pcm.h"
+#include "pcm-internal.h"
+#include "button.h"
+#endif
 #ifdef HAVE_REMOTE_LCD
 #include "lcd-remote.h"
 #endif
@@ -109,6 +115,57 @@ static int shutdown_timeout = 0;
 void handle_auto_poweroff(void);
 static int poweroff_timeout = 0;
 static long last_event_tick = 0;
+
+#ifdef HAVE_IDLE_SLEEP
+/* The sleep, after poweroff_timeout's minutes without a use, a held Play or
+   the Sleep Timer: dark, with all in memory, as on Apple's firmware, at a
+   lower power; any use wakes it on the screen it was. The power-off comes
+   after Turn Off After Sleep's hours of it, or after 10 minutes of it on a
+   low battery (idle_sleep_step()). */
+
+/* Turn Off After Sleep at Auto: the sleep on battery may take this many
+   percent of the battery's capacity (Battery Capacity), at the sleep's
+   current measured on an iPod Video (codec standby, 24 MHz), in microamps;
+   but no less than 2 hours, nor more than 12. Thus 2.5 hours on a stock
+   600 mAh battery, 2 on a 400 mAh one, 12 on 3000 mAh. */
+#define SLEEP_AUTO_PERCENT     5
+#define SLEEP_CURRENT_UA       11800
+#define SLEEP_AUTO_MIN_HOURS   2
+#define SLEEP_AUTO_MAX_HOURS   12
+#define SLEEP_HOUR_TICKS       (60 * 60 * HZ)
+/* a battery below this many percent... */
+#define SLEEP_LOW_PERCENT    20
+/* ...powers off after this much sleep, the 10 minutes it powered off after
+   before the sleep came */
+#define SLEEP_LOW_TICKS      (10 * 60 * HZ)
+/* a power-off that was refused (the database busy), tried again after */
+#define SLEEP_RETRY_TICKS    (60 * HZ)
+/* a held Play's own press and touch don't wake the sleep it asked for: none
+   counts until all has been let go this long, nor for the longest hold */
+#define SLEEP_HELD_QUIET_TICKS (HZ / 2)
+#define SLEEP_HELD_MAX_TICKS   (10 * HZ)
+
+/* 24 MHz without the PLL while asleep, instead of 30 with it: 2.8 mA less,
+   measured on an iPod Video. A DMA transfer meanwhile runs boosted
+   (ata-pp5020.c); PIO may run at 24 MHz, as in the bootloader. */
+#ifndef SLEEP_LOWER_CLOCK_DEFAULT
+#define SLEEP_LOWER_CLOCK_DEFAULT true
+#endif
+
+static bool sleeping;
+static long sleep_since;      /* the time on a power input doesn't count */
+static long sleep_event_tick; /* last_event_tick as it went to sleep */
+static long sleep_retry_tick;
+static bool sleep_clock_low;
+static bool sleep_lower_clock = SLEEP_LOWER_CLOCK_DEFAULT;
+static bool sleep_auto = true; /* by idle, and the power-off after */
+/* Turn Off After Sleep: hours, 0 for Auto, -1 for Never */
+static int sleep_poweroff_hours;
+/* from the button tick: a held Play asks for the sleep */
+static volatile bool sleep_requested;
+static volatile bool sleep_held;
+static volatile long sleep_held_since, sleep_held_last;
+#endif
 
 #if BATTERY_CAPACITY_INC > 0
 static int battery_capacity = BATTERY_CAPACITY_DEFAULT;
@@ -663,6 +720,9 @@ static inline bool detect_charger(unsigned int pwr)
             queue_broadcast(SYS_CHARGER_CONNECTED, 0);
             last_sent_battery_level = 0;
             charger_input_state = CHARGER;
+#ifdef HAVE_IDLE_SLEEP
+            reset_poweroff_timer(); /* a hand did it: wakes the sleep */
+#endif
             break;
 
         case CHARGER:
@@ -681,6 +741,9 @@ static inline bool detect_charger(unsigned int pwr)
             queue_broadcast(SYS_CHARGER_DISCONNECTED, 0);
             last_sent_battery_level = 100;
             charger_input_state = NO_CHARGER;
+#ifdef HAVE_IDLE_SLEEP
+            reset_poweroff_timer();
+#endif
             break;
 
         case CHARGER_PLUGGED:
@@ -828,6 +891,9 @@ static void power_thread(void)
 
         /* check if some idle or sleep timer wears off */
         handle_auto_poweroff();
+#ifdef HAVE_IDLE_SLEEP
+        dac_idle_poll(sleeping);
+#endif
 
         if (TIME_AFTER(current_tick, next_power_hist)) {
             /* increment to ensure there is a record for every minute
@@ -1085,6 +1151,14 @@ void set_poweroff_timeout(int timeout)
 
 void reset_poweroff_timer(void)
 {
+#ifdef HAVE_IDLE_SLEEP
+    if (sleep_held)
+    {
+        /* the held Play's own, after it asked for the sleep */
+        sleep_held_last = current_tick;
+        return;
+    }
+#endif
     last_event_tick = current_tick;
     if (sleeptimer_active && sleeptimer_key_restarts)
         set_sleep_timer(sleeptimer_duration);
@@ -1181,10 +1255,210 @@ void set_keypress_restarts_sleep_timer(bool enable)
     sleeptimer_key_restarts = enable;
 }
 
+#ifdef HAVE_IDLE_SLEEP
+static void sleep_set_clock(bool low)
+{
+    if (low != sleep_clock_low)
+    {
+        sleep_clock_low = low;
+        cpu_sleep_mode(low);
+    }
+}
+
+/* in the power thread */
+static void sleep_enter(bool pause, bool flush)
+{
+    /* the music the Sleep Timer or a held Play ends, as a pause would, with
+       its fade: Play resumes it */
+    if (pause && audio_status() == AUDIO_STATUS_PLAY)
+        audio_pause();
+    if (is_backlight_on(true))
+        backlight_off();
+    /* what's kept in memory to the disk, as a power-off would write it, so
+       that a reset in the sleep loses none of it: by the UI thread, whose
+       stack is big enough (misc.c), as it does a plugged headphone's */
+    if (flush)
+        button_queue_post(SYS_SLEEP_FLUSH, 0);
+    sleeping = true;
+    sleep_since = current_tick;
+    sleep_event_tick = last_event_tick;
+    sleep_retry_tick = current_tick;
+    /* the clock at the next step */
+}
+
+static void sleep_wake(void)
+{
+    sleeping = false;
+    sleep_set_clock(false);
+}
+
+/* A held Play, from the button tick: the screen goes dark at once, the music
+   pauses and the sleep comes at the power thread's next step */
+void sys_sleep(void)
+{
+    if (!sleep_held)
+    {
+        sleep_held_since = sleep_held_last = current_tick;
+        sleep_held = true;
+    }
+    sleep_requested = true;
+    backlight_off();
+}
+
+bool powermgmt_asleep(void)
+{
+    return sleeping;
+}
+
+void set_sleep_poweroff(int hours)
+{
+    sleep_poweroff_hours = hours;
+}
+
+/* Turn Off After Sleep's sleep on battery, in ticks; -1 for none */
+static long sleep_poweroff_ticks(void)
+{
+    if (sleep_poweroff_hours < 0)
+        return -1;
+    if (sleep_poweroff_hours > 0)
+        return sleep_poweroff_hours * SLEEP_HOUR_TICKS;
+    /* mAh * percent / 100 / mA, in thousandths of an hour */
+    long mh = (long)battery_capacity * SLEEP_AUTO_PERCENT * 10000L
+              / SLEEP_CURRENT_UA;
+    mh = MAX(mh, SLEEP_AUTO_MIN_HOURS * 1000L);
+    mh = MIN(mh, SLEEP_AUTO_MAX_HOURS * 1000L);
+    return mh * (SLEEP_HOUR_TICKS / 1000);
+}
+
+void powermgmt_set_sleep_options(bool auto_sleep, bool lower_clock)
+{
+    sleep_auto = auto_sleep;
+    sleep_lower_clock = lower_clock;
+}
+
+void powermgmt_sleep_now(bool on)
+{
+    if (on && !sleeping)
+        sleep_enter(false, false);
+    else if (!on && sleeping)
+        sleep_wake();
+}
+
+/* Into the sleep, out of it, and to the power-off after it; in the power
+   thread, after the music's and the charger's part of the use */
+static void idle_sleep_step(long timeout, int audio_stat, long tick)
+{
+    if (sleep_held
+        && (TIME_AFTER(tick, sleep_held_last + SLEEP_HELD_QUIET_TICKS)
+            || TIME_AFTER(tick, sleep_held_since + SLEEP_HELD_MAX_TICKS)))
+        sleep_held = false;
+
+    if (shutdown_timeout)
+    {
+        /* a power-off on its way, whoever asked for it: at the clock it runs
+           at awake */
+        sleep_set_clock(false);
+        return;
+    }
+
+    if (sleep_requested)
+    {
+        sleep_requested = false;
+        if (!sleeping)
+            sleep_enter(true, true);
+        else if (audio_stat == AUDIO_STATUS_PLAY)
+            audio_pause();
+        sleep_event_tick = last_event_tick;
+        return;
+    }
+
+    if (sleeping)
+    {
+        /* a use, or music started (a remote, the dock) */
+        if (last_event_tick != sleep_event_tick
+            || audio_stat == AUDIO_STATUS_PLAY)
+        {
+            sleep_wake();
+            return;
+        }
+        /* not while PCM plays (the mixer's tail of silence after a pause, a
+           plugin's sound), nor while the disk is in use: a transfer that began
+           at 30 MHz isn't boosted (ata-pp5020.c); and again after a refused
+           power-off */
+        sleep_set_clock(sleep_lower_clock && !pcm_is_playing()
+                        && !storage_disk_is_active());
+#if CONFIG_CHARGING
+        if (power_input_present())
+        {
+            /* it can't power off on one, and the hours begin as it's
+               unplugged */
+            sleep_since = tick;
+            return;
+        }
+#endif
+        if (!sleep_auto)
+            return;
+        const long slept = tick - sleep_since;
+        const long most = sleep_poweroff_ticks();
+        const int level = battery_level();
+        /* the low battery's 10 minutes whatever the setting, Never too */
+        if (((most >= 0 && slept >= most)
+             || (level >= 0 && level < SLEEP_LOW_PERCENT
+                 && slept >= SLEEP_LOW_TICKS))
+            && TIME_AFTER(tick, sleep_retry_tick))
+        {
+            /* today's shutdown, at the clock it runs at awake; asleep still
+               if it's refused, and tried again a minute later */
+            sleep_retry_tick = tick + SLEEP_RETRY_TICKS;
+            sleep_set_clock(false);
+            sys_poweroff();
+        }
+        return;
+    }
+
+    if (sleep_auto && timeout &&
+#if CONFIG_TUNER
+        !(get_radio_status() & FMRADIO_PLAYING) &&
+#endif
+        !usb_inserted() &&
+        (audio_stat == 0 ||
+         audio_stat == (AUDIO_STATUS_PLAY | AUDIO_STATUS_PAUSE)) &&
+        TIME_AFTER(tick, last_event_tick + timeout)
+#if !(CONFIG_PLATFORM & PLATFORM_HOSTED)
+        && TIME_AFTER(tick, storage_last_disk_activity() + timeout)
+#endif
+       )
+    {
+        sleep_enter(false, true);
+    }
+}
+
+/* Sound the Sleep Timer's pause doesn't stop: the remote's radio, a plugin's
+   player. A power-off stops it, as before the sleep came. */
+static bool sleep_timer_foreign_sound(void)
+{
+#if CONFIG_TUNER
+    if (get_radio_status() & FMRADIO_PLAYING)
+        return true;
+#endif
+    return pcm_is_playing() && audio_status() != AUDIO_STATUS_PLAY;
+}
+#endif /* HAVE_IDLE_SLEEP */
+
 #ifndef BOOTLOADER
 static void handle_sleep_timer(void)
 {
     if (TIME_AFTER(current_tick, sleeptimer_endtick)) {
+#ifdef HAVE_IDLE_SLEEP
+        /* the music paused and the iPod asleep, on a charger too */
+        if (!sleep_timer_foreign_sound())
+        {
+            set_sleep_timer(0);
+            if (!shutdown_timeout && !sleeping)
+                sleep_enter(true, true);
+            return;
+        }
+#endif
         if (usb_inserted()
 #if CONFIG_CHARGING
             || charger_input_state != NO_CHARGER
@@ -1214,6 +1488,9 @@ static void handle_sleep_timer(void)
  * 2) The charger is connected
  * 3) We are recording, or recording with pause
  * 4) The radio is playing
+ *
+ * With HAVE_IDLE_SLEEP, 1) and 2) put it to sleep instead, and the power-off
+ * comes after Turn Off After Sleep's hours of sleep (idle_sleep_step()).
  */
 void handle_auto_poweroff(void)
 {
@@ -1228,17 +1505,29 @@ void handle_auto_poweroff(void)
      */
     if (audio_stat == AUDIO_STATUS_PLAY
 #if CONFIG_CHARGING
-        || charger_input_state == CHARGER
+        || (charger_input_state == CHARGER
+#ifdef HAVE_IDLE_SLEEP
+            /* no sleep while charging, but one a held Play asked for there
+               lasts */
+            && !sleeping
+#endif
+           )
 #endif
     ) {
         last_event_tick = current_tick;
     }
 
     if (!shutdown_timeout && query_force_shutdown()) {
+#ifdef HAVE_IDLE_SLEEP
+        sleep_set_clock(false);
+#endif
         backlight_on();
         sys_poweroff();
     }
 
+#ifdef HAVE_IDLE_SLEEP
+    idle_sleep_step(timeout, audio_stat, tick);
+#else
     if (timeout &&
 #if CONFIG_TUNER
         !(get_radio_status() & FMRADIO_PLAYING) &&
@@ -1255,6 +1544,7 @@ void handle_auto_poweroff(void)
             sys_poweroff();
         }
     }
+#endif /* HAVE_IDLE_SLEEP */
 
     if (sleeptimer_active)
         handle_sleep_timer();

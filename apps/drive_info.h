@@ -28,7 +28,8 @@
 /* at boot, once the settings are in: what was learnt of this drive before, and
    the file written for one it isn't of */
 void drive_info_init(void);
-/* at USB and at power off: written again if more was learnt */
+/* at USB, at power off and as the iPod falls asleep (SYS_SLEEP_FLUSH,
+   misc.c): written again if more was learnt */
 void drive_info_flush(void);
 #else
 static inline void drive_info_init(void)

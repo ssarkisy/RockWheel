@@ -168,6 +168,22 @@ void set_keypress_restarts_sleep_timer(bool enable);
 void handle_auto_poweroff(void);
 void set_car_adapter_mode(bool setting);
 void reset_poweroff_timer(void);
+#ifdef HAVE_IDLE_SLEEP
+/* a held Play: the sleep, the music paused; from the button tick too */
+void sys_sleep(void);
+/* Turn Off After Sleep: the hours of sleep on battery before the power-off;
+   0 for Auto, from the battery's capacity; -1 for Never. Below 20 % it powers
+   off after 10 minutes of sleep whatever this is. */
+void set_sleep_poweroff(int hours);
+/* The switches the battery measurement decides with (sleep_measure.c, not
+   committed); the build itself keeps their defaults. */
+bool powermgmt_asleep(void);
+/* the sleep by idle and the power-off after it on or off, and 24 MHz while
+   asleep (SLEEP_LOWER_CLOCK_DEFAULT) */
+void powermgmt_set_sleep_options(bool auto_sleep, bool lower_clock);
+/* from the power thread: into the sleep or out of it */
+void powermgmt_sleep_now(bool on);
+#endif
 void cancel_shutdown(void);
 void shutdown_hw(enum shutdown_type sd_type);
 void sys_poweroff(void);

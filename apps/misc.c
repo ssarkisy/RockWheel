@@ -768,6 +768,33 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
             return SYS_USB_CONNECTED;
         }
 
+#ifdef HAVE_IDLE_SLEEP
+        case SYS_SLEEP_FLUSH:
+        {
+            /* asleep (powermgmt.c): what a power-off writes, written now, so
+               that a reset in the sleep loses none of it. The place paused at,
+               which only a track's end or a stop note otherwise; the play log;
+               Last.fm's lines, as system_flush() does first (nothing when none
+               wait); the drive's and the health log's lines; and the disk's
+               idle work: the database's counts, the settings, the place. Not
+               on a battery too low to write safely, as the power-off doesn't. */
+            if (!battery_level_safe())
+                return 0;
+            if (audio_status() == (AUDIO_STATUS_PLAY | AUDIO_STATUS_PAUSE))
+            {
+                struct mp3entry *id3 = audio_current_track();
+                if (id3)
+                    playlist_update_resume_info(id3);
+            }
+            status_save(true);
+            add_playbacklog(NULL);
+            scrobbler_flush();
+            drive_info_flush();
+            health_flush();
+            call_storage_idle_notifys(true);
+            return 0;
+        }
+#endif
         case SYS_POWEROFF:
         case SYS_REBOOT:
         {

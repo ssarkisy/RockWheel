@@ -18205,3 +18205,115 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_SLEEP_POWEROFF
+  desc: a setting under Settings > General, also beside Battery Capacity in the Battery menu: how long the iPod sleeps on battery before it turns itself off. Its values: Auto (by the battery's capacity), the LANG_SLEEP_POWEROFF_ durations, Never. Its value is shown beside it on the row
+  user: core
+  <source>
+    *: "Turn Off After Sleep"
+  </source>
+  <dest>
+    *: "睡眠後關機"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_POWEROFF_2H
+  desc: a value of Turn Off After Sleep: after 2 hours of sleep
+  user: core
+  <source>
+    *: "2 Hours"
+  </source>
+  <dest>
+    *: "2 小時"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_POWEROFF_6H
+  desc: a value of Turn Off After Sleep: after 6 hours of sleep
+  user: core
+  <source>
+    *: "6 Hours"
+  </source>
+  <dest>
+    *: "6 小時"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_POWEROFF_12H
+  desc: a value of Turn Off After Sleep: after 12 hours of sleep
+  user: core
+  <source>
+    *: "12 Hours"
+  </source>
+  <dest>
+    *: "12 小時"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_POWEROFF_24H
+  desc: a value of Turn Off After Sleep: after 24 hours of sleep
+  user: core
+  <source>
+    *: "24 Hours"
+  </source>
+  <dest>
+    *: "24 小時"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_POWEROFF_2D
+  desc: a value of Turn Off After Sleep: after 2 days of sleep
+  user: core
+  <source>
+    *: "2 Days"
+  </source>
+  <dest>
+    *: "2 天"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SLEEP_POWEROFF
+  desc: the hint in the band under Settings > General while Turn Off After Sleep is selected, in three lines at most: what the user gets from it. Auto is LANG_AUTO's word; it goes by the battery's capacity, from 2 to 12 hours. No percent sign: tools/updatelang reads one as a format and puts English in place of the translation
+  user: core
+  <source>
+    *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+  </source>
+  <dest>
+    *: "使用電池睡眠這麼久後，iPod 會關機。「自動」依電池容量設定：2 到 12 小時。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_BATTERY_CAPACITY
+  desc: the hint in the band under Settings > General while Battery Capacity is selected, in three lines at most: what the user gets from it. Auto is LANG_AUTO's word, the value of Turn Off After Sleep below it
+  user: core
+  <source>
+    *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+  </source>
+  <dest>
+    *: "如果 iPod 換了新電池，請設定其容量：「自動」據此決定何時關機。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

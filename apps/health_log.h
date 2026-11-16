@@ -33,8 +33,9 @@ void health_note(const char *fmt, ...) ATTRIBUTE_PRINTF(1, 2);
    the first flush since boot adds one itself if none came before */
 void health_note_free(void);
 
-/* The lines since the last time, written: from system_flush() only, so as
-   USB connects and at power off, not during use */
+/* The lines since the last time, written: from system_flush(), so as USB
+   connects and at power off, and as the iPod falls asleep (SYS_SLEEP_FLUSH,
+   misc.c); not during use */
 void health_flush(void);
 
 #endif

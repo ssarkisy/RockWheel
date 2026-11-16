@@ -41,6 +41,9 @@
 #include "storage.h"
 #include "lcd.h"
 #include "screendump.h"
+#ifdef HAVE_IDLE_SLEEP
+#include "powermgmt.h"
+#endif
 
 #ifdef HAVE_REMOTE_LCD
 #include "lcd-remote.h"
@@ -906,6 +909,12 @@ void backlight_hold_changed(bool hold_button)
 {
 #ifndef BOOTLOADER
     skin_request_update_locked(hold_button);
+#endif
+#ifdef HAVE_IDLE_SLEEP
+    /* unlocked by a hand: wakes the sleep. Not locked: holding Play, then
+       sliding Hold on, is how Apple's firmware is put to sleep */
+    if (!hold_button)
+        reset_poweroff_timer();
 #endif
     if (!hold_button || (backlight_on_button_hold > 0))
     {

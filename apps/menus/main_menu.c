@@ -856,10 +856,18 @@ MAKE_MENU(settings_playback, ID2P(LANG_PLAYBACK), NULL, Icon_NOICON,
 #endif
           );
 
-/* General: the wheel and the buttons, the dark screen's and Search's */
+/* General: the wheel and the buttons, the dark screen's and the sleep's, and
+   Search's. Battery Capacity right above Turn Off After Sleep, whose Auto
+   goes by it */
 MAKE_MENU(settings_general, ID2P(LANG_GENERAL_SETTINGS), NULL, Icon_NOICON,
 #ifdef HAVE_BACKLIGHT
           &wake_screen_item, &return_to_wps_item,
+#endif
+#ifdef HAVE_IDLE_SLEEP
+#if BATTERY_CAPACITY_INC > 0
+          &battery_capacity,
+#endif
+          &sleep_poweroff_item,
 #endif
 #ifdef HAVE_TAGCACHE
           &smart_search_item,

@@ -25,6 +25,7 @@
 #include "pcm-internal.h"
 #include "pcm_mixer.h"
 #include "pcm_sampr.h"
+#include "dac_standby.h"
 
 /* Channels use standard-style PCM callback interface but a latency of one
    frame by double-buffering is introduced in order to facilitate mixing and
@@ -391,6 +392,10 @@ void mixer_channel_play_data(enum pcm_mixer_channel channel,
 {
     struct mixer_channel *chan = &channels[channel];
 
+    /* every start of PCM comes here or to the resume below: the codec, the
+       I2S clock master, wakes first, before the lock as it waits on I2C */
+    dac_wake();
+
     ALIGN_AUDIOBUF(start, size);
 
     if (!(start && size) && cbs && cbs->get_more)
@@ -436,6 +441,9 @@ void mixer_channel_play_data(enum pcm_mixer_channel channel,
 void mixer_channel_play_pause(enum pcm_mixer_channel channel, bool play)
 {
     struct mixer_channel *chan = &channels[channel];
+
+    if (play)
+        dac_wake();
 
     pcm_play_lock();
 

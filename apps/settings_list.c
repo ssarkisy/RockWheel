@@ -1491,7 +1491,13 @@ const struct settings_list settings[] = {
         ID2P(LANG_24_HOUR_CLOCK), ID2P(LANG_12_HOUR_CLOCK)),
     OFFON_SETTING(F_THEMESETTING,show_icons, LANG_SHOW_ICONS ,DEFAULT_SHOW_ICONS,"show icons", NULL),
     /* system */
+#ifdef HAVE_IDLE_SLEEP
+    /* the minutes until the sleep, which powers off after hours of it
+       (powermgmt.c); 2 as on Apple's firmware */
+    INT_SETTING(F_TIME_SETTING, poweroff, LANG_POWEROFF_IDLE, 2,
+#else
     INT_SETTING(F_TIME_SETTING, poweroff, LANG_POWEROFF_IDLE, 10,
+#endif
                 "idle poweroff", UNIT_MIN, 0,60,1,
                 formatter_time_unit_0_is_off, getlang_time_unit_0_is_off,
                 set_poweroff_timeout),
@@ -1552,6 +1558,17 @@ const struct settings_list settings[] = {
                 BATTERY_CAPACITY_MIN, BATTERY_CAPACITY_MAX,
                 BATTERY_CAPACITY_INC, NULL, NULL, set_battery_capacity),
 #endif /* IPOD_VIDEO */
+#endif
+#ifdef HAVE_IDLE_SLEEP
+    /* the hours of sleep on battery before it turns off, Auto by Battery
+       Capacity (powermgmt.c); in Settings > General */
+    CHOICE_SETTING(0, sleep_poweroff, LANG_SLEEP_POWEROFF, 0,
+                   "power off after sleep", "auto,2h,6h,12h,24h,2d,never",
+                   sleep_poweroff_apply, 7,
+                   ID2P(LANG_AUTO), ID2P(LANG_SLEEP_POWEROFF_2H),
+                   ID2P(LANG_SLEEP_POWEROFF_6H), ID2P(LANG_SLEEP_POWEROFF_12H),
+                   ID2P(LANG_SLEEP_POWEROFF_24H), ID2P(LANG_SLEEP_POWEROFF_2D),
+                   ID2P(LANG_NEVER)),
 #endif
 #if CONFIG_CHARGING
     OFFON_SETTING(0, car_adapter_mode,

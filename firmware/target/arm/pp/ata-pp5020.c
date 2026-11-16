@@ -101,8 +101,20 @@ static const unsigned long tm_udma[] = {
 };
 
 #if ATA_MAX_UDMA > 2
-static bool dma_boosted = false;
 static bool dma_needs_boost;
+#endif
+#if !defined(BOOTLOADER) && defined(HAVE_ADJUSTABLE_CPU_FREQ) && ATA_MAX_UDMA >= 2
+/* UDMA 2 is stable from 30 MHz up (ata-target.h): a transfer runs boosted
+   while the unboosted clock is the lower one, the iPod's sleep at 24 MHz or
+   the radio's idle clock, even if another's boost has the CPU at 80 MHz as it
+   starts: that boost may end before the transfer does. The sleep lowers the
+   clock only while the disk is idle (powermgmt.c), so no transfer that began
+   unboosted at 30 MHz goes on at 24; the radio's idle clock can still come
+   during one, as it always could. */
+#define DMA_BOOST_BELOW_NORMAL
+#endif
+#if ATA_MAX_UDMA > 2 || defined(DMA_BOOST_BELOW_NORMAL)
+static bool dma_boosted = false;
 #endif
 
 static unsigned long dma_bytes; /* of the transfer going on, 0 for a write */
@@ -184,6 +196,13 @@ bool ata_dma_setup(void *addr, unsigned long bytes, bool write) {
 
 #if ATA_MAX_UDMA > 2
     if (dma_needs_boost && !dma_boosted) {
+        cpu_boost(true);
+        dma_boosted = true;
+    }
+#endif
+#ifdef DMA_BOOST_BELOW_NORMAL
+    if ((cpu_unboosted_is_low() || cpu_frequency < CPUFREQ_NORMAL)
+        && !dma_boosted) {
         cpu_boost(true);
         dma_boosted = true;
     }
@@ -277,7 +296,7 @@ bool ata_dma_finish(void) {
     IDE0_CFG &= ~0x8000;
     IDE_DMA_CONTROL &= ~0x80000001;
 
-#if ATA_MAX_UDMA > 2
+#if ATA_MAX_UDMA > 2 || defined(DMA_BOOST_BELOW_NORMAL)
     if (dma_boosted) {
         cpu_boost(false);
         dma_boosted = false;

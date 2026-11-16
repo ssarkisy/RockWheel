@@ -89,6 +89,18 @@
 /* Define this if you have a software controlled poweroff */
 #define HAVE_SW_POWEROFF
 
+#ifndef BOOTLOADER
+/* Idle, a held Play and the Sleep Timer put the iPod to sleep, dark with all
+   kept in memory, as Apple's firmware does; it powers off after the hours
+   Turn Off After Sleep sets, or sooner on a low battery (powermgmt.c) */
+#define HAVE_IDLE_SLEEP
+#ifndef SIMULATOR
+/* The WM8758's PLL, DAC, mixers and outputs can be off while no PCM plays
+   (wm8758.c, dac_standby.h) */
+#define HAVE_DAC_STANDBY
+#endif
+#endif
+
 /* The number of bytes reserved for loadable codecs */
 #define CODEC_SIZE 0x80000
 

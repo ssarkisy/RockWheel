@@ -34,6 +34,19 @@ long cpu_frequency SHAREDBSS_ATTR = CPU_FREQ;
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
 static int boost_counter SHAREDBSS_ATTR = 0;
 static bool cpu_idle SHAREDBSS_ATTR = false;
+/* the sleep's, apart from cpu_idle (the radio's; and USB's on targets without
+   the USB stack): neither ends the other's */
+static bool cpu_sleep SHAREDBSS_ATTR = false;
+
+bool cpu_unboosted_is_low(void)
+{
+    return cpu_idle || cpu_sleep;
+}
+
+static long unboosted_frequency(void)
+{
+    return cpu_unboosted_is_low() ? CPUFREQ_DEFAULT : CPUFREQ_NORMAL;
+}
 
 int get_cpu_boost_counter(void)
 {
@@ -125,10 +138,7 @@ void cpu_boost(bool on_off)
         /* Lower the frequency if the counter reaches 0 */
         if(--boost_counter <= 0)
         {
-            if(cpu_idle)
-                set_cpu_frequency(CPUFREQ_DEFAULT);
-            else
-                set_cpu_frequency(CPUFREQ_NORMAL);
+            set_cpu_frequency(unboosted_frequency());
 
             /* Safety measure */
             if (boost_counter < 0)
@@ -151,12 +161,19 @@ void cpu_idle_mode(bool on_off)
     /* We need to adjust the frequency immediately if the CPU
        isn't boosted */
     if(boost_counter == 0)
-    {
-        if(cpu_idle)
-            set_cpu_frequency(CPUFREQ_DEFAULT);
-        else
-            set_cpu_frequency(CPUFREQ_NORMAL);
-    }
+        set_cpu_frequency(unboosted_frequency());
+
+    cpu_boost_unlock();
+}
+
+void cpu_sleep_mode(bool on_off)
+{
+    if (!cpu_boost_lock())
+        return;
+
+    cpu_sleep = on_off;
+    if (boost_counter == 0)
+        set_cpu_frequency(unboosted_frequency());
 
     cpu_boost_unlock();
 }

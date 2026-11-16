@@ -159,14 +159,31 @@ static FORCE_INLINE int storage_event_send(unsigned int route, long id,
 #endif /* ndef CONFIG_STORAGE_MULTI */
 
 #ifdef USING_STORAGE_CALLBACK
-static void (*soon_func)(void);
+static void (*soon_func)(void); /* registered, through soon_run(), not run */
 static long soon_tick;
+static bool soon_timed; /* storage_run_soon() still to run it */
+
+/* The soon function as the idle's: whichever runs it first, the disk's idle,
+   a call of every idle function (as the sleep's flush does) or the time, the
+   other doesn't run it again */
+static void soon_run(void)
+{
+    void (*function)(void) = soon_func;
+    soon_func = NULL;
+    soon_timed = false;
+    if (function)
+        function();
+}
 
 void register_storage_idle_func_soon(void (*function)(void))
 {
-    register_storage_idle_func(function);
-    soon_tick = current_tick + HZ * 3 / 2;
+    /* another one before it ran: at the idle, as before */
+    if (soon_func && soon_func != function)
+        register_storage_idle_func(soon_func);
     soon_func = function;
+    soon_tick = current_tick + HZ * 3 / 2;
+    soon_timed = true;
+    register_storage_idle_func(soon_run);
 }
 
 /* nothing to spin up: flash, as an iFlash is */
@@ -181,15 +198,14 @@ static bool storage_is_flash(void)
 
 /* Taken off the idle's list before it runs, so that a call meanwhile isn't
    lost, and without holding off the others' as call_storage_idle_notifys()
-   does for 30 s */
+   does for 30 s. A disk asleep keeps it for the idle. */
 static void storage_run_soon(bool usb_mode)
 {
-    void (*function)(void) = soon_func;
-    if (!function || TIME_BEFORE(current_tick, soon_tick))
+    if (!soon_timed || TIME_BEFORE(current_tick, soon_tick))
         return;
-    soon_func = NULL;
+    soon_timed = false;
     if (!usb_mode && (storage_disk_is_active() || storage_is_flash()))
-        unregister_storage_idle_func(function, true);
+        unregister_storage_idle_func(soon_run, true);
 }
 #endif
 

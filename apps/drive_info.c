@@ -22,10 +22,10 @@
  * the first time its power was taken in each. And the words of its IDENTIFY,
  * without those that would tell the very drive, and where the volume and its
  * clusters begin: what someone whose iPod is slow can send. The file is written
- * at boot only for a drive it isn't of, and at USB and at power off only if the
- * time is new, never while music plays. A drive is told from another by its
- * make, firmware and size, not by all its words: IDENTIFY read again after a
- * wake isn't as it was at boot. */
+ * at boot only for a drive it isn't of, and at USB, at power off and as the iPod
+ * falls asleep only if the time is new, never while music plays. A drive is
+ * told from another by its make, firmware and size, not by all its words:
+ * IDENTIFY read again after a wake isn't as it was at boot. */
 
 #include "config.h"
 #include <stdbool.h>
@@ -125,7 +125,7 @@ static void write_info(const unsigned short *id, uint32_t key)
         line[n++] = '\n';
         ok = write(fd, line, n) == n;
     }
-    /* not written, it's tried again as USB connects */
+    /* not written, it's tried again at the next flush */
     if (!whole_file_close(fd, DRIVE_INFO_FILE, ok))
         return;
 

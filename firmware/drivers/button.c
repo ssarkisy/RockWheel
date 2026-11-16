@@ -108,6 +108,9 @@ static int hp_detect_callback(struct timeout *tmo)
     /* Try to post only transistions */
     const long id = tmo->data ? SYS_PHONE_PLUGGED : SYS_PHONE_UNPLUGGED;
     button_queue_post_remove_head(id, 0);
+#ifdef HAVE_IDLE_SLEEP
+    reset_poweroff_timer(); /* a hand did it: wakes the sleep */
+#endif
 
 #if defined(IPOD_ACCESSORY_PROTOCOL) && (defined(IPOD_COLOR) || defined(IPOD_4G) || defined(IPOD_MINI) || defined(IPOD_MINI2G))
     if (id == SYS_PHONE_UNPLUGGED)
@@ -232,6 +235,9 @@ static void button_tick(void)
     static int repeat_speed = REPEAT_INTERVAL_START;
 #ifdef HAVE_SW_POWEROFF
     static int repeat_count = 0;
+#ifdef HAVE_IDLE_SLEEP
+    static bool held_to_sleep = false; /* this press asked for the sleep */
+#endif
 #endif
     static bool repeat = false;
     static bool post = false;
@@ -250,6 +256,11 @@ static void button_tick(void)
     btn = button_read(&data);
 
     check_audio_peripheral_state();
+
+#if defined(HAVE_SW_POWEROFF) && defined(HAVE_IDLE_SLEEP)
+    if (!(btn & POWEROFF_BUTTON))
+        held_to_sleep = false;
+#endif
 
     /* Find out if a key has been released */
     diff = btn ^ lastbtn;
@@ -324,6 +335,22 @@ static void button_tick(void)
 
 #ifdef HAVE_SW_POWEROFF
                         repeat_count++;
+#ifdef HAVE_IDLE_SLEEP
+                        /* asleep instead, as on Apple's firmware, once: the
+                           rest of this press, its release too, goes nowhere
+                           and wakes nothing. No power_off() as a last resort
+                           either: a Play held in a pocket would cut the
+                           power, nothing saved. */
+                        if (enable_sw_poweroff && (btn & POWEROFF_BUTTON) &&
+                            repeat_count > POWEROFF_COUNT && !held_to_sleep)
+                        {
+                            held_to_sleep = true;
+#ifdef HAVE_BACKLIGHT
+                            skip_release = true;
+#endif
+                            sys_sleep();
+                        }
+#else
                         /* Send a SYS_POWEROFF event if we have a device
                            which doesn't shut down easily with the OFF
                            key */
@@ -350,6 +377,7 @@ static void button_tick(void)
                                 power_off();
 #endif
                         }
+#endif /* HAVE_IDLE_SLEEP */
 #endif
                     }
                 }
@@ -382,6 +410,10 @@ static void button_tick(void)
                     }
                 }
             }
+#if defined(HAVE_SW_POWEROFF) && defined(HAVE_IDLE_SLEEP)
+            if (held_to_sleep)
+                post = false;
+#endif
             if ( post )
             {
                 if (repeat)

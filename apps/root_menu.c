@@ -1922,6 +1922,7 @@ static void library_update_screen(const char *words)
             shown = true;
         }
         library_update_show(library_update_step(phase), percent);
+        reset_poweroff_timer(); /* no sleep while the library updates */
         int action = get_action(CONTEXT_STD, HZ / 4);
         if (default_event_handler(action) == SYS_USB_CONNECTED)
             break;

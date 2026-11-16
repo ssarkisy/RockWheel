@@ -78,6 +78,9 @@ extern const struct menu_item_ex
         dark_theme_item, appearance_menu,
         night_menu, night_row,                      /* display_menu.c   */
         battery_capacity, ipod_keyclick_menu,       /* settings_menu.c  */
+#ifdef HAVE_IDLE_SLEEP
+        sleep_poweroff_item,
+#endif
         sleep_timer_item, language_item, wps_menu_items, wps_menu_row,
 #ifdef HAVE_TAGCACHE
         ipod_database_menu, smart_search_item,

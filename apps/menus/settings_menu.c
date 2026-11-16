@@ -259,6 +259,12 @@ static int filemenu_callback(int action,
 #if BATTERY_CAPACITY_INC > 0
 MENUITEM_SETTING_SHARED(battery_capacity, &global_settings.battery_capacity, NULL);
 #endif
+#ifdef HAVE_IDLE_SLEEP
+/* here beside Battery Capacity, whose Auto it goes by; and in General, below
+   it */
+MENUITEM_SETTING_SHARED(sleep_poweroff_item, &global_settings.sleep_poweroff,
+                        NULL);
+#endif
 /* A screen of rows opened from Settings: Menu held goes on to the main menu,
    Play held to Now Playing, past Settings, as from its folders */
 static int open_rows(const struct menu_item_ex *menu)
@@ -461,6 +467,9 @@ MAKE_MENU(battery_menu, ID2P(LANG_BATTERY_MENU), 0, Icon_NOICON,
 #if BATTERY_CAPACITY_INC > 0
             &battery_capacity,
 #endif
+#ifdef HAVE_IDLE_SLEEP
+            &sleep_poweroff_item,
+#endif
 #ifdef HAVE_USB_CHARGING_ENABLE
             &usb_charging,
 #endif
@@ -632,7 +641,8 @@ MAKE_MENU(usb_menu, ID2P(LANG_USB_MENU), 0, Icon_NOICON,
 
 MAKE_MENU(system_menu, ID2P(LANG_SYSTEM),
           0, Icon_System_menu,
-#if (BATTERY_CAPACITY_INC > 0) || defined(HAVE_USB_CHARGING_ENABLE)
+#if (BATTERY_CAPACITY_INC > 0) || defined(HAVE_USB_CHARGING_ENABLE) \
+    || defined(HAVE_IDLE_SLEEP)
             &battery_menu,
 #endif
 #if defined(HAVE_DIRCACHE) || defined(HAVE_DISK_STORAGE)

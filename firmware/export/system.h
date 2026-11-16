@@ -57,6 +57,11 @@ void cpu_boost_(bool on_off, char* location, int line);
 void cpu_boost(bool on_off);
 #endif
 void cpu_idle_mode(bool on_off);
+/* the lowest clock while unboosted, for the sleep (powermgmt.c) */
+void cpu_sleep_mode(bool on_off);
+/* the unboosted clock is the lowest: cpu_idle_mode() or cpu_sleep_mode() is
+   on. The clock falls to it as the last boost ends, whatever it is now. */
+bool cpu_unboosted_is_low(void);
 int get_cpu_boost_counter(void);
 #else /* ndef HAVE_ADJUSTABLE_CPU_FREQ */
 #ifndef FREQ
@@ -66,6 +71,8 @@ int get_cpu_boost_counter(void);
 #define cpu_boost(on_off)
 #define cpu_boost_id(on_off, id)
 #define cpu_idle_mode(on_off)
+#define cpu_sleep_mode(on_off)
+#define cpu_unboosted_is_low() false
 #define get_cpu_boost_counter()
 #define get_cpu_boost_tracker()
 #endif /* HAVE_ADJUSTABLE_CPU_FREQ */

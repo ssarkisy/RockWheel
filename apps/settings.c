@@ -1057,6 +1057,17 @@ static void reset_hidden_settings(void)
    has one of its own for nearly every character */
 #define UI_FONT_GLYPHS 512
 
+#ifdef HAVE_IDLE_SLEEP
+void sleep_poweroff_apply(int choice)
+{
+    /* the hours of sleep, in the setting's order: Auto, ..., Never */
+    static const signed char hours[] = { 0, 2, 6, 12, 24, 48, -1 };
+    if ((unsigned)choice >= ARRAYLEN(hours))
+        choice = 0;
+    set_sleep_poweroff(hours[choice]);
+}
+#endif
+
 void settings_apply(bool read_disk)
 {
     logf("%s", __func__);
@@ -1147,6 +1158,9 @@ void settings_apply(bool read_disk)
 #if BATTERY_CAPACITY_INC > 0
     /* only call if it's really exchangable */
     set_battery_capacity(global_settings.battery_capacity);
+#endif
+#ifdef HAVE_IDLE_SLEEP
+    sleep_poweroff_apply(global_settings.sleep_poweroff);
 #endif
 
 #ifdef HAVE_LCD_INVERT

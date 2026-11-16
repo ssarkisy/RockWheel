@@ -350,6 +350,10 @@ void settings_apply_skins(void);
 
 void settings_apply(bool read_disk);
 void settings_apply_pm_range(void);
+#ifdef HAVE_IDLE_SLEEP
+/* Turn Off After Sleep's choice to the power management */
+void sleep_poweroff_apply(int choice);
+#endif
 #ifdef HAVE_COMPOSITE_VIDEO_OUT
 void settings_apply_videoout(int mode);
 #endif
@@ -1127,6 +1131,11 @@ struct user_settings
     /* Settings > Playback > Last.fm: the plays in /.scrobbler.log
        (scrobbler.h); off at first */
     bool scrobbler;
+#ifdef HAVE_IDLE_SLEEP
+    /* Settings > General > Turn Off After Sleep: Auto, 2, 6, 12 or 24 hours,
+       2 days or Never (sleep_poweroff_apply()) */
+    int sleep_poweroff;
+#endif
 };
 
 /* global settings */

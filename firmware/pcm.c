@@ -366,6 +366,8 @@ bool pcm_switch_sink(enum pcm_sink_ids sink)
     return true;
 }
 
+/* From the mixer only, whose starts wake the codec first (dac_standby.h):
+   a start from anywhere else would find the I2S clock off in standby */
 void pcm_play_data(pcm_play_callback_type get_more,
                    pcm_status_callback_type status_cb,
                    const void *start, size_t size)

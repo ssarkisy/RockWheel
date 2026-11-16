@@ -42,6 +42,7 @@
 #include "core_alloc.h"
 #include "pcm_mixer.h"
 #include "dsp_core.h"
+#include "dac_standby.h"
 
 #define LOGF_ENABLE
 #include "logf.h"
@@ -696,6 +697,9 @@ static void playback_audio_get_more(const void **start, size_t *size)
 
 static void usb_audio_start_playback(void)
 {
+    /* the codec out of standby, from this thread, and kept so: the stream
+       starts PCM from the interrupt, where it couldn't be woken */
+    dac_standby_keep_awake(true);
     usb_audio_playing = true;
     usb_rx_overflow = false;
     playback_audio_underflow = true;
@@ -740,6 +744,7 @@ static void usb_audio_stop_playback(void)
         usb_audio_playing = false;
     }
     send_fb = false;
+    dac_standby_keep_awake(false);
 }
 
 /*
