@@ -140,7 +140,10 @@ struct world {
     struct { uint64_t t; int from, to; } stage_change[256];
 };
 
-static const struct wheel_config video = {
+/* The base's constants, 1be9ae95b6's 0.3 s stage time included, which the
+   lockstep's copy of today's driver gets too (Makefile): the module's logic
+   is checked at them; today's own, 0.4 s, through today's driver (feel) */
+static const struct wheel_config base_config = {
     .clicks = 96, .sensitivity = 4, .accel_start = WHEEL_ACCEL_START,
     .stage_usec = 300000,
 };
@@ -222,8 +225,8 @@ static void feed_driver(struct world *w, uint32_t packet, bool ready)
     {
         side = 1;
         trace_n[1] = 0;
-        ipod_4g_button_int();
-        button_read_device();
+        real_ipod_4g_button_int();
+        real_button_read_device();
         side = 0;
         for (int i = 0; i < trace_n[1] && i < TRACE_MAX; i++)
             if (trace[1][i].kind == T_POST)
@@ -306,7 +309,7 @@ static void feed_module(struct world *w, uint32_t packet)
         .queue_clears = stub_env.clears, .send_events = send_events_now,
     };
     struct wheel_event ev;
-    wheel_read(&w->ws, &video, &in, &ev);
+    wheel_read(&w->ws, &base_config, &in, &ev);
     if (ev.new_touch)
         w->new_touches++;
     if (ev.direction && ev.post)
@@ -334,7 +337,9 @@ static void packet(struct world *w, uint32_t dt, uint32_t packet)
     else
         feed_driver(w, packet, true);
 
-    const int stage = w->module ? w->ws.stage : button_wheel_state()->stage;
+    const int stage = w->module ? w->ws.stage
+                    : w->driver_only ? real_button_wheel_state()->stage
+                    : button_wheel_state()->stage;
     if (stage != w->stage_now)
     {
         if (w->stage_n < (int)(sizeof(w->stage_change)
@@ -641,7 +646,7 @@ static void rig_read(struct rig *r, uint32_t dt, int places, bool touched)
         .usec = (uint32_t)r->t, .tick = (uint32_t)(r->t / 10000),
         .queue_empty = !r->busy, .send_events = true,
     };
-    wheel_read(&r->s, &video, &in, &r->ev);
+    wheel_read(&r->s, &base_config, &in, &r->ev);
 }
 
 /* a first touch, then n steps of 4 places, us apart */
@@ -749,14 +754,21 @@ static void feel(void)
     CHECK_EQ(wheel_list_rows(top, 633, 9).rows, 9);  /* 8 * 18/16 */
 
     /* today's driver alone, its constants: 96 places, 4 a step, stages each
-       WHEEL_STAGE_USEC over WHEEL_ACCEL_START, a turn a second here */
+       WHEEL_STAGE_USEC (0.4 s) over WHEEL_ACCEL_START, a turn a second here */
     static struct world w;
     check_case = "driver: config";
     CHECK_EQ(WHEEL_ACCEL_START, 360);                /* stub/config.h's too */
+    const struct wheel_config *real = real_test_wheel_config();
+    CHECK_EQ(real->clicks, 96);
+    CHECK_EQ(real->sensitivity, 4);
+    CHECK_EQ(real->accel_start, 360);
+    CHECK_EQ(real->stage_usec, 400000);
+    /* and the lockstep's copy, at the base's */
+    CHECK_EQ(test_wheel_config()->stage_usec, 300000);
     world_init(&w, "driver alone", 0x30000000, 1000);
     w.driver_only = true;
     w.draw_min = w.draw_max = 1000;
-    wheel_send_events(true);
+    real_wheel_send_events(true);
     lift(&w, 10000);
     wait_us(&w, 1000000);
     check_case = "driver: slow turn";
@@ -787,7 +799,7 @@ static void feel(void)
     check_case = "driver: stage time";
     w.stage_n = 0;
     touch(&w, 10000, 0);
-    turn(&w, 576, 3000, 3000000);                   /* 2 turns a second */
+    turn(&w, 768, 4000, 4000000);                   /* 2 turns a second */
     lift(&w, 10000);
     int rises = 0;
     for (int i = 1; i < w.stage_n; i++)
@@ -795,9 +807,9 @@ static void feel(void)
             && w.stage_change[i - 1].to == w.stage_change[i].from
             && w.stage_change[i].from >= 1)
         {
-            /* over 300 ms, and by a step (20.8 ms) and a reading at most */
+            /* over 400 ms, and by a step (20.8 ms) and a reading at most */
             const uint64_t dt = w.stage_change[i].t - w.stage_change[i - 1].t;
-            CHECK(dt > 300000 && dt <= 300000 + 21000 + 1000);
+            CHECK(dt > 400000 && dt <= 400000 + 21000 + 1000);
             rises++;
         }
     CHECK_EQ(rises, 5);                              /* 1 -> 2 ... 5 -> 6 */

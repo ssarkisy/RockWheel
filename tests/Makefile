@@ -124,7 +124,10 @@ check-itunesdb: $(BUILD)/test_itunesdb
 # 1be9ae95b6's (wheel/ref, verbatim) and today's, each built against
 # wheel/stub's headers, its register at 0x7000c140 a stub's variable. The
 # base's lines of button.c, list.c and wps.c are wheel/ref/apps.c, made by
-# wheel/make_ref.py.
+# wheel/make_ref.py. Today's driver is built twice: new-driver, in step with
+# the base's, with the base's stage time of 0.3 s; and real-driver, as it is,
+# its names apart (wheel/real_names.h). Each copy gets an accessor of its
+# wheel_config.
 WHEEL     := $(TESTS)/wheel
 WHEEL_OBJ := $(OBJ)/wheel
 WHEEL_DRV_CFLAGS := -std=gnu11 -g -O1 $(SANITIZE) -I$(WHEEL)/stub \
@@ -137,14 +140,30 @@ define wheel_driver_copy
 	@sed -e 's/$(WHEEL_DATA_REG)/(stub_env.data)/' $< > $@.tmp
 	@test "$$(grep -c 'stub_env.data' $@.tmp)" = 1 \
 		|| { echo "$<: CLICKWHEEL_DATA not found once"; exit 1; }
-	@mv $@.tmp $@
+endef
+define wheel_config_accessor
+	@printf '%s\n' 'const struct wheel_config *test_wheel_config(void)' \
+		'{ return &wheel_config; }' >> $@.tmp
 endef
 
 $(WHEEL_OBJ)/ref-driver.c: $(WHEEL)/ref/button-clickwheel.c
 	$(wheel_driver_copy)
+	@mv $@.tmp $@
 
 $(WHEEL_OBJ)/new-driver.c: $(ROOT)/firmware/target/arm/ipod/button-clickwheel.c
 	$(wheel_driver_copy)
+	@sed -e 's/^#define WHEEL_STAGE_USEC [0-9]*$$/#define WHEEL_STAGE_USEC 300000/' \
+		$@.tmp > $@.tmp2
+	@mv $@.tmp2 $@.tmp
+	@test "$$(grep -c '^#define WHEEL_STAGE_USEC 300000$$' $@.tmp)" = 1 \
+		|| { echo "$<: WHEEL_STAGE_USEC not found once"; exit 1; }
+	$(wheel_config_accessor)
+	@mv $@.tmp $@
+
+$(WHEEL_OBJ)/real-driver.c: $(ROOT)/firmware/target/arm/ipod/button-clickwheel.c
+	$(wheel_driver_copy)
+	$(wheel_config_accessor)
+	@mv $@.tmp $@
 
 # its (1<<31) shifts into the sign bit, which GCC defines as the firmware
 # takes it, 0x80000000
@@ -154,8 +173,13 @@ $(WHEEL_OBJ)/ref-driver.o: $(WHEEL_OBJ)/ref-driver.c $(WHEEL)/ref/names.h
 		-include $(WHEEL)/ref/names.h -MMD -c $< -o $@
 
 $(WHEEL_OBJ)/new-driver.o: $(WHEEL_OBJ)/new-driver.c
-	@echo CC firmware/target/arm/ipod/button-clickwheel.c
+	@echo CC firmware/target/arm/ipod/button-clickwheel.c, at 0.3 s
 	@$(HOST_CC) $(WHEEL_DRV_CFLAGS) -MMD -c $< -o $@
+
+$(WHEEL_OBJ)/real-driver.o: $(WHEEL_OBJ)/real-driver.c $(WHEEL)/real_names.h
+	@echo CC firmware/target/arm/ipod/button-clickwheel.c
+	@$(HOST_CC) $(WHEEL_DRV_CFLAGS) -include $(WHEEL)/real_names.h -MMD \
+		-c $< -o $@
 
 $(WHEEL_OBJ)/%.o: $(WHEEL)/%.c
 	@mkdir -p $(dir $@)
@@ -164,6 +188,7 @@ $(WHEEL_OBJ)/%.o: $(WHEEL)/%.c
 
 $(BUILD)/test_wheel: $(WHEEL_OBJ)/test_wheel.o $(WHEEL_OBJ)/ref/apps.o \
 		$(WHEEL_OBJ)/ref-driver.o $(WHEEL_OBJ)/new-driver.o \
+		$(WHEEL_OBJ)/real-driver.o \
 		$(OBJ)/firmware/drivers/wheel_policy.o $(OBJ)/lib/check.o
 	@echo LD $(notdir $@)
 	@$(HOST_CC) $(LDFLAGS) -o $@ $^

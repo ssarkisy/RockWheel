@@ -70,9 +70,11 @@
 #define WHEEL_SENSITIVITY 4 /* default sensitivity */
 #endif
 
-/* As Apple's: over WHEEL_ACCEL_START, a turn a second, each WHEEL_STAGE_USEC of
-   it doubles the rows a step goes, as far as a list lets it (wheel_policy.c) */
-#define WHEEL_STAGE_USEC 300000
+/* Over WHEEL_ACCEL_START, a turn a second, each WHEEL_STAGE_USEC of it doubles
+   the rows a step goes, as far as a list lets it (wheel_policy.c). 0.4 s:
+   slower than the patent's 0.3 s, as the iPod Photo's own firmware; chosen on
+   the device */
+#define WHEEL_STAGE_USEC 400000
 
 /* What the wheel's turns make (wheel_policy.c): its state, written only here,
    in the interrupt */

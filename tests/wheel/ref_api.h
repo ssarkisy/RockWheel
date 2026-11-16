@@ -51,11 +51,22 @@ extern int ref_old_wheel_value, ref_new_wheel_value, ref_wheel_delta;
 extern unsigned int ref_accumulated_wheel_delta, ref_wheel_velocity;
 extern int ref_wheel_accel_stage;
 
-/* firmware/target/arm/ipod/button-clickwheel.c, today's */
+/* firmware/target/arm/ipod/button-clickwheel.c, today's: in step with the
+   base's, at its 0.3 s stage time */
+struct wheel_config;
+struct wheel_state;
 void ipod_4g_button_int(void);
 int button_read_device(void);
 int wheel_status(void);
 void wheel_send_events(bool send);
 long button_wheel_untouched_ticks(void);
+const struct wheel_config *test_wheel_config(void);
+
+/* and as it is (real_names.h) */
+void real_ipod_4g_button_int(void);
+int real_button_read_device(void);
+void real_wheel_send_events(bool send);
+const struct wheel_state *real_button_wheel_state(void);
+const struct wheel_config *real_test_wheel_config(void);
 
 #endif
