@@ -1130,7 +1130,7 @@ struct user_settings
        (gui/ui_theme.h), Multicolor first, its own blue the default */
     int classic_colour;
     /* Settings > Playback > Last.fm: the plays in /.scrobbler.log
-       (scrobbler.h); off at first */
+       (scrobbler.h); on at first */
     bool scrobbler;
 #ifdef HAVE_IDLE_SLEEP
     /* Settings > General > Turn Off After Sleep: Auto, 2, 6, 12 or 24 hours,

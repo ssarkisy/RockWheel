@@ -3060,8 +3060,9 @@ const struct settings_list settings[] = {
                    ID2P(LANG_COLOUR_GRAPHITE)),
 #ifdef HAVE_SCROBBLER
     /* Settings > Playback > Last.fm: the plays in /.scrobbler.log, for an
-       uploader to send to Last.fm */
-    OFFON_SETTING(0, scrobbler, LANG_LASTFM, false, "last.fm",
+       uploader to send to Last.fm. On unless switched off, so that the plays
+       are there when the uploader is first used */
+    OFFON_SETTING(0, scrobbler, LANG_LASTFM, true, "last.fm",
                   scrobbler_setting),
 #endif
 };

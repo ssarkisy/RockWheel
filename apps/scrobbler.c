@@ -23,11 +23,11 @@
    L for a track heard as Last.fm counts a play, S for one skipped before
    that; album, track and MusicBrainz id may be empty (plan: ipod-data
    plans-1.5/lastfm). The lines wait in memory, taken only with Last.fm on.
-   They go to the disk at USB and at shutdown, and otherwise only at the
-   disk's own idle, as it would sleep, never waking it: once the music has
-   stopped or is paused; and while it plays only with the log 3/4 full, the
-   battery low but still safe for the disk, or Last.fm switched off with
-   lines waiting.
+   They go to the disk at USB, at shutdown and as the iPod goes to sleep,
+   and otherwise only at the disk's own idle, as it would sleep, never
+   waking it: once the music has stopped or is paused; and while it plays
+   only with the log 3/4 full, the battery low but still safe for the disk,
+   or Last.fm switched off with lines waiting.
 
    A stop that keeps the track's place, as a pause ended by power-off, USB or
    the audio buffer giving way to other memory, doesn't end the play: it
@@ -62,11 +62,17 @@
 
 /* The log's times (plan.md, decision 1): the iPod's clock, which keeps the
    local time without its zone, and "#TZ/UNKNOWN" says so; the uploader puts
-   them in UTC by the computer's zone */
+   them in UTC by the computer's zone. 0 while the clock is unset, before
+   this firmware was built, as after the battery ran flat, as tagcache's
+   clock_time() has it: such a play is not logged, since Last.fm would refuse
+   its year-2000 start */
 #define SCROBBLER_TZ        "UNKNOWN"
 static unsigned long scrobbler_time(void)
 {
-    return mktime(get_time());
+    struct tm *tm = get_time();
+    if (valid_time(tm) && tm->tm_year + 1900 >= YEAR)
+        return mktime(tm);
+    return 0;
 }
 
 /* Lines that wait for the disk: about 110 to 160 plays, some hours of

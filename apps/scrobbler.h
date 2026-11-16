@@ -23,11 +23,12 @@
 
 /* The plays for Last.fm, in /.scrobbler.log (Audioscrobbler's Portable
    Player Logging 1.1) when Settings > Playback > Last.fm is on. They wait in
-   memory and go to the disk at USB and at shutdown, and otherwise at the
-   disk's own idle, never waking it: with the music stopped or paused, and
-   while it plays only with the log 3/4 full, the battery low, or Last.fm
-   switched off with lines waiting. With a clock and the database: the plays
-   are timed, and podcasts and books told apart. */
+   memory and go to the disk at USB, at shutdown and as the iPod goes to
+   sleep, and otherwise at the disk's own idle, never waking it: with the
+   music stopped or paused, and while it plays only with the log 3/4 full,
+   the battery low, or Last.fm switched off with lines waiting. With a clock
+   and the database: the plays are timed, and podcasts and books told
+   apart. */
 #if CONFIG_RTC && defined(HAVE_TAGCACHE)
 #define HAVE_SCROBBLER
 /* Its memory, about 18 KB, with Last.fm on: taken at boot by settings_apply()
