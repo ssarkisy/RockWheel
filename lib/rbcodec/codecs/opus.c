@@ -298,7 +298,9 @@ static int64_t seek_backwards(ogg_sync_state *oy, ogg_page *og,
         while (*curoffset < end) {
             ret = get_next_page(oy,og,end-*curoffset);
 
-            if (ret > 0) {
+            /* a page's offset, 0 for the first one: the scan back from a
+               place under SEEK_CHUNKSIZE starts there */
+            if (ret >= 0) {
                 if (lastgranule != -1) {
                     if (avgpagelen < 0)
                         avgpagelen = (ogg_page_granulepos(og)-lastgranule);
@@ -334,15 +336,8 @@ static int64_t seek_backwards(ogg_sync_state *oy, ogg_page *og,
                 }
             } else if (ret == -3)
                 return(-3);
-            else if (ret<=0)
+            else
                 break;
-            else if (*curoffset < end) {
-                /*this should not be possible*/
-
-                //LOGF("Seek:get_earlier_page:Offset:not_cached by granule:"\"%d,%d,%d,%d,%d\n",*curoffset,end,begin,wantedpos,curpos);
-
-                offset=ret;
-            }
         }
     }
     return -1;
@@ -427,6 +422,13 @@ static int opus_seek_page_granule(int64_t pos, int64_t curpos,
             *curbyteoffset = curoffset;
             return 1;
         }
+        /* not found: from the start rather than on from the read position,
+           which is ahead of the sound heard by what the PCM buffer holds */
+        *curbyteoffset = 0;
+        ci->seek_buffer(*curbyteoffset);
+        ogg_sync_reset(oy);
+        ogg_stream_reset(os);
+        return 0;
     } else {  /* forwards */
 
         while ( (offset = get_next_page(oy,&og,-1)) > 0) {
@@ -545,14 +547,24 @@ enum codec_status codec_run(void)
     process_action:
         if (action == CODEC_ACTION_SEEK_TIME) {
             if (st != NULL) {
-                /* calculate granule to seek to (including seek rewind) */
-                seek_target = (48LL * param) + header->preskip;
-                skip = MIN(seek_target, SEEK_REWIND);
-                seek_target -= skip;
+                /* calculate granule to seek to (including seek rewind); in
+                   the first second the start, as the scan back takes the
+                   first audio page for one past the target and starts
+                   after it */
+                if (param < 1000)
+                    seek_target = 0;
+                else {
+                    seek_target = (48LL * param) + header->preskip;
+                    skip = MIN(seek_target, SEEK_REWIND);
+                    seek_target -= skip;
+                }
 
                 LOGF("Opus seek page:%lld,%lld,%ld\n", (long long int)seek_target,
                      (long long int)page_granule, (long)param);
-                opus_seek_page_granule(seek_target, page_granule, oy, os);
+                /* 0: from the start, the target near it or not found */
+                if (opus_seek_page_granule(seek_target, page_granule,
+                                           oy, os) == 0)
+                    param = 0;
                 /* reset the state to help ensure that subsequent packets won't
                    use state set by unrelated packets processed before seek */
                 opus_decoder_ctl(st, OPUS_RESET_STATE);
@@ -622,9 +634,12 @@ enum codec_status codec_run(void)
                     ci->configure(DSP_SET_STEREO_MODE, (header->channels == 2) ?
                         STEREO_INTERLEAVED : STEREO_MONO);
 
-                    if (strtoffset)
+                    /* the resume point once: a seek to the start parses
+                       the header again, and goes to the first audio page */
+                    if (strtoffset) {
                         seek_ogg_page(strtoffset);
-                    else if (param) {
+                        strtoffset = 0;
+                    } else if (param) {
                         action = CODEC_ACTION_SEEK_TIME;
                         goto process_action;
                     } else {
