@@ -517,6 +517,21 @@ static void draw_bevel(struct screen *display, int x, int y, int width,
 }
 #endif
 
+/* How much of a pixel of a corner rounded to radius r is inside the
+   rounding, in sixteenths, by 4x4 points of it: column and edge from the
+   corner's outer side and outer edge, 0 to r - 1 */
+static int corner_cover(int r, int column, int edge)
+{
+    int cover = 0;
+    for (int k = 0; k < 16; k++)
+    {
+        const int dx = 8 * r - (8 * column + 2 * (k & 3) + 1);
+        const int dy = 8 * r - (8 * edge + 2 * (k >> 2) + 1);
+        cover += dx * dx + dy * dy <= 64 * r * r;
+    }
+    return cover;
+}
+
 /* The selection as a rounded rectangle in colour, on the ground: the rows
    top to top + height of one row_h high, from clip_x to the right, the rest
    of it left alone. Its corners' pixels are the colour mixed with the ground
@@ -543,14 +558,7 @@ static void selection_rounded(struct screen *display, int clip_x, int y,
             in = r;
             for (int i = 0; i < r; i++)
             {
-                /* by 4x4 points of the pixel, in eighths */
-                int cover = 0;
-                for (int k = 0; k < 16; k++)
-                {
-                    const int dx = 8 * r - (8 * i + 2 * (k & 3) + 1);
-                    const int dy = 8 * r - (8 * edge + 2 * (k >> 2) + 1);
-                    cover += dx * dx + dy * dy <= 64 * r * r;
-                }
+                const int cover = corner_cover(r, i, edge);
                 if (!cover)
                     continue;
                 display->set_foreground(mix_color(ground, colour, cover * 100 / 16));
@@ -583,13 +591,7 @@ void line_fill_rounded(struct screen *display, int x, int y, int w, int h,
             in = r;
             for (int i = 0; i < r; i++)
             {
-                int cover = 0;
-                for (int k = 0; k < 16; k++)
-                {
-                    const int dx = 8 * r - (8 * i + 2 * (k & 3) + 1);
-                    const int dy = 8 * r - (8 * edge + 2 * (k >> 2) + 1);
-                    cover += dx * dx + dy * dy <= 64 * r * r;
-                }
+                const int cover = corner_cover(r, i, edge);
                 if (!cover)
                     continue;
                 display->set_foreground(mix_color(ground, colour, cover * 100 / 16));
@@ -1506,13 +1508,7 @@ static void round_corners(struct screen *display, int x, int y, int w, int h, in
         unsigned char left[8] = { 0 }, right[8] = { 0 };
         for (int i = 0; i < r; i++)
         {
-            int cover = 0;
-            for (int k = 0; k < 16; k++)
-            {
-                const int dx = 8 * r - (8 * i + 2 * (k & 3) + 1);
-                const int dy = 8 * r - (8 * row + 2 * (k >> 2) + 1);
-                cover += dx * dx + dy * dy <= 64 * r * r;
-            }
+            const int cover = corner_cover(r, i, row);
             const unsigned a = cover > 8 ? cover - 1 : cover; /* 15 is none */
             left[i / 2] |= a << (i & 1 ? 4 : 0);
             right[(r - 1 - i) / 2] |= a << ((r - 1 - i) & 1 ? 4 : 0);
@@ -1568,13 +1564,7 @@ void line_fill_rounded_over(struct screen *display, int x, int y, int w, int h,
         unsigned char left[8] = { 0 }, right[8] = { 0 };
         for (int i = 0; i < r; i++)
         {
-            int cover = 0;
-            for (int k = 0; k < 16; k++)
-            {
-                const int dx = 8 * r - (8 * i + 2 * (k & 3) + 1);
-                const int dy = 8 * r - (8 * row + 2 * (k >> 2) + 1);
-                cover += dx * dx + dy * dy <= 64 * r * r;
-            }
+            const int cover = corner_cover(r, i, row);
             const unsigned a = 15 - cover * 15 / 16; /* 0 is all of it */
             left[i / 2] |= a << (i & 1 ? 4 : 0);
             right[(r - 1 - i) / 2] |= a << ((r - 1 - i) & 1 ? 4 : 0);
@@ -1653,30 +1643,15 @@ void line_draw_cover(struct screen *display, int x, int y,
 #define INITIAL_CHARS  8   /* of its text, at most */
 
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-/* how much of each pixel of a corner is inside its rounding, in sixteenths,
-   by 4x4 points of each: the top left one's, its rows from the top */
+/* corner_cover() of each pixel of a corner, made once: the top left one's,
+   its rows from the top */
 static uint8_t initial_corner[INITIAL_RADIUS][INITIAL_RADIUS];
 
 static void initial_corner_make(void)
 {
-    const int r = 8 * INITIAL_RADIUS; /* in eighths of a pixel */
     for (int y = 0; y < INITIAL_RADIUS; y++)
-    {
         for (int x = 0; x < INITIAL_RADIUS; x++)
-        {
-            int in = 0;
-            for (int j = 0; j < 4; j++)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    const int dx = r - (8 * x + 2 * i + 1);
-                    const int dy = r - (8 * y + 2 * j + 1);
-                    in += dx * dx + dy * dy <= r * r;
-                }
-            }
-            initial_corner[y][x] = in;
-        }
-    }
+            initial_corner[y][x] = corner_cover(INITIAL_RADIUS, x, y);
 }
 
 /* The blitter's alpha for a pixel of so many sixteenths of the colour over
