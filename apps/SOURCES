@@ -54,6 +54,7 @@ playlist.c
 playlist_catalog.c
 playlist_viewer.c
 on_the_go.c
+line_reader.c
 plugin.c
 root_menu.c
 screens.c

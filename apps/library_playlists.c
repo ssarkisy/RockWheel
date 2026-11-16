@@ -52,6 +52,7 @@
 #include "library_playlists.h"
 #include "root_menu.h"
 #include "list_covers.h"
+#include "line_reader.h"
 
 /* Rockbox's viewer read them a window of 200 lines at a time from the file,
    again as it scrolled past one, and looked up each title as it showed,
@@ -379,27 +380,14 @@ void lp_index_appended(const char *file, long old_size)
     struct lp_song added[32];
     int n_added = 0;
     bool ok = true;
-    size_t have = 0;
-    bool end = false;
-    while (!end)
+    struct line_reader lines;
+    line_reader_init(&lines, fd, buf, sizeof(buf));
+    while (line_read(&lines))
     {
-        const ssize_t n = read(fd, buf + have, sizeof(buf) - 1 - have);
-        if (n <= 0)
-            end = true;
-        else
-            have += n;
-        buf[have] = '\0';
-        char *line = buf;
-        for (;;)
+        char *line;
+        size_t len;
+        while ((line = line_next(&lines, &len)))
         {
-            char *nl = strchr(line, '\n');
-            if (!nl && !end)
-                break;
-            if (nl)
-                *nl = '\0';
-            size_t len = strlen(line);
-            if (len && line[len - 1] == '\r')
-                line[--len] = '\0';
             if (len && line[0] != '#')
             {
                 char resolved[MAX_PATH];
@@ -428,17 +416,7 @@ void lp_index_appended(const char *file, long old_size)
                     playlist_insert_track(NULL, song, PLAYLIST_INSERT_LAST,
                                           false, false);
             }
-            if (!nl)
-            {
-                line += len;
-                break;
-            }
-            line = nl + 1;
         }
-        have = buf + have - line;
-        memmove(buf, line, have);
-        if (have >= sizeof(buf) - 1)
-            have = 0;
     }
     close(fd);
     if (playing)
@@ -487,27 +465,15 @@ int lp_index_build(const char *file, struct lp_song *songs, int max,
     const size_t sort_len = strlen(ITUNESDB_PLAYLIST_SORT);
     int count = 0;
     uint32_t line_no = 0;
-    size_t have = 0;
-    bool end = false, full = false;
-    while (!end && !full)
+    bool full = false;
+    struct line_reader lines;
+    line_reader_init(&lines, fd, buf, size);
+    while (!full && line_read(&lines))
     {
-        const ssize_t n = read(fd, buf + have, size - 1 - have);
-        if (n <= 0)
-            end = true;
-        else
-            have += n;
-        buf[have] = '\0';
-        char *line = buf;
-        for (;;)
+        char *line;
+        size_t len;
+        while ((line = line_next(&lines, &len)))
         {
-            char *nl = strchr(line, '\n');
-            if (!nl && !end)
-                break;
-            if (nl)
-                *nl = '\0';
-            size_t len = strlen(line);
-            if (len && line[len - 1] == '\r')
-                line[--len] = '\0';
             if (line[0] == '#')
             {
                 /* of its head, not of another's copied into it */
@@ -538,18 +504,7 @@ int lp_index_build(const char *file, struct lp_song *songs, int max,
                     state->unmatched++;
                 line_no++;
             }
-            if (!nl)
-            {
-                line += len;
-                break;
-            }
-            line = nl + 1;
         }
-        /* the line not ended, to the front for the rest of it */
-        have = buf + have - line;
-        memmove(buf, line, have);
-        if (have >= size - 1)
-            have = 0; /* longer than any path */
         yield();
     }
     close(fd);
@@ -860,8 +815,7 @@ static bool clean_playlist(const char *file, char *buf, size_t size)
     }
     snprintf(tmp, sizeof(tmp), "%s.tmp", file);
     int wfd = -1;
-    bool changed = false, ok = true, end = false;
-    size_t have = 0;
+    bool changed = false, ok = true;
     char out[1024];
     size_t put = 0;
     /* the lines before the first change are copied once it's known: from the
@@ -869,26 +823,15 @@ static bool clean_playlist(const char *file, char *buf, size_t size)
     off_t kept_to = 0, read_at = lseek(fd, 0, SEEK_CUR);
     if (read_at < 0)
         read_at = 0;
-    while (ok && !end)
+    struct line_reader lines;
+    line_reader_init(&lines, fd, buf, size);
+    while (ok && line_read(&lines))
     {
-        const ssize_t n = read(fd, buf + have, size - 1 - have);
-        if (n <= 0)
-            end = true;
-        else
-            have += n;
-        buf[have] = '\0';
-        char *line = buf;
-        for (;;)
+        char *line;
+        size_t len;
+        while ((line = line_next(&lines, &len)))
         {
-            char *nl = strchr(line, '\n');
-            if (!nl && !end)
-                break;
-            if (nl)
-                *nl = '\0';
-            size_t len = strlen(line);
-            const off_t line_at = read_at + (line - buf);
-            if (len && line[len - 1] == '\r')
-                line[--len] = '\0';
+            const off_t line_at = read_at + lines.at;
             const char *text = line;
             char moved[MAX_PATH];
             bool drop = false, replace = false;
@@ -932,7 +875,7 @@ static bool clean_playlist(const char *file, char *buf, size_t size)
                 if (rfd >= 0)
                     close(rfd);
             }
-            if (changed && ok && !drop && (len || nl))
+            if (changed && ok && !drop)
             {
                 if (replace)
                     text = moved;
@@ -949,21 +892,6 @@ static bool clean_playlist(const char *file, char *buf, size_t size)
                     put += tlen + 1;
                 }
             }
-            if (!nl)
-            {
-                line += len;
-                break;
-            }
-            line = nl + 1;
-        }
-        const size_t consumed = line - buf;
-        read_at += consumed;
-        have -= consumed;
-        memmove(buf, line, have);
-        if (have >= size - 1)
-        {
-            read_at += have;
-            have = 0;
         }
         yield();
     }
@@ -1379,27 +1307,15 @@ static const char *make_copy(const char *file)
     mkdir(LP_DIR);
     const int wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     bool ok = wfd >= 0;
-    size_t have = 0, put = 0;
-    bool end = false;
-    while (ok && !end)
+    size_t put = 0;
+    struct line_reader lines;
+    line_reader_init(&lines, fd, in, in_size);
+    while (ok && line_read(&lines))
     {
-        const ssize_t n = read(fd, in + have, in_size - 1 - have);
-        if (n <= 0)
-            end = true;
-        else
-            have += n;
-        in[have] = '\0';
-        char *line = in;
-        for (;;)
+        char *line;
+        size_t len;
+        while ((line = line_next(&lines, &len)))
         {
-            char *nl = strchr(line, '\n');
-            if (!nl && !end)
-                break;
-            if (nl)
-                *nl = '\0';
-            size_t len = strlen(line);
-            if (len && line[len - 1] == '\r')
-                line[--len] = '\0';
             /* the lines of songs, as lp_index_build() counts them */
             if (len && line[0] != '#')
             {
@@ -1421,17 +1337,7 @@ static const char *make_copy(const char *file)
                     put += slen + 1;
                 }
             }
-            if (!nl)
-            {
-                line += len;
-                break;
-            }
-            line = nl + 1;
         }
-        have = in + have - line;
-        memmove(in, line, have);
-        if (have >= in_size - 1)
-            have = 0;
         yield();
     }
     close(fd);
@@ -1760,31 +1666,19 @@ static bool lp_remove(int song)
     snprintf(tmp, sizeof(tmp), "%s.tmp", out_path);
     const int wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     bool ok = wfd >= 0;
-    size_t have = 0, put = 0;
+    size_t put = 0;
     uint32_t songs_seen = 0, songs_kept = 0;
-    bool end = false;
-    while (ok && !end)
+    struct line_reader lines;
+    line_reader_init(&lines, fd, in, in_size);
+    while (ok && line_read(&lines))
     {
-        const ssize_t n = read(fd, in + have, in_size - 1 - have);
-        if (n <= 0)
-            end = true;
-        else
-            have += n;
-        in[have] = '\0';
-        char *line = in;
-        for (;;)
+        char *line;
+        size_t len;
+        while ((line = line_next(&lines, &len)))
         {
-            char *nl = strchr(line, '\n');
-            if (!nl && !end)
-                break;
-            if (nl)
-                *nl = '\0';
-            size_t len = strlen(line);
-            if (len && line[len - 1] == '\r')
-                line[--len] = '\0';
             const bool is_song = len && line[0] != '#';
             const bool gone = is_song && songs_seen++ == line_no;
-            if ((len || nl) && !gone)
+            if (!gone)
             {
                 char decoded[MAX_PATH];
                 const char *text = line;
@@ -1809,17 +1703,7 @@ static bool lp_remove(int song)
                 }
                 songs_kept += is_song;
             }
-            if (!nl)
-            {
-                line += len;
-                break;
-            }
-            line = nl + 1;
         }
-        have = in + have - line;
-        memmove(in, line, have);
-        if (have >= in_size - 1)
-            have = 0;
         yield();
     }
     close(fd);

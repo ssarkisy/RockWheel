@@ -25,6 +25,7 @@
 #include "string-extra.h"
 #include "playlist.h"
 #include "on_the_go.h"
+#include "line_reader.h"
 #ifdef HAVE_TAGCACHE
 #include "tagtree.h"
 #include "library_playlists.h"
@@ -106,29 +107,19 @@ bool playlist_file_append_playlist(const char *target, const char *playlist)
         dirlen = slash + 1 - playlist;
 
     bool ok = true;
-    size_t have = 0;
-    for (;;)
+    struct line_reader lines;
+    line_reader_init(&lines, fd, in, half);
+    while (line_read(&lines))
     {
-        const ssize_t n = read(fd, in + have, half - have - 1);
-        if (n < 0)
+        if (lines.failed)
         {
             ok = false;
             break;
         }
-        have += n;
-        in[have] = '\0';
-        const bool end = n == 0;
-        char *line = in;
-        for (;;)
+        char *line;
+        size_t len;
+        while ((line = line_next(&lines, &len)))
         {
-            char *nl = strchr(line, '\n');
-            if (!nl && !end)
-                break;
-            if (nl)
-                *nl = '\0';
-            size_t len = strlen(line);
-            if (len && line[len - 1] == '\r')
-                line[--len] = '\0';
             if (len && line[0] != '#')
             {
                 const size_t whole = (line[0] == '/' ? 0 : dirlen) + len;
@@ -149,17 +140,7 @@ bool playlist_file_append_playlist(const char *target, const char *playlist)
                     out[used++] = '\n';
                 }
             }
-            if (!nl)
-                break;
-            line = nl + 1;
         }
-        if (end)
-            break;
-        /* the line not ended, to the front for the rest of it */
-        have = in + have - line;
-        memmove(in, line, have);
-        if (have >= half - 1)
-            have = 0; /* longer than any path */
     }
     if (used)
         ok = ok && write(otg, out, used) == (ssize_t)used;
