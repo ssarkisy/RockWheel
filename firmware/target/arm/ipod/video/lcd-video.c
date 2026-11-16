@@ -303,6 +303,12 @@ static void lcd_unblock_and_update_at(long show_at)
 {
     unsigned data;
     bool bcm_is_busy;
+    /* With interrupts off, as panicf and the crash screens draw, no tick will
+       kick an update posted now: it would be lost, and the screen keep the
+       one before (the request at a panic's foot, after its trace). So the
+       BCM's update in progress is waited for, as long as the tick's timeout
+       at most, and this one kicked all the same. */
+    const bool no_tick = !irq_enabled();
     int oldlevel = disable_irq_save();
 
 #if NUM_CORES > 1
@@ -310,15 +316,26 @@ static void lcd_unblock_and_update_at(long show_at)
 #endif
     data = bcm_read32(BCMA_COMMAND);
     bcm_is_busy = (data == BCMCMD_LCD_UPDATE || data == 0xFFFF);
+    if (no_tick)
+    {
+        const unsigned long start = USEC_TIMER;
+        while (bcm_is_busy
+               && USEC_TIMER - start < BCM_UPDATE_TIMEOUT * (1000000 / HZ))
+        {
+            data = bcm_read32(BCMA_COMMAND);
+            bcm_is_busy = (data == BCMCMD_LCD_UPDATE || data == 0xFFFF);
+        }
+    }
     /* one posted before, due sooner, isn't put off */
     if (lcd_state.state == LCD_NEED_UPDATE
         && TIME_BEFORE(lcd_state.show_at, show_at))
         show_at = lcd_state.show_at;
     lcd_state.show_at = show_at;
 
-    if (lcd_state.state != LCD_INITIAL && TIME_BEFORE(current_tick, show_at))
+    if (!no_tick && lcd_state.state != LCD_INITIAL
+        && TIME_BEFORE(current_tick, show_at))
         lcd_state.state = LCD_NEED_UPDATE;
-    else if (!bcm_is_busy || (lcd_state.state == LCD_INITIAL) ||
+    else if (no_tick || !bcm_is_busy || (lcd_state.state == LCD_INITIAL) ||
         TIME_AFTER(current_tick, lcd_state.update_timeout))
     {
         bcm_write32(BCMA_COMMAND, BCMCMD_LCD_UPDATE);  /* Kick off update */

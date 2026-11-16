@@ -91,6 +91,12 @@ bool lcd_update_held(int *x, int *y, int *width, int *height)
     if (CURRENT_CORE != CPU)
         return false;
 #endif
+#if defined(CPU_ARM) && (CONFIG_PLATFORM & PLATFORM_NATIVE)
+    /* a crash screen, drawn with interrupts off: shown whatever is held, as
+       the tick that ends a hold has stopped */
+    if (!irq_enabled())
+        return false;
+#endif
     if (updates_owner)
     {
         if (thread_self() == updates_owner)
