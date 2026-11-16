@@ -3084,18 +3084,6 @@ static bool songs_places_whole(struct song_place *rows, int n)
     return whole;
 }
 
-/* a hard disk asleep isn't woken for the file: flash, or a disk that spins */
-static bool songs_orders_disk_on(void)
-{
-#if defined(SIMULATOR) || !defined(HAVE_DISK_STORAGE)
-    return true;
-#elif (CONFIG_STORAGE & STORAGE_ATA)
-    return ata_disk_isssd() || storage_disk_is_active();
-#else
-    return storage_disk_is_active();
-#endif
-}
-
 /* An order's places for the list by name just made, from the file into the
    sort's room: NULL if it isn't to be read, or isn't of this list, and then
    it is sorted. One that says it is, but isn't whole, is removed, for the
@@ -3108,7 +3096,9 @@ static struct song_place *songs_order_read(struct tree_context *c, int order,
     struct song_place *rows = (struct song_place *)keys;
     const ssize_t size = n * sizeof(*rows);
     struct songs_orders_header h;
-    if (!songs_orders_disk_on())
+    /* a hard disk asleep isn't woken for the file: flash, or a disk that
+       spins */
+    if (!disk_free_for_ui(DISK_SPINNING))
         return NULL;
     const int fd = songs_orders_open(&h);
     if (fd < 0)

@@ -31,8 +31,6 @@
 #include "mh_walk.h"
 #include "misc.h"
 #include "kernel.h"
-#include "settings.h"
-#include "storage.h"
 #include "viewport.h"
 #include "skin_engine/skin_engine.h"
 
@@ -288,16 +286,5 @@ void photos_panel_show_end(void)
 /* as the cover beside the menus has it (disk_free() in menu_cover.c) */
 bool photos_panel_disk_free(void)
 {
-#if !defined(SIMULATOR) && defined(HAVE_DISK_STORAGE) \
-    && (CONFIG_STORAGE & STORAGE_ATA)
-    if (ata_disk_isssd())
-        return true;
-    const long spindown = global_settings.disk_spindown * HZ;
-    return storage_disk_is_active()
-           && (!spindown
-               || TIME_BEFORE(current_tick + 2 * HZ,
-                              storage_last_disk_activity() + spindown));
-#else
-    return true;
-#endif
+    return disk_free_for_ui(2 * HZ);
 }

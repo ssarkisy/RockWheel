@@ -163,6 +163,15 @@ int split_string(char *str, const char needle, char *vector[], int vector_length
 void fix_path_part(char* path, int offset, int count);
 int open_pathfmt(char *buf, size_t size, int oflag, const char *pathfmt, ...);
 int open_utf8(const char* pathname, int flags);
+/* Nothing to spin up: flash, as an iFlash is, no hard disk, or the
+   simulator */
+bool disk_is_flash(void);
+/* Whether a read now leaves a hard disk as it is, neither waking it nor
+   meeting its spin-down: always from flash; from a disk that spins, if its
+   spin-down is more than margin ticks away or none is set. DISK_SPINNING
+   asks only that it spins. */
+#define DISK_SPINNING (-1)
+bool disk_free_for_ui(long margin);
 /* our own files, whole or not at all (misc.c): opened to write, closed with
    whether each write went well, which then puts it in place */
 int whole_file_open(const char *path);

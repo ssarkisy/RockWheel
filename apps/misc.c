@@ -2072,6 +2072,34 @@ int open_utf8(const char* pathname, int flags)
     return ret >= 0 ? fd : -1;
 }
 
+bool disk_is_flash(void)
+{
+#if !defined(SIMULATOR) && defined(HAVE_DISK_STORAGE) \
+    && (CONFIG_STORAGE & STORAGE_ATA)
+    return ata_disk_isssd();
+#else
+    return true;
+#endif
+}
+
+bool disk_free_for_ui(long margin)
+{
+#if !defined(SIMULATOR) && defined(HAVE_DISK_STORAGE) \
+    && (CONFIG_STORAGE & STORAGE_ATA)
+    if (disk_is_flash())
+        return true;
+    if (!storage_disk_is_active())
+        return false;
+    const long spindown = global_settings.disk_spindown * HZ;
+    return margin < 0 || !spindown
+           || TIME_BEFORE(current_tick + margin,
+                          storage_last_disk_activity() + spindown);
+#else
+    (void)margin;
+    return true;
+#endif
+}
+
 /* Our own files, whole or not at all: written beside, to "<path>.tmp", which
    takes the old one's place once each write and the close went well. A file
    cut short by a full disk or a pulled battery is let go of, and the one

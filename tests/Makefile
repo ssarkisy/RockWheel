@@ -15,6 +15,7 @@
 #   make -C tests check-codecs   the codecs through warble
 #   make -C tests check-wheel    the click wheel's policy, and its drivers
 #                                against 1be9ae95b6's (wheel/ref)
+#   make -C tests check-disk     the "disk free, don't wake it" predicate
 #   make -C tests clean
 #
 # Built under tests/build. The sources are built with the simulator's
@@ -71,10 +72,11 @@ FIRMWARE_OBJ := $(addprefix $(OBJ)/,$(FIRMWARE_SRC:.c=.o))
 # the tests' own: the checks, and the firmware the sources call
 LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o
 
-.PHONY: all check check-keys check-itunesdb check-codecs check-wheel clean
+.PHONY: all check check-keys check-itunesdb check-codecs check-wheel \
+	check-disk clean
 all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_wheel
 
-check: check-keys check-itunesdb check-wheel check-codecs
+check: check-keys check-itunesdb check-wheel check-codecs check-disk
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -195,6 +197,30 @@ $(BUILD)/test_wheel: $(WHEEL_OBJ)/test_wheel.o $(WHEEL_OBJ)/ref/apps.o \
 
 check-wheel: $(BUILD)/test_wheel
 	@$(BUILD)/test_wheel
+
+# misc.c's disk_free_for_ui() against the copies it replaced
+# (disk/ref/disk_ref.c, made by disk/make_ref.py from git), built for each
+# configuration they tell apart: the functions alone, without config.h
+DISK_CFLAGS := -std=gnu11 -g -O1 $(SANITIZE) -I$(TESTS)/disk/ref -I$(BUILD)/disk
+DISK_CONFIGS := ipod sim flash notata
+DISK_DEF_ipod   := -DHAVE_DISK_STORAGE
+DISK_DEF_sim    := -DHAVE_DISK_STORAGE -DSIMULATOR
+DISK_DEF_flash  := -DCONFIG_STORAGE=STORAGE_SD
+DISK_DEF_notata := -DHAVE_DISK_STORAGE -DCONFIG_STORAGE=STORAGE_SD -DDISK_NOT_ATA
+
+$(BUILD)/disk/disk_new.c: $(ROOT)/apps/misc.c $(TESTS)/disk/make_ref.py
+	@mkdir -p $(dir $@)
+	@$(PYTHON) -I -B $(TESTS)/disk/make_ref.py --new $@
+
+$(BUILD)/disk/test_disk_%: $(TESTS)/disk/test_disk.c $(BUILD)/disk/disk_new.c \
+		$(TESTS)/disk/ref/disk_ref.c
+	@echo CC $(notdir $@)
+	@$(HOST_CC) $(DISK_CFLAGS) $(DISK_DEF_$*) -DCONFIG_NAME=\"$*\" $< -o $@
+
+check-disk: $(foreach c,$(DISK_CONFIGS),$(BUILD)/disk/test_disk_$(c))
+	@$(PYTHON) -I -B $(TESTS)/disk/make_ref.py --check > /dev/null
+	@$(PYTHON) -I -B $(TESTS)/disk/make_ref.py --targets
+	@$(foreach c,$(DISK_CONFIGS),$(BUILD)/disk/test_disk_$(c) &&) true
 
 # warble, from its own configure in build/warble, with clang and ASan; only
 # the codecs the fixtures need, and without SDL (lib/sdl_stub.c). DEBUG makes
