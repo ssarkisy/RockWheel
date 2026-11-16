@@ -615,6 +615,12 @@ static bool roll_settling; /* slowing down for good, onto a cover already chosen
 static int roll_settle_time; /* in 1/16 frames: how fast it slows */
 #ifdef HAVE_WHEEL_POSITION
 static bool wheel_timer_set;
+static bool wheel_events = true; /* the driver's, off over the covers */
+static void wheel_start(void);
+static void wheel_clicks_taken(void);
+#else
+static inline void wheel_start(void) {}
+static inline void wheel_clicks_taken(void) {}
 #endif
 static int anim_speed; /* what they last moved by */
 static bool anim_turning; /* just turned back, in the same place */
@@ -622,8 +628,11 @@ static bool anim_turning; /* just turned back, in the same place */
    slowing onto it; what a frame may move so far, in 1/65536 of a slide */
 static bool seeking;
 static int seek_cap;
-#define ROLL_PER_CLICK      655   /* of a click a second, with 4 clicks to a slide and
-                                     25 frames a second: at the speed of the wheel */
+/* the wheel's clicks a slide: 16 slides a turn, slower than the lists' 24, as
+   users found the covers too quick even turned slowly */
+#define WHEEL_SLIDE_CLICKS  6
+/* of a click a second, at 25 frames a second: at the speed of the wheel */
+#define ROLL_PER_CLICK      (65536 / (WHEEL_SLIDE_CLICKS * 25))
 #define ROLL_SPEED_MAX      81920 /* a slide and a quarter, from one turn */
 #define ROLL_SPEED_TOP      131072 /* two slides, from turns one after the other */
 #define ROLL_SPEED_MIN      18000 /* about what the stop on the next slide starts with */
@@ -4335,7 +4344,15 @@ static void show_previous_slide(void)
         if (step < 0)
             update_scroll_animation();
     } else {
-        target = fmax(0, center_index - 2);
+        int ahead = fmax(0, center_index - 2);
+        /* the end of a glide: a step this way goes on past the cover it was
+           to stop on, where a finger held still stops it at the next */
+        if (roll_settling && roll_speed) {
+            roll_settling = false;
+            roll_speed = 0;
+            ahead = fmin(ahead, target);
+        }
+        target = ahead;
     }
 }
 
@@ -4359,7 +4376,14 @@ static void show_next_slide(void)
         if (step > 0)
             update_scroll_animation();
     } else {
-        target = fmin(center_index + 2, number_of_slides - 1);
+        int ahead = fmin(center_index + 2, number_of_slides - 1);
+        /* as in show_previous_slide() */
+        if (roll_settling && roll_speed) {
+            roll_settling = false;
+            roll_speed = 0;
+            ahead = fmax(ahead, target);
+        }
+        target = ahead;
     }
 }
 
@@ -4757,6 +4781,11 @@ static void update_scroll_animation(void)
             left_slides[i].slide_index = center_index - 1 - i;
         for (i = 0; i < pf_cfg.num_slides; i++)
             right_slides[i].slide_index = center_index + 1 + i;
+        /* gliding with the wheel let go, a click an album as it passes, as its
+           steps click while it's turned (watch_wheel()); one a frame at most */
+        if (roll_speed && roll_free)
+            rb->keyclick_click(true, step > 0 ? BUTTON_SCROLL_FWD
+                                              : BUTTON_SCROLL_BACK);
         const bool rolled = roll_speed != 0 || seeking;
         if (roll_speed && !roll_settling) {
             /* a finger stopped them: from the speed that the stop on the next
@@ -5126,6 +5155,9 @@ static void cleanup(void)
     /* not otherwise, as the timer may be the backlight's, fading */
     if (wheel_timer_set)
         rb->timer_unregister();
+    wheel_timer_set = false;
+    rb->wheel_send_events(true);
+    wheel_events = true;
 #endif
     if (buf_ctx_locked)
     {
@@ -6504,6 +6536,7 @@ static bool reinit(void)
     cleanup();
     if (init())
     {
+        wheel_start();
         reselect(hash_album, hash_artist); /* splash if not found */
 #ifdef USEGSLIB
         grey_show(true);
@@ -6536,6 +6569,7 @@ static bool prompt_reinit(void)
 #endif
         mylcd_set_drawmode(DRMODE_FG);
     }
+    wheel_clicks_taken();
     return true;
 }
 
@@ -6562,11 +6596,21 @@ static struct {
     int travel;   /* clicks this way, positive towards the next slide */
     int energy;   /* what the covers are to follow, kept when it's let go */
     bool let_go;
+    /* every click it went, positive towards the next slide: the slides it
+       steps go by these (watch_wheel()), and not by its events, of which a
+       frame takes one, those coming meanwhile held as one by its driver */
+    volatile int clicks;
+    volatile long moved_at; /* the tick it last went a click */
 } wheel = { .position = -1 };
 
 static void wheel_read(void)
 {
+#ifdef HAS_BUTTON_HOLD
+    /* Hold turns the sensor off and leaves its last place: no finger on it */
+    const int position = rb->button_hold() ? -1 : rb->wheel_status();
+#else
     const int position = rb->wheel_status();
+#endif
 
     if (position < 0)
     {
@@ -6597,6 +6641,11 @@ static void wheel_read(void)
         from_start = (delta ^ wheel.travel) < 0 && abs(delta) > 2;
     }
     wheel.position = position;
+    if (delta)
+    {
+        wheel.clicks += delta;
+        wheel.moved_at = *rb->current_tick;
+    }
 
     if (from_start)
     {
@@ -6646,6 +6695,44 @@ static void roll_start(int direction)
     }
 }
 
+/* The clicks counted into slides (watch_wheel()): those seen, and those this
+   way short of a slide */
+static int wheel_clicks_seen, wheel_clicks_part;
+
+/* the clicks so far aren't the covers': a menu or a question had the wheel,
+   or an event stepped for them */
+static void wheel_clicks_taken(void)
+{
+    wheel_clicks_seen = wheel.clicks;
+    wheel_clicks_part = 0;
+    wheel.let_go = false;
+}
+
+/* the wheel read from now on, at the start and after a reinit()'s cleanup(),
+   which let the timer go */
+static void wheel_start(void)
+{
+    rb->memset(&wheel, 0, sizeof(wheel));
+    wheel.position = -1;
+    wheel_clicks_taken();
+    wheel_timer_set = rb->timer_register(1, NULL, TIMER_FREQ / WHEEL_READS,
+                                         wheel_read IF_COP(, CPU));
+}
+
+/* The wheel's events, and the click each makes, only away from the covers: there
+   the slides step and click by its readings (watch_wheel()), a click a slide, as
+   its events, a step each 4 clicks, would click 1 to 3 times a slide; gliding,
+   each album passing clicks (update_scroll_animation()). Menus and
+   questions opened from the covers have them (pictureflow_main()). */
+static void wheel_events_on(bool on)
+{
+    if (on != wheel_events)
+    {
+        wheel_events = on;
+        rb->wheel_send_events(on);
+    }
+}
+
 /* Once a frame: what the wheel means for the covers. What they follow is its speed
    over the last moments, for as much of a turn as it has made: a touch sends them
    nowhere, and a short quick swipe as far as it deserves. A finger put back on the
@@ -6653,6 +6740,36 @@ static void roll_start(int direction)
    still it stops them, and turning the other way turns them back. */
 static void watch_wheel(void)
 {
+    /* the slides it stepped: one each WHEEL_SLIDE_CLICKS this way, counted
+       again from a turn back */
+    const int clicks = wheel.clicks;
+    const int moved = clicks - wheel_clicks_seen;
+    wheel_clicks_seen = clicks;
+    const bool covers = pf_state == pf_idle || pf_state == pf_scrolling;
+    if (wheel_timer_set)
+        wheel_events_on(!covers);
+    if (!covers)
+        wheel_clicks_part = 0; /* the tracks and a cover turning go by its events */
+    else
+    {
+        int stepped = 0;
+        if ((moved > 0 && wheel_clicks_part < 0)
+            || (moved < 0 && wheel_clicks_part > 0))
+            wheel_clicks_part = 0;
+        for (wheel_clicks_part += moved;
+             wheel_clicks_part >= WHEEL_SLIDE_CLICKS;
+             wheel_clicks_part -= WHEEL_SLIDE_CLICKS, stepped = 1)
+            show_next_slide();
+        for (; wheel_clicks_part <= -WHEEL_SLIDE_CLICKS;
+             wheel_clicks_part += WHEEL_SLIDE_CLICKS, stepped = -1)
+            show_previous_slide();
+        /* a click a slide, as its events made one a step: one a frame at
+           most, each holding the frame for its sound */
+        if (stepped)
+            rb->keyclick_click(true, stepped > 0 ? BUTTON_SCROLL_FWD
+                                                 : BUTTON_SCROLL_BACK);
+    }
+
     const int direction = wheel.travel > 0 ? 1 : -1;
     const int energy = wheel.energy;
 
@@ -6687,6 +6804,26 @@ static void watch_wheel(void)
     if (roll_speed)
         roll_aim = fmin(roll_carry + (step == direction ? energy : 0), ROLL_SPEED_TOP);
 }
+
+/* the event a step of the click wheel's, with its readings taken: a finger on
+   it, or one just off it with the event behind. Plugins can't read an event's
+   data on the iPod (no HAVE_BUTTON_DATA): a remote's next or previous is told
+   by the wheel being still */
+static bool wheel_stepped(void)
+{
+    return wheel_timer_set
+           && (wheel.position >= 0
+               || TIME_BEFORE(*rb->current_tick, wheel.moved_at + HZ / 4));
+}
+
+/* a finger on the wheel: with its events off, nothing else wakes the loop */
+static bool wheel_touched(void)
+{
+    return wheel_timer_set && wheel.position >= 0;
+}
+#else
+static inline bool wheel_stepped(void) { return false; }
+static inline bool wheel_touched(void) { return false; }
 #endif /* HAVE_WHEEL_POSITION */
 
 #ifdef PF_SHOW_ON_COP
@@ -6773,10 +6910,7 @@ static int pictureflow_main(void)
     bool idle_shown = false;
     unsigned idle_slides = 0;
 
-#ifdef HAVE_WHEEL_POSITION
-    wheel_timer_set = rb->timer_register(1, NULL, TIMER_FREQ / WHEEL_READS, wheel_read
-                                         IF_COP(, CPU));
-#endif
+    wheel_start();
 
     while (true) {
         current_update = *rb->current_tick;
@@ -6965,10 +7099,17 @@ static int pictureflow_main(void)
 #ifndef USE_CORE_PREVNEXT
             |(pf_state == pf_show_tracks ? 1 : 0)
 #endif
-            ,instant_update ? 0 : HZ/16,
+            ,instant_update ? 0 : wheel_touched() ? 1 : HZ/16,
             get_context_map);
         if (button != ACTION_NONE)
             idle_shown = false;
+#ifdef HAVE_WHEEL_POSITION
+        /* a button may open a menu or a question, which go by the wheel's
+           events: they're back until the next frame of the covers */
+        if (button != ACTION_NONE && button != PF_NEXT && button != PF_PREV
+            && button != PF_NEXT_REPEAT && button != PF_PREV_REPEAT)
+            wheel_events_on(true);
+#endif
 
         switch (button) {
 #ifdef ITUNESDB_HAVE_ART
@@ -7035,6 +7176,7 @@ static int pictureflow_main(void)
             ret = main_menu();
             FOR_NB_SCREENS(i)
                 rb->viewportmanager_theme_undo(i, false);
+            wheel_clicks_taken();
 
             if (ret == -3)
             {
@@ -7058,6 +7200,11 @@ static int pictureflow_main(void)
 
         case PF_NEXT:
         case PF_NEXT_REPEAT:
+            /* the click wheel's steps through the covers come from its
+               readings (watch_wheel()) */
+            if ((pf_state == pf_idle || pf_state == pf_scrolling)
+                && wheel_stepped())
+                break;
             if ( pf_state == pf_show_tracks )
             {
                 if (show_tracks_while_browsing)
@@ -7068,7 +7215,11 @@ static int pictureflow_main(void)
             else if (pf_state == pf_cover_in)
                 skip_animation_to_show_tracks();
             else if (pf_state == pf_cover_out)
+            {
                 skip_animation_to_idle_state();
+                /* this step stands for the clicks so far */
+                wheel_clicks_taken();
+            }
 
             if ( pf_state == pf_idle || pf_state == pf_scrolling )
                 show_next_slide();
@@ -7076,6 +7227,9 @@ static int pictureflow_main(void)
 
         case PF_PREV:
         case PF_PREV_REPEAT:
+            if ((pf_state == pf_idle || pf_state == pf_scrolling)
+                && wheel_stepped())
+                break;
             if ( pf_state == pf_show_tracks )
             {
                 if (show_tracks_while_browsing)
@@ -7086,7 +7240,10 @@ static int pictureflow_main(void)
             else if (pf_state == pf_cover_in)
                 skip_animation_to_show_tracks();
             else if (pf_state == pf_cover_out)
+            {
                 skip_animation_to_idle_state();
+                wheel_clicks_taken();
+            }
 
             if ( pf_state == pf_idle || pf_state == pf_scrolling )
                 show_previous_slide();
@@ -7157,6 +7314,7 @@ static int pictureflow_main(void)
                 {
                     ret = context_menu();
                     context_menu_cleanup();
+                    wheel_clicks_taken();
                     if (ret == PF_LEAVE_FOR_LISTS)
                         return PLUGIN_OK;
                     if ( ret != 0 ) return ret;
