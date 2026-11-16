@@ -976,9 +976,15 @@ int bufopen(const char *file, off_t offset, enum data_type type,
 #endif
     /* Other cases: there is a little more work. */
     int fd = -1;
+#ifdef HAVE_ALBUMART
+    /* a cover Finder made opens its file itself, if it must, and one to
+       decode later from bytes already read (bufdecode_bitmap()) none */
+    if (type != TYPE_BITMAP
+        || (!((struct bufopen_bitmap_data *)user_data)->defer
 #ifdef ITUNESDB_HAVE_ART
-    /* a cover Finder made opens its file itself, if it must */
-    if (type != TYPE_BITMAP || !((struct bufopen_bitmap_data *)user_data)->ipod_art)
+            && !((struct bufopen_bitmap_data *)user_data)->ipod_art
+#endif
+           ))
 #endif
     {
         fd = open(file, O_RDONLY);
@@ -1069,8 +1075,20 @@ int bufopen(const char *file, off_t offset, enum data_type type,
 
 #ifdef HAVE_ALBUMART
     if (type == TYPE_BITMAP) {
-        /* Bitmap file: we load the data instead of the file */
-        int rc = load_image(fd, file, user_data, data, padded_size);
+        /* Bitmap file: we load the data instead of the file; one to decode
+           later gets its whole room now, and a bitmap of the size asked
+           for, which a move keeps pointing at its data */
+        int rc;
+        if (((struct bufopen_bitmap_data *)user_data)->defer) {
+            struct bitmap *bmp = ringbuf_ptr(data);
+            memset(bmp, 0, sizeof(*bmp));
+            bmp->width = ((struct bufopen_bitmap_data *)user_data)->dim->width;
+            bmp->height = ((struct bufopen_bitmap_data *)user_data)->dim->height;
+            bmp->data = ringbuf_ptr(data + sizeof(struct bitmap));
+            rc = padded_size;
+        }
+        else
+            rc = load_image(fd, file, user_data, data, padded_size);
         if (rc <= 0) {
             handle_id = ERR_FILE_ERROR;
         } else {
@@ -1166,6 +1184,89 @@ int bufalloc(const void *src, size_t size, enum data_type type)
     logf("bufalloc: new hdl %d", handle_id);
     return handle_id;
 }
+
+#ifdef HAVE_ALBUMART
+/* Read an embedded picture's bytes into a handle of their own, for
+   bufdecode_bitmap() to decode later without the file: the disk is read now,
+   as bufopen() would read it to decode the picture now */
+int bufopen_embedded_art(const char *file, const struct mp3_albumart *aa)
+{
+    if (aa->size <= 0)
+        return ERR_UNSUPPORTED_TYPE;
+
+    int fd = open(file, O_RDONLY);
+    if (fd < 0)
+        return ERR_FILE_ERROR;
+
+    int handle_id = ERR_BUFFER_FULL;
+    size_t data;
+
+    mutex_lock(&llist_mutex);
+
+    /* not linked, nothing moves it while it's read */
+    struct memory_handle *h = add_handle(H_ALLOCALL, aa->size, file, &data);
+    if (h) {
+        handle_id = h->id;
+        long rc = -1;
+        if (lseek(fd, aa->pos, SEEK_SET) == aa->pos)
+            rc = jpeg_read_embedded(fd, aa->type, aa->size, ringbuf_ptr(data));
+        if (rc <= 0) {
+            handle_id = ERR_FILE_ERROR;
+        } else {
+            h->type     = TYPE_RAW_ATOMIC;
+            h->fd       = -1;
+            h->data     = data;
+            h->ridx     = data;
+            h->widx     = ringbuf_add(data, rc);
+            h->filesize = rc;
+            h->start    = 0;
+            h->pos      = 0;
+            h->end      = rc;
+            link_handle(h);
+        }
+    }
+    else if ((size_t)aa->size >= buffer_len - 64*1024) {
+        handle_id = ERR_BITMAP_TOO_LARGE;
+    }
+
+    mutex_unlock(&llist_mutex);
+    close(fd);
+    return handle_id;
+}
+
+/* Decode the picture whose bytes bufopen_embedded_art() read into raw_id from
+   aa into the bitmap that bufopen() set aside for it with defer. Returns > 0
+   if done. Neither handle moves meanwhile, and the buffer is free to its other
+   users. */
+int bufdecode_bitmap(int handle_id, int raw_id, const struct mp3_albumart *aa)
+{
+    mutex_lock(&llist_mutex);
+    struct memory_handle *h = find_handle(handle_id);
+    struct memory_handle *r = find_handle(raw_id);
+    if (!h || !r || h->type != TYPE_BITMAP || r->type != TYPE_RAW_ATOMIC) {
+        mutex_unlock(&llist_mutex);
+        return ERR_HANDLE_NOT_FOUND;
+    }
+    h->pinned++;
+    r->pinned++;
+    struct bitmap *bmp = ringbuf_ptr(h->data);
+    const unsigned char *raw = ringbuf_ptr(r->data);
+    size_t raw_size = r->filesize;
+    int max_size = h->filesize;
+    mutex_unlock(&llist_mutex);
+
+    const int format = FORMAT_NATIVE | FORMAT_DITHER |
+                       FORMAT_RESIZE | FORMAT_KEEP_ASPECT;
+    int rc = clip_jpeg_mem(raw, raw_size, aa->type, aa->size, bmp, max_size,
+                           format, NULL);
+
+    mutex_lock(&llist_mutex);
+    h->pinned--;
+    r->pinned--;
+    mutex_unlock(&llist_mutex);
+    return rc;
+}
+#endif /* HAVE_ALBUMART */
 
 /* Close the handle. Return true for success and false for failure */
 bool bufclose(int handle_id)

@@ -782,10 +782,13 @@ static void scrub_apply(void)
        took the new one below 0 and skipped it */
     if (state->id3 && state->ff_rewind_count && !mode_track_changed)
     {
-        long pos = (long)state->id3->elapsed + state->ff_rewind_count;
-        state->id3->elapsed = MAX(pos, 0);
+        long pos = MAX((long)state->id3->elapsed + state->ff_rewind_count, 0);
         audio_pre_ff_rewind();
-        audio_ff_rewind(state->id3->elapsed);
+        audio_ff_rewind(pos);
+        /* the target, held as the position until the seek is taken up
+           (audio_pcmbuf_position_callback()): set before the post, the
+           sound's position could replace it in between */
+        state->id3->elapsed = pos;
     }
     state->ff_rewind_count = 0;
 }

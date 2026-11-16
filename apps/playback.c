@@ -232,7 +232,7 @@ static enum filling_state
 
 /* Track info - holds information about each track in the buffer */
 #ifdef HAVE_ALBUMART
-#define TRACK_INFO_AA       MAX_MULTIPLE_AA
+#define TRACK_INFO_AA       (2 * MAX_MULTIPLE_AA + 1)
 #else
 #define TRACK_INFO_AA       0
 #endif
@@ -258,6 +258,9 @@ struct track_info
     int chapters_hid;               /* Its chapters' (struct chapters) */
 #ifdef HAVE_ALBUMART
     int aa_hid[MAX_MULTIPLE_AA];    /* Album art handle IDs */
+    int aa_wait_hid[MAX_MULTIPLE_AA]; /* Set aside for a cover to decode
+                                       when the track plays */
+    int aa_raw_hid;                 /* Those covers' embedded bytes */
 #endif
 #ifdef HAVE_CODEC_BUFFERING
     int codec_hid;                  /* Buffered codec handle ID */
@@ -2155,6 +2158,124 @@ static int load_album_art_from_path(char *path, struct bufopen_bitmap_data *user
     return hid;
 }
 
+/* A cover embedded in a track is decoded only once the codec has the track,
+   after its audio has opened (audio_on_decode_albumart()): decoded as a track
+   loaded ahead, a large one kept the audio thread from the playing track for
+   seconds, and again after each rebuffer of it, as during a scrub; decoded as
+   the track to play loaded, before its audio, it held back the sound as long.
+   Its bytes are read now, as the disk reads the audio, so the decode wakes no
+   disk. Returns the handle set aside for the bitmap, or < 0 as bufopen(). */
+static int audio_defer_albumart(struct track_info *infop,
+                                const struct mp3entry *track_id3,
+                                struct bufopen_bitmap_data *user_data)
+{
+    if (infop->aa_raw_hid < 0)
+    {
+        int hid = bufopen_embedded_art(track_id3->path, &track_id3->albumart);
+        if (hid < 0)
+            return hid;
+        infop->aa_raw_hid = hid;
+    }
+    user_data->defer = true;
+    int hid = bufopen(track_id3->path, 0, TYPE_BITMAP, user_data);
+    user_data->defer = false;
+    return hid;
+}
+
+/* Whether the track the codec has has a cover set aside: then one decode of
+   it, the smallest first, waits in the queue. As it starts, or as it loads if
+   the codec got to it first. */
+static void audio_queue_decode_albumart(void)
+{
+    struct track_info info;
+    if (!track_list_current(0, &info) || info.aa_raw_hid < 0)
+        return;
+    if (!queue_peek_ex(&audio_queue, NULL, 0,
+                       QPEEK_FILTER1(Q_AUDIO_DECODE_ART)))
+        audio_queue_post(Q_AUDIO_DECODE_ART, 0);
+}
+
+/* One cover of the track the codec has, set aside as it loaded: one a
+   message, the smallest first, so that a seek or a skip waits for one decode
+   at most (Q_AUDIO_DECODE_ART) */
+static void audio_on_decode_albumart(void)
+{
+    struct track_info info;
+    if (!track_list_current(0, &info) || info.aa_raw_hid < 0)
+        return;
+
+    int i = -1;
+    FOREACH_ALBUMART(j)
+    {
+        if (info.aa_wait_hid[j] >= 0
+            && (i < 0 || albumart_slots[j].dim.width * albumart_slots[j].dim.height
+                         < albumart_slots[i].dim.width * albumart_slots[i].dim.height))
+            i = j;
+    }
+
+    if (i >= 0)
+    {
+        int rc = -1;
+        const struct mp3entry *id3 = bufgetid3(info.id3_hid);
+        if (id3)
+        {
+            /* the id3 may move as the decode yields */
+            struct mp3_albumart aa = id3->albumart;
+#ifdef HAVE_PRIORITY_SCHEDULING
+            /* The first, Now Playing's, at the audio thread's own priority:
+               over the UI, and over the codec once it has 1.6 s to play
+               (pcmbuf.c). The others with the UI, which draws the first as
+               it's done: over it, the screen waited for the next decode. */
+            int prio = -1;
+            FOREACH_ALBUMART(j)
+            {
+                if (info.aa_hid[j] >= 0 && prio < 0)
+                    prio = thread_set_priority(thread_self(),
+                                               PRIORITY_USER_INTERFACE);
+            }
+#endif
+            rc = bufdecode_bitmap(info.aa_wait_hid[i], info.aa_raw_hid, &aa);
+#ifdef HAVE_PRIORITY_SCHEDULING
+            if (prio >= 0)
+                thread_set_priority(thread_self(), prio);
+#endif
+        }
+        if (rc > 0)
+        {
+            logf("Decoded album art:%dx%d", albumart_slots[i].dim.width,
+                 albumart_slots[i].dim.height);
+            info.aa_hid[i] = info.aa_wait_hid[i];
+        }
+        else
+        {
+            /* as a failed decode when loaded: no cover in this slot */
+            bufclose(info.aa_wait_hid[i]);
+            info.aa_hid[i] = ERR_UNSUPPORTED_TYPE;
+        }
+        info.aa_wait_hid[i] = ERR_HANDLE_NOT_FOUND;
+    }
+
+    bool more = false;
+    FOREACH_ALBUMART(j)
+        more |= info.aa_wait_hid[j] >= 0;
+    if (!more)
+    {
+        bufclose(info.aa_raw_hid);
+        info.aa_raw_hid = ERR_HANDLE_NOT_FOUND;
+    }
+    track_info_sync(&info);
+
+    if (more)
+        audio_queue_post(Q_AUDIO_DECODE_ART, 0);
+
+    /* Now Playing's cover, if it's of this track: otherwise it looks when
+       it next wakes */
+    struct track_info user_cur;
+    if (i >= 0 && track_list_user_current(0, &user_cur)
+        && user_cur.self_hid == info.self_hid)
+        button_queue_post(BUTTON_NONE, 0);
+}
+
 /* Load any album art for the file - returns false if the buffer is full */
 static int audio_load_albumart(struct track_info *infop,
                                 struct mp3entry *track_id3, bool is_current_track)
@@ -2220,7 +2341,8 @@ static int audio_load_albumart(struct track_info *infop,
         if (have_ipod_art && rank >= 2)
             continue;
 #endif
-        if (*aa_hid >= 0 || *aa_hid == ERR_UNSUPPORTED_TYPE)
+        if (*aa_hid >= 0 || *aa_hid == ERR_UNSUPPORTED_TYPE
+            || infop->aa_wait_hid[i] >= 0)
             continue;
 
         memset(&user_data, 0, sizeof(user_data));
@@ -2255,8 +2377,13 @@ static int audio_load_albumart(struct track_info *infop,
         {
             if (is_current_track)
                 clear_last_folder_album_art();
-            user_data.embedded_albumart = &track_id3->albumart;
-            hid = bufopen(track_id3->path, 0, TYPE_BITMAP, &user_data);
+            /* only the bytes as yet */
+            hid = audio_defer_albumart(infop, track_id3, &user_data);
+            if (hid >= 0)
+            {
+                infop->aa_wait_hid[i] = hid;
+                continue;
+            }
         }
 
         if (global_settings.album_art != AA_OFF && !checked_image_file &&
@@ -2800,6 +2927,11 @@ audio_finish_load_track_exit:
         logf("Track info sync failed");
         trackstat = LOAD_TRACK_ERR_FINISH_FAILED;
     }
+#ifdef HAVE_ALBUMART
+    /* the codec got to it as it loaded: a cover set aside before then */
+    else if (trackstat >= LOAD_TRACK_OK && infop->self_hid == cur_info.self_hid)
+        audio_queue_decode_albumart();
+#endif
 
     if (trackstat < LOAD_TRACK_OK)
     {
@@ -3197,6 +3329,12 @@ static void audio_begin_track_change(enum pcm_track_change_type type,
             {
                 if (track_skip_is_manual)
                     playing_id3_sync(&info, NULL, true);
+#ifdef HAVE_ALBUMART
+                /* its covers, as the codec starts: an automatic change
+                   is heard once the PCM buffer has played out, by when
+                   they're there */
+                audio_queue_decode_albumart();
+#endif
                 return;
             }
         }
@@ -3869,7 +4007,10 @@ static void audio_on_ff_rewind(long time)
     logf("%s(%ld)", __func__, time);
 
     if (play_status == PLAY_STOPPED)
+    {
+        seeks_taken++; /* refused counts as taken */
         return;
+    }
 
     enum track_skip_type pending = skip_pending;
 
@@ -3980,6 +4121,7 @@ static void audio_on_ff_rewind(long time)
 
         /* Sure as heck cancel seek mode too! */
         audio_ff_rewind_end();
+        seeks_taken++; /* refused counts as taken */
         return;
         }
 
@@ -4095,7 +4237,10 @@ void audio_playback_handler(struct queue_event *ev)
             /* Unplug can queue the disconnect while playback stops.
              * Leave it for usb_wait_for_disconnect() to consume. */
             if (ev->data != 0 && ev->id != SYS_USB_CONNECTED)
+            {
                 queue_clear(&audio_queue);
+                seeks_taken = seeks_posted; /* and any seek with it */
+            }
             return; /* no more playback */
 
         case Q_AUDIO_PAUSE:
@@ -4152,6 +4297,13 @@ void audio_playback_handler(struct queue_event *ev)
             LOGFQUEUE("playback < Q_AUDIO_HANDLE_FINISHED");
             audio_on_handle_finished(ev->data);
             break;
+
+#ifdef HAVE_ALBUMART
+        case Q_AUDIO_DECODE_ART:
+            LOGFQUEUE("playback < Q_AUDIO_DECODE_ART");
+            audio_on_decode_albumart();
+            break;
+#endif
 
         /** Miscellaneous messages **/
         case Q_AUDIO_REMAKE_AUDIO_BUFFER:
@@ -4332,7 +4484,11 @@ void audio_codec_seek_complete(void)
 void audio_pcmbuf_position_callback(unsigned long elapsed, off_t offset,
                                     unsigned int key)
 {
-    if (key == position_key)
+    /* Not while a seek waits: the position is its target then, which the
+       scrubber shows; the sound from before the seek, still playing until
+       the seek is taken up, took the bar back meanwhile, and a turn of the
+       wheel went on from there */
+    if (key == position_key && seeks_taken == seeks_posted)
     {
         struct mp3entry *id3 = id3_get(PLAYING_ID3);
         id3->elapsed = elapsed;
@@ -4639,10 +4795,10 @@ void audio_pre_ff_rewind_wait(void)
 void audio_ff_rewind(long time)
 {
     /* A seek still waiting is superseded by this one, so at most one waits.
-       Scrubbing while the audio thread is busy for seconds (decoding a large
-       cover of the track loaded ahead) otherwise posts more than the queue
-       holds, and the iPod's queue has no overflow check: an overrun
-       overwrites waiting events. A superseded seek to 0 doesn't log the
+       Scrubbing while the audio thread is busy for a while (it decoded the
+       large cover of a track loaded ahead for seconds) otherwise posts more
+       than the queue holds, and the iPod's queue has no overflow check: an
+       overrun overwrites waiting events. A superseded seek to 0 doesn't log the
        track's play, as a rewind taken up does; accepted, the window being a
        Previous or a jump to 0 followed by another seek within a busy spell. */
     if (queue_peek_ex(&audio_queue, NULL, QPEEK_REMOVE_EVENTS,
@@ -4696,7 +4852,14 @@ int playback_current_aa_hid(int slot)
     struct track_info user_cur;
 
     if ((unsigned)slot < MAX_MULTIPLE_AA && track_list_cover_current(&user_cur))
+    {
+        /* one that decodes now the track has started: there soon (not one
+           of a track ahead that a skip on its way shows) */
+        if (user_cur.aa_hid[slot] < 0 && user_cur.aa_wait_hid[slot] >= 0
+            && skip_offset + skip_under_way == 0)
+            return ERR_HANDLE_NOT_DONE;
         return user_cur.aa_hid[slot];
+    }
 
     return ERR_HANDLE_NOT_FOUND;
 }

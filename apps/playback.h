@@ -38,7 +38,9 @@
 #include "bmp.h"
 #include "metadata.h"
 /*
- * Returns the handle id of the buffered albumart for the given slot id
+ * Returns the handle id of the buffered albumart for the given slot id; if
+ * none, ERR_UNSUPPORTED_TYPE once the track is known to have none for it,
+ * ERR_HANDLE_NOT_DONE while its cover decodes as the track starts
  **/
 int playback_current_aa_hid(int slot);
 bool playback_current_has_art(void);
@@ -83,6 +85,7 @@ struct bufopen_bitmap_data {
     struct dim *dim;
     struct mp3_albumart *embedded_albumart;
     const struct itunesdb_art *ipod_art; /* a cover Finder made */
+    bool defer; /* set aside the room only: bufdecode_bitmap() decodes later */
 };
 
 #endif /* HAVE_ALBUMART */

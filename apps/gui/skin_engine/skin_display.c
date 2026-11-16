@@ -1482,8 +1482,11 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
 #ifdef HAVE_ALBUMART
 /* The next track's cover takes a moment to load, and with no cover there the
    backdrop's note would show until then. So the last one stays that long: a copy,
-   as the buffer may have dropped it. */
+   as the buffer may have dropped it. Not for a track known to have none; for one
+   whose cover decodes as it starts (playback.c, audio_defer_albumart()), until
+   that's done, as the note between the two covers flashed. */
 #define ART_KEPT_TIME   (HZ * 3 / 4)
+#define ART_DECODE_KEPT_TIME (HZ * 3)
 #define ART_KEPT_SIZE   200
 
 static struct {
@@ -1498,6 +1501,7 @@ static struct {
     bool had_cover; /* it had one when last looked at */
     bool keeping;   /* it has none now, and the copy stays until then */
     long until;
+    long since;     /* the tick the keeping began */
 } kept_art[2];
 
 static void art_seen(int index, int handle)
@@ -1507,12 +1511,25 @@ static void art_seen(int index, int handle)
         kept_art[index].had_cover = true;
         kept_art[index].keeping = false;
     }
+    else if (handle == ERR_UNSUPPORTED_TYPE)
+    {
+        /* the track has none, as playback knows once it has loaded it: the
+           note at once, with its title, not the last cover for its time; a
+           cover kept already, while it loaded, goes at the next update,
+           which skin_art_kept_expired() makes whole */
+        kept_art[index].had_cover = false;
+        if (kept_art[index].keeping)
+            kept_art[index].until = current_tick;
+    }
     else if (kept_art[index].had_cover)
     {
         kept_art[index].had_cover = false;
         kept_art[index].keeping = true;
+        kept_art[index].since = current_tick;
         kept_art[index].until = current_tick + ART_KEPT_TIME;
     }
+    if (handle == ERR_HANDLE_NOT_DONE && kept_art[index].keeping)
+        kept_art[index].until = kept_art[index].since + ART_DECODE_KEPT_TIME;
 }
 
 /* Until skin_art_kept_expired() has said its time is up, which a full update

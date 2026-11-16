@@ -73,6 +73,27 @@ int clip_jpeg_fd(int fd, int flags,
                  int format,
                  const struct custom_format *cformat);
 
+#if defined(HAVE_ALBUMART) && !defined(PLUGIN)
+/**
+ * an embedded picture's bytes as clip_jpeg_fd() would read them from fd,
+ * lseek()'d to the picture: len of them into dst, an Ogg picture's base64
+ * text without its pages' headers. Returns how many, < 0 for an error.
+ **/
+long jpeg_read_embedded(int fd, int flags, unsigned long len,
+                        unsigned char *dst);
+
+/**
+ * clip_jpeg_fd() from the mem_size bytes at mem that jpeg_read_embedded()
+ * read, with the same flags and jpeg_size (struct mp3_albumart's)
+ **/
+int clip_jpeg_mem(const unsigned char *mem, size_t mem_size, int flags,
+                  unsigned long jpeg_size,
+                  struct bitmap *bm,
+                  int maxsize,
+                  int format,
+                  const struct custom_format *cformat);
+#endif
+
 #ifndef PLUGIN
 /* The decode that reads this file takes the picture out of memory: its
    bytes, from the place in the file it would be read at, are the

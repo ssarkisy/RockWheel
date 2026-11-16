@@ -94,6 +94,9 @@ struct jpeg
     int (*read_buf)(struct jpeg* p_jpeg, size_t count);
     bool (*skip_bytes_seek)(struct jpeg* p_jpeg);
     void* custom_param;
+    /* the picture's bytes in memory, when fd is JPEG_FD_MEM (clip_jpeg_mem()) */
+    const unsigned char *mem;
+    size_t mem_size, mem_at;
 #endif
     unsigned long len;
     unsigned long int bitbuf;
@@ -919,9 +922,20 @@ size_t jpeg_mem_size;
 static size_t mem_at;       /* how far into them the decode has read */
 #endif
 
+/* no file: the picture's bytes are p_jpeg->mem's; not -1, which the stop
+   and hold below mean as none */
+#define JPEG_FD_MEM (-2)
+
 /* the picture's next bytes: its file's, or the memory's it was read into */
 static int source_read(struct jpeg* p_jpeg, size_t count)
 {
+    if (p_jpeg->fd == JPEG_FD_MEM)
+    {
+        count = MIN(count, p_jpeg->mem_size - p_jpeg->mem_at);
+        memcpy(p_jpeg->buf, p_jpeg->mem + p_jpeg->mem_at, count);
+        p_jpeg->mem_at += count;
+        return count;
+    }
 #ifdef JPEG_STOPPABLE
     if (p_jpeg->fd == jpeg_mem_fd)
     {
@@ -965,6 +979,13 @@ static int read_buf_vorbis_base64(struct jpeg* p_jpeg, size_t count)
     return base64_decode(buf, count, buf);
 }
 
+/* the same from memory, where the text is already out of the Ogg pages */
+static int read_buf_mem_base64(struct jpeg* p_jpeg, size_t count)
+{
+    count = source_read(p_jpeg, count);
+    return base64_decode(p_jpeg->buf, count, p_jpeg->buf);
+}
+
 /* when pjpeg->read_buf involves additional data processing (like base64 decoding)
  * we can't use lseek and have to call pjpeg->read_buf for proper seek */
 static bool skip_bytes_read_buf(struct jpeg* p_jpeg)
@@ -997,6 +1018,15 @@ static unsigned char *jpeg_getc(struct jpeg* p_jpeg)
 
 static bool skip_bytes_seek(struct jpeg* p_jpeg)
 {
+    /* buf_left is under 0 by what's skipped past the buffer's end */
+    if (p_jpeg->fd == JPEG_FD_MEM)
+    {
+        if (p_jpeg->mem_at - p_jpeg->buf_left > p_jpeg->mem_size)
+            return false;
+        p_jpeg->mem_at -= p_jpeg->buf_left;
+        p_jpeg->buf_left = 0;
+        return true;
+    }
 #ifdef JPEG_STOPPABLE
     /* buf_left is under 0 by what's skipped past the buffer's end */
     if (p_jpeg->fd == jpeg_mem_fd)
@@ -2214,7 +2244,8 @@ int get_jpeg_dim_mem(unsigned char *data, unsigned long len,
 
 int decode_jpeg_mem(unsigned char *data,
 #else
-int clip_jpeg_fd(int fd, int flags,
+static int clip_jpeg_source(int fd, const unsigned char *mem,
+                            size_t mem_size, int flags,
 #endif
                  unsigned long len,
                  struct bitmap *bm,
@@ -2247,7 +2278,12 @@ int clip_jpeg_fd(int fd, int flags,
     if (fd == jpeg_mem_fd)
         mem_at = 0;
 #endif
-    if (p_jpeg->len == 0)
+    if (mem)
+    {
+        p_jpeg->mem = mem;
+        p_jpeg->mem_size = mem_size;
+    }
+    else if (p_jpeg->len == 0)
         p_jpeg->len = ffilesize(p_jpeg->fd);
 
     p_jpeg->read_buf = read_buf;
@@ -2258,6 +2294,12 @@ int clip_jpeg_fd(int fd, int flags,
     {
         p_jpeg->read_buf = read_buf_id3_unsync;
         p_jpeg->custom_param = false;
+    }
+    else if ((flags & AA_FLAG_VORBIS_BASE64) && mem)
+    {
+        /* jpeg_read_embedded() took the text out of the pages */
+        p_jpeg->read_buf = read_buf_mem_base64;
+        p_jpeg->skip_bytes_seek = skip_bytes_read_buf;
     }
     else if (flags & AA_FLAG_VORBIS_BASE64)
     {
@@ -2491,6 +2533,60 @@ int clip_jpeg_fd(int fd, int flags,
     }
     return 0;
 }
+
+#ifndef JPEG_FROM_MEM
+int clip_jpeg_fd(int fd, int flags,
+                 unsigned long jpeg_size,
+                 struct bitmap *bm,
+                 int maxsize,
+                 int format,
+                 const struct custom_format *cformat)
+{
+    return clip_jpeg_source(fd, NULL, 0, flags, jpeg_size, bm, maxsize, format,
+                            cformat);
+}
+
+#if defined(HAVE_ALBUMART) && !defined(PLUGIN)
+int clip_jpeg_mem(const unsigned char *mem, size_t mem_size, int flags,
+                  unsigned long jpeg_size,
+                  struct bitmap *bm,
+                  int maxsize,
+                  int format,
+                  const struct custom_format *cformat)
+{
+    return clip_jpeg_source(JPEG_FD_MEM, mem, mem_size, flags, jpeg_size, bm,
+                            maxsize, format, cformat);
+}
+
+long jpeg_read_embedded(int fd, int flags, unsigned long len,
+                        unsigned char *dst)
+{
+    if (flags & AA_FLAG_VORBIS_BASE64)
+    {
+        /* as clip_jpeg_fd() finds the picture's place in the comments */
+        struct ogg_file ogg;
+        unsigned char buf_format[92];
+        off_t pic_pos = lseek(fd, 0, SEEK_CUR);
+        int type = get_ogg_format_and_move_to_comments(fd, buf_format);
+
+        ogg_file_init(&ogg, fd, type, 0);
+        bool packet_found;
+        do
+        {
+            int seek_from_cur_pos = pic_pos - lseek(fd, 0, SEEK_CUR);
+            packet_found = seek_from_cur_pos <= ogg.packet_remaining;
+            if (ogg_file_read(&ogg, NULL, packet_found ? seek_from_cur_pos
+                                                       : ogg.packet_remaining) < 0)
+                return -1;
+        }
+        while (!packet_found);
+
+        return ogg_file_read(&ogg, dst, len);
+    }
+    return read(fd, dst, len);
+}
+#endif /* HAVE_ALBUMART && !PLUGIN */
+#endif /* !JPEG_FROM_MEM */
 
 #ifndef JPEG_FROM_MEM
 int read_jpeg_fd(int fd,
