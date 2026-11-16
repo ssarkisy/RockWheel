@@ -28,12 +28,11 @@
    make it "On-The-Go 2". */
 #define OTG_FILE ROCKBOX_DIR "/on-the-go.m3u8"
 
-/* each true if it was added */
+/* a song at the end of On-The-Go, true if it was added */
 bool otg_add_file(const char *path);
-bool otg_add_playlist(const char *playlist);
-/* the song, album, artist or the like selected in a list of Music */
-bool otg_add_selection(void);
-/* the same at the end of another playlist file, target */
+/* at the end of a playlist file, target, each true if it was added: a song;
+   a playlist's songs; the song, album, artist or the like selected in a list
+   of Music */
 bool playlist_file_append(const char *target, const char *path);
 bool playlist_file_append_playlist(const char *target, const char *playlist);
 bool playlist_file_append_selection(const char *target);

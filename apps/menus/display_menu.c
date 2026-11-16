@@ -171,14 +171,6 @@ MENUITEM_SETTING(bl_filter_first_keypress,
                     &global_settings.bl_filter_first_keypress,
                     filterfirstkeypress_callback);
 
-/* The backlight settings of Settings > Advanced, the timeout and
-   brightness are in Settings itself */
-MAKE_MENU(ipod_backlight_menu, ID2P(LANG_BACKLIGHT), 0, Icon_NOICON,
-#if CONFIG_CHARGING
-          &backlight_timeout_plugged,
-#endif
-          &backlight_on_button_hold, &bl_filter_first_keypress);
-
 MENUITEM_SETTING(bl_selective_actions,
                  &global_settings.bl_selective_actions,
                                                     selectivebacklight_callback);
@@ -857,7 +849,7 @@ static int codepage_callback(int action,
     return action;
 }
 
-MENUITEM_SETTING_SHARED(codepage_setting, &global_settings.default_codepage, codepage_callback);
+MENUITEM_SETTING(codepage_setting, &global_settings.default_codepage, codepage_callback);
 
 
 MAKE_MENU(display_menu, ID2P(LANG_DISPLAY),

@@ -750,11 +750,6 @@ bool lp_write_file(const char *file, struct lp_song *songs, int count,
     return true;
 }
 
-bool lp_is_library(const char *file)
-{
-    return file && database_in_ram() && itunesdb_own_playlist(file);
-}
-
 bool lp_viewable(const char *file)
 {
     return file && file[0] && database_in_ram();

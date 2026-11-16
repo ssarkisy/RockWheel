@@ -66,7 +66,6 @@ extern const struct menu_item_ex
         ipod_eq_menu, ipod_eq_row,                  /* eq_menu.c        */
 #ifdef HAVE_BACKLIGHT
         backlight_timeout, wake_screen_item, return_to_wps_item,
-        ipod_backlight_menu,                        /* display_menu.c   */
 #endif
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
         brightness_item,
@@ -74,7 +73,6 @@ extern const struct menu_item_ex
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
         cover_colours_item, status_icons_item, angled_cover_item,
 #endif
-        codepage_setting,
         dark_theme_item, appearance_menu,
         night_menu, night_row,                      /* display_menu.c   */
         battery_capacity, ipod_keyclick_menu,       /* settings_menu.c  */
@@ -83,7 +81,7 @@ extern const struct menu_item_ex
 #endif
         sleep_timer_item, language_item, wps_menu_items, wps_menu_row,
 #ifdef HAVE_TAGCACHE
-        ipod_database_menu, smart_search_item,
+        smart_search_item,
         music_menu_items, music_menu_row, main_menu_items, main_menu_row,
 #endif
         browse_themes;                              /* theme_menu.c     */
@@ -97,8 +95,5 @@ int browse_folder(void *param); /* in theme_menu.c as it is mostly used there */
 #endif /* ! PLUGIN */
 void volume_limit_screen(void); /* sound_menu.c */
 int language_screen(void); /* settings_menu.c: the list of languages */
-/* the i-th language of that list, by its file and its own name, NULL if it isn't
-   offered; false past the last */
-bool language_at(int i, const char **file, const char **name);
 
 #endif /*_EXPORTED_MENUS_H */

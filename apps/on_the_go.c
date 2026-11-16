@@ -72,11 +72,6 @@ bool playlist_file_append(const char *target, const char *path)
    time, into its second, written a block at a time: a read and a write a song
    took long on the iPod. Its notes left out, its paths from its own folder
    made whole. */
-bool otg_add_playlist(const char *playlist)
-{
-    return playlist_file_append_playlist(OTG_FILE, playlist);
-}
-
 bool playlist_file_append_playlist(const char *target, const char *playlist)
 {
     /* not into itself */
@@ -172,11 +167,6 @@ bool playlist_file_append_playlist(const char *target, const char *playlist)
         ok = false;
     close(fd);
     return ok;
-}
-
-bool otg_add_selection(void)
-{
-    return playlist_file_append_selection(OTG_FILE);
 }
 
 bool playlist_file_append_selection(const char *target)

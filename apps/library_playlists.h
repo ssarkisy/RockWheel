@@ -82,8 +82,6 @@ bool lp_same_file(const char *a, const char *b);
    Library, for as long as go_on says */
 void lp_index_all(bool (*go_on)(void));
 
-/* one of the import's, with the database in memory to show it from */
-bool lp_is_library(const char *file);
 /* one lp_view() shows: any of Playlists, the import's and those made on the
    iPod or put there by hand, while the database is in memory */
 bool lp_viewable(const char *file);

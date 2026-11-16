@@ -181,11 +181,6 @@ MAKE_MENU(tagcache_menu, ID2P(LANG_TAGCACHE), 0, Icon_NOICON,
                 &tagcache_autoupdate, &tc_init, &tc_update, &runtimedb,
                 &tc_export, &tc_import, &tc_paths
                 );
-
-/* The database in Settings > Advanced, until the iTunes database is
-   imported */
-MAKE_MENU(ipod_database_menu, ID2P(LANG_TAGCACHE), 0, Icon_NOICON,
-          &tc_update, &tc_init);
 #endif /* HAVE_TAGCACHE */
 /*    TAGCACHE MENU                */
 /***********************************/
@@ -1146,15 +1141,6 @@ static int lang_name_index(const char *file)
         if (!strcmp(lang_names[i].file, file))
             return i;
     return ARRAYLEN(lang_names);
-}
-
-bool language_at(int i, const char **file, const char **name)
-{
-    if (i < 0 || i >= (int)ARRAYLEN(lang_names))
-        return false;
-    *file = lang_names[i].file;
-    *name = lang_names[i].name;
-    return true;
 }
 
 int language_screen(void)

@@ -519,23 +519,6 @@ static int add_to_on_the_go(void)
                 ip_add_file(OTG_FILE, selected_file.path);
             break;
     }
-#else
-    switch (selected_file.context)
-    {
-        case CONTEXT_WPS:
-        {
-            const struct mp3entry *id3 = audio_current_track();
-            if (id3 && id3->path[0])
-                otg_add_file(id3->path);
-            break;
-        }
-        default:
-            if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_M3U)
-                otg_add_playlist(selected_file.path);
-            else if ((selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_AUDIO)
-                otg_add_file(selected_file.path);
-            break;
-    }
 #endif
     return 0;
 }
