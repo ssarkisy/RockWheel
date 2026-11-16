@@ -13,6 +13,8 @@
 #   make -C tests check-keys     the sort and album keys
 #   make -C tests check-itunesdb iTunesDB and ArtworkDB, whole and damaged
 #   make -C tests check-codecs   the codecs through warble
+#   make -C tests check-wheel    the click wheel's policy, and its drivers
+#                                against 1be9ae95b6's (wheel/ref)
 #   make -C tests clean
 #
 # Built under tests/build. The sources are built with the simulator's
@@ -69,10 +71,10 @@ FIRMWARE_OBJ := $(addprefix $(OBJ)/,$(FIRMWARE_SRC:.c=.o))
 # the tests' own: the checks, and the firmware the sources call
 LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o
 
-.PHONY: all check check-keys check-itunesdb check-codecs clean
-all: $(BUILD)/test_keys $(BUILD)/test_itunesdb
+.PHONY: all check check-keys check-itunesdb check-codecs check-wheel clean
+all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_wheel
 
-check: check-keys check-itunesdb check-codecs
+check: check-keys check-itunesdb check-wheel check-codecs
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -117,6 +119,57 @@ check-itunesdb: $(BUILD)/test_itunesdb
 	@rm -rf $(ITUNESDB_CASES)
 	@$(PYTHON) -I -B $(TESTS)/itunesdb/make_itunesdb.py $(ITUNESDB_CASES)
 	@$(BUILD)/test_itunesdb $(ITUNESDB_CASES)
+
+# The click wheel: wheel_policy.c as the simulator builds it; and the driver,
+# 1be9ae95b6's (wheel/ref, verbatim) and today's, each built against
+# wheel/stub's headers, its register at 0x7000c140 a stub's variable. The
+# base's lines of button.c, list.c and wps.c are wheel/ref/apps.c, made by
+# wheel/make_ref.py.
+WHEEL     := $(TESTS)/wheel
+WHEEL_OBJ := $(OBJ)/wheel
+WHEEL_DRV_CFLAGS := -std=gnu11 -g -O1 $(SANITIZE) -I$(WHEEL)/stub \
+	-I$(ROOT)/firmware/export -I$(ROOT)/firmware/target/arm/ipod \
+	-Wall -Wno-unused-function -Wno-unknown-warning-option
+WHEEL_DATA_REG := (\*(volatile unsigned long\*)(0x7000c140))
+
+define wheel_driver_copy
+	@mkdir -p $(dir $@)
+	@sed -e 's/$(WHEEL_DATA_REG)/(stub_env.data)/' $< > $@.tmp
+	@test "$$(grep -c 'stub_env.data' $@.tmp)" = 1 \
+		|| { echo "$<: CLICKWHEEL_DATA not found once"; exit 1; }
+	@mv $@.tmp $@
+endef
+
+$(WHEEL_OBJ)/ref-driver.c: $(WHEEL)/ref/button-clickwheel.c
+	$(wheel_driver_copy)
+
+$(WHEEL_OBJ)/new-driver.c: $(ROOT)/firmware/target/arm/ipod/button-clickwheel.c
+	$(wheel_driver_copy)
+
+# its (1<<31) shifts into the sign bit, which GCC defines as the firmware
+# takes it, 0x80000000
+$(WHEEL_OBJ)/ref-driver.o: $(WHEEL_OBJ)/ref-driver.c $(WHEEL)/ref/names.h
+	@echo CC tests/wheel/ref/button-clickwheel.c
+	@$(HOST_CC) $(WHEEL_DRV_CFLAGS) -fno-sanitize=shift-base \
+		-include $(WHEEL)/ref/names.h -MMD -c $< -o $@
+
+$(WHEEL_OBJ)/new-driver.o: $(WHEEL_OBJ)/new-driver.c
+	@echo CC firmware/target/arm/ipod/button-clickwheel.c
+	@$(HOST_CC) $(WHEEL_DRV_CFLAGS) -MMD -c $< -o $@
+
+$(WHEEL_OBJ)/%.o: $(WHEEL)/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -I$(WHEEL) -MMD -c $< -o $@
+
+$(BUILD)/test_wheel: $(WHEEL_OBJ)/test_wheel.o $(WHEEL_OBJ)/ref/apps.o \
+		$(WHEEL_OBJ)/ref-driver.o $(WHEEL_OBJ)/new-driver.o \
+		$(OBJ)/firmware/drivers/wheel_policy.o $(OBJ)/lib/check.o
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+check-wheel: $(BUILD)/test_wheel
+	@$(BUILD)/test_wheel
 
 # warble, from its own configure in build/warble, with clang and ASan; only
 # the codecs the fixtures need, and without SDL (lib/sdl_stub.c). DEBUG makes

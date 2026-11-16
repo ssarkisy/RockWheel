@@ -420,6 +420,9 @@ backlight-sw-fading.c
 drivers/led.c
 drivers/button.c
 drivers/button_queue.c
+#ifdef HAVE_WHEEL_ACCELERATION
+drivers/wheel_policy.c
+#endif
 #if (CONFIG_PLATFORM & PLATFORM_NATIVE)
 #ifdef HAVE_DAC3550A
 drivers/audio/dac3550a.c

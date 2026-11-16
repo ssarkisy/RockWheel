@@ -45,6 +45,7 @@
 #include "audio.h"
 #include "wps.h"
 #include "chapters.h"
+#include "wheel_policy.h"
 
 /* The minimum number of pending button events in queue before starting
  * to limit list drawing interval.
@@ -783,7 +784,7 @@ static void gui_synclist_scroll_left(struct gui_synclist * lists)
 #define QUICK_SCROLL_SPEED 4
 #define QUICK_SCROLL_ROWS  100
 #ifdef HAVE_WHEEL_POSITION
-/* LIFT matches the driver's WHEEL_UNTOUCH_TIMEOUT; HOLD caps a missed lift */
+/* LIFT: WHEEL_UNTOUCH_TIMEOUT (wheel_policy.c); HOLD caps a missed lift */
 #define QUICK_SCROLL_HOLD  (10 * HZ)
 #define QUICK_SCROLL_LIFT  (HZ * 15 / 100)
 #define QUICK_SCROLL_LOOK  (HZ / 20)
@@ -914,9 +915,10 @@ static void gui_list_select_by_initials(struct gui_synclist *lists, int dir,
 }
 
 #ifdef HAVE_WHEEL_ACCELERATION
-static bool quick_scroll_step(struct gui_synclist *lists, unsigned int wheel_data)
+/* of the wheel's speed, wheel_data_speed() */
+static bool quick_scroll_step(struct gui_synclist *lists, int speed)
 {
-    return button_wheel_speed(wheel_data) >= QUICK_SCROLL_SPEED
+    return speed >= QUICK_SCROLL_SPEED
            && lists->nb_items > QUICK_SCROLL_ROWS;
 }
 #endif
@@ -929,7 +931,8 @@ bool gui_synclist_keyclick_callback(int action, void* data)
     /* no click where a letter step can't move */
     const int dir = action == ACTION_STD_NEXT || action == ACTION_STD_NEXTREPEAT ? 1
                   : action == ACTION_STD_PREV || action == ACTION_STD_PREVREPEAT ? -1 : 0;
-    if (dir && steps_by_initials(lists, quick_scroll_step(lists, get_action_data())))
+    if (dir && steps_by_initials(lists, quick_scroll_step(lists,
+                                     wheel_data_speed(get_action_data()))))
         return initial_step(lists, lists->selected_item, dir) != lists->selected_item;
 #endif
 
@@ -993,36 +996,17 @@ bool gui_synclist_do_button(struct gui_synclist * lists, int *actionptr)
     bool quick_step = false;
 
 #ifdef HAVE_WHEEL_ACCELERATION
-    unsigned int wheel_data = get_action_data();
-    /* A short one, as a menu, goes a row a step, without the steps the UI was
-       too busy for, through which the main menu went two and three at once,
-       and faster not either: Apple's own scrolling doesn't speed up in a list
-       of twenty or fewer. A long one goes as far as the wheel did. */
-    if ((wheel_data & (1u << 31))
-        && lists->nb_items <= 2 * list_get_nb_lines(lists, SCREEN_MAIN))
-        wheel_data = 1u << 24;
-    /* a step at least, as for a remote's next and previous, of no data */
-    int next_item_modifier = MAX(1, button_apply_acceleration(wheel_data));
-    /* A long list goes further: by the square root of how many times LONG_LIST
-       it is, 13000 songs five times, 1700 albums twice; with the wheel's stages,
-       they double on to that many times their most. Turned slowly, the wheel
-       still goes a row a step. */
-#define LONG_LIST 500
-    const int speed = button_wheel_speed(wheel_data);
-    quick_step = quick_scroll_step(lists, wheel_data);
-    const int wheel_steps = MAX(1, button_wheel_steps(wheel_data));
-    if (speed > 1 && lists->nb_items > LONG_LIST)
-    {
-        const unsigned target = (unsigned)lists->nb_items * 256 / LONG_LIST;
-        unsigned scale = 16; /* in sixteenths */
-        while ((scale + 1) * (scale + 1) <= target)
-            scale++;
-        if (button_wheel_staged(wheel_data))
-            next_item_modifier = button_wheel_steps(wheel_data)
-                                 * MIN(speed, WHEEL_STAGE_ROWS * (int)scale / 16);
-        else
-            next_item_modifier = next_item_modifier * (int)scale / 16;
-    }
+    /* the rows by the list's length (wheel_policy.c): a short one, as a menu,
+       a row a step; a long one as far as the wheel went, and further. Its
+       lines are counted for the wheel's data only, as before: counting them
+       sets the status bar's title (sb_set_title_text) */
+    const unsigned int wheel_data = get_action_data();
+    const struct wheel_rows wheel = wheel_list_rows(wheel_data, lists->nb_items,
+        wheel_data_is_wheel(wheel_data) ? list_get_nb_lines(lists, SCREEN_MAIN)
+                                        : 0);
+    const int next_item_modifier = wheel.rows;
+    quick_step = quick_scroll_step(lists, wheel.speed);
+    const int wheel_steps = wheel.steps;
 #else
     static int next_item_modifier = 1;
     static int last_accel_tick = 0;

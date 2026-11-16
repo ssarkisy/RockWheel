@@ -27,6 +27,7 @@
 #endif
 #include "config.h"
 #include "button.h"
+#include "wheel_policy.h"
 #include "kernel.h"
 #include "backlight.h"
 #include "system.h"
@@ -679,7 +680,7 @@ static void button_event(int key, bool pressed)
  *   wheel <steps> <stage>
  *                    the click wheel turned <steps> steps, back if negative,
  *                    at its acceleration stage 0-6: each step goes 2^stage rows,
- *                    as far as the list lets it (apps/gui/list.c), as the iPod's
+ *                    as far as the list lets it (wheel_list_rows), as the iPod's
  *                    driver posts them (button-clickwheel.c)
  *   wait <ms>
  *   waitidle <ms> [<max>]
@@ -845,8 +846,7 @@ static void script_wheel(int steps, int stage, bool now)
 #endif
         reset_poweroff_timer();
         button_queue_post(b | (i ? BUTTON_REPEAT : 0),
-                          (1u << 31) | (1u << 24) | WHEEL_DATA_STAGED
-                          | (1u << stage));
+                          wheel_data_make(1, stage));
         script_sleep_until(current_tick + SCRIPT_TICKS(script_keygap));
     }
 }

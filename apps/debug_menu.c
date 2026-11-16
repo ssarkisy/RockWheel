@@ -96,6 +96,7 @@
 #endif
 #include "hwcompat.h"
 #include "button.h"
+#include "wheel_policy.h"
 #if CONFIG_RTC == RTC_PCF50605
 #include "pcf50605.h"
 #endif
@@ -2488,16 +2489,10 @@ static bool cpu_boost_log_dump(void)
 
 #if (defined(HAVE_WHEEL_ACCELERATION) && (CONFIG_KEYPAD==IPOD_4G_PAD) \
      && !defined(IPOD_MINI) && !defined(SIMULATOR))
-extern bool wheel_is_touched;
-extern int old_wheel_value;
-extern int new_wheel_value;
-extern int wheel_delta;
-extern unsigned int accumulated_wheel_delta;
-extern unsigned int wheel_velocity;
-extern int wheel_accel_stage;
-
 static bool dbg_scrollwheel(void)
 {
+    const struct wheel_state *wheel = button_wheel_state();
+
     lcd_setfont(FONT_SYSFIXED);
 
     while (1)
@@ -2508,15 +2503,15 @@ static bool dbg_scrollwheel(void)
         lcd_clear_display();
 
         /* show internal variables of scrollwheel driver */
-        lcd_putsf(0, 0, "wheel touched: %s", (wheel_is_touched) ? "true" : "false");
-        lcd_putsf(0, 1, "new position: %2d", new_wheel_value);
-        lcd_putsf(0, 2, "old position: %2d", old_wheel_value);
-        lcd_putsf(0, 3, "wheel delta: %2d", wheel_delta);
-        lcd_putsf(0, 4, "accumulated delta: %2d", accumulated_wheel_delta);
-        lcd_putsf(0, 5, "velo [deg/s]: %4d", (int)wheel_velocity);
+        lcd_putsf(0, 0, "wheel touched: %s", (wheel->touched) ? "true" : "false");
+        lcd_putsf(0, 1, "new position: %2d", wheel->position);
+        lcd_putsf(0, 2, "old position: %2d", wheel->old);
+        lcd_putsf(0, 3, "wheel delta: %2d", wheel->delta);
+        lcd_putsf(0, 4, "accumulated delta: %2d", wheel->carry);
+        lcd_putsf(0, 5, "velo [deg/s]: %4d", (int)wheel->velocity);
 
         /* show effective accelerated scrollspeed */
-        lcd_putsf(0, 6, "accel. speed: %4d", 1 << wheel_accel_stage);
+        lcd_putsf(0, 6, "accel. speed: %4d", 1 << wheel->stage);
 
         lcd_update();
     }

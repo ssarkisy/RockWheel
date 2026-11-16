@@ -100,23 +100,12 @@ long button_wheel_untouched_ticks(void);
 #endif
 
 #ifdef HAVE_WHEEL_ACCELERATION
-int button_apply_acceleration(const unsigned int data);
-/* of a wheel event's data, the items a step goes at the wheel's speed: over 1
-   when it's fast enough to go further */
-int button_wheel_speed(const unsigned int data);
-/* and its steps, those the UI was too busy for included */
-int button_wheel_steps(const unsigned int data);
-/* whether its speed is in stages, the rows a step goes, as the click wheel's
-   driver has them, and not in degrees a second */
-bool button_wheel_staged(const unsigned int data);
-#define WHEEL_DATA_STAGED (1u << 23)
-/* Steps of the wheel half as far, for the volume in Now Playing: its hundred
+/* A wheel event's data, and what it makes of a turn, are wheel_policy.h's.
+   Steps of the wheel half as far, for the volume in Now Playing: its hundred
    steps in the two turns its fifty took. Only a driver with fine steps has
    them, the click wheel's */
 void button_wheel_fine(bool fine);
 bool button_wheel_is_fine(void);
-/* the most rows a step goes by the wheel's stages, in a list of up to 500 */
-#define WHEEL_STAGE_ROWS 8
 #endif
 
 #define BUTTON_NONE         0x00000000

@@ -49,6 +49,7 @@
 #include "splash.h"
 #include "cuesheet.h"
 #include "chapters.h"
+#include "wheel_policy.h"
 #include "ata_idle_notify.h"
 #include "root_menu.h"
 #include "backdrop.h"
@@ -858,11 +859,10 @@ bool wps_wheel_is_volume(void)
 static int wheel_steps(void)
 {
 #ifdef HAVE_WHEEL_ACCELERATION
-    const unsigned int data = get_action_data();
-    if (data & (1u << 31))
-        return MAX(1, button_wheel_steps(data));
-#endif
+    return wheel_event_steps(get_action_data());
+#else
     return 1;
+#endif
 }
 
 /* a podcast's or an audiobook's steps: the wheel's in the scrubber, the
@@ -921,7 +921,7 @@ static void display_mode_turn(int direction)
     {
         int ticks = 1;
 #ifdef HAVE_WHEEL_ACCELERATION
-        ticks = MAX(1, button_apply_acceleration(get_action_data()));
+        ticks = MAX(1, wheel_data_rows(get_action_data()));
 #endif
         if (lyrics_scroll(direction * ticks))
             draw_lyrics();
@@ -1439,7 +1439,7 @@ long gui_wps_show(void)
                        two of the hundred, as before them */
                     int steps = 2;
 #ifdef HAVE_WHEEL_ACCELERATION
-                    if (get_action_data() & (1u << 31))
+                    if (wheel_data_is_wheel(get_action_data()))
                         steps = MIN(wheel_steps(), 6);
 #endif
                     adjust_volume(button == ACTION_WPS_VOLUP ? steps : -steps);
