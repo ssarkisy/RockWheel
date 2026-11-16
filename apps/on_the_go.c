@@ -19,6 +19,7 @@
 #include "config.h"
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "file.h"
 #include "misc.h"
 #include "plugin.h"
@@ -26,6 +27,7 @@
 #include "playlist.h"
 #include "on_the_go.h"
 #include "line_reader.h"
+#include "file_write.h"
 #ifdef HAVE_TAGCACHE
 #include "tagtree.h"
 #include "library_playlists.h"
@@ -37,7 +39,8 @@ bool otg_add_file(const char *path)
 }
 
 /* A file whose last line has no end, as one put there by hand may: its end
-   first, or the first line added would join it */
+   first, or the first line added would join it. One whose last byte can't
+   be read is taken as not ended: an empty line is nothing lost. */
 static void end_last_line(const char *target)
 {
     int fd = open(target, O_RDONLY);
@@ -45,7 +48,7 @@ static void end_last_line(const char *target)
         return;
     char last = '\n';
     if (lseek(fd, -1, SEEK_END) >= 0 && read(fd, &last, 1) != 1)
-        last = '\n';
+        last = '\0';
     close(fd);
     if (last == '\n')
         return;
@@ -166,21 +169,39 @@ void otg_clear(void)
     remove(OTG_FILE);
 }
 
+/* On-The-Go's file to its end, through buf: none is nothing to lose */
+static bool otg_readable(char *buf, size_t size)
+{
+    errno = 0;
+    const int fd = open(OTG_FILE, O_RDONLY);
+    if (fd < 0)
+        return errno == ENOENT;
+    ssize_t n;
+    while ((n = read(fd, buf, size)) > 0)
+        ;
+    close(fd);
+    return n == 0;
+}
+
 /* On-The-Go as its screen left it, songs removed: written a block at a time
-   to a file of its own, which then takes its place. A playlist's own saving
-   stops the iPod with a panic if the disk can't take it. */
+   to a file of its own, which takes its place once whole, the old one kept
+   until then (FW_KEEP). A playlist's own saving stops the iPod with a panic
+   if the disk can't take it. Not over a file that can't be read to its end:
+   the queue was loaded from it by playlist.c, which takes a failed read for
+   the end, and holds only what came before it. */
 bool otg_save(struct playlist_info *playlist)
 {
+    char buf[1024];
+    if (!otg_readable(buf, sizeof(buf)))
+        return false;
     const int n = playlist_amount_ex(playlist);
     if (n <= 0)
     {
         otg_clear();
         return true;
     }
-    int fd = open(OTG_FILE ".tmp", O_CREAT|O_WRONLY|O_TRUNC, 0666);
-    bool ok = fd >= 0;
-    char buf[1024];
-    size_t used = 0;
+    struct fw w;
+    bool ok = fw_open(&w, OTG_FILE, FW_KEEP, buf, sizeof(buf));
     struct playlist_track_info info;
     for (int i = 0; ok && i < n; i++)
     {
@@ -190,28 +211,10 @@ bool otg_save(struct playlist_info *playlist)
             break;
         }
         const size_t len = strlen(info.filename);
-        if (len + 1 > sizeof(buf))
-            continue;
-        if (used + len + 1 > sizeof(buf))
-        {
-            ok = write(fd, buf, used) == (ssize_t)used;
-            used = 0;
-        }
-        memcpy(buf + used, info.filename, len);
-        buf[used + len] = '\n';
-        used += len + 1;
+        if (len + 1 <= sizeof(buf))
+            ok = fw_put(&w, info.filename, len) && fw_put(&w, "\n", 1);
     }
-    if (ok && used)
-        ok = write(fd, buf, used) == (ssize_t)used;
-    if (fd >= 0 && close(fd) < 0)
-        ok = false;
-    /* in place of the old one at once: removed first, a power cut between
-       lost both */
-    if (ok)
-        ok = rename(OTG_FILE ".tmp", OTG_FILE) == 0;
-    if (!ok)
-        remove(OTG_FILE ".tmp");
-    return ok;
+    return fw_close(&w, ok);
 }
 
 bool otg_empty(void)

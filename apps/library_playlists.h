@@ -81,6 +81,10 @@ bool lp_same_file(const char *a, const char *b);
    one made, and its file in the order shown: before the menu, on Updating
    Library, for as long as go_on says */
 void lp_index_all(bool (*go_on)(void));
+/* At boot, before anything reads or moves them: the playlists in the
+   catalogue's folder as a cut left them (fw_recover()), only if a reading of
+   its folders finds something left */
+void lp_files_boot(void);
 
 /* one lp_view() shows: any of Playlists, the import's and those made on the
    iPod or put there by hand, while the database is in memory */

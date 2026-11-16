@@ -89,6 +89,7 @@
 #include "statusbar-skinned.h"
 #include "bootchart.h"
 #include "scroll_engine.h"
+#include "file_write.h"
 #ifdef HAVE_GENERAL_PURPOSE_LED
 #include "led-general-purpose.h"
 #endif
@@ -135,12 +136,11 @@ static char *debug_get_flags(uint32_t flags);
 #ifndef __PCTOOL__
 
 /* A save of config.cfg or .resume.cfg goes to .new, promoted at the next
-   boot if whole, the file before it kept as .old: nothing is renamed while
-   in use, as a cut inside a rename can leave the file under neither name. */
+   boot if whole (settings_file_recover()): nothing is renamed while in use.
+   Most saves are the storage thread's, at the disk's idle, whose 2 KB stack
+   can't take the file system's rename under a commit's (file_write.h). */
 #define CONFIGFILE_NEW CONFIGFILE".new"
-#define CONFIGFILE_OLD CONFIGFILE".old"
 #define RESUMEFILE_NEW RESUMEFILE".new"
-#define RESUMEFILE_OLD RESUMEFILE".old"
 
 static void debug_available_settings(void);
 
@@ -165,42 +165,18 @@ static bool settings_file_whole(const char *path, bool ours)
     return whole;
 }
 
-/* Puts a whole new in file's place and file in old's. Each name is removed
-   before another file takes it: renamed over a name, a file has it twice
-   until the one it replaces is gone, and a cut between leaves both. */
-static bool settings_file_replace(const char *new, const char *file,
-                                  const char *old)
+/* At boot, before it's read: the last save if whole, raised as FW_KEEP's
+   .new is (fw_recover()), the file before kept as .old until it has the
+   name. One cut short goes, and an empty file is none: the .old beside it
+   if there is one (a cut's, or the copy an earlier firmware kept), else
+   none, so that a first start asks its questions. */
+static void settings_file_recover(const char *file, const char *new)
 {
-    if (!settings_file_whole(new, true))
-        return false;
-
-    remove(old);
-    if (settings_file_whole(file, false))
-    {
-        if (rename(file, old) < 0)
-            return false;
-    }
-    else
-        remove(file);
-
-    return rename(new, file) == 0;
-}
-
-/* At boot: the last save if whole, else file as it was; an empty or missing
-   file is then old again, or none, so that a first start asks its
-   questions. */
-static void settings_file_recover(const char *file, const char *new,
-                                  const char *old)
-{
-    if (file_exists(new) && !settings_file_replace(new, file, old))
+    if (file_exists(new) && !settings_file_whole(new, true))
         remove(new);
-
-    if (!settings_file_whole(file, false))
-    {
+    if (file_exists(file) && !settings_file_whole(file, false))
         remove(file);
-        if (settings_file_whole(old, false))
-            rename(old, file);
-    }
+    fw_recover(file);
 }
 
 #endif // !__PCTOOL__
@@ -267,8 +243,8 @@ void settings_load(void)
     logf("\r\n%s()\r\n", __func__);
     debug_available_settings();
 
-    settings_file_recover(RESUMEFILE, RESUMEFILE_NEW, RESUMEFILE_OLD);
-    settings_file_recover(CONFIGFILE, CONFIGFILE_NEW, CONFIGFILE_OLD);
+    settings_file_recover(RESUMEFILE, RESUMEFILE_NEW);
+    settings_file_recover(CONFIGFILE, CONFIGFILE_NEW);
     first_start = !file_exists(CONFIGFILE);
 
     settings_load_config(CONFIGFILE, false); /* load user_settings items */
@@ -779,16 +755,28 @@ static bool settings_write_config(const char* filename, int options)
     return close(fd) == 0 && ok;
 }
 
+/* One at a time: a second save, as the flush at a switch off or USB while
+   the storage thread's is under way, would write the same .new over it. It
+   waits a second for that one, as itunesdb_flush_flags() does, else is
+   skipped: the settings are tried again (user_settings_crc), the resume
+   at its next save. Set and tested without a yield between, the threads
+   on one core. */
 static bool settings_save_new(const char *new, int options)
 {
+    static bool saving;
+    for (int wait = 0; saving && wait < HZ; wait++)
+        sleep(1);
+    if (saving)
+        return false;
+    saving = true;
     /* a leftover .new under 64 KB would be overwritten in place, its old
        tail kept until closed */
     remove(new);
-    if (settings_write_config(new, options))
-        return true;
-
-    remove(new);
-    return false;
+    const bool ok = settings_write_config(new, options);
+    if (!ok)
+        remove(new);
+    saving = false;
+    return ok;
 }
 
 static void flush_global_status_callback(void)

@@ -64,6 +64,7 @@
 #include "dircache.h"
 #ifdef HAVE_TAGCACHE
 #include "synced_covers.h"
+#include "itunesdb.h"
 #endif
 #include "drive_info.h"
 #include "crash_log.h"
@@ -485,6 +486,7 @@ static void init(void)
     settings_reset();
     settings_load();
 #ifdef HAVE_TAGCACHE
+    itunesdb_files_boot();
     synced_covers_boot();
 #endif
     crash_log_boot();
@@ -761,6 +763,7 @@ static void init(void)
     settings_load();
     CHART("<settings_load");
 #ifdef HAVE_TAGCACHE
+    itunesdb_files_boot();
     /* before USB can read the description */
     synced_covers_boot();
 #endif

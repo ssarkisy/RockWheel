@@ -54,6 +54,11 @@ bool itunesdb_synced_path(const char *path);
    once the database has been updated from the files */
 void itunesdb_import(void);
 void itunesdb_forget_state(void);
+/* At boot, before anything reads them: the files of ours that can't be made
+   again (file_write.h, FW_KEEP) as a cut left them, put right: the import's
+   counts and plays, the marks, notes, ids and moved list, On-The-Go, and the
+   playlists in the catalogue's folder (lp_files_boot()). */
+void itunesdb_files_boot(void);
 /* A database of another format is built again: its state kept as this for the
    import after, which counts its unsynced plays from it */
 #define ITUNESDB_OLD_STATE ROCKBOX_DIR "/itunesdb_old.dat"

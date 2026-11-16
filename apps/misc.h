@@ -172,8 +172,9 @@ bool disk_is_flash(void);
    asks only that it spins. */
 #define DISK_SPINNING (-1)
 bool disk_free_for_ui(long margin);
-/* our own files, whole or not at all (misc.c): opened to write, closed with
-   whether each write went well, which then puts it in place */
+/* our own files, whole or not at all, by FW_CACHE (file_write.h): opened to
+   write, closed with whether each write went well, which then puts it in
+   place */
 int whole_file_open(const char *path);
 bool whole_file_close(int fd, const char *path, bool ok);
 bool whole_file_write(const char *path, const void *data, size_t size);

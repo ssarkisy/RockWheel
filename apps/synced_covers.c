@@ -24,13 +24,14 @@
 #include "core_alloc.h"
 #include "itunesdb.h"
 #include "synced_covers.h"
+#include "file_write.h"
 
 #ifdef ITUNESDB_HAVE_ART
 
-#define DESCRIPTION_FILE    "/iPod_Control/Device/SysInfoExtended"
+#define DESCRIPTION_DIR     "/iPod_Control/Device"
+#define DESCRIPTION_FILE    DESCRIPTION_DIR "/SysInfoExtended"
 /* as it was before the format was added; never read again */
 #define DESCRIPTION_KEPT    DESCRIPTION_FILE ".original"
-#define DESCRIPTION_NEW     DESCRIPTION_FILE ".new"
 /* what USB gives of the file (usb_storage.c): 62 pages of 248 bytes */
 #define DESCRIPTION_MAX     15376
 #define COVERS_DIR          "/iPod_Control/Artwork"
@@ -152,43 +153,59 @@ description_look(const char *text, size_t len, const char **entry,
     return DESCRIPTION_CHANGED;
 }
 
-static bool put(int fd, const char *data, size_t len)
-{
-    return write(fd, data, len) == (ssize_t)len;
-}
-
-/* The file as it was is kept beside it, once; the new one is written whole
-   under another name and takes the old one's place by a rename: at a cut
-   the description is the old or the new */
+/* The file as it was is kept beside it, once; the new one takes its place
+   once whole, the old one kept until then (FW_KEEP): nothing makes either
+   again, the device's own description. A write() each, as it was. */
 static bool description_write(const char *text, size_t len, const char *entry,
                               size_t entry_len, const char *at)
 {
+    struct fw w;
     if (!file_exists(DESCRIPTION_KEPT))
     {
-        int fd = open(DESCRIPTION_KEPT ".tmp", O_WRONLY | O_CREAT | O_TRUNC,
-                      0666);
-        if (fd < 0)
+        const bool ok = fw_open(&w, DESCRIPTION_KEPT, FW_KEEP, NULL, 0)
+                        && fw_put(&w, text, len);
+        if (!fw_close(&w, ok))
             return false;
-        bool ok = put(fd, text, len);
-        ok = close(fd) == 0 && ok;
-        if (!ok || rename(DESCRIPTION_KEPT ".tmp", DESCRIPTION_KEPT) != 0)
-        {
-            remove(DESCRIPTION_KEPT ".tmp");
-            return false;
-        }
     }
-    int fd = open(DESCRIPTION_NEW, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    const bool ok = fw_open(&w, DESCRIPTION_FILE, FW_KEEP, NULL, 0)
+                    && fw_put(&w, text, at - text)
+                    && fw_put(&w, entry, entry_len)
+                    && fw_put(&w, at, text + len - at);
+    return fw_close(&w, ok);
+}
+
+/* An older firmware wrote the new description in place as
+   "SysInfoExtended.new", fw_recover()'s name for one whole: one it left cut
+   short isn't raised. Whole, it is XML to its "</plist>", any space after
+   it, as description_look() takes it. */
+static bool description_whole(const char *new)
+{
+    char block[64];
+    const int fd = open(new, O_RDONLY);
     if (fd < 0)
         return false;
-    bool ok = put(fd, text, at - text) && put(fd, entry, entry_len)
-              && put(fd, at, text + len - at);
-    ok = close(fd) == 0 && ok;
-    if (!ok || rename(DESCRIPTION_NEW, DESCRIPTION_FILE) != 0)
+    off_t end = ffilesize(fd);
+    bool whole = end >= 16 && end <= DESCRIPTION_MAX
+                 && read(fd, block, 5) == 5 && !strncmp(block, "<?xml", 5);
+    /* back past the space at its end, a block at a time */
+    bool space = whole;
+    while (space && end > 8)
     {
-        remove(DESCRIPTION_NEW);
-        return false;
+        const off_t at = end > (off_t)sizeof(block) ? end - sizeof(block) : 0;
+        if (lseek(fd, at, SEEK_SET) != at
+            || read(fd, block, end - at) != end - at)
+        {
+            whole = space = false;
+            break;
+        }
+        while (end > at && isspace((unsigned char)block[end - at - 1]))
+            end--;
+        space = end == at;
     }
-    return true;
+    whole = whole && end >= 8 && lseek(fd, end - 8, SEEK_SET) == end - 8
+            && read(fd, block, 8) == 8 && !strncmp(block, "</plist>", 8);
+    close(fd);
+    return whole;
 }
 
 enum synced_covers_description synced_covers_describe(void)
@@ -323,6 +340,9 @@ void synced_covers_imported(bool covers)
 
 void synced_covers_boot(void)
 {
+    /* as a cut left them (fw_recover()), before USB reads the description */
+    static const char *const kept[] = { DESCRIPTION_FILE, DESCRIPTION_KEPT };
+    fw_recover_files(DESCRIPTION_DIR, kept, ARRAYLEN(kept), description_whole);
     synced_covers_describe();
     if (dir_exists(ASIDE_DIR) && !file_exists(ASIDE_DB))
         aside_remove();

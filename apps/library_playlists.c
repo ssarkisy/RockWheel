@@ -53,6 +53,7 @@
 #include "root_menu.h"
 #include "list_covers.h"
 #include "line_reader.h"
+#include "file_write.h"
 
 /* Rockbox's viewer read them a window of 200 lines at a time from the file,
    again as it scrolled past one, and looked up each title as it showed,
@@ -293,37 +294,24 @@ bool lp_index_write(const char *file, const struct lp_song *songs, int count,
                     struct lp_state *state)
 {
     state->pending = !lp_in_file_order(songs, count, state);
-    char path[MAX_PATH], tmp[MAX_PATH + 4];
+    char path[MAX_PATH];
     index_path(itunesdb_path_hash(file), path, sizeof(path));
-    snprintf(tmp, sizeof(tmp), "%s.tmp", path);
     const long size = file_size(file);
     if (size < 0)
         return false;
     mkdir(LP_DIR);
-    errno = 0;
-    const int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (fd < 0)
-    {
-        library_write_failed();
+    /* made again from the playlist if lost (FW_CACHE) */
+    struct fw w;
+    if (!fw_open(&w, path, FW_CACHE, NULL, 0))
         return false;
-    }
     const struct lp_head head = {
         LP_MAGIC, LP_VERSION, tagcache_get_commitid(), tagcache_entry_count(),
         size, count, state->lines, state->unmatched, state->pending,
         state->sort
     };
-    const ssize_t bytes = count * sizeof(*songs);
-    bool ok = write(fd, &head, sizeof(head)) == sizeof(head)
-              && write(fd, songs, bytes) == bytes;
-    if (close(fd) < 0)
-        ok = false;
-    if (!ok || rename(tmp, path) < 0)
-    {
-        library_write_failed();
-        remove(tmp);
-        return false;
-    }
-    return true;
+    fw_put(&w, &head, sizeof(head));
+    fw_put(&w, songs, count * sizeof(*songs));
+    return fw_close(&w, true);
 }
 
 void lp_index_forget(const char *file)
@@ -573,39 +561,33 @@ void lp_sort(struct lp_song *songs, int count, uint32_t sort)
     qsort(songs, count, sizeof(*songs), cmp_song);
 }
 
-/* a line into the block written, the block first if it's full */
-struct lp_out {
-    int fd;
-    char block[2048];
-    size_t used;
-    bool ok;
-};
-
-static void out_line(struct lp_out *out, const char *line, size_t n)
+/* a line into the block written, the block first if it's full: a line is
+   never split between two writes */
+static void out_line(struct fw *out, const char *line, size_t n)
 {
-    if (out->used + n + 1 > sizeof(out->block))
-    {
-        out->ok = out->ok
-                  && write(out->fd, out->block, out->used) == (ssize_t)out->used;
-        out->used = 0;
-    }
-    if (n + 1 > sizeof(out->block))
+    if (out->used + n + 1 > out->size)
+        fw_flush(out);
+    if (n + 1 > out->size)
     {
         out->ok = false;
         return;
     }
-    memcpy(out->block + out->used, line, n);
-    out->block[out->used + n] = '\n';
+    memcpy(out->buf + out->used, line, n);
+    out->buf[out->used + n] = '\n';
     out->used += n + 1;
 }
 
 /* The songs of a file the database hasn't, as of a format it doesn't take,
-   after those written: kept as they were rather than lost. How many. */
-static uint32_t keep_unmatched(const char *file, struct lp_out *out)
+   after those written: kept as they were rather than lost. How many. A
+   file that can't be read whole fails the write: it would lose the rest. */
+static uint32_t keep_unmatched(const char *file, struct fw *out)
 {
     const int fd = open_utf8(file, O_RDONLY);
     if (fd < 0)
+    {
+        out->ok = false;
         return 0;
+    }
     char chunk[256], line[MAX_PATH];
     size_t have = 0;
     bool too_long = false;
@@ -615,7 +597,12 @@ static uint32_t keep_unmatched(const char *file, struct lp_out *out)
     while (out->ok && !end)
     {
         n = read(fd, chunk, sizeof(chunk));
-        if (n <= 0)
+        if (n < 0)
+        {
+            out->ok = false;
+            break;
+        }
+        if (n == 0)
         {
             end = true;
             n = 1;
@@ -648,6 +635,10 @@ static uint32_t keep_unmatched(const char *file, struct lp_out *out)
     return kept;
 }
 
+/* lp_write_file()'s mark of a song it couldn't write, until it knows it
+   wrote the others: no line can be it */
+#define LP_UNWRITTEN (LP_NO_LINE - 1)
+
 bool lp_write_file(const char *file, struct lp_song *songs, int count,
                    struct lp_state *state)
 {
@@ -656,57 +647,61 @@ bool lp_write_file(const char *file, struct lp_song *songs, int count,
     if (!itunesdb_own_playlist(file))
         return false;
     const uint32_t sort = state->sort;
-    char tmp[MAX_PATH + 4], path[MAX_PATH];
-    snprintf(tmp, sizeof(tmp), "%s.tmp", file);
+    char path[MAX_PATH];
     /* its time as Finder last changed it, which its place in Playlists goes by */
     const time_t time = file_time(file);
     struct tagcache_search tcs;
     if (!tagcache_search(&tcs, tag_filename))
         return false;
-    const int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    bool ok = fd >= 0;
-    /* its head as the import writes it, which knows it as its own by that */
+    char block[2048];
+    struct fw out;
+    fw_open(&out, file, FW_KEEP, block, sizeof(block));
+    /* its head as the import writes it, which knows it as its own by that:
+       a write of its own */
     char head[sizeof(ITUNESDB_PLAYLIST_HEAD ITUNESDB_PLAYLIST_MARK) + 32];
     int len = snprintf(head, sizeof(head), "%s%s\n", ITUNESDB_PLAYLIST_HEAD,
                        ITUNESDB_PLAYLIST_MARK);
     if (sort > ITUNESDB_SORT_MANUAL)
         len += snprintf(head + len, sizeof(head) - len,
                         ITUNESDB_PLAYLIST_SORT "%lu\n", (unsigned long)sort);
-    ok = ok && write(fd, head, len) == len;
-    struct lp_out out;
-    out.fd = fd;
-    out.used = 0;
-    out.ok = ok;
-    uint32_t line = 0;
+    fw_put(&out, head, len);
+    fw_flush(&out);
+    uint32_t written = 0;
     for (int i = 0; out.ok && i < count; i++)
     {
         if (!tagcache_retrieve(&tcs, songs[i].idx, tag_filename, path, sizeof(path)))
         {
-            songs[i].line = LP_NO_LINE;
+            songs[i].line = LP_UNWRITTEN;
             continue;
         }
         /* as the import writes them */
         const char *name = no_volume(path);
         out_line(&out, name, strlen(name));
-        songs[i].line = line++;
+        written++;
         if (!(i & 63))
             yield();
     }
     const uint32_t kept = state->unmatched ? keep_unmatched(file, &out) : 0;
-    ok = out.ok;
-    if (ok && out.used)
-        ok = write(fd, out.block, out.used) == (ssize_t)out.used;
-    if (fd >= 0 && close(fd) < 0)
-        ok = false;
+    bool ok = fw_end(&out);
     tagcache_search_finish(&tcs);
     /* none of its songs found, as with the database going: not empty for it */
-    if (count > 0 && line == 0)
+    if (count > 0 && written == 0)
         ok = false;
-    if (!ok || rename(tmp, file) < 0)
+    ok = fw_place(file, FW_KEEP, ok);
+    /* The songs' lines in the file as it is: the new ones once it has the
+       name, else the old ones, by which the index then says it's still to
+       be written. One that couldn't be written is taken as in neither, as
+       before. */
+    uint32_t line = 0;
+    for (int i = 0; i < count; i++)
     {
-        remove(tmp);
-        return false;
+        if (songs[i].line == LP_UNWRITTEN)
+            songs[i].line = LP_NO_LINE;
+        else if (ok)
+            songs[i].line = line++;
     }
+    if (!ok)
+        return false;
     if (time)
         modtime(file, time);
     state->lines = line + kept;
@@ -813,7 +808,7 @@ static bool playing_straight_from(const char *file)
    if it was. */
 static bool clean_playlist(const char *file, char *buf, size_t size)
 {
-    char dir[MAX_PATH], tmp[MAX_PATH + 4];
+    char dir[MAX_PATH];
     const bool m3u = playlist_dir(file, dir, sizeof(dir));
     const int fd = m3u ? open(file, O_RDONLY) : open_utf8(file, O_RDONLY);
     if (fd < 0 || size < 2 * MAX_PATH)
@@ -822,8 +817,7 @@ static bool clean_playlist(const char *file, char *buf, size_t size)
             close(fd);
         return false;
     }
-    snprintf(tmp, sizeof(tmp), "%s.tmp", file);
-    int wfd = -1;
+    struct fw w = { .fd = -1 };
     bool changed = false, ok = true;
     char out[1024];
     size_t put = 0;
@@ -875,15 +869,16 @@ static bool clean_playlist(const char *file, char *buf, size_t size)
             {
                 /* the lines before it, as they were */
                 changed = true;
-                wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+                /* each write as the program's own, through out */
+                ok = fw_open(&w, file, FW_KEEP, NULL, 0);
                 kept_to = line_at;
                 const int rfd = open(file, O_RDONLY);
-                ok = wfd >= 0 && rfd >= 0;
+                ok = ok && rfd >= 0;
                 for (off_t done = 0; ok && done < kept_to; )
                 {
                     const ssize_t k = read(rfd, out, MIN((off_t)sizeof(out),
                                                          kept_to - done));
-                    ok = k > 0 && write(wfd, out, k) == k;
+                    ok = k > 0 && fw_put(&w, out, k);
                     done += k;
                 }
                 if (rfd >= 0)
@@ -896,7 +891,7 @@ static bool clean_playlist(const char *file, char *buf, size_t size)
                 const size_t tlen = strlen(text);
                 if (put + tlen + 1 > sizeof(out))
                 {
-                    ok = write(wfd, out, put) == (ssize_t)put;
+                    ok = fw_put(&w, out, put);
                     put = 0;
                 }
                 if (tlen + 1 <= sizeof(out))
@@ -913,15 +908,8 @@ static bool clean_playlist(const char *file, char *buf, size_t size)
     if (!changed)
         return false;
     if (ok && put)
-        ok = write(wfd, out, put) == (ssize_t)put;
-    if (wfd >= 0 && close(wfd) < 0)
-        ok = false;
-    if (!ok || rename(tmp, file) < 0)
-    {
-        remove(tmp);
-        return false;
-    }
-    return true;
+        ok = fw_put(&w, out, put);
+    return fw_close(&w, ok);
 }
 
 /* A playlist's index from its file, in the order it's shown by, and its file
@@ -1038,6 +1026,20 @@ static uint64_t mix(uint64_t h, const void *data, size_t n)
     return h;
 }
 
+/* What a cut can leave of a playlist's write (fw_leftover()) */
+static bool playlist_leftover(const char *name)
+{
+    const size_t len = strlen(name);
+    if (len < 9)
+        return false;
+    const char *cut = name + len - 4;
+    if (strcasecmp(cut, ".tmp") && strcasecmp(cut, ".new")
+        && strcasecmp(cut, ".old"))
+        return false;
+    return !strncasecmp(cut - 5, ".m3u8", 5)
+           || !strncasecmp(cut - 4, ".m3u", 4);
+}
+
 static uint64_t catalog_print(char *path, size_t len, int depth, uint64_t h)
 {
     DIR *dir = opendir(path);
@@ -1068,6 +1070,85 @@ static uint64_t catalog_print(char *path, size_t len, int depth, uint64_t h)
     }
     closedir(dir);
     return h;
+}
+
+/* What a cut left of the playlists' writes in the folder and those in it,
+   put right (fw_recover()): each found first, as nothing is renamed in a
+   folder while it's read. One that stays, as when a rename fails, ends the
+   folder's rounds. */
+static void recover_folder(char *path, size_t len, int depth)
+{
+    uint64_t last = 0;
+    for (int round = 0; round < 64; round++)
+    {
+        DIR *dir = opendir(path);
+        if (!dir)
+            return;
+        struct dirent *e;
+        bool found = false;
+        while (!found && (e = readdir(dir)))
+        {
+            found = playlist_leftover(e->d_name)
+                    && !(dir_get_info(dir, e).attribute & ATTR_DIRECTORY)
+                    && (size_t)snprintf(path + len, MAX_PATH - len, "/%s",
+                                        e->d_name) < MAX_PATH - len;
+        }
+        closedir(dir);
+        const uint64_t hash = found ? itunesdb_path_hash(path) : 0;
+        if (!found || hash == last)
+            break;
+        last = hash;
+        path[strlen(path) - 4] = '\0'; /* the playlist's own name */
+        fw_recover(path);
+        path[len] = '\0';
+    }
+    path[len] = '\0';
+    DIR *dir = depth < 8 ? opendir(path) : NULL;
+    if (!dir)
+        return;
+    struct dirent *e;
+    while ((e = readdir(dir)))
+    {
+        if (e->d_name[0] != '.'
+            && (dir_get_info(dir, e).attribute & ATTR_DIRECTORY)
+            && (size_t)snprintf(path + len, MAX_PATH - len, "/%s", e->d_name)
+               < MAX_PATH - len)
+            recover_folder(path, strlen(path), depth + 1);
+        path[len] = '\0';
+    }
+    closedir(dir);
+}
+
+/* playlist_leftover() of a name in the folder or those in it */
+static bool catalog_leftover(char *path, size_t len, int depth)
+{
+    DIR *dir = opendir(path);
+    if (!dir)
+        return false;
+    bool found = false;
+    struct dirent *e;
+    while (!found && (e = readdir(dir)))
+    {
+        if (e->d_name[0] == '.')
+            continue;
+        if (!(dir_get_info(dir, e).attribute & ATTR_DIRECTORY))
+            found = playlist_leftover(e->d_name);
+        else if (depth < 8
+                 && (size_t)snprintf(path + len, MAX_PATH - len, "/%s",
+                                     e->d_name) < MAX_PATH - len)
+            found = catalog_leftover(path, strlen(path), depth + 1);
+        path[len] = '\0';
+    }
+    closedir(dir);
+    return found;
+}
+
+void lp_files_boot(void)
+{
+    char path[MAX_PATH];
+    if (catalog_directory_name(path, sizeof(path))
+        && catalog_leftover(path, strlen(path), 0))
+        recover_folder(path, strlen(path), 0);
 }
 
 static void mark_now(struct lp_mark *mark, char *path)
@@ -1316,11 +1397,11 @@ static const char *make_copy(const char *file)
     const int fd = m3u ? open(file, O_RDONLY) : open_utf8(file, O_RDONLY);
     if (fd < 0)
         return NULL;
-    char tmp[MAX_PATH + 4];
-    snprintf(tmp, sizeof(tmp), "%s.tmp", copy);
     mkdir(LP_DIR);
-    const int wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    bool ok = wfd >= 0;
+    /* made again as it's played (FW_CACHE); each write as the program's own,
+       through out */
+    struct fw w;
+    bool ok = fw_open(&w, copy, FW_CACHE, NULL, 0);
     size_t put = 0;
     struct line_reader lines;
     line_reader_init(&lines, fd, in, in_size);
@@ -1346,7 +1427,7 @@ static const char *make_copy(const char *file)
                 const size_t slen = strlen(song);
                 if (put + slen + 1 > out_size)
                 {
-                    ok = ok && write(wfd, out, put) == (ssize_t)put;
+                    ok = ok && fw_put(&w, out, put);
                     put = 0;
                 }
                 if (slen + 1 <= out_size)
@@ -1361,15 +1442,8 @@ static const char *make_copy(const char *file)
     }
     close(fd);
     if (ok && put)
-        ok = write(wfd, out, put) == (ssize_t)put;
-    if (wfd >= 0 && close(wfd) < 0)
-        ok = false;
-    if (!ok || rename(tmp, copy) < 0)
-    {
-        remove(tmp);
-        return NULL;
-    }
-    return copy;
+        ok = fw_put(&w, out, put);
+    return fw_close(&w, ok) ? copy : NULL;
 }
 
 static void note_copy_source(const char *file);
@@ -1401,12 +1475,13 @@ static void note_copy_source(const char *file)
 {
     strmemccpy(copy_source, file, sizeof(copy_source));
     copy_source_read = true;
-    const int fd = open(LP_PLAYING_FROM, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (fd >= 0)
-    {
-        fdprintf(fd, "%s\n", copy_source);
-        close(fd);
-    }
+    const int fd = whole_file_open(LP_PLAYING_FROM);
+    if (fd < 0)
+        return;
+    const ssize_t len = strlen(copy_source);
+    whole_file_close(fd, LP_PLAYING_FROM,
+                     write(fd, copy_source, len) == len
+                     && write(fd, "\n", 1) == 1);
 }
 
 /* The rows: the playlist's songs, none for one without songs; and
@@ -1652,8 +1727,11 @@ static void play_from_copy_instead(void)
 static bool lp_remove(int song)
 {
     play_from_copy_instead();
+    /* no copy to play from instead: the file stays as the music has it */
+    if (playing_straight_from(lp.file))
+        return false;
     const uint32_t line_no = lp.songs[song].line;
-    char dir[MAX_PATH], out_path[MAX_PATH], tmp[MAX_PATH + 4], song_file[MAX_PATH];
+    char dir[MAX_PATH], out_path[MAX_PATH], song_file[MAX_PATH];
     const bool m3u = playlist_dir(lp.file, dir, sizeof(dir));
     strmemccpy(out_path, lp.file, sizeof(out_path));
     bool convert = false;
@@ -1682,9 +1760,9 @@ static bool lp_remove(int song)
     const int fd = m3u ? open(lp.file, O_RDONLY) : open_utf8(lp.file, O_RDONLY);
     if (fd < 0)
         return false;
-    snprintf(tmp, sizeof(tmp), "%s.tmp", out_path);
-    const int wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    bool ok = wfd >= 0;
+    /* each write as the program's own, through out */
+    struct fw w;
+    bool ok = fw_open(&w, out_path, FW_KEEP, NULL, 0);
     size_t put = 0;
     uint32_t songs_seen = 0, songs_kept = 0;
     struct line_reader lines;
@@ -1716,7 +1794,7 @@ static bool lp_remove(int song)
                 const size_t tlen = strlen(text);
                 if (put + tlen + 1 > out_size)
                 {
-                    ok = ok && write(wfd, out, put) == (ssize_t)put;
+                    ok = ok && fw_put(&w, out, put);
                     put = 0;
                 }
                 if (tlen + 1 <= out_size)
@@ -1732,12 +1810,11 @@ static bool lp_remove(int song)
     }
     close(fd);
     if (ok && put)
-        ok = write(wfd, out, put) == (ssize_t)put;
-    if (wfd >= 0 && close(wfd) < 0)
-        ok = false;
+        ok = fw_put(&w, out, put);
+    ok = fw_end(&w) && ok;
     if (ok && lp.otg && songs_kept == 0)
     {
-        remove(tmp);
+        fw_place(out_path, FW_KEEP, false);
         remove(lp.file);
         lp_index_forget(lp.file);
         lp.count = lp.total = 0;
@@ -1745,11 +1822,8 @@ static bool lp_remove(int song)
             remove_from_queue(song_file);
         return true;
     }
-    if (!ok || rename(tmp, out_path) < 0)
-    {
-        remove(tmp);
+    if (!fw_place(out_path, FW_KEEP, ok))
         return false;
-    }
     const bool from_this = playing_from(lp.file);
     if (convert)
     {

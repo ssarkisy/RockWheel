@@ -35,6 +35,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include "config.h"
 #include "system.h"
 #include "kernel.h"
@@ -85,6 +86,7 @@
 #undef opendir
 #undef readdir
 #undef closedir
+#undef mkdir
 
 /* The most a case may take, of CPU time (check_time_limit()): a loop spends
    it, and the load of other processes doesn't. Past it the case prints where
@@ -476,6 +478,118 @@ static int run_case(const char *dir, const char *name)
     return check_failed ? 1 : 0;
 }
 
+/* ---- itunesdb_files_boot(): what a cut left of the kept files in
+   .rockbox, as the boot puts it right (fw_recover_files()) ---- */
+
+static char boot_dir[MAX_PATH * 2];
+
+static void boot_put(const char *path, const void *data, size_t n)
+{
+    char host[MAX_PATH * 3];
+    snprintf(host, sizeof(host), "%s%s", boot_dir, path);
+    FILE *f = fopen(host, "wb");
+    if (!f || fwrite(data, 1, n, f) != n)
+    {
+        perror(host);
+        exit(2);
+    }
+    fclose(f);
+}
+
+/* the file's bytes as data, -1 if there's none, 0 if others */
+static int boot_has(const char *path, const void *data, size_t n)
+{
+    char host[MAX_PATH * 3], got[256];
+    snprintf(host, sizeof(host), "%s%s", boot_dir, path);
+    FILE *f = fopen(host, "rb");
+    if (!f)
+        return -1;
+    const size_t r = fread(got, 1, sizeof(got), f);
+    fclose(f);
+    return r == n && !memcmp(got, data, n);
+}
+
+static void boot_clear(void)
+{
+    static const char *const names[] = {
+        STATE_FILE, PENDING_FILE, UNSENT_FILE, FLAGS_FILE, NOTES_FILE,
+        IDS_FILE, ITUNESDB_MOVED_LIST, OTG_FILE
+    };
+    static const char *const suffixes[] = { "", ".tmp", ".new", ".old" };
+    for (size_t i = 0; i < ARRAYLEN(names); i++)
+        for (size_t k = 0; k < ARRAYLEN(suffixes); k++)
+        {
+            char host[MAX_PATH * 3];
+            snprintf(host, sizeof(host), "%s%s%s", boot_dir, names[i],
+                     suffixes[k]);
+            unlink(host);
+        }
+}
+
+/* Each kept file's ".new" is whole, fw_close()'s, and takes the name; only
+   the marks' had an older firmware's of its own, tested by its size */
+static void files_boot_checks(const char *root)
+{
+    snprintf(boot_dir, sizeof(boot_dir), "%s-boot", root);
+    mkdir(boot_dir, 0777);
+    char host[MAX_PATH * 3];
+    snprintf(host, sizeof(host), "%s" ROCKBOX_DIR, boot_dir);
+    mkdir(host, 0777);
+    simfs_root(boot_dir);
+    boot_clear();
+
+    /* a cut inside the rename of the name to .old: the .new alone */
+    check_case = "files boot: On-The-Go's .new alone";
+    boot_put(OTG_FILE ".new", "/a.mp3\n/b.mp3\n", 14);
+    /* a cut after the name went to .old */
+    boot_put(UNSENT_FILE ".new", "new unsent", 10);
+    boot_put(UNSENT_FILE ".old", "old unsent", 10);
+    /* a cut after the .new was whole, the name still the old one's */
+    boot_put(STATE_FILE, "old state", 9);
+    boot_put(STATE_FILE ".new", "new state", 9);
+    boot_put(IDS_FILE ".new", "new ids", 7);
+    /* the marks: an older firmware's save cut short beside them */
+    /* the header, then its two entries, as the file has them */
+    const struct flags_header h = { FLAGS_MAGIC, FLAGS_VERSION, 2, 1, 2 };
+    struct flags_entry e[2] = { { 11, 1, 0 }, { 22, 1, 0 } };
+    unsigned char flags[sizeof(h) + sizeof(e)];
+    memcpy(flags, &h, sizeof(h));
+    memcpy(flags + sizeof(h), e, sizeof(e));
+    boot_put(FLAGS_FILE, flags, sizeof(flags));
+    boot_put(FLAGS_FILE ".new", flags, sizeof(flags) - 8);
+    itunesdb_files_boot();
+    check_case = "files boot: On-The-Go's .new alone";
+    CHECK_EQ(boot_has(OTG_FILE, "/a.mp3\n/b.mp3\n", 14), 1);
+    check_case = "files boot: the unsent plays' .new beside .old";
+    CHECK_EQ(boot_has(UNSENT_FILE, "new unsent", 10), 1);
+    check_case = "files boot: itunesdb.dat's .new beside it";
+    CHECK_EQ(boot_has(STATE_FILE, "new state", 9), 1);
+    check_case = "files boot: the ids' .new alone";
+    CHECK_EQ(boot_has(IDS_FILE, "new ids", 7), 1);
+    check_case = "files boot: the marks' .new cut short";
+    CHECK_EQ(boot_has(FLAGS_FILE, flags, sizeof(flags)), 1);
+    check_case = "files boot: nothing left";
+    static const char *const left[] = {
+        OTG_FILE ".new", UNSENT_FILE ".new", UNSENT_FILE ".old",
+        STATE_FILE ".new", STATE_FILE ".old", IDS_FILE ".new",
+        FLAGS_FILE ".new", FLAGS_FILE ".old"
+    };
+    for (size_t i = 0; i < ARRAYLEN(left); i++)
+        CHECK_EQ(boot_has(left[i], "", 0), -1);
+
+    /* the marks' .new whole, alone: raised */
+    boot_clear();
+    e[1].hash = 33;
+    memcpy(flags + sizeof(h), e, sizeof(e));
+    boot_put(FLAGS_FILE ".new", flags, sizeof(flags));
+    itunesdb_files_boot();
+    check_case = "files boot: the marks' .new whole, alone";
+    CHECK_EQ(boot_has(FLAGS_FILE, flags, sizeof(flags)), 1);
+    CHECK_EQ(boot_has(FLAGS_FILE ".new", "", 0), -1);
+    check_case = NULL;
+    boot_clear();
+}
+
 static int cmp_names(const void *a, const void *b)
 {
     return strcmp(*(char *const *)a, *(char *const *)b);
@@ -530,6 +644,10 @@ int main(int argc, char **argv)
         return 2;
     }
     const char *root = argv[1];
+
+    files_boot_checks(root);
+    if (check_failed)
+        return 1;
 
     /* as many cases as make_itunesdb.py says it made */
     char path[MAX_PATH * 2];
@@ -662,7 +780,7 @@ int main(int argc, char **argv)
         if (lf)
             fclose(lf);
     }
-    printf("%-10s %d cases, %d failed, %d known failures\n", "itunesdb", n,
-           failed, known);
+    printf("%-10s %d cases, %d failed, %d known failures; files boot: %d "
+           "checks\n", "itunesdb", n, failed, known, check_count);
     return failed ? 1 : 0;
 }

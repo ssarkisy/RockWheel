@@ -29,8 +29,12 @@ $(O)/fstest: $(FS_OBJ) $(O)/fstest.o $(O)/stubs.o $(O)/host.o
 $(O)/%.o: $(SRC)/firmware/common/%.c $(HERE)stub/fstest_config.h | $(O)
 	$(CC) $(CFLAGS) $(FWFLAGS) $(RBFLAGS) -c -o $@ $<
 
-$(O)/settings_fns.c: $(SRC)/apps/settings.c $(HERE)extract.py | $(O)
-	python3 -I $(HERE)extract.py $< $@
+# and file_write.c, in a tree that has it
+FILE_WRITE := $(wildcard $(SRC)/apps/file_write.c)
+
+$(O)/settings_fns.c: $(SRC)/apps/settings.c $(FILE_WRITE) $(HERE)extract.py \
+		| $(O)
+	python3 -I $(HERE)extract.py $< $@ $(FILE_WRITE)
 
 $(O)/fstest.o: $(HERE)fstest.c $(O)/settings_fns.c $(HERE)host.h | $(O)
 	$(CC) $(CFLAGS) -Wall $(RBFLAGS) -I$(O) -I$(HERE) -c -o $@ $<

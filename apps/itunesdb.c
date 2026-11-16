@@ -40,6 +40,8 @@
 #include "pathfuncs.h"
 #include "settings.h"
 #include "misc.h"
+#include "file_write.h"
+#include "on_the_go.h"
 #include "applimits.h"
 #include "rbpaths.h"
 #include "tagcache.h"
@@ -979,53 +981,37 @@ struct notes_entry {
 };
 
 static struct {
-    int fd;
+    struct fw w;        /* through the room, if there is one */
     uint32_t end;       /* of the file so far */
-    unsigned char *room; /* what is written next gathers here, if there is room */
-    size_t size, used;
+    unsigned char *room; /* lent, while the file is written */
     bool ok;
-} notes_out = { .fd = -1 };
+} notes_out = { .w.fd = -1 };
 
 static unsigned char *notes_room(size_t *size);
 static void notes_room_done(void);
 
-static void notes_flush(void)
-{
-    if (notes_out.used && write(notes_out.fd, notes_out.room, notes_out.used)
-                          != (ssize_t)notes_out.used)
-        notes_out.ok = false;
-    notes_out.used = 0;
-}
-
-/* Through the room, each block of it filled to its end as writer_put() fills
-   its own: a sector at a time was a command to the disk for each */
+/* Through the room, each block of it filled to its end: a sector at a time
+   was a command to the disk for each */
 static void notes_write(const void *data, size_t len)
 {
-    const unsigned char *from = data;
-    if (!notes_out.room && write(notes_out.fd, from, len) != (ssize_t)len)
-        notes_out.ok = false;
-    while (notes_out.room && len > 0)
-    {
-        const size_t part = MIN(len, notes_out.size - notes_out.used);
-        memcpy(notes_out.room + notes_out.used, from, part);
-        notes_out.used += part;
-        from += part;
-        len -= part;
-        if (notes_out.used == notes_out.size)
-            notes_flush();
-    }
+    if (notes_out.ok)
+        notes_out.ok = fw_put(&notes_out.w, data, len);
 }
 
 static void notes_begin(void)
 {
     const struct notes_header blank = { 0 };
-    notes_out.fd = open(NOTES_FILE ".tmp", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    size_t size = 0;
     notes_out.end = sizeof(blank);
-    notes_out.ok = notes_out.fd >= 0;
-    notes_out.used = 0;
-    notes_out.room = notes_out.ok ? notes_room(&notes_out.size) : NULL;
-    if (notes_out.ok)
-        notes_write(&blank, sizeof(blank));
+    notes_out.room = notes_room(&size);
+    notes_out.ok = fw_open(&notes_out.w, NOTES_FILE, FW_KEEP, notes_out.room,
+                           size);
+    if (!notes_out.ok && notes_out.room)
+    {
+        notes_room_done();
+        notes_out.room = NULL;
+    }
+    notes_write(&blank, sizeof(blank));
 }
 
 /* The string of the mhod at pos, 0 for none, to the file as UTF-8: where the
@@ -1126,19 +1112,15 @@ static void notes_end(bool loaded)
             filled = 0;
         }
     }
-    if (notes_out.fd >= 0)
+    if (notes_out.w.fd >= 0)
     {
-        notes_flush();
-        ok = ok && notes_out.ok && lseek(notes_out.fd, 0, SEEK_SET) == 0
-             && write(notes_out.fd, &hdr, sizeof(hdr)) == sizeof(hdr);
-        ok = close(notes_out.fd) == 0 && ok;
+        ok = ok && notes_out.ok && fw_seek(&notes_out.w, 0)
+             && fw_put(&notes_out.w, &hdr, sizeof(hdr));
+        fw_close(&notes_out.w, ok);
     }
-    notes_out.fd = -1;
     if (notes_out.room)
         notes_room_done();
     notes_out.room = NULL;
-    if (!ok || rename(NOTES_FILE ".tmp", NOTES_FILE) < 0)
-        remove(NOTES_FILE ".tmp");
     if (!loaded && !itunesdb_exists())
         remove(NOTES_FILE);
 }
@@ -1463,8 +1445,9 @@ static void playlist_dir(char *buf, size_t size)
    that iTunes has deeper, or in itself, isn't made, and its playlists go
    into the top folder */
 #define MAX_FOLDER_DEPTH (MAX_DIR_LEVELS - 4)
-/* Each file is written here first and then put in its place, and so is the
-   playlists file, so that power cut at any moment leaves the old one whole */
+/* An older firmware wrote each playlist, and the playlists file, here
+   first: removed as a pass begins. Now each is written beside its own name
+   (file_write.c). */
 #define PLAYLIST_TEMP   ROCKBOX_DIR "/itunesdb_playlist.tmp"
 #define PLAYLISTS_TEMP  ROCKBOX_DIR "/itunesdb_playlists.tmp"
 
@@ -1634,16 +1617,16 @@ static enum old_list load_old_playlists(int playlists)
     return LIST_READ;
 }
 
-/* a line of the list being written: one that doesn't write spoils it, and the
-   old list stays */
-static void list_line(int fd, const char *fmt, ...)
+/* a line of the list being written, a write() each: one that doesn't write
+   spoils it, and the old list stays */
+static void list_line(struct fw *list, const char *fmt, ...)
 {
     char line[MAX_PATH + 48];
     va_list ap;
     va_start(ap, fmt);
     const int n = vsnprintf(line, sizeof(line), fmt, ap);
     va_end(ap);
-    if (n < 0 || n >= (int)sizeof(line) || write(fd, line, n) != n)
+    if (n < 0 || n >= (int)sizeof(line) || !fw_put(list, line, n))
         pls.list_failed = true;
 }
 
@@ -1705,7 +1688,7 @@ static bool listed_own(const struct old_playlist *o)
 
 /* our files in a folder and those in it, not written again; with one of
    iTunesDB's lost, kept and listed, what they hold not known */
-static void remove_own_files(const char *dir, int depth, int list_fd)
+static void remove_own_files(const char *dir, int depth, struct fw *list)
 {
     DIR *d = opendir(dir);
     if (!d)
@@ -1722,7 +1705,7 @@ static void remove_own_files(const char *dir, int depth, int list_fd)
         if (dir_get_info(d, entry).attribute & ATTR_DIRECTORY)
         {
             if (depth < MAX_FOLDER_DEPTH)
-                remove_own_files(file, depth + 1, list_fd);
+                remove_own_files(file, depth + 1, list);
             continue;
         }
         const char *ext = strrchr(entry->d_name, '.');
@@ -1730,7 +1713,7 @@ static void remove_own_files(const char *dir, int depth, int list_fd)
             && !written_playlist(itunesdb_path_hash(file)) && own_playlist(file))
         {
             if (pls.lost)
-                list_line(list_fd, "0000000000000000 0 0 %s\n", file);
+                list_line(list, "0000000000000000 0 0 %s\n", file);
             else
                 remove(file);
         }
@@ -1783,7 +1766,7 @@ static int cmp_dir_depth(const void *a, const void *b)
    listed again as it was, a smart one with its mark and rules, to go once an
    import has written them all. Smart by its line, or by the rules the last
    import noted, as a list of 1.4.0 has no such lines */
-static void keep_old_playlist(const struct old_playlist *o, int list_fd)
+static void keep_old_playlist(const struct old_playlist *o, struct fw *list)
 {
     const char *file = pls.names + o->file;
     const unsigned long high = (unsigned long)(o->hash >> 32);
@@ -1792,14 +1775,14 @@ static void keep_old_playlist(const struct old_playlist *o, int list_fd)
     {
         /* without a time, as that version listed it: ours without the mark */
         if (file_exists(file))
-            list_line(list_fd, "%08lx%08lx %lu %s\n", high, low,
+            list_line(list, "%08lx%08lx %lu %s\n", high, low,
                       (unsigned long)o->size, file);
         return;
     }
-    list_line(list_fd, "%08lx%08lx %lu %lu %s\n", high, low,
+    list_line(list, "%08lx%08lx %lu %lu %s\n", high, low,
               (unsigned long)o->size, (unsigned long)o->time, file);
     if (smart_import_keep(file) || o->smart)
-        list_line(list_fd, "smart %s\n", file);
+        list_line(list, "smart %s\n", file);
 }
 
 /* The old ones not written again go, as Finder removed them; when there was no
@@ -1808,7 +1791,7 @@ static void keep_old_playlist(const struct old_playlist *o, int list_fd)
    that can't go yet, as something is in it, is listed again to be tried the
    next time. */
 static void remove_old_playlists(const char *dir, bool listed, const char *made,
-                                 size_t made_len, int list_fd)
+                                 size_t made_len, struct fw *list)
 {
     for (int i = 0; i < pls.count; i++)
     {
@@ -1816,12 +1799,12 @@ static void remove_old_playlists(const char *dir, bool listed, const char *made,
         if (written_playlist(o->file_hash) || !listed_own(o))
             continue;
         if (pls.lost)
-            keep_old_playlist(o, list_fd);
+            keep_old_playlist(o, list);
         else
             remove(pls.names + o->file);
     }
     if (!listed)
-        remove_own_files(dir, 0, list_fd);
+        remove_own_files(dir, 0, list);
     qsort(pls.dirs, pls.dir_count, sizeof(uint32_t), cmp_dir_depth);
     for (int i = 0; i < pls.dir_count; i++)
     {
@@ -1830,7 +1813,7 @@ static void remove_old_playlists(const char *dir, bool listed, const char *made,
         for (size_t k = 0; k < made_len && !kept; k += strlen(made + k) + 1)
             kept = !strcasecmp(made + k, old);
         if (!kept && rmdir(old) < 0 && dir_exists(old)) /* only if it's empty */
-            list_line(list_fd, "dir %s\n", old);
+            list_line(list, "dir %s\n", old);
     }
 }
 
@@ -1890,94 +1873,33 @@ static bool playlist_file(char *buf, size_t size, const char *dir,
     }
 }
 
-/* Files are written through this a block at a time: a write() costs the
-   iPod about as much for 16 bytes as for 4 KB */
-struct writer {
-    int fd;
-    size_t used;
-    bool ok;
-    /* behind the bool it wasn't on a word, and all of it went without DMA */
-    char buf[WRITE_BUF_SIZE] STORAGE_ALIGN_ATTR;
-};
+/* Files are written through this a block at a time (file_write.c): a
+   write() costs the iPod about as much for 16 bytes as for 4 KB. One file at
+   a time. */
+static struct fw out;
+/* behind a bool it wasn't on a word, and all of it went without DMA */
+static char out_buf[WRITE_BUF_SIZE] STORAGE_ALIGN_ATTR;
 
-static struct writer out;
-
-static bool writer_open(struct writer *w, const char *file)
+static bool out_open(const char *file, enum fw_policy policy)
 {
-    errno = 0;
-    w->fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    w->used = 0;
-    w->ok = w->fd >= 0;
-    if (!w->ok)
-        library_write_failed();
-    return w->ok;
+    return fw_open(&out, file, policy, out_buf, sizeof(out_buf));
 }
 
-static void writer_flush(struct writer *w)
-{
-    if (w->used && write(w->fd, w->buf, w->used) != (ssize_t)w->used)
-    {
-        w->ok = false;
-        library_write_failed();
-    }
-    w->used = 0;
-}
-
-/* Fills each block to the end, whatever falls across it, as a write that starts or ends
-   inside a sector costs the disk several commands where a whole block costs one */
-static void writer_put(struct writer *w, const void *data, size_t len)
-{
-    const char *from = data;
-    while (len > 0)
-    {
-        /* more than the buffer holds, as the slides of a large library are */
-        if (w->used == 0 && len >= sizeof(w->buf))
-        {
-            const size_t whole = len - len % sizeof(w->buf);
-            if (write(w->fd, from, whole) != (ssize_t)whole)
-                w->ok = false;
-            from += whole;
-            len -= whole;
-            continue;
-        }
-        const size_t part = MIN(len, sizeof(w->buf) - w->used);
-        memcpy(w->buf + w->used, from, part);
-        w->used += part;
-        from += part;
-        len -= part;
-        if (w->used == sizeof(w->buf))
-            writer_flush(w);
-    }
-}
-
-/* The file's last sector goes to the disk as it closes, and that can fail, as
-   with the disk full at a new cluster: the file is then short, and isn't to
-   take the place of the one it was written for */
-static bool writer_close(struct writer *w)
-{
-    writer_flush(w);
-    if (w->fd >= 0 && close(w->fd) < 0)
-    {
-        w->ok = false;
-        library_write_failed();
-    }
-    w->fd = -1;
-    return w->ok;
-}
-
-static void writer_line(struct writer *w, const char *line)
+/* a line, never split between two writes; one longer than the buffer is
+   left out */
+static void writer_line(struct fw *w, const char *line)
 {
     size_t len = strlen(line);
-    if (w->used + len + 1 > sizeof(w->buf))
-        writer_flush(w);
-    if (len + 1 > sizeof(w->buf))
+    if (w->used + len + 1 > w->size)
+        fw_flush(w);
+    if (len + 1 > w->size)
         return;
     memcpy(w->buf + w->used, line, len);
     w->buf[w->used + len] = '\n';
     w->used += len + 1;
 }
 
-static void playlist_line(struct writer *w, const char *line, uint64_t *hash,
+static void playlist_line(struct fw *w, const char *line, uint64_t *hash,
                           uint32_t *size)
 {
     for (const char *c = line; ; c++)
@@ -1997,7 +1919,7 @@ static void playlist_line(struct writer *w, const char *line, uint64_t *hash,
    are written, and how many videos there were. Its order as Finder shows it,
    if not its own, on a line of the head. */
 static int playlist_items(off_t child, off_t end, int items, uint32_t sort,
-                          struct writer *w, uint64_t *hash, uint32_t *size,
+                          struct fw *w, uint64_t *hash, uint32_t *size,
                           int *videos)
 {
     const unsigned char *p;
@@ -2366,8 +2288,8 @@ static bool smart_rule_list(off_t pos, uint32_t total, struct smart_rules *r)
 
 /* the mhyp at pos, which ends at end, as a playlist file, listed in the
    playlists file; alone, at boot without a sync (itunesdb_import_playlists()) */
-static void write_playlist(off_t pos, off_t end, const char *dir, int list_fd,
-                           struct writer *w, bool alone)
+static void write_playlist(off_t pos, off_t end, const char *dir,
+                           struct fw *list, struct fw *w, bool alone)
 {
     char name[MAX_PATH / 2], file[MAX_PATH], folder[MAX_PATH];
     /* as before this playlist: a read of its own that failed sets it */
@@ -2459,8 +2381,10 @@ static void write_playlist(off_t pos, off_t end, const char *dir, int list_fd,
     {
         /* the old one stays whole until the new one is all written, and as it
            is if that can't be, to be written the next time; one elsewhere, as
-           under the playlist's old name, too (pls.lost) */
-        bool ok = writer_open(w, PLAYLIST_TEMP);
+           under the playlist's old name, too (pls.lost). Kept over a cut, as
+           a playlist made on the iPod is: the iPod's own changes to it are
+           written in it until the next sync. */
+        bool ok = fw_open(w, file, FW_KEEP, out_buf, sizeof(out_buf));
         if (ok)
         {
             playlist_items(child, end, items, sort, w, &hash, &size, &videos);
@@ -2468,18 +2392,11 @@ static void write_playlist(off_t pos, off_t end, const char *dir, int list_fd,
                of the same database, still looked like it. Gone first, as
                the file may be new without it being so. */
             lp_index_forget(file);
-            /* not one cut short in place of the whole one */
-            ok = writer_close(w) && pls.read_failed == read_failed;
-            /* nor without its name, for which its folder may have no room */
-            if (ok && rename(PLAYLIST_TEMP, file) < 0)
-            {
-                library_write_failed();
-                ok = false;
-            }
         }
-        if (!ok)
+        /* not one cut short in place of the whole one, nor without its
+           name, for which its folder may have no room */
+        if (!fw_close(w, ok && pls.read_failed == read_failed))
         {
-            remove(PLAYLIST_TEMP);
             pls.lost = true;
             if (!file_exists(file))
                 return;
@@ -2493,13 +2410,13 @@ static void write_playlist(off_t pos, off_t end, const char *dir, int list_fd,
     /* a live smart one, to be kept up to date as the iPod's ratings change */
     if (live && (ruled || !smart.check_rules))
         smart_import_note(file, time, &smart);
-    list_line(list_fd, "%08lx%08lx %lu %lu %s\n", (unsigned long)(hash >> 32),
+    list_line(list, "%08lx%08lx %lu %lu %s\n", (unsigned long)(hash >> 32),
               (unsigned long)(uint32_t)hash, (unsigned long)size,
               (unsigned long)time, file);
     /* and a line of its own if it's a smart one, which Playlists lists
        first: a line a version before passes over */
     if (by_rules)
-        list_line(list_fd, "smart %s\n", file);
+        list_line(list, "smart %s\n", file);
 }
 
 /* alone: all that's taken in, at boot without a sync
@@ -2526,10 +2443,13 @@ static bool write_playlists(off_t list, off_t end, bool alone)
     }
     fld.claim = !listed;
     playlist_dir(dir, sizeof(dir));
-    int list_fd = open(PLAYLISTS_TEMP, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (p && list_fd >= 0)
+    /* made again by the next import if lost (FW_CACHE): without it, that
+       one goes by the mark in the files */
+    struct fw list_out;
+    const bool opened = fw_open(&list_out, PLAYLISTS_FILE, FW_CACHE, NULL, 0);
+    if (p && opened)
     {
-        list_line(list_fd, "version %d\n", PLAYLISTS_VERSION);
+        list_line(&list_out, "version %d\n", PLAYLISTS_VERSION);
         smart_import_begin();
         off_t pos = next_record(list, le32(p + 4), end);
         int count = le32(p + 8);
@@ -2544,7 +2464,7 @@ static bool write_playlists(off_t list, off_t end, bool alone)
                 pls.read_failed = true;
                 break;
             }
-            write_playlist(pos, next, dir, list_fd, &out, alone);
+            write_playlist(pos, next, dir, &list_out, &out, alone);
             pos = next;
             if (alone)
                 reading(1, i + 1, count);
@@ -2554,27 +2474,22 @@ static bool write_playlists(off_t list, off_t end, bool alone)
            nothing: one left empty after this goes, as do those of the last
            import that have nothing now */
         for (size_t k = 0; k < fld.made_len; k += strlen(fld.made + k) + 1)
-            list_line(list_fd, "dir %s\n", fld.made + k);
+            list_line(&list_out, "dir %s\n", fld.made + k);
         /* only once this import's are written, and all of iTunesDB's were
            read: nothing goes if they weren't */
         if (!pls.read_failed)
-            remove_old_playlists(dir, listed, fld.made, fld.made_len, list_fd);
+            remove_old_playlists(dir, listed, fld.made, fld.made_len,
+                                 &list_out);
         /* a list that didn't all write, or of the part read, leaves the old
            one */
         /* the rules of all, or the old ones */
         smart_import_end(!pls.read_failed);
         readable = !pls.read_failed;
-        if (close(list_fd) < 0 || pls.list_failed || pls.read_failed
-            || rename(PLAYLISTS_TEMP, PLAYLISTS_FILE) < 0)
-            remove(PLAYLISTS_TEMP);
-        else
+        if (fw_close(&list_out, !pls.list_failed && !pls.read_failed))
             remove(PLAYLISTS_FAILED); /* of an iTunesDB before */
     }
-    else if (list_fd >= 0)
-    {
-        close(list_fd);
-        remove(PLAYLISTS_TEMP);
-    }
+    else if (opened)
+        fw_close(&list_out, false);
     forget_old_playlists();
     forget_folders();
     return readable;
@@ -2624,26 +2539,28 @@ static void write_pending(void)
     for (int i = 0; i < db.count; i++)
         hdr.dates_sum = ((hdr.dates_sum ^ db.tracks[i].added) * 16777619u
                          ^ db.tracks[i].released) * 16777619u;
-    if (!writer_open(&out, PENDING_FILE))
+    if (!out_open(PENDING_FILE, FW_KEEP))
         return;
-    writer_put(&out, &hdr, sizeof(hdr));
+    fw_put(&out, &hdr, sizeof(hdr));
     for (int i = 0; i < db.count; i++)
-        writer_put(&out, &db.tracks[i].st, sizeof(struct state_entry));
+        fw_put(&out, &db.tracks[i].st, sizeof(struct state_entry));
     for (int i = 0; i < db.shows; i++)
-        writer_put(&out, &show, sizeof(show));
+        fw_put(&out, &show, sizeof(show));
     for (int i = 0; i < db.count; i++)
-        writer_put(&out, &db.tracks[i].lastplayed, sizeof(uint32_t));
+        fw_put(&out, &db.tracks[i].lastplayed, sizeof(uint32_t));
     for (int i = 0; i < db.shows; i++)
-        writer_put(&out, &never, sizeof(never));
+        fw_put(&out, &never, sizeof(never));
     for (int i = 0; i < db.count; i++)
-        writer_put(&out, &db.tracks[i].added, sizeof(uint32_t));
+        fw_put(&out, &db.tracks[i].added, sizeof(uint32_t));
     for (int i = 0; i < db.shows; i++)
-        writer_put(&out, &never, sizeof(never));
+        fw_put(&out, &never, sizeof(never));
     for (int i = 0; i < db.count; i++)
-        writer_put(&out, &db.tracks[i].released, sizeof(uint32_t));
+        fw_put(&out, &db.tracks[i].released, sizeof(uint32_t));
     for (int i = 0; i < db.shows; i++)
-        writer_put(&out, &never, sizeof(never));
-    if (!writer_close(&out))
+        fw_put(&out, &never, sizeof(never));
+    /* none rather than one of an iTunesDB before, as when this was written
+       in its place */
+    if (!fw_close(&out, true))
         remove(PENDING_FILE);
 }
 
@@ -3214,17 +3131,12 @@ static bool write_state(void)
     /* not over the old one: Rockbox truncates a file on its close, so a
        cut there left the new header on the old tracks, whose counts Play
        Counts would then give to others */
-    if (!writer_open(&out, STATE_FILE ".tmp"))
+    if (!out_open(STATE_FILE, FW_KEEP))
         return false;
-    writer_put(&out, &hdr, sizeof(hdr));
+    fw_put(&out, &hdr, sizeof(hdr));
     for (uint32_t i = 0; i < pend.hdr.count; i++)
-        writer_put(&out, &pend.tracks[i], sizeof(struct state_entry));
-    if (!writer_close(&out) || rename(STATE_FILE ".tmp", STATE_FILE) < 0)
-    {
-        remove(STATE_FILE ".tmp");
-        return false;
-    }
-    return true;
+        fw_put(&out, &pend.tracks[i], sizeof(struct state_entry));
+    return fw_close(&out, true);
 }
 
 /* iTunesDB and its tracks, for the import and for the covers */
@@ -3423,14 +3335,11 @@ static int import_progress(void)
     return flags;
 }
 
+/* a cut leaves the flags before, none, or these, as one in place did */
 static bool import_progress_set(int flags)
 {
     const uint8_t b = flags;
-    const int fd = open(PROGRESS_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (fd < 0)
-        return false;
-    const bool ok = write(fd, &b, 1) == 1;
-    return close(fd) == 0 && ok;
+    return whole_file_write(PROGRESS_FILE, &b, 1);
 }
 
 static void note_imported(void)
@@ -3438,14 +3347,9 @@ static void note_imported(void)
     const struct imported now = {
         tagcache_get_commitid(), IMPORT_PASS, pend.hdr.dates_sum
     };
-    const int fd = open(IMPORTED_FILE, O_WRONLY|O_CREAT|O_TRUNC, 0666);
-    if (fd >= 0)
-    {
-        /* none rather than one cut short */
-        const bool ok = write(fd, &now, sizeof(now)) == sizeof(now);
-        if (close(fd) < 0 || !ok)
-            remove(IMPORTED_FILE);
-    }
+    /* none rather than one cut short, nor the one before */
+    if (!whole_file_write(IMPORTED_FILE, &now, sizeof(now)))
+        remove(IMPORTED_FILE);
 }
 
 bool itunesdb_pass_due(void)
@@ -3613,14 +3517,9 @@ static void playcounts_mark_write(void)
     if (!dir_file_stamp("Play Counts", &m.size, &m.mtime)
         || !db_stamp(&m.db_size, &m.db_mtime))
         return;
-    const int fd = open(PLAYCOUNTS_MARK, O_WRONLY|O_CREAT|O_TRUNC, 0666);
-    if (fd >= 0)
-    {
-        /* none rather than one cut short */
-        const bool ok = write(fd, &m, sizeof(m)) == sizeof(m);
-        if (close(fd) < 0 || !ok)
-            remove(PLAYCOUNTS_MARK);
-    }
+    /* none rather than one cut short, nor the one before */
+    if (!whole_file_write(PLAYCOUNTS_MARK, &m, sizeof(m)))
+        remove(PLAYCOUNTS_MARK);
 }
 
 /* the Play Counts written here last is still on the disk, as Finder hasn't
@@ -3819,9 +3718,9 @@ static bool write_unsent(uint32_t db_size, uint32_t db_mtime, bool written,
         UNSENT_MAGIC, UNSENT_VERSION, db_size, db_mtime, 0, written,
         uns.hdr.went, made, 0
     };
-    if (!writer_open(&out, UNSENT_FILE ".tmp"))
+    if (!out_open(UNSENT_FILE, FW_KEEP))
         return false;
-    writer_put(&out, &h, sizeof(h));
+    fw_put(&out, &h, sizeof(h));
     for (int k = 0; k < pc.count; k++)
     {
         const int i = pc.by_hash[k];
@@ -3839,25 +3738,20 @@ static bool write_unsent(uint32_t db_size, uint32_t db_mtime, bool written,
         u.out_last = u.out ? sent_time(now) : 0;
         if (u.played > u.base || u.rating != u.base_rating || u.went)
         {
-            writer_put(&out, &u, sizeof(u));
+            fw_put(&out, &u, sizeof(u));
             h.count++;
         }
     }
-    writer_flush(&out);
-    lseek(out.fd, 0, SEEK_SET);
-    writer_put(&out, &h, sizeof(h));
-    if (!writer_close(&out)
-        || (h.count && rename(UNSENT_FILE ".tmp", UNSENT_FILE) < 0))
-    {
-        remove(UNSENT_FILE ".tmp");
-        return false;
-    }
-    if (!h.count)
-    {
-        remove(UNSENT_FILE ".tmp");
+    fw_seek(&out, 0);
+    fw_put(&out, &h, sizeof(h));
+    if (h.count)
+        return fw_close(&out, true);
+    /* none to keep: no file */
+    const bool ok = fw_end(&out);
+    fw_place(UNSENT_FILE, FW_KEEP, false);
+    if (ok)
         remove(UNSENT_FILE);
-    }
-    return true;
+    return ok;
 }
 
 /* None to go by, as at the first sync after an update: what the firmware
@@ -3939,7 +3833,7 @@ void itunesdb_write_playcounts(void)
         goto done;
     }
 
-    if (!writer_open(&out, PLAYCOUNTS_FILE ".tmp"))
+    if (!out_open(PLAYCOUNTS_FILE, FW_CACHE))
         goto done;
     unsigned char buf[PLAYCOUNTS_HDR];
     memset(buf, 0, sizeof(buf));
@@ -3947,7 +3841,7 @@ void itunesdb_write_playcounts(void)
     put32(buf + 4, PLAYCOUNTS_HDR);
     put32(buf + 8, PLAYCOUNTS_ENTRY);
     put32(buf + 12, pc.count);
-    writer_put(&out, buf, PLAYCOUNTS_HDR);
+    fw_put(&out, buf, PLAYCOUNTS_HDR);
 
     for (int i = 0; i < pc.count; i++)
     {
@@ -3973,19 +3867,14 @@ void itunesdb_write_playcounts(void)
             put32(e + 8, podcast_bookmark(st->hash));
             e[0x11] = st->played;
         }
-        writer_put(&out, e, sizeof(e));
+        fw_put(&out, e, sizeof(e));
     }
     /* by another name until what it offers is noted: cut short in between,
        its plays are taken as offered, and offered again after the next
        sync */
-    if (writer_close(&out) && write_unsent(size, mtime, true, false))
-    {
-        remove(PLAYCOUNTS_FILE);
-        rename(PLAYCOUNTS_FILE ".tmp", PLAYCOUNTS_FILE);
+    const bool written = fw_end(&out) && write_unsent(size, mtime, true, false);
+    if (fw_place(PLAYCOUNTS_FILE, FW_CACHE, written))
         playcounts_mark_write();
-    }
-    else
-        remove(PLAYCOUNTS_FILE ".tmp");
 
 done:
     unload_unsent();
@@ -4184,12 +4073,12 @@ static uint32_t spoken_marks(const struct track *t)
 
 static void write_flags(void)
 {
-    if (!writer_open(&out, FLAGS_FILE ".tmp"))
+    if (!out_open(FLAGS_FILE, FW_KEEP))
         return; /* the old file stays, with its marks */
     struct flags_header hdr = {
         FLAGS_MAGIC, FLAGS_VERSION, 0, db_size, db_mtime
     };
-    writer_put(&out, &hdr, sizeof(hdr));
+    fw_put(&out, &hdr, sizeof(hdr));
     /* by path hash, which db.by_hash already has them in */
     for (int i = 0; i < db.count; i++)
     {
@@ -4199,20 +4088,17 @@ static void write_flags(void)
         struct flags_entry entry = { t->st.hash, t->st.flags, t->bookmark };
         if (t->st.flags & FLAGS_SPOKEN)
             entry.flags |= spoken_marks(t);
-        writer_put(&out, &entry, sizeof(entry));
+        fw_put(&out, &entry, sizeof(entry));
         hdr.count++;
     }
     /* the count, now that it is known */
-    writer_flush(&out);
-    lseek(out.fd, 0, SEEK_SET);
-    writer_put(&out, &hdr, sizeof(hdr));
-    /* over the old file, which was there until now; none rather than the
-       old one if this couldn't be written, as before: read again next boot */
-    if (!writer_close(&out) || rename(FLAGS_FILE ".tmp", FLAGS_FILE) < 0)
-    {
-        remove(FLAGS_FILE ".tmp");
+    fw_seek(&out, 0);
+    fw_put(&out, &hdr, sizeof(hdr));
+    /* in the old file's place, which was there until now; none rather than
+       the old one if this couldn't be written, as before: read again next
+       boot */
+    if (!fw_close(&out, true))
         remove(FLAGS_FILE);
-    }
     logf("itunesdb: %lu tracks with flags", (unsigned long)hdr.count);
 }
 
@@ -4245,21 +4131,20 @@ void itunesdb_save_flags(void)
         return;
     flags_busy = true;
     const unsigned changes = flags_changes;
-    const ssize_t size = flags_index.count * sizeof(struct flags_entry);
-    const int fd = open(FLAGS_FILE ".new", O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    bool ok = fd >= 0;
+    const size_t size = flags_index.count * sizeof(struct flags_entry);
+    /* not through out, which the import may be writing; its own while
+       flags_busy is set, off the storage thread's 2 KB stack */
+    static struct fw w;
+    bool ok = fw_open(&w, FLAGS_FILE, FW_KEEP, NULL, 0);
     if (ok)
     {
         core_pin(flags_index.handle);
-        ok = write(fd, &flags_hdr, sizeof(flags_hdr)) == sizeof(flags_hdr)
-             && write(fd, core_get_data(flags_index.handle), size) == size;
+        ok = fw_put(&w, &flags_hdr, sizeof(flags_hdr))
+             && fw_put(&w, core_get_data(flags_index.handle), size);
         core_unpin(flags_index.handle);
-        ok = close(fd) == 0 && ok;
     }
-    if (ok && rename(FLAGS_FILE ".new", FLAGS_FILE) == 0)
+    if (fw_close(&w, ok))
         flags_dirty = changes != flags_changes;
-    else
-        remove(FLAGS_FILE ".new");
     flags_busy = false;
 }
 
@@ -4390,12 +4275,12 @@ struct gain_entry {
 
 static void write_gains(void)
 {
-    if (!writer_open(&out, GAINS_FILE ".tmp"))
+    if (!out_open(GAINS_FILE, FW_CACHE))
         return;
     struct flags_header hdr = {
         GAINS_MAGIC, GAINS_VERSION, 0, db_size, db_mtime
     };
-    writer_put(&out, &hdr, sizeof(hdr));
+    fw_put(&out, &hdr, sizeof(hdr));
     /* by path hash, to be searched */
     for (int i = 0; i < db.count; i++)
     {
@@ -4403,14 +4288,12 @@ static void write_gains(void)
         if (!t->path || !t->sound_check)
             continue;
         struct gain_entry entry = { t->st.hash, t->sound_check, 0 };
-        writer_put(&out, &entry, sizeof(entry));
+        fw_put(&out, &entry, sizeof(entry));
         hdr.count++;
     }
-    writer_flush(&out);
-    lseek(out.fd, 0, SEEK_SET);
-    writer_put(&out, &hdr, sizeof(hdr));
-    if (writer_close(&out))
-        rename(GAINS_FILE ".tmp", GAINS_FILE);
+    fw_seek(&out, 0);
+    fw_put(&out, &hdr, sizeof(hdr));
+    fw_close(&out, true);
     logf("itunesdb: %lu tracks with Sound Check", (unsigned long)hdr.count);
 }
 
@@ -4441,9 +4324,9 @@ static void sort_fields_begin(void)
     sorts.hdr = (struct tagcache_sort_header){
         TAGCACHE_SORT_MAGIC, TAGCACHE_SORT_VERSION, 0, 0xffffffff, 0, 0
     };
-    sorts.writing = writer_open(&out, TAGCACHE_SORT_FINDER ".tmp");
+    sorts.writing = out_open(TAGCACHE_SORT_FINDER, FW_CACHE);
     if (sorts.writing)
-        writer_put(&out, &sorts.hdr, sizeof(sorts.hdr));
+        fw_put(&out, &sorts.hdr, sizeof(sorts.hdr));
 }
 
 /* In place of the last ones once all of iTunesDB was read, of its stamp.
@@ -4454,8 +4337,8 @@ static void sort_fields_end(bool loaded)
     if (!loaded)
     {
         if (sorts.writing)
-            writer_close(&out);
-        remove(TAGCACHE_SORT_FINDER ".tmp");
+            fw_close(&out, false);
+        sorts.writing = false;
         return;
     }
     sorts.hdr.db_size = db_size;
@@ -4463,25 +4346,16 @@ static void sort_fields_end(bool loaded)
     bool written = false;
     if (sorts.writing)
     {
-        writer_flush(&out);
-        lseek(out.fd, 0, SEEK_SET);
-        writer_put(&out, &sorts.hdr, sizeof(sorts.hdr));
-        written = writer_close(&out)
-                  && rename(TAGCACHE_SORT_FINDER ".tmp",
-                            TAGCACHE_SORT_FINDER) == 0;
+        fw_seek(&out, 0);
+        fw_put(&out, &sorts.hdr, sizeof(sorts.hdr));
+        written = fw_close(&out, true);
     }
     sorts.writing = false;
     if (!written)
     {
-        remove(TAGCACHE_SORT_FINDER ".tmp");
         sorts.hdr.count = 0;
         sorts.hdr.crc = 0xffffffff;
-        int fd = open(TAGCACHE_SORT_FINDER, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-        if (fd >= 0)
-        {
-            write(fd, &sorts.hdr, sizeof(sorts.hdr));
-            close(fd);
-        }
+        whole_file_write(TAGCACHE_SORT_FINDER, &sorts.hdr, sizeof(sorts.hdr));
     }
     logf("itunesdb: %lu Sort fields", (unsigned long)sorts.hdr.count);
 }
@@ -4507,9 +4381,9 @@ static void sort_field_put(int tag, const char *name, const char *value)
     }
     sorts.recent[sorts.next] = hash;
     sorts.next = (sorts.next + 1) % SORT_RECENT;
-    writer_put(&out, head, sizeof(head));
-    writer_put(&out, name, name_size);
-    writer_put(&out, value, value_size);
+    fw_put(&out, head, sizeof(head));
+    fw_put(&out, name, name_size);
+    fw_put(&out, value, value_size);
     sorts.hdr.crc = crc_32(head, sizeof(head), sorts.hdr.crc);
     sorts.hdr.crc = crc_32(name, name_size, sorts.hdr.crc);
     sorts.hdr.crc = crc_32(value, value_size, sorts.hdr.crc);
@@ -5562,7 +5436,7 @@ static void art_file_sum(struct art_sum *a)
 /* the rest of the index, hashed as it's written */
 static void index_put(const void *data, size_t size)
 {
-    writer_put(&out, data, size);
+    fw_put(&out, data, size);
     index_sum = index_hash(data, size, index_sum);
 }
 
@@ -5628,11 +5502,11 @@ static bool write_art_index(int old_handle, uint32_t old_count,
     if (old_handle > 0)
         core_unpin(old_handle);
 
-    if (!writer_open(&out, ART_FILE ".tmp"))
+    if (!out_open(ART_FILE, FW_CACHE))
         goto done;
     art_hdr.magic = ART_MAGIC;
     art_hdr.version = ART_VERSION;
-    writer_put(&out, &art_hdr, sizeof(art_hdr));
+    fw_put(&out, &art_hdr, sizeof(art_hdr));
     index_sum = 2166136261u;
     /* by path hash, which db.by_hash already has them in */
     uint32_t count = 0;
@@ -5656,10 +5530,11 @@ static bool write_art_index(int old_handle, uint32_t old_count,
     index_put(sources, art_hdr.nslides * sizeof(*sources));
     /* the count, now that it is known */
     art_hdr.count = count;
-    writer_flush(&out);
-    lseek(out.fd, 0, SEEK_SET);
-    writer_put(&out, &art_hdr, sizeof(art_hdr));
-    if (writer_close(&out))
+    fw_seek(&out, 0);
+    fw_put(&out, &art_hdr, sizeof(art_hdr));
+    if (!fw_end(&out))
+        fw_place(ART_FILE, FW_CACHE, false);
+    else
     {
         const bool same = old->had && old->sum == index_sum
                           && !memcmp(&old->hdr, &art_hdr, sizeof(art_hdr));
@@ -5672,34 +5547,25 @@ static bool write_art_index(int old_handle, uint32_t old_count,
         close(open(SLIDES_TODO, O_WRONLY | O_CREAT | O_TRUNC, 0666));
         /* the larger frames' file is never an older index's */
         remove(LARGE_FILE);
-        placed = rename(ART_FILE ".tmp", ART_FILE) == 0;
+        placed = fw_place(ART_FILE, FW_CACHE, true);
         art_kept = same && placed;
         large_hdr.magic = LARGE_MAGIC;
         large_hdr.version = LARGE_VERSION;
         large_hdr.count = count;
         large_hdr.index = index_sum;
         bool written = false;
-        if (placed && writer_open(&out, LARGE_FILE ".tmp"))
+        if (placed && out_open(LARGE_FILE, FW_CACHE))
         {
-            writer_put(&out, &large_hdr, sizeof(large_hdr));
-            writer_put(&out, large, count * sizeof(*large));
-            written = writer_close(&out)
-                      && rename(LARGE_FILE ".tmp", LARGE_FILE) == 0;
-            if (!written)
-                remove(LARGE_FILE ".tmp");
+            fw_put(&out, &large_hdr, sizeof(large_hdr));
+            fw_put(&out, large, count * sizeof(*large));
+            written = fw_close(&out, true);
         }
         /* not written: its header alone, of no index, says it was tried,
            and the next boot doesn't import for it again */
         if (placed && !written)
         {
-            const int fd = open(LARGE_FILE, O_WRONLY | O_CREAT | O_TRUNC,
-                                0666);
             large_hdr.frames = 0;
-            if (fd >= 0)
-            {
-                write(fd, &large_hdr, sizeof(large_hdr));
-                close(fd);
-            }
+            whole_file_write(LARGE_FILE, &large_hdr, sizeof(large_hdr));
         }
     }
     logf("itunesdb: %lu covers, %lu slides", (unsigned long)count,
@@ -5729,12 +5595,9 @@ done:
 void itunesdb_art_due(void)
 {
     const uint32_t stub[2] = { ART_MAGIC, 0 };
-    const int fd = open(ART_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (fd >= 0)
-    {
-        write(fd, stub, sizeof(stub));
-        close(fd);
-    }
+    /* none if it can't be written: the index isn't to stay */
+    if (!whole_file_write(ART_FILE, stub, sizeof(stub)))
+        remove(ART_FILE);
 }
 
 /* The index lives in memory, and each frame is read once for all the sizes
@@ -5910,18 +5773,17 @@ static bool colours_written(void)
 static void write_colours(void)
 {
     if (colours_handle <= 0 || colours_written()
-        || !writer_open(&out, COLOURS_FILE ".tmp"))
+        || !out_open(COLOURS_FILE, FW_CACHE))
         return;
     struct index_header h = { COLOURS_MAGIC, COLOURS_VERSION, slides_index.count };
-    writer_put(&out, &h, sizeof(h));
+    fw_put(&out, &h, sizeof(h));
     for (uint32_t i = 0; i < slides_index.count; i++)
     {
         struct slide_colour c;
         colour_entry(i, &c);
-        writer_put(&out, &c, sizeof(c));
+        fw_put(&out, &c, sizeof(c));
     }
-    if (writer_close(&out))
-        rename(COLOURS_FILE ".tmp", COLOURS_FILE);
+    fw_close(&out, true);
 }
 
 /* the colour of slide i (from 0) of the index */
@@ -8634,30 +8496,37 @@ static int cmp_moved(const void *a, const void *b)
                    &((const struct itunesdb_moved *)b)->old_hash);
 }
 
-/* the moved list by old path, to be looked up in on the disk */
+/* The moved list by old path, to be looked up in on the disk: written whole
+   in its place, the unsorted one kept until then (FW_KEEP), as with the
+   ids its songs can't be told again after this sync */
 static void sort_moved_list(void)
 {
-    int fd = open(ITUNESDB_MOVED_LIST, O_RDWR);
+    int fd = open(ITUNESDB_MOVED_LIST, O_RDONLY);
     if (fd < 0)
         return;
     const off_t size = ffilesize(fd);
     const int n = size / sizeof(struct itunesdb_moved);
     const int handle = n > 1 ? db_alloc(n * sizeof(struct itunesdb_moved)) : 0;
-    if (handle > 0)
+    if (handle <= 0)
     {
-        core_pin(handle);
-        struct itunesdb_moved *m = core_get_data(handle);
-        const ssize_t bytes = n * sizeof(*m);
-        if (read(fd, m, bytes) == bytes)
-        {
-            qsort(m, n, sizeof(*m), cmp_moved);
-            if (lseek(fd, 0, SEEK_SET) == 0)
-                write(fd, m, bytes);
-        }
-        core_unpin(handle);
-        core_free(handle);
+        close(fd);
+        return;
     }
+    core_pin(handle);
+    struct itunesdb_moved *m = core_get_data(handle);
+    const size_t bytes = n * sizeof(*m);
+    const bool whole = read(fd, m, bytes) == (ssize_t)bytes;
     close(fd);
+    if (whole)
+    {
+        qsort(m, n, sizeof(*m), cmp_moved);
+        struct fw w;
+        fw_open(&w, ITUNESDB_MOVED_LIST, FW_KEEP, NULL, 0);
+        fw_put(&w, m, bytes);
+        fw_close(&w, true);
+    }
+    core_unpin(handle);
+    core_free(handle);
 }
 
 bool itunesdb_moved_to(uint64_t old_hash, char *path, size_t size)
@@ -8794,21 +8663,51 @@ static void note_moved_songs(void)
         close(moved_fd);
     if (any_moved)
         sort_moved_list();
-    if (changed && writer_open(&out, IDS_FILE ".tmp"))
+    /* kept over a cut: the songs a sync moves are found by it, which the
+       next sync's can't tell again */
+    if (changed && out_open(IDS_FILE, FW_KEEP))
     {
         head[0] = IDS_MAGIC;
         head[1] = count;
-        writer_put(&out, head, sizeof(head));
+        fw_put(&out, head, sizeof(head));
         for (int i = 0; i < count; i++)
         {
             const struct id_pair pair = { ids[i].dbid, ids[i].hash };
-            writer_put(&out, &pair, sizeof(pair));
+            fw_put(&out, &pair, sizeof(pair));
         }
-        if (!writer_close(&out) || rename(IDS_FILE ".tmp", IDS_FILE) < 0)
-            remove(IDS_FILE ".tmp");
+        fw_close(&out, true);
     }
     core_unpin(handle);
     core_free(handle);
+}
+
+/* Whether a "<file>.new" a cut left may take the name. Only the marks' save
+   of an older firmware wrote a .new of its own, in place, which a cut may
+   have left short; every other's is fw_close()'s, whole. */
+static bool kept_new_whole(const char *new)
+{
+    if (strcasecmp(new, FLAGS_FILE ".new"))
+        return true;
+    struct flags_header hdr;
+    const int fd = open(new, O_RDONLY);
+    if (fd < 0)
+        return false;
+    const bool whole = read(fd, &hdr, sizeof(hdr)) == sizeof(hdr)
+        && hdr.magic == FLAGS_MAGIC && hdr.count <= COUNT_MAX
+        && ffilesize(fd) == (off_t)(sizeof(hdr)
+                                    + hdr.count * sizeof(struct flags_entry));
+    close(fd);
+    return whole;
+}
+
+void itunesdb_files_boot(void)
+{
+    static const char *const kept[] = {
+        STATE_FILE, PENDING_FILE, UNSENT_FILE, FLAGS_FILE, NOTES_FILE,
+        IDS_FILE, ITUNESDB_MOVED_LIST, OTG_FILE
+    };
+    fw_recover_files(ROCKBOX_DIR, kept, ARRAYLEN(kept), kept_new_whole);
+    lp_files_boot();
 }
 
 int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
@@ -8959,12 +8858,7 @@ void itunesdb_import_playlists(volatile int *done, volatile int *total)
     struct playlists_failed failed;
     if (!readable && db_stamp(&failed.size, &failed.mtime))
     {
-        const int fd = open(PLAYLISTS_FAILED, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-        if (fd >= 0)
-        {
-            write(fd, &failed, sizeof(failed));
-            close(fd);
-        }
+        whole_file_write(PLAYLISTS_FAILED, &failed, sizeof(failed));
     }
 }
 

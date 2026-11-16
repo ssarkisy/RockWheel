@@ -351,6 +351,22 @@ void yield(void)
     stubs.yields++;
 }
 
+/* file_write.c's lock: one thread here */
+void mutex_init(struct mutex *m)
+{
+    (void)m;
+}
+
+void mutex_lock(struct mutex *m)
+{
+    (void)m;
+}
+
+void mutex_unlock(struct mutex *m)
+{
+    (void)m;
+}
+
 void library_write_failed(void)
 {
     T("  library_write_failed\n");

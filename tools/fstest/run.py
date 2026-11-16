@@ -62,9 +62,12 @@ def export(rev, work):
     if not os.path.isdir(src):
         os.makedirs(src)
         root = sh("git", "-C", HERE, "rev-parse", "--show-toplevel").strip()
-        tar = subprocess.run(["git", "-C", root, "archive", rev, "firmware",
-                              "apps/settings.c"], check=True,
-                             capture_output=True).stdout
+        paths = ["firmware", "apps/settings.c"]
+        if subprocess.run(["git", "-C", root, "cat-file", "-e",
+                           rev + ":apps/file_write.c"]).returncode == 0:
+            paths += ["apps/file_write.c", "apps/file_write.h"]
+        tar = subprocess.run(["git", "-C", root, "archive", rev] + paths,
+                             check=True, capture_output=True).stdout
         subprocess.run(["tar", "-x", "-C", src], input=tar, check=True)
     return src
 

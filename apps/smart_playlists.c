@@ -36,6 +36,7 @@
 #include "splash.h"
 #include "lang.h"
 #include "library_playlists.h"
+#include "file_write.h"
 
 /* Live smart playlists, as the stock firmware keeps them: a song rated five
    stars on the iPod is in "5 Stars" at once, one played in "Recently Played",
@@ -138,48 +139,44 @@ bool smart_rules_supported(const struct smart_rules *r)
 }
 
 /* The import's: a file of the smart playlists it wrote, the old one until the
-   new one is whole */
-static int import_fd = -1;
+   new one is whole, made again by the next import if lost (FW_CACHE); a
+   write() each, as it was */
+static struct fw import_out = { .fd = -1 };
 static uint32_t import_count;
 static bool import_ok;
 
 void smart_import_begin(void)
 {
     import_count = 0;
-    import_fd = open(SMART_FILE ".tmp", O_WRONLY | O_CREAT | O_TRUNC, 0666);
     struct smart_head head = { SMART_MAGIC, SMART_VERSION, 0 };
-    import_ok = import_fd >= 0
-                && write(import_fd, &head, sizeof(head)) == sizeof(head);
+    import_ok = fw_open(&import_out, SMART_FILE, FW_CACHE, NULL, 0)
+                && fw_put(&import_out, &head, sizeof(head));
 }
 
 void smart_import_note(const char *file, uint32_t time,
                        const struct smart_rules *rules)
 {
-    if (import_fd < 0 || !import_ok || !smart_rules_supported(rules))
+    if (import_out.fd < 0 || !import_ok || !smart_rules_supported(rules))
         return;
     struct smart_record rec;
     memset(&rec, 0, sizeof(rec));
     rec.path_len = strlen(file);
     rec.time = time;
     rec.rules = *rules;
-    import_ok = write(import_fd, &rec, sizeof(rec)) == sizeof(rec)
-                && write(import_fd, file, rec.path_len) == (ssize_t)rec.path_len;
+    import_ok = fw_put(&import_out, &rec, sizeof(rec))
+                && fw_put(&import_out, file, rec.path_len);
     import_count++;
 }
 
 void smart_import_end(bool complete)
 {
-    if (import_fd < 0)
+    if (import_out.fd < 0)
         return;
     struct smart_head head = { SMART_MAGIC, SMART_VERSION, import_count };
     if (import_ok)
-        import_ok = lseek(import_fd, 0, SEEK_SET) == 0
-                    && write(import_fd, &head, sizeof(head)) == sizeof(head);
-    if (close(import_fd) < 0)
-        import_ok = false;
-    import_fd = -1;
-    if (!complete || !import_ok || rename(SMART_FILE ".tmp", SMART_FILE) < 0)
-        remove(SMART_FILE ".tmp");
+        import_ok = fw_seek(&import_out, 0)
+                    && fw_put(&import_out, &head, sizeof(head));
+    fw_close(&import_out, complete && import_ok);
 }
 
 
@@ -503,7 +500,7 @@ static bool next_record(int fd, off_t *pos, struct smart_record *rec,
 
 bool smart_import_keep(const char *file)
 {
-    if (import_fd < 0 || !import_ok)
+    if (import_out.fd < 0 || !import_ok)
         return false;
     const int fd = open(SMART_FILE, O_RDONLY);
     if (fd < 0)

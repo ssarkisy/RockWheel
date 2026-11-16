@@ -54,6 +54,7 @@
 #include "core_alloc.h"
 #include "yesno.h"
 #include "misc.h"
+#include "file_write.h"
 #include "filetypes.h"
 #include "audio.h"
 #include "appevents.h"
@@ -6092,9 +6093,14 @@ static bool* fill_random_playlist_indexes(bool *bool_array, size_t arr_sz,
 }
 
 /* Writes a playlist file a large block at a time, through the plugin
-   buffer; one write() a song takes long on the iPod */
+   buffer; one write() a song takes long on the iPod. A new file is written
+   whole (file_write.c), each write() as before: a playlist of the user's,
+   made from the database, kept over a cut (FW_KEEP); the lists' own files
+   to play from, made again (FW_CACHE). One added to grows in place. */
 struct playlist_writer {
-    int fd;
+    int fd;             /* the new file's, or the one added to */
+    struct fw file;     /* a new file */
+    bool whole;         /* new, written whole */
     char *buf;
     size_t size, used;
     bool ok;
@@ -6125,13 +6131,22 @@ static bool playlist_writer_open(struct playlist_writer *w,
     w->entry = -1;
     written_offsets = NULL;
     written_count = 0;
-    errno = 0;
+    w->whole = new_playlist;
     if (new_playlist)
-        w->fd = open_utf8(playlist, O_CREAT|O_WRONLY|O_TRUNC);
+    {
+        /* its BOM first, as open_utf8() writes it */
+        w->fd = fw_open(&w->file, playlist, tagtree_is_list_file(playlist)
+                                            ? FW_CACHE : FW_KEEP, NULL, 0)
+                && fw_put(&w->file, BOM_UTF_8, BOM_UTF_8_SIZE)
+                ? w->file.fd : -1;
+    }
     else
+    {
+        errno = 0;
         w->fd = open(playlist, O_CREAT|O_WRONLY|O_APPEND, 0666);
-    if (w->fd < 0)
-        library_write_failed();
+        if (w->fd < 0)
+            library_write_failed();
+    }
     if (new_playlist && w->fd >= 0 && w->buf)
     {
         /* after the BOM */
@@ -6151,10 +6166,15 @@ static bool playlist_writer_open(struct playlist_writer *w,
 
 static bool playlist_writer_flush(struct playlist_writer *w)
 {
-    if (w->ok && w->used > 0 && write(w->fd, w->buf, w->used) != (ssize_t)w->used)
+    if (w->ok && w->used > 0)
     {
-        w->ok = false;
-        library_write_failed();
+        if (w->whole)
+            w->ok = fw_put(&w->file, w->buf, w->used);
+        else if (write(w->fd, w->buf, w->used) != (ssize_t)w->used)
+        {
+            w->ok = false;
+            library_write_failed();
+        }
     }
     w->used = 0;
     return w->ok;
@@ -6178,10 +6198,13 @@ static bool playlist_writer_add(struct playlist_writer *w, const char *path)
     return true;
 }
 
+/* A new file takes its name if each write went well */
 static bool playlist_writer_close(struct playlist_writer *w)
 {
     bool ok = w->fd >= 0 && playlist_writer_flush(w);
-    if (w->fd >= 0)
+    if (w->whole)
+        ok = fw_close(&w->file, ok);
+    else if (w->fd >= 0)
         close(w->fd);
     w->fd = -1;
     if (ok && w->offsets)
@@ -6230,6 +6253,8 @@ static bool insert_all_playlist(struct tree_context *c,
     }
     else if (!playlist_writer_open(&writer, playlist, new_playlist))
     {
+        /* nothing in place of the file before */
+        writer.ok = false;
         playlist_writer_close(&writer);
         tagcache_search_finish(&tcs);
         cpu_boost(false);
@@ -7204,22 +7229,21 @@ static void save_slot_index(int slot, uint32_t id, uint32_t entries)
     struct tagtree_list_header h = {
         TAGTREE_LIST_MAGIC, tagcache_get_commitid(), entries, id, written_count
     };
-    int fd = open(tagtree_list_index_names[slot], O_WRONLY|O_CREAT|O_TRUNC, 0666);
-    if (fd >= 0)
+    /* made again with its list (FW_CACHE); a write() each, as it was */
+    struct fw w;
+    const size_t size = written_count * sizeof(uint32_t);
+    const bool whole = fw_open(&w, tagtree_list_index_names[slot], FW_CACHE,
+                               NULL, 0)
+                       && fw_put(&w, &h, sizeof(h))
+                       && fw_put(&w, written_offsets, size)
+                       && fw_put(&w, written_ids, size);
+    if (fw_close(&w, whole))
     {
-        const ssize_t size = written_count * sizeof(uint32_t);
-        const bool whole = write(fd, &h, sizeof(h)) == sizeof(h)
-                           && write(fd, written_offsets, size) == size
-                           && write(fd, written_ids, size) == size;
-        close(fd);
-        if (whole)
-        {
-            slot_lists[slot].id = id;
-            slot_lists[slot].commitid = h.commitid;
-        }
-        else /* its header would say a list is here */
-            remove(tagtree_list_index_names[slot]);
+        slot_lists[slot].id = id;
+        slot_lists[slot].commitid = h.commitid;
     }
+    else /* the one before is of the list before: none */
+        remove(tagtree_list_index_names[slot]);
 }
 
 static void tagtree_save_list_index(const struct tree_context *c, int slot,

@@ -164,7 +164,22 @@ static bool settings_write_config(const char *filename, int options)
     return cfg_write(filename, cfg_saving);
 }
 
-/* the functions of apps/settings.c that save and recover the settings */
+/* file_write.c's: none of the volume's files is the library's */
+void library_write_failed(void);
+void library_write_failed(void)
+{
+}
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+/* settings_save_new()'s wait for a save under way: one thread here */
+#define sleep(ticks) ((void)(ticks))
+#ifndef ARRAYLEN
+#define ARRAYLEN(a) (sizeof(a) / sizeof(*(a)))
+#endif
+
+/* the functions of apps/settings.c that save and recover the settings, and
+   apps/file_write.c in a tree that has it */
 #include "settings_fns.c"
 
 static void names(const char *file, char *tmp, char *new, char *old)
@@ -200,7 +215,11 @@ static void cfg_boot(const char *file)
 {
     char tmp[64], new[64], old[64];
     names(file, tmp, new, old);
-#ifdef HAVE_SETTINGS_FILE_RECOVER
+#if defined(HAVE_SETTINGS_FILE_RECOVER) && !defined(HAVE_SETTINGS_FILE_REPLACE)
+    /* .new raised by file_write.c's fw_recover(), .old its own */
+    (void)old;
+    settings_file_recover(file, new);
+#elif defined(HAVE_SETTINGS_FILE_RECOVER)
     settings_file_recover(file, new, old);
 #else
     rename_temp_file(new, file, old);
@@ -813,6 +832,169 @@ static void full_big_action(void)
     close(fd);
 }
 
+#ifdef HAVE_FILE_WRITE
+/* A file of ours written whole (file_write.c) over the one before: FW_KEEP's
+   is that one or the new one after the next boot's fw_recover(), never none,
+   a part, or the name twice; FW_CACHE's may be none, which is made again. A
+   playlist made on the iPod is in a folder of its own. */
+#define FW_FILE     ROCKBOX_DIR "/itunesdb_unsent.dat"
+#define FW_LIST     MOVE_DIR "/Road Trip.m3u8"
+#define FW_OLD_SIZE 30000
+#define FW_NEW_SIZE 46000
+#define FW_OLD_SEED 31
+#define FW_NEW_SEED 32
+
+static const char *fw_path = FW_FILE;
+
+/* what fw_put() is given: 40 writes of a size that falls across sectors */
+static bool fw_write_file(enum fw_policy policy)
+{
+    static char buf[32768], room[8192];
+    struct fw w;
+    fw_open(&w, fw_path, policy, room, sizeof room);
+    for (size_t at = 0; at < FW_NEW_SIZE; at += 1150)
+    {
+        size_t n = MIN(FW_NEW_SIZE - at, 1150);
+        bytes(buf, n, FW_NEW_SEED, at);
+        fw_put(&w, buf, n);
+    }
+    return fw_close(&w, true);
+}
+
+static void fst_names(char *tmp, char *new, char *old)
+{
+    snprintf(tmp, MAX_PATH, "%s.tmp", fw_path);
+    snprintf(new, MAX_PATH, "%s.new", fw_path);
+    snprintf(old, MAX_PATH, "%s.old", fw_path);
+}
+
+static void keep_setup(void)
+{
+    setup_common();
+    put_file(fw_path, FW_OLD_SIZE, FW_OLD_SEED, 4096);
+}
+
+static void keep_list_setup(void)
+{
+    fw_path = FW_LIST;
+    setup_common();
+    if (mkdir(MOVE_DIR) < 0)
+        fail("mkdir");
+    put_file(FW_LIST, FW_OLD_SIZE, FW_OLD_SEED, 4096);
+}
+
+static void keep_action(void)
+{
+    fw_write_file(FW_KEEP);
+}
+
+static void keep_list_action(void)
+{
+    fw_path = FW_LIST;
+    keep_action();
+}
+
+static void cache_action(void)
+{
+    fw_write_file(FW_CACHE);
+}
+
+/* the name's file: "old", "new", "none" or "bad"; leftovers counted */
+static const char *fw_state(int *left)
+{
+    char tmp[MAX_PATH], new[MAX_PATH], old[MAX_PATH];
+    fst_names(tmp, new, old);
+    int fd;
+    *left = 0;
+    const char *const names[] = { tmp, new, old };
+    for (int i = 0; i < 3; i++)
+        if ((fd = open(names[i], O_RDONLY)) >= 0)
+        {
+            close(fd);
+            (*left)++;
+        }
+    return whole(fw_path, FW_OLD_SIZE, FW_OLD_SEED) > 0 ? "old" :
+           whole(fw_path, FW_NEW_SIZE, FW_NEW_SEED) > 0 ? "new" :
+           whole(fw_path, 1, 0) == 0 ? "none" : "bad";
+}
+
+/* the boot: fw_recover() of the file, as fw_recover_files() does for one
+   that left something (itunesdb_files_boot(), lp_files_boot()) */
+static bool keep_post_of(bool none_ok, char *verdict, size_t max)
+{
+    fw_recover(fw_path);
+    int left;
+    const char *state = fw_state(&left);
+    snprintf(verdict, max, "%s%s", state, left ? ", leftovers" : "");
+    return !left && (!strcmp(state, "old") || !strcmp(state, "new")
+                     || (none_ok && !strcmp(state, "none")));
+}
+
+static bool keep_post(char *verdict, size_t max)
+{
+    return keep_post_of(false, verdict, max);
+}
+
+static bool keep_list_post(char *verdict, size_t max)
+{
+    fw_path = FW_LIST;
+    return keep_post_of(false, verdict, max);
+}
+
+/* none before: none or the new one */
+static void keep_first_setup(void)
+{
+    setup_common();
+}
+
+static bool keep_first_post(char *verdict, size_t max)
+{
+    return keep_post_of(true, verdict, max);
+}
+
+/* the boot after a cut that left the new one whole beside the old: the
+   boot's own raise of it cut */
+static void keep_boot_setup(void)
+{
+    char tmp[MAX_PATH], new[MAX_PATH], old[MAX_PATH];
+    fst_names(tmp, new, old);
+    keep_setup();
+    put_file(new, FW_NEW_SIZE, FW_NEW_SEED, 4096);
+}
+
+/* a cut inside the rename of the old one to .old: the new one alone */
+static void keep_lone_setup(void)
+{
+    char tmp[MAX_PATH], new[MAX_PATH], old[MAX_PATH];
+    fst_names(tmp, new, old);
+    setup_common();
+    put_file(new, FW_NEW_SIZE, FW_NEW_SEED, 4096);
+}
+
+/* a cut inside the rename of the new one to the name: the old one alone */
+static void keep_old_setup(void)
+{
+    char tmp[MAX_PATH], new[MAX_PATH], old[MAX_PATH];
+    fst_names(tmp, new, old);
+    setup_common();
+    put_file(old, FW_OLD_SIZE, FW_OLD_SEED, 4096);
+}
+
+static void recover_action(void)
+{
+    fw_recover(fw_path);
+}
+
+/* a cache: the old one, the new one or none, never a part */
+static bool cache_post(char *verdict, size_t max)
+{
+    int left;
+    const char *state = fw_state(&left);
+    snprintf(verdict, max, "%s", state);
+    return strcmp(state, "bad") != 0;
+}
+#endif /* HAVE_FILE_WRITE */
+
 static bool no_post(char *verdict, size_t max)
 {
     verdict[0] = '\0';
@@ -861,6 +1043,15 @@ static const struct scenario
     { "full",           full_setup,     full_action,     full_post },
     { "full-first",     full_setup,     full_first_action, full_post },
     { "full-big",       full_setup,     full_big_action, full_post },
+#ifdef HAVE_FILE_WRITE
+    { "keep",           keep_setup,     keep_action,     keep_post },
+    { "keep-first",     keep_first_setup, keep_action,   keep_first_post },
+    { "keep-list",      keep_list_setup, keep_list_action, keep_list_post },
+    { "keep-boot",      keep_boot_setup, recover_action, keep_post },
+    { "keep-lone",      keep_lone_setup, recover_action, keep_post },
+    { "keep-old",       keep_old_setup, recover_action,  keep_post },
+    { "cache",          keep_setup,     cache_action,    cache_post },
+#endif
 };
 
 static const struct scenario *find(const char *name)

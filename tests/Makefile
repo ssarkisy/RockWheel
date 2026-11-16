@@ -20,6 +20,8 @@
 #   make -C tests check-lines    the playlists' line reader against the loops
 #                                it replaced
 #   make -C tests check-panic    the crash record, its copies and their vote
+#   make -C tests check-fw       file_write.c with each operation failing or
+#                                cut
 #   make -C tests clean
 #
 # Built under tests/build. The sources are built with the simulator's
@@ -73,16 +75,18 @@ FIRMWARE_SRC := firmware/common/unicode.c firmware/common/pathfuncs.c \
 	firmware/core_alloc.c firmware/buflib_malloc.c \
 	lib/fixedpoint/fixedpoint.c apps/sortkey.c
 FIRMWARE_OBJ := $(addprefix $(OBJ)/,$(FIRMWARE_SRC:.c=.o))
-# the tests' own: the checks, and the firmware the sources call
-LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o
+# the tests' own: the checks, and the firmware the sources call, with
+# file_write.c as it is
+LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o \
+	$(OBJ)/apps/file_write.o
 
 .PHONY: all check check-keys check-itunesdb check-covers check-codecs \
-	check-wheel check-disk check-lines check-panic clean
+	check-wheel check-disk check-lines check-panic check-fw clean
 all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_covers \
-	$(BUILD)/test_wheel $(BUILD)/test_panic_record
+	$(BUILD)/test_wheel $(BUILD)/test_panic_record $(BUILD)/test_fw
 
 check: check-keys check-itunesdb check-covers check-wheel check-codecs \
-	check-disk check-lines check-panic
+	check-disk check-lines check-panic check-fw
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -275,7 +279,7 @@ LINES_DEF_new := -DLP_SOURCE=\"$(ROOT)/apps/library_playlists.c\" \
 	-DOTG_SOURCE=\"$(ROOT)/apps/on_the_go.c\" -DLINES_NAME=\"new\" \
 	-DLINES_STRICT
 LINES_OBJ := $(OBJ)/lines/host.o $(OBJ)/lines/simfs.o $(OBJ)/lines/unused.o \
-	$(FIRMWARE_OBJ)
+	$(OBJ)/apps/file_write.o $(FIRMWARE_OBJ)
 LINES_CFLAGS := -I$(TESTS)/lines $(CFLAGS) -Wno-format-security \
 	-Wno-string-plus-int
 
@@ -328,6 +332,34 @@ lines-baseline: $(BUILD)/test_lines_new
 		$(LINES_RUN)/new-faults.txt > $(LINES_RUN)/new.txt
 	@$(PYTHON) -I -B $(TESTS)/lines/baseline.py --write \
 		$(LINES_RUN)/new-faults.txt $(TESTS)/lines/fault-baseline.txt
+
+# file_write.c: tests/fw/test_fw.c's own open, write, close, lseek, rename
+# and remove over simfs.c's, which fail each operation in turn or cut the
+# power before or inside it
+FW_SIMFS_DEF := -Dsim_open=simfs_sim_open -Dsim_write=simfs_sim_write \
+	-Dsim_close=simfs_sim_close -Dsim_rename=simfs_sim_rename \
+	-Dsim_remove=simfs_sim_remove -Dsim_lseek=simfs_sim_lseek
+
+$(OBJ)/fw/simfs.o: $(TESTS)/lib/simfs.c
+	@mkdir -p $(dir $@)
+	@echo CC fw/simfs.o
+	@$(HOST_CC) $(CFLAGS) $(FW_SIMFS_DEF) -MMD -c $< -o $@
+
+$(OBJ)/fw/%.o: $(TESTS)/fw/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -Wall -MMD -c $< -o $@
+
+$(BUILD)/test_fw: $(OBJ)/fw/test_fw.o $(OBJ)/fw/simfs.o \
+		$(OBJ)/apps/file_write.o $(OBJ)/lib/stubs.o $(OBJ)/lib/check.o \
+		$(FIRMWARE_OBJ)
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+FW_RUN := $(BUILD)/fw
+check-fw: $(BUILD)/test_fw
+	@rm -rf $(FW_RUN)
+	@$(BUILD)/test_fw $(FW_RUN)
 
 # warble, from its own configure in build/warble, with clang and ASan; only
 # the codecs the fixtures need, and without SDL (lib/sdl_stub.c). DEBUG makes

@@ -167,43 +167,6 @@ void library_no_room(void)
     stubs.no_room++;
 }
 
-/* the file whole or not at all: here only as a temporary file renamed */
-int whole_file_open(const char *path)
-{
-    char temp[MAX_PATH];
-    snprintf(temp, sizeof(temp), "%s.tmp", path);
-    const int fd = creat(temp, 0666);
-    if (fd < 0)
-        library_write_failed();
-    return fd;
-}
-
-bool whole_file_close(int fd, const char *path, bool ok)
-{
-    char temp[MAX_PATH];
-    snprintf(temp, sizeof(temp), "%s.tmp", path);
-    ok = close(fd) == 0 && ok;
-    if (ok)
-    {
-        remove(path);
-        ok = rename(temp, path) == 0;
-    }
-    if (!ok)
-    {
-        library_write_failed();
-        remove(temp);
-    }
-    return ok;
-}
-
-bool whole_file_write(const char *path, const void *data, size_t size)
-{
-    const int fd = whole_file_open(path);
-    if (fd < 0)
-        return false;
-    return whole_file_close(fd, path, write(fd, data, size) == (ssize_t)size);
-}
-
 void health_note(const char *fmt, ...)
 {
     stubs.health_notes++;
@@ -337,6 +300,10 @@ void album_header_forget_cover(void)
 }
 
 void list_covers_forget(void)
+{
+}
+
+void lp_files_boot(void)
 {
 }
 
