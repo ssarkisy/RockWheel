@@ -17,16 +17,23 @@
 # under it, its glyphs from the side margin leftwards 6 px apart on one foot
 # line; the lists under it; the main menu's pane right of a hairline on
 # column 159.
+#
+# Each screen has its skins: the iPod Video's 320x240 in Neo/.rockbox, the
+# iPod photo's 220x176 in Neo/220x176/.rockbox, its own layout below (LAYOUTS)
+# by the same rules, in smaller fonts and with no pane: its main menu takes
+# the screen's width, as a stock iPod photo's.
 
 import os
+import struct
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "..", "Neo", ".rockbox", "wps")
 
 # the reflection's rows and its strength at the top, of 256: the firmware's
 # default %Cr in the light skin; on the dark paper a cover's dark foot was
 # lost at half, so the dark skin's starts stronger (owner, 2026-11-13)
 REFLECT_LIGHT, REFLECT_DARK = "22,128", "22,176"
+# the iPod photo's, of its cover's rows as these are of the Video's
+REFLECT_LIGHT_220, REFLECT_DARK_220 = "14,128", "14,176"
 
 COLOURS = {
     # DENSE: small text, the clock (#56524D, #B8B1A8 as the screen has them);
@@ -57,33 +64,95 @@ for line in open(os.path.join(HERE, "neo_glyph_sizes.txt"), encoding="utf-8"):
         name, w, h, count = line.split()
         SIZES[name] = (int(w), int(h), int(count))
 
-STATUS = 20             # the status line's rows; the hairline is the next
-MARGIN = 14             # the sides': the clock's start, the glyphs' end
-# the lists' area: seven rows of 30 or six of 36; apps/gui/ui_theme.c has the rows' insets
-LIST_TOP, LIST_ROWS = 23, 216
-TEXT_Y = STATUS - 18    # the status line's text, a cell of 15
-FOOT = STATUS - 6       # the row under the status glyphs' feet
-GAP = 6                 # between them
-# Now Playing: the cover 18 rows under the hairline, its reflection of 22 rows
-# under it, so the rows left free over the cover and under the reflection
-# split about 3:1, as in Modern (owner, 2026-11-14); the bar's box, as high as
-# the knob, clear of the reflection, and the line of the times under it,
-# ending 12 rows over the screen's foot. The rating view's stars stand where
-# the bar is
-COVER, COVER_Y = 136, 38
-BAR_Y, TIMES_Y = 202, 214
-REFLECTION = 22         # rows, as REFLECT_LIGHT and REFLECT_DARK have them
-# the song's details beside the cover: one block in the middle of its height,
-# of these rows each line has, with these clear rows over some
-TITLE_LINE = 18         # 18-Inter-SemiBold, one line or two
-DETAIL = 16             # artist and album, 15-Inter-Medium
-SMALL = 14              # the place in the list, the format, an episode's time left
-COUNT_GAP = 4           # over the place in the list
-STARS_GAP = 6           # over the stars
-FORMAT_GAP = 5          # over the format, or what is left of an episode or a book
-FORMAT_UNDER_STARS = 3  # over the format, under the stars
-# the modes: under the status line's right end, 4 rows under the hairline
-MODES_Y = STATUS + 5
+# The layouts by screen, set in turn as globals (use()). The Video's:
+VIDEO = dict(
+    W=320, H=240,
+    OUT=os.path.join(HERE, "..", "Neo", ".rockbox", "wps"),
+    STATUS=20,              # the status line's rows; the hairline is the next
+    MARGIN=14,              # the sides': the clock's start, the glyphs' end
+    # the lists' area: seven rows of 30 or six of 36; apps/gui/ui_theme.c has
+    # the rows' insets
+    LIST_TOP=23, LIST_ROWS=216,
+    TEXT_Y=2,               # the status line's text, a cell of 15 (CELL)
+    CELL=15,
+    FOOT=14,                # the row under the status glyphs' feet
+    GAP=6,                  # between them
+    CLOCK_W=64,             # the clock's viewport
+    TITLE_X=84, TITLE_W=152,        # a list's title, in the middle
+    NP_TITLE_X=100, NP_TITLE_W=120,  # Now Playing's
+    # Now Playing: the cover 18 rows under the hairline, its reflection of 22
+    # rows under it, so the rows left free over the cover and under the
+    # reflection split about 3:1, as in Modern (owner, 2026-11-14); the bar's
+    # box, as high as the knob, clear of the reflection, and the line of the
+    # times under it, ending 12 rows over the screen's foot. The rating
+    # view's stars stand where the bar is
+    COVER=136, COVER_Y=38, COL_GAP=14,
+    BAR_Y=202, TIMES_Y=214,
+    REFLECTION=22,          # rows, as REFLECT_LIGHT and REFLECT_DARK have them
+    REFLECTS=(REFLECT_LIGHT, REFLECT_DARK),
+    # the song's details beside the cover: one block in the middle of its
+    # height, of these rows each line has, with these clear rows over some
+    TITLE_LINE=18,          # 18-Inter-SemiBold, one line or two
+    DETAIL=16,              # artist and album, 15-Inter-Medium
+    SMALL=14,               # the place in the list, the format, an episode's time left
+    COUNT_GAP=4,            # over the place in the list
+    STARS_GAP=6,            # over the stars
+    FORMAT_GAP=5,           # over the format, or what is left of an episode or a book
+    FORMAT_UNDER_STARS=3,   # over the format, under the stars
+    # the modes: under the status line's right end, 4 rows under the hairline
+    MODES_Y=25,
+    TIME_W=64, TIME_ROWS=14,        # the times under the bar, 14-Inter-Medium
+    BIG=200, BIG_X=60, BIG_Y=30,    # the album art view's cover
+    LYRICS_Y=28,
+    SPEED_H=44,             # the speed view's rows
+    VOLUME_BAR=None,        # neo_glyph_sizes.txt's
+    SBS_FONTS=("15-Inter-Medium", "15-Inter-SemiBold"),
+    WPS_FONTS=("18-Inter-SemiBold", "17-Inter-Medium-13", "14-Inter-Medium",
+               "15-Inter-SemiBold", "15-Inter-Medium"),
+)
+# The iPod photo's, the Video's by its own rules on a screen three quarters as
+# high and two thirds as wide, and seen a little larger: a status line of 16
+# rows; the lists' rows of 22 in 15 px type, seven of them under it, or of 34
+# with a second line, four and two thirds of them (apps/gui/ui_theme.c); Now
+# Playing's cover 96 px, 11 rows under the hairline, its reflection 14, the
+# bar 4 under it and the times 8 over the foot. The glyphs are the Video's,
+# at their own sizes; the bar's capsules are made for this width
+# (make_theme_glyphs.py)
+PHOTO = dict(
+    W=220, H=176,
+    OUT=os.path.join(HERE, "..", "Neo", "220x176", ".rockbox", "wps"),
+    STATUS=16, MARGIN=10,
+    LIST_TOP=18, LIST_ROWS=158,
+    TEXT_Y=2, CELL=14, FOOT=13, GAP=5,
+    CLOCK_W=48,
+    TITLE_X=58, TITLE_W=104,
+    NP_TITLE_X=62, NP_TITLE_W=96,
+    COVER=96, COVER_Y=28, COL_GAP=10,
+    BAR_Y=142, TIMES_Y=154,
+    REFLECTION=14,
+    REFLECTS=(REFLECT_LIGHT_220, REFLECT_DARK_220),
+    TITLE_LINE=15,          # 15-Inter-SemiBold
+    DETAIL=14,              # 14-Inter-Medium
+    SMALL=14,               # 14-Inter-Medium: the place in the list has "of" in every alphabet
+    COUNT_GAP=2, STARS_GAP=3, FORMAT_GAP=2, FORMAT_UNDER_STARS=1,
+    MODES_Y=20,
+    TIME_W=61, TIME_ROWS=14,        # "-44:44:44", the widest time of 10 h or more
+    BIG=140, BIG_X=40, BIG_Y=26,    # Finder's frame of the iPod photo, 140 px
+    LYRICS_Y=22,
+    SPEED_H=40,
+    VOLUME_BAR=160,
+    SBS_FONTS=(None, "14-Inter-SemiBold"),
+    WPS_FONTS=("15-Inter-SemiBold", "15-Inter-Medium", "14-Inter-Medium",
+               "14-Inter-SemiBold", "14-Inter-Medium"),
+)
+LAYOUTS = (VIDEO, PHOTO)
+
+
+def use(layout):
+    globals().update(layout)
+
+
+use(VIDEO)
 
 
 CLOCK = "%al%?cf<%cH:%cM|%cl:%cM>"
@@ -105,9 +174,11 @@ def title_vps(label, night, rooms, text):
     """A title left of the glyphs, from the margin to a gap before the
     leftmost one shown: the playing status's place (<label>n<night>p), or the
     moon or the battery past it when it shows nothing (<label>n<night>)"""
-    return ["%%Vl(%sn%dp,%d,%d,%d,15,3)%%Vf(PRIMARY)" % (label, night, MARGIN, TEXT_Y, rooms[0]),
+    return ["%%Vl(%sn%dp,%d,%d,%d,%d,3)%%Vf(PRIMARY)" % (label, night, MARGIN, TEXT_Y, rooms[0],
+                                                       CELL),
             text,
-            "%%Vl(%sn%d,%d,%d,%d,15,3)%%Vf(PRIMARY)" % (label, night, MARGIN, TEXT_Y, rooms[1]),
+            "%%Vl(%sn%d,%d,%d,%d,%d,3)%%Vf(PRIMARY)" % (label, night, MARGIN, TEXT_Y, rooms[1],
+                                                     CELL),
             text]
 
 
@@ -134,7 +205,8 @@ def status(width, prefix="", name=None):
     out = []
     rooms = []
     if name:
-        out += ["%%Vl(%sclock,%d,%d,64,15,3)%%Vf(CLOCK)" % (prefix, MARGIN, TEXT_Y), CLOCK]
+        out += ["%%Vl(%sclock,%d,%d,%d,%d,3)%%Vf(CLOCK)" % (prefix, MARGIN, TEXT_Y, CLOCK_W,
+                                                              CELL), CLOCK]
 
     def vp(tag, name, x):
         w, h, _ = SIZES[name]
@@ -189,8 +261,7 @@ def fill(text, **parts):
 SBS = """\
 # Neo: the status line and the main menu's pane. Made by themes/tools/make_neo_theme.py
 %wd
-%Fl(2,15-Inter-Medium.fnt)
-%Fl(3,15-Inter-SemiBold.fnt)
+{fonts}
 {images}
 %?LW<%VI(wide)%Vd(rulewide){title}{wide}|%VI(half)%Vd(rulehalf)%Vd(column){half}>
 # the pane by the row selected: Settings, Photos, or the music, which Extras has too
@@ -256,14 +327,34 @@ SBS = """\
 %s%ac%?it<%it|%?fn<%fn|>>
 """
 
+# The iPod photo's: no pane beside the main menu, whose list takes the
+# screen's width as every other does, as on a stock iPod photo
+SBS_FULL = """\
+# Neo: the status line over the lists, which take the screen's whole width.
+# Made by themes/tools/make_neo_theme.py
+%wd
+{fonts}
+{images}
+%VI(wide)%Vd(rulewide)%?if(%Li, =, 33)<%Vd(clockwide)|{title}>{wide}
+# the lists: under the status line and its hairline
+%Vi(wide,0,{list_top},{w},{list_rows},1)%Vf(PRIMARY)%Vb(PAPER)
+# the hairline under the status line
+%Vl(rulewide,0,{status},{w},1,-)%Vb(TRACK)
+# the clock, the title, the glyphs; in the main menu the clock alone, as
+# beside the pane on a larger screen; a title wider than its place between
+# them takes the clock's too (%Lf, title_vps())
+%Vl(clockwide,{margin},{text_y},{clock_w},{cell},3)%Vf(CLOCK)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(titlewide,{title_x},{text_y},{title_w},{cell},3)%Vf(PRIMARY)
+%ac%Lt
+{long_vps}
+{wide_vps}
+"""
+
 WPS = """\
 # Neo: Now Playing. Made by themes/tools/make_neo_theme.py
 %wd
-%Fl(2,18-Inter-SemiBold.fnt)
-%Fl(3,17-Inter-Medium-13.fnt)
-%Fl(4,14-Inter-Medium.fnt)
-%Fl(5,15-Inter-SemiBold.fnt)
-%Fl(6,15-Inter-Medium.fnt)
+{fonts}
 {images}
 # the views, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
@@ -286,12 +377,12 @@ WPS = """\
 # the status line: the clock, the title, the glyphs, a hairline under it. Its
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware
 # gives what lies in these rows a shade of the cover's colour
-%V(0,0,320,{status},-)
-%V({margin},{text_y},64,15,5)%Vf(CLOCK)
+%V(0,0,{w},{status},-)
+%V({margin},{text_y},{clock_w},{cell},5)%Vf(CLOCK)
 %al%?cf<%cH:%cM|%cl:%cM>
-%V(100,{text_y},120,15,5)%Vf(PRIMARY)
+%V({np_title_x},{text_y},{np_title_w},{cell},5)%Vf(PRIMARY)
 %s%ac%Sx(Now Playing)
-%V(0,{status},320,1,-)%Vb(TRACK)
+%V(0,{status},{w},1,-)%Vb(TRACK)
 %?nN<{show}
 {vps}
 {mode_vps}
@@ -332,36 +423,36 @@ WPS = """\
 # scrolled, and the time left
 %xl(K,Bar Track.bmp,0,0)
 %xl(k,Knob.bmp,0,0)
-%Vl(pb,0,{bar_y},320,{bar_h},-)
+%Vl(pb,0,{bar_y},{w},{bar_h},-)
 %pb({bar})
-%Vl(pb,{margin},{times_y},64,14,4)%Vf(NEUTRAL)
+%Vl(pb,{margin},{times_y},{time_w},{time_rows},4)%Vf(NEUTRAL)
 %al%pc
-%Vl(pb,{times_right},{times_y},64,14,4)%Vf(NEUTRAL)
+%Vl(pb,{times_right},{times_y},{time_w},{time_rows},4)%Vf(NEUTRAL)
 %ar-%pr
 # the scrubber: the same with its knob
-%Vl(scrub,0,{bar_y},320,{bar_h},-)
+%Vl(scrub,0,{bar_y},{w},{bar_h},-)
 %pb({bar},slider,k,slidercentre)
-%Vl(scrub,{margin},{times_y},64,14,4)%Vf(NEUTRAL)
+%Vl(scrub,{margin},{times_y},{time_w},{time_rows},4)%Vf(NEUTRAL)
 %al%pc
-%Vl(scrub,{times_right},{times_y},64,14,4)%Vf(NEUTRAL)
+%Vl(scrub,{times_right},{times_y},{time_w},{time_rows},4)%Vf(NEUTRAL)
 %ar-%pr
-%Vl(under,{under_x},{times_y},{under_w},14,4)%Vf(NEUTRAL)
+%Vl(under,{under_x},{times_y},{under_w},{time_rows},4)%Vf(NEUTRAL)
 %nx%ac%?kn<%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>|>
 # a podcast's or a book's scrubber: what Previous and Next do there
-%Vl(hints,{under_x},{times_y},{under_w},14,4)%Vf(NEUTRAL)
+%Vl(hints,{under_x},{times_y},{under_w},{time_rows},4)%Vf(NEUTRAL)
 %ac-15 / +30
 # the volume in the bar's place, as the wheel turns, shorter between its marks,
 # whose ink is as far from it on either side
 %xl(W,Volume Track.bmp,0,0)
 %xl(v,Volume Left.bmp,0,0)
 %xl(V,Volume Right.bmp,0,0)
-%Vl(volume,0,{bar_y},320,{bar_h},-)
+%Vl(volume,0,{bar_y},{w},{bar_h},-)
 %pv({volume_bar})
 %Vl(volume,{left_x},{marks_y},{left_w},{left_h},-)
 %xd(v)
 %Vl(volume,{right_x},{marks_y},{right_w},{right_h},-)
 %xd(V)
-%Vl(volume,{margin},{times_y},{grid},14,4)%Vf(NEUTRAL)
+%Vl(volume,{margin},{times_y},{grid},{time_rows},4)%Vf(NEUTRAL)
 %ac%nv
 # rating: five large stars in the bar's place, the wheel sets them
 %xl(T,Stars.bmp,0,0,{stars_n})
@@ -369,31 +460,44 @@ WPS = """\
 %Vl(rating,{stars_x},{rating_y},{stars_w},{stars_h},-)
 {big_stars}
 # the large cover, and the note in its place
-%Vl(bigart,60,30,200,200,-)
-%Cl(0,0,200,200,c,c)
+%Vl(bigart,{big_x},{big_y},{big},{big},-)
+%Cl(0,0,{big},{big},c,c)
 %Cd
 %xl(L,Note Large.bmp,{large_x},{large_y})
 %xN(L)
-%Vl(bignote,60,30,200,200,-)%Vb(SELECTED)
+%Vl(bignote,{big_x},{big_y},{big},{big},-)%Vb(SELECTED)
 %xd(L)%nc
 # the lyrics, lines of the text font, over the bar; and the speeds: the WPS
 # code draws into these
-%Vl(lyrics,{margin},28,{grid},{lyrics_h},3)%Vf(PRIMARY)
-%Vl(speed,0,{speed_y},320,44,4)%Vf(DENSE)
+%Vl(lyrics,{margin},{lyrics_y},{grid},{lyrics_h},3)%Vf(PRIMARY)
+%Vl(speed,0,{speed_y},{w},{speed_h},4)%Vf(DENSE)
 """
 
 
+def fonts(names):
+    """the skin's fonts by their numbers, from 2"""
+    return "\n".join("%%Fl(%d,%s.fnt)" % (i + 2, name)
+                     for i, name in enumerate(names) if name)
+
+
 def sbs():
-    wide_vps, wide, rooms = status(320)
-    half_vps, half, _ = status(160, "h", TITLE)
+    wide_vps, wide, rooms = status(W)
     long_vps = "\n".join(title_vps("long", 0, rooms[0], TITLE)
                          + title_vps("long", 1, rooms[1], TITLE))
     title = "%%?Lf(titlewide)<%%Vd(clockwide)%%Vd(titlewide)|%%?nN<%s|%s>>" % (
         title_show("long", 1), title_show("long", 0))
+    if W < 320:
+        return fill(SBS_FULL, fonts=fonts(SBS_FONTS), images=images(False), wide=wide,
+                    wide_vps=wide_vps, long_vps=long_vps, title=title, margin=MARGIN,
+                    text_y=TEXT_Y, cell=CELL, clock_w=CLOCK_W, title_x=TITLE_X,
+                    title_w=TITLE_W, status=STATUS, list_top=LIST_TOP,
+                    list_rows=LIST_ROWS, w=W)
+    half_vps, half, _ = status(160, "h", TITLE)
     music = ("%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"
              "|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>")
     note, photos = SIZES["Note_Pane"], SIZES["Photos_Pane"]
-    return fill(SBS, images=images(False), wide=wide, half=half, wide_vps=wide_vps,
+    return fill(SBS, fonts=fonts(SBS_FONTS), images=images(False), wide=wide, half=half,
+                wide_vps=wide_vps,
                 half_vps=half_vps, long_vps=long_vps, title=title, music=music, margin=MARGIN, text_y=TEXT_Y,
                 status=STATUS, list_top=LIST_TOP, list_rows=LIST_ROWS,
                 photos_x=240 - photos[0] // 2, photos_y=104 - photos[1] // 2,
@@ -406,6 +510,9 @@ def detail_block(parts):
     """parts: (what, rows, clear rows over it); each one's top row, the block
     in the middle of the cover's height"""
     y = COVER_Y + COVER // 2 - sum(rows + gap for _, rows, gap in parts) // 2
+    # but under the modes, whose glyphs stand at the column's right end: on
+    # a small screen the tallest block reaches up to them
+    y = max(y, MODES_Y + SIZES["Repeat"][1] + 2)
     out = []
     for what, rows, gap in parts:
         y += gap
@@ -423,23 +530,30 @@ LEFT = "%nx%al%kl%ar%?ks< %ks|>"
 
 
 def wps():
-    vps, show, _ = status(320)
+    vps, show, _ = status(W)
     ratings, stars = SIZES["Ratings"], SIZES["Stars"]
     left, right = SIZES["Volume_Left"], SIZES["Volume_Right"]
     note, large = SIZES["Note_Playing"], SIZES["Note_Large"]
     repeat, shuffle = SIZES["Repeat"], SIZES["Shuffle"]
     bar_w, bar_h, _ = SIZES["Bar"]
     volume_w = SIZES["Volume_Bar"][0]
+    if W != 320:
+        # the capsules make_theme_glyphs.py made for this screen
+        bar_w = W - 2 * MARGIN
+        volume_w = VOLUME_BAR
+        for name, width in (("Bar", bar_w), ("Volume", volume_w)):
+            with open(os.path.join(OUT, "Neo", name + " Track.bmp"), "rb") as f:
+                assert struct.unpack_from("<i", f.read(26), 18)[0] == width, name
     # the marks' ink 6 px from the bar's ends: the left one's ends a column
     # before its picture does, the right one's starts a column in (the export)
-    volume_x = (320 - volume_w) // 2
+    volume_x = (W - volume_w) // 2
     left_x = volume_x - 6 - (left[0] - 1)
     right_x = volume_x + volume_w + 6 - 1
     r = frames("G", ratings[2])
     t = frames("T", stars[2])
-    grid = 320 - 2 * MARGIN
-    col = MARGIN + COVER + 14
-    col_w = 320 - MARGIN - col
+    grid = W - 2 * MARGIN
+    col = MARGIN + COVER + COL_GAP
+    col_w = W - MARGIN - col
 
     # each line of the block: its viewport's font and colour, and its text
     line = {
@@ -521,7 +635,7 @@ def wps():
     # (%mm: off, all, one, shuffle, A-B)
     rep = frames("R", repeat[2])
     shuf = "%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>"
-    mode1_x = 320 - MARGIN - repeat[0]
+    mode1_x = W - MARGIN - repeat[0]
     mode2_x = mode1_x - GAP - shuffle[0]
     mode_vps = "\n".join([
         "%%Vl(mode1,%d,%d,%d,%d,-)" % (mode1_x, MODES_Y, repeat[0], repeat[1]),
@@ -529,43 +643,52 @@ def wps():
         "%%Vl(mode2,%d,%d,%d,%d,-)" % (mode2_x, MODES_Y, shuffle[0], shuffle[1]),
         "%%?mm<|%s>" % "|".join([shuf] * 4)])
 
-    spill_y = max(COVER_Y - 12, STATUS + 1)
+    # the firmware's ART_SPILL round the cover, on the screen
+    spill_x, spill_y = max(MARGIN - 12, 0), max(COVER_Y - 12, STATUS + 1)
     # %rr: none, then by half stars; the rating view has whole stars
-    text = fill(WPS, images=images(True), vps=vps, margin=MARGIN, text_y=TEXT_Y,
+    text = fill(WPS, fonts=fonts(WPS_FONTS), images=images(True), vps=vps, margin=MARGIN,
+                text_y=TEXT_Y, w=W, cell=CELL, clock_w=CLOCK_W, np_title_x=NP_TITLE_X,
+                np_title_w=NP_TITLE_W, time_w=TIME_W, time_rows=TIME_ROWS, big=BIG,
+                big_x=BIG_X, big_y=BIG_Y, lyrics_y=LYRICS_Y, speed_h=SPEED_H,
                 status=STATUS, block=block, block_vps="\n".join(block_vps),
                 show_modes="%Vd(mode1)%Vd(mode2)", mode_vps=mode_vps,
                 reflection=REFLECTION,
-                cover=COVER, cover_y=COVER_Y, spill_x=MARGIN - 12, spill_y=spill_y,
-                spill_w=COVER + 24, spill_h=COVER_Y + COVER + REFLECTION - spill_y,
+                cover=COVER, cover_y=COVER_Y, spill_x=spill_x, spill_y=spill_y,
+                spill_w=MARGIN + COVER + 12 - spill_x,
+                spill_h=COVER_Y + COVER + REFLECTION - spill_y,
                 col=col, col_w=col_w, grid=grid, title_h=2 * TITLE_LINE,
                 noart_x=(COVER - note[0]) // 2, noart_y=(COVER - note[1]) // 2,
                 ratings_n=ratings[2],
                 bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (MARGIN, bar_w, bar_h),
                 volume_bar="%d,0,%d,%d,Volume Fill.bmp,backdrop,W" % (
                     volume_x, volume_w, bar_h),
-                # the speeds' 44 rows from the bar, but on the screen: a skin
+                # the speeds' rows from the bar, but on the screen: a skin
                 # with a viewport past its foot doesn't load at all
-                lyrics_h=BAR_Y - 5 - 28, speed_y=min(BAR_Y - 3, 240 - 44),
-                bar_y=BAR_Y, bar_h=bar_h, times_y=TIMES_Y, times_right=320 - MARGIN - 64,
-                under_x=MARGIN + 68, under_w=grid - 136,
+                lyrics_h=BAR_Y - 5 - LYRICS_Y, speed_y=min(BAR_Y - 3, H - SPEED_H),
+                bar_y=BAR_Y, bar_h=bar_h, times_y=TIMES_Y, times_right=W - MARGIN - TIME_W,
+                under_x=MARGIN + TIME_W + 4, under_w=grid - 2 * (TIME_W + 4),
                 marks_y=BAR_Y + 1, left_x=left_x, left_w=left[0], left_h=left[1],
                 right_x=right_x, right_w=right[0], right_h=right[1],
-                stars_n=stars[2], stars_x=(320 - stars[0]) // 2, stars_w=stars[0],
+                stars_n=stars[2], stars_x=(W - stars[0]) // 2, stars_w=stars[0],
                 stars_h=stars[1], rating_y=BAR_Y - 1,
                 big_stars="%%?rr<%s>" % "|".join([t[0]] + [t[(i + 1) // 2]
                                                             for i in range(1, 11)]),
-                large_x=(200 - large[0]) // 2, large_y=(200 - large[1]) // 2)
+                large_x=(BIG - large[0]) // 2, large_y=(BIG - large[1]) // 2)
     return text.replace("%?nN<{show}", show)
 
 
 def main():
-    os.makedirs(OUT, exist_ok=True)
-    for name, colours in COLOURS.items():
-        for ext, text in (("sbs", sbs()), ("wps", wps())):
-            for role, value in colours.items():
-                text = text.replace("(%s)" % role, "(%s)" % value)
-            with open(os.path.join(OUT, "%s.%s" % (name, ext)), "w", encoding="utf-8") as f:
-                f.write(text)
+    for layout in LAYOUTS:
+        use(layout)
+        os.makedirs(OUT, exist_ok=True)
+        for (name, colours), reflect in zip(COLOURS.items(), REFLECTS):
+            colours = dict(colours, REFLECT=reflect)
+            for ext, text in (("sbs", sbs()), ("wps", wps())):
+                for role, value in colours.items():
+                    text = text.replace("(%s)" % role, "(%s)" % value)
+                with open(os.path.join(OUT, "%s.%s" % (name, ext)), "w",
+                          encoding="utf-8") as f:
+                    f.write(text)
 
 
 main()

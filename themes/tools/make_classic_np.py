@@ -13,20 +13,15 @@
 # a book's author, chapter, place, its speed when it isn't the normal one and
 # its format. A skin places nothing by what is shown, so each of these has
 # viewports of its own, named by what it holds: s<stars><format>, e,
-# b<speed><format>. The rows are those the lines had in 1.4.
+# b<speed><format>. The rows are those the lines had in 1.4. The same in
+# the iPod photo's skin, themes/iClassic-Square/220x176, by its layout (PHOTO).
 
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-WPS = os.path.join(HERE, "..", "iClassic-Square", ".rockbox", "wps", "iClassic-Square.wps")
 BEGIN = "# begin: made by themes/tools/make_classic_np.py, not edited here"
 END = "# end: made by themes/tools/make_classic_np.py"
 
-COVER_Y, COVER = 41, 136
-COL, COL_W = 160, 148
-# each line: its viewport's font, rows, colour (None: the firmware's, %fB's)
-# and text; a line of the 14 px font after one of 17 stands 2 rows into its
-# place of 18, on the same baseline
 ARTIST = "%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>"
 AUTHOR = "%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>"
 ALBUM = "%?id<%id|%Sx(Unknown Album)>"
@@ -39,31 +34,75 @@ CHAPTER = "%?kc<%kc|%id>"
 LEFT = "%nx%al%kl%ar%?ks< %ks|>"
 
 
-LINES = {
-    "title": (1, 21, "000000", "%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>"),
-    "artist": (3, 18, "666666", "%%t(8)%%al%s;%%t(8)%%s%%al%s;%%t(8)%%al%s" % ((ARTIST,) * 3)),
-    "album": (7, 18, "767676", "%%t(16)%%al%s;%%t(8)%%al%%s%s" % ((ALBUM,) * 2)),
-    "show": (3, 18, "666666", "%%t(8)%%al%s;%%t(8)%%s%%al%s;%%t(8)%%al%s" % ((ALBUM,) * 3)),
-    "date": (2, 18, "767676", "%al%kd"),
-    "author": (3, 18, "666666", "%%t(8)%%al%s;%%t(8)%%s%%al%s;%%t(8)%%al%s" % ((AUTHOR,) * 3)),
-    "chapter": (2, 18, "767676", "%%t(16)%%al%s;%%t(8)%%al%%s%s" % ((CHAPTER,) * 2)),
-    "count": (2, 14, "767676", "%s%al%pp %Sx(of) %pe"),
-    "format": (4, 18, None, "%fB"),
-    "left": (2, 16, "767676", LEFT),
-    "speed": (2, 16, "767676", "%al%?ks<%ks|>"),
-}
-SMALL_UNDER_LARGE = ("date", "chapter")
+# The layouts by screen, set in turn as globals (use()); the iPod Video's:
+VIDEO = dict(
+    WPS=os.path.join(HERE, "..", "iClassic-Square", ".rockbox", "wps", "iClassic-Square.wps"),
+    COVER_Y=41, COVER=136,
+    COL=160, COL_W=148,
+    # each line: its viewport's font, rows, colour (None: the firmware's,
+    # %fB's) and text; a line of the 14 px font after one of 17 stands 2 rows
+    # into its place of 18, on the same baseline
+    LINES={
+        "title": (1, 21, "000000", "%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>"),
+        "artist": (3, 18, "666666", "%%t(8)%%al%s;%%t(8)%%s%%al%s;%%t(8)%%al%s" % ((ARTIST,) * 3)),
+        "album": (7, 18, "767676", "%%t(16)%%al%s;%%t(8)%%al%%s%s" % ((ALBUM,) * 2)),
+        "show": (3, 18, "666666", "%%t(8)%%al%s;%%t(8)%%s%%al%s;%%t(8)%%al%s" % ((ALBUM,) * 3)),
+        "date": (2, 18, "767676", "%al%kd"),
+        "author": (3, 18, "666666", "%%t(8)%%al%s;%%t(8)%%s%%al%s;%%t(8)%%al%s" % ((AUTHOR,) * 3)),
+        "chapter": (2, 18, "767676", "%%t(16)%%al%s;%%t(8)%%al%%s%s" % ((CHAPTER,) * 2)),
+        "count": (2, 14, "767676", "%s%al%pp %Sx(of) %pe"),
+        "format": (4, 18, None, "%fB"),
+        "left": (2, 16, "767676", LEFT),
+        "speed": (2, 16, "767676", "%al%?ks<%ks|>"),
+    },
+    SMALL_UNDER_LARGE=("date", "chapter"),
+    COUNT_GAP=4,
+    STARS_GAP=6,
+    FOOT_GAP=5,             # over the first line under the place in the list
+    FOOT_UNDER_FOOT=3,      # over the format under the stars or the speed
+    # repeat and shuffle under the status bar's right end, repeat at the
+    # column's edge: the large icons (their white is the ground's), and for
+    # Shuffle by albums its own icon of the status bar, in the middle of
+    # their place
+    MODES_Y=22,
+)
+# The iPod photo's 220x176: the cover 96 px, the column beside it in its
+# fonts, 17 px for the title and 14 for the rest, in their own rows, the gaps
+# smaller; the block kept under the modes, which only its tallest reach
+PHOTO = dict(
+    WPS=os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox", "wps",
+                     "iClassic-Square.wps"),
+    COVER_Y=31, COVER=96,
+    COL=114, COL_W=97,
+    LINES=dict(VIDEO["LINES"], **{
+        "title": (1, 17) + VIDEO["LINES"]["title"][2:],
+        "artist": (3, 15) + VIDEO["LINES"]["artist"][2:],
+        "album": (7, 15) + VIDEO["LINES"]["album"][2:],
+        "show": (3, 15) + VIDEO["LINES"]["show"][2:],
+        "date": (2, 15) + VIDEO["LINES"]["date"][2:],
+        "author": (3, 15) + VIDEO["LINES"]["author"][2:],
+        "chapter": (2, 15) + VIDEO["LINES"]["chapter"][2:],
+        "format": (4, 15) + VIDEO["LINES"]["format"][2:],
+        "left": (2, 15) + VIDEO["LINES"]["left"][2:],
+        "speed": (2, 15) + VIDEO["LINES"]["speed"][2:],
+    }),
+    SMALL_UNDER_LARGE=(),
+    COUNT_GAP=2,
+    STARS_GAP=4,
+    FOOT_GAP=3,
+    FOOT_UNDER_FOOT=2,
+    MODES_Y=22,
+)
 STARS = (66, 13)
-COUNT_GAP = 4
-STARS_GAP = 6
-FOOT_GAP = 5            # over the first line under the place in the list
-FOOT_UNDER_FOOT = 3     # over the format under the stars or the speed
-# repeat and shuffle under the status bar's right end, repeat at the column's
-# edge: the large icons (their white is the ground's), and for Shuffle by
-# albums its own icon of the status bar, in the middle of their place
-MODES_Y = 22
 MODE_W, MODE_H = 19, 20
 MODE_GAP = 4
+
+
+def use(layout):
+    globals().update(layout)
+
+
+use(VIDEO)
 
 
 def block(parts):
@@ -71,6 +110,8 @@ def block(parts):
     block in the middle of the cover's height"""
     rows = [STARS[1] if what == "stars" else LINES[what][1] for what, _ in parts]
     y = COVER_Y + COVER // 2 - sum(r + gap for r, (_, gap) in zip(rows, parts)) // 2
+    # but under the modes at the column's right end
+    y = max(y, MODES_Y + MODE_H + 1)
     out = []
     for (what, gap), r in zip(parts, rows):
         y += gap
@@ -168,7 +209,7 @@ def shown(normal, rating, speed):
     return "%%?if(%%mw, <, 3)<%s|%%?mw<||%%?C<|%s>||%s|%s>>" % (normal, normal, rating, speed)
 
 
-def main():
+def write():
     lines = open(WPS, encoding="utf-8").read().split("\n")
     ends = [n for n, l in enumerate(lines) if l == END]
     begins = [n for n, l in enumerate(lines) if l == BEGIN]
@@ -191,6 +232,12 @@ def main():
         lines[b + 1:e] = part
     with open(WPS, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
+
+
+def main():
+    for layout in (VIDEO, PHOTO):
+        use(layout)
+        write()
 
 
 main()

@@ -1,0 +1,37 @@
+# Theme: iClassic Square
+# By: Humberto Santana (humbertosantana@hotmail.com)
+# License: Creative Commons Attribution-Share Alike 3.0 (http://creativecommons.org/licenses/by-sa/3.0/)
+# A few elements derived from iLike Theme for 320x240 by Alan Brito, which was ported from the 176x132 version by H. Pearce
+# If used for other works, as per this license, please include the following Attribution Text: "Modified/Derived from iClassic Square theme for iPod Video (CC-BY-SA 3.0) by Humberto Santana"
+#
+# The iPod photo's 220x176 screen: RockWheel's 320x240 skin of the same name
+# (themes/iClassic-Square/.rockbox/wps) laid out for it, with the same pictures
+# at their own sizes (themes/tools/make_classic_220x176.py). No pane beside
+# the main menu: every list takes the screen's width.
+#
+# SBS File
+#
+%wd
+%Fl(2,14-Inter-SemiBold.fnt,512)
+%Fl(3,14-Inter-Bold.fnt,512)
+%?nN<%Vd(titlen)%Vd(night)|%Vd(title)>%Vd(bat)%Vd(play)
+# the lists, under the status bar
+%Vi(-,0,19,220,157,1)%Vf(000000)%Vb(FFFFFF)
+# the title of the list; in the main menu the time; shorter beside the moon
+# of Night Mode
+%Vl(title,6,2,161,14,3)%Vf(000000)
+%al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
+%Vl(titlen,6,2,144,14,3)%Vf(000000)
+%al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
+%xl(N,Status Night.bmp,0,0)
+%Vl(night,154,2,16,16,-)
+%xd(N)
+%xl(B,Battery.bmp,0,0,24)
+%Vl(bat,191,4,25,11,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%xl(h,Hold Icon.bmp,0,1)
+%xl(P,Playing Status.bmp,0,0,4)
+# in Classic's colour, if it has one other than its blue
+%xA(P)
+%Vl(play,171,3,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>

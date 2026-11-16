@@ -13,7 +13,9 @@ catalogue_marks(); Shuffle's first frame is SHUFFLE_SONGS below. Written:
   below), built in as no file can be read then;
 - themes/Modern/.rockbox/wps/Modern/<Name>.bmp and Modern-Dark/<Name>.bmp:
   the masks the skins show (SKIN below) in the colour each has in that look,
-  32-bit with the mask as alpha; the battery as its look's file has it;
+  32-bit with the mask as alpha; the battery as its look's file has it; the
+  same in themes/Modern/220x176/.rockbox/wps for the iPod photo's screen,
+  but for the pane's, its bars of its own width (BAR_WIDTHS);
 - themes/tools/modern_glyph_sizes.txt: their sizes, for make_modern_theme.py.
 
 Run again after the export changes; the manifest's sha256 is in the header.
@@ -71,6 +73,11 @@ STARS = {"Ratings": ("Ratings Ground", "SMALL", True),
 # the knob, which the skin's bar draws inside its own height; and the lyrics
 # view's, as thick, without a knob
 BARS = {"Bar": (296, 11, 9), "Thick Bar": (296, 9, 9)}
+# the screens' folders and their bars' widths: the iPod photo's from margin to
+# margin of 9 px, as the Video's of 12 (make_modern_theme.py)
+BAR_WIDTHS = {"": 296, "220x176": 202}
+# the main menu's pane's, which the iPod photo's screen has none of
+PANE = ("Photos Pane", "Note Pane")
 # the knob at rest, a dot as thick as the bar at the fill's end: a slider of
 # the bar, so a picture as high as the bar's box, drawn here (the export's is
 # the 5 px bar's)
@@ -161,14 +168,17 @@ def main():
         f.write("\n".join(out) + "\n")
 
     sizes = []
-    for look, colours in LOOKS.items():
-        folder_out = os.path.join(ROOT, "themes", "Modern", ".rockbox", "wps", look)
+    for (screen, bar_w), (look, colours) in (
+            (b, l) for b in BAR_WIDTHS.items() for l in LOOKS.items()):
+        folder_out = os.path.join(ROOT, "themes", "Modern", screen, ".rockbox", "wps", look)
         os.makedirs(folder_out, exist_ok=True)
         for name, role in SKIN.items():
+            if screen and name in PANE:
+                continue
             g, rows = load(name, None if role else "dark" if "Dark" in look else "light")
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(rows),
                 rgb(colours[role]) if role else None, rows)
-            if look == "Modern":
+            if look == "Modern" and not screen:
                 sizes.append("%s %d %d %d" % (name.replace(" ", "_"), g["width"],
                                               g["height"], g["frames"]))
         # the stars: each frame's set ones over the ground's
@@ -190,10 +200,11 @@ def main():
                                          for k in range(3)) + (total,))
                     stars.append(row)
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(stars), None, stars)
-            if look == "Modern":
+            if look == "Modern" and not screen:
                 sizes.append("%s %d %d %d" % (name, g["width"], h, len(stars) // h))
         # the bars, their ends round, and the dot at rest
-        for name, (w, h, thick) in BARS.items():
+        for name, (_, h, thick) in BARS.items():
+            w = bar_w
             rows = capsule(w, h, thick)
             bmp(os.path.join(folder_out, name + " Track.bmp"), w, h,
                 rgb(colours["TRACK"]), rows)

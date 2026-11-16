@@ -345,13 +345,19 @@ static const int backlight_fade[] = {0,100,200,300,500,1000,2000,3000,5000,10000
 static const char graphic_numeric[] = "graphic,numeric";
 
 /* Default theme settings */
-#if (LCD_WIDTH == 320) && (LCD_HEIGHT == 240) && defined(HAVE_LCD_COLOR)
+#if (((LCD_WIDTH == 320) && (LCD_HEIGHT == 240)) \
+     || ((LCD_WIDTH == 220) && (LCD_HEIGHT == 176))) && defined(HAVE_LCD_COLOR)
 /* The stock iPod look: iClassic Square from themes/, which buildzip.pl
-   installs for this screen size */
+   installs for this screen size, on the iPod photo's that of
+   themes/iClassic-Square/220x176 */
 #define DEFAULT_THEME_ICLASSIC
 #define DEFAULT_WPSNAME  UI_CLASSIC_SKIN
 #define DEFAULT_SBSNAME  UI_CLASSIC_SKIN
+#ifdef UI_220X176
+#define DEFAULT_FMS_NAME "-" /* the built-in radio screen, as ui_theme.c has it */
+#else
 #define DEFAULT_FMS_NAME UI_CLASSIC_SKIN
+#endif
 #define DEFAULT_FONTNAME UI_CLASSIC_FONT
 #else
 #define DEFAULT_WPSNAME  "cabbiev2"

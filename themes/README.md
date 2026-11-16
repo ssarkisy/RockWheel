@@ -4,6 +4,16 @@ The themes for the iPod Video (320x240), each kept here in the layout it is
 installed in (`<theme>/.rockbox/...`): iClassic Square, which Settings calls
 Classic, Modern and Neo, each with a dark version beside it.
 
+The iPod photo's 220x176 screen has each theme's own skins, in
+`<theme>/220x176/.rockbox/...`, which `tools/buildzip.pl` installs for that
+screen instead. They are the same themes laid out by the same rules for a
+screen three quarters as high, in smaller fonts and with the same glyphs at
+their own sizes: none of their pictures is scaled. There is no pane beside the
+main menu on that screen: every list takes the screen's width, as on a stock
+iPod photo. Modern's and Neo's are written by their scripts with the 320x240
+ones; Classic's pictures by `tools/make_classic_220x176.py` from its 320x240
+ones, its skins by hand as those are.
+
 iClassic Square is licensed under Creative Commons Attribution-Share Alike 3.0
 (http://creativecommons.org/licenses/by-sa/3.0/), and so are the changes made
 to it here. Modern and Neo were designed by Sergei Sarkisian for RockWheel, from
@@ -104,8 +114,12 @@ after a change, in this order:
   `make_usb_screen.py`, `make_about_panel.py`: bitmaps of their own.
 - `make_menu_icons.py`: the backdrops' placeholder note and its reflection, and
   the original theme's battery out of their status bar, where the skins draw one.
-- `make_classic_np.py`: the details of Now Playing, in the light theme's WPS.
-- `make_dark_theme.py`: the dark theme, all of it from the light one.
+- `make_classic_220x176.py`: the iPod photo's pictures from these, its note
+  of a missing cover drawn anew at its size.
+- `make_classic_np.py`: the details of Now Playing, in the light theme's WPS,
+  of either screen.
+- `make_dark_theme.py`: the dark theme, all of it from the light one, of
+  either screen.
 
 Modern's and Neo's skins, light and dark, are written by `make_modern_theme.py`
 and `make_neo_theme.py`, and their glyphs come from the mockups' export through

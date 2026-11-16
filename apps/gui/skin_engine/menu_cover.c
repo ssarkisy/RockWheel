@@ -56,7 +56,7 @@
 #include "rbpaths.h"
 #include "debug.h"
 
-#ifdef ITUNESDB_HAVE_ART
+#ifdef HAVE_MENU_ART
 
 /* The cover beside the menus. It's larger than any Finder keeps and the panel
    is rarely on screen when a track changes, so playback doesn't load it, and
@@ -530,7 +530,7 @@ const fb_data *menu_cover_pixels(int *width, int *height)
     *height = menu_art.height;
     return art_pixels();
 }
-#endif /* ITUNESDB_HAVE_ART */
+#endif /* HAVE_MENU_ART */
 
 #ifdef HAVE_MENU_COVER
 

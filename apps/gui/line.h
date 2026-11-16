@@ -253,8 +253,13 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
                        const char *text);
 /* An album's cover at x, y of a row: pixels of LINE_COVER_SIZE a side, or
    NULL for the note on a tile in its place, as an album without one has and
-   one not read yet */
+   one not read yet. On the iPod photo's 220x176 29 px, in its rows of two
+   lines of 31, five of which fit its lists (ui_theme.c) */
+#if (LCD_WIDTH == 220) && (LCD_HEIGHT == 176)
+#define LINE_COVER_SIZE 29
+#else
 #define LINE_COVER_SIZE 32
+#endif
 /* A rectangle in colour on the viewport's ground, its corners rounded to
    radius r, their pixels mixed with the ground */
 void line_fill_rounded(struct screen *display, int x, int y, int w, int h,

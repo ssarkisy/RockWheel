@@ -178,10 +178,10 @@ static const struct {
 #endif
 #ifdef HAVE_MENU_COVER
     { &global_settings.moving_cover, LANG_HINT_MOVING_COVER },
+#endif
     { &global_settings.theme_colour, LANG_HINT_THEME_COLOUR },
     { &global_settings.classic_colour, LANG_HINT_THEME_COLOUR },
     { &global_settings.tinted_background, LANG_HINT_TINTED_BACKGROUND },
-#endif
 #ifdef HAVE_BACKLIGHT
     { &global_settings.wake_screen, LANG_HINT_WAKE_SCREEN },
     { &global_settings.return_to_wps, LANG_HINT_RETURN_TO_WPS },
@@ -440,6 +440,18 @@ static bool menu_is_group(int item, void *data)
 #define VALUE_GAP ui_metric(UI_METRIC_VALUE_GAP)
 #define LIGHT_LEAST 40 /* the room a lighter text after a name needs at least */
 
+/* Modern's switch, iOS 13's: a capsule of 27 by 16, its knob 12 px, 2 px
+   inside it */
+#ifdef UI_220X176
+/* in the iPod photo's rows of 22, a step smaller as they are */
+#define MODERN_SWITCH_W 22
+#define MODERN_SWITCH_H 13
+#else
+#define MODERN_SWITCH_W 27
+#define MODERN_SWITCH_H 16
+#endif
+#define MODERN_KNOB     (MODERN_SWITCH_H - 4)
+
 void menu_draw_value_line(struct list_putlineinfo_t *info)
 {
     struct screen *display = info->display;
@@ -597,13 +609,13 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         const bool on = *value++ == MENU_SWITCH_ON;
 #ifdef HAVE_LCD_COLOR
         if (ui_metric(UI_METRIC_SWITCHES) && display->screen_type == SCREEN_MAIN
-            && name_end <= info->vp->width - VALUE_MARGIN - 27)
+            && name_end <= info->vp->width - VALUE_MARGIN - MODERN_SWITCH_W)
         {
-            /* a capsule of 27 by 16, its knob 12 px, white; at the other
-               end right to left */
+            /* the capsule, its knob white; at the other end right to
+               left */
             const int x = VP_IS_RTL(info->vp) ? VALUE_MARGIN
-                                              : info->vp->width - VALUE_MARGIN - 27;
-            const int y = info->y + (info->linedes->height - 16) / 2;
+                                              : info->vp->width - VALUE_MARGIN - MODERN_SWITCH_W;
+            const int y = info->y + (info->linedes->height - MODERN_SWITCH_H) / 2;
             const unsigned old_fg = display->get_foreground();
             const unsigned old_bg = display->get_background();
             const unsigned colour = ui_colour(on ? UI_COLOUR_SWITCH_ON
@@ -614,13 +626,16 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
                round it: the green stood on the accent without an edge */
             if (inked && ui_metric(UI_METRIC_SELECTION_INK))
             {
-                line_fill_rounded(display, x - 1, y - 1, 29, 18, 9,
+                line_fill_rounded(display, x - 1, y - 1, MODERN_SWITCH_W + 2,
+                                  MODERN_SWITCH_H + 2, MODERN_SWITCH_H / 2 + 1,
                                   info->linedes->text_color);
                 display->set_background(info->linedes->text_color);
             }
-            line_fill_rounded(display, x, y, 27, 16, 8, colour);
+            line_fill_rounded(display, x, y, MODERN_SWITCH_W, MODERN_SWITCH_H,
+                              MODERN_SWITCH_H / 2, colour);
             display->set_background(colour);
-            line_fill_rounded(display, x + (on ? 13 : 2), y + 2, 12, 12, 6,
+            line_fill_rounded(display, x + (on ? MODERN_SWITCH_W - 2 - MODERN_KNOB : 2), y + 2,
+                              MODERN_KNOB, MODERN_KNOB, MODERN_KNOB / 2,
                               LCD_RGBPACK(0xff, 0xff, 0xff));
             display->set_background(old_bg);
             display->set_foreground(old_fg);

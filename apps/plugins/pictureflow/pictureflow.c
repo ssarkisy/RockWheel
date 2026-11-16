@@ -5028,13 +5028,27 @@ static void update_scroll_animation(void)
    the middle with the album and its artist at its top, in the theme's colours of
    a selection (or, by the theme, on the panel's ground over a hairline), its
    tracks and their lengths under them, the covers aside behind */
-#define PANEL_W      (LCD_WIDTH * 5 / 8)
-#define PANEL_X      ((LCD_WIDTH - PANEL_W) / 2)
+#ifdef UI_220X176
+/* the iPod photo's: its fonts of 14 and 15 px in a head of 34 and rows of
+   18, six of them, and as wide as that is tall */
+#define PANEL_HEAD   34
+#define PANEL_ROW    18
+#define PANEL_ROWS   6
+#define PANEL_W      PANEL_H
+#else
 #define PANEL_HEAD   40
 #define PANEL_ROW    20
 #define PANEL_ROWS   8
+#define PANEL_W      (LCD_WIDTH * 5 / 8)
+#endif
+#define PANEL_X      ((LCD_WIDTH - PANEL_W) / 2)
 #define PANEL_H      (PANEL_HEAD + PANEL_ROW * PANEL_ROWS)
 #define PANEL_Y      ((LCD_HEIGHT - PANEL_H) / 2)
+/* the card turns into the panel as a cover turns, and only a square one can
+   (CARD_SQUARE): without, it would open with no card */
+#if PANEL_W != PANEL_H
+#error "Cover Flow's track panel must be square"
+#endif
 #define PANEL_PAD    6    /* the text's from the panel's sides */
 #define PANEL_GAP    8    /* between a track's name and its length */
 

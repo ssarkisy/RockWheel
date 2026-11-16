@@ -105,6 +105,19 @@ Status Icons doesn't show in Neo, whose status glyphs keep their grey. The
 other Colour row, with Graphite, is Classic's own. The menus hide them
 (`apps/menus/display_menu.c`).
 
+## On the iPod photo
+
+The iPod photo's 220x176 screen has Neo's own skins, in `220x176/.rockbox`,
+written by the same script with the 320x240 ones by the same rules (its
+`PHOTO` layout): a status line of 16 px with its hairline; rows of 22 px in
+Inter SemiBold of 12 px (`15-Inter-SemiBold`), 31 px for a row of two lines,
+with covers of 29 px (`LINE_COVER_SIZE`); Now Playing's cover 96 px, the details beside it in
+the same fonts a step smaller. The glyphs are the same pictures at their own
+sizes; only the bars are made for this width, by `make_theme_glyphs.py`. There is no pane: the
+main menu takes the screen's width, as on a stock iPod photo, so the pane's
+cover, note and disk ring aren't shown there. The theme's fonts and metrics
+for this screen are in `apps/gui/ui_theme.c`, under `UI_220X176`.
+
 ## Author and licence
 
 Designed by Sergei Sarkisian for RockWheel. The theme was made from scratch.

@@ -1,0 +1,36 @@
+# Neo: the status line over the lists, which take the screen's whole width.
+# Made by themes/tools/make_neo_theme.py
+%wd
+%Fl(3,14-Inter-SemiBold.fnt)
+%xl(B,Battery.bmp,0,0,24)
+%xl(P,Playing Status.bmp,0,0,4)
+%xl(H,Hold.bmp,0,0)
+%xl(N,Night.bmp,0,0)
+%VI(wide)%Vd(rulewide)%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>
+# the lists: under the status line and its hairline
+%Vi(wide,0,18,220,158,1)%Vf(EFEBE7)%Vb(211C18)
+# the hairline under the status line
+%Vl(rulewide,0,16,220,1,-)%Vb(313029)
+# the clock, the title, the glyphs; in the main menu the clock alone, as
+# beside the pane on a larger screen; a title wider than its place between
+# them takes the clock's too (%Lf, title_vps())
+%Vl(clockwide,10,2,48,14,3)%Vf(B5AEA5)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(titlewide,58,2,104,14,3)%Vf(EFEBE7)
+%ac%Lt
+%Vl(longn0p,10,2,163,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(longn0,10,2,176,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(longn1p,10,2,148,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(longn1,10,2,161,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(bat,191,3,19,10,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(playn0,178,3,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(moon,176,3,10,10,-)
+%xd(N)
+%Vl(playn1,163,3,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>

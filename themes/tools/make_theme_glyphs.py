@@ -19,7 +19,9 @@ for a note, so the coloured files are not read. Written, for theme "neo":
   the skins show (SKIN below), in the colour each has in that look, 32-bit
   with the mask as alpha, so they sit on any ground; frames top to bottom
   as %xl takes them; of a coloured glyph its mask, which the skin draws as
-  a note (%xN). And the bar's two capsules, which are no glyphs.
+  a note (%xN). And the bar's two capsules, which are no glyphs. The same
+  in themes/Neo/220x176/.rockbox/wps for the iPod photo's screen: its glyphs
+  the same pictures, its capsules of its own widths (BARS).
 - themes/tools/neo_glyph_sizes.txt: their sizes, for make_neo_theme.py,
   which places them.
 
@@ -56,6 +58,8 @@ SKIN = {"Battery": "DENSE", "Playing Status": "DENSE", "Hold": "DENSE",
         "Volume Right": "TERTIARY", "Note Playing": "SECONDARY",
         "Note Large": "SECONDARY", "Note Pane": "SECONDARY",
         "Photos Pane": "TERTIARY"}
+# the main menu's pane's, which the iPod photo's screen has none of
+PANE = ("Note Pane", "Photos Pane")
 # the set stars over the unset ones, in one bitmap: name -> its ground,
 # whether a first frame of the ground alone is added (the small ones have no
 # frame of none), the roles of the set and the unset ones' colours, and
@@ -71,6 +75,10 @@ STARS = {"Ratings": ("Ratings Ground", True, "PRIMARY", "UNSET", True),
 # volume's, shorter between its marks
 BAR = (292, 11, 9)
 VOLUME_BAR = 256
+# the screens' folders and their capsules' widths, the bar's and the
+# volume's: the iPod photo's bar from margin to margin of 10 px, as the
+# Video's of 14 (make_neo_theme.py)
+BARS = {"": (BAR[0], VOLUME_BAR), "220x176": (200, 160)}
 LOOKS = {  # as apps/gui/ui_theme.c and make_neo_theme.py have them
     "Neo":      dict(PAPER="EFEBE7", PRIMARY="292421", SECONDARY="6B6963",
                      TERTIARY="A59E94", TRACK="E7DFD6", SELECTED="DEDBD6",
@@ -325,14 +333,17 @@ def main():
         f.write("\n".join(out) + "\n")
 
     sizes = []
-    for look, colours in LOOKS.items():
-        folder_out = os.path.join(ROOT, "themes", "Neo", ".rockbox", "wps", look)
+    for (screen, (bar_w, volume_w)), (look, colours) in (
+            (b, l) for b in BARS.items() for l in LOOKS.items()):
+        folder_out = os.path.join(ROOT, "themes", "Neo", screen, ".rockbox", "wps", look)
         os.makedirs(folder_out, exist_ok=True)
         for name, role in SKIN.items():
+            if screen and name in PANE:
+                continue
             g, rows = load(name)
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(rows),
                 rgb(colours[role]) if role else None, rows)
-            if look == "Neo":
+            if look == "Neo" and not screen:
                 sizes.append("%s %d %d %d" % (name.replace(" ", "_"), g["width"], g["height"],
                                               g["frames"]))
         for name, (ground_name, none, set_role, unset_role, outline) in STARS.items():
@@ -360,12 +371,12 @@ def main():
                             "outline's grey" % (name, look, f, x, y))
                     out.append(row)
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(out), None, out)
-            if look == "Neo":
+            if look == "Neo" and not screen:
                 sizes.append("%s %d %d %d" % (name, g["width"], h, len(out) // h))
         # the capsules, their ends round; the track a step darker than the
         # ground, which the LCD shows
-        w, h, thick = BAR
-        for name, width in (("Bar", w), ("Volume", VOLUME_BAR)):
+        _, h, thick = BAR
+        for name, width in (("Bar", bar_w), ("Volume", volume_w)):
             rows = capsule(width, h, thick)
             bmp(os.path.join(folder_out, name + " Track.bmp"), width, h,
                 rgb(colours["BARTRACK"]), rows)

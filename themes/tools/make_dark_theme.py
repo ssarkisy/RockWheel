@@ -5,7 +5,9 @@
 #   themes/tools/make_dark_theme.py
 #
 # BMPs of 24 bits are worked on by the Python standard library, and of 32 their colours,
-# their alpha kept. Scrub Knob.bmp reads well on both, so it's copied.
+# their alpha kept. Scrub Knob.bmp reads well on both, so it's copied. The same for the
+# iPod photo's 220x176 theme (themes/iClassic-Square/220x176, PHOTO below), whose light
+# one make_classic_220x176.py makes.
 
 import os
 import re
@@ -13,22 +15,56 @@ import shutil
 import struct
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.join(HERE, "..", "iClassic-Square", ".rockbox")
-LIGHT = os.path.join(ROOT, "wps", "iClassic-Square")
-DARK = os.path.join(ROOT, "wps", "iClassic-Square-Dark")
 
 BG = (18, 18, 20)
 INK = (242, 242, 246)
 HEADER_BASE = 34      # the status bar, where the light one's gradient ends
 HEADER_SCALE = 0.30
 HEADER_HEIGHT = 18    # above its dark line
-BAR_X, BAR_Y, BAR_W, BAR_H, BAR_REFLECTION = 58, 206, 204, 14, 9
+BAR_H, BAR_REFLECTION = 14, 9
 REFLECTION_ALPHA = 0.26
-ART = (12, 41, 148, 177)
-# the placeholder's reflection, as make_menu_icons.py and the firmware make it
-ART_REFLECTION_ROWS = 22
 ART_REFLECTION_ALPHA = 128 / 256
 PANEL_X = 160         # the panel beside the lists, dark in both
+
+
+def screen(root, **places):
+    return dict(ROOT=root, LIGHT=os.path.join(root, "wps", "iClassic-Square"),
+                DARK=os.path.join(root, "wps", "iClassic-Square-Dark"), **places)
+
+
+# The screens' themes, set in turn as globals (use()): where the progress bar and the
+# placeholder art are, and the placeholder's reflection, as make_menu_icons.py and the
+# firmware make it; the skins' files; the backdrops beside the lists, with or without
+# the panel; the pictures of the status bar and of the ground
+VIDEO = screen(os.path.join(HERE, "..", "iClassic-Square", ".rockbox"),
+               BAR_X=58, BAR_Y=206, BAR_W=204, ART=(12, 41, 148, 177),
+               ART_REFLECTION_ROWS=22, LIGHT_REFLECTION="%Cr",
+               SKINS=("wps", "sbs", "fms"),
+               PANELS=(("backdrops", "iClassic_bd.bmp", True), ("wps", "About Backdrop.bmp", True),
+                       ("wps", "Wide Backdrop.bmp", False)),
+               HEADER_GLYPHS=("Battery", "Playing Status", "Hold Icon", "Status Night",
+                              "Memory Access", "Radio Icon", "Stereo Icon"),
+               GROUND_GLYPHS=("Stars", "Ratings", "Signal", "Volume Left", "Volume Right",
+                              "Art Mask", "Scrub Hints", "Repeat Icon", "Shuffle Icon",
+                              "Status Shuffle Albums"),
+               COPIED=("Scrub Knob", "Disk Fill", "Photos Icon"))
+PHOTO = screen(os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox"),
+               BAR_X=40, BAR_Y=143, BAR_W=140, ART=(9, 31, 105, 127),
+               ART_REFLECTION_ROWS=14, LIGHT_REFLECTION="%Cr(14,128)",
+               SKINS=("wps", "sbs"),
+               PANELS=(("backdrops", "iClassic_bd.bmp", False),),
+               HEADER_GLYPHS=("Battery", "Playing Status", "Hold Icon", "Status Night"),
+               GROUND_GLYPHS=("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
+                              "Scrub Hints", "Repeat Icon", "Shuffle Icon",
+                              "Status Shuffle Albums"),
+               COPIED=("Scrub Knob",))
+
+
+def use(layout):
+    globals().update(layout)
+
+
+use(VIDEO)
 
 TEXT = {"000000": "F2F2F6", "666666": "B4B6BA", "888888": "8E9094", "8a8d8a": "8E9094",
         "767676": "8E9094"}
@@ -178,39 +214,50 @@ def each_pixel(src, dst, fn):
 
 # Now Playing's reflection under the cover: on the dark ground a cover's dark
 # foot was lost at the default's half strength (owner, 2026-11-13); the light
-# skin keeps %Cr's default, 22 rows from 128 of 256
-DARK_REFLECTION = "%Cr(22,176)"
+# skin keeps %Cr's default, 22 rows from 128 of 256 (on 220x176 14 rows)
+DARK_STRENGTH = 176
 
 
 def skin(name):
     with open(os.path.join(ROOT, "wps", "iClassic-Square." + name), encoding="utf-8") as f:
         text = f.read()
-    text = re.sub(r"^%Cr$", DARK_REFLECTION, text, flags=re.M)
+    text = re.sub(r"^%s$" % re.escape(LIGHT_REFLECTION),
+                  "%%Cr(%d,%d)" % (ART_REFLECTION_ROWS, DARK_STRENGTH), text, flags=re.M)
     text = re.sub(r"%Vf\((\w{6})\)", lambda m: "%Vf(" + TEXT.get(m.group(1), m.group(1)) + ")", text)
     text = re.sub(r"%Vb\((\w{6})\)", lambda m: "%Vb(" + BACK.get(m.group(1), m.group(1)) + ")", text)
     with open(os.path.join(ROOT, "wps", "iClassic-Square-Dark." + name), "w", encoding="utf-8") as f:
         f.write("# Made from the light theme by themes/tools/make_dark_theme.py\n" + text)
 
 
+def dark_name(folder, name):
+    """the dark one's file: the list backdrop's beside it, the rest in its folder"""
+    if folder == "backdrops":
+        return os.path.join(ROOT, folder, name[:-4] + "_dark.bmp")
+    return os.path.join(DARK, name)
+
+
 def main():
-    os.makedirs(DARK, exist_ok=True)
-    for name in ("wps", "sbs", "fms"):
-        skin(name)
-    list_backdrop(os.path.join(ROOT, "backdrops", "iClassic_bd.bmp"),
-                  os.path.join(ROOT, "backdrops", "iClassic_bd_dark.bmp"), True)
-    list_backdrop(os.path.join(LIGHT, "About Backdrop.bmp"), os.path.join(DARK, "About Backdrop.bmp"), True)
-    list_backdrop(os.path.join(LIGHT, "Wide Backdrop.bmp"), os.path.join(DARK, "Wide Backdrop.bmp"), False)
-    now_playing_backdrop(os.path.join(LIGHT, "iClassic_bg.bmp"), os.path.join(DARK, "iClassic_bg.bmp"))
-    progress_fill(os.path.join(LIGHT, "PB.bmp"), os.path.join(DARK, "PB.bmp"))
-    for name in ("Battery", "Playing Status", "Hold Icon", "Status Night",
-                 "Memory Access", "Radio Icon", "Stereo Icon"):
-        each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), header_pixel)
-    # Now Playing's modes stand under the status bar, on the ground
-    for name in ("Stars", "Ratings", "Signal", "Volume Left", "Volume Right", "Art Mask",
-                 "Scrub Hints", "Repeat Icon", "Shuffle Icon", "Status Shuffle Albums"):
-        each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"), glyph_pixel)
-    for name in ("Scrub Knob", "Disk Fill", "Photos Icon"):
-        shutil.copy(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"))
+    for layout in (VIDEO, PHOTO):
+        use(layout)
+        os.makedirs(DARK, exist_ok=True)
+        for name in SKINS:
+            skin(name)
+        for folder, name, panel in PANELS:
+            src = os.path.join(ROOT, folder, name) if folder == "backdrops" \
+                else os.path.join(LIGHT, name)
+            list_backdrop(src, dark_name(folder, name), panel)
+        now_playing_backdrop(os.path.join(LIGHT, "iClassic_bg.bmp"),
+                             os.path.join(DARK, "iClassic_bg.bmp"))
+        progress_fill(os.path.join(LIGHT, "PB.bmp"), os.path.join(DARK, "PB.bmp"))
+        for name in HEADER_GLYPHS:
+            each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"),
+                       header_pixel)
+        # Now Playing's modes stand under the status bar, on the ground
+        for name in GROUND_GLYPHS:
+            each_pixel(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"),
+                       glyph_pixel)
+        for name in COPIED:
+            shutil.copy(os.path.join(LIGHT, name + ".bmp"), os.path.join(DARK, name + ".bmp"))
 
 
 if __name__ == "__main__":

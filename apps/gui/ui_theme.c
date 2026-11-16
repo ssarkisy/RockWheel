@@ -115,6 +115,70 @@ static const struct ui_theme ui_themes[] = {
         },
         .list_font = UI_CLASSIC_FONT,
         .selector_bevel = true,
+#ifdef UI_220X176
+        /* The iPod photo's: the Video's by its own rules, as the others'
+           are: the list in 17 px Bold in rows of its cell, nine of them under
+           the status bar as on the Video; a row of two lines 31, the name's
+           whole cell over the second line's 14, five of them under the
+           status bar with a cover of 29 px (LINE_COVER_SIZE) */
+        .cover_colours = true,
+        .font = {
+            [UI_FONT_LIST]          = FONT_DIR "/" UI_CLASSIC_FONT ".fnt",
+            [UI_FONT_HINT]          = FONT_DIR "/14-Inter-SemiBold.fnt",
+            [UI_FONT_LEAD]          = FONT_DIR "/14-Inter-SemiBold.fnt",
+            [UI_FONT_VALUE]         = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_SUBLINE]       = FONT_DIR "/14-Inter-SemiBold.fnt",
+            /* Now Playing's, which its skin loads */
+            [UI_FONT_HEADER_ARTIST] = FONT_DIR "/14-Inter-Bold.fnt",
+            [UI_FONT_HEADER_COUNTS] = FONT_DIR "/14-Inter-Bold.fnt",
+            [UI_FONT_MENU_VALUE]    = FONT_DIR "/" UI_CLASSIC_FONT ".fnt",
+            [UI_FONT_GROUP]         = FONT_DIR "/" UI_CLASSIC_FONT ".fnt",
+            [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
+        },
+        .metric = {
+            [UI_METRIC_ROW_HEIGHT]           = 0,
+            [UI_METRIC_TEXT_INSET]           = 4,
+            [UI_METRIC_INITIAL_HEIGHT]       = 64,
+            [UI_METRIC_INITIAL_MARGIN]       = 12,
+            [UI_METRIC_CHEVRON_MARGIN]       = 5,
+            [UI_METRIC_LEAD_GAP]             = 6,
+            [UI_METRIC_VALUE_MARGIN]         = 5,
+            [UI_METRIC_VALUE_MARGIN_CHEVRON] = 16,
+            [UI_METRIC_VALUE_GAP]            = 6,
+            /* a value too long beside its name on this narrower screen cut
+               with an ellipsis, as Neo's and Modern's, not left out: Cover
+               Colours' did not fit in a dozen languages */
+            [UI_METRIC_VALUE_CUT]            = 1,
+            [UI_METRIC_HINT_X]               = 5,
+            [UI_METRIC_HINT_TOP]             = 4,
+            [UI_METRIC_HINT_PITCH]           = 16,
+            /* 31 px: the name's cell of 17 whole, its capitals 4 rows under
+               the row's top, and right under it the second line's 14, its
+               baseline 3 rows over the foot; no letter of either, of any
+               alphabet, reaches into the other's cell */
+            [UI_METRIC_NAME_PART_CUT]        = 0,
+            [UI_METRIC_SUBLINE_GAP]          = 0,
+            [UI_METRIC_NAME_TEXT_DY]         = 0,
+            [UI_METRIC_SUBLINE_TOP_DY]       = 0,
+            [UI_METRIC_ROW_COVER_GAP]        = 6,
+            /* three rows, 51 px: the cover 44 px, 4 under their top; the
+               texts' three lines 49 px from 2 down */
+            [UI_METRIC_HEADER_COVER_TOP]     = 4,
+            [UI_METRIC_HEADER_COVER_GAP]     = 7,
+            [UI_METRIC_HEADER_TEXT_MARGIN]   = 5,
+            [UI_METRIC_HEADER_NAME_TOP]      = 2,
+            [UI_METRIC_HEADER_NAME_LEADING]  = 1,
+            [UI_METRIC_HEADER_ARTIST_GAP]    = 1,
+            [UI_METRIC_HEADER_COUNTS_GAP]    = 1,
+            [UI_METRIC_HEADER_FOOT]          = 2,
+            [UI_METRIC_HEADER_COVER_SIZE]    = 44,
+            [UI_METRIC_CHEVRON_ALL]          = 0,
+            [UI_METRIC_CHEVRON_ON_PLAY]      = 1,
+            [UI_METRIC_GROUP_BAR]            = 1,
+            /* no pane: the main menu takes the screen's width */
+            [UI_METRIC_PANE_LEFT]            = LCD_WIDTH,
+        },
+#else
         .cover_colours = true,
         .font = {
             [UI_FONT_LIST]          = FONT_DIR "/" UI_CLASSIC_FONT ".fnt",
@@ -158,6 +222,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_CHEVRON_ON_PLAY]      = 1,
             [UI_METRIC_GROUP_BAR]            = 1,
         },
+#endif /* UI_220X176 */
         .scrollbar_thumb = {
             RGB(0x29, 0x51, 0xad), RGB(0x4a, 0x8e, 0xd6),
             RGB(0xa5, 0xc7, 0xef), RGB(0x94, 0xbe, 0xef),
@@ -268,6 +333,100 @@ static const struct ui_theme ui_themes[] = {
                 .initial_opacity = 16,
             },
         },
+#ifdef UI_220X176
+        /* The iPod photo's, the Video's by its own rules as Neo's are: 15 px
+           type in rows of 22, a row of two lines 31; the Video's glyphs at
+           their own sizes */
+        .list_font = "15-Inter-SemiBold",
+        .selector_bevel = false,
+        .cover_colours = false,
+        .font = {
+            [UI_FONT_LIST]          = FONT_DIR "/15-Inter-SemiBold.fnt",
+            /* every alphabet in them, as each of these can be translated */
+            [UI_FONT_HINT]          = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_LEAD]          = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_VALUE]         = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_SUBLINE]       = FONT_DIR "/14-Inter-Medium.fnt",
+            /* Now Playing's artist's, which its skin loads */
+            [UI_FONT_HEADER_ARTIST] = FONT_DIR "/15-Inter-Medium.fnt",
+            [UI_FONT_HEADER_COUNTS] = FONT_DIR "/14-Inter-Medium.fnt",
+            /* the status bar's, which the skins load */
+            [UI_FONT_MENU_VALUE]    = FONT_DIR "/14-Inter-SemiBold.fnt",
+            [UI_FONT_GROUP]         = FONT_DIR "/14-Inter-SemiBold.fnt",
+            [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
+            [UI_FONT_HEADER_NAME]   = FONT_DIR "/15-Inter-SemiBold.fnt",
+        },
+        .metric = {
+            [UI_METRIC_ROW_HEIGHT]           = 22,
+            /* the rows' text 7 px from the list's edge, a cover 3 px and
+               its text 5 px after it: the bar runs from edge to edge */
+            [UI_METRIC_TEXT_INSET]           = 7,
+            [UI_METRIC_INITIAL_HEIGHT]       = 64,
+            [UI_METRIC_INITIAL_MARGIN]       = 12,
+            [UI_METRIC_PANEL_HEAD_PLAIN]     = 1,
+            /* the chevron on columns 210 to 213 (UI_METRIC_CHEVRON_INSET) */
+            [UI_METRIC_CHEVRON_MARGIN]       = 9,
+            [UI_METRIC_LEAD_GAP]             = 6,
+            /* the Video's 12 and 24 as the margins are */
+            [UI_METRIC_VALUE_MARGIN]         = 9,
+            [UI_METRIC_VALUE_MARGIN_CHEVRON] = 18,
+            [UI_METRIC_VALUE_GAP]            = 9,
+            [UI_METRIC_VALUE_CUT]            = 1,
+            [UI_METRIC_HINT_X]               = 7,
+            [UI_METRIC_HINT_TOP]             = 7,
+            [UI_METRIC_HINT_PITCH]           = 15,
+            /* 31 px, as Neo's: the name's part 16, its cell of 15 at its
+               top, the second line's 14 a row under it */
+            [UI_METRIC_NAME_PART_CUT]        = -1,
+            [UI_METRIC_SUBLINE_GAP]          = 1,
+            [UI_METRIC_NAME_TEXT_DY]         = -1,
+            [UI_METRIC_SUBLINE_TOP_DY]       = 0,
+            [UI_METRIC_ROW_COVER_GAP]        = 5,
+            /* the cover 44 px in the middle of the three rows of one line it
+               takes, as the Video's 60 in its 90 */
+            [UI_METRIC_HEADER_COVER_TOP]     = 4,
+            [UI_METRIC_HEADER_COVER_GAP]     = 9,
+            [UI_METRIC_HEADER_TEXT_MARGIN]   = 9,
+            [UI_METRIC_HEADER_NAME_TOP]      = 4,
+            [UI_METRIC_HEADER_NAME_LEADING]  = 1,
+            [UI_METRIC_HEADER_ARTIST_GAP]    = 1,
+            [UI_METRIC_HEADER_COUNTS_GAP]    = 1,
+            [UI_METRIC_HEADER_FOOT]          = 4,
+            [UI_METRIC_HEADER_COVER_RADIUS]  = 2,
+            [UI_METRIC_HEADER_COVER_SIZE]    = 44,
+            [UI_METRIC_SELECTION_RADIUS]     = 0,
+            [UI_METRIC_CHEVRON_ALL]          = 1,
+            [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
+            /* no pane: the main menu takes the screen's width */
+            [UI_METRIC_PANE_LEFT]            = LCD_WIDTH,
+            [UI_METRIC_ROW_RIGHT]            = 9,
+            [UI_METRIC_ROW_RIGHT_GAP]        = 12,
+            [UI_METRIC_GROUP_BAR]            = 3,
+            [UI_METRIC_LEAD_COLUMN]          = 18,
+            [UI_METRIC_SUBLINE_INK]          = 1,
+            [UI_METRIC_HINT_RULE]            = 1,
+            [UI_METRIC_ROW_TEXT_DY]          = -1,
+            /* Now Playing's covers square, as on a stock iPod */
+            [UI_METRIC_COVER_RADIUS]         = 0,
+            [UI_METRIC_ROW_COVER_RADIUS]     = 2,
+            [UI_METRIC_ROW_RULE]             = 0,
+            /* the line on column 217 */
+            [UI_METRIC_SCROLLBAR_LINE]       = 2,
+            /* iOS 13's, 22 x 13 here (menu.c) */
+            [UI_METRIC_SWITCHES]             = 1,
+            [UI_METRIC_ACCENT_MARKS]         = 1,
+            [UI_METRIC_MENU_MARKS]           = 1,
+            [UI_METRIC_SEARCH_RADIUS]        = 6,
+            [UI_METRIC_LYRICS_DIM]           = 1,
+            [UI_METRIC_SELECTION_INK]        = 1,
+            [UI_METRIC_SETTINGS_SELECTION]   = 1,
+            [UI_METRIC_PLAYING_SUBLINE]      = 1,
+            [UI_METRIC_ROW_COVER_INSET]      = 3,
+            [UI_METRIC_RING_TRACK]           = 1,
+            [UI_METRIC_HEADER_CENTRED]       = 1,
+            [UI_METRIC_CHEVRON_INSET]        = 6,
+        },
+#else
         .list_font = "19-Inter-SemiBold",
         .selector_bevel = false,
         .cover_colours = false,
@@ -363,6 +522,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HEADER_CENTRED]       = 1,
             [UI_METRIC_CHEVRON_INSET]        = 8,
         },
+#endif /* UI_220X176 */
         .scrollbar_thumb = {
             RGB(0x75, 0x75, 0x7a), RGB(0x75, 0x75, 0x7a), RGB(0x75, 0x75, 0x7a),
             RGB(0x75, 0x75, 0x7a), RGB(0x75, 0x75, 0x7a), RGB(0x75, 0x75, 0x7a),
@@ -477,6 +637,101 @@ static const struct ui_theme ui_themes[] = {
                 .initial_opacity = 16,
             },
         },
+#ifdef UI_220X176
+        /* The iPod photo's: the Video's by its own rules on a screen three
+           quarters as high, its pixels a little larger: 15 px type in rows
+           of 22, seven under the status line; a row of two lines 31, five of
+           them, with a cover of 29 px (LINE_COVER_SIZE); the Video's glyphs
+           at their own sizes */
+        .list_font = "15-Inter-SemiBold",
+        .selector_bevel = false,
+        .cover_colours = false,
+        .cover_tone = true,
+        .font = {
+            [UI_FONT_LIST]          = FONT_DIR "/15-Inter-SemiBold.fnt",
+            /* every alphabet in them, as each of these can be translated */
+            [UI_FONT_HINT]          = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_LEAD]          = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_VALUE]         = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_SUBLINE]       = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_HEADER_ARTIST] = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_HEADER_COUNTS] = FONT_DIR "/14-Inter-Medium.fnt",
+            /* the status line's, which the skins load */
+            [UI_FONT_MENU_VALUE]    = FONT_DIR "/14-Inter-SemiBold.fnt",
+            [UI_FONT_GROUP]         = FONT_DIR "/14-Inter-SemiBold.fnt",
+            [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
+        },
+        .metric = {
+            [UI_METRIC_ROW_HEIGHT]           = 22,
+            [UI_METRIC_TEXT_INSET]           = 12,
+            [UI_METRIC_INITIAL_HEIGHT]       = 64,
+            [UI_METRIC_INITIAL_MARGIN]       = 12,
+            [UI_METRIC_SPLASH_RADIUS]        = 7,
+            [UI_METRIC_SPLASH_PAD_X]         = 10,
+            [UI_METRIC_SPLASH_PAD_Y]         = 5,
+            [UI_METRIC_STATUS_ROWS]          = 17,
+            [UI_METRIC_PANEL_HEAD_PLAIN]     = 1,
+            [UI_METRIC_CHEVRON_MARGIN]       = 11,
+            [UI_METRIC_LEAD_GAP]             = 6,
+            /* a value ends at 203, or at 196 before a chevron */
+            [UI_METRIC_VALUE_MARGIN]         = 17,
+            [UI_METRIC_VALUE_MARGIN_CHEVRON] = 24,
+            [UI_METRIC_VALUE_GAP]            = 7,
+            [UI_METRIC_VALUE_CUT]            = 1,
+            [UI_METRIC_HINT_X]               = 12,
+            [UI_METRIC_HINT_TOP]             = 4,
+            [UI_METRIC_HINT_PITCH]           = 15,
+            /* 31 px: the name's part 16, its cell of 15 at its top, a row
+               over its middle, so that a letter Unifont draws for it, 16 px,
+               stays whole there; the second line's 14 a row under the part.
+               Their capitals 3 rows under the row's top, the second line's
+               baseline 3 over its foot; no letter of either, of any of the
+               fonts' alphabets, reaches into the other's cell */
+            [UI_METRIC_NAME_PART_CUT]        = -1,
+            [UI_METRIC_SUBLINE_GAP]          = 1,
+            [UI_METRIC_NAME_TEXT_DY]         = -1,
+            [UI_METRIC_SUBLINE_TOP_DY]       = 0,
+            [UI_METRIC_ROW_COVER_GAP]        = 6,
+            /* two rows of one line, so that five songs show under it: the
+               cover 38 px and 3 over and under it */
+            [UI_METRIC_HEADER_COVER_TOP]     = 3,
+            [UI_METRIC_HEADER_COVER_GAP]     = 8,
+            [UI_METRIC_HEADER_TEXT_MARGIN]   = 12,
+            [UI_METRIC_HEADER_NAME_TOP]      = 1,
+            [UI_METRIC_HEADER_NAME_LEADING]  = 0,
+            [UI_METRIC_HEADER_ARTIST_GAP]    = 0,
+            [UI_METRIC_HEADER_COUNTS_GAP]    = 0,
+            [UI_METRIC_HEADER_FOOT]          = 3,
+            [UI_METRIC_HEADER_COVER_RADIUS]  = 4,
+            [UI_METRIC_HEADER_COVER_SIZE]    = 38,
+            [UI_METRIC_HEADER_CENTRED]       = 1,
+            [UI_METRIC_SELECTION_RADIUS]     = 5,
+            /* the scrollbar's capsule in the gutter it leaves, 2 px from
+               it, as the Video's */
+            [UI_METRIC_SELECTION_INSET_X]    = 6,
+            [UI_METRIC_SELECTION_INSET_Y]    = 1,
+            /* a row's cover 2 px inside the selection's sides */
+            [UI_METRIC_ROW_COVER_INSET]      = 8,
+            [UI_METRIC_CHEVRON_ALL]          = 1,
+            [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
+            /* no pane: the main menu takes the screen's width */
+            [UI_METRIC_PANE_LEFT]            = LCD_WIDTH,
+            [UI_METRIC_ROW_RIGHT]            = 17,
+            [UI_METRIC_ROW_RIGHT_GAP]        = 7,
+            [UI_METRIC_SCROLLBAR_CAPSULE]    = 3,
+            [UI_METRIC_SELECTION_INK]        = 1,
+            [UI_METRIC_GROUP_BAR]            = 2,
+            [UI_METRIC_LEAD_COLUMN]          = 18,
+            [UI_METRIC_SUBLINE_INK]          = 1,
+            [UI_METRIC_HINT_RULE]            = 1,
+            [UI_METRIC_ROW_TEXT_DY]          = -1,
+            /* Now Playing's covers square, as on a stock iPod */
+            [UI_METRIC_COVER_RADIUS]         = 0,
+            [UI_METRIC_ROW_COVER_RADIUS]     = 3,
+            /* On and Off in words, as the Video's Neo */
+            [UI_METRIC_SWITCHES]             = 0,
+        },
+#else
         .list_font = "19-Inter-SemiBold",
         .selector_bevel = false,
         .cover_colours = false,
@@ -566,6 +821,7 @@ static const struct ui_theme ui_themes[] = {
                switch in the row's own colour read the same either way */
             [UI_METRIC_SWITCHES]             = 0,
         },
+#endif /* UI_220X176 */
         /* one quiet tone across it */
         .scrollbar_thumb = {
             RGB(0xa5, 0x9e, 0x94), RGB(0xa5, 0x9e, 0x94), RGB(0xa5, 0x9e, 0x94),
@@ -1452,7 +1708,13 @@ void ui_theme_to_settings(bool dark)
     strmemccpy(s->wps_file, look->skin, sizeof(s->wps_file));
     strmemccpy(s->sbs_file, look->skin, sizeof(s->sbs_file));
 #if CONFIG_TUNER
+#ifdef UI_220X176
+    /* no theme has a radio screen of its own on this screen (it needs
+       Apple's remote tuner): the built-in one */
+    strmemccpy(s->fms_file, "-", sizeof(s->fms_file));
+#else
     strmemccpy(s->fms_file, look->skin, sizeof(s->fms_file));
+#endif
 #endif
     strmemccpy(s->backdrop_file, look->backdrop, sizeof(s->backdrop_file));
     strmemccpy(s->font_file, theme->list_font, sizeof(s->font_file));

@@ -1,0 +1,33 @@
+# Modern: the status bar over the lists, which take the screen's whole width.
+# Made by themes/tools/make_modern_theme.py
+%wd
+%Fl(2,14-Inter-SemiBold.fnt)
+%xl(B,Battery.bmp,0,0,24)
+%xl(P,Playing Status.bmp,0,0,4)
+%xl(H,Hold.bmp,1,0)
+%xl(N,Night.bmp,0,0)
+%VI(wide)%Vd(bar)%Vd(rule)%?if(%Li, =, 33)<%Vd(clock)|%?Lf(title)<%Vd(clock)%Vd(title)|%?nN<%Vd(longm)|%?mh<%Vd(longp)|%?mp<%Vd(long)|%Vd(longp)|%Vd(longp)|%Vd(longp)|%Vd(longp)>>>>>%Vd(bat)%Vd(play)%?nN<%Vd(moon)>
+# the lists: under the status bar, rows of 22
+%Vi(wide,0,19,220,157,1)%Vf(FFFFFF)%Vb(000000)
+# the status bar across every screen: its ground, the hairline under it, the
+# clock, the title in the middle, the glyphs; in the main menu the clock
+# alone, as beside the pane on a larger screen
+%Vl(bar,0,0,220,16,-)%Vb(101010)
+%Vl(rule,0,16,220,1,-)%Vb(202429)
+%Vl(clock,9,1,44,14,2)%Vf(FFFFFF)%Vb(101010)
+%al%?cf<%cH:%cM|%cl:%cM>
+# a menu's title, which takes the clock's place too if it is wider (long_title())
+%Vl(title,60,1,100,14,2)%Vf(FFFFFF)%Vb(101010)
+%ac%Lt
+%Vl(longm,9,1,140,14,2)%Vf(FFFFFF)%Vb(101010)
+%al%nx%Lt
+%Vl(longp,9,1,155,14,2)%Vf(FFFFFF)%Vb(101010)
+%al%nx%Lt
+%Vl(long,9,1,173,14,2)%Vf(FFFFFF)%Vb(101010)
+%al%nx%Lt
+%Vl(bat,187,3,24,10,-)%Vb(101010)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(play,169,3,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(moon,154,3,10,10,-)%Vb(101010)
+%xd(N)

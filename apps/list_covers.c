@@ -60,7 +60,12 @@
 #ifdef ITUNESDB_HAVE_ART
 
 #define SIDE        LINE_COVER_SIZE
-#define SLOT_SIZE   (SIDE * SIDE * (int)sizeof(fb_data)) /* a sector, read as one */
+#define COVER_BYTES (SIDE * SIDE * (int)sizeof(fb_data))
+/* A cover's place in the file, read as it is: its pixels in whole sectors,
+   as the disk is read by them (file_read_mapped()), the rest zeros; 2 KB,
+   which a cover of 32 px fills (the iPod photo's of 29 has 366 B over). A
+   file of covers of another side is made again (the header's side) */
+#define SLOT_SIZE   ((COVER_BYTES + 511) / 512 * 512)
 #define NO_SLOT     0xffff
 /* in the slots kept in memory, an album without one whose picture isn't
    shown, by its reason */
@@ -109,7 +114,7 @@ static unsigned char *read_aligned(unsigned char *p)
     return (unsigned char *)ALIGN_UP((uintptr_t)p, READ_ALIGN);
 }
 
-#define KEPT        256   /* covers kept, 512 KB: what some 40 screens showed */
+#define KEPT        256   /* covers kept, 512 KB of 32 px: what some 40 screens showed */
 #define STRETCH     16    /* covers the making writes at once */
 /* Covers a read takes at most, those in a row in the file, 8 KB: each read
    its own turn of the reader, which gives way to the UI between them, as
@@ -888,7 +893,7 @@ void list_covers_draw_soon(struct gui_synclist *list)
             if (place < 0)
                 break;
             memcpy(covers->pixels[place], stage + (now[i] - first) * SLOT_SIZE,
-                   SLOT_SIZE);
+                   COVER_BYTES);
             covers->slot[place] = now[i];
             covers->shown[place] = frame;
         }
@@ -999,7 +1004,7 @@ void list_covers_read(void)
         const int place = place_to_fill();
         if (place < 0)
             break;
-        memcpy(covers->pixels[place], stage + (slot - first) * SLOT_SIZE, SLOT_SIZE);
+        memcpy(covers->pixels[place], stage + (slot - first) * SLOT_SIZE, COVER_BYTES);
         covers->slot[place] = slot;
         covers->shown[place] = frame;
         came = true;
@@ -1377,6 +1382,10 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
             entries[no].slot = NO_SLOT;
             entries[no].source = 0;
         }
+        else if (!kept && SLOT_SIZE > COVER_BYTES)
+            /* the slot's rest after a cover made now: zeros, not what the
+               buffer had */
+            memset((unsigned char *)cover + COVER_BYTES, 0, SLOT_SIZE - COVER_BYTES);
         if (s % STRETCH == STRETCH - 1 || s == slots - 1)
         {
             const ssize_t size = (s % STRETCH + 1) * SLOT_SIZE;

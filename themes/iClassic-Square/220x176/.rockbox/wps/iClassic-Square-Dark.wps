@@ -1,0 +1,239 @@
+# Made from the light theme by themes/tools/make_dark_theme.py
+# Theme: iClassic Square
+# By: Humberto Santana (humbertosantana@hotmail.com)
+# License: Creative Commons Attribution-Share Alike 3.0 (http://creativecommons.org/licenses/by-sa/3.0/)
+# A few elements derived from iLike Theme for 320x240 by Alan Brito, which was ported from the 176x132 version by H. Pearce
+# If used for other works, as per this license, please include the following Attribution Text: "Modified/Derived from iClassic Square theme for iPod Video (CC-BY-SA 3.0) by Humberto Santana"
+#
+# The iPod photo's 220x176 screen: RockWheel's 320x240 skin of the same name
+# (themes/iClassic-Square/.rockbox/wps) laid out for it, with the same pictures
+# at their own sizes (themes/tools/make_classic_220x176.py). No pane beside
+# the main menu: every list takes the screen's width.
+#
+# WPS File
+#
+%wd
+%X(iClassic_bg.bmp)
+%Fl(2,14-Inter-Bold.fnt,512)
+%Fl(3,14-Inter-Bold.fnt)
+%Fl(4,14-Inter-Bold.fnt)
+%Fl(5,17-Inter-Bold.fnt)
+%Fl(6,12-Inter-SemiBold.fnt,32)
+%Fl(7,14-Inter-Bold.fnt)
+# begin: made by themes/tools/make_classic_np.py, not edited here
+# the details' viewports by the track and the settings, and the modes; the
+# rating view leaves the small stars out, the speed view a book's speed:
+# neither moves as it is set
+%?if(%mw, <, 3)<%?kk<%?St(now playing format)<%?St(now playing rating)<%Vd(s11)|%?rr<%Vd(s01)|%Vd(s11)>|%Vd(s01)>|%?St(now playing rating)<%Vd(s10)|%?rr<%Vd(s00)|%Vd(s10)>|%Vd(s00)>>|%Vd(e)|%?St(now playing format)<%?ks<%Vd(b11)|%Vd(b01)>|%?ks<%Vd(b10)|%Vd(b00)>>>|%?mw<||%?C<|%?kk<%?St(now playing format)<%?St(now playing rating)<%Vd(s11)|%?rr<%Vd(s01)|%Vd(s11)>|%Vd(s01)>|%?St(now playing rating)<%Vd(s10)|%?rr<%Vd(s00)|%Vd(s10)>|%Vd(s00)>>|%Vd(e)|%?St(now playing format)<%?ks<%Vd(b11)|%Vd(b01)>|%?ks<%Vd(b10)|%Vd(b00)>>>>||%?kk<%?St(now playing format)<%Vd(s01)|%Vd(s00)>|%Vd(e)|%?St(now playing format)<%?ks<%Vd(b11)|%Vd(b01)>|%?ks<%Vd(b10)|%Vd(b00)>>>|%?kk<|%Vd(e)|%?St(now playing format)<%Vd(b01)|%Vd(b00)>>>>
+%?if(%mw, <, 3)<%Vd(mode1)%Vd(mode2)|%?mw<||%?C<|%Vd(mode1)%Vd(mode2)>||%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)>>
+# end: made by themes/tools/make_classic_np.py
+# display modes, cycled with the centre button:
+# normal | scrubber | album art | lyrics | rating | speed
+%?mw<%Vd(info)%?mv(2.0)<%Vd(volume)|%Vd(pb)>|%Vd(info)%Vd(scrub)%?kk<|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(info)%Vd(pb)>|%Vd(lyrics)|%Vd(info)%Vd(rating)|%Vd(info)%Vd(speed)>
+# without a cover, the backdrop again where its reflection, or the turned one, was
+%?C<|%?mw<%Vd(spill)|%Vd(spill)|%Vd(spill)||%Vd(spill)|%Vd(spill)>>
+# under the bar, for a track whose file has chapters, in the normal view and the scrubber;
+# a podcast's or an audiobook's scrubber has the hints at the line's ends, and a shorter line
+%?kn<%?mw<%?mv(2.0)<|%Vd(chapter)>|%?kk<%Vd(chapter)|%Vd(chapterscrub)|%Vd(chapterscrub)>||||>|>
+%?mv(5)<%?St(battery display)<%Vd(title)|%Vd(titlebat)>|%?St(battery display)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>>>
+%Vl(title,6,2,105,14,4)%Vf(F2F2F6)
+%s%al%Sx(Now Playing)
+%Vl(titlebat,6,2,70,14,4)%Vf(F2F2F6)
+%s%al%Sx(Now Playing)
+%Vl(clock,6,2,70,14,4)%Vf(F2F2F6)
+%s%al%?pS(15)<%Sx(Now Playing)|%?cf<%cH:%cM|%cl:%cM %cP>>
+%xl(B,Battery.bmp,0,0,24)
+# its charge in its own colours in the cover's, unless the setting says
+%xK(B)
+%V(191,4,25,11,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%?St(battery display)<%Vd(nonumbat)|%Vd(numbat)>
+%?nN<%?St(battery display)<%Vd(night)|%Vd(nightnum)>|>
+%Vl(numbat,155,3,32,12,2)%Vf(F2F2F6)
+%ac%bl%%
+%xl(P,Playing Status.bmp,0,0,4)
+# the play glyph and the bar take Classic's colour, if it has one other than its blue
+%xA(P)
+%Vl(numbat,136,3,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%Vl(nonumbat,171,3,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%xl(h,Hold Icon.bmp,0,1)
+%Vl(numbat,80,3,13,13,-)
+%?mh<%xd(h)|>
+%Vl(nonumbat,115,3,13,13,-)
+%?mh<%xd(h)|>
+# Night Mode on: the moon, just left of the play glyph beside the battery
+%xl(N,Status Night.bmp,0,0)
+%Vl(night,149,2,16,16,-)
+%xd(N)
+%Vl(nightnum,114,2,16,16,-)
+%xd(N)
+# the cover, 96 px, with its reflection of 14 rows under it, angled if the
+# setting says
+%Cl(0,0,96,96,c,c)
+%Cr(14,176)
+# 12 px round the cover's place, as far as a turned one goes, and the reflection's 14
+# rows under it; before the cover's viewport, which draws over it
+%Vl(spill,0,19,117,122,-)
+%Vl(info,9,31,96,96,-)
+%Cd
+# begin: made by themes/tools/make_classic_np.py, not edited here
+# the details; five stars of the Ratings picture, the set ones over the outlines
+%xl(R,Ratings.bmp,0,0,11)
+%xC(R)
+%Vl(s00,114,48,97,17,1)%Vf(F2F2F6)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(s00,114,65,97,15,3)%Vf(B4B6BA)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s00,114,80,97,15,7)%Vf(8E9094)
+%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
+%Vl(s00,113,97,98,14,2)%Vf(8E9094)
+%s%al%pp %Sx(of) %pe
+%Vl(s01,114,43,97,17,1)%Vf(F2F2F6)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(s01,114,60,97,15,3)%Vf(B4B6BA)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s01,114,75,97,15,7)%Vf(8E9094)
+%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
+%Vl(s01,113,92,98,14,2)%Vf(8E9094)
+%s%al%pp %Sx(of) %pe
+%Vl(s01,114,109,97,15,4)
+%fB
+%Vl(s10,114,43,97,17,1)%Vf(F2F2F6)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(s10,114,60,97,15,3)%Vf(B4B6BA)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s10,114,75,97,15,7)%Vf(8E9094)
+%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
+%Vl(s10,113,92,98,14,2)%Vf(8E9094)
+%s%al%pp %Sx(of) %pe
+%Vl(s10,114,110,66,13,-)
+%?rr<%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)|%xd(Rk)>
+%Vl(s11,114,43,97,17,1)%Vf(F2F2F6)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(s11,114,60,97,15,3)%Vf(B4B6BA)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Artist)>>
+%Vl(s11,114,75,97,15,7)%Vf(8E9094)
+%t(16)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%s%?id<%id|%Sx(Unknown Album)>
+%Vl(s11,113,92,98,14,2)%Vf(8E9094)
+%s%al%pp %Sx(of) %pe
+%Vl(s11,114,110,66,13,-)
+%?rr<%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)|%xd(Re)|%xd(Rf)|%xd(Rg)|%xd(Rh)|%xd(Ri)|%xd(Rj)|%xd(Rk)>
+%Vl(s11,114,125,97,15,4)
+%fB
+%Vl(e,114,43,97,17,1)%Vf(F2F2F6)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(e,114,60,97,15,3)%Vf(B4B6BA)
+%t(8)%al%?id<%id|%Sx(Unknown Album)>;%t(8)%s%al%?id<%id|%Sx(Unknown Album)>;%t(8)%al%?id<%id|%Sx(Unknown Album)>
+%Vl(e,114,75,97,15,2)%Vf(8E9094)
+%al%kd
+%Vl(e,113,92,98,14,2)%Vf(8E9094)
+%s%al%pp %Sx(of) %pe
+%Vl(e,114,109,97,15,2)%Vf(8E9094)
+%nx%al%kl%ar%?ks< %ks|>
+%Vl(b00,114,48,97,17,1)%Vf(F2F2F6)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(b00,114,65,97,15,3)%Vf(B4B6BA)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b00,114,80,97,15,2)%Vf(8E9094)
+%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
+%Vl(b00,113,97,98,14,2)%Vf(8E9094)
+%s%al%pp %Sx(of) %pe
+%Vl(b01,114,43,97,17,1)%Vf(F2F2F6)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(b01,114,60,97,15,3)%Vf(B4B6BA)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b01,114,75,97,15,2)%Vf(8E9094)
+%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
+%Vl(b01,113,92,98,14,2)%Vf(8E9094)
+%s%al%pp %Sx(of) %pe
+%Vl(b01,114,109,97,15,4)
+%fB
+%Vl(b10,114,43,97,17,1)%Vf(F2F2F6)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(b10,114,60,97,15,3)%Vf(B4B6BA)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b10,114,75,97,15,2)%Vf(8E9094)
+%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
+%Vl(b10,113,92,98,14,2)%Vf(8E9094)
+%s%al%pp %Sx(of) %pe
+%Vl(b10,114,109,97,15,2)%Vf(8E9094)
+%al%?ks<%ks|>
+%Vl(b11,114,43,97,17,1)%Vf(F2F2F6)
+%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>
+%Vl(b11,114,60,97,15,3)%Vf(B4B6BA)
+%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%s%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>;%t(8)%al%?ia<%ia|%?iA<%iA|%Sx(Unknown Author)>>
+%Vl(b11,114,75,97,15,2)%Vf(8E9094)
+%t(16)%al%?kc<%kc|%id>;%t(8)%al%s%?kc<%kc|%id>
+%Vl(b11,113,92,98,14,2)%Vf(8E9094)
+%s%al%pp %Sx(of) %pe
+%Vl(b11,114,109,97,15,2)%Vf(8E9094)
+%al%?ks<%ks|>
+%Vl(b11,114,126,97,15,4)
+%fB
+# never shown, it only gives %fB the font of the bitrate
+%Vl(bitrate,0,0,1,1,6)
+# repeat and shuffle under the status bar's right end, repeat at the column's edge
+%xl(r,Repeat Icon.bmp,0,0,4)
+%xl(S,Shuffle Icon.bmp,0,0)
+%xl(A,Status Shuffle Albums.bmp,2,2)
+%Vl(mode1,193,22,19,20,-)
+%?mm<%?ps<%?pa<%xd(A)|%xd(S)>|>|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>
+%Vl(mode2,170,22,19,20,-)
+%?mm<|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>>
+# end: made by themes/tools/make_classic_np.py
+# The bar with its times, in the row's whole width: what is played in the middle of
+# the room before the bar and what is left in the middle of the room after it.
+# The bar is 8 px shorter at each end for a track of an hour or more and 15 px
+# for one of ten, for times with hours: "-12:34:56" is 55 px.
+%Vl(pb,0,143,220,23,2)%Vf(F2F2F6)
+%pb(40,0,140,23,PB.bmp,times,0,inset,8,15)
+%xA(PB.bmp)
+%Vl(volume,33,143,154,23,-)
+%pv(7,0,140,23,PB.bmp)
+%xl(V,Volume Right.bmp,0,0)
+%Vl(volume,191,140,21,21,-)
+%xd(V)
+%xl(v,Volume Left.bmp,0,0)
+%Vl(volume,16,141,13,19,-)
+%xd(v)
+# under the bar: the volume, and the limit, if one is set
+%Vl(volume,9,162,202,13,2)%Vf(F2F2F6)
+%ac%nv
+# scrubber: the progress bar with a slider, the wheel moves it
+%xl(K,Scrub Knob.bmp,0,0)
+%Vl(scrub,0,143,220,23,2)%Vf(F2F2F6)
+%pb(40,0,140,23,PB.bmp,slider,K,slidercentre,times,0,inset,8,15)
+# the chapter a song or an episode is in, "Chapter 2 · Objects and stories", and for a
+# book, whose third line has the name, "Chapter 5 of 12": at the height of the volume
+# view's label, and as that is, after the bars, over the last rows of their reflection
+%Vl(chapter,9,162,202,13,2)%Vf(8E9094)
+%t(16)%ac%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>;%t(8)%s%ac%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>
+%Vl(chapterscrub,36,162,148,13,2)%Vf(8E9094)
+%t(16)%ac%?kk<|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>;%t(8)%s%ac%?kk<|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>
+# what Previous and Next do in the scrubber of a podcast or an audiobook, 15 seconds back
+# and 30 on: under the two times, at the height of the chapter line
+%xl(Z,Scrub Hints.bmp,0,0,2)
+%Vl(hints,7,162,26,13,-)
+%xd(Za)
+%Vl(hints,187,162,26,13,-)
+%xd(Zb)
+# rating: whole stars in place of the progress bar, the wheel sets them
+%xl(T,Stars.bmp,0,0,6)
+%xC(T)
+%Vl(rating,8,143,204,24,-)
+%?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>
+# album art view: a second, large album art; the small one above is
+# hidden with the rest of the "info" viewports
+%xl(F,Art Mask.bmp,0,0)
+%xl(G,Art Mask.bmp,180,0)
+%Vl(bigart,0,19,220,157,-)
+# 140x140, the size Finder makes the iPod photo's covers in, so nothing is scaled
+%Cl(40,9,140,140,c,c)
+%Cd%xd(F)%xd(G)
+# lyrics view: the WPS code draws the lyrics into this viewport
+%Vl(lyrics,6,22,208,152,5)%Vf(F2F2F6)
+# speed view, of a podcast or an audiobook: the WPS code draws "Speed" and the
+# row of speeds into this viewport, under the cover's reflection
+%Vl(speed,0,141,220,35,2)%Vf(8E9094)

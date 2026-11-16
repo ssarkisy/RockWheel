@@ -778,21 +778,35 @@ sub buildzip {
         copy("$ROOT/wps/classic_statusbar.mono.sbs", "$temp_dir/wps/classic_statusbar.rsbs");
     }
 
-    # the stock iPod themes from themes/ and their fonts, made for 320x240
+    # the stock iPod themes from themes/ and their fonts, made for 320x240;
+    # for the iPod photo's 220x176 each theme's skins of that screen
+    # (themes/<theme>/220x176/.rockbox), and only the fonts those and
+    # apps/gui/ui_theme.c take there, of the themes' fonts
+    my @themedirs;
+    my %fonts_taken;
     if ($bitmap && $depth >= 16 && $width == 320 && $height == 240) {
-        foreach my $themedir (glob("$ROOT/themes/*/.rockbox")) {
-            find({ no_chdir => 1, wanted => sub {
-                return if ($File::Find::name eq $themedir);
-                my $dest = "$temp_dir/" . substr($File::Find::name, length($themedir) + 1);
-                if (-d $File::Find::name) {
-                    glob_mkdir($dest);
-                } else {
-                    print "theme: $File::Find::name -> $dest\n" if $verbose;
-                    copy($File::Find::name, $dest);
-                    theme_bmp_for_screen($dest) if ($dest =~ /\.bmp$/i);
-                }
-            }}, $themedir);
-        }
+        @themedirs = glob("$ROOT/themes/*/.rockbox");
+    } elsif ($bitmap && $depth >= 16 && $width == 220 && $height == 176) {
+        @themedirs = (glob("$ROOT/themes/*/220x176/.rockbox"),
+                      "$ROOT/themes/fonts/.rockbox");
+        %fonts_taken = map { $_ => 1 } qw(12-Inter-SemiBold 14-Inter-Bold
+            14-Inter-Medium 14-Inter-SemiBold 15-Inter-Medium 15-Inter-SemiBold
+            17-Inter-Bold 53-Inter-Letters 16-GNU-Unifont);
+    }
+    foreach my $themedir (@themedirs) {
+        find({ no_chdir => 1, wanted => sub {
+            return if ($File::Find::name eq $themedir);
+            return if (%fonts_taken && $File::Find::name =~ m{/([^/]+)\.fnt$}
+                       && !$fonts_taken{$1});
+            my $dest = "$temp_dir/" . substr($File::Find::name, length($themedir) + 1);
+            if (-d $File::Find::name) {
+                glob_mkdir($dest);
+            } else {
+                print "theme: $File::Find::name -> $dest\n" if $verbose;
+                copy($File::Find::name, $dest);
+                theme_bmp_for_screen($dest) if ($dest =~ /\.bmp$/i);
+            }
+        }}, $themedir);
     }
 
     # and the info file

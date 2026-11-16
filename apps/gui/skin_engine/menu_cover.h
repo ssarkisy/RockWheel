@@ -22,11 +22,17 @@
 #include "config.h"
 #include "lcd.h"
 #include "itunesdb.h"
+#include "gui/ui_theme.h"
 
 struct viewport;
 struct wps_data;
 
-#ifdef ITUNESDB_HAVE_ART
+/* The cover in the main menu's pane, and in the radio's screen: only where
+   the themes have the pane. Without it nothing here is built, its memory
+   neither, and a theme's %C beside the menus shows the buffer's cover. */
+#if defined(ITUNESDB_HAVE_ART) && defined(UI_MENU_PANE)
+#define HAVE_MENU_ART
+
 /* %?C beside the menus: whether the song playing has a cover of Finder's,
    loaded if not yet; with nothing playing, the song Resume Playback would go
    on with, its cover read once from a disk that spins */
@@ -40,12 +46,15 @@ void menu_cover_forget(void);
 /* the song to resume is looked up again at the next draw: after a boot's
    Updating Library and after USB, where its file or its cover may be others */
 void menu_cover_resume_look(void);
+#else
+static inline void menu_cover_forget(void) {}
+static inline void menu_cover_resume_look(void) {}
 #endif
 
 /* With Moving Cover, that cover pans slowly from side to side in the part of
    the theme's panel the list leaves, as a long name scrolls: the scroll
    thread moves it. */
-#if defined(ITUNESDB_HAVE_ART) && !defined(HAVE_REMOTE_LCD) \
+#if defined(HAVE_MENU_ART) && !defined(HAVE_REMOTE_LCD) \
     && LCD_STRIDEFORMAT != VERTICAL_STRIDE && !defined(BOOTLOADER)
 #define HAVE_MENU_COVER
 

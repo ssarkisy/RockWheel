@@ -19,6 +19,7 @@
 #define _UI_THEME_H_
 
 #include <stdbool.h>
+#include "config.h"
 
 /* The look that isn't in the skins: colours, list metrics and font files by
    role, one entry a theme, each with a light and a dark set. Values are read
@@ -27,10 +28,26 @@
 /* in the order of the Theme row's values */
 enum { UI_THEME_CLASSIC, UI_THEME_MODERN, UI_THEME_NEO, UI_THEME_COUNT };
 
-/* Classic's, where a constant is needed: the settings' defaults */
+#if (LCD_WIDTH == 220) && (LCD_HEIGHT == 176)
+/* The iPod photo's screen: each theme with fonts and metrics of its own here
+   (ui_theme.c), and skins (themes/<theme>/220x176) */
+#define UI_220X176
+#else
+/* Every theme's main menu has a pane beside the list: the song's cover
+   (menu_cover.c), or the Photos collage (photos_panel.c). At 220x176 the
+   main menu is the screen's whole width. */
+#define UI_MENU_PANE
+#endif
+
+/* Classic's, where a constant is needed: the settings' defaults. Its skins
+   and backdrops have the same names on either screen */
 #define UI_CLASSIC_SKIN          "iClassic-Square"
 #define UI_CLASSIC_SKIN_DARK     UI_CLASSIC_SKIN "-Dark"
+#ifdef UI_220X176
+#define UI_CLASSIC_FONT          "17-Inter-Bold"
+#else
 #define UI_CLASSIC_FONT          "24-Inter-Bold"
+#endif
 #define UI_CLASSIC_BACKDROP      BACKDROP_DIR "/iClassic_bd.bmp"
 #define UI_CLASSIC_BACKDROP_DARK BACKDROP_DIR "/iClassic_bd_dark.bmp"
 #define UI_CLASSIC_TEXT          LCD_RGBPACK(0x00, 0x00, 0x00)

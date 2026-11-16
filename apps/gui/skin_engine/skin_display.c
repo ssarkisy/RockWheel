@@ -1961,7 +1961,7 @@ void skin_forget_db_art(void)
 bool skin_art_found(const struct wps_data *data, int handle)
 {
     if (data != skin_get_gwps(WPS, SCREEN_MAIN)->data)
-#ifdef ITUNESDB_HAVE_ART
+#ifdef HAVE_MENU_ART
         return handle >= 0 || menu_cover_ready(data);
 #else
         return handle >= 0;
@@ -2037,7 +2037,7 @@ int skin_art_handle(const struct wps_data *data, int index, int handle)
 {
     if (data != skin_get_gwps(WPS, SCREEN_MAIN)->data)
     {
-#ifdef ITUNESDB_HAVE_ART
+#ifdef HAVE_MENU_ART
         if (handle < 0 && menu_cover_ready(data))
             return SKIN_ART_MENU;
 #endif
@@ -2110,7 +2110,7 @@ void wps_display_images(struct gui_wps *gwps, struct viewport* vp)
             draw_kept_album_art(gwps, aa, i);
             aa->draw_handle = -1;
         }
-#ifdef ITUNESDB_HAVE_ART
+#ifdef HAVE_MENU_ART
         else if (aa && aa->draw_handle == SKIN_ART_MENU)
         {
             int width, height;

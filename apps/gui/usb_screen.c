@@ -147,17 +147,35 @@ static void handle_usb_events(struct viewport *title)
 /* The screen of a stock iPod in this mode. It's all drawn here and not by the
    theme, which has the screen split in two, and can't read its files by then. */
 #define IPOD_USB_SIGN_X     ((LCD_WIDTH - BMPWIDTH_nodisconnect) / 2)
+#ifdef UI_220X176
+/* The iPod photo's: the title bar is Classic's status bar there, its battery
+   where the skin has it, and the sign as large as on the iPod Video, as the
+   theme's glyphs are; the sign and the words are a block in the middle of
+   the rows under the bar */
+#define IPOD_USB_SIGN_Y     35
+#define IPOD_USB_TEXT_Y     150 /* the middle of it */
+#define IPOD_USB_BATTERY_X  191
+#define IPOD_USB_BATTERY_Y  4
+#else
 #define IPOD_USB_SIGN_Y     71
 #define IPOD_USB_TEXT_Y     186 /* the middle of it */
 #define IPOD_USB_BATTERY_X  288
 #define IPOD_USB_BATTERY_Y  6
+#endif
 #define IPOD_USB_BATTERY_H  (BMPHEIGHT_usbbattery / 2)
 
 /* Colours of the title bar, for each row */
 static const unsigned long ipod_usb_title_bar[] = {
+#ifdef UI_220X176
+    /* Classic's 220x176 skin's (iClassic_bg.bmp), with the dark line under it */
+    0xf6f6ff, 0xedf6ff, 0xeef4fb, 0xeef2f6, 0xe6eff6, 0xe6edf4, 0xe5e9ed, 0xe1e7ef,
+    0xdfe5ec, 0xdae1e7, 0xd5dce1, 0xd4d9dd, 0xcfd7df, 0xcdd4d9, 0xced2d5, 0xc5cfd5,
+    0xc4ccd2, 0xd1d5d8, 0x6c737b,
+#else
     0xe6e7e5, 0xe4e5e3, 0xe2e3e3, 0xdfe1e3, 0xdde1e4, 0xdadfe2, 0xd7dce0, 0xd4dade,
     0xd5dde0, 0xd5dde0, 0xd4dcdf, 0xd2dadd, 0xced7da, 0xc7d1d5, 0xc3ced4, 0xc4d0d7,
     0xc2cfd8, 0xbbc9d4, 0xb6c4d0, 0xb3c2cf, 0xb1c1cd, 0xacbcc7, 0xa7b7c0, 0x8d9b9e,
+#endif
 };
 #define IPOD_USB_TITLE_H ((int)ARRAYLEN(ipod_usb_title_bar))
 
@@ -264,11 +282,36 @@ static void ipod_usb_draw_centred(struct screen *screen, const char *text,
     screen->putsxy((LCD_WIDTH - width) / 2, middle - height / 2, text);
 }
 
+#ifdef UI_220X176
+/* The words under the sign in the theme's font, or in its smaller one where
+   either is wider than the screen leaves them (Japanese's "Do not
+   disconnect."), so both are the same size */
+#define IPOD_USB_WORDS_ROOM (LCD_WIDTH - 2 * 6)
+static int ipod_usb_words_font = FONT_UI;
+#define IPOD_USB_WORDS_FONT ipod_usb_words_font
+#else
+#define IPOD_USB_WORDS_FONT FONT_UI
+#endif
+
 /* Neo's: its status line with the name and the battery over a hairline, a
    bold sign in the notes' two tones and the words under it, on the theme's
    ground. The places are its skins' (themes/tools/make_neo_theme.py) and its
    mockup's. */
 #include "neo_usb_glyphs.h"
+#ifdef UI_220X176
+/* The iPod photo's: its 220x176 skin's status line, the Video's glyphs as
+   they are, as everywhere in the theme there, and the sign and the words a
+   block in the middle of the rows under the hairline */
+#define NEO_USB_STATUS  16  /* the status line's rows; the hairline is the next */
+#define NEO_USB_MARGIN  10
+#define NEO_USB_NAME_Y  2
+#define NEO_USB_FOOT    13  /* the row under the battery's feet */
+#define NEO_USB_GAP     6   /* between the name and the battery */
+#define NEO_USB_SIGN_X  ((LCD_WIDTH - NEO_USB_USB_W) / 2)
+#define NEO_USB_SIGN_Y  39
+#define NEO_USB_TEXT_Y  145 /* the middle of it */
+#define NEO_USB_FONT    FONT_DIR "/14-Inter-SemiBold.fnt"
+#else
 #define NEO_USB_STATUS  20  /* the status line's rows; the hairline is the next */
 #define NEO_USB_MARGIN  14
 #define NEO_USB_NAME_Y  2
@@ -277,6 +320,8 @@ static void ipod_usb_draw_centred(struct screen *screen, const char *text,
 #define NEO_USB_SIGN_X  118
 #define NEO_USB_SIGN_Y  56
 #define NEO_USB_TEXT_Y  162 /* the middle of it */
+#define NEO_USB_FONT    FONT_DIR "/15-Inter-SemiBold.fnt"
+#endif
 #define NEO_USB_BATTERY_X (LCD_WIDTH - NEO_USB_MARGIN - NEO_USB_BATTERY_W)
 
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
@@ -290,7 +335,7 @@ static int neo_usb_font;
    it is wider than the room left of the battery: fitted now, for the cache */
 static void neo_usb_prepare(void)
 {
-    neo_usb_font = font_find(FONT_DIR "/15-Inter-SemiBold.fnt");
+    neo_usb_font = font_find(NEO_USB_FONT);
     if (neo_usb_font < 0)
         neo_usb_font = font_find(ui_font_file(UI_FONT_HINT));
     if (neo_usb_font < 0)
@@ -336,7 +381,7 @@ static void neo_usb_draw(struct screen *screen)
     screen->set_foreground(ui_colour(UI_COLOUR_TEXT));
     screen->setfont(neo_usb_font);
     screen->putsxy(NEO_USB_MARGIN, NEO_USB_NAME_Y, neo_usb_name);
-    screen->setfont(FONT_UI);
+    screen->setfont(IPOD_USB_WORDS_FONT);
     ipod_usb_draw_centred(screen, str(ipod_usb_ejected ? LANG_USB_OK_TO_DISCONNECT
                                                        : LANG_USB_DO_NOT_DISCONNECT),
                           NEO_USB_TEXT_Y);
@@ -353,13 +398,22 @@ static void neo_usb_draw(struct screen *screen)
    The places and the bar's two colours are its skins'
    (themes/tools/make_modern_theme.py). */
 #include "modern_usb_glyphs.h"
+#ifdef UI_220X176
+/* the iPod photo's: its 220x176 skin's bar, and the Video's glyphs as they
+   are, as everywhere in the theme there */
+#define MODERN_USB_STATUS  16  /* the bar's rows; the hairline is the next */
+#define MODERN_USB_MARGIN  9
+#define MODERN_USB_NAME_Y  1
+#define MODERN_USB_BATTERY_Y 3
+#else
 #define MODERN_USB_STATUS  23  /* the bar's rows; the hairline is the next */
 #define MODERN_USB_MARGIN  12
 #define MODERN_USB_NAME_Y  5
+#define MODERN_USB_BATTERY_Y 7
+#endif
 #define MODERN_USB_GAP     6   /* between the name and the battery */
 #define MODERN_USB_TEXT_GAP 16 /* from the sign's foot to the words' cell */
 #define MODERN_USB_BATTERY_X (LCD_WIDTH - MODERN_USB_MARGIN - MODERN_USB_BATTERY_FRAME_W)
-#define MODERN_USB_BATTERY_Y 7
 
 static char modern_usb_name[64];
 static int modern_usb_font, modern_usb_name_x;
@@ -410,7 +464,7 @@ static void modern_usb_draw(struct screen *screen)
                           MODERN_USB_BATTERY_Y, MODERN_USB_BATTERY_FRAME_W,
                           MODERN_USB_BATTERY_FRAME_H);
     /* the sign's three masks are of one canvas, each kept as its ink's box */
-    const int ascent = font_get(FONT_UI)->ascent;
+    const int ascent = font_get(IPOD_USB_WORDS_FONT)->ascent;
     const int ground = LCD_HEIGHT - (MODERN_USB_STATUS + 1);
     const int sign_x = (LCD_WIDTH - MODERN_USB_SIGN_W) / 2;
     const int sign_y = MODERN_USB_STATUS + 1 - MODERN_USB_USB_Y
@@ -440,7 +494,7 @@ static void modern_usb_draw(struct screen *screen)
     screen->set_foreground(look->colour[UI_COLOUR_TEXT]);
     screen->setfont(modern_usb_font);
     screen->putsxy(modern_usb_name_x, MODERN_USB_NAME_Y, modern_usb_name);
-    screen->setfont(FONT_UI);
+    screen->setfont(IPOD_USB_WORDS_FONT);
     const char *const words = str(ipod_usb_ejected ? LANG_USB_OK_TO_DISCONNECT
                                                    : LANG_USB_DO_NOT_DISCONNECT);
     int width;
@@ -464,6 +518,23 @@ static void theme_usb_draw(struct screen *screen)
         neo_usb_draw(screen);
 }
 
+/* Classic's name: whole letters of it and an ellipsis where it is wider than
+   the room left of the battery, as Neo's and Modern's, fitted now for the
+   cache; where it fits, as it is */
+static char classic_usb_name[64];
+
+static void classic_usb_prepare(void)
+{
+    const int room = IPOD_USB_BATTERY_X - 4 - 6;
+    int width;
+    strmemccpy(classic_usb_name, ipod_usb_name, sizeof(classic_usb_name));
+    font_getstringsize(classic_usb_name, &width, NULL, FONT_UI);
+    if (width > room)
+        skin_fit_with_ellipsis(classic_usb_name, strlen(classic_usb_name),
+                               sizeof(classic_usb_name), FONT_UI, room);
+    ipod_usb_cache_letters(classic_usb_name, FONT_UI);
+}
+
 static void ipod_usb_prepare(void)
 {
 #ifdef HAVE_TAGCACHE
@@ -474,10 +545,28 @@ static void ipod_usb_prepare(void)
     font_getstringsize(str(LANG_USB_OK_TO_DISCONNECT), NULL, NULL, FONT_UI);
     ipod_usb_cache_letters(str(LANG_USB_DO_NOT_DISCONNECT), FONT_UI);
     ipod_usb_cache_letters(str(LANG_USB_OK_TO_DISCONNECT), FONT_UI);
+#ifdef UI_220X176
+    int widest, width;
+    font_getstringsize(str(LANG_USB_DO_NOT_DISCONNECT), &widest, NULL, FONT_UI);
+    font_getstringsize(str(LANG_USB_OK_TO_DISCONNECT), &width, NULL, FONT_UI);
+    ipod_usb_words_font = FONT_UI;
+    if (MAX(widest, width) > IPOD_USB_WORDS_ROOM)
+    {
+        const int small = font_find(ui_font_file(UI_FONT_HINT));
+        if (small >= 0)
+        {
+            ipod_usb_words_font = small;
+            ipod_usb_cache_letters(str(LANG_USB_DO_NOT_DISCONNECT), small);
+            ipod_usb_cache_letters(str(LANG_USB_OK_TO_DISCONNECT), small);
+        }
+    }
+#endif
     if (global_settings.ui_theme == UI_THEME_NEO)
         neo_usb_prepare();
     else if (global_settings.ui_theme == UI_THEME_MODERN)
         modern_usb_prepare();
+    else
+        classic_usb_prepare();
 }
 
 /* The two frames of the bitmap: charging, and on power but not charging */
@@ -553,10 +642,10 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
     screen->set_drawmode(DRMODE_FG);
     /* in the middle if it's clear of the battery, and otherwise from the left */
     int name_width, name_height;
-    screen->getstringsize(ipod_usb_name, &name_width, &name_height);
+    screen->getstringsize(classic_usb_name, &name_width, &name_height);
     if (name_width <= 2 * (IPOD_USB_BATTERY_X - 4) - LCD_WIDTH)
     {
-        ipod_usb_draw_centred(screen, ipod_usb_name, IPOD_USB_TITLE_H / 2);
+        ipod_usb_draw_centred(screen, classic_usb_name, IPOD_USB_TITLE_H / 2);
     }
     else
     {
@@ -564,9 +653,12 @@ static void ipod_usb_draw(struct screen *screen, struct viewport *parent)
         title_vp.width = IPOD_USB_BATTERY_X - 4;
         screen->set_viewport(&title_vp);
         screen->set_drawmode(DRMODE_FG);
-        screen->putsxy(6, IPOD_USB_TITLE_H / 2 - name_height / 2, ipod_usb_name);
+        screen->putsxy(6, IPOD_USB_TITLE_H / 2 - name_height / 2, classic_usb_name);
         screen->set_viewport(parent);
     }
+#ifdef UI_220X176
+    screen->setfont(ipod_usb_words_font);
+#endif
     ipod_usb_draw_centred(screen, str(ipod_usb_ejected ?
                                       LANG_USB_OK_TO_DISCONNECT :
                                       LANG_USB_DO_NOT_DISCONNECT),
