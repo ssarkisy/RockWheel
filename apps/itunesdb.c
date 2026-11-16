@@ -1252,13 +1252,14 @@ static off_t read_track(off_t pos, off_t end, struct track *track)
     else if (media & MEDIA_PODCAST)
         track->st.flags |= ITUNESDB_PODCAST;
     track->dbid = le32(p + 0x70) | (uint64_t)le32(p + 0x74) << 32;
-    if (header_len >= 356)
+    if (header_len >= 356 && le32(p + 352))
         track->art = le32(p + 352);
     else if (p[0x7c] | p[0x7d] << 8)
     {
-        /* a cover, but before iTunes 7's longer record no image id: the
-           image in ArtworkDB names the track by its dbid instead, as iOpenPod
-           writes them for an iPod whose database is that old */
+        /* a cover, but no image id: the image in ArtworkDB names the track
+           by its dbid instead. So before iTunes 7's longer record, as
+           iOpenPod writes them for an iPod whose database is that old, and
+           in iTunes' long records for the iPod Photo, the id left 0 */
         note_art_song(track - db.tracks,
                       le32(p + 0x70) | (uint64_t)le32(p + 0x74) << 32);
         if (art_songs.handle > 0)
