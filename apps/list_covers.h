@@ -59,7 +59,8 @@ int list_covers_timeout(int timeout);
 bool list_covers_poll(void);
 /* a button the list took, as a wheel's step: as it turns, the reader reads
    nothing and what it has read isn't drawn until it rests, each frame
-   reading its own rows' covers (list_covers_draw_soon()) */
+   reading its own rows' covers (list_covers_draw_soon()); flash asleep is
+   woken at once */
 void list_covers_input(void);
 /* a list with covers opened: flash asleep or off woken meanwhile, without
    waiting for it, as its covers are read next; or, on, the covers' map made
@@ -75,12 +76,17 @@ void list_covers_draw_soon(struct gui_synclist *list);
    other albums', and the file is made again at Updating Library */
 void list_covers_forget(void);
 
-/* For the reader's thread: covers asked for, and reading the next of them, as
-   many as one read of the file has; and those asked for let go of, as its
-   thread is waited for, or another list shows */
+/* For the reader's thread: covers asked for, or the map to make again, and
+   reading the next of them, as many as one read of the file has, or making
+   it; and the covers asked for let go of, as its thread is waited for, or
+   another list shows */
 bool list_covers_to_read(void);
 void list_covers_read(void);
 void list_covers_cancel(void);
+/* The disk's files changed, as music starting from a list rewrites some: the
+   covers' map made again soon, by the reader behind the UI, so that the next
+   frames read by it rather than a frame making it as the wheel turns */
+void list_covers_remap_soon(void);
 
 /* Updating Library: the file isn't made for the database and its covers as
    they are, with the setting on or off, so that turning it on shows them at

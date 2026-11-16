@@ -4922,6 +4922,8 @@ void tagtree_save_place(int dirlevel, int selected_item)
        playlist started */
     if (saved_list && tagnavi_loaded)
         kept_place_write();
+    /* the lists' covers mapped again after the files the start rewrote */
+    list_covers_remap_soon();
 }
 
 /* Whether the place where the music playing was started is known, a list of

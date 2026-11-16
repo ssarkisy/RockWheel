@@ -319,7 +319,8 @@ static bool album_playing(const struct tagtree_album *album)
    with USB coming or a disk's error, is looked for again the next time the
    album opens; only an album without one is kept as such. The covers of a
    list's rows too, those a frame lacked and those next to them as the wheel
-   rests (list_covers.c), after the header's, which its screen waits for.
+   rests, and the map they're read by made again as asked (list_covers.c),
+   after the header's, which its screen waits for.
    Behind the UI, which has the CPU at each of a read's yields before it, as
    a wheel's step comes; the header's as the UI, which waits for it. Last,
    the menus' cover from its song's own picture (menu_cover.c) */

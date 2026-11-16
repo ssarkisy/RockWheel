@@ -177,6 +177,10 @@ static int map_checked;
 /* the reader in the middle of its read by the map, or of making it again:
    the map is its own until it's done */
 static volatile bool reader_mapping;
+/* the map to be made again by the reader as soon as it can, behind the UI
+   (list_covers_remap_soon()); and when that was last asked */
+static volatile bool remap_wanted;
+static long remap_asked;
 #endif
 /* how many times they were forgotten, as a read in the middle is of before */
 static unsigned forgets;
@@ -302,7 +306,13 @@ static void map_again(void)
 {
     const int fd = open(COVERS_FILE, O_RDONLY);
     if (fd < 0)
+    {
+        /* none of that name, or none opened: one there later is checked in
+           full (map_covers()), as after the UI's failed open
+           (map_current_now()) */
+        map_checked = 0;
         return;
+    }
     map_covers(fd, true);
     close(fd);
 }
@@ -378,6 +388,7 @@ void list_covers_load(void)
     if (covers)
         covers->map.runs = 0;
     map_checked = 0;
+    remap_wanted = false;
 #endif
     const int count = album_years_count();
     if (!covers || count <= 0)
@@ -584,9 +595,21 @@ static int cmp_slot(const void *a, const void *b)
     return *(const int16_t *)a - *(const int16_t *)b;
 }
 
+#if FLASH_WAKES
+static void wake_ahead(void);
+#endif
+
 void list_covers_input(void)
 {
     last_input = current_tick;
+#if FLASH_WAKES
+    /* flash asleep woken at any button the list takes, the wheel's first
+       step among them, not at the first frame that lacks a cover: it's on by
+       the frames after. Nothing once it's on, and never a hard disk
+       (wake_ahead()) */
+    if (covers)
+        wake_ahead();
+#endif
 }
 
 /* the sooner of a wait for a button, as get_action() takes it, and ticks */
@@ -614,14 +637,14 @@ static void ask(void)
 }
 
 #if FLASH_WAKES
-/* Flash that's asleep or off as a list with covers opens, or as a frame
-   would read its covers but for it: woken by the storage's thread
-   (storage_wake_ahead()), the UI not waiting for it, so that the covers come
-   with the next frame. Once until it's on, or asked again WAKE_AGAIN on if
-   it hasn't come on. A disk that spins isn't: it spins up as the reader
-   reads them. While it comes on, the storage's thread holds the disk's
-   lock, and a read of the UI's waits for it, 35-50 ms from asleep, a frame,
-   as it would have waited to wake it itself */
+/* Flash that's asleep or off as a list with covers opens or takes a button,
+   or as a frame would read its covers but for it: woken by the storage's
+   thread (storage_wake_ahead()), the UI not waiting for it, so that the
+   covers come with the next frame. Once until it's on, or asked again
+   WAKE_AGAIN on if it hasn't come on. A disk that spins isn't: it spins up
+   as the reader reads them. While it comes on, the storage's thread holds
+   the disk's lock, and a read of the UI's waits for it, 35-50 ms from
+   asleep, a frame, as it would have waited to wake it itself */
 #define WAKE_AGAIN (2 * HZ)
 static bool waking;
 static long waking_tick;
@@ -659,6 +682,33 @@ void list_covers_opened(void)
 #endif
 }
 
+/* The map made again soon by the reader (list_covers_remap_soon()). Only
+   flash that's on, which frames read: a hard disk's covers come from the
+   reader, which maps them itself. Limited, as a resting list asks, once a
+   second at most: a map that can't be made again is left to the frames and
+   the reader as before */
+static void remap_soon(bool limited)
+{
+#ifdef HAVE_FILE_MAP
+    if (!covers || reader_mapping || remap_wanted || map_checked <= 0
+        || file_map_current(&covers->map) || !disk_on()
+        || (limited && TIME_BEFORE(current_tick, remap_asked + HZ)))
+        return;
+    remap_asked = current_tick;
+    remap_wanted = true;
+    /* as a list's covers are asked for: the moving cover's thread on the COP
+       ended first, so that a codec's decoder there finds its slot */
+    album_header_reader_start();
+#else
+    (void)limited;
+#endif
+}
+
+void list_covers_remap_soon(void)
+{
+    remap_soon(false);
+}
+
 int list_covers_timeout(int timeout)
 {
     if (!covers)
@@ -674,6 +724,11 @@ int list_covers_timeout(int timeout)
     const bool to_ask = lacking_count + ahead_count > 0 && !asked;
     if (to_ask && !turning && button_queue_empty())
         ask();
+    /* the disk's files changed as the list rests, as by the status saved
+       while music plays: the map made again behind it before the wheel
+       turns, not by a frame as it turns */
+    if (!turning)
+        remap_soon(true);
     /* looked again as it rests, to ask, and draw what's come */
     if (turning && (to_ask || to_read_next < to_read_count || came))
         return sooner(timeout, rest - current_tick);
@@ -694,8 +749,15 @@ bool list_covers_poll(void)
 
 bool list_covers_to_read(void)
 {
+    if (!covers)
+        return false;
+#ifdef HAVE_FILE_MAP
+    /* the map, whatever the buttons: short, and what the next frames read by */
+    if (remap_wanted)
+        return true;
+#endif
     /* none while a button waits: the UI's first */
-    return covers && to_read_next < to_read_count && button_queue_empty();
+    return to_read_next < to_read_count && button_queue_empty();
 }
 
 void list_covers_cancel(void)
@@ -843,9 +905,29 @@ void list_covers_draw_soon(struct gui_synclist *list)
    made again while lists show. By its sectors if they're mapped; by its
    name otherwise. Only as the wheel rests: while it turns, those asked for
    wait for it to rest, as they're asked for again then, and each frame
-   reads its own (list_covers_draw_soon()), the disk not taken from it */
+   reads its own (list_covers_draw_soon()), the disk not taken from it.
+   First the map made again as asked, the wheel turning or not */
 void list_covers_read(void)
 {
+#ifdef HAVE_FILE_MAP
+    /* The map made again as asked, the wheel turning or not, as a read would
+       make it: the frames don't read by it meanwhile (map_covers()) */
+    if (remap_wanted)
+    {
+        remap_wanted = false;
+#if READ_YIELDS
+        ata_dma_yield_always(true);
+#endif
+        reader_mapping = true;
+        if (!file_map_current(&covers->map))
+            map_again();
+        reader_mapping = false;
+#if READ_YIELDS
+        ata_dma_yield_always(false);
+#endif
+        return;
+    }
+#endif
     if (wheel_turning())
     {
         list_covers_cancel();
@@ -1126,6 +1208,7 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
     if (covers)
         covers->map.runs = 0;
     map_checked = 0;
+    remap_wanted = false;
 #endif
     const int count = album_years_count();
     if (count <= 0 || count >= NO_SLOT)
@@ -1351,5 +1434,6 @@ void list_covers_load(void) {}
 void list_covers_input(void) {}
 void list_covers_opened(void) {}
 void list_covers_draw_soon(struct gui_synclist *list) { (void)list; }
+void list_covers_remap_soon(void) {}
 
 #endif /* ITUNESDB_HAVE_ART */
