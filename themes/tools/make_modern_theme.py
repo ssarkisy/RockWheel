@@ -129,8 +129,9 @@ PHOTO = dict(
     LYRICS_Y=21, LYRICS_H=120,
     THICK_Y=143, LOWTIME_W=80,
     # the main menu's pane: its first column, which has its hairline; the
-    # cover fills its height, Finder's frame at the pane's size
-    PANE=110, PANE_COVER=176,
+    # cover fills its height, Finder's frame at the pane's size; Settings'
+    # ring (neo_ring.h) and Photos' collage (photos_panel.h)
+    PANE=110, PANE_COVER=176, PANE_RING=64, PANE_COLLAGE=132,
     SBS_FONTS=("14-Inter-SemiBold", "14-Inter-Medium"),
     WPS_FONTS=("14-Inter-SemiBold", "15-Inter-SemiBold", "15-Inter-Medium",
                "14-Inter-Medium"),
@@ -315,9 +316,9 @@ SBS = """\
 %s%ac%?it<%it|%?fn<%fn|>>
 """
 
-# The iPod photo's: the pane beside the main menu alone, the music in it
-# whatever row is selected; the rest, and the main menu with Cover Beside
-# Menu off, take the screen's width as on a stock iPod photo
+# The iPod photo's: the pane beside the main menu alone, by the row selected
+# as on the Video, in a pane of 110; the rest, and the main menu with Cover
+# Beside Menu off, take the screen's width as on a stock iPod photo
 SBS_PHOTO = """\
 # Modern: the status bar, and the main menu's pane or the lists of the
 # screen's whole width. Made by themes/tools/make_modern_theme.py
@@ -327,10 +328,11 @@ SBS_PHOTO = """\
 # beside the pane the bar is as wide as the menu: the clock and the glyphs;
 # the pane has the screen's whole height
 %?LW<%VI(wide)%Vd(bar)%Vd(rule)%?if(%Li, =, 33)<%Vd(clock)|{title}>{show}|%VI(half)%Vd(barh)%Vd(ruleh)%Vd(clock){showh}>
-# the pane: the song's cover, or the note and under it the library's count
-# or the track
-%?LW<|{music}>
-# the cover fills the pane, nothing over it, as on the Video: Finder's {cover}
+# the pane by the row selected: Settings, Photos, or the music, which Extras
+# has too
+%?LW<|%?LS<%Vd(pane)%Vd(ring)%Vd(about)|{music}|%Vd(pane)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|{music}>>
+# the music: the song's cover, or the note and under it the library's count
+# or the track. The cover fills the pane, nothing over it, as on the Video: Finder's {cover}
 # px, its middle {pane_w} columns. It is drawn from {cover_cut} columns before the pane,
 # which are the menu's and its bar's, drawn after it
 %Cl(0,0,{cover},{cover},c,c)
@@ -355,11 +357,35 @@ SBS_PHOTO = """\
 {long_vps}
 {vps}
 {vpsh}
-# the pane without a cover: a surface with a hairline at its left, the note
-# on it and its caption, one block in the middle of the pane's height, the
-# caption's capitals {pane_gap} rows under the note
+# the pane, under all but a cover: a surface, and a hairline at its left
+# (below, after the collage, which would clear it)
 %Vl(pane,{pane},0,{pane_w},{h},-)%Vb(PANE)
+# Settings: the disk's use as a ring of {ring} px (neo_ring.h), the used part
+# in the accent on a track of the theme's (apps/gui/ui_theme.c); what is free,
+# and the whole, one block in the middle of the pane
+%Vl(ring,{ring_x},{ring_y},{ring},{ring},-)%Vf(ACCENT)%Vb(PANE)
+%nR
+%Vl(about,{about_x},{free_y},{about_w},14,2)%Vf(INK)%Vb(PANE)
+%s%ac%nf
+%Vl(about,{about_x},{total_y},{about_w},14,3)%Vf(SMALL)%Vb(PANE)
+%ac%nT
+# Photos: four rows of three of them, made at Updating Library
+# (photos_panel.c), round and between which the pane shows, and their count
+# under them; without any, their mark and "No Photos"
+%Vl(collage,{pane},{collage_y},{pane_w},{collage_h},-)%Vb(PANE)
+%xl(Q,/.rockbox/photos_panel.bmp,0,0)
+%xd(Q)
+%Vl(photocount,{about_x},{count_y},{about_w},14,3)%Vf(SMALL)%Vb(PANE)
+%s%ac%nP
+%xl(I,Photos Pane.bmp,0,0)
+%Vl(nophotos,{photos_x},{photos_y},{photos_w},{photos_h},-)%Vb(PANE)
+%xd(I)
+%Vl(photocaption,{about_x},{nophotos_y},{about_w},14,3)%Vf(SMALL)%Vb(PANE)
+%ac%nP
 %Vl(pane,{pane},0,1,{h},-)%Vb(COLUMN)
+# the music without a cover: the note and its caption, one block in the
+# middle of the pane's height, the caption's capitals {pane_gap} rows under
+# the note
 %xl(O,Note Pane.bmp,0,0)
 %Vl(note,{note_x},{note_y},{note_w},{note_h},-)%Vb(PANE)
 %xd(O)
@@ -496,7 +522,7 @@ def sbs():
         music = ("%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"
                  "|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)"
                  "|%Vd(stopped)>>")
-        note = SIZES["Note_Pane"]
+        note, photos = SIZES["Note_Pane"], SIZES["Photos_Pane"]
         pane_w = W - PANE
         cut = (PANE_COVER - pane_w) // 2
         # the note and its caption, from its capitals to the row they stand
@@ -504,6 +530,12 @@ def sbs():
         # 14-Inter-SemiBold stands as the count in 14-Inter-Medium
         note_y = (H - (note[1] + PANE_GAP + CELL_14[1] - CELL_14[0] + 1)) // 2
         caption_y = note_y + note[1] + PANE_GAP - CELL_14[0]
+        # Settings' ring and its two lines, Photos' collage and its count, and
+        # their mark and caption: each one block in the middle of the pane, as
+        # Neo's (make_neo_theme.py)
+        ring_y = (H - (PANE_RING + 10 + 2 * 14 + 2)) // 2
+        collage_y = (H - (PANE_COLLAGE + 6 + 14)) // 2
+        photos_y = (H - (photos[1] + 12 + 14)) // 2
         return fill(SBS_PHOTO, fonts=fonts(SBS_FONTS), images=images(), show=show, vps=vps,
                     showh=showh, vpsh=vpsh, title=title, long_vps=long_vps, music=music,
                     margin=MARGIN, text_y=TEXT_Y, bar_rows=STATUS - 1, list_top=LIST_TOP,
@@ -513,7 +545,15 @@ def sbs():
                     pane_gap=PANE_GAP, note_x=PANE + (pane_w - note[0]) // 2,
                     note_y=note_y, note_w=note[0], note_h=note[1],
                     caption_x=PANE + 6, caption_w=pane_w - 12,
-                    stopped_y=caption_y, normal_y=caption_y)
+                    stopped_y=caption_y, normal_y=caption_y,
+                    ring=PANE_RING, ring_x=PANE + (pane_w - PANE_RING) // 2, ring_y=ring_y,
+                    free_y=ring_y + PANE_RING + 10, total_y=ring_y + PANE_RING + 10 + 16,
+                    about_x=PANE + 3, about_w=pane_w - 6,
+                    collage_y=collage_y, collage_h=PANE_COLLAGE,
+                    count_y=collage_y + PANE_COLLAGE + 6,
+                    photos_x=PANE + (pane_w - photos[0]) // 2, photos_y=photos_y,
+                    photos_w=photos[0], photos_h=photos[1],
+                    nophotos_y=photos_y + photos[1] + 12)
     # the menu's bar: its glyphs end 8 px before the pane
     vpsh, showh = status(SPLIT - 8, "h")
     music = ("%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"

@@ -58,9 +58,9 @@ SKIN = {"Battery": "DENSE", "Playing Status": "DENSE", "Hold": "DENSE",
         "Volume Right": "TERTIARY", "Note Playing": "SECONDARY",
         "Note Large": "SECONDARY", "Note Pane": "SECONDARY",
         "Photos Pane": "TERTIARY"}
-# the main menu's pane's that the iPod photo's screen has none of: its pane
-# shows the music alone, its note the Video's picture
-PANE = ("Photos Pane",)
+# the main menu's pane's that the iPod photo's screen has none of: none now,
+# its pane has the Video's pictures at their own sizes
+PANE = ()
 # the set stars over the unset ones, in one bitmap: name -> its ground,
 # whether a first frame of the ground alone is added (the small ones have no
 # frame of none), the roles of the set and the unset ones' colours, and

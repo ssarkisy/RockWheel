@@ -115,10 +115,12 @@ with covers of 29 px (`LINE_COVER_SIZE`); Now Playing's cover 96 px, the details
 the same fonts a step smaller. The glyphs are the same pictures at their own
 sizes; only the bars are made for this width, by `make_theme_glyphs.py`. The pane
 is beside the main menu alone, 110 px from column 110 to the screen's right,
-and shows the music whatever row is selected: the cover of the song playing
-or to resume at 176 px, its middle 110 columns, or without one the note and
-its caption. There is no disk ring or Photos
-collage. Every other list, Music's menu too, takes the screen's width, and
+and shows by the row selected, as on the Video: beside Settings the disk's
+use as a ring of 64 px with the free space and the disk's size; beside
+Photos a collage of four rows of three photos, their thumbnails' middle 34
+columns, with their count; beside the others the music, the cover of the
+song playing or to resume at 176 px, its middle 110 columns, or without one
+the note and its caption. Every other list, Music's menu too, takes the screen's width, and
 so does the main menu with Settings > Appearance > Cover Beside Menu off
 (`%LW`). The theme's fonts and metrics for this screen are in
 `apps/gui/ui_theme.c`, under `UI_220X176`.

@@ -840,12 +840,25 @@ static int playlist_view(void * param)
 static int photos(void *param)
 {
     (void)param;
-    /* its menu keeps the collage beside it, not the song's cover, which the
-       theme shows by a screen that has no panel */
+#ifdef UI_MAIN_MENU_PANE
+    /* the iPod photo's: its menu of the screen's whole width, as Music's,
+       with no pane beside it (photos_panel.h) */
+    menu_set_wide(true);
+#endif
+    /* on the Video its menu keeps the collage beside it, not the song's
+       cover, which the theme shows by a screen that has no panel */
     menu_set_selected_panel(MENU_PANEL_PHOTOS);
     const int status = plugin_load(PLUGIN_APPS_DIR "/photos.rock", NULL);
     menu_set_selected_panel(MENU_PANEL_NONE);
     photos_panel_show_end();
+#ifdef UI_MAIN_MENU_PANE
+    /* the main menu's width back; drawn now only for the main menu itself,
+       not under Now Playing or a plugin coming next (as tree.c) */
+    if (status == PLUGIN_GOTO_WPS || status == PLUGIN_GOTO_PLUGIN)
+        menu_set_wide_later(false);
+    else
+        menu_set_wide(false);
+#endif
     switch (status)
     {
         case PLUGIN_GOTO_WPS:
@@ -2077,15 +2090,26 @@ static void library_update_screen(const char *words)
             viewportmanager_theme_enable(i, false, NULL);
         shown = true;
     }
-    if (shown)
+#if defined(HAVE_PHOTOS_MENU) && defined(HAVE_PHOTOS_PANEL)
+    if (shown && photos_changed && !held_event) /* else made the next time */
+    {
+        if (photos_panel_update(photos_making))
+            skin_reload_while_playing();
+    }
+#endif
+    /* What the main menu's pane shows by the row selected, read now, while
+       the disk spins, and not as it's first drawn, which could spin up a
+       disk stopped by then: the photos' count, which an update of the
+       collage above has read already, and the name given in Finder */
+    if (phase == TAGCACHE_IMPORT_NONE && !held_event)
     {
 #if defined(HAVE_PHOTOS_MENU) && defined(HAVE_PHOTOS_PANEL)
-        if (photos_changed && !held_event) /* else made the next time */
-        {
-            if (photos_panel_update(photos_making))
-                skin_reload_while_playing();
-        }
+        photos_panel_count();
 #endif
+        itunesdb_device_name_refresh();
+    }
+    if (shown)
+    {
         no_space |= library_take_no_room();
         if (no_space && !held_event)
             library_no_space_show();

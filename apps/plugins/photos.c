@@ -1112,7 +1112,8 @@ static bool browse_album(const struct album *album)
 
 #ifdef HAVE_PHOTOS_PANEL
 /* The collages for the panels: thumbnails from all over the library, for the main
-   menu's Photos row, and from all over each album, for the album's row in Photos' menu.
+   menu's Photos row, and on the Video from all over each album, for the album's row in
+   Photos' menu.
    Round and between them a collage is the colour a theme's picture is drawn without, so
    each theme's panel shows there, in its light look and its dark. As tall as it is in
    the theme's .sbs. */
@@ -1123,7 +1124,14 @@ static bool browse_album(const struct album *album)
 #define PANEL_ROWS   4
 #define PANEL_LEFT   2
 #define PANEL_TOP    2
-#define PANEL_STEP_X (GRID_W + 3)
+/* a cell's width: the iPod photo's thumbnails, 41 px, cut to their middle 34
+   for three to go across its pane of 110 */
+#ifdef UI_MAIN_MENU_PANE
+#define PANEL_CELL_W 34
+#else
+#define PANEL_CELL_W GRID_W
+#endif
+#define PANEL_STEP_X (PANEL_CELL_W + 3)
 #define PANEL_STEP_Y (GRID_H + 3)
 /* with fewer photos than cells they come again, as many times as it takes to
    fill it; 0 leaves the cells after the last photo to the panel */
@@ -1172,16 +1180,19 @@ static void compose_panel(fb_data *panel, const uint32_t *items, int count)
         }
         if (!photo)
             break;
+        /* a thumbnail wider than its cell: its middle */
+        const int w = MIN(photo->grid_w, PANEL_CELL_W);
+        const int cut = (photo->grid_w - w) / 2;
         const int left = PANEL_LEFT + (cell % PANEL_COLS) * PANEL_STEP_X
-                         + (GRID_W - photo->grid_w) / 2;
+                         + (PANEL_CELL_W - w) / 2;
         const int top = PANEL_TOP + (cell / PANEL_COLS) * PANEL_STEP_Y
                         + (GRID_H - photo->grid_h) / 2;
         for (int y = 0; y < photo->grid_h; y++)
         {
             const fb_data *from = &grid_buf[(photo->grid_y + y) * grid_stride
-                                            + photo->grid_x];
+                                            + photo->grid_x + cut];
             fb_data *to = &panel[(top + y) * PANEL_W + left];
-            for (int x = 0; x < photo->grid_w; x++)
+            for (int x = 0; x < w; x++)
                 to[x] = panel_pixel(from[x]);
         }
     }
@@ -1219,6 +1230,9 @@ static void make_panel(fb_data *panel)
     rb->whole_file_close(fd, PHOTOS_PANEL_FILE, ok);
 }
 
+#endif /* HAVE_PHOTOS_PANEL */
+
+#ifdef HAVE_PHOTOS_ALBUM_PANELS
 /* What the albums' collages are made of, as the database was read: the albums
    in their order, their names, and each one's photos in order with where
    their thumbnails are. Other albums, other photos in one or other
@@ -1368,7 +1382,7 @@ static void show_album_panel(int album)
     }
 }
 #else
-/* no main menu's pane (photos_panel.h), nor collages for it */
+/* no albums' collages beside Photos' menu (photos_panel.h) */
 static const bool panels_ready = false;
 static int panel_album;
 static int panel_missed = -1;
@@ -1382,7 +1396,7 @@ static void show_album_panel(int album)
 {
     (void)album;
 }
-#endif /* HAVE_PHOTOS_PANEL */
+#endif /* HAVE_PHOTOS_ALBUM_PANELS */
 
 /* the lists, which look like the rest of the menus */
 
@@ -1620,7 +1634,7 @@ enum plugin_status plugin_start(const void *parameter)
 {
     mem = rb->plugin_get_buffer(&mem_left);
 
-#ifdef HAVE_PHOTOS_PANEL
+#ifdef HAVE_PHOTOS_ALBUM_PANELS
     /* at Updating Library: the collages, or the albums' alone, and those only
        if they aren't of the albums as they are now */
     const bool make_all = parameter && !rb->strcmp(parameter, PHOTOS_PANEL_MAKE);
@@ -1642,6 +1656,18 @@ enum plugin_status plugin_start(const void *parameter)
             rb->remove(PHOTOS_PANELS_FILE);
         return PLUGIN_OK;
     }
+#elif defined(HAVE_PHOTOS_PANEL)
+    /* at Updating Library: the main menu's collage, the only one */
+    if (parameter && !rb->strcmp(parameter, PHOTOS_PANEL_MAKE))
+    {
+        fb_data *panel = alloc(PANEL_SIZE);
+        if (panel && load_database())
+        {
+            make_panel(panel);
+            close_frames();
+        }
+        return PLUGIN_OK;
+    }
 #else
     (void)parameter;
 #endif
@@ -1652,7 +1678,7 @@ enum plugin_status plugin_start(const void *parameter)
     if (!frame_buf)
         screen_buf = NULL;
 #endif
-#ifdef HAVE_PHOTOS_PANEL
+#ifdef HAVE_PHOTOS_ALBUM_PANELS
     library_panel = alloc(PANEL_SIZE);
     album_panel = alloc(PANEL_SIZE);
 #endif
@@ -1665,7 +1691,7 @@ enum plugin_status plugin_start(const void *parameter)
     int old_time = slide_time;
     bool old_repeat = slide_repeat, old_shuffle = slide_shuffle;
 
-#ifdef HAVE_PHOTOS_PANEL
+#ifdef HAVE_PHOTOS_ALBUM_PANELS
     open_panels();
 #endif
     rb->add_event_ex(GUI_EVENT_NEED_UI_UPDATE, false, theme_redrawn, NULL);

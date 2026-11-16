@@ -205,13 +205,15 @@ bool photos_panel_update(void (*making)(void))
         && file_exists(PHOTOS_PANEL_FILE))
     {
         /* Finder writes the database again at every sync: with the same
-           photos the main menu's collage and the skins stay, and the albums'
-           are made again only if the plugin reads other albums than they
-           were made of */
+           photos the main menu's collage and the skins stay, and where there
+           are albums' collages they are made again only if the plugin reads
+           other albums than they were made of */
+#ifdef HAVE_PHOTOS_ALBUM_PANELS
         plugin_load(PLUGIN_APPS_DIR "/photos.rock", PHOTOS_PANELS_MAKE);
         /* not made, as for want of room, the plugin leaves no file of them:
            tried again at the next boot, the stamp as it was */
         if (file_exists(PHOTOS_PANELS_FILE))
+#endif
             write_stamp(now, hash);
         return false;
     }
@@ -233,6 +235,7 @@ bool photos_panel_update(void (*making)(void))
             return false;
         }
         remove(PHOTOS_PANEL_FILE ".old");
+#ifdef HAVE_PHOTOS_ALBUM_PANELS
         /* The main menu's made and the albums' not: the stamp of these
            photos and of no database's time, so that the next boot tries the
            albums' alone again. The skins are loaded for the new collage. */
@@ -242,6 +245,7 @@ bool photos_panel_update(void (*making)(void))
             write_stamp(none, hash);
             return true;
         }
+#endif
     }
     else
     {

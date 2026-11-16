@@ -44,6 +44,8 @@ bool itunesdb_stamp(uint32_t *size, uint32_t *mtime);
 bool itunesdb_imported_stamp(uint32_t *size, uint32_t *mtime);
 /* the name given to the iPod in Finder, or else "iPod" */
 const char *itunesdb_device_name(void);
+/* read again now, as Updating Library ends, while the disk spins */
+void itunesdb_device_name_refresh(void);
 /* when Finder last wrote the database */
 struct tm;
 bool itunesdb_sync_date(struct tm *tm);

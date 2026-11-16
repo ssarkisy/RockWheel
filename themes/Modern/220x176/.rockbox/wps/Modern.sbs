@@ -10,10 +10,11 @@
 # beside the pane the bar is as wide as the menu: the clock and the glyphs;
 # the pane has the screen's whole height
 %?LW<%VI(wide)%Vd(bar)%Vd(rule)%?if(%Li, =, 33)<%Vd(clock)|%?Lf(title)<%Vd(clock)%Vd(title)|%?nN<%Vd(longm)|%?mh<%Vd(longp)|%?mp<%Vd(long)|%Vd(longp)|%Vd(longp)|%Vd(longp)|%Vd(longp)>>>>>%Vd(bat)%Vd(play)%?nN<%Vd(moon)>|%VI(half)%Vd(barh)%Vd(ruleh)%Vd(clock)%Vd(bath)%Vd(playh)%?nN<%Vd(moonh)>>
-# the pane: the song's cover, or the note and under it the library's count
-# or the track
-%?LW<|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>
-# the cover fills the pane, nothing over it, as on the Video: Finder's 176
+# the pane by the row selected: Settings, Photos, or the music, which Extras
+# has too
+%?LW<|%?LS<%Vd(pane)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(pane)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
+# the music: the song's cover, or the note and under it the library's count
+# or the track. The cover fills the pane, nothing over it, as on the Video: Finder's 176
 # px, its middle 110 columns. It is drawn from 33 columns before the pane,
 # which are the menu's and its bar's, drawn after it
 %Cl(0,0,176,176,c,c)
@@ -53,11 +54,35 @@
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(moonh,45,3,10,10,-)%Vb(F7F7F7)
 %xd(N)
-# the pane without a cover: a surface with a hairline at its left, the note
-# on it and its caption, one block in the middle of the pane's height, the
-# caption's capitals 8 rows under the note
+# the pane, under all but a cover: a surface, and a hairline at its left
+# (below, after the collage, which would clear it)
 %Vl(pane,110,0,110,176,-)%Vb(EFF3F7)
+# Settings: the disk's use as a ring of 64 px (neo_ring.h), the used part
+# in the accent on a track of the theme's (apps/gui/ui_theme.c); what is free,
+# and the whole, one block in the middle of the pane
+%Vl(ring,133,36,64,64,-)%Vf(FF2D52)%Vb(EFF3F7)
+%nR
+%Vl(about,113,110,104,14,2)%Vf(000000)%Vb(EFF3F7)
+%s%ac%nf
+%Vl(about,113,126,104,14,3)%Vf(525152)%Vb(EFF3F7)
+%ac%nT
+# Photos: four rows of three of them, made at Updating Library
+# (photos_panel.c), round and between which the pane shows, and their count
+# under them; without any, their mark and "No Photos"
+%Vl(collage,110,12,110,132,-)%Vb(EFF3F7)
+%xl(Q,/.rockbox/photos_panel.bmp,0,0)
+%xd(Q)
+%Vl(photocount,113,150,104,14,3)%Vf(525152)%Vb(EFF3F7)
+%s%ac%nP
+%xl(I,Photos Pane.bmp,0,0)
+%Vl(nophotos,137,53,56,44,-)%Vb(EFF3F7)
+%xd(I)
+%Vl(photocaption,113,109,104,14,3)%Vf(525152)%Vb(EFF3F7)
+%ac%nP
 %Vl(pane,110,0,1,176,-)%Vb(E6E7EF)
+# the music without a cover: the note and its caption, one block in the
+# middle of the pane's height, the caption's capitals 8 rows under
+# the note
 %xl(O,Note Pane.bmp,0,0)
 %Vl(note,123,38,84,84,-)%Vb(EFF3F7)
 %xd(O)

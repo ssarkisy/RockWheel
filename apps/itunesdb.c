@@ -488,8 +488,10 @@ bool itunesdb_imported_stamp(uint32_t *size, uint32_t *mtime)
 
 /* The name given to the iPod in Finder is that of the first playlist, the hidden
    one with the whole library. It's near the middle of a file of 30 MB, reached
-   here by a few short reads, so it's read when it's first shown, and again after
-   an import. */
+   here by a few short reads: at the end of Updating Library, while the disk
+   spins (itunesdb_device_name_refresh()), and when it's shown before that.
+   Not found, as on an iPod Finder never synced, it isn't looked for again
+   until then. */
 static char device_name[128];
 static bool device_name_read = false;
 
@@ -500,8 +502,7 @@ static bool read_at(int fd, off_t pos, void *buf, size_t size)
            && read(fd, buf, size) == (ssize_t)size;
 }
 
-/* false if it couldn't be tried yet, with the disk not there */
-static bool read_device_name(void)
+static void read_device_name(void)
 {
     unsigned char h[44];
     unsigned char text[2 * (sizeof(device_name) / 3)];
@@ -509,7 +510,7 @@ static bool read_device_name(void)
 
     device_name[0] = '\0';
     if (fd < 0)
-        return false;
+        return;
 
     off_t pos = 0, end;
     if (!read_at(fd, pos, h, 24) || memcmp(h, "mhbd", 4))
@@ -569,14 +570,22 @@ static bool read_device_name(void)
     }
 done:
     close(fd);
-    return true;
 }
 
 const char *itunesdb_device_name(void)
 {
     if (!device_name_read)
-        device_name_read = read_device_name();
+    {
+        read_device_name();
+        device_name_read = true;
+    }
     return device_name[0] ? device_name : "iPod";
+}
+
+void itunesdb_device_name_refresh(void)
+{
+    device_name_read = false;
+    itunesdb_device_name();
 }
 
 bool itunesdb_exists(void)

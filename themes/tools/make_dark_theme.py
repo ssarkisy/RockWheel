@@ -52,14 +52,14 @@ PHOTO = screen(os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox"
                BAR_X=40, BAR_Y=143, BAR_W=140, ART=(9, 31, 105, 127),
                ART_REFLECTION_ROWS=14, LIGHT_REFLECTION="%Cr(14,128)",
                SKINS=("wps", "sbs"),
-               PANELS=(("backdrops", "iClassic_bd.bmp", True),
+               PANELS=(("backdrops", "iClassic_bd.bmp", True), ("wps", "About Backdrop.bmp", True),
                        ("wps", "Wide Backdrop.bmp", False)),
                PANEL_X=110,  # the main menu's pane
                HEADER_GLYPHS=("Battery", "Playing Status", "Hold Icon", "Status Night"),
                GROUND_GLYPHS=("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
                               "Scrub Hints", "Repeat Icon", "Shuffle Icon",
                               "Status Shuffle Albums"),
-               COPIED=("Scrub Knob",))
+               COPIED=("Scrub Knob", "Disk Fill", "Photos Icon"))
 
 
 def use(layout):

@@ -25,10 +25,14 @@
 #include "lcd.h"
 #include "gui/ui_theme.h"
 
-/* The collages below, only where the main menu has its pane (ui_theme.h);
-   Photos goes without them on the iPod photo's full-width menu */
-#ifdef UI_MENU_PANE
+/* The collages below, only where the main menu has its pane (ui_theme.h). The
+   albums' ones only on the Video, where Photos' own menu has the pane too; the
+   iPod photo's is of the screen's whole width */
+#if defined(UI_MENU_PANE) || defined(UI_MAIN_MENU_PANE)
 #define HAVE_PHOTOS_PANEL
+#endif
+#ifdef UI_MENU_PANE
+#define HAVE_PHOTOS_ALBUM_PANELS
 #endif
 
 /* What shows beside the main menu when Photos is selected: a collage of the photos,
@@ -36,8 +40,14 @@
    the file, and has an icon for when it isn't there. */
 #define PHOTOS_PANEL_FILE ROCKBOX_DIR "/photos_panel.bmp"
 #define PHOTOS_PANEL_MAKE "--panel"
+#ifdef UI_MAIN_MENU_PANE
+/* the iPod photo's pane of 110 px: four rows of three, its count under them */
+#define PHOTOS_PANEL_W 110
+#define PHOTOS_PANEL_H 132
+#else
 #define PHOTOS_PANEL_W 160
 #define PHOTOS_PANEL_H 176
+#endif
 
 /* The albums' collages, which Photos' own menu shows beside an album's row: all in one
    file, made with the collage above, or alone, given this, when the photos are the same
@@ -55,7 +65,8 @@
 /* How many photos Finder has synced, from the header of the database */
 int photos_count(void);
 
-/* The same, remembered, for what the theme shows */
+/* The same, remembered, for what the theme shows: read at Updating Library
+   (root_menu.c), while the disk spins, and not as the theme first shows it */
 int photos_panel_count(void);
 
 /* Whether the database has changed since the collage was made */

@@ -8,10 +8,12 @@ The iPod photo's 220x176 screen has each theme's own skins, in
 `<theme>/220x176/.rockbox/...`, which `tools/buildzip.pl` installs for that
 screen instead. They are the same themes laid out by the same rules for a
 screen three quarters as high, in smaller fonts and with the same glyphs at
-their own sizes: none of their pictures is scaled. The pane is beside the main
-menu alone and shows the music; every other list takes the screen's width, as
-on a stock iPod photo, and so does the main menu with Settings > Appearance >
-Cover Beside Menu off. Modern's and Neo's are written by their scripts with the 320x240
+their own sizes: none of their pictures is scaled but Classic's About Backdrop
+and Disk Fill. The pane is beside the main menu alone and shows by the row
+selected, as on the Video: the disk for Settings (Classic: and for Extras),
+the Photos collage for Photos, the music for the rest. Every other list takes
+the screen's width, as on a stock iPod photo, and so does the main menu with
+Settings > Appearance > Cover Beside Menu off. Modern's and Neo's are written by their scripts with the 320x240
 ones; Classic's pictures by `tools/make_classic_220x176.py` from its 320x240
 ones, its skins by hand as those are.
 
@@ -116,7 +118,8 @@ after a change, in this order:
 - `make_menu_icons.py`: the backdrops' placeholder note and its reflection, and
   the original theme's battery out of their status bar, where the skins draw one.
 - `make_classic_220x176.py`: the iPod photo's pictures from these, its note
-  of a missing cover drawn anew at its size.
+  of a missing cover and its Photos Icon drawn anew at their sizes, and its
+  About Backdrop and Disk Fill scaled from this branch's own by 176/240.
 - `make_classic_np.py`: the details of Now Playing, in the light theme's WPS,
   of either screen.
 - `make_dark_theme.py`: the dark theme, all of it from the light one, of
