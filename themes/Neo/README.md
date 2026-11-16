@@ -166,7 +166,8 @@ Its main parameters, at the top of the script:
 - `REFLECT_LIGHT` and `REFLECT_DARK`: the reflection's rows and its strength
   at the top, out of 256, for `%Cr`.
 - The layout: `STATUS` (the status line's rows; its hairline is the next
-  row), `MARGIN`, `LIST_TOP` and `LIST_ROWS` (the lists' area), `TEXT_Y`,
+  row), `MARGIN` (Now Playing's sides), `SBS_MARGIN` (the status line's),
+  `HALF_W` (the list beside the pane), `LIST_TOP` and `LIST_ROWS` (the lists' area), `TEXT_Y`,
   `FOOT` and `GAP` (the status line's text and glyphs), `COVER` and `COVER_Y`
   (Now Playing's cover), `REFLECTION`, `TITLE_LINE`, `DETAIL`, `SMALL` and the
   gaps of the details block, `BAR_Y`, `TIMES_Y` and `MODES_Y`.
@@ -355,15 +356,16 @@ font role does. The main values:
   `ui_theme_set_section()`, called as screens open, gives Multicolour its
   section; `ui_theme_cover_tone()` and `ui_theme_cover_fill()` serve Cover
   Colours (`apps/gui/skin_engine/cover_palette.c`).
-- **Rows:** `UI_METRIC_ROW_HEIGHT` 30; `UI_METRIC_TEXT_INSET` 14, the text's
-  distance from the list's edge; `UI_METRIC_ROW_COVER_INSET` 8 for a row's
-  cover.
+- **Rows:** `UI_METRIC_ROW_HEIGHT` 30; `UI_METRIC_TEXT_INSET` 10, the text's
+  distance from the list's edge; `UI_METRIC_ROW_COVER_INSET` 6 for a row's
+  cover, 2 px inside the selection.
 - **Selection:** `UI_METRIC_SELECTION_RADIUS` 7, a rounded rectangle inset
-  `UI_METRIC_SELECTION_INSET_X` 6 px from the row's sides and
+  `UI_METRIC_SELECTION_INSET_X` 4 px from the row's sides and
   `UI_METRIC_SELECTION_INSET_Y` 2 px from its top and foot;
   `UI_METRIC_SELECTION_INK` 1, everything on it in the selection's text
-  colour. The main menu's list is 156 px wide in `Neo.sbs`, so that its
-  selection ends at column 150.
+  colour. The main menu's list is 158 px wide in `Neo.sbs`, so that its
+  selection ends at column 153 and a list's scrollbar a column short of the
+  hairline on column 159.
 - **Right end of a row:** `UI_METRIC_CHEVRON_ALL` 1, a chevron on every row
   that leads on; `UI_METRIC_ROW_RIGHT`, `UI_METRIC_VALUE_MARGIN` and
   `UI_METRIC_VALUE_GAP` place the chevron and the value;
@@ -373,7 +375,9 @@ font role does. The main values:
   colour, as in Classic. A switch on the selected row stood in the row's own
   colour, and On looked like Off.
 - **Other parts:** `UI_METRIC_GROUP_BAR` 2, a section's name on a band;
-  `UI_METRIC_SCROLLBAR_CAPSULE` 3, the scrollbar's width;
+  `UI_METRIC_SCROLLBAR_CAPSULE` 3, the scrollbar's width, at the screen's
+  edge; `UI_METRIC_SCROLLBAR_GAP` 2, the columns between it and the
+  selection, the rows a pixel narrower while it shows (apps/gui/bitmap/list.c);
   `UI_METRIC_SPLASH_RADIUS` 9 with `UI_METRIC_SPLASH_PAD_X` and
   `UI_METRIC_SPLASH_PAD_Y`, the message's plaque in `UI_COLOUR_SPLASH_FILL`
   and `UI_COLOUR_SPLASH_TEXT`

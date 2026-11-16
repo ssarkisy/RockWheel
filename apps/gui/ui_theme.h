@@ -206,6 +206,10 @@ enum ui_metric {
        UI_COLOUR_SETTINGS_SELECTOR, its name in the accent and everything else
        on it as on a row not selected; the other lists keep the theme's */
     UI_METRIC_SETTINGS_SELECTION,
+    /* with UI_METRIC_SCROLLBAR_CAPSULE: the least columns between the
+       selection's end and the capsule while it shows, the rows narrower for
+       them (list.c); 0 for those the selection's inset leaves */
+    UI_METRIC_SCROLLBAR_GAP,
     UI_METRIC_COUNT
 };
 

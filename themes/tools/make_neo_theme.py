@@ -74,7 +74,7 @@ VIDEO = dict(
     MARGIN=14,              # the sides': the clock's start, the glyphs' end
     # the status line's sides, and the list's width beside the pane (the
     # iPod photo's: its narrow sides, ui_theme.c)
-    SBS_MARGIN=14, HALF_W=156,
+    SBS_MARGIN=10, HALF_W=158,
     # the lists' area: seven rows of 30 or six of 36; apps/gui/ui_theme.c has
     # the rows' insets
     LIST_TOP=23, LIST_ROWS=216,
@@ -281,9 +281,10 @@ SBS = """\
 %Cd
 %Vl(a,120,0,40,240,-)
 # the lists: under the status line and its hairline, rows of 30; beside the
-# pane 156 wide, so that the selected row ends at 150
+# pane {half_w} wide, so that a column is left between the hairline and the
+# scrollbar's capsule at the list's edge
 %Vi(wide,0,{list_top},320,{list_rows},1)%Vf(PRIMARY)%Vb(PAPER)
-%Vi(half,0,{list_top},156,{list_rows},1)%Vf(PRIMARY)%Vb(PAPER)
+%Vi(half,0,{list_top},{half_w},{list_rows},1)%Vf(PRIMARY)%Vb(PAPER)
 # hairlines: under the status line, over the menu only beside the pane, and
 # column 159 between the menu and the pane
 %Vl(rulewide,0,{status},320,1,-)%Vb(TRACK)
@@ -598,7 +599,7 @@ def sbs_text():
     return fill(SBS, fonts=fonts(SBS_FONTS), images=images(False), wide=wide, half=half,
                 wide_vps=wide_vps,
                 half_vps=half_vps, long_vps=long_vps, title=title, music=music, margin=MARGIN, text_y=TEXT_Y,
-                status=STATUS, list_top=LIST_TOP, list_rows=LIST_ROWS,
+                status=STATUS, list_top=LIST_TOP, list_rows=LIST_ROWS, half_w=HALF_W,
                 photos_x=240 - photos[0] // 2, photos_y=104 - photos[1] // 2,
                 photos_w=photos[0], photos_h=photos[1],
                 note_x=240 - note[0] // 2, note_y=104 - note[1] // 2,

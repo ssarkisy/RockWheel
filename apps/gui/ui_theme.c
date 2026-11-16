@@ -708,7 +708,7 @@ static const struct ui_theme ui_themes[] = {
                selection 2 px from the screen's edges, the names and the
                chevrons 4 px inside it; the scrollbar's capsule of 2 px at
                the edge, the rows a pixel narrower while it shows, so that a
-               column stays between them (list.c) */
+               column stays between them (UI_METRIC_SCROLLBAR_GAP, list.c) */
             [UI_METRIC_SELECTION_INSET_X]    = 2,
             [UI_METRIC_SELECTION_INSET_Y]    = 1,
             /* a row's cover 2 px inside the selection's sides */
@@ -720,6 +720,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_ROW_RIGHT]            = 12,
             [UI_METRIC_ROW_RIGHT_GAP]        = 7,
             [UI_METRIC_SCROLLBAR_CAPSULE]    = 2,
+            [UI_METRIC_SCROLLBAR_GAP]        = 1,
             [UI_METRIC_SELECTION_INK]        = 1,
             [UI_METRIC_GROUP_BAR]            = 2,
             [UI_METRIC_LEAD_COLUMN]          = 18,
@@ -756,22 +757,27 @@ static const struct ui_theme ui_themes[] = {
         },
         .metric = {
             [UI_METRIC_ROW_HEIGHT]           = 30,
-            [UI_METRIC_TEXT_INSET]           = 14,
+            /* sides 4 px narrower than they were (owner, 2026-11-16), as the
+               iPod photo's were: the selection 4 px from the screen's edges,
+               the chevrons 4 px inside its end; the scrollbar's capsule at
+               the edge, the rows a pixel narrower while it shows, so that two
+               columns stay between them (UI_METRIC_SCROLLBAR_GAP, list.c) */
+            [UI_METRIC_TEXT_INSET]           = 10,
             [UI_METRIC_INITIAL_HEIGHT]       = 72,
-            [UI_METRIC_INITIAL_MARGIN]       = 16,
+            [UI_METRIC_INITIAL_MARGIN]       = 12,
             [UI_METRIC_SPLASH_RADIUS]        = 9,
             [UI_METRIC_SPLASH_PAD_X]         = 14,
             [UI_METRIC_SPLASH_PAD_Y]         = 7,
             [UI_METRIC_STATUS_ROWS]          = 21,
             [UI_METRIC_PANEL_HEAD_PLAIN]     = 1,
-            [UI_METRIC_CHEVRON_MARGIN]       = 12,
+            [UI_METRIC_CHEVRON_MARGIN]       = 8,
             [UI_METRIC_LEAD_GAP]             = 8,
-            /* a value ends at 302, or at 292 before a chevron */
-            [UI_METRIC_VALUE_MARGIN]         = 18,
-            [UI_METRIC_VALUE_MARGIN_CHEVRON] = 28,
+            /* a value ends at 306, or at 296 before a chevron */
+            [UI_METRIC_VALUE_MARGIN]         = 14,
+            [UI_METRIC_VALUE_MARGIN_CHEVRON] = 24,
             [UI_METRIC_VALUE_GAP]            = 10,
             [UI_METRIC_VALUE_CUT]            = 1,
-            [UI_METRIC_HINT_X]               = 14,
+            [UI_METRIC_HINT_X]               = 10,
             [UI_METRIC_HINT_TOP]             = 6,
             [UI_METRIC_HINT_PITCH]           = 18,
             /* 36 px: the name's part its whole cell of 19, so that nothing of
@@ -788,7 +794,7 @@ static const struct ui_theme ui_themes[] = {
                is three rows, in their middle */
             [UI_METRIC_HEADER_COVER_TOP]     = 4,
             [UI_METRIC_HEADER_COVER_GAP]     = 12,
-            [UI_METRIC_HEADER_TEXT_MARGIN]   = 14,
+            [UI_METRIC_HEADER_TEXT_MARGIN]   = 10,
             [UI_METRIC_HEADER_NAME_TOP]      = 3,
             [UI_METRIC_HEADER_NAME_LEADING]  = 0,
             [UI_METRIC_HEADER_ARTIST_GAP]    = 2,
@@ -798,17 +804,18 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HEADER_COVER_SIZE]    = 52,
             [UI_METRIC_HEADER_CENTRED]       = 1,
             [UI_METRIC_SELECTION_RADIUS]     = 7,
-            [UI_METRIC_SELECTION_INSET_X]    = 6,
+            [UI_METRIC_SELECTION_INSET_X]    = 4,
             [UI_METRIC_SELECTION_INSET_Y]    = 2,
             /* a row's cover 2 px inside the selection on every side, as over
                and under it: the rows without one start there too */
-            [UI_METRIC_ROW_COVER_INSET]      = 8,
+            [UI_METRIC_ROW_COVER_INSET]      = 6,
             [UI_METRIC_CHEVRON_ALL]          = 1,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 0,
             [UI_METRIC_PANE_LEFT]            = 160,
-            [UI_METRIC_ROW_RIGHT]            = 18,
+            [UI_METRIC_ROW_RIGHT]            = 14,
             [UI_METRIC_ROW_RIGHT_GAP]        = 10,
             [UI_METRIC_SCROLLBAR_CAPSULE]    = 3,
+            [UI_METRIC_SCROLLBAR_GAP]        = 2,
             [UI_METRIC_SELECTION_INK]        = 1,
             [UI_METRIC_GROUP_BAR]            = 2,
             [UI_METRIC_LEAD_COLUMN]          = 24,

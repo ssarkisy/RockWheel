@@ -547,6 +547,13 @@ void gui_synclist_set_empty_text(struct gui_synclist *lists,
         empty_list = NULL;
 }
 
+/* the theme's capsule 1 px from the list's edge, or at it where the
+   selection's side leaves fewer than 3 columns beside the capsule */
+static int capsule_edge(int capsule)
+{
+    return ui_metric(UI_METRIC_SELECTION_INSET_X) - capsule >= 3;
+}
+
 void list_draw(struct screen *display, struct gui_synclist *list)
 {
     int start, end, item_offset, i;
@@ -716,17 +723,19 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     }
 
     /* the theme's capsule (below) beside rows that keep their width, but
-       where the selection's side leaves it no more than its own width: then
-       the rows are a pixel narrower while it shows, a column between them.
-       A group's band, a row's whole ground, keeps the width (below) */
-    const bool narrowed = capsule && list->scrollbar != SCROLLBAR_OFF
-                          && nb_lines < list->nb_items
-                          && ui_metric(UI_METRIC_SELECTION_INSET_X) <= capsule;
-    if (narrowed)
+       where the selection's side leaves fewer columns before it than the
+       theme's gap (UI_METRIC_SCROLLBAR_GAP): then the rows are that much
+       narrower while it shows. A group's band, a row's whole ground, keeps
+       the width (below) */
+    int narrowed = 0;
+    if (capsule && list->scrollbar != SCROLLBAR_OFF && nb_lines < list->nb_items)
     {
-        list_text_vp->width -= 1;
+        const int room = ui_metric(UI_METRIC_SELECTION_INSET_X) - capsule
+                         - capsule_edge(capsule);
+        narrowed = MAX(ui_metric(UI_METRIC_SCROLLBAR_GAP) - room, 0);
+        list_text_vp->width -= narrowed;
         if (VP_IS_RTL(list_text_vp))
-            list_text_vp->x += 1;
+            list_text_vp->x += narrowed;
     }
 
     display->set_viewport(list_text_vp);
@@ -1064,22 +1073,22 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         }
 
         /* a group's band, and its name pinned at the top, to the screen's
-           edge under the capsule as without it: the column the rows gave up
-           is the list's own while this draws (the current viewport) */
-        const bool band = narrowed && list->callback_is_group
-                          && list->callback_is_group(i, list->data);
+           edge under the capsule as without it: the columns the rows gave up
+           are the list's own while this draws (the current viewport) */
+        const int band = narrowed && list->callback_is_group
+                         && list->callback_is_group(i, list->data) ? narrowed : 0;
         if (band)
         {
-            list_text_vp->width += 1;
+            list_text_vp->width += band;
             if (VP_IS_RTL(list_text_vp))
-                list_text_vp->x -= 1;
+                list_text_vp->x -= band;
         }
         callback_draw_item(&list_info);
         if (band)
         {
-            list_text_vp->width -= 1;
+            list_text_vp->width -= band;
             if (VP_IS_RTL(list_text_vp))
-                list_text_vp->x += 1;
+                list_text_vp->x += band;
         }
         if (subline)
             line_draw_subline(display, subline_font,
@@ -1173,9 +1182,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         const int thumb = MAX(14, room * nb_lines / list->nb_items);
         const int rest = list->nb_items - nb_lines;
         const int ty = top + 2 + (room - 4 - thumb) * MAX(MIN(list_start_item, rest), 0) / rest;
-        /* 1 px from the edge, or at it where the selection leaves no room
-           for that (the rows narrower then, above) */
-        const int edge = ui_metric(UI_METRIC_SELECTION_INSET_X) - capsule >= 3;
+        const int edge = capsule_edge(capsule);
         const int tx = VP_IS_RTL(parent) ? edge : parent->width - capsule - edge;
         display->set_foreground(ui_colour(UI_COLOUR_SCROLLBAR_THUMB));
         display->set_drawmode(DRMODE_SOLID);
