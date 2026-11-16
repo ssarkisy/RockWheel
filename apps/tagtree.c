@@ -2522,13 +2522,39 @@ static void tcs_get_basename(struct tagcache_search *tcs, bool is_basename)
     }
 }
 
+/* On Updating Library's screen, in the Songs step's search and playlist
+   write: false once Menu is pressed, as action_userabort() has it, or USB, a
+   switch off or a reboot comes, which is held for the screen to answer after
+   its steps (library_update_hold()). Answered here, USB ran an Updating
+   Library of its own in the middle of the search, which then went on over
+   that one's list */
+static bool boot_screen_go_on(void)
+{
+    const int action = get_action(CONTEXT_STD, TIMEOUT_NOBLOCK);
+    if (action == SYS_USB_CONNECTED || action == SYS_POWEROFF
+        || action == SYS_REBOOT)
+    {
+        library_update_hold(action);
+        return false;
+    }
+    if (action == ACTION_STD_CANCEL)
+        return false;
+    default_event_handler(action);
+    return true;
+}
+
 /* false when left by the user */
 static bool tagtree_search_progress(int count)
 {
     if (list_on_boot_screen)
     {
+        /* at every 64th row: the button queue read and the screen looked at
+           for each of 13,000 rows took most of the step in the simulator */
+        static unsigned int rows;
+        if (++rows & 63)
+            return true;
         library_update_songs_progress(0, 0);
-        return !action_userabort(TIMEOUT_NOBLOCK);
+        return boot_screen_go_on();
     }
     return show_search_progress(false, count, 0, 0);
 }
@@ -2804,6 +2830,11 @@ static bool key_before(const struct song_key *a, const struct song_key *b)
    are held still */
 static bool songs_for_orders;
 static struct song_key *songs_orders_keys;
+/* or Updating Library's search of the list writes them, from the list by
+   name as it's found, before putting it in Sort By's order from them:
+   cleared once they're written */
+static bool songs_orders_with_list;
+static void songs_orders_put(struct tree_context *c, struct song_key *keys);
 
 /* The sort's room for n songs, in the names' room past used, nothing
    allocated, so also while music plays: the keys, the albums' keys, then the
@@ -2956,7 +2987,7 @@ static void songs_order_apply(struct tagentry *e, int n, struct song_place *rows
 
 /* Songs' orders kept in a file, so that the list in one opens without its
    sort, 0.5 s of its 0.7 for 13 000 songs on an iPod. Updating Library
-   writes it (songs_orders_write()), each order's places one after another;
+   writes it (songs_orders_put()), each order's places one after another;
    a list reads its order's into the sort's room, where the sort puts them */
 #define SONGS_ORDERS_FILE    ROCKBOX_DIR "/songs_orders.dat"
 #define SONGS_ORDERS_MAGIC   0x4f535752 /* "RWSO" */
@@ -4136,16 +4167,31 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             current_entry_count--;
             c->special_entry_count--;
         }
-        else if (!songs_for_orders
-                 && (songs_by = songs_order()) != SONGS_BY_NAME)
+        else
         {
-            struct song_place *rows = songs_order_read(c, songs_by, keys);
-            if (!rows)
-                rows = songs_order_sort(c, songs_by, keys);
-            songs_order_apply(get_entries(c) + c->special_entry_count,
-                              current_entry_count - c->special_entry_count,
-                              rows, songs_by);
-            sort = false;
+            /* all found: a press or a held event that stops the search
+               returns before this */
+            if (songs_orders_with_list)
+            {
+                songs_orders_put(c, keys);
+                songs_orders_with_list = false;
+                /* the sorts left each row an album or a year, where the
+                   search leaves a song none, as a list made apart has it */
+                struct tagentry *e = get_entries(c);
+                for (int k = c->special_entry_count; k < current_entry_count; k++)
+                    e[k].album_name = NULL;
+            }
+            if (!songs_for_orders
+                && (songs_by = songs_order()) != SONGS_BY_NAME)
+            {
+                struct song_place *rows = songs_order_read(c, songs_by, keys);
+                if (!rows)
+                    rows = songs_order_sort(c, songs_by, keys);
+                songs_order_apply(get_entries(c) + c->special_entry_count,
+                                  current_entry_count - c->special_entry_count,
+                                  rows, songs_by);
+                sort = false;
+            }
         }
         /* not sorted again below, by a format's names: the file's places
            are of the list as those in an order have it */
@@ -6232,7 +6278,8 @@ static bool insert_all_playlist(struct tree_context *c,
                 library_update_songs_progress(i, n);
             else /* (voiced) */
                 splash_progress(i, n, "%s", str(LANG_WAIT)); /* stopped as before, unsaid */
-            if (action_userabort(TIMEOUT_NOBLOCK))
+            if (list_on_boot_screen ? !boot_screen_go_on()
+                                    : action_userabort(TIMEOUT_NOBLOCK))
             {
                 exit_loop_now = true;
                 break;
@@ -6316,6 +6363,11 @@ static bool insert_all_playlist(struct tree_context *c,
         playlist_insert_context_release(&context);
     else
     {
+        /* stopped on Updating Library's screen: nothing more is written, as a
+           held switch off or USB is answered next, and the next Updating
+           Library makes the list again */
+        if (exit_loop_now && list_on_boot_screen)
+            writer.used = 0;
         ok = playlist_writer_close(&writer);
         if (exit_loop_now)
             written_offsets = NULL;
@@ -7518,15 +7570,22 @@ static void album_keys_write(void)
    Whole or not at all (whole_file_open()); the list isn't kept */
 static void songs_orders_write(struct tree_context *c)
 {
-    struct songs_inputs in;
     songs_orders_keys = NULL;
     songs_for_orders = true;
     const int count = retrieve_entries(c, 0, true);
     songs_for_orders = false;
     kept_hash = 0;
-    if (count <= 0 || !entries_whole || !songs_inputs(&in))
+    if (count > 0 && entries_whole)
+        songs_orders_put(c, songs_orders_keys);
+}
+
+/* The orders' file of the list by name the tree has, as found, with the
+   sort's room for its songs; or the header alone without it */
+static void songs_orders_put(struct tree_context *c, struct song_key *keys)
+{
+    struct songs_inputs in;
+    if (!songs_inputs(&in))
         return;
-    struct song_key *keys = songs_orders_keys;
     const int n = keys ? current_entry_count - c->special_entry_count : 0;
     struct songs_orders_header h = {
         .magic = SONGS_ORDERS_MAGIC, .version = SONGS_ORDERS_VERSION,
@@ -7595,11 +7654,24 @@ void tagtree_prepare_songs(void)
         /* before the playlist's writer has the plugins' buffer */
         if (keys)
             album_keys_write();
-        /* first, for the list made next to be read from them */
-        if (orders)
+        /* the orders first, for the list to be put in its Sort By's order
+           from them: written as the one search finds the list, or the header
+           alone where make_entries() didn't (no room for the sort, or a Songs
+           list without Sort By) */
+        int count = 0;
+        if (!ready)
+        {
+            songs_orders_with_list = orders;
+            count = retrieve_entries(c, 0, true);
+            if (songs_orders_with_list && count > 0 && entries_whole)
+                songs_orders_put(c, NULL);
+            songs_orders_with_list = false;
+        }
+        else if (orders)
             songs_orders_write(c);
-        int count = ready ? 0 : retrieve_entries(c, 0, true);
-        if (count > 0)
+        /* a part of the list, left by a press or a held event, would pass
+           for all of it */
+        if (count > 0 && entries_whole)
         {
             char file[MAX_PATH];
             int slot = tagtree_free_slot(TAGTREE_SLOT_SONGS, file, sizeof(file));
