@@ -29,4 +29,9 @@ bool safe_read8(uint8_t *addr, uint8_t *value);
 bool safe_read16(uint16_t *addr, uint16_t *value);
 bool safe_read32(uint32_t *addr, uint32_t *value);
 
+#if (CONFIG_PLATFORM & PLATFORM_NATIVE) && defined(CPU_ARM_CLASSIC)
+/* r0-r7 of the last data abort taken to UIE() (data_abort_handler) */
+extern unsigned int data_abort_regs[8];
+#endif
+
 #endif /* __SAFE_READ__ */

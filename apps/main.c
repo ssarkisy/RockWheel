@@ -66,6 +66,7 @@
 #include "synced_covers.h"
 #endif
 #include "drive_info.h"
+#include "crash_log.h"
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
 #include "tagtree.h"
@@ -486,6 +487,7 @@ static void init(void)
 #ifdef HAVE_TAGCACHE
     synced_covers_boot();
 #endif
+    crash_log_boot();
     night_mode_boot();
     settings_apply(true);
     init_battery_tables();
@@ -763,6 +765,7 @@ static void init(void)
     synced_covers_boot();
 #endif
     drive_info_init();
+    crash_log_boot();
     night_mode_boot();
 
 #if defined(BUTTON_REC) || \

@@ -35,4 +35,10 @@
  * from the caller */
 void rb_backtrace(int pcAddr, int spAddr, unsigned *line);
 
+#ifdef BACKTRACE_UNWARMINDER
+/* The same unwind into out, at most max return addresses (Thumb's with bit
+ * 0 set), newest first, nothing drawn; returns how many */
+int rb_backtrace_collect(int pcAddr, int spAddr, unsigned int *out, int max);
+#endif
+
 #endif /* __ROCKBOX_BACKTRACE_H__ */

@@ -412,9 +412,67 @@ jump_to_0_handler:
     mov    r0, lr
     mrs    r2, cpsr
     msr    cpsr_c, #0xdb /* Undefined mode, IRQ/FIQ disabled */
-    msr    spsr_cxsf, r2 /* the caller's mode, where __get_sp() looks */
+    msr    spsr_cxsf, r2 /* the caller's mode, whose sp and lr UIE reads */
     mov    r1, #5
     b      UIE
+
+#ifndef BOOTLOADER
+/* The way into the crash screen from each handler and __div0: on to
+   UIE_sys(pc, num, sp, lr) (system-arm-classic.c) in sys mode, interrupts
+   off, on a stack of the core's own, sp and lr being the interrupted mode's.
+   The 1 KB irq_stack the IRQ, SVC, abort and undefined modes share is too
+   small for the unwinder and the screen's printing, and in abort mode an
+   abort that safe_read takes would overwrite the unwinder's lr. */
+    .type  UIE, %function
+    .global UIE
+UIE:
+    cmp    r1, #3               /* __div0: a call, in the caller's mode (an */
+    beq    1f                   /* IRQ handler's too): its own sp and lr */
+    mrs    r3, cpsr
+    and    r3, r3, #0x1f
+    cmp    r3, #0x1f            /* sys mode has no spsr */
+    beq    1f
+    mrs    r3, spsr
+    and    r3, r3, #0x1f
+    cmp    r3, #0x10            /* user mode's registers are sys mode's */
+    moveq  r3, #0x1f
+    orr    r3, r3, #0xc0
+    msr    cpsr_c, r3           /* the mode it came from */
+1:
+    mov    r2, sp
+    mov    r3, lr
+    msr    cpsr_c, #0xdf        /* sys mode, IRQ and FIQ off */
+#if NUM_CORES > 1
+    ldr    r12, =PROC_ID
+    ldrb   r12, [r12]
+    cmp    r12, #0x55
+    ldreq  sp, =uie_stack
+    ldrne  sp, =cop_uie_stack
+#else
+    ldr    sp, =uie_stack
+#endif
+    b      UIE_sys
+    .size  UIE, . - UIE
+
+/* uie_stack_call(pc, sp, fmt, ap, fn): fn(pc, sp, fmt, ap) on that stack, in
+   the mode it is called in, never to return: the rest of panicf (panic.c) */
+    .type  uie_stack_call, %function
+    .global uie_stack_call
+uie_stack_call:
+    ldr    r12, [sp]            /* fn, the fifth argument */
+#if NUM_CORES > 1
+    ldr    lr, =PROC_ID         /* lr is free: no return */
+    ldrb   lr, [lr]
+    cmp    lr, #0x55
+    ldreq  sp, =uie_stack
+    ldrne  sp, =cop_uie_stack
+#else
+    ldr    sp, =uie_stack
+#endif
+    bx     r12
+    .size  uie_stack_call, . - uie_stack_call
+    .ltorg
+#endif /* !BOOTLOADER */
 
 #if defined(HAVE_BOOTDATA) && !defined(BOOTLOADER)
 /* boot data structure */
@@ -442,3 +500,20 @@ fiq_stack:
     .space 256*4
 #endif
 cop_fiq_stack:
+
+#ifndef BOOTLOADER
+/* the crash stacks, UIE's and panicf's: 2 KB a core, the unwinder and the
+   screen's printing taking about 1.6 KB at most */
+    .section .bss.uie_stack,"aw",%nobits
+    .balign 8
+    .global uie_stacks
+uie_stacks:
+    .space 512*4
+uie_stack:
+#if NUM_CORES > 1
+    .space 512*4
+cop_uie_stack:
+#endif
+    .global uie_stacks_end
+uie_stacks_end:
+#endif

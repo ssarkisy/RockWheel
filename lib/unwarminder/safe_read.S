@@ -22,8 +22,21 @@
 .syntax unified
 
 .data
+    .balign 4
 was_aborted:
     .word   0
+
+#if (CONFIG_PLATFORM & PLATFORM_NATIVE) && defined(CPU_ARM_CLASSIC)
+@ r0-r7 as a data abort other than safe_read's found them, for UIE()'s
+@ crash record
+.bss
+    .balign 4
+    .global data_abort_regs
+    .type   data_abort_regs, %object
+data_abort_regs:
+    .space  8*4
+    .size   data_abort_regs, . - data_abort_regs
+#endif
 
 .section    .text.safe_read8
 .type       safe_read8, %function
@@ -127,7 +140,12 @@ data_abort_handler:
     ldr     r1, =safe_read32_faulty_addr
     cmp     r0, r1
     beq     1f
-    @ otherwise just normally to UIE
+    @ otherwise just normally to UIE, r0-r7 kept: r2-r7 as they are, r0-r1
+    @ from the stack
+    ldr     r1, =data_abort_regs + 8
+    stmia   r1, {r2-r7}
+    ldmia   sp, {r2-r3}
+    stmdb   r1, {r2-r3}
     mov     r1, #2
     b       UIE
 1:

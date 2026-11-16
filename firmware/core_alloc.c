@@ -57,19 +57,68 @@ unsigned char *audiobufend = audiobuffer + sizeof(audiobuffer);
 static int test_alloc;
 #endif
 
+#ifdef HAVE_PANIC_RECORD
+#include "panic.h"
+#include "panic_record.h"
+
+/* NULL when the reserve isn't where a reset leaves it alone. Shared: the
+   COP's panics read it too. */
+static struct panic_record *panic_area SHAREDBSS_ATTR;
+
+struct panic_record *panic_record_area(void)
+{
+    return panic_area;
+}
+
+/* The reserve at the audio buffer's end, given its start */
+static struct panic_record *panic_record_place(unsigned char *rec)
+{
+#if (CONFIG_PLATFORM & PLATFORM_NATIVE)
+    /* directly below the codec buffer, which the bootloader and crt0 don't
+       write below (the survive test of 2026-11-15). On a 32 MB Video the
+       64 MB build's codecbuf is the mirror of the RAM's: compare offsets. */
+    extern unsigned char codecbuf[];
+#ifdef IPOD_VIDEO
+    const uintptr_t ram = (MEMORYSIZE == 64 && probed_ramsize != 64)
+                          ? (32u << 20) : ((uintptr_t)MEMORYSIZE << 20);
+#else
+    const uintptr_t ram = (uintptr_t)MEMORYSIZE << 20;
+#endif
+    if (((uintptr_t)(rec + PANIC_REC_RESERVE) & (ram - 1))
+        != ((uintptr_t)codecbuf & (ram - 1)))
+        return NULL;
+    /* written only through the uncached alias: no dirty line of it is lost
+       at a reset, or written back over it later */
+    return UNCACHED_ADDR((struct panic_record *)rec);
+#else
+    return (struct panic_record *)rec;
+#endif
+}
+#endif /* HAVE_PANIC_RECORD */
+
 void core_allocator_init(void)
 {
     unsigned char *start = ALIGN_UP(audiobuffer, sizeof(intptr_t));
+    unsigned char *end = (unsigned char *)audiobufend;
 
 #if !defined(__PCTOOL__) && defined(IPOD_VIDEO) && !defined(BOOTLOADER) && !defined(SIMULATOR)
-    audiobufend=(unsigned char *)audiobufend_lds;
+    end=(unsigned char *)audiobufend_lds;
     if(MEMORYSIZE==64 && probed_ramsize!=64)
     {
-        audiobufend -= (32<<20);
+        end -= (32<<20);
     }
 #endif
 
-    buflib_init(&core_ctx, start, audiobufend - start);
+#ifdef HAVE_PANIC_RECORD
+    end -= PANIC_REC_RESERVE;
+    panic_area = panic_record_place(end);
+#endif
+#if (defined(IPOD_VIDEO) && !defined(BOOTLOADER)) || \
+    !(CONFIG_PLATFORM & PLATFORM_NATIVE)
+    audiobufend = end;
+#endif
+
+    buflib_init(&core_ctx, start, end - start);
 
 #ifdef BUFLIB_DEBUG_PRINT
     test_alloc = core_alloc(112);

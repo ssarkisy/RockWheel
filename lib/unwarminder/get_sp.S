@@ -37,3 +37,29 @@ get_sp:
 #endif
     bx  lr
 .size __get_sp, . - __get_sp
+
+#if (CONFIG_PLATFORM & PLATFORM_NATIVE) && defined(CPU_ARM_CLASSIC)
+/* The lr of the mode an exception came from, as __get_sp() picks it; 0 in
+ * sys mode, where our own call has just taken lr */
+.type __get_lr,%function
+.global __get_lr
+
+__get_lr:
+    mrs r1, cpsr
+    and r0, r1, #0x1f
+    cmp r0, #0x1f
+    moveq r0, #0
+    bxeq lr
+    orr r0, r1, #0xc0
+    msr cpsr_c, r0       /* disable IRQ and FIQ */
+    mrs r0, spsr
+    and r0, r0, #0x1f
+    cmp r0, #0x10        /* user mode's registers are sys mode's */
+    moveq r0, #0x1f
+    orr r0, r0, #0xc0
+    msr cpsr_c, r0       /* the mode the exception came from */
+    mov r0, lr
+    msr cpsr_c, r1
+    bx  lr
+.size __get_lr, . - __get_lr
+#endif

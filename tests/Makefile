@@ -19,6 +19,7 @@
 #   make -C tests check-disk     the "disk free, don't wake it" predicate
 #   make -C tests check-lines    the playlists' line reader against the loops
 #                                it replaced
+#   make -C tests check-panic    the crash record, its copies and their vote
 #   make -C tests clean
 #
 # Built under tests/build. The sources are built with the simulator's
@@ -76,12 +77,12 @@ FIRMWARE_OBJ := $(addprefix $(OBJ)/,$(FIRMWARE_SRC:.c=.o))
 LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o
 
 .PHONY: all check check-keys check-itunesdb check-covers check-codecs \
-	check-wheel check-disk check-lines clean
+	check-wheel check-disk check-lines check-panic clean
 all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_covers \
-	$(BUILD)/test_wheel
+	$(BUILD)/test_wheel $(BUILD)/test_panic_record
 
 check: check-keys check-itunesdb check-covers check-wheel check-codecs \
-	check-disk check-lines
+	check-disk check-lines check-panic
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -99,6 +100,11 @@ $(OBJ)/keys/%.o: $(TESTS)/keys/%.c
 	@$(HOST_CC) $(CFLAGS) -MMD -c $< -o $@
 
 $(OBJ)/covers/%.o: $(TESTS)/covers/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -MMD -c $< -o $@
+
+$(OBJ)/panic/%.o: $(TESTS)/panic/%.c
 	@mkdir -p $(dir $@)
 	@echo CC $(subst $(ROOT)/,,$<)
 	@$(HOST_CC) $(CFLAGS) -MMD -c $< -o $@
@@ -134,6 +140,16 @@ $(BUILD)/test_covers: $(OBJ)/covers/test_covers.o $(OBJ)/apps/covers_table.o \
 
 check-covers: $(BUILD)/test_covers
 	@$(BUILD)/test_covers
+
+# The crash record: panic_record.c, which the panic and the boot's reader use
+$(BUILD)/test_panic_record: $(OBJ)/panic/test_panic_record.o \
+		$(OBJ)/firmware/common/panic_record.o \
+		$(OBJ)/firmware/common/crc32.o $(OBJ)/lib/check.o
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+check-panic: $(BUILD)/test_panic_record
+	@$(BUILD)/test_panic_record
 
 # made again for each run: an import leaves its files in the case's folder
 ITUNESDB_CASES := $(BUILD)/itunesdb-cases

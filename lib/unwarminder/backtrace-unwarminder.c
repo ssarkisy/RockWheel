@@ -24,6 +24,20 @@
 
 #include "backtrace.h"
 #include "safe_read.h"
+#include "panic.h"
+
+/* Each frame's return address goes through the report, and the unwinder
+ * nests a call deeper (136 bytes) at each switch between ARM and Thumb: a
+ * corrupt stack could go on until the crash stack overflowed. So the
+ * unwinds stop at the screen's last row, or the record's last slot, and,
+ * in a build without Thumb code, after an address that would switch. A
+ * switch through a bx from a register not loaded from the stack isn't
+ * reported and remains: nested at most once per report. */
+#ifdef USE_THUMB
+#define CORRUPT(address) false
+#else
+#define CORRUPT(address) ((address) & 1)
+#endif
 
 /***************************************************************************
  * Prototypes
@@ -75,14 +89,16 @@ static Boolean CliReport(void *data, Int32 address)
 {
     /* CliStack *s = (CliStack *)data; */
     unsigned *line = (unsigned *)data;
+    const unsigned last = panic_last_row();
 
-
+    if (*line >= last)
+        return FALSE;
     lcd_putsf(0, (*line)++, "    %c: %08x",
               (address & 0x1) ? 'T' : 'A',
               address & (~0x1));
     lcd_update();
 
-    return TRUE;
+    return *line < last && !CORRUPT(address) ? TRUE : FALSE;
 }
 
 static Boolean CliReadW(const Int32 a, Int32 *v)
@@ -104,6 +120,41 @@ Boolean CliInvalidateW(const Int32 a)
 {
     *(Int32 *)a = 0xdeadbeef;
     return TRUE;
+}
+
+/* rb_backtrace_collect()'s: the return addresses kept, not drawn */
+struct collect
+{
+    unsigned int *out;
+    int n, max;
+};
+
+static Boolean CollectReport(void *data, Int32 address)
+{
+    struct collect *c = (struct collect *)data;
+
+    c->out[c->n++] = address;
+    return c->n < c->max && !CORRUPT(address) ? TRUE : FALSE;
+}
+
+static const UnwindCallbacks collectCallbacks =
+    {
+        CollectReport,
+        CliReadW,
+        CliReadH,
+        CliReadB
+#if defined(UNW_DEBUG)
+       ,printf
+#endif
+    };
+
+int rb_backtrace_collect(int pcAddr, int spAddr, unsigned int *out, int max)
+{
+    struct collect c = { out, 0, max };
+
+    if (max > 0)
+        UnwindStart(pcAddr, spAddr, &collectCallbacks, &c);
+    return c.n;
 }
 
 void rb_backtrace(int pcAddr, int spAddr, unsigned *line)

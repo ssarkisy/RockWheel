@@ -26,6 +26,11 @@
 
 #include <get_sp.h>
 #include <backtrace.h>
+#ifdef HAVE_PANIC_RECORD
+#include "panic.h"
+#include "panic_record.h"
+#include "safe_read.h"
+#endif
 
 static const char* const uiename[] = {
     "Undefined instruction",
@@ -86,16 +91,46 @@ void __attribute__((weak,naked)) undef_instr_handler(void)
         );
 }
 
+/* An exception from crt0-pp.S's crash stacks themselves, a fault while a
+   panic formats its message or draws: UIE's frames go over those its sp
+   points at, so there is nothing to unwind */
+static inline bool on_crash_stack(unsigned int sp)
+{
+#if defined(CPU_PP) && !defined(BOOTLOADER)
+    extern unsigned char uie_stacks[], uie_stacks_end[];
+    return sp >= (uintptr_t)uie_stacks && sp < (uintptr_t)uie_stacks_end;
+#else
+    (void)sp;
+    return false;
+#endif
+}
+
 /* Unexpected Interrupt or Exception handler. Currently only deals with
-   exceptions, but will deal with interrupts later.
+   exceptions, but will deal with interrupts later. sp and lr are those of
+   the mode the exception came from (from crt0-pp.S's UIE, for __div0, a
+   call, its caller's own).
  */
-void NORETURN_ATTR UIE(unsigned int pc, unsigned int num)
+static void NORETURN_ATTR uie_show(unsigned int pc, unsigned int num,
+                                   unsigned int sp, unsigned int lr)
 {
     /* safe guard variable - we call backtrace() only on first
      * UIE call. This prevent endless loop if backtrace() touches
      * memory regions which cause abort
      */
     static bool triggered = false;
+
+#if defined(HAVE_PANIC_RECORD) && defined(HAVE_RB_BACKTRACE)
+    /* the unwind of the record, then the screen's, as one: nothing again
+       after a fault in either */
+    const bool unwind = !triggered && !on_crash_stack(sp);
+    triggered = true;
+    /* data_abort_handler kept r0-r7 (lib/unwarminder/safe_read.S) */
+    panic_record_save(PANIC_KIND_UNDEF_INSTR + num, pc, lr, sp,
+                      num == 2 ? data_abort_regs : NULL, uiename[num],
+                      unwind);
+#else
+    (void)lr;
+#endif
 
 #if LCD_DEPTH > 1
     lcd_set_backdrop(NULL);
@@ -143,14 +178,19 @@ void NORETURN_ATTR UIE(unsigned int pc, unsigned int num)
     }   /* num == 1 || num == 2 // prefetch/data abort */
 #endif /* !defined(CPU_ARM7TDMI */
 
-#ifdef HAVE_RB_BACKTRACE
-    if (!triggered)
+#if defined(HAVE_PANIC_RECORD) && defined(HAVE_RB_BACKTRACE)
+    if (unwind)
+        rb_backtrace(pc, sp, &line);
+    panic_draw_request();
+#elif defined(HAVE_RB_BACKTRACE)
+    if (!triggered && !on_crash_stack(sp))
     {
         triggered = true;
-        rb_backtrace(pc, __get_sp(), &line);
+        rb_backtrace(pc, sp, &line);
     }
 #else
     (void)triggered;
+    (void)sp;
 #endif
 
     lcd_update();
@@ -161,6 +201,26 @@ void NORETURN_ATTR UIE(unsigned int pc, unsigned int num)
     system_reboot();
     while (1);       /* halt */
 }
+
+#if defined(CPU_PP) && !defined(BOOTLOADER)
+/* From crt0-pp.S's UIE: in sys mode, interrupts off, on the core's own stack */
+void NORETURN_ATTR UIE_sys(unsigned int pc, unsigned int num,
+                           unsigned int sp, unsigned int lr);
+void NORETURN_ATTR UIE_sys(unsigned int pc, unsigned int num,
+                           unsigned int sp, unsigned int lr)
+{
+    uie_show(pc, num, sp, lr);
+}
+#else
+void NORETURN_ATTR UIE(unsigned int pc, unsigned int num)
+{
+#ifdef HAVE_RB_BACKTRACE
+    uie_show(pc, num, __get_sp(), __get_lr());
+#else
+    uie_show(pc, num, 0, 0);
+#endif
+}
+#endif
 
 /* Needs to be here or gcc won't find it */
 void __attribute__((naked)) __div0(void)

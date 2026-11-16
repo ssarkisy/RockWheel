@@ -262,6 +262,15 @@ static inline void cpu_boost_unlock(void)
 #endif
 #endif
 
+/* Define this if a panic leaves a record for the next boot (panic_record.h):
+ * on the iPods whose reset keeps the RAM below the codec buffer, and in the
+ * simulator, which keeps it in a file */
+#if !defined(BOOTLOADER) && \
+    (defined(SIMULATOR) || ((defined(IPOD_VIDEO) || defined(IPOD_COLOR)) && \
+                            (CONFIG_PLATFORM & PLATFORM_NATIVE)))
+    #define HAVE_PANIC_RECORD
+#endif
+
 /*
  * ARM and MIPS ABIs generally require 8-byte stack alignment.
  */

@@ -288,11 +288,20 @@ void system_reboot(void)
 
 void system_exception_wait(void)
 {
+#ifdef HAVE_SDL_THREADS
+    /* the other threads go on until the quit, so that a script
+       (RBSIM_SCRIPT) can dump the panic's screen; this one stays here */
+    void *me = sim_thread_unlock();
+    while (!quitting)
+        SDL_Delay(10);
+    sim_thread_lock(me);
+#else
     if (evt_thread)
     {
         while (!quitting)
             SDL_Delay(10);
     }
+#endif
     system_reboot();
 }
 
