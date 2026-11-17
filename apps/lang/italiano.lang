@@ -3446,7 +3446,7 @@
     *: "12 Hour Clock"
   </source>
   <dest>
-    *: "Orologio 12 ore (AM/PM)"
+    *: "Orologio 12 ore"
   </dest>
   <voice>
     *: "Orologio 12 ore"

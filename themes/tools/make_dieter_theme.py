@@ -300,7 +300,8 @@ class Font:
 
     def __init__(self, path):
         b = open(path, "rb").read()
-        assert b[:4] == b"RB12", path
+        if b[:4] != b"RB12":
+            raise ValueError("not a font of Rockbox's (RB12): %s" % path)
         self.maxwidth, self.height, self.ascent, self.depth = struct.unpack_from("<4H", b, 4)
         self.first, self.default, self.size, nbits, noff, nwid = struct.unpack_from("<6I", b, 12)
         long_offsets = nbits >= 0xFFDB
@@ -357,12 +358,14 @@ class Font:
 # Playing's cover of 144 at (16, 28), its details from 176, the scale's
 # window across the margin under it, the times under the window.
 VIDEO = dict(
-    NAME="video", W=320, H=240, OUT=THEME, M=16, STATUS=20, TOP=24, ROW=27,
+    NAME="video", W=320, H=240, OUT=THEME, M=16, SM=16, STATUS=20, TOP=24, ROW=27,
     PANE=160, BATT=(20, 10), GAP=6, PCT_GAP=3, PLAY_H=9,
     # the clock's width, the title's place and width; Now Playing's title's
     CLOCK=(64, 84, 152), NP_TITLE=(100, 120),
-    COVER=144, COVER_Y=28, COL=176,
-    WIN=(16, 182, 304, 206), TICK=12, MAJOR=72, BASE_UP=6, MAJOR_H=7, TIMES_Y=210,
+    # Now Playing's but its modes 5 px lower than the grid's (the modes'
+    # glyphs room over the title), from under the times
+    COVER=144, COVER_Y=33, COL=176,
+    WIN=(16, 187, 304, 211), TICK=12, MAJOR=72, BASE_UP=6, MAJOR_H=7, TIMES_Y=215,
     GRILLE=(54, 8.5, 2.0), RING=78, PANE_GAP=18, LINE2=18, DIAL_MINOR=5,
     QS=72, KEY_R=11.5, KEY_PITCH=40, LAMP_R=3.2, SMALL_R=2.6, SMALL_BEZ=1.2, SMALL_PITCH=10.5,
     LAMPS_H=12,
@@ -371,27 +374,30 @@ VIDEO = dict(
     F_TITLE="18-Inter-SemiBold", F_NPSUB="15-Inter-Medium", F_SMALL="14-Inter-Medium",
     F_LYRICS="17-Inter-Medium-13",
     ARTIST_GAP=3, PLACE_GAP=7, RATING_GAP=7, FORMAT_GAP=5,
-    # the times' segment digits: height, stroke, width, gap; rows over them
-    # in the font's cell, so that their middle is the text's capitals'
-    SEG=(12, 2, 7, 2, 1),
-    MODES_Y=25, BIG=200, BIG_X=60, BIG_Y=30, LYRICS_Y=28, SPEED_H=44,
+    # the big cover in the middle of the rows under the status line
+    MODES_Y=25, BIG=200, BIG_X=60, BIG_Y=30, LYRICS_Y=33, SPEED_H=44, TITLE_LINES=2,
     # the list marks the firmware draws (dieter_glyphs.h)
-    DOT_R=3.0, RING_R=3.25, CHEV=(5, 9), ROW_COVER=32, HEADER_COVER=52,
-    TW_R=10, USB_R=30, USB_W=4,
+    RING_R=3.25, CHEV=(5, 9), ROW_COVER=32, HEADER_COVER=52,
+    TW_R=14, USB_R=30, USB_W=4,
 )
-# The iPod photo's, by the same rules on its screen: a margin of 14 px; the
-# status line's 16 rows, the lists from 16 (over its hairline and lip); rows
+# The iPod photo's, by the same rules on its screen: a margin of 14 px, the
+# status line's half that (its clock and its glyphs nearer the screen's
+# sides); the status line's 16 rows, the lists from 16 (over its
+# hairline and lip); rows
 # of 20, of two lines the firmware's 32 with covers of 29 (LINE_COVER_SIZE),
 # so that 8 or 5 fill them; the pane from 110, as the port's; Now Playing's
 # cover of 96 at (14, 22), its details from 122.
 PHOTO = dict(
-    NAME="photo", W=220, H=176, OUT=os.path.join(THEME, "220x176"), M=14, STATUS=16,
+    NAME="photo", W=220, H=176, OUT=os.path.join(THEME, "220x176"), M=14, SM=7, STATUS=16,
     TOP=16, ROW=20, PANE=110, BATT=(17, 8), GAP=5, PCT_GAP=2, PLAY_H=8,
     # the clock short of the title's viewport: right to left its text ends
     # at its viewport's end, which the title's drew over
     CLOCK=(42, 58, 104), NP_TITLE=(62, 96),
-    COVER=96, COVER_Y=22, COL=122,
-    WIN=(14, 126, 206, 146), TICK=8, MAJOR=48, BASE_UP=5, MAJOR_H=5, TIMES_Y=149,
+    COVER=96, COVER_Y=30, COL=122,
+    # the cover lower and the scale's window under it low and narrow, the
+    # times at the screen's foot, so that the tallest details stand under
+    # the modes, not under their glyphs
+    WIN=(14, 141, 206, 157), TICK=8, MAJOR=48, BASE_UP=5, MAJOR_H=5, TIMES_Y=160,
     GRILLE=(40, 7.0, 1.7), RING=63, PANE_GAP=12, LINE2=15, DIAL_MINOR=4.5,
     QS=56, KEY_R=8.5, KEY_PITCH=28, LAMP_R=2.4, SMALL_R=2.0, SMALL_BEZ=0.9, SMALL_PITCH=8,
     LAMPS_H=10,
@@ -399,11 +405,11 @@ PHOTO = dict(
     F_ROW="15-Inter-SemiBold", F_SUB="14-Inter-Medium", F_STAT="14-Inter-SemiBold",
     F_TITLE="15-Inter-SemiBold", F_NPSUB="14-Inter-Medium", F_SMALL="14-Inter-Medium",
     F_LYRICS="14-Inter-Medium",
-    ARTIST_GAP=2, PLACE_GAP=4, RATING_GAP=3, FORMAT_GAP=2,
-    SEG=(9, 1, 5, 1, 2),
-    MODES_Y=20, BIG=140, BIG_X=40, BIG_Y=26, LYRICS_Y=22, SPEED_H=40,
-    DOT_R=2.5, RING_R=3.0, CHEV=(4, 7), ROW_COVER=29, HEADER_COVER=38,
-    TW_R=9, USB_R=22, USB_W=3,
+    ARTIST_GAP=2, PLACE_GAP=3, RATING_GAP=2, FORMAT_GAP=2,
+    # the title on one line, scrolling, as the column is narrow
+    MODES_Y=20, BIG=140, BIG_X=40, BIG_Y=26, LYRICS_Y=22, SPEED_H=40, TITLE_LINES=1,
+    RING_R=3.0, CHEV=(4, 7), ROW_COVER=29, HEADER_COVER=38,
+    TW_R=13, USB_R=22, USB_W=3,
 )
 LAYOUTS = (VIDEO, PHOTO)
 L = VIDEO
@@ -655,13 +661,20 @@ def slider(p, colour, knob):
 GLASS_DEPTH = 5
 
 
+GLASS_EDGE = 2      # the lit edge inside the bottom and right walls, its rows
+GLASS_BAND = 3      # the band all round inside the rim, its rows
+
+
 def glass_tables(dark):
     """the walls' shade by the row or column in, the rim's, the lip's; and the
-    glare by u = (x / w + y / h) / 2 in 256ths: in sixteenths"""
+    glare by u = (x / w + y / h) / 2 in 256ths: in sixteenths. The glass over
+    the cover: the walls' soft shade, a frame of a darker rim and a band
+    inside it, the lip outside brighter, and a lit edge inside the bottom and
+    right walls"""
     sh = 0.55 if dark else 0.42
     wall = [int(round(16 * sh * max(0.0, 1 - d / GLASS_DEPTH) ** 1.6)) for d in range(GLASS_DEPTH)]
-    rim = int(round(16 * (0.45 if dark else 0.30)))
-    lip = 0.22 if dark else 0.55
+    rim = int(round(16 * (0.60 if dark else 0.45)))
+    lip = 0.32 if dark else 0.75
     peak = 0.09 if dark else 0.11
     glare = []
     for k in range(256):
@@ -672,18 +685,34 @@ def glass_tables(dark):
     return wall, rim, lip, glare
 
 
+def glass_frame(dark):
+    """the lit edge's light by the row or column in from the bottom or right
+    wall, and the band's shade: in sixteenths"""
+    lit = [int(round(16 * v)) for v in ((0.18, 0.08) if dark else (0.28, 0.12))]
+    return lit, int(round(16 * 0.12)) if dark else int(round(16 * 0.10))
+
+
 def glass_over(cv, x0, y0, w, h, dark, left=True, rims=True):
-    """the glass over a canvas's rect, as cover_glass() draws it"""
+    """the glass over a canvas's rect, as cover_glass() draws it; rims: with
+    the window's left wall, rim and frame (GLASS_WINDOW)"""
     wall, rim, _, glare = glass_tables(dark)
+    lit, band = glass_frame(dark)
     for y in range(h):
         for x in range(w):
+            up, in_right = h - 1 - y, w - 1 - x
             a = wall[y] if y < GLASS_DEPTH else 0
             if left and x < GLASS_DEPTH:
                 a = max(a, wall[x])
             if rims and (y == h - 1 or x == w - 1 or (left and x == 0) or y == 0):
                 a = max(a, rim)
+            if rims and min(x, y, up, in_right) < GLASS_BAND:
+                a = max(a, band)
             u = ((x * 256 // w) + (y * 256 // h)) >> 1
             lv = glare[u]
+            if rims and up < GLASS_EDGE:
+                lv = max(lv, lit[up])
+            if rims and in_right < GLASS_EDGE and up >= in_right:
+                lv = max(lv, lit[in_right])
             px = cv.px[y0 + y][x0 + x]
             for i in range(3):
                 v = px[i] * (16 - a) / 16
@@ -697,20 +726,30 @@ def lip_colour(p, y):
 
 
 def no_cover(p):
-    """the cover's place without one: the window empty, its floor the pane's
-    with the grille punched in it, behind the same glass as a cover; the lip
-    outside its foot and right side"""
+    """the cover's place without one: the grille punched in the screen's own
+    ground, with no glass, window or lip (no speaker behind glass), as
+    wide as the cover and its lip; the ground the backdrop's at
+    the rows it stands on"""
     C = L["COVER"]
     cv = Canvas(C + 1, C + 1)
-    cv.vgrad(0, 0, C, C, p["P_TOP"], p["P_FOOT"])
-    a, b, c = L["NO_COVER_GRILLE"]
-    ring_grille(cv, C / 2, C / 2, C * a, C * b, C * c, p)
-    glass_over(cv, 0, 0, C, C, p["DARK"])
     y0 = L["COVER_Y"]
     for yy in range(C + 1):
-        cv.rect(C, yy, C + 1, yy + 1, lip_colour(p, y0 + yy))
-    cv.rect(0, C, C, C + 1, lip_colour(p, y0 + C))
+        cv.rect(0, yy, C + 1, yy + 1, lerp(p["G_TOP"], p["G_FOOT"], (y0 + yy) / (L["H"] - 1)))
+    a, b, c = L["NO_COVER_GRILLE"]
+    ring_grille(cv, C / 2, C / 2, C * a, C * b, C * c, p)
     return cv
+
+
+def big_no_cover_place():
+    """the big cover's place without one: no_cover()'s picture in the middle
+    of the big cover's, at a whole number of the dither's 4 rows and columns
+    from its own place so that its ground meets the backdrop's"""
+    C, big = L["COVER"], L["BIG"]
+    x = L["BIG_X"] + (big - C) // 2
+    y = L["BIG_Y"] + (big - C) // 2
+    x -= (x - L["M"]) % 4
+    y -= (y - L["COVER_Y"]) % 4
+    return x, y
 
 
 # the rating's push keys, each in its hole, its lamp lit in the signal colour
@@ -1093,7 +1132,8 @@ def mode_frames(p, name):
         b = f.read()
     off = struct.unpack_from("<I", b, 10)[0]
     w, h = struct.unpack_from("<ii", b, 18)
-    assert struct.unpack_from("<H", b, 28)[0] == 32, path
+    if struct.unpack_from("<H", b, 28)[0] != 32:
+        raise ValueError("not a 32-bit picture: %s" % path)
     rows = abs(h)
     cv = Canvas(w, rows)
     for y in range(rows):
@@ -1158,12 +1198,6 @@ def speaker_mask():
              for t in [i * 0.15 - 0.85 for i in range(12)]]
         cv.stroke(b, 1.2, (0, 0, 0))
     return mask(w, h, draw)
-
-
-def dot_mask(r):
-    """a disc of radius r centred on a pixel's corner, in the box of its ink"""
-    n = int(math.ceil(r)) + 1
-    return mask(2 * n, 2 * n, lambda cv: cv.circle(n, n, r, (0, 0, 0))), n
 
 
 def ring_mask(r, half=False):
@@ -1310,8 +1344,8 @@ def header():
            "#ifndef _DIETER_GLYPHS_H_", "#define _DIETER_GLYPHS_H_"]
     out.append("/* the glass over a cover (cover_glass()): by look (light, dark), in")
     out.append("   sixteenths, the window's walls' shade by the row or column in, the")
-    out.append("   rim's, and the glare by u = (x / w + y / h) / 2 in 256ths; the last u")
-    out.append("   the glare lights */")
+    out.append("   rim's, the frame's (a lit edge and a band), and the glare by")
+    out.append("   u = (x / w + y / h) / 2 in 256ths; the last u the glare lights */")
     out.append("#define DIETER_GLASS_DEPTH %d" % GLASS_DEPTH)
     walls, rims, glares, lasts = [], [], [], []
     for dark in (False, True):
@@ -1323,6 +1357,15 @@ def header():
     out.append("static const unsigned char dieter_glass_wall[2][DIETER_GLASS_DEPTH] = {%s};"
                % ", ".join("{%s}" % ", ".join(str(v) for v in w) for w in walls))
     out.append("static const unsigned char dieter_glass_rim[2] = {%d, %d};" % tuple(rims))
+    # the frame: the lit edge inside the bottom and right walls by the row or
+    # column in from them, and a band's shade all round inside the rim
+    frames = [glass_frame(dark) for dark in (False, True)]
+    out.append("#define DIETER_GLASS_EDGE %d" % GLASS_EDGE)
+    out.append("#define DIETER_GLASS_BAND %d" % GLASS_BAND)
+    out.append("static const unsigned char dieter_glass_lit[2][DIETER_GLASS_EDGE] = {%s};"
+               % ", ".join("{%s}" % ", ".join(str(v) for v in f[0]) for f in frames))
+    out.append("static const unsigned char dieter_glass_band[2] = {%d, %d};"
+               % tuple(f[1] for f in frames))
     out.append("static const unsigned char dieter_glass_last[2] = {%d, %d};" % tuple(lasts))
     out.append("static const unsigned char dieter_glass_glare[2][256] = {")
     for g in glares:
@@ -1332,16 +1375,9 @@ def header():
         use(layout)
         out.append(cond)
         items = [("chevron", chevron_mask()), ("speaker", speaker_mask())]
-        dot, dot_n = dot_mask(L["DOT_R"])
-        items.append(("dot", dot))
-        ring_n = int(math.ceil(L["RING_R"])) + 1
+        # an episode's marks, new and begun, in the marks' column
         items.append(("ring", ring_mask(L["RING_R"])))
         items.append(("ring_half", ring_mask(L["RING_R"], True)))
-        disc, _ = dot_mask(L["RING_R"])
-        # the disc the cursor fills a ring with, as big as the ring's box
-        disc_cv = Canvas(2 * ring_n, 2 * ring_n)
-        disc_cv.circle(ring_n, ring_n, L["RING_R"], (0, 0, 0))
-        items.append(("ring_fill", disc_cv))
         items.append(("tile", tile_mask(L["ROW_COVER"])))
         items.append(("header_tile", tile_mask(L["HEADER_COVER"])))
         items.append(("search_ring", tw_ring_mask(L["TW_R"])))
@@ -1367,10 +1403,6 @@ def header():
         for i in range(0, len(ticks), q):
             lines.append("    " + ",".join("%d" % v for v in ticks[i:i + q]) + ",")
         out.append("\n".join(lines) + "\n};")
-        out.append("/* the cursor's dot and an episode's ring: their middles on a pixel's")
-        out.append("   corner, so many pixels from their boxes' sides */")
-        out.append("#define DIETER_DOT_HALF %d" % dot_n)
-        out.append("#define DIETER_RING_HALF %d" % ring_n)
         out.append("#define DIETER_SEARCH_KEY_HALF %d" % (int(L["TW_R"]) + 2))
         for name, cv in items:
             up = name.upper()
@@ -1450,81 +1482,6 @@ def header():
         f.write("\n".join(out) + "\n")
 
 
-# --- the times' segment digits, a font of their own ---------------------------------------
-SEGMENTS = {"0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd",
-            "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg"}
-GHOST = 0.13    # an unlit segment's ink, a pixel's cover (2 of 15)
-
-
-def seg_font_name():
-    return "%d-Dieter-Segments" % (L["SEG"][0] + L["SEG"][4])
-
-
-def seg_glyphs():
-    """the times' characters, '-' to ':', as an LCD's: each digit's lit
-    segments in full, its others faint (GHOST), so that a time drawn in ink
-    shows every place's 8 under it; the ':' two dots; '-' the middle
-    segment alone; '.' and '/' blank. Rows of covers, the font's cell"""
-    h, t, w, gap, top = L["SEG"]
-    cell = h + top
-    k = (h - 3 * t) // 2
-    ym = top + t + k
-    rects = {"a": (t, top, w - t, top + t), "g": (t, ym, w - t, ym + t),
-             "d": (t, top + h - t, w - t, top + h),
-             "f": (0, top + t, t, ym), "b": (w - t, top + t, w, ym),
-             "e": (0, ym + t, t, top + h - t), "c": (w - t, ym + t, w, top + h - t)}
-
-    def blank(width):
-        return [[0.0] * width for _ in range(cell)]
-
-    def put(g, rect, a):
-        x0, y0, x1, y1 = rect
-        for y in range(y0, y1):
-            for x in range(x0, x1):
-                g[y][x] = max(g[y][x], a)
-    out = []
-    for code in range(ord("-"), ord(":") + 1):
-        ch = chr(code)
-        if ch in SEGMENTS:
-            g = blank(w + gap)
-            for s in "abcdefg":
-                put(g, rects[s], 1.0 if s in SEGMENTS[ch] else GHOST)
-        elif ch == "-":
-            g = blank(w + gap)
-            put(g, rects["g"], 1.0)
-        elif ch == ":":
-            g = blank(t + gap)
-            for yy in (top + t + k // 2, top + h - t - k // 2 - t):
-                put(g, (0, yy, t, yy + t), 1.0)
-        else:
-            g = blank(1)
-        out.append(g)
-    return out, cell
-
-
-def write_fnt(path, glyphs, height, first):
-    """a font in Rockbox's format (RB12): 4 bits a pixel, 0 the ink to 15
-    none, low nibble first, each glyph's rows run on; 16-bit offsets"""
-    bits, offsets, widths = bytearray(), [], []
-    for g in glyphs:
-        w = len(g[0])
-        offsets.append(len(bits))
-        nib = [15 - int(round(g[y][x] * 15)) for y in range(height) for x in range(w)]
-        if len(nib) & 1:
-            nib.append(15)
-        bits += bytes(nib[i] | nib[i + 1] << 4 for i in range(0, len(nib), 2))
-        widths.append(w)
-    data = b"RB12" + struct.pack("<4H", max(widths), height, height, 1)
-    data += struct.pack("<6I", first, first, len(glyphs), len(bits), len(offsets), len(widths))
-    data += bytes(bits)
-    if len(data) & 1:
-        data += b"\0"
-    data += struct.pack("<%dH" % len(offsets), *offsets) + bytes(widths)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "wb") as f:
-        f.write(data)
-
-
 # --- the skins ------------------------------------------------------------------------------
 CLOCK = "%al%?cf<%cH:%cM|%cl:%cM>"
 TITLE = "%al%nx%Lt"
@@ -1590,17 +1547,20 @@ def status(width, prefix="", pct=False, narrow=False, level=None):
     5). As Neo's (make_neo_theme.py), each glyph has a viewport for every
     place it can be in; and the rooms left of them for a title, by Night
     Mode, with the playing status's place and without.
-    pct: with Battery Percentage, the level PCT_GAP left of the battery, in
-    a box as wide as "100%" so that the glyphs left of it don't move with
-    it; level is its font's name and the font's number in the skin, by
-    default the status line's font as the status bar numbers it. The glyphs
-    are then prefix + "p"'s viewports, the battery the line's without it.
+    pct: with Battery Percentage, the level PCT_GAP left of the battery,
+    right-aligned in a box as wide as "100%", and the glyphs left of it GAP
+    from its text (as far as they're from each other): a place
+    of each by the level's count of digits, as wide as its widest of them;
+    the titles' rooms those of "100%". level is its font's name and the
+    font's number in the skin, by default the status line's font as the
+    status bar numbers it. The glyphs are then prefix + "p"'s viewports,
+    the battery the line's without it.
     narrow: beside the iPod photo's pane, whose 110 px have no room for the
     clock and all three: the level left of the battery without the playing
     status, Night Mode's moon instead of it and Hold's padlock instead of
     either, both where the playing status stands without the level; the
     rooms then the padlock's, and the level's or the moon's"""
-    M = L["M"]
+    M = L["SM"]
     f = Font.get(L["F_STAT"])
     text_y = f.text_top(0, L["STATUS"])
     cell = f.height
@@ -1625,6 +1585,11 @@ def status(width, prefix="", pct=False, narrow=False, level=None):
         out += [vp("bat", "Battery", bx), battery_tag()]
     pw, mw = SIZES["Playing Status"][0], SIZES["Night"][0]
     branches = []
+    # the level's text's left edge by its count of digits, 3 that of "100%"
+    lefts = {3: right}
+    if pct:
+        for digits, values in ((1, range(10)), (2, range(10, 100))):
+            lefts[digits] = bx - L["PCT_GAP"] - max(lf.width("%d%%" % v) for v in values)
     if narrow:
         hold_x, moon_x = bx - L["GAP"] - pw, bx - L["GAP"] - mw
         out += [vp("hold", "Playing Status", hold_x), "%xd(H)",
@@ -1638,19 +1603,29 @@ def status(width, prefix="", pct=False, narrow=False, level=None):
     play = frames("P", 4)
     state = "%%?mh<%%xd(H)|%%?mp<|%s|%s|%s|%s>>" % tuple(play)
     for night in (0, 1):
-        at = right
-        this = ["%%Vd(%spct)" % name] if pct else []
-        if night:
-            out += [vp("moon", "Night", at - L["GAP"] - mw), "%xd(N)"]
-            this.append("%%Vd(%smoon)" % name)
-            at -= L["GAP"] + mw
-        past = at
-        out += [vp("playn%d" % night, "Playing Status", at - L["GAP"] - pw), state]
-        this.append("%%Vd(%splayn%d)" % (name, night))
-        # the triangle's ink starts 2 columns into its frame
-        at -= L["GAP"] + pw - 2
-        rooms.append((at - L["GAP"] - M, past - L["GAP"] - M))
-        branches.append(this)
+        shown = {}
+        for digits in sorted(lefts, reverse=True):
+            # the viewports of "100%"'s place unnumbered, the others by digits
+            tag = "" if digits == 3 else str(digits)
+            at = lefts[digits]
+            this = []
+            if night:
+                out += [vp("moon" + tag, "Night", at - L["GAP"] - mw), "%xd(N)"]
+                this.append("%%Vd(%smoon%s)" % (name, tag))
+                at -= L["GAP"] + mw
+            past = at
+            out += [vp("playn%d%s" % (night, tag), "Playing Status", at - L["GAP"] - pw), state]
+            this.append("%%Vd(%splayn%d%s)" % (name, night, tag))
+            if digits == 3:
+                # the triangle's ink starts 2 columns into its frame
+                at -= L["GAP"] + pw - 2
+                rooms.append((at - L["GAP"] - M, past - L["GAP"] - M))
+            shown[digits] = "".join(this)
+        if pct:
+            branches.append(["%%Vd(%spct)" % name, "%%?if(%%bl, <, 10)<%s|%%?if(%%bl, <, 100)<%s|%s>>" % (
+                shown[1], shown[2], shown[3])])
+        else:
+            branches.append([shown[3]])
     return out, branches, rooms, text_y, cell
 
 
@@ -1665,7 +1640,7 @@ def title_vps(label, rooms, text_y, cell, text, narrow=False):
     """a title's viewports at the margin, one a room; narrow: for status()'s
     narrow rooms, one viewport for the padlock's, which Night Mode doesn't
     change"""
-    M = L["M"]
+    M = L["SM"]
 
     def vp(tag, w):
         return ["%%Vl(%s%s,%d,%d,%d,%d,3)%%Vf(INK)" % (label, tag, M, text_y, w, cell), text]
@@ -1798,15 +1773,11 @@ def sbs():
     # narrow line
     narrow = L is PHOTO
     pwide_out, pwide_br, prooms, _, _ = status(W, pct=True)
-    # beside the iPod photo's pane the level in the lighter face (the status
-    # bar's font 2): "100%" in the status line's font beside the clock's
-    # widest time left them 2 px apart
-    phalf_out, phalf_br, phrooms, _, _ = status(X, "h", pct=True, narrow=narrow,
-                                                level=(L["F_SUB"], 2) if narrow else None)
+    phalf_out, phalf_br, phrooms, _, _ = status(X, "h", pct=True, narrow=narrow)
     centre = title_x + title_w // 2
     ptitle_vps = []
     for night in (0, 1):
-        limit = M + prooms[night][0]
+        limit = L["SM"] + prooms[night][0]
         half_w = min(title_w // 2, limit - centre)
         ptitle_vps += ["%%Vl(ptitlewide%d,%d,%d,%d,%d,3)%%Vf(INK)" % (
             night, centre - half_w, text_y, 2 * half_w, cell), "%ac%Lt",
@@ -1817,7 +1788,7 @@ def sbs():
         "%%?Lf(proomwide%d)<%%Vd(clockwide)%%Vd(proomwide%d)|%s>>" % (
             n, n, n, n, title_show("plong", n)) for n in (1, 0))
     pclock = ["%%Vl(hpclock,%d,%d,%d,%d,3)%%Vf(INK)" % (
-        M, text_y, clock_width(Font.get(L["F_STAT"])), cell), CLOCK]
+        L["SM"], text_y, clock_width(Font.get(L["F_STAT"])), cell), CLOCK]
     wide = battery_line(wide_line(ptitle, show("", pwide_br)),
                         wide_line(title, show("", wide_br)))
     half = battery_line(show("h", phalf_br, "hpclock", "hpname", narrow),
@@ -1847,7 +1818,7 @@ def sbs():
                 wide=wide, half=half, music=music,
                 cover_size=cover_size, cover_x=X - cut, cover_w=W - (X - cut), cut=cut,
                 h=H, w=W, pane=X, pane_w=pane_w, top=L["TOP"], rows=H - L["TOP"],
-                margin=M, text_y=text_y, cell=cell, clock_w=clock_w, clock=CLOCK,
+                margin=L["SM"], text_y=text_y, cell=cell, clock_w=clock_w, clock=CLOCK,
                 title_x=title_x, title_w=title_w, long_vps=long_vps,
                 wide_vps="\n".join(wide_out), half_vps="\n".join(half_out),
                 ring_x=int(cx) - ring_box // 2, ring_y=dcy - ring_box // 2, ring_box=ring_box,
@@ -1892,7 +1863,7 @@ WPS = """\
 {mode_vps}
 # the cover, square, in its window behind glass (the firmware draws the
 # glass over it, cover_glass()), a lit lip outside its foot and right side;
-# without one, the window empty with the grille punched in its floor
+# without one, the grille punched in the screen's ground, with no glass
 %Cl(0,0,{cover},{cover},c,c)
 %Vl(art,{margin},{cover_y},{cover},{cover},-)
 %Cd
@@ -1924,9 +1895,9 @@ WPS = """\
 {needles}
 %Vl(lip,{win_x},{lip_y},{win_w},1,-)%Vb(W_RIM)
 {bar_vps}
-%Vl(times,{margin},{times_y},{time_w},{time_rows},{seg_font})%Vf(INK)
+%Vl(times,{margin},{times_y},{time_w},{time_rows},4)%Vf(SECOND)
 %al%pc
-%Vl(times,{times_right},{times_y},{time_w},{time_rows},{seg_font})%Vf(INK)
+%Vl(times,{times_right},{times_y},{time_w},{time_rows},4)%Vf(SECOND)
 %ar-%pr
 %Vl(under,{under_x},{times_y},{under_w},{time_rows},4)%Vf(SECOND)
 %nx%ac%?kn<%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>|>
@@ -1947,7 +1918,8 @@ WPS = """\
 %Vl(bigart,{big_x},{big_y},{big},{big},-)
 %Cl(0,0,{big},{big},c,c)
 %Cd
-%Vl(bignote,{big_x},{big_y},{big},{big},-)%Vb(PANE)
+%Vl(bignote,{bignote_x},{bignote_y},{cover_h},{cover_h},-)
+%xd(O)
 # the lyrics over the window; and the speeds: the WPS code draws into these
 %Vl(lyrics,{margin},{lyrics_y},{grid},{lyrics_h},{lyrics_font})%Vf(INK)
 %Vl(speed,0,{speed_y},{w},{speed_h},4)%Vf(SECOND)
@@ -1962,7 +1934,7 @@ def np_status(prooms, text_y, cell):
     then as wide as its widest time, and the glyphs; on the Video in the
     screen's middle, narrower where it would reach them. Its viewports and
     what Battery Percentage shows of them"""
-    M = L["M"]
+    M = L["SM"]
     clock_w, _, _ = L["CLOCK"]
     title_x, title_w = L["NP_TITLE"]
     text = "%s%ac%Sx(Now Playing)"
@@ -2051,7 +2023,7 @@ def wps():
                 ("count", fsm.height, L["PLACE_GAP"])]
 
     variants = {}
-    for n in (1, 2):
+    for n in range(1, L["TITLE_LINES"] + 1):
         for rating in (0, 1):
             for fmt in (0, 1):
                 parts = title(n) + details("artist", "album")
@@ -2068,13 +2040,15 @@ def wps():
 
     def place(parts):
         """the block in the middle of the cover's height, but under the
-        modes at the column's right end, and over the scale's window: where
-        both can't be, as with a title of two lines, the rating and the
-        format on the iPod photo, over the window"""
+        modes at the column's right end, and over the scale's window; the
+        window is low enough for the tallest to be both, or its title would
+        run under the modes' glyphs"""
         total = sum(r + g for _, r, g in parts)
-        y = int(cy0 + C / 2 - total / 2)
-        y = max(y, L["MODES_Y"] + rep[1] + 2)
+        under = L["MODES_Y"] + rep[1] + 2
+        y = max(int(cy0 + C / 2 - total / 2), under)
         y = max(min(y, L["WIN"][1] - 2 - total), L["STATUS"] + 2)
+        if y < under:
+            raise ValueError("the details reach the modes' glyphs: %d rows over" % (under - y))
         res = []
         for what, rows, gap in parts:
             y += gap
@@ -2086,8 +2060,10 @@ def wps():
     for label, parts in variants.items():
         for what, y, rows in place(parts):
             if what.startswith("title"):
+                # on a line that scrolls where it has one, or on two that don't
+                first = "%nw(1)" if L["TITLE_LINES"] > 1 else "%s%al%?it<%it|%fn>"
                 block_vps += ["%%Vl(%s,%d,%d,%d,%d,2)%%Vf(INK)" % (label, col, y, col_w, rows),
-                              "%nw(1)"] + (["%nw(2)"] if what == "title2" else [])
+                              first] + (["%nw(2)"] if what == "title2" else [])
             elif what == "lamps":
                 # their own viewports, shown by the language's direction:
                 # at the column's start filling left to right, at its end
@@ -2125,6 +2101,8 @@ def wps():
             return "%%?ks<%%Vd(b%d1)|%%Vd(b%d0)>" % (n, n)
 
         def by_title(kind):
+            if L["TITLE_LINES"] == 1:
+                return kind(1)
             return "%%?nW(title)<%s|%s>" % (kind(2), kind(1))
         return "%%?kk<%s|%s|%s>" % ("" if view == "speed" else by_title(song),
                                      by_title(lambda n: "%%Vd(e%d)" % n), by_title(book))
@@ -2201,10 +2179,7 @@ def wps():
     lyrics_font = wfonts.index(L["F_LYRICS"]) + 2 if L["F_LYRICS"] in wfonts else 6
     if lyrics_font == 6:
         wfonts.append(L["F_LYRICS"])
-    # the times in segment digits, with their unlit segments (seg_glyphs())
-    wfonts.append(seg_font_name())
-    seg_font = len(wfonts) + 1
-    text = fill(WPS, fonts=fonts(wfonts), lyrics_font=lyrics_font, seg_font=seg_font,
+    text = fill(WPS, fonts=fonts(wfonts), lyrics_font=lyrics_font,
                 images=images(True), block=block, show_modes="%Vd(mode1)%Vd(mode2)",
                 margin=M, status_show=status_show, np_vps="\n".join(np_vps),
                 vps="\n".join(out + pout),
@@ -2219,6 +2194,7 @@ def wps():
                 under_w=grid - 2 * (time_w + 4), grid=grid, rating="\n".join(rating),
                 half_grid=grid // 2, level_x=W - M - grid // 2,
                 big=L["BIG"], big_x=L["BIG_X"], big_y=L["BIG_Y"], w=W,
+                bignote_x=big_no_cover_place()[0], bignote_y=big_no_cover_place()[1],
                 lyrics_y=L["LYRICS_Y"], lyrics_h=L["WIN"][1] - 5 - L["LYRICS_Y"],
                 speed_y=min(L["WIN"][1] - 3, H - L["SPEED_H"]), speed_h=L["SPEED_H"])
     return text
@@ -2289,9 +2265,6 @@ def main():
     cover_flow_slides()
     for layout in LAYOUTS:
         use(layout)
-        glyphs, cell = seg_glyphs()
-        write_fnt(os.path.join(L["OUT"], ".rockbox", "fonts", seg_font_name() + ".fnt"),
-                  glyphs, cell, ord("-"))
         L["SMALL_PITCH_PX"] = int(round(L["SMALL_PITCH"]))
         out = os.path.join(L["OUT"], ".rockbox", "wps")
         os.makedirs(out, exist_ok=True)

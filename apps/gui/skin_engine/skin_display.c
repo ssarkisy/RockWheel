@@ -2851,11 +2851,12 @@ static inline fb_data glass_pixel(fb_data p, int dark, int light)
 #endif
 }
 
-/* By the tables of dieter_glyphs.h: each row's walls and rim, and the glare
-   only as far along the row as it reaches (dieter_glass_last); the rest of
-   a row is left as it is. Its place across the cover, u in 256ths, stepped
-   along a row in 16.16 rather than divided a pixel; a row's pixels by its
-   pointer: on every frame of Moving Cover, the pane's (menu_cover_glass()) */
+/* By the tables of dieter_glyphs.h: each row's walls, rim and frame, and
+   the glare only as far along the row as it reaches (dieter_glass_last);
+   the rest of a row is left as it is but its frame at its right end. Its
+   place across the cover, u in 256ths, stepped along a row in 16.16 rather
+   than divided a pixel; a row's pixels by its pointer: on every frame of
+   Moving Cover, the pane's (menu_cover_glass()) */
 void cover_glass(int x0, int y0, int w, int h, unsigned flags)
 {
     if (!ui_metric(UI_METRIC_COVER_GLASS) || w < 2 || h < 2)
@@ -2863,9 +2864,17 @@ void cover_glass(int x0, int y0, int w, int h, unsigned flags)
     const int look = global_settings.dark_theme ? 1 : 0;
     const unsigned char *wall = dieter_glass_wall[look];
     const unsigned char *glare = dieter_glass_glare[look];
-    const int rim = flags & GLASS_WINDOW ? dieter_glass_rim[look] : 0;
+    const unsigned char *lit = dieter_glass_lit[look];
+    const bool window = flags & GLASS_WINDOW;
+    const int rim = window ? dieter_glass_rim[look] : 0;
     const int last = dieter_glass_last[look];
-    const int depth = flags & GLASS_WINDOW ? DIETER_GLASS_DEPTH : 0;
+    const int depth = window ? DIETER_GLASS_DEPTH : 0;
+    /* the frame (the window's alone): the lit edge and the band */
+    const int edge = window ? DIETER_GLASS_EDGE : 0, band = window ? DIETER_GLASS_BAND : 0;
+    const int band_dark = dieter_glass_band[look];
+    /* the columns at a row's right end it takes: the rim's, the lit edge's
+       and the band's */
+    const int right = MAX(rim ? 1 : 0, MAX(edge, band));
     /* the columns on the screen, and u's step along a row, down the cover */
     const int xs = MAX(0, -x0), xe = MIN(w, LCD_WIDTH - x0);
     if (xs >= xe)
@@ -2879,40 +2888,69 @@ void cover_glass(int x0, int y0, int w, int h, unsigned flags)
         if (sy < 0 || sy >= LCD_HEIGHT)
             continue;
         const int uy = uy16 >> 16;
+        const int up = h - 1 - y; /* rows from the bottom */
         int top = y < DIETER_GLASS_DEPTH ? wall[y] : 0;
         if (y == 0 || y == h - 1)
             top = MAX(top, rim);
+        if (y < band || up < band)
+            top = MAX(top, band_dark);
+        const int row_lit = up < edge ? lit[up] : 0;
         /* the glare's end: u = (ux + uy) / 2 to last, ux = x * 256 / w */
         const int ux_end = 2 * last + 1 - uy;
         const int glare_end = ux_end <= 0 ? 0 : MIN(w, (ux_end * w + 255) >> 8);
-        /* the whole row under the top wall and on the rim; else its start */
-        const int end = MIN(top ? w : MAX(glare_end, depth), xe);
+        /* the whole row under the top wall, on the rim, in the band or the
+           lit edge; else its start and its end */
+        const bool whole = top || row_lit;
+        const int end = MIN(whole ? w : MAX(glare_end, MAX(depth, band)), xe);
+        const int tail = whole ? end : MAX(end, MAX(w - right, xs));
 #if LCD_STRIDEFORMAT == VERTICAL_STRIDE
 #define GLASS_AT(x) FBADDR(x0 + (x), sy)
 #else
         fb_data *const row = FBADDR(x0, sy);
 #define GLASS_AT(x) (row + (x))
 #endif
-        unsigned ux16 = (unsigned)xs * ux_step;
-        for (int x = xs; x < end; x++, ux16 += ux_step)
+        if (!window)
         {
-            int dark = top;
-            if (x < depth)
-                dark = MAX(dark, wall[x]);
-            if (x == 0 || x == w - 1)
-                dark = MAX(dark, rim);
-            const int light = x < glare_end ? glare[((ux16 >> 16) + uy) >> 1] : 0;
-            if (dark || light)
+            /* the pane (Moving Cover's every frame): only its top wall and
+               the glare, so one pass along the row to the glare's end (the
+               whole row under the wall), with nothing tested a pixel that
+               can't be there */
+            unsigned ux16 = (unsigned)xs * ux_step;
+            for (int x = xs; x < end; x++, ux16 += ux_step)
             {
-                fb_data *p = GLASS_AT(x);
-                *p = glass_pixel(*p, dark, light);
+                const int light = x < glare_end ? glare[((ux16 >> 16) + uy) >> 1] : 0;
+                if (top || light)
+                {
+                    fb_data *p = GLASS_AT(x);
+                    *p = glass_pixel(*p, top, light);
+                }
             }
+            continue;
         }
-        /* the rim's right column */
-        if (rim && end < w && w - 1 < xe)
+        const int spans[2][2] = {{xs, end}, {tail, whole ? tail : xe}};
+        for (int k = 0; k < 2; k++)
         {
-            fb_data *p = GLASS_AT(w - 1);
-            *p = glass_pixel(*p, rim, 0);
+            unsigned ux16 = (unsigned)spans[k][0] * ux_step;
+            for (int x = spans[k][0]; x < spans[k][1]; x++, ux16 += ux_step)
+            {
+                int dark = top;
+                const int in_right = w - 1 - x; /* columns from the right */
+                if (x < depth)
+                    dark = MAX(dark, wall[x]);
+                if (x == 0 || x == w - 1)
+                    dark = MAX(dark, rim);
+                if (x < band || in_right < band)
+                    dark = MAX(dark, band_dark);
+                int light = x < glare_end ? glare[((ux16 >> 16) + uy) >> 1] : 0;
+                light = MAX(light, row_lit);
+                if (in_right < edge && up >= in_right)
+                    light = MAX(light, lit[in_right]);
+                if (dark || light)
+                {
+                    fb_data *p = GLASS_AT(x);
+                    *p = glass_pixel(*p, dark, light);
+                }
+            }
         }
 #undef GLASS_AT
     }

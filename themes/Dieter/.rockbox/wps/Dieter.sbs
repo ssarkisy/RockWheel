@@ -7,7 +7,7 @@
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,0,0)
 %xl(N,Night.bmp,0,0)
-%?LW<%VI(wide)%?St(battery percentage)<%?if(%Li, =, 33)<%Vd(clockwide)|%?nN<%?Lf(ptitlewide1)<%Vd(clockwide)%Vd(ptitlewide1)|%?Lf(proomwide1)<%Vd(clockwide)%Vd(proomwide1)|%?mh<%Vd(plongn1p)|%?mp<%Vd(plongn1)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)>>>>|%?Lf(ptitlewide0)<%Vd(clockwide)%Vd(ptitlewide0)|%?Lf(proomwide0)<%Vd(clockwide)%Vd(proomwide0)|%?mh<%Vd(plongn0p)|%?mp<%Vd(plongn0)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)>>>>>>%Vd(bat)%?nN<%Vd(ppct)%Vd(pmoon)%Vd(pplayn1)|%Vd(ppct)%Vd(pplayn0)>|%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>|%VI(half)%?St(battery percentage)<%Vd(hbat)%?nN<%Vd(hppct)%Vd(hpmoon)%Vd(hpplayn1)%?if(%Li, =, 33)<%Vd(hpclock)|%?mh<%Vd(hpnamen1p)|%?mp<%Vd(hpnamen1)|%Vd(hpnamen1p)|%Vd(hpnamen1p)|%Vd(hpnamen1p)|%Vd(hpnamen1p)>>>|%Vd(hppct)%Vd(hpplayn0)%?if(%Li, =, 33)<%Vd(hpclock)|%?mh<%Vd(hpnamen0p)|%?mp<%Vd(hpnamen0)|%Vd(hpnamen0p)|%Vd(hpnamen0p)|%Vd(hpnamen0p)|%Vd(hpnamen0p)>>>>|%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen1p)|%?mp<%Vd(hnamen1)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)>>>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen0p)|%?mp<%Vd(hnamen0)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)>>>>>>
+%?LW<%VI(wide)%?St(battery percentage)<%?if(%Li, =, 33)<%Vd(clockwide)|%?nN<%?Lf(ptitlewide1)<%Vd(clockwide)%Vd(ptitlewide1)|%?Lf(proomwide1)<%Vd(clockwide)%Vd(proomwide1)|%?mh<%Vd(plongn1p)|%?mp<%Vd(plongn1)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)>>>>|%?Lf(ptitlewide0)<%Vd(clockwide)%Vd(ptitlewide0)|%?Lf(proomwide0)<%Vd(clockwide)%Vd(proomwide0)|%?mh<%Vd(plongn0p)|%?mp<%Vd(plongn0)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)>>>>>>%Vd(bat)%?nN<%Vd(ppct)%?if(%bl, <, 10)<%Vd(pmoon1)%Vd(pplayn11)|%?if(%bl, <, 100)<%Vd(pmoon2)%Vd(pplayn12)|%Vd(pmoon)%Vd(pplayn1)>>|%Vd(ppct)%?if(%bl, <, 10)<%Vd(pplayn01)|%?if(%bl, <, 100)<%Vd(pplayn02)|%Vd(pplayn0)>>>|%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>|%VI(half)%?St(battery percentage)<%Vd(hbat)%?nN<%Vd(hppct)%?if(%bl, <, 10)<%Vd(hpmoon1)%Vd(hpplayn11)|%?if(%bl, <, 100)<%Vd(hpmoon2)%Vd(hpplayn12)|%Vd(hpmoon)%Vd(hpplayn1)>>%?if(%Li, =, 33)<%Vd(hpclock)|%?mh<%Vd(hpnamen1p)|%?mp<%Vd(hpnamen1)|%Vd(hpnamen1p)|%Vd(hpnamen1p)|%Vd(hpnamen1p)|%Vd(hpnamen1p)>>>|%Vd(hppct)%?if(%bl, <, 10)<%Vd(hpplayn01)|%?if(%bl, <, 100)<%Vd(hpplayn02)|%Vd(hpplayn0)>>%?if(%Li, =, 33)<%Vd(hpclock)|%?mh<%Vd(hpnamen0p)|%?mp<%Vd(hpnamen0)|%Vd(hpnamen0p)|%Vd(hpnamen0p)|%Vd(hpnamen0p)|%Vd(hpnamen0p)>>>>|%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen1p)|%?mp<%Vd(hnamen1)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)>>>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen0p)|%?mp<%Vd(hnamen0)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)>>>>>>
 # the pane by the row selected: Settings' disk, Photos' collage, or the music
 %?LW<|%?LS<%Vd(floor)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(floor)%Vd(grille)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(floor)%?nP<%Vd(collage)%Vd(photocount)|%Vd(grille)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(floor)%Vd(grille)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
 # the cover fills the pane, Finder's 240 px frame, its middle 160
@@ -63,9 +63,21 @@
 %aR%?bl<|%bl%%>
 %Vl(pplayn0,233,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pplayn02,238,5,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pplayn01,246,5,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(pmoon,232,5,10,10,-)
 %xd(N)
 %Vl(pplayn1,217,5,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon2,237,5,10,10,-)
+%xd(N)
+%Vl(pplayn12,222,5,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon1,245,5,10,10,-)
+%xd(N)
+%Vl(pplayn11,230,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 # beside the pane: the clock in the main menu, a menu's title in any other
 %Vl(hclock,16,2,64,15,3)%Vf(211C18)
@@ -100,9 +112,21 @@
 %aR%?bl<|%bl%%>
 %Vl(hpplayn0,73,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(hpplayn02,78,5,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(hpplayn01,86,5,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(hpmoon,72,5,10,10,-)
 %xd(N)
 %Vl(hpplayn1,57,5,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(hpmoon2,77,5,10,10,-)
+%xd(N)
+%Vl(hpplayn12,62,5,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(hpmoon1,85,5,10,10,-)
+%xd(N)
+%Vl(hpplayn11,70,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 # the pane, a recess from the screen's top, its floor and its left wall's
 # shadow, is the backdrop's (Dieter.bmp); a screen of the whole width has

@@ -798,7 +798,7 @@ sub buildzip {
                       "$ROOT/themes/fonts/.rockbox");
         %fonts_taken = map { $_ => 1 } qw(12-Inter-SemiBold 14-Inter-Bold
             14-Inter-Medium 14-Inter-SemiBold 15-Inter-Medium 15-Inter-SemiBold
-            17-Inter-Bold 53-Inter-Letters 16-GNU-Unifont 11-Dieter-Segments);
+            17-Inter-Bold 53-Inter-Letters 16-GNU-Unifont);
     }
     foreach my $themedir (@themedirs) {
         find({ no_chdir => 1, wanted => sub {

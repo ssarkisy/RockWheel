@@ -1935,21 +1935,25 @@ extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
    rows under them */
 #include "gui/dieter_glyphs.h"
 #define KEYS          (ui_metric(UI_METRIC_SEARCH_KEYS) > 0)
+/* the strip's sizes grow with the key's (DIETER_SEARCH_KEY_HALF, from its
+   ring's radius in make_dieter_theme.py) */
 #ifdef UI_220X176
 #define KEYS_FIELD_H  18    /* the slot's rows, its lip under them */
 #define KEYS_FIELD_VP 22    /* the field's viewport, the slot 2 rows down */
-#define KEYS_CY       13    /* the keys' middle in the strip */
-#define KEYS_STRIP_VP 28
-#define KEYS_PITCH    22
-#define KEYS_FONT     UI_FONT_GROUP
+#define KEYS_GROW     (DIETER_SEARCH_KEY_HALF - 11)
+#define KEYS_CY       (13 + KEYS_GROW)   /* the keys' middle in the strip */
+#define KEYS_STRIP_VP (28 + 2 * KEYS_GROW)
+#define KEYS_PITCH    (22 + 2 * KEYS_GROW)
 #else
 #define KEYS_FIELD_H  22
 #define KEYS_FIELD_VP 26
-#define KEYS_CY       16
-#define KEYS_STRIP_VP 34
-#define KEYS_PITCH    24
-#define KEYS_FONT     UI_FONT_SUBLINE
+#define KEYS_GROW     (DIETER_SEARCH_KEY_HALF - 12)
+#define KEYS_CY       (16 + KEYS_GROW)
+#define KEYS_STRIP_VP (34 + 2 * KEYS_GROW)
+#define KEYS_PITCH    (24 + 2 * KEYS_GROW)
 #endif
+/* the keys' letters in the list's font, with the larger keys */
+#define KEYS_FONT     UI_FONT_LIST
 
 static struct viewport field_vp, strip_vp, list_vp[NB_SCREENS];
 /* the theme's, as set_foreground() changes the viewport's own */
@@ -2372,6 +2376,19 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
         unsigned char utf8[8];
         int w, h;
         *utf8encode(naming ? name_letter(strip.c[i]) : strip.c[i], utf8) = '\0';
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+        if (KEYS)
+        {
+            /* in the key's middle by the letter's own ink, as Quick Scroll's
+               (the key's middle a pixel's corner), across by its weight, at
+               the key's place */
+            line_draw_ink_centred(display, strip_vp.font, (char *)utf8,
+                                  VP_IS_RTL(&strip_vp) ? strip_vp.width - cx : cx, cy,
+                                  true);
+            display->set_drawmode(DRMODE_SOLID);
+            return;
+        }
+#endif
         display->getstringsize((char *)utf8, &w, &h);
         /* the middle of a capital, which stands on the baseline about two
            thirds of the way up to it, rather than of the font's line */

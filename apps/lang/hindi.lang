@@ -978,11 +978,11 @@
   </source>
   <dest>
     *: none
-    headphone_detection: "रूकना और शुरू करना"
+    headphone_detection: "रोकें और चलाएँ"
   </dest>
   <voice>
     *: none
-    headphone_detection: "रूकना और शुरू करना"
+    headphone_detection: "रोकें और चलाएँ"
   </voice>
 </phrase>
 <phrase>
@@ -2586,10 +2586,10 @@
     *: "12 Hour Clock"
   </source>
   <dest>
-    *: "बारा घंटओ की घड़ी"
+    *: "12 घंटे की घड़ी"
   </dest>
   <voice>
-    *: "बारा घंटओ की घड़ी"
+    *: "बारह घंटे की घड़ी"
   </voice>
 </phrase>
 <phrase>
@@ -2600,10 +2600,10 @@
     *: "24 Hour Clock"
   </source>
   <dest>
-    *: "चौबीस घंटओ की घड़ी"
+    *: "24 घंटे की घड़ी"
   </dest>
   <voice>
-    *: "चौबीस घंटओ की घड़ी"
+    *: "चौबीस घंटे की घड़ी"
   </voice>
 </phrase>
 <phrase>
@@ -6130,7 +6130,7 @@
     *: "Text and Stars"
   </source>
   <dest>
-    *: "टेक्स्ट और सितारे"
+    *: "टेक्स्ट व सितारे"
   </dest>
   <voice>
     *: ""
@@ -6494,7 +6494,7 @@
     *: "Own Battery"
   </source>
   <dest>
-    *: "बैटरी अपने रंग में"
+    *: "अपनी बैटरी"
   </dest>
   <voice>
     *: ""
@@ -7208,7 +7208,7 @@
     *: "With Resume, the music also plays again once the headphones are back in."
   </source>
   <dest>
-    *: "रूकना और शुरू करना से, हेडफ़ोन वापस लगाते ही संगीत फिर बजता है।"
+    *: "रोकें और चलाएँ से, हेडफ़ोन वापस लगाते ही संगीत फिर बजता है।"
   </dest>
   <voice>
     *: ""
@@ -7278,7 +7278,7 @@
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
-    *: "स्थिति पट्टी भी कवर के रंग लेती है। बैटरी अपने रंग में से हरी रहती है।"
+    *: "स्थिति पट्टी भी कवर के रंग लेती है। अपनी बैटरी में बैटरी हरी रहती है।"
   </dest>
   <voice>
     *: ""

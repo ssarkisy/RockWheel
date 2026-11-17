@@ -5070,7 +5070,6 @@ static void update_scroll_animation(void)
 #error "Cover Flow's track panel must be square"
 #endif
 #define PANEL_PAD    6    /* the text's from the panel's sides */
-#define PANEL_DOT_ROOM 6  /* and more for a theme's cursor's dot, as in its lists */
 #define PANEL_GAP    8    /* between a track's name and its length */
 
 static int panel_font = FONT_UI;        /* of the tracks */
@@ -5157,20 +5156,21 @@ static void put_fitted(int x, int y, const char *str, int width, char *buf, size
 static void draw_track_panel(bool loading)
 {
     const bool light = pf_light;
-    /* a theme's cursor, its signal colour's dot left of the chosen track:
-       the tracks' names after its room (PANEL_DOT_ROOM), the panel in the
-       theme's own ground, ink and hairline, the lengths in its grey */
-    const bool dot = rb->ui_metric(UI_METRIC_SELECTION_DOT) > 0;
-    const unsigned ink = dot ? rb->ui_colour(UI_COLOUR_TEXT)
+    /* a theme whose selected name is in its signal colour (Dieter's): the
+       chosen track's so too, the panel in the theme's own ground, ink and
+       hairline, the lengths in its grey */
+    const bool themed = rb->ui_metric(UI_METRIC_SELECTION_SIGNAL);
+    const unsigned ink = themed ? rb->ui_colour(UI_COLOUR_TEXT)
                        : light ? LCD_BLACK : LCD_RGBPACK(242, 242, 246);
-    const unsigned paper = dot ? rb->ui_colour(UI_COLOUR_GROUND)
+    const unsigned paper = themed ? rb->ui_colour(UI_COLOUR_GROUND)
                          : light ? LCD_WHITE : LCD_RGBPACK(28, 28, 30);
-    const unsigned edge = dot ? rb->ui_colour(UI_COLOUR_GROUP_RULE)
+    const unsigned edge = themed ? rb->ui_colour(UI_COLOUR_GROUP_RULE)
                         : light ? LCD_RGBPACK(190, 190, 190) : LCD_RGBPACK(64, 64, 68);
     const unsigned sel_ink = rb->global_settings->lst_color;
+    const unsigned name_ink = themed ? rb->ui_colour(UI_COLOUR_SIGNAL) : sel_ink;
     const int px = panel_ox, py = panel_oy;
-    const int text_x = px + PANEL_PAD + (dot ? PANEL_DOT_ROOM : 0);
-    const int text_w = PANEL_W - 2 * PANEL_PAD - (dot ? PANEL_DOT_ROOM : 0);
+    const int text_x = px + PANEL_PAD;
+    const int text_w = PANEL_W - 2 * PANEL_PAD;
     char buf[MAX_PATH];
 
     rb->lcd_set_drawmode(DRMODE_SOLID);
@@ -5241,16 +5241,6 @@ static void draw_track_panel(bool loading)
         const bool selected = i == pf_tracks.sel && !show_tracks_while_browsing;
         if (selected)
             panel_gradient(px, y, PANEL_W, PANEL_ROW);
-        if (selected && dot)
-        {
-            /* a disc of 6 px, its corners cut, its middle on a pixel's
-               corner at the panel's pad */
-            const int cx = px + PANEL_PAD, cy = y + PANEL_ROW / 2;
-            rb->lcd_set_drawmode(DRMODE_SOLID);
-            rb->lcd_set_foreground(rb->ui_colour(UI_COLOUR_SIGNAL));
-            rb->lcd_fillrect(cx - 2, cy - 3, 4, 6);
-            rb->lcd_fillrect(cx - 3, cy - 2, 6, 4);
-        }
         rb->lcd_set_drawmode(DRMODE_FG);
         rb->lcd_set_foreground(selected ? sel_ink : ink);
         const int ty = y + (PANEL_ROW - fh) / 2;
@@ -5266,10 +5256,10 @@ static void draw_track_panel(bool loading)
             else
                 rb->snprintf(length, sizeof(length), "%d:%02d", secs / 60, secs % 60);
             const int lw = rb->lcd_getstringsize(length, NULL, NULL);
-            if (dot)
+            if (themed)
                 rb->lcd_set_foreground(rb->ui_colour(UI_COLOUR_VALUE));
             rb->lcd_putsxy(text_x + text_w - lw, ty, length);
-            rb->lcd_set_foreground(selected ? sel_ink : ink);
+            rb->lcd_set_foreground(selected ? name_ink : ink);
             room = text_w - lw - PANEL_GAP;
         }
 
@@ -5296,7 +5286,7 @@ static void draw_track_panel(bool loading)
         vp.font = panel_font;
         vp.drawmode = DRMODE_FG;
         struct viewport *const last = rb->lcd_set_viewport(&vp);
-        rb->lcd_set_foreground(sel_ink);
+        rb->lcd_set_foreground(name_ink);
         rb->lcd_putsxy(get_scroll_line_offset(PF_SCROLL_TRACK), 0, name);
         rb->lcd_set_viewport(last);
         rb->lcd_setfont(panel_font);

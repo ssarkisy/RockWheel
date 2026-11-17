@@ -146,10 +146,6 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_VALUE_MARGIN]         = 5,
             [UI_METRIC_VALUE_MARGIN_CHEVRON] = 16,
             [UI_METRIC_VALUE_GAP]            = 6,
-            /* a value too long beside its name on this narrower screen cut
-               with an ellipsis, as Neo's and Modern's, not left out: Cover
-               Colours' did not fit in a dozen languages */
-            [UI_METRIC_VALUE_CUT]            = 1,
             [UI_METRIC_HINT_X]               = 5,
             [UI_METRIC_HINT_TOP]             = 4,
             [UI_METRIC_HINT_PITCH]           = 16,
@@ -371,7 +367,6 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_VALUE_MARGIN]         = 9,
             [UI_METRIC_VALUE_MARGIN_CHEVRON] = 18,
             [UI_METRIC_VALUE_GAP]            = 9,
-            [UI_METRIC_VALUE_CUT]            = 1,
             [UI_METRIC_HINT_X]               = 7,
             [UI_METRIC_HINT_TOP]             = 7,
             [UI_METRIC_HINT_PITCH]           = 15,
@@ -463,9 +458,6 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_VALUE_MARGIN]         = 12,
             [UI_METRIC_VALUE_MARGIN_CHEVRON] = 24,
             [UI_METRIC_VALUE_GAP]            = 12,
-            /* too long beside its name, cut with an ellipsis as Neo's: in
-               SemiBold some left out a value altogether */
-            [UI_METRIC_VALUE_CUT]            = 1,
             [UI_METRIC_HINT_X]               = 8,
             [UI_METRIC_HINT_TOP]             = 10,
             [UI_METRIC_HINT_PITCH]           = 18,
@@ -676,7 +668,6 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_VALUE_MARGIN]         = 11,
             [UI_METRIC_VALUE_MARGIN_CHEVRON] = 18,
             [UI_METRIC_VALUE_GAP]            = 7,
-            [UI_METRIC_VALUE_CUT]            = 1,
             [UI_METRIC_HINT_X]               = 6,
             [UI_METRIC_HINT_TOP]             = 4,
             [UI_METRIC_HINT_PITCH]           = 15,
@@ -777,7 +768,6 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_VALUE_MARGIN]         = 14,
             [UI_METRIC_VALUE_MARGIN_CHEVRON] = 24,
             [UI_METRIC_VALUE_GAP]            = 10,
-            [UI_METRIC_VALUE_CUT]            = 1,
             [UI_METRIC_HINT_X]               = 10,
             [UI_METRIC_HINT_TOP]             = 6,
             [UI_METRIC_HINT_PITCH]           = 18,
@@ -857,7 +847,7 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_GROUP_BAR]       = RGB(0xe7, 0xe3, 0xde),
                     [UI_COLOUR_GROUP_RULE]      = RGB(0xce, 0xcb, 0xc6),
                     [UI_COLOUR_VALUE]           = RGB(0x6b, 0x69, 0x63),
-                    /* grey on the band too: only the dot is coloured */
+                    /* grey on the band too: only the name is coloured */
                     [UI_COLOUR_VALUE_SELECTED]  = RGB(0x6b, 0x69, 0x63),
                     [UI_COLOUR_INITIAL_BOX]     = RGB(0xde, 0xdf, 0xde),
                     [UI_COLOUR_SCROLLBAR_EDGE]  = RGB(0xf7, 0xf3, 0xef),
@@ -905,7 +895,13 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_RING_TICK]       = RGB(0x6b, 0x69, 0x63),
                     [UI_COLOUR_RING_TICK_MINOR] = RGB(0xa5, 0xa2, 0x9c),
                 },
+#ifdef UI_220X176
+                /* no lit top row: a row's cover 29 px in its band of 31, the
+                   band's colour a row over and under it */
+                .bevel = { 0, 0, 14 },
+#else
                 .bevel = { 35, 0, 14 },
+#endif
                 .scrollbar_track = { { 0xf7, 0xf3, 0xef }, { 0xf7, 0xf3, 0xef } },
                 .initial_opacity = 16,
             },
@@ -952,15 +948,20 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_RING_TICK]       = RGB(0x9c, 0x9a, 0x9c),
                     [UI_COLOUR_RING_TICK_MINOR] = RGB(0x5a, 0x59, 0x5a),
                 },
+#ifdef UI_220X176
+                .bevel = { 0, 0, 30 },
+#else
                 .bevel = { 12, 0, 30 },
+#endif
                 .scrollbar_track = { { 0x18, 0x18, 0x18 }, { 0x18, 0x18, 0x18 } },
                 .initial_opacity = 16,
             },
         },
 #ifdef UI_220X176
-        /* The iPod photo's, the Video's by the same rules: a margin of 14,
-           rows of 22 in 15 px type, of two lines the port's 31 with its
-           covers of 29 (LINE_COVER_SIZE); the dot 6 px from the edge */
+        /* The iPod photo's, the Video's by the same rules: rows of 20 in
+           15 px type, of two lines 32 with covers of 29 (LINE_COVER_SIZE),
+           their text and covers 4 px from the edge; no dot, the selected
+           name in the signal colour (UI_METRIC_SELECTION_SIGNAL) */
         .list_font = "15-Inter-SemiBold",
         .selector_bevel = true,
         .cover_colours = false,
@@ -982,7 +983,7 @@ static const struct ui_theme ui_themes[] = {
             /* rows of 20 and, of two lines, 32, from y 16: 8 or 5 of them
                fill the list (the owner's rule: equal rows, a whole number) */
             [UI_METRIC_ROW_HEIGHT]           = 20,
-            [UI_METRIC_TEXT_INSET]           = 14,
+            [UI_METRIC_TEXT_INSET]           = 4,
             [UI_METRIC_INITIAL_HEIGHT]       = 56,
             [UI_METRIC_INITIAL_MARGIN]       = 12,
             [UI_METRIC_SPLASH_RADIUS]        = 4,
@@ -995,8 +996,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_VALUE_MARGIN]         = 14,
             [UI_METRIC_VALUE_MARGIN_CHEVRON] = 18,
             [UI_METRIC_VALUE_GAP]            = 7,
-            [UI_METRIC_VALUE_CUT]            = 1,
-            [UI_METRIC_HINT_X]               = 14,
+            [UI_METRIC_HINT_X]               = 4, /* the rows' text's: one edge */
             [UI_METRIC_HINT_TOP]             = 5,
             [UI_METRIC_HINT_PITCH]           = 15,
             /* 32 px: the name's part 16, the second line's 14 two rows
@@ -1018,7 +1018,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HEADER_COVER_SIZE]    = 38,
             [UI_METRIC_HEADER_CENTRED]       = 1,
             [UI_METRIC_SELECTION_RADIUS]     = 0,
-            [UI_METRIC_ROW_COVER_INSET]      = 14,
+            [UI_METRIC_ROW_COVER_INSET]      = 4,
             [UI_METRIC_CHEVRON_ALL]          = 0,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 1,
             [UI_METRIC_PANE_LEFT]            = 110,
@@ -1032,7 +1032,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_ACCENT_MARKS]         = 1,
             [UI_METRIC_LYRICS_DIM]           = 1,
             [UI_METRIC_RING_TRACK]           = 1,
-            [UI_METRIC_SELECTION_DOT]        = 6,
+            /* no dot: the selected name in its signal colour */
+            [UI_METRIC_SELECTION_SIGNAL]     = 1,
             [UI_METRIC_PANE_SHADE]           = 35,
             [UI_METRIC_RING_TICKS]           = 1,
             [UI_METRIC_SEARCH_KEYS]          = 1,
@@ -1064,8 +1065,9 @@ static const struct ui_theme ui_themes[] = {
             /* rows of 27 and, of two lines, 36, from y 24: 8 or 6 of them
                fill the list (the owner's rule: equal rows, a whole number) */
             [UI_METRIC_ROW_HEIGHT]           = 27,
-            /* one margin of 16 px: the names, the covers, the clock */
-            [UI_METRIC_TEXT_INSET]           = 16,
+            /* the names and the covers 4 px from the edge, as on the iPod
+               photo; the clock's margin of 16 is the status bar's */
+            [UI_METRIC_TEXT_INSET]           = 4,
             [UI_METRIC_INITIAL_HEIGHT]       = 72,
             [UI_METRIC_INITIAL_MARGIN]       = 16,
             [UI_METRIC_SPLASH_RADIUS]        = 4,
@@ -1080,8 +1082,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_VALUE_MARGIN]         = 16,
             [UI_METRIC_VALUE_MARGIN_CHEVRON] = 27,
             [UI_METRIC_VALUE_GAP]            = 10,
-            [UI_METRIC_VALUE_CUT]            = 1,
-            [UI_METRIC_HINT_X]               = 16,
+            [UI_METRIC_HINT_X]               = 4, /* the rows' text's: one edge */
             [UI_METRIC_HINT_TOP]             = 6,
             [UI_METRIC_HINT_PITCH]           = 18,
             /* 36 px, as Neo's */
@@ -1104,7 +1105,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HEADER_CENTRED]       = 1,
             /* a band of the row's width */
             [UI_METRIC_SELECTION_RADIUS]     = 0,
-            [UI_METRIC_ROW_COVER_INSET]      = 16,
+            [UI_METRIC_ROW_COVER_INSET]      = 4,
             /* as Classic: on the selected row, and on the main menu's row
                that plays */
             [UI_METRIC_CHEVRON_ALL]          = 0,
@@ -1123,8 +1124,8 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_ACCENT_MARKS]         = 1,
             [UI_METRIC_LYRICS_DIM]           = 1,
             [UI_METRIC_RING_TRACK]           = 1,
-            /* the cursor's dot 8 px from the list's edge */
-            [UI_METRIC_SELECTION_DOT]        = 8,
+            /* no dot: the selected name in its signal colour */
+            [UI_METRIC_SELECTION_SIGNAL]     = 1,
             /* the pane's wall's shadow over its cover, as the backdrop
                has it over the pane's floor */
             [UI_METRIC_PANE_SHADE]           = 35,

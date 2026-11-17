@@ -106,6 +106,16 @@ struct line_desc {
      * (UI_METRIC_SELECTION_INSET_Y): a row with a cover, which sits in the
      * bar with the same margin in both */
     bool bar_whole;
+    /* What the list's own drawing has at a row's end, as a setting's value
+     * or its switch: end_width columns at the right end, at the left right
+     * to left, which the text stops short of. Not scrolling, a text wider
+     * than its room ends in "…"; scrolling, it scrolls in its room. draw_end
+     * draws what's there, with end_data, after the text and again after each
+     * step of its scrolling, which draws the row's bar under it again. 0 and
+     * NULL for none; of a row of one part */
+    int16_t end_width;
+    void (*draw_end)(struct screen *display, int y, const struct line_desc *line);
+    const void *end_data;
 };
 
 /* default initializer, can be used for static initialitation also.
@@ -292,6 +302,12 @@ void line_draw_note_rows(const unsigned char *alpha, int stride, int w, int h,
                          int x, int y);
 void line_draw_cover(struct screen *display, int x, int y,
                      const fb_data *pixels);
+/* text in the font, the middle of its ink's box on the pixels' corner (cx,
+   cy), in the foreground; each glyph from the font its letter comes from.
+   by_mass: across by the middle of its ink's weight instead, the pixel
+   nearest, so that a letter with a light side stands in the middle */
+void line_draw_ink_centred(struct screen *display, int font, const char *text,
+                           int cx, int cy, bool by_mass);
 /* Quick Scroll's letter, or a year, in a box of its own around it, its middle
    at cx, cy of the viewport set: in white over the list, which shows through
    the box. In font, Quick Scroll's own, or in text_font for a letter that

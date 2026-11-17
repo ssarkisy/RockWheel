@@ -23,6 +23,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include "string-extra.h"
 
 #include "scroll_engine.h"
@@ -39,6 +40,7 @@
 #include "list.h"
 #include "font.h"
 #include "rbunicode.h"
+#include "bidi.h"
 #include "skin_engine/skin_engine.h"
 
 #ifdef HAVE_REMOTE_LCD
@@ -49,12 +51,6 @@
 
 
 static void style_line(struct screen *display, int x, int y, struct line_desc *line);
-/* while scroller() draws a scrolling line's text again: its repaint covers
-   the text's columns only, not the margin the cursor's dot is in (left to
-   right before x, right to left past the width it cuts the viewport to).
-   Set and cleared with no yield between, so another thread's drawing never
-   sees it */
-static bool scroll_repaint;
 
 static void put_text(struct screen *display, int x, int y, struct line_desc *line,
                       const char *text, bool prevent_scroll, int text_skip_pixels);
@@ -66,10 +62,12 @@ static int decoration_width(struct screen *display, const struct line_desc *line
 struct line_desc_scroll {
     struct line_desc desc;
     int rtl_cut; /* right to left, the viewport's end cut off for the text */
-    /* of a part of a taller row: the row's viewport, the part's top in it and
-       its whole width; the text scrolls in part_vps. NULL for another line */
+    /* of a part of a taller row, or of a row with something at its end right
+       to left (end_width): the row's viewport, the line's top in it, its
+       whole width and the columns at its start cut off for the text, which
+       scrolls in part_vps. NULL for another line */
     struct viewport *row_vp;
-    int part_top, full_width;
+    int part_top, full_width, left_cut;
     /* the list's scrollbar that is a line, which the row is under */
     struct line_bar bar;
     bool has_bar;
@@ -182,16 +180,17 @@ static void scroller(struct scrollinfo *s, struct screen *display)
     }
     else if (line->row_vp)
     {
-        /* the text in its part's viewport, current now, as wide as the
-           row's but for what's before it right to left; then what's at the
-           right end, in the row's middle, in the row's */
+        /* the text in its own viewport, current now, as wide as the row's
+           but for what's before it right to left: its bar from the row's
+           start, the text cut off again (put_text()); then what's at the
+           ends, in the row's middle, in the row's */
         struct viewport *vp = *display->current_viewport;
-        const int width = vp->width;
+        const int x = vp->x, width = vp->width;
+        vp->x -= line->left_cut;
         vp->width = line->full_width - line->rtl_cut;
-        scroll_repaint = true;
         style_line(display, s->x, 0, &line->desc);
-        scroll_repaint = false;
         put_text(display, s->x, s->y, &line->desc, s->line, true, s->offset);
+        vp->x = x;
         vp->width = width;
         struct viewport *part = display->set_viewport(line->row_vp);
         if (line->desc.style & STYLE_PLAYING)
@@ -199,6 +198,8 @@ static void scroller(struct scrollinfo *s, struct screen *display)
         draw_value(display, line->part_top, &line->desc);
         if (line->desc.style & STYLE_CHEVRON)
             draw_chevron(display, line->part_top, &line->desc);
+        if (line->desc.draw_end)
+            line->desc.draw_end(display, line->part_top, &line->desc);
         if (line->has_bar)
             line_draw_bar(display, &line->bar, line->row_vp->y,
                           line->row_vp->height);
@@ -211,9 +212,7 @@ static void scroller(struct scrollinfo *s, struct screen *display)
         /* the text's bar again, short of what's before it right to left */
         struct viewport *vp = *display->current_viewport;
         vp->width -= line->rtl_cut;
-        scroll_repaint = true;
         style_line(display, s->x, y, &line->desc);
-        scroll_repaint = false;
         put_text(display, s->x, s->y, &line->desc, s->line, true, s->offset);
         vp->width += line->rtl_cut;
         if (line->desc.style & STYLE_PLAYING)
@@ -221,6 +220,8 @@ static void scroller(struct scrollinfo *s, struct screen *display)
         draw_value(display, y, &line->desc);
         if (line->desc.style & STYLE_CHEVRON)
             draw_chevron(display, y, &line->desc);
+        if (line->desc.draw_end)
+            line->desc.draw_end(display, y, &line->desc);
         if (line->has_bar)
             line_draw_bar(display, &line->bar, vp->y + y, line->desc.height);
     }
@@ -290,10 +291,18 @@ static void put_text(struct screen *display,
        of background: as wide as the line, a title that ended under them didn't
        scroll and lost its end, and one that did never showed it */
     struct viewport *vp = *display->current_viewport;
-    const int vp_width = vp->width;
-    const int deco = decoration_width(display, line);
+    const int vp_x = vp->x, vp_width = vp->width;
+    /* and short of what the list draws at the row's end (end_width): right
+       to left at its start, the viewport's start moved past it */
+    const bool rtl = VP_IS_RTL(vp);
+    const int end = line->end_width > 0 && line->end_width < vp->width - x ?
+                    line->end_width : 0;
+    const int deco = MAX(decoration_width(display, line), rtl ? 0 : end);
     if (deco > 0 && deco < vp->width - x)
         vp->width -= deco;
+    const int left_cut = rtl ? end : 0;
+    vp->x += left_cut;
+    vp->width -= left_cut;
     /* Right to left, the text runs leftwards from x short of the right end,
        where there may be something before it, as an album's year: the
        viewport ends at x for it. Its scrolling, which the scroll engine
@@ -306,18 +315,21 @@ static void put_text(struct screen *display,
         x = 0;
     }
     /* of a part of a taller row, in the part's rows alone: in a viewport of
-       them, the scroller's when it scrolls (part_vps) */
+       them, the scroller's when it scrolls (part_vps); so too a row cut off
+       at its start, whose scrolling has the viewport it was put in, which
+       the list's isn't */
     struct viewport part;
     struct viewport *part_vp = NULL;
     int part_top = 0;
-    if (line->row_height > 0 && !prevent_scroll)
+    if ((line->row_height > 0 || left_cut) && !prevent_scroll)
     {
-        part_top = y - (line->height/2 - display->getcharheight()/2)
-                   - line->text_dy;
+        const int height = line->height == -1 ? display->getcharheight()
+                                              : line->height;
+        part_top = y - (height/2 - display->getcharheight()/2) - line->text_dy;
         part_vp = line->scroll ? &part_vps[display->screen_type] : &part;
         *part_vp = *vp;
         part_vp->y += part_top;
-        part_vp->height = line->height;
+        part_vp->height = height;
         y -= part_top;
         display->set_viewport(part_vp);
     }
@@ -335,6 +347,7 @@ static void put_text(struct screen *display,
         line_data->row_vp = part_vp ? vp : NULL;
         line_data->part_top = part_top;
         line_data->full_width = vp_width;
+        line_data->left_cut = left_cut;
         line_data->has_bar = list_bar_set && display->screen_type == SCREEN_MAIN;
         if (line_data->has_bar)
             line_data->bar = list_bar;
@@ -343,18 +356,21 @@ static void put_text(struct screen *display,
         line_data->used = scrolls;
     }
     /* A row's name too long for its place ends in "…" in a theme with a
-       place at every row's right end (UI_METRIC_ROW_RIGHT): cut bare before
-       a chevron it read as a fault. Not the scroller's draws of the row
-       that scrolls (prevent_scroll), which show the text's parts as they
-       are, on a thread with a small stack */
-    else if (!prevent_scroll && display->screen_type == SCREEN_MAIN
-             && ui_metric(UI_METRIC_ROW_RIGHT) && line->height > 0
-             && !VP_IS_RTL(vp) && text_skip_pixels == 0 && vp->width > x)
+       place at every row's right end (UI_METRIC_ROW_RIGHT), and before what
+       a list draws at a row's end (end_width) in any: cut bare before a
+       chevron it read as a fault. Not the scroller's draws of the row that
+       scrolls (prevent_scroll), which show the text's parts as they are, on
+       a thread with a small stack */
+    else if (!prevent_scroll && line->height > 0 && text_skip_pixels == 0
+             && vp->width > x
+             && (end || (display->screen_type == SCREEN_MAIN
+                         && ui_metric(UI_METRIC_ROW_RIGHT) && !rtl)))
         put_fitted(display, x, y, text, vp->font, vp->width - x);
     else
         display->putsxy_scroll_func(x, y, text, NULL, NULL, text_skip_pixels);
     if (part_vp)
         display->set_viewport(vp);
+    vp->x = vp_x;
     vp->width = vp_width;
 }
 
@@ -661,35 +677,6 @@ unsigned line_selection_bar(struct screen *display, int x, int y, int width,
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
-/* A theme's cursor: a dot in its signal colour in the left margin (the right
-   one right to left), in the middle of the selected item's rows; of a part of
-   a taller row the rows of the part, from y, bar_height of them. Not where a
-   strip from x leaves it out, nor from a scrolling line's repaint
-   (scroll_repaint), which has the dot of the line's own drawing beside it */
-static void draw_selection_dot(struct screen *display, int x, int y,
-                               int bar_height, const struct line_desc *line)
-{
-    const int at = ui_metric(UI_METRIC_SELECTION_DOT);
-    if (!at || scroll_repaint || display->screen_type != SCREEN_MAIN)
-        return;
-    const int height = line->height == -1 ? display->getcharheight() : line->height;
-    const int row = line->row_height > 0 ? line->row_height : height;
-    const int top = y - line->row_top - row * line->line;
-    const int cy = top + row * line->nlines / 2;
-    const int cx = lang_is_rtl() ? display->getwidth() - at : at;
-    const int left = cx - DIETER_DOT_HALF, first = cy - DIETER_DOT_HALF;
-    const int from = MAX(first, y), to = MIN(first + DIETER_DOT_H, y + bar_height);
-    if (left < x || from >= to)
-        return;
-    const unsigned fg = display->get_foreground();
-    display->set_foreground(ui_colour(UI_COLOUR_SIGNAL));
-    display->set_drawmode(DRMODE_FG);
-    lcd_alpha_bitmap_part(dieter_dot_alpha, 0, from - first, DIETER_DOT_W, left, from,
-                          DIETER_DOT_W, to - from);
-    display->set_foreground(fg);
-}
-#else
-#define draw_selection_dot(display, x, y, bar_height, line)
 #endif
 
 static void style_line(struct screen *display,
@@ -765,7 +752,6 @@ static void style_line(struct screen *display,
                                             row*line->line + line->row_top);
             if (global_settings.list_selector_bevel)
                 draw_bevel(display, x, y, width, bar_height, line);
-            draw_selection_dot(display, x, y, bar_height, line);
             break;
         }
         case STYLE_COLORBAR:
@@ -966,7 +952,7 @@ static const struct glyph glyphs[UI_THEME_COUNT][GLYPH_COUNT] = {
         [GLYPH_SMART]      = { neo_smart_gear_alpha, NEO_SMART_GEAR_W, NEO_SMART_GEAR_H, 0 },
         /* a row's tile: the grille of the pane, small and flat */
         [GLYPH_SMALL_NOTE] = { dieter_tile_alpha, DIETER_TILE_W, DIETER_TILE_H, 0 },
-        /* in the cursor's column (draw_state()) */
+        /* an episode's marks, new and begun, in the marks' column */
         [GLYPH_DOT]        = { dieter_ring_alpha, DIETER_RING_W, DIETER_RING_H, 0 },
         [GLYPH_HALF_DOT]   = { dieter_ring_half_alpha, DIETER_RING_HALF_W, DIETER_RING_HALF_H, 0 },
     },
@@ -1002,8 +988,11 @@ static unsigned on_selection(const struct line_desc *line)
        selected row's */
     if (!(line->style & (STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT)))
         return (unsigned)line->text_color;
-    return ui_metric(UI_METRIC_ROW_RIGHT) ? ui_colour(UI_COLOUR_VALUE_SELECTED)
-                                          : (unsigned)line->text_color;
+    if (ui_metric(UI_METRIC_ROW_RIGHT))
+        return ui_colour(UI_COLOUR_VALUE_SELECTED);
+    /* the name alone in the signal colour: the rest as on any band */
+    return ui_metric(UI_METRIC_SELECTION_SIGNAL) ? (unsigned)global_settings.lst_color
+                                                : (unsigned)line->text_color;
 }
 
 static unsigned off_selection(unsigned colour)
@@ -1045,6 +1034,9 @@ static void draw_chevron(struct screen *display, int y, struct line_desc *line)
         if (ui_metric(UI_METRIC_ROW_RIGHT))
             display->set_foreground(coloured(line, STYLE_INVERT|STYLE_COLORBAR|STYLE_GRADIENT) ?
                                     on_selection(line) : ui_colour(UI_COLOUR_QUIET));
+        else if (ui_metric(UI_METRIC_SELECTION_SIGNAL)
+                 && coloured(line, STYLE_COLORBAR|STYLE_GRADIENT))
+            display->set_foreground(on_selection(line)); /* not the name's signal */
         display->set_drawmode(DRMODE_FG);
         draw_glyph(GLYPH_CHEVRON, x, line_middle(display, y, line, CHEVRON_H));
         display->set_foreground(fg);
@@ -1217,8 +1209,7 @@ int line_mark_column(struct screen *display, int mark)
         return NEO_SHUFFLE_W + space;
     }
 #endif
-    /* none where the theme has a cursor's column: the marks stand there */
-    if (display->screen_type == SCREEN_MAIN && !ui_metric(UI_METRIC_SELECTION_DOT))
+    if (display->screen_type == SCREEN_MAIN)
         return DOT_W + STATE_GAP;
 #endif
     return 0;
@@ -1231,30 +1222,6 @@ int line_mark_column(struct screen *display, int mark)
 static void draw_state(struct screen *display, int x, int y,
                        const struct line_desc *line, int mark)
 {
-    const int at = ui_metric(UI_METRIC_SELECTION_DOT);
-    if (mark != LINE_MARK_EMPTY && at && display->screen_type == SCREEN_MAIN)
-    {
-        /* in the cursor's column, a ring in the theme's ink, half filled for
-           a begun episode; the cursor fills it with its colour */
-        const int row = line->row_height > 0 ? line->row_height
-                        : line->height == -1 ? display->getcharheight() : line->height;
-        const int cx = lang_is_rtl() ? display->getwidth() - at : at;
-        const int left = cx - DIETER_RING_HALF, top = y + row / 2 - DIETER_RING_HALF;
-        const unsigned fg = display->get_foreground();
-        display->set_drawmode(DRMODE_FG);
-        if (coloured(line, STYLE_COLORBAR|STYLE_GRADIENT))
-        {
-            display->set_foreground(ui_colour(UI_COLOUR_SIGNAL));
-            lcd_alpha_bitmap_part(dieter_ring_fill_alpha, 0, 0, DIETER_RING_FILL_W,
-                                  left, top, DIETER_RING_FILL_W, DIETER_RING_FILL_H);
-        }
-        display->set_foreground(ui_colour(UI_COLOUR_ACCENT));
-        draw_glyph(mark == LINE_MARK_NEW || coloured(line, STYLE_COLORBAR|STYLE_GRADIENT)
-                   ? GLYPH_DOT : GLYPH_HALF_DOT, left, top);
-        display->set_foreground(fg);
-        display->set_drawmode(DRMODE_SOLID);
-        return;
-    }
     if (mark == LINE_MARK_EMPTY || !line_mark_column(display, mark))
         return;
     const int height = line->height == -1 ? display->getcharheight() : line->height;
@@ -1609,7 +1576,9 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
     if (coloured(line, STYLE_COLORED|STYLE_COLORBAR|STYLE_GRADIENT))
     {
         colour = on_selection(line);
-        accent_colour = line->text_color;
+        accent_colour = ui_metric(UI_METRIC_SELECTION_SIGNAL)
+                        && coloured(line, STYLE_COLORBAR|STYLE_GRADIENT) ?
+                        (unsigned)global_settings.lst_color : line->text_color;
     }
     else if (line->style & STYLE_INVERT) /* as the text on the bar */
         colour = accent_colour = display->get_background();
@@ -1966,6 +1935,62 @@ static void draw_initial_glyphs(struct screen *display, struct font *pf, int fon
     font_lock(font, false);
 }
 
+/* The box of the ink of n glyphs drawn from pen 0 at their font's top: each
+   from pf, or with others from the font its letter comes from
+   (font_for_char()), its pixels at least half drawn. False for no ink, or a
+   glyph of a font without grey levels, whose bits are laid out otherwise */
+static bool glyphs_ink(struct font *pf, bool others, const ucschar_t *ucs, int n,
+                       int form, int *left, int *right, int *top, int *bottom,
+                       int *mass16)
+{
+    int pen = 0;
+    int64_t weighed = 0, cover = 0;
+    *left = *top = INT_MAX;
+    *right = *bottom = INT_MIN;
+    for (int i = 0; i < n; i++)
+    {
+        ucschar_t g = ucs[i];
+        struct font *gf = others ? font_for_char(pf, ucs[i], form, &g) : pf;
+        if (!gf->depth)
+            return false;
+        const int w = font_get_width(gf, g);
+        const unsigned char *bits = font_get_bits(gf, g);
+        for (int row = 0; row < (int)gf->height; row++)
+            for (int x = 0; x < w; x++)
+            {
+                const int p = row * w + x;
+                const int a = 15 - ((bits[p >> 1] >> ((p & 1) * 4)) & 0xf);
+                if (mass16)
+                {
+                    weighed += (int64_t)a * (16 * (pen + x) + 8);
+                    cover += a;
+                }
+                if (a > 7)
+                {
+                    *left = MIN(*left, pen + x);
+                    *right = MAX(*right, pen + x);
+                    *top = MIN(*top, row);
+                    *bottom = MAX(*bottom, row);
+                }
+            }
+        pen += w;
+    }
+    /* the ink's columns' middle by its cover, in sixteenths of a pixel */
+    if (mass16)
+        *mass16 = cover ? (int)(weighed / cover) : 16 * (*left + *right + 1) / 2;
+    return *left <= *right;
+}
+
+/* the pen's place for glyphs whose ink is the box (left..right, top..bottom)
+   to have that box's middle on the pixels' corner (cx, cy); half a pixel's
+   difference up and left */
+static void ink_centred(int cx, int cy, int left, int right, int top, int bottom,
+                        int *gx, int *gy)
+{
+    *gx = cx - (left + right + 2) / 2;
+    *gy = cy - (top + bottom + 2) / 2;
+}
+
 /* the letters cut into a key, three draws of them from (x, y): the lit lip
    of their lower right walls two pixels down and right, the shade of their
    top and left walls at their place, their floor between */
@@ -1979,6 +2004,72 @@ static void draw_initial_text(struct screen *display, struct font *pf, int font,
     draw_initial_glyphs(display, pf, font, ucs, n, x, y);
     display->set_foreground(ui_colour(UI_COLOUR_INITIAL_TEXT));
     draw_initial_glyphs(display, pf, font, ucs, n, x + 1, y + 1);
+}
+#endif
+
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+/* The text in a theme's key, the middle of its ink's box on the key's both
+   ways, so that a letter's own shape and not its font's advance and line
+   place it. In Quick Scroll's font cut into the key, the cut's edges a
+   pixel either side of its floor; another alphabet's letters, from the
+   list's font or the fallback, are too small for the cut and stand plain in
+   its shade's tone */
+static void initial_in_key(struct screen *display, struct font *pf, int font,
+                           const ucschar_t *ucs, int n, const char *text, int text_font,
+                           int cx, int cy)
+{
+    int left, right, top, bottom, gx, gy;
+    if (pf)
+    {
+        if (!glyphs_ink(pf, false, ucs, n, 0, &left, &right, &top, &bottom, NULL))
+            return;
+        ink_centred(cx, cy, left, right, top, bottom, &gx, &gy);
+        draw_initial_text(display, pf, font, ucs, n, gx - 1, gy - 1);
+        return;
+    }
+    display->set_foreground(ui_colour(UI_COLOUR_INITIAL_SHADE));
+    line_draw_ink_centred(display, text_font, text, cx, cy, false);
+}
+
+void line_draw_ink_centred(struct screen *display, int font, const char *text,
+                           int cx, int cy, bool by_mass)
+{
+    int left, right, top, bottom, gx, gy, mass16;
+    /* in the visual order and the joined forms the list draws them in */
+    struct font *lf = font_get(font);
+    const ucschar_t *v = bidi_l2v((const unsigned char *)text, 1);
+    int m = 0;
+    while (m < INITIAL_CHARS && v[m])
+        m++;
+    const int form = font_han_form(v);
+    const unsigned locked = font_lock_all();
+    if (!glyphs_ink(lf, true, v, m, form, &left, &right, &top, &bottom, &mass16))
+    {
+        /* a font without grey levels: by its advance and line */
+        int width;
+        font_getstringsize(text, &width, NULL, font);
+        left = 0, right = width - 1, top = 0, bottom = lf->height - 1;
+        by_mass = false;
+    }
+    ink_centred(cx, cy, left, right, top, bottom, &gx, &gy);
+    /* a letter's column by its ink's weight, the pixel nearest: a light
+       side, as F's or J's, otherwise pulls it off the middle */
+    if (by_mass)
+        gx = cx - (mass16 + 8) / 16;
+    display->set_drawmode(DRMODE_FG);
+    for (int i = 0; i < m; i++)
+    {
+        ucschar_t g;
+        struct font *gf = font_for_char(lf, v[i], form, &g);
+        const int w = font_get_width(gf, g);
+        const unsigned char *bits = font_get_bits(gf, g);
+        if (gf->depth)
+            lcd_alpha_bitmap_part(bits, 0, 0, w, gx, gy, w, gf->height);
+        else
+            display->mono_bitmap_part(bits, 0, 0, w, gx, gy, w, gf->height);
+        gx += w;
+    }
+    font_unlock_all(locked);
 }
 #endif
 
@@ -2016,14 +2107,10 @@ void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
     if (key && key->width > h && key->height > h)
     {
         draw_initial_key(display, key, cx, cy, w, h);
-        if (pf)
-        {
-            draw_initial_text(display, pf, font, ucs, n, cx - width / 2 - 1,
-                              cy - initial_ink_middle(font, pf) - 1);
-            display->set_foreground(fg);
-            display->set_drawmode(DRMODE_SOLID);
-            return;
-        }
+        initial_in_key(display, pf, font, ucs, n, text, text_font, cx, cy);
+        display->set_foreground(fg);
+        display->set_drawmode(DRMODE_SOLID);
+        return;
     }
     else
         draw_initial_box(display, x, y, w, h);
@@ -2095,6 +2182,8 @@ void vput_line(struct screen *display,
     draw_value(display, y, line);
     if (line->style & STYLE_CHEVRON)
         draw_chevron(display, y, line);
+    if (line->draw_end)
+        line->draw_end(display, y, line);
 #if (LCD_DEPTH > 1 || (defined(LCD_REMOTE_DEPTH) && LCD_REMOTE_DEPTH > 1))
     if (display->depth > 1 && line->style > STYLE_INVERT)
     {

@@ -848,9 +848,9 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     if (has_bar)
     {
         const int top = (show_title ? title_text[screen].height : 0) + 1;
-        const int track = (list_hint_band(list, screen) > 0 ?
-            nb_lines * list->line_height[screen]
-            : parent->height - (show_title ? title_text[screen].height : 0)) - 2;
+        /* the list's whole height always, beside a band of hints too, as
+           Classic's: it doesn't change as the hints come and go */
+        const int track = parent->height - (show_title ? title_text[screen].height : 0) - 2;
         const int thumb = MAX(14, track * nb_lines / list->nb_items);
         const int rest = list->nb_items - nb_lines;
         const int ty = top + (track - thumb) * MAX(MIN(list_start_item, rest), 0) / rest;
@@ -1037,6 +1037,13 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             }
 #endif
             is_selected = true;
+#ifdef HAVE_LCD_COLOR
+            /* a theme's selected name in its signal colour on the band
+               (Dieter's on the iPod photo): the name alone, as its subline
+               and its values keep their tones */
+            if (ui_metric(UI_METRIC_SELECTION_SIGNAL) && (style & STYLE_GRADIENT))
+                linedes.text_color = ui_colour(UI_COLOUR_SIGNAL);
+#endif
 #ifdef HAVE_LCD_COLOR
             /* the scrollbar over it in its text's colour, for it too when
                it scrolls */
@@ -1228,10 +1235,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     if (capsule && list->scrollbar != SCROLLBAR_OFF && nb_lines < list->nb_items)
     {
         display->set_viewport(parent);
-        /* beside the rows, not on beside a band of hints under them */
-        const int room = list_hint_band(list, screen) > 0 ?
-            nb_lines * list->line_height[screen]
-            : parent->height - (show_title ? title_text[screen].height : 0);
+        /* the list's whole height, as the line's track (has_bar) */
+        const int room = parent->height - (show_title ? title_text[screen].height : 0);
         const int top = show_title ? title_text[screen].height : 0;
         const int thumb = MAX(14, room * nb_lines / list->nb_items);
         const int rest = list->nb_items - nb_lines;

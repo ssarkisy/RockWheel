@@ -106,12 +106,11 @@ enum ui_colour {
     UI_COLOUR_RING_TRACK,     /* the disk's ring's part not used, with UI_METRIC_RING_TRACK */
     UI_COLOUR_GROUP_NAME,     /* a group's name on its band, with UI_METRIC_GROUP_BAR 2 */
     UI_COLOUR_SETTINGS_SELECTOR, /* Settings' selected row, with UI_METRIC_SETTINGS_SELECTION */
-    /* the one colour of a theme that has a signal (UI_METRIC_SELECTION_DOT):
-       where one is, the list's cursor and the fill of an episode's ring under
-       it, Search's caret and its chosen key, Cover Flow's track, the On/Off
-       key's lamp and the volume knob's body (Now Playing's lamps are frames
-       of the skin's, by the setting); the user's choice of enum
-       ui_signal_colour */
+    /* the one colour of a theme that has a signal (UI_METRIC_SELECTION_SIGNAL):
+       the selected row's name, Search's caret and its chosen key, Cover
+       Flow's chosen track, the On/Off key's lamp and the volume knob's body
+       (Now Playing's lamps are frames of the skin's, by the setting); the
+       user's choice of enum ui_signal_colour */
     UI_COLOUR_SIGNAL,
     /* Quick Scroll's letter cut into a key (a skin's picture labelled
        qskey): the shade of its top and left walls, the lit lip of its lower
@@ -153,7 +152,10 @@ enum ui_metric {
     UI_METRIC_VALUE_MARGIN,
     UI_METRIC_VALUE_MARGIN_CHEVRON,
     UI_METRIC_VALUE_GAP,
-    UI_METRIC_VALUE_CUT,      /* a setting's value too long beside its name is cut with an ellipsis, not left out */
+    /* once a setting's value too long beside its name cut with an ellipsis:
+       unread now, as a value always shows whole (menu.c). Kept so that the
+       metrics after it keep their numbers, which plugins use */
+    UI_METRIC_VALUE_CUT,
     UI_METRIC_HINT_X,
     UI_METRIC_HINT_TOP,
     UI_METRIC_HINT_PITCH,
@@ -230,9 +232,10 @@ enum ui_metric {
        selection's end and the capsule while it shows, the rows narrower for
        them (list.c); 0 for those the selection's inset leaves */
     UI_METRIC_SCROLLBAR_GAP,
-    /* the selected row marked by a dot in UI_COLOUR_SIGNAL in the left
-       margin, its middle this far from the list's edge; a podcast's
-       episodes then have their marks there too, as rings the dot fills */
+    /* once the selected row's dot in UI_COLOUR_SIGNAL in the left margin, so
+       far from the list's edge: no theme has it now (Dieter's selected name
+       is in that colour, UI_METRIC_SELECTION_SIGNAL). Kept, unread, so that
+       the metrics after it keep their numbers, which plugins use */
     UI_METRIC_SELECTION_DOT,
     /* with UI_METRIC_GROUP_BAR 0, a hairline in UI_COLOUR_GROUP_RULE on a
        group's last row, under its name, which stands this many rows over
@@ -258,6 +261,9 @@ enum ui_metric {
     /* the covers of Now Playing and of the main menu's pane behind glass in
        their windows (cover_glass(), dieter_glyphs.h's tables) */
     UI_METRIC_COVER_GLASS,
+    /* the selected row's name in UI_COLOUR_SIGNAL on its band, its
+       subline and values in their own tones */
+    UI_METRIC_SELECTION_SIGNAL,
     UI_METRIC_COUNT
 };
 

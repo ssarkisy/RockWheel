@@ -530,8 +530,10 @@ static bool menu_is_group(int item, void *data)
 }
 
 /* A line of "name\tvalue": the name as usual, then the value at the right end,
-   grey. It goes left of where a chevron can come in a list that has them, and
-   only if it fits beside the name. The name of a group has a bar of its own. */
+   grey, left of where a chevron can come in a list that has them. The value
+   always whole: a name too long for the room before it ends in "…" there,
+   and scrolls in it while selected. The name of a group has a bar of its
+   own. */
 #define VALUE_COLOUR LIST_VALUE_COLOUR
 #define GROUP_COLOUR LIST_GROUP_COLOUR
 #define GROUP_BAR_COLOUR LIST_GROUP_BAR_COLOUR
@@ -551,6 +553,82 @@ static bool menu_is_group(int item, void *data)
 #define MODERN_SWITCH_H 16
 #endif
 #define MODERN_KNOB     (MODERN_SWITCH_H - 4)
+
+/* What a setting's row has at its end: its value, or its switch, Dieter's
+   key or Modern's capsule, drawn by line.c after the row's name and again
+   after each step of its scrolling (line_desc.draw_end) */
+enum row_end_kind { END_TEXT, END_KEY, END_CAPSULE };
+struct row_end {
+    enum row_end_kind kind;
+    int x, dy;     /* its left, a text's as left to left (putsxy() mirrors
+                      it right to left); its top below the line's */
+    bool on, selected, inked;
+    int font; /* a text's */
+    unsigned colour;
+    const char *text;
+};
+/* The selected row's, which the scroller draws as the name scrolls: one on
+   each screen, where its list has the one selected row; the others don't
+   scroll */
+static struct row_end selected_end[NB_SCREENS];
+static char selected_text[NB_SCREENS][MAX_PATH];
+
+static void draw_row_end(struct screen *display, int y,
+                         const struct line_desc *line)
+{
+    const struct row_end *end = line->end_data;
+    const unsigned old_fg = display->get_foreground();
+    y += end->dy;
+    switch (end->kind)
+    {
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+        case END_KEY:
+            line_draw_switch(display, end->x, y, end->on);
+            return;
+#endif
+#ifdef HAVE_LCD_COLOR
+        case END_CAPSULE:
+        {
+            /* the capsule, its knob white */
+            const unsigned old_bg = display->get_background();
+            const unsigned colour = ui_colour(end->on ? UI_COLOUR_SWITCH_ON
+                                                      : UI_COLOUR_SWITCH_OFF);
+            if (end->selected)
+                display->set_background(line->line_color);
+            /* on a bar of one colour, a ring in the bar's text's colour
+               round it: the green stood on the accent without an edge */
+            if (end->inked && ui_metric(UI_METRIC_SELECTION_INK))
+            {
+                line_fill_rounded(display, end->x - 1, y - 1, MODERN_SWITCH_W + 2,
+                                  MODERN_SWITCH_H + 2, MODERN_SWITCH_H / 2 + 1,
+                                  line->text_color);
+                display->set_background(line->text_color);
+            }
+            line_fill_rounded(display, end->x, y, MODERN_SWITCH_W, MODERN_SWITCH_H,
+                              MODERN_SWITCH_H / 2, colour);
+            display->set_background(colour);
+            line_fill_rounded(display, end->x + (end->on ? MODERN_SWITCH_W - 2 - MODERN_KNOB : 2),
+                              y + 2, MODERN_KNOB, MODERN_KNOB, MODERN_KNOB / 2,
+                              LCD_RGBPACK(0xff, 0xff, 0xff));
+            display->set_background(old_bg);
+            break;
+        }
+#endif
+        default:
+        {
+            struct viewport *vp = *display->current_viewport;
+            const int name_font = vp->font;
+            display->set_foreground(end->colour);
+            display->set_drawmode(DRMODE_FG);
+            vp->font = end->font;
+            display->putsxy(end->x, y, end->text);
+            vp->font = name_font;
+            break;
+        }
+    }
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_foreground(old_fg);
+}
 
 void menu_draw_value_line(struct list_putlineinfo_t *info)
 {
@@ -704,78 +782,15 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         return;
     }
     strlcpy(name, text, MIN((size_t)(tab - text) + 1, sizeof(name)));
-    display->put_line(info->x, info->y, info->linedes, "$*s$*t", info->item_indent,
-                      info->item_offset, name);
 
     int name_width, width, height;
     display->getstringsize(name, &name_width, &height);
-    const int name_end = info->x + info->item_indent + name_width + VALUE_GAP;
-    /* On or Off that changes in place: the theme's switch at the row's end
-       if it fits beside the name, or the word */
+    const int name_x = info->x + info->item_indent;
     const char *value = tab + 1;
     /* the selection's colours on what is beside the name, or not: on
        Settings' selection that has its own (STYLE_NAME_ONLY), as on any row */
     const bool inked = info->is_selected
                        && !(info->linedes->style & STYLE_NAME_ONLY);
-    const bool is_switch = *value == MENU_SWITCH_ON || *value == MENU_SWITCH_OFF;
-    if (is_switch)
-    {
-        const bool on = *value++ == MENU_SWITCH_ON;
-#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-        /* Dieter's: a key with its lamp, lit for On */
-        if (ui_metric(UI_METRIC_SWITCHES) == 2 && display->screen_type == SCREEN_MAIN
-            && name_end <= info->vp->width - VALUE_MARGIN - line_switch_w())
-        {
-            const int x = VP_IS_RTL(info->vp) ? VALUE_MARGIN
-                                              : info->vp->width - VALUE_MARGIN - line_switch_w();
-            line_draw_switch(display, x,
-                             info->y + (info->linedes->height - line_switch_h()) / 2, on);
-            return;
-        }
-#endif
-#ifdef HAVE_LCD_COLOR
-        if (ui_metric(UI_METRIC_SWITCHES) == 1 && display->screen_type == SCREEN_MAIN
-            && name_end <= info->vp->width - VALUE_MARGIN - MODERN_SWITCH_W)
-        {
-            /* the capsule, its knob white; at the other end right to
-               left */
-            const int x = VP_IS_RTL(info->vp) ? VALUE_MARGIN
-                                              : info->vp->width - VALUE_MARGIN - MODERN_SWITCH_W;
-            const int y = info->y + (info->linedes->height - MODERN_SWITCH_H) / 2;
-            const unsigned old_fg = display->get_foreground();
-            const unsigned old_bg = display->get_background();
-            const unsigned colour = ui_colour(on ? UI_COLOUR_SWITCH_ON
-                                                 : UI_COLOUR_SWITCH_OFF);
-            if (info->is_selected)
-                display->set_background(info->linedes->line_color);
-            /* on a bar of one colour, a ring in the bar's text's colour
-               round it: the green stood on the accent without an edge */
-            if (inked && ui_metric(UI_METRIC_SELECTION_INK))
-            {
-                line_fill_rounded(display, x - 1, y - 1, MODERN_SWITCH_W + 2,
-                                  MODERN_SWITCH_H + 2, MODERN_SWITCH_H / 2 + 1,
-                                  info->linedes->text_color);
-                display->set_background(info->linedes->text_color);
-            }
-            line_fill_rounded(display, x, y, MODERN_SWITCH_W, MODERN_SWITCH_H,
-                              MODERN_SWITCH_H / 2, colour);
-            display->set_background(colour);
-            line_fill_rounded(display, x + (on ? MODERN_SWITCH_W - 2 - MODERN_KNOB : 2), y + 2,
-                              MODERN_KNOB, MODERN_KNOB, MODERN_KNOB / 2,
-                              LCD_RGBPACK(0xff, 0xff, 0xff));
-            display->set_background(old_bg);
-            display->set_foreground(old_fg);
-            display->set_drawmode(DRMODE_SOLID);
-            return;
-        }
-#endif
-    }
-    /* the value in the theme's font for it, on the name's baseline */
-    const int name_font = info->vp->font;
-    int font = font_find(ui_font_file(UI_FONT_MENU_VALUE));
-    if (font < 0)
-        font = name_font;
-    font_getstringsize(value, &width, NULL, font);
     /* left of where a chevron can come in the list; or, where the theme
        lays the row's end out itself, of this row's own, selected or not.
        Right to left no row has a chevron: where every row that leads on
@@ -786,37 +801,84 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         && !(ui_metric(UI_METRIC_CHEVRON_ALL) && VP_IS_RTL(info->vp));
     const int right = info->vp->width -
         (chevron ? VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
-    const int least = name_end;
-    char fitted[MAX_PATH];
-    int x = right - width;
-    if (x < least)
+    struct row_end end = { .kind = END_TEXT };
+    int end_x = 0; /* where it starts, left to right */
+    /* On or Off that changes in place: the theme's switch at the row's end,
+       or the word */
+    if (*value == MENU_SWITCH_ON || *value == MENU_SWITCH_OFF)
     {
-        /* no room after the name: none, or by the theme the value cut
-           short with an ellipsis, if that leaves enough of it to read */
-        if (!ui_metric(UI_METRIC_VALUE_CUT) || right - least < LIGHT_LEAST)
-            return;
-        /* cut short in the form of the whole, and drawn in it */
-        font_set_text_form(font_text_form((const unsigned char *)value, -1));
-        value = line_fit(value, font, right - least, fitted, sizeof(fitted));
-        if (!value)
+        end.on = *value++ == MENU_SWITCH_ON;
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+        /* Dieter's: a key with its lamp, lit for On; its edge where the
+           values' text ends, not out at the row's margin: its
+           picture's last column is its edge's faint end, as the column past
+           a value's last letter's ink is; right to left its mirror, where
+           the values start there */
+        if (ui_metric(UI_METRIC_SWITCHES) == 2 && display->screen_type == SCREEN_MAIN)
         {
-            font_set_text_form(-1);
-            return;
+            const int key_end = right + 1;
+            end.kind = END_KEY;
+            end_x = key_end - line_switch_w();
+            end.x = VP_IS_RTL(info->vp) ? info->vp->width - key_end : end_x;
+            end.dy = (info->linedes->height - line_switch_h()) / 2;
         }
-        font_getstringsize(value, &width, NULL, font);
-        x = right - width;
+#endif
+#ifdef HAVE_LCD_COLOR
+        /* Modern's capsule at the margin; at the other end right to left */
+        if (ui_metric(UI_METRIC_SWITCHES) == 1 && display->screen_type == SCREEN_MAIN)
+        {
+            end.kind = END_CAPSULE;
+            end_x = info->vp->width - VALUE_MARGIN - MODERN_SWITCH_W;
+            end.x = VP_IS_RTL(info->vp) ? VALUE_MARGIN : end_x;
+            end.dy = (info->linedes->height - MODERN_SWITCH_H) / 2;
+            end.selected = info->is_selected;
+            end.inked = inked;
+        }
+#endif
     }
+    if (end.kind == END_TEXT)
+    {
+        /* the value whole, in the theme's font for it, on the name's
+           baseline: it always shows whole, the name cut short before it, to
+           nothing if it must */
+        const int name_font = info->vp->font;
+        end.font = font_find(ui_font_file(UI_FONT_MENU_VALUE));
+        if (end.font < 0)
+            end.font = name_font;
+        font_getstringsize(value, &width, NULL, end.font);
+        end_x = right - width;
+        end.x = end_x;
+        end.dy = (info->linedes->height - height) / 2
+                 + font_get(name_font)->ascent - font_get(end.font)->ascent;
+        end.colour = inked ? ui_colour(UI_COLOUR_VALUE_SELECTED) : VALUE_COLOUR;
+    }
+    end.text = value;
 
-    const unsigned old_fg = display->get_foreground();
-    display->set_foreground(inked ? ui_colour(UI_COLOUR_VALUE_SELECTED) : VALUE_COLOUR);
-    display->set_drawmode(DRMODE_FG);
-    info->vp->font = font;
-    display->putsxy(x, info->y + (info->linedes->height - height) / 2
-                    + font_get(name_font)->ascent - font_get(font)->ascent, value);
-    font_set_text_form(-1);
-    info->vp->font = name_font;
-    display->set_drawmode(DRMODE_SOLID);
-    display->set_foreground(old_fg);
+    /* the name before it, a gap between them: too long for that, cut short
+       with "…", or, selected, scrolling in that room (line.c); a column of
+       it at least */
+    struct line_desc linedes = *info->linedes;
+    if (name_x + name_width + VALUE_GAP > end_x)
+        linedes.end_width = MIN(info->vp->width - end_x + VALUE_GAP,
+                                info->vp->width - name_x - 1);
+    linedes.draw_end = draw_row_end;
+    if (info->is_selected && linedes.scroll)
+    {
+        /* the scroller draws it again later: what it draws kept, as the
+           list's one selected row's (no other scrolls) */
+        const int screen = display->screen_type;
+        strlcpy(selected_text[screen], value, sizeof(selected_text[screen]));
+        selected_end[screen] = end;
+        selected_end[screen].text = selected_text[screen];
+        linedes.end_data = &selected_end[screen];
+    }
+    else
+    {
+        linedes.scroll = false;
+        linedes.end_data = &end;
+    }
+    display->put_line(info->x, info->y, &linedes, "$*s$*t", info->item_indent,
+                      info->item_offset, name);
 }
 
 static enum themable_icons  menu_get_icon(int selected_item, void * data)

@@ -995,10 +995,10 @@
     *: "One"
   </source>
   <dest>
-    *: "Seçilen Parçayı Tekrarla"
+    *: "Tek Parça"
   </dest>
   <voice>
-    *: "Seçilen Parçayı Tekrarla"
+    *: "Tek Parça"
   </voice>
 </phrase>
 <phrase>
