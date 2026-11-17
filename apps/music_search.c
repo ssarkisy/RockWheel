@@ -1985,7 +1985,7 @@ static void make_layout(void)
         lines = 1;
     int spare = ui.height - field_h - strip_h - lines * row;
     if (KEYS)
-        ; /* the rows left under the list */
+        ; /* the rows left under the list, cleared as it is drawn (draw()) */
     else if (spare > 0 && ROUNDED)
         strip_h += spare; /* the field stays at the top */
     else if (spare > 0)
@@ -2273,27 +2273,30 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
     if (KEYS)
     {
         /* each on its key, the chosen one ringed while it is being chosen;
-           a letter no name goes on with lighter, as are the others */
-        draw_key(display, cx, cy, chosen && !in_results);
+           a letter no name goes on with lighter, as are the others. Right
+           to left the keys at the places the letters take, as the text is
+           drawn mirrored and the pictures and lines aren't */
+        const int kx = VP_IS_RTL(&strip_vp) ? strip_vp.width - cx : cx;
+        draw_key(display, kx, cy, chosen && !in_results);
         display->set_foreground(letter_possible(i) ? text_colour : DIM_TEXT);
         if (strip.c[i] == STRIP_SPACE)
         {
             /* a bracket open at the top, small for the key */
-            display->hline(cx - 4, cx + 4, cy + 2);
-            display->vline(cx - 4, cy - 1, cy + 2);
-            display->vline(cx + 4, cy - 1, cy + 2);
+            display->hline(kx - 4, kx + 4, cy + 2);
+            display->vline(kx - 4, cy - 1, cy + 2);
+            display->vline(kx + 4, cy - 1, cy + 2);
             return;
         }
         if (strip.c[i] == STRIP_DELETE)
         {
             /* a key pointing left with a cross in it */
-            display->hline(cx - 2, cx + 5, cy - 3);
-            display->hline(cx - 2, cx + 5, cy + 3);
-            display->vline(cx + 5, cy - 3, cy + 3);
-            display->drawline(cx - 5, cy, cx - 2, cy - 3);
-            display->drawline(cx - 5, cy, cx - 2, cy + 3);
-            display->drawline(cx, cy - 1, cx + 2, cy + 1);
-            display->drawline(cx, cy + 1, cx + 2, cy - 1);
+            display->hline(kx - 2, kx + 5, cy - 3);
+            display->hline(kx - 2, kx + 5, cy + 3);
+            display->vline(kx + 5, cy - 3, cy + 3);
+            display->drawline(kx - 5, cy, kx - 2, cy - 3);
+            display->drawline(kx - 5, cy, kx - 2, cy + 3);
+            display->drawline(kx, cy - 1, kx + 2, cy + 1);
+            display->drawline(kx, cy + 1, kx + 2, cy - 1);
             return;
         }
         chosen = false; /* its letter as the others' */
@@ -2443,6 +2446,21 @@ static void draw(void)
         }
         list_draw_hint(display, &band, str(LANG_NAME_KEYS));
         display->update_viewport();
+    }
+    if (KEYS)
+    {
+        /* the rows under the list's whole ones, which went on showing the
+           screen's before it there */
+        struct viewport ui, spare = list_vp[SCREEN_MAIN];
+        viewport_set_defaults(&ui, SCREEN_MAIN);
+        spare.y += spare.height;
+        spare.height = ui.y + ui.height - spare.y;
+        if (spare.height > 0)
+        {
+            display->set_viewport(&spare);
+            display->clear_viewport();
+            display->update_viewport();
+        }
     }
     display->set_viewport(last);
     if (!naming)

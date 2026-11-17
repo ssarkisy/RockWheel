@@ -53,6 +53,7 @@
 #include "wps_internals.h"
 #include "skin_engine.h"
 #include "menu_cover.h"
+#include "skin_display.h"
 #include "rbpaths.h"
 #include "debug.h"
 
@@ -926,6 +927,12 @@ void menu_cover_shade(int x0, int y0, int y1)
     lcd_set_viewport_ex(vp, 0);
 }
 
+void menu_cover_glass(void)
+{
+    if (pan_shown || pan_still)
+        cover_glass(pan.x0, pan.y0, pan.x1 - pan.x0, pan.y1 - pan.y0, 0);
+}
+
 /* show_at: the tick that shows it, where the display can wait for one. The
    one frame of a still cover is the CPU's: no thread on the COP for it. */
 static void pan_draw(int h, long show_at, bool still)
@@ -945,6 +952,8 @@ static void pan_draw(int h, long show_at, bool still)
             memcpy(FBADDR(pan.x0, y), src, width * sizeof(fb_data));
     }
     menu_cover_shade(pan.x0, pan.y0, pan.y1);
+    /* the glass stays as the cover moves under it: on every frame */
+    menu_cover_glass();
 #ifdef PAN_ON_COP
     if (!still && cop_ready())
     {

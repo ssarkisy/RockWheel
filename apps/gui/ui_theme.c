@@ -884,8 +884,11 @@ static const struct ui_theme ui_themes[] = {
                     /* Quick Scroll's letter cut into its light key: the
                        floor, the shade of its top and left walls, the lit
                        lip of its lower right */
-                    [UI_COLOUR_INITIAL_TEXT]    = RGB(0x4a, 0x45, 0x42),
-                    [UI_COLOUR_INITIAL_SHADE]   = RGB(0x21, 0x1c, 0x18),
+                    /* Quick Scroll's letter engraved in its flat key: its
+                       floor a little darker than the face (E2DFDA), its top
+                       and left walls' shade, its lower right's lit lip */
+                    [UI_COLOUR_INITIAL_TEXT]    = RGB(0x9e, 0x9c, 0x99),
+                    [UI_COLOUR_INITIAL_SHADE]   = RGB(0x66, 0x64, 0x62),
                     [UI_COLOUR_INITIAL_LIP]     = RGB(0xff, 0xff, 0xff),
                     /* a missing cover's tile: the pane's floor with its
                        grille's holes */
@@ -935,9 +938,10 @@ static const struct ui_theme ui_themes[] = {
                     [UI_COLOUR_HINT_TEXT]       = RGB(0x9c, 0x9a, 0x9c),
                     [UI_COLOUR_HINT_BAND]       = RGB(0x18, 0x18, 0x18),
                     [UI_COLOUR_SCROLLBAR_THUMB] = RGB(0x9c, 0x9a, 0x9c),
-                    [UI_COLOUR_INITIAL_TEXT]    = RGB(0x18, 0x1c, 0x18),
-                    [UI_COLOUR_INITIAL_SHADE]   = RGB(0x08, 0x08, 0x08),
-                    [UI_COLOUR_INITIAL_LIP]     = RGB(0x9c, 0x9a, 0x9c),
+                    /* the same in the dark key's face (6A6A6A) */
+                    [UI_COLOUR_INITIAL_TEXT]    = RGB(0x42, 0x42, 0x42),
+                    [UI_COLOUR_INITIAL_SHADE]   = RGB(0x20, 0x20, 0x20),
+                    [UI_COLOUR_INITIAL_LIP]     = RGB(0x97, 0x97, 0x97),
                     [UI_COLOUR_COVER_TILE]      = RGB(0x29, 0x28, 0x29),
                     [UI_COLOUR_NOTE_TOP]        = RGB(0x08, 0x08, 0x08),
                     [UI_COLOUR_NOTE_FOOT]       = RGB(0x08, 0x08, 0x08),
@@ -975,7 +979,9 @@ static const struct ui_theme ui_themes[] = {
             [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
         },
         .metric = {
-            [UI_METRIC_ROW_HEIGHT]           = 22,
+            /* rows of 20 and, of two lines, 32, from y 16: 8 or 5 of them
+               fill the list (the owner's rule: equal rows, a whole number) */
+            [UI_METRIC_ROW_HEIGHT]           = 20,
             [UI_METRIC_TEXT_INSET]           = 14,
             [UI_METRIC_INITIAL_HEIGHT]       = 56,
             [UI_METRIC_INITIAL_MARGIN]       = 12,
@@ -993,10 +999,10 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HINT_X]               = 14,
             [UI_METRIC_HINT_TOP]             = 5,
             [UI_METRIC_HINT_PITCH]           = 15,
-            /* 31 px, as the port's: the name's part 16, the second line's
-               14 a row under it */
+            /* 32 px: the name's part 16, the second line's 14 two rows
+               under it */
             [UI_METRIC_NAME_PART_CUT]        = -1,
-            [UI_METRIC_SUBLINE_GAP]          = 1,
+            [UI_METRIC_SUBLINE_GAP]          = 2,
             [UI_METRIC_NAME_TEXT_DY]         = -1,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
             [UI_METRIC_ROW_COVER_GAP]        = 8,
@@ -1030,6 +1036,9 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_PANE_SHADE]           = 35,
             [UI_METRIC_RING_TICKS]           = 1,
             [UI_METRIC_SEARCH_KEYS]          = 1,
+            [UI_METRIC_COVER_GLASS]          = 1,
+            /* the On/Off key with its lamp (line_draw_switch()) */
+            [UI_METRIC_SWITCHES]             = 2,
             [UI_METRIC_SPLASH_HIGHLIGHT]     = 25,
         },
 #else
@@ -1052,7 +1061,9 @@ static const struct ui_theme ui_themes[] = {
             [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
         },
         .metric = {
-            [UI_METRIC_ROW_HEIGHT]           = 30,
+            /* rows of 27 and, of two lines, 36, from y 24: 8 or 6 of them
+               fill the list (the owner's rule: equal rows, a whole number) */
+            [UI_METRIC_ROW_HEIGHT]           = 27,
             /* one margin of 16 px: the names, the covers, the clock */
             [UI_METRIC_TEXT_INSET]           = 16,
             [UI_METRIC_INITIAL_HEIGHT]       = 72,
@@ -1119,6 +1130,9 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_PANE_SHADE]           = 35,
             [UI_METRIC_RING_TICKS]           = 1,
             [UI_METRIC_SEARCH_KEYS]          = 1,
+            [UI_METRIC_COVER_GLASS]          = 1,
+            /* the On/Off key with its lamp (line_draw_switch()) */
+            [UI_METRIC_SWITCHES]             = 2,
             [UI_METRIC_SPLASH_HIGHLIGHT]     = 25,
         },
 #endif /* UI_220X176 */

@@ -498,9 +498,17 @@ static void draw_pane(struct screen *display, const struct look *lk,
     const unsigned fg = lk->pane_fg[global_settings.dark_theme];
     const int x = lk->pane_x, w = LCD_WIDTH - x;
     /* right of the pane's edge; of a recess (UI_METRIC_PANE_SHADE), right of
-       its wall's two columns of shadow, which are the backdrop's here */
-    const int from = x + 1 + (ui_metric(UI_METRIC_PANE_SHADE) > 0);
-    clear_rows(from, 24, LCD_WIDTH - 2 - from, LCD_HEIGHT - 24, lk->pane_cols);
+       its wall's two columns of shadow, which are the backdrop's here, and
+       from its backdrop, its floor: columns of the screen's could have the
+       text under the grille in them, which was copied along a row */
+    const bool recess = ui_metric(UI_METRIC_PANE_SHADE) > 0;
+    const int from = x + 1 + recess;
+    const fb_data *backdrop = recess ? lcd_get_backdrop() : NULL;
+    if (backdrop)
+        display->bitmap_part(backdrop, from, 24, STRIDE(SCREEN_MAIN, LCD_WIDTH, LCD_HEIGHT),
+                             from, 24, LCD_WIDTH - 2 - from, LCD_HEIGHT - 24);
+    else
+        clear_rows(from, 24, LCD_WIDTH - 2 - from, LCD_HEIGHT - 24, lk->pane_cols);
     struct para ps[2];
     wrap(&ps[0], str(cover_caution_problem(reason)), font, lk->pane_w);
     wrap(&ps[1], str(cover_caution_action(reason)), font, lk->pane_w);

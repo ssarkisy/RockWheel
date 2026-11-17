@@ -105,6 +105,9 @@ bool menu_cover_area(int *x0, int *y0, int *x1, int *y1);
    screen's column); left of that the shadow is the backdrop's, not to be
    darkened again */
 void menu_cover_shade(int x0, int y0, int y1);
+/* the glass over the cover shown in the pane (UI_METRIC_COVER_GLASS), over
+   the part of it the screen shows, which stays as the cover moves under it */
+void menu_cover_glass(void);
 
 /* The sharp cover's memory as Album Art has it now, and its moving frames'
    as Moving Cover has it: taken only without music, let go with either off;

@@ -1925,10 +1925,11 @@ const char *get_token_value(struct gui_wps *gwps,
                 percent = (to_normalized_volume(global_status.volume,
                                                 sound_min(SOUND_VOLUME),
                                                 sound_max(SOUND_VOLUME), 1000) + 5) / 10;
-            /* "Volume: 62%", or with %nv(1) the level alone, "62%", where
-               the skin prints the name itself */
+            /* "Volume: 62%"; with %nv(1) the level alone, "62%", where the
+               skin prints the name itself; with %nv(2) "Volume 62%", the
+               level beside the name */
             const char *name = token->value.i == 1 ? "" : (const char *)str(LANG_VOLUME);
-            const char *colon = token->value.i == 1 ? "" : ": ";
+            const char *colon = token->value.i == 1 ? "" : token->value.i == 2 ? " " : ": ";
             if (global_settings.volume_limit < sound_max(SOUND_VOLUME))
             {
                 char limit[16];

@@ -32,6 +32,13 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
 /* in the middle of the viewport, in its colours: the disk's use as a ring,
    the used part in the foreground over a track in the theme's ground */
 void draw_disk_ring(struct gui_wps *gwps);
+/* %nK: the volume as Dieter's knob, in the middle of the current viewport */
+void draw_volume_knob(struct gui_wps *gwps);
+/* A theme's glass over a cover drawn in the screen's rect (UI_METRIC_COVER_
+   GLASS): the window's top wall's shade on it, and with GLASS_WINDOW its left
+   wall's and a rim round it, then a soft glare from the top left */
+#define GLASS_WINDOW 0x1
+void cover_glass(int x, int y, int w, int h, unsigned flags);
 void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
                       int line, struct progressbar *pb);
 void draw_playlist_viewer_list(struct gui_wps *gwps, struct playlistviewer *viewer);

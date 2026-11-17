@@ -71,7 +71,6 @@ static const struct tag_info legal_tags[] =
        drawn, in the theme's two colours for a note from its top row to its
        foot, as the lists draw theirs; its own colour is not shown */
     TAG(SKIN_TOKEN_IMAGE_NOTE,            "xN", "S", 0|NOBREAK),
-    TAG(SKIN_TOKEN_IMAGE_SIGNAL,          "xS", "S", 0|NOBREAK),
     /* this image, loaded before (a bar's by its file's name), is in the
        theme's accent: Classic's blue in its user's colour (ui_theme_accent()) */
     TAG(SKIN_TOKEN_IMAGE_ACCENT,          "xA", "S", 0|NOBREAK),
@@ -190,6 +189,9 @@ static const struct tag_info legal_tags[] =
        viewport, drawn by the skin's code */
     TAG(SKIN_TOKEN_DISK_TOTAL,            "nT", "", SKIN_REFRESH_STATIC),
     TAG(SKIN_TOKEN_DISK_RING,             "nR", "", SKIN_REFRESH_STATIC),
+    /* the volume as a knob turned to it in the middle of its viewport,
+       drawn by the theme's code (Dieter's, dieter_glyphs.h) */
+    TAG(SKIN_TOKEN_VOLUME_KNOB,           "nK", "", SKIN_REFRESH_DYNAMIC|SKIN_REFRESH_VOLUME),
     /* its viewport's corners rounded as the theme rounds a cover of that
        place, in the screen's ground: a tile where a cover is missing */
     TAG(SKIN_TOKEN_ROUND_CORNERS,         "nc", "", SKIN_REFRESH_STATIC),
@@ -197,7 +199,7 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_MENU_WIDE,             "LW", "", SKIN_REFRESH_DYNAMIC),
     /* the volume by the share of the volume bar, as "Volume: 62%", or with
        the limit, if one is set, as "Volume: 62/80%"; %nv(1) the level alone,
-       "62%" or "62/80%"; Night Mode on */
+       "62%" or "62/80%"; %nv(2) beside the name, "Volume 62%"; Night Mode on */
     TAG(SKIN_TOKEN_VOLUME_PERCENT,        "nv", "|I", SKIN_REFRESH_DYNAMIC|SKIN_REFRESH_VOLUME),
     TAG(SKIN_TOKEN_NIGHT_MODE,            "nN", "", SKIN_REFRESH_DYNAMIC),
     /* The track's kind as iTunesDB has it, %?kk<music|podcast|audiobook>;

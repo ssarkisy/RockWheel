@@ -647,6 +647,13 @@ sub buildzip {
     if(-e "$temp_dir/rocks/demos/pictureflow.rock") {
         copy("$ROOT/apps/plugins/bitmaps/native/pictureflow_emptyslide.136x136x16.bmp",
              "$temp_dir/rocks/demos/pictureflow_emptyslide.bmp");
+        # Dieter's, its windows' grille, light and dark (make_dieter_theme.py)
+        if ($depth >= 16) {
+            copy("$ROOT/apps/plugins/bitmaps/native/pictureflow_emptyslide_dieter.136x136x16.bmp",
+                 "$temp_dir/rocks/demos/pictureflow_emptyslide_dieter.bmp");
+            copy("$ROOT/apps/plugins/bitmaps/native/pictureflow_emptyslide_dieter_dark.136x136x16.bmp",
+                 "$temp_dir/rocks/demos/pictureflow_emptyslide_dieter_dark.bmp");
+        }
         # an album whose cover isn't shown, as Missing Covers Caution has it
         copy("$ROOT/apps/plugins/bitmaps/native/pictureflow_unshownslide.136x136x16.bmp",
              "$temp_dir/rocks/demos/pictureflow_unshownslide.bmp");
@@ -791,7 +798,7 @@ sub buildzip {
                       "$ROOT/themes/fonts/.rockbox");
         %fonts_taken = map { $_ => 1 } qw(12-Inter-SemiBold 14-Inter-Bold
             14-Inter-Medium 14-Inter-SemiBold 15-Inter-Medium 15-Inter-SemiBold
-            17-Inter-Bold 53-Inter-Letters 16-GNU-Unifont);
+            17-Inter-Bold 53-Inter-Letters 16-GNU-Unifont 11-Dieter-Segments);
     }
     foreach my $themedir (@themedirs) {
         find({ no_chdir => 1, wanted => sub {

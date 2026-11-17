@@ -76,6 +76,7 @@
 #include "skin_display.h"
 #include "menu_cover.h"
 #include "skin_ratio.h"
+#include "fixedpoint.h"
 
 static bool dirty[NB_SCREENS];
 
@@ -1034,6 +1035,30 @@ void skin_volume_changed(enum skinnable_screens skin, enum screen_type screen)
     }
 }
 
+/* the volume as the volume bar has it, 0 to 1000 */
+static int volume_share(void)
+{
+    int minvol = sound_min(SOUND_VOLUME);
+    int maxvol = sound_max(SOUND_VOLUME);
+    const int length = 1000;
+    int end;
+#ifdef HAVE_PERCEPTUAL_VOLUME
+    if (global_settings.volume_adjust_mode == VOLUME_ADJUST_PERCEPTUAL)
+    {
+        /* by the volume's step of the bar's even ones */
+        int count;
+        end = volume_get_step(&count) * length / MAX(count, 1);
+    }
+    else
+#endif
+#if defined(HAVE_PERCEPTUAL_VOLUME) || defined(HAVE_TOUCHSCREEN)
+    end = to_normalized_volume(global_status.volume, minvol, maxvol, length);
+#else
+    end = (global_status.volume - minvol) * length / MAX(maxvol - minvol, 1);
+#endif
+    return volume_bar_end(end);
+}
+
 void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
                       int line, struct progressbar *pb)
 {
@@ -1059,24 +1084,8 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
 
     if (pb->type == SKIN_TOKEN_VOLUMEBAR)
     {
-        int minvol = sound_min(SOUND_VOLUME);
-        int maxvol = sound_max(SOUND_VOLUME);
         length = 1000;
-#ifdef HAVE_PERCEPTUAL_VOLUME
-        if (global_settings.volume_adjust_mode == VOLUME_ADJUST_PERCEPTUAL)
-        {
-            /* by the volume's step of the bar's even ones */
-            int count;
-            end = volume_get_step(&count) * length / MAX(count, 1);
-        }
-        else
-#endif
-#if defined(HAVE_PERCEPTUAL_VOLUME) || defined(HAVE_TOUCHSCREEN)
-        end = to_normalized_volume(global_status.volume, minvol, maxvol, length);
-#else
-        end = (global_status.volume - minvol) * length / MAX(maxvol - minvol, 1);
-#endif
-        end = volume_bar_end(end);
+        end = volume_share();
     }
     else if (pb->type == SKIN_TOKEN_BATTERY_PERCENTBAR)
     {
@@ -1643,24 +1652,10 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     const struct cover_palette *palette = img->cover_tint ? cover_palette_get() : NULL;
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-    if (img->signal && img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
-        && display->screen_type == SCREEN_MAIN)
-    {
-        /* a mark in the signal colour, its alpha over the backdrop, so that
-           drawn again it is the same */
-        const unsigned fg = display->get_foreground();
-        const int stride = ALIGN_UP(img->bm.width, 2);
-        display->set_foreground(ui_colour(UI_COLOUR_SIGNAL));
-        lcd_alpha_bitmap_part(img->bm.data + img->bm.alpha_offset
-                              + img->subimage_height * subimage * (stride / 2),
-                              0, 0, stride, img->x, img->y, img->bm.width,
-                              img->subimage_height);
-        display->set_foreground(fg);
-    }
     /* A note: its place in the viewport's ground, then its mask blended over
        that in the theme's two colours for a note, so that drawn again it is
        the same. It is shown only as its viewport is drawn whole (%xd) */
-    else if (img->note && img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
+    if (img->note && img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
         && display->screen_type == SCREEN_MAIN)
     {
         const unsigned fg = display->get_foreground();
@@ -1983,6 +1978,17 @@ static void clear_cover_reflection(struct gui_wps *gwps, struct skin_albumart *a
 #endif
 }
 
+/* the glass over Now Playing's cover just drawn at (x, y) of the current
+   viewport, once a draw: the WPS's, where the theme has it */
+static void np_cover_glass(struct gui_wps *gwps, int x, int y, int width, int height)
+{
+    if (!ui_metric(UI_METRIC_COVER_GLASS) || gwps->display->screen_type != SCREEN_MAIN
+        || gwps->data != skin_get_gwps(WPS, SCREEN_MAIN)->data)
+        return;
+    const struct viewport *cur = *gwps->display->current_viewport;
+    cover_glass(cur->x + x, cur->y + y, width, height, GLASS_WINDOW);
+}
+
 static void draw_art_pixels(struct gui_wps *gwps, struct skin_albumart *aa,
                             const fb_data *pixels, int width, int height,
                             const struct viewport *vp)
@@ -2011,10 +2017,17 @@ static void draw_art_pixels(struct gui_wps *gwps, struct skin_albumart *aa,
                STRIDE(gwps->display->screen_type, width, height),
                width, height, x, y, width, height);
 #ifdef HAVE_MENU_COVER
-    /* the pane's wall's shadow over it, where the theme's pane is a recess */
+    /* the pane's wall's shadow over it, where the theme's pane is a recess;
+       its glass */
     if (vp && !aa->reflect)
+    {
         menu_cover_shade(vp->x + x, vp->y + y, vp->y + y + height);
+        menu_cover_glass();
+    }
 #endif
+    /* Now Playing's cover in its window, behind glass */
+    if (!vp && !aa->reflect)
+        np_cover_glass(gwps, x, y, width, height);
 }
 
 static void draw_kept_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
@@ -2675,6 +2688,247 @@ static unsigned mix_colours(unsigned from, unsigned to, int sixteenths)
 }
 #endif
 
+#if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16 && !defined(DISABLE_ALPHA_BITMAP)
+/* the floor of a square root */
+static unsigned isqrt(unsigned v)
+{
+    unsigned r = 0, bit = 1u << 30;
+    while (bit > v)
+        bit >>= 2;
+    while (bit)
+    {
+        if (v >= r + bit)
+        {
+            v -= r + bit;
+            r = (r >> 1) + bit;
+        }
+        else
+            r >>= 1;
+        bit >>= 2;
+    }
+    return r;
+}
+
+/* a stroke from (x0, y0) to (x1, y1), w wide, its ends round, all in
+   sixteenths of a pixel of the viewport, blended into what is there by its
+   cover of each pixel. Along it a pixel's distance from it is the cross
+   product's over its length, by the length's inverse taken once; only past
+   its ends, its round caps', a square root */
+static void knob_stroke(struct viewport *vp, int x0, int y0, int x1, int y1, int w,
+                        unsigned colour)
+{
+    const int hw = w / 2;
+    const int dx = x1 - x0, dy = y1 - y0;
+    const int len2 = dx * dx + dy * dy;
+    const int len = (int)isqrt(len2);
+    if (len <= 0)
+        return;
+    const int64_t inv = ((int64_t)1 << 32) / len;
+    const int left = MAX((MIN(x0, x1) - hw - 16) >> 4, 0);
+    const int right = MIN((MAX(x0, x1) + hw + 16) >> 4, vp->width - 1);
+    const int top = MAX((MIN(y0, y1) - hw - 16) >> 4, 0);
+    const int bottom = MIN((MAX(y0, y1) + hw + 16) >> 4, vp->height - 1);
+    for (int y = top; y <= bottom; y++)
+    {
+        const int ey = (y << 4) + 8 - y0;
+#if LCD_STRIDEFORMAT != VERTICAL_STRIDE
+        fb_data *p = FBADDR(vp->x + left, vp->y + y);
+#endif
+        for (int x = left; x <= right; x++)
+        {
+#if LCD_STRIDEFORMAT == VERTICAL_STRIDE
+            fb_data *p = FBADDR(vp->x + x, vp->y + y);
+#endif
+            const int ex = (x << 4) + 8 - x0;
+            const int along = ex * dx + ey * dy;
+            int dist;
+            if (along < 0)
+                dist = (int)isqrt(ex * ex + ey * ey);
+            else if (along > len2)
+            {
+                const int fx = ex - dx, fy = ey - dy;
+                dist = (int)isqrt(fx * fx + fy * fy);
+            }
+            else
+            {
+                const int cross = ex * dy - ey * dx;
+                dist = (int)(((cross < 0 ? -(int64_t)cross : (int64_t)cross) * inv) >> 32);
+            }
+            const int cover = hw + 8 - dist;
+            if (cover > 0)
+                *p = FB_SCALARPACK_LCD(mix_colours(FB_UNPACK_SCALAR_LCD(*p), colour,
+                                                   MIN(cover, 16)));
+#if LCD_STRIDEFORMAT != VERTICAL_STRIDE
+            p++;
+#endif
+        }
+    }
+}
+
+/* Dieter's volume knob, the volume's share of the bar turning it through
+   270 degrees from the lower left: its body the masks of dieter_glyphs.h in
+   the signal colour (deeper in the dark look), its ticks round it in the
+   viewport's colour to the level and the minor ticks' past it, its pointer
+   of light. The viewport is drawn whole, its backdrop again under it */
+void draw_volume_knob(struct gui_wps *gwps)
+{
+    struct screen *display = gwps->display;
+    if (display->screen_type != SCREEN_MAIN)
+        return;
+    struct viewport *vp = *display->current_viewport;
+    const bool dark = global_settings.dark_theme;
+    const int share = volume_share();
+    const unsigned ink = vp->fg_pattern;
+    const unsigned quiet = ui_colour(UI_COLOUR_RING_TICK_MINOR);
+    const unsigned signal = ui_colour(UI_COLOUR_SIGNAL);
+    const unsigned body = dark ? mix_colours(signal, LCD_BLACK,
+                                             DIETER_KNOB_BODY_DARK * 16 / 100) : signal;
+    const unsigned light = LCD_RGBPACK(0xff, 0xf5, 0xeb);
+    const unsigned pointer = dark ? mix_colours(light, body,
+                                                DIETER_KNOB_POINTER_DARK * 16 / 100) : light;
+    const int cx = vp->width / 2, cy = vp->height / 2;
+    const int side = DIETER_KNOB_SIDE;
+    display->clear_viewport();
+    /* the ticks: eleven, every 27 degrees, the ends' and the middle's long */
+    for (int i = 0; i <= 10; i++)
+    {
+        const int deg = 135 + 27 * i;
+        const long c = fp14_cos(deg), sn = fp14_sin(deg);
+        const bool major = i == 0 || i == 5 || i == 10;
+        const int r0 = DIETER_KNOB_TICK_IN, r1 = major ? DIETER_KNOB_TICK_OUT
+                                                       : DIETER_KNOB_TICK_MINOR;
+        knob_stroke(vp, (cx << 4) + (int)(c * r0 >> 14), (cy << 4) + (int)(sn * r0 >> 14),
+                    (cx << 4) + (int)(c * r1 >> 14), (cy << 4) + (int)(sn * r1 >> 14),
+                    major ? DIETER_KNOB_TICK_W : DIETER_KNOB_TICK_W_MINOR,
+                    i * 100 <= share + 1 ? ink : quiet);
+    }
+    /* the body */
+    const unsigned fg = display->get_foreground();
+    display->set_drawmode(DRMODE_FG);
+    const int stride = ALIGN_UP(side, 2), bx = cx - side / 2, by = cy - side / 2;
+    display->set_foreground(body);
+    lcd_alpha_bitmap_part(dieter_knob_disc_alpha, 0, 0, stride, bx, by, side, side);
+    display->set_foreground(LCD_BLACK);
+    lcd_alpha_bitmap_part(dark ? dieter_knob_shade_dark_alpha : dieter_knob_shade_light_alpha,
+                          0, 0, stride, bx, by, side, side);
+    display->set_foreground(LCD_WHITE);
+    lcd_alpha_bitmap_part(dark ? dieter_knob_light_dark_alpha : dieter_knob_light_light_alpha,
+                          0, 0, stride, bx, by, side, side);
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+    /* the pointer at the level */
+    const int deg = 135 + 270 * share / 1000;
+    const long c = fp14_cos(deg), sn = fp14_sin(deg);
+    knob_stroke(vp, (cx << 4) + (int)(c * DIETER_KNOB_POINT_IN >> 14),
+                (cy << 4) + (int)(sn * DIETER_KNOB_POINT_IN >> 14),
+                (cx << 4) + (int)(c * DIETER_KNOB_POINT_OUT >> 14),
+                (cy << 4) + (int)(sn * DIETER_KNOB_POINT_OUT >> 14),
+                DIETER_KNOB_POINT_W, pointer);
+}
+
+/* a pixel darker by dark sixteenths, then lighter by light */
+static inline fb_data glass_pixel(fb_data p, int dark, int light)
+{
+#if LCD_PIXELFORMAT == RGB565
+    int r = p >> 11, g = (p >> 5) & 63, b = p & 31;
+    r -= r * dark >> 4;
+    g -= g * dark >> 4;
+    b -= b * dark >> 4;
+    r += (31 - r) * light >> 4;
+    g += (63 - g) * light >> 4;
+    b += (31 - b) * light >> 4;
+    return (fb_data)(r << 11 | g << 5 | b);
+#else
+    unsigned c = FB_UNPACK_SCALAR_LCD(p);
+    int r = RGB_UNPACK_RED(c), g = RGB_UNPACK_GREEN(c), b = RGB_UNPACK_BLUE(c);
+    r -= r * dark >> 4;
+    g -= g * dark >> 4;
+    b -= b * dark >> 4;
+    r += (255 - r) * light >> 4;
+    g += (255 - g) * light >> 4;
+    b += (255 - b) * light >> 4;
+    return FB_SCALARPACK_LCD(LCD_RGBPACK(r, g, b));
+#endif
+}
+
+/* By the tables of dieter_glyphs.h: each row's walls and rim, and the glare
+   only as far along the row as it reaches (dieter_glass_last); the rest of
+   a row is left as it is. Its place across the cover, u in 256ths, stepped
+   along a row in 16.16 rather than divided a pixel; a row's pixels by its
+   pointer: on every frame of Moving Cover, the pane's (menu_cover_glass()) */
+void cover_glass(int x0, int y0, int w, int h, unsigned flags)
+{
+    if (!ui_metric(UI_METRIC_COVER_GLASS) || w < 2 || h < 2)
+        return;
+    const int look = global_settings.dark_theme ? 1 : 0;
+    const unsigned char *wall = dieter_glass_wall[look];
+    const unsigned char *glare = dieter_glass_glare[look];
+    const int rim = flags & GLASS_WINDOW ? dieter_glass_rim[look] : 0;
+    const int last = dieter_glass_last[look];
+    const int depth = flags & GLASS_WINDOW ? DIETER_GLASS_DEPTH : 0;
+    /* the columns on the screen, and u's step along a row, down the cover */
+    const int xs = MAX(0, -x0), xe = MIN(w, LCD_WIDTH - x0);
+    if (xs >= xe)
+        return;
+    const unsigned ux_step = (256u << 16) / (unsigned)w;
+    const unsigned uy_step = (256u << 16) / (unsigned)h;
+    unsigned uy16 = 0;
+    for (int y = 0; y < h; y++, uy16 += uy_step)
+    {
+        const int sy = y0 + y;
+        if (sy < 0 || sy >= LCD_HEIGHT)
+            continue;
+        const int uy = uy16 >> 16;
+        int top = y < DIETER_GLASS_DEPTH ? wall[y] : 0;
+        if (y == 0 || y == h - 1)
+            top = MAX(top, rim);
+        /* the glare's end: u = (ux + uy) / 2 to last, ux = x * 256 / w */
+        const int ux_end = 2 * last + 1 - uy;
+        const int glare_end = ux_end <= 0 ? 0 : MIN(w, (ux_end * w + 255) >> 8);
+        /* the whole row under the top wall and on the rim; else its start */
+        const int end = MIN(top ? w : MAX(glare_end, depth), xe);
+#if LCD_STRIDEFORMAT == VERTICAL_STRIDE
+#define GLASS_AT(x) FBADDR(x0 + (x), sy)
+#else
+        fb_data *const row = FBADDR(x0, sy);
+#define GLASS_AT(x) (row + (x))
+#endif
+        unsigned ux16 = (unsigned)xs * ux_step;
+        for (int x = xs; x < end; x++, ux16 += ux_step)
+        {
+            int dark = top;
+            if (x < depth)
+                dark = MAX(dark, wall[x]);
+            if (x == 0 || x == w - 1)
+                dark = MAX(dark, rim);
+            const int light = x < glare_end ? glare[((ux16 >> 16) + uy) >> 1] : 0;
+            if (dark || light)
+            {
+                fb_data *p = GLASS_AT(x);
+                *p = glass_pixel(*p, dark, light);
+            }
+        }
+        /* the rim's right column */
+        if (rim && end < w && w - 1 < xe)
+        {
+            fb_data *p = GLASS_AT(w - 1);
+            *p = glass_pixel(*p, rim, 0);
+        }
+#undef GLASS_AT
+    }
+}
+#else
+void draw_volume_knob(struct gui_wps *gwps)
+{
+    (void)gwps;
+}
+
+void cover_glass(int x0, int y0, int w, int h, unsigned flags)
+{
+    (void)x0; (void)y0; (void)w; (void)h; (void)flags;
+}
+#endif
+
 /* By the table of a quarter of it: each pixel's share of the ring and its
    place on the turn, clockwise from 12 o'clock, the used part first */
 void draw_disk_ring(struct gui_wps *gwps)
@@ -2786,6 +3040,10 @@ void draw_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
         draw_cover(gwps, aa, (fb_data*)bmp->data,
                    STRIDE(gwps->display->screen_type, bmp->width, bmp->height),
                    bmp->width, bmp->height, x, y, width, height);
+        /* in its window, behind glass, as the cover kept or from the
+           database is (draw_art_pixels()) */
+        if (!aa->reflect)
+            np_cover_glass(gwps, x, y, width, height);
 #ifdef HAVE_LCD_INVERT
         if (global_settings.invert) {
             gwps->display->set_drawmode(DRMODE_COMPLEMENT);

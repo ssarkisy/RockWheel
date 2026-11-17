@@ -113,8 +113,6 @@ struct gui_img {
                                battery's charge, unless the setting says */
     bool note;              /* a missing cover's note: its alpha alone is
                                drawn, in the theme's colours for a note */
-    bool signal;            /* a mark in the theme's signal colour: its alpha
-                               alone, over the backdrop (%xS) */
     bool photos_panel;      /* Photos' collage (photos_panel.h): drawn on the
                                panel's ground where a backdrop is under it */
     bool accent;            /* in the theme's accent, as Classic's colour has

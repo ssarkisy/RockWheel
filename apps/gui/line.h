@@ -294,6 +294,12 @@ void line_draw_cover(struct screen *display, int x, int y,
 void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
                        int font, int text_font);
 bool line_font_has(int font, const char *text);
+/* A theme's On/Off key with its lamp (UI_METRIC_SWITCHES 2: Dieter's,
+   dieter_glyphs.h), its box's top left at (x, y), line_switch_w() by
+   line_switch_h(); its lamp lit in the signal colour if on */
+void line_draw_switch(struct screen *display, int x, int y, bool on);
+int line_switch_w(void);
+int line_switch_h(void);
 /* The bar a list's selected row has, for what is chosen outside a list, in
    the current viewport: returns the colour of the text on it */
 unsigned line_selection_bar(struct screen *display, int x, int y, int width,

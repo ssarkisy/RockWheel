@@ -6,6 +6,7 @@
 %Fl(3,14-Inter-Medium.fnt)
 %Fl(4,14-Inter-Medium.fnt)
 %Fl(5,14-Inter-SemiBold.fnt)
+%Fl(6,11-Dieter-Segments.fnt)
 %xl(B,Battery.bmp,0,0,24)
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,0,0)
@@ -18,15 +19,23 @@
 # The track's details beside the cover, one block in the middle of its
 # height, as Neo's (make_neo_theme.py): s<lines><rating><format>, e<lines>,
 # b<lines><speed>
-%?if(%mw, <, 3)<%?kk<%?nW(title)<%?St(now playing format)<%?St(now playing rating)<%Vd(s211)|%?rr<%Vd(s201)|%Vd(s211)>|%Vd(s201)>|%?St(now playing rating)<%Vd(s210)|%?rr<%Vd(s200)|%Vd(s210)>|%Vd(s200)>>|%?St(now playing format)<%?St(now playing rating)<%Vd(s111)|%?rr<%Vd(s101)|%Vd(s111)>|%Vd(s101)>|%?St(now playing rating)<%Vd(s110)|%?rr<%Vd(s100)|%Vd(s110)>|%Vd(s100)>>>|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%?ks<%Vd(b21)|%Vd(b20)>|%?ks<%Vd(b11)|%Vd(b10)>>>|%?mw<||||%?kk<%?nW(title)<%?St(now playing format)<%Vd(s201)|%Vd(s200)>|%?St(now playing format)<%Vd(s101)|%Vd(s100)>>|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%?ks<%Vd(b21)|%Vd(b20)>|%?ks<%Vd(b11)|%Vd(b10)>>>|%?kk<|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%Vd(b20)|%Vd(b10)>>>>
+%?if(%mw, <, 3)<%?kk<%?nW(title)<%?St(now playing format)<%?St(now playing rating)<%Vd(s211)%?Sr<%Vd(s211q)|%Vd(s211l)>|%?rr<%Vd(s201)|%Vd(s211)%?Sr<%Vd(s211q)|%Vd(s211l)>>|%Vd(s201)>|%?St(now playing rating)<%Vd(s210)%?Sr<%Vd(s210q)|%Vd(s210l)>|%?rr<%Vd(s200)|%Vd(s210)%?Sr<%Vd(s210q)|%Vd(s210l)>>|%Vd(s200)>>|%?St(now playing format)<%?St(now playing rating)<%Vd(s111)%?Sr<%Vd(s111q)|%Vd(s111l)>|%?rr<%Vd(s101)|%Vd(s111)%?Sr<%Vd(s111q)|%Vd(s111l)>>|%Vd(s101)>|%?St(now playing rating)<%Vd(s110)%?Sr<%Vd(s110q)|%Vd(s110l)>|%?rr<%Vd(s100)|%Vd(s110)%?Sr<%Vd(s110q)|%Vd(s110l)>>|%Vd(s100)>>>|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%?ks<%Vd(b21)|%Vd(b20)>|%?ks<%Vd(b11)|%Vd(b10)>>>|%?mw<||||%?kk<%?nW(title)<%?St(now playing format)<%Vd(s201)|%Vd(s200)>|%?St(now playing format)<%Vd(s101)|%Vd(s100)>>|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%?ks<%Vd(b21)|%Vd(b20)>|%?ks<%Vd(b11)|%Vd(b10)>>>|%?kk<|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%Vd(b20)|%Vd(b10)>>>>
 %?mw<%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)|||%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)>
-%?mw<%?C<%Vd(art)|%Vd(noart)>|%?C<%Vd(art)|%Vd(noart)>|||%?C<%Vd(art)|%Vd(noart)>|%?C<%Vd(art)|%Vd(noart)>>
-# the status line on the backdrop's strip: the clock, the title, the glyphs
-%V(14,1,48,14,5)%Vf(211C18)
+%?mw<%?mv(2.0)<%Vd(knob)|%?C<%Vd(art)|%Vd(noart)>>|%?C<%Vd(art)|%Vd(noart)>|||%?C<%Vd(art)|%Vd(noart)>|%?C<%Vd(art)|%Vd(noart)>>
+%?St(battery percentage)<%Vd(pnpclock)%?nN<%Vd(pnptitle1)|%Vd(pnptitle0)>%Vd(bat)%?nN<%Vd(ppct)%Vd(pmoon)%Vd(pplayn1)|%Vd(ppct)%Vd(pplayn0)>|%Vd(npclock)%Vd(nptitle)%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>
+# the status line on the backdrop's strip: the clock, the title, the glyphs;
+# with Battery Percentage the level left of the battery, the glyphs left of
+# it and the title shorter (np_status())
+%Vl(npclock,14,1,42,14,5)%Vf(211C18)
 %al%?cf<%cH:%cM|%cl:%cM>
-%V(62,1,96,14,5)%Vf(211C18)
+%Vl(nptitle,62,1,96,14,5)%Vf(211C18)
 %s%ac%Sx(Now Playing)
-%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>
+%Vl(pnpclock,14,1,31,14,5)%Vf(211C18)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(pnptitle0,50,1,88,14,5)%Vf(211C18)
+%s%ac%Sx(Now Playing)
+%Vl(pnptitle1,50,1,74,14,5)%Vf(211C18)
+%s%ac%Sx(Now Playing)
 %Vl(bat,189,3,16,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(playn0,175,3,9,10,-)
@@ -35,45 +44,45 @@
 %xd(N)
 %Vl(playn1,161,3,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(ppct,155,1,32,14,5)%Vf(211C18)
+%aR%?bl<|%bl%%>
+%Vl(pplayn0,141,3,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon,141,3,9,10,-)
+%xd(N)
+%Vl(pplayn1,127,3,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(mode1,194,20,12,11,-)
 %?mm<%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>
 %Vl(mode2,177,20,12,11,-)
 %?mm<|%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>>
-# the cover, square, on the surface with a shadow of a pixel right of it and
-# under it; without one, its place recessed with the grille punched in it
+# the cover, square, in its window behind glass (the firmware draws the
+# glass over it, cover_glass()), a lit lip outside its foot and right side;
+# without one, the window empty with the grille punched in its floor
 %Cl(0,0,96,96,c,c)
 %Vl(art,14,22,96,96,-)
 %Cd
 %xl(c,Cover Right.bmp,0,0)
 %xl(f,Cover Foot.bmp,0,0)
-%Vl(art,110,23,1,96,-)
+%Vl(art,110,22,1,97,-)
 %xd(c)
-%Vl(art,15,118,96,1,-)
+%Vl(art,14,118,96,1,-)
 %xd(f)
 %xl(O,No Cover.bmp,0,0)
-%Vl(noart,14,22,96,97,-)
+%Vl(noart,14,22,97,97,-)
 %xd(O)
 # the title on one line or two, which never scroll; %?nW asks this viewport,
 # never shown, whether it takes two
 %Vl(title,122,0,84,30,2)
-# the small rating line: five small lamps, lit in the signal colour (a
-# mask the firmware draws in it, %xS), each a label of the same pictures at
-# its place in the line's viewport
-%xl(ld0,Small Lamp.bmp,0,0)
-%xl(ll0,Small Lamp Lit.bmp,0,0)
-%xS(ll0)
-%xl(ld1,Small Lamp.bmp,7,0)
-%xl(ll1,Small Lamp Lit.bmp,7,0)
-%xS(ll1)
-%xl(ld2,Small Lamp.bmp,15,0)
-%xl(ll2,Small Lamp Lit.bmp,15,0)
-%xS(ll2)
-%xl(ld3,Small Lamp.bmp,22,0)
-%xl(ll3,Small Lamp Lit.bmp,22,0)
-%xS(ll3)
-%xl(ld4,Small Lamp.bmp,30,0)
-%xl(ll4,Small Lamp Lit.bmp,30,0)
-%xS(ll4)
+# the small rating line: five small lamps, lenses in bezels, a frame of the
+# picture each by the rating and the signal colour, each a label of the same
+# picture at its place in the line's viewport; right to left the line at
+# the column's end, filling from the right
+%xl(ld0,Small Lamp.bmp,0,0,5)
+%xl(ld1,Small Lamp.bmp,8,0,5)
+%xl(ld2,Small Lamp.bmp,16,0,5)
+%xl(ld3,Small Lamp.bmp,24,0,5)
+%xl(ld4,Small Lamp.bmp,32,0,5)
 %Vl(s100,122,38,84,15,2)%Vf(211C18)
 %nw(1)
 %Vl(s100,122,55,84,14,3)%Vf(211C18)
@@ -100,8 +109,10 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s110,122,82,84,14,4)%Vf(6B6963)
 %al%pp %Sx(of) %pe
-%Vl(s110,121,100,37,7,-)
-%?rr<%xd(ld0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)>%?rr<%xd(ld1)|%xd(ld1)|%xd(ld1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)>%?rr<%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)>%?rr<%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ll3)|%xd(ll3)|%xd(ll3)|%xd(ll3)>%?rr<%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ll4)|%xd(ll4)>
+%Vl(s110l,119,98,43,11,-)
+%?if(%rr, >, 1)<%xd(ld0,%St(dieter colour),1)|%xd(ld0,1)>%?if(%rr, >, 3)<%xd(ld1,%St(dieter colour),1)|%xd(ld1,1)>%?if(%rr, >, 5)<%xd(ld2,%St(dieter colour),1)|%xd(ld2,1)>%?if(%rr, >, 7)<%xd(ld3,%St(dieter colour),1)|%xd(ld3,1)>%?if(%rr, >, 9)<%xd(ld4,%St(dieter colour),1)|%xd(ld4,1)>
+%Vl(s110q,163,98,43,11,-)
+%?if(%rr, >, 9)<%xd(ld0,%St(dieter colour),1)|%xd(ld0,1)>%?if(%rr, >, 7)<%xd(ld1,%St(dieter colour),1)|%xd(ld1,1)>%?if(%rr, >, 5)<%xd(ld2,%St(dieter colour),1)|%xd(ld2,1)>%?if(%rr, >, 3)<%xd(ld3,%St(dieter colour),1)|%xd(ld3,1)>%?if(%rr, >, 1)<%xd(ld4,%St(dieter colour),1)|%xd(ld4,1)>
 %Vl(s111,122,32,84,15,2)%Vf(211C18)
 %nw(1)
 %Vl(s111,122,49,84,14,3)%Vf(211C18)
@@ -110,8 +121,10 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s111,122,81,84,14,4)%Vf(6B6963)
 %al%pp %Sx(of) %pe
-%Vl(s111,121,99,37,7,-)
-%?rr<%xd(ld0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)>%?rr<%xd(ld1)|%xd(ld1)|%xd(ld1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)>%?rr<%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)>%?rr<%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ll3)|%xd(ll3)|%xd(ll3)|%xd(ll3)>%?rr<%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ll4)|%xd(ll4)>
+%Vl(s111l,119,97,43,11,-)
+%?if(%rr, >, 1)<%xd(ld0,%St(dieter colour),1)|%xd(ld0,1)>%?if(%rr, >, 3)<%xd(ld1,%St(dieter colour),1)|%xd(ld1,1)>%?if(%rr, >, 5)<%xd(ld2,%St(dieter colour),1)|%xd(ld2,1)>%?if(%rr, >, 7)<%xd(ld3,%St(dieter colour),1)|%xd(ld3,1)>%?if(%rr, >, 9)<%xd(ld4,%St(dieter colour),1)|%xd(ld4,1)>
+%Vl(s111q,163,97,43,11,-)
+%?if(%rr, >, 9)<%xd(ld0,%St(dieter colour),1)|%xd(ld0,1)>%?if(%rr, >, 7)<%xd(ld1,%St(dieter colour),1)|%xd(ld1,1)>%?if(%rr, >, 5)<%xd(ld2,%St(dieter colour),1)|%xd(ld2,1)>%?if(%rr, >, 3)<%xd(ld3,%St(dieter colour),1)|%xd(ld3,1)>%?if(%rr, >, 1)<%xd(ld4,%St(dieter colour),1)|%xd(ld4,1)>
 %Vl(s111,122,110,84,14,4)%Vf(6B6963)
 %fB
 %Vl(e1,122,33,84,15,2)%Vf(211C18)
@@ -171,8 +184,10 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s210,122,97,84,14,4)%Vf(6B6963)
 %al%pp %Sx(of) %pe
-%Vl(s210,121,115,37,7,-)
-%?rr<%xd(ld0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)>%?rr<%xd(ld1)|%xd(ld1)|%xd(ld1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)>%?rr<%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)>%?rr<%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ll3)|%xd(ll3)|%xd(ll3)|%xd(ll3)>%?rr<%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ll4)|%xd(ll4)>
+%Vl(s210l,119,113,43,11,-)
+%?if(%rr, >, 1)<%xd(ld0,%St(dieter colour),1)|%xd(ld0,1)>%?if(%rr, >, 3)<%xd(ld1,%St(dieter colour),1)|%xd(ld1,1)>%?if(%rr, >, 5)<%xd(ld2,%St(dieter colour),1)|%xd(ld2,1)>%?if(%rr, >, 7)<%xd(ld3,%St(dieter colour),1)|%xd(ld3,1)>%?if(%rr, >, 9)<%xd(ld4,%St(dieter colour),1)|%xd(ld4,1)>
+%Vl(s210q,163,113,43,11,-)
+%?if(%rr, >, 9)<%xd(ld0,%St(dieter colour),1)|%xd(ld0,1)>%?if(%rr, >, 7)<%xd(ld1,%St(dieter colour),1)|%xd(ld1,1)>%?if(%rr, >, 5)<%xd(ld2,%St(dieter colour),1)|%xd(ld2,1)>%?if(%rr, >, 3)<%xd(ld3,%St(dieter colour),1)|%xd(ld3,1)>%?if(%rr, >, 1)<%xd(ld4,%St(dieter colour),1)|%xd(ld4,1)>
 %Vl(s211,122,18,84,30,2)%Vf(211C18)
 %nw(1)
 %nw(2)
@@ -182,8 +197,10 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s211,122,82,84,14,4)%Vf(6B6963)
 %al%pp %Sx(of) %pe
-%Vl(s211,121,100,37,7,-)
-%?rr<%xd(ld0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)|%xd(ll0)>%?rr<%xd(ld1)|%xd(ld1)|%xd(ld1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)|%xd(ll1)>%?rr<%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ld2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)|%xd(ll2)>%?rr<%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ld3)|%xd(ll3)|%xd(ll3)|%xd(ll3)|%xd(ll3)>%?rr<%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ld4)|%xd(ll4)|%xd(ll4)>
+%Vl(s211l,119,98,43,11,-)
+%?if(%rr, >, 1)<%xd(ld0,%St(dieter colour),1)|%xd(ld0,1)>%?if(%rr, >, 3)<%xd(ld1,%St(dieter colour),1)|%xd(ld1,1)>%?if(%rr, >, 5)<%xd(ld2,%St(dieter colour),1)|%xd(ld2,1)>%?if(%rr, >, 7)<%xd(ld3,%St(dieter colour),1)|%xd(ld3,1)>%?if(%rr, >, 9)<%xd(ld4,%St(dieter colour),1)|%xd(ld4,1)>
+%Vl(s211q,163,98,43,11,-)
+%?if(%rr, >, 9)<%xd(ld0,%St(dieter colour),1)|%xd(ld0,1)>%?if(%rr, >, 7)<%xd(ld1,%St(dieter colour),1)|%xd(ld1,1)>%?if(%rr, >, 5)<%xd(ld2,%St(dieter colour),1)|%xd(ld2,1)>%?if(%rr, >, 3)<%xd(ld3,%St(dieter colour),1)|%xd(ld3,1)>%?if(%rr, >, 1)<%xd(ld4,%St(dieter colour),1)|%xd(ld4,1)>
 %Vl(s211,122,111,84,14,4)%Vf(6B6963)
 %fB
 %Vl(e2,122,30,84,30,2)%Vf(211C18)
@@ -265,21 +282,22 @@
 %pv(11,0,199,20,k,backdrop,K,slider,n3,fillunder)
 %Vl(vop,0,126,220,20,-)
 %pv(11,0,199,20,k,backdrop,K,slider,np,fillunder)
-%Vl(times,14,149,61,14,4)%Vf(6B6963)
+%Vl(times,14,149,61,14,6)%Vf(211C18)
 %al%pc
-%Vl(times,145,149,61,14,4)%Vf(6B6963)
+%Vl(times,145,149,61,14,6)%Vf(211C18)
 %ar-%pr
 %Vl(under,79,149,62,14,4)%Vf(6B6963)
 %nx%ac%?kn<%?kk<%kn%?kc< · %kc|>|%kn%?kc< · %kc|>|%kn %Sx(of) %kt>|>
 # a podcast's or a book's scrubber: what Previous and Next do there
 %Vl(hints,79,149,62,14,4)%Vf(6B6963)
 %ac-15 / +30
-# the volume in the window, its level the inked part with the needle at it;
-# its printed label under the window, the level at the right
-%Vl(volume,14,149,96,14,4)%Vf(6B6963)
-%al%Sx(Volume)
-%Vl(volume,110,149,96,14,4)%Vf(211C18)
-%ar%nv(1)
+# the volume in the window, its level the inked part with the needle at it,
+# and a knob turned to it in the cover's place (%nK, the firmware's); under
+# the window the word and the level beside it, at the line's start
+%Vl(volume,14,149,192,14,4)%Vf(211C18)
+%al%nv(2)
+%Vl(knob,14,22,96,96,-)%Vf(211C18)
+%nK
 # rating: five push keys, each in its hole, its lamp lit in the signal colour
 # for the stars set; the wheel sets them
 %xl(yk0,Rating Key.bmp,0,0,5)
@@ -288,7 +306,7 @@
 %xl(yk3,Rating Key.bmp,84,0,5)
 %xl(yk4,Rating Key.bmp,112,0,5)
 %Vl(rating,39,134,142,30,-)
-%?rr<%xd(yk0,1)|%xd(yk0,%St(dieter colour),1)|%xd(yk0,%St(dieter colour),1)|%xd(yk0,%St(dieter colour),1)|%xd(yk0,%St(dieter colour),1)|%xd(yk0,%St(dieter colour),1)|%xd(yk0,%St(dieter colour),1)|%xd(yk0,%St(dieter colour),1)|%xd(yk0,%St(dieter colour),1)|%xd(yk0,%St(dieter colour),1)|%xd(yk0,%St(dieter colour),1)>%?rr<%xd(yk1,1)|%xd(yk1,1)|%xd(yk1,1)|%xd(yk1,%St(dieter colour),1)|%xd(yk1,%St(dieter colour),1)|%xd(yk1,%St(dieter colour),1)|%xd(yk1,%St(dieter colour),1)|%xd(yk1,%St(dieter colour),1)|%xd(yk1,%St(dieter colour),1)|%xd(yk1,%St(dieter colour),1)|%xd(yk1,%St(dieter colour),1)>%?rr<%xd(yk2,1)|%xd(yk2,1)|%xd(yk2,1)|%xd(yk2,1)|%xd(yk2,1)|%xd(yk2,%St(dieter colour),1)|%xd(yk2,%St(dieter colour),1)|%xd(yk2,%St(dieter colour),1)|%xd(yk2,%St(dieter colour),1)|%xd(yk2,%St(dieter colour),1)|%xd(yk2,%St(dieter colour),1)>%?rr<%xd(yk3,1)|%xd(yk3,1)|%xd(yk3,1)|%xd(yk3,1)|%xd(yk3,1)|%xd(yk3,1)|%xd(yk3,1)|%xd(yk3,%St(dieter colour),1)|%xd(yk3,%St(dieter colour),1)|%xd(yk3,%St(dieter colour),1)|%xd(yk3,%St(dieter colour),1)>%?rr<%xd(yk4,1)|%xd(yk4,1)|%xd(yk4,1)|%xd(yk4,1)|%xd(yk4,1)|%xd(yk4,1)|%xd(yk4,1)|%xd(yk4,1)|%xd(yk4,1)|%xd(yk4,%St(dieter colour),1)|%xd(yk4,%St(dieter colour),1)>
+%?Sr<%?if(%rr, >, 9)<%xd(yk0,%St(dieter colour),1)|%xd(yk0,1)>%?if(%rr, >, 7)<%xd(yk1,%St(dieter colour),1)|%xd(yk1,1)>%?if(%rr, >, 5)<%xd(yk2,%St(dieter colour),1)|%xd(yk2,1)>%?if(%rr, >, 3)<%xd(yk3,%St(dieter colour),1)|%xd(yk3,1)>%?if(%rr, >, 1)<%xd(yk4,%St(dieter colour),1)|%xd(yk4,1)>|%?if(%rr, >, 1)<%xd(yk0,%St(dieter colour),1)|%xd(yk0,1)>%?if(%rr, >, 3)<%xd(yk1,%St(dieter colour),1)|%xd(yk1,1)>%?if(%rr, >, 5)<%xd(yk2,%St(dieter colour),1)|%xd(yk2,1)>%?if(%rr, >, 7)<%xd(yk3,%St(dieter colour),1)|%xd(yk3,1)>%?if(%rr, >, 9)<%xd(yk4,%St(dieter colour),1)|%xd(yk4,1)>>
 # the large cover, and the grille in its place
 %Vl(bigart,40,26,140,140,-)
 %Cl(0,0,140,140,c,c)

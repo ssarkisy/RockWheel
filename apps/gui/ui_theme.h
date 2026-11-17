@@ -108,9 +108,10 @@ enum ui_colour {
     UI_COLOUR_SETTINGS_SELECTOR, /* Settings' selected row, with UI_METRIC_SETTINGS_SELECTION */
     /* the one colour of a theme that has a signal (UI_METRIC_SELECTION_DOT):
        where one is, the list's cursor and the fill of an episode's ring under
-       it, Search's caret and its chosen key, Cover Flow's track, a skin's
-       marks drawn in it (%xS: Now Playing's lit lamps); the user's choice of
-       enum ui_signal_colour */
+       it, Search's caret and its chosen key, Cover Flow's track, the On/Off
+       key's lamp and the volume knob's body (Now Playing's lamps are frames
+       of the skin's, by the setting); the user's choice of enum
+       ui_signal_colour */
     UI_COLOUR_SIGNAL,
     /* Quick Scroll's letter cut into a key (a skin's picture labelled
        qskey): the shade of its top and left walls, the lit lip of its lower
@@ -201,7 +202,8 @@ enum ui_metric {
     UI_METRIC_ROW_COVER_RADIUS, /* a row's cover's or tile's corners, 0 for square */
     UI_METRIC_ROW_RULE,       /* a hairline under each row not selected, from its name's start */
     UI_METRIC_SCROLLBAR_LINE, /* the scrollbar a line of a pixel on a track, so far from the list's end */
-    UI_METRIC_SWITCHES,       /* On and Off as a switch at the row's end */
+    UI_METRIC_SWITCHES,       /* On and Off at the row's end: 1 Modern's switch, 2 Dieter's
+                                 key with its lamp (line_draw_switch()) */
     UI_METRIC_ACCENT_MARKS,   /* the speaker and the marks before names in the accent */
     UI_METRIC_MENU_MARKS,     /* Music's rows each with its mark */
     UI_METRIC_SEARCH_RADIUS,  /* Search's field's corners where the selection has none: its shapes as a rounded theme's */
@@ -253,6 +255,9 @@ enum ui_metric {
     /* a message's plaque's top row between its corners so many percent to
        white, a lit edge; 0 for none */
     UI_METRIC_SPLASH_HIGHLIGHT,
+    /* the covers of Now Playing and of the main menu's pane behind glass in
+       their windows (cover_glass(), dieter_glyphs.h's tables) */
+    UI_METRIC_COVER_GLASS,
     UI_METRIC_COUNT
 };
 

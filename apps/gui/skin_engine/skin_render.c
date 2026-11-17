@@ -283,6 +283,10 @@ static bool do_non_text_tags(struct gui_wps *gwps, struct skin_draw_info *info,
             if (do_refresh)
                 draw_disk_ring(gwps);
             break;
+        case SKIN_TOKEN_VOLUME_KNOB:
+            if (do_refresh)
+                draw_volume_knob(gwps);
+            break;
         case SKIN_TOKEN_ROUND_CORNERS:
         {
             struct screen *display = gwps->display;

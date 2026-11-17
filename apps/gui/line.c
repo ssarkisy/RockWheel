@@ -20,6 +20,7 @@
 
 #include <ctype.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "string-extra.h"
@@ -1823,6 +1824,44 @@ static void draw_initial_box(struct screen *display, int x, int y, int w, int h)
                                 : colour);
         lcd_alpha_bitmap_part(mask, 0, 0, w, x, y + row, w, 1);
     }
+}
+
+void line_draw_switch(struct screen *display, int x, int y, bool on)
+{
+    if (display->screen_type != SCREEN_MAIN)
+        return;
+    const struct dieter_switch *k = &dieter_switch[(global_settings.dark_theme ? 2 : 0)
+                                                   + (on ? 1 : 0)];
+    struct bitmap bm = {
+        .width = DIETER_SWITCH_W, .height = DIETER_SWITCH_H, .format = FORMAT_NATIVE,
+        .data = (unsigned char *)k->pixels,
+        .alpha_offset = offsetof(struct dieter_switch, alpha),
+    };
+    const unsigned fg = display->get_foreground();
+    display->set_drawmode(DRMODE_FG);
+    display->bmp_part(&bm, 0, 0, x, y, DIETER_SWITCH_W, DIETER_SWITCH_H);
+    if (on)
+    {
+        const int stride = ALIGN_UP(DIETER_SWITCH_W, 2);
+        display->set_foreground(ui_colour(UI_COLOUR_SIGNAL));
+        lcd_alpha_bitmap_part(dieter_switch_glow_alpha, 0, 0, stride, x, y,
+                              DIETER_SWITCH_W, DIETER_SWITCH_H);
+        display->set_foreground(LCD_WHITE);
+        lcd_alpha_bitmap_part(dieter_switch_core_alpha, 0, 0, stride, x, y,
+                              DIETER_SWITCH_W, DIETER_SWITCH_H);
+    }
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+}
+
+int line_switch_w(void)
+{
+    return DIETER_SWITCH_W;
+}
+
+int line_switch_h(void)
+{
+    return DIETER_SWITCH_H;
 }
 
 /* A theme's key, a picture of its skin's (make_dieter_theme.py's): the key's

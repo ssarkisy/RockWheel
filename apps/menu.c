@@ -619,8 +619,20 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
     if (is_switch)
     {
         const bool on = *value++ == MENU_SWITCH_ON;
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+        /* Dieter's: a key with its lamp, lit for On */
+        if (ui_metric(UI_METRIC_SWITCHES) == 2 && display->screen_type == SCREEN_MAIN
+            && name_end <= info->vp->width - VALUE_MARGIN - line_switch_w())
+        {
+            const int x = VP_IS_RTL(info->vp) ? VALUE_MARGIN
+                                              : info->vp->width - VALUE_MARGIN - line_switch_w();
+            line_draw_switch(display, x,
+                             info->y + (info->linedes->height - line_switch_h()) / 2, on);
+            return;
+        }
+#endif
 #ifdef HAVE_LCD_COLOR
-        if (ui_metric(UI_METRIC_SWITCHES) && display->screen_type == SCREEN_MAIN
+        if (ui_metric(UI_METRIC_SWITCHES) == 1 && display->screen_type == SCREEN_MAIN
             && name_end <= info->vp->width - VALUE_MARGIN - MODERN_SWITCH_W)
         {
             /* the capsule, its knob white; at the other end right to

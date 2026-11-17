@@ -308,12 +308,16 @@ typedef fb_data pix_t;
 
 /* named anew when its picture changes, as it's made again only if missing */
 /* 2: of the size of the larger covers */
-#define EMPTY_SLIDE CACHE_PREFIX "/emptynote2.pfraw"
+#define EMPTY_SLIDE_NOTE CACHE_PREFIX "/emptynote2.pfraw"
+/* Dieter's: the grille in the pane's floor, by look */
+#define EMPTY_SLIDE_GRILLE CACHE_PREFIX "/emptygrille1.pfraw"
+#define EMPTY_SLIDE_GRILLE_DARK CACHE_PREFIX "/emptygrille1d.pfraw"
+#define EMPTY_SLIDE ((char *)empty_slide_files()[0]) /* the pfraw calls take a char * */
 /* an album whose picture isn't shown: the note's slide with a "?" in its
    place (Missing Covers Caution) */
 #define UNSHOWN_SLIDE CACHE_PREFIX "/unshown1.pfraw"
 #define UNSHOWN_SLIDE_BMP PLUGIN_DEMOS_DIR "/pictureflow_unshownslide.bmp"
-#define EMPTY_SLIDE_BMP PLUGIN_DEMOS_DIR "/pictureflow_emptyslide.bmp"
+#define EMPTY_SLIDE_BMP (empty_slide_files()[1])
 #define SPLASH_BMP PLUGIN_DEMOS_DIR "/pictureflow_splash.bmp"
 
 /* some magic numbers for cache_version. */
@@ -3102,6 +3106,21 @@ static void load_unshown_slide(void)
     }
     unshown_slide_hid = hid >= 0 && hid != empty_slide_hid ? hid : -1;
 #endif
+}
+
+/* the empty slide's cache and its picture: the theme's, Dieter's the grille
+   of its windows without a cover, light or dark */
+static const char *const *empty_slide_files(void)
+{
+    static const char *const note[2] = {
+        EMPTY_SLIDE_NOTE, PLUGIN_DEMOS_DIR "/pictureflow_emptyslide.bmp" };
+    static const char *const grille[2][2] = {
+        { EMPTY_SLIDE_GRILLE, PLUGIN_DEMOS_DIR "/pictureflow_emptyslide_dieter.bmp" },
+        { EMPTY_SLIDE_GRILLE_DARK, PLUGIN_DEMOS_DIR "/pictureflow_emptyslide_dieter_dark.bmp" },
+    };
+    if (rb->global_settings->ui_theme == UI_THEME_DIETER)
+        return grille[rb->global_settings->dark_theme ? 1 : 0];
+    return note;
 }
 
 /**
