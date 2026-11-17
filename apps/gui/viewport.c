@@ -239,6 +239,52 @@ void viewportmanager_redraw_unshown(void)
     viewportmanager_redraw(GUI_EVENT_ACTIONUPDATE, (void*)1);
 }
 
+/* A splash across the screen, beside a narrower list viewport (the theme's
+   "half" beside the main menu's pane, splash_viewport()): the list drawn
+   again covers only its own part of it, and the theme draws its parts that
+   don't change only when drawn whole, nor what its viewports leave of the
+   backdrop. So, before a list is drawn next, the columns beside the list's
+   viewport cleared to the backdrop, as a theme enabled again clears what's
+   around it (toggle_theme()), and the theme drawn whole, unshown, to go on
+   the screen with the list. Not as the splash goes: one waited on, as a
+   progress, is drawn again and again meanwhile */
+static bool outside_dirty[NB_SCREENS];
+
+void viewportmanager_outside_dirty(enum screen_type screen)
+{
+    outside_dirty[screen] = true;
+}
+
+void viewportmanager_outside_restore(void)
+{
+    bool any = false;
+    FOR_NB_SCREENS(i)
+    {
+        if (!outside_dirty[i])
+            continue;
+        outside_dirty[i] = false;
+        if (!is_theme_enabled(i))
+            continue;
+        struct viewport user, side;
+        viewport_set_defaults(&user, i);
+        side = user; /* its rows, colours and everything */
+        struct viewport *last_vp = screens[i].set_viewport(NULL);
+        side.x = 0;
+        side.width = user.x;
+        set_clear_valid_vp(i, &side);
+        side.x = user.x + user.width;
+        side.width = screens[i].lcdwidth - side.x;
+        set_clear_valid_vp(i, &side);
+        screens[i].set_viewport(last_vp);
+        any = true;
+    }
+    if (any)
+    {
+        skin_request_full_update(CUSTOM_STATUSBAR);
+        viewportmanager_redraw_unshown();
+    }
+}
+
 void viewportmanager_init(void)
 {
     FOR_NB_SCREENS(i)

@@ -74,6 +74,24 @@ static bool splash_plaque(const struct screen *screen, int *pad_x, int *pad_y)
     return false;
 }
 
+/* The splash's area: the lists' rows under the status line, across the whole
+   screen. Beside the main menu's pane the lists' viewport is only its left
+   part (the themes' "half"), and a splash shown from there, as Shuffle Songs
+   reads the library, was centred in that part. Wider than it, what's beside
+   the list is put back before a list is drawn next
+   (viewportmanager_outside_restore()) */
+static void splash_viewport(struct viewport *vp, struct screen *screen)
+{
+    viewport_set_defaults(vp, screen->screen_type);
+    if (vp->x == 0 && vp->width == screen->lcdwidth)
+        return;
+    vp->x = 0;
+    vp->width = screen->lcdwidth;
+#ifndef BOOTLOADER
+    viewportmanager_outside_dirty(screen->screen_type);
+#endif
+}
+
 #if defined(HAVE_LCD_COLOR) && !defined(BOOTLOADER)
 /* Whether the plaque of this size is on the screen already, as when a
    progress is drawn again in place: the pixels beside each corner have its
@@ -284,9 +302,14 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
             {
                 nxp = nx;
                 nx++;
-                if (*nxp != ' ' && *nx != '\0') /* split on space or EOL */
+                const bool end = nx - next >= oldlen || *nx == '\0';
+                if (*nxp != ' ' && !end) /* split on space or EOL */
                     continue;
-                newlen = nxp - next;
+                /* to the space, or all of it at its end: measured one
+                   character short there, a line that went over only by its
+                   last word's last letter lost that letter rather than the
+                   word going on the next line */
+                newlen = *nxp == ' ' ? nxp - next : nx - next;
                 nw = font_getstringnsize(next, newlen, NULL, NULL, fontnum);
 
                 if (nw > width)
@@ -474,7 +497,7 @@ void splashf(int ticks, const char *fmt, ...)
     {
         struct screen * screen = &(screens[i]);
         struct viewport vp;
-        viewport_set_defaults(&vp, screen->screen_type);
+        splash_viewport(&vp, screen);
         struct viewport *last_vp = screen->set_viewport(&vp);
 
         va_start(ap, fmt);
@@ -530,7 +553,7 @@ void splash_progress(int current, int total, const char *fmt, ...)
     {
         struct screen * screen = &(screens[i]);
         struct viewport vp;
-        viewport_set_defaults(&vp, screen->screen_type);
+        splash_viewport(&vp, screen);
         struct viewport *last_vp = screen->set_viewport_ex(&vp, vp_flag);
 
         va_start(ap, fmt);

@@ -325,6 +325,8 @@ long gui_synclist_playing(void)
 
 void gui_synclist_draw(struct gui_synclist *gui_list)
 {
+    /* what a splash left beside the list's viewport */
+    viewportmanager_outside_restore();
     if (gui_list->callback_before_draw)
         gui_list->callback_before_draw(gui_list);
     if (gui_list->callback_is_playing)

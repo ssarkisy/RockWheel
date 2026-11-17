@@ -61,6 +61,10 @@ void viewportmanager_theme_undo(enum screen_type screen, bool force_redraw);
 /* call this when a theme changed */
 void viewportmanager_theme_changed(const int);
 void viewportmanager_redraw_unshown(void);
+/* a splash drawn beside a narrower list viewport, and before a list is drawn
+   next, what's beside it put back (viewport.c) */
+void viewportmanager_outside_dirty(enum screen_type screen);
+void viewportmanager_outside_restore(void);
 
 void viewport_set_buffer(struct viewport *vp, struct frame_buffer_t *buffer,
                                                 const enum screen_type screen);
