@@ -275,6 +275,19 @@ struct codec_api *codec_set_api(struct codec_api *api)
     return old;
 }
 
+/* The loaded codec's IRAM that it leaves unused, or NULL */
+void *codec_iram_free(size_t *size)
+{
+    *size = 0;
+    if (curr_handle == NULL || c_hdr->iram_free == NULL ||
+        c_hdr->iram_free_end <= c_hdr->iram_free)
+        return NULL;
+
+    *size = (unsigned char *)c_hdr->iram_free_end -
+            (unsigned char *)c_hdr->iram_free;
+    return c_hdr->iram_free;
+}
+
 int codec_run_proc(void)
 {
     if (curr_handle == NULL) {

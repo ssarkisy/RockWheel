@@ -151,6 +151,7 @@ static const char *cop_why; /* why the last run wasn't on the COP */
 static size_t cop_stack;    /* the most of its stack it used there */
 static int cop_status;      /* and the status it ended with */
 static bool cop_at_end;     /* having read the file to its end */
+static bool cop_iram;       /* the CPU's copy of its PCM in the codec's IRAM */
 #endif
 static uint32_t crc32;
 
@@ -693,6 +694,7 @@ static void codec_thread(void)
             cop_stack = cop.stack_used;
             cop_status = res;
             cop_at_end = cop.at_end;
+            cop_iram = cop.bounce_iram;
         }
         if (!use_cop || res == CODEC_COP_NOT_RUN)
 #endif
@@ -770,6 +772,11 @@ static enum plugin_status test_track(const char* filename)
         log_text("Read failed.",true);
         goto exit;
     }
+
+    /* zeros past the file: a decoder that reads a little beyond its end (as
+       MP3's does, for libmad's guard) sees the same on every run and core */
+    if (audiobufsize == track.filesize && audiosize - audiobufsize >= 64)
+        rb->memset((char *)audiobuf + audiobufsize, 0, 64);
     
 
     /* Initialise the function pointers in the codec API */
@@ -843,9 +850,9 @@ static enum plugin_status test_track(const char* filename)
             else
                 rb->snprintf(str, sizeof(str),
                              "decoded on the COP, status %d%s, its stack %u "
-                             "bytes deep", cop_status,
+                             "bytes deep, PCM through %s", cop_status,
                              cop_at_end ? " at the file's end" : "",
-                             (unsigned)cop_stack);
+                             (unsigned)cop_stack, cop_iram ? "IRAM" : "DRAM");
             log_text(str,true);
         }
 #endif

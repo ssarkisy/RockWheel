@@ -31,34 +31,10 @@ CODEC_HEADER
  * for each frame. */
 #define FAAD_BYTE_BUFFER_SIZE (2048-12)
 
-/* Decoding takes much of a core at 80 MHz, at the UI's expense: on two cores
- * the COP goes through the frames on its own, into a queue the codec empties on
- * the CPU. As threads only switch when one yields, the codec gets its turn once
- * for each frame the UI draws, 40 to 100 ms, and a frame is 23 ms of audio; so
- * the codec can't wait for frames one by one, or in batches, however high its
- * priority: that fell short of real time, and the sound stopped.
- *
- * The input and the PCM of the queue are only reached by their uncached
- * addresses: no core has to sync its cache per frame, which also leaves the
- * cache of the CPU as the UI and the DSP had it. The DSP works in place, so the
- * CPU copies a frame out of the queue first: otherwise what it left in its cache
- * could be written over a frame the COP put there later. */
-#if NUM_CORES > 1
-#define DECODE_THREAD
-#define DECODE_QUEUE    8
-#define WINDOW_FRAMES   48
-#define WINDOW_BYTES    (24*1024)
-#else
-#define DECODE_QUEUE    1
-#define WINDOW_FRAMES   1
+/* Each frame is decoded as it is taken, from a window of the input as large as
+ * the frame may be. On two cores the whole run goes to the COP, with the rest
+ * of the codecs (apps/codec_cop.c); the CPU is left with the DSP. */
 #define WINDOW_BYTES    FAAD_BYTE_BUFFER_SIZE
-#endif
-
-#ifdef UNCACHED_ADDR
-#define SHARED_ADDR(p)  UNCACHED_ADDR(p)
-#else
-#define SHARED_ADDR(p)  (p)
-#endif
 
 struct decoded_frame {
     NeAACDecFrameInfo info;
@@ -67,211 +43,47 @@ struct decoded_frame {
     bool chunk_start;
 };
 
-/* in IRAM, which both cores see the same */
 static struct {
-    /* the window of input: frames that are known to fit it, each with where its
-       chunk starts in the file if it starts one */
+    /* the window of input: the frame, with where its chunk starts in the file
+       if it starts one */
     NeAACDecHandle decoder;
     unsigned char *buffer;
     size_t size;
-    bool to_end_of_file;
-    long pos;
     int count;
-    long offsets[WINDOW_FRAMES];
+    long offset;
     /* how far into it */
     int made;
     size_t used;
     bool over;
-    /* the frames made and taken, of which those between are in the queue */
-    volatile unsigned int head, tail;
-    volatile bool running, stop, die;
-    struct decoded_frame decoded[DECODE_QUEUE];
-#ifdef DECODE_THREAD
-    struct semaphore pending, ready, room;
-#endif
+    /* the frame made and taken */
+    unsigned int head, tail;
+    bool running;
+    struct decoded_frame decoded;
 } job IBSS_ATTR;
 
-#ifdef DECODE_THREAD
-/* the decoder's output is only there until its next frame */
-static real_t decoded_out[DECODE_QUEUE][2][2*FRAME_LEN] MEM_ALIGN_ATTR;
-static real_t dsp_pcm[2][2*FRAME_LEN] MEM_ALIGN_ATTR;
-
-static void decode_insert(const struct decoded_frame *f, int first, int count)
-{
-    for (int ch = 0; ch < 2; ch++)
-    {
-        memcpy(&dsp_pcm[ch][first], &f->out[ch][first],
-               count * sizeof(real_t));
-    }
-    ci->pcmbuf_insert(&dsp_pcm[0][first], &dsp_pcm[1][first], count);
-}
-#else
-#define decode_insert(f, first, count) \
-    ci->pcmbuf_insert(&(f)->out[0][first], &(f)->out[1][first], count)
-#endif
-
-/* The next frame of the window into the queue: false if it has no more, which
-   an error or the end of what was asked for also makes the last. */
+/* The frame of the window: false if it has none, which an error or the end of
+   what was asked for also makes the last. */
 static bool decode_step(void)
 {
-    const int made = job.made;
-    if (made == job.count)
+    if (job.made == job.count)
     {
         job.over = true;
         return false;
     }
-    const long offset = job.offsets[made];
     const size_t left = job.size - job.used;
-    if (made > 0)
-    {
-        /* a chunk somewhere else, or a frame that may be cut off: another
-           window, from there */
-        if ((offset > 0 && offset != job.pos + (long)job.used)
-            || left == 0
-            || (left < FAAD_BYTE_BUFFER_SIZE && !job.to_end_of_file))
-        {
-            job.over = true;
-            return false;
-        }
-    }
-
-    const unsigned int slot = job.head % DECODE_QUEUE;
-    struct decoded_frame *f = &job.decoded[slot];
+    struct decoded_frame *f = &job.decoded;
     f->result = NeAACDecDecode(job.decoder, &f->info, job.buffer + job.used,
                                MIN(left, FAAD_BYTE_BUFFER_SIZE));
-    f->chunk_start = offset > 0;
-#ifdef DECODE_THREAD
-    size_t bytes = MIN(f->info.samples >> 1, 2*FRAME_LEN) * sizeof(real_t);
-    for (int ch = 0; ch < 2; ch++)
-    {
-        real_t *out = decoded_out[slot][ch];
-        f->out[ch] = SHARED_ADDR(out);
-        if (job.decoder->time_out[ch])
-            memcpy(f->out[ch], job.decoder->time_out[ch], bytes);
-    }
-#else
+    f->chunk_start = job.offset > 0;
     f->out[0] = job.decoder->time_out[0];
     f->out[1] = job.decoder->time_out[1];
-#endif
-    job.made = made + 1;
+    job.made++;
     job.used += f->info.bytesconsumed;
     if (f->result == NULL || f->info.error > 0 || f->info.bytesconsumed == 0)
         job.over = true;
     return true;
 }
 
-#ifdef DECODE_THREAD
-/* Nothing on the CPU touches the decoder's memory while a window goes on, so
-   the caches only need putting right around that */
-/* a line of the cache of its own, as the COP writes it and the CPU what is
-   beside it */
-static long decode_stack[CACHEALIGN_UP((DEFAULT_STACK_SIZE + 0x2000) / sizeof(long))]
-    CACHEALIGN_ATTR;
-static unsigned int decode_thread_id;
-
-static void decode_thread(void)
-{
-    while (1)
-    {
-        ci->semaphore_wait(&job.pending, TIMEOUT_BLOCK);
-        if (job.die)
-            break;
-        /* the CPU's changes to the decoder */
-        ci->commit_discard_dcache();
-        while (!job.over && !job.stop)
-        {
-            if (job.head - job.tail == DECODE_QUEUE)
-            {
-                ci->semaphore_wait(&job.room, TIMEOUT_BLOCK);
-                continue;
-            }
-            if (decode_step())
-            {
-                job.head++;
-                ci->semaphore_release(&job.ready);
-            }
-            /* a frame at a time, as Cover Flow draws half of each of its own
-               here: it waited behind as many as eight, up to 40 ms */
-            ci->yield();
-        }
-        ci->commit_dcache();
-        job.running = false;
-        ci->semaphore_release(&job.ready);
-    }
-}
-
-static bool decode_thread_create(void)
-{
-    ci->semaphore_init(&job.pending, 1, 0);
-    ci->semaphore_init(&job.ready, 1, 0);
-    ci->semaphore_init(&job.room, 1, 0);
-    /* The CPU could have the memory of the queue in its cache from when the
-       codec was loaded, to be written over frames some time later */
-    ci->commit_discard_dcache();
-    decode_thread_id = ci->create_thread(decode_thread, decode_stack,
-                                         sizeof(decode_stack), 0, "aacdec"
-                                         IF_PRIO(, PRIORITY_PLAYBACK)
-                                         IF_COP(, COP));
-    return decode_thread_id != 0;
-}
-
-static void decode_thread_quit(void)
-{
-    if (decode_thread_id == 0)
-        return;
-    job.die = true;
-    ci->semaphore_release(&job.pending);
-    ci->thread_wait(decode_thread_id);
-    ci->commit_discard_dcache();
-}
-
-/* the window set up goes on, by itself: what it holds, and the CPU's changes to
-   the decoder, may still be in the CPU's cache */
-static void decode_run(void)
-{
-    ci->commit_dcache();
-    ci->semaphore_release(&job.pending);
-}
-
-/* there is a frame in the queue, or the window is over */
-static void decode_wait(void)
-{
-    while (job.head == job.tail && job.running)
-        ci->semaphore_wait(&job.ready, TIMEOUT_BLOCK);
-}
-
-/* the COP has room for another now */
-static void decode_taken(void)
-{
-    job.tail++;
-    ci->semaphore_release(&job.room);
-}
-
-/* no window goes on, and what is in the queue is forgotten */
-static void decode_stop(void)
-{
-    job.stop = true;
-    ci->semaphore_release(&job.room);
-    while (job.running)
-        ci->semaphore_wait(&job.ready, TIMEOUT_BLOCK);
-    /* nothing old of what the COP changed in the decoder */
-    ci->commit_discard_dcache();
-    job.head = job.tail = 0;
-    job.stop = false;
-}
-
-/* Each track from a clean start: the COP only waits for a window now, and its
-   cache is put right as that starts */
-static void decode_reset(void)
-{
-    decode_stop();
-    ci->semaphore_init(&job.ready, 1, 0);
-    ci->semaphore_init(&job.room, 1, 0);
-}
-#else
-#define decode_thread_create() true
-#define decode_thread_quit()
-#define decode_run()
 static void decode_wait(void)
 {
     if (decode_step())
@@ -279,14 +91,12 @@ static void decode_wait(void)
     if (job.over)
         job.running = false;
 }
-#define decode_taken() (job.tail++)
+
 static void decode_stop(void)
 {
     job.running = false;
     job.head = job.tail = 0;
 }
-#define decode_reset() decode_stop()
-#endif /* DECODE_THREAD */
 
 /* this is the codec entry point */
 enum codec_status codec_main(enum codec_entry_call_reason reason)
@@ -295,11 +105,6 @@ enum codec_status codec_main(enum codec_entry_call_reason reason)
         /* Generic codec initialisation */
         ci->configure(DSP_SET_STEREO_MODE, STEREO_NONINTERLEAVED);
         ci->configure(DSP_SET_SAMPLE_DEPTH, 29);
-        if (!decode_thread_create())
-            return CODEC_ERROR;
-    }
-    else if (reason == CODEC_UNLOAD) {
-        decode_thread_quit();
     }
 
     return CODEC_OK;
@@ -425,7 +230,7 @@ enum codec_status codec_run(void)
         lead_trim = ci->id3->lead_trim;
     }
 
-    decode_reset();
+    decode_stop();
 
     /* The main decoding loop */
     while (i < demux_res.num_sample_byte_sizes) {
@@ -480,38 +285,22 @@ enum codec_status codec_run(void)
                 ci->seek_buffer(file_offset);
             }
 
-            /* The frames after it that are known of: where a chunk starts may
-             * only be looked up in order, so not with the place kept for the
-             * next window, which may start before those. */
-            uint32_t ahead_idx = seek_idx;
-            job.offsets[0] = file_offset;
+            job.offset = file_offset;
             job.count = 1;
-            while (job.count < WINDOW_FRAMES
-                   && i + job.count < demux_res.num_sample_byte_sizes
-                   && i + job.count < demux_res.lookup_end)
-            {
-                job.offsets[job.count] = m4a_check_sample_offset(&demux_res,
-                                                                 i + job.count,
-                                                                 &ahead_idx);
-                job.count++;
-            }
 
             /* Request the required number of bytes from the input buffer */
-            job.pos = ci->curpos;
             unsigned char *input = ci->request_buffer(&n, WINDOW_BYTES);
             /* The file ends before the frames it says it has: the decoder leaves
                the frame's info as it was, which would play the last one again */
             if (!input)
                 break;
-            job.buffer = SHARED_ADDR(input);
+            job.buffer = input;
             job.size = n;
-            job.to_end_of_file = n < WINDOW_BYTES;
             job.decoder = decoder;
             job.made = 0;
             job.used = 0;
             job.over = false;
             job.running = true;
-            decode_run();
         }
 
         /* Decode them - returned samples will be host-endian */
@@ -519,8 +308,7 @@ enum codec_status codec_run(void)
 
         while (job.head != job.tail)
         {
-            const struct decoded_frame *f =
-                &job.decoded[job.tail % DECODE_QUEUE];
+            const struct decoded_frame *f = &job.decoded;
 
 
             /* NeAACDecDecode may sometimes return NULL without setting error. */
@@ -586,7 +374,8 @@ enum codec_status codec_run(void)
 
             if (framelength > 0)
             {
-                decode_insert(f, lead_trim, framelength);
+                ci->pcmbuf_insert(&f->out[0][lead_trim], &f->out[1][lead_trim],
+                                  framelength);
                 sound_samples_done += framelength;
                 /* Update the elapsed-time indicator */
                 elapsed_time = ((uint64_t) sound_samples_done * 1000) /
@@ -613,7 +402,7 @@ enum codec_status codec_run(void)
             }
 
             ++i;
-            decode_taken();
+            job.tail++;
         }
 
         ci->yield();

@@ -45,10 +45,12 @@
  *   load, the setup here), then writes its cache back; the COP drops its own
  *   at the run's start and writes it back at its end, and the CPU then drops
  *   its own.
- * - The CPU's, cached: the bounce buffer the DSP works in, in place.
+ * - The CPU's: the bounce buffer the DSP works in, in place, in the codec's
+ *   IRAM where it leaves room, else cached.
  *
  * Everything is taken at the start of a run from the top of the codec's own
- * buffer, never from a heap; a run that can't have it stays on the CPU. */
+ * buffer, or for the bounce buffer from its unused IRAM, never from a heap; a
+ * run that can't have it stays on the CPU. */
 
 #include "config.h"
 #include "codec_cop.h"
@@ -73,6 +75,9 @@
    ahead of the codec at each request_buffer() */
 #define COP_WIN_SIZE     (64*1024)
 #define COP_WIN_LEAST    (32*1024)
+/* zeros after the file's end in the window, as libmad's guard wants them; on
+   the CPU a codec reading on past the end reads whatever the buffer has */
+#define COP_WIN_GUARD    16
 /* the PCM ring: two 4096-sample frames of 32-bit stereo */
 #define COP_RING_SIZE    (64*1024)
 /* a piece of PCM, a buffer of it at most half of this when there are two */
@@ -388,6 +393,8 @@ static size_t win_fill(size_t need)
     while (got && sh.win_len < need && sh.win_len < sh.win_size &&
            !sh.win_eof);
 
+    if (sh.win_eof)
+        memset(sh.win + sh.win_len, 0, COP_WIN_GUARD);
     return sh.win_len;
 }
 
@@ -497,8 +504,18 @@ static bool cop_loop_track(void)
 
 static void cop_strip_filesize(off_t size)
 {
-    if (cop_call(REQ_STRIP_FILESIZE, size, 0, 0))
-        ci_cop.filesize = size;
+    if (!cop_call(REQ_STRIP_FILESIZE, size, 0, 0))
+        return;
+
+    /* what the window holds past the new end isn't the file's now (MP3's
+       ID3v1 or APE tag, whose bytes the decoder must not see) */
+    ci_cop.filesize = size;
+    if (sh.win_pos + (off_t)sh.win_len >= size)
+    {
+        sh.win_len = size > sh.win_pos ? (size_t)(size - sh.win_pos) : 0;
+        sh.win_eof = true;
+        memset(sh.win + sh.win_len, 0, COP_WIN_GUARD);
+    }
 }
 
 #if defined(DEBUG) || defined(SIMULATOR) || defined(ROCKBOX_HAS_LOGF)
@@ -733,10 +750,11 @@ static bool whole_file(int afmt)
 }
 
 /* sizes of the parts taken from the codec's buffer, in bytes, each a whole
-   number of cache lines; the window's is the run's */
+   number of cache lines; the window's is the run's, and the bounce buffer's
+   only where the codec's IRAM has no room for it */
 #define COP_ID3_SIZE CACHEALIGN_UP(sizeof(struct mp3entry))
-#define COP_TAKEN    (COP_STACK_SIZE + COP_ID3_SIZE + \
-                      COP_RING_SIZE + COP_BOUNCE_SIZE + CACHEALIGN_SIZE)
+#define COP_TAKEN    (COP_STACK_SIZE + COP_ID3_SIZE + COP_RING_SIZE + \
+                      CACHEALIGN_UP(COP_WIN_GUARD) + CACHEALIGN_SIZE)
 
 int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
                   bool (*msg_waiting)(void), struct codec_cop_result *res)
@@ -745,6 +763,7 @@ int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
     res->commanded = false;
     res->made_pcm = false;
     res->at_end = false;
+    res->bounce_iram = false;
     res->stack_used = 0;
 
     /* the codec's buffer, its top taken here */
@@ -759,7 +778,21 @@ int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
         win_size = api->filesize > (off_t)size ? size :
                    CACHEALIGN_UP((size_t)api->filesize);
 
-    if (!buf || size < COP_TAKEN + win_size + COP_MIN_HEAP)
+    /* the CPU's bounce buffer, which the DSP reads and works on in place:
+       in the codec's IRAM where the codec leaves room for it, as no one else
+       uses that while it plays (a plugin with IRAM stops playback first) */
+    size_t iram_size;
+    unsigned char *iram = codec_iram_free(&iram_size);
+    unsigned char *bounce = NULL;
+    if (iram)
+    {
+        unsigned char *aligned = (unsigned char *)ALIGN_UP((uintptr_t)iram, 16);
+        if (iram_size >= (size_t)(aligned - iram) + COP_BOUNCE_SIZE)
+            bounce = aligned;
+    }
+    const size_t taken = COP_TAKEN + win_size + (bounce ? 0 : COP_BOUNCE_SIZE);
+
+    if (!buf || size < taken + COP_MIN_HEAP)
     {
         res->why = "no room";
         return CODEC_COP_NOT_RUN;
@@ -768,9 +801,12 @@ int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
         ((uintptr_t)(buf + size) & ~(CACHEALIGN_SIZE - 1));
     unsigned char *stack  = top - COP_STACK_SIZE;
     unsigned char *id3    = stack - COP_ID3_SIZE;
-    unsigned char *win    = id3 - win_size;
+    unsigned char *win    = id3 - CACHEALIGN_UP(win_size + COP_WIN_GUARD);
     unsigned char *ring   = win - COP_RING_SIZE;
-    unsigned char *bounce = ring - COP_BOUNCE_SIZE;
+    unsigned char *heap_end = ring;
+    res->bounce_iram = bounce != NULL;
+    if (!bounce)
+        heap_end = bounce = ring - COP_BOUNCE_SIZE;
 
     host = api;
     ci_cop = *api;
@@ -802,7 +838,7 @@ int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
     sh.win_size = win_size;
     sh.whole = whole;
     sh.heap = buf;
-    sh.heap_size = bounce - buf;
+    sh.heap_size = heap_end - buf;
     sh.id3 = (struct mp3entry *)id3;
     sh.id3_sent.length = api->id3->length;
     sh.id3_sent.frequency = api->id3->frequency;
@@ -887,6 +923,13 @@ bool codec_cop_wanted(int afmt)
 {
     switch (afmt)
     {
+#if CODEC_COP_MP3
+    case AFMT_MPA_L1:
+    case AFMT_MPA_L2:
+    case AFMT_MPA_L3:
+#endif
+    case AFMT_MP4_AAC:
+    case AFMT_MP4_AAC_HE:
     case AFMT_MP4_ALAC:
     case AFMT_FLAC:
     case AFMT_OGG_VORBIS:
@@ -937,11 +980,11 @@ bool codec_cop_wanted(int afmt)
     case AFMT_HES:
     case AFMT_SGC:
         return true;
-    /* MP3 and AAC (MP4) decode on the COP by threads of their own; SPC runs
-       one there too. KSS's and VGM's emulators take so much of the codec's
-       buffer (435 and 343 of 512 KB) that what a run there needs is never
-       left. WMA Voice has no metadata parser, so it never plays; VTX is built
-       only with an FPU */
+    /* MP3 decodes on the COP by a thread of its own unless CODEC_COP_MP3
+       (codecs.h); SPC runs one there too. KSS's and VGM's emulators take so
+       much of the codec's buffer (435 and 343 of 512 KB) that what a run
+       there needs is never left. WMA Voice has no metadata parser, so it
+       never plays; VTX is built only with an FPU */
     default:
         return false;
     }

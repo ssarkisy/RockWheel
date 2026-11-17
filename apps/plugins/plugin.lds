@@ -299,6 +299,7 @@ SECTIONS
         . = ALIGN(0x4);
         iend = .;
     } > PLUGIN_IRAM
+    iram_region_end = IRAMORIG + IRAMSIZE;
 
     loadendaddr = MAX(plugin_end_addr, LOADADDR(.iram) + SIZEOF(.iram));
 #else

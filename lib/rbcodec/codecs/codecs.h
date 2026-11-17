@@ -82,9 +82,16 @@
 /* RockWheel's own numbers, apart from Rockbox's, which are under 0x8000, with
  * the sizes of what codecs see of the core in them: raise CODEC_API_REVISION
  * for a change that leaves them */
-#define CODEC_API_REVISION 2
+#define CODEC_API_REVISION 3
 #define CODEC_API_VERSION ((unsigned short)(0x8000 | ((CODEC_API_REVISION * 4099u \
     + sizeof(struct codec_api) * 3u + sizeof(struct mp3entry) * 7u) & 0x7fff)))
+
+/* MP3 on two cores: 1 to decode it on the COP through apps/codec_cop.c, as the
+   other codecs; 0 for mpa.c's own thread there. mpa.c and codec_cop_wanted()
+   both follow it */
+#ifndef CODEC_COP_MP3
+#define CODEC_COP_MP3 0
+#endif
 
 /* reasons for calling codec main entrypoint */
 enum codec_entry_call_reason {
@@ -238,6 +245,9 @@ struct codec_header {
     enum codec_status(*run_proc)(void);
     struct codec_api **api;
     size_t api_size;
+    /* the codec's IRAM it leaves unused, as for the bounce buffer of its run
+       on the second core (codec_cop.c): from iram_free to iram_free_end */
+    void *iram_free, *iram_free_end;
     void * rec_extension[]; /* extension for encoders */
 };
 
@@ -246,13 +256,21 @@ struct codec_header {
 /* plugin_* is correct, codecs use the plugin linker script */
 extern unsigned char plugin_start_addr[];
 extern unsigned char plugin_end_addr[];
+#ifdef USE_IRAM
+/* the end of the codec's IRAM and of the region it has (plugin.lds) */
+extern char iend[], iram_region_end[];
+#define CODEC_IRAM_FREE iend, iram_region_end
+#else
+#define CODEC_IRAM_FREE NULL, NULL
+#endif
 /* decoders */
 #define CODEC_HEADER \
         const struct codec_header __header \
         __attribute__ ((section (".header")))= { \
         { CODEC_MAGIC, TARGET_ID, CODEC_API_VERSION, \
           plugin_start_addr, plugin_end_addr }, \
-        codec_start, codec_run, &ci, sizeof(struct codec_api) };
+        codec_start, codec_run, &ci, sizeof(struct codec_api), \
+        CODEC_IRAM_FREE };
 /* encoders */
 #define CODEC_ENC_HEADER \
         const struct codec_header __header \
@@ -260,7 +278,7 @@ extern unsigned char plugin_end_addr[];
         { CODEC_ENC_MAGIC, TARGET_ID, CODEC_API_VERSION, \
           plugin_start_addr, plugin_end_addr }, \
         codec_start, codec_run, &ci, sizeof(struct codec_api), \
-        { enc_callback } };
+        CODEC_IRAM_FREE, { enc_callback } };
 
 #else /* def SIMULATOR */
 /* decoders */
@@ -268,13 +286,13 @@ extern unsigned char plugin_end_addr[];
         const struct codec_header __header \
         __attribute__((visibility("default"))) = { \
         { CODEC_MAGIC, TARGET_ID, CODEC_API_VERSION, NULL, NULL }, \
-        codec_start, codec_run, &ci, sizeof(struct codec_api) };
+        codec_start, codec_run, &ci, sizeof(struct codec_api), NULL, NULL };
 /* encoders */
 #define CODEC_ENC_HEADER \
         const struct codec_header __header \
         __attribute__((visibility("default"))) = { \
         { CODEC_ENC_MAGIC, TARGET_ID, CODEC_API_VERSION, NULL, NULL }, \
-        codec_start, codec_run, &ci, sizeof(struct codec_api), \
+        codec_start, codec_run, &ci, sizeof(struct codec_api), NULL, NULL, \
         { enc_callback } };
 #endif /* SIMULATOR */
 #endif /* CODEC */
@@ -294,6 +312,7 @@ int codec_load_file(const char* codec, struct codec_api *api);
 int codec_run_proc(void);
 int codec_close(void);
 struct codec_api *codec_set_api(struct codec_api *api);
+void *codec_iram_free(size_t *size);
 #if defined(HAVE_RECORDING)
 enc_callback_t codec_get_enc_callback(void);
 #endif

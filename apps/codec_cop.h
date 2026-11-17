@@ -40,6 +40,7 @@ struct codec_cop_result
     bool commanded;      /* a command or a seek's end reached the codec */
     bool made_pcm;       /* it gave PCM */
     bool at_end;         /* it had read the file to its end */
+    bool bounce_iram;    /* the CPU's bounce buffer was in the codec's IRAM */
     size_t stack_used;   /* the most of its stack the run used, in bytes */
 };
 

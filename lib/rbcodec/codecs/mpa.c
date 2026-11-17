@@ -25,7 +25,9 @@
 
 CODEC_HEADER
 
-#if NUM_CORES > 1 && !defined(MPEGPLAYER)
+/* its own thread on the COP, unless the run itself goes there with the other
+   codecs' (CODEC_COP_MP3, codecs.h) */
+#if NUM_CORES > 1 && !defined(MPEGPLAYER) && !CODEC_COP_MP3
 #define DECODE_THREAD
 #endif
 
@@ -74,7 +76,9 @@ static unsigned char *lastpacketpos;
 #define WINDOW_BYTES    INPUT_CHUNK_SIZE
 #endif
 
-#ifdef UNCACHED_ADDR
+/* shared by the two cores only with the thread: a run of its own on the COP
+   reads its input from that core's cached window (apps/codec_cop.c) */
+#if defined(UNCACHED_ADDR) && defined(DECODE_THREAD)
 #define SHARED_ADDR(p)  UNCACHED_ADDR(p)
 #else
 #define SHARED_ADDR(p)  (p)
@@ -107,7 +111,9 @@ static struct {
 } job IBSS_ATTR;
 
 static mad_fixed_t decoded_pcm[DECODE_QUEUE][2][1152] MEM_ALIGN_ATTR;
-#if CONFIG_CPU == PP5020
+#ifndef DECODE_THREAD
+/* the queue's frame goes to pcmbuf_insert() as it is */
+#elif CONFIG_CPU == PP5020
 /* The PP5020 has 48 KB of IRAM for a codec, not the PP5022's 80: the frame
    the DSP works on goes to DRAM, as only the CPU reaches it. stream_buffer,
    which only MP3 in ASF fills, could go instead, with the COP reading it
@@ -513,10 +519,7 @@ static inline void decode_reset(void)
 enum codec_status codec_main(enum codec_entry_call_reason reason)
 {
     if (reason == CODEC_LOAD) {
-        /* Create a decoder instance */
-        if (codec_init())
-            return CODEC_ERROR;
-
+        /* no heap: libmad's buffers are the codec's own (init_mad()) */
         ci->configure(DSP_SET_SAMPLE_DEPTH, MAD_F_FRACBITS);
 
         /* does nothing on 1 processor systems except return true */
@@ -777,6 +780,7 @@ enum codec_status codec_run(void)
         const int count = framelength - (queued == 1 ? stop_skip : 0);
 
         if (count > 0) {
+#ifdef DECODE_THREAD
             for (int ch = 0; ch < f->channels; ch++) {
                 memcpy(&dsp_pcm[ch][samples_to_skip],
                        decoded_samples(job.tail, ch) + samples_to_skip,
@@ -787,6 +791,12 @@ enum codec_status codec_run(void)
             ci->pcmbuf_insert(&dsp_pcm[0][samples_to_skip],
                               &dsp_pcm[1][samples_to_skip],
                               count);
+#else
+            /* the frame is taken: the DSP may work on it in place */
+            ci->pcmbuf_insert(decoded_samples(job.tail, 0) + samples_to_skip,
+                              decoded_samples(job.tail, 1) + samples_to_skip,
+                              count);
+#endif
         }
 
         /* Only skip samples for the first frame added. */
