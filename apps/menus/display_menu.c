@@ -283,6 +283,9 @@ MENUITEM_SETTING(theme_colour_item, &global_settings.theme_colour,
                  theme_colour_callback);
 MENUITEM_SETTING(tinted_background_item, &global_settings.tinted_background,
                  theme_colour_callback);
+#if (CONFIG_BATTERY_MEASURE != 0)
+MENUITEM_SETTING(battery_percentage_item, &global_settings.battery_percentage, NULL);
+#endif
 /* Classic's Colour, in its place */
 static int classic_colour_callback(int action,
                                    const struct menu_item_ex *this_item,
@@ -342,6 +345,9 @@ MENUITEM_GROUP(appearance_group_now_playing, ID2P(LANG_NOW_PLAYING));
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &ui_theme_item, &dark_theme_item, &classic_colour_item,
           &dieter_colour_item, &theme_colour_item, &tinted_background_item,
+#if (CONFIG_BATTERY_MEASURE != 0)
+          &battery_percentage_item,
+#endif
           &appearance_group_lists,
 #ifdef HAVE_TAGCACHE
           &album_artists_item,

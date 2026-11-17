@@ -23,7 +23,7 @@
 %Fl(2,14-Inter-SemiBold.fnt,512)
 %Fl(3,14-Inter-Bold.fnt,512)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
-%?LW<%VI(wide)%?nN<%Vd(titlewiden)%Vd(nightwide)|%Vd(titlewide)>%Vd(batwide)%Vd(playwide)|%VI(half)%?nN<%Vd(tn)%Vd(night)|%Vd(t)>%Vd(bat)%Vd(play)>
+%?LW<%VI(wide)%?St(battery percentage)<%?nN<%Vd(ptitlewiden)%Vd(pnightwide)|%Vd(ptitlewide)>%Vd(batwide)%Vd(ppctwide)%Vd(pplaywide)|%?nN<%Vd(titlewiden)%Vd(nightwide)|%Vd(titlewide)>%Vd(batwide)%Vd(playwide)>|%VI(half)%?St(battery percentage)<%?nN<%Vd(ptn)%Vd(pnight)|%Vd(pt)>%Vd(bat)%Vd(ppct)%Vd(pplay)|%?nN<%Vd(tn)%Vd(night)|%Vd(t)>%Vd(bat)%Vd(play)>>
 %?LW<|%?LS<%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(radio)|%Vd(radio)>>>>
 %Cl(0,0,240,240,c,c)
 %Vl(a,120,0,200,240,-)
@@ -44,16 +44,33 @@
 %al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
 %Vl(titlewiden,6,2,244,14,3)%Vf(000000)
 %s%al%Lt
+# with Battery Percentage: the titles shorter by the level's box and its gap
+%Vl(pt,6,2,71,14,3)%Vf(000000)
+%al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
+%Vl(ptitlewide,6,2,215,14,3)%Vf(000000)
+%s%al%Lt
+%Vl(ptn,6,2,55,14,3)%Vf(000000)
+%al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
+%Vl(ptitlewiden,6,2,209,14,3)%Vf(000000)
+%s%al%Lt
 %xl(N,Status Night.bmp,0,0)
 %Vl(night,102,2,16,16,-)
 %xd(N)
 %Vl(nightwide,254,2,16,16,-)
+%xd(N)
+%Vl(pnight,63,2,16,16,-)
+%xd(N)
+%Vl(pnightwide,219,2,16,16,-)
 %xd(N)
 %Vl(n,2,3,114,14,2)%Vf(000000)
 s%al%?cs<||%?Rp<%Sx(Recording)>|%?tp<%Sx(FM Radio)>|%Sx(Playlist)>
 %xl(B,Battery.bmp,0,0,24)
 %Vl(bat,134,4,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(ppct,98,2,32,14,3)%Vf(000000)
+%aR%?bl<|%bl%%>
+%Vl(ppctwide,255,2,32,14,3)%Vf(000000)
+%aR%?bl<|%bl%%>
 %Vl(batwide,291,4,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %xl(h,Hold Icon.bmp,0,1)
@@ -65,6 +82,10 @@ s%al%?cs<||%?Rp<%Sx(Recording)>|%?tp<%Sx(FM Radio)>|%Sx(Playlist)>
 #%?mh<%xd(h)|%?lh<%t(0.1)%xd(Ma);%t(0.1)%xd(Mb);%t(0.1)%xd(Mc);%t(0.1)%xd(Md);%t(0.1)%xd(Me);%t(0.1)%xd(Mf)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>>
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
 %Vl(playwide,271,3,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplay,79,3,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplaywide,236,3,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
 # Settings or Extras selected in the main menu: the iPod and its disk, as on a stock iPod
 %XS(About Backdrop.bmp)

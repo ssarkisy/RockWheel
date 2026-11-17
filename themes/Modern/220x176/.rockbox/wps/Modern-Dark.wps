@@ -8,6 +8,9 @@
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,1,0)
 %xl(N,Night.bmp,0,0)
+# the status bar's clock and title: with Battery Percentage where the glyphs
+# leave room
+%?St(battery percentage)<%Vd(pnpclock)%?nN<%Vd(pnptitle1)|%Vd(pnptitle0)>|%Vd(npclock)%Vd(nptitle)>
 # the views, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
 %?mw<%?mv(2.0)<%Vd(volume)|%Vd(pb)%Vd(times)%Vd(under)>|%Vd(scrub)%Vd(times)%?kk<%Vd(under)|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(bignote)>|%Vd(lyrics)%Vd(thick)%Vd(lowtimes)|%Vd(rating)|%Vd(speed)>
@@ -29,16 +32,30 @@
 # the status bar, as the lists have it
 %V(0,0,220,16,-)%Vb(101010)
 %V(0,16,220,1,-)%Vb(202429)
-%V(9,1,44,14,2)%Vf(FFFFFF)%Vb(101010)
+%?St(battery percentage)<%Vd(pbat)%Vd(ppct)%Vd(pplay)%?nN<%Vd(pmoon)>|%Vd(bat)%Vd(play)%?nN<%Vd(moon)>>
+%Vl(npclock,9,1,44,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%?cf<%cH:%cM|%cl:%cM>
-%V(60,1,100,14,2)%Vf(FFFFFF)%Vb(101010)
+%Vl(nptitle,60,1,100,14,2)%Vf(FFFFFF)%Vb(101010)
 %s%ac%Sx(Now Playing)
-%Vd(bat)%Vd(play)%?nN<%Vd(moon)>
+%Vl(pnpclock,9,1,31,14,2)%Vf(FFFFFF)%Vb(101010)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(pnptitle0,45,1,88,14,2)%Vf(FFFFFF)%Vb(101010)
+%s%ac%Sx(Now Playing)
+%Vl(pnptitle1,45,1,73,14,2)%Vf(FFFFFF)%Vb(101010)
+%s%ac%Sx(Now Playing)
 %Vl(bat,187,3,24,10,-)%Vb(101010)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(play,169,3,10,10,-)%Vb(101010)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(moon,154,3,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pbat,187,3,24,10,-)%Vb(101010)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(ppct,153,1,32,14,2)%Vf(FFFFFF)%Vb(101010)
+%aR%?bl<|%bl%%>
+%Vl(pplay,138,3,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon,123,3,10,10,-)%Vb(101010)
 %xd(N)
 %xl(R,Repeat.bmp,0,0,4)
 %xl(S,Shuffle.bmp,0,0,2)

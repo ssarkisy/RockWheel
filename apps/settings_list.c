@@ -1212,6 +1212,17 @@ static void hp_lo_select_apply(int arg)
 
 #endif /* __PCTOOL__ */
 
+#if (CONFIG_BATTERY_MEASURE != 0)
+/* the status lines drawn again whole, as the skins choose their viewports by
+   it and those of the other choice would stay */
+static void battery_percentage_changed(bool on)
+{
+    (void)on;
+    skin_request_full_update(CUSTOM_STATUSBAR);
+    skin_request_full_update(WPS);
+}
+#endif
+
 const struct settings_list settings[] = {
 /* system_status settings .resume.cfg */
     SYSTEM_STATUS_SOUND(F_NO_WRAP, volume, LANG_VOLUME, "volume", SOUND_VOLUME),
@@ -2863,6 +2874,13 @@ const struct settings_list settings[] = {
                   "list covers", list_covers_changed),
     OFFON_SETTING(0, list_scrollbar, LANG_LIST_SCROLLBAR, true,
                   "list scrollbar", NULL),
+#if (CONFIG_BATTERY_MEASURE != 0)
+    /* Settings > Appearance, after the theme's rows: the battery's level
+       beside its glyph in every status line, as iOS's Battery Percentage;
+       off, as on a stock iPod. The skins read it (%St) */
+    OFFON_SETTING(0, battery_percentage, LANG_BATTERY_PERCENTAGE, false,
+                  "battery percentage", battery_percentage_changed),
+#endif
     OFFON_SETTING(0, jump_by_letter, LANG_JUMP_BY_LETTER, true,
                   "jump by letter", NULL),
     OFFON_SETTING(0, moving_cover, LANG_MOVING_COVER, false,

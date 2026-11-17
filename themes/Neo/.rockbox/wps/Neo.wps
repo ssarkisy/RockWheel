@@ -11,6 +11,9 @@
 %xl(N,Night.bmp,0,0)
 %xl(S,Shuffle.bmp,0,0,2)
 %xl(R,Repeat.bmp,0,0,4)
+# the status line's clock and title: with Battery Percentage where the glyphs
+# leave room
+%?St(battery percentage)<%Vd(pnpclock)%?nN<%Vd(pnptitle1)|%Vd(pnptitle0)>|%Vd(npclock)%Vd(nptitle)>
 # the views, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
 %?mw<%?mv(2.0)<%Vd(volume)|%Vd(pb)%Vd(under)>|%Vd(scrub)%?kk<%Vd(under)|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(bignote)>|%Vd(lyrics)%Vd(pb)|%Vd(rating)|%Vd(speed)>
@@ -33,12 +36,18 @@
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware
 # gives what lies in these rows a shade of the cover's colour
 %V(0,0,320,20,-)
-%V(14,2,64,15,5)%Vf(524D4A)
+%Vl(npclock,14,2,64,15,5)%Vf(524D4A)
 %al%?cf<%cH:%cM|%cl:%cM>
-%V(100,2,120,15,5)%Vf(292421)
+%Vl(nptitle,100,2,120,15,5)%Vf(292421)
+%s%ac%Sx(Now Playing)
+%Vl(pnpclock,14,2,64,15,5)%Vf(524D4A)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(pnptitle0,100,2,120,15,5)%Vf(292421)
+%s%ac%Sx(Now Playing)
+%Vl(pnptitle1,105,2,110,15,5)%Vf(292421)
 %s%ac%Sx(Now Playing)
 %V(0,20,320,1,-)%Vb(E7DFD6)
-%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>
+%?St(battery percentage)<%Vd(pbat)%?nN<%Vd(ppct)%Vd(pmoon)%Vd(pplayn1)|%Vd(ppct)%Vd(pplayn0)>|%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>
 %Vl(bat,287,4,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(playn0,273,4,8,10,-)
@@ -46,6 +55,16 @@
 %Vl(moon,271,4,10,10,-)
 %xd(N)
 %Vl(playn1,257,4,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pbat,287,4,19,10,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(ppct,251,2,33,15,5)%Vf(524D4A)
+%aR%?bl<|%bl%%>
+%Vl(pplayn0,237,4,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon,235,4,10,10,-)
+%xd(N)
+%Vl(pplayn1,221,4,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(mode1,294,25,12,11,-)
 %?mm<%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>

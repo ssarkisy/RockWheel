@@ -27,7 +27,7 @@
 %Fl(2,14-Inter-SemiBold.fnt)
 %Fl(3,17-Inter-SemiBold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
-%?mv(5)<%?St(battery display)<%Vd(title)|%Vd(titlebat)>|%?St(battery display)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>>>
+%?mv(5)<%?St(battery percentage)<%Vd(titlebat)|%Vd(title)>|%?St(battery percentage)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>>>
 %Vl(title,5,3,246,14,2)%Vf(F2F2F6)
 %s%al%Sx(FM Radio)
 %Vl(titlebat,5,3,211,14,2)%Vf(F2F2F6)
@@ -37,9 +37,9 @@
 %xl(B,Battery.bmp,0,0,24)
 %V(291,4,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%?St(battery display)<%Vd(nonumbat)|%Vd(numbat)>
+%?St(battery percentage)<%Vd(numbat)|%Vd(nonumbat)>
 %Vl(numbat,255,3,32,12,2)%Vf(F2F2F6)
-%ac%bl%%
+%aR%?bl<|%bl%%>
 %xl(P,Playing Status.bmp,0,0,4)
 %xA(P)
 %Vl(numbat,236,3,16,13,-)

@@ -1149,6 +1149,9 @@ struct user_settings
        ui_signal_colour (gui/ui_theme.h), Orange the default. The skins read
        it by its name (%St) */
     int dieter_colour;
+    /* Settings > Appearance > Battery Percentage: the level beside the
+       battery in the status lines (the skins' %St) */
+    bool battery_percentage;
 };
 
 /* global settings */

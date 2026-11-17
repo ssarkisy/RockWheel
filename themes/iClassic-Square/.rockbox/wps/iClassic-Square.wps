@@ -48,7 +48,7 @@
 # under the bar, for a track whose file has chapters, in the normal view and the scrubber;
 # a podcast's or an audiobook's scrubber has the hints at the line's ends, and a shorter line
 %?kn<%?mw<%?mv(2.0)<|%Vd(chapter)>|%?kk<%Vd(chapter)|%Vd(chapterscrub)|%Vd(chapterscrub)>||||>|>
-%?mv(5)<%?St(battery display)<%Vd(title)|%Vd(titlebat)>|%?St(battery display)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>>>
+%?mv(5)<%?St(battery percentage)<%Vd(titlebat)|%Vd(title)>|%?St(battery percentage)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>>>
 %Vl(title,6,2,190,14,4)%Vf(000000)
 %s%al%Sx(Now Playing)
 %Vl(titlebat,6,2,155,14,4)%Vf(000000)
@@ -60,10 +60,10 @@
 %xK(B)
 %V(291,4,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%?St(battery display)<%Vd(nonumbat)|%Vd(numbat)>
-%?nN<%?St(battery display)<%Vd(night)|%Vd(nightnum)>|>
+%?St(battery percentage)<%Vd(numbat)|%Vd(nonumbat)>
+%?nN<%?St(battery percentage)<%Vd(nightnum)|%Vd(night)>|>
 %Vl(numbat,255,3,32,12,2)%Vf(000000)
-%ac%bl%%
+%aR%?bl<|%bl%%>
 %xl(P,Playing Status.bmp,0,0,4)
 # the play glyph and the bar take Classic's colour, if it has one other than its blue
 %xA(P)

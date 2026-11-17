@@ -7,7 +7,7 @@
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,0,0)
 %xl(N,Night.bmp,0,0)
-%?LW<%VI(wide)%Vd(rulewide)%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>|%VI(half)%Vd(rulehalf)%Vd(column)%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen1p)|%?mp<%Vd(hnamen1)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)>>>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen0p)|%?mp<%Vd(hnamen0)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)>>>>>
+%?LW<%VI(wide)%Vd(rulewide)%?St(battery percentage)<%?if(%Li, =, 33)<%Vd(clockwide)|%?nN<%?Lf(ptitlewide1)<%Vd(clockwide)%Vd(ptitlewide1)|%?mh<%Vd(plongn1p)|%?mp<%Vd(plongn1)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)>>>|%?Lf(ptitlewide0)<%Vd(clockwide)%Vd(ptitlewide0)|%?mh<%Vd(plongn0p)|%?mp<%Vd(plongn0)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)>>>>>%Vd(pbat)%?nN<%Vd(ppct)%Vd(pmoon)%Vd(pplayn1)|%Vd(ppct)%Vd(pplayn0)>|%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>|%VI(half)%Vd(rulehalf)%Vd(column)%?St(battery percentage)<%Vd(phbat)%?nN<%?mh<%Vd(phhold)|%Vd(phmoon)>%?if(%Li, =, 33)<%Vd(phclock)|%?mh<%Vd(phnamen1p)|%?mp<%Vd(phnamen1)|%Vd(phnamen1p)|%Vd(phnamen1p)|%Vd(phnamen1p)|%Vd(phnamen1p)>>>|%?mh<%Vd(phhold)|%Vd(phpct)>%?if(%Li, =, 33)<%Vd(phclock)|%?mh<%Vd(phnamen0p)|%?mp<%Vd(phnamen0)|%Vd(phnamen0p)|%Vd(phnamen0p)|%Vd(phnamen0p)|%Vd(phnamen0p)>>>>|%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen1p)|%?mp<%Vd(hnamen1)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)>>>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen0p)|%?mp<%Vd(hnamen0)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)>>>>>>
 # the pane by the row selected: Settings, Photos, or the music, which Extras
 # has too
 %?LW<|%?LS<%Vd(surface)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(surface)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
@@ -52,6 +52,28 @@
 %xd(N)
 %Vl(playn1,169,3,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pbat,197,3,19,10,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(ppct,163,2,32,14,3)%Vf(B5AEA5)
+%aR%?bl<|%bl%%>
+%Vl(pplayn0,150,3,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon,148,3,10,10,-)
+%xd(N)
+%Vl(pplayn1,135,3,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(ptitlewide0,75,2,70,14,3)%Vf(EFEBE7)
+%ac%Lt
+%Vl(ptitlewide1,90,2,40,14,3)%Vf(EFEBE7)
+%ac%Lt
+%Vl(plongn0p,4,2,141,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(plongn0,4,2,154,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(plongn1p,4,2,126,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(plongn1,4,2,139,14,3)%Vf(EFEBE7)
+%al%nx%Lt
 # beside the pane: the clock, and the glyphs at the menu's end
 %Vl(hclock,4,2,48,14,3)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
@@ -70,6 +92,24 @@
 %Vl(hnamen1p,4,2,50,14,3)%Vf(EFEBE7)
 %al%nx%Lt
 %Vl(hnamen1,4,2,63,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(phclock,4,2,31,14,3)%Vf(B5AEA5)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(phbat,87,3,19,10,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(phpct,53,2,32,14,3)%Vf(B5AEA5)
+%aR%?bl<|%bl%%>
+%Vl(phhold,74,3,8,10,-)
+%xd(H)
+%Vl(phnamen0p,4,2,44,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(phnamen0,4,2,44,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(phmoon,72,3,10,10,-)
+%xd(N)
+%Vl(phnamen1p,4,2,63,14,3)%Vf(EFEBE7)
+%al%nx%Lt
+%Vl(phnamen1,4,2,63,14,3)%Vf(EFEBE7)
 %al%nx%Lt
 # the pane's surface, under all but a cover
 %Vl(surface,110,0,110,176,-)%Vb(312C29)

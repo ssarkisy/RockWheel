@@ -27,8 +27,11 @@
 
 import os
 import struct
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import fnt_width  # noqa: E402
 
 # the reflection's rows and its strength at the top, of 256: the firmware's
 # default %Cr in the light skin; on the dark paper a cover's dark foot was
@@ -80,6 +83,7 @@ VIDEO = dict(
     LIST_TOP=23, LIST_ROWS=216,
     TEXT_Y=2,               # the status line's text, a cell of 15 (CELL)
     CELL=15,
+    PCT_GAP=3,              # Battery Percentage's level to the battery
     FOOT=14,                # the row under the status glyphs' feet
     GAP=6,                  # between them
     CLOCK_W=64,             # the clock's viewport
@@ -128,7 +132,7 @@ PHOTO = dict(
     OUT=os.path.join(HERE, "..", "Neo", "220x176", ".rockbox", "wps"),
     STATUS=16, MARGIN=10, SBS_MARGIN=4, HALF_W=109,
     LIST_TOP=18, LIST_ROWS=158,
-    TEXT_Y=2, CELL=14, FOOT=13, GAP=5,
+    TEXT_Y=2, CELL=14, FOOT=13, GAP=5, PCT_GAP=2,
     CLOCK_W=48,
     TITLE_X=58, TITLE_W=104,
     NP_TITLE_X=62, NP_TITLE_W=96,
@@ -202,7 +206,16 @@ def title_show(label, night):
 TITLE = "%al%nx%Lt"
 
 
-def status(width, prefix="", name=None):
+# Settings > Appearance > Battery Percentage: the level left of the battery,
+# right-aligned in the clock's font and colour, PCT_GAP from it; the glyphs
+# left of it stand as far left as "100%" takes, so that they don't move with
+# it; against the battery right to left too (%aR). None while the level
+# isn't known (%bl's first case)
+PCT_TEXT = "%aR%?bl<|%bl%%>"
+
+
+def status(width, prefix="", name=None, pct=False, narrow=False, font=3,
+           font_name=None):
     """The glyphs' viewports and the line that shows them: from the right the
     battery, Night Mode's moon, play or pause or the padlock (Now Playing's
     shuffle and repeat stand under the line). What is left of an absent one
@@ -210,11 +223,18 @@ def status(width, prefix="", name=None):
     text left of them (title_vps()); in the main menu (its title's icon, 33)
     the clock stands there instead, as it does at the left of a screen of
     the whole width. Also the rooms left of the glyphs, by Night Mode: with
-    the playing status's place and without"""
+    the playing status's place and without.
+    pct: with Battery Percentage, the level left of the battery in the font
+    numbered font, font_name; the clock's viewport then only as wide as its
+    widest time, clear of the glyphs. narrow: beside the iPod photo's pane,
+    where the level takes the playing status's place, and Night Mode's moon
+    or Hold's padlock the level's: 110 px have no room for the clock and all
+    three"""
     out = []
     rooms = []
     if name:
-        out += ["%%Vl(%sclock,%d,%d,%d,%d,3)%%Vf(CLOCK)" % (prefix, MARGIN, TEXT_Y, CLOCK_W,
+        clock_w = fnt_width.clock_width(font_name) if pct else CLOCK_W
+        out += ["%%Vl(%sclock,%d,%d,%d,%d,3)%%Vf(CLOCK)" % (prefix, MARGIN, TEXT_Y, clock_w,
                                                               CELL), CLOCK]
 
     def vp(tag, name, x):
@@ -223,22 +243,37 @@ def status(width, prefix="", name=None):
 
     x = width - MARGIN - SIZES["Battery"][0]
     out += [vp("bat", "Battery", x), battery()]
+    level_x = x
+    if pct:
+        pct_w = fnt_width.width(font_name, "100%")
+        level_x = x - PCT_GAP - pct_w
+        out += ["%%Vl(%spct,%d,%d,%d,%d,%d)%%Vf(CLOCK)" % (prefix, level_x, TEXT_Y, pct_w,
+                                                            CELL, font), PCT_TEXT]
     play = frames("P", 4)
     # %mp: stopped, playing, paused, forward, rewind
     state = "%%?mh<%%xd(H)|%%?mp<|%s|%s|%s|%s>>" % (play[0], play[1], play[2], play[3])
+    if narrow:
+        # Hold's padlock, without the playing status, in the level's place
+        out += [vp("hold", "Playing_Status", x - GAP - SIZES["Playing_Status"][0]), "%xd(H)"]
     branches = []
     for night in (0, 1):
         at = x
         tag = "n%d" % night
         this = []
+        if pct and not (narrow and night):
+            at = level_x
+            this.append("%%Vd(%spct)" % prefix)
         if night:
             at -= GAP + SIZES["Night"][0]
             out += [vp("moon", "Night", at), "%xd(N)"]
             this.append("%%Vd(%smoon)" % prefix)
+        if narrow:
+            this = ["%%?mh<%%Vd(%shold)|%s>" % (prefix, this[-1])]
         past = at
-        at -= GAP + SIZES["Playing_Status"][0]
-        out += [vp("play" + tag, "Playing_Status", at), state]
-        this.append("%%Vd(%splay%s)" % (prefix, tag))
+        if not narrow:
+            at -= GAP + SIZES["Playing_Status"][0]
+            out += [vp("play" + tag, "Playing_Status", at), state]
+            this.append("%%Vd(%splay%s)" % (prefix, tag))
         rooms.append((at - GAP - MARGIN, past - GAP - MARGIN))
         if name:
             out += title_vps(prefix + "name", night, rooms[night], name)
@@ -272,7 +307,7 @@ SBS = """\
 %wd
 {fonts}
 {images}
-%?LW<%VI(wide)%Vd(rulewide){title}{wide}|%VI(half)%Vd(rulehalf)%Vd(column){half}>
+%?LW<%VI(wide)%Vd(rulewide){wideline}|%VI(half)%Vd(rulehalf)%Vd(column){halfline}>
 # the pane by the row selected: Settings, Photos, or the music, which Extras has too
 %?LW<|%?LS<%Vd(surface)%Vd(ring)%Vd(about)|{music}|%Vd(surface)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|{music}>>
 # the cover fills the pane, nothing over it: Finder's 240 px frame, its middle 160
@@ -346,7 +381,7 @@ SBS_PHOTO = """\
 %wd
 {fonts}
 {images}
-%?LW<%VI(wide)%Vd(rulewide)%?if(%Li, =, 33)<%Vd(clockwide)|{title}>{wide}|%VI(half)%Vd(rulehalf)%Vd(column){half}>
+%?LW<%VI(wide)%Vd(rulewide){wideline}|%VI(half)%Vd(rulehalf)%Vd(column){halfline}>
 # the pane by the row selected: Settings, Photos, or the music, which Extras
 # has too
 %?LW<|%?LS<%Vd(surface)%Vd(ring)%Vd(about)|{music}|%Vd(surface)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|{music}>>
@@ -422,6 +457,9 @@ WPS = """\
 %wd
 {fonts}
 {images}
+# the status line's clock and title: with Battery Percentage where the glyphs
+# leave room
+{np_show}
 # the views, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
 %?mw<%?mv(2.0)<%Vd(volume)|%Vd(pb)%Vd(under)>|%Vd(scrub)%?kk<%Vd(under)|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(bignote)>|%Vd(lyrics)%Vd(pb)|%Vd(rating)|%Vd(speed)>
@@ -444,10 +482,7 @@ WPS = """\
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware
 # gives what lies in these rows a shade of the cover's colour
 %V(0,0,{w},{status},-)
-%V({margin},{text_y},{clock_w},{cell},5)%Vf(CLOCK)
-%al%?cf<%cH:%cM|%cl:%cM>
-%V({np_title_x},{text_y},{np_title_w},{cell},5)%Vf(PRIMARY)
-%s%ac%Sx(Now Playing)
+{np_vps}
 %V(0,{status},{w},1,-)%Vb(TRACK)
 %?nN<{show}
 {vps}
@@ -563,12 +598,43 @@ def sbs():
         MARGIN = keep
 
 
+def centred(label, x, w, limit, font, text):
+    """a title in the middle of x..x+w, narrower if it would reach limit"""
+    centre = x + w // 2
+    half = min(w // 2, limit - centre)
+    return ["%%Vl(%s,%d,%d,%d,%d,%d)%%Vf(PRIMARY)" % (label, centre - half, TEXT_Y, 2 * half,
+                                                     CELL, font), text]
+
+
+def battery_line(on, off):
+    """Battery Percentage's line, or the one without it"""
+    return "%%?St(battery percentage)<%s|%s>" % (on, off)
+
+
 def sbs_text():
     wide_vps, wide, rooms = status(W)
     long_vps = "\n".join(title_vps("long", 0, rooms[0], TITLE)
                          + title_vps("long", 1, rooms[1], TITLE))
     title = "%%?Lf(titlewide)<%%Vd(clockwide)%%Vd(titlewide)|%%?nN<%s|%s>>" % (
         title_show("long", 1), title_show("long", 0))
+    # with Battery Percentage: the glyphs further left, the titles shorter;
+    # the one in the middle a gap short of the leftmost glyph shown
+    pwide_vps, pwide, prooms = status(W, "p", pct=True, font_name=SBS_FONTS[1])
+    ptitle_vps = []
+    for night in (0, 1):
+        ptitle_vps += centred("ptitlewide%d" % night, TITLE_X, TITLE_W,
+                              prooms[night][0] + MARGIN, 3, "%ac%Lt")
+    pwide_vps = "\n".join([pwide_vps] + ptitle_vps + title_vps("plong", 0, prooms[0], TITLE)
+                          + title_vps("plong", 1, prooms[1], TITLE))
+    ptitle = "%%?nN<%s|%s>" % tuple(
+        "%%?Lf(ptitlewide%d)<%%Vd(clockwide)%%Vd(ptitlewide%d)|%s>" % (n, n, title_show("plong", n))
+        for n in (1, 0))
+    if W < 320:
+        wideline = battery_line("%%?if(%%Li, =, 33)<%%Vd(clockwide)|%s>%s" % (ptitle, pwide),
+                                "%%?if(%%Li, =, 33)<%%Vd(clockwide)|%s>%s" % (title, wide))
+    else:
+        wideline = battery_line(ptitle + pwide, title + wide)
+    wide_vps = wide_vps + "\n" + pwide_vps
     music = ("%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)"
              "|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>")
     note, photos = SIZES["Note_Pane"], SIZES["Photos_Pane"]
@@ -576,6 +642,10 @@ def sbs_text():
         # the pane's note and caption one block in its middle, the caption's
         # capitals 12 rows under the note
         half_vps, half, _ = status(PANE, "h", TITLE)
+        phalf_vps, phalf, _ = status(PANE, "ph", TITLE, pct=True, narrow=True,
+                                     font_name=SBS_FONTS[1])
+        halfline = battery_line(phalf, half)
+        half_vps = half_vps + "\n" + phalf_vps
         pane_w = W - PANE
         cut = (PANE_COVER - pane_w) // 2
         note_y = (H - (note[1] + 12 + CELL)) // 2
@@ -584,9 +654,9 @@ def sbs_text():
         ring_y = (H - (PANE_RING + 10 + 2 * CELL + 2)) // 2
         collage_y = (H - (PANE_COLLAGE + 6 + CELL)) // 2
         photos_y = (H - (photos[1] + 12 + CELL)) // 2
-        return fill(SBS_PHOTO, fonts=fonts(SBS_FONTS), images=images(False), wide=wide,
-                    half=half, wide_vps=wide_vps, half_vps=half_vps, long_vps=long_vps,
-                    title=title, music=music, margin=MARGIN, text_y=TEXT_Y, cell=CELL,
+        return fill(SBS_PHOTO, fonts=fonts(SBS_FONTS), images=images(False),
+                    wideline=wideline, halfline=halfline, wide_vps=wide_vps,
+                    half_vps=half_vps, long_vps=long_vps, music=music, margin=MARGIN, text_y=TEXT_Y, cell=CELL,
                     clock_w=CLOCK_W, title_x=TITLE_X, title_w=TITLE_W, status=STATUS,
                     list_top=LIST_TOP, list_rows=LIST_ROWS, w=W, h=H,
                     half_w=HALF_W, column=PANE - 1, pane=PANE, pane_w=pane_w,
@@ -603,9 +673,12 @@ def sbs_text():
                     photos_w=photos[0], photos_h=photos[1],
                     nophotos_y=photos_y + photos[1] + 12)
     half_vps, half, _ = status(160, "h", TITLE)
-    return fill(SBS, fonts=fonts(SBS_FONTS), images=images(False), wide=wide, half=half,
-                wide_vps=wide_vps,
-                half_vps=half_vps, long_vps=long_vps, title=title, music=music, margin=MARGIN, text_y=TEXT_Y,
+    phalf_vps, phalf, _ = status(160, "ph", TITLE, pct=True, font_name=SBS_FONTS[1])
+    halfline = battery_line(phalf, half)
+    half_vps = half_vps + "\n" + phalf_vps
+    return fill(SBS, fonts=fonts(SBS_FONTS), images=images(False), wideline=wideline,
+                halfline=halfline, wide_vps=wide_vps,
+                half_vps=half_vps, long_vps=long_vps, music=music, margin=MARGIN, text_y=TEXT_Y,
                 status=STATUS, list_top=LIST_TOP, list_rows=LIST_ROWS, half_w=HALF_W,
                 photos_x=240 - photos[0] // 2, photos_y=104 - photos[1] // 2,
                 photos_w=photos[0], photos_h=photos[1],
@@ -636,8 +709,38 @@ def detail_block(parts):
 LEFT = "%nx%al%kl%ar%?ks< %ks|>"
 
 
+NP_TITLE = "%s%ac%Sx(Now Playing)"
+
+
+def np_status(prooms):
+    """Now Playing's clock and title, and with Battery Percentage theirs: on
+    the iPod photo the title in the middle of the room between the clock,
+    as wide as its widest time, and the glyphs; on the Video in the screen's
+    middle, narrower if it would reach them"""
+    out = ["%%Vl(npclock,%d,%d,%d,%d,5)%%Vf(CLOCK)" % (MARGIN, TEXT_Y, CLOCK_W, CELL), CLOCK,
+           "%%Vl(nptitle,%d,%d,%d,%d,5)%%Vf(PRIMARY)" % (NP_TITLE_X, TEXT_Y, NP_TITLE_W, CELL),
+           NP_TITLE]
+    clock_w = fnt_width.clock_width(WPS_FONTS[3]) if W < 320 else CLOCK_W
+    out += ["%%Vl(pnpclock,%d,%d,%d,%d,5)%%Vf(CLOCK)" % (MARGIN, TEXT_Y, clock_w, CELL), CLOCK]
+    for night in (0, 1):
+        limit = prooms[night][0] + MARGIN       # a gap left of the leftmost glyph
+        if W < 320:
+            left = MARGIN + clock_w + GAP
+            out += ["%%Vl(pnptitle%d,%d,%d,%d,%d,5)%%Vf(PRIMARY)" % (
+                night, left, TEXT_Y, limit - left, CELL), NP_TITLE]
+        else:
+            out += centred("pnptitle%d" % night, NP_TITLE_X, NP_TITLE_W, limit, 5, NP_TITLE)
+    show = battery_line("%Vd(pnpclock)%?nN<%Vd(pnptitle1)|%Vd(pnptitle0)>",
+                        "%Vd(npclock)%Vd(nptitle)")
+    return "\n".join(out), show
+
+
 def wps():
     vps, show, _ = status(W)
+    pvps, pshow, prooms = status(W, "p", pct=True, font=5, font_name=WPS_FONTS[3])
+    np_vps, np_show = np_status(prooms)
+    vps = vps + "\n" + pvps
+    show = battery_line(pshow, show)
     ratings, stars = SIZES["Ratings"], SIZES["Stars"]
     left, right = SIZES["Volume_Left"], SIZES["Volume_Right"]
     note, large = SIZES["Note_Playing"], SIZES["Note_Large"]
@@ -754,6 +857,7 @@ def wps():
     spill_x, spill_y = max(MARGIN - 12, 0), max(COVER_Y - 12, STATUS + 1)
     # %rr: none, then by half stars; the rating view has whole stars
     text = fill(WPS, fonts=fonts(WPS_FONTS), images=images(True), vps=vps, margin=MARGIN,
+                np_vps=np_vps, np_show=np_show,
                 text_y=TEXT_Y, w=W, cell=CELL, clock_w=CLOCK_W, np_title_x=NP_TITLE_X,
                 np_title_w=NP_TITLE_W, time_w=TIME_W, time_rows=TIME_ROWS, big=BIG,
                 big_x=BIG_X, big_y=BIG_Y, lyrics_y=LYRICS_Y, speed_h=SPEED_H,

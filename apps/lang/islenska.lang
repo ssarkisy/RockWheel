@@ -14518,3 +14518,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_BATTERY_PERCENTAGE
+  desc: a setting of Settings > Appearance, after the theme's rows: On, the battery's level in per cent stands left of the battery's glyph in every status line, as iOS's Battery Percentage; Off, the glyph alone, as on a stock iPod
+  user: core
+  <source>
+    *: "Battery Percentage"
+  </source>
+  <dest>
+    *: "Rafhlöðuprósenta"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
