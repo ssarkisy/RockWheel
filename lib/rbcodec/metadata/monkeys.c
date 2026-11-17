@@ -28,6 +28,11 @@
 #include "metadata_common.h"
 #include "metadata_parsers.h"
 
+/* the depth in the format's flags of a file before 3.98, as demac's
+   parser.h has them */
+#define MAC_FORMAT_FLAG_8_BIT  1
+#define MAC_FORMAT_FLAG_24_BIT 8
+
 bool get_monkeys_metadata(int fd, struct mp3entry* id3)
 {
     /* Use the trackname part of the id3 structure as a temporary buffer */
@@ -39,6 +44,7 @@ bool get_monkeys_metadata(int fd, struct mp3entry* id3)
     uint32_t blocksperframe, finalframeblocks, totalframes;
     int fileversion;
     int bytes;
+    unsigned int flags, bps;
 
     lseek(fd, 0, SEEK_SET);
 
@@ -81,6 +87,9 @@ bool get_monkeys_metadata(int fd, struct mp3entry* id3)
         blocksperframe = get_long_le(header+4);
         finalframeblocks = get_long_le(header+8);
         totalframes = get_long_le(header+12);
+        bps = get_short_le(header+16);
+        if (bps <= 32)
+            id3->bits_per_sample = bps;
         id3->frequency = get_long_le(header+20);
     } 
     else 
@@ -91,6 +100,9 @@ bool get_monkeys_metadata(int fd, struct mp3entry* id3)
         finalframeblocks = get_long_le(buf+28);
         totalframes = get_long_le(buf+24);
         id3->frequency = get_long_le(buf+12);
+        flags = get_short_le(buf+8);
+        id3->bits_per_sample = (flags & MAC_FORMAT_FLAG_8_BIT) ? 8
+                             : (flags & MAC_FORMAT_FLAG_24_BIT) ? 24 : 16;
     }
 
     if (id3->frequency == 0)

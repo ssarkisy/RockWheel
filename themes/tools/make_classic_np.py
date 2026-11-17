@@ -2,9 +2,11 @@
 # Makes the parts of iClassic Square's Now Playing that place the track's
 # details, between the lines that name this script in
 # themes/iClassic-Square/.rockbox/wps/iClassic-Square.wps; the rest of that
-# skin is edited by hand. Then make_dark_theme.py makes the dark one:
+# skin is edited by hand. Then make_dark_theme.py makes the dark one, and
+# make_rtl_stars.py the stars' mirrors for right to left:
 #
-#   themes/tools/make_classic_np.py && themes/tools/make_dark_theme.py
+#   themes/tools/make_classic_np.py && themes/tools/make_dark_theme.py \
+#       && themes/tools/make_rtl_stars.py
 #
 # The details stand beside the cover as one block in the middle of its
 # height, as on a stock iPod: the title; a song's artist, album and place in
@@ -17,6 +19,7 @@
 # the iPod photo's skin, themes/iClassic-Square/220x176, by its layout (PHOTO).
 
 import os
+import struct
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BEGIN = "# begin: made by themes/tools/make_classic_np.py, not edited here"
@@ -93,7 +96,7 @@ PHOTO = dict(
     FOOT_UNDER_FOOT=2,
     MODES_Y=22,
 )
-STARS = (66, 13)
+STARS_ROWS = 13  # the small stars' row; their width is the Ratings picture's
 MODE_W, MODE_H = 19, 20
 MODE_GAP = 4
 
@@ -108,7 +111,7 @@ use(VIDEO)
 def block(parts):
     """parts: (what, clear rows over it); each one's top row and rows, the
     block in the middle of the cover's height"""
-    rows = [STARS[1] if what == "stars" else LINES[what][1] for what, _ in parts]
+    rows = [STARS_ROWS if what == "stars" else LINES[what][1] for what, _ in parts]
     y = COVER_Y + COVER // 2 - sum(r + gap for r, (_, gap) in zip(rows, parts)) // 2
     # but under the modes at the column's right end
     y = max(y, MODES_Y + MODE_H + 1)
@@ -153,9 +156,11 @@ def viewports():
     for label, parts in variants().items():
         for what, y, rows in block(parts):
             if what == "stars":
-                out += ["%%Vl(%s,%d,%d,%d,%d,-)" % (label, COL, y, STARS[0], STARS[1]),
-                        "%?rr<" + "|".join("%%xd(R%s)" % chr(ord("a") + i)
-                                            for i in range(11)) + ">"]
+                out += ["%%Vl(%s,%d,%d,%d,%d,-)" % (label, COL, y, COL_W, STARS_ROWS),
+                        "%?Sr<" + "|".join(
+                            "%?rr<" + "|".join("%%xd(%s%s)" % (pic, chr(ord("a") + i))
+                                                for i in range(11)) + ">"
+                            for pic in "qR") + ">"]
                 continue
             font, _, colour, text = LINES[what]
             if what in SMALL_UNDER_LARGE:
@@ -209,6 +214,12 @@ def shown(normal, rating, speed):
     return "%%?if(%%mw, <, 3)<%s|%%?mw<||%%?C<|%s>||%s|%s>>" % (normal, normal, rating, speed)
 
 
+def ratings_width():
+    """the Ratings picture's width, for its mirror's place at the column's end"""
+    with open(os.path.join(os.path.dirname(WPS), "iClassic-Square", "Ratings.bmp"), "rb") as f:
+        return struct.unpack_from("<i", f.read(26), 18)[0]
+
+
 def write():
     lines = open(WPS, encoding="utf-8").read().split("\n")
     ends = [n for n, l in enumerate(lines) if l == END]
@@ -220,9 +231,13 @@ def write():
          "# neither moves as it is set",
          shown(choose("normal"), choose("rating"), choose("speed")),
          shown("%Vd(mode1)%Vd(mode2)", "%Vd(mode1)%Vd(mode2)", "%Vd(mode1)%Vd(mode2)")],
-        ["# the details; five stars of the Ratings picture, the set ones over the outlines",
+        ["# the details; five stars of the Ratings picture, the set ones over the outlines;",
+         "# right to left (%Sr) their mirror, make_rtl_stars.py's, at the column's other",
+         "# end and set from the right, in the same viewport, as wide as the column",
          "%xl(R,Ratings.bmp,0,0,11)",
-         "%xC(R)"] + viewports() + [
+         "%xC(R)",
+         "%%xl(q,Ratings RTL.bmp,%d,0,11)" % (COL_W - ratings_width()),
+         "%xC(q)"] + viewports() + [
          "# never shown, it only gives %fB the font of the bitrate",
          "%Vl(bitrate,0,0,1,1,6)",
          "# repeat and shuffle under the status bar's right end, repeat at the column's edge"]

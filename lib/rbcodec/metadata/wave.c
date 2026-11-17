@@ -401,6 +401,12 @@ static bool read_header(int fd, struct mp3entry* id3, const unsigned char *chunk
         return false;
     }
 
+    /* the depth of plain PCM only: the ADPCMs' few bits aren't a depth, and
+       neither are G.711's companded ones or float's */
+    if (fmt.formattag == WAVE_FORMAT_PCM
+        && fmt.bitspersample > 0 && fmt.bitspersample <= 32)
+        id3->bits_per_sample = fmt.bitspersample;
+
     /* Calculate track length (in ms) and estimate the bitrate (in kbit/s) */
     id3->length = (fmt.formattag != WAVE_FORMAT_ATRAC3)?
                       (uint64_t)fmt.totalsamples * 1000 / id3->frequency :

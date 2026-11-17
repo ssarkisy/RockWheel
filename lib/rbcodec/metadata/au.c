@@ -55,6 +55,7 @@ bool get_au_metadata(int fd, struct mp3entry* id3)
     /* temporary buffer */
     unsigned char* buf = (unsigned char *)id3->path;
     unsigned long numbytes = 0;
+    unsigned long encoding;
     int offset;
 
     id3->vbr      = false;   /* All Sun audio files are CBR */
@@ -92,8 +93,12 @@ bool get_au_metadata(int fd, struct mp3entry* id3)
             numbytes = id3->filesize - offset;
 
         id3->frequency = get_long_be(buf + 16);
-        id3->bitrate = get_au_bitspersample(get_long_be(buf + 12)) * get_long_be(buf + 20)
-                                                                   * id3->frequency / 1000;
+        encoding = get_long_be(buf + 12);
+        id3->bitrate = get_au_bitspersample(encoding) * get_long_be(buf + 20)
+                                                      * id3->frequency / 1000;
+        /* the depth of linear PCM only, encodings 2 to 5 */
+        if (encoding >= 2 && encoding <= 5)
+            id3->bits_per_sample = get_au_bitspersample(encoding);
     }
 
     /* Calculate track length [ms] */

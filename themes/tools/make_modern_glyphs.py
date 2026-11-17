@@ -19,6 +19,8 @@ catalogue_marks(); Shuffle's first frame is SHUFFLE_SONGS below. Written:
 - themes/tools/modern_glyph_sizes.txt: their sizes, for make_modern_theme.py.
 
 Run again after the export changes; the manifest's sha256 is in the header.
+Then make_rtl_stars.py, for the mirrors of Ratings and Stars that a language
+written right to left shows (its --check says whether they are up to date).
 """
 import hashlib
 import json

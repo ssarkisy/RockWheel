@@ -76,9 +76,13 @@
 # the cover's colour with the text, an outline the theme's colour for it, or
 # under Text and Stars the cover's muted one (%xC). The firmware knows an
 # outline's pixel by its grey: make_theme_glyphs.py fails if another pixel
-# of a %xC picture has it
+# of a %xC picture has it. Right to left (%Sr) their mirror, make_rtl_stars.py's,
+# a column right of the texts' other edge and set from the right, in the same
+# viewport, which has the column's width and a column each side
 %xl(G,Ratings.bmp,0,0,11)
 %xC(G)
+%xl(g,Ratings RTL.bmp,68,0,11)
+%xC(g)
 %Vl(s100,164,72,142,18,2)%Vf(292421)
 %nw(1)
 %Vl(s100,164,90,142,16,6)%Vf(52554A)
@@ -105,8 +109,8 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s110,164,117,142,14,4)%Vf(524D4A)
 %al%pp %Sx(of) %pe
-%Vl(s110,163,137,76,12,-)
-%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s110,163,137,144,12,-)
+%?Sr<%?rr<%xd(ga)|%xd(gb)|%xd(gc)|%xd(gd)|%xd(ge)|%xd(gf)|%xd(gg)|%xd(gh)|%xd(gi)|%xd(gj)|%xd(gk)>|%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>>
 %Vl(s111,164,55,142,18,2)%Vf(292421)
 %nw(1)
 %Vl(s111,164,73,142,16,6)%Vf(52554A)
@@ -115,8 +119,8 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s111,164,109,142,14,4)%Vf(524D4A)
 %al%pp %Sx(of) %pe
-%Vl(s111,163,129,76,12,-)
-%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s111,163,129,144,12,-)
+%?Sr<%?rr<%xd(ga)|%xd(gb)|%xd(gc)|%xd(gd)|%xd(ge)|%xd(gf)|%xd(gg)|%xd(gh)|%xd(gi)|%xd(gj)|%xd(gk)>|%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>>
 %Vl(s111,164,144,142,14,4)%Vf(524D4A)
 %fB
 %Vl(e1,164,63,142,18,2)%Vf(292421)
@@ -176,8 +180,8 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s210,164,126,142,14,4)%Vf(524D4A)
 %al%pp %Sx(of) %pe
-%Vl(s210,163,146,76,12,-)
-%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s210,163,146,144,12,-)
+%?Sr<%?rr<%xd(ga)|%xd(gb)|%xd(gc)|%xd(gd)|%xd(ge)|%xd(gf)|%xd(gg)|%xd(gh)|%xd(gi)|%xd(gj)|%xd(gk)>|%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>>
 %Vl(s211,164,46,142,36,2)%Vf(292421)
 %nw(1)
 %nw(2)
@@ -187,8 +191,8 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s211,164,118,142,14,4)%Vf(524D4A)
 %al%pp %Sx(of) %pe
-%Vl(s211,163,138,76,12,-)
-%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s211,163,138,144,12,-)
+%?Sr<%?rr<%xd(ga)|%xd(gb)|%xd(gc)|%xd(gd)|%xd(ge)|%xd(gf)|%xd(gg)|%xd(gh)|%xd(gi)|%xd(gj)|%xd(gk)>|%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>>
 %Vl(s211,164,153,142,14,4)%Vf(524D4A)
 %fB
 %Vl(e2,164,54,142,36,2)%Vf(292421)
@@ -261,11 +265,14 @@
 %xd(V)
 %Vl(volume,14,214,292,14,4)%Vf(524D4A)
 %ac%nv
-# rating: five large stars in the bar's place, the wheel sets them
+# rating: five large stars in the bar's place, the wheel sets them; right to
+# left their mirror, set from the right
 %xl(T,Stars.bmp,0,0,6)
 %xC(T)
+%xl(t,Stars RTL.bmp,0,0,6)
+%xC(t)
 %Vl(rating,99,201,121,17,-)
-%?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>
+%?Sr<%?rr<%xd(ta)|%xd(tb)|%xd(tb)|%xd(tc)|%xd(tc)|%xd(td)|%xd(td)|%xd(te)|%xd(te)|%xd(tf)|%xd(tf)>|%?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>>
 # the large cover, and the note in its place
 %Vl(bigart,60,30,200,200,-)
 %Cl(0,0,200,200,c,c)

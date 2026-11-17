@@ -445,28 +445,196 @@ extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
 #endif
 
 #if LCD_DEPTH >= 16
-/* Three bars of a sound wave, the format, and the bitrate on the same baseline (in
-   Classic in lighter letters), all three in the theme's colour for the bitrate, or
-   under Cover Colours the colour of the lines over it. The font of the viewport is
-   for the format, and a viewport the theme names "bitrate" and doesn't show gives
-   the one for the bitrate. Right to left the line is its mirror in the viewport:
-   the texts by putsxy(), which mirrors there, and the bars column for column, as
-   they have no direction of their own to keep. */
-#define FORMAT_TEXT_X   12
+/* The format's mark, then a lossless file's bit depth and sample rate and its
+   bitrate, a lossy one's bitrate, all in the theme's colour for the bitrate, or
+   under Cover Colours the colour of the lines over it. The texts are on the
+   baseline of the viewport's font, in the font of a viewport the theme names
+   "bitrate" and doesn't show (in Classic lighter letters), or the viewport's.
+   When the whole line doesn't fit, a lossless file's goes without the bitrate,
+   then without the rate's tenth ("24/176"). Right to left the line is its
+   mirror in the viewport: the texts by putsxy(), which mirrors there, the
+   mark at the other end, its name read as anywhere. */
 #define FORMAT_TEXT_Y   1
 #define BITRATE_GAP     7
-/* The bars are a pixel and a half wide and go half a pixel into their first and
-   last rows, in the middle of the capitals: in alpha as a font's (0 all of the
-   colour, 15 none), half and a quarter of it there over what is behind */
-#define FORMAT_BAR_FULL     0
-#define FORMAT_BAR_HALF     7
-#define FORMAT_BAR_QUARTER  11
-#define FORMAT_BAR_ROWS     16
+
+/* The mark: a capsule with the format's name in capitals of 6 rows, with 2
+   over and under them, 3 columns at the ends, and a gap of 5 to the text */
+#define MARK_ROWS       10
+#define MARK_PAD_X      3
+#define MARK_PAD_Y      2
+#define MARK_GAP        5
+#define MARK_LETTERS    5
+#define MARK_GLYPH_ROWS 6
+#define MARK_MAX_WIDTH  (MARK_LETTERS * 6 - 1 + 2 * MARK_PAD_X)
+#define MARK_STRIDE     ((MARK_MAX_WIDTH + 1) & ~1)
+
+/* A capital, each row's bits its columns, the left one the highest */
+struct mark_glyph
+{
+    unsigned char width;
+    unsigned char rows[MARK_GLYPH_ROWS];
+};
+
+/* A to Z, 0 to 9 and + */
+static const struct mark_glyph mark_glyphs[] =
+{
+    { 4, { 0b0110, 0b1001, 0b1001, 0b1111, 0b1001, 0b1001 } },
+    { 4, { 0b1110, 0b1001, 0b1110, 0b1001, 0b1001, 0b1110 } },
+    { 4, { 0b0111, 0b1000, 0b1000, 0b1000, 0b1000, 0b0111 } },
+    { 4, { 0b1110, 0b1001, 0b1001, 0b1001, 0b1001, 0b1110 } },
+    { 4, { 0b1111, 0b1000, 0b1110, 0b1000, 0b1000, 0b1111 } },
+    { 4, { 0b1111, 0b1000, 0b1110, 0b1000, 0b1000, 0b1000 } },
+    { 4, { 0b0111, 0b1000, 0b1011, 0b1001, 0b1001, 0b0111 } },
+    { 4, { 0b1001, 0b1001, 0b1111, 0b1001, 0b1001, 0b1001 } },
+    { 3, { 0b111,  0b010,  0b010,  0b010,  0b010,  0b111  } },
+    { 4, { 0b0001, 0b0001, 0b0001, 0b0001, 0b1001, 0b0110 } },
+    { 4, { 0b1001, 0b1010, 0b1100, 0b1010, 0b1001, 0b1001 } },
+    { 4, { 0b1000, 0b1000, 0b1000, 0b1000, 0b1000, 0b1111 } },
+    { 5, { 0b10001, 0b11011, 0b10101, 0b10001, 0b10001, 0b10001 } },
+    { 4, { 0b1001, 0b1101, 0b1011, 0b1001, 0b1001, 0b1001 } },
+    { 4, { 0b0110, 0b1001, 0b1001, 0b1001, 0b1001, 0b0110 } },
+    { 4, { 0b1110, 0b1001, 0b1001, 0b1110, 0b1000, 0b1000 } },
+    { 4, { 0b0110, 0b1001, 0b1001, 0b1001, 0b1010, 0b0101 } },
+    { 4, { 0b1110, 0b1001, 0b1001, 0b1110, 0b1010, 0b1001 } },
+    { 4, { 0b0111, 0b1000, 0b0110, 0b0001, 0b0001, 0b1110 } },
+    { 3, { 0b111,  0b010,  0b010,  0b010,  0b010,  0b010  } },
+    { 4, { 0b1001, 0b1001, 0b1001, 0b1001, 0b1001, 0b0110 } },
+    { 5, { 0b10001, 0b10001, 0b10001, 0b01010, 0b01010, 0b00100 } },
+    { 5, { 0b10001, 0b10001, 0b10001, 0b10101, 0b11011, 0b10001 } },
+    { 4, { 0b1001, 0b1001, 0b0110, 0b0110, 0b1001, 0b1001 } },
+    { 3, { 0b101,  0b101,  0b101,  0b010,  0b010,  0b010  } },
+    { 4, { 0b1111, 0b0001, 0b0010, 0b0100, 0b1000, 0b1111 } },
+    { 4, { 0b0110, 0b1001, 0b1011, 0b1101, 0b1001, 0b0110 } },
+    { 3, { 0b010,  0b110,  0b010,  0b010,  0b010,  0b111  } },
+    { 4, { 0b1110, 0b0001, 0b0001, 0b0110, 0b1000, 0b1111 } },
+    { 4, { 0b1110, 0b0001, 0b0110, 0b0001, 0b0001, 0b1110 } },
+    { 4, { 0b1001, 0b1001, 0b1001, 0b1111, 0b0001, 0b0001 } },
+    { 4, { 0b1111, 0b1000, 0b1110, 0b0001, 0b0001, 0b1110 } },
+    { 4, { 0b0110, 0b1000, 0b1110, 0b1001, 0b1001, 0b0110 } },
+    { 4, { 0b1111, 0b0001, 0b0010, 0b0100, 0b0100, 0b0100 } },
+    { 4, { 0b0110, 0b1001, 0b0110, 0b1001, 0b1001, 0b0110 } },
+    { 4, { 0b0110, 0b1001, 0b1001, 0b0111, 0b0001, 0b0110 } },
+    { 3, { 0b000,  0b010,  0b111,  0b010,  0b000,  0b000  } },
+};
+
+static const struct mark_glyph *mark_glyph(int c)
+{
+    if (c >= 'A' && c <= 'Z')
+        return &mark_glyphs[c - 'A'];
+    if (c >= '0' && c <= '9')
+        return &mark_glyphs[26 + c - '0'];
+    if (c == '+')
+        return &mark_glyphs[36];
+    return NULL;
+}
+
+/* The name in a format's mark: its label in capitals, digits and +, five at
+   most, or a short name where the label is long or not the one people use */
+static void format_mark_label(unsigned int codec, char label[MARK_LETTERS + 1])
+{
+    const char *name;
+    int n = 0;
+
+    switch (codec)
+    {
+        case AFMT_MPC_SV7:
+        case AFMT_MPC_SV8:      name = "MPC";  break;
+        case AFMT_SPEEX:        name = "SPX";  break;
+        case AFMT_WMAPRO:
+        case AFMT_WMAVOICE:     name = "WMA";  break;
+        case AFMT_RM_COOK:      name = "RA";   break;
+        case AFMT_RM_AAC:       name = "AAC";  break;
+        case AFMT_RM_ATRAC3:
+        case AFMT_OMA_ATRAC3:   name = "AT3";  break;
+        case AFMT_WAVE64:       name = "W64";  break;
+        case AFMT_MP4_AAC_HE:   name = "AAC+"; break;
+        default:                name = get_codec_string(codec); break;
+    }
+    for (; *name && n < MARK_LETTERS; name++)
+    {
+        int c = *name;
+        if (c >= 'a' && c <= 'z')
+            c -= 'a' - 'A';
+        if (mark_glyph(c))
+            label[n++] = c;
+    }
+    label[n] = '\0';
+}
+
+static int mark_width(const char *label)
+{
+    int width = 2 * MARK_PAD_X - 1;
+    for (; *label; label++)
+        width += mark_glyph(*label)->width + 1;
+    return width;
+}
+
+/* The mark at x, y of the viewport, in its foreground colour, its capitals
+   what is behind it. In alpha as a font's (0 all of the colour, 15 none), two
+   pixels a byte, the first in its low nibble: the capsule's corners a quarter
+   of a circle of 2.5 pixels, as much of each pixel as is in it. */
+static void draw_format_mark(struct screen *display, int x, int y,
+                             const char *label, int width)
+{
+    static const unsigned char corner[3][3] =
+        { { 13, 4, 0 }, { 4, 0, 0 }, { 0, 0, 0 } };
+    unsigned char alpha[MARK_ROWS][MARK_STRIDE / 2];
+
+    memset(alpha, 0xff, sizeof(alpha));
+    for (int r = 0; r < MARK_ROWS; r++)
+    {
+        const int cr = MIN(r, MARK_ROWS - 1 - r);
+        for (int c = 0; c < width; c++)
+        {
+            const int cc = MIN(c, width - 1 - c);
+            const int value = (cr < 3 && cc < 3) ? corner[cr][cc] : 0;
+            alpha[r][c / 2] &= (c & 1) ? (value << 4) | 0x0f : value | 0xf0;
+        }
+    }
+    /* the capitals' pixels none of the colour */
+    for (int c = MARK_PAD_X; *label; label++)
+    {
+        const struct mark_glyph *g = mark_glyph(*label);
+        for (int r = 0; r < MARK_GLYPH_ROWS; r++)
+            for (int k = 0; k < g->width; k++)
+                if (g->rows[r] & (1 << (g->width - 1 - k)))
+                    alpha[MARK_PAD_Y + r][(c + k) / 2] |= ((c + k) & 1) ? 0xf0 : 0x0f;
+        c += g->width + 1;
+    }
+
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type == SCREEN_MAIN)
+    {
+        display->set_drawmode(DRMODE_FG);
+        lcd_alpha_bitmap_part(&alpha[0][0], 0, 0, MARK_STRIDE, x, y,
+                              width, MARK_ROWS);
+        return;
+    }
+#endif
+    /* elsewhere the pixels more of the colour than not */
+    display->set_drawmode(DRMODE_SOLID);
+    for (int r = 0; r < MARK_ROWS; r++)
+        for (int c = 0; c < width; c++)
+            if (((alpha[r][c / 2] >> ((c & 1) * 4)) & 0x0f) < 8)
+                display->drawpixel(x + c, y + r);
+}
+
+/* A lossless file's depth and rate in kHz, "16/44.1", "24/48", or without the
+   tenth, "24/176" */
+static void format_depth_rate(char *buf, size_t size, const struct mp3entry *id3,
+                              bool tenth)
+{
+    const unsigned long tenths = (id3->frequency + 50) / 100;
+    if (tenth && tenths % 10)
+        snprintf(buf, size, str(LANG_DEPTH_RATE), id3->bits_per_sample,
+                 (int)(tenths / 10), (int)(tenths % 10));
+    else
+        snprintf(buf, size, "%d/%d", id3->bits_per_sample,
+                 (int)(tenth ? tenths / 10 : id3->frequency / 1000));
+}
 
 void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewport)
 {
-    static const struct { signed char x, top, bottom; } bars[] =
-        { { 0, 5, 10 }, { 3, 1, 14 }, { 6, 3, 12 } };
     struct screen *display = gwps->display;
     struct viewport *vp = &skin_viewport->vp;
     const struct mp3entry *id3 = get_wps_state()->id3;
@@ -474,18 +642,18 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
         skin_find_item("bitrate", SKIN_FIND_VP, gwps->data);
     const int format_font = vp->font;
     const int bitrate_font = bitrate_vp ? bitrate_vp->vp.font : format_font;
-    char bitrate[32];
-    int format_width, format_height;
+    char label[MARK_LETTERS + 1], rate[24], bitrate[32];
+    int rate_width = 0, bitrate_width = 0;
 
     screen_clear_area(display, 0, 0, vp->width, vp->height);
     if (!id3)
         return;
 
     /* What the database gives at first has no format, but it comes with what the
-       path tells, and the bitrate. AAC and ALAC have the same extensions, but
-       iTunes makes AAC of 320 kbps at most, and ALAC is nearly always well over
-       this. An ALAC file that's under it shows as AAC until the file has been
-       read. A bitrate of 1 is the database having none. */
+       path tells, and the bitrate, not the depth. AAC and ALAC have the same
+       extensions, but iTunes makes AAC of 320 kbps at most, and ALAC is nearly
+       always well over this. An ALAC file that's under it shows as AAC until
+       the file has been read. A bitrate of 1 is the database having none. */
     unsigned int codec = id3->codectype;
     if (codec == AFMT_UNKNOWN)
     {
@@ -494,10 +662,43 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
             || codec == AFMT_MP4_AAC_HE)
             codec = id3->bitrate < 400 ? AFMT_MP4_AAC : AFMT_MP4_ALAC;
     }
-    if (codec == AFMT_UNKNOWN || codec >= AFMT_NUM_CODECS || id3->bitrate <= 1)
+    const bool has_depth = id3->bits_per_sample && id3->frequency;
+    if (codec == AFMT_UNKNOWN || codec >= AFMT_NUM_CODECS
+        || (id3->bitrate <= 1 && !has_depth))
+        return;
+    format_mark_label(codec, label);
+    if (!*label)
         return;
 
-    const char *format = get_codec_string(codec);
+    /* the texts measured in their font; a lossless file's line without the
+       bitrate if it doesn't fit, then without the rate's tenth */
+    vp->font = bitrate_font;
+    if (id3->bitrate > 1)
+    {
+        if (id3->bitrate >= 1000)
+            snprintf(bitrate, sizeof(bitrate), str(LANG_BITRATE_MBPS),
+                     (int)((id3->bitrate + 50) / 1000),
+                     (int)((id3->bitrate + 50) / 100 % 10));
+        else
+            snprintf(bitrate, sizeof(bitrate), str(LANG_BITRATE_KBPS),
+                     (int)id3->bitrate);
+        display->getstringsize(bitrate, &bitrate_width, NULL);
+    }
+    const int mark_w = mark_width(label);
+    if (has_depth)
+    {
+        format_depth_rate(rate, sizeof(rate), id3, true);
+        display->getstringsize(rate, &rate_width, NULL);
+        int width = mark_w + MARK_GAP + rate_width;
+        if (bitrate_width && width + BITRATE_GAP + bitrate_width > vp->width)
+            bitrate_width = 0;
+        if (width > vp->width)
+        {
+            format_depth_rate(rate, sizeof(rate), id3, false);
+            display->getstringsize(rate, &rate_width, NULL);
+        }
+    }
+
     const unsigned old_fg = display->get_foreground();
     /* a theme with a tone has it neutral, as the album's line over it: not
        the tint its small text takes */
@@ -513,50 +714,23 @@ void draw_format_bitrate(struct gui_wps *gwps, struct skin_viewport *skin_viewpo
 #endif
     display->set_foreground(colour);
 
-    const bool rtl = VP_IS_RTL(vp);
-#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-    if (display->screen_type == SCREEN_MAIN)
-    {
-        /* each bar's two columns, the colour's own and the half pixel
-           beside it, one at a time: a row of two pixels a byte, the first
-           in its low nibble, the second clear */
-        display->set_drawmode(DRMODE_FG);
-        for (int i = 0; i < (int)ARRAYLEN(bars); i++)
-        {
-            unsigned char column[FORMAT_BAR_ROWS];
-            const int top = bars[i].top, bottom = bars[i].bottom;
-            for (int side = 0; side < 2; side++)
-            {
-                for (int r = top; r <= bottom; r++)
-                {
-                    const bool end = r == top || r == bottom;
-                    column[r] = 0xf0 | (side ? (end ? FORMAT_BAR_QUARTER : FORMAT_BAR_HALF)
-                                             : (end ? FORMAT_BAR_HALF : FORMAT_BAR_FULL));
-                }
-                const int x = bars[i].x + side;
-                lcd_alpha_bitmap_part(column, 0, top, 2, rtl ? vp->width - 1 - x : x,
-                                      top, 1, bottom - top + 1);
-            }
-        }
-    }
-    else
-#endif
-    {
-        display->set_drawmode(DRMODE_SOLID);
-        for (int i = 0; i < (int)ARRAYLEN(bars); i++)
-            display->vline(rtl ? vp->width - 1 - bars[i].x : bars[i].x,
-                           bars[i].top + 1, bars[i].bottom - 1);
-    }
+    /* the capsule from 8 rows over the baseline to one under it: centred on
+       capitals 8 rows high, as the themes' fonts' are (Classic's lighter ones
+       are 7, their middle half a row under the capsule's) */
+    const int baseline = FORMAT_TEXT_Y + font_get(format_font)->ascent - 1;
+    const int text_y = baseline + 1 - font_get(bitrate_font)->ascent;
+    draw_format_mark(display, VP_IS_RTL(vp) ? vp->width - mark_w : 0,
+                     baseline + 2 - MARK_ROWS, label, mark_w);
 
     display->set_drawmode(DRMODE_FG);
-    display->putsxy(FORMAT_TEXT_X, FORMAT_TEXT_Y, format);
-    display->getstringsize(format, &format_width, &format_height);
-
-    snprintf(bitrate, sizeof(bitrate), str(LANG_BITRATE_KBPS), id3->bitrate);
-    vp->font = bitrate_font;
-    display->putsxy(FORMAT_TEXT_X + format_width + BITRATE_GAP,
-                    FORMAT_TEXT_Y + font_get(format_font)->ascent
-                    - font_get(bitrate_font)->ascent, bitrate);
+    int x = mark_w + MARK_GAP;
+    if (has_depth)
+    {
+        display->putsxy(x, text_y, rate);
+        x += rate_width + BITRATE_GAP;
+    }
+    if (bitrate_width)
+        display->putsxy(x, text_y, bitrate);
     vp->font = format_font;
 
     display->set_drawmode(DRMODE_SOLID);

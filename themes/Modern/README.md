@@ -245,7 +245,7 @@ changed there, that Modern's skins use. What they draw is in
 | Tag | What it does |
 |---|---|
 | `%Cr(rows,strength)` | Draws the cover of the `%Cl` before it with a reflection under it, that many rows high, at that strength out of 256 at its top. With Angled Cover the cover is turned in perspective. A track with no cover gets the theme's placeholder drawn the same way: a `%nc` viewport of the cover's size, or the backdrop's picture under a `%Cd` that has no cover. |
-| `%fB` | The format and bitrate, after a small mark of a sound wave. The bitrate takes the font of a hidden viewport labelled `bitrate`. |
+| `%fB` | The format's mark, a capsule with its name in small capitals, then a lossless file's bit depth and sample rate ("24/48", "16/44.1") and its bitrate, or a lossy file's bitrate ("256 kbps", "4.6 Mbps" from 1000 kbps up). When the line doesn't fit the viewport, a lossless file's drops the bitrate, then the rate's tenth ("24/176"). The texts take the font of a hidden viewport labelled `bitrate`, on the baseline of the viewport's own. |
 | `%kk` | The track's kind, for `%?kk<song\|podcast\|audiobook>`. |
 | `%kd` | A podcast episode's release date. |
 | `%kl` | The time left, as "28 min left". |

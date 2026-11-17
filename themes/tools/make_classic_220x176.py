@@ -3,7 +3,7 @@
 # light theme's of 320x240, into themes/iClassic-Square/220x176/.rockbox:
 #
 #   themes/tools/make_classic_220x176.py && themes/tools/make_classic_np.py \
-#       && themes/tools/make_dark_theme.py
+#       && themes/tools/make_dark_theme.py && themes/tools/make_rtl_stars.py
 #
 # Nothing is scaled. What is the same on both screens is taken as it is: the
 # status bar's rows, cut to the screen's width (its texture repeats every 20

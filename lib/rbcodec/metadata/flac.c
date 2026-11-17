@@ -139,6 +139,9 @@ bool get_flac_metadata(int fd, struct mp3entry* id3)
             {
                 return false;
             }
+            /* five bits after the channels' three, stored one less */
+            id3->bits_per_sample = (((buf[12] & 0x01) << 4)
+                                    | ((buf[13] & 0xf0) >> 4)) + 1;
             rc = true;  /* Got vital metadata */
 
             /* totalsamples is a 36-bit field, but we assume <= 32 bits are used */

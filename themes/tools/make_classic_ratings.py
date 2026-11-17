@@ -17,6 +17,9 @@ so that it lies inside a set star's edge, and 0.3 px higher, so that the stroke 
 are the repository's and the right seven the outline's.  With --frames 10 the frame of
 none is left out: a file of the old size and frame count that drops in without a skin change (an unrated song
 then shows nothing, as before).
+
+Then make_rtl_stars.py, for the mirrors a language written right to left shows
+(its --check says whether they are up to date).
 """
 import math
 import os

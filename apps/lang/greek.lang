@@ -22331,3 +22331,31 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_DEPTH_RATE
+  desc: a lossless track's bit depth and its sample rate in kHz with the rate's tenth, "16/44.1" for a CD's, after its format's mark under its number in Now Playing, with the decimal mark as the language writes it (a rate with no tenth shows as "24/48" in every language)
+  user: core
+  <source>
+    *: "%d/%d.%d"
+  </source>
+  <dest>
+    *: "%d/%d,%d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_BITRATE_MBPS
+  desc: the bitrate of a track of 1000 kbps or more in Mbps with one decimal, "4.6 Mbps" for 4608 kbps, after its format's mark under its number in Now Playing, with the decimal mark as the language writes it and its unit as LANG_BITRATE_KBPS's
+  user: core
+  <source>
+    *: "%d.%d Mbps"
+  </source>
+  <dest>
+    *: "%d,%d Mbps"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

@@ -969,7 +969,12 @@ static bool read_mp4_container(int fd, struct mp3entry* id3,
 #endif
                 if (subtype == MP4_alac)
                 {
-                    lseek(fd, 24, SEEK_CUR);
+                    /* the ALACSpecificConfig after the atom's version and
+                       flags: the depth 5 bytes in, the rate at 20 */
+                    unsigned char config[24];
+                    if (read(fd, config, sizeof(config)) == sizeof(config)
+                        && config[9] <= 32)
+                        id3->bits_per_sample = config[9];
                     read_uint32be(fd, &frequency);
                     size -= 28;
                     id3->frequency = frequency;

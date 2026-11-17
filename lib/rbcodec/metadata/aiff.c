@@ -32,6 +32,8 @@
 
 /* compressionType: AIFC QuickTime IMA ADPCM */
 #define AIFC_FORMAT_QT_IMA_ADPCM "ima4"
+/* and none, PCM as AIFF's */
+#define AIFC_FORMAT_NONE "NONE"
 
 static void read_id3_tags(int fd, struct mp3entry* id3)
 {
@@ -44,6 +46,7 @@ bool get_aiff_metadata(int fd, struct mp3entry* id3)
     unsigned long numChannels = 0;
     unsigned long numSampleFrames = 0;
     unsigned long numbytes = 0;
+    unsigned int sample_size;
     bool is_aifc = false;
     char *p=id3->id3v2buf;
     size_t buf_left = sizeof(id3->id3v2buf);
@@ -116,6 +119,12 @@ bool get_aiff_metadata(int fd, struct mp3entry* id3)
 
             id3->vbr = false;   /* AIFF files are CBR */
             id3->filesize = ffilesize(fd);
+
+            /* the depth of PCM only: AIFF's, and AIFC's when not compressed */
+            sample_size = (buf[6] << 8) | buf[7];
+            if ((!is_aifc || memcmp(&buf[18], AIFC_FORMAT_NONE, 4) == 0)
+                && sample_size > 0 && sample_size <= 32)
+                id3->bits_per_sample = sample_size;
         }
 
         if (field && *field == NULL && buf_left > 1)

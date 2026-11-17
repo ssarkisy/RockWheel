@@ -278,6 +278,10 @@ struct mp3entry {
     int layer;
     int year;
     unsigned char id3version;
+    /* the bits of a sample of a lossless file, as its header gives them (16
+       for a CD's); 0 when not known: from the database, a lossy format, or
+       not integer PCM */
+    unsigned char bits_per_sample;
     unsigned int codectype;
     unsigned int bitrate;
     unsigned long frequency;

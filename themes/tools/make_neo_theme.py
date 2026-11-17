@@ -477,9 +477,13 @@ WPS = """\
 # the cover's colour with the text, an outline the theme's colour for it, or
 # under Text and Stars the cover's muted one (%xC). The firmware knows an
 # outline's pixel by its grey: make_theme_glyphs.py fails if another pixel
-# of a %xC picture has it
+# of a %xC picture has it. Right to left (%Sr) their mirror, make_rtl_stars.py's,
+# a column right of the texts' other edge and set from the right, in the same
+# viewport, which has the column's width and a column each side
 %xl(G,Ratings.bmp,0,0,{ratings_n})
 %xC(G)
+%xl(g,Ratings RTL.bmp,{ratings_rtl_x},0,{ratings_n})
+%xC(g)
 {block_vps}
 # never shown, it only gives %fB the font of the bitrate
 %Vl(bitrate,0,0,1,1,4)
@@ -520,9 +524,12 @@ WPS = """\
 %xd(V)
 %Vl(volume,{margin},{times_y},{grid},{time_rows},4)%Vf(NEUTRAL)
 %ac%nv
-# rating: five large stars in the bar's place, the wheel sets them
+# rating: five large stars in the bar's place, the wheel sets them; right to
+# left their mirror, set from the right
 %xl(T,Stars.bmp,0,0,{stars_n})
 %xC(T)
+%xl(t,Stars RTL.bmp,0,0,{stars_n})
+%xC(t)
 %Vl(rating,{stars_x},{rating_y},{stars_w},{stars_h},-)
 {big_stars}
 # the large cover, and the note in its place
@@ -649,8 +656,8 @@ def wps():
     volume_x = (W - volume_w) // 2
     left_x = volume_x - 6 - (left[0] - 1)
     right_x = volume_x + volume_w + 6 - 1
-    r = frames("G", ratings[2])
-    t = frames("T", stars[2])
+    r, r_rtl = frames("G", ratings[2]), frames("g", ratings[2])
+    t, t_rtl = frames("T", stars[2]), frames("t", stars[2])
     grid = W - 2 * MARGIN
     col = MARGIN + COVER + COL_GAP
     col_w = W - MARGIN - col
@@ -698,8 +705,8 @@ def wps():
                 block_vps += ["%%Vl(%s,%d,%d,%d,%d,2)%%Vf(PRIMARY)" % (label, col, y, col_w, rows),
                               "%nw(1)"] + (["%nw(2)"] if what == "title2" else [])
             elif what == "stars":
-                block_vps += ["%%Vl(%s,%d,%d,%d,%d,-)" % (label, col - 1, y, ratings[0], rows),
-                              "%%?rr<%s>" % "|".join(r)]
+                block_vps += ["%%Vl(%s,%d,%d,%d,%d,-)" % (label, col - 1, y, col_w + 2, rows),
+                              "%%?Sr<%%?rr<%s>|%%?rr<%s>>" % ("|".join(r_rtl), "|".join(r))]
             else:
                 font, colour, text = line[what]
                 block_vps += ["%%Vl(%s,%d,%d,%d,%d,%d)%%Vf(%s)" % (
@@ -758,7 +765,7 @@ def wps():
                 spill_h=COVER_Y + COVER + REFLECTION - spill_y,
                 col=col, col_w=col_w, grid=grid, title_h=2 * TITLE_LINE,
                 noart_x=(COVER - note[0]) // 2, noart_y=(COVER - note[1]) // 2,
-                ratings_n=ratings[2],
+                ratings_n=ratings[2], ratings_rtl_x=col_w + 2 - ratings[0],
                 bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (MARGIN, bar_w, bar_h),
                 volume_bar="%d,0,%d,%d,Volume Fill.bmp,backdrop,W" % (
                     volume_x, volume_w, bar_h),
@@ -771,8 +778,9 @@ def wps():
                 right_x=right_x, right_w=right[0], right_h=right[1],
                 stars_n=stars[2], stars_x=(W - stars[0]) // 2, stars_w=stars[0],
                 stars_h=stars[1], rating_y=BAR_Y - 1,
-                big_stars="%%?rr<%s>" % "|".join([t[0]] + [t[(i + 1) // 2]
-                                                            for i in range(1, 11)]),
+                big_stars="%%?Sr<%s|%s>" % tuple(
+                    "%%?rr<%s>" % "|".join([f[0]] + [f[(i + 1) // 2] for i in range(1, 11)])
+                    for f in (t_rtl, t)),
                 large_x=(BIG - large[0]) // 2, large_y=(BIG - large[1]) // 2)
     return text.replace("%?nN<{show}", show)
 

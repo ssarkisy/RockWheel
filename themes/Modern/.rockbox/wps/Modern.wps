@@ -62,8 +62,11 @@
 %Vl(noart,12,36,140,140,-)%Vb(EFF3F7)
 %nc%xd(O)
 # five stars, the set ones over the outlines of the unset, 1 px left
-# of the text's edge
+# of the text's edge; right to left (%Sr) their mirror, make_rtl_stars.py's,
+# as far right of the text's other edge and set from the right, in the same
+# viewport, which has the column's width and 1 px each side
 %xl(G,Ratings.bmp,0,0,11)
+%xl(g,Ratings RTL.bmp,66,0,11)
 %Vl(s00,168,72,140,18,3)%Vf(000000)
 %s%al%?it<%it|%fn>
 %Vl(s00,168,91,140,17,4)%Vf(DE244A)
@@ -90,8 +93,8 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s10,168,118,140,14,5)%Vf(525152)
 %al%pp %Sx(of) %pe
-%Vl(s10,167,138,76,12,-)
-%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s10,167,138,142,12,-)
+%?Sr<%?rr<%xd(ga)|%xd(gb)|%xd(gc)|%xd(gd)|%xd(ge)|%xd(gf)|%xd(gg)|%xd(gh)|%xd(gi)|%xd(gj)|%xd(gk)>|%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>>
 %Vl(s11,168,54,140,18,3)%Vf(000000)
 %s%al%?it<%it|%fn>
 %Vl(s11,168,73,140,17,4)%Vf(DE244A)
@@ -100,8 +103,8 @@
 %s%al%?id<%id|%Sx(Unknown Album)>
 %Vl(s11,168,109,140,14,5)%Vf(525152)
 %al%pp %Sx(of) %pe
-%Vl(s11,167,129,76,12,-)
-%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>
+%Vl(s11,167,129,142,12,-)
+%?Sr<%?rr<%xd(ga)|%xd(gb)|%xd(gc)|%xd(gd)|%xd(ge)|%xd(gf)|%xd(gg)|%xd(gh)|%xd(gi)|%xd(gj)|%xd(gk)>|%?rr<%xd(Ga)|%xd(Gb)|%xd(Gc)|%xd(Gd)|%xd(Ge)|%xd(Gf)|%xd(Gg)|%xd(Gh)|%xd(Gi)|%xd(Gj)|%xd(Gk)>>
 %Vl(s11,168,144,140,14,5)%Vf(525152)
 %fB
 %Vl(e,168,62,140,18,3)%Vf(000000)
@@ -166,10 +169,11 @@
 %Vl(volume,30,214,180,14,5)%Vf(525152)
 %al%nv
 # rating: five large stars in the bar's place, under the reflection; the
-# wheel sets them
+# wheel sets them; right to left their mirror, set from the right
 %xl(T,Stars.bmp,0,0,6)
+%xl(t,Stars RTL.bmp,0,0,6)
 %Vl(rating,89,198,142,22,-)
-%?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>
+%?Sr<%?rr<%xd(ta)|%xd(tb)|%xd(tb)|%xd(tc)|%xd(tc)|%xd(td)|%xd(td)|%xd(te)|%xd(te)|%xd(tf)|%xd(tf)>|%?rr<%xd(Ta)|%xd(Tb)|%xd(Tb)|%xd(Tc)|%xd(Tc)|%xd(Td)|%xd(Td)|%xd(Te)|%xd(Te)|%xd(Tf)|%xd(Tf)>>
 # the large cover, and the note in its place
 %Vl(bigart,60,32,200,200,-)
 %Cl(0,0,200,200,c,c)

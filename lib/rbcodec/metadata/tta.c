@@ -94,6 +94,10 @@ bool get_tta_metadata(int fd, struct mp3entry* id3)
     id3->frequency = (GET_HEADER(ttahdr, SAMPLE_RATE));
     id3->length    = ((GET_HEADER(ttahdr, DATA_LENGTH)) / id3->frequency) * 1000LL;
     bps            = (GET_HEADER(ttahdr, BITS_PER_SAMPLE));
+    /* the depth of integer PCM only, format 1: not of 2, encrypted, or 3,
+       float, which the codec doesn't play */
+    if (GET_HEADER(ttahdr, AUDIO_FORMAT) == 1 && bps > 0 && bps <= 32)
+        id3->bits_per_sample = bps;
 
     datasize = id3->filesize - id3->first_frame_offset;
     origsize = (GET_HEADER(ttahdr, DATA_LENGTH)) * ((bps + 7) / 8) * channels;

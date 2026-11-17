@@ -26,6 +26,8 @@ for a note, so the coloured files are not read. Written, for theme "neo":
   which places them.
 
 Run again after the export changes; the manifest's sha256 is in the header.
+Then make_rtl_stars.py, for the mirrors of Ratings and Stars that a language
+written right to left shows (its --check says whether they are up to date).
 """
 import hashlib
 import json

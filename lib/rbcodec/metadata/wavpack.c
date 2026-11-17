@@ -33,8 +33,13 @@
 #define ID_LARGE                0x80
 #define ID_SAMPLE_RATE          0x27
 
+#define BYTES_STORED    3
 #define MONO_FLAG       4
 #define HYBRID_FLAG     8
+#define FLOAT_DATA      0x80
+#define SHIFT_LSB       13
+#define SHIFT_MASK      (0x1fL << SHIFT_LSB)
+#define DSD_FLAG        0x80000000
 
 static const long wavpack_sample_rates [] = 
 {
@@ -144,6 +149,17 @@ bool get_wavpack_metadata(int fd, struct mp3entry* id3)
 
             id3->length = ((int64_t) totalsamples * 1000) / id3->frequency;
             id3->bitrate = id3->filesize / (id3->length / 8);
+
+            /* the depth of a lossless file's integers, as libwavpack has it:
+               a hybrid one is lossy without its correction file, and
+               WavPack 5's DSD (which the codec doesn't play) has none */
+            if (!(flags & (HYBRID_FLAG | FLOAT_DATA | DSD_FLAG)))
+            {
+                int bits = ((flags & BYTES_STORED) + 1) * 8
+                           - (int)((flags & SHIFT_MASK) >> SHIFT_LSB);
+                if (bits > 0)
+                    id3->bits_per_sample = bits;
+            }
 
             read_ape_tags(fd, id3);
             return true;

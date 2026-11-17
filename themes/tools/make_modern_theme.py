@@ -447,8 +447,11 @@ WPS = """\
 %Vl(noart,{margin},{cover_top},{cover},{cover},-)%Vb(TILE)
 %nc%xd(O)
 # five stars, the set ones over the outlines of the unset, {star_shift} px left
-# of the text's edge
+# of the text's edge; right to left (%Sr) their mirror, make_rtl_stars.py's,
+# as far right of the text's other edge and set from the right, in the same
+# viewport, which has the column's width and {star_shift} px each side
 %xl(G,Ratings.bmp,0,0,{ratings_n})
+%xl(g,Ratings RTL.bmp,{ratings_rtl_x},0,{ratings_n})
 {block_vps}
 # never shown, it only gives %fB the font of the bitrate
 %Vl(bitrate,0,0,1,1,5)
@@ -484,8 +487,9 @@ WPS = """\
 %Vl(volume,{volume_x},{times_y},{volume_w},14,5)%Vf(SMALL)
 %al%nv
 # rating: five large stars in the bar's place, under the reflection; the
-# wheel sets them
+# wheel sets them; right to left their mirror, set from the right
 %xl(T,Stars.bmp,0,0,{stars_n})
+%xl(t,Stars RTL.bmp,0,0,{stars_n})
 %Vl(rating,{stars_x},{rating_y},{stars_w},{stars_h},-)
 {big_stars}
 # the large cover, and the note in its place
@@ -637,8 +641,8 @@ def wps():
             with open(os.path.join(OUT, "Modern", name + " Track.bmp"), "rb") as f:
                 assert struct.unpack_from("<i", f.read(26), 18)[0] == bar_w, name
     repeat, shuffle = SIZES["Repeat"], SIZES["Shuffle"]
-    r = frames("G", ratings[2])
-    t = frames("T", stars[2])
+    r, r_rtl = frames("G", ratings[2]), frames("g", ratings[2])
+    t, t_rtl = frames("T", stars[2]), frames("t", stars[2])
     col_w = W - MARGIN - COL
 
     # each line of the block: its viewport's font and colour, and its text
@@ -679,8 +683,8 @@ def wps():
         for what, y, rows in detail_block(parts):
             if what == "stars":
                 block_vps += ["%%Vl(%s,%d,%d,%d,%d,-)" % (label, COL - STAR_SHIFT, y,
-                                                          ratings[0], rows),
-                              "%%?rr<%s>" % "|".join(r)]
+                                                          col_w + 2 * STAR_SHIFT, rows),
+                              "%%?Sr<%%?rr<%s>|%%?rr<%s>>" % ("|".join(r_rtl), "|".join(r))]
             else:
                 font, colour, text = line[what]
                 block_vps += ["%%Vl(%s,%d,%d,%d,%d,%d)%%Vf(%s)" % (
@@ -735,7 +739,7 @@ def wps():
                 spill_x=spill_x, spill_y=spill_y, spill_w=MARGIN + COVER + 12 - spill_x,
                 spill_h=reflection_foot - spill_y,
                 noart_x=(COVER - note[0]) // 2, noart_y=(COVER - note[1]) // 2,
-                ratings_n=ratings[2],
+                ratings_n=ratings[2], ratings_rtl_x=col_w + 2 * STAR_SHIFT - ratings[0],
                 bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (MARGIN, bar_w, bar_h),
                 bar_y=BAR_Y, bar_h=bar_h, times_y=TIMES_Y, times_right=W - MARGIN - TIME_W,
                 under_x=MARGIN + TIME_W + 4, under_w=grid - 2 * (TIME_W + 4),
@@ -746,8 +750,9 @@ def wps():
                 stars_h=stars[1], rating_y=reflection_foot,
                 speed_y=speed_y, speed_h=H - speed_y,
                 # the rating view has whole stars
-                big_stars="%%?rr<%s>" % "|".join([t[0]] + [t[(i + 1) // 2]
-                                                            for i in range(1, 11)]),
+                big_stars="%%?Sr<%s|%s>" % tuple(
+                    "%%?rr<%s>" % "|".join([f[0]] + [f[(i + 1) // 2] for i in range(1, 11)])
+                    for f in (t_rtl, t)),
                 large_x=(BIG - large[0]) // 2, large_y=(BIG - large[1]) // 2)
 
 
