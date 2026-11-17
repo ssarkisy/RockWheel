@@ -52,8 +52,20 @@ void backlight_hw_brightness(int val)
 #endif /* HAVE_BACKLIGHT_BRIGHTNESS */
 
 
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+static bool lit;
+
+bool backlight_hw_lit(void)
+{
+    return lit;
+}
+#endif
+
 void backlight_hw_on(void)
 {
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+    lit = true;
+#endif
 #if defined(HAVE_LCD_ENABLE)
     lcd_enable(true);
 #elif defined(HAVE_LCD_SLEEP)
@@ -73,6 +85,9 @@ void backlight_hw_on(void)
 
 void backlight_hw_off(void)
 {
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+    lit = false;
+#endif
     sim_backlight(0);
 #ifdef HAVE_LCD_ENABLE
     lcd_enable(false);

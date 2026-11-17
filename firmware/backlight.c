@@ -94,6 +94,9 @@ enum {
 #ifdef HAVE_LCD_SLEEP
     LCD_SLEEP,
 #endif
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+    LCD_POWER,
+#endif
 #ifdef HAVE_BUTTON_LIGHT
     BUTTON_LIGHT_ON,
     BUTTON_LIGHT_OFF,
@@ -495,6 +498,17 @@ long backlight_off_since(unsigned int *count)
     return backlight_off_tick;
 }
 
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+/* The panel off only while the iPod sleeps (powermgmt.c), and only with the
+   light off: as the sleep begins (backlight_lcd_power()), and as the light
+   goes off in it, after a hand lit it without waking the sleep (Hold) */
+static void lcd_sleep_if_asleep(void)
+{
+    if (powermgmt_asleep() && !backlight_hw_lit())
+        lcd_sleep();
+}
+#endif
+
 static inline void do_backlight_off(void)
 {
     backlight_off_count++;
@@ -508,6 +522,9 @@ static inline void do_backlight_off(void)
      * fading */
 #ifdef HAVE_LCD_SLEEP
     backlight_lcd_sleep_countdown(true);
+#endif
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+    lcd_sleep_if_asleep();
 #endif
 #endif
 }
@@ -523,6 +540,12 @@ static void backlight_update_state(void)
     {
         do_backlight_off();
 #if defined(HAVE_TRANSFLECTIVE_LCD) && defined(HAVE_LCD_SLEEP)
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+        /* not in the iPod's sleep, as Hold switched on asks with the light
+           off on Hold: the panel stays off, and comes on as the sleep ends
+           (backlight_lcd_power()) */
+        if (!powermgmt_asleep())
+#endif
         /* LCD must be enabled to allow "passive" operation (backlight always off) */
         lcd_awake();
 #endif
@@ -674,6 +697,14 @@ void backlight_thread(void)
 #ifdef HAVE_LCD_SLEEP
             case LCD_SLEEP:
                 lcd_sleep();
+                break;
+#endif
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+            case LCD_POWER:
+                if (ev.data)
+                    lcd_awake(); /* awake, dark: readable as before */
+                else
+                    lcd_sleep_if_asleep();
                 break;
 #endif
 #ifdef HAVE_BUTTON_LIGHT
@@ -855,6 +886,13 @@ void backlight_off(void)
 {
     queue_post(&backlight_queue, BACKLIGHT_OFF, 0);
 }
+
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+void backlight_lcd_power(bool on)
+{
+    queue_post(&backlight_queue, LCD_POWER, on);
+}
+#endif
 
 /* returns true when the backlight is on,
  * and optionally when it's set to always off. */

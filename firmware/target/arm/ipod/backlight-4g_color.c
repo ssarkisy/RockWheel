@@ -49,6 +49,11 @@ static bool enabled = false;
 
 void backlight_hw_on(void)
 {
+#ifdef HAVE_LCD_SLEEP
+    /* the panel on with its picture, if it was off, and that picture drawn
+       again, before the light shows it */
+    lcd_awake_redrawn();
+#endif
     /* brightness full */
     outl(0x80000000 | (brightness << 16), 0x7000a010);
     GPIO_SET_BITWISE(GPIOB_OUTPUT_VAL, 0x08);
@@ -61,6 +66,13 @@ void backlight_hw_off(void)
     GPIO_CLEAR_BITWISE(GPIOB_OUTPUT_VAL, 0x08);
     enabled = false;
 }
+
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+bool backlight_hw_lit(void)
+{
+    return enabled;
+}
+#endif
 
 void backlight_hw_brightness(int val)
 {

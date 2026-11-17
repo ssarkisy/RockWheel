@@ -53,6 +53,10 @@ bool backlight_hw_init(void);
 void backlight_hw_on(void);
 void backlight_hw_off(void);
 void backlight_hw_brightness(int val);
+#ifdef HAVE_LCD_SLEEP
+/* lcd-color_nano.c's: the panel on, and what's on it drawn again */
+void lcd_awake_redrawn(void);
+#endif
 
 #elif defined(IPOD_MINI) || defined(IPOD_MINI2G)
 

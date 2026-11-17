@@ -23561,3 +23561,37 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_BATTERY_CAPACITY_SHORT
+  desc: on the iPod photo, Battery Capacity's name in Settings > General, whose values, up to "1200 mAh", have to fit beside it in its narrower rows: LANG_BATTERY_CAPACITY where that leaves them room, else the language's own shorter word for it, such as "Capacity"; not a cut word
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Battery Capacity"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Dung lượng pin"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: "Dung lượng pin"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SLEEP_POWEROFF_SHORT
+  desc: on the iPod photo, Turn Off After Sleep's name in Settings > General, whose values (Auto, the LANG_SLEEP_POWEROFF_ durations, Never) have to fit beside it in its narrower rows: LANG_SLEEP_POWEROFF where that leaves them room, else the language's own shorter word for it, such as "Auto Off"; not a cut word
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Turn Off After Sleep"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Tự tắt máy"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>

@@ -125,11 +125,14 @@ static long last_event_tick = 0;
 
 /* Turn Off After Sleep at Auto: the sleep on battery may take this many
    percent of the battery's capacity (Battery Capacity), at the sleep's
-   current measured on an iPod Video (codec standby, 24 MHz), in microamps;
-   but no less than 2 hours, nor more than 12. Thus 2.5 hours on a stock
-   600 mAh battery, 2 on a 400 mAh one, 12 on 3000 mAh. */
+   current, the target's SLEEP_CURRENT_UA; but no less than 2 hours, nor
+   more than 12. Thus on an iPod Video (11.8 mA) 2.5 hours on a stock 600 mAh
+   battery, 2 on a 400 mAh one, 12 on 3000 mAh; on an iPod photo (19.3 mA,
+   provisional) 2 hours on 700 mAh, 3.1 on 1200 mAh. */
+#ifndef SLEEP_CURRENT_UA
+#error "HAVE_IDLE_SLEEP needs the target's SLEEP_CURRENT_UA"
+#endif
 #define SLEEP_AUTO_PERCENT     5
-#define SLEEP_CURRENT_UA       11800
 #define SLEEP_AUTO_MIN_HOURS   2
 #define SLEEP_AUTO_MAX_HOURS   12
 #define SLEEP_HOUR_TICKS       (60 * 60 * HZ)
@@ -1280,6 +1283,10 @@ static void sleep_enter(bool pause, bool flush)
     if (flush)
         button_queue_post(SYS_SLEEP_FLUSH, 0);
     sleeping = true;
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+    /* the panel off, once the light is: awake it stays on, dark */
+    backlight_lcd_power(false);
+#endif
     sleep_since = current_tick;
     sleep_event_tick = last_event_tick;
     sleep_retry_tick = current_tick;
@@ -1290,6 +1297,10 @@ static void sleep_wake(void)
 {
     sleeping = false;
     sleep_set_clock(false);
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+    /* on again if the use didn't light it (Play, unseen) */
+    backlight_lcd_power(true);
+#endif
 }
 
 /* A held Play, from the button tick: the screen goes dark at once, the music

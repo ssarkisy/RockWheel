@@ -103,14 +103,18 @@ static const unsigned long tm_udma[] = {
 #if ATA_MAX_UDMA > 2
 static bool dma_needs_boost;
 #endif
-#if !defined(BOOTLOADER) && defined(HAVE_ADJUSTABLE_CPU_FREQ) && ATA_MAX_UDMA >= 2
+#if !defined(BOOTLOADER) && defined(HAVE_ADJUSTABLE_CPU_FREQ) && \
+    (ATA_MAX_UDMA >= 2 || defined(IPOD_COLOR))
 /* UDMA 2 is stable from 30 MHz up (ata-target.h): a transfer runs boosted
    while the unboosted clock is the lower one, the iPod's sleep at 24 MHz or
    the radio's idle clock, even if another's boost has the CPU at 80 MHz as it
    starts: that boost may end before the transfer does. The sleep lowers the
    clock only while the disk is idle (powermgmt.c), so no transfer that began
    unboosted at 30 MHz goes on at 24; the radio's idle clock can still come
-   during one, as it always could. */
+   during one, as it always could. The iPod photo's UDMA 1 is said to be
+   stable at 24 MHz, but nothing but the sleep runs it there: boosted too, as
+   a flash card read in the half second a wake takes to raise the clock
+   would run it */
 #define DMA_BOOST_BELOW_NORMAL
 #endif
 #if ATA_MAX_UDMA > 2 || defined(DMA_BOOST_BELOW_NORMAL)

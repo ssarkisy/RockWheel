@@ -1134,7 +1134,10 @@ struct user_settings
     bool scrobbler;
 #ifdef HAVE_IDLE_SLEEP
     /* Settings > General > Turn Off After Sleep: Auto, 2, 6, 12 or 24 hours,
-       2 days or Never (sleep_poweroff_apply()) */
+       2 days or Never (sleep_poweroff_apply()). On the iPod photo too since
+       it sleeps, in the middle there: PLUGIN_API_REVISION was raised for it,
+       on both iPods, and sizeof(struct user_settings) is in
+       PLUGIN_API_VERSION */
     int sleep_poweroff;
 #endif
     /* Settings > Appearance > Missing Covers Caution: a song whose picture

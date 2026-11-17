@@ -64,6 +64,13 @@ void lcd_set_sleep_after_backlight_off(int timeout_seconds);
 #ifdef HAVE_LCD_SLEEP
 void lcd_awake(void);
 #endif
+#ifdef LCD_SLEEP_ASLEEP_ONLY
+/* from the power thread, as the iPod's sleep begins (false) and ends (true):
+   the panel off, if the light is, or on again */
+void backlight_lcd_power(bool on);
+/* the target's: whether the light is on now */
+bool backlight_hw_lit(void);
+#endif
 
 #else /* !HAVE_BACKLIGHT */
 #define backlight_init()

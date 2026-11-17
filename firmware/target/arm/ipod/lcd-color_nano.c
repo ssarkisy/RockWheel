@@ -56,6 +56,35 @@
 /*** globals ***/
 int lcd_type = 1; /* 0,2 = "old" Color/Photo; 1,3 = similar to HD66789R */
 
+#ifdef HAVE_LCD_SLEEP
+/* lcd_type 0's panel off: by lcd_sleep(), as the backlight thread asks while
+   the iPod sleeps; on by lcd_awake(). Nothing is sent to it while it's off.
+   lcd_shutdown() sets it for type 2 too; types 1 and 3 never have it. Read
+   on either core: uncached */
+static bool lcd_off SHAREDBSS_ATTR;
+/* the updates sent, for lcd_awake_redrawn()'s wait; under lcd_cl */
+static unsigned int lcd_updates SHAREDBSS_ATTR;
+#if NUM_CORES > 1
+/* the panel's power changes between the commands of no update, from either
+   core: mpegplayer's video thread updates from the COP */
+static struct corelock lcd_cl SHAREDBSS_ATTR;
+#endif
+
+static inline void lcd_lock(void)
+{
+#if NUM_CORES > 1
+    corelock_lock(&lcd_cl);
+#endif
+}
+
+static inline void lcd_unlock(void)
+{
+#if NUM_CORES > 1
+    corelock_unlock(&lcd_cl);
+#endif
+}
+#endif /* HAVE_LCD_SLEEP */
+
 static inline void lcd_wait_write(void)
 {
     while (LCD2_PORT & LCD2_BUSY_MASK);
@@ -106,9 +135,23 @@ void lcd_set_flip(bool yesno)
 }
 #endif
 
+#if defined(HAVE_LCD_SHUTDOWN) || defined(HAVE_LCD_SLEEP)
+/* lcd_type 0 and 2: the panel off, as Apple's firmware turns it off (in its
+   1.x osos at 0x169b68, the same sequence) */
+static void lcd_type0_off(void)
+{
+    lcd_cmd_data(0x00EF, 0x0000);
+    lcd_cmd_data(0x0080, 0x0000); udelay(1000);
+    lcd_cmd_data(0x0001, 0x0001);
+}
+#endif
+
 /* LCD init */
 void lcd_init_device(void)
-{  
+{
+#if defined(HAVE_LCD_SLEEP) && NUM_CORES > 1
+    corelock_init(&lcd_cl);
+#endif
 #if CONFIG_LCD == LCD_IPODCOLOR
     if (IPOD_HW_REVISION == 0x60000) {
         lcd_type = 0;
@@ -141,9 +184,16 @@ void lcd_shutdown(void) {
 
     if ((lcd_type&1) == 0) {
         /* lcd_type 0 and 2 */
-        lcd_cmd_data(0x00EF, 0x0000);
-        lcd_cmd_data(0x0080, 0x0000); udelay(1000);
-        lcd_cmd_data(0x0001, 0x0001);
+#ifdef HAVE_LCD_SLEEP
+        /* once, if lcd_sleep() hasn't already; and no update after */
+        lcd_lock();
+        if (!lcd_off)
+            lcd_type0_off();
+        lcd_off = true;
+        lcd_unlock();
+#else
+        lcd_type0_off();
+#endif
     } else if (lcd_type == 1) {
         /* lcd_type 1 */
         lcd_cmd_data(0x0007, 0x0236); sleep( 40*HZ/1000);
@@ -237,6 +287,15 @@ void lcd_blit_yuv(unsigned char * const src[3],
     width  = (width  + 1) & ~1; /* ensure width is even  */
     height = (height + 1) & ~1; /* ensure height is even */
 
+#ifdef HAVE_LCD_SLEEP
+    lcd_lock();
+    if (lcd_off)
+    {
+        lcd_unlock();
+        return;
+    }
+#endif
+
     lcd_setup_drawing_region(x, y, width, height);
 
     z = stride * src_y;
@@ -271,9 +330,12 @@ void lcd_blit_yuv(unsigned char * const src[3],
         /* transfer of pixels_to_write bytes finished */
         while (!(LCD2_BLOCK_CTRL & LCD2_BLOCK_READY));
         LCD2_BLOCK_CONFIG = 0;
-        
+
         height -= h;
     }
+#ifdef HAVE_LCD_SLEEP
+    lcd_unlock();
+#endif
 }
 
 /* Helper function writes 'count' consecutive pixels from src to LCD IF */
@@ -439,18 +501,10 @@ static void lcd_update_rect_columns(int x, int y, int width, int height)
 }
 #endif /* CONFIG_LCD == LCD_IPODCOLOR */
 
-/* Update a fraction of the display. */
-void lcd_update_rect(int x, int y, int width, int height)
+/* The framebuffer's rectangle, within the screen, to the panel */
+static void write_rect(int x, int y, int width, int height)
 {
     unsigned long *addr;
-
-    /* a screen drawn in full before it shows, as for the menus' slide: the
-       driver holds its updates, as the iPod Video's does */
-    if (lcd_update_held(&x, &y, &width, &height))
-        return;
-
-    if (!clip_rect(&x, &y, &width, &height))
-        return;
 
 #if CONFIG_LCD == LCD_IPODCOLOR
     if ((lcd_type&1) == 0) {
@@ -503,9 +557,126 @@ void lcd_update_rect(int x, int y, int width, int height)
     }
 }
 
+/* Update a fraction of the display. */
+void lcd_update_rect(int x, int y, int width, int height)
+{
+    /* a screen drawn in full before it shows, as for the menus' slide: the
+       driver holds its updates, as the iPod Video's does */
+    if (lcd_update_held(&x, &y, &width, &height))
+        return;
+
+    if (!clip_rect(&x, &y, &width, &height))
+        return;
+
+#ifdef HAVE_LCD_SLEEP
+    lcd_lock();
+    if (!lcd_off)
+    {
+        write_rect(x, y, width, height);
+        lcd_updates++;
+    }
+    lcd_unlock();
+#else
+    write_rect(x, y, width, height);
+#endif
+}
+
 /* Update the display.
    This must be called after all other LCD functions that change the display. */
 void lcd_update(void)
 {
     lcd_update_rect(0, 0, LCD_WIDTH, LCD_HEIGHT);
 }
+
+#ifdef HAVE_LCD_SLEEP
+/* From the backlight thread, the light off */
+void lcd_sleep(void)
+{
+    /* lcd_type 2 untested; 1 and 3 have no sequence to power on again */
+    if (lcd_type != 0)
+        return;
+
+    lcd_lock();
+    if (!lcd_off)
+    {
+        lcd_type0_off();
+        lcd_off = true;
+    }
+    lcd_unlock();
+}
+
+/* From the backlight thread: before the light comes on (lcd_awake_redrawn()),
+   as the iPod's sleep ends, the light off (backlight.c), and at a shutdown */
+void lcd_awake(void)
+{
+    /* without the lock while it's on, as it is at every light: only the CPU's
+       threads change it, which switch only as they yield */
+    if (lcd_type != 0 || !lcd_off)
+        return;
+
+    lcd_lock();
+    if (!lcd_off)
+    {
+        lcd_unlock();
+        return;
+    }
+
+    /* as Apple's firmware powers it on (in its 1.x osos at 0x169b68), which
+       sets none of lcd_init_device()'s other registers again */
+    lcd_cmd_data(0xef, 0x0);
+    lcd_cmd_data(0x01, 0x0);
+    lcd_cmd_data(0x80, 0x1); udelay(1000);
+    lcd_cmd_data(0x7e, 0x5);
+    lcd_cmd_data(0x7f, 0x1);
+    lcd_off = false;
+
+    /* the framebuffer's whole picture before the light shows the panel,
+       whatever the panel kept, and whatever lcd_update_held() would hold:
+       none of the updates since it went off reached it */
+    write_rect(0, 0, LCD_WIDTH, LCD_HEIGHT);
+    lcd_unlock();
+
+    /* what wasn't drawn for a screen off (lcd_active()), drawn now */
+    send_event(LCD_EVENT_ACTIVATION, NULL);
+}
+
+/* As the light comes on (backlight-4g_color.c): the panel on, if it was off,
+   and the light kept back until the screens that stopped drawing while it
+   was off (lcd_active()) have drawn again, the status bar's clock first:
+   their first update and those right after it, LCD_REDRAW_TICKS at most.
+   Lit at once, the picture of the moment the panel went off showed, a night's
+   old clock. From the backlight thread, which sleeps meanwhile. */
+#define LCD_REDRAW_TICKS (HZ / 5)
+
+void lcd_awake_redrawn(void)
+{
+    if (lcd_type != 0 || !lcd_off)
+        return;
+    lcd_awake();
+
+    /* the activation's redraw is the UI thread's: posted, not drawn yet.
+       Boosted meanwhile: the clock may still be the sleep's 24 MHz, which
+       the power thread raises only after the UI has run */
+    cpu_boost(true);
+    unsigned int seen = lcd_updates;
+    bool drawn = false;
+    const long until = current_tick + LCD_REDRAW_TICKS;
+    while (TIME_BEFORE(current_tick, until))
+    {
+        sleep(1);
+        if (lcd_updates != seen)
+        {
+            seen = lcd_updates;
+            drawn = true;
+        }
+        else if (drawn)
+            break; /* a tick without one, after it drew */
+    }
+    cpu_boost(false);
+}
+
+bool lcd_active(void)
+{
+    return !lcd_off;
+}
+#endif /* HAVE_LCD_SLEEP */

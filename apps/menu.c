@@ -339,6 +339,22 @@ static int find_menu_selection(int selected)
             return i;
     return 0;
 }
+/* A setting's name on its row. On the iPod photo the two settings of the
+   sleep have a shorter one where a language's leaves their values no room
+   beside it in Settings > General's narrower rows (LANG_*_SHORT, ipodcolor
+   only), and in the hidden Battery menu too; their screens keep the whole
+   name as their title, as speech does */
+static int setting_row_name(const struct settings_list *setting)
+{
+#if defined(IPOD_COLOR) && defined(HAVE_IDLE_SLEEP)
+    if (setting->lang_id == LANG_BATTERY_CAPACITY)
+        return LANG_BATTERY_CAPACITY_SHORT;
+    if (setting->lang_id == LANG_SLEEP_POWEROFF)
+        return LANG_SLEEP_POWEROFF_SHORT;
+#endif
+    return setting->lang_id;
+}
+
 static const char* get_menu_item_name(int selected_item,
                                       void * data,
                                       char *buffer,
@@ -378,15 +394,16 @@ static const char* get_menu_item_name(int selected_item,
         const struct settings_list *v = find_setting(menu->variable);
         if (!v)
             return "Not Done yet!";
+        const char *const setting_name = str(setting_row_name(v));
         if (!menu_shows_values((const struct menu_item_ex *)data))
-            return str(v->lang_id);
+            return setting_name;
         char value[64];
         const int on = setting_switch(v);
         if (on >= 0)
-            snprintf(buffer, buffer_len, "%s\t%c%s", str(v->lang_id),
+            snprintf(buffer, buffer_len, "%s\t%c%s", setting_name,
                      MENU_SWITCH(on), setting_value(v, value, sizeof(value)));
         else
-            snprintf(buffer, buffer_len, "%s\t%s", str(v->lang_id),
+            snprintf(buffer, buffer_len, "%s\t%s", setting_name,
                      setting_value(v, value, sizeof(value)));
         return buffer;
     }
@@ -457,7 +474,9 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
     struct screen *display = info->display;
     const char *text = info->dsp_text;
     const char *tab = strchr(text, '\t');
-    char name[64];
+    /* as long as the row's text can be: a name of 64 bytes and more, as Thai
+       has, was cut in the middle of a word */
+    char name[MAX_PATH];
 
     if (info->list->callback_is_group
         && info->list->callback_is_group(info->line, info->list->data))

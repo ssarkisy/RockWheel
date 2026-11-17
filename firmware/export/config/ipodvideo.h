@@ -94,6 +94,9 @@
    kept in memory, as Apple's firmware does; it powers off after the hours
    Turn Off After Sleep sets, or sooner on a low battery (powermgmt.c) */
 #define HAVE_IDLE_SLEEP
+/* The sleep's current for Turn Off After Sleep's Auto, in microamps:
+   measured asleep, the codec in standby at 24 MHz */
+#define SLEEP_CURRENT_UA 11800
 #ifndef SIMULATOR
 /* The WM8758's PLL, DAC, mixers and outputs can be off while no PCM plays
    (wm8758.c, dac_standby.h) */

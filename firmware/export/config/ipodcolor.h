@@ -63,6 +63,18 @@
 /* Define this if the LCD can shut down */
 #define HAVE_LCD_SHUTDOWN
 
+#ifndef BOOTLOADER
+/* The panel of lcd_type 0 powered off while the iPod sleeps (HAVE_IDLE_SLEEP),
+   and on again as it wakes, with the framebuffer's picture before the light
+   (lcd-color_nano.c; backlight.c, powermgmt.c). Awake and dark it stays on,
+   readable in daylight: the backlight's timeout doesn't turn it off, as it
+   does the Video's BCM (LCD_SLEEP_TIMEOUT never). Types 1 to 3 stay on,
+   dark */
+#define HAVE_LCD_SLEEP
+#define LCD_SLEEP_TIMEOUT (-1)
+#define LCD_SLEEP_ASLEEP_ONLY
+#endif
+
 /* LCD stays visible without backlight - simulator hint */
 #define HAVE_TRANSFLECTIVE_LCD
 
@@ -89,6 +101,18 @@
 
 /* Define this if you have a software controlled poweroff */
 #define HAVE_SW_POWEROFF
+
+#ifndef BOOTLOADER
+/* Idle, a held Play and the Sleep Timer put the iPod to sleep, dark with all
+   kept in memory, as on the iPod Video; it powers off after the hours Turn
+   Off After Sleep sets, or sooner on a low battery (powermgmt.c). The WM8975
+   stays on: there's no standby for it (HAVE_DAC_STANDBY) */
+#define HAVE_IDLE_SLEEP
+/* The sleep's current for Turn Off After Sleep's Auto, in microamps: the
+   iPod Video's, measured asleep with its codec on at 24 MHz, until this
+   iPod's own is measured */
+#define SLEEP_CURRENT_UA 19300
+#endif
 
 /* The number of bytes reserved for loadable codecs */
 #define CODEC_SIZE 0x80000
