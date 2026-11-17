@@ -15814,13 +15814,13 @@
 </phrase>
 <phrase>
   id: LANG_UP_NEXT_QUEUE
-  desc: Up Next (the list of the songs to come, from the menu over Now Playing): the heading over the songs queued by Play Next and Play Last, which play next, each once; a noun, the name of that part of the list (not LANG_QUEUE, the old verb "to queue")
+  desc: Up Next (the list of the songs to come, from the menu over Now Playing): the heading over the songs queued by Play Next and Play Last, which play next, each once; the name of that part of the list, the songs next from the queue (not LANG_QUEUE, the old verb "to queue")
   user: core
   <source>
-    *: "Queue"
+    *: "Next in Queue"
   </source>
   <dest>
-    *: "Järjekord"
+    *: "Järgmisena järjekorras"
   </dest>
   <voice>
     *: ""
@@ -15828,13 +15828,13 @@
 </phrase>
 <phrase>
   id: LANG_UP_NEXT_CONTINUE
-  desc: Up Next: the heading over the rest of the list after the queue (LANG_UP_NEXT_QUEUE), the songs that go on playing from where the music was once the queue has played
+  desc: Up Next: the heading over the rest of the list after the queue (LANG_UP_NEXT_QUEUE), the songs next from the list the music was playing from once the queue has played
   user: core
   <source>
-    *: "Continue Playing"
+    *: "Next From List"
   </source>
   <dest>
-    *: "Jätka esitamist"
+    *: "Järgmisena loendist"
   </dest>
   <voice>
     *: ""
@@ -16089,6 +16089,20 @@
   </source>
   <dest>
     *: "Madal: rahulikum, kerge puudutus loendit ei liiguta. Kõrge: nagu varasemates versioonides."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UP_NEXT_CLEAR_QUEUE
+  desc: Up Next: in the menu a held Select opens on a song of its queue (LANG_UP_NEXT_QUEUE), and the choice asked after it: removes all the queued songs, leaving the rest of the list as it was
+  user: core
+  <source>
+    *: "Clear Queue"
+  </source>
+  <dest>
+    *: "Tühjenda järjekord"
   </dest>
   <voice>
     *: ""

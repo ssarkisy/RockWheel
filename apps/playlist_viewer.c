@@ -841,6 +841,28 @@ static enum pv_context_result delete_track(int current_track_index,
     return PV_CONTEXT_MODIFIED;
 }
 
+/* Up Next's Clear Queue, from a queued song's menu: asked first as
+   On-The-Go's Clear Playlist is, Cancel first */
+static enum pv_context_result clear_queue(void)
+{
+    static const struct opt_items items[] = {
+        { STR(LANG_UP_NEXT_CLEAR_QUEUE) }, { STR(LANG_CANCEL_0) },
+    };
+    int choice = 1;
+    if (set_option(str(LANG_UP_NEXT_CLEAR_QUEUE), &choice, RB_INT, items,
+                   ARRAYLEN(items), NULL))
+        return PV_CONTEXT_USB;
+    if (choice != 0)
+        return PV_CONTEXT_UNCHANGED;
+    if (playlist_queue_clear() <= 0)
+        return PV_CONTEXT_PL_UPDATE;
+    /* then at the song after the one playing, where the queue was: the
+       queue's first song's row, as update_playlist() reads it before it
+       finds the queue gone */
+    viewer.selected_track = viewer.queue_row + 1;
+    return PV_CONTEXT_MODIFIED;
+}
+
 static enum pv_context_result context_menu(int index)
 {
     struct playlist_entry *current_track = playlist_buffer_get_track(&viewer.buffer,
@@ -852,7 +874,12 @@ static enum pv_context_result context_menu(int index)
        settings and its info page aren't offered */
     MENUITEM_STRINGLIST(menu_items, ID2P(LANG_PLAYLIST), NULL,
                         ID2P(LANG_REMOVE), ID2P(LANG_MOVE));
-    int sel = do_menu(&menu_items, NULL, NULL, false);
+    /* a queued song's with Clear Queue too */
+    MENUITEM_STRINGLIST(queue_items, ID2P(LANG_PLAYLIST), NULL,
+                        ID2P(LANG_REMOVE), ID2P(LANG_MOVE),
+                        ID2P(LANG_UP_NEXT_CLEAR_QUEUE));
+    const bool queued = viewer.queue_row >= 0 && pv_part(index) == 1;
+    int sel = do_menu(queued ? &queue_items : &menu_items, NULL, NULL, false);
     if (sel == MENU_ATTACHED_USB)
         return PV_CONTEXT_USB;
     else if (sel >= 0)
@@ -871,6 +898,8 @@ static enum pv_context_result context_menu(int index)
                 viewer.moving_track = index;
                 viewer.moving_playlist_index = current_track->index;
                 return PV_CONTEXT_UNCHANGED;
+            case 2:
+                return clear_queue();
         }
     }
     return PV_CONTEXT_UNCHANGED;

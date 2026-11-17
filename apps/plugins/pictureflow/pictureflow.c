@@ -6259,14 +6259,15 @@ static void context_menu_cleanup(void)
 
 static int context_menu(void)
 {
-    /* as Music's lists have it: On-The-Go first, Add to Playlist, then, while music plays,
-       Play Next and Play Last, for the album or, on its songs, the song; and Go to
-       Artist, its album artist's albums, Menu there back here (root_menu.c) */
+    /* as Music's lists have it: Play Next and Play Last first, whenever songs can
+       be queued, for the album or, on its songs, the song; On-The-Go, Add to
+       Playlist; and Go to Artist, its album artist's albums, Menu there back here
+       (root_menu.c) */
     enum {
-        PF_ON_THE_GO = 0,
-        PF_ADD_TO_PLAYLIST,
-        PF_PLAY_NEXT,
+        PF_PLAY_NEXT = 0,
         PF_PLAY_LAST,
+        PF_ON_THE_GO,
+        PF_ADD_TO_PLAYLIST,
         PF_GO_TO_ARTIST
     };
     /* and last Sort By, its value at the right end as in Albums: by album
@@ -6276,10 +6277,10 @@ static int context_menu(void)
                  rb->str(pf_cfg.sort_albums_by == SORT_BY_YEAR ? LANG_SORT_YEAR
                                                                : LANG_SORT_ARTIST));
     MENUITEM_STRINGLIST(playing_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
-                        ID2P(LANG_ADD_TO_ON_THE_GO),
-                        ID2P(LANG_ADD_TO_PL),
                         ID2P(LANG_PLAY_NEXT),
                         ID2P(LANG_PLAY_LAST),
+                        ID2P(LANG_ADD_TO_ON_THE_GO),
+                        ID2P(LANG_ADD_TO_PL),
                         ID2P(LANG_GO_TO_ARTIST),
                         sort_by);
     MENUITEM_STRINGLIST(stopped_menu, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
@@ -6290,10 +6291,10 @@ static int context_menu(void)
     /* without Go to Artist where it isn't offered, as opened by a file's
        menu: its rows are the first of those, then Sort By */
     MENUITEM_STRINGLIST(playing_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
-                        ID2P(LANG_ADD_TO_ON_THE_GO),
-                        ID2P(LANG_ADD_TO_PL),
                         ID2P(LANG_PLAY_NEXT),
                         ID2P(LANG_PLAY_LAST),
+                        ID2P(LANG_ADD_TO_ON_THE_GO),
+                        ID2P(LANG_ADD_TO_PL),
                         sort_by);
     MENUITEM_STRINGLIST(stopped_menu_here, ID2P(LANG_ONPLAY_MENU_TITLE), NULL,
                         ID2P(LANG_ADD_TO_ON_THE_GO),
@@ -6316,8 +6317,9 @@ static int context_menu(void)
         configfile_save(CONFIG_FILE, config, CONFIG_NUM_ITEMS, CONFIG_VERSION);
         return 0;
     }
-    if (!playing && go_to && chosen == PF_PLAY_NEXT)
-        chosen = PF_GO_TO_ARTIST;
+    /* without the first two rows the rest are two up */
+    if (!playing && chosen >= 0)
+        chosen += PF_ON_THE_GO;
     switch (chosen)
     {
         case PF_GO_TO_ARTIST:

@@ -330,10 +330,12 @@ MENUITEM_SETTING(wps_menu_cover_colours,
 WPS_MENU_SETTING(wps_menu_dark_theme, WPS_MENU_DARK_THEME);
 WPS_MENU_SETTING(wps_menu_night_mode, WPS_MENU_NIGHT_MODE);
 MAKE_MENU(wps_menu_items, ID2P(LANG_NOW_PLAYING_MENU), NULL, Icon_NOICON,
+          /* in the order of the menu's own rows */
+          &wps_menu_current_playlist,
 #ifdef HAVE_TAGCACHE
           &wps_menu_cover_flow, &wps_menu_go_to_artist, &wps_menu_go_to_album,
 #endif
-          &wps_menu_shuffle, &wps_menu_repeat, &wps_menu_current_playlist,
+          &wps_menu_shuffle, &wps_menu_repeat,
           &wps_menu_on_the_go, &wps_menu_volume_limit, &wps_menu_eq,
           &wps_menu_sound_check,
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS

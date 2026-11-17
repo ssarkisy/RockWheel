@@ -196,8 +196,10 @@ int playlist_amount(void);
 void playlist_set_last_shuffled_start(void);
 struct playlist_info *playlist_get_current(void);
 bool playlist_dynamic_only(void);
-/* Up Next's: the songs queued right after the one playing */
+/* Up Next's: the songs queued right after the one playing; its Clear
+   Queue removes them all, the number gone or -1 */
 int playlist_queue_count(void);
+int playlist_queue_clear(void);
 /* Play Next and Play Last (onplay.c, Cover Flow): whether songs can be queued
    now; before queueing, the list to queue into in memory, false for none;
    after, the resume point kept with the music stopped */

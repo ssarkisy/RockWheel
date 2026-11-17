@@ -4676,6 +4676,53 @@ int playlist_queue_count(void)
            - rotate_index(playlist, playlist->index) - 1;
 }
 
+/* Up Next's Clear Queue: the songs queued right after the one playing
+   leave the list, as Remove does each, a D: line apiece synced once after
+   all of them; the tracks buffered after the one playing are read again
+   once, as after a Remove. The number gone from memory, or -1 if the
+   control file couldn't be opened; a line not written midway stops it,
+   that song gone from memory only, as Remove leaves one. */
+int playlist_queue_clear(void)
+{
+    struct playlist_info *playlist = &current_playlist;
+    int removed = 0;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    if (check_control(playlist) < 0)
+    {
+        notify_control_access_error();
+        removed = -1;
+        goto out;
+    }
+
+    sync_held = playlist;
+    for (int count = playlist_queue_count(); count > 0; count--)
+    {
+        /* the first of the queue each time, as each leaves */
+        const int next = unrotate_index(playlist,
+                                        rotate_index(playlist, playlist->index) + 1);
+        /* gone from memory even if its line wasn't written */
+        const int result = remove_track_unlocked(playlist, next, true);
+        removed++;
+        if (result < 0)
+            break;
+    }
+    sync_held = NULL;
+    if (removed > 0)
+        sync_control_unlocked(playlist);
+
+out:
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, false);
+
+    if (removed > 0 && (audio_status() & AUDIO_STATUS_PLAY) && playlist->started)
+        audio_flush_and_reload_tracks();
+
+    return removed;
+}
+
 /* Play Next and Play Last with the music stopped queue into the list Now
    Playing resumes, after the song it resumes at, which still plays first:
    nothing starts, as on iOS. Possible while music plays or is paused, or

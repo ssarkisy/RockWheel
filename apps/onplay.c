@@ -1762,7 +1762,8 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
            onplaymenu_callback, Icon_Audio,
            /* no rating, bookmarks or cuesheet: the rating is a view of the
               WPS, as on a stock iPod; the configurable items are off by
-              default */
+              default. Up Next first, a Select away. */
+           &wps_view_cur_playlist_item,
 #ifdef HAVE_TAGCACHE
            &cover_flow_item, &go_to_artist_item, &go_to_album_item,
 #endif
@@ -1774,7 +1775,6 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_NOW_PLAYING),
 #ifdef HAVE_TAGCACHE
            &playing_from_item,
 #endif
-           &wps_view_cur_playlist_item,
            &on_the_go_item,
 #ifdef HAVE_TAGCACHE
            &add_to_playlist_item,
@@ -2115,16 +2115,14 @@ MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
            /* no Add to Playlist, as on a stock iPod: it picked any playlist,
               those of the library too, which the next sync writes again, and
               named a new one by its path with the keyboard; On-The-Go goes to
-              the Mac instead */
+              the Mac instead. Play Next and Play Last first, a Select away. */
+           &i_first_pl_item, &i_last_pl_item,
 #ifdef HAVE_TAGCACHE
            &episode_start_over_item, &book_start_over_item,
 #endif
            &on_the_go_item,
 #ifdef HAVE_TAGCACHE
            &add_to_playlist_item,
-#endif
-           &i_first_pl_item, &i_last_pl_item,
-#ifdef HAVE_TAGCACHE
            &episode_played_item, &episode_unplayed_item, &book_finish_item,
            &song_go_to_artist_item, &song_go_to_album_item,
            &remove_song_item,
