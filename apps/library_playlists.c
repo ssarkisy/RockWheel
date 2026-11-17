@@ -1653,8 +1653,9 @@ static bool lp_play(int song)
     return true;
 }
 
-/* the song out of the queue too, if it plays from this playlist: its first
-   time after the one playing, else another than that */
+/* the song out of the music playing too, if it plays from this playlist:
+   its first time after the one playing, else another than that; never a
+   copy queued by Play Next or Play Last, which isn't the playlist's */
 static void remove_from_queue(const char *path)
 {
     const int amount = playlist_amount();
@@ -1665,6 +1666,7 @@ static void remove_from_queue(const char *path)
     {
         const int i = (playing + k) % amount;
         if (playlist_get_track_info(NULL, i, &info) >= 0
+            && !(info.attr & PLAYLIST_ATTR_QUEUED)
             && lp_same_file(info.filename, path))
             found = i;
     }

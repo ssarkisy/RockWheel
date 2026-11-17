@@ -268,6 +268,10 @@ static long resume_deadline;
 #define playlist_write_lock(p)      mutex_lock(&(p)->mutex)
 #define playlist_write_unlock(p)    mutex_unlock(&(p)->mutex)
 
+/* the queue's move reading its songs' paths, on the audio thread at
+   Previous: a read failing leaves the queue where it is, unsaid */
+static bool reads_quiet;
+
 #if defined(PLAYLIST_DEBUG_ACCESS_ERRORS)
 #define notify_access_error() (splashf(HZ*2, "%s %s", \
                                     __func__, ID2P(LANG_PLAYLIST_ACCESS_ERROR)))
@@ -275,12 +279,12 @@ static long resume_deadline;
                             __func__, ID2P(LANG_PLAYLIST_CONTROL_ACCESS_ERROR)))
 #else
 static void notify_access_error(void) {
-    if (resume_quiet)
+    if (resume_quiet || reads_quiet)
         return;
     splash(HZ*2, ID2P(LANG_PLAYLIST_ACCESS_ERROR));
 }
 static void notify_control_access_error(void) {
-    if (resume_quiet)
+    if (resume_quiet || reads_quiet)
         return;
     splash(HZ*2, ID2P(LANG_PLAYLIST_CONTROL_ACCESS_ERROR));
 }
@@ -451,12 +455,17 @@ static int rotate_index(const struct playlist_info* playlist, int index)
     return index;
 }
 
+/* the playlist whose lines are held unsynced, for one sync after them all:
+   the queue's move or keep (queue_follow_unlocked(), playlist_reorder()),
+   which a reset then finds whole or not at all */
+static const struct playlist_info *sync_held;
+
 /* What is written is kept once synced: the iPod's FAT records a file's new
    size only at fsync or close, and a reset (Menu+Select, a crash, a power
    cut) loses the lines after the last sync */
 static void sync_control_unlocked(struct playlist_info* playlist)
 {
-    if (playlist->control_fd >= 0)
+    if (playlist->control_fd >= 0 && playlist != sync_held)
         fsync(playlist->control_fd);
 }
 
@@ -1344,8 +1353,22 @@ static int remove_all_tracks_unlocked(struct playlist_info *playlist)
     return 0;
 }
 
+/* The queue: the songs queued right after the one playing, where they
+   always are (queue_follow_unlocked()). In the list's order from first_index,
+   the place after its last song, or after the one playing without one:
+   amount at the list's end. */
+static int queue_end_rotated(const struct playlist_info *playlist)
+{
+    int r = rotate_index(playlist, playlist->index) + 1;
+    while (r < playlist->amount
+           && (playlist->indices[(r + playlist->first_index) % playlist->amount]
+               & PLAYLIST_QUEUED))
+        r++;
+    return r;
+}
+
 /*
- * Add track to playlist at specified position. There are seven special
+ * Add track to playlist at specified position. There are nine special
  * positions that can be specified:
  *  PLAYLIST_PREPEND              - Add track at beginning of playlist
  *  PLAYLIST_INSERT               - Add track after current song.  NOTE: If
@@ -1362,6 +1385,9 @@ static int remove_all_tracks_unlocked(struct playlist_info *playlist)
  *                                  the playlist.
  *  PLAYLIST_REPLACE              - Erase current playlist, Cue the current track
  *                                  and inster this track at the end.
+ *  PLAYLIST_INSERT_QUEUE_END     - After the songs queued right after the
+ *                                  current one, or right after it; at the
+ *                                  list's end as PLAYLIST_INSERT_LAST
  */
 static int add_track_to_playlist_unlocked(struct playlist_info* playlist,
                                           const char *filename, int position,
@@ -1407,6 +1433,19 @@ static int add_track_to_playlist_unlocked(struct playlist_info* playlist,
 
             playlist->last_insert_pos = position;
             break;
+        case PLAYLIST_INSERT_QUEUE_END:
+            if (playlist->amount > 0)
+            {
+                const int end = queue_end_rotated(playlist);
+                if (end < playlist->amount)
+                {
+                    position = insert_position =
+                        (end + playlist->first_index) % playlist->amount;
+                    playlist->last_insert_pos = position;
+                    break;
+                }
+            }
+            /* fallthrough */
         case PLAYLIST_INSERT_LAST:
             if (playlist->first_index <= 0)
             {
@@ -1598,6 +1637,153 @@ static int remove_track_unlocked(struct playlist_info* playlist,
     }
 
     return result;
+}
+
+/* the playlist's position of a place in its order from first_index */
+static int unrotate_index(const struct playlist_info *playlist, int rotated)
+{
+    return (rotated + playlist->first_index) % playlist->amount;
+}
+
+/* A queued song's path by its entry's value, for playlist_reorder()'s
+   entries kept past the index's end: read from its line of the control
+   file, as they have no dircache reference (get_track_filename() takes the
+   index's own entries) */
+static int queued_track_filename(struct playlist_info *playlist,
+                                 unsigned long entry, char *buf, int buf_length)
+{
+    char tmp_buf[MAX_PATH + 1];
+    const unsigned long seek = entry & PLAYLIST_SEEK_MASK;
+    if (playlist->control_fd < 0
+        || lseek(playlist->control_fd, seek, SEEK_SET) != (off_t)seek)
+        return -1;
+    const int max = read(playlist->control_fd, tmp_buf,
+                         MIN((size_t)buf_length, sizeof(tmp_buf) - 1));
+    if (max <= 0)
+        return -1;
+    tmp_buf[max] = '\0';
+    return format_track_path(buf, tmp_buf, buf_length, playlist->filename,
+                             playlist->dirlen) < 0 ? -1 : 0;
+}
+
+/* What the queue did that playback's tracks buffered don't know of
+   (playlist_queue_changes()) */
+static int queue_changes;
+
+int playlist_queue_changes(void)
+{
+    const int was = queue_changes;
+    queue_changes &= ~PLAYLIST_QUEUE_MOVED;
+    return was;
+}
+
+void playlist_queue_buffer_cleared(void)
+{
+    queue_changes = 0;
+}
+
+/* The queue goes with the song playing, as iOS's and Spotify's: it is
+   always the run of queued songs right after it. Called once the index has
+   moved from old by Previous or a song chosen to play:
+   - the queue was the queued songs after old; with Previous, old too if it's
+     queued, which hasn't left as it does when it's played past;
+   - chosen in the queue, the songs above it in it leave, as if skipped;
+   - chosen anywhere else, or Previous, the queue moves to right after the
+     song playing now, in its order, if the index has a free slot for a copy
+     of each song (else it stays where it is), and if every song's path can
+     be read (else too, unsaid: this runs on the audio thread at Previous);
+   - a queued old song chosen away from has played, and leaves.
+   A song moved is a copy after the one playing, a Q: line, and its old
+   entry gone, a D: line. They are synced once, after all of them: a reset
+   before that finds the list as it was. */
+static void queue_follow_unlocked(struct playlist_info *playlist, int old,
+                                  bool chosen)
+{
+    const int now = playlist->index;
+    if (old < 0 || old >= playlist->amount || now < 0
+        || now >= playlist->amount || old == now)
+        return;
+    const bool old_queued = playlist->indices[old] & PLAYLIST_QUEUED;
+    const int old_r = rotate_index(playlist, old);
+    const int start = old_r + (old_queued && !chosen ? 0 : 1);
+    int count = 0;
+    while (start + count < playlist->amount
+           && (playlist->indices[unrotate_index(playlist, start + count)]
+               & PLAYLIST_QUEUED))
+        count++;
+    const bool drop_old = chosen && old_queued;
+    const int now_r = rotate_index(playlist, now);
+    bool changed = false;
+
+    sync_held = playlist;
+    if (now_r >= start && now_r < start + count)
+    {
+        /* the songs above the one chosen, then the old one, from the
+           furthest: each leaves the places before it as they were */
+        for (int r = now_r - 1; r >= start; r--)
+            remove_track_unlocked(playlist, unrotate_index(playlist, r), true);
+        if (drop_old)
+            remove_track_unlocked(playlist, unrotate_index(playlist, old_r), true);
+        changed = now_r > start || drop_old;
+    }
+    else if (count > 0 && now_r + 1 != start
+             && playlist->max_playlist_size - playlist->amount >= count)
+    {
+        /* a copy of each after the one playing, in order; the queue's own
+           songs then leave from where they are, past the copies if they
+           came before them */
+        const bool before = now_r < start;
+        int made = 0;
+        reads_quiet = true;
+        for (; made < count; made++)
+        {
+            char filename[MAX_PATH];
+            const int r = start + made + (before ? made : 0);
+            if (get_track_filename(playlist, unrotate_index(playlist, r),
+                                   filename, sizeof(filename)) != 0
+                || add_track_to_playlist_unlocked(playlist, filename,
+                    made ? PLAYLIST_INSERT : PLAYLIST_INSERT_FIRST, true, -1) < 0)
+                break;
+        }
+        reads_quiet = false;
+        if (made < count)
+        {
+            /* a song not read: the copies made leave again, D: lines after
+               their Q: lines, and the queue stays where it was */
+            for (int i = 0; i < made; i++)
+                remove_track_unlocked(playlist, unrotate_index(playlist, now_r + 1),
+                                      true);
+            changed = made > 0;
+            count = 0;
+        }
+        else
+        {
+            const int from = before ? start + count : start;
+            for (int i = 0; i < count; i++)
+                remove_track_unlocked(playlist, unrotate_index(playlist, from),
+                                      true);
+            changed = true;
+        }
+        if (drop_old)
+        {
+            remove_track_unlocked(playlist,
+                unrotate_index(playlist, before ? old_r + count : old_r), true);
+            changed = true;
+        }
+    }
+    else if (drop_old)
+    {
+        remove_track_unlocked(playlist, unrotate_index(playlist, old_r), true);
+        changed = true;
+    }
+    sync_held = NULL;
+    if (changed)
+    {
+        sync_control_unlocked(playlist);
+        /* a song chosen starts playback afresh, Previous doesn't */
+        if (!chosen)
+            queue_changes |= PLAYLIST_QUEUE_LEFT | PLAYLIST_QUEUE_MOVED;
+    }
 }
 
 /*
@@ -3183,8 +3369,10 @@ int playlist_insert_context_add(struct playlist_insert_context *context,
     (c->count)++;
 
     /* After first INSERT_FIRST switch to INSERT so that all the
-    rest of the tracks get inserted one after the other */
-    if (c->position == PLAYLIST_INSERT_FIRST)
+    rest of the tracks get inserted one after the other; after the queue's
+    end too, not looked for again for each */
+    if (c->position == PLAYLIST_INSERT_FIRST
+        || c->position == PLAYLIST_INSERT_QUEUE_END)
         c->position = PLAYLIST_INSERT;
 
     if (((c->count)%PLAYLIST_DISPLAY_COUNT) == 0)
@@ -3632,6 +3820,7 @@ int playlist_next(int steps)
     dc_thread_stop(playlist);
     playlist_write_lock(playlist);
 
+    const int old_index = playlist->index;
     int index;
     int repeat_mode = global_settings.repeat_mode;
     if (repeat_mode == REPEAT_ONE)
@@ -3657,6 +3846,7 @@ int playlist_next(int steps)
                 {
                     remove_track_unlocked(playlist, index, true);
                     steps--; /* one less track */
+                    queue_changes |= PLAYLIST_QUEUE_LEFT;
                 }
             }
         }
@@ -3691,7 +3881,21 @@ int playlist_next(int steps)
         goto out;
     }
 
+    /* back from a song: past songs queued, which are to come, not played
+       (Repeat All's wrap from the list's first song), or to the same song
+       if there's no other; the queue still next */
+    if (steps < 0)
+    {
+        for (int k = 0; k < playlist->amount && index != old_index
+             && (playlist->indices[index] & PLAYLIST_QUEUED); k++)
+            index = index > 0 ? index - 1 : playlist->amount - 1;
+    }
     playlist->index = index;
+    if (steps < 0)
+    {
+        queue_follow_unlocked(playlist, old_index, false);
+        index = playlist->index;
+    }
 
     if (playlist->last_insert_pos >= 0 && steps > 0)
     {
@@ -3734,6 +3938,34 @@ bool playlist_next_dir(int direction)
         return false;
 
     return create_and_play_dir(direction, false) >= 0;
+}
+
+/* The song the list goes on from to the one steps away, for a played
+   episode the show's queue passes over (playback.c played_episode_next()):
+   the one before it, past songs queued (Play Next, Play Last), which the list
+   doesn't go on from, and past those passed over or skipped, which it went
+   on past. NULL if no queued song is crossed on the way: the track buffered
+   last then says as much as this */
+const char *playlist_peek_past_queue(int steps, char *buf, size_t buf_size)
+{
+    struct playlist_info *playlist = &current_playlist;
+    const int index = get_next_index(playlist, steps, -1);
+    if (index < 0 || playlist->amount <= 1)
+        return NULL;
+    int prev = index > 0 ? index - 1 : playlist->amount - 1;
+    bool crossed = false;
+    for (int k = 0; k < playlist->amount && prev != index
+         && (playlist->indices[prev] & (PLAYLIST_QUEUED | PLAYLIST_STEPPED_OVER));
+         k++)
+    {
+        if (playlist->indices[prev] & PLAYLIST_QUEUED)
+            crossed = true;
+        prev = prev > 0 ? prev - 1 : playlist->amount - 1;
+    }
+    if (!crossed || prev == index
+        || (playlist->indices[prev] & (PLAYLIST_QUEUED | PLAYLIST_STEPPED_OVER)))
+        return NULL;
+    return get_track_filename(playlist, prev, buf, buf_size) == 0 ? buf : NULL;
 }
 
 /* get trackname of track that is "steps" away from current playing track.
@@ -4433,13 +4665,81 @@ bool playlist_resumed(void)
     return resumed;
 }
 
+/* Up Next's: how many songs are queued right after the one playing */
+int playlist_queue_count(void)
+{
+    const struct playlist_info *playlist = &current_playlist;
+    if (playlist->amount <= 0 || playlist->index < 0
+        || playlist->index >= playlist->amount)
+        return 0;
+    return queue_end_rotated(playlist)
+           - rotate_index(playlist, playlist->index) - 1;
+}
+
+/* Play Next and Play Last with the music stopped queue into the list Now
+   Playing resumes, after the song it resumes at, which still plays first:
+   nothing starts, as on iOS. Possible while music plays or is paused, or
+   with a song to resume at; nothing is read to tell. */
+bool playlist_queue_possible(void)
+{
+    return (audio_status() & AUDIO_STATUS_PLAY)
+           || global_status.resume_index != -1;
+}
+
+/* Before songs are queued: with the music stopped, the list in memory as Now
+   Playing loads it (root_menu.c resume_list()), at the song it resumes at.
+   False if there's none to queue into. */
+/* the list in memory was what playlist_resume() reads at prepare */
+static bool queue_resumed;
+
+bool playlist_queue_prepare(void)
+{
+    queue_resumed = false;
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        return true;
+    if (global_status.resume_index == -1)
+        return false;
+    if (!playlist_resumed() && playlist_resume() == -1)
+        return false;
+    struct playlist_info *playlist = &current_playlist;
+    if (global_status.resume_index == -1
+        || global_status.resume_index >= playlist->amount)
+        return false;
+    playlist->index = global_status.resume_index;
+    queue_resumed = playlist_resumed();
+    return true;
+}
+
+/* and after, once the queue's own lines are written, its modified flag's
+   (playlist_set_modified()) too: where the song resumed at is now, past
+   songs queued before it at the list's end in its order from first_index.
+   The list is still what playlist_resume() would read: its lines are only
+   those written to the control file as the same changes were made in
+   memory, which aren't changes of a file (file_change_note()); so neither a
+   later Play Next nor Now Playing reads it again, as for a list of
+   thousands each Play Next did, if it was what playlist_resume() reads at
+   prepare */
+void playlist_queue_done(void)
+{
+    if (audio_status() & AUDIO_STATUS_PLAY)
+        return;
+    if (queue_resumed)
+        resumed = true;
+    queue_resumed = false;
+    if (global_status.resume_index == -1
+        || current_playlist.index == global_status.resume_index)
+        return;
+    global_status.resume_index = current_playlist.index;
+    status_save(false);
+}
+
 void playlist_resume_forget(void)
 {
     resumed = false;
 }
 
 static void start_playing(int start_index, unsigned long elapsed,
-                          unsigned long offset, bool paused);
+                          unsigned long offset, bool paused, bool chosen);
 
 static void resume_track(int start_index, unsigned int crc,
                          unsigned long elapsed, unsigned long offset,
@@ -4456,13 +4756,13 @@ static void resume_track(int start_index, unsigned int crc,
         tmp_crc = playlist_get_filename_crc32(playlist, index);
         if (tmp_crc == crc)
         {
-            start_playing(index, elapsed, offset, paused);
+            start_playing(index, elapsed, offset, paused, false);
             return;
         }
     }
 
     /* If we got here the file wasnt found, so start from the beginning */
-    start_playing(0, 0, 0, paused);
+    start_playing(0, 0, 0, paused, false);
 }
 
 /* resume a playlist track with the given crc_32 of the track name. */
@@ -4595,14 +4895,72 @@ int playlist_shuffle_shown(void)
     return global_settings.playlist_shuffle;
 }
 
+/* Shuffle turned on or off as music plays: the rest of the list in its new
+   order, the queue as it was right after the song playing (iOS's). Its songs
+   leave first, D: lines, their entries kept in the index past its end; then
+   the order's line; then they come back after the song playing, Q: lines,
+   as Resume reads them too. Without that room, the list full, they're
+   ordered with the rest. */
 void playlist_reorder(int mode)
 {
+    struct playlist_info *playlist = &current_playlist;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    check_control(playlist);
+
+    /* its lines, the order's too, synced once after them all */
+    sync_held = playlist;
+    int kept = 0, kept_at = 0;
+    if (playlist->amount > 0 && playlist->index >= 0
+        && playlist->index < playlist->amount && playlist->control_fd >= 0)
+    {
+        const int count = queue_end_rotated(playlist)
+                          - rotate_index(playlist, playlist->index) - 1;
+        if (count > 0
+            && playlist->max_playlist_size - playlist->amount >= count)
+        {
+            const int start = rotate_index(playlist, playlist->index) + 1;
+            kept_at = playlist->amount;
+            for (int i = 0; i < count; i++)
+                playlist->indices[kept_at + i] =
+                    playlist->indices[unrotate_index(playlist, start + i)];
+            for (int i = 0; i < count; i++)
+                remove_track_unlocked(playlist,
+                                      unrotate_index(playlist, start), true);
+            kept = count;
+        }
+    }
+
+    int result;
     if (mode == SHUFFLE_OFF)
-        playlist_sort(NULL, true);
+        result = sort_playlist_unlocked(playlist, true, true);
     else if (mode == SHUFFLE_ALBUMS)
-        playlist_randomise_albums(NULL, current_tick, true);
+        result = randomise_albums_unlocked(playlist, current_tick, true, true);
     else
-        playlist_randomise(NULL, current_tick, true);
+        result = randomise_playlist_unlocked(playlist, current_tick, true, true);
+
+    /* the adds write the index up to where the queue's entries were, the
+       one read just before */
+    for (int i = 0; i < kept; i++)
+    {
+        char filename[MAX_PATH];
+        if (queued_track_filename(playlist, playlist->indices[kept_at + i],
+                                  filename, sizeof(filename)) < 0
+            || add_track_to_playlist_unlocked(playlist, filename,
+                   i ? PLAYLIST_INSERT : PLAYLIST_INSERT_FIRST, true, -1) < 0)
+            break;
+    }
+    sync_held = NULL;
+    sync_control_unlocked(playlist);
+
+    if (result != -1 && (audio_status() & AUDIO_STATUS_PLAY) &&
+        playlist->started)
+        audio_flush_and_reload_tracks();
+
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, true);
 }
 
 /* Marks the index of the track to be skipped that is "steps" away from
@@ -4677,8 +5035,10 @@ unsigned int playlist_start_count(void)
     return start_count;
 }
 
+/* chosen: a song of the list chosen to play (playlist_start()), which the
+   queue goes with; not one resumed */
 static void start_playing(int start_index, unsigned long elapsed,
-                          unsigned long offset, bool paused)
+                          unsigned long offset, bool paused, bool chosen)
 {
     start_count++;
     struct playlist_info* playlist = &current_playlist;
@@ -4687,11 +5047,16 @@ static void start_playing(int start_index, unsigned long elapsed,
 
     playlist_write_lock(playlist);
 
+    const int old_index = playlist->index;
     playlist->index = start_index;
     playlist->started = true;
+    if (chosen)
+        queue_follow_unlocked(playlist, old_index, true);
+    /* playback starts afresh: nothing buffered from before to doubt */
+    queue_changes = 0;
     /* the one chosen plays, passed over before or not */
-    if (start_index >= 0 && start_index < playlist->amount)
-        playlist->indices[start_index] &= ~PLAYLIST_PASSED;
+    if (playlist->index >= 0 && playlist->index < playlist->amount)
+        playlist->indices[playlist->index] &= ~PLAYLIST_PASSED;
 
     sync_control_unlocked(playlist);
 
@@ -4711,13 +5076,13 @@ static void start_playing(int start_index, unsigned long elapsed,
 void playlist_start(int start_index, unsigned long elapsed,
                     unsigned long offset)
 {
-    start_playing(start_index, elapsed, offset, false);
+    start_playing(start_index, elapsed, offset, false, true);
 }
 
 void playlist_start_paused(int start_index, unsigned long elapsed,
                            unsigned long offset)
 {
-    start_playing(start_index, elapsed, offset, true);
+    start_playing(start_index, elapsed, offset, true, true);
 }
 
 void playlist_sync(struct playlist_info* playlist)

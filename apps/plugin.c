@@ -989,6 +989,9 @@ static const struct plugin_api rockbox_api = {
     itunesdb_finder_large_picture,
     itunesdb_finder_large_put,
 #endif
+    playlist_queue_possible,
+    playlist_queue_prepare,
+    playlist_queue_done,
 };
 
 static int plugin_buffer_handle;

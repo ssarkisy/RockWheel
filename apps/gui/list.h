@@ -366,6 +366,13 @@ extern void list_unload_fonts(void);
    row is in on the screen: drawn in the top row's place once the name itself
    has scrolled up past it. NULL for none */
 extern void list_pin_groups(const struct gui_synclist *list);
+/* Up Next's: this list, and no other from then on, has its groups' names as
+   light headings, the name alone in the group's font and the theme's colour
+   for it, at the foot of its row, a row as high as the others, with no bar,
+   band or hairline in any theme, and none pinned. NULL for none; the list
+   initialised again has none (gui_synclist_init()) */
+extern void list_light_groups(const struct gui_synclist *list);
+extern bool list_groups_light(const struct gui_synclist *list);
 extern void list_load_initial_font(void);
 extern bool list_initial_drawn(const char *letter);
 /* the least height of the band of hints, which takes as many rows of the list

@@ -23522,3 +23522,31 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_UP_NEXT_QUEUE
+  desc: Up Next (the list of the songs to come, from the menu over Now Playing): the heading over the songs queued by Play Next and Play Last, which play next, each once; a noun, the name of that part of the list (not LANG_QUEUE, the old verb "to queue")
+  user: core
+  <source>
+    *: "Queue"
+  </source>
+  <dest>
+    *: "Sıra"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UP_NEXT_CONTINUE
+  desc: Up Next: the heading over the rest of the list after the queue (LANG_UP_NEXT_QUEUE), the songs that go on playing from where the music was once the queue has played
+  user: core
+  <source>
+    *: "Continue Playing"
+  </source>
+  <dest>
+    *: "Çalmaya Devam Et"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

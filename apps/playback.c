@@ -37,6 +37,7 @@
 #include "buffering.h"
 #include "talk.h"
 #include "playlist.h"
+#include "pathfuncs.h"
 #include "abrepeat.h"
 #ifdef HAVE_PLAY_FREQ
 #include "pcm_mixer.h"
@@ -812,6 +813,10 @@ static void track_list_free_info(struct track_info *infop)
 static void track_list_clear(unsigned int action)
 {
     logf("%s:action=%u", __func__, action);
+
+    /* none of the tracks before the current one is kept: none of them a
+       queued song that has left the list (playlist_queue_changes()) */
+    playlist_queue_buffer_cleared();
 
     /* Don't care now since rebuffering is imminent */
     buf_set_watermark(0);
@@ -2300,6 +2305,14 @@ static bool audio_buffer_codec(struct track_info *track_infop,
    first loaded, which the listener chose, nor one put in the queue by hand */
 static bool played_episode_next(const char *path)
 {
+    /* after the queue, the episode the show's list goes on from, not the
+       queued song buffered before it */
+    char before[MAX_PATH];
+    const char *from = playlist_peek_past_queue(playlist_peek_offset, before,
+                                                sizeof(before));
+    if (from)
+        return tagtree_passes_over(from, path)
+               && playlist_pass_entry(playlist_peek_offset, false);
     struct track_info prev;
     if (!track_list_last(0, &prev))
         return false;
@@ -3610,6 +3623,17 @@ static void audio_on_pause(bool pause)
 
 /* Skip a certain number of tracks forwards or backwards
    (Q_AUDIO_SKIP) */
+/* two paths of one file: a volume one has and the other hasn't aside, and
+   the case, which the file system doesn't tell apart */
+static bool same_file_path(const char *a, const char *b)
+{
+#ifdef HAVE_MULTIVOLUME
+    path_strip_volume(a, &a, false);
+    path_strip_volume(b, &b, false);
+#endif
+    return !strcasecmp(a, b);
+}
+
 static void audio_on_skip(void)
 {
     id3_mutex_lock();
@@ -3703,8 +3727,33 @@ static void audio_on_skip(void)
 
     int trackstat = LOAD_TRACK_OK;
 
+    /* Back, the track buffered there may not be the list's song now, while
+       queued songs that left the list (Play Next, Play Last: played past,
+       skipped, moved) may still be buffered before the one playing, however
+       far back; and the queue may have moved to follow the song (playlist.c
+       queue_follow_unlocked()), the tracks buffered after it then in an
+       order the list no longer has. Asked only then: a Previous otherwise
+       starts the track buffered at once, as before. The track is looked at
+       before the list moves to it, which it then doesn't: no cover of a
+       track not to play shows */
+    const int changes = playlist_queue_changes();
+    const bool reordered = changes & PLAYLIST_QUEUE_MOVED;
+    bool other = false;
     struct track_info info;
-    const bool advanced = track_list_advance_current(track_list_delta, &info);
+    if ((toskip < 0 && (changes & PLAYLIST_QUEUE_LEFT)) || reordered)
+    {
+        struct track_info target;
+        if (track_list_get_info_from(track_list.current_hid, track_list_delta,
+                                     &target) && target.audio_hid >= 0)
+        {
+            char path[MAX_PATH];
+            const struct mp3entry *id3 = valid_mp3entry(bufgetid3(target.id3_hid));
+            const char *now = playlist_peek(0, path, sizeof(path));
+            other = !id3 || !now || !same_file_path(id3->path, now);
+        }
+    }
+    const bool advanced = !other
+                          && track_list_advance_current(track_list_delta, &info);
     /* The list has moved. If it hasn't, it moves as it's filled again from the track
        skipped to, and the skip counts until then: before, the old track is still in it */
     if (advanced)
@@ -3713,6 +3762,12 @@ static void audio_on_skip(void)
     {
         /* We don't know the next track thus we know we don't have it */
         trackstat = audio_reset_and_rebuffer(TRACK_LIST_CLEAR_ALL, -1);
+    }
+    else if (reordered)
+    {
+        /* the song is the list's: the others refilled after it, as a
+           flush does (audio_on_audio_flush()); that's about them */
+        audio_reset_and_rebuffer(TRACK_LIST_KEEP_CURRENT, 0);
     }
     skip_under_way = 0;
 

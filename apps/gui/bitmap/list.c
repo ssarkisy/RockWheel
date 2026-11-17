@@ -317,6 +317,40 @@ int list_two_lines_height(int font)
            + SUBLINE_GAP;
 }
 
+/* A light group's name (list_light_groups()): alone on the row's ground, in
+   the group's font and colour, or the accent in a theme whose headings are
+   in it (Modern's), its font's cell LIGHT_GROUP_UNDER rows over the row's
+   end, the rest of the row over it; cut with an ellipsis at the values'
+   margin */
+#define LIGHT_GROUP_UNDER 2
+static void draw_light_group(struct list_putlineinfo_t *info)
+{
+    struct screen *display = info->display;
+    struct line_desc linedes = *info->linedes;
+    linedes.style = STYLE_DEFAULT;
+    display->put_line(info->x, info->y, &linedes, "");
+    const int name_font = info->vp->font;
+    const int font = font_find(ui_font_file(UI_FONT_GROUP));
+    const unsigned old_fg = display->get_foreground();
+    display->set_foreground(ui_metric(UI_METRIC_GROUP_BAR) == 3 ?
+                            ui_colour(UI_COLOUR_ACCENT) : LIST_GROUP_COLOUR);
+    display->set_drawmode(DRMODE_FG);
+    if (font >= 0)
+        info->vp->font = font;
+    char fitted[MAX_PATH];
+    const char *text = line_fit(info->dsp_text, info->vp->font,
+                                info->vp->width - info->x - info->item_indent
+                                - ui_metric(UI_METRIC_VALUE_MARGIN),
+                                fitted, sizeof(fitted));
+    if (text)
+        display->putsxy(info->x + info->item_indent,
+                        info->y + linedes.height - LIGHT_GROUP_UNDER
+                        - (int)font_get(info->vp->font)->height, text);
+    info->vp->font = name_font;
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_foreground(old_fg);
+}
+
 /* Quick Scroll's letter over a list, in Inter of 52 px, its capitals three
    times as tall as the list's: loaded whole after the theme's fonts, music
    stopped, and kept as they are, so that a fast turn of the wheel never waits
@@ -852,7 +886,10 @@ void list_draw(struct screen *display, struct gui_synclist *list)
        over the selected row, which is the top one of a page with paginated
        scrolling */
     int pinned = -1;
-    if (list == pinned_groups && list->callback_is_group && screen == SCREEN_MAIN
+    /* Up Next's light groups' names (list_light_groups()), drawn here; none
+       pinned there */
+    const bool light = screen == SCREEN_MAIN && list_groups_light(list);
+    if (list == pinned_groups && !light && list->callback_is_group && screen == SCREEN_MAIN
         && start > 0 && start < list->nb_items
         && !list->callback_is_group(start, list->data)
         && !(start >= list->selected_item
@@ -868,6 +905,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     for (int row = MAX(start, list->block_rows); row < end && row < list->nb_items; row++)
     {
         i = row == start && pinned >= 0 ? pinned : row;
+        const bool light_group = light && list->callback_is_group(i, list->data);
         /* do the text */
         enum themable_icons icon;
         unsigned const char *s;
@@ -1088,7 +1126,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
         /* a group's band, and its name pinned at the top, to the screen's
            edge under the capsule as without it: the columns the rows gave up
            are the list's own while this draws (the current viewport) */
-        const int band = narrowed && list->callback_is_group
+        const int band = narrowed && !light && list->callback_is_group
                          && list->callback_is_group(i, list->data) ? narrowed : 0;
         if (band)
         {
@@ -1096,7 +1134,10 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             if (VP_IS_RTL(list_text_vp))
                 list_text_vp->x -= band;
         }
-        callback_draw_item(&list_info);
+        if (light_group)
+            draw_light_group(&list_info);
+        else
+            callback_draw_item(&list_info);
         if (band)
         {
             list_text_vp->width -= band;
@@ -1157,7 +1198,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                  && i + 1 == list->selected_item)
             && !(list->callback_is_group && list->callback_is_group(i, list->data))
             /* nor over a group's band, which has its own */
-            && !(ui_metric(UI_METRIC_GROUP_BAR) == 2 && list->callback_is_group
+            && !(ui_metric(UI_METRIC_GROUP_BAR) == 2 && !light && list->callback_is_group
                  && i + 1 < list->nb_items
                  && list->callback_is_group(i + 1, list->data)))
         {

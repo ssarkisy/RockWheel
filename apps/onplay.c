@@ -218,8 +218,10 @@ struct add_to_pl_param
 };
 
 static struct add_to_pl_param addtopl_insert           = {PLAYLIST_INSERT, PL_NONE};
-static struct add_to_pl_param addtopl_insert_first     = {PLAYLIST_INSERT_FIRST, PL_NONE};
-static struct add_to_pl_param addtopl_insert_last      = {PLAYLIST_INSERT_LAST, PL_NONE};
+/* Play Next and Play Last, as iOS's: queued, so each plays once and leaves
+   the list; at the queue's front, right after the song playing, or its end */
+static struct add_to_pl_param addtopl_insert_first     = {PLAYLIST_INSERT_FIRST, PL_QUEUE};
+static struct add_to_pl_param addtopl_insert_last      = {PLAYLIST_INSERT_QUEUE_END, PL_QUEUE};
 static struct add_to_pl_param addtopl_insert_shuf      = {PLAYLIST_INSERT_SHUFFLED, PL_NONE};
 static struct add_to_pl_param addtopl_insert_last_shuf = {PLAYLIST_INSERT_LAST_SHUFFLED, PL_NONE};
 
@@ -310,7 +312,19 @@ static int add_to_playlist(void* arg)
             playlist_set_last_shuffled_start();
     }
 
-    op_playlist_insert_selected(position, queue);
+    /* queued into the list playing, or with the music stopped into the
+       one to resume, which nothing starts */
+    if (queue && !new_playlist)
+    {
+        if (!playlist_queue_prepare())
+            return 0;
+        op_playlist_insert_selected(position, queue);
+        /* its F: line the queue's own too (playlist_queue_done()) */
+        playlist_set_modified(NULL, true);
+        playlist_queue_done();
+    }
+    else
+        op_playlist_insert_selected(position, queue);
 
     if (new_playlist && (playlist_amount() > 0))
     {
@@ -462,6 +476,13 @@ static int treeplaylist_callback(int action,
             if (selected_file.context == CONTEXT_ID3DB && tagtree_at_top())
                 return ACTION_EXIT_MENUITEM;
 #endif
+
+            /* Play Next and Play Last: whenever songs can be queued, with
+               the music stopped into the list to resume too */
+            const bool play_next_last = this_item == &i_first_pl_item
+                                        || this_item == &i_last_pl_item;
+            if (play_next_last)
+                return playlist_queue_possible() ? action : ACTION_EXIT_MENUITEM;
 
             if ((param->flags & PL_QUEUE) == PL_QUEUE)
             {

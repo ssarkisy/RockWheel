@@ -63,7 +63,10 @@ enum {
     PLAYLIST_INSERT_SHUFFLED = -5,
     PLAYLIST_REPLACE = -6,
     PLAYLIST_INSERT_LAST_SHUFFLED = -7,
-    PLAYLIST_INSERT_LAST_ROTATED = -8
+    PLAYLIST_INSERT_LAST_ROTATED = -8,
+    /* after the queue: the songs queued right after the one playing, or
+       right after it without any (Play Last) */
+    PLAYLIST_INSERT_QUEUE_END = -9
 };
 
 struct playlist_info
@@ -193,6 +196,30 @@ int playlist_amount(void);
 void playlist_set_last_shuffled_start(void);
 struct playlist_info *playlist_get_current(void);
 bool playlist_dynamic_only(void);
+/* Up Next's: the songs queued right after the one playing */
+int playlist_queue_count(void);
+/* Play Next and Play Last (onplay.c, Cover Flow): whether songs can be queued
+   now; before queueing, the list to queue into in memory, false for none;
+   after, the resume point kept with the music stopped */
+bool playlist_queue_possible(void);
+bool playlist_queue_prepare(void);
+void playlist_queue_done(void);
+/* playback.c's, after playlist_next(): what the queue did that the tracks
+   buffered don't know of. PLAYLIST_QUEUE_LEFT: queued songs left the list,
+   played past or moved, so any track buffered before the one playing may
+   not be the list's song, however far back: it stays until playback drops
+   the tracks before the one playing (playlist_queue_buffer_cleared(), at
+   each track_list_clear()) or music starts. PLAYLIST_QUEUE_MOVED: the queue
+   moved as the index went back, the tracks buffered after the one playing
+   no longer in the list's order; cleared as it's asked */
+#define PLAYLIST_QUEUE_LEFT  0x1
+#define PLAYLIST_QUEUE_MOVED 0x2
+int playlist_queue_changes(void);
+void playlist_queue_buffer_cleared(void);
+/* playback.c's: the path of the song the list goes on from to the one steps
+   away, past the songs queued before it and those passed over or skipped;
+   NULL if no queued song is crossed on the way */
+const char *playlist_peek_past_queue(int steps, char *buf, size_t buf_size);
 
 /* Exported functions for all playlists.  Pass NULL for playlist_info
    structure to work with current playlist. */

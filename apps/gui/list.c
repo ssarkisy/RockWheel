@@ -122,6 +122,19 @@ bool list_display_title(struct gui_synclist *list, enum screen_type screen)
         list_nb_lines(list, screen) > 2;
 }
 
+/* Up Next's, whose groups' names are light (list_light_groups()) */
+static const struct gui_synclist *light_groups;
+
+void list_light_groups(const struct gui_synclist *list)
+{
+    light_groups = list;
+}
+
+bool list_groups_light(const struct gui_synclist *list)
+{
+    return list && list == light_groups && list->callback_is_group;
+}
+
 int list_get_nb_lines(struct gui_synclist *list, enum screen_type screen)
 {
     int lines = skinlist_get_line_count(screen, list);
@@ -184,6 +197,9 @@ void gui_synclist_init(struct gui_synclist * gui_list,
     int selected_size, struct viewport list_parent[NB_SCREENS]
     )
 {
+    /* another list in its place, as on the stack: its groups as they are */
+    if (light_groups == gui_list)
+        light_groups = NULL;
     gui_list->callback_get_item_icon = NULL;
     gui_list->callback_has_children = NULL;
     gui_list->callback_is_group = NULL;

@@ -193,7 +193,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 73
+#define PLUGIN_API_REVISION 74
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1212,6 +1212,11 @@ struct plugin_api {
                                      const struct itunesdb_art *art,
                                      struct bitmap *bm);
 #endif
+    /* Play Next and Play Last, queued: whether they can be now, the list to
+       queue into ready, and after (playlist.h) */
+    bool (*playlist_queue_possible)(void);
+    bool (*playlist_queue_prepare)(void);
+    void (*playlist_queue_done)(void);
 };
 
 /* plugin header */

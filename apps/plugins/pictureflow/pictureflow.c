@@ -6109,7 +6109,8 @@ static bool pf_current_playlist_insert(int position, bool queue, bool create_new
             if (rb->playlist_insert_track(NULL, get_track_filename(i),
                     position, queue, false) < 0)
                 break;
-            if (position == PLAYLIST_INSERT_FIRST)
+            if (position == PLAYLIST_INSERT_FIRST
+                || position == PLAYLIST_INSERT_QUEUE_END)
                 position = PLAYLIST_INSERT;
         } while(++i < pf_tracks.count);
     }
@@ -6278,7 +6279,9 @@ static int context_menu(void)
                         ID2P(LANG_ADD_TO_ON_THE_GO),
                         ID2P(LANG_ADD_TO_PL),
                         sort_by);
-    const bool playing = rb->audio_status() & AUDIO_STATUS_PLAY;
+    /* with Play Next and Play Last: whenever songs can be queued, with the
+       music stopped into the list to resume too */
+    const bool playing = rb->playlist_queue_possible();
     const bool go_to = rb->root_menu_go_to_later(NULL);
     const int sort_row = (playing ? 4 : 2) + (go_to ? 1 : 0);
 
@@ -6315,11 +6318,18 @@ static int context_menu(void)
             return pf_add_to_playlist();
         case PF_PLAY_NEXT:
         case PF_PLAY_LAST:
+            /* queued, as the lists' Play Next and Play Last: at the queue's
+               front or its end; nothing starts */
             rb->splash(0, ID2P(LANG_WAIT));
-            pf_current_playlist_insert(chosen == PF_PLAY_NEXT ?
-                                       PLAYLIST_INSERT_FIRST : PLAYLIST_INSERT_LAST,
-                                       false, false);
-            rb->playlist_set_modified(NULL, true);
+            if (rb->playlist_queue_prepare())
+            {
+                pf_current_playlist_insert(chosen == PF_PLAY_NEXT ?
+                                           PLAYLIST_INSERT_FIRST :
+                                           PLAYLIST_INSERT_QUEUE_END,
+                                           true, false);
+                rb->playlist_set_modified(NULL, true);
+                rb->playlist_queue_done();
+            }
             return 0;
         case MENU_ATTACHED_USB:
             return PLUGIN_USB_CONNECTED;

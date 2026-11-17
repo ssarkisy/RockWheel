@@ -158,6 +158,15 @@ struct playlist_viewer {
     bool on_the_go;
     /* Up Next's rows in two lines with covers, as Songs has them */
     bool covers;
+    /* Up Next's queue, the songs queued right after the one playing: the row
+       of its heading, -1 without one, and its songs under it; then a
+       heading over the rest of the list, if any is left. The rows above are
+       the songs played and the one playing, as without a queue. Rows are
+       the list's (selected_track, moving_track), songs the playlist's in
+       its order (the buffer's, display_index - 1) */
+    int queue_row;
+    int queue_len;
+    bool rest_row;
 };
 
 struct playlist_search_data
@@ -178,10 +187,98 @@ void playlist_viewer_reopen_left(bool on)
     reopen_left = on;
 }
 
-/* the rows: On-The-Go's songs and its Clear Playlist */
+/* Up Next's queue as the list has it now: none in a file viewed */
+static void pv_find_queue(void)
+{
+    viewer.queue_row = -1;
+    viewer.queue_len = 0;
+    viewer.rest_row = false;
+    if (viewer.playlist || viewer.num_tracks <= 0)
+        return;
+    const int len = playlist_queue_count();
+    if (len <= 0)
+        return;
+    viewer.queue_row = playlist_get_display_index();
+    viewer.queue_len = len;
+    viewer.rest_row = viewer.queue_row + len < viewer.num_tracks;
+}
+
+/* a heading's row, the queue's or the rest's */
+static bool pv_heading(int row)
+{
+    return viewer.queue_row >= 0
+           && (row == viewer.queue_row
+               || (viewer.rest_row && row == viewer.queue_row + viewer.queue_len + 1));
+}
+
+static bool pv_is_group(int row, void *data)
+{
+    (void)data;
+    return pv_heading(row);
+}
+
+/* the song of a row (a heading's, the song before it); and the row of a song */
+static int pv_track_of_row(int row)
+{
+    if (viewer.queue_row < 0 || row < viewer.queue_row)
+        return row;
+    if (row <= viewer.queue_row + viewer.queue_len)
+        return row - 1;
+    return row - (viewer.rest_row ? 2 : 1);
+}
+
+static int pv_row_of_track(int track)
+{
+    if (viewer.queue_row < 0 || track < viewer.queue_row)
+        return track;
+    if (track < viewer.queue_row + viewer.queue_len)
+        return track + 1;
+    return track + (viewer.rest_row ? 2 : 1);
+}
+
+/* Which part of Up Next a row is in: the songs played, the one playing, the
+   queue, or the rest after it. A song moved stays in its part, the one
+   playing in its place, so the queue stays right after it; without a queue
+   all are one */
+static int pv_part(int row)
+{
+    if (viewer.queue_row < 0)
+        return 0;
+    if (row < viewer.queue_row)
+        return row == viewer.queue_row - 1 ? 3 : 0;
+    return row <= viewer.queue_row + viewer.queue_len ? 1 : 2;
+}
+
+/* The selection, with a song being moved, back in that song's part at its
+   end nearest to where it went: before each frame, so none is drawn across
+   a heading */
+static void pv_keep_moving_in_part(struct gui_synclist *list)
+{
+    if (viewer.moving_track < 0)
+        return;
+    const int part = pv_part(viewer.moving_track);
+    int row = gui_synclist_get_sel_pos(list);
+    if (pv_part(row) == part)
+        return;
+    const int step = row > viewer.moving_track ? -1 : 1;
+    while (pv_part(row) != part)
+        row += step;
+    while (pv_heading(row))
+        row += step;
+    viewer.selected_track = row;
+    gui_synclist_select_item(list, row);
+}
+
+static void pv_before_draw(struct gui_synclist *list)
+{
+    pv_keep_moving_in_part(list);
+}
+
+/* the rows: On-The-Go's songs and its Clear Playlist; Up Next's headings */
 static int pv_rows(void)
 {
-    return viewer.num_tracks + (viewer.on_the_go ? 1 : 0);
+    return viewer.num_tracks + (viewer.on_the_go ? 1 : 0)
+           + (viewer.queue_row >= 0 ? 1 + viewer.rest_row : 0);
 }
 
 static bool pv_clear_row(int item)
@@ -404,6 +501,8 @@ static struct playlist_entry * playlist_buffer_get_track(struct playlist_buffer 
 /* Update playlist in case something has changed or forced */
 static bool update_playlist(bool force)
 {
+    /* the song selected, kept as the queue's rows come and go */
+    const int selected = pv_track_of_row(viewer.selected_track);
     if (!viewer.playlist)
         playlist_get_resume_info(&viewer.current_playing_track);
     else
@@ -420,8 +519,10 @@ static bool update_playlist(bool force)
                 playlist_update_resume_info(NULL);
             return false;
         }
-        playlist_buffer_load_entries_screen(&viewer.buffer, FORWARD,
-                          viewer.selected_track);
+        pv_find_queue();
+        const int track = MAX(MIN(selected, viewer.num_tracks - 1), 0);
+        viewer.selected_track = pv_row_of_track(track);
+        playlist_buffer_load_entries_screen(&viewer.buffer, FORWARD, track);
         if (viewer.buffer.num_loaded <= 0)
         {
             if (!viewer.playlist)
@@ -516,6 +617,10 @@ static bool playlist_viewer_init(struct playlist_viewer * viewer,
 
     if (!reload)
     {
+        /* songs, as rows without the queue's, until update_playlist() */
+        viewer->queue_row = -1;
+        viewer->queue_len = 0;
+        viewer->rest_row = false;
         if (viewer->playlist)
             viewer->selected_track = recent_selection && *recent_selection >= 0 ?
                                      *recent_selection : 0;
@@ -739,7 +844,7 @@ static enum pv_context_result delete_track(int current_track_index,
 static enum pv_context_result context_menu(int index)
 {
     struct playlist_entry *current_track = playlist_buffer_get_track(&viewer.buffer,
-                                                                     index);
+                                                                     pv_track_of_row(index));
     bool current_was_playing = (audio_status() & AUDIO_STATUS_PLAY) && /* or paused */
                                (current_track->index == viewer.current_playing_track);
 
@@ -759,7 +864,8 @@ static enum pv_context_result context_menu(int index)
         switch (sel)
         {
             case 0:
-                return delete_track(current_track->index, index, current_was_playing);
+                return delete_track(current_track->index, pv_track_of_row(index),
+                                    current_was_playing);
             case 1:
                 /* move track */
                 viewer.moving_track = index;
@@ -795,7 +901,7 @@ static int get_track_num(struct playlist_viewer *local_viewer,
 
 static struct playlist_entry* pv_get_track(struct playlist_viewer *local_viewer, int selected_item)
 {
-    int track_num = get_track_num(local_viewer, selected_item);
+    int track_num = pv_track_of_row(get_track_num(local_viewer, selected_item));
     return playlist_buffer_get_track(&(local_viewer->buffer), track_num);
 }
 
@@ -804,6 +910,9 @@ static const char* playlist_callback_name(int selected_item,
                                           char *buffer,
                                           size_t buffer_len)
 {
+    if (pv_heading(selected_item))
+        return str(selected_item == viewer.queue_row ? LANG_UP_NEXT_QUEUE
+                                                     : LANG_UP_NEXT_CONTINUE);
     if (pv_clear_row(selected_item))
         return str(LANG_ON_THE_GO_CLEAR);
     struct playlist_entry *track = pv_get_track(data, selected_item);
@@ -818,7 +927,7 @@ static enum themable_icons playlist_callback_icons(int selected_item,
                                                    void *data)
 {
     struct playlist_viewer *local_viewer = (struct playlist_viewer *)data;
-    if (pv_clear_row(selected_item))
+    if (pv_clear_row(selected_item) || pv_heading(selected_item))
         return Icon_NOICON;
     struct playlist_entry *track = pv_get_track(local_viewer, selected_item);
 
@@ -846,7 +955,7 @@ static enum themable_icons playlist_callback_icons(int selected_item,
 static bool playlist_callback_playing(int selected_item, void *data)
 {
     struct playlist_viewer *local_viewer = (struct playlist_viewer *)data;
-    if (pv_clear_row(selected_item))
+    if (pv_clear_row(selected_item) || pv_heading(selected_item))
         return false;
     struct playlist_entry *track = pv_get_track(local_viewer, selected_item);
     if (!local_viewer->playlist)
@@ -891,7 +1000,7 @@ static long pv_track_idx(struct playlist_entry *track)
 static const char *playlist_callback_subline(int selected_item, void *data,
                                              char *buf, size_t size)
 {
-    if (pv_clear_row(selected_item))
+    if (pv_clear_row(selected_item) || pv_heading(selected_item))
         return NULL;
     const long idx = pv_track_idx(pv_get_track(data, selected_item));
     return idx >= 0 ? tagtree_song_subline(idx, buf, size) : NULL;
@@ -900,7 +1009,7 @@ static const char *playlist_callback_subline(int selected_item, void *data,
 static int playlist_callback_cover(int selected_item, void *data,
                                    const fb_data **pixels)
 {
-    if (pv_clear_row(selected_item))
+    if (pv_clear_row(selected_item) || pv_heading(selected_item))
         return LIST_COVER_NONE;
     const long idx = pv_track_idx(pv_get_track(data, selected_item));
     return list_covers_get(idx >= 0 ? tagtree_song_album(idx) : -1, pixels);
@@ -910,6 +1019,7 @@ static int playlist_callback_cover(int selected_item, void *data,
    only those the buffer has, none loaded for it */
 static void playlist_before_draw(struct gui_synclist *list)
 {
+    pv_keep_moving_in_part(list);
     static int last_start;
     list_covers_frame();
     list_covers_draw_soon(list);
@@ -923,10 +1033,10 @@ static void playlist_before_draw(struct gui_synclist *list)
         const bool forward = k < far ? down : !down;
         const int d = k < far ? k : k - far;
         const int row = forward ? start + shown + d : start - 1 - d;
-        if (row < 0 || row >= viewer.num_tracks)
+        if (row < 0 || row >= pv_rows() || pv_heading(row) || pv_clear_row(row))
             continue;
         const int i = playlist_buffer_get_index(&viewer.buffer,
-                                                get_track_num(&viewer, row));
+                                pv_track_of_row(get_track_num(&viewer, row)));
         if (i < 0 || i >= viewer.buffer.num_loaded)
             continue;
         const long idx = pv_track_idx(&viewer.buffer.tracks[i]);
@@ -1004,9 +1114,20 @@ static void update_gui(struct gui_synclist * playlist_lists, bool init)
             gui_synclist_set_before_draw(playlist_lists, playlist_before_draw);
             list_covers_opened();
         }
+        else
 #endif
+        if (!viewer.playlist)
+            gui_synclist_set_before_draw(playlist_lists, pv_before_draw);
     }
     gui_synclist_set_nb_items(playlist_lists, pv_rows());
+    /* Up Next's two headings, the queue's and the rest's: group rows, which
+       none selects, as light headings, rows as high as the songs'
+       (list_light_groups()) */
+    if (!viewer.playlist)
+    {
+        playlist_lists->callback_is_group = pv_is_group;
+        list_light_groups(playlist_lists);
+    }
     gui_synclist_set_voice_callback(playlist_lists,
                                     global_settings.talk_file?
                                     &playlist_callback_voice:NULL);
@@ -1033,8 +1154,8 @@ static bool update_viewer(struct gui_synclist *playlist_lists, enum pv_context_r
         if (viewer.num_tracks <= 0)
             exit = true;
 
-        if (viewer.selected_track >= viewer.num_tracks)
-            viewer.selected_track = viewer.num_tracks-1;
+        if (viewer.selected_track >= pv_rows())
+            viewer.selected_track = pv_rows() - 1;
     }
     update_gui(playlist_lists, false);
     return exit;
@@ -1146,13 +1267,15 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
         if (track != viewer.current_playing_track ||
             playlist_amount_ex(viewer.playlist) != viewer.num_tracks)
         {
-            /* Playlist has changed (new track started?) */
-            if (!update_playlist(false))
+            /* Playlist has changed (new track started?): with the queue,
+               which goes with the song playing, its rows read again */
+            if (!update_playlist(!viewer.playlist))
                 goto exit;
             /*Needed because update_playlist gives wrong value when
                                                             playing is stopped*/
             viewer.current_playing_track = track;
             gui_synclist_set_nb_items(&playlist_lists, pv_rows());
+            gui_synclist_select_item(&playlist_lists, viewer.selected_track);
 
             gui_synclist_draw(&playlist_lists);
             gui_synclist_speak_item(&playlist_lists);
@@ -1184,14 +1307,20 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
         viewer.selected_track=gui_synclist_get_sel_pos(&playlist_lists);
         /* Clear Playlist is no song */
         const bool on_clear = pv_clear_row(viewer.selected_track);
+        /* a song moved stays in its part of Up Next, as the frames have
+           it (pv_keep_moving_in_part()) */
+        if (res && viewer.moving_track >= 0)
+        {
+            pv_keep_moving_in_part(&playlist_lists);
+            viewer.selected_track = gui_synclist_get_sel_pos(&playlist_lists);
+        }
         if (res && !on_clear)
         {
-            bool reload = playlist_buffer_needs_reload(&viewer.buffer,
-                    viewer.selected_track);
+            const int track = pv_track_of_row(viewer.selected_track);
+            bool reload = playlist_buffer_needs_reload(&viewer.buffer, track);
             if (reload)
                 playlist_buffer_load_entries_screen(&viewer.buffer,
-                    button == ACTION_STD_NEXT ? FORWARD : BACKWARD,
-                    viewer.selected_track);
+                    button == ACTION_STD_NEXT ? FORWARD : BACKWARD, track);
             if (reload || viewer.moving_track >= 0)
                 gui_synclist_draw(&playlist_lists);
         }
@@ -1237,9 +1366,11 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
                it's kept at once: kept as the screen closed, a song played
                from it, or USB meanwhile, lost it */
             struct playlist_entry *current_track =
-                playlist_buffer_get_track(&viewer.buffer, viewer.selected_track);
+                playlist_buffer_get_track(&viewer.buffer,
+                                          pv_track_of_row(viewer.selected_track));
             const enum pv_context_result res =
-                delete_track(current_track->index, viewer.selected_track,
+                delete_track(current_track->index,
+                             pv_track_of_row(viewer.selected_track),
                              current_track->index == viewer.current_playing_track);
             otg_save(viewer.playlist);
             if (update_viewer(&playlist_lists, res))
@@ -1277,7 +1408,7 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
             {
                 struct playlist_entry * current_track =
                             playlist_buffer_get_track(&viewer.buffer,
-                                                      viewer.selected_track);
+                                    pv_track_of_row(viewer.selected_track));
                 int ret_val, start_index = current_track->index;
                 /* the song playing: to it, paused or not, rather than from its
                    start */
@@ -1313,9 +1444,15 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
                 }
                 else if (!viewer.playlist)
                 {
-                    /* play new track */
+                    /* play new track: the queue goes with it, its rows
+                       read again, the song chosen still selected */
                     playlist_start(current_track->index, 0, 0);
-                    update_playlist(false);
+                    update_playlist(true);
+                    viewer.selected_track =
+                        pv_row_of_track(playlist_get_display_index() - 1);
+                    gui_synclist_set_nb_items(&playlist_lists, pv_rows());
+                    gui_synclist_select_item(&playlist_lists,
+                                             viewer.selected_track);
                 }
                 else if (warn_on_pl_erase())
                 {
@@ -1384,7 +1521,7 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
             }
             case ACTION_STD_MENU:
                 if (!viewer.playlist)
-                    left_track = viewer.selected_track;
+                    left_track = pv_track_of_row(viewer.selected_track);
                 ret = PLAYLIST_VIEWER_MAINMENU;
                 goto exit;
 #ifdef HAVE_QUICKSCREEN
@@ -1404,8 +1541,8 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
             case ACTION_TREE_HOTKEY:
             {
                 struct playlist_entry *current_track = playlist_buffer_get_track(
-                                                            &viewer.buffer,
-                                                            viewer.selected_track);
+                                    &viewer.buffer,
+                                    pv_track_of_row(viewer.selected_track));
                 enum pv_context_result (*do_plugin)(const struct playlist_entry *) = NULL;
 #ifdef HAVE_TAGCACHE
                 if (global_settings.hotkey_tree == HOTKEY_PICTUREFLOW)
@@ -1449,7 +1586,7 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
                 {
                     if (update_viewer(&playlist_lists,
                             delete_track(current_track->index,
-                            viewer.selected_track,
+                            pv_track_of_row(viewer.selected_track),
                             (current_track->index == viewer.current_playing_track))))
                     {
                         ret = PLAYLIST_VIEWER_CANCEL;
