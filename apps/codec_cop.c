@@ -991,7 +991,8 @@ bool codec_cop_wanted(int afmt)
 }
 
 static unsigned short on_cop[AFMT_NUM_CODECS], on_cpu[AFMT_NUM_CODECS];
-static unsigned short fell_back;
+static unsigned short fell_back, ended_on_error;
+static bool ended_said[AFMT_NUM_CODECS];
 
 void codec_cop_count(int afmt, bool cop, const char *why)
 {
@@ -1008,6 +1009,22 @@ void codec_cop_count(int afmt, bool cop, const char *why)
         fell_back++;
         health_note("codec: %s on the CPU: %s", get_codec_string(afmt), why);
     }
+}
+
+/* A run on the COP that the codec's own error ended after sound began or a
+   seek, as it ends on the CPU (run_codec_on_cop()): counted, and said once a
+   format until the next counts line, so that a playlist of such files
+   doesn't fill the RAM log and lose the counts line itself */
+void codec_cop_note_ended(int afmt)
+{
+    if ((unsigned)afmt >= AFMT_NUM_CODECS)
+        return;
+    ended_on_error++;
+    if (ended_said[afmt])
+        return;
+    ended_said[afmt] = true;
+    health_note("codec: %s ended on an error on the COP after sound began "
+                "or a seek", get_codec_string(afmt));
 }
 
 void codec_cop_note_counts(void)
@@ -1031,10 +1048,12 @@ void codec_cop_note_counts(void)
         }
     }
     if (len)
-        health_note("codec runs since the last line: %s; fell back %u", line,
-                    fell_back);
+        health_note("codec runs since the last line: %s; fell back %u; ended "
+                    "on an error %u", line, fell_back, ended_on_error);
     memset(on_cop, 0, sizeof(on_cop));
     memset(on_cpu, 0, sizeof(on_cpu));
+    memset(ended_said, 0, sizeof(ended_said));
     fell_back = 0;
+    ended_on_error = 0;
 }
 #endif /* HAVE_CODEC_COP */

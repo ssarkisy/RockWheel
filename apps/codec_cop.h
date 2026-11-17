@@ -61,6 +61,8 @@ bool codec_cop_wanted(int afmt);
 
 /* A track's way, for the health log: on the COP, or on the CPU and why */
 void codec_cop_count(int afmt, bool on_cop, const char *why);
+/* a run there that the codec's error ended after sound began or a seek */
+void codec_cop_note_ended(int afmt);
 /* the counts since the last time, as a line of the health log */
 void codec_cop_note_counts(void);
 #endif /* NUM_CORES > 1 && PLATFORM_NATIVE */

@@ -567,9 +567,25 @@ static int run_codec_on_cop(const char **why)
         (res.made_pcm && ci.id3->length &&
          ci.id3->elapsed + 1000 >= ci.id3->length);
 
+    /* After sound began, the CPU takes a run over where it stopped only for
+       FLAC (by offset) and ALAC (by elapsed), FLAC's largest frames being
+       the known failure on the COP alone. Any other codec's error after
+       sound is taken as its own and ends the track there, as on the CPU:
+       most would fail again at the same place, and Shorten, ADX and the
+       emulators (GBS, MOD...) can't resume at all, so the CPU played them
+       again from the top */
+    const bool resumes = codec_type == AFMT_FLAC ||
+                         codec_type == AFMT_MP4_ALAC;
+
+    /* counted and said, as a fallback is, since nothing else shows it */
+    if (status == CODEC_ERROR && !at_end && (res.made_pcm || res.commanded)
+        && !resumes && !codec_msg_waiting())
+        codec_cop_note_ended(codec_type);
+
     if (status == CODEC_COP_NOT_RUN)
         *why = res.why;
     else if (status == CODEC_ERROR && !at_end &&
+             (res.made_pcm || res.commanded ? resumes : true) &&
              (!codec_msg_waiting() ||
               /* a seek waiting that restarted it (seek_codec()), taken by
                  the run here at its first get_command */
