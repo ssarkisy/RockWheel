@@ -189,6 +189,9 @@ audio_path.c
 audio_thread.c
 pcmbuf.c
 codec_thread.c
+#if NUM_CORES > 1
+codec_cop.c
+#endif
 playback.c
 codecs.c
 #ifndef HAVE_HARDWARE_BEEP

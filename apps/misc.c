@@ -103,6 +103,7 @@
 #include "playback.h"
 #include "voice_thread.h"
 #include "scrobbler.h"
+#include "codec_cop.h"
 
 #ifdef BOOTFILE
 #if !defined(USB_NONE) && !defined(USB_HANDLED_BY_OF) \
@@ -376,6 +377,9 @@ static void system_flush(void)
     tree_flush();
     open_plugin_cache_flush();
     drive_info_flush();
+#ifdef HAVE_CODEC_COP
+    codec_cop_note_counts();
+#endif
     health_flush();
     call_storage_idle_notifys(true); /*doesnt work on usb and shutdown from ata thread */
 }
@@ -790,6 +794,9 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
             add_playbacklog(NULL);
             scrobbler_flush();
             drive_info_flush();
+#ifdef HAVE_CODEC_COP
+            codec_cop_note_counts();
+#endif
             health_flush();
             call_storage_idle_notifys(true);
             return 0;

@@ -263,6 +263,18 @@ int codec_load_file(const char *plugin, struct codec_api *api)
     return codec_load_ram(api);
 }
 
+/* The loaded codec pointed at another api, as for its run on the second core;
+   the one it had, or NULL if none is loaded */
+struct codec_api *codec_set_api(struct codec_api *api)
+{
+    if (curr_handle == NULL)
+        return NULL;
+
+    struct codec_api *old = *(c_hdr->api);
+    *(c_hdr->api) = api;
+    return old;
+}
+
 int codec_run_proc(void)
 {
     if (curr_handle == NULL) {

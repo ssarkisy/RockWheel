@@ -146,6 +146,7 @@ int plugin_open(const char *plugin, const char *parameter);
 #include "yesno.h"
 
 #include "filetypes.h"
+#include "codec_cop.h"
 
 #ifdef USB_ENABLE_HID
 #include "usbstack/usb_hid_usage_tables.h"
@@ -192,7 +193,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 69
+#define PLUGIN_API_REVISION 70
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1194,6 +1195,13 @@ struct plugin_api {
     /* a line of the health log, kept in memory until USB or the sleep
        (health_log.h): from the CPU's threads */
     void (*health_note)(const char *fmt, ...) ATTRIBUTE_PRINTF(1, 2);
+#ifdef HAVE_CODEC_COP
+    /* the loaded codec's run on the second core, hosted by the caller with
+       api (codec_cop.h), as test_codec compares it with the run on the CPU */
+    int (*codec_cop_run)(struct codec_api *api, int stereo_mode, int depth,
+                         bool (*msg_waiting)(void),
+                         struct codec_cop_result *res);
+#endif
 };
 
 /* plugin header */

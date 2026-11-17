@@ -143,6 +143,12 @@ static struct test_track_info track;
 static bool use_dsp;
 
 static bool checksum;
+#ifdef HAVE_CODEC_COP
+static bool use_cop;
+/* the codec's samples as it configured them, for its run on the COP */
+static int codec_stereo_mode, codec_depth;
+static const char *cop_why; /* why the last run wasn't on the COP */
+#endif
 static uint32_t crc32;
 
 static volatile unsigned int elapsed;
@@ -559,11 +565,17 @@ static void configure(int setting, intptr_t value)
 
         case DSP_SET_SAMPLE_DEPTH:
             DEBUGF("sampledepth = %d\n",(int)value);
+#ifdef HAVE_CODEC_COP
+            codec_depth = value;
+#endif
             wavinfo.sampledepth = use_dsp ? 16 : (int)value;
             break;
 
         case DSP_SET_STEREO_MODE:
             DEBUGF("Stereo mode = %d\n",(int)value);
+#ifdef HAVE_CODEC_COP
+            codec_stereo_mode = value;
+#endif
             wavinfo.stereomode = use_dsp ? STEREO_INTERLEAVED : (int)value;
             break;
     }
@@ -658,11 +670,25 @@ static void codec_thread(void)
     codecname = rb->get_codec_filename(track.id3.codectype);
 
     /* Load the codec */
+#ifdef HAVE_CODEC_COP
+    codec_stereo_mode = STEREO_NONINTERLEAVED;
+    codec_depth = 16;
+#endif
     res = rb->codec_load_file(codecname, &ci);
 
     if (res >= 0)
     {
         /* Decode the file */
+#ifdef HAVE_CODEC_COP
+        if (use_cop)
+        {
+            struct codec_cop_result cop;
+            res = rb->codec_cop_run(&ci, codec_stereo_mode, codec_depth,
+                                    NULL, &cop);
+            cop_why = cop.why;
+        }
+        if (!use_cop || res == CODEC_COP_NOT_RUN)
+#endif
         res = rb->codec_run_proc();
     }
 
@@ -801,6 +827,14 @@ static enum plugin_status test_track(const char* filename)
     {
         rb->snprintf(str, sizeof(str), "CRC32 - %08x", (unsigned)crc32);
         log_text(str,true);
+#ifdef HAVE_CODEC_COP
+        if (use_cop)
+        {
+            rb->snprintf(str, sizeof(str), "decoded on the %s%s",
+                         cop_why ? "CPU: " : "COP", cop_why ? cop_why : "");
+            log_text(str,true);
+        }
+#endif
     }
     else if (wavinfo.fd < 0) 
     {
@@ -950,6 +984,9 @@ enum plugin_status plugin_start(const void* parameter)
         CHECKSUM_DIR,
         CHECKSUM_WITH_DSP,
         CHECKSUM_DIR_WITH_DSP,
+#ifdef HAVE_CODEC_COP
+        CHECKSUM_DIR_COP,
+#endif
         QUIT,
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
         BOOST,
@@ -968,6 +1005,9 @@ enum plugin_status plugin_start(const void* parameter)
         "Checksum folder",
         "Checksum with DSP",
         "Checksum folder with DSP",
+#ifdef HAVE_CODEC_COP
+        "Checksum folder on the COP",
+#endif
         "Quit",
 #ifdef HAVE_ADJUSTABLE_CPU_FREQ
         "Boosting",
@@ -1000,6 +1040,13 @@ menu:
     }
 
     scandir = 0;
+
+#ifdef HAVE_CODEC_COP
+    /* the codecs' runs on the second core, as playback has them */
+    use_cop = result == CHECKSUM_DIR_COP;
+    if (use_cop)
+        result = CHECKSUM_DIR;
+#endif
 
     /* Map checksum runs with DSP to CHECKSUM and CHECKSUM_DIR: the
      * checksum is then that of the DSP's output. */

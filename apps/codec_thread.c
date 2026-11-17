@@ -32,8 +32,10 @@
 #include "buffering.h"
 #include "dsp_core.h"
 #include "dsp_misc.h"
+#include "dsp_sample_io.h"
 #include "metadata.h"
 #include "settings.h"
+#include "codec_cop.h"
 
 /* Define LOGF_ENABLE to enable logf output in this file */
 /*#define LOGF_ENABLE*/
@@ -117,6 +119,10 @@ static void codec_queue_ack(intptr_t ackme)
 
 static intptr_t codec_queue_send(long id, intptr_t data)
 {
+#ifdef HAVE_CODEC_COP
+    /* a run on the second core is hosted here, by a thread waiting for it */
+    codec_cop_kick();
+#endif
     return queue_send(&codec_queue, id, data);
 }
 
@@ -366,8 +372,17 @@ static void codec_seek_complete_callback(void)
     while (codec_check_queue__have_msg() == 0);
 }
 
+/* the codec's samples as it last said: a run on the second core passes them
+   on as they are */
+static int codec_stereo_mode = STEREO_NONINTERLEAVED;
+static int codec_depth = NATIVE_DEPTH;
+
 static void codec_configure_callback(int setting, intptr_t value)
 {
+    if (setting == DSP_SET_STEREO_MODE)
+        codec_stereo_mode = value;
+    else if (setting == DSP_SET_SAMPLE_DEPTH)
+        codec_depth = value;
     dsp_configure(ci.dsp, setting, value);
 }
 
@@ -482,6 +497,8 @@ static void load_codec(const struct codec_load_info *ev_data)
     {
         /* Do this now because codec may set some things up at load time */
         dsp_configure(ci.dsp, DSP_RESET, 0);
+        codec_stereo_mode = STEREO_NONINTERLEAVED;
+        codec_depth = NATIVE_DEPTH;
     }
 
 #if defined(HAVE_CODEC_BUFFERING)
@@ -512,6 +529,62 @@ static void load_codec(const struct codec_load_info *ev_data)
     /* Failed - get rid of it */
     unload_codec();
 }
+
+#ifdef HAVE_CODEC_COP
+static bool codec_msg_waiting(void)
+{
+    return !queue_empty(&codec_queue);
+}
+
+/* a stop is the next message: a run that failed needs no retry then */
+static bool codec_stop_waiting(void)
+{
+    struct queue_event ev;
+    return queue_peek(&codec_queue, &ev) && ev.id == Q_CODEC_STOP;
+}
+
+/* The codec's run on the second core, if it takes it: CODEC_COP_NOT_RUN if
+   it's to run here, on the CPU, with why in *why */
+static int run_codec_on_cop(const char **why)
+{
+    if (!codec_cop_wanted(codec_type))
+        return CODEC_COP_NOT_RUN;
+
+    struct codec_cop_result res;
+    const off_t start = ci.curpos;
+    const unsigned long elapsed = ci.id3->elapsed;
+    const size_t offset = ci.id3->offset;
+    int status = codec_cop_run(&ci, codec_stereo_mode, codec_depth,
+                               codec_msg_waiting, &res);
+
+    if (status == CODEC_COP_NOT_RUN)
+        *why = res.why;
+    else if (status == CODEC_ERROR &&
+             (!codec_msg_waiting() ||
+              /* a seek waiting that restarted it (seek_codec()), taken by
+                 the run here at its first get_command */
+              (!res.made_pcm && !res.commanded && !codec_stop_waiting())))
+    {
+        /* failed there, as when its heap was short with the COP's part of
+           the buffer taken (FLAC's largest blocks, whose frames then don't
+           fit what it reads them from): again on the CPU, from the start if
+           nothing came of it yet, else resumed where it had got to, by the
+           elapsed and offset it last gave */
+        if (!res.made_pcm && !res.commanded)
+        {
+            *why = "failed on the COP before any sound";
+            ci.id3->elapsed = elapsed;
+            ci.id3->offset = offset;
+        }
+        else
+            *why = "failed on the COP after sound began, resumed where it was";
+        codec_seek_buffer_callback(start);
+        status = CODEC_COP_NOT_RUN;
+    }
+
+    return status;
+}
+#endif /* HAVE_CODEC_COP */
 
 /* Handle Q_CODEC_RUN */
 static void run_codec(void)
@@ -545,7 +618,16 @@ static void run_codec(void)
     }
 
     run_made_pcm = false;
+#ifdef HAVE_CODEC_COP
+    const char *why = NULL;
+    status = encoder ? CODEC_COP_NOT_RUN : run_codec_on_cop(&why);
+    if (!encoder)
+        codec_cop_count(codec_type, status != CODEC_COP_NOT_RUN, why);
+    if (status == CODEC_COP_NOT_RUN)
+        status = codec_run_proc();
+#else
     status = codec_run_proc();
+#endif
 
     if (!encoder)
     {

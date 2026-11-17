@@ -293,6 +293,7 @@ int codec_load_buf(int hid, struct codec_api *api);
 int codec_load_file(const char* codec, struct codec_api *api);
 int codec_run_proc(void);
 int codec_close(void);
+struct codec_api *codec_set_api(struct codec_api *api);
 #if defined(HAVE_RECORDING)
 enc_callback_t codec_get_enc_callback(void);
 #endif

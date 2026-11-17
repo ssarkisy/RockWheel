@@ -981,6 +981,9 @@ static const struct plugin_api rockbox_api = {
     photos_panel_disk_free,
     format_date_text,
     health_note,
+#ifdef HAVE_CODEC_COP
+    codec_cop_run,
+#endif
 };
 
 static int plugin_buffer_handle;
