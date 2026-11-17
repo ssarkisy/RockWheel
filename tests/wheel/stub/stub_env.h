@@ -34,6 +34,7 @@ struct stub_env {
     bool lit;            /* is_backlight_on(false) */
     bool dark_wheel;     /* button_dark_wheel() */
     bool fine;           /* button_wheel_is_fine() */
+    bool press_quiet;    /* button_wheel_is_press_quiet() */
     bool queue_empty;    /* button_queue_empty() */
     unsigned int clears; /* button_queue_clears() */
 };

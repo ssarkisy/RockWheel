@@ -1161,9 +1161,21 @@ int plugin_load(const char* plugin, const void* parameter)
 
     plugin_check_open_close__enter();
 
+#ifdef HAVE_WHEEL_ACCELERATION
+    /* its games turn the wheel with a button held, as the steps went before
+       (wheel_policy.h); but Cover Flow and Photos, the main menu's places,
+       whose lists keep the quiet under a press as the firmware's do */
+    const bool press_quiet = button_wheel_is_press_quiet();
+    if (!(sepch && (!strcmp("pictureflow.rock", sepch + 1)
+                    || !strcmp("photos.rock", sepch + 1))))
+        button_wheel_press_quiet(false);
+#endif
     plugin_running = true;
     int rc = p_hdr->entry_point(parameter); /* run the loaded plugin */
     plugin_running = false;
+#ifdef HAVE_WHEEL_ACCELERATION
+    button_wheel_press_quiet(press_quiet);
+#endif
     /* the phrases a plugin of Extras loaded were in its memory, gone now */
     lang_extras_reset();
 

@@ -21,7 +21,7 @@
 #define _WHEEL_POLICY_H_
 
 /* The wheel's policy without its hardware: what the click wheel's readings
- * make of a turn (steps, Apple's acceleration stages, the steps held while
+ * make of a turn (steps, the acceleration's stages, the steps held while
  * the UI is busy), how an event's data carries it, and how far a list goes
  * for it. Its functions read nothing but their arguments, so the host tests
  * (tests/wheel) run them as the iPod does. */
@@ -33,8 +33,8 @@
  *    [31] use acceleration: on every post of the click wheel's; a driver that
  *         measures degrees a second sets it only when turned fast enough
  * [30:24] the steps it went, those the UI was too busy for included (1-127)
- *    [23] staged: the speed is in the rows a step goes, as Apple's own
- *         scrolling has it (US 7,312,785); a driver that measures degrees a
+ *    [23] staged: the speed is in the rows a step goes, as Apple's patent
+ *         has it (US 7,312,785); a driver that measures degrees a
  *         second leaves it clear
  *  [22:0] the speed: degrees a second, or the rows a step goes */
 #define WHEEL_DATA_WHEEL  (1u << 31)
@@ -69,7 +69,7 @@ bool wheel_data_staged(unsigned int data);
    go further; 0 without bit 31 */
 int wheel_data_speed(unsigned int data);
 /* the steps the wheel went, each as far as its speed takes it: by stages,
-   eight times at most, as Apple's */
+   eight times at most, as Apple's patent (US 7,312,785) suggests */
 int wheel_data_rows(unsigned int data);
 /* the steps of a wheel event without its speed, as the volume and the
    scrubber take them; 1 without bit 31: a remote's, or a degree driver's
@@ -98,6 +98,24 @@ static inline int wheel_packet_position(uint32_t packet)
 {
     return (packet >> 16) & 0x7f;
 }
+/* and its buttons: Select 0x100, ⏭ 0x200, ⏮ 0x400, Play 0x800, Menu 0x1000 */
+#define WHEEL_PACKET_BUTTONS 0x00001f00u
+static inline bool wheel_packet_pressed(uint32_t packet)
+{
+    return (packet & WHEEL_PACKET_BUTTONS) != 0;
+}
+
+/* A button down, and this long after the first reading with none, to the
+   tick: the finger pressing, rolling and lifting off isn't a turn. Menu, Play
+   and ⏮/⏭ are pressed on the ring itself, and a thumb on Select often lies on
+   its inner edge; the few places it went were a step, and the list Menu went
+   back to opened on its row and moved by one. The wheel follows the finger
+   meanwhile, so the next step counts from where it is then, and nothing held
+   back comes out later. Not in a plugin (button_wheel_press_quiet()), whose
+   games turn the wheel with a button held, but Cover Flow and Photos, places
+   of the main menu's (plugin_load()). To be tuned on the iPod; the host test
+   takes it from here */
+#define WHEEL_PRESS_QUIET_USEC 150000
 
 /* what differs by model */
 struct wheel_config {
@@ -116,7 +134,7 @@ struct wheel_state {
     int delta;               /* the last reading's move, or its whole steps */
     unsigned int carry;      /* places gone since the last post */
     unsigned int velocity;   /* degrees a second, smoothed */
-    int stage;               /* Apple's acceleration stage: 1 << stage rows */
+    int stage;               /* the acceleration's stage: 1 << stage rows */
     int last_dir;            /* the last step's way, 0 after a touch */
     unsigned int seen_clears;/* button_queue_clears() when carry was taken */
     uint32_t step_usec;      /* the last step's time */
@@ -125,6 +143,11 @@ struct wheel_state {
     uint32_t post_usec;      /* the last post's */
     uint32_t step_tick;      /* the last step's tick */
     uint32_t untouch_tick;   /* when the finger lifted */
+    bool pressed;            /* a button down, or let go a moment ago: no
+                                steps, the wheel following the finger, but in
+                                a plugin (press_quiet) */
+    bool down;               /* a button down at the last reading */
+    uint32_t release_tick;   /* the first reading with none after one */
 };
 #define WHEEL_STATE_INIT { .old = -1 }
 
@@ -134,6 +157,7 @@ struct wheel_input {
     uint32_t usec;           /* USEC_TIMER, read for a touched packet */
     uint32_t tick;           /* current_tick */
     bool fine;               /* button_wheel_is_fine() */
+    bool press_quiet;        /* button_wheel_is_press_quiet(), of any packet */
     bool queue_empty;        /* button_queue_empty() */
     unsigned int queue_clears; /* button_queue_clears() */
     bool send_events;        /* false while a screen reads the wheel itself */

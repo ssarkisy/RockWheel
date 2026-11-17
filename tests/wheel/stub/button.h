@@ -41,6 +41,7 @@ void button_queue_post(long id, intptr_t data);
 bool button_queue_empty(void);
 unsigned int button_queue_clears(void);
 bool button_wheel_is_fine(void);
+bool button_wheel_is_press_quiet(void);
 int wheel_status(void);
 void wheel_send_events(bool send);
 long button_wheel_untouched_ticks(void);

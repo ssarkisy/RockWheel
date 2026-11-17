@@ -25,9 +25,15 @@
  * against stub/, read the same packets at the same times in the same world;
  * whatever each does (backlight, power-off timer, posts with their data, the
  * buttons, the wheel's place, its debug values) must be the same, in the same
- * order. Then the base's lines of list.c, button.c and wps.c (ref/apps.c)
- * against wheel_policy.c's for the data the drivers posted and more, for
- * lists of every length that matters.
+ * order. Their packets have no button down, except under a finger at rest
+ * and in a plugin: today's driver takes no step under a button and for
+ * WHEEL_PRESS_QUIET_USEC after it, where the base's did, but in a plugin
+ * (button_wheel_press_quiet(false)), where the two are the same with buttons
+ * held too. Presses are checked on their own, scripted on wheel_read() alone
+ * (presses()) and at random through today's driver alone (random_presses()).
+ * Then the base's lines of list.c, button.c and wps.c
+ * (ref/apps.c) against wheel_policy.c's for the data the drivers posted and
+ * more, for lists of every length that matters.
  *
  * Behaviour: wheel_policy.c alone, against what the roadmap says it does,
  * so that the checks mean something once the reference is gone.
@@ -49,6 +55,11 @@
 #define FWD    0x00000010
 #define BACK   0x00000020
 #define REPEAT 0x04000000
+
+/* wheel_policy.h's WHEEL_PRESS_QUIET_USEC in the tests' ticks of 10 ms: the
+   quiet ends at the first reading over this many ticks after the first one
+   without a button */
+#define PRESS_QUIET_TICKS (WHEEL_PRESS_QUIET_USEC / 10000)
 
 /* What the drivers do, side 0 the base's and 1 today's */
 struct rec { int kind; uint32_t a, b; };
@@ -92,6 +103,7 @@ void button_queue_post(long id, intptr_t data)
 bool button_queue_empty(void) { return stub_env.queue_empty; }
 unsigned int button_queue_clears(void) { return stub_env.clears; }
 bool button_wheel_is_fine(void) { return stub_env.fine; }
+bool button_wheel_is_press_quiet(void) { return stub_env.press_quiet; }
 
 /* xorshift64*: the sessions' own, the same on every host */
 static uint64_t rng;
@@ -138,6 +150,14 @@ struct world {
     /* when the stage changed, read after each packet */
     int stage_now, stage_n;
     struct { uint64_t t; int from, to; } stage_change[256];
+    /* the random sessions press buttons, today's driver alone: their quiet
+       is checked at each reading (driver_quiet) */
+    bool buttons;
+    bool quiet;           /* a button down, or let go a moment ago */
+    bool down;            /* a button down at the last reading */
+    uint32_t release_tick;/* the first reading without one after it */
+    long presses, quiet_readings, quiet_ends, posts_after_quiet;
+    bool after_quiet;     /* no post yet since the last quiet ended */
 };
 
 /* The base's constants, 1be9ae95b6's 0.3 s stage time included, which the
@@ -160,6 +180,7 @@ static void world_init(struct world *w, const char *name, uint32_t usec0,
     stub_env.lit = true;
     stub_env.dark_wheel = false;
     stub_env.fine = false;
+    stub_env.press_quiet = true;
     stub_env.gpioa = 0x20;
 }
 
@@ -213,6 +234,62 @@ static void note_post(struct world *w, uint32_t button, uint32_t data)
     }
 }
 
+/* A button down, and PRESS_QUIET_TICKS after the first reading without it:
+   no post, and the
+   wheel where the finger is, nothing held, as at a touch (today's driver
+   alone, its readings) */
+static void driver_quiet(struct world *w, uint32_t packet, int posts)
+{
+    const uint32_t tick = (uint32_t)current_tick;
+    const bool reading = (packet & 0x800000ff) == 0x8000001a;
+    if (reading && (packet & 0x1f00))
+    {
+        if (!w->quiet)
+            w->presses++;
+        w->quiet = w->down = true;
+    }
+    else if (reading && w->down)
+    {
+        w->down = false;
+        w->release_tick = tick;
+    }
+    else if (reading && w->quiet && tick - w->release_tick > PRESS_QUIET_TICKS)
+    {
+        w->quiet = false;
+        w->quiet_ends++;
+        w->after_quiet = true;
+    }
+    if (!w->quiet)
+    {
+        if (posts && w->after_quiet)
+        {
+            w->posts_after_quiet++;
+            w->after_quiet = false;
+        }
+        return;
+    }
+    const struct wheel_state *s = real_button_wheel_state();
+    bool ok = posts == 0 && s->pressed;
+    if (reading && (packet & 0x40000000))
+    {
+        w->quiet_readings++;
+        ok = ok && s->old == s->position && s->carry == 0 && s->stage == 0
+             && s->velocity == 0 && s->last_dir == 0;
+    }
+    check_count++;
+    if (!ok)
+    {
+        char what[160];
+        snprintf(what, sizeof(what), "%s: packet %ld (%08" PRIx32 ") at %"
+                 PRIu64 " us, %" PRIu32 " ticks after a release: %d posts, "
+                 "old %d at %d, carry %u, stage %d", w->name, w->packets,
+                 packet, w->t, tick - w->release_tick, posts, s->old,
+                 s->position, s->carry, s->stage);
+        check_fail(__FILE__, __LINE__, what);
+        w->failed = true;
+    }
+}
+
 /* the base's driver and today's, reading one packet; or, for the behaviour
    checks, wheel_read() alone */
 static void feed_driver(struct world *w, uint32_t packet, bool ready)
@@ -228,12 +305,16 @@ static void feed_driver(struct world *w, uint32_t packet, bool ready)
         real_ipod_4g_button_int();
         real_button_read_device();
         side = 0;
+        int posts = 0;
         for (int i = 0; i < trace_n[1] && i < TRACE_MAX; i++)
             if (trace[1][i].kind == T_POST)
             {
                 w->queue++;
                 note_post(w, trace[1][i].a, trace[1][i].b);
+                posts++;
             }
+        if (w->buttons && ready)
+            driver_quiet(w, packet, posts);
         return;
     }
 
@@ -305,7 +386,8 @@ static void feed_module(struct world *w, uint32_t packet)
 {
     const struct wheel_input in = {
         .packet = packet, .usec = stub_env.usec, .tick = (uint32_t)current_tick,
-        .fine = stub_env.fine, .queue_empty = w->queue == 0,
+        .fine = stub_env.fine, .press_quiet = stub_env.press_quiet,
+        .queue_empty = w->queue == 0,
         .queue_clears = stub_env.clears, .send_events = send_events_now,
     };
     struct wheel_event ev;
@@ -554,6 +636,7 @@ static void sc_dark(struct world *w)
     touch(w, 10000, 0);
     turn(w, 0, 40, 400000);
     packet(w, 10000, touched_at(0) | 0x800);   /* Play pressed */
+    turn(w, 0, 20, 200000);    /* let go, the finger still past the quiet */
     turn(w, 8, 8, 80000);
     lift(w, 10000);
     stub_env.dark_wheel = false;
@@ -576,6 +659,50 @@ static void sc_other_packets(struct world *w)
     lift(w, 10000);
 }
 
+static void sc_buttons_still(struct world *w)
+{
+    /* each button, the finger resting on the wheel while it's held, and one
+       with the finger off it: the same in both drivers, their buttons, the
+       light and the steps after (only today's is quiet under a button, which
+       a still finger doesn't show) */
+    stub_env.lit = false;
+    for (int b = 0; b < 5; b++)
+    {
+        touch(w, 10000, 20 * b);
+        turn(w, 0, 5, 50000);
+        for (int i = 0; i < 10; i++)
+            packet(w, 10000, touched_at(20 * b) | (0x100u << b));
+        turn(w, 0, 20, 200000);
+        turn(w, 8, 8, 80000);
+        lift(w, 10000);
+        wait_us(w, 500000);
+    }
+    stub_env.lit = true;
+    packet(w, 10000, LIFTED | 0x1000);         /* Menu, the wheel untouched */
+    packet(w, 50000, LIFTED);
+    touch(w, 200000, 40);
+    turn(w, 8, 8, 80000);
+    lift(w, 10000);
+}
+
+static void sc_plugin(struct world *w)
+{
+    /* in a plugin, buttons held and the wheel turned as a game does, rolled
+       under a press and let go: today's driver is the base's
+       (button_wheel_press_quiet(false), plugin_load()) */
+    stub_env.press_quiet = false;
+    touch(w, 10000, 0);
+    for (int i = 0; i < 6; i++)
+        packet(w, 10000, touched_at(2 * i) | 0x1000);     /* Menu, rolling */
+    finger = 10;
+    for (int i = 1; i <= 24; i++)                          /* Select, turning */
+        packet(w, 20000, touched_at((finger + 4 * i) % 96) | 0x100);
+    finger += 96;
+    turn(w, 12, 6, 60000);
+    lift(w, 10000);
+    stub_env.press_quiet = true;
+}
+
 static const struct { const char *name; script_fn fn; } scripts[] = {
     { "slow turn", sc_slow_turn },
     { "wrap", sc_wrap_forward },
@@ -590,6 +717,8 @@ static const struct { const char *name; script_fn fn; } scripts[] = {
     { "queue clear", sc_clear },
     { "dark screen", sc_dark },
     { "other packets", sc_other_packets },
+    { "buttons, finger still", sc_buttons_still },
+    { "buttons in a plugin", sc_plugin },
 };
 #define SCRIPTS (int)(sizeof(scripts) / sizeof(scripts[0]))
 
@@ -634,6 +763,8 @@ struct rig {
     uint64_t t;           /* us */
     int place;            /* the finger, in places, any number */
     bool busy;            /* the queue full */
+    bool plugin;          /* button_wheel_press_quiet(false) */
+    uint32_t button;      /* a button down, its bit in the packet */
     struct wheel_event ev;
 };
 
@@ -642,9 +773,10 @@ static void rig_read(struct rig *r, uint32_t dt, int places, bool touched)
     r->t += dt;
     r->place += places;
     const struct wheel_input in = {
-        .packet = touched ? touched_at(((r->place % 96) + 96) % 96) : LIFTED,
+        .packet = (touched ? touched_at(((r->place % 96) + 96) % 96) : LIFTED)
+                  | r->button,
         .usec = (uint32_t)r->t, .tick = (uint32_t)(r->t / 10000),
-        .queue_empty = !r->busy, .send_events = true,
+        .queue_empty = !r->busy, .send_events = true, .press_quiet = !r->plugin,
     };
     wheel_read(&r->s, &base_config, &in, &r->ev);
 }
@@ -664,6 +796,211 @@ static void rig_start(struct rig *r, int n, uint32_t us)
 static uint32_t rig_ticks_on(const struct rig *r, int ticks)
 {
     return (uint32_t)(((uint64_t)r->s.step_tick + ticks) * 10000 + 5000 - r->t);
+}
+
+/* from now to the middle of the tick `ticks` after the first reading without
+   a button, after one with it */
+static uint32_t rig_press_ticks_on(const struct rig *r, int ticks)
+{
+    return (uint32_t)(((uint64_t)r->s.release_tick + ticks) * 10000 + 5000
+                      - r->t);
+}
+
+/* A button down, and 150 ms after it's let go: the finger pressing, rolling
+   and lifting off isn't a turn. The wheel follows it, and the next step
+   counts from where it is then, as from a touch: nothing held comes out */
+static void presses(void)
+{
+    struct rig r;
+    static const char *const names[] = { "press: Select", "press: next",
+        "press: previous", "press: Play", "press: Menu" };
+
+    /* each button: 10 places under it and 6 as it's let go, no step; then 4
+       from where the finger was at the end, a first step */
+    for (int b = 0; b < 5; b++)
+    {
+        check_case = names[b];
+        rig_start(&r, 3, 100000);
+        r.button = 0x100u << b;
+        bool stepped = false;
+        for (int i = 0; i < 5; i++)
+        {
+            rig_read(&r, 10000, 2, true);
+            stepped |= r.ev.direction != 0;
+            CHECK_EQ(r.s.old, r.s.position);
+        }
+        r.button = 0;
+        for (int i = 0; i < 3; i++)
+        {
+            rig_read(&r, 10000, 2, true);
+            stepped |= r.ev.direction != 0;
+        }
+        CHECK(!stepped);
+        rig_read(&r, rig_press_ticks_on(&r, PRESS_QUIET_TICKS + 1), 0, true);
+        CHECK(!r.s.pressed);
+        rig_read(&r, 10000, 3, true);
+        CHECK_EQ(r.ev.direction, 0);
+        rig_read(&r, 10000, 1, true);
+        CHECK_EQ(r.ev.direction, 1);
+        CHECK(r.ev.post && r.ev.steps == 1 && r.ev.stage == 0);
+        CHECK(!r.ev.repeat);
+        rig_read(&r, 50000, 4, true);
+        CHECK(r.ev.direction == 1 && r.ev.repeat);   /* turning on */
+    }
+
+    /* 150 ms from the last reading with it down, to the tick, as the
+       timeouts count (TIME_AFTER) */
+    check_case = "press: quiet time";
+    for (int ticks = PRESS_QUIET_TICKS; ticks <= PRESS_QUIET_TICKS + 1; ticks++)
+    {
+        rig_start(&r, 3, 100000);
+        r.button = 0x1000;
+        rig_read(&r, 10000, 0, true);
+        r.button = 0;
+        rig_read(&r, 10000, 0, true);
+        rig_read(&r, rig_press_ticks_on(&r, ticks), 4, true);
+        CHECK_EQ(r.ev.direction, ticks > PRESS_QUIET_TICKS);
+    }
+
+    /* the steps held while the queue was full are dropped: the base posted
+       them all with the next step, 200 ms on, under the fast-off timeout */
+    check_case = "press: held steps";
+    rig_start(&r, 3, 50000);
+    r.busy = true;
+    for (int i = 0; i < 10; i++)
+        rig_read(&r, 20000, 4, true);
+    CHECK(r.s.carry >= 40);
+    r.button = 0x1000;
+    rig_read(&r, 20000, 0, true);
+    rig_read(&r, 20000, 0, true);
+    CHECK_EQ(r.s.carry, 0);
+    r.button = 0;
+    r.busy = false;
+    rig_read(&r, 10000, 0, true);
+    rig_read(&r, rig_press_ticks_on(&r, PRESS_QUIET_TICKS + 1), 0, true);
+    rig_read(&r, 10000, 4, true);
+    CHECK(r.ev.post && r.ev.steps == 1);
+
+    /* a fast turn's stage and its repeat end with the press */
+    check_case = "press: stage";
+    rig_start(&r, 150, 20833);
+    CHECK_EQ(r.ev.stage, 6);
+    r.button = 0x800;
+    rig_read(&r, 20000, 0, true);
+    r.button = 0;
+    rig_read(&r, 10000, 0, true);
+    rig_read(&r, rig_press_ticks_on(&r, PRESS_QUIET_TICKS + 1), 0, true);
+    rig_read(&r, 20833, 4, true);
+    CHECK(r.ev.direction == 1 && r.ev.stage == 0 && !r.ev.repeat);
+
+    /* let go and lifted, back 10 places on in 60 ms: the base's two steps */
+    check_case = "press: lifted and back";
+    rig_start(&r, 3, 100000);
+    r.button = 0x1000;
+    rig_read(&r, 10000, 0, true);
+    r.button = 0;
+    rig_read(&r, 10000, 0, false);
+    rig_read(&r, 50000, 10, true);
+    CHECK_EQ(r.ev.direction, 0);
+    rig_read(&r, rig_press_ticks_on(&r, PRESS_QUIET_TICKS + 1), 3, true);
+    CHECK_EQ(r.ev.direction, 0);
+    rig_read(&r, 10000, 1, true);
+    CHECK_EQ(r.ev.direction, 1);
+
+    /* Select with the thumb off the ring, back on it 8 places on */
+    check_case = "press: wheel untouched";
+    rig_start(&r, 3, 100000);
+    rig_read(&r, 10000, 0, false);
+    r.button = 0x100;
+    rig_read(&r, 10000, 0, false);
+    CHECK(r.s.pressed);
+    r.button = 0;
+    rig_read(&r, 30000, 8, true);
+    CHECK_EQ(r.ev.direction, 0);
+
+    /* Menu held 2 s, the finger going back and forth: no step */
+    check_case = "press: held";
+    rig_start(&r, 3, 100000);
+    r.button = 0x1000;
+    bool stepped = false;
+    for (int i = 0; i < 200; i++)
+    {
+        rig_read(&r, 10000, i % 40 < 20 ? 1 : -1, true);
+        stepped |= r.ev.direction != 0;
+    }
+    CHECK(!stepped);
+    CHECK_EQ(r.s.old, r.s.position);
+
+    /* the next reading 3e9 ticks on, past where after() turns round: not
+       quiet */
+    check_case = "press: ticks far on";
+    rig_start(&r, 3, 100000);
+    r.button = 0x1000;
+    rig_read(&r, 10000, 0, true);
+    r.button = 0;
+    rig_read(&r, 10000, 0, true);
+    r.t = (uint64_t)r.s.release_tick * 10000 + 3000000000ull * 10000 + 5000;
+    rig_read(&r, 0, 4, true);
+    CHECK_EQ(r.ev.direction, 1);
+
+    /* Menu held still with no reading for 300 ms, as the controller may
+       send none: the quiet from the release, and the roll as the finger
+       lifts no step; then steps */
+    check_case = "press: no readings while held";
+    rig_start(&r, 3, 100000);
+    r.button = 0x1000;
+    rig_read(&r, 10000, 0, true);
+    r.button = 0;
+    rig_read(&r, 300000, 1, true);
+    CHECK(r.s.pressed && !r.s.down);
+    stepped = false;
+    for (int i = 0; i < PRESS_QUIET_TICKS - 1; i++)
+    {
+        rig_read(&r, 10000, 2, true);
+        stepped |= r.ev.direction != 0;
+    }
+    CHECK(!stepped);
+    rig_read(&r, rig_press_ticks_on(&r, PRESS_QUIET_TICKS + 1), 0, true);
+    rig_read(&r, 10000, 4, true);
+    CHECK_EQ(r.ev.direction, 1);
+
+    /* in a plugin, as before: Menu held and the wheel turned, steps; back in
+       the firmware with Menu still held, none; and a plugin started as the
+       quiet runs steps at once */
+    check_case = "press: plugin";
+    rig_start(&r, 3, 100000);
+    r.plugin = true;
+    r.button = 0x1000;
+    rig_read(&r, 50000, 4, true);
+    CHECK_EQ(r.ev.direction, 1);
+    r.plugin = false;
+    rig_read(&r, 50000, 4, true);
+    CHECK_EQ(r.ev.direction, 0);
+    r.plugin = true;
+    r.button = 0;
+    rig_read(&r, 50000, 4, true);
+    CHECK_EQ(r.ev.direction, 1);
+
+    /* Menu pressed and let go in a plugin, which quits on its release: the
+       roll after the return, in the firmware, no step; then steps */
+    check_case = "press: let go in a plugin";
+    rig_start(&r, 3, 100000);
+    r.plugin = true;
+    r.button = 0x1000;
+    rig_read(&r, 10000, 0, true);
+    r.button = 0;
+    rig_read(&r, 10000, 0, true);
+    r.plugin = false;
+    stepped = false;
+    rig_read(&r, 10000, 2, true);
+    stepped |= r.ev.direction != 0;
+    rig_read(&r, 10000, 3, true);
+    stepped |= r.ev.direction != 0;
+    CHECK(!stepped);
+    rig_read(&r, rig_press_ticks_on(&r, PRESS_QUIET_TICKS + 1), 0, true);
+    rig_read(&r, 10000, 4, true);
+    CHECK_EQ(r.ev.direction, 1);
+    check_case = NULL;
 }
 
 /* The feel the owner confirmed, pinned without the reference: the speed a
@@ -974,6 +1311,7 @@ static void behaviour(void)
     /* a remote's next, no data: a row */
     CHECK_EQ(wheel_list_rows(0, 13000, 9).rows, 1);
     feel();
+    presses();
     check_case = NULL;
 }
 
@@ -995,12 +1333,17 @@ static void session(struct world *w)
     const bool send = screen != 3 || chance(300);
     ref_wheel_send_events(send);
     wheel_send_events(send);
+    real_wheel_send_events(send);
     stub_env.lit = !chance(150);
     stub_env.dark_wheel = chance(300);
 
     const uint32_t interval = rnd_in(1000, 12000);   /* between readings */
     double angle = rnd_in(0, 95);
     const int touches = rnd_in(1, 4);
+    /* with buttons (today's driver alone): one held, and the finger rolling
+       under it */
+    uint32_t press = 0;
+    uint64_t press_end = 0;
     for (int t = 0; t < touches; t++)
     {
         if (chance(30))
@@ -1042,9 +1385,28 @@ static void session(struct world *w)
                 place = ((place % 96) + 96) % 96;
                 uint32_t p = touched_at(place);
                 if (chance(5))
-                    p |= 0x100u << rnd_in(0, 4);          /* a button */
+                {
+                    /* a button, held a while; the drivers in step have none,
+                       as only today's is quiet under one */
+                    const uint32_t button = 0x100u << rnd_in(0, 4);
+                    if (w->buttons && !press)
+                    {
+                        press = button;
+                        press_end = w->t + rnd_in(20000, 400000);
+                    }
+                }
+                if (press && w->t >= press_end)
+                    press = 0;
+                if (press)
+                {
+                    angle += (double)rnd_in(0, 4) - 2;    /* rolling */
+                    place = (((int)floor(angle) % 96) + 96) % 96;
+                    p = touched_at(place) | press;
+                }
                 if (chance(2))
                     p = chance(500) ? 0x8000003a : (uint32_t)rnd();
+                if (!w->buttons && (p & 0x800000ff) == 0x8000001a)
+                    p &= ~0x1f00u;
                 if (chance(3))
                 {
                     /* a moment off the wheel, back elsewhere */
@@ -1072,30 +1434,74 @@ static void session(struct world *w)
     }
 }
 
-static void random_sessions(uint64_t seed, long min_posts)
+/* plugin: buttons held, the finger rolling under them, in a plugin, where
+   today's driver has no quiet (button_wheel_press_quiet(false)): the base's
+   steps, the drivers in step */
+static void random_sessions(uint64_t seed, long min_posts, bool plugin)
 {
     static struct world w;
-    rng = seed ? seed : 1;
+    rng = (seed ? seed : 1) ^ (plugin ? 0x9106 : 0);
     /* USEC_TIMER starting a minute before it comes round */
     world_init(&w, "random", 0xffffffffu - 60000000u, rnd_in(0, 1u << 28));
     w.t = 0;
+    w.buttons = plugin;
+    stub_env.press_quiet = !plugin;
     long sessions = 0;
     char name[64];
-    snprintf(name, sizeof(name), "random, seed %" PRIu64, seed);
+    snprintf(name, sizeof(name), "random%s, seed %" PRIu64,
+             plugin ? " in a plugin" : "", seed);
     w.name = name;
     while (w.posts < min_posts && !w.failed)
     {
         session(&w);
         sessions++;
     }
+    stub_env.press_quiet = true;
     world_done(&w);
-    printf("wheel      random: seed %" PRIu64 ", %ld sessions, %ld packets, "
+    printf("wheel      random%s: seed %" PRIu64 ", %ld sessions, %ld packets, "
            "%ld posts, %ld steps, %.1f min, USEC_TIMER came round %d times\n",
+           plugin ? " in a plugin, buttons held" : "",
            seed, sessions, w.packets, w.posts, w.steps, w.t / 6e7,
            (int)(((uint64_t)w.usec0 + w.t) >> 32));
     if (w.failed)
         fprintf(stderr, "wheel: random sessions differ: WHEEL_SEED=%" PRIu64
                 " to run them again\n", seed);
+}
+
+/* The same sessions with buttons held, the finger rolling under them, on
+   today's driver alone: quiet under each and 150 ms after, then steps again.
+   After behaviour(), whose driver alone starts at tick 1000: its ticks a
+   quarter of their range on, so that the driver sees the touch before as long
+   ago */
+static void random_presses(uint64_t seed, long min_posts)
+{
+    static struct world w;
+    rng = (seed ? seed : 1) ^ 0xb7703;
+    world_init(&w, "random with buttons", 0xffffffffu - 60000000u,
+               (1u << 30) + rnd_in(0, 1u << 28));
+    w.t = 0;
+    w.driver_only = true;
+    w.buttons = true;
+    long sessions = 0;
+    char name[64];
+    snprintf(name, sizeof(name), "random with buttons, seed %" PRIu64, seed);
+    w.name = name;
+    while (w.posts < min_posts && !w.failed)
+    {
+        session(&w);
+        sessions++;
+    }
+    printf("wheel      random with buttons: %ld sessions, %ld packets, %ld "
+           "posts; %ld presses, %ld readings quiet, %ld quiet ends, %ld "
+           "followed by a post\n", sessions, w.packets, w.posts, w.presses,
+           w.quiet_readings, w.quiet_ends, w.posts_after_quiet);
+    check_case = "random with buttons";
+    CHECK(w.presses >= 1000);
+    CHECK(w.posts_after_quiet * 2 >= w.quiet_ends);  /* turning goes on */
+    check_case = NULL;
+    if (w.failed)
+        fprintf(stderr, "wheel: random sessions with buttons failed: "
+                "WHEEL_SEED=%" PRIu64 " to run them again\n", seed);
 }
 
 /* ---- the data's consumers: base lines and wheel_policy.c's ---- */
@@ -1188,11 +1594,13 @@ int main(void)
            total_posts, stage_posts[0], stage_posts[1], stage_posts[2],
            stage_posts[3], stage_posts[4], stage_posts[5], stage_posts[6]);
 
-    random_sessions(seed, 100000);
+    random_sessions(seed, 100000, false);
+    random_sessions(seed, 30000, true);
     printf("wheel      posts by stage, all: %ld %ld %ld %ld %ld %ld %ld\n",
            stage_posts[0], stage_posts[1], stage_posts[2], stage_posts[3],
            stage_posts[4], stage_posts[5], stage_posts[6]);
     consumers(seed);
     behaviour();
+    random_presses(seed, 30000);
     return check_done("wheel");
 }

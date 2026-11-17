@@ -85,11 +85,12 @@ int wheel_event_steps(unsigned int data)
 
 /* A short list, as a menu, goes a row a step, without the steps the UI was
    too busy for, through which the main menu went two and three at once, and
-   faster not either: Apple's own scrolling doesn't speed up in a list of
-   twenty or fewer. A long one goes as far as the wheel did, and further: by
-   the square root of how many times LONG_LIST it is, 13000 songs five times,
-   1700 albums twice; with the wheel's stages, they double on to that many
-   times their most. Turned slowly, the wheel still goes a row a step. */
+   faster not either: Apple's patent (US 7,312,785) doesn't speed up a list of
+   twenty or fewer, four of its screens; two screens here. A long one goes as
+   far as the wheel did, and further: by the square root of how many times
+   LONG_LIST it is, 13000 songs five times, 1700 albums twice; with the
+   wheel's stages, they double on to that many times their most. Turned
+   slowly, the wheel still goes a row a step. */
 #define LONG_LIST 500
 
 struct wheel_rows wheel_list_rows(unsigned int data, int items, int lines)
@@ -134,10 +135,12 @@ struct wheel_rows wheel_list_rows(unsigned int data, int items, int lines)
    was reset, or the finger was off it a moment: then the list went 5 rows at
    once, turned slowly */
 #define WHEEL_GAP_USEC 60000
-/* As Apple's: over accel_start (WHEEL_ACCEL_START), a turn a second, each
-   stage_usec (WHEEL_STAGE_USEC) of it doubles the rows a step goes, to
-   1 << WHEEL_STAGES, as far as a list lets it; slower, a turn the other way or
-   a pause, and it's a row again */
+/* Over accel_start (WHEEL_ACCEL_START), a turn a second, each stage_usec
+   (WHEEL_STAGE_USEC) of it doubles the rows a step goes, to 1 << WHEEL_STAGES,
+   as far as a list lets it; slower, a turn the other way or a pause, and it's
+   a row again. The doubling and its eight rows a step at most are Apple's
+   patent's (US 7,312,785), which gives no speed or time: the speed and the
+   time are RockWheel's, and the pause's 250 ms Rockbox's (FS#7738) */
 #define WHEEL_STAGES     6
 /* The steps held back while the queue is full, a turn at most: after the UI
    stood a second, all of them at the stage it was at went thousands of rows.
@@ -162,6 +165,24 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
     ev->post = false;
     ev->steps = 0;
     ev->new_touch = false;
+
+    /* a button down, or let go under WHEEL_PRESS_QUIET_USEC ago: from the
+       first reading without it, as the controller may send none while a
+       finger holds a button still. Kept in a plugin too, which has no quiet
+       (button_wheel_press_quiet()): Menu let go there, as a plugin quits on
+       its release, is quiet in the screen it goes back to. The ticks since
+       then counted unsigned, as after() would hold it on once 2^31 of them
+       had gone by without a reading */
+    if (wheel_packet_pressed(in->packet))
+        s->pressed = s->down = true;
+    else if (s->down)
+    {
+        s->down = false;
+        s->release_tick = in->tick;
+    }
+    else if (s->pressed && in->tick - s->release_tick
+                           > (uint32_t)USEC_TICKS(WHEEL_PRESS_QUIET_USEC))
+        s->pressed = false;
 
     if (!wheel_packet_touched(in->packet))
     {
@@ -208,6 +229,19 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
         return;
     }
 
+    if (s->pressed && in->press_quiet)
+    {
+        /* as from a touch where the finger is */
+        s->old      = position;
+        s->delta    = 0;
+        s->carry    = 0;
+        s->velocity = 0;
+        s->stage    = 0;
+        s->last_dir = 0;
+        ev->stage = s->stage;
+        return;
+    }
+
     const int clicks = config->clicks;
     const int sensitivity = config->sensitivity;
     int delta = position - s->old;
@@ -229,7 +263,10 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
     s->delta = delta;
     /* the steps it went, and what's left of one stays: a step
        is four of the wheel's 96, and a turn 24 of them, however
-       its readings come, as in Apple's own scrolling */
+       its readings come: 15 degrees a row, as Apple's web iPod
+       has it, and the research's best fit for Apple's 5.5G
+       firmware run in an emulator, with a dead zone at a
+       touch's start, which isn't here */
     const int direction = delta < 0 ? -1 : 1;
 
     /* Fine, half a step as far (button_wheel_fine), but the first

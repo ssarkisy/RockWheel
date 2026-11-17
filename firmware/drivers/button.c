@@ -701,6 +701,20 @@ bool button_wheel_is_fine(void)
 {
     return wheel_fine;
 }
+
+/* no steps under a pressed button and a moment after (wheel_policy.h),
+   except in a plugin */
+static volatile bool wheel_press_quiet = true;
+
+void button_wheel_press_quiet(bool quiet)
+{
+    wheel_press_quiet = quiet;
+}
+
+bool button_wheel_is_press_quiet(void)
+{
+    return wheel_press_quiet;
+}
 #endif /* HAVE_WHEEL_ACCELERATION */
 
 #if (defined(HAVE_TOUCHPAD) || defined(HAVE_TOUCHSCREEN)) && !defined(HAS_BUTTON_HOLD)

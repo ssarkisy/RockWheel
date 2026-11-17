@@ -71,9 +71,9 @@
 #endif
 
 /* Over WHEEL_ACCEL_START, a turn a second, each WHEEL_STAGE_USEC of it doubles
-   the rows a step goes, as far as a list lets it (wheel_policy.c). 0.4 s:
-   slower than the patent's 0.3 s, as the iPod Photo's own firmware; chosen on
-   the device */
+   the rows a step goes, as far as a list lets it (wheel_policy.c). 0.4 s, the
+   RockWheel Photo port's, chosen by the owner on the Video; RockWheel had
+   0.3 s before. Apple's patent (US 7,312,785) gives no time */
 #define WHEEL_STAGE_USEC 400000
 
 /* What the wheel's turns make (wheel_policy.c): its state, written only here,
@@ -178,9 +178,10 @@ static inline int ipod_4g_button_read(void)
                 in.send_events = true;
 #endif
             }
-            /* the steps it went, Apple's stages and what the queue had no
+            /* the steps it went, the stages and what the queue had no
                room for (wheel_policy.c); and a finger lifted */
             in.tick = current_tick;
+            in.press_quiet = button_wheel_is_press_quiet();
             wheel_read(&wheel, &wheel_config, &in, &ev);
 
             if (ev.direction)
