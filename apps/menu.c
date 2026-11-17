@@ -193,6 +193,9 @@ static const struct {
 #ifdef HAVE_TAGCACHE
     { &global_settings.smart_search, LANG_HINT_SMART_SEARCH },
 #endif
+#if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI)
+    { &global_settings.wheel_sensitivity, LANG_HINT_WHEEL_SENSITIVITY },
+#endif
 #ifdef HAVE_IDLE_SLEEP
 #if BATTERY_CAPACITY_INC > 0
     { &global_settings.battery_capacity, LANG_HINT_BATTERY_CAPACITY },

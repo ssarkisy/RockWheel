@@ -29,3 +29,5 @@
 #define button_wheel_untouched_ticks real_button_wheel_untouched_ticks
 #define button_wheel_state           real_button_wheel_state
 #define test_wheel_config            real_test_wheel_config
+#define button_wheel_sensitivity     real_button_wheel_sensitivity
+#define button_wheel_get_sensitivity real_button_wheel_get_sensitivity

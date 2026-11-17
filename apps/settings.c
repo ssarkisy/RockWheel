@@ -89,6 +89,7 @@
 #include "statusbar-skinned.h"
 #include "bootchart.h"
 #include "scroll_engine.h"
+#include "wheel_policy.h" /* button_wheel_sensitivity() */
 #include "file_write.h"
 #ifdef HAVE_GENERAL_PURPOSE_LED
 #include "led-general-purpose.h"
@@ -1066,6 +1067,9 @@ void settings_apply(bool read_disk)
     CHART("<set_codepage");
 
     sound_settings_apply();
+#if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI) && !defined(SIMULATOR)
+    button_wheel_sensitivity(global_settings.wheel_sensitivity);
+#endif
 
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     /* at boot before music, so that the audio buffer has to give way to nothing */

@@ -27,6 +27,7 @@
 #include "health_log.h"
 #include "root_menu.h"
 #include "open_plugin.h"
+#include "wheel_policy.h" /* button_wheel_sensitivity() */
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
@@ -1170,19 +1171,38 @@ int plugin_load(const char* plugin, const void* parameter)
     plugin_check_open_close__enter();
 
 #ifdef HAVE_WHEEL_ACCELERATION
-    /* its games turn the wheel with a button held, as the steps went before
-       (wheel_policy.h); but Cover Flow and Photos, the main menu's places,
-       whose lists keep the quiet under a press as the firmware's do */
+    /* a game: one of the games' folder, as Extras > Games opens them. Cover
+       Flow, Photos, the text viewers, Credits, the Pitch screen, Extras'
+       clock, calendar and stopwatch and the rest are not, and turn as the
+       firmware's lists do. Its path without the volume a browser's has
+       first ("/<HDD0>") */
+    const char *game_path = plugin;
+#ifdef HAVE_MULTIVOLUME
+    path_strip_volume(plugin, &game_path, false);
+#endif
+    const bool game = !strncmp(game_path, PLUGIN_GAMES_DIR "/",
+                               sizeof(PLUGIN_GAMES_DIR "/") - 1);
+    /* a game turns the wheel with a button held, as the steps went before
+       (wheel_policy.h) */
     const bool press_quiet = button_wheel_is_press_quiet();
-    if (!(sepch && (!strcmp("pictureflow.rock", sepch + 1)
-                    || !strcmp("photos.rock", sepch + 1))))
+    if (game)
         button_wheel_press_quiet(false);
+#if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI) && !defined(SIMULATOR)
+    /* and at High, 4 places a step from the first, the wheel it was made
+       for, whatever Wheel Sensitivity is */
+    const int sensitivity = button_wheel_get_sensitivity();
+    if (game)
+        button_wheel_sensitivity(WHEEL_SENSITIVITY_HIGH);
+#endif
 #endif
     plugin_running = true;
     int rc = p_hdr->entry_point(parameter); /* run the loaded plugin */
     plugin_running = false;
 #ifdef HAVE_WHEEL_ACCELERATION
     button_wheel_press_quiet(press_quiet);
+#if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI) && !defined(SIMULATOR)
+    button_wheel_sensitivity(sensitivity);
+#endif
 #endif
     /* the phrases a plugin of Extras loaded were in its memory, gone now */
     lang_extras_reset();

@@ -638,8 +638,9 @@ static bool anim_turning; /* just turned back, in the same place */
    slowing onto it; what a frame may move so far, in 1/65536 of a slide */
 static bool seeking;
 static int seek_cap;
-/* the wheel's clicks a slide: 16 slides a turn, slower than the lists' 24, as
-   users found the covers too quick even turned slowly */
+/* the wheel's clicks a slide: 16 slides a turn, as many as the lists' rows at
+   Wheel Sensitivity's Low (24 at Medium and High), as users found the covers
+   too quick even turned slowly */
 #define WHEEL_SLIDE_CLICKS  6
 /* of a click a second, at 25 frames a second: at the speed of the wheel */
 #define ROLL_PER_CLICK      (65536 / (WHEEL_SLIDE_CLICKS * 25))

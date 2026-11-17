@@ -26,8 +26,8 @@
  * whatever each does (backlight, power-off timer, posts with their data, the
  * buttons, the wheel's place, its debug values) must be the same, in the same
  * order. Their packets have no button down, except under a finger at rest
- * and in a plugin: today's driver takes no step under a button and for
- * WHEEL_PRESS_QUIET_USEC after it, where the base's did, but in a plugin
+ * and in a game: today's driver takes no step under a button and for
+ * WHEEL_PRESS_QUIET_USEC after it, where the base's did, but in a game
  * (button_wheel_press_quiet(false)), where the two are the same with buttons
  * held too. Presses are checked on their own, scripted on wheel_read() alone
  * (presses()) and at random through today's driver alone (random_presses()).
@@ -687,7 +687,7 @@ static void sc_buttons_still(struct world *w)
 
 static void sc_plugin(struct world *w)
 {
-    /* in a plugin, buttons held and the wheel turned as a game does, rolled
+    /* in a game, buttons held and the wheel turned as it does, rolled
        under a press and let go: today's driver is the base's
        (button_wheel_press_quiet(false), plugin_load()) */
     stub_env.press_quiet = false;
@@ -718,7 +718,7 @@ static const struct { const char *name; script_fn fn; } scripts[] = {
     { "dark screen", sc_dark },
     { "other packets", sc_other_packets },
     { "buttons, finger still", sc_buttons_still },
-    { "buttons in a plugin", sc_plugin },
+    { "buttons in a game", sc_plugin },
 };
 #define SCRIPTS (int)(sizeof(scripts) / sizeof(scripts[0]))
 
@@ -760,6 +760,7 @@ static long sum_steps(const struct world *w)
 /* wheel_read() alone with its time in hand: ticks of 10 ms from the us */
 struct rig {
     struct wheel_state s;
+    const struct wheel_config *cfg;  /* base_config if none */
     uint64_t t;           /* us */
     int place;            /* the finger, in places, any number */
     bool busy;            /* the queue full */
@@ -778,7 +779,7 @@ static void rig_read(struct rig *r, uint32_t dt, int places, bool touched)
         .usec = (uint32_t)r->t, .tick = (uint32_t)(r->t / 10000),
         .queue_empty = !r->busy, .send_events = true, .press_quiet = !r->plugin,
     };
-    wheel_read(&r->s, &base_config, &in, &r->ev);
+    wheel_read(&r->s, r->cfg ? r->cfg : &base_config, &in, &r->ev);
 }
 
 /* a first touch, then n steps of 4 places, us apart */
@@ -964,7 +965,7 @@ static void presses(void)
     rig_read(&r, 10000, 4, true);
     CHECK_EQ(r.ev.direction, 1);
 
-    /* in a plugin, as before: Menu held and the wheel turned, steps; back in
+    /* in a game, as before: Menu held and the wheel turned, steps; back in
        the firmware with Menu still held, none; and a plugin started as the
        quiet runs steps at once */
     check_case = "press: plugin";
@@ -981,9 +982,9 @@ static void presses(void)
     rig_read(&r, 50000, 4, true);
     CHECK_EQ(r.ev.direction, 1);
 
-    /* Menu pressed and let go in a plugin, which quits on its release: the
+    /* Menu pressed and let go in a game, which quits on its release: the
        roll after the return, in the firmware, no step; then steps */
-    check_case = "press: let go in a plugin";
+    check_case = "press: let go in a game";
     rig_start(&r, 3, 100000);
     r.plugin = true;
     r.button = 0x1000;
@@ -1000,6 +1001,320 @@ static void presses(void)
     rig_read(&r, rig_press_ticks_on(&r, PRESS_QUIET_TICKS + 1), 0, true);
     rig_read(&r, 10000, 4, true);
     CHECK_EQ(r.ev.direction, 1);
+    check_case = NULL;
+}
+
+/* A step of 6 places, Wheel Sensitivity Low's, without its dead zone: a step
+   is 6, its remainder kept, the fine step 3, a turn 16 steps, the stages as
+   at 4 */
+static void step6(void)
+{
+    static const struct wheel_config six = {
+        .clicks = 96, .sensitivity = 6, .accel_start = WHEEL_ACCEL_START,
+        .stage_usec = 300000,
+    };
+    struct rig r;
+
+    check_case = "step 6: a step";
+    memset(&r, 0, sizeof(r));
+    r.s = (struct wheel_state)WHEEL_STATE_INIT;
+    r.cfg = &six;
+    r.t = 5000000;
+    rig_read(&r, 0, 0, true);
+    rig_read(&r, 100000, 5, true);
+    CHECK_EQ(r.ev.direction, 0);
+    rig_read(&r, 100000, 1, true);
+    CHECK_EQ(r.ev.direction, 1);
+    rig_read(&r, 100000, 9, true);              /* a step, 3 left */
+    CHECK(r.ev.direction == 1 && r.ev.steps == 1 && r.s.old == 12);
+    rig_read(&r, 100000, 3, true);              /* the 3 and these: a step */
+    CHECK_EQ(r.ev.direction, 1);
+    CHECK_EQ(r.s.old, 18);
+
+    check_case = "step 6: a slow turn";
+    memset(&r, 0, sizeof(r));
+    r.s = (struct wheel_state)WHEEL_STATE_INIT;
+    r.cfg = &six;
+    r.t = 5000000;
+    rig_read(&r, 0, 0, true);
+    int steps = 0, highest = 0;
+    for (int i = 0; i < 96; i++)                /* a turn in 4 s */
+    {
+        rig_read(&r, 41667, 1, true);
+        steps += r.ev.post ? r.ev.steps * r.ev.direction : 0;
+        if (r.ev.stage > highest)
+            highest = r.ev.stage;
+    }
+    CHECK_EQ(steps, 16);
+    CHECK_EQ(highest, 0);
+
+    check_case = "step 6: fine";
+    memset(&r, 0, sizeof(r));
+    r.s = (struct wheel_state)WHEEL_STATE_INIT;
+    r.cfg = &six;
+    r.t = 5000000;
+    rig_read(&r, 0, 0, true);
+    steps = 0;
+    for (int i = 0; i < 48; i++)
+    {
+        r.t += 50000;
+        r.place += 2;
+        const struct wheel_input in = {
+            .packet = touched_at(((r.place % 96) + 96) % 96), .usec = (uint32_t)r.t,
+            .tick = (uint32_t)(r.t / 10000), .fine = true, .queue_empty = true,
+            .send_events = true, .press_quiet = true,
+        };
+        wheel_read(&r.s, &six, &in, &r.ev);
+        steps += r.ev.post ? r.ev.steps : 0;
+    }
+    CHECK_EQ(steps, 1 + (96 - 6) / 3);          /* 6 first, then 3 each */
+
+    check_case = "step 6: stages";
+    memset(&r, 0, sizeof(r));
+    r.s = (struct wheel_state)WHEEL_STATE_INIT;
+    r.cfg = &six;
+    r.t = 5000000;
+    rig_read(&r, 0, 0, true);
+    int rises = 0, stage = 0;
+    uint64_t last_rise = 0;
+    for (int i = 0; i < 300; i++)               /* 2 turns a second, 3 s */
+    {
+        rig_read(&r, 10417, 2, true);
+        if (r.ev.direction && r.ev.stage == stage + 1)
+        {
+            if (stage >= 1)
+                CHECK(r.t - last_rise > 300000 && r.t - last_rise <= 300000 + 21000);
+            stage = r.ev.stage;
+            last_rise = r.t;
+            rises++;
+        }
+    }
+    CHECK_EQ(stage, 6);
+    CHECK_EQ(rises, 6);
+
+    check_case = NULL;
+}
+
+/* The dead zone, Apple's 6G decoder's at a touch's start: readings' moves
+   under 6 places add up, and the first 4 of them go; one of 6 or more goes
+   through at once; a lift, a press's quiet or the gap rule's fresh start
+   arms it again. At step 4 and 6; off, it is today's (the lockstep). And
+   Wheel Sensitivity through today's driver: Low, 6 and the dead zone; High,
+   today's; a change taken at its next reading as a touch's first */
+static int dz_first_step(const struct wheel_config *cfg, int per_reading)
+{
+    /* a touch, then per_reading places a reading 100 ms apart: the places
+       gone at the first step */
+    struct rig r;
+    memset(&r, 0, sizeof(r));
+    r.s = (struct wheel_state)WHEEL_STATE_INIT;
+    r.cfg = cfg;
+    r.t = 5000000;
+    rig_read(&r, 0, 0, true);
+    for (int places = per_reading; places <= 40; places += per_reading)
+    {
+        rig_read(&r, 100000, per_reading, true);
+        if (r.ev.direction)
+            return places;
+    }
+    return -1;
+}
+
+static void dead_zone(void)
+{
+    static const struct wheel_config dz4 = {
+        .clicks = 96, .sensitivity = 4, .accel_start = WHEEL_ACCEL_START,
+        .stage_usec = 300000, .dead_zone = true,
+    };
+    static const struct wheel_config dz6 = {
+        .clicks = 96, .sensitivity = 6, .accel_start = WHEEL_ACCEL_START,
+        .stage_usec = 300000, .dead_zone = true,
+    };
+    struct rig r;
+
+    check_case = "dead zone: a slow start";
+    CHECK_EQ(dz_first_step(&base_config, 1), 4);    /* off: today's */
+    CHECK_EQ(dz_first_step(&dz4, 1), 4 + 4);
+    CHECK_EQ(dz_first_step(&dz6, 1), 4 + 6);
+    CHECK_EQ(dz_first_step(&dz4, 2), 4 + 4);
+    /* by threes: 3, then 3 more, of which 2 are past the zone, then 2 */
+    CHECK_EQ(dz_first_step(&dz4, 3), 9);
+
+    /* Medium: a step of 4 with the zone, the first at 8, then each 4 */
+    check_case = "dead zone: Medium's steps";
+    memset(&r, 0, sizeof(r));
+    r.s = (struct wheel_state)WHEEL_STATE_INIT;
+    r.cfg = &dz4;
+    r.t = 5000000;
+    rig_read(&r, 0, 0, true);
+    int at[3], found = 0;
+    for (int places = 1; places <= 20 && found < 3; places++)
+    {
+        rig_read(&r, 100000, 1, true);
+        if (r.ev.direction)
+            at[found++] = places;
+    }
+    CHECK(found == 3 && at[0] == 8 && at[1] == 12 && at[2] == 16);
+
+    check_case = "dead zone: 6 places at once";
+    CHECK_EQ(dz_first_step(&dz4, 6), 6);
+    CHECK_EQ(dz_first_step(&dz6, 6), 6);
+    CHECK_EQ(dz_first_step(&dz4, 5), 10);           /* 5: 1 past, then 5 */
+
+    check_case = "dead zone: a lift arms it again";
+    memset(&r, 0, sizeof(r));
+    r.s = (struct wheel_state)WHEEL_STATE_INIT;
+    r.cfg = &dz4;
+    r.t = 5000000;
+    rig_read(&r, 0, 0, true);
+    int places = 0, step_at = 0;
+    for (int i = 0; i < 12; i++)
+    {
+        rig_read(&r, 50000, 1, true);
+        places++;
+        if (r.ev.direction && !step_at)
+            step_at = places;
+    }
+    CHECK_EQ(step_at, 8);
+    rig_read(&r, 10000, 0, false);                  /* lifted a moment */
+    rig_read(&r, 50000, 0, true);                   /* back, the same touch */
+    CHECK(!r.ev.new_touch);
+    step_at = 0;
+    for (int i = 1; i <= 12 && !step_at; i++)
+    {
+        rig_read(&r, 50000, 1, true);
+        if (r.ev.direction)
+            step_at = i;
+    }
+    CHECK_EQ(step_at, 8);
+
+    check_case = "dead zone: after a press's quiet";
+    memset(&r, 0, sizeof(r));
+    r.s = (struct wheel_state)WHEEL_STATE_INIT;
+    r.cfg = &dz4;
+    r.t = 5000000;
+    rig_read(&r, 0, 0, true);
+    for (int i = 0; i < 10; i++)
+        rig_read(&r, 50000, 1, true);               /* through it, turning */
+    r.button = 0x1000;
+    rig_read(&r, 10000, 0, true);
+    r.button = 0;
+    rig_read(&r, 10000, 0, true);
+    rig_read(&r, rig_press_ticks_on(&r, PRESS_QUIET_TICKS + 1), 0, true);
+    step_at = 0;
+    for (int i = 1; i <= 12 && !step_at; i++)
+    {
+        rig_read(&r, 50000, 1, true);
+        if (r.ev.direction)
+            step_at = i;
+    }
+    CHECK_EQ(step_at, 8);
+
+    /* the gap rule's fresh start arms it again: through the zone, a jump of
+       12 places after 70 ms dropped, then the zone's 4 and a step's 4 */
+    check_case = "dead zone: after the gap rule";
+    memset(&r, 0, sizeof(r));
+    r.s = (struct wheel_state)WHEEL_STATE_INIT;
+    r.cfg = &dz4;
+    r.t = 5000000;
+    rig_read(&r, 0, 0, true);
+    for (int i = 0; i < 10; i++)
+        rig_read(&r, 50000, 1, true);
+    rig_read(&r, 70000, 12, true);
+    CHECK_EQ(r.ev.direction, 0);
+    step_at = 0;
+    for (int i = 1; i <= 12 && !step_at; i++)
+    {
+        rig_read(&r, 50000, 1, true);
+        if (r.ev.direction)
+            step_at = i;
+    }
+    CHECK_EQ(step_at, 8);
+
+    /* today's driver: High until the settings, a slow turn 24 steps; Low, 15,
+       the first 4 places gone and 6 a step; Medium, 23, the 4 gone and 4 a
+       step; a change to High halfway through a step taken at the next
+       reading, from where the finger is then */
+    static struct world w;
+    world_init(&w, "driver alone, wheel sensitivity", 0x58000000,
+               (1u << 29) + (1u << 27));
+    w.driver_only = true;
+    w.draw_min = w.draw_max = 1000;
+    real_wheel_send_events(true);
+    check_case = "wheel sensitivity: High";
+    lift(&w, 10000);
+    wait_us(&w, 1000000);
+    touch(&w, 10000, 0);
+    turn(&w, 96, 400, 4000000);
+    lift(&w, 10000);
+    wait_us(&w, 1000000);
+    CHECK_EQ(sum_steps(&w), 24);
+    CHECK(real_test_wheel_config()->sensitivity == 4
+          && !real_test_wheel_config()->dead_zone);
+    check_case = "wheel sensitivity: Low";
+    real_button_wheel_sensitivity(WHEEL_SENSITIVITY_LOW);
+    w.ev_n = 0;
+    touch(&w, 10000, 0);
+    turn(&w, 96, 400, 4000000);
+    lift(&w, 10000);
+    wait_us(&w, 1000000);
+    CHECK_EQ(sum_steps(&w), 15);
+    CHECK(real_test_wheel_config()->sensitivity == 6
+          && real_test_wheel_config()->dead_zone);
+    check_case = "wheel sensitivity: Medium";
+    real_button_wheel_sensitivity(WHEEL_SENSITIVITY_MEDIUM);
+    w.ev_n = 0;
+    touch(&w, 10000, 0);
+    turn(&w, 96, 400, 4000000);
+    lift(&w, 10000);
+    wait_us(&w, 1000000);
+    CHECK_EQ(sum_steps(&w), 23);
+    CHECK(real_test_wheel_config()->sensitivity == 4
+          && real_test_wheel_config()->dead_zone);
+    real_button_wheel_sensitivity(WHEEL_SENSITIVITY_LOW);
+    check_case = "wheel sensitivity: changed mid-turn";
+    w.ev_n = 0;
+    touch(&w, 10000, 0);
+    turn(&w, 9, 9, 450000);                     /* the zone's 4, then 5 of 6 */
+    CHECK_EQ(sum_steps(&w), 0);
+    real_button_wheel_sensitivity(WHEEL_SENSITIVITY_HIGH);
+    turn(&w, 1, 1, 50000);                      /* taken here: a touch's first */
+    CHECK_EQ(sum_steps(&w), 0);
+    turn(&w, 3, 3, 150000);
+    CHECK_EQ(sum_steps(&w), 0);
+    turn(&w, 1, 1, 50000);                      /* 4 from there */
+    CHECK_EQ(sum_steps(&w), 1);
+    CHECK(real_test_wheel_config()->sensitivity == 4      /* High: no zone */
+          && !real_test_wheel_config()->dead_zone);
+    lift(&w, 10000);
+    wait_us(&w, 1000000);
+
+    /* a game's run as plugin_load() has it, with the setting at Low: its
+       value kept, High while the game runs, a slow turn its 24 steps; then
+       the value given back, the turn 15 again */
+    check_case = "wheel sensitivity: a game's run";
+    real_button_wheel_sensitivity(WHEEL_SENSITIVITY_LOW);
+    const int kept = real_button_wheel_get_sensitivity();
+    CHECK_EQ(kept, WHEEL_SENSITIVITY_LOW);
+    real_button_wheel_sensitivity(WHEEL_SENSITIVITY_HIGH);
+    CHECK_EQ(real_button_wheel_get_sensitivity(), WHEEL_SENSITIVITY_HIGH);
+    w.ev_n = 0;
+    touch(&w, 10000, 0);
+    turn(&w, 96, 400, 4000000);
+    lift(&w, 10000);
+    wait_us(&w, 1000000);
+    CHECK_EQ(sum_steps(&w), 24);
+    CHECK(real_test_wheel_config()->sensitivity == 4
+          && !real_test_wheel_config()->dead_zone);
+    real_button_wheel_sensitivity(kept);
+    w.ev_n = 0;
+    touch(&w, 10000, 0);
+    turn(&w, 96, 400, 4000000);
+    lift(&w, 10000);
+    wait_us(&w, 1000000);
+    CHECK_EQ(sum_steps(&w), 15);
+    CHECK(real_test_wheel_config()->sensitivity == 6
+          && real_test_wheel_config()->dead_zone);
     check_case = NULL;
 }
 
@@ -1312,6 +1627,8 @@ static void behaviour(void)
     CHECK_EQ(wheel_list_rows(0, 13000, 9).rows, 1);
     feel();
     presses();
+    step6();
+    dead_zone();
     check_case = NULL;
 }
 
@@ -1434,7 +1751,7 @@ static void session(struct world *w)
     }
 }
 
-/* plugin: buttons held, the finger rolling under them, in a plugin, where
+/* plugin: buttons held, the finger rolling under them, in a game, where
    today's driver has no quiet (button_wheel_press_quiet(false)): the base's
    steps, the drivers in step */
 static void random_sessions(uint64_t seed, long min_posts, bool plugin)
@@ -1449,7 +1766,7 @@ static void random_sessions(uint64_t seed, long min_posts, bool plugin)
     long sessions = 0;
     char name[64];
     snprintf(name, sizeof(name), "random%s, seed %" PRIu64,
-             plugin ? " in a plugin" : "", seed);
+             plugin ? " in a game" : "", seed);
     w.name = name;
     while (w.posts < min_posts && !w.failed)
     {
@@ -1460,7 +1777,7 @@ static void random_sessions(uint64_t seed, long min_posts, bool plugin)
     world_done(&w);
     printf("wheel      random%s: seed %" PRIu64 ", %ld sessions, %ld packets, "
            "%ld posts, %ld steps, %.1f min, USEC_TIMER came round %d times\n",
-           plugin ? " in a plugin, buttons held" : "",
+           plugin ? " in a game, buttons held" : "",
            seed, sessions, w.packets, w.posts, w.steps, w.t / 6e7,
            (int)(((uint64_t)w.usec0 + w.t) >> 32));
     if (w.failed)

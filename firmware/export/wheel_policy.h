@@ -111,18 +111,21 @@ static inline bool wheel_packet_pressed(uint32_t packet)
    its inner edge; the few places it went were a step, and the list Menu went
    back to opened on its row and moved by one. The wheel follows the finger
    meanwhile, so the next step counts from where it is then, and nothing held
-   back comes out later. Not in a plugin (button_wheel_press_quiet()), whose
-   games turn the wheel with a button held, but Cover Flow and Photos, places
-   of the main menu's (plugin_load()). To be tuned on the iPod; the host test
-   takes it from here */
+   back comes out later. Not in a game (button_wheel_press_quiet()), which
+   turns the wheel with a button held; in every other plugin, Cover Flow,
+   Photos and the text viewers among them (plugin_load()). To be tuned on
+   the iPod; the host test takes it from here */
 #define WHEEL_PRESS_QUIET_USEC 150000
 
 /* what differs by model */
 struct wheel_config {
     int clicks;              /* places in a turn: 96 */
-    int sensitivity;         /* places a step, at least: 4, 6 on a nano */
+    int sensitivity;         /* places a step, at least: by Wheel
+                                Sensitivity, 4 or (Low) 6 on the Video and
+                                the Photo, 6 or 9 on a nano */
     unsigned int accel_start;/* degrees a second, WHEEL_ACCEL_START */
     uint32_t stage_usec;     /* a stage's time: WHEEL_STAGE_USEC */
+    bool dead_zone;          /* the dead zone at a touch's start */
 };
 
 /* The driver's. Written only where it reads the wheel, in its interrupt; the
@@ -145,9 +148,11 @@ struct wheel_state {
     uint32_t untouch_tick;   /* when the finger lifted */
     bool pressed;            /* a button down, or let go a moment ago: no
                                 steps, the wheel following the finger, but in
-                                a plugin (press_quiet) */
+                                a game (press_quiet) */
     bool down;               /* a button down at the last reading */
     uint32_t release_tick;   /* the first reading with none after one */
+    bool dz_armed;           /* the dead zone not yet gone through */
+    int dz_acc;              /* the places gone in it */
 };
 #define WHEEL_STATE_INIT { .old = -1 }
 
@@ -178,5 +183,17 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
 
 /* the click wheel driver's state, for the debug screen */
 const struct wheel_state *button_wheel_state(void);
+/* Settings > General > Wheel Sensitivity, its values in the setting's order:
+   Low, a step of 6 places and the dead zone; Medium, 4 and the dead zone;
+   High, 4 and none, the wheel as it was. Taken at the driver's next reading.
+   The games (their folder, plugin_load()) run at High, made for the wheel
+   as it was; every other plugin, as Cover Flow, Photos and the text
+   viewers, keeps the setting */
+enum {
+    WHEEL_SENSITIVITY_LOW, WHEEL_SENSITIVITY_MEDIUM, WHEEL_SENSITIVITY_HIGH
+};
+void button_wheel_sensitivity(int sensitivity);
+/* the one given last, which a plugin's run gives back after it */
+int button_wheel_get_sensitivity(void);
 
 #endif /* _WHEEL_POLICY_H_ */

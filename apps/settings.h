@@ -1155,6 +1155,9 @@ struct user_settings
     /* Settings > Appearance > Battery Percentage: the level beside the
        battery in the status lines (the skins' %St) */
     bool battery_percentage;
+    /* Settings > General > Wheel Sensitivity: WHEEL_SENSITIVITY_LOW, MEDIUM
+       or HIGH (wheel_policy.h) */
+    int wheel_sensitivity;
 };
 
 /* global settings */

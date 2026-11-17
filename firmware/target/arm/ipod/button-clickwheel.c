@@ -69,6 +69,12 @@
 #else
 #define WHEEL_SENSITIVITY 4 /* default sensitivity */
 #endif
+/* Settings > General > Wheel Sensitivity: Low, the default, a step half as
+   far again, 6 of the 96 places (16 a turn, the nano's own), and the dead
+   zone at a touch's start (wheel_policy.c); Medium, WHEEL_SENSITIVITY's
+   step, 24 a turn, and the dead zone; High, that step and no dead zone, the
+   wheel as it was */
+#define WHEEL_STEP_LOW (WHEEL_SENSITIVITY * 3 / 2)
 
 /* Over WHEEL_ACCEL_START, a turn a second, each WHEEL_STAGE_USEC of it doubles
    the rows a step goes, as far as a list lets it (wheel_policy.c). 0.4 s, the
@@ -79,12 +85,30 @@
 /* What the wheel's turns make (wheel_policy.c): its state, written only here,
    in the interrupt */
 static struct wheel_state wheel = WHEEL_STATE_INIT;
-static const struct wheel_config wheel_config = {
+/* its step and dead zone by Wheel Sensitivity, High until the settings are
+   applied (button_wheel_sensitivity()) */
+static struct wheel_config wheel_config = {
     .clicks      = WHEELCLICKS_PER_ROTATION,
     .sensitivity = WHEEL_SENSITIVITY,
     .accel_start = WHEEL_ACCEL_START,
     .stage_usec  = WHEEL_STAGE_USEC,
 };
+
+/* Wheel Sensitivity, written by the UI and taken by the interrupt at its next
+   reading, where the turn so far is dropped and that reading is a touch's
+   first: a step's remainder and the carry are in the old step's places */
+static volatile int wheel_sensitivity_wanted = WHEEL_SENSITIVITY_HIGH;
+static int wheel_sensitivity = WHEEL_SENSITIVITY_HIGH; /* the interrupt's */
+
+void button_wheel_sensitivity(int sensitivity)
+{
+    wheel_sensitivity_wanted = sensitivity;
+}
+
+int button_wheel_get_sensitivity(void)
+{
+    return wheel_sensitivity_wanted;
+}
 
 /* Variable to use for setting button status in interrupt handler */
 static int int_btn = BUTTON_NONE;
@@ -182,6 +206,21 @@ static inline int ipod_4g_button_read(void)
                room for (wheel_policy.c); and a finger lifted */
             in.tick = current_tick;
             in.press_quiet = button_wheel_is_press_quiet();
+            if (wheel_sensitivity_wanted != wheel_sensitivity)
+            {
+                /* another sensitivity, from where the finger is */
+                wheel_sensitivity = wheel_sensitivity_wanted;
+                wheel_config.sensitivity =
+                    wheel_sensitivity == WHEEL_SENSITIVITY_LOW ? WHEEL_STEP_LOW
+                                                               : WHEEL_SENSITIVITY;
+                wheel_config.dead_zone = wheel_sensitivity != WHEEL_SENSITIVITY_HIGH;
+                wheel.old      = -1;
+                wheel.delta    = 0;
+                wheel.carry    = 0;
+                wheel.velocity = 0;
+                wheel.stage    = 0;
+                wheel.last_dir = 0;
+            }
             wheel_read(&wheel, &wheel_config, &in, &ev);
 
             if (ev.direction)

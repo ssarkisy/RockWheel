@@ -68,5 +68,7 @@ int real_button_read_device(void);
 void real_wheel_send_events(bool send);
 const struct wheel_state *real_button_wheel_state(void);
 const struct wheel_config *real_test_wheel_config(void);
+void real_button_wheel_sensitivity(int sensitivity);
+int real_button_wheel_get_sensitivity(void);
 
 #endif

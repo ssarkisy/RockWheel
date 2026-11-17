@@ -703,7 +703,7 @@ bool button_wheel_is_fine(void)
 }
 
 /* no steps under a pressed button and a moment after (wheel_policy.h),
-   except in a plugin */
+   except in a game */
 static volatile bool wheel_press_quiet = true;
 
 void button_wheel_press_quiet(bool quiet)

@@ -21,6 +21,7 @@
 #include "config.h"
 #include <stdbool.h>
 #include "string-extra.h"
+#include "wheel_policy.h" /* button_wheel_sensitivity() */
 #include "system.h"
 #include "storage.h"
 #include "lang.h"
@@ -1220,6 +1221,18 @@ static void battery_percentage_changed(bool on)
     (void)on;
     skin_request_full_update(CUSTOM_STATUSBAR);
     skin_request_full_update(WPS);
+}
+#endif
+
+#if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI)
+/* Wheel Sensitivity, at once */
+static void wheel_sensitivity_changed(int sensitivity)
+{
+#ifndef SIMULATOR
+    button_wheel_sensitivity(sensitivity);
+#else
+    (void)sensitivity;
+#endif
 }
 #endif
 
@@ -2849,6 +2862,16 @@ const struct settings_list settings[] = {
                    UI_THEME_CLASSIC, "ui theme", "classic,modern,neo,dieter", ui_theme_changed,
                    UI_THEME_COUNT, ID2P(LANG_THEME_CLASSIC), ID2P(LANG_THEME_MODERN),
                    ID2P(LANG_THEME_NEO), ID2P(LANG_THEME_DIETER)),
+#if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI)
+    /* Settings > General: Low, the default, a step 6 of the click wheel's 96
+       places, 16 a turn, and the first 4 places of a touch dropped; Medium,
+       4, 24 a turn, and the 4 dropped; High, 4 and none dropped, the wheel as
+       it was (wheel_policy.h's order) */
+    CHOICE_SETTING(0, wheel_sensitivity, LANG_WHEEL_SENSITIVITY,
+                   WHEEL_SENSITIVITY_LOW, "wheel sensitivity", "low,medium,high",
+                   wheel_sensitivity_changed, 3, ID2P(LANG_WHEEL_SENSITIVITY_LOW),
+                   ID2P(LANG_WHEEL_SENSITIVITY_MEDIUM), ID2P(LANG_WHEEL_SENSITIVITY_HIGH)),
+#endif
     /* Music > Albums' first row, Sort By, and nowhere in Settings */
     CHOICE_SETTING(0, albums_sort, LANG_SORT_BY, 0, "albums sort",
                    "year,name,artist", NULL, 3, ID2P(LANG_SORT_YEAR),

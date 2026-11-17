@@ -859,6 +859,9 @@ MAKE_MENU(settings_playback, ID2P(LANG_PLAYBACK), NULL, Icon_NOICON,
 /* General: the wheel and the buttons, the dark screen's and the sleep's, and
    Search's. Battery Capacity right above Turn Off After Sleep, whose Auto
    goes by it */
+#if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI)
+MENUITEM_SETTING(wheel_sensitivity_item, &global_settings.wheel_sensitivity, NULL);
+#endif
 MAKE_MENU(settings_general, ID2P(LANG_GENERAL_SETTINGS), NULL, Icon_NOICON,
 #ifdef HAVE_BACKLIGHT
           &wake_screen_item, &return_to_wps_item,
@@ -871,6 +874,9 @@ MAKE_MENU(settings_general, ID2P(LANG_GENERAL_SETTINGS), NULL, Icon_NOICON,
 #endif
 #ifdef HAVE_TAGCACHE
           &smart_search_item,
+#endif
+#if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI)
+          &wheel_sensitivity_item,
 #endif
           &ipod_keyclick_menu);
 

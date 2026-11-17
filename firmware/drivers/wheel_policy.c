@@ -151,6 +151,16 @@ struct wheel_rows wheel_list_rows(unsigned int data, int items, int lines)
    stopped whenever the queue was full, they didn't go on as a long list was
    drawn whole each step */
 #define WHEEL_STALL_USEC 150000
+/* The dead zone (wheel_config.dead_zone, Wheel Sensitivity's Low and
+   Medium), Apple's iPod classic 6G wheel decoder's as read from its disassembly
+   (github.com/davidmonterocrespo24/qemu-ipod-classic,
+   include/hw/arm/ipod_classic/ipod_classic_wheel.h): at a touch's start,
+   and after any lift, a reading's move of WHEEL_DZ_PASS places goes through
+   at once; smaller ones add up, and once they come to WHEEL_DZ those are
+   dropped and what is past them goes on. Here also after a press's quiet,
+   and after the gap rule's fresh start, as from a touch */
+#define WHEEL_DZ_PASS 6
+#define WHEEL_DZ      4
 
 static inline bool after(uint32_t a, uint32_t b)
 {
@@ -168,8 +178,8 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
 
     /* a button down, or let go under WHEEL_PRESS_QUIET_USEC ago: from the
        first reading without it, as the controller may send none while a
-       finger holds a button still. Kept in a plugin too, which has no quiet
-       (button_wheel_press_quiet()): Menu let go there, as a plugin quits on
+       finger holds a button still. Kept in a game too, which has no quiet
+       (button_wheel_press_quiet()): Menu let go there, as a game quits on
        its release, is quiet in the screen it goes back to. The ticks since
        then counted unsigned, as after() would hold it on once 2^31 of them
        had gone by without a reading */
@@ -187,6 +197,8 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
     if (!wheel_packet_touched(in->packet))
     {
         /* In this case the finger was lifted from the scrollwheel. */
+        s->dz_armed = true;
+        s->dz_acc = 0;
         if (s->touched)
             s->untouch_tick = in->tick;
         s->touched = false;
@@ -196,6 +208,7 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
 
     const uint32_t usec = in->usec;
     const int position = wheel_packet_position(in->packet);
+    const int before = s->position;     /* the dead zone's */
     s->position = position;
 
     /* Check whether the scrollwheel was untouched by accident or by will. */
@@ -224,6 +237,8 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
         /* scrollwheel was touched for the first time after finger lifting */
         s->old = position;
         s->touched = true;
+        s->dz_armed = true;
+        s->dz_acc = 0;
         ev->new_touch = true;
         ev->stage = s->stage;
         return;
@@ -238,8 +253,37 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
         s->velocity = 0;
         s->stage    = 0;
         s->last_dir = 0;
+        s->dz_armed = true;
+        s->dz_acc   = 0;
         ev->stage = s->stage;
         return;
+    }
+
+    if (config->dead_zone && s->dz_armed)
+    {
+        /* the finger followed until it has gone through the zone */
+        int move = position - before;
+        if (move < -config->clicks / 2)
+            move += config->clicks;
+        else if (move > config->clicks / 2)
+            move -= config->clicks;
+        if (move >= WHEEL_DZ_PASS || move <= -WHEEL_DZ_PASS)
+            s->dz_armed = false;
+        else
+        {
+            s->dz_acc += move;
+            if (s->dz_acc < WHEEL_DZ && s->dz_acc > -WHEEL_DZ)
+            {
+                s->old = position;
+                s->delta = 0;
+                ev->stage = s->stage;
+                return;
+            }
+            const int past = s->dz_acc > 0 ? s->dz_acc - WHEEL_DZ
+                                           : s->dz_acc + WHEEL_DZ;
+            s->old = (position - past + config->clicks) % config->clicks;
+            s->dz_armed = false;
+        }
     }
 
     const int clicks = config->clicks;
@@ -259,20 +303,25 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
     {
         s->old = position;
         delta = 0;
+        /* a fresh start, so the dead zone's again: the move that passed it
+           is the one dropped here */
+        s->dz_armed = true;
+        s->dz_acc = 0;
     }
     s->delta = delta;
     /* the steps it went, and what's left of one stays: a step
-       is four of the wheel's 96, and a turn 24 of them, however
-       its readings come: 15 degrees a row, as Apple's web iPod
-       has it, and the research's best fit for Apple's 5.5G
-       firmware run in an emulator, with a dead zone at a
-       touch's start, which isn't here */
+       is sensitivity of the wheel's 96 places, 6 at Wheel
+       Sensitivity's Low (16 a turn) and 4 at Medium and High
+       (24), however its readings come. 15 degrees a row is
+       Apple's web iPod's, and the research's best fit for
+       Apple's 5.5G firmware run in an emulator, with a dead zone
+       at a touch's start, as Low and Medium have here */
     const int direction = delta < 0 ? -1 : 1;
 
     /* Fine, half a step as far (button_wheel_fine), but the first
-       one way, after a touch, the other way or a pause: four of
-       the 96 still, as a finger at rest went back and forth by
-       twos, or crept on */
+       one way, after a touch, the other way or a pause: a whole
+       step still, sensitivity places, as a finger at rest went
+       back and forth by twos, or crept on */
     const int step = in->fine ? sensitivity / 2 : sensitivity;
     const bool going_on =
         s->last_dir == direction

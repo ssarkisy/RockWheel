@@ -107,10 +107,10 @@ long button_wheel_untouched_ticks(void);
 void button_wheel_fine(bool fine);
 bool button_wheel_is_fine(void);
 /* No steps under a pressed button and WHEEL_PRESS_QUIET_USEC after it, the
-   finger's press and not a turn: on except while a plugin runs
-   (plugin_load()), as its games turn the wheel with a button held, but Cover
-   Flow and Photos. The click wheel's driver reads it, and plugin_load() to
-   put it back */
+   finger's press and not a turn: on except while a game runs
+   (plugin_load(), the games' folder), as games turn the wheel with a button
+   held; on in every other plugin, as Cover Flow and Photos. The click
+   wheel's driver reads it, and plugin_load() to put it back */
 void button_wheel_press_quiet(bool quiet);
 bool button_wheel_is_press_quiet(void);
 #endif

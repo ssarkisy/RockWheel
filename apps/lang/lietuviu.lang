@@ -18448,3 +18448,73 @@
     ipodcolor: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_WHEEL_SENSITIVITY
+  desc: a setting of Settings > General: how far the click wheel turns for a row, and whether a touch's first few places are dropped; its values Low, Medium and High
+  user: core
+  <source>
+    *: "Wheel Sensitivity"
+  </source>
+  <dest>
+    *: "Ratuko jautrumas"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WHEEL_SENSITIVITY_LOW
+  desc: a value of Settings > General > Wheel Sensitivity, its default: a row each 6 of the wheel's 96 places, and the first 4 places of a touch dropped, the least twitchy
+  user: core
+  <source>
+    *: "Low"
+  </source>
+  <dest>
+    *: "Mažas"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WHEEL_SENSITIVITY_MEDIUM
+  desc: a value of Settings > General > Wheel Sensitivity: a row each 4 of the wheel's 96 places, and the first 4 places of a touch dropped
+  user: core
+  <source>
+    *: "Medium"
+  </source>
+  <dest>
+    *: "Vidutinis"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WHEEL_SENSITIVITY_HIGH
+  desc: a value of Settings > General > Wheel Sensitivity: a row each 4 of the wheel's 96 places from the first, the most sensitive, as the wheel was before
+  user: core
+  <source>
+    *: "High"
+  </source>
+  <dest>
+    *: "Didelis"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_WHEEL_SENSITIVITY
+  desc: the hint in the band under Settings > General while Wheel Sensitivity is selected, in three lines at most: what the user gets from it. Low and High are LANG_WHEEL_SENSITIVITY_LOW's and LANG_WHEEL_SENSITIVITY_HIGH's words; a light touch: a finger set on the wheel, which Low's first places dropped don't move a row (a press is quiet at every level, so not named here); earlier versions: RockWheel's before this setting
+  user: core
+  <source>
+    *: "Low: calmer, a light touch doesn't move the list. High: as in earlier versions."
+  </source>
+  <dest>
+    *: "Mažas: ramiau, lengvas prisilietimas sąrašo nepajudina. Didelis: kaip anksčiau."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

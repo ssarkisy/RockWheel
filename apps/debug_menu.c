@@ -2512,7 +2512,7 @@ static bool dbg_scrollwheel(void)
 
         /* show effective accelerated scrollspeed */
         lcd_putsf(0, 6, "accel. speed: %4d", 1 << wheel->stage);
-        /* no steps: a button down, or let go a moment ago, but in a plugin */
+        /* no steps: a button down, or let go a moment ago, but in a game */
         lcd_putsf(0, 7, "button quiet: %s%s",
                   wheel->pressed && button_wheel_is_press_quiet() ? "yes" : "no",
                   wheel->down ? ", down" : "");
