@@ -42,9 +42,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..", "..")
 
 # what the list code draws, by the manifest's names; "Catalogue Marks" is drawn
-# here (catalogue_marks() below), not exported
+# here (catalogue_marks() below), not exported. "Shuffle" is the status line's,
+# which the iPod photo's main menu has before Songs and Albums beside its pane,
+# in every theme
 LIST = ("Chevron", "Speaker", "Catalogue Marks", "Smart Gear", "Episode Dots",
-        "Note Small", "Note Header", "Check", "Plus", "Search Keys")
+        "Note Small", "Note Header", "Check", "Plus", "Search Keys", "Shuffle")
 # its width in Neo, a pixel narrower than Classic's and Modern's, as Neo's
 # glyphs are; and "Smart Gear" (smart_gear() below)
 NEO_CATALOGUE_W = 12

@@ -15945,6 +15945,142 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_RESUME
+  desc: the main menu's row for Resume Playback on the iPod photo, beside the pane, where the long name was cut: a short word for going back to the music that was playing; spoken as Resume Playback
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Resume"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Jätka"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_NOW_PLAYING_SHORT
+  desc: the main menu's row for Now Playing on the iPod photo, beside the pane: a short name where Now Playing was cut there, else the same as Now Playing; spoken as Now Playing
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Now Playing"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Praegu mängib"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EXTRAS_SHORT
+  desc: the main menu's row for Extras on the iPod photo, beside the pane: a short name where Extras was cut there, else the same as Extras; spoken as Extras
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Extras"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Lisad"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SETTINGS_SHORT
+  desc: the main menu's row for Settings on the iPod photo, beside the pane: a short name where Settings was cut there, else the same as Settings; spoken as Settings
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Settings"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Seaded"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PHOTOS_SHORT
+  desc: the main menu's row for Photos on the iPod photo, beside the pane: a short name where Photos was cut there, else the same as Photos; spoken as Photos
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Photos"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Fotod"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLISTS_SHORT
+  desc: the main menu's row for Playlists on the iPod photo, beside the pane: a short name where Playlists was cut there, else the same as Playlists; spoken as Playlists
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Playlists"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Esitusloendid"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_AUDIOBOOKS_SHORT
+  desc: the main menu's row for Audiobooks on the iPod photo, beside the pane: a short name where Audiobooks was cut there, else the same as Audiobooks; spoken as Audiobooks
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Audiobooks"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Raamatud"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PODCASTS_SHORT
+  desc: the main menu's row for Podcasts on the iPod photo, beside the pane: a short name where Podcasts was cut there, else the same as Podcasts; spoken as Podcasts
+  user: core
+  <source>
+    *: none
+    ipodcolor: "Podcasts"
+  </source>
+  <dest>
+    *: none
+    ipodcolor: "Saated"
+  </dest>
+  <voice>
+    *: none
+    ipodcolor: ""
+  </voice>
+</phrase>
+<phrase>
   id: LANG_HINT_WHEEL_SENSITIVITY
   desc: the hint in the band under Settings > General while Wheel Sensitivity is selected, in three lines at most: what the user gets from it. Low and High are LANG_WHEEL_SENSITIVITY_LOW's and LANG_WHEEL_SENSITIVITY_HIGH's words; a light touch: a finger set on the wheel, which Low's first places dropped don't move a row (a press is quiet at every level, so not named here); earlier versions: RockWheel's before this setting
   user: core

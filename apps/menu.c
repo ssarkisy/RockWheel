@@ -358,6 +358,79 @@ static int setting_row_name(const struct settings_list *setting)
     return setting->lang_id;
 }
 
+#ifdef UI_MAIN_MENU_PANE
+/* The iPod photo's main menu beside its pane, its list narrower than the
+   Video's: its row there (GO_TO_...), -1 for another or with the menu across
+   the screen, Cover Beside Menu off */
+static int pane_row(const struct menu_item_ex *menu,
+                    const struct menu_item_ex *item)
+{
+    if (menu != &root_menu_ || menu_theme_wide()
+        || (item->flags & MENU_TYPE_MASK) != MT_RETURN_VALUE)
+        return -1;
+    return item->value;
+}
+
+/* Its names there that were cut beside the pane, of the rows that have one:
+   Shuffle Songs and Shuffle Albums as Songs and Albums after the shuffle
+   glyph (pane_mark()), and the others' short names, which a language has
+   where its full one was cut, or the full one again. Composers keeps its
+   full name where it doesn't fit, cut as any long row is: with "…" in the
+   themes that end long rows so (UI_METRIC_ROW_RIGHT), bare in Classic and
+   Dieter. Spoken in full, by the rows' own phrases (talk_menu_item()) */
+static const char *pane_name(const struct menu_item_ex *menu,
+                             const struct menu_item_ex *item)
+{
+    switch (pane_row(menu, item))
+    {
+#if defined(HAVE_TAGCACHE) && defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+        case GO_TO_SHUFFLE_SONGS:
+            return str(LANG_SONGS);
+        case GO_TO_SHUFFLE_ALBUMS:
+            return str(LANG_ALBUMS);
+#endif
+        case GO_TO_WPS: /* as get_wps_item_name() has them */
+            return str(audio_status() ? LANG_NOW_PLAYING_SHORT : LANG_RESUME);
+        case GO_TO_MAINMENU:
+            return str(LANG_SETTINGS_SHORT);
+        case GO_TO_EXTRAS:
+            return str(LANG_EXTRAS_SHORT);
+        case GO_TO_PLAYLISTS_SCREEN:
+            return str(LANG_PLAYLISTS_SHORT);
+#ifdef HAVE_PHOTOS_MENU
+        case GO_TO_PHOTOS:
+            return str(LANG_PHOTOS_SHORT);
+#endif
+#ifdef HAVE_TAGCACHE
+        case GO_TO_PODCASTS:
+            return str(LANG_PODCASTS_SHORT);
+        case GO_TO_AUDIOBOOKS:
+            return str(LANG_AUDIOBOOKS_SHORT);
+#endif
+        default:
+            return NULL;
+    }
+}
+
+/* the shuffle glyph before Songs and Albums there; the Video's rows keep
+   their full names, Shuffle Songs and Shuffle Albums, without it */
+static int pane_mark(int selected_item, void *data)
+{
+    const struct menu_item_ex *menu = (const struct menu_item_ex *)data;
+    switch (pane_row(menu, menu->submenus[get_menu_selection(selected_item, menu)]))
+    {
+#if defined(HAVE_TAGCACHE) && defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+        case GO_TO_SHUFFLE_SONGS:
+            return LINE_MARK_SHUFFLE_SONGS;
+        case GO_TO_SHUFFLE_ALBUMS:
+            return LINE_MARK_SHUFFLE_ALBUMS;
+#endif
+        default:
+            return LINE_MARK_NONE;
+    }
+}
+#endif /* UI_MAIN_MENU_PANE */
+
 static const char* get_menu_item_name(int selected_item,
                                       void * data,
                                       char *buffer,
@@ -385,7 +458,14 @@ static const char* get_menu_item_name(int selected_item,
         return name;
     }
     if (type == MT_MENU)
+    {
+#ifdef UI_MAIN_MENU_PANE
+        const char *brief = pane_name(menu, menu->submenus[selected_item]);
+        if (brief)
+            return brief;
+#endif
         menu = menu->submenus[selected_item];
+    }
 
     if ((menu->flags&MENU_DYNAMIC_DESC) && (type != MT_SETTING_W_TEXT))
         return menu->menu_get_name_and_icon->list_get_name(selected_item,
@@ -858,6 +938,10 @@ static int init_menu_lists(const struct menu_item_ex *menu,
 
     gui_synclist_init(lists,get_menu_item_name,(void*)menu,false,1, parent);
     gui_synclist_set_before_draw(lists, panel_before_draw);
+#ifdef UI_MAIN_MENU_PANE
+    if (menu == &root_menu_)
+        gui_synclist_set_mark_callback(lists, pane_mark);
+#endif
     if (menu_wide() && menu_has_hints(menu))
         gui_synclist_set_hint_callback(lists, menu_hint);
     if (menu_shows_values(menu) || menu_has_groups(menu)

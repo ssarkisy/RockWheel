@@ -1208,6 +1208,15 @@ int line_mark_column(struct screen *display, int mark)
     if (mark < LINE_MARK_NEW)
         return line_mark_width(display);
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+#ifdef UI_MAIN_MENU_PANE
+    if (display->screen_type == SCREEN_MAIN && mark >= LINE_MARK_SHUFFLE_SONGS)
+    {
+        /* a space of the name's font after it */
+        int space;
+        font_getstringsize(" ", &space, NULL, (*display->current_viewport)->font);
+        return NEO_SHUFFLE_W + space;
+    }
+#endif
     /* none where the theme has a cursor's column: the marks stand there */
     if (display->screen_type == SCREEN_MAIN && !ui_metric(UI_METRIC_SELECTION_DOT))
         return DOT_W + STATE_GAP;
@@ -1263,6 +1272,43 @@ static void draw_state(struct screen *display, int x, int y,
     display->set_foreground(fg);
     display->set_drawmode(DRMODE_SOLID);
 }
+
+#ifdef UI_MAIN_MENU_PANE
+static bool glyph_ink(int font, ucschar_t ch, int *top, int *bottom);
+
+/* The shuffle glyph before Songs or Albums at the start of its column, the
+   names' end of it right to left, in the iPod photo's main menu beside its
+   pane (menu.c pane_mark()); Neo's in every theme. In the colour of the name
+   after it, and in the middle of its capitals, as the name is placed
+   (print_line()) */
+static void draw_shuffle(struct screen *display, int x, int y,
+                         const struct line_desc *line, int mark)
+{
+    const int column = line_mark_column(display, mark);
+    if (!column)
+        return;
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    int glyph_y = y + (height - NEO_SHUFFLE_H) / 2 + line->text_dy;
+    int top, bottom;
+    if (glyph_ink((*display->current_viewport)->font, 'H', &top, &bottom))
+        glyph_y = y + height/2 - display->getcharheight()/2 + line->text_dy
+                  + (top + bottom + 2 - NEO_SHUFFLE_H) / 2;
+    const unsigned fg = display->get_foreground();
+    if (line->style & (STYLE_GRADIENT|STYLE_COLORBAR)
+        || (line->style & (STYLE_COLORED|STYLE_INVERT)) == STYLE_COLORED)
+        display->set_foreground(line->text_color);
+    else if (line->style & STYLE_INVERT) /* as the text on the bar */
+        display->set_foreground(display->get_background());
+    display->set_drawmode(DRMODE_FG);
+    lcd_alpha_bitmap_part(neo_shuffle_alpha, 0,
+                          (mark - LINE_MARK_SHUFFLE_SONGS) * NEO_SHUFFLE_H,
+                          NEO_SHUFFLE_W,
+                          x + (lang_is_rtl() ? column - NEO_SHUFFLE_W : 0),
+                          glyph_y, NEO_SHUFFLE_W, NEO_SHUFFLE_H);
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+}
+#endif /* UI_MAIN_MENU_PANE */
 #endif
 
 /* in the middle of their column, in the colour of the names */
@@ -1270,6 +1316,13 @@ void line_draw_mark(struct screen *display, int x, int y,
                     const struct line_desc *line, int mark)
 {
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+#ifdef UI_MAIN_MENU_PANE
+    if (mark >= LINE_MARK_SHUFFLE_SONGS)
+    {
+        draw_shuffle(display, x, y, line, mark);
+        return;
+    }
+#endif
     if (mark >= LINE_MARK_NEW)
     {
         draw_state(display, x, y, line, mark);
