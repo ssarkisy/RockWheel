@@ -193,7 +193,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 77
+#define PLUGIN_API_REVISION 78
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1150,6 +1150,14 @@ struct plugin_api {
     uint32_t (*covers_adler32)(uint32_t adler, const void *data, size_t size);
     uint32_t (*covers_file_check)(uint32_t file_size, uint32_t pic_pos,
                                   uint32_t pic_size);
+    /* the covers a computer prepared */
+    bool (*itunesdb_inbox_offered)(void);
+    bool (*itunesdb_inbox_trusted)(uint32_t mtime);
+    int (*itunesdb_inbox_find)(struct itunesdb_song_cover *song, uint32_t quick);
+    int (*itunesdb_inbox_take)(const struct itunesdb_song_cover *song,
+                               void *buf, size_t size);
+    bool (*itunesdb_scan_tags)(uint64_t path, uint32_t mtime,
+                               struct itunesdb_scan_tags *tags);
 #endif
     /* a song at the end of On-The-Go (on_the_go.h), as Cover Flow adds them */
     bool (*otg_add_file)(const char *path);

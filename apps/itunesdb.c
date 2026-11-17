@@ -48,6 +48,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include "logf.h"
+#include "audio.h"
 #include "lcd.h"
 #include "metadata.h"
 #include "fixedpoint.h"
@@ -397,11 +398,11 @@ uint64_t itunesdb_path_hash(const char *path)
     return hash;
 }
 
-/* the size and time of iTunesDB, which change with every sync */
-/* the size and time of a file of iTunesDB's folder, as the disk has them */
-static bool dir_file_stamp(const char *name, uint32_t *size, uint32_t *mtime)
+/* the size and time of a file of a folder, as the disk has them */
+static bool file_stamp_in(const char *folder, const char *name, uint32_t *size,
+                          uint32_t *mtime)
 {
-    DIR *dir = opendir(ITUNESDB_DIR);
+    DIR *dir = opendir(folder);
     if (!dir)
         return false;
     bool found = false;
@@ -417,6 +418,12 @@ static bool dir_file_stamp(const char *name, uint32_t *size, uint32_t *mtime)
     }
     closedir(dir);
     return found;
+}
+
+/* of iTunesDB's folder, whose iTunesDB changes with every sync */
+static bool dir_file_stamp(const char *name, uint32_t *size, uint32_t *mtime)
+{
+    return file_stamp_in(ITUNESDB_DIR, name, size, mtime);
 }
 
 /* iTunesDB was found in this boot, whether or not it was read then */
@@ -4778,6 +4785,10 @@ struct cover_entry {
                           2048))
 /* the large pictures at most, as a file's offsets stop at 2 GB */
 #define COVERS_LARGE_MAX ((uint32_t)(0x7fffffff / COVER_LARGE_SLOT))
+/* the covers a computer prepared (covers_table.h), and its file while it's
+   written */
+#define COVERS_INBOX     ROCKBOX_DIR "/covers_inbox.dat"
+#define COVERS_INBOX_TMP ROCKBOX_DIR "/covers_inbox.tmp"
 /* in a song's entry: seen by the making going on, which no file has */
 #define SONG_SEEN        0x80
 /* its file changed since its cover was made, which a making cut short
@@ -4809,8 +4820,8 @@ struct songs_header {
 struct song_record {
     uint64_t path;      /* itunesdb_path_hash() */
     uint32_t size;      /* of the file */
-    uint32_t mtime;     /* of the file, as the database has it; 0 for one a
-                           computer made, which the next making checks */
+    uint32_t mtime;     /* of the file, as the database has it; 0 for none
+                           known, read again by the next making */
     uint32_t pic_pos;   /* where the picture is in the file, 0 for the
                            folder's image */
     uint32_t pic_size;  /* its bytes */
@@ -7082,7 +7093,9 @@ static void songs_said_whole(uint32_t covers)
 void itunesdb_covers_skip(void)
 {
     /* none made for this database, as when there was no room for making them:
-       not taken for one cut short, which would be tried at every boot */
+       not taken for one cut short, which would be tried at every boot; nor
+       of the computer's */
+    itunesdb_covers_inbox_drop();
     if (!itunesdb_covers_stale())
         return;
     covers_load();
@@ -7121,6 +7134,7 @@ static uint32_t work_slots;
 /* below them, none free: where the next free one is looked for from */
 static uint32_t slot_hint, large_hint;
 static bool work_changed;   /* an album made or gone */
+static bool covers_no_room; /* none found on the disk for a picture */
 static bool work_marked;    /* the file said to be in the making */
 /* the entries the table on disk has, -1 when it isn't the one the making
    started from */
@@ -7342,10 +7356,14 @@ static bool songs_work_load(int songs, uint32_t *top)
     return true;
 }
 
+static void inbox_load(void);
+static void inbox_making_over(bool spent);
+
 bool itunesdb_covers_begin(int albums, int songs, bool images_changed)
 {
     itunesdb_covers_end(COVERS_CUT);
     covers_floor_kb = COVERS_FREE_MIN;
+    covers_no_room = false;
     /* as the file has it, which USB may have changed */
     forget_index(&covers_index);
     covers_load();
@@ -7471,9 +7489,13 @@ bool itunesdb_covers_begin(int albums, int songs, bool images_changed)
     if (dropped)
         work_disk_count = write_work() ? work_old : -1;
 #ifdef ITUNESDB_FINDER_LARGE
-    /* last: its allocations may move the making's */
+    /* after the rest: its allocations may move the making's */
     finder_work_load();
 #endif
+    /* the computer's, for a making of the songs: after the making's own
+       memory, which it may go without */
+    if (songs > 0)
+        inbox_load();
     return true;
 }
 
@@ -7695,6 +7717,7 @@ static bool covers_room_kb(off_t grow)
     if (free >= floor + grow / 1024 + 1)
         return true;
     library_no_room();
+    covers_no_room = true;
     return false;
 }
 
@@ -7729,29 +7752,34 @@ static bool covers_room_at(uint32_t slot, uint32_t large)
 }
 
 /* A slot's frame of bm's picture, w by h, and its slide, into the files, and
-   the colour of the slide; with art_lock held. A slide cut short by
-   switching off isn't taken for one: its header goes last, as make_slide()
-   writes it. */
+   the colour of the slide into *colour; with art_lock held. The slide as a
+   computer made it, if slide isn't NULL, for this size of the frame, *colour
+   then left as the caller has it; else both made of the frame here. A slide
+   cut short by switching off isn't taken for one: its header goes last, as
+   make_slide() writes it. */
 static bool write_frame(uint32_t slot, uint64_t key, const fb_data *frame,
-                        int fw, int fh, uint32_t *colour)
+                        int fw, int fh, const fb_data *slide,
+                        uint32_t *colour)
 {
     struct slide_header *head = (struct slide_header *)slide_slot;
     fb_data *pixels = (fb_data *)(slide_slot + sizeof(*head));
     memset(slide_slot, 0, sizeof(slide_slot));
     /* the slide, the largest that fits, keeping the shape */
-    int w = ITUNESDB_SLIDE_SIZE, h = ITUNESDB_SLIDE_SIZE;
-    if (fw > fh)
-        h = (w * fh + fw / 2) / fw;
+    int w, h;
+    covers_slide_fit(fw, fh, ITUNESDB_SLIDE_SIZE, &w, &h);
+    if (slide)
+        memcpy(pixels, slide, w * h * sizeof(fb_data));
     else
-        w = (h * fw + fh / 2) / fh;
-    cpu_boost(true);
-    scale_frame(frame, fw, fh, pixels, w, h, true);
-    cpu_boost(false);
+    {
+        cpu_boost(true);
+        scale_frame(frame, fw, fh, pixels, w, h, true);
+        cpu_boost(false);
+        *colour = cover_palette_colour(pixels, h, w);
+    }
     head->magic = 0;
     head->width = w;
     head->height = h;
     head->key = key;
-    *colour = cover_palette_colour(pixels, h, w);
     /* a frame read last of this place is another album's now */
     frame_path[0] = '\0';
     itunesdb_slides_done();
@@ -7813,7 +7841,7 @@ int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm)
         {
             lock_art();
             ok = write_frame(e.slot, key, (const fb_data *)bm->data,
-                             bm->width, bm->height, &e.colour);
+                             bm->width, bm->height, NULL, &e.colour);
             mutex_unlock(&art_lock);
         }
         if (ok)
@@ -7888,6 +7916,8 @@ static void songs_sort(void)
     songs_sorted = true;
 }
 
+static bool inbox_has(uint32_t size, uint32_t crc, uint32_t adler);
+
 int itunesdb_song_known(uint64_t path, uint32_t mtime, uint32_t source)
 {
     if (songs_handle <= 0)
@@ -7896,8 +7926,7 @@ int itunesdb_song_known(uint64_t path, uint32_t mtime, uint32_t source)
     if (i < 0)
         return 0;
     struct song_record *r = &song_records()[i];
-    /* one a computer made has no time of the iPod's: its picture is read
-       again, once, and not decoded if it is as said */
+    /* one whose file the database had no time of: read again */
     if (!r->mtime)
         return 0;
     /* changed: its cover isn't shown until it's made again, which a making
@@ -7927,6 +7956,13 @@ int itunesdb_song_known(uint64_t path, uint32_t mtime, uint32_t source)
         songs_changed = true;
     }
     r->word |= (uint32_t)SONG_SEEN << COVERS_FLAGS_SHIFT;
+    /* a picture that wasn't shown, which the computer's covers may have:
+       looked at again, and kept as it is if they haven't. One never summed,
+       a PNG, is looked for by its quick key. */
+    if (!COVERS_SLOT_OF(r->word) && COVERS_REASON_OF(r->word)
+        && itunesdb_inbox_offered()
+        && (!r->pic_size || inbox_has(r->pic_size, r->crc, r->adler)))
+        return 3;
     return 1;
 }
 
@@ -8010,14 +8046,22 @@ void itunesdb_song_making(const struct itunesdb_song_cover *song)
     close(fd);
 }
 
+/* The parts of a picture a computer made (the inbox's), each NULL for none
+   or for one of another size than made here: the frame, the slide, and the
+   slide's colour with it */
+struct prepared {
+    const fb_data *frame, *slide;
+    uint32_t colour;
+};
+
 /* A song's picture, bm, into p's slot: its frame, slide and colour made of
-   it, or with adopt only its large picture, the rest an album's cover of it
-   made before; the frame's size and the colour into p. Its large picture
-   into p's large place, if it has one and the picture is as large: else
-   none, p->large 0, the pane showing the frame larger. False for the frame
-   or slide not written. bm's pixels are changed. */
+   it, or taken from pre, or with adopt only its large picture, the rest an
+   album's cover of it made before; the frame's size and the colour into p.
+   Its large picture into p's large place, if it has one and the picture is
+   as large: else none, p->large 0, the pane showing the frame larger. False
+   for the frame or slide not written. bm's pixels are changed. */
 static bool write_picture(struct bitmap *bm, bool adopt,
-                          struct covers_picture *p)
+                          struct covers_picture *p, const struct prepared *pre)
 {
     const uint32_t slot = p->slot;
     const int w = bm->width, h = bm->height;
@@ -8030,20 +8074,29 @@ static bool write_picture(struct bitmap *bm, bool adopt,
            mean of those it covers; its slide and colour from it */
         fw = fh = FRAME_SIDE;
         covers_fit(w, h, &fw, &fh);
-        fb_data *frame = (fb_data *)frame_raw;
+        const fb_data *frame = pre ? pre->frame : NULL;
         frame_path[0] = '\0';
         frame_buf = NULL;
-        cpu_boost(true);
-        /* a picture smaller than the frame, which the decoder didn't make
-           larger, is scaled up */
-        if (fw <= w && fh <= h)
-            covers_area_scale((const fb_data *)bm->data, w, h, frame, fw, fh,
-                              (uint32_t *)slide_slot);
-        else
-            scale_frame((const fb_data *)bm->data, w, h, frame, fw, fh, false);
-        cpu_boost(false);
+        if (!frame)
+        {
+            fb_data *made = (fb_data *)frame_raw;
+            cpu_boost(true);
+            /* a picture smaller than the frame, which the decoder didn't
+               make larger, is scaled up */
+            if (fw <= w && fh <= h)
+                covers_area_scale((const fb_data *)bm->data, w, h, made, fw,
+                                  fh, (uint32_t *)slide_slot);
+            else
+                scale_frame((const fb_data *)bm->data, w, h, made, fw, fh,
+                            false);
+            cpu_boost(false);
+            frame = made;
+        }
+        const fb_data *slide = pre ? pre->slide : NULL;
+        if (slide)
+            p->colour = pre->colour;
         ok = write_frame(slot, ((uint64_t)p->crc << 32) | p->adler, frame, fw,
-                         fh, &p->colour);
+                         fh, slide, &p->colour);
         p->width = fw;
         p->height = fh;
     }
@@ -8086,8 +8139,10 @@ static bool write_picture(struct bitmap *bm, bool adopt,
     return ok;
 }
 
-int itunesdb_song_put(const struct itunesdb_song_cover *song,
-                      const struct bitmap *bm, int reason)
+/* itunesdb_song_put()'s, with the parts a computer made of bm, or NULL */
+static int song_put(const struct itunesdb_song_cover *song,
+                    const struct bitmap *bm, int reason,
+                    const struct prepared *pre)
 {
     if (songs_handle <= 0 || work_handle <= 0)
         return 0;
@@ -8135,7 +8190,7 @@ int itunesdb_song_put(const struct itunesdb_song_cover *song,
                put, the rest made at a boot with room. A song put as having
                none was so for good. */
             if (!made.slot || !covers_room_at(made.slot, made.large)
-                || !write_picture((struct bitmap *)bm, adopt, &made))
+                || !write_picture((struct bitmap *)bm, adopt, &made, pre))
             {
                 slot_drop(songs_used(), made.slot);
                 drop_large(made.large);
@@ -8152,6 +8207,468 @@ int itunesdb_song_put(const struct itunesdb_song_cover *song,
     }
     return song_record_put(song, COVERS_WORD(slot, slot ? 0 : reason, 0))
            ? 1 : 0;
+}
+
+int itunesdb_song_put(const struct itunesdb_song_cover *song,
+                      const struct bitmap *bm, int reason)
+{
+    return song_put(song, bm, reason, NULL);
+}
+
+/** The covers a computer prepared (covers_table.h): taken by the making
+    rather than decoded, each part only at the size it's made here, and the
+    file removed once a making is over, or as it can't be taken. **/
+
+/* the colours worked out as cover_palette_colour() does now: another way
+   of making them is another kind, and the computer's are made here again */
+#define COVERS_COLOUR_KIND 1
+
+static int inbox_handle;    /* its entries, during a making; then the rows */
+static uint32_t inbox_count;
+static uint32_t inbox_colour_kind;
+/* the file's time, as the disk has it: a picture in a file of a later time
+   came or changed after the computer's run, and is taken only by its sums,
+   read here */
+static uint32_t inbox_mtime;
+/* the file is done with, to be removed after the lists' covers */
+static bool inbox_spent;
+static int inbox_taken, inbox_refused, inbox_rows_taken, inbox_newer;
+/* after a making, the rows' covers of the pictures it took: by slot */
+struct inbox_row {
+    uint32_t slot, offset;
+};
+static uint32_t inbox_rows;
+
+static void inbox_free(void)
+{
+    if (inbox_handle > 0)
+        core_free(inbox_handle);
+    inbox_handle = 0;
+    inbox_count = inbox_rows = 0;
+}
+
+void itunesdb_covers_inbox_drop(void)
+{
+    inbox_free();
+    inbox_spent = false;
+    remove(COVERS_INBOX);
+    remove(COVERS_INBOX_TMP);
+}
+
+void itunesdb_covers_inbox_done(void)
+{
+    if (inbox_rows_taken)
+        health_note("covers: %d rows' covers taken from the computer's",
+                    inbox_rows_taken);
+    inbox_rows_taken = 0;
+    if (inbox_spent)
+        itunesdb_covers_inbox_drop();
+    else
+        inbox_free();
+}
+
+bool itunesdb_covers_inbox(void)
+{
+    return file_exists(COVERS_INBOX);
+}
+
+/* refused as a whole: removed, and said why */
+static void inbox_refuse(const char *why)
+{
+    health_note("covers: the computer's refused, %s", why);
+    itunesdb_covers_inbox_drop();
+}
+
+/* the file's entries into memory, for the making beginning */
+static void inbox_load(void)
+{
+    itunesdb_covers_inbox_done();
+    inbox_taken = inbox_refused = inbox_newer = 0;
+    /* one a computer's write was cut short in */
+    remove(COVERS_INBOX_TMP);
+    const int fd = open(COVERS_INBOX, O_RDONLY);
+    if (fd < 0)
+        return;
+    uint32_t time_size;
+    if (!file_stamp_in(ROCKBOX_DIR, strrchr(COVERS_INBOX, '/') + 1, &time_size,
+                       &inbox_mtime))
+    {
+        close(fd);
+        inbox_refuse("its time");
+        return;
+    }
+    struct covers_inbox_header h;
+    const off_t size = ffilesize(fd);
+    const bool ok = size > 0 && read(fd, &h, sizeof(h)) == sizeof(h)
+                    && covers_inbox_header_ok(&h, size, COVER_LARGE_SIDE);
+    const size_t bytes = ok ? h.count * sizeof(struct covers_inbox_entry) : 0;
+    const int handle = ok ? db_alloc(bytes) : 0;
+    bool read_ok = false;
+    if (handle > 0)
+    {
+        core_pin(handle);
+        struct covers_inbox_entry *e = core_get_data(handle);
+        read_ok = read(fd, e, bytes) == (ssize_t)bytes
+                  && covers_crc32(COVERS_CRC32_INIT, e, bytes) == h.index_crc
+                  && covers_inbox_entries_ok(e, h.count, size);
+        for (uint32_t i = 0; read_ok && i < h.count; i++)
+            e[i].unused = 0;
+        core_unpin(handle);
+    }
+    close(fd);
+    if (!ok || !read_ok)
+    {
+        if (handle > 0)
+            core_free(handle);
+        /* none for want of memory, the making going on as without one */
+        if (ok && handle <= 0)
+        {
+            health_note("covers: no memory for the computer's");
+            inbox_spent = true;
+            return;
+        }
+        inbox_refuse(ok ? "its entries" : "its header");
+        return;
+    }
+    inbox_handle = handle;
+    inbox_count = h.count;
+    inbox_colour_kind = h.colour_kind;
+    /* printable, whatever the file says */
+    char maker[sizeof(h.maker) + 1];
+    for (size_t i = 0; i < sizeof(h.maker); i++)
+        maker[i] = h.maker[i] >= ' ' && h.maker[i] < 0x7f ? h.maker[i]
+                   : h.maker[i] ? '?' : '\0';
+    maker[sizeof(h.maker)] = '\0';
+    health_note("covers: the computer's %lu pictures, by %s",
+                (unsigned long)h.count, maker);
+}
+
+/* a picture of these sums the inbox has, with its blocks or without */
+static bool inbox_has(uint32_t size, uint32_t crc, uint32_t adler)
+{
+    if (!itunesdb_inbox_offered())
+        return false;
+    core_pin(inbox_handle);
+    const bool has = covers_inbox_find_sums(core_get_data(inbox_handle),
+                                            inbox_count, size, crc, adler);
+    core_unpin(inbox_handle);
+    return has;
+}
+
+bool itunesdb_inbox_offered(void)
+{
+    return inbox_handle > 0 && inbox_count && !inbox_rows;
+}
+
+/* A picture in a file of that time known by its quick key: not one later
+   than the inbox's file, which came or changed after the computer's run,
+   nor one of a time not known (0) */
+static bool inbox_time_trusted(uint32_t mtime)
+{
+    return mtime && mtime <= inbox_mtime;
+}
+
+bool itunesdb_inbox_trusted(uint32_t mtime)
+{
+    if (!itunesdb_inbox_offered())
+        return false;
+    const bool trusted = inbox_time_trusted(mtime);
+    inbox_newer += !trusted;
+    return trusted;
+}
+
+int itunesdb_inbox_find(struct itunesdb_song_cover *song, uint32_t quick)
+{
+    if (!itunesdb_inbox_offered())
+        return 0;
+    /* a file of a later time than the computer's, or of one not known: not
+       known by its quick key, as it may have come or changed since */
+    if (!inbox_time_trusted(song->mtime))
+        return 0;
+    core_pin(inbox_handle);
+    const struct covers_inbox_entry *e =
+        covers_inbox_find(core_get_data(inbox_handle), inbox_count,
+                          song->pic_size, quick);
+    int found = 0;
+    if (e)
+    {
+        song->crc = e->crc;
+        song->adler = e->adler;
+        found = e->offset ? 1 : 2;
+    }
+    core_unpin(inbox_handle);
+    return found;
+}
+
+int itunesdb_inbox_take(const struct itunesdb_song_cover *song, void *buf,
+                        size_t size)
+{
+    if (!itunesdb_inbox_offered() || songs_handle <= 0 || work_handle <= 0)
+        return 0;
+    core_pin(inbox_handle);
+    struct covers_inbox_entry *base = core_get_data(inbox_handle);
+    const struct covers_inbox_entry *e =
+        covers_inbox_find_sums(base, inbox_count, song->pic_size, song->crc,
+                               song->adler);
+    const struct covers_inbox_entry entry = e ? *e : (struct covers_inbox_entry){ 0 };
+    const uint32_t at = e ? (uint32_t)(e - base) : 0;
+    core_unpin(inbox_handle);
+    if (!entry.offset)
+        return 0;
+    char *run = buf;
+    size_t room = size;
+    STORAGE_ALIGN_BUFFER(run, room);
+    struct covers_inbox_parts parts;
+    bool ok = entry.length <= room;
+    const int fd = ok ? open(COVERS_INBOX, O_RDONLY) : -1;
+    ok = fd >= 0 && lseek(fd, entry.offset, SEEK_SET) == (off_t)entry.offset
+         && read(fd, run, entry.length) == (ssize_t)entry.length
+         && covers_inbox_blocks(run, entry.length, entry.crc,
+                                COVER_LARGE_SIDE, &parts);
+    if (fd >= 0)
+        close(fd);
+    if (!ok)
+    {
+        /* read and decoded instead, as without one */
+        inbox_refused++;
+        return 0;
+    }
+    /* each of the others only at the size it's made of the large picture
+       here */
+    const int w = parts.width[COVERS_BLOCK_LARGE];
+    const int h = parts.height[COVERS_BLOCK_LARGE];
+    int fw = FRAME_SIDE, fh = FRAME_SIDE;
+    covers_fit(w, h, &fw, &fh);
+    int sw, sh;
+    covers_slide_fit(fw, fh, ITUNESDB_SLIDE_SIZE, &sw, &sh);
+    struct prepared pre = { NULL, NULL, COVER_COLOUR_UNKNOWN };
+    if (parts.pixels[COVERS_BLOCK_FRAME]
+        && parts.width[COVERS_BLOCK_FRAME] == fw
+        && parts.height[COVERS_BLOCK_FRAME] == fh)
+        pre.frame = parts.pixels[COVERS_BLOCK_FRAME];
+    if (parts.pixels[COVERS_BLOCK_SLIDE]
+        && parts.width[COVERS_BLOCK_SLIDE] == sw
+        && parts.height[COVERS_BLOCK_SLIDE] == sh
+        && inbox_colour_kind == COVERS_COLOUR_KIND)
+    {
+        pre.slide = parts.pixels[COVERS_BLOCK_SLIDE];
+        pre.colour = entry.colour;
+    }
+    struct bitmap bm = { .width = w, .height = h,
+                         .data = (unsigned char *)parts.pixels[COVERS_BLOCK_LARGE] };
+    /* said first, as before a decode: one that crashes the making twice is
+       given up */
+    itunesdb_song_making(song);
+    const int put = song_put(song, &bm, ITUNESDB_COVER_SHOWN, &pre);
+    if (put <= 0)
+        return put;
+    inbox_taken++;
+    /* where its row's cover is, by the slot it's in, for the lists' covers
+       made after the making */
+    const int k = song_find(song->path);
+    const uint32_t slot = k >= 0 ? COVERS_SLOT_OF(song_records()[k].word) : 0;
+    if (slot && parts.pixels[COVERS_BLOCK_ROW])
+    {
+        core_pin(inbox_handle);
+        struct covers_inbox_entry *t =
+            (struct covers_inbox_entry *)core_get_data(inbox_handle) + at;
+        t->unused = slot;
+        t->length = entry.offset + parts.at[COVERS_BLOCK_ROW];
+        core_unpin(inbox_handle);
+    }
+    return 1;
+}
+
+static int cmp_inbox_row(const void *a, const void *b)
+{
+    const uint32_t x = ((const struct inbox_row *)a)->slot;
+    const uint32_t y = ((const struct inbox_row *)b)->slot;
+    return (x > y) - (x < y);
+}
+
+/* The making over: the rows' covers of the pictures it took, by their
+   slots, in place of the entries, kept for the lists' covers made next */
+static void inbox_making_over(bool spent)
+{
+    inbox_spent |= spent;
+    /* none taken in by this making, or the rows of one before */
+    if (inbox_handle <= 0 || inbox_rows)
+        return;
+    core_pin(inbox_handle);
+    const struct covers_inbox_entry *e = core_get_data(inbox_handle);
+    struct inbox_row *rows = core_get_data(inbox_handle);
+    uint32_t n = 0;
+    for (uint32_t i = 0; i < inbox_count; i++)
+    {
+        /* the row's place first: they overlap */
+        const struct inbox_row row = { e[i].unused, e[i].length };
+        if (row.slot)
+            rows[n++] = row;
+    }
+    qsort(rows, n, sizeof(*rows), cmp_inbox_row);
+    core_unpin(inbox_handle);
+    inbox_rows = n;
+    /* the rest let go of, for the steps of Updating Library after it */
+    if (n)
+        core_shrink(inbox_handle, core_get_data(inbox_handle),
+                    n * sizeof(*rows));
+    if (inbox_taken || inbox_refused || inbox_newer)
+        health_note("covers: %d taken from the computer's, %d refused; %d "
+                    "lookups of pictures in files later than it or of no "
+                    "known time, by their sums only", inbox_taken,
+                    inbox_refused, inbox_newer);
+    if (!n)
+        inbox_free();
+}
+
+bool itunesdb_inbox_row(const struct itunesdb_art *art, void *pixels,
+                        int side)
+{
+    if (inbox_handle <= 0 || !inbox_rows || art->slide <= COVER_SLIDE_BASE
+        || strcmp(art->path, COVERS_FRAMES))
+        return false;
+    const uint32_t slot = art->slide - COVER_SLIDE_BASE;
+    core_pin(inbox_handle);
+    const struct inbox_row *rows = core_get_data(inbox_handle);
+    uint32_t lo = 0, hi = inbox_rows, offset = 0;
+    while (lo < hi && !offset)
+    {
+        const uint32_t mid = lo + (hi - lo) / 2;
+        if (rows[mid].slot == slot)
+            offset = rows[mid].offset;
+        else if (rows[mid].slot < slot)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    core_unpin(inbox_handle);
+    if (!offset)
+        return false;
+    struct covers_inbox_block b;
+    const ssize_t bytes = side * side * sizeof(fb_data);
+    const int fd = open(COVERS_INBOX, O_RDONLY);
+    const bool ok = fd >= 0 && lseek(fd, offset, SEEK_SET) == (off_t)offset
+                    && read(fd, &b, sizeof(b)) == sizeof(b)
+                    && b.magic == COVERS_BLOCK_MAGIC
+                    && b.kind == COVERS_BLOCK_ROW && b.width == side
+                    && b.height == side
+                    && read(fd, pixels, bytes) == bytes
+                    && b.crc == covers_crc32(COVERS_CRC32_INIT, pixels, bytes);
+    if (fd >= 0)
+        close(fd);
+    inbox_rows_taken += ok;
+    return ok;
+}
+
+/** The scan's tags of the songs it read, for the making after it **/
+
+struct scan_song {
+    uint64_t path;      /* itunesdb_path_hash() */
+    uint32_t mtime;
+    struct itunesdb_scan_tags tags;
+    uint32_t unused;
+};
+/* the most kept: the making reads the tags of any others */
+#define SCAN_SONGS_MAX 32768
+static int scan_handle, scan_count, scan_room;
+static bool scan_sorted;
+static bool scan_full;      /* no memory to keep more: none asked for again */
+
+void itunesdb_scan_forget(void)
+{
+    if (scan_handle > 0)
+        core_free(scan_handle);
+    scan_handle = scan_count = scan_room = 0;
+    scan_full = false;
+}
+
+void itunesdb_scan_song(const char *path, uint32_t mtime,
+                        const struct mp3entry *id3)
+{
+    /* nothing taken while music plays */
+    if ((audio_status() & AUDIO_STATUS_PLAY) || scan_full
+        || scan_count >= SCAN_SONGS_MAX)
+        return;
+    /* An ID3v2 tag whose Sort fields the scan read, which playback doesn't:
+       they take room in id3v2buf, where the picture's frame is read too, and
+       may change where it's found, or whether, which the song's check is
+       then compared with at playback. Without them the tag is read as
+       playback reads it. */
+    if (id3->id3v2len
+        && (id3->artist_sort || id3->albumartist_sort || id3->album_sort
+            || id3->title_sort || id3->composer_sort))
+        return;
+    if (scan_count >= scan_room)
+    {
+        const int room = MIN(scan_room ? 2 * scan_room : 1024, SCAN_SONGS_MAX);
+        const int handle = db_alloc(room * sizeof(struct scan_song));
+        if (handle <= 0)
+        {
+            /* those after it read by the making */
+            scan_full = true;
+            return;
+        }
+        if (scan_handle > 0)
+        {
+            memcpy(core_get_data(handle), core_get_data(scan_handle),
+                   scan_count * sizeof(struct scan_song));
+            core_free(scan_handle);
+        }
+        scan_handle = handle;
+        scan_room = room;
+    }
+    struct scan_song *e = (struct scan_song *)core_get_data(scan_handle)
+                          + scan_count++;
+    e->path = itunesdb_path_hash(path);
+    e->mtime = mtime;
+    e->tags.filesize = id3->filesize;
+    const bool own = id3->has_embedded_albumart;
+    e->tags.pic_pos = own ? id3->albumart.pos : 0;
+    e->tags.pic_size = own ? id3->albumart.size : 0;
+    e->tags.pic_type = own ? (int32_t)id3->albumart.type : -1;
+    e->unused = 0;
+    scan_sorted = false;
+}
+
+static int cmp_scan_song(const void *a, const void *b)
+{
+    const uint64_t x = ((const struct scan_song *)a)->path;
+    const uint64_t y = ((const struct scan_song *)b)->path;
+    return (x > y) - (x < y);
+}
+
+bool itunesdb_scan_tags(uint64_t path, uint32_t mtime,
+                        struct itunesdb_scan_tags *tags)
+{
+    if (scan_handle <= 0)
+        return false;
+    core_pin(scan_handle);
+    struct scan_song *e = core_get_data(scan_handle);
+    if (!scan_sorted)
+    {
+        qsort(e, scan_count, sizeof(*e), cmp_scan_song);
+        scan_sorted = true;
+    }
+    int lo = 0, hi = scan_count;
+    bool found = false;
+    while (lo < hi && !found)
+    {
+        const int mid = lo + (hi - lo) / 2;
+        if (e[mid].path == path)
+        {
+            /* of the file as the database has it */
+            found = e[mid].mtime == mtime;
+            if (found)
+                *tags = e[mid].tags;
+            break;
+        }
+        if (e[mid].path < path)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    core_unpin(scan_handle);
+    return found;
 }
 
 bool itunesdb_song_usable(uint64_t song)
@@ -8360,6 +8877,9 @@ void itunesdb_covers_end(int how)
         songs_work_free();
         return;
     }
+    /* the computer's done with after every song was looked at, or for want
+       of room, which they'd take; kept for the rest of one cut short */
+    inbox_making_over(how != COVERS_CUT || covers_no_room);
     const bool whole = how != COVERS_CUT;
     core_pin(work_handle);
     struct cover_work *w = work_entries();
@@ -8416,6 +8936,8 @@ void itunesdb_covers_end(int how)
         core_unpin(songs_handle);
     }
     songs_work_free();
+    /* before Finder's, which takes its table in memory again */
+    itunesdb_scan_forget();
 #ifdef ITUNESDB_FINDER_LARGE
     finder_work_end(how);
 #endif

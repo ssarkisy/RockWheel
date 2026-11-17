@@ -290,6 +290,280 @@ static void test_area_scale(void)
     CHECK_EQ(dst[0], 0x1234);
 }
 
+static void test_slide_fit(void)
+{
+    int w, h;
+    covers_slide_fit(200, 200, 136, &w, &h);
+    CHECK_EQ(w, 136);
+    CHECK_EQ(h, 136);
+    covers_slide_fit(200, 150, 136, &w, &h);
+    CHECK_EQ(w, 136);
+    CHECK_EQ(h, 102);
+    covers_slide_fit(150, 200, 99, &w, &h);
+    CHECK_EQ(w, 74);
+    CHECK_EQ(h, 99);
+    /* a frame 1 px wide or high: a pixel still, not none */
+    covers_slide_fit(1, 200, 99, &w, &h);
+    CHECK_EQ(w, 1);
+    CHECK_EQ(h, 99);
+    covers_slide_fit(200, 1, 99, &w, &h);
+    CHECK_EQ(w, 99);
+    CHECK_EQ(h, 1);
+}
+
+/** The computer's covers: a file made here as the installer makes one **/
+
+#define INBOX_SIDE 240
+static unsigned char inbox[1 << 22];
+
+/* a block of kind, w by h of colour c, for picture, at p: its length */
+static uint32_t put_block(unsigned char *p, int kind, int w, int h,
+                          fb_data c, uint32_t picture)
+{
+    struct covers_inbox_block b;
+    memset(&b, 0, sizeof(b));
+    b.magic = COVERS_BLOCK_MAGIC;
+    b.kind = kind;
+    b.width = w;
+    b.height = h;
+    b.picture = picture;
+    fb_data *px = (fb_data *)(p + sizeof(b));
+    for (int i = 0; i < w * h; i++)
+        px[i] = c;
+    b.crc = covers_crc32(COVERS_CRC32_INIT, px, w * h * sizeof(fb_data));
+    memcpy(p, &b, sizeof(b));
+    return sizeof(b) + ((w * h * sizeof(fb_data) + 31) & ~31u);
+}
+
+/* n pictures, each a large picture and a frame: the file's size */
+static uint32_t make_inbox(uint32_t n)
+{
+    memset(inbox, 0, sizeof(inbox));
+    struct covers_inbox_header *h = (struct covers_inbox_header *)inbox;
+    struct covers_inbox_entry *e = (struct covers_inbox_entry *)(h + 1);
+    uint32_t at = (sizeof(*h) + n * sizeof(*e) + COVERS_INBOX_ALIGN - 1)
+                  & ~(COVERS_INBOX_ALIGN - 1);
+    for (uint32_t i = 0; i < n; i++)
+    {
+        /* by size and then quick key: two of each size */
+        e[i].size = 1000 + i / 2;
+        e[i].quick = 7 * i;
+        e[i].crc = 0x1000 + i;
+        e[i].adler = 0x2000 + i;
+        e[i].offset = at;
+        uint32_t len = put_block(inbox + at, COVERS_BLOCK_LARGE, 24, 18,
+                                 (fb_data)i, e[i].crc);
+        len += put_block(inbox + at + len, COVERS_BLOCK_FRAME, 20, 15,
+                         (fb_data)~i, e[i].crc);
+        e[i].length = len;
+        at = (at + len + COVERS_INBOX_ALIGN - 1) & ~(COVERS_INBOX_ALIGN - 1);
+    }
+    h->magic = COVERS_INBOX_MAGIC;
+    h->version = COVERS_INBOX_VERSION;
+    h->header_size = sizeof(*h);
+    h->side = INBOX_SIDE;
+    h->format = COVERS_INBOX_RGB565;
+    h->count = n;
+    h->file_size = at;
+    h->index_crc = covers_crc32(COVERS_CRC32_INIT, e, n * sizeof(*e));
+    h->colour_kind = 1;
+    h->header_crc = covers_crc32(COVERS_CRC32_INIT, h,
+                                 offsetof(struct covers_inbox_header,
+                                          header_crc));
+    return at;
+}
+
+static void fix_header(void)
+{
+    struct covers_inbox_header *h = (struct covers_inbox_header *)inbox;
+    h->header_crc = covers_crc32(COVERS_CRC32_INIT, h,
+                                 offsetof(struct covers_inbox_header,
+                                          header_crc));
+}
+
+static void test_inbox_header(void)
+{
+    CHECK_EQ(sizeof(struct covers_inbox_header), 64);
+    CHECK_EQ(sizeof(struct covers_inbox_entry), 32);
+    CHECK_EQ(sizeof(struct covers_inbox_block), 32);
+    const uint32_t size = make_inbox(10);
+    struct covers_inbox_header *h = (struct covers_inbox_header *)inbox;
+    CHECK(covers_inbox_header_ok(h, size, INBOX_SIDE));
+    /* another screen's, another size of file, a byte changed */
+    CHECK(!covers_inbox_header_ok(h, size, 176));
+    CHECK(!covers_inbox_header_ok(h, size - 1, INBOX_SIDE));
+    CHECK(!covers_inbox_header_ok(h, size + 1, INBOX_SIDE));
+    h->count ^= 0x100;
+    CHECK(!covers_inbox_header_ok(h, size, INBOX_SIDE));
+    h->count ^= 0x100;
+    CHECK(covers_inbox_header_ok(h, size, INBOX_SIDE));
+    /* other versions and forms, with their crc right */
+    static const size_t fields[] = {
+        offsetof(struct covers_inbox_header, magic),
+        offsetof(struct covers_inbox_header, version),
+        offsetof(struct covers_inbox_header, header_size),
+        offsetof(struct covers_inbox_header, format),
+    };
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++)
+    {
+        uint32_t *f = (uint32_t *)(inbox + fields[i]);
+        const uint32_t was = *f;
+        *f = was + 1;
+        fix_header();
+        CHECK(!covers_inbox_header_ok(h, size, INBOX_SIDE));
+        *f = was;
+        fix_header();
+    }
+    /* no entries, too many, or more than the file holds */
+    const uint32_t count = h->count;
+    static const uint32_t counts[] = { 0, COVERS_INBOX_MAX + 1, 0x08000000 };
+    for (size_t i = 0; i < 3; i++)
+    {
+        h->count = counts[i];
+        fix_header();
+        CHECK(!covers_inbox_header_ok(h, size, INBOX_SIDE));
+    }
+    h->count = count;
+    fix_header();
+    CHECK(covers_inbox_header_ok(h, size, INBOX_SIDE));
+    /* a file at 2 GB or past it */
+    h->file_size = 0x80000000u;
+    fix_header();
+    CHECK(!covers_inbox_header_ok(h, 0x80000000u, INBOX_SIDE));
+}
+
+static void test_inbox_entries(void)
+{
+    const uint32_t size = make_inbox(10);
+    struct covers_inbox_entry *e =
+        (struct covers_inbox_entry *)(inbox + sizeof(struct covers_inbox_header));
+    CHECK(covers_inbox_entries_ok(e, 10, size));
+    /* out of order, twice the same, a size of 0 */
+    struct covers_inbox_entry t = e[3];
+    e[3] = e[4];
+    e[4] = t;
+    CHECK(!covers_inbox_entries_ok(e, 10, size));
+    e[4] = e[3];
+    CHECK(!covers_inbox_entries_ok(e, 10, size));
+    make_inbox(10);
+    e[0].size = 0;
+    CHECK(!covers_inbox_entries_ok(e, 10, size));
+    /* blocks not aligned, among the entries, past the end, too short */
+    make_inbox(10);
+    e[5].offset += 4;
+    CHECK(!covers_inbox_entries_ok(e, 10, size));
+    make_inbox(10);
+    e[5].offset = 0 + COVERS_INBOX_ALIGN * 0;
+    CHECK(covers_inbox_entries_ok(e, 10, size)); /* none: one the iPod has */
+    e[5].offset = COVERS_INBOX_ALIGN;
+    if (sizeof(struct covers_inbox_header) + 10 * sizeof(*e) > COVERS_INBOX_ALIGN)
+        CHECK(!covers_inbox_entries_ok(e, 10, size));
+    make_inbox(10);
+    e[9].length = size - e[9].offset + 1;
+    CHECK(!covers_inbox_entries_ok(e, 10, size));
+    make_inbox(10);
+    e[9].length = sizeof(struct covers_inbox_block) - 1;
+    CHECK(!covers_inbox_entries_ok(e, 10, size));
+    /* an offset and a length that wrap past 4 GB */
+    make_inbox(10);
+    e[9].length = 0xffffffffu - e[9].offset + 2;
+    CHECK(!covers_inbox_entries_ok(e, 10, size));
+}
+
+static void test_inbox_find(void)
+{
+    const uint32_t n = 1001;
+    make_inbox(n);
+    struct covers_inbox_entry *e =
+        (struct covers_inbox_entry *)(inbox + sizeof(struct covers_inbox_header));
+    for (uint32_t i = 0; i < n; i++)
+    {
+        CHECK(covers_inbox_find(e, n, e[i].size, e[i].quick) == &e[i]);
+        CHECK(covers_inbox_find_sums(e, n, e[i].size, e[i].crc, e[i].adler)
+              == &e[i]);
+        /* the same quick key with another size, the same size with another
+           key or other sums */
+        CHECK(!covers_inbox_find(e, n, e[i].size + 1000, e[i].quick));
+        CHECK(!covers_inbox_find(e, n, e[i].size, e[i].quick + 1));
+        CHECK(!covers_inbox_find_sums(e, n, e[i].size, e[i].crc, e[i].adler + 1));
+        CHECK(!covers_inbox_find_sums(e, n, e[i].size + 1000, e[i].crc,
+                                      e[i].adler));
+    }
+    CHECK(!covers_inbox_find(e, 0, e[0].size, e[0].quick));
+    CHECK(!covers_inbox_find_sums(e, 0, e[0].size, e[0].crc, e[0].adler));
+    /* the quick key: a picture under twice the part is summed whole */
+    CHECK(covers_quick_whole(2 * COVERS_QUICK_PART - 1));
+    CHECK(!covers_quick_whole(2 * COVERS_QUICK_PART));
+}
+
+static void test_inbox_blocks(void)
+{
+    make_inbox(3);
+    struct covers_inbox_entry *e =
+        (struct covers_inbox_entry *)(inbox + sizeof(struct covers_inbox_header));
+    struct covers_inbox_parts parts;
+    const unsigned char *run = inbox + e[1].offset;
+    CHECK(covers_inbox_blocks(run, e[1].length, e[1].crc, INBOX_SIDE, &parts));
+    CHECK_EQ(parts.width[COVERS_BLOCK_LARGE], 24);
+    CHECK_EQ(parts.height[COVERS_BLOCK_LARGE], 18);
+    CHECK_EQ(parts.width[COVERS_BLOCK_FRAME], 20);
+    CHECK(parts.pixels[COVERS_BLOCK_LARGE][0] == 1);
+    CHECK(parts.pixels[COVERS_BLOCK_FRAME][0] == (fb_data)~1u);
+    CHECK(parts.pixels[COVERS_BLOCK_SLIDE] == NULL);
+    CHECK(parts.at[COVERS_BLOCK_LARGE] == 0);
+    /* another picture's blocks */
+    CHECK(!covers_inbox_blocks(run, e[1].length, e[0].crc, INBOX_SIDE, &parts));
+    /* cut short: the frame's pixels lost, the large picture kept */
+    CHECK(covers_inbox_blocks(run, e[1].length - 1, e[1].crc, INBOX_SIDE,
+                              &parts));
+    CHECK(parts.pixels[COVERS_BLOCK_FRAME] == NULL);
+    CHECK(!covers_inbox_blocks(run, 40, e[1].crc, INBOX_SIDE, &parts));
+    /* a pixel of the frame changed: the frame passed over */
+    unsigned char *frame = inbox + e[1].offset
+                           + parts.at[COVERS_BLOCK_LARGE] + 32
+                           + ((24 * 18 * 2 + 31) & ~31) + 32;
+    frame[3] ^= 1;
+    CHECK(covers_inbox_blocks(run, e[1].length, e[1].crc, INBOX_SIDE, &parts));
+    CHECK(parts.pixels[COVERS_BLOCK_FRAME] == NULL);
+    frame[3] ^= 1;
+    /* a pixel of the large picture changed: none */
+    inbox[e[1].offset + 40] ^= 1;
+    CHECK(!covers_inbox_blocks(run, e[1].length, e[1].crc, INBOX_SIDE, &parts));
+    inbox[e[1].offset + 40] ^= 1;
+    /* a large picture larger than the screen's, or a frame above 200 */
+    make_inbox(1);
+    uint32_t len = put_block(inbox + e[0].offset, COVERS_BLOCK_LARGE, 241, 10,
+                             1, e[0].crc);
+    CHECK(!covers_inbox_blocks(inbox + e[0].offset, len, e[0].crc, INBOX_SIDE,
+                               &parts));
+    len = put_block(inbox + e[0].offset, COVERS_BLOCK_LARGE, 240, 10, 1,
+                    e[0].crc);
+    len += put_block(inbox + e[0].offset + len, COVERS_BLOCK_FRAME, 201, 10,
+                     1, e[0].crc);
+    /* a kind not known, then a slide and a row */
+    len += put_block(inbox + e[0].offset + len, 9, 4, 4, 1, e[0].crc);
+    len += put_block(inbox + e[0].offset + len, COVERS_BLOCK_SLIDE, 136, 6,
+                     1, e[0].crc);
+    len += put_block(inbox + e[0].offset + len, COVERS_BLOCK_ROW, 32, 32, 1,
+                     e[0].crc);
+    CHECK(covers_inbox_blocks(inbox + e[0].offset, len, e[0].crc, INBOX_SIDE,
+                              &parts));
+    CHECK(parts.pixels[COVERS_BLOCK_FRAME] == NULL);
+    CHECK_EQ(parts.width[COVERS_BLOCK_SLIDE], 136);
+    CHECK_EQ(parts.width[COVERS_BLOCK_ROW], 32);
+    /* the large picture not first */
+    len = put_block(inbox + e[0].offset, COVERS_BLOCK_FRAME, 20, 10, 1, e[0].crc);
+    len += put_block(inbox + e[0].offset + len, COVERS_BLOCK_LARGE, 24, 12,
+                     1, e[0].crc);
+    CHECK(!covers_inbox_blocks(inbox + e[0].offset, len, e[0].crc, INBOX_SIDE,
+                               &parts));
+    /* a block saying it's larger than what's left */
+    len = put_block(inbox + e[0].offset, COVERS_BLOCK_LARGE, 240, 240, 1,
+                    e[0].crc);
+    CHECK(!covers_inbox_blocks(inbox + e[0].offset, len - 32, e[0].crc,
+                               INBOX_SIDE, &parts));
+}
+
 int main(void)
 {
     check_time_limit(30);
@@ -299,5 +573,10 @@ int main(void)
     test_pictures();
     test_fit();
     test_area_scale();
+    test_slide_fit();
+    test_inbox_header();
+    test_inbox_entries();
+    test_inbox_find();
+    test_inbox_blocks();
     return check_done("covers");
 }

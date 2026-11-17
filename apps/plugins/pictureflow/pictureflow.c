@@ -8040,9 +8040,12 @@ static bool folder_png(const char *path, char *image, size_t size)
 }
 
 /* the stamp of the image file at path: its name, size and time, as a cover
-   saved again changes them; 0 for none */
-static uint32_t image_stamp(const char *path)
+   saved again changes them; 0 for none. Its time into *mtime, if not NULL,
+   as the disk has it, 0 for none */
+static uint32_t image_stamp_time(const char *path, uint32_t *mtime)
 {
+    if (mtime)
+        *mtime = 0;
     static char dir_path[MAX_PATH];
     const char *slash = rb->strrchr(path, '/');
     if (!slash)
@@ -8062,10 +8065,17 @@ static uint32_t image_stamp(const char *path)
         stamp = text_stamp(path, 2166136261u) ^ (uint32_t)info.size
                 ^ ((uint32_t)info.mtime * 40503u);
         stamp += !stamp; /* not 0, which is none */
+        if (mtime)
+            *mtime = info.mtime;
         break;
     }
     rb->closedir(dir);
     return stamp;
+}
+
+static uint32_t image_stamp(const char *path)
+{
+    return image_stamp_time(path, NULL);
 }
 
 /** Covers the core's decoder can't read, a PNG or a progressive JPEG, aren't
@@ -8138,6 +8148,8 @@ struct song_job {
     int32_t track;
     uint32_t mtime;
     bool images;    /* known, but its folder's image may give it another */
+    bool inbox;     /* known, its picture not shown: only looked for in the
+                       computer's covers */
 #ifdef ITUNESDB_FINDER_LARGE
     bool finder;    /* Finder has its cover: only the pane's picture made */
 #endif
@@ -8172,6 +8184,7 @@ static void collect_song_job(int idx_id, const int32_t *seek, void *data)
             job->track = idx_id;
             job->mtime = mtime;
             job->images = false;
+            job->inbox = false;
             job->finder = true;
         }
         return;
@@ -8191,6 +8204,7 @@ static void collect_song_job(int idx_id, const int32_t *seek, void *data)
     job->track = idx_id;
     job->mtime = mtime;
     job->images = known == 2;
+    job->inbox = known == 3;
 #ifdef ITUNESDB_FINDER_LARGE
     job->finder = false;
 #endif
@@ -8255,12 +8269,37 @@ static bool sum_picture(const char *file, off_t pos, uint32_t size, void *buf,
     return ok;
 }
 
-/* what the step took, for the health log: the decodes, and the reads of the
-   pictures' bytes */
+/* The quick key of a picture's bytes, read through buf: the computer's
+   covers know it by that and its size (covers_table.h) */
+static bool quick_picture(const char *file, off_t pos, uint32_t size,
+                          void *buf, size_t buf_size, uint32_t *quick)
+{
+    const uint32_t part = covers_quick_whole(size) ? size : COVERS_QUICK_PART;
+    if (!size || buf_size < part)
+        return false;
+    int fd = rb->open(file, O_RDONLY);
+    bool ok = fd >= 0 && rb->lseek(fd, pos, SEEK_SET) == pos
+              && rb->read(fd, buf, part) == (ssize_t)part;
+    *quick = ok ? rb->covers_crc32(COVERS_CRC32_INIT, buf, part) : 0;
+    if (ok && part < size)
+    {
+        const off_t end = pos + size - part;
+        ok = rb->lseek(fd, end, SEEK_SET) == end
+             && rb->read(fd, buf, part) == (ssize_t)part;
+        if (ok)
+            *quick = rb->covers_crc32(*quick, buf, part);
+    }
+    if (fd >= 0)
+        rb->close(fd);
+    return ok;
+}
+
+/* what the step took, for the health log: the decodes, the reads of the
+   pictures' bytes, and those taken from the computer's covers */
 static struct {
     long started;
-    int songs, pictures, sums, known;
-    long decode_ticks, sum_ticks, decode_most;
+    int songs, scanned, pictures, sums, known, taken;
+    long decode_ticks, sum_ticks, decode_most, take_ticks;
     int noted;
 #ifdef ITUNESDB_FINDER_LARGE
     /* the pane's pictures of Finder's songs */
@@ -8270,17 +8309,53 @@ static struct {
 } covers_time;
 #define COVERS_NOTED 12 /* pictures with a line each, the first ones */
 
-/* A picture tried for the song: its sums, and a decode at 240 px if no song
-   had it before. 1 made, or known; -1 no room left; 0 not decoded. */
+/* A picture tried for the song, in a file of that time, as the disk has it:
+   the computer's cover of it, found by its size and quick key and taken with
+   its sums as they say, unread, if the file's time is trusted; else its sums,
+   the computer's cover of those exact sums if the time isn't, and, with
+   decode, a decode at 240 px if no song had it before. 1 made, or known; -1
+   no room left; 0 not made. */
 static int song_picture(struct itunesdb_song_cover *song, const char *file,
                         off_t pos, uint32_t size, uint32_t source,
-                        const struct mp3_albumart *aa, void *buf,
-                        size_t buf_size)
+                        uint32_t file_mtime, const struct mp3_albumart *aa,
+                        bool decode, void *buf, size_t buf_size)
 {
     song->pic_pos = pos;
     song->pic_size = size;
     song->source = source;
     long t = *rb->current_tick;
+    uint32_t quick;
+    /* asked with the time of the picture's file, the song's own or its
+       folder's image's: one later than the computer's, or of no known time,
+       is taken only by its sums, read here */
+    struct itunesdb_song_cover asked = *song;
+    asked.mtime = file_mtime;
+    const bool offered = rb->itunesdb_inbox_offered();
+    const bool trusted = offered && rb->itunesdb_inbox_trusted(file_mtime);
+    const bool by_sums = offered && !trusted;
+    if (trusted && quick_picture(file, pos, size, buf, buf_size, &quick)
+        && rb->itunesdb_inbox_find(&asked, quick))
+    {
+        song->crc = asked.crc;
+        song->adler = asked.adler;
+        /* one made here already, by its sums */
+        if (rb->itunesdb_song_picture(song))
+        {
+            covers_time.known++;
+            return 1;
+        }
+        const int took = rb->itunesdb_inbox_take(song, buf, buf_size);
+        covers_time.take_ticks += *rb->current_tick - t;
+        if (took)
+        {
+            covers_time.taken += took > 0;
+            return took;
+        }
+        /* its blocks unsound, or none: read and decoded here */
+    }
+    if (!decode && !by_sums)
+        return 0;
+    t = *rb->current_tick;
     if (!sum_picture(file, pos, size, buf, buf_size, &song->crc, &song->adler))
         return 0;
     covers_time.sum_ticks += *rb->current_tick - t;
@@ -8290,6 +8365,20 @@ static int song_picture(struct itunesdb_song_cover *song, const char *file,
         covers_time.known++;
         return 1;
     }
+    /* the computer's of these very bytes, which need no trust */
+    if (by_sums)
+    {
+        t = *rb->current_tick;
+        const int took = rb->itunesdb_inbox_take(song, buf, buf_size);
+        covers_time.take_ticks += *rb->current_tick - t;
+        if (took)
+        {
+            covers_time.taken += took > 0;
+            return took;
+        }
+    }
+    if (!decode)
+        return 0;
     /* said first, so that a picture which crashes the decoder or hangs it
        is given up rather than tried at every boot */
     rb->itunesdb_song_making(song);
@@ -8316,70 +8405,152 @@ static int song_picture(struct itunesdb_song_cover *song, const char *file,
     return made < 0 ? -1 : 1;
 }
 
-/* the song's cover made, of its own picture or its folder's, or known why it
-   has none: -1 for no room left on the disk, which ends the making */
+/* The song's names as the database has them, which it took from its tags,
+   for the search of its folder's image: none for one it has none of */
+static void song_db_tags(int32_t track, const char *path, struct mp3entry *tags)
+{
+    static char album[TAGCACHE_BUFSZ], artist[TAGCACHE_BUFSZ],
+                albumartist[TAGCACHE_BUFSZ];
+    static const struct { int tag; char *buf; } names[] = {
+        { tag_album, album }, { tag_artist, artist },
+        { tag_albumartist, albumartist },
+    };
+    rb->memset(tags, 0, sizeof(*tags));
+    rb->strlcpy(tags->path, path, sizeof(tags->path));
+    if (tcs.valid || !rb->tagcache_search(&tcs, tag_filename))
+        return;
+    char *got[3] = { NULL, NULL, NULL };
+    for (int i = 0; i < 3; i++)
+    {
+        if (rb->tagcache_retrieve(&tcs, track, names[i].tag, names[i].buf,
+                                  TAGCACHE_BUFSZ)
+            && rb->strcmp(names[i].buf, UNTAGGED))
+            got[i] = names[i].buf;
+    }
+    rb->tagcache_search_finish(&tcs);
+    tags->album = got[0];
+    tags->artist = got[1];
+    /* the artist's for a song without, as the search takes it */
+    tags->albumartist = got[2];
+}
+
+/* The song's cover made, of its own picture or its folder's, or known why it
+   has none: -1 for no room left on the disk, which ends the making. One whose
+   picture wasn't shown is only looked for in the computer's covers, and kept
+   as it was if they haven't it. */
 static int make_song(const struct song_job *job, void *buf, size_t buf_size)
 {
     static char path[MAX_PATH], image[MAX_PATH];
+    static struct mp3entry db_tags;
     if (!song_path(job->track, path, sizeof(path)))
         return 0;
     struct itunesdb_song_cover song;
     rb->memset(&song, 0, sizeof(song));
     song.path = rb->itunesdb_path_hash(path);
     song.mtime = job->mtime;
-    /* known but for its folder, whose image it would have is the one it has */
-    if (job->images
-        && rb->itunesdb_song_known(song.path, job->mtime,
-                                   folder_source(job->track, path)) == 1)
-        return 1;
-    /* the tags as playback reads them, which a changed file differs by */
-    if (!rb->get_metadata(&id3, -1, path))
+    /* known but for its folder, whose image it would have is the one it has;
+       or one whose picture wasn't shown, for the computer's covers only */
+    bool inbox_only = job->inbox;
+    if (job->images)
+    {
+        const int known = rb->itunesdb_song_known(song.path, job->mtime,
+                                                  folder_source(job->track,
+                                                                path));
+        if (known == 1)
+            return 1;
+        inbox_only |= known == 3;
+    }
+    /* where its picture is, as the database's scan read it just now, or the
+       tags as playback reads them, which a changed file differs by */
+    struct itunesdb_scan_tags scan;
+    const struct mp3entry *tags = &id3;
+    if (rb->itunesdb_scan_tags(song.path, job->mtime, &scan))
+    {
+        song_db_tags(job->track, path, &db_tags);
+        db_tags.filesize = scan.filesize;
+        db_tags.has_embedded_albumart = scan.pic_type >= 0;
+        db_tags.albumart.type = scan.pic_type;
+        db_tags.albumart.pos = scan.pic_pos;
+        db_tags.albumart.size = scan.pic_size;
+        tags = &db_tags;
+        covers_time.scanned++;
+    }
+    else if (rb->get_metadata(&id3, -1, path))
+        covers_time.songs++;
+    else
         return 0;
-    covers_time.songs++;
-    const bool own = id3.has_embedded_albumart;
-    song.size = id3.filesize;
-    song.check = rb->covers_file_check(id3.filesize,
-                                       own ? id3.albumart.pos : 0,
-                                       own ? id3.albumart.size : 0);
+    const bool own = tags->has_embedded_albumart;
+    const bool decode = !inbox_only;
+    song.size = tags->filesize;
+    song.check = rb->covers_file_check(tags->filesize,
+                                       own ? tags->albumart.pos : 0,
+                                       own ? tags->albumart.size : 0);
     song.album = song_album(job->track, path);
     song.album_stamp = text_stamp(path, 2166136261u) ^ job->mtime;
     int reason = ITUNESDB_COVER_SHOWN, made;
     if (own)
     {
-        const struct mp3_albumart aa = id3.albumart;
-        if ((aa.type & AA_CLEAR_FLAGS_MASK) == AA_TYPE_JPG)
-        {
-            made = song_picture(&song, path, aa.pos, aa.size, 0, &aa, buf,
-                                buf_size);
-            if (made)
-                return made;
+        const struct mp3_albumart aa = tags->albumart;
+        const int type = aa.type & AA_CLEAR_FLAGS_MASK;
+        /* one the decoder can't read only from the computer's */
+        made = song_picture(&song, path, aa.pos, aa.size, 0, job->mtime, &aa,
+                            decode && type == AA_TYPE_JPG, buf, buf_size);
+        if (made)
+            return made;
+        if (type == AA_TYPE_JPG)
             reason = picture_kind(path, aa.pos);
-        }
         else
-            reason = (aa.type & AA_CLEAR_FLAGS_MASK) == AA_TYPE_PNG
-                     ? ITUNESDB_COVER_PNG : ITUNESDB_COVER_UNREADABLE;
+        {
+            reason = type == AA_TYPE_PNG ? ITUNESDB_COVER_PNG
+                                         : ITUNESDB_COVER_UNREADABLE;
+            /* never summed, as its entry says: looked for again by its
+               quick key in the computer's covers */
+            song.pic_pos = song.pic_size = song.crc = song.adler = 0;
+        }
     }
     /* the folder's image, the core's search's */
-    if (search_albumart_files(&id3, ":", image, sizeof(image)))
+    if (search_albumart_files(tags, ":", image, sizeof(image)))
     {
         const int fd = rb->open(image, O_RDONLY);
         const off_t size = fd >= 0 ? rb->ffilesize(fd) : 0;
         if (fd >= 0)
             rb->close(fd);
-        made = size > 0 ? song_picture(&song, image, 0, size,
-                                       image_stamp(image), NULL, buf, buf_size)
+        uint32_t image_mtime;
+        const uint32_t stamp = image_stamp_time(image, &image_mtime);
+        made = size > 0 ? song_picture(&song, image, 0, size, stamp,
+                                       image_mtime, NULL, decode, buf,
+                                       buf_size)
                         : 0;
         if (made)
             return made;
         if (!reason)
             reason = picture_kind(image, 0);
     }
-    /* a PNG beside it, which the search passes over */
+    /* a PNG beside it, which the search passes over: only the computer's */
     else if (!reason && folder_png(path, image, sizeof(image)))
     {
+        uint32_t image_mtime;
+        const uint32_t stamp = image_stamp_time(image, &image_mtime);
+        if (rb->itunesdb_inbox_offered())
+        {
+            const int fd = rb->open(image, O_RDONLY);
+            const off_t size = fd >= 0 ? rb->ffilesize(fd) : 0;
+            if (fd >= 0)
+                rb->close(fd);
+            made = size > 0 ? song_picture(&song, image, 0, size, stamp,
+                                           image_mtime, NULL, false, buf,
+                                           buf_size)
+                            : 0;
+            if (made)
+                return made;
+        }
         reason = ITUNESDB_COVER_PNG;
-        song.source = image_stamp(image);
+        song.source = stamp;
+        song.pic_pos = song.pic_size = song.crc = song.adler = 0;
     }
+    /* as it was, its entry kept: seen as it was asked */
+    if (inbox_only)
+        return 1;
     return rb->itunesdb_song_put(&song, NULL, reason) < 0 ? -1 : 1;
 }
 
@@ -8638,12 +8809,16 @@ static void prepare_covers(void)
     /* with songs left out for room, the albums not seen are kept */
     rb->itunesdb_covers_end(!whole ? COVERS_CUT
                             : all ? COVERS_WHOLE : COVERS_PARTLY);
-    if (covers_time.songs || covers_time.pictures)
-        rb->health_note("covers: %d songs read, %d pictures summed in %ld ms "
-                        "(%d known), %d decoded in %ld ms (the most %ld ms), "
-                        "the step %ld ms%s",
-                        covers_time.songs, covers_time.sums,
-                        covers_time.sum_ticks * 1000 / HZ, covers_time.known,
+    if (covers_time.songs || covers_time.scanned || covers_time.pictures
+        || covers_time.taken)
+        rb->health_note("covers: %d songs read, %d as the scan read them, "
+                        "%d pictures summed in %ld ms (%d known), %d taken "
+                        "from the computer's in %ld ms, %d decoded in %ld ms "
+                        "(the most %ld ms), the step %ld ms%s",
+                        covers_time.songs, covers_time.scanned,
+                        covers_time.sums, covers_time.sum_ticks * 1000 / HZ,
+                        covers_time.known, covers_time.taken,
+                        covers_time.take_ticks * 1000 / HZ,
                         covers_time.pictures,
                         covers_time.decode_ticks * 1000 / HZ,
                         covers_time.decode_most * 1000 / HZ,

@@ -41,6 +41,7 @@
 #include "tagcache.h"
 #include "health_log.h"
 #include "itunesdb.h"
+#include "audio.h"
 #include "smart_playlists.h"
 #include "library_playlists.h"
 #include "synced_covers.h"
@@ -178,6 +179,12 @@ void health_note(const char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     va_end(ap);
     fputc('\n', stderr);
+}
+
+/* no music playing */
+int audio_status(void)
+{
+    return 0;
 }
 
 /* the database: empty, not restoring */

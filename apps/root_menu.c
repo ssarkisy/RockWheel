@@ -2273,7 +2273,8 @@ static void library_update_screen(const char *words)
                               && tc->ready && tc->ramcache
                               && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock")
                               && (itunesdb_covers_stale()
-                                  || itunesdb_covers_images_changed());
+                                  || itunesdb_covers_images_changed()
+                                  || itunesdb_covers_inbox());
     /* and the covers of the lists' rows, made of Cover Flow's slides */
     const bool row_covers_stale = phase == TAGCACHE_IMPORT_NONE
                                   && list_covers_stale();
@@ -2293,14 +2294,20 @@ static void library_update_screen(const char *words)
     /* the album list of the new database, which Cover Flow itself makes:
        it isn't left for when Cover Flow opens; and the covers after it */
     if ((imported || covers_stale) && phase == TAGCACHE_IMPORT_NONE
-        && !no_space && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock")
-        && itunesdb_covers_room())
+        && !no_space && file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock"))
     {
-        library_update_show(str(LANG_PREPARING_ALBUMS), 0);
-        /* it clears the screen as it starts and ends: drawn whole again */
-        shown_text = NULL;
-        plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", ITUNESDB_ALBUM_LIST);
-        shown_text = NULL;
+        if (itunesdb_covers_room())
+        {
+            library_update_show(str(LANG_PREPARING_ALBUMS), 0);
+            /* it clears the screen as it starts and ends: drawn whole again */
+            shown_text = NULL;
+            plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock",
+                        ITUNESDB_ALBUM_LIST);
+            shown_text = NULL;
+        }
+        /* the computer's covers, which would take the room they need */
+        else
+            itunesdb_covers_inbox_drop();
     }
 #endif
     /* the rest after USB or switching off, come meanwhile: what they'd go
@@ -2419,6 +2426,12 @@ static void library_update_screen(const char *words)
         FOR_NB_SCREENS(i)
             viewportmanager_theme_undo(i, true);
     }
+#ifdef ITUNESDB_HAVE_ART
+    /* the computer's covers and the scan's tags, the lists' covers made of
+       them too */
+    itunesdb_covers_inbox_done();
+    itunesdb_scan_forget();
+#endif
     if (held_event)
     {
         const long event = held_event;

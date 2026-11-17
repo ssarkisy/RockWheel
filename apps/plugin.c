@@ -956,6 +956,11 @@ static const struct plugin_api rockbox_api = {
     covers_crc32,
     covers_adler32,
     covers_file_check,
+    itunesdb_inbox_offered,
+    itunesdb_inbox_trusted,
+    itunesdb_inbox_find,
+    itunesdb_inbox_take,
+    itunesdb_scan_tags,
 #endif
     otg_add_file,
     lang_extras_load,

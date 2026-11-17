@@ -331,3 +331,11 @@ utf8proc
 #if defined(HAVE_COMPOSITE_VIDEO_OUT)
 videoout
 #endif
+
+/* the covers a computer prepares for Updating Library to take, version 1 of
+   their file (apps/covers_table.h): the installer writes it only for a
+   firmware that lists this */
+#if defined(HAVE_ALBUMART) && defined(HAVE_TC_RAMCACHE) && (LCD_DEPTH == 16) \
+    && (LCD_PIXELFORMAT == RGB565)
+covers_inbox
+#endif

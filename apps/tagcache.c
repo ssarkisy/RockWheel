@@ -4185,6 +4185,13 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     }
 
     logf("-> %s", path);
+#if !defined(__PCTOOL__) && defined(ITUNESDB_HAVE_ART)
+    /* where its picture is, for the covers made after the scan, which then
+       needn't read its tags again: of the imports Updating Library shows,
+       whose end lets them go */
+    if (!finder && import_phase != TAGCACHE_IMPORT_NONE)
+        itunesdb_scan_song(path, mtime, &id3);
+#endif
 
     if (id3.tracknum < 0)              /* Track number missing? */
     {
@@ -8920,6 +8927,10 @@ void do_tagcache_build(const char *path[])
 
     scan_cut_short = false;
     scan_failed = false;
+#if !defined(__PCTOOL__) && defined(ITUNESDB_HAVE_ART)
+    /* the songs of a scan before, which the covers were made of */
+    itunesdb_scan_forget();
+#endif
     str_setlen(curpath, 0);
     data_size = 0;
     total_entry_count = 0;

@@ -1374,8 +1374,11 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
         if (!kept)
             kept = was >= 0 && lseek(old_fd, old_pos, SEEK_SET) == old_pos
                    && read(old_fd, cover, SLOT_SIZE) == SLOT_SIZE;
+        /* the computer's of a picture the making took, or made of its
+           slide */
         if (!kept && !(album_header_find_art(album_years_first_track(no), &art) > 0
-                       && make_cover(&art, cover, slide)))
+                       && (itunesdb_inbox_row(&art, cover, SIDE)
+                           || make_cover(&art, cover, slide))))
         {
             /* gone meanwhile, or unreadable: blank, with the note shown */
             memset(cover, 0xff, SLOT_SIZE);

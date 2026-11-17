@@ -339,7 +339,8 @@ struct itunesdb_song_cover {
 /* The song known as it is: 1 kept as it was; 0 to be made; 2 to be asked
    again with source, the stamp of its folder's image now (0 for none), when
    the images changed and its cover may come of one; source ~0 when not
-   known yet */
+   known yet; 3 one whose picture wasn't shown, to be looked for in the
+   computer's covers (below) and not decoded */
 int itunesdb_song_known(uint64_t path, uint32_t mtime, uint32_t source);
 /* 1 its picture is one made already, and the song has it now; 0 it is to be
    decoded; -1 a decode of it was cut short twice, by a crash or a hang, and
@@ -360,6 +361,48 @@ int itunesdb_song_put(const struct itunesdb_song_cover *song,
    of a picture not shown that wasn't before, 0 none. */
 bool itunesdb_song_usable(uint64_t song);
 int itunesdb_cover_of_song(uint64_t key, uint32_t stamp, uint64_t song);
+/* The covers a computer prepared (covers_table.h), taken by the making of
+   the songs rather than decoded. inbox() says the file waits, for Updating
+   Library to make the covers; offered() that the making has it. find() the
+   picture of song->pic_size bytes with that quick key: its sums into song,
+   1 with its pictures, 2 without them, as one made here; 0 none, as for a
+   picture whose file's time, song->mtime, isn't trusted (below). take() it
+   for the song, its sums as find() gave them or as read here, through buf:
+   1 put; 0 not, as it has no blocks, they were unsound, or
+   itunesdb_song_put() put nothing, to be made here; -1 as
+   itunesdb_song_put(). row() a list row's cover, side pixels square, of a
+   picture it took, into pixels, for the lists' covers made after the
+   making. done() as Updating Library ends, the file removed once a making
+   is over with it; drop() at once, as without room for the covers it'd
+   take. */
+bool itunesdb_covers_inbox(void);
+bool itunesdb_inbox_offered(void);
+/* whether a picture in a file of that time, as the disk has it, is known by
+   its quick key: not in one later than the inbox's file, nor of no known
+   time (0); one that isn't is taken only by its sums, read on the iPod */
+bool itunesdb_inbox_trusted(uint32_t mtime);
+int itunesdb_inbox_find(struct itunesdb_song_cover *song, uint32_t quick);
+int itunesdb_inbox_take(const struct itunesdb_song_cover *song, void *buf,
+                        size_t size);
+bool itunesdb_inbox_row(const struct itunesdb_art *art, void *pixels,
+                        int side);
+void itunesdb_covers_inbox_done(void);
+void itunesdb_covers_inbox_drop(void);
+/* Where the picture of a song the database's scan found new or changed is,
+   as its tags were read then: for the covers' making after it, in the same
+   Updating Library, which then needn't read them again. song() from the
+   scan, never while music plays; tags() for the making, by the song's path
+   and the time the scan saw; forget() as Updating Library ends. */
+struct itunesdb_scan_tags {
+    uint32_t filesize;
+    uint32_t pic_pos, pic_size;
+    int32_t pic_type;   /* albumart.type, -1 for no picture */
+};
+void itunesdb_scan_song(const char *path, uint32_t mtime,
+                        const struct mp3entry *id3);
+bool itunesdb_scan_tags(uint64_t path, uint32_t mtime,
+                        struct itunesdb_scan_tags *tags);
+void itunesdb_scan_forget(void);
 /* the images outside Finder's folder changed since the covers were made, by
    the check after USB: they're to be looked at again */
 bool itunesdb_covers_images_changed(void);

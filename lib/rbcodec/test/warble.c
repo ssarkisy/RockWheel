@@ -830,9 +830,20 @@ static void print_mp3entry(const struct mp3entry *id3, FILE *f)
     if (id3->vbr) fprintf(f, "VBR: true\n");
     if (id3->has_toc) fprintf(f, "Has TOC: true\n");
     if (id3->needs_upsampling_correction) fprintf(f, "Needs upsampling correction: true\n");
-    /* TODO: replaygain; albumart; cuesheet */
+#ifdef HAVE_ALBUMART
+    /* the picture's bytes as the parser places them, which Updating Library
+       sums and the computer's covers are known by */
+    if (id3->has_embedded_albumart)
+        fprintf(f, "Album art: type %d at %ld, %ld bytes\n",
+                (int)id3->albumart.type, (long)id3->albumart.pos,
+                (long)id3->albumart.size);
+#endif
+    /* TODO: replaygain; cuesheet */
     if (id3->mb_track_id) fprintf(f, "Musicbrainz track ID: %s\n", id3->mb_track_id);
 }
+
+/* -m: the file's tags printed, and nothing decoded */
+static bool metadata_only = false;
 
 static void decode_file(const char *input_fn)
 {
@@ -865,6 +876,8 @@ static void decode_file(const char *input_fn)
         exit(1);
     }
     print_mp3entry(&id3, stderr);
+    if (metadata_only)
+        exit(0);
     ci.filesize = ffilesize(input_fd);
     ci.id3 = &id3;
     if (use_dsp) {
@@ -920,11 +933,13 @@ static void print_help(const char *progname)
 {
     fprintf(stderr, "Usage:\n"
                     "        Play: %s [options] INPUTFILE\n"
+                    "        Tags: %s -m INPUTFILE\n"
                     "Write to WAV: %s [options] INPUTFILE OUTPUTFILE\n"
                     "\n"
                     "general options:\n"
                     "  -c a=1:b=2    Configuration (see below)\n"
                     "  -h            Show this help\n"
+                    "  -m            Print the tags and the album art's place only\n"
                     "\n"
                     "write to WAV options:\n"
                     "  -f            Write raw codec output converted to 64-bit float\n"
@@ -947,16 +962,19 @@ static void print_help(const char *progname)
                     "  %s in.adx -c loop=1:wait=44100:halt=1\n"
                     "  # Lower pitch 1 octave and write to out.wav\n"
                     "  %s in.ogg -c rate=0.5:tempo=2 out.wav\n"
-                    , progname, progname, progname, progname);
+                    , progname, progname, progname, progname, progname);
 }
 
 int main(int argc, char **argv)
 {
     int opt;
-    while ((opt = getopt(argc, argv, "c:fhr")) != -1) {
+    while ((opt = getopt(argc, argv, "c:fhmr")) != -1) {
         switch (opt) {
         case 'c':
             config = optarg;
+            break;
+        case 'm':
+            metadata_only = true;
             break;
         case 'f':
             use_dsp = false;
@@ -972,6 +990,10 @@ int main(int argc, char **argv)
         }
     }
 
+    if (metadata_only && argc == optind + 1) {
+        decode_file(argv[optind]);
+        return 0;
+    }
     if (argc == optind + 2) {
         write_init(argv[optind + 1]);
     } else if (argc == optind + 1) {

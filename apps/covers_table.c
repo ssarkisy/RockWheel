@@ -230,3 +230,145 @@ void covers_area_scale(const fb_data *src, int sw, int sh, fb_data *dst,
         }
     }
 }
+
+void covers_slide_fit(int fw, int fh, int side, int *w, int *h)
+{
+    *w = *h = side;
+    if (fw <= 0 || fh <= 0)
+        return;
+    /* a pixel at least, as a frame 1 px wide gives none at 99 */
+    if (fw > fh)
+        *h = (side * fh + fw / 2) / fw;
+    else
+        *w = (side * fw + fh / 2) / fh;
+    if (*w < 1)
+        *w = 1;
+    if (*h < 1)
+        *h = 1;
+}
+
+bool covers_inbox_header_ok(const struct covers_inbox_header *h,
+                            uint32_t file_size, uint32_t side)
+{
+    if (h->magic != COVERS_INBOX_MAGIC || h->version != COVERS_INBOX_VERSION
+        || h->header_size != sizeof(*h) || h->side != side
+        || h->format != COVERS_INBOX_RGB565 || !h->count
+        || h->count > COVERS_INBOX_MAX || h->file_size != file_size
+        || file_size > 0x7fffffffu
+        || h->header_crc != covers_crc32(COVERS_CRC32_INIT, h,
+                                         offsetof(struct covers_inbox_header,
+                                                  header_crc)))
+        return false;
+    return sizeof(*h) + (uint64_t)h->count * sizeof(struct covers_inbox_entry)
+           <= file_size;
+}
+
+static int cmp_key(uint32_t size, uint32_t quick,
+                   const struct covers_inbox_entry *e)
+{
+    if (size != e->size)
+        return size < e->size ? -1 : 1;
+    if (quick != e->quick)
+        return quick < e->quick ? -1 : 1;
+    return 0;
+}
+
+bool covers_inbox_entries_ok(const struct covers_inbox_entry *e, uint32_t n,
+                             uint32_t file_size)
+{
+    const uint64_t data = sizeof(struct covers_inbox_header)
+                          + (uint64_t)n * sizeof(*e);
+    for (uint32_t i = 0; i < n; i++)
+    {
+        if (!e[i].size || (i && cmp_key(e[i].size, e[i].quick, &e[i - 1]) <= 0))
+            return false;
+        if (!e[i].offset)
+            continue;
+        if (e[i].offset % COVERS_INBOX_ALIGN || e[i].offset < data
+            || e[i].length < sizeof(struct covers_inbox_block)
+            || (uint64_t)e[i].offset + e[i].length > file_size)
+            return false;
+    }
+    return true;
+}
+
+struct covers_inbox_entry *covers_inbox_find(struct covers_inbox_entry *e,
+                                             uint32_t n, uint32_t size,
+                                             uint32_t quick)
+{
+    uint32_t lo = 0, hi = n;
+    while (lo < hi)
+    {
+        const uint32_t mid = lo + (hi - lo) / 2;
+        const int c = cmp_key(size, quick, &e[mid]);
+        if (!c)
+            return &e[mid];
+        if (c > 0)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    return NULL;
+}
+
+struct covers_inbox_entry *covers_inbox_find_sums(struct covers_inbox_entry *e,
+                                                  uint32_t n, uint32_t size,
+                                                  uint32_t crc, uint32_t adler)
+{
+    /* the first of that size, then those after it */
+    uint32_t lo = 0, hi = n;
+    while (lo < hi)
+    {
+        const uint32_t mid = lo + (hi - lo) / 2;
+        if (e[mid].size < size)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    for (; lo < n && e[lo].size == size; lo++)
+    {
+        if (e[lo].crc == crc && e[lo].adler == adler)
+            return &e[lo];
+    }
+    return NULL;
+}
+
+bool covers_inbox_blocks(const void *run, uint32_t length, uint32_t picture,
+                         int side, struct covers_inbox_parts *parts)
+{
+    /* the most a part may be each way: the frame's box is 200 px whatever
+       the screen, and a slide or a row is no larger than the large picture */
+    static const int frame_side = 200;
+    memset(parts, 0, sizeof(*parts));
+    const unsigned char *p = run;
+    uint32_t at = 0;
+    while (length - at >= sizeof(struct covers_inbox_block))
+    {
+        struct covers_inbox_block b;
+        memcpy(&b, p + at, sizeof(b));
+        if (b.magic != COVERS_BLOCK_MAGIC)
+            break;
+        const uint32_t bytes = (uint32_t)b.width * b.height * sizeof(fb_data);
+        const uint32_t room = length - at - sizeof(b);
+        const uint32_t padded = (bytes + 31) & ~31u;
+        if (padded > room)
+            break;
+        const int most = b.kind == COVERS_BLOCK_FRAME ? frame_side : side;
+        const fb_data *pixels = (const fb_data *)(p + at + sizeof(b));
+        if (b.kind > 0 && b.kind < COVERS_BLOCK_KINDS && !parts->pixels[b.kind]
+            && b.width && b.height && b.width <= most && b.height <= most
+            && b.picture == picture
+            && b.crc == covers_crc32(COVERS_CRC32_INIT, pixels, bytes))
+        {
+            parts->pixels[b.kind] = pixels;
+            parts->width[b.kind] = b.width;
+            parts->height[b.kind] = b.height;
+            parts->at[b.kind] = at;
+        }
+        /* the large picture first, which the others are of */
+        if (!parts->pixels[COVERS_BLOCK_LARGE])
+            return false;
+        at += sizeof(b) + padded;
+    }
+    return parts->pixels[COVERS_BLOCK_LARGE] != NULL;
+}

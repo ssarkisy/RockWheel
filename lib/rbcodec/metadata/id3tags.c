@@ -1263,9 +1263,12 @@ retry_with_limit:
                 continue;
             }
             /* a Sort field, whose pointers are the last of the entry's, only
-               as it asks for them */
+               as it asks for them, and with room for it: met with the buffer
+               full it's passed over, as without them, rather than starting
+               the tag again with each item cut short, which would read the
+               rest, the picture's frame too, otherwise than playback does */
             if (tr->offset > offsetof(struct mp3entry, read_sort_fields)
-                && !entry->read_sort_fields)
+                && (!entry->read_sort_fields || bufferpos >= buffersize - 1))
                 continue;
 
             if( !memcmp( header, tr->tag, tr->tag_length ) ) {
