@@ -36,38 +36,38 @@
 # a podcast's or an audiobook's scrubber has the hints at the line's ends, and a shorter line
 %?kn<%?mw<%?mv(2.0)<|%Vd(chapter)>|%?kk<%Vd(chapter)|%Vd(chapterscrub)|%Vd(chapterscrub)>||||>|>
 %?mv(5)<%?St(battery percentage)<%Vd(titlebat)|%Vd(title)>|%?St(battery percentage)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>>>
-%Vl(title,6,2,105,14,4)%Vf(F2F2F6)
+%Vl(title,6,1,105,14,4)%Vf(F2F2F6)
 %s%al%Sx(Now Playing)
-%Vl(titlebat,6,2,70,14,4)%Vf(F2F2F6)
+%Vl(titlebat,6,1,70,14,4)%Vf(F2F2F6)
 %s%al%Sx(Now Playing)
-%Vl(clock,6,2,70,14,4)%Vf(F2F2F6)
+%Vl(clock,6,1,70,14,4)%Vf(F2F2F6)
 %s%al%?pS(15)<%Sx(Now Playing)|%?cf<%cH:%cM|%cl:%cM %cP>>
 %xl(B,Battery.bmp,0,0,24)
 # its charge in its own colours in the cover's, unless the setting says
 %xK(B)
-%V(191,4,25,11,-)
+%V(191,3,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %?St(battery percentage)<%Vd(numbat)|%Vd(nonumbat)>
 %?nN<%?St(battery percentage)<%Vd(nightnum)|%Vd(night)>|>
-%Vl(numbat,155,3,32,12,2)%Vf(F2F2F6)
+%Vl(numbat,155,2,32,12,2)%Vf(F2F2F6)
 %aR%?bl<|%bl%%>
 %xl(P,Playing Status.bmp,0,0,4)
 # the play glyph and the bar take Classic's colour, if it has one other than its blue
 %xA(P)
-%Vl(numbat,136,3,16,13,-)
+%Vl(numbat,136,2,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(nonumbat,171,3,16,13,-)
+%Vl(nonumbat,171,2,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
 %xl(h,Hold Icon.bmp,0,1)
-%Vl(numbat,80,3,13,13,-)
+%Vl(numbat,80,2,13,13,-)
 %?mh<%xd(h)|>
-%Vl(nonumbat,115,3,13,13,-)
+%Vl(nonumbat,115,2,13,13,-)
 %?mh<%xd(h)|>
 # Night Mode on: the moon, just left of the play glyph beside the battery
 %xl(N,Status Night.bmp,0,0)
-%Vl(night,149,2,16,16,-)
+%Vl(night,149,1,16,16,-)
 %xd(N)
-%Vl(nightnum,114,2,16,16,-)
+%Vl(nightnum,114,1,16,16,-)
 %xd(N)
 # the cover, 96 px, with its reflection of 14 rows under it, angled if the
 # setting says
@@ -75,7 +75,7 @@
 %Cr(14,176)
 # 12 px round the cover's place, as far as a turned one goes, and the reflection's 14
 # rows under it; before the cover's viewport, which draws over it
-%Vl(spill,0,19,117,122,-)
+%Vl(spill,0,16,117,125,-)
 %Vl(info,9,31,96,96,-)
 %Cd
 # begin: made by themes/tools/make_classic_np.py, not edited here

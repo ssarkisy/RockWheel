@@ -30,8 +30,8 @@
 # its corners as round as the theme has them (UI_METRIC_COVER_RADIUS), turned
 %?mw<%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%Vd(spill)|%Vd(spill)|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>|%?C<%Vd(art)|%Vd(spill)%Vd(noart)>>
 # the status bar, as the lists have it
-%V(0,0,220,16,-)%Vb(101010)
-%V(0,16,220,1,-)%Vb(202429)
+%V(0,0,220,15,-)%Vb(101010)
+%V(0,15,220,1,-)%Vb(202429)
 %?St(battery percentage)<%Vd(pbat)%Vd(ppct)%Vd(pplay)%?nN<%Vd(pmoon)>|%Vd(bat)%Vd(play)%?nN<%Vd(moon)>>
 %Vl(npclock,9,1,44,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%?cf<%cH:%cM|%cl:%cM>
@@ -72,7 +72,7 @@
 # hairline, 14 rows under it.
 # It must stay defined before noart, bigart, bignote and lyrics: viewports are
 # drawn in the file's order, and it clears where they draw
-%Vl(spill,0,17,117,119,-)
+%Vl(spill,0,16,117,120,-)
 %Vl(art,9,26,96,96,-)
 %Cd
 %xl(O,Note Playing.bmp,19,19)

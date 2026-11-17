@@ -7,7 +7,8 @@
 #
 # Nothing is scaled. What is the same on both screens is taken as it is: the
 # status bar's rows, cut to the screen's width (its texture repeats every 20
-# px, so it goes on unbroken); the glyphs; the progress bar and its trough,
+# px, so it goes on unbroken), three of its gradient's left out for a bar of
+# 16 rows over lists of eight rows of 20; the glyphs; the progress bar and its trough,
 # their two ends with the middle between them shortened. The note of a
 # missing cover is drawn anew at the cover's size here, by
 # make_menu_icons.py's drawing, its strokes on whole pixels. Then
@@ -128,9 +129,20 @@ def shortened(rows, width):
     return [row[:half] + row[len(row) - (width - half):] for row in rows]
 
 
+# the status bar: 15 rows of the Video's 18 of gradient, taken evenly from
+# its first to its last, then its dark line; the lists' 160 rows under it,
+# five of 32 or eight of 20 (apps/gui/ui_theme.c), from row 16
+BAR_ROWS = 15
+VIDEO_BAR_ROWS = 18
+
+
 def list_backdrop():
     """the status bar and the lists' white: the wide screen's, cut"""
-    return crop(read_bmp(os.path.join(LIGHT, "Wide Backdrop.bmp")), (0, W), 0, H)
+    src = read_bmp(os.path.join(LIGHT, "Wide Backdrop.bmp"))
+    bar = [src[round(y * (VIDEO_BAR_ROWS - 1) / (BAR_ROWS - 1))]
+           for y in range(BAR_ROWS)] + [src[VIDEO_BAR_ROWS]]
+    rows = bar + src[VIDEO_BAR_ROWS + 1:VIDEO_BAR_ROWS + 1 + H - len(bar)]
+    return crop(rows, (0, W), 0, H)
 
 
 def pane_backdrop(screen):

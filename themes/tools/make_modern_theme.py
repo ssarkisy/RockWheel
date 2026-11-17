@@ -66,9 +66,9 @@ VIDEO = dict(
     OUT=os.path.join(HERE, "..", "Modern", ".rockbox", "wps"),
     STATUS=24,              # the status bar's rows, the last its hairline
     MARGIN=12,              # the sides'
-    # to the screen's foot: seven rows of 30, or five of the 36 a row of two
-    # lines has and a part of the sixth
-    LIST_TOP=28, LIST_ROWS=212,
+    # to the screen's foot, whole rows of either kind: seven of 30, or six of
+    # the 35 a row of two lines has (apps/gui/ui_theme.c)
+    LIST_TOP=30, LIST_ROWS=210,
     SPLIT=160,              # the main menu's width; the pane is the rest
     TEXT_Y=5,               # the status bar's text, a cell of 14 with its baseline on row 16
     GLYPH_Y=7,              # its glyphs' top
@@ -102,17 +102,18 @@ VIDEO = dict(
                "14-Inter-Medium"),
 )
 # The iPod photo's, the Video's by its own rules on a screen three quarters as
-# high and two thirds as wide, and seen a little larger: a status bar of 16
-# rows and its hairline; the lists' rows of 22 in 15 px type, seven of them
-# under it, or of 34 with a second line (apps/gui/ui_theme.c); Now Playing's
-# cover 96 px, 9 rows under the hairline, its reflection 14, the bar 4 under
+# high and two thirds as wide, and seen a little larger: a status bar of 15
+# rows and its hairline; the lists' rows of 20 in 15 px type, eight of them
+# under it, or five of 32 with a second line, whole rows of either kind
+# (apps/gui/ui_theme.c); Now Playing's
+# cover 96 px, 10 rows under the hairline, its reflection 14, the bar 4 under
 # it and the times 10 over the foot. The glyphs are the Video's, at their own
 # sizes; the bars are made for this width (make_modern_glyphs.py)
 PHOTO = dict(
     W=220, H=176,
     OUT=os.path.join(HERE, "..", "Modern", "220x176", ".rockbox", "wps"),
-    STATUS=17, MARGIN=9,
-    LIST_TOP=19, LIST_ROWS=157,
+    STATUS=16, MARGIN=9,
+    LIST_TOP=16, LIST_ROWS=160,
     SPLIT=None,
     TEXT_Y=1, GLYPH_Y=3,
     GLYPH_GAPS=(8, 5), PCT_GAP=2,

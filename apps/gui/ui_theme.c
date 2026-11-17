@@ -117,10 +117,11 @@ static const struct ui_theme ui_themes[] = {
         .selector_bevel = true,
 #ifdef UI_220X176
         /* The iPod photo's: the Video's by its own rules, as the others'
-           are: the list in 17 px Bold in rows of its cell, nine of them under
-           the status bar as on the Video; a row of two lines 31, the name's
-           whole cell over the second line's 14, five of them under the
-           status bar with a cover of 29 px (LINE_COVER_SIZE) */
+           are: the list in 17 px Bold in rows of 20, eight of them under
+           the status bar of 16; a row of two lines 32, the name's whole
+           cell over the second line's 14, five of them, with a cover of
+           29 px (LINE_COVER_SIZE): whole rows of either kind in the
+           list's 160 */
         .cover_colours = true,
         .font = {
             [UI_FONT_LIST]          = FONT_DIR "/" UI_CLASSIC_FONT ".fnt",
@@ -136,7 +137,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
         },
         .metric = {
-            [UI_METRIC_ROW_HEIGHT]           = 0,
+            [UI_METRIC_ROW_HEIGHT]           = 20,
             [UI_METRIC_TEXT_INSET]           = 4,
             [UI_METRIC_INITIAL_HEIGHT]       = 64,
             [UI_METRIC_INITIAL_MARGIN]       = 12,
@@ -152,12 +153,12 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HINT_X]               = 5,
             [UI_METRIC_HINT_TOP]             = 4,
             [UI_METRIC_HINT_PITCH]           = 16,
-            /* 31 px: the name's cell of 17 whole, its capitals 4 rows under
-               the row's top, and right under it the second line's 14, its
-               baseline 3 rows over the foot; no letter of either, of any
+            /* 32 px: the name's cell of 17 whole, its capitals 4 rows under
+               the row's top, a row under it the second line's 14, its
+               baseline 4 rows over the foot; no letter of either, of any
                alphabet, reaches into the other's cell */
             [UI_METRIC_NAME_PART_CUT]        = 0,
-            [UI_METRIC_SUBLINE_GAP]          = 0,
+            [UI_METRIC_SUBLINE_GAP]          = 1,
             [UI_METRIC_NAME_TEXT_DY]         = 0,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
             [UI_METRIC_ROW_COVER_GAP]        = 6,
@@ -333,8 +334,9 @@ static const struct ui_theme ui_themes[] = {
         },
 #ifdef UI_220X176
         /* The iPod photo's, the Video's by its own rules as Neo's are: 15 px
-           type in rows of 22, a row of two lines 31; the Video's glyphs at
-           their own sizes */
+           type in rows of 20, eight of them under the status bar; a row of
+           two lines 32, five of them: whole rows of either kind in the
+           list's 160; the Video's glyphs at their own sizes */
         .list_font = "15-Inter-SemiBold",
         .selector_bevel = false,
         .cover_colours = false,
@@ -355,7 +357,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_FONT_HEADER_NAME]   = FONT_DIR "/15-Inter-SemiBold.fnt",
         },
         .metric = {
-            [UI_METRIC_ROW_HEIGHT]           = 22,
+            [UI_METRIC_ROW_HEIGHT]           = 20,
             /* the rows' text 7 px from the list's edge, a cover 3 px and
                its text 5 px after it: the bar runs from edge to edge */
             [UI_METRIC_TEXT_INSET]           = 7,
@@ -373,10 +375,10 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HINT_X]               = 7,
             [UI_METRIC_HINT_TOP]             = 7,
             [UI_METRIC_HINT_PITCH]           = 15,
-            /* 31 px, as Neo's: the name's part 16, its cell of 15 at its
-               top, the second line's 14 a row under it */
+            /* 32 px, as Neo's: the name's part 16, its cell of 15 at its
+               top, the second line's 14 two rows under it */
             [UI_METRIC_NAME_PART_CUT]        = -1,
-            [UI_METRIC_SUBLINE_GAP]          = 1,
+            [UI_METRIC_SUBLINE_GAP]          = 2,
             [UI_METRIC_NAME_TEXT_DY]         = -1,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
             [UI_METRIC_ROW_COVER_GAP]        = 5,
@@ -467,12 +469,11 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HINT_X]               = 8,
             [UI_METRIC_HINT_TOP]             = 10,
             [UI_METRIC_HINT_PITCH]           = 18,
-            /* 36 px, as Neo's: the name's part its whole cell of 19, the
-               second line's of 15 and two rows under it; a row's cover in
-               their middle, 2 px from the selection's top and foot. Five
-               rows of them and a part of the sixth */
+            /* 35 px, as Neo's: the name's part its whole cell of 19, the
+               second line's of 15 a row under it; a row's cover in their
+               middle. Six of them in the list's 210, as seven rows of 30 */
             [UI_METRIC_NAME_PART_CUT]        = 0,
-            [UI_METRIC_SUBLINE_GAP]          = 2,
+            [UI_METRIC_SUBLINE_GAP]          = 1,
             [UI_METRIC_NAME_TEXT_DY]         = 0,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
             [UI_METRIC_ROW_COVER_GAP]        = 6,
@@ -638,9 +639,9 @@ static const struct ui_theme ui_themes[] = {
 #ifdef UI_220X176
         /* The iPod photo's: the Video's by its own rules on a screen three
            quarters as high, its pixels a little larger: 15 px type in rows
-           of 22, seven under the status line; a row of two lines 31, five of
-           them, with a cover of 29 px (LINE_COVER_SIZE); the Video's glyphs
-           at their own sizes */
+           of 20, eight under the status line; a row of two lines 32, five of
+           them, with a cover of 29 px (LINE_COVER_SIZE): whole rows of either
+           kind in the list's 160; the Video's glyphs at their own sizes */
         .list_font = "15-Inter-SemiBold",
         .selector_bevel = false,
         .cover_colours = false,
@@ -660,7 +661,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
         },
         .metric = {
-            [UI_METRIC_ROW_HEIGHT]           = 22,
+            [UI_METRIC_ROW_HEIGHT]           = 20,
             [UI_METRIC_TEXT_INSET]           = 6,
             [UI_METRIC_INITIAL_HEIGHT]       = 64,
             [UI_METRIC_INITIAL_MARGIN]       = 6,
@@ -679,14 +680,14 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HINT_X]               = 6,
             [UI_METRIC_HINT_TOP]             = 4,
             [UI_METRIC_HINT_PITCH]           = 15,
-            /* 31 px: the name's part 16, its cell of 15 at its top, a row
+            /* 32 px: the name's part 16, its cell of 15 at its top, a row
                over its middle, so that a letter Unifont draws for it, 16 px,
-               stays whole there; the second line's 14 a row under the part.
-               Their capitals 3 rows under the row's top, the second line's
-               baseline 3 over its foot; no letter of either, of any of the
-               fonts' alphabets, reaches into the other's cell */
+               stays whole there; the second line's 14 two rows under the
+               part. Their capitals 3 rows under the row's top, the second
+               line's baseline 3 over its foot; no letter of either, of any
+               of the fonts' alphabets, reaches into the other's cell */
             [UI_METRIC_NAME_PART_CUT]        = -1,
-            [UI_METRIC_SUBLINE_GAP]          = 1,
+            [UI_METRIC_SUBLINE_GAP]          = 2,
             [UI_METRIC_NAME_TEXT_DY]         = -1,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
             [UI_METRIC_ROW_COVER_GAP]        = 6,
@@ -780,11 +781,12 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_HINT_X]               = 10,
             [UI_METRIC_HINT_TOP]             = 6,
             [UI_METRIC_HINT_PITCH]           = 18,
-            /* 36 px: the name's part its whole cell of 19, so that nothing of
+            /* 35 px: the name's part its whole cell of 19, so that nothing of
                a g or a y is cut, its baseline 15 down; the second line's 15
-               under it, its baseline 31 down, and two rows */
+               a row under it, its baseline 30 down. Six of them in the list's
+               210, as seven rows of 30 */
             [UI_METRIC_NAME_PART_CUT]        = 0,
-            [UI_METRIC_SUBLINE_GAP]          = 2,
+            [UI_METRIC_SUBLINE_GAP]          = 1,
             [UI_METRIC_NAME_TEXT_DY]         = 0,
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
             [UI_METRIC_ROW_COVER_GAP]        = 8,

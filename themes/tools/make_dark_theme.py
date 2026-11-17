@@ -20,7 +20,6 @@ BG = (18, 18, 20)
 INK = (242, 242, 246)
 HEADER_BASE = 34      # the status bar, where the light one's gradient ends
 HEADER_SCALE = 0.30
-HEADER_HEIGHT = 18    # above its dark line
 BAR_H, BAR_REFLECTION = 14, 9
 REFLECTION_ALPHA = 0.26
 ART_REFLECTION_ALPHA = 128 / 256
@@ -36,6 +35,7 @@ def screen(root, **places):
 # firmware make it; the skins' files; the backdrops beside the lists, with or without
 # the panel; the pictures of the status bar and of the ground
 VIDEO = screen(os.path.join(HERE, "..", "iClassic-Square", ".rockbox"),
+               HEADER_HEIGHT=18,    # the status bar's rows above its dark line
                BAR_X=58, BAR_Y=206, BAR_W=204, ART=(12, 41, 148, 177),
                ART_REFLECTION_ROWS=22, LIGHT_REFLECTION="%Cr",
                SKINS=("wps", "sbs", "fms"),
@@ -49,6 +49,7 @@ VIDEO = screen(os.path.join(HERE, "..", "iClassic-Square", ".rockbox"),
                               "Status Shuffle Albums"),
                COPIED=("Scrub Knob", "Disk Fill", "Photos Icon"))
 PHOTO = screen(os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox"),
+               HEADER_HEIGHT=15,    # make_classic_220x176.py's BAR_ROWS
                BAR_X=40, BAR_Y=143, BAR_W=140, ART=(9, 31, 105, 127),
                ART_REFLECTION_ROWS=14, LIGHT_REFLECTION="%Cr(14,128)",
                SKINS=("wps", "sbs"),

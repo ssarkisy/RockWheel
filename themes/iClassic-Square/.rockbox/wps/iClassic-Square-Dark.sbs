@@ -31,8 +31,8 @@
 %Cd
 %Vl(a,120,0,40,240,-)
 # the size of a list: half the width beside the panel, or a screen that takes it all
-%Vi(wide,0,19,320,221,1)%Vf(F2F2F6)%Vb(121214)
-%Vi(half,0,19,160,221,1)%Vf(F2F2F6)%Vb(121214)
+%Vi(wide,0,24,320,216,1)%Vf(F2F2F6)%Vb(121214)
+%Vi(half,0,24,160,216,1)%Vf(F2F2F6)%Vb(121214)
 
 %Vl(t,6,2,110,14,3)%Vf(F2F2F6)
 #%s%al%?if(%Li, =, 0)<|%?if(%Li, <=, 32)<%Lt|%?if(%Li, =, 33)<iPod|>>>

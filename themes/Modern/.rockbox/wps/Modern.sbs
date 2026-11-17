@@ -22,8 +22,8 @@
 %Cd
 %Vl(a,120,0,40,240,-)%Vb(FFFFFF)
 # the lists: under the status bar, rows of 30; beside the pane 160 wide
-%Vi(wide,0,28,320,212,1)%Vf(000000)%Vb(FFFFFF)
-%Vi(half,0,28,160,212,1)%Vf(000000)%Vb(FFFFFF)
+%Vi(wide,0,30,320,210,1)%Vf(000000)%Vb(FFFFFF)
+%Vi(half,0,30,160,210,1)%Vf(000000)%Vb(FFFFFF)
 # the status bar across every screen: its ground, the hairline under it, the
 # clock, the title in the middle, the glyphs
 %Vl(bar,0,0,320,23,-)%Vb(F7F7F7)

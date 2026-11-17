@@ -35,36 +35,36 @@
 # the status line: the clock, the title, the glyphs, a hairline under it. Its
 # ground first, a viewport of its own: under Cover Colours' Fill the firmware
 # gives what lies in these rows a shade of the cover's colour
-%V(0,0,220,16,-)
-%Vl(npclock,10,2,48,14,5)%Vf(B5AEA5)
+%V(0,0,220,15,-)
+%Vl(npclock,10,1,48,14,5)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
-%Vl(nptitle,62,2,96,14,5)%Vf(EFEBE7)
+%Vl(nptitle,62,1,96,14,5)%Vf(EFEBE7)
 %s%ac%Sx(Now Playing)
-%Vl(pnpclock,10,2,31,14,5)%Vf(B5AEA5)
+%Vl(pnpclock,10,1,31,14,5)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
-%Vl(pnptitle0,46,2,93,14,5)%Vf(EFEBE7)
+%Vl(pnptitle0,46,1,93,14,5)%Vf(EFEBE7)
 %s%ac%Sx(Now Playing)
-%Vl(pnptitle1,46,2,78,14,5)%Vf(EFEBE7)
+%Vl(pnptitle1,46,1,78,14,5)%Vf(EFEBE7)
 %s%ac%Sx(Now Playing)
-%V(0,16,220,1,-)%Vb(313029)
+%V(0,15,220,1,-)%Vb(313029)
 %?St(battery percentage)<%Vd(pbat)%?nN<%Vd(ppct)%Vd(pmoon)%Vd(pplayn1)|%Vd(ppct)%Vd(pplayn0)>|%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>
-%Vl(bat,191,3,19,10,-)
+%Vl(bat,191,2,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%Vl(playn0,178,3,8,10,-)
+%Vl(playn0,178,2,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(moon,176,3,10,10,-)
+%Vl(moon,176,2,10,10,-)
 %xd(N)
-%Vl(playn1,163,3,8,10,-)
+%Vl(playn1,163,2,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pbat,191,3,19,10,-)
+%Vl(pbat,191,2,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%Vl(ppct,157,2,32,14,5)%Vf(B5AEA5)
+%Vl(ppct,157,1,32,14,5)%Vf(B5AEA5)
 %aR%?bl<|%bl%%>
-%Vl(pplayn0,144,3,8,10,-)
+%Vl(pplayn0,144,2,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon,142,3,10,10,-)
+%Vl(pmoon,142,2,10,10,-)
 %xd(N)
-%Vl(pplayn1,129,3,8,10,-)
+%Vl(pplayn1,129,2,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(mode1,198,20,12,11,-)
 %?mm<%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>
@@ -79,7 +79,7 @@
 # hairline, 14 rows under it.
 # It must stay defined before noart, bigart, bignote and lyrics: viewports are
 # drawn in the file's order, and it clears where they draw
-%Vl(spill,0,17,118,121,-)
+%Vl(spill,0,16,118,122,-)
 %Vl(art,10,28,96,96,-)
 %Cd
 %xl(O,Note Playing.bmp,21,21)

@@ -17,8 +17,8 @@
 # the lists: under the status line and its hairline, rows of 30; beside the
 # pane 158 wide, so that a column is left between the hairline and the
 # scrollbar's capsule at the list's edge
-%Vi(wide,0,23,320,216,1)%Vf(EFEBE7)%Vb(211C18)
-%Vi(half,0,23,158,216,1)%Vf(EFEBE7)%Vb(211C18)
+%Vi(wide,0,29,320,210,1)%Vf(EFEBE7)%Vb(211C18)
+%Vi(half,0,29,158,210,1)%Vf(EFEBE7)%Vb(211C18)
 # hairlines: under the status line, over the menu only beside the pane, and
 # column 159 between the menu and the pane
 %Vl(rulewide,0,20,320,1,-)%Vb(313029)

@@ -78,9 +78,10 @@ VIDEO = dict(
     # the status line's sides, and the list's width beside the pane (the
     # iPod photo's: its narrow sides, ui_theme.c)
     SBS_MARGIN=10, HALF_W=158,
-    # the lists' area: seven rows of 30 or six of 36; apps/gui/ui_theme.c has
+    # the lists' area, to the screen's foot, whole rows of either kind: seven
+    # of 30, or six of the 35 a row of two lines has; apps/gui/ui_theme.c has
     # the rows' insets
-    LIST_TOP=23, LIST_ROWS=216,
+    LIST_TOP=29, LIST_ROWS=210,
     TEXT_Y=2,               # the status line's text, a cell of 15 (CELL)
     CELL=15,
     PCT_GAP=3,              # Battery Percentage's level to the battery
@@ -120,19 +121,20 @@ VIDEO = dict(
                "15-Inter-SemiBold", "15-Inter-Medium"),
 )
 # The iPod photo's, the Video's by its own rules on a screen three quarters as
-# high and two thirds as wide, and seen a little larger: a status line of 16
-# rows; the lists' rows of 22 in 15 px type, seven of them under it, or of 34
-# with a second line, four and two thirds of them (apps/gui/ui_theme.c); Now
-# Playing's cover 96 px, 11 rows under the hairline, its reflection 14, the
+# high and two thirds as wide, and seen a little larger: a status line of 15
+# rows, its text and glyphs a row higher than at 16, over the hairline; the
+# lists' rows of 20 in 15 px type, eight of them under it, or five of 32 with
+# a second line, whole rows of either kind (apps/gui/ui_theme.c); Now
+# Playing's cover 96 px, 12 rows under the hairline, its reflection 14, the
 # bar 4 under it and the times 8 over the foot. The glyphs are the Video's,
 # at their own sizes; the bar's capsules are made for this width
 # (make_theme_glyphs.py)
 PHOTO = dict(
     W=220, H=176,
     OUT=os.path.join(HERE, "..", "Neo", "220x176", ".rockbox", "wps"),
-    STATUS=16, MARGIN=10, SBS_MARGIN=4, HALF_W=109,
-    LIST_TOP=18, LIST_ROWS=158,
-    TEXT_Y=2, CELL=14, FOOT=13, GAP=5, PCT_GAP=2,
+    STATUS=15, MARGIN=10, SBS_MARGIN=4, HALF_W=109,
+    LIST_TOP=16, LIST_ROWS=160,
+    TEXT_Y=1, CELL=14, FOOT=12, GAP=5, PCT_GAP=2,
     CLOCK_W=48,
     TITLE_X=58, TITLE_W=104,
     NP_TITLE_X=62, NP_TITLE_W=96,

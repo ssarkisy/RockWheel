@@ -22,15 +22,15 @@
 %Cd
 %Vl(a,77,0,33,176,-)%Vb(FFFFFF)
 # the lists: under the status bar, rows of 22; beside the pane 110 wide
-%Vi(wide,0,19,220,157,1)%Vf(000000)%Vb(FFFFFF)
-%Vi(half,0,19,110,157,1)%Vf(000000)%Vb(FFFFFF)
+%Vi(wide,0,16,220,160,1)%Vf(000000)%Vb(FFFFFF)
+%Vi(half,0,16,110,160,1)%Vf(000000)%Vb(FFFFFF)
 # the status bar across every screen: its ground, the hairline under it, the
 # clock, the title in the middle, the glyphs; in the main menu the clock
 # alone
-%Vl(bar,0,0,220,16,-)%Vb(F7F7F7)
-%Vl(rule,0,16,220,1,-)%Vb(E6E7EF)
-%Vl(barh,0,0,110,16,-)%Vb(F7F7F7)
-%Vl(ruleh,0,16,110,1,-)%Vb(E6E7EF)
+%Vl(bar,0,0,220,15,-)%Vb(F7F7F7)
+%Vl(rule,0,15,220,1,-)%Vb(E6E7EF)
+%Vl(barh,0,0,110,15,-)%Vb(F7F7F7)
+%Vl(ruleh,0,15,110,1,-)%Vb(E6E7EF)
 %Vl(clock,9,1,44,14,2)%Vf(000000)%Vb(F7F7F7)
 %al%?cf<%cH:%cM|%cl:%cM>
 # a menu's title, which takes the clock's place too if it is wider (long_title())
