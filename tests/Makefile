@@ -24,6 +24,8 @@
 #                                cut
 #   make -C tests check-orders   the Songs orders' sort from a hint, and its
 #                                proof
+#   make -C tests check-bar      a bar's slider's place and the skins'
+#                                percentages, against the old 32-bit maths
 #   make -C tests clean
 #
 # Built under tests/build. The sources are built with the simulator's
@@ -83,13 +85,14 @@ LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o \
 	$(OBJ)/apps/file_write.o
 
 .PHONY: all check check-keys check-itunesdb check-covers check-codecs \
-	check-wheel check-disk check-lines check-panic check-fw check-orders clean
+	check-wheel check-disk check-lines check-panic check-fw check-orders \
+	check-bar clean
 all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_covers \
 	$(BUILD)/test_wheel $(BUILD)/test_panic_record $(BUILD)/test_fw \
-	$(BUILD)/test_orders
+	$(BUILD)/test_orders $(BUILD)/test_skin_ratio
 
 check: check-keys check-itunesdb check-covers check-wheel check-codecs \
-	check-disk check-lines check-panic check-fw check-orders
+	check-disk check-lines check-panic check-fw check-orders check-bar
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -157,6 +160,20 @@ $(BUILD)/test_panic_record: $(OBJ)/panic/test_panic_record.o \
 
 check-panic: $(BUILD)/test_panic_record
 	@$(BUILD)/test_panic_record
+
+# skin_ratio.h: a bar's slider's place and the skins' percentages, against
+# the expressions they replaced, in 32 bits as the iPod worked them out
+$(OBJ)/bar/%.o: $(TESTS)/bar/%.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -I$(ROOT)/apps/gui/skin_engine -Wall -MMD -c $< -o $@
+
+$(BUILD)/test_skin_ratio: $(OBJ)/bar/test_skin_ratio.o $(OBJ)/lib/check.o
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+check-bar: $(BUILD)/test_skin_ratio
+	@$(BUILD)/test_skin_ratio
 
 # The Songs orders' sort from the order made before, and its proof:
 # orders/make_src.py takes the parts out of apps/tagtree.c as they are

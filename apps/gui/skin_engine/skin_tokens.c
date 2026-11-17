@@ -63,6 +63,7 @@
 #include "wps_internals.h"
 #include "skin_display.h"
 #include "skin_engine.h"
+#include "skin_ratio.h"
 #include "statusbar-skinned.h"
 #include "root_menu.h"
 #ifdef HAVE_RECORDING
@@ -246,7 +247,7 @@ static void plpct_estimate(const struct mp3entry *id3, unsigned long elapsed_ms,
 {
     unsigned long frac = 0;  /* 0..1000 through the current track */
     if (id3->length)
-        frac = MIN(1000UL, 1000UL * elapsed_ms / id3->length);
+        frac = MIN(1000UL, skin_part_of(1000, elapsed_ms, id3->length));
     *elapsed_s = (unsigned long)(index - 1) * 1000 + frac;
     *total_s   = (unsigned long)amount * 1000;
 }
@@ -505,9 +506,9 @@ const char *get_id3_token(struct wps_token *token, struct mp3entry *id3,
                 {
                     if (limit == TOKEN_VALUE_ONLY)
                         limit = 100; /* make it a percentage */
-                    *intval = limit * elapsed / length + 1;
+                    *intval = skin_part_of(limit, elapsed, length) + 1;
                 }
-                snprintf(buf, buf_size, "%lu", 100 * elapsed / length);
+                snprintf(buf, buf_size, "%lu", skin_part_of(100, elapsed, length));
                 return buf;
 
             case SKIN_TOKEN_PLAYLIST_ELAPSED_PERCENT:

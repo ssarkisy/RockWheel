@@ -75,6 +75,7 @@
 #include "statusbar-skinned.h"
 #include "skin_display.h"
 #include "menu_cover.h"
+#include "skin_ratio.h"
 
 static bool dirty[NB_SCREENS];
 
@@ -1244,7 +1245,7 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         if (flags&HORIZONTAL)
         {
             w = img->bm.width;
-            xoff = width * end / length;
+            xoff = skin_bar_place(width, end, length);
             if (flags&INVERTFILL)
                 xoff = width - xoff;
             if (pb->slider_centre)
@@ -1253,7 +1254,7 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         else
         {
             h = img->bm.height;
-            yoff = height * end / length;
+            yoff = skin_bar_place(height, end, length);
             if (flags&INVERTFILL)
                 yoff = height - yoff;
             if (pb->slider_centre)
