@@ -148,6 +148,9 @@ static bool use_cop;
 /* the codec's samples as it configured them, for its run on the COP */
 static int codec_stereo_mode, codec_depth;
 static const char *cop_why; /* why the last run wasn't on the COP */
+static size_t cop_stack;    /* the most of its stack it used there */
+static int cop_status;      /* and the status it ended with */
+static bool cop_at_end;     /* having read the file to its end */
 #endif
 static uint32_t crc32;
 
@@ -521,8 +524,9 @@ static long get_command(intptr_t *param)
 {
     rb->yield();
 
-    /* SID files play forever, so stop them after a fixed time */
-    if (track.id3.codectype == AFMT_SID && codec_frequency >= 1000)
+    /* SID and MOD files play forever, so stop them after a fixed time */
+    if ((track.id3.codectype == AFMT_SID || track.id3.codectype == AFMT_MOD)
+        && codec_frequency >= 1000)
     {
         elapsed = decoded_samples / (codec_frequency / 1000);
         if (decoded_samples >= SID_MAX_SECONDS * codec_frequency)
@@ -686,6 +690,9 @@ static void codec_thread(void)
             res = rb->codec_cop_run(&ci, codec_stereo_mode, codec_depth,
                                     NULL, &cop);
             cop_why = cop.why;
+            cop_stack = cop.stack_used;
+            cop_status = res;
+            cop_at_end = cop.at_end;
         }
         if (!use_cop || res == CODEC_COP_NOT_RUN)
 #endif
@@ -830,8 +837,15 @@ static enum plugin_status test_track(const char* filename)
 #ifdef HAVE_CODEC_COP
         if (use_cop)
         {
-            rb->snprintf(str, sizeof(str), "decoded on the %s%s",
-                         cop_why ? "CPU: " : "COP", cop_why ? cop_why : "");
+            if (cop_why)
+                rb->snprintf(str, sizeof(str), "decoded on the CPU: %s",
+                             cop_why);
+            else
+                rb->snprintf(str, sizeof(str),
+                             "decoded on the COP, status %d%s, its stack %u "
+                             "bytes deep", cop_status,
+                             cop_at_end ? " at the file's end" : "",
+                             (unsigned)cop_stack);
             log_text(str,true);
         }
 #endif

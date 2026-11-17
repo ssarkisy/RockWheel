@@ -557,9 +557,19 @@ static int run_codec_on_cop(const char **why)
     int status = codec_cop_run(&ci, codec_stereo_mode, codec_depth,
                                codec_msg_waiting, &res);
 
+    /* An error once it has read the whole file is how some codecs end (Opus,
+       Speex, Musepack); so is one in the stream's last second, before a tag
+       or junk after it that the codec doesn't read (an APEv2 tag with a
+       picture), after sound. Either is the track's end here, as on the CPU:
+       the stream's end itself is the codec's to know, its last elapsed and
+       the length are the host's */
+    const bool at_end = res.at_end ||
+        (res.made_pcm && ci.id3->length &&
+         ci.id3->elapsed + 1000 >= ci.id3->length);
+
     if (status == CODEC_COP_NOT_RUN)
         *why = res.why;
-    else if (status == CODEC_ERROR &&
+    else if (status == CODEC_ERROR && !at_end &&
              (!codec_msg_waiting() ||
               /* a seek waiting that restarted it (seek_codec()), taken by
                  the run here at its first get_command */

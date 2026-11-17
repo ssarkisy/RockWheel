@@ -29,7 +29,10 @@
  * - Input comes in windows: the host lends the COP a stretch of its buffer,
  *   which the COP copies into one of its own, so that the codec reads cached
  *   memory. request_buffer, advance_buffer, read_filebuf and seek_buffer are
- *   served from it; only a refill or a seek out of it asks the host.
+ *   served from it; only a refill or a seek out of it asks the host. The
+ *   emulators, which play a whole file in place, get a window that holds it.
+ * - The few fields of id3 a codec sets itself (length, frequency, bitrate,
+ *   tail_trim) are set on the COP's copy and go to the host's in the ring.
  * - get_command asks the host only when a message waits for the codec, and
  *   is then answered by the host's own get_command: the codec stops where it
  *   would on the CPU, and the host can't reach its buffer meanwhile.
@@ -66,7 +69,8 @@
 
 /* the thread's stack, as the codec thread's */
 #define COP_STACK_SIZE   CACHEALIGN_UP(DEFAULT_STACK_SIZE + 0x2000)
-/* the input window; 32 KB of it are what request_buffer() promises */
+/* the input window, but an emulator's (whole_file()); 32 KB of it are kept
+   ahead of the codec at each request_buffer() */
 #define COP_WIN_SIZE     (64*1024)
 #define COP_WIN_LEAST    (32*1024)
 /* the PCM ring: two 4096-sample frames of 32-bit stereo */
@@ -85,6 +89,25 @@ enum
     REC_CONFIGURE,  /* a: setting, b: value; c: 1 with the value after the
                        record (cop_configure) */
     REC_WRAP,       /* the rest to the end of the ring */
+    REC_ID3,        /* a: the fields (ID3_*) of the struct cop_id3 after the
+                       record that changed */
+};
+
+/* the fields of id3 that codecs set (shorten, vgm, asap), as the CPU's
+   playback reads them */
+enum
+{
+    ID3_LENGTH    = 0x1,
+    ID3_FREQUENCY = 0x2,
+    ID3_BITRATE   = 0x4,
+    ID3_TAIL_TRIM = 0x8,
+};
+
+struct cop_id3
+{
+    unsigned long length, frequency;
+    unsigned int bitrate;
+    int tail_trim;
 };
 
 struct rec
@@ -121,6 +144,8 @@ static struct
     /* this run's, set before it starts */
     unsigned char *ring;    /* uncached */
     unsigned char *win;     /* the COP's */
+    size_t win_size;
+    bool whole;             /* the codec reads the whole file at once */
     void *heap;
     size_t heap_size;
     struct mp3entry *id3;   /* the COP's copy */
@@ -131,6 +156,7 @@ static struct
     bool win_eof;
     bool commanded;         /* a command or a seek's end was asked */
     bool made_pcm;
+    struct cop_id3 id3_sent; /* the copy's fields as the host has them */
 } sh SHAREDBSS_ATTR;
 
 static struct semaphore host_sem SHAREDBSS_ATTR; /* the host has something */
@@ -145,9 +171,46 @@ static volatile unsigned int host_kicks; /* their count */
 
 /** --- On the COP --- **/
 
+static struct rec *ring_room(size_t size);
+static void ring_publish(struct rec *r, int type, size_t size,
+                         intptr_t a, intptr_t b, intptr_t c);
+
+/* The fields of id3 the codec has set on the COP's copy since they last
+   went, to the host's before anything that follows them, as the CPU's
+   playback would have seen them set by the codec */
+static void id3_sync(void)
+{
+    const struct mp3entry *id3 = sh.id3;
+    struct cop_id3 *sent = &sh.id3_sent;
+    unsigned int which = 0;
+
+    if (id3->length != sent->length)
+        which |= ID3_LENGTH;
+    if (id3->frequency != sent->frequency)
+        which |= ID3_FREQUENCY;
+    if (id3->bitrate != sent->bitrate)
+        which |= ID3_BITRATE;
+    if (id3->tail_trim != sent->tail_trim)
+        which |= ID3_TAIL_TRIM;
+    if (!which)
+        return;
+
+    sent->length = id3->length;
+    sent->frequency = id3->frequency;
+    sent->bitrate = id3->bitrate;
+    sent->tail_trim = id3->tail_trim;
+
+    const size_t size = sizeof(struct rec) +
+                        ALIGN_UP(sizeof(struct cop_id3), REC_ALIGN);
+    struct rec *r = ring_room(size);
+    memcpy(r + 1, sent, sizeof(*sent));
+    ring_publish(r, REC_ID3, size, which, 0, 0);
+}
+
 /* Another request of the host, and its answer */
 static intptr_t cop_call(int req, intptr_t a, intptr_t b, intptr_t c)
 {
+    id3_sync();
     sh.arg[0] = a;
     sh.arg[1] = b;
     sh.arg[2] = c;
@@ -205,6 +268,7 @@ static void ring_publish(struct rec *r, int type, size_t size,
 
 static void ring_event(int type, intptr_t a, intptr_t b)
 {
+    id3_sync();
     struct rec *r = ring_room(sizeof(struct rec));
     ring_publish(r, type, sizeof(struct rec), a, b, 0);
 }
@@ -226,6 +290,7 @@ static void cop_pcmbuf_insert(const void *ch1, const void *ch2, int count)
 
     if (count > 0)
         sh.made_pcm = true;
+    id3_sync();
 
     do
     {
@@ -272,6 +337,7 @@ static void cop_configure(int setting, intptr_t value)
         /* the one setting a codec gives by pointer, to a struct on the COP's
            stack and in its cache, gone by the time the host applies it: the
            gains go in the ring by value, and the host gives the DSP a copy */
+        id3_sync();
         const size_t size = sizeof(struct rec) +
                             ALIGN_UP(sizeof(struct dsp_replay_gains), REC_ALIGN);
         struct rec *r = ring_room(size);
@@ -284,7 +350,8 @@ static void cop_configure(int setting, intptr_t value)
 
 /* The bytes of the window from where the codec is, at least need of them if
    the file has them: what's left moved to the window's start, and as much as
-   fits asked for after it */
+   fits asked for after it, again while a refill brings less than needed (a
+   need over what the host's buffer promises, at its ring's end) */
 static size_t win_fill(size_t need)
 {
     const size_t off = ci_cop.curpos - sh.win_pos;
@@ -299,27 +366,40 @@ static size_t win_fill(size_t need)
     sh.win_pos = ci_cop.curpos;
     sh.win_len = have;
 
-    /* the host's buffer from the end of what is here */
-    const unsigned char *src = (const unsigned char *)
-        cop_call(REQ_REFILL, sh.win_pos + have, COP_WIN_SIZE - have, keep);
-    const size_t got = src ? (size_t)sh.reply[1] : 0;
+    size_t got;
+    do
+    {
+        /* the host's buffer from the end of what is here */
+        const size_t most = sh.win_size - sh.win_len;
+        const unsigned char *src = (const unsigned char *)
+            cop_call(REQ_REFILL, sh.win_pos + sh.win_len, most, keep);
+        got = src ? MIN((size_t)sh.reply[1], most) : 0;
 
-    if (got)
-        memcpy(sh.win + have, src, got);
-    sh.win_len = have + got;
-    /* only the file's end: a refill that brought nothing before it (its wait
-       abandoned for a seek or a stop, the command then coming at the codec's
-       next get_command; or a read that failed, as on the CPU) is only nothing
-       this time */
-    if (sh.win_pos + (off_t)sh.win_len >= ci_cop.filesize)
-        sh.win_eof = true;
+        if (got)
+            memcpy(sh.win + sh.win_len, src, got);
+        sh.win_len += got;
+        /* only the file's end: a refill that brought nothing before it (its
+           wait abandoned for a seek or a stop, the command then coming at
+           the codec's next get_command; or a read that failed, as on the
+           CPU) is only nothing this time */
+        if (sh.win_pos + (off_t)sh.win_len >= ci_cop.filesize)
+            sh.win_eof = true;
+    }
+    while (got && sh.win_len < need && sh.win_len < sh.win_size &&
+           !sh.win_eof);
+
     return sh.win_len;
 }
 
 static void * cop_request_buffer(size_t *realsize, size_t reqsize)
 {
-    /* what request_buffer() promises is 32 KB: no more is waited for */
-    const size_t have = win_fill(MIN(reqsize, COP_WIN_LEAST));
+    /* 32 KB from here, if the file has them, whatever is asked: on the CPU
+       the buffer runs on past what a request gives, at least as far as its
+       32 KB guard, and a codec may read on into it (RealMedia AAC reads a
+       packet longer than it asked for). An emulator asks for the whole file
+       and plays it from there: all of it, as the CPU's buffer has it */
+    const size_t have = win_fill(sh.whole ? MIN(reqsize, sh.win_size)
+                                          : COP_WIN_LEAST);
     *realsize = MIN(have, reqsize);
     return *realsize ? sh.win + (ci_cop.curpos - sh.win_pos) : NULL;
 }
@@ -436,6 +516,8 @@ static void codec_cop_thread(void)
 
     sh.status = codec_run_proc();
 
+    /* what it set of id3 at the end, before the end */
+    id3_sync();
     commit_dcache();
     sh.ended = true;
     semaphore_release(&host_sem);
@@ -492,6 +574,21 @@ static bool host_take(unsigned char *bounce)
         else
             host->configure(r->a, r->b);
         break;
+    case REC_ID3:
+    {
+        struct cop_id3 v;
+        struct mp3entry *id3 = host->id3;
+        memcpy(&v, r + 1, sizeof(v));
+        if (r->a & ID3_LENGTH)
+            id3->length = v.length;
+        if (r->a & ID3_FREQUENCY)
+            id3->frequency = v.frequency;
+        if (r->a & ID3_BITRATE)
+            id3->bitrate = v.bitrate;
+        if (r->a & ID3_TAIL_TRIM)
+            id3->tail_trim = v.tail_trim;
+        break;
+    }
     }
 
     sh.tail = tail + size;
@@ -598,10 +695,47 @@ void codec_cop_kick(void)
     }
 }
 
+/* The formats whose codec asks for the whole file at once and plays it from
+   there, in place (the emulators) */
+static bool whole_file(int afmt)
+{
+    switch (afmt)
+    {
+    case AFMT_SID:
+    case AFMT_NSF:
+    case AFMT_MOD:
+    case AFMT_SAP:
+    case AFMT_CMC:
+    case AFMT_CM3:
+    case AFMT_CMR:
+    case AFMT_CMS:
+    case AFMT_DMC:
+    case AFMT_DLT:
+    case AFMT_MPT:
+    case AFMT_MPD:
+    case AFMT_RMT:
+    case AFMT_TMC:
+    case AFMT_TM8:
+    case AFMT_TM2:
+    case AFMT_AY:
+#ifdef HAVE_FPU
+    case AFMT_VTX:
+#endif
+    case AFMT_GBS:
+    case AFMT_HES:
+    case AFMT_SGC:
+    case AFMT_VGM:
+    case AFMT_KSS:
+        return true;
+    default:
+        return false;
+    }
+}
+
 /* sizes of the parts taken from the codec's buffer, in bytes, each a whole
-   number of cache lines */
+   number of cache lines; the window's is the run's */
 #define COP_ID3_SIZE CACHEALIGN_UP(sizeof(struct mp3entry))
-#define COP_TAKEN    (COP_STACK_SIZE + COP_ID3_SIZE + COP_WIN_SIZE + \
+#define COP_TAKEN    (COP_STACK_SIZE + COP_ID3_SIZE + \
                       COP_RING_SIZE + COP_BOUNCE_SIZE + CACHEALIGN_SIZE)
 
 int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
@@ -610,11 +744,22 @@ int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
     res->why = NULL;
     res->commanded = false;
     res->made_pcm = false;
+    res->at_end = false;
+    res->stack_used = 0;
 
     /* the codec's buffer, its top taken here */
     size_t size;
     unsigned char *buf = api->codec_get_buffer(&size);
-    if (!buf || size < COP_TAKEN + COP_MIN_HEAP)
+
+    /* the window: an emulator's holds the whole file, as it plays it from
+       the one request it makes (one larger than the buffer can't fit) */
+    const bool whole = whole_file(api->id3->codectype);
+    size_t win_size = COP_WIN_SIZE;
+    if (whole && api->filesize > COP_WIN_SIZE)
+        win_size = api->filesize > (off_t)size ? size :
+                   CACHEALIGN_UP((size_t)api->filesize);
+
+    if (!buf || size < COP_TAKEN + win_size + COP_MIN_HEAP)
     {
         res->why = "no room";
         return CODEC_COP_NOT_RUN;
@@ -623,7 +768,7 @@ int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
         ((uintptr_t)(buf + size) & ~(CACHEALIGN_SIZE - 1));
     unsigned char *stack  = top - COP_STACK_SIZE;
     unsigned char *id3    = stack - COP_ID3_SIZE;
-    unsigned char *win    = id3 - COP_WIN_SIZE;
+    unsigned char *win    = id3 - win_size;
     unsigned char *ring   = win - COP_RING_SIZE;
     unsigned char *bounce = ring - COP_BOUNCE_SIZE;
 
@@ -654,9 +799,15 @@ int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
     memset((void *)&sh, 0, sizeof(sh));
     sh.ring = UNCACHED_ADDR(ring);
     sh.win = win;
+    sh.win_size = win_size;
+    sh.whole = whole;
     sh.heap = buf;
     sh.heap_size = bounce - buf;
     sh.id3 = (struct mp3entry *)id3;
+    sh.id3_sent.length = api->id3->length;
+    sh.id3_sent.frequency = api->id3->frequency;
+    sh.id3_sent.bitrate = api->id3->bitrate;
+    sh.id3_sent.tail_trim = api->id3->tail_trim;
     sh.stereo_mode = stereo_mode;
     sh.depth = depth;
     sh.win_pos = api->curpos;
@@ -718,8 +869,15 @@ int codec_cop_run(struct codec_api *api, int stereo_mode, int depth,
     commit_discard_dcache();
     codec_set_api(loaded);
 
+    /* how deep its stack went: create_thread() filled it */
+    const uint32_t *word = (const uint32_t *)stack;
+    while ((const unsigned char *)word < top && *word == 0xdeadbeefu)
+        word++;
+    res->stack_used = top - (const unsigned char *)word;
+
     res->commanded = sh.commanded;
     res->made_pcm = sh.made_pcm;
+    res->at_end = ci_cop.curpos >= ci_cop.filesize;
     return sh.status;
 }
 
@@ -731,7 +889,59 @@ bool codec_cop_wanted(int afmt)
     {
     case AFMT_MP4_ALAC:
     case AFMT_FLAC:
+    case AFMT_OGG_VORBIS:
+    case AFMT_OPUS:
+    case AFMT_SPEEX:
+    case AFMT_WAVPACK:
+    case AFMT_APE:
+    case AFMT_MPC_SV7:
+    case AFMT_MPC_SV8:
+    case AFMT_WMA:
+    case AFMT_WMAPRO:
+    case AFMT_A52:
+    case AFMT_RM_AC3:
+    case AFMT_RM_COOK:
+    case AFMT_RM_ATRAC3:
+    case AFMT_OMA_ATRAC3:
+    case AFMT_RM_AAC:
+    case AFMT_AAC_BSF:
+    case AFMT_TTA:
+    case AFMT_SHN:
+    case AFMT_PCM_WAV:
+    case AFMT_AIFF:
+    case AFMT_AU:
+    case AFMT_WAVE64:
+    case AFMT_VOX:
+    case AFMT_SMAF:
+    case AFMT_ADX:
+    case AFMT_DSD:
+    /* the emulators */
+    case AFMT_SID:
+    case AFMT_NSF:
+    case AFMT_MOD:
+    case AFMT_SAP:
+    case AFMT_CMC:
+    case AFMT_CM3:
+    case AFMT_CMR:
+    case AFMT_CMS:
+    case AFMT_DMC:
+    case AFMT_DLT:
+    case AFMT_MPT:
+    case AFMT_MPD:
+    case AFMT_RMT:
+    case AFMT_TMC:
+    case AFMT_TM8:
+    case AFMT_TM2:
+    case AFMT_AY:
+    case AFMT_GBS:
+    case AFMT_HES:
+    case AFMT_SGC:
         return true;
+    /* MP3 and AAC (MP4) decode on the COP by threads of their own; SPC runs
+       one there too. KSS's and VGM's emulators take so much of the codec's
+       buffer (435 and 343 of 512 KB) that what a run there needs is never
+       left. WMA Voice has no metadata parser, so it never plays; VTX is built
+       only with an FPU */
     default:
         return false;
     }

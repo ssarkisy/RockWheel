@@ -20,6 +20,7 @@
 
 #include "config.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 /* A codec's run on the second core: its codec_run() goes on a thread of the
    COP, while the thread that called codec_cop_run() hosts it on the CPU,
@@ -38,6 +39,8 @@ struct codec_cop_result
     const char *why;     /* why it didn't run there, or NULL */
     bool commanded;      /* a command or a seek's end reached the codec */
     bool made_pcm;       /* it gave PCM */
+    bool at_end;         /* it had read the file to its end */
+    size_t stack_used;   /* the most of its stack the run used, in bytes */
 };
 
 /* Runs the loaded codec on the COP, with host's functions done on the CPU
