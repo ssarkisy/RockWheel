@@ -5636,10 +5636,26 @@ static bool large_ok;
 static uint32_t art_sum_known, art_sum_count;
 static bool art_sum_read;
 
+#ifdef ITUNESDB_FINDER_LARGE
+static struct index finder_index;
+static void finder_load(void);
+static bool finder_whole(void);
+static void finder_said_whole(void);
+static void finder_work_load(void);
+static void finder_work_end(int how);
+/* COVERS_LARGE removed as this making began: the places Finder's songs had
+   in it are gone */
+static bool finder_large_gone;
+#endif
+
 static void forget_art(void)
 {
     forget_index(&art_index);
     forget_index(&slides_index);
+#ifdef ITUNESDB_FINDER_LARGE
+    /* of Finder's artwork as it was: loaded again with the covers */
+    forget_index(&finder_index);
+#endif
     large_ok = false;
     art_sum_read = false;
     if (colours_handle > 0)
@@ -6827,6 +6843,9 @@ static void covers_load(void)
         core_put_data_pinned((void *)e);
     }
     songs_load();
+#ifdef ITUNESDB_FINDER_LARGE
+    finder_load();
+#endif
 }
 
 static bool cover_art(const struct cover_entry *e, struct itunesdb_art *art)
@@ -7011,6 +7030,11 @@ bool itunesdb_covers_stale(void)
                 && h.commitid != COVERS_CUT_SHORT;
     close(fd);
     /* and the songs' own, which the albums' of an older firmware haven't */
+#ifdef ITUNESDB_FINDER_LARGE
+    /* and the pane's pictures of Finder's songs, made for its artwork now */
+    if (made && songs_whole() && !finder_whole())
+        return true;
+#endif
     return !made || !songs_whole();
 }
 
@@ -7072,6 +7096,10 @@ void itunesdb_covers_skip(void)
     /* the songs' as they are, for the same database */
     if (written && !songs_whole())
         songs_said_whole(sum);
+#ifdef ITUNESDB_FINDER_LARGE
+    if (!finder_whole())
+        finder_said_whole();
+#endif
     covers_images_made();
     covers_load();
 }
@@ -7290,6 +7318,9 @@ static bool songs_work_load(int songs, uint32_t *top)
     if (!trusted || !ok)
     {
         remove(COVERS_LARGE);
+#ifdef ITUNESDB_FINDER_LARGE
+        finder_large_gone = true;
+#endif
         /* and the menus' pane's covers test builds before this kept,
            which nothing reads now: once, as the songs' are first made */
         remove(ROCKBOX_DIR "/menu_covers.dat");
@@ -7337,6 +7368,9 @@ bool itunesdb_covers_begin(int albums, int songs, bool images_changed)
         work_prev_tries = h.making_tries;
     }
     uint32_t songs_top;
+#ifdef ITUNESDB_FINDER_LARGE
+    finder_large_gone = false;
+#endif
     if (!songs_work_load(songs, &songs_top))
         return false;
     songs_images_changed = images_changed;
@@ -7436,6 +7470,10 @@ bool itunesdb_covers_begin(int albums, int songs, bool images_changed)
        two such covers too */
     if (dropped)
         work_disk_count = write_work() ? work_old : -1;
+#ifdef ITUNESDB_FINDER_LARGE
+    /* last: its allocations may move the making's */
+    finder_work_load();
+#endif
     return true;
 }
 
@@ -8378,6 +8416,9 @@ void itunesdb_covers_end(int how)
         core_unpin(songs_handle);
     }
     songs_work_free();
+#ifdef ITUNESDB_FINDER_LARGE
+    finder_work_end(how);
+#endif
     if (whole)
         covers_images_made();
     /* the new tables in memory, for the tracks played from now on, and none
@@ -8443,10 +8484,731 @@ static uint32_t art_slot(const struct itunesdb_art *art)
     return art->offset / COVER_SLOT + 1;
 }
 
+#ifdef ITUNESDB_FINDER_LARGE
+/** The pane's pictures of the songs Finder has a cover of, on the iPod photo
+    (itunesdb.h): each such song's record, by its path, in COVERS_FINDER; its
+    picture in a place of COVERS_LARGE, which the songs' own pictures share.
+    Made in the covers' making; read for the pane by itunesdb_find_large_of(),
+    only while COVERS_FINDER goes with Finder's artwork as it is. **/
+#define COVERS_FINDER   ROCKBOX_DIR "/covers_finder.dat"
+#define FINDER_MAGIC    0x46434252 /* "RBCF" */
+#define FINDER_VERSION  1
+#define FINDER_SEEN     1   /* in the making: known, or made */
+
+struct finder_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t count;
+    uint32_t sum;       /* of the records */
+    /* finder_artwork_stamp() of the artwork every record was made or checked
+       with: 0 for records not checked since it changed, which aren't shown
+       until a making checks them by their frames' sums */
+    uint32_t art;
+    uint32_t whole;     /* 0 for a making cut short: the rest at the next */
+};
+
+struct finder_record {
+    uint64_t path;      /* itunesdb_path_hash() */
+    uint32_t mtime;     /* of the file, as the database has it; 0 to be made */
+    uint32_t check;     /* covers_file_check() */
+    uint32_t art;       /* Finder's frame of it: finder_art_stamp() */
+    uint32_t frame_crc; /* of that frame's pixels */
+    uint32_t pic_size, crc, adler; /* the song's own picture, 0 for none */
+    uint16_t large;     /* its pane's picture in COVERS_LARGE, from 1; 0 for
+                           none, as of a picture not Finder's cover */
+    uint16_t flags;
+};
+
+/* in memory, of the songs with a pane's picture: sorted by path */
+struct finder_ram {
+    uint64_t path;
+    uint32_t art, crc, adler, frame_crc;
+    uint16_t large;
+    uint16_t unused;
+};
+
+/* a picture of the making: by its bytes' sums and its Finder's frame, the
+   place made of it or 0 for none */
+struct finder_pic {
+    uint32_t crc, adler, size, frame_crc;
+    uint32_t large;
+    bool used;
+};
+
+static int finder_handle, finder_pics_handle;
+static int finder_old, finder_count, finder_room, finder_pics_room;
+static bool finder_changed;
+/* Finder's artwork changed since the file was made: each record's frame is
+   summed again before it's kept */
+static bool finder_art_changed;
+static uint32_t finder_file_art; /* the file's finder_header.art */
+static uint32_t finder_making_art; /* finder_artwork_stamp() as it began */
+static bool finder_file_whole;   /* and whole */
+/* the last frame summed, by its stamp */
+static uint32_t finder_sum_art, finder_sum_crc;
+static bool finder_sum_known;
+
+static struct index finder_index = { 0, 0, sizeof(struct finder_ram) };
+
+/* Finder's frame: its file, place and size */
+static uint32_t finder_art_stamp(const struct itunesdb_art *art)
+{
+    uint32_t h = index_hash(art->path, strlen(art->path), 2166136261u);
+    const uint32_t v[3] = { art->offset, (uint32_t)art->width,
+                            (uint32_t)art->height };
+    h = index_hash(v, sizeof(v), h);
+    return h ? h : 1;
+}
+
+/* Finder's artwork as it is: the imported index's sum (art_sum(), the
+   frames' places), and the size and time of ArtworkDB and of each ithmb file,
+   which change when Finder writes a cover again in its place; 0 without
+   artwork */
+static uint32_t finder_artwork_stamp(void)
+{
+    const uint32_t art = art_sum();
+    if (!art)
+        return 0;
+    uint32_t h = index_hash(&art, sizeof(art), 2166136261u);
+    DIR *dir = opendir(ARTWORK_DIR);
+    if (!dir)
+        return h ? h : 1;
+    struct dirent *e;
+    while ((e = readdir(dir)) != NULL)
+    {
+        const char *name = (const char *)e->d_name;
+        const size_t len = strlen(name);
+        if (strcasecmp(name, "ArtworkDB")
+            && (len < 6 || strcasecmp(name + len - 6, ".ithmb")))
+            continue;
+        const struct dirinfo info = dir_get_info(dir, e);
+        const uint32_t v[2] = { (uint32_t)info.size, (uint32_t)info.mtime };
+        h = index_hash(name, len, h);
+        h = index_hash(v, sizeof(v), h);
+    }
+    closedir(dir);
+    return h ? h : 1;
+}
+
+/* the sum of Finder's frame's pixels: false without the frame */
+static bool finder_frame_crc(const struct itunesdb_art *art, uint32_t *crc)
+{
+    const uint32_t stamp = finder_art_stamp(art);
+    if (finder_sum_known && finder_sum_art == stamp)
+    {
+        *crc = finder_sum_crc;
+        return true;
+    }
+    lock_art();
+    const fb_data *frame = get_frame(art);
+    if (frame)
+        *crc = covers_crc32(COVERS_CRC32_INIT, frame,
+                            art->width * art->height * sizeof(fb_data));
+    mutex_unlock(&art_lock);
+    if (!frame)
+        return false;
+    finder_sum_art = stamp;
+    finder_sum_crc = *crc;
+    finder_sum_known = true;
+    return true;
+}
+
+/* the file's header, if it's of this version and whole; false without */
+static bool finder_header_read(int fd, struct finder_header *h)
+{
+    return read(fd, h, sizeof(*h)) == sizeof(*h) && h->magic == FINDER_MAGIC
+           && h->version == FINDER_VERSION && h->count <= COUNT_MAX
+           && ffilesize(fd) == (off_t)(sizeof(*h)
+                                       + h->count * sizeof(struct finder_record));
+}
+
+/* not cut short, and made for Finder's artwork as it is, or said not
+   checked since it changed (art 0: finder_said_whole(), or a making not of
+   every song after it changed, COVERS_PARTLY): a making with nothing to make
+   isn't asked for at every boot */
+static bool finder_whole(void)
+{
+    struct finder_header h;
+    const int fd = open(COVERS_FINDER, O_RDONLY);
+    const bool whole = fd >= 0 && finder_header_read(fd, &h) && h.whole
+                       && (!h.art || h.art == finder_artwork_stamp());
+    if (fd >= 0)
+        close(fd);
+    return whole;
+}
+
+/* the records into memory, at most room, if their sum is as said: how many,
+   -1 without */
+static int finder_records_read(int fd, const struct finder_header *h,
+                               struct finder_record *r, int room)
+{
+    if ((int)h->count > room)
+        return -1;
+    const ssize_t size = h->count * sizeof(*r);
+    if (size && read(fd, r, size) != size)
+        return -1;
+    return index_hash(r, size, 2166136261u) == h->sum ? (int)h->count : -1;
+}
+
+/* The songs with a pane's picture into memory, for the pane: with the
+   covers, at boot and after a making; none unless every record goes with
+   Finder's artwork as it is */
+static void finder_load(void)
+{
+    forget_index(&finder_index);
+    struct finder_header h;
+    const int fd = open(COVERS_FINDER, O_RDONLY);
+    if (fd < 0)
+        return;
+    if (!finder_header_read(fd, &h) || !h.art
+        || h.art != finder_artwork_stamp() || !h.count)
+    {
+        close(fd);
+        return;
+    }
+    /* a record at a time through a small buffer, those with a picture kept */
+    int shown = 0;
+    struct finder_record r[16];
+    uint32_t sum = 2166136261u;
+    for (uint32_t i = 0; i < h.count; )
+    {
+        const int n = MIN(16, (int)(h.count - i));
+        if (read(fd, r, n * sizeof(r[0])) != (ssize_t)(n * sizeof(r[0])))
+        {
+            close(fd);
+            return;
+        }
+        sum = index_hash(r, n * sizeof(r[0]), sum);
+        for (int k = 0; k < n; k++)
+            shown += r[k].large && r[k].large <= COVERS_LARGE_MAX;
+        i += n;
+    }
+    const int handle = shown && sum == h.sum
+        ? db_alloc(shown * sizeof(struct finder_ram)) : 0;
+    if (handle <= 0 || lseek(fd, sizeof(h), SEEK_SET) != sizeof(h))
+    {
+        if (handle > 0)
+            core_free(handle);
+        close(fd);
+        return;
+    }
+    core_pin(handle);
+    struct finder_ram *e = core_get_data(handle);
+    int at = 0;
+    bool ok = true;
+    for (uint32_t i = 0; ok && i < h.count; )
+    {
+        const int n = MIN(16, (int)(h.count - i));
+        ok = read(fd, r, n * sizeof(r[0])) == (ssize_t)(n * sizeof(r[0]));
+        for (int k = 0; ok && k < n; k++)
+        {
+            if (!r[k].large || r[k].large > COVERS_LARGE_MAX || at >= shown)
+                continue;
+            e[at].path = r[k].path;
+            e[at].art = r[k].art;
+            e[at].crc = r[k].crc;
+            e[at].adler = r[k].adler;
+            e[at].frame_crc = r[k].frame_crc;
+            e[at].large = r[k].large;
+            e[at].unused = 0;
+            at++;
+        }
+        i += n;
+    }
+    core_unpin(handle);
+    close(fd);
+    if (!ok || at != shown)
+    {
+        core_free(handle);
+        return;
+    }
+    finder_index.handle = handle;
+    finder_index.count = shown;
+}
+
+/* the pane's picture of Finder's song at path, whose cover is art: the
+   record's, if the song still has that frame of Finder's, its pixels as they
+   were (a cover written again in its place with the file's size and time as
+   they were isn't seen by finder_artwork_stamp()), and the picture's place
+   is still its picture's. Reads the disk, as the pane asks only while it
+   spins: Finder's frame and the place's header. */
+static bool finder_find_large(const char *path, const struct itunesdb_art *art,
+                              struct itunesdb_large_art *large)
+{
+    struct finder_ram e;
+    uint32_t frame_crc;
+    /* read now, not a making's sum of it */
+    finder_sum_known = false;
+    if (!find_in_index(&finder_index, itunesdb_path_hash(path), &e)
+        || e.art != finder_art_stamp(art)
+        || !finder_frame_crc(art, &frame_crc) || frame_crc != e.frame_crc)
+        return false;
+    int lw = COVER_LARGE_SIDE, lh = COVER_LARGE_SIDE;
+    covers_fit(art->width, art->height, &lw, &lh);
+    struct large_slot head;
+    const off_t pos = (off_t)(e.large - 1) * COVER_LARGE_SLOT;
+    const int fd = open(COVERS_LARGE, O_RDONLY);
+    const bool ok = fd >= 0 && lseek(fd, pos, SEEK_SET) == pos
+                    && read(fd, &head, sizeof(head)) == sizeof(head)
+                    && head.magic == COVER_LARGE_MAGIC
+                    && head.width == lw && head.height == lh
+                    && head.crc == e.crc && head.adler == e.adler;
+    if (fd >= 0)
+        close(fd);
+    if (!ok)
+        return false;
+    strmemccpy(large->path, COVERS_LARGE, sizeof(large->path));
+    large->offset = pos + sizeof(head);
+    large->pitch = lw;
+    large->x = large->y = 0;
+    large->width = lw;
+    large->height = lh;
+    return true;
+}
+
+static bool finder_has_large(const char *path, const struct itunesdb_art *art)
+{
+    struct finder_ram e;
+    return find_in_index(&finder_index, itunesdb_path_hash(path), &e)
+           && e.art == finder_art_stamp(art);
+}
+
+static struct finder_record *finder_records(void)
+{
+    return core_get_data(finder_handle);
+}
+
+static struct finder_pic *finder_pics(void)
+{
+    return core_get_data(finder_pics_handle);
+}
+
+/* the picture's place in the table, by its sums and Finder's frame: its
+   entry, or a free one to put it in; NULL with the table full */
+static struct finder_pic *finder_pic_place(uint32_t crc, uint32_t adler,
+                                           uint32_t size, uint32_t frame_crc)
+{
+    struct finder_pic *t = finder_pics();
+    const uint32_t start = (crc ^ adler ^ frame_crc) % finder_pics_room;
+    for (int n = 0; n < finder_pics_room; n++)
+    {
+        struct finder_pic *p = &t[(start + n) % finder_pics_room];
+        if (!p->used || (p->crc == crc && p->adler == adler && p->size == size
+                         && p->frame_crc == frame_crc))
+            return p;
+    }
+    return NULL;
+}
+
+static void finder_pic_note(const struct finder_record *r)
+{
+    if (!r->pic_size || finder_pics_handle <= 0)
+        return;
+    struct finder_pic *p = finder_pic_place(r->crc, r->adler, r->pic_size,
+                                            r->frame_crc);
+    if (p && !p->used)
+    {
+        *p = (struct finder_pic){ r->crc, r->adler, r->pic_size, r->frame_crc,
+                                  r->large, true };
+    }
+}
+
+/* the record of path: those of the file in order, then those put since */
+static int finder_find(uint64_t path)
+{
+    const struct finder_record *r = finder_records();
+    int lo = 0, hi = finder_old - 1;
+    while (lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (r[mid].path == path)
+            return mid;
+        if (r[mid].path < path)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    for (int i = finder_old; i < finder_count; i++)
+    {
+        if (r[i].path == path)
+            return i;
+    }
+    return -1;
+}
+
+static void finder_work_free(void)
+{
+    if (finder_handle > 0)
+        core_free(finder_handle);
+    if (finder_pics_handle > 0)
+        core_free(finder_pics_handle);
+    finder_handle = finder_pics_handle = 0;
+}
+
+static bool finder_write(const struct finder_record *r, int n, uint32_t art,
+                         bool whole);
+
+/* The file's records into the making, their places taken in COVERS_LARGE,
+   room for the songs Finder has covers of; without memory none to make, and
+   the file said whole as itunesdb_covers_skip() says it */
+static void finder_work_load(void)
+{
+    finder_work_free();
+    finder_sum_known = false;
+    finder_making_art = finder_artwork_stamp();
+    struct finder_header h;
+    const int fd = open(COVERS_FINDER, O_RDONLY);
+    const bool valid = fd >= 0 && finder_header_read(fd, &h);
+    finder_old = valid ? (int)h.count : 0;
+    finder_file_art = valid ? h.art : 0;
+    finder_file_whole = valid && h.whole;
+    /* the file's songs and every one Finder has a cover of, at most */
+    finder_room = finder_old
+                  + (art_index.handle > 0 ? (int)art_index.count : 0) + 1;
+    finder_handle = db_alloc(finder_room * sizeof(struct finder_record));
+    /* a picture for each record at most, the table a third free */
+    finder_pics_room = finder_room + finder_room / 2 + 1;
+    finder_pics_handle = finder_handle > 0
+        ? db_alloc(finder_pics_room * sizeof(struct finder_pic)) : 0;
+    if (finder_handle <= 0 || finder_pics_handle <= 0)
+    {
+        if (fd >= 0)
+            close(fd);
+        finder_work_free();
+        if (!finder_whole())
+            finder_said_whole();
+        return;
+    }
+    memset(finder_pics(), 0, finder_pics_room * sizeof(struct finder_pic));
+    core_pin(finder_handle);
+    if (finder_old && finder_records_read(fd, &h, finder_records(),
+                                          finder_room) < 0)
+        finder_old = 0; /* damaged: all made again */
+    core_unpin(finder_handle);
+    if (fd >= 0)
+        close(fd);
+    finder_count = finder_old;
+    finder_changed = !valid;
+    finder_art_changed = finder_file_art != finder_making_art;
+    /* how far COVERS_LARGE goes */
+    const int lfd = open(COVERS_LARGE, O_RDONLY);
+    const off_t large_end = lfd >= 0 ? ffilesize(lfd) : 0;
+    if (lfd >= 0)
+        close(lfd);
+    struct finder_record *r = finder_records();
+    uint8_t *used = large_used();
+    bool gone = false;
+    for (int i = 0; i < finder_old; i++)
+    {
+        r[i].flags = 0;
+        /* Made again: COVERS_LARGE gone with the songs' file not trusted; a
+           place past the bounds or past the file's end; or one the songs'
+           pictures have, as after a reset in the making that took the
+           places of a file before (only those are marked yet) */
+        const uint32_t l = r[i].large;
+        const bool songs = l && l <= COVERS_LARGE_MAX
+                           && (used[l / 8] & (1 << (l % 8)));
+        const bool past = l && l <= COVERS_LARGE_MAX
+                          && (off_t)(l - 1) * COVER_LARGE_SLOT
+                             + (off_t)sizeof(struct large_slot) > large_end;
+        /* a place given out again in this making, the file's record of it
+           to be gone before any is: not one the songs' file has */
+        gone |= l && (finder_large_gone || (past && !songs));
+        if (l && (finder_large_gone || l > COVERS_LARGE_MAX || past || songs))
+        {
+            r[i].large = 0;
+            r[i].mtime = 0;
+            finder_changed = true;
+        }
+    }
+    /* then theirs, not given to another in this making, as the songs' are
+       not; several songs of one picture have one place */
+    for (int i = 0; i < finder_old; i++)
+    {
+        if (r[i].large)
+            used[r[i].large / 8] |= 1 << (r[i].large % 8);
+    }
+    /* With COVERS_LARGE gone, or places past its end, the file on disk
+       without those places at once, and said cut short: they're given out
+       again in this making, and after a reset before its end the next one,
+       trusting the songs' file then, would have taken the old records' as
+       theirs again */
+    if (gone)
+    {
+        core_pin(finder_handle);
+        /* else none, rather than the old ones */
+        if (!finder_write(finder_records(), finder_old, finder_file_art, false))
+            remove(COVERS_FINDER);
+        core_unpin(finder_handle);
+        finder_file_whole = false;
+    }
+}
+
+int itunesdb_finder_large_known(uint64_t path, uint32_t mtime,
+                                const struct itunesdb_art *art)
+{
+    /* none to make: no room for the making, or Finder writes its own
+       larger frames, which it doesn't for an iPod photo's description */
+    if (finder_handle <= 0 || itunesdb_has_large_art())
+        return 1;
+    const int i = finder_find(path);
+    if (i < 0)
+        return 0;
+    struct finder_record *r = &finder_records()[i];
+    if (!r->mtime || r->mtime != mtime || r->art != finder_art_stamp(art))
+    {
+        /* changed: no picture until it's made again, which a making cut
+           short may leave for the next */
+        if (r->large || r->mtime)
+        {
+            r->large = 0;
+            r->mtime = 0;
+            finder_changed = true;
+        }
+        return 0;
+    }
+    if (finder_art_changed)
+    {
+        /* Finder's artwork written again: the frame as it was made with */
+        uint32_t crc;
+        if (!finder_frame_crc(art, &crc) || crc != r->frame_crc)
+        {
+            r->large = 0;
+            r->mtime = 0;
+            finder_changed = true;
+            return 0;
+        }
+    }
+    r->flags |= FINDER_SEEN;
+    finder_pic_note(r);
+    return 1;
+}
+
+/* the song's record as given, with its frame's sum and its picture's place */
+static bool finder_record_put(const struct itunesdb_finder_song *song,
+                              const struct itunesdb_art *art,
+                              uint32_t frame_crc, uint32_t large)
+{
+    int i = finder_find(song->path);
+    if (i < 0)
+    {
+        if (finder_count >= finder_room)
+            return false;
+        i = finder_count++;
+    }
+    struct finder_record *r = &finder_records()[i];
+    *r = (struct finder_record){
+        .path = song->path, .mtime = song->mtime, .check = song->check,
+        .art = finder_art_stamp(art), .frame_crc = frame_crc,
+        .pic_size = song->pic_size, .crc = song->crc, .adler = song->adler,
+        .large = large, .flags = FINDER_SEEN };
+    finder_changed = true;
+    return true;
+}
+
+int itunesdb_finder_large_picture(const struct itunesdb_finder_song *song,
+                                  const struct itunesdb_art *art)
+{
+    if (finder_handle <= 0 || work_handle <= 0)
+        return 0;
+    uint32_t frame_crc = 0;
+    /* a decode of it cut short twice, by a crash or a hang: none */
+    if (songs_prev_given_up && song->path == songs_prev
+        && song->mtime == songs_prev_mtime)
+    {
+        finder_frame_crc(art, &frame_crc);
+        finder_record_put(song, art, frame_crc, 0);
+        return -1;
+    }
+    if (!song->pic_size || !finder_frame_crc(art, &frame_crc))
+        return 0;
+    const struct finder_pic *p = finder_pic_place(song->crc, song->adler,
+                                                  song->pic_size, frame_crc);
+    if (!p || !p->used)
+        return 0;
+    return finder_record_put(song, art, frame_crc, p->large) ? 1 : 0;
+}
+
+/* The picture, w by h, shrunk to lw by lh into the place large of
+   COVERS_LARGE, its header last; with art_lock held, for slide_slot. bm's
+   pixels are changed. */
+static bool finder_write_large(struct bitmap *bm, int lw, int lh,
+                               uint32_t crc, uint32_t adler, uint32_t large)
+{
+    if (lw != bm->width || lh != bm->height)
+    {
+        cpu_boost(true);
+        covers_area_scale((const fb_data *)bm->data, bm->width, bm->height,
+                          (fb_data *)bm->data, lw, lh, (uint32_t *)slide_slot);
+        cpu_boost(false);
+    }
+    const struct large_slot head = { COVER_LARGE_MAGIC, lw, lh, crc, adler };
+    static const struct large_slot none;
+    const off_t pos = (off_t)(large - 1) * COVER_LARGE_SLOT;
+    const int fd = open(COVERS_LARGE, O_RDWR | O_CREAT, 0666);
+    bool ok = fd >= 0 && write_slot(fd, pos, &none, sizeof(none))
+              && write_slot(fd, pos + sizeof(head), bm->data,
+                            lw * lh * sizeof(fb_data))
+              && lseek(fd, pos, SEEK_SET) == pos
+              && write(fd, &head, sizeof(head)) == sizeof(head);
+    if (fd >= 0)
+        ok = close(fd) == 0 && ok;
+    return ok;
+}
+
+int itunesdb_finder_large_put(const struct itunesdb_finder_song *song,
+                              const struct itunesdb_art *art,
+                              struct bitmap *bm)
+{
+    if (finder_handle <= 0 || work_handle <= 0)
+        return 0;
+    if (!work_marked)
+        mark_making(0, 0);
+    uint32_t frame_crc;
+    uint32_t large = 0;
+    int lw = COVER_LARGE_SIDE, lh = COVER_LARGE_SIDE;
+    covers_fit(art->width, art->height, &lw, &lh);
+    lock_art();
+    const fb_data *frame = get_frame(art);
+    bool same = false;
+    if (frame)
+    {
+        frame_crc = covers_crc32(COVERS_CRC32_INIT, frame,
+                                 art->width * art->height * sizeof(fb_data));
+        /* Finder's cover: the picture as large as the pane takes it, and
+           like Finder's frame of it */
+        same = bm && song->pic_size && bm->width <= COVER_LARGE_SIDE
+               && bm->height <= COVER_LARGE_SIDE && lw <= bm->width
+               && lh <= bm->height
+               && frames_agree((const fb_data *)bm->data, bm->width,
+                               bm->height, frame, art->width, art->height);
+    }
+    if (!frame)
+    {
+        /* not put: tried again at the next making */
+        mutex_unlock(&art_lock);
+        return 0;
+    }
+    if (same)
+    {
+        large = free_large();
+        if (!large || !covers_room_at(0, large)
+            || !finder_write_large(bm, lw, lh, song->crc, song->adler, large))
+        {
+            mutex_unlock(&art_lock);
+            drop_large(large);
+            return -1;
+        }
+    }
+    mutex_unlock(&art_lock);
+    if (song->pic_size)
+    {
+        struct finder_pic *p = finder_pic_place(song->crc, song->adler,
+                                                song->pic_size, frame_crc);
+        if (p && !p->used)
+            *p = (struct finder_pic){ song->crc, song->adler, song->pic_size,
+                                      frame_crc, large, true };
+    }
+    return finder_record_put(song, art, frame_crc, large) ? 1 : 0;
+}
+
+static int cmp_finder_record(const void *a, const void *b)
+{
+    const uint64_t x = ((const struct finder_record *)a)->path;
+    const uint64_t y = ((const struct finder_record *)b)->path;
+    return (x > y) - (x < y);
+}
+
+/* the file, of n records */
+static bool finder_write(const struct finder_record *r, int n, uint32_t art,
+                         bool whole)
+{
+    struct finder_header h = { .magic = FINDER_MAGIC,
+                               .version = FINDER_VERSION, .count = n,
+                               .art = art, .whole = whole };
+    h.sum = index_hash(r, n * sizeof(*r), 2166136261u);
+    const int fd = whole_file_open(COVERS_FINDER);
+    if (fd < 0)
+        return false;
+    const ssize_t size = n * sizeof(*r);
+    const bool ok = write(fd, &h, sizeof(h)) == sizeof(h)
+                    && (!n || write(fd, r, size) == size);
+    return whole_file_close(fd, COVERS_FINDER, ok);
+}
+
+/* None made for this database (itunesdb_covers_skip(), or no memory for
+   the making): the file said whole, its records kept, rather than a making
+   at every boot. Of Finder's artwork as it is, they're shown as before;
+   else not until a making checks them by their frames' sums (art 0), which
+   decodes nothing for a frame unchanged. Without a file, or for one damaged
+   or unreadable, an empty one. */
+static void finder_said_whole(void)
+{
+    struct finder_header h;
+    const uint32_t stamp = finder_artwork_stamp();
+    const int fd = open(COVERS_FINDER, O_RDWR);
+    const bool kept = fd >= 0 && finder_header_read(fd, &h);
+    if (kept)
+    {
+        h.whole = 1;
+        if (h.art != stamp)
+            h.art = 0;
+        if (lseek(fd, 0, SEEK_SET) == 0)
+            write(fd, &h, sizeof(h));
+    }
+    if (fd >= 0)
+        close(fd);
+    if (!kept)
+        finder_write(NULL, 0, stamp, true);
+}
+
+/* The making's records into the file, by path: those not seen are gone after
+   a whole making, kept otherwise. Said to be of Finder's artwork as it is
+   unless some weren't checked against it. */
+static void finder_work_end(int how)
+{
+    if (finder_handle <= 0)
+    {
+        finder_work_free();
+        return;
+    }
+    core_pin(finder_handle);
+    struct finder_record *r = finder_records();
+    int kept = 0;
+    bool all_seen = true;
+    for (int i = 0; i < finder_count; i++)
+    {
+        const bool seen = r[i].flags & FINDER_SEEN;
+        r[i].flags = 0;
+        all_seen = all_seen && seen;
+        if (seen || how != COVERS_WHOLE)
+            r[kept++] = r[i];
+        else
+            finder_changed = true;
+    }
+    qsort(r, kept, sizeof(*r), cmp_finder_record);
+    /* records not seen after Finder's artwork changed weren't checked */
+    const uint32_t art = finder_art_changed && !all_seen && how != COVERS_WHOLE
+                         ? 0 : finder_making_art;
+    const bool whole = how != COVERS_CUT;
+    if (finder_changed || art != finder_file_art || whole != finder_file_whole)
+        finder_write(r, kept, art, whole);
+    core_unpin(finder_handle);
+    finder_work_free();
+    finder_load();
+}
+#endif /* ITUNESDB_FINDER_LARGE */
+
 bool itunesdb_find_large_of(const char *path, const struct itunesdb_art *art,
                             struct itunesdb_large_art *large)
 {
     const uint32_t slot = art_slot(art);
+#ifdef ITUNESDB_FINDER_LARGE
+    /* Finder's, or the one made of its song's own picture */
+    if (!slot)
+        return itunesdb_find_large_art(path, large)
+               || finder_find_large(path, art, large);
+#endif
     return slot ? find_large_slot(slot, art->width, art->height, large)
                 : itunesdb_find_large_art(path, large);
 }
@@ -8456,6 +9218,10 @@ bool itunesdb_has_large_of(const char *path, const struct itunesdb_art *art)
     struct song_picture p;
     if (art_slot(art))
         return slot_large(art_slot(art), &p) != 0;
+#ifdef ITUNESDB_FINDER_LARGE
+    if (finder_has_large(path, art))
+        return true;
+#endif
     struct itunesdb_art finders;
     return itunesdb_has_large_art() && itunesdb_find_art(path, &finders)
            && finders.offset == art->offset && !strcmp(finders.path, art->path);

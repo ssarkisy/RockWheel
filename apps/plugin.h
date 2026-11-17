@@ -193,7 +193,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 70
+#define PLUGIN_API_REVISION 71
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1201,6 +1201,16 @@ struct plugin_api {
     int (*codec_cop_run)(struct codec_api *api, int stereo_mode, int depth,
                          bool (*msg_waiting)(void),
                          struct codec_cop_result *res);
+#endif
+#ifdef ITUNESDB_FINDER_LARGE
+    /* the pane's pictures of Finder's songs on the iPod photo (itunesdb.h) */
+    int (*itunesdb_finder_large_known)(uint64_t path, uint32_t mtime,
+                                       const struct itunesdb_art *art);
+    int (*itunesdb_finder_large_picture)(const struct itunesdb_finder_song *song,
+                                         const struct itunesdb_art *art);
+    int (*itunesdb_finder_large_put)(const struct itunesdb_finder_song *song,
+                                     const struct itunesdb_art *art,
+                                     struct bitmap *bm);
 #endif
 };
 

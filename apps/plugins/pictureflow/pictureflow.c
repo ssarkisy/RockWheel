@@ -8087,6 +8087,9 @@ struct song_job {
     int32_t track;
     uint32_t mtime;
     bool images;    /* known, but its folder's image may give it another */
+#ifdef ITUNESDB_FINDER_LARGE
+    bool finder;    /* Finder has its cover: only the pane's picture made */
+#endif
 };
 
 struct song_jobs {
@@ -8103,11 +8106,32 @@ static void collect_song_job(int idx_id, const int32_t *seek, void *data)
     struct itunesdb_art art;
     if (!(++c->seen & 255))
         rb->yield();
+#ifdef ITUNESDB_FINDER_LARGE
+    if (c->count >= c->room
+        || !rb->tagcache_retrieve(&tcs, idx_id, tag_filename, path, sizeof(path)))
+        return;
+    const uint32_t mtime = seek[tag_mtime];
+    if (rb->itunesdb_find_art(path, &art))
+    {
+        /* the pane's picture of Finder's cover, if not known as it is */
+        if (rb->itunesdb_finder_large_known(rb->itunesdb_path_hash(path),
+                                            mtime, &art) != 1)
+        {
+            struct song_job *job = &c->jobs[c->count++];
+            job->track = idx_id;
+            job->mtime = mtime;
+            job->images = false;
+            job->finder = true;
+        }
+        return;
+    }
+#else
     if (c->count >= c->room
         || !rb->tagcache_retrieve(&tcs, idx_id, tag_filename, path, sizeof(path))
         || rb->itunesdb_find_art(path, &art))
         return;
     const uint32_t mtime = seek[tag_mtime];
+#endif
     const int known = rb->itunesdb_song_known(rb->itunesdb_path_hash(path),
                                               mtime, ~0u);
     if (known == 1)
@@ -8116,6 +8140,9 @@ static void collect_song_job(int idx_id, const int32_t *seek, void *data)
     job->track = idx_id;
     job->mtime = mtime;
     job->images = known == 2;
+#ifdef ITUNESDB_FINDER_LARGE
+    job->finder = false;
+#endif
 }
 
 /* the stamp of the folder's image the song would have now, by its tags in the
@@ -8184,6 +8211,11 @@ static struct {
     int songs, pictures, sums, known;
     long decode_ticks, sum_ticks, decode_most;
     int noted;
+#ifdef ITUNESDB_FINDER_LARGE
+    /* the pane's pictures of Finder's songs */
+    int finder_songs, finder_pictures;
+    long finder_ticks;
+#endif
 } covers_time;
 #define COVERS_NOTED 12 /* pictures with a line each, the first ones */
 
@@ -8299,6 +8331,64 @@ static int make_song(const struct song_job *job, void *buf, size_t buf_size)
     }
     return rb->itunesdb_song_put(&song, NULL, reason) < 0 ? -1 : 1;
 }
+
+#ifdef ITUNESDB_FINDER_LARGE
+/* The pane's picture of a song Finder has the cover of: its own picture,
+   decoded at the pane's size if no song had it before, and kept if it is
+   Finder's cover. -1 for no room left on the disk, which ends the making. */
+static int make_finder_song(const struct song_job *job, void *buf,
+                            size_t buf_size)
+{
+    static char path[MAX_PATH];
+    struct itunesdb_art art;
+    if (!song_path(job->track, path, sizeof(path))
+        || !rb->itunesdb_find_art(path, &art)
+        || !rb->get_metadata(&id3, -1, path))
+        return 0;
+    covers_time.finder_songs++;
+    struct itunesdb_finder_song song;
+    rb->memset(&song, 0, sizeof(song));
+    song.path = rb->itunesdb_path_hash(path);
+    song.mtime = job->mtime;
+    const bool own = id3.has_embedded_albumart
+        && (id3.albumart.type & AA_CLEAR_FLAGS_MASK) == AA_TYPE_JPG;
+    song.check = rb->covers_file_check(id3.filesize,
+                                       own ? id3.albumart.pos : 0,
+                                       own ? id3.albumart.size : 0);
+    /* only the song's own picture, which Finder's cover is made of */
+    if (!own)
+        return rb->itunesdb_finder_large_put(&song, &art, NULL) < 0 ? -1 : 1;
+    const struct mp3_albumart aa = id3.albumart;
+    song.pic_size = aa.size;
+    long t = *rb->current_tick;
+    if (!sum_picture(path, aa.pos, aa.size, buf, buf_size, &song.crc,
+                     &song.adler))
+        return 0;
+    covers_time.sum_ticks += *rb->current_tick - t;
+    covers_time.sums++;
+    const int known = rb->itunesdb_finder_large_picture(&song, &art);
+    if (known)
+        return 1;
+    /* said first, as a song's own: a picture that crashes the decoder or
+       hangs it is given up */
+    struct itunesdb_song_cover making;
+    rb->memset(&making, 0, sizeof(making));
+    making.path = song.path;
+    making.mtime = song.mtime;
+    rb->itunesdb_song_making(&making);
+    struct bitmap bm = { .width = ITUNESDB_LARGE_SIDE,
+                         .height = ITUNESDB_LARGE_SIDE, .data = buf };
+    const int format = FORMAT_NATIVE | FORMAT_RESIZE | FORMAT_KEEP_ASPECT;
+    t = *rb->current_tick;
+    const int got = read_embedded_jpeg(path, &aa, &bm, buf_size, format, NULL);
+    t = *rb->current_tick - t;
+    covers_time.finder_ticks += t;
+    covers_time.decode_most = MAX(covers_time.decode_most, t);
+    covers_time.finder_pictures++;
+    return rb->itunesdb_finder_large_put(&song, &art, got > 0 ? &bm : NULL) < 0
+           ? -1 : 1;
+}
+#endif
 
 /* the album's cover of Finder's song of it, made into buf:
    itunesdb_cover_put()'s answer */
@@ -8442,7 +8532,13 @@ static void prepare_covers(void)
         }
         rb->library_update_covers_progress(i, total);
         rb->reset_poweroff_timer();
+#ifdef ITUNESDB_FINDER_LARGE
+        if (songs.jobs[i].finder
+            ? make_finder_song(&songs.jobs[i], decode, decode_size) < 0
+            : make_song(&songs.jobs[i], decode, decode_size) < 0)
+#else
         if (make_song(&songs.jobs[i], decode, decode_size) < 0)
+#endif
         {
             /* the disk nearly full: the rest at a boot with room */
             whole = false;
@@ -8502,6 +8598,13 @@ static void prepare_covers(void)
                         covers_time.decode_most * 1000 / HZ,
                         (*rb->current_tick - covers_time.started) * 1000 / HZ,
                         whole ? "" : ", cut short");
+#ifdef ITUNESDB_FINDER_LARGE
+    if (covers_time.finder_songs)
+        rb->health_note("covers: the pane's pictures of %d of Finder's songs, "
+                        "%d decoded in %ld ms",
+                        covers_time.finder_songs, covers_time.finder_pictures,
+                        covers_time.finder_ticks * 1000 / HZ);
+#endif
     /* also after Menu, as those counted are taken for told; not before USB
        or switching off, which are waited for */
     if (!held && covers_unshown > 0)

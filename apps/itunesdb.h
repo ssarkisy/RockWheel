@@ -376,6 +376,39 @@ int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm);
 #define COVERS_PARTLY 2
 void itunesdb_covers_end(int how);
 
+#ifdef IPOD_COLOR
+/* Finder writes no frame as large as the menus' pane for the iPod photo (its
+   description lists none), and the pane would show Finder's 140 px frame
+   scaled up. So Updating Library makes the pane's picture of each song Finder
+   has a cover of too, of the song's own picture when that is Finder's cover,
+   into COVERS_LARGE; covers_finder.dat keeps which, for itunesdb_find_large_of().
+   In the covers' making, between itunesdb_covers_begin() and _end(). */
+#define ITUNESDB_FINDER_LARGE
+struct itunesdb_finder_song {
+    uint64_t path;              /* itunesdb_path_hash() */
+    uint32_t mtime, check;      /* as itunesdb_song_cover's */
+    uint32_t pic_size, crc, adler;
+};
+/* The song of Finder's cover art (itunesdb_find_art()) known as it is: 1
+   kept, 0 to be made. With Finder's artwork changed since, its index or its
+   files, its frame is read and summed again. */
+int itunesdb_finder_large_known(uint64_t path, uint32_t mtime,
+                                const struct itunesdb_art *art);
+/* its picture, given by its sums, one made or found unlike Finder's frame
+   already: 1 put so, without a decode; 0 to be decoded; -1 a decode of it
+   was cut short twice, and the song has none */
+int itunesdb_finder_large_picture(const struct itunesdb_finder_song *song,
+                                  const struct itunesdb_art *art);
+/* The song's picture decoded into bm (up to ITUNESDB_LARGE_SIDE a side), or
+   NULL for none: its pane's picture made if it is Finder's cover, by Finder's
+   frame. 1 put, 0 not, -1 with nothing put, for no room left on the disk, no
+   place left or a write failed, which ends the making. bm's pixels are
+   changed. */
+int itunesdb_finder_large_put(const struct itunesdb_finder_song *song,
+                              const struct itunesdb_art *art,
+                              struct bitmap *bm);
+#endif
+
 /* reads the cover into bm, scaled up or down to fit its width and height;
    returns the size of the pixels or -1. It opens the ithmb file itself, and
    only when the frame isn't the one read last. */

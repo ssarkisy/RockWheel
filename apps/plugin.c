@@ -984,6 +984,11 @@ static const struct plugin_api rockbox_api = {
 #ifdef HAVE_CODEC_COP
     codec_cop_run,
 #endif
+#ifdef ITUNESDB_FINDER_LARGE
+    itunesdb_finder_large_known,
+    itunesdb_finder_large_picture,
+    itunesdb_finder_large_put,
+#endif
 };
 
 static int plugin_buffer_handle;
