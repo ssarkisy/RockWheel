@@ -2,7 +2,7 @@
 
 The themes for the iPod Video (320x240), each kept here in the layout it is
 installed in (`<theme>/.rockbox/...`): iClassic Square, which Settings calls
-Classic, Modern and Neo, each with a dark version beside it.
+Classic, Modern, Neo and Dieter, each with a dark version beside it.
 
 The iPod photo's 220x176 screen has each theme's own skins, in
 `<theme>/220x176/.rockbox/...`, which `tools/buildzip.pl` installs for that
@@ -13,20 +13,20 @@ and Disk Fill. The pane is beside the main menu alone and shows by the row
 selected, as on the Video: the disk for Settings (Classic: and for Extras),
 the Photos collage for Photos, the music for the rest. Every other list takes
 the screen's width, as on a stock iPod photo, and so does the main menu with
-Settings > Appearance > Cover Beside Menu off. Modern's and Neo's are written by their scripts with the 320x240
+Settings > Appearance > Cover Beside Menu off. Modern's, Neo's and Dieter's are written by their scripts with the 320x240
 ones; Classic's pictures by `tools/make_classic_220x176.py` from its 320x240
 ones, its skins by hand as those are.
 
 iClassic Square is licensed under Creative Commons Attribution-Share Alike 3.0
 (http://creativecommons.org/licenses/by-sa/3.0/), and so are the changes made
-to it here. Modern and Neo were designed by Sergei Sarkisian for RockWheel, from
+to it here. Modern, Neo and Dieter were designed by Sergei Sarkisian for RockWheel, from
 scratch. Their skins, images and glyphs are licensed under the same Creative
-Commons Attribution-ShareAlike 3.0, so all three themes share one licence, or,
+Commons Attribution-ShareAlike 3.0, so all four themes share one licence, or,
 at your choice, under the GNU General Public License, version 2 or later, as
 their glyphs are also built into the firmware (`apps/gui/*_glyphs.h`). The
 scripts in `tools/` are code, licensed under the GNU General Public License,
 version 2 or later, as the rest of the repository. The fonts' licences are
-below. `Modern/README.md` and `Neo/README.md` describe those two themes and
+below. `Modern/README.md`, `Neo/README.md` and `Dieter/README.md` describe those themes and
 how they are made.
 
 `fonts/` holds the fonts they use: Inter (https://rsms.me/inter/), converted with
@@ -73,7 +73,7 @@ to their lines. Of the ideographs' other forms these fonts have those the 24,
 17 and 14 px ones differ in. `tools/font_coverage.py` lists what each file
 has, and draws a sheet of them.
 
-- **Modern** and **Neo**: designed by Sergei Sarkisian for RockWheel.
+- **Modern**, **Neo** and **Dieter**: designed by Sergei Sarkisian for RockWheel.
 - **iClassic Square** by Humberto Santana, derived from iLike by Alan Brito, itself
   ported from the 176x132 version by Hayden Pearce.
   https://themes.rockbox.org/index.php?themeid=1311&target=ipodvideo
@@ -125,6 +125,8 @@ after a change, in this order:
 - `make_dark_theme.py`: the dark theme, all of it from the light one, of
   either screen.
 
+Dieter's skins, pictures and the glyphs the firmware draws in it are all written by
+`make_dieter_theme.py` (see `Dieter/README.md`).
 Modern's and Neo's skins, light and dark, are written by `make_modern_theme.py`
 and `make_neo_theme.py`, and their glyphs come from the mockups' export through
 `make_modern_glyphs.py` and `make_theme_glyphs.py`. None of these skins is edited

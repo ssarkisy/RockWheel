@@ -122,6 +122,19 @@ bool skin_photos_panel_put(const fb_data *pixels, int width, int height)
     return false;
 }
 
+const struct bitmap *skin_image(const char *label)
+{
+    struct wps_data *data = skin_get_gwps(CUSTOM_STATUSBAR, SCREEN_MAIN)->data;
+    if (!data->wps_loaded)
+        return NULL;
+    struct gui_img *img = skin_find_item(label, SKIN_FIND_IMAGE, data);
+    if (!img || !img->loaded || img->buflib_handle <= 0
+        || img->bm.format == FORMAT_MONO)
+        return NULL;
+    img->bm.data = core_get_data(img->buflib_handle);
+    return &img->bm;
+}
+
 /* update a skinned screen, update_type is WPS_REFRESH_* values.
  * Usually it should only be WPS_REFRESH_NON_STATIC
  * A full update will be done if required (skin_do_full_update() == true)
@@ -1169,9 +1182,28 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
             else
 #endif
             if (!draw_accent_bar(gwps, img, x, y, width, height, length, end, flags))
-                gui_bitmap_scrollbar_draw(display, tinted_bar_bitmap(gwps, &img->bm),
-                                          x, y, width, height,
+            {
+                struct bitmap *bm = tinted_bar_bitmap(gwps, &img->bm);
+                gui_bitmap_scrollbar_draw(display, bm, x, y, width, height,
                                           length, 0, end, flags);
+                const struct gui_img *slider =
+                    SKINOFFSETTOPTR(get_skin_buffer(gwps->data), pb->slider);
+                if (pb->fill_under && slider && !pb->slider_centre
+                    && (flags & HORIZONTAL) && !(flags & (INVERTFILL|INNER_NOFILL)))
+                {
+                    /* on from the fill's end to the middle of the slider,
+                       at its place below (skin_bar_place()): the picture's
+                       own columns there, as the bar's are */
+                    int fx = x, fy = y, fw = width, fh = height, sx, sy;
+                    gui_bitmap_scrollbar_part(bm, &fx, &fy, &fw, &fh, length, 0,
+                                              end, flags, &sx, &sy);
+                    const int from = fx - x + fw;
+                    const int to = MIN(skin_bar_place(width, end, length)
+                                       + slider->bm.width / 2, bm->width);
+                    if (to > from)
+                        display->bmp_part(bm, sx + fw, sy, x + from, fy, to - from, fh);
+                }
+            }
         }
         else
             gui_scrollbar_draw(display, x, y, width, height,
@@ -1289,10 +1321,11 @@ void draw_progressbar(struct gui_wps *gwps, struct skin_viewport* skin_viewport,
         }
         else
 #endif
-        if (pb->slider_centre)
+        if (pb->slider_centre || pb->fill_under)
         {
             /* over the end of the fill, which shows through the corners
-               of the image rather than the backdrop */
+               of the image rather than the backdrop; so does the fill
+               under a slider not centred (fillunder: Dieter's needle) */
             display->set_drawmode(DRMODE_FG);
             draw_bmp_part(gwps, &img->bm, 0, 0, x + xoff, y + yoff, w, h);
             display->set_drawmode(DRMODE_SOLID);
@@ -1436,10 +1469,24 @@ void wps_draw_image(struct gui_wps *gwps, struct gui_img *img,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     const struct cover_palette *palette = img->cover_tint ? cover_palette_get() : NULL;
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (img->signal && img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
+        && display->screen_type == SCREEN_MAIN)
+    {
+        /* a mark in the signal colour, its alpha over the backdrop, so that
+           drawn again it is the same */
+        const unsigned fg = display->get_foreground();
+        const int stride = ALIGN_UP(img->bm.width, 2);
+        display->set_foreground(ui_colour(UI_COLOUR_SIGNAL));
+        lcd_alpha_bitmap_part(img->bm.data + img->bm.alpha_offset
+                              + img->subimage_height * subimage * (stride / 2),
+                              0, 0, stride, img->x, img->y, img->bm.width,
+                              img->subimage_height);
+        display->set_foreground(fg);
+    }
     /* A note: its place in the viewport's ground, then its mask blended over
        that in the theme's two colours for a note, so that drawn again it is
        the same. It is shown only as its viewport is drawn whole (%xd) */
-    if (img->note && img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
+    else if (img->note && img->bm.alpha_offset > 0 && img->bm.format != FORMAT_MONO
         && display->screen_type == SCREEN_MAIN)
     {
         const unsigned fg = display->get_foreground();
@@ -1789,6 +1836,11 @@ static void draw_art_pixels(struct gui_wps *gwps, struct skin_albumart *aa,
     draw_cover(gwps, aa, pixels,
                STRIDE(gwps->display->screen_type, width, height),
                width, height, x, y, width, height);
+#ifdef HAVE_MENU_COVER
+    /* the pane's wall's shadow over it, where the theme's pane is a recess */
+    if (vp && !aa->reflect)
+        menu_cover_shade(vp->x + x, vp->y + y, vp->y + y + height);
+#endif
 }
 
 static void draw_kept_album_art(struct gui_wps *gwps, struct skin_albumart *aa,
@@ -2437,6 +2489,7 @@ void draw_peakmeters(struct gui_wps *gwps, int line_number,
    Call with clear = true to clear the bitmap instead of drawing it. */
 #if defined(HAVE_LCD_COLOR) && LCD_DEPTH >= 16
 #include "neo_ring.h"
+#include "gui/dieter_glyphs.h"
 
 static unsigned mix_colours(unsigned from, unsigned to, int sixteenths)
 {
@@ -2485,6 +2538,27 @@ void draw_disk_ring(struct gui_wps *gwps)
             display->set_foreground(mix_colours(surface, turn < used ? arc : track,
                                                 cover + 1));
             display->drawpixel(cx + x, cy + y);
+        }
+    }
+    /* a theme's printed scale round it, its ticks drawn with the ring as
+       nothing of the skin's would stay over it: a picture of them is drawn
+       again at every update, the ring only as the screen is drawn whole */
+    if (ui_metric(UI_METRIC_RING_TICKS))
+    {
+        const unsigned major = ui_colour(UI_COLOUR_RING_TICK);
+        const unsigned minor = ui_colour(UI_COLOUR_RING_TICK_MINOR);
+        for (int y = -DIETER_TICKS_Q; y < DIETER_TICKS_Q; y++)
+        {
+            for (int x = -DIETER_TICKS_Q; x < DIETER_TICKS_Q; x++)
+            {
+                const int qx = x >= 0 ? x : -1 - x, qy = y < 0 ? -1 - y : y;
+                const int tick = dieter_ticks[qy * DIETER_TICKS_Q + qx];
+                if (!(tick & 15))
+                    continue;
+                display->set_foreground(mix_colours(surface, tick & 16 ? major : minor,
+                                                    (tick & 15) + 1));
+                display->drawpixel(cx + x, cy + y);
+            }
         }
     }
     display->set_foreground(arc);

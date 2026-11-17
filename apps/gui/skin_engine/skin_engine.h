@@ -51,6 +51,10 @@ void skin_disarm_touchregions(struct gui_wps *gwps);
 
 /* Photos' collage in the status bar's skin takes these pixels (skin_display.c) */
 bool skin_photos_panel_put(const fb_data *pixels, int width, int height);
+/* A picture the status bar's skin loaded, by its label, for the firmware to
+   draw itself (Quick Scroll's key, line.c): NULL if the skin has none such.
+   Its data moves with the skin's memory: take it again each time it is drawn */
+const struct bitmap *skin_image(const char *label);
 
 /* Do a update_type update of the skinned screen */
 void skin_update(enum skinnable_screens skin, enum screen_type screen,

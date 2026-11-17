@@ -1925,15 +1925,19 @@ const char *get_token_value(struct gui_wps *gwps,
                 percent = (to_normalized_volume(global_status.volume,
                                                 sound_min(SOUND_VOLUME),
                                                 sound_max(SOUND_VOLUME), 1000) + 5) / 10;
+            /* "Volume: 62%", or with %nv(1) the level alone, "62%", where
+               the skin prints the name itself */
+            const char *name = token->value.i == 1 ? "" : (const char *)str(LANG_VOLUME);
+            const char *colon = token->value.i == 1 ? "" : ": ";
             if (global_settings.volume_limit < sound_max(SOUND_VOLUME))
             {
                 char limit[16];
-                snprintf(buf, buf_size, "%s: %ld/%s", str(LANG_VOLUME), percent,
+                snprintf(buf, buf_size, "%s%s%ld/%s", name, colon, percent,
                          format_volume_step(limit, sizeof(limit),
                                             global_settings.volume_limit));
             }
             else
-                snprintf(buf, buf_size, "%s: %ld%%", str(LANG_VOLUME), percent);
+                snprintf(buf, buf_size, "%s%s%ld%%", name, colon, percent);
             return buf;
         }
         case SKIN_TOKEN_NIGHT_MODE:

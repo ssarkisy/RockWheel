@@ -1932,14 +1932,32 @@ static void library_update_show(const char *text, int percent)
 #endif
     y += 22;
     int x = (LCD_WIDTH - bar_w) / 2;
-    lcd_set_foreground(LCD_RGBPACK(70, 70, 70));
-    lcd_fillrect(x, y, bar_w, bar_h);
-    lcd_set_foreground(LCD_WHITE);
-    lcd_fillrect(x, y, bar_w * percent / 100, bar_h);
+#ifdef HAVE_LCD_COLOR
+    if (global_settings.ui_theme == UI_THEME_DIETER)
+    {
+        /* Dieter's: a groove, its top wall in shadow and its lower lip lit,
+           filled with the light of its pane's floor */
+        lcd_set_foreground(LCD_RGBPACK(0x29, 0x28, 0x29));
+        lcd_fillrect(x, y, bar_w, bar_h);
+        lcd_set_foreground(LCD_RGBPACK(0x10, 0x10, 0x10));
+        lcd_hline(x, x + bar_w - 1, y);
+        lcd_set_foreground(LCD_RGBPACK(0x39, 0x38, 0x39));
+        lcd_hline(x, x + bar_w - 1, y + bar_h);
+        lcd_set_foreground(LCD_RGBPACK(0xe7, 0xe3, 0xde));
+        lcd_fillrect(x, y + 1, bar_w * percent / 100, bar_h - 1);
+    }
+    else
+#endif
+    {
+        lcd_set_foreground(LCD_RGBPACK(70, 70, 70));
+        lcd_fillrect(x, y, bar_w, bar_h);
+        lcd_set_foreground(LCD_WHITE);
+        lcd_fillrect(x, y, bar_w * percent / 100, bar_h);
+    }
     if (same_screen)
     {
         /* its many small steps were a good part of the update's time */
-        lcd_update_rect(x, y, bar_w, bar_h);
+        lcd_update_rect(x, y, bar_w, bar_h + 1);
         return;
     }
 

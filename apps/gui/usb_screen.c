@@ -503,17 +503,94 @@ static void modern_usb_draw(struct screen *screen)
     screen->set_drawmode(DRMODE_SOLID);
 }
 
+/* Dieter's: its status line's strip and hairline with the name in its
+   middle, or from the margin where it is too wide for that, and the battery
+   at the margin; the sync sign in ink on the ground, grey once it may be
+   unplugged, as Now Playing's needle is while nothing moves; the words
+   under it. Flat, built in: no picture of the theme can be read now. The
+   places are its skins' (themes/tools/make_dieter_theme.py) */
+#include "dieter_glyphs.h"
+#define DIETER_USB_GAP 6 /* between the name and the battery */
+#define DIETER_USB_BATTERY_X (LCD_WIDTH - DIETER_MARGIN - DIETER_USB_BATTERY_W)
+
+static char dieter_usb_name[64];
+static int dieter_usb_name_x;
+
+static void dieter_usb_prepare(void)
+{
+    const int room = DIETER_USB_BATTERY_X - DIETER_USB_GAP - DIETER_MARGIN;
+    const int font = font_find(ui_font_file(UI_FONT_GROUP));
+    int width;
+    strmemccpy(dieter_usb_name, ipod_usb_name, sizeof(dieter_usb_name));
+    font_getstringsize(dieter_usb_name, &width, NULL, font >= 0 ? font : FONT_UI);
+    if (width > room)
+    {
+        skin_fit_with_ellipsis(dieter_usb_name, strlen(dieter_usb_name),
+                               sizeof(dieter_usb_name), font >= 0 ? font : FONT_UI, room);
+        font_getstringsize(dieter_usb_name, &width, NULL, font >= 0 ? font : FONT_UI);
+    }
+    dieter_usb_name_x = (LCD_WIDTH - width) / 2;
+    if (dieter_usb_name_x + width > DIETER_USB_BATTERY_X - DIETER_USB_GAP)
+        dieter_usb_name_x = DIETER_MARGIN;
+    ipod_usb_cache_letters(dieter_usb_name, font >= 0 ? font : FONT_UI);
+}
+
+static void dieter_usb_draw(struct screen *screen)
+{
+    const bool dark = global_settings.dark_theme;
+    ipod_usb_charging = charging_state();
+    screen->set_drawmode(DRMODE_SOLID);
+    screen->set_foreground(ui_colour(UI_COLOUR_GROUND));
+    screen->fillrect(0, 0, LCD_WIDTH, LCD_HEIGHT);
+    /* the strip and its hairline, the skins' STRIP and HAIR as the screen
+       has them, flat */
+    screen->set_foreground(dark ? LCD_RGBPACK(0x21, 0x20, 0x21) : LCD_RGBPACK(0xef, 0xeb, 0xe7));
+    screen->fillrect(0, 0, LCD_WIDTH, DIETER_STATUS);
+    screen->set_foreground(dark ? LCD_RGBPACK(0x08, 0x08, 0x08) : LCD_RGBPACK(0xc6, 0xc3, 0xbd));
+    screen->hline(0, LCD_WIDTH - 1, DIETER_STATUS);
+
+    screen->set_drawmode(DRMODE_FG);
+    screen->set_foreground(ui_colour(UI_COLOUR_TEXT));
+    lcd_alpha_bitmap_part(dieter_usb_battery_alpha, 0,
+                          ipod_usb_charging ? 0 : DIETER_GLYPH_H, DIETER_USB_BATTERY_W,
+                          DIETER_USB_BATTERY_X, DIETER_STATUS / 2 - DIETER_GLYPH_MID,
+                          DIETER_USB_BATTERY_W, DIETER_GLYPH_H);
+    const int font = font_find(ui_font_file(UI_FONT_GROUP));
+    screen->setfont(font >= 0 ? font : FONT_UI);
+    int name_h;
+    screen->getstringsize(dieter_usb_name, NULL, &name_h);
+    screen->putsxy(dieter_usb_name_x, (DIETER_STATUS - name_h) / 2, dieter_usb_name);
+    /* the sign a little over the middle, the words under it */
+    screen->set_foreground(ipod_usb_ejected ? ui_colour(UI_COLOUR_VALUE)
+                                            : ui_colour(UI_COLOUR_TEXT));
+    lcd_alpha_bitmap_part(dieter_usb_alpha, 0, 0, DIETER_USB_W,
+                          (LCD_WIDTH - DIETER_USB_W) / 2,
+                          LCD_HEIGHT * 44 / 100 - DIETER_USB_H / 2,
+                          DIETER_USB_W, DIETER_USB_H);
+    screen->set_foreground(ui_colour(UI_COLOUR_TEXT));
+    screen->setfont(IPOD_USB_WORDS_FONT);
+    int words_h;
+    screen->getstringsize("H", NULL, &words_h);
+    ipod_usb_draw_centred(screen, str(ipod_usb_ejected ? LANG_USB_OK_TO_DISCONNECT
+                                                       : LANG_USB_DO_NOT_DISCONNECT),
+                          LCD_HEIGHT * 72 / 100 + words_h / 2);
+    screen->set_drawmode(DRMODE_SOLID);
+}
+
 /* a theme's own look of the screen, where it has one: Classic's is below */
 static bool theme_usb_look(void)
 {
     return global_settings.ui_theme == UI_THEME_NEO
-        || global_settings.ui_theme == UI_THEME_MODERN;
+        || global_settings.ui_theme == UI_THEME_MODERN
+        || global_settings.ui_theme == UI_THEME_DIETER;
 }
 
 static void theme_usb_draw(struct screen *screen)
 {
     if (global_settings.ui_theme == UI_THEME_MODERN)
         modern_usb_draw(screen);
+    else if (global_settings.ui_theme == UI_THEME_DIETER)
+        dieter_usb_draw(screen);
     else
         neo_usb_draw(screen);
 }
@@ -565,6 +642,8 @@ static void ipod_usb_prepare(void)
         neo_usb_prepare();
     else if (global_settings.ui_theme == UI_THEME_MODERN)
         modern_usb_prepare();
+    else if (global_settings.ui_theme == UI_THEME_DIETER)
+        dieter_usb_prepare();
     else
         classic_usb_prepare();
 }

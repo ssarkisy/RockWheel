@@ -425,6 +425,19 @@ static int parse_image_note(struct skin_element *element,
     return 0;
 }
 
+static int parse_image_signal(struct skin_element *element,
+                              struct wps_token *token,
+                              struct wps_data *wps_data)
+{
+    (void)token;
+    struct gui_img *img = skin_find_item(get_param_text(element, 0),
+                                         SKIN_FIND_IMAGE, wps_data);
+    if (!img)
+        return WPS_ERROR_INVALID_PARAM;
+    img->signal = true;
+    return 0;
+}
+
 static int parse_image_accent(struct skin_element *element,
                               struct wps_token *token,
                               struct wps_data *wps_data)
@@ -493,6 +506,7 @@ static int parse_image_load(struct skin_element *element,
     img->cover_tint = false;
     img->cover_keep = false;
     img->note = false;
+    img->signal = false;
     img->photos_panel = false;
     img->accent = false;
 
@@ -1080,6 +1094,7 @@ static int parse_progressbar_tag(struct skin_element* element,
     pb->image = PTRTOSKINOFFSET(skin_buffer, NULL);
     pb->slider = PTRTOSKINOFFSET(skin_buffer, NULL);
     pb->slider_centre = false;
+    pb->fill_under = false;
     pb->backdrop = PTRTOSKINOFFSET(skin_buffer, NULL);
     pb->setting = NULL;
     pb->invert_fill_direction = false;
@@ -1165,7 +1180,7 @@ static int parse_progressbar_tag(struct skin_element* element,
     {
         eINVERT = 0, eNOFILL, eNOBORDER, eNOBAR, eSLIDER, eIMAGE,
         eBACKDROP, eVERTICAL, eHORIZONTAL, eNOTOUCH, eSETTING, eSETTING_OFFSET,
-        eHOLD, eSLIDERCENTRE, eINSET, eTIMES, e_PB_TAG_COUNT
+        eHOLD, eSLIDERCENTRE, eINSET, eTIMES, eFILLUNDER, e_PB_TAG_COUNT
     };
 
     static const char *pb_options[e_PB_TAG_COUNT + 1] = {[eINVERT] = "invert",
@@ -1175,7 +1190,7 @@ static int parse_progressbar_tag(struct skin_element* element,
                  [eNOTOUCH] = "notouch", [eSETTING] = "setting",
                  [eSETTING_OFFSET] = "soffset", [eHOLD] = "hold",
                  [eSLIDERCENTRE] = "slidercentre", [eINSET] = "inset",
-                 [eTIMES] = "times",
+                 [eTIMES] = "times", [eFILLUNDER] = "fillunder",
                  [e_PB_TAG_COUNT] = NULL};
     int pb_op;
 
@@ -1196,6 +1211,8 @@ static int parse_progressbar_tag(struct skin_element* element,
             pb->nobar = true;
         else if (pb_op == eSLIDERCENTRE)
             pb->slider_centre = true;
+        else if (pb_op == eFILLUNDER)
+            pb->fill_under = true;
         else if (pb_op == eINSET || pb_op == eTIMES)
         {
             /* the two insets, or the times' y */
@@ -1373,6 +1390,7 @@ static int parse_progressbar_tag(struct skin_element* element,
             img->cover_tint = false;
             img->cover_keep = false;
             img->note = false;
+            img->signal = false;
             img->photos_panel = false;
             img->accent = false;
             struct skin_token_list *item = new_skin_token_list_item(NULL, img);
@@ -2746,6 +2764,11 @@ static int skin_element_callback(struct skin_element* element, void* data)
                 case SKIN_TOKEN_TITLE_LINE:
                     token->value.i = get_param(element, 0)->data.number;
                     break;
+                /* %nv(1): the level alone, without the volume's name */
+                case SKIN_TOKEN_VOLUME_PERCENT:
+                    token->value.i = element->params_count > 0 ?
+                                     get_param(element, 0)->data.number : 0;
+                    break;
                 case SKIN_TOKEN_IMAGE_PRELOAD_DISPLAY:
                 case SKIN_TOKEN_IMAGE_DISPLAY_9SEGMENT:
                     function = parse_image_display;
@@ -2758,6 +2781,9 @@ static int skin_element_callback(struct skin_element* element, void* data)
                     break;
                 case SKIN_TOKEN_IMAGE_NOTE:
                     function = parse_image_note;
+                    break;
+                case SKIN_TOKEN_IMAGE_SIGNAL:
+                    function = parse_image_signal;
                     break;
                 case SKIN_TOKEN_IMAGE_ACCENT:
                     function = parse_image_accent;

@@ -99,6 +99,12 @@ void menu_cover_give_slot(void);
 void menu_cover_hidden(const struct viewport *vp);
 /* the part of the screen it moves in, while it's shown */
 bool menu_cover_area(int *x0, int *y0, int *x1, int *y1);
+/* A theme whose pane is a recess (UI_METRIC_PANE_SHADE): its left wall's
+   shadow over the cover drawn there, the screen's rows y0 to y1 of it: of
+   its two columns those at or right of the cover's left edge (x0, the
+   screen's column); left of that the shadow is the backdrop's, not to be
+   darkened again */
+void menu_cover_shade(int x0, int y0, int y1);
 
 /* The sharp cover's memory as Album Art has it now, and its moving frames'
    as Moving Cover has it: taken only without music, let go with either off;

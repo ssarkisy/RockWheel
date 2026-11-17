@@ -113,6 +113,8 @@ struct gui_img {
                                battery's charge, unless the setting says */
     bool note;              /* a missing cover's note: its alpha alone is
                                drawn, in the theme's colours for a note */
+    bool signal;            /* a mark in the theme's signal colour: its alpha
+                               alone, over the backdrop (%xS) */
     bool photos_panel;      /* Photos' collage (photos_panel.h): drawn on the
                                panel's ground where a backdrop is under it */
     bool accent;            /* in the theme's accent, as Classic's colour has
@@ -156,6 +158,11 @@ struct progressbar {
      * with the bar its whole width: the slider takes half its own width
      * past either end, which the viewport has to leave room for */
     bool slider_centre;
+    /* a slider not centred: the fill goes on under it to its middle, the
+     * slider drawn over it with its alpha (Dieter's needle, whose line is
+     * there), so that the fill meets the line rather than the slider's
+     * left edge */
+    bool fill_under;
 
     OFFSETTYPE(struct gui_img *) backdrop;
     const struct settings_list *setting;

@@ -838,6 +838,295 @@ static const struct ui_theme ui_themes[] = {
             RGB(0xa5, 0x9e, 0x94),
         },
     },
+    { /* Dieter: its approved mockups (rounds 3 to 5) as the screen has them:
+         warm greys lit from the top, on the backdrop the skins share
+         (themes/tools/make_dieter_theme.py, whose LOOKS these colours are);
+         a selected row a flat band with a lit top row and a shaded foot, a
+         dot in the user's signal colour in the left margin; small grey text
+         and covers square; nothing else in colour */
+        .look = {
+            {
+                .skin = "Dieter",
+                .backdrop = BACKDROP_DIR "/Dieter.bmp",
+                .colour = {
+                    [UI_COLOUR_TEXT]            = RGB(0x21, 0x1c, 0x18),
+                    [UI_COLOUR_GROUND]          = RGB(0xf7, 0xf3, 0xef),
+                    [UI_COLOUR_GROUP_TEXT]      = RGB(0x6b, 0x69, 0x63),
+                    [UI_COLOUR_GROUP_BAR]       = RGB(0xe7, 0xe3, 0xde),
+                    [UI_COLOUR_GROUP_RULE]      = RGB(0xce, 0xcb, 0xc6),
+                    [UI_COLOUR_VALUE]           = RGB(0x6b, 0x69, 0x63),
+                    /* grey on the band too: only the dot is coloured */
+                    [UI_COLOUR_VALUE_SELECTED]  = RGB(0x6b, 0x69, 0x63),
+                    [UI_COLOUR_INITIAL_BOX]     = RGB(0xde, 0xdf, 0xde),
+                    [UI_COLOUR_SCROLLBAR_EDGE]  = RGB(0xf7, 0xf3, 0xef),
+                    [UI_COLOUR_SEARCH_SECOND]   = RGB(0x6b, 0x69, 0x63),
+                    /* Search's field a recessed slot, as the scale's window:
+                       its floor, its top wall and its lit lip */
+                    [UI_COLOUR_SEARCH_FIELD]    = RGB(0xef, 0xeb, 0xe7),
+                    [UI_COLOUR_SEARCH_RULE]     = RGB(0xce, 0xc7, 0xc6),
+                    [UI_COLOUR_SEARCH_DIM]      = RGB(0xad, 0xa6, 0x9c),
+                    [UI_COLOUR_SEARCH_LIP]      = RGB(0xff, 0xff, 0xff),
+                    [UI_COLOUR_SELECTOR_START]  = RGB(0xd6, 0xd3, 0xce),
+                    [UI_COLOUR_SELECTOR_END]    = RGB(0xd6, 0xd3, 0xce),
+                    [UI_COLOUR_SELECTOR_TEXT]   = RGB(0x21, 0x1c, 0x18),
+                    [UI_COLOUR_QUIET]           = RGB(0x6b, 0x69, 0x63),
+                    [UI_COLOUR_LEAD]            = RGB(0x6b, 0x69, 0x63),
+                    [UI_COLOUR_BITRATE]         = RGB(0x6b, 0x69, 0x63),
+                    /* a dark plaque, its text the ground's light */
+                    [UI_COLOUR_SPLASH_FILL]     = RGB(0x21, 0x1c, 0x18),
+                    [UI_COLOUR_SPLASH_TEXT]     = RGB(0xf7, 0xf3, 0xef),
+                    [UI_COLOUR_HINT_TEXT]       = RGB(0x6b, 0x69, 0x63),
+                    /* the ground's: the band is the backdrop's ground */
+                    [UI_COLOUR_HINT_BAND]       = RGB(0xf7, 0xf3, 0xef),
+                    [UI_COLOUR_SCROLLBAR_THUMB] = RGB(0x6b, 0x69, 0x63),
+                    /* Quick Scroll's letter cut into its light key: the
+                       floor, the shade of its top and left walls, the lit
+                       lip of its lower right */
+                    [UI_COLOUR_INITIAL_TEXT]    = RGB(0x4a, 0x45, 0x42),
+                    [UI_COLOUR_INITIAL_SHADE]   = RGB(0x21, 0x1c, 0x18),
+                    [UI_COLOUR_INITIAL_LIP]     = RGB(0xff, 0xff, 0xff),
+                    /* a missing cover's tile: the pane's floor with its
+                       grille's holes */
+                    [UI_COLOUR_COVER_TILE]      = RGB(0xe7, 0xe3, 0xde),
+                    [UI_COLOUR_NOTE_TOP]        = RGB(0xa5, 0x9e, 0x94),
+                    [UI_COLOUR_NOTE_FOOT]       = RGB(0xa5, 0x9e, 0x94),
+                    /* the speaker, the marks and an episode's ring: ink */
+                    [UI_COLOUR_ACCENT]          = RGB(0x21, 0x1c, 0x18),
+                    [UI_COLOUR_SCROLLBAR_LINE]  = RGB(0xce, 0xcb, 0xc6),
+                    [UI_COLOUR_LYRICS_DIM]      = RGB(0x6b, 0x69, 0x63),
+                    /* the disk's ring's track, a groove in the pane */
+                    [UI_COLOUR_RING_TRACK]      = RGB(0xd6, 0xcf, 0xce),
+                    /* the dial's printed ticks */
+                    [UI_COLOUR_RING_TICK]       = RGB(0x6b, 0x69, 0x63),
+                    [UI_COLOUR_RING_TICK_MINOR] = RGB(0xa5, 0xa2, 0x9c),
+                },
+                .bevel = { 35, 0, 14 },
+                .scrollbar_track = { { 0xf7, 0xf3, 0xef }, { 0xf7, 0xf3, 0xef } },
+                .initial_opacity = 16,
+            },
+            {
+                .skin = "Dieter-Dark",
+                .backdrop = BACKDROP_DIR "/Dieter-Dark.bmp",
+                .colour = {
+                    [UI_COLOUR_TEXT]            = RGB(0xef, 0xef, 0xef),
+                    [UI_COLOUR_GROUND]          = RGB(0x18, 0x18, 0x18),
+                    [UI_COLOUR_GROUP_TEXT]      = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_GROUP_BAR]       = RGB(0x26, 0x26, 0x26),
+                    [UI_COLOUR_GROUP_RULE]      = RGB(0x39, 0x38, 0x39),
+                    [UI_COLOUR_VALUE]           = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_VALUE_SELECTED]  = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_INITIAL_BOX]     = RGB(0x6b, 0x69, 0x6b),
+                    [UI_COLOUR_SCROLLBAR_EDGE]  = RGB(0x18, 0x18, 0x18),
+                    [UI_COLOUR_SEARCH_SECOND]   = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_SEARCH_FIELD]    = RGB(0x10, 0x10, 0x10),
+                    [UI_COLOUR_SEARCH_RULE]     = RGB(0x00, 0x00, 0x00),
+                    [UI_COLOUR_SEARCH_DIM]      = RGB(0x6b, 0x69, 0x6b),
+                    [UI_COLOUR_SEARCH_LIP]      = RGB(0x31, 0x30, 0x31),
+                    [UI_COLOUR_SELECTOR_START]  = RGB(0x31, 0x30, 0x31),
+                    [UI_COLOUR_SELECTOR_END]    = RGB(0x31, 0x30, 0x31),
+                    [UI_COLOUR_SELECTOR_TEXT]   = RGB(0xef, 0xef, 0xef),
+                    [UI_COLOUR_QUIET]           = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_LEAD]            = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_BITRATE]         = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_SPLASH_FILL]     = RGB(0x39, 0x38, 0x39),
+                    [UI_COLOUR_SPLASH_TEXT]     = RGB(0xef, 0xef, 0xef),
+                    [UI_COLOUR_HINT_TEXT]       = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_HINT_BAND]       = RGB(0x18, 0x18, 0x18),
+                    [UI_COLOUR_SCROLLBAR_THUMB] = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_INITIAL_TEXT]    = RGB(0x18, 0x1c, 0x18),
+                    [UI_COLOUR_INITIAL_SHADE]   = RGB(0x08, 0x08, 0x08),
+                    [UI_COLOUR_INITIAL_LIP]     = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_COVER_TILE]      = RGB(0x29, 0x28, 0x29),
+                    [UI_COLOUR_NOTE_TOP]        = RGB(0x08, 0x08, 0x08),
+                    [UI_COLOUR_NOTE_FOOT]       = RGB(0x08, 0x08, 0x08),
+                    [UI_COLOUR_ACCENT]          = RGB(0xef, 0xef, 0xef),
+                    [UI_COLOUR_SCROLLBAR_LINE]  = RGB(0x39, 0x38, 0x39),
+                    [UI_COLOUR_LYRICS_DIM]      = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_RING_TRACK]      = RGB(0x39, 0x38, 0x39),
+                    [UI_COLOUR_RING_TICK]       = RGB(0x9c, 0x9a, 0x9c),
+                    [UI_COLOUR_RING_TICK_MINOR] = RGB(0x5a, 0x59, 0x5a),
+                },
+                .bevel = { 12, 0, 30 },
+                .scrollbar_track = { { 0x18, 0x18, 0x18 }, { 0x18, 0x18, 0x18 } },
+                .initial_opacity = 16,
+            },
+        },
+#ifdef UI_220X176
+        /* The iPod photo's, the Video's by the same rules: a margin of 14,
+           rows of 22 in 15 px type, of two lines the port's 31 with its
+           covers of 29 (LINE_COVER_SIZE); the dot 6 px from the edge */
+        .list_font = "15-Inter-SemiBold",
+        .selector_bevel = true,
+        .cover_colours = false,
+        .flat_cover = true,
+        .font = {
+            [UI_FONT_LIST]          = FONT_DIR "/15-Inter-SemiBold.fnt",
+            [UI_FONT_HINT]          = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_LEAD]          = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_VALUE]         = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_SUBLINE]       = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_HEADER_ARTIST] = FONT_DIR "/14-Inter-Medium.fnt",
+            [UI_FONT_HEADER_COUNTS] = FONT_DIR "/14-Inter-Medium.fnt",
+            /* the status line's, which the skins load */
+            [UI_FONT_MENU_VALUE]    = FONT_DIR "/14-Inter-SemiBold.fnt",
+            [UI_FONT_GROUP]         = FONT_DIR "/14-Inter-SemiBold.fnt",
+            [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
+        },
+        .metric = {
+            [UI_METRIC_ROW_HEIGHT]           = 22,
+            [UI_METRIC_TEXT_INSET]           = 14,
+            [UI_METRIC_INITIAL_HEIGHT]       = 56,
+            [UI_METRIC_INITIAL_MARGIN]       = 12,
+            [UI_METRIC_SPLASH_RADIUS]        = 4,
+            [UI_METRIC_SPLASH_PAD_X]         = 10,
+            [UI_METRIC_SPLASH_PAD_Y]         = 5,
+            [UI_METRIC_STATUS_ROWS]          = 17,
+            [UI_METRIC_PANEL_HEAD_PLAIN]     = 1,
+            [UI_METRIC_CHEVRON_MARGIN]       = 8,
+            [UI_METRIC_LEAD_GAP]             = 6,
+            [UI_METRIC_VALUE_MARGIN]         = 14,
+            [UI_METRIC_VALUE_MARGIN_CHEVRON] = 18,
+            [UI_METRIC_VALUE_GAP]            = 7,
+            [UI_METRIC_VALUE_CUT]            = 1,
+            [UI_METRIC_HINT_X]               = 14,
+            [UI_METRIC_HINT_TOP]             = 5,
+            [UI_METRIC_HINT_PITCH]           = 15,
+            /* 31 px, as the port's: the name's part 16, the second line's
+               14 a row under it */
+            [UI_METRIC_NAME_PART_CUT]        = -1,
+            [UI_METRIC_SUBLINE_GAP]          = 1,
+            [UI_METRIC_NAME_TEXT_DY]         = -1,
+            [UI_METRIC_SUBLINE_TOP_DY]       = 0,
+            [UI_METRIC_ROW_COVER_GAP]        = 8,
+            /* two rows of one line, the cover 38 px and 3 over and under it */
+            [UI_METRIC_HEADER_COVER_TOP]     = 3,
+            [UI_METRIC_HEADER_COVER_GAP]     = 8,
+            [UI_METRIC_HEADER_TEXT_MARGIN]   = 14,
+            [UI_METRIC_HEADER_NAME_TOP]      = 1,
+            [UI_METRIC_HEADER_NAME_LEADING]  = 0,
+            [UI_METRIC_HEADER_ARTIST_GAP]    = 0,
+            [UI_METRIC_HEADER_COUNTS_GAP]    = 0,
+            [UI_METRIC_HEADER_FOOT]          = 3,
+            [UI_METRIC_HEADER_COVER_SIZE]    = 38,
+            [UI_METRIC_HEADER_CENTRED]       = 1,
+            [UI_METRIC_SELECTION_RADIUS]     = 0,
+            [UI_METRIC_ROW_COVER_INSET]      = 14,
+            [UI_METRIC_CHEVRON_ALL]          = 0,
+            [UI_METRIC_CHEVRON_ON_PLAY]      = 1,
+            [UI_METRIC_PANE_LEFT]            = 110,
+            [UI_METRIC_GROUP_BAR]            = 0,
+            [UI_METRIC_GROUP_HAIRLINE]       = 2,
+            [UI_METRIC_LEAD_COLUMN]          = 20,
+            [UI_METRIC_HINT_RULE]            = 1,
+            [UI_METRIC_ROW_TEXT_DY]          = 0,
+            [UI_METRIC_SCROLLBAR_LINE]       = 2,
+            [UI_METRIC_SCROLLBAR_THUMB_W]    = 3,
+            [UI_METRIC_ACCENT_MARKS]         = 1,
+            [UI_METRIC_LYRICS_DIM]           = 1,
+            [UI_METRIC_RING_TRACK]           = 1,
+            [UI_METRIC_SELECTION_DOT]        = 6,
+            [UI_METRIC_PANE_SHADE]           = 35,
+            [UI_METRIC_RING_TICKS]           = 1,
+            [UI_METRIC_SEARCH_KEYS]          = 1,
+            [UI_METRIC_SPLASH_HIGHLIGHT]     = 25,
+        },
+#else
+        .list_font = "19-Inter-SemiBold",
+        .selector_bevel = true,
+        .cover_colours = false,
+        .flat_cover = true,
+        .font = {
+            [UI_FONT_LIST]          = FONT_DIR "/19-Inter-SemiBold.fnt",
+            [UI_FONT_HINT]          = FONT_DIR "/17-Inter-Medium-13.fnt",
+            [UI_FONT_LEAD]          = FONT_DIR "/15-Inter-Medium.fnt",
+            [UI_FONT_VALUE]         = FONT_DIR "/15-Inter-Medium.fnt",
+            [UI_FONT_SUBLINE]       = FONT_DIR "/15-Inter-Medium.fnt",
+            [UI_FONT_HEADER_ARTIST] = FONT_DIR "/17-Inter-Medium-13.fnt",
+            [UI_FONT_HEADER_COUNTS] = FONT_DIR "/15-Inter-Medium.fnt",
+            [UI_FONT_MENU_VALUE]    = FONT_DIR "/18-Inter-SemiBold.fnt",
+            /* a group's name small and grey, the status line's (the skins
+               load it) */
+            [UI_FONT_GROUP]         = FONT_DIR "/15-Inter-SemiBold.fnt",
+            [UI_FONT_INITIAL]       = FONT_DIR "/53-Inter-Letters.fnt",
+        },
+        .metric = {
+            [UI_METRIC_ROW_HEIGHT]           = 30,
+            /* one margin of 16 px: the names, the covers, the clock */
+            [UI_METRIC_TEXT_INSET]           = 16,
+            [UI_METRIC_INITIAL_HEIGHT]       = 72,
+            [UI_METRIC_INITIAL_MARGIN]       = 16,
+            [UI_METRIC_SPLASH_RADIUS]        = 4,
+            [UI_METRIC_SPLASH_PAD_X]         = 14,
+            [UI_METRIC_SPLASH_PAD_Y]         = 7,
+            [UI_METRIC_STATUS_ROWS]          = 22,
+            [UI_METRIC_PANEL_HEAD_PLAIN]     = 1,
+            /* the chevron's right edge 14 px from the list's */
+            [UI_METRIC_CHEVRON_MARGIN]       = 14,
+            [UI_METRIC_LEAD_GAP]             = 8,
+            /* a value ends at the margin, or 8 px before the chevron */
+            [UI_METRIC_VALUE_MARGIN]         = 16,
+            [UI_METRIC_VALUE_MARGIN_CHEVRON] = 27,
+            [UI_METRIC_VALUE_GAP]            = 10,
+            [UI_METRIC_VALUE_CUT]            = 1,
+            [UI_METRIC_HINT_X]               = 16,
+            [UI_METRIC_HINT_TOP]             = 6,
+            [UI_METRIC_HINT_PITCH]           = 18,
+            /* 36 px, as Neo's */
+            [UI_METRIC_NAME_PART_CUT]        = 0,
+            [UI_METRIC_SUBLINE_GAP]          = 2,
+            [UI_METRIC_NAME_TEXT_DY]         = 0,
+            [UI_METRIC_SUBLINE_TOP_DY]       = 0,
+            [UI_METRIC_ROW_COVER_GAP]        = 10,
+            /* two rows of one line: the cover 52 px and 4 over and under it,
+               the texts 12 px after it */
+            [UI_METRIC_HEADER_COVER_TOP]     = 4,
+            [UI_METRIC_HEADER_COVER_GAP]     = 12,
+            [UI_METRIC_HEADER_TEXT_MARGIN]   = 16,
+            [UI_METRIC_HEADER_NAME_TOP]      = 3,
+            [UI_METRIC_HEADER_NAME_LEADING]  = 0,
+            [UI_METRIC_HEADER_ARTIST_GAP]    = 0,
+            [UI_METRIC_HEADER_COUNTS_GAP]    = 0,
+            [UI_METRIC_HEADER_FOOT]          = 4,
+            [UI_METRIC_HEADER_COVER_SIZE]    = 52,
+            [UI_METRIC_HEADER_CENTRED]       = 1,
+            /* a band of the row's width */
+            [UI_METRIC_SELECTION_RADIUS]     = 0,
+            [UI_METRIC_ROW_COVER_INSET]      = 16,
+            /* as Classic: on the selected row, and on the main menu's row
+               that plays */
+            [UI_METRIC_CHEVRON_ALL]          = 0,
+            [UI_METRIC_CHEVRON_ON_PLAY]      = 1,
+            [UI_METRIC_PANE_LEFT]            = 160,
+            /* a group's name small, grey and low in its row, a hairline
+               under it */
+            [UI_METRIC_GROUP_BAR]            = 0,
+            [UI_METRIC_GROUP_HAIRLINE]       = 4,
+            [UI_METRIC_LEAD_COLUMN]          = 26,
+            [UI_METRIC_HINT_RULE]            = 1,
+            [UI_METRIC_ROW_TEXT_DY]          = 0,
+            /* the scrollbar a line of a pixel on column 317, its thumb 3 px */
+            [UI_METRIC_SCROLLBAR_LINE]       = 2,
+            [UI_METRIC_SCROLLBAR_THUMB_W]    = 3,
+            [UI_METRIC_ACCENT_MARKS]         = 1,
+            [UI_METRIC_LYRICS_DIM]           = 1,
+            [UI_METRIC_RING_TRACK]           = 1,
+            /* the cursor's dot 8 px from the list's edge */
+            [UI_METRIC_SELECTION_DOT]        = 8,
+            /* the pane's wall's shadow over its cover, as the backdrop
+               has it over the pane's floor */
+            [UI_METRIC_PANE_SHADE]           = 35,
+            [UI_METRIC_RING_TICKS]           = 1,
+            [UI_METRIC_SEARCH_KEYS]          = 1,
+            [UI_METRIC_SPLASH_HIGHLIGHT]     = 25,
+        },
+#endif /* UI_220X176 */
+        .scrollbar_thumb = {
+            RGB(0x6b, 0x69, 0x63), RGB(0x6b, 0x69, 0x63), RGB(0x6b, 0x69, 0x63),
+            RGB(0x6b, 0x69, 0x63), RGB(0x6b, 0x69, 0x63), RGB(0x6b, 0x69, 0x63),
+            RGB(0x6b, 0x69, 0x63), RGB(0x6b, 0x69, 0x63), RGB(0x6b, 0x69, 0x63),
+            RGB(0x6b, 0x69, 0x63),
+        },
+    },
 };
 
 const struct ui_theme *ui_theme_current(void)
@@ -1330,8 +1619,50 @@ static const struct tone_made *tone_user_now(void)
 }
 #endif
 
+/* Dieter's signal colours, light and dark, as its mockups have them: orange,
+   red, yellow (a mustard on the light ground, where a brighter one read at
+   2.2 to 1) and green */
+static const unsigned signal_set[UI_SIGNAL_COUNT][2] = {
+    [UI_SIGNAL_ORANGE] = { RGB(0xe7, 0x59, 0x21), RGB(0xef, 0x69, 0x29) },
+    [UI_SIGNAL_RED]    = { RGB(0xd6, 0x28, 0x21), RGB(0xef, 0x45, 0x39) },
+    [UI_SIGNAL_YELLOW] = { RGB(0xad, 0x82, 0x08), RGB(0xf7, 0xc3, 0x31) },
+    [UI_SIGNAL_GREEN]  = { RGB(0x29, 0x9a, 0x42), RGB(0x4a, 0xc3, 0x63) },
+};
+
+static unsigned signal_of(int colour, bool dark)
+{
+    if (colour < 0 || colour >= UI_SIGNAL_COUNT)
+        colour = UI_SIGNAL_DEFAULT;
+    return signal_set[colour][dark ? 1 : 0];
+}
+
+unsigned ui_theme_signal(void)
+{
+    return signal_of(global_settings.dieter_colour, global_settings.dark_theme);
+}
+
+unsigned ui_theme_signal_swatch(int colour, int quarter)
+{
+    (void)quarter;
+    return signal_of(colour, global_settings.dark_theme);
+}
+
+void ui_theme_signal_changed(void)
+{
+    if (global_settings.ui_theme != UI_THEME_DIETER)
+        return;
+    /* the status line whole and the lists' viewports anew, as a change of
+       Classic's colour does: the skins choose their needles by it */
+    skin_request_full_update(CUSTOM_STATUSBAR);
+    skin_request_full_update(WPS);
+    sb_skin_force_next_update();
+    viewportmanager_theme_changed(THEME_STATUSBAR);
+}
+
 unsigned ui_colour(enum ui_colour role)
 {
+    if (role == UI_COLOUR_SIGNAL)
+        return ui_theme_signal();
 #ifdef HAVE_COVER_TONE
     if (tone)
         return tone_now->colour[role];

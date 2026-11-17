@@ -403,6 +403,14 @@ void classic_colour_changed(int colour)
     ui_theme_set_accent(colour);
 }
 
+void dieter_colour_changed(int colour)
+{
+    (void)colour;
+    if (!settings_loaded)
+        return;
+    ui_theme_signal_changed();
+}
+
 void night_mode_changed(bool on)
 {
     if (settings_loaded)

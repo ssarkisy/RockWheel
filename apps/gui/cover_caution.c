@@ -104,6 +104,15 @@ static const struct look looks[UI_THEME_COUNT] = {
         160, 144, 62, { 312, 313, 314, 315 },
         MARK_NEO_LARGE, MARK_NEO_LARGE, MARK_NEO_ROW, MARK_NEO_HEADER, 0, 0,
         false },
+    /* Neo's marks in Dieter's grey, in its grille's places */
+    [UI_THEME_DIETER] = {
+        "noart", "14-Inter-Medium",
+        { LCD_RGBPACK(0x6b, 0x69, 0x63), LCD_RGBPACK(0x9c, 0x9a, 0x9c) },
+        0, 0, 0, "bignote", { "grille", NULL }, "15-Inter-Medium",
+        { LCD_RGBPACK(0x6b, 0x69, 0x63), LCD_RGBPACK(0x9c, 0x9a, 0x9c) },
+        160, 144, 62, { 312, 313, 314, 315 },
+        MARK_NEO_LARGE, MARK_NEO_LARGE, MARK_NEO_ROW, MARK_NEO_HEADER, 0, 0,
+        false },
 };
 
 static const struct look *look(void)
@@ -488,7 +497,10 @@ static void draw_pane(struct screen *display, const struct look *lk,
     const int font = lines_font(lk->pane_font, reason);
     const unsigned fg = lk->pane_fg[global_settings.dark_theme];
     const int x = lk->pane_x, w = LCD_WIDTH - x;
-    clear_rows(x + 1, 24, w - 3, LCD_HEIGHT - 24, lk->pane_cols);
+    /* right of the pane's edge; of a recess (UI_METRIC_PANE_SHADE), right of
+       its wall's two columns of shadow, which are the backdrop's here */
+    const int from = x + 1 + (ui_metric(UI_METRIC_PANE_SHADE) > 0);
+    clear_rows(from, 24, LCD_WIDTH - 2 - from, LCD_HEIGHT - 24, lk->pane_cols);
     struct para ps[2];
     wrap(&ps[0], str(cover_caution_problem(reason)), font, lk->pane_w);
     wrap(&ps[1], str(cover_caution_action(reason)), font, lk->pane_w);

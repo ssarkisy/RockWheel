@@ -83,7 +83,8 @@ static bool plaque_shown(const struct viewport *vp, int r, unsigned colour)
 {
     const int x0 = vp->x, x1 = vp->x + vp->width - 1;
     const int y0 = vp->y, y1 = vp->y + vp->height - 1;
-    const int at[8][2] = { { x0 + r, y0 }, { x1 - r, y0 }, { x0, y0 + r }, { x1, y0 + r },
+    /* (a row under the top, which may have a highlight) */
+    const int at[8][2] = { { x0 + r, y0 + 1 }, { x1 - r, y0 + 1 }, { x0, y0 + r }, { x1, y0 + r },
                            { x0, y1 - r }, { x1, y1 - r }, { x0 + r, y1 }, { x1 - r, y1 } };
     for (int i = 0; i < 8; i++)
         if (FB_UNPACK_SCALAR_LCD(*FBADDR(at[i][0], at[i][1])) != colour)
@@ -355,6 +356,19 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
         }
         else
             line_fill_rounded_over(screen, 0, 0, width, height, r, fill);
+        /* the theme's lit top edge, from the last column of one corner's
+           rounding to the first of the other's */
+        const int lit = ui_metric(UI_METRIC_SPLASH_HIGHLIGHT);
+        if (lit > 0)
+        {
+            const unsigned white = LCD_WHITE;
+            screen->set_foreground(LCD_RGBPACK(
+                RGB_UNPACK_RED(fill) + (RGB_UNPACK_RED(white) - RGB_UNPACK_RED(fill)) * lit / 100,
+                RGB_UNPACK_GREEN(fill) + (RGB_UNPACK_GREEN(white) - RGB_UNPACK_GREEN(fill)) * lit / 100,
+                RGB_UNPACK_BLUE(fill) + (RGB_UNPACK_BLUE(white) - RGB_UNPACK_BLUE(fill)) * lit / 100));
+            screen->set_drawmode(DRMODE_SOLID);
+            screen->hline(r - 1, width - r, 0);
+        }
         screen->set_foreground(ui_colour(UI_COLOUR_SPLASH_TEXT));
         vp->drawmode = DRMODE_FG;
         goto text;

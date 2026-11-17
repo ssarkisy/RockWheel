@@ -486,10 +486,22 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
                 text = line_fit(text, info->vp->font,
                                 info->vp->width - info->x - info->item_indent
                                 - VALUE_MARGIN, fitted, sizeof(fitted));
+            /* the theme's hairline under the small name, on the row's last
+               row from the text's start to as far from the list's end */
+            const int hairline = group_style ? 0 : ui_metric(UI_METRIC_GROUP_HAIRLINE);
             if (text)
                 display->putsxy(info->x + info->item_indent,
-                                info->y + linedes.height - (group_style ? 2 : 6)
+                                info->y + linedes.height
+                                - (group_style ? 2 : hairline ? hairline : 6)
                                 - (int)font_get(info->vp->font)->height, text);
+            if (hairline)
+            {
+                const int inset = info->x + info->item_indent;
+                display->set_foreground(ui_colour(UI_COLOUR_GROUP_RULE));
+                display->set_drawmode(DRMODE_SOLID);
+                display->hline(inset, info->vp->width - 1 - inset,
+                               info->y + linedes.height - 1);
+            }
             info->vp->font = name_font;
             display->set_drawmode(DRMODE_SOLID);
             display->set_foreground(old_fg);

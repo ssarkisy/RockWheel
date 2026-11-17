@@ -1,0 +1,99 @@
+# Dieter: the status line and the main menu's pane. Made by
+# themes/tools/make_dieter_theme.py
+%wd
+%Fl(2,14-Inter-Medium.fnt)
+%Fl(3,14-Inter-SemiBold.fnt)
+%xl(B,Battery.bmp,0,0,24)
+%xl(P,Playing Status.bmp,0,0,4)
+%xl(H,Hold.bmp,0,0)
+%xl(N,Night.bmp,0,0)
+%?LW<%VI(wide)%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>|%VI(half)%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen1p)|%?mp<%Vd(hnamen1)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)>>>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen0p)|%?mp<%Vd(hnamen0)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)>>>>>
+# the pane by the row selected: Settings' disk, Photos' collage, or the music
+%?LW<|%?LS<%Vd(floor)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(floor)%Vd(grille)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(floor)%?nP<%Vd(collage)%Vd(photocount)|%Vd(grille)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(floor)%Vd(grille)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
+# the cover fills the pane, Finder's 176 px frame, its middle 110
+# columns
+%Cl(0,0,176,176,c,c)
+%Vl(a,77,0,143,176,-)
+%Cd
+%Vl(a,77,0,33,176,-)
+# the lists: under the status line, its hairline and its lip; beside the
+# pane as wide as the list is to the pane's wall. The ground is the
+# backdrop's (Dieter.bmp), lit from the top
+%Vi(wide,0,18,220,158,1)%Vf(EFEFEF)%Vb(181818)
+%Vi(half,0,18,110,158,1)%Vf(EFEFEF)%Vb(181818)
+# a screen of the whole width: the clock, its title, the glyphs; a title
+# wider than its place between them takes the clock's too
+%Vl(clockwide,14,1,48,14,3)%Vf(EFEFEF)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(titlewide,58,1,104,14,3)%Vf(EFEFEF)
+%ac%Lt
+%Vl(longn0p,14,1,158,14,3)%Vf(EFEFEF)
+%al%nx%Lt
+%Vl(longn0,14,1,170,14,3)%Vf(EFEFEF)
+%al%nx%Lt
+%Vl(longn1p,14,1,144,14,3)%Vf(EFEFEF)
+%al%nx%Lt
+%Vl(longn1,14,1,156,14,3)%Vf(EFEFEF)
+%al%nx%Lt
+%Vl(bat,189,3,16,10,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(playn0,175,3,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(moon,175,3,9,10,-)
+%xd(N)
+%Vl(playn1,161,3,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+# beside the pane: the clock in the main menu, a menu's title in any other
+%Vl(hclock,14,1,48,14,3)%Vf(EFEFEF)
+%al%?cf<%cH:%cM|%cl:%cM>
+%Vl(hbat,79,3,16,10,-)
+%?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
+%Vl(hplayn0,65,3,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(hmoon,65,3,9,10,-)
+%xd(N)
+%Vl(hplayn1,51,3,9,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(hnamen0p,14,1,48,14,3)%Vf(EFEFEF)
+%al%nx%Lt
+%Vl(hnamen0,14,1,60,14,3)%Vf(EFEFEF)
+%al%nx%Lt
+%Vl(hnamen1p,14,1,34,14,3)%Vf(EFEFEF)
+%al%nx%Lt
+%Vl(hnamen1,14,1,46,14,3)%Vf(EFEFEF)
+%al%nx%Lt
+# the pane, a recess from the screen's top, its floor and its left wall's
+# shadow, is the backdrop's (Dieter.bmp); a screen of the whole width has
+# its own, the ground and the status line across it
+%XW(Wide.bmp)
+%Vl(floor,110,0,110,176,-)
+# Settings: the disk's use as the firmware's ring (%nR), its used part in ink
+# over its track, in its printed scale of ticks (UI_METRIC_RING_TICKS); what
+# is free, and the whole, one group in the middle of the pane
+%Vl(ring,124,39,82,82,-)%Vf(EFEFEF)%Vb(292829)
+%nR
+%Vl(about,112,128,106,14,2)%Vf(EFEFEF)%Vb(292829)
+%s%ac%nf
+%Vl(about,112,143,106,14,2)%Vf(9C9A9C)%Vb(292829)
+%ac%nT
+# Photos: the collage, made at Updating Library (photos_panel.c), and their
+# count under it; without photos, the grille and "No Photos"
+%xl(Q,/.rockbox/photos_panel.bmp,0,0)
+%Vl(collage,110,20,110,132,-)
+%xd(Q)
+%Vl(photocount,112,160,106,14,2)%Vf(9C9A9C)%Vb(292829)
+%s%ac%nP
+%Vl(photocaption,112,133,106,14,2)%Vf(9C9A9C)%Vb(292829)
+%ac%nP
+# the music without a cover: the speaker's grille punched in the floor, and
+# under it the library's count or the track
+%xl(G,Grille.bmp,0,0)
+%Vl(grille,126,47,79,79,-)
+%xd(G)
+%Vl(stopped,112,133,106,14,2)%Vf(9C9A9C)%Vb(292829)
+%ac%ns
+%Vl(normal,116,133,98,14,2)%Vf(9C9A9C)%Vb(292829)
+%s%ac%?it<%it|%?fn<%fn|>>
+# Quick Scroll's key, which the firmware draws over the list with the letter
+# cut into it (line.c finds it by its label)
+%xl(qskey,Quick Scroll.bmp,0,0)

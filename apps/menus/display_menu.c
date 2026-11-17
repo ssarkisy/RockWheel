@@ -296,6 +296,19 @@ static int classic_colour_callback(int action,
 }
 MENUITEM_SETTING(classic_colour_item, &global_settings.classic_colour,
                  classic_colour_callback);
+/* and Dieter's, its signal colour */
+static int dieter_colour_callback(int action,
+                                  const struct menu_item_ex *this_item,
+                                  struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM && global_settings.ui_theme != UI_THEME_DIETER)
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_SETTING(dieter_colour_item, &global_settings.dieter_colour,
+                 dieter_colour_callback);
 #ifdef HAVE_MOVING_COVER
 /* none with Album Art off, as there's no cover beside the menus then */
 static int moving_cover_callback(int action,
@@ -328,7 +341,7 @@ MENUITEM_GROUP(appearance_group_main_menu, ID2P(LANG_MAIN_MENU));
 MENUITEM_GROUP(appearance_group_now_playing, ID2P(LANG_NOW_PLAYING));
 MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
           &ui_theme_item, &dark_theme_item, &classic_colour_item,
-          &theme_colour_item, &tinted_background_item,
+          &dieter_colour_item, &theme_colour_item, &tinted_background_item,
           &appearance_group_lists,
 #ifdef HAVE_TAGCACHE
           &album_artists_item,

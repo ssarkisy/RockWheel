@@ -1928,6 +1928,28 @@ extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
 #define LETTER_PITCH  24
 #define MARKER_W      22
 #define MARKER_H      24
+/* Dieter's: the field a recessed slot from the margin less 4 to as far from
+   the other side, its caret in the signal colour; the letters on round
+   typewriter keys (dieter_glyphs.h), the one chosen ringed in the signal
+   colour while the letters are being chosen, a key's pitch apart; the list's
+   rows under them */
+#include "gui/dieter_glyphs.h"
+#define KEYS          (ui_metric(UI_METRIC_SEARCH_KEYS) > 0)
+#ifdef UI_220X176
+#define KEYS_FIELD_H  18    /* the slot's rows, its lip under them */
+#define KEYS_FIELD_VP 22    /* the field's viewport, the slot 2 rows down */
+#define KEYS_CY       13    /* the keys' middle in the strip */
+#define KEYS_STRIP_VP 28
+#define KEYS_PITCH    22
+#define KEYS_FONT     UI_FONT_GROUP
+#else
+#define KEYS_FIELD_H  22
+#define KEYS_FIELD_VP 26
+#define KEYS_CY       16
+#define KEYS_STRIP_VP 34
+#define KEYS_PITCH    24
+#define KEYS_FONT     UI_FONT_SUBLINE
+#endif
 
 static struct viewport field_vp, strip_vp, list_vp[NB_SCREENS];
 /* the theme's, as set_foreground() changes the viewport's own */
@@ -1946,7 +1968,12 @@ static void make_layout(void)
     const int row = ui_metric(UI_METRIC_ROW_HEIGHT) > 0 ?
                     ui_metric(UI_METRIC_ROW_HEIGHT) : line;
     int field_h = line + 8, strip_h = line + 10;
-    if (ROUNDED)
+    if (KEYS)
+    {
+        field_h = KEYS_FIELD_VP;
+        strip_h = KEYS_STRIP_VP;
+    }
+    else if (ROUNDED)
     {
         field_h = FIELD_HEIGHT + 2;
         /* the key and 2 px over and under it: with 3, Modern's list was
@@ -1957,7 +1984,9 @@ static void make_layout(void)
     if (lines < 1)
         lines = 1;
     int spare = ui.height - field_h - strip_h - lines * row;
-    if (spare > 0 && ROUNDED)
+    if (KEYS)
+        ; /* the rows left under the list */
+    else if (spare > 0 && ROUNDED)
         strip_h += spare; /* the field stays at the top */
     else if (spare > 0)
     {
@@ -1965,13 +1994,23 @@ static void make_layout(void)
         strip_h += spare - spare / 2;
     }
     field_vp = strip_vp = ui;
-    /* the letters in the hints' font: 13 px Medium in Neo */
-    if (ROUNDED && font_find(ui_font_file(UI_FONT_HINT)) >= 0)
+    /* the letters in the hints' font: 13 px Medium in Neo; on Dieter's keys
+       its second lines' */
+    if (KEYS && font_find(ui_font_file(KEYS_FONT)) >= 0)
+        strip_vp.font = font_find(ui_font_file(KEYS_FONT));
+    else if (ROUNDED && font_find(ui_font_file(UI_FONT_HINT)) >= 0)
         strip_vp.font = font_find(ui_font_file(UI_FONT_HINT));
     text_colour = ui.fg_pattern;
     field_vp.height = field_h;
     strip_vp.y = ui.y + field_h;
     strip_vp.height = strip_h;
+    if (KEYS)
+    {
+        /* the keys as wide as the slot, cut at its ends */
+        const int side = global_settings.list_text_padding - 4;
+        strip_vp.x += side;
+        strip_vp.width -= 2 * side;
+    }
     FOR_NB_SCREENS(i)
     {
         viewport_set_defaults(&list_vp[i], i);
@@ -2000,10 +2039,62 @@ static void make_layout(void)
         display->getstringsize((char *)utf8, &w, &h);
         pitch = MAX(pitch, w + 8);
     }
-    if (ROUNDED)
+    if (KEYS)
+        pitch = KEYS_PITCH;
+    else if (ROUNDED)
         pitch = MAX(pitch, LETTER_PITCH);
     display->set_viewport(last);
 }
+
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+/* Dieter's slot: its floor, the shade of its top wall over two rows, the lit
+   lip under it */
+static void draw_slot(struct screen *display, int x, int y, int w, int h)
+{
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_foreground(FIELD_FILL);
+    display->fillrect(x, y, w, h);
+    display->set_foreground(RULE);
+    display->hline(x, x + w - 1, y);
+    const unsigned shade = RULE, floor = FIELD_FILL;
+    display->set_foreground(LCD_RGBPACK(
+        (RGB_UNPACK_RED(shade) + RGB_UNPACK_RED(floor)) / 2,
+        (RGB_UNPACK_GREEN(shade) + RGB_UNPACK_GREEN(floor)) / 2,
+        (RGB_UNPACK_BLUE(shade) + RGB_UNPACK_BLUE(floor)) / 2));
+    display->hline(x, x + w - 1, y + 1);
+    display->set_foreground(ui_colour(UI_COLOUR_SEARCH_LIP));
+    display->hline(x, x + w - 1, y + h);
+}
+
+/* a key, as the screen's look has it, its middle at cx, cy; ringed */
+static void draw_key(struct screen *display, int cx, int cy, bool ringed)
+{
+    static struct bitmap key[2];
+    const int dark = global_settings.dark_theme ? 1 : 0;
+    if (!key[dark].data)
+    {
+        const struct dieter_key *k = dark ? &dieter_search_key_dark
+                                          : &dieter_search_key_light;
+        key[dark].width = DIETER_SEARCH_KEY_W;
+        key[dark].height = DIETER_SEARCH_KEY_H;
+        key[dark].format = FORMAT_NATIVE;
+        key[dark].data = (unsigned char *)k->pixels;
+        key[dark].alpha_offset = offsetof(struct dieter_key, alpha);
+    }
+    const int x = cx - DIETER_SEARCH_KEY_HALF, y = cy - DIETER_SEARCH_KEY_HALF;
+    display->set_drawmode(DRMODE_FG);
+    display->bmp_part(&key[dark], 0, 0, x, y, DIETER_SEARCH_KEY_W, DIETER_SEARCH_KEY_H);
+    if (ringed)
+    {
+        const unsigned fg = display->get_foreground();
+        display->set_foreground(ui_colour(UI_COLOUR_SIGNAL));
+        lcd_alpha_bitmap_part(dieter_search_ring_alpha, 0, 0, DIETER_SEARCH_RING_W,
+                              x, y, DIETER_SEARCH_RING_W, DIETER_SEARCH_RING_H);
+        display->set_foreground(fg);
+    }
+    display->set_drawmode(DRMODE_SOLID);
+}
+#endif
 
 /* a rectangle with its corners cut, as the selection's are, from the colour
    at its top to the one at its bottom: a line at a time, as
@@ -2038,14 +2129,27 @@ static void draw_field(struct screen *display)
     const int inset = ui_metric(UI_METRIC_ROW_COVER_INSET);
     const int covers = ROUNDED ? (inset ? inset : pad) : 6;
     const int end = ROUNDED ? pad : 6;
-    const int x = VP_IS_RTL(&field_vp) ? end : covers;
-    const int w = field_vp.width - covers - end;
-    const int h = ROUNDED ? FIELD_HEIGHT : line + 2;
-    const int y = ROUNDED ? 0 : (field_vp.height - h) / 2;
+    int x = VP_IS_RTL(&field_vp) ? end : covers;
+    int w = field_vp.width - covers - end;
+    int h = ROUNDED ? FIELD_HEIGHT : line + 2;
+    int y = ROUNDED ? 0 : (field_vp.height - h) / 2;
     int text_w, text_h;
+    if (KEYS)
+    {
+        /* from the margin less 4 to as far from the other side */
+        x = pad - 4;
+        w = field_vp.width - 2 * x;
+        h = KEYS_FIELD_H;
+        y = 2;
+    }
 
     display->set_viewport(&field_vp);
     display->clear_viewport();
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (KEYS)
+        draw_slot(display, x, y, w, h);
+    else
+#endif
     if (ROUNDED)
         line_fill_rounded(display, x, y, w, h, FIELD_RADIUS, FIELD_FILL);
     else
@@ -2059,7 +2163,7 @@ static void draw_field(struct screen *display)
         text = (const char *)utf8decode((const unsigned char *)text, &(ucschar_t){0});
         display->getstringsize(text, &text_w, &text_h);
     }
-    int text_x = x + 8;
+    int text_x = KEYS ? x + 4 : x + 8;
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (MODERN)
     {
@@ -2083,6 +2187,12 @@ static void draw_field(struct screen *display)
             /* a line of a pixel in the accent */
             display->set_foreground(ui_colour(UI_COLOUR_ACCENT));
             display->vline(text_x + text_w + 2, y + 6, y + h - 7);
+        }
+        else if (KEYS)
+        {
+            /* where you are: the signal colour */
+            display->set_foreground(ui_colour(UI_COLOUR_SIGNAL));
+            display->fillrect(text_x + text_w + 1, y + 4, 2, h - 8);
         }
         else
         {
@@ -2158,7 +2268,37 @@ static void draw_done(struct screen *display, int cx, int cy)
 static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
 {
     const struct font *pf = font_get(strip_vp.font);
-    const int cy = strip_vp.height / 2;
+    const int cy = KEYS ? KEYS_CY : strip_vp.height / 2;
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (KEYS)
+    {
+        /* each on its key, the chosen one ringed while it is being chosen;
+           a letter no name goes on with lighter, as are the others */
+        draw_key(display, cx, cy, chosen && !in_results);
+        display->set_foreground(letter_possible(i) ? text_colour : DIM_TEXT);
+        if (strip.c[i] == STRIP_SPACE)
+        {
+            /* a bracket open at the top, small for the key */
+            display->hline(cx - 4, cx + 4, cy + 2);
+            display->vline(cx - 4, cy - 1, cy + 2);
+            display->vline(cx + 4, cy - 1, cy + 2);
+            return;
+        }
+        if (strip.c[i] == STRIP_DELETE)
+        {
+            /* a key pointing left with a cross in it */
+            display->hline(cx - 2, cx + 5, cy - 3);
+            display->hline(cx - 2, cx + 5, cy + 3);
+            display->vline(cx + 5, cy - 3, cy + 3);
+            display->drawline(cx - 5, cy, cx - 2, cy - 3);
+            display->drawline(cx - 5, cy, cx - 2, cy + 3);
+            display->drawline(cx, cy - 1, cx + 2, cy + 1);
+            display->drawline(cx, cy + 1, cx + 2, cy - 1);
+            return;
+        }
+        chosen = false; /* its letter as the others' */
+    }
+#endif
     if (chosen)
     {
         /* odd, so that its middle is a pixel and not between two */
@@ -2180,7 +2320,9 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
                          global_settings.lse_color);
     }
     unsigned colour = letter_possible(i) ? GREY_TEXT : DIM_TEXT;
-    if (chosen && ROUNDED && !in_results && ui_metric(UI_METRIC_SELECTION_INK))
+    if (KEYS)
+        colour = letter_possible(i) ? text_colour : DIM_TEXT;
+    else if (chosen && ROUNDED && !in_results && ui_metric(UI_METRIC_SELECTION_INK))
         colour = global_settings.lst_color; /* on the accent's bar */
     else if (chosen && (in_results || ROUNDED))
         colour = text_colour;
@@ -2241,6 +2383,15 @@ static void draw_strip_item(struct screen *display, int i, int cx, bool chosen)
    they go, a little apart where a set ends */
 static void draw_strip(struct screen *display)
 {
+    if (KEYS)
+    {
+        /* its rows over the screen's width, the keys cut at the slot's ends */
+        struct viewport rows = strip_vp;
+        rows.x = 0;
+        rows.width = LCD_WIDTH;
+        display->set_viewport(&rows);
+        display->clear_viewport();
+    }
     display->set_viewport(&strip_vp);
     display->clear_viewport();
     const int mid = strip_vp.width / 2, gap = pitch / 2;
@@ -2260,7 +2411,7 @@ static void draw_strip(struct screen *display)
     }
     draw_strip_item(display, strip.pos, mid, true);
     display->set_foreground(RULE);
-    if (!ROUNDED)
+    if (!ROUNDED && !KEYS)
         display->hline(0, strip_vp.width - 1, strip_vp.height - 1);
     display->set_foreground(text_colour);
     display->update_viewport();

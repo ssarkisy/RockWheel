@@ -447,10 +447,23 @@ void list_draw_hint(struct screen *display, struct viewport *band,
     const int font = hint_font();
     band->font = font < 0 ? FONT_UI : font;
     display->set_viewport(band);
-    /* its own grey, as a group's bar, over the theme's backdrop */
-    display->set_foreground(ui_colour(UI_COLOUR_HINT_BAND));
-    display->set_drawmode(DRMODE_SOLID);
-    display->fillrect(0, 0, band->width, band->height);
+    /* its own grey, as a group's bar, over the theme's backdrop; or, where
+       the band is the ground's and a backdrop is that ground, the backdrop */
+#if defined(HAVE_BACKDROP_IMAGE)
+    if (display->screen_type == SCREEN_MAIN && lcd_get_backdrop()
+        && ui_colour(UI_COLOUR_HINT_BAND) == ui_colour(UI_COLOUR_GROUND))
+    {
+        display->set_drawmode(DRMODE_SOLID|DRMODE_INVERSEVID);
+        display->fillrect(0, 0, band->width, band->height);
+        display->set_drawmode(DRMODE_SOLID);
+    }
+    else
+#endif
+    {
+        display->set_foreground(ui_colour(UI_COLOUR_HINT_BAND));
+        display->set_drawmode(DRMODE_SOLID);
+        display->fillrect(0, 0, band->width, band->height);
+    }
     if (!text || !*text || font < 0)
         return;
     if (ui_metric(UI_METRIC_HINT_RULE))

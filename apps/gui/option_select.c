@@ -534,8 +534,8 @@ static const unsigned char swatch_fill[(SWATCH - 2 * SWATCH_RING) * (SWATCH - 2 
     0xff, 0xef, 0x38, 0x00, 0x83, 0xfe, 0xff,
 };
 
-/* the colours of the list shown: Neo's (ui_theme_colour_swatch()) or
-   Classic's (ui_theme_accent_swatch()) */
+/* the colours of the list shown: Neo's (ui_theme_colour_swatch()),
+   Classic's (ui_theme_accent_swatch()) or Dieter's (ui_theme_signal_swatch()) */
 static unsigned (*colour_swatch)(int colour, int quarter);
 
 static void colour_row_draw(struct list_putlineinfo_t *info)
@@ -618,10 +618,13 @@ bool option_screen(const struct settings_list *setting,
     gui_synclist_set_title(&lists, title, Icon_Questionmark);
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
     if (setting->setting == &global_settings.theme_colour
-        || setting->setting == &global_settings.classic_colour)
+        || setting->setting == &global_settings.classic_colour
+        || setting->setting == &global_settings.dieter_colour)
     {
         colour_swatch = setting->setting == &global_settings.theme_colour
-                        ? ui_theme_colour_swatch : ui_theme_accent_swatch;
+                        ? ui_theme_colour_swatch
+                        : setting->setting == &global_settings.classic_colour
+                        ? ui_theme_accent_swatch : ui_theme_signal_swatch;
         lists.callback_draw_item = colour_row_draw;
     }
 #endif

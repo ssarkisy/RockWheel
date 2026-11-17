@@ -26,7 +26,7 @@
    at the moment of use, the theme (global_settings.ui_theme) and Dark Theme
    with them. */
 /* in the order of the Theme row's values */
-enum { UI_THEME_CLASSIC, UI_THEME_MODERN, UI_THEME_NEO, UI_THEME_COUNT };
+enum { UI_THEME_CLASSIC, UI_THEME_MODERN, UI_THEME_NEO, UI_THEME_DIETER, UI_THEME_COUNT };
 
 #if (LCD_WIDTH == 220) && (LCD_HEIGHT == 176)
 /* The iPod photo's screen: each theme with fonts and metrics of its own here
@@ -106,6 +106,24 @@ enum ui_colour {
     UI_COLOUR_RING_TRACK,     /* the disk's ring's part not used, with UI_METRIC_RING_TRACK */
     UI_COLOUR_GROUP_NAME,     /* a group's name on its band, with UI_METRIC_GROUP_BAR 2 */
     UI_COLOUR_SETTINGS_SELECTOR, /* Settings' selected row, with UI_METRIC_SETTINGS_SELECTION */
+    /* the one colour of a theme that has a signal (UI_METRIC_SELECTION_DOT):
+       where one is, the list's cursor and the fill of an episode's ring under
+       it, Search's caret and its chosen key, Cover Flow's track, a skin's
+       marks drawn in it (%xS: Now Playing's lit lamps); the user's choice of
+       enum ui_signal_colour */
+    UI_COLOUR_SIGNAL,
+    /* Quick Scroll's letter cut into a key (a skin's picture labelled
+       qskey): the shade of its top and left walls, the lit lip of its lower
+       right; its floor is UI_COLOUR_INITIAL_TEXT */
+    UI_COLOUR_INITIAL_SHADE,
+    UI_COLOUR_INITIAL_LIP,
+    /* Search's field a recessed slot, with UI_METRIC_SEARCH_KEYS: its
+       floor UI_COLOUR_SEARCH_FIELD, its top wall UI_COLOUR_SEARCH_RULE and
+       its lit lip under it */
+    UI_COLOUR_SEARCH_LIP,
+    /* the ticks round the disk's ring, with UI_METRIC_RING_TICKS */
+    UI_COLOUR_RING_TICK,
+    UI_COLOUR_RING_TICK_MINOR,
     UI_COLOUR_COUNT
 };
 
@@ -210,6 +228,31 @@ enum ui_metric {
        selection's end and the capsule while it shows, the rows narrower for
        them (list.c); 0 for those the selection's inset leaves */
     UI_METRIC_SCROLLBAR_GAP,
+    /* the selected row marked by a dot in UI_COLOUR_SIGNAL in the left
+       margin, its middle this far from the list's edge; a podcast's
+       episodes then have their marks there too, as rings the dot fills */
+    UI_METRIC_SELECTION_DOT,
+    /* with UI_METRIC_GROUP_BAR 0, a hairline in UI_COLOUR_GROUP_RULE on a
+       group's last row, under its name, which stands this many rows over
+       it, from the text's inset to as far from the list's end */
+    UI_METRIC_GROUP_HAIRLINE,
+    /* with UI_METRIC_SCROLLBAR_LINE, its thumb this wide across the line,
+       0 for a pixel */
+    UI_METRIC_SCROLLBAR_THUMB_W,
+    /* the main menu's pane a recess: its left wall's shadow over the cover
+       in it, its first column so many percent to black, its second half
+       that; 0 for none */
+    UI_METRIC_PANE_SHADE,
+    /* the disk's ring (%nR) in a printed scale of 60 ticks, majors at the
+       quarters, in UI_COLOUR_RING_TICK and UI_COLOUR_RING_TICK_MINOR
+       (dieter_glyphs.h): its viewport as large as they are */
+    UI_METRIC_RING_TICKS,
+    /* Search's field a recessed slot and its letters on round keys
+       (dieter_glyphs.h, music_search.c) */
+    UI_METRIC_SEARCH_KEYS,
+    /* a message's plaque's top row between its corners so many percent to
+       white, a lit edge; 0 for none */
+    UI_METRIC_SPLASH_HIGHLIGHT,
     UI_METRIC_COUNT
 };
 
@@ -255,6 +298,14 @@ enum ui_accent_colour {
 };
 #define UI_ACCENT_DEFAULT UI_ACCENT_BLUE
 
+/* Dieter's signal colours, as its user chooses among them, each with a light
+   and a dark look's value (ui_theme.c) */
+enum ui_signal_colour {
+    UI_SIGNAL_ORANGE, UI_SIGNAL_RED, UI_SIGNAL_YELLOW, UI_SIGNAL_GREEN,
+    UI_SIGNAL_COUNT
+};
+#define UI_SIGNAL_DEFAULT UI_SIGNAL_ORANGE
+
 /* What the screen shown belongs to, as an app on a Mac: Multicolor gives each
    its own colour. The first three are the database's kinds of track
    (tagcache.h): Music's lists, Cover Flow, Search and Playlists, and Now
@@ -271,6 +322,11 @@ struct ui_theme_look {
     const char *skin;      /* the base name of its .wps, .sbs and .fms */
     const char *backdrop;
     unsigned colour[UI_COLOUR_COUNT];
+    /* with selector_bevel, the selected row's top row this many percent of
+       the way to white, and its last two rows to black, the one before the
+       last first, which a 0 leaves as it is; all 0 for Classic's 45, 15 and
+       35 */
+    signed char bevel[3];
     /* the scrollbar's track, inner then outer, in 8-bit parts: the columns
        between are worked out from these, not from the screen's colours */
     unsigned char scrollbar_track[2][3];
@@ -360,6 +416,15 @@ unsigned ui_theme_accent_swatch(int colour, int quarter);
    its skins that take it (%xA, Now Playing's bar and the status line's play
    glyph) are drawn in it, by ui_theme_accent() */
 bool ui_theme_accent_shown(void);
+/* Dieter's signal colour, the setting's value as it is now in the look of
+   Dark Theme now: what UI_COLOUR_SIGNAL is */
+unsigned ui_theme_signal(void);
+/* that colour as a mark beside its name in the list of them (quarter as
+   ui_theme_colour_swatch(), all four the same) */
+unsigned ui_theme_signal_swatch(int colour, int quarter);
+/* the setting changed: the screen is to be drawn again whole, the skins
+   choosing their pictures by it */
+void ui_theme_signal_changed(void);
 /* A colour of such a picture in Classic's colour, or as it is if it isn't
    of the blue family; with status, in the status line, a pale tint too,
    which is the status line's own and stays */

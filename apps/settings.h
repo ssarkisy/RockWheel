@@ -1145,6 +1145,10 @@ struct user_settings
        with its pane; off, it takes the screen's width (menu_theme_wide()) */
     bool menu_pane;
 #endif
+    /* Settings > Appearance > Colour in Dieter: one of enum
+       ui_signal_colour (gui/ui_theme.h), Orange the default. The skins read
+       it by its name (%St) */
+    int dieter_colour;
 };
 
 /* global settings */

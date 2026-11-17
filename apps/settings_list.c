@@ -2835,9 +2835,9 @@ const struct settings_list settings[] = {
        music and loads the theme. Its list turns a copy, as every list is
        drawn in the theme the setting names */
     CHOICE_SETTING(F_TEMPVAR|F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, ui_theme, LANG_THEME,
-                   UI_THEME_CLASSIC, "ui theme", "classic,modern,neo", ui_theme_changed, 3,
-                   ID2P(LANG_THEME_CLASSIC), ID2P(LANG_THEME_MODERN),
-                   ID2P(LANG_THEME_NEO)),
+                   UI_THEME_CLASSIC, "ui theme", "classic,modern,neo,dieter", ui_theme_changed,
+                   UI_THEME_COUNT, ID2P(LANG_THEME_CLASSIC), ID2P(LANG_THEME_MODERN),
+                   ID2P(LANG_THEME_NEO), ID2P(LANG_THEME_DIETER)),
     /* Music > Albums' first row, Sort By, and nowhere in Settings */
     CHOICE_SETTING(0, albums_sort, LANG_SORT_BY, 0, "albums sort",
                    "year,name,artist", NULL, 3, ID2P(LANG_SORT_YEAR),
@@ -3058,6 +3058,14 @@ const struct settings_list settings[] = {
                    ID2P(LANG_COLOUR_RED), ID2P(LANG_COLOUR_ORANGE),
                    ID2P(LANG_COLOUR_YELLOW), ID2P(LANG_COLOUR_GREEN),
                    ID2P(LANG_COLOUR_GRAPHITE)),
+    /* Settings > Appearance > Colour in Dieter: its signal colour, in the
+       order of enum ui_signal_colour; taken on Select, as it draws the
+       screen again. Read by name; Orange the default */
+    CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, dieter_colour,
+                   LANG_THEME_COLOUR, UI_SIGNAL_DEFAULT, "dieter colour",
+                   "orange,red,yellow,green", dieter_colour_changed, UI_SIGNAL_COUNT,
+                   ID2P(LANG_COLOUR_ORANGE), ID2P(LANG_COLOUR_RED),
+                   ID2P(LANG_COLOUR_YELLOW), ID2P(LANG_COLOUR_GREEN)),
 #ifdef HAVE_SCROBBLER
     /* Settings > Playback > Last.fm: the plays in /.scrobbler.log, for an
        uploader to send to Last.fm. On unless switched off, so that the plays

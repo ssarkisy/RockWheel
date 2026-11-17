@@ -38,6 +38,7 @@
 #include "list.h"
 #include "font.h"
 #include "rbunicode.h"
+#include "skin_engine/skin_engine.h"
 
 #ifdef HAVE_REMOTE_LCD
 #define MAX_LINES (LCD_SCROLLABLE_LINES + LCD_REMOTE_SCROLLABLE_LINES)
@@ -47,6 +48,12 @@
 
 
 static void style_line(struct screen *display, int x, int y, struct line_desc *line);
+/* while scroller() draws a scrolling line's text again: its repaint covers
+   the text's columns only, not the margin the cursor's dot is in (left to
+   right before x, right to left past the width it cuts the viewport to).
+   Set and cleared with no yield between, so another thread's drawing never
+   sees it */
+static bool scroll_repaint;
 
 static void put_text(struct screen *display, int x, int y, struct line_desc *line,
                       const char *text, bool prevent_scroll, int text_skip_pixels);
@@ -92,11 +99,17 @@ void line_draw_bar(struct screen *display, const struct line_bar *bar,
         display->set_foreground(ui_colour(UI_COLOUR_SCROLLBAR_LINE));
         display->vline(x, MAX(y, bar->top) - vp->y, MIN(last, bar->bottom) - vp->y);
     }
+    /* the thumb across the line, as wide as the theme has it */
+    const int thumb_w = MAX(ui_metric(UI_METRIC_SCROLLBAR_THUMB_W), 1);
     if (MAX(y, bar->thumb_top) <= MIN(last, bar->thumb_bottom))
     {
         display->set_foreground(ui_colour(UI_COLOUR_SCROLLBAR_THUMB));
-        display->vline(x, MAX(y, bar->thumb_top) - vp->y,
-                       MIN(last, bar->thumb_bottom) - vp->y);
+        if (thumb_w > 1)
+            display->fillrect(x - (thumb_w - 1) / 2, MAX(y, bar->thumb_top) - vp->y,
+                              thumb_w, MIN(last, bar->thumb_bottom) - MAX(y, bar->thumb_top) + 1);
+        else
+            display->vline(x, MAX(y, bar->thumb_top) - vp->y,
+                           MIN(last, bar->thumb_bottom) - vp->y);
     }
     /* over the selected row: its bar again in the track's place, and the
        thumb in its text's colour */
@@ -174,7 +187,9 @@ static void scroller(struct scrollinfo *s, struct screen *display)
         struct viewport *vp = *display->current_viewport;
         const int width = vp->width;
         vp->width = line->full_width - line->rtl_cut;
+        scroll_repaint = true;
         style_line(display, s->x, 0, &line->desc);
+        scroll_repaint = false;
         put_text(display, s->x, s->y, &line->desc, s->line, true, s->offset);
         vp->width = width;
         struct viewport *part = display->set_viewport(line->row_vp);
@@ -195,7 +210,9 @@ static void scroller(struct scrollinfo *s, struct screen *display)
         /* the text's bar again, short of what's before it right to left */
         struct viewport *vp = *display->current_viewport;
         vp->width -= line->rtl_cut;
+        scroll_repaint = true;
         style_line(display, s->x, y, &line->desc);
+        scroll_repaint = false;
         put_text(display, s->x, s->y, &line->desc, s->line, true, s->offset);
         vp->width += line->rtl_cut;
         if (line->desc.style & STYLE_PLAYING)
@@ -495,22 +512,29 @@ static unsigned mix_color(unsigned c1, unsigned c2, int pct)
 }
 
 /* A lighter top and a darker bottom edge on a gradient selection bar, as
-   on a stock iPod */
+   on a stock iPod: Classic's strengths, or the theme's look's own */
 static void draw_bevel(struct screen *display, int x, int y, int width,
                        int height, struct line_desc *line)
 {
+    static const signed char classic[3] = { 45, 15, 35 };
+    const signed char *bevel = ui_theme_look(global_settings.dark_theme)->bevel;
+    if (!bevel[0] && !bevel[1] && !bevel[2])
+        bevel = classic;
     unsigned fg = display->get_foreground();
     if (line->line == 0 && line->row_top == 0)
     {
-        display->set_foreground(mix_color(line->line_color, LCD_WHITE, 45));
+        display->set_foreground(mix_color(line->line_color, LCD_WHITE, bevel[0]));
         display->hline(x, x + width - 1, y);
     }
     if (line->line == line->nlines - 1 && height > 3
         && ends_row(line, line->height))
     {
-        display->set_foreground(mix_color(line->line_end_color, LCD_BLACK, 15));
-        display->hline(x, x + width - 1, y + height - 2);
-        display->set_foreground(mix_color(line->line_end_color, LCD_BLACK, 35));
+        if (bevel[1])
+        {
+            display->set_foreground(mix_color(line->line_end_color, LCD_BLACK, bevel[1]));
+            display->hline(x, x + width - 1, y + height - 2);
+        }
+        display->set_foreground(mix_color(line->line_end_color, LCD_BLACK, bevel[2]));
         display->hline(x, x + width - 1, y + height - 1);
     }
     display->set_foreground(fg);
@@ -631,6 +655,42 @@ unsigned line_selection_bar(struct screen *display, int x, int y, int width,
     return display->get_background();
 }
 
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+#include "dieter_glyphs.h"
+extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
+                                  int src_y, int stride, int x, int y,
+                                  int width, int height);
+/* A theme's cursor: a dot in its signal colour in the left margin (the right
+   one right to left), in the middle of the selected item's rows; of a part of
+   a taller row the rows of the part, from y, bar_height of them. Not where a
+   strip from x leaves it out, nor from a scrolling line's repaint
+   (scroll_repaint), which has the dot of the line's own drawing beside it */
+static void draw_selection_dot(struct screen *display, int x, int y,
+                               int bar_height, const struct line_desc *line)
+{
+    const int at = ui_metric(UI_METRIC_SELECTION_DOT);
+    if (!at || scroll_repaint || display->screen_type != SCREEN_MAIN)
+        return;
+    const int height = line->height == -1 ? display->getcharheight() : line->height;
+    const int row = line->row_height > 0 ? line->row_height : height;
+    const int top = y - line->row_top - row * line->line;
+    const int cy = top + row * line->nlines / 2;
+    const int cx = lang_is_rtl() ? display->getwidth() - at : at;
+    const int left = cx - DIETER_DOT_HALF, first = cy - DIETER_DOT_HALF;
+    const int from = MAX(first, y), to = MIN(first + DIETER_DOT_H, y + bar_height);
+    if (left < x || from >= to)
+        return;
+    const unsigned fg = display->get_foreground();
+    display->set_foreground(ui_colour(UI_COLOUR_SIGNAL));
+    display->set_drawmode(DRMODE_FG);
+    lcd_alpha_bitmap_part(dieter_dot_alpha, 0, from - first, DIETER_DOT_W, left, from,
+                          DIETER_DOT_W, to - from);
+    display->set_foreground(fg);
+}
+#else
+#define draw_selection_dot(display, x, y, bar_height, line)
+#endif
+
 static void style_line(struct screen *display,
                        int x, int y, struct line_desc *line)
 {
@@ -704,6 +764,7 @@ static void style_line(struct screen *display,
                                             row*line->line + line->row_top);
             if (global_settings.list_selector_bevel)
                 draw_bevel(display, x, y, width, bar_height, line);
+            draw_selection_dot(display, x, y, bar_height, line);
             break;
         }
         case STYLE_COLORBAR:
@@ -854,7 +915,9 @@ static const unsigned char half_dot_alpha[] = {
 extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
                                   int src_y, int stride, int x, int y,
                                   int width, int height);
-/* The marks by theme: Classic's above, Neo's and Modern's from their mockups' export */
+/* The marks by theme: Classic's above, Neo's and Modern's from their mockups'
+   export, Dieter's drawn by its script (dieter_glyphs.h, above), Playlists'
+   Neo's */
 #include "neo_glyphs.h"
 #include "modern_glyphs.h"
 struct glyph {
@@ -893,6 +956,18 @@ static const struct glyph glyphs[UI_THEME_COUNT][GLYPH_COUNT] = {
         [GLYPH_SMALL_NOTE] = { neo_note_small_alpha, NEO_NOTE_SMALL_W, NEO_NOTE_SMALL_H, 0 },
         [GLYPH_DOT]        = { neo_episode_dots_alpha, NEO_EPISODE_DOTS_W, NEO_EPISODE_DOTS_H, 0 },
         [GLYPH_HALF_DOT]   = { neo_episode_dots_alpha, NEO_EPISODE_DOTS_W, NEO_EPISODE_DOTS_H, 1 },
+    },
+    [UI_THEME_DIETER] = {
+        [GLYPH_CHEVRON]    = { dieter_chevron_alpha, DIETER_CHEVRON_W, DIETER_CHEVRON_H, 0 },
+        [GLYPH_SPEAKER]    = { dieter_speaker_alpha, DIETER_SPEAKER_W, DIETER_SPEAKER_H, 0 },
+        [GLYPH_PLAYLIST]   = { neo_catalogue_marks_alpha, NEO_CATALOGUE_MARKS_W, NEO_CATALOGUE_MARKS_H, 0 },
+        [GLYPH_FOLDER]     = { neo_catalogue_marks_alpha, NEO_CATALOGUE_MARKS_W, NEO_CATALOGUE_MARKS_H, 1 },
+        [GLYPH_SMART]      = { neo_smart_gear_alpha, NEO_SMART_GEAR_W, NEO_SMART_GEAR_H, 0 },
+        /* a row's tile: the grille of the pane, small and flat */
+        [GLYPH_SMALL_NOTE] = { dieter_tile_alpha, DIETER_TILE_W, DIETER_TILE_H, 0 },
+        /* in the cursor's column (draw_state()) */
+        [GLYPH_DOT]        = { dieter_ring_alpha, DIETER_RING_W, DIETER_RING_H, 0 },
+        [GLYPH_HALF_DOT]   = { dieter_ring_half_alpha, DIETER_RING_HALF_W, DIETER_RING_HALF_H, 0 },
     },
 };
 
@@ -1132,7 +1207,8 @@ int line_mark_column(struct screen *display, int mark)
     if (mark < LINE_MARK_NEW)
         return line_mark_width(display);
 #if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
-    if (display->screen_type == SCREEN_MAIN)
+    /* none where the theme has a cursor's column: the marks stand there */
+    if (display->screen_type == SCREEN_MAIN && !ui_metric(UI_METRIC_SELECTION_DOT))
         return DOT_W + STATE_GAP;
 #endif
     return 0;
@@ -1145,6 +1221,30 @@ int line_mark_column(struct screen *display, int mark)
 static void draw_state(struct screen *display, int x, int y,
                        const struct line_desc *line, int mark)
 {
+    const int at = ui_metric(UI_METRIC_SELECTION_DOT);
+    if (mark != LINE_MARK_EMPTY && at && display->screen_type == SCREEN_MAIN)
+    {
+        /* in the cursor's column, a ring in the theme's ink, half filled for
+           a begun episode; the cursor fills it with its colour */
+        const int row = line->row_height > 0 ? line->row_height
+                        : line->height == -1 ? display->getcharheight() : line->height;
+        const int cx = lang_is_rtl() ? display->getwidth() - at : at;
+        const int left = cx - DIETER_RING_HALF, top = y + row / 2 - DIETER_RING_HALF;
+        const unsigned fg = display->get_foreground();
+        display->set_drawmode(DRMODE_FG);
+        if (coloured(line, STYLE_COLORBAR|STYLE_GRADIENT))
+        {
+            display->set_foreground(ui_colour(UI_COLOUR_SIGNAL));
+            lcd_alpha_bitmap_part(dieter_ring_fill_alpha, 0, 0, DIETER_RING_FILL_W,
+                                  left, top, DIETER_RING_FILL_W, DIETER_RING_FILL_H);
+        }
+        display->set_foreground(ui_colour(UI_COLOUR_ACCENT));
+        draw_glyph(mark == LINE_MARK_NEW || coloured(line, STYLE_COLORBAR|STYLE_GRADIENT)
+                   ? GLYPH_DOT : GLYPH_HALF_DOT, left, top);
+        display->set_foreground(fg);
+        display->set_drawmode(DRMODE_SOLID);
+        return;
+    }
     if (mark == LINE_MARK_EMPTY || !line_mark_column(display, mark))
         return;
     const int height = line->height == -1 ? display->getcharheight() : line->height;
@@ -1699,6 +1799,97 @@ bool line_font_has(int font, const char *text)
     return true;
 }
 
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+/* the box: rows of its alpha, its corners rounded, a lighter top and a
+   darker bottom, as the selection's bar has */
+static void draw_initial_box(struct screen *display, int x, int y, int w, int h)
+{
+    const unsigned colour = LIST_INITIAL_COLOUR;
+    const int opacity = LIST_INITIAL_OPACITY;
+    unsigned char middle[(LCD_WIDTH + 1) / 2], corner[(LCD_WIDTH + 1) / 2];
+    initial_row(middle, w, opacity, INITIAL_RADIUS);
+    display->set_drawmode(DRMODE_FG);
+    for (int row = 0; row < h; row++)
+    {
+        const int edge = MIN(row, h - 1 - row);
+        const unsigned char *mask = middle;
+        if (edge < INITIAL_RADIUS)
+        {
+            initial_row(corner, w, opacity, edge);
+            mask = corner;
+        }
+        display->set_foreground(row == 0 ? mix_color(colour, LCD_WHITE, 45)
+                                : row == h - 1 ? mix_color(colour, LCD_BLACK, 35)
+                                : colour);
+        lcd_alpha_bitmap_part(mask, 0, 0, w, x, y + row, w, 1);
+    }
+}
+
+/* A theme's key, a picture of its skin's (make_dieter_theme.py's): the key's
+   middle on a pixel's corner half its width from its left and its top. Wider
+   than it is high, a capsule: its halves apart, its middle column again
+   between them */
+static void draw_initial_key(struct screen *display, const struct bitmap *key,
+                             int cx, int cy, int w, int h)
+{
+    const int c = key->width / 2;
+    const int r = h / 2;
+    const int left = cx - w / 2 + r, right = cx + w / 2 - r;
+    display->set_drawmode(DRMODE_FG);
+    display->bmp_part(key, 0, 0, left - c, cy - c, c, key->height);
+    for (int x = left; x < right; x++)
+        display->bmp_part(key, c, 0, x, cy - c, 1, key->height);
+    display->bmp_part(key, c, 0, right, cy - c, key->width - c, key->height);
+}
+
+/* the capitals' middle in the box's, as the digits of a year have it too,
+   rather than that of the glyphs' line, with room for accents */
+static int initial_ink_middle(int font, struct font *pf)
+{
+    static int ink_font = -1, ink_middle;
+    if (ink_font != font)
+    {
+        int top, bottom;
+        ink_middle = glyph_ink(font, 'H', &top, &bottom) ?
+                     (top + bottom + 1) / 2 : (int)pf->height / 2;
+        ink_font = font;
+    }
+    return ink_middle;
+}
+
+static void draw_initial_glyphs(struct screen *display, struct font *pf, int font,
+                                const ucschar_t *ucs, int n, int gx, int gy)
+{
+    font_lock(font, true);
+    for (int i = 0; i < n; i++)
+    {
+        const int gw = font_get_width(pf, ucs[i]);
+        const unsigned char *bits = font_get_bits(pf, ucs[i]);
+        if (pf->depth)
+            lcd_alpha_bitmap_part(bits, 0, 0, gw, gx, gy, gw, pf->height);
+        else
+            display->mono_bitmap_part(bits, 0, 0, gw, gx, gy, gw, pf->height);
+        gx += gw;
+    }
+    font_lock(font, false);
+}
+
+/* the letters cut into a key, three draws of them from (x, y): the lit lip
+   of their lower right walls two pixels down and right, the shade of their
+   top and left walls at their place, their floor between */
+static void draw_initial_text(struct screen *display, struct font *pf, int font,
+                              const ucschar_t *ucs, int n, int x, int y)
+{
+    display->set_drawmode(DRMODE_FG);
+    display->set_foreground(ui_colour(UI_COLOUR_INITIAL_LIP));
+    draw_initial_glyphs(display, pf, font, ucs, n, x + 2, y + 2);
+    display->set_foreground(ui_colour(UI_COLOUR_INITIAL_SHADE));
+    draw_initial_glyphs(display, pf, font, ucs, n, x, y);
+    display->set_foreground(ui_colour(UI_COLOUR_INITIAL_TEXT));
+    draw_initial_glyphs(display, pf, font, ucs, n, x + 1, y + 1);
+}
+#endif
+
 void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
                        int font, int text_font)
 {
@@ -1727,56 +1918,27 @@ void line_draw_initial(struct screen *display, int cx, int cy, const char *text,
     const int w = MIN(MAX(INITIAL_HEIGHT, width + 2 * INITIAL_MARGIN), LCD_WIDTH);
     const int h = INITIAL_HEIGHT;
     const int x = cx - w / 2, y = cy - h / 2;
-    const unsigned colour = LIST_INITIAL_COLOUR;
-    const int opacity = LIST_INITIAL_OPACITY;
     const unsigned fg = display->get_foreground();
-    unsigned char middle[(LCD_WIDTH + 1) / 2], corner[(LCD_WIDTH + 1) / 2];
-    initial_row(middle, w, opacity, INITIAL_RADIUS);
-    display->set_drawmode(DRMODE_FG);
-    for (int row = 0; row < h; row++)
+    /* a theme's key in relief, its skin's picture, the letter cut into it */
+    const struct bitmap *key = skin_image("qskey");
+    if (key && key->width > h && key->height > h)
     {
-        const int edge = MIN(row, h - 1 - row);
-        const unsigned char *mask = middle;
-        if (edge < INITIAL_RADIUS)
+        draw_initial_key(display, key, cx, cy, w, h);
+        if (pf)
         {
-            initial_row(corner, w, opacity, edge);
-            mask = corner;
+            draw_initial_text(display, pf, font, ucs, n, cx - width / 2 - 1,
+                              cy - initial_ink_middle(font, pf) - 1);
+            display->set_foreground(fg);
+            display->set_drawmode(DRMODE_SOLID);
+            return;
         }
-        /* a lighter top and a darker bottom, as the selection's bar has */
-        display->set_foreground(row == 0 ? mix_color(colour, LCD_WHITE, 45)
-                                : row == h - 1 ? mix_color(colour, LCD_BLACK, 35)
-                                : colour);
-        lcd_alpha_bitmap_part(mask, 0, 0, w, x, y + row, w, 1);
     }
-
+    else
+        draw_initial_box(display, x, y, w, h);
     display->set_foreground(ui_colour(UI_COLOUR_INITIAL_TEXT));
     if (pf)
-    {
-        /* the capitals' middle in the box's, as the digits of a year have it
-           too, rather than that of the glyphs' line, with room for accents */
-        static int ink_font = -1, ink_middle;
-        if (ink_font != font)
-        {
-            int top, bottom;
-            ink_middle = glyph_ink(font, 'H', &top, &bottom) ?
-                         (top + bottom + 1) / 2 : (int)pf->height / 2;
-            ink_font = font;
-        }
-        int gx = cx - width / 2;
-        const int gy = cy - ink_middle;
-        font_lock(font, true);
-        for (int i = 0; i < n; i++)
-        {
-            const int gw = font_get_width(pf, ucs[i]);
-            const unsigned char *bits = font_get_bits(pf, ucs[i]);
-            if (pf->depth)
-                lcd_alpha_bitmap_part(bits, 0, 0, gw, gx, gy, gw, pf->height);
-            else
-                display->mono_bitmap_part(bits, 0, 0, gw, gx, gy, gw, pf->height);
-            gx += gw;
-        }
-        font_lock(font, false);
-    }
+        draw_initial_glyphs(display, pf, font, ucs, n, cx - width / 2,
+                            cy - initial_ink_middle(font, pf));
     else
         display->putsxy(cx - width / 2, cy - font_get(text_font)->height / 2,
                         text);

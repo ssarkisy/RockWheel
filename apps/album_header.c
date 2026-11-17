@@ -121,6 +121,7 @@ static long reader_stack[(DEFAULT_STACK_SIZE + 0xc00) / sizeof(long)];
    rows run on without padding): made by themes/tools/make_list_glyphs.py */
 #include "gui/neo_glyphs.h"
 #include "gui/modern_glyphs.h"
+#include "gui/dieter_glyphs.h"
 #define NOTE_W 29
 #define NOTE_H 35
 static const unsigned char note_alpha[] = {
@@ -542,6 +543,11 @@ static void draw_cover(struct screen *display, int x, int y)
             line_draw_note(neo_note_header_alpha, NEO_NOTE_HEADER_W, NEO_NOTE_HEADER_H,
                            x + (COVER_SIZE - NEO_NOTE_HEADER_W) / 2,
                            y + (COVER_SIZE - NEO_NOTE_HEADER_H) / 2);
+        else if (global_settings.ui_theme == UI_THEME_DIETER)
+            line_draw_note(dieter_header_tile_alpha, DIETER_HEADER_TILE_W,
+                           DIETER_HEADER_TILE_H,
+                           x + (COVER_SIZE - DIETER_HEADER_TILE_W) / 2,
+                           y + (COVER_SIZE - DIETER_HEADER_TILE_H) / 2);
         else
             line_draw_note(note_alpha, NOTE_W, NOTE_H, x + (COVER_SIZE - NOTE_W) / 2,
                            y + (COVER_SIZE - NOTE_H) / 2);

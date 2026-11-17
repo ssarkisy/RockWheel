@@ -71,6 +71,7 @@ static const struct tag_info legal_tags[] =
        drawn, in the theme's two colours for a note from its top row to its
        foot, as the lists draw theirs; its own colour is not shown */
     TAG(SKIN_TOKEN_IMAGE_NOTE,            "xN", "S", 0|NOBREAK),
+    TAG(SKIN_TOKEN_IMAGE_SIGNAL,          "xS", "S", 0|NOBREAK),
     /* this image, loaded before (a bar's by its file's name), is in the
        theme's accent: Classic's blue in its user's colour (ui_theme_accent()) */
     TAG(SKIN_TOKEN_IMAGE_ACCENT,          "xA", "S", 0|NOBREAK),
@@ -195,8 +196,9 @@ static const struct tag_info legal_tags[] =
     TAG(SKIN_TOKEN_MENU_SETTINGS_SELECTED, "LS", "", SKIN_REFRESH_DYNAMIC),
     TAG(SKIN_TOKEN_MENU_WIDE,             "LW", "", SKIN_REFRESH_DYNAMIC),
     /* the volume by the share of the volume bar, as "Volume: 62%", or with
-       the limit, if one is set, as "Volume: 62/80%"; Night Mode on */
-    TAG(SKIN_TOKEN_VOLUME_PERCENT,        "nv", "", SKIN_REFRESH_DYNAMIC|SKIN_REFRESH_VOLUME),
+       the limit, if one is set, as "Volume: 62/80%"; %nv(1) the level alone,
+       "62%" or "62/80%"; Night Mode on */
+    TAG(SKIN_TOKEN_VOLUME_PERCENT,        "nv", "|I", SKIN_REFRESH_DYNAMIC|SKIN_REFRESH_VOLUME),
     TAG(SKIN_TOKEN_NIGHT_MODE,            "nN", "", SKIN_REFRESH_DYNAMIC),
     /* The track's kind as iTunesDB has it, %?kk<music|podcast|audiobook>;
        its release date as Podcasts' lists have it, "20 May 2023"; what is

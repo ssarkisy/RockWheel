@@ -20310,3 +20310,17 @@
     ipodcolor: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_THEME_DIETER
+  desc: a value of Theme under Settings > Appearance: the name of a look, an homage to a designer's first name, a proper name kept as it is
+  user: core
+  <source>
+    *: "Dieter"
+  </source>
+  <dest>
+    *: "Dieter"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

@@ -902,6 +902,30 @@ static void blend_row(fb_data *dst, const fb_data *src, int n)
         dst[i] = AVG2((uint32_t)src[i], (uint32_t)src[i + 1]);
 }
 
+void menu_cover_shade(int x0, int y0, int y1)
+{
+    const int shade = ui_metric(UI_METRIC_PANE_SHADE);
+    const int x = ui_metric(UI_METRIC_PANE_LEFT);
+    if (shade <= 0 || x <= 0 || x + 2 > LCD_WIDTH || x0 > x + 1)
+        return;
+    struct viewport *vp = lcd_set_viewport_ex(NULL, 0);
+    for (int y = MAX(y0, 0); y < MIN(y1, LCD_HEIGHT); y++)
+    {
+        /* its first column so much to black, the second half that; of
+           those the cover is in */
+        for (int i = MAX(x0 - x, 0); i < 2; i++)
+        {
+            fb_data *p = FBADDR(x + i, y);
+            const unsigned c = FB_UNPACK_SCALAR_LCD(*p);
+            const int keep = 100 - (i ? shade / 2 : shade);
+            *p = FB_SCALARPACK_LCD(LCD_RGBPACK(RGB_UNPACK_RED(c) * keep / 100,
+                                               RGB_UNPACK_GREEN(c) * keep / 100,
+                                               RGB_UNPACK_BLUE(c) * keep / 100));
+        }
+    }
+    lcd_set_viewport_ex(vp, 0);
+}
+
 /* show_at: the tick that shows it, where the display can wait for one. The
    one frame of a still cover is the CPU's: no thread on the COP for it. */
 static void pan_draw(int h, long show_at, bool still)
@@ -920,6 +944,7 @@ static void pan_draw(int h, long show_at, bool still)
         else
             memcpy(FBADDR(pan.x0, y), src, width * sizeof(fb_data));
     }
+    menu_cover_shade(pan.x0, pan.y0, pan.y1);
 #ifdef PAN_ON_COP
     if (!still && cop_ready())
     {
