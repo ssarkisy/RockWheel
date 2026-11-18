@@ -164,6 +164,24 @@ In **Options** you can add eight games from Rockbox: Rockblox, 2048, Sudoku, Sok
 
 <img src="docs/screenshots/2.0/app-options.png" width="720" alt="The RockWheel app with an iPod Video connected, an update ready and Options beside it">
 
+### Install with a script
+
+If you prefer Terminal or PowerShell, a script does the same install. Connect the iPod and paste one line.
+
+On a Mac, in Terminal:
+
+```sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ssarkisy/RockWheel/main/install.sh)"
+```
+
+On Windows, in PowerShell, not as administrator:
+
+```powershell
+irm https://raw.githubusercontent.com/ssarkisy/RockWheel/main/install.ps1 | iex
+```
+
+The script finds the iPod, downloads and checks the files for its model, installs the bootloader if needed, copies the firmware and ejects the iPod. macOS asks for your password, and Windows asks for administrator permission. On a Mac, the script can also convert a Mac-formatted iPod after you type `ERASE`. It asks whether to add the extra games. After the install, sync as in step 3 above. To update later, run the same line again. The script's options are in the [advanced guide](docs/advanced.md#script-options).
+
 [Advanced guide](docs/advanced.md) · [Removing RockWheel](docs/advanced.md#removing-rockwheel) · [Report a problem](https://github.com/ssarkisy/RockWheel/issues)
 
 ## Credits and license
