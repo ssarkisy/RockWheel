@@ -75,14 +75,15 @@ static struct {
 
 #if defined(HAVE_MENU_COVER) && defined(HAVE_JPEG) && defined(HAVE_TAGCACHE)
 #define MENU_COVER_SHARP
-/* Sharp: the picture at the panel's own size, Finder's 1024 frame of it or the
-   one Updating Library made, read by the album cover reader's thread, takes
-   the place of the 200 px frame scaled up, moving or still. From flash as its
-   track starts, to be there when the menus show; from a disk that spins only
-   as the cover shows. Nothing is decoded: a song without one shows the frame
-   scaled. In a block taken without music and then held (sharp_memory()).
-   The UI's thread, the scroll's, the audio's and the reader's are on one
-   core: none of their changes here has a yield in the middle. */
+/* Sharp: the picture at the panel's own size, Finder's large frame of it (the
+   Video's 1024, the photo's 1013) or the one Updating Library made, read by
+   the album cover reader's thread, takes the place of the 200 px frame scaled
+   up, moving or still. From flash as its track starts, to be there when the
+   menus show; from a disk that spins only as the cover shows. Nothing is
+   decoded: a song without one shows the frame scaled. In a block taken
+   without music and then held (sharp_memory()). The UI's thread, the
+   scroll's, the audio's and the reader's are on one core: none of their
+   changes here has a yield in the middle. */
 #define SHARP_BYTES sizeof(menu_art.pixels)
 /* a cover by Finder's, as menu_art's */
 struct cover_key
@@ -242,7 +243,7 @@ static void cover_fit(int frame_width, int frame_height, int *width,
 }
 
 /* The cover at the panel's size, width by height, of the frame at art read
-   into to: Finder's 1024 frame, or the one Updating Library made. Reads the
+   into to: Finder's large frame, or the one Updating Library made. Reads the
    disk. */
 static bool cover_fetch(const char *file, const struct cover_key *key,
                         int frame_width, int frame_height, int width,

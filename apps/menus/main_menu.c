@@ -117,9 +117,15 @@ MENUITEM_FUNCTION(reset_settings_item, 0, ID2P(LANG_RESET),
    read from. Pressed again before that sync, it offers the old ones back. */
 #define COVERS_LINES    10
 #define COVERS_LINE     128
-/* what a song's covers take in all of Finder's sizes: frames of 20,000,
-   80,000 and 153,600 bytes, and its part of ArtworkDB */
+/* what a song's covers take in all of Finder's sizes, and its part of
+   ArtworkDB: frames of 20,000, 80,000 and 153,600 bytes on the Video, of
+   6,272, 39,200 and 77,440 on the photo, their sum in thousands counted as
+   KB of 1024 */
+#ifdef IPOD_COLOR
+#define COVERS_KB       123
+#else
 #define COVERS_KB       254
+#endif
 #define COVERS_MARGIN   (32 * 1024) /* KB left free past them */
 
 struct covers_text

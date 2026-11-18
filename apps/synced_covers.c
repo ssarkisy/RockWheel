@@ -28,12 +28,6 @@
 
 #ifdef ITUNESDB_HAVE_ART
 
-#define DESCRIPTION_DIR     "/iPod_Control/Device"
-#define DESCRIPTION_FILE    DESCRIPTION_DIR "/SysInfoExtended"
-/* as it was before the format was added; never read again */
-#define DESCRIPTION_KEPT    DESCRIPTION_FILE ".original"
-/* what USB gives of the file (usb_storage.c): 62 pages of 248 bytes */
-#define DESCRIPTION_MAX     15376
 #define COVERS_DIR          "/iPod_Control/Artwork"
 #define COVERS_DB           COVERS_DIR "/ArtworkDB"
 /* The old artwork until a sync has made the new. Without its ArtworkDB,
@@ -42,7 +36,13 @@
 #define ASIDE_DB            ASIDE_DIR "/ArtworkDB"
 #define ASIDE_FILES         64 /* more ithmb files than Finder makes */
 
-#ifdef HAVE_SYNCED_MENU_COVERS
+#ifdef SYNCED_COVERS_DESCRIPTION
+#define DESCRIPTION_DIR     "/iPod_Control/Device"
+#define DESCRIPTION_FILE    DESCRIPTION_DIR "/SysInfoExtended"
+/* as it was before the format was added; never read again */
+#define DESCRIPTION_KEPT    DESCRIPTION_FILE ".original"
+/* what USB gives of the file (usb_storage.c): 62 pages of 248 bytes */
+#define DESCRIPTION_MAX     15376
 #define KEY_SPECS   "<key>ImageSpecifications</key>"
 #define KEY_COVERS  "<key>AlbumArt</key>"
 #define KEY_FORMAT  "<key>1024</key>"
@@ -241,7 +241,15 @@ enum synced_covers_description synced_covers_describe(void)
         close(fd);
     return is;
 }
-#endif /* HAVE_SYNCED_MENU_COVERS */
+#elif defined(HAVE_SYNCED_MENU_COVERS)
+/* the iPod photo's, as USB gives it, lists the format, unless a disk file
+   hasn't the shape for it (usb_storage.c), when the made pictures cover the
+   pane: nothing is read or written */
+enum synced_covers_description synced_covers_describe(void)
+{
+    return DESCRIPTION_READY;
+}
+#endif /* SYNCED_COVERS_DESCRIPTION */
 
 /* What goes from the folder set aside besides ArtworkDB:
    F<format>_<number>.ithmb, as Finder names the frames' files, and what a
@@ -344,7 +352,7 @@ void synced_covers_imported(bool covers)
 
 void synced_covers_boot(void)
 {
-#ifdef HAVE_SYNCED_MENU_COVERS
+#ifdef SYNCED_COVERS_DESCRIPTION
     /* as a cut left them (fw_recover()), before USB reads the description */
     static const char *const kept[] = { DESCRIPTION_FILE, DESCRIPTION_KEPT };
     fw_recover_files(DESCRIPTION_DIR, kept, ARRAYLEN(kept), description_whole);

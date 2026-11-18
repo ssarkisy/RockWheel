@@ -269,8 +269,9 @@ enum itunesdb_cover_reason {
 #define ITUNESDB_SLIDE_SIZE MIN(MAX(LCD_HEIGHT * 17 / 30, LCD_WIDTH * 2 / 5), \
                                 LCD_HEIGHT * 2 / 3)
 
-/* the side of the larger picture, Finder's 1024 frame's and the one
-   Updating Library makes, as the menus' pane shows it */
+/* the side of the larger picture, Finder's large frame's (the Video's 1024,
+   the photo's 1013) and the one Updating Library makes, as the menus' pane
+   shows it */
 #define ITUNESDB_LARGE_SIDE LCD_HEIGHT
 
 /* the cover Finder made for the file at path */
@@ -447,11 +448,13 @@ int itunesdb_cover_put(uint64_t key, uint32_t stamp, const struct bitmap *bm);
 void itunesdb_covers_end(int how);
 
 #ifdef IPOD_COLOR
-/* Finder writes no frame as large as the menus' pane for the iPod photo (its
-   description lists none), and the pane would show Finder's 140 px frame
-   scaled up. So Updating Library makes the pane's picture of each song Finder
-   has a cover of too, of the song's own picture when that is Finder's cover,
-   into COVERS_LARGE; covers_finder.dat keeps which, for itunesdb_find_large_of().
+/* The iPod photo's pane takes Finder's 1013 frame of a song's cover, which
+   Finder writes as the description lists that format (itunesdb.c,
+   read_image()). A song without one, as of a cover Finder wrote before the
+   format was listed or one that isn't square, would show Finder's 140 px
+   frame scaled up. So Updating Library makes the pane's picture of each such
+   song, of the song's own picture when that is Finder's cover, into
+   COVERS_LARGE; covers_finder.dat keeps which, for itunesdb_find_large_of().
    In the covers' making, between itunesdb_covers_begin() and _end(). */
 #define ITUNESDB_FINDER_LARGE
 struct itunesdb_finder_song {
@@ -459,9 +462,11 @@ struct itunesdb_finder_song {
     uint32_t mtime, check;      /* as itunesdb_song_cover's */
     uint32_t pic_size, crc, adler;
 };
-/* The song of Finder's cover art (itunesdb_find_art()) known as it is: 1
-   kept, 0 to be made. With Finder's artwork changed since, its index or its
-   files, its frame is read and summed again. */
+/* The song of Finder's cover art (itunesdb_find_art()): 1 if none is to be
+   made, as it has Finder's 1013 frame that the pane takes, its picture is
+   known as it is, or there is no memory for the making; 0 to be made.
+   Decided for each song. With Finder's artwork changed since, its index or
+   its files, a known one's frame is read and summed again. */
 int itunesdb_finder_large_known(uint64_t path, uint32_t mtime,
                                 const struct itunesdb_art *art);
 /* its picture, given by its sums, one made or found unlike Finder's frame

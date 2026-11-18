@@ -24,17 +24,23 @@
 #include "itunesdb.h"
 
 /* The covers the computer puts on the iPod at a sync, made again by it: the
-   iPod's description lists the 320x240 format the main menu's cover is read
-   from, and the artwork is set aside, so that the next sync writes every
-   cover anew. Nothing is kept of this but what is on the disk. */
+   iPod's description lists the format the main menu's cover is read from,
+   and the artwork is set aside, so that the next sync writes every cover
+   anew, with that frame too. Nothing is kept of this but what is on the
+   disk. */
 
-/* The iPod Video's alone, as 320x240 is its photo format and its main menu
-   has the pane. The iPod photo's own covers, 140x140, are as large as it
-   shows one: its description is never read or written, and Settings has no
-   Rebuild Synced Covers. What a cut or an older build left set aside is
-   still removed once a sync has made the covers again. */
-#if defined(ITUNESDB_HAVE_ART) && defined(IPOD_VIDEO)
+/* The iPod Video and the iPod photo, whose main menus have the pane. */
+#if defined(ITUNESDB_HAVE_ART) && (defined(IPOD_VIDEO) || defined(IPOD_COLOR))
 #define HAVE_SYNCED_MENU_COVERS
+#endif
+/* The Video's description on the disk is edited to list its photo format
+   1024 (320x240). The photo's lists its format 1013, built in, or added in
+   memory to one read from the disk that has the shape for it (usb_storage.c);
+   a file without it is left as it is, and then the made pictures cover the
+   pane. Its file is never written, and synced_covers_describe() says it is
+   ready. */
+#if defined(HAVE_SYNCED_MENU_COVERS) && defined(IPOD_VIDEO)
+#define SYNCED_COVERS_DESCRIPTION
 #endif
 
 enum synced_covers_description
@@ -49,7 +55,8 @@ enum synced_covers_description
 
 #ifdef HAVE_SYNCED_MENU_COVERS
 /* Has the description list the format: at boot, before USB can read it, and
-   from the action. Not under music: it takes memory for the file. */
+   from the action. Not under music: on the Video it takes memory for the
+   file. */
 enum synced_covers_description synced_covers_describe(void);
 
 /* the old artwork is set aside, and no sync has made the new yet */
