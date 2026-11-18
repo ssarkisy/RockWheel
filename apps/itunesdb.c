@@ -224,6 +224,8 @@ struct track {
     uint32_t bookmark;    /* a podcast's or a book's place on the Mac, ms */
     uint32_t added;       /* as tag_dateadded, 0 for none */
     uint32_t released;    /* track_released()'s */
+    uint32_t digest;      /* of its tags (track_digest()) as the database has
+                             them after this import, 0 for not known */
     struct state_entry st;
     uint64_t dbid;   /* the song's, the same under another path after a sync */
 };
@@ -606,7 +608,11 @@ bool itunesdb_exists(void)
 /* What iTunesDB says of the tracks Finder added since the last import, for
    the scan to take instead of each file's tags: reading those took the iPod
    13 ms a song. The records are made as the tracks are read and kept until
-   the scan is done. */
+   the scan is done. So are those of the tracks whose tags changed in
+   iTunesDB alone since the import before, as a program other than Finder
+   edits them (iOpenPod by default, gtkpod) and the stock firmware shows:
+   the scan compares each with the database and adds it again with them
+   where they differ (tagcache.c add_tagcache()). */
 
 #define META_PER_TRACK 256 /* bytes a record takes on average, at most */
 
@@ -630,6 +636,35 @@ struct meta_record {
     uint32_t added;     /* as tag_dateadded, 0 for none */
     /* then the strings, each ended by a zero, ID3V2_BUF_SIZE in all */
 };
+/* The digest of each track's tags in iTunesDB as the database has them, by
+   path hash, of the last import that went through (itunesdb_import()): an
+   import makes records only of the tracks whose digest differs. Written as
+   the tracks are read, beside it, and put in its place once the import is
+   done, as the database then has them. A track it has no digest of, 0 or
+   none, as all of them without the file, is compared at the next import with
+   the database in memory (meta.compare_all), all such tracks in one but for
+   those a pool of records halved for memory leaves to later imports, a
+   track whose digest differs at any import. Without the database in memory,
+   as with Load to RAM off, those not known are never compared. */
+#define TAGS_FILE       ROCKBOX_DIR "/itunesdb_tags.dat"
+#define TAGS_PENDING    ROCKBOX_DIR "/itunesdb_tags_pending.dat"
+#define TAGS_MAGIC      0x47544252 /* "RBTG" */
+#define TAGS_VERSION    1
+
+struct tags_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t db_size;   /* of the iTunesDB they are from */
+    uint32_t db_mtime;
+    uint32_t count;
+    uint32_t unused[3]; /* the entries after it aligned for their hash */
+};
+
+struct tags_entry {
+    uint64_t hash;
+    uint32_t digest;    /* track_digest()'s, 0 for not known */
+    uint32_t unused;
+};
 
 static struct {
     int handle;
@@ -642,6 +677,23 @@ static struct {
     int known_handle;
     int known;
     bool full;          /* no room for more records */
+    /* and the digests of the import before (TAGS_FILE), sorted by hash */
+    bool digesting;     /* the tracks' digests made, for an import's file */
+    int tags_handle;
+    int tags_count;     /* < 0 for no file */
+    int tags_unknown;   /* the tracks known with no digest in it, 0 or none */
+    bool tags_unread;   /* a file there, but not read: kept as it is */
+    /* a track not known as the database has it, records for those too: the
+       scan compares each with the database in memory */
+    bool compare_all;
+    int retags, retag_room; /* the records of tracks whose digest differs,
+                               and how many may be, the new ones' kept */
+    int fresh_left;     /* new ones still to come, about: their room kept */
+    /* the paths whose song is the last sync's by its dbid, sorted, then
+       those another song or none has now (note_moved_songs()), for the scan
+       to give a file's statistics only to the same song */
+    int songs_handle;
+    int songs_same, songs_other;
 } meta;
 
 /* the bytes of the table before the pool: a multiple of 8, so that the
@@ -665,6 +717,13 @@ void itunesdb_forget_metadata(void)
         core_unpin(meta.known_handle);
         core_free(meta.known_handle);
     }
+    if (meta.tags_handle > 0)
+    {
+        core_unpin(meta.tags_handle);
+        core_free(meta.tags_handle);
+    }
+    if (meta.songs_handle > 0)
+        core_free(meta.songs_handle);
     memset(&meta, 0, sizeof(meta));
 }
 
@@ -750,6 +809,133 @@ static bool known_hash(const uint64_t *hashes, int count, uint64_t hash)
     return false;
 }
 
+/* The import's file in place of the last one's, a cut having come between
+   the two in tags_promote(): only if that import went through, as the state
+   it wrote says */
+static void tags_recover(void)
+{
+    struct tags_header pending;
+    struct state_header state;
+    if (file_exists(TAGS_FILE) || !read_state_header(STATE_FILE, &state))
+        return;
+    const int fd = open(TAGS_PENDING, O_RDONLY);
+    if (fd < 0)
+        return;
+    const bool ok = read(fd, &pending, sizeof(pending)) == sizeof(pending)
+        && pending.magic == TAGS_MAGIC && pending.version == TAGS_VERSION
+        && pending.db_size == state.db_size
+        && pending.db_mtime == state.db_mtime;
+    close(fd);
+    if (ok)
+        rename(TAGS_PENDING, TAGS_FILE);
+}
+
+/* the digests of the last import (TAGS_FILE) into memory, sorted by hash:
+   their count, -1 for none to go by; *unread when the file is there and
+   whole but couldn't be read into memory */
+static int load_tags(int *handle, bool *unread)
+{
+    struct tags_header hdr;
+    *handle = 0;
+    *unread = false;
+    tags_recover();
+    const int fd = open(TAGS_FILE, O_RDONLY);
+    if (fd < 0)
+        return -1;
+    const size_t size = ffilesize(fd);
+    bool ok = read(fd, &hdr, sizeof(hdr)) == sizeof(hdr)
+        && hdr.magic == TAGS_MAGIC && hdr.version == TAGS_VERSION
+        && hdr.count <= COUNT_MAX
+        && size == sizeof(hdr) + hdr.count * sizeof(struct tags_entry);
+    if (ok && hdr.count > 0)
+    {
+        *handle = db_alloc(hdr.count * sizeof(struct tags_entry));
+        ok = *handle > 0;
+        if (ok)
+        {
+            core_pin(*handle);
+            const ssize_t bytes = hdr.count * sizeof(struct tags_entry);
+            ok = read(fd, core_get_data(*handle), bytes) == bytes;
+        }
+        *unread = !ok;
+    }
+    close(fd);
+    if (!ok)
+    {
+        if (*handle > 0)
+        {
+            core_unpin(*handle);
+            core_free(*handle);
+        }
+        *handle = 0;
+        return -1;
+    }
+    return hdr.count;
+}
+
+/* the tracks of the last import (meta.known's hashes) the digests don't
+   know, 0 or none: both sorted by hash */
+static int tags_unknown(void)
+{
+    if (meta.known <= 0)
+        return 0;
+    if (meta.tags_handle <= 0)
+        return meta.known;
+    const uint64_t *known = core_get_data(meta.known_handle);
+    const struct tags_entry *e = core_get_data(meta.tags_handle);
+    int unknown = 0, j = 0;
+    for (int i = 0; i < meta.known; i++)
+    {
+        while (j < meta.tags_count && e[j].hash < known[i])
+            j++;
+        if (j == meta.tags_count || e[j].hash != known[i] || !e[j].digest)
+            unknown++;
+    }
+    return unknown;
+}
+
+/* the digest the last import had for the track, 0 for none */
+static uint32_t old_digest(uint64_t hash)
+{
+    if (meta.tags_handle <= 0)
+        return 0;
+    const struct tags_entry *e = core_get_data(meta.tags_handle);
+    int lo = 0, hi = meta.tags_count - 1;
+    while (lo <= hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (e[mid].hash == hash)
+            return e[mid].digest;
+        if (e[mid].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return 0;
+}
+
+/* The tags of a track that a record has, as iTunesDB has them: its strings'
+   mhods (meta_mhods[], at 0 for none) hashed as they are, and its track and
+   disc numbers. Never 0. A change it can't see, as one past a string's
+   first 1024 bytes, is past what a record takes too. */
+static uint32_t track_digest(const off_t *tags_at, uint32_t tracknum,
+                             uint32_t discnum)
+{
+    uint32_t words[META_STRINGS + 2];
+    for (int k = 0; k < META_STRINGS; k++)
+        words[k] = tags_at[k] ? mhod_hash(tags_at[k]) : 0;
+    words[META_STRINGS] = MIN(tracknum, 0xffff);
+    words[META_STRINGS + 1] = MIN(discnum, 0xffff);
+    /* FNV-1a over their bytes */
+    uint32_t digest = 0x811c9dc5;
+    for (size_t i = 0; i < ARRAYLEN(words); i++)
+    {
+        for (int b = 0; b < 32; b += 8)
+            digest = (digest ^ ((words[i] >> b) & 0xff)) * 0x01000193;
+    }
+    return digest ? digest : 1;
+}
+
 /* the record of a track into the pool, false when it doesn't fit; its mhit
    ends at end */
 static bool add_metadata(const struct track *t, off_t end)
@@ -825,6 +1011,15 @@ static void metadata_begin(void)
     itunesdb_forget_metadata();
     meta.known = load_known_hashes(&meta.known_handle);
     meta.reading = meta.known >= 0;
+    meta.digesting = meta.reading;
+    meta.tags_count = load_tags(&meta.tags_handle, &meta.tags_unread);
+    meta.tags_unknown = tags_unknown();
+    /* the scan that follows finds the database's tags in memory, as after
+       a sync over USB; at boot it is loaded after the scan, and a track not
+       known waits for such an import, the disk read for each too slow */
+#ifdef HAVE_TC_RAMCACHE
+    meta.compare_all = tagcache_is_in_ram();
+#endif
 }
 
 /* once the number of tracks is known: room for the records of all of them,
@@ -834,9 +1029,17 @@ static void metadata_room(int tracks)
 {
     if (!meta.reading)
         return;
+    const int fresh = MIN(MAX(tracks - meta.known, 0), tracks);
     /* the new ones and as many replaced, or all when none are known; the
-       rest are read from the files */
-    int count = MIN(tracks, MAX(tracks - meta.known, 0) * 2 + 256);
+       rest are read from the files. All of them too for a comparison of
+       every track, as without the digests of the import before */
+    int count = MIN(tracks, fresh * 2 + 256);
+    /* and those the digests don't know, all compared at once */
+    if (meta.compare_all)
+        count = MIN(tracks, count + meta.tags_unknown);
+    /* those whose tags changed, after the new ones' room */
+    meta.retag_room = count - fresh;
+    meta.fresh_left = fresh;
     size_t pool = count * META_PER_TRACK;
     while (1)
     {
@@ -858,17 +1061,46 @@ static void metadata_room(int tracks)
     meta.capacity = count;
 }
 
-/* a track just read, its mhit, which ends at end, still in the cache */
-static void new_track_metadata(const struct track *t, off_t end)
+/* A track just read, its mhit, which ends at end, still in the cache, and
+   t->digest that of its tags now: a record of it if it's new, or if its
+   tags changed since the last import or aren't known as the database has
+   them; t->digest then what the database will have after this import's
+   scan: the old one, or 0, for one with no record */
+static void new_track_metadata(struct track *t, off_t end)
 {
-    if (!meta.reading || meta.full || meta.handle <= 0)
+    if (!meta.digesting)
         return;
     const uint64_t *hashes = meta.known_handle > 0 ?
                              core_get_data(meta.known_handle) : NULL;
-    if (known_hash(hashes, meta.known, t->st.hash))
-        return;
-    if (meta.count >= meta.capacity || !add_metadata(t, end))
-        meta.full = true;
+    const bool known = known_hash(hashes, meta.known, t->st.hash);
+    const uint32_t old = known ? old_digest(t->st.hash) : 0;
+    if (known && old == t->digest)
+        return; /* the database has its tags as they are */
+    /* a known one whose tags in the database aren't known waits for the
+       database in memory */
+    bool record = meta.reading && !meta.full && meta.handle > 0
+                  && (!known || old || meta.compare_all);
+    /* not in the room of the new ones still to come, which would be read
+       from their files: the next import's */
+    if (record && known
+        && (meta.retags >= meta.retag_room
+            || meta.pool_used + (size_t)(meta.fresh_left + 1) * META_PER_TRACK
+               > meta.pool_size))
+        record = false;
+    else if (record && (meta.count >= meta.capacity
+                        || !add_metadata(t, end)))
+    {
+        /* no more new ones either; a known one leaves them the rest */
+        if (!known)
+            meta.full = true;
+        record = false;
+    }
+    if (!known && meta.fresh_left > 0)
+        meta.fresh_left--;
+    if (!record)
+        t->digest = old; /* a new one read from its file: not known */
+    else if (known)
+        meta.retags++;
 }
 
 /* after iTunesDB was read */
@@ -880,7 +1112,14 @@ static void metadata_end(void)
         core_free(meta.known_handle);
     }
     meta.known_handle = 0;
+    if (meta.tags_handle > 0)
+    {
+        core_unpin(meta.tags_handle);
+        core_free(meta.tags_handle);
+    }
+    meta.tags_handle = 0;
     meta.reading = false;
+    meta.digesting = false;
     if (meta.handle <= 0)
         return;
     if (meta.count == 0)
@@ -898,14 +1137,12 @@ static void metadata_end(void)
     meta.pool_size = meta.pool_used;
 }
 
-bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
-                           struct tagcache_runtime *rt, long *date,
-                           long *added)
+/* the record of the file at path, NULL for none */
+static const struct meta_record *find_record(const char *path)
 {
     if (meta.count == 0)
-        return false;
-    uint64_t hash = itunesdb_path_hash(path);
-    const struct meta_record *r = NULL;
+        return NULL;
+    const uint64_t hash = itunesdb_path_hash(path);
     int lo = 0, hi = meta.count - 1;
     while (lo <= hi)
     {
@@ -913,15 +1150,25 @@ bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
         const struct meta_record *m =
             (const struct meta_record *)(meta.pool + meta.by_hash[mid]);
         if (m->hash == hash)
-        {
-            r = m;
-            break;
-        }
+            return m;
         if (m->hash < hash)
             lo = mid + 1;
         else
             hi = mid - 1;
     }
+    return NULL;
+}
+
+bool itunesdb_has_record(const char *path)
+{
+    return find_record(path) != NULL;
+}
+
+bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
+                           struct tagcache_runtime *rt, long *date,
+                           long *added)
+{
+    const struct meta_record *r = find_record(path);
     if (!r)
         return false;
 
@@ -1232,6 +1479,8 @@ static off_t read_track(off_t pos, off_t end, struct track *track)
     if (!p || header_len < 0x9c)
         return 0;
     int mhods = le32(p + 12);
+    /* for its digest, the record's numbers in it */
+    const uint32_t tracknum = le32(p + 44), discnum = le32(p + 92);
     track->id = le32(p + 16);
     track->st.rating = p[31];
     track->sound_check = le32(p + 76);
@@ -1290,6 +1539,9 @@ static off_t read_track(off_t pos, off_t end, struct track *track)
     off_t name_at[SORTS] = { 0 }, sort_at[SORTS] = { 0 };
     bool sorted = false;
     off_t notes_at = 0, subtitle_at = 0;
+    /* the strings a record has, the last of each type as add_metadata()
+       takes them */
+    off_t tags_at[META_STRINGS] = { 0 };
     off_t child = next_record(pos, header_len, end);
     for (int i = 0; i < mhods; i++)
     {
@@ -1298,6 +1550,11 @@ static off_t read_track(off_t pos, off_t end, struct track *track)
         if (next < 0)
             break;
         const uint32_t type = le32(p + 12);
+        for (int k = 0; meta.digesting && k < META_STRINGS; k++)
+        {
+            if (type == meta_mhods[k])
+                tags_at[k] = child;
+        }
         for (int k = 0; sorts.writing && k < SORTS; k++)
         {
             if (type == sorted_mhods[k])
@@ -1337,7 +1594,11 @@ static off_t read_track(off_t pos, off_t end, struct track *track)
         track->album = (album * 31 + (album_artist ? album_artist : artist))
                        | 1;
     if (track->st.hash)
+    {
+        if (meta.digesting)
+            track->digest = track_digest(tags_at, tracknum, discnum);
         new_track_metadata(track, end);
+    }
     if (sorted)
         track_sort_fields(name_at, sort_at);
     return !track->st.hash ? 0 : notes_at ? notes_at : subtitle_at;
@@ -2583,6 +2844,116 @@ static void write_pending(void)
         remove(PENDING_FILE);
 }
 
+/* The tracks' digests as the database will have them once this import is
+   done (new_track_metadata()), by hash, for tags_promote(). Only from all of
+   iTunesDB: those of the tracks not read would be lost, and their changes
+   with them; the last import's file stays, and so do its candidates. */
+static void write_tags_pending(void)
+{
+    remove(TAGS_PENDING);
+    if (!db.complete)
+        return;
+    struct tags_header hdr = {
+        TAGS_MAGIC, TAGS_VERSION, db_size, db_mtime, 0, { 0 }
+    };
+    for (int i = 0; i < db.count; i++)
+    {
+        const struct track *t = &db.tracks[db.by_hash[i]];
+        /* a path twice, as in a damaged iTunesDB: once */
+        if (t->st.hash && (i == 0
+                           || db.tracks[db.by_hash[i - 1]].st.hash != t->st.hash))
+            hdr.count++;
+    }
+    if (!out_open(TAGS_PENDING, FW_CACHE))
+        return;
+    fw_put(&out, &hdr, sizeof(hdr));
+    for (int i = 0; i < db.count; i++)
+    {
+        const struct track *t = &db.tracks[db.by_hash[i]];
+        if (!t->st.hash || (i > 0
+                            && db.tracks[db.by_hash[i - 1]].st.hash == t->st.hash))
+            continue;
+        const struct tags_entry e = { t->st.hash, t->digest, 0 };
+        fw_put(&out, &e, sizeof(e));
+    }
+    fw_close(&out, true);
+}
+
+/* The digest of the Finder song at path as not known, in the import's file
+   and the last one's: the scan has added it again from its file's tags, not
+   from iTunesDB, which an import with the database in memory then compares
+   it with (meta.compare_all) */
+void itunesdb_tags_forget(const char *path)
+{
+    static const char *const files[] = { TAGS_PENDING, TAGS_FILE };
+    const uint64_t hash = itunesdb_path_hash(path);
+    for (unsigned f = 0; f < ARRAYLEN(files); f++)
+    {
+        struct tags_header hdr;
+        struct tags_entry e;
+        const int fd = open(files[f], O_RDWR);
+        if (fd < 0)
+            continue;
+        if (read(fd, &hdr, sizeof(hdr)) == sizeof(hdr)
+            && hdr.magic == TAGS_MAGIC && hdr.version == TAGS_VERSION
+            && hdr.count <= COUNT_MAX)
+        {
+            int lo = 0, hi = (int)hdr.count - 1;
+            while (lo <= hi)
+            {
+                const int mid = (lo + hi) / 2;
+                const off_t at = sizeof(hdr) + (off_t)mid * sizeof(e);
+                if (lseek(fd, at, SEEK_SET) != at
+                    || read(fd, &e, sizeof(e)) != sizeof(e))
+                    break;
+                if (e.hash == hash)
+                {
+                    if (e.digest)
+                    {
+                        e.digest = 0;
+                        if (lseek(fd, at, SEEK_SET) == at)
+                            write(fd, &e, sizeof(e));
+                    }
+                    break;
+                }
+                if (e.hash < hash)
+                    lo = mid + 1;
+                else
+                    hi = mid - 1;
+            }
+        }
+        close(fd);
+    }
+}
+
+void itunesdb_tags_hold(void)
+{
+    remove(TAGS_PENDING);
+}
+
+/* The digests of this import's tracks in place of the last one's, now that
+   the database has their tags: only those of the iTunesDB just imported. A
+   cut between the removal and the rename leaves the import's file, which
+   the next import puts in place first (tags_recover()) */
+static void tags_promote(void)
+{
+    struct tags_header hdr;
+    const int fd = open(TAGS_PENDING, O_RDONLY);
+    if (fd < 0)
+        return;
+    const bool ok = read(fd, &hdr, sizeof(hdr)) == sizeof(hdr)
+        && hdr.magic == TAGS_MAGIC && hdr.version == TAGS_VERSION
+        && hdr.db_size == pend.hdr.db_size && hdr.db_mtime == pend.hdr.db_mtime;
+    close(fd);
+    if (ok)
+    {
+        remove(TAGS_FILE);
+        if (rename(TAGS_PENDING, TAGS_FILE) == 0)
+            return;
+    }
+    remove(TAGS_PENDING);
+}
+
 static void unload_pending(void)
 {
     if (pend.handle > 0)
@@ -3411,6 +3782,7 @@ void itunesdb_import(void)
            moved on the Mac alone is new, though the counts aren't. */
         if (stamp_state())
         {
+            tags_promote();
             remove(PENDING_FILE);
             remove(PROGRESS_FILE);
             /* what was offered before this sync: none of it was taken, or
@@ -3470,6 +3842,7 @@ void itunesdb_import(void)
         const bool set = go && tagcache_update_runtime(update_entry, NULL);
         if (set && write_state())
         {
+            tags_promote();
             remove(PENDING_FILE);
             remove(STATE_OLD_FILE);
             remove(PROGRESS_FILE);
@@ -3499,6 +3872,10 @@ void itunesdb_forget_state(void)
 {
     remove(STATE_FILE);
     remove(IMPORTED_FILE);
+    /* of the tags the database had. The pending file stays: of the import
+       under way, as a database made anew by its scan has them, and made
+       again by each import before it can take the name */
+    remove(TAGS_FILE);
     /* as a rebuild sets the database aside, its own go after its import */
     if (!tagcache_restoring())
     {
@@ -9868,6 +10245,75 @@ bool itunesdb_moved_to(uint64_t old_hash, char *path, size_t size)
     return found;
 }
 
+int itunesdb_same_song(const char *path)
+{
+    if (meta.songs_handle <= 0)
+        return -1;
+    const uint64_t hash = itunesdb_path_hash(path);
+    const uint64_t *h = core_get_data(meta.songs_handle);
+    if (known_hash(h + meta.songs_same, meta.songs_other, hash))
+        return 0;
+    return known_hash(h, meta.songs_same, hash) ? 1 : -1;
+}
+
+/* the paths of the last sync's songs, as note_moved_songs() reads them, by
+   whether each still has the same song: the same from the front of room for
+   capacity, the others from its back, until same_songs_end() */
+static int same_songs_capacity;
+
+static void same_songs_begin(uint32_t capacity)
+{
+    if (meta.songs_handle > 0)
+        core_free(meta.songs_handle);
+    meta.songs_handle = meta.songs_same = meta.songs_other = 0;
+    same_songs_capacity = 0;
+    if (capacity == 0 || capacity > 2 * COUNT_MAX)
+        return;
+    meta.songs_handle = db_alloc(capacity * sizeof(uint64_t));
+    if (meta.songs_handle <= 0)
+    {
+        meta.songs_handle = 0;
+        return;
+    }
+    core_pin(meta.songs_handle);
+    same_songs_capacity = capacity;
+}
+
+static void same_songs_note(uint64_t hash, bool same)
+{
+    if (meta.songs_handle <= 0
+        || meta.songs_same + meta.songs_other >= same_songs_capacity)
+        return;
+    uint64_t *h = core_get_data(meta.songs_handle);
+    if (same)
+        h[meta.songs_same++] = hash;
+    else
+        h[same_songs_capacity - ++meta.songs_other] = hash;
+}
+
+/* the two sorted, the others right after the same, the room given back; or
+   none, if the last sync's weren't all read */
+static void same_songs_end(bool whole)
+{
+    if (meta.songs_handle <= 0)
+        return;
+    if (!whole)
+    {
+        core_unpin(meta.songs_handle);
+        core_free(meta.songs_handle);
+        meta.songs_handle = meta.songs_same = meta.songs_other = 0;
+        return;
+    }
+    uint64_t *h = core_get_data(meta.songs_handle);
+    memmove(h + meta.songs_same, h + same_songs_capacity - meta.songs_other,
+            meta.songs_other * sizeof(*h));
+    qsort_yielding(h, meta.songs_same, sizeof(*h), cmp_u64);
+    qsort_yielding(h + meta.songs_same, meta.songs_other, sizeof(*h), cmp_u64);
+    core_unpin(meta.songs_handle);
+    core_shrink(meta.songs_handle, h,
+                MAX(meta.songs_same + meta.songs_other, 1) * sizeof(*h));
+}
+
 static void note_moved_songs(void)
 {
     const int n = db.count;
@@ -9909,14 +10355,17 @@ static void note_moved_songs(void)
         && head[0] == IDS_MAGIC)
     {
         changed = head[1] != (uint32_t)count;
+        same_songs_begin(head[1]);
         struct id_pair small[64];
         struct id_pair *old = block ? (struct id_pair *)(ids + n) : small;
         const size_t old_size = block ? block : sizeof(small);
         int at = 0;
         ssize_t got;
+        uint32_t pairs = 0;
         while ((got = read(fd, old, old_size)) > 0)
         {
             const int k = got / sizeof(*old);
+            pairs += k;
             for (int j = 0; j < k; j++)
             {
                 while (at < count && ids[at].dbid < old[j].dbid)
@@ -9924,16 +10373,13 @@ static void note_moved_songs(void)
                     changed = true; /* one new */
                     at++;
                 }
-                if (at >= count)
+                if (at >= count || ids[at].dbid != old[j].dbid)
                 {
-                    changed = true; /* those gone */
-                    break;
-                }
-                if (ids[at].dbid != old[j].dbid)
-                {
-                    changed = true;
+                    changed = true; /* gone: its path has another or none */
+                    same_songs_note(old[j].hash, false);
                     continue;
                 }
+                same_songs_note(old[j].hash, ids[at].hash == old[j].hash);
                 if (ids[at].hash == old[j].hash)
                     continue;
                 changed = true;
@@ -9957,6 +10403,7 @@ static void note_moved_songs(void)
             }
             yield();
         }
+        same_songs_end(got == 0 && pairs == head[1]);
     }
     if (fd >= 0)
         close(fd);
@@ -10066,6 +10513,14 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
     bool loaded = db_load();
     sort_fields_end(loaded);
     notes_end(loaded);
+    /* not over a file that couldn't be read: it still knows the tracks this
+       import couldn't tell changed, and an import with the database in
+       memory compares them all anyway */
+    if (loaded && synced && meta.digesting
+        && (!meta.tags_unread || meta.compare_all))
+        write_tags_pending();
+    else if (synced)
+        remove(TAGS_PENDING);
     metadata_end();
     if (loaded)
     {

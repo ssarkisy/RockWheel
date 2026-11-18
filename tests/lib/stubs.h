@@ -31,6 +31,8 @@ struct stubs {
     int smart_notes;    /* smart playlists noted */
 };
 extern struct stubs stubs;
+/* tagcache_is_in_ram()'s answer */
+extern bool stub_ram_loaded;
 
 /* The disk: a folder of the Mac's, whose paths are the iPod's under it */
 void simfs_root(const char *dir);

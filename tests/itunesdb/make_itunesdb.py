@@ -37,6 +37,12 @@ iPod's paths under it and a file "expect" of what reading it gives:
     meta <path>\t<title>\t<artist>\t<album>\t<album artist>\t<year>\t<plays>\t<rating>
                     what the import's records give for the track at this
                     path (itunesdb_get_metadata()), "" for a tag it hasn't
+    ram <0|1>       the database in memory at the import (tagcache_is_in_ram())
+    record <path>   the import has a record of the track's tags for the scan
+                    (itunesdb_has_record()): new, or its tags changed
+    norecord <path> it has none
+    digest <path> <0|1>  the digest of the track's tags the import leaves for
+                    the next (itunesdb_tags_pending.dat): 0 not known
     survive         only that nothing breaks: no sanitizer error, no hang
     known <how> <why>  a failure known and left as it is, of this kind
                     (check, timeout, crash): reported, not counted
@@ -351,6 +357,135 @@ def artwork(old=False, images_last=False):
     return artworkdb(images, images_last)
 
 
+# What the last import left: the tracks it had (itunesdb.dat) and the
+# digests of their tags (itunesdb_tags.dat), as apps/itunesdb.c writes them
+
+def path_hash(path):
+    """itunesdb_path_hash() of an iTunesDB location"""
+    h = 0xcbf29ce484222325
+    for c in path.replace(':', '/').encode():
+        if 65 <= c <= 90:
+            c += 32
+        h = ((h ^ c) * 0x100000001b3) & 0xffffffffffffffff
+    return h
+
+
+def fnv32(data, h=0x811c9dc5):
+    for b in data:
+        h = ((h ^ b) * 0x01000193) & 0xffffffff
+    return h
+
+
+def track_digest(strings, tracknum=0, discnum=0):
+    """track_digest(): strings by mhod type"""
+    words = []
+    for kind in (1, 4, 3, 5, 12, 8, 22, 13):
+        s = strings.get(kind, '').encode('utf-16-le')[:1024]
+        words.append(fnv32(s) if s else 0)
+    words += [min(tracknum, 0xffff), min(discnum, 0xffff)]
+    d = 0x811c9dc5
+    for w in words:
+        for shift in (0, 8, 16, 24):
+            d = ((d ^ ((w >> shift) & 0xff)) * 0x01000193) & 0xffffffff
+    return d or 1
+
+
+def track_strings(t):
+    tid, title, artist, album, path, extra = t
+    strings = {1: title, 4: artist, 3: album}
+    if tid < 103:
+        strings[22] = 'Test Band'
+    return strings
+
+
+def state_file(tracks):
+    """itunesdb.dat of an import of these tracks (their hashes count)"""
+    body = b''.join(struct.pack('<QIBBBB', path_hash(t[4]), 0, 0, 1, 0, 0)
+                    for t in tracks)
+    return struct.pack('<5I', 0x54494252, 1, 1, 1, len(tracks)) + body
+
+
+def tags_file(tracks, known=None):
+    """itunesdb_tags.dat with the digests of these tracks' tags; known(t)
+    false gives a track's as 0, not known"""
+    entries = sorted((path_hash(t[4]),
+                      track_digest(track_strings(t))
+                      if known is None or known(t) else 0)
+                     for t in tracks)
+    return (struct.pack('<8I', 0x47544252, 1, 1, 1, len(entries), 0, 0, 0)
+            + b''.join(struct.pack('<QII', h, d, 0) for h, d in entries))
+
+
+# more tracks than the 256 a sync's records have room for beyond the new ones
+MANY = [(1000 + i, 'Song %d' % i, 'Artist %d' % (i % 7), 'Album %d' % (i % 13),
+         ':iPod_Control:Music:F%02d:B%04d.mp3' % (i % 20, i), {})
+        for i in range(600)]
+
+
+def retag_cases():
+    """(name, tracks, rockbox files, expect): an import after one whose
+    tracks and tags it knows, as a program other than Finder edits them"""
+    edited = [list(t) for t in TRACKS]
+    edited[0][1] = 'Come Together (edited)'
+    edited = [tuple(t) for t in edited]
+    loc = [t[4].replace(':', '/') for t in TRACKS]
+    out = []
+    # the title of 101 changed in iTunesDB alone: its record alone
+    out.append(('retag', edited,
+                {'itunesdb.dat': state_file(TRACKS), 'itunesdb_tags.dat': tags_file(TRACKS)},
+                ['tracks 4', 'record ' + loc[0], 'norecord ' + loc[1],
+                 'norecord ' + loc[2], 'norecord ' + loc[3],
+                 meta(101, title='Come Together (edited)'),
+                 'digest %s 1' % loc[0], 'digest %s 1' % loc[1]]))
+    # no digests of the import before (as after an update): the tracks known
+    # wait for the database in memory, and none is known after
+    out.append(('retag-unknown', edited, {'itunesdb.dat': state_file(TRACKS)},
+                ['tracks 4'] + ['norecord ' + p for p in loc]
+                + ['digest %s 0' % p for p in loc[:2]]))
+    out.append(('retag-unknown-ram', edited, {'itunesdb.dat': state_file(TRACKS)},
+                ['tracks 4', 'ram 1'] + ['record ' + p for p in loc]
+                + ['digest %s 1' % p for p in loc[:2]]))
+    # two new to this import, records of those alone
+    out.append(('retag-new', TRACKS,
+                {'itunesdb.dat': state_file(TRACKS[:2]),
+                 'itunesdb_tags.dat': tags_file(TRACKS[:2])},
+                ['tracks 4', 'norecord ' + loc[0], 'norecord ' + loc[1],
+                 'record ' + loc[2], 'record ' + loc[3],
+                 'digest %s 1' % loc[0], 'digest %s 1' % loc[3]]))
+    # every digest 0, as a boot's import without the database in memory
+    # leaves them: all compared at once, not 256 a sync
+    many_loc = [t[4].replace(':', '/') for t in MANY]
+    out.append(('retag-zero-ram', MANY,
+                {'itunesdb.dat': state_file(MANY),
+                 'itunesdb_tags.dat': tags_file(MANY, lambda t: False)},
+                ['tracks 600', 'ram 1', 'record ' + many_loc[0],
+                 'record ' + many_loc[299], 'record ' + many_loc[599],
+                 'digest %s 1' % many_loc[599]]))
+    # the digests of only some of the tracks known: the others compared
+    out.append(('retag-missing-ram', MANY,
+                {'itunesdb.dat': state_file(MANY),
+                 'itunesdb_tags.dat': tags_file(MANY[:100])},
+                ['tracks 600', 'ram 1', 'norecord ' + many_loc[0],
+                 'norecord ' + many_loc[99], 'record ' + many_loc[100],
+                 'record ' + many_loc[599]]))
+    # a cut in the promotion, between the removal and the rename: the
+    # import's file, of the state's iTunesDB, is put in place, and an edit
+    # since is seen without the database in memory
+    pending = tags_file(TRACKS)
+    out.append(('retag-promote-cut', edited,
+                {'itunesdb.dat': state_file(TRACKS),
+                 'itunesdb_tags_pending.dat': pending},
+                ['tracks 4', 'record ' + loc[0], 'norecord ' + loc[1],
+                 'norecord ' + loc[2], 'digest %s 1' % loc[1]]))
+    # a digests' file cut short: none, as without one
+    out.append(('retag-tags-cut', edited,
+                {'itunesdb.dat': state_file(TRACKS),
+                 'itunesdb_tags.dat': tags_file(TRACKS)[:-3]},
+                ['tracks 4'] + ['norecord ' + p for p in loc]
+                + ['digest %s 0' % p for p in loc[:2]]))
+    return out
+
+
 # the records of a file, by their tags: (offset, tag)
 
 TAGS = (b'mhbd', b'mhsd', b'mhlt', b'mhit', b'mhod', b'mhlp', b'mhyp',
@@ -380,9 +515,14 @@ class Case:
         os.makedirs(os.path.join(self.dir, '.rockbox'))
         os.makedirs(os.path.join(self.dir, 'Playlists'))
 
-    def write(self, db, art=None, expect=('survive',), ithmb=True):
+    def write(self, db, art=None, expect=('survive',), ithmb=True,
+              rockbox=None):
         with open(os.path.join(self.dir, 'iPod_Control', 'iTunes', 'iTunesDB'), 'wb') as f:
             f.write(db)
+        # files of the last import, by name
+        for name, data in (rockbox or {}).items():
+            with open(os.path.join(self.dir, '.rockbox', name), 'wb') as f:
+                f.write(data)
         if art is not None:
             with open(os.path.join(self.dir, 'iPod_Control', 'Artwork', 'ArtworkDB'), 'wb') as f:
                 f.write(art)
@@ -904,6 +1044,9 @@ def main():
          ['tracks 4', 'complete 1', 'name ' + '\u6f22' * 41])
     # the covers' frames past the end of their files
     case('ithmb-missing', db, art, ['tracks 4', 'covers 0'], ithmb=False)
+
+    for name, tracks, files, expect in retag_cases():
+        case(name, itunesdb(tracks=tracks), art, expect, rockbox=files)
 
     for name, bad, expect in damaged_itunesdb(db):
         case('itunesdb-' + name, bad, art, expect)

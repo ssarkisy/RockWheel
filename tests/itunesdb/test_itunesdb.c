@@ -125,6 +125,14 @@ static struct {
     char meta[WANT_META][META_FIELDS][MAX_PATH];
     int nmeta;
     char notes_path[MAX_PATH], notes[512];
+    /* the database in memory at the import; the tracks with a record of
+       their tags or none, and their digests for the next import, "0" for
+       not known, "1" for known (TAGS_PENDING) */
+    int ram;
+    char record[WANT_PATHS][MAX_PATH], norecord[WANT_PATHS][MAX_PATH];
+    int nrecord, nnorecord;
+    char digest[WANT_PATHS][MAX_PATH];
+    int digest_known[WANT_PATHS], ndigest;
     int known;          /* the outcome of a failure left as it is, or 0 */
     char why[512];
 } want;
@@ -196,6 +204,21 @@ static void read_expect(const char *dir)
         }
         else if (!strcmp(line, "unwritten") && want.nunwritten < WANT_PLAYLISTS)
             snprintf(want.unwritten[want.nunwritten++], MAX_PATH, "%s", arg);
+        else if (!strcmp(line, "ram"))
+            want.ram = atoi(arg);
+        else if (!strcmp(line, "record") && want.nrecord < WANT_PATHS)
+            snprintf(want.record[want.nrecord++], MAX_PATH, "%s", arg);
+        else if (!strcmp(line, "norecord") && want.nnorecord < WANT_PATHS)
+            snprintf(want.norecord[want.nnorecord++], MAX_PATH, "%s", arg);
+        else if (!strcmp(line, "digest") && want.ndigest < WANT_PATHS)
+        {
+            /* "<path> <0|1>" */
+            char *known = strrchr(arg, ' ');
+            if (known)
+                *known++ = '\0';
+            want.digest_known[want.ndigest] = known ? atoi(known) : -1;
+            snprintf(want.digest[want.ndigest++], MAX_PATH, "%s", arg);
+        }
         else if (!strcmp(line, "meta") && want.nmeta < WANT_META)
         {
             /* "<path>\t<title>\t…", a field "" where a tag is none */
@@ -209,6 +232,32 @@ static void read_expect(const char *dir)
         }
     }
     fclose(f);
+}
+
+/* the digest the import wrote for the track at path for the next one
+   (write_tags_pending()), against "digest"'s: -1 for none */
+static void check_digest(int n)
+{
+    const uint64_t hash = itunesdb_path_hash(want.digest[n]);
+    int got = -1;
+    const int fd = open(TAGS_PENDING, O_RDONLY);
+    struct tags_header hdr;
+    struct tags_entry e;
+    if (fd >= 0 && read(fd, &hdr, sizeof(hdr)) == sizeof(hdr)
+        && hdr.magic == TAGS_MAGIC && hdr.version == TAGS_VERSION)
+    {
+        while (read(fd, &e, sizeof(e)) == sizeof(e))
+        {
+            if (e.hash == hash)
+                got = e.digest != 0;
+        }
+    }
+    if (fd >= 0)
+        close(fd);
+    CHECK_EQ(got, want.digest_known[n]);
+    if (got != want.digest_known[n])
+        fprintf(stderr, "digest of %s: %d, not %d\n", want.digest[n], got,
+                want.digest_known[n]);
 }
 
 /* the songs of a playlist written, in its order, against those expected */
@@ -470,7 +519,22 @@ static int run_case(const char *dir, const char *name)
 
     /* then the whole import of a sync, which reads it all again */
     volatile int done = 0, total = 0;
+    stub_ram_loaded = want.ram > 0;
     const int count = itunesdb_import_tracks(true, &done, &total);
+    for (int i = 0; i < want.nrecord; i++)
+    {
+        CHECK(itunesdb_has_record(want.record[i]));
+        if (!itunesdb_has_record(want.record[i]))
+            fprintf(stderr, "no record of %s\n", want.record[i]);
+    }
+    for (int i = 0; i < want.nnorecord; i++)
+    {
+        CHECK(!itunesdb_has_record(want.norecord[i]));
+        if (itunesdb_has_record(want.norecord[i]))
+            fprintf(stderr, "a record of %s\n", want.norecord[i]);
+    }
+    for (int i = 0; i < want.ndigest; i++)
+        check_digest(i);
     if (want.tracks >= 0)
         CHECK_EQ(count, want.tracks);
     if (want.covers >= 0)

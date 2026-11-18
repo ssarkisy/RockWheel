@@ -163,6 +163,15 @@
 /* Temporary database containing new tags to be committed to the main db. */
 #define TAGCACHE_FILE_TEMP       "database_tmp.tcd"
 
+/* The entries the scan's adds again, as their files or their tags in
+   iTunesDB changed: the commit of its file deletes them as it takes their
+   new ones, so that the database loses none before those are whole
+   (commit_replaced()). Made and removed with the scan's file. */
+#define TAGCACHE_FILE_REPLACED   "database_replaced.tcd"
+/* There while a commit owes the pass that deletes the strings no entry uses
+   any more, as one cut short or failed left them (commit_replaced()) */
+#define TAGCACHE_FILE_SWEEP      "database_sweep.tcd"
+
 /* The main database master index and numeric data. */
 #define TAGCACHE_FILE_MASTER     "database_idx.tcd"
 
@@ -261,6 +270,15 @@ static int32_t initials_commit = -1;
    whose songs have iTunesDB's mark (ITUNESDB_COMPILATION). In the flags,
    which every format keeps as they are, as an older firmware does */
 #define FLAG_COMPILATION 0x0040
+
+/* an entry of TAGCACHE_FILE_REPLACED, after its magic: the entry the scan
+   added again, as it was then */
+struct replaced_entry {
+    int32_t idx_id;
+    int32_t name_seek;  /* its tag_seek[tag_filename] */
+    int32_t mtime;      /* its tag_seek[tag_mtime] */
+    int32_t unused;
+};
 
 #ifdef __PCTOOL__
 #define yield() do { } while(0)
@@ -651,6 +669,8 @@ static bool delete_entry(long idx_id);
 static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds,
                             bool sweep_after);
 static void sweep_unused_tags(int masterfd, long count, int *fds);
+static const char *sweep_unused_tags_in(int masterfd, long count, int *fds,
+                                        int32_t *room, long room_count);
 /* the entries that aren't deleted, -1 until they have been counted */
 static int song_count = -1;
 
@@ -855,6 +875,9 @@ static int NO_INLINE rename_db_file(const char *from, const char *to)
 /* the scan's files for the commit: its new entries, and their Sort fields */
 static void remove_scan_files(void)
 {
+    /* the list first: one left alone would be taken by the next commit's
+       file, a sort's, for its own (commit_replaced()) */
+    remove_db_file(TAGCACHE_FILE_REPLACED);
     remove_db_file(TAGCACHE_FILE_TEMP);
 #ifdef TAGCACHE_SORT_FIELDS
     remove_db_file(TAGCACHE_FILE_SORT_SCAN);
@@ -1020,6 +1043,8 @@ static void remove_files(void)
                  tc_stat.db_path, i);
         remove(buf);
     }
+    /* and the pass owed over its strings */
+    remove_db_file(TAGCACHE_FILE_SWEEP);
 }
 
 static bool check_all_headers(void)
@@ -3505,6 +3530,63 @@ static void sort_scan_song(const struct mp3entry *id3, bool has_artist,
 }
 #endif /* TAGCACHE_SORT_FIELDS */
 
+#ifndef __PCTOOL__
+/* The entries the scan adds again, for the commit to delete
+   (TAGCACHE_FILE_REPLACED): noted a few at a time, all on the disk before
+   the scan's file has its header, which makes it one to commit */
+static struct replaced_entry replaced[32];
+static int replaced_used;
+static int replaced_made; /* 1 the file made, 0 not yet, -1 a write failed */
+
+/* with the scan's file made anew: one of a scan before goes with its own */
+static void replaced_start(void)
+{
+    replaced_used = 0;
+    replaced_made = 0;
+    remove_db_file(TAGCACHE_FILE_REPLACED);
+}
+
+/* those noted to the file, made with the first: false once a write failed */
+static bool replaced_flush(void)
+{
+    if (replaced_used > 0 && replaced_made >= 0)
+    {
+        const int fd = open_db_fd(TAGCACHE_FILE_REPLACED, replaced_made ?
+                                  O_WRONLY | O_APPEND :
+                                  O_WRONLY | O_CREAT | O_TRUNC);
+        const int32_t magic = TAGCACHE_MAGIC;
+        const ssize_t size = replaced_used * sizeof(replaced[0]);
+        bool ok = fd >= 0
+            && (replaced_made
+                || write(fd, &magic, sizeof(magic)) == sizeof(magic))
+            && write(fd, replaced, size) == size;
+        if (fd >= 0)
+            ok = close(fd) == 0 && ok;
+        replaced_made = ok ? 1 : -1;
+        replaced_used = 0;
+    }
+    return replaced_made >= 0;
+}
+
+/* the entry idx_id, as idx on the disk has it, to go when the commit takes
+   the one the scan adds for its file now: false if it can't be noted, and
+   the scan then fails, its file left uncommitted, rather than leave two
+   entries for one file */
+static bool replaced_note(int idx_id, const struct index_entry *idx)
+{
+    if ((replaced_used == ARRAYLEN(replaced) && !replaced_flush())
+        || replaced_made < 0)
+    {
+        scan_write_failed();
+        return false;
+    }
+    replaced[replaced_used++] = (struct replaced_entry){
+        idx_id, idx->tag_seek[tag_filename], idx->tag_seek[tag_mtime], 0
+    };
+    return true;
+}
+#endif /* !__PCTOOL__ */
+
 /* The scan's file of new entries, its header written once they're counted.
    The check outside Finder's folder makes it only for one it finds: made and
    removed again at every USB connection, it wrote to the disk for nothing. */
@@ -3532,6 +3614,9 @@ static bool open_scan_temp(void)
         return false;
     }
     tagfile_wbuf_used = 0;
+#ifndef __PCTOOL__
+    replaced_start();
+#endif
     return true;
 }
 
@@ -4196,6 +4281,118 @@ void tagcache_date_text(char *buf, size_t size, long date)
  * (check_dir).
  */
 #ifndef __PCTOOL__
+/* the tag files retag_differs() reads, for the database not in memory:
+   open for the whole scan, as it may compare every song, closed after it
+   (do_tagcache_build()); -2 for one not opened yet, -1 for one that can't
+   be (fd 0 is a file on the iPod) */
+static int retag_fds[TAG_COUNT];
+
+static void retag_fds_close(void)
+{
+    for (int tag = 0; tag < TAG_COUNT; tag++)
+    {
+        if (retag_fds[tag] >= 0)
+            close(retag_fds[tag]);
+        retag_fds[tag] = -2;
+    }
+}
+
+/* the string of tag the entry idx has, in memory if the database is there
+   (idx then memory's, as get_index() gives it), else from its file; false if
+   it can't be read */
+static bool entry_string(const struct index_entry *idx, int tag, char *buf,
+                         int size)
+{
+    const int32_t seek = idx->tag_seek[tag];
+    if (seek < 0)
+        return false;
+#ifdef HAVE_TC_RAMCACHE
+    if (tc_stat.ramcache)
+    {
+        /* copied without a yield, as retrieve() reads it */
+        const struct tagfile_entry *ep =
+            (const struct tagfile_entry *)&tcramcache.hdr->tags[tag][seek];
+        strmemccpy(buf, ep->tag_data, size);
+        return true;
+    }
+#endif
+    struct tagcache_header tch;
+    struct tagfile_entry tfe;
+    if (retag_fds[tag] == -2)
+        retag_fds[tag] = MAX(open_tag_fd(&tch, tag, false), -1);
+    const int fd = retag_fds[tag];
+    return fd >= 0 && lseek(fd, seek, SEEK_SET) == seek
+        && read_tagfile_entry_and_tag(fd, &tfe, buf, size) <= e_SUCCESS_LEN_ZERO;
+}
+
+/* Whether the tags iTunesDB has now for the Finder song at path, unchanged
+   on the disk, differ from those its entry idx_id has: its record's
+   (itunesdb_has_record()), as add_tagcache() would write them, against
+   the entry's, in memory or on the disk. id3 is the scan's room for them. A
+   string that can't be read differs: the song is added again with them, its
+   statistics kept (carry_numbers()). */
+static bool NO_INLINE retag_differs(int idx_id, int masterfd, const char *path,
+                                    struct mp3entry *id3)
+{
+    /* a string as long as there are, with its file's padding */
+    static char buf[TAG_MAXLEN + TAGFILE_ENTRY_CHUNK_LENGTH + 1];
+    struct index_entry idx;
+    struct tagcache_runtime rt;
+    long date, added;
+    if (!get_index(masterfd, idx_id, &idx, true)
+        || !itunesdb_get_metadata(path, id3, &rt, &date, &added))
+        return false;
+    const bool has_artist = id3->artist && id3->artist[0];
+    const char *albumartist = id3->albumartist;
+    if (has_artist && (!albumartist || !albumartist[0]))
+        albumartist = id3->artist;
+    const char *const want[] = {
+        id3->title, id3->artist, id3->album, id3->genre_string,
+        id3->composer, id3->comment, albumartist, id3->grouping
+    };
+    static const unsigned char tags[] = {
+        tag_title, tag_artist, tag_album, tag_genre, tag_composer,
+        tag_comment, tag_albumartist, tag_grouping
+    };
+    for (unsigned k = 0; k < ARRAYLEN(tags); k++)
+    {
+        /* as check_if_empty() writes it */
+        const char *w = want[k] && want[k][0] ? want[k] : UNTAGGED;
+        const size_t len = MIN(strlen(w), (size_t)TAG_MAXLEN);
+        /* Case too: a name of a tag the commit keeps once for all its cases
+           (tempbuf_insert()) has the case of one of them, and a song of
+           another is added again, once, to no change; but a name all its
+           songs have in another case now is taken so. */
+        if (!entry_string(&idx, tags[k], buf, sizeof(buf))
+            || strlen(buf) != len || memcmp(buf, w, len))
+            return true;
+    }
+    return idx.tag_seek[tag_tracknumber] != id3->tracknum
+           || idx.tag_seek[tag_discnumber] != id3->discnum;
+}
+
+/* The statistics of a file's old entry, old, for the one the scan adds
+   again for it: the same as if it hadn't been, so that the import after
+   (itunesdb.c update_entry(), unsent_make()) finds no count or rating made
+   on the iPod where none was, and loses no play it hasn't sent, nor a
+   place. Kept by the commit as they are, its commit id too (FLAG_RESTORED);
+   the date it was added is the new entry's only where the old one has
+   none. */
+static void carry_numbers(struct temp_file_entry *entry,
+                          const struct index_entry *old)
+{
+    static const unsigned char tags[] = {
+        tag_playcount, tag_rating, tag_playtime, tag_lastplayed, tag_commitid,
+        tag_lastelapsed, tag_lastoffset
+    };
+    for (unsigned i = 0; i < ARRAYLEN(tags); i++)
+        entry->tag_offset[tags[i]] = old->tag_seek[tags[i]];
+    if (old->tag_seek[tag_dateadded])
+        entry->tag_offset[tag_dateadded] = old->tag_seek[tag_dateadded];
+    entry->flag = (entry->flag & ~FLAG_DIRTYNUM) | FLAG_RESTORED
+                  | (old->flag & FLAG_DIRTYNUM);
+}
+
 /* The compilation mark of a song outside Finder's folder the database had
    before the marks were read, from its tags, once (compilations_due): in
    its entry where it is, on the disk and in memory, if it has one. id3 is
@@ -4296,6 +4493,11 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
 #endif
 
     /* Check if file has been modified. */
+#ifndef __PCTOOL__
+    /* the entry it had, on the disk and with its newest statistics, which
+       the new one takes over (carry_numbers()) */
+    struct index_entry known_disk, known_numbers;
+#endif
     if (idx_id >= 0)
     {
         struct index_entry idx;
@@ -4318,20 +4520,46 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
         {
             /* No changes to file. */
 #ifndef __PCTOOL__
-            compilation_read(idx_id, path, afmt, &id3);
+            /* but to its tags in iTunesDB, as another program than Finder
+               makes, which a stock iPod shows: added again with them if
+               the database's differ */
+            if (!itunesdb_has_record(path)
+                || !retag_differs(idx_id, masterfd, path, &id3))
 #endif
+            {
+#ifndef __PCTOOL__
+                compilation_read(idx_id, path, afmt, &id3);
+#endif
+                return ;
+            }
+            logf("Re-tagging: %s", path);
+            DB_LOG("info", "re-tagging");
+        }
+        else
+        {
+            /* Metadata might have been changed. */
+            logf("Re-adding: %s", path);
+            DB_LOG("info", "re-adding");
+        }
+#ifndef __PCTOOL__
+        /* the old entry goes as the commit takes the new one
+           (replaced_note()), its statistics with the new one */
+        if (!get_index(masterfd, idx_id, &known_disk, false)
+            || !get_index(masterfd, idx_id, &known_numbers, true))
+        {
+            logf("failed to retrieve index entry");
+            DB_LOG("error", "failed to retrieve index entry");
             return ;
         }
-
-        /* Metadata might have been changed. Delete the entry. */
-        logf("Re-adding: %s", path);
-        DB_LOG("info", "re-adding");
+#else
+        /* Delete the entry. */
         if (!delete_entry(idx_id))
         {
             logf("delete_entry failed: %d", idx_id);
             DB_LOG("error", "delete entry failed");
             return ;
         }
+#endif
     }
 
 #ifndef __PCTOOL__
@@ -4412,6 +4640,22 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
         entry.flag |= FLAG_DIRTYNUM;
 #endif
     restore_apply(path, &entry);
+#ifndef __PCTOOL__
+    /* never the record's counts for a song the database has: its own, with
+       the plays and the rating the computer hasn't had yet. Only if it's the
+       same song: by iTunesDB's dbid for a Finder song the last sync had
+       there, else, as before, if it's as long (build_numeric_indices()'s
+       rule for the same path); another song there starts as new */
+    if (idx_id >= 0)
+    {
+        const int same = itunesdb_synced_path(path) ? itunesdb_same_song(path)
+                                                    : -1;
+        if (same > 0
+            || (same < 0 && known_numbers.tag_seek[tag_length]
+                            == entry.tag_offset[tag_length]))
+            carry_numbers(&entry, &known_numbers);
+    }
+#endif
 
     /* String tags. */
     has_artist = id3.artist != NULL
@@ -4445,6 +4689,14 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     /* the check outside Finder's folder makes the file with its first */
     if (cachefd < 0 && !open_scan_temp())
         return;
+#ifndef __PCTOOL__
+    if (idx_id >= 0 && !replaced_note(idx_id, &known_disk))
+        return;
+    /* a Finder song's tags are iTunesDB's, as on a stock iPod: those of its
+       file, which changed, until an import compares them */
+    if (idx_id >= 0 && !finder && itunesdb_synced_path(path))
+        itunesdb_tags_forget(path);
+#endif
 #ifdef TAGCACHE_SORT_FIELDS
     if (sort_fields)
         sort_scan_song(&id3, has_artist, albumartist_is_artist);
@@ -5080,6 +5332,11 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
             for (j = 0; j < count; j++)
             {
                 struct temp_file_entry *tfe = &entrybuf[j];
+
+                /* one with its own entry's statistics, or the old
+                   database's, keeps them */
+                if (tfe->flag & FLAG_RESTORED)
+                    continue;
 
                 /* Try to match numeric fields first. */
                 if (tfe->tag_offset[tag_length] != idx->tag_seek[tag_length])
@@ -6103,6 +6360,130 @@ static bool write_master(struct master_header *mh)
     return ok;
 }
 
+#if !defined(PLUGIN)
+/* The entries the scan's file replaces (TAGCACHE_FILE_REPLACED), deleted as
+   the commit of a database there before begins: each if it's still the one
+   the scan saw (a commit cut short and done again finds it deleted). Then
+   the strings no entry uses any more, in one pass over each tag file, with
+   the commit's buffer as room, as it holds all the memory there is by now:
+   also when the list has entries but none is left to delete, as a cut may
+   have come between the two, and when a pass before failed
+   (TAGCACHE_FILE_SWEEP). A string left behind is listed (Songs reads the
+   titles' file whole) and taken again by a name of another case
+   (tempbuf_insert()). The commit goes on whatever comes of it: a pass that
+   fails, as for a file that can't be read or written, is noted, owed to the
+   next commit, and keeps the import's digests from going in
+   (itunesdb_tags_hold()), so that the songs whose names it left are
+   compared again. Without the room, which the commit's checks of its tags
+   leave it (commit_tempbuf_need()), each entry's strings are looked at as it
+   goes, as a scan did before. Not with the database in memory: the commit
+   has taken its room. False only if the master, which the commit has just
+   opened to read, can't be opened to write, as with no file descriptor
+   left: the commit is then put off, its file and the list kept, as its
+   entries' old ones are still there. */
+static bool commit_replaced(void)
+{
+    int fd = open_db_fd(TAGCACHE_FILE_REPLACED, O_RDONLY);
+    int32_t magic;
+    if (fd >= 0 && (read(fd, &magic, sizeof(magic)) != sizeof(magic)
+                    || magic != TAGCACHE_MAGIC))
+    {
+        /* none written whole, as the first flush writes it */
+        close(fd);
+        fd = -1;
+    }
+    const bool owed = db_file_exists(TAGCACHE_FILE_SWEEP);
+    if (fd < 0 && !owed)
+        return true;
+    struct master_header mh;
+    const int masterfd = open_master_fd(&mh, true);
+    if (masterfd < 0)
+    {
+        if (fd >= 0)
+            close(fd);
+        health_note("library commit put off: the database not opened to "
+                    "write, errno %d; the entries it replaces kept for the "
+                    "next try", errno);
+        return false;
+    }
+    const long count = mh.tch.entry_count;
+    const long room = tempbuf_size / (long)sizeof(int32_t);
+    const bool pass = room >= count;
+    int fds[TAG_COUNT];
+    for (int tag = 0; tag < TAG_COUNT; tag++)
+        fds[tag] = -1;
+    long listed = 0, deleted = 0;
+    struct replaced_entry e;
+    while (fd >= 0 && read(fd, &e, sizeof(e)) == sizeof(e))
+    {
+        struct index_entry idx;
+        listed++;
+        if (e.idx_id >= 0 && e.idx_id < count
+            && get_index(masterfd, e.idx_id, &idx, false)
+            && idx.tag_seek[tag_filename] == e.name_seek
+            && idx.tag_seek[tag_mtime] == e.mtime
+            && delete_entry_in(e.idx_id, masterfd, count, fds, pass))
+            deleted++;
+        do_timed_yield();
+    }
+    /* without the room, each deletion has looked at its own strings; one a
+       pass before owed is left owed */
+    const char *failed = NULL;
+    if (pass && (listed > 0 || owed))
+        failed = sweep_unused_tags_in(masterfd, count, fds, (int32_t *)tempbuf,
+                                      room);
+    else if (owed)
+        failed = "no room";
+    for (int tag = 0; tag < TAG_COUNT; tag++)
+    {
+        if (fds[tag] >= 0)
+            close(fds[tag]);
+    }
+    close(masterfd);
+    if (fd >= 0)
+        close(fd);
+    if (!failed)
+        remove_db_file(TAGCACHE_FILE_SWEEP);
+    else
+    {
+        const int marker = open_db_fd(TAGCACHE_FILE_SWEEP,
+                                      O_WRONLY | O_CREAT | O_TRUNC);
+        if (marker >= 0)
+            close(marker);
+#ifndef __PCTOOL__
+        itunesdb_tags_hold();
+#endif
+        health_note("library commit: strings of the songs added again left "
+                    "(%s; %ld listed, %ld deleted), owed to the next commit",
+                    failed, listed, deleted);
+    }
+    logf("replaced: %ld of %ld", deleted, listed);
+    return true;
+}
+
+/* and in commit_idx, those deleted so: their statistics went with their new
+   entries (FLAG_RESTORED), and resurrect no other */
+static void commit_replaced_mark(long count)
+{
+    const int fd = open_db_fd(TAGCACHE_FILE_REPLACED, O_RDONLY);
+    if (fd < 0)
+        return;
+    int32_t magic;
+    struct replaced_entry e;
+    if (read(fd, &magic, sizeof(magic)) == sizeof(magic)
+        && magic == TAGCACHE_MAGIC)
+    {
+        while (read(fd, &e, sizeof(e)) == sizeof(e))
+        {
+            if (e.idx_id >= 0 && e.idx_id < count
+                && (commit_idx[e.idx_id].flag & FLAG_DELETED))
+                commit_idx[e.idx_id].flag |= FLAG_RESURRECTED;
+        }
+    }
+    close(fd);
+}
+#endif /* !PLUGIN */
+
 static bool commit(void)
 {
     struct tagcache_header tch;
@@ -6159,6 +6540,18 @@ static bool commit(void)
         remove_scan_files();
         return false;
     }
+#if defined(PLUGIN)
+    /* the old entries of those it adds again go by the firmware's commit
+       alone (commit_replaced()): it is left for that, at the next boot */
+    const int replaced_fd = open_db_fd(TAGCACHE_FILE_REPLACED, O_RDONLY);
+    if (replaced_fd >= 0)
+    {
+        logf("left to the firmware: entries to replace");
+        close(replaced_fd);
+        close(tmpfd);
+        return false;
+    }
+#endif
 
     if (tch.entry_count == 0 && !commit_resorting)
     {
@@ -6319,6 +6712,18 @@ static bool commit(void)
         }
     }
 
+    /* The entries the new ones replace go now, the scan's file whole: had
+       the scan deleted them, a cut before its header would have lost them */
+#if !defined(PLUGIN)
+    /* a database made anew has none of the entries it lists */
+    if (!journal.fresh && !commit_replaced())
+    {
+        tc_stat.commit_delayed = true;
+        close(tmpfd);
+        goto commit_error;
+    }
+#endif
+
     /* The old database stays as it is until the new one is done: the
        journal first, as it is what undoes the rest */
     for (i = 0; i < TAG_COUNT; i++)
@@ -6351,6 +6756,9 @@ static bool commit(void)
         close(tmpfd);
         goto commit_error;
     }
+#if !defined(PLUGIN)
+    commit_replaced_mark(count);
+#endif
 
     /* Now create the index files. */
     tc_stat.commit_step = 0;
@@ -7852,7 +8260,25 @@ static void sweep_unused_tags(int masterfd, long count, int *fds)
     if (handle <= 0)
         return; /* left in the files, shown in no list of a tag's own */
     core_pin(handle);
-    int32_t *used = core_get_data(handle);
+    sweep_unused_tags_in(masterfd, count, fds, core_get_data(handle), count);
+    core_unpin(handle);
+    core_free(handle);
+}
+
+/* the same from the disk, with room for count seeks given: NULL, or what
+   failed first, as a file that couldn't be read or written, some strings
+   then left (the other tags still gone over) */
+static const char *sweep_unused_tags_in(int masterfd, long count, int *fds,
+                                        int32_t *room, long room_count)
+{
+    static char failed[48];
+    if (room_count < count)
+        return "no room";
+    int32_t *used = room;
+    failed[0] = '\0';
+#define SWEEP_FAILED(what, tag) \
+    do { if (!failed[0]) snprintf(failed, sizeof(failed), what " %d", tag); } \
+    while (0)
 
     for (int tag = 0; tag < TAG_COUNT; tag++)
     {
@@ -7861,10 +8287,12 @@ static void sweep_unused_tags(int masterfd, long count, int *fds)
         if (TAGCACHE_IS_NUMERIC(tag))
             continue;
 
-        /* the seeks still in use, sorted */
+        /* the seeks still in use, sorted: all of them, or a string in use
+           would seem not to be */
         int n = 0;
+        long i = 0;
         lseek(masterfd, sizeof(struct master_header), SEEK_SET);
-        for (long i = 0; i < count; i++)
+        for (; i < count; i++)
         {
             const struct index_entry *e = &idx;
 #ifdef HAVE_TC_RAMCACHE
@@ -7877,10 +8305,18 @@ static void sweep_unused_tags(int masterfd, long count, int *fds)
             if (!(e->flag & FLAG_DELETED))
                 used[n++] = e->tag_seek[tag];
         }
+        if (i < count)
+        {
+            SWEEP_FAILED("master read short at tag", tag);
+            continue;
+        }
         qsort(used, n, sizeof(int32_t), cmp_seek);
 
         if (fds[tag] < 0 && (fds[tag] = open_tag_fd(&tch, tag, true)) < 0)
+        {
+            SWEEP_FAILED("no file of tag", tag);
             continue;
+        }
         off_t size = ffilesize(fds[tag]);
         off_t pos = sizeof(struct tagcache_header);
         while (pos + (off_t)sizeof(struct tagfile_entry) < size)
@@ -7888,15 +8324,24 @@ static void sweep_unused_tags(int masterfd, long count, int *fds)
             struct tagfile_entry tfe;
             char first;
             lseek(fds[tag], pos, SEEK_SET);
-            if (read(fds[tag], &tfe, sizeof(tfe)) != sizeof(tfe)
-                || tfe.tag_length <= 0
-                || read(fds[tag], &first, 1) != 1)
+            if (read(fds[tag], &tfe, sizeof(tfe)) != sizeof(tfe))
+            {
+                SWEEP_FAILED("read short in tag", tag);
                 break;
+            }
+            if (tfe.tag_length <= 0) /* the end, as before */
+                break;
+            if (read(fds[tag], &first, 1) != 1)
+            {
+                SWEEP_FAILED("read short in tag", tag);
+                break;
+            }
             int32_t seek = pos;
             if (first != '\0' && !seek_in(used, n, seek))
             {
                 lseek(fds[tag], pos + sizeof(tfe), SEEK_SET);
-                write(fds[tag], "", 1);
+                if (write(fds[tag], "", 1) != 1)
+                    SWEEP_FAILED("write failed in tag", tag);
 #ifdef HAVE_TC_RAMCACHE
                 if (tc_stat.ramcache && tag != tag_filename)
                     str_setlen(((struct tagfile_entry *)
@@ -7907,9 +8352,8 @@ static void sweep_unused_tags(int masterfd, long count, int *fds)
         }
         do_timed_yield();
     }
-
-    core_unpin(handle);
-    core_free(handle);
+#undef SWEEP_FAILED
+    return failed[0] ? failed : NULL;
 }
 
 static bool delete_entry(long idx_id)
@@ -9143,6 +9587,10 @@ void do_tagcache_build(const char *path[])
 
     scan_cut_short = false;
     scan_failed = false;
+#ifndef __PCTOOL__
+    for (int tag = 0; tag < TAG_COUNT; tag++)
+        retag_fds[tag] = -2;
+#endif
 #if !defined(__PCTOOL__) && defined(ITUNESDB_HAVE_ART)
     /* the songs of a scan before, which the covers were made of */
     itunesdb_scan_forget();
@@ -9343,12 +9791,20 @@ commit:
         /* Write the header. */
         if (!tagfile_wbuf_flush(cachefd))
             scan_write_failed();
+#ifndef __PCTOOL__
+        /* the entries it replaces, on the disk before it is one to commit */
+        if (!replaced_flush())
+            scan_write_failed();
+#endif
         header.magic = TAGCACHE_MAGIC;
         header.datasize = data_size;
         header.entry_count = total_entry_count;
         lseek(cachefd, 0, SEEK_SET);
-        if (write(cachefd, &header, sizeof(struct tagcache_header))
-            != sizeof(struct tagcache_header))
+        /* none for a scan that failed, removed below: a cut before that
+           leaves a file the commit drops */
+        if (!scan_failed
+            && write(cachefd, &header, sizeof(struct tagcache_header))
+               != sizeof(struct tagcache_header))
             scan_write_failed();
         close(cachefd);
         cachefd = -1;
@@ -9371,6 +9827,8 @@ commit:
     }
 #ifndef __PCTOOL__
     free_build_names();
+    /* before the commit writes the files anew */
+    retag_fds_close();
 #endif
 
     if (!ret)

@@ -203,6 +203,15 @@ bool tagcache_restoring(void)
     return false;
 }
 
+/* the database in memory, as a case's "ram 1" says (itunesdb.c
+   metadata_begin()) */
+bool stub_ram_loaded;
+
+bool tagcache_is_in_ram(void)
+{
+    return stub_ram_loaded;
+}
+
 bool tagcache_restore_finder(void)
 {
     return false;

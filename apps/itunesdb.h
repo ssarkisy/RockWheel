@@ -149,17 +149,38 @@ bool itunesdb_load_tracks(void);
 bool itunesdb_playlists_due(void);
 void itunesdb_import_playlists(volatile int *done, volatile int *total);
 
-/* What iTunesDB says of a file Finder added since the last import, as its
-   tags would, its play count and rating, and its dates of release and when
-   it was added, as tag_date and tag_dateadded have them: false when it
-   doesn't know the file. Kept from itunesdb_import_tracks() until
-   itunesdb_forget_metadata(), for the scan. */
+/* What iTunesDB says of a file Finder added since the last import, or of one
+   whose tags changed there (itunesdb_has_record()), as its tags would, its
+   play count and rating, and its dates of release and when it was added, as
+   tag_date and tag_dateadded have them: false when it doesn't know the file.
+   Kept from itunesdb_import_tracks() until itunesdb_forget_metadata(), for
+   the scan. */
 struct mp3entry;
 struct tagcache_runtime;
 bool itunesdb_get_metadata(const char *path, struct mp3entry *id3,
                            struct tagcache_runtime *rt, long *date,
                            long *added);
 void itunesdb_forget_metadata(void);
+/* There is a record of the file at path: of a track new to the last
+   import, or whose tags in iTunesDB changed since or aren't known as the
+   database has them. A file the database has, the same on the disk, the scan
+   compares with it, and adds again with the record's tags if they differ,
+   its counts and rating the entry's, not the record's. */
+bool itunesdb_has_record(const char *path);
+/* The Finder song at path, which the database had, added again from its
+   file's tags as the file changed, and iTunesDB has no record of it: its
+   tags then compared with iTunesDB's at a later import */
+void itunesdb_tags_forget(const char *path);
+/* This import's digests not to go in: a commit couldn't delete the strings
+   of the songs it added again, which a name of another case would take, and
+   the tracks the last import's digests tell changed are compared again */
+void itunesdb_tags_hold(void);
+/* Whether the Finder song at path is the one the last sync had there, by
+   iTunesDB's dbid: 1 the same, 0 another, the last sync's having gone or
+   moved, -1 not known, as for a path new to this sync or without the last
+   sync's ids.
+   Kept from itunesdb_import_tracks() until itunesdb_forget_metadata(). */
+int itunesdb_same_song(const char *path);
 
 /* the flags of the file at path, or with this itunesdb_path_hash() */
 unsigned itunesdb_track_flags(const char *path);
