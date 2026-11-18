@@ -252,6 +252,16 @@
 #define BOOTFILE_EXT "ipod"
 #define BOOTFILE "rockbox." BOOTFILE_EXT
 
+/* The bootloader mounts the disk and loads rockbox.ipod up to this many
+   times, the drive reset or set up again and the disk mounted again in
+   between: right after Apple's disk mode, a first read can fail
+   (bootloader/ipod.c). No try starts later than BOOTLOADER_TRY_SECONDS
+   after the bootloader did. */
+#ifdef BOOTLOADER
+#define BOOTLOADER_TRIES 5
+#define BOOTLOADER_TRY_SECONDS 60
+#endif
+
 #define ICODE_ATTR_TREMOR_NOT_MDCT
 
 #define IPOD_ACCESSORY_PROTOCOL

@@ -42,6 +42,7 @@
 #include "file.h"
 #include "common.h"
 #include "rb-loader.h"
+#include "rbpaths.h"
 #include "loader_strerror.h"
 #include "hwcompat.h"
 #include "usb.h"
@@ -57,6 +58,58 @@
 
 /* A buffer to load the Linux kernel or Rockbox into */
 unsigned char *loadbuffer = (unsigned char *)DRAM_START;
+
+#ifdef BOOTLOADER_TRIES
+/* USEC_TIMER as main() began */
+static unsigned long started;
+
+/* No try starts BOOTLOADER_TRY_SECONDS after main() began. A drive that
+   answers each command only when the driver's waits run out (30 s for BSY,
+   10 s more for DRDY) uses that up in one or two tries, and the error
+   screen follows, with a USB cable's disk mode. */
+static bool time_for_another_try(void)
+{
+    return USEC_TIMER - started < BOOTLOADER_TRY_SECONDS * 1000000ul;
+}
+
+/* The disk mounted once the drive's setup has read its sector size. A setup
+   that failed before IDENTIFY leaves it 0, and disk_init() panics on any
+   size but SECTOR_SIZE, ahead of the tries, Hold's Apple firmware and a USB
+   cable's disk mode. */
+static int mount_all(void)
+{
+    struct storage_info info;
+    storage_get_info(0, &info);
+    return info.sector_size == SECTOR_SIZE ? disk_mount_all() : 0;
+}
+
+/* rockbox.ipod from .rockbox, or else from the root. load_firmware() with
+   the bare name would report a bad file in .rockbox as the root's "File not
+   found", and main() would then start what the bad file left in RAM. */
+static int load_rockbox(void)
+{
+    int rc = load_firmware(loadbuffer, BOOTDIR "/" BOOTFILE, MAX_LOADSIZE);
+    if (rc == EFILE_NOT_FOUND)
+        rc = load_firmware(loadbuffer, "/" BOOTFILE, MAX_LOADSIZE);
+    return rc;
+}
+
+/* Before the next try: a pause, longer each time; a soft reset (SRST) of a
+   drive that was set up, or the setup again of one whose setup failed, which
+   on the PP5020 resets nothing: it polls the drive and identifies it anew;
+   then the disk mounted again, so that no sector the last try read stays
+   cached. Returns the volumes mounted. */
+static int storage_try_again(int try)
+{
+    disk_unmount_all();
+    sleep(try * HZ/2);
+    if (ata_disk_is_on())
+        ata_soft_reset();
+    else
+        ata_init();
+    return mount_all();
+}
+#endif
 
 #if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI)
 /* check if number of seconds has past */
@@ -312,6 +365,9 @@ void* main(void)
 
     system_init();
     kernel_init();
+#ifdef BOOTLOADER_TRIES
+    started = USEC_TIMER;
+#endif
 
     lcd_init();
     font_init();
@@ -361,7 +417,16 @@ void* main(void)
 
     filesystem_init();
 
+#ifdef BOOTLOADER_TRIES
+    rc = mount_all();
+    for (int try = 1; rc <= 0 && try < BOOTLOADER_TRIES &&
+                      time_for_another_try(); try++) {
+        printf("Try %d: no partition", try);
+        rc = storage_try_again(try);
+    }
+#else
     rc = disk_mount_all();
+#endif
     if (rc<=0)
     {
 #ifdef STORAGE_GET_INFO
@@ -428,11 +493,30 @@ void* main(void)
         }
     } else {
         printf("Loading Rockbox...");
+#ifdef BOOTLOADER_TRIES
+        /* RAM holds what the ROM loaded until a try finds a file */
+        bool ram_as_loaded = true;
+        for (int try = 1; ; try++) {
+            rc = load_rockbox();
+            if (rc != EFILE_NOT_FOUND)
+                ram_as_loaded = false;
+            if (rc > 0 || try >= BOOTLOADER_TRIES || !time_for_another_try())
+                break;
+            /* on the screen if every try fails, or with >>| held */
+            printf("Try %d: %s", try, loader_strerror(rc));
+            storage_try_again(try);
+        }
+#else
         rc=load_firmware(loadbuffer, BOOTFILE, MAX_LOADSIZE);
+#endif
         if (rc > 0) {
             printf("Rockbox loaded.");
             return (void*)DRAM_START;
-        } else if (rc == EFILE_NOT_FOUND) {
+        } else if (rc == EFILE_NOT_FOUND
+#ifdef BOOTLOADER_TRIES
+                   && ram_as_loaded
+#endif
+                   ) {
             /* if rockbox.ipod doesn't exist, then check if there is a Rockbox
                image in RAM  */
             haveramos = (memcmp((void*)(DRAM_START+0x20),"Rockbox\1",8)==0);

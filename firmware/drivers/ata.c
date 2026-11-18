@@ -1013,7 +1013,14 @@ static int perform_soft_reset(void)
     sleep(1); /* >2ms */
 
     /* This little sucker can take up to 30 seconds */
+#ifdef BOOTLOADER_TRIES
+    /* one wait: 30 s for BSY, a second short of the 31 s ATA gives a reset,
+       the reads after it waiting again; the bootloader's tries are what wait
+       longer, up to a limit */
+    retry_count = 0;
+#else
     retry_count = 8;
+#endif
     do
     {
         ret = wait_for_rdy();
@@ -1387,6 +1394,12 @@ int STORAGE_INIT_ATTR ata_init(void)
     }
 
 error:
+#ifdef BOOTLOADER_TRIES
+    /* the bootloader calls again for another try: the drive set up from
+       the start then, its size and modes read again */
+    if (rc)
+        ata_state = ATA_BOOT;
+#endif
     mutex_unlock(&ata_mutex);
     return rc;
 }
