@@ -101,7 +101,7 @@ Every theme has a dark version. The menus, Now Playing, dialogs and the clock al
 
 If you listen in bed, **Night Mode** can switch to the dark theme, dim the screen, silence the wheel's clicks and lower the volume limit. Turn it on by hand or set a start and end time. A moon in the status bar shows when it's on.
 
-Hold Play until the screen goes dark to put the iPod to sleep. Turn the wheel to wake it and you're back on the screen you left.
+Hold Play until the screen goes dark to put the iPod to sleep. Turn the wheel to wake it and you're back on the screen you left. To turn it off, keep holding Play until "Shutting down..." appears, or choose Settings › Turn Off. On a charger, it only goes to sleep.
 
 <img src="docs/screenshots/2.0/night-mode.png" width="320" alt="Night Mode with dark theme, silent wheel, dim screen and a volume limit"> <img src="docs/screenshots/2.0/dark-now-playing.png" width="320" alt="Now Playing in the dark theme">
 
