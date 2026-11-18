@@ -261,6 +261,14 @@ void list_pin_groups(const struct gui_synclist *list)
 #define HINT_TOP    ui_metric(UI_METRIC_HINT_TOP)
 #define HINT_PITCH  ui_metric(UI_METRIC_HINT_PITCH)
 #define HINT_LINES  3
+/* between a hint's text and a line's thumb beside it; none in the iPod
+   photo's narrower band, whose every column the text keeps: a gap of 1 to
+   4 px there cut 8 to 32 more of the languages' hints short of three lines */
+#ifdef UI_220X176
+#define HINT_BAR_GAP 0
+#else
+#define HINT_BAR_GAP 4
+#endif
 #define HINT_BYTES  192
 
 static int hint_font(void)
@@ -476,7 +484,7 @@ const char *list_line_end(const char *p, int font, int width)
 }
 
 void list_draw_hint(struct screen *display, struct viewport *band,
-                    const char *text)
+                    const char *text, int bar_room)
 {
     const int font = hint_font();
     band->font = font < 0 ? FONT_UI : font;
@@ -505,7 +513,10 @@ void list_draw_hint(struct screen *display, struct viewport *band,
         display->set_foreground(ui_colour(UI_COLOUR_SEARCH_RULE));
         display->hline(HINT_X, band->width - HINT_X - 1, 0);
     }
-    const int width = band->width - 2 * HINT_X;
+    /* and at the bar's end, HINT_BAR_GAP from the thumb at least (Dieter's
+       lines ended in the column before it) */
+    const int width = band->width - HINT_X
+                      - MAX(HINT_X, bar_room > 0 ? bar_room + HINT_BAR_GAP : 0);
     display->set_foreground(ui_colour(UI_COLOUR_HINT_TEXT));
     display->set_drawmode(DRMODE_FG);
     const char *p = text;
@@ -1227,7 +1238,21 @@ void list_draw(struct screen *display, struct gui_synclist *list)
     line_set_bar(NULL);
 #endif
     if (hint)
-        list_draw_hint(display, &band, hint);
+    {
+        /* its text its margin from the line's thumb too, which goes down
+           beside the band (has_bar), at its start right to left */
+        int bar_room = 0;
+#ifdef HAVE_LCD_COLOR
+        if (has_bar)
+        {
+            const int left = bar.x - (MAX(ui_metric(UI_METRIC_SCROLLBAR_THUMB_W), 1) - 1) / 2;
+            const int right = left + MAX(ui_metric(UI_METRIC_SCROLLBAR_THUMB_W), 1) - 1;
+            bar_room = VP_IS_RTL(parent) ? right + 1 - band.x
+                                         : band.x + band.width - left;
+        }
+#endif
+        list_draw_hint(display, &band, hint, bar_room);
+    }
 #ifdef HAVE_LCD_COLOR
     /* the theme's capsule in the gutter right of the rows, which keep their
        width but where it would touch them (above): no track, at least 14 px,

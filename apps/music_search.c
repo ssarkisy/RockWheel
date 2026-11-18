@@ -2461,7 +2461,7 @@ static void draw(void)
             band.y += band.height - NAME_KEYS_BAND;
             band.height = NAME_KEYS_BAND;
         }
-        list_draw_hint(display, &band, str(LANG_NAME_KEYS));
+        list_draw_hint(display, &band, str(LANG_NAME_KEYS), 0);
         display->update_viewport();
     }
     if (KEYS)

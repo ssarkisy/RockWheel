@@ -112,7 +112,7 @@ struct line_desc {
      * than its room ends in "…"; scrolling, it scrolls in its room. draw_end
      * draws what's there, with end_data, after the text and again after each
      * step of its scrolling, which draws the row's bar under it again. 0 and
-     * NULL for none; of a row of one part */
+     * NULL for none; draw_end of a row of one part */
     int16_t end_width;
     void (*draw_end)(struct screen *display, int y, const struct line_desc *line);
     const void *end_data;

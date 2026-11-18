@@ -177,6 +177,12 @@ void menu_request_root(void);
    made now is in its tree, its folders' lists and the lists of values opened
    from them */
 bool menu_in_settings(void);
+/* Whether the menu over Now Playing is open, as menu_in_settings(), and
+   none of the screens its rows open (menu_now_playing_away()) is */
+bool menu_in_now_playing(void);
+/* a screen a row of the menu over Now Playing opens, as Up Next, opened
+   (true) and closed (false): its own menus aren't that menu's */
+void menu_now_playing_away(bool away);
 /* Where the last outermost menu was left, kept for the main menu's place in
    this slot (0 or 1); and the next outermost menu opened there, if it is the
    one kept, entering its row again if enter: for a held Menu's switch */

@@ -386,9 +386,11 @@ extern bool list_hint_waits(const struct gui_synclist *list);
 #define LIST_HINT_BAND (ui_metric(UI_METRIC_HINT_TOP) \
                         + 3 * ui_metric(UI_METRIC_HINT_PITCH) + 3)
 /* a band of hints with this text, as under Settings' folders, in a viewport
-   of the screen: for a screen other than a list's too */
+   of the screen: for a screen other than a list's too. bar_room: the
+   columns at the band's end to a list's scrollbar's thumb, which the text
+   keeps a gap from, 0 for none */
 extern void list_draw_hint(struct screen *display, struct viewport *band,
-                           const char *text);
+                           const char *text, int bar_room);
 /* Of a text from p, a line as wide as width at most in font, broken where a
    hint's lines are, as between words: its end */
 extern const char *list_line_end(const char *p, int font, int width);

@@ -102,6 +102,8 @@ struct menu_item_ex;
 bool onplay_row_hidden(const struct menu_item_ex *menu, int i);
 /* with all of them hidden, held Select over Now Playing opens nothing */
 bool onplay_wps_menu_empty(void);
+/* whether a menu is the one held Select opens over Now Playing */
+bool onplay_is_wps_menu(const struct menu_item_ex *menu);
 int get_onplay_context(void);
 
 /* needed for the playlist viewer.. eventually clean this up */

@@ -541,6 +541,7 @@ static bool menu_is_group(int item, void *data)
 #define VALUE_MARGIN_CHEVRON ui_metric(UI_METRIC_VALUE_MARGIN_CHEVRON)
 #define VALUE_GAP ui_metric(UI_METRIC_VALUE_GAP)
 #define LIGHT_LEAST 40 /* the room a lighter text after a name needs at least */
+#define GROUP_FOOT_GAP 3 /* a group's band off the row under it, in two-line lists */
 
 /* Modern's switch, iOS 13's: a capsule of 27 by 16, its knob 12 px, 2 px
    inside it */
@@ -568,8 +569,10 @@ struct row_end {
     const char *text;
 };
 /* The selected row's, which the scroller draws as the name scrolls: one on
-   each screen, where its list has the one selected row; the others don't
-   scroll */
+   each screen. It takes one list of these rows on a screen at a time and
+   its one selected row: the others are kept still (menu_draw_value_line()),
+   and no screen has two such lists at once; a second list's selected row
+   would write over the first's record while the first's still scrolls */
 static struct row_end selected_end[NB_SCREENS];
 static char selected_text[NB_SCREENS][MAX_PATH];
 
@@ -630,6 +633,39 @@ static void draw_row_end(struct screen *display, int y,
     display->set_foreground(old_fg);
 }
 
+/* Where a row's value ends: left of where a chevron can come in the list;
+   or, where the theme lays the row's end out itself, of this row's own,
+   selected or not. Right to left no row has a chevron: where every row that
+   leads on would have one, their values end with the others' */
+static int menu_values_end(const struct list_putlineinfo_t *info)
+{
+    const bool chevron = info->list->callback_has_children
+        && (!ui_metric(UI_METRIC_ROW_RIGHT)
+            || info->list->callback_has_children(info->line, info->list->data))
+        && !(ui_metric(UI_METRIC_CHEVRON_ALL) && VP_IS_RTL(info->vp));
+    return info->vp->width - (chevron ? VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
+}
+
+/* A Settings row's second line in a theme of rows of two lines
+   (UI_METRIC_SETTINGS_TWO_LINES), of the main screen: its value, On or Off
+   too where the theme has no switch; none for a switch's, which is at the
+   row's end, nor for a row without one */
+static const char *menu_value_line(int selected_item, void *data, char *buffer,
+                                   size_t buffer_len)
+{
+    const char *text = get_menu_item_name(selected_item, data, buffer, buffer_len);
+    /* a phrase's id, as a list of strings' rows are (MT_RETURN_ID), has no
+       value: no text to look in (the list makes its name of it) */
+    if (!text || P2ID((const unsigned char *)text) >= 0)
+        return NULL;
+    const char *tab = strchr(text, '\t');
+    if (!tab || !tab[1])
+        return NULL;
+    if (tab[1] == MENU_SWITCH_ON || tab[1] == MENU_SWITCH_OFF)
+        return ui_metric(UI_METRIC_SWITCHES) ? NULL : tab + 2;
+    return tab + 1;
+}
+
 void menu_draw_value_line(struct list_putlineinfo_t *info)
 {
     struct screen *display = info->display;
@@ -687,6 +723,24 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
             display->set_foreground(old_fg);
             return;
         }
+        /* in a list of rows of two lines (the iPod photo's Settings), the
+           bar or the band as high as a row of one line near the row's foot,
+           over the rows it names, the list's ground round it: the row the
+           others' height, and GROUP_FOOT_GAP of ground under the band, off
+           the next row's selection, which touched it */
+        int bar_y = info->y;
+        const int one_row = ui_metric(UI_METRIC_ROW_HEIGHT);
+        if (info->list->callback_get_subline == menu_value_line
+            && one_row > 0 && one_row + GROUP_FOOT_GAP < linedes.height)
+        {
+            /* the row's ground, and its separator at its foot */
+            struct line_desc ground = linedes;
+            ground.style = STYLE_DEFAULT;
+            display->put_line(info->x, info->y, &ground, "");
+            bar_y = info->y + linedes.height - one_row - GROUP_FOOT_GAP;
+            linedes.height = one_row;
+            linedes.separator_height = 0;
+        }
         linedes.style = STYLE_COLORBAR;
         linedes.text_color = GROUP_COLOUR;
         linedes.line_color = GROUP_BAR_COLOUR;
@@ -699,12 +753,12 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
                the rows' text starts */
             const int name_font = info->vp->font;
             const int font = font_find(ui_font_file(UI_FONT_GROUP));
-            display->put_line(info->x, info->y, &linedes, "");
+            display->put_line(info->x, bar_y, &linedes, "");
             const unsigned old_fg = display->get_foreground();
             display->set_drawmode(DRMODE_SOLID);
             display->set_foreground(ui_colour(UI_COLOUR_GROUP_RULE));
-            display->hline(0, info->vp->width - 1, info->y);
-            display->hline(0, info->vp->width - 1, info->y + linedes.height - 1);
+            display->hline(0, info->vp->width - 1, bar_y);
+            display->hline(0, info->vp->width - 1, bar_y + linedes.height - 1);
             display->set_foreground(ui_colour(UI_COLOUR_GROUP_NAME));
             display->set_drawmode(DRMODE_FG);
             if (font >= 0)
@@ -717,8 +771,8 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
                             - VALUE_MARGIN, fitted, sizeof(fitted));
             if (text)
                 display->putsxy(info->x + info->item_indent,
-                                info->y + (linedes.height
-                                           - (int)font_get(info->vp->font)->height) / 2,
+                                bar_y + (linedes.height
+                                         - (int)font_get(info->vp->font)->height) / 2,
                                 text);
             info->vp->font = name_font;
             display->set_drawmode(DRMODE_SOLID);
@@ -726,7 +780,7 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
             return;
         }
 #endif
-        display->put_line(info->x, info->y, &linedes, "$*s$*t", info->item_indent,
+        display->put_line(info->x, bar_y, &linedes, "$*s$*t", info->item_indent,
                           info->item_offset, text);
         return;
     }
@@ -774,6 +828,22 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         return;
     }
 
+    /* Settings' rows of two lines (menu_value_line()): the name over the
+       whole width to the values' margin, cut short with "…" there or,
+       selected, scrolling to it; the row's value on its second line, which
+       the list draws under this, its name's part. A row without one, as one
+       that leads on, the name alone in the middle of the row */
+    const bool two_lines = info->list->callback_get_subline == menu_value_line;
+    if (two_lines && (!tab || info->linedes->row_height > 0))
+    {
+        if (tab)
+            strlcpy(name, text, MIN((size_t)(tab - text) + 1, sizeof(name)));
+        struct line_desc linedes = *info->linedes;
+        linedes.end_width = info->vp->width - menu_values_end(info);
+        display->put_line(info->x, info->y, &linedes, "$*s$*t",
+                          info->item_indent, info->item_offset, tab ? name : text);
+        return;
+    }
     /* a row without a value, as an album's, as long as it is */
     if (!tab)
     {
@@ -791,16 +861,7 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
        Settings' selection that has its own (STYLE_NAME_ONLY), as on any row */
     const bool inked = info->is_selected
                        && !(info->linedes->style & STYLE_NAME_ONLY);
-    /* left of where a chevron can come in the list; or, where the theme
-       lays the row's end out itself, of this row's own, selected or not.
-       Right to left no row has a chevron: where every row that leads on
-       would have one, their values end with the others' */
-    const bool chevron = info->list->callback_has_children
-        && (!ui_metric(UI_METRIC_ROW_RIGHT)
-            || info->list->callback_has_children(info->line, info->list->data))
-        && !(ui_metric(UI_METRIC_CHEVRON_ALL) && VP_IS_RTL(info->vp));
-    const int right = info->vp->width -
-        (chevron ? VALUE_MARGIN_CHEVRON : VALUE_MARGIN);
+    const int right = menu_values_end(info);
     struct row_end end = { .kind = END_TEXT };
     int end_x = 0; /* where it starts, left to right */
     /* On or Off that changes in place: the theme's switch at the row's end,
@@ -816,7 +877,10 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
            the values start there */
         if (ui_metric(UI_METRIC_SWITCHES) == 2 && display->screen_type == SCREEN_MAIN)
         {
-            const int key_end = right + 1;
+            /* in a row of two lines tall, which has no values beside the
+               names, at the margin, in the middle of the row */
+            const int key_end = two_lines ? info->vp->width - VALUE_MARGIN
+                                          : right + 1;
             end.kind = END_KEY;
             end_x = key_end - line_switch_w();
             end.x = VP_IS_RTL(info->vp) ? info->vp->width - key_end : end_x;
@@ -1011,6 +1075,17 @@ static int init_menu_lists(const struct menu_item_ex *menu,
     {
         lists->callback_draw_item = menu_draw_value_line;
         lists->callback_is_group = menu_is_group;
+        /* Settings' and its menus' (menu_in_settings(): the outermost
+           menu open is Settings, as Settings > Now Playing Menu's too), and
+           the menu over Now Playing's and its own rows' menus, as the
+           Equalizer's (menu_in_now_playing()), whose rows are settings too;
+           not the menus of the screens its rows open, as Up Next's or Go to
+           Album's lists' song menus, nor the other lists as wide, as
+           Extras, System, a song's menu or a plugin's, which show values
+           too (menu_shows_values()) */
+        if (ui_metric(UI_METRIC_SETTINGS_TWO_LINES)
+            && (menu_in_settings() || menu_in_now_playing()))
+            gui_synclist_set_subline_callback(lists, menu_value_line);
     }
     title = init_title(menu, &icon, buf, buf_sz);
     gui_synclist_set_title(lists, title, icon);
@@ -1192,6 +1267,22 @@ static const struct menu_item_ex *tree_root;
 bool menu_in_settings(void)
 {
     return tree_root == &main_menu_;
+}
+
+/* The screens a row of the menu over Now Playing opens, as Up Next, Cover
+   Flow or the lists Go to Album opens, whose menus are theirs, not its: how
+   many are open (menu_now_playing_away()). Its own rows' lists, as the
+   Equalizer's, are its */
+static int now_playing_away;
+
+void menu_now_playing_away(bool away)
+{
+    now_playing_away += away ? 1 : -1;
+}
+
+bool menu_in_now_playing(void)
+{
+    return onplay_is_wps_menu(tree_root) && now_playing_away == 0;
 }
 
 /* The theme drawn again for it, over a part of the list, which is drawn next:

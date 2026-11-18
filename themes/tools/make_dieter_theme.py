@@ -905,9 +905,10 @@ def knob_geometry():
 # Settings' On/Off: a small round push key in its hole, its lamp in its face
 # (the owner's pick, key A): On the key latched in, a little lower and less
 # lit, its lamp lit in the signal colour (the firmware's masks); Off the key
-# out, its lamp a dark lens
-SWITCH_R = {"video": 7.0, "photo": 5.25}
-SWITCH_LAMP_R = {"video": 2.9, "photo": 2.2}
+# out, its lamp a dark lens. The iPod photo's larger, in the middle of its
+# Settings' rows of two lines
+SWITCH_R = {"video": 7.0, "photo": 7.25}
+SWITCH_LAMP_R = {"video": 2.9, "photo": 3.05}
 
 
 def switch_key(p, on):

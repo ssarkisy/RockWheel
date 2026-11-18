@@ -155,7 +155,9 @@ static int wps_view_songs(int (*view)(void))
     static struct selected_file saved_file;
     saved_file = selected_file;
     const int saved_result = onplay_result;
+    menu_now_playing_away(true);
     const int ret = view();
+    menu_now_playing_away(false);
     selected_file = saved_file;
     onplay_result = saved_result;
     switch (ret)
@@ -608,7 +610,9 @@ static int add_to_picked_playlist(void)
             return 0;
         strmemccpy(song, id3->path, sizeof(song));
     }
+    menu_now_playing_away(true);
     const int r = ip_pick_playlist(target, sizeof(target));
+    menu_now_playing_away(false);
     if (r < 0)
     {
         onplay_result = ONPLAY_MAINMENU;
@@ -892,6 +896,8 @@ static int wps_context_item_cb(int action,
     {
         int item = (intptr_t) this_item->menu_get_name_and_icon->list_get_name_data;
         int act =  HK_CTX_GET(item, global_settings.context_wps);
+        /* what it opens is a screen of its own, its menus not this one's */
+        menu_now_playing_away(true);
         if (act == HOTKEY_CONTEXT_MENU)
         {
             onplay_result = hotkey_run_menu(HOTKEY_FLAG_WPS, true, 0);
@@ -906,6 +912,7 @@ static int wps_context_item_cb(int action,
         {
             onplay_result = execute_hotkey(act);
         }
+        menu_now_playing_away(false);
         return ACTION_EXIT_AFTER_THIS_MENUITEM;
     }
     return action;
@@ -1326,7 +1333,10 @@ static int onplaymenu_callback(int action,
    this menu */
 static int open_cover_flow(void)
 {
-    switch (root_menu_cover_flow(NULL, NULL))
+    menu_now_playing_away(true);
+    const int ret = root_menu_cover_flow(NULL, NULL);
+    menu_now_playing_away(false);
+    switch (ret)
     {
         case PLUGIN_GOTO_ROOT:
             return GO_TO_ROOT;
@@ -1362,6 +1372,7 @@ static int go_to_lists(int at, bool artist)
     /* the lists as they always are, beside the panel */
     const bool wide = menu_wide();
     menu_set_wide(false);
+    menu_now_playing_away(true);
     int screen;
     switch (at)
     {
@@ -1382,6 +1393,7 @@ static int go_to_lists(int at, bool artist)
             }
             break;
     }
+    menu_now_playing_away(false);
     menu_set_wide(wide);
     if (screen == 0)
     {
@@ -1752,9 +1764,17 @@ static int chapters_callback(int action, const struct menu_item_ex *this_item,
         return ACTION_EXIT_MENUITEM;
     return action;
 }
+/* their list, a screen of its own, its menus not this one's */
+static int open_chapters(void)
+{
+    menu_now_playing_away(true);
+    const int ret = chapters_screen();
+    menu_now_playing_away(false);
+    return ret;
+}
 MENUITEM_FUNCTION(chapters_item,
                   MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
-                  ID2P(LANG_CHAPTERS), chapters_screen, chapters_callback,
+                  ID2P(LANG_CHAPTERS), open_chapters, chapters_callback,
                   Icon_NOICON);
 
 /* used when onplay() is called in the CONTEXT_WPS context */
@@ -1857,6 +1877,11 @@ static int wps_row(const struct menu_item_ex *item)
 bool onplay_row_hidden(const struct menu_item_ex *menu, int i)
 {
     return menu == &wps_onplay_menu && wps_row(menu->submenus[i]) == 0;
+}
+
+bool onplay_is_wps_menu(const struct menu_item_ex *menu)
+{
+    return menu == &wps_onplay_menu;
 }
 
 /* none of its rows on: held Select does nothing there, rather than open an

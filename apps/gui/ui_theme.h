@@ -264,6 +264,12 @@ enum ui_metric {
     /* the selected row's name in UI_COLOUR_SIGNAL on its band, its
        subline and values in their own tones */
     UI_METRIC_SELECTION_SIGNAL,
+    /* Settings' rows each two lines tall, the list's one height, as an
+       album's: the name over the whole width, a value under it in the
+       second line's grey, On or Off too where the theme has no switch; a
+       switch at the right margin in the middle of the row, a row without a
+       value its name alone in its middle (menu.c) */
+    UI_METRIC_SETTINGS_TWO_LINES,
     UI_METRIC_COUNT
 };
 

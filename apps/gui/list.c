@@ -92,7 +92,16 @@ static void list_init_viewports(struct gui_synclist *list)
 
 int list_hint_band(struct gui_synclist *list, enum screen_type screen)
 {
-    return list->callback_get_hint && screen == SCREEN_MAIN ? LIST_HINT_BAND : 0;
+    if (!list->callback_get_hint || screen != SCREEN_MAIN)
+        return 0;
+    /* in a list of rows of two lines (the iPod photo's Settings), the
+       place of whole rows: every row of a list is the one height */
+    if (list->callback_get_subline)
+    {
+        const int row = list->line_height[screen];
+        return (LIST_HINT_BAND + row - 1) / row * row;
+    }
+    return LIST_HINT_BAND;
 }
 
 /* A hint shows once the wheel has rested this long after its last step (the
