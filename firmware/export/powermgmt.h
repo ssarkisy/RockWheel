@@ -171,6 +171,9 @@ void reset_poweroff_timer(void);
 #ifdef HAVE_IDLE_SLEEP
 /* a held Play: the sleep, the music paused; from the button tick too */
 void sys_sleep(void);
+/* a Play held on past that sleep: the power-off from it, all saved; from the
+   button tick. Not on a power input, where it stays asleep */
+void sys_sleep_poweroff(void);
 /* Turn Off After Sleep: the hours of sleep on battery before the power-off;
    0 for Auto, from the battery's capacity; -1 for Never. Below 20 % it powers
    off after 10 minutes of sleep whatever this is. */

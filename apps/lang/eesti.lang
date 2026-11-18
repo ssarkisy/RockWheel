@@ -16122,3 +16122,17 @@
     *: "Kogumikud"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_TURN_OFF
+  desc: the last row of Settings, under Reset Settings: turns the iPod off at once, all saved, as a Play held for about 6 s does; Apple's own word for it on iPods
+  user: core
+  <source>
+    *: "Turn Off"
+  </source>
+  <dest>
+    *: "Lülita välja"
+  </dest>
+  <voice>
+    *: "Lülita välja"
+  </voice>
+</phrase>

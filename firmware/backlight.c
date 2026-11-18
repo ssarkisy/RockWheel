@@ -97,6 +97,7 @@ enum {
 #ifdef LCD_SLEEP_ASLEEP_ONLY
     LCD_POWER,
 #endif
+    BACKLIGHT_UNLOCK,
 #ifdef HAVE_BUTTON_LIGHT
     BUTTON_LIGHT_ON,
     BUTTON_LIGHT_OFF,
@@ -652,6 +653,15 @@ void backlight_thread(void)
                 usb_acknowledge(SYS_USB_CONNECTED_ACK, ev.data);
                 break;
 
+            case BACKLIGHT_UNLOCK:
+                /* the power-off it was locked for was refused (the database
+                   busy, or a charger): the light goes off by its timeout
+                   again, asleep too, a whole timeout after the power-off lit
+                   it (with Show Shutdown Message on, as by default). Locked, it stayed on until the next power-off or a
+                   reset */
+                locked = false;
+                break;
+
 #ifdef BACKLIGHT_DRIVER_CLOSE
             /* Get out of here */
             case BACKLIGHT_QUIT:
@@ -887,6 +897,11 @@ void backlight_off(void)
     queue_post(&backlight_queue, BACKLIGHT_OFF, 0);
 }
 
+void backlight_shutdown_cancelled(void)
+{
+    queue_post(&backlight_queue, BACKLIGHT_UNLOCK, 0);
+}
+
 #ifdef LCD_SLEEP_ASLEEP_ONLY
 void backlight_lcd_power(bool on)
 {
@@ -1105,6 +1120,7 @@ void backlight_init(void)
 
 void backlight_on(void) {}
 void backlight_off(void) {}
+void backlight_shutdown_cancelled(void) {}
 void backlight_set_timeout(int value) {(void)value;}
 
 bool is_backlight_on(bool ignore_always_off)

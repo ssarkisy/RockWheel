@@ -85,6 +85,14 @@ static bool enable_sw_poweroff = true;
 /* repeat interval for touch events */
 #define REPEAT_INTERVAL_TOUCH   (4*HZ/100)
 
+#if defined(HAVE_SW_POWEROFF) && defined(HAVE_IDLE_SLEEP)
+/* a Play held on this long after the sleep it asked for, which comes at about
+   3 s (POWEROFF_COUNT), powers off: at about 6 s from the press */
+#ifndef POWEROFF_HELD_TICKS
+#define POWEROFF_HELD_TICKS     (3*HZ)
+#endif
+#endif
+
 static int lastdata = 0;
 static int button_read(int *data);
 
@@ -237,6 +245,8 @@ static void button_tick(void)
     static int repeat_count = 0;
 #ifdef HAVE_IDLE_SLEEP
     static bool held_to_sleep = false; /* this press asked for the sleep */
+    static bool held_to_off = false;   /* and then for the power-off */
+    static long held_to_sleep_tick;
 #endif
 #endif
     static bool repeat = false;
@@ -259,7 +269,7 @@ static void button_tick(void)
 
 #if defined(HAVE_SW_POWEROFF) && defined(HAVE_IDLE_SLEEP)
     if (!(btn & POWEROFF_BUTTON))
-        held_to_sleep = false;
+        held_to_sleep = held_to_off = false;
 #endif
 
     /* Find out if a key has been released */
@@ -338,17 +348,29 @@ static void button_tick(void)
 #ifdef HAVE_IDLE_SLEEP
                         /* asleep instead, as on Apple's firmware, once: the
                            rest of this press, its release too, goes nowhere
-                           and wakes nothing. No power_off() as a last resort
-                           either: a Play held in a pocket would cut the
-                           power, nothing saved. */
+                           and wakes nothing. Held on as long again, it powers
+                           off the orderly way, all saved, as Turn Off After
+                           Sleep does; on a charger it stays asleep
+                           (powermgmt.c). No power_off() as a last resort: a
+                           Play held in a pocket would cut the power, nothing
+                           saved. */
                         if (enable_sw_poweroff && (btn & POWEROFF_BUTTON) &&
                             repeat_count > POWEROFF_COUNT && !held_to_sleep)
                         {
                             held_to_sleep = true;
+                            held_to_sleep_tick = current_tick;
 #ifdef HAVE_BACKLIGHT
                             skip_release = true;
 #endif
                             sys_sleep();
+                        }
+                        else if (enable_sw_poweroff && held_to_sleep &&
+                                 !held_to_off &&
+                                 TIME_AFTER(current_tick, held_to_sleep_tick
+                                            + POWEROFF_HELD_TICKS))
+                        {
+                            held_to_off = true;
+                            sys_sleep_poweroff();
                         }
 #else
                         /* Send a SYS_POWEROFF event if we have a device

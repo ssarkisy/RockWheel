@@ -35,6 +35,9 @@ long backlight_off_since(unsigned int *count);
 void backlight_on_ignore(bool value, int timeout);
 void backlight_on(void);
 void backlight_off(void);
+/* a power-off refused (cancel_shutdown()): the light that SYS_POWEROFF
+   locked, as it is until the power is cut, goes by its timeout again */
+void backlight_shutdown_cancelled(void);
 void backlight_set_timeout(int value);
 
 #ifdef HAVE_BACKLIGHT

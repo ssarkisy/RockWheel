@@ -540,6 +540,17 @@ static bool clean_shutdown(enum shutdown_type sd_type,
 
         shutdown_hw(sd_type);
     }
+#if CONFIG_CHARGING && !defined(HAVE_POWEROFF_WHILE_CHARGING)
+    else
+    {
+        /* on a charger nothing was shut down: the shutdown sys_poweroff()
+           or sys_reboot() armed is called off, or power_thread_step() would
+           cut the power 20 s later with only status_save() done, in USB
+           mode too; the backlight is unlocked with it. A charger can come between a caller's own check
+           and this one, as during a held Play's power-off. */
+        cancel_shutdown();
+    }
+#endif
     return false;
 }
 

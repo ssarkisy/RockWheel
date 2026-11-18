@@ -164,8 +164,10 @@ static bool sleep_lower_clock = SLEEP_LOWER_CLOCK_DEFAULT;
 static bool sleep_auto = true; /* by idle, and the power-off after */
 /* Turn Off After Sleep: hours, 0 for Auto, -1 for Never */
 static int sleep_poweroff_hours;
-/* from the button tick: a held Play asks for the sleep */
+/* from the button tick: a held Play asks for the sleep, and held on, for the
+   power-off from it */
 static volatile bool sleep_requested;
+static volatile bool sleep_off_requested;
 static volatile bool sleep_held;
 static volatile long sleep_held_since, sleep_held_last;
 #endif
@@ -1220,6 +1222,8 @@ void cancel_shutdown(void)
 #endif
 
     shutdown_timeout = 0;
+    /* the light, locked for the power-off, by its timeout again */
+    backlight_shutdown_cancelled();
 }
 
 void set_sleeptimer_duration(int minutes)
@@ -1296,6 +1300,7 @@ static void sleep_enter(bool pause, bool flush)
 static void sleep_wake(void)
 {
     sleeping = false;
+    sleep_off_requested = false;
     sleep_set_clock(false);
 #ifdef LCD_SLEEP_ASLEEP_ONLY
     /* on again if the use didn't light it (Play, unseen) */
@@ -1303,8 +1308,9 @@ static void sleep_wake(void)
 #endif
 }
 
-/* A held Play, from the button tick: the screen goes dark at once, the music
-   pauses and the sleep comes at the power thread's next step */
+/* A held Play, from the button tick, or Settings > Turn Off on a charger: the
+   screen goes dark at once, the music pauses and the sleep comes at the power
+   thread's next step */
 void sys_sleep(void)
 {
     if (!sleep_held)
@@ -1314,6 +1320,14 @@ void sys_sleep(void)
     }
     sleep_requested = true;
     backlight_off();
+}
+
+/* A Play held on past the sleep it asked for, from the button tick: the
+   power-off from the sleep at the power thread's next step, as Turn Off After
+   Sleep's (idle_sleep_step()) */
+void sys_sleep_poweroff(void)
+{
+    sleep_off_requested = true;
 }
 
 bool powermgmt_asleep(void)
@@ -1402,20 +1416,24 @@ static void idle_sleep_step(long timeout, int audio_stat, long tick)
         if (power_input_present())
         {
             /* it can't power off on one, and the hours begin as it's
-               unplugged */
+               unplugged; a held Play's power-off is let go, asleep */
+            sleep_off_requested = false;
             sleep_since = tick;
             return;
         }
 #endif
-        if (!sleep_auto)
+        if (!sleep_auto && !sleep_off_requested)
             return;
         const long slept = tick - sleep_since;
         const long most = sleep_poweroff_ticks();
         const int level = battery_level();
-        /* the low battery's 10 minutes whatever the setting, Never too */
-        if (((most >= 0 && slept >= most)
-             || (level >= 0 && level < SLEEP_LOW_PERCENT
-                 && slept >= SLEEP_LOW_TICKS))
+        /* the low battery's 10 minutes whatever the setting, Never too; a
+           held Play's at once */
+        if ((sleep_off_requested
+             || (sleep_auto
+                 && ((most >= 0 && slept >= most)
+                     || (level >= 0 && level < SLEEP_LOW_PERCENT
+                         && slept >= SLEEP_LOW_TICKS))))
             && TIME_AFTER(tick, sleep_retry_tick))
         {
             /* today's shutdown, at the clock it runs at awake; asleep still
@@ -1426,6 +1444,10 @@ static void idle_sleep_step(long timeout, int audio_stat, long tick)
         }
         return;
     }
+
+    /* a held Play's power-off is the sleep's: one asked for awake, something
+       having woken it in the hold, is let go */
+    sleep_off_requested = false;
 
     if (sleep_auto && timeout &&
 #if CONFIG_TUNER

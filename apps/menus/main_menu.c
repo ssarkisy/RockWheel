@@ -111,6 +111,32 @@ MENUITEM_FUNCTION_W_PARAM(save_sound_item, 0, ID2P(LANG_SAVE_SOUND),
 MENUITEM_FUNCTION(reset_settings_item, 0, ID2P(LANG_RESET),
                   reset_settings, NULL, Icon_NOICON);
 
+/* Turn Off: at once, with no question, the way a Play held past the sleep
+   powers off (clean_shutdown()): all saved, the place too. On a charger, USB's
+   too, where the iPod can't power off (clean_shutdown() skips it there), the
+   sleep a held Play gives there instead */
+static int turn_off(void)
+{
+#if CONFIG_CHARGING && !defined(HAVE_POWEROFF_WHILE_CHARGING)
+    if (charger_inserted())
+    {
+#ifdef HAVE_IDLE_SLEEP
+        sys_sleep();
+#else
+        charging_splash();
+#endif
+        return 0;
+    }
+#endif
+    sys_poweroff();
+    return 0;
+}
+
+/* MENU_EXITAFTERTHISMENU: no ">" on the row, as it acts at once and opens
+   nothing (menu.c); Settings has no exit flag of its own, so it stays */
+MENUITEM_FUNCTION(turn_off_item, MENU_EXITAFTERTHISMENU, ID2P(LANG_TURN_OFF),
+                  turn_off, NULL, Icon_NOICON);
+
 #if defined(HAVE_TAGCACHE) && defined(HAVE_SYNCED_MENU_COVERS)
 /* Rebuild Synced Covers: the computer's artwork is set aside, and the next
    sync makes every cover again, with the frames the main menu's cover is
@@ -888,7 +914,8 @@ MAKE_MENU(settings_general, ID2P(LANG_GENERAL_SETTINGS), NULL, Icon_NOICON,
 
 /* About, then sections: the music's settings with the sleep timer, which
    stops it; the screen's; the menus' rows; and the system's at the end:
-   General, the clock, the language, Legal, Rebuild Synced Covers and Reset.
+   General, the clock, the language, Legal, Rebuild Synced Covers, Reset and
+   Turn Off.
    A section's name is a bar none selects (MENUITEM_GROUP). 1.2's list had
    grown to four screens with Rockbox's groups, and the iPod classic's order
    kept the EQ, Sound Check and Volume Limit apart. Rockbox's full settings
@@ -927,6 +954,7 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &rebuild_covers_item,
 #endif
         &reset_settings_item,
+        &turn_off_item,
         );
 /*    MAIN MENU                    */
 /***********************************/
