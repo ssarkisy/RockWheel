@@ -4964,16 +4964,28 @@ bool itunesdb_resumes(const char *path)
                                   shows */
 #define ART_FORMATS     4
 /* Finder's larger frame of each of ART_FILE's entries, in their order, for
-   the menus' cover: a format the iPod Video's own covers don't have, which
-   Finder writes once the iPod's description lists it (1024: 320x240, the
-   picture 240x240 in the middle). In a file of its own, so that the index
-   and all that reads it are as they were. Made with the index and never
-   kept past it: removed before a new index is put in place. */
+   the menus' cover: a format the iPod's own covers don't have, which Finder
+   writes once the iPod's description lists it (the Video's 1024: 320x240,
+   the picture 240x240 in the middle; the photo's 1013: LARGE_TURNED_FORMAT).
+   In a file of its own, so that the index and all that reads it are as they
+   were. Made with the index and never kept past it: removed before a new
+   index is put in place. */
 #define LARGE_FILE      ROCKBOX_DIR "/itunesdb_art240.dat"
 #define LARGE_MAGIC     0x4c494252 /* "RBIL" */
 #define LARGE_VERSION   2   /* 2: the sum of the index it goes with */
 #define LARGE_PIXELS    (LCD_HEIGHT * LCD_HEIGHT) /* the most of a picture */
 #define FRAME_SIDE      200
+#ifdef IPOD_COLOR
+/* The iPod photo's full-screen photo format, which its description also lists
+   for album art (firmware/usbstack/ipod_sysinfo_photo.h): Finder then writes
+   each cover 176x176 in a 176x220 frame, turned a quarter anticlockwise, with
+   bars of 22 rows before and after it. Its 77440 bytes are fewer than the
+   FRAME_MAX * 2 the larger frames are told by, so it is told by its format. */
+#define LARGE_TURNED_FORMAT 1013
+#define large_format_turned(format) ((format) == LARGE_TURNED_FORMAT)
+#else
+#define large_format_turned(format) false
+#endif
 #define FRAME_MAX       (FRAME_SIDE * FRAME_SIDE) /* the iPod Video's largest covers */
 #define SMALL_FRAME_MAX (100 * 100)  /* what they are checked against */
 /* Cover Flow's slides, one an album, made after the import from the cover
@@ -5384,7 +5396,11 @@ static bool read_image(off_t pos, off_t end, struct art_image *image)
            reading isn't taken: its track's cover is decoded. */
         const uint32_t pitch = frames[i].width + frames[i].hpad;
         const uint32_t rows = frames[i].height + frames[i].vpad;
-        if (frames[i].size > FRAME_MAX * 2)
+        /* the photo's 1013 frame, as its fields have it: width 176, height
+           198, vpad 22, the picture 176x176 at row 22; taken square only, as
+           it is turned upright in place */
+        const bool turned = large_format_turned(frames[i].format);
+        if (frames[i].size > FRAME_MAX * 2 || turned)
         {
             const uint32_t width = frames[i].width - frames[i].hpad;
             const uint32_t height = frames[i].height - frames[i].vpad;
@@ -5392,6 +5408,7 @@ static bool read_image(off_t pos, off_t end, struct art_image *image)
                 && frames[i].hpad < frames[i].width && frames[i].hpad <= 255
                 && frames[i].vpad < frames[i].height && frames[i].vpad <= 255
                 && width >= 2 && height >= 2
+                && (!turned || width == height)
                 && width * height <= LARGE_PIXELS
                 && pitch <= 2 * LCD_WIDTH
                 && frames[i].size == pitch * rows * 2
@@ -6373,7 +6390,23 @@ bool itunesdb_find_large_art(const char *path, struct itunesdb_large_art *art)
     art->y = e.y;
     art->width = e.width;
     art->height = e.height;
-    return true;
+    art->turned = large_format_turned(large_hdr.format);
+    return art->width == art->height || !art->turned;
+}
+
+/* a square picture a quarter turn clockwise, in place: Finder's 1013 frames
+   upright */
+static void turn_square(fb_data *p, int n)
+{
+    for (int i = 0; i < n / 2; i++)
+        for (int j = i; j < n - 1 - i; j++)
+        {
+            const fb_data t = p[i * n + j];
+            p[i * n + j] = p[(n - 1 - j) * n + i];
+            p[(n - 1 - j) * n + i] = p[(n - 1 - i) * n + n - 1 - j];
+            p[(n - 1 - i) * n + n - 1 - j] = p[j * n + n - 1 - i];
+            p[j * n + n - 1 - i] = t;
+        }
 }
 
 int itunesdb_load_large_art(const struct itunesdb_large_art *art,
@@ -6407,6 +6440,13 @@ int itunesdb_load_large_art(const struct itunesdb_large_art *art,
     if (fd >= 0)
         close(fd);
     mutex_unlock(&art_lock);
+    if (ok && art->turned)
+    {
+        if (art->width == art->height)
+            turn_square(pixels, art->width);
+        else
+            ok = false;
+    }
     return ok ? (int)(art->width * art->height * sizeof(fb_data)) : -1;
 }
 
@@ -9383,6 +9423,7 @@ static bool find_large_slot(uint32_t slot, int frame_w, int frame_h,
     large->x = large->y = 0;
     large->width = lw;
     large->height = lh;
+    large->turned = false;
     return true;
 }
 
@@ -9673,6 +9714,7 @@ static bool finder_find_large(const char *path, const struct itunesdb_art *art,
     large->x = large->y = 0;
     large->width = lw;
     large->height = lh;
+    large->turned = false;
     return true;
 }
 
@@ -9858,7 +9900,7 @@ int itunesdb_finder_large_known(uint64_t path, uint32_t mtime,
                                 const struct itunesdb_art *art)
 {
     /* none to make: no room for the making, or Finder writes its own
-       larger frames, which it doesn't for an iPod photo's description */
+       larger frames (its 1013, as the photo's description lists it) */
     if (finder_handle <= 0 || itunesdb_has_large_art())
         return 1;
     const int i = finder_find(path);

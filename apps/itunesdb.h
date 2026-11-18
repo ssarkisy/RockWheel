@@ -285,6 +285,9 @@ struct itunesdb_large_art {
     char path[64];      /* its ithmb file */
     uint32_t offset;
     int pitch, x, y, width, height;
+    bool turned;        /* stored a quarter turn anticlockwise, as Finder
+                           stores the iPod photo's format 1013: load() turns
+                           it upright (square only) */
 };
 bool itunesdb_find_large_art(const char *path, struct itunesdb_large_art *art);
 /* That frame of the cover at art, whichever's it is, Finder's or one made on

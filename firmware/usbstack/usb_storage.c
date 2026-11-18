@@ -2006,6 +2006,80 @@ static bool ipod_xml_is_ours(void)
     v += 8;
     return !strncasecmp(v, guid, 16) && v[16] == '<';
 }
+
+/* The list after key in ipod_xml, from past its
+   <array> (*from) to its </array> (returned), with no list inside it; NULL
+   for any other shape */
+static const char *ipod_xml_list(const char *key, const char **from)
+{
+    const char *p = strstr(ipod_xml, key);
+    if(!p)
+        return NULL;
+    p += strlen(key);
+    while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
+        p++;
+    if(strncmp(p, "<array>", 7))
+        return NULL;
+    p += 7;
+    const char *close = strstr(p, "</array>");
+    const char *inner = strstr(p, "<array");
+    if(!close || (inner && inner < close))
+        return NULL;
+    *from = p;
+    return close;
+}
+
+/* The full-screen photo format 1013 in the AlbumArt list of the
+   description, as ImageSpecifications has it, byte for byte, at the list's
+   end, as the built-in one has it (ipod_sysinfo_photo.h): for a file read
+   from the disk, in memory only, the file left as it is. A list that has
+   it already, one of another shape, or no room, and it is as it was. */
+static void ipod_xml_add_cover_format(void)
+{
+    static const char key[] = "<key>1013</key>";
+    const char *from, *at, *to, *p;
+    at = ipod_xml_list("<key>AlbumArt</key>", &from);
+    if(!at)
+        return;
+    p = strstr(from, key);
+    if(p && p < at)
+        return;
+    p = strstr(from, "<integer>1013</integer>");
+    if(p && p < at)
+        return;
+    to = ipod_xml_list("<key>ImageSpecifications</key>", &from);
+    if(!to)
+        return;
+    const char *entry = strstr(from, key);
+    if(!entry || entry > to)
+        return;
+    p = entry + sizeof(key) - 1;
+    while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
+        p++;
+    if(strncmp(p, "<dict>", 6))
+        return;
+    const char *close = strstr(p + 6, "</dict>");
+    const char *inner = strstr(p + 6, "<dict");
+    if(!close || close > to || (inner && inner < close))
+        return;
+    /* with the space after it, up to the next entry or the list's end */
+    close += 7;
+    while(close < to && (*close == ' ' || *close == '\t' || *close == '\r'
+                         || *close == '\n'))
+        close++;
+    const int len = close - entry;
+    const int at_off = at - ipod_xml;
+    int entry_off = entry - ipod_xml;
+    if(ipod_xml_size + len > (int)sizeof(ipod_xml) - 1
+       || (entry_off < at_off && entry_off + len > at_off))
+        return;
+    memmove(ipod_xml + at_off + len, ipod_xml + at_off,
+            ipod_xml_size - at_off + 1);
+    if(entry_off >= at_off)
+        entry_off += len;
+    memcpy(ipod_xml + at_off, ipod_xml + entry_off, len);
+    ipod_xml_size += len;
+}
 #endif
 #endif /* IPOD_VIDEO || IPOD_COLOR */
 
@@ -2036,6 +2110,7 @@ bool usb_storage_load_ipod_xml(void)
         /* another iPod's file: this one's own description instead */
         if(!ipod_xml_is_ours() && !make_ipod_xml(IPOD_SYSCFG, 0))
             return false;
+        ipod_xml_add_cover_format();
 #endif
     }
 

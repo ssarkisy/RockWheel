@@ -5,7 +5,11 @@
    The full-screen photo is the format 1013 of Apple's firmware 1.0 (220x176
    turned, little-endian), which apps/plugins/photos.c reads, where 1.2.1
    and the disk mode have 1020 (big-endian). @SERIAL@, @GUID@ and
-   @UPDATER@ are the iPod's own. */
+   @UPDATER@ are the iPod's own.
+   1013 is in the AlbumArt list as well, as ImageSpecifications has it: Finder
+   then writes each song's cover 176x176 in such a frame, turned, with bars
+   beside it, which the main menu's pane shows as it is, sharp, with nothing
+   decoded on the iPod (apps/itunesdb.c, read_image()). */
 static const char ipod_xml_template[] =
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
 "<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
@@ -254,6 +258,29 @@ static const char ipod_xml_template[] =
 "<true/>\n"
 "<key>BackColor</key>\n"
 "<string>FFFFFFFF</string>\n"
+"</dict>\n"
+"<key>1013</key>\n"
+"<dict>\n"
+"<key>FormatId</key>\n"
+"<integer>1013</integer>\n"
+"<key>RenderWidth</key>\n"
+"<integer>176</integer>\n"
+"<key>RenderHeight</key>\n"
+"<integer>220</integer>\n"
+"<key>PixelFormat</key>\n"
+"<string>4C353635</string>\n"
+"<key>Interlaced</key>\n"
+"<false/>\n"
+"<key>ColorAdjustment</key>\n"
+"<integer>0</integer>\n"
+"<key>GammaAdjustment</key>\n"
+"<real>2.2</real>\n"
+"<key>Crop</key>\n"
+"<false/>\n"
+"<key>AlignRowBytes</key>\n"
+"<true/>\n"
+"<key>Rotation</key>\n"
+"<integer>270</integer>\n"
 "</dict>\n"
 "</array>\n"
 "<key>PodcastsSupported</key>\n"
