@@ -1,5 +1,6 @@
 <#
-Installs or updates RockWheel on an iPod Video (5th or 5.5th generation) from Windows.
+Installs or updates RockWheel on an iPod Video (5th or 5.5th generation) or an
+iPod photo from Windows.
 
     irm https://raw.githubusercontent.com/ssarkisy/RockWheel/main/install.ps1 | iex
 
@@ -35,15 +36,39 @@ param(
 
 $Repo = 'ssarkisy/RockWheel'
 $ReleaseUrl = "https://github.com/$Repo/releases/latest/download"
-# Rockbox's own bootloader, the one Rockbox Utility installs
-$Bootloader = 'bootloader-ipodvideo.ipod'
-$BootloaderSha256 = '19dfa0e930689f5afdeaae18f4c56b472cbed9c6c3a7039bb32b646d8040298f'
+# Each model's files in a release, and the bootloader this installer writes on
+# it, by its SHA-256 (the app's table, core/src/bootloaders.rs, has the same).
+# Apple's last firmware for it is the low byte of the main firmware's version:
+# RockWheel's bootloader needs it (on the photo's 1.0 it hung on Apple's logo).
+$Models = @{
+    # Rockbox's own bootloader, the one Rockbox Utility installs
+    Video = [pscustomobject]@{
+        Name = 'iPod Video'; Target = 'ipodvideo'; BootName = 'the Rockbox bootloader'
+        Firmware = 'rockbox.zip'; Bootloader = 'bootloader-ipodvideo.ipod'; Games = 'rockbox-games.zip'
+        BootloaderSha256 = '19dfa0e930689f5afdeaae18f4c56b472cbed9c6c3a7039bb32b646d8040298f'
+        Apple = 0x12; AppleName = '1.3'
+    }
+    # RockWheel's rw-bl2. Rockbox's v4.0 for it can't read a fragmented
+    # rockbox.ipod, so an iPod photo with v4.0 gets rw-bl2 in its place.
+    Photo = [pscustomobject]@{
+        Name = 'iPod photo'; Target = 'ipodcolor'; BootName = "RockWheel's bootloader"
+        Firmware = 'rockbox-ipodcolor.zip'; Bootloader = 'bootloader-ipodcolor.ipod'; Games = 'rockbox-games-ipodcolor.zip'
+        BootloaderSha256 = 'ff9f7be5a7c85832443ef188e8655de82249c84bf9c1f1202f9bdc8b01f4e1cc'
+        Apple = 0x13; AppleName = '1.2.1'
+    }
+}
+# What a bootloader on the photo is, by the SHA-256 of its bytes on the iPod:
+# v4.0 is replaced; RockWheel's own and any other are kept. Only one of
+# v4.0's length can be v4.0, so only such a one is read.
+$PhotoReplaced = '5c47d85d9d0346fcbb17ac2847ca5d97c1ef0cea055b6d1fd9778135be8aba6f'
+$PhotoReplacedLength = 49988
 # what RockWheel has and plain Rockbox hasn't
 $Marker = '.rockbox/wps/iClassic-Square/About Backdrop.bmp'
 
 $script:Work = ''
 $script:Files = ''
 $script:Patcher = ''
+$script:Model = $null
 
 function Say([string]$Text) { Write-Host $Text }
 function Step([string]$Text) { Write-Host ''; Write-Host "==> $Text" }
@@ -68,26 +93,42 @@ function Would([string]$Text) {
 
 # --- the files ---------------------------------------------------------------
 
-function Get-Release([string]$Name, [switch]$Optional) {
+# a file of the release; -Missing is added to the error when the release
+# hasn't it (404), not when the download itself failed
+function Get-Release([string]$Name, [switch]$Optional, [string]$Missing = '') {
     $out = Join-Path $script:Files $Name
+    # Windows PowerShell 5.1 offers older TLS first, and its progress bar
+    # makes a download many times slower
+    [Net.ServicePointManager]::SecurityProtocol = `
+        [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    $ProgressPreference = 'SilentlyContinue'
     try {
         Invoke-WebRequest -UseBasicParsing -Uri "$ReleaseUrl/$Name" -OutFile $out
         return $true
     } catch {
+        $code = 0
+        try { $code = [int]$_.Exception.Response.StatusCode } catch { $code = 0 }
         Remove-Item -LiteralPath $out -ErrorAction SilentlyContinue
         if ($Optional) { return $false }
+        if ($code -eq 404) { Die "Couldn't download $Name from $ReleaseUrl$Missing" }
         Die "Couldn't download $Name from $ReleaseUrl"
     }
 }
 
-# each of the files against its line in a list of checksums, as shasum -c reads it
-function Test-Sums([string]$SumsName, [string[]]$Names) {
+# a list of checksums, as shasum -c reads it: the checksum by the name
+function Get-Sums([string]$SumsName) {
     $sums = @{}
     foreach ($line in Get-Content -LiteralPath (Join-Path $script:Files $SumsName)) {
         if ($line -match '^([0-9a-fA-F]{64})\s+\*?(.+)$') {
             $sums[$Matches[2].Trim()] = $Matches[1].ToLowerInvariant()
         }
     }
+    return $sums
+}
+
+# each of the files against its line in a list of checksums
+function Test-Sums([string]$SumsName, [string[]]$Names) {
+    $sums = Get-Sums $SumsName
     foreach ($n in $Names) {
         $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $script:Files $n)).Hash.ToLowerInvariant()
         if (-not $sums.ContainsKey($n) -or $sums[$n] -ne $hash) {
@@ -96,38 +137,71 @@ function Test-Sums([string]$SumsName, [string[]]$Names) {
     }
 }
 
-function Get-Files {
+# ipodpatcher.exe first, which reads the iPod's model: the rest of the files
+# are that model's (Get-ModelFiles)
+function Get-Patcher {
     Step 'Getting the files'
     if ($From) {
         $script:Files = (Resolve-Path -LiteralPath $From).Path
     } else {
         $script:Files = $script:Work
-        # Windows PowerShell 5.1 offers older TLS first, and its progress bar
-        # makes a download many times slower
-        [Net.ServicePointManager]::SecurityProtocol = `
-            [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-        $ProgressPreference = 'SilentlyContinue'
-        foreach ($f in @('rockbox.zip', 'ipodpatcher.exe', $Bootloader, 'SHA256SUMS', 'SHA256SUMS-windows')) {
+        foreach ($f in @('ipodpatcher.exe', 'SHA256SUMS-windows', 'SHA256SUMS')) {
             Say "    $f"
             Get-Release $f | Out-Null
         }
-        Test-Sums 'SHA256SUMS' @('rockbox.zip', $Bootloader)
         Test-Sums 'SHA256SUMS-windows' @('ipodpatcher.exe')
-        # the games, with a checksum of their own; a release without them is
-        # only asked nothing about them
-        if ((Get-Release 'rockbox-games.zip' -Optional) -and (Get-Release 'SHA256SUMS-games' -Optional)) {
-            Say '    rockbox-games.zip'
-            Test-Sums 'SHA256SUMS-games' @('rockbox-games.zip')
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $script:Files 'ipodpatcher.exe'))) { Die "ipodpatcher.exe is missing from $($script:Files)" }
+    $script:Patcher = Join-Path $script:Files 'ipodpatcher.exe'
+}
+
+# The text of a file in a zip; '' when it hasn't that file or isn't a zip
+function Get-ZipText([string]$Zip, [string]$Name) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    try { $z = [IO.Compression.ZipFile]::OpenRead($Zip) } catch { return '' }
+    try {
+        $e = $z.GetEntry($Name)
+        if (-not $e) { return '' }
+        $r = New-Object IO.StreamReader ($e.Open())
+        try { return $r.ReadToEnd() } finally { $r.Dispose() }
+    } catch {
+        return ''
+    } finally {
+        $z.Dispose()
+    }
+}
+
+# The model's firmware, bootloader and games, each by its line in the
+# checksum files: a release lists both models' files, and only this model's
+# are downloaded. The games have a checksum file of their own; a release
+# without them is only asked nothing about them.
+function Get-ModelFiles {
+    $m = $script:Model
+    if (-not $From) {
+        Step "Getting RockWheel for the $($m.Name)"
+        $missing = ": this release may have no RockWheel for the $($m.Name)."
+        $listed = Get-Sums 'SHA256SUMS'
+        foreach ($f in @($m.Firmware, $m.Bootloader)) {
+            if (-not $listed.ContainsKey($f)) { Die "$f isn't in this release's SHA256SUMS$missing" }
+            Say "    $f"
+            Get-Release $f -Missing $missing | Out-Null
+            Test-Sums 'SHA256SUMS' @($f)
+        }
+        if ((Get-Release $m.Games -Optional) -and (Get-Release 'SHA256SUMS-games' -Optional)) {
+            Say "    $($m.Games)"
+            Test-Sums 'SHA256SUMS-games' @($m.Games)
         } else {
-            Remove-Item -LiteralPath (Join-Path $script:Files 'rockbox-games.zip') -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath (Join-Path $script:Files $m.Games) -ErrorAction SilentlyContinue
         }
     }
-    foreach ($f in @('rockbox.zip', 'ipodpatcher.exe', $Bootloader)) {
+    foreach ($f in @($m.Firmware, $m.Bootloader)) {
         if (-not (Test-Path -LiteralPath (Join-Path $script:Files $f))) { Die "$f is missing from $($script:Files)" }
     }
-    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $script:Files $Bootloader)).Hash.ToLowerInvariant()
-    if ($hash -ne $BootloaderSha256) { Die "$Bootloader isn't the bootloader this installer expects." }
-    $script:Patcher = Join-Path $script:Files 'ipodpatcher.exe'
+    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $script:Files $m.Bootloader)).Hash.ToLowerInvariant()
+    if ($hash -ne $m.BootloaderSha256) { Die "$($m.Bootloader) isn't the bootloader this installer expects." }
+    # the firmware's own word on the player it is for
+    $info = Get-ZipText (Join-Path $script:Files $m.Firmware) '.rockbox/rockbox-info.txt'
+    if ($info -notmatch "(?m)^Target: $($m.Target)\r?$") { Die "$($m.Firmware) isn't RockWheel for the $($m.Name)." }
 }
 
 # --- the iPod ----------------------------------------------------------------
@@ -188,8 +262,10 @@ function Invoke-Patcher([int]$DiskNumber, [string[][]]$Runs) {
     return [pscustomobject]@{ ExitCode = $p.ExitCode; Output = $text }
 }
 
+# What ipodpatcher's --list says, -v adding the firmware partition's directory
+# as it read it: the main firmware's version (Apple's, in its low byte)
 function Read-IPod([int]$DiskNumber) {
-    $r = Invoke-Patcher $DiskNumber @(, @('--list'))
+    $r = Invoke-Patcher $DiskNumber @(, @('-v', '--list'))
     $model = ''
     $kind = ''
     if ($r.Output -match 'iPod model: (.*) \("([a-z]*pod)"\)') {
@@ -200,21 +276,138 @@ function Read-IPod([int]$DiskNumber) {
         Say ($r.Output -split "`n" | Select-Object -Last 5 | Out-String)
         Die 'ipodpatcher.exe does not recognise this disk as an iPod. Close any File Explorer window on the iPod and run this again.'
     }
+    $sector = 512
+    if ($r.Output -match 'Sector size is (\d+) bytes') { $sector = [int]$Matches[1] }
+    # its fields: id, devOffset, len, addr, entryOffset, chksum, vers, ...
+    $version = $null
+    if ($r.Output -match '(?m)^\d+ - OSOS((?:\s+0x[0-9a-fA-F]+){7})') {
+        $version = [Convert]::ToUInt32(($Matches[1].Trim() -split '\s+')[6], 16)
+    }
+    $bootBytes = 0
+    if ($r.Output -match 'Third-party bootloader - (\d+) bytes') { $bootBytes = [long]$Matches[1] }
     return [pscustomobject]@{
         Model = $model
         Kind = $kind
         HasBootloader = ($r.Output -match 'Third-party bootloader')
+        BootloaderBytes = $bootBytes
+        Version = $version
+        SectorSize = $sector
     }
 }
 
-function Add-Bootloader([int]$DiskNumber) {
+# What went wrong, as ipodpatcher said it: its [ERR] lines, or else its last ones
+function Show-PatcherError([string]$Output) {
+    $lines = @($Output -split '\r?\n' | Where-Object { $_ -match '^\[ERR\]' })
+    if ($lines.Count -eq 0) { $lines = @($Output -split '\r?\n' | Where-Object { $_.Trim() } | Select-Object -Last 5) }
+    Say ''
+    foreach ($l in $lines) { Say "    $l" }
+}
+
+# What ipodpatcher's model is to this installer: its files, its target, its name
+function Select-Model([string]$Name) {
+    if ($Name -match 'Video') { return $Models.Video }
+    if ($Name -match 'Photo/Color') { return $Models.Photo }
+    Die "This isn't an iPod Video or an iPod photo, the models RockWheel supports."
+}
+
+function Get-Sha256([byte[]]$Bytes, [int]$Offset = 0) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha.ComputeHash($Bytes, $Offset, $Bytes.Length - $Offset)) -replace '-', '').ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+    }
+}
+
+# <count> bytes of a file from <at>, or a stop with <why>
+function Read-Bytes($Stream, [long]$At, [long]$Count, [string]$Why) {
+    $b = New-Object byte[] $Count
+    $Stream.Position = $At
+    $n = 0
+    while ($n -lt $Count) {
+        $k = $Stream.Read($b, $n, $Count - $n)
+        if ($k -le 0) { Die $Why }
+        $n += $k
+    }
+    return , $b
+}
+
+# The firmware partition's directory as ipodpatcher reads it, in the copy of
+# the partition its --read-partition makes (deleted here): the bootloader in
+# the main firmware, by the SHA-256 of its bytes ('' for none)
+function Get-BootloaderHash([string]$Copy, [int]$Sector, [string]$Why) {
+    if (-not (Test-Path -LiteralPath $Copy -PathType Leaf)) { Die $Why }
+    $s = [IO.File]::OpenRead($Copy)
+    try {
+        $head = Read-Bytes $s 0 $Sector $Why
+        if ([Text.Encoding]::ASCII.GetString($head, 0x100, 4) -ne ']ih[') { Die $Why }
+        $dir = Read-Bytes $s ([long][BitConverter]::ToUInt32($head, 0x104) + 0x200) 400 $Why
+        for ($i = 0; $i -lt 10; $i++) {
+            $e = 40 * $i
+            if ([Text.Encoding]::ASCII.GetString($dir, $e, 4) -ne '!ATA') { break }
+            if ([Text.Encoding]::ASCII.GetString($dir, $e + 4, 4) -ne 'soso') { continue }
+            $dev = [long][BitConverter]::ToUInt32($dir, $e + 12)
+            $len = [long][BitConverter]::ToUInt32($dir, $e + 16)
+            $entry = [long][BitConverter]::ToUInt32($dir, $e + 24)
+            if ($entry -le 0 -or $len -le $entry) { return '' }
+            # an image's data is a sector past the partition's start
+            if ($Sector + $dev + $len -gt $s.Length) { Die $Why }
+            return Get-Sha256 (Read-Bytes $s ($Sector + $dev + $entry) ($len - $entry) $Why)
+        }
+    } finally {
+        $s.Dispose()
+        Remove-Item -LiteralPath $Copy -ErrorAction SilentlyContinue
+    }
+    Die $Why
+}
+
+# The bootloader on the iPod, by the SHA-256 of its bytes
+function Read-Bootloader([int]$DiskNumber, [int]$Sector) {
+    $copy = Join-Path $script:Work 'firmware-partition.bin'
+    Invoke-Patcher $DiskNumber @(, @('--read-partition', $copy)) | Out-Null
+    return Get-BootloaderHash $copy $Sector "Couldn't read the iPod's firmware directory."
+}
+
+# RockWheel's bootloader needs Apple's last firmware for the iPod. Checked
+# before a bootloader is written, not before an update of the files.
+function Test-AppleFirmware($Version) {
+    $m = $script:Model
+    if ($null -eq $Version) { Die "Couldn't read the iPod's firmware directory." }
+    $low = $Version -band 0xff
+    if ($low -ge $m.Apple) { return }
+    $has = '0x{0:x4}' -f $Version
+    if ($m.Target -eq 'ipodcolor' -and $low -eq 0) { $has = '1.0' }
+    Die "This iPod has Apple's software $has, and RockWheel needs $($m.AppleName). Select the iPod in iTunes and click Update on its Summary page, not Restore: Update keeps your music. Then run this again. Nothing was changed."
+}
+
+function Add-Bootloader([int]$DiskNumber, [int]$Sector) {
+    $m = $script:Model
     Step 'Installing the bootloader'
-    if (Would 'add the Rockbox bootloader to the firmware partition, keeping the stock firmware') { return }
+    if (Would "add $($m.BootName) to the firmware partition, keeping the stock firmware") { return }
+    $file = Join-Path $script:Files $m.Bootloader
+    $copy = Join-Path $script:Work 'firmware-partition.bin'
     $r = Invoke-Patcher $DiskNumber @(
-        @('--add-bootloader', (Join-Path $script:Files $Bootloader)),
-        @('--list'))
-    if ($r.ExitCode -ne 0) { Die 'Installing the bootloader failed. Close any File Explorer window on the iPod and run this again.' }
-    if ($r.Output -notmatch 'Third-party bootloader') { Die "The bootloader didn't end up on the iPod." }
+        @('--add-bootloader', $file),
+        @('--list'),
+        @('--read-partition', $copy))
+    # ipodpatcher answers 0 also when it couldn't write it; when it couldn't
+    # reach the disk, it answers otherwise and goes no further
+    if ($r.Output -match '--add-bootloader failed') {
+        Show-PatcherError $r.Output
+        Die 'Installing the bootloader failed.'
+    }
+    if ($r.ExitCode -ne 0 -and $r.Output -notmatch 'Third-party bootloader') {
+        Show-PatcherError $r.Output
+        Die 'Installing the bootloader failed. Close any File Explorer window on the iPod and run this again.'
+    }
+    if ($r.Output -notmatch 'Third-party bootloader') {
+        Show-PatcherError $r.Output
+        Die "The bootloader didn't end up on the iPod."
+    }
+    # the one written, by its bytes on the iPod (the file less its 8-byte header)
+    $on = Get-BootloaderHash $copy $Sector ("The bootloader is on the iPod, but it couldn't be read back to check it. " +
+        "RockWheel's files aren't on the iPod yet: run the installer again to finish.")
+    if ($on -ne (Get-Sha256 ([IO.File]::ReadAllBytes($file)) 8)) { Die "The bootloader on the iPod isn't the one written." }
 }
 
 # a zip into the iPod: each file put in place, replacing the one there
@@ -270,12 +463,12 @@ function Test-Room([string]$Zip, [string]$Root, [bool]$Moving) {
 function Confirm-Room([string]$Root) {
     if ($DryRun) { return }
     $moving = (Test-Path -LiteralPath (Join-Path $Root '.rockbox')) -and -not (Test-Path -LiteralPath (Get-IPodPath $Root $Marker))
-    Test-Room (Join-Path $script:Files 'rockbox.zip') $Root $moving
+    Test-Room (Join-Path $script:Files $script:Model.Firmware) $Root $moving
 }
 
 function Copy-Firmware([string]$Root) {
     Step 'Copying the firmware'
-    if (Would 'copy the files of rockbox.zip to the iPod') { return }
+    if (Would "copy the files of $($script:Model.Firmware) to the iPod") { return }
     # Plain Rockbox's settings and database don't carry over
     $rockbox = Join-Path $Root '.rockbox'
     if ((Test-Path -LiteralPath $rockbox) -and -not (Test-Path -LiteralPath (Get-IPodPath $Root $Marker))) {
@@ -283,14 +476,14 @@ function Copy-Firmware([string]$Root) {
         try { Rename-Item -LiteralPath $rockbox -NewName $old } catch { Die "Couldn't move the old .rockbox folder aside." }
         Say "    Your previous Rockbox folder is now $old on the iPod."
     }
-    try { Expand-Into (Join-Path $script:Files 'rockbox.zip') $Root } catch { Die 'Copying failed. Is the iPod full?' }
+    try { Expand-Into (Join-Path $script:Files $script:Model.Firmware) $Root } catch { Die 'Copying failed. Is the iPod full?' }
 }
 
 # Rockbox's games for Extras > Games, in an archive of their own: asked about
 # while they aren't on the iPod, then kept up to date with the firmware. A no is
 # kept in a file on the iPod, so that an update doesn't ask again.
 function Copy-Games([string]$Root) {
-    $zip = Join-Path $script:Files 'rockbox-games.zip'
+    $zip = Join-Path $script:Files $script:Model.Games
     if (-not (Test-Path -LiteralPath $zip)) {    # a release or -From folder without them
         if ($Games -or $NoGames) { Say ''; Say '    There are no games with this release, so they were left as they are.' }
         return
@@ -313,7 +506,7 @@ function Copy-Games([string]$Root) {
 
     if ($NoGames) {
         Step 'Taking the extra games off the iPod'
-        if (Would "remove the $count games of Extras > Games that came with rockbox-games.zip") { return }
+        if (Would "remove the $count games of Extras > Games that came with $($script:Model.Games)") { return }
         foreach ($f in $files) { Remove-Item -LiteralPath (Get-IPodPath $Root $f) -ErrorAction SilentlyContinue }
         New-Item -ItemType File -Force -Path $declined | Out-Null
         return
@@ -338,14 +531,14 @@ function Copy-Games([string]$Root) {
         }
     }
     Step 'Copying the games'
-    if (Would 'copy the files of rockbox-games.zip to the iPod') { return }
+    if (Would "copy the files of $($script:Model.Games) to the iPod") { return }
     try { Expand-Into $zip $Root } catch { Die 'Copying the games failed. Is the iPod full?' }
     Remove-Item -LiteralPath $declined -ErrorAction SilentlyContinue
 }
 
 # --- playlist folders ----------------------------------------------------------
 
-# iTunes leaves playlist folders out of what it syncs to an iPod Video. It
+# iTunes leaves playlist folders out of what it syncs to these iPods. It
 # knows them, by the same persistent IDs the iPod's database has for the
 # playlists: a line for each folder and for each playlist in one, which
 # RockWheel reads at the import after a sync.
@@ -427,7 +620,7 @@ function Invoke-Install {
     $ErrorActionPreference = 'Stop'
     # the names of folders in any alphabet; a console that can't, as the ISE, keeps its own
     try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
-    Step 'RockWheel for iPod Video'
+    Step 'RockWheel for iPod Video and iPod photo'
     if ($DryRun) { Say 'This is a dry run: nothing on the iPod is changed.' }
     Say 'People run it on iPods with flash cards, SD card adapters and the original hard'
     Say 'drive. Details are in the README.'
@@ -443,7 +636,7 @@ function Invoke-Install {
         return
     }
 
-    Get-Files
+    Get-Patcher
 
     Step 'Looking for the iPod'
     $disk = Find-IPod
@@ -455,7 +648,7 @@ function Invoke-Install {
     Say "reach the iPod's disk directly."
     $ipod = Read-IPod $disk.Index
     Say "Model: $($ipod.Model), $($ipod.Kind)."
-    if ($ipod.Model -notmatch 'Video') { Die "This isn't an iPod Video, which is the only model RockWheel supports." }
+    $script:Model = Select-Model $ipod.Model
 
     if ($Uninstall) {
         if (-not $ipod.HasBootloader) { Die 'No bootloader is installed on this iPod.' }
@@ -463,8 +656,12 @@ function Invoke-Install {
         $r = Read-Host 'The iPod will start its stock firmware again. Type yes to go on'
         if ($r -ne 'yes') { Die 'Stopped. Nothing was changed.' }
         if (-not (Would 'remove the bootloader')) {
-            $res = Invoke-Patcher $disk.Index @(, @('--delete-bootloader'))
-            if ($res.ExitCode -ne 0) { Die 'Removing the bootloader failed.' }
+            # ipodpatcher answers 0 also when it couldn't remove it
+            $res = Invoke-Patcher $disk.Index @(@('--delete-bootloader'), @('--list'))
+            if ($res.ExitCode -ne 0 -or $res.Output -match 'Third-party bootloader') {
+                Show-PatcherError $res.Output
+                Die 'Removing the bootloader failed.'
+            }
         }
         if ($letter) { Eject-IPod $letter }
         Say 'Done. The .rockbox folder is still on the iPod and can be deleted from File Explorer.'
@@ -487,15 +684,31 @@ function Invoke-Install {
         Die 'Stopped. Nothing was changed.'
     }
 
+    Get-ModelFiles
+
+    # The bootloader to write: none there yet, or (the photo) Rockbox's v4.0 in
+    # place of RockWheel's. Apple's last firmware is checked first, before
+    # anything changes.
+    $write = -not $ipod.HasBootloader
+    if (-not $write -and $script:Model.Target -eq 'ipodcolor' -and $ipod.BootloaderBytes -eq $PhotoReplacedLength) {
+        Say ''
+        Say 'Windows will ask again, to read the bootloader on the iPod.'
+        $write = ((Read-Bootloader $disk.Index $ipod.SectorSize) -eq $PhotoReplaced)
+    }
+    if ($write) { Test-AppleFirmware $ipod.Version }
+
     $root = "$letter\"
-    $fresh = -not $ipod.HasBootloader
     Confirm-Room $root
-    if ($ipod.HasBootloader) {
+    if (-not $write) {
         Say ''
         Say 'The bootloader is already installed, so this only updates the firmware files.'
         Say 'Settings, the library and play counts on the iPod are kept.'
     } else {
-        Add-Bootloader $disk.Index
+        if ($ipod.HasBootloader) {
+            Say ''
+            Say "Rockbox's bootloader v4.0 is on this iPod photo: RockWheel's takes its place."
+        }
+        Add-Bootloader $disk.Index $ipod.SectorSize
     }
     Copy-Firmware $root
     Copy-Games $root
@@ -506,13 +719,17 @@ function Invoke-Install {
         return
     }
     Step 'Done'
-    if ($fresh) {
+    if ($write) {
         Say "1. Unplug the iPod. If it doesn't restart by itself, hold Menu and Select until it does."
         Say '2. Connect it again. It appears in iTunes as an iPod: sync your music from there.'
         Say "   Don't choose Restore in iTunes. That erases the iPod and removes RockWheel."
         Say '3. Unplug it. The library comes in while the progress bar runs.'
         Say ''
-        Say "To start the stock firmware instead, for video, turn the Hold switch on while it boots."
+        if ($script:Model.Target -eq 'ipodcolor') {
+            Say 'To start the stock firmware instead, turn the Hold switch on while it boots.'
+        } else {
+            Say "To start the stock firmware instead, for video, turn the Hold switch on while it boots."
+        }
     } else {
         Say 'Unplug the iPod. It restarts into the new firmware by itself.'
     }
