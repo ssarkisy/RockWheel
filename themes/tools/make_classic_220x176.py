@@ -35,7 +35,7 @@ LIGHT = os.path.join(SRC, "wps", "iClassic-Square")
 W, H = 220, 176
 
 # as the skins of this screen have them (220x176/.rockbox/wps/iClassic-Square.wps)
-ART = (9, 31, 105, 127)         # the cover's place, 96 px
+ART = (4, 31, 100, 127)         # the cover's place, 96 px, at the lists' edge
 REFLECTION_ROWS = 14            # %Cr(14,128)
 BAR_X, BAR_Y, BAR_W = 40, 143, 140
 # the 320x240 theme's trough, its bar's 14 rows and the reflection's under

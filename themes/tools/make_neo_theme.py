@@ -75,6 +75,7 @@ VIDEO = dict(
     OUT=os.path.join(HERE, "..", "Neo", ".rockbox", "wps"),
     STATUS=20,              # the status line's rows; the hairline is the next
     MARGIN=14,              # the sides': the clock's start, the glyphs' end
+    NP_MARGIN=14,           # Now Playing's
     # the status line's sides, and the list's width beside the pane (the
     # iPod photo's: its narrow sides, ui_theme.c)
     SBS_MARGIN=10, HALF_W=158,
@@ -133,12 +134,15 @@ PHOTO = dict(
     W=220, H=176,
     OUT=os.path.join(HERE, "..", "Neo", "220x176", ".rockbox", "wps"),
     STATUS=15, MARGIN=10, SBS_MARGIN=4, HALF_W=109,
+    # Now Playing's sides at the lists' edge (the screen is small, the
+    # margins took the text's room); its status line's at MARGIN
+    NP_MARGIN=6,
     LIST_TOP=16, LIST_ROWS=160,
     TEXT_Y=1, CELL=14, FOOT=12, GAP=5, PCT_GAP=2,
     CLOCK_W=48,
     TITLE_X=58, TITLE_W=104,
     NP_TITLE_X=62, NP_TITLE_W=96,
-    COVER=96, COVER_Y=28, COL_GAP=10,
+    COVER=96, COVER_Y=28, COL_GAP=8,
     BAR_Y=142, TIMES_Y=154,
     REFLECTION=14,
     REFLECTS=(REFLECT_LIGHT_220, REFLECT_DARK_220),
@@ -751,7 +755,7 @@ def wps():
     volume_w = SIZES["Volume_Bar"][0]
     if W != 320:
         # the capsules make_theme_glyphs.py made for this screen
-        bar_w = W - 2 * MARGIN
+        bar_w = W - 2 * NP_MARGIN
         volume_w = VOLUME_BAR
         for name, width in (("Bar", bar_w), ("Volume", volume_w)):
             with open(os.path.join(OUT, "Neo", name + " Track.bmp"), "rb") as f:
@@ -763,9 +767,9 @@ def wps():
     right_x = volume_x + volume_w + 6 - 1
     r, r_rtl = frames("G", ratings[2]), frames("g", ratings[2])
     t, t_rtl = frames("T", stars[2]), frames("t", stars[2])
-    grid = W - 2 * MARGIN
-    col = MARGIN + COVER + COL_GAP
-    col_w = W - MARGIN - col
+    grid = W - 2 * NP_MARGIN
+    col = NP_MARGIN + COVER + COL_GAP
+    col_w = W - NP_MARGIN - col
 
     # each line of the block: its viewport's font and colour, and its text
     line = {
@@ -847,7 +851,7 @@ def wps():
     # (%mm: off, all, one, shuffle, A-B)
     rep = frames("R", repeat[2])
     shuf = "%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>"
-    mode1_x = W - MARGIN - repeat[0]
+    mode1_x = W - NP_MARGIN - repeat[0]
     mode2_x = mode1_x - GAP - shuffle[0]
     mode_vps = "\n".join([
         "%%Vl(mode1,%d,%d,%d,%d,-)" % (mode1_x, MODES_Y, repeat[0], repeat[1]),
@@ -856,9 +860,9 @@ def wps():
         "%%?mm<|%s>" % "|".join([shuf] * 4)])
 
     # the firmware's ART_SPILL round the cover, on the screen
-    spill_x, spill_y = max(MARGIN - 12, 0), max(COVER_Y - 12, STATUS + 1)
+    spill_x, spill_y = max(NP_MARGIN - 12, 0), max(COVER_Y - 12, STATUS + 1)
     # %rr: none, then by half stars; the rating view has whole stars
-    text = fill(WPS, fonts=fonts(WPS_FONTS), images=images(True), vps=vps, margin=MARGIN,
+    text = fill(WPS, fonts=fonts(WPS_FONTS), images=images(True), vps=vps, margin=NP_MARGIN,
                 np_vps=np_vps, np_show=np_show,
                 text_y=TEXT_Y, w=W, cell=CELL, clock_w=CLOCK_W, np_title_x=NP_TITLE_X,
                 np_title_w=NP_TITLE_W, time_w=TIME_W, time_rows=TIME_ROWS, big=BIG,
@@ -867,19 +871,19 @@ def wps():
                 show_modes="%Vd(mode1)%Vd(mode2)", mode_vps=mode_vps,
                 reflection=REFLECTION,
                 cover=COVER, cover_y=COVER_Y, spill_x=spill_x, spill_y=spill_y,
-                spill_w=MARGIN + COVER + 12 - spill_x,
+                spill_w=NP_MARGIN + COVER + 12 - spill_x,
                 spill_h=COVER_Y + COVER + REFLECTION - spill_y,
                 col=col, col_w=col_w, grid=grid, title_h=2 * TITLE_LINE,
                 noart_x=(COVER - note[0]) // 2, noart_y=(COVER - note[1]) // 2,
                 ratings_n=ratings[2], ratings_rtl_x=col_w + 2 - ratings[0],
-                bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (MARGIN, bar_w, bar_h),
+                bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (NP_MARGIN, bar_w, bar_h),
                 volume_bar="%d,0,%d,%d,Volume Fill.bmp,backdrop,W" % (
                     volume_x, volume_w, bar_h),
                 # the speeds' rows from the bar, but on the screen: a skin
                 # with a viewport past its foot doesn't load at all
                 lyrics_h=BAR_Y - 5 - LYRICS_Y, speed_y=min(BAR_Y - 3, H - SPEED_H),
-                bar_y=BAR_Y, bar_h=bar_h, times_y=TIMES_Y, times_right=W - MARGIN - TIME_W,
-                under_x=MARGIN + TIME_W + 4, under_w=grid - 2 * (TIME_W + 4),
+                bar_y=BAR_Y, bar_h=bar_h, times_y=TIMES_Y, times_right=W - NP_MARGIN - TIME_W,
+                under_x=NP_MARGIN + TIME_W + 4, under_w=grid - 2 * (TIME_W + 4),
                 marks_y=BAR_Y + 1, left_x=left_x, left_w=left[0], left_h=left[1],
                 right_x=right_x, right_w=right[0], right_h=right[1],
                 stars_n=stars[2], stars_x=(W - stars[0]) // 2, stars_w=stars[0],

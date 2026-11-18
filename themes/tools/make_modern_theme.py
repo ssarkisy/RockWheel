@@ -66,6 +66,7 @@ VIDEO = dict(
     OUT=os.path.join(HERE, "..", "Modern", ".rockbox", "wps"),
     STATUS=24,              # the status bar's rows, the last its hairline
     MARGIN=12,              # the sides'
+    NP_MARGIN=12,           # and Now Playing's
     # to the screen's foot, whole rows of either kind: seven of 30, or six of
     # the 35 a row of two lines has (apps/gui/ui_theme.c)
     LIST_TOP=30, LIST_ROWS=210,
@@ -107,8 +108,10 @@ VIDEO = dict(
 # under it, or five of 32 with a second line, whole rows of either kind
 # (apps/gui/ui_theme.c); Now Playing's
 # cover 96 px, 10 rows under the hairline, its reflection 14, the bar 4 under
-# it and the times 10 over the foot. The glyphs are the Video's, at their own
-# sizes; the bars are made for this width (make_modern_glyphs.py)
+# it and the times 10 over the foot, at the lists' edge of 7 px (NP_MARGIN:
+# the screen is small, the margins took the text's room). The glyphs are the
+# Video's, at their own sizes; the bars are made for this width
+# (make_modern_glyphs.py)
 PHOTO = dict(
     W=220, H=176,
     OUT=os.path.join(HERE, "..", "Modern", "220x176", ".rockbox", "wps"),
@@ -119,10 +122,10 @@ PHOTO = dict(
     GLYPH_GAPS=(8, 5), PCT_GAP=2,
     CLOCK_W=44,
     TITLE_X=60, TITLE_W=100,
-    COVER_TOP=26, COVER=96,
+    NP_MARGIN=7, COVER_TOP=26, COVER=96,
     REFLECTION=14,
     REFLECTS=(REFLECT_LIGHT_220, REFLECT_DARK_220),
-    COL=116,
+    COL=111,
     TITLE_ROWS=15,          # 15-Inter-SemiBold
     ARTIST_ROWS=15,         # 15-Inter-Medium
     SMALL_ROWS=14,          # 14-Inter-Medium
@@ -764,6 +767,7 @@ def np_status():
 
 
 def wps():
+    M = NP_MARGIN
     vps, show = status()
     pvps, pshow = pct_status(WPS_FONTS[0])
     vps = vps + "\n" + pvps
@@ -776,14 +780,14 @@ def wps():
     thick_w, thick_h, _ = SIZES["Thick_Bar"]
     if W != 320:
         # the bars make_modern_glyphs.py made for this screen
-        bar_w = thick_w = W - 2 * MARGIN
+        bar_w = thick_w = W - 2 * M
         for name in ("Bar", "Thick Bar"):
             with open(os.path.join(OUT, "Modern", name + " Track.bmp"), "rb") as f:
                 assert struct.unpack_from("<i", f.read(26), 18)[0] == bar_w, name
     repeat, shuffle = SIZES["Repeat"], SIZES["Shuffle"]
     r, r_rtl = frames("G", ratings[2]), frames("g", ratings[2])
     t, t_rtl = frames("T", stars[2]), frames("t", stars[2])
-    col_w = W - MARGIN - COL
+    col_w = W - M - COL
 
     # each line of the block: its viewport's font and colour, and its text
     line = {
@@ -851,7 +855,7 @@ def wps():
     # (%mm: off, all, one, shuffle, A-B)
     rep = frames("R", repeat[2])
     shuf = "%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>"
-    mode1_x = W - MARGIN - repeat[0]
+    mode1_x = W - M - repeat[0]
     mode2_x = mode1_x - 7 - shuffle[0]
     mode_vps = "\n".join([
         "%%Vl(mode1,%d,%d,%d,%d,-)" % (mode1_x, MODES_Y, repeat[0], repeat[1]),
@@ -859,32 +863,32 @@ def wps():
         "%%Vl(mode2,%d,%d,%d,%d,-)" % (mode2_x, MODES_Y, shuffle[0], shuffle[1]),
         "%%?mm<|%s>" % "|".join([shuf] * 4)])
 
-    grid = W - 2 * MARGIN
+    grid = W - 2 * M
     reflection_foot = COVER_TOP + COVER + REFLECTION
     # as far round the cover's place as a turned one goes (ART_SPILL in
     # skin_display.c), under the status bar
-    spill_x, spill_y = max(MARGIN - 12, 0), max(COVER_TOP - 12, STATUS)
+    spill_x, spill_y = max(M - 12, 0), max(COVER_TOP - 12, STATUS)
     speed_y = reflection_foot
     return fill(WPS, fonts=fonts(WPS_FONTS), w=W, cover=COVER, clock_w=CLOCK_W,
                 np_vps=np_vps, np_show=np_show,
                 title_x=TITLE_X, title_w=TITLE_W, time_w=TIME_W, volume_x=VOLUME_X,
                 volume_w=VOLUME_W, big=BIG, big_x=BIG_X, big_y=BIG_Y, grid=grid,
                 lyrics_y=LYRICS_Y, lyrics_h=LYRICS_H, thick_y=THICK_Y,
-                lowtime_w=LOWTIME_W, lowtimes_right=W - MARGIN - LOWTIME_W,
-                images=images(), show=show, vps=vps, margin=MARGIN,
+                lowtime_w=LOWTIME_W, lowtimes_right=W - M - LOWTIME_W,
+                images=images(), show=show, vps=vps, margin=M,
                 text_y=TEXT_Y, bar_rows=STATUS - 1, block=block,
                 block_vps="\n".join(block_vps), show_modes="%Vd(mode1)%Vd(mode2)",
                 mode_vps=mode_vps, repeat_n=repeat[2], shuffle_n=shuffle[2],
                 cover_top=COVER_TOP, star_shift=STAR_SHIFT,
                 reflection=REFLECTION,
-                spill_x=spill_x, spill_y=spill_y, spill_w=MARGIN + COVER + 12 - spill_x,
+                spill_x=spill_x, spill_y=spill_y, spill_w=M + COVER + 12 - spill_x,
                 spill_h=reflection_foot - spill_y,
                 noart_x=(COVER - note[0]) // 2, noart_y=(COVER - note[1]) // 2,
                 ratings_n=ratings[2], ratings_rtl_x=col_w + 2 * STAR_SHIFT - ratings[0],
-                bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (MARGIN, bar_w, bar_h),
-                bar_y=BAR_Y, bar_h=bar_h, times_y=TIMES_Y, times_right=W - MARGIN - TIME_W,
-                under_x=MARGIN + TIME_W + 4, under_w=grid - 2 * (TIME_W + 4),
-                thick="%d,0,%d,%d,Thick Bar Fill.bmp,backdrop,M" % (MARGIN, thick_w, thick_h),
+                bar="%d,0,%d,%d,Bar Fill.bmp,backdrop,K" % (M, bar_w, bar_h),
+                bar_y=BAR_Y, bar_h=bar_h, times_y=TIMES_Y, times_right=W - M - TIME_W,
+                under_x=M + TIME_W + 4, under_w=grid - 2 * (TIME_W + 4),
+                thick="%d,0,%d,%d,Thick Bar Fill.bmp,backdrop,M" % (M, thick_w, thick_h),
                 thick_h=thick_h, lowtimes_y=THICK_Y + thick_h + 2,
                 left_w=left[0], left_h=left[1], speaker_y=TIMES_Y + 2,
                 stars_n=stars[2], stars_x=(W - stars[0]) // 2, stars_w=stars[0],

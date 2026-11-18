@@ -81,9 +81,9 @@ STARS = {"Ratings": ("Ratings Ground", True, "PRIMARY", "UNSET", True),
 BAR = (292, 11, 9)
 VOLUME_BAR = 256
 # the screens' folders and their capsules' widths, the bar's and the
-# volume's: the iPod photo's bar from margin to margin of 10 px, as the
-# Video's of 14 (make_neo_theme.py)
-BARS = {"": (BAR[0], VOLUME_BAR), "220x176": (200, 160)}
+# volume's: the iPod photo's bar from Now Playing's margin to margin of 6 px,
+# the lists' edge, as the Video's of 14 (make_neo_theme.py)
+BARS = {"": (BAR[0], VOLUME_BAR), "220x176": (208, 160)}
 LOOKS = {  # as apps/gui/ui_theme.c and make_neo_theme.py have them
     "Neo":      dict(PAPER="EFEBE7", PRIMARY="292421", SECONDARY="6B6963",
                      TERTIARY="A59E94", TRACK="E7DFD6", SELECTED="DEDBD6",

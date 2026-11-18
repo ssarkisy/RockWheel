@@ -385,19 +385,21 @@ VIDEO = dict(
 # sides); the status line's 16 rows, the lists from 16 (over its
 # hairline and lip); rows
 # of 20, of two lines the firmware's 32 with covers of 29 (LINE_COVER_SIZE),
-# so that 8 or 5 fill them; the pane from 110, as the port's; Now Playing's
-# cover of 96 at (14, 22), its details from 122.
+# so that 8 or 5 fill them; the pane from 110, as the port's. Now Playing
+# at the lists' edge (NP_M: the screen is small, the margins took the
+# text's room): its cover of 96 at (4, 30), its details from 108 to 4 px
+# from the right, the scale's window and the times as wide.
 PHOTO = dict(
     NAME="photo", W=220, H=176, OUT=os.path.join(THEME, "220x176"), M=14, SM=7, STATUS=16,
     TOP=16, ROW=20, PANE=110, BATT=(17, 8), GAP=5, PCT_GAP=2, PLAY_H=8,
     # the clock short of the title's viewport: right to left its text ends
     # at its viewport's end, which the title's drew over
     CLOCK=(42, 58, 104), NP_TITLE=(62, 96),
-    COVER=96, COVER_Y=30, COL=122,
+    NP_M=4, COVER=96, COVER_Y=30, COL=108,
     # the cover lower and the scale's window under it low and narrow, the
     # times at the screen's foot, so that the tallest details stand under
     # the modes, not under their glyphs
-    WIN=(14, 141, 206, 157), TICK=8, MAJOR=48, BASE_UP=5, MAJOR_H=5, TIMES_Y=160,
+    WIN=(4, 141, 216, 157), TICK=8, MAJOR=48, BASE_UP=5, MAJOR_H=5, TIMES_Y=160,
     GRILLE=(40, 7.0, 1.7), RING=63, PANE_GAP=12, LINE2=15, DIAL_MINOR=4.5,
     QS=56, KEY_R=8.5, KEY_PITCH=28, LAMP_R=2.4, SMALL_R=2.0, SMALL_BEZ=0.9, SMALL_PITCH=8,
     LAMPS_H=10,
@@ -740,6 +742,11 @@ def no_cover(p):
     return cv
 
 
+def np_margin():
+    """Now Playing's margin: the iPod photo's its own, the lists' edge"""
+    return L.get("NP_M", L["M"])
+
+
 def big_no_cover_place():
     """the big cover's place without one: no_cover()'s picture in the middle
     of the big cover's, at a whole number of the dither's 4 rows and columns
@@ -747,7 +754,7 @@ def big_no_cover_place():
     C, big = L["COVER"], L["BIG"]
     x = L["BIG_X"] + (big - C) // 2
     y = L["BIG_Y"] + (big - C) // 2
-    x -= (x - L["M"]) % 4
+    x -= (x - np_margin()) % 4
     y -= (y - L["COVER_Y"]) % 4
     return x, y
 
@@ -1905,9 +1912,10 @@ WPS = """\
 # a podcast's or a book's scrubber: what Previous and Next do there
 %Vl(hints,{under_x},{times_y},{under_w},{time_rows},4)%Vf(SECOND)
 %ac-15 / +30
-# the volume in the window, its level the inked part with the needle at it,
-# and a knob turned to it in the cover's place (%nK, the firmware's); under
-# the window the word and the level beside it, at the line's start
+# the volume: a knob turned to it in the cover's place (%nK, the firmware's),
+# the window the song's progress as ever (the knob shows the volume); under
+# the window, in the times' place, the word and the level beside it, at the
+# line's start
 %Vl(volume,{margin},{times_y},{grid},{time_rows},4)%Vf(INK)
 %al%nv(2)
 %Vl(knob,{margin},{cover_y},{cover},{cover},-)%Vf(INK)
@@ -1990,7 +1998,7 @@ def by_signal(branches):
 
 
 def wps():
-    W, H, M = L["W"], L["H"], L["M"]
+    W, H, M = L["W"], L["H"], np_margin()
     out, branches, rooms, text_y, cell = status(W)
     show = "%%Vd(bat)%%?nN<%s|%s>" % ("".join(branches[1]), "".join(branches[0]))
     pout, pbranches, prooms, _, _ = status(W, pct=True, level=(L["F_STAT"], 5))
@@ -2127,7 +2135,9 @@ def wps():
         lamp_images.append("%%xl(ld%d,Small Lamp.bmp,%d,0,%d)" % (i, x, 1 + len(SIGNALS)))
 
     # the bar: one viewport a needle, by the signal colour and while paused;
-    # the scrubber's has a knob
+    # the scrubber's has a knob. No volume's: the window keeps the song's
+    # progress while the volume shows, the knob in the cover's place showing
+    # the volume
     bx, by, bw, bh = bar_box()
     names = [s[0] for s in SIGNALS]
     needles = []
@@ -2137,8 +2147,7 @@ def wps():
     needles.append("%xl(np,Needle Paused.bmp,0,0)")
     needles.append("%xl(jp,Knob Paused.bmp,0,0)")
     bar_vps = []
-    for kind, tag, slider_l, label in (("pb", "%pb", "n", "pb"), ("sc", "%pb", "j", "sc"),
-                                       ("vo", "%pv", "n", "vo")):
+    for kind, tag, slider_l, label in (("pb", "%pb", "n", "pb"), ("sc", "%pb", "j", "sc")):
         for i in list(range(len(names))) + ["p"]:
             bar_vps += ["%%Vl(%s%s,0,%d,%d,%d,-)" % (label, i, by, W, bh),
                         "%s(%d,0,%d,%d,k,backdrop,K,slider,%s%s,fillunder)"
@@ -2146,14 +2155,12 @@ def wps():
 
     def pick(label):
         lit = by_signal(["%%Vd(%s%d)" % (label, i) for i in range(len(names))])
-        if label == "vo":
-            return lit
         # %mp: stopped, playing, paused, forward, rewind: grey but playing
         grey = "%%Vd(%sp)" % label
         return "%%?mp<%s|%s|%s|%s|%s>" % (grey, lit, grey, lit, lit)
     bar = "%Vd(lip)" + pick("pb")
     scrub = "%Vd(lip)" + pick("sc") + "%Vd(times)"
-    volume = "%Vd(lip)" + pick("vo") + "%Vd(volume)"
+    volume = bar + "%Vd(volume)"
 
     # the rating's keys: each the key's picture, and over it its lamp lit
     kcy, kxs = key_place()
@@ -2223,9 +2230,9 @@ def look_pictures(look, p):
         write_bmp32(os.path.join(folder, "Knob %s.bmp" % name), slider(p, colour, True))
     write_bmp32(os.path.join(folder, "Needle Paused.bmp"), slider(p, p["SECOND"], False))
     write_bmp32(os.path.join(folder, "Knob Paused.bmp"), slider(p, p["SECOND"], True))
-    write_bmp16(os.path.join(folder, "No Cover.bmp"), no_cover(p), L["M"], L["COVER_Y"])
+    write_bmp16(os.path.join(folder, "No Cover.bmp"), no_cover(p), np_margin(), L["COVER_Y"])
     # the cover's shadow of a pixel right of it and under it, on the ground
-    M, C, cy0 = L["M"], L["COVER"], L["COVER_Y"]
+    M, C, cy0 = np_margin(), L["COVER"], L["COVER_Y"]
     shade = mix(p["G_FOOT"], (0, 0, 0), 9)
     right = Canvas(1, C + 1)
     for yy in range(C + 1):

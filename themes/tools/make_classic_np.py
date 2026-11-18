@@ -76,7 +76,9 @@ PHOTO = dict(
     WPS=os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox", "wps",
                      "iClassic-Square.wps"),
     COVER_Y=31, COVER=96,
-    COL=114, COL_W=97,
+    # at the lists' edge of 4 px, the cover too (the screen is small, the
+    # margins took the text's room)
+    COL=106, COL_W=110,
     LINES=dict(VIDEO["LINES"], **{
         "title": (1, 17) + VIDEO["LINES"]["title"][2:],
         "artist": (3, 15) + VIDEO["LINES"]["artist"][2:],

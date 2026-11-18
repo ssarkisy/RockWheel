@@ -75,9 +75,10 @@ STARS = {"Ratings": ("Ratings Ground", "SMALL", True),
 # the knob, which the skin's bar draws inside its own height; and the lyrics
 # view's, as thick, without a knob
 BARS = {"Bar": (296, 11, 9), "Thick Bar": (296, 9, 9)}
-# the screens' folders and their bars' widths: the iPod photo's from margin to
-# margin of 9 px, as the Video's of 12 (make_modern_theme.py)
-BAR_WIDTHS = {"": 296, "220x176": 202}
+# the screens' folders and their bars' widths: the iPod photo's from Now
+# Playing's margin to margin of 7 px, the lists' edge, as the Video's of 12
+# (make_modern_theme.py)
+BAR_WIDTHS = {"": 296, "220x176": 206}
 # the main menu's pane's that the iPod photo's screen has none of: none now,
 # its pane has the Video's pictures at their own sizes
 PANE = ()

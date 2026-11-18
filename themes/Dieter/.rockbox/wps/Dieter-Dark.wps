@@ -15,7 +15,7 @@
 %xl(R,Repeat.bmp,0,0,4)
 # the views, cycled with the centre button:
 # normal | scrubber | album art | lyrics | rating | speed
-%?mw<%?mv(2.0)<%Vd(lip)%?St(dieter colour)<%Vd(vo0)|%Vd(vo1)|%Vd(vo2)|%Vd(vo3)>%Vd(volume)|%Vd(lip)%?mp<%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>>%Vd(times)>|%Vd(lip)%?mp<%Vd(scp)|%?St(dieter colour)<%Vd(sc0)|%Vd(sc1)|%Vd(sc2)|%Vd(sc3)>|%Vd(scp)|%?St(dieter colour)<%Vd(sc0)|%Vd(sc1)|%Vd(sc2)|%Vd(sc3)>|%?St(dieter colour)<%Vd(sc0)|%Vd(sc1)|%Vd(sc2)|%Vd(sc3)>>%Vd(times)%?kk<%Vd(under)|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(bignote)>|%Vd(lyrics)%Vd(lip)%?mp<%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>>|%Vd(rating)|%Vd(speed)>
+%?mw<%?mv(2.0)<%Vd(lip)%?mp<%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>>%Vd(volume)|%Vd(lip)%?mp<%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>>%Vd(times)>|%Vd(lip)%?mp<%Vd(scp)|%?St(dieter colour)<%Vd(sc0)|%Vd(sc1)|%Vd(sc2)|%Vd(sc3)>|%Vd(scp)|%?St(dieter colour)<%Vd(sc0)|%Vd(sc1)|%Vd(sc2)|%Vd(sc3)>|%?St(dieter colour)<%Vd(sc0)|%Vd(sc1)|%Vd(sc2)|%Vd(sc3)>>%Vd(times)%?kk<%Vd(under)|%Vd(hints)|%Vd(hints)>|%?C<%Vd(bigart)|%Vd(bignote)>|%Vd(lyrics)%Vd(lip)%?mp<%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%Vd(pbp)|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>|%?St(dieter colour)<%Vd(pb0)|%Vd(pb1)|%Vd(pb2)|%Vd(pb3)>>|%Vd(rating)|%Vd(speed)>
 # The track's details beside the cover, one block in the middle of its
 # height, as Neo's (make_neo_theme.py): s<lines><rating><format>, e<lines>,
 # b<lines><speed>
@@ -280,16 +280,6 @@
 %pb(15,0,291,24,k,backdrop,K,slider,j3,fillunder)
 %Vl(scp,0,187,320,24,-)
 %pb(15,0,291,24,k,backdrop,K,slider,jp,fillunder)
-%Vl(vo0,0,187,320,24,-)
-%pv(15,0,291,24,k,backdrop,K,slider,n0,fillunder)
-%Vl(vo1,0,187,320,24,-)
-%pv(15,0,291,24,k,backdrop,K,slider,n1,fillunder)
-%Vl(vo2,0,187,320,24,-)
-%pv(15,0,291,24,k,backdrop,K,slider,n2,fillunder)
-%Vl(vo3,0,187,320,24,-)
-%pv(15,0,291,24,k,backdrop,K,slider,n3,fillunder)
-%Vl(vop,0,187,320,24,-)
-%pv(15,0,291,24,k,backdrop,K,slider,np,fillunder)
 %Vl(times,16,215,95,14,4)%Vf(9C9A9C)
 %al%pc
 %Vl(times,209,215,95,14,4)%Vf(9C9A9C)
@@ -299,9 +289,10 @@
 # a podcast's or a book's scrubber: what Previous and Next do there
 %Vl(hints,115,215,90,14,4)%Vf(9C9A9C)
 %ac-15 / +30
-# the volume in the window, its level the inked part with the needle at it,
-# and a knob turned to it in the cover's place (%nK, the firmware's); under
-# the window the word and the level beside it, at the line's start
+# the volume: a knob turned to it in the cover's place (%nK, the firmware's),
+# the window the song's progress as ever (the knob shows the volume); under
+# the window, in the times' place, the word and the level beside it, at the
+# line's start
 %Vl(volume,16,215,288,14,4)%Vf(EFEFEF)
 %al%nv(2)
 %Vl(knob,16,33,144,144,-)%Vf(EFEFEF)
