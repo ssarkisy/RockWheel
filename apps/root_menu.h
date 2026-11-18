@@ -62,6 +62,11 @@ int root_menu_go_to_album(const char *name, int32_t artist);
 /* Settings > Music Menu > Group by Album Artist's callback: the lists of
    artists change, and where the lists were left in them with them */
 void root_menu_artists_grouping_changed(bool on);
+/* and Music Menu > Compilations', which Artists' rows go by; and the same
+   only if it changed since the last call, as settings applied from a .cfg
+   or a reset, which call no callback */
+void root_menu_compilations_changed(bool on);
+void root_menu_compilations_check(void);
 #endif
 void root_menu(void) NORETURN_ATTR;
 /* Whether Now Playing has a song: one playing or paused, one stopped at a
@@ -157,6 +162,7 @@ enum {
     GO_TO_GENRES,
     GO_TO_COMPOSERS,
     GO_TO_AUDIOBOOKS,
+    GO_TO_COMPILATIONS, /* last, as it came last: its number is kept */
 #endif
 };
 #ifndef PLUGIN

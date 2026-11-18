@@ -381,6 +381,10 @@ struct mp3entry {
     char *album_sort;
     char *title_sort;
     char *composer_sort;
+
+    /* the file says it's part of a compilation, as iTunes marks one: TCMP
+       or TCP (ID3v2), cpil (MP4), COMPILATION (Vorbis comments, APE) */
+    bool compilation;
 };
 
 unsigned int probe_file_format(const char *filename); /* returns audio_fmt */

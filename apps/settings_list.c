@@ -2853,6 +2853,11 @@ const struct settings_list settings[] = {
                   "music menu composers", tagtree_music_menu_changed),
     OFFON_SETTING(0, music_menu_show[9], LANG_AUDIOBOOKS, true,
                   "music menu audiobooks", tagtree_music_menu_changed),
+    /* on at first, though a stock iPod classic has it off: Artists without
+       the compilations then (root_menu_compilations_changed()) */
+    OFFON_SETTING(0, music_menu_show[MUSIC_SECTION_COMPILATIONS],
+                  LANG_COMPILATIONS, true, "music menu compilations",
+                  root_menu_compilations_changed),
     OFFON_SETTING(0, music_menu_recently_added, LANG_RECENTLY_ADDED, true,
                   "music menu recently added", tagtree_music_menu_changed),
     /* by name, so the row's order is free; only on Select, as it stops the
@@ -2941,6 +2946,8 @@ const struct settings_list settings[] = {
                   "main menu composers", NULL),
     OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + 9], LANG_AUDIOBOOKS, false,
                   "main menu audiobooks", NULL),
+    OFFON_SETTING(0, main_menu_show[MAIN_MENU_SECTION + MUSIC_SECTION_COMPILATIONS],
+                  LANG_COMPILATIONS, false, "main menu compilations", NULL),
     OFFON_SETTING(0, main_menu_show[MAIN_MENU_PHOTOS], LANG_PHOTOS, true,
                   "main menu photos", NULL),
     OFFON_SETTING(0, main_menu_show[MAIN_MENU_EXTRAS], LANG_EXTRAS, true,

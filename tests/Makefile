@@ -14,6 +14,9 @@
 #   make -C tests check-itunesdb iTunesDB and ArtworkDB, whole and damaged
 #   make -C tests check-covers   the prepared covers' sums and tables
 #   make -C tests check-codecs   the codecs through warble
+#   make -C tests check-compilations
+#                                the parsers' compilation marks, through
+#                                warble
 #   make -C tests check-wheel    the click wheel's policy, and its drivers
 #                                against 1be9ae95b6's (wheel/ref)
 #   make -C tests check-disk     the "disk free, don't wake it" predicate
@@ -86,13 +89,14 @@ LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o \
 
 .PHONY: all check check-keys check-itunesdb check-covers check-codecs \
 	check-wheel check-disk check-lines check-panic check-fw check-orders \
-	check-bar clean
+	check-bar check-compilations clean
 all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_covers \
 	$(BUILD)/test_wheel $(BUILD)/test_panic_record $(BUILD)/test_fw \
 	$(BUILD)/test_orders $(BUILD)/test_skin_ratio
 
 check: check-keys check-itunesdb check-covers check-wheel check-codecs \
-	check-disk check-lines check-panic check-fw check-orders check-bar
+	check-compilations check-disk check-lines check-panic check-fw \
+	check-orders check-bar
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -434,6 +438,16 @@ warble: $(WARBLE_DIR)/Makefile $(OBJ)/warble/libsdlstub.a
 check-codecs: warble
 	@$(PYTHON) -I -B $(TESTS)/codecs/check_codecs.py $(WARBLE) \
 		$(TESTS)/codecs/fixtures $(TESTS)/codecs/expected.txt
+
+# the parsers' compilation mark, through warble, in the codecs' fixtures
+# tagged again (metadata/make_compilations.py)
+COMPILATION_CASES := $(BUILD)/compilation-cases
+check-compilations: warble
+	@rm -rf $(COMPILATION_CASES)
+	@$(PYTHON) -I -B $(TESTS)/metadata/make_compilations.py \
+		$(TESTS)/codecs/fixtures $(COMPILATION_CASES)
+	@$(PYTHON) -I -B $(TESTS)/metadata/check_compilations.py $(WARBLE) \
+		$(COMPILATION_CASES)
 
 clean:
 	rm -rf $(BUILD)

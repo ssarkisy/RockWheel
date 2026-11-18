@@ -1267,6 +1267,8 @@ static off_t read_track(off_t pos, off_t end, struct track *track)
         track->st.flags |= ITUNESDB_AUDIOBOOK;
     else if (media & MEDIA_PODCAST)
         track->st.flags |= ITUNESDB_PODCAST;
+    if (p[30])
+        track->st.flags |= ITUNESDB_COMPILATION;
     track->dbid = le32(p + 0x70) | (uint64_t)le32(p + 0x74) << 32;
     if (header_len >= 356 && le32(p + 352))
         track->art = le32(p + 352);
@@ -3987,15 +3989,18 @@ static bool find_in_index(struct index *index, uint64_t hash, void *entry)
 }
 
 /* The tracks with flags. Version 3 has the marks of podcasts and audiobooks
-   in the flags (ITUNESDB_MAC_UNPLAYED and after) and a book's bookmark; its
-   header and entries are laid out as version 2's, which a firmware of
-   either takes for none of its own and reads iTunesDB again. Written whole
-   by an import and, as a mark changes, by itunesdb_save_flags(), each to a
-   file of its own beside it that then takes its name: a cut leaves the old
-   file or the new, never a part of one. */
+   in the flags (ITUNESDB_MAC_UNPLAYED and after) and a book's bookmark;
+   version 4 the compilations too (ITUNESDB_COMPILATION), each a track with
+   flags. Their headers and entries are laid out as version 2's, which a
+   firmware of another takes for none of its own and reads iTunesDB again;
+   version 3's marks are this one's. Written whole by an import and, as a
+   mark changes, by itunesdb_save_flags(), each to a file of its own beside
+   it that then takes its name: a cut leaves the old file or the new, never
+   a part of one. */
 #define FLAGS_FILE      ROCKBOX_DIR "/itunesdb_flags.dat"
 #define FLAGS_MAGIC     0x46494252 /* "RBIF" */
-#define FLAGS_VERSION   3
+#define FLAGS_VERSION   4
+#define FLAGS_VERSION_3 3
 #define FLAGS_VERSION_2 2
 #define FLAGS_SPOKEN    (ITUNESDB_PODCAST | ITUNESDB_AUDIOBOOK)
 
@@ -4045,6 +4050,12 @@ static void flags_import_begin(bool new_itunesdb)
         if (flags_index.handle <= 0)
         {
             load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
+                       FLAGS_MAGIC, FLAGS_VERSION_3);
+            flags_old_version = FLAGS_VERSION_3;
+        }
+        if (flags_index.handle <= 0)
+        {
+            load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
                        FLAGS_MAGIC, FLAGS_VERSION_2);
             flags_old_version = flags_index.handle > 0 ? FLAGS_VERSION_2 : 0;
         }
@@ -4068,7 +4079,7 @@ static uint32_t spoken_marks(const struct track *t)
     struct flags_entry old;
     const bool had = flags_old_version
                      && find_in_index(&flags_index, t->st.hash, &old);
-    const bool marked = had && flags_old_version == FLAGS_VERSION;
+    const bool marked = had && flags_old_version >= FLAGS_VERSION_3;
     const bool mac_unplayed = t->st.played == 2;
     const bool same = marked && !(old.flags & ITUNESDB_MAC_UNPLAYED) == !mac_unplayed;
     uint32_t marks = mac_unplayed ? ITUNESDB_MAC_UNPLAYED : 0;
@@ -10170,10 +10181,20 @@ bool itunesdb_load_tracks(void)
 #endif
     load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
                FLAGS_MAGIC, FLAGS_VERSION);
+    /* version 3's, without the compilations: its flags and marks meanwhile,
+       until the import it has at once writes this version's. Not saved:
+       the mark of one changed is taken by the import from memory */
+    bool flags_old = false;
+    if (flags_index.handle <= 0)
+    {
+        load_index(&flags_index, FLAGS_FILE, &hdr, sizeof(hdr),
+                   FLAGS_MAGIC, FLAGS_VERSION_3);
+        flags_old = flags_index.handle > 0;
+    }
     if (flags_index.handle > 0)
         flags_hdr = hdr;
     /* what an older firmware didn't note */
-    if (!itunesdb_gains_ready())
+    if (flags_old || !itunesdb_gains_ready())
         return false;
 #ifdef ITUNESDB_HAVE_ART
     load_index(&art_index, ART_FILE, &index_hdr, sizeof(index_hdr),

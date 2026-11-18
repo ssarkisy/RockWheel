@@ -46,6 +46,7 @@ enum tag_type { tag_artist = 0, tag_album, tag_genre, tag_title,
     tag_virt_playtime_min, tag_virt_playtime_sec,
     tag_virt_entryage, tag_virt_autoscore,
     tag_virt_kind, /* 1 for a podcast, 2 for an audiobook, from iTunesDB */
+    tag_virt_compilation, /* 1 for a song of an album that is a compilation */
     TAG_COUNT_ALL};
 
 /* How many entries to fetch to the seek table at once while searching. */
@@ -72,7 +73,7 @@ enum tag_type { tag_artist = 0, tag_album, tag_genre, tag_title,
     TAG_BIT(tag_virt_length_min) | TAG_BIT(tag_virt_length_sec) | \
     TAG_BIT(tag_virt_playtime_min) | TAG_BIT(tag_virt_playtime_sec) | \
     TAG_BIT(tag_virt_entryage) | TAG_BIT(tag_virt_autoscore) | \
-    TAG_BIT(tag_virt_kind))
+    TAG_BIT(tag_virt_kind) | TAG_BIT(tag_virt_compilation))
 
 /* false for any number past the masks, as tagtree's menus over 100 */
 #define TAGCACHE_TAG_IN(mask, tag) \
@@ -362,9 +363,36 @@ bool tagcache_kinds_known(void);
    an artist, an album, a genre or a composer that Music lists. Marked for
    every name as the database loads and as the kinds are made again, so a
    list of names needs no pass over the tracks. tagcache_names_marked() says
-   whether a tag's names are; an unmarked one's all read true. */
-bool tagcache_names_marked(int tag);
-bool tagcache_name_has_music(int tag, int32_t seek);
+   whether a tag's names are; an unmarked one's all read true. With solo, of
+   a song of music that isn't part of a compilation, as Artists has them
+   while Music has Compilations: the album artists' and the songs' artists'
+   only, and those only if the room the database's memory has for marks
+   holds them too. */
+bool tagcache_names_marked(int tag, bool solo);
+bool tagcache_name_has_music(int tag, int32_t seek, bool solo);
+/* The songs of music marked part of a compilation, each its own mark, as
+   the kinds in memory have them: 0 without them; and a hash of which they
+   are, which the table of albums is made again by, 0 for none */
+long tagcache_compilation_songs(void);
+uint32_t tagcache_compilation_songs_hash(void);
+/* A song's mark, and an album, its name and album artist, a compilation if
+   a song of music of it has one: so Music lists them, once the table of
+   albums has marked the albums' songs (begin, a song each, done; gone as
+   the kinds are made again), and until then by the songs' own marks */
+void tagcache_compilation_albums_begin(void);
+void tagcache_compilation_album_song(int idx_id);
+void tagcache_compilation_albums_done(void);
+/* the albums' marks are set for the kinds as they are, or there's none to
+   set: else the table of albums is to be made again, which sets them */
+bool tagcache_compilation_albums_ready(void);
+/* the hash of the marks Music goes by, which the lists of them are kept by,
+   0 for none */
+uint32_t tagcache_compilations_hash(void);
+/* an entry is part of a compilation, as tag_virt_compilation has it, as
+   Music lists it: its album's mark; false without the kinds in memory */
+bool tagcache_track_compilation(int idx_id);
+/* and its own mark, as iTunesDB or its tags have it */
+bool tagcache_song_compilation(int idx_id);
 /* a track's kind, or -1 when the kinds aren't in memory: for a plugin */
 int tagcache_kind_if_known(int idx_id);
 int tagcache_path_kind(const char *path);

@@ -16108,3 +16108,17 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COMPILATIONS
+  desc: in the Music menu, and its row in Settings > Music Menu and Main Menu: the albums of the songs that are part of a compilation, as iTunes marks them; the word Apple's iPod has for it where it has one
+  user: core
+  <source>
+    *: "Compilations"
+  </source>
+  <dest>
+    *: "Kogumikud"
+  </dest>
+  <voice>
+    *: "Kogumikud"
+  </voice>
+</phrase>

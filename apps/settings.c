@@ -1360,8 +1360,10 @@ void settings_apply(bool read_disk)
 
 #ifdef HAVE_TAGCACHE
     /* Artists as Group by Album Artist has it, after Reset Settings too,
-       which calls no setting's callback */
+       which calls no setting's callback; and as Music Menu > Compilations
+       has them, the places in Artists from their top if that changed */
     root_menu_artists_grouping_changed(global_settings.artists_by_album_artist);
+    root_menu_compilations_check();
 #endif
 
     /* This should stay last */

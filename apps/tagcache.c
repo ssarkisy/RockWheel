@@ -183,6 +183,11 @@
 /* Serialized DB. */
 #define TAGCACHE_STATEFILE       "database_state.tcd"
 
+/* There once a scan has read the compilation mark of every song outside
+   Finder's folder, which the entries a firmware before had made lack
+   (compilations_due) */
+#define TAGCACHE_FILE_COMPILATIONS "database_compilations.tcd"
+
 /* The Sort fields and the order's mark are the firmware's: the commit's
    plugin and the PC's database tool sort by the names alone, and leave the
    firmware to sort again once */
@@ -251,6 +256,11 @@ static int32_t initials_commit = -1;
 #define FLAG_RESURRECTED 0x0010  /* Statistics data has been resurrected */
 /* temp file only: restored statistics; keep its commit id, even 0 */
 #define FLAG_RESTORED    0x0020
+/* The file's tags say it's part of a compilation (struct mp3entry's
+   compilation): Music > Compilations lists it, if outside Finder's folder,
+   whose songs have iTunesDB's mark (ITUNESDB_COMPILATION). In the flags,
+   which every format keeps as they are, as an older firmware does */
+#define FLAG_COMPILATION 0x0040
 
 #ifdef __PCTOOL__
 #define yield() do { } while(0)
@@ -310,7 +320,8 @@ static const char * const tags_str[] = { "artist", "album", "genre", "title",
 #else /* strings for logf debugging */
     "tag_virt_basename", "tag_virt_length_min", "tag_virt_length_sec",
     "tag_virt_playtime_min", "tag_virt_playtime_sec",
-    "tag_virt_entryage", "tag_virt_autoscore", "tag_virt_kind"
+    "tag_virt_entryage", "tag_virt_autoscore", "tag_virt_kind",
+    "tag_virt_compilation"
 };
 /* more debug strings */
 static const char * const tag_type_str[] = {
@@ -572,6 +583,13 @@ static int outside_known; /* the songs outside Finder's folder known, still ther
 static uint32_t outside_images; /* their folders' images, as a sum */
 static bool outside_images_valid;
 static void count_outside(void);
+/* The scan reads the tags of the songs outside Finder's folder it already
+   has, which an older firmware added without their compilation marks: once,
+   until a whole scan has (TAGCACHE_FILE_COMPILATIONS); and those it found
+   marked */
+static bool compilations_due;
+static int compilations_found;
+static bool db_file_exists(const char* filename);
 #endif
 
 /* The tag files and the temporary file are written through this, a block
@@ -1283,7 +1301,13 @@ static size_t ram_paths_needed(void)
 #define RAM_KIND_UNPLAYED 0x40
 /* the kind is iTunesDB's: only such a track has a mark there */
 #define RAM_KIND_MARKED 0x20
-#define RAM_KIND_MASK 0x0f
+/* part of a compilation: iTunesDB's mark for a song in Finder's folder, the
+   file's tags' for another (FLAG_COMPILATION) */
+#define RAM_KIND_COMPILATION 0x10
+/* and of an album that is one, of its name and album artist, as a song of
+   music of it is marked: what Music lists by (compilation_albums) */
+#define RAM_KIND_ALBUM_COMPILATION 0x08
+#define RAM_KIND_MASK 0x07
 
 /* The kinds, a byte an entry, at the end of the database's own memory
    (allocate_tagcache()): there whenever the database is. In the room of its
@@ -1300,13 +1324,34 @@ static uint8_t *ram_kinds(void)
 /* Before the kinds, a bit for each 8 bytes of the names' files of the tags
    Music lists by: set where a name starts that a song of music has (a name's
    entry is over 8 bytes). The tags' bits one after another, as far in as
-   their last names; the room is for all the database's data, so it fits. */
+   their last names; the room is for all the database's data, so it fits.
+   Then the artists' tags again, the names a song of music has that isn't
+   part of a compilation, for Artists while Music has Compilations: in the
+   room the files of the names not marked leave, the paths' and the titles',
+   or else not marked, and Artists searches for them. */
 static const int music_tags[] = {
     tag_artist, tag_album, tag_genre, tag_composer, tag_albumartist,
-    tag_virt_canonicalartist
+    tag_virt_canonicalartist,
+    /* off compilations, from MUSIC_TAGS_SOLO on */
+    tag_albumartist, tag_virt_canonicalartist
 };
+#define MUSIC_TAGS_SOLO 6
 static long music_names_room;                     /* bytes, 0 for none */
 static int32_t music_names_at[ARRAYLEN(music_tags)]; /* -1 not marked */
+/* the songs of music that are part of a compilation, -1 until counted, and
+   a hash of which they are */
+static long compilation_songs = -1;
+static uint32_t compilations_hash;
+/* The songs' albums' marks (RAM_KIND_ALBUM_COMPILATION) are of the kinds as
+   they are, which Music then goes by, rather than by each song's; set by
+   the table of albums (album_years.c), gone as the kinds are made again.
+   And a hash of the songs they mark */
+static bool compilation_albums;
+static uint32_t compilation_albums_hash;
+
+/* a song is part of a compilation, as Music has it: its album's mark */
+static bool ram_compilation(long idx_id);
+static uint8_t *ram_kinds_byte(long idx_id);
 
 static uint8_t *music_names(void)
 {
@@ -1321,22 +1366,37 @@ static void music_names_make(void)
         music_names_at[t] = -1;
         last[t] = -1;
     }
-    if (!tc_stat.ramcache || !tcramcache.hdr || music_names_room <= 0
-        || ram_kinds_count <= 0)
+    compilation_songs = -1;
+    if (!tc_stat.ramcache || !tcramcache.hdr || ram_kinds_count <= 0)
         return;
     const long count = MIN(current_tcmh.tch.entry_count, ram_kinds_count);
+    long compilations = 0;
+    uint32_t hash = 2166136261u;
     for (long i = 0; i < count; i++)
     {
         const struct index_entry *idx = &tcramcache.hdr->indices[i];
-        for (size_t t = 0; t < ARRAYLEN(music_tags) && !(idx->flag & FLAG_DELETED); t++)
+        if (idx->flag & FLAG_DELETED)
+            continue;
+        for (size_t t = 0; t < ARRAYLEN(music_tags); t++)
             last[t] = MAX(last[t], idx->tag_seek[music_tags[t]]);
+        /* of music: a podcast or a book isn't one, as Compilations has it */
+        if ((ram_kinds()[i] & (RAM_KIND_COMPILATION | RAM_KIND_MASK))
+            == RAM_KIND_COMPILATION)
+        {
+            compilations++;
+            hash = (hash ^ (uint32_t)i) * 16777619u;
+        }
     }
+    compilation_songs = compilations;
+    compilations_hash = hash;
+    if (music_names_room <= 0)
+        return;
     long at = 0;
     for (size_t t = 0; t < ARRAYLEN(music_tags); t++)
     {
         const long bytes = (last[t] >> 6) + 2;
         if (at + bytes > music_names_room)
-            return; /* the tags after it stay unmarked */
+            break; /* the tags after it stay unmarked */
         music_names_at[t] = at;
         at += bytes;
     }
@@ -1345,20 +1405,26 @@ static void music_names_make(void)
     for (long i = 0; i < count; i++)
     {
         const struct index_entry *idx = &tcramcache.hdr->indices[i];
-        if ((idx->flag & FLAG_DELETED) || (ram_kinds()[i] & RAM_KIND_MASK))
+        const uint8_t kind = ram_kinds()[i];
+        if ((idx->flag & FLAG_DELETED) || (kind & RAM_KIND_MASK))
             continue;
+        const bool compilation = ram_compilation(i);
         for (size_t t = 0; t < ARRAYLEN(music_tags); t++)
         {
             const int32_t seek = idx->tag_seek[music_tags[t]];
-            if (seek >= 0 && music_names_at[t] >= 0)
+            if (seek >= 0 && music_names_at[t] >= 0
+                && (t < MUSIC_TAGS_SOLO || !compilation))
                 bits[music_names_at[t] + (seek >> 6)] |= 1 << ((seek >> 3) & 7);
         }
     }
 }
 
-static int music_tag(int tag)
+/* the tag's marks, of all music or of that off compilations: -1 if not
+   marked */
+static int music_tag(int tag, bool solo)
 {
-    for (size_t t = 0; t < ARRAYLEN(music_tags); t++)
+    for (size_t t = solo ? MUSIC_TAGS_SOLO : 0;
+         t < (solo ? ARRAYLEN(music_tags) : MUSIC_TAGS_SOLO); t++)
     {
         if (music_tags[t] == tag)
             return music_names_at[t] >= 0 ? (int)t : -1;
@@ -1366,18 +1432,76 @@ static int music_tag(int tag)
     return -1;
 }
 
-bool tagcache_names_marked(int tag)
+bool tagcache_names_marked(int tag, bool solo)
 {
     return tc_stat.ready && tc_stat.ramcache && tcramcache.hdr
-           && music_tag(tag) >= 0;
+           && music_tag(tag, solo) >= 0;
 }
 
-bool tagcache_name_has_music(int tag, int32_t seek)
+bool tagcache_name_has_music(int tag, int32_t seek, bool solo)
 {
-    if (!tagcache_names_marked(tag) || seek < 0)
+    if (!tagcache_names_marked(tag, solo) || seek < 0)
         return true;
-    return music_names()[music_names_at[music_tag(tag)] + (seek >> 6)]
+    return music_names()[music_names_at[music_tag(tag, solo)] + (seek >> 6)]
            & (1 << ((seek >> 3) & 7));
+}
+
+long tagcache_compilation_songs(void)
+{
+    return tc_stat.ready && tc_stat.ramcache && tcramcache.hdr
+           ? MAX(compilation_songs, 0) : 0;
+}
+
+uint32_t tagcache_compilation_songs_hash(void)
+{
+    return tagcache_compilation_songs() > 0 ? compilations_hash : 0;
+}
+
+uint32_t tagcache_compilations_hash(void)
+{
+    const uint32_t songs = tagcache_compilation_songs_hash();
+    return songs && compilation_albums ? songs ^ compilation_albums_hash
+                                       : songs;
+}
+
+/* the albums' marks, none until the table of albums sets them */
+static void compilation_albums_forget(void)
+{
+    compilation_albums = false;
+    for (long i = 0; tcramcache.hdr && i < ram_kinds_count; i++)
+        ram_kinds()[i] &= ~RAM_KIND_ALBUM_COMPILATION;
+}
+
+void tagcache_compilation_albums_begin(void)
+{
+    if (tc_stat.ramcache && tcramcache.hdr)
+        compilation_albums_forget();
+    compilation_albums_hash = 2166136261u;
+}
+
+void tagcache_compilation_album_song(int idx_id)
+{
+    uint8_t *kind = ram_kinds_byte(idx_id);
+    if (!kind)
+        return;
+    *kind |= RAM_KIND_ALBUM_COMPILATION;
+    compilation_albums_hash = (compilation_albums_hash ^ (uint32_t)idx_id)
+                              * 16777619u;
+}
+
+bool tagcache_compilation_albums_ready(void)
+{
+    return compilation_albums || !tagcache_compilation_songs_hash();
+}
+
+void tagcache_compilation_albums_done(void)
+{
+    if (!tc_stat.ramcache || !tcramcache.hdr)
+        return;
+    compilation_albums = true;
+    /* Artists' marks, by the albums' */
+    music_names_make();
+    states_generation++;
 }
 
 /* The kind of a track iTunesDB doesn't call a podcast or a book, as Podcasts
@@ -1409,17 +1533,23 @@ static int unsynced_kind(long idx_id, const char *path, bool outside)
            : strcasestr(path, "/Podcasts/") ? 1 : 0;
 }
 
-/* an entry's kinds byte, by its path and the flags of its hash */
+/* an entry's kinds byte, by its path and the flags of its hash; a song in
+   Finder's folder is part of a compilation as iTunes has it now, though the
+   file's tags may say otherwise, another as its tags were scanned */
 static uint8_t ram_kind_of(long idx_id, const char *path, uint64_t hash)
 {
     const unsigned flags = itunesdb_hash_flags(hash);
     const bool outside = !itunesdb_synced_path(path);
     const int synced = (flags & ITUNESDB_AUDIOBOOK) ? 2
                        : (flags & ITUNESDB_PODCAST) ? 1 : 0;
+    const bool compilation = outside
+        ? (tcramcache.hdr->indices[idx_id].flag & FLAG_COMPILATION) != 0
+        : (flags & ITUNESDB_COMPILATION) != 0;
     return (synced ? synced | RAM_KIND_MARKED
                    : unsynced_kind(idx_id, path, outside))
            | ((flags & ITUNESDB_UNPLAYED) ? RAM_KIND_UNPLAYED : 0)
-           | (outside ? RAM_KIND_OUTSIDE : 0);
+           | (outside ? RAM_KIND_OUTSIDE : 0)
+           | (compilation ? RAM_KIND_COMPILATION : 0);
 }
 
 static void ram_path_add(long idx_id, const char *path, uint64_t hash)
@@ -1452,6 +1582,8 @@ static void ram_kinds_refresh(void)
 #endif
     if (!tc_stat.ramcache || ram_kinds_count <= 0)
         return;
+    /* made again: the albums' marks with the table of albums after it */
+    compilation_albums = false;
     /* each file's path from those in memory, or else from the dircache */
     const char *base = ram_paths_handle > 0
                        ? core_get_data_pinned(ram_paths_handle) : NULL;
@@ -1521,6 +1653,15 @@ static int ram_kind(long idx_id)
         || idx_id < 0 || idx_id >= ram_kinds_count)
         return 0;
     return ram_kinds()[idx_id] & RAM_KIND_MASK;
+}
+
+static bool ram_compilation(long idx_id)
+{
+    return tc_stat.ramcache && tcramcache.hdr && idx_id >= 0
+           && idx_id < ram_kinds_count
+           && (ram_kinds()[idx_id] & (compilation_albums
+                                      ? RAM_KIND_ALBUM_COMPILATION
+                                      : RAM_KIND_COMPILATION));
 }
 
 /* the entry's kinds byte in memory, to read or change; NULL without it */
@@ -2044,11 +2185,13 @@ static long check_virtual_tags(int tag, int idx_id,
             break;
 
         case tag_virt_kind:
+        case tag_virt_compilation:
 #if defined(HAVE_TC_RAMCACHE) && !defined(__PCTOOL__)
             /* a search in memory passes the entry, not its index */
             if (ram_entry_id(idx) >= 0)
                 idx_id = ram_entry_id(idx);
-            data = ram_kind(idx_id);
+            data = tag == tag_virt_kind ? ram_kind(idx_id)
+                                        : ram_compilation(idx_id);
 #endif
             break;
 
@@ -4052,6 +4195,50 @@ void tagcache_date_text(char *buf, size_t size, long date)
  * idea, as it uses lots of stack and is called from a recursive function
  * (check_dir).
  */
+#ifndef __PCTOOL__
+/* The compilation mark of a song outside Finder's folder the database had
+   before the marks were read, from its tags, once (compilations_due): in
+   its entry where it is, on the disk and in memory, if it has one. id3 is
+   the scan's room for the tags */
+static void compilation_read(int idx_id, const char *path, int afmt,
+                             struct mp3entry *id3)
+{
+    if (!compilations_due || itunesdb_synced_path(path))
+        return;
+    /* the check's bar steps by the songs whose tags it reads */
+    if (scan_outside)
+    {
+        if (!outside_counted)
+            count_outside();
+        import_done++;
+    }
+    if (!get_metadata_afmt(id3, -1, path, afmt, METADATA_EXCLUDE_ID3_PATH)
+        || !id3->compilation)
+        return;
+    struct master_header mh;
+    struct index_entry idx;
+    const int fd = open_master_fd(&mh, true);
+    if (fd < 0)
+        return;
+    if (get_index(fd, idx_id, &idx, false) && !(idx.flag & FLAG_COMPILATION))
+    {
+        idx.flag |= FLAG_COMPILATION;
+        if (write_index(fd, idx_id, &idx))
+        {
+#ifdef HAVE_TC_RAMCACHE
+            uint8_t *kind = ram_kinds_byte(idx_id);
+            if (kind)
+                *kind |= RAM_KIND_COMPILATION;
+            /* by the songs' marks until the table of albums is made again */
+            compilation_albums = false;
+#endif
+            compilations_found++;
+        }
+    }
+    close(fd);
+}
+#endif
+
 static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
 {
     #define ADD_TAG(entry, tag, data) \
@@ -4130,6 +4317,9 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
         if ((unsigned long)known_mtime == mtime)
         {
             /* No changes to file. */
+#ifndef __PCTOOL__
+            compilation_read(idx_id, path, afmt, &id3);
+#endif
             return ;
         }
 
@@ -4197,6 +4387,9 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     {
         id3.tracknum = -1;
     }
+
+    if (id3.compilation)
+        entry.flag |= FLAG_COMPILATION;
 
     /* Numeric tags */
     long year = id3.year;
@@ -6648,6 +6841,27 @@ int tagcache_track_kind(int idx_id)
 #endif
 }
 
+bool tagcache_track_compilation(int idx_id)
+{
+#ifdef HAVE_TC_RAMCACHE
+    return tc_stat.ready && ram_compilation(idx_id);
+#else
+    (void)idx_id;
+    return false;
+#endif
+}
+
+bool tagcache_song_compilation(int idx_id)
+{
+#ifdef HAVE_TC_RAMCACHE
+    const uint8_t *kind = tc_stat.ready ? ram_kinds_byte(idx_id) : NULL;
+    return kind && (*kind & RAM_KIND_COMPILATION);
+#else
+    (void)idx_id;
+    return false;
+#endif
+}
+
 bool tagcache_kinds_known(void)
 {
 #ifdef HAVE_TC_RAMCACHE
@@ -8870,9 +9084,11 @@ static void count_outside(void)
         return;
     }
     /* none new, the tags of some changed: by all those known, rather than
-       full at the first */
-    const int fresh = songs > outside_known ? songs - outside_known
-                                            : MAX(outside_known, 1);
+       full at the first; all of them when each is read once for its
+       compilation mark */
+    const int fresh = compilations_due ? MAX(songs, 1)
+                      : songs > outside_known ? songs - outside_known
+                                              : MAX(outside_known, 1);
     import_total = 2 * fresh;
     import_done = fresh;
 }
@@ -8967,6 +9183,11 @@ void do_tagcache_build(const char *path[])
 
     filenametag_fd = open_tag_fd(&header, tag_filename, false);
 #ifndef __PCTOOL__
+    /* the songs it has read once for their compilation marks, unless a
+       whole scan has; a database made anew has them all from their tags */
+    compilations_due = filenametag_fd >= 0
+                       && !db_file_exists(TAGCACHE_FILE_COMPILATIONS);
+    compilations_found = 0;
 #if defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE)
     /* as after a sync over USB: a table of the filename file took a second
        to make for 6800 songs, for nothing */
@@ -9091,6 +9312,23 @@ void do_tagcache_build(const char *path[])
     /* the images' sum of the whole walk only */
     if (scan_outside && ret)
         outside_images_valid = true;
+    /* Every song read once for its mark: noted for good, by a walk that went
+       through. Those marked count in the lists now, also without a commit */
+    if (ret && !db_file_exists(TAGCACHE_FILE_COMPILATIONS))
+    {
+        const int fd = open_db_fd(TAGCACHE_FILE_COMPILATIONS,
+                                  O_WRONLY | O_CREAT | O_TRUNC);
+        if (fd >= 0)
+            close(fd);
+    }
+    compilations_due = false;
+#ifdef HAVE_TC_RAMCACHE
+    if (compilations_found > 0)
+    {
+        music_names_make();
+        states_generation++;
+    }
+#endif
     /* the commit can have the memory */
     itunesdb_forget_metadata();
 #endif
@@ -9197,6 +9435,8 @@ static void load_ramcache(void)
     /* not searched while it loads again, as after an update that found
        nothing new, which left it as it was: its names were gone meanwhile */
     tc_stat.ramcache = false;
+    /* the kinds made anew, without the albums' marks */
+    compilation_albums = false;
 
 #ifndef __PCTOOL__
     /* taken before the load, which keeps the cache from moving */

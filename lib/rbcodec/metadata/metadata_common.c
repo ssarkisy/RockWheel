@@ -295,6 +295,7 @@ long parse_tag(const char* name, char* value, struct mp3entry* id3,
         eENSEMBLE, eGROUPING, eCONTENTGROUP, eCONTENT_GROUP,
         eMUSICBRAINZ1, eMUSICBRAINZ2, eDESCRIPTION,
         eARTISTSORT, eALBUMARTISTSORT, eALBUMSORT, eTITLESORT, eCOMPOSERSORT,
+        eCOMPILATION,
         e_COUNT_TAG_COUNT
     };
 
@@ -312,7 +313,7 @@ long parse_tag(const char* name, char* value, struct mp3entry* id3,
       [eDESCRIPTION] = "description",
       [eARTISTSORT] = "artistsort", [eALBUMARTISTSORT] = "albumartistsort",
       [eALBUMSORT] = "albumsort", [eTITLESORT] = "titlesort",
-      [eCOMPOSERSORT] = "composersort",
+      [eCOMPOSERSORT] = "composersort", [eCOMPILATION] = "compilation",
       [e_COUNT_TAG_COUNT] = NULL
     };
 
@@ -396,6 +397,12 @@ long parse_tag(const char* name, char* value, struct mp3entry* id3,
             : item == eALBUMSORT ? &(id3->album_sort)
             : item == eTITLESORT ? &(id3->title_sort)
             : &(id3->composer_sort);
+    }
+    else if (item == eCOMPILATION)
+    {
+        /* "1", as iTunes' mark of one; the text isn't kept */
+        id3->compilation = atoi(value) != 0;
+        p = NULL;
     }
     else
     {

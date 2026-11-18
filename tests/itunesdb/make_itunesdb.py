@@ -90,13 +90,14 @@ def mhod_raw(kind, body):
 
 def mhit(tid, mhods, *, header_len=0x248, rating=0, plays=0, year=0,
          added=0, released=0, media=1, dbid=0, art_id=0, art_count=0,
-         sound_check=0, played=0, bookmark=0):
+         sound_check=0, played=0, bookmark=0, compilation=0):
     h = bytearray(header_len)
     h[0:4] = b'mhit'
     put32(h, 4, header_len)
     put32(h, 12, len(mhods))
     put32(h, 16, tid)
     put32(h, 20, 1)
+    h[30] = compilation
     h[31] = rating
     put32(h, 52, year)
     put32(h, 76, sound_check)
@@ -210,7 +211,8 @@ TRACKS = [
      ':iPod_Control:Music:F01:AAAB.m4a', dict(rating=100, plays=12, year=1969,
                                               art_id=201)),
     (103, 'Stars \U0001F31F and Ж', 'Other Artist', 'Single',
-     ':iPod_Control:Music:F02:AAAC.m4a', dict(year=2024, art_id=202)),
+     ':iPod_Control:Music:F02:AAAC.m4a', dict(year=2024, art_id=202,
+                                              compilation=1)),
     (104, 'Episode 1', 'A Show', 'A Show',
      ':iPod_Control:Music:F03:AAAD.mp3', dict(media=4, played=2,
                                               bookmark=61000)),

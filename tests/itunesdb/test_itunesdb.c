@@ -323,6 +323,56 @@ static void check_whole_tracks(void)
     CHECK_EQ(d->bookmark, 61000);
 }
 
+/* The flags the import wrote of make_itunesdb.py's tracks: 103 part of a
+   compilation (mhit+30), the others not. Then the file as version 3 left it,
+   without the compilations: its flags and marks read meanwhile, the import
+   due, and that import's file of this version with the compilation and the
+   mark the iPod gave the podcast meanwhile */
+static void check_whole_flags(void)
+{
+    static const char single[] = "/iPod_Control/Music/F02/AAAC.m4a";
+    static const char song[] = "/iPod_Control/Music/F01/AAAA.mp3";
+    static const char episode[] = "/iPod_Control/Music/F03/AAAD.mp3";
+    CHECK(itunesdb_track_flags(single) & ITUNESDB_COMPILATION);
+    CHECK(!(itunesdb_track_flags(song) & ITUNESDB_COMPILATION));
+    CHECK(!(itunesdb_track_flags(episode) & ITUNESDB_COMPILATION));
+    CHECK(itunesdb_track_flags(episode) & ITUNESDB_PODCAST);
+    CHECK(itunesdb_flags_ready());
+
+    struct flags_header h;
+    struct flags_entry e[8];
+    int fd = open(FLAGS_FILE, O_RDWR);
+    CHECK(fd >= 0);
+    if (fd < 0)
+        return;
+    const ssize_t got = read(fd, &h, sizeof(h));
+    CHECK(got == sizeof(h) && h.version == FLAGS_VERSION && h.count >= 2
+          && h.count <= ARRAYLEN(e));
+    const ssize_t size = (ssize_t)MIN(h.count, ARRAYLEN(e)) * sizeof(*e);
+    CHECK(read(fd, e, size) == size);
+    h.version = FLAGS_VERSION_3;
+    for (uint32_t i = 0; i < h.count && i < ARRAYLEN(e); i++)
+        e[i].flags &= ~ITUNESDB_COMPILATION;
+    lseek(fd, 0, SEEK_SET);
+    CHECK(write(fd, &h, sizeof(h)) == sizeof(h) && write(fd, e, size) == size);
+    close(fd);
+    forget_index(&flags_index);
+
+    CHECK(!itunesdb_flags_ready());
+    CHECK(!itunesdb_load_tracks());
+    CHECK(itunesdb_track_flags(episode) & ITUNESDB_PODCAST);
+    CHECK(!(itunesdb_track_flags(single) & ITUNESDB_COMPILATION));
+    const bool unplayed = itunesdb_track_flags(episode) & ITUNESDB_UNPLAYED;
+    CHECK(itunesdb_set_unplayed(episode, !unplayed));
+
+    volatile int done = 0, total = 0;
+    itunesdb_import_tracks(false, &done, &total);
+    CHECK(itunesdb_flags_ready());
+    CHECK(itunesdb_track_flags(single) & ITUNESDB_COMPILATION);
+    CHECK(itunesdb_track_flags(episode) & ITUNESDB_PODCAST);
+    CHECK(!(itunesdb_track_flags(episode) & ITUNESDB_UNPLAYED) == unplayed);
+}
+
 static int run_case(const char *dir, const char *name)
 {
     char log[MAX_PATH * 2];
@@ -457,6 +507,9 @@ static int run_case(const char *dir, const char *name)
         free(read_paths[i]);
     }
     free(read_paths);
+    /* after the records, which the import it makes forgets */
+    if (!strcmp(name, "whole"))
+        check_whole_flags();
 
     /* and the name, as the main menu shows it: last, as a loop there would
        leave the rest unread */

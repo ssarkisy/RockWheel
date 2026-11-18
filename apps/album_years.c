@@ -42,8 +42,13 @@ int32_t album_date_order(int32_t date)
 struct album {
     int32_t album, albumartist;
     int32_t date;       /* date_of()'s value, 0 for none */
-    int32_t first;      /* the song's number in the database */
+    int32_t first;      /* the song's number in the database, FIRST_SONG's
+                           bits, and FIRST_COMPILATION */
 };
+/* a song of music of the album is marked part of a compilation
+   (tagcache_song_compilation()): the album is one, all its songs */
+#define FIRST_SONG        0x00ffffff
+#define FIRST_COMPILATION 0x40000000
 
 static int handle;          /* the albums, sorted by name and album artist,
                                after them the rows' dates, then each album's
@@ -71,6 +76,8 @@ struct recent {
 static int32_t recent_no[RECENT_MOST];
 static int recent_count;
 static int made_commitid = -1;
+/* of the songs' compilation marks it went by */
+static uint32_t made_compilations;
 static unsigned generation;
 /* of the albums' seeks as numbered, for what's kept by their numbers to
    know it's of this table */
@@ -140,6 +147,12 @@ static bool is_music(int idx_id)
     return tagcache_track_kind(idx_id) == 0;
 }
 
+/* a song of music marked part of a compilation */
+static bool song_compilation(int idx_id)
+{
+    return is_music(idx_id) && tagcache_song_compilation(idx_id);
+}
+
 /* a song: its album's date, as date_after() has it so far, and when it was
    added, if after the album's songs so far. With the database's memory held
    still, as it goes through its songs: nothing waits here */
@@ -162,6 +175,8 @@ static void count_song(int idx_id, const int32_t *tag_seek, void *data)
                 a->date = date;
             if (tag_seek[tag_dateadded] > c->added[i] && is_music(idx_id))
                 c->added[i] = tag_seek[tag_dateadded];
+            if (song_compilation(idx_id))
+                a->first |= FIRST_COMPILATION;
             return;
         }
         i = (i + 1) & c->mask;
@@ -172,7 +187,9 @@ static void count_song(int idx_id, const int32_t *tag_seek, void *data)
         c->full = true;
         return;
     }
-    c->table[i] = (struct album){ album, albumartist, date, idx_id };
+    c->table[i] = (struct album){ album, albumartist, date,
+                                  idx_id | (song_compilation(idx_id)
+                                            ? FIRST_COMPILATION : 0) };
     c->added[i] = tag_seek[tag_dateadded] > 0 && is_music(idx_id)
                   ? tag_seek[tag_dateadded] : 0;
     c->used++;
@@ -284,6 +301,31 @@ static void place_by_artist(struct album *albums, int n)
         places[order[k]] = k;
 }
 
+/* each song of an album marked, for Music to list it by its album's mark */
+static void mark_song(int idx_id, const int32_t *tag_seek, void *data)
+{
+    const struct album *albums = data;
+    const int i = album_in(albums, tag_seek[tag_album], tag_seek[tag_albumartist]);
+    if (i >= 0 && (albums[i].first & FIRST_COMPILATION))
+        tagcache_compilation_album_song(idx_id);
+}
+
+/* The albums' marks of the songs (tagcache_compilation_albums_begin()), of
+   the table just made: a pass over the songs if an album is a compilation */
+static void mark_compilations(void)
+{
+    tagcache_compilation_albums_begin();
+    const struct album *albums = count > 0 ? core_get_data_pinned(handle) : NULL;
+    bool any = false;
+    for (int i = 0; i < count && !any; i++)
+        any = albums[i].first & FIRST_COMPILATION;
+    if (any)
+        tagcache_for_each_track(mark_song, (void *)albums);
+    if (albums)
+        core_put_data_pinned((void *)albums);
+    tagcache_compilation_albums_done();
+}
+
 static bool make(void)
 {
     if (handle > 0)
@@ -352,7 +394,9 @@ static bool make(void)
                 handle = core_free(handle);
             rows_used = ROWS_MOST; /* none begun */
             made_commitid = tagcache_get_commitid();
+            made_compilations = tagcache_compilation_songs_hash();
             generation++;
+            mark_compilations();
             return true;
         }
         core_put_data_pinned(table);
@@ -376,6 +420,8 @@ bool album_years_make(void)
 bool album_years_ready(void)
 {
     return made_commitid >= 0 && made_commitid == tagcache_get_commitid()
+           && made_compilations == tagcache_compilation_songs_hash()
+           && tagcache_compilation_albums_ready()
            && tagcache_finds_entries();
 }
 
@@ -505,10 +551,16 @@ int album_years_name_year_of(int no)
     return album_date_year(album_years_name_date_of(no));
 }
 
+bool album_years_compilation(int no)
+{
+    const struct album *a = album_no(no);
+    return a && (a->first & FIRST_COMPILATION);
+}
+
 int32_t album_years_first_track(int no)
 {
     const struct album *a = album_no(no);
-    return a ? a->first : -1;
+    return a ? a->first & FIRST_SONG : -1;
 }
 
 int album_years_count(void)
@@ -673,6 +725,7 @@ int album_years_year(int no) { (void)no; return 0; }
 int32_t album_years_name_date_of(int no) { (void)no; return 0; }
 int album_years_name_year_of(int no) { (void)no; return 0; }
 int32_t album_years_first_track(int no) { (void)no; return -1; }
+bool album_years_compilation(int no) { (void)no; return false; }
 int album_years_count(void) { return 0; }
 uint32_t album_years_hash(void) { return 0; }
 int album_years_artist_place(int no) { (void)no; return -1; }

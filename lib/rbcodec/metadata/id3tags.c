@@ -283,6 +283,26 @@ static int parsetdat( struct mp3entry* entry, char* tag, int bufferpos )
     return !tag[4] && at + TDAT_ROOM < room ? at + TDAT_ROOM : at;
 }
 
+/* iTunes' "part of a compilation", TCMP and ID3v2.2's TCP: the start of the
+   frame's text, "1", in any of the encodings; a number other than 0 */
+static bool compilation_text(const unsigned char *text, int len)
+{
+    int value = 0;
+    bool digits = false;
+    /* past the encoding, a byte order mark and UTF-16's zero bytes */
+    for (int i = 1; i < len; i++)
+    {
+        if (text[i] >= '0' && text[i] <= '9')
+        {
+            value = value * 10 + text[i] - '0';
+            digits = true;
+        }
+        else if (digits || (text[i] != 0 && text[i] != 0xff && text[i] != 0xfe))
+            break;
+    }
+    return value != 0;
+}
+
 /* parse numeric genre from string, version 2.2 and 2.3 */
 static int parsegenre( struct mp3entry* entry, char* tag, int bufferpos )
 {
@@ -1231,6 +1251,32 @@ retry_with_limit:
             framelen = ID3V2_MAX_ITEM_SIZE;
 
         logf("id3v2 frame: %.4s", header);
+
+        /* The mark of a compilation (compilation_text()): its few bytes read
+           apart from the buffer, which it takes no room of, and the frame
+           passed over as one that isn't looked at. So every frame after it
+           is read as before the mark was, with the buffer full too, and
+           the picture's place, which the covers made of it go by, stays
+           where it was */
+        if (version == ID3_VER_2_2 ? !memcmp(header, "TCP", 3)
+                                   : !memcmp(header, "TCMP", 4))
+        {
+            unsigned char text[8];
+            const int n = MIN(totframelen, (long)sizeof(text));
+            const bool unsynched = global_unsynch && version <= ID3_VER_2_3;
+            if ((unsynched ? read_unsynched(fd, text, n) : read(fd, text, n)) != n)
+                return;
+            int len = n;
+            if (unsynch || (global_unsynch && version >= ID3_VER_2_4))
+                len = unsynchronize_frame((char *)text, n);
+            entry->compilation = compilation_text(text, len);
+            if (unsynched)
+                skip_unsynched(fd, totframelen - n);
+            else if (lseek(fd, totframelen - n, SEEK_CUR) == -1)
+                return;
+            size -= totframelen;
+            continue;
+        }
 
         /* Check for certain frame headers
 

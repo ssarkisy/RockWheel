@@ -251,6 +251,36 @@ int tagcache_track_kind(int idx_id)
     return 0;
 }
 
+/* no song marked part of a compilation, and so no album's marks to set */
+bool tagcache_song_compilation(int idx_id)
+{
+    (void)idx_id;
+    return false;
+}
+
+uint32_t tagcache_compilation_songs_hash(void)
+{
+    return 0;
+}
+
+bool tagcache_compilation_albums_ready(void)
+{
+    return true;
+}
+
+void tagcache_compilation_albums_begin(void)
+{
+}
+
+void tagcache_compilation_album_song(int idx_id)
+{
+    (void)idx_id;
+}
+
+void tagcache_compilation_albums_done(void)
+{
+}
+
 bool tagcache_for_each_track(void (*f)(int idx_id, const int32_t *tag_seek,
                                        void *data),
                              void *data)

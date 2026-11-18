@@ -813,6 +813,7 @@ static void print_mp3entry(const struct mp3entry *id3, FILE *f)
     if (id3->comment) fprintf(f, "Comment: %s\n", id3->comment);
     if (id3->albumartist) fprintf(f, "Album artist: %s\n", id3->albumartist);
     if (id3->grouping) fprintf(f, "Grouping: %s\n", id3->grouping);
+    if (id3->compilation) fprintf(f, "Compilation: true\n");
     if (id3->layer) fprintf(f, "Layer: %d\n", id3->layer);
     if (id3->id3version) fprintf(f, "ID3 version: %u\n", (int)id3->id3version);
     fprintf(f, "Codec: %s\n", audio_formats[id3->codectype].label);

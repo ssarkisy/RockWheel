@@ -54,6 +54,7 @@
 #define MP4_cday FOURCC(0xa9, 'd', 'a', 'y')
 #define MP4_clyr FOURCC(0xa9, 'l', 'y', 'r')
 #define MP4_covr FOURCC('c', 'o', 'v', 'r')
+#define MP4_cpil FOURCC('c', 'p', 'i', 'l')
 #define MP4_disk FOURCC('d', 'i', 's', 'k')
 #define MP4_drms FOURCC('d', 'r', 'm', 's')
 #define MP4_enca FOURCC('e', 'n', 'c', 'a')
@@ -533,6 +534,15 @@ static bool read_mp4_tags(int fd, struct mp3entry* id3,
 
         case MP4_disk:
             read_mp4_tag_i_from_n(fd, &id3->discnum, &id3->disc_string, size, &buffer_left, &buffer);
+            break;
+
+        case MP4_cpil:
+            {
+                /* iTunes' "part of a compilation": a byte, 1 */
+                unsigned char cpil = 0;
+                id3->compilation = read_mp4_tag(fd, size, (char *)&cpil, 1) == 1
+                                   && cpil;
+            }
             break;
 
         case MP4_trkn: {

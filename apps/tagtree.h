@@ -278,6 +278,14 @@ void tagtree_albums_reordered(void);
    list the other artists, and the lists left in them, at the place given, go
    back up to those */
 void tagtree_artists_grouping_changed(int *dirlevel, int *selected_item);
+/* Compilations turned on or off in Music Menu, or the library's first come
+   or its last gone: Music's own rows and Artists', which leave the
+   compilations out while Music has them, are others. The lists left in
+   Artists, at the place given if not NULL, go back to their top */
+void tagtree_compilations_changed(int *dirlevel, int *selected_item);
+/* the same if Music Menu > Compilations changed since the last call or the
+   last change */
+void tagtree_compilations_check(int *dirlevel, int *selected_item);
 int tagtree_get_icon(struct tree_context* c);
 int tagtree_get_filename(struct tree_context* c, char *buf, int buflen);
 int tagtree_get_custom_action(struct tree_context* c);

@@ -112,6 +112,9 @@ uint64_t itunesdb_path_hash(const char *path);
 #define ITUNESDB_AUDIOBOOK       0x02 /* plays at the audiobook speed */
 #define ITUNESDB_SKIP_SHUFFLE    0x04 /* not in Shuffle Songs */
 #define ITUNESDB_PODCAST         0x08
+/* iTunes' "part of a compilation" (mhit+30): Music > Compilations lists it,
+   and Artists leaves it out */
+#define ITUNESDB_COMPILATION     0x80
 /* Of a podcast or an audiobook, in the flags' file alone, not in the counts'
    (itunesdb.dat). The Mac's mark at the last import, "not played"; the mark
    as it is now, the Mac's until an episode ends or is marked on the iPod,

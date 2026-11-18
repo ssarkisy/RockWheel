@@ -399,6 +399,9 @@ static struct tagentry* tagtree_get_entry(struct tree_context *c, int id);
 static int tagtree_find_row(struct tree_context *c, const char *name);
 struct search_instruction;
 static bool section_is(const struct search_instruction *si, int lang);
+static bool is_compilations(const struct search_instruction *si);
+static bool artists_solo(const struct search_instruction *si);
+static bool album_is_compilation(int no);
 static int32_t playing_entry(unsigned long *elapsed);
 
 #define SEARCHSTR_SIZE 256
@@ -614,6 +617,7 @@ static int extra_history[MAX_DIR_LEVELS];
 const int tagtree_section_lang[MUSIC_SECTIONS] = {
     LANG_COVER_FLOW, LANG_SEARCH, LANG_PLAYLISTS, LANG_ARTISTS, LANG_ALBUMS,
     LANG_SONGS, LANG_PODCASTS, LANG_GENRES, LANG_COMPOSERS, LANG_AUDIOBOOKS,
+    LANG_COMPILATIONS,
 };
 /* every item of Music's own menu, as when it's gone into past its list */
 static bool root_all_items;
@@ -629,12 +633,19 @@ static bool recent_row(void)
            && album_years_recent_count() > 0;
 }
 static int recent_row_seen = -1;
+/* and Compilations' as it was, whose coming or going changes Artists too
+   (artists_solo()) */
+static int compilations_row_seen = -1;
+
+static bool compilations_row(void);
 
 static bool root_item_shown(const struct menu_entry *item)
 {
     const int lang = P2ID((const unsigned char *)item->name);
     if (lang == LANG_RECENTLY_ADDED)
         return recent_row();
+    if (lang == LANG_COMPILATIONS)
+        return compilations_row();
     for (int i = 0; i < MUSIC_SECTIONS; i++)
     {
         if (tagtree_section_lang[i] == lang)
@@ -888,6 +899,11 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
     const bool podcasts = csi && c->currtable != TABLE_ROOT
                           && (section_is(csi, LANG_PODCASTS)
                               || section_is(csi, LANG_AUDIOBOOKS));
+    /* the compilations, which an import changes without a commit: the rows
+       of a name's of Albums, Compilations' and Artists' without them */
+    const bool compilations = csi && c->currtable != TABLE_ROOT
+        && (of_albums || all_songs || is_compilations(csi)
+            || section_is(csi, LANG_ARTISTS));
     const uint32_t list[] = {
         c->currtable, c->currextra, (uintptr_t)csi, tagcache_get_commitid(),
         global_settings.interpret_numbers,
@@ -903,6 +919,8 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
            plays and marks, and the one playing, started as it plays */
         podcasts ? tagcache_states_generation() : 0,
         podcasts ? playing_entry(NULL) + 1 : 0,
+        compilations ? tagcache_compilations_hash() : 0,
+        compilations ? artists_solo(csi) : 0,
 #ifdef HAVE_TC_RAMCACHE
         /* the songs' numbers, which come from the database's memory */
         tagcache_is_in_ram(),
@@ -1098,6 +1116,7 @@ static int get_tag(int *tag)
         TAG_MATCH("%playlists", menu_playlists) \
         TAG_MATCH("%coverflow", menu_coverflow) \
         TAG_MATCH("albumartist", tag_albumartist) \
+        TAG_MATCH("compilation", tag_virt_compilation) \
         TAG_MATCH("lastelapsed", tag_lastelapsed) \
         TAG_MATCH("%menu_start", var_menu_start) \
         TAG_MATCH("%byfirstletter", menu_byfirstletter) \
@@ -2697,9 +2716,14 @@ static bool album_numbers_fit(void)
     return album_years_count() <= INT16_MAX;
 }
 
+/* a row's songs are those of a name's compilations, of every album artist
+   (album_is_compilation()), in the place of an album artist's seek */
+#define ARTIST_COMPILATIONS (-2)
+
 /* The album artist a row of the list made last is of, as the songs it opens
    are: of an album in Albums whose name several album artists have, each a
-   row of its own; -1 for another row, whose songs are of its name alone, as
+   row of its own, or ARTIST_COMPILATIONS for the row of the name's
+   compilations; -1 for another row, whose songs are of its name alone, as
    they always were */
 static int32_t row_artist(const struct tagentry *row)
 {
@@ -2708,7 +2732,10 @@ static int32_t row_artist(const struct tagentry *row)
         || row->customaction != ONPLAY_NO_CUSTOMACTION)
         return -1;
     album_years_find(row->extraseek, &n);
-    return n > 1 ? album_years_artist(row->album.no) : -1;
+    if (n <= 1)
+        return -1;
+    return album_is_compilation(row->album.no) ? ARTIST_COMPILATIONS
+                                               : album_years_artist(row->album.no);
 }
 
 /* the order of the albums' dates (album_date_order()), those without one
@@ -3296,6 +3323,39 @@ static bool in_section(int lang)
     return section_is(csi, lang);
 }
 
+/* Music > Compilations, in Albums' form in tagnavi.config: of the songs part
+   of a compilation alone (compilation_clause), each name one row */
+static bool is_compilations(const struct search_instruction *si)
+{
+    return section_is(si, LANG_COMPILATIONS);
+}
+
+/* its row in Music: as Music Menu has it, with a compilation to list */
+static bool compilations_row(void)
+{
+    return global_settings.music_menu_show[MUSIC_SECTION_COMPILATIONS]
+           && tagcache_compilation_songs() > 0;
+}
+
+/* Artists, while Music has Compilations: of the songs that aren't part of
+   one, which are listed there instead. Its own search only: the list in its
+   place that Search and Go to Artist open (artists_copy) has them all */
+static bool artists_solo(const struct search_instruction *si)
+{
+    return compilations_row() && root_item_of(LANG_COMPILATIONS) >= 0
+           && section_is(si, LANG_ARTISTS);
+}
+
+/* An album of the table of years is a compilation, a song of music of it
+   marked so, and each of its songs is, as the lists find them
+   (tag_virt_compilation): a name's compilations are one row of Albums with
+   Artists in Albums, of all their album artists, as a compilation without
+   an album artist has each song's artist as one */
+static bool album_is_compilation(int no)
+{
+    return album_years_compilation(no);
+}
+
 /* A show's episodes in Podcasts, by date when the list is whole;
    list_hash() marks its id */
 static bool show_episodes(const struct search_instruction *si, int table,
@@ -3609,13 +3669,29 @@ static int number_songs(struct tree_context *c, struct tagcache_search *tcs,
     return digits;
 }
 
+/* the latest year of a name's compilations' (album_is_compilation()), 0 for
+   none */
+static int compilations_year(int32_t album)
+{
+    int n = 0, year = 0;
+    const int no = album_years_find(album, &n);
+    for (int j = 0; no >= 0 && j < n; j++)
+    {
+        if (album_is_compilation(no + j))
+            year = MAX(year, album_years_year(no + j));
+    }
+    return year;
+}
+
 /* The list as an album's screen, if it's one album's songs (tagtree_album()):
    each song's album and album artist the first's, as the database has the
    song's artist for none, and their discs and tracks in order, as by
    tagnavi's fmt_title, though two may share a number. Of the rows past those
    at the top, from the database's memory, as the list is loaded.
    A show's episodes too: year and longest 0, albumartist -1 if authors
-   differ */
+   differ; and a name's compilations, whose album artists may differ too, as
+   a compilation without one has each song's artist: the row of them in
+   Albums (ARTIST_COMPILATIONS), and every row of Compilations */
 static void album_view_make(struct tree_context *c)
 {
     album_view.songs = 0;
@@ -3623,6 +3699,9 @@ static void album_view_make(struct tree_context *c)
     const int first = c->special_entry_count;
     const bool book = entries_parts.parts > 0;
     const bool show = entries_episodes || book;
+    const bool shared = csi && level > 0 && level <= MAX_TAGS
+                        && (csi->result_artist[level - 1] == ARTIST_COMPILATIONS
+                            || is_compilations(csi));
     struct tagcache_numbers numbers;
     if (c->currtable != TABLE_NAVIBROWSE || !csi || c->dirfull
         || current_offset != 0 || current_entry_count != c->filesindir
@@ -3647,14 +3726,15 @@ static void album_view_make(struct tree_context *c)
         if (entries[i].newtable != TABLE_PLAYTRACK
             || tagcache_sort_key(song, tag_album) != album)
             return;
-        if (show)
+        if (tagcache_sort_key(song, tag_albumartist) != albumartist)
         {
-            if (tagcache_sort_key(song, tag_albumartist) != albumartist)
-                albumartist = -1;
-            continue;
+            if (!show && !shared)
+                return;
+            albumartist = -1;
         }
-        if (tagcache_sort_key(song, tag_albumartist) != albumartist
-            || d < disc || (d == disc && t < track))
+        if (show)
+            continue;
+        if (d < disc || (d == disc && t < track))
             return;
         disc = d;
         track = t;
@@ -3662,7 +3742,8 @@ static void album_view_make(struct tree_context *c)
     }
     album_view = (struct tagtree_album){
         .songs = current_entry_count - first,
-        .year = show ? 0 : album_year(album, albumartist),
+        .year = show ? 0 : albumartist >= 0 ? album_year(album, albumartist)
+                                            : compilations_year(album),
         /* a book's rows have values too, its parts' starts */
         .longest = book ? MAX(entries_parts.length, 1) : longest,
         .first = idx,
@@ -3688,6 +3769,15 @@ static bool music_only(const struct search_instruction *si)
 static struct tagcache_search_clause music_clause = {
     .tag = tag_virt_kind, .type = clause_is, .numeric = true, .numeric_data = 0,
 };
+/* the songs part of a compilation, and those that aren't */
+static struct tagcache_search_clause compilation_clause = {
+    .tag = tag_virt_compilation, .type = clause_is, .numeric = true,
+    .numeric_data = 1,
+};
+static struct tagcache_search_clause solo_clause = {
+    .tag = tag_virt_compilation, .type = clause_is, .numeric = true,
+    .numeric_data = 0,
+};
 
 /* A list of names that the names' own marks filter (make_entries()): then
    its search has no condition and makes no pass over the tracks */
@@ -3710,6 +3800,47 @@ static bool album_has_music(int no)
     return found;
 }
 
+/* the album artist of a row chosen as a filter, row_artist()'s: or its
+   compilations', the songs part of one */
+static void add_artist_filter(struct tagcache_search *tcs, int32_t artist)
+{
+    if (artist == ARTIST_COMPILATIONS)
+        tagcache_search_add_clause(tcs, &compilation_clause);
+    else if (artist >= 0)
+        tagcache_search_add_filter(tcs, tag_albumartist, artist);
+}
+
+/* Of a name's albums, the j-th from no, whether it has a row of its own in
+   Albums with Artists in Albums: with music, and a compilation's only as
+   the first of the name's, whose row is all of theirs; in Compilations,
+   only that one. Else the other rows of the name have them */
+static bool album_row_own(int no, int j, bool music, bool compilations)
+{
+    if (music && !album_has_music(no + j))
+        return false;
+    if (!album_is_compilation(no + j))
+        return !compilations;
+    for (int i = 0; i < j; i++)
+    {
+        if (album_is_compilation(no + i) && (!music || album_has_music(no + i)))
+            return false;
+    }
+    return true;
+}
+
+/* an album's row is of a name's compilations, several: without one album
+   artist to show under it */
+static bool album_row_shared(int no)
+{
+    if (!album_is_compilation(no))
+        return false;
+    int n = 0, shared = 0;
+    const int first = album_years_find(album_years_album(no), &n);
+    for (int j = 0; first >= 0 && j < n && shared < 2; j++)
+        shared += album_is_compilation(first + j);
+    return shared > 1;
+}
+
 /* A list's conditions, of its levels down to last. Podcasts' and Audiobooks'
    name the kind and then say it again by file name and genre, for a database
    not in memory: with the kinds in memory the kind alone is asked, or every
@@ -3722,6 +3853,12 @@ static void add_list_clauses(struct tagcache_search *tcs, int last)
        a condition would bring them in the database's order, not by name */
     if (music_only(csi) && !is_songs(csi) && !music_by_names)
         tagcache_search_add_clause(tcs, &music_clause);
+    /* Compilations' songs, and Artists' without them, but for the names
+       their marks filter */
+    if (is_compilations(csi))
+        tagcache_search_add_clause(tcs, &compilation_clause);
+    else if (artists_solo(csi) && !music_by_names)
+        tagcache_search_add_clause(tcs, &solo_clause);
     for (int i = 0; i <= last && i < csi->tagorder_count; i++)
     {
         const struct tagcache_search_clause *first =
@@ -3838,8 +3975,7 @@ static void add_level_filters(struct tagcache_search *tcs, int level)
         else
             tagcache_search_add_filter(tcs, csi->tagorder[i], csi->result_seek[i]);
         /* an album of a name several album artists have: of its own */
-        if (csi->result_artist[i] >= 0)
-            tagcache_search_add_filter(tcs, tag_albumartist, csi->result_artist[i]);
+        add_artist_filter(tcs, csi->result_artist[i]);
     }
 }
 
@@ -3862,9 +3998,12 @@ static int make_recent(struct tree_context *c)
     {
         const int no = album_years_recent(i);
         const int32_t seek = album_years_album(no);
-        /* a name's albums in one row: had already, by a newer one */
-        int k = split ? n : 0;
-        while (k < n && entries[k].extraseek != seek)
+        /* a name's albums in one row: had already, by a newer one; apart,
+           its compilations' (album_row_own()) */
+        const bool shared = split && album_is_compilation(no);
+        int k = split && !shared ? n : 0;
+        while (k < n && (entries[k].extraseek != seek
+                         || (shared && !album_is_compilation(entries[k].album.no))))
             k++;
         char *name = names + used;
         const long room = c->cache.name_buffer_size - used;
@@ -4018,10 +4157,13 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     const bool songs_music = level == 0 && tag == tag_title
         && c->currtable == TABLE_NAVIBROWSE && is_songs(csi) && music_only(csi);
     /* Artists, Albums, Genres, Composers: the names as they come, sorted,
-       those without a song of music passed over by their marks */
+       those without a song of music passed over by their marks; Artists'
+       without one off compilations while Music has those, Compilations'
+       by a search */
+    const bool solo = artists_solo(csi);
     const bool names_music = level == 0 && c->currtable == TABLE_NAVIBROWSE
-        && csi->clause_count[0] == 0 && music_only(csi)
-        && tagcache_names_marked(tag);
+        && csi->clause_count[0] == 0 && music_only(csi) && !is_compilations(csi)
+        && tagcache_names_marked(tag, solo);
     if (level || is_basename|| csi->clause_count[0] || TAGCACHE_IS_NUMERIC(tag)
         || (music_only(csi) && !songs_music && !names_music))
         sort = true;
@@ -4118,7 +4260,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     {
         if ((composers && !strcmp(tcs.result, UNTAGGED))
             || (songs_music && tagcache_track_kind(tcs.idx_id) != 0)
-            || (names_music && !tagcache_name_has_music(tag, tcs.result_seek)))
+            || (names_music && !tagcache_name_has_music(tag, tcs.result_seek,
+                                                        solo)))
             continue;
         if (total_count++ < skip)
             continue;
@@ -4371,14 +4514,17 @@ static int make_entries(struct tree_context *c, int offset, bool init)
        each row's album, the first of its name, and the name's year; with
        Artists in Albums, each album of a name several album artists have a
        row of its own, at its own year, in their order, as Cover Flow has
-       them apart. Made from the last row back, with room for the years' sort
-       after them, which would split none if there wasn't */
+       them apart, but for the name's compilations, one row (album_row_own()).
+       Compilations' rows are those, of their names. Made from the last row
+       back, with room for the years' sort after them, which would split none
+       if there wasn't */
     if (albums && !c->dirfull && album_numbers_fit()
         && (global_settings.album_artists || list_covers_on()))
     {
         struct tagentry *entries = get_entries(c);
         const int first = c->special_entry_count;
         const bool music = music_only(csi);
+        const bool compilations = is_compilations(csi);
         bool split = global_settings.album_artists;
         int more = 0;
         for (i = first; i < current_entry_count && split; i++)
@@ -4387,7 +4533,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             const int no = entries[i].extraseek != entries_untagged
                            ? album_years_find(entries[i].extraseek, &n) : -1;
             for (int k = 0; k < n; k++)
-                shown += !music || album_has_music(no + k);
+                shown += album_row_own(no, k, music, compilations);
             more += MAX(shown - 1, 0);
         }
         if (current_entry_count + more + 1 >= c->cache.max_entries / 2)
@@ -4406,7 +4552,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
                isn't a row here */
             int rows = 0, k = n;
             for (int j = 0; j < n; j++)
-                rows += !music || album_has_music(no + j);
+                rows += album_row_own(no, j, music, compilations);
             const bool each = split && rows > 0;
             if (!each)
                 rows = 1;
@@ -4418,12 +4564,16 @@ static int make_entries(struct tree_context *c, int offset, bool init)
                 {
                     do
                         k--;
-                    while (k > 0 && music && !album_has_music(no + k));
+                    while (k > 0 && !album_row_own(no, k, music, compilations));
                 }
                 else
                 {
-                    /* the first of them that has music, for the row's cover */
-                    for (k = 0; music && k < n - 1 && !album_has_music(no + k); k++)
+                    /* the first of them that has music, for the row's
+                       cover: in Compilations, a compilation's */
+                    for (k = 0; k < n - 1
+                         && ((music && !album_has_music(no + k))
+                             || (compilations && !album_is_compilation(no + k)));
+                         k++)
                         ;
                 }
                 e->album.no = no < 0 ? -1 : no + k;
@@ -4639,7 +4789,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         }
         if (!(composers && !strcmp(tcs.result, UNTAGGED))
             && !(songs_music && tagcache_track_kind(tcs.idx_id) != 0)
-            && !(names_music && !tagcache_name_has_music(tag, tcs.result_seek)))
+            && !(names_music && !tagcache_name_has_music(tag, tcs.result_seek,
+                                                         solo)))
             total_count++;
     }
 
@@ -4757,7 +4908,15 @@ static int load_root(struct tree_context *c)
        goes into the item of its extraseek, not of its number */
     const bool all = root_all_items || c->currextra != rootmenu;
     if (c->currextra == rootmenu)
+    {
         recent_row_seen = recent_row();
+        /* the library's first compilation, or its last gone, as the
+           kinds are made again by an import without the table of years */
+        const int compilations = compilations_row();
+        if (compilations_row_seen >= 0 && compilations_row_seen != compilations)
+            tagtree_compilations_changed(NULL, NULL);
+        compilations_row_seen = compilations;
+    }
     int rows = 0;
     for (i = 0; i < menu->itemcount; i++)
     {
@@ -5259,8 +5418,9 @@ static int tagtree_find_row(struct tree_context *c, const char *name)
 }
 
 /* The row of the album of this name and album artist's seek, as Albums has
-   the albums of a name apart; or else the first row of the name, as a list
-   of one row for all of them has it, or -1 */
+   the albums of a name apart, or the row of its compilations if it's one of
+   them (album_row_own()); or else the first row of the name, as a list of
+   one row for all of them has it, or -1 */
 static int find_album_row(struct tree_context *c, const char *name,
                           int32_t artist)
 {
@@ -5268,14 +5428,23 @@ static int find_album_row(struct tree_context *c, const char *name,
                                          && artist >= 0; i++)
     {
         const struct tagentry *row = tagtree_get_entry(c, i);
-        if (row->album.no >= 0 && album_years_artist(row->album.no) == artist
-            && !strcmp(row->name, name))
+        if (row->album.no < 0 || strcmp(row->name, name))
+            continue;
+        if (album_years_artist(row->album.no) == artist
+            || (album_is_compilation(row->album.no)
+                && album_is_compilation(album_years_number(row->extraseek,
+                                                           artist))))
             return i;
     }
     return tagtree_find_row(c, name);
 }
 
 static int own_section(int idx);
+
+/* Artists' copy of the same tag, made by item_list_row() as the other's is
+   while this is set: of all the songs, the compilations' too, which Artists
+   itself leaves out while Music has Compilations (artists_solo()) */
+static bool go_to_whole;
 
 /* The list of Music's item entered from Music's own menu, made of list_tag
    as go_to_row() has it, and the row of name in it: -1 without the item or
@@ -5296,7 +5465,7 @@ static int item_list_row(struct tree_context *c, int item, int item_tag,
     c->selected_item = item;
     tagtree_enter(c, true);
     selected_item_history[0] = root_row_of(item);
-    if (list_tag != item_tag)
+    if (list_tag != item_tag || go_to_whole)
     {
         const int k = list_tag == tag_albumartist ? 0 : 1;
         artists_copy[k] = *csi;
@@ -5394,6 +5563,25 @@ static int go_to_song(int idx, bool artist, struct tagtree_place *back,
     struct tree_context *c = tree_get_context();
     struct tagcache_search tcs;
 
+    /* A compilation's song, which Artists leaves out while Music has
+       Compilations: Compilations at the row of its album instead */
+    const int compilations = root_item_of(LANG_COMPILATIONS);
+    if (artist && compilations >= 0 && compilations_row()
+        && tagcache_track_compilation(idx))
+    {
+        if (!tagcache_search(&tcs, tag_title))
+            return -1;
+        const bool found = tagcache_retrieve(&tcs, idx, tag_album, album,
+                                             sizeof(album));
+        tagcache_search_finish(&tcs);
+        place_save(back, *dirlevel, *selected_item);
+        const int row = found ? item_list_row(c, compilations, tag_album,
+                                              tag_album, album, -1) : -1;
+        if (row < 0)
+            place_restore(back, dirlevel, selected_item);
+        return row;
+    }
+
     if (idx < 0 || !tagcache_search(&tcs, tag_title))
         return -1;
     const int tag = artist ? artists_tag() : tag_album;
@@ -5474,8 +5662,7 @@ static int first_song_of(struct tree_context *c, const struct tagentry *entry)
         return -1;
     add_level_filters(&tcs, level);
     tagcache_search_add_filter(&tcs, csi->tagorder[level], seek);
-    if (artist >= 0)
-        tagcache_search_add_filter(&tcs, tag_albumartist, artist);
+    add_artist_filter(&tcs, artist);
     core_pin(tagtree_handle);
     add_list_clauses(&tcs, level);
     char buf[TAGCACHE_BUFSZ];
@@ -5622,10 +5809,22 @@ bool tagtree_go_to_name(int tag, const char *name, int *dirlevel, int *selected_
     const int item_tag = artist ? artists_tag() : tag;
     const int other = item_tag == tag_albumartist ? tag_virt_canonicalartist
                                                   : tag_albumartist;
-    if (!go_to_row(item_tag, item_tag, name, -1, 0, &go_to_place, dirlevel,
-                   selected_item)
-        && (!artist || !go_to_row(item_tag, other, name, -1, 0, &go_to_place,
-                                  dirlevel, selected_item)))
+    bool found = go_to_row(item_tag, item_tag, name, -1, 0, &go_to_place,
+                           dirlevel, selected_item)
+        || (artist && go_to_row(item_tag, other, name, -1, 0, &go_to_place,
+                                dirlevel, selected_item));
+    /* one found only on compilations, which Artists leaves out while Music
+       has Compilations: in the list in its place of all their songs */
+    const int item = root_item_of(LANG_ARTISTS);
+    if (!found && artist && item >= 0
+        && artists_solo(&menus[rootmenu]->items[item]->si))
+    {
+        go_to_whole = true;
+        found = go_to_row(item_tag, item_tag, name, -1, 0, &go_to_place,
+                          dirlevel, selected_item);
+        go_to_whole = false;
+    }
+    if (!found)
         return false;
     go_to_end(first_row(tree_get_context()), dirlevel, selected_item);
     return true;
@@ -5644,6 +5843,9 @@ bool tagtree_go_to_album(const char *name, int32_t artist, int *dirlevel,
 
 bool tagtree_has_section(int lang)
 {
+    /* Compilations, as Music has it: only with one */
+    if (lang == LANG_COMPILATIONS && tagcache_compilation_songs() <= 0)
+        return false;
     return root_item_of(lang) >= 0;
 }
 
@@ -6050,6 +6252,9 @@ void tagtree_albums_reordered(void)
 {
     if (recent_row_seen >= 0 && recent_row_seen != recent_row())
         tagtree_music_menu_changed(true);
+    const int compilations = compilations_row();
+    if (compilations_row_seen >= 0 && compilations_row_seen != compilations)
+        tagtree_compilations_changed(NULL, NULL);
     const int section = section_of(LANG_ALBUMS);
     if (section >= 0)
         section_rows[section] = -1;
@@ -6114,6 +6319,47 @@ void tagtree_artists_grouping_changed(int *dirlevel, int *selected_item)
     place_save(&scratch_place, *dirlevel, *selected_item);
     if (artists_place_cut(&scratch_place))
         place_restore(&scratch_place, dirlevel, selected_item);
+    const int section = section_of(LANG_ARTISTS);
+    if (section >= 0)
+        section_rows[section] = -1;
+}
+
+/* a place in Artists, whose rows are others: from its top */
+static bool artists_rows_cut(struct tagtree_place *place)
+{
+    return section_is(place->csi, LANG_ARTISTS) && artists_place_cut(place);
+}
+
+/* Music Menu > Compilations as the last change or check found it, -1 for
+   none yet */
+static int compilations_setting_seen = -1;
+
+void tagtree_compilations_check(int *dirlevel, int *selected_item)
+{
+    const int setting =
+        global_settings.music_menu_show[MUSIC_SECTION_COMPILATIONS];
+    if (compilations_setting_seen >= 0 && compilations_setting_seen != setting)
+        tagtree_compilations_changed(dirlevel, selected_item);
+    compilations_setting_seen = setting;
+}
+
+void tagtree_compilations_changed(int *dirlevel, int *selected_item)
+{
+    compilations_setting_seen =
+        global_settings.music_menu_show[MUSIC_SECTION_COMPILATIONS];
+    compilations_row_seen = compilations_row();
+    tagtree_music_menu_changed(true);
+    artists_rows_cut(&saved_place);
+    artists_rows_cut(&go_to_place);
+    artists_rows_cut(&browse_place);
+    for (int i = 0; i < KEPT_PLACES; i++)
+        artists_rows_cut(kept_places[i]);
+    if (dirlevel && selected_item)
+    {
+        place_save(&scratch_place, *dirlevel, *selected_item);
+        if (artists_rows_cut(&scratch_place))
+            place_restore(&scratch_place, dirlevel, selected_item);
+    }
     const int section = section_of(LANG_ARTISTS);
     if (section >= 0)
         section_rows[section] = -1;
@@ -6661,8 +6907,7 @@ static int gather_songs(struct tree_context *c, int extra, int32_t row_seek,
         }
         else
             tagcache_search_add_filter(&tcs, csi->tagorder[i], seek);
-        if (artist >= 0)
-            tagcache_search_add_filter(&tcs, tag_albumartist, artist);
+        add_artist_filter(&tcs, artist);
     }
     core_pin(tagtree_handle);
     add_list_clauses(&tcs, csi->tagorder_count - 1);
@@ -7342,6 +7587,15 @@ static uint32_t list_hash(int table, int extra, const struct search_instruction 
     /* of music alone: not the id of a file written with every track */
     if (music_only(si))
         LIST_ID_ADD(0x4d555349u); /* "MUSI" */
+    /* and of the compilations as they are, which an import changes without a
+       commit: in Compilations, in Artists without them, and in a name's row
+       of them (ARTIST_COMPILATIONS). A library of none keeps its ids */
+    if ((is_compilations(si) || artists_solo(si) || is_albums(si))
+        && tagcache_compilations_hash())
+    {
+        LIST_ID_ADD(artists_solo(si) ? 0x534f4c4fu /* "SOLO" */ : 0);
+        LIST_ID_ADD(tagcache_compilations_hash());
+    }
     LIST_ID_ADD(si->tagorder_count);
     for (int i = 0; i < si->tagorder_count; i++)
     {
@@ -7350,7 +7604,7 @@ static uint32_t list_hash(int table, int extra, const struct search_instruction 
         /* what was chosen on the way here */
         if (i < extra)
             LIST_ID_ADD(seeks[i]);
-        if (i < extra && artists[i] >= 0)
+        if (i < extra && artists[i] != -1)
             LIST_ID_ADD(artists[i]);
         for (int j = 0; j < si->clause_count[i]; j++)
         {
@@ -8858,6 +9112,8 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
     if (entry->newtable == TABLE_PLAYTRACK)
         return song_tag_name(entry->extraseek, entries_initials_tag, buf, size);
     const bool albums = (is_albums(csi) || is_recent(csi)) && c->currextra == 0;
+    /* the album artist of a row apart, but of a name's compilations' */
+    const bool split = entries_split && !album_row_shared(entry->album.no);
     /* Albums by Year: one without a year has the dash where its year would be */
     if (is_albums(csi) && c->currextra == 0 && albums_setting() == ALBUMS_BY_YEAR
         && entry->album.year <= 0 && entry->extraseek != entries_untagged)
@@ -8865,13 +9121,13 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
         const size_t len = snprintf(buf, size, "%s \xc2\xb7 ", NO_YEAR);
         if (len >= size)
             return NULL;
-        if (!tagtree_album_subline(entry->album.no, 0, entries_split, NULL,
+        if (!tagtree_album_subline(entry->album.no, 0, split, NULL,
                                    buf + len, size - len))
             buf[strlen(NO_YEAR)] = '\0';
         return buf;
     }
     return tagtree_album_subline(entry->album.no, entry->album.year,
-                                 entries_split || !albums,
+                                 split || !albums,
                                  albums ? NULL : current_title[c->currextra],
                                  buf, size);
 }

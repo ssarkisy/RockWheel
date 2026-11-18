@@ -370,6 +370,7 @@ static int music_menu_reset(void)
     reset_rows(&global_settings.music_menu_recently_added, 1);
     reset_rows(&global_settings.artists_by_album_artist, 1);
     tagtree_music_menu_changed(true);
+    root_menu_compilations_changed(true);
     root_menu_artists_grouping_changed(global_settings.artists_by_album_artist);
     return 0;
 }
@@ -388,14 +389,16 @@ MENUITEM_SETTING(music_menu_6, &global_settings.music_menu_show[6], NULL);
 MENUITEM_SETTING(music_menu_7, &global_settings.music_menu_show[7], NULL);
 MENUITEM_SETTING(music_menu_8, &global_settings.music_menu_show[8], NULL);
 MENUITEM_SETTING(music_menu_9, &global_settings.music_menu_show[9], NULL);
+MENUITEM_SETTING(music_menu_compilations,
+                 &global_settings.music_menu_show[MUSIC_SECTION_COMPILATIONS], NULL);
 MENUITEM_SETTING(music_menu_recent, &global_settings.music_menu_recently_added, NULL);
 /* and after them what Artists lists */
 MENUITEM_SETTING(music_menu_grouping, &global_settings.artists_by_album_artist, NULL);
 MAKE_MENU(music_menu_items, ID2P(LANG_MUSIC_MENU), NULL, Icon_NOICON,
           &music_menu_0, &music_menu_1, &music_menu_2, &music_menu_3,
-          &music_menu_4, &music_menu_5, &music_menu_recent, &music_menu_6,
-          &music_menu_7, &music_menu_8, &music_menu_9, &music_menu_grouping,
-          &music_menu_reset_item);
+          &music_menu_4, &music_menu_compilations, &music_menu_5,
+          &music_menu_recent, &music_menu_6, &music_menu_7, &music_menu_8,
+          &music_menu_9, &music_menu_grouping, &music_menu_reset_item);
 
 /* Main Menu: what the main menu has, as on a stock iPod: Music, each of its
    sections, Photos, Extras and Shuffle Songs */
@@ -410,6 +413,9 @@ MENUITEM_SETTING(main_menu_s6, &global_settings.main_menu_show[MAIN_MENU_SECTION
 MENUITEM_SETTING(main_menu_s7, &global_settings.main_menu_show[MAIN_MENU_SECTION + 7], NULL);
 MENUITEM_SETTING(main_menu_s8, &global_settings.main_menu_show[MAIN_MENU_SECTION + 8], NULL);
 MENUITEM_SETTING(main_menu_s9, &global_settings.main_menu_show[MAIN_MENU_SECTION + 9], NULL);
+MENUITEM_SETTING(main_menu_compilations,
+                 &global_settings.main_menu_show[MAIN_MENU_SECTION
+                                                 + MUSIC_SECTION_COMPILATIONS], NULL);
 #ifdef HAVE_PHOTOS_MENU
 MENUITEM_SETTING(main_menu_photos, &global_settings.main_menu_show[MAIN_MENU_PHOTOS], NULL);
 #endif
@@ -424,8 +430,9 @@ MENUITEM_SETTING(main_menu_shuffle_albums, &global_settings.main_menu_shuffle_al
 #endif
 MAKE_MENU(main_menu_items, ID2P(LANG_MAIN_MENU), NULL, Icon_NOICON,
           &main_menu_music, &main_menu_s0, &main_menu_s1, &main_menu_s2,
-          &main_menu_s3, &main_menu_s4, &main_menu_s5, &main_menu_s6,
-          &main_menu_s7, &main_menu_s8, &main_menu_s9, MAIN_MENU_PHOTOS_ITEM
+          &main_menu_s3, &main_menu_s4, &main_menu_compilations, &main_menu_s5,
+          &main_menu_s6, &main_menu_s7, &main_menu_s8, &main_menu_s9,
+          MAIN_MENU_PHOTOS_ITEM
           &main_menu_extras, &main_menu_shuffle, &main_menu_shuffle_albums,
           &main_menu_reset_item);
 

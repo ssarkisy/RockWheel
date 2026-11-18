@@ -76,6 +76,9 @@ int album_years_year(int no);
 int32_t album_years_name_date_of(int no);
 int album_years_name_year_of(int no);
 int32_t album_years_first_track(int no);
+/* the album is a compilation: a song of music of it is marked part of one
+   (tagcache_song_compilation()), and Music lists all its songs so */
+bool album_years_compilation(int no);
 /* how many albums the table has, 0 when it isn't ready; and a hash of their
    seeks in their order, by which what's kept by their numbers is known to be
    of this table, 0 when it isn't ready */

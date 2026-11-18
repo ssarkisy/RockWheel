@@ -227,8 +227,11 @@ enum {  ALARM_START_WPS = 0,
 #define RETURN_WPS_OFF_30 3
 
 /* Cover Flow, Search, Playlists, Artists, Albums, Songs, Podcasts, Genres,
-   Composers, Audiobooks: each one shown in Music or not (tagtree.c) */
-#define MUSIC_SECTIONS 10
+   Composers, Audiobooks, Compilations: each one shown in Music or not
+   (tagtree.c). Compilations last, as it came last, though Music has it after
+   Albums: config.cfg names each, and the others keep their numbers */
+#define MUSIC_SECTIONS 11
+#define MUSIC_SECTION_COMPILATIONS 10
 /* the rows of Settings > Main Menu: Music, its sections, Photos, Extras,
    Shuffle Songs */
 enum {

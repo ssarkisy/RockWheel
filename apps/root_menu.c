@@ -127,7 +127,7 @@ static bool cover_flow_from_main_menu = false;
 
 static bool is_section_screen(int screen)
 {
-    return screen >= GO_TO_ARTISTS && screen <= GO_TO_AUDIOBOOKS;
+    return screen >= GO_TO_ARTISTS && screen <= GO_TO_COMPILATIONS;
 }
 static int items_section_lang(int screen);
 /* where Search's Menu went from its letters when it was left for the main
@@ -189,7 +189,7 @@ static void note_music_origin(int screen)
         case GO_TO_DBBROWSER:
         case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
         case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
-        case GO_TO_AUDIOBOOKS:
+        case GO_TO_AUDIOBOOKS: case GO_TO_COMPILATIONS:
             tagtree_save_place(last_db_dirlevel, last_db_selection);
             /* fall through */
 #endif
@@ -642,6 +642,17 @@ void root_menu_artists_grouping_changed(bool on)
     tagtree_artists_grouping_changed(&last_db_dirlevel, &last_db_selection);
 }
 
+void root_menu_compilations_changed(bool on)
+{
+    (void)on;
+    tagtree_compilations_changed(&last_db_dirlevel, &last_db_selection);
+}
+
+void root_menu_compilations_check(void)
+{
+    tagtree_compilations_check(&last_db_dirlevel, &last_db_selection);
+}
+
 /* A section of Music in the main menu, as on a stock iPod: its list, where Menu
    goes back to the main menu. Left for Now Playing, it opens again where it was,
    as Music does. */
@@ -999,6 +1010,7 @@ static const struct root_items items[] = {
     [GO_TO_GENRES] = { music_section, (void*)LANG_GENRES, NULL },
     [GO_TO_COMPOSERS] = { music_section, (void*)LANG_COMPOSERS, NULL },
     [GO_TO_AUDIOBOOKS] = { music_section, (void*)LANG_AUDIOBOOKS, NULL },
+    [GO_TO_COMPILATIONS] = { music_section, (void*)LANG_COMPILATIONS, NULL },
 #endif
 
 };
@@ -1047,6 +1059,8 @@ MENUITEM_RETURNVALUE(composers_item, ID2P(LANG_COMPOSERS), GO_TO_COMPOSERS,
                         item_callback, Icon_Audio);
 MENUITEM_RETURNVALUE(audiobooks_item, ID2P(LANG_AUDIOBOOKS), GO_TO_AUDIOBOOKS,
                         item_callback, Icon_Audio);
+MENUITEM_RETURNVALUE(compilations_item, ID2P(LANG_COMPILATIONS),
+                        GO_TO_COMPILATIONS, item_callback, Icon_Audio);
 #endif
 MENUITEM_RETURNVALUE(rocks_browser, ID2P(LANG_PLUGINS), GO_TO_BROWSEPLUGINS,
                         NULL, Icon_Plugin);
@@ -1101,6 +1115,7 @@ static struct menu_table menu_table[] = {
     { "search", &search_item },
     { "artists", &artists_item },
     { "albums", &albums_item },
+    { "compilations", &compilations_item },
     { "songs", &songs_item },
     { "podcasts", &podcasts_item },
     { "genres", &genres_item },
@@ -1200,8 +1215,9 @@ void root_menu_set_default(void* setting, void* defaultval)
        it (item_callback) */
 #ifdef HAVE_TAGCACHE
     char order[] = "bookmarks, database, cover_flow, search, playlists, artists, "
-                   "albums, songs, podcasts, genres, composers, audiobooks, "
-                   "photos, extras, settings, shuffle_songs, shuffle_albums, wps";
+                   "albums, compilations, songs, podcasts, genres, composers, "
+                   "audiobooks, photos, extras, settings, shuffle_songs, "
+                   "shuffle_albums, wps";
 #else
     char order[] = "bookmarks, database, photos, extras, settings, shuffle_songs, shuffle_albums, wps";
 #endif
@@ -1243,6 +1259,7 @@ static const struct {
     { &genres_item, MAIN_MENU_SECTION + 7 },
     { &composers_item, MAIN_MENU_SECTION + 8 },
     { &audiobooks_item, MAIN_MENU_SECTION + 9 },
+    { &compilations_item, MAIN_MENU_SECTION + MUSIC_SECTION_COMPILATIONS },
 #ifdef HAVE_PHOTOS_MENU
     { &photos_item, MAIN_MENU_PHOTOS },
 #endif
@@ -1352,7 +1369,7 @@ static int screen_section(int screen)
         case GO_TO_DBBROWSER:
         case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
         case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
-        case GO_TO_AUDIOBOOKS:
+        case GO_TO_AUDIOBOOKS: case GO_TO_COMPILATIONS:
         case GO_TO_SHUFFLE_SONGS:
         case GO_TO_SHUFFLE_ALBUMS:
         case GO_TO_COVER_FLOW:
@@ -1389,7 +1406,7 @@ static bool place_kind(int screen)
 #ifdef HAVE_TAGCACHE
         case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
         case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
-        case GO_TO_AUDIOBOOKS:
+        case GO_TO_AUDIOBOOKS: case GO_TO_COMPILATIONS:
             return section_kept;
         case GO_TO_DBBROWSER:
         case GO_TO_SEARCH:
@@ -1421,7 +1438,7 @@ static bool place_of_library(int screen)
         case GO_TO_DBBROWSER: case GO_TO_SEARCH:
         case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
         case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
-        case GO_TO_AUDIOBOOKS:
+        case GO_TO_AUDIOBOOKS: case GO_TO_COMPILATIONS:
 #endif
         case GO_TO_FILEBROWSER:
         case GO_TO_PLAYLISTS_SCREEN:
@@ -2655,7 +2672,7 @@ void root_menu(void)
             case GO_TO_SEARCH: /* Menu in Now Playing comes back to it */
             case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
             case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
-            case GO_TO_AUDIOBOOKS:
+            case GO_TO_AUDIOBOOKS: case GO_TO_COMPILATIONS:
 #endif
                 global_status.last_browser = previous_browser = next_screen;
                 goto load_next_screen;
