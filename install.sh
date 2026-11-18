@@ -106,7 +106,7 @@ case "$(uname -s)" in
             die "This installer is for macOS. On Windows, run this in PowerShell, not in WSL:
     irm https://raw.githubusercontent.com/$REPO/main/install.ps1 | iex"
         fi
-        die "This installer is for macOS and Windows. See the README for the manual steps." ;;
+        die "This installer is for macOS and Windows. The manual steps are in docs/advanced.md." ;;
 esac
 
 disk_value() {  # the value of a key in diskutil's description of a disk
@@ -582,7 +582,7 @@ eject_ipod() {
 step "RockWheel for iPod Video and iPod photo"
 [ "$DRY_RUN" = 1 ] && say "This is a dry run: nothing on the iPod is changed."
 say "People run it on iPods with flash cards, SD card adapters and the original hard"
-say "drive. Details are in the README."
+say "drive. Details are in the advanced guide, docs/advanced.md."
 
 if [ "$FOLDERS" = 1 ]; then
     step "Looking for the iPod"
@@ -696,5 +696,5 @@ if [ "$FRESH" = 1 ] || [ "$WRITE_BOOTLOADER" = 1 ]; then
         say "To start the stock firmware instead, for video, turn the Hold switch on while it boots."
     fi
 else
-    say "Unplug the iPod. It restarts into the new firmware by itself."
+    say "Unplug the iPod. If it doesn't restart by itself, hold Menu and Select until it does."
 fi

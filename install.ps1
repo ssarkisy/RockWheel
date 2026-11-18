@@ -515,7 +515,7 @@ function Copy-Games([string]$Root) {
         Say ''
         if (Test-Path -LiteralPath $declined) {
             Say '    The extra games are left out, as you chose before. To add them, run the'
-            Say '    installer again with -Games, as Options in the README shows.'
+            Say '    installer again with -Games, as Script options in docs/advanced.md shows.'
             return
         }
         if ($DryRun) {
@@ -526,7 +526,7 @@ function Copy-Games([string]$Root) {
         if ($r -notmatch '^(y|yes)$') {
             New-Item -ItemType File -Force -Path $declined | Out-Null
             Say '    Not added, and not asked again. To add them later, run the installer'
-            Say '    again with -Games, as Options in the README shows.'
+            Say '    again with -Games, as Script options in docs/advanced.md shows.'
             return
         }
     }
@@ -623,7 +623,7 @@ function Invoke-Install {
     Step 'RockWheel for iPod Video and iPod photo'
     if ($DryRun) { Say 'This is a dry run: nothing on the iPod is changed.' }
     Say 'People run it on iPods with flash cards, SD card adapters and the original hard'
-    Say 'drive. Details are in the README.'
+    Say 'drive. Details are in the advanced guide, docs/advanced.md.'
 
     $script:Work = Join-Path ([IO.Path]::GetTempPath()) ('rockwheel-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
     New-Item -ItemType Directory -Path $script:Work | Out-Null
@@ -731,7 +731,7 @@ function Invoke-Install {
             Say "To start the stock firmware instead, for video, turn the Hold switch on while it boots."
         }
     } else {
-        Say 'Unplug the iPod. It restarts into the new firmware by itself.'
+        Say "Unplug the iPod. If it doesn't restart by itself, hold Menu and Select until it does."
     }
 }
 
