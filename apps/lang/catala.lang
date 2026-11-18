@@ -18958,13 +18958,13 @@
 </phrase>
 <phrase>
   id: LANG_REBUILD_COVERS_ABOUT
-  desc: on the question's screen of Rebuild Synced Covers, wrapped in lines: one sentence, as the hint under the row has said what it is for: until the next sync the synced covers are missing. Finder and Mac are names kept as they are
+  desc: on the question's screen of Rebuild Synced Covers, wrapped in lines: one sentence, as the hint under the row has said what it is for: until the next sync the synced covers are missing. 'Your computer' as the row's hint (LANG_HINT_REBUILD_COVERS) says it: a Mac or a PC, whichever syncs the iPod, with Finder or iTunes
   user: core
   <source>
-    *: "Until the next sync with Finder on a Mac, synced covers are not shown."
+    *: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
-    *: "Fins a la propera sincronització amb el Finder en un Mac no es mostren les caràtules sincronitzades."
+    *: "Fins a la propera sincronització amb l'ordinador no es mostren les caràtules sincronitzades."
   </dest>
   <voice>
     *: ""
