@@ -2,7 +2,7 @@
 
 <a href="https://github.com/sponsors/ssarkisy"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/sponsor-dark.svg"><img src="docs/images/sponsor-light.svg" alt="Sponsor" width="104" height="32"></picture></a> <a href="https://buymeacoffee.com/sarkisian"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/coffee-dark.svg"><img src="docs/images/coffee-light.svg" alt="Buy me a coffee" width="158" height="32"></picture></a>
 
-**Supporters: Bauhaus0, ArmstRNG, Ryan Muniz, Martina Cadi**<br>
+**Supporters: u/Bauhaus0, ArmstRNG, Ryan Muniz, Martina Cadi, u/mrstorey, u/armanverma**<br>
 Thank you for your donations! They help me keep the project going.
 
 RockWheel is free firmware for the iPod Video and iPod Photo. Everything on it is fast: menus, Cover Flow, album covers, starting a song, library updates and copying music over USB.
