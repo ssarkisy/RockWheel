@@ -2198,7 +2198,10 @@ static int load_album_index(void){
                 buf = (char *)buf + album_idx_sz;
                 buf_size -= album_idx_sz;
 
+                /* not closed again by the failure below: the number may be
+                   another thread's file by then */
                 rb->close(fr);
+                fr = -1;
 
                 /* sanity check loaded data */
                 for (i = 0; i < data.album_ct; i++)

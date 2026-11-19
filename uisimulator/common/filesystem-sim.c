@@ -113,6 +113,15 @@ static void disk_changed(const char *fmt, ...)
         _exit(KILLED_STATUS);
 }
 
+/* as the iPod's file layer counts them (file_get_counters()) */
+static struct file_counters counters;
+
+void file_get_counters(struct file_counters *c)
+{
+    *c = counters;
+    c->slots = MAX_OPEN_FILES;
+}
+
 static struct filestr_desc * alloc_filestr(int *fildesp)
 {
     for (unsigned int i = 0; i < MAX_OPEN_FILES; i++)
@@ -121,10 +130,16 @@ static struct filestr_desc * alloc_filestr(int *fildesp)
         if (filestr->osfd < 0)
         {
             *fildesp = i;
+            unsigned int open = 1; /* this one */
+            for (unsigned int k = 0; k < MAX_OPEN_FILES; k++)
+                open += openfiles[k].osfd >= 0;
+            if (open > counters.most_open)
+                counters.most_open = open;
             return filestr;
         }
     }
 
+    counters.refused++;
     return NULL;
 }
 
@@ -517,6 +532,8 @@ int sim_close(int fildes)
     struct filestr_desc *filestr = &openfiles[fildes];
     if ((unsigned int)fildes >= MAX_OPEN_FILES || filestr->osfd < 0)
     {
+        if ((unsigned int)fildes < MAX_OPEN_FILES)
+            counters.bad_closes++;
         errno = EBADF;
         return -1;
     }
@@ -586,7 +603,11 @@ ssize_t sim_read(int fildes, void *buf, size_t nbyte)
 {
     struct filestr_desc *filestr = get_filestr(fildes);
     if (!filestr)
+    {
+        if ((unsigned int)fildes < MAX_OPEN_FILES && openfiles[fildes].osfd < 0)
+            counters.bad_reads++;
         return -1;
+    }
 
     return os_read(filestr->osfd, buf, nbyte);
 }

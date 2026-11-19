@@ -76,6 +76,7 @@
 #include "usb.h"
 #include "metadata.h"
 #include "tagcache.h"
+#include "applimits.h"
 #include "yesno.h"
 #include "core_alloc.h"
 #include "crc32.h"
@@ -3683,6 +3684,75 @@ static int build_masterfd = -1;
 static bool sync_found;
 static volatile int import_phase;
 static volatile int import_done, import_total;
+
+/* Updating Library's phases for health.log: the time in each, and its done
+   and total as it ended, the largest; noted on one line as it goes back to
+   none, if it took a second or more, and set to begin again */
+#define IMPORT_PHASES (TAGCACHE_IMPORT_PLAYLISTS + 1)
+static struct
+{
+    long start; /* of the phase going on */
+    long ticks[IMPORT_PHASES];
+    int done[IMPORT_PHASES], total[IMPORT_PHASES];
+    bool any;
+} phase_times;
+
+static void set_import_phase(int phase)
+{
+    static const char * const names[IMPORT_PHASES] = {
+        [TAGCACHE_IMPORT_READING] = "reading",
+        [TAGCACHE_IMPORT_SCANNING] = "scanning",
+        [TAGCACHE_IMPORT_SAVING] = "saving",
+        [TAGCACHE_IMPORT_LOADING] = "loading",
+        [TAGCACHE_IMPORT_COUNTS] = "counts",
+        [TAGCACHE_IMPORT_COVERS] = "covers",
+        [TAGCACHE_IMPORT_SLIDES] = "slides",
+        [TAGCACHE_IMPORT_CHECKING] = "checking",
+        [TAGCACHE_IMPORT_PLAYLISTS] = "playlists",
+    };
+    const long now = current_tick;
+    const int was = import_phase;
+    if (was > TAGCACHE_IMPORT_NONE && was < IMPORT_PHASES)
+    {
+        phase_times.ticks[was] += now - phase_times.start;
+        phase_times.done[was] = MAX(phase_times.done[was], import_done);
+        phase_times.total[was] = MAX(phase_times.total[was], import_total);
+        phase_times.any = true;
+    }
+    import_phase = phase;
+    phase_times.start = now;
+    if (phase != TAGCACHE_IMPORT_NONE || !phase_times.any)
+        return;
+    long all = 0;
+    for (int i = 0; i < IMPORT_PHASES; i++)
+        all += phase_times.ticks[i];
+    if (all < HZ) /* as the check at each boot that finds nothing */
+    {
+        memset(&phase_times, 0, sizeof(phase_times));
+        return;
+    }
+    char line[200];
+    int len = snprintf(line, sizeof(line), "library update:");
+    const char *sep = " ";
+    for (int i = TAGCACHE_IMPORT_NONE + 1; i < IMPORT_PHASES; i++)
+    {
+        const long t = phase_times.ticks[i];
+        if (!t && !phase_times.total[i])
+            continue;
+        if (len < (int)sizeof(line))
+            len += snprintf(line + len, sizeof(line) - len, "%s%s %ld.%ld s",
+                            sep, names[i], t / HZ, t % HZ * 10 / HZ);
+        if (phase_times.done[i] && len < (int)sizeof(line))
+            len += snprintf(line + len, sizeof(line) - len, " (%d of %d)",
+                            phase_times.done[i], phase_times.total[i]);
+        else if (phase_times.total[i] && len < (int)sizeof(line))
+            len += snprintf(line + len, sizeof(line) - len, " (%d)",
+                            phase_times.total[i]);
+        sep = ", ";
+    }
+    health_note("%s; %ld entries", line, (long)current_tcmh.tch.entry_count);
+    memset(&phase_times, 0, sizeof(phase_times));
+}
 #ifdef HAVE_TC_RAMCACHE
 /* the database's thread is past its start: the database checked, imported if
    synced, and room taken for it in memory */
@@ -7111,6 +7181,94 @@ int tagcache_entry_count(void)
     return current_tcmh.tch.entry_count;
 }
 
+/* The playlist's and the lists' room for the library, set once at boot from
+   the database's entries, with no music playing, by playlist_init() and
+   tree_mem_init(): a library larger than their settings has all its songs
+   in Shuffle Songs and in a playlist of Songs, and Songs whole, with its
+   Sort By, years and covers, rather than in windows of the setting's size.
+   The settings stay the least: a library within them costs nothing more,
+   and memory isn't taken later, while music may play.
+
+   The entries are the header's, read already by the boot: those removed,
+   the podcasts and the books are among them, so it's never short of the
+   songs. Rounded up with 1000 more, for songs a sync adds before the next
+   boot; at most LIBRARY_ROWS_MAX. Each takes no more than an eighth of what
+   is free as it's set: the library and its caches already have their
+   memory then, and a library too large for the iPod's (65000 songs with
+   32 MB) leaves the music its buffer, with Songs in windows as before. A
+   library grown past what the boot set, or past the most, has its play cut,
+   which is said once.
+
+   What a larger one takes from the audio buffer, on the iPod (the
+   simulator's are 20 and 72 B, of 64-bit pointers), the same with 32 MB
+   or 64 MB:
+     the playlist: 16 B a song (its index, 4, and its dircache reference,
+                   12, which is also Shuffle Albums' room) over the setting,
+                   32000 by default;
+     the lists:    60 B a row (an entry, 20, and 40 of the names' room, as
+                   the setting's rows have: Songs' titles are copied there,
+                   17 B each in the simulator's 65000, and its sort is made
+                   in the rest, 12 B a song) over the setting, 20000 by
+                   default.
+     songs  rows   playlist  lists     together
+     13000  14000  0         0         0
+     33174  35000  +48 KB    +904 KB   +952 KB
+     65000  65000  +528 KB   +2.70 MB  +3.23 MB (the lists less with 32 MB) */
+#if defined(HAVE_TC_RAMCACHE) && (defined(IPOD_VIDEO) || defined(IPOD_COLOR))
+#define LIBRARY_ROWS_MAX  65000
+#define LISTS_EXTRA_ROWS  64  /* past the songs: the rows at the top of Songs */
+#define LIBRARY_SHARE     8   /* of what is free, the most either takes */
+
+static int library_rows(void)
+{
+    const int entries = tagcache_entry_count();
+    return entries > 0 ? MIN(ALIGN_UP(entries + 1000, 1000), LIBRARY_ROWS_MAX)
+                       : 0;
+}
+
+/* rows, of bytes each, past the setting's as far as the share allows */
+static int library_rows_within(const char *what, int setting, int rows,
+                               size_t bytes)
+{
+    if (rows <= setting)
+        return setting;
+    const size_t share = core_available() / LIBRARY_SHARE;
+    const int most = setting + (int)MIN(share / bytes, (size_t)LIBRARY_ROWS_MAX);
+    if (rows <= most)
+        return rows;
+    health_note("library: %s for %d rows of %d, %lu KB free", what, most,
+                rows, (unsigned long)(core_available() / 1024));
+    return most;
+}
+#endif
+
+int tagcache_playlist_room(int setting, size_t entry_bytes)
+{
+#ifdef LIBRARY_ROWS_MAX
+    return library_rows_within("the playlist", setting, library_rows(),
+                               entry_bytes);
+#else
+    (void)entry_bytes;
+    return setting;
+#endif
+}
+
+void tagcache_lists_room(int setting, size_t entry_bytes, int *rows,
+                         int *names_size)
+{
+    *rows = setting;
+#ifdef LIBRARY_ROWS_MAX
+    const int library = library_rows();
+    if (library > 0)
+        *rows = library_rows_within("the lists", setting,
+                                    library + LISTS_EXTRA_ROWS,
+                                    entry_bytes + AVERAGE_FILENAME_LENGTH);
+#else
+    (void)entry_bytes;
+#endif
+    *names_size = *rows * AVERAGE_FILENAME_LENGTH;
+}
+
 /* whether files are found in memory by their paths, all of them */
 bool tagcache_finds_entries(void)
 {
@@ -8675,7 +8833,7 @@ static bool load_tagcache(void)
         bytesleft -= sizeof (struct tagcache_header);
 
         fd = open_tag_fd(tch, tag, false);
-        if (rc < 0)
+        if (fd < 0)
             goto failure;
         tagr_start(fd);
 
@@ -8829,7 +8987,10 @@ static bool load_tagcache(void)
             p = (char *)&tcrc_dcfrefs[tcmh.tch.entry_count];
     #endif /* HAVE_DIRCACHE */
 
+        /* not closed again below: the slot may be another thread's by then,
+           as close() lets a thread waiting on the file system's lock run */
         close(fd);
+        fd = -1;
     }
 
     tc_stat.ramcache_used = tc_stat.ramcache_allocated - bytesleft;
@@ -9846,7 +10007,7 @@ commit:
     /* the check outside Finder's folder shows a screen only for a change */
     if (import_phase == TAGCACHE_IMPORT_SCANNING
         || (import_phase == TAGCACHE_IMPORT_CHECKING && total_entry_count > 0))
-        import_phase = TAGCACHE_IMPORT_SAVING;
+        set_import_phase(TAGCACHE_IMPORT_SAVING);
     if (scan_outside && total_entry_count == 0)
         ; /* none new, and no file made for them */
     else if (commit())
@@ -10053,7 +10214,7 @@ static bool resort_if_stale(void)
     }
     logf("sorting the database again");
     const int phase = import_phase;
-    import_phase = TAGCACHE_IMPORT_SAVING;
+    set_import_phase(TAGCACHE_IMPORT_SAVING);
     commit_resorting = true;
     allocate_tempbuf();
     commit();
@@ -10064,7 +10225,7 @@ static bool resort_if_stale(void)
        whether to commit it. The mark stays stale, for the next try. */
     if (made)
         remove_db_file(TAGCACHE_FILE_TEMP);
-    import_phase = phase;
+    set_import_phase(phase);
     return !order_stale();
 }
 
@@ -10103,7 +10264,7 @@ static bool update_and_reload(void)
     bool scanned = !scan_cut_short;
     if (import_phase != TAGCACHE_IMPORT_NONE
         && import_phase != TAGCACHE_IMPORT_CHECKING)
-        import_phase = TAGCACHE_IMPORT_LOADING;
+        set_import_phase(TAGCACHE_IMPORT_LOADING);
     if (scanned && db_file_exists(TAGCACHE_FILE_TEMP))
     {
         /* The commit found no buffer to borrow and waits for the next
@@ -10171,7 +10332,7 @@ static volatile bool covers_pass_owed, covers_claimed;
 static void covers_pass(void)
 {
     cpu_boost(true);
-    import_phase = TAGCACHE_IMPORT_READING;
+    set_import_phase(TAGCACHE_IMPORT_READING);
     itunesdb_import_tracks(false, &import_done, &import_total);
 #ifdef HAVE_TC_RAMCACHE
     ram_kinds_refresh();
@@ -10180,12 +10341,12 @@ static void covers_pass(void)
     if (itunesdb_slides_todo())
     {
         import_done = import_total = 0;
-        import_phase = TAGCACHE_IMPORT_SLIDES;
+        set_import_phase(TAGCACHE_IMPORT_SLIDES);
         itunesdb_make_slides(&import_done, &import_total, check_event_queue);
     }
 #endif
     covers_pass_owed = covers_claimed = false;
-    import_phase = TAGCACHE_IMPORT_NONE;
+    set_import_phase(TAGCACHE_IMPORT_NONE);
     cpu_boost(false);
 }
 
@@ -10203,7 +10364,7 @@ bool tagcache_covers_changing(void)
     if (!tagcache_covers_can_change())
         return false;
     covers_claimed = true;
-    import_phase = TAGCACHE_IMPORT_READING;
+    set_import_phase(TAGCACHE_IMPORT_READING);
     return true;
 }
 
@@ -10214,7 +10375,7 @@ void tagcache_covers_changed(bool changed)
     if (!changed)
     {
         covers_claimed = false;
-        import_phase = TAGCACHE_IMPORT_NONE;
+        set_import_phase(TAGCACHE_IMPORT_NONE);
         return;
     }
     /* the marks first, as before any import; then owed, with no yield
@@ -10239,7 +10400,7 @@ bool tagcache_check_sync(void)
         || (restore_pending && !(audio_status() & AUDIO_STATUS_PLAY)))
     {
         no_space = false;
-        import_phase = TAGCACHE_IMPORT_READING;
+        set_import_phase(TAGCACHE_IMPORT_READING);
         queue_post(&tagcache_queue, Q_SYNCED, 0);
         return true;
     }
@@ -10260,7 +10421,7 @@ bool tagcache_check_sync(void)
     import_done = import_total = 0;
     outside_known = 0; /* until the pass over those gone says */
     no_space = false;
-    import_phase = TAGCACHE_IMPORT_CHECKING;
+    set_import_phase(TAGCACHE_IMPORT_CHECKING);
     queue_post(&tagcache_queue, Q_CHECK_OUTSIDE, 0);
     return true;
 }
@@ -10291,7 +10452,7 @@ bool tagcache_resort_for_language(void)
     import_done = import_total = 0;
     no_space = false;
     resort_owed = true;
-    import_phase = TAGCACHE_IMPORT_SAVING;
+    set_import_phase(TAGCACHE_IMPORT_SAVING);
     queue_post(&tagcache_queue, Q_RESORT, 0);
     return true;
 }
@@ -10489,17 +10650,17 @@ static void tagcache_thread(void)
                                               &import_total);
         cpu_boost(false);
         import_done = 0;
-        import_phase = TAGCACHE_IMPORT_SCANNING;
+        set_import_phase(TAGCACHE_IMPORT_SCANNING);
         queue_post(&tagcache_queue, Q_IMPORT_ITUNES, 0);
     }
     else if (!itunesdb_load_tracks())
     {
         /* what an older firmware didn't note, once: tagcache_init() has put up
            the import's screen for it */
-        import_phase = TAGCACHE_IMPORT_READING;
+        set_import_phase(TAGCACHE_IMPORT_READING);
         itunesdb_import_tracks(false, &import_done, &import_total);
 #ifndef ITUNESDB_HAVE_ART
-        import_phase = TAGCACHE_IMPORT_NONE;
+        set_import_phase(TAGCACHE_IMPORT_NONE);
 #endif
     }
     /* and Finder's playlists, of a list an older firmware wrote, which lacks
@@ -10515,9 +10676,9 @@ static void tagcache_thread(void)
     {
         const int phase = import_phase;
         import_done = import_total = 0;
-        import_phase = TAGCACHE_IMPORT_PLAYLISTS;
+        set_import_phase(TAGCACHE_IMPORT_PLAYLISTS);
         itunesdb_import_playlists(&import_done, &import_total);
-        import_phase = phase;
+        set_import_phase(phase);
         playlists_made = true;
     }
 
@@ -10538,15 +10699,15 @@ static void tagcache_thread(void)
            is left to the pass behind the menu, as after the boot's own load:
            without every path in memory, it took more than a minute. */
         const int phase = import_phase;
-        import_phase = TAGCACHE_IMPORT_LOADING;
+        set_import_phase(TAGCACHE_IMPORT_LOADING);
         reload_after_commit();
         refs_due = tc_stat.ramcache;
-        import_phase = phase;
+        set_import_phase(phase);
 #endif
     }
     /* the screen tagcache_init() put up for it */
     if (import_phase == TAGCACHE_IMPORT_SAVING)
-        import_phase = TAGCACHE_IMPORT_NONE;
+        set_import_phase(TAGCACHE_IMPORT_NONE);
     /* Quick Scroll's letters, unless a commit just noted them */
     if (initials_commit < 0)
         initials_load();
@@ -10567,17 +10728,17 @@ static void tagcache_thread(void)
         /* shown as the playlists' step, the same words: as LOADING,
            Updating Library would make Cover Flow's albums and the songs
            again */
-        import_phase = TAGCACHE_IMPORT_PLAYLISTS;
+        set_import_phase(TAGCACHE_IMPORT_PLAYLISTS);
         load_ramcache();
         refs_due = tc_stat.ramcache;
-        import_phase = phase;
+        set_import_phase(phase);
     }
 #else
     (void)playlists_made;
 #endif
     /* the screen tagcache_init() put up for them */
     if (import_phase == TAGCACHE_IMPORT_PLAYLISTS)
-        import_phase = TAGCACHE_IMPORT_NONE;
+        set_import_phase(TAGCACHE_IMPORT_NONE);
 
 #ifdef ITUNESDB_HAVE_ART
     /* Cover Flow's slides that an import without a sync left to make, or
@@ -10587,12 +10748,12 @@ static void tagcache_thread(void)
         if (itunesdb_slides_todo())
         {
             import_done = import_total = 0;
-            import_phase = TAGCACHE_IMPORT_SLIDES;
+            set_import_phase(TAGCACHE_IMPORT_SLIDES);
             itunesdb_make_slides(&import_done, &import_total,
                                  check_event_queue);
         }
         /* also when the import found none to make after all */
-        import_phase = TAGCACHE_IMPORT_NONE;
+        set_import_phase(TAGCACHE_IMPORT_NONE);
     }
 #endif
 #ifdef HAVE_TC_RAMCACHE
@@ -10640,7 +10801,7 @@ static void tagcache_thread(void)
 #endif
                 cpu_boost(false);
                 import_done = 0;
-                import_phase = TAGCACHE_IMPORT_SCANNING;
+                set_import_phase(TAGCACHE_IMPORT_SCANNING);
                 /* fallthrough */
             case Q_IMPORT_ITUNES:
                 /* Finder has synced: the new files first, then what
@@ -10652,7 +10813,7 @@ static void tagcache_thread(void)
                 cpu_boost(true);
                 if (!update_and_reload())
                 {
-                    import_phase = TAGCACHE_IMPORT_NONE;
+                    set_import_phase(TAGCACHE_IMPORT_NONE);
                     cpu_boost(false);
                     break;
                 }
@@ -10660,7 +10821,7 @@ static void tagcache_thread(void)
                 check_deleted_file_refs(true);
                 check_skips_synced = false;
                 import_done = import_total = 0;
-                import_phase = TAGCACHE_IMPORT_COUNTS;
+                set_import_phase(TAGCACHE_IMPORT_COUNTS);
                 /* the import is tried again on the next boot otherwise */
                 if (!db_file_exists(TAGCACHE_FILE_TEMP))
                 {
@@ -10682,11 +10843,11 @@ static void tagcache_thread(void)
 #ifdef ITUNESDB_HAVE_ART
                 /* the slides of the new covers, ready for Cover Flow */
                 import_done = import_total = 0;
-                import_phase = TAGCACHE_IMPORT_COVERS;
+                set_import_phase(TAGCACHE_IMPORT_COVERS);
                 itunesdb_make_slides(&import_done, &import_total,
                                      check_event_queue);
 #endif
-                import_phase = TAGCACHE_IMPORT_NONE;
+                set_import_phase(TAGCACHE_IMPORT_NONE);
                 cpu_boost(false);
                 break ;
 
@@ -10718,7 +10879,7 @@ static void tagcache_thread(void)
                     update_and_reload();
                 }
                 check_skips_synced = scan_outside = false;
-                import_phase = TAGCACHE_IMPORT_NONE;
+                set_import_phase(TAGCACHE_IMPORT_NONE);
                 cpu_boost(false);
                 break ;
 
@@ -10735,14 +10896,14 @@ static void tagcache_thread(void)
                 cpu_boost(true);
                 if (resort_if_stale())
                 {
-                    import_phase = TAGCACHE_IMPORT_LOADING;
+                    set_import_phase(TAGCACHE_IMPORT_LOADING);
 #ifdef HAVE_TC_RAMCACHE
                     reload_after_commit();
                     if (!tc_stat.ready)
                         tagcache_commit_finalize();
 #endif
                 }
-                import_phase = TAGCACHE_IMPORT_NONE;
+                set_import_phase(TAGCACHE_IMPORT_NONE);
                 cpu_boost(false);
                 break ;
 #endif
@@ -10855,7 +11016,7 @@ static void tagcache_thread(void)
                 if (resort_owed)
                 {
                     resort_owed = false;
-                    import_phase = TAGCACHE_IMPORT_NONE;
+                    set_import_phase(TAGCACHE_IMPORT_NONE);
                     library_update_after_usb();
                 }
 #endif
@@ -11017,19 +11178,19 @@ void tagcache_init(void)
         || !itunesdb_large_art_ready() || itunesdb_art_orphaned()
 #endif
         )
-        import_phase = TAGCACHE_IMPORT_READING;
+        set_import_phase(TAGCACHE_IMPORT_READING);
 #ifdef ITUNESDB_HAVE_ART
     else if (itunesdb_slides_todo())
-        import_phase = TAGCACHE_IMPORT_SLIDES;
+        set_import_phase(TAGCACHE_IMPORT_SLIDES);
 #endif
     /* the database to sort again, under the screen, but for a scan's file
        waiting, which the boot asks about first and whose commit sorts it */
     else if (temp_entries() <= 0 && order_stale())
-        import_phase = TAGCACHE_IMPORT_SAVING;
+        set_import_phase(TAGCACHE_IMPORT_SAVING);
     /* Finder's playlists made again, of a list an older firmware wrote; but
        for a scan's file waiting, as above */
     else if (temp_entries() <= 0 && itunesdb_playlists_due())
-        import_phase = TAGCACHE_IMPORT_PLAYLISTS;
+        set_import_phase(TAGCACHE_IMPORT_PLAYLISTS);
     mutex_init(&command_queue_mutex);
     queue_init(&tagcache_queue, true);
     create_thread(tagcache_thread, tagcache_stack,

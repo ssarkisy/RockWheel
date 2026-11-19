@@ -96,6 +96,13 @@ static struct panic_record *panic_record_place(unsigned char *rec)
 }
 #endif /* HAVE_PANIC_RECORD */
 
+static size_t arena_size;
+
+size_t core_arena_size(void)
+{
+    return arena_size;
+}
+
 void core_allocator_init(void)
 {
     unsigned char *start = ALIGN_UP(audiobuffer, sizeof(intptr_t));
@@ -119,6 +126,7 @@ void core_allocator_init(void)
 #endif
 
     buflib_init(&core_ctx, start, end - start);
+    arena_size = end - start;
 
 #ifdef BUFLIB_DEBUG_PRINT
     test_alloc = core_alloc(112);

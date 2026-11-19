@@ -85,6 +85,19 @@ static struct filestr_desc * get_filestr(int fildes)
         file_internal_unlock_##type();         \
     })
 
+/* For health.log (file_get_counters()): a number closed or read while not
+   open, as one closed twice or kept after its close, which may be another
+   file's by then; opens refused with every descriptor taken; and the most
+   open at once. Without a lock of their own: the threads of the CPU take
+   turns only where one yields. */
+static struct file_counters counters;
+
+void file_get_counters(struct file_counters *c)
+{
+    *c = counters;
+    c->slots = MAX_OPEN_FILES;
+}
+
 /* find a free file descriptor */
 static int alloc_filestr(struct filestr_desc **filep)
 {
@@ -94,11 +107,17 @@ static int alloc_filestr(struct filestr_desc **filep)
         if (!file->stream.flags)
         {
             *filep = file;
+            unsigned int open = 1; /* this one */
+            for (int i = 0; i < MAX_OPEN_FILES; i++)
+                open += open_streams[i].stream.flags != 0;
+            if (open > counters.most_open)
+                counters.most_open = open;
             return fildes;
         }
     }
 
     DEBUGF("Too many files open\n");
+    counters.refused++;
     return -1;
 }
 
@@ -480,6 +499,8 @@ file_error:
     return rc;
 }
 
+static int close_fildes(int fildes, bool counted);
+
 /* allocate a file descriptor, if needed, assemble stream flags and open
    a new stream */
 static int open_internal_inner1(const char *path, int oflag,
@@ -533,9 +554,10 @@ file_error:
     if (fildes >= 0)
     {
         /* the stream is closed by now, so this closes nothing and sets
-           EBADF: the errno to report is the open's own */
+           EBADF: the errno to report is the open's own, and the close
+           isn't counted as one of a number not open */
         int err = errno;
-        rbfs_close(fildes);
+        close_fildes(fildes, false);
         errno = err;
     }
     return rc;
@@ -878,6 +900,12 @@ int rbfs_creat(const char *path)
 /* close a file descriptor */
 int rbfs_close(int fildes)
 {
+    return close_fildes(fildes, true);
+}
+
+/* counted: one in the table's range that isn't open (file_get_counters()) */
+static int close_fildes(int fildes, bool counted)
+{
     DEBUGF("close(fd=%d)\n", fildes);
 
     int rc;
@@ -889,6 +917,8 @@ int rbfs_close(int fildes)
     if ((unsigned int)fildes >= MAX_OPEN_FILES || !file->stream.flags)
     {
         DEBUGF("filedes %d not open\n", fildes);
+        if (counted && (unsigned int)fildes < MAX_OPEN_FILES)
+            counters.bad_closes++;
         FILE_ERROR(EBADF, -2);
     }
 
@@ -983,7 +1013,11 @@ ssize_t rbfs_read(int fildes, void *buf, size_t nbyte)
 {
     struct filestr_desc * const file = GET_FILESTR(READER, fildes);
     if (!file)
+    {
+        if ((unsigned int)fildes < MAX_OPEN_FILES)
+            counters.bad_reads++;
         FILE_ERROR_RETURN(ERRNO, -1);
+    }
 
     ssize_t rc;
 

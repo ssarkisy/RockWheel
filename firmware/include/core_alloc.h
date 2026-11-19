@@ -39,6 +39,8 @@ unsigned core_pin_count(int handle);
 int core_free(int handle);
 size_t core_available(void);
 size_t core_allocatable(void);
+/* the arena's size as set up at boot, for health.log */
+size_t core_arena_size(void);
 
 #ifdef BUFLIB_DEBUG_CHECK_VALID
 void core_check_valid(void);

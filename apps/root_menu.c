@@ -29,6 +29,7 @@
 #include "ipod_playlists.h"
 #include "font.h"
 #include "root_menu.h"
+#include "health_log.h"
 #include "gui/skin_engine/skin_engine.h"
 #include "gui/skin_engine/menu_cover.h"
 #include "photos_panel.h"
@@ -2202,6 +2203,50 @@ static void photos_making(void)
 }
 #endif
 
+/* The steps after the database's phases, timed for health.log: one line
+   at the end of the screen, of those that ran, if they took a second or
+   more */
+enum { STEP_ALBUMS, STEP_YEARS, STEP_ROW_COVERS, STEP_SONGS, STEP_LETTERS,
+       STEP_PLAYLISTS, STEPS };
+static long step_ticks[STEPS];
+static bool step_ran[STEPS];
+static long step_start;
+
+static void step_begin(void)
+{
+    step_start = current_tick;
+}
+
+static void step_end(int step)
+{
+    step_ticks[step] += current_tick - step_start;
+    step_ran[step] = true;
+}
+
+static void steps_note(void)
+{
+    static const char * const names[STEPS] = {
+        "albums", "years", "row covers", "songs", "letters", "playlists"
+    };
+    char line[160];
+    int len = 0;
+    long all = 0;
+    for (int i = 0; i < STEPS; i++)
+        all += step_ticks[i];
+    for (int i = 0; i < STEPS && all >= HZ; i++)
+    {
+        if (!step_ran[i] || len >= (int)sizeof(line))
+            continue;
+        len += snprintf(line + len, sizeof(line) - len, "%s%s %ld.%ld s",
+                        len ? ", " : "", names[i], step_ticks[i] / HZ,
+                        step_ticks[i] % HZ * 10 / HZ);
+    }
+    if (len)
+        health_note("library update, then: %s", line);
+    memset(step_ticks, 0, sizeof(step_ticks));
+    memset(step_ran, 0, sizeof(step_ran));
+}
+
 /* After a sync the database takes in the new songs before the menu shows,
  * as a stock iPod has them as soon as it starts: the boot logo stays, with
  * the step and how far that is under it, until it's done. Menu left it to
@@ -2318,8 +2363,10 @@ static void library_update_screen(const char *words)
             library_update_show(str(LANG_PREPARING_ALBUMS), 0);
             /* it clears the screen as it starts and ends: drawn whole again */
             shown_text = NULL;
+            step_begin();
             plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock",
                         ITUNESDB_ALBUM_LIST);
+            step_end(STEP_ALBUMS);
             shown_text = NULL;
         }
         /* the computer's covers, which would take the room they need */
@@ -2331,9 +2378,12 @@ static void library_update_screen(const char *words)
        by is of before it */
     /* the albums' years, which the lists of an artist's albums go by: before
        Songs is prepared, which is kept as they're made */
-    if (phase == TAGCACHE_IMPORT_NONE && !held_event && !album_years_ready()
-        && album_years_make())
+    step_begin();
+    const bool years_made = phase == TAGCACHE_IMPORT_NONE && !held_event
+                            && !album_years_ready() && album_years_make();
+    if (years_made)
     {
+        step_end(STEP_YEARS);
         tagtree_albums_reordered();
         /* the lists' covers, by the albums' numbers in it */
         list_covers_load();
@@ -2358,7 +2408,9 @@ static void library_update_screen(const char *words)
         && album_years_ready() && (row_covers_stale || list_covers_stale()))
     {
         library_update_show(str(LANG_PREPARING_COVERS), 0);
+        step_begin();
         list_covers_make(library_update_covers_progress, library_playlists_go_on);
+        step_end(STEP_ROW_COVERS);
     }
 #endif
     /* Songs' playlist in the order chosen, if no import nor a song played
@@ -2373,7 +2425,11 @@ static void library_update_screen(const char *words)
         shown = true;
     }
     if ((imported || songs_stale) && phase == TAGCACHE_IMPORT_NONE && !held_event)
+    {
+        step_begin();
         tagtree_prepare_songs();
+        step_end(STEP_SONGS);
+    }
     /* not by a database the caches couldn't be made for */
     no_space |= library_take_no_room();
     if (phase == TAGCACHE_IMPORT_NONE && !held_event && !no_space)
@@ -2381,7 +2437,9 @@ static void library_update_screen(const char *words)
     if (letters_stale && !held_event)
     {
         library_update_show(str(LANG_UPDATING_LIBRARY), 0);
+        step_begin();
         music_search_letters_make(library_letters_progress);
+        step_end(STEP_LETTERS);
     }
     /* the library's playlists, as Songs is: their lists of songs, and those of
        the live smart ones by ratings and plays as they are, ready before they
@@ -2392,6 +2450,7 @@ static void library_update_screen(const char *words)
     {
         if (shown && !letters_stale)
             library_update_show(str(LANG_UPDATING_LIBRARY), 0);
+        step_begin();
         smart_update_at_boot();
         /* the marks of the synced ones, as this import left them */
         ip_synced_load();
@@ -2399,6 +2458,9 @@ static void library_update_screen(const char *words)
            their lists of songs are made */
         ip_gather_own();
         lp_index_all(library_playlists_go_on);
+        /* noted only where it took long: it runs after every screen */
+        if (current_tick - step_start >= HZ)
+            step_end(STEP_PLAYLISTS);
     }
     /* The list to resume, read again after all that may have written a
        playlist's file, while this or the boot's logo shows and the disk
@@ -2449,6 +2511,7 @@ static void library_update_screen(const char *words)
     itunesdb_covers_inbox_done();
     itunesdb_scan_forget();
 #endif
+    steps_note();
     if (held_event)
     {
         const long event = held_event;

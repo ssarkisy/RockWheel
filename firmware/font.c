@@ -132,6 +132,46 @@ static int ui_font = FONT_LASTUSERFONT;
 static int cache_fd;
 static struct font* cache_pf;
 
+/* font_get_failures(): counted as they happen, which is seldom; nothing is
+   allocated for them */
+static struct font_failures failures;
+
+const struct font_failures *font_get_failures(void)
+{
+    return &failures;
+}
+
+static void name_of(char *name, size_t size, const char *path)
+{
+    const char *slash = path ? strrchr(path, '/') : NULL;
+    strlcpy(name, slash ? slash + 1 : path ? path : "", size);
+}
+
+/* a glyph of the font of this path not read whole from its file: drawn
+   blank or wrong from then on, as the cache keeps it */
+static void font_note_glyph_failed(const char *path)
+{
+    char name[sizeof(failures.font[0].name)];
+    name_of(name, sizeof(name), path);
+    for (int i = 0; i < FONT_FAILURES_NAMED; i++)
+    {
+        if (!failures.font[i].name[0])
+            strcpy(failures.font[i].name, name);
+        if (!strcmp(failures.font[i].name, name))
+        {
+            failures.font[i].glyphs++;
+            return;
+        }
+    }
+    failures.other_glyphs++;
+}
+
+static void font_note_reopen_failed(const char *path)
+{
+    failures.reopens++;
+    name_of(failures.reopen_name, sizeof(failures.reopen_name), path);
+}
+
 static void glyph_cache_save(int font_id);
 
 static int buflibmove_callback(int handle, void* current, void* new)
@@ -1324,7 +1364,12 @@ static void font_enable(int font_id)
     if (pf->disabled && pf->fd < 0)
     {
         pf->fd = open(pdata->path, O_RDONLY);
-        pf->disabled = false;
+        /* without its file it stays as during USB, its glyphs from the
+           cache: a font cached in part has no bits in memory to draw from */
+        if (pf->fd >= 0)
+            pf->disabled = false;
+        else
+            font_note_reopen_failed(pdata->path);
     }
     core_put_data_pinned(pdata);
 }
@@ -1412,10 +1457,14 @@ load_cache_entry(struct font_cache_entry* p, void* callback_data)
         if (font_read_at(pf, WINDOW_BITS, pf->fd,
                          FONT_HEADER_SIZE + r->offset + (ch - r->first) * r->size,
                          &p->width, r->size) != (ssize_t)r->size)
+        {
             p->width = 0;
+            font_note_glyph_failed(alloc->path);
+        }
         lock_font_handle(pf->handle, false);
         return;
     }
+    bool read_whole = true;
     if (pf->file_width_offset)
     {
         int width_offset = pf->file_width_offset + char_code;
@@ -1424,7 +1473,8 @@ load_cache_entry(struct font_cache_entry* p, void* callback_data)
             fd = pf->fd_width;
         else
             fd = pf->fd;
-        font_read_at(pf, WINDOW_WIDTHS, fd, width_offset, &(p->width), 1);
+        read_whole = font_read_at(pf, WINDOW_WIDTHS, fd, width_offset,
+                                  &(p->width), 1) == 1;
     }
     else
     {
@@ -1448,8 +1498,12 @@ load_cache_entry(struct font_cache_entry* p, void* callback_data)
             if (pf->long_offset) {
                 if (font_read_at(pf, WINDOW_OFFSETS, fd, offset + 2, tmp, 2) == 2)
                     bitmap_offset |= (tmp[0] << 16) | (tmp[1] << 24);
+                else
+                    read_whole = false;
             }
         }
+        else
+            read_whole = false;
     }
     else
     {
@@ -1458,7 +1512,11 @@ load_cache_entry(struct font_cache_entry* p, void* callback_data)
 
     int32_t file_offset = FONT_HEADER_SIZE + bitmap_offset;
     int src_bytes = glyph_bytes(pf, p->width);
-    font_read_at(pf, WINDOW_BITS, pf->fd, file_offset, p->bitmap, src_bytes);
+    if (font_read_at(pf, WINDOW_BITS, pf->fd, file_offset, p->bitmap, src_bytes)
+        != src_bytes)
+        read_whole = false;
+    if (!read_whole)
+        font_note_glyph_failed(alloc->path);
 
     lock_font_handle(pf->handle, false);
 }
@@ -1676,12 +1734,13 @@ static NO_INLINE void glyph_cache_load(const char *font_path, struct font *pf)
             /* Header */
             uint32_t hdr = 0;
             read(fd, &hdr, sizeof(hdr));
-            if (hdr != FC_HEADER_VAL)
-                goto latin;
             /* only read what fits */
             glyph_file_size = ffilesize( fd );
-            if (glyph_file_size < sizeof(uint32_t))
+            if (hdr != FC_HEADER_VAL || glyph_file_size < sizeof(uint32_t))
+            {
+                close(fd); /* else left open for good */
                 goto latin;
+            }
             glyph_file_size -= sizeof(uint32_t);
             if ( glyph_file_size > (int)sizeof(ucschar_t)*pf->cache._capacity ) {
                 glyph_file_skip = glyph_file_size - sizeof(ucschar_t)*pf->cache._capacity;

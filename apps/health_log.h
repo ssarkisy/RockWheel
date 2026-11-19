@@ -29,6 +29,13 @@
    touches no file. */
 void health_note(const char *fmt, ...) ATTRIBUTE_PRINTF(1, 2);
 
+/* One more of a kind of event, by its name, a string that lasts (a
+   literal): the kinds counted since boot go on one line at the flush when
+   one has grown. From threads of the CPU only; HEALTH_TALLIES kinds at most,
+   any more dropped. Allocates nothing and touches no file. */
+#define HEALTH_TALLIES 6
+void health_tally(const char *name);
+
 /* A line of the volume's free clusters: as USB connects, before the flush;
    the first flush since boot adds one itself if none came before */
 void health_note_free(void);

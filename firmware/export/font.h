@@ -194,6 +194,24 @@ void font_disable_all(void);
  * counter-part of font_disable_all(); */
 void font_enable_all(void);
 
+/* The glyphs fonts failed to read from their files since boot, by the
+   file's name (the first FONT_FAILURES_NAMED of them, the rest together),
+   and the fonts whose file didn't open again after USB, the last by name:
+   for health.log */
+#define FONT_FAILURES_NAMED 4
+struct font_failures
+{
+    struct
+    {
+        char name[32];
+        unsigned int glyphs;
+    } font[FONT_FAILURES_NAMED];
+    unsigned int other_glyphs;
+    unsigned int reopens;
+    char reopen_name[32];
+};
+const struct font_failures *font_get_failures(void);
+
 struct font* font_get(int font);
 /* the id of a font loaded from this path, as by a skin, or -1: none is; the
    font isn't loaded for it, nor its count of users raised */

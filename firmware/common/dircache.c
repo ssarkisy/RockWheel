@@ -265,6 +265,10 @@ static struct dircache_runinfo
     } dcrivol[NUM_VOLUMES];
 } dircache_runinfo;
 
+/* entries that found no room since boot, which the cache goes without: for
+   health.log (dircache_get_info()) */
+static unsigned int full_count;
+
 #define BINDING_NEXT(bindp) \
     ((struct file_base_binding *)(bindp)->node.next)
 
@@ -1046,7 +1050,10 @@ static int create_entry(const char *basename,
     }
 
     if (idx == -ENOSPC)
+    {
         logf("size limit reached");
+        full_count++;
+    }
 
     return idx;
 }
@@ -3053,6 +3060,7 @@ void dircache_get_info(struct dircache_info *info)
 
     info->status     = status;
     info->statusdesc = status_descriptions[status];
+    info->full_count = full_count;
     info->last_size  = dircache.last_size;
     info->size_limit = DIRCACHE_LIMIT;
     info->reserve    = DIRCACHE_RESERVE;

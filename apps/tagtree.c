@@ -95,8 +95,10 @@ static const char * const tagtree_list_index_names[TAGTREE_SLOTS] = {
 };
 /* another when the lists' songs are put in another order: an index of the
    order before played other songs than the rows chosen. And with the file's
-   layout: "STTL" had the places alone */
-#define TAGTREE_LIST_MAGIC 0x324c5453 /* "STL2" */
+   layout: "STTL" had the places alone; and with what it holds: "STL2" had
+   at most as many as the playlist then, which a play of the list was cut to
+   after the boot sized it for the library (tagcache_playlist_room()) */
+#define TAGTREE_LIST_MAGIC 0x334c5453 /* "STL3" */
 struct tagtree_list_header {
     uint32_t magic;
     int32_t commitid;   /* of the database */
@@ -2852,7 +2854,9 @@ struct album_place {
     int32_t key, no;
 };
 #define SONG_ALBUM_NONE 0xffffu
-#define SONGS_SORT_MAX  0x7fff /* bit 15 marks a row moved */
+/* the rows are 16 bits, 0xffff none (SONGS_ROW_NONE); the marks of rows
+   moved or seen are bits past the places (songs_marks()) */
+#define SONGS_SORT_MAX  0xfffe
 
 static int cmp_album_place(const void *p1, const void *p2)
 {
@@ -2881,8 +2885,8 @@ static void songs_orders_put(struct tree_context *c, struct song_key *keys);
 /* The sort's room for n songs, in the names' room past used, nothing
    allocated, so also while music plays: the keys, the albums' keys, then the
    rows' numbers twice, or before them the albums' places by date. NULL
-   without it, or for more songs than bit 15 leaves, or none: Songs then has
-   no Sort By, in any order */
+   without it, or for more songs than the rows' 16 bits number, or none:
+   Songs then has no Sort By, in any order */
 static struct song_key *songs_sort_room(struct tree_context *c, int n, long used)
 {
     char *names = core_get_data(c->cache.name_buffer_handle);
@@ -2901,11 +2905,11 @@ static struct song_key *songs_sort_room(struct tree_context *c, int n, long used
    and what it keeps, its album's number, for its cover, or by year its
    album's year. As the sort gives them and the orders' file has them */
 struct song_place {
-    uint16_t from;  /* bit 15 marks a row moved */
+    uint16_t from;
     int16_t value;
 };
-_Static_assert(sizeof(struct song_place) <= sizeof(struct song_key),
-               "the places in the keys' room");
+_Static_assert(sizeof(struct song_place) < sizeof(struct song_key),
+               "the places in the keys' room, and a bit a row after them");
 
 /* the row x goes before the row y in an order: by key, or by row where the
    keys are equal, as a stable sort of the rows by name keeps them */
@@ -3096,14 +3100,35 @@ static struct song_place *songs_order_sort(struct tree_context *c, int order,
     return rows;
 }
 
+/* A bit for each of the n rows, cleared, in the keys' room past the n
+   places that are there (songs_order_sort(), songs_order_read()): the keys
+   are twice their size */
+static uint8_t *songs_marks(struct song_place *rows, int n)
+{
+    uint8_t *marks = (uint8_t *)(rows + n);
+    memset(marks, 0, (n + 7) / 8);
+    return marks;
+}
+
+static bool row_marked(const uint8_t *marks, int row)
+{
+    return marks[row >> 3] & (1 << (row & 7));
+}
+
+static void row_mark(uint8_t *marks, int row)
+{
+    marks[row >> 3] |= 1 << (row & 7);
+}
+
 /* The list by name into the order of those places: each row moved along the
    cycles of the order, then given what it keeps */
 static void songs_order_apply(struct tagentry *e, int n, struct song_place *rows,
                               int order)
 {
+    uint8_t *moved = songs_marks(rows, n);
     for (int i = 0; i < n; i++)
     {
-        if ((rows[i].from & 0x8000) || rows[i].from == i)
+        if (row_marked(moved, i) || rows[i].from == i)
             continue;
         const struct tagentry first = e[i];
         int to = i;
@@ -3111,11 +3136,11 @@ static void songs_order_apply(struct tagentry *e, int n, struct song_place *rows
         {
             const int from = rows[to].from;
             e[to] = e[from];
-            rows[to].from |= 0x8000;
+            row_mark(moved, to);
             to = from;
         }
         e[to] = first;
-        rows[to].from |= 0x8000;
+        row_mark(moved, to);
     }
     for (int i = 0; i < n; i++)
     {
@@ -3243,16 +3268,15 @@ static int songs_orders_open(struct songs_orders_header *h)
 /* each row of the list is in the places once: else the move wouldn't end */
 static bool songs_places_whole(struct song_place *rows, int n)
 {
+    uint8_t *seen = songs_marks(rows, n);
     bool whole = true;
     for (int k = 0; k < n && whole; k++)
     {
-        const int from = rows[k].from & 0x7fff;
-        whole = from < n && !(rows[from].from & 0x8000);
+        const int from = rows[k].from;
+        whole = from < n && !row_marked(seen, from);
         if (whole)
-            rows[from].from |= 0x8000;
+            row_mark(seen, from);
     }
-    for (int k = 0; k < n; k++)
-        rows[k].from &= 0x7fff;
     return whole;
 }
 
@@ -6525,8 +6549,10 @@ static int32_t *written_ids;
 static int written_count;
 static void save_slot_index(int slot, uint32_t id, uint32_t entries);
 
+/* lines: as many as it may be given, for each one's place in a new file */
 static bool playlist_writer_open(struct playlist_writer *w,
-                                 const char *playlist, bool new_playlist)
+                                 const char *playlist, bool new_playlist,
+                                 int lines)
 {
     w->buf = plugin_get_buffer(&w->size);
     w->used = 0;
@@ -6556,7 +6582,7 @@ static bool playlist_writer_open(struct playlist_writer *w,
     {
         /* after the BOM */
         w->next = lseek(w->fd, 0, SEEK_CUR);
-        w->max = playlist_get_current()->max_playlist_size;
+        w->max = MAX(lines, playlist_get_current()->max_playlist_size);
         size_t room = 2 * w->max * sizeof(uint32_t) + sizeof(uint32_t);
         if (w->size > room + MAX_PATH)
         {
@@ -6621,6 +6647,20 @@ static bool playlist_writer_close(struct playlist_writer *w)
     return ok;
 }
 
+/* A play of more songs than the playlist holds, which the boot set by the
+   library then (tagcache_playlist_room()): said once a start, as a library
+   grown since has it at each play until the next. playing_all: the songs
+   insert_all_playlist() inserts are a play of them all, not an insertion */
+static bool playing_all;
+static void say_songs_cut(int taken, int songs)
+{
+    static bool said;
+    if (said)
+        return;
+    said = true;
+    splashf(HZ * 2, str(LANG_PLAYING_SONGS_OF), taken, songs);
+}
+
 static bool insert_all_playlist(struct tree_context *c,
                                 const char* playlist, bool new_playlist,
                                 int position, bool queue)
@@ -6656,7 +6696,8 @@ static bool insert_all_playlist(struct tree_context *c,
             return false;
         }
     }
-    else if (!playlist_writer_open(&writer, playlist, new_playlist))
+    else if (!playlist_writer_open(&writer, playlist, new_playlist,
+                                   c->filesindir - c->special_entry_count))
     {
         /* nothing in place of the file before */
         writer.ok = false;
@@ -6694,8 +6735,13 @@ static bool insert_all_playlist(struct tree_context *c,
             rand_bool_array = fill_random_playlist_indexes(buffer, bufsize,
                                                            n, slots_remaining);
 
-            splashf(HZ * 2, ID2P(LANG_RANDOM_SHUFFLE_RANDOM_SELECTIVE_SONGS_SUMMARY),
-                    slots_remaining); /* voiced above */
+            /* a play of them all says how many: an insertion as before */
+            if (playing_all)
+                say_songs_cut(slots_remaining, n);
+            else
+                splashf(HZ * 2,
+                        ID2P(LANG_RANDOM_SHUFFLE_RANDOM_SELECTIVE_SONGS_SUMMARY),
+                        slots_remaining); /* voiced above */
         }
     }
 
@@ -6761,7 +6807,9 @@ static bool insert_all_playlist(struct tree_context *c,
         {
             if (fill_randomly)
             {
-                if (--slots_remaining <= 0)
+                /* the last slot filled too: it was left empty, a song
+                   fewer than the splash says */
+                if (slots_remaining-- <= 0)
                 {
                     exit_loop_now = true;
                     break;
@@ -7456,6 +7504,8 @@ bool tagtree_shuffle_songs(bool albums)
     }
 
     cpu_boost(true);
+    if (count > max)
+        say_songs_cut(max, count);
     splash(0, ID2P(LANG_WAIT));
     /* as when playing a list */
     if (audio_status() & AUDIO_STATUS_PLAY)
@@ -7463,7 +7513,7 @@ bool tagtree_shuffle_songs(bool albums)
     char file[MAX_PATH];
     const int slot = tagtree_free_slot(0, file, sizeof(file));
     const char *name = tagtree_playlist_names[slot];
-    bool ok = playlist_writer_open(&writer, file, true);
+    bool ok = playlist_writer_open(&writer, file, true, max);
     last_tick = current_tick + HZ/2; /* progress after half a second */
     int seen = 0;
     while (ok && added < max && tagcache_get_next(&tcs, buf, sizeof buf))
@@ -8298,8 +8348,15 @@ static int tagtree_play_folder(struct tree_context* c)
         logf("Failed creating playlist\n");
         return -1;
     }
-    else if (!insert_all_playlist(c, NULL, false, PLAYLIST_INSERT_LAST, false))
-        return -2;
+    else
+    {
+        playing_all = true;
+        const bool inserted = insert_all_playlist(c, NULL, false,
+                                                  PLAYLIST_INSERT_LAST, false);
+        playing_all = false;
+        if (!inserted)
+            return -2;
+    }
 
     bool has_playlist_been_randomized = n > playlist_get_current()->max_playlist_size;
     if (has_playlist_been_randomized)
