@@ -7203,14 +7203,15 @@ int tagcache_entry_count(void)
    if that takes at most an eighth of what is free, and leaves
    LIBRARY_AUDIO_FLOOR, once the database has all its memory (the paths'
    and names' room load_ramcache() takes after the boot) and this room's
-   setting and the rooms set before it are counted. What is free is as the
-   database's thread found it at boot, before the menu's thread goes on and
-   the database's thread loads more: the same library and memory give the
-   same rooms at every boot, which Songs' order file and the lists'
-   playlists go by (two values each, changing only with the database or the
-   memory). Where a room keeps the setting's, health.log says so. A library
-   grown past what the boot set, or past the most, has its play cut, which
-   is said once.
+   setting and the rooms set before it are counted. What is free, and that
+   later memory, are as the database's thread found them at boot, before the
+   menu's thread goes on and the database's thread loads more (as the paths'
+   room, at a boot that makes Finder's playlists again): the same library
+   and memory give the same rooms at every boot, which Songs' order file and
+   the lists' playlists go by (two values each, changing only with the
+   database or the memory). Where a room keeps the setting's, health.log
+   says so. A library grown past what the boot set, or past the most, has
+   its play cut, which is said once.
 
    What the library's takes from the audio buffer, on the iPod (the
    simulator's entries are larger, of 64-bit pointers):
@@ -7238,9 +7239,9 @@ int tagcache_entry_count(void)
 #define LIBRARY_AUDIO_FLOOR (8 * 1024 * 1024) /* left for the music and the
                                                  boot's skins, fonts, years */
 
-/* free as the database's thread had its memory at boot, and what the rooms
-   set since have taken of it */
-static size_t boot_free;
+/* free as the database's thread had its memory at boot, the database's
+   memory still to come then, and what the rooms set since have taken */
+static size_t boot_free, boot_later;
 static size_t rooms_taken;
 
 static int library_rows(void)
@@ -7267,11 +7268,11 @@ static void tag_header(int tag, struct tagcache_header *tch)
 }
 
 /* the database's memory still to come at boot: its paths' and names' room,
-   as ram_names_alloc() takes it with ram_paths_needed()'s size */
+   as ram_names_alloc() takes it with ram_paths_needed()'s size. With the
+   free memory, before the thread loads it: a boot that makes Finder's
+   playlists again loads it before the rooms are set */
 static size_t library_later(void)
 {
-    if (ram_names_handle > 0)
-        return 0;
     struct tagcache_header paths;
     tag_header(tag_filename, &paths);
     return (size_t)current_tcmh.tch.entry_count
@@ -7284,7 +7285,7 @@ static size_t library_later(void)
    memory and the rooms set; it's counted with them */
 static bool library_room_fits(const char *what, size_t base, size_t extra)
 {
-    const size_t used = library_later() + rooms_taken + base;
+    const size_t used = boot_later + rooms_taken + base;
     const size_t avail = boot_free > used ? boot_free - used : 0;
     const bool fits = extra <= avail / LIBRARY_SHARE
                       && avail - extra >= LIBRARY_AUDIO_FLOOR;
@@ -7297,10 +7298,11 @@ static bool library_room_fits(const char *what, size_t base, size_t extra)
 }
 
 /* Songs' names' room for rows: its titles, its sort (songs_sort_room():
-   8 B a song of keys and 4 of rows, the albums' 2 B each and their places
-   by date, 8, past those rows), and the bars over its albums, 16 B each
-   (song_groups()), once they're made; the albums at most twice the album
-   file's names, those of other album artists aside, and 64 KB to spare */
+   8 B a song of keys, the albums' 2 B each, then the rows' numbers twice,
+   4 B a song, or the albums' places by date, 8 B each, whichever is more),
+   and the bars over its albums, 16 B each (song_groups()), once they're
+   made; the albums at most twice the album file's names, those of other
+   album artists aside, and 64 KB to spare */
 static size_t songs_names_room(int rows)
 {
     struct tagcache_header titles, albums;
@@ -7308,8 +7310,9 @@ static size_t songs_names_room(int rows)
     tag_header(tag_album, &albums);
     const size_t n_albums = MIN((size_t)MAX(albums.entry_count, 0) * 2,
                                 (size_t)rows);
-    return (size_t)MAX(titles.datasize, 0) + 12 * (size_t)rows
-           + (2 + 16) * n_albums + 64 * 1024;
+    return (size_t)MAX(titles.datasize, 0) + 8 * (size_t)rows
+           + 2 * n_albums + MAX(4 * (size_t)rows, 8 * n_albums)
+           + 16 * n_albums + 64 * 1024;
 }
 #endif
 
@@ -7318,6 +7321,7 @@ static inline void library_boot_free(void)
 {
 #ifdef LIBRARY_ROWS_MAX
     boot_free = core_available();
+    boot_later = library_later();
 #endif
 }
 
