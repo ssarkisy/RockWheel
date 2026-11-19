@@ -85,11 +85,12 @@ static struct filestr_desc * get_filestr(int fildes)
         file_internal_unlock_##type();         \
     })
 
-/* For health.log (file_get_counters()): a number closed or read while not
-   open, as one closed twice or kept after its close, which may be another
-   file's by then; opens refused with every descriptor taken; and the most
-   open at once. Without a lock of their own: the threads of the CPU take
-   turns only where one yields. */
+/* For health.log (file_get_counters()): a number of the table closed or
+   read while no stream has it (EBADF), as one closed twice or kept after
+   its close, which may be another file's by then; not a stream whose file
+   USB took away (FD_NONEXIST, ENXIO), which is still open. Opens refused
+   with every descriptor taken, and the most open at once. Without a lock of
+   their own: the threads of the CPU take turns only where one yields. */
 static struct file_counters counters;
 
 void file_get_counters(struct file_counters *c)
@@ -1014,7 +1015,7 @@ ssize_t rbfs_read(int fildes, void *buf, size_t nbyte)
     struct filestr_desc * const file = GET_FILESTR(READER, fildes);
     if (!file)
     {
-        if ((unsigned int)fildes < MAX_OPEN_FILES)
+        if ((unsigned int)fildes < MAX_OPEN_FILES && errno == EBADF)
             counters.bad_reads++;
         FILE_ERROR_RETURN(ERRNO, -1);
     }

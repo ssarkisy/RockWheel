@@ -7182,42 +7182,66 @@ int tagcache_entry_count(void)
 }
 
 /* The playlist's and the lists' room for the library, set once at boot from
-   the database's entries, with no music playing, by playlist_init() and
+   the database, with no music playing, by playlist_init() and
    tree_mem_init(): a library larger than their settings has all its songs
    in Shuffle Songs and in a playlist of Songs, and Songs whole, with its
    Sort By, years and covers, rather than in windows of the setting's size.
    The settings stay the least: a library within them costs nothing more,
    and memory isn't taken later, while music may play.
 
-   The entries are the header's, read already by the boot: those removed,
-   the podcasts and the books are among them, so it's never short of the
-   songs. Rounded up with 1000 more, for songs a sync adds before the next
-   boot; at most LIBRARY_ROWS_MAX. Each takes no more than an eighth of what
-   is free as it's set: the library and its caches already have their
-   memory then, and a library too large for the iPod's (65000 songs with
-   32 MB) leaves the music its buffer, with Songs in windows as before. A
-   library grown past what the boot set, or past the most, has its play cut,
-   which is said once.
+   The songs are the master header's entries, read already by the boot:
+   those removed, the podcasts and the books are among them, so it's never
+   short. Rounded up with 1000 more, for songs a sync adds before the next
+   boot; at most LIBRARY_ROWS_MAX. The lists' names' room is as large as
+   Songs needs: the title file's data, which its rows' names are copied from
+   (no longer than that, its entries' headers aside), 12 B a row for its
+   sort, and room for the albums' places and bars; at least the setting's
+   40 B a row.
 
-   What a larger one takes from the audio buffer, on the iPod (the
-   simulator's are 20 and 72 B, of 64-bit pointers), the same with 32 MB
-   or 64 MB:
+   Each room is either the setting's or the whole library's, nothing
+   between: a part of the lists would still be windows. It's the library's
+   if that takes at most an eighth of what is free, and leaves
+   LIBRARY_AUDIO_FLOOR, once the database has all its memory (the paths'
+   and names' room load_ramcache() takes after the boot) and this room's
+   setting and the rooms set before it are counted. What is free is as the
+   database's thread found it at boot, before the menu's thread goes on and
+   the database's thread loads more: the same library and memory give the
+   same rooms at every boot, which Songs' order file and the lists'
+   playlists go by (two values each, changing only with the database or the
+   memory). Where a room keeps the setting's, health.log says so. A library
+   grown past what the boot set, or past the most, has its play cut, which
+   is said once.
+
+   What the library's takes from the audio buffer, on the iPod (the
+   simulator's entries are larger, of 64-bit pointers):
      the playlist: 16 B a song (its index, 4, and its dircache reference,
                    12, which is also Shuffle Albums' room) over the setting,
                    32000 by default;
-     the lists:    60 B a row (an entry, 20, and 40 of the names' room, as
-                   the setting's rows have: Songs' titles are copied there,
-                   17 B each in the simulator's 65000, and its sort is made
-                   in the rest, 12 B a song) over the setting, 20000 by
-                   default.
-     songs  rows   playlist  lists     together
-     13000  14000  0         0         0
-     33174  35000  +48 KB    +904 KB   +952 KB
-     65000  65000  +528 KB   +2.70 MB  +3.23 MB (the lists less with 32 MB) */
-#if defined(HAVE_TC_RAMCACHE) && (defined(IPOD_VIDEO) || defined(IPOD_COLOR))
-#define LIBRARY_ROWS_MAX  65000
-#define LISTS_EXTRA_ROWS  64  /* past the songs: the rows at the top of Songs */
-#define LIBRARY_SHARE     8   /* of what is free, the most either takes */
+     the lists:    an entry of 20 B a row over the setting, 20000 by
+                   default, and the names' room over the setting's 800 KB:
+                   45 B a row in all with titles of 17 B, 85 with 60 B ones
+                   (the simulator's 33174 songs: 1.58 MB, 2.97 MB).
+     songs  rows   playlist  lists (17 B titles)
+     13000  14000  0         0
+     33174  35000  +48 KB    +1.1 MB (60 B titles: +2.5 MB)
+     65000  65000  +528 KB   +3.1 MB
+   With 32 MB the lists keep the setting's room at 65000 songs, and at 33174
+   of 60 B titles; the playlist too at 65000 once the dircache has its 3 MB.
+   The simulator's buffers of 32 MB, less a device's dircache, left the
+   music 10 MB at 33174 songs with the library's rooms, and 2.7 MB at 65000
+   with the settings', as before them. */
+#if defined(HAVE_TC_RAMCACHE) && (defined(IPOD_VIDEO) || defined(IPOD_COLOR)) \
+    && !defined(__PCTOOL__) && !defined(PLUGIN)
+#define LIBRARY_ROWS_MAX    65000
+#define LISTS_EXTRA_ROWS    64  /* past the songs: the rows at the top of Songs */
+#define LIBRARY_SHARE       8   /* of what is free, the most a room takes */
+#define LIBRARY_AUDIO_FLOOR (8 * 1024 * 1024) /* left for the music and the
+                                                 boot's skins, fonts, years */
+
+/* free as the database's thread had its memory at boot, and what the rooms
+   set since have taken of it */
+static size_t boot_free;
+static size_t rooms_taken;
 
 static int library_rows(void)
 {
@@ -7226,27 +7250,90 @@ static int library_rows(void)
                        : 0;
 }
 
-/* rows, of bytes each, past the setting's as far as the share allows */
-static int library_rows_within(const char *what, int setting, int rows,
-                               size_t bytes)
+/* a tag file's header, zero without it; the database's state as it was,
+   unlike open_tag_fd() */
+static void tag_header(int tag, struct tagcache_header *tch)
 {
-    if (rows <= setting)
-        return setting;
-    const size_t share = core_available() / LIBRARY_SHARE;
-    const int most = setting + (int)MIN(share / bytes, (size_t)LIBRARY_ROWS_MAX);
-    if (rows <= most)
-        return rows;
-    health_note("library: %s for %d rows of %d, %lu KB free", what, most,
-                rows, (unsigned long)(core_available() / 1024));
-    return most;
+    char fname[MAX_PATH];
+    const int fd = open_pathfmt(fname, sizeof(fname), O_RDONLY,
+                                "%s/" TAGCACHE_FILE_INDEX, tc_stat.db_path, tag);
+    const bool ok = fd >= 0
+        && read_tagcache_header(fd, tch) == sizeof(struct tagcache_header)
+        && tch->magic == TAGCACHE_MAGIC;
+    if (fd >= 0)
+        close(fd);
+    if (!ok)
+        memset(tch, 0, sizeof(*tch));
+}
+
+/* the database's memory still to come at boot: its paths' and names' room,
+   as ram_names_alloc() takes it with ram_paths_needed()'s size */
+static size_t library_later(void)
+{
+    if (ram_names_handle > 0)
+        return 0;
+    struct tagcache_header paths;
+    tag_header(tag_filename, &paths);
+    return (size_t)current_tcmh.tch.entry_count
+           * (sizeof(struct path_name) + sizeof(uint32_t))
+           + (size_t)MAX(paths.datasize, 0);
+}
+
+/* The library's room for a room of base bytes as set, extra more: the share
+   at most, and the floor left, of what is free past the database's later
+   memory and the rooms set; it's counted with them */
+static bool library_room_fits(const char *what, size_t base, size_t extra)
+{
+    const size_t used = library_later() + rooms_taken + base;
+    const size_t avail = boot_free > used ? boot_free - used : 0;
+    const bool fits = extra <= avail / LIBRARY_SHARE
+                      && avail - extra >= LIBRARY_AUDIO_FLOOR;
+    rooms_taken += base + (fits ? extra : 0);
+    if (!fits)
+        health_note("library: %s kept to the setting, for want of %lu KB of"
+                    " %lu KB free", what, (unsigned long)(extra / 1024),
+                    (unsigned long)(avail / 1024));
+    return fits;
+}
+
+/* Songs' names' room for rows: its titles, its sort (songs_sort_room():
+   8 B a song of keys and 4 of rows, the albums' 2 B each and their places
+   by date, 8, past those rows), and the bars over its albums, 16 B each
+   (song_groups()), once they're made; the albums at most twice the album
+   file's names, those of other album artists aside, and 64 KB to spare */
+static size_t songs_names_room(int rows)
+{
+    struct tagcache_header titles, albums;
+    tag_header(tag_title, &titles);
+    tag_header(tag_album, &albums);
+    const size_t n_albums = MIN((size_t)MAX(albums.entry_count, 0) * 2,
+                                (size_t)rows);
+    return (size_t)MAX(titles.datasize, 0) + 12 * (size_t)rows
+           + (2 + 16) * n_albums + 64 * 1024;
 }
 #endif
+
+/* tagcache_thread(), as its memory is set at boot */
+static inline void library_boot_free(void)
+{
+#ifdef LIBRARY_ROWS_MAX
+    boot_free = core_available();
+#endif
+}
 
 int tagcache_playlist_room(int setting, size_t entry_bytes)
 {
 #ifdef LIBRARY_ROWS_MAX
-    return library_rows_within("the playlist", setting, library_rows(),
-                               entry_bytes);
+    const int rows = library_rows();
+    const size_t base = (size_t)setting * entry_bytes;
+    if (rows <= setting)
+    {
+        rooms_taken += base;
+        return setting;
+    }
+    return library_room_fits("the playlist", base,
+                             (size_t)(rows - setting) * entry_bytes)
+           ? rows : setting;
 #else
     (void)entry_bytes;
     return setting;
@@ -7257,16 +7344,27 @@ void tagcache_lists_room(int setting, size_t entry_bytes, int *rows,
                          int *names_size)
 {
     *rows = setting;
+    *names_size = setting * AVERAGE_FILENAME_LENGTH;
 #ifdef LIBRARY_ROWS_MAX
+    const size_t base = (size_t)setting * entry_bytes + *names_size;
     const int library = library_rows();
-    if (library > 0)
-        *rows = library_rows_within("the lists", setting,
-                                    library + LISTS_EXTRA_ROWS,
-                                    entry_bytes + AVERAGE_FILENAME_LENGTH);
+    if (library <= 0 || library + LISTS_EXTRA_ROWS <= setting)
+    {
+        rooms_taken += base;
+        return;
+    }
+    const int r = library + LISTS_EXTRA_ROWS;
+    const size_t names = MAX(songs_names_room(r), (size_t)*names_size);
+    if (library_room_fits("the lists", base,
+                          (size_t)(r - setting) * entry_bytes
+                          + names - *names_size))
+    {
+        *rows = r;
+        *names_size = names;
+    }
 #else
     (void)entry_bytes;
 #endif
-    *names_size = *rows * AVERAGE_FILENAME_LENGTH;
 }
 
 /* whether files are found in memory by their paths, all of them */
@@ -10639,6 +10737,7 @@ static void tagcache_thread(void)
 #endif /* HAVE_TC_RAMCACHE */
 
     cpu_boost(false);
+    library_boot_free();
     tc_stat.initialized = true;
 
     if (sync_found)
