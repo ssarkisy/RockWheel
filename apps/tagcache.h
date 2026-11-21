@@ -289,6 +289,12 @@ void tagcache_update_numeric(int idx_id, int tag, long data);
    many as there were, for what goes by them to know it's out of date */
 long tagcache_runtime_generation(bool ratings);
 int tagcache_entry_count(void);
+/* At boot, after tagcache_init(): the playlist's entries, and the lists'
+   rows and names' room, for the library, each at least its setting's, of
+   entry_bytes each (the plan and its costs at tagcache_playlist_room()) */
+int tagcache_playlist_room(int setting, size_t entry_bytes);
+void tagcache_lists_room(int setting, size_t entry_bytes, int *rows,
+                         int *names_size);
 bool tagcache_finds_entries(void);
 long tagcache_find_entry(const char *filename);
 /* A file's album, for an order of albums that an update of the database

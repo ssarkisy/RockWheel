@@ -890,6 +890,7 @@ static void scratch_mem_init(void *mem)
 static int audiobuf_handle;
 #define AUDIO_BUFFER_RESERVE (256*1024)
 static size_t filebuflen;
+static size_t filebuflen_most; /* since boot, for health.log */
 
 
 size_t audio_buffer_size(void)
@@ -945,6 +946,8 @@ static void audio_reset_buffer_noalloc(
     filebuflen -= allocsize;
 
     buffering_reset(filebuf, filebuflen);
+    if (filebuflen > filebuflen_most)
+        filebuflen_most = filebuflen;
 
     buffer_state = AUDIOBUF_STATE_INITIALIZED;
 
@@ -4902,6 +4905,12 @@ int audio_get_file_pos(void)
 size_t audio_get_filebuflen(void)
 {
     return buf_length();
+}
+
+/* the largest it was since boot */
+size_t audio_get_filebuflen_most(void)
+{
+    return filebuflen_most;
 }
 
 /* How many tracks exist on the buffer - full or partial */

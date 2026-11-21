@@ -53,6 +53,17 @@ enum relate_result
 int fdprintf(int fildes, const char *fmt, ...) ATTRIBUTE_PRINTF(2, 3);
 #endif /* FILEFUNCTIONS_DECLARED */
 
+/* The descriptors since boot, for health.log: closes and reads of a number
+   of the table that no stream had (EBADF: a close twice, or a number kept
+   after its close, another file's by then; not a stream whose file USB took
+   away), opens refused with all of them taken, the most open at once, and
+   how many there are */
+struct file_counters
+{
+    unsigned int bad_closes, bad_reads, refused, most_open, slots;
+};
+void file_get_counters(struct file_counters *c);
+
 #ifndef FILEFUNCTIONS_DEFINED
 #ifndef open
 #define open            FS_PREFIX(open)

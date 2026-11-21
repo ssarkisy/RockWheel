@@ -121,6 +121,7 @@ void audio_speech_speed_changed(int kind);
 #endif
 
 size_t audio_get_filebuflen(void);
+size_t audio_get_filebuflen_most(void);
 
 unsigned int playback_status(void);
 

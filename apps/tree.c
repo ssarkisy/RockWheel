@@ -2247,11 +2247,16 @@ void tree_mem_init(void)
     tc.dirfilter = &global_settings.dirfilter;
     tc.sort_dir = global_settings.sort_dir;
 
+#ifdef HAVE_TAGCACHE
+    /* the library's songs, if more: Songs whole */
+    tagcache_lists_room(global_settings.max_files_in_dir, sizeof(struct entry),
+                        &cache->max_entries, &cache->name_buffer_size);
+#else
     cache->name_buffer_size = AVERAGE_FILENAME_LENGTH *
         global_settings.max_files_in_dir;
-    cache->name_buffer_handle = core_alloc_ex(cache->name_buffer_size, &ops);
-
     cache->max_entries = global_settings.max_files_in_dir;
+#endif
+    cache->name_buffer_handle = core_alloc_ex(cache->name_buffer_size, &ops);
     cache->entries_handle =
             core_alloc_ex(cache->max_entries*(sizeof(struct entry)), &ops);
 }

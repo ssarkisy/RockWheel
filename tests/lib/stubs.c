@@ -181,6 +181,12 @@ void health_note(const char *fmt, ...)
     fputc('\n', stderr);
 }
 
+void health_tally(const char *name)
+{
+    (void)name;
+    stubs.health_notes++;
+}
+
 /* no music playing */
 int audio_status(void)
 {

@@ -5986,6 +5986,18 @@ static bool write_art_index(int old_handle, uint32_t old_count,
             fw_put(&out, large, count * sizeof(*large));
             written = fw_close(&out, true);
         }
+        /* the frames the pane takes, as the computer made them: which of
+           its ithmb files, and their rows' length */
+        if (placed && large_hdr.frames)
+            health_note("covers: the pane's frames of %lu of %lu covers, from"
+                        " the F%lu files, %lu pixels a row%s",
+                        (unsigned long)large_hdr.frames, (unsigned long)count,
+                        (unsigned long)large_hdr.format,
+                        (unsigned long)large_hdr.pitch,
+                        written ? "" : "; their index not written");
+        else if (placed)
+            health_note("covers: no frame of the pane's size among %lu covers,"
+                        " which it decodes", (unsigned long)count);
         /* not written: its header alone, of no index, says it was tried,
            and the next boot doesn't import for it again */
         if (placed && !written)
@@ -6422,6 +6434,8 @@ int itunesdb_load_large_art(const struct itunesdb_large_art *art,
     frame_path[0] = '\0';
     const int fd = open(art->path, O_RDONLY);
     bool ok = fd >= 0;
+    if (!ok)
+        health_tally("pane frames not opened");
     for (int y = 0; ok && y < art->height; y += rows_most)
     {
         const int rows = MIN(rows_most, art->height - y);
@@ -6439,7 +6453,11 @@ int itunesdb_load_large_art(const struct itunesdb_large_art *art,
                    art->width * sizeof(fb_data));
     }
     if (fd >= 0)
+    {
+        if (!ok)
+            health_tally("pane frames read short");
         close(fd);
+    }
     mutex_unlock(&art_lock);
     if (ok && art->turned)
     {
@@ -6466,7 +6484,11 @@ static const fb_data *read_frame(const struct itunesdb_art *art,
     bool ok = fd >= 0 && lseek(fd, start, SEEK_SET) == start
               && read(fd, raw, want) >= (ssize_t)(skip + size);
     if (fd >= 0)
+    {
+        if (!ok)
+            health_tally("cover frames read short");
         close(fd);
+    }
     return ok ? (const fb_data *)(raw + skip) : NULL;
 }
 

@@ -2586,7 +2586,14 @@ void playlist_init(void)
     on_disk_playlist.fd = -1;
     current_playlist.control_fd = -1;
     on_disk_playlist.control_fd = -1;
+#ifdef HAVE_TAGCACHE
+    /* the library's songs, if more: sized here, before music can play */
+    playlist->max_playlist_size =
+        tagcache_playlist_room(global_settings.max_files_in_playlist,
+                               sizeof(*playlist->indices) + ALBUMS_ROOM_ENTRY);
+#else
     playlist->max_playlist_size = global_settings.max_files_in_playlist;
+#endif
 
     handle = core_alloc_ex(playlist->max_playlist_size * sizeof(*playlist->indices), &ops);
     indices_handle = handle;
@@ -2671,7 +2678,7 @@ int playlist_amount(void)
  */
 size_t playlist_get_index_bufsz(size_t max_sz)
 {
-    size_t index_buffer_size = (global_settings.max_files_in_playlist *
+    size_t index_buffer_size = (current_playlist.max_playlist_size *
                                 sizeof(*on_disk_playlist.indices));
 
     return index_buffer_size > max_sz ? max_sz : index_buffer_size;
@@ -2699,8 +2706,8 @@ struct playlist_info* playlist_load(const char* dir, const char* file,
     {
         int num_indices = index_buffer_size / sizeof(*playlist->indices);
 
-        if (num_indices > global_settings.max_files_in_playlist)
-            num_indices = global_settings.max_files_in_playlist;
+        if (num_indices > current_playlist.max_playlist_size)
+            num_indices = current_playlist.max_playlist_size;
 
         playlist->max_playlist_size = num_indices;
         playlist->indices = index_buffer;

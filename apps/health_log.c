@@ -42,6 +42,16 @@
 #define HAVE_FAT_LINES /* firmware/common/fat.c is built */
 #endif
 
+#if (CONFIG_PLATFORM & PLATFORM_NATIVE) || defined(SIMULATOR)
+#include "font.h"
+#include "core_alloc.h"
+#include "playback.h"
+#ifdef HAVE_DIRCACHE
+#include "dircache.h"
+#endif
+#define HAVE_FILE_LINES /* file_get_counters(), font_get_failures() */
+#endif
+
 #if defined(HAVE_USBSTACK) && CONFIG_USBOTG == USBOTG_ARC \
     && (CONFIG_PLATFORM & PLATFORM_NATIVE)
 #include "usb_drv.h"
@@ -248,6 +258,230 @@ static int kernel_line(char *line, size_t size)
     }
     return len;
 }
+
+/* The tallies' line (health_tally()), when one has grown since the last
+   line written. Its length, 0 for none. */
+static struct
+{
+    const char *name;
+    unsigned int count, noted, seen;
+} tallies[HEALTH_TALLIES];
+
+void health_tally(const char *name)
+{
+    for (int i = 0; i < HEALTH_TALLIES; i++)
+    {
+        if (!tallies[i].name)
+            tallies[i].name = name;
+        if (tallies[i].name == name)
+        {
+            tallies[i].count++;
+            return;
+        }
+    }
+}
+
+static int tally_line(char *line, size_t size)
+{
+    bool grown = false;
+    for (int i = 0; i < HEALTH_TALLIES && tallies[i].name; i++)
+    {
+        tallies[i].seen = tallies[i].count;
+        grown |= tallies[i].seen != tallies[i].noted;
+    }
+    if (!grown)
+        return 0;
+    int len = snprintf(line, size, "%ld counts since start:", current_tick / HZ);
+    for (int i = 0; i < HEALTH_TALLIES && tallies[i].name && len < (int)size; i++)
+        len += snprintf(line + len, size - len, "%s %s %u", i ? ";" : "",
+                        tallies[i].name, tallies[i].seen);
+    if (len >= (int)size - 1) /* cut: it still ends its line */
+        len = size - 2;
+    line[len++] = '\n';
+    line[len] = '\0';
+    return len;
+}
+
+static inline void tally_line_written(void)
+{
+    for (int i = 0; i < HEALTH_TALLIES; i++)
+        tallies[i].noted = tallies[i].seen;
+}
+
+#ifdef HAVE_FILE_LINES
+/* The descriptors' counters (file.h): on the first flush since boot, then
+   when one of the faults has grown, or more were open at once than at the
+   last line written and three quarters or more of them. Its length, 0 for
+   none. */
+static struct file_counters files_noted, files_seen;
+static bool files_written;
+
+static int files_line(char *line, size_t size)
+{
+    file_get_counters(&files_seen);
+    const struct file_counters *c = &files_seen, *n = &files_noted;
+    if (files_written && c->bad_closes == n->bad_closes
+        && c->bad_reads == n->bad_reads && c->refused == n->refused
+        && (c->most_open <= n->most_open || c->most_open < c->slots * 3 / 4))
+        return 0;
+    return snprintf(line, size, "%ld files: most open at once %u of %u;"
+                    " closes of a number not open %u, reads %u; opens"
+                    " refused with all taken %u\n", current_tick / HZ,
+                    c->most_open, c->slots, c->bad_closes, c->bad_reads,
+                    c->refused);
+}
+
+static inline void files_line_written(void)
+{
+    files_noted = files_seen;
+    files_written = true;
+}
+
+/* The glyphs the fonts didn't read and the fonts not opened again after USB
+   (font.h), by the files' names, when either has grown since the last line
+   written. Its length, 0 for none. */
+static unsigned int fonts_noted, fonts_seen;
+
+static int fonts_line(char *line, size_t size)
+{
+    const struct font_failures *f = font_get_failures();
+    unsigned int sum = f->other_glyphs + f->reopens;
+    for (int i = 0; i < FONT_FAILURES_NAMED; i++)
+        sum += f->font[i].glyphs;
+    fonts_seen = sum;
+    if (sum == fonts_noted)
+        return 0;
+    int len = snprintf(line, size, "%ld fonts: glyphs not read",
+                       current_tick / HZ);
+    for (int i = 0; i < FONT_FAILURES_NAMED && f->font[i].name[0]
+         && len < (int)size; i++)
+        len += snprintf(line + len, size - len, "%s %s %u", i ? "," : "",
+                        f->font[i].name, f->font[i].glyphs);
+    if (len < (int)size)
+        len += snprintf(line + len, size - len, "%s others %u; not opened"
+                        " again after USB %u%s%s%s\n",
+                        f->font[0].name[0] ? "," : "", f->other_glyphs,
+                        f->reopens, f->reopens ? " (the last " : "",
+                        f->reopens ? f->reopen_name : "",
+                        f->reopens ? ")" : "");
+    if (len >= (int)size) /* cut: it still ends its line */
+    {
+        len = size - 1;
+        line[len - 1] = '\n';
+    }
+    return len;
+}
+
+static inline void fonts_line_written(void)
+{
+    fonts_noted = fonts_seen;
+}
+
+/* The memory as the boot set it out, on the first flush's line: the RAM
+   found, the buffers' arena, the audio buffer's largest and its size then,
+   and what is free */
+static bool memory_noted;
+
+static int memory_line(char *line, size_t size)
+{
+    if (memory_noted)
+        return 0;
+#if defined(IPOD_VIDEO) && (CONFIG_PLATFORM & PLATFORM_NATIVE)
+    const int ram = MEMORYSIZE == 64 && probed_ramsize != 64 ? 32 : MEMORYSIZE;
+#else
+    const int ram = MEMORYSIZE;
+#endif
+    return snprintf(line, size, "%ld memory: RAM %d MB; buffers %lu KB, the"
+                    " audio buffer %lu KB of them at its largest since start,"
+                    " %lu KB now; %lu KB free\n", current_tick / HZ, ram,
+                    (unsigned long)(core_arena_size() / 1024),
+                    (unsigned long)(audio_get_filebuflen_most() / 1024),
+                    (unsigned long)(audio_get_filebuflen() / 1024),
+                    (unsigned long)(core_available() / 1024));
+}
+#else
+static inline int files_line(char *line, size_t size)
+{
+    (void)line;
+    (void)size;
+    return 0;
+}
+
+static inline void files_line_written(void)
+{
+}
+
+static inline int fonts_line(char *line, size_t size)
+{
+    (void)line;
+    (void)size;
+    return 0;
+}
+
+static inline void fonts_line_written(void)
+{
+}
+
+static bool memory_noted;
+
+static inline int memory_line(char *line, size_t size)
+{
+    (void)line;
+    (void)size;
+    return 0;
+}
+#endif /* HAVE_FILE_LINES */
+
+#ifdef HAVE_DIRCACHE
+/* The dircache once it is built, and again after another build or when
+   more entries found no room: those it goes without, which are then found
+   on the disk. Its length, 0 for none. */
+static struct
+{
+    long build_ticks;
+    unsigned int full;
+    bool written;
+} dircache_noted, dircache_seen;
+
+static int dircache_line(char *line, size_t size)
+{
+    struct dircache_info info;
+    dircache_get_info(&info);
+    if (info.status != DIRCACHE_READY)
+        return 0;
+    dircache_seen.build_ticks = info.build_ticks;
+    dircache_seen.full = info.full_count;
+    if (dircache_noted.written
+        && dircache_seen.build_ticks == dircache_noted.build_ticks
+        && dircache_seen.full == dircache_noted.full)
+        return 0;
+    return snprintf(line, size, "%ld dircache: %u entries, %lu KB used of"
+                    " %lu (at most %lu), built in %ld.%ld s; entries"
+                    " without room %u\n", current_tick / HZ,
+                    info.entry_count, (unsigned long)(info.sizeused / 1024),
+                    (unsigned long)(info.size / 1024),
+                    (unsigned long)(info.size_limit / 1024),
+                    info.build_ticks / HZ, info.build_ticks % HZ * 10 / HZ,
+                    info.full_count);
+}
+
+static inline void dircache_line_written(void)
+{
+    dircache_noted = dircache_seen;
+    dircache_noted.written = true;
+}
+#else
+static inline int dircache_line(char *line, size_t size)
+{
+    (void)line;
+    (void)size;
+    return 0;
+}
+
+static inline void dircache_line_written(void)
+{
+}
+#endif
 
 #ifdef HAVE_FAT_LINES
 static bool free_noted; /* since boot */
@@ -459,6 +693,15 @@ void health_flush(void)
     const int usb_len = usb_line(usb, sizeof(usb));
     const int fat_len = fat_line(fat, sizeof(fat));
     const int kernel_len = kernel_line(kernel, sizeof(kernel));
+    /* and the memory's, the descriptors', the fonts', the dircache's and the
+       tallies': static, as the stack has little to spare here */
+    static char memory[NOTE_MAX], files[NOTE_MAX], fonts[NOTE_MAX],
+                dc[NOTE_MAX], tally[NOTE_MAX];
+    const int memory_len = memory_line(memory, sizeof(memory));
+    const int files_len = files_line(files, sizeof(files));
+    const int fonts_len = fonts_line(fonts, sizeof(fonts));
+    const int dc_len = dircache_line(dc, sizeof(dc));
+    const int tally_len = tally_line(tally, sizeof(tally));
     const char *cpu = NULL;
 #ifdef HAVE_CPU_TIME
     const int cpu_len = cpu_line(&cpu);
@@ -468,7 +711,8 @@ void health_flush(void)
     /* lines that come while this writes wait for the next time */
     const int len = notes_len;
     const int lost = notes_lost;
-    if (!len && !drive_len && !usb_len && !fat_len && !kernel_len && !cpu_len)
+    if (!len && !drive_len && !usb_len && !fat_len && !kernel_len && !cpu_len
+        && !memory_len && !files_len && !fonts_len && !dc_len && !tally_len)
         return;
 
     int fd = open(HEALTH_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -504,9 +748,14 @@ void health_flush(void)
         n = snprintf(text, sizeof(text), "%d more lines found no room\n", lost);
         ok = write(fd, text, n) == n;
     }
-    ok = ok && (!drive_len || write(fd, drive, drive_len) == drive_len)
+    ok = ok && (!memory_len || write(fd, memory, memory_len) == memory_len)
+            && (!drive_len || write(fd, drive, drive_len) == drive_len)
             && (!usb_len || write(fd, usb, usb_len) == usb_len)
             && (!fat_len || write(fd, fat, fat_len) == fat_len)
+            && (!dc_len || write(fd, dc, dc_len) == dc_len)
+            && (!files_len || write(fd, files, files_len) == files_len)
+            && (!fonts_len || write(fd, fonts, fonts_len) == fonts_len)
+            && (!tally_len || write(fd, tally, tally_len) == tally_len)
             && (!kernel_len || write(fd, kernel, kernel_len) == kernel_len)
             && (!cpu_len || write(fd, cpu, cpu_len) == cpu_len);
     /* none of it rather than a part: it is all written again next time */
@@ -523,6 +772,16 @@ void health_flush(void)
         fat_line_written();
     if (kernel_len)
         kernel_noted = kernel_seen;
+    if (memory_len)
+        memory_noted = true;
+    if (files_len)
+        files_line_written();
+    if (fonts_len)
+        fonts_line_written();
+    if (dc_len)
+        dircache_line_written();
+    if (tally_len)
+        tally_line_written();
 #ifdef HAVE_CPU_TIME
     if (cpu_len)
         cpu_line_written();

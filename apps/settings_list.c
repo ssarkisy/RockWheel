@@ -1580,8 +1580,15 @@ const struct settings_list settings[] = {
 #else
                   400,
 #endif
-                  "max files in playlist", UNIT_INT, 1000, 32000, 1000,
-                  NULL, NULL, NULL),
+                  "max files in playlist", UNIT_INT, 1000,
+#if defined(IPOD_VIDEO) || defined(IPOD_COLOR)
+                  /* by hand as far as a library raises it at boot, where
+                     the setting is the least (tagcache_playlist_room()) */
+                  65000,
+#else
+                  32000,
+#endif
+                  1000, NULL, NULL, NULL),
     INT_SETTING(F_BANFROMQS, max_files_in_dir, LANG_MAX_FILES_IN_DIR,
                 MAX_FILES_IN_DIR_DEFAULT, "max files in dir", UNIT_INT,
                 MAX_FILES_IN_DIR_STEP /* min */, MAX_FILES_IN_DIR_MAX,

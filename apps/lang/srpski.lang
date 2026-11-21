@@ -23843,3 +23843,17 @@
     *: "Искључи"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_PLAYING_SONGS_OF
+  desc: a splash as a play of all the songs starts, by Shuffle Songs or a song of Songs, when the library has more songs than a playlist holds (as many as the iPod set at its start, a restart raises it, and 65000 at most): the songs taken, at random, then all of them; shown once a start
+  user: core
+  <source>
+    *: "Playing %d of %d songs"
+  </source>
+  <dest>
+    *: "Пушта се %d од %d песама"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

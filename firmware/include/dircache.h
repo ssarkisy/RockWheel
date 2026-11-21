@@ -210,6 +210,7 @@ struct dircache_info
     size_t       reserve_used;   /* amount of reserve used */
     unsigned int entry_count;    /* number of cache entries */
     long         build_ticks;    /* total time used to build cache */
+    unsigned int full_count;     /* entries that found no room, since boot */
 };
 
 void dircache_get_info(struct dircache_info *info);
