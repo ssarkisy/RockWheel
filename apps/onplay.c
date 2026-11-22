@@ -1599,16 +1599,22 @@ static char *repeat_item_name(int selected_item, void *data,
     return buffer;
 }
 
-/* with this flag on an item, the menu with it stays open */
-static int toggle_sound_check(void)
+/* to Sound Check's next value, in its list's order, as Shuffle's row goes
+   through its own */
+static int cycle_sound_check(void)
 {
     const struct settings_list *setting =
         find_setting(&global_settings.replaygain_settings.type);
     int *type = &global_settings.replaygain_settings.type;
 
-    *type = *type == REPLAYGAIN_OFF ? REPLAYGAIN_TRACK : REPLAYGAIN_OFF;
+    switch (*type)
+    {
+        case REPLAYGAIN_OFF:   *type = REPLAYGAIN_TRACK; break;
+        case REPLAYGAIN_TRACK: *type = REPLAYGAIN_SHUFFLE; break;
+        default:               *type = REPLAYGAIN_OFF; break;
+    }
     if (setting)
-        setting->choice_setting->option_callback(*type);
+        setting->table_setting->option_callback(*type);
     settings_save();
     return 0;
 }
@@ -1617,10 +1623,8 @@ static char *sound_check_item_name(int selected_item, void *data,
                                    char *buffer, size_t buffer_len)
 {
     (void)selected_item; (void)data;
-    snprintf(buffer, buffer_len, "%s\t%c%s", str(LANG_REPLAYGAIN_MODE),
-             MENU_SWITCH(global_settings.replaygain_settings.type != REPLAYGAIN_OFF),
-             str(global_settings.replaygain_settings.type == REPLAYGAIN_OFF ?
-                 LANG_OFF : LANG_ON));
+    snprintf(buffer, buffer_len, "%s\t%s", str(LANG_REPLAYGAIN_MODE),
+             str(sound_check_lang(global_settings.replaygain_settings.type)));
     return buffer;
 }
 
@@ -1743,12 +1747,13 @@ MENUITEM_FUNCTION_DYNTEXT(wps_brightness_item,
                           NULL, NULL, NULL, Icon_NOICON);
 #endif
 
+/* with this flag on an item, the menu with it stays open */
 MENUITEM_FUNCTION_DYNTEXT(wps_shuffle_item, MENU_EXITAFTERTHISMENU, cycle_shuffle,
                           shuffle_item_name, NULL, NULL, NULL, Icon_NOICON);
 MENUITEM_FUNCTION_DYNTEXT(wps_repeat_item, MENU_EXITAFTERTHISMENU, cycle_repeat,
                           repeat_item_name, NULL, NULL, NULL, Icon_NOICON);
 MENUITEM_FUNCTION_DYNTEXT(wps_sound_check_item, MENU_EXITAFTERTHISMENU,
-                          toggle_sound_check, sound_check_item_name,
+                          cycle_sound_check, sound_check_item_name,
                           NULL, NULL, NULL, Icon_NOICON);
 
 MENUITEM_GROUP(wps_group_playback, ID2P(LANG_PLAYBACK));

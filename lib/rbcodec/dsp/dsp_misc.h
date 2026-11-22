@@ -30,20 +30,23 @@ void dsp_dither_set_light(bool light); /* in dsp_sample_output.c */
    then, which the decoder keeps up with on a fraction of the CPU */
 void dsp_set_light(bool light);
 
+/* Sound Check's On is TRACK, Off OFF, Albums SHUFFLE (apps/settings_list.c),
+   in this order since On and Off were the setting's two values: a new order
+   is the plugins' too (PLUGIN_API_REVISION) */
 enum replaygain_types
 {
-    /* the setting's two values come first: Sound Check is on or off */
-    REPLAYGAIN_TRACK = 0,
+    REPLAYGAIN_TRACK = 0, /* the track's gain, the album's where it has none */
     REPLAYGAIN_OFF,
-    REPLAYGAIN_ALBUM,
-    REPLAYGAIN_SHUFFLE,
+    REPLAYGAIN_ALBUM,     /* the album's gain, the track's where it has none */
+    REPLAYGAIN_SHUFFLE,   /* ALBUM, or TRACK while songs are shuffled one by
+                             one (apps/misc.c) */
 };
 
 struct replaygain_settings
 {
     bool noclip; /* scale to prevent clips */
-    int type;    /* 0=track gain, 1=album gain, 2=track gain if
-                    shuffle is on, album gain otherwise, 4=off */
+    int type;    /* enum replaygain_types: the setting's SHUFFLE is given
+                    to the DSP as TRACK or ALBUM (replaygain_update()) */
     int preamp;  /* scale replaygained tracks by this */
 };
 

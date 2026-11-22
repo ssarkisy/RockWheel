@@ -1422,6 +1422,13 @@ void replaygain_update(void)
     dsp_replaygain_set_settings(&settings);
 }
 
+/* Sound Check's value, as its rows show it: Off, On or Albums */
+int sound_check_lang(int type)
+{
+    return type == REPLAYGAIN_OFF ? LANG_OFF
+         : type == REPLAYGAIN_SHUFFLE ? LANG_SOUND_CHECK_ALBUMS : LANG_ON;
+}
+
 void format_sound_value_ex(char *buf, size_t buf_sz, int snd, int val, bool skin_token)
 {
     int numdec = sound_numdecimals(snd);

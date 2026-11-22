@@ -67,6 +67,9 @@ extern const struct menu_item_ex
 #ifdef HAVE_BACKLIGHT
         backlight_timeout, wake_screen_item, return_to_wps_item,
 #endif
+#ifdef HAVE_LCD_SLEEP_SETTING
+        keep_picture_item,
+#endif
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
         brightness_item,
 #endif

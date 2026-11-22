@@ -822,9 +822,10 @@ struct user_settings
     int backlight_on_button_hold; /* what to do with backlight when hold
                                      switch is on */
 #ifdef HAVE_LCD_SLEEP_SETTING
-    int lcd_sleep_after_backlight_off; /* when to put lcd to sleep after backlight
-                                          has turned off:  -1=never, 0=always,
-                                          or time in seconds */
+    int lcd_sleep_after_backlight_off; /* Keep Picture: the seconds the LCD
+                                          stays awake after the backlight has
+                                          gone out, 0 none, -1 until the
+                                          iPod's sleep */
 #endif
 #endif /* HAVE_BACKLIGHT */
 

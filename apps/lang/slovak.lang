@@ -19057,7 +19057,7 @@
     *: "Wheel & Buttons"
   </source>
   <dest>
-    *: "Koliesko a tlačidlá"
+    *: "Koliesko, tlačidlá"
   </dest>
   <voice>
     *: ""
@@ -24092,6 +24092,48 @@
   </source>
   <dest>
     *: "Nahradiť"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_KEEP_PICTURE
+  desc: a setting of Settings > General, under Wake Screen, on the iPod Video: how long the screen keeps showing its picture after the backlight goes out. Its values: Off (the picture goes with the light), 10 s to 5 min, Always (until the iPod sleeps)
+  user: core
+  <source>
+    *: "Keep Picture"
+  </source>
+  <dest>
+    *: "Ponechať obraz"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_KEEP_PICTURE
+  desc: the hint in the band under Settings > General while Keep Picture is selected, in three lines at most: what the user gets from it. Off is that setting's value as translated
+  user: core
+  <source>
+    *: "With the backlight off, the picture stays on the screen this long. Off saves the most battery."
+  </source>
+  <dest>
+    *: "Po zhasnutí podsvietenia zostane obraz na displeji takto dlho. „Vypnuté“ šetrí batériu najviac."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SOUND_CHECK_ALBUMS
+  desc: a value of Sound Check, after Off and On: each album at its own loudness (the album's gain from the files' tags), songs shuffled one by one evened out as with On. As a value beside Sound Check, not the Music menu's Albums
+  user: core
+  <source>
+    *: "Albums"
+  </source>
+  <dest>
+    *: "Albumy"
   </dest>
   <voice>
     *: ""

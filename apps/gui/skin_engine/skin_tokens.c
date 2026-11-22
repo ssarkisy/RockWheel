@@ -856,14 +856,20 @@ static const char *try_id3_token(struct wps_token *token, int offset,
             val = 1; /* off */
         else
         {
+            /* in the manual's order, %?rg<Off|Track|Album|TrackShuffle|
+               AlbumShuffle|No tag>, not the enum's: the kind of gain heard,
+               in its shuffle form under Sound Check's Albums
+               (REPLAYGAIN_SHUFFLE); a song without a gain tag, No tag */
             int type = id3_get_replaygain_mode(id3);
 
-            if (type < 0)
-                val = 6;    /* no tag */
+            if (type == REPLAYGAIN_TRACK)
+                val = 2;
+            else if (type == REPLAYGAIN_ALBUM)
+                val = 3;
             else
-                val = type + 2;
+                val = 6;    /* no tag */
 
-            if (globtype == REPLAYGAIN_SHUFFLE)
+            if (val != 6 && globtype == REPLAYGAIN_SHUFFLE)
                 val += 2;
         }
 

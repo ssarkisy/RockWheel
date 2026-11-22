@@ -183,7 +183,8 @@ MAKE_MENU(sel_backlight, ID2P(LANG_BACKLIGHT_SELECTIVE),
           NULL, Icon_Menu_setting, &bl_selective_actions, &sel_backlight_mask);
 
 #ifdef HAVE_LCD_SLEEP_SETTING
-MENUITEM_SETTING(lcd_sleep_after_backlight_off,
+/* Keep Picture */
+MENUITEM_SETTING_SHARED(keep_picture_item,
                 &global_settings.lcd_sleep_after_backlight_off, NULL);
 #endif
 #ifdef HAVE_BACKLIGHT_BRIGHTNESS
@@ -474,7 +475,7 @@ MAKE_MENU(lcd_settings,ID2P(LANG_LCD_MENU),
             ,&bl_filter_first_keypress
             ,&sel_backlight
 # ifdef HAVE_LCD_SLEEP_SETTING
-            ,&lcd_sleep_after_backlight_off
+            ,&keep_picture_item
 # endif
 # ifdef HAVE_BACKLIGHT_BRIGHTNESS
             ,&brightness_item

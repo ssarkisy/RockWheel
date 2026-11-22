@@ -301,6 +301,8 @@ void keyclick_once(void);
 struct mp3entry;
 int id3_get_replaygain_mode(const struct mp3entry *id3);
 void replaygain_update(void);
+/* the phrase of a value of Sound Check (replaygain_settings.type) */
+int sound_check_lang(int type);
 
 /* Makes a change to what the DSP does heard at once: it goes on as music is
    decoded, ahead of the seconds of it in the PCM buffer, so those are decoded

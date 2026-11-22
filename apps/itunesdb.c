@@ -4925,19 +4925,19 @@ void itunesdb_set_track_gain(struct mp3entry *id3)
                                            itunesdb_path_hash(id3->path));
         close(fd);
     }
+    /* the file's own ReplayGain tags, which only lower it as Finder's does.
+       Its album gain is Sound Check's Albums' even where Finder has the
+       song's, which On takes: Finder has none of an album */
+    id3->album_gain = MIN(id3->album_gain, 1L << 24);
     if (!sound_check)
     {
-        /* the file's own ReplayGain tags then, which only lower it as well */
         id3->track_gain = MIN(id3->track_gain, 1L << 24);
-        id3->album_gain = MIN(id3->album_gain, 1L << 24);
         return;
     }
     /* the factor on the samples, s7.24. A track Finder would raise stays as it
        is: iTunesDB doesn't say where its peaks are, and raised they could clip */
     id3->track_gain = sound_check <= 1000 ? (1L << 24) :
         fp_sqrt(((uint64_t)1000 << 24) / sound_check, 24);
-    id3->album_gain = 0;
-    id3->album_peak = 0;
 }
 
 bool itunesdb_resumes(const char *path)

@@ -184,6 +184,9 @@ static const struct {
     { &global_settings.tinted_background, LANG_HINT_TINTED_BACKGROUND },
 #ifdef HAVE_BACKLIGHT
     { &global_settings.wake_screen, LANG_HINT_WAKE_SCREEN },
+#ifdef HAVE_LCD_SLEEP_SETTING
+    { &global_settings.lcd_sleep_after_backlight_off, LANG_HINT_KEEP_PICTURE },
+#endif
     { &global_settings.return_to_wps, LANG_HINT_RETURN_TO_WPS },
 #endif
     { &global_settings.coverflow_pause, LANG_HINT_COVER_FLOW_PAUSE },

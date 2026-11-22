@@ -206,10 +206,21 @@ static int remote_backlight_on_button_hold = 0;
 
 #ifdef HAVE_LCD_SLEEP
 #ifdef HAVE_LCD_SLEEP_SETTING
+/* Keep Picture's (settings_list.c), in ticks: 0, the LCD sleeps as the light
+   goes out; below 0, it stays awake (but in the Video's iPod sleep,
+   LCD_SLEEPS_ASLEEP) */
 static int lcd_sleep_timeout = 10*HZ;
 #else
 /* Target defines needed value */
 #define lcd_sleep_timeout LCD_SLEEP_TIMEOUT
+#endif
+
+#if defined(HAVE_LCD_SLEEP_SETTING) && defined(HAVE_IDLE_SLEEP) \
+    && (CONFIG_BACKLIGHT_FADING == BACKLIGHT_FADING_PWM)
+/* The Video's iPod sleep is dark, its LCD asleep whatever Keep Picture says,
+   as a stock iPod's: with Always it would keep the BCM powered all the hours
+   of the sleep. The photo's panel sleeps only then (LCD_SLEEP_ASLEEP_ONLY) */
+#define LCD_SLEEPS_ASLEEP
 #endif
 
 static int lcd_sleep_timer SHAREDBSS_ATTR;
@@ -223,11 +234,16 @@ static void backlight_lcd_sleep_countdown(bool start)
         return;
     }
 
-    /* Start LCD sleep countdown */
-    if (lcd_sleep_timeout <= 0)
+    /* Start LCD sleep countdown, as the light has gone out */
+    int timeout = lcd_sleep_timeout;
+#ifdef LCD_SLEEPS_ASLEEP
+    if (powermgmt_asleep())
+        timeout = 0;
+#endif
+    if (timeout <= 0)
     {
         lcd_sleep_timer = 0;
-        if (lcd_sleep_timeout == 0) /* Setting == Always */
+        if (timeout == 0) /* at once: Keep Picture Off, or asleep */
         {
             /* Ensure lcd_sleep() is called from backlight_thread() */
 #if (CONFIG_BACKLIGHT_FADING == BACKLIGHT_FADING_PWM)
@@ -266,6 +282,15 @@ static int bl_dim_target  = 0;
 static int bl_dim_current = 0;
 static enum {DIM_STATE_START, DIM_STATE_MAIN} bl_dim_state = DIM_STATE_START;
 static bool bl_timer_active = false;
+
+#ifdef HAVE_LCD_SLEEP
+/* the light out, and not fading: fading in or out, the LCD stays awake
+   under it */
+static inline bool backlight_out(void)
+{
+    return bl_dim_target == 0 && !bl_timer_active;
+}
+#endif
 
 static void backlight_isr(void)
 {
@@ -717,7 +742,7 @@ void backlight_thread(void)
                    stays awake with it and sleeps as it goes out. The
                    photo's panel stays on awake, by design; other targets
                    are only unlocked. */
-                if (bl_dim_target == 0 && !bl_timer_active)
+                if (backlight_out())
                     backlight_lcd_sleep_countdown(true);
 #endif
                 break;
@@ -766,6 +791,14 @@ void backlight_thread(void)
 #endif /* HAVE_BACKLIGHT_BRIGHTNESS */
 #ifdef HAVE_LCD_SLEEP
             case LCD_SLEEP:
+#if CONFIG_BACKLIGHT_FADING == BACKLIGHT_FADING_PWM
+                /* posted as the light went out, or by an unlock in the dark:
+                   not under a light lit since, as by a press just after the
+                   unlock, nor while it fades; a fade-out's end posts it
+                   again (backlight_isr()) */
+                if (!backlight_out())
+                    break;
+#endif
                 lcd_sleep();
                 break;
 #endif
@@ -835,12 +868,31 @@ static void backlight_timeout_handler(void)
     else if(lcd_sleep_timer > 0)
     {
         lcd_sleep_timer -= BACKLIGHT_THREAD_TIMEOUT;
-        if(lcd_sleep_timer <= 0)
+        if(lcd_sleep_timer <= 0
+#if CONFIG_BACKLIGHT_FADING == BACKLIGHT_FADING_PWM
+           /* as at LCD_SLEEP: not under the light, which a fade's end may
+              have begun this for just as it was asked on; with Always On no
+              light timer holds this one back */
+           && backlight_out()
+#endif
+          )
         {
             lcd_sleep();
         }
     }
 #endif /* HAVE_LCD_SLEEP */
+#ifdef LCD_SLEEPS_ASLEEP
+    /* the iPod's sleep begun in the dark, the LCD kept awake by Keep Picture
+       (its time not over yet, or Always): to sleep too, within a second. A
+       light going out in the sleep puts it to sleep at once
+       (backlight_lcd_sleep_countdown()); locked for a power-off, this isn't
+       reached, and the LCD it woke stays awake */
+    if (powermgmt_asleep() && lcd_active() && backlight_out())
+    {
+        lcd_sleep_timer = 0;
+        lcd_sleep();
+    }
+#endif
 #ifdef HAVE_REMOTE_LCD
     if(remote_backlight_timer > 0)
     {
@@ -1061,9 +1113,9 @@ void lcd_set_sleep_after_backlight_off(int timeout_seconds)
 
     /* Backlight is Off */
     if (lcd_sleep_timeout < 0)
-        lcd_sleep_timer = 0; /* Never */
+        lcd_sleep_timer = 0; /* Always: until the iPod's sleep */
     else if (lcd_sleep_timeout == 0)
-        lcd_sleep_timer = 1; /* Always - sleep next tick */
+        lcd_sleep_timer = 1; /* Off: at the next timeout */
     else
         lcd_sleep_timer = lcd_sleep_timeout; /* other */
 }

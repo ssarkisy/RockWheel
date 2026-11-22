@@ -605,9 +605,9 @@ static int32_t getlang_time_unit_0_is_off(int value, int unit)
 }
 
 #if defined(HAVE_BACKLIGHT) || defined(HAVE_LCD_SLEEP_SETTING)
-/* the Backlight Timer has its own (formatter_backlight()) */
-#if defined(HAVE_REMOTE_LCD) || defined(HAVE_LCD_SLEEP_SETTING) \
-    || defined(HAVE_BUTTON_LIGHT)
+/* the Backlight Timer and Keep Picture have their own (formatter_backlight(),
+   formatter_keep_picture()) */
+#if defined(HAVE_REMOTE_LCD) || defined(HAVE_BUTTON_LIGHT)
 static const char* formatter_time_unit_0_is_always(char *buffer, size_t buffer_size,
                                     int val, const char *unit)
 {
@@ -662,6 +662,43 @@ static int32_t getlang_backlight(int value, int unit)
     if (value == -1)
         return LANG_OFF;
     return getlang_time_unit_0_is_always(value, unit);
+}
+#endif
+
+#ifdef HAVE_LCD_SLEEP_SETTING
+/* Keep Picture: how long the panel keeps the picture after the light goes
+   out. Off, it sleeps with the light; Always, as on a stock iPod, until the
+   iPod sleeps, whose sleep is dark whatever this says (backlight.c). The
+   values are lcd_set_sleep_after_backlight_off()'s seconds, 0 for at once and
+   -1 for no countdown, which Rockbox's list named Always and Never.
+   config.cfg has them in its key's sense, as Rockbox writes them: "on", the
+   LCD sleeps right after the light; "off", it doesn't. Another number, of
+   Rockbox's longer list or a hand-made .cfg, loads as the default
+   (settings.c) */
+static const int keep_picture_times[] = { 0, 10, 30, 60, 300, -1 };
+
+static const char* formatter_keep_picture(char *buffer, size_t buffer_size,
+                                          int val, const char *unit)
+{
+    (void) unit;
+    if (val == 0)
+        return str(LANG_OFF);
+    else if (val < 0)
+        return str(LANG_ALWAYS);
+    else if (val % 60 == 0)
+        /* "1 min", in the seconds' style ("10 s"), not "1:00 min" */
+        return format_time_auto(buffer, buffer_size, val / 60,
+                                UNIT_MIN | UNIT_TRIM_ZERO, false);
+    return buffer;
+}
+
+static int32_t getlang_keep_picture(int value, int unit)
+{
+    if (value == 0)
+        return LANG_OFF;
+    else if (value < 0)
+        return LANG_ALWAYS;
+    return talk_time_intervals(value, unit, false);
 }
 #endif
 
@@ -949,12 +986,27 @@ static void albumart_callback(int mode)
 }
 #endif
 
-/* its row in Settings changes it in place, and the music at once */
+/* the music at once, as its value is chosen */
 static void sound_check_changed(int value)
 {
     (void)value;
     replaygain_update();
     dsp_change_heard_now(NULL);
+}
+
+static const char* formatter_sound_check(char *buffer, size_t buffer_size,
+                                         int val, const char *unit)
+{
+    (void) buffer;
+    (void) buffer_size;
+    (void) unit;
+    return str(sound_check_lang(val));
+}
+
+static int32_t getlang_sound_check(int value, int unit)
+{
+    (void) unit;
+    return sound_check_lang(value);
 }
 
 #ifdef HAVE_PITCHCONTROL
@@ -974,10 +1026,12 @@ static void audiobook_speed_changed(int value)
 static void shuffle_playlist_callback(int mode)
 {
     struct playlist_info *playlist = playlist_get_current();
+    /* Sound Check's Albums takes the new shuffle as the next song starts
+       (codec_thread.c), not in the middle of this one but for a seek that
+       decodes it again */
     if (playlist->started
         && (audio_status() & AUDIO_STATUS_PLAY) == AUDIO_STATUS_PLAY)
     {
-        replaygain_update();
         /* a show's episodes and a book's parts stay in order; a list in
            the mode already, as one just started by it, stays as it is */
         if (mode != playlist->shuffled
@@ -1453,9 +1507,11 @@ const struct settings_list settings[] = {
                     "off", UNIT_SEC, formatter_backlight,
                     getlang_backlight, backlight_set_timeout,
                     ARRAYLEN(backlight_timeouts), backlight_timeouts),
-    /* Select & Menu: on Now Playing the wheel's volume, Play and the track
-       buttons work with the screen dark and leave it dark */
-    CHOICE_SETTING(0, wake_screen, LANG_WAKE_SCREEN, WAKE_SELECT_MENU,
+    /* Any by default, as on a stock iPod: the wheel and the buttons light
+       it, Play alone doesn't (BACKLIGHT_FILTER_EXEMPT). Select & Menu: on
+       Now Playing the wheel's volume, Play and the track buttons work with
+       the screen dark and leave it dark */
+    CHOICE_SETTING(0, wake_screen, LANG_WAKE_SCREEN, WAKE_ANY,
                    "wake screen", "select and menu,any", NULL, 2,
                    ID2P(LANG_WAKE_SELECT_MENU), ID2P(LANG_WAKE_ANY)),
     /* the menus and the lists go to Now Playing as the screen goes dark while
@@ -2191,12 +2247,16 @@ const struct settings_list settings[] = {
 #endif
 
     /* replay gain */
-    /* Sound Check, on or off as on a stock iPod: the gains are Finder's, or
-       where it has none, the file's ReplayGain tags */
-    CHOICE_SETTING(F_SOUNDSETTING, replaygain_settings.type,
-                   LANG_REPLAYGAIN_MODE, REPLAYGAIN_OFF, "replaygain type",
-                   "on,off", sound_check_changed, 2,
-                   ID2P(LANG_ON), ID2P(LANG_OFF)),
+    /* Sound Check: Off; On, as on a stock iPod, each song's gain, Finder's or
+       where it has none the file's ReplayGain track gain; Albums, the file's
+       album gain, an album keeping its own loudness, but the song's while
+       songs are shuffled one by one (REPLAYGAIN_SHUFFLE). config.cfg's "on"
+       and "off" are On/Off's as before */
+    TABLE_SETTING(F_SOUNDSETTING, replaygain_settings.type,
+                  LANG_REPLAYGAIN_MODE, REPLAYGAIN_OFF, "replaygain type",
+                  "off,on,albums", UNIT_INT, formatter_sound_check,
+                  getlang_sound_check, sound_check_changed, 3,
+                  REPLAYGAIN_OFF, REPLAYGAIN_TRACK, REPLAYGAIN_SHUFFLE),
     OFFON_SETTING(F_SOUNDSETTING, replaygain_settings.noclip,
                   LANG_REPLAYGAIN_NOCLIP, false, "replaygain noclip", NULL),
     INT_SETTING_NOWRAP(F_SOUNDSETTING, replaygain_settings.preamp,
@@ -2473,12 +2533,15 @@ const struct settings_list settings[] = {
                    ID2P(LANG_NORMAL), ID2P(LANG_OFF), ID2P(LANG_ON)),
 
 #ifdef HAVE_LCD_SLEEP_SETTING
-    TABLE_SETTING_LIST(F_TIME_SETTING | F_ALLOW_ARBITRARY_VALS,
-                    lcd_sleep_after_backlight_off, LANG_LCD_SLEEP_AFTER_BACKLIGHT_OFF,
-                    5, "lcd sleep after backlight off",
-                    off_on, UNIT_SEC, formatter_time_unit_0_is_always,
-                    getlang_time_unit_0_is_always, lcd_set_sleep_after_backlight_off,
-                    23, timeout_sec_common),
+    /* Keep Picture, 30 s by default: the panel still sleeps in the dark, but
+       later than the 5 s before (its current then isn't measured yet).
+       config.cfg's words, one for each of keep_picture_times in its order */
+    TABLE_SETTING_LIST(F_TIME_SETTING,
+                    lcd_sleep_after_backlight_off, LANG_KEEP_PICTURE,
+                    30, "lcd sleep after backlight off",
+                    "on,10,30,60,300,off", UNIT_SEC, formatter_keep_picture,
+                    getlang_keep_picture, lcd_set_sleep_after_backlight_off,
+                    ARRAYLEN(keep_picture_times), keep_picture_times),
 #endif /* HAVE_LCD_SLEEP_SETTING */
 #endif /* HAVE_BACKLIGHT */
 

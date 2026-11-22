@@ -35,6 +35,7 @@
 #include "dsp_sample_io.h"
 #include "metadata.h"
 #include "settings.h"
+#include "misc.h" /* replaygain_update() */
 #include "codec_cop.h"
 
 /* Define LOGF_ENABLE to enable logf output in this file */
@@ -631,6 +632,12 @@ static void run_codec(void)
 
     if (!encoder)
     {
+        /* Sound Check's Albums by the shuffle as of this track, before its
+           codec gives the DSP its gains: a change of the shuffle is heard
+           from the next song (settings_list.c), or from a seek that decodes
+           this one again (one into its last seconds, already decoded) */
+        replaygain_update();
+
         /* This will be either the initial buffered offset or where it left off
            if it remained buffered and we're skipping back to it and it is best
            to have ci.curpos in sync with the handle's read position - it's the
