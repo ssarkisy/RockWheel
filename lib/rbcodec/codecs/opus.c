@@ -161,15 +161,25 @@ static int find_in_stream(uint64_t pos, const char *what, size_t len)
     return 0;
 }
 
-/* seek to ogg page after given file position */
+/* Seek to the first ogg page at or after the given file position that
+   begins a packet, as the first after the headers does: version 0, and header
+   type 0, or 4 for the stream's last page, which in a stream of a single
+   audio page is that page. Returns 0 at the end of the file. */
 static int seek_ogg_page(uint64_t filepos)
 {
-    /* A page of no continued packet, as the first after the headers: its
-       version and header type are both 0 */
-    const char synccode[] = "OggS\0"; /* Note: there are two nulls here */
-    if (find_in_stream(filepos, synccode, sizeof(synccode))) {
-        LOGF("next page %jd", (intmax_t) ci->curpos);
-        return 1;
+    const char synccode[] = "OggS"; /* with its null, the version byte */
+    while (find_in_stream(filepos, synccode, sizeof(synccode))) {
+        size_t got;
+        const unsigned char *p = ci->request_buffer(&got, 6);
+        if (p == NULL || got < 6) {
+            ci->seek_buffer(ci->filesize);
+            break;
+        }
+        if ((p[5] & ~4) == 0) {
+            LOGF("next page %jd", (intmax_t) ci->curpos);
+            return 1;
+        }
+        filepos = ci->curpos + 1;
     }
     return 0;
 }
@@ -188,9 +198,10 @@ static int seek_opus_tags(void)
 
 /* Where seek_opus_tags() and then seek_ogg_page() lead in a well-formed
    stream, found from page header to page header without reading the pages:
-   the first page after the one OpusTags begins whose version and header type
-   are 0, as "OggS\0\0" finds: no continued packet, nor the stream's first or
-   last page. Returns 0, the stream left anywhere, if the pages don't add up. */
+   the first page after the one OpusTags begins that begins a packet, of
+   version 0 and header type 0, or 4 for the stream's last page, all its
+   audio when it has a single page. Returns 0, the stream left anywhere, if
+   the pages don't add up. */
 static int seek_audio_page(void)
 {
     uint64_t pos = 0;
@@ -202,7 +213,7 @@ static int seek_audio_page(void)
         /* a page, of version 0 */
         if (p == NULL || got < 27 || memcmp(p, "OggS", 5) != 0)
             return 0;
-        if (tags && p[5] == 0)
+        if (tags && (p[5] & ~4) == 0)
             return 1;
         unsigned int segments = p[26], body = 0;
         if (got < 27 + segments)
@@ -492,6 +503,16 @@ enum codec_status codec_run(void)
     int skip = 0;
     int64_t seek_target;
     uint64_t granule_pos;
+    /* Where the packets of the page being decoded start, as a granule
+       position: the granule position of the page before, 0 before the first
+       audio page, -1 after a seek or a resume until a page has been taken
+       whole. The stream's last page has the stream's end as its granule
+       position: what its packets decode to beyond that, the encoder's
+       padding, is not played (RFC 7845 4.4). A stream of one audio page
+       starts at 0, its difference being the end's (4.5). */
+    int64_t pkt_end = -1;
+    int64_t room = -1;      /* what the last page has left, -1 for no end */
+    bool decoded = false;       /* a packet was */
 
     ogg_malloc_init();
 
@@ -565,6 +586,7 @@ enum codec_status codec_run(void)
                 if (opus_seek_page_granule(seek_target, page_granule,
                                            oy, os) == 0)
                     param = 0;
+                pkt_end = -1;
                 /* reset the state to help ensure that subsequent packets won't
                    use state set by unrelated packets processed before seek */
                 opus_decoder_ctl(st, OPUS_RESET_STATE);
@@ -579,6 +601,12 @@ enum codec_status codec_run(void)
     next_page:
         /*Get the ogg buffer for writing*/
         if (get_more_data(oy) < 1) {
+            /* the file's end, once a packet decoded, is the track's end, also
+               of a stream cut short of its last page; a read that brings
+               nothing short of it (given up for a seek or a stop, on either
+               core) stays an error */
+            if (decoded && ci->curpos >= ci->filesize)
+                error = CODEC_OK;
             goto done;
         }
 
@@ -595,10 +623,14 @@ enum codec_status codec_run(void)
 
             /* Add page to the bitstream */
             make_room(os, &og);
-            ogg_stream_pagein(os, &og);
+            const bool ours = ogg_stream_pagein(os, &og) == 0;
 
             page_granule = ogg_page_granulepos(&og);
             granule_pos = page_granule;
+
+            room = -1;
+            if (ours && ogg_page_eos(&og) && pkt_end >= 0 && page_granule >= 0)
+                room = MAX(page_granule - pkt_end, 0);
 
             /* Take every packet the page finished, so that the stream
                buffer holds no more than an unfinished one (see
@@ -607,8 +639,12 @@ enum codec_status codec_run(void)
                 ret = ogg_stream_packetout(os, &op);
                 if (ret < 0)
                     continue;   /* a gap in the stream, as after a seek */
-                if (ret == 0 || op.e_o_s)
+                if (ret == 0) {
+                    /* all of the page's packets taken */
+                    if (ours && page_granule >= 0)
+                        pkt_end = page_granule;
                     break;
+                }
                 if (op.packetno == 0){
                     /* identification header */
 
@@ -636,9 +672,11 @@ enum codec_status codec_run(void)
 
                     /* the resume point once: a seek to the start parses
                        the header again, and goes to the first audio page */
+                    pkt_end = 0;
                     if (strtoffset) {
                         seek_ogg_page(strtoffset);
                         strtoffset = 0;
+                        pkt_end = -1;
                     } else if (param) {
                         action = CODEC_ACTION_SEEK_TIME;
                         goto process_action;
@@ -663,8 +701,23 @@ enum codec_status codec_run(void)
                     ci->set_offset((size_t) ci->curpos);
                     ci->set_elapsed((granule_pos - header->preskip) / 48);
 
-                    /* Decode audio packets */
-                    ret = opus_decode(st, op.packet, op.bytes, output, MAX_FRAME_SIZE, 0);
+                    /* Decode audio packets, into the room output has for
+                       each channel: a lost (zero-length) packet is
+                       concealed for all of it */
+                    ret = opus_decode(st, op.packet, op.bytes, output,
+                                      MAX_FRAME_SIZE / header->channels, 0);
+                    if (ret < 0) {
+                        LOGF("opus_decode failed %d", ret);
+                        goto done;
+                    }
+                    decoded = true;
+
+                    /* the last page: no further than its granule position */
+                    if (room >= 0) {
+                        if (ret > room)
+                            ret = room;
+                        room -= ret;
+                    }
 
                     if (ret > skip) {
                         /* part of or entire output buffer is played */
@@ -672,16 +725,14 @@ enum codec_status codec_run(void)
                         ci->pcmbuf_insert(&output[skip * header->channels], NULL, ret);
                         skip = 0;
                     } else {
-                        if (ret < 0) {
-                            LOGF("opus_decode failed %d", ret);
-                            goto done;
-                        } else if (ret == 0)
-                            break;
-                        else {
-                            /* entire output buffer is skipped */
-                            skip -= ret;
-                            ret = 0;
-                        }
+                        /* entire output buffer is skipped */
+                        skip -= ret;
+                    }
+
+                    if (op.e_o_s) {
+                        /* the stream's last packet */
+                        error = CODEC_OK;
+                        goto done;
                     }
                 }
             }

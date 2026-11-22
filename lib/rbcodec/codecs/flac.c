@@ -91,8 +91,15 @@ static int8_t *bit_buffer;
 #endif
 /* Largest frame the current stream can contain */
 static size_t frame_bound;
+/* frame_bound is the stream's largest frame: false whenever flac_init() cut
+   it to FRAME_COPY_SIZE, which happens to a large block's frames when their
+   buffer had no room, and to blocks the static buffers take whose frames
+   can be larger than that, as with more than two channels */
+static bool frames_fit;
 static uint8_t frame_copy_buf[FRAME_COPY_SIZE];
 static uint8_t *frame_copy;     /* frame_copy_buf, or a large block's own */
+#else
+#define frames_fit true
 #endif
 static size_t buff_size;
 
@@ -269,6 +276,7 @@ static bool flac_init(FLACContext* fc, int first_frame_offset)
                           + 7) / 8 + 64;
        }
        frame_copy = frame_copy_buf;
+       frames_fit = true;
        if (frame_bound > FRAME_COPY_SIZE)
        {
            /* a large block's frames get a buffer of their size, if there
@@ -278,7 +286,10 @@ static bool flac_init(FLACContext* fc, int first_frame_offset)
            if (large)
                frame_copy = large;
            else
+           {
                frame_bound = FRAME_COPY_SIZE;
+               frames_fit = false;
+           }
        }
 #endif
        /* length is 0 when STREAMINFO has no total sample count */
@@ -353,16 +364,64 @@ static bool frame_sync(FLACContext* fc) {
     ci->advance_buffer((get_bits_count(&fc->gb)-16)>>3); /* consumed bytes */
     bit_buffer = flac_request_frame(&buff_size, MAX_FRAMESIZE+16);
     init_get_bits(&fc->gb, bit_buffer, buff_size*8);
+    /* too little for a frame: flac_decode_frame() returns how little there
+       is, which for no data at all (a read given up) is 0, as for a frame
+       that decoded. The reader is on this buffer first, so that a caller's
+       next try (flac_seek()) doesn't scan on in the one this request
+       replaced. */
+    if (buff_size < MIN_FRAME_SIZE)
+        return false;
 
     /* Decode the frame to verify the frame crc and
-     * fill fc with its metadata.
+     * fill fc with its metadata. One that ran past the data it was given
+     * is no frame either.
      */
     if(flac_decode_frame(fc,
-       bit_buffer, buff_size, ci->yield) < 0) {
+       bit_buffer, buff_size, ci->yield) != 0 ||
+       get_bits_left(&fc->gb) < 0) {
         return false;
     }
 
     return true;
+}
+
+/* How far to look past a bad frame for a good one before giving up on the
+   stream */
+#define MAX_RESYNC_BYTES (1024*1024)
+
+/* Find the next frame that decodes after one that did not, starting a byte
+   on so as not to find the same one again. False when the data runs out
+   (buff_size under MIN_FRAME_SIZE: the file's end or a read given up), or
+   after MAX_RESYNC_BYTES with none (buff_size at least MIN_FRAME_SIZE), which
+   codec_run() tells apart by buff_size. */
+static bool flac_resync(FLACContext* fc)
+{
+    off_t start = ci->curpos;
+
+    while (ci->curpos - start < MAX_RESYNC_BYTES) {
+        off_t pos = ci->curpos;
+
+        /* each pass looks through up to 64 KB a byte at a time: a long
+           stretch of junk would otherwise hold the other threads of the
+           core it decodes on, the CPU's when it runs there */
+        ci->yield();
+
+        bit_buffer = flac_request_frame(&buff_size, MAX_FRAMESIZE+16);
+        if (buff_size < MIN_FRAME_SIZE)
+            return false;
+
+        init_get_bits(&fc->gb, bit_buffer, buff_size*8);
+        skip_bits(&fc->gb, 8);
+        if (frame_sync(fc))
+            return true;
+
+        /* frame_sync() stopped at a sync code that did not decode, which
+           the next pass skips, or found none in this buffer */
+        if (ci->curpos == pos)
+            ci->advance_buffer(buff_size - 1);
+    }
+
+    return false;
 }
 
 /* Seek to sample - adapted from libFLAC 1.1.3b2+ */
@@ -599,11 +658,20 @@ enum codec_status codec_run(void)
 
     /* The main decoding loop */
     buf = flac_request_frame(&bytesleft, MAX_FRAMESIZE);
+    /* A track whose file ends before any frame decoded, as a file of junk
+       after its header, ends in an error, not as a track that played:
+       codec_thread.c makes that CODEC_ERROR_SILENT, which playback.c counts
+       (silent_fails), so that a repeated queue of them stops. Data that
+       stops short of the file's end before a frame, as a read given up for
+       a seek or a stop, is no error, nor is a stop before the first frame. */
+    bool played = false, halted = false;
     while (bytesleft) {
         long action = ci->get_command(&param);
 
-        if (action == CODEC_ACTION_HALT)
+        if (action == CODEC_ACTION_HALT) {
+            halted = true;
             break;
+        }
 
         /* Deal with any pending seek requests */
         if (action == CODEC_ACTION_SEEK_TIME) {
@@ -617,16 +685,47 @@ enum codec_status codec_run(void)
             ci->seek_complete();
         }
 
-        if((res=flac_decode_frame(&fc,buf,
-                             bytesleft,ci->yield)) < 0) {
-             LOGF("FLAC: Frame %d, error %d\n",frame,res);
-             return CODEC_ERROR;
+        res = flac_decode_frame(&fc, buf, bytesleft, ci->yield);
+        /* A frame that ran past its data is a bad one too: the data holds
+           the largest frame the stream has (frames_fit), or the rest of the
+           file. A corrupt Rice partition may read as far as the data goes
+           before the decoder's checks stop it. */
+        if (res == 0 && fc.gb.index/8 > (int)bytesleft) {
+            LOGF("FLAC: Frame overran its %d bytes of data\n", (int)bytesleft);
+            res = -1;
+        }
+        if (res < 0) {
+            LOGF("FLAC: Frame %d, error %d\n",frame,res);
+            /* With frame_bound cut (frames_fit), a good frame larger than it
+               fails as a bad one does, and resyncing past each would play
+               the stream as gaps. Its error ends the run as before, on
+               either core; on the COP it is what has the CPU go on with the
+               track (codec_thread.c), where a larger heap or run of the
+               buffer may hold the frame. */
+            if (!frames_fit)
+                return CODEC_ERROR;
+            /* skip the bad data to the next good frame, which the elapsed
+               time follows from its sample number */
+            if (!flac_resync(&fc)) {
+                /* 1 MiB passed with no good frame */
+                if (buff_size >= MIN_FRAME_SIZE)
+                    return CODEC_ERROR;
+                /* else the data ran out. At the file's end that is the
+                   track's end once a frame played, and an error when none
+                   did; short of it a read was given up (a seek or a stop),
+                   as at the end below */
+                if (!played && ci->curpos + MIN_FRAME_SIZE > ci->filesize)
+                    return CODEC_ERROR;
+                break;
+            }
+            buf = bit_buffer;
+            bytesleft = buff_size;
+            fc.sample_skip = 0; /* a seek's skip was into the bad frame */
+            res = 0;
+        } else if (res > 0) {
+            break; /* too little data left for a frame */
         }
         consumed=fc.gb.index/8;
-        if (res == 0 && consumed > (int)bytesleft) {
-            LOGF("FLAC: Frame overran its %d bytes of data\n", (int)bytesleft);
-            return CODEC_ERROR;
-        }
 #if defined(LOGF_ENABLE)
         frame++;
 #endif
@@ -634,6 +733,7 @@ enum codec_status codec_run(void)
         ci->yield();
         ci->pcmbuf_insert(&fc.decoded[0][fc.sample_skip], &fc.decoded[1][fc.sample_skip],
                           fc.blocksize - fc.sample_skip);
+        played = true;
 
         fc.sample_skip = 0;
 
@@ -648,5 +748,6 @@ enum codec_status codec_run(void)
     }
 
     LOGF("FLAC: Decoded %lu samples\n",(unsigned long)samplesdone);
-    return CODEC_OK;
+    return played || halted || ci->curpos + MIN_FRAME_SIZE <= ci->filesize ?
+           CODEC_OK : CODEC_ERROR;
 }

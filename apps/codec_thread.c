@@ -557,8 +557,8 @@ static int run_codec_on_cop(const char **why)
     int status = codec_cop_run(&ci, codec_stereo_mode, codec_depth,
                                codec_msg_waiting, &res);
 
-    /* An error once it has read the whole file is how some codecs end (Opus,
-       Speex, Musepack); so is one in the stream's last second, before a tag
+    /* An error once it has read the whole file is how some codecs end
+       (Speex, Musepack); so is one in the stream's last second, before a tag
        or junk after it that the codec doesn't read (an APEv2 tag with a
        picture), after sound. Either is the track's end here, as on the CPU:
        the stream's end itself is the codec's to know, its last elapsed and
