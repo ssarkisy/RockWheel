@@ -108,6 +108,9 @@ void list_covers_remap_soon(void);
    table of years is made at boot. Until it's made, the lists show no covers */
 bool list_covers_stale(void);
 void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void));
+/* the covers it has gone through of the albums with one, as it makes them;
+   0 of 0 otherwise */
+void list_covers_making(int *done, int *total);
 void list_covers_load(void);
 /* which albums have a cover in the file, a bit each by their numbers, bit
    no & 7 of byte no / 8 of bits (count / 8 + 1 bytes): false, none set, if

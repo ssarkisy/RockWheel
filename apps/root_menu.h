@@ -92,6 +92,9 @@ void library_update_after_usb(void);
    only says that it still works */
 void library_update_progress(int done, int total);
 void library_update_covers_progress(int done, int total);
+/* Preparing Covers' count under its words: songs, or albums, done of total;
+   none for a total of 0 */
+void library_update_covers_count(int done, int total, bool songs);
 /* USB or power off, come meanwhile: answered once Updating Library is over */
 void library_update_hold(long event);
 void library_update_songs_progress(int done, int total);

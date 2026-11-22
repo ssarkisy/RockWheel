@@ -36,6 +36,19 @@ void health_note(const char *fmt, ...) ATTRIBUTE_PRINTF(1, 2);
 #define HEALTH_TALLIES 6
 void health_tally(const char *name);
 
+/* The FAT's sectors read from the disk one at a time since boot, and their
+   time in microseconds, 0 where the target can't tell: a step's are those
+   after it less those before (fat.c). Both 0 without fat.c, as in the
+   simulator. */
+void health_fat_reads(unsigned long *reads, unsigned long *us);
+/* A line of each step's of those, as "<what>, FAT sectors read one at a time:
+   <name> <reads> in <seconds> s, ...", for the n steps with any; none
+   without. For Updating Library's steps: what Cover Flow's slides and the
+   covers cost on an iPod whose card is slow at small reads. */
+void health_note_fat_reads(const char *what, const char *const *names,
+                           const unsigned long *reads,
+                           const unsigned long *us, int n);
+
 /* A line of the volume's free clusters: as USB connects, before the flush;
    the first flush since boot adds one itself if none came before */
 void health_note_free(void);

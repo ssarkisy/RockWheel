@@ -58,6 +58,9 @@ struct user_settings global_settings;
 
 /* the kernel */
 
+/* the tick, which itunesdb.c's covers steps read (P20): it stays 0 */
+volatile long current_tick;
+
 void yield(void)
 {
     stubs.yields++;

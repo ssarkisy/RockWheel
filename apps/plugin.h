@@ -193,7 +193,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * too: a plugin takes its words by their numbers, and one built with another
  * list showed other phrases, or read past the end of it. So is the database's
  * count of tags: a tag added moves the numbers of the virtual ones after it. */
-#define PLUGIN_API_REVISION 89
+#define PLUGIN_API_REVISION 90
 #define PLUGIN_API_VERSION ((unsigned short)(0x8000 | ((PLUGIN_API_REVISION * 4099u \
     + sizeof(struct plugin_api) * 3u + sizeof(struct user_settings) * 5u \
     + sizeof(struct mp3entry) * 7u + sizeof(struct gui_synclist) * 11u \
@@ -1229,6 +1229,8 @@ struct plugin_api {
     /* Finder's artwork set aside for the next sync (itunesdb.h) */
     bool (*itunesdb_covers_aside)(void);
     void (*itunesdb_song_keep)(uint64_t path);
+    /* Preparing Covers' count of songs or albums (root_menu.h) */
+    void (*library_update_covers_count)(int done, int total, bool songs);
 #endif
 };
 

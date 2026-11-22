@@ -300,15 +300,17 @@ static int wrap_name(const char *name, int font, int width)
 
 #ifdef ITUNESDB_HAVE_ART
 /* Where the cover of the album of this song is, as Now Playing finds a song's:
-   Finder's of the song, or else the album's of ours, by its name and album
-   artist as the database has them. The song's path may come from the disk,
-   where it's in neither the database's memory nor the dircache. 1 found, 0
-   none, -1 not known, as with the database busy or the path not read. What
-   it reads into is the reader's, which reads one cover at a time: off its
-   stack, 1.5 KB; held by a lock, as a playlist's index looks for its albums'
-   covers too, on the UI's thread or the database's (library_playlists.c).
-   It may wait: for the lock's other holder, for a commit that holds the
-   database (tagcache_search()), and for such a path's read */
+   Finder's of the song, or the one made of its own picture, as of a synced
+   song Finder had no cover of, or else the album's of ours, by its name and
+   album artist as the database has them. The song's path may come from the
+   disk, where it's in neither the database's memory nor the dircache. 1
+   found, 0 none, -1 not known, as with the database busy or the path not
+   read. What it reads into is the reader's, which reads one cover at a
+   time: off its stack, 1.5 KB; held by a lock, as a playlist's index looks
+   for its albums' covers too, on the UI's thread or the database's
+   (library_playlists.c). It may wait: for the lock's other holder, for a
+   commit that holds the database (tagcache_search()), and for such a path's
+   read */
 static struct {
     struct tagcache_search tcs;
     char path[MAX_PATH], name[MAX_PATH], artist[MAX_PATH];
@@ -335,7 +337,7 @@ int album_header_find_art(int32_t song, struct itunesdb_art *art)
     int found = -1;
     if (tagcache_retrieve(tcs, song, tag_filename, finding.path, MAX_PATH))
     {
-        if (itunesdb_find_art(finding.path, art))
+        if (itunesdb_find_track_art(NULL, finding.path, art))
             found = 1;
         else if (tagcache_retrieve(tcs, song, tag_album, finding.name, MAX_PATH)
                  && tagcache_retrieve(tcs, song, tag_albumartist, finding.artist,

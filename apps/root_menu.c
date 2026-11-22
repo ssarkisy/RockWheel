@@ -1634,20 +1634,69 @@ static const char *update_words;
 static int shown_percent;
 static long shown_at;
 
+/* The bar under the boot logo, which stays where the iPod draws it, and the
+   step's words under the bar: close enough for Preparing Covers' count to
+   fit under them on the iPod photo's screen too, the same for every step */
+#if LCD_HEIGHT >= 240
+#define UPDATE_BAR_GAP  18
+#define UPDATE_TEXT_GAP 8
+#else
+#define UPDATE_BAR_GAP  12
+#define UPDATE_TEXT_GAP 7
+#endif
+
+/* Preparing Covers' count under its words, as its steps go: Cover Flow's
+   slides and the lists' covers by album, the covers of songs without the
+   computer's by song, then by album. Each step's own, from its start, as
+   the bar is. */
+enum { UPDATE_COUNT_NONE, UPDATE_COUNT_ALBUMS, UPDATE_COUNT_SONGS };
+static int count_kind, count_done, count_total;
+static char shown_count[64];
+static long count_at;
+
+static void library_update_count(int kind, int done, int total)
+{
+    count_kind = total > 0 ? kind : UPDATE_COUNT_NONE;
+    count_done = MAX(0, MIN(done, total));
+    count_total = total;
+}
+
 /* the screen with this step and how far it is: drawn for a change, and every
    second as the theme's backdrop can come back meanwhile */
 static void library_update_show(const char *text, int percent)
 {
     if (update_words)
         text = update_words;
+    char count[sizeof(shown_count)] = "";
+    if (count_kind != UPDATE_COUNT_NONE && !update_words
+        && text == (const char *)str(LANG_PREPARING_COVERS))
+    {
+        const char *form = count_kind == UPDATE_COUNT_SONGS
+            ? plural_str(count_total, LANG_COVERS_SONGS_OF_ONE,
+                         LANG_COVERS_SONGS_OF_FEW, LANG_COVERS_SONGS_OF_MANY)
+            : plural_str(count_total, LANG_COVERS_ALBUMS_OF_ONE,
+                         LANG_COVERS_ALBUMS_OF_FEW,
+                         LANG_COVERS_ALBUMS_OF_MANY);
+        snprintf(count, sizeof(count), form, count_done, count_total);
+    }
     const bool same_screen = text == shown_text
         && TIME_BEFORE(current_tick, shown_at + HZ);
-    if (same_screen && percent == shown_percent)
+    /* the count drawn as the bar moves, else four times a second: a draw for
+       each of thousands of songs or slides held up the step */
+    const bool count_due = strcmp(count, shown_count)
+        && (percent != shown_percent || !*count || !*shown_count
+            || TIME_AFTER(current_tick, count_at + HZ / 4));
+    if (same_screen && percent == shown_percent && !count_due)
         return;
     shown_text = text;
     shown_percent = percent;
     if (!same_screen)
         shown_at = current_tick;
+    if (!same_screen || count_due)
+    {
+        strmemccpy(shown_count, count, sizeof(shown_count));
+        count_at = current_tick;
+    }
 
     /* 140 px on the iPod Video's screen, 96 on the iPod photo's */
     const int bar_w = LCD_WIDTH * 7 / 16, bar_h = 6;
@@ -1673,7 +1722,7 @@ static void library_update_show(const char *text, int percent)
 #else
     y += 96;
 #endif
-    y += 22;
+    y += UPDATE_BAR_GAP;
     int x = (LCD_WIDTH - bar_w) / 2;
 #ifdef HAVE_LCD_COLOR
     if (global_settings.ui_theme == UI_THEME_DIETER)
@@ -1697,19 +1746,41 @@ static void library_update_show(const char *text, int percent)
         lcd_set_foreground(LCD_WHITE);
         lcd_fillrect(x, y, bar_w * percent / 100, bar_h);
     }
+    /* the count's line under the words, in the theme's smaller font */
+    const int text_y = y + bar_h + UPDATE_TEXT_GAP;
+    const int count_y = text_y + font_get(FONT_UI)->height + 1;
+    int count_font = font_find(ui_font_file(UI_FONT_SUBLINE));
+    if (count_font < 0)
+        count_font = FONT_UI;
+    const int count_h = font_get(count_font)->height;
+    if (same_screen && count_due)
+    {
+        lcd_set_foreground(LCD_BLACK);
+        lcd_fillrect(0, count_y, LCD_WIDTH, count_h);
+    }
+    lcd_set_foreground(LCD_RGBPACK(160, 160, 160));
+    lcd_set_drawmode(DRMODE_FG);
+    int w, h;
+    if ((!same_screen || count_due) && *count)
+    {
+        lcd_setfont(count_font);
+        lcd_getstringsize(count, &w, &h);
+        lcd_putsxy((LCD_WIDTH - w) / 2, count_y, count);
+    }
     if (same_screen)
     {
+        lcd_set_drawmode(DRMODE_SOLID);
+        lcd_setfont(FONT_UI);
         /* its many small steps were a good part of the update's time */
         lcd_update_rect(x, y, bar_w, bar_h + 1);
+        if (count_due)
+            lcd_update_rect(0, count_y, LCD_WIDTH, count_h);
         return;
     }
 
-    int w, h;
     lcd_setfont(FONT_UI);
     lcd_getstringsize(text, &w, &h);
-    lcd_set_foreground(LCD_RGBPACK(160, 160, 160));
-    lcd_set_drawmode(DRMODE_FG);
-    lcd_putsxy((LCD_WIDTH - w) / 2, y + bar_h + 10, text);
+    lcd_putsxy((LCD_WIDTH - w) / 2, text_y, text);
     lcd_set_drawmode(DRMODE_SOLID);
     lcd_update();
     backlight_on();
@@ -1743,6 +1814,23 @@ void library_update_progress(int done, int total)
 void library_update_covers_progress(int done, int total)
 {
     library_update_forward((const char *)str(LANG_PREPARING_COVERS), done, total);
+}
+
+/* and its count, of songs or of albums, from Cover Flow's plugin */
+void library_update_covers_count(int done, int total, bool songs)
+{
+    library_update_count(songs ? UPDATE_COUNT_SONGS : UPDATE_COUNT_ALBUMS,
+                         done, total);
+}
+
+/* the lists' covers: the first half of the bar their albums looked up, not
+   counted; then the albums with a cover gone through as they're made */
+static void library_row_covers_progress(int done, int total)
+{
+    int made, slots;
+    list_covers_making(&made, &slots);
+    library_update_count(UPDATE_COUNT_ALBUMS, made, slots);
+    library_update_covers_progress(done, total);
 }
 #endif
 
@@ -1828,12 +1916,12 @@ static void library_no_space_show(void)
     lcd_getstringsize(title, &w, &h);
     /* where Updating Library's bar is, the logo higher for more lines */
 #ifdef STOCK_BOOT_LOGO
-    int y = MIN(STOCK_BOOT_LOGO_Y + BMPHEIGHT_bootlogo + 22,
+    int y = MIN(STOCK_BOOT_LOGO_Y + BMPHEIGHT_bootlogo + UPDATE_BAR_GAP,
                 LCD_HEIGHT - 8 - (n + 1) * h - 4);
     lcd_bmp(&bm_bootlogo, (LCD_WIDTH - BMPWIDTH_bootlogo) / 2,
             MIN(STOCK_BOOT_LOGO_Y, y - 10 - BMPHEIGHT_bootlogo));
 #else
-    int y = MIN((LCD_HEIGHT - 96) / 2 + 96 + 22,
+    int y = MIN((LCD_HEIGHT - 96) / 2 + 96 + UPDATE_BAR_GAP,
                 LCD_HEIGHT - 8 - (n + 1) * h - 4);
 #endif
     lcd_set_drawmode(DRMODE_FG);
@@ -1942,23 +2030,31 @@ enum { STEP_ALBUMS, STEP_YEARS, STEP_ROW_COVERS, STEP_SONGS, STEP_LETTERS,
 static long step_ticks[STEPS];
 static bool step_ran[STEPS];
 static long step_start;
+/* and the FAT's sectors each read one at a time, and their time */
+static unsigned long step_fat[STEPS], step_fat_us[STEPS];
+static unsigned long step_fat_at, step_fat_us_at;
+static const char * const step_names[STEPS] = {
+    "albums", "years", "row covers", "songs", "letters", "playlists"
+};
 
 static void step_begin(void)
 {
     step_start = current_tick;
+    health_fat_reads(&step_fat_at, &step_fat_us_at);
 }
 
 static void step_end(int step)
 {
     step_ticks[step] += current_tick - step_start;
     step_ran[step] = true;
+    unsigned long fat, fat_us;
+    health_fat_reads(&fat, &fat_us);
+    step_fat[step] += fat - step_fat_at;
+    step_fat_us[step] += fat_us - step_fat_us_at;
 }
 
 static void steps_note(void)
 {
-    static const char * const names[STEPS] = {
-        "albums", "years", "row covers", "songs", "letters", "playlists"
-    };
     char line[160];
     int len = 0;
     long all = 0;
@@ -1969,13 +2065,19 @@ static void steps_note(void)
         if (!step_ran[i] || len >= (int)sizeof(line))
             continue;
         len += snprintf(line + len, sizeof(line) - len, "%s%s %ld.%ld s",
-                        len ? ", " : "", names[i], step_ticks[i] / HZ,
+                        len ? ", " : "", step_names[i], step_ticks[i] / HZ,
                         step_ticks[i] % HZ * 10 / HZ);
     }
     if (len)
+    {
         health_note("library update, then: %s", line);
+        health_note_fat_reads("library update, then", step_names, step_fat,
+                              step_fat_us, STEPS);
+    }
     memset(step_ticks, 0, sizeof(step_ticks));
     memset(step_ran, 0, sizeof(step_ran));
+    memset(step_fat, 0, sizeof(step_fat));
+    memset(step_fat_us, 0, sizeof(step_fat_us));
 }
 
 /* After a sync the database takes in the new songs before the menu shows,
@@ -2029,6 +2131,11 @@ static void library_update_screen(const char *words)
             shown_text = NULL;
             shown = true;
         }
+        /* Cover Flow's slides, by album */
+        library_update_count(phase == TAGCACHE_IMPORT_COVERS
+                             || phase == TAGCACHE_IMPORT_SLIDES
+                             ? UPDATE_COUNT_ALBUMS : UPDATE_COUNT_NONE,
+                             done, total);
         library_update_show(library_update_step(phase), percent);
         reset_poweroff_timer(); /* no sleep while the library updates */
         int action = get_action(CONTEXT_STD, HZ / 4);
@@ -2140,11 +2247,13 @@ static void library_update_screen(const char *words)
         && album_years_ready() && (row_covers_stale || list_covers_stale()
                                    || artist_rows_stale()))
     {
+        library_update_count(UPDATE_COUNT_NONE, 0, 0);
         library_update_show(str(LANG_PREPARING_COVERS), 0);
         step_begin();
         if (list_covers_stale())
-            list_covers_make(library_update_covers_progress,
+            list_covers_make(library_row_covers_progress,
                              library_playlists_go_on);
+        library_update_count(UPDATE_COUNT_NONE, 0, 0);
         /* each artist's cover among those, their albums and songs counted */
         if (!held_event && artist_rows_stale())
             artist_rows_make(library_update_covers_progress,

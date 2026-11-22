@@ -82,7 +82,11 @@
 #define COVERS_FILE    ROCKBOX_DIR "/list_covers.dat"
 #define COVERS_TODO    ROCKBOX_DIR "/list_covers.todo"
 #define COVERS_MAGIC   0x434c4252 /* "RBLC" */
-#define COVERS_VERSION 1
+#define COVERS_VERSION 2
+/* the same file, made before an album's first song's own cover, made by
+   Updating Library of its picture, was taken (album_header_find_art()):
+   shown, and its covers taken again, as it is made once more */
+#define COVERS_VERSION_1 1
 
 struct file_header {
     uint32_t magic, version;
@@ -452,7 +456,8 @@ void list_covers_load(void)
         return;
     }
     if (read(fd, &h, sizeof(h)) == sizeof(h) && h.magic == COVERS_MAGIC
-        && h.version == COVERS_VERSION && h.side == SIDE
+        && (h.version == COVERS_VERSION || h.version == COVERS_VERSION_1)
+        && h.side == SIDE
         && h.commitid == tagcache_get_commitid() && h.count == (uint32_t)count
         && h.table == album_years_hash())
         index_handle = core_alloc(count * sizeof(uint16_t));
@@ -1229,7 +1234,8 @@ bool list_covers_which(uint8_t *bits, int count)
         return false;
     /* the entries the same in versions 1 and 2 of the file: either read */
     bool ok = read(fd, &h, sizeof(h)) == sizeof(h) && h.magic == COVERS_MAGIC
-              && (h.version == 1 || h.version == 2) && h.side == SIDE
+              && (h.version == COVERS_VERSION_1 || h.version == COVERS_VERSION)
+              && h.side == SIDE
               && h.commitid == tagcache_get_commitid()
               && (h.count == 0 /* none made: of any table (make_none()) */
                   || (h.count == (uint32_t)count && h.table == album_years_hash()));
@@ -1414,6 +1420,16 @@ static void make_none(void)
     list_covers_load();
 }
 
+/* the covers list_covers_make() has gone through of the albums with one, as
+   it writes them: Preparing Covers' count; 0 of 0 otherwise */
+static int making_done, making_slots;
+
+void list_covers_making(int *done, int *total)
+{
+    *done = making_done;
+    *total = making_slots;
+}
+
 /* Made from the old file's covers that are of the same albums and covers,
    the others from their slides: in the plugins' buffer, free at Updating
    Library. Each album's cover looked for first, then the file written in
@@ -1455,7 +1471,9 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
     int old_fd = open(COVERS_FILE, O_RDONLY);
     if (old_fd >= 0
         && (read(old_fd, &old_h, sizeof(old_h)) != sizeof(old_h)
-            || old_h.magic != COVERS_MAGIC || old_h.version != COVERS_VERSION
+            || old_h.magic != COVERS_MAGIC
+            || (old_h.version != COVERS_VERSION
+                && old_h.version != COVERS_VERSION_1)
             || old_h.side != SIDE || old_h.count >= NO_SLOT))
         old_h.count = 0;
     const int old_count = old_fd >= 0 ? (int)old_h.count : 0;
@@ -1554,6 +1572,7 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
             == (ssize_t)(count * sizeof(*entries))
          && write(fd, out, pad) == pad;
     /* the covers, a stretch at a time */
+    making_slots = slots;
     for (int s = 0; s < slots && ok && !stopped; s++)
     {
         const int no = order[s];
@@ -1613,10 +1632,12 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
         }
         if ((s & 15) == 0)
         {
+            making_done = s;
             progress(count + s * count / MAX(slots, 1), total);
             stopped = !go_on();
         }
     }
+    making_done = making_slots = 0;
     cpu_boost(false);
     if (old_fd >= 0)
         close(old_fd);
@@ -1661,6 +1682,7 @@ bool list_covers_to_read(void) { return false; }
 void list_covers_read(void) {}
 void list_covers_cancel(void) {}
 bool list_covers_stale(void) { return false; }
+void list_covers_making(int *done, int *total) { *done = *total = 0; }
 void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void))
 {
     (void)progress; (void)go_on;

@@ -267,6 +267,38 @@ static struct
     unsigned int count, noted, seen;
 } tallies[HEALTH_TALLIES];
 
+void health_fat_reads(unsigned long *reads, unsigned long *us)
+{
+#ifdef HAVE_FAT_LINES
+    fat_read_counts(reads, us);
+#else
+    *reads = *us = 0;
+#endif
+}
+
+void health_note_fat_reads(const char *what, const char *const *names,
+                           const unsigned long *reads,
+                           const unsigned long *us, int n)
+{
+    char line[200];
+    int len = snprintf(line, sizeof(line),
+                       "%s, FAT sectors read one at a time:", what);
+    const char *sep = " ";
+    bool any = false;
+    for (int i = 0; i < n && len < (int)sizeof(line); i++)
+    {
+        if (!reads[i] || !names[i])
+            continue;
+        len += snprintf(line + len, sizeof(line) - len, "%s%s %lu in %lu.%lu s",
+                        sep, names[i], reads[i], us[i] / 1000000,
+                        us[i] / 100000 % 10);
+        sep = ", ";
+        any = true;
+    }
+    if (any)
+        health_note("%s", line);
+}
+
 void health_tally(const char *name)
 {
     for (int i = 0; i < HEALTH_TALLIES; i++)

@@ -24451,3 +24451,87 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COVERS_ALBUMS_OF_ONE
+  desc: under Preparing Covers on the update screen, as Cover Flow's covers and the lists' are made: the albums done, of the step's; the first %d those done, the second all of them: 1 (21 in one-few-many languages), the noun in its form after that total
+  user: core
+  <source>
+    *: "%d of %d album"
+  </source>
+  <dest>
+    *: "%d / %d개 앨범"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVERS_ALBUMS_OF_FEW
+  desc: as LANG_COVERS_ALBUMS_OF_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d of %d albums"
+  </source>
+  <dest>
+    *: "%d / %d개 앨범"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVERS_ALBUMS_OF_MANY
+  desc: as LANG_COVERS_ALBUMS_OF_ONE, for the other totals
+  user: core
+  <source>
+    *: "%d of %d albums"
+  </source>
+  <dest>
+    *: "%d / %d개 앨범"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVERS_SONGS_OF_ONE
+  desc: under Preparing Covers on the update screen, as the covers of songs the computer gave none are made: the songs done, of the step's; the first %d those done, the second all of them: 1 (21 in one-few-many languages), the noun in its form after that total
+  user: core
+  <source>
+    *: "%d of %d song"
+  </source>
+  <dest>
+    *: "%d / %d곡"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVERS_SONGS_OF_FEW
+  desc: as LANG_COVERS_SONGS_OF_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d of %d songs"
+  </source>
+  <dest>
+    *: "%d / %d곡"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_COVERS_SONGS_OF_MANY
+  desc: as LANG_COVERS_SONGS_OF_ONE, for the other totals
+  user: core
+  <source>
+    *: "%d of %d songs"
+  </source>
+  <dest>
+    *: "%d / %d곡"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

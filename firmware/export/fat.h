@@ -230,5 +230,8 @@ bool fat_size(IF_MV(int volume,) sector_t *size, sector_t *free);
 /** Misc. **/
 void fat_empty_fat_direntry(struct fat_direntry *entry);
 void fat_init(void);
+#ifndef BOOTLOADER
+void fat_read_counts(unsigned long *reads, unsigned long *us);
+#endif
 
 #endif /* FAT_H */

@@ -354,6 +354,20 @@ static void cache_discard(IF_MV_NONVOID(struct bpb *fat_bpb))
     dc_unlock_cache();
 }
 
+#ifndef BOOTLOADER
+/* The FAT's sectors read from the disk, each on its own, and the time they
+   took in microseconds where the target can tell: health.log has them for
+   each step of Updating Library, as walking long files' chains took most of
+   a large library's slides on a card slow at small reads */
+static unsigned long fat_sector_reads, fat_sector_read_us;
+
+void fat_read_counts(unsigned long *reads, unsigned long *us)
+{
+    *reads = fat_sector_reads;
+    *us = fat_sector_read_us;
+}
+#endif /* !BOOTLOADER */
+
 /* caches a FAT or data area sector */
 static void * cache_sector(struct bpb *fat_bpb, sector_t secnum)
 {
@@ -362,8 +376,20 @@ static void * cache_sector(struct bpb *fat_bpb, sector_t secnum)
 
     if (!flags)
     {
+#if !defined(BOOTLOADER) && defined(USEC_TIMER)
+        const unsigned long start = USEC_TIMER;
+#endif
         int rc = storage_read_sectors(IF_MD(fat_bpb->drive,)
                                       secnum + fat_bpb->startsector, 1, buf);
+#ifndef BOOTLOADER
+        if (IS_FAT_SECTOR(fat_bpb, secnum))
+        {
+            fat_sector_reads++;
+#ifdef USEC_TIMER
+            fat_sector_read_us += USEC_TIMER - start;
+#endif
+        }
+#endif /* !BOOTLOADER */
         if (UNLIKELY(rc < 0))
         {
             DEBUGF("%s() - Could not read sector %llu"
@@ -870,12 +896,18 @@ static unsigned long cluster2sec(struct bpb *fat_bpb, long cluster)
    in pieces after a few syncs, and walking the FAT to a cover through them
    took a fifth of a second. Freeing clusters forgets all the marks; making
    a chain longer leaves them right, and writing a file between seeks would
-   otherwise have them walked again each time. */
+   otherwise have them walked again each time.
+   Eight files: Cover Flow's slides are made from up to seven ithmb files of
+   500 MB (iTunes for Windows writes five of 200 px frames and two of 100 px)
+   while the slides file is written, and with four sets each frame read took
+   over another file's marks and walked its FAT from the start again. A mark
+   every 128 clusters, a FAT sector of a chain in one piece, keeps the same
+   reach, 65536 clusters, in the same memory. */
 #define HAVE_SEEK_MARKS
-#define SEEK_MARK_SHIFT 6
+#define SEEK_MARK_SHIFT 7
 #define SEEK_MARK_STEP  (1L << SEEK_MARK_SHIFT)
-#define SEEK_MARKS      1024    /* 2 GB in 32K clusters */
-#define SEEK_MARK_FILES 4
+#define SEEK_MARKS      512     /* 2 GB in 32K clusters */
+#define SEEK_MARK_FILES 8
 
 static struct seek_marks
 {

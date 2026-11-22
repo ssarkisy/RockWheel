@@ -117,6 +117,8 @@
 #endif /*!defined(PLUGIN)*/
 #if defined(PLUGIN) || defined(__PCTOOL__)
 #define health_note(...) do { } while (0) /* the firmware's own log */
+#define health_fat_reads(reads, us) (*(reads) = *(us) = 0)
+#define health_note_fat_reads(...) do { } while (0)
 #else
 #include "health_log.h"
 #endif
@@ -3754,6 +3756,10 @@ static struct
     long start; /* of the phase going on */
     long ticks[IMPORT_PHASES];
     int done[IMPORT_PHASES], total[IMPORT_PHASES];
+    /* the FAT's sectors read one at a time, and their time: as of the
+       phase's start, then each phase's */
+    unsigned long fat_at, fat_us_at;
+    unsigned long fat[IMPORT_PHASES], fat_us[IMPORT_PHASES];
     bool any;
 } phase_times;
 
@@ -3771,16 +3777,22 @@ static void set_import_phase(int phase)
         [TAGCACHE_IMPORT_PLAYLISTS] = "playlists",
     };
     const long now = current_tick;
+    unsigned long fat, fat_us;
+    health_fat_reads(&fat, &fat_us);
     const int was = import_phase;
     if (was > TAGCACHE_IMPORT_NONE && was < IMPORT_PHASES)
     {
         phase_times.ticks[was] += now - phase_times.start;
         phase_times.done[was] = MAX(phase_times.done[was], import_done);
         phase_times.total[was] = MAX(phase_times.total[was], import_total);
+        phase_times.fat[was] += fat - phase_times.fat_at;
+        phase_times.fat_us[was] += fat_us - phase_times.fat_us_at;
         phase_times.any = true;
     }
     import_phase = phase;
     phase_times.start = now;
+    phase_times.fat_at = fat;
+    phase_times.fat_us_at = fat_us;
     if (phase != TAGCACHE_IMPORT_NONE || !phase_times.any)
         return;
     long all = 0;
@@ -3811,6 +3823,8 @@ static void set_import_phase(int phase)
         sep = ", ";
     }
     health_note("%s; %ld entries", line, (long)current_tcmh.tch.entry_count);
+    health_note_fat_reads("library update", names, phase_times.fat,
+                          phase_times.fat_us, IMPORT_PHASES);
     memset(&phase_times, 0, sizeof(phase_times));
 }
 #ifdef HAVE_TC_RAMCACHE

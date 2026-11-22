@@ -1001,6 +1001,7 @@ static const struct plugin_api rockbox_api = {
 #ifdef ITUNESDB_HAVE_ART
     itunesdb_covers_aside,
     itunesdb_song_keep,
+    library_update_covers_count,
 #endif
 };
 

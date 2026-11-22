@@ -8782,6 +8782,7 @@ static void prepare_covers(void)
             whole = false;
             break;
         }
+        rb->library_update_covers_count(i, songs.count, true);
         rb->library_update_covers_progress(i, total);
         rb->reset_poweroff_timer();
 #ifdef ITUNESDB_FINDER_LARGE
@@ -8827,6 +8828,7 @@ static void prepare_covers(void)
         }
         if (rb->itunesdb_cover_known(first->key, first->stamp))
             continue;
+        rb->library_update_covers_count(i, albums, false);
         rb->library_update_covers_progress(songs.count + i, total);
         rb->reset_poweroff_timer();
         if (make_finder_cover(first, decode, decode_size) < 0)
@@ -8837,6 +8839,7 @@ static void prepare_covers(void)
         rb->yield();
     }
     /* with songs left out for room, the albums not seen are kept */
+    rb->library_update_covers_count(0, 0, false);
     rb->itunesdb_covers_end(!whole ? COVERS_CUT
                             : all ? COVERS_WHOLE : COVERS_PARTLY);
     if (covers_time.songs || covers_time.scanned || covers_time.pictures
