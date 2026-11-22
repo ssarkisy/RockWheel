@@ -2745,7 +2745,17 @@ int fat_closewrite(struct fat_filestr *filestr, uint32_t size,
     {
         rc = update_short_entry(fat_bpb, file, size, fatentp);
         if (rc < 0)
+        {
+            if (freed)
+            {
+                /* its entry, not written, still names the cluster: so does
+                   the file again, which a later close then frees, where
+                   none would leave it taken by no file */
+                file->firstcluster = freed;
+                fat_rewind(filestr);
+            }
             FAT_ERROR(rc * 10 - 3);
+        }
     }
     else if (fatentp)
     {
@@ -3040,7 +3050,11 @@ void fat_seek_to_stream(struct fat_filestr *filestr,
    chain. Each FAT sector is looked up once for all the steps that stay in
    it, and the steps don't divide (this CPU can't): a file written in one
    piece, like Finder's 500 MB artwork files, has a sector for hundreds of
-   steps, where a lookup a step took longer than reading the cover. */
+   steps, where a lookup a step took longer than reading the cover.
+   A number on the way that is no cluster of the volume, a damaged link or
+   the one it came in with, is given back as it is, for the caller to
+   refuse (fat_seek(), fat_map_sectors()): walked on, its entry would be
+   read from the second FAT or the data, another file's chain. */
 static long skip_clusters(struct bpb *fat_bpb, long cluster, long count)
 {
 #ifdef HAVE_FAT16SUPPORT
@@ -3055,6 +3069,9 @@ static long skip_clusters(struct bpb *fat_bpb, long cluster, long count)
     const unsigned long per_sector = CLUSTERS_PER_FAT_SECTOR;
     while (count > 0)
     {
+        if (!cluster_in_volume(fat_bpb, cluster))
+            return cluster;
+
         unsigned long sector = (unsigned long)cluster / per_sector;
         unsigned long first = sector * per_sector;
 
@@ -3075,7 +3092,7 @@ static long skip_clusters(struct bpb *fat_bpb, long cluster, long count)
             if (cluster >= FAT_EOF_MARK)
                 cluster = 0;
         }
-        while (--count > 0 && cluster &&
+        while (--count > 0 && cluster_in_volume(fat_bpb, cluster) &&
                (unsigned long)cluster - first < per_sector);
 
         dc_unlock_cache();
@@ -3088,7 +3105,8 @@ static long skip_clusters(struct bpb *fat_bpb, long cluster, long count)
 }
 
 /* The cluster at number to of the file's chain, from cluster, which is at
-   number from; 0 past the end */
+   number from; 0 past the end, or a number that is no cluster (as
+   skip_clusters()) */
 static long seek_chain(struct bpb *fat_bpb, const struct fat_file *file,
                        long cluster, long from, long to)
 {
@@ -3143,7 +3161,8 @@ static long seek_chain(struct bpb *fat_bpb, const struct fat_file *file,
         long mark = (long)m->count << SEEK_MARK_SHIFT;
         long stop = mark > from && mark < to ? mark : to;
         cluster = skip_clusters(fat_bpb, cluster, stop - from);
-        if (!cluster)
+        /* the end, or a damaged link: no mark of it */
+        if (!cluster_in_volume(fat_bpb, cluster))
             break;
         from = stop;
     }
@@ -3206,6 +3225,20 @@ int fat_seek(struct fat_filestr *filestr, unsigned long seeksector)
                        "(sector %lu)\n", seeksector);
                 FAT_ERROR(FAT_SEEK_EOF);
             }
+        }
+
+        /* a damaged FAT's link to a number that is no cluster of the volume
+           (cluster2sec() lets 0 and 1 through): its sector would be one of
+           the reserved area or the FATs, read as the file's or written over */
+        if (!cluster_in_volume(fat_bpb, cluster)
+#ifdef HAVE_FAT16SUPPORT
+            && !(fat_bpb->is_fat16 && cluster < 0) /* FAT16 root dir */
+#endif
+           )
+        {
+            DEBUGF("Seeking to a cluster outside the volume! "
+                   "(sector %lu, cluster %ld)\n", seeksector, cluster);
+            FAT_ERROR(-2);
         }
 
         sector = cluster2sec(fat_bpb, cluster) + sectornum;

@@ -32,8 +32,9 @@
 /* The names made beside a file (".tmp", ".new", ".old"), and the block a
    lone copy is copied through, are static rather than on the stack: the
    storage thread, which saves the marks at the disk's idle
-   (itunesdb_save_flags()), has 2 KB, and the file system's own calls under
-   these take most of it. One user at a time, under fw_mutex. */
+   (itunesdb_save_flags()), has 4 KB, and the file system's own creates and
+   renames under these reach ~1.9 KB of it, more with a long name
+   (storage.c). One user at a time, under fw_mutex. */
 static char name_tmp[MAX_PATH], name_new[MAX_PATH], name_old[MAX_PATH];
 static struct mutex fw_mutex;
 static bool fw_mutex_ready;
@@ -83,7 +84,7 @@ static bool name_free(const char *name)
 /* .new, whole, takes the name; the file that had it waits as .old until
    then. Under the lock, the names made. Inlined, as are keep_place() and
    place(): one frame less each above the file system's rename, on the
-   storage thread's 2 KB stack (itunesdb_save_flags()). */
+   storage thread's 4 KB stack (itunesdb_save_flags()). */
 static inline __attribute__((always_inline)) bool keep_raise(const char *path)
 {
     const bool had = file_exists(path);
@@ -115,14 +116,19 @@ static inline __attribute__((always_inline)) bool keep_place(const char *path)
 }
 
 /* .tmp, whole and closed if ok, takes the name, or is removed. A failure
-   of its own, as a rename for want of room, is library_write_failed()'s. */
+   of its own, as a rename for want of room, is library_write_failed()'s.
+   A path too long for its names has no .tmp: name_tmp is then still the
+   last file's, maybe another thread's being written, and stays. */
 static inline __attribute__((always_inline))
 bool place(const char *path, bool keep, bool ok)
 {
     fw_lock();
     if (!fw_names(path))
-        ok = false;
-    else if (ok)
+    {
+        fw_unlock();
+        return false;
+    }
+    if (ok)
     {
         /* FW_CACHE: the old one gone first, a moment of none if the power
            goes then, which is made again */

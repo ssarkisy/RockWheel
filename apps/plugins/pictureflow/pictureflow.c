@@ -3265,6 +3265,9 @@ static bool create_pf_thread(void)
                                IF_COP(, CPU)
                                       )
         ) == 0) {
+        /* off the list again: left on it, a broadcast after the plugin has
+           gone would write into whatever then has its memory */
+        rb->queue_delete(&thread_q);
         return false;
     }
     thread_is_running = true;

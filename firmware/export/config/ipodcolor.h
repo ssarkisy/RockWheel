@@ -249,6 +249,14 @@
 
 #define HAVE_HARDWARE_CLICK
 
+#ifndef BOOTLOADER
+/* Two thread slots more than the 17: those in use reach 16 in normal use,
+   17 once an iAP accessory was used and 18 with a voice file as well; a
+   thread that can't be made costs MP3 playback, Cover Flow or USB's
+   write-behind */
+#define TARGET_EXTRA_THREADS 2
+#endif
+
 #define BOOTFILE_EXT "ipod"
 #define BOOTFILE "rockbox." BOOTFILE_EXT
 

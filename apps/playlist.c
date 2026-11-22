@@ -4166,6 +4166,21 @@ static void resume_order_unlocked(struct playlist_info *playlist,
     order->command = PLAYLIST_COMMAND_COMMENT;
 }
 
+/* An order's first index, read from the control file, against the list as
+   it stands, which is as it will be when the order is applied (before the
+   next line that isn't an order's): up to its end, where a delete of the
+   first track at the end leaves it. Past it, as a library playlist shorter
+   since a sync leaves, the list starts at its top; taken as it was, it
+   became the list's first_index, an insert's place, unchecked. -1 for a
+   negative one, which no writer makes. */
+static int resume_first_index(const struct playlist_info *playlist,
+                              int first_index)
+{
+    if (first_index < 0)
+        return -1;
+    return first_index <= playlist->amount ? first_index : 0;
+}
+
 /* the line read after it is an order's too */
 static void resume_order_drop(struct playlist_info *playlist,
                               struct resume_order *order, bool *sorted)
@@ -4402,6 +4417,28 @@ int playlist_resume(void)
                         int position = atoi(strp[0]);
                         int last_position = atoi(strp[1]);
 
+                        /* A place in the list, or the one special value
+                           written for one (add_track_to_playlist_unlocked()).
+                           A negative other, which no writer makes, ends the
+                           resume as a damaged line. A place past its end,
+                           as a library playlist shorter since a sync leaves,
+                           appends: taken as it was it indexed outside the
+                           list. The last insert's place is checked where it's
+                           used, against the list then; one at or past the
+                           list's room can be no place, and is none. */
+                        if ((position < 0
+                             && position != PLAYLIST_INSERT_LAST_ROTATED)
+                            || last_position < -1)
+                        {
+                            result = -19;
+                            exit_loop = true;
+                            break;
+                        }
+                        if (position > playlist->amount)
+                            position = playlist->amount;
+                        if (last_position >= playlist->max_playlist_size)
+                            last_position = -1;
+
                         /* seek position is based on strp[2]'s position in
                            buffer */
                         if (add_track_to_playlist_unlocked(playlist, strp[2],
@@ -4429,6 +4466,19 @@ int playlist_resume(void)
 
                         position = atoi(strp[0]);
 
+                        /* a track of the list as it stands: a negative
+                           one, which no writer makes, ends the resume; one
+                           past its end, as a library playlist shorter since
+                           a sync leaves, is gone already: skipped */
+                        if (position < 0)
+                        {
+                            result = -20;
+                            exit_loop = true;
+                            break;
+                        }
+                        if (position >= playlist->amount)
+                            break;
+
                         if (remove_track_unlocked(playlist, position, false) < 0)
                         {
                             result = -7;
@@ -4447,10 +4497,19 @@ int playlist_resume(void)
                             break;
                         }
 
+                        const int first = resume_first_index(playlist,
+                                                             atoi(strp[1]));
+                        if (first < 0)
+                        {
+                            result = -21;
+                            exit_loop = true;
+                            break;
+                        }
+
                         resume_order_drop(playlist, &order, &sorted);
                         order = (struct resume_order){
                             PLAYLIST_COMMAND_SHUFFLE, atoi(strp[0]),
-                            atoi(strp[1]), strp[2] && strp[2][0] == 'A'
+                            first, strp[2] && strp[2][0] == 'A'
                         };
                         break;
                     }
@@ -4464,9 +4523,18 @@ int playlist_resume(void)
                             break;
                         }
 
+                        const int first = resume_first_index(playlist,
+                                                             atoi(strp[0]));
+                        if (first < 0)
+                        {
+                            result = -21;
+                            exit_loop = true;
+                            break;
+                        }
+
                         resume_order_drop(playlist, &order, &sorted);
                         order = (struct resume_order){
-                            PLAYLIST_COMMAND_UNSHUFFLE, 0, atoi(strp[0]), false
+                            PLAYLIST_COMMAND_UNSHUFFLE, 0, first, false
                         };
                         break;
                     }

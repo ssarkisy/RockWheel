@@ -284,7 +284,8 @@ void iap_tx_strlcpy(const unsigned char *str)
     int r;
 
     txfree = TX_BUFLEN - (iap_txnext - iap_txstart);
-    r = strlcpy(iap_txnext, str, txfree);
+    /* an untagged file's tag (lingo 3's track info): an empty string */
+    r = strlcpy(iap_txnext, str ? str : (const unsigned char *)"", txfree);
 
     if (r < txfree)
     {

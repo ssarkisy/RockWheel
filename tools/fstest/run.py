@@ -160,11 +160,13 @@ DAMAGE = (
     ("first-beyond-empty", "touch", 4, "range"),
     ("dir-beyond", "rmdir", 0, "range"),
     # the cluster a cut would keep as the end is no cluster: refused, and
-    # nothing written; the file stays as damaged as it was. (No such row for
-    # a link outside the volume: the check of fstest's own fat.c, TEST_FAT,
-    # walks that chain for ever at the close.)
+    # nothing written; the file stays as damaged as it was. The seek to it
+    # refuses it (fat_seek() takes no number outside the volume), before any
+    # freeing: no stop. (No such row for a link outside the volume: the
+    # check of fstest's own fat.c, TEST_FAT, walks that chain for ever at
+    # the close.)
     ("none", "cut", 0, None),
-    ("one-mid", "cut", 2, "range", "badref,size",
+    ("one-mid", "cut", 2, None, "badref,size",
      "ftruncate failed (errno 5)"),
 )
 DAMAGE_FILE = "/.rockbox/victim.dat"

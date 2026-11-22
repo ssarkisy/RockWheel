@@ -521,7 +521,13 @@ static void NORETURN_ATTR usb_thread(void)
                && !usb_storage_load_ipod_xml()
 #endif
                )
+            {
+                /* and unmounted as by usb_slave_mode(true): a file still
+                   open for writing is closed, its last sectors on the disk
+                   before the disk sleeps and the iPod reboots */
+                disk_unmount_all();
                 try_reboot();
+            }
 #endif
             if(usb_host_present && exclusive_storage_requested) {
                 usb_slave_mode(true);

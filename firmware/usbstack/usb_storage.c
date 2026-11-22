@@ -344,6 +344,7 @@ static struct {
 static void handle_scsi(struct command_block_wrapper* cbw);
 static void send_csw(int status);
 static void reject_command(const struct command_block_wrapper *cbw);
+static void answer_no_blocks(const struct command_block_wrapper *cbw);
 static void account_data_transfer(int dir, int status, int length);
 static void send_command_result(void *data,int size);
 static void send_command_failed_result(void);
@@ -467,6 +468,10 @@ static volatile unsigned int jobs_queued, jobs_done;
 static struct semaphore slots_free, jobs_ready, writes_done;
 static volatile int write_error;
 static long writer_stack[DEFAULT_STACK_SIZE/sizeof(long)];
+/* its thread made: without one, as with every thread slot taken, the blocks
+   go to the disk from queue_write() itself, else write_slot() and
+   wait_for_writes() would wait for good. Tried again at each connection. */
+static bool writer_running;
 
 static void writer_thread(void)
 {
@@ -519,6 +524,16 @@ static void queue_write(int lun, sector_t sector, unsigned int count)
     j->bytes = count * cur_cmd.block_size;
     j->lun = lun;
     jobs_queued++;
+    if (!writer_running)
+    {
+        /* answered then once they are on the disk, as without write-behind */
+        int rc = storage_write_sectors(IF_MD(lun,) sector, count, j->data);
+        if (rc != 0)
+            write_error = rc;
+        jobs_done++;
+        semaphore_release(&slots_free);
+        return;
+    }
     semaphore_release(&jobs_ready);
 }
 
@@ -547,16 +562,15 @@ static bool write_failed(void)
 static void usb_storage_init(void)
 {
 #ifdef WRITE_BEHIND
-    static bool writer_started = false;
-    if (!writer_started)
+    if (!writer_running)
     {
         semaphore_init(&slots_free, WRITE_SLOTS, WRITE_SLOTS);
         semaphore_init(&jobs_ready, WRITE_SLOTS, 0);
         semaphore_init(&writes_done, 1, 0);
-        create_thread(writer_thread, writer_stack, sizeof(writer_stack), 0,
-                      "usb storage" IF_PRIO(, PRIORITY_SYSTEM)
-                      IF_COP(, CPU));
-        writer_started = true;
+        writer_running = create_thread(writer_thread, writer_stack,
+                                       sizeof(writer_stack), 0, "usb storage"
+                                       IF_PRIO(, PRIORITY_SYSTEM)
+                                       IF_COP(, CPU)) != 0;
     }
 #endif
     logf("usb_storage_init done");
@@ -1047,6 +1061,16 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
     if(skip_first) lun++;
 #endif
 
+    /* a LUN past those GET MAX LUN gives, from a buggy or hostile host,
+       would index ejected[] and locked[] past their ends */
+    if(lun >= storage_num_drives()) {
+        logf("ums: no lun %d", lun);
+        cur_cmd.data_residue = letoh32(cbw->data_transfer_length);
+        cur_cmd.tag = cbw->tag;
+        reject_command(cbw);
+        return;
+    }
+
     storage_get_info(lun,&info);
 #ifdef USB_USE_RAMDISK
     block_size = SECTOR_SIZE;
@@ -1472,6 +1496,9 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
                 cur_sense_data.asc=ASC_LBA_OUT_OF_RANGE;
                 cur_sense_data.ascq=0;
             }
+            else if(cur_cmd.count == 0) {
+                answer_no_blocks(cbw);
+            }
             else {
 #ifdef USB_USE_RAMDISK
                 memcpy(cur_cmd.data[cur_cmd.data_select],
@@ -1504,7 +1531,7 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
                  (uint64_t)cbw->command_block[3] << 48 |
                  (uint64_t)cbw->command_block[4] << 40 |
                  (uint64_t)cbw->command_block[5] << 32 |
-                 cbw->command_block[6] << 24 |
+                 (uint64_t)cbw->command_block[6] << 24 |
                  cbw->command_block[7] << 16 |
                  cbw->command_block[8] << 8  |
                  cbw->command_block[9]);
@@ -1522,6 +1549,9 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
                 cur_sense_data.sense_key=SENSE_ILLEGAL_REQUEST;
                 cur_sense_data.asc=ASC_LBA_OUT_OF_RANGE;
                 cur_sense_data.ascq=0;
+            }
+            else if(cur_cmd.count == 0) {
+                answer_no_blocks(cbw);
             }
             else {
 #ifdef USB_USE_RAMDISK
@@ -1574,6 +1604,9 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
                 cur_sense_data.asc=ASC_LBA_OUT_OF_RANGE;
                 cur_sense_data.ascq=0;
             }
+            else if(cur_cmd.count == 0) {
+                answer_no_blocks(cbw);
+            }
             else {
 #ifdef WRITE_BEHIND
                 cur_cmd.force_unit_access = cbw->command_block[1] & 0x08;
@@ -1610,7 +1643,7 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
                  (uint64_t)cbw->command_block[3] << 48 |
                  (uint64_t)cbw->command_block[4] << 40 |
                  (uint64_t)cbw->command_block[5] << 32 |
-                 cbw->command_block[6] << 24 |
+                 (uint64_t)cbw->command_block[6] << 24 |
                  cbw->command_block[7] << 16 |
                  cbw->command_block[8] << 8  |
                  cbw->command_block[9]);
@@ -1627,6 +1660,9 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
                 cur_sense_data.sense_key=SENSE_ILLEGAL_REQUEST;
                 cur_sense_data.asc=ASC_LBA_OUT_OF_RANGE;
                 cur_sense_data.ascq=0;
+            }
+            else if(cur_cmd.count == 0) {
+                answer_no_blocks(cbw);
             }
             else {
 #ifdef WRITE_BEHIND
@@ -1767,6 +1803,25 @@ static void reject_command(const struct command_block_wrapper *cbw)
         usb_drv_stall(in ? EP_IN : EP_OUT, true, in);
     }
     send_csw(UMS_STATUS_FAIL);
+}
+
+/* A READ or WRITE of no blocks, which SCSI takes as no error: answered at
+   once, a data phase the host meant halted as in reject_command(). Neither
+   on to the disk, whose ATA command would take a count of 0 for 256 or
+   65536 sectors, nor a receive or a send of nothing, where the host waits
+   for the status. */
+static void answer_no_blocks(const struct command_block_wrapper *cbw)
+{
+    if(cur_cmd.data_residue) {
+        bool in = (cbw->flags & USB_DIR_IN) != 0;
+        usb_drv_stall(in ? EP_IN : EP_OUT, true, in);
+    }
+#ifdef WRITE_BEHIND
+    /* as at the end of a write with blocks: an earlier one that failed */
+    send_csw(write_failed() ? UMS_STATUS_FAIL : UMS_STATUS_GOOD);
+#else
+    send_csw(UMS_STATUS_GOOD);
+#endif
 }
 
 static void send_block_data(void *data,int size)

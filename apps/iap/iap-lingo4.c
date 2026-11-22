@@ -67,6 +67,16 @@ static void cmd_ack(const unsigned int cmd, const unsigned char status)
 
 #define cmd_ok(cmd) cmd_ack((cmd), IAP_ACK_OK)
 
+/* A track's tag after the telegram's three bytes of data[70]: cut to the 63
+   bytes that fit with its NUL, and an untagged file's as an empty string.
+   strlcpy() returns the tag's whole length, which sent as the length read
+   past data and wrote past the TX buffer. */
+static void send_track_tag(unsigned char *data, const char *tag)
+{
+    size_t len = strlcpy((char *)&data[3], tag ? tag : "", 64);
+    iap_send_pkt(data, 4 + MIN(len, 63));
+}
+
 static void get_playlist_name(unsigned char *dest,
                               unsigned long item_offset,
                               size_t max_length)
@@ -1796,7 +1806,6 @@ void iap_handlepkt_mode4(const unsigned int len, const unsigned char *buf)
         {
             unsigned char data[70] = {0x04, 0x00, 0xFF};
             struct mp3entry id3;
-            size_t len;
             long tracknum = get_u32(&buf[3]);
 
             data[2] = cmd + 1;
@@ -1817,16 +1826,13 @@ void iap_handlepkt_mode4(const unsigned int len, const unsigned char *buf)
             switch(cmd)
             {
                 case 0x20:
-                    len = strlcpy((char *)&data[3], id3.title, 64);
-                    iap_send_pkt(data, 4+len);
+                    send_track_tag(data, id3.title);
                     break;
                 case 0x22:
-                    len = strlcpy((char *)&data[3], id3.artist, 64);
-                    iap_send_pkt(data, 4+len);
+                    send_track_tag(data, id3.artist);
                     break;
                 case 0x24:
-                    len = strlcpy((char *)&data[3], id3.album, 64);
-                    iap_send_pkt(data, 4+len);
+                    send_track_tag(data, id3.album);
                     break;
             }
             break;
