@@ -83,7 +83,7 @@
 #define WHEEL_STAGE_USEC 400000
 
 /* What the wheel's turns make (wheel_policy.c): its state, written only here,
-   in the interrupt */
+   in the interrupt, and as Hold switches the sensor off */
 static struct wheel_state wheel = WHEEL_STATE_INIT;
 /* its step and dead zone by Wheel Sensitivity, High until the settings are
    applied (button_wheel_sensitivity()) */
@@ -446,6 +446,12 @@ int button_read_device(void)
                nothing would tell it let go, and it was held on, to repeat or
                power off */
             int_btn = BUTTON_NONE;
+            /* nor the finger on the wheel: the first touch after Hold was taken
+               as the same one, the screen lit at once and a step made from
+               where the finger had been. The tick and the wheel's interrupt
+               don't come in on each other */
+            if (wheel.touched)
+                wheel_lift(&wheel, current_tick);
 #ifdef CPU_PP
             /* lock -> disable wheel sensor */
             DEV_EN &= ~DEV_OPTO;

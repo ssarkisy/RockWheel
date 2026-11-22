@@ -115,7 +115,10 @@ int configfile_load(const char *filename, const struct configdata *cfg,
         return fd*10 - 1;
 
     while(rb->read_line(fd, buf, MAX_PATH) > 0) {
-        rb->settings_parseline(buf, &name, &val);
+        /* a comment or a line without ':' sets neither: they'd be the
+           line's before, or unset on the first */
+        if (!rb->settings_parseline(buf, &name, &val))
+            continue;
 
         /* Bail out if the file version is too old */
         if(!rb->strcmp("file version", name)) {
@@ -175,8 +178,8 @@ int configfile_get_value(const char* filename, const char* name)
 
     while(rb->read_line(fd, buf, MAX_PATH) > 0)
     {
-        rb->settings_parseline(buf, &pname, &pval);
-        if(!rb->strcmp(name, pname))
+        if(rb->settings_parseline(buf, &pname, &pval)
+           && !rb->strcmp(name, pname))
         {
           rb->close(fd);
           return rb->atoi(pval);
@@ -207,8 +210,8 @@ int configfile_update_entry(const char* filename, const char* name, int val)
     /* read in the current stored settings */
     while((line_len = rb->read_line(fd, buf, 256)) > 0)
     {
-        rb->settings_parseline(buf, &pname, &pval);
-        if(!rb->strcmp(name, pname))
+        if(rb->settings_parseline(buf, &pname, &pval)
+           && !rb->strcmp(name, pname))
         {
             found = 1;
             rb->lseek(fd, pos, SEEK_SET);

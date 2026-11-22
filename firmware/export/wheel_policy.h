@@ -128,8 +128,10 @@ struct wheel_config {
     bool dead_zone;          /* the dead zone at a touch's start */
 };
 
-/* The driver's. Written only where it reads the wheel, in its interrupt; the
-   UI may read it (button_wheel_untouched_ticks(), the debug screen) */
+/* The driver's. Written where it reads the wheel, in its interrupt, and by the
+   tick as Hold switches the sensor off (wheel_lift()), which doesn't come in
+   on the interrupt; the UI may read it (button_wheel_untouched_ticks(), the
+   debug screen) */
 struct wheel_state {
     bool touched;            /* a finger on the wheel */
     int position;            /* the last reading's place */
@@ -180,6 +182,8 @@ struct wheel_event {
 
 void wheel_read(struct wheel_state *s, const struct wheel_config *config,
                 const struct wheel_input *in, struct wheel_event *ev);
+/* the finger lifted at this tick, as a reading without a touch says */
+void wheel_lift(struct wheel_state *s, uint32_t tick);
 
 /* the click wheel driver's state, for the debug screen */
 const struct wheel_state *button_wheel_state(void);

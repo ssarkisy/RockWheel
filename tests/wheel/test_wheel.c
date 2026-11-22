@@ -1468,6 +1468,64 @@ static void feel(void)
     check_case = NULL;
 }
 
+/* today's driver's backlight_on() calls in the last reading */
+static int lit_calls(void)
+{
+    int n = 0;
+    for (int i = 0; i < trace_n[1] && i < TRACE_MAX; i++)
+        n += trace[1][i].kind == T_BACKLIGHT_ON;
+    return n;
+}
+
+/* Hold switched on with the finger on the wheel, which the sensor then never
+   says is lifted, and off again: the first touch after it, a step's places
+   from where the finger was, the screen dark, is a touch's first. No step,
+   and the screen lit 300 ms on, as for any touch, not at once */
+static void hold_touched(void)
+{
+    static struct world w;
+    world_init(&w, "driver: Hold under the finger", 0x30000000, 2000);
+    w.driver_only = true;
+    w.draw_min = w.draw_max = 1000;
+    real_wheel_send_events(true);
+    /* a step of 4 places, no dead zone: High, taken at the next reading */
+    const int kept = real_button_wheel_get_sensitivity();
+    real_button_wheel_sensitivity(WHEEL_SENSITIVITY_HIGH);
+    lift(&w, 10000);
+    wait_us(&w, 1000000);
+    check_case = "driver: Hold under the finger";
+    touch(&w, 10000, 0);
+    turn(&w, 8, 4, 40000);
+    const long posts = w.posts;
+    CHECK(posts > 0);
+    CHECK(real_button_wheel_state()->touched);
+    stub_env.lit = false;
+    stub_env.gpioa = 0;                       /* Hold on: the sensor off */
+    w.t += 10000;
+    world_set_time(&w);
+    feed_driver(&w, touched_at(8), false);    /* a tick, no reading */
+    CHECK(!real_button_wheel_state()->touched);
+    w.t += 1000000;
+    stub_env.gpioa = 0x20;                    /* off: the sensor on */
+    world_set_time(&w);
+    feed_driver(&w, touched_at(8), false);
+    touch(&w, 10000, 12);                     /* a step's 4 places on */
+    CHECK_EQ(w.posts, posts);
+    CHECK_EQ(lit_calls(), 0);
+    int lit_after = -1;
+    for (int ms = 10; ms <= 400 && lit_after < 0; ms += 10)
+    {
+        packet(&w, 10000, touched_at(12));
+        if (lit_calls())
+            lit_after = ms;
+    }
+    CHECK(lit_after >= 300 && lit_after <= 320);
+    CHECK_EQ(w.posts, posts);
+    lift(&w, 10000);
+    stub_env.lit = true;
+    real_button_wheel_sensitivity(kept);
+}
+
 static void behaviour(void)
 {
     static struct world w;
@@ -1629,6 +1687,7 @@ static void behaviour(void)
     presses();
     step6();
     dead_zone();
+    hold_touched();
     check_case = NULL;
 }
 

@@ -167,6 +167,15 @@ static inline bool after(uint32_t a, uint32_t b)
     return (int32_t)(b - a) < 0;
 }
 
+void wheel_lift(struct wheel_state *s, uint32_t tick)
+{
+    s->dz_armed = true;
+    s->dz_acc = 0;
+    if (s->touched)
+        s->untouch_tick = tick;
+    s->touched = false;
+}
+
 void wheel_read(struct wheel_state *s, const struct wheel_config *config,
                 const struct wheel_input *in, struct wheel_event *ev)
 {
@@ -197,11 +206,7 @@ void wheel_read(struct wheel_state *s, const struct wheel_config *config,
     if (!wheel_packet_touched(in->packet))
     {
         /* In this case the finger was lifted from the scrollwheel. */
-        s->dz_armed = true;
-        s->dz_acc = 0;
-        if (s->touched)
-            s->untouch_tick = in->tick;
-        s->touched = false;
+        wheel_lift(s, in->tick);
         ev->stage = s->stage;
         return;
     }

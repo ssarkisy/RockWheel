@@ -451,11 +451,15 @@ static bool load_sudoku(struct sudoku_state_t* state, char* filename)
     }
 
     rb->strlcpy(state->filename,filename,MAX_PATH);
-    n=rb->read(fd,buf,500);
-    if (n <= 0) {
+    /* closed whatever it read: an empty file left it open, and the plugin's
+       end then said "leak-file-handles". A read's -1 got past the check in n,
+       which is unsigned, and the board was read from past buf */
+    ssize_t got = rb->read(fd,buf,500);
+    rb->close(fd);
+    if (got <= 0) {
         return(false);
     }
-    rb->close(fd);
+    n = got;
     r=0;
     c=0;
     i=0;
@@ -507,8 +511,11 @@ static bool load_sudoku(struct sudoku_state_t* state, char* filename)
                 }
                 if((buf[i]>='a' && buf[i] <= 'z') && i < (n-1)
                     && (buf[i+1] >= 'a' && buf[i+1] <= 'z')) {
-                    state->possiblevals[r][d]
-                        = (((buf[i]-'a') * 26 + buf[i+1]-'a')<<1);
+                    /* a row's notes, a pair of letters a cell: more pairs
+                       than the row's cells were written past it */
+                    if (d < SIZE)
+                        state->possiblevals[r][d]
+                            = (((buf[i]-'a') * 26 + buf[i+1]-'a')<<1);
                     i++;
                     d++;
                 }

@@ -1144,32 +1144,45 @@ static void eq_custom_from_preset(int preset)
     eq_custom_from(bands, eq_preset_precut(preset));
 }
 
-/* Custom as config.cfg gave it, which anything may have written: a band
+/* Bands as config.cfg gave them, which anything may have written: a band
    outside the settings' ranges or that the DSP plays otherwise than the curve
    shows is the default band, as a preset's file of it would not be taken; the
-   curve's maths overflow far outside them */
-static void eq_custom_check(void)
+   curve's maths overflow far outside them. Whether one was */
+static bool eq_bands_check(struct eq_band_setting *bands)
 {
     bool reset = false;
     for (int i = 0; i < EQ_NUM_BANDS; i++)
     {
-        if (!eq_files_band_ok(&global_settings.eq_custom[i]))
+        if (!eq_files_band_ok(&bands[i]))
         {
-            global_settings.eq_custom[i] = eq_defaults[i];
+            bands[i] = eq_defaults[i];
             reset = true;
         }
     }
-    if (reset || global_settings.eq_custom_precut < 0
+    return reset;
+}
+
+/* Custom's, and the EQ's own: those an older firmware or a config.cfg of
+   bands alone set, which no preset takes the place of (eq_get_preset()'s 0),
+   were played as they were */
+static void eq_config_check(void)
+{
+    if (eq_bands_check(global_settings.eq_custom)
+        || global_settings.eq_custom_precut < 0
         || global_settings.eq_custom_precut > 240)
         global_settings.eq_custom_precut =
             eq_curve_precut(eq_curve_peak_of(global_settings.eq_custom));
+    if (eq_bands_check(global_settings.eq_band_settings)
+        || global_settings.eq_precut > 240)
+        global_settings.eq_precut =
+            eq_curve_precut(eq_curve_peak_of(global_settings.eq_band_settings));
 }
 
 void eq_update_preset(bool read_files)
 {
     if (read_files)
         eq_files_read();
-    eq_custom_check();
+    eq_config_check();
     const int preset = eq_get_preset();
     if (preset <= 0)
         return;

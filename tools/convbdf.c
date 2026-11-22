@@ -78,6 +78,10 @@ struct font {
 
     /* default width in pixels (can be overwritten at char level) */
     int default_width;
+
+    /* each block of 128 codes' usual advance, for its marks (bdf_glyph_cell()) */
+    unsigned char *block_advance;
+    int widest_advance; /* of all glyphs' */
 };
 /* END font.h */
 
@@ -141,6 +145,11 @@ int bdf_read_bitmaps(FILE *fp, struct font* pf);
 */
 int bdf_analyze_font(FILE *fp, struct font* pf);
 void bdf_correct_bbx(int *width, int *bbx); /* Corrects bbx and width if bbx<0 */
+/* Fills pf->block_advance; returns 0 on failure */
+int bdf_block_advances(FILE *fp, struct font* pf);
+/* A glyph's width and its bits' offset in it, from its advance and its BBX */
+void bdf_glyph_cell(const struct font *pf, int encoding, int *width, int *bbx,
+                    int bbw);
 
 /* Corrects the ascent and returns the new value (value to use) */
 int adjust_ascent(int ascent, int overflow, struct stretch *stretch);
@@ -460,6 +469,8 @@ void free_font(struct font* pf)
         free(pf->offrot);
     if (pf->width)
         free(pf->width);
+    if (pf->block_advance)
+        free(pf->block_advance);
     free(pf);
 }
 
@@ -487,6 +498,11 @@ struct font* bdf_read_font(char *path)
         goto errout;
     }
     print_trace("Read font header, nchars_decl=%d\n", pf->nchars_declared);
+
+    if (!bdf_block_advances(fp, pf)) {
+        print_error("Error reading the glyphs' advances\n");
+        goto errout;
+    }
 
     if (!bdf_analyze_font(fp, pf)) {
         print_error("Error analyzing the font\n");
@@ -755,9 +771,9 @@ int bdf_read_bitmaps(FILE *fp, struct font* pf)
                 print_error("bad 'DWIDTH'\n");
                 return 0;
             }
-            /* use font boundingbox width if DWIDTH <= 0 */
-            if (width <= 0)
-                width = pf->fbbw - pf->fbbx;
+            /* a mark's 0 kept, as bdf_analyze_font() keeps it
+               (bdf_glyph_cell()): the font's bounding box in its place made
+               glyphs wider than the maxwidth that pass found */
             continue;
         }
         if (isprefix(buf, "BBX ")) {
@@ -787,7 +803,14 @@ int bdf_read_bitmaps(FILE *fp, struct font* pf)
             pf->offrot[encoding-pf->firstchar] = ofr;
 
             /* calc char width */
-            bdf_correct_bbx(&width, &bbx);
+            bdf_glyph_cell(pf, encoding, &width, &bbx, bbw);
+            /* as bdf_analyze_font() made maxwidth: the firmware reads a
+               glyph into a cache slot of that width */
+            if (width > pf->maxwidth) {
+                print_error("character %d is %d pixels wide, the font %d\n",
+                        encoding, width, pf->maxwidth);
+                return 0;
+            }
             pf->width[encoding-pf->firstchar] = width;
 
             ch_bitmap = pf->bits + ofs;
@@ -828,6 +851,9 @@ int bdf_read_bitmaps(FILE *fp, struct font* pf)
             }
 
             y = bby_orig + bbh_orig; /* 0-based y within the char */
+            /* ink past the glyph's width, which a glyph of it can't have: a
+               BDF's past its advance, or past its BBX */
+            int ink_cut = 0;
 
             /* read bitmaps */
             for (i=0; ; ++i) {
@@ -849,13 +875,16 @@ int bdf_read_bitmaps(FILE *fp, struct font* pf)
                 }
 
                 hexnibbles = strlen(buf);
-                for (k=0; k<ch_words; ++k) {
+                /* the ink bbx columns into the cell, by whole words and then
+                   bits: a mark's cell can put it 16 columns and more in,
+                   which a shift alone took out of its word */
+                const int word_ofs = bbx / (int)BITMAP_BITSPERIMAGE;
+                const int bit_ofs = bbx % (int)BITMAP_BITSPERIMAGE;
+                for (k=0; k * (int)BITMAP_NIBBLES < hexnibbles; ++k) {
                     int ndx = k * BITMAP_NIBBLES;
                     int padnibbles = hexnibbles - ndx;
                     bitmap_t value;
 
-                    if (padnibbles <= 0)
-                        break;
                     if (padnibbles >= (int)BITMAP_NIBBLES)
                         padnibbles = 0;
 
@@ -863,15 +892,26 @@ int bdf_read_bitmaps(FILE *fp, struct font* pf)
                                        ndx, ndx+BITMAP_NIBBLES-1-padnibbles);
                     value <<= padnibbles * BITMAP_NIBBLES;
 
-                    BM(pf->height - pf->descent - bby - bbh + i, k) |=
-                        value >> bbx;
-                    /* handle overflow into next image word */
-                    if (bbx) {
-                        BM(pf->height - pf->descent - bby - bbh + i, k+1) =
-                            value << (BITMAP_BITSPERIMAGE - bbx);
+                    if (k + word_ofs < ch_words)
+                        BM(pf->height - pf->descent - bby - bbh + i, k + word_ofs) |=
+                            value >> bit_ofs;
+                    else if (value)
+                        ink_cut = 1;
+                    /* handle overflow into next image word, of this row: past
+                       the glyph's words it was the next row's first */
+                    if (bit_ofs) {
+                        const bitmap_t over = value << (BITMAP_BITSPERIMAGE - bit_ofs);
+                        if (k + word_ofs + 1 < ch_words)
+                            BM(pf->height - pf->descent - bby - bbh + i, k + word_ofs + 1) |= over;
+                        else if (over)
+                            ink_cut = 1;
                     }
                 }
             }
+
+            if (ink_cut)
+                print_warning(VL_MISC, "character %d has ink past its width %d, "
+                        "cut\n", encoding, width);
 
             ofs += BITMAP_WORDS(width) * pf->height;
             ofr += pf->width[encoding-pf->firstchar] * ((pf->height+7)/8);
@@ -973,6 +1013,103 @@ void bdf_correct_bbx(int *width, int *bbx) {
     }
 }
 
+/* Blocks of 128 codes, of all Unicode's */
+#define ADVANCE_BLOCKS (0x110000 >> 7)
+#define ADVANCE_MAX 256
+
+/* The advance most glyphs of each block of 128 codes have, the font's most
+   common one for a block with none: the letters' that the block's marks of no
+   advance go over (bdf_glyph_cell()) */
+int bdf_block_advances(FILE *fp, struct font* pf)
+{
+    char buf[256];
+    int encoding = -1, width = -1;
+    unsigned int (*count)[ADVANCE_MAX] = calloc(ADVANCE_BLOCKS, sizeof(*count));
+    unsigned int all[ADVANCE_MAX] = { 0 };
+
+    pf->block_advance = calloc(ADVANCE_BLOCKS, 1);
+    if (!count || !pf->block_advance) {
+        free(count);
+        print_error("no memory for the advances\n");
+        return 0;
+    }
+    fseek(fp, 0L, SEEK_SET);
+    while (bdf_getline(fp, buf, sizeof(buf))) {
+        if (isprefix(buf, "STARTCHAR")) {
+            encoding = width = -1;
+        } else if (isprefix(buf, "ENCODING ")) {
+            if (sscanf(buf, "ENCODING %d", &encoding) != 1)
+                encoding = -1;
+        } else if (isprefix(buf, "DWIDTH ")) {
+            if (sscanf(buf, "DWIDTH %d", &width) != 1)
+                width = -1;
+        } else if (isprefix(buf, "ENDCHAR")) {
+            if (width < 0)
+                width = pf->default_width;
+            if (encoding >= 0 && encoding < 0x110000
+                && width > 0 && width < ADVANCE_MAX) {
+                count[encoding >> 7][width]++;
+                all[width]++;
+            }
+        } else if (strequal(buf, "ENDFONT"))
+            break;
+    }
+    int common = 0;
+    for (int w = 1; w < ADVANCE_MAX; w++) {
+        if (all[w] > all[common])
+            common = w;
+        if (all[w])
+            pf->widest_advance = w;
+    }
+    for (int b = 0; b < ADVANCE_BLOCKS; b++) {
+        int usual = 0;
+        for (int w = 1; w < ADVANCE_MAX; w++)
+            if (count[b][w] > count[b][usual])
+                usual = w;
+        pf->block_advance[b] = count[b][usual] ? usual : common;
+    }
+    free(count);
+    return 1;
+}
+
+/* A glyph's width, and where its bits are in it (BBX's x offset, which then
+   is 0 or more): a glyph that advances as DWIDTH says, its ink moved into it
+   (bdf_correct_bbx()). One of no advance (DWIDTH 0) is a mark over a letter,
+   which the firmware draws centred on the letter it comes with
+   (lcd-bitmap-common.c): its cell is as wide as a letter of its block's usual
+   advance, left of the pen for a mark over the letter before it, right of it
+   for one over the letter after it, as a right-to-left script's marks are,
+   and the mark in it where it is over that letter; wider for ink beyond it,
+   but no wider than the font's widest advance unless its ink is, the side
+   away from the pen cut. As wide as the font's bounding box and its offset,
+   as it was, the marks were drawn far left of their letters, and wider than
+   the font's widest glyph, which the firmware's cache is made for */
+void bdf_glyph_cell(const struct font *pf, int encoding, int *width, int *bbx,
+                    int bbw)
+{
+    if (*width != 0 || encoding < 0 || encoding >= 0x110000) {
+        bdf_correct_bbx(width, bbx);
+        return;
+    }
+    const int advance = pf->block_advance[encoding >> 7];
+    int left, right; /* the cell's edges, from the pen */
+    if (*bbx < 0) {
+        left = MIN(-advance, *bbx);
+        right = MAX(0, *bbx + bbw);
+    } else {
+        left = 0;
+        right = MAX(advance, *bbx + bbw);
+    }
+    if (pf->widest_advance > 0 && right - left > pf->widest_advance) {
+        if (*bbx < 0)
+            left = MIN(*bbx, right - pf->widest_advance);
+        else
+            right = MAX(*bbx + bbw, left + pf->widest_advance);
+    }
+    *width = right - left;
+    *bbx -= left;
+}
+
 int bdf_analyze_font(FILE *fp, struct font* pf) {
     char buf[256];
     int encoding;
@@ -1026,7 +1163,7 @@ int bdf_analyze_font(FILE *fp, struct font* pf) {
                     print_error("WIDTH or BBX is not specified for character %d\n",
                             encoding);
                 }
-                bdf_correct_bbx(&width, &bbx);
+                bdf_glyph_cell(pf, encoding, &width, &bbx, bbw);
                 if (width > pf->maxwidth) {
                     pf->maxwidth = width;
                 }

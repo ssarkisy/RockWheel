@@ -2344,8 +2344,21 @@ void library_update_after_usb(void)
     library_update_pending = true;
 }
 
+/* A screen .resume.cfg gave, the root's if it's none: a damaged or hand-made
+   file's other numbers had the boot go round without end, or call a screen
+   past items[] or one it hasn't. A plugin, which has none, is the loop's own */
+static int saved_screen(int screen)
+{
+    if (screen == GO_TO_ROOT || screen == GO_TO_PLUGIN)
+        return screen;
+    return screen >= 0 && screen < NUM_ITEMS && items[screen].function
+           ? screen : GO_TO_ROOT;
+}
+
 void root_menu(void)
 {
+    global_status.last_screen = saved_screen(global_status.last_screen);
+    global_status.last_browser = saved_screen(global_status.last_browser);
     int previous_browser = global_status.last_browser;
     int selected = 0;
     int shortcut_origin = GO_TO_ROOT;

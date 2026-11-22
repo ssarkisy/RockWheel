@@ -121,6 +121,9 @@ struct buflib_alloc_data {
     int records;
     bool forms; /* its glyphs past U+FFFF are font_han_forms.h's */
     struct record_block record[RECORD_BLOCKS];
+    /* the file it was loaded from, to know it again (font_enable()) */
+    int file_size;
+    unsigned char file_header[FONT_HEADER_SIZE];
     unsigned char buffer[];
 };
 /* the loaders pad a font's tables by their addresses, as the file by offsets */
@@ -723,14 +726,18 @@ static int32_t readlong(struct font *pf)
     return l;
 }
 
+/* the bytes a glyph's bits are, as the drawing reads them; glyph_bytes() of
+   them is a place in the cache, rounded up to whole 16-bit words */
+static int glyph_bits_bytes(const struct font *pf, int width)
+{
+    if (pf->depth)
+        return (pf->height * width + 1) / 2;
+    return width * ((pf->height + 7) / 8);
+}
+
 static int glyph_bytes( struct font *pf, int width )
 {
-    int ret;
-    if (pf->depth)
-        ret = ( pf->height * width + 1 ) / 2;
-    else
-        ret = width * ((pf->height + 7) / 8);
-    return (ret + 1) & ~1;
+    return (glyph_bits_bytes(pf, width) + 1) & ~1;
 }
 
 /* Load memory font */
@@ -799,6 +806,27 @@ static struct font* font_load_in_memory(struct font* pf,
     if (pf->buffer_position > pf->buffer_end)
         return NULL;
 
+    /* each glyph within the bits, as font_get_bits() finds it and the drawing
+       reads it, and no wider than the widest, as a damaged file's could be:
+       the bits past them read. A glyph's bits as the file has them: the last
+       one's rounded up was a byte past them in many a font */
+    for (i = 0; i < pf->size; i++)
+    {
+        if (pf->width && pf->width[i] > pf->maxwidth)
+            ((unsigned char *)pf->width)[i] = pf->maxwidth;
+        uint32_t at;
+        if (!pf->offset)
+            at = i * glyph_bytes(pf, pf->maxwidth);
+        else if (pf->long_offset)
+            at = ((const uint32_t *)pf->offset)[i];
+        else
+            at = ((const uint16_t *)pf->offset)[i];
+        const int width = pf->width ? pf->width[i] : pf->maxwidth;
+        if (at > (uint32_t)pf->bits_size
+            || (uint32_t)pf->bits_size - at < (uint32_t)glyph_bits_bytes(pf, width))
+            return NULL;
+    }
+
     return pf;    /* success!*/
 }
 
@@ -843,8 +871,13 @@ static struct font* font_load_cached(struct font* pf,
     else
         pf->file_width_offset = 0;
 
-    /* Create the cache */
+    /* Create the cache, of two glyphs at least: font_cache_get() looks at its
+       last place, which one of none is before it */
+    if (pf->buffer_size <= (size_t)glyph_bytes(pf, pf->maxwidth))
+        return NULL;
     cache_create(pf);
+    if (pf->cache._capacity < 2)
+        return NULL;
 
     return pf;
 }
@@ -893,6 +926,10 @@ static size_t font_glyphs_to_bufsize(struct font *pf, int glyphs)
 {
     size_t bufsize;
 
+    /* as many as the cache can hold: more were memory taken and never used */
+    if (glyphs > FONT_CACHE_MAX_GLYPHS)
+        glyphs = FONT_CACHE_MAX_GLYPHS;
+
     /* LRU bytes per glyph */
     bufsize = LRU_SLOT_OVERHEAD + sizeof(struct font_cache_entry) +
         sizeof(unsigned short);
@@ -938,6 +975,38 @@ static struct font* font_load_header(int fd, struct font *pheader,
     *nwidth           = readlong(pheader);
 
     return pf;
+}
+
+/* A header the loaders can take, as convbdf, convttf and merge_fonts.py write
+   them: its tables within the file, and a glyph's place in the cache
+   (glyph_bytes() of maxwidth) of a size a width byte gives. A damaged or
+   hostile file's had the loaders read and write past the font's memory */
+static bool font_header_ok(struct font *f, uint32_t nwidth, uint32_t noffset,
+                           int file_size)
+{
+    if (f->maxwidth < 1 || f->maxwidth > 255 || f->height < 1 || f->height > 255
+        || f->ascent < 0 || f->ascent > (int)f->height
+        || (f->depth != 0 && f->depth != 1)
+        || f->size < 1 || f->firstchar >= 0x110000
+        || (uint32_t)f->size > 0x110000 - f->firstchar
+        || (unsigned int)f->defaultchar - f->firstchar >= (unsigned int)f->size
+        || f->bits_size < 0 || file_size < FONT_HEADER_SIZE)
+        return false;
+    if ((noffset && noffset != (uint32_t)f->size)
+        || (nwidth && nwidth != (uint32_t)f->size))
+        return false;
+    /* the tables after the bits, padded as the loaders pad them */
+    const bool short_offsets = f->bits_size < MAX_FONTSIZE_FOR_16_BIT_OFFSETS;
+    uint64_t end = FONT_HEADER_SIZE + (uint64_t)f->bits_size;
+    end = short_offsets ? (end + 1) & ~(uint64_t)1 : (end + 3) & ~(uint64_t)3;
+    end += (uint64_t)noffset * (short_offsets ? 2 : 4) + nwidth;
+    if (end > (uint64_t)file_size)
+        return false;
+    /* without offsets, each glyph as wide as the widest, one after another
+       at the places font_get_bits() gives them */
+    return noffset
+        || (uint64_t)(f->size - 1) * glyph_bytes(f, f->maxwidth)
+           + glyph_bits_bytes(f, f->maxwidth) <= (uint64_t)f->bits_size;
 }
 
 static uint32_t le32(const unsigned char *p)
@@ -1043,6 +1112,7 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
 #if LCD_DEPTH < 16
         || f.depth
 #endif
+        || !font_header_ok(&f, nwidth, noffset, file_size)
     )
     {
         close(fd);
@@ -1209,6 +1279,8 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
     pdata->records = records;
     memcpy(pdata->record, record, sizeof(record));
     pdata->forms = forms;
+    pdata->file_size = file_size;
+    memcpy(pdata->file_header, &header, FONT_HEADER_SIZE);
     pdata->path = pdata->buffer + bufsize;
     pdata->path_bufsz = path_bufsz;
     /* save load path so we can recognize this font later */
@@ -1232,6 +1304,7 @@ int font_load_ex( const char *path, size_t buf_size, int glyphs )
     {
         if ( ! font_load_cached( pf, nwidth, noffset ) )
         {
+            close( fd );
             core_free( handle );
             return -1;
         }
@@ -1351,6 +1424,26 @@ void font_disable_all(void)
         font_disable(i);
 }
 
+/* The file at a font's path the one it was loaded from: as long, with the same
+   header and records. Another font of its name copied over it during USB, as
+   a theme's or a release's, was read where the old one's header gave its
+   glyphs, of widths past their places in the cache */
+static bool font_file_unchanged(int fd, struct buflib_alloc_data *pdata)
+{
+    unsigned char header[FONT_HEADER_SIZE];
+    if (ffilesize(fd) != pdata->file_size
+        || read(fd, header, sizeof(header)) != (ssize_t)sizeof(header)
+        || memcmp(header, pdata->file_header, sizeof(header)))
+        return false;
+    if (!pdata->records)
+        return true;
+    struct record_block record[RECORD_BLOCKS];
+    bool forms;
+    return font_load_records(fd, &pdata->font, record, &forms) == pdata->records
+        && forms == pdata->forms
+        && !memcmp(record, pdata->record, pdata->records * sizeof(*record));
+}
+
 static void font_enable(int font_id)
 {
     if ( font_id < 0 || font_id >= MAXFONTS )
@@ -1363,11 +1456,20 @@ static void font_enable(int font_id)
 
     if (pf->disabled && pf->fd < 0)
     {
-        pf->fd = open(pdata->path, O_RDONLY);
-        /* without its file it stays as during USB, its glyphs from the
-           cache: a font cached in part has no bits in memory to draw from */
-        if (pf->fd >= 0)
+        int fd = open(pdata->path, O_RDONLY);
+        if (fd >= 0 && !font_file_unchanged(fd, pdata))
+        {
+            close(fd);
+            fd = -1;
+        }
+        /* without its file, or with another in its place, it stays as during
+           USB until it's unloaded, its glyphs from the cache: a font cached in
+           part has no bits in memory to draw from */
+        if (fd >= 0)
+        {
+            pf->fd = fd;
             pf->disabled = false;
+        }
         else
             font_note_reopen_failed(pdata->path);
     }
@@ -1461,6 +1563,12 @@ load_cache_entry(struct font_cache_entry* p, void* callback_data)
             p->width = 0;
             font_note_glyph_failed(alloc->path);
         }
+        else if (p->width > pf->maxwidth)
+        {
+            /* drawn from past its place, as below */
+            p->width = pf->maxwidth;
+            font_note_glyph_failed(alloc->path);
+        }
         lock_font_handle(pf->handle, false);
         return;
     }
@@ -1479,6 +1587,15 @@ load_cache_entry(struct font_cache_entry* p, void* callback_data)
     else
     {
         p->width = pf->maxwidth;
+    }
+    /* no wider than the font's widest glyph, which its place in the cache is
+       made for: read whole, a damaged file's glyph or a mark of convbdf's 48
+       pixels and more wide (16-GNU-Unifont.fnt before 2.1) wrote past it into
+       the places after. Cut to it, its bits as far as they go */
+    if (p->width > pf->maxwidth)
+    {
+        p->width = pf->maxwidth;
+        read_whole = false;
     }
 
     int32_t bitmap_offset = 0;

@@ -139,6 +139,17 @@ static const char *path_of(int fd)
     return fd >= 0 && fd < (int)ARRAYLEN(fd_path) ? fd_path[fd] : "";
 }
 
+/* A playlist's index: struct lp_head, then its songs. BASE's head is of 10
+   words (version 3); the tree's, since the playlists' lengths and collages
+   (version 5), has their seconds, collage_seen and collage after them */
+#define LP_HEAD_BASE 40
+static bool is_index(const char *path)
+{
+    const size_t n = strlen(path);
+    return !strncmp(path, LP_DIR "/", sizeof(LP_DIR)) && n > 4
+           && !strcmp(path + n - 4, ".idx");
+}
+
 ssize_t sim_read(int fildes, void *buf, size_t nbyte)
 {
     faults.reads++;
@@ -149,7 +160,17 @@ ssize_t sim_read(int fildes, void *buf, size_t nbyte)
         return -1;
     }
     if (faults.short_reads && nbyte > 1)
-        nbyte = 1 + next_rng(&read_rng) % nbyte;
+    {
+        const uint32_t r = next_rng(&read_rng);
+        /* an index's head cut as BASE's of LP_HEAD_BASE bytes was, whatever
+           this build's is: whole for the same draws, short as often */
+        if (nbyte == sizeof(struct lp_head) && is_index(path_of(fildes))
+            && lseek(fildes, 0, SEEK_CUR) == 0)
+            nbyte = r % LP_HEAD_BASE == LP_HEAD_BASE - 1 ? nbyte
+                                                         : 1 + r % LP_HEAD_BASE;
+        else
+            nbyte = 1 + r % nbyte;
+    }
     const ssize_t n = simfs_sim_read(fildes, buf, nbyte);
     char c;
     if (n > 0 && ((char *)buf)[n - 1] == '\r'
@@ -276,6 +297,21 @@ bool tagcache_retrieve(struct tagcache_search *tcs, int idxid, int tag,
 void tagcache_search_finish(struct tagcache_search *tcs)
 {
     (void)tcs;
+}
+
+/* the songs' tags, which the tree's index sums and makes its collage of,
+   BASE's didn't: none, so that neither is made and the traces compare */
+long tagcache_sort_key(int idx_id, int tag)
+{
+    (void)idx_id;
+    (void)tag;
+    return -1;
+}
+
+bool tagcache_track_compilation(int idx_id)
+{
+    (void)idx_id;
+    return false;
 }
 
 /* a line as a path: whole, or from the playlist's folder; with '\\'s as
@@ -436,20 +472,41 @@ void host_put(const char *path, const void *data, size_t n);
 void host_each_file(void (*f)(const char *path, const void *data, size_t n));
 void host_remove_root(void);
 
-/* a file's bytes; a long one by its size and SHA-256 */
-static void t_file(const char *path, const void *data, size_t n)
+/* bytes; long ones by their size and SHA-256 */
+static void t_blob(const char *what, const void *data, size_t n)
 {
     if (n <= 4096)
     {
-        t_bytes(path, data, n);
+        t_bytes(what, data, n);
         return;
     }
     unsigned char sha[CC_SHA256_DIGEST_LENGTH];
     CC_SHA256(data, (CC_LONG)n, sha);
-    T("%s[%zu] sha256 ", path, n);
+    T("%s[%zu] sha256 ", what, n);
     for (size_t i = 0; i < sizeof(sha); i++)
         T("%02x", sha[i]);
     T("\n");
+}
+
+/* a file's bytes; an index by the fields of its head BASE's and the tree's
+   both have, its version as this build's own or another, then its songs:
+   not the seconds, collage_seen and collage the tree's has as well. One
+   shorter than this build's head as it is */
+static void t_file(const char *path, const void *data, size_t n)
+{
+    struct lp_head head;
+    if (!is_index(path) || n < sizeof(head))
+    {
+        t_blob(path, data, n);
+        return;
+    }
+    memcpy(&head, data, sizeof(head));
+    T("%s[index] magic %08x version %s commitid %u entries %u size %u count %u"
+      " lines %u unmatched %u pending %u sort %u\n", path, head.magic,
+      head.version == LP_VERSION ? "own" : "other", head.commitid,
+      head.entries, head.size, head.count, head.lines, head.unmatched,
+      head.pending, head.sort);
+    t_blob("  songs", (const char *)data + sizeof(head), n - sizeof(head));
 }
 
 static void t_files(void)
