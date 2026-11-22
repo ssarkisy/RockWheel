@@ -85,6 +85,8 @@
 #include "music_search.h"
 #include "album_header.h"
 #include "list_covers.h"
+#include "library_playlists.h"
+#include "itunesdb.h"
 #endif
 
 static struct gui_synclist tree_lists;
@@ -154,6 +156,10 @@ static bool catalog_mine;
 /* the lead row of this kind selected as the list is loaded next, -1 for
    the entry's */
 static int catalog_select = -1;
+/* Playlists' rows in two lines with their covers, as Playlist Covers has
+   them: each playlist's collage and its songs and length, a folder's tile
+   and its playlists, from the table in memory (library_playlists.h) */
+static bool catalog_covers;
 #ifdef HAVE_TAGCACHE
 /* In Music, an album's songs under its header (album_header.c): the rows it
    takes at the top, which aren't entries, and none selects; 0 for another
@@ -534,7 +540,8 @@ static int tree_get_mark(int selected_item, void *data)
             case LEAD_SORT_BY:
                 return LINE_MARK_NONE;
             case LEAD_UNSYNCED:
-                return LINE_MARK_FOLDER;
+                /* with covers its tile has the folder's mark */
+                return catalog_covers ? LINE_MARK_NONE : LINE_MARK_FOLDER;
             case LEAD_MOVE_HERE:
                 /* it makes nothing new: its name in line with the others' */
                 return ui_metric(UI_METRIC_MENU_MARKS) ? LINE_MARK_BLANK
@@ -545,12 +552,105 @@ static int tree_get_mark(int selected_item, void *data)
                                                        : LINE_MARK_NONE;
         }
     }
+    if (catalog_covers)
+        return LINE_MARK_NONE;
     if (catalog_otg_row(selected_item))
         return LINE_MARK_PLAYLIST;
     const struct entry *entry = get_valid_entry(__func__, local_tc,
                                                 index_of(selected_item));
     return entry->attr & ATTR_DIRECTORY ? LINE_MARK_FOLDER
            : entry->attr & ENTRY_SMART_PLAYLIST ? LINE_MARK_SMART : LINE_MARK_PLAYLIST;
+}
+#endif
+
+#ifdef HAVE_TAGCACHE
+/* What a row of Playlists with covers has, from the table in memory, by its
+   path: an entry's, or On-The-Go's. False without it; *folder for a folder
+   of the catalogue, which may have none */
+static bool catalog_row(int selected_item, struct lp_row_shown *row,
+                        bool *folder)
+{
+    *folder = false;
+    if (catalog_otg_row(selected_item))
+        return lp_rows_find(itunesdb_path_hash(OTG_FILE), row);
+    if (catalog_lead_row(selected_item) || tree_is_group(selected_item, NULL))
+        return false;
+    const struct entry *entry = get_valid_entry(__func__, &tc,
+                                                index_of(selected_item));
+    *folder = entry->attr & ATTR_DIRECTORY;
+    /* its path's hash without its path, on the stack the list draws on */
+    return lp_rows_find(itunesdb_path_hash_in(tc.currdir, entry->name), row);
+}
+
+/* its second line: a playlist's songs and length, a folder's playlists,
+   Unsynced's; none for Sort By, New Playlist and the like */
+static const char *tree_catalog_subline(int selected_item, void *data,
+                                        char *buf, size_t size)
+{
+    (void)data;
+    struct lp_row_shown row;
+    if (catalog_lead_row(selected_item))
+    {
+        if (catalog_leads[selected_item] != LEAD_UNSYNCED)
+            return NULL;
+        row = (struct lp_row_shown){ .folder = true, .known = true,
+                                     .count = MAX(lp_rows_unsynced(), 0) };
+        return lp_rows_text(&row, buf, size);
+    }
+    bool folder;
+    if (!catalog_row(selected_item, &row, &folder))
+    {
+        /* a folder without a row has no playlists, as one just made; an
+           empty On-The-Go none either */
+        if (!folder && !(catalog_otg_row(selected_item) && catalog_otg_empty))
+            return NULL;
+        row = (struct lp_row_shown){ .folder = folder, .known = true };
+    }
+    return lp_rows_text(&row, buf, size);
+}
+
+/* and its tile: a playlist's collage, or the note; a folder's mark */
+static int tree_catalog_cover(int selected_item, void *data,
+                              const fb_data **pixels)
+{
+    (void)data;
+    if (catalog_lead_row(selected_item))
+        return catalog_leads[selected_item] == LEAD_UNSYNCED ? LIST_COVER_FOLDER
+                                                            : LIST_COVER_NONE;
+    struct lp_row_shown row;
+    bool folder;
+    const bool found = catalog_row(selected_item, &row, &folder);
+    if (folder || (found && row.folder))
+        return LIST_COVER_FOLDER;
+    return found ? list_covers_collage(row.album, row.albums, pixels)
+                 : LIST_COVER_NOTE;
+}
+
+/* Before each frame, as Music's lists with covers: what it lacks counted
+   anew, read now if it can be at once, and the covers of the rows next to
+   those shown asked for after theirs */
+static void tree_catalog_before_draw(struct gui_synclist *list)
+{
+    static int last_start;
+    list_covers_frame();
+    list_covers_draw_soon(list);
+    const int start = list->start_item[SCREEN_MAIN];
+    const int shown = list_get_nb_lines(list, SCREEN_MAIN);
+    const bool down = start >= last_start;
+    const int far = MIN(shown + 2 * abs(start - last_start), 16);
+    last_start = start;
+    for (int k = 0; k < far + shown; k++)
+    {
+        const bool forward = k < far ? down : !down;
+        const int d = k < far ? k : k - far;
+        const int row = forward ? start + shown + d : start - 1 - d;
+        struct lp_row_shown r;
+        bool folder;
+        if (row < 0 || row >= list->nb_items || !catalog_row(row, &r, &folder))
+            continue;
+        for (int i = 0; i < r.albums; i++)
+            list_covers_ahead(r.album[i]);
+    }
 }
 #endif
 
@@ -880,8 +980,8 @@ static int update_dir(void)
 
 #ifdef HAVE_TAGCACHE
     /* the memory of the lists' covers, if the setting was turned on while
-       music played, which has stopped since */
-    if (id3db)
+       music played, which has stopped since; Playlists' too */
+    if (id3db || catalog_viewed())
         list_covers_apply();
     /* Checks for changes */
     if (id3db) {
@@ -1050,6 +1150,19 @@ static int update_dir(void)
     {
         gui_synclist_set_cover_callback(list, tree_get_cover);
         gui_synclist_set_before_draw(list, tree_covers_before_draw);
+        list_covers_opened();
+    }
+    /* Playlists' with Playlist Covers, as the catalogue is viewed, not as a
+       playlist or a folder is picked: nothing written as it opens, which
+       could wake a sleeping disk (library_playlists.c writes the table's
+       changes at the disk's idle) */
+    catalog_covers = !id3db && catalog_viewed() && global_settings.playlist_covers
+                     && list_covers_on() && lp_rows_ready();
+    if (catalog_covers)
+    {
+        gui_synclist_set_subline_callback(list, tree_catalog_subline);
+        gui_synclist_set_cover_callback(list, tree_catalog_cover);
+        gui_synclist_set_before_draw(list, tree_catalog_before_draw);
         list_covers_opened();
     }
     if (!list->callback_get_cover)

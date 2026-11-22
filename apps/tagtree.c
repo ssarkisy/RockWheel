@@ -70,6 +70,7 @@
 #include "playlist_catalog.h"
 #include "album_years.h"
 #include "list_covers.h"
+#include "artist_rows.h"
 
 #define str_or_empty(x) (x ? x : "(NULL)")
 
@@ -289,6 +290,7 @@ static int32_t kept_untagged;
 static int kept_initials, kept_initials_tag;
 static int kept_shows;
 static bool kept_episodes;
+static int kept_artists;
 /* the rows of the list made are albums with their years */
 static bool entries_years;
 /* each in two lines, its name over its year and its album artist, with its
@@ -326,6 +328,11 @@ static int32_t entries_untagged = -1;
 static int entries_shows;
 /* a show's episodes: newest first, two lines, no covers */
 static bool entries_episodes;
+/* Artists' rows, or a genre's artists', in two lines with their covers, as
+   Artist Covers has them (artist_rows.h): the tag they're of; 0 for another
+   list. Each row's album.no its cover's album, -1 for the note */
+static int entries_artists;
+static bool entries_artists_solo;
 /* The shows are Audiobooks' books, with a book's sums. And a book's own list,
    its parts in their order: how many, the row of the one begun or -1 (past
    the rows at the top), whether all are heard, and their length in ms */
@@ -405,6 +412,9 @@ static bool is_compilations(const struct search_instruction *si);
 static bool artists_solo(const struct search_instruction *si);
 static bool persons_list(const struct search_instruction *si, int table,
                          int level);
+static bool artists_list(const struct search_instruction *si, int table,
+                         int level);
+static bool artists_covered(int tag);
 static bool podcasts_shows(const struct search_instruction *si, int table,
                            int level);
 static bool album_is_compilation(int no);
@@ -896,6 +906,9 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
     const bool compilations = csi && c->currtable != TABLE_ROOT
         && (of_albums || all_songs || is_compilations(csi)
             || section_is(csi, LANG_ARTISTS));
+    /* Artists' rows in two lines with covers or in one, of the table as it
+       was taken in */
+    const bool artists = artists_list(csi, c->currtable, c->currextra);
     const uint32_t list[] = {
         c->currtable, c->currextra, (uintptr_t)csi, tagcache_get_commitid(),
         global_settings.interpret_numbers,
@@ -918,6 +931,8 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
         podcasts ? playing_entry(NULL) + 1 : 0,
         compilations ? tagcache_compilations_hash() : 0,
         compilations ? artists_solo(csi) : 0,
+        artists ? artists_covered(csi->tagorder[c->currextra]) : 0,
+        artists ? artist_rows_generation() : 0,
 #ifdef HAVE_TC_RAMCACHE
         /* the songs' numbers, which come from the database's memory */
         tagcache_is_in_ram(),
@@ -985,6 +1000,8 @@ static void keep_list(struct tree_context *c, int count)
     kept_songs_by = entries_songs_by;
     kept_shows = entries_shows;
     kept_episodes = entries_episodes;
+    kept_artists = entries_artists ? entries_artists * 2 + entries_artists_solo
+                                   : 0;
     kept_books = entries_books;
     kept_parts = entries_parts;
 }
@@ -1009,6 +1026,8 @@ static int kept_list(struct tree_context *c)
     entries_songs_by = kept_songs_by;
     entries_shows = kept_shows; /* with their sums, kept in the names' room */
     entries_episodes = kept_episodes;
+    entries_artists = kept_artists / 2;
+    entries_artists_solo = kept_artists & 1;
     entries_books = kept_books;
     entries_parts = kept_parts;
     return kept_count;
@@ -3403,6 +3422,32 @@ static bool artists_solo(const struct search_instruction *si)
            && section_is(si, LANG_ARTISTS);
 }
 
+/* The lists of artists Artist Covers shows with covers: Music > Artists', the
+   list in its place that Search and Go to Artist open (artists_copy) too,
+   and a genre's artists; of the albums' artists or the songs', as Group by
+   Album Artist has them. Not Composers */
+static bool artists_list(const struct search_instruction *si, int table,
+                         int level)
+{
+    if (!si || table != TABLE_NAVIBROWSE || level < 0
+        || level >= si->tagorder_count)
+        return false;
+    const int tag = si->tagorder[level];
+    if (tag != tag_albumartist && tag != tag_virt_canonicalartist)
+        return false;
+    if (level == 0)
+        return section_is(si, LANG_ARTISTS) || si == &artists_copy[0]
+               || si == &artists_copy[1];
+    return level == 1 && section_is(si, LANG_GENRES);
+}
+
+/* and with them as the settings and the table of the tag are now */
+static bool artists_covered(int tag)
+{
+    return global_settings.artist_covers && list_covers_on()
+           && artist_rows_of(tag) && album_numbers_fit();
+}
+
 /* An album of the table of years is a compilation, a song of music of it
    marked so, and each of its songs is, as the lists find them
    (tag_virt_compilation): a name's compilations are one row of Albums with
@@ -4146,6 +4191,8 @@ static int make_entries(struct tree_context *c, int offset, bool init)
     entries_songs_by = -1;
     entries_shows = 0;
     entries_episodes = false;
+    entries_artists = 0;
+    entries_artists_solo = false;
     entries_books = false;
     entries_parts.parts = 0;
     album_view.songs = 0;
@@ -4903,6 +4950,29 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         };
         c->special_entry_count++;
         current_entry_count++;
+    }
+
+    /* Artists' rows with their covers, as Artist Covers has them, from the
+       table Updating Library made: each one's cover's album, the note for
+       Unknown Artist's, and under the name their albums and songs
+       (tagtree_entry_subline()). Not a list in chunks */
+    if (offset == 0 && !c->dirfull && artists_list(csi, c->currtable, level)
+        && artists_covered(tag))
+    {
+        struct tagentry *entries = get_entries(c);
+        const bool solo_rows = artists_solo(csi);
+        for (i = c->special_entry_count; i < current_entry_count; i++)
+        {
+            struct artist_row row;
+            const int32_t seek = entries[i].extraseek;
+            entries[i].album.year = 0;
+            entries[i].album.no = seek != entries_untagged
+                                  && artist_rows_get(tag, solo_rows, seek, &row)
+                                  ? row.cover : -1;
+        }
+        entries_two_lines = true;
+        entries_artists = tag;
+        entries_artists_solo = solo_rows;
     }
 
     if (!init)
@@ -9404,6 +9474,32 @@ static const char *song_tag_name(int32_t idx, int tag, char *buf, size_t size)
 #endif
 }
 
+/* An artist's row's second line, "5 albums · 61 songs", as their list of
+   albums has them and its All Songs, from the table in memory: NULL without
+   the artist in it */
+static const char *artist_subline(const struct tagentry *entry, char *buf,
+                                  size_t size)
+{
+    struct artist_row row;
+    if (!artist_rows_get(entries_artists, entries_artists_solo,
+                         entry->extraseek, &row) || row.songs <= 0)
+        return NULL;
+    static const char dot[] = " \xc2\xb7 "; /* U+00B7 */
+    const int albums = MAX(row.albums, 1);
+    size_t len = snprintf(buf, size,
+                          plural_str(albums, LANG_ARTIST_ALBUMS_ONE,
+                                     LANG_ARTIST_ALBUMS_FEW,
+                                     LANG_ARTIST_ALBUMS_MANY), albums);
+    if (len + sizeof(dot) - 1 >= size)
+        return buf;
+    len += strlcpy(buf + len, dot, size - len);
+    if (len < size)
+        snprintf(buf + len, size - len,
+                 plural_str(row.songs, LANG_ALBUM_SONGS_ONE, LANG_ALBUM_SONGS_FEW,
+                            LANG_ALBUM_SONGS_MANY), (int)row.songs);
+    return buf;
+}
+
 /* Albums has the album artist as Artists in Albums has it, the albums of a
    name of several apart; an artist's albums only one other than the
    artist's, as a compilation's, which the songs found there are on too */
@@ -9422,6 +9518,8 @@ const char *tagtree_entry_subline(struct tree_context *c, int row, char *buf,
     if (entries_shows)
         return entries_books ? book_subline(c, entry, buf, size)
                              : show_subline(c, entry, buf, size);
+    if (entries_artists)
+        return artist_subline(entry, buf, size);
     /* In Songs the artist; by year the year before it, "1979 · Michael
        Jackson", as an album's row has it; by album the album before it,
        "Golden Hour · Anders Holm", or the one of them the song has */

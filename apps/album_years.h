@@ -37,6 +37,11 @@ static inline int album_date_year(int32_t date)
     return date >= ALBUM_DATE_MIN ? date / 10000 : date;
 }
 
+/* A date of a song's album later than had, as an album's date and a row's
+   are made of theirs (album_years_row_date()): the later year, of one year
+   the one with more of its day and month, then the later */
+bool album_years_date_after(int32_t date, int32_t had);
+
 /* made for the library as it is now, the database in memory; false without
    it, or if there was no room */
 bool album_years_make(void);

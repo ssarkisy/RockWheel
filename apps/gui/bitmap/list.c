@@ -1196,6 +1196,8 @@ void list_draw(struct screen *display, struct gui_synclist *list)
             if (cover == LIST_COVER_UNSUPPORTED)
                 cover_caution_tile(display, list_info.x + cover_x, cover_y,
                                    LINE_COVER_SIZE, false);
+            else if (cover == LIST_COVER_FOLDER)
+                line_draw_folder_tile(display, list_info.x + cover_x, cover_y);
             else
                 line_draw_cover(display, list_info.x + cover_x, cover_y,
                                 cover == LIST_COVER_PIXELS ? cover_pixels : NULL);

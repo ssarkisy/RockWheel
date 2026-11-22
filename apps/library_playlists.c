@@ -55,7 +55,12 @@
 #include "line_reader.h"
 #include "file_write.h"
 #include "album_header.h"
+#include "album_years.h"
+#include "core_alloc.h"
 #include "ipod_playlists.h"
+#include "storage.h"
+#include "ata_idle_notify.h"
+#include "health_log.h"
 
 /* Rockbox's viewer read them a window of 200 lines at a time from the file,
    again as it scrolled past one, and looked up each title as it showed,
@@ -103,6 +108,13 @@ struct lp_head {
 /* headers left not made, as lookups couldn't tell: a pass that made one so
    leaves LP_COVERS_TODO for the next */
 static unsigned headers_unknown;
+
+/* Playlists' rows with their covers (Playlist Covers), kept as an index's
+   head is written (below, "Playlists' rows") */
+static void rows_put(const char *file, int count, const struct lp_state *state);
+static void rows_forget(const char *file);
+static void rows_unknown(const char *file);
+static void rows_moved(const char *from, const char *to);
 
 static void index_path(uint64_t hash, char *buf, size_t size)
 {
@@ -505,7 +517,10 @@ bool lp_index_write(const char *file, const struct lp_song *songs, int count,
     memcpy(head.collage, state->collage, sizeof(head.collage));
     fw_put(&w, &head, sizeof(head));
     fw_put(&w, songs, count * sizeof(*songs));
-    return fw_close(&w, true);
+    if (!fw_close(&w, true))
+        return false;
+    rows_put(file, count, state);
+    return true;
 }
 
 void lp_index_forget(const char *file)
@@ -513,6 +528,7 @@ void lp_index_forget(const char *file)
     char path[MAX_PATH];
     index_path(itunesdb_path_hash(file), path, sizeof(path));
     remove(path);
+    rows_forget(file);
 }
 
 /* Songs added at the end of a playlist made on the iPod, from old_size on:
@@ -527,7 +543,7 @@ void lp_index_appended(const char *file, long old_size)
     const bool playing = playing_from(file);
     struct lp_head head;
     int ifd = open(path, O_RDWR);
-    const bool indexed = ifd >= 0
+    bool indexed = ifd >= 0
         && read(ifd, &head, sizeof(head)) == sizeof(head)
         && head.magic == LP_MAGIC && head.version == LP_VERSION
         && head.commitid == (uint32_t)tagcache_get_commitid()
@@ -536,6 +552,24 @@ void lp_index_appended(const char *file, long old_size)
         && head.sort == ITUNESDB_SORT_MANUAL
         && lseek(ifd, sizeof(head) + head.count * sizeof(struct lp_song),
                  SEEK_SET) >= 0;
+    /* One that was empty or none, as On-The-Go cleared, without an index of
+       it: an index begun, of no songs, which those added go on from, so that
+       its head, and its row in Playlists, has them at once */
+    if (!indexed && old_size == 0 && database_in_ram())
+    {
+        if (ifd >= 0)
+            close(ifd);
+        mkdir(LP_DIR);
+        ifd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0666);
+        head = (struct lp_head){
+            .magic = LP_MAGIC, .version = LP_VERSION,
+            .commitid = tagcache_get_commitid(),
+            .entries = tagcache_entry_count(), .sort = ITUNESDB_SORT_MANUAL,
+        };
+        for (int k = 0; k < LP_COLLAGE; k++)
+            head.collage[k] = -1;
+        indexed = ifd >= 0 && write(ifd, &head, sizeof(head)) == sizeof(head);
+    }
     /* its collage, if it has fewer than four albums with a cover among all
        its songs, walked to their end: on with the songs added, which come
        after them */
@@ -551,6 +585,8 @@ void lp_index_appended(const char *file, long old_size)
             close(ifd);
         ifd = -1;
         remove(path);
+        /* its songs not known until its index is made again */
+        rows_unknown(file);
         if (!playing)
             return;
     }
@@ -564,6 +600,7 @@ void lp_index_appended(const char *file, long old_size)
         {
             close(ifd);
             remove(path);
+            rows_unknown(file);
         }
         return;
     }
@@ -632,7 +669,16 @@ void lp_index_appended(const char *file, long old_size)
     ok = ok && head.count <= LP_MAX && lseek(ifd, 0, SEEK_SET) == 0
          && write(ifd, &head, sizeof(head)) == sizeof(head);
     if (close(ifd) < 0 || !ok)
+    {
         remove(path);
+        rows_unknown(file);
+        return;
+    }
+    struct lp_state now = {
+        .seconds = head.seconds, .collage_seen = head.collage_seen,
+    };
+    memcpy(now.collage, head.collage, sizeof(now.collage));
+    rows_put(file, head.count, &now);
 }
 
 void lp_covers_changed(void)
@@ -650,6 +696,7 @@ void lp_index_moved(const char *from, const char *to)
     index_path(itunesdb_path_hash(to), b, sizeof(b));
     remove(b);
     rename(a, b);
+    rows_moved(from, to);
 }
 
 int lp_index_build(const char *file, struct lp_song *songs, int max,
@@ -1243,6 +1290,722 @@ static int index_make(const char *file, struct lp_song *songs, int max,
     return n;
 }
 
+/** Playlists' rows (Playlist Covers) **/
+
+/* Music > Playlists' rows with their covers: each playlist's songs, length
+   and collage's albums as its index's head has them, and each folder's
+   playlists, at any depth, from a table beside catalog.dat made at the end of
+   the playlists' pass at Updating Library, read whole into memory with the
+   covers' (list_covers_apply()), music stopped. Rows are found in it by their
+   paths' hashes as they're drawn, no index opened. The iPod's own changes,
+   as a head is written again, change it in memory; the file, no longer of
+   them, is removed at the first, while the disk is on for the change's own
+   writes, and written whole from memory as the disk goes idle, at USB and
+   at power off (the storage's idle callback, system_flush()) and before
+   the boot's pass is skipped: never as Playlists opens, which would wake a
+   sleeping disk. A power cut between the removal and that write leaves no
+   file, made again by the next pass, rather than a stale one taken for
+   current. A change while they aren't in memory removes the file the same
+   way. On-The-Go, outside the catalogue's folder, which the pass's mark
+   doesn't see, has its row in the head, written in place at once when the
+   file is whole. The boot's pass runs for the file only with Playlist
+   Covers on (rows_wanted()): a change with it off, as a smart playlist's
+   head written again at boot, which the mark doesn't see, leaves the file
+   gone until a boot with it on. A library over the pass's room has a file
+   of no rows (LP_ROWS_OFF), which no change removes: the mark sees the
+   catalogue's. */
+#define LP_ROWS_FILE    LP_DIR "/catalog_rows.dat"
+#define LP_ROWS_MAGIC   0x504c5257 /* "PLRW" */
+#define LP_ROWS_VERSION 1
+/* playlists and folders, at most; and room for the iPod's new ones in
+   memory, which grows only as it's taken in again, music stopped */
+#define LP_ROWS_MAX     1536
+#define LP_ROWS_SPARE   64
+#define LP_NO_ALBUM     0xffff
+#define LP_ROW_FOLDER   0x0001
+/* 0x0002, Unsynced's once, never read: older files have it */
+#define LP_ROW_UNKNOWN  0x0004 /* its songs not known: no second line */
+/* the head's flags: the pass had more playlists and folders than it keeps,
+   Playlist Covers off for the library as it is, the file there so that the
+   next boots skip the pass as before. A file of it stops the pass whatever
+   its database and On-The-Go: a change of LP_ROWS_MAX changes the version */
+#define LP_ROWS_OFF     0x0001
+
+struct lp_row {
+    uint64_t hash;      /* itunesdb_path_hash() of its path */
+    uint32_t count;     /* its songs, or a folder's playlists */
+    uint32_t seconds;   /* LP_HEADER_UNKNOWN for not made */
+    uint16_t album[LP_COLLAGE]; /* the collage's, LP_NO_ALBUM past them */
+    uint16_t flags;
+    uint16_t unused[3];
+};
+
+struct lp_rows_head {
+    uint32_t magic, version;
+    uint32_t commitid, entries; /* of the database, as an index's head */
+    uint32_t table;             /* album_years_hash(): the albums' numbers */
+    uint32_t count;             /* rows after it, sorted by hash */
+    uint32_t unsynced;          /* playlists in Unsynced, at any depth */
+    uint32_t flags;             /* LP_ROWS_OFF */
+    struct lp_row otg;          /* On-The-Go's, hash 0 for none */
+};
+
+/* In memory: the head, and the rows in a block of capacity of them */
+static struct lp_rows_head rows_head;
+static int rows_handle;
+static int rows_capacity;
+static bool rows_in;        /* taken in */
+/* changed since they were taken in or written, the file gone meanwhile */
+static bool rows_dirty;
+static bool rows_spoilt;    /* a change couldn't be kept: not shown */
+/* the pass is making them, which the heads it writes don't change */
+static bool rows_held;
+/* The file written from them, by the storage's thread at its idle or by
+   this one: nothing changes them nor writes the file meanwhile (rows_wait()).
+   Changes come from the UI's thread, and from the import's database thread
+   under Updating Library's screen */
+static volatile bool rows_busy;
+/* A change half made, from rows_changing() to rows_changed(), which can
+   wait on the disk: no write from them meanwhile, which would be of half of
+   it and taken for current; rows_changed() asks for the idle again */
+static volatile bool rows_mid_change;
+
+static void rows_wait(void)
+{
+    while (rows_busy)
+        sleep(1);
+}
+
+static bool rows_head_current(const struct lp_rows_head *h)
+{
+    return h->magic == LP_ROWS_MAGIC && h->version == LP_ROWS_VERSION
+           && h->commitid == (uint32_t)tagcache_get_commitid()
+           && h->entries == (uint32_t)tagcache_entry_count()
+           && h->table == album_years_hash() && album_years_ready()
+           && h->count <= LP_ROWS_MAX;
+}
+
+/* one of a library over the pass's room (LP_ROWS_OFF): no rows, never
+   taken in, nor written in */
+static bool rows_head_off(const struct lp_rows_head *h)
+{
+    return h->magic == LP_ROWS_MAGIC && h->version == LP_ROWS_VERSION
+           && (h->flags & LP_ROWS_OFF);
+}
+
+static bool rows_file_off(void)
+{
+    const int fd = open(LP_ROWS_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    struct lp_rows_head h;
+    const bool off = read(fd, &h, sizeof(h)) == sizeof(h) && rows_head_off(&h);
+    close(fd);
+    return off;
+}
+
+/* Playlist Covers on, with Covers in Lists, as the settings are, its memory
+   taken or not: the boot's pass runs for the file only then */
+static bool rows_wanted(void)
+{
+    return global_settings.playlist_covers && list_covers_wanted();
+}
+
+bool lp_rows_loaded(void)
+{
+    return rows_in;
+}
+
+bool lp_rows_ready(void)
+{
+    return rows_in && !rows_spoilt && rows_head_current(&rows_head);
+}
+
+static struct lp_row *rows_data(void)
+{
+    return rows_handle > 0 ? core_get_data(rows_handle) : NULL;
+}
+
+/* The rows changed in memory to the file, with the head, pinned as the disk
+   writes from them: by the storage's thread as the disk goes idle, at USB
+   and at power off (system_flush()), by lp_rows_free() with the disk on,
+   and before the boot's pass is skipped; not while a change is half made.
+   A write that failed leaves the file gone and them changed, written by a
+   later change's idle, lp_rows_free() with the disk on or the next Updating
+   Library, as USB and power off don't ask again. Not of the library as it
+   is any more, nothing: the file stays gone, made again by the next pass */
+static void rows_flush(void)
+{
+    if (!rows_dirty || !rows_in || rows_busy || rows_mid_change)
+        return;
+    if (!lp_rows_ready())
+    {
+        rows_dirty = false;
+        return;
+    }
+    rows_busy = true;
+    /* off the storage thread's 2 KB stack */
+    static struct fw w;
+    bool ok = fw_open(&w, LP_ROWS_FILE, FW_CACHE, NULL, 0)
+              && fw_put(&w, &rows_head, sizeof(rows_head));
+    if (ok && rows_head.count > 0)
+    {
+        core_pin(rows_handle);
+        ok = fw_put(&w, rows_data(), rows_head.count * sizeof(struct lp_row));
+        core_unpin(rows_handle);
+    }
+    if (fw_close(&w, ok))
+        rows_dirty = false;
+    rows_busy = false;
+}
+
+static void rows_idle(void)
+{
+    rows_flush();
+}
+
+/* A change made in them, as rows_changing() began it. The first since the
+   file was of them: the file removed, the disk on for the change's own
+   writes. Their write asked of the disk's next idle */
+static void rows_changed(void)
+{
+    if (!rows_dirty)
+        remove(LP_ROWS_FILE);
+    rows_dirty = true;
+    rows_mid_change = false;
+    register_storage_idle_func(rows_idle);
+}
+
+void lp_rows_free(void)
+{
+    rows_wait();
+    /* the changes kept only if the disk is on, not woken for them: else the
+       file, removed at the first, is made again by the next pass */
+    if (rows_dirty && storage_disk_is_active())
+        rows_flush();
+    unregister_storage_idle_func(rows_idle, false);
+    if (rows_handle > 0)
+        rows_handle = core_free(rows_handle);
+    rows_capacity = 0;
+    rows_in = rows_dirty = rows_spoilt = false;
+}
+
+bool lp_rows_load(void)
+{
+    lp_rows_free();
+    /* nothing taken while music plays or is paused: its buffer gives way */
+    if (audio_status() != 0)
+        return false;
+    const int fd = open(LP_ROWS_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    struct lp_rows_head h;
+    /* one of a library over the pass's room: Playlist Covers off for it */
+    bool ok = read(fd, &h, sizeof(h)) == sizeof(h) && rows_head_current(&h)
+              && !(h.flags & LP_ROWS_OFF);
+    if (ok)
+    {
+        const int capacity = MIN(h.count + LP_ROWS_SPARE, LP_ROWS_MAX);
+        rows_handle = core_alloc(capacity * sizeof(struct lp_row));
+        ok = rows_handle > 0;
+        if (ok)
+        {
+            rows_capacity = capacity;
+            const ssize_t bytes = h.count * sizeof(struct lp_row);
+            core_pin(rows_handle);
+            ok = read(fd, rows_data(), bytes) == bytes;
+            core_unpin(rows_handle);
+        }
+        else
+            rows_handle = 0;
+    }
+    close(fd);
+    if (!ok)
+    {
+        lp_rows_free();
+        return false;
+    }
+    rows_head = h;
+    rows_in = true;
+    return true;
+}
+
+/* a row's place by its hash, or where it would go */
+static int rows_place(uint64_t hash, bool *found)
+{
+    const struct lp_row *r = rows_data();
+    int lo = 0, hi = rows_head.count;
+    while (lo < hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if (r[mid].hash < hash)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    *found = lo < (int)rows_head.count && r[lo].hash == hash;
+    return lo;
+}
+
+/* a row of the hash, made in its place if it isn't there and make: NULL
+   without it, or without room for it, which spoils them all until they're
+   made again */
+static struct lp_row *rows_row(uint64_t hash, bool make)
+{
+    bool found = false;
+    const int at = rows_head.count > 0 ? rows_place(hash, &found) : 0;
+    if (found)
+        return rows_data() + at;
+    if (!make)
+        return NULL;
+    if ((int)rows_head.count >= rows_capacity)
+    {
+        rows_spoilt = true;
+        return NULL;
+    }
+    struct lp_row *r = rows_data();
+    memmove(&r[at + 1], &r[at], (rows_head.count - at) * sizeof(*r));
+    rows_head.count++;
+    memset(&r[at], 0, sizeof(*r));
+    r[at].hash = hash;
+    for (int k = 0; k < LP_COLLAGE; k++)
+        r[at].album[k] = LP_NO_ALBUM;
+    return &r[at];
+}
+
+static void rows_drop(uint64_t hash)
+{
+    bool found = false;
+    if (rows_head.count == 0)
+        return;
+    const int at = rows_place(hash, &found);
+    if (!found)
+        return;
+    struct lp_row *r = rows_data();
+    memmove(&r[at], &r[at + 1], (rows_head.count - at - 1) * sizeof(*r));
+    rows_head.count--;
+}
+
+/* a row's values from an index's state: its collage's songs' albums by their
+   numbers, as the lists' covers have them */
+static void row_set(struct lp_row *r, int count, const struct lp_state *state)
+{
+    r->count = MAX(count, 0);
+    r->seconds = state->seconds;
+    r->flags &= ~LP_ROW_UNKNOWN;
+    int n = 0;
+    for (int k = 0; k < LP_COLLAGE && state->collage_seen != LP_HEADER_UNKNOWN
+                    && state->collage[k] >= 0; k++)
+    {
+        const int no = tagtree_song_album(state->collage[k]);
+        if (no >= 0 && no < LP_NO_ALBUM)
+            r->album[n++] = no;
+    }
+    while (n < LP_COLLAGE)
+        r->album[n++] = LP_NO_ALBUM;
+}
+
+/* The path of the playlist a change is of, as in_catalog() gives it, off
+   the stack: the changes are made on the UI's thread, deep in a menu, whose
+   stack is 8 KB, and on the import's database thread under Updating
+   Library's screen, which the UI waits on; never two at once, none entered
+   again from another */
+static char rows_path[MAX_PATH];
+
+/* In the catalogue's folder: the length of its path without the drive and
+   the separators doubled, the path so into buf; 0 for one outside it, as
+   On-The-Go's */
+static size_t in_catalog(const char *file, char *buf, size_t size)
+{
+    /* off the stack, as rows_path: one change at a time */
+    static char root[MAX_PATH], top[MAX_PATH];
+    if (!catalog_directory_name(root, sizeof(root)))
+        return 0;
+    tidy_copy(top, sizeof(top), root);
+    size_t n = strlen(top);
+    while (n > 1 && top[n - 1] == '/')
+        top[--n] = '\0';
+    tidy_copy(buf, size, file);
+    return n > 0 && !strncasecmp(buf, top, n) && buf[n] == '/' ? n : 0;
+}
+
+/* A playlist of path into the counts or out of them, delta 1 or -1: each
+   folder's it is in, up to the catalogue's top, and Unsynced's if it's
+   there, as the item at the top it is in or is isn't the computer's. A
+   folder without a row has one made, of its playlists */
+static void rows_folders(const char *path, int delta)
+{
+    static char p[MAX_PATH]; /* off the stack, as rows_path */
+    const size_t root = in_catalog(path, p, sizeof(p));
+    if (!root)
+        return;
+    char *end = strchr(p + root + 1, '/');
+    /* the item at the top: a folder, or the playlist itself */
+    if (end)
+        *end = '\0';
+    const bool mine = !ip_is_synced(p);
+    if (end)
+        *end = '/';
+    if (mine)
+        rows_head.unsynced = MAX((int)rows_head.unsynced + delta, 0);
+    for (; end; end = strchr(end + 1, '/'))
+    {
+        *end = '\0';
+        struct lp_row *r = rows_row(itunesdb_path_hash(p), delta > 0);
+        *end = '/';
+        if (!r)
+            continue;
+        r->flags |= LP_ROW_FOLDER;
+        r->count = MAX((int)r->count + delta, 0);
+    }
+}
+
+/* On-The-Go's row changed: in its place in the file's head at once, as the
+   pass's mark doesn't see its file, and in memory */
+static void rows_otg(const struct lp_row *row)
+{
+    rows_wait();
+    if (rows_in)
+        rows_head.otg = *row;
+    /* none while the rows changed are still to be written: the file is gone
+       until then */
+    rows_busy = true;
+    const int fd = open(LP_ROWS_FILE, O_RDWR);
+    if (fd >= 0)
+    {
+        struct lp_rows_head h;
+        const bool got = read(fd, &h, sizeof(h)) == sizeof(h);
+        /* one of no rows stays as it is */
+        const bool off = got && rows_head_off(&h);
+        bool ok = off;
+        if (got && !off && rows_head_current(&h))
+        {
+            h.otg = *row;
+            ok = lseek(fd, 0, SEEK_SET) == 0 && write(fd, &h, sizeof(h)) == sizeof(h);
+        }
+        /* one half written is made again */
+        if ((close(fd) < 0 || !ok) && !off)
+            remove(LP_ROWS_FILE);
+    }
+    rows_busy = false;
+}
+
+/* A change of a playlist of the catalogue's: kept in memory, half made
+   until rows_changed(), which every caller given true ends it with, and
+   written at the disk's idle; or, without them in memory as they are, the
+   file removed and made again by the next pass. One of no rows stays, with
+   nothing in it a change makes stale */
+static bool rows_changing(void)
+{
+    if (rows_held)
+        return false;
+    rows_wait();
+    if (lp_rows_ready())
+    {
+        rows_mid_change = true;
+        return true;
+    }
+    if (!rows_file_off())
+        remove(LP_ROWS_FILE);
+    return false;
+}
+
+static void rows_put(const char *file, int count, const struct lp_state *state)
+{
+    if (rows_held)
+        return;
+    if (lp_same_file(file, OTG_FILE))
+    {
+        struct lp_row r = { .hash = itunesdb_path_hash(OTG_FILE) };
+        row_set(&r, count, state);
+        rows_otg(&r);
+        return;
+    }
+    /* one viewed from elsewhere, as the file browser, has no row */
+    if (!in_catalog(file, rows_path, sizeof(rows_path)) || !rows_changing())
+        return;
+    const uint64_t hash = itunesdb_path_hash(file);
+    if (!rows_row(hash, false))
+        rows_folders(file, 1);
+    struct lp_row *r = rows_row(hash, true);
+    if (r)
+        row_set(r, count, state);
+    rows_changed();
+}
+
+void lp_index_new(const char *file)
+{
+    /* its file of no songs yet, in its own order: what's added to it is
+       added to the index then, its head and its row with it */
+    struct lp_state state = { .sort = ITUNESDB_SORT_MANUAL };
+    lp_index_write(file, NULL, 0, &state);
+}
+
+static void rows_unknown(const char *file)
+{
+    if (rows_held)
+        return;
+    if (lp_same_file(file, OTG_FILE))
+    {
+        struct lp_row r = { .hash = itunesdb_path_hash(OTG_FILE),
+                            .flags = LP_ROW_UNKNOWN };
+        for (int k = 0; k < LP_COLLAGE; k++)
+            r.album[k] = LP_NO_ALBUM;
+        rows_otg(&r);
+        return;
+    }
+    char *p = rows_path;
+    if (!in_catalog(file, p, sizeof(rows_path)) || !rows_changing())
+        return;
+    struct lp_row *r = rows_row(itunesdb_path_hash(file), false);
+    if (r)
+        r->flags |= LP_ROW_UNKNOWN;
+    rows_changed();
+}
+
+/* an index forgotten: of a playlist removed, out of its folders' counts; of
+   one written again, as by the import, not known until it's made again */
+static void rows_forget(const char *file)
+{
+    if (rows_held)
+        return;
+    if (file_exists(file))
+    {
+        rows_unknown(file);
+        return;
+    }
+    if (lp_same_file(file, OTG_FILE))
+    {
+        const struct lp_row none = { .hash = 0 };
+        rows_otg(&none);
+        return;
+    }
+    char *p = rows_path;
+    if (!in_catalog(file, p, sizeof(rows_path)) || !rows_changing())
+        return;
+    const uint64_t hash = itunesdb_path_hash(file);
+    if (rows_row(hash, false))
+    {
+        rows_drop(hash);
+        rows_folders(file, -1);
+    }
+    rows_changed();
+}
+
+/* a playlist moved or renamed, On-The-Go saved as one of the catalogue's */
+static void rows_moved(const char *from, const char *to)
+{
+    if (rows_held)
+        return;
+    struct lp_row was = { .hash = 0 };
+    bool had = false;
+    const bool from_otg = lp_same_file(from, OTG_FILE);
+    if (from_otg)
+    {
+        /* its row, from the file's head if not in memory */
+        struct lp_rows_head h;
+        const int fd = rows_in ? -1 : open(LP_ROWS_FILE, O_RDONLY);
+        if (rows_in)
+            h = rows_head;
+        had = (rows_in || (fd >= 0 && read(fd, &h, sizeof(h)) == sizeof(h)
+                           && rows_head_current(&h)))
+              && h.otg.hash != 0 && !(h.otg.flags & LP_ROW_UNKNOWN);
+        if (fd >= 0)
+            close(fd);
+        was = h.otg;
+        const struct lp_row none = { .hash = 0 };
+        rows_otg(&none);
+    }
+    if (!rows_changing())
+        return;
+    if (!from_otg)
+    {
+        const uint64_t hash = itunesdb_path_hash(from);
+        const struct lp_row *r = rows_row(hash, false);
+        had = r != NULL;
+        if (had)
+        {
+            was = *r;
+            rows_drop(hash);
+            rows_folders(from, -1);
+        }
+    }
+    if (!in_catalog(to, rows_path, sizeof(rows_path)))
+    {
+        rows_changed();
+        return;
+    }
+    const uint64_t hash = itunesdb_path_hash(to);
+    if (!rows_row(hash, false))
+        rows_folders(to, 1);
+    struct lp_row *r = rows_row(hash, true);
+    if (r)
+    {
+        if (had)
+            *r = was;
+        else
+            r->flags |= LP_ROW_UNKNOWN;
+        r->hash = hash;
+        r->flags &= ~LP_ROW_FOLDER;
+    }
+    rows_changed();
+}
+
+/* What a row shows, of the catalogue's as the list draws it */
+bool lp_rows_find(uint64_t hash, struct lp_row_shown *shown)
+{
+    if (!lp_rows_ready())
+        return false;
+    const struct lp_row *r;
+    if (hash == rows_head.otg.hash && hash)
+        r = &rows_head.otg;
+    else
+        r = rows_row(hash, false);
+    if (!r)
+        return false;
+    shown->folder = r->flags & LP_ROW_FOLDER;
+    shown->known = !(r->flags & LP_ROW_UNKNOWN);
+    shown->count = r->count;
+    shown->seconds = r->seconds;
+    shown->albums = 0;
+    for (int k = 0; k < LP_COLLAGE && r->album[k] != LP_NO_ALBUM; k++)
+        shown->album[shown->albums++] = r->album[k];
+    return true;
+}
+
+int lp_rows_unsynced(void)
+{
+    return lp_rows_ready() ? (int)rows_head.unsynced : -1;
+}
+
+const char *lp_rows_text(const struct lp_row_shown *row, char *buf, size_t size)
+{
+    if (row->folder)
+    {
+        snprintf(buf, size, plural_str(row->count, LANG_PLAYLIST_COUNT_ONE,
+                                       LANG_PLAYLIST_COUNT_FEW,
+                                       LANG_PLAYLIST_COUNT_MANY),
+                 (int)row->count);
+        return buf;
+    }
+    if (!row->known)
+        return NULL;
+    /* "24 songs · 1 h 32 min", as its header has it */
+    size_t len = snprintf(buf, size, plural_str(row->count, LANG_ALBUM_SONGS_ONE,
+                                                LANG_ALBUM_SONGS_FEW,
+                                                LANG_ALBUM_SONGS_MANY),
+                          (int)row->count);
+    if (row->count > 0 && row->seconds && row->seconds != LP_HEADER_UNKNOWN
+        && len + 4 < size)
+    {
+        len += snprintf(buf + len, size - len, " \xc2\xb7 "); /* U+00B7 */
+        long minutes = MAX((long)((row->seconds + 30) / 60), 1);
+#if LCD_WIDTH < 320
+        /* the iPod photo's narrower row: from an hour on its hours alone,
+           the nearest, "2973 songs · 180 h", as the minutes cut the line
+           short in many languages; its header has them */
+        if (minutes >= 60)
+            minutes = (minutes + 30) / 60 * 60;
+#endif
+        tagtree_minutes_text(minutes, buf + len, size - len);
+    }
+    return buf;
+}
+
+/* The pass's rows, made in its room: each playlist's and folder's as it goes,
+   sorted and written at its end */
+static struct {
+    struct lp_row *rows;
+    int count, most;
+    bool full;
+    uint32_t unsynced;
+    struct lp_row otg;
+} pass;
+
+static void row_made(struct lp_row *r, const char *path, int count,
+                     const struct lp_state *state, uint16_t flags)
+{
+    memset(r, 0, sizeof(*r));
+    r->hash = itunesdb_path_hash(path);
+    r->flags = flags;
+    if (state && count >= 0)
+        row_set(r, count, state);
+    else
+    {
+        r->count = MAX(count, 0);
+        r->seconds = LP_HEADER_UNKNOWN;
+        for (int k = 0; k < LP_COLLAGE; k++)
+            r->album[k] = LP_NO_ALBUM;
+        if (!(flags & LP_ROW_FOLDER))
+            r->flags |= LP_ROW_UNKNOWN;
+    }
+}
+
+static void pass_row(const char *path, int count, const struct lp_state *state,
+                     uint16_t flags)
+{
+    if (pass.count >= pass.most)
+    {
+        pass.full = true;
+        return;
+    }
+    row_made(&pass.rows[pass.count++], path, count, state, flags);
+}
+
+static int cmp_row(const void *a, const void *b)
+{
+    const uint64_t x = ((const struct lp_row *)a)->hash;
+    const uint64_t y = ((const struct lp_row *)b)->hash;
+    return (x > y) - (x < y);
+}
+
+/* The pass's rows to the file; with more than it keeps, a file of none,
+   Playlist Covers off for the library as it is (said in health.log), so
+   that the next boots skip the pass as before */
+static void pass_write(void)
+{
+    struct lp_rows_head h = {
+        .magic = LP_ROWS_MAGIC, .version = LP_ROWS_VERSION,
+        .commitid = tagcache_get_commitid(), .entries = tagcache_entry_count(),
+        .table = album_years_hash(), .count = pass.full ? 0 : pass.count,
+        .unsynced = pass.unsynced, .flags = pass.full ? LP_ROWS_OFF : 0,
+        .otg = pass.otg,
+    };
+    if (pass.full)
+    {
+        memset(&h.otg, 0, sizeof(h.otg));
+        health_note("playlists: more than %d playlists and folders, "
+                    "Playlist Covers off", LP_ROWS_MAX);
+    }
+    else
+        qsort(pass.rows, pass.count, sizeof(*pass.rows), cmp_row);
+    struct fw w;
+    if (!fw_open(&w, LP_ROWS_FILE, FW_CACHE, NULL, 0))
+        return;
+    fw_put(&w, &h, sizeof(h));
+    fw_put(&w, pass.rows, h.count * sizeof(*pass.rows));
+    fw_close(&w, true);
+}
+
+/* the file of the database and table of years as they are, and On-The-Go's
+   row of its file as it is: else the pass makes it again. One of no rows,
+   which the pass would make again as it is, the catalogue as the mark has
+   it: the pass's room is no larger for a database or On-The-Go */
+static bool rows_file_current(void)
+{
+    const int fd = open(LP_ROWS_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    struct lp_rows_head h;
+    const bool got = read(fd, &h, sizeof(h)) == sizeof(h);
+    close(fd);
+    if (got && rows_head_off(&h))
+        return true;
+    const bool otg = file_exists(OTG_FILE);
+    return got && rows_head_current(&h) && (h.otg.hash != 0) == otg
+           && !(otg && (h.otg.flags & LP_ROW_UNKNOWN));
+}
+
 /* The indexes, before the menu: of each playlist of the import's in the
    catalogue's folder and those in it, one that isn't of the database as it
    is; and those of playlists gone, removed */
@@ -1255,6 +2018,7 @@ static struct {
     uint64_t *seen;
     int seen_count;
     bool overflow;
+    bool stopped;   /* by go_on(), as USB came: the overflow not of the room */
     bool covers;    /* each one's collage chosen again (LP_COVERS_TODO) */
     bool (*go_on)(void);
 } all;
@@ -1336,11 +2100,15 @@ static bool index_has_gone(const char *file)
     return false;
 }
 
-static void index_folder(char *path, size_t len, int depth)
+/* The playlists of a folder and those in it: their indexes, and their rows
+   and the folders', those of Unsynced counted, at its top or under a folder
+   of it (mine). How many playlists */
+static int index_folder(char *path, size_t len, int depth, bool mine)
 {
     DIR *dir = opendir(path);
     if (!dir)
-        return;
+        return 0;
+    int playlists = 0;
     struct dirent *e;
     while ((e = readdir(dir)))
     {
@@ -1348,7 +2116,7 @@ static void index_folder(char *path, size_t len, int depth)
             continue;
         if (all.go_on && !all.go_on())
         {
-            all.overflow = true; /* not all seen */
+            all.overflow = all.stopped = true; /* not all seen */
             break;
         }
         const bool is_dir = dir_get_info(dir, e).attribute & ATTR_DIRECTORY;
@@ -1360,19 +2128,37 @@ static void index_folder(char *path, size_t len, int depth)
             continue;
         }
         const char *ext = strrchr(e->d_name, '.');
+        /* an item at the top Unsynced has, as tree_catalog_show_item() */
+        const bool own = depth == 0 ? !ip_is_synced(path) : mine;
         if (is_dir)
         {
             if (depth < 8)
-                index_folder(path, strlen(path), depth + 1);
+            {
+                const int in = index_folder(path, strlen(path), depth + 1, own);
+                pass_row(path, in, NULL, LP_ROW_FOLDER);
+                playlists += in;
+            }
             else
                 all.overflow = true;
         }
         else if (ext && (!strcasecmp(ext, ".m3u8") || !strcasecmp(ext, ".m3u")))
         {
-            if (lp_index_read(path, NULL, 0, NULL) < 0 || index_has_gone(path))
+            struct lp_state state;
+            int n = lp_index_read(path, NULL, 0, &state);
+            if (n < 0 || index_has_gone(path))
+            {
                 index_make(path, all.songs, all.max, all.buf, all.size, true);
+                n = lp_index_read(path, NULL, 0, &state);
+            }
             else if (all.covers)
+            {
                 collage_again(path);
+                n = lp_index_read(path, NULL, 0, &state);
+            }
+            pass_row(path, n, n >= 0 ? &state : NULL, 0);
+            playlists++;
+            if (own)
+                pass.unsynced++;
             if (all.seen_count < LP_SEEN_MAX)
                 all.seen[all.seen_count++] = itunesdb_path_hash(path);
             else
@@ -1382,6 +2168,7 @@ static void index_folder(char *path, size_t len, int depth)
         yield();
     }
     closedir(dir);
+    return playlists;
 }
 
 /* What the last whole pass saw: the database, and the catalogue's folder by
@@ -1551,6 +2338,7 @@ static void remove_gone(void)
         if (!ext || e->d_name[0] == '.')
             continue;
         bool keep = !strcasecmp(e->d_name, LP_MARK + sizeof(LP_DIR))
+                    || !strcasecmp(e->d_name, LP_ROWS_FILE + sizeof(LP_DIR))
                     || !strcasecmp(e->d_name, LP_PLAYING + sizeof(LP_DIR))
                     || !strcasecmp(e->d_name, LP_PLAYING2 + sizeof(LP_DIR))
                     || !strcasecmp(e->d_name, LP_PLAYING_FROM + sizeof(LP_DIR));
@@ -1594,12 +2382,19 @@ void lp_index_all(bool (*go_on)(void))
         const bool same = read(fd, &last, sizeof(last)) == sizeof(last)
                           && !memcmp(&last, &now, sizeof(now));
         close(fd);
-        if (same && !covers && !gone_noted)
+        /* and, with Playlist Covers on, Playlists' rows made, for this
+           database and its albums: those changed since, as by a smart
+           playlist's head written again at boot, written first, the disk on
+           now */
+        rows_flush();
+        if (same && !covers && !gone_noted
+            && (!rows_wanted() || rows_file_current()))
             return;
     }
     char *buf = plugin_get_buffer(&size);
     const size_t read_size = 8192;
-    if (!buf || size < read_size + LP_SEEN_MAX * sizeof(uint64_t) + 64)
+    const size_t rows_size = LP_ROWS_MAX * sizeof(struct lp_row);
+    if (!buf || size < read_size + LP_SEEN_MAX * sizeof(uint64_t) + rows_size + 64)
         return;
     buf = (char *)ALIGN_UP((uintptr_t)buf, 8);
     size -= 8;
@@ -1623,7 +2418,7 @@ void lp_index_all(bool (*go_on)(void))
     }
     /* the notes the pass goes by: those after them are put back after it */
     const int gone_read = gone_count;
-    if (size < read_size + LP_SEEN_MAX * sizeof(uint64_t) + 64)
+    if (size < read_size + LP_SEEN_MAX * sizeof(uint64_t) + rows_size + 64)
     {
         gone_set = NULL;
         gone_count = 0;
@@ -1632,23 +2427,45 @@ void lp_index_all(bool (*go_on)(void))
     }
     all.seen = (uint64_t *)buf;
     all.seen_count = 0;
-    all.overflow = false;
+    all.overflow = all.stopped = false;
     all.covers = covers;
     all.go_on = go_on;
-    all.buf = (char *)(all.seen + LP_SEEN_MAX);
+    /* the rows, made again: none meanwhile, nor changed by the heads this
+       writes, until they're whole */
+    pass.rows = (struct lp_row *)(all.seen + LP_SEEN_MAX);
+    pass.most = LP_ROWS_MAX;
+    pass.count = 0;
+    pass.full = false;
+    pass.unsynced = 0;
+    memset(&pass.otg, 0, sizeof(pass.otg));
+    rows_wait();
+    remove(LP_ROWS_FILE);
+    rows_held = true;
+    rows_dirty = false;
+    all.buf = (char *)(pass.rows + LP_ROWS_MAX);
     all.size = read_size;
     all.songs = (struct lp_song *)(all.buf + read_size);
     all.max = MIN((buf + size - (char *)all.songs) / sizeof(struct lp_song),
                   LP_MAX);
     cpu_boost(true);
-    index_folder(path, strlen(path), 0);
+    index_folder(path, strlen(path), 0, false);
     /* On-The-Go too, out of the catalogue's folder */
     if (file_exists(OTG_FILE))
     {
-        if (lp_index_read(OTG_FILE, NULL, 0, NULL) < 0 || index_has_gone(OTG_FILE))
+        struct lp_state state;
+        int n = lp_index_read(OTG_FILE, NULL, 0, &state);
+        if (n < 0 || index_has_gone(OTG_FILE))
+        {
             index_make(OTG_FILE, all.songs, all.max, all.buf, all.size, false);
+            n = lp_index_read(OTG_FILE, NULL, 0, &state);
+        }
         else if (covers)
+        {
             collage_again(OTG_FILE);
+            n = lp_index_read(OTG_FILE, NULL, 0, &state);
+        }
+        /* in the head, not of the pass's room */
+        row_made(&pass.otg, OTG_FILE, n, n >= 0 ? &state : NULL, 0);
         if (all.seen_count < LP_SEEN_MAX)
             all.seen[all.seen_count++] = itunesdb_path_hash(OTG_FILE);
     }
@@ -1668,14 +2485,27 @@ void lp_index_all(bool (*go_on)(void))
         /* as the pass left it, files it wrote again in their order too */
         mark_now(&now, path);
         whole_file_write(LP_MARK, &now, sizeof(now));
+        pass_write();
     }
     else
     {
         /* cut short: every note back for the next pass, those of the
            playlists it went through too, whose lines are gone already */
         gone_put_back(0);
+        /* over the pass's room, which leaves it to be done again at each
+           boot, as before: Playlist Covers off, said */
+        if (!all.stopped)
+            health_note("playlists: more than %d playlists, a folder deeper "
+                        "than 8 or a path too long: Playlist Covers off",
+                        LP_SEEN_MAX);
     }
+    rows_held = false;
     cpu_boost(false);
+    /* in memory again, as the list shows them, music stopped */
+    if (list_covers_taken() && global_settings.playlist_covers)
+        lp_rows_load();
+    else
+        lp_rows_free();
 }
 
 /* The screen: its songs, their titles' places in the pool of them, and the

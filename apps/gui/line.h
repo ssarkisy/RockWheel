@@ -302,6 +302,9 @@ void line_draw_note_rows(const unsigned char *alpha, int stride, int w, int h,
                          int x, int y);
 void line_draw_cover(struct screen *display, int x, int y,
                      const fb_data *pixels);
+/* a folder's tile in a cover's place, as Playlists' rows with covers have
+   it: the folder's mark at its size, in the second lines' grey */
+void line_draw_folder_tile(struct screen *display, int x, int y);
 /* text in the font, the middle of its ink's box on the pixels' corner (cx,
    cy), in the foreground; each glyph from the font its letter comes from.
    by_mass: across by the middle of its ink's weight instead, the pixel

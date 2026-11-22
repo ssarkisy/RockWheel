@@ -127,6 +127,39 @@ void lp_index_moved(const char *from, const char *to);
 void lp_source_moved(const char *from, const char *to);
 /* its screen: a playlist viewer's result */
 int lp_view(const char *file, int *selection);
+/* Music > Playlists' rows with their covers, as Playlist Covers has them:
+   what the row of a playlist, a folder or On-The-Go shows, by its path, from
+   a table made at Updating Library with the playlists' indexes and kept as
+   the iPod changes them, in memory with the lists' covers; nothing read as
+   the list scrolls. By the itunesdb_path_hash() of its path: False without
+   the table as the library is, or without the row */
+struct lp_row_shown {
+    bool folder;
+    bool known;             /* its songs known: else no second line */
+    long count;             /* its songs, or a folder's playlists in it */
+    unsigned long seconds;  /* LP_HEADER_UNKNOWN for not made */
+    int album[LP_COLLAGE];  /* its collage's albums, by their numbers in the
+                               table of years (album_years.h) */
+    int albums;
+};
+bool lp_rows_ready(void);
+bool lp_rows_find(uint64_t hash, struct lp_row_shown *row);
+/* Unsynced's playlists, at any depth; -1 without the table */
+int lp_rows_unsynced(void);
+/* a row's second line, "24 songs · 1 h 32 min" or "9 playlists", into buf;
+   NULL for a playlist whose songs aren't known */
+const char *lp_rows_text(const struct lp_row_shown *row, char *buf, size_t size);
+/* a playlist made empty on the iPod (ip_new_playlist()): its index of no
+   songs, and its row */
+void lp_index_new(const char *file);
+/* Its memory, by list_covers.c as the covers' is: taken in from the file,
+   music stopped, true if it is now; and let go of, its changes written first
+   if the disk is on, else left to the next pass, the file gone since the
+   first */
+bool lp_rows_load(void);
+void lp_rows_free(void);
+bool lp_rows_loaded(void);
+
 /* Now Playing's Playing From for music from a playlist, of Playlists,
    On-The-Go or another: whether it is, and its screen at the song playing,
    -1 if not. Up Next is the queue's own screen (playlist_viewer.c). */

@@ -416,22 +416,38 @@ bool itunesdb_synced_path(const char *path)
     return !strncasecmp(strip_volume(path), MUSIC_DIR "/", sizeof(MUSIC_DIR));
 }
 
-uint64_t itunesdb_path_hash(const char *path)
+/* FNV-1a of more of a path, after the character before it, last: as
+   itunesdb_path_hash() goes on */
+static uint64_t path_hash_on(uint64_t hash, const char *s, unsigned char *last)
 {
-    /* FNV-1a, ignoring ASCII case like FAT does, and a separator doubled, as
-       the browser gives one back in a folder ("/Playlists//Sub") */
-    uint64_t hash = 0xcbf29ce484222325ull;
-    path = strip_volume(path);
-    for (const unsigned char *p = (const unsigned char *)path; *p; p++)
+    for (const unsigned char *p = (const unsigned char *)s; *p; p++)
     {
         unsigned char c = *p;
-        if (c == '/' && p > (const unsigned char *)path && p[-1] == '/')
+        const bool doubled = c == '/' && *last == '/';
+        *last = c;
+        if (doubled)
             continue;
         if (c >= 'A' && c <= 'Z')
             c += 'a' - 'A';
         hash = (hash ^ c) * 0x100000001b3ull;
     }
     return hash;
+}
+
+uint64_t itunesdb_path_hash(const char *path)
+{
+    /* FNV-1a, ignoring ASCII case like FAT does, and a separator doubled, as
+       the browser gives one back in a folder ("/Playlists//Sub") */
+    unsigned char last = '\0';
+    return path_hash_on(0xcbf29ce484222325ull, strip_volume(path), &last);
+}
+
+uint64_t itunesdb_path_hash_in(const char *dir, const char *name)
+{
+    unsigned char last = '\0';
+    const uint64_t hash = path_hash_on(0xcbf29ce484222325ull, strip_volume(dir),
+                                       &last);
+    return path_hash_on(path_hash_on(hash, "/", &last), name, &last);
 }
 
 /* the size and time of a file of a folder, as the disk has them */

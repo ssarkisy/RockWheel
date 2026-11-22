@@ -1186,6 +1186,13 @@ struct user_settings
     /* Settings > Appearance > Volume Number: Now Playing's level under its
        volume bar, "Volume: 62%" (the skins' %nv); on at first */
     bool volume_number;
+    /* Settings > Appearance > Artist Covers and Playlist Covers, under Covers
+       in Lists and only with it: Music > Artists' rows (a genre's artists'
+       too) with a cover and "5 albums · 61 songs" under the name, and
+       Playlists' with each playlist's collage and its songs and length; on
+       at first. Off, those lists are of names alone, as before */
+    bool artist_covers;
+    bool playlist_covers;
 };
 
 /* global settings */

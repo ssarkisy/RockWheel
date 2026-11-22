@@ -78,6 +78,7 @@ scrobbler.c
 #endif
 album_header.c
 list_covers.c
+artist_rows.c
 music_search.c
 #endif
 filetree.c

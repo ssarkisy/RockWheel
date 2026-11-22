@@ -170,6 +170,8 @@ static const struct {
     { &global_settings.album_artists, LANG_HINT_ARTISTS_IN_ALBUMS },
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     { &global_settings.list_covers, LANG_HINT_COVERS_IN_LISTS },
+    { &global_settings.artist_covers, LANG_HINT_ARTIST_COVERS },
+    { &global_settings.playlist_covers, LANG_HINT_PLAYLIST_COVERS },
 #endif
 #endif
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)

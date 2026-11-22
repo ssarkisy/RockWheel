@@ -500,6 +500,9 @@ int ip_new_playlist(const char *dir, char *made, size_t size)
         remove(made);
         return 0;
     }
+    /* its index, of no songs yet, which songs added go on from, and its row
+       in Playlists */
+    lp_index_new(made);
     return 1;
 }
 

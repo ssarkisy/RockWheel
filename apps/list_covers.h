@@ -19,6 +19,7 @@
 #define _LIST_COVERS_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "lcd.h"
 
 /* The covers of albums at the left of their rows in Music's lists of albums,
@@ -36,10 +37,15 @@
    are applied, at boot before music, and as either is changed; asked for
    while music plays, it's taken once that has stopped, as a list opens */
 void list_covers_apply(void);
+/* the setting and Album Art on, its memory taken or not */
+bool list_covers_wanted(void);
 /* the setting's callback */
 void list_covers_changed(bool on);
 /* the setting is on and its memory taken: lists of albums show covers */
 bool list_covers_on(void);
+/* its memory taken, whose tables Artist Covers and Playlist Covers have
+   theirs taken in with (artist_rows.h, library_playlists.h) */
+bool list_covers_taken(void);
 
 /* What an album's row shows in its column of covers (enum list_cover), by
    the album's number in the table of years (album_years.h), -1 for none, as
@@ -47,6 +53,12 @@ bool list_covers_on(void);
    if it's kept; the note otherwise, the cover then one the list lacks, to be
    read; and the note for an album without one */
 int list_covers_get(int no, const fb_data **pixels);
+/* A playlist's row's collage of its albums' covers by their numbers, those
+   without a cover left out, as its header's (album_header.c): 4 a quarter
+   each, 3 a half and two quarters, 2 two halves, 1 whole; made of those
+   kept into *pixels, which stay as they are until the frame's next rows are
+   drawn. The note until all have come, and for none */
+int list_covers_collage(const int *albums, int n, const fb_data **pixels);
 /* an album of a row next to those shown, the way the list goes first: its
    cover read after theirs */
 void list_covers_ahead(int no);
@@ -97,5 +109,9 @@ void list_covers_remap_soon(void);
 bool list_covers_stale(void);
 void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void));
 void list_covers_load(void);
+/* which albums have a cover in the file, a bit each by their numbers, bit
+   no & 7 of byte no / 8 of bits (count / 8 + 1 bytes): false, none set, if
+   the file isn't of the table of years as it is */
+bool list_covers_which(uint8_t *bits, int count);
 
 #endif /* _LIST_COVERS_H_ */

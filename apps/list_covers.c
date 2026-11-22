@@ -56,6 +56,7 @@
 #include "album_header.h"
 #include "list_covers.h"
 #include "library_playlists.h"
+#include "artist_rows.h"
 #include "gui/cover_caution.h"
 
 #ifdef ITUNESDB_HAVE_ART
@@ -169,6 +170,11 @@ static int covers_handle;
 static bool refused;
 /* turned on as music played: taken once it has stopped */
 static bool pending;
+/* The tables of Artist Covers' and Playlist Covers' rows, in memory with the
+   covers as their settings are on: one that couldn't be taken in, as with no
+   file yet, not tried again as each list opens, until it's made, the
+   settings are changed or the covers' file is taken in again */
+static bool artists_refused, playlists_refused;
 /* The file's slot of each album, as it was taken in with the memory: its
    table's count and hash, and where its covers start */
 static int index_handle;
@@ -380,6 +386,42 @@ static void forget(void)
         memset(covers->slot, 0xff, sizeof(covers->slot));
 }
 
+/* The rows' tables as the settings have them, with the covers' memory taken:
+   let go of as either is off; taken in as it's on, music stopped, as the
+   tables are of the covers' albums by their numbers. Again, with again, as
+   the table of years or the covers' file was made again */
+static void tables_apply(bool again)
+{
+    const bool artists = covers && global_settings.artist_covers;
+    const bool playlists = covers && global_settings.playlist_covers;
+    const bool quiet = audio_status() == 0;
+    if (!artists)
+        artist_rows_free();
+    else if ((again || (!artist_rows_loaded() && !artists_refused)) && quiet)
+        artists_refused = !artist_rows_load();
+    if (!playlists)
+        lp_rows_free();
+    else if ((again || (!lp_rows_loaded() && !playlists_refused)) && quiet)
+        playlists_refused = !lp_rows_load();
+}
+
+static void tables_load(void)
+{
+    artists_refused = playlists_refused = false;
+    tables_apply(true);
+}
+
+static void tables_free(void)
+{
+    artist_rows_free();
+    lp_rows_free();
+}
+
+/* the file's entries read a stretch at a time, off the UI's stack: by the
+   taking in of its index, and by list_covers_which(), one after the other */
+#define ENTRIES_STRETCH 64
+static struct file_entry entries_stretch[ENTRIES_STRETCH];
+
 /* The file's index, for the table of years as it is: its slots taken in, as
    the memory is, without music, and as the file's made again; and where the
    covers are on the disk, with the file open once more. The reader done
@@ -398,11 +440,17 @@ void list_covers_load(void)
 #endif
     const int count = album_years_count();
     if (!covers || count <= 0)
+    {
+        tables_load();
         return;
+    }
     struct file_header h;
     int fd = open(COVERS_FILE, O_RDONLY);
     if (fd < 0)
+    {
+        tables_load();
         return;
+    }
     if (read(fd, &h, sizeof(h)) == sizeof(h) && h.magic == COVERS_MAGIC
         && h.version == COVERS_VERSION && h.side == SIDE
         && h.commitid == tagcache_get_commitid() && h.count == (uint32_t)count
@@ -411,11 +459,11 @@ void list_covers_load(void)
     if (index_handle > 0)
     {
         /* a stretch at a time, as the colours of the slides are read */
-        static struct file_entry e[64];
+        struct file_entry *e = entries_stretch;
         int n = 0;
         while (n < count)
         {
-            const ssize_t got = read(fd, e, MIN(count - n, (int)ARRAYLEN(e))
+            const ssize_t got = read(fd, e, MIN(count - n, ENTRIES_STRETCH)
                                             * sizeof(*e));
             if (got < (ssize_t)sizeof(*e))
                 break;
@@ -441,6 +489,7 @@ void list_covers_load(void)
     }
     close(fd);
     forget();
+    tables_load();
 }
 
 /* the memory of the covers, without music, which it would stop */
@@ -464,6 +513,7 @@ static void let_go(void)
 {
     /* not while the reader writes into them */
     album_header_reader_wait();
+    tables_free();
     if (index_handle > 0)
         index_handle = core_free(index_handle);
     index_count = 0;
@@ -472,10 +522,14 @@ static void let_go(void)
     covers = NULL;
 }
 
+bool list_covers_wanted(void)
+{
+    return global_settings.list_covers && global_settings.album_art != AA_OFF;
+}
+
 void list_covers_apply(void)
 {
-    const bool wanted = global_settings.list_covers
-                        && global_settings.album_art != AA_OFF;
+    const bool wanted = list_covers_wanted();
     if (!wanted)
     {
         refused = pending = false;
@@ -483,7 +537,12 @@ void list_covers_apply(void)
             let_go();
         return;
     }
-    if (covers || refused)
+    if (covers)
+    {
+        tables_apply(false);
+        return;
+    }
+    if (refused)
         return;
     /* the audio buffer would give way, the music stopped for it */
     pending = audio_status() != 0;
@@ -494,8 +553,13 @@ void list_covers_apply(void)
 void list_covers_changed(bool on)
 {
     (void)on;
-    refused = false;
+    refused = artists_refused = playlists_refused = false;
     list_covers_apply();
+}
+
+bool list_covers_taken(void)
+{
+    return covers != NULL;
 }
 
 /* the file's index taken in, of the table of years as it is */
@@ -580,6 +644,116 @@ int list_covers_get(int no, const fb_data **pixels)
     }
     want(lacking, &lacking_count, slot);
     return LIST_COVER_NOTE;
+}
+
+/* A playlist's collage (album_header.c's collage_cells()), of the covers
+   kept, into one of the UI's stages, which only it reads into, before a
+   frame (list_covers_draw_soon()): a row's for each of the frame's rows,
+   drawn before the next's is made. Quarters each cover shrunk by averaging,
+   halves its middle columns */
+#define COLLAGES ((int)(READ_NOW_COVERS * SLOT_SIZE / COVER_BYTES))
+static int collage_next;
+/* the rows' covers asked for before a frame (list_covers_draw_soon()): a
+   collage then only says which it lacks, made as the frame draws it */
+static bool rows_counted;
+
+static void collage_quarter(const fb_data *src, fb_data *out, int ox, int oy,
+                            int w, int h)
+{
+    /* by 65536ths, as the slides are shrunk: no divide on this CPU */
+    static uint32_t recip[10];
+    if (!recip[1])
+    {
+        for (int n = 1; n < (int)ARRAYLEN(recip); n++)
+            recip[n] = (65536 + n / 2) / n;
+    }
+    for (int y = 0; y < h; y++)
+    {
+        const int y0 = y * SIDE / h, y1 = MAX((y + 1) * SIDE / h, y0 + 1);
+        for (int x = 0; x < w; x++)
+        {
+            const int x0 = x * SIDE / w, x1 = MAX((x + 1) * SIDE / w, x0 + 1);
+            uint32_t r = 0, g = 0, b = 0;
+            for (int sy = y0; sy < y1; sy++)
+            {
+                for (int sx = x0; sx < x1; sx++)
+                {
+                    const fb_data p = src[sy * SIDE + sx];
+                    r += p >> 11;
+                    g += (p >> 5) & 0x3f;
+                    b += p & 0x1f;
+                }
+            }
+            const uint32_t k = recip[MIN((x1 - x0) * (y1 - y0),
+                                         (int)ARRAYLEN(recip) - 1)];
+            out[(oy + y) * SIDE + ox + x] =
+                (fb_data)(((r * k + 0x8000) >> 16) << 11
+                          | ((g * k + 0x8000) >> 16) << 5
+                          | ((b * k + 0x8000) >> 16));
+        }
+    }
+}
+
+static void collage_half(const fb_data *src, fb_data *out, int ox, int w)
+{
+    const int from = (SIDE - w) / 2;
+    for (int y = 0; y < SIDE; y++)
+        memcpy(&out[y * SIDE + ox], &src[y * SIDE + from], w * sizeof(*out));
+}
+
+int list_covers_collage(const int *albums, int n, const fb_data **pixels)
+{
+    if (!covers)
+        return LIST_COVER_NOTE;
+    int places[ALBUM_HEADER_COLLAGE], k = 0;
+    bool missing = false;
+    for (int i = 0; i < n && k < ALBUM_HEADER_COLLAGE; i++)
+    {
+        /* those with a cover in the file, the others left out */
+        const int slot = slot_of(albums[i]);
+        if (slot < 0)
+            continue;
+        const int place = kept_place(slot);
+        if (place < 0)
+        {
+            want(lacking, &lacking_count, slot);
+            missing = true;
+        }
+        else
+            covers->shown[place] = frame;
+        places[k++] = place;
+    }
+    /* the note until every cover of it has come */
+    if (k == 0 || missing || rows_counted)
+        return LIST_COVER_NOTE;
+    if (k == 1)
+    {
+        *pixels = covers->pixels[places[0]];
+        return LIST_COVER_PIXELS;
+    }
+    fb_data *out = (fb_data *)read_aligned(covers->stage_now)
+                   + (collage_next++ % COLLAGES) * SIDE * SIDE;
+    const int h = SIDE / 2, r = SIDE - h;
+    if (k == 2)
+    {
+        collage_half(covers->pixels[places[0]], out, 0, h);
+        collage_half(covers->pixels[places[1]], out, h, r);
+    }
+    else if (k == 3)
+    {
+        collage_half(covers->pixels[places[0]], out, 0, h);
+        collage_quarter(covers->pixels[places[1]], out, h, 0, r, h);
+        collage_quarter(covers->pixels[places[2]], out, h, h, r, r);
+    }
+    else
+    {
+        collage_quarter(covers->pixels[places[0]], out, 0, 0, h, h);
+        collage_quarter(covers->pixels[places[1]], out, h, 0, r, h);
+        collage_quarter(covers->pixels[places[2]], out, 0, h, h, r);
+        collage_quarter(covers->pixels[places[3]], out, h, h, r, r);
+    }
+    *pixels = out;
+    return LIST_COVER_PIXELS;
 }
 
 void list_covers_ahead(int no)
@@ -854,11 +1028,13 @@ void list_covers_draw_soon(struct gui_synclist *list)
     const int start = list->start_item[SCREEN_MAIN];
     const int end = MIN(start + list_get_nb_lines(list, SCREEN_MAIN),
                         list->nb_items);
+    rows_counted = true;
     for (int row = start; row < end; row++)
     {
         const fb_data *pixels;
         list->callback_get_cover(row, list->data, &pixels);
     }
+    rows_counted = false;
     int16_t now[WANTED_MAX];
     const int count = lacking_count;
     memcpy(now, lacking, count * sizeof(*now));
@@ -1044,6 +1220,35 @@ bool list_covers_stale(void)
     return !made;
 }
 
+bool list_covers_which(uint8_t *bits, int count)
+{
+    memset(bits, 0, count / 8 + 1);
+    struct file_header h;
+    const int fd = open(COVERS_FILE, O_RDONLY);
+    if (fd < 0)
+        return false;
+    /* the entries the same in versions 1 and 2 of the file: either read */
+    bool ok = read(fd, &h, sizeof(h)) == sizeof(h) && h.magic == COVERS_MAGIC
+              && (h.version == 1 || h.version == 2) && h.side == SIDE
+              && h.commitid == tagcache_get_commitid()
+              && (h.count == 0 /* none made: of any table (make_none()) */
+                  || (h.count == (uint32_t)count && h.table == album_years_hash()));
+    /* a stretch at a time, as the file's index is taken in */
+    struct file_entry *e = entries_stretch;
+    for (int n = 0; ok && n < (int)h.count; )
+    {
+        const int k = MIN((int)h.count - n, ENTRIES_STRETCH);
+        ok = read(fd, e, k * sizeof(*e)) == (ssize_t)(k * sizeof(*e));
+        for (int i = 0; ok && i < k; i++, n++)
+        {
+            if (e[i].slot < h.slots)
+                bits[n >> 3] |= 1 << (n & 7);
+        }
+    }
+    close(fd);
+    return ok;
+}
+
 /* an album's key, as Cover Flow keys albums, from the names in memory */
 static uint64_t album_key(int no)
 {
@@ -1219,6 +1424,8 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
        by its sectors not even after, until it's mapped again as it's taken in,
        as they're being written or freed */
     album_header_reader_wait();
+    /* the artists' covers chosen among these again, after them */
+    artist_rows_forget();
 #ifdef HAVE_FILE_MAP
     if (covers)
         covers->map.runs = 0;
@@ -1431,6 +1638,7 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
 
 #else /* !ITUNESDB_HAVE_ART */
 
+bool list_covers_wanted(void) { return false; }
 void list_covers_apply(void) {}
 void list_covers_changed(bool on) { (void)on; }
 bool list_covers_on(void) { return false; }
@@ -1440,6 +1648,11 @@ int list_covers_get(int no, const fb_data **pixels)
     return LIST_COVER_NOTE;
 }
 void list_covers_ahead(int no) { (void)no; }
+int list_covers_collage(const int *albums, int n, const fb_data **pixels)
+{
+    (void)albums; (void)n; (void)pixels;
+    return LIST_COVER_NOTE;
+}
 void list_covers_frame(void) {}
 int list_covers_timeout(int timeout) { return timeout; }
 bool list_covers_poll(void) { return false; }
@@ -1453,6 +1666,12 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
     (void)progress; (void)go_on;
 }
 void list_covers_load(void) {}
+bool list_covers_which(uint8_t *bits, int count)
+{
+    memset(bits, 0, count / 8 + 1);
+    return false;
+}
+bool list_covers_taken(void) { return false; }
 void list_covers_input(void) {}
 void list_covers_opened(void) {}
 void list_covers_draw_soon(struct gui_synclist *list) { (void)list; }

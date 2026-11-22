@@ -19264,3 +19264,143 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_ARTIST_COVERS
+  desc: a setting of Settings > Appearance, right under Covers in Lists and shown only while it is on: On, each artist's row in Music > Artists, and in a genre's artists, has a cover at its left, the one of the artist's first album by year that has one, and their albums and songs under the name (5 albums · 61 songs); Off, the names alone, as before
+  user: core
+  <source>
+    *: "Artist Covers"
+  </source>
+  <dest>
+    *: "藝人封面"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLIST_COVERS
+  desc: a setting of Settings > Appearance, after Artist Covers and shown only while Covers in Lists is on: On, each playlist's row in Music > Playlists has the covers of its first four albums at its left, one cover or the note for fewer, and its songs and length under the name (24 songs · 1 h 32 min), each folder its playlists; Off, the names alone, as before
+  user: core
+  <source>
+    *: "Playlist Covers"
+  </source>
+  <dest>
+    *: "播放清單封面"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_ARTIST_COVERS
+  desc: the hint in the band under Settings > Appearance while Artist Covers is selected, in three lines at most: whose cover an artist's row shows, the first of the artist's albums by year with a cover
+  user: core
+  <source>
+    *: "Each artist's row shows the cover of the first album, by year, that has one."
+  </source>
+  <dest>
+    *: "每位藝人的列顯示其依年份排列、第一張有封面的專輯的封面。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_PLAYLIST_COVERS
+  desc: the hint in the band under Settings > Appearance while Playlist Covers is selected, in three lines at most: what a playlist's row shows, the covers of its first four albums, as its own screen's header has them
+  user: core
+  <source>
+    *: "Each playlist's row shows the covers of its first four albums."
+  </source>
+  <dest>
+    *: "每個播放清單的列顯示其前四張專輯的封面。"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTIST_ALBUMS_ONE
+  desc: under an artist's name in Music > Artists with Artist Covers, before the songs (5 albums · 61 songs): how many albums, in lowercase as a count in running text, as the album's header counts songs; %d is the albums: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d album"
+  </source>
+  <dest>
+    *: "%d 張專輯"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTIST_ALBUMS_FEW
+  desc: as LANG_ARTIST_ALBUMS_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d albums"
+  </source>
+  <dest>
+    *: "%d 張專輯"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_ARTIST_ALBUMS_MANY
+  desc: as LANG_ARTIST_ALBUMS_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d albums"
+  </source>
+  <dest>
+    *: "%d 張專輯"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLIST_COUNT_ONE
+  desc: under a folder's name in Music > Playlists with Playlist Covers, Unsynced's too: how many playlists it has, those of its folders too, in lowercase as a count in running text; %d is the playlists: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "%d playlist"
+  </source>
+  <dest>
+    *: "%d 個播放清單"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLIST_COUNT_FEW
+  desc: as LANG_PLAYLIST_COUNT_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "%d playlists"
+  </source>
+  <dest>
+    *: "%d 個播放清單"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYLIST_COUNT_MANY
+  desc: as LANG_PLAYLIST_COUNT_ONE, for the other counts
+  user: core
+  <source>
+    *: "%d playlists"
+  </source>
+  <dest>
+    *: "%d 個播放清單"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

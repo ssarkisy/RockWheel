@@ -111,6 +111,8 @@ bool itunesdb_moved_to(uint64_t old_hash, char *path, size_t size);
 
 /* the hash that a database entry and an iTunesDB track are matched by */
 uint64_t itunesdb_path_hash(const char *path);
+/* and of name in the folder dir, as of "<dir>/<name>", without making it */
+uint64_t itunesdb_path_hash_in(const char *dir, const char *name);
 
 /* What iTunesDB says a track does differently, as the stock firmware
    plays it */

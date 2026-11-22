@@ -124,6 +124,11 @@ static bool date_after(int32_t date, int32_t had)
     return date > had;
 }
 
+bool album_years_date_after(int32_t date, int32_t had)
+{
+    return date_after(date, had);
+}
+
 /* While they're counted: a table of them by their seeks, of a power of two
    of places, an album in each place used */
 struct counting {
@@ -687,6 +692,10 @@ unsigned album_years_generation(void)
 
 bool album_years_make(void) { return false; }
 bool album_years_ready(void) { return false; }
+bool album_years_date_after(int32_t date, int32_t had)
+{
+    return date > had;
+}
 int32_t album_date(int32_t album, int32_t albumartist)
 {
     (void)album; (void)albumartist;

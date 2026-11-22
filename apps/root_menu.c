@@ -92,6 +92,7 @@
 #include "music_search.h"
 #include "album_years.h"
 #include "list_covers.h"
+#include "artist_rows.h"
 #endif
 
 struct root_items {
@@ -2067,9 +2068,10 @@ static void library_update_screen(const char *words)
                               && (itunesdb_covers_stale()
                                   || itunesdb_covers_images_changed()
                                   || itunesdb_covers_inbox());
-    /* and the covers of the lists' rows, made of Cover Flow's slides */
+    /* and the covers of the lists' rows, made of Cover Flow's slides, and the
+       artists' rows, of those covers */
     const bool row_covers_stale = phase == TAGCACHE_IMPORT_NONE
-                                  && list_covers_stale();
+                                  && (list_covers_stale() || artist_rows_stale());
 #else
     const bool covers_stale = false;
     const bool row_covers_stale = false;
@@ -2135,11 +2137,18 @@ static void library_update_screen(const char *words)
     /* those covers made, after the albums' years they're in the order of, and
        Cover Flow's plugin above, which may have made some again */
     if (phase == TAGCACHE_IMPORT_NONE && !held_event && !no_space
-        && album_years_ready() && (row_covers_stale || list_covers_stale()))
+        && album_years_ready() && (row_covers_stale || list_covers_stale()
+                                   || artist_rows_stale()))
     {
         library_update_show(str(LANG_PREPARING_COVERS), 0);
         step_begin();
-        list_covers_make(library_update_covers_progress, library_playlists_go_on);
+        if (list_covers_stale())
+            list_covers_make(library_update_covers_progress,
+                             library_playlists_go_on);
+        /* each artist's cover among those, their albums and songs counted */
+        if (!held_event && artist_rows_stale())
+            artist_rows_make(library_update_covers_progress,
+                             library_playlists_go_on);
         step_end(STEP_ROW_COVERS);
     }
 #endif

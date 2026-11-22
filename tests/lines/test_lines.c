@@ -273,9 +273,12 @@ int tagcache_entry_count(void)
     return 13000;
 }
 
+/* the database in memory, which one run's call can have not (run_appended) */
+static bool db_in_ram = true;
+
 bool tagcache_finds_entries(void)
 {
-    return true;
+    return db_in_ram;
 }
 
 bool tagcache_search(struct tagcache_search *tcs, int tag)
@@ -312,6 +315,16 @@ bool tagcache_track_compilation(int idx_id)
 {
     (void)idx_id;
     return false;
+}
+
+/* The catalogue's folder, the settings' default. The playlists' rows (the
+   tree's catalog_rows.dat) then go as far as on an iPod with Playlist Covers
+   off and no rows file yet: a playlist in it isn't in memory, and the file
+   that isn't there is removed. That reads and writes nothing, as BASE, which
+   has none, does; the rows in memory (unused.c's) are never reached */
+bool catalog_directory_name(char *dirbuf, size_t dirbuf_sz)
+{
+    return (size_t)snprintf(dirbuf, dirbuf_sz, "/Playlists") < dirbuf_sz;
 }
 
 /* a line as a path: whole, or from the playlist's folder; with '\\'s as
@@ -937,15 +950,24 @@ static void run_build(const struct text *t, size_t size, int max, int mode)
     t_songs(n);
 }
 
+/* Songs added to a playlist. For one that was empty, with no good index,
+   the tree begins its index there and then (so that its row counts the
+   songs at once), which BASE didn't. In the runs compared with BASE the call
+   has the database not in memory, where neither begins one; the index set
+   up before it still has it. With the database in memory, in the runs with
+   a failure and in a run of its own (begun), the tree's trace is its own,
+   held by the baseline */
 static void run_appended(const struct text *t, size_t cut, bool indexed,
-                         bool playing, int mode)
+                         bool playing, int mode, bool begun)
 {
     struct lp_state st;
     run_stream(mode);
+    if (begun)
+        trace = trace_faults;
     host_fresh();
     host_put(file, t->data, cut);
-    run_head(" appended cut %zu indexed %d playing %d mode %d", cut, indexed,
-             playing, mode);
+    run_head(" appended cut %zu indexed %d playing %d mode %d%s", cut, indexed,
+             playing, mode, begun ? " begun" : "");
     if (indexed)
         T("  setup %d\n", setup_index(file, &st));
     host_put(file, t->data, t->size);
@@ -953,7 +975,9 @@ static void run_appended(const struct text *t, size_t cut, bool indexed,
     playing_name = playing ? file : NULL;
     snap_take(&before);
     faults_start(mode, cut * 7 + indexed);
+    db_in_ram = mode >= 2 || begun;
     lp_index_appended(file, cut);
+    db_in_ram = true;
     faults_end();
     check_failure('x', file, true);
     audio_now = 0;
@@ -1090,7 +1114,9 @@ static void run_all(const struct text *t, const char *name, bool all)
         run_remove(t, 1, 8192, false, mode);
         const size_t cuts[] = { 0, t->size / 3, t->size / 2, t->size };
         for (size_t c = 0; c < ARRAYLEN(cuts); c++)
-            run_appended(t, cuts[c], c != 0, c % 2, mode);
+            run_appended(t, cuts[c], c != 0, c % 2, mode, false);
+        if (mode < 2)
+            run_appended(t, 0, false, false, mode, true);
     }
 }
 

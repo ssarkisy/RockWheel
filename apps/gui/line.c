@@ -1758,6 +1758,27 @@ void line_draw_cover(struct screen *display, int x, int y,
     display->set_drawmode(DRMODE_SOLID);
 }
 
+void line_draw_folder_tile(struct screen *display, int x, int y)
+{
+    const unsigned fg = display->get_foreground();
+    display->set_foreground(ui_colour(UI_COLOUR_COVER_TILE));
+    display->set_drawmode(DRMODE_SOLID);
+    display->fillrect(x, y, LINE_COVER_SIZE, LINE_COVER_SIZE);
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+    if (display->screen_type == SCREEN_MAIN)
+    {
+        const struct glyph *const g = glyph(GLYPH_FOLDER);
+        lcd_set_drawmode(DRMODE_FG);
+        lcd_set_foreground(LIST_VALUE_COLOUR);
+        lcd_alpha_bitmap_part(g->alpha, 0, g->frame * g->h, g->w,
+                              x + (LINE_COVER_SIZE - g->w) / 2,
+                              y + (LINE_COVER_SIZE - g->h) / 2, g->w, g->h);
+    }
+#endif
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_SOLID);
+}
+
 /* Quick Scroll's box: as tall as three rows of the menus or two of 36 px, as
    wide or as its text and a margin each side, its corners rounded */
 #define INITIAL_HEIGHT ui_metric(UI_METRIC_INITIAL_HEIGHT)

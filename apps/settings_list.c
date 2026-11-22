@@ -3014,6 +3014,12 @@ const struct settings_list settings[] = {
                   "album artists", tagtree_album_rows_changed),
     OFFON_SETTING(0, list_covers, LANG_COVERS_IN_LISTS, true,
                   "list covers", list_covers_changed),
+    /* and with it the covers beside Artists' rows and Playlists', their
+       tables' memory taken or let go as they're switched */
+    OFFON_SETTING(0, artist_covers, LANG_ARTIST_COVERS, true,
+                  "artist covers", list_covers_changed),
+    OFFON_SETTING(0, playlist_covers, LANG_PLAYLIST_COVERS, true,
+                  "playlist covers", list_covers_changed),
     OFFON_SETTING(0, list_scrollbar, LANG_LIST_SCROLLBAR, true,
                   "list scrollbar", NULL),
 #if (CONFIG_BATTERY_MEASURE != 0)

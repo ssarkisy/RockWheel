@@ -264,6 +264,22 @@ static int list_covers_callback(int action,
 }
 MENUITEM_SETTING(list_covers_item, &global_settings.list_covers,
                  list_covers_callback);
+/* Artist Covers and Playlist Covers, right under it and only while it's on:
+   they show its covers, in its memory */
+static int row_covers_callback(int action, const struct menu_item_ex *this_item,
+                               struct gui_synclist *this_list)
+{
+    (void)this_item;
+    (void)this_list;
+    if (action == ACTION_REQUEST_MENUITEM
+        && (global_settings.album_art == AA_OFF || !global_settings.list_covers))
+        return ACTION_EXIT_MENUITEM;
+    return action;
+}
+MENUITEM_SETTING(artist_covers_item, &global_settings.artist_covers,
+                 row_covers_callback);
+MENUITEM_SETTING(playlist_covers_item, &global_settings.playlist_covers,
+                 row_covers_callback);
 /* why a cover isn't shown, in its place: Now Playing's, the menus' and the
    lists' */
 MENUITEM_SETTING(cover_caution_item, &global_settings.cover_caution, NULL);
@@ -355,7 +371,8 @@ MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
 #ifdef HAVE_TAGCACHE
           &album_artists_item,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
-          &list_covers_item, &cover_caution_item,
+          &list_covers_item, &artist_covers_item, &playlist_covers_item,
+          &cover_caution_item,
 #endif
 #endif
           &list_scrollbar_item, &jump_by_letter_item,
