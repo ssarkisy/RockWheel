@@ -491,6 +491,12 @@ void tagcache_init(void) INIT_ATTR;
 bool tagcache_is_initialized(void);
 bool tagcache_is_fully_initialized(void);
 bool tagcache_is_usable(void);
+/* the last commit was put off for want of memory, which a reboot doesn't
+   give */
+bool tagcache_commit_no_memory(void);
+/* once, after an update whose new songs were left out of the library for
+   want of memory, the rest of it imported */
+bool tagcache_take_no_memory_note(void);
 void tagcache_start_scan(void);
 void tagcache_stop_scan(void);
 bool tagcache_update(void);

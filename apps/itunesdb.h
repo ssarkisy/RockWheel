@@ -346,6 +346,11 @@ bool itunesdb_covers_stale(void);
    the others, cover_of_song() of the song whose cover it takes. Then
    end(). */
 bool itunesdb_covers_begin(int albums, int songs, bool images_changed);
+/* Finder's artwork is set aside for the next sync (Rebuild Synced Covers),
+   which writes every cover again: until then a song of Finder's folder has
+   none made of its own picture, and its record of one made before is kept
+   as it is (song_keep()) */
+bool itunesdb_covers_aside(void);
 /* none to be made for this database, as without the room for it */
 void itunesdb_covers_skip(void);
 int itunesdb_cover_known(uint64_t key, uint32_t stamp);
@@ -370,6 +375,9 @@ struct itunesdb_song_cover {
    known yet; 3 one whose picture wasn't shown, to be looked for in the
    computer's covers (below) and not decoded */
 int itunesdb_song_known(uint64_t path, uint32_t mtime, uint32_t source);
+/* the song's record kept as it is, whatever song_known() said of it, for a
+   song not made now (itunesdb_covers_aside()) */
+void itunesdb_song_keep(uint64_t path);
 /* 1 its picture is one made already, and the song has it now; 0 it is to be
    decoded; -1 a decode of it was cut short twice, by a crash or a hang, and
    the song has none, as unreadable */

@@ -1529,6 +1529,198 @@ static bool remove_cross_post(char *verdict, size_t max)
     return ok;
 }
 
+/** The library scan's two files kept through a reset (apps/tagcache.c
+    scan_checkpoint()): a song's entry and names through an 8 KB buffer, its
+    Sort fields, for every third song, through a 1 KB one into a file made at
+    the first; every SCAN_EVERY songs the Sort file's data synced, its header
+    over the one at the start and synced again, then the same for the scan's
+    file; at the end the same, the close syncing the header. The next boot
+    takes a header only if its file holds all it counts, as commit() and
+    load_sort_pairs() do, then removes both files, as the commit does. The
+    rule: a header taken means all its data is there, and the Sort file's
+    covers every song the scan file's does. **/
+#define SCAN_TEMP    ROCKBOX_DIR "/database_tmp.tcd"
+#define SCAN_SORT    ROCKBOX_DIR "/database_sort_tmp.tcd"
+#define SCAN_SONGS   350
+#define SCAN_EVERY   100
+#define SCAN_MAGIC   0x52574403         /* TAGCACHE_MAGIC */
+#define SORT_MAGIC   0x46534252         /* TAGCACHE_SORT_MAGIC */
+#define SCAN_ENTRY   160                /* sizeof(struct temp_file_entry) */
+#define SCAN_SEED    41                 /* of the bytes after each header */
+#define SORT_SEED    42
+
+/* a song's names, and its Sort pair's size, if it has one */
+static long scan_names(int i)
+{
+    return 140 + (i * 37) % 120;
+}
+
+static long scan_pair(int i)
+{
+    return i % 3 ? 0 : 30 + (i * 11) % 50;
+}
+
+static int scan_fd = -1, sort_fd = -1;
+static char scan_buf[8192], sort_buf[1024];
+static size_t scan_used, sort_used;
+static long scan_at, sort_at;           /* the bytes after the headers */
+
+static void scan_flush(int fd, char *buf, size_t *used)
+{
+    if (*used && write(fd, buf, *used) != (ssize_t)*used)
+        fail("scan write");
+    *used = 0;
+}
+
+/* n more bytes of a file's stream through its buffer */
+static void scan_put(int fd, char *buf, size_t size, size_t *used,
+                     long *at, unsigned seed, long n)
+{
+    static char data[512];
+    if (*used + n > size)
+        scan_flush(fd, buf, used);
+    bytes(data, n, seed, *at);
+    memcpy(buf + *used, data, n);
+    *used += n;
+    *at += n;
+}
+
+/* the data synced, then the header; at the end, the close syncs it */
+static void scan_header(int fd, const void *h, size_t size, bool end)
+{
+    if (fsync(fd) < 0 || lseek(fd, 0, SEEK_SET) != 0
+        || write(fd, h, size) != (ssize_t)size
+        || (!end && (fsync(fd) < 0 || lseek(fd, 0, SEEK_END) <= 0)))
+        fail("scan header");
+}
+
+static void scan_headers(int songs, long datasize, long pairs, bool end)
+{
+    if (sort_fd >= 0)
+    {
+        const uint32_t h[6] = { SORT_MAGIC, 1, pairs, 0xffffffff, 0, 0 };
+        scan_flush(sort_fd, sort_buf, &sort_used);
+        scan_header(sort_fd, h, sizeof h, end);
+        if (end)
+            close(sort_fd);
+    }
+    const int32_t h[3] = { SCAN_MAGIC, datasize, songs };
+    scan_flush(scan_fd, scan_buf, &scan_used);
+    scan_header(scan_fd, h, sizeof h, end);
+    if (end)
+        close(scan_fd);
+}
+
+static void scan_action(void)
+{
+    static const int32_t none[3];
+    scan_fd = open(SCAN_TEMP, O_RDWR|O_CREAT|O_TRUNC, 0666);
+    if (scan_fd < 0 || write(scan_fd, none, sizeof none) != sizeof none)
+        fail("scan open");
+    scan_used = sort_used = 0;
+    scan_at = sort_at = 0;
+    long datasize = 0, pairs = 0;
+    for (int i = 0; i < SCAN_SONGS; i++)
+    {
+        if (scan_pair(i))
+        {
+            if (sort_fd < 0)
+            {
+                static const uint32_t zero[6];
+                sort_fd = open(SCAN_SORT, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+                if (sort_fd < 0
+                    || write(sort_fd, zero, sizeof zero) != sizeof zero)
+                    fail("sort open");
+            }
+            scan_put(sort_fd, sort_buf, sizeof sort_buf, &sort_used,
+                     &sort_at, SORT_SEED, scan_pair(i));
+            pairs++;
+        }
+        scan_put(scan_fd, scan_buf, sizeof scan_buf, &scan_used, &scan_at,
+                 SCAN_SEED, SCAN_ENTRY);
+        scan_put(scan_fd, scan_buf, sizeof scan_buf, &scan_used, &scan_at,
+                 SCAN_SEED, scan_names(i));
+        datasize += scan_names(i);
+        if ((i + 1) % SCAN_EVERY == 0)
+            scan_headers(i + 1, datasize, pairs, false);
+    }
+    /* the end of the scan: sort_scan_close(), then do_tagcache_build()'s */
+    scan_headers(SCAN_SONGS, datasize, pairs, true);
+    sort_fd = scan_fd = -1;
+}
+
+/* whether the n bytes after a header are the stream's */
+static bool scan_same(int fd, long n, unsigned seed)
+{
+    static char got[4096], want[4096];
+    for (long at = 0; at < n; )
+    {
+        long k = n - at < (long)sizeof got ? n - at : (long)sizeof got;
+        if (read(fd, got, k) != k)
+            return false;
+        bytes(want, k, seed, at);
+        if (memcmp(got, want, k))
+            return false;
+        at += k;
+    }
+    return true;
+}
+
+static bool scan_post(char *verdict, size_t max)
+{
+    long songs = -1, pairs = -1;
+    const char *bad = NULL;
+    int fd = open(SCAN_TEMP, O_RDONLY);
+    if (fd >= 0)
+    {
+        int32_t h[3];
+        const off_t size = ffilesize(fd);
+        if (read(fd, h, sizeof h) == sizeof h && h[0] == SCAN_MAGIC
+            && h[1] >= 0 && h[2] >= 0 && size >= 0
+            && (uint64_t)size >= sizeof h + (uint64_t)h[2] * SCAN_ENTRY
+                                 + (uint64_t)h[1])
+        {
+            long names = 0;
+            for (int i = 0; i < h[2] && i < SCAN_SONGS; i++)
+                names += scan_names(i);
+            songs = h[2];
+            if (h[2] > SCAN_SONGS || h[1] != names
+                || !scan_same(fd, h[2] * SCAN_ENTRY + names, SCAN_SEED))
+                bad = "the scan file's songs are not all there";
+        }
+        close(fd);
+    }
+    fd = open(SCAN_SORT, O_RDONLY);
+    if (fd >= 0)
+    {
+        uint32_t h[6];
+        if (read(fd, h, sizeof h) == sizeof h && h[0] == SORT_MAGIC
+            && h[2] <= 0x100000)
+        {
+            long n = 0, k = 0;
+            for (int i = 0; i < SCAN_SONGS && k < (long)h[2]; i++)
+                if (scan_pair(i))
+                {
+                    n += scan_pair(i);
+                    k++;
+                }
+            pairs = h[2];
+            if (k < (long)h[2] || ffilesize(fd) < (off_t)sizeof h + n
+                || !scan_same(fd, n, SORT_SEED))
+                bad = "the Sort file's pairs are not all there";
+        }
+        close(fd);
+    }
+    /* the pairs of the songs taken: every third's, from the first */
+    if (!bad && songs > 0 && (songs + 2) / 3 > (pairs < 0 ? 0 : pairs))
+        bad = "songs taken without their Sort fields";
+    remove(SCAN_TEMP);
+    remove(SCAN_SORT);
+    snprintf(verdict, max, "%s%ssongs %ld, pairs %ld", bad ? bad : "",
+             bad ? ": " : "", songs, pairs);
+    return !bad;
+}
+
 static bool no_post(char *verdict, size_t max)
 {
     verdict[0] = '\0';
@@ -1600,6 +1792,7 @@ static const struct scenario
                         rename_cross_post },
     { "remove-cross",   remove_cross_setup, remove_cross_action,
                         remove_cross_post },
+    { "scan-checkpoint", setup_common,  scan_action,     scan_post },
 };
 
 static const struct scenario *find(const char *name)

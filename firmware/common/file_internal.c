@@ -246,6 +246,7 @@ void empty_dirent(struct DIRENT *entry)
     entry->info.size    = 0;
     entry->info.wrtdate = 0;
     entry->info.wrttime = 0;
+    entry->info.firstcluster = 0;
 }
 
 /* fill the native dirinfo from the static dir_fatent */
@@ -256,6 +257,7 @@ void fill_dirinfo_native(struct dirinfo_native *dinp)
     dinp->size    = fatent->filesize;
     dinp->wrtdate = fatent->wrtdate;
     dinp->wrttime = fatent->wrttime;
+    dinp->firstcluster = fatent->firstcluster;
 }
 #endif /* HAVE_DIRCACHE */
 
@@ -273,6 +275,7 @@ int uncached_readdir_dirent(struct filestr_base *stream,
     entry->info.size    = fatent.filesize;
     entry->info.wrtdate = fatent.wrtdate;
     entry->info.wrttime = fatent.wrttime;
+    entry->info.firstcluster = fatent.firstcluster;
 
     return rc;
 }

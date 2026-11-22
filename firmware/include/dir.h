@@ -86,6 +86,10 @@ struct dirinfo
     unsigned int attribute; /* attribute bits of file */
     off_t        size;      /* binary size of file */
     time_t       mtime;     /* local file time */
+    long         firstcluster; /* where its data starts on its volume, in
+                                  the simulator the host's file number: two
+                                  folders with the same one are the same
+                                  folder. 0 if none or not known. */
 };
 
 #endif /* _DIR_H_ */

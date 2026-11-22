@@ -347,6 +347,13 @@ void synced_covers_imported(bool covers)
     (void)covers;
 }
 
+#ifdef HAVE_SYNCED_MENU_COVERS
+bool synced_covers_waiting(void)
+{
+    return false;
+}
+#endif
+
 void album_header_forget_cover(void)
 {
 }

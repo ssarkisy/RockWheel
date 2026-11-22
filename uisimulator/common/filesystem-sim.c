@@ -885,6 +885,23 @@ struct dirinfo sim_dir_get_info(DIR *dirp, struct sim_dirent *entry)
     if (!dirstr)
         FILE_ERROR(ERRNO, RC);
 
+    OS_STAT_T s;
+
+    if (!entry)
+    {
+        /* the folder itself, by its number on the host's disk, which the
+           device's first cluster stands for */
+#ifdef os_fstatat
+        if (os_fstatat(dirstr->osfd, ".", &s, 0))
+#else
+        if (os_stat(dirstr->osdirname, &s))
+#endif
+            FILE_ERROR(ERRNO, RC);
+
+        return (struct dirinfo){ .attribute    = ATTR_DIRECTORY,
+                                 .firstcluster = (long)s.st_ino };
+    }
+
     if (entry->d_name[0] == 0)
         FILE_ERROR(ENOENT, RC);
 
@@ -894,8 +911,6 @@ struct dirinfo sim_dir_get_info(DIR *dirp, struct sim_dirent *entry)
 
     struct dirinfo info;
     info.attribute = 0;
-
-    OS_STAT_T s;
 
 #ifdef os_fstatat
     if (os_fstatat(dirstr->osfd, entry->d_name, &s, 0))
@@ -922,6 +937,9 @@ struct dirinfo sim_dir_get_info(DIR *dirp, struct sim_dirent *entry)
         info.attribute |= ATTR_DIRECTORY;
 
     info.size = s.st_size;
+    /* of what a link leads to, as the rest: a link to a folder it is in
+       makes a loop, as a damaged FAT can on the device */
+    info.firstcluster = (long)s.st_ino;
 
     struct tm tm;
     if (localtime_r(&s.st_mtime, &tm) == NULL)

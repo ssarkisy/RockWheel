@@ -20425,3 +20425,31 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_LIBRARY_NO_MEMORY
+  desc: a splash for some seconds, Music chosen while there is no library: its making was put off for want of memory, as the iPod hasn't enough for this many songs (on a 32 MB iPod about 58000); what can be done, as a reboot doesn't help. In place of 'Please reboot to enable' there. 'The iPod' as the other texts say it
+  user: core
+  <source>
+    *: "Too many songs for this iPod's memory: the library can't be updated. Remove some songs from the iPod."
+  </source>
+  <dest>
+    *: "For mange sange til denne iPods hukommelse: biblioteket kan ikke opdateres. Fjern nogle sange fra iPod'en."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_LIBRARY_NEW_SONGS_NO_MEMORY
+  desc: a splash for some seconds, once at the end of Updating Library, when the songs an update found new couldn't be added to the library for want of memory (too many songs for the iPod: on a 32 MB iPod about 54000 when songs are added): the rest of the update went in, songs removed, play counts and ratings; the next sync tries the new songs again. Nothing on the iPod helps, so no advice
+  user: core
+  <source>
+    *: "Not enough memory to add the new songs. The rest of the library is up to date."
+  </source>
+  <dest>
+    *: "Ikke nok hukommelse til at tilføje de nye sange. Resten af biblioteket er opdateret."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

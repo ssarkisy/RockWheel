@@ -82,6 +82,7 @@ struct dirinfo_native
     off_t        size;
     uint16_t     wrtdate;
     uint16_t     wrttime;
+    long         firstcluster; /* of its data, 0 if none or not known */
 };
 
 typedef struct {} DIR;

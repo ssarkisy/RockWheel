@@ -998,6 +998,10 @@ static const struct plugin_api rockbox_api = {
     playlist_queue_possible,
     playlist_queue_prepare,
     playlist_queue_done,
+#ifdef ITUNESDB_HAVE_ART
+    itunesdb_covers_aside,
+    itunesdb_song_keep,
+#endif
 };
 
 static int plugin_buffer_handle;

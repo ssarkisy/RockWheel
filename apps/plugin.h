@@ -1225,6 +1225,11 @@ struct plugin_api {
     bool (*playlist_queue_possible)(void);
     bool (*playlist_queue_prepare)(void);
     void (*playlist_queue_done)(void);
+#ifdef ITUNESDB_HAVE_ART
+    /* Finder's artwork set aside for the next sync (itunesdb.h) */
+    bool (*itunesdb_covers_aside)(void);
+    void (*itunesdb_song_keep)(uint64_t path);
+#endif
 };
 
 /* plugin header */

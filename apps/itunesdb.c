@@ -7810,6 +7810,15 @@ static bool songs_work_load(int songs, uint32_t *top)
 static void inbox_load(void);
 static void inbox_making_over(bool spent);
 
+bool itunesdb_covers_aside(void)
+{
+#ifdef HAVE_SYNCED_MENU_COVERS
+    return synced_covers_waiting();
+#else
+    return false;
+#endif
+}
+
 bool itunesdb_covers_begin(int albums, int songs, bool images_changed)
 {
     itunesdb_covers_end(COVERS_CUT);
@@ -8415,6 +8424,16 @@ int itunesdb_song_known(uint64_t path, uint32_t mtime, uint32_t source)
         && (!r->pic_size || inbox_has(r->pic_size, r->crc, r->adler)))
         return 3;
     return 1;
+}
+
+void itunesdb_song_keep(uint64_t path)
+{
+    if (songs_handle <= 0)
+        return;
+    const int i = song_find(path);
+    /* as it is, changed or not shown: not dropped at the making's end */
+    if (i >= 0)
+        song_records()[i].word |= (uint32_t)SONG_SEEN << COVERS_FLAGS_SHIFT;
 }
 
 /* the song's entry as given, with this word: in place of its old one, or new */

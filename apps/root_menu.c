@@ -429,10 +429,15 @@ static int browser(void* param)
                     if (action_userabort(HZ/2))
                         break;
 
-                    /* Maybe just needs to reboot due to delayed commit */
+                    /* Maybe just needs to reboot due to delayed commit; not
+                       one put off for want of memory, which a reboot doesn't
+                       give: what can be done instead */
                     if (stat->commit_delayed)
                     {
-                        splash(HZ*2, ID2P(LANG_PLEASE_REBOOT));
+                        if (tagcache_commit_no_memory())
+                            splash(HZ*5, ID2P(LANG_LIBRARY_NO_MEMORY));
+                        else
+                            splash(HZ*2, ID2P(LANG_PLEASE_REBOOT));
                         break;
                     }
 
@@ -2470,11 +2475,23 @@ static void library_update_screen(const char *words)
     if (!held_event && get_current_activity() == ACTIVITY_MAINMENU)
         playlist_preload();
     no_space |= library_take_no_room();
-    if (no_space && !held_event && !shown)
+    /* an update's new songs left out for want of memory, the rest of the
+       library imported: said once, over Updating Library's screen at its end.
+       A check after USB over before the screen came has it shown for the
+       note, which would be over what USB's screen left */
+    const bool memory_note = phase == TAGCACHE_IMPORT_NONE && !held_event
+        && tagcache_take_no_memory_note();
+    if ((no_space || memory_note) && !held_event && !shown)
     {
         FOR_NB_SCREENS(i)
             viewportmanager_theme_enable(i, false, NULL);
         shown = true;
+        if (!no_space)
+        {
+            shown_text = NULL;
+            library_update_show(library_update_step(TAGCACHE_IMPORT_CHECKING),
+                                100);
+        }
     }
 #if defined(HAVE_PHOTOS_MENU) && defined(HAVE_PHOTOS_PANEL)
     if (shown && photos_changed && !held_event) /* else made the next time */
@@ -2499,6 +2516,11 @@ static void library_update_screen(const char *words)
         no_space |= library_take_no_room();
         if (no_space && !held_event)
             library_no_space_show();
+        /* while the screen drawn is the one in memory too: the theme's parts
+           come back over a screen cleared in memory only, and a note after
+           them was over a mix of the two */
+        if (memory_note)
+            splash(HZ * 5, ID2P(LANG_LIBRARY_NEW_SONGS_NO_MEMORY));
         lcd_set_background(global_settings.bg_color);
         lcd_set_foreground(global_settings.fg_color);
         lcd_clear_display();

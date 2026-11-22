@@ -8155,6 +8155,7 @@ struct song_jobs {
     struct song_job *jobs;
     int count, room;
     int seen;
+    bool aside;     /* Finder's artwork set aside (itunesdb_covers_aside()) */
 };
 
 /* each song Finder has no cover of, a job if it isn't known as it is */
@@ -8192,10 +8193,20 @@ static void collect_song_job(int idx_id, const int32_t *seek, void *data)
         return;
     const uint32_t mtime = seek[tag_mtime];
 #endif
-    const int known = rb->itunesdb_song_known(rb->itunesdb_path_hash(path),
-                                              mtime, ~0u);
+    const uint64_t hash = rb->itunesdb_path_hash(path);
+    const int known = rb->itunesdb_song_known(hash, mtime, ~0u);
     if (known == 1)
         return;
+    /* None of a synced song's own picture while Finder's artwork waits for
+       the next sync, which writes its cover again, as the question said:
+       every one was decoded, minutes on the iPod, and their places stayed
+       taken in the files after the sync. Its record of one made before is
+       kept as it is, changed or not shown, for after it. */
+    if (c->aside && rb->itunesdb_synced_path(path))
+    {
+        rb->itunesdb_song_keep(hash);
+        return;
+    }
     struct song_job *job = &c->jobs[c->count++];
     job->track = idx_id;
     job->mtime = mtime;
@@ -8728,7 +8739,8 @@ static void prepare_covers(void)
     struct song_job *song_room = (struct song_job *)(starts + albums + 1);
     struct song_jobs songs = { song_room, 0,
                                ((char *)decode - (char *)song_room)
-                               / sizeof(struct song_job), 0 };
+                               / sizeof(struct song_job), 0,
+                               rb->itunesdb_covers_aside() };
     if (!tcs.valid && rb->tagcache_search(&tcs, tag_filename))
     {
         if (!rb->tagcache_for_each_track(collect_song_job, &songs))

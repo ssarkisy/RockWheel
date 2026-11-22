@@ -322,12 +322,28 @@ bool rbfs_dir_exists(const char *dirname)
     return rc;
 }
 
-/* get the portable info from the native entry */
+/* get the portable info from the native entry; without one, the directory's
+   own first cluster, as a walk compares its folders' from where it starts */
 struct dirinfo rbfs_dir_get_info(DIR *dirp, struct dirent *entry)
 {
     int rc;
-    if (!dirp || !entry)
+    if (!dirp)
         FILE_ERROR(EFAULT, RC);
+
+    if (!entry)
+    {
+        struct dirstr_desc * const dir = GET_DIRSTR(READER, dirp);
+        if (!dir)
+            FILE_ERROR(ERRNO, RC);
+
+        const long cluster = dir->stream.infop->fatfile.firstcluster;
+        RELEASE_DIRSTR(READER, dir);
+        return (struct dirinfo)
+        {
+            .attribute    = ATTR_DIRECTORY,
+            .firstcluster = cluster,
+        };
+    }
 
     if (entry->d_name[0] == '\0')
         FILE_ERROR(ENOENT, RC);
@@ -337,9 +353,11 @@ struct dirinfo rbfs_dir_get_info(DIR *dirp, struct dirent *entry)
 
     return (struct dirinfo)
     {
-        .attribute = entry->info.attr,
-        .size      = entry->info.size,
-        .mtime     = dostime_mktime(entry->info.wrtdate, entry->info.wrttime),
+        .attribute    = entry->info.attr,
+        .size         = entry->info.size,
+        .mtime        = dostime_mktime(entry->info.wrtdate,
+                                       entry->info.wrttime),
+        .firstcluster = entry->info.firstcluster,
     };
 
 file_error:

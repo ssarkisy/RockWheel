@@ -104,6 +104,7 @@
 #include "library_playlists.h"
 #include "timefuncs.h"
 #include "scrobbler.h"
+#include "storage.h"
 #endif
 #endif
 #define USR_CANCEL false
@@ -656,6 +657,26 @@ static void scan_put(const void *data, size_t len)
 {
     if (!scan_failed && !tagfile_wbuf_put(cachefd, data, len))
         scan_write_failed();
+}
+
+/* A scan's file's data synced before the header that counts it goes over
+   the one at the start: the sync of a header written after the data reached
+   the disk with the header's sector before the file's new size, and a reset
+   between them left a header counting more than the file held. Flushed out
+   of the drive's write cache too, which keeps no order of its own. */
+static bool scan_sync(int fd)
+{
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+    if (fsync(fd) < 0)
+        return false;
+#ifdef HAVE_STORAGE_FLUSH
+    storage_flush();
+#endif
+    return true;
+#else
+    (void)fd;
+    return true;
+#endif
 }
 
 static int total_entry_count = 0;
@@ -3486,7 +3507,8 @@ static void sort_scan_add(int tag, const char *name, const char *value)
         sort_scan_header = (struct tagcache_sort_header){
             TAGCACHE_SORT_MAGIC, TAGCACHE_SORT_VERSION, 0, 0xffffffff, 0, 0
         };
-        /* counted at the end: none till then, if cut short */
+        /* counted at a sync's checkpoints (scan_checkpoint()) and at the
+           end: none before, if cut short */
         struct tagcache_sort_header none = sort_scan_header;
         none.magic = 0;
         write(sort_scan_fd, &none, sizeof(none));
@@ -3503,9 +3525,13 @@ static void sort_scan_close(void)
 {
     if (sort_scan_fd < 0)
         return;
-    if (!sort_scan_flush() || lseek(sort_scan_fd, 0, SEEK_SET) != 0
-        || write(sort_scan_fd, &sort_scan_header, sizeof(sort_scan_header))
-           != sizeof(sort_scan_header))
+    /* not after a failed write: the last checkpoint's header stays, and
+       the files go (do_tagcache_build()) */
+    if (!scan_failed
+        && (!sort_scan_flush() || !scan_sync(sort_scan_fd)
+            || lseek(sort_scan_fd, 0, SEEK_SET) != 0
+            || write(sort_scan_fd, &sort_scan_header,
+                     sizeof(sort_scan_header)) != sizeof(sort_scan_header)))
         scan_write_failed();
     close(sort_scan_fd);
     sort_scan_fd = -1;
@@ -3569,6 +3595,10 @@ static bool replaced_flush(void)
     return replaced_made >= 0;
 }
 
+#if !defined(PLUGIN)
+static bool scan_checkpoints_end(void);
+#endif
+
 /* the entry idx_id, as idx on the disk has it, to go when the commit takes
    the one the scan adds for its file now: false if it can't be noted, and
    the scan then fails, its file left uncommitted, rather than leave two
@@ -3576,7 +3606,12 @@ static bool replaced_flush(void)
 static bool replaced_note(int idx_id, const struct index_entry *idx)
 {
     if ((replaced_used == ARRAYLEN(replaced) && !replaced_flush())
-        || replaced_made < 0)
+        || replaced_made < 0
+#if !defined(PLUGIN)
+        || (replaced_used == 0 && replaced_made == 0
+            && !scan_checkpoints_end())
+#endif
+        )
     {
         scan_write_failed();
         return false;
@@ -3588,8 +3623,9 @@ static bool replaced_note(int idx_id, const struct index_entry *idx)
 }
 #endif /* !__PCTOOL__ */
 
-/* The scan's file of new entries, its header written once they're counted.
-   The check outside Finder's folder makes it only for one it finds: made and
+/* The scan's file of new entries, its header counting them at a sync's
+   checkpoints (scan_checkpoint()) and at the end, none before. The check
+   outside Finder's folder makes it only for one it finds: made and
    removed again at every USB connection, it wrote to the disk for nothing. */
 static bool open_scan_temp(void)
 {
@@ -5290,6 +5326,12 @@ static long clock_time(void)
 }
 
 #define DATEADDED_MIN 978307200 /* 2001-01-01 */
+/* The import goes on with the first build of the database, which a reset or
+   USB cut short: the scan's file it left began the database
+   (update_and_reload()). Its new songs are of that build, as without the
+   cut, not new to a database there was: no commit id, the file's time. */
+static bool commit_first_build;
+
 /* The date added of a song the commit adds without one: the commit's time,
    now, if it's new to a database there was, so a copy's songs have one time;
    else its file's time, from 2001 to now; else 0 */
@@ -5479,7 +5521,8 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
                 /* Data has been resurrected. */
                 idx->flag |= FLAG_DIRTYNUM;
             }
-            else if (tc_stat.ready && current_tcmh.commitid > 0)
+            else if (tc_stat.ready && current_tcmh.commitid > 0
+                     && !commit_first_build)
             {
                 idx->tag_seek[tag_commitid] = current_tcmh.commitid;
                 idx->flag |= FLAG_DIRTYNUM;
@@ -6002,6 +6045,9 @@ static bool load_sort_pairs(void)
     };
     int fds[ARRAYLEN(files)];
     long sizes[ARRAYLEN(files)];
+    /* each file's pairs, as its header counts them: a scan's checkpoint
+       (scan_checkpoint()) leaves more after them, which aren't counted */
+    uint32_t counts[ARRAYLEN(files)];
     size_t bytes = 0, count = 0;
     sort_pairs = NULL;
     sort_pair_count = 0;
@@ -6013,10 +6059,12 @@ static bool load_sort_pairs(void)
         struct tagcache_sort_header h;
         fds[k] = open_sort_file(files[k].path, files[k].in_db, &h);
         sizes[k] = 0;
+        counts[k] = 0;
         if (fds[k] < 0)
             continue;
         sizes[k] = ffilesize(fds[k]) - sizeof(h);
         bytes += MAX(sizes[k], 0);
+        counts[k] = h.count;
         count += h.count;
         if (files[k].from == SORT_FROM_FINDER)
             sort_finder_crc = h.crc;
@@ -6037,8 +6085,8 @@ static bool load_sort_pairs(void)
                 || read(fds[k], data, sizes[k]) != sizes[k])
                 continue;
             const char *p = data, *end = data + sizes[k];
-            while (end - p >= TAGCACHE_SORT_PAIR_HEAD
-                   && sort_pair_count < (long)count)
+            for (uint32_t n = 0; n < counts[k]
+                 && end - p >= TAGCACHE_SORT_PAIR_HEAD; n++)
             {
                 const unsigned char *head = (const unsigned char *)p;
                 const int tag = head[0];
@@ -6554,6 +6602,113 @@ static void commit_replaced_mark(long count)
 }
 #endif /* !PLUGIN */
 
+/* The last commit put off for want of memory that a reboot doesn't give,
+   which Music says what to do about (root_menu.c): one at the start of the
+   database's thread, with the boot's memory before main() takes the rest;
+   one after it whose file the next boot would try again after it too, as
+   an import's (iTunesDB changed or its pass due, or a restore); or any for
+   the rest of a boot whose start commit was put off so (boot_commit_short).
+   A file of new songs otherwise waits for the next boot's start, which has
+   more memory, as one of the check outside Finder's folder or of a library
+   without iTunesDB: without a library Music says to reboot. One put off in
+   the database's own memory, borrowed, keeps its file too: inside
+   update_and_reload() it's tried again at once with a buffer of its own;
+   from Q_UPDATE, Q_REBUILD or autoupdate it waits for the next import,
+   check or boot. */
+static bool commit_no_memory;
+/* and the scan's files dropped for it at the commit's end
+   (commit_put_off_for_memory()) */
+static bool commit_memory_drop;
+/* this boot's start commit was put off for want of memory: no reboot helps
+   for the rest of the boot either, so that the start commit is tried at most
+   every other boot */
+static bool boot_commit_short;
+/* songs of an update left out of the library there is, for want of memory:
+   said once, at the end of Updating Library. For each sync's import; for a
+   check after USB once a boot, as each connection finds the same songs
+   outside Finder's folder again; never for the boot's own check, which finds
+   them at each boot */
+static bool memory_note;
+static bool memory_note_due;
+static bool usb_since_check; /* a USB connection since the last check */
+static bool outside_noted;   /* a check has said it this boot */
+/* this update left songs out of the library: its import goes on without
+   them, and doesn't forget a restore (Q_IMPORT_ITUNES); the next boot does,
+   once iTunesDB is imported (tagcache_init()) */
+static bool update_left_out;
+
+bool tagcache_commit_no_memory(void)
+{
+    return commit_no_memory;
+}
+
+bool tagcache_take_no_memory_note(void)
+{
+    const bool was = memory_note;
+    memory_note = false;
+    return was;
+}
+
+/* what didn't fit, the entries there were and those new, the memory taken,
+   and whether that was the database's own, borrowed (commit()) */
+static void commit_put_off_for_memory(const char *what, long count,
+                                      long new_entries, size_t room,
+                                      bool borrowed)
+{
+    tc_stat.commit_delayed = true;
+#if !defined(PLUGIN) && !defined(__PCTOOL__)
+    const bool reboot_helps = tc_stat.initialized && !boot_commit_short
+        && !itunesdb_changed() && !itunesdb_pass_due() && !tagcache_restoring();
+    /* the start commit has a buffer of its own (the boot's) */
+    if (!tc_stat.initialized && !borrowed)
+        boot_commit_short = true;
+    /* In the database's memory, borrowed as a scan's commit finds no other
+       without the dircache's, as in the simulator: the file stays for
+       update_and_reload()'s try with a buffer of its own, which may be
+       larger */
+    commit_no_memory = !reboot_helps && !borrowed;
+    /* The files go, as for want of room on the disk. Tried again as they
+       are, they'd fail the same way, the scan skipped for them, and no
+       import would go through: removals, counts and Play Counts would wait
+       for good, as songs removed don't make a database's index smaller.
+       Without a database, the next import or scan reads the disk as it is
+       then; a restore keeps its old database set aside meanwhile. With one,
+       the import goes on without the new songs, which the next sync's scan
+       finds again; and as iTunesDB's tags of them, and of songs it would
+       have added again, aren't the database's, the import's digests of them
+       don't go in (itunesdb_tags_hold()), for the next import to make their
+       records again. Said once, at the end of Updating Library; not for a
+       resort's commit, which has no new songs.
+       Known limit: a song moved in such a sync, as Finder writes a retagged
+       song under a new name, loses its old entry: the import finds the old
+       path gone, while its new entry was in the files dropped. It comes
+       back at the sync that adds it with iTunesDB's plays, rating and date
+       added, but without its last play, play time and resume place, unless
+       resurrection matches it (build_numeric_indices()). Keeping the old
+       entry would leave a row that doesn't play. */
+    commit_memory_drop = commit_no_memory;
+    if (commit_memory_drop && new_entries > 0
+        && db_file_exists(TAGCACHE_FILE_MASTER))
+    {
+        itunesdb_tags_hold();
+        update_left_out = true;
+        if (memory_note_due)
+        {
+            memory_note = true;
+            if (scan_outside)
+                outside_noted = true;
+        }
+    }
+    health_note("library commit put off for memory: %s, %ld entries and %ld"
+                " new in %lu KB%s", what, count, new_entries,
+                (unsigned long)(room / 1024), commit_memory_drop ?
+                "; its files dropped" : borrowed ? "; kept, its buffer borrowed" :
+                "; kept for the next boot's start");
+#else
+    (void)what; (void)count; (void)new_entries; (void)room; (void)borrowed;
+#endif
+}
+
 static bool commit(void)
 {
     struct tagcache_header tch;
@@ -6602,8 +6757,15 @@ static bool commit(void)
     /* Load the header. */
     len = sizeof(struct tagcache_header);
     rc = read(tmpfd, &tch, len);
+    /* A scan's checkpoint (scan_checkpoint()) leaves more after the entries
+       its header counts, which are passed over; one that says it holds more
+       than it does is thrown away */
+    const off_t tmpsize = ffilesize(tmpfd);
 
-    if (tch.magic != TAGCACHE_MAGIC || rc != len)
+    if (tch.magic != TAGCACHE_MAGIC || rc != len || tch.entry_count < 0
+        || tch.datasize < 0 || tmpsize < 0
+        || (uint64_t)tmpsize < sizeof(tch) + (uint64_t)tch.datasize
+               + (uint64_t)tch.entry_count * sizeof(struct temp_file_entry))
     {
         logf("incorrect tmpheader");
         close(tmpfd);
@@ -6665,6 +6827,8 @@ static bool commit(void)
 #endif
 
     rc = false;
+    commit_no_memory = false;
+    commit_memory_drop = false;
 
     /* Try to steal every buffer we can :) Before read_lock: taking the audio
        buffer's stops the music, whose track's end counts its play, which waits
@@ -6717,7 +6881,11 @@ static bool commit(void)
     /* Beyond here, jump to commit_error to undo locks and restore dircache */
     read_lock++;
 
-    /* And finally fail if there are no buffers available. */
+    /* And finally fail if there are no buffers available. Not for want of
+       memory: a scan's commit finds none to borrow without the dircache's,
+       as in the simulator, its file kept. Inside update_and_reload() it's
+       tried again at once with a buffer of its own; from Q_UPDATE, Q_REBUILD
+       or autoupdate it waits for the next import, check or boot. */
     if (tempbuf_size == 0)
     {
         logf("delaying commit until next boot");
@@ -6725,6 +6893,11 @@ static bool commit(void)
         close(tmpfd);
         goto commit_error;
     }
+#ifdef HAVE_TC_RAMCACHE
+    const bool borrowed = ramcache_buffer_stolen;
+#else
+    const bool borrowed = false;
+#endif
 
     logf("commit %" PRId32 " entries...", tch.entry_count);
 
@@ -6751,7 +6924,8 @@ static bool commit(void)
         if (master_size + 1024 > tempbuf_size)
         {
             logf("buffer too small for the master file, delaying commit");
-            tc_stat.commit_delayed = true;
+            commit_put_off_for_memory("the master", count, tch.entry_count,
+                                      tempbuf_size, borrowed);
             close(tmpfd);
             goto commit_error;
         }
@@ -6764,7 +6938,9 @@ static bool commit(void)
         if (!load_sort_pairs())
         {
             logf("buffer too small for the Sort fields, delaying commit");
-            tc_stat.commit_delayed = true;
+            commit_put_off_for_memory("the Sort fields", count,
+                                      tch.entry_count, commit_full_size,
+                                      borrowed);
             close(tmpfd);
             goto commit_error;
         }
@@ -6776,7 +6952,9 @@ static bool commit(void)
                 || commit_tempbuf_need(i, &tch, count) <= (size_t)tempbuf_size)
                 continue;
             logf("buffer too small for tag %d, delaying commit", i);
-            tc_stat.commit_delayed = true;
+            commit_put_off_for_memory(tagcache_tag_to_str(i), count,
+                                      tch.entry_count, commit_full_size,
+                                      borrowed);
             close(tmpfd);
             goto commit_error;
         }
@@ -6981,8 +7159,8 @@ commit_error:
 #endif /* HAVE_DIRCACHE */
 
     /* as a commit refused for room: not tried again at each boot without
-       the message */
-    if (no_room)
+       the message; and one without a database put off for memory */
+    if (no_room || commit_memory_drop)
         remove_scan_files();
     return rc;
 }
@@ -9146,6 +9324,8 @@ static bool hidden_path(const char *path)
 /* during an import, which checks the files in Finder's folder against
    iTunesDB: looking for each of them took 10 ms after a sync */
 static bool check_skips_synced;
+/* the files of Finder's folder alone, in the dircache (check_synced_files()) */
+static bool check_synced_only;
 #endif
 
 #ifdef HAVE_DIRCACHE
@@ -9215,13 +9395,50 @@ static void remove_gone_done(void)
 static struct dircache_hint check_hint;
 #endif
 
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+/* A song of Finder's folder whose file is gone though iTunesDB lists it, as
+   deleted there by hand, or by a program that leaves iTunesDB as it was: it
+   stayed listed and didn't play. Looked for in the dircache alone, which no
+   disk is read for, and removed only when the cache knows its folder whole
+   and says so for sure. 0 kept, 2 removed. */
+static int check_synced_file(long idx_id, const char *path)
+{
+#ifdef HAVE_DIRCACHE
+    struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
+    const int rc = dircache_search_next(DCS_CACHED_PATH | DCS_UPDATE_FILEREF,
+                                        &tcrc_dcfrefs[idx_id], path,
+                                        &check_hint);
+    if (rc > 0)
+        idx->flag |= FLAG_DIRCACHE;
+    /* 0: a folder of the path not in the cache whole, or not there at all,
+       which the cache alone can't tell */
+    if (rc >= 0 || errno != ENOENT || !path_volume_mounted(path))
+        return 0;
+#else
+    /* the simulator's, from the host at once */
+    if (file_exists(path))
+        return 0;
+#endif
+    if (!remove_gone(idx_id))
+        return 0;
+    lp_gone_note(path);
+    return 2;
+}
+#endif
+
 /* An entry's file, looked for: 0 for one of Finder's, which the import goes
-   by, 1 for one that's there, 2 for one gone, whose entry is removed */
+   by or check_synced_file() keeps, 1 for one that's there, 2 for one gone,
+   whose entry is removed */
 static int check_file_ref(long idx_id, const char *path, bool auto_update)
 {
 #ifndef __PCTOOL__
     if (check_skips_synced && itunesdb_synced_path(path))
         return 0;
+#ifndef PLUGIN
+    if (check_synced_only)
+        return itunesdb_synced_path(path) ? check_synced_file(idx_id, path)
+                                          : 0;
+#endif
 #endif
     /* one of macOS's, or of iPod_Control's other folders, from a scan before
        they were passed over */
@@ -9296,6 +9513,9 @@ static void ram_check_file_refs(char *buf, size_t bufsz, bool auto_update,
         }
         if (check_skips_synced && i < ram_kinds_count
             && !(ram_kinds()[i] & RAM_KIND_OUTSIDE))
+            continue;
+        if (check_synced_only && i < ram_kinds_count
+            && (ram_kinds()[i] & RAM_KIND_OUTSIDE))
             continue;
         uint32_t off = offsets[i];
         /* none for a name empty */
@@ -9445,6 +9665,45 @@ wend_finished:
 
     return ret;
 }
+
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+/* Updating Library's look for the files of Finder's folder, which iTunesDB
+   lists whether they're there or not (check_synced_file()). Only with no
+   import due: an import, after a sync, gives a song Finder moved the numbers
+   of its old entry, whose file is gone, as it removes it (itunesdb.c
+   update_entry()). Only with the dircache built whole: else none are looked
+   for, as before, which health.log says once. */
+static void check_synced_files(void)
+{
+    if (itunesdb_changed() || itunesdb_pass_due())
+        return;
+#ifdef HAVE_DIRCACHE
+    /* none without the database in memory (check_deleted_file_refs()), nor
+       a wait for the dircache then */
+    if (tcramcache.handle <= 0 || !tc_stat.ramcache)
+        return;
+    static bool said;
+    struct dircache_info info;
+    dircache_wait();
+    dircache_get_info(&info);
+    if (info.status != DIRCACHE_READY)
+    {
+        if (!said)
+            health_note("library check: files in Finder's folder not looked"
+                        " for, the dircache not ready");
+        said = true;
+        return;
+    }
+#endif
+    const bool skips = check_skips_synced, outside = scan_outside;
+    check_skips_synced = scan_outside = false;
+    check_synced_only = true;
+    check_deleted_file_refs(true);
+    check_synced_only = false;
+    check_skips_synced = skips;
+    scan_outside = outside;
+}
+#endif
 
 /* Note that this function must not be inlined, otherwise the whole point
  * of having the code in a separate function is lost.
@@ -9636,6 +9895,142 @@ bool tagcache_outside_images(uint32_t *sum)
 }
 #endif
 
+/* The folders a walk is in, from where it started, by their first clusters.
+   A folder is passed over at this depth, each one down holding one of the
+   32 open folders, and as one of those it is in again: a damaged FAT can
+   link a folder back to one above it, and the walk went round that loop
+   until the path or the open folders ran out, adding the songs each time.
+   The count can run inside the scan with its own 24: a folder it can't open
+   then counts no songs, for the bar only. */
+#define WALK_DEPTH_MAX 24
+struct walk_trail {
+    long cluster[WALK_DEPTH_MAX];
+    int depth;
+};
+/* the scan's, and the count's, which can run in the middle of it */
+static struct walk_trail scan_trail;
+#ifndef __PCTOOL__
+static struct walk_trail count_trail;
+#endif
+/* the folders the scan passed over, for its line in the log */
+static int walk_too_deep, walk_loops;
+
+/* at the folder the walk starts from, opened */
+static void walk_start(struct walk_trail *t, DIR *dir)
+{
+    t->cluster[0] = dir_get_info(dir, NULL).firstcluster;
+    t->depth = 1;
+}
+
+/* whether the walk goes into a folder of the one it is in, whose first
+   cluster that is; if it does, it comes out with walk_leave() */
+static bool walk_enter(struct walk_trail *t, long cluster)
+{
+    if (t->depth >= WALK_DEPTH_MAX)
+    {
+        if (t == &scan_trail)
+            walk_too_deep++;
+        return false;
+    }
+    /* 0 is a folder of no data, which reads as empty, or one not known */
+    for (int i = 0; cluster && i < t->depth; i++)
+    {
+        if (t->cluster[i] == cluster)
+        {
+            if (t == &scan_trail)
+                walk_loops++;
+            return false;
+        }
+    }
+    t->cluster[t->depth++] = cluster;
+    return true;
+}
+
+static inline void walk_leave(struct walk_trail *t)
+{
+    t->depth--;
+}
+
+/* A sync's scan kept through a reset, as through USB: every so many new
+   entries or seconds, its files on the disk with headers that count what
+   they hold so far. The next boot's import commits them, as those of a scan
+   USB cut short, and its scan passes over their songs. The Sort fields'
+   first: a reset between the two leaves it covering more songs than the
+   scan's file, never fewer, whose songs would keep no Sort fields. */
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+#define CHECKPOINT_ENTRIES 500
+#define CHECKPOINT_TICKS (30 * HZ)
+static int checkpoint_entries; /* at the last one */
+static long checkpoint_tick;
+
+/* A scan's file, its data written, on the disk with a header that counts
+   it: the data first (scan_sync()), then the header. A reset between them
+   leaves the header before, which counts less than the file holds, as
+   readers take it. */
+static bool checkpoint_file(int fd, const void *header, size_t size)
+{
+    return scan_sync(fd) && lseek(fd, 0, SEEK_SET) == 0
+           && write(fd, header, size) == (ssize_t)size
+           && fsync(fd) >= 0 && lseek(fd, 0, SEEK_END) > 0;
+}
+
+#ifdef TAGCACHE_SORT_FIELDS
+/* the pairs so far on the disk, counted in the header (scan_checkpoint()) */
+static bool sort_scan_checkpoint(void)
+{
+    return sort_scan_fd < 0
+           || (sort_scan_flush()
+               && checkpoint_file(sort_scan_fd, &sort_scan_header,
+                                  sizeof(sort_scan_header)));
+}
+#endif
+
+/* The scan adds again an entry the database has (replaced_note()): the
+   commit deletes the old ones by their list, TAGCACHE_FILE_REPLACED, which
+   counts none and is taken whole with any header. A list longer than a
+   checkpoint's header counts would delete entries whose new ones it doesn't
+   take, their statistics with them. So from the first one the scan makes no
+   checkpoint, and the last one's header goes, on the disk before the list
+   is: a reset then leaves a file the next boot drops, as before them. */
+static bool scan_checkpoints_end(void)
+{
+    static const struct tagcache_header none;
+    if (checkpoint_entries == 0)
+        return true;
+    checkpoint_entries = 0;
+    return lseek(cachefd, 0, SEEK_SET) == 0
+           && write(cachefd, &none, sizeof(none)) == sizeof(none)
+           && scan_sync(cachefd) && lseek(cachefd, 0, SEEK_END) > 0;
+}
+
+static void scan_checkpoint(void)
+{
+    if (cachefd < 0 || import_phase != TAGCACHE_IMPORT_SCANNING || scan_failed
+        || replaced_used || replaced_made
+        || total_entry_count == checkpoint_entries
+        || (total_entry_count - checkpoint_entries < CHECKPOINT_ENTRIES
+            && TIME_BEFORE(current_tick, checkpoint_tick + CHECKPOINT_TICKS)))
+        return;
+    const struct tagcache_header header = {
+        TAGCACHE_MAGIC, data_size, total_entry_count
+    };
+    if (
+#ifdef TAGCACHE_SORT_FIELDS
+        !sort_scan_checkpoint() ||
+#endif
+        !tagfile_wbuf_flush(cachefd)
+        || !checkpoint_file(cachefd, &header, sizeof(header)))
+    {
+        scan_write_failed();
+        return;
+    }
+    checkpoint_entries = total_entry_count;
+    checkpoint_tick = current_tick;
+}
+#else
+#define scan_checkpoint() do { } while (0)
+#endif
+
 static bool check_dir(const char *dirname, int add_files)
 {
     int success = false;
@@ -9646,6 +10041,8 @@ static bool check_dir(const char *dirname, int add_files)
         logf("tagcache: opendir(%s) failed", dirname);
         return false;
     }
+    if (scan_trail.depth == 0)
+        walk_start(&scan_trail, dir);
 
     /* check for a database.ignore and database.unignore; Finder's folders
        have none, and after a sync over USB, without the dircache yet,
@@ -9689,8 +10086,12 @@ static bool check_dir(const char *dirname, int add_files)
             else
 #endif /* SIMULATOR */
             if (!rockbox_dir(curpath) && !outside_skips(curpath)
-                && !ipod_control_private(curpath))
+                && !ipod_control_private(curpath)
+                && walk_enter(&scan_trail, info.firstcluster))
+            {
                 check_dir(curpath, add_files);
+                walk_leave(&scan_trail);
+            }
         }
         else if (!add_files)
         {
@@ -9711,6 +10112,7 @@ static bool check_dir(const char *dirname, int add_files)
 
             /* Add a new entry to the temporary db file. */
             add_tagcache(curpath, info.mtime);
+            scan_checkpoint();
             /* the UI between them, as a tick goes by: the tags of hundreds
                read one after another, the bar under Checking Songs was drawn
                again only at the end */
@@ -9742,6 +10144,8 @@ static int count_dir(bool add_files)
     DIR *dir = opendir(countpath);
     if (!dir)
         return 0;
+    if (count_trail.depth == 0)
+        walk_start(&count_trail, dir);
     int ignore, unignore;
     check_ignore(countpath, &ignore, &unignore);
     if (ignore != unignore)
@@ -9760,8 +10164,12 @@ static int count_dir(bool add_files)
 #ifndef SIMULATOR
             if (!(info.attribute & ATTR_LINK))
 #endif
-            if (!rockbox_dir(countpath) && !finder_dir(countpath))
+            if (!rockbox_dir(countpath) && !finder_dir(countpath)
+                && walk_enter(&count_trail, info.firstcluster))
+            {
                 count += count_dir(add_files);
+                walk_leave(&count_trail);
+            }
         }
         else if (add_files && probe_file_format(countpath) != AFMT_UNKNOWN)
             count++;
@@ -9782,6 +10190,7 @@ static void count_outside(void)
     for (struct search_roots_ll *r = scan_roots; r; r = r->next)
     {
         strmemccpy(countpath, r->path, sizeof(countpath));
+        count_trail.depth = 0;
         if (dir_exists(countpath))
             songs += count_dir(true);
     }
@@ -9862,6 +10271,11 @@ void do_tagcache_build(const char *path[])
     data_size = 0;
     total_entry_count = 0;
     processed_dir_count = 0;
+    walk_too_deep = walk_loops = 0;
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+    checkpoint_entries = 0;
+    checkpoint_tick = current_tick;
+#endif
 
 #ifdef HAVE_DIRCACHE
     dircache_wait();
@@ -10008,6 +10422,7 @@ void do_tagcache_build(const char *path[])
     {
         logf("Search root %s", this->path);
         strmemccpy(curpath, this->path, sizeof(curpath));
+        scan_trail.depth = 0;
 
         if (ret)
         {
@@ -10018,6 +10433,14 @@ void do_tagcache_build(const char *path[])
         }
     }
     free_search_roots(&roots_ll[0]);
+    if (walk_too_deep || walk_loops)
+    {
+        logf("scan passed over %d folders too deep, %d in a loop",
+             walk_too_deep, walk_loops);
+        health_note("library scan: folders passed over: %d at depth %d, %d"
+                    " looping back", walk_too_deep, WALK_DEPTH_MAX,
+                    walk_loops);
+    }
 #ifndef __PCTOOL__
     scan_roots = NULL;
     /* the images' sum of the whole walk only */
@@ -10051,24 +10474,28 @@ commit:
 #endif
     if (cachefd >= 0)
     {
-        /* Write the header. */
-        if (!tagfile_wbuf_flush(cachefd))
-            scan_write_failed();
-#ifndef __PCTOOL__
-        /* the entries it replaces, on the disk before it is one to commit */
-        if (!replaced_flush())
-            scan_write_failed();
-#endif
-        header.magic = TAGCACHE_MAGIC;
-        header.datasize = data_size;
-        header.entry_count = total_entry_count;
-        lseek(cachefd, 0, SEEK_SET);
-        /* none for a scan that failed, removed below: a cut before that
-           leaves a file the commit drops */
+        /* Write the header, after its data and the list of the entries it
+           replaces, each on the disk before it is one to commit; the close
+           syncs it. Not after a failed write, as of the Sort fields' file,
+           whose songs it would count: the last checkpoint's stays until the
+           files are removed. */
         if (!scan_failed
-            && write(cachefd, &header, sizeof(struct tagcache_header))
-               != sizeof(struct tagcache_header))
+            && (!tagfile_wbuf_flush(cachefd)
+#ifndef __PCTOOL__
+                || !replaced_flush()
+#endif
+                || !scan_sync(cachefd)))
             scan_write_failed();
+        if (!scan_failed)
+        {
+            header.magic = TAGCACHE_MAGIC;
+            header.datasize = data_size;
+            header.entry_count = total_entry_count;
+            lseek(cachefd, 0, SEEK_SET);
+            if (write(cachefd, &header, sizeof(struct tagcache_header))
+                != sizeof(struct tagcache_header))
+                scan_write_failed();
+        }
         close(cachefd);
         cachefd = -1;
         /* The check's, cut short as by USB or switching off, isn't left: the
@@ -10360,7 +10787,15 @@ static bool update_and_reload(void)
 {
     /* one waits from before: it goes in first, or the scan would be skipped
        for it and miss the new files */
+    const bool no_database = !db_file_exists(TAGCACHE_FILE_MASTER);
     commit_waiting();
+    /* one that began the database: this import goes on with its first
+       build. Cut short again, the next boot finds a database, and the songs
+       after the cut are new to it, as after any import. */
+    commit_first_build = no_database && db_file_exists(TAGCACHE_FILE_MASTER);
+    /* one whose commit was put off, as for want of memory: the scan is
+       skipped for it, and the songs after its cut wait for the next import */
+    const bool waited = db_file_exists(TAGCACHE_FILE_TEMP);
     tagcache_build();
     itunesdb_forget_metadata(); /* if the scan was skipped */
     bool scanned = !scan_cut_short;
@@ -10375,6 +10810,18 @@ static bool update_and_reload(void)
         commit();
         free_tempbuf();
     }
+    /* The import isn't done: its scan was skipped for that file, and
+       iTunesDB's songs were let go. Tried again by the next import, the next
+       boot's, or USB's when iTunesDB differs from its stamp, which commits
+       the file first if it still waits, then scans; only then is it
+       stamped. */
+    if (waited)
+    {
+        health_note("import not completed: scan skipped for a waiting scan"
+                    " file, %s", db_file_exists(TAGCACHE_FILE_TEMP) ?
+                    "its commit put off again" : "committed at the second try");
+        scanned = false;
+    }
     /* a sync can change the Sort fields alone, which no commit has taken */
     if (scanned)
         resort_if_stale();
@@ -10384,8 +10831,10 @@ static bool update_and_reload(void)
     if (!tc_stat.ready)
         tagcache_commit_finalize();
 #endif
-    /* a commit left for room has the import tried again, as a scan cut short */
-    return scanned && !no_space;
+    commit_first_build = false;
+    /* a commit left for room has the import tried again, as a scan cut short;
+       so does one without a database, its files dropped for want of memory */
+    return scanned && !no_space && db_file_exists(TAGCACHE_FILE_MASTER);
 }
 
 /* How many different values a tag has, as artists or albums */
@@ -10873,6 +11322,12 @@ static void tagcache_thread(void)
             count_songs();
 
         queue_wait_w_tmo(&tagcache_queue, &ev, HZ);
+        memory_note_due = ev.id == Q_SYNCED || ev.id == Q_IMPORT_ITUNES
+                          || (ev.id == Q_CHECK_OUTSIDE && usb_since_check
+                              && !outside_noted);
+        if (ev.id == Q_CHECK_OUTSIDE)
+            usb_since_check = false;
+        update_left_out = false;
 
         switch (ev.id)
         {
@@ -10929,11 +11384,16 @@ static void tagcache_thread(void)
                 if (!db_file_exists(TAGCACHE_FILE_TEMP))
                 {
                     itunesdb_import();
+                    /* and those of Finder's songs iTunesDB still lists */
+                    check_synced_files();
                     /* a place the pass took from the Mac, for the lists */
                     states_generation++;
                     /* itunesdb.dat now matches, or there's no iTunesDB:
-                       the statistics are all back */
-                    if (!itunesdb_changed())
+                       the statistics are all back; but not those of songs
+                       left out for want of memory, which a restore keeps
+                       for an import that adds them before the next boot:
+                       tagcache_init() forgets it then */
+                    if (!itunesdb_changed() && !update_left_out)
                         restore_forget();
                     /* the live smart playlists, by the counts just in */
                     smart_update_after_import();
@@ -10980,6 +11440,8 @@ static void tagcache_thread(void)
                 {
                     check_deleted_file_refs(true);
                     update_and_reload();
+                    /* and those of Finder's songs, iTunesDB as synced */
+                    check_synced_files();
                 }
                 check_skips_synced = scan_outside = false;
                 set_import_phase(TAGCACHE_IMPORT_NONE);
@@ -11103,6 +11565,19 @@ static void tagcache_thread(void)
                 cpu_boost(false);
                 usb_acknowledge(SYS_USB_CONNECTED_ACK, ev.data);
                 usb_wait_for_disconnect(&tagcache_queue);
+                usb_since_check = true;
+                /* No library, its making put off for want of memory and its
+                   files dropped: the songs may be fewer now, and Music asks
+                   to make it again, as after a boot (root_menu.c). Here, not
+                   in tagcache_check_sync(), which the boot calls too: it'd
+                   ask at once again after the boot's own commit. */
+                if (!tc_stat.ready && commit_no_memory
+                    && !db_file_exists(TAGCACHE_FILE_MASTER))
+                {
+                    tc_stat.commit_delayed = false;
+                    commit_no_memory = false;
+                    processed_dir_count = 0;
+                }
                 /* owed after all, the menu's word come late: its post was
                    dropped by the wait. A sync of that connection is taken
                    in as the menu shows next. */

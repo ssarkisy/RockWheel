@@ -1532,6 +1532,7 @@ int dircache_readdir_dirent(struct filestr_base *stream,
     entry->info.size    = (ce->attr & ATTR_DIRECTORY) ? 0 : ce->filesize;
     entry->info.wrtdate = ce->wrtdate;
     entry->info.wrttime = ce->wrttime;
+    entry->info.firstcluster = ce->firstcluster;
 
     /* FS scan information */
     scanp->fatscan.entry    = ce->direntry;
