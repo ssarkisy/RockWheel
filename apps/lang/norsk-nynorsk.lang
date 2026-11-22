@@ -23621,3 +23621,241 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_EQ_MY_PRESETS
+  desc: in the iPod's EQ list: the group of the user's own presets, Custom first and then the files of /.rockbox/eqs, above Headphones
+  user: core
+  <source>
+    *: "My Presets"
+  </source>
+  <dest>
+    *: "Mine førehandsinnstillingar"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_CUSTOM
+  desc: in the iPod's EQ list: the user's own EQ, kept until it's changed, as on Sony's players; the row that opens its editor, the editor's title and the EQ row's value with it set
+  user: core
+  <source>
+    *: "Custom"
+  </source>
+  <dest>
+    *: "Tilpassa"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_FREQUENCY
+  desc: the EQ editor, a band's view: the name over the band's frequency, as 2.3 kHz; a column of four, as wide as its widest value
+  user: core
+  <source>
+    *: "Frequency"
+  </source>
+  <dest>
+    *: "Frekvens"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_GAIN
+  desc: the EQ editor, a band's view: the name over the band's gain, as +3.0 dB; a column of four
+  user: core
+  <source>
+    *: "Gain"
+  </source>
+  <dest>
+    *: "Forsterking"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_Q
+  desc: the EQ editor, a band's view: the name over the band's Q, its width, as 2.0; the column is as wide as 6.4, so keep it as short
+  user: core
+  <source>
+    *: "Q"
+  </source>
+  <dest>
+    *: "Q"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_TYPE
+  desc: the EQ editor, a band's view: the name over the band's kind of filter, Low Shelf, Peak or High Shelf; a column of four
+  user: core
+  <source>
+    *: "Type"
+  </source>
+  <dest>
+    *: "Type"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_LOW_SHELF
+  desc: the EQ editor: a band's type, a filter that raises or lowers everything below its frequency; short, in a column of four
+  user: core
+  <source>
+    *: "Low Shelf"
+  </source>
+  <dest>
+    *: "Låg hylle"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PEAK
+  desc: the EQ editor: a band's type, a filter that raises or lowers the frequencies round its own; short, in a column of four
+  user: core
+  <source>
+    *: "Peak"
+  </source>
+  <dest>
+    *: "Topp"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_HIGH_SHELF
+  desc: the EQ editor: a band's type, a filter that raises or lowers everything above its frequency; short, in a column of four
+  user: core
+  <source>
+    *: "High Shelf"
+  </source>
+  <dest>
+    *: "Høg hylle"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_COMPARE
+  desc: the EQ editor, while Play is held: what the screen shows, the music as it is without the EQ, in small grey letters over EQ Off
+  user: core
+  <source>
+    *: "Compare"
+  </source>
+  <dest>
+    *: "Samanlikn"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_COMPARE_OFF
+  desc: the EQ editor, while Play is held: under Compare, in large letters: the EQ is off for as long as Play is held
+  user: core
+  <source>
+    *: "EQ Off"
+  </source>
+  <dest>
+    *: "EQ av"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SAVE_PRESET_DOTS
+  desc: the EQ editor's menu, Select held: keeps the Custom EQ as a preset of the user's own under a name typed next; the dots say a name is asked for
+  user: core
+  <source>
+    *: "Save Preset…"
+  </source>
+  <dest>
+    *: "Lagra førehandsinnstilling…"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_SAVE_PRESET
+  desc: the title over the letters as a name is typed for the preset saved from the Custom EQ
+  user: core
+  <source>
+    *: "Save Preset"
+  </source>
+  <dest>
+    *: "Lagra førehandsinnstilling"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_START_FROM
+  desc: the EQ editor's menu: a list of the EQ's presets, the one chosen copied into the Custom EQ to be changed from there
+  user: core
+  <source>
+    *: "Start From"
+  </source>
+  <dest>
+    *: "Start frå"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_RESET_FLAT
+  desc: the EQ editor's menu: every band of the Custom EQ back to 0 dB at its own frequency
+  user: core
+  <source>
+    *: "Reset to Flat"
+  </source>
+  <dest>
+    *: "Tilbakestill til flat"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_PRESET_N
+  desc: the name offered for a preset saved from the Custom EQ, the first number no preset has: %d is the number
+  user: core
+  <source>
+    *: "Preset %d"
+  </source>
+  <dest>
+    *: "Førehandsinnstilling %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_EQ_REPLACE
+  desc: as a preset is saved under the name of one there already: the first row of the question, in a list titled with that name, Cancel under it; replaces that preset
+  user: core
+  <source>
+    *: "Replace"
+  </source>
+  <dest>
+    *: "Byt ut"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

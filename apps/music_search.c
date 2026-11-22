@@ -3073,6 +3073,10 @@ int music_search_name(const char *title, char *buf, size_t size,
     name_max = MIN(size - 1, max_bytes);
     name_text[name_max] = '\0';
     name_title = title;
+    /* the title in the status line at once, as draw() sets it, and the
+       caller's again as it draws once this is done: the status line's timed
+       update showed the screen before's for up to a second */
+    sb_skin_force_next_update();
     /* capitals for a name typed anew, as one starts; small for one renamed */
     name_shift = buf[0] ? SHIFT_OFF : SHIFT_ONE;
     in_results = false;
@@ -3191,6 +3195,7 @@ int music_search_name(const char *title, char *buf, size_t size,
     }
 
     naming = false;
+    sb_skin_force_next_update();
     /* Search's ring again, for its screen under this one */
     make_strip();
     strip.pos = search_pos < strip.count ? search_pos : 0;

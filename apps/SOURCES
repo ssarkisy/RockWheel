@@ -28,6 +28,9 @@ menus/radio_menu.c
 menus/audiohw_eq_menu.c
 #endif
 menus/eq_menu.c
+eq_curve.c
+eq_editor.c
+eq_files.c
 buffering.c
 voice_thread.c
 rbcodec_helpers.c

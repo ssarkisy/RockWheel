@@ -33,6 +33,7 @@
 #include "dsp_proc_settings.h"
 #include "gui/list.h"
 #include "gui/ui_theme.h" /* UI_MAIN_MENU_PANE */
+#include "eq_files.h" /* EQ_PATH_MAX */
 
 struct opt_items {
     unsigned const char* string;
@@ -484,7 +485,7 @@ struct user_settings
     bool eq_enabled;            /* Enable equalizer */
     unsigned int eq_precut;     /* dB */
     struct eq_band_setting eq_band_settings[EQ_NUM_BANDS]; /* for each band */
-    int eq_preset;              /* the iPod settings' preset, by its id, or 0 */
+    int eq_preset;              /* the EQ's preset by its id (eq_menu.c), or 0 */
 
     /* Misc. swcodec */
     int  beep;              /* system beep volume when changing tracks etc. */
@@ -1161,6 +1162,15 @@ struct user_settings
     /* Settings > General > Wheel Sensitivity: WHEEL_SENSITIVITY_LOW, MEDIUM
        or HIGH (wheel_policy.h) */
     int wheel_sensitivity;
+    /* The EQ's Custom, an EQ of its own (eq_menu.c): its bands, kept whatever
+       preset is chosen, and their precut in tenths of a dB, worked out from
+       them as they change (eq_curve_precut()). With eq_preset EQ_ID_CUSTOM
+       they are the EQ's */
+    struct eq_band_setting eq_custom[EQ_NUM_BANDS];
+    int eq_custom_precut;
+    /* the user's preset the EQ is set to with eq_preset EQ_ID_FILE, by its
+       file's path from /.rockbox/eqs, as "AutoEq/HD 650 ParametricEQ.txt" */
+    char eq_preset_file[EQ_PATH_MAX];
 };
 
 /* global settings */

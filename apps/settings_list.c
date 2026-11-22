@@ -2261,8 +2261,9 @@ const struct settings_list settings[] = {
     INT_SETTING_NOWRAP(F_EQSETTING, eq_precut, LANG_EQUALIZER_PRECUT, 0,
                        "eq precut", UNIT_DB, 0, 240, 1, eq_precut_format,
                        get_precut_talkid, dsp_set_eq_precut),
-    /* which of the iPod settings' presets the bands are: a firmware that retunes
-       it then sets them to its own */
+    /* which of the iPod settings' presets the bands are, Custom or the user's
+       preset named by eq_preset_file among them (eq_menu.c): a firmware that
+       retunes it then sets them to its own */
     INT_SETTING_NOWRAP(0, eq_preset, LANG_EQUALIZER, 0, "eq preset", UNIT_INT,
                        0, 999, 1, NULL, NULL, NULL),
 
@@ -2300,6 +2301,26 @@ const struct settings_list settings[] = {
     EQ_BAND(8, "eq filter 8"),
     EQ_BAND(9, "eq filter 9"),
 #undef EQ_BAND
+    /* Custom's own, in the same format, not written into a preset file */
+#define EQ_CUSTOM(id, string) \
+        CUSTOM_SETTING(0, eq_custom[id], -1,                    \
+                  &eq_defaults[id], string,                     \
+                  eq_load_from_cfg_new, eq_write_to_cfg,        \
+                  eq_is_changed, eq_set_default)
+    EQ_CUSTOM(0, "eq custom 0"),
+    EQ_CUSTOM(1, "eq custom 1"),
+    EQ_CUSTOM(2, "eq custom 2"),
+    EQ_CUSTOM(3, "eq custom 3"),
+    EQ_CUSTOM(4, "eq custom 4"),
+    EQ_CUSTOM(5, "eq custom 5"),
+    EQ_CUSTOM(6, "eq custom 6"),
+    EQ_CUSTOM(7, "eq custom 7"),
+    EQ_CUSTOM(8, "eq custom 8"),
+    EQ_CUSTOM(9, "eq custom 9"),
+#undef EQ_CUSTOM
+    INT_SETTING_NOWRAP(0, eq_custom_precut, LANG_EQUALIZER_PRECUT, 0,
+                       "eq custom precut", UNIT_INT, 0, 240, 10, NULL, NULL, NULL),
+    TEXT_SETTING(0, eq_preset_file, "eq preset file", "", NULL, NULL),
 
     /* dithering */
     OFFON_SETTING(F_SOUNDSETTING, dithering_enabled, LANG_DITHERING, true,

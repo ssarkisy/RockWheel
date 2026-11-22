@@ -58,11 +58,13 @@ static struct eq_state
 /* While the UI animates, as Cover Flow's covers roll, what's decoded then goes
    without the bands, the precut kept: the decoder keeps up on a fraction of the
    CPU it took. Into that and out of it, a crossfade of EQ_FADE samples, 46 ms,
-   over as many passes of the DSP as it takes, each EQ_PIECE at most at a time. */
+   over as many passes of the DSP as it takes, each EQ_PIECE at most at a time.
+   The EQ editor's compare goes the same way, whatever the UI does. */
 #define EQ_FADE_SHIFT 11
 #define EQ_FADE (1 << EQ_FADE_SHIFT)
 #define EQ_PIECE 192
-static bool eq_light;          /* asked for */
+static bool eq_light;          /* asked for as the UI animates */
+static bool eq_bypass;         /* asked for by the EQ editor */
 static int eq_wet = EQ_FADE;   /* how much of the filtered there is, of EQ_FADE */
 static int32_t eq_dry[2][EQ_PIECE];
 static int32_t eq_last[2][2]; /* the last two samples that came in, of each channel */
@@ -230,11 +232,21 @@ void dsp_eq_set_light(bool light)
     eq_light = light;
 }
 
+void dsp_eq_set_bypass(bool bypass)
+{
+    eq_bypass = bypass;
+}
+
+static bool eq_dry_asked(void)
+{
+    return eq_light || eq_bypass;
+}
+
 /* After a seek or a change of track, the sound starts again: it's as asked at
    once, the filters from nothing */
 static void eq_light_reset(void)
 {
-    eq_wet = eq_light ? 0 : EQ_FADE;
+    eq_wet = eq_dry_asked() ? 0 : EQ_FADE;
     memset(eq_last, 0, sizeof(eq_last));
 }
 
@@ -269,7 +281,7 @@ static void eq_process(struct dsp_proc_entry *this,
     struct dsp_buffer *buf = *buf_p;
     int count = buf->remcount;
     unsigned int channels = buf->format.num_channels;
-    const int target = eq_light ? 0 : EQ_FADE;
+    const int target = eq_dry_asked() ? 0 : EQ_FADE;
 
     if (eq_wet == EQ_FADE && target == EQ_FADE)
     {

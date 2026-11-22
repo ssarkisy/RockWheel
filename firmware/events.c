@@ -23,7 +23,9 @@
 #include "kernel.h"
 #include "panic.h"
 
-#define MAX_SYS_EVENTS 28
+/* the simulator had 24 at once; the EQ editor's makeups still waiting for
+   the music add one for a while: room to spare */
+#define MAX_SYS_EVENTS 32
 
 struct sysevent {
     unsigned short id;

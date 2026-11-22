@@ -42,7 +42,10 @@ struct eq_band_setting
 void dsp_set_eq_precut(int precut);
 void dsp_set_eq_coefs(int band, const struct eq_band_setting *setting);
 void dsp_eq_enable(bool enable);
-/* without the bands in what's decoded from now, or with them again */
+/* without the bands in what's decoded from now, or with them again: as the UI
+   animates, which the codec thread asks before each pass of the DSP */
 void dsp_eq_set_light(bool light);
+/* the same for the EQ editor's compare, which the UI's animations leave alone */
+void dsp_eq_set_bypass(bool bypass);
 
 #endif /* _EQ_H */

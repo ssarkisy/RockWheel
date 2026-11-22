@@ -86,5 +86,16 @@ void pcmbuf_sync_position_update(void);
 /* Misc */
 bool pcmbuf_is_lowdata(void);
 void pcmbuf_set_low_latency(bool state);
+bool pcmbuf_low_latency(void);
+/* where what's been decoded so far ends: a change in what's decoded from now
+   on is heard from there */
+unsigned long pcmbuf_mark(void);
+/* ticks until what was decoded up to the mark has been heard, 0 once it has
+   or was dropped, -1 while it waits for the music to play (paused, or as it
+   starts) */
+long pcmbuf_until_heard(unsigned long mark);
+/* how long what's decoded and not heard yet plays, whether it plays now or
+   waits, paused or starting */
+unsigned int pcmbuf_unheard_ticks(void);
 
 #endif /* PCMBUF_H */

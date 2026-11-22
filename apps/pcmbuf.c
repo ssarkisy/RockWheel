@@ -138,6 +138,9 @@ static size_t chunk_ridx;
 static size_t chunk_widx;
 
 static size_t pcmbuf_bytes_waiting;
+/* all that's ever been put after what's queued, a count that wraps: what's
+   heard so far is it less what's still to play (pcmbuf_until_heard()) */
+static unsigned long pcmbuf_written;
 static struct chunkdesc *current_desc;
 static size_t chunk_transidx;
 
@@ -478,6 +481,7 @@ static void commit_write_buffer(size_t size)
 {
     /* Add this data and commit if one or more chunks are ready */
     pcmbuf_bytes_waiting += size;
+    pcmbuf_written += size;
     commit_if_needed(COMMIT_CHUNKS);
 }
 
@@ -576,6 +580,15 @@ void * pcmbuf_request_buffer(int *count)
     }
     else    /* !playing */
     {
+        /* paused, after its fade out or before it was heard at all (as when
+           Now Playing opens paused): no more than low latency keeps as it
+           plays, or what's heard as it plays on, the EQ editor's changes in
+           it, would come after seconds decoded before. Starting, or after a
+           seek while it plays, it may play and fills to START_DATA as ever */
+        if (low_latency_mode && (fade_out_complete || !audio_pcmbuf_may_play())
+            && remaining > data_level(1))
+            return NULL;
+
         /* Paused, and its fade out over, which stops the channel: the UI goes
            first while there's enough, as when it plays, and the buffer is filled
            when it's still. It was filled at once, at the codec's highest
@@ -1562,4 +1575,60 @@ bool pcmbuf_is_lowdata(void)
 void pcmbuf_set_low_latency(bool state)
 {
     low_latency_mode = state;
+}
+
+bool pcmbuf_low_latency(void)
+{
+    return low_latency_mode;
+}
+
+unsigned long pcmbuf_mark(void)
+{
+    return pcmbuf_written;
+}
+
+/* what's decoded and still to be heard, and all that's been written so far */
+static size_t unheard_bytes(enum channel_status status, unsigned long *written)
+{
+    pcm_play_lock();
+    /* what's to be heard: the chunks, and what's written after them, not in
+       one yet, whether it plays now or later, paused, as it starts or after
+       the pause's fade stopped the channel; a stop empties them */
+    size_t unheard = pcmbuf_unplayed_bytes() + pcmbuf_bytes_waiting;
+    /* the chunk that plays counts whole there: less what the mixer has taken
+       of it but the frame it has ready, which it counts until the next */
+    if (status != CHANNEL_STOPPED && current_desc)
+    {
+        const size_t size = current_desc->size;
+        const size_t left = mixer_channel_get_bytes_waiting(PCM_MIXER_CHAN_PLAYBACK);
+        unheard -= MIN(unheard, size - MIN(size, left));
+    }
+    *written = pcmbuf_written;
+    pcm_play_unlock();
+    /* and the frame that plays, half heard on average */
+    if (unheard)
+        unheard += MIX_FRAME_SAMPLES * PCMBUF_SAMPLE_SIZE / 2;
+    return unheard;
+}
+
+long pcmbuf_until_heard(unsigned long mark)
+{
+    const enum channel_status status = mixer_channel_status(PCM_MIXER_CHAN_PLAYBACK);
+    unsigned long written;
+    const size_t unheard = unheard_bytes(status, &written);
+    /* how much of what was written up to the mark is still to come */
+    const long ahead = (long)(mark - (written - unheard));
+    if (ahead <= 0)
+        return 0;
+    if (status != CHANNEL_PLAYING)
+        return -1;
+    return MAX(((unsigned long)ahead * HZ + BYTERATE / 2) / BYTERATE, 1);
+}
+
+unsigned int pcmbuf_unheard_ticks(void)
+{
+    unsigned long written;
+    const size_t unheard =
+        unheard_bytes(mixer_channel_status(PCM_MIXER_CHAN_PLAYBACK), &written);
+    return (unheard * HZ + BYTERATE / 2) / BYTERATE;
 }

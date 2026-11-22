@@ -69,9 +69,9 @@
 
 #define MAX_MENUS 8
 /* used to allow for dynamic menus */
-#define MAX_MENU_SUBITEMS 64
+#define MAX_MENU_SUBITEMS MENU_MAX_ROWS
 static struct menu_item_ex *current_submenus_menu;
-static int current_subitems[MAX_MENU_SUBITEMS];
+static uint16_t current_subitems[MAX_MENU_SUBITEMS];
 static int current_subitems_count = 0;
 static int talk_menu_item(int selected_item, void *data);
 
@@ -543,6 +543,9 @@ static bool menu_is_group(int item, void *data)
 #define LIGHT_LEAST 40 /* the room a lighter text after a name needs at least */
 #define GROUP_FOOT_GAP 3 /* a group's band off the row under it, in two-line lists */
 
+/* a check mark's height at most, for its mask (check_mask()) */
+#define CHECK_H_MAX 18
+
 /* Modern's switch, iOS 13's: a capsule of 27 by 16, its knob 12 px, 2 px
    inside it */
 #ifdef UI_220X176
@@ -558,11 +561,12 @@ static bool menu_is_group(int item, void *data)
 /* What a setting's row has at its end: its value, or its switch, Dieter's
    key or Modern's capsule, drawn by line.c after the row's name and again
    after each step of its scrolling (line_desc.draw_end) */
-enum row_end_kind { END_TEXT, END_KEY, END_CAPSULE };
+enum row_end_kind { END_TEXT, END_KEY, END_CAPSULE, END_CHECK };
 struct row_end {
     enum row_end_kind kind;
     int x, dy;     /* its left, a text's as left to left (putsxy() mirrors
                       it right to left); its top below the line's */
+    int w, h;      /* a check's */
     bool on, selected, inked;
     int font; /* a text's */
     unsigned colour;
@@ -575,6 +579,77 @@ struct row_end {
    would write over the first's record while the first's still scrolls */
 static struct row_end selected_end[NB_SCREENS];
 static char selected_text[NB_SCREENS][MAX_PATH];
+
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+extern void lcd_alpha_bitmap_part(const unsigned char *src, int src_x,
+                                  int src_y, int stride, int x, int y,
+                                  int width, int height);
+
+/* the distance from p to the segment a-b, all in 1/16 px */
+static int check_distance(int px, int py, int ax, int ay, int bx, int by)
+{
+    const int vx = bx - ax, vy = by - ay, wx = px - ax, wy = py - ay;
+    const long long c1 = (long long)wx * vx + (long long)wy * vy;
+    const long long c2 = (long long)vx * vx + (long long)vy * vy;
+    long long d2;
+    if (c1 <= 0)
+        d2 = (long long)wx * wx + (long long)wy * wy;
+    else if (c2 <= c1)
+        d2 = (long long)(px - bx) * (px - bx) + (long long)(py - by) * (py - by);
+    else
+        d2 = (long long)wx * wx + (long long)wy * wy - c1 * c1 / c2;
+    /* its integer square root */
+    unsigned long r = 0, bit = 1ul << 30, n = d2 > 0x7fffffff ? 0x7fffffff : d2;
+    while (bit > n)
+        bit >>= 2;
+    for (; bit; bit >>= 2)
+    {
+        if (n >= r + bit)
+        {
+            n -= r + bit;
+            r = (r >> 1) + bit;
+        }
+        else
+            r >>= 1;
+    }
+    return r;
+}
+
+/* A check mark of w by h, its strokes t/16 px thick, as the fonts' letters are
+   drawn: an alpha mask (lcd-16bit-common.c's: 4 bits a pixel, the first in a
+   byte's low half, 0 ink and 15 none), made again when another size is asked */
+#define CHECK_MAX_W (CHECK_H_MAX * 5 / 4)
+#define CHECK_MAX_H CHECK_H_MAX
+static const unsigned char *check_mask(int w, int h, int t)
+{
+    static unsigned char mask[(CHECK_MAX_W * CHECK_MAX_H + 1) / 2];
+    static int made_w, made_h;
+    if (w == made_w && h == made_h)
+        return mask;
+    made_w = w;
+    made_h = h;
+    memset(mask, 0xff, sizeof(mask));
+    const int m = t / 2 + 8;
+    const int x0 = m, y0 = h * 16 * 9 / 16;
+    const int x1 = w * 16 * 3 / 8, y1 = h * 16 - m;
+    const int x2 = w * 16 - m, y2 = m;
+    for (int py = 0; py < h; py++)
+    {
+        for (int px = 0; px < w; px++)
+        {
+            const int cx = px * 16 + 8, cy = py * 16 + 8;
+            const int d = MIN(check_distance(cx, cy, x0, y0, x1, y1),
+                              check_distance(cx, cy, x1, y1, x2, y2));
+            const int ink = MAX(0, MIN(16, t / 2 + 8 - d));
+            const int i = py * w + px;
+            const int alpha = 15 - (ink * 15 + 8) / 16;
+            mask[i / 2] = i & 1 ? (mask[i / 2] & 0x0f) | (alpha << 4)
+                                : (mask[i / 2] & 0xf0) | alpha;
+        }
+    }
+    return mask;
+}
+#endif
 
 static void draw_row_end(struct screen *display, int y,
                          const struct line_desc *line)
@@ -617,6 +692,30 @@ static void draw_row_end(struct screen *display, int y,
             break;
         }
 #endif
+        case END_CHECK:
+        {
+            /* two strokes as thick as a letter's, the short one down to the
+               long one's foot, their edges soft as the letters' are; in the
+               row's text colour, the selection's on the selected row */
+            display->set_foreground(end->inked ? line->text_color : end->colour);
+#if defined(HAVE_LCD_COLOR) && !defined(DISABLE_ALPHA_BITMAP)
+            if (display->screen_type == SCREEN_MAIN)
+            {
+                display->set_drawmode(DRMODE_FG);
+                lcd_alpha_bitmap_part(check_mask(end->w, end->h, end->h * 16 / 5),
+                                      0, 0, end->w, end->x, y, end->w, end->h);
+                break;
+            }
+#endif
+            const int t = MAX(2, end->h / 5);
+            const int foot_x = end->x + end->w * 3 / 8, foot_y = y + end->h - t;
+            for (int d = 0; d < t; d++)
+            {
+                display->drawline(end->x, y + end->h * 9 / 16 + d, foot_x, foot_y + d);
+                display->drawline(foot_x, foot_y + d, end->x + end->w - 1, y + d);
+            }
+            break;
+        }
         default:
         {
             struct viewport *vp = *display->current_viewport;
@@ -663,6 +762,9 @@ static const char *menu_value_line(int selected_item, void *data, char *buffer,
         return NULL;
     if (tab[1] == MENU_SWITCH_ON || tab[1] == MENU_SWITCH_OFF)
         return ui_metric(UI_METRIC_SWITCHES) ? NULL : tab + 2;
+    /* a check mark is at the row's end, on its name's line */
+    if (tab[1] == MENU_CHECK)
+        return NULL;
     return tab + 1;
 }
 
@@ -825,6 +927,48 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         info->vp->font = name_font;
         display->set_drawmode(DRMODE_SOLID);
         display->set_foreground(old_fg);
+        return;
+    }
+
+    /* "name\t\x1c": the name, and a check mark at the row's end, where a
+       value would be, a cap's height, its foot on the name's baseline; in a
+       theme of rows of two lines as well, on the name's line */
+    if (tab && tab[1] == MENU_CHECK)
+    {
+        strlcpy(name, text, MIN((size_t)(tab - text) + 1, sizeof(name)));
+        const struct font *pf = font_get(info->vp->font);
+        int name_width, height;
+        display->getstringsize(name, &name_width, &height);
+        struct row_end end = { .kind = END_CHECK };
+        /* a capital's height, about */
+        end.h = MAX(7, MIN(CHECK_H_MAX, pf->ascent * 3 / 4));
+        end.w = end.h * 5 / 4;
+        const int right = menu_values_end(info);
+        end.x = VP_IS_RTL(info->vp) ? info->vp->width - right : right - end.w;
+        end.dy = (info->linedes->height - height) / 2 + pf->ascent - end.h;
+        /* the selected row's in its name's colour, also where the selection
+           colours the name only (STYLE_NAME_ONLY, Modern's) */
+        end.inked = info->is_selected;
+        end.colour = ui_colour(UI_COLOUR_TEXT);
+        struct line_desc linedes = *info->linedes;
+        const int name_x = info->x + info->item_indent;
+        if (name_x + name_width + VALUE_GAP > right - end.w)
+            linedes.end_width = MIN(info->vp->width - (right - end.w) + VALUE_GAP,
+                                    info->vp->width - name_x - 1);
+        linedes.draw_end = draw_row_end;
+        if (info->is_selected && linedes.scroll)
+        {
+            const int screen = display->screen_type;
+            selected_end[screen] = end;
+            linedes.end_data = &selected_end[screen];
+        }
+        else
+        {
+            linedes.scroll = false;
+            linedes.end_data = &end;
+        }
+        display->put_line(info->x, info->y, &linedes, "$*s$*t", info->item_indent,
+                          info->item_offset, name);
         return;
     }
 

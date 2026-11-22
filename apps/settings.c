@@ -74,6 +74,7 @@
 #include "list.h"
 #include "settings_list.h"
 #include "menus/eq_menu.h"
+#include "eq_editor.h"
 #include "filetypes.h"
 #include "option_select.h"
 #if CONFIG_TUNER
@@ -1273,11 +1274,12 @@ void settings_apply(bool read_disk)
                                    global_settings.crossfeed_hf_attenuation,
                                    global_settings.crossfeed_hf_cutoff);
 
-    /* Configure software equalizer, hardware eq is handled in audio_init() */
-    eq_update_preset();
+    /* Configure software equalizer, hardware eq is handled in audio_init();
+       the user's presets read from the disk first, at boot and after USB */
+    eq_update_preset(read_disk);
     dsp_eq_enable(global_settings.eq_enabled);
     dsp_set_eq_precut(global_settings.eq_precut);
-    sound_set_eq_makeup(global_settings.eq_enabled ? global_settings.eq_precut : 0);
+    eq_makeup_now(global_settings.eq_enabled ? global_settings.eq_precut : 0);
     for(int i = 0; i < EQ_NUM_BANDS; i++) {
         dsp_set_eq_coefs(i, &global_settings.eq_band_settings[i]);
     }

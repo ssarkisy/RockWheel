@@ -51,7 +51,14 @@ const char* eq_precut_format(char* buffer, size_t buffer_size, int value,
 void eq_enabled_option_callback(bool enabled);
 
 /* the bands and precut of the preset the EQ is set to as this firmware has them, for
-   one chosen with an older firmware */
-void eq_update_preset(void);
+   one chosen with an older firmware, and the user's preset as its file is now; with
+   read_files, the user's presets read from the disk first (eq_files_read()) */
+void eq_update_preset(bool read_files);
+
+/* the EQ set to Custom (global_settings.eq_custom), as it is */
+void eq_set_custom(void);
+/* The editor's menu, Select held in it: Save Preset..., Start From, Reset to
+   Flat. GO_TO_ROOT for Menu held, MENU_ATTACHED_USB after USB, else 0 */
+int eq_editor_menu(void);
 
 #endif

@@ -70,6 +70,9 @@ struct menu_func {
 #define MENU_FUNC_OPENS_SCREEN 0x200 /* stays open with MENU_EXITAFTERTHISMENU, \
                                         but still leads to more */
 
+/* the rows one menu shows at most, the rest not: the EQ's lists have as many
+   as 256 of the user's presets in one, beside their own few rows */
+#define MENU_MAX_ROWS 272
 #define MENU_COUNT_MASK 0xFFF
 #define MENU_COUNT_SHIFT 12
 #define MENU_ITEM_COUNT(c) ((c&MENU_COUNT_MASK)<<MENU_COUNT_SHIFT)
@@ -171,6 +174,9 @@ void menu_draw_value_line(struct list_putlineinfo_t *info);
 #define MENU_SWITCH_OFF '\x1d'
 #define MENU_SWITCH_ON  '\x1e'
 #define MENU_SWITCH(on) ((on) ? MENU_SWITCH_ON : MENU_SWITCH_OFF)
+/* a row's value: a check mark at its end, for the one chosen among the rows,
+   as the EQ's active preset; the themes' fonts have no ✓, so it's drawn */
+#define MENU_CHECK      '\x1c'
 /* From a screen a menu has opened: Menu has been held, so leave for the main menu */
 void menu_request_root(void);
 /* Whether Settings is open: the outermost menu open is it, and whatever is

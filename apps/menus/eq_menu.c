@@ -50,6 +50,14 @@
 #include "option_select.h"
 #include "root_menu.h"
 #include "string-extra.h"
+#include "transition.h"
+#include "splash.h"
+#include "eq_files.h"
+#include "eq_curve.h"
+#include "eq_editor.h"
+#ifdef HAVE_TAGCACHE
+#include "music_search.h"
+#endif
 
 static void eq_apply(void);
 
@@ -84,7 +92,7 @@ static void eq_apply(void)
 {
     dsp_eq_enable(global_settings.eq_enabled);
     dsp_set_eq_precut(global_settings.eq_precut);
-    sound_set_eq_makeup(global_settings.eq_enabled ? global_settings.eq_precut : 0);
+    eq_makeup_now(global_settings.eq_enabled ? global_settings.eq_precut : 0);
     /* Update all bands */
     for(int i = 0; i < EQ_NUM_BANDS; i++) {
         dsp_set_eq_coefs(i, &global_settings.eq_band_settings[i]);
@@ -1026,12 +1034,26 @@ static int eq_preset_of_bands(void)
     return 0;
 }
 
+/* Beyond the built-in presets' ids, those the settings keep for the EQ's own:
+   Custom (global_settings.eq_custom), and the user's preset at eq_preset_file.
+   An older firmware finds no preset of these and keeps the bands config.cfg
+   has, which are the EQ's */
+#define EQ_ID_CUSTOM 900
+#define EQ_ID_FILE   901
+/* and their numbers here, after the built-in presets' */
+#define EQ_CUSTOM (EQ_PRESETS + 1)
+#define EQ_FILE   (EQ_PRESETS + 2)
+
 /* the preset the equalizer is set to, or Off (0) if none is: the one kept, or for
    settings from before that, the one with its bands */
 static int eq_get_preset(void)
 {
     if (!global_settings.eq_enabled)
         return 0;
+    if (global_settings.eq_preset == EQ_ID_CUSTOM)
+        return EQ_CUSTOM;
+    if (global_settings.eq_preset == EQ_ID_FILE)
+        return EQ_FILE;
     for (int preset = 1; preset <= EQ_PRESETS; preset++)
     {
         if (eq_preset_id(preset) == global_settings.eq_preset)
@@ -1040,20 +1062,57 @@ static int eq_get_preset(void)
     return eq_preset_of_bands();
 }
 
+/* whether eq_take() has had the music decoded again, since it was cleared */
+static bool eq_sought;
+
+/* The EQ set to these bands and precut, by the id the settings keep and the
+   user's preset's path: heard at once if that changes the sound, and saved if
+   it changes anything */
+static void eq_take(const struct eq_band_setting *bands, int precut, int id,
+                    const char *file)
+{
+    if (!file)
+        file = "";
+    const bool heard = !global_settings.eq_enabled
+        || (int)global_settings.eq_precut != precut
+        || memcmp(global_settings.eq_band_settings, bands,
+                  sizeof(global_settings.eq_band_settings));
+    const bool changed = heard || global_settings.eq_preset != id
+        || strcmp(global_settings.eq_preset_file, file);
+    global_settings.eq_enabled = true;
+    global_settings.eq_preset = id;
+    if (file != global_settings.eq_preset_file)
+        strmemccpy(global_settings.eq_preset_file, file,
+                   sizeof(global_settings.eq_preset_file));
+    memmove(global_settings.eq_band_settings, bands,
+            sizeof(global_settings.eq_band_settings));
+    global_settings.eq_precut = precut;
+    if (heard)
+        dsp_change_heard_now(eq_apply);
+    else
+        eq_apply();
+    eq_sought |= heard;
+    if (changed)
+        settings_save();
+}
+
+/* Off or a built-in preset */
 static void eq_set_preset(int preset)
 {
-    /* on and set to none is a setting of its own, which Off changes too */
-    const bool changed = preset != eq_get_preset()
-                         || (preset == 0 && global_settings.eq_enabled);
-    global_settings.eq_enabled = preset > 0;
-    global_settings.eq_preset = preset > 0 ? eq_preset_id(preset) : 0;
     if (preset > 0)
     {
+        struct eq_band_setting bands[EQ_NUM_BANDS];
         for (int i = 0; i < EQ_NUM_BANDS; i++)
-            global_settings.eq_band_settings[i] = eq_preset_band(preset, i);
+            bands[i] = eq_preset_band(preset, i);
         /* down by the largest boost, so that loud music doesn't clip */
-        global_settings.eq_precut = eq_preset_precut(preset);
+        eq_take(bands, eq_preset_precut(preset), eq_preset_id(preset), NULL);
+        return;
     }
+    /* on and set to none is a setting of its own, which Off changes too */
+    const bool changed = global_settings.eq_enabled || global_settings.eq_preset != 0;
+    global_settings.eq_enabled = false;
+    global_settings.eq_preset = 0;
+    global_settings.eq_preset_file[0] = '\0';
     if (changed)
     {
         dsp_change_heard_now(eq_apply);
@@ -1063,23 +1122,105 @@ static void eq_set_preset(int preset)
         eq_apply();
 }
 
-void eq_update_preset(void)
+void eq_set_custom(void)
 {
+    eq_take(global_settings.eq_custom, global_settings.eq_custom_precut,
+            EQ_ID_CUSTOM, NULL);
+}
+
+/* Custom made a copy of these, and the EQ set to it */
+static void eq_custom_from(const struct eq_band_setting *bands, int precut)
+{
+    memmove(global_settings.eq_custom, bands, sizeof(global_settings.eq_custom));
+    global_settings.eq_custom_precut = precut;
+    eq_set_custom();
+}
+
+static void eq_custom_from_preset(int preset)
+{
+    struct eq_band_setting bands[EQ_NUM_BANDS];
+    for (int i = 0; i < EQ_NUM_BANDS; i++)
+        bands[i] = eq_preset_band(preset, i);
+    eq_custom_from(bands, eq_preset_precut(preset));
+}
+
+/* Custom as config.cfg gave it, which anything may have written: a band
+   outside the settings' ranges or that the DSP plays otherwise than the curve
+   shows is the default band, as a preset's file of it would not be taken; the
+   curve's maths overflow far outside them */
+static void eq_custom_check(void)
+{
+    bool reset = false;
+    for (int i = 0; i < EQ_NUM_BANDS; i++)
+    {
+        if (!eq_files_band_ok(&global_settings.eq_custom[i]))
+        {
+            global_settings.eq_custom[i] = eq_defaults[i];
+            reset = true;
+        }
+    }
+    if (reset || global_settings.eq_custom_precut < 0
+        || global_settings.eq_custom_precut > 240)
+        global_settings.eq_custom_precut =
+            eq_curve_precut(eq_curve_peak_of(global_settings.eq_custom));
+}
+
+void eq_update_preset(bool read_files)
+{
+    if (read_files)
+        eq_files_read();
+    eq_custom_check();
     const int preset = eq_get_preset();
     if (preset <= 0)
         return;
+    if (preset == EQ_CUSTOM)
+    {
+        memcpy(global_settings.eq_band_settings, global_settings.eq_custom,
+               sizeof(global_settings.eq_band_settings));
+        global_settings.eq_precut = global_settings.eq_custom_precut;
+        return;
+    }
+    if (preset == EQ_FILE)
+    {
+        /* as it is in the file now, at boot and after USB, and otherwise as it
+           was chosen; one gone, or no longer a preset, gives Off */
+        int precut;
+        if (!read_files)
+            return;
+        if (eq_files_load(global_settings.eq_preset_file,
+                          global_settings.eq_band_settings, &precut))
+        {
+            global_settings.eq_precut = precut;
+            /* its name as it's listed, should it now be in other capitals */
+            const int entry = eq_files_find(global_settings.eq_preset_file);
+            if (entry >= 0)
+                eq_files_path(entry, global_settings.eq_preset_file,
+                              sizeof(global_settings.eq_preset_file));
+            return;
+        }
+        global_settings.eq_enabled = false;
+        global_settings.eq_preset = 0;
+        global_settings.eq_preset_file[0] = '\0';
+        settings_save();
+        return;
+    }
     global_settings.eq_preset = eq_preset_id(preset);
     for (int i = 0; i < EQ_NUM_BANDS; i++)
         global_settings.eq_band_settings[i] = eq_preset_band(preset, i);
     global_settings.eq_precut = eq_preset_precut(preset);
 }
 
-/* The first list: Off, iTunes' presets as one row, and a row for each model of
-   earphones, which has a list of its own if it has several presets. So that many
-   models don't make a long list of everything. */
+/* The first list: Off, iTunes' presets as one row, the user's own, Custom first,
+   and a row for each model of earphones, which has a list of its own if it has
+   several presets. So that many models don't make a long list of everything.
+   Start From in the editor's menu has the same rows without Off and Custom, and
+   copies the one chosen into Custom. The user's presets: the folders of
+   /.rockbox/eqs first, each a list of its own, then the presets, each by name,
+   as Playlists and the files' lists have their folders first */
 #define EQ_ITUNES_FIRST (1 + (int)ARRAYLEN(eq_phones))
 #define EQ_ROW_ITUNES 1
-#define EQ_ROW_FIRST_MODEL 3
+#define EQ_ROW_CUSTOM 3
+#define EQ_ROW_FIRST_MINE 4
 
 /* those of eq_phones that are for one model; each also has its row further down */
 static const struct
@@ -1094,52 +1235,645 @@ static const struct
     { LANG_EQ_XM4C, 5, 1 },
 };
 
-static int eq_current; /* the preset the first list opened with */
+static int eq_current; /* the preset the first list opened with, and chose since */
+/* the user's preset it is, an entry of the table, or -1 (eq_level_build()) */
+static int eq_active = -1;
+
+/* what the rows do: choose the EQ, or copy into Custom (Start From) */
+static enum { EQ_LIST_CHOOSE, EQ_LIST_START } eq_list_mode;
+
+/* A row's name, with a check mark at its end (MENU_CHECK) for the EQ's active
+   preset, in the lists that choose it; Start From's, which copy into Custom,
+   have none */
+static char *eq_marked(const char *name, bool active, char *buffer, size_t len)
+{
+    if (!active || eq_list_mode != EQ_LIST_CHOOSE)
+        return (char *)name;
+    snprintf(buffer, len, "%s\t%c", name, MENU_CHECK);
+    return buffer;
+}
+
+/* A row's function's return after a rename or a delete of one of the user's
+   presets: its list closes and opens again on eq_list_again, the row of the one
+   renamed or the nearest to the one deleted, as do_menu() would build it again
+   on the row it was on, now another's */
+#define EQ_LIST_AGAIN 2
+static int eq_list_again = -1;
+
+/* Select held on a row of the user's presets. Only those have a menu of their
+   own: the list's callback turns the hold into Select with this set, so that the
+   row's function runs, which takes it first, and the list is built again after
+   it, as a rename or a delete changes its rows */
+static bool eq_held;
+
+static bool eq_take_held(void)
+{
+    const bool held = eq_held;
+    eq_held = false;
+    return held;
+}
+
+/* A preset chosen in the lists: the EQ from now on, heard at once, and the
+   list stays where it is, the cursor on its row, so that presets can be heard
+   one after another; Menu goes back (0, as the menu takes it). From Start
+   From, copied into Custom, back to the editor (1) */
+static int eq_chosen(const struct eq_band_setting *bands, int precut, int id,
+                     const char *file)
+{
+    if (eq_list_mode == EQ_LIST_START)
+    {
+        eq_custom_from(bands, precut);
+        return 1;
+    }
+    eq_take(bands, precut, id, file);
+    eq_current = eq_get_preset();
+    eq_active = eq_files_find(global_settings.eq_preset_file);
+    return 0;
+}
+
+/* the same for Off or a built-in preset */
+static int eq_chosen_preset(int preset)
+{
+    if (eq_list_mode == EQ_LIST_START)
+    {
+        eq_custom_from_preset(preset);
+        return 1;
+    }
+    eq_set_preset(preset);
+    eq_current = eq_get_preset();
+    eq_active = -1;
+    return 0;
+}
+
+/** the user's presets in lists of folders **/
+
+/* A level of the lists: the first list's or Start From's rows of the top
+   folder, at base, or a folder's list of its own */
+struct eq_level {
+    int folder;          /* its id, EQ_TOP */
+    int folders, presets;
+    int base;            /* the row of its first folder in its list */
+};
+/* each of the two lists' own, as Start From opens over the first one */
+static struct eq_nav {
+    struct eq_level level[EQ_DEPTH_MAX + 1];
+    int depth;           /* the level shown */
+    char title[EQ_DEPTH_MAX + 1][EQ_NAME_MAX];
+    struct menu_item_ex menu[EQ_DEPTH_MAX + 1];
+    struct menu_callback_with_desc desc[EQ_DEPTH_MAX + 1];
+    const struct menu_item_ex *top[EQ_ROW_FIRST_MINE + EQ_FILES_MAX + 4];
+} eq_navs[2];
+#define NAV (&eq_navs[eq_list_mode])
+_Static_assert(ARRAYLEN(eq_navs[0].top) <= MENU_MAX_ROWS,
+               "the first list's rows, which do_menu() would cut");
+
+/* the row that ran, as the list had it selected: every folder's row is one
+   item, and every preset's another, as many times as there are rows */
+static int eq_row;
+static int eq_entry_callback(int action, const struct menu_item_ex *this_item,
+                             struct gui_synclist *this_list)
+{
+    (void)this_item;
+    if (action == ACTION_ENTER_MENUITEM && this_list)
+        eq_row = gui_synclist_get_sel_pos(this_list);
+    return action;
+}
+
+/* the entry a row of the level shown is, -1 for none */
+static int eq_row_entry(int row, bool *folder)
+{
+    const struct eq_level *l = &NAV->level[NAV->depth];
+    row -= l->base;
+    *folder = row < l->folders;
+    if (row < 0 || row >= l->folders + l->presets)
+        return -1;
+    return eq_files_child(l->folder, *folder, *folder ? row : row - l->folders);
+}
+
+static char *eq_entry_name(int selected_item, void *data, char *buffer, size_t len)
+{
+    (void)data;
+    bool folder;
+    const int entry = eq_row_entry(selected_item, &folder);
+    /* a folder holding the active preset shows nothing more */
+    return eq_marked(eq_files_name(entry), !folder && entry >= 0 && entry == eq_active,
+                     buffer, len);
+}
+
+static int eq_open_folder(void);
+static int eq_choose_entry(void);
+/* a folder's leads on; a preset's sets it, and has no arrow */
+MENUITEM_FUNCTION_DYNTEXT(eq_folder_row, MENU_FUNC_CHECK_RETVAL, eq_open_folder,
+                          eq_entry_name, NULL, NULL, eq_entry_callback, Icon_NOICON);
+MENUITEM_FUNCTION_DYNTEXT(eq_entry_row, MENU_FUNC_CHECK_RETVAL|MENU_EXITAFTERTHISMENU,
+                          eq_choose_entry, eq_entry_name, NULL, NULL, eq_entry_callback,
+                          Icon_NOICON);
+/* a level's rows: its folders' from the end of the first half, then its
+   presets' */
+static const struct menu_item_ex *eq_level_rows[2 * EQ_FILES_MAX];
+
+/* the lists of the user's presets: Select held on a preset's row is its menu */
+static int eq_level_callback(int action, const struct menu_item_ex *this_item,
+                             struct gui_synclist *this_list)
+{
+    (void)this_item;
+    if (action == ACTION_STD_CONTEXT && eq_list_mode == EQ_LIST_CHOOSE && this_list)
+    {
+        bool folder;
+        if (eq_row_entry(gui_synclist_get_sel_pos(this_list), &folder) >= 0 && !folder)
+        {
+            eq_held = true;
+            return ACTION_STD_OK;
+        }
+    }
+    return action;
+}
+
+static void eq_level_count(struct eq_level *l, int folder, int base)
+{
+    l->folder = folder;
+    l->folders = eq_files_children(folder, true);
+    l->presets = eq_files_children(folder, false);
+    l->base = base;
+}
+
+/* a folder's list as the table has it now: false if nothing's left in it */
+static bool eq_level_build(struct eq_nav *nav, int depth)
+{
+    /* as the table may have changed since: a rename, a delete */
+    eq_active = eq_current == EQ_FILE
+                ? eq_files_find(global_settings.eq_preset_file) : -1;
+    if (!eq_level_rows[0])
+    {
+        for (int i = 0; i < EQ_FILES_MAX; i++)
+        {
+            eq_level_rows[i] = &eq_folder_row;
+            eq_level_rows[EQ_FILES_MAX + i] = &eq_entry_row;
+        }
+    }
+    struct eq_level *l = &nav->level[depth];
+    eq_level_count(l, l->folder, 0);
+    const int rows = l->folders + l->presets;
+    nav->desc[depth] = (struct menu_callback_with_desc){
+        eq_level_callback, (unsigned char *)nav->title[depth], Icon_NOICON };
+    struct menu_item_ex *m = &nav->menu[depth];
+    m->flags = MT_MENU | MENU_HAS_DESC | MENU_ITEM_COUNT(rows);
+    m->submenus = &eq_level_rows[EQ_FILES_MAX - l->folders];
+    m->callback_and_desc = &nav->desc[depth];
+    return rows > 0;
+}
+
+static int eq_choose_off(void);
+static int eq_choose_itunes(void);
+static int eq_choose_custom(void);
+static int eq_choose_model(int model);
+static char *eq_itunes_row_name(int selected_item, void *data,
+                                char *buffer, size_t buffer_len);
+static char *eq_model_row_name(int selected_item, void *data,
+                               char *buffer, size_t buffer_len);
+
+#define EQ_MODEL_ROW(name, model, flags)                                        \
+    static int name##_choose(void) { return eq_choose_model(model); }           \
+    MENUITEM_FUNCTION_DYNTEXT(name, MENU_FUNC_CHECK_RETVAL|(flags), name##_choose, \
+                              eq_model_row_name, NULL, (void *)(intptr_t)(model), \
+                              NULL, Icon_NOICON)
+
+static char *eq_off_row_name(int selected_item, void *data, char *buffer,
+                             size_t len)
+{
+    (void)selected_item; (void)data;
+    return eq_marked(str(LANG_OFF), !global_settings.eq_enabled, buffer, len);
+}
+static char *eq_custom_row_name(int selected_item, void *data, char *buffer,
+                                size_t len)
+{
+    (void)selected_item; (void)data;
+    return eq_marked(str(LANG_EQ_CUSTOM), eq_current == EQ_CUSTOM, buffer, len);
+}
+
+MENUITEM_FUNCTION_DYNTEXT(eq_off_row, MENU_FUNC_CHECK_RETVAL|MENU_EXITAFTERTHISMENU,
+                          eq_choose_off, eq_off_row_name, NULL, NULL, NULL, Icon_NOICON);
+MENUITEM_FUNCTION_DYNTEXT(eq_itunes_row, MENU_FUNC_CHECK_RETVAL, eq_choose_itunes,
+                          eq_itunes_row_name, NULL, NULL, NULL, Icon_NOICON);
+MENUITEM_GROUP(eq_mine_group, ID2P(LANG_EQ_MY_PRESETS));
+/* opens the editor: a row that leads on */
+MENUITEM_FUNCTION_DYNTEXT(eq_custom_row, MENU_FUNC_CHECK_RETVAL, eq_choose_custom,
+                          eq_custom_row_name, NULL, NULL, NULL, Icon_NOICON);
+MENUITEM_GROUP(eq_phones_group, ID2P(LANG_EQ_HEADPHONES));
+/* one preset: selecting the row sets it, and it has no arrow */
+EQ_MODEL_ROW(eq_zero2_row, 0, 0);
+EQ_MODEL_ROW(eq_kph30i_row, 1, MENU_EXITAFTERTHISMENU);
+EQ_MODEL_ROW(eq_xm4c_row, 2, MENU_EXITAFTERTHISMENU);
+
+/* the first list's or Start From's rows, with the top folder's as it is now */
+static void eq_top_build(struct eq_nav *nav, bool start)
+{
+    eq_level_build(nav, 0);   /* the rows' items made */
+    const struct menu_item_ex **r = nav->top;
+    int n = 0;
+    if (!start)
+        r[n++] = &eq_off_row;
+    r[n++] = &eq_itunes_row;
+    struct eq_level *l = &nav->level[0];
+    const int folders = eq_files_children(EQ_TOP, true);
+    const int presets = eq_files_children(EQ_TOP, false);
+    /* My Presets: Custom always in the first list; in Start From only the
+       user's own, and none without them */
+    if (!start || folders + presets)
+        r[n++] = &eq_mine_group;
+    if (!start)
+        r[n++] = &eq_custom_row;
+    eq_level_count(l, EQ_TOP, n);
+    for (int i = 0; i < folders; i++)
+        r[n++] = &eq_folder_row;
+    for (int i = 0; i < presets; i++)
+        r[n++] = &eq_entry_row;
+    r[n++] = &eq_phones_group;
+    r[n++] = &eq_zero2_row;
+    r[n++] = &eq_kph30i_row;
+    r[n++] = &eq_xm4c_row;
+    nav->desc[0] = (struct menu_callback_with_desc){
+        eq_level_callback, start ? ID2P(LANG_EQ_START_FROM) : ID2P(LANG_EQUALIZER), Icon_EQ };
+    struct menu_item_ex *m = &nav->menu[0];
+    m->flags = MT_MENU | MENU_HAS_DESC | MENU_ITEM_COUNT(n);
+    m->submenus = nav->top;
+    m->callback_and_desc = &nav->desc[0];
+}
+
+/* the row of the level that leads to the chosen preset, or is it; -1 */
+static int eq_chosen_row(const struct eq_nav *nav, int depth)
+{
+    if (eq_current != EQ_FILE)
+        return -1;
+    const int entry = eq_files_ancestor(eq_files_find(global_settings.eq_preset_file),
+                                        depth);
+    const struct eq_level *l = &nav->level[depth];
+    if (entry < 0 || eq_files_folder_of(entry) != l->folder)
+        return -1;
+    bool folder = eq_files_children(l->folder, true)
+                  && eq_files_child(l->folder, true, eq_files_child_pos(entry)) == entry;
+    return l->base + (folder ? 0 : l->folders) + eq_files_child_pos(entry);
+}
+
+/* after a change in the level's rows: the nearest row to one at pos among its
+   presets, a folder's if none is left */
+static int eq_nearest_row(const struct eq_level *l, int pos)
+{
+    if (l->presets)
+        return l->base + l->folders + MIN(pos, l->presets - 1);
+    if (l->folders)
+        return l->base + l->folders - 1;
+    return l == &eq_navs[EQ_LIST_CHOOSE].level[0] ? EQ_ROW_CUSTOM : l->base;
+}
+
+/* the level of the depth, its list shown again on the row of the entry at
+   that path or the nearest to pos */
+static void eq_again_on(int depth, const char *rel, int pos)
+{
+    struct eq_nav *nav = NAV;
+    struct eq_level *l = &nav->level[depth];
+    eq_level_count(l, l->folder, l->base);
+    const int entry = rel ? eq_files_find(rel) : -1;
+    eq_list_again = entry >= 0 && eq_files_folder_of(entry) == l->folder
+        ? l->base + l->folders + eq_files_child_pos(entry) : eq_nearest_row(l, pos);
+}
+
+static int eq_open_folder(void)
+{
+    struct eq_nav *nav = NAV;
+    bool folder;
+    const int entry = eq_row_entry(eq_row, &folder);
+    if (eq_take_held() || entry < 0 || !folder || nav->depth >= EQ_DEPTH_MAX)
+        return 0;
+    const int d = ++nav->depth;
+    nav->level[d].folder = eq_files_folder_id(entry);
+    strmemccpy(nav->title[d], eq_files_name(entry), EQ_NAME_MAX);
+    const int pos = eq_files_child_pos(entry);
+    int ret = 0;
+    bool emptied = false;
+    eq_level_build(nav, d);
+    int selected = MAX(eq_chosen_row(nav, d), 0);
+    transition_begin(TRANSITION_FORWARD);
+    while (true)
+    {
+        if (!eq_level_build(nav, d))
+        {
+            emptied = true;
+            break;
+        }
+        ret = do_menu(&nav->menu[d], &selected, NULL, false);
+        if (ret != EQ_LIST_AGAIN)
+            break;
+        selected = eq_list_again;
+        eq_list_again = -1;
+    }
+    nav->depth--;
+    /* its list's rows again, as anything opened from here may have changed
+       them: a preset saved at the top from the editor, this folder gone */
+    if (d == 1)
+        eq_top_build(nav, eq_list_mode == EQ_LIST_START);
+    else
+        eq_level_build(nav, d - 1);
+    if (emptied)
+    {
+        struct eq_level *l = &nav->level[d - 1];
+        eq_list_again = l->folders ? l->base + MIN(pos, l->folders - 1)
+                                   : eq_nearest_row(l, 0);
+        return EQ_LIST_AGAIN;
+    }
+    return ret == GO_TO_PREVIOUS ? 0 : ret;
+}
+
+/** a preset's menu, Select held on its row **/
+
+/* the one whose menu is open, and its name as the menu's title */
+static int eq_file_at;
+static char eq_file_title[EQ_NAME_MAX];
+/* a name being typed, the folder it's for and the entry it was */
+static char eq_name_buf[EQ_NAME_MAX];
+static int eq_name_folder = EQ_TOP, eq_name_except = -1;
+/* a path, out of the stack */
+static char eq_path[EQ_PATH_MAX];
+
+static void eq_failed(void)
+{
+    splash(HZ * 2, ID2P(LANG_FAILED));
+}
+
+/* without the spaces and dots at its start, which would hide its file */
+static const char *eq_name_start(const char *name)
+{
+    while (*name == ' ' || *name == '.')
+        name++;
+    return name;
+}
+
+/* as it will be saved */
+static bool eq_name_taken(const char *name)
+{
+    return eq_files_taken(eq_name_folder, eq_name_start(name), eq_name_except);
+}
+
+/* A name typed with Search's ring, as a playlist's is: 1, 0 if given up, -1 for
+   USB. Taken is asked of it as it will be saved, from its first letter or digit */
+static int eq_type_name(const char *title, bool (*taken)(const char *name))
+{
+    int ret;
+    do
+    {
+#ifdef HAVE_TAGCACHE
+        ret = music_search_name(title, eq_name_buf, sizeof(eq_name_buf),
+                                sizeof(eq_name_buf) - 1, taken);
+#else
+        (void)title; (void)taken;
+        ret = kbd_input(eq_name_buf, sizeof(eq_name_buf), NULL) < 0 ? 0 : 1;
+#endif
+        const char *start = eq_name_start(eq_name_buf);
+        memmove(eq_name_buf, start, strlen(start) + 1);
+    } while (ret == 1 && !eq_name_buf[0]);
+    return ret;
+}
+
+/* a function of a menu, as the menu takes it: closed and back with the slide */
+static int eq_menu_result(int ret)
+{
+    if (ret < 0)
+        return ret == GO_TO_ROOT || ret == MENU_ATTACHED_USB
+               || ret == GO_TO_PREVIOUS_MUSIC ? ret : 0;
+    if (ret > 0)
+        transition_begin(TRANSITION_BACK);
+    return ret;
+}
+
+/* the preset Edit opened, kept apart from eq_path, which Start From in the
+   editor's menu uses as it reads a preset */
+static char eq_edited[EQ_PATH_MAX];
+
+static int eq_file_edit(void)
+{
+    struct eq_band_setting bands[EQ_NUM_BANDS];
+    int precut;
+    if (!eq_files_path(eq_file_at, eq_edited, sizeof(eq_edited))
+        || !eq_files_load(eq_edited, bands, &precut))
+    {
+        eq_failed();
+        return 0;
+    }
+    eq_sought = false;
+    eq_custom_from(bands, precut);
+    eq_current = EQ_CUSTOM;
+    transition_begin(TRANSITION_FORWARD);
+    const int ret = eq_editor(eq_sought);
+    /* on its row again: Save Preset may have added one before it */
+    eq_again_on(NAV->depth, eq_edited, 0);
+    return ret ? ret : 1;
+}
+
+static int eq_file_rename(void)
+{
+    const int at = eq_file_at;
+    strmemccpy(eq_name_buf, eq_files_name(at), sizeof(eq_name_buf));
+    eq_name_folder = eq_files_folder_of(at);
+    eq_name_except = at;
+    const int typed = eq_type_name(str(LANG_RENAME), eq_name_taken);
+    eq_name_except = -1;
+    if (typed <= 0)
+        return typed < 0 ? MENU_ATTACHED_USB : 0;
+    if (!strcmp(eq_name_buf, eq_files_name(at)))
+        return eq_menu_result(1);
+    if (!eq_files_path(at, eq_path, sizeof(eq_path)))
+        return eq_menu_result(1);
+    const bool chosen = eq_get_preset() == EQ_FILE
+        && !strcasecmp(global_settings.eq_preset_file, eq_path);
+    /* asked again just before the rename, of the name as it's saved, with the
+       spaces and dots at its start gone */
+    if (eq_files_taken(eq_name_folder, eq_name_buf, at))
+    {
+        splash(HZ, ID2P(LANG_NAME_TAKEN));
+        return 0;
+    }
+    const int now = eq_files_rename(at, eq_name_buf);
+    if (now < 0)
+    {
+        eq_failed();
+        return eq_menu_result(1);
+    }
+    if (eq_files_path(now, eq_path, sizeof(eq_path)))
+    {
+        if (chosen)
+        {
+            strmemccpy(global_settings.eq_preset_file, eq_path,
+                       sizeof(global_settings.eq_preset_file));
+            settings_save();
+        }
+        /* where its new name sorts it */
+        eq_again_on(NAV->depth, eq_path, 0);
+    }
+    return eq_menu_result(1);
+}
+
+static int eq_file_delete(void)
+{
+    const int at = eq_file_at;
+    /* as Playlists' Delete asks, Cancel first */
+    const struct opt_items items[] = {
+        { STR(LANG_DELETE) }, { STR(LANG_CANCEL_0) },
+    };
+    int choice = 1;
+    if (set_option(eq_files_name(at), &choice, RB_INT, items, ARRAYLEN(items), NULL))
+        return MENU_ATTACHED_USB;
+    if (choice != 0)
+        return 0;
+    const bool chosen = eq_get_preset() == EQ_FILE
+        && eq_files_path(at, eq_path, sizeof(eq_path))
+        && !strcasecmp(global_settings.eq_preset_file, eq_path);
+    const int pos = eq_files_child_pos(at);
+    if (!eq_files_delete(at))
+    {
+        eq_failed();
+        return eq_menu_result(1);
+    }
+    /* the EQ of one gone is Off, as after a boot without its file */
+    if (chosen)
+        eq_set_preset(0);
+    /* the one after it, which took its place, or the one before */
+    eq_again_on(NAV->depth, NULL, pos);
+    return eq_menu_result(1);
+}
+
+MENUITEM_FUNCTION(eq_file_edit_row, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_EDIT),
+                  eq_file_edit, NULL, Icon_NOICON);
+MENUITEM_FUNCTION(eq_file_rename_row, MENU_FUNC_CHECK_RETVAL|MENU_EXITAFTERTHISMENU,
+                  ID2P(LANG_RENAME), eq_file_rename, NULL, Icon_NOICON);
+MENUITEM_FUNCTION(eq_file_delete_row, MENU_FUNC_CHECK_RETVAL|MENU_EXITAFTERTHISMENU,
+                  ID2P(LANG_DELETE), eq_file_delete, NULL, Icon_NOICON);
+MAKE_MENU(eq_file_menu, eq_file_title, NULL, Icon_NOICON,
+          &eq_file_edit_row, &eq_file_rename_row, &eq_file_delete_row);
+
+/* a preset's row: set it, its menu for Select held, copied into Custom from
+   Start From. Its bands are read from its file now */
+static int eq_choose_entry(void)
+{
+    bool folder;
+    const int entry = eq_row_entry(eq_row, &folder);
+    if (entry < 0 || folder)
+    {
+        eq_take_held();
+        return 0;
+    }
+    if (eq_take_held())
+    {
+        eq_file_at = entry;
+        strmemccpy(eq_file_title, eq_files_name(entry), sizeof(eq_file_title));
+        eq_list_again = -1;
+        transition_begin(TRANSITION_FORWARD);
+        const int ret = do_menu(&eq_file_menu, NULL, NULL, false);
+        if (ret == GO_TO_ROOT || ret == MENU_ATTACHED_USB || ret == GO_TO_PREVIOUS_MUSIC)
+            return ret;
+        return eq_list_again >= 0 ? EQ_LIST_AGAIN : 0;
+    }
+    struct eq_band_setting bands[EQ_NUM_BANDS];
+    int precut;
+    if (!eq_files_path(entry, eq_path, sizeof(eq_path))
+        || !eq_files_load(eq_path, bands, &precut))
+    {
+        eq_failed();
+        return 0;
+    }
+    return eq_chosen(bands, precut, EQ_ID_FILE, eq_path);
+}
+
+/** the other rows **/
 
 /* the list of some presets that's on the screen */
 static int eq_list_first;
+static const unsigned char **eq_list_names;
 static bool eq_list_chosen;
 
-static void eq_list_select(int item)
+static const char *eq_list_name(int selected_item, void *data, char *buffer,
+                                size_t len)
 {
-    eq_set_preset(eq_list_first + item);
-    eq_list_chosen = true;
+    (void)data;
+    return eq_marked(P2STR(eq_list_names[selected_item]),
+                     eq_current == eq_list_first + selected_item, buffer, len);
 }
 
-/* True if one was chosen, which closes the first list as well; Menu goes back to it
-   with the EQ as it was */
+/* Select, or held, chooses as in the first list (eq_chosen_preset()): the
+   list stays, on its row, or from Start From it closes, back to the editor.
+   Play held goes on to Now Playing, as in the first list (do_menu()) */
+static int eq_list_action(int action, struct gui_synclist *lists)
+{
+    /* its rows drawn as a menu's, for the check mark (simplelist_show_list()
+       asks this first, before it draws) */
+    lists->callback_draw_item = menu_draw_value_line;
+    if (action == ACTION_STD_OK || action == ACTION_STD_CONTEXT)
+    {
+        if (eq_chosen_preset(eq_list_first + gui_synclist_get_sel_pos(lists)))
+        {
+            eq_list_chosen = true;
+            return ACTION_STD_CANCEL;
+        }
+        return ACTION_REDRAW;
+    }
+    if (action == ACTION_TREE_STOP && now_playing_available())
+        return ACTION_TREE_WPS;
+    return action;
+}
+
+/* A list of some presets, its own: 1 if one was copied into Custom from Start
+   From, GO_TO_PREVIOUS_MUSIC for Now Playing (Play held, or Play with no music
+   loaded, which otherwise pauses or plays on), MENU_ATTACHED_USB, else 0 for
+   Menu, back to the first list with the EQ as it was last chosen */
 static int eq_choose_from(int lang_id, int first, int count, const unsigned char **names)
 {
-    static struct choice_setting choice;
-    static int item;
-
-    choice = (struct choice_setting){ eq_list_select, count, NULL, { .desc = names } };
-    item = (eq_current >= first && eq_current < first + count) ? eq_current - first : 0;
+    struct simplelist_info info;
+    simplelist_info_init(&info, str(lang_id), count, NULL);
+    info.get_name = eq_list_name;
+    info.action_callback = eq_list_action;
+    info.title_icon = Icon_Questionmark;
+    info.timeout = HZ; /* as option_screen() and do_menu() wait, not 10 times a second */
+    info.selection = (eq_current >= first && eq_current < first + count)
+                     ? eq_current - first : 0;
     eq_list_first = first;
+    eq_list_names = names;
     eq_list_chosen = false;
-
-    struct settings_list setting = {
-        .flags = F_CHOICE_SETTING|F_T_INT|F_CB_ON_SELECT_ONLY|F_BANFROMQS,
-        .setting = &item,
-        .lang_id = lang_id,
-        .default_val.int_ = 0,
-        .choice_setting = &choice,
-    };
-    return option_screen(&setting, NULL, false, ID2P(lang_id)) || eq_list_chosen;
+    if (simplelist_show_list(&info))
+        return MENU_ATTACHED_USB;
+    if (eq_list_chosen)
+        return 1;
+    return info.selection == -2 ? GO_TO_PREVIOUS_MUSIC : 0;
 }
 
 static int eq_choose_off(void)
 {
-    eq_set_preset(0);
-    return 1;
+    if (eq_take_held())
+        return 0;
+    return eq_chosen_preset(0);
 }
 
 static int eq_choose_itunes(void)
 {
+    if (eq_take_held())
+        return 0;
     static const unsigned char *names[ARRAYLEN(eq_presets)];
     for (int i = 0; i < (int)ARRAYLEN(eq_presets); i++)
         names[i] = ID2P(eq_presets[i].lang_id);
     return eq_choose_from(LANG_EQ_GENERAL, EQ_ITUNES_FIRST, ARRAYLEN(names), names);
+}
+
+/* Custom, the EQ from now on, in the editor; back to the list after it */
+static int eq_choose_custom(void)
+{
+    if (eq_take_held())
+        return 0;
+    eq_sought = false;
+    eq_set_custom();
+    eq_current = EQ_CUSTOM;
+    transition_begin(TRANSITION_FORWARD);
+    const int ret = eq_editor(eq_sought);
+    /* the top's rows again: Save Preset may have added one */
+    eq_top_build(&eq_navs[EQ_LIST_CHOOSE], false);
+    return ret;
 }
 
 /* "7Hz Zero 2: Voice" among the presets of the 7Hz Zero 2 is "Voice" */
@@ -1151,12 +1885,11 @@ static const unsigned char *eq_short_name(int lang_id)
 
 static int eq_choose_model(int model)
 {
+    if (eq_take_held())
+        return 0;
     const int first = eq_models[model].first, count = eq_models[model].count;
     if (count == 1)
-    {
-        eq_set_preset(1 + first);
-        return 1;
-    }
+        return eq_chosen_preset(1 + first);
     static const unsigned char *names[ARRAYLEN(eq_phones)];
     for (int i = 0; i < count; i++)
         names[i] = eq_short_name(eq_phones[first + i].lang_id);
@@ -1167,7 +1900,7 @@ static char *eq_itunes_row_name(int selected_item, void *data,
                                 char *buffer, size_t buffer_len)
 {
     (void)selected_item; (void)data;
-    if (eq_current < EQ_ITUNES_FIRST)
+    if (eq_current < EQ_ITUNES_FIRST || eq_current > EQ_PRESETS)
         return str(LANG_EQ_GENERAL);
     snprintf(buffer, buffer_len, "%s\t%s", str(LANG_EQ_GENERAL),
              str(eq_presets[eq_current - EQ_ITUNES_FIRST].lang_id));
@@ -1181,62 +1914,148 @@ static char *eq_model_row_name(int selected_item, void *data,
     const int model = (intptr_t)data;
     const int first = eq_models[model].first, count = eq_models[model].count;
     const int phones = eq_current - 1;
-    if (count == 1 || phones < first || phones >= first + count)
+    if (count == 1)
+        return eq_marked(str(eq_models[model].lang_id), phones == first, buffer,
+                         buffer_len);
+    if (phones < first || phones >= first + count)
         return str(eq_models[model].lang_id);
     snprintf(buffer, buffer_len, "%s\t%s", str(eq_models[model].lang_id),
              P2STR(eq_short_name(eq_phones[phones].lang_id)));
     return buffer;
 }
 
-#define EQ_MODEL_ROW(name, model, flags)                                        \
-    static int name##_choose(void) { return eq_choose_model(model); }           \
-    MENUITEM_FUNCTION_DYNTEXT(name, MENU_FUNC_CHECK_RETVAL|(flags), name##_choose, \
-                              eq_model_row_name, NULL, (void *)(intptr_t)(model), \
-                              NULL, Icon_NOICON)
+/** the editor's menu, Select held in it **/
 
-MENUITEM_FUNCTION(eq_off_row, MENU_FUNC_CHECK_RETVAL|MENU_EXITAFTERTHISMENU,
-                  ID2P(LANG_OFF), eq_choose_off, NULL, Icon_NOICON);
-MENUITEM_FUNCTION_DYNTEXT(eq_itunes_row, MENU_FUNC_CHECK_RETVAL, eq_choose_itunes,
-                          eq_itunes_row_name, NULL, NULL, NULL, Icon_NOICON);
-MENUITEM_GROUP(eq_phones_group, ID2P(LANG_EQ_HEADPHONES));
-/* one preset: selecting the row sets it, and it has no arrow */
-EQ_MODEL_ROW(eq_zero2_row, 0, 0);
-EQ_MODEL_ROW(eq_kph30i_row, 1, MENU_EXITAFTERTHISMENU);
-EQ_MODEL_ROW(eq_xm4c_row, 2, MENU_EXITAFTERTHISMENU);
+/* Custom kept as a preset of the user's at the top: a free "Preset N" offered;
+   a name taken asks whether to replace that one */
+static int eq_save_custom(void)
+{
+    eq_name_folder = EQ_TOP;
+    eq_name_except = -1;
+    for (int n = 1; n < 1000; n++)
+    {
+        snprintf(eq_name_buf, sizeof(eq_name_buf), str(LANG_EQ_PRESET_N), n);
+        if (!eq_files_taken(EQ_TOP, eq_name_buf, -1))
+            break;
+    }
+    while (true)
+    {
+        const int typed = eq_type_name(str(LANG_EQ_SAVE_PRESET), NULL);
+        if (typed <= 0)
+            return typed < 0 ? MENU_ATTACHED_USB : 0;
+        if (eq_files_taken(EQ_TOP, eq_name_buf, -1))
+        {
+            /* as Delete asks, under the name, Cancel first; Cancel or Menu
+               goes back to the name */
+            const struct opt_items items[] = {
+                { STR(LANG_EQ_REPLACE) }, { STR(LANG_CANCEL_0) },
+            };
+            int choice = 1;
+            if (set_option(eq_name_buf, &choice, RB_INT, items, ARRAYLEN(items), NULL))
+                return MENU_ATTACHED_USB;
+            if (choice != 0)
+                continue;
+        }
+        if (!eq_files_save(eq_name_buf, global_settings.eq_custom,
+                           global_settings.eq_custom_precut))
+            eq_failed();
+        return eq_menu_result(1);
+    }
+}
 
-MAKE_MENU(eq_first_list, ID2P(LANG_EQUALIZER), NULL, Icon_EQ,
-          &eq_off_row, &eq_itunes_row, &eq_phones_group,
-          &eq_zero2_row, &eq_kph30i_row, &eq_xm4c_row);
+static int eq_reset_custom(void)
+{
+    eq_custom_from(eq_defaults, 0);
+    return eq_menu_result(1);
+}
+
+MENUITEM_FUNCTION(eq_save_row, MENU_FUNC_CHECK_RETVAL|MENU_EXITAFTERTHISMENU,
+                  ID2P(LANG_EQ_SAVE_PRESET_DOTS), eq_save_custom, NULL, Icon_NOICON);
+MENUITEM_FUNCTION(eq_flat_row, MENU_FUNC_CHECK_RETVAL|MENU_EXITAFTERTHISMENU,
+                  ID2P(LANG_EQ_RESET_FLAT), eq_reset_custom, NULL, Icon_NOICON);
+/* Start From: Start From's list of the user's presets, built as it opens */
+MAKE_MENU(eq_editor_menu_list, ID2P(LANG_EQ_CUSTOM), NULL, Icon_EQ,
+          &eq_save_row, &eq_navs[EQ_LIST_START].menu[0], &eq_flat_row);
+
+int eq_editor_menu(void)
+{
+    const int was = eq_current;
+    eq_files_sort();
+    eq_list_mode = EQ_LIST_START;
+    eq_current = EQ_CUSTOM;
+    eq_navs[EQ_LIST_START].depth = 0;
+    eq_top_build(&eq_navs[EQ_LIST_START], true);
+    transition_begin(TRANSITION_FORWARD);
+    int ret = do_menu(&eq_editor_menu_list, NULL, NULL, false);
+    eq_list_mode = EQ_LIST_CHOOSE;
+    eq_current = was;
+    if (ret > 0)
+        transition_begin(TRANSITION_BACK);
+    return ret == GO_TO_ROOT || ret == MENU_ATTACHED_USB
+           || ret == GO_TO_PREVIOUS_MUSIC ? ret : 0;
+}
 
 static int eq_choose_preset(void)
 {
-    int selected = 0;
-
+    struct eq_nav *nav = &eq_navs[EQ_LIST_CHOOSE];
+    eq_files_sort();
+    eq_list_mode = EQ_LIST_CHOOSE;
+    eq_held = false;
+    eq_list_again = -1;
+    nav->depth = 0;
     eq_current = eq_get_preset();
-    if (eq_current >= EQ_ITUNES_FIRST)
+    eq_top_build(nav, false);
+    int selected = 0;
+    if (eq_current == EQ_CUSTOM)
+        selected = EQ_ROW_CUSTOM;
+    else if (eq_current == EQ_FILE)
+    {
+        selected = eq_chosen_row(nav, 0);
+        if (selected < 0)
+            selected = EQ_ROW_CUSTOM;
+    }
+    else if (eq_current >= EQ_ITUNES_FIRST)
         selected = EQ_ROW_ITUNES;
     else if (eq_current > 0)
     {
+        const struct eq_level *l = &nav->level[0];
         for (int i = 0; i < (int)ARRAYLEN(eq_models); i++)
         {
             if (eq_current > eq_models[i].first
                 && eq_current <= eq_models[i].first + eq_models[i].count)
-                selected = EQ_ROW_FIRST_MODEL + i;
+                selected = l->base + l->folders + l->presets + 1 + i;
         }
     }
-    /* Menu held goes on to the main menu, past the menu this one was opened from */
-    if (do_menu(&eq_first_list, &selected, NULL, false) == GO_TO_ROOT)
+    int ret;
+    while ((ret = do_menu(&nav->menu[0], &selected, NULL, false)) == EQ_LIST_AGAIN)
+    {
+        selected = eq_list_again;
+        eq_list_again = -1;
+        eq_current = eq_get_preset();
+        eq_top_build(nav, false);
+    }
+    /* Menu held goes on to the main menu, past the menu this one was opened
+       from; Play held to Now Playing, from the editor's menu too */
+    if (ret == GO_TO_ROOT)
         menu_request_root();
-    return 0;
+    return ret == GO_TO_PREVIOUS_MUSIC ? ret : 0;
 }
 
 /* the name of the preset, Off, or NULL if on and set to none */
 static char *eq_setting_name(void)
 {
+    static char shown[EQ_NAME_MAX];
     const int phones = ARRAYLEN(eq_phones);
     const int preset = eq_get_preset();
     if (!preset && global_settings.eq_enabled)
         return NULL;
+    if (preset == EQ_CUSTOM)
+        return str(LANG_EQ_CUSTOM);
+    if (preset == EQ_FILE)
+    {
+        eq_files_shown_name(global_settings.eq_preset_file, shown, sizeof(shown));
+        return shown;
+    }
     return str(!preset ? LANG_OFF : preset <= phones ?
                eq_phones[preset - 1].lang_id : eq_presets[preset - phones - 1].lang_id);
 }
@@ -1257,5 +2076,6 @@ MENUITEM_FUNCTION_DYNTEXT(ipod_eq_menu, MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_S
                           eq_choose_preset, eq_row_name,
                           NULL, NULL, lowlatency_callback, Icon_EQ);
 
-MENUITEM_FUNCTION_DYNTEXT(ipod_eq_row, 0, eq_choose_preset, eq_row_name,
-                          NULL, NULL, lowlatency_callback, Icon_EQ);
+/* Play held in its lists goes on to Now Playing (eq_choose_preset()) */
+MENUITEM_FUNCTION_DYNTEXT(ipod_eq_row, MENU_FUNC_CHECK_RETVAL, eq_choose_preset,
+                          eq_row_name, NULL, NULL, lowlatency_callback, Icon_EQ);
