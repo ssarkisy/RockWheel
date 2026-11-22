@@ -227,6 +227,22 @@ bool itunesdb_resumes(const char *path);
 bool itunesdb_import_kept_art(void);
 /* Cover Flow's album list, which Updating Library checks is of the database */
 #define ITUNESDB_ALBUM_INDEX PLUGIN_DEMOS_DATA_DIR "/pictureflow/pictureflow_album.idx"
+/* Its header, as pictureflow.c writes it and both it and root_menu.c check
+   it: this magic, the database's commit id, its entries and the size of its
+   albums' file. U: with that size; V: made again for the first tracks, which a
+   list made by searches lacks, so that each cover was a search of every track:
+   one made at boot before the database was in memory had none; W: one entry
+   for each album of each artist, a list of the pass before made again once,
+   at the next Preparing Albums or Cover Flow. */
+#define ITUNESDB_ALBUM_INDEX_MAGIC "PFIW"
+/* A list is of music alone when it is made with the tracks' kinds known (the
+   database in memory: MUSIC_ONLY, kind_if_known being tagcache_kind_if_known(),
+   the plugin's through its API), and its stamp has the entries' complement
+   then (ENTRIES). A list whose stamp differs from that of one made now, by
+   MUSIC_ONLY now, is made again. */
+#define ITUNESDB_ALBUM_INDEX_MUSIC_ONLY(kind_if_known) ((kind_if_known)(0) >= 0)
+#define ITUNESDB_ALBUM_INDEX_ENTRIES(entries, music_alone) \
+    ((music_alone) ? ~(entries) : (entries))
 
 /* the covers Finder makes for the stock firmware are RGB565 frames */
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH == 16) && (LCD_PIXELFORMAT == RGB565)

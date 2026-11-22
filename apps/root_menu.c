@@ -1891,16 +1891,22 @@ static void library_no_space_show(void)
 }
 
 #ifdef ITUNESDB_HAVE_ART
-/* whether Cover Flow's album list is of the database: its commit, entries
-   and albums' file size, as pictureflow.c's load_album_index() checks them */
+/* whether Cover Flow's album list is of the database: its magic, commit,
+   entries and albums' file size, as pictureflow.c's load_album_index() checks
+   them. Not Cover Flow's own cache version (pictureflow.cfg): a list current
+   here is made again at Cover Flow's start after its Rebuild Cache. */
 static bool album_list_current(void)
 {
     struct tagcache_stat *stat = tagcache_get_stat();
     int32_t head[4];
     int fd = open(ITUNESDB_ALBUM_INDEX, O_RDONLY);
     bool current = fd >= 0 && read(fd, head, sizeof(head)) == sizeof(head)
-        && !memcmp(head, "PFIV", 4) && head[1] == tagcache_get_commitid()
-        && head[2] == stat->total_entries;
+        && !memcmp(head, ITUNESDB_ALBUM_INDEX_MAGIC, 4)
+        && head[1] == tagcache_get_commitid()
+        /* the complement for a list of music alone, the usual one, as the
+           plugin would make it now */
+        && head[2] == ITUNESDB_ALBUM_INDEX_ENTRIES(stat->total_entries,
+               ITUNESDB_ALBUM_INDEX_MUSIC_ONLY(tagcache_kind_if_known));
     if (fd >= 0)
         close(fd);
     if (current)

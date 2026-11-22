@@ -346,10 +346,7 @@ typedef fb_data pix_t;
 #define COVER_FLOW_SLIDES  5
 #endif
 #define CONFIG_FILE "pictureflow.cfg"
-/* U: with the size of the database too; V: made again for the first tracks,
-   which a list made by searches lacks, so that each cover was a search of every
-   track: one made at boot before the database was in memory had none */
-#define INDEX_HDR "PFIV"
+#define INDEX_HDR ITUNESDB_ALBUM_INDEX_MAGIC
 
 /** structs we use */
 struct pf_config_t
@@ -1431,11 +1428,17 @@ static void take_album_dates(void)
 #endif
 }
 
+/* by artist, then album: the entries of one album of one artist come side
+   by side, for create_album_index() to keep one; by the artist alone, the
+   sort could leave them apart */
 static int compare_album_artists (const void *a_v, const void *b_v)
 {
-    uint32_t a = ((struct album_data *)a_v)->artist_idx;
-    uint32_t b = ((struct album_data *)b_v)->artist_idx;
-    return (int)(a - b);
+    const struct album_data *a = a_v, *b = b_v;
+    if (a->artist_idx != b->artist_idx)
+        return a->artist_idx < b->artist_idx ? -1 : 1;
+    if (a->seek != b->seek)
+        return a->seek < b->seek ? -1 : 1;
+    return (a->artist_seek > b->artist_seek) - (a->artist_seek < b->artist_seek);
 }
 
 static void write_album_index(int idx, int name_idx,
@@ -1780,7 +1783,7 @@ static void album_of_other_artist(int idx_id, long album, long artist, int year,
    out of the index. The index's stamp says which it was made as. */
 static bool music_only(void)
 {
-    return rb->tagcache_kind_if_known(0) >= 0;
+    return ITUNESDB_ALBUM_INDEX_MUSIC_ONLY(rb->tagcache_kind_if_known);
 }
 
 static void album_of_track(int idx_id, const int32_t *tag_seek, void *data)
@@ -1830,8 +1833,12 @@ static void album_of_track(int idx_id, const int32_t *tag_seek, void *data)
         album_of_other_artist(idx_id, album, artist, year, lo);
 }
 
-/* false when the database isn't in memory or there is no room */
-static bool assign_albums_from_ram(void *buf, size_t buf_size)
+/* false when the database isn't in memory or there is no room.
+   *music_alone: whether the list is of music alone, for its stamp. With no
+   room it is as music_only() says now, though the list is made by searches:
+   made again it would be the same, so it isn't made again at every load. */
+static bool assign_albums_from_ram(void *buf, size_t buf_size,
+                                   bool *music_alone)
 {
     /* far more than albums share a name, 17 names of 1668 on one iPod */
     by_seek.extra = 0;
@@ -1840,8 +1847,12 @@ static bool assign_albums_from_ram(void *buf, size_t buf_size)
     size_t need = room + pf_idx.album_ct * (sizeof(int) + 1)
                 + pf_idx.artist_ct * sizeof(struct artist_data)
                 + 2 * sizeof(long);
+    *music_alone = false;
     if (need > buf_size)
+    {
+        *music_alone = music_only();
         return false;
+    }
     buf = (char *)buf + room;
     buf_size -= room;
     ALIGN_BUFFER(buf, buf_size, sizeof(long));
@@ -1862,7 +1873,8 @@ static bool assign_albums_from_ram(void *buf, size_t buf_size)
               compare_album_seeks);
     if (!rb->tagcache_for_each_track(album_of_track, NULL))
         return false;
-    if (music_only())
+    *music_alone = music_only();
+    if (*music_alone)
     {
         /* those no song of music was found for go; the albums added for
            other artists come after them and move down */
@@ -1942,6 +1954,12 @@ retry_artist_lookup:
     return assign_album_year();
 }
 
+static void index_stamp(struct pf_index_t *stamp, bool music_alone);
+/* the stamp save_album_index() writes: of the database as the list began, so
+   that one changed meanwhile has it made again, and of music alone or not as
+   its albums were assigned */
+static struct pf_index_t made_stamp;
+
 /**
   Create an index of all artists and albums from the database.
   Also store the artists and album names so we can access them later.
@@ -1953,8 +1971,10 @@ static int create_album_index(void)
 
     struct album_data* tmp_album;
 
-    int i, j, res;
+    int i, kept, res;
+    bool music_alone = false;
 
+    index_stamp(&made_stamp, false);
     draw_splashscreen(buf, buf_size);
     ALIGN_BUFFER(buf, buf_size, sizeof(long));
 
@@ -1998,7 +2018,7 @@ static int create_album_index(void)
 
     /* Assign indices */
 #ifdef HAVE_TC_RAMCACHE
-    if (assign_albums_from_ram(buf, buf_size))
+    if (assign_albums_from_ram(buf, buf_size, &music_alone))
     {
         /* with the albums it added */
         buf = pf_idx.album_index + pf_idx.album_ct;
@@ -2011,6 +2031,9 @@ static int create_album_index(void)
         if (res < SUCCESS)
             return res;
     }
+    /* of music alone or not, as assigned */
+    made_stamp.entries = ITUNESDB_ALBUM_INDEX_ENTRIES(made_stamp.entries,
+                                                      music_alone);
 
     /* sort list order to find duplicates */
     rb->qsort(pf_idx.album_index, pf_idx.album_ct,
@@ -2018,8 +2041,14 @@ static int create_album_index(void)
 
     draw_splashscreen(buf, buf_size);
     draw_progressbar(0, pf_idx.album_ct, STR_STEP_REMOVING_DUPLICATES);
-    /* mark duplicate albums for deletion */
-    for (i = 0; i < pf_idx.album_ct - 1; i++) /* -1 don't check last entry */
+    /* One entry for each album of each artist. <Untagged>'s come from its
+       tracks' artists, one for each run of them the database's search gives
+       (create_album_untagged()), and the albums' own <Untagged> entry took
+       its first track's artist: the repeats go, and so does an entry whose
+       artist wasn't found (artist_idx -1), so that the saved index holds no
+       negative offset, which load_album_index() rejects as damage. */
+    kept = 0;
+    for (i = 0; i < pf_idx.album_ct; i++)
     {
         /* Prevent idle poweroff */
         rb->reset_poweroff_timer();
@@ -2027,35 +2056,15 @@ static int create_album_index(void)
         if (progress_cancel(i, pf_idx.album_ct, STR_STEP_REMOVING_DUPLICATES))
             return ERROR_USER_ABORT;
 
-        int idxi = pf_idx.album_index[i].artist_idx;
-        int seeki = pf_idx.album_index[i].seek;
-
-        for (j = i + 1; j < pf_idx.album_ct; j++)
-        {
-            if (idxi > 0 &&
-            idxi == pf_idx.album_index[j].artist_idx &&
-            seeki == pf_idx.album_index[j].seek)
-            {
-                pf_idx.album_index[j].artist_idx = -1;
-            }
-            else
-            {
-                i = j - 1;
-                break;
-            }
-        }
+        const struct album_data *a = &pf_idx.album_index[i];
+        if (a->artist_idx < 0
+            || (kept > 0
+                && !compare_album_artists(a, &pf_idx.album_index[kept - 1])))
+            continue;
+        pf_idx.album_index[kept++] = *a;
     }
-
-    /* now fix the album list order */
-    rb->qsort(pf_idx.album_index, pf_idx.album_ct,
-              sizeof(struct album_data), compare_album_artists);
-
-    /* remove any extra untagged albums
-     * extra space is orphaned till restart
-     * the database sorts that name first, so its offset is 0, or -1 without:
-     * this is the one entry of all albums without a name */
-    pf_idx.album_index += pf_idx.album_untagged_idx + 1;
-    pf_idx.album_ct -= pf_idx.album_untagged_idx + 1;
+    /* the space of those left out is orphaned till restart */
+    pf_idx.album_ct = kept;
 
     pf_idx.buf = buf;
     pf_idx.buf_sz = buf_size;
@@ -2068,15 +2077,16 @@ static int create_album_index(void)
     return (pf_idx.album_ct > 0) ? 0 : ERROR_NO_ALBUMS;
 }
 
-/* what the index is made of: the database as it is now */
-static void index_stamp(struct pf_index_t *stamp)
+/* what the index is made of: the database as it is now, the entries below
+   zero for an index of music alone: one made with every album, or the other
+   way round, is made again */
+static void index_stamp(struct pf_index_t *stamp, bool music_alone)
 {
     struct tagcache_stat *stat = rb->tagcache_get_stat();
     char file[MAX_PATH];
     stamp->commitid = rb->tagcache_get_commitid();
-    /* below zero for an index of music alone: one made with every album,
-       or the other way round, is made again */
-    stamp->entries = music_only() ? ~stat->total_entries : stat->total_entries;
+    stamp->entries = ITUNESDB_ALBUM_INDEX_ENTRIES(stat->total_entries,
+                                                  music_alone);
     stamp->albums_size = -1;
     rb->snprintf(file, sizeof(file), "%s/database_%d.tcd", stat->db_path,
                  tag_album);
@@ -2106,7 +2116,9 @@ static int save_album_index(void){
     if(fd >= 0)
     {
         rb->memcpy(&data.header, INDEX_HDR, sizeof(pf_idx.header));
-        index_stamp(&data);
+        data.commitid = made_stamp.commitid;
+        data.entries = made_stamp.entries;
+        data.albums_size = made_stamp.albums_size;
 
         bool ok = write_all(fd, &data, sizeof(struct pf_index_t))
             && write_all(fd, data.artist_names, data.artist_len)
@@ -2154,7 +2166,7 @@ static int load_album_index(void){
                    and artists elsewhere, as after every sync; the index of
                    an older version is made again as well */
                 struct pf_index_t now;
-                index_stamp(&now);
+                index_stamp(&now, music_only());
                 if (rb->memcmp(&(data.header), INDEX_HDR, sizeof(data.header))
                     || data.commitid != now.commitid
                     || data.entries != now.entries
@@ -2230,7 +2242,10 @@ static int load_album_index(void){
     }
 
 failure:
-    rb->splash(HZ/2, "Failed to load index");
+    /* None yet, cut short, damaged or too large for the buffer: nothing
+       said here. The caller makes it again with its own screen, the boot's
+       Preparing Albums or Cover Flow's steps; Cover Flow says so if there's
+       no room for it either. */
     if (fr >= 0)
         rb->close(fr);
 
