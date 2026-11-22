@@ -99,12 +99,16 @@
 #include "root_menu.h"
 #include "audio.h"
 #ifndef PLUGIN
+#include <stddef.h>
 #include "music_search.h"
 #include "smart_playlists.h"
 #include "library_playlists.h"
 #include "timefuncs.h"
 #include "scrobbler.h"
 #include "storage.h"
+#include "panic.h"
+#include "crash_log.h"
+#include "version.h"
 #endif
 #endif
 #define USR_CANCEL false
@@ -686,6 +690,10 @@ static int processed_dir_count;
 /* Thread safe locking */
 static volatile int write_lock;
 static volatile int read_lock;
+#if !defined(PLUGIN) && !defined(__PCTOOL__)
+static void command_queue_write(bool keep);
+static void run_command_queue(bool force);
+#endif
 
 static bool delete_entry(long idx_id);
 static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds,
@@ -779,8 +787,9 @@ read_tagfile_entry_and_tag(int fd, struct tagfile_entry *tfe,
     if (read_tagfile_entry(fd, tfe) != sizeof(struct tagfile_entry))
         return e_ENTRY_SIZEMISMATCH;
 
+    /* a damaged file's negative length too: it wrote before buf */
     long tag_length = tfe->tag_length;
-    if (tag_length >= bufsz)
+    if ((unsigned long)tag_length >= (unsigned long)bufsz)
         return e_TAG_TOOLONG;
 
     if (tag_length > 0 && read(fd, buf, tag_length) != tag_length)
@@ -1846,6 +1855,13 @@ static long find_entry_disk(const char *filename_raw, bool localfd)
                 logf("size mismatch find entry");
                 break;
             }
+            /* the end, as a short read: a damaged file's length of -8
+               read the same entry again for good */
+            else if (tfe.tag_length <= 0)
+            {
+                logf("bad length find entry");
+                break;
+            }
             else
             {
                 pos += sizeof(struct tagfile_entry) + tfe.tag_length;
@@ -2860,12 +2876,16 @@ bool tagcache_search_add_clause(struct tagcache_search *tcs,
             }
         }
 
-        if (!TAGCACHE_IS_NUMERIC(clause->tag) && tcs->idxfd[clause->tag] < 0)
+        /* a basename's is the filenames' file, as check_clauses() reads it:
+           its own index is past idxfd[] */
+        const int tag = clause->tag == tag_virt_basename ? tag_filename
+                                                         : clause->tag;
+        if (!TAGCACHE_IS_NUMERIC(tag) && tcs->idxfd[tag] < 0)
         {
             char fname[MAX_PATH];
-            tcs->idxfd[clause->tag] = open_pathfmt(fname, sizeof(fname), O_RDONLY,
-                                                   "%s/" TAGCACHE_FILE_INDEX,
-                                                   tc_stat.db_path, clause->tag);
+            tcs->idxfd[tag] = open_pathfmt(fname, sizeof(fname), O_RDONLY,
+                                           "%s/" TAGCACHE_FILE_INDEX,
+                                           tc_stat.db_path, tag);
         }
     }
 
@@ -4507,12 +4527,259 @@ static void carry_numbers(struct temp_file_entry *entry,
                   | (old->flag & FLAG_DIRTYNUM);
 }
 
+/* A file whose tags a parser never returns from, crashing or looping, was
+   met again by the scan at every boot after: a scan's checkpoint keeps only
+   files that returned, so the library was never finished. The reading of
+   each file is marked where a reset (Menu+Select, from a crash's screen or
+   in a hang) leaves the memory as it was: the crash record's reserve
+   (panic_record_spare()), in three copies voted bit by bit, as a reset
+   flips a few of its bits; in the simulator, a file, which the host keeps
+   when the process is killed. Nothing goes to the disk for each file.
+   A boot that finds the mark set, of this firmware, lists that file in
+   TAGCACHE_FILE_SKIPPED, by its path's hash, size and time, at once if the
+   crash record it logged is the database thread's; else only at the second
+   boot in a row that ended in its reading (strikes), as a user's reset can
+   come while a sound file is read. The scans leave a listed file out until
+   it changes, or the firmware does, whose parsers may read it by then. A
+   reading that returns, a boot ending outside one, or a power-off, which
+   the memory doesn't keep, starts the count again. */
+#define TAGCACHE_FILE_SKIPPED "database_skipped.tcd"
+#define SCAN_MARK_MAGIC       0x4b4d5752 /* "RWMK" */
+#define SCAN_SKIP_MAGIC       0x4b535752 /* "RWSK" */
+#define SCAN_MARK_COPIES      3
+#define SCAN_SKIP_MAX         32 /* the oldest goes for one more */
+
+struct scan_file
+{
+    uint32_t hash[2];   /* itunesdb_path_hash() */
+    uint32_t size;
+    uint32_t mtime;
+};
+
+struct scan_mark
+{
+    uint32_t magic;
+    struct scan_file file;
+    uint32_t afmt;
+    uint32_t firmware;  /* scan_firmware() */
+    uint32_t strikes;   /* boots in a row that ended in its reading */
+    uint32_t sum;       /* crc_32() of the fields before it */
+};
+
+struct scan_skip_header
+{
+    uint32_t magic;
+    uint32_t firmware;  /* crc_32() of rbversion */
+    uint32_t count;
+};
+
+static struct scan_file scan_skips[SCAN_SKIP_MAX];
+static int scan_skip_count;
+/* the file whose reading the last boot ended in, once: its next is the
+   second strike */
+static struct scan_file scan_suspect;
+static bool scan_suspect_set, scan_reading_suspect;
+#ifdef SIMULATOR
+#define SCAN_MARK_SIM_FILE "database_mark.sim"
+static int scan_mark_fd = -1;
+#elif defined(HAVE_PANIC_RECORD)
+static struct scan_mark *scan_mark_area; /* uncached, NULL for none */
+#endif
+
+static void scan_mark_put(const struct scan_mark *m)
+{
+#ifdef SIMULATOR
+    if (scan_mark_fd >= 0 && lseek(scan_mark_fd, 0, SEEK_SET) == 0)
+        write(scan_mark_fd, m, sizeof(*m));
+#elif defined(HAVE_PANIC_RECORD)
+    for (int i = 0; scan_mark_area && i < SCAN_MARK_COPIES; i++)
+        scan_mark_area[i] = *m;
+#else
+    (void)m;
+#endif
+}
+
+/* the mark the last boot left, if it is whole */
+static bool scan_mark_get(struct scan_mark *m)
+{
+#ifdef SIMULATOR
+    if (scan_mark_fd < 0 || lseek(scan_mark_fd, 0, SEEK_SET) != 0
+        || read(scan_mark_fd, m, sizeof(*m)) != sizeof(*m))
+        return false;
+#elif defined(HAVE_PANIC_RECORD)
+    if (!scan_mark_area)
+        return false;
+    const uint32_t *a = (const uint32_t *)&scan_mark_area[0];
+    const uint32_t *b = (const uint32_t *)&scan_mark_area[1];
+    const uint32_t *c = (const uint32_t *)&scan_mark_area[2];
+    uint32_t *out = (uint32_t *)m;
+    for (unsigned int i = 0; i < sizeof(*m) / sizeof(*out); i++)
+        out[i] = (a[i] & b[i]) | (a[i] & c[i]) | (b[i] & c[i]);
+#else
+    (void)m;
+    return false;
+#endif
+    return m->magic == SCAN_MARK_MAGIC
+           && m->sum == crc_32(m, offsetof(struct scan_mark, sum), 0xffffffff);
+}
+
+static void scan_mark_clear(void)
+{
+    static const struct scan_mark none;
+    scan_mark_put(&none);
+}
+
+static uint32_t scan_firmware(void)
+{
+    return crc_32(rbversion, strlen(rbversion), 0xffffffff);
+}
+
+static void scan_skips_write(void)
+{
+    if (scan_skip_count == 0)
+    {
+        remove_db_file(TAGCACHE_FILE_SKIPPED);
+        return;
+    }
+    const struct scan_skip_header h = {
+        SCAN_SKIP_MAGIC, scan_firmware(), scan_skip_count
+    };
+    const ssize_t size = scan_skip_count * sizeof(scan_skips[0]);
+    const int fd = open_db_fd(TAGCACHE_FILE_SKIPPED,
+                              O_WRONLY | O_CREAT | O_TRUNC);
+    if (fd < 0)
+        return;
+    const bool written = write(fd, &h, sizeof(h)) == sizeof(h)
+                         && write(fd, scan_skips, size) == size;
+    if (close(fd) < 0 || !written)
+        health_note("scan: list of the files left out not written");
+}
+
+/* At boot, before the database's thread: the files left out, and the mark
+   the last boot left as it ended in the reading of a file's tags */
+static void scan_guard_boot(void)
+{
+    struct scan_skip_header h;
+    int fd = open_db_fd(TAGCACHE_FILE_SKIPPED, O_RDONLY);
+    if (fd >= 0)
+    {
+        const bool whole = read(fd, &h, sizeof(h)) == sizeof(h)
+            && h.magic == SCAN_SKIP_MAGIC && h.count <= SCAN_SKIP_MAX
+            && read(fd, scan_skips, h.count * sizeof(scan_skips[0]))
+               == (ssize_t)(h.count * sizeof(scan_skips[0]));
+        close(fd);
+        if (whole && h.firmware == scan_firmware())
+            scan_skip_count = h.count;
+        else
+        {
+            if (whole)
+                health_note("scan: %lu files left out are read again, by"
+                            " another firmware", (unsigned long)h.count);
+            remove_db_file(TAGCACHE_FILE_SKIPPED);
+        }
+    }
+
+#ifdef SIMULATOR
+    scan_mark_fd = open_db_fd(SCAN_MARK_SIM_FILE, O_RDWR | O_CREAT);
+#elif defined(HAVE_PANIC_RECORD)
+    size_t room;
+    void *spare = panic_record_spare(&room);
+    if (room >= SCAN_MARK_COPIES * sizeof(struct scan_mark))
+        scan_mark_area = spare;
+#endif
+    struct scan_mark m;
+    if (!scan_mark_get(&m))
+        return;
+    scan_mark_clear();
+    if (m.firmware != scan_firmware())
+        return; /* another firmware's parsers */
+    const char *what = m.afmt < AFMT_NUM_CODECS ? audio_formats[m.afmt].label
+                                                : "?";
+    const char *thread = crash_log_boot_thread();
+    const bool crashed = thread && !strcmp(thread, tagcache_thread_name);
+    if (!crashed && m.strikes < 2)
+    {
+        scan_suspect = m.file;
+        scan_suspect_set = true;
+        health_note("scan: %s file of %lu bytes: reading its tags didn't end"
+                    " at the last boot (%s); left out if it happens again",
+                    what, (unsigned long)m.file.size,
+                    thread ? "another thread's crash" : "a reset");
+        return;
+    }
+    int i = 0;
+    while (i < scan_skip_count
+           && memcmp(&scan_skips[i], &m.file, sizeof(m.file)))
+        i++;
+    if (i == scan_skip_count)
+    {
+        if (scan_skip_count == SCAN_SKIP_MAX)
+            memmove(&scan_skips[0], &scan_skips[1],
+                    --scan_skip_count * sizeof(scan_skips[0]));
+        scan_skips[scan_skip_count++] = m.file;
+    }
+    scan_skips_write();
+    health_note("scan: %s file of %lu bytes left out until it changes:"
+                " reading its tags %s", what, (unsigned long)m.file.size,
+                crashed ? "crashed the database's thread"
+                        : "didn't end at the last two boots");
+}
+
+/* Before a file's tags are read in the scan: false if the file is left out;
+   else its reading marked until scan_guard_end() */
+static bool scan_guard_begin(const char *path, int afmt, off_t size,
+                             unsigned long mtime)
+{
+    const uint64_t hash = itunesdb_path_hash(path);
+    struct scan_mark m = {
+        .magic = SCAN_MARK_MAGIC,
+        .file = { { hash, hash >> 32 }, size, mtime },
+        .afmt = afmt,
+    };
+    for (int i = 0; i < scan_skip_count; i++)
+    {
+        if (scan_skips[i].hash[0] != m.file.hash[0]
+            || scan_skips[i].hash[1] != m.file.hash[1])
+            continue;
+        if (scan_skips[i].size == m.file.size
+            && scan_skips[i].mtime == m.file.mtime)
+        {
+            health_note("scan: %s file of %lu bytes left out, as reading its"
+                        " tags didn't end at an earlier boot",
+                        audio_formats[afmt].label, (unsigned long)size);
+            return false;
+        }
+        /* changed since: read again, as any file; the rest in their order,
+           the oldest first */
+        memmove(&scan_skips[i], &scan_skips[i + 1],
+                (--scan_skip_count - i) * sizeof(scan_skips[0]));
+        scan_skips_write();
+        break;
+    }
+    scan_reading_suspect = scan_suspect_set
+        && !memcmp(&m.file, &scan_suspect, sizeof(m.file));
+    m.firmware = scan_firmware();
+    m.strikes = scan_reading_suspect ? 2 : 1;
+    m.sum = crc_32(&m, offsetof(struct scan_mark, sum), 0xffffffff);
+    scan_mark_put(&m);
+    return true;
+}
+
+static void scan_guard_end(void)
+{
+    scan_mark_clear();
+    /* it returned this time */
+    if (scan_reading_suspect)
+        scan_suspect_set = scan_reading_suspect = false;
+}
+
 /* The compilation mark of a song outside Finder's folder the database had
    before the marks were read, from its tags, once (compilations_due): in
    its entry where it is, on the disk and in memory, if it has one. id3 is
    the scan's room for the tags */
 static void compilation_read(int idx_id, const char *path, int afmt,
-                             struct mp3entry *id3)
+                             struct mp3entry *id3, off_t size,
+                             unsigned long mtime)
 {
     if (!compilations_due || itunesdb_synced_path(path))
         return;
@@ -4523,8 +4790,12 @@ static void compilation_read(int idx_id, const char *path, int afmt,
             count_outside();
         import_done++;
     }
-    if (!get_metadata_afmt(id3, -1, path, afmt, METADATA_EXCLUDE_ID3_PATH)
-        || !id3->compilation)
+    if (!scan_guard_begin(path, afmt, size, mtime))
+        return;
+    const bool got = get_metadata_afmt(id3, -1, path, afmt,
+                                       METADATA_EXCLUDE_ID3_PATH);
+    scan_guard_end();
+    if (!got || !id3->compilation)
         return;
     struct master_header mh;
     struct index_entry idx;
@@ -4550,7 +4821,8 @@ static void compilation_read(int idx_id, const char *path, int afmt,
 }
 #endif
 
-static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
+static void NO_INLINE add_tagcache(char *path, unsigned long mtime,
+                                   off_t size)
 {
     #define ADD_TAG(entry, tag, data) \
         /* Adding tag */                              \
@@ -4642,7 +4914,7 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
 #endif
             {
 #ifndef __PCTOOL__
-                compilation_read(idx_id, path, afmt, &id3);
+                compilation_read(idx_id, path, afmt, &id3, size, mtime);
 #endif
                 return ;
             }
@@ -4706,8 +4978,16 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     ret = itunesdb_get_metadata(path, &id3, &itdb_rt, &date, &added);
     finder = ret;
     if (!ret)
-#endif
+    {
+        if (!scan_guard_begin(path, afmt, size, mtime))
+            return;
+        ret = get_metadata_afmt(&id3, -1, path, afmt, metadata_flags);
+        scan_guard_end();
+    }
+#else
+    (void)size;
     ret = get_metadata_afmt(&id3, -1, path, afmt, metadata_flags);
+#endif
 
     if (!ret)
     {
@@ -5311,7 +5591,7 @@ static enum e_read_errors tagr_read_entry_and_tag(struct tagfile_entry *tfe,
         return e_ENTRY_SIZEMISMATCH;
 
     long tag_length = tfe->tag_length;
-    if (tag_length >= bufsz)
+    if ((unsigned long)tag_length >= (unsigned long)bufsz)
         return e_TAG_TOOLONG;
 
     if (tag_length > 0 && br_read(&tagr, buf, tag_length) != tag_length)
@@ -5398,7 +5678,7 @@ static bool build_numeric_indices(struct tagcache_header *h, int tmpfd)
              */
 #define tmpdb_read_string_tag(tag) \
     tmpr.at = datastart + tfe->tag_offset[tag]; \
-    if ((unsigned long)tfe->tag_length[tag] > (unsigned long)build_idx_bufsz) \
+    if ((unsigned long)tfe->tag_length[tag] >= (unsigned long)build_idx_bufsz) \
     { \
         logf("read fail: buffer overflow"); \
         return false; \
@@ -5776,8 +6056,9 @@ static int build_index(int index_type, struct tagcache_header *h, int tmpfd)
                 goto error_exit;
             }
 
-            /* Read data. */
-            if (entry.tag_length[index_type] >= build_idx_bufsz)
+            /* Read data: a negative length (int16_t) is refused too */
+            if ((unsigned long)entry.tag_length[index_type]
+                >= (unsigned long)build_idx_bufsz)
             {
                 logf("too long entry!");
                 error = true;
@@ -5878,8 +6159,9 @@ static int build_index(int index_type, struct tagcache_header *h, int tmpfd)
                 break ;
             }
 
-            /* Read data. */
-            if (entry.tag_length[index_type] >= build_idx_bufsz)
+            /* Read data: a negative length (int16_t) is refused too */
+            if ((unsigned long)entry.tag_length[index_type]
+                >= (unsigned long)build_idx_bufsz)
             {
                 logf("too long entry!");
                 logf("length=%d", entry.tag_length[index_type]);
@@ -6717,6 +6999,41 @@ static void commit_put_off_for_memory(const char *what, long count,
 #endif
 }
 
+/* Whether every entry of the scan's file is as the build reads it
+   (build_index(), build_numeric_indices()): its data within the file, and
+   each string within its data at a length the build takes. The scan writes
+   each string after the one before, none past TAG_MAXLEN + 1
+   (check_if_empty()), and the data as long as they are, so another entry is
+   the file's damage: kept, its commit failed at every boot, and while it
+   waited each scan was skipped, Finder's imports with it. Looked at before
+   the commit changes anything: commit_replaced() deletes the old entries of
+   the files the scan added again. */
+static bool temp_file_whole(int tmpfd, const struct tagcache_header *h,
+                            off_t size)
+{
+    tmpr_start(tmpfd, sizeof(struct tagcache_header));
+    for (long i = 0; i < h->entry_count; i++)
+    {
+        struct temp_file_entry e;
+        if (tmpr_read(&e, sizeof(e)) != sizeof(e) || e.data_length < 0
+            || e.data_length > size - tmpr.at)
+            return false;
+        for (int tag = 0; tag < TAG_COUNT; tag++)
+        {
+            if (TAGCACHE_IS_NUMERIC(tag))
+                continue;
+            const long length = e.tag_length[tag];
+            if ((unsigned long)length >= (unsigned long)build_idx_bufsz
+                || e.tag_offset[tag] < 0
+                || e.tag_offset[tag] > e.data_length - length)
+                return false;
+        }
+        tmpr.at += e.data_length;
+        do_timed_yield();
+    }
+    return true;
+}
+
 static bool commit(void)
 {
     struct tagcache_header tch;
@@ -6776,6 +7093,18 @@ static bool commit(void)
                + (uint64_t)tch.entry_count * sizeof(struct temp_file_entry))
     {
         logf("incorrect tmpheader");
+        close(tmpfd);
+        remove_scan_files();
+        return false;
+    }
+    if (!temp_file_whole(tmpfd, &tch, tmpsize))
+    {
+        /* made again by the next scan; the entries it would replace and
+           their statistics are as they were */
+        logf("damaged tmpfile");
+        health_note("library commit: the scan's file damaged, of %ld entries:"
+                    " dropped, for the next scan to make again",
+                    (long)tch.entry_count);
         close(tmpfd);
         remove_scan_files();
         return false;
@@ -6888,6 +7217,19 @@ static bool commit(void)
 
     /* Beyond here, jump to commit_error to undo locks and restore dircache */
     read_lock++;
+#if !defined(PLUGIN) && !defined(__PCTOOL__)
+    /* What's queued goes into the master before anything of it changes, as
+       the deletions of commit_replaced(), and before it is read: from here to
+       the swap the storage thread's flush leaves the queue alone (read_lock),
+       and one it began before then is waited for. Not if the headers were
+       found wanting: refused, each was lost; queued, it waits for the swap. */
+    if (tc_stat.ready)
+    {
+        mutex_lock(&command_queue_mutex);
+        command_queue_write(false);
+        mutex_unlock(&command_queue_mutex);
+    }
+#endif
 
     /* And finally fail if there are no buffers available. Not for want of
        memory: a scan's commit finds none to borrow without the dircache's,
@@ -7152,6 +7494,10 @@ commit_error:
 #endif /* HAVE_TC_RAMCACHE */
 
     read_lock--;
+#if !defined(PLUGIN) && !defined(__PCTOOL__)
+    /* what waited through the commit, at the disk's next idle */
+    run_command_queue(false);
+#endif
 
 #if defined(HAVE_DIRCACHE) && !defined(PLUGIN) && !defined(__PCTOOL__)
     if (tempbuf_taken)
@@ -7228,25 +7574,23 @@ static bool command_queue_is_full(void)
     return (next == command_queue_ridx);
 }
 
-static void command_queue_sync_callback(void)
+/* What's queued, into the master file (and the database in memory), with
+   the queue's mutex held. keep: written and left queued as well, all of it
+   values set, not added to, for a write again */
+static void command_queue_write(bool keep)
 {
     struct master_header myhdr;
     int masterfd;
-
-    mutex_lock(&command_queue_mutex);
 
     /* not to be had, as after a rebuild took the files: what's queued waits
        for the next try, and the queue stays free for playback to add to, which
        otherwise waited on it from then on */
     if ( (masterfd = open_master_fd(&myhdr, true)) < 0)
-    {
-        mutex_unlock(&command_queue_mutex);
         return;
-    }
 
-    while (command_queue_ridx != command_queue_widx)
+    for (int ridx = command_queue_ridx; ridx != command_queue_widx; )
     {
-        struct tagcache_command_entry *ce = &command_queue[command_queue_ridx];
+        struct tagcache_command_entry *ce = &command_queue[ridx];
 
         switch (ce->command)
         {
@@ -7257,10 +7601,7 @@ static void command_queue_sync_callback(void)
 
                 /* Re-open the masterfd. */
                 if ( (masterfd = open_master_fd(&myhdr, true)) < 0)
-                {
-                    mutex_unlock(&command_queue_mutex);
                     return;
-                }
 
                 break;
             }
@@ -7271,13 +7612,28 @@ static void command_queue_sync_callback(void)
             }
         }
 
-        if (++command_queue_ridx >= TAGCACHE_COMMAND_QUEUE_LENGTH)
-            command_queue_ridx = 0;
+        if (++ridx >= TAGCACHE_COMMAND_QUEUE_LENGTH)
+            ridx = 0;
+        if (!keep)
+            command_queue_ridx = ridx;
     }
 
     close(masterfd);
 
-    tc_stat.queue_length = 0;
+    if (!keep)
+        tc_stat.queue_length = 0;
+}
+
+/* the storage thread's, at the disk's idle */
+static void command_queue_sync_callback(void)
+{
+    mutex_lock(&command_queue_mutex);
+    /* Not inside a commit (read_lock): written to the old master, which the
+       commit's new one replaces, the plays and ratings were lost. They wait
+       for the database's thread to register this again after it; what was
+       queued before it is in the master it read (commit()). */
+    if (!read_lock)
+        command_queue_write(false);
     mutex_unlock(&command_queue_mutex);
 }
 
@@ -7286,8 +7642,20 @@ static void run_command_queue(bool force)
     if (COMMAND_QUEUE_IS_EMPTY)
         return;
 
+    /* At once: on the database's thread, as at USB and with the queue full,
+       never inside a commit; and from tree_flush() as USB connects, which
+       may be inside one (read_lock). Then into the old master too, which a
+       reset or power loss before the swap leaves in place (commit_recover()
+       undoes the commit), and kept queued, for the new one after the swap.
+       Sleep's flush takes the storage thread's way, which leaves a commit's
+       queue alone; a power-off waits for the commit, or with an empty
+       battery flushes nothing. */
     if (force || command_queue_is_full())
-        command_queue_sync_callback();
+    {
+        mutex_lock(&command_queue_mutex);
+        command_queue_write(read_lock > 0);
+        mutex_unlock(&command_queue_mutex);
+    }
     else
         register_storage_idle_func(command_queue_sync_callback);
 }
@@ -8002,8 +8370,10 @@ static bool read_tag(char *dest, long size,
         if (*src == '\0' || *(++src) == '\0')
             return false;
 
-        /* Read the data. */
-        for (pos = 0; pos < size; pos++)
+        /* Read the data: at most size - 1 bytes, for its NUL; a backslash
+           at the line's end ends it too, as stepping over it read past the
+           line */
+        for (pos = 0; pos < size - 1; pos++)
         {
             if (*src == '\0')
                 break;
@@ -8011,6 +8381,8 @@ static bool read_tag(char *dest, long size,
             if (*src == '\\')
             {
                 src++;
+                if (*src == '\0')
+                    break;
                 if (*src == 'n')
                     dest[pos] = '\n';
                 else
@@ -9169,6 +9541,13 @@ static bool load_tagcache(void)
                 logf("read error #11");
                 goto failure;
             }
+            /* A damaged file's: read with it, the rest of the file went over
+               the filename's room on the stack or past the cache's end */
+            if (fe->tag_length < 0)
+            {
+                logf("corrupt tagfile entry:tag=%d:length", tag);
+                goto failure;
+            }
 
             int idx_id = fe->idx_id; /* dircache reference clobbers *fe */
             struct index_entry *idx = &tcramcache.hdr->indices[idx_id];
@@ -10303,7 +10682,7 @@ static bool check_dir(const char *dirname, int add_files)
             tc_stat.curentry = curpath;
 
             /* Add a new entry to the temporary db file. */
-            add_tagcache(curpath, info.mtime);
+            add_tagcache(curpath, info.mtime, info.size);
             scan_checkpoint();
             /* the UI between them, as a tick goes by: the tags of hundreds
                read one after another, the bar under Checking Songs was drawn
@@ -11458,8 +11837,11 @@ static void tagcache_thread(void)
         initials_load();
 
     /* The header check, on the background but at once: the song count and
-       an import after a sync wait for it */
-    if (!tc_stat.ready)
+       an import after a sync wait for it. Also after a commit of the boot's
+       that set ready and then failed: playback's first track waits for
+       readyvalid (tagtree_buffer_event()), which only a commit that
+       succeeds sets, and the audio thread waited for the rest of the boot */
+    if (!tc_stat.ready || !tc_stat.readyvalid)
         tagcache_commit_finalize();
 #ifdef HAVE_TC_RAMCACHE
     /* After Finder's playlists alone, in memory before the screen goes, as
@@ -11962,6 +12344,8 @@ void tagcache_init(void)
        for a scan's file waiting, as above */
     else if (temp_entries() <= 0 && itunesdb_playlists_due())
         set_import_phase(TAGCACHE_IMPORT_PLAYLISTS);
+    /* before the thread's first scan */
+    scan_guard_boot();
     mutex_init(&command_queue_mutex);
     queue_init(&tagcache_queue, true);
     create_thread(tagcache_thread, tagcache_stack,

@@ -70,6 +70,13 @@ struct panic_record *panic_record_area(void)
     return panic_area;
 }
 
+void *panic_record_spare(size_t *size)
+{
+    *size = panic_area ? PANIC_REC_RESERVE
+                         - PANIC_REC_COPIES * sizeof(struct panic_record) : 0;
+    return panic_area ? panic_area + PANIC_REC_COPIES : NULL;
+}
+
 /* The reserve at the audio buffer's end, given its start */
 static struct panic_record *panic_record_place(unsigned char *rec)
 {

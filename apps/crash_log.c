@@ -90,8 +90,8 @@ static void write_record(const struct panic_record *r, int mended,
 
     /* the fields as strings whatever they hold */
     panic_record_scrub(text, sizeof(text), r->msg);
-    strlcpy(name, r->thread, sizeof(name));
-    strlcpy(version, r->version, sizeof(version));
+    strmemccpy(name, r->thread, sizeof(name));
+    strmemccpy(version, r->version, sizeof(version));
 
     fdprintf(fd, "== crash record\n");
     fdprintf(fd, "version: %s\n", version);
@@ -125,6 +125,14 @@ static void write_record(const struct panic_record *r, int mended,
         fdprintf(fd, "mended: %d bits\n", mended);
     put_time(fd, "logged", now);
     close(fd);
+}
+
+/* the thread of the record logged at this boot, "" for none */
+static char boot_thread[PANIC_REC_THREAD];
+
+const char *crash_log_boot_thread(void)
+{
+    return boot_thread[0] ? boot_thread : NULL;
 }
 
 void crash_log_boot(void)
@@ -174,7 +182,13 @@ void crash_log_boot(void)
     }
 #endif
     if (fresh)
+    {
+        /* a name the record held, NUL or not */
+        strmemccpy(boot_thread, rec.thread, sizeof(boot_thread));
+        if (!boot_thread[0])
+            strcpy(boot_thread, "?");
         write_record(&rec, mended, now);
+    }
 }
 
 #endif /* HAVE_PANIC_RECORD */

@@ -22,6 +22,7 @@
 #define __PANIC_H__
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include "config.h"
 #include "gcc_extensions.h"
@@ -34,6 +35,11 @@ struct panic_record;
 /* Its PANIC_REC_COPIES copies at the audio buffer's end (core_alloc.c),
    through the uncached alias; NULL when the boot found them misplaced */
 struct panic_record *panic_record_area(void);
+
+/* The reserve's bytes after the copies, which a reset leaves as it leaves
+   them, through the same alias, *size of them; NULL as for the area. The
+   database's scan keeps its mark there (tagcache.c, scan_guard_boot()). */
+void *panic_record_spare(size_t *size);
 
 /* What ends this boot, from panicf() or UIE() before its screen, with
    interrupts off: a first record, or one more on the count of this boot's

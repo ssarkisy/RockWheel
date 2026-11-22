@@ -1420,6 +1420,7 @@ static int add_format(const char *buf)
             if (!new_clause)
             {
                 logf("tagtree failed to allocate %s", "search clause");
+                core_unpin(tagtree_handle);
                 return -3;
             }
             formats[format_count]->clause[clause_count] = new_clause;
@@ -2248,13 +2249,12 @@ static void tagtree_unload(struct tree_context *c)
         tree_lock_cache(c);
         struct tagentry *dptr = root_entries;
         menu = menus[c->currextra];
+        /* the buffer freed and the cache unlocked all the same: returned
+           here, both stayed pinned, and the reload's buffer was the rest */
         if (!menu)
-        {
             logf("tagtree menu doesn't exist");
-            return;
-        }
 
-        for (int i = 0; i < menu->itemcount; i++)
+        for (int i = 0; menu && i < menu->itemcount; i++)
         {
             dptr->name = NULL;
             dptr->newtable = 0;

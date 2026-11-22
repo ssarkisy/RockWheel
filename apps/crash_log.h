@@ -25,9 +25,18 @@
 /* At boot, the disk mounted and the clock read, before music: the record a
    crash left, if any, marked logged and appended to CRASH_LOG_FILE */
 void crash_log_boot(void);
+
+/* The thread named by the record crash_log_boot() logged at this boot, or
+   NULL for none: the last boot ended otherwise than by a crash it caught */
+const char *crash_log_boot_thread(void);
 #else
 static inline void crash_log_boot(void)
 {
+}
+
+static inline const char *crash_log_boot_thread(void)
+{
+    return NULL;
 }
 #endif
 
