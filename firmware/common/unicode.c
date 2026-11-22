@@ -428,11 +428,20 @@ unsigned char* utf16decode(const unsigned char *utf16, unsigned char *utf8,
 
     while (count > 0 && utf8_size > 0) {
         /* Check for a surrogate pair */
-        if (*(utf16 + le) >= 0xD8 && *(utf16 + le) < 0xE0) {
-            ucs = 0x10000 + ((utf16[1 - le] << 10) | ((utf16[le] - 0xD8) << 18)
-                  | utf16[2 + (1 - le)] | ((utf16[2 + le] - 0xDC) << 8));
+        if (*(utf16 + le) >= 0xD8 && *(utf16 + le) < 0xDC
+            && utf16[2 + le] >= 0xDC && utf16[2 + le] < 0xE0) {
+            ucs = 0x10000 + (((unsigned long)utf16[1 - le] << 10)
+                  | ((unsigned long)(utf16[le] - 0xD8) << 18)
+                  | utf16[2 + (1 - le)]
+                  | ((unsigned long)(utf16[2 + le] - 0xDC) << 8));
             utf16 += 4;
             count -= 2;
+        } else if (*(utf16 + le) >= 0xD8 && *(utf16 + le) < 0xE0) {
+            /* half of a pair without the other: the replacement character,
+               and the unit after it read as it is */
+            ucs = 0xFFFD;
+            utf16 += 2;
+            count -= 1;
         } else {
             ucs = utf16[le] << 8 | utf16[1 - le];
             utf16 += 2;

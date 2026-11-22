@@ -2370,6 +2370,10 @@ void root_menu(void)
     if (!usb_checked)
         tagcache_check_sync();
     show_library_update();
+    /* which of the playlists are synced, if USB or a switch off held during
+       Updating Library left it before it read them: by the list as it is */
+    if (!ip_synced_loaded())
+        ip_synced_load();
 #endif
 #ifdef ITUNESDB_HAVE_ART
     /* the cover of the song to resume, by the library as it is now */

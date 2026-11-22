@@ -86,11 +86,17 @@ void itunesdb_write_playcounts(void);
 #define ITUNESDB_SORT_COMPOSER 18
 /* one of the import's, by its second line */
 bool itunesdb_own_playlist(const char *file);
+/* a folder holding, in it or in one in it, a file that isn't a playlist (a
+   song, a picture), dot files and bookmarks aside: never the import's */
+bool itunesdb_holds_foreign(const char *folder);
 /* The playlists the last import wrote and the folders it made, a line each:
    "<hash> <size> <time> <file>", and "dir <folder>"; after a smart
    playlist's, "smart <file>"; and first "version <n>" (neither before
-   1.4.1) */
+   1.4.1), then the iTunesDB it was written from, "itunesdb <size> <time>"
+   as itunesdb_stamp() has them (not before 2.1.0). A playlist kept from an
+   older list has "<hash> <size> <file>", and 1.4.0's lines were "<file>". */
 #define ITUNESDB_PLAYLISTS_LIST ROCKBOX_DIR "/itunesdb_playlists.txt"
+#define ITUNESDB_PLAYLISTS_STAMP "itunesdb "
 /* Songs a sync wrote again under another path, as their dbid has it, by
    their old path's hash, sorted by it: for the import, and for the playlists
    made on the iPod, which keep them, at Updating Library, which then removes
@@ -139,9 +145,10 @@ int itunesdb_import_tracks(bool synced, volatile int *done, volatile int *total)
 bool itunesdb_load_tracks(void);
 
 /* The playlists the last import wrote, listed by a firmware before this,
-   which noted less of them (the smart ones' marks): true when they're to be
-   made again at boot under Updating Library, from the iTunesDB the last
-   import took in, until a list of this version is written; but not over an
+   which noted less of them (the smart ones' marks), or not listed at all, the
+   list lost with files of the import's left: true when they're to be made
+   again at boot under Updating Library, from the iTunesDB the last import
+   took in, until a list of this version is written; but not over an
    iTunesDB whose playlists couldn't be read, or whose songs found no memory
    through a boot's tries. A file the list has as iTunesDB has it stays,
    though the iPod may have written it since, as a live smart one; those that

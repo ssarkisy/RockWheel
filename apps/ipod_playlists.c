@@ -42,11 +42,14 @@
 #include "ipod_playlists.h"
 
 /* The hashes of the paths in the import's list, sorted: whether a playlist or
-   folder is synced, without opening the file. 300 playlists, 2.4 KB. And at
-   the end of the same room, those of its smart ones, sorted too */
+   folder is synced, without opening the file. 300 playlists, 2.4 KB. With
+   them, where the list may not have them all, those of the import's files
+   found by their mark, and of the folders with only such things in them.
+   And at the end of the same room, those of its smart ones, sorted too */
 static int synced_handle;
 static int synced_count;
 static int smart_count, smart_at;
+static bool synced_loaded;
 
 static int cmp_hash(const void *a, const void *b)
 {
@@ -54,22 +57,129 @@ static int cmp_hash(const void *a, const void *b)
     return x < y ? -1 : x > y;
 }
 
-/* the path of a line of the list, past its hash, size and time, or "dir ";
-   none for a smart one's mark */
+/* The path of a line of the list, read as the import reads them
+   (load_old_playlists()): past its hash, size and time; past its hash and
+   size, as one kept from an older list has it; the line itself as 1.4.0
+   wrote them; or past "dir ". None for a smart one's mark, the version's
+   line or the stamp's. */
 static const char *list_path(char *line)
 {
-    if (!strncmp(line, "dir ", 4))
+    if (line[0] == '/')
+        return line;
+    if (!strncmp(line, "dir /", 5))
         return line + 4;
     if (!strncmp(line, "smart ", 6))
         return NULL;
-    for (int field = 0; field < 3; field++)
+    char *at = strchr(line, ' ');
+    if (at)
+        at = strchr(at + 1, ' ');
+    if (at && at[1] != '/')
+        at = strchr(at + 1, ' ');
+    return at && at[1] == '/' ? at + 1 : NULL;
+}
+
+/* whether the list, read from its start, has all of the import's: one
+   written from the iTunesDB there now, which says so on its second line */
+static bool list_of_this_itunesdb(int fd)
+{
+    char line[48];
+    uint32_t size, mtime;
+    const size_t stamp = sizeof(ITUNESDB_PLAYLISTS_STAMP) - 1;
+    if (read_line(fd, line, sizeof(line)) <= 0 || strncmp(line, "version ", 8)
+        || read_line(fd, line, sizeof(line)) <= 0
+        || strncmp(line, ITUNESDB_PLAYLISTS_STAMP, stamp)
+        || !itunesdb_stamp(&size, &mtime))
+        return false;
+    char *end;
+    return strtoul(line + stamp, &end, 10) == size
+           && strtoul(end, NULL, 10) == mtime;
+}
+
+/* where iTunesDB, the songs Finder copies and their covers are */
+#define IPOD_CONTROL "/iPod_Control"
+
+static bool top_folder(char *root, size_t size);
+static bool listed(const char *path, int first, int n);
+static bool is_playlist_name(const char *name);
+
+/* the playlists and folders in a folder and in those in it, as far as
+   synced_marked() goes */
+static int entries_in(char *path, size_t len, int depth)
+{
+    DIR *dir = opendir(len ? path : "/");
+    if (!dir)
+        return 0;
+    int n = 0;
+    struct dirent *e;
+    while ((e = readdir(dir)))
     {
-        line = strchr(line, ' ');
-        if (!line)
-            return NULL;
-        line++;
+        if (e->d_name[0] == '.')
+            continue;
+        if (!(dir_get_info(dir, e).attribute & ATTR_DIRECTORY))
+        {
+            n += is_playlist_name(e->d_name);
+            continue;
+        }
+        n++;
+        if (depth < 8
+            && (size_t)snprintf(path + len, MAX_PATH - len, "/%s", e->d_name)
+               < MAX_PATH - len
+            && strcasecmp(path, IPOD_CONTROL))
+            n += entries_in(path, strlen(path), depth + 1);
     }
-    return line;
+    closedir(dir);
+    path[len] = '\0';
+    return n;
+}
+
+/* Whether a folder holds something, and nothing but playlists and folders
+   of the import's: by the list's first listed ones, or by the mark of a
+   file, or as a folder of such. Those the list hasn't are added after them,
+   as many as there's room for before room. The Mac's ._ files count for
+   nothing, as for the import (imports_only()); another file makes the folder
+   the user's, and so does the iPod's own, which the import never writes in:
+   with the disk's top as the catalogue, iTunesDB's folder and the songs'
+   aren't gone through. */
+static bool synced_marked(char *path, size_t len, int depth, int list,
+                          int room)
+{
+    DIR *dir = opendir(len ? path : "/");
+    if (!dir)
+        return false;
+    bool any = false, only = true;
+    struct dirent *e;
+    while ((e = readdir(dir)))
+    {
+        if (e->d_name[0] == '.')
+            continue;
+        any = true;
+        const bool is_dir = dir_get_info(dir, e).attribute & ATTR_DIRECTORY;
+        if ((!is_dir && !is_playlist_name(e->d_name))
+            || (size_t)snprintf(path + len, MAX_PATH - len, "/%s", e->d_name)
+               >= MAX_PATH - len
+            || (is_dir && !strcasecmp(path, IPOD_CONTROL)))
+        {
+            only = false;
+            continue;
+        }
+        const bool in_list = listed(path, 0, list);
+        /* a folder gone through as listed too, for the files in it */
+        bool marked;
+        if (is_dir)
+            marked = depth < 8 && synced_marked(path, strlen(path), depth + 1,
+                                                list, room);
+        else
+            marked = !in_list && itunesdb_own_playlist(path);
+        if (marked && !in_list && synced_count < room)
+        {
+            uint64_t *hashes = core_get_data(synced_handle);
+            hashes[synced_count++] = itunesdb_path_hash(path);
+        }
+        only = only && (in_list || marked);
+    }
+    closedir(dir);
+    path[len] = '\0';
+    return any && only;
 }
 
 void ip_synced_load(void)
@@ -77,45 +187,81 @@ void ip_synced_load(void)
     if (synced_handle > 0)
         synced_handle = core_free(synced_handle);
     synced_count = smart_count = 0;
+    synced_loaded = true;
     int fd = open(ITUNESDB_PLAYLISTS_LIST, O_RDONLY);
-    if (fd < 0)
-        return;
     /* a line a playlist or folder: room for each */
     char buf[512];
     int lines = 0;
     ssize_t n;
-    while ((n = read(fd, buf, sizeof(buf))) > 0)
+    while (fd >= 0 && (n = read(fd, buf, sizeof(buf))) > 0)
     {
         for (ssize_t i = 0; i < n; i++)
             lines += buf[i] == '\n';
     }
-    if (lines == 0 || lseek(fd, 0, SEEK_SET) != 0)
+    /* The list of another iTunesDB, as when an import couldn't write it all,
+       one before 2.1.0, or none, as when lost: the marks looked at too, with
+       room for each playlist and folder there */
+    char root[MAX_PATH];
+    const bool whole = fd >= 0 && lseek(fd, 0, SEEK_SET) == 0
+                       && list_of_this_itunesdb(fd);
+    /* only with an iTunesDB: without one, no import's files are missing
+       from its list, and an iPod not synced from a computer has nothing to
+       look at */
+    uint32_t size, mtime;
+    const bool marks = !whole && itunesdb_stamp(&size, &mtime)
+                       && top_folder(root, sizeof(root));
+    if (marks && !root[1])
+        root[0] = '\0'; /* the disk's top, its paths from "/" */
+    const size_t root_len = marks ? strlen(root) : 0;
+    const int found = marks ? entries_in(root, root_len, 0) : 0;
+    const int room = lines + found;
+    if (room == 0 || (fd >= 0 && lseek(fd, 0, SEEK_SET) != 0))
     {
-        close(fd);
+        if (fd >= 0)
+            close(fd);
         return;
     }
-    synced_handle = core_alloc((size_t)lines * sizeof(uint64_t));
+    synced_handle = core_alloc((size_t)room * sizeof(uint64_t));
     if (synced_handle <= 0)
     {
         synced_handle = 0;
-        close(fd);
+        if (fd >= 0)
+            close(fd);
         return;
     }
     char line[MAX_PATH + 64];
-    while (synced_count + smart_count < lines && read_line(fd, line, sizeof(line)) > 0)
+    while (fd >= 0 && synced_count + smart_count < lines
+           && read_line(fd, line, sizeof(line)) > 0)
     {
         uint64_t *hashes = core_get_data(synced_handle);
         const char *path = list_path(line);
-        if (path && path[0] == '/')
+        if (path)
             hashes[synced_count++] = itunesdb_path_hash(path);
         else if (!strncmp(line, "smart /", 7))
-            hashes[lines - ++smart_count] = itunesdb_path_hash(line + 6);
+            hashes[room - ++smart_count] = itunesdb_path_hash(line + 6);
     }
-    close(fd);
+    if (fd >= 0)
+        close(fd);
     uint64_t *hashes = core_get_data(synced_handle);
     qsort(hashes, synced_count, sizeof(uint64_t), cmp_hash);
-    qsort(hashes + lines - smart_count, smart_count, sizeof(uint64_t), cmp_hash);
-    smart_at = lines - smart_count;
+    if (marks)
+    {
+        const int list = synced_count;
+        synced_marked(root, root_len, 0, list, room - smart_count);
+        if (synced_count > list)
+        {
+            hashes = core_get_data(synced_handle);
+            qsort(hashes, synced_count, sizeof(uint64_t), cmp_hash);
+        }
+    }
+    hashes = core_get_data(synced_handle);
+    qsort(hashes + room - smart_count, smart_count, sizeof(uint64_t), cmp_hash);
+    smart_at = room - smart_count;
+}
+
+bool ip_synced_loaded(void)
+{
+    return synced_loaded;
 }
 
 /* the hash among n sorted ones from first, of the room's */
@@ -553,12 +699,48 @@ static bool gather_one(const char *path, const char *top, bool dir)
     return true;
 }
 
+/* the iPod's own folder or one in it, as "//iPod_Control" with the disk's
+   top as the catalogue too: nothing is moved out of it */
+static bool in_ipod_control(const char *path)
+{
+    while (path[0] == '/' && path[1] == '/')
+        path++;
+    const size_t n = sizeof(IPOD_CONTROL) - 1;
+    return !strncasecmp(path, IPOD_CONTROL, n)
+           && (path[n] == '\0' || path[n] == '/');
+}
+
+static bool own_playlist_in(const char *path, size_t root, bool dir, void *data)
+{
+    (void)root;
+    *(bool *)data = !dir && is_playlist_name(path) && !ip_is_synced(path)
+                    && !itunesdb_own_playlist(path);
+    return !*(bool *)data;
+}
+
+/* one of the iPod's own playlists in a folder, or in one in it */
+static bool holds_own_playlist(const char *path)
+{
+    char p[MAX_PATH];
+    strmemccpy(p, path, sizeof(p));
+    bool own = false;
+    walk(p, strlen(p), 0, own_playlist_in, 0, &own);
+    return own;
+}
+
 /* The own ones in a folder from Music, or in an own folder in one that holds
-   some of the import's: each own folder with none of the import's in it moved
-   whole, each own playlist on its own, and those other folders gone through
-   the same way */
+   some of the import's: each own folder with none of the import's in it and
+   one of the iPod's playlists at least moved whole, each own playlist on its
+   own, and those other folders gone through the same way. Not a folder that
+   holds a file of any other kind, in it or deeper (itunesdb_holds_foreign()):
+   it is neither moved nor gone into, so that the songs' folders of one an
+   older firmware took for the import's stay where they are, and the user's
+   playlists beside songs, whose entries may be by their place, stay with
+   them. Nor anything of the iPod's own folder. */
 static void gather_from(char *path, size_t len, int depth, const char *top)
 {
+    if (in_ipod_control(path) || itunesdb_holds_foreign(path))
+        return;
     /* one at a time, the folder read again after each: none skipped as the
        entries move; none tried twice, as one that didn't move stops it */
     for (int moves = 0; moves < 1000; moves++)
@@ -577,7 +759,9 @@ static void gather_from(char *path, size_t len, int depth, const char *top)
                 >= MAX_PATH - len)
                 continue;
             if (is_dir)
-                found = !ip_is_synced(path) && ip_folder_editable(path);
+                found = !ip_is_synced(path) && ip_folder_editable(path)
+                        && !itunesdb_holds_foreign(path)
+                        && holds_own_playlist(path);
             else
                 found = is_playlist_name(path) && !ip_is_synced(path)
                         && !itunesdb_own_playlist(path);

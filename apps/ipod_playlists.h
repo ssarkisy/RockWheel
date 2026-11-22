@@ -26,9 +26,14 @@
    each sync, and the others are the iPod's own, to change on it. */
 
 /* Which of the files and folders in Playlists are the import's, as its list
-   has them: read once, at boot after the library is up to date, as only an
-   import changes them. Its room is taken then, none while music plays. */
+   has them, and by their mark where the list may not have them all: read at
+   the end of Updating Library, so after each import, which alone changes
+   them, and at boot without it if USB or a switch off cut that screen short,
+   maybe before the import (root_menu()). Its room is taken then, none while
+   music plays. */
 void ip_synced_load(void);
+/* read since the boot, or tried */
+bool ip_synced_loaded(void);
 /* a playlist or a folder of the import's, by its path; false if unknown */
 bool ip_is_synced(const char *path);
 /* one of Finder's smart playlists, as the import's list marks them: none

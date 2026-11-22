@@ -1042,6 +1042,36 @@ def main():
          itunesdb(name='\u6f22' * 41 + '\U0001F31F',
                   list_name='\u6f22' * 42 + '\U0001F31F' + 'end'), art,
          ['tracks 4', 'complete 1', 'name ' + '\u6f22' * 41])
+    # a playlist's name past 43 characters, whole as the stock iPod shows
+    # it, also in two bytes a character; and one longer than a path has room
+    # for, cut where the room for " 99", ".m3u8" and ".tmp" after it ends
+    for name, list_name in (
+            ('list-name-long',
+             'Songs I listened to during the summer of 2019 in Paris'),
+            ('list-name-cyrillic',
+             'Песни для долгой поездки на машине по России летом')):
+        case(name, itunesdb(list_name=list_name), art,
+             ['tracks 4', 'complete 1',
+              playlist('/Playlists/%s.m3u8' % list_name, (102, 101, 103))])
+    case('list-name-past-room', itunesdb(list_name='A long name ' * 25), art,
+         ['tracks 4', 'complete 1',
+          playlist('/Playlists/%s.m3u8' % ('A long name ' * 19 + 'A long n'),
+                   (102, 101, 103))])
+    # A path past 86 characters, whole; one past the room of a path, or
+    # paths past the room the tracks have (64 bytes each): iTunesDB not read
+    # whole, so that the import takes no song out for want of its path
+    def long_path(tracks, n, which):
+        return [(t[0], t[1], t[2], t[3],
+                 t[4].replace(':AAA', ':' + 'L' * n + 'AAA') if t[0] in which
+                 else t[4], t[5]) for t in tracks]
+    case('path-long', itunesdb(tracks=long_path(TRACKS, 100, (101,))), art,
+         ['tracks 4', 'complete 1', 'paths 4',
+          meta(101, path='/iPod_Control/Music/F01/' + 'L' * 100 + 'AAAA.mp3')])
+    case('path-past-room', itunesdb(tracks=long_path(TRACKS, 300, (101,))),
+         art, ['tracks 4', 'complete 0', 'paths 3'])
+    case('paths-past-pool',
+         itunesdb(tracks=long_path(TRACKS, 40, (101, 102, 103, 104))), art,
+         ['tracks 4', 'complete 0', 'paths 3'])
     # the covers' frames past the end of their files
     case('ithmb-missing', db, art, ['tracks 4', 'covers 0'], ithmb=False)
 
