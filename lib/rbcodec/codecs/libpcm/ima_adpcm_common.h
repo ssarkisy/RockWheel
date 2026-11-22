@@ -27,6 +27,7 @@
 
 void init_ima_adpcm_decoder(int bit, const int *index_table);
 void set_decode_parameters(int channels, int32_t *init_pcmdata, int8_t *init_index);
+void set_qt_block_parameters(int ch, int32_t init_pcmdata, int8_t init_index);
 int16_t create_pcmdata(int ch, uint8_t nibble);
 int16_t create_pcmdata_size4(int ch, uint8_t nibble);
 #endif

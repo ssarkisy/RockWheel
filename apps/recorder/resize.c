@@ -98,6 +98,10 @@ int recalc_dimension(struct dim *dst, struct dim *src)
     if (sw == dst->width && sh == dst->height)
         return 1;
 #endif
+    /* a picture of no size, which a decoder should have refused: there is no
+       aspect to keep, and it would divide by zero */
+    if (sw <= 0 || sh <= 0)
+        return 0;
     tmp = (sw * dst->height + (sh >> 1)) / sh;
     if (tmp > dst->width)
         dst->height = (sh * dst->width + (sw >> 1)) / sw;
@@ -771,6 +775,10 @@ int resize_on_load(struct bitmap *bm, bool dither, struct dim *src,
     const int dw = bm->width;
     const int dh = bm->height;
     int ret;
+    /* a source of no size, which a decoder should have refused, divides by
+       zero below */
+    if (sw <= 0 || sh <= 0)
+        return 0;
     /* buffer for 1 line + 2 spare lines */
 #ifdef HAVE_LCD_COLOR
     unsigned int needed = sizeof(struct uint32_argb) * 3 * bm->width;
@@ -836,7 +844,9 @@ int resize_on_load(struct bitmap *bm, bool dither, struct dim *src,
         ctx.output_row = format->output_row_32;
 #endif
 #ifdef HAVE_UPSCALER
-    if (sw > dw)
+    /* to one column from one: the area scaler copies it, where the linear
+       one would divide by dw - 1 = 0 */
+    if (sw > dw || dw == 1)
     {
 #endif
         ctx.h_scaler = scale_h_area;

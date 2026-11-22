@@ -100,6 +100,7 @@ struct jpeg
     int bitbuf_bits;
     int marker_ind;
     int marker_val;
+    int past_end; /* bytes the decoder asked for past the end of the data */
     unsigned char marker;
     int x_size, y_size; /* size of image (can be less than block boundary) */
     int x_phys, y_phys; /* physical size, block aligned */
@@ -990,7 +991,14 @@ do {\
 #define d_getc(jpeg, def) \
 ({ \
     unsigned char *cp = jpeg_getc(jpeg); \
-    unsigned char c = LIKELY(cp) ? *cp : (def); \
+    unsigned char c; \
+    if (LIKELY(cp)) \
+        c = *cp; \
+    else \
+    { \
+        c = (def); \
+        (jpeg)->past_end++; \
+    } \
     c; \
 })
 
@@ -1188,10 +1196,17 @@ static int process_markers(struct jpeg* p_jpeg)
                                    p_jpeg->hufftable[i].huffmancodes_dc))
                                 return -14; /* not a prefix code */
 
+                            /* a DC symbol is the bit count of the difference
+                               that follows, which get_bits() takes up to 16
+                               of; more would shift past the bit buffer (an
+                               AC symbol is a run and a count of 4 bits each:
+                               any byte is one) */
                             for (; j < 16 + sum; j++)
                             {
-                                p_jpeg->hufftable[i].huffmancodes_dc[j] =
-                                    e_getc(p_jpeg, -1);
+                                c = e_getc(p_jpeg, -1);
+                                if (c > 16)
+                                    return -15; /* DC symbol out of range */
+                                p_jpeg->hufftable[i].huffmancodes_dc[j] = c;
                                 marker_size--;
                             }
                         }
@@ -1774,7 +1789,11 @@ static void search_restart(struct jpeg *p_jpeg)
     if (p_jpeg->marker_val)
     {
         p_jpeg->marker_val = 0;
-        p_jpeg->bitbuf_bits = p_jpeg->marker_ind;
+        /* the bits read past the marker, which are in the bit buffer behind
+           the segment's last ones; a damaged stream's decode reads on past
+           the marker, counting more than the buffer holds, and would shift
+           it by that many */
+        p_jpeg->bitbuf_bits = MIN(p_jpeg->marker_ind, p_jpeg->bitbuf_bits);
         p_jpeg->marker_ind = 0;
         return;
     }
@@ -1875,6 +1894,9 @@ static void search_restart(struct jpeg *p_jpeg)
     } /* end slow decode */ \
 }
 
+/* more than the bit buffer's few bytes of a whole file's last row */
+#define JPEG_PAST_END_SLACK 16
+
 static struct img_part *store_row_jpeg(void *jpeg_args)
 {
     struct jpeg *p_jpeg = (struct jpeg*) jpeg_args;
@@ -1886,7 +1908,17 @@ static struct img_part *store_row_jpeg(void *jpeg_args)
     unsigned int b_width = width * JPEG_PIX_SZ;
     int height = BIT_N(mcu_vscale);
     int x;
-    if (!p_jpeg->mcu_row) /* Need to decode a new row of MCUs */
+    /* The data ended a row or more ago, as a damaged or hostile file's does,
+       which may claim 32767 x 32767 pixels in a few bytes: the rest of the
+       picture is grey, as blocks of no coefficients decode, with nothing more
+       read or decoded, so that its time follows its data. A whole file is
+       read at most a few bytes past its end, in its last row. */
+    if (!p_jpeg->mcu_row && UNLIKELY(p_jpeg->past_end > JPEG_PAST_END_SLACK))
+    {
+        p_jpeg->out_ptr = (unsigned char *)p_jpeg->img_buf;
+        memset(p_jpeg->img_buf, 128, b_width * height);
+    }
+    else if (!p_jpeg->mcu_row) /* Need to decode a new row of MCUs */
     {
         p_jpeg->out_ptr = (unsigned char *)p_jpeg->img_buf;
         int store_offs[4];

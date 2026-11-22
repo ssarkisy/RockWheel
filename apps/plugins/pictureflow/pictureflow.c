@@ -3161,8 +3161,12 @@ static int create_empty_slide(bool force)
 #endif
         aa_cache.input_bmp.data = (char*)aa_cache.buf;
 
-        scaled_read_bmp_file(EMPTY_SLIDE_BMP, &aa_cache.input_bmp,
-                             aa_cache.buf_sz, format, &format_transposed);
+        /* a damaged picture, which read_bmp_fd() refuses, makes no slide of
+           what the buffer held before */
+        if (scaled_read_bmp_file(EMPTY_SLIDE_BMP, &aa_cache.input_bmp,
+                                 aa_cache.buf_sz, format,
+                                 &format_transposed) <= 0)
+            return false;
 
         if (!save_pfraw(EMPTY_SLIDE, &aa_cache.input_bmp))
             return false;

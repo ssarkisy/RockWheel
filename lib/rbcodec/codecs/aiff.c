@@ -35,6 +35,11 @@ enum {
     AIFC_FORMAT_IEEE_FLOAT32 = FOURCC('f', 'l', '3', '2'), /* AIFC IEEE float 32 bit */
     AIFC_FORMAT_IEEE_FLOAT64 = FOURCC('f', 'l', '6', '4'), /* AIFC IEEE float 64 bit */
     AIFC_FORMAT_QT_IMA_ADPCM = FOURCC('i', 'm', 'a', '4'), /* AIFC QuickTime IMA ADPCM */
+    /* QuickTime's names for PCM, which Core Audio writes: read as NONE */
+    AIFC_FORMAT_TWOS         = FOURCC('t', 'w', 'o', 's'), /* big endian, 8/16 bit */
+    AIFC_FORMAT_IN24         = FOURCC('i', 'n', '2', '4'), /* big endian, 24 bit */
+    AIFC_FORMAT_IN32         = FOURCC('i', 'n', '3', '2'), /* big endian, 32 bit */
+    AIFC_FORMAT_SOWT         = FOURCC('s', 'o', 'w', 't'), /* little endian, 16 bit */
 };
 
 static const struct pcm_entry pcm_codecs[] = {
@@ -87,6 +92,7 @@ enum codec_status codec_run(void)
     uint32_t offset2snd = 0;
     off_t firstblockposn;     /* position of the first block in file */
     bool is_aifc = false;
+    bool found_ssnd = false;
     const struct pcm_codec *codec;
     uint32_t size;
     intptr_t param;
@@ -101,10 +107,11 @@ enum codec_status codec_run(void)
     param = ci->id3->elapsed;
     bytesdone = ci->id3->offset;
 
-    /* assume the AIFF header is less than 1024 bytes */
+    /* the chunks before SSND are read one by one, whatever their size:
+       Core Audio pads its files' headers to 4 KB with a FLLR chunk */
     ci->seek_buffer(0);
-    buf = ci->request_buffer(&n, 1024);
-    if (n < 54) {
+    buf = ci->request_buffer(&n, 12);
+    if (n < 12) {
         return CODEC_ERROR;
     }
 
@@ -123,8 +130,8 @@ enum codec_status codec_run(void)
         return CODEC_ERROR;
     }
 
-    buf += 12;
-    n -= 12;
+    ci->advance_buffer(12);
+    firstblockposn = 12;
 
     ci->memset(&format, 0, sizeof(struct libpcm_pcm_format));
     format.is_signed = true;
@@ -134,12 +141,22 @@ enum codec_status codec_run(void)
     codec = 0;
 
     /* read until 'SSND' chunk, which typically is last */
-    while (format.numbytes == 0 && n >= 8)
+    while (!found_ssnd)
     {
+        /* a chunk's header, and the fields of COMM's and SSND's read below */
+        buf = ci->request_buffer(&n, 8 + 22);
+        if (n < 8) {
+            DEBUGF("CODEC_ERROR: 'SSND' chunk not found\n");
+            return CODEC_ERROR;
+        }
         /* chunkSize */
         size = ((buf[4]<<24)|(buf[5]<<16)|(buf[6]<<8)|buf[7]);
+        /* to the next chunk; odd chunk sizes must be padded. 64 bits: no
+           size from the file wraps it */
+        uint64_t next = (uint64_t)size + 8 + (size & 0x01);
         if (memcmp(buf, "COMM", 4) == 0) {
-            if ((!is_aifc && size < 18) || (is_aifc && size < 22))
+            if ((!is_aifc && size < 18) || (is_aifc && size < 22)
+                || n < 8 + (size_t)(is_aifc ? 22 : 18))
             {
                 DEBUGF("CODEC_ERROR: 'COMM' chunk size=%lu < %d\n",
                        (unsigned long)size, (is_aifc)?22:18);
@@ -176,6 +193,15 @@ enum codec_status codec_run(void)
                     format.bitspersample = 8;
                 else if (format.formattag == AIFC_FORMAT_QT_IMA_ADPCM)
                     format.bitspersample = 4;
+                else if (format.formattag == AIFC_FORMAT_TWOS ||
+                         format.formattag == AIFC_FORMAT_IN24 ||
+                         format.formattag == AIFC_FORMAT_IN32)
+                    format.formattag = AIFC_FORMAT_PCM;
+                else if (format.formattag == AIFC_FORMAT_SOWT)
+                {
+                    format.formattag = AIFC_FORMAT_PCM;
+                    format.is_little_endian = true;
+                }
             }
             else
                 format.formattag = AIFC_FORMAT_PCM;
@@ -186,14 +212,30 @@ enum codec_status codec_run(void)
                 DEBUGF("CODEC_ERROR: unsupported chunk order\n");
                 return CODEC_ERROR;
             }
+            if (n < 16) {
+                DEBUGF("CODEC_ERROR: 'SSND' chunk cut short\n");
+                return CODEC_ERROR;
+            }
             /* offset2snd */
             offset2snd = (buf[8]<<24)|(buf[9]<<16)|(buf[10]<<8)|buf[11];
             /* block_size */
             format.blockalign = ((buf[12]<<24)|(buf[13]<<16)|(buf[14]<<8)|buf[15]) >> 3;
             if (format.blockalign == 0)
                 format.blockalign = format.channels * format.bitspersample >> 3;
-            format.numbytes = size - 8 - offset2snd;
-            size = 8 + offset2snd; /* advance to the beginning of data */
+            next = 16 + (uint64_t)offset2snd; /* to the beginning of data */
+            if ((uint64_t)firstblockposn + next > (uint64_t)ci->filesize) {
+                DEBUGF("CODEC_ERROR: 'SSND' data starts past the end of the file\n");
+                return CODEC_ERROR;
+            }
+            /* A file never finalised, as ffmpeg writes one to a pipe or a
+               recording cut short leaves it, has a placeholder size, 0 or
+               less than SSND's own fields: its data runs to the end of the
+               file */
+            if (size < 8 || offset2snd > size - 8)
+                format.numbytes = ci->filesize - (firstblockposn + next);
+            else
+                format.numbytes = size - 8 - offset2snd;
+            found_ssnd = true;
         } else if (is_aifc && (memcmp(buf, "FVER", 4)==0)) {
             /* Format Version Chunk (AIFC only chunk) */
             /* skip this chunk */
@@ -206,14 +248,14 @@ enum codec_status codec_run(void)
                    buf[0], buf[1], buf[2], buf[3], (unsigned long)size);
         }
 
-        size += 8 + (size & 0x01); /* odd chunk sizes must be padded */
-
-        buf += size;
-        if (n < size) {
-            DEBUGF("CODEC_ERROR: AIFF header size > 1024\n");
+        /* a damaged file's chunk past its end (SSND's data may run past
+           it: what there is of it plays) */
+        if ((uint64_t)firstblockposn + next > (uint64_t)ci->filesize) {
+            DEBUGF("CODEC_ERROR: AIFF chunk past the end of the file\n");
             return CODEC_ERROR;
         }
-        n -= size;
+        ci->advance_buffer(next);
+        firstblockposn += next;
     } /* while 'SSND' */
 
     if (format.channels == 0) {
@@ -269,9 +311,6 @@ enum codec_status codec_run(void)
         DEBUGF("CODEC_ERROR: chunksize is 0\n");
         return CODEC_ERROR;
     }
-
-    firstblockposn = 1024 - n;
-    ci->advance_buffer(firstblockposn);
 
     /* make sure we're at the correct offset */
     if (bytesdone > (uint32_t) firstblockposn || param) {

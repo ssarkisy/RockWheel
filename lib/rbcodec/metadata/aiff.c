@@ -32,7 +32,8 @@
 
 /* compressionType: AIFC QuickTime IMA ADPCM */
 #define AIFC_FORMAT_QT_IMA_ADPCM "ima4"
-/* and none, PCM as AIFF's */
+/* and none, PCM as AIFF's (QuickTime's names for it, which Core Audio
+   writes, are checked with it below) */
 #define AIFC_FORMAT_NONE "NONE"
 
 static void read_id3_tags(int fd, struct mp3entry* id3)
@@ -101,9 +102,15 @@ bool get_aiff_metadata(int fd, struct mp3entry* id3)
 
             numSampleFrames = get_long_be(&buf[2]);
 
-            /* sampleRate */
-            id3->frequency = get_long_be(&buf[10]);
-            id3->frequency >>= (16+14-buf[9]);
+            /* sampleRate, an 80-bit float: the top 32 bits of its mantissa
+               moved right by 30 less its exponent's low byte. A damaged
+               header's rate is refused: 2^32 Hz or more (a shift under 0,
+               which C leaves undefined) or under 1 Hz, which the length
+               below and the codec's elapsed time divide by */
+            const int shift = 16 + 14 - buf[9];
+            id3->frequency = shift >= 0 ? get_long_be(&buf[10]) >> shift : 0;
+            if (id3->frequency == 0)
+                return false;
 
             /* save format infos */
             id3->bitrate = ((buf[6]<<8)|buf[7]) * numChannels * id3->frequency;
@@ -122,7 +129,11 @@ bool get_aiff_metadata(int fd, struct mp3entry* id3)
 
             /* the depth of PCM only: AIFF's, and AIFC's when not compressed */
             sample_size = (buf[6] << 8) | buf[7];
-            if ((!is_aifc || memcmp(&buf[18], AIFC_FORMAT_NONE, 4) == 0)
+            if ((!is_aifc || memcmp(&buf[18], AIFC_FORMAT_NONE, 4) == 0
+                 || memcmp(&buf[18], "twos", 4) == 0
+                 || memcmp(&buf[18], "in24", 4) == 0
+                 || memcmp(&buf[18], "in32", 4) == 0
+                 || memcmp(&buf[18], "sowt", 4) == 0)
                 && sample_size > 0 && sample_size <= 32)
                 id3->bits_per_sample = sample_size;
         }

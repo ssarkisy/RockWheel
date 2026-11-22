@@ -305,8 +305,12 @@ void wps_playlist_percent_prepare(void)
                 if (afmt != last_afmt || last_bps == 0
                     || amount <= 50 || (amount <= 250 && ata_disk_isssd())) // TODO tune this for harddisk devices
                 {
+                    /* a song under a second (a TTA's length is counted in
+                       whole seconds) or a damaged header has a length of 0,
+                       which the rate below divides by */
                     if (get_metadata_afmt(tmp, fd, info.filename, afmt,
-                        METADATA_EXCLUDE_ID3_PATH | METADATA_EXCLUDE_NORMALIZE))
+                        METADATA_EXCLUDE_ID3_PATH | METADATA_EXCLUDE_NORMALIZE)
+                        && tmp->length > 0)
                     {
                         secs = tmp->length / 1000;
                         last_bps = (uint32_t)((uint64_t)size * 1000 / tmp->length);

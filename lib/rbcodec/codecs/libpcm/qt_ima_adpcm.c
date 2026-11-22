@@ -34,6 +34,16 @@
 
 static struct libpcm_pcm_format *fmt;
 
+/* No predictor yet, as a song starts and after a seek: the next block's
+   header sets it (set_qt_block_parameters()), as after ffmpeg's flush */
+static void reset_block_parameters(void)
+{
+    int32_t init_pcmdata[2] = { 0, 0 };
+    int8_t init_index[2] = { 0, 0 };
+
+    set_decode_parameters(2, init_pcmdata, init_index);
+}
+
 static bool set_format(struct libpcm_pcm_format *format)
 {
     fmt = format;
@@ -53,6 +63,7 @@ static bool set_format(struct libpcm_pcm_format *format)
                                          * fmt->blockalign;
 
     init_ima_adpcm_decoder(4, NULL);
+    reset_block_parameters();
     return true;
 }
 
@@ -66,6 +77,7 @@ static struct pcm_pos *get_seek_pos(uint32_t seek_val, int seek_mode,
                         seek_val / fmt->blockalign;
 
     (void)read_buffer;
+    reset_block_parameters();
     newpos.pos     = newblock * fmt->blockalign;
     newpos.samples = newblock * fmt->samplesperblock;
     return &newpos;
@@ -83,8 +95,19 @@ static int decode(const uint8_t *inbuf, size_t inbufsize,
 
     while (inbufsize > 0)
     {
+        /* a whole block gives each channel 64 samples; a damaged file's last
+           one what all its channels have, and none once a header is cut */
+        int samples = 64;
+
         for (ch = 0; ch < fmt->channels; ch++)
         {
+            if (inbufsize < 2)
+            {
+                samples = 0;
+                inbufsize = 0;
+                break;
+            }
+
             /* read block header */
             init_pcmdata = (inbuf[0] << 8)|(inbuf[1] & 0x80);
             if (init_pcmdata > 32767)
@@ -101,7 +124,8 @@ static int decode(const uint8_t *inbuf, size_t inbufsize,
             inbuf += 2;
             inbufsize -= 2;
 
-            set_decode_parameters(1, &init_pcmdata, &init_index);
+            /* this channel's state, kept or set from its header */
+            set_qt_block_parameters(ch, init_pcmdata, init_index);
 
             /* read block data */
             pcmbuf = outbuf + ch;
@@ -111,15 +135,14 @@ static int decode(const uint8_t *inbuf, size_t inbufsize,
                 pcmbuf += fmt->channels;
                 *pcmbuf = create_pcmdata_size4(ch, *inbuf >> 4) << IMA_ADPCM_INC_DEPTH;
                 pcmbuf += fmt->channels;
-                nsamples += 2;
                 inbuf++;
             }
+            samples = MIN(samples, 2 * (32 - block_size));
         }
+        nsamples += samples;
         outbuf += 64 * fmt->channels;
     }
 
-    if (fmt->channels == 2)
-        nsamples >>= 1;
     *outbufcount = nsamples;
 
     return CODEC_OK;

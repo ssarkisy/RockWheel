@@ -111,6 +111,22 @@ void set_decode_parameters(int channels, int32_t *init_pcmdata, int8_t *init_ind
 }
 
 /*
+ * A QuickTime IMA ADPCM block header, for one channel: its predictor is the
+ * top 9 bits of the one the encoder had. A decoder goes on with its own,
+ * whole, as Apple's and ffmpeg's do, unless the header's step index differs
+ * or its predictor is further from it than those bits round off.
+ */
+void set_qt_block_parameters(int ch, int32_t init_pcmdata, int8_t init_index)
+{
+    int32_t diff = init_pcmdata - pcmdata[ch];
+
+    if (indices[ch] == init_index && diff >= -0x7f && diff <= 0x7f)
+        return;
+    pcmdata[ch] = init_pcmdata;
+    indices[ch] = init_index;
+}
+
+/*
  * convert ADPCM to PCM for any adpcm data size.
  *
  * If adpcm_data_size is 4, then you use create_pcmdata_size4()
