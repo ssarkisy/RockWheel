@@ -336,4 +336,5 @@ def main():
         f.write(header(forms))
 
 
-main()
+if __name__ == "__main__":
+    main()

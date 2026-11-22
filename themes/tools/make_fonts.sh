@@ -36,12 +36,14 @@ mkdir -p "$out"
 # digits all as wide, as on a stock iPod (Inter's are proportional), so
 # that numbered lists line up and times don't jitter. The letters spaced as
 # Inter spaces them (-A): as wide as their images only, as before 1.3, those
-# with straight sides touched, the i and P of iPod run into one.
+# with straight sides touched, the i and P of iPod run into one. The stars
+# then as far left as the letters' first ink (fit_stars.py).
 font() {
     name=$1 file=$2 size=$3
     shift 3
     "$build/convttf" -s 32 -l 9839 ${digits--W} -A -p "$size" "$@" \
         -o "$out/$name" "$ttf/$file" > /dev/null
+    "${PYTHON:-python3}" "$here/fit_stars.py" "$out/$name"
 }
 
 # menus and titles: 5 more pixels of line height, 2 of them above the text
