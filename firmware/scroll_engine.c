@@ -208,7 +208,12 @@ static void scroll_thread(void)
         }
         hook = tick_hook;
         if (hook && !TIME_BEFORE(current_tick, hook_due))
-            hook_due = current_tick + MAX(hook(), 1);
+        {
+            /* called once: MAX() over the call ran it twice for a wait
+               longer than a tick, the second at once after the first */
+            const long ticks = hook();
+            hook_due = current_tick + MAX(ticks, 1);
+        }
     }
 }
 #endif /* !HAVE_REMOTE_LCD */

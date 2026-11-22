@@ -946,29 +946,116 @@ void lp_sync(const char *file)
 
 /* The songs the database lost, as a sync replaced or removed their files
    or they were deleted over USB: by their paths' hashes, a block at a time
-   to a file, which Updating Library goes by, then removes. Only those leave
-   the playlists made on the iPod; a line the database never had stays, as a
-   computer's path, which a playlist put there by hand may have. */
+   to a file, which Updating Library's pass over the playlists takes, goes
+   by, then removes (lp_index_all()). Only those leave the playlists made on
+   the iPod; a line the database never had stays, as a computer's path,
+   which a playlist put there by hand may have. */
 #define LP_GONE   ROCKBOX_DIR "/playlist_gone.dat"
+/* LP_GONE as the pass took it, by a rename: notes flushed while it goes
+   through the playlists start a new LP_GONE. Removed after a whole pass;
+   after one cut short, or for the notes it had no room to read, put back
+   into LP_GONE for the next */
+#define LP_GONE_TAKEN ROCKBOX_DIR "/playlist_gone_taken.dat"
 static uint64_t gone_block[32];
 static int gone_in_block;
+/* a flush between its open and its close, or the pass's rename: the other
+   waits, so that no flush writes into the file just taken */
+static bool gone_file_busy;
 
+static void gone_file_lock(void)
+{
+    /* one core, and threads switch only at a yield: none between the look
+       and the mark */
+    while (gone_file_busy)
+        sleep(1);
+    gone_file_busy = true;
+}
+
+/* Both the UI thread (a Delete) and the database thread note and flush. The
+   block is copied and emptied before the first yield (open's), so that a
+   note the other thread makes while this one writes goes into the emptied
+   block rather than being lost; two flushes at once each append their own
+   copy, one after the other. */
 void lp_gone_flush(void)
 {
-    if (!gone_in_block)
+    const int count = MIN(gone_in_block, (int)ARRAYLEN(gone_block));
+    if (count <= 0)
         return;
+    uint64_t block[ARRAYLEN(gone_block)];
+    memcpy(block, gone_block, count * sizeof(*block));
+    gone_in_block = 0;
+    gone_file_lock();
     const int fd = open(LP_GONE, O_WRONLY | O_CREAT | O_APPEND, 0666);
     if (fd >= 0)
     {
-        write(fd, gone_block, gone_in_block * sizeof(*gone_block));
+        write(fd, block, count * sizeof(*block));
         close(fd);
     }
-    gone_in_block = 0;
+    gone_file_busy = false;
+}
+
+/* The taken file's notes from the first'th on, appended to LP_GONE, then
+   the taken file removed; kept if they couldn't all be, for the next pass
+   to put back (a note in LP_GONE twice then does no harm: its line goes
+   once). Whole notes only: a cut one would shift those after it. */
+static void gone_put_back(long first)
+{
+    const int in = open(LP_GONE_TAKEN, O_RDONLY);
+    if (in < 0)
+        return;
+    bool ok = lseek(in, first * (off_t)sizeof(uint64_t), SEEK_SET) >= 0;
+    int out = -1;
+    uint64_t block[ARRAYLEN(gone_block)];
+    while (ok)
+    {
+        const ssize_t n = read(in, block, sizeof(block));
+        if (n < 0)
+        {
+            ok = false;
+            break;
+        }
+        const ssize_t whole = n - n % (ssize_t)sizeof(uint64_t);
+        if (whole > 0)
+        {
+            if (out < 0)
+                out = open(LP_GONE, O_WRONLY | O_CREAT | O_APPEND, 0666);
+            ok = out >= 0 && write(out, block, whole) == whole;
+        }
+        /* the end, past a cut note there */
+        if (n < (ssize_t)sizeof(block))
+            break;
+    }
+    close(in);
+    if (out >= 0 && close(out) < 0)
+        ok = false;
+    if (ok)
+        remove(LP_GONE_TAKEN);
+}
+
+/* LP_GONE taken for the pass; first a taken file a reset or power loss left
+   in the middle of a pass put back, as one cut short is. If that can't be,
+   the pass reads it as it is, and LP_GONE waits for the next. */
+static void gone_take(void)
+{
+    if (file_exists(LP_GONE_TAKEN))
+        gone_put_back(0);
+    if (file_exists(LP_GONE_TAKEN))
+        return;
+    gone_file_lock();
+    rename(LP_GONE, LP_GONE_TAKEN); /* none: nothing to take */
+    gone_file_busy = false;
 }
 
 void lp_gone_note(const char *path)
 {
-    gone_block[gone_in_block++] = itunesdb_path_hash(path);
+    const uint64_t hash = itunesdb_path_hash(path);
+    /* never past the block: a flush empties it before its first yield, so
+       it isn't full here; if it ever were, flushed first, or else refused */
+    if (gone_in_block >= (int)ARRAYLEN(gone_block))
+        lp_gone_flush();
+    if (gone_in_block >= (int)ARRAYLEN(gone_block))
+        return;
+    gone_block[gone_in_block++] = hash;
     if (gone_in_block == (int)ARRAYLEN(gone_block))
         lp_gone_flush();
 }
@@ -1496,7 +1583,8 @@ void lp_index_all(bool (*go_on)(void))
        is left to make, and no song is noted gone: one deleted on the iPod
        changes nothing the mark has */
     const bool covers = file_exists(LP_COVERS_TODO);
-    const bool gone_noted = gone_in_block > 0 || file_size(LP_GONE) > 0;
+    const bool gone_noted = gone_in_block > 0 || file_size(LP_GONE) > 0
+                            || file_exists(LP_GONE_TAKEN);
     const unsigned unknown_before = headers_unknown;
     struct lp_mark now, last;
     mark_now(&now, path);
@@ -1516,11 +1604,12 @@ void lp_index_all(bool (*go_on)(void))
     buf = (char *)ALIGN_UP((uintptr_t)buf, 8);
     size -= 8;
     /* the songs the database lost since the last pass, sorted, first: as
-       many as half the buffer holds, and the rest stay in the playlists */
+       many as half the buffer holds, the rest put back for the next pass */
     lp_gone_flush();
+    gone_take();
     gone_set = (uint64_t *)buf;
     gone_count = 0;
-    int gfd = open(LP_GONE, O_RDONLY);
+    int gfd = open(LP_GONE_TAKEN, O_RDONLY);
     if (gfd >= 0)
     {
         const size_t most = (size / 2) / sizeof(uint64_t);
@@ -1532,10 +1621,13 @@ void lp_index_all(bool (*go_on)(void))
         buf += gone_count * sizeof(uint64_t);
         size -= gone_count * sizeof(uint64_t);
     }
+    /* the notes the pass goes by: those after them are put back after it */
+    const int gone_read = gone_count;
     if (size < read_size + LP_SEEN_MAX * sizeof(uint64_t) + 64)
     {
         gone_set = NULL;
         gone_count = 0;
+        gone_put_back(0);
         return;
     }
     all.seen = (uint64_t *)buf;
@@ -1569,13 +1661,19 @@ void lp_index_all(bool (*go_on)(void))
         /* the import may need it again, until its state is written */
         if (!itunesdb_changed())
             remove(ITUNESDB_MOVED_LIST);
-        remove(LP_GONE);
+        gone_put_back(gone_read);
         if (headers_unknown == unknown_before)
             remove(LP_COVERS_TODO);
         remove_gone();
         /* as the pass left it, files it wrote again in their order too */
         mark_now(&now, path);
         whole_file_write(LP_MARK, &now, sizeof(now));
+    }
+    else
+    {
+        /* cut short: every note back for the next pass, those of the
+           playlists it went through too, whose lines are gone already */
+        gone_put_back(0);
     }
     cpu_boost(false);
 }
@@ -2337,7 +2435,11 @@ int lp_view(const char *file, int *selection)
     /* a live smart one as ratings and plays are now, before it shows */
     lp.waited = smart_prepare(lp.file);
     lp.unloaded = !lp_load();
-    if (lp.unloaded)
+    /* not opened if it can't be read, nor On-The-Go without a song to show,
+       as when its songs were deleted on the iPod since (lp_load() leaves
+       them out): one emptied here closes itself (ACTION_STD_CONTEXT below),
+       and an empty one doesn't open (tree.c) */
+    if (lp.unloaded || (lp.otg && lp.count <= 0))
     {
         if (!was_wide)
             menu_set_wide(false);

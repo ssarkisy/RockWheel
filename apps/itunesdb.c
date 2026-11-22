@@ -5882,9 +5882,18 @@ static bool write_art_index(int old_handle, uint32_t old_count,
     memset(&art_hdr, 0, sizeof(art_hdr));
     memset(&large_hdr, 0, sizeof(large_hdr));
     ithmb_count = 0;
+    /* for health.log, why there is no index: then no song has the
+       computer's cover, and Updating Library decodes the pictures in the
+       songs' files */
+    const char *why = "not written";
     int handle = read_images(&images, &art_count);
     if (handle <= 0 || art_hdr.nformats == 0)
+    {
+        why = !file_exists(ARTWORKDB_FILE) ? "no ArtworkDB"
+              : handle <= 0 ? "ArtworkDB or its images not read"
+              : "no image in a format taken";
         goto done;
+    }
 
     /* for each track its slide, and the tracks with covers by album */
     size_t slide_of_size = ALIGN_UP(db.count * sizeof(uint16_t), 4);
@@ -5893,7 +5902,10 @@ static bool write_art_index(int old_handle, uint32_t old_count,
     work = db_alloc(slide_of_size + order_size
                     + db.count * sizeof(struct large_entry));
     if (work <= 0)
+    {
+        why = "no memory";
         goto done;
+    }
     core_pin(work);
     uint16_t *slide_of = core_get_data(work);
     uint32_t *order = (uint32_t *)((char *)slide_of + slide_of_size);
@@ -5916,7 +5928,10 @@ static bool write_art_index(int old_handle, uint32_t old_count,
     slides = db_alloc(MAX(max_slides, 1)
                       * (sizeof(uint64_t) + sizeof(struct art_slide)));
     if (slides <= 0)
+    {
+        why = "no memory";
         goto done;
+    }
     core_pin(slides);
     uint64_t *keys = core_get_data(slides);
     struct art_slide *sources = (struct art_slide *)(keys + max_slides);
@@ -5996,8 +6011,18 @@ static bool write_art_index(int old_handle, uint32_t old_count,
                         (unsigned long)large_hdr.pitch,
                         written ? "" : "; their index not written");
         else if (placed)
+#ifdef ITUNESDB_FINDER_LARGE
+            /* Updating Library makes the pane's picture of each */
             health_note("covers: no frame of the pane's size among %lu covers,"
-                        " which it decodes", (unsigned long)count);
+                        " which Updating Library decodes",
+                        (unsigned long)count);
+#else
+            /* nothing is decoded: the pane shows the 200 px frame scaled up
+               (menu_cover.c) */
+            health_note("covers: no frame of the pane's size among %lu covers,"
+                        " which the pane shows scaled up from their smaller"
+                        " frames", (unsigned long)count);
+#endif
         /* not written: its header alone, of no index, says it was tried,
            and the next boot doesn't import for it again */
         if (placed && !written)
@@ -6010,6 +6035,8 @@ static bool write_art_index(int old_handle, uint32_t old_count,
          (unsigned long)art_hdr.nslides);
 
 done:
+    if (!placed)
+        health_note("covers: no index of the computer's covers: %s", why);
     if (slides > 0)
     {
         core_unpin(slides);

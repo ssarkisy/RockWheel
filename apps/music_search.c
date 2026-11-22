@@ -1529,15 +1529,23 @@ static bool put_name(int fd, int *used, int group, int32_t idx_id, const char *n
     return true;
 }
 
+/* the names a tag's file has, 0 without it: its header read once, which
+   MAX() over the call would read twice */
+static int tag_names(int tag)
+{
+    const int count = tagcache_get_tag_count(tag);
+    return count > 0 ? count : 0;
+}
+
 void music_search_letters_make(void (*progress)(int done, int total))
 {
     if (!tagcache_is_usable())
         return;
     /* the names of the tag files, deleted ones too: Updating Library's bar
        stood empty for the seconds this took */
-    int done = 0, total = MAX(0, tagcache_get_tag_count(tag_albumartist));
+    int done = 0, total = tag_names(tag_albumartist);
     for (int g = 0; g < GROUPS; g++)
-        total += MAX(0, tagcache_get_tag_count(group_tag[g]));
+        total += tag_names(group_tag[g]);
     struct letters_file f;
     memset(&f, 0, sizeof(f));
     f.version = LETTERS_VERSION;
@@ -1549,8 +1557,7 @@ void music_search_letters_make(void (*progress)(int done, int total))
     put_buf = plugin_get_buffer(&room);
     put_size = room;
     /* the albums' artists at its end */
-    const size_t albums = sizeof(uint32_t)
-        * (MAX(0, tagcache_get_tag_count(tag_albumartist)) + 2);
+    const size_t albums = sizeof(uint32_t) * (tag_names(tag_albumartist) + 2);
     void *albums_room = NULL;
     if (put_buf && room >= albums + sizeof(names_buf))
     {

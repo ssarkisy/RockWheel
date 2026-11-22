@@ -5227,7 +5227,12 @@ int tagtree_load(struct tree_context* c)
     if (artists_copy_left[0])
     {
         if (c->currtable == TABLE_NAVIBROWSE && c->currextra == 0)
-            c->selected_item = MAX(tagtree_find_row(c, artists_copy_left), 0);
+        {
+            /* looked for once: MAX() over the call went through the rows
+               again, the parts of a list in chunks read again */
+            const int row = tagtree_find_row(c, artists_copy_left);
+            c->selected_item = MAX(row, 0);
+        }
         artists_copy_left[0] = '\0';
     }
 

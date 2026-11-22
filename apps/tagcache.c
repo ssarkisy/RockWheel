@@ -957,8 +957,9 @@ static bool commit_room(int tmpfd, long new_entries)
 {
     const unsigned long songs = new_entries
         + db_file_size(TAGCACHE_FILE_MASTER) / sizeof(struct index_entry);
-    return room_for(MAX(db_files_kb() + ffilesize(tmpfd) / 1024, songs / 4)
-                    + 1024);
+    /* the files opened once: MAX() over the call would open them twice */
+    const unsigned long files_kb = db_files_kb() + ffilesize(tmpfd) / 1024;
+    return room_for(MAX(files_kb, songs / 4) + 1024);
 }
 #else
 #define room_for(need_kb) true
@@ -4428,7 +4429,11 @@ static bool entry_string(const struct index_entry *idx, int tag, char *buf,
     struct tagcache_header tch;
     struct tagfile_entry tfe;
     if (retag_fds[tag] == -2)
-        retag_fds[tag] = MAX(open_tag_fd(&tch, tag, false), -1);
+    {
+        /* opened once: MAX() would open it again and leak the first */
+        const int opened = open_tag_fd(&tch, tag, false);
+        retag_fds[tag] = opened >= 0 ? opened : -1;
+    }
     const int fd = retag_fds[tag];
     return fd >= 0 && lseek(fd, seek, SEEK_SET) == seek
         && read_tagfile_entry_and_tag(fd, &tfe, buf, size) <= e_SUCCESS_LEN_ZERO;
@@ -7539,7 +7544,8 @@ void tagcache_lists_room(int setting, size_t entry_bytes, int *rows,
         return;
     }
     const int r = library + LISTS_EXTRA_ROWS;
-    const size_t names = MAX(songs_names_room(r), (size_t)*names_size);
+    const size_t room = songs_names_room(r); /* its headers read once */
+    const size_t names = MAX(room, (size_t)*names_size);
     if (library_room_fits("the lists", base,
                           (size_t)(r - setting) * entry_bytes
                           + names - *names_size))
@@ -10416,7 +10422,8 @@ static bool scan_cut_short;
    files or a quarter KB a song for the commit's, and the reserve */
 static unsigned long import_need_kb(unsigned long songs)
 {
-    return songs / 2 + MAX(db_files_kb(), songs / 4) + LIBRARY_RESERVE_KB;
+    const unsigned long files_kb = db_files_kb(); /* opened once, not by MAX() */
+    return songs / 2 + MAX(files_kb, songs / 4) + LIBRARY_RESERVE_KB;
 }
 
 static bool scan_room(void)
