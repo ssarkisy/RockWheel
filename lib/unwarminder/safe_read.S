@@ -22,6 +22,11 @@
 .syntax unified
 
 .data
+@ word-aligned, as safe_read's ldr/str of it need: at an unaligned address the
+@ ARM7TDMI uses the aligned word below it (a load rotated), so the flag would
+@ go over a neighbour's bytes and read back wrong, and a read that faulted
+@ would pass as good. .word doesn't align by itself: without this, the file's
+@ .data has an alignment of 1, and the linker may place it at any byte
     .balign 4
 was_aborted:
     .word   0

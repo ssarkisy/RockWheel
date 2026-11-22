@@ -429,7 +429,12 @@ static bool clean_shutdown(enum shutdown_type sd_type,
 {
     long msg_id = -1;
 
-    if (!global_settings.show_shutdown_message && get_sleep_timer_active())
+    /* a power-off while the Sleep Timer runs, without its message: quietly,
+       a refusal's splash too. talk_disable() counts: a refusal undoes it,
+       else the voice would stay off until a reboot */
+    const bool quiet = !global_settings.show_shutdown_message
+                       && get_sleep_timer_active();
+    if (quiet)
         talk_disable(true);
 
     root_menu_power_off();
@@ -463,6 +468,8 @@ static bool clean_shutdown(enum shutdown_type sd_type,
                 splash(HZ, ID2P(LANG_TAGCACHE_BUSY));
                 FOR_NB_SCREENS(i)
                     viewportmanager_theme_undo(i, false);
+                if (quiet)
+                    talk_disable(false);
                 return false;
             }
 #endif
@@ -546,9 +553,12 @@ static bool clean_shutdown(enum shutdown_type sd_type,
         /* on a charger nothing was shut down: the shutdown sys_poweroff()
            or sys_reboot() armed is called off, or power_thread_step() would
            cut the power 20 s later with only status_save() done, in USB
-           mode too; the backlight is unlocked with it. A charger can come between a caller's own check
-           and this one, as during a held Play's power-off. */
+           mode too; the backlight is unlocked with it. A charger can come
+           between a caller's own check and this one, as during a held Play's
+           power-off. */
         cancel_shutdown();
+        if (quiet)
+            talk_disable(false);
     }
 #endif
     return false;

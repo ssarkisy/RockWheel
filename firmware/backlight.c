@@ -75,6 +75,11 @@
                                 |BACKLIGHT_FADING_PWM) )
 
 #define BACKLIGHT_THREAD_TIMEOUT HZ
+/* The light lit by a power-off refused in the iPod's sleep: on long enough to
+   read the refusal's "Database busy", which clean_shutdown() shows for 1 s as
+   it unlocks the light, and to see the screen it leaves; counted down by the
+   thread's timeouts, a second each with no event between */
+#define BACKLIGHT_REFUSED_ASLEEP (3*HZ)
 
 enum {
     BACKLIGHT_ON,
@@ -510,6 +515,21 @@ static void lcd_sleep_if_asleep(void)
 }
 #endif
 
+#ifdef HAVE_IDLE_SLEEP
+/* The light on or coming on, by the light, not by its setting: Always On and
+   Backlight on Hold = On under Hold say on whatever the iPod's sleep did */
+static bool backlight_lit_now(void)
+{
+#if CONFIG_BACKLIGHT_FADING == BACKLIGHT_FADING_PWM
+    return bl_dim_target != 0;
+#elif defined(LCD_SLEEP_ASLEEP_ONLY)
+    return backlight_hw_lit();
+#else
+    return is_backlight_on(true);
+#endif
+}
+#endif
+
 static inline void do_backlight_off(void)
 {
     backlight_off_count++;
@@ -655,11 +675,51 @@ void backlight_thread(void)
 
             case BACKLIGHT_UNLOCK:
                 /* the power-off it was locked for was refused (the database
-                   busy, or a charger): the light goes off by its timeout
-                   again, asleep too, a whole timeout after the power-off lit
-                   it (with Show Shutdown Message on, as by default). Locked, it stayed on until the next power-off or a
-                   reset */
+                   busy, or a charger). Locked, the light stayed as the
+                   power-off left it until the next power-off or a reset.
+                   SYS_POWEROFF woke the LCD, and lit the light with Show
+                   Shutdown Message on, as by default. */
+                if (!locked)
+                    break;
                 locked = false;
+#ifdef HAVE_IDLE_SLEEP
+                if (powermgmt_asleep())
+                {
+                    /* Asleep, the light goes out again whatever its
+                       setting: by its timeout it stayed lit a whole one,
+                       and with Always On, or Backlight on Hold = On under
+                       Hold, which have none, until the sleep ended. Lit,
+                       it stays a few seconds for the refusal's message;
+                       dark already, do_backlight_off() at once puts the LCD
+                       that SYS_POWEROFF woke to sleep again. Either is a
+                       new time dark for backlight_off_since(), counted as
+                       one even if dark already: only Return to Now Playing
+                       reads it, and only with music playing. */
+                    if (backlight_lit_now())
+                    {
+                        if (backlight_timer <= 0
+                            || backlight_timer > BACKLIGHT_REFUSED_ASLEEP)
+                            backlight_timer = BACKLIGHT_REFUSED_ASLEEP;
+                    }
+                    else
+                        do_backlight_off();
+                    break;
+                }
+#endif
+#if defined(HAVE_LCD_SLEEP) && !defined(LCD_SLEEP_ASLEEP_ONLY) \
+    && (CONFIG_BACKLIGHT_FADING == BACKLIGHT_FADING_PWM)
+                /* Awake and dark (Show Shutdown Message off), the Video's
+                   LCD controller would stay powered until the light's next
+                   time: its sleep is counted down again, as the light's
+                   going out does. By the light itself, out and not fading
+                   out (a fade's end starts the countdown in
+                   backlight_isr()), never under a lit light: lit, the LCD
+                   stays awake with it and sleeps as it goes out. The
+                   photo's panel stays on awake, by design; other targets
+                   are only unlocked. */
+                if (bl_dim_target == 0 && !bl_timer_active)
+                    backlight_lcd_sleep_countdown(true);
+#endif
                 break;
 
 #ifdef BACKLIGHT_DRIVER_CLOSE
