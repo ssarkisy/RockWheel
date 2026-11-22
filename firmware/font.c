@@ -1533,7 +1533,9 @@ static void cache_create(struct font* pf)
     unsigned char *cache_buf = pf->buffer_start + bitmap_size;
     size_t cache_size = pf->buffer_size - bitmap_size;
     ALIGN_BUFFER(cache_buf, cache_size, sizeof(ucschar_t));
-    memset(pf->buffer_start, 0, bitmap_size);
+    /* blank is paper: a clear bit in a 1-bit glyph, but 15 in each 4-bit
+     * pixel of an anti-aliased one, where 0 is full ink */
+    memset(pf->buffer_start, pf->depth ? 0xff : 0, bitmap_size);
     /* Initialise cache */
     font_cache_create(&pf->cache, cache_buf, cache_size, bitmap_size);
 }

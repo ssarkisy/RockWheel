@@ -97,9 +97,13 @@ struct mutex disk_cache_mutex SHAREDBSS_ATTR;
 #define DCE_NEXT(fce)  ((struct disk_cache_entry *)(fce)->node.next)
 #define NODE_DCE(node) ((struct disk_cache_entry *)(node))
 
-/* get the cache index from a pointer to a buffer */
+/* get the cache index from a pointer to a buffer or into one (fat.c marks a
+   directory entry dirty by its address). By bytes: subtracting pointers to
+   whole buffers is undefined for a pointer into one, which lets a compiler
+   assume the difference is a whole number of buffers. Any address outside the
+   buffers gives an index of DC_NUM_ENTRIES or more, which the callers refuse. */
 #define DCIDX_FROM_BUF(buf) \
-    ((uint8_t (*)[DC_CACHE_BUFSIZE])(buf) - cache_buffer)
+    (((uintptr_t)(buf) - (uintptr_t)cache_buffer) / DC_CACHE_BUFSIZE)
 
 #define DCIDX_FROM_DCE(dce) \
     ((dce) - cache_entry)

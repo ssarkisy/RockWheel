@@ -268,9 +268,18 @@ LINKRAM := $(BUILDDIR)/ram.link
 ROMLDS := $(FIRMDIR)/rom.lds
 LINKROM := $(BUILDDIR)/rom.link
 
-$(LINKRAM): $(RAMLDS) $(CONFIGFILE)
+# A target's app.lds may be only an #include of the real script (ipod's is
+# ../pp/app-pp.lds), and the scripts read headers: the preprocessor lists the
+# files it read, the toolchain's own headers aside, in ram.link.d, so that
+# ram.link is made again when any of them changes. With -MP, a header removed
+# since doesn't stop the build. This file, which holds the recipe, is one too:
+# a build dir whose ram.link an older rule made, without a .d, makes it again.
+$(LINKRAM): $(RAMLDS) $(CONFIGFILE) $(TOOLSDIR)/root.make
 	$(call PRINTS,PP $(@F))
-	$(call preprocess2file,$<,$@,)
+	$(call preprocess2file,$<,$@,-MMD -MP -MF $@.d -MT $@)
+
+-include $(LINKRAM).d
+CLEANOBJS += $(LINKRAM).d
 
 $(LINKROM): $(ROMLDS)
 	$(call PRINTS,PP $(@F))
