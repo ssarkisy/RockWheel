@@ -41,6 +41,7 @@ SECTIONS
         *(.glue_7)
         *(.glue_7t)
         . = ALIGN(0x4);
+        _textend = .;   /* the code a Stkov record's trace accepts (panic.c) */
     } > DRAM
 
     .rodata :
@@ -131,14 +132,6 @@ SECTIONS
        cop_idlestackend = .;
     } > IRAM
 
-    .stack (NOLOAD) :
-    {
-       *(.stack)
-       stackbegin = .;
-       . += 0x2000;
-       stackend = .;
-    } > IRAM
-    
     /* .bss and .ncbss are treated as a single section to use one init loop to
      * zero it - note "_edata" and "_end" */
     .bss _noloaddram (NOLOAD) :
@@ -147,6 +140,31 @@ SECTIONS
         *(.bss*)
         *(COMMON)
         . = ALIGN(0x4);
+       /* The main thread's stack, zeroed with .bss, then filled by crt0. In
+          DRAM, as the 8 KB that fit in IRAM were too few: in an emulator a
+          keyboard in a playlist picker in a list's context menu went to 8352
+          bytes, and by frame sums a USB connect there reaches about 10 KB.
+          16 KB leaves over 6 KB above both. At the end of .bss, as .bss begins
+          inside the image's own load span, over which ROLO copies a new image
+          while it runs on this stack. In whole cache lines, so that no
+          variable that either core writes shares a line with it.
+          Below it the crash stacks (crt0-pp.S), whose contents matter only
+          once a panic has begun, so that an overflow goes 4 KB before it
+          reaches data. Without them it went through about 816 bytes of other
+          .bss (the skin parser's state, data_abort_regs, debug's counters)
+          into the disk cache's table of sectors, which a write-back before
+          the next switch_thread() check would then use. The COP's half, on
+          top, is used only by a COP panic. An overflow of the main thread
+          less than 2 KB past the bottom has its panic on the CPU's half,
+          below; one still under way deeper shares that half with its own
+          panic, which may then garble the record's message and trace: only
+          the diagnosis suffers. */
+       . = ALIGN(CACHEALIGN_SIZE);
+       *(.uie_stacks)
+       . = ALIGN(CACHEALIGN_SIZE);
+       stackbegin = .;
+       . += 0x4000;
+       stackend = .;
     } > DRAM
 
 #if NOCACHE_BASE != 0

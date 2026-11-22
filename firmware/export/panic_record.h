@@ -51,7 +51,9 @@
 #define PANIC_REC_USED    0x31707772u   /* "rwp1": logged by a later boot */
 #define PANIC_REC_RESERVE 1024          /* bytes taken off the audio buffer */
 #define PANIC_REC_COPIES  3
-#define PANIC_REC_TRACE   10            /* return addresses, newest first */
+#define PANIC_REC_TRACE   10            /* return addresses, newest first: for
+                                           a stack overflow, the stale chain's
+                                           and then the live one's (panic.c) */
 #define PANIC_REC_THREAD  16
 #define PANIC_REC_VERSION 24
 #define PANIC_REC_MSG     120           /* message, NUL included */
@@ -88,7 +90,10 @@ struct panic_record
     uint32_t uptime;                    /* current_tick */
     uint32_t wall;                      /* seconds since 1970, RTC at boot +
                                            uptime; 0: unknown */
-    uint32_t trace[PANIC_REC_TRACE];    /* the unwinder's, 0 past the last */
+    uint32_t trace[PANIC_REC_TRACE];    /* the unwinder's, or for a stack
+                                           overflow ten picked from the
+                                           stack's (panic.c, stkov_trace);
+                                           0 past the last */
     char thread[PANIC_REC_THREAD];
     char version[PANIC_REC_VERSION];    /* RBVERSION: which rockbox.map */
     char msg[PANIC_REC_MSG];

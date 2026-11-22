@@ -271,6 +271,13 @@ static inline void cpu_boost_unlock(void)
     #define HAVE_PANIC_RECORD
 #endif
 
+/* Define this if a stack overflow's record traces what is left on the
+ * overflowed stack (panic.c) rather than unwinding from the panic */
+#if defined(HAVE_PANIC_RECORD) && !defined(SIMULATOR) && \
+    defined(BACKTRACE_UNWARMINDER) && defined(CPU_PP)
+    #define HAVE_PANIC_STKOV_SCAN
+#endif
+
 /*
  * ARM and MIPS ABIs generally require 8-byte stack alignment.
  */

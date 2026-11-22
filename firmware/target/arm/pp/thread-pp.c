@@ -131,9 +131,20 @@ static void __attribute__((naked, noinline))
     ".new_core_restart:                \n"
         "mov    r1, #0                 \n" /* mark as started */
         "str    r1, [r0, #40]          \n"
-        "add    r0, r0, #8             \n"
-        "ldmia  r0, { r6-r11, sp }     \n" /* restore non-volatiles and stack */
+        /* The new core's cache is invalidated before the thread's stack is
+           touched, while still on the stack this core came in on: its idle
+           stack, or the stack of one of its own threads, below that thread's
+           saved sp. A thread's stack in cached DRAM may still have clean
+           lines in this core's cache from the thread's last stay here. Were
+           commit_discard_idcache's own push to land in such a line, its
+           commit would write the whole stale line back, and the r4, r5 and lr
+           the old core just saved would come back as they were on that
+           earlier stay. r5 is switch_core()'s old_core. main's stack is in
+           DRAM, and lc_open() moves main to the COP and back. */
+        "mov    r4, r0                 \n" /* context, kept over the call */
         "bl     commit_discard_idcache \n" /* invalidate new core's cache */
+        "add    r0, r4, #8             \n"
+        "ldmia  r0, { r6-r11, sp }     \n" /* restore non-volatiles and stack */
         "ldmfd  sp!, { r4-r5, pc }     \n" /* restore remaining context */
         : : "i"(IDLE_STACK_WORDS));
     (void)old_core; (void)thread;

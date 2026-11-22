@@ -22,6 +22,7 @@
 #define __PANIC_H__
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "config.h"
 #include "gcc_extensions.h"
 
@@ -36,10 +37,19 @@ struct panic_record *panic_record_area(void);
 
 /* What ends this boot, from panicf() or UIE() before its screen, with
    interrupts off: a first record, or one more on the count of this boot's
-   first. regs: r0-r7, or NULL. unwind: the trace from pc and sp. */
+   first. regs: r0-r7, or NULL. unwind: the trace, unwound from pc and sp,
+   or after panic_record_stkov() taken from the overflowed stack. */
 void panic_record_save(unsigned int kind, unsigned int pc, unsigned int lr,
                        unsigned int sp, const unsigned int *regs,
                        const char *msg, bool unwind);
+
+/* thread_stkov(), on the overflowed thread, before its panicf()
+   (HAVE_PANIC_STKOV_SCAN): the record that panic makes on this core takes its
+   trace from that thread's stack, up to end: from begin, its bottom, and
+   from sp, the one switch_thread() saved, when that is below begin; rather
+   than from an unwind, which would end at once: thread_stkov() doesn't
+   return, so what follows its calls of panicf() is no code of its own. */
+void panic_record_stkov(const void *begin, const void *end, uintptr_t sp);
 
 /* The RTC's seconds since 1970 at current_tick 0, for the records' times */
 void panic_record_set_clock(unsigned long secs);

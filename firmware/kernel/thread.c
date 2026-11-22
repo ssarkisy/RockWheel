@@ -197,9 +197,25 @@ static NO_INLINE NORETURN_ATTR
     panicf ("%s %s" IF_COP(" (%d)"), msg, name IF_COP(, core));
 }
 
+/* Only from switch_thread(), with thread the core's running one and its
+   context just stored. The thread's name, as format_thread_name() makes it,
+   is formatted by panicf() on the crash stack: thread_panicf() would format
+   it here, on the overflowed stack, and its frames would bury the stale ones
+   that the record's trace is made from. */
 static NO_INLINE void thread_stkov(struct thread_entry *thread)
 {
-    thread_panicf("Stkov", thread);
+#ifdef HAVE_PANIC_STKOV_SCAN
+    panic_record_stkov(thread->stack,
+                       (const char *)thread->stack + thread->stack_size,
+                       thread->context.sp);
+#endif
+    IF_COP( const unsigned int core = thread->core; )
+    const char *name = thread->name ? thread->name : "";
+    if (*name)
+        panicf("Stkov %s" IF_COP(" (%d)"), name IF_COP(, core));
+    else
+        panicf("Stkov %08lX" IF_COP(" (%d)"), (unsigned long)thread->id
+               IF_COP(, core));
 }
 
 #if THREAD_EXTRA_CHECKS

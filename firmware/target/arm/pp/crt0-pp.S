@@ -503,9 +503,11 @@ cop_fiq_stack:
 
 #ifndef BOOTLOADER
 /* the crash stacks, UIE's and panicf's: 2 KB a core, the unwinder and the
-   screen's printing taking about 1.6 KB at most */
-    .section .bss.uie_stack,"aw",%nobits
-    .balign 8
+   screen's printing taking about 1.6 KB at most. Their own section, which
+   app-pp.lds puts directly below the main thread's stack, in whole cache
+   lines, the COP's half nearest it. */
+    .section .uie_stacks,"aw",%nobits
+    .balign 16
     .global uie_stacks
 uie_stacks:
     .space 512*4
