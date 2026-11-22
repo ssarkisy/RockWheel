@@ -1640,6 +1640,10 @@ static uint8_t section_data(NeAACDecHandle hDecoder, ic_stream *ics, bitfile *ld
                incremented and we cannot leave the while loop */
             if ((ld->error != 0) || (ld->no_more_reading))
                 return 14;
+            /* a section of no length leaves k as it is: i must stop at
+               the arrays' end by itself */
+            if (i >= 8*15)
+                return 15;
 
 #ifdef ERROR_RESILIENCE
             if (hDecoder->aacSectionDataResilienceFlag)
@@ -1699,8 +1703,6 @@ static uint8_t section_data(NeAACDecHandle hDecoder, ic_stream *ics, bitfile *ld
 
             /* past num_swb, sect_sfb_offset holds what an earlier track left */
             if (k + sect_len >= 8*15 || k + sect_len > ics->num_swb)
-                return 15;
-            if (i >= 8*15)
                 return 15;
 
             for (sfb = k; sfb < k + sect_len; sfb++)
