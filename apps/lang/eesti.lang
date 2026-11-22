@@ -16500,3 +16500,59 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_DELETE_PLAYED_EPISODES
+  desc: the last row of a show's menu in Music > Podcasts (Select held on the show), with played episodes copied to the iPod by hand: deletes them, after a question; never episodes synced by Finder, nor the one playing
+  user: core
+  <source>
+    *: "Delete Played Episodes"
+  </source>
+  <dest>
+    *: "Kustuta esitatud osad"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DELETE_PLAYED_EPISODES_ONE
+  desc: the choice asked before a show's played episodes are deleted (LANG_DELETE_PLAYED_EPISODES), under the show's name, above Cancel; %d is how many: 1 (21 in one-few-many languages)
+  user: core
+  <source>
+    *: "Delete %d Played Episode"
+  </source>
+  <dest>
+    *: "Kustuta %d esitatud osa"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DELETE_PLAYED_EPISODES_FEW
+  desc: as LANG_DELETE_PLAYED_EPISODES_ONE, for 2-4 (22-24 ...) in one-few-many languages
+  user: core
+  <source>
+    *: "Delete %d Played Episodes"
+  </source>
+  <dest>
+    *: "Kustuta %d esitatud osa"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_DELETE_PLAYED_EPISODES_MANY
+  desc: as LANG_DELETE_PLAYED_EPISODES_ONE, for the other numbers: every number but 1 in a language with two forms
+  user: core
+  <source>
+    *: "Delete %d Played Episodes"
+  </source>
+  <dest>
+    *: "Kustuta %d esitatud osa"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

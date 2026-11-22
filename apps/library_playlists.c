@@ -1226,6 +1226,29 @@ static void collage_again(const char *file)
         remove(path);
 }
 
+/* A current index that may hold a song noted gone, as by a Delete on the
+   iPod, which changes neither the database's commit nor its count: one of
+   its songs deleted since it was made, or lines the database hasn't, as a
+   deleted one becomes once the viewer writes the index after an edit
+   (lp_load() leaves it out). Made again, its file without the
+   lines of those gone (clean_playlist()). Looked for only with songs noted
+   gone, in the pass's room */
+static bool index_has_gone(const char *file)
+{
+    struct lp_state state;
+    if (gone_count <= 0)
+        return false;
+    const int n = lp_index_read(file, all.songs, all.max, &state);
+    if (n >= 0 && state.unmatched > 0)
+        return true;
+    for (int i = 0; i < n; i++)
+    {
+        if (tagcache_entry_deleted(all.songs[i].idx))
+            return true;
+    }
+    return false;
+}
+
 static void index_folder(char *path, size_t len, int depth)
 {
     DIR *dir = opendir(path);
@@ -1259,7 +1282,7 @@ static void index_folder(char *path, size_t len, int depth)
         }
         else if (ext && (!strcasecmp(ext, ".m3u8") || !strcasecmp(ext, ".m3u")))
         {
-            if (lp_index_read(path, NULL, 0, NULL) < 0)
+            if (lp_index_read(path, NULL, 0, NULL) < 0 || index_has_gone(path))
                 index_make(path, all.songs, all.max, all.buf, all.size, true);
             else if (all.covers)
                 collage_again(path);
@@ -1469,9 +1492,11 @@ void lp_index_all(bool (*go_on)(void))
     /* not made here if there's none */
     if (!database_in_ram() || !catalog_directory_name(path, sizeof(path)))
         return;
-    /* nothing changed since the last whole pass, nor the covers, and no
-       header is left to make */
+    /* nothing changed since the last whole pass, nor the covers, no header
+       is left to make, and no song is noted gone: one deleted on the iPod
+       changes nothing the mark has */
     const bool covers = file_exists(LP_COVERS_TODO);
+    const bool gone_noted = gone_in_block > 0 || file_size(LP_GONE) > 0;
     const unsigned unknown_before = headers_unknown;
     struct lp_mark now, last;
     mark_now(&now, path);
@@ -1481,7 +1506,7 @@ void lp_index_all(bool (*go_on)(void))
         const bool same = read(fd, &last, sizeof(last)) == sizeof(last)
                           && !memcmp(&last, &now, sizeof(now));
         close(fd);
-        if (same && !covers)
+        if (same && !covers && !gone_noted)
             return;
     }
     char *buf = plugin_get_buffer(&size);
@@ -1528,7 +1553,7 @@ void lp_index_all(bool (*go_on)(void))
     /* On-The-Go too, out of the catalogue's folder */
     if (file_exists(OTG_FILE))
     {
-        if (lp_index_read(OTG_FILE, NULL, 0, NULL) < 0)
+        if (lp_index_read(OTG_FILE, NULL, 0, NULL) < 0 || index_has_gone(OTG_FILE))
             index_make(OTG_FILE, all.songs, all.max, all.buf, all.size, false);
         else if (covers)
             collage_again(OTG_FILE);
@@ -1615,6 +1640,27 @@ static bool lp_load(void)
         n = lp_index_read(lp.file, lp.songs, max, &lp.state);
         if (n < 0)
             return false;
+    }
+    /* a song deleted on the iPod since the index was made (Delete of a
+       podcast's episode): its line in the file then as one the database
+       hasn't, until the next pass drops it (index_folder(), or for
+       On-The-Go lp_index_all() itself); without its length in the header */
+    int kept = 0;
+    for (int i = 0; i < n; i++)
+    {
+        if (!tagcache_entry_deleted(lp.songs[i].idx))
+            lp.songs[kept++] = lp.songs[i];
+    }
+    if (kept < n)
+    {
+        lp.state.unmatched += n - kept;
+        n = kept;
+        if (lp.state.seconds != LP_HEADER_UNKNOWN)
+        {
+            lp.state.seconds = 0;
+            for (int i = 0; i < n; i++)
+                lp.state.seconds += song_seconds(lp.songs[i].idx);
+        }
     }
     lp.count = lp.total = n;
 

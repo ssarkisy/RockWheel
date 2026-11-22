@@ -2156,6 +2156,74 @@ void onplay_set_title(const char *title)
     strmemccpy(tree_menu_title, title, sizeof(tree_menu_title));
 }
 
+#ifdef HAVE_TAGCACHE
+/* Delete on an episode copied to the iPod by hand, and Delete Played Episodes
+   on its show, their menus' last rows; none on an episode iTunesDB has, nor on
+   the one playing, as a stock iPod deletes none: Finder and the programs on
+   libgpod remove theirs (the owner's decision, 2026-11-20). Asked as a
+   playlist's Delete is, under the row's name, Cancel selected. */
+static bool delete_asked(const char *what)
+{
+    const struct opt_items items[] = {
+        { (const unsigned char *)what, -1 }, { STR(LANG_CANCEL_0) },
+    };
+    int choice = 1;
+    if (set_option(tree_menu_title, &choice, RB_INT, items, ARRAYLEN(items),
+                   NULL))
+    {
+        onplay_result = ONPLAY_MAINMENU;
+        return false;
+    }
+    return choice == 0;
+}
+static int episode_delete(void)
+{
+    if (delete_asked(str(LANG_DELETE)))
+    {
+        if (tagtree_row_delete() == 0)
+            splash(HZ*2, ID2P(LANG_FAILED));
+        onplay_result = ONPLAY_RELOAD_DIR;
+    }
+    return 0;
+}
+static int show_delete_played(void)
+{
+    const int n = tagtree_show_played(0);
+    char what[128];
+    if (n <= 0)
+        return 0;
+    snprintf(what, sizeof(what),
+             plural_str(n, LANG_DELETE_PLAYED_EPISODES_ONE,
+                        LANG_DELETE_PLAYED_EPISODES_FEW,
+                        LANG_DELETE_PLAYED_EPISODES_MANY), n);
+    if (delete_asked(what))
+    {
+        /* "Failed" once, for any that couldn't be deleted */
+        if (tagtree_show_delete_played(n) < 0)
+            splash(HZ*2, ID2P(LANG_FAILED));
+        onplay_result = ONPLAY_RELOAD_DIR;
+    }
+    return 0;
+}
+static int delete_callback(int action, const struct menu_item_ex *this_item,
+                           struct gui_synclist *this_list);
+MENUITEM_FUNCTION(episode_delete_item, 0, ID2P(LANG_DELETE),
+                  episode_delete, delete_callback, Icon_NOICON);
+MENUITEM_FUNCTION(show_delete_played_item, 0, ID2P(LANG_DELETE_PLAYED_EPISODES),
+                  show_delete_played, delete_callback, Icon_NOICON);
+static int delete_callback(int action, const struct menu_item_ex *this_item,
+                           struct gui_synclist *this_list)
+{
+    (void)this_list;
+    if (action != ACTION_REQUEST_MENUITEM)
+        return action;
+    const bool shown = selected_file.context == CONTEXT_ID3DB
+        && (this_item == &episode_delete_item ? tagtree_row_deletable()
+                                              : tagtree_show_played(1) > 0);
+    return shown ? action : ACTION_EXIT_MENUITEM;
+}
+#endif
+
 MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
            onplaymenu_callback, Icon_file_view_menu,
            /* no Add to Playlist, as on a stock iPod: it picked any playlist,
@@ -2173,6 +2241,7 @@ MAKE_ONPLAYMENU( tree_onplay_menu, tree_menu_title,
            &song_go_to_artist_item, &song_go_to_album_item,
            &remove_song_item,
            &ipod_rename_item, &ipod_move_item, &ipod_delete_item,
+           &episode_delete_item, &show_delete_played_item,
 #endif
            &rename_file_item, &clipboard_cut_item, &clipboard_copy_item,
            &clipboard_paste_item, &delete_file_item, &delete_dir_item,

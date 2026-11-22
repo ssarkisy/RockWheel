@@ -90,6 +90,18 @@ bool tagtree_row_mark(bool played);
 /* and played from its start, its place forgotten: as Select, which goes on
    from the place. False if it didn't start */
 bool tagtree_row_start_over(void);
+/* and it may be deleted, as one copied by hand (tagcache_track_deletable());
+   deleted, its file and entry, and out of the music playing: 1, its show's
+   list left for Podcasts if it was the last; 0 if that failed, nothing
+   changed; -1 for no such row */
+bool tagtree_row_deletable(void);
+int tagtree_row_delete(void);
+/* The row selected is a show of Podcasts: its played episodes that may be
+   deleted, those marked read-only left out, counted up to most (0: all), 0
+   for none or another row; and deleted, as many as most at most, each one
+   that fails passed over: how many, or -1 if one failed */
+int tagtree_show_played(int most);
+int tagtree_show_delete_played(int most);
 bool tagtree_browse_from_row(bool artist);
 bool tagtree_browse_from_cover_flow(const char *path);
 int tagtree_browse_level(void);

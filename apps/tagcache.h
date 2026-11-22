@@ -418,6 +418,25 @@ long tagcache_track_place(int idx_id);
    or plays out. Queued as a place is; from memory, nothing without the
    database there. */
 void tagcache_book_one_place(int idx_id, int playing);
+/* A podcast's episode the listener may delete on the iPod (an episode's and a
+   show's menu): one iTunesDB hasn't, outside Finder's folder, as copied there
+   by hand, and not the track playing or paused. iTunesDB's are left as the
+   stock firmware leaves them, for the Mac to remove. From memory: false
+   without the database there. */
+bool tagcache_track_deletable(int idx_id);
+/* Such an episode deleted: its own file, and the Mac's "._" file beside it,
+   then its entry, which goes from the database's memory at once; or the
+   entry alone of one whose file is gone already. Its file's path into path.
+   False, with nothing changed, if it isn't one, or its file couldn't be
+   deleted, as one the FAT marks read-only. Not for a folder, nor anything in
+   iPod_Control. Nothing allocated: also while music plays. UI thread. */
+bool tagcache_delete_track(int idx_id, char *path, size_t size);
+/* and its file is one the FAT marks read-only, as a Mac's Locked does; read
+   from its folder. UI thread */
+bool tagcache_track_read_only(int idx_id);
+/* the entry is marked deleted in the database's memory, as by a Delete or a
+   check of the files: false without the database there */
+bool tagcache_entry_deleted(int idx_id);
 /* A track's rating and plays as the database has them now: one played again
    from the buffer, as by Previous, has those of when it was buffered, which
    playback copies to it again after any change made to it. Its own without

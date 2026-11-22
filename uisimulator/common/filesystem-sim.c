@@ -935,6 +935,10 @@ struct dirinfo sim_dir_get_info(DIR *dirp, struct sim_dirent *entry)
 
     if (S_ISDIR(s.st_mode))
         info.attribute |= ATTR_DIRECTORY;
+    /* the FAT's read-only mark, for a file the host won't let its owner
+       write (chmod a-w): a test of what goes by it */
+    else if (!(s.st_mode & S_IWUSR))
+        info.attribute |= ATTR_READ_ONLY;
 
     info.size = s.st_size;
     /* of what a link leads to, as the rest: a link to a folder it is in

@@ -1029,11 +1029,18 @@ bool list_covers_stale(void)
         return true;
     struct file_header h;
     const int fd = open(COVERS_FILE, O_RDONLY);
-    const bool made = fd >= 0 && read(fd, &h, sizeof(h)) == sizeof(h)
-                      && h.magic == COVERS_MAGIC && h.version == COVERS_VERSION
-                      && h.side == SIDE && h.commitid == tagcache_get_commitid();
+    bool made = fd >= 0 && read(fd, &h, sizeof(h)) == sizeof(h)
+                && h.magic == COVERS_MAGIC && h.version == COVERS_VERSION
+                && h.side == SIDE && h.commitid == tagcache_get_commitid();
     if (fd >= 0)
         close(fd);
+    /* and of the table of years as made now, once it is: the database the
+       same, a show's last episode deleted on the iPod leaves its album out of
+       the table made at the next boot, and the albums' numbers move. A file
+       of none (make_none()) is of any table */
+    if (made && h.count > 0 && album_years_ready())
+        made = h.count == (uint32_t)album_years_count()
+               && h.table == album_years_hash();
     return !made;
 }
 

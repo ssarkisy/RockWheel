@@ -3201,6 +3201,10 @@ struct songs_hashing {
 static void songs_hash_track(int idx_id, const int32_t *seek, void *data)
 {
     struct songs_hashing *h = data;
+    /* not a podcast's episode, which Songs hasn't, and which a Delete on the
+       iPod removes without a commit (tagcache_delete_track()) */
+    if (tagcache_track_kind(idx_id) == 1)
+        return;
     const int32_t artist = seek[tag_virt_canonicalartist];
     const int32_t of[] = {
         idx_id, seek[tag_title], seek[tag_album], seek[tag_albumartist], artist,
@@ -9056,6 +9060,167 @@ bool tagtree_row_mark(bool played)
         tagcache_update_numeric(idx, tag_lastplayed, stamp);
     }
     return true;
+}
+
+/* A deleted episode out of the music playing too, as Up Next's Remove takes
+   one out: one buffered already would still play from memory. Looked for in
+   the UNQUEUE_AHEAD tracks after the one playing, round past the queue's end;
+   one further on is passed over as it comes, its file gone, as is any once
+   the music has stopped */
+#define UNQUEUE_AHEAD 256
+static void unqueue(const char *path)
+{
+    const uint64_t hash = itunesdb_path_hash(path);
+    bool removed = false;
+    /* one at a time, the indexes moving with each; a few copies at most, as
+       Play Next or Play Last queue */
+    for (int copies = 0; copies < 8 && (audio_status() & AUDIO_STATUS_PLAY);
+         copies++)
+    {
+        const int amount = playlist_amount();
+        const int playing = playlist_get_current()->index;
+        struct playlist_track_info info;
+        int found = -1;
+        for (int k = 1; k < amount && k <= UNQUEUE_AHEAD && found < 0; k++)
+        {
+            const int i = (playing + k) % amount;
+            if (playlist_get_track_info(NULL, i, &info) >= 0
+                && itunesdb_path_hash(info.filename) == hash)
+                found = i;
+        }
+        if (found < 0 || playlist_delete(NULL, found) < 0)
+            break;
+        removed = true;
+    }
+    if (removed)
+        playlist_sync(NULL);
+}
+
+bool tagtree_row_deletable(void)
+{
+    const struct tagentry *entry = selected_episode();
+    return entry && tagcache_track_deletable(entry->extraseek);
+}
+
+int tagtree_row_delete(void)
+{
+    struct tree_context *c = tc;
+    const struct tagentry *entry = selected_episode();
+    if (!entry)
+        return -1;
+    /* its show's only episode: up to Podcasts, where the show is gone too,
+       rather than an empty list */
+    const bool last = c->filesindir - c->special_entry_count == 1;
+    char path[MAX_PATH];
+    if (!tagcache_delete_track(entry->extraseek, path, sizeof(path)))
+        return 0;
+    unqueue(path);
+    if (last)
+        tagtree_exit(c, true);
+    return 1;
+}
+
+/* the show of the row selected in Podcasts' list of shows, by its name's
+   place, as its episodes have it (tag_album); -1 if it isn't one */
+static int32_t selected_show(void)
+{
+    struct tree_context *c = tc;
+    if (!c || c->currtable != TABLE_NAVIBROWSE || c->currextra != 0 || !csi
+        || csi->tagorder_count < 1 || csi->tagorder[0] != tag_album
+        || !section_is(csi, LANG_PODCASTS) || !tagtree_ready()
+        || !tagcache_is_usable() || c->selected_item < c->special_entry_count
+        || c->selected_item >= c->filesindir)
+        return -1;
+    const struct tagentry *entry = tagtree_get_entry(c, c->selected_item);
+    return entry && entry->newtable == TABLE_NAVIBROWSE ? entry->extraseek : -1;
+}
+
+/* a show's played episodes that may be deleted, after from in the entries'
+   order, as many as ids holds */
+struct show_played {
+    int32_t album, from;
+    int32_t *ids;
+    int most, count;
+};
+
+static void show_played_match(int idx_id, const int32_t *tag_seek, void *data)
+{
+    struct show_played *p = data;
+    if (idx_id <= p->from || p->count >= p->most
+        || tag_seek[tag_album] != p->album
+        || tagcache_episode_state(idx_id) != EPISODE_PLAYED
+        || !tagcache_track_deletable(idx_id))
+        return;
+    p->ids[p->count++] = idx_id;
+}
+
+#define SHOW_PLAYED_BATCH 16
+static int show_played_after(int32_t album, int32_t from, int32_t *ids)
+{
+    struct show_played p = { .album = album, .from = from, .ids = ids,
+                             .most = SHOW_PLAYED_BATCH };
+    if (album < 0 || !tagcache_for_each_track(show_played_match, &p))
+        return 0;
+    return p.count;
+}
+
+/* Those whose files aren't marked read-only, which Delete would only fail
+   on: as many as most at most, 0 for all. Their marks are read from their
+   folders, out of the pass over the database's memory, which is held still */
+int tagtree_show_played(int most)
+{
+    const int32_t album = selected_show();
+    int32_t ids[SHOW_PLAYED_BATCH];
+    int32_t from = -1;
+    int count = 0;
+    for (;;)
+    {
+        const int n = show_played_after(album, from, ids);
+        for (int i = 0; i < n && (most <= 0 || count < most); i++)
+            count += !tagcache_track_read_only(ids[i]);
+        if (n < SHOW_PLAYED_BATCH || (most > 0 && count >= most))
+            return count;
+        from = ids[n - 1];
+    }
+}
+
+/* in the entries' order, a batch at a time: none is held between, and no
+   more go than the question said, though the one playing may have played
+   out meanwhile. One that fails is passed over, the rest still tried */
+int tagtree_show_delete_played(int most)
+{
+    const int32_t album = selected_show();
+    int32_t ids[SHOW_PLAYED_BATCH];
+    int32_t from = -1;
+    int done = 0;
+    bool failed = false;
+    cpu_boost(true);
+    splash_progress_set_delay(HZ / 2);
+    while (done < most)
+    {
+        const int n = show_played_after(album, from, ids);
+        for (int i = 0; i < n && done < most; i++)
+        {
+            from = ids[i];
+            /* not tried: one playing now, or marked read-only */
+            if (!tagcache_track_deletable(ids[i])
+                || tagcache_track_read_only(ids[i]))
+                continue;
+            splash_progress(done, most, "%s", str(LANG_WAIT));
+            char path[MAX_PATH];
+            if (tagcache_delete_track(ids[i], path, sizeof(path)))
+            {
+                unqueue(path);
+                done++;
+            }
+            else
+                failed = true;
+        }
+        if (n < SHOW_PLAYED_BATCH)
+            break;
+    }
+    cpu_boost(false);
+    return failed ? -1 : done;
 }
 
 /* the track of this row is one sold with a lock on it: said. Asked as the

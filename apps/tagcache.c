@@ -3201,7 +3201,10 @@ bool tagcache_album_keys_inputs(uint32_t *inputs)
     for (int i = 0; i < current_tcmh.tch.entry_count; i++)
     {
         const struct index_entry *idx = &tcramcache.hdr->indices[i];
-        if (idx->flag & FLAG_DELETED)
+        /* nor a podcast's episode, which a Delete on the iPod removes
+           without a commit (tagcache_delete_track()): the file of the keys
+           stays the library's, its music's keys as they were */
+        if ((idx->flag & FLAG_DELETED) || ram_kind(i) == 1)
             continue;
         const int32_t of[] = {
             i, idx->tag_seek[tag_album], idx->tag_seek[tag_albumartist],
@@ -8406,9 +8409,11 @@ bool tagcache_create_changelog(struct tagcache_search *tcs)
    fds[] the tag files, opened as needed and left open for the next one:
    closing each after a write made a deletion take a tenth of a second.
    With sweep_after, the tags it leaves unused are deleted later by
-   sweep_unused_tags(), for all the entries deleted at once. */
-static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds,
-                            bool sweep_after)
+   sweep_unused_tags(), for all the entries deleted at once. buf is the room
+   its file's name is read into: build_idx_buf on the database's thread,
+   whose scan and commit use it too; another thread's own room elsewhere. */
+static bool delete_entry_with(long idx_id, int masterfd, long count, int *fds,
+                              bool sweep_after, char *buf, long bufsz)
 {
     int tag, i;
     struct index_entry idx, myidx;
@@ -8527,7 +8532,7 @@ static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds,
             lseek(fds[tag], myidx.tag_seek[tag], SEEK_SET);
 
             switch (read_tagfile_entry_and_tag(fds[tag], &tfe,
-                                               build_idx_buf, build_idx_bufsz))
+                                               buf, bufsz))
             {
                 case e_SUCCESS_LEN_ZERO:
                     logf("deleted_entry(): SUCCESS");
@@ -8545,8 +8550,7 @@ static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds,
                     return false;
             }
 
-            myidx.tag_seek[tag] = crc_32(build_idx_buf,
-                                         strlen(build_idx_buf), 0xffffffff);
+            myidx.tag_seek[tag] = crc_32(buf, strlen(buf), 0xffffffff);
         }
 
         if (in_use[tag])
@@ -8596,6 +8600,13 @@ static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds,
     song_count = -1;
 
     return true;
+}
+
+static bool delete_entry_in(long idx_id, int masterfd, long count, int *fds,
+                            bool sweep_after)
+{
+    return delete_entry_with(idx_id, masterfd, count, fds, sweep_after,
+                             build_idx_buf, build_idx_bufsz);
 }
 
 static int cmp_seek(const void *a, const void *b)
@@ -8794,7 +8805,7 @@ static const char *sweep_unused_tags_in(int masterfd, long count, int *fds,
     return failed[0] ? failed : NULL;
 }
 
-static bool delete_entry(long idx_id)
+static bool delete_entry_buf(long idx_id, char *buf, long bufsz)
 {
     struct master_header myhdr;
     int fds[TAG_COUNT];
@@ -8804,8 +8815,8 @@ static bool delete_entry(long idx_id)
 
     for (int tag = 0; tag < TAG_COUNT; tag++)
         fds[tag] = -1;
-    bool ok = delete_entry_in(idx_id, masterfd, myhdr.tch.entry_count, fds,
-                              false);
+    bool ok = delete_entry_with(idx_id, masterfd, myhdr.tch.entry_count, fds,
+                                false, buf, bufsz);
     for (int tag = 0; tag < TAG_COUNT; tag++)
     {
         if (fds[tag] >= 0)
@@ -8813,6 +8824,11 @@ static bool delete_entry(long idx_id)
     }
     close(masterfd);
     return ok;
+}
+
+static bool delete_entry(long idx_id)
+{
+    return delete_entry_buf(idx_id, build_idx_buf, build_idx_bufsz);
 }
 
 /**
@@ -9388,6 +9404,176 @@ static void remove_gone_done(void)
     close(gone_masterfd);
     gone_masterfd = -1;
 }
+
+#if !defined(__PCTOOL__) && !defined(PLUGIN)
+bool tagcache_track_deletable(int idx_id)
+{
+#ifdef HAVE_TC_RAMCACHE
+    const uint8_t *kind = tc_stat.ready ? ram_kinds_byte(idx_id) : NULL;
+    if (!kind || idx_id >= current_tcmh.tch.entry_count
+        || (tcramcache.hdr->indices[idx_id].flag & FLAG_DELETED)
+        || (*kind & RAM_KIND_MASK) != 1 || (*kind & RAM_KIND_MARKED)
+        || !(*kind & RAM_KIND_OUTSIDE))
+        return false;
+    const struct mp3entry *id3 = audio_current_track();
+    return !((audio_status() & AUDIO_STATUS_PLAY) && id3
+             && id3->tagcache_idx == idx_id + 1);
+#else
+    (void)idx_id;
+    return false;
+#endif
+}
+
+bool tagcache_entry_deleted(int idx_id)
+{
+#ifdef HAVE_TC_RAMCACHE
+    return tc_stat.ready && tc_stat.ramcache && tcramcache.hdr && idx_id >= 0
+           && idx_id < current_tcmh.tch.entry_count
+           && (tcramcache.hdr->indices[idx_id].flag & FLAG_DELETED);
+#else
+    (void)idx_id;
+    return false;
+#endif
+}
+
+/* a file the FAT marks read-only, as a Mac's Locked does: by its folder's
+   entry. remove() doesn't look at the mark */
+static bool read_only_file(char *path)
+{
+    char *slash = strrchr(path, '/');
+    if (!slash)
+        return false;
+    *slash = '\0';
+    DIR *dir = opendir(slash == path ? "/" : path);
+    *slash = '/';
+    bool read_only = false;
+    struct dirent *entry;
+    while (dir && (entry = readdir(dir)))
+    {
+        if (!strcasecmp(entry->d_name, slash + 1))
+        {
+            read_only = dir_get_info(dir, entry).attribute & ATTR_READ_ONLY;
+            break;
+        }
+    }
+    if (dir)
+        closedir(dir);
+    return read_only;
+}
+
+/* the entry's path into path, through a search held open: false if it has
+   none */
+static bool entry_path(struct tagcache_search *tcs, int idx_id, char *path,
+                       size_t size)
+{
+    return tagcache_retrieve(tcs, idx_id, tcs->type, path, size)
+           && path[0] == '/';
+}
+
+bool tagcache_track_read_only(int idx_id)
+{
+    struct tagcache_search tcs;
+    char path[MAX_PATH];
+    if (!tagcache_search(&tcs, tag_filename))
+        return false;
+    const bool read_only = entry_path(&tcs, idx_id, path, sizeof(path))
+                           && read_only_file(path);
+    tagcache_search_finish(&tcs);
+    return read_only;
+}
+
+/* the file at path isn't there, as the volume it's on says for sure: not
+   one that couldn't be read */
+static bool file_gone(const char *path)
+{
+#ifdef HAVE_DIRCACHE
+    if (!path_volume_mounted(path))
+        return false;
+#endif
+    const int fd = open(path, O_RDONLY);
+    if (fd >= 0)
+    {
+        close(fd);
+        return false;
+    }
+    return errno == ENOENT && !dir_exists(path);
+}
+
+/* The file goes first: an entry deleted before a file that stays would be
+   added again by a scan, as new. One already gone, as by a cut between the
+   two or over USB with music playing, which the check after USB passes over:
+   its entry alone, as that check would. The entry as remove_gone() deletes
+   one gone while music plays, by itself, the strings no other entry has
+   cleared there and then: no sweep, which takes memory. Under the queue's
+   lock, which the storage thread holds as it writes the plays and places
+   queued (an entry it read before the delete would go back as not deleted),
+   with a search held open, which keeps a commit from starting meanwhile, and
+   fails during one. */
+bool tagcache_delete_track(int idx_id, char *path, size_t size)
+{
+    struct tagcache_search tcs;
+    if (!tagcache_track_deletable(idx_id) || !tagcache_search(&tcs, tag_filename))
+        return false;
+    bool ok = entry_path(&tcs, idx_id, path, size);
+    const char *bare = path;
+#ifdef HAVE_MULTIVOLUME
+    if (ok)
+        path_strip_volume(path, &bare, false);
+#endif
+    /* its own file alone: never a folder, nor in iPod_Control, whose
+       folders other than Finder's are the iPod's own */
+    static const char ipod_control[] = "/iPod_Control/";
+    const struct mp3entry *id3 = audio_current_track();
+    ok = ok && strncasecmp(bare, ipod_control, sizeof(ipod_control) - 1)
+         && !itunesdb_synced_path(path) && !hidden_path(path)
+         && !dir_exists(path)
+         /* nor the track playing, by its path too */
+         && !((audio_status() & AUDIO_STATUS_PLAY) && id3
+              && itunesdb_path_hash(id3->path) == itunesdb_path_hash(path));
+    /* removed now or gone already; a remove() that failed after its
+       directory entry went has it gone too */
+    ok = ok && (file_gone(path)
+                || (!read_only_file(path)
+                    && (remove(path) == 0 || file_gone(path))));
+    if (ok)
+    {
+        /* and the Mac's "._" file beside it, as a playlist's Delete takes
+           it: nothing lists it */
+        const char *base = strrchr(path, '/');
+        char mac[MAX_PATH + 2];
+        if (base && (size_t)snprintf(mac, sizeof(mac), "%.*s/._%s",
+                                     (int)(base - path), path, base + 1)
+                    < sizeof(mac)
+            && !dir_exists(mac))
+            remove(mac);
+        /* the UI's own room for the read of its name */
+        static char name_buf[TAGCACHE_BUFSZ];
+        mutex_lock(&command_queue_mutex);
+        const bool written = delete_entry_buf(idx_id, name_buf,
+                                              sizeof(name_buf));
+        /* gone from the lists all the same, as delete_entry_with() marks it
+           first; after a boot its row comes back without a file, and a
+           Delete of it, or the check after USB, removes its entry */
+#ifdef HAVE_TC_RAMCACHE
+        if (tc_stat.ramcache && tcramcache.hdr)
+            tcramcache.hdr->indices[idx_id].flag |= FLAG_DELETED;
+#endif
+        mutex_unlock(&command_queue_mutex);
+        if (!written)
+            health_note("delete: entry %d not written, its file gone: %s",
+                        idx_id, path);
+        /* for the next pass over the playlists made on the iPod
+           (lp_index_all()), which drops its line from those whose index
+           has it */
+        lp_gone_note(path);
+        lp_gone_flush();
+        /* the lists of its show made again, from memory */
+        states_generation++;
+    }
+    tagcache_search_finish(&tcs);
+    return ok;
+}
+#endif
 
 #ifdef HAVE_DIRCACHE
 /* where the last entry's file was found, for the next: the entries are in
