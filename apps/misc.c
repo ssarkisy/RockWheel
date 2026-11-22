@@ -1327,18 +1327,6 @@ void keyclick_click(bool rawbutton, int action)
     }
 }
 
-/* The click of a step of the wheel, once, as Settings > Clicker has it (its
-   volume, the speaker on or off): for a held Menu's switch to a place */
-void keyclick_once(void)
-{
-    if (global_settings.keyclick)
-        system_sound_play(SOUND_KEYCLICK);
-#if defined(HAVE_HARDWARE_CLICK) && !defined(SIMULATOR)
-    if (global_settings.keyclick_hardware)
-        piezo_button_beep(false, false);
-#endif
-}
-
 /* Return the ReplayGain mode adjusted by other relevant settings */
 static int replaygain_setting_mode(int type)
 {

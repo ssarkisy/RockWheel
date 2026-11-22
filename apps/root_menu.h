@@ -76,14 +76,6 @@ void root_menu(void) NORETURN_ATTR;
 bool now_playing_available(void);
 /* the boot screen to save at the power-off, before the status is saved */
 void root_menu_power_off(void);
-/* In the main menu, as a Menu held long enough switches to the place before
-   the last left for it: that screen, to open as it was left; GO_TO_ROOT to
-   stay */
-int root_menu_switch_held(void);
-/* the ticks until a Menu held now comes to that switch, -1 with none held or
-   none still to come: for the main menu to look again then, between the
-   hold's repeats */
-long root_menu_switch_in(void);
 #ifdef HAVE_TAGCACHE
 /* the boot logo and the import's progress, while there is an import */
 void show_library_update(void);

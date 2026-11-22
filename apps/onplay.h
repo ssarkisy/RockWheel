@@ -120,8 +120,5 @@ void wps_context_menu_set_default(void* setting, void* defaultval);
 char* wps_context_menu_write_to_cfg(void* setting, char*buf, int buf_len);
 void wps_context_menu_load_from_cfg(void* setting, char *value);
 bool wps_context_menu_is_changed(void* setting, void* defaultval);
-/* Whether Up Next, in the menu over Now Playing, was left for the main menu by
-   Menu held in it, since that menu last opened */
-bool onplay_up_next_left(void);
 
 #endif

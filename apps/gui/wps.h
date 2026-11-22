@@ -49,12 +49,6 @@ struct wps_state
 };
 
 long gui_wps_show(void);
-/* Whether Now Playing was left for the main menu from its menu, by Menu held
-   there or in what it opened; and the next Now Playing opened with that menu
-   over it at once, as a held Menu switches to it (menu_reopen_left() has the
-   menu's place). Off again with false, if Now Playing didn't show. */
-bool wps_left_from_menu(void);
-void wps_reopen_menu(bool on);
 
 enum wps_do_action_type
 {

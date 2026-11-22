@@ -71,22 +71,12 @@ static char most_recent_playlist[MAX_PATH];
 static size_t playlist_dir_length;
 /* keep track of what browser(s) are current to prevent reentry */
 static int browser_status = CATBROWSE_NOTHING;
-/* On-The-Go's row as its songs were left for the main menu, -1 if they
-   weren't; and the catalogue, viewed next, to open as it was left, as a held
-   Menu switches to it */
-static int otg_left_row = -1;
-static bool reopen_left;
 /* the catalogue, viewed, was left by Menu held in it or in what it opened */
 static bool left_for_root;
 
 bool catalog_left_for_root(void)
 {
     return left_for_root;
-}
-
-void catalog_reopen_left(bool on)
-{
-    reopen_left = on;
 }
 
 static size_t get_directory(char* dirbuf, size_t dirbuf_sz)
@@ -241,11 +231,6 @@ static int display_playlists(char* playlist, enum catbrowse_status_flags status)
 
     browser_status |= status;
     bool view = (status == CATBROWSE_CATVIEW);
-    /* gone back to as it was left: a playlist's songs as Rockbox reopens them
-       anyway, On-The-Go's at their row, or the list at its folder and row */
-    bool back = view && reopen_left;
-    reopen_left = false;
-    int otg_row = -1, otg_left = -1;
     bool to_root = false;
 
     struct browse_context browse = {
@@ -267,16 +252,8 @@ restart:
     catalog_get_directory(selected_playlist, sizeof(selected_playlist));
     browse.flags &= ~BROWSE_SELECTED;
 
-    if (back && otg_left_row >= 0)
+    if (view && reopen_last_playlist)
     {
-        strmemccpy(selected_playlist, OTG_FILE, sizeof(selected_playlist));
-        browse.flags |= BROWSE_SELECTED;
-        otg_row = otg_left_row;
-        back = false;
-    }
-    else if (view && reopen_last_playlist)
-    {
-        back = false;
         switch (view_playlist(most_recent_playlist, &most_recent_selection))
         {
             case PLAYLIST_VIEWER_OK:
@@ -299,10 +276,6 @@ restart:
     }
     else /* browse playlist dir */
     {
-        if (back)
-            tree_catalog_reopen_left();
-        browse.selected = back ? NULL : &most_recent_playlist[playlist_dir_length + 1];
-        back = false;
         int browse_ret = rockbox_browse(&browse);
         if (browse_ret == GO_TO_WPS
             || (view && browse_ret == GO_TO_PREVIOUS_MUSIC))
@@ -322,16 +295,14 @@ restart:
         && !strcmp(selected_playlist, OTG_FILE))
     {
         /* a path of its own: the viewer cuts it apart for a while */
-        switch (view_playlist(selected_playlist, &otg_row))
+        switch (view_playlist(selected_playlist, NULL))
         {
             case PLAYLIST_VIEWER_OK:
                 result = 0;
                 break;
             case PLAYLIST_VIEWER_CANCEL:
-                otg_row = -1;
                 goto restart;
             case PLAYLIST_VIEWER_MAINMENU:
-                otg_left = otg_row;
                 to_root = true;
                 break;
             default:
@@ -386,10 +357,7 @@ restart:
         }
     }
     if (view)
-    {
-        otg_left_row = otg_left;
         left_for_root = to_root;
-    }
     browser_status &= ~status;
     return result;
 }

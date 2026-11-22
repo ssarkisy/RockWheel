@@ -2941,8 +2941,6 @@ int music_search_screen(void *param)
                     ret = GO_TO_WPS;
                     break;
                 case ACTION_STD_MENU:
-                    /* the row, for a held Menu switching back to Search */
-                    chosen_row = gui_synclist_get_sel_pos(&lists);
                     ret = GO_TO_ROOT;
                     break;
                 default:

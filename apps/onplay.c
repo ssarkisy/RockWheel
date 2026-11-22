@@ -176,24 +176,11 @@ static int view_queue(void)
     return playlist_viewer_ex(NULL, NULL);
 }
 
-/* Up Next left for the main menu by Menu held in it, since the menu over Now
-   Playing opened: a held Menu switching back opens it again (root_menu.c) */
-static bool up_next_left;
-
-bool onplay_up_next_left(void)
-{
-    return up_next_left;
-}
-
 /* Up Next: the queue, the songs to come, as Apple's Music has it, always
    (the owner's decision, 2026-11-09); where they're from is Playing From */
 static int wps_view_cur_playlist(void)
 {
-    /* entered so by a held Menu's switch back: at the row it was left at */
-    playlist_viewer_reopen_left(menu_entering_again());
-    const int ret = wps_view_songs(view_queue);
-    up_next_left = ret == GO_TO_ROOT;
-    return ret;
+    return wps_view_songs(view_queue);
 }
 
 #ifdef HAVE_ALBUMART
@@ -2670,7 +2657,6 @@ int onplay(char* file, int attr, int from_context, bool hotkey, int customaction
     const bool was_wide = menu_wide();
     if (from_context == CONTEXT_WPS)
     {
-        up_next_left = false;
         menu = &wps_onplay_menu;
         menu_set_wide(true);
     }

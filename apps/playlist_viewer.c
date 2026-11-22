@@ -176,16 +176,6 @@ struct playlist_search_data
 };
 
 static struct playlist_viewer  viewer;
-/* The playing list's row (Up Next's) as Menu held left it for the main menu,
-   and to open there once more, as a held Menu switches back to it
-   (playlist_viewer_reopen_left()) */
-static int left_track = -1;
-static bool reopen_left;
-
-void playlist_viewer_reopen_left(bool on)
-{
-    reopen_left = on;
-}
 
 /* Up Next's queue as the list has it now: none in a file viewed */
 static void pv_find_queue(void)
@@ -624,11 +614,8 @@ static bool playlist_viewer_init(struct playlist_viewer * viewer,
         if (viewer->playlist)
             viewer->selected_track = recent_selection && *recent_selection >= 0 ?
                                      *recent_selection : 0;
-        else if (reopen_left && left_track >= 0 && left_track < playlist_amount())
-            viewer->selected_track = left_track;
         else
             viewer->selected_track = playlist_get_display_index() - 1;
-        reopen_left = false;
     }
 
     if (!update_playlist(true))
@@ -1549,8 +1536,6 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
                 break;
             }
             case ACTION_STD_MENU:
-                if (!viewer.playlist)
-                    left_track = pv_track_of_row(viewer.selected_track);
                 ret = PLAYLIST_VIEWER_MAINMENU;
                 goto exit;
 #ifdef HAVE_QUICKSCREEN

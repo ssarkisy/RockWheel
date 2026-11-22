@@ -71,7 +71,6 @@
 #include "bookmark.h"
 #include "playlist.h"
 #include "playlist_viewer.h"
-#include "onplay.h"
 #include "playlist_catalog.h"
 #include "menus/exported_menus.h"
 #ifdef HAVE_RTC_ALARM
@@ -131,37 +130,7 @@ static bool is_section_screen(int screen)
     return screen >= GO_TO_ARTISTS && screen <= GO_TO_COMPILATIONS;
 }
 static int items_section_lang(int screen);
-/* where Search's Menu went from its letters when it was left for the main
-   menu; whether the section last open has its place kept, as Menu left it;
-   and the main menu's place (places[]) a section opens at, -1 for none */
-static int search_back_left = GO_TO_DBBROWSER;
-static bool section_kept = false;
-static int section_back = -1;
 #endif
-
-/* The screen the loop opened last, which the main menu, as it shows, takes as
-   a place left for it (place_note()). GO_TO_ROOT for none: after a boot, each
-   time the main menu shows (once noted), as a plugin opens as a screen, after
-   a library update that waited for the main menu, as the albums' years are
-   made. */
-static int screen_shown = GO_TO_ROOT;
-/* where Menu goes back to from that screen: Music, which it was opened from,
-   as Playlists, Search and Cover Flow are in Music's menu; or GO_TO_ROOT */
-static int shown_parent = GO_TO_ROOT;
-/* The main menu's two places, the last left and the one before it, between
-   which a Menu held long switches, as the iPhone does between its last two
-   apps (root_menu_switch_held()): each a screen, GO_TO_ROOT for none; the
-   screen Menu goes back to from it, Music or GO_TO_ROOT (shown_parent); how
-   Now Playing was left, from its menu or from Up Next in it; and the
-   database then, for Music's lists, whose places a change of it ends */
-static struct place {
-    int screen, parent;
-    bool wps_menu, up_next;
-    int32_t commit;
-} places[2] = { { .screen = GO_TO_ROOT }, { .screen = GO_TO_ROOT } };
-static int last_place;
-static bool going_back = false; /* to a place, from the main menu */
-static int back_parent;         /* and where Menu goes back to from it */
 
 /* Where the music playing was started. Holding Play opens Now Playing from anywhere,
    and Menu there then goes back to that and not to where Play was held. Not known
@@ -214,7 +183,7 @@ bool root_menu_go_to_later(const char *path)
     return cover_flow_go_to_offered;
 }
 
-static int cover_flow_run(const char *at, char *go_to)
+int root_menu_cover_flow(const char *at, char *go_to)
 {
 #ifdef HAVE_TAGCACHE
     char back[MAX_PATH];
@@ -265,26 +234,6 @@ static int cover_flow_run(const char *at, char *go_to)
     }
 }
 
-int root_menu_cover_flow(const char *at, char *go_to)
-{
-    const int ret = cover_flow_run(at, go_to);
-    /* Menu held in it, or in the lists of its Go to Artist: the place left
-       for the main menu, which a held Menu switches back to, from wherever
-       Cover Flow was opened */
-    if (ret == PLUGIN_GOTO_ROOT)
-    {
-        /* from Music's own row, whose lists it goes to; opened as a screen of
-           its own, back where that goes (shown_parent as it is); or else
-           from the menu over Now Playing */
-        if (go_to)
-            shown_parent = GO_TO_DBBROWSER;
-        else if (screen_shown != GO_TO_COVER_FLOW)
-            shown_parent = GO_TO_ROOT;
-        screen_shown = GO_TO_COVER_FLOW;
-    }
-    return ret;
-}
-
 /* The screen to go to from Now Playing, if it was opened by holding Play */
 static int back_to_music_origin(int otherwise)
 {
@@ -300,8 +249,6 @@ static int back_to_music_origin(int otherwise)
 #else
             const int back = GO_TO_DBBROWSER;
 #endif
-            screen_shown = GO_TO_COVER_FLOW;
-            shown_parent = GO_TO_ROOT;
             const int ret = root_menu_cover_flow(NULL, NULL);
 #ifdef HAVE_TAGCACHE
             cover_flow_from_main_menu = false;
@@ -665,23 +612,14 @@ void root_menu_compilations_check(void)
 static int music_section(void *param)
 {
     const int lang = (intptr_t)param;
-    const int back = section_back;
-    section_back = -1;
-    section_kept = false;
-    if (section_left_in == lang || back >= 0)
+    if (section_left_in == lang)
         tagtree_resume_section(lang, &last_db_dirlevel, &last_db_selection);
     else if (!tagtree_go_to_section(lang, &last_db_dirlevel, &last_db_selection))
         return GO_TO_ROOT;
-    if (back >= 0)
-        tagtree_section_back(back, &last_db_dirlevel, &last_db_selection);
     in_section = true;
     const int screen = browser((void*)GO_TO_DBBROWSER);
     in_section = false;
     const bool left_by_menu = screen == GO_TO_PREVIOUS || screen == GO_TO_ROOT;
-    /* its place, before Music's own is back, for the main menu's places */
-    if (left_by_menu)
-        tagtree_section_left(last_db_dirlevel, last_db_selection);
-    section_kept = left_by_menu;
     tagtree_end_go_to(left_by_menu, &last_db_dirlevel, &last_db_selection);
     section_left_in = left_by_menu ? 0 : lang;
     return screen;
@@ -713,8 +651,6 @@ static int search_screen(void *param)
     int screen = music_search_screen(param);
     if (screen == GO_TO_DBBROWSER)
         screen = search_back;
-    if (screen == GO_TO_ROOT)
-        search_back_left = search_back;
     if (screen == GO_TO_DBBROWSER || screen == GO_TO_ROOT)
         search_back = GO_TO_DBBROWSER;
     return screen;
@@ -1402,223 +1338,6 @@ void root_menu_power_off(void)
        Previous Screen boots where the hold was, as Now Playing would play it */
     if (audio_paused_unheard() && global_status.last_screen == GO_TO_WPS)
         global_status.last_screen = (char)screen_before_wps;
-}
-
-/* the screens a place can be: not a plugin opened as a screen, nor an action */
-static bool place_kind(int screen)
-{
-    switch (screen)
-    {
-#ifdef HAVE_TAGCACHE
-        case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
-        case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
-        case GO_TO_AUDIOBOOKS: case GO_TO_COMPILATIONS:
-            return section_kept;
-        case GO_TO_DBBROWSER:
-        case GO_TO_SEARCH:
-        case GO_TO_COVER_FLOW:
-#endif
-#ifdef HAVE_PHOTOS_MENU
-        case GO_TO_PHOTOS:
-#endif
-        case GO_TO_WPS:
-        case GO_TO_FILEBROWSER:
-        case GO_TO_PLAYLISTS_SCREEN:
-        case GO_TO_PLAYLIST_VIEWER:
-        case GO_TO_MAINMENU:
-        case GO_TO_EXTRAS:
-        case GO_TO_SYSTEM_SCREEN:
-        case GO_TO_BROWSEPLUGINS:
-            return true;
-        default:
-            return false;
-    }
-}
-
-/* the places that are lists of the library or of the disk */
-static bool place_of_library(int screen)
-{
-    switch (screen)
-    {
-#ifdef HAVE_TAGCACHE
-        case GO_TO_DBBROWSER: case GO_TO_SEARCH:
-        case GO_TO_ARTISTS: case GO_TO_ALBUMS: case GO_TO_SONGS:
-        case GO_TO_PODCASTS: case GO_TO_GENRES: case GO_TO_COMPOSERS:
-        case GO_TO_AUDIOBOOKS: case GO_TO_COMPILATIONS:
-#endif
-        case GO_TO_FILEBROWSER:
-        case GO_TO_PLAYLISTS_SCREEN:
-        case GO_TO_PLAYLIST_VIEWER:
-            return true;
-        default:
-            return false;
-    }
-}
-
-static bool menu_place(int screen)
-{
-    return screen == GO_TO_MAINMENU || screen == GO_TO_EXTRAS
-           || screen == GO_TO_SYSTEM_SCREEN || screen == GO_TO_BROWSEPLUGINS;
-}
-
-/* A screen left for the main menu: the last place now, and the one that was
-   last the place before it; the same again takes its state anew. Into an
-   empty last place, as after a drop, unless it's the place before. */
-static void place_note(int screen)
-{
-    if (!place_kind(screen))
-        return;
-    if (places[last_place].screen != screen
-        && (places[last_place].screen != GO_TO_ROOT
-            || places[last_place ^ 1].screen == screen))
-        last_place ^= 1;
-    struct place *const p = &places[last_place];
-    p->screen = screen;
-    p->parent = shown_parent;
-#ifdef HAVE_TAGCACHE
-    p->commit = tagcache_get_commitid();
-    if (is_section_screen(screen))
-        tagtree_section_keep(last_place);
-    /* Music's own lists, which a section left for Now Playing or a Go to
-       that started music moves meanwhile; as the screen opened from them
-       left them, to go back to from it */
-    else if (screen == GO_TO_DBBROWSER || p->parent == GO_TO_DBBROWSER)
-        tagtree_music_keep(last_place, last_db_dirlevel, last_db_selection);
-#endif
-    p->wps_menu = screen == GO_TO_WPS && wps_left_from_menu();
-    p->up_next = p->wps_menu && onplay_up_next_left();
-    if (p->wps_menu || menu_place(screen))
-        menu_keep_left(last_place);
-}
-
-/* the places of the lists, after a library update or as the albums' years
-   are made: not to be opened as they were */
-static void place_drop_library(void)
-{
-    for (int i = 0; i < 2; i++)
-    {
-        if (place_of_library(places[i].screen))
-            places[i].screen = GO_TO_ROOT;
-    }
-}
-
-/* whether the place can open again as it was: Now Playing with its song,
-   Cover Flow and Photos if their plugins are there, the lists of the
-   database it was left in */
-static bool place_opens(const struct place *p)
-{
-    switch (p->screen)
-    {
-        case GO_TO_ROOT:
-            return false;
-        case GO_TO_WPS:
-            return audio_status() != 0;
-#ifdef HAVE_TAGCACHE
-        case GO_TO_COVER_FLOW:
-            return file_exists(PLUGIN_DEMOS_DIR "/pictureflow.rock");
-#endif
-#ifdef HAVE_PHOTOS_MENU
-        case GO_TO_PHOTOS:
-            return file_exists(PLUGIN_APPS_DIR "/photos.rock");
-#endif
-        default:
-#ifdef HAVE_TAGCACHE
-            if (place_of_library(p->screen))
-                return p->commit == tagcache_get_commitid();
-#endif
-            return true;
-    }
-}
-
-/* the requests a place opening again made, not taken by a screen that didn't
-   show as it was */
-static void place_requests_clear(void)
-{
-    menu_reopen_left(-1, false);
-    wps_reopen_menu(false);
-    playlist_viewer_reopen_left(false);
-    catalog_reopen_left(false);
-#ifdef HAVE_TAGCACHE
-    section_back = -1;
-#endif
-}
-
-/* Menu held this long from its press switches from the main menu to the place
-   before the last: a hold out of a place, which showed the main menu at the
-   usual threshold (0.3 s) on its way; and one begun in the main menu, as it
-   showed already, at that threshold itself. The owner tunes both on the
-   iPod. */
-#define MENU_SWITCH_HOLD      (8*HZ/10)
-#define MENU_SWITCH_HOLD_HERE (3*HZ/10)
-/* as the main menu last began to show, for a hold begun there */
-static long main_menu_shown;
-
-#ifdef BUTTON_MENU
-/* how long Menu, held this long, is to be held for the switch */
-static long switch_hold(long held)
-{
-    /* pressed down as the main menu showed already */
-    return held < current_tick - main_menu_shown ? MENU_SWITCH_HOLD_HERE
-                                                 : MENU_SWITCH_HOLD;
-}
-#endif
-
-long root_menu_switch_in(void)
-{
-#ifdef BUTTON_MENU
-    /* none once it's due: switched then, or with no place to go to */
-    const long held = action_held_ticks(BUTTON_MENU);
-    const long need = held ? switch_hold(held) : 0;
-    return held && held < need ? need - held : -1;
-#else
-    return -1;
-#endif
-}
-
-int root_menu_switch_held(void)
-{
-#ifdef BUTTON_MENU
-    const long held = action_held_ticks(BUTTON_MENU);
-    if (held == 0 || held < switch_hold(held))
-        return GO_TO_ROOT;
-    const int i = last_place ^ 1;
-    const struct place *const p = &places[i];
-    if (!place_opens(p))
-        return GO_TO_ROOT;
-    if (p->screen == GO_TO_WPS)
-    {
-        wps_reopen_menu(p->wps_menu);
-        if (p->wps_menu)
-            menu_reopen_left(i, p->up_next);
-    }
-    else if (menu_place(p->screen))
-        menu_reopen_left(i, false);
-    else if (p->screen == GO_TO_PLAYLISTS_SCREEN)
-        catalog_reopen_left(true);
-#ifdef HAVE_TAGCACHE
-    else if (p->screen == GO_TO_SEARCH)
-        search_back = search_back_left;
-    else if (is_section_screen(p->screen))
-        section_back = i;
-#endif
-    back_parent = p->parent;
-#ifdef HAVE_TAGCACHE
-    /* Music's lists, the place's or those it was opened from, only of the
-       database they were left in: else back to the main menu from it */
-    if (p->commit != tagcache_get_commitid())
-        back_parent = GO_TO_ROOT;
-    else if (p->screen == GO_TO_DBBROWSER || p->parent == GO_TO_DBBROWSER)
-        tagtree_music_back(i, &last_db_dirlevel, &last_db_selection);
-#endif
-    /* the rest of the hold, its release too, goes nowhere in the place; the
-       wheel's click as the place has drawn, saying the switch is done */
-    action_wait_for_release();
-    action_click_after_draw();
-    going_back = true;
-    return p->screen;
-#else
-    return GO_TO_ROOT;
-#endif
 }
 
 static inline int load_screen(int screen)
@@ -2672,13 +2391,6 @@ void root_menu(void)
     while (true)
     {
 #ifdef HAVE_TAGCACHE
-        /* an update after USB that waited for the main menu: nothing to go
-           back to as it was, the library may change under it */
-        if (library_update_pending)
-        {
-            screen_shown = GO_TO_ROOT;
-            place_drop_library();
-        }
         /* the import begins as it shows, not behind whatever was open */
         /* not under music, started meanwhile: an import's memory stops it,
            and the check waits for it */
@@ -2699,9 +2411,6 @@ void root_menu(void)
         {
             tagtree_albums_reordered();
             list_covers_load();
-            /* its albums in another order */
-            screen_shown = GO_TO_ROOT;
-            place_drop_library();
         }
 #endif
         switch (next_screen)
@@ -2727,26 +2436,21 @@ void root_menu(void)
                 ignore_back_button_stub(true);
                 ui_theme_set_section(UI_SECTION_SYSTEM, true);
 
-                place_note(screen_shown);
-                main_menu_shown = current_tick;
-                screen_shown = GO_TO_ROOT;
                 next_screen = do_menu(&root_menu_, &selected, NULL, false);
 #ifdef HAVE_TAGCACHE
-                /* gone back to, Music and Search are as they were left */
-                music_from_main_menu = !going_back && next_screen == GO_TO_DBBROWSER;
-                if (!going_back && next_screen == GO_TO_SEARCH)
+                music_from_main_menu = next_screen == GO_TO_DBBROWSER;
+                if (next_screen == GO_TO_SEARCH)
                 {
                     /* Search added to the main menu, which Menu goes back to */
                     music_search_new();
                     search_back = GO_TO_ROOT;
                 }
 #endif
+
                 ignore_back_button_stub(false);
 
-                /* gone back to a place, Menu there goes back as it would */
                 if (next_screen != GO_TO_PREVIOUS)
-                    last_screen = going_back ? back_parent : GO_TO_ROOT;
-                going_back = false;
+                    last_screen = GO_TO_ROOT;
                 break;
 #ifdef HAVE_TAGCACHE
             case GO_TO_DBBROWSER:
@@ -2794,7 +2498,7 @@ void root_menu(void)
                 break;
             case GO_TO_PLUGIN:
             {
-                screen_shown = GO_TO_ROOT; /* a plugin, not gone back to */
+
                 char *key;
                 if (global_status.last_screen == GO_TO_SHORTCUTMENU)
                 {
@@ -2865,11 +2569,7 @@ void root_menu(void)
 load_next_screen: /* load_screen is inlined */
         {
             const int screen = next_screen;
-            screen_shown = screen;
-            shown_parent = last_screen == GO_TO_DBBROWSER && screen != GO_TO_DBBROWSER
-                           ? GO_TO_DBBROWSER : GO_TO_ROOT;
             next_screen = load_screen(screen);
-            place_requests_clear();
             note_music_origin(screen);
             if (screen == GO_TO_WPS)
             {

@@ -1481,39 +1481,6 @@ static void panel_before_draw(struct gui_synclist *lists)
     drawing = false;
 }
 
-/* Where an outermost menu other than the main menu was left last: the menus
-   gone through from its first, each with the row it was opened from, and the
-   one shown, its row and how far it was scrolled. Kept for each of the main
-   menu's two places (menu_keep_left()), where a held Menu switches to open it
-   again (menu_reopen_left()). */
-struct menu_left {
-    const struct menu_item_ex *start, *menu;
-    struct menu_data_t stack[MAX_MENUS];
-    int depth, selected;
-    int top[NB_SCREENS];
-};
-static struct menu_left left, left_kept[2];
-static int reopen_slot = -1;
-static bool reopen_enter;
-/* the row's function run by a reopen's enter, while it runs */
-static bool entering_again;
-
-bool menu_entering_again(void)
-{
-    return entering_again;
-}
-
-void menu_keep_left(int slot)
-{
-    left_kept[slot] = left;
-}
-
-void menu_reopen_left(int slot, bool enter)
-{
-    reopen_slot = slot;
-    reopen_enter = enter;
-}
-
 int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
             struct viewport parent[NB_SCREENS], bool hide_theme)
 {
@@ -1537,26 +1504,6 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
     if (!tree_root)
         tree_root = start_menu;
 
-    struct menu_data_t mstack[MAX_MENUS]; /* menu, selected */
-    int stack_top = 0;
-    /* menu_reopen_left() is for the next outermost menu only, and only if
-       that is the one kept */
-    const struct menu_left *const from = !outer_root && reopen_slot >= 0
-        && left_kept[reopen_slot].start == start_menu ? &left_kept[reopen_slot] : NULL;
-    const bool enter = from && reopen_enter;
-    if (!outer_root)
-    {
-        reopen_slot = -1;
-        reopen_enter = false;
-    }
-    if (from)
-    {
-        memcpy(mstack, from->stack, from->depth * sizeof(*mstack));
-        stack_top = from->depth;
-        menu = from->menu;
-        selected = from->selected;
-    }
-
     int old_audio_status = audio_status();
 
 #ifdef HAVE_TOUCHSCREEN
@@ -1572,6 +1519,8 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
         sb_set_persistent_title(title, icon, i);
         viewportmanager_theme_enable(i, !hide_theme, NULL);
     }
+    struct menu_data_t mstack[MAX_MENUS]; /* menu, selected */
+    int stack_top = 0;
 
     struct viewport *vps = NULL;
     menu_callback_type menu_callback = &empty_menu_callback;
@@ -1583,28 +1532,6 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
     start_action = init_menu_lists(menu, &lists, selected, true, parent,
                                    buf, sizeof buf);
     vps = *(lists.parent);
-    /* scrolled as it was, if its row is on the screen so; and the row
-       entered again, if it was left from what that opened (Up Next) */
-    if (from)
-    {
-        FOR_NB_SCREENS(i)
-        {
-            const int lines = list_get_nb_lines(&lists, i);
-            const int top = MAX(MIN(from->top[i], lists.nb_items - lines), 0);
-            const int sel = gui_synclist_get_sel_pos(&lists);
-            if (top <= sel && sel < top + lines)
-                lists.start_item[i] = top;
-        }
-        /* only on the row kept: not on another, the menu's first, if that
-           row has gone meanwhile */
-        if (enter && start_action == ACTION_ENTER_MENUITEM
-            && get_menu_selection(gui_synclist_get_sel_pos(&lists), menu)
-               == from->selected)
-        {
-            start_action = ACTION_STD_OK;
-            entering_again = true;
-        }
-    }
     in_stringlist = ((menu->flags&MENU_TYPE_MASK) == MT_RETURN_ID);
     /* load the callback, and only reload it if menu changes */
     get_menu_callback(menu, &menu_callback);
@@ -1623,17 +1550,8 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
         }
         else
         {
-            entering_again = false;
-            int timeout = list_do_action_timeout(&lists, HZ);
-            /* the main menu, Menu held: awake as its switch comes due, as the
-               hold's repeats come no oftener than 160 ms */
-            if (menu == &root_menu_ && stack_top == 0)
-            {
-                const long due = root_menu_switch_in();
-                if (due >= 0 && (timeout < 0 || due < timeout))
-                    timeout = due;
-            }
-            action = get_action(CONTEXT_MAINMENU|ALLOW_SOFTLOCK, timeout);
+            action = get_action(CONTEXT_MAINMENU|ALLOW_SOFTLOCK,
+                                list_do_action_timeout(&lists, HZ));
         }
             /* HZ so the status bar redraws corectly */
 
@@ -1656,17 +1574,8 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
         else
             action = new_action;
 
-        int switched;
         if (LIKELY(gui_synclist_do_button(&lists, &action)))
             continue;
-        /* the main menu, Menu held long enough (root_menu_switch_held()): the place
-           before the last, at once */
-        else if (menu == &root_menu_ && stack_top == 0 && !IS_SYSEVENT(action)
-                 && (switched = root_menu_switch_held()) != GO_TO_ROOT)
-        {
-            ret = switched;
-            done = true;
-        }
 #ifdef HAVE_QUICKSCREEN
         else if (action == ACTION_STD_QUICKSCREEN)
         {
@@ -2040,18 +1949,6 @@ int do_menu(const struct menu_item_ex *start_menu, int *start_selected,
             gui_synclist_draw(&lists);
             gui_synclist_speak_item(&lists);
         }
-    }
-
-    entering_again = false;
-    if (!outer_root && start_menu != &root_menu_)
-    {
-        left.start = start_menu;
-        left.menu = menu;
-        memcpy(left.stack, mstack, stack_top * sizeof(*mstack));
-        left.depth = stack_top;
-        left.selected = get_menu_selection(gui_synclist_get_sel_pos(&lists), menu);
-        FOR_NB_SCREENS(i)
-            left.top[i] = lists.start_item[i];
     }
 
     if (start_selected)

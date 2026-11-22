@@ -327,45 +327,6 @@ static void action_handle_backlight(bool backlight, bool ignore_next)
 */
 static bool waiting;
 
-/* The buttons held, as their events have come here, and since their press
-   went down: seen before a context's change or a wait for release eats them,
-   so that a hold is timed across the screens it goes through
-   (action_held_ticks()). Not the wheel, whose steps have no release. A
-   release read elsewhere (a screen reading the buttons itself, a queue
-   cleared or full) isn't seen: the buttons down now are asked as well, and
-   each press starts the time anew. */
-static int held_buttons;
-static long held_since;
-
-static void note_held(int button)
-{
-#if defined(BUTTON_SCROLL_FWD) && defined(BUTTON_SCROLL_BACK)
-    if (button & (BUTTON_SCROLL_FWD | BUTTON_SCROLL_BACK))
-        return;
-#endif
-    if (button & BUTTON_REL)
-        held_buttons = 0;
-    else if (!(button & BUTTON_REPEAT) || held_buttons != (button & ~BUTTON_REPEAT))
-    {
-        held_buttons = button & ~BUTTON_REPEAT;
-        held_since = current_tick;
-    }
-}
-
-/* a click as the next screen has drawn (action_click_after_draw()) */
-static bool click_after_draw;
-
-void action_click_after_draw(void)
-{
-    click_after_draw = true;
-}
-
-long action_held_ticks(int button)
-{
-    return held_buttons == button && button_status() == button
-           ? current_tick - held_since : 0;
-}
-
 static inline bool action_poll_button(action_last_t *last, action_cur_t *cur)
 {
     bool ret = true;
@@ -374,9 +335,6 @@ static inline bool action_poll_button(action_last_t *last, action_cur_t *cur)
     waiting = true;
     *button = button_get_w_tmo(cur->timeout);
     waiting = false;
-    if (*button != BUTTON_NONE && *button != BUTTON_REDRAW
-        && (*button & (SYS_EVENT|BUTTON_MULTIMEDIA)) == 0)
-        note_held(*button);
 
    /* ********************************************************
     * Can return button immediately, sys_event & multimedia
@@ -1303,15 +1261,7 @@ static int get_action_worker(action_last_t *last, action_cur_t *cur)
        a list that loads asks whether to stop, which may show a splash: the
        screen isn't there yet */
     if (!asking_abort)
-    {
         transition_run();
-        /* the screen is there, and the click due for its coming sounds */
-        if (click_after_draw)
-        {
-            click_after_draw = false;
-            keyclick_once();
-        }
-    }
 
     if (night_mode_poll(cur->context))
         return no_click(ACTION_REDRAW);

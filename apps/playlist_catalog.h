@@ -30,10 +30,6 @@ void catalog_select_playlist(const char *path);
 /* a playlist or folder moved: that playlist, or one in that folder, the
    catalogue's last still */
 void catalog_playlist_moved(const char *from, const char *to);
-/* The catalogue, viewed next, opens as it was left: at its folder and row, or
-   in On-The-Go's songs at theirs; as a held Menu switches to it. Off again
-   with false, if it didn't open. */
-void catalog_reopen_left(bool on);
 /* Whether the catalogue, viewed last, was left by Menu held in it or in a
    playlist's songs it opened: for the main menu, as from anywhere else, and
    not for the Music menu it may have been opened from */

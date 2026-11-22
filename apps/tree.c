@@ -154,22 +154,6 @@ static bool catalog_mine;
 /* the lead row of this kind selected as the list is loaded next, -1 for
    the entry's */
 static int catalog_select = -1;
-/* The catalogue as viewed, where it was left last: its folder and depth, in
-   Unsynced or not, and the row; opened there again as a held Menu switches
-   to it (tree_catalog_reopen_left()), the row selected as its list is loaded
-   then */
-static struct {
-    char dir[MAX_PATH];
-    int level, row;
-    bool mine;
-} catalog_left = { .row = -1 };
-static bool catalog_reopen;
-static int catalog_left_row = -1;
-
-void tree_catalog_reopen_left(void)
-{
-    catalog_reopen = catalog_left.row >= 0;
-}
 #ifdef HAVE_TAGCACHE
 /* In Music, an album's songs under its header (album_header.c): the rows it
    takes at the top, which aren't entries, and none selects; 0 for another
@@ -1091,16 +1075,12 @@ static int update_dir(void)
     if( tc.selected_item >= tc.filesindir)
         tc.selected_item=tc.filesindir-1;
 
-    /* on a row before the entries if one is to be; on the row the catalogue
-       was left at, gone back to by a held Menu (catalog_left); back on
-       On-The-Go, unless it was saved as a playlist, which the cursor goes to;
-       on On This iPod if the entry is forgotten; or on the entry, or with
-       none, the first row past Sort By */
+    /* on a row before the entries if one is to be; back on On-The-Go,
+       unless it was saved as a playlist, which the cursor goes to; on On
+       This iPod if the entry is forgotten; or on the entry, or with none,
+       the first row past Sort By */
     int row = catalog_select >= 0 ? catalog_lead_of(catalog_select) : -1;
     catalog_select = -1;
-    if (row < 0 && catalog_left_row >= 0)
-        row = MIN(catalog_left_row, list->nb_items - 1);
-    catalog_left_row = -1;
     if (row < 0 && catalog_otg && catalog_on_otg && !catalog_otg_empty)
         row = catalog_rows();
     if (row < 0 && forgotten)
@@ -2141,45 +2121,9 @@ int rockbox_browse(struct browse_context *browse)
                 if (*tc.dirfilter == SHOW_M3U)
                     tc.selected_item = -1;
             }
-#ifdef HAVE_TAGCACHE
-            /* not in a folder gone since, as after a sync: the catalogue's
-               top then, or it would close at once */
-            if (catalog_reopen && catalog_viewed())
-            {
-                if (dir_exists(catalog_left.dir))
-                {
-                    strmemccpy(tc.currdir, catalog_left.dir, sizeof(tc.currdir));
-                    tc.dirlevel = catalog_left.level;
-                    catalog_mine = catalog_left.mine;
-                    catalog_left_row = catalog_left.row;
-                    /* up from it, the folder by its name: another browser
-                       may have left rows of its own here meanwhile */
-                    for (int i = 0; i < tc.dirlevel && i < MAX_DIR_LEVELS; i++)
-                        tc.selected_item_history[i] = -1;
-                }
-                else
-                {
-                    strmemccpy(tc.currdir, browse->root, sizeof(tc.currdir));
-                    tc.selected_item = 0;
-                    tc.dirlevel = 0;
-                    catalog_mine = false;
-                }
-            }
-            catalog_reopen = false;
-#endif
 
             ret_val = dirbrowse();
             curr_context = last_context;
-#ifdef HAVE_TAGCACHE
-            catalog_left_row = -1; /* for its first list only */
-            if (catalog_viewed())
-            {
-                strmemccpy(catalog_left.dir, tc.currdir, sizeof(catalog_left.dir));
-                catalog_left.level = tc.dirlevel;
-                catalog_left.mine = catalog_mine;
-                catalog_left.row = gui_synclist_get_sel_pos(&tree_lists);
-            }
-#endif
         }
         else
         {

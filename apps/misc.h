@@ -292,7 +292,6 @@ typedef bool (*keyclick_callback)(int action, void* data);
 void keyclick_set_callback(keyclick_callback cb, void* data);
 /* Produce keyclick based upon button and global settings */
 void keyclick_click(bool rawbutton, int action);
-void keyclick_once(void);
 
 /* Return current ReplayGain mode a file should have (REPLAYGAIN_TRACK or
  * REPLAYGAIN_ALBUM) if ReplayGain processing is enabled, or -1 if no
