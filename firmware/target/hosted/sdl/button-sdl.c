@@ -676,6 +676,12 @@ static void button_event(int key, bool pressed)
  *                    keys before taken: none is lost to the boot's waits, nor
  *                    to a screen that loads or clears the queue as it opens,
  *                    however short the gap. "!Return" doesn't wait.
+ *   <key>+<key> [<hold>] [<first up>]
+ *                    two buttons as a chord: the first pressed, then after
+ *                    RBSIM_KEYGAP the second as well, both held for <hold>
+ *                    (200 if not given); then <first up> 0 (or none) lets the
+ *                    first go first, 1 the second, the other going RBSIM_KEYGAP
+ *                    later: "Return+Space 200 1", Select with Play
  *   <cmd>*<n> ...    a command n times: "Down*421"
  *   wheel <steps> <stage>
  *                    the click wheel turned <steps> steps, back if negative,
@@ -700,17 +706,26 @@ static void button_event(int key, bool pressed)
  *                    (kernel-sdl.c)
  */
 
-/* The script's press, read by the ticks after script_press_tick, as many as
-   script_press_ticks: however late its thread runs, a press lasts that long */
-static int script_press_btn;
+/* The script's press, read by the ticks after script_press_tick: its steps,
+   each its buttons for so many ticks, a chord's three (one down, both, one
+   up), a button's one: however late its thread runs, a press lasts that
+   long */
+#define SCRIPT_STEPS 3
+static int script_press_btn[SCRIPT_STEPS];
+static int script_press_ticks[SCRIPT_STEPS];
 static long script_press_tick;
-static int script_press_ticks;
 
 static int script_pressed(void)
 {
-    if (script_press_btn && TIME_AFTER(current_tick, script_press_tick)
-        && !TIME_AFTER(current_tick, script_press_tick + script_press_ticks))
-        return script_press_btn;
+    if (!TIME_AFTER(current_tick, script_press_tick))
+        return 0;
+    long t = current_tick - script_press_tick - 1;
+    for (int i = 0; i < SCRIPT_STEPS; i++)
+    {
+        if (t < script_press_ticks[i])
+            return script_press_btn[i];
+        t -= script_press_ticks[i];
+    }
     return 0;
 }
 #else
@@ -815,8 +830,10 @@ static void script_key(SDL_Keycode key, int hold_ms, bool now)
         /* no tick reads it half set */
         const int oldlevel = disable_irq_save();
         script_press_tick = current_tick;
-        script_press_ticks = hold;
-        script_press_btn = b;
+        for (int i = 0; i < SCRIPT_STEPS; i++)
+            script_press_btn[i] = script_press_ticks[i] = 0;
+        script_press_ticks[0] = hold;
+        script_press_btn[0] = b;
         restore_irq(oldlevel);
         script_sleep_until(script_press_tick + hold + gap);
     }
@@ -828,6 +845,38 @@ static void script_key(SDL_Keycode key, int hold_ms, bool now)
         button_event(key, false);
         script_sleep_until(current_tick + MAX(SCRIPT_TICKS(script_keygap), 1));
     }
+}
+
+/* "Return+Space": two buttons as a chord, pressed and let go apart */
+static void script_chord(const char *names, int hold_ms, bool second_up_first,
+                         bool now)
+{
+    char first[64];
+    const char *plus = strchr(names, '+');
+    const size_t len = MIN((size_t)(plus - names), sizeof(first) - 1);
+    memcpy(first, names, len);
+    first[len] = '\0';
+    const int a = key_to_button(SDL_GetKeyFromName(first));
+    const int b = key_to_button(SDL_GetKeyFromName(plus + 1));
+    if (!a || !b || ((a | b) & (BUTTON_SCROLL_FWD | BUTTON_SCROLL_BACK)))
+    {
+        printf("RBSIM_SCRIPT: no chord of '%s'\n", names);
+        return;
+    }
+    if (!now)
+        script_wait_ui();
+    const int hold = MAX(SCRIPT_TICKS(hold_ms), 2);
+    const int gap = MAX(SCRIPT_TICKS(script_keygap), 2);
+    const int oldlevel = disable_irq_save();
+    script_press_tick = current_tick;
+    script_press_btn[0] = a;
+    script_press_ticks[0] = gap;
+    script_press_btn[1] = a | b;
+    script_press_ticks[1] = hold;
+    script_press_btn[2] = second_up_first ? a : b;
+    script_press_ticks[2] = gap;
+    restore_irq(oldlevel);
+    script_sleep_until(script_press_tick + 3 * gap + hold);
 }
 
 #ifdef HAVE_WHEEL_ACCELERATION
@@ -892,6 +941,8 @@ static bool script_command(const char *cmd, int argc, int a, int b)
     else if (!strcmp(cmd, "wheel"))
         script_wheel(a, argc >= 3 ? b : 0, now);
 #endif
+    else if (strchr(cmd, '+') && cmd[1])
+        script_chord(cmd, argc >= 2 ? a : 200, argc >= 3 && b, now);
     else if (!strcmp(cmd, "quit"))
     {
         SDL_Event ev = { .type = SDL_QUIT };

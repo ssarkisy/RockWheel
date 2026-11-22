@@ -306,11 +306,13 @@ enum ui_tone_colour {
 /* Classic's colours, as its user chooses among them, macOS's accent colours:
    Multicolor first, as in macOS, a colour a section as Neo's; its own blue
    as the default; the Appearance pane's Pink, not systemPink, which is
-   nearly Red */
+   nearly Red; after it Hot Pink, a vivid one of its own, for a pink case.
+   The setting is read and written by name, so a colour's number may move */
 enum ui_accent_colour {
     UI_ACCENT_MULTICOLOR,
-    UI_ACCENT_BLUE, UI_ACCENT_PURPLE, UI_ACCENT_PINK, UI_ACCENT_RED,
-    UI_ACCENT_ORANGE, UI_ACCENT_YELLOW, UI_ACCENT_GREEN, UI_ACCENT_GRAPHITE,
+    UI_ACCENT_BLUE, UI_ACCENT_PURPLE, UI_ACCENT_PINK, UI_ACCENT_HOT_PINK,
+    UI_ACCENT_RED, UI_ACCENT_ORANGE, UI_ACCENT_YELLOW, UI_ACCENT_GREEN,
+    UI_ACCENT_GRAPHITE,
     UI_ACCENT_COUNT
 };
 #define UI_ACCENT_DEFAULT UI_ACCENT_BLUE

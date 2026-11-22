@@ -20425,3 +20425,45 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_COLOUR_HOT_PINK
+  desc: a value of Colour under Settings > Appearance in the Classic theme, a row of its list right after Pink: the name of a vivid, saturated pink, brighter than Pink, as a pink iPod case has (hot pink, shocking pink)
+  user: core
+  <source>
+    *: "Hot Pink"
+  </source>
+  <dest>
+    *: "Arrosa bizia"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_SORT_NEWEST_EPISODE
+  desc: Music > Podcasts, Sort By: the shows in the order of their newest episodes, the show with the newest episode first (the other value is A–Z). A value at the right end of the row, after Sort By as translated: as short as can be
+  user: core
+  <source>
+    *: "Newest Episode"
+  </source>
+  <dest>
+    *: "Atal berriena"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_VOLUME_NUMBER
+  desc: a setting of Settings > Appearance, the last row of its Now Playing section, On or Off: Now Playing shows the volume's level as a number under its volume bar while the volume changes ("Volume: 62%"); off, the bar alone
+  user: core
+  <source>
+    *: "Volume Number"
+  </source>
+  <dest>
+    *: "Bolumen-zenbakia"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

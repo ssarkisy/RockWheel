@@ -1349,6 +1349,22 @@ static int open_cover_flow(void)
 MENUITEM_FUNCTION(cover_flow_item, MENU_FUNC_CHECK_RETVAL, ID2P(LANG_COVER_FLOW),
                   open_cover_flow, NULL, Icon_NOICON);
 
+/* Select with Play in Now Playing, the hotkey's default: Cover Flow as this
+   menu's row opens it, Menu there back to Now Playing; the screen it ended
+   at as the menu over Now Playing would have it (gui_wps_show()) */
+static int hotkey_cover_flow(void)
+{
+    switch (open_cover_flow())
+    {
+        case GO_TO_ROOT:
+            return ONPLAY_MAINMENU;
+        case GO_TO_PLUGIN:
+            return ONPLAY_PLUGIN;
+        default:
+            return ONPLAY_OK;
+    }
+}
+
 /* where the lists open from a menu over another screen */
 enum {
     LISTS_AT_PLAYING,   /* the track playing */
@@ -2390,6 +2406,14 @@ static const struct hotkey_assignment hotkey_items[] = {
       .return_code = ONPLAY_FUNC_RETURN,
       .flags = HOTKEY_FLAG_TREE,
       .icon = Icon_Plugin},
+    /* Now Playing's own Cover Flow, not the bare plugin above: config.cfg
+       names it "Cover Flow" */
+    { .action = HOTKEY_COVER_FLOW,
+      .lang_id = LANG_COVER_FLOW,
+      .func = HOTKEY_FUNC(hotkey_cover_flow, NULL),
+      .return_code = ONPLAY_FUNC_RETURN,
+      .flags = HOTKEY_FLAG_WPS,
+      .icon = Icon_NOICON},
 #endif
 };
 

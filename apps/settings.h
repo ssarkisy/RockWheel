@@ -1172,6 +1172,16 @@ struct user_settings
     /* the user's preset the EQ is set to with eq_preset EQ_ID_FILE, by its
        file's path from /.rockbox/eqs, as "AutoEq/HD 650 ParametricEQ.txt" */
     char eq_preset_file[EQ_PATH_MAX];
+    /* An artist's, album artist's or composer's albums, as the Sort By atop
+       them sorts them: 0 by year, 1 by name. One for all of them, apart from
+       Music > Albums' albums_sort */
+    int artist_albums_sort;
+    /* Music > Podcasts, as its first row sorts the shows: 0 by name from A
+       to Z, 1 the show with the newest episode first */
+    int podcasts_sort;
+    /* Settings > Appearance > Volume Number: Now Playing's level under its
+       volume bar, "Volume: 62%" (the skins' %nv); on at first */
+    bool volume_number;
 };
 
 /* global settings */

@@ -242,6 +242,8 @@ MENUITEM_SETTING_SHARED(angled_cover_item, &global_settings.angled_cover,
 #endif
 MENUITEM_SETTING(np_rating_item, &global_settings.np_rating, NULL);
 MENUITEM_SETTING(np_format_item, &global_settings.np_format, NULL);
+/* the level under Now Playing's volume bar, "Volume: 62%" */
+MENUITEM_SETTING(volume_number_item, &global_settings.volume_number, NULL);
 
 MENUITEM_SETTING(ui_theme_item, &global_settings.ui_theme, NULL);
 MENUITEM_SETTING_SHARED(dark_theme_item, &global_settings.dark_theme, NULL);
@@ -370,7 +372,7 @@ MAKE_MENU(appearance_menu, ID2P(LANG_APPEARANCE), NULL, Icon_NOICON,
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
           &cover_colours_item, &status_icons_item, &angled_cover_item,
 #endif
-          &np_rating_item, &np_format_item,
+          &np_rating_item, &np_format_item, &volume_number_item,
           );
 
 /* after the screen of a value of the mode */

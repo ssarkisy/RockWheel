@@ -195,11 +195,27 @@ static bool works_dark(int button)
 }
 #endif
 
+/* A new press that adds a button to those held, a chord's second, as Select
+   with Play: posted even while the queue holds something, as the first one's
+   press while the screen is drawn after it. Any other new press is dropped
+   then (button_queue_try_post(): presses don't pile up behind a busy
+   screen); the chord was too, and Now Playing missed it. Set by
+   button_tick() for each new press */
+static bool chord_press;
+
+static void post_press(int button, int data)
+{
+    if (chord_press)
+        button_queue_post(button, data);
+    else
+        button_queue_try_post(button, data);
+}
+
 #ifdef HAVE_BACKLIGHT
 /* disabled function is shared between Main & Remote LCDs */
 static bool filter_first_keypress_disabled(int button, int data)
 {
-    button_queue_try_post(button, data);
+    post_press(button, data);
     return false;
 }
 
@@ -473,6 +489,7 @@ static void button_tick(void)
                 }
                 else
                 {
+                    chord_press = lastbtn && !(lastbtn & ~btn);
 #ifdef HAVE_BACKLIGHT
 #ifdef HAVE_REMOTE_LCD
                     if (btn & BUTTON_REMOTE) {
@@ -493,8 +510,9 @@ static void button_tick(void)
                         buttonlight_on();
                     }
 #else /* no backlight, nothing to skip */
-                    button_queue_try_post(btn, data);
+                    post_press(btn, data);
 #endif
+                    chord_press = false;
                     post = false;
                 }
                 reset_poweroff_timer();

@@ -403,6 +403,10 @@ struct search_instruction;
 static bool section_is(const struct search_instruction *si, int lang);
 static bool is_compilations(const struct search_instruction *si);
 static bool artists_solo(const struct search_instruction *si);
+static bool persons_list(const struct search_instruction *si, int table,
+                         int level);
+static bool podcasts_shows(const struct search_instruction *si, int table,
+                           int level);
 static bool album_is_compilation(int no);
 static int32_t playing_entry(unsigned long *elapsed);
 
@@ -913,6 +917,11 @@ static uint32_t tagtree_data_crc(struct tree_context* c)
         songs ? songs_order() : 0,
         songs ? list_covers_on() : 0, /* its rows in one line or two */
         of_albums ? global_settings.albums_sort : 0,
+        /* an artist's albums by their Sort By, and Podcasts' shows */
+        persons_list(csi, c->currtable, c->currextra) ?
+            global_settings.artist_albums_sort : 0,
+        podcasts_shows(csi, c->currtable, c->currextra) ?
+            global_settings.podcasts_sort : 0,
         /* their rows in one line or two, split by album artists or not */
         of_albums ? global_settings.album_artists : 0,
         of_albums ? list_covers_on() : 0,
@@ -3310,13 +3319,16 @@ static struct song_place *songs_order_read(struct tree_context *c, int order,
     return ok ? rows : NULL;
 }
 
-/* A person's albums: an artist's, album artist's or composer's, which go by
-   their years once the table of the years is made, and have All Songs */
-static bool persons_albums(struct tree_context *c, int level, int tag)
+/* A person's albums: an artist's, album artist's or composer's, the list of
+   a search's level, which go by their years once the table of the years is
+   made, or by name by their Sort By, and have All Songs */
+static bool persons_list(const struct search_instruction *si, int table,
+                         int level)
 {
-    if (tag != tag_album || c->currtable != TABLE_NAVIBROWSE || level <= 0)
+    if (!si || table != TABLE_NAVIBROWSE || level <= 0
+        || level >= si->tagorder_count || si->tagorder[level] != tag_album)
         return false;
-    switch (csi->tagorder[level - 1])
+    switch (si->tagorder[level - 1])
     {
         case tag_virt_canonicalartist:
         case tag_artist:
@@ -3325,6 +3337,20 @@ static bool persons_albums(struct tree_context *c, int level, int tag)
             return true;
     }
     return false;
+}
+
+static bool persons_albums(struct tree_context *c, int level, int tag)
+{
+    return tag == tag_album && persons_list(csi, c->currtable, level);
+}
+
+/* their Sort By, global_settings.artist_albums_sort: by year, as they always
+   went, or by name */
+enum { PERSONS_BY_YEAR, PERSONS_BY_NAME };
+
+static bool persons_by_name(void)
+{
+    return global_settings.artist_albums_sort == PERSONS_BY_NAME;
 }
 
 /* each song of a person's albums, counted for All Songs, as the search goes
@@ -3345,6 +3371,23 @@ static bool section_is(const struct search_instruction *si, int lang)
 static bool in_section(int lang)
 {
     return section_is(csi, lang);
+}
+
+/* Music > Podcasts' shows, its list at the top, with their Sort By,
+   global_settings.podcasts_sort: by name, as they always went, or the show
+   whose newest episode is the newest first. Not Audiobooks' books */
+enum { SHOWS_BY_NAME, SHOWS_BY_NEWEST };
+
+static bool podcasts_shows(const struct search_instruction *si, int table,
+                           int level)
+{
+    return si && table == TABLE_NAVIBROWSE && level == 0
+           && si->tagorder[0] == tag_album && section_is(si, LANG_PODCASTS);
+}
+
+static bool shows_by_newest(void)
+{
+    return global_settings.podcasts_sort == SHOWS_BY_NEWEST;
 }
 
 /* Music > Compilations, in Albums' form in tagnavi.config: of the songs part
@@ -3576,6 +3619,23 @@ static int compare_episodes(const void *p1, const void *p2)
     if (ka != kb)
         return ka < kb ? -1 : 1;
     return a < b ? -1 : a > b;
+}
+
+/* Podcasts by Newest Episode: the show whose newest episode is the newest
+   first, by its newest episode's date (sums->newest, the date show_subline()
+   shows when it shows one), those without a date last, those of a date by
+   name (compare_rows()). Its sums, past the names' room, as the list is made
+   (make_entries()) */
+static const struct show_sums *newest_sums;
+
+static int compare_newest(const void *p1, const void *p2)
+{
+    const struct tagentry *e1 = p1, *e2 = p2;
+    const int32_t n1 = newest_sums[-1 - e1->album.year].newest;
+    const int32_t n2 = newest_sums[-1 - e2->album.year].newest;
+    if (n1 != n2)
+        return n1 > n2 ? -1 : 1;
+    return compare_rows(e1, e2);
 }
 
 /* An album's songs, in a section of albums: not a show's episodes nor a
@@ -4272,6 +4332,19 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         current_entry_count++;
         c->special_entry_count++;
     }
+    /* and Podcasts', over the shows, which their sums order by their newest
+       episodes: taken off again below without all of them (shows_sorted) */
+    const bool shows_sort = shows && !books;
+    if (shows_sort)
+    {
+        *dptr++ = (struct tagentry){
+            .name = ID2P(LANG_SORT_BY), .newtable = TABLE_NAVIBROWSE,
+            .extraseek = -2, .customaction = ONPLAY_CUSTOMACTION_SORT_BY,
+            .album = { .year = 0, .no = -1 }
+        };
+        current_entry_count++;
+        c->special_entry_count++;
+    }
     /* past the songs of the parts before, in their rows after those at the
        top */
     const int skip = offset > 0 ? offset - special_before : 0;
@@ -4503,6 +4576,16 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         }
         entries_years = true;
     }
+    /* and with their years, two albums or more, Sort By atop them, over All
+       Songs (below), with room for both rows. By name, its other order: by
+       their places in the album tag's file, which Updating Library sorted,
+       as Albums by name has them; the years kept for their second lines, and
+       not before their names in one line, nor Quick Scroll's */
+    const bool persons_sort = persons && entries_years
+        && current_entry_count - c->special_entry_count >= 2
+        && current_entry_count + 2 <= c->cache.max_entries;
+    if (persons_sort && persons_by_name())
+        entries_years = false;
     /* Shows in two lines if all were counted and the sums still fit: sums'
        number in album.year, cover's album in album.no */
     if (shows && !c->dirfull && !counting.full && counting.count <= INT16_MAX
@@ -4536,6 +4619,18 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             entries_shows = counting.count;
             entries_books = books;
         }
+    }
+    /* Podcasts' Sort By with every show's sums, which its other order is
+       made of; without them, the shows in one line by name, and no row */
+    const bool shows_sorted = shows_sort && entries_shows > 0;
+    if (shows_sort && !shows_sorted)
+    {
+        struct tagentry *entries = get_entries(c);
+        const int row = c->special_entry_count - 1;
+        memmove(&entries[row], &entries[row + 1],
+                (current_entry_count - row - 1) * sizeof(*entries));
+        current_entry_count--;
+        c->special_entry_count--;
     }
     /* Albums in two lines, as Artists in Albums or Covers in Lists has them:
        each row's album, the first of its name, and the name's year; with
@@ -4674,9 +4769,12 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         entries_episodes = true;
     }
 
+    /* Podcasts by Newest Episode, from the shows' sums, in memory */
+    const bool shows_newest = shows_sorted && shows_by_newest();
     /* A long list stays in the database's order, as sorted already: 13000 names
        took seconds, and this is the order it always had in chunks */
-    if (sort && !by_date && current_entry_count <= TAGTREE_SORT_MAX)
+    if ((sort || shows_newest) && !by_date
+        && current_entry_count <= TAGTREE_SORT_MAX)
     {
         /* by place, as the database has them; a format's names by what they
            show, as they did, files' by their names; songs without their
@@ -4693,10 +4791,12 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             qsort_fn = sort_inverse ? strncasecmp_inv : strncasecmp;
 
         struct tagentry *entries = get_entries(c);
+        newest_sums = counting.end;
         qsort(&entries[c->special_entry_count],
               current_entry_count - c->special_entry_count,
               sizeof(struct tagentry),
               entries_years ? compare_years :
+              shows_newest ? compare_newest :
               c->currtable == TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS ? compare_with_albums : compare
         );
     }
@@ -4720,6 +4820,9 @@ static int make_entries(struct tree_context *c, int offset, bool init)
         entries_initials = INITIALS_BY_ARTIST;
         entries_initials_tag = tag_albumartist;
     }
+    /* Podcasts by Newest Episode: none, as their names aren't in order */
+    if (shows_newest)
+        entries_initials = INITIALS_NONE;
     /* by year, the album's year before the title, as Albums by year; by
        artist or album, Quick Scroll by that name */
     if (songs_by != SONGS_BY_NAME)
@@ -4777,6 +4880,7 @@ static int make_entries(struct tree_context *c, int offset, bool init)
        top. Not if they are more than its list can gather in half the lists'
        room, with a row to spare at its top; nor over albums with no list
        below them */
+    const int persons_top = c->special_entry_count;
     if (persons && !c->dirfull
         && current_entry_count - c->special_entry_count >= 2
         && persons_songs < c->cache.max_entries / 2
@@ -4791,6 +4895,21 @@ static int make_entries(struct tree_context *c, int offset, bool init)
             .extraseek = -3, /* not <Random>'s, nor Sort By's */
             .customaction = ONPLAY_NO_CUSTOMACTION,
             .album = { .year = YEAR_LAST, .no = -1 }
+        };
+        c->special_entry_count++;
+        current_entry_count++;
+    }
+    /* and the albums' Sort By over it, Select switching it in place, as
+       Playlists' */
+    if (persons_sort)
+    {
+        struct tagentry *entries = get_entries(c);
+        memmove(&entries[persons_top + 1], &entries[persons_top],
+                (current_entry_count - persons_top) * sizeof(*entries));
+        entries[persons_top] = (struct tagentry){
+            .name = ID2P(LANG_SORT_BY), .newtable = TABLE_NAVIBROWSE,
+            .extraseek = -2, .customaction = ONPLAY_CUSTOMACTION_SORT_BY,
+            .album = { .year = 0, .no = -1 }
         };
         c->special_entry_count++;
         current_entry_count++;
@@ -5277,9 +5396,10 @@ bool tagtree_go_to_from(int *dirlevel, int *selected_item)
    USB is connected, not as music starts, which it would make wait: its
    pointers as the menus' and searches' numbers */
 #define KEPT_PLACE_FILE  ROCKBOX_DIR "/tagtree_from.dat"
-/* "RWF2": the rows of a file from before, with Shuffle Songs at the lists'
-   tops, would be one off */
-#define KEPT_PLACE_MAGIC 0x32465752
+/* "RWF3": the rows of a file from before would be one off, without the Sort
+   By rows over an artist's albums and Podcasts' shows (and, before "RWF2",
+   with Shuffle Songs at the lists' tops) */
+#define KEPT_PLACE_MAGIC 0x33465752
 struct kept_place {
     uint32_t magic;
     uint32_t size;          /* of the place, as this build has it */
@@ -6392,6 +6512,30 @@ void tagtree_compilations_changed(int *dirlevel, int *selected_item)
         section_rows[section] = -1;
 }
 
+/* A place in a list whose rows are in another order now, or below one: at
+   its first row (-1, as tagtree_load() finds it), or back up there at its
+   first row, the rows below it to go back to forgotten; as
+   albums_place_reset() has it for Albums, at whatever level the list is */
+typedef bool (*list_test)(const struct search_instruction *si, int table,
+                          int level);
+static void place_reorder_reset(struct tagtree_place *place, list_test reordered)
+{
+    for (int d = 0; d <= place->dirlevel && d < MAX_DIR_LEVELS; d++)
+    {
+        const bool here = d == place->dirlevel;
+        const int table = here ? place->currtable : place->table_history[d];
+        const int level = here ? place->currextra : place->extra_history[d];
+        if (!reordered(place->csi, table, level))
+            continue;
+        if (here)
+            place->selected_item = -1;
+        else
+            place->selected_item_history[d] = -1;
+        place->max_history_level = MIN(place->max_history_level, d);
+        return;
+    }
+}
+
 /* a place in All Songs, whose songs are in the other order: at its first */
 static void all_songs_place_reset(struct tagtree_place *place)
 {
@@ -6428,6 +6572,33 @@ void tagtree_sort_by_switched(struct tree_context *c)
         const int section = section_of(LANG_SONGS);
         if (section >= 0)
             section_rows[section] = -1;
+    }
+    else if (persons_list(csi, c->currtable, c->currextra))
+    {
+        /* every artist's albums in the other order: a place in one, or
+           below it, at its first row; the rows below this list forgotten */
+        global_settings.artist_albums_sort =
+            persons_by_name() ? PERSONS_BY_YEAR : PERSONS_BY_NAME;
+        max_history_level = MIN(max_history_level, c->dirlevel);
+        place_reorder_reset(&saved_place, persons_list);
+        place_reorder_reset(&go_to_place, persons_list);
+        place_reorder_reset(&browse_place, persons_list);
+        for (int i = 0; i < KEPT_PLACES; i++)
+            place_reorder_reset(kept_places[i], persons_list);
+    }
+    else if (podcasts_shows(csi, c->currtable, c->currextra))
+    {
+        global_settings.podcasts_sort =
+            shows_by_newest() ? SHOWS_BY_NAME : SHOWS_BY_NEWEST;
+        max_history_level = MIN(max_history_level, c->dirlevel);
+        const int section = section_of(LANG_PODCASTS);
+        if (section >= 0)
+            section_rows[section] = -1;
+        place_reorder_reset(&saved_place, podcasts_shows);
+        place_reorder_reset(&go_to_place, podcasts_shows);
+        place_reorder_reset(&browse_place, podcasts_shows);
+        for (int i = 0; i < KEPT_PLACES; i++)
+            place_reorder_reset(kept_places[i], podcasts_shows);
     }
     else
     {
@@ -8436,7 +8607,8 @@ char* tagtree_get_entry_name(struct tree_context *c, int id,
 
     /* Sort By, as a setting with its value at the right end: of Albums,
        Year, Name or Artist, of All Songs, Album or Name, of Songs, one of
-       four */
+       four, of an artist's albums, Year or Name, of Podcasts, A-Z or Newest
+       Episode */
     if (entry->customaction == ONPLAY_CUSTOMACTION_SORT_BY)
     {
         static const int songs_values[] = {
@@ -8453,6 +8625,10 @@ char* tagtree_get_entry_name(struct tree_context *c, int id,
                               : albums_values[albums_setting()];
         if (!all_songs && is_songs(csi))
             value = songs_values[songs_setting()];
+        else if (persons_list(csi, c->currtable, c->currextra))
+            value = persons_by_name() ? LANG_SORT_NAME : LANG_SORT_YEAR;
+        else if (podcasts_shows(csi, c->currtable, c->currextra))
+            value = shows_by_newest() ? LANG_SORT_NEWEST_EPISODE : LANG_SORT_A_Z;
         snprintf(buf, bufsize, "%s\t%s", str(LANG_SORT_BY), str(value));
         return buf;
     }

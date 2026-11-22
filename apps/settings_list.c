@@ -827,10 +827,17 @@ struct eq_band_setting eq_defaults[EQ_NUM_BANDS] = {
     { EQ_FILTER_HIGH_SHELF, 16000, 7, 0 },
 };
 
-/* only the hotkey, and that off: Select with Play opened Rockbox's view of the
-   playlist, which a stock iPod has no such press for */
+/* only the hotkey: Select with Play opens Cover Flow at the album playing, as
+   the row of Now Playing's menu does; off without the database, which Cover
+   Flow is of, and without a hotkey, where the first item is a row of that
+   menu, which has Cover Flow already. The other items are off, as a stock
+   iPod has no such rows */
 static const int wps_context_menu_default =
+#if defined(HAVE_TAGCACHE) && defined(HAVE_HOTKEY)
+    HK_CTX_SET(0, HOTKEY_COVER_FLOW); /* hotkey*/
+#else
     HK_CTX_SET(0, HOTKEY_OFF); /* hotkey*/
+#endif
 
 #ifdef HAVE_HOTKEY
 static const int tree_hotkey_default = HOTKEY_OFF;
@@ -1858,6 +1865,9 @@ const struct settings_list settings[] = {
                    "always,rated,never", NULL, 3, ID2P(LANG_ALWAYS),
                    ID2P(LANG_NP_RATING_RATED), ID2P(LANG_NEVER)),
     OFFON_SETTING(0, np_format, LANG_NP_FORMAT, false, "now playing format", NULL),
+    /* and the level under the volume bar as the volume changes (%nv) */
+    OFFON_SETTING(0, volume_number, LANG_VOLUME_NUMBER, true,
+                  "now playing volume number", NULL),
     /* backlight fading */
 #if defined(HAVE_BACKLIGHT_FADING_INT_SETTING)
     TABLE_SETTING_LIST(F_TIME_SETTING | F_ALLOW_ARBITRARY_VALS, backlight_fade_in,
@@ -2984,6 +2994,15 @@ const struct settings_list settings[] = {
     /* and Playlists', one for its top and all its folders */
     CHOICE_SETTING(0, playlists_sort, LANG_SORT_BY, 0, "playlists sort",
                    "a-z,z-a", NULL, 2, ID2P(LANG_SORT_A_Z), ID2P(LANG_SORT_Z_A)),
+    /* and an artist's albums', one for all the artists', album artists' and
+       composers' lists of albums */
+    CHOICE_SETTING(0, artist_albums_sort, LANG_SORT_BY, 0, "artist albums sort",
+                   "year,name", NULL, 2, ID2P(LANG_SORT_YEAR),
+                   ID2P(LANG_SORT_NAME)),
+    /* and Music > Podcasts' shows' */
+    CHOICE_SETTING(0, podcasts_sort, LANG_SORT_BY, 0, "podcasts sort",
+                   "a-z,newest", NULL, 2, ID2P(LANG_SORT_A_Z),
+                   ID2P(LANG_SORT_NEWEST_EPISODE)),
     /* Settings > Appearance: Albums' rows with each album's year and album
        artist under its name, and the albums' covers beside them in their
        lists */
@@ -3190,13 +3209,14 @@ const struct settings_list settings[] = {
        by name; Blue, Classic's own, the default */
     CHOICE_SETTING(F_CB_ON_SELECT_ONLY|F_CB_ONLY_IF_CHANGED, classic_colour,
                    LANG_THEME_COLOUR, UI_ACCENT_DEFAULT, "classic colour",
-                   "multicolor,blue,purple,pink,red,orange,yellow,green,graphite",
+                   "multicolor,blue,purple,pink,hot pink,red,orange,yellow,green,"
+                   "graphite",
                    classic_colour_changed, UI_ACCENT_COUNT,
                    ID2P(LANG_COLOUR_MULTICOLOR), ID2P(LANG_COLOUR_BLUE),
                    ID2P(LANG_COLOUR_PURPLE), ID2P(LANG_COLOUR_PINK),
-                   ID2P(LANG_COLOUR_RED), ID2P(LANG_COLOUR_ORANGE),
-                   ID2P(LANG_COLOUR_YELLOW), ID2P(LANG_COLOUR_GREEN),
-                   ID2P(LANG_COLOUR_GRAPHITE)),
+                   ID2P(LANG_COLOUR_HOT_PINK), ID2P(LANG_COLOUR_RED),
+                   ID2P(LANG_COLOUR_ORANGE), ID2P(LANG_COLOUR_YELLOW),
+                   ID2P(LANG_COLOUR_GREEN), ID2P(LANG_COLOUR_GRAPHITE)),
     /* Settings > Appearance > Colour in Dieter: its signal colour, in the
        order of enum ui_signal_colour; taken on Select, as it draws the
        screen again. Read by name; Orange the default */

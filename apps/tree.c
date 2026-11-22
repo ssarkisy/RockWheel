@@ -1515,9 +1515,9 @@ static int dirbrowse(void)
                 }
                 else if (customaction == ONPLAY_CUSTOMACTION_SORT_BY)
                 {
-                    /* Sort By, Albums', All Songs' or Songs': the list again
-                       in the next order at once, its row still selected, as
-                       the rows over it stay */
+                    /* Sort By, of Albums, Songs, All Songs, an artist's
+                       albums or Podcasts: the list again in the next order at
+                       once, its row still selected, as the rows over it stay */
                     if (button == ACTION_STD_OK)
                     {
                         tagtree_sort_by_switched(&tc);

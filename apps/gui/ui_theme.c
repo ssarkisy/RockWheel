@@ -1191,6 +1191,11 @@ struct ui_accent {
 static const struct ui_accent accent_set[UI_ACCENT_COUNT] = {
     [UI_ACCENT_PURPLE]   = { 2928, 7857,  8784 }, /* #CB30E0 */
     [UI_ACCENT_PINK]     = { 3318, 6802,  9686 }, /* #F74F9E */
+    /* not a macOS colour, nor at the rule's 87 % and 74 %: a vivid pink of
+       its own, for a pink case, its saturation past ACCENT_ONE so that the
+       blue's is raised, up to the full. The selection's middle #CE317B
+       (0xC98F), white on it 4.8 to 1, on its light end 3.4 */
+    [UI_ACCENT_HOT_PINK] = { 3298, 11140, 9900 },
     [UI_ACCENT_RED]      = { 3588, 7804, 10000 }, /* #FF383C */
     [UI_ACCENT_ORANGE]   = {  282, 8431, 10000 }, /* #FF8D28 */
     [UI_ACCENT_YELLOW]   = {  420, 8000,  9000 }, /* #FFCC00 */

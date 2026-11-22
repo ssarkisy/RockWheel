@@ -1908,6 +1908,10 @@ const char *get_token_value(struct gui_wps *gwps,
             return menu_theme_wide() ? "w" : NULL;
         case SKIN_TOKEN_VOLUME_PERCENT:
         {
+            /* nothing with Volume Number off: the bar alone, as on a stock
+               iPod, whatever the skin */
+            if (!global_settings.volume_number)
+                return NULL;
             /* as much of the bar as it fills, rounded, or a step of the limit's
                as the limit says it, so that the volume at a limit of 80% says 80%;
                then the limit, if one is set */

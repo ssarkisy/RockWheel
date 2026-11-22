@@ -29,7 +29,7 @@ enum onplay_custom_action {
     ONPLAY_CUSTOMACTION_PLAYLISTS,
     ONPLAY_CUSTOMACTION_COVERFLOW,
     ONPLAY_CUSTOMACTION_SEARCH,
-    ONPLAY_CUSTOMACTION_SORT_BY, /* Music > Albums' and All Songs' Sort By */
+    ONPLAY_CUSTOMACTION_SORT_BY, /* the Sort By of Music's lists */
     ONPLAY_CUSTOMACTION_BOOK_RESUME, /* a book's Resume or Listen Again */
 };
 
@@ -62,6 +62,7 @@ enum hotkey_action {
     HOTKEY_BOOKMARK_LIST,
     HOTKEY_ALBUMART,
     HOTKEY_SHOW_IN_FILES,
+    HOTKEY_COVER_FLOW, /* Now Playing's: Cover Flow at the album playing */
     HOTKEY_CONTEXT_MENU = 0x3E, /* Last item shows / executes above actions in a menu */
     /* Note no more than 62 items */
 };
