@@ -156,6 +156,7 @@ static const struct {
     { &global_settings.unplug_mode, LANG_HINT_HEADPHONE_UNPLUG },
 #endif
     { &global_settings.cuesheet, LANG_HINT_CUESHEET },
+    { &global_settings.replaygain_settings.type, LANG_HINT_SOUND_CHECK },
     { &global_settings.crossfeed, LANG_HINT_CROSSFEED },
     { &global_settings.playlist_shuffle, LANG_HINT_SHUFFLE },
 #ifdef HAVE_CROSSFADE

@@ -1514,13 +1514,17 @@ const struct settings_list settings[] = {
                     "off", UNIT_SEC, formatter_backlight,
                     getlang_backlight, backlight_set_timeout,
                     ARRAYLEN(backlight_timeouts), backlight_timeouts),
-    /* Any by default, as on a stock iPod: the wheel and the buttons light
-       it, Play alone doesn't (BACKLIGHT_FILTER_EXEMPT). Select & Menu: on
-       Now Playing the wheel's volume, Play and the track buttons work with
-       the screen dark and leave it dark */
-    CHOICE_SETTING(0, wake_screen, LANG_WAKE_SCREEN, WAKE_ANY,
-                   "wake screen", "select and menu,any", NULL, 2,
-                   ID2P(LANG_WAKE_SELECT_MENU), ID2P(LANG_WAKE_ANY)),
+    /* Stock by default, as Apple's firmware: with the screen dark a press
+       acts at once and lights it. Wheel & Buttons ("any" in config.cfg, as
+       before): the wheel and the buttons light it, a first press only that
+       (bl_filter_first_keypress, on by default), Play working unseen
+       (BACKLIGHT_FILTER_EXEMPT). Select & Menu: on Now Playing the wheel's
+       volume, Play and the track buttons work with the screen dark and leave
+       it dark */
+    CHOICE_SETTING(0, wake_screen, LANG_WAKE_SCREEN, WAKE_STOCK,
+                   "wake screen", "stock,any,select and menu", NULL, 3,
+                   ID2P(LANG_WAKE_STOCK), ID2P(LANG_WAKE_ANY),
+                   ID2P(LANG_WAKE_SELECT_MENU)),
     /* the menus and the lists go to Now Playing as the screen goes dark while
        music plays, or once it has been dark a while: the wheel is the volume
        there */

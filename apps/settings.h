@@ -215,10 +215,14 @@ enum {  ALARM_START_WPS = 0,
  /* Not really a setting but several files should stay synced */
 #define KEYCLICK_DURATION 2
 
-/* what lights the dark screen on Now Playing: Select and Menu alone, the
-   music's buttons and the volume working unseen, or any of them */
-#define WAKE_SELECT_MENU 0
+/* Wake Screen, what a press does with the screen dark: Stock, it acts and
+   lights the screen, whatever it is; Wheel & Buttons, it lights it, the first
+   press only that if so set (bl_filter_first_keypress), Play working unseen;
+   Select & Menu, those alone light it, the music's buttons and Now Playing's
+   volume working unseen. In the list's order; config.cfg has them by word */
+#define WAKE_STOCK       0
 #define WAKE_ANY         1
+#define WAKE_SELECT_MENU 2
 
 /* Return to Now Playing: never, as the screen goes dark, or once it has been
    dark 10 or 30 s */
@@ -806,7 +810,7 @@ struct user_settings
                                 0=always, or time in seconds */
     bool caption_backlight; /* turn on backlight at end and start of track */
     bool bl_filter_first_keypress;   /* filter first keypress when dark? */
-    int  wake_screen; /* on Now Playing, dark: WAKE_SELECT_MENU or WAKE_ANY */
+    int  wake_screen; /* with the screen dark: WAKE_STOCK, _ANY or _SELECT_MENU */
     int  return_to_wps; /* the screen gone dark during music opens Now Playing:
                            RETURN_WPS_* */
 #if CONFIG_CHARGING

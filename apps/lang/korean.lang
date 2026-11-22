@@ -19569,13 +19569,15 @@
 </phrase>
 <phrase>
   id: LANG_HINT_WAKE_SCREEN
-  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what each of its values Stock, Wheel & Buttons and Select & Menu does with the screen dark, with them as translated
   user: core
   <source>
-    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+    *: "Stock: every press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip, volume in the dark."
+    ipodcolor: "Stock: a press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip in the dark."
   </source>
   <dest>
-    *: "Select 및 Menu로 하면 화면이 꺼진 채로 음량을 조절하고 곡을 넘길 수 있습니다."
+    *: "순정: 누르면 바로 동작하고 켜짐. 휠 및 버튼: 첫 입력은 켜기만. Select 및 Menu: 꺼진 채 곡 넘김."
+    ipodcolor: "순정: 누르면 바로 동작하고 켜짐. 휠 및 버튼: 첫 입력은 켜기만. Select 및 Menu: 꺼진 채 곡 넘김."
   </dest>
   <voice>
     *: ""
@@ -24274,6 +24276,36 @@
   </source>
   <dest>
     *: "재생된 에피소드 %d개 삭제"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAKE_STOCK
+  desc: a value of Wake Screen, the first and the default: as Apple's own firmware does, with the screen dark every press does its job at once and lights the screen; the language's own word for the original firmware's way
+  user: core
+  <source>
+    *: "Stock"
+  </source>
+  <dest>
+    *: "순정"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SOUND_CHECK
+  desc: the hint in the band under Settings > Sound while Sound Check is selected, in three lines at most: what its values On and Albums do, with them as translated
+  user: core
+  <source>
+    *: "On evens out every song's loudness. Albums keeps each album's own loudness and evens out songs shuffled one by one."
+    ipodcolor: "On evens out every song. Albums keeps each album's loudness unless songs are shuffled one by one."
+  </source>
+  <dest>
+    *: "켬은 모든 곡의 음량을 고르게 맞춥니다. 앨범은 앨범마다 원래 음량을 유지하고, 한 곡씩 섞어 재생한 곡은 음량을 맞춥니다."
+    ipodcolor: "켬은 모든 곡의 음량을 고르게 맞춥니다. 앨범은 앨범마다 원래 음량을 유지하고, 한 곡씩 섞어 재생한 곡은 음량을 맞춥니다."
   </dest>
   <voice>
     *: ""

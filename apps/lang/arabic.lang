@@ -10824,13 +10824,15 @@
 </phrase>
 <phrase>
   id: LANG_HINT_WAKE_SCREEN
-  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what each of its values Stock, Wheel & Buttons and Select & Menu does with the screen dark, with them as translated
   user: core
   <source>
-    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+    *: "Stock: every press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip, volume in the dark."
+    ipodcolor: "Stock: a press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip in the dark."
   </source>
   <dest>
-    *: "مع Select وMenu، يمكنك ضبط الصوت وتخطي الأغاني والشاشة مطفأة."
+    *: "«الأصلي»: كل ضغطة تعمل وتضيء. «العجلة والأزرار»: الأولى تضيء فقط. «Select وMenu»: التخطي في الظلام."
+    ipodcolor: "«الأصلي»: كل ضغطة تعمل وتضيء. «العجلة والأزرار»: الأولى تضيء فقط. «Select وMenu»: التخطي في الظلام."
   </dest>
   <voice>
     *: ""
@@ -15768,6 +15770,36 @@
   </source>
   <dest>
     *: "حذف الحلقات المشغّلة: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAKE_STOCK
+  desc: a value of Wake Screen, the first and the default: as Apple's own firmware does, with the screen dark every press does its job at once and lights the screen; the language's own word for the original firmware's way
+  user: core
+  <source>
+    *: "Stock"
+  </source>
+  <dest>
+    *: "الأصلي"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SOUND_CHECK
+  desc: the hint in the band under Settings > Sound while Sound Check is selected, in three lines at most: what its values On and Albums do, with them as translated
+  user: core
+  <source>
+    *: "On evens out every song's loudness. Albums keeps each album's own loudness and evens out songs shuffled one by one."
+    ipodcolor: "On evens out every song. Albums keeps each album's loudness unless songs are shuffled one by one."
+  </source>
+  <dest>
+    *: "«تشغيل» يوحّد صوت كل الأغاني. «الألبومات» يُبقي صوت كل ألبوم كما هو إلا عند خلط الأغاني واحدة واحدة."
+    ipodcolor: "«تشغيل» يوحّد صوت كل الأغاني. «الألبومات» يُبقي صوت كل ألبوم كما هو إلا عند خلط الأغاني واحدة واحدة."
   </dest>
   <voice>
     *: ""

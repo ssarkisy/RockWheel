@@ -19553,13 +19553,15 @@
 </phrase>
 <phrase>
   id: LANG_HINT_WAKE_SCREEN
-  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what each of its values Stock, Wheel & Buttons and Select & Menu does with the screen dark, with them as translated
   user: core
   <source>
-    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+    *: "Stock: every press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip, volume in the dark."
+    ipodcolor: "Stock: a press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip in the dark."
   </source>
   <dest>
-    *: "Với Select và Menu, bạn chỉnh âm lượng và chuyển bài khi màn hình vẫn tối."
+    *: "Gốc: mỗi lần bấm đều chạy và sáng. Bánh xe và nút: lần đầu chỉ sáng. Select và Menu: chuyển bài khi tối."
+    ipodcolor: "Gốc: mỗi lần bấm đều chạy và sáng. Bánh xe và nút: lần đầu chỉ sáng. Select và Menu: chuyển bài khi tối."
   </dest>
   <voice>
     *: ""
@@ -24258,6 +24260,36 @@
   </source>
   <dest>
     *: "Xóa %d tập đã phát"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAKE_STOCK
+  desc: a value of Wake Screen, the first and the default: as Apple's own firmware does, with the screen dark every press does its job at once and lights the screen; the language's own word for the original firmware's way
+  user: core
+  <source>
+    *: "Stock"
+  </source>
+  <dest>
+    *: "Gốc"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SOUND_CHECK
+  desc: the hint in the band under Settings > Sound while Sound Check is selected, in three lines at most: what its values On and Albums do, with them as translated
+  user: core
+  <source>
+    *: "On evens out every song's loudness. Albums keeps each album's own loudness and evens out songs shuffled one by one."
+    ipodcolor: "On evens out every song. Albums keeps each album's loudness unless songs are shuffled one by one."
+  </source>
+  <dest>
+    *: "Bật làm đều mọi bài. Album giữ âm lượng của từng album, trừ khi trộn từng bài một."
+    ipodcolor: "Bật làm đều mọi bài. Album giữ âm lượng của từng album, trừ khi trộn từng bài một."
   </dest>
   <voice>
     *: ""

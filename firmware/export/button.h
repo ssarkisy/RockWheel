@@ -55,13 +55,15 @@ int button_status_wdata(int *pdata);
 
 void button_set_flip(bool flip); /* turn 180 degrees */
 #ifdef BACKLIGHT_FILTER_EXEMPT
-/* The music's buttons, and the wheel too, work with the screen dark and leave
-   it dark, and only the others light it, as Wake Screen says */
-void button_set_dark_controls(bool buttons, bool wheel);
+/* As Wake Screen says, with the screen dark: every press acting and lighting
+   it (stock), the first press passed on whatever filters it; or the music's
+   buttons, and the wheel too, working and leaving it dark, only the others
+   lighting it */
+void button_set_dark_controls(bool stock, bool buttons, bool wheel);
 bool button_dark_wheel(void);
 #else
-static inline void button_set_dark_controls(bool buttons, bool wheel)
-{ (void)buttons; (void)wheel; }
+static inline void button_set_dark_controls(bool stock, bool buttons, bool wheel)
+{ (void)stock; (void)buttons; (void)wheel; }
 #endif
 #ifdef HAVE_BACKLIGHT
 void set_backlight_filter_keypress(bool value);

@@ -15537,13 +15537,15 @@
 </phrase>
 <phrase>
   id: LANG_HINT_WAKE_SCREEN
-  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what each of its values Stock, Wheel & Buttons and Select & Menu does with the screen dark, with them as translated
   user: core
   <source>
-    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+    *: "Stock: every press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip, volume in the dark."
+    ipodcolor: "Stock: a press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip in the dark."
   </source>
   <dest>
-    *: "Uz „Select i Menu“ mijenjate glasnoću i pjesme dok zaslon ostaje taman."
+    *: "„Izvorno“: radi i pali. „Kotačić i tipke“: prvi samo pali. „Select i Menu“: preskakanje u mraku."
+    ipodcolor: "„Izvorno“: radi i pali. „Kotačić i tipke“: prvi samo pali. „Select i Menu“: preskakanje u mraku."
   </dest>
   <voice>
     *: ""
@@ -20382,6 +20384,36 @@
   </source>
   <dest>
     *: "Obriši %d reproduciranih epizoda"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAKE_STOCK
+  desc: a value of Wake Screen, the first and the default: as Apple's own firmware does, with the screen dark every press does its job at once and lights the screen; the language's own word for the original firmware's way
+  user: core
+  <source>
+    *: "Stock"
+  </source>
+  <dest>
+    *: "Izvorno"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SOUND_CHECK
+  desc: the hint in the band under Settings > Sound while Sound Check is selected, in three lines at most: what its values On and Albums do, with them as translated
+  user: core
+  <source>
+    *: "On evens out every song's loudness. Albums keeps each album's own loudness and evens out songs shuffled one by one."
+    ipodcolor: "On evens out every song. Albums keeps each album's loudness unless songs are shuffled one by one."
+  </source>
+  <dest>
+    *: "„Uključeno“ ujednačuje sve pjesme. „Albumi“ čuvaju glasnoću albuma, osim kad se pjesme miješaju pojedinačno."
+    ipodcolor: "„Uključeno“ ujednačuje pjesme. „Albumi“ čuvaju glasnoću albuma, osim pri miješanju po pjesmi."
   </dest>
   <voice>
     *: ""

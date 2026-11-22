@@ -19555,13 +19555,15 @@
 </phrase>
 <phrase>
   id: LANG_HINT_WAKE_SCREEN
-  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what each of its values Stock, Wheel & Buttons and Select & Menu does with the screen dark, with them as translated
   user: core
   <source>
-    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+    *: "Stock: every press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip, volume in the dark."
+    ipodcolor: "Stock: a press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip in the dark."
   </source>
   <dest>
-    *: "Pri „Select a Menu“ meníte hlasitosť a skladby, kým displej zostáva tmavý."
+    *: "„Pôvodné“: funguje a rozsvieti. „Koliesko, tlačidlá“: prvé len rozsvieti. „Select a Menu“: skladby potme."
+    ipodcolor: "Pôvodné: funguje a rozsvieti. Koliesko, tlačidlá: prvé len rozsvieti. Select a Menu: skladby potme."
   </dest>
   <voice>
     *: ""
@@ -24260,6 +24262,36 @@
   </source>
   <dest>
     *: "Vymazať prehrané epizódy: %d"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAKE_STOCK
+  desc: a value of Wake Screen, the first and the default: as Apple's own firmware does, with the screen dark every press does its job at once and lights the screen; the language's own word for the original firmware's way
+  user: core
+  <source>
+    *: "Stock"
+  </source>
+  <dest>
+    *: "Pôvodné"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SOUND_CHECK
+  desc: the hint in the band under Settings > Sound while Sound Check is selected, in three lines at most: what its values On and Albums do, with them as translated
+  user: core
+  <source>
+    *: "On evens out every song's loudness. Albums keeps each album's own loudness and evens out songs shuffled one by one."
+    ipodcolor: "On evens out every song. Albums keeps each album's loudness unless songs are shuffled one by one."
+  </source>
+  <dest>
+    *: "„Zapnuté“ vyrovná všetky skladby. „Albumy“ zachovajú hlasitosť albumu, okrem miešania jednotlivých skladieb."
+    ipodcolor: "„Zapnuté“ vyrovná skladby. „Albumy“ držia hlasitosť albumu, okrem miešania po skladbách."
   </dest>
   <voice>
     *: ""

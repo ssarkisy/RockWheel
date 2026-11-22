@@ -16246,13 +16246,15 @@
 </phrase>
 <phrase>
   id: LANG_HINT_WAKE_SCREEN
-  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what each of its values Stock, Wheel & Buttons and Select & Menu does with the screen dark, with them as translated
   user: core
   <source>
-    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+    *: "Stock: every press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip, volume in the dark."
+    ipodcolor: "Stock: a press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip in the dark."
   </source>
   <dest>
-    *: "Met ‘Select en Menu’ regel je het volume en wissel je van nummer terwijl het scherm donker blijft."
+    *: "‘Origineel’: werkt en licht op. ‘Wiel en knoppen’: de eerste licht alleen op. ‘Select en Menu’: skippen in het donker."
+    ipodcolor: "Origineel: werkt, licht op. Wiel en knoppen: eerste alleen licht. Select en Menu: in het donker."
   </dest>
   <voice>
     *: ""
@@ -21091,6 +21093,36 @@
   </source>
   <dest>
     *: "%d afgespeelde verwijderen"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAKE_STOCK
+  desc: a value of Wake Screen, the first and the default: as Apple's own firmware does, with the screen dark every press does its job at once and lights the screen; the language's own word for the original firmware's way
+  user: core
+  <source>
+    *: "Stock"
+  </source>
+  <dest>
+    *: "Origineel"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SOUND_CHECK
+  desc: the hint in the band under Settings > Sound while Sound Check is selected, in three lines at most: what its values On and Albums do, with them as translated
+  user: core
+  <source>
+    *: "On evens out every song's loudness. Albums keeps each album's own loudness and evens out songs shuffled one by one."
+    ipodcolor: "On evens out every song. Albums keeps each album's loudness unless songs are shuffled one by one."
+  </source>
+  <dest>
+    *: "‘Aan’ maakt alle nummers even luid. ‘Albums’ houdt elk album op eigen sterkte, behalve bij shuffle per nummer."
+    ipodcolor: "‘Aan’ maakt nummers even luid. ‘Albums’ laat albums zoals ze zijn, behalve bij shuffle per nummer."
   </dest>
   <voice>
     *: ""

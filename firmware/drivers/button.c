@@ -171,16 +171,20 @@ static void check_audio_peripheral_state(void)
 }
 
 #ifdef BACKLIGHT_FILTER_EXEMPT
-/* the buttons that work with the screen dark, and leave it dark */
+/* the buttons that work with the screen dark, and leave it dark; with
+   dark_stock none, and every press goes on and lights it (Wake Screen's
+   Stock, as Apple's firmware) */
 static volatile int dark_exempt = BACKLIGHT_FILTER_EXEMPT;
 static volatile bool dark_wheel = false;
+static volatile bool dark_stock = false;
 
-void button_set_dark_controls(bool buttons, bool wheel)
+void button_set_dark_controls(bool stock, bool buttons, bool wheel)
 {
 #ifdef BACKLIGHT_DARK_EXEMPT
     dark_exempt = buttons ? BACKLIGHT_DARK_EXEMPT : BACKLIGHT_FILTER_EXEMPT;
 #endif
     dark_wheel = wheel;
+    dark_stock = stock;
 }
 
 bool button_dark_wheel(void)
@@ -191,7 +195,8 @@ bool button_dark_wheel(void)
 /* a press of those alone, with the screen dark, which doesn't light it */
 static bool works_dark(int button)
 {
-    return !is_backlight_on(false) && button && !(button & ~dark_exempt);
+    return !dark_stock && !is_backlight_on(false)
+           && button && !(button & ~dark_exempt);
 }
 #endif
 
@@ -229,6 +234,8 @@ static bool filter_first_keypress_enabled(int button, int data)
 #ifdef BACKLIGHT_FILTER_EXEMPT
         /* on the iPod Video too, whose screen is of the first kind */
         || (button & dark_exempt)
+        /* Stock: no first press only lights it */
+        || dark_stock
 #endif
        )
     {

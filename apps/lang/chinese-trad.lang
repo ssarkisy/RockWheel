@@ -14382,13 +14382,15 @@
 </phrase>
 <phrase>
   id: LANG_HINT_WAKE_SCREEN
-  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what the user gets from it
+  desc: the hint in the band under Settings > General while Wake Screen is selected, in three lines at most: what each of its values Stock, Wheel & Buttons and Select & Menu does with the screen dark, with them as translated
   user: core
   <source>
-    *: "With Select & Menu, you can set the volume and skip songs while the screen stays dark."
+    *: "Stock: every press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip, volume in the dark."
+    ipodcolor: "Stock: a press acts and lights up. Wheel & Buttons: the first only lights up. Select & Menu: skip in the dark."
   </source>
   <dest>
-    *: "選擇 Select 和 Menu 後，可在螢幕不亮時調整音量和切換歌曲。"
+    *: "「原廠」：按鍵即生效並亮屏。「滾輪和按鈕」：首次按鍵只亮屏。「Select 和 Menu」：暗屏切歌。"
+    ipodcolor: "「原廠」：按鍵即生效並亮屏。「滾輪和按鈕」：首次按鍵只亮屏。「Select 和 Menu」：暗屏切歌。"
   </dest>
   <voice>
     *: ""
@@ -19227,6 +19229,36 @@
   </source>
   <dest>
     *: "刪除 %d 個已播放的單集"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_WAKE_STOCK
+  desc: a value of Wake Screen, the first and the default: as Apple's own firmware does, with the screen dark every press does its job at once and lights the screen; the language's own word for the original firmware's way
+  user: core
+  <source>
+    *: "Stock"
+  </source>
+  <dest>
+    *: "原廠"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HINT_SOUND_CHECK
+  desc: the hint in the band under Settings > Sound while Sound Check is selected, in three lines at most: what its values On and Albums do, with them as translated
+  user: core
+  <source>
+    *: "On evens out every song's loudness. Albums keeps each album's own loudness and evens out songs shuffled one by one."
+    ipodcolor: "On evens out every song. Albums keeps each album's loudness unless songs are shuffled one by one."
+  </source>
+  <dest>
+    *: "選擇「開啟」讓每首歌音量一致。選擇「專輯」保留每張專輯本身的音量，逐首隨機播放時則讓歌曲音量一致。"
+    ipodcolor: "選擇「開啟」讓每首歌音量一致。選擇「專輯」保留每張專輯本身的音量，逐首隨機播放時則讓歌曲音量一致。"
   </dest>
   <voice>
     *: ""
