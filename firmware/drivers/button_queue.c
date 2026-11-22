@@ -176,6 +176,25 @@ bool button_queue_try_post(long button, int data)
     return true;
 }
 
+/* A new press: posted, behind them, if all the queue holds is wake-ups and
+   there is room; otherwise dropped, as button_queue_try_post() drops it, so
+   that presses don't pile up behind a busy screen: any press, release,
+   repeat, step of the wheel or system event still unread keeps it out.
+   A wake-up is a BUTTON_NONE, posted only to have the screen's get_action()
+   return at once, so that it does now what the poster left for it: the
+   status bar's update at a change of track, a cover come for Now Playing,
+   the EQ's makeup. Each stays in its place and is read before the press, so
+   a press loses none of them; a press that came with a change of track used
+   to be lost to them instead */
+bool button_queue_post_press(long button, intptr_t data)
+{
+#ifdef HAVE_TOUCHSCREEN
+    return button_queue_try_post(button, data);
+#else
+    return queue_post_behind(&button_queue, BUTTON_NONE, button, data);
+#endif
+}
+
 int button_queue_count(void)
 {
     return queue_count(&button_queue);

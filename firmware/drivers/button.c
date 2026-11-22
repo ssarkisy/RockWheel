@@ -202,10 +202,10 @@ static bool works_dark(int button)
 
 /* A new press that adds a button to those held, a chord's second, as Select
    with Play: posted even while the queue holds something, as the first one's
-   press while the screen is drawn after it. Any other new press is dropped
-   then (button_queue_try_post(): presses don't pile up behind a busy
-   screen); the chord was too, and Now Playing missed it. Set by
-   button_tick() for each new press */
+   press while the screen is drawn after it; the chord was dropped then, and
+   Now Playing missed it. Any other new press is dropped while the queue holds
+   anything but wake-ups (button_queue_post_press(): presses don't pile up
+   behind a busy screen). Set by button_tick() for each new press */
 static bool chord_press;
 
 static void post_press(int button, int data)
@@ -213,7 +213,7 @@ static void post_press(int button, int data)
     if (chord_press)
         button_queue_post(button, data);
     else
-        button_queue_try_post(button, data);
+        button_queue_post_press(button, data);
 }
 
 #ifdef HAVE_BACKLIGHT
