@@ -612,6 +612,14 @@ static int capsule_edge(int capsule)
     return ui_metric(UI_METRIC_SELECTION_INSET_X) - capsule >= 3;
 }
 
+int list_scrollbar_room(struct gui_synclist *list, int rows)
+{
+    if (list->scrollbar == SCROLLBAR_OFF || ui_metric(UI_METRIC_SCROLLBAR_CAPSULE)
+        || ui_metric(UI_METRIC_SCROLLBAR_LINE))
+        return 0;
+    return list_get_nb_lines(list, SCREEN_MAIN) < rows ? SCROLLBAR_WIDTH : 0;
+}
+
 void list_draw(struct screen *display, struct gui_synclist *list)
 {
     int start, end, item_offset, i;

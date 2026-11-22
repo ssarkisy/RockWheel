@@ -54,6 +54,8 @@
 #include "list_covers.h"
 #include "line_reader.h"
 #include "file_write.h"
+#include "album_header.h"
+#include "ipod_playlists.h"
 
 /* Rockbox's viewer read them a window of 200 lines at a time from the file,
    again as it scrolled past one, and looked up each title as it showed,
@@ -69,7 +71,9 @@
 #define LP_PLAYING2     LP_DIR "/playing2.m3u8"
 #define LP_PLAYING_FROM LP_DIR "/playing.txt"
 #define LP_MAGIC   0x504c4958   /* "PLIX" */
-#define LP_VERSION 3
+/* 4: with what its header shows; 5: a compilation one album in its collage,
+   and its header not made marked so. An older one is made again */
+#define LP_VERSION 5
 
 struct lp_head {
     uint32_t magic, version;
@@ -82,7 +86,23 @@ struct lp_head {
     uint32_t unmatched; /* of those, not in the database */
     uint32_t pending;   /* the file is still to be written from it */
     uint32_t sort;
+    /* its header's, as struct lp_state has them */
+    uint32_t seconds;
+    uint32_t collage_seen;
+    int32_t collage[LP_COLLAGE];
 };
+
+/* the collage the header is given is as long as the index's */
+#if LP_COLLAGE != ALBUM_HEADER_COLLAGE
+#error "LP_COLLAGE and ALBUM_HEADER_COLLAGE differ"
+#endif
+
+/* The covers changed since the playlists' collages were chosen, or a header
+   couldn't be made: they're made again at the next Updating Library */
+#define LP_COVERS_TODO ROCKBOX_DIR "/playlist_covers.todo"
+/* headers left not made, as lookups couldn't tell: a pass that made one so
+   leaves LP_COVERS_TODO for the next */
+static unsigned headers_unknown;
 
 static void index_path(uint64_t hash, char *buf, size_t size)
 {
@@ -240,6 +260,157 @@ static bool database_in_ram(void)
     return tagcache_finds_entries();
 }
 
+/* A song's length to the second, as a playlist's sum adds it: a song added
+   or taken out changes it by its own */
+static uint32_t song_seconds(uint32_t idx)
+{
+    const long ms = tagcache_sort_key(idx, tag_length);
+    return ms > 0 ? (uint32_t)((ms + 500) / 1000) : 0;
+}
+
+/* The albums of a playlist's collage, chosen from the database in memory: in
+   its songs' order, each album (song_album()) as the song of it that comes
+   first, if the header would show a cover for it. Unknown Album left out.
+   As far as LP_COLLAGE_SONGS songs and as many as LP_COLLAGE_LOOKS covers
+   looked up, an album found without one not looked up again for a while:
+   a big one's later albums aren't looked for. Each song's tags are read
+   from memory and each look is in the covers' indexes in memory; only its
+   path may be read from the disk, where it's in neither the database's
+   memory nor the dircache. */
+#define LP_COLLAGE_SONGS  512
+#define LP_COLLAGE_LOOKS  32
+#define LP_COLLAGE_PASSED 8
+struct collage_walk {
+    int32_t *collage;   /* its albums' songs, -1 past them */
+    uint32_t *seen;     /* songs walked */
+    bool on;
+    int looks;
+    long passed[LP_COLLAGE_PASSED][2]; /* without a cover */
+    int passed_count, passed_at;
+};
+
+/* A song's album as a collage tells them apart: its name's seek and its
+   album artist's; but a compilation's songs, whatever their album artists,
+   one album of its name, as Albums' row of a name's compilations has them.
+   The database has a song's artist for an album artist it lacks, so each
+   artist's songs of a compilation without the tag would be another album,
+   its cover in several cells */
+#define COMPILATION_ARTIST (-2)
+static void song_album(uint32_t idx, long *album, long *artist)
+{
+    *album = tagcache_sort_key(idx, tag_album);
+    *artist = tagcache_track_compilation(idx) ? COMPILATION_ARTIST
+                                              : tagcache_sort_key(idx, tag_albumartist);
+}
+
+/* the collage not made, and made at the next Updating Library: the note
+   shows meanwhile, with the length if that was made (not when the index was
+   written without the database in memory) */
+static void collage_unknown(int32_t *collage, uint32_t *seen)
+{
+    *seen = LP_HEADER_UNKNOWN;
+    for (int k = 0; k < LP_COLLAGE; k++)
+        collage[k] = -1;
+    headers_unknown++;
+    lp_covers_changed();
+}
+
+static void collage_walk_begin(struct collage_walk *w, int32_t *collage,
+                               uint32_t *seen, bool fresh)
+{
+    w->collage = collage;
+    w->seen = seen;
+    w->on = true;
+    w->looks = w->passed_count = w->passed_at = 0;
+    if (!fresh)
+        return;
+    *seen = 0;
+    for (int k = 0; k < LP_COLLAGE; k++)
+        collage[k] = -1;
+}
+
+static int collage_taken(const struct collage_walk *w)
+{
+    int n = 0;
+    while (n < LP_COLLAGE && w->collage[n] >= 0)
+        n++;
+    return n;
+}
+
+/* the walk on by a song: false once it's over */
+static bool collage_step(struct collage_walk *w, uint32_t idx)
+{
+    const int taken = collage_taken(w);
+    if (!w->on || taken >= LP_COLLAGE || *w->seen >= LP_COLLAGE_SONGS
+        || w->looks >= LP_COLLAGE_LOOKS)
+    {
+        w->on = false;
+        return false;
+    }
+    (*w->seen)++;
+    long album, artist;
+    song_album(idx, &album, &artist);
+    if (album < 0)
+        return true;
+    for (int k = 0; k < taken; k++)
+    {
+        long a, b;
+        song_album(w->collage[k], &a, &b);
+        if (a == album && b == artist)
+            return true;
+    }
+    for (int k = 0; k < w->passed_count; k++)
+    {
+        if (w->passed[k][0] == album && w->passed[k][1] == artist)
+            return true;
+    }
+#ifdef HAVE_TC_RAMCACHE
+    /* Unknown Album, which has no name */
+    char probe[2];
+    if (!tagcache_tag_string(tag_album, album, probe, sizeof(probe)))
+        return true;
+#endif
+    w->looks++;
+    const int cover = album_header_song_cover(idx);
+    /* not known, as with the database busy: no choice kept */
+    if (cover < 0)
+    {
+        collage_unknown(w->collage, w->seen);
+        w->on = false;
+        return false;
+    }
+    if (cover > 0)
+        w->collage[taken] = idx;
+    else
+    {
+        w->passed[w->passed_at][0] = album;
+        w->passed[w->passed_at][1] = artist;
+        w->passed_at = (w->passed_at + 1) % LP_COLLAGE_PASSED;
+        if (w->passed_count < LP_COLLAGE_PASSED)
+            w->passed_count++;
+    }
+    return true;
+}
+
+/* the collage of these songs, the first ones of a playlist */
+static void collage_choose(const struct lp_song *songs, int count,
+                           struct lp_state *state)
+{
+    struct collage_walk w;
+    collage_walk_begin(&w, state->collage, &state->collage_seen, true);
+    for (int i = 0; i < count && collage_step(&w, songs[i].idx); i++)
+        ;
+}
+
+/* an index's head of the database as it is and of the file as it is */
+static bool head_current(const struct lp_head *head, const char *file)
+{
+    return head->magic == LP_MAGIC && head->version == LP_VERSION
+           && head->commitid == (uint32_t)tagcache_get_commitid()
+           && head->entries == (uint32_t)tagcache_entry_count()
+           && (long)head->size == file_size(file) && head->count <= LP_MAX;
+}
+
 int lp_index_read(const char *file, struct lp_song *songs, int max,
                   struct lp_state *state)
 {
@@ -251,10 +422,7 @@ int lp_index_read(const char *file, struct lp_song *songs, int max,
     struct lp_head head;
     int count = -1;
     if (read(fd, &head, sizeof(head)) == sizeof(head)
-        && head.magic == LP_MAGIC && head.version == LP_VERSION
-        && head.commitid == (uint32_t)tagcache_get_commitid()
-        && head.entries == (uint32_t)tagcache_entry_count()
-        && (long)head.size == file_size(file) && head.count <= LP_MAX)
+        && head_current(&head, file))
     {
         count = head.count;
         if (songs)
@@ -270,6 +438,9 @@ int lp_index_read(const char *file, struct lp_song *songs, int max,
             state->unmatched = head.unmatched;
             state->sort = head.sort;
             state->pending = head.pending;
+            state->seconds = head.seconds;
+            state->collage_seen = head.collage_seen;
+            memcpy(state->collage, head.collage, sizeof(state->collage));
         }
     }
     close(fd);
@@ -294,6 +465,25 @@ bool lp_index_write(const char *file, const struct lp_song *songs, int count,
                     struct lp_state *state)
 {
     state->pending = !lp_in_file_order(songs, count, state);
+    /* what its header shows, from memory: the songs' lengths added, a few
+       covers looked up; not made without the database there, as during a
+       commit, rather than none */
+    if (tagcache_finds_entries())
+    {
+        state->seconds = 0;
+        for (int i = 0; i < count; i++)
+        {
+            state->seconds += song_seconds(songs[i].idx);
+            if ((i & 1023) == 1023)
+                yield();
+        }
+        collage_choose(songs, count, state);
+    }
+    else
+    {
+        state->seconds = LP_HEADER_UNKNOWN;
+        collage_unknown(state->collage, &state->collage_seen);
+    }
     char path[MAX_PATH];
     index_path(itunesdb_path_hash(file), path, sizeof(path));
     const long size = file_size(file);
@@ -304,11 +494,15 @@ bool lp_index_write(const char *file, const struct lp_song *songs, int count,
     struct fw w;
     if (!fw_open(&w, path, FW_CACHE, NULL, 0))
         return false;
-    const struct lp_head head = {
-        LP_MAGIC, LP_VERSION, tagcache_get_commitid(), tagcache_entry_count(),
-        size, count, state->lines, state->unmatched, state->pending,
-        state->sort
+    struct lp_head head = {
+        .magic = LP_MAGIC, .version = LP_VERSION,
+        .commitid = tagcache_get_commitid(), .entries = tagcache_entry_count(),
+        .size = size, .count = count, .lines = state->lines,
+        .unmatched = state->unmatched, .pending = state->pending,
+        .sort = state->sort, .seconds = state->seconds,
+        .collage_seen = state->collage_seen,
     };
+    memcpy(head.collage, state->collage, sizeof(head.collage));
     fw_put(&w, &head, sizeof(head));
     fw_put(&w, songs, count * sizeof(*songs));
     return fw_close(&w, true);
@@ -342,6 +536,15 @@ void lp_index_appended(const char *file, long old_size)
         && head.sort == ITUNESDB_SORT_MANUAL
         && lseek(ifd, sizeof(head) + head.count * sizeof(struct lp_song),
                  SEEK_SET) >= 0;
+    /* its collage, if it has fewer than four albums with a cover among all
+       its songs, walked to their end: on with the songs added, which come
+       after them */
+    struct collage_walk walk = { .on = false };
+    if (indexed)
+    {
+        collage_walk_begin(&walk, head.collage, &head.collage_seen, false);
+        walk.on = head.collage_seen == head.count;
+    }
     if (!indexed)
     {
         if (ifd >= 0)
@@ -391,6 +594,9 @@ void lp_index_appended(const char *file, long old_size)
                 {
                     if (idx >= 0)
                     {
+                        if (head.seconds != LP_HEADER_UNKNOWN)
+                            head.seconds += song_seconds(idx);
+                        collage_step(&walk, idx);
                         added[n_added].idx = idx;
                         added[n_added].line = head.lines;
                         if (++n_added == ARRAYLEN(added))
@@ -427,6 +633,11 @@ void lp_index_appended(const char *file, long old_size)
          && write(ifd, &head, sizeof(head)) == sizeof(head);
     if (close(ifd) < 0 || !ok)
         remove(path);
+}
+
+void lp_covers_changed(void)
+{
+    close(open(LP_COVERS_TODO, O_WRONLY | O_CREAT | O_TRUNC, 0666));
 }
 
 void lp_index_moved(const char *from, const char *to)
@@ -957,8 +1168,63 @@ static struct {
     uint64_t *seen;
     int seen_count;
     bool overflow;
+    bool covers;    /* each one's collage chosen again (LP_COVERS_TODO) */
     bool (*go_on)(void);
 } all;
+
+/* A playlist's header made again from its index, which is of the database
+   as it is, and its head written again in place if it changed: its collage
+   chosen again from its first songs, those the choice looks at, and its
+   length, if it wasn't made, from all of them, if they fit */
+static void collage_again(const char *file)
+{
+    struct lp_state state;
+    const int count = lp_index_read(file, NULL, 0, &state);
+    if (count < 0)
+        return;
+    const bool length = state.seconds == LP_HEADER_UNKNOWN;
+    const int n = lp_index_read(file, all.songs,
+                                MIN(all.max, length ? LP_MAX : LP_COLLAGE_SONGS),
+                                &state);
+    if (n < 0)
+        return;
+    const struct lp_state was = state;
+    /* without room for all its songs, the length stays not made, and the
+       header without it */
+    if (length && n == count)
+    {
+        state.seconds = 0;
+        for (int i = 0; i < n; i++)
+        {
+            state.seconds += song_seconds(all.songs[i].idx);
+            if ((i & 1023) == 1023)
+                yield();
+        }
+    }
+    collage_choose(all.songs, MIN(n, LP_COLLAGE_SONGS), &state);
+    if (state.seconds == was.seconds && state.collage_seen == was.collage_seen
+        && !memcmp(state.collage, was.collage, sizeof(state.collage)))
+        return;
+    char path[MAX_PATH];
+    index_path(itunesdb_path_hash(file), path, sizeof(path));
+    const int fd = open(path, O_RDWR);
+    if (fd < 0)
+        return;
+    struct lp_head head;
+    bool ok = read(fd, &head, sizeof(head)) == sizeof(head)
+              && head_current(&head, file);
+    if (ok)
+    {
+        head.seconds = state.seconds;
+        head.collage_seen = state.collage_seen;
+        memcpy(head.collage, state.collage, sizeof(head.collage));
+        ok = lseek(fd, 0, SEEK_SET) == 0
+             && write(fd, &head, sizeof(head)) == sizeof(head);
+    }
+    /* one half written is made again */
+    if (close(fd) < 0 || !ok)
+        remove(path);
+}
 
 static void index_folder(char *path, size_t len, int depth)
 {
@@ -995,6 +1261,8 @@ static void index_folder(char *path, size_t len, int depth)
         {
             if (lp_index_read(path, NULL, 0, NULL) < 0)
                 index_make(path, all.songs, all.max, all.buf, all.size, true);
+            else if (all.covers)
+                collage_again(path);
             if (all.seen_count < LP_SEEN_MAX)
                 all.seen[all.seen_count++] = itunesdb_path_hash(path);
             else
@@ -1201,7 +1469,10 @@ void lp_index_all(bool (*go_on)(void))
     /* not made here if there's none */
     if (!database_in_ram() || !catalog_directory_name(path, sizeof(path)))
         return;
-    /* nothing changed since the last whole pass */
+    /* nothing changed since the last whole pass, nor the covers, and no
+       header is left to make */
+    const bool covers = file_exists(LP_COVERS_TODO);
+    const unsigned unknown_before = headers_unknown;
     struct lp_mark now, last;
     mark_now(&now, path);
     int fd = open(LP_MARK, O_RDONLY);
@@ -1210,7 +1481,7 @@ void lp_index_all(bool (*go_on)(void))
         const bool same = read(fd, &last, sizeof(last)) == sizeof(last)
                           && !memcmp(&last, &now, sizeof(now));
         close(fd);
-        if (same)
+        if (same && !covers)
             return;
     }
     char *buf = plugin_get_buffer(&size);
@@ -1245,6 +1516,7 @@ void lp_index_all(bool (*go_on)(void))
     all.seen = (uint64_t *)buf;
     all.seen_count = 0;
     all.overflow = false;
+    all.covers = covers;
     all.go_on = go_on;
     all.buf = (char *)(all.seen + LP_SEEN_MAX);
     all.size = read_size;
@@ -1258,6 +1530,8 @@ void lp_index_all(bool (*go_on)(void))
     {
         if (lp_index_read(OTG_FILE, NULL, 0, NULL) < 0)
             index_make(OTG_FILE, all.songs, all.max, all.buf, all.size, false);
+        else if (covers)
+            collage_again(OTG_FILE);
         if (all.seen_count < LP_SEEN_MAX)
             all.seen[all.seen_count++] = itunesdb_path_hash(OTG_FILE);
     }
@@ -1271,6 +1545,8 @@ void lp_index_all(bool (*go_on)(void))
         if (!itunesdb_changed())
             remove(ITUNESDB_MOVED_LIST);
         remove(LP_GONE);
+        if (headers_unknown == unknown_before)
+            remove(LP_COVERS_TODO);
         remove_gone();
         /* as the pass left it, files it wrote again in their order too */
         mark_now(&now, path);
@@ -1300,6 +1576,12 @@ static struct {
     bool unloaded;          /* it couldn't be read as it was opened */
     bool covers;            /* its rows in two lines with covers */
     unsigned int gen;       /* of the plugin buffer, which a plugin takes */
+    /* the rows of its header at the top (album_header.c), which none
+       selects, 0 for none; its name and the list's it came from, which the
+       title has while the header shows */
+    int header;
+    const char *name, *above;
+    bool name_shown;
 } lp;
 
 static bool lp_load(void)
@@ -1484,26 +1766,45 @@ static void note_copy_source(const char *file)
                      && write(fd, "\n", 1) == 1);
 }
 
-/* The rows: the playlist's songs, none for one without songs; and
-   On-The-Go's last, as on a stock iPod: Save Playlist, Clear Playlist */
+/* The rows: its header's, the playlist's songs, none for one without songs;
+   and On-The-Go's last, as on a stock iPod: Save Playlist, Clear Playlist.
+   A song's row is the header's rows on from its place in the songs */
+static int song_of(int row)
+{
+    return row - lp.header;
+}
+
 static bool is_save_row(int row)
 {
-    return lp.otg && lp.count > 0 && row == lp.count;
+    return lp.otg && lp.count > 0 && song_of(row) == lp.count;
 }
 
 static bool is_clear_row(int row)
 {
-    return lp.otg && lp.count > 0 && row == lp.count + 1;
+    return lp.otg && lp.count > 0 && song_of(row) == lp.count + 1;
 }
 
 static bool is_song_row(int row)
 {
-    return row >= 0 && row < lp.count;
+    return song_of(row) >= 0 && song_of(row) < lp.count;
+}
+
+static bool is_header_row(int row, void *data)
+{
+    (void)data;
+    return row < lp.header;
 }
 
 static int lp_rows(void)
 {
-    return lp.count > 0 ? lp.count + (lp.otg ? 2 : 0) : 0;
+    return lp.count > 0 ? lp.header + lp.count + (lp.otg ? 2 : 0) : 0;
+}
+
+/* the row of a song, or of Save Playlist after them: of the songs' rows, the
+   nearest */
+static int row_of_song(int song)
+{
+    return lp.header + MAX(MIN(song, lp_rows() - lp.header - 1), 0);
 }
 
 static const char *lp_name(int row, void *data, char *buf, size_t size)
@@ -1515,7 +1816,10 @@ static const char *lp_name(int row, void *data, char *buf, size_t size)
         return str(LANG_SAVE_PLAYLIST);
     if (is_clear_row(row))
         return str(LANG_ON_THE_GO_CLEAR);
-    return lp.pool + lp.names[row];
+    /* the header's, drawn whole rather than by rows */
+    if (!is_song_row(row))
+        return "";
+    return lp.pool + lp.names[song_of(row)];
 }
 
 /* Quick Scroll's letter of a song's row, in a playlist sorted by a column:
@@ -1536,7 +1840,7 @@ static const char *lp_initial(int row, void *data, char *buf, size_t size)
     if (!is_song_row(row) || size < 5)
         return NULL;
     const ucschar_t letter =
-        tagcache_initial(tag, tagcache_sort_key(lp.songs[row].idx, tag));
+        tagcache_initial(tag, tagcache_sort_key(lp.songs[song_of(row)].idx, tag));
     if (!letter)
         return NULL;
     *utf8encode(letter, (unsigned char *)buf) = '\0';
@@ -1547,7 +1851,7 @@ static bool lp_playing(int row, void *data)
 {
     (void)data;
     return is_song_row(row) && lp.from_this
-           && gui_synclist_playing() == (long)lp.songs[row].idx + 1;
+           && gui_synclist_playing() == (long)lp.songs[song_of(row)].idx + 1;
 }
 
 /* With Covers in Lists, a song's row as Songs has it: its artist under its
@@ -1555,7 +1859,8 @@ static bool lp_playing(int row, void *data)
 static const char *lp_subline(int row, void *data, char *buf, size_t size)
 {
     (void)data;
-    return is_song_row(row) ? tagtree_song_subline(lp.songs[row].idx, buf, size)
+    return is_song_row(row) ? tagtree_song_subline(lp.songs[song_of(row)].idx,
+                                                   buf, size)
                             : NULL;
 }
 
@@ -1563,16 +1868,27 @@ static int lp_cover(int row, void *data, const fb_data **pixels)
 {
     (void)data;
     return is_song_row(row) ?
-           list_covers_get(tagtree_song_album(lp.songs[row].idx), pixels)
+           list_covers_get(tagtree_song_album(lp.songs[song_of(row)].idx), pixels)
            : LIST_COVER_NONE;
 }
 
-/* Before each frame, as Songs' (tree.c): what it lacks counted anew, its
+/* Before each frame: the title the list's it came from while the header
+   shows, the playlist's once it has scrolled away, as an album's (tree.c).
+   And with covers, as Songs' (tree.c): what it lacks counted anew, its
    rows' covers read now if they can be at once, and the covers of the rows
    next to those shown asked for after theirs, the way the list went first,
    as far again as it went, at least a screen */
 static void lp_before_draw(struct gui_synclist *list)
 {
+    const bool name = list->start_item[SCREEN_MAIN] >= lp.header;
+    if (name != lp.name_shown)
+    {
+        lp.name_shown = name;
+        gui_synclist_set_title(list, name ? lp.name : lp.above,
+                               list->title_icon);
+    }
+    if (!lp.covers)
+        return;
     static int last_start;
     list_covers_frame();
     list_covers_draw_soon(list);
@@ -1588,7 +1904,7 @@ static void lp_before_draw(struct gui_synclist *list)
         const int row = forward ? start + shown + d : start - 1 - d;
         if (!is_song_row(row))
             continue;
-        const int album = tagtree_song_album(lp.songs[row].idx);
+        const int album = tagtree_song_album(lp.songs[song_of(row)].idx);
         if (album >= 0)
             list_covers_ahead(album);
     }
@@ -1879,6 +2195,52 @@ static bool lp_save_otg(char *saved, size_t size)
     return false;
 }
 
+/* The list it was opened from, as its title has it (tree.c): Playlists for
+   On-The-Go and for one at the catalogue's top synced from the computer,
+   Unsynced for one of the iPod's own there, else its folder's name. Into
+   buf if it's that */
+static const char *title_above(char *buf, size_t size)
+{
+    char root[MAX_PATH];
+    const char *slash = strrchr(lp.file, '/');
+    if (lp.otg || !slash || !catalog_directory_name(root, sizeof(root)))
+        return str(LANG_PLAYLISTS);
+    tidy_copy(buf, size, root);
+    size_t root_len = strlen(buf);
+    while (root_len > 1 && buf[root_len - 1] == '/')
+        root_len--;
+    const size_t dir_len = slash - lp.file;
+    if (dir_len == root_len && !strncasecmp(lp.file, buf, dir_len))
+        return str(ip_is_synced(lp.file) ? LANG_PLAYLISTS : LANG_UNSYNCED);
+    const char *start = slash;
+    while (start > lp.file && start[-1] != '/')
+        start--;
+    if (start == slash)
+        return str(LANG_PLAYLISTS);
+    strmemccpy(buf, start, MIN(size, (size_t)(slash - start) + 1));
+    return buf;
+}
+
+/* Its header over the songs, as an album's: its name, its songs and their
+   length, and its collage, as its index has them, nothing worked out now;
+   again after another screen, which may have shown an album's, and after a
+   change to its songs. Its title as the header shows or not */
+static void lp_header_open(struct gui_synclist *list)
+{
+    /* its length left out until it's made */
+    const unsigned long seconds =
+        lp.state.seconds == LP_HEADER_UNKNOWN ? 0 : lp.state.seconds;
+    lp.header = album_header_open_playlist(list, lp.name,
+                                           lp.count > 0 ? lp.total : 0,
+                                           seconds, lp.state.collage,
+                                           lp_rows() - lp.header);
+    gui_synclist_set_block(list, lp.header, lp.header ? album_header_draw : NULL);
+    list->callback_is_group = lp.header ? is_header_row : NULL;
+    lp.name_shown = list->start_item[SCREEN_MAIN] >= lp.header;
+    gui_synclist_set_title(list, lp.name_shown ? lp.name : lp.above,
+                           Icon_Playlist);
+}
+
 /* a held Select: the menu of the song, as in Songs */
 static int lp_song_menu(int song)
 {
@@ -1945,6 +2307,10 @@ int lp_view(const char *file, int *selection)
         *ext = '\0';
     if (lp.otg)
         strmemccpy(title, str(LANG_ON_THE_GO), sizeof(title));
+    char above[MAX_PATH];
+    lp.name = title;
+    lp.above = title_above(above, sizeof(above));
+    lp.header = 0;
 
     push_current_activity(ACTIVITY_PLAYLISTVIEWER);
     /* from the screen before, not from Loading; nor over a slide begun, as
@@ -1968,11 +2334,13 @@ int lp_view(const char *file, int *selection)
     {
         gui_synclist_set_subline_callback(&list, lp_subline);
         gui_synclist_set_cover_callback(&list, lp_cover);
-        gui_synclist_set_before_draw(&list, lp_before_draw);
         list_covers_opened();
     }
+    /* after the rows' height, which its rows are counted by */
+    gui_synclist_set_before_draw(&list, lp_before_draw);
+    lp_header_open(&list);
     gui_synclist_set_nb_items(&list, lp_rows());
-    /* at the row it was left at, or a new one at its first song */
+    /* at the song it was left at, or a new one at its first song */
     int sel = selection && *selection >= 0 ? *selection : 0;
     if (lp.at_playing)
     {
@@ -1986,7 +2354,7 @@ int lp_view(const char *file, int *selection)
             }
         }
     }
-    gui_synclist_select_item(&list, MAX(MIN(sel, lp_rows() - 1), 0));
+    gui_synclist_select_item(&list, row_of_song(sel));
 
     int ret = -1;
     bool redraw = true;
@@ -1995,14 +2363,15 @@ int lp_view(const char *file, int *selection)
         /* the plugin buffer taken meanwhile, as by a dock: read again */
         if (plugin_buffer_gen() != lp.gen)
         {
-            const int row = gui_synclist_get_sel_pos(&list);
+            const int song = song_of(gui_synclist_get_sel_pos(&list));
             if (!lp_load())
             {
                 ret = PLAYLIST_VIEWER_CANCEL;
                 break;
             }
+            lp_header_open(&list);
             gui_synclist_set_nb_items(&list, lp_rows());
-            gui_synclist_select_item(&list, MAX(MIN(row, lp_rows() - 1), 0));
+            gui_synclist_select_item(&list, row_of_song(song));
             redraw = true;
         }
         if (redraw)
@@ -2012,8 +2381,10 @@ int lp_view(const char *file, int *selection)
         }
         redraw = false;
         /* as list_do_action(), and the covers the reader reads as the wheel
-           rests drawn as they come, as in tree.c */
-        int timeout = list_do_action_timeout(&list, HZ / 2);
+           rests drawn as they come, as in tree.c; the header's collage too,
+           looked for each tenth of a second while it's read */
+        const bool collage = lp.header && album_header_cover_reading();
+        int timeout = list_do_action_timeout(&list, collage ? HZ / 10 : HZ / 2);
         if (lp.covers)
             timeout = list_covers_timeout(timeout);
         keyclick_set_callback(gui_synclist_keyclick_callback, &list);
@@ -2022,13 +2393,15 @@ int lp_view(const char *file, int *selection)
             list_covers_input();
         if (lp.covers && list_covers_poll())
             redraw = true;
+        if (lp.header && album_header_cover_came())
+            redraw = true;
         if (gui_synclist_do_button(&list, &action))
             continue;
         const int row = gui_synclist_get_sel_pos(&list);
         switch (action)
         {
             case ACTION_STD_OK:
-                if (lp.count <= 0)
+                if (lp.count <= 0 || row < lp.header)
                     break;
                 if (is_save_row(row))
                 {
@@ -2068,12 +2441,12 @@ int lp_view(const char *file, int *selection)
                 /* the song playing, of this list: to it, paused or not */
                 lp.from_this = playing_from(lp.file);
                 if (lp.from_this && gui_synclist_song_playing()
-                                    == (long)lp.songs[row].idx + 1)
+                                    == (long)lp.songs[song_of(row)].idx + 1)
                 {
                     ret = PLAYLIST_VIEWER_OK;
                     break;
                 }
-                if (lp_play(row))
+                if (lp_play(song_of(row)))
                     ret = PLAYLIST_VIEWER_OK;
                 else
                     transition_cancel();
@@ -2083,11 +2456,12 @@ int lp_view(const char *file, int *selection)
             {
                 if (lp.count <= 0 || !is_song_row(row))
                     break;
+                const int song = song_of(row);
                 /* On-The-Go's song out at once, as on a stock iPod */
                 if (lp.otg)
-                    lp_remove(row);
+                    lp_remove(song);
                 else
-                    ret = lp_song_menu(row);
+                    ret = lp_song_menu(song);
                 /* a song fewer, perhaps; none left of On-The-Go, back */
                 if (lp.otg && lp.count <= 0)
                 {
@@ -2095,9 +2469,10 @@ int lp_view(const char *file, int *selection)
                     ret = PLAYLIST_VIEWER_CANCEL;
                     break;
                 }
-                /* on the song after it still */
+                /* on the song after it still, under the header as it is now */
+                lp_header_open(&list);
                 gui_synclist_set_nb_items(&list, lp_rows());
-                gui_synclist_select_item(&list, MAX(MIN(row, lp_rows() - 1), 0));
+                gui_synclist_select_item(&list, row_of_song(song));
                 redraw = true;
                 break;
             }
@@ -2125,7 +2500,8 @@ int lp_view(const char *file, int *selection)
         }
     }
     if (selection)
-        *selection = gui_synclist_get_sel_pos(&list);
+        *selection = MAX(song_of(gui_synclist_get_sel_pos(&list)), 0);
+    lp.header = 0;
     pop_current_activity_without_refresh();
     if (!was_wide)
         menu_set_wide(false);

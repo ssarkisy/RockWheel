@@ -3741,7 +3741,7 @@ static void album_view_make(struct tree_context *c)
         return;
     const long album = tagcache_sort_key(idx, tag_album);
     long albumartist = tagcache_sort_key(idx, tag_albumartist);
-    long disc = 0, track = 0, longest = 0;
+    long disc = 0, track = 0, longest = 0, length = 0;
     for (int i = first; i < current_entry_count; i++)
     {
         const int32_t song = entries[i].extraseek;
@@ -3762,7 +3762,9 @@ static void album_view_make(struct tree_context *c)
             return;
         disc = d;
         track = t;
-        longest = MAX(longest, tagcache_sort_key(song, tag_length));
+        const long song_length = MAX(tagcache_sort_key(song, tag_length), 0);
+        longest = MAX(longest, song_length);
+        length += song_length;
     }
     album_view = (struct tagtree_album){
         .songs = current_entry_count - first,
@@ -3770,6 +3772,7 @@ static void album_view_make(struct tree_context *c)
                                             : compilations_year(album),
         /* a book's rows have values too, its parts' starts */
         .longest = book ? MAX(entries_parts.length, 1) : longest,
+        .length = show ? 0 : length,
         .first = idx,
         .album = album,
         .albumartist = albumartist,
@@ -8605,6 +8608,11 @@ static size_t minutes_text(long minutes, char *buf, size_t size)
         return snprintf(buf, size, str(LANG_TIME_H), (int)(minutes / 60));
     return snprintf(buf, size, str(LANG_TIME_H_MIN), (int)(minutes / 60),
                     (int)(minutes % 60));
+}
+
+size_t tagtree_minutes_text(long minutes, char *buf, size_t size)
+{
+    return minutes_text(minutes, buf, size);
 }
 
 const char *tagtree_time_left(unsigned long elapsed, unsigned long length,

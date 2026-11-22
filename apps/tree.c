@@ -957,7 +957,8 @@ static int update_dir(void)
     if (id3db && tagtree_rows_two_lines(&tc))
         gui_synclist_set_subline_callback(list, tree_get_subline);
     /* an album's songs, under its header */
-    album_rows = id3db ? album_header_open(&tc, list) : 0;
+    album_rows = id3db ? album_header_open(&tc, list,
+                                           tc.filesindir + group_count()) : 0;
     album_title_shown = false;
     if (id3db)
     {

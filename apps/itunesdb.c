@@ -6543,9 +6543,10 @@ static void scale_row(const fb_data *src, uint32_t *dst, int w,
 
 /* Bilinear, a row of the frame across once and then the rows down: when
    scaling up, several rows on the screen come from the same two rows of
-   the frame */
-static void scale_frame(const fb_data *frame, int fw, int fh,
-                        fb_data *out, int w, int h, bool columns)
+   the frame. Of fw by fh pixels at frame, its rows stride pixels apart, as a
+   part of a wider one is */
+static void scale_frame_part(const fb_data *frame, int stride, int fw, int fh,
+                             fb_data *out, int w, int h, bool columns)
 {
     static uint16_t xs[ROW_MAX];
     static uint8_t fxs[ROW_MAX];
@@ -6592,12 +6593,12 @@ static void scale_frame(const fb_data *frame, int fw, int fh,
         }
         if (have_upper != y0)
         {
-            scale_row(frame + y0 * fw, upper, w, xs, fxs);
+            scale_row(frame + y0 * stride, upper, w, xs, fxs);
             have_upper = y0;
         }
         if (have_lower != y1)
         {
-            scale_row(frame + y1 * fw, lower, w, xs, fxs);
+            scale_row(frame + y1 * stride, lower, w, xs, fxs);
             have_lower = y1;
         }
         /* by rows, or column after column for Cover Flow */
@@ -6606,6 +6607,12 @@ static void scale_frame(const fb_data *frame, int fw, int fh,
         for (int x = 0; x < w; x++, o += step)
             *o = UNSPREAD(lerp32(upper[x], lower[x], fy));
     }
+}
+
+static void scale_frame(const fb_data *frame, int fw, int fh,
+                        fb_data *out, int w, int h, bool columns)
+{
+    scale_frame_part(frame, fw, fw, fh, out, w, h, columns);
 }
 
 /* Shrunk to half or less each way, for an album's header, 60 from 200: each
@@ -6619,7 +6626,7 @@ static bool shrinks(int fw, int fh, int w, int h)
     return fw >= 2 * w && fh >= 2 * h && fw <= BOX_MAX * w && fh <= BOX_MAX * h;
 }
 
-static void shrink_frame(const fb_data *frame, int fw, int fh,
+static void shrink_frame(const fb_data *frame, int stride, int fw, int fh,
                          fb_data *out, int w, int h)
 {
     static uint16_t xs[ROW_MAX + 1];
@@ -6641,7 +6648,7 @@ static void shrink_frame(const fb_data *frame, int fw, int fh,
             uint32_t r = 0, g = 0, b = 0;
             for (int sy = y0; sy < y1; sy++)
             {
-                const fb_data *p = frame + sy * fw;
+                const fb_data *p = frame + sy * stride;
                 for (int sx = xs[x]; sx < xs[x + 1]; sx++)
                 {
                     r += p[sx] >> 11;
@@ -6697,20 +6704,39 @@ static bool art_fit(int fw, int fh, int *w, int *h, int max_size)
            && *w * *h * (int)sizeof(fb_data) + (int)sizeof(struct bitmap) <= max_size;
 }
 
-/* the frame into bm at w by h, shrunk by averaging if asked */
+/* the frame into bm at w by h, shrunk by averaging if asked; or, filled,
+   its middle as wide or as high as bm's shape takes, the rest cut off */
 static int art_put(const fb_data *frame, int fw, int fh, struct bitmap *bm,
-                   int w, int h, bool average)
+                   int w, int h, bool average, bool filled)
 {
     const int out_size = w * h * sizeof(fb_data);
-    if (w == fw && h == fh)
+    const int stride = fw;
+    if (filled)
+    {
+        /* the frame's part of bm's shape, about its middle */
+        if ((long)fw * h > (long)fh * w)
+        {
+            const int cw = MAX((fh * w + h / 2) / h, 1);
+            frame += (fw - cw) / 2;
+            fw = cw;
+        }
+        else if ((long)fw * h < (long)fh * w)
+        {
+            const int ch = MAX((fw * h + w / 2) / w, 1);
+            frame += (fh - ch) / 2 * stride;
+            fh = ch;
+        }
+    }
+    if (w == fw && h == fh && stride == fw)
         memcpy(bm->data, frame, out_size);
     else
     {
         cpu_boost(true);
         if (average && shrinks(fw, fh, w, h))
-            shrink_frame(frame, fw, fh, (fb_data *)bm->data, w, h);
+            shrink_frame(frame, stride, fw, fh, (fb_data *)bm->data, w, h);
         else
-            scale_frame(frame, fw, fh, (fb_data *)bm->data, w, h, false);
+            scale_frame_part(frame, stride, fw, fh, (fb_data *)bm->data, w, h,
+                             false);
         cpu_boost(false);
     }
     bm->width = w;
@@ -6726,16 +6752,18 @@ static int art_put(const fb_data *frame, int fw, int fh, struct bitmap *bm,
 }
 
 static int load_art(const struct itunesdb_art *art, struct bitmap *bm,
-                    int max_size, bool average)
+                    int max_size, bool average, bool filled)
 {
     int w = bm->width, h = bm->height;
-    if (!art_fit(art->width, art->height, &w, &h, max_size))
+    /* filled: bm's own shape, the frame cut to it */
+    if (filled ? !art_fit(w, h, &w, &h, max_size)
+               : !art_fit(art->width, art->height, &w, &h, max_size))
         return -1;
 
     lock_art();
     const fb_data *frame = get_frame(art);
     const int size = frame ? art_put(frame, art->width, art->height, bm, w, h,
-                                     average) : -1;
+                                     average, filled) : -1;
     mutex_unlock(&art_lock);
     return size;
 }
@@ -6751,13 +6779,13 @@ static int scale_art(const struct bitmap *src, struct bitmap *bm, int max_size,
        src could move in the buffer meanwhile: scaling doesn't yield, so it's never
        in scale_frame's or shrink_frame's rows along with another thread */
     return art_put((const fb_data *)src->data, src->width, src->height, bm, w, h,
-                   average);
+                   average, false);
 }
 
 int itunesdb_load_art(const struct itunesdb_art *art, struct bitmap *bm,
                       int max_size)
 {
-    return load_art(art, bm, max_size, false);
+    return load_art(art, bm, max_size, false, false);
 }
 
 int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size)
@@ -6768,7 +6796,13 @@ int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size
 int itunesdb_load_small_art(const struct itunesdb_art *art, struct bitmap *bm,
                             int max_size)
 {
-    return load_art(art, bm, max_size, true);
+    return load_art(art, bm, max_size, true, false);
+}
+
+int itunesdb_load_small_art_filled(const struct itunesdb_art *art,
+                                   struct bitmap *bm, int max_size)
+{
+    return load_art(art, bm, max_size, true, true);
 }
 
 int itunesdb_scale_small_art(const struct bitmap *src, struct bitmap *bm,

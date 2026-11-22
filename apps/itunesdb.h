@@ -506,6 +506,11 @@ int itunesdb_scale_art(const struct bitmap *src, struct bitmap *bm, int max_size
    than bilinear's four of them */
 int itunesdb_load_small_art(const struct itunesdb_art *art, struct bitmap *bm,
                             int max_size);
+/* the same filling bm whole, at its width and height: the frame's middle as
+   wide or as high as bm's shape takes, as a cell of a playlist's collage of
+   covers has half a cover */
+int itunesdb_load_small_art_filled(const struct itunesdb_art *art,
+                                   struct bitmap *bm, int max_size);
 int itunesdb_scale_small_art(const struct bitmap *src, struct bitmap *bm,
                              int max_size);
 

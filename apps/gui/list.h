@@ -338,6 +338,13 @@ extern void gui_synclist_set_value_callback(struct gui_synclist * lists,
         const char *widest);
 extern void gui_synclist_set_block(struct gui_synclist * lists, int rows,
         void (*draw_block)(struct screen *display, int y, void *data));
+/* How much narrower the rows' text is drawn with a scrollbar beside them,
+   for the list with so many rows: the scrollbar's width, or 0 if it doesn't
+   scroll or the theme's scrollbar is a capsule or a line, as list_draw() has
+   it. A capsule may still narrow the rows by a pixel or two, where the
+   selection's side leaves less than the theme's gap: less than a block's
+   margin. For a block measuring its texts before the list is drawn */
+extern int list_scrollbar_room(struct gui_synclist *list, int rows);
 /* Rows of two lines, their height that of the name's part and the second
    line's, in its font (list_two_lines_height()); and their covers */
 extern void gui_synclist_set_subline_callback(struct gui_synclist * lists,

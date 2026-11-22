@@ -231,8 +231,9 @@ static int view_playlist(char *file, int *selection)
 static int display_playlists(char* playlist, enum catbrowse_status_flags status)
 {
     static bool reopen_last_playlist = false;
-    /* the row its screen was left at, -1 for none: it opens at its first
-       song then */
+    /* where its screen was left, -1 for none: it opens at its first song
+       then. lp_view()'s is the song's place among its songs, below its
+       header's rows; playlist_viewer_ex()'s its row */
     static int most_recent_selection = -1;
     int result = -1;
     char selected_playlist[MAX_PATH];

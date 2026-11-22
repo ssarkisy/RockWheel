@@ -17,10 +17,14 @@
  ****************************************************************************/
 
 /* The header of an album's songs: its cover at the left, and beside it its
- * name, in a line or two, its album artist and "2019 · 16 songs", in the fonts
- * of the theme's Now Playing. It takes the list's first rows, three or four,
- * which none can select, and scrolls away with the songs, as iOS's does; the
- * list's title names the album once it's gone (tree.c).
+ * name, in a line or two, its album artist and "2019 · 16 songs · 58 min", in
+ * the fonts of the theme's Now Playing. It takes the list's first rows, three
+ * or four, which none can select, and scrolls away with the songs, as iOS's
+ * does; the list's title names the album once it's gone (tree.c). A
+ * playlist's songs have one too (library_playlists.c): its name and "24 songs
+ * · 1 h 32 min" beside a collage of the covers of its first four albums with
+ * one, chosen as its index is written, in two or three rows, as the rows'
+ * height takes.
  *
  * The cover is only ever one made already: Finder's frame of the first song
  * (ArtworkDB), or for an album copied outside Finder the one Updating Library
@@ -31,7 +35,9 @@
  * thread of its own while the screen is used: a disk asleep takes 0.6 s to
  * spin up, which the wheel and Select don't wait for. The screen shows at
  * once with a note in the cover's place, and the cover comes as it's read;
- * from the buffer or a disk that's on, before the screen, the note not seen. */
+ * from the buffer or a disk that's on, before the screen, the note not seen.
+ * A collage is read the same way, each cover into its cell of that buffer,
+ * shown once all are there. */
 
 #include "config.h"
 #include <stdio.h>
@@ -78,6 +84,8 @@
 static struct {
     int rows;  /* of the list, 0 without a header */
     int slack; /* the rows' height over what the cover and the texts take */
+    bool playlist; /* a playlist's: its name in a line and its counts, by the
+                      cover's middle, no artist */
     int lines; /* the name's */
     char name[NAME_LINES][TEXT_BYTES];
     char artist[TEXT_BYTES];
@@ -102,13 +110,28 @@ static struct {
        covers made again, leave one being read unshown */
     int32_t song;
     bool playing;
+    /* or a playlist's collage, of the covers of these songs' albums, -1 past
+       them, side pixels a side; read into cells, each a part of the square
+       its pixels, packed one after another in pixels, and ok if its cover
+       was read: those the reader found, how many, and their places */
+    bool is_collage;
+    int32_t collage[ALBUM_HEADER_COLLAGE];
+    int side;
+    int cells;
+    struct {
+        short x, y, w, h;
+        bool ok;
+    } cell[ALBUM_HEADER_COLLAGE];
     volatile unsigned wanted;
     volatile bool to_read, reading, came;
 } cover;
 
 /* The reader's thread, only while it reads, and its stack, 4 KB: its calls go
-   2.2 KB deep at most, in the JPEG decode of the menus' cover, by their
-   frames in the firmware's code */
+   2.75 KB deep at most on the Video, 2.7 KB on the iPod photo, by their
+   direct calls' frames in the firmware's code, in a collage's lookup that
+   reads a path from the disk: read_collage()'s frame of 416 B, its four
+   covers' places, kept off the album's cover's way (2.3 KB) and the menus'
+   cover's (2.2 KB, in its JPEG decode) */
 static long reader_stack[(DEFAULT_STACK_SIZE + 0xc00) / sizeof(long)];
 /* how long the screen waits for a read that costs no spin-up, from the buffer
    or a disk that's on: about 20-30 ms, which are then without the note */
@@ -207,6 +230,17 @@ struct layout {
 static void lay_out(int lines, int name_font, int list_font, struct layout *l)
 {
     const int name_h = font_get(name_font)->height;
+    if (header.playlist)
+    {
+        /* the name and the counts as one, by the cover's middle */
+        const int counts_h = font_get(counts_font(list_font))->height;
+        const int top = COVER_TOP
+                        + (COVER_SIZE - (name_h + COUNTS_GAP + counts_h)) / 2;
+        l->name[0] = l->name[1] = top;
+        l->artist = l->counts = top + name_h + COUNTS_GAP;
+        l->foot = MAX(COVER_TOP + COVER_SIZE, l->counts + counts_h);
+        return;
+    }
     for (int k = 0; k < NAME_LINES; k++)
         l->name[k] = NAME_TOP + k * (name_h - NAME_LEADING);
     l->artist = l->name[lines - 1] + name_h + ARTIST_GAP;
@@ -268,20 +302,36 @@ static int wrap_name(const char *name, int font, int width)
 /* Where the cover of the album of this song is, as Now Playing finds a song's:
    Finder's of the song, or else the album's of ours, by its name and album
    artist as the database has them. The song's path may come from the disk,
-   as before the dircache is ready. 1 found, 0 none, -1 not known, as with
-   the database busy or the path not read. What it reads into is the
-   reader's, which reads one cover at a time: off its stack, 1.5 KB */
+   where it's in neither the database's memory nor the dircache. 1 found, 0
+   none, -1 not known, as with the database busy or the path not read. What
+   it reads into is the reader's, which reads one cover at a time: off its
+   stack, 1.5 KB; held by a lock, as a playlist's index looks for its albums'
+   covers too, on the UI's thread or the database's (library_playlists.c).
+   It may wait: for the lock's other holder, for a commit that holds the
+   database (tagcache_search()), and for such a path's read */
 static struct {
     struct tagcache_search tcs;
     char path[MAX_PATH], name[MAX_PATH], artist[MAX_PATH];
+    struct mutex lock;
+    bool lock_ready;
 } finding;
 
 int album_header_find_art(int32_t song, struct itunesdb_art *art)
 {
     struct tagcache_search *tcs = &finding.tcs;
     art->reason = 0;
+    /* made at its first use, with no yield between the test and the making */
+    if (!finding.lock_ready)
+    {
+        mutex_init(&finding.lock);
+        finding.lock_ready = true;
+    }
+    mutex_lock(&finding.lock);
     if (!tagcache_search(tcs, tag_title))
+    {
+        mutex_unlock(&finding.lock);
         return -1;
+    }
     int found = -1;
     if (tagcache_retrieve(tcs, song, tag_filename, finding.path, MAX_PATH))
     {
@@ -294,7 +344,14 @@ int album_header_find_art(int32_t song, struct itunesdb_art *art)
                                             finding.path, art) ? 1 : 0;
     }
     tagcache_search_finish(tcs);
+    mutex_unlock(&finding.lock);
     return found;
+}
+
+int album_header_song_cover(int32_t song)
+{
+    struct itunesdb_art art;
+    return album_header_find_art(song, &art);
 }
 
 /* the song of the database entry is of the album these seeks name: tagcache_idx,
@@ -313,6 +370,79 @@ static bool album_playing(const struct tagtree_album *album)
     const struct mp3entry *id3 = audio_current_track();
     return (audio_status() & AUDIO_STATUS_PLAY) && id3
            && of_album(id3->tagcache_idx, album->album, album->albumartist);
+}
+
+/* A collage's cells for so many covers, in the square of side: 4 a quarter
+   each; 3 the first's middle half at the left and two quarters at the right;
+   2 the middle halves of both; 1 the cover whole */
+static void collage_cells(int n, int side)
+{
+    const int h = side / 2, r = side - h;
+    static const signed char at[ALBUM_HEADER_COLLAGE + 1][ALBUM_HEADER_COLLAGE][4] = {
+        /* x, y, w, h: 0 for none, 1 for half the side, 2 for the rest of it,
+           3 for the whole */
+        { { 0 } },
+        { { 0, 0, 3, 3 } },
+        { { 0, 0, 1, 3 }, { 1, 0, 2, 3 } },
+        { { 0, 0, 1, 3 }, { 1, 0, 2, 1 }, { 1, 1, 2, 2 } },
+        { { 0, 0, 1, 1 }, { 1, 0, 2, 1 }, { 0, 1, 1, 2 }, { 1, 1, 2, 2 } },
+    };
+    const int size[4] = { 0, h, r, side };
+    for (int k = 0; k < n; k++)
+    {
+        cover.cell[k].x = at[n][k][0] ? h : 0;
+        cover.cell[k].y = at[n][k][1] ? h : 0;
+        cover.cell[k].w = size[(int)at[n][k][2]];
+        cover.cell[k].h = size[(int)at[n][k][3]];
+        cover.cell[k].ok = false;
+    }
+}
+
+/* The collage of the covers of these songs' albums: those found, each read
+   into its cell, the cells packed in the pixels, as long as it's still the
+   one wanted. Shown once all are read; one that couldn't be, as with a disk's
+   error, a tile, and the collage read again the next time */
+static void NO_INLINE read_collage(unsigned wanted, const int32_t *songs,
+                                   int side)
+{
+    struct itunesdb_art art[ALBUM_HEADER_COLLAGE];
+    int n = 0;
+    bool known = true;
+    for (int k = 0; k < ALBUM_HEADER_COLLAGE && songs[k] >= 0; k++)
+    {
+        const int found = album_header_find_art(songs[k], &art[n]);
+        if (found > 0)
+            n++;
+        else if (found < 0)
+            known = false;
+    }
+    if (wanted != cover.wanted)
+        return;
+    collage_cells(n, side);
+    fb_data *pixels = cover.pixels;
+    for (int k = 0; k < n && wanted == cover.wanted; k++)
+    {
+        struct bitmap bm;
+        memset(&bm, 0, sizeof(bm));
+        bm.width = cover.cell[k].w;
+        bm.height = cover.cell[k].h;
+        bm.data = (unsigned char *)pixels;
+        const int bytes = bm.width * bm.height * sizeof(fb_data);
+        cover.cell[k].ok =
+            itunesdb_load_small_art_filled(&art[k], &bm, sizeof(bm) + bytes) >= 0
+            && bm.width == cover.cell[k].w && bm.height == cover.cell[k].h;
+        known = known && cover.cell[k].ok;
+        pixels += cover.cell[k].w * cover.cell[k].h;
+    }
+    if (wanted == cover.wanted)
+    {
+        cover.reason = 0;
+        cover.cells = n;
+        cover.height = side;
+        cover.width = n > 0 ? side : 0;
+        cover.known = known;
+        cover.came = true;
+    }
 }
 
 /* The reader: each cover asked for, until none is, shown if it's still the
@@ -342,6 +472,16 @@ static void cover_reader(void)
 #endif
         cover.to_read = false;
         const unsigned wanted = cover.wanted;
+        if (cover.is_collage)
+        {
+            int32_t songs[ALBUM_HEADER_COLLAGE];
+            memcpy(songs, cover.collage, sizeof(songs));
+            read_collage(wanted, songs, cover.side);
+#ifdef HAVE_PRIORITY_SCHEDULING
+            thread_set_priority(thread_self(), PRIORITY_BACKGROUND);
+#endif
+            continue;
+        }
         const int32_t song = cover.song;
         const int32_t album = cover.album, albumartist = cover.albumartist;
         const bool playing = cover.playing;
@@ -417,10 +557,11 @@ bool album_header_reader_start_beside(void)
 static void find_cover(const struct tagtree_album *album)
 {
     const int commit = tagcache_get_commitid();
-    if (cover.known && cover.album == album->album
+    if (cover.known && !cover.is_collage && cover.album == album->album
         && cover.albumartist == album->albumartist && cover.commit == commit)
         return;
     cover.known = true;
+    cover.is_collage = false;
     cover.album = album->album;
     cover.albumartist = album->albumartist;
     cover.commit = commit;
@@ -447,29 +588,114 @@ static void find_cover(const struct tagtree_album *album)
         cover.came = false;
     }
 }
+
+/* A playlist's collage, unless it's the one read last: asked of the reader,
+   as an album's cover is; the note for none, with nothing to read */
+static void find_collage(const int32_t *songs)
+{
+    const int commit = tagcache_get_commitid();
+    const int side = COVER_SIZE;
+    if (cover.known && cover.is_collage && cover.commit == commit
+        && cover.side == side
+        && !memcmp(cover.collage, songs, sizeof(cover.collage)))
+        return;
+    cover.known = true;
+    cover.is_collage = true;
+    memcpy(cover.collage, songs, sizeof(cover.collage));
+    cover.side = side;
+    cover.commit = commit;
+    cover.album = cover.albumartist = -1;
+    cover.playing = false;
+    cover.width = 0;
+    cover.cells = 0;
+    cover.reason = 0;
+    /* one being read before isn't shown */
+    cover.wanted++;
+    cover.came = false;
+    cover.to_read = songs[0] >= 0;
+    if (!cover.to_read)
+        return;
+    if (!album_header_reader_start())
+    {
+        cover.to_read = cover.known = false;
+        return;
+    }
+    /* four reads, each from a disk that's on: the note first if they take
+       longer than an album's */
+    if (storage_disk_is_active())
+    {
+        const long end = current_tick + COVER_WAIT;
+        while (!cover.came && cover.reading && TIME_BEFORE(current_tick, end))
+            sleep(1);
+        cover.came = false;
+    }
+}
+#else
+int album_header_song_cover(int32_t song)
+{
+    (void)song;
+    return 0;
+}
 #endif /* ITUNESDB_HAVE_ART */
 
-int album_header_open(struct tree_context *c, struct gui_synclist *list)
+/* "16 songs · 58 min", after "2019 · " with a year; the minutes left out if
+   0, as for songs without their lengths */
+static void counts_text(char *buf, size_t size, int year, int songs,
+                        long minutes)
 {
-    struct tagtree_album album;
-    char text[MAX_PATH];
-    header.rows = 0;
-    if (!tagtree_album(c, &album)
-        || !tagtree_album_text(c, tag_album, text, sizeof(text)))
-        return 0;
+    size_t len = 0;
+    buf[0] = '\0';
+    if (year > 0)
+        len = MIN((size_t)snprintf(buf, size, "%d \xc2\xb7 ", year), size - 1); /* U+00B7 */
+    len += MIN((size_t)snprintf(buf + len, size - len,
+                                plural_str(songs, LANG_ALBUM_SONGS_ONE,
+                                           LANG_ALBUM_SONGS_FEW,
+                                           LANG_ALBUM_SONGS_MANY),
+                                songs), size - 1 - len);
+    if (minutes > 0 && len + 3 < size - 1)
+    {
+        len += snprintf(buf + len, size - len, " \xc2\xb7 ");
+        tagtree_minutes_text(minutes, buf + len, size - len);
+    }
+}
 
-    const struct viewport *vp = list->parent[SCREEN_MAIN];
-    const int font = vp->font;
-    const int width = vp->width - global_settings.list_text_padding - COVER_SIZE
-                      - COVER_GAP - TEXT_MARGIN;
-    if (width <= 0)
-        return 0;
+/* the minutes of so many ms, 1 for less than half of one, 0 for none */
+static long ms_minutes(unsigned long ms)
+{
+    return ms ? MAX((long)((ms + 30000) / 60000), 1) : 0;
+}
+
+/* the texts' room beside the cover, in the list's whole width */
+static int text_width(const struct gui_synclist *list)
+{
+    return list->parent[SCREEN_MAIN]->width - global_settings.list_text_padding
+           - COVER_SIZE - COVER_GAP - TEXT_MARGIN;
+}
+
+/* the rows the cover and the texts take in the list, with the slack below */
+static void count_rows(const struct gui_synclist *list, int font)
+{
+    struct layout l;
+    lay_out(header.lines, name_font(font), font, &l);
+    const int row = list->line_height[SCREEN_MAIN];
+    header.rows = (l.foot + HEADER_FOOT + row - 1) / row;
+    header.slack = header.rows * row - (l.foot + HEADER_FOOT);
+}
+
+/* The album's texts, fitted to width, and its rows: false without its name */
+static bool album_texts(struct tree_context *c, const struct tagtree_album *album,
+                        const struct gui_synclist *list, int width)
+{
+    char text[MAX_PATH];
+    if (!tagtree_album_text(c, tag_album, text, sizeof(text)))
+        return false;
+    const int font = list->parent[SCREEN_MAIN]->font;
     header.name_form = font_text_form((const unsigned char *)text, -1);
     font_set_text_form(header.name_form);
     header.lines = wrap_name(text, name_font(font), width);
 
     /* none for a show whose episodes' authors differ */
-    if (album.albumartist < 0
+    if (album->albumartist < 0
         || !tagtree_album_text(c, tag_albumartist, text, sizeof(text)))
         text[0] = '\0';
     else if (!strcmp(text, UNTAGGED))
@@ -481,24 +707,94 @@ int album_header_open(struct tree_context *c, struct gui_synclist *list)
     fit_text(header.artist, TEXT_BYTES, text, strlen(text), artist_font(font), width);
     font_set_text_form(-1);
 
-    /* "2019 · 16 songs", or the songs alone without a year */
-    int len = 0;
-    if (album.year > 0)
-        len = snprintf(text, sizeof(text), "%d \xc2\xb7 ", album.year); /* U+00B7 */
+    /* "2019 · 16 songs · 58 min", or without the year if it has none or
+       the line is wider than its room, as on the iPod photo's screen */
     if (!tagtree_album_counts(c, text, sizeof(text)))
-        snprintf(text + len, sizeof(text) - len,
-                 plural_str(album.songs, LANG_ALBUM_SONGS_ONE,
-                            LANG_ALBUM_SONGS_FEW, LANG_ALBUM_SONGS_MANY),
-                 album.songs);
+    {
+        const long minutes = ms_minutes(album->length);
+        counts_text(text, sizeof(text), album->year, album->songs, minutes);
+        if (album->year > 0
+            && font_getstringsize(text, NULL, NULL, counts_font(font)) > width)
+            counts_text(text, sizeof(text), 0, album->songs, minutes);
+    }
     fit_text(header.counts, TEXT_BYTES, text, strlen(text), counts_font(font), width);
+    count_rows(list, font);
+    return true;
+}
 
-    struct layout l;
-    lay_out(header.lines, name_font(font), font, &l);
-    const int row = list->line_height[SCREEN_MAIN];
-    header.rows = (l.foot + HEADER_FOOT + row - 1) / row;
-    header.slack = header.rows * row - (l.foot + HEADER_FOOT);
+int album_header_open(struct tree_context *c, struct gui_synclist *list,
+                      int rows_after)
+{
+    struct tagtree_album album;
+    header.rows = 0;
+    header.playlist = false;
+    const int width = text_width(list);
+    if (!tagtree_album(c, &album) || width <= 0
+        || !album_texts(c, &album, list, width))
+    {
+        header.rows = 0;
+        return 0;
+    }
+    /* narrower beside the scrollbar, if the list has one with these rows:
+       the rows only grow, as a name takes two lines */
+    const int narrower = list_scrollbar_room(list, header.rows + rows_after);
+    if (narrower && (width - narrower <= 0
+                     || !album_texts(c, &album, list, width - narrower)))
+    {
+        header.rows = 0;
+        return 0;
+    }
 #ifdef ITUNESDB_HAVE_ART
     find_cover(&album);
+#endif
+    return header.rows;
+}
+
+/* The playlist's texts, fitted to width, and its rows */
+static void playlist_texts(const struct gui_synclist *list, const char *name,
+                           int songs, unsigned long seconds, int width)
+{
+    char text[MAX_PATH];
+    const int font = list->parent[SCREEN_MAIN]->font;
+    header.name_form = font_text_form((const unsigned char *)name, -1);
+    font_set_text_form(header.name_form);
+    fit_text(header.name[0], TEXT_BYTES, name, strlen(name), name_font(font),
+             width);
+    font_set_text_form(-1);
+    header.lines = 1;
+    header.artist[0] = '\0';
+    header.artist_form = -1;
+    /* "24 songs · 1 h 32 min", its minutes as an album's */
+    counts_text(text, sizeof(text), 0, songs,
+                seconds ? MAX((long)((seconds + 30) / 60), 1) : 0);
+    fit_text(header.counts, TEXT_BYTES, text, strlen(text), counts_font(font), width);
+    count_rows(list, font);
+}
+
+int album_header_open_playlist(struct gui_synclist *list, const char *name,
+                               int songs, unsigned long seconds,
+                               const int32_t *collage, int rows_after)
+{
+    header.rows = 0;
+    header.playlist = true;
+    const int width = text_width(list);
+    if (songs <= 0 || width <= 0)
+        return 0;
+    playlist_texts(list, name, songs, seconds, width);
+    const int narrower = list_scrollbar_room(list, header.rows + rows_after);
+    if (narrower)
+    {
+        if (width - narrower <= 0)
+        {
+            header.rows = 0;
+            return 0;
+        }
+        playlist_texts(list, name, songs, seconds, width - narrower);
+    }
+#ifdef ITUNESDB_HAVE_ART
+    find_collage(collage);
+#else
+    (void)collage;
 #endif
     return header.rows;
 }
@@ -508,6 +804,29 @@ static void draw_cover(struct screen *display, int x, int y)
 {
     const int radius = ui_metric(UI_METRIC_HEADER_COVER_RADIUS);
 #ifdef ITUNESDB_HAVE_ART
+    if (cover.width > 0 && cover.is_collage)
+    {
+        /* seamless, its outer corners as a cover's */
+        const fb_data *pixels = cover.pixels;
+        for (int k = 0; k < cover.cells; k++)
+        {
+            const int w = cover.cell[k].w, h = cover.cell[k].h;
+            if (cover.cell[k].ok)
+                display->bitmap_part(pixels, 0, 0, STRIDE(SCREEN_MAIN, w, h),
+                                     x + cover.cell[k].x, y + cover.cell[k].y,
+                                     w, h);
+            else
+            {
+                display->set_foreground(ui_colour(UI_COLOUR_COVER_TILE));
+                display->set_drawmode(DRMODE_SOLID);
+                display->fillrect(x + cover.cell[k].x, y + cover.cell[k].y,
+                                  w, h);
+            }
+            pixels += w * h;
+        }
+        line_round_corners(display, x, y, cover.width, cover.height, radius);
+        return;
+    }
     if (cover.width > 0)
     {
         display->bitmap_part(cover.pixels, 0, 0,
@@ -567,7 +886,8 @@ void album_header_draw(struct screen *display, int y, void *data)
     const int pad = global_settings.list_text_padding;
     /* in the middle of its rows' height, where the theme has it so: its own
        insets can then be small enough for two rows of two lines, and three
-       rows of one line keep it clear of their ends */
+       rows of one line keep it clear of their ends. A playlist's as an
+       album's, at the top in Classic */
     if (ui_metric(UI_METRIC_HEADER_CENTRED))
         y += header.slack / 2;
     /* right to left, the cover at the right end and the texts left of it:
@@ -585,9 +905,12 @@ void album_header_draw(struct screen *display, int y, void *data)
     for (int k = 0; k < header.lines; k++)
         display->putsxy(x, y + l.name[k], header.name[k]);
     display->set_foreground(LIST_VALUE_COLOUR);
-    vp->font = artist_font(list_font);
-    font_set_text_form(header.artist_form);
-    display->putsxy(x, y + l.artist, header.artist);
+    if (!header.playlist)
+    {
+        vp->font = artist_font(list_font);
+        font_set_text_form(header.artist_form);
+        display->putsxy(x, y + l.artist, header.artist);
+    }
     font_set_text_form(-1);
     vp->font = counts_font(list_font);
     display->putsxy(x, y + l.counts, header.counts);
@@ -635,6 +958,7 @@ void album_header_forget_cover(void)
     /* one being read too, which is of the covers before */
     cover.known = false;
     cover.width = 0;
+    cover.cells = 0;
     cover.reason = 0;
     cover.wanted++;
     cover.to_read = false;

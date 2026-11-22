@@ -38,12 +38,30 @@ struct lp_song {
     uint32_t line;  /* its song in the file, LP_NO_LINE if it isn't there yet */
 };
 
+/* the albums of a playlist's collage of covers (album_header.h) */
+#define LP_COLLAGE 4
+/* a header's seconds or collage_seen not made, made at the next Updating
+   Library (lp_covers_changed()). An index written without the database in
+   memory has neither: its header shows the songs without their length, and
+   the note. A cover's lookup that couldn't tell, as during a commit, leaves
+   only the collage: the length shows, with the note */
+#define LP_HEADER_UNKNOWN 0xffffffffu
+
 struct lp_state {
     uint32_t lines; /* of songs in its file */
     uint32_t unmatched; /* of those, the database hasn't: kept but not shown */
     uint32_t sort;  /* the column it's shown by, as ITUNESDB_SORT_* */
     bool pending;   /* its file is still to be written from its index: other
                        songs, or in another order */
+    /* What its header shows, made as its index is written (lp_index_write()):
+       its songs' length, in seconds, each song's to the second; and the
+       first four albums with a cover among its songs in their order, Unknown
+       Album left out, each as the song of it that comes first, -1 past them,
+       looked for among its first collage_seen songs. LP_HEADER_UNKNOWN for
+       either not made */
+    uint32_t seconds;
+    uint32_t collage_seen;
+    int32_t collage[LP_COLLAGE];
 };
 
 /* A playlist's index, if it's of the database as it is: its songs, as many as
@@ -51,7 +69,8 @@ struct lp_state {
    has. */
 int lp_index_read(const char *file, struct lp_song *songs, int max,
                   struct lp_state *state);
-/* its pending worked out from them and the lines of its file */
+/* its pending worked out from them and the lines of its file, and what its
+   header shows: from the database in memory, a few covers looked up there */
 bool lp_index_write(const char *file, const struct lp_song *songs, int count,
                     struct lp_state *state);
 /* from its file, the songs of its lines that the database has, its lines
@@ -92,6 +111,11 @@ bool lp_viewable(const char *file);
 /* songs added at the end of a playlist made on the iPod, which was old_size
    before: its index and, if it plays, the queue with them */
 void lp_index_appended(const char *file, long old_size);
+/* the covers changed, though the database may not have, as by a sync of
+   artwork alone (list_covers_forget()), or a header couldn't be made: the
+   next Updating Library chooses each playlist's albums for its collage
+   again, and makes its length where it's LP_HEADER_UNKNOWN */
+void lp_covers_changed(void);
 /* a song the database lost, as a sync or USB took its file: out of the
    playlists made on the iPod at Updating Library; and the notes, to the disk */
 void lp_gone_note(const char *path);

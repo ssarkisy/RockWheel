@@ -55,6 +55,7 @@
 #include "album_years.h"
 #include "album_header.h"
 #include "list_covers.h"
+#include "library_playlists.h"
 #include "gui/cover_caution.h"
 
 #ifdef ITUNESDB_HAVE_ART
@@ -512,8 +513,10 @@ bool list_covers_on(void)
 void list_covers_forget(void)
 {
     forget();
-    /* the file made again at the next Updating Library */
+    /* the file made again at the next Updating Library, and the playlists'
+       collages chosen again, an album's cover found or gone */
     close(open(COVERS_TODO, O_WRONLY | O_CREAT | O_TRUNC, 0666));
+    lp_covers_changed();
 }
 
 /* an album's slot in the file, -1 for none or none known, as with the file

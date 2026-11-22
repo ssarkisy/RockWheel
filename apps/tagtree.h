@@ -215,6 +215,8 @@ struct tagtree_album {
     int songs;
     int year;                   /* 0 for none */
     long longest;               /* the longest song's length, in ms */
+    long length;                /* all its songs', in ms; 0 for a show's or
+                                   a book's, whose header has its own */
     int32_t first;              /* its first song in the database */
     int32_t album, albumartist; /* their names' seeks, which are the album's */
 };
@@ -247,6 +249,9 @@ const char *tagtree_track_date(int32_t idx, bool with_length, char *buf,
                                size_t size);
 const char *tagtree_time_left(unsigned long elapsed, unsigned long length,
                               char *buf, size_t size);
+/* A time in minutes as the lists have it: "45 min", "6 h 12 min", "7 h"; 1 at
+   least. Its length */
+size_t tagtree_minutes_text(long minutes, char *buf, size_t size);
 /* The list made last has its rows' states, a show's episodes: each row's
    mark in a column before its name (enum line_mark): a dot for a new
    episode, a half dot for one begun, LINE_MARK_EMPTY for the rest;
