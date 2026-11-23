@@ -2243,8 +2243,8 @@ static int load_album_index(void){
 
 failure:
     /* None yet, cut short, damaged or too large for the buffer: nothing
-       said here. The caller makes it again with its own screen, the boot's
-       Preparing Albums or Cover Flow's steps; Cover Flow says so if there's
+       said here. The caller makes it again with its own screen, Updating
+       Library's album list or Cover Flow's steps; Cover Flow says so if there's
        no room for it either. */
     if (fr >= 0)
         rb->close(fr);

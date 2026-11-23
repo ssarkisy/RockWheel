@@ -12695,30 +12695,30 @@
 </phrase>
 <phrase>
   id: LANG_PREPARING_ALBUMS
-  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  desc: deprecated
   user: core
   <source>
-    *: "Preparing Albums"
+    *: ""
   </source>
   <dest>
-    *: "Apontiaedje des alboms"
+    *: ""
   </dest>
   <voice>
-    *: "Apontiaedje des alboms"
+    *: ""
   </voice>
 </phrase>
 <phrase>
   id: LANG_PREPARING_SONGS
-  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  desc: deprecated
   user: core
   <source>
-    *: "Preparing Songs"
+    *: ""
   </source>
   <dest>
-    *: "Apontiaedje des tchansons"
+    *: ""
   </dest>
   <voice>
-    *: "Apontiaedje des tchansons"
+    *: ""
   </voice>
 </phrase>
 <phrase>

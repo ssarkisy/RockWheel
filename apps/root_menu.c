@@ -1635,8 +1635,8 @@ static int shown_percent;
 static long shown_at;
 
 /* The bar under the boot logo, which stays where the iPod draws it, and the
-   step's words under the bar: close enough for Preparing Covers' count to
-   fit under them on the iPod photo's screen too, the same for every step */
+   step's words under the bar: close enough for the covers' count to fit
+   under them on the iPod photo's screen too, the same for every step */
 #if LCD_HEIGHT >= 240
 #define UPDATE_BAR_GAP  18
 #define UPDATE_TEXT_GAP 8
@@ -1645,10 +1645,13 @@ static long shown_at;
 #define UPDATE_TEXT_GAP 7
 #endif
 
-/* Preparing Covers' count under its words, as its steps go: Cover Flow's
-   slides and the lists' covers by album, the covers of songs without the
-   computer's by song, then by album. Each step's own, from its start, as
-   the bar is. */
+/* The count under the words of a step that makes covers: by album for the
+   import's slides, under Preparing Covers, and for the lists' covers; by
+   song, then by album, for the covers of songs without the computer's.
+   Each step's own, from its start, as the bar is. Shown while it is set,
+   whatever the words (the steps after the import are all Updating
+   Library), so it's cleared as each step ends: by the step, and by the
+   screen after the import's loop and after Cover Flow's plugin. */
 enum { UPDATE_COUNT_NONE, UPDATE_COUNT_ALBUMS, UPDATE_COUNT_SONGS };
 static int count_kind, count_done, count_total;
 static char shown_count[64];
@@ -1668,8 +1671,7 @@ static void library_update_show(const char *text, int percent)
     if (update_words)
         text = update_words;
     char count[sizeof(shown_count)] = "";
-    if (count_kind != UPDATE_COUNT_NONE && !update_words
-        && text == (const char *)str(LANG_PREPARING_COVERS))
+    if (count_kind != UPDATE_COUNT_NONE && !update_words)
     {
         const char *form = count_kind == UPDATE_COUNT_SONGS
             ? plural_str(count_total, LANG_COVERS_SONGS_OF_ONE,
@@ -1786,19 +1788,30 @@ static void library_update_show(const char *text, int percent)
     backlight_on();
 }
 
-/* A step of the import that isn't the tagcache's. Its parts may each count
+/* The steps after the import that aren't the tagcache's, all under Updating
+   Library's words, each with a bar of its own: Cover Flow's album list; the
+   covers of songs outside Finder's folder, then the lists' and the artists'
+   covers; Songs; Search's letters */
+enum { UPDATE_STEP_ALBUMS, UPDATE_STEP_COVERS, UPDATE_STEP_SONGS,
+       UPDATE_STEP_LETTERS };
+/* the step library_update_forward() drew last, none at each screen's start:
+   the same step of a screen before, as Songs after USB, had its bar go on
+   from that screen's */
+static int forward_step = -1;
+
+/* A step of the update that isn't the tagcache's. Its parts may each count
    anew, so its one bar only goes forward. */
-static void library_update_forward(const char *text, int done, int total)
+static void library_update_forward(int step, int done, int total)
 {
     static int percent;
-    static const char *step;
-    /* a step of its own, also when shown from 0 under the same words: Search's
-       letters and the library's playlists are both Updating Library */
-    /* and under update_words' one line, by the step's own words */
-    if (shown_text != (update_words ? update_words : text) || step != text
-        || shown_percent < percent)
+    const char *text = (const char *)str(LANG_UPDATING_LIBRARY);
+    /* a step of its own from 0 under the same words: by its own number, by
+       the screen shown from 0 just before it (the lists' covers, Search's
+       letters), or by another screen; under update_words' one line too */
+    if (shown_text != (update_words ? update_words : text)
+        || step != forward_step || shown_percent < percent)
         percent = 0;
-    step = text;
+    forward_step = step;
     if (total > 0)
         percent = MAX(percent, 100 * MIN(done, total) / total);
     library_update_show(text, percent);
@@ -1807,13 +1820,13 @@ static void library_update_forward(const char *text, int done, int total)
 #ifdef ITUNESDB_HAVE_ART
 void library_update_progress(int done, int total)
 {
-    library_update_forward((const char *)str(LANG_PREPARING_ALBUMS), done, total);
+    library_update_forward(UPDATE_STEP_ALBUMS, done, total);
 }
 
 /* the covers of songs outside Finder's folder, of albums done of total */
 void library_update_covers_progress(int done, int total)
 {
-    library_update_forward((const char *)str(LANG_PREPARING_COVERS), done, total);
+    library_update_forward(UPDATE_STEP_COVERS, done, total);
 }
 
 /* and its count, of songs or of albums, from Cover Flow's plugin */
@@ -1836,13 +1849,13 @@ static void library_row_covers_progress(int done, int total)
 
 void library_update_songs_progress(int done, int total)
 {
-    library_update_forward((const char *)str(LANG_PREPARING_SONGS), done, total);
+    library_update_forward(UPDATE_STEP_SONGS, done, total);
 }
 
-/* Search's letters, as Updating Library */
+/* Search's letters */
 static void library_letters_progress(int done, int total)
 {
-    library_update_forward((const char *)str(LANG_UPDATING_LIBRARY), done, total);
+    library_update_forward(UPDATE_STEP_LETTERS, done, total);
 }
 
 /* USB or power off, come as Cover Flow's plugin made the covers: it stops for
@@ -2015,10 +2028,11 @@ static bool album_list_current(void)
 #endif
 
 #if defined(HAVE_PHOTOS_MENU) && defined(HAVE_PHOTOS_PANEL)
-/* the collages are to be made of other photos: said on the update's screen */
+/* the collages are to be made of other photos: a step of Updating Library
+   too, its bar from 0 */
 static void photos_making(void)
 {
-    library_update_show(str(LANG_PREPARING_PHOTOS), 0);
+    library_update_show(str(LANG_UPDATING_LIBRARY), 0);
 }
 #endif
 
@@ -2090,6 +2104,7 @@ static void library_update_screen(const char *words)
     /* for this screen, not one shown within it, as after USB */
     const char *outer = update_words;
     update_words = words;
+    forward_step = -1;
     int done, total, phase;
     bool shown = false;
     /* The check after USB of the songs outside Finder's folder shows only once
@@ -2142,6 +2157,8 @@ static void library_update_screen(const char *words)
         if (default_event_handler(action) == SYS_USB_CONNECTED)
             break;
     }
+    /* the import's count gone with it: the steps after count their own */
+    library_update_count(UPDATE_COUNT_NONE, 0, 0);
     /* left for want of room: nothing made of it either */
     bool no_space = phase == TAGCACHE_IMPORT_NONE && tagcache_take_no_space();
     /* a check that took long but found nothing has nothing to make again, nor
@@ -2199,7 +2216,7 @@ static void library_update_screen(const char *words)
     {
         if (itunesdb_covers_room())
         {
-            library_update_show(str(LANG_PREPARING_ALBUMS), 0);
+            library_update_show(str(LANG_UPDATING_LIBRARY), 0);
             /* it clears the screen as it starts and ends: drawn whole again */
             shown_text = NULL;
             step_begin();
@@ -2207,6 +2224,8 @@ static void library_update_screen(const char *words)
                         ITUNESDB_ALBUM_LIST);
             step_end(STEP_ALBUMS);
             shown_text = NULL;
+            /* nor its count left, which it clears as its covers end */
+            library_update_count(UPDATE_COUNT_NONE, 0, 0);
         }
         /* the computer's covers, which would take the room they need */
         else
@@ -2248,7 +2267,7 @@ static void library_update_screen(const char *words)
                                    || artist_rows_stale()))
     {
         library_update_count(UPDATE_COUNT_NONE, 0, 0);
-        library_update_show(str(LANG_PREPARING_COVERS), 0);
+        library_update_show(str(LANG_UPDATING_LIBRARY), 0);
         step_begin();
         if (list_covers_stale())
             list_covers_make(library_row_covers_progress,

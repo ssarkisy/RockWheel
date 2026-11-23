@@ -1421,7 +1421,7 @@ static void make_none(void)
 }
 
 /* the covers list_covers_make() has gone through of the albums with one, as
-   it writes them: Preparing Covers' count; 0 of 0 otherwise */
+   it writes them: the update screen's count; 0 of 0 otherwise */
 static int making_done, making_slots;
 
 void list_covers_making(int *done, int *total)

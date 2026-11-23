@@ -1229,7 +1229,7 @@ struct plugin_api {
     /* Finder's artwork set aside for the next sync (itunesdb.h) */
     bool (*itunesdb_covers_aside)(void);
     void (*itunesdb_song_keep)(uint64_t path);
-    /* Preparing Covers' count of songs or albums (root_menu.h) */
+    /* the update screen's count of songs or of albums (root_menu.h) */
     void (*library_update_covers_count)(int done, int total, bool songs);
 #endif
 };

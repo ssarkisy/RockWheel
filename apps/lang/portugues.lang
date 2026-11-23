@@ -14061,16 +14061,16 @@
 </phrase>
 <phrase>
   id: LANG_PREPARING_ALBUMS
-  desc: under the boot logo, the step of an import that makes the album list of Cover Flow
+  desc: deprecated
   user: core
   <source>
-    *: "Preparing Albums"
+    *: ""
   </source>
   <dest>
-    *: "A preparar álbuns"
+    *: ""
   </dest>
   <voice>
-    *: "A preparar álbuns"
+    *: ""
   </voice>
 </phrase>
 <phrase>
@@ -14089,16 +14089,16 @@
 </phrase>
 <phrase>
   id: LANG_PREPARING_SONGS
-  desc: under the boot logo, the step of an import that makes the playlist of the list of all songs
+  desc: deprecated
   user: core
   <source>
-    *: "Preparing Songs"
+    *: ""
   </source>
   <dest>
-    *: "A preparar músicas"
+    *: ""
   </dest>
   <voice>
-    *: "A preparar músicas"
+    *: ""
   </voice>
 </phrase>
 <phrase>
@@ -15157,13 +15157,13 @@
 </phrase>
 <phrase>
   id: LANG_PREPARING_PHOTOS
-  desc: a step of the library update at boot, shown under its bar
+  desc: deprecated
   user: core
   <source>
-    *: "Preparing Photos"
+    *: ""
   </source>
   <dest>
-    *: "A preparar fotos"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -21039,7 +21039,7 @@
 </phrase>
 <phrase>
   id: LANG_COVERS_ALBUMS_OF_ONE
-  desc: under Preparing Covers on the update screen, as Cover Flow's covers and the lists' are made: the albums done, of the step's; the first %d those done, the second all of them: 1 (21 in one-few-many languages), the noun in its form after that total
+  desc: under the step's name on the update screen, Preparing Covers or Updating Library, as Cover Flow's covers and the lists' are made: the albums done, of the step's; the first %d those done, the second all of them: 1 (21 in one-few-many languages), the noun in its form after that total
   user: core
   <source>
     *: "%d of %d album"
@@ -21081,7 +21081,7 @@
 </phrase>
 <phrase>
   id: LANG_COVERS_SONGS_OF_ONE
-  desc: under Preparing Covers on the update screen, as the covers of songs the computer gave none are made: the songs done, of the step's; the first %d those done, the second all of them: 1 (21 in one-few-many languages), the noun in its form after that total
+  desc: under Updating Library on the update screen, as the covers of songs the computer gave none are made: the songs done, of the step's; the first %d those done, the second all of them: 1 (21 in one-few-many languages), the noun in its form after that total
   user: core
   <source>
     *: "%d of %d song"

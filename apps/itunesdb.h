@@ -242,7 +242,7 @@ bool itunesdb_import_kept_art(void);
    list made by searches lacks, so that each cover was a search of every track:
    one made at boot before the database was in memory had none; W: one entry
    for each album of each artist, a list of the pass before made again once,
-   at the next Preparing Albums or Cover Flow. */
+   at the next update's album list or Cover Flow. */
 #define ITUNESDB_ALBUM_INDEX_MAGIC "PFIW"
 /* A list is of music alone when it is made with the tracks' kinds known (the
    database in memory: MUSIC_ONLY, kind_if_known being tagcache_kind_if_known(),
