@@ -98,11 +98,72 @@ sub find_copyfile {
     }
 }
 
+# A backdrop's name resolved as the firmware resolves it (path_append(), then the
+# path walk): one that starts with "/" as it is, any other in $dir (without one, as
+# for a .cfg's, the firmware opens nothing); "." dropped, ".." one up, at the root
+# none. Its path in .rockbox, or undef.
+sub theme_resolve {
+    my ($name, $dir) = @_;
+    if ($name !~ m{^/}) {
+        return undef unless (defined($dir));
+        $name = "$dir/$name";
+    }
+    my @parts;
+    foreach my $part (split(m{/+}, $name)) {
+        next if ($part eq '' || $part eq '.');
+        if ($part eq '..') {
+            pop(@parts);
+        } else {
+            push(@parts, $part);
+        }
+    }
+    return undef unless (@parts > 1 && lc($parts[0]) eq '.rockbox');
+    return join('/', @parts[1 .. $#parts]);
+}
+
+# The themes' backdrops, the pictures the firmware loads with backdrop_load(), which
+# dithers them (FORMAT_DITHER): every picture in backdrops/, where ui_theme.c's looks
+# take theirs from, a .cfg's "backdrop:", and what a skin names in %X, %XS or %XW
+# (theme_resolve(), from the folder named as the skin). Nothing else of a theme is
+# dithered, whatever its size, but a skin's images in a %VB viewport and icons, which
+# no theme has. A picture is packaged one way, so one also used as a skin's image gets
+# the backdrop's dither there too. Returns the set, by path in .rockbox in lower case
+# as FAT matches a name, and each reference, which theme_install() checks.
+sub theme_backdrops {
+    my (%backdrops, @refs);
+    foreach my $themedir (@_) {
+        find({ no_chdir => 1, wanted => sub {
+            return if (-d $File::Find::name);
+            my $rel = substr($File::Find::name, length($themedir) + 1);
+            $backdrops{lc($rel)} = 1 if ($rel =~ m{^backdrops/[^/]+\.bmp$}i);
+            my $skin = ($rel =~ m{^(.+)\.(sbs|wps|fms)$}) ? $1 : undef;
+            return unless ($skin || $rel =~ /\.cfg$/);
+            open(my $in, '<', $File::Find::name) or die "can't read $File::Find::name";
+            while (my $line = <$in>) {
+                my @names;
+                if ($skin) {
+                    $line =~ s/(?<!%)#.*//s;
+                    @names = grep { $_ ne '-' && $_ ne 'd' } ($line =~ /%X[SW]?\(([^)]+)\)/g);
+                } elsif ($line =~ /^\s*backdrop:\s*(.*?)\s*$/i && $1 ne '' && $1 ne '-') {
+                    @names = ($1);
+                }
+                foreach my $name (@names) {
+                    my $path = theme_resolve($name, $skin ? "/.rockbox/$skin" : undef);
+                    $backdrops{lc($path)} = 1 if (defined($path));
+                    push(@refs, [$File::Find::name, $name, $path]);
+                }
+            }
+            close($in);
+        }}, $themedir);
+    }
+    return (\%backdrops, \@refs);
+}
+
 # A theme's 24 bit picture turned into what read_bmp_fd would make of it, so that it
-# is only read at load time: 16 bit RGB565, top-down. Whole-screen ones are backdrops,
-# which it dithers.
+# is only read at load time: 16 bit RGB565, top-down, dithered for a backdrop. Returns
+# its width and height if it was turned.
 sub theme_bmp_for_screen {
-    my ($path) = @_;
+    my ($path, $dither) = @_;
     my @table = (0, 192, 48, 240, 12, 204, 60, 252, 3, 195, 51, 243, 15, 207, 63, 255);
 
     open(my $in, '<:raw', $path) or die "can't read $path";
@@ -113,7 +174,6 @@ sub theme_bmp_for_screen {
         unpack('L< L< l< l< S< S< L<', substr($data, 10, 28));
     return if ($bits != 24 || $compression != 0 || $h <= 0);
 
-    my $dither = ($w == 320 && $h == 240);
     my $stride = ($w * 3 + 3) & ~3;
     my $pixels = '';
     for (my $y = 0; $y < $h; $y++) {
@@ -139,6 +199,45 @@ sub theme_bmp_for_screen {
     print $out pack('L< L< L<', 0xF800, 0x07E0, 0x001F);
     print $out $pixels;
     close($out);
+    return ($w, $h);
+}
+
+# The themes' folders copied into $temp_dir, their pictures packaged by
+# theme_bmp_for_screen(). Then a warning where a backdrop could be missed and shown
+# undithered: a reference that names no packaged picture, and a 24 bit picture of the
+# screen's size that no reference names.
+sub theme_install {
+    my ($temp_dir, $width, $height, $fonts_taken, @themedirs) = @_;
+    my ($backdrops, $refs) = theme_backdrops(@themedirs);
+    my %packaged;
+    foreach my $themedir (@themedirs) {
+        find({ no_chdir => 1, wanted => sub {
+            return if ($File::Find::name eq $themedir);
+            return if (%$fonts_taken && $File::Find::name =~ m{/([^/]+)\.fnt$}
+                       && !$fonts_taken->{$1});
+            my $rel = substr($File::Find::name, length($themedir) + 1);
+            my $dest = "$temp_dir/$rel";
+            if (-d $File::Find::name) {
+                glob_mkdir($dest);
+                return;
+            }
+            print "theme: $File::Find::name -> $dest\n" if $verbose;
+            copy($File::Find::name, $dest);
+            return unless ($dest =~ /\.bmp$/i);
+            $packaged{lc($rel)} = 1;
+            my $dither = $backdrops->{lc($rel)};
+            my ($w, $h) = theme_bmp_for_screen($dest, $dither);
+            print STDERR "buildzip.pl: warning: $File::Find::name: a 24 bit picture of "
+                . "the screen's size that no backdrop reference names, packaged undithered\n"
+                if (!$dither && defined($w) && $w == $width && $h == $height);
+        }}, $themedir);
+    }
+    foreach my $ref (@$refs) {
+        my ($from, $name, $path) = @$ref;
+        next if (defined($path) && ($packaged{lc($path)} || -f "$temp_dir/$path"));
+        print STDERR "buildzip.pl: warning: $from: backdrop \"$name\" "
+            . (defined($path) ? "matches no packaged picture\n" : "is not in .rockbox\n");
+    }
 }
 
 sub find_installfile {
@@ -800,21 +899,7 @@ sub buildzip {
             14-Inter-Medium 14-Inter-SemiBold 15-Inter-Medium 15-Inter-SemiBold
             17-Inter-Bold 53-Inter-Letters 16-GNU-Unifont);
     }
-    foreach my $themedir (@themedirs) {
-        find({ no_chdir => 1, wanted => sub {
-            return if ($File::Find::name eq $themedir);
-            return if (%fonts_taken && $File::Find::name =~ m{/([^/]+)\.fnt$}
-                       && !$fonts_taken{$1});
-            my $dest = "$temp_dir/" . substr($File::Find::name, length($themedir) + 1);
-            if (-d $File::Find::name) {
-                glob_mkdir($dest);
-            } else {
-                print "theme: $File::Find::name -> $dest\n" if $verbose;
-                copy($File::Find::name, $dest);
-                theme_bmp_for_screen($dest) if ($dest =~ /\.bmp$/i);
-            }
-        }}, $themedir);
-    }
+    theme_install($temp_dir, $width, $height, \%fonts_taken, @themedirs);
 
     # and the info file
     copy("rockbox-info.txt", "$temp_dir/rockbox-info.txt");

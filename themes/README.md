@@ -212,6 +212,11 @@ paths are from the repository's root.
   `themes/*/.rockbox` folder into `.rockbox` for a 320x240 colour target, in
   `make zip` and in the simulator's `make install`. It turns 24-bit BMPs into
   the screen's 16-bit format and copies 32-bit ones, with alpha, as they are.
+  For the iPod photo it copies `themes/*/220x176/.rockbox` instead, and on
+  both it dithers a backdrop (a picture in `backdrops/`, a `.cfg`'s
+  `backdrop:` or one a skin names in `%X`, `%XS` or `%XW`) as the firmware's
+  backdrop loader would, with a warning for a name that matches no picture
+  and for a 24-bit whole-screen picture that no name points to.
   A new folder under `themes/` needs no other change.
 - [ ] **PLUGIN_API_REVISION.** Raise it in `apps/plugin.h` when
   `user_settings`, a structure plugins see or an enum they use changes, even
