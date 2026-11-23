@@ -620,9 +620,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Crossfeed voor koptelefoon"
+    ipodcolor: "Crossfeed voor koptelefoon"
   </dest>
   <voice>
     *: "Crossfeed voor koptelefoon"
@@ -760,9 +762,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Terug naar standaardinstellingen"
+    ipodcolor: "Instellingen herstellen"
   </dest>
   <voice>
     *: "Terug naar standaardinstellingen"
@@ -9191,10 +9195,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Datum/tijd instellen"
+    ipodcolor: "Datum/tijd instellen"
   </dest>
   <voice>
     *: none
@@ -9535,10 +9541,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Pauze bij loskoppelen"
+    ipodcolor: "Pauze bij loskoppelen"
   </dest>
   <voice>
     *: none
@@ -13758,9 +13766,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Instellingen diavoorstelling"
+    ipodcolor: "Instellingen diavoorstelling"
   </dest>
   <voice>
     *: "Instellingen diavoorstelling"
@@ -14836,9 +14846,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "In afspeellijst zetten..."
+    ipodcolor: "In afspeellijst zetten..."
   </dest>
   <voice>
     *: "In afspeellijst zetten..."
@@ -15368,9 +15380,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Algemene presets"
+    ipodcolor: "Algemene presets"
   </dest>
   <voice>
     *: ""
@@ -15676,9 +15690,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Hoofdmenu herstellen"
+    ipodcolor: "Hoofdmenu herstellen"
   </dest>
   <voice>
     *: ""
@@ -15704,9 +15720,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Groeperen op artiest van album"
+    ipodcolor: "Groeperen op albumartiest"
   </dest>
   <voice>
     *: ""
@@ -15872,9 +15890,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Toevoegen aan On-The-Go"
+    ipodcolor: "Toevoegen aan On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -16068,9 +16088,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Speelt nu af-menu herstellen"
+    ipodcolor: "Speelt nu af-menu herstellen"
   </dest>
   <voice>
     *: ""
@@ -16138,9 +16160,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Nummers en luisterboeken hervatten een paar seconden voor het punt waar je stopte."
+    ipodcolor: "Nummers en luisterboeken hervatten een paar seconden voor het punt waar je stopte."
   </dest>
   <voice>
     *: ""
@@ -16166,9 +16190,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Een album in één bestand speelt als losse nummers, volgens het .cue-bestand ernaast."
+    ipodcolor: "Een album in één bestand speelt als losse nummers, volgens het .cue-bestand ernaast."
   </dest>
   <voice>
     *: ""
@@ -16180,9 +16206,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Oude stereo-opnames klinken in je koptelefoon minder verdeeld over je oren."
+    ipodcolor: "Oude stereo-opnames klinken in je koptelefoon minder verdeeld over je oren."
   </dest>
   <voice>
     *: ""
@@ -16222,9 +16250,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "De statusbalk neemt ook de kleuren van de hoes over. ‘Eigen batterij’ houdt de lading groen."
+    ipodcolor: "De statusbalk neemt ook de kleuren van de hoes over. ‘Eigen batterij’ houdt de lading groen."
   </dest>
   <voice>
     *: ""
@@ -16266,9 +16296,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Gaat het scherm uit tijdens muziek, dan komt ‘Speelt nu af’ terug en regelt het wiel het volume."
+    ipodcolor: "Gaat het scherm uit tijdens muziek, dan komt ‘Speelt nu af’ terug en regelt het wiel het volume."
   </dest>
   <voice>
     *: ""
@@ -16280,9 +16312,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "De muziek pauzeert zolang Cover Flow open is, zodat de hoezen op volle snelheid glijden."
+    ipodcolor: "De muziek pauzeert zolang Cover Flow open is, zodat de hoezen op volle snelheid glijden."
   </dest>
   <voice>
     *: ""
@@ -16294,9 +16328,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "‘Zoeken’ toont alleen letters die naar een naam leiden, zodat je er sneller bent."
+    ipodcolor: "‘Zoeken’ toont alleen letters die naar een naam leiden, zodat je er sneller bent."
   </dest>
   <voice>
     *: ""
@@ -18338,9 +18374,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Artiest onder album"
+    ipodcolor: "Artiest onder album"
   </dest>
   <voice>
     *: ""
@@ -18352,9 +18390,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Onder de naam van elk album in Albums staan jaar en artiest, en albums met dezelfde naam staan apart."
+    ipodcolor: "In Albums staan jaar en artiest onder elke albumnaam, en albums met dezelfde naam staan apart."
   </dest>
   <voice>
     *: ""
@@ -18380,9 +18420,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Albums en nummers tonen hun hoes, in Albums, bij albums van een artiest en in Nummers, zoals op een iPod classic."
+    ipodcolor: "Albums en nummers met hun hoes in Albums, bij een artiest en in Nummers, zoals op een iPod classic."
   </dest>
   <voice>
     *: ""
@@ -19066,9 +19108,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Hoe snel audioboeken spelen. Stemmen houden hun natuurlijke toonhoogte."
+    ipodcolor: "Hoe snel audioboeken spelen. Stemmen houden hun natuurlijke toonhoogte."
   </dest>
   <voice>
     *: ""
@@ -19094,9 +19138,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Uit, nummers of albums: hoe je muziek speelt. ‘Shuffle nummers’ in het hoofdmenu zet het op nummers."
+    ipodcolor: "Uit, nummers of albums: hoe je muziek speelt. ‘Shuffle nummers’ in het hoofdmenu zet het op nummers."
   </dest>
   <voice>
     *: ""
@@ -19363,9 +19409,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Met Meerdere kleuren hebben Muziek, Podcasts en Audioboeken een eigen kleur. Een andere kleur geldt overal."
+    ipodcolor: "Meerdere kleuren geeft Muziek, Podcasts en Audioboeken een eigen kleur; een andere geldt overal."
   </dest>
   <voice>
     *: ""
@@ -19391,9 +19439,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Sync-hoezen opnieuw maken"
+    ipodcolor: "Sync-hoezen opnieuw maken"
   </dest>
   <voice>
     *: ""
@@ -19405,9 +19455,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Bij de volgende synchronisatie maakt de computer alle hoezen opnieuw, met scherpe voor het hoofdmenu."
+    ipodcolor: "Bij de volgende sync maakt de computer alle hoezen opnieuw, met scherpe voor het hoofdmenu."
   </dest>
   <voice>
     *: ""
@@ -19419,9 +19471,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Tot de volgende synchronisatie met de computer worden gesynchroniseerde hoezen niet getoond."
+    ipodcolor: "Tot de volgende synchronisatie met de computer worden gesynchroniseerde hoezen niet getoond."
   </dest>
   <voice>
     *: ""
@@ -20161,9 +20215,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Na zo lang slapen op de batterij schakelt de iPod uit. ‘Automatisch’ gaat uit van de capaciteit: 2 tot 12 uur."
+    ipodcolor: "Na zo lang slapen op de batterij schakelt de iPod uit. ‘Automatisch’ volgt de capaciteit: 2–12 uur."
   </dest>
   <voice>
     *: ""
@@ -20175,9 +20231,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Heeft je iPod een nieuwe batterij, geef dan de capaciteit op: ‘Automatisch’ gaat daarvan uit."
+    ipodcolor: "Heeft je iPod een nieuwe batterij, geef dan de capaciteit op: ‘Automatisch’ gaat daarvan uit."
   </dest>
   <voice>
     *: ""
@@ -20273,9 +20331,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Melding ontbrekende hoezen"
+    ipodcolor: "Melding bij geen hoes"
   </dest>
   <voice>
     *: ""

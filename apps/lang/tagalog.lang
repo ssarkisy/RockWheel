@@ -798,9 +798,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Crossfeed para sa Headphone"
+    ipodcolor: "Crossfeed sa Headphone"
   </dest>
   <voice>
     *: "Crossfeed para sa Headphone"
@@ -1856,10 +1858,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "I-pause kapag inalis"
+    ipodcolor: "I-pause kapag inalis"
   </dest>
   <voice>
     *: none
@@ -3713,10 +3717,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Ilagay Oras/Petsa"
+    ipodcolor: "Ilagay Oras/Petsa"
   </dest>
   <voice>
     *: none
@@ -4651,9 +4657,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Ilagay muling itakda"
+    ipodcolor: "Ilagay muling itakda"
   </dest>
   <voice>
     *: "Reset Settings"
@@ -12798,9 +12806,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Setting ng Slideshow"
+    ipodcolor: "Setting ng Slideshow"
   </dest>
   <voice>
     *: "Setting ng Slideshow"
@@ -13960,9 +13970,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Idagdag sa Listahan..."
+    ipodcolor: "Idagdag sa Listahan..."
   </dest>
   <voice>
     *: "Idagdag sa Listahan..."
@@ -14492,9 +14504,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Pangkalahatang Preset"
+    ipodcolor: "Pangkalahatang Preset"
   </dest>
   <voice>
     *: ""
@@ -14800,9 +14814,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "I-reset ang Pangunahing Menu"
+    ipodcolor: "I-reset ang Menu"
   </dest>
   <voice>
     *: ""
@@ -14828,9 +14844,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Igrupo ayon sa Album Artista"
+    ipodcolor: "Ayon sa Album Artista"
   </dest>
   <voice>
     *: ""
@@ -14996,9 +15014,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Idagdag sa On-The-Go"
+    ipodcolor: "Idagdag sa On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -15192,9 +15212,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "I-reset ang Menu ng Tumutugtog Ngayon"
+    ipodcolor: "I-reset ang Menu"
   </dest>
   <voice>
     *: ""
@@ -15262,9 +15284,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Itinutuloy ang mga kanta at audiobook ilang segundo bago kung saan ka tumigil."
+    ipodcolor: "Itinutuloy ang mga kanta at audiobook ilang segundo bago kung saan ka tumigil."
   </dest>
   <voice>
     *: ""
@@ -15290,9 +15314,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Ang album na iisang file ay tutugtog bilang hiwa-hiwalay na kanta, ayon sa .cue file sa tabi nito."
+    ipodcolor: "Ang album na iisang file ay tutugtog bilang hiwa-hiwalay na kanta, ayon sa .cue file sa tabi nito."
   </dest>
   <voice>
     *: ""
@@ -15304,9 +15330,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Mas buo ang tunog ng lumang stereo recording sa headphones, hindi hati sa dalawang tainga."
+    ipodcolor: "Mas buo ang tunog ng lumang stereo recording sa headphones, hindi hati sa dalawang tainga."
   </dest>
   <voice>
     *: ""
@@ -15346,9 +15374,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Kinukuha rin ng status bar ang kulay ng cover. Sa Sariling Baterya, berde pa rin ang charge."
+    ipodcolor: "Kinukuha rin ng status bar ang kulay ng cover. Sa Sariling Baterya, berde pa rin ang charge."
   </dest>
   <voice>
     *: ""
@@ -15390,9 +15420,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Pagdilim ng screen habang may musika, babalik ang Tumutugtog Ngayon at volume ang aayusin ng gulong."
+    ipodcolor: "Pagdilim ng screen sa musika, babalik ang Tumutugtog Ngayon at volume ang aayusin ng gulong."
   </dest>
   <voice>
     *: ""
@@ -15404,9 +15436,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Naka-pause ang musika habang bukas ang Cover Flow, kaya buong bilis na dumudulas ang mga cover."
+    ipodcolor: "Naka-pause ang musika habang bukas ang Cover Flow, kaya buong bilis na dumudulas ang mga cover."
   </dest>
   <voice>
     *: ""
@@ -15418,9 +15452,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "Sa Hanapin, mga titik lang na papunta sa isang pangalan ang lalabas, kaya mas mabilis."
+    ipodcolor: "Sa Hanapin, mga titik lang na papunta sa isang pangalan ang lalabas, kaya mas mabilis."
   </dest>
   <voice>
     *: ""
@@ -17462,9 +17498,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Artista sa Ilalim ng Album"
+    ipodcolor: "Artista sa Ilalim ng Album"
   </dest>
   <voice>
     *: ""
@@ -17476,9 +17514,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Nasa ilalim ng pangalan ng bawat album ang taon at artista, at hiwalay ang mga album na pareho ang pangalan."
+    ipodcolor: "Nasa ilalim ng bawat album ang taon at artista; hiwalay ang mga album na pareho ang pangalan."
   </dest>
   <voice>
     *: ""
@@ -17504,9 +17544,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "May cover ang mga album at kanta, sa Mga Album, sa mga album ng artista at sa Mga Kanta, gaya sa iPod classic."
+    ipodcolor: "May cover ang mga album at kanta sa Mga Album, sa album ng artista at sa Mga Kanta, gaya sa iPod classic."
   </dest>
   <voice>
     *: ""
@@ -18190,9 +18232,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Gaano kabilis tumugtog ang mga audiobook. Natural pa rin ang tono ng boses."
+    ipodcolor: "Gaano kabilis tumugtog ang mga audiobook. Natural pa rin ang tono ng boses."
   </dest>
   <voice>
     *: ""
@@ -18218,9 +18262,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Off, kanta o album: paano tumutugtog ang musika mo. Ang “Balasa ng Kanta” sa main menu ay naglalagay nito sa kanta."
+    ipodcolor: "Off, kanta o album: paano tumutugtog. Itinatakda ito sa kanta ng “Balasa ng Kanta” sa main menu."
   </dest>
   <voice>
     *: ""
@@ -18487,9 +18533,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Sa Maraming kulay, may sariling kulay ang Musika, Podcast at Audiobook. Ibang kulay: sa lahat ng screen."
+    ipodcolor: "Sa Maraming kulay, may sariling kulay ang Musika, Podcast at Audiobook. Ibang kulay: saanman."
   </dest>
   <voice>
     *: ""
@@ -18515,9 +18563,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Gawing Muli ang Naka-sync na Pabalat"
+    ipodcolor: "Bagong Naka-sync na Pabalat"
   </dest>
   <voice>
     *: ""
@@ -18529,9 +18579,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Sa susunod na sync, gagawin muli ng computer ang lahat ng pabalat, malinaw para sa pangunahing menu."
+    ipodcolor: "Sa susunod na sync, gagawin muli ng computer ang lahat ng pabalat, malinaw para sa pangunahing menu."
   </dest>
   <voice>
     *: ""
@@ -18543,9 +18595,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Hanggang sa susunod na sync sa computer, hindi ipinapakita ang mga naka-sync na pabalat."
+    ipodcolor: "Hanggang sa susunod na sync sa computer, hindi ipinapakita ang mga naka-sync na pabalat."
   </dest>
   <voice>
     *: ""
@@ -19285,9 +19339,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Matapos matulog nang ganito katagal sa baterya, namamatay ang iPod. Batay sa baterya ang Awto: 2 hanggang 12 oras."
+    ipodcolor: "Kapag natulog nang ganito sa baterya, mamamatay ang iPod. Awto: ayon sa baterya, 2–12 oras."
   </dest>
   <voice>
     *: ""
@@ -19299,9 +19355,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Kung bago ang baterya ng iPod, ilagay ang kapasidad nito: dito ibinabatay ng Awto ang pagpatay."
+    ipodcolor: "Kung bago ang baterya ng iPod, ilagay ang kapasidad nito: dito ibinabatay ng Awto ang pagpatay."
   </dest>
   <voice>
     *: ""
@@ -19397,9 +19455,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Babala sa nawawalang cover"
+    ipodcolor: "Babala sa nawawalang cover"
   </dest>
   <voice>
     *: ""

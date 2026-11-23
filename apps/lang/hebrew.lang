@@ -821,9 +821,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "הזנה צולבת לאוזניות"
+    ipodcolor: "הזנה צולבת לאוזניות"
   </dest>
   <voice>
     *: "הזנה צולבת לאוזניות"
@@ -1893,10 +1895,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "השהיה בניתוק אוזניות"
+    ipodcolor: "השהיה בניתוק אוזניות"
   </dest>
   <voice>
     *: none
@@ -3748,10 +3752,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "כוון זמן/תאריך"
+    ipodcolor: "כוון זמן/תאריך"
   </dest>
   <voice>
     *: none
@@ -4687,9 +4693,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "אפס הגדרות"
+    ipodcolor: "אפס הגדרות"
   </dest>
   <voice>
     *: "אפס הגדרות"
@@ -12799,9 +12807,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "הגדרות מצגת"
+    ipodcolor: "הגדרות מצגת"
   </dest>
   <voice>
     *: "הגדרות מצגת"
@@ -13961,9 +13971,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "הוספה לרשימת שירים..."
+    ipodcolor: "הוספה לרשימת שירים..."
   </dest>
   <voice>
     *: "הוספה לרשימת שירים..."
@@ -14493,9 +14505,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "הגדרות כלליות"
+    ipodcolor: "הגדרות כלליות"
   </dest>
   <voice>
     *: ""
@@ -14801,9 +14815,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "אפס תפריט ראשי"
+    ipodcolor: "אפס תפריט ראשי"
   </dest>
   <voice>
     *: ""
@@ -14829,9 +14845,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "קיבוץ לפי אמן האלבום"
+    ipodcolor: "קיבוץ לפי אמן האלבום"
   </dest>
   <voice>
     *: ""
@@ -14997,9 +15015,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "הוספה ל-On-The-Go"
+    ipodcolor: "הוספה ל-On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -15193,9 +15213,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "אפס תפריט מתנגן כעת"
+    ipodcolor: "אפס תפריט מתנגן כעת"
   </dest>
   <voice>
     *: ""
@@ -15263,9 +15285,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "שירים וספרי שמע ממשיכים כמה שניות לפני המקום שבו עצרת."
+    ipodcolor: "שירים וספרי שמע ממשיכים כמה שניות לפני המקום שבו עצרת."
   </dest>
   <voice>
     *: ""
@@ -15291,9 +15315,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "אלבום שנשמר כקובץ אחד מתנגן כשירים נפרדים, לפי קובץ ה-.cue שלצדו."
+    ipodcolor: "אלבום שנשמר כקובץ אחד מתנגן כשירים נפרדים, לפי קובץ ה-.cue שלצדו."
   </dest>
   <voice>
     *: ""
@@ -15305,9 +15331,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "הקלטות סטריאו ישנות נשמעות באוזניות פחות מפוצלות בין שתי האוזניים."
+    ipodcolor: "הקלטות סטריאו ישנות נשמעות באוזניות פחות מפוצלות בין שתי האוזניים."
   </dest>
   <voice>
     *: ""
@@ -15347,9 +15375,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "גם שורת המצב מקבלת את צבעי העטיפה. באפשרות סוללה בצבעיה הסוללה נשארת ירוקה."
+    ipodcolor: "גם שורת המצב מקבלת את צבעי העטיפה. באפשרות סוללה בצבעיה הסוללה נשארת ירוקה."
   </dest>
   <voice>
     *: ""
@@ -15391,9 +15421,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "כשהמסך כבה בזמן מוזיקה, חוזר מסך מתנגן כעת, והגלגל משנה את עוצמת הקול."
+    ipodcolor: "כשהמסך כבה בזמן מוזיקה, חוזר מסך מתנגן כעת, והגלגל משנה את עוצמת הקול."
   </dest>
   <voice>
     *: ""
@@ -15405,9 +15437,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "המוזיקה מושהית כש-Cover Flow פתוח, כדי שהעטיפות יגלשו במלוא המהירות."
+    ipodcolor: "המוזיקה מושהית כש-Cover Flow פתוח, כדי שהעטיפות יגלשו במלוא המהירות."
   </dest>
   <voice>
     *: ""
@@ -15419,9 +15453,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "החיפוש מציע רק אותיות שמובילות לשם, כך שמגיעים אליו מהר יותר."
+    ipodcolor: "החיפוש מציע רק אותיות שמובילות לשם, כך שמגיעים אליו מהר יותר."
   </dest>
   <voice>
     *: ""
@@ -17463,9 +17499,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "אמן מתחת לאלבום"
+    ipodcolor: "אמן מתחת לאלבום"
   </dest>
   <voice>
     *: ""
@@ -17477,9 +17515,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "מתחת לשם כל אלבום באלבומים מופיעים השנה והאמן, ואלבומים בעלי אותו שם מוצגים בנפרד."
+    ipodcolor: "מתחת לשם כל אלבום באלבומים מופיעים השנה והאמן, ואלבומים בעלי אותו שם מוצגים בנפרד."
   </dest>
   <voice>
     *: ""
@@ -17505,9 +17545,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "אלבומים ושירים מוצגים עם עטיפה, באלבומים, באלבומי אמן ובשירים, כמו ב-iPod classic."
+    ipodcolor: "אלבומים ושירים מוצגים עם עטיפה, באלבומים, באלבומי אמן ובשירים, כמו ב-iPod classic."
   </dest>
   <voice>
     *: ""
@@ -18191,9 +18233,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "כמה מהר מתנגנים ספרי שמע. הקולות נשארים בגובה הטבעי."
+    ipodcolor: "כמה מהר מתנגנים ספרי שמע. הקולות נשארים בגובה הטבעי."
   </dest>
   <voice>
     *: ""
@@ -18219,9 +18263,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "כבוי, שירים או אלבומים: איך המוזיקה מתנגנת. ״ערבוב שירים״ בתפריט הראשי מעביר לשירים."
+    ipodcolor: "כבוי, שירים או אלבומים: איך המוזיקה מתנגנת. ״ערבוב שירים״ בתפריט הראשי מעביר לשירים."
   </dest>
   <voice>
     *: ""
@@ -18488,9 +18534,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "באפשרות 'מרובה-צבעים' למוזיקה, לפודקאסטים ולספרי השמע יש צבעים משלהם. כל צבע אחר חל על כל המסכים."
+    ipodcolor: "באפשרות 'מרובה-צבעים' למוזיקה, לפודקאסטים ולספרי השמע צבעים משלהם. צבע אחר חל בכל מקום."
   </dest>
   <voice>
     *: ""
@@ -18516,9 +18564,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "בנייה מחדש של עטיפות מסונכרנות"
+    ipodcolor: "עטיפות מסונכרנות מחדש"
   </dest>
   <voice>
     *: ""
@@ -18530,9 +18580,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "בסנכרון הבא המחשב יוצר מחדש את כל העטיפות, עם עטיפות חדות לתפריט הראשי."
+    ipodcolor: "בסנכרון הבא המחשב יוצר מחדש את כל העטיפות, עם עטיפות חדות לתפריט הראשי."
   </dest>
   <voice>
     *: ""
@@ -18544,9 +18596,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "עד הסנכרון הבא עם המחשב עטיפות מסונכרנות אינן מוצגות."
+    ipodcolor: "עד הסנכרון הבא עם המחשב עטיפות מסונכרנות אינן מוצגות."
   </dest>
   <voice>
     *: ""
@@ -19286,9 +19340,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "אחרי שינה כזו על סוללה ה-iPod נכבה. אוטו מתחשב בקיבולת הסוללה: בין שעתיים ל-12 שעות."
+    ipodcolor: "אחרי שינה כזו על סוללה ה-iPod נכבה. אוטו מתחשב בקיבולת הסוללה: בין שעתיים ל-12 שעות."
   </dest>
   <voice>
     *: ""
@@ -19300,9 +19356,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "אם הותקנה סוללה חדשה, הזינו את הקיבולת שלה: לפיה אוטו בוחר מתי לכבות."
+    ipodcolor: "אם הותקנה סוללה חדשה, הזינו את הקיבולת שלה: לפיה אוטו בוחר מתי לכבות."
   </dest>
   <voice>
     *: ""
@@ -19398,9 +19456,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "התראה על עטיפות חסרות"
+    ipodcolor: "התראה על עטיפות חסרות"
   </dest>
   <voice>
     *: ""

@@ -325,9 +325,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Reinițializează setările"
+    ipodcolor: "Reinițializează setările"
   </dest>
   <voice>
     *: "Reinițializează setările"
@@ -3398,10 +3400,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Setează data și ora"
+    ipodcolor: "Setează data și ora"
   </dest>
   <voice>
     *: none
@@ -4433,9 +4437,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Crossfeed pentru căști"
+    ipodcolor: "Crossfeed pentru căști"
   </dest>
   <voice>
     *: "Crossfeed pentru căști"
@@ -5508,10 +5514,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Pauză la deconectare"
+    ipodcolor: "Pauză la deconectare"
   </dest>
   <voice>
     *: none
@@ -15677,9 +15685,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Adaugă la lista de redare..."
+    ipodcolor: "Adaugă la lista de redare..."
   </dest>
   <voice>
     *: "Adaugă la lista de redare"
@@ -17648,9 +17658,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Setări diaporamă"
+    ipodcolor: "Setări diaporamă"
   </dest>
   <voice>
     *: "Setări diaporamă"
@@ -18628,9 +18640,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Presetări generale"
+    ipodcolor: "Presetări generale"
   </dest>
   <voice>
     *: ""
@@ -18922,9 +18936,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Reinițializează meniul principal"
+    ipodcolor: "Reinițializează meniul principal"
   </dest>
   <voice>
     *: ""
@@ -18950,9 +18966,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "După artistul albumului"
+    ipodcolor: "După artistul albumului"
   </dest>
   <voice>
     *: ""
@@ -19118,9 +19136,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Adaugă la On-The-Go"
+    ipodcolor: "Adaugă la On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -19314,9 +19334,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Reinițializează meniul Acum în redare"
+    ipodcolor: "Reinițializează meniul"
   </dest>
   <voice>
     *: ""
@@ -19384,9 +19406,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Melodiile și cărțile audio reîncep cu câteva secunde înainte de locul unde ai rămas."
+    ipodcolor: "Melodiile și cărțile audio reîncep cu câteva secunde înainte de locul unde ai rămas."
   </dest>
   <voice>
     *: ""
@@ -19412,9 +19436,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Un album într-un singur fișier se redă pe melodii separate, după fișierul .cue de lângă el."
+    ipodcolor: "Un album într-un singur fișier se redă pe melodii separate, după fișierul .cue de lângă el."
   </dest>
   <voice>
     *: ""
@@ -19426,9 +19452,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Înregistrările stereo vechi par mai puțin împărțite între urechi în căști."
+    ipodcolor: "Înregistrările stereo vechi par mai puțin împărțite între urechi în căști."
   </dest>
   <voice>
     *: ""
@@ -19468,9 +19496,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Bara de stare preia și ea culorile copertei. „Baterie proprie” păstrează bateria verde."
+    ipodcolor: "Bara de stare preia și ea culorile copertei. „Baterie proprie” păstrează bateria verde."
   </dest>
   <voice>
     *: ""
@@ -19512,9 +19542,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Când ecranul se stinge în timpul muzicii, revine „Acum în redare”, iar rotița reglează volumul."
+    ipodcolor: "Când ecranul se stinge în timpul muzicii, revine „Acum în redare”, iar rotița reglează volumul."
   </dest>
   <voice>
     *: ""
@@ -19526,9 +19558,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Muzica face pauză cât timp Cover Flow e deschis, ca copertele să alunece la viteză maximă."
+    ipodcolor: "Muzica face pauză cât timp Cover Flow e deschis, ca copertele să alunece la viteză maximă."
   </dest>
   <voice>
     *: ""
@@ -19540,9 +19574,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "„Caută” oferă doar literele care duc la un nume, ca să ajungi mai repede."
+    ipodcolor: "„Caută” oferă doar literele care duc la un nume, ca să ajungi mai repede."
   </dest>
   <voice>
     *: ""
@@ -21444,9 +21480,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Artistul sub album"
+    ipodcolor: "Artistul sub album"
   </dest>
   <voice>
     *: ""
@@ -21458,9 +21496,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Sub numele fiecărui album din Albume apar anul și artistul, iar albumele cu același nume apar separat."
+    ipodcolor: "Sub numele fiecărui album din Albume apar anul și artistul, iar albumele omonime apar separat."
   </dest>
   <voice>
     *: ""
@@ -21486,9 +21526,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Albume și melodii cu coperta lor, în Albume, în albumele unui artist și în Melodii, ca pe un iPod classic."
+    ipodcolor: "Albume și melodii cu coperta lor, în Albume, în albumele unui artist și în Melodii, ca pe un iPod classic."
   </dest>
   <voice>
     *: ""
@@ -22172,9 +22214,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Cât de repede se redau cărțile audio. Vocile își păstrează înălțimea naturală."
+    ipodcolor: "Cât de repede se redau cărțile audio. Vocile își păstrează înălțimea naturală."
   </dest>
   <voice>
     *: ""
@@ -22200,9 +22244,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Oprit, melodii sau albume: cum se redă muzica. „Amestecă melodii” din meniul principal trece pe melodii."
+    ipodcolor: "Oprit, melodii sau albume: cum se redă muzica. „Amestecă melodii” din meniul principal trece pe melodii."
   </dest>
   <voice>
     *: ""
@@ -22469,9 +22515,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Cu Multicolor, Muzica, Podcasturile și Cărțile audio au culori proprii. Orice altă culoare se folosește pe toate ecranele."
+    ipodcolor: "Cu Multicolor, Muzica, Podcasturile și Cărțile audio au culori proprii. Altă culoare, peste tot."
   </dest>
   <voice>
     *: ""
@@ -22497,9 +22545,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Refă copertele sincronizate"
+    ipodcolor: "Refă copertele sincronizate"
   </dest>
   <voice>
     *: ""
@@ -22511,9 +22561,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "La următoarea sincronizare, computerul creează din nou toate copertele, clare pentru meniul principal."
+    ipodcolor: "La următoarea sincronizare, computerul reface toate copertele, clare pentru meniul principal."
   </dest>
   <voice>
     *: ""
@@ -22525,9 +22577,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Până la următoarea sincronizare cu computerul, copertele sincronizate nu sunt afișate."
+    ipodcolor: "Până la următoarea sincronizare cu computerul, copertele sincronizate nu sunt afișate."
   </dest>
   <voice>
     *: ""
@@ -23267,9 +23321,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "După atâta repaus pe baterie, iPod-ul se oprește. „Auto” ține cont de capacitatea bateriei: între 2 și 12 ore."
+    ipodcolor: "După atâta repaus pe baterie, iPod-ul se oprește. „Auto” ține cont de capacitate: între 2 și 12 ore."
   </dest>
   <voice>
     *: ""
@@ -23281,9 +23337,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Dacă iPod-ul are o baterie nouă, introdu capacitatea ei: după ea alege „Auto” când se oprește."
+    ipodcolor: "Dacă iPod-ul are o baterie nouă, introdu capacitatea ei: după ea alege „Auto” când se oprește."
   </dest>
   <voice>
     *: ""
@@ -23379,9 +23437,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Avertizare coperți lipsă"
+    ipodcolor: "Avertizare coperți lipsă"
   </dest>
   <voice>
     *: ""
@@ -23619,7 +23679,7 @@
   </source>
   <dest>
     *: none
-    ipodcolor: "Acum în redare"
+    ipodcolor: "În redare"
   </dest>
   <voice>
     *: none

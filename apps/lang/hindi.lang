@@ -598,9 +598,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "हेडफ़ोन क्रॉसफ़ीड"
+    ipodcolor: "हेडफ़ोन क्रॉसफ़ीड"
   </dest>
   <voice>
     *: "हेडफ़ोन क्रॉसफ़ीड"
@@ -958,10 +960,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "रूकना जब हेडफोन निकालदिया"
+    ipodcolor: "हेडफोन हटने पर रुकें"
   </dest>
   <voice>
     *: none
@@ -1706,9 +1710,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "स्लाइडशो सेटिंग्स"
+    ipodcolor: "स्लाइडशो सेटिंग्स"
   </dest>
   <voice>
     *: "स्लाइडशो सेटिंग्स"
@@ -2554,10 +2560,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "वक्त और तारीख सेट कर"
+    ipodcolor: "समय-तारीख सेट कर"
   </dest>
   <voice>
     *: none
@@ -3167,9 +3175,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Reset सेटिनगस"
+    ipodcolor: "Reset सेटिनगस"
   </dest>
   <voice>
     *: "Reset सेटिनगस"
@@ -6380,9 +6390,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "सामान्य प्रीसेट"
+    ipodcolor: "सामान्य प्रीसेट"
   </dest>
   <voice>
     *: ""
@@ -6730,9 +6742,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "मुख्य मेनू रीसेट करें"
+    ipodcolor: "मुख्य मेनू रीसेट करें"
   </dest>
   <voice>
     *: ""
@@ -6758,9 +6772,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "एल्बम कलाकार अनुसार"
+    ipodcolor: "एल्बम कलाकार से"
   </dest>
   <voice>
     *: ""
@@ -6926,9 +6942,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "On-The-Go में जोड़ें"
+    ipodcolor: "On-The-Go में जोड़ें"
   </dest>
   <voice>
     *: ""
@@ -7122,9 +7140,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "अभी चलना मेनू रीसेट करें"
+    ipodcolor: "अभी चलना रीसेट करें"
   </dest>
   <voice>
     *: ""
@@ -7192,9 +7212,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "गाने और ऑडियोबुक वहाँ से कुछ सेकंड पहले चलते हैं, जहाँ आपने छोड़ा था।"
+    ipodcolor: "गाने और ऑडियोबुक छोड़ी जगह से कुछ सेकंड पहले चलते हैं।"
   </dest>
   <voice>
     *: ""
@@ -7220,9 +7242,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "एक फ़ाइल का एल्बम, साथ की .cue फ़ाइल से अलग गानों में बजता है।"
+    ipodcolor: "एक फ़ाइल का एल्बम, साथ की .cue फ़ाइल से अलग गानों में बजता है।"
   </dest>
   <voice>
     *: ""
@@ -7234,9 +7258,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "हेडफ़ोन पर पुरानी स्टीरियो रिकॉर्डिंग दोनों कानों में कम बँटी हुई लगती है।"
+    ipodcolor: "हेडफ़ोन पर पुरानी स्टीरियो रिकॉर्डिंग कम बँटी लगती है।"
   </dest>
   <voice>
     *: ""
@@ -7276,9 +7302,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "स्थिति पट्टी भी कवर के रंग लेती है। अपनी बैटरी में बैटरी हरी रहती है।"
+    ipodcolor: "स्थिति पट्टी भी कवर के रंग में। अपनी बैटरी: बैटरी हरी।"
   </dest>
   <voice>
     *: ""
@@ -7320,9 +7348,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "गाना बजते स्क्रीन बुझे तो अभी चलना लौटता है, ताकि पहिया आवाज़ बदले।"
+    ipodcolor: "गाना बजते स्क्रीन बुझे तो अभी चलना लौटे, पहिया आवाज़ बदले।"
   </dest>
   <voice>
     *: ""
@@ -7334,9 +7364,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Cover Flow खुला हो तो संगीत रुकता है, ताकि कवर पूरी गति से चलें।"
+    ipodcolor: "Cover Flow खुला हो तो संगीत रुकता है, ताकि कवर पूरी गति से चलें।"
   </dest>
   <voice>
     *: ""
@@ -7348,9 +7380,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "खोज वही अक्षर दिखाती है जो किसी नाम तक ले जाएँ, ताकि आप जल्दी पहुँचें।"
+    ipodcolor: "खोज वही अक्षर दिखाती है जो किसी नाम तक ले जाएँ, ताकि आप जल्दी पहुँचें।"
   </dest>
   <voice>
     *: ""
@@ -9252,9 +9286,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "एल्बम के नीचे कलाकार"
+    ipodcolor: "एल्बम तले कलाकार"
   </dest>
   <voice>
     *: ""
@@ -9266,9 +9302,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "हर एल्बम के नाम के नीचे वर्ष और कलाकार दिखते हैं, और एक नाम के एल्बम अलग-अलग।"
+    ipodcolor: "एल्बम के नीचे वर्ष, कलाकार; एक नाम के एल्बम अलग।"
   </dest>
   <voice>
     *: ""
@@ -9294,9 +9332,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "एल्बम और गानों के नाम के पास उनका कवर दिखता है, जैसे iPod classic पर।"
+    ipodcolor: "एल्बम और गानों के पास उनका कवर, जैसे iPod classic पर।"
   </dest>
   <voice>
     *: ""
@@ -9980,9 +10020,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "ऑडियोबुक कितनी तेज़ चलती हैं। आवाज़ें स्वाभाविक रहती हैं।"
+    ipodcolor: "ऑडियोबुक कितनी तेज़ चलती हैं। आवाज़ें स्वाभाविक रहती हैं।"
   </dest>
   <voice>
     *: ""
@@ -10008,9 +10050,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "बंद, गाने या एल्बम: आपका संगीत कैसे चलता है।"
+    ipodcolor: "बंद, गाने या एल्बम: आपका संगीत कैसे चलता है।"
   </dest>
   <voice>
     *: ""
@@ -10277,9 +10321,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "बहुरंगी में संगीत, पॉडकास्ट और ऑडियोबुक के अपने रंग होते हैं। कोई और रंग सभी स्क्रीन पर लगता है।"
+    ipodcolor: "बहुरंगी: हर अनुभाग का अपना रंग। अन्य रंग हर जगह।"
   </dest>
   <voice>
     *: ""
@@ -10305,9 +10351,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "सिंक किए गए कवर फिर से बनाएँ"
+    ipodcolor: "सिंक कवर फिर बनाएँ"
   </dest>
   <voice>
     *: ""
@@ -10319,9 +10367,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "अगले सिंक पर कंप्यूटर सभी कवर फिर से बनाता है, मुख्य मेनू के लिए साफ़ कवर के साथ।"
+    ipodcolor: "अगले सिंक पर सब कवर फिर बनेंगे, मेनू के लिए साफ़।"
   </dest>
   <voice>
     *: ""
@@ -10333,9 +10383,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "कंप्यूटर के साथ अगले सिंक तक सिंक किए गए कवर नहीं दिखते।"
+    ipodcolor: "कंप्यूटर के साथ अगले सिंक तक सिंक किए गए कवर नहीं दिखते।"
   </dest>
   <voice>
     *: ""
@@ -11075,9 +11127,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "बैटरी पर इतनी देर स्लीप के बाद iPod बंद हो जाता है। Auto बैटरी की क्षमता देखता है: 2 से 12 घंटे।"
+    ipodcolor: "बैटरी पर इतनी देर स्लीप के बाद iPod बंद। Auto क्षमता से: 2–12 घंटे।"
   </dest>
   <voice>
     *: ""
@@ -11089,9 +11143,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "अगर iPod में नई बैटरी है, तो उसकी क्षमता डालें: Auto उसी से बंद होने का समय चुनता है।"
+    ipodcolor: "नई बैटरी हो तो उसकी क्षमता डालें: Auto उसी से बंद होने का समय चुने।"
   </dest>
   <voice>
     *: ""
@@ -11187,9 +11243,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "गायब कवर चेतावनी"
+    ipodcolor: "गायब कवर चेतावनी"
   </dest>
   <voice>
     *: ""

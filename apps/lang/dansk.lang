@@ -625,9 +625,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Crossfeed til hovedtelefoner"
+    ipodcolor: "Crossfeed til hovedtelefoner"
   </dest>
   <voice>
     *: "Crossfeed til hovedtelefoner"
@@ -751,9 +753,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Nulstil opsætning"
+    ipodcolor: "Nulstil opsætning"
   </dest>
   <voice>
     *: "Nulstil opsætning"
@@ -9242,10 +9246,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Indstil dato og tid"
+    ipodcolor: "Indstil dato og tid"
   </dest>
   <voice>
     *: none
@@ -9598,10 +9604,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Pause ved frakobling"
+    ipodcolor: "Pause ved frakobling"
   </dest>
   <voice>
     *: none
@@ -13185,9 +13193,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Lysbilledshow-indstillinger"
+    ipodcolor: "Lysbilledshow-indstillinger"
   </dest>
   <voice>
     *: "Lysbilledshow-indstillinger"
@@ -14263,9 +14273,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Føj til playliste..."
+    ipodcolor: "Føj til playliste..."
   </dest>
   <voice>
     *: "Føj til playliste..."
@@ -14823,9 +14835,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Generelle forindstillinger"
+    ipodcolor: "Generelle forindstillinger"
   </dest>
   <voice>
     *: ""
@@ -15131,9 +15145,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Nulstil hovedmenu"
+    ipodcolor: "Nulstil hovedmenu"
   </dest>
   <voice>
     *: ""
@@ -15159,9 +15175,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Gruppér efter albumkunstner"
+    ipodcolor: "Efter albumkunstner"
   </dest>
   <voice>
     *: ""
@@ -15327,9 +15345,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Føj til On-The-Go"
+    ipodcolor: "Føj til On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -15523,9 +15543,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Nulstil Afspiller nu-menu"
+    ipodcolor: "Nulstil Afspiller nu-menu"
   </dest>
   <voice>
     *: ""
@@ -15593,9 +15615,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Sange og lydbøger fortsætter et par sekunder før det sted, hvor du stoppede."
+    ipodcolor: "Sange og lydbøger fortsætter et par sekunder før det sted, hvor du stoppede."
   </dest>
   <voice>
     *: ""
@@ -15621,9 +15645,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Et album gemt som én fil afspilles som separate sange via .cue-filen ved siden af."
+    ipodcolor: "Et album gemt som én fil afspilles som separate sange via .cue-filen ved siden af."
   </dest>
   <voice>
     *: ""
@@ -15635,9 +15661,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Gamle stereooptagelser lyder mindre delt mellem ørerne i hovedtelefoner."
+    ipodcolor: "Gamle stereooptagelser lyder mindre delt mellem ørerne i hovedtelefoner."
   </dest>
   <voice>
     *: ""
@@ -15677,9 +15705,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Statuslinjen får også coverets farver. “Eget batteri” holder batteriet grønt."
+    ipodcolor: "Statuslinjen får også coverets farver. “Eget batteri” holder batteriet grønt."
   </dest>
   <voice>
     *: ""
@@ -15721,9 +15751,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Når skærmen slukker under musik, vender “Afspiller nu” tilbage, så hjulet styrer lydstyrken."
+    ipodcolor: "Når skærmen slukker under musik, vender “Afspiller nu” tilbage, så hjulet styrer lydstyrken."
   </dest>
   <voice>
     *: ""
@@ -15735,9 +15767,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Musikken holder pause, mens Cover Flow er åben, så coverne glider i fuld fart."
+    ipodcolor: "Musikken holder pause, mens Cover Flow er åben, så coverne glider i fuld fart."
   </dest>
   <voice>
     *: ""
@@ -15749,9 +15783,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "“Søg” viser kun de bogstaver, der fører til et navn, så du når frem hurtigere."
+    ipodcolor: "“Søg” viser kun de bogstaver, der fører til et navn, så du når frem hurtigere."
   </dest>
   <voice>
     *: ""
@@ -17793,9 +17829,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Kunstner under album"
+    ipodcolor: "Kunstner under album"
   </dest>
   <voice>
     *: ""
@@ -17807,9 +17845,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Under hvert albums navn i Album står år og kunstner, og album med samme navn vises hver for sig."
+    ipodcolor: "Under hvert albums navn i Album står år og kunstner, og album med samme navn vises hver for sig."
   </dest>
   <voice>
     *: ""
@@ -17835,9 +17875,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Album og sange viser deres cover, i Album, i en kunstners album og i Sange, som på en iPod classic."
+    ipodcolor: "Album og sange viser deres cover, i Album, i en kunstners album og i Sange, som på en iPod classic."
   </dest>
   <voice>
     *: ""
@@ -18521,9 +18563,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Hvor hurtigt lydbøger afspilles. Stemmer beholder deres naturlige tonehøjde."
+    ipodcolor: "Hvor hurtigt lydbøger afspilles. Stemmer beholder deres naturlige tonehøjde."
   </dest>
   <voice>
     *: ""
@@ -18549,9 +18593,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Fra, sange eller album: sådan spilles din musik. „Bland sange“ i hovedmenuen sætter den til sange."
+    ipodcolor: "Fra, sange eller album: sådan spilles din musik. „Bland sange“ i hovedmenuen sætter den til sange."
   </dest>
   <voice>
     *: ""
@@ -18818,9 +18864,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Med Mangefarvet får Musik, Podcasts og Lydbøger hver deres farve. Enhver anden farve bruges på alle skærme."
+    ipodcolor: "Med Mangefarvet får Musik, Podcasts og Lydbøger hver deres farve. Andre farver bruges overalt."
   </dest>
   <voice>
     *: ""
@@ -18846,9 +18894,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Genopbyg synkroniserede covere"
+    ipodcolor: "Nye covere fra computeren"
   </dest>
   <voice>
     *: ""
@@ -18860,9 +18910,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Ved næste synkronisering laver computeren alle covere igen, med skarpe til hovedmenuen."
+    ipodcolor: "Ved næste synkronisering laver computeren alle covere igen, med skarpe til hovedmenuen."
   </dest>
   <voice>
     *: ""
@@ -18874,9 +18926,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Indtil næste synkronisering med computeren vises synkroniserede covere ikke."
+    ipodcolor: "Indtil næste synkronisering med computeren vises synkroniserede covere ikke."
   </dest>
   <voice>
     *: ""
@@ -19616,9 +19670,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Efter så lang dvale på batteri slukker iPod. “Automatisk” går efter batteriets kapacitet: 2 til 12 timer."
+    ipodcolor: "Efter så lang dvale på batteri slukker iPod. “Automatisk” går efter batteriets kapacitet: 2 til 12 timer."
   </dest>
   <voice>
     *: ""
@@ -19630,9 +19686,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Har din iPod fået nyt batteri, så angiv dets kapacitet: “Automatisk” retter sig efter den."
+    ipodcolor: "Har din iPod fået nyt batteri, så angiv dets kapacitet: “Automatisk” retter sig efter den."
   </dest>
   <voice>
     *: ""
@@ -19728,9 +19786,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Advarsel om manglende omslag"
+    ipodcolor: "Advarsel: intet omslag"
   </dest>
   <voice>
     *: ""

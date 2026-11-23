@@ -803,9 +803,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "ヘッドフォン用クロスフィード"
+    ipodcolor: "ヘッドフォン用クロスフィード"
   </dest>
   <voice>
     *: "ヘッドフォン用クロスフィード"
@@ -1694,10 +1696,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "ヘッドフォンを抜くと停止"
+    ipodcolor: "ヘッドフォンを抜くと停止"
   </dest>
   <voice>
     *: none
@@ -3485,10 +3489,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "日付と時刻の設定"
+    ipodcolor: "日付と時刻の設定"
   </dest>
   <voice>
     *: none
@@ -4365,9 +4371,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "設定を初期状態に戻す"
+    ipodcolor: "設定を初期状態に戻す"
   </dest>
   <voice>
     *: "設定を初期状態に戻す"
@@ -15773,9 +15781,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "プレイリストに追加..."
+    ipodcolor: "プレイリストに追加..."
   </dest>
   <voice>
     *: "プレイリストに追加"
@@ -17009,9 +17019,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "スライドショー設定"
+    ipodcolor: "スライドショー設定"
   </dest>
   <voice>
     *: "スライドショー設定"
@@ -18087,9 +18099,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "一般プリセット"
+    ipodcolor: "一般プリセット"
   </dest>
   <voice>
     *: ""
@@ -18381,9 +18395,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "メインメニューをリセット"
+    ipodcolor: "メインメニューをリセット"
   </dest>
   <voice>
     *: ""
@@ -18409,9 +18425,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "アルバムアーティストでグループ化"
+    ipodcolor: "アルバムアーティスト別"
   </dest>
   <voice>
     *: ""
@@ -18577,9 +18595,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "On-The-Goに追加"
+    ipodcolor: "On-The-Goに追加"
   </dest>
   <voice>
     *: ""
@@ -18773,9 +18793,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "再生中メニューをリセット"
+    ipodcolor: "再生中メニューをリセット"
   </dest>
   <voice>
     *: ""
@@ -18843,9 +18865,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "曲やオーディオブックが、止めた所の数秒前から再開します。"
+    ipodcolor: "曲やオーディオブックが、止めた所の数秒前から再開します。"
   </dest>
   <voice>
     *: ""
@@ -18871,9 +18895,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "1つのファイルのアルバムを、そばにある.cueファイルで曲ごとに分けて再生します。"
+    ipodcolor: "1つのファイルのアルバムを、そばにある.cueファイルで曲ごとに分けて再生します。"
   </dest>
   <voice>
     *: ""
@@ -18885,9 +18911,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "古いステレオ録音も、ヘッドフォンで左右に分かれすぎず聞こえます。"
+    ipodcolor: "古いステレオ録音も、ヘッドフォンで左右に分かれすぎず聞こえます。"
   </dest>
   <voice>
     *: ""
@@ -18927,9 +18955,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "ステータスバーもアートワークの色になります。バッテリーは元の色を選ぶと、残量表示は緑のままです。"
+    ipodcolor: "ステータスバーもアートワークの色になります。バッテリーは元の色を選ぶと、残量表示は緑のままです。"
   </dest>
   <voice>
     *: ""
@@ -18971,9 +19001,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "音楽の再生中に画面が消えると再生中画面に戻り、ホイールで音量を変えられます。"
+    ipodcolor: "音楽の再生中に画面が消えると再生中画面に戻り、ホイールで音量を変えられます。"
   </dest>
   <voice>
     *: ""
@@ -18985,9 +19017,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Cover Flowを開くと音楽が一時停止し、アートワークが全速で流れます。"
+    ipodcolor: "Cover Flowを開くと音楽が一時停止し、アートワークが全速で流れます。"
   </dest>
   <voice>
     *: ""
@@ -18999,9 +19033,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "検索で名前につながる文字だけが出るので、早くたどり着けます。"
+    ipodcolor: "検索で名前につながる文字だけが出るので、早くたどり着けます。"
   </dest>
   <voice>
     *: ""
@@ -20903,9 +20939,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "アルバムの下にアーティスト"
+    ipodcolor: "アルバムの下にアーティスト"
   </dest>
   <voice>
     *: ""
@@ -20917,9 +20955,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "「アルバム」で各アルバム名の下に年とアーティストを表示し、同じ名前のアルバムは別々に並べます。"
+    ipodcolor: "「アルバム」で各アルバム名の下に年とアーティストを表示し、同じ名前のアルバムは別々に並べます。"
   </dest>
   <voice>
     *: ""
@@ -20945,9 +20985,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "「アルバム」、アーティストのアルバム、「曲」で、アルバムと曲にアートワークを表示。iPod classicのように。"
+    ipodcolor: "「アルバム」、アーティストのアルバム、「曲」で、アルバムと曲にアートワークを表示。iPod classicのように。"
   </dest>
   <voice>
     *: ""
@@ -21631,9 +21673,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "オーディオブックの再生速度。声の高さは自然なままです。"
+    ipodcolor: "オーディオブックの再生速度。声の高さは自然なままです。"
   </dest>
   <voice>
     *: ""
@@ -21659,9 +21703,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "オフ、曲、アルバム：音楽の再生方法。メインメニューの「曲をシャッフル」は曲に切り替えます。"
+    ipodcolor: "オフ、曲、アルバム：音楽の再生方法。メインメニューの「曲をシャッフル」は曲に切り替えます。"
   </dest>
   <voice>
     *: ""
@@ -21928,9 +21974,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "マルチカラーでは、ミュージック、ポッドキャスト、オーディオブックがそれぞれ独自のカラーになります。ほかのカラーはすべての画面に使われます。"
+    ipodcolor: "マルチカラーでは、ミュージック、ポッドキャスト、オーディオブックが独自のカラーに。ほかのカラーは全画面に。"
   </dest>
   <voice>
     *: ""
@@ -21956,9 +22004,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "同期したアートワークを再構築"
+    ipodcolor: "同期したアートワークを再構築"
   </dest>
   <voice>
     *: ""
@@ -21970,9 +22020,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "次回の同期でコンピュータがすべてのアートワークを作り直します。メニュー用の鮮明なものも含みます。"
+    ipodcolor: "次回の同期でコンピュータがすべてのアートワークを作り直します。メニュー用の鮮明なものも含みます。"
   </dest>
   <voice>
     *: ""
@@ -21984,9 +22036,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "次回コンピュータと同期するまで、同期したアートワークは表示されません。"
+    ipodcolor: "次回コンピュータと同期するまで、同期したアートワークは表示されません。"
   </dest>
   <voice>
     *: ""
@@ -22726,9 +22780,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "バッテリーでこの時間スリープすると、iPodは電源が切れます。「自動」はバッテリー容量に合わせて2〜12時間です。"
+    ipodcolor: "バッテリーでこの時間スリープすると、iPodの電源が切れます。「自動」は容量に合わせて2〜12時間です。"
   </dest>
   <voice>
     *: ""
@@ -22740,9 +22796,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "iPodのバッテリーを交換したら、その容量を設定してください。「自動」はそれに合わせて電源を切ります。"
+    ipodcolor: "iPodのバッテリーを交換したら、その容量を設定してください。「自動」はそれに合わせて電源を切ります。"
   </dest>
   <voice>
     *: ""
@@ -22838,9 +22896,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "カバーなしの理由表示"
+    ipodcolor: "カバーなしの理由表示"
   </dest>
   <voice>
     *: ""

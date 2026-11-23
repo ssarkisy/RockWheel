@@ -782,9 +782,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Crossfeed fejhallgatóhoz"
+    ipodcolor: "Crossfeed fejhallgatóhoz"
   </dest>
   <voice>
     *: "Térakusztika fejhallgatón"
@@ -1673,10 +1675,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Szünet kihúzáskor"
+    ipodcolor: "Szünet kihúzáskor"
   </dest>
   <voice>
     *: none
@@ -3398,10 +3402,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Dátum/Idő beállítása"
+    ipodcolor: "Dátum/Idő beállítása"
   </dest>
   <voice>
     *: none
@@ -4276,9 +4282,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Beállítások visszaállítása"
+    ipodcolor: "Beállítások visszaállítása"
   </dest>
   <voice>
     *: "Beállítások visszaállítása"
@@ -15674,9 +15682,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Hozzáadás lejátszási listához..."
+    ipodcolor: "Hozzáadás listához..."
   </dest>
   <voice>
     *: "Hozzáadás lejátszási listához"
@@ -17611,9 +17621,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Diavetítés beállításai"
+    ipodcolor: "Diavetítés beállításai"
   </dest>
   <voice>
     *: "Diavetítés beállításai"
@@ -18591,9 +18603,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Általános beállítások"
+    ipodcolor: "Általános beállítások"
   </dest>
   <voice>
     *: ""
@@ -18885,9 +18899,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Fő menü visszaállítása"
+    ipodcolor: "Fő menü visszaállítása"
   </dest>
   <voice>
     *: ""
@@ -18913,9 +18929,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Csoportosítás albumelőadó szerint"
+    ipodcolor: "Albumelőadó szerint"
   </dest>
   <voice>
     *: ""
@@ -19081,9 +19099,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Hozzáadás az On-The-Go-hoz"
+    ipodcolor: "Hozzáadás On-The-Go-hoz"
   </dest>
   <voice>
     *: ""
@@ -19277,9 +19297,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Lejátszás alatt menü visszaállítása"
+    ipodcolor: "Menü visszaállítása"
   </dest>
   <voice>
     *: ""
@@ -19347,9 +19369,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "A dalok és hangoskönyvek pár másodperccel a megállás helye előtt folytatódnak."
+    ipodcolor: "A dalok és hangoskönyvek pár másodperccel a megállás helye előtt folytatódnak."
   </dest>
   <voice>
     *: ""
@@ -19375,9 +19399,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Az egy fájlban tárolt album külön dalokként szól a mellette lévő .cue fájl alapján."
+    ipodcolor: "Az egy fájlban tárolt album külön dalokként szól a mellette lévő .cue fájl alapján."
   </dest>
   <voice>
     *: ""
@@ -19389,9 +19415,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "A régi sztereó felvételek fülhallgatón kevésbé szólnak szétválva a két fül között."
+    ipodcolor: "A régi sztereó felvételek fülhallgatón kevésbé szólnak szétválva a két fül között."
   </dest>
   <voice>
     *: ""
@@ -19431,9 +19459,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Az állapotsor is felveszi a borító színeit. „Saját akkumulátor” esetén a töltés zöld marad."
+    ipodcolor: "Az állapotsor is felveszi a borító színeit. „Saját akkumulátor” esetén a töltés zöld marad."
   </dest>
   <voice>
     *: ""
@@ -19475,9 +19505,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Ha zene közben elsötétül a képernyő, visszatér a „Lejátszás alatt” képernyő, így a tárcsa a hangerőt állítja."
+    ipodcolor: "Ha zene közben elsötétül a képernyő, visszatér a „Lejátszás alatt”, így a tárcsa a hangerőt állítja."
   </dest>
   <voice>
     *: ""
@@ -19489,9 +19521,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "A zene szünetel, amíg a Cover Flow nyitva van, így a borítók teljes sebességgel suhannak."
+    ipodcolor: "A zene szünetel, amíg a Cover Flow nyitva van, így a borítók teljes sebességgel suhannak."
   </dest>
   <voice>
     *: ""
@@ -19503,9 +19537,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "A Keresés csak a névhez vezető betűket kínálja, így hamarabb célba ér."
+    ipodcolor: "A Keresés csak a névhez vezető betűket kínálja, így hamarabb célba ér."
   </dest>
   <voice>
     *: ""
@@ -21407,9 +21443,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Előadó az album alatt"
+    ipodcolor: "Előadó az album alatt"
   </dest>
   <voice>
     *: ""
@@ -21421,9 +21459,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Az Albumokban minden album neve alatt ott az év és az előadó, az azonos nevű albumok pedig külön szerepelnek."
+    ipodcolor: "Az Albumokban minden album alatt ott az év és az előadó, az azonos nevűek pedig külön szerepelnek."
   </dest>
   <voice>
     *: ""
@@ -21449,9 +21489,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Albumok és dalok borítóval, az Albumokban, egy előadó albumainál és a Dalokban, mint egy iPod classicon."
+    ipodcolor: "Borítók az Albumokban, egy előadó albumainál és a Dalokban, mint az iPod classicon."
   </dest>
   <voice>
     *: ""
@@ -22135,9 +22177,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Milyen gyorsan szólnak a hangoskönyvek. A hangok megtartják természetes magasságukat."
+    ipodcolor: "Milyen gyorsan szólnak a hangoskönyvek. A hangok magassága nem változik."
   </dest>
   <voice>
     *: ""
@@ -22163,9 +22207,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Ki, dalok vagy albumok: hogyan szól a zenéd. A főmenü „Véletlen zenék” pontja dalokra állítja."
+    ipodcolor: "Ki, dalok vagy albumok: hogyan szól a zenéd. A főmenü „Véletlen zenék” pontja dalokra állítja."
   </dest>
   <voice>
     *: ""
@@ -22432,9 +22478,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Többszínű módban a Zene, a Podcastok és a Hangoskönyvek saját színt kapnak. Más szín minden képernyőn érvényes."
+    ipodcolor: "Többszínű módban Zene, Podcastok és Hangoskönyvek saját színt kapnak. Más szín mindenhol."
   </dest>
   <voice>
     *: ""
@@ -22460,9 +22508,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Szinkronizált borítók újraépítése"
+    ipodcolor: "Szinkronizált borítók újra"
   </dest>
   <voice>
     *: ""
@@ -22474,9 +22524,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "A következő szinkronizáláskor a számítógép minden borítót újra elkészít, élesen a főmenühöz."
+    ipodcolor: "A következő szinkronizáláskor a számítógép minden borítót újra elkészít, élesen a főmenühöz."
   </dest>
   <voice>
     *: ""
@@ -22488,9 +22540,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "A számítógéppel történő következő szinkronizálásig a szinkronizált borítók nem láthatók."
+    ipodcolor: "A számítógéppel történő következő szinkronizálásig a szinkronizált borítók nem láthatók."
   </dest>
   <voice>
     *: ""
@@ -23230,9 +23284,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Ennyi akkus alvás után az iPod kikapcsol. Az „Automata” az akku kapacitásához igazodik: 2–12 óra."
+    ipodcolor: "Ennyi akkus alvás után az iPod kikapcsol. Az „Automata” az akku kapacitásához igazodik: 2–12 óra."
   </dest>
   <voice>
     *: ""
@@ -23244,9 +23300,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Ha új akku van az iPodban, add meg a kapacitását: ehhez igazodik az „Automata”."
+    ipodcolor: "Ha új akku van az iPodban, add meg a kapacitását: ehhez igazodik az „Automata”."
   </dest>
   <voice>
     *: ""
@@ -23342,9 +23400,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Hiányzó borítók jelzése"
+    ipodcolor: "Hiányzó borítók jelzése"
   </dest>
   <voice>
     *: ""
@@ -23582,7 +23642,7 @@
   </source>
   <dest>
     *: none
-    ipodcolor: "Lejátszás alatt"
+    ipodcolor: "Most szól"
   </dest>
   <voice>
     *: none

@@ -796,9 +796,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Кросфид за слушалице"
+    ipodcolor: "Кросфид за слушалице"
   </dest>
   <voice>
     *: "Кросфид за слушалице"
@@ -1715,10 +1717,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Пауза при искључивању"
+    ipodcolor: "Пауза при искључивању"
   </dest>
   <voice>
     *: none
@@ -3496,10 +3500,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Подеси време/датум"
+    ipodcolor: "Подеси време/датум"
   </dest>
   <voice>
     *: none
@@ -4374,9 +4380,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Ресетуј подешавања"
+    ipodcolor: "Ресетуј подешавања"
   </dest>
   <voice>
     *: "Ресетуј подешавања"
@@ -15670,9 +15678,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Додај у плејлисту..."
+    ipodcolor: "Додај у плејлисту..."
   </dest>
   <voice>
     *: "Додај у плејлисту"
@@ -17709,9 +17719,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Подешавања приказа слајдова"
+    ipodcolor: "Подешавања слајдова"
   </dest>
   <voice>
     *: "Подешавања приказа слајдова"
@@ -18689,9 +18701,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Општа подешавања"
+    ipodcolor: "Општа подешавања"
   </dest>
   <voice>
     *: ""
@@ -18983,9 +18997,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Ресетуј главни мени"
+    ipodcolor: "Ресетуј главни мени"
   </dest>
   <voice>
     *: ""
@@ -19011,9 +19027,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "По уметнику албума"
+    ipodcolor: "По уметнику албума"
   </dest>
   <voice>
     *: ""
@@ -19179,9 +19197,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Додај у On-The-Go"
+    ipodcolor: "Додај у On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -19375,9 +19395,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Ресетуј мени Тренутно се чује"
+    ipodcolor: "Ресетуј мени"
   </dest>
   <voice>
     *: ""
@@ -19445,9 +19467,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Песме и аудио књиге настављају се неколико секунди пре места где сте стали."
+    ipodcolor: "Песме и аудио књиге настављају се неколико секунди пре места где сте стали."
   </dest>
   <voice>
     *: ""
@@ -19473,9 +19497,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Албум у једној датотеци свира као засебне песме, према .cue датотеци поред њега."
+    ipodcolor: "Албум у једној датотеци свира као засебне песме, према .cue датотеци поред њега."
   </dest>
   <voice>
     *: ""
@@ -19487,9 +19513,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Стари стерео снимци у слушалицама звуче целовитије, мање раздвојено међу ушима."
+    ipodcolor: "Стари стерео снимци у слушалицама звуче целовитије, мање раздвојено међу ушима."
   </dest>
   <voice>
     *: ""
@@ -19529,9 +19557,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Статусна линија такође добија боје омота. „Своја батерија“ задржава зелену батерију."
+    ipodcolor: "Статусна линија такође добија боје омота. „Своја батерија“ задржава зелену батерију."
   </dest>
   <voice>
     *: ""
@@ -19573,9 +19603,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Кад се екран угаси током музике, враћа се „Тренутно се чује“, а точкић мења јачину звука."
+    ipodcolor: "Кад се екран угаси током музике, враћа се „Тренутно се чује“, а точкић мења јачину звука."
   </dest>
   <voice>
     *: ""
@@ -19587,9 +19619,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Док је Cover Flow отворен, музика је паузирана, па омоти клизе пуном брзином."
+    ipodcolor: "Док је Cover Flow отворен, музика је паузирана, па омоти клизе пуном брзином."
   </dest>
   <voice>
     *: ""
@@ -19601,9 +19635,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "„Претрага“ нуди само слова која воде до имена, па брже стижете до циља."
+    ipodcolor: "„Претрага“ нуди само слова која воде до имена, па брже стижете до циља."
   </dest>
   <voice>
     *: ""
@@ -21505,9 +21541,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Уметник испод албума"
+    ipodcolor: "Уметник испод албума"
   </dest>
   <voice>
     *: ""
@@ -21519,9 +21557,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Испод назива сваког албума у Албумима су година и уметник, а албуми истог назива су засебно."
+    ipodcolor: "Испод назива сваког албума у Албумима су година и уметник, а албуми истог назива су засебно."
   </dest>
   <voice>
     *: ""
@@ -21547,9 +21587,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Албуми и песме приказују омот, у Албумима, у албумима уметника и у Песмама, као на iPod classic."
+    ipodcolor: "Албуми и песме приказују омот, у Албумима, у албумима уметника и у Песмама, као на iPod classic."
   </dest>
   <voice>
     *: ""
@@ -22233,9 +22275,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Колико брзо свирају аудио књиге. Гласови задржавају природну висину."
+    ipodcolor: "Колико брзо свирају аудио књиге. Гласови задржавају природну висину."
   </dest>
   <voice>
     *: ""
@@ -22261,9 +22305,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Искључено, песме или албуми: како свира ваша музика. „Промешај песме“ у главном менију пребацује на песме."
+    ipodcolor: "Искључено, песме или албуми: како свира. „Промешај песме“ у главном менију бира песме."
   </dest>
   <voice>
     *: ""
@@ -22530,9 +22576,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Уз Вишебојна, Музика, Подкасти и Аудио књиге имају своје боје. Свака друга боја важи за све екране."
+    ipodcolor: "Уз Вишебојна, Музика, Подкасти и Аудио књиге имају своје боје. Друга боја важи свуда."
   </dest>
   <voice>
     *: ""
@@ -22558,9 +22606,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Обнови синхронизоване омоте"
+    ipodcolor: "Обнови омоте са рачунара"
   </dest>
   <voice>
     *: ""
@@ -22572,9 +22622,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "При следећој синхронизацији рачунар поново прави све омоте, са оштрим за главни мени."
+    ipodcolor: "При следећој синхронизацији рачунар поново прави све омоте, са оштрим за главни мени."
   </dest>
   <voice>
     *: ""
@@ -22586,9 +22638,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "До следеће синхронизације са рачунаром синхронизовани омоти се не приказују."
+    ipodcolor: "До следеће синхронизације са рачунаром синхронизовани омоти се не приказују."
   </dest>
   <voice>
     *: ""
@@ -23328,9 +23382,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "После толико спавања на батерији iPod се искључује. „Ауто“ прати капацитет батерије: од 2 до 12 сати."
+    ipodcolor: "После толико спавања на батерији iPod се гаси. „Ауто“ прати капацитет: од 2 до 12 сати."
   </dest>
   <voice>
     *: ""
@@ -23342,9 +23398,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Ако iPod има нову батерију, унесите њен капацитет: према њему „Ауто“ бира време искључења."
+    ipodcolor: "Ако iPod има нову батерију, унесите њен капацитет: по њему „Ауто“ бира кад се гаси."
   </dest>
   <voice>
     *: ""
@@ -23440,9 +23498,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Зашто нема омота"
+    ipodcolor: "Зашто нема омота"
   </dest>
   <voice>
     *: ""

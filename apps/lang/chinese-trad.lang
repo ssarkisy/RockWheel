@@ -410,9 +410,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "耳機交叉供音"
+    ipodcolor: "耳機交叉供音"
   </dest>
   <voice>
     *: "耳機交叉供音"
@@ -550,9 +552,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "重新設定"
+    ipodcolor: "重新設定"
   </dest>
   <voice>
     *: "重新設定"
@@ -7364,10 +7368,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "設置時間/日期"
+    ipodcolor: "設置時間/日期"
   </dest>
   <voice>
     *: none
@@ -8100,10 +8106,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "耳機拔出後暫停"
+    ipodcolor: "耳機拔出後暫停"
   </dest>
   <voice>
     *: none
@@ -11754,9 +11762,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "幻燈片秀設定"
+    ipodcolor: "幻燈片秀設定"
   </dest>
   <voice>
     *: "幻燈片秀設定"
@@ -12944,9 +12954,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "加入播放清單..."
+    ipodcolor: "加入播放清單..."
   </dest>
   <voice>
     *: "加入播放清單..."
@@ -13476,9 +13488,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "通用預設"
+    ipodcolor: "通用預設"
   </dest>
   <voice>
     *: ""
@@ -13812,9 +13826,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "重置主選單"
+    ipodcolor: "重置主選單"
   </dest>
   <voice>
     *: ""
@@ -13840,9 +13856,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "依專輯藝人分組"
+    ipodcolor: "依專輯藝人分組"
   </dest>
   <voice>
     *: ""
@@ -14008,9 +14026,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "加入 On-The-Go"
+    ipodcolor: "加入 On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -14204,9 +14224,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "重置播放中選單"
+    ipodcolor: "重置播放中選單"
   </dest>
   <voice>
     *: ""
@@ -14274,9 +14296,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "歌曲和有聲書會從上次停下處的前幾秒繼續播放。"
+    ipodcolor: "歌曲和有聲書會從上次停下處的前幾秒繼續播放。"
   </dest>
   <voice>
     *: ""
@@ -14302,9 +14326,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "單一檔案的專輯會依旁邊的 .cue 檔案分成個別歌曲播放。"
+    ipodcolor: "單一檔案的專輯會依旁邊的 .cue 檔案分成個別歌曲播放。"
   </dest>
   <voice>
     *: ""
@@ -14316,9 +14342,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "用耳機聽舊的立體聲錄音時，左右耳的聲音不再那麼割裂。"
+    ipodcolor: "用耳機聽舊的立體聲錄音時，左右耳的聲音不再那麼割裂。"
   </dest>
   <voice>
     *: ""
@@ -14358,9 +14386,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "狀態列也會採用封面的顏色。電池原色可讓電量保持綠色。"
+    ipodcolor: "狀態列也會採用封面的顏色。電池原色可讓電量保持綠色。"
   </dest>
   <voice>
     *: ""
@@ -14402,9 +14432,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "播放音樂時螢幕變暗後，會回到播放中畫面，用轉盤即可調整音量。"
+    ipodcolor: "播放音樂時螢幕變暗後，會回到播放中畫面，用轉盤即可調整音量。"
   </dest>
   <voice>
     *: ""
@@ -14416,9 +14448,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "開啟 Cover Flow 時音樂會暫停，讓封面全速滑動。"
+    ipodcolor: "開啟 Cover Flow 時音樂會暫停，讓封面全速滑動。"
   </dest>
   <voice>
     *: ""
@@ -14430,9 +14464,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "搜尋只顯示能組成某個名稱的字母，讓你更快找到。"
+    ipodcolor: "搜尋只顯示能組成某個名稱的字母，讓你更快找到。"
   </dest>
   <voice>
     *: ""
@@ -16474,9 +16510,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "專輯下顯示藝人"
+    ipodcolor: "專輯下顯示藝人"
   </dest>
   <voice>
     *: ""
@@ -16488,9 +16526,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "「專輯」中每張專輯名稱下方顯示年份和藝人，同名專輯分開列出。"
+    ipodcolor: "「專輯」中每張專輯名稱下方顯示年份和藝人，同名專輯分開列出。"
   </dest>
   <voice>
     *: ""
@@ -16516,9 +16556,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "專輯和歌曲旁顯示封面，在「專輯」、藝人的專輯和「歌曲」中，如同 iPod classic。"
+    ipodcolor: "專輯和歌曲旁顯示封面，在「專輯」、藝人的專輯和「歌曲」中，如同 iPod classic。"
   </dest>
   <voice>
     *: ""
@@ -17202,9 +17244,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "有聲書的播放速度。人聲保持自然音調。"
+    ipodcolor: "有聲書的播放速度。人聲保持自然音調。"
   </dest>
   <voice>
     *: ""
@@ -17230,9 +17274,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "關、歌曲或專輯：音樂的播放方式。主選單的「隨機播放歌曲」會將其設為歌曲。"
+    ipodcolor: "關、歌曲或專輯：音樂的播放方式。主選單的「隨機播放歌曲」會將其設為歌曲。"
   </dest>
   <voice>
     *: ""
@@ -17499,9 +17545,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "選擇「多色」時，音樂、Podcast 和有聲書各有自己的顏色。其他顏色會用於所有畫面。"
+    ipodcolor: "選擇「多色」時，音樂、Podcast 和有聲書各有自己的顏色。其他顏色會用於所有畫面。"
   </dest>
   <voice>
     *: ""
@@ -17527,9 +17575,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "重建同步的封面"
+    ipodcolor: "重建同步的封面"
   </dest>
   <voice>
     *: ""
@@ -17541,9 +17591,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "下次同步時，電腦會重新製作所有封面，並為主選單提供清晰的封面。"
+    ipodcolor: "下次同步時，電腦會重新製作所有封面，並為主選單提供清晰的封面。"
   </dest>
   <voice>
     *: ""
@@ -17555,9 +17607,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "在下次與電腦同步之前，不顯示同步的封面。"
+    ipodcolor: "在下次與電腦同步之前，不顯示同步的封面。"
   </dest>
   <voice>
     *: ""
@@ -18297,9 +18351,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "使用電池睡眠這麼久後，iPod 會關機。「自動」依電池容量設定：2 到 12 小時。"
+    ipodcolor: "使用電池睡眠這麼久後，iPod 會關機。「自動」依電池容量設定：2 到 12 小時。"
   </dest>
   <voice>
     *: ""
@@ -18311,9 +18367,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "如果 iPod 換了新電池，請設定其容量：「自動」據此決定何時關機。"
+    ipodcolor: "如果 iPod 換了新電池，請設定其容量：「自動」據此決定何時關機。"
   </dest>
   <voice>
     *: ""
@@ -18409,9 +18467,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "缺少封面提示"
+    ipodcolor: "缺少封面提示"
   </dest>
   <voice>
     *: ""

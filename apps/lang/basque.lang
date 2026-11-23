@@ -815,9 +815,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Entzungailuen crossfeed-a"
+    ipodcolor: "Entzungailuen crossfeed-a"
   </dest>
   <voice>
     *: "Entzungailuen crossfeed-a"
@@ -1873,10 +1875,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Pausatu ateratzean"
+    ipodcolor: "Pausatu ateratzean"
   </dest>
   <voice>
     *: none
@@ -3715,10 +3719,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Ezarri Ordu/Data"
+    ipodcolor: "Ezarri Ordu/Data"
   </dest>
   <voice>
     *: none
@@ -4655,9 +4661,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Aukerak Berrezarri"
+    ipodcolor: "Aukerak Berrezarri"
   </dest>
   <voice>
     *: "Aukerak Berrezarri"
@@ -13157,9 +13165,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Diaporamaren aukerak"
+    ipodcolor: "Diaporamaren aukerak"
   </dest>
   <voice>
     *: "Diaporamaren aukerak"
@@ -14263,9 +14273,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Gehitu zerrendara..."
+    ipodcolor: "Gehitu zerrendara..."
   </dest>
   <voice>
     *: "Gehitu zerrendara..."
@@ -14795,9 +14807,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Aurrezarpen orokorrak"
+    ipodcolor: "Aurrezarpen orokorrak"
   </dest>
   <voice>
     *: ""
@@ -15103,9 +15117,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Menu nagusia berrezarri"
+    ipodcolor: "Menu nagusia berrezarri"
   </dest>
   <voice>
     *: ""
@@ -15131,9 +15147,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Albumaren artistaren arabera"
+    ipodcolor: "Album-artistaren arabera"
   </dest>
   <voice>
     *: ""
@@ -15299,9 +15317,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Gehitu On-The-Go-ra"
+    ipodcolor: "Gehitu On-The-Go-ra"
   </dest>
   <voice>
     *: ""
@@ -15495,9 +15515,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Orain Jotzen menua berrezarri"
+    ipodcolor: "Orain Jotzen menua berrezarri"
   </dest>
   <voice>
     *: ""
@@ -15565,9 +15587,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Abestiek eta audio-liburuek utzi zenituen lekua baino segundo batzuk lehenago jarraitzen dute."
+    ipodcolor: "Abestiek eta audio-liburuek utzi zenituen lekua baino segundo batzuk lehenago jarraitzen dute."
   </dest>
   <voice>
     *: ""
@@ -15593,9 +15617,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Fitxategi bakarrean dagoen albuma abesti bereizi gisa entzuten da, ondoko .cue fitxategiari esker."
+    ipodcolor: "Fitxategi bakarrean dagoen albuma abesti bereizi gisa entzuten da, ondoko .cue fitxategiari esker."
   </dest>
   <voice>
     *: ""
@@ -15607,9 +15633,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Estereo grabazio zaharrak entzungailuetan ez dira hain zatituta entzuten belarrien artean."
+    ipodcolor: "Estereo grabazio zaharrak entzungailuetan ez dira hain zatituta entzuten belarrien artean."
   </dest>
   <voice>
     *: ""
@@ -15649,9 +15677,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Egoera-barrak ere azalaren koloreak hartzen ditu, eta Bateria berea aukerarekin karga berde geratzen da."
+    ipodcolor: "Egoera-barrak ere azalaren koloreak hartzen ditu; Bateria berearekin karga berde geratzen da."
   </dest>
   <voice>
     *: ""
@@ -15693,9 +15723,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Musikarekin pantaila itzaltzean, Orain Jotzen itzultzen da, eta gurpilak bolumena aldatzen du."
+    ipodcolor: "Musikarekin pantaila itzaltzean, Orain Jotzen itzultzen da, eta gurpilak bolumena aldatzen du."
   </dest>
   <voice>
     *: ""
@@ -15707,9 +15739,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Musika pausatu egiten da Cover Flow irekita dagoen bitartean, azalak abiadura osoan irristatzeko."
+    ipodcolor: "Musika pausatu egiten da Cover Flow irekita dagoen bitartean, azalak abiadura osoan irristatzeko."
   </dest>
   <voice>
     *: ""
@@ -15721,9 +15755,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "Bilatu aukerak izen batera daramaten letrak bakarrik eskaintzen ditu, lehenago iristeko."
+    ipodcolor: "Bilatu aukerak izen batera daramaten letrak bakarrik eskaintzen ditu, lehenago iristeko."
   </dest>
   <voice>
     *: ""
@@ -17765,9 +17801,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Artista albumaren azpian"
+    ipodcolor: "Artista albumaren azpian"
   </dest>
   <voice>
     *: ""
@@ -17779,9 +17817,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Albumak atalean, album bakoitzaren izenaren azpian urtea eta artista daude, eta izen bereko albumak bereizita."
+    ipodcolor: "Albumak atalean, album bakoitzaren izenaren azpian urtea eta artista, eta izen bereko albumak bereizita."
   </dest>
   <voice>
     *: ""
@@ -17807,9 +17847,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Albumek eta abestiek azala dute Albumak atalean, artista baten albumetan eta Abestietan, iPod classic batean bezala."
+    ipodcolor: "Albumek eta abestiek azala dute Albumetan, artisten albumetan eta Abestietan, iPod classic-ean bezala."
   </dest>
   <voice>
     *: ""
@@ -18493,9 +18535,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Audioliburuak zein azkar entzuten diren. Ahotsek tonu naturala dute."
+    ipodcolor: "Audioliburuak zein azkar entzuten diren. Ahotsek tonu naturala dute."
   </dest>
   <voice>
     *: ""
@@ -18521,9 +18565,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Ez, abestiak edo albumak: musika nola jotzen den. Menu nagusiko «Nahasi abestiak» aukerak abestietara jartzen du."
+    ipodcolor: "Ez, abestiak edo albumak: nola jotzen den. Menu nagusiko «Nahasi abestiak» abestietara jartzen du."
   </dest>
   <voice>
     *: ""
@@ -18790,9 +18836,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Koloreanitzean, Musikak, Podcastek eta Audioliburuek beren kolorea dute. Beste koloreak pantaila guztietan."
+    ipodcolor: "Koloreanitzean, Musikak, Podcastek eta Audioliburuek beren kolorea dute. Beste koloreak, nonahi."
   </dest>
   <voice>
     *: ""
@@ -18818,9 +18866,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Berregin sinkronizatutako azalak"
+    ipodcolor: "Berregin azal sinkronizatuak"
   </dest>
   <voice>
     *: ""
@@ -18832,9 +18882,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Hurrengo sinkronizazioan ordenagailuak azal guztiak berriro egiten ditu, garbiak menu nagusirako."
+    ipodcolor: "Hurrengo sinkronizazioan ordenagailuak azal denak berregingo ditu, garbiak menurako."
   </dest>
   <voice>
     *: ""
@@ -18846,9 +18898,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Ordenagailuarekin hurrengo sinkronizaziora arte, sinkronizatutako azalak ez dira erakusten."
+    ipodcolor: "Ordenagailuarekin hurrengo sinkronizaziora arte, sinkronizatutako azalak ez dira erakusten."
   </dest>
   <voice>
     *: ""
@@ -19588,9 +19642,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Bateriaz hainbeste lo egin ondoren, iPod itzali egiten da. Auto gaitasunaren araberakoa da: 2 eta 12 ordu artean."
+    ipodcolor: "Bateriaz hainbeste lo egin ondoren, iPod itzaltzen da. Auto gaitasunaren araberakoa: 2-12 ordu."
   </dest>
   <voice>
     *: ""
@@ -19602,9 +19658,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "iPodak bateria berria badu, adierazi haren gaitasuna: Auto aukerak horren arabera itzaltzen du."
+    ipodcolor: "iPodak bateria berria badu, adierazi haren gaitasuna: Auto aukerak horren arabera itzaltzen du."
   </dest>
   <voice>
     *: ""
@@ -19700,9 +19758,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Falta diren azalen abisua"
+    ipodcolor: "Falta diren azalen abisua"
   </dest>
   <voice>
     *: ""

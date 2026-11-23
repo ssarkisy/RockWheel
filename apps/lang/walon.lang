@@ -819,9 +819,11 @@
   user: core
   <source>
     *: "Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Ahessaedje mitan-croejhlé"
+    ipodcolor: "Ahessaedje mitan-croejhlé"
   </dest>
   <voice>
     *: "ahessaedje mitan-croejhlé"
@@ -1877,10 +1879,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Djoke å distchôcaedje"
+    ipodcolor: "Djoke å distchôcaedje"
   </dest>
   <voice>
     *: none
@@ -3733,10 +3737,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Defini Eure/Date"
+    ipodcolor: "Defini Eure/Date"
   </dest>
   <voice>
     *: none
@@ -4673,9 +4679,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Rmete les apontiaedjes a zero"
+    ipodcolor: "Rmete les apontiaedjes a zero"
   </dest>
   <voice>
     *: "Rmete les apontiaedjes a zero"
@@ -12073,9 +12081,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Tchuzes do diaporama"
+    ipodcolor: "Tchuzes do diaporama"
   </dest>
   <voice>
     *: "Tchuzes do diaporama"
@@ -13445,9 +13455,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Radjouter al djivêye..."
+    ipodcolor: "Radjouter al djivêye..."
   </dest>
   <voice>
     *: "Radjouter al djivêye..."

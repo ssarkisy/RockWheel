@@ -804,9 +804,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Crossfeed ακουστικών"
+    ipodcolor: "Crossfeed ακουστικών"
   </dest>
   <voice>
     *: "Crossfeed ακουστικών"
@@ -1862,10 +1864,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Παύση στην αποσύνδεση"
+    ipodcolor: "Παύση στην αποσύνδεση"
   </dest>
   <voice>
     *: none
@@ -3687,10 +3691,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Ρύθμιση Ώρας/Ημερομηνίας"
+    ipodcolor: "Ρύθμιση Ώρας/Ημερομηνίας"
   </dest>
   <voice>
     *: none
@@ -4610,9 +4616,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Επαναφορά ρυθμίσεων"
+    ipodcolor: "Επαναφορά ρυθμίσεων"
   </dest>
   <voice>
     *: "Επαναφορά ρυθμίσεων"
@@ -16073,9 +16081,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Ρυθμίσεις παρουσίασης"
+    ipodcolor: "Ρυθμίσεις παρουσίασης"
   </dest>
   <voice>
     *: "Ρυθμίσεις παρουσίασης"
@@ -16913,9 +16923,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Προσθήκη σε λίστα..."
+    ipodcolor: "Προσθήκη σε λίστα..."
   </dest>
   <voice>
     *: "Προσθήκη σε λίστα..."
@@ -17445,9 +17457,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Γενικές προεπιλογές"
+    ipodcolor: "Γενικές προεπιλογές"
   </dest>
   <voice>
     *: ""
@@ -17753,9 +17767,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Επαναφορά κεντρικού μενού"
+    ipodcolor: "Επαναφορά κύριου μενού"
   </dest>
   <voice>
     *: ""
@@ -17781,9 +17797,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Ανά καλλιτέχνη άλμπουμ"
+    ipodcolor: "Ανά καλλιτέχνη άλμπουμ"
   </dest>
   <voice>
     *: ""
@@ -17949,9 +17967,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Προσθήκη στο On-The-Go"
+    ipodcolor: "Προσθήκη στο On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -18145,9 +18165,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Επαναφορά μενού Παίζει τώρα"
+    ipodcolor: "Επαναφορά «Παίζει τώρα»"
   </dest>
   <voice>
     *: ""
@@ -18215,9 +18237,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Τα τραγούδια και τα ηχητικά βιβλία συνεχίζουν λίγα δευτερόλεπτα πριν από εκεί που σταματήσατε."
+    ipodcolor: "Τραγούδια και ηχητικά βιβλία συνεχίζουν λίγα δευτερόλεπτα πριν από εκεί που μείνατε."
   </dest>
   <voice>
     *: ""
@@ -18243,9 +18267,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Ένα άλμπουμ σε ένα αρχείο παίζει ως ξεχωριστά τραγούδια, χάρη στο αρχείο .cue δίπλα του."
+    ipodcolor: "Ένα άλμπουμ σε ένα αρχείο παίζει ως ξεχωριστά τραγούδια, χάρη στο αρχείο .cue δίπλα του."
   </dest>
   <voice>
     *: ""
@@ -18257,9 +18283,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Οι παλιές στερεοφωνικές ηχογραφήσεις ακούγονται στα ακουστικά λιγότερο μοιρασμένες στα δύο αυτιά."
+    ipodcolor: "Οι παλιές στερεοφωνικές ηχογραφήσεις ακούγονται πιο ενιαίες στα ακουστικά."
   </dest>
   <voice>
     *: ""
@@ -18299,9 +18327,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Η γραμμή κατάστασης στα χρώματα του εξωφύλλου. Με «Δική της μπαταρία» η φόρτιση μένει πράσινη."
+    ipodcolor: "Η γραμμή κατάστασης στα χρώματα του εξωφύλλου. «Δική της μπαταρία»: φόρτιση πράσινη."
   </dest>
   <voice>
     *: ""
@@ -18343,9 +18373,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Όταν η οθόνη σβήνει ενώ παίζει μουσική, επιστρέφει το «Παίζει τώρα» και ο τροχός ρυθμίζει την ένταση."
+    ipodcolor: "Όταν η οθόνη σβήνει με μουσική, επιστρέφει το «Παίζει τώρα» και ο τροχός ρυθμίζει την ένταση."
   </dest>
   <voice>
     *: ""
@@ -18357,9 +18389,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Η μουσική σταματά προσωρινά όσο είναι ανοιχτό το Cover Flow, για να κυλούν τα εξώφυλλα ολοταχώς."
+    ipodcolor: "Η μουσική σταματά όσο είναι ανοιχτό το Cover Flow, για να κυλούν τα εξώφυλλα ολοταχώς."
   </dest>
   <voice>
     *: ""
@@ -18371,9 +18405,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "Η Αναζήτηση προτείνει μόνο τα γράμματα που οδηγούν σε ένα όνομα, για να φτάνετε πιο γρήγορα."
+    ipodcolor: "Η Αναζήτηση προτείνει μόνο τα γράμματα που οδηγούν σε όνομα, για να φτάνετε γρηγορότερα."
   </dest>
   <voice>
     *: ""
@@ -20345,9 +20381,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Καλλιτέχνης σε άλμπουμ"
+    ipodcolor: "Καλλιτέχνης σε άλμπουμ"
   </dest>
   <voice>
     *: ""
@@ -20359,9 +20397,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Στα Άλμπουμ, κάτω από κάθε όνομα φαίνονται η χρονιά και ο καλλιτέχνης· τα ομώνυμα άλμπουμ είναι χωριστά."
+    ipodcolor: "Στα Άλμπουμ, κάτω από κάθε όνομα χρονιά και καλλιτέχνης· τα ομώνυμα άλμπουμ χωριστά."
   </dest>
   <voice>
     *: ""
@@ -20387,9 +20427,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Άλμπουμ και τραγούδια με εξώφυλλο, στα Άλμπουμ, του καλλιτέχνη και στα Τραγούδια, όπως στο iPod classic."
+    ipodcolor: "Εξώφυλλα στα Άλμπουμ, στα άλμπουμ καλλιτέχνη και στα Τραγούδια, όπως στο iPod classic."
   </dest>
   <voice>
     *: ""
@@ -21073,9 +21115,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Πόσο γρήγορα παίζουν τα ηχητικά βιβλία. Οι φωνές κρατούν τον φυσικό τους τόνο."
+    ipodcolor: "Πόσο γρήγορα παίζουν τα ηχητικά βιβλία. Οι φωνές κρατούν τον φυσικό τους τόνο."
   </dest>
   <voice>
     *: ""
@@ -21101,9 +21145,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Όχι, τραγούδια ή άλμπουμ: πώς παίζει η μουσική. Τα «Τυχαία τραγούδια» του κύριου μενού βάζουν τραγούδια."
+    ipodcolor: "Όχι, τραγούδια ή άλμπουμ: πώς παίζει. Τα «Τυχαία τραγούδια» του μενού βάζουν τραγούδια."
   </dest>
   <voice>
     *: ""
@@ -21370,9 +21416,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Με «Πολύχρωμη», Μουσική, Podcast και Ηχητικά βιβλία έχουν δικό τους χρώμα. Άλλο χρώμα: σε κάθε οθόνη."
+    ipodcolor: "Με «Πολύχρωμη», Μουσική, Podcast και Ηχητικά βιβλία έχουν δικό τους χρώμα. Άλλο, παντού."
   </dest>
   <voice>
     *: ""
@@ -21398,9 +21446,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Νέα συγχρονισμένα εξώφυλλα"
+    ipodcolor: "Νέα εξώφυλλα από Η/Υ"
   </dest>
   <voice>
     *: ""
@@ -21412,9 +21462,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Στον επόμενο συγχρονισμό ο υπολογιστής ξαναφτιάχνει όλα τα εξώφυλλα, ευκρινή για το μενού."
+    ipodcolor: "Στον επόμενο συγχρονισμό ο υπολογιστής ξαναφτιάχνει όλα τα εξώφυλλα, ευκρινή για το μενού."
   </dest>
   <voice>
     *: ""
@@ -21426,9 +21478,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Μέχρι τον επόμενο συγχρονισμό με τον υπολογιστή τα συγχρονισμένα εξώφυλλα δεν εμφανίζονται."
+    ipodcolor: "Μέχρι τον επόμενο συγχρονισμό με τον υπολογιστή τα συγχρονισμένα εξώφυλλα δεν εμφανίζονται."
   </dest>
   <voice>
     *: ""
@@ -22168,9 +22222,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Μετά από τόσο ύπνο με μπαταρία, το iPod σβήνει. Το «Αυτόματο» ακολουθεί τη χωρητικότητα: 2 έως 12 ώρες."
+    ipodcolor: "Μετά από τόσο ύπνο με μπαταρία, το iPod σβήνει. Το «Αυτόματο» κατά τη χωρητικότητα: 2–12 ώρες."
   </dest>
   <voice>
     *: ""
@@ -22182,9 +22238,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Αν το iPod έχει νέα μπαταρία, ορίστε τη χωρητικότητά της: με βάση αυτή το «Αυτόματο» επιλέγει πότε σβήνει."
+    ipodcolor: "Με νέα μπαταρία, ορίστε εδώ τη χωρητικότητά της: με αυτή το «Αυτόματο» διαλέγει πότε σβήνει."
   </dest>
   <voice>
     *: ""
@@ -22280,9 +22338,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Γιατί λείπει εξώφυλλο"
+    ipodcolor: "Γιατί λείπει εξώφυλλο"
   </dest>
   <voice>
     *: ""

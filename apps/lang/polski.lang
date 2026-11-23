@@ -805,9 +805,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Crossfeed dla słuchawek"
+    ipodcolor: "Crossfeed dla słuchawek"
   </dest>
   <voice>
     *: "krosfid"
@@ -1696,10 +1698,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Pauza po odłączeniu"
+    ipodcolor: "Pauza po odłączeniu"
   </dest>
   <voice>
     *: none
@@ -3421,10 +3425,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Ustaw godzinę i datę"
+    ipodcolor: "Ustaw godzinę i datę"
   </dest>
   <voice>
     *: none
@@ -4299,9 +4305,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Ustawienia domyślne"
+    ipodcolor: "Ustawienia domyślne"
   </dest>
   <voice>
     *: "Przywróć ustawienia domyślne"
@@ -15567,9 +15575,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Dodaj do listy odtwarzania..."
+    ipodcolor: "Dodaj do listy odtwarzania..."
   </dest>
   <voice>
     *: "Dodaj do listy odtwarzania"
@@ -17718,9 +17728,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Ustawienia pokazu slajdów"
+    ipodcolor: "Ustawienia pokazu slajdów"
   </dest>
   <voice>
     *: "Ustawienia pokazu slajdów"
@@ -18698,9 +18710,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Ustawienia ogólne"
+    ipodcolor: "Ustawienia ogólne"
   </dest>
   <voice>
     *: ""
@@ -18992,9 +19006,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Przywróć menu główne"
+    ipodcolor: "Przywróć menu główne"
   </dest>
   <voice>
     *: ""
@@ -19020,9 +19036,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Według wykonawcy albumu"
+    ipodcolor: "Według wykonawcy albumu"
   </dest>
   <voice>
     *: ""
@@ -19188,9 +19206,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Dodaj do On-The-Go"
+    ipodcolor: "Dodaj do On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -19384,9 +19404,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Przywróć menu Teraz odtwarzane"
+    ipodcolor: "Przywróć domyślne menu"
   </dest>
   <voice>
     *: ""
@@ -19454,9 +19476,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Utwory i audiobooki wznawiają się kilka sekund przed miejscem zatrzymania."
+    ipodcolor: "Utwory i audiobooki wznawiają się kilka sekund przed miejscem zatrzymania."
   </dest>
   <voice>
     *: ""
@@ -19482,9 +19506,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Album zapisany jako jeden plik gra jako osobne utwory, według pliku .cue obok."
+    ipodcolor: "Album zapisany jako jeden plik gra jako osobne utwory, według pliku .cue obok."
   </dest>
   <voice>
     *: ""
@@ -19496,9 +19522,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Stare nagrania stereo brzmią w słuchawkach spójniej, mniej rozdzielone między uszy."
+    ipodcolor: "Stare nagrania stereo brzmią w słuchawkach spójniej, mniej rozdzielone między uszy."
   </dest>
   <voice>
     *: ""
@@ -19538,9 +19566,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Pasek stanu też przybiera kolory okładki. „Własna bateria” zostawia baterię zieloną."
+    ipodcolor: "Pasek stanu też przybiera kolory okładki. „Własna bateria” zostawia baterię zieloną."
   </dest>
   <voice>
     *: ""
@@ -19582,9 +19612,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Gdy ekran gaśnie podczas muzyki, wraca „Teraz odtwarzane”, więc kółko zmienia głośność."
+    ipodcolor: "Gdy ekran gaśnie podczas muzyki, wraca „Teraz odtwarzane”, więc kółko zmienia głośność."
   </dest>
   <voice>
     *: ""
@@ -19596,9 +19628,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "W Cover Flow muzyka pauzuje, więc okładki przesuwają się z pełną prędkością."
+    ipodcolor: "W Cover Flow muzyka pauzuje, więc okładki przesuwają się z pełną prędkością."
   </dest>
   <voice>
     *: ""
@@ -19610,9 +19644,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "„Szukaj” podsuwa tylko litery prowadzące do nazwy, więc szybciej dotrzesz do celu."
+    ipodcolor: "„Szukaj” podsuwa tylko litery prowadzące do nazwy, więc szybciej dotrzesz do celu."
   </dest>
   <voice>
     *: ""
@@ -21514,9 +21550,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Wykonawca pod albumem"
+    ipodcolor: "Wykonawca pod albumem"
   </dest>
   <voice>
     *: ""
@@ -21528,9 +21566,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Pod nazwą każdego albumu w Albumach widać rok i wykonawcę, a albumy o tej samej nazwie są osobno."
+    ipodcolor: "Pod każdym albumem w Albumach jest rok i wykonawca, a albumy o tej samej nazwie są osobno."
   </dest>
   <voice>
     *: ""
@@ -21556,9 +21596,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Albumy i utwory mają swoje okładki, w Albumach, w albumach wykonawcy i w Utworach, jak w iPod classic."
+    ipodcolor: "Albumy i utwory z okładkami w Albumach, w albumach wykonawcy i w Utworach, jak w iPod classic."
   </dest>
   <voice>
     *: ""
@@ -22242,9 +22284,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Jak szybko grają audiobooki. Głosy zachowują naturalną wysokość."
+    ipodcolor: "Jak szybko grają audiobooki. Głosy zachowują naturalną wysokość."
   </dest>
   <voice>
     *: ""
@@ -22270,9 +22314,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Wył., utwory lub albumy: jak gra twoja muzyka. „Pomieszaj utwory” w menu głównym przełącza na utwory."
+    ipodcolor: "Wył., utwory lub albumy: jak gra muzyka. „Pomieszaj utwory” w menu głównym włącza utwory."
   </dest>
   <voice>
     *: ""
@@ -22539,9 +22585,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "W trybie Wielokolorowy Muzyka, Podcasty i Audiobooki mają własne kolory. Inny kolor: na każdym ekranie."
+    ipodcolor: "W trybie Wielokolorowy Muzyka, Podcasty i Audiobooki mają własne kolory. Inny kolor: wszędzie."
   </dest>
   <voice>
     *: ""
@@ -22567,9 +22615,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Odbuduj zsynchronizowane okładki"
+    ipodcolor: "Odbuduj okładki z komputera"
   </dest>
   <voice>
     *: ""
@@ -22581,9 +22631,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Przy następnej synchronizacji komputer tworzy wszystkie okładki od nowa, z ostrymi dla menu głównego."
+    ipodcolor: "Przy następnej synchronizacji komputer tworzy wszystkie okładki od nowa, ostre dla menu głównego."
   </dest>
   <voice>
     *: ""
@@ -22595,9 +22647,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Do następnej synchronizacji z komputerem zsynchronizowane okładki nie są pokazywane."
+    ipodcolor: "Do następnej synchronizacji z komputerem zsynchronizowane okładki nie są pokazywane."
   </dest>
   <voice>
     *: ""
@@ -23337,9 +23391,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Po tak długim uśpieniu na baterii iPod się wyłącza. „Automatycznie” zależy od pojemności baterii: od 2 do 12 godzin."
+    ipodcolor: "Po tak długim uśpieniu na baterii iPod się wyłącza. „Automatycznie” zależy od pojemności: 2–12 godzin."
   </dest>
   <voice>
     *: ""
@@ -23351,9 +23407,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Jeśli iPod ma nową baterię, podaj jej pojemność: według niej „Automatycznie” wybiera czas wyłączenia."
+    ipodcolor: "Podaj pojemność nowej baterii: według niej „Automatycznie” wybiera czas wyłączenia."
   </dest>
   <voice>
     *: ""
@@ -23449,9 +23507,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Dlaczego brak okładki"
+    ipodcolor: "Dlaczego brak okładki"
   </dest>
   <voice>
     *: ""

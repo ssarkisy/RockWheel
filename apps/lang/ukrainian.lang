@@ -797,9 +797,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Кросфід для навушників"
+    ipodcolor: "Кросфід для навушників"
   </dest>
   <voice>
     *: "Кросфід для навушників"
@@ -1688,10 +1690,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Пауза при відключенні"
+    ipodcolor: "Пауза при відключенні"
   </dest>
   <voice>
     *: none
@@ -3427,10 +3431,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Встановити Час/Дату"
+    ipodcolor: "Встановити Час/Дату"
   </dest>
   <voice>
     *: none
@@ -4305,9 +4311,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Скидання Налаштувань"
+    ipodcolor: "Скидання Налаштувань"
   </dest>
   <voice>
     *: "Скидання Налаштувань"
@@ -15685,9 +15693,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Додати до підбірки"
+    ipodcolor: "Додати до підбірки"
   </dest>
   <voice>
     *: "Додати до підбірки"
@@ -17440,9 +17450,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Налаштування слайд-шоу"
+    ipodcolor: "Налаштування слайд-шоу"
   </dest>
   <voice>
     *: "Налаштування слайд-шоу"
@@ -18420,9 +18432,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Загальні пресети"
+    ipodcolor: "Загальні пресети"
   </dest>
   <voice>
     *: ""
@@ -18714,9 +18728,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Скидання головного меню"
+    ipodcolor: "Скидання головного меню"
   </dest>
   <voice>
     *: ""
@@ -18742,9 +18758,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "За виконавцем альбому"
+    ipodcolor: "За виконавцем альбому"
   </dest>
   <voice>
     *: ""
@@ -18910,9 +18928,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Додати до On-The-Go"
+    ipodcolor: "Додати до On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -19106,9 +19126,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Скидання меню «Зараз грає»"
+    ipodcolor: "Скидання меню"
   </dest>
   <voice>
     *: ""
@@ -19176,9 +19198,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Пісні й аудіокниги продовжуються на кілька секунд раніше місця зупинки."
+    ipodcolor: "Пісні й аудіокниги продовжуються на кілька секунд раніше місця зупинки."
   </dest>
   <voice>
     *: ""
@@ -19204,9 +19228,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Альбом одним файлом грає окремими піснями за файлом .cue поруч із ним."
+    ipodcolor: "Альбом одним файлом грає окремими піснями за файлом .cue поруч із ним."
   </dest>
   <voice>
     *: ""
@@ -19218,9 +19244,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Старі стереозаписи в навушниках звучать цілісніше, не розірвано між вухами."
+    ipodcolor: "Старі стереозаписи в навушниках звучать цілісніше, не розірвано між вухами."
   </dest>
   <voice>
     *: ""
@@ -19260,9 +19288,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Панель стану теж бере кольори обкладинки. У режимі „Своя батарея“ заряд лишається зеленим."
+    ipodcolor: "Панель стану теж у кольорах обкладинки. „Своя батарея“ лишає заряд зеленим."
   </dest>
   <voice>
     *: ""
@@ -19304,9 +19334,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Коли екран гасне під час музики, повертається „Зараз грає“, і колесо змінює гучність."
+    ipodcolor: "Коли екран гасне під час музики, повертається „Зараз грає“, і колесо змінює гучність."
   </dest>
   <voice>
     *: ""
@@ -19318,9 +19350,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Поки відкрито Cover Flow, музика на паузі, і обкладинки летять на повній швидкості."
+    ipodcolor: "Поки відкрито Cover Flow, музика на паузі, і обкладинки летять на повній швидкості."
   </dest>
   <voice>
     *: ""
@@ -19332,9 +19366,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "„Пошук“ пропонує лише літери, що ведуть до імені, — так швидше."
+    ipodcolor: "„Пошук“ пропонує лише літери, що ведуть до імені, — так швидше."
   </dest>
   <voice>
     *: ""
@@ -21236,9 +21272,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Виконавець під альбомом"
+    ipodcolor: "Виконавець під альбомом"
   </dest>
   <voice>
     *: ""
@@ -21250,9 +21288,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Під назвою кожного альбому — рік і виконавець, а однойменні альбоми йдуть окремо."
+    ipodcolor: "Під назвою кожного альбому — рік і виконавець, а однойменні альбоми йдуть окремо."
   </dest>
   <voice>
     *: ""
@@ -21278,9 +21318,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Ліворуч від альбомів і пісень — обкладинка: у списку альбомів, у виконавця і в піснях, як на iPod classic."
+    ipodcolor: "Обкладинки біля альбомів і пісень: в альбомах, у виконавця і в піснях, як на iPod classic."
   </dest>
   <voice>
     *: ""
@@ -21964,9 +22006,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Як швидко грають аудіокниги. Голоси зберігають природну висоту."
+    ipodcolor: "Як швидко грають аудіокниги. Голоси зберігають природну висоту."
   </dest>
   <voice>
     *: ""
@@ -21992,9 +22036,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Вимк., пісні або альбоми: як грає музика. «Випадкові пісні» в головному меню вмикає режим пісень."
+    ipodcolor: "Вимк., пісні або альбоми: як грає музика. «Випадкові пісні» в головному меню вмикає пісні."
   </dest>
   <voice>
     *: ""
@@ -22261,9 +22307,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "У багатоколірному режимі музика, подкасти й аудіокниги мають свої кольори. Інший колір — на всіх екранах."
+    ipodcolor: "Багатоколірний дає музиці, подкастам і аудіокнигам свої кольори. Інший колір — скрізь."
   </dest>
   <voice>
     *: ""
@@ -22289,9 +22337,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Оновити обкладинки з комп'ютера"
+    ipodcolor: "Оновити обкладинки з ПК"
   </dest>
   <voice>
     *: ""
@@ -22303,9 +22353,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Під час наступної синхронізації комп'ютер заново створить усі обкладинки, чіткі для головного меню."
+    ipodcolor: "Наступна синхронізація створить усі обкладинки наново, чіткі для головного меню."
   </dest>
   <voice>
     *: ""
@@ -22317,9 +22369,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "До наступної синхронізації з комп'ютером його обкладинки не показуються."
+    ipodcolor: "До наступної синхронізації з комп'ютером його обкладинки не показуються."
   </dest>
   <voice>
     *: ""
@@ -23059,9 +23113,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Проспавши стільки на батареї, iPod вимикається. „Авто“ залежить від ємності батареї: від 2 до 12 годин."
+    ipodcolor: "Проспавши стільки на батареї, iPod вимикається. „Авто“ — за ємністю: від 2 до 12 годин."
   </dest>
   <voice>
     *: ""
@@ -23073,9 +23129,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Якщо батарею замінено, вкажіть її ємність: за нею „Авто“ вибирає, коли вимкнутися."
+    ipodcolor: "Якщо батарею замінено, вкажіть її ємність: за нею „Авто“ вибирає, коли вимкнутися."
   </dest>
   <voice>
     *: ""
@@ -23171,9 +23229,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Чому немає обкладинки"
+    ipodcolor: "Чому немає обкладинки"
   </dest>
   <voice>
     *: ""

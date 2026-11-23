@@ -567,9 +567,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Kõrvaklappide crossfeed"
+    ipodcolor: "Kõrvaklappide crossfeed"
   </dest>
   <voice>
     *: "Kõrvaklappide crossfeed"
@@ -721,9 +723,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Taasta seaded"
+    ipodcolor: "Taasta seaded"
   </dest>
   <voice>
     *: "Taasta seaded"
@@ -8181,10 +8185,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Paus eemaldamisel"
+    ipodcolor: "Paus eemaldamisel"
   </dest>
   <voice>
     *: none
@@ -8542,9 +8548,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Slaidiseansi seaded"
+    ipodcolor: "Slaidiseansi seaded"
   </dest>
   <voice>
     *: "Slaidiseansi seaded"
@@ -9380,10 +9388,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Määra aeg/kuupäev"
+    ipodcolor: "Määra aeg/kuupäev"
   </dest>
   <voice>
     *: none
@@ -10209,9 +10219,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Lisa esitusloendisse..."
+    ipodcolor: "Lisa esitusloendisse..."
   </dest>
   <voice>
     *: "Lisa esitusloendisse..."
@@ -10758,9 +10770,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Üldised eelseaded"
+    ipodcolor: "Üldised eelseaded"
   </dest>
   <voice>
     *: ""
@@ -11108,9 +11122,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Taasta peamenüü"
+    ipodcolor: "Taasta peamenüü"
   </dest>
   <voice>
     *: ""
@@ -11136,9 +11152,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Rühmita albumi esitaja järgi"
+    ipodcolor: "Rühmita albumi esitaja järgi"
   </dest>
   <voice>
     *: ""
@@ -11304,9 +11322,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Lisa On-The-Go-sse"
+    ipodcolor: "Lisa On-The-Go-sse"
   </dest>
   <voice>
     *: ""
@@ -11500,9 +11520,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Taasta Praegu mängib menüü"
+    ipodcolor: "Taasta Praegu mängib menüü"
   </dest>
   <voice>
     *: ""
@@ -11570,9 +11592,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Lood ja audioraamatud jätkuvad paar sekundit enne kohta, kus need pooleli jäid."
+    ipodcolor: "Lood ja audioraamatud jätkuvad paar sekundit enne kohta, kus need pooleli jäid."
   </dest>
   <voice>
     *: ""
@@ -11598,9 +11622,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Ühe failina hoitud album mängib eraldi lugudena, selle kõrval oleva .cue-faili järgi."
+    ipodcolor: "Ühe failina hoitud album mängib eraldi lugudena, selle kõrval oleva .cue-faili järgi."
   </dest>
   <voice>
     *: ""
@@ -11612,9 +11638,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Vanad stereosalvestised kõlavad kõrvaklappides terviklikumalt, mitte kõrvade vahel lahus."
+    ipodcolor: "Vanad stereosalvestised kõlavad kõrvaklappides terviklikumalt, mitte kõrvade vahel lahus."
   </dest>
   <voice>
     *: ""
@@ -11654,9 +11682,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Olekuriba võtab samuti kaane värvid. „Oma aku“ hoiab aku rohelisena."
+    ipodcolor: "Olekuriba võtab samuti kaane värvid. „Oma aku“ hoiab aku rohelisena."
   </dest>
   <voice>
     *: ""
@@ -11698,9 +11728,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Kui ekraan muusika ajal kustub, naaseb „Praegu mängib“ ja ratas muudab helitugevust."
+    ipodcolor: "Kui ekraan muusika ajal kustub, naaseb „Praegu mängib“ ja ratas muudab helitugevust."
   </dest>
   <voice>
     *: ""
@@ -11712,9 +11744,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Muusika on pausil, kuni Cover Flow on avatud, et kaaned liiguksid täiskiirusel."
+    ipodcolor: "Muusika on pausil, kuni Cover Flow on avatud, et kaaned liiguksid täiskiirusel."
   </dest>
   <voice>
     *: ""
@@ -11726,9 +11760,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "„Otsing“ pakub ainult tähti, mis viivad mõne nimeni, nii jõuate kiiremini kohale."
+    ipodcolor: "„Otsing“ pakub ainult tähti, mis viivad mõne nimeni, nii jõuate kiiremini kohale."
   </dest>
   <voice>
     *: ""
@@ -13798,9 +13834,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Esitaja albumi all"
+    ipodcolor: "Esitaja albumi all"
   </dest>
   <voice>
     *: ""
@@ -13812,9 +13850,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Albumites on iga albumi nime all aasta ja esitaja ning sama nimega albumid on eraldi."
+    ipodcolor: "Albumites on iga albumi nime all aasta ja esitaja ning sama nimega albumid on eraldi."
   </dest>
   <voice>
     *: ""
@@ -13840,9 +13880,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Albumitel ja lauludel on kaas: Albumites, esitaja albumites ja Lauludes, nagu iPod classicul."
+    ipodcolor: "Albumitel ja lauludel on kaas: Albumites, esitaja albumites ja Lauludes, nagu iPod classicul."
   </dest>
   <voice>
     *: ""
@@ -14526,9 +14568,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Kui kiiresti audioraamatud mängivad. Hääled jäävad loomuliku kõrgusega."
+    ipodcolor: "Kui kiiresti audioraamatud mängivad. Hääled jäävad loomuliku kõrgusega."
   </dest>
   <voice>
     *: ""
@@ -14554,9 +14598,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Väljas, laulud või albumid: kuidas muusika mängib. Peamenüü „Sega laulud“ lülitab laulude peale."
+    ipodcolor: "Väljas, laulud või albumid: kuidas muusika mängib. Peamenüü „Sega laulud“ lülitab laulude peale."
   </dest>
   <voice>
     *: ""
@@ -14823,9 +14869,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Mitmevärvilisena on Muusikal, Taskuhäälingutel ja Audioraamatutel oma värvid. Muu värv on kõigil ekraanidel."
+    ipodcolor: "Mitmevärvilisena on Muusikal, Taskuhäälingutel ja Audioraamatutel oma värvid. Muu värv on kõikjal."
   </dest>
   <voice>
     *: ""
@@ -14851,9 +14899,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Loo sünkroonitud kaaned uuesti"
+    ipodcolor: "Sünkroonitud kaaned uuesti"
   </dest>
   <voice>
     *: ""
@@ -14865,9 +14915,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Järgmisel sünkroonimisel teeb arvuti kõik kaaned uuesti, teravad peamenüü jaoks."
+    ipodcolor: "Järgmisel sünkroonimisel teeb arvuti kõik kaaned uuesti, teravad peamenüü jaoks."
   </dest>
   <voice>
     *: ""
@@ -14879,9 +14931,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Kuni järgmise sünkroonimiseni arvutiga sünkroonitud kaasi ei näidata."
+    ipodcolor: "Kuni järgmise sünkroonimiseni arvutiga sünkroonitud kaasi ei näidata."
   </dest>
   <voice>
     *: ""
@@ -15621,9 +15675,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Pärast nii pikka und akutoitel lülitub iPod välja. „Auto“ arvestab aku mahtuvust: 2 kuni 12 tundi."
+    ipodcolor: "Pärast nii pikka und akutoitel lülitub iPod välja. „Auto“ arvestab aku mahtuvust: 2 kuni 12 tundi."
   </dest>
   <voice>
     *: ""
@@ -15635,9 +15691,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Kui iPodil on uus aku, sisestage selle mahtuvus: selle järgi valib „Auto“ väljalülitumise aja."
+    ipodcolor: "Kui iPodil on uus aku, sisestage selle mahtuvus: selle järgi valib „Auto“ väljalülitumise aja."
   </dest>
   <voice>
     *: ""
@@ -15733,9 +15791,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Puuduvate kaante hoiatus"
+    ipodcolor: "Puuduvate kaante hoiatus"
   </dest>
   <voice>
     *: ""
@@ -15973,7 +16033,7 @@
   </source>
   <dest>
     *: none
-    ipodcolor: "Praegu mängib"
+    ipodcolor: "Mängib"
   </dest>
   <voice>
     *: none

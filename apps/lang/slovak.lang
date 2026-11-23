@@ -796,9 +796,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Crossfeed pre slúchadlá"
+    ipodcolor: "Crossfeed pre slúchadlá"
   </dest>
   <voice>
     *: "Krížový prenos zátvorka crossfeed koniec zátvorky"
@@ -1687,10 +1689,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Pauza pri odpojení"
+    ipodcolor: "Pauza pri odpojení"
   </dest>
   <voice>
     *: none
@@ -3412,10 +3416,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Nastaviť čas/dátum"
+    ipodcolor: "Nastaviť čas/dátum"
   </dest>
   <voice>
     *: none
@@ -4290,9 +4296,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Reset nastavení"
+    ipodcolor: "Reset nastavení"
   </dest>
   <voice>
     *: "Reset nastavení"
@@ -15686,9 +15694,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Pridať do plejlistu..."
+    ipodcolor: "Pridať do plejlistu..."
   </dest>
   <voice>
     *: "Pridať do plejlistu"
@@ -17711,9 +17721,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Nastavenia prezentácie"
+    ipodcolor: "Nastavenia prezentácie"
   </dest>
   <voice>
     *: "Nastavenia prezentácie"
@@ -18691,9 +18703,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Všeobecné predvoľby"
+    ipodcolor: "Všeobecné predvoľby"
   </dest>
   <voice>
     *: ""
@@ -18985,9 +18999,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Obnoviť hlavnú ponuku"
+    ipodcolor: "Obnoviť hlavnú ponuku"
   </dest>
   <voice>
     *: ""
@@ -19013,9 +19029,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Podľa interpreta albumu"
+    ipodcolor: "Podľa interpreta albumu"
   </dest>
   <voice>
     *: ""
@@ -19181,9 +19199,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Pridať do On-The-Go"
+    ipodcolor: "Pridať do On-The-Go"
   </dest>
   <voice>
     *: ""
@@ -19377,9 +19397,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Obnoviť ponuku Teraz hrá"
+    ipodcolor: "Obnoviť ponuku Teraz hrá"
   </dest>
   <voice>
     *: ""
@@ -19447,9 +19469,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Skladby a audioknihy pokračujú pár sekúnd pred miestom, kde ste prestali."
+    ipodcolor: "Skladby a audioknihy pokračujú pár sekúnd pred miestom, kde ste prestali."
   </dest>
   <voice>
     *: ""
@@ -19475,9 +19499,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Album uložený ako jeden súbor hrá ako samostatné skladby podľa súboru .cue vedľa neho."
+    ipodcolor: "Album uložený ako jeden súbor hrá ako samostatné skladby podľa súboru .cue vedľa neho."
   </dest>
   <voice>
     *: ""
@@ -19489,9 +19515,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Staré stereonahrávky znejú v slúchadlách celistvejšie, menej rozdelené medzi uši."
+    ipodcolor: "Staré stereonahrávky znejú v slúchadlách celistvejšie, menej rozdelené medzi uši."
   </dest>
   <voice>
     *: ""
@@ -19531,9 +19559,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Stavový riadok tiež preberá farby obalu. „Vlastná batéria“ nechá batériu zelenú."
+    ipodcolor: "Stavový riadok tiež preberá farby obalu. „Vlastná batéria“ nechá batériu zelenú."
   </dest>
   <voice>
     *: ""
@@ -19575,9 +19605,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Keď displej počas hudby zhasne, vráti sa „Teraz hrá“ a koliesko mení hlasitosť."
+    ipodcolor: "Keď displej počas hudby zhasne, vráti sa „Teraz hrá“ a koliesko mení hlasitosť."
   </dest>
   <voice>
     *: ""
@@ -19589,9 +19621,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Kým je otvorený Cover Flow, hudba sa pozastaví, aby obaly plynuli plnou rýchlosťou."
+    ipodcolor: "Kým je otvorený Cover Flow, hudba sa pozastaví, aby obaly plynuli plnou rýchlosťou."
   </dest>
   <voice>
     *: ""
@@ -19603,9 +19637,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "„Hľadať“ ponúka len písmená vedúce k názvu, takže ho nájdete rýchlejšie."
+    ipodcolor: "„Hľadať“ ponúka len písmená vedúce k názvu, takže ho nájdete rýchlejšie."
   </dest>
   <voice>
     *: ""
@@ -21507,9 +21543,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Interpret pod albumom"
+    ipodcolor: "Interpret pod albumom"
   </dest>
   <voice>
     *: ""
@@ -21521,9 +21559,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Pod názvom každého albumu v Albumoch je rok a interpret a albumy s rovnakým názvom sú zvlášť."
+    ipodcolor: "Pod názvom albumu v Albumoch je rok a interpret a albumy s rovnakým názvom sú zvlášť."
   </dest>
   <voice>
     *: ""
@@ -21549,9 +21589,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Albumy a skladby majú obal, v Albumoch, v albumoch interpreta aj v Skladbách, ako na iPod classic."
+    ipodcolor: "Albumy a skladby majú obal, v Albumoch, v albumoch interpreta aj v Skladbách, ako na iPod classic."
   </dest>
   <voice>
     *: ""
@@ -22235,9 +22277,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Ako rýchlo hrajú audioknihy. Hlasy si držia prirodzenú výšku."
+    ipodcolor: "Ako rýchlo hrajú audioknihy. Hlasy si držia prirodzenú výšku."
   </dest>
   <voice>
     *: ""
@@ -22263,9 +22307,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Vypnuté, skladby alebo albumy: ako hrá hudba. „Miešať skladby“ v hlavnej ponuke prepne na skladby."
+    ipodcolor: "Vypnuté, skladby alebo albumy: ako hrá hudba. „Miešať skladby“ v hlavnej ponuke prepne na skladby."
   </dest>
   <voice>
     *: ""
@@ -22532,9 +22578,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "S voľbou Viac farieb majú Hudba, Podcasty a Audioknihy vlastné farby. Iná farba platí na všetkých obrazovkách."
+    ipodcolor: "S voľbou Viac farieb majú Hudba, Podcasty a Audioknihy vlastné farby. Iná farba platí všade."
   </dest>
   <voice>
     *: ""
@@ -22560,9 +22608,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Obnoviť synchronizované obaly"
+    ipodcolor: "Obnoviť obaly z počítača"
   </dest>
   <voice>
     *: ""
@@ -22574,9 +22624,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Pri ďalšej synchronizácii počítač vytvorí všetky obaly znova, s ostrými pre hlavnú ponuku."
+    ipodcolor: "Pri ďalšej synchronizácii počítač vytvorí všetky obaly znova, s ostrými pre hlavnú ponuku."
   </dest>
   <voice>
     *: ""
@@ -22588,9 +22640,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Do ďalšej synchronizácie s počítačom sa synchronizované obaly nezobrazujú."
+    ipodcolor: "Do ďalšej synchronizácie s počítačom sa synchronizované obaly nezobrazujú."
   </dest>
   <voice>
     *: ""
@@ -23330,9 +23384,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Po takto dlhom spánku na batérii sa iPod vypne. „Auto“ podľa kapacity batérie: 2 až 12 hodín."
+    ipodcolor: "Po takto dlhom spánku na batérii sa iPod vypne. „Auto“ podľa kapacity batérie: 2 až 12 hodín."
   </dest>
   <voice>
     *: ""
@@ -23344,9 +23400,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Ak má iPod novú batériu, zadajte jej kapacitu: podľa nej „Auto“ volí čas vypnutia."
+    ipodcolor: "Ak má iPod novú batériu, zadajte jej kapacitu: podľa nej „Auto“ volí čas vypnutia."
   </dest>
   <voice>
     *: ""
@@ -23442,9 +23500,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Prečo chýba obal"
+    ipodcolor: "Prečo chýba obal"
   </dest>
   <voice>
     *: ""

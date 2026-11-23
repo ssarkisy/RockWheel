@@ -612,9 +612,11 @@
   user: core
   <source>
     *: "Headphone Crossfeed"
+    ipodcolor: "Headphone Crossfeed"
   </source>
   <dest>
     *: "Kuulokkeiden ristisyöttö"
+    ipodcolor: "Kuulokkeiden ristisyöttö"
   </dest>
   <voice>
     *: "Kuulokkeiden ristisyöttö"
@@ -752,9 +754,11 @@
   user: core
   <source>
     *: "Reset Settings"
+    ipodcolor: "Reset Settings"
   </source>
   <dest>
     *: "Nollaa asetukset"
+    ipodcolor: "Nollaa asetukset"
   </dest>
   <voice>
     *: "Nollaa asetukset"
@@ -9215,10 +9219,12 @@
   <source>
     *: none
     rtc: "Set Time/Date"
+    ipodcolor: "Set Time/Date"
   </source>
   <dest>
     *: none
     rtc: "Aseta aika/päiväys"
+    ipodcolor: "Aseta aika/päiväys"
   </dest>
   <voice>
     *: none
@@ -9544,10 +9550,12 @@
   <source>
     *: none
     headphone_detection: "Pause on Headphone Unplug"
+    ipodcolor: "Pause on Unplug"
   </source>
   <dest>
     *: none
     headphone_detection: "Pysäytä irrotettaessa"
+    ipodcolor: "Pysäytä irrotettaessa"
   </dest>
   <voice>
     *: none
@@ -13159,9 +13167,11 @@
   user: core
   <source>
     *: "Slideshow Settings"
+    ipodcolor: "Slideshow Settings"
   </source>
   <dest>
     *: "Kuvaesityksen asetukset"
+    ipodcolor: "Kuvaesityksen asetukset"
   </dest>
   <voice>
     *: "Kuvaesityksen asetukset"
@@ -14265,9 +14275,11 @@
   user: core
   <source>
     *: "Add to Playlist..."
+    ipodcolor: "Add to Playlist..."
   </source>
   <dest>
     *: "Lisää soittolistaan..."
+    ipodcolor: "Lisää soittolistaan..."
   </dest>
   <voice>
     *: "Lisää soittolistaan..."
@@ -14797,9 +14809,11 @@
   user: core
   <source>
     *: "General Presets"
+    ipodcolor: "General Presets"
   </source>
   <dest>
     *: "Yleiset esiasetukset"
+    ipodcolor: "Yleiset esiasetukset"
   </dest>
   <voice>
     *: ""
@@ -15105,9 +15119,11 @@
   user: core
   <source>
     *: "Reset Main Menu"
+    ipodcolor: "Reset Main Menu"
   </source>
   <dest>
     *: "Nollaa päävalikko"
+    ipodcolor: "Nollaa päävalikko"
   </dest>
   <voice>
     *: ""
@@ -15133,9 +15149,11 @@
   user: core
   <source>
     *: "Group by Album Artist"
+    ipodcolor: "Group by Album Artist"
   </source>
   <dest>
     *: "Albumin esittäjän mukaan"
+    ipodcolor: "Albumin esittäjän mukaan"
   </dest>
   <voice>
     *: ""
@@ -15301,9 +15319,11 @@
   user: core
   <source>
     *: "Add to On-The-Go"
+    ipodcolor: "Add to On-The-Go"
   </source>
   <dest>
     *: "Lisää On-The-Go-listaan"
+    ipodcolor: "Lisää On-The-Go-listaan"
   </dest>
   <voice>
     *: ""
@@ -15497,9 +15517,11 @@
   user: core
   <source>
     *: "Reset Now Playing Menu"
+    ipodcolor: "Reset Now Playing Menu"
   </source>
   <dest>
     *: "Nollaa Toistossa nyt -valikko"
+    ipodcolor: "Nollaa Toistossa nyt -valikko"
   </dest>
   <voice>
     *: ""
@@ -15567,9 +15589,11 @@
   user: core
   <source>
     *: "Songs and audiobooks pick up a few seconds before where you left off."
+    ipodcolor: "Songs and audiobooks pick up a few seconds before where you left off."
   </source>
   <dest>
     *: "Kappaleet ja äänikirjat jatkuvat muutaman sekunnin ennen kohtaa, johon jäit."
+    ipodcolor: "Kappaleet ja äänikirjat jatkuvat muutaman sekunnin ennen kohtaa, johon jäit."
   </dest>
   <voice>
     *: ""
@@ -15595,9 +15619,11 @@
   user: core
   <source>
     *: "An album kept as one file plays as separate songs, by the .cue file beside it."
+    ipodcolor: "An album kept as one file plays as separate songs, by the .cue file beside it."
   </source>
   <dest>
     *: "Yhtenä tiedostona oleva albumi soi erillisinä kappaleina viereisen .cue-tiedoston avulla."
+    ipodcolor: "Yhtenä tiedostona oleva albumi soi erillisinä kappaleina viereisen .cue-tiedoston avulla."
   </dest>
   <voice>
     *: ""
@@ -15609,9 +15635,11 @@
   user: core
   <source>
     *: "Makes old stereo recordings feel less split between your ears on headphones."
+    ipodcolor: "Makes old stereo recordings feel less split between your ears on headphones."
   </source>
   <dest>
     *: "Vanhat stereotallenteet kuulostavat kuulokkeissa vähemmän kahtia jaetuilta."
+    ipodcolor: "Vanhat stereotallenteet kuulostavat kuulokkeissa vähemmän kahtia jaetuilta."
   </dest>
   <voice>
     *: ""
@@ -15651,9 +15679,11 @@
   user: core
   <source>
     *: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
+    ipodcolor: "The status bar takes the cover's colours too. Own Battery keeps the charge green."
   </source>
   <dest>
     *: "Tilapalkkikin saa kansikuvan värit. Oma akku -valinnalla akku pysyy vihreänä."
+    ipodcolor: "Tilapalkkikin saa kansikuvan värit. Oma akku -valinnalla akku pysyy vihreänä."
   </dest>
   <voice>
     *: ""
@@ -15695,9 +15725,11 @@
   user: core
   <source>
     *: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
+    ipodcolor: "As the screen goes dark during music, Now Playing comes back, so the wheel sets the volume."
   </source>
   <dest>
     *: "Kun näyttö pimenee musiikin aikana, Toistossa nyt -näkymä palaa, ja kiekko säätää äänenvoimakkuutta."
+    ipodcolor: "Kun näyttö pimenee musiikin aikana, Toistossa nyt -näkymä palaa, ja kiekko säätää äänenvoimakkuutta."
   </dest>
   <voice>
     *: ""
@@ -15709,9 +15741,11 @@
   user: core
   <source>
     *: "Music pauses while Cover Flow is open, so the covers glide at full speed."
+    ipodcolor: "Music pauses while Cover Flow is open, so the covers glide at full speed."
   </source>
   <dest>
     *: "Musiikki on tauolla, kun Cover Flow on auki, jotta kannet liukuvat täydellä vauhdilla."
+    ipodcolor: "Musiikki on tauolla, kun Cover Flow on auki, jotta kannet liukuvat täydellä vauhdilla."
   </dest>
   <voice>
     *: ""
@@ -15723,9 +15757,11 @@
   user: core
   <source>
     *: "Search offers only the letters that lead to a name, so you get there sooner."
+    ipodcolor: "Search offers only the letters that lead to a name, so you get there sooner."
   </source>
   <dest>
     *: "Haku tarjoaa vain kirjaimet, jotka johtavat johonkin nimeen, joten pääset perille nopeammin."
+    ipodcolor: "Haku tarjoaa vain kirjaimet, jotka johtavat johonkin nimeen, joten pääset perille nopeammin."
   </dest>
   <voice>
     *: ""
@@ -17767,9 +17803,11 @@
   user: core
   <source>
     *: "Artist under Album"
+    ipodcolor: "Artist under Album"
   </source>
   <dest>
     *: "Esittäjä albumin alla"
+    ipodcolor: "Esittäjä albumin alla"
   </dest>
   <voice>
     *: ""
@@ -17781,9 +17819,11 @@
   user: core
   <source>
     *: "Each album in Albums shows its year and artist under its name, and albums with the same name are listed one by one."
+    ipodcolor: "Each album in Albums shows its year and artist under its name; same-named ones are listed apart."
   </source>
   <dest>
     *: "Albumeissa jokaisen albumin nimen alla näkyvät vuosi ja esittäjä, ja samannimiset albumit ovat erikseen."
+    ipodcolor: "Albumeissa jokaisen albumin nimen alla näkyvät vuosi ja esittäjä, ja samannimiset albumit ovat erikseen."
   </dest>
   <voice>
     *: ""
@@ -17809,9 +17849,11 @@
   user: core
   <source>
     *: "Albums and songs show their covers, in Albums, in an artist's albums and in Songs, as on an iPod classic."
+    ipodcolor: "Albums and songs show their covers in Albums, an artist's albums and Songs, as on an iPod classic."
   </source>
   <dest>
     *: "Albumien ja kappaleiden kannet näkyvät Albumeissa, esittäjän albumeissa ja Kappaleissa, kuten iPod classicissa."
+    ipodcolor: "Kannet näkyvät Albumeissa, esittäjän albumeissa ja Kappaleissa, kuten iPod classicissa."
   </dest>
   <voice>
     *: ""
@@ -18495,9 +18537,11 @@
   user: core
   <source>
     *: "How fast audiobooks play. Voices keep their natural pitch."
+    ipodcolor: "How fast audiobooks play. Voices keep their natural pitch."
   </source>
   <dest>
     *: "Kuinka nopeasti äänikirjat soivat. Äänet säilyttävät luonnollisen korkeutensa."
+    ipodcolor: "Kuinka nopeasti äänikirjat soivat. Äänet säilyttävät luonnollisen korkeutensa."
   </dest>
   <voice>
     *: ""
@@ -18523,9 +18567,11 @@
   user: core
   <source>
     *: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
+    ipodcolor: "Off, Songs or Albums: how your music plays. Shuffle Songs in the main menu turns it to Songs."
   </source>
   <dest>
     *: "Pois, kappaleet tai albumit: miten musiikkisi soi. Päävalikon ”Sekoita kappaleet” vaihtaa kappaleisiin."
+    ipodcolor: "Pois, kappaleet tai albumit: miten musiikkisi soi. Päävalikon ”Sekoita kappaleet” vaihtaa kappaleisiin."
   </dest>
   <voice>
     *: ""
@@ -18792,9 +18838,11 @@
   user: core
   <source>
     *: "Multicolour gives Music, Podcasts and Audiobooks colours of their own. Any other colour is used on every screen."
+    ipodcolor: "Multicolour gives Music, Podcasts and Audiobooks their own colours. Any other is used everywhere."
   </source>
   <dest>
     *: "Monivärisenä Musiikilla, Podcasteilla ja Äänikirjoilla on omat värinsä. Muu väri näkyy kaikissa näytöissä."
+    ipodcolor: "Monivärisenä Musiikilla, Podcasteilla ja Äänikirjoilla on omat värinsä. Muu väri näkyy kaikissa näytöissä."
   </dest>
   <voice>
     *: ""
@@ -18820,9 +18868,11 @@
   user: core
   <source>
     *: "Rebuild Synced Covers"
+    ipodcolor: "Rebuild Synced Covers"
   </source>
   <dest>
     *: "Luo synkronoidut kannet uudelleen"
+    ipodcolor: "Uudet synkronoidut kannet"
   </dest>
   <voice>
     *: ""
@@ -18834,9 +18884,11 @@
   user: core
   <source>
     *: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
+    ipodcolor: "Your computer makes every cover again at the next sync, with sharp ones for the main menu."
   </source>
   <dest>
     *: "Seuraavassa synkronoinnissa tietokone tekee kaikki kannet uudelleen, terävinä päävalikkoa varten."
+    ipodcolor: "Seuraavassa synkronoinnissa tietokone tekee kaikki kannet uudelleen, terävät päävalikkoon."
   </dest>
   <voice>
     *: ""
@@ -18848,9 +18900,11 @@
   user: core
   <source>
     *: "Until the next sync with your computer, synced covers are not shown."
+    ipodcolor: "Until the next sync with your computer, synced covers are not shown."
   </source>
   <dest>
     *: "Seuraavaan tietokoneen kanssa tehtävään synkronointiin asti synkronoituja kansia ei näytetä."
+    ipodcolor: "Seuraavaan tietokoneen kanssa tehtävään synkronointiin asti synkronoituja kansia ei näytetä."
   </dest>
   <voice>
     *: ""
@@ -19590,9 +19644,11 @@
   user: core
   <source>
     *: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
+    ipodcolor: "Your iPod turns off after this long asleep on battery. Auto goes by the battery's capacity: 2 to 12 hours."
   </source>
   <dest>
     *: "Näin pitkän lepotilan jälkeen akulla iPod sammuu. Automaattinen menee akun kapasiteetin mukaan: 2–12 tuntia."
+    ipodcolor: "Näin pitkän lepotilan jälkeen akulla iPod sammuu. Automaattinen menee akun mukaan: 2–12 tuntia."
   </dest>
   <voice>
     *: ""
@@ -19604,9 +19660,11 @@
   user: core
   <source>
     *: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
+    ipodcolor: "If your iPod has a new battery, set its capacity here: Auto goes by it to choose when to turn off."
   </source>
   <dest>
     *: "Jos iPodissa on uusi akku, anna sen kapasiteetti: Automaattinen valitsee sammutusajan sen mukaan."
+    ipodcolor: "Jos iPodissa on uusi akku, anna sen kapasiteetti: Automaattinen valitsee sammutusajan sen mukaan."
   </dest>
   <voice>
     *: ""
@@ -19702,9 +19760,11 @@
   user: core
   <source>
     *: "Missing Covers Caution"
+    ipodcolor: "Missing Covers Caution"
   </source>
   <dest>
     *: "Miksi ei kansikuvaa"
+    ipodcolor: "Miksi ei kansikuvaa"
   </dest>
   <voice>
     *: ""
