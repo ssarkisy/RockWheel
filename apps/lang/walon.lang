@@ -12937,9 +12937,11 @@
   user: core
   <source>
     *: "Last sync"
+    ipodcolor: "Last sync"
   </source>
   <dest>
     *: "Dierin sincro"
+    ipodcolor: "Dierin sincro"
   </dest>
   <voice>
     *: "Dierin sincro"

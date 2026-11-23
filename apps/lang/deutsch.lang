@@ -17474,9 +17474,11 @@
   user: core
   <source>
     *: "Last sync"
+    ipodcolor: "Last sync"
   </source>
   <dest>
     *: "Letzter Sync"
+    ipodcolor: "Letzter Sync"
   </dest>
   <voice>
     *: ""

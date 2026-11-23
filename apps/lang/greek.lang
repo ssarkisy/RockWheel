@@ -15801,9 +15801,11 @@
   user: core
   <source>
     *: "Last sync"
+    ipodcolor: "Last sync"
   </source>
   <dest>
     *: "Συγχρονισμός"
+    ipodcolor: "Συγχρονισμός"
   </dest>
   <voice>
     *: ""

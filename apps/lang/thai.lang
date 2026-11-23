@@ -13435,9 +13435,11 @@
   user: core
   <source>
     *: "Last sync"
+    ipodcolor: "Last sync"
   </source>
   <dest>
     *: "ซิงค์ล่าสุด"
+    ipodcolor: "ซิงค์ล่าสุด"
   </dest>
   <voice>
     *: ""

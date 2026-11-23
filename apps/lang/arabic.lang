@@ -7054,9 +7054,11 @@
   user: core
   <source>
     *: "Last sync"
+    ipodcolor: "Last sync"
   </source>
   <dest>
     *: "آخر مزامنة"
+    ipodcolor: "آخر مزامنة"
   </dest>
   <voice>
     *: ""

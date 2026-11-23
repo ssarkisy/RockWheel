@@ -16753,9 +16753,11 @@
   user: core
   <source>
     *: "Last sync"
+    ipodcolor: "Last sync"
   </source>
   <dest>
     *: "最終同期"
+    ipodcolor: "最終同期"
   </dest>
   <voice>
     *: ""

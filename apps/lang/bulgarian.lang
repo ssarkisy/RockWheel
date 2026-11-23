@@ -17457,9 +17457,11 @@
   user: core
   <source>
     *: "Last sync"
+    ipodcolor: "Last sync"
   </source>
   <dest>
     *: "Синхронизация"
+    ipodcolor: "Синхронизация"
   </dest>
   <voice>
     *: ""

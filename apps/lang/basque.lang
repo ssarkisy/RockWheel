@@ -12857,9 +12857,11 @@
   user: core
   <source>
     *: "Last sync"
+    ipodcolor: "Last sync"
   </source>
   <dest>
     *: "Azken sinkro"
+    ipodcolor: "Azken sinkro"
   </dest>
   <voice>
     *: ""

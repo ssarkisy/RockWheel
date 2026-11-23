@@ -17453,9 +17453,11 @@
   user: core
   <source>
     *: "Last sync"
+    ipodcolor: "Last sync"
   </source>
   <dest>
     *: "Đồng bộ cuối"
+    ipodcolor: "Đồng bộ cuối"
   </dest>
   <voice>
     *: ""
