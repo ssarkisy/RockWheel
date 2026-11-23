@@ -5854,6 +5854,13 @@ static int main_menu(void)
 #define ROTATE_FRAME_COUNT  10
 #define ROTATE_FRAME_ANGLE  24
 
+/* Opening and closing an album as on an iPod classic: the cover's right edge comes
+   forward and sweeps to the left (FLIP_SIDE -1; 1 turns it the other way, left edge
+   first), and the 34 key frames take about 0.39 seconds, 3.5 times the 25 frames a
+   second of the rest (it was 1.25 times, about 1.1 seconds). */
+#define FLIP_SIDE           (-1)
+#define COVER_ANIM_PART(p)  ((p) * 7 / 2)
+
 #define KEYFRAME_COUNT (ZOOMIN_FRAME_COUNT + ROTATE_FRAME_COUNT)
 
 #define ALL_KEYFRAMES       (KEYFRAME_COUNT + CARD_FRAME_COUNT)
@@ -5864,7 +5871,8 @@ static void set_cover_animation(int keyframe)
     const int zoom = fbound(0, keyframe, ZOOMIN_FRAME_COUNT);
     const int turn = fbound(0, keyframe - ZOOMIN_FRAME_COUNT, ROTATE_FRAME_COUNT);
     center_slide.distance = zoom * ZOOMIN_FRAME_DIST;
-    center_slide.angle = zoom * ZOOMIN_FRAME_ANGLE + turn * ROTATE_FRAME_ANGLE;
+    const int angle = zoom * ZOOMIN_FRAME_ANGLE + turn * ROTATE_FRAME_ANGLE;
+    center_slide.angle = FLIP_SIDE * angle;
     extra_fade = zoom * ZOOMIN_FRAME_FADE;
     card_frame = fbound(0, keyframe - KEYFRAME_COUNT, CARD_FRAME_COUNT);
 #if CARD_FRAME_COUNT > 0
@@ -5873,7 +5881,7 @@ static void set_cover_animation(int keyframe)
         /* the other side, turned on from where the cover's edge was */
         const int left = CARD_FRAME_COUNT - card_frame;
         card_slide.slide_index = -1;
-        card_slide.angle = fmin(0, center_slide.angle
+        card_slide.angle = FLIP_SIDE * fmin(0, angle
                                    + card_frame * ROTATE_FRAME_ANGLE - IANGLE_MAX / 2);
         card_slide.cx = card_slide.cy = 0;
         card_slide.distance = CARD_FRAME_DIST * left / CARD_FRAME_COUNT;
@@ -7469,9 +7477,8 @@ static int pictureflow_main(void)
                 instant_update = true;
                 break;
             case pf_cover_in:
-                /* the key frames the time took, none if it was short: a
-                   quarter faster than the frames of the rest */
-                for (anim_keys += anim_part + anim_part / 4;
+                /* the key frames the time took, none if it was short */
+                for (anim_keys += COVER_ANIM_PART(anim_part);
                      anim_keys >= ANIM_ONE && pf_state == pf_cover_in;
                      anim_keys -= ANIM_ONE)
                     update_cover_in_animation();
@@ -7492,7 +7499,7 @@ static int pictureflow_main(void)
                 break;
             case pf_cover_out:
                 show_tracks_while_browsing = false;
-                for (anim_keys += anim_part + anim_part / 4;
+                for (anim_keys += COVER_ANIM_PART(anim_part);
                      anim_keys >= ANIM_ONE && pf_state == pf_cover_out;
                      anim_keys -= ANIM_ONE)
                     update_cover_out_animation();
