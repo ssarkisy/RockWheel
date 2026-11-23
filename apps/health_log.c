@@ -55,6 +55,7 @@
 #if defined(HAVE_USBSTACK) && CONFIG_USBOTG == USBOTG_ARC \
     && (CONFIG_PLATFORM & PLATFORM_NATIVE)
 #include "usb_drv.h"
+#include "usb.h"
 #define HAVE_USB_COUNTERS /* firmware/target/arm/usb-drv-arc.c is built */
 #endif
 
@@ -179,16 +180,28 @@ static unsigned int usb_noted, usb_seen;
 static int usb_line(char *line, size_t size)
 {
     const struct usb_drv_counters *c = usb_drv_get_counters();
+#ifdef USB_ENABLE_STORAGE
+    /* connections that ended or were reset before the computer was told of
+       a disk write that failed after its answer */
+    const unsigned int untold = usb_storage_ends_untold();
+#else
+    const unsigned int untold = 0;
+#endif
 
     usb_seen = c->resets + c->error_ints + c->halted + c->buffer_errors
-               + c->xact_errors + c->prime_failed;
+               + c->xact_errors + c->prime_failed + untold;
     if (usb_seen == usb_noted)
         return 0;
     int len = snprintf(line, size, "%ld usb: resets in use %u; error"
                 " interrupts %u; transfers halted %u, buffer %u, no answer"
-                " %u; not taken %u\n", current_tick / HZ, c->resets,
+                " %u; not taken %u", current_tick / HZ, c->resets,
                 c->error_ints, c->halted, c->buffer_errors, c->xact_errors,
                 c->prime_failed);
+    if (untold && len < (int)size)
+        len += snprintf(line + len, size - len, "; connections ended with"
+                        " a disk write failure untold %u", untold);
+    if (len < (int)size)
+        len += snprintf(line + len, size - len, "\n");
     if (len >= (int)size) /* cut: it still ends its line */
     {
         len = size - 1;

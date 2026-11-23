@@ -299,6 +299,13 @@ void usb_set_audio(int value);
 bool usb_audio_get_active(void);
 #endif
 
+#ifdef USB_ENABLE_STORAGE
+/* connections that ended or were reset with a disk write failure, found
+   after the write's answer, not yet told to the computer, since boot: one
+   each, however many writes failed (usb_storage.c) */
+unsigned int usb_storage_ends_untold(void);
+#endif
+
 #if defined(USB_ENABLE_STORAGE) && defined(HAVE_MULTIDRIVE)
 /* when the target has several drives, decide whether mass storage should
  * skip the first drive. This is useful when the second drive is a SD card

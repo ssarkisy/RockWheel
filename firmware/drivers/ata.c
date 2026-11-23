@@ -388,21 +388,27 @@ static int ata_perform_flush_cache(void)
         return -2;
     }
 
+    /* the drive that couldn't write its cache out says so */
+    if (ATA_IN8(ATA_ALT_STATUS) & (STATUS_ERR|STATUS_DF))
+        return -3;
+
     return 0;
 }
 
+/* 0, or the flush's failure: the drive not ready, timed out or refusing */
 int ata_flush(void)
 {
+    int rc = 0;
     if (ata_state >= ATA_SPINUP) {
         mutex_lock(&ata_mutex);
         /* looked at again under the lock, as ata_sleepnow() does: a drive
            that went to standby meanwhile has nothing to flush, and a flush
            could spin it up behind the driver's back */
         if (ata_state == ATA_ON)
-            ata_perform_flush_cache();
+            rc = ata_perform_flush_cache();
         mutex_unlock(&ata_mutex);
     }
-    return 0;
+    return rc;
 }
 
 /* BSY clear without DRQ is a refusal only with ERR or DF. Otherwise the
@@ -876,7 +882,10 @@ void ata_sleepnow(void)
         logf("ata SLEEPNOW %ld", current_tick);
         mutex_lock(&ata_mutex);
         if (ata_state == ATA_ON) {
-            if (!ata_perform_flush_cache() && !ata_perform_sleep()) {
+            /* a flush the drive refused (-3) doesn't keep it awake, as
+               before that was looked at */
+            int rc = ata_perform_flush_cache();
+            if ((rc == 0 || rc == -3) && !ata_perform_sleep()) {
                 ata_state = ATA_SLEEPING;
 #ifdef HAVE_ATA_POWER_OFF
                 if (ata_disk_can_sleep() || canflush) {

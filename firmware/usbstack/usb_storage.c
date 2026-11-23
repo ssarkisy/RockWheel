@@ -138,12 +138,19 @@
 #define SCSI_START_STOP_UNIT      0x1b
 #define SCSI_REPORT_LUNS          0xa0
 #define SCSI_WRITE_BUFFER         0x3b
+#define SCSI_SYNCHRONIZE_CACHE_10 0x35
+#define SCSI_SYNCHRONIZE_CACHE_16 0x91
 
 #define SAT_ATA_PASSTHROUGH_12    0xa1
 #define SAT_ATA_PASSTHROUGH_16    0x85
 
 #define SCSI_READ_16              0x88
 #define SCSI_WRITE_16             0x8a
+
+/* fixed-format sense: of this command, or deferred: of one answered before */
+#define SENSE_CURRENT_ERRORS        0x70
+#define SENSE_DEFERRED_ERRORS       0x71
+#define SENSE_INFORMATION_VALID     0x80
 
 #define UMS_STATUS_GOOD            0x00
 #define UMS_STATUS_FAIL            0x01
@@ -336,7 +343,9 @@ static struct {
 
 static struct {
     unsigned char sense_key;
-    unsigned char information;
+    uint32_t information; /* the sense's INFORMATION field, given if valid */
+    bool info_valid;
+    bool deferred; /* of an earlier command (a write done after its answer) */
     unsigned char asc;
     unsigned char ascq;
 } cur_sense_data;
@@ -460,6 +469,7 @@ static struct write_job {
     unsigned int count;
     unsigned int bytes;
     int lun;
+    unsigned int cmd; /* the command its blocks came with */
 } write_jobs[WRITE_SLOTS];
 
 /* jobs[queued % WRITE_SLOTS] is the next to come in, jobs[done % ...] the
@@ -467,11 +477,37 @@ static struct write_job {
 static volatile unsigned int jobs_queued, jobs_done;
 static struct semaphore slots_free, jobs_ready, writes_done;
 static volatile int write_error;
+/* of the first write that failed since the last report: its first block, in
+   the host's blocks, and the command it came with */
+static uint32_t write_error_lba;
+static bool write_error_lba_fits;
+static unsigned int write_error_cmd;
+static unsigned int cmd_seq; /* the command being handled, counted from 1 */
+/* connections that ended or were reset with a write failure not yet told,
+   since boot: one however many failed, as only the first is kept */
+static unsigned int ends_untold;
 static long writer_stack[DEFAULT_STACK_SIZE/sizeof(long)];
 /* its thread made: without one, as with every thread slot taken, the blocks
    go to the disk from queue_write() itself, else write_slot() and
    wait_for_writes() would wait for good. Tried again at each connection. */
 static bool writer_running;
+
+static void note_write_error(int rc, const struct write_job *j)
+{
+    if (!write_error)
+    {
+        sector_t lba = j->sector;
+#ifdef MAX_VIRT_SECTOR_SIZE
+        int mult = disk_get_sector_multiplier(IF_MD(j->lun));
+        if (mult > 1)
+            lba /= mult;
+#endif
+        write_error_lba = lba;
+        write_error_lba_fits = lba <= 0xffffffff;
+        write_error_cmd = j->cmd;
+    }
+    write_error = rc;
+}
 
 static void writer_thread(void)
 {
@@ -497,7 +533,7 @@ static void writer_thread(void)
         int rc = storage_write_sectors(IF_MD(j->lun,) j->sector, count,
                                        j->data);
         if (rc != 0)
-            write_error = rc;
+            note_write_error(rc, j);
         jobs_done += jobs;
         while (jobs--)
             semaphore_release(&slots_free);
@@ -523,13 +559,14 @@ static void queue_write(int lun, sector_t sector, unsigned int count)
     j->count = count;
     j->bytes = count * cur_cmd.block_size;
     j->lun = lun;
+    j->cmd = cmd_seq;
     jobs_queued++;
     if (!writer_running)
     {
         /* answered then once they are on the disk, as without write-behind */
         int rc = storage_write_sectors(IF_MD(lun,) sector, count, j->data);
         if (rc != 0)
-            write_error = rc;
+            note_write_error(rc, j);
         jobs_done++;
         semaphore_release(&slots_free);
         return;
@@ -545,7 +582,10 @@ static void wait_for_writes(void)
         semaphore_wait(&writes_done, TIMEOUT_BLOCK);
 }
 
-/* true, once, when a write done after its command's answer failed */
+/* true, once, when a write failed. Where its command had its answer already
+   it is a deferred error, as SPC has it for a write cache: the command that
+   reports it is not the one that failed, and INFORMATION gives the first
+   block of the write that was lost */
 static bool write_failed(void)
 {
     if (!write_error)
@@ -554,6 +594,9 @@ static bool write_failed(void)
     cur_sense_data.sense_key = SENSE_MEDIUM_ERROR;
     cur_sense_data.asc = ASC_WRITE_ERROR;
     cur_sense_data.ascq = 0;
+    cur_sense_data.deferred = write_error_cmd != cmd_seq;
+    cur_sense_data.information = write_error_lba;
+    cur_sense_data.info_valid = write_error_lba_fits;
     return true;
 }
 #endif /* WRITE_BEHIND */
@@ -699,9 +742,24 @@ void usb_storage_disconnect(void)
 #ifdef WRITE_BEHIND
     /* before the buffer goes, and the disk is mounted again */
     wait_for_writes();
+    /* a failure not yet told goes with the connection (a bus reset, a new
+       configuration, the cable out): the connection counted for health.log */
+    if (write_error) {
+        ends_untold++;
+        write_error = 0;
+    }
 #endif
 #ifndef USB_STATIC_ALLOC
     usb_handle = core_free(usb_handle);
+#endif
+}
+
+unsigned int usb_storage_ends_untold(void)
+{
+#ifdef WRITE_BEHIND
+    return ends_untold;
+#else
+    return 0;
 #endif
 }
 
@@ -830,6 +888,8 @@ static void usb_storage_transfer_complete(int ep,int dir,int status,int length)
                 /* TODO fill in cur_sense_data */
                 cur_sense_data.sense_key=0;
                 cur_sense_data.information=0;
+                cur_sense_data.info_valid=false;
+                cur_sense_data.deferred=false;
                 cur_sense_data.asc=0;
                 cur_sense_data.ascq=0;
             }
@@ -872,6 +932,8 @@ static void usb_storage_transfer_complete(int ep,int dir,int status,int length)
                 /* TODO fill in cur_sense_data */
                 cur_sense_data.sense_key=0;
                 cur_sense_data.information=0;
+                cur_sense_data.info_valid=false;
+                cur_sense_data.deferred=false;
                 cur_sense_data.asc=0;
                 cur_sense_data.ascq=0;
             }
@@ -910,6 +972,8 @@ static void usb_storage_transfer_complete(int ep,int dir,int status,int length)
                 /* TODO fill in cur_sense_data */
                 cur_sense_data.sense_key=0;
                 cur_sense_data.information=0;
+                cur_sense_data.info_valid=false;
+                cur_sense_data.deferred=false;
                 cur_sense_data.asc=0;
                 cur_sense_data.ascq=0;
             }
@@ -980,25 +1044,52 @@ static bool usb_storage_control_request(struct usb_ctrlrequest* req, uint8_t* re
 
         case USB_BULK_RESET_REQUEST:
             logf("ums: bulk reset");
+#if CONFIG_USBOTG == USBOTG_ARC
+            /* BOT 3.1: ready for the next CBW. The host gave up on the
+             * command: the blocks it was sending or being sent and a CSW it
+             * hasn't taken are dropped, else the next CBW comes into a write
+             * slot, and a CSW or blocks go out as the next command's answer,
+             * and only a bus reset would help. Those of the blocks that came
+             * in still go to the disk. The ARC's flush keeps the data
+             * toggles and halts, as BOT 3.1 wants. */
+            if(receiving_commands()) {
+                usb_drv_reset_endpoint(EP_IN, true);
+                usb_drv_reset_endpoint(EP_OUT, false);
+#ifdef WRITE_BEHIND
+                if(state == RECEIVING_BLOCKS)
+                    semaphore_release(&slots_free); /* its receive's slot */
+#endif
+                usb_drv_recv_nonblocking(EP_OUT, cbw_buffer, MAX_CBW_SIZE);
+            }
+#else
             if(state == WAITING_FOR_STORAGE) {
                 /* Discard the retained CBW on host reset and accept a new
                  * one; do not replay the cancelled command when ready. */
                 usb_drv_recv_nonblocking(EP_OUT, cbw_buffer, MAX_CBW_SIZE);
             }
-            state = WAITING_FOR_COMMAND;
-            /* UMS BOT 3.1 says The device shall preserve the value of its bulk
-               data toggle bits and endpoint STALL conditions despite
-               the Bulk-Only Mass Storage Reset. */
-#if 0
-            usb_drv_reset_endpoint(EP_IN, false);
-            usb_drv_reset_endpoint(EP_OUT, true);
 #endif
+            state = WAITING_FOR_COMMAND;
             usb_core_control_response(USB_CONTROL_ACK, NULL, 0);
             handled = true;
             break;
     }
 
     return handled;
+}
+
+/* the drive's own write cache to the medium: 0, or the drive's failure
+   where the driver tells it (ATA's FLUSH CACHE) */
+static int flush_drive(void)
+{
+#if defined(HAVE_STORAGE_FLUSH) && (CONFIG_STORAGE & STORAGE_ATA) \
+    && !defined(CONFIG_STORAGE_MULTI)
+    return storage_flush();
+#else
+#ifdef HAVE_STORAGE_FLUSH
+    storage_flush();
+#endif
+    return 0;
+#endif
 }
 
 static void send_and_read_next(void)
@@ -1099,7 +1190,16 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
     cur_cmd.lun = lun;
     cur_cmd.cur_cmd = cbw->command_block[0];
 
+    /* the sense of the last command is REQUEST SENSE's to give: any other
+       command begins without the deferred mark and INFORMATION */
+    if(cbw->command_block[0] != SCSI_REQUEST_SENSE) {
+        cur_sense_data.deferred = false;
+        cur_sense_data.info_valid = false;
+        cur_sense_data.information = 0;
+    }
 #ifdef WRITE_BEHIND
+    cmd_seq++;
+
     /* a write that failed fails the next command but a write, as this one's
        answer, its tag and residue set: the blocks of a write would come in
        where the next command is awaited */
@@ -1109,7 +1209,13 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
 #endif
       ) {
         wait_for_writes();
-        if(write_failed()) {
+        /* REQUEST SENSE gives such a failure as its sense data instead, if
+           no other is waiting to be told */
+        if(cbw->command_block[0] == SCSI_REQUEST_SENSE) {
+            if(!cur_sense_data.sense_key)
+                write_failed();
+        }
+        else if(write_failed()) {
             /* a data phase is halted first, as in reject_command() */
             if(cur_cmd.data_residue) {
                 bool in = (cbw->flags & USB_DIR_IN) != 0;
@@ -1185,10 +1291,13 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
             break;
 
         case SCSI_REQUEST_SENSE: {
-            tb.sense_data->ResponseCode=0x70;/*current error*/
+            tb.sense_data->ResponseCode =
+                (cur_sense_data.deferred ? SENSE_DEFERRED_ERRORS
+                                         : SENSE_CURRENT_ERRORS)
+                | (cur_sense_data.info_valid ? SENSE_INFORMATION_VALID : 0);
             tb.sense_data->Obsolete=0;
             tb.sense_data->fei_sensekey=cur_sense_data.sense_key&0x0f;
-            tb.sense_data->Information=cur_sense_data.information;
+            tb.sense_data->Information=htobe32(cur_sense_data.information);
             tb.sense_data->AdditionalSenseLength=10;
             tb.sense_data->CommandSpecificInformation=0;
             tb.sense_data->AdditionalSenseCode=cur_sense_data.asc;
@@ -1340,6 +1449,35 @@ static void handle_scsi_ready(struct command_block_wrapper* cbw)
                         ejected[lun]=true;
                     }
                 }
+            }
+            send_csw(UMS_STATUS_GOOD);
+            break;
+
+        case SCSI_SYNCHRONIZE_CACHE_10:
+        case SCSI_SYNCHRONIZE_CACHE_16:
+            /* Every block written before is on the disk by now, or its
+             * failure has failed this as a deferred error, above. The disk's
+             * own cache follows, as at an eject. */
+            logf("scsi synchronize cache %d",lun);
+            if(!lun_present) {
+                send_csw(UMS_STATUS_FAIL);
+                cur_sense_data.sense_key=SENSE_NOT_READY;
+                cur_sense_data.asc=ASC_MEDIUM_NOT_PRESENT;
+                cur_sense_data.ascq=0;
+                break;
+            }
+            if(cur_cmd.data_residue) {
+                /* it has no data: a data phase is halted, as for an unknown
+                   command */
+                bool in = (cbw->flags & USB_DIR_IN) != 0;
+                usb_drv_stall(in ? EP_IN : EP_OUT, true, in);
+            }
+            if(flush_drive()) {
+                send_csw(UMS_STATUS_FAIL);
+                cur_sense_data.sense_key=SENSE_MEDIUM_ERROR;
+                cur_sense_data.asc=ASC_WRITE_ERROR;
+                cur_sense_data.ascq=0;
+                break;
             }
             send_csw(UMS_STATUS_GOOD);
             break;
@@ -1875,6 +2013,8 @@ static void send_csw(int status)
     if(status == UMS_STATUS_GOOD) {
         cur_sense_data.sense_key=0;
         cur_sense_data.information=0;
+        cur_sense_data.info_valid=false;
+        cur_sense_data.deferred=false;
         cur_sense_data.asc=0;
         cur_sense_data.ascq=0;
     }
