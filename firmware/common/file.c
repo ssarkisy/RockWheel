@@ -443,8 +443,10 @@ static int open_internal_inner2(const char *path,
 
         callflags &= ~FO_TRUNC;
         rc = create_stream_internal(&compinfo.parentinfo, compinfo.name,
-                                    compinfo.length, ATTR_NEW_FILE, callflags,
-                                    &file->stream);
+                                    compinfo.length,
+                                    ATTR_NEW_FILE |
+                                    ((oflag & O_HIDDEN) ? ATTR_HIDDEN : 0),
+                                    callflags, &file->stream);
         if (rc < 0)
             FILE_ERROR(ERRNO, rc * 10 - 6);
 

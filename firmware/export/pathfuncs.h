@@ -59,9 +59,11 @@ bool macos_dot_name(const char *name);
 /* A name the Mac keeps for itself on a FAT disk, which no list shows and
    neither the library nor a playlist takes: the AppleDouble "._" file it
    writes beside each file it copies with attributes, .DS_Store, and its
-   folders, as .Trashes, .Spotlight-V100 and .fseventsd. Lists and scans pass
-   over them and leave them there: Finder needs them. The name ends at its
-   end or at a '/'. A name without a dot first costs one compare. */
+   folders, as .Trashes, .Spotlight-V100 and .fseventsd; and the
+   .metadata_never_index that main() puts at the root for Spotlight. Lists
+   and scans pass over them and leave them there: the Mac needs them. The
+   name ends at its end or at a '/'. A name without a dot first costs one
+   compare. */
 static inline bool is_macos_name(const char *name)
 {
     return name[0] == '.' && macos_dot_name(name);

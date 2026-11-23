@@ -635,6 +635,7 @@ bool macos_dot_name(const char *name)
     static const char * const own[] = {
         ".DS_Store", ".Trashes", ".Spotlight-V100", ".fseventsd",
         ".TemporaryItems", ".DocumentRevisions-V100", ".Trash",
+        ".metadata_never_index", /* the firmware's own, for Spotlight */
     };
     if (name[0] != '.')
         return false;

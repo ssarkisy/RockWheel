@@ -49,6 +49,10 @@ enum relate_result
 #include "filesystem-native.h"
 #endif
 
+#ifndef O_HIDDEN
+#define O_HIDDEN 0 /* a host's file system: no FAT attribute to give */
+#endif
+
 #ifndef FILEFUNCTIONS_DECLARED
 int fdprintf(int fildes, const char *fmt, ...) ATTRIBUTE_PRINTF(2, 3);
 #endif /* FILEFUNCTIONS_DECLARED */
