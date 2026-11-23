@@ -3115,6 +3115,33 @@ void tagcache_search_finish(struct tagcache_search *tcs)
         write_lock--;
 }
 
+/* Commits held off as an open search holds them, for a thread that yields
+   while it goes through the database in memory: commit() waits for the
+   holds (write_lock) before it begins, and again before it takes the memory
+   (its unload of the RAM cache), so that the entries stay where they are,
+   and their names' places in the tags' files. One taken during a commit's
+   first reads, before that unload, has the old database meanwhile, the
+   new one after: what's made then is of a commit id that's past by its
+   end. Deletions, the counts and a reload of the cache (an update that
+   found nothing) go on meanwhile. As tagcache_search() takes it: waited for
+   while a commit reads (read_lock), and false, nothing held, during the
+   rest of a commit or without a database. */
+bool tagcache_hold(void)
+{
+    while (read_lock)
+        sleep(1);
+    if (tc_stat.commit_step > 0 || !tc_stat.ready)
+        return false;
+    write_lock++;
+    return true;
+}
+
+void tagcache_release(void)
+{
+    if (write_lock > 0)
+        write_lock--;
+}
+
 
 #ifndef __PCTOOL__
 /* a song's tag_date into the room left of id3v2buf, as Track Info shows a
@@ -3219,10 +3246,21 @@ bool tagcache_album_keys_inputs(uint32_t *inputs)
     core_put_data_pinned((void *)names);
     if (!distinct)
         return false;
+    /* the pass in pieces, the other threads let run between them, with
+       commits held off: it goes over every entry, as long as the passes of
+       tagcache_for_each_track_yielding() */
+    const bool held = tagcache_hold();
     uint32_t hash = 2166136261u;
     tcrc_buffer_lock();
     for (int i = 0; i < current_tcmh.tch.entry_count; i++)
     {
+        if (held && (i & 4095) == 0)
+        {
+            yield();
+            /* let go meanwhile by a reload or a rebuild: none to hash */
+            if (!tc_stat.ramcache)
+                break;
+        }
         const struct index_entry *idx = &tcramcache.hdr->indices[i];
         /* nor a podcast's episode, which a Delete on the iPod removes
            without a commit (tagcache_delete_track()): the file of the keys
@@ -3237,6 +3275,10 @@ bool tagcache_album_keys_inputs(uint32_t *inputs)
             hash = (hash ^ (uint32_t)of[k]) * 16777619u;
     }
     tcrc_buffer_unlock();
+    if (held)
+        tagcache_release();
+    if (!tc_stat.ramcache)
+        return false;
     *inputs = hash;
     return true;
 #else
@@ -7169,8 +7211,13 @@ static bool commit(void)
     commit_first = language_first();
 #endif
 
-    /* At first be sure to unload the ramcache! */
+    /* At first be sure to unload the ramcache! Not under a search or a hold
+       (tagcache_hold()) taken since the wait above, as during the file
+       reads after it: it's waited for again, with no yield between the wait
+       and the unload, and one taken after sees the database off memory */
 #ifdef HAVE_TC_RAMCACHE
+    while (write_lock)
+        sleep(1);
     tc_stat.ramcache = false;
 #ifndef __PCTOOL__
     free_ram_names();
@@ -12450,6 +12497,43 @@ bool tagcache_for_each_track(void (*f)(int idx_id, const int32_t *tag_seek,
     }
     tcrc_buffer_unlock();
     return true;
+}
+
+/* The same, the other threads let run every 2048 entries: on an iPod of
+   13,000 songs, 18,000 entries, two such passes and the albums' artists held
+   the CPU 95 ms (music_search.c). Commits held off for it (tagcache_hold()),
+   which would take the memory it reads; the memory held still. f still
+   mustn't yield, and what it writes no other thread may read until the
+   pass is over. */
+bool tagcache_for_each_track_yielding(void (*f)(int idx_id,
+                                                const int32_t *tag_seek,
+                                                void *data),
+                                      void *data)
+{
+    if (!tc_stat.ramcache || !tagcache_hold())
+        return false;
+    bool whole = true;
+    tcrc_buffer_lock();
+    for (int i = 0; i < current_tcmh.tch.entry_count; i++)
+    {
+        if ((i & 2047) == 2047)
+        {
+            yield();
+            /* let go meanwhile, as by a reload of the cache or a rebuild,
+               which the hold doesn't keep off: the pass isn't whole */
+            if (!tc_stat.ramcache)
+            {
+                whole = false;
+                break;
+            }
+        }
+        const struct index_entry *idx = &tcramcache.hdr->indices[i];
+        if (!(idx->flag & FLAG_DELETED))
+            f(i, idx->tag_seek, data);
+    }
+    tcrc_buffer_unlock();
+    tagcache_release();
+    return whole;
 }
 
 bool tagcache_tag_string(int tag, int32_t seek, char *buf, size_t size)

@@ -904,8 +904,54 @@ static bool check_database(void)
     return true;
 }
 
+/* While Updating Library has the index of albums made, with commits held
+   off as by an open search (create_album_index()): the other threads let run
+   once a tick as it goes, which from its first search to its write held the
+   CPU throughout. The places it keeps stay those of one database; what it
+   makes is this thread's alone, none of the plugin's own threads running
+   yet. */
+static bool pf_held;
+
+static void pf_yield(void)
+{
+    static long tick;
+    if (pf_held && *rb->current_tick != tick)
+    {
+        tick = *rb->current_tick;
+        rb->yield();
+    }
+}
+
+static int (*pf_compare)(const void *, const void *);
+
+static int pf_compare_yielding(const void *a, const void *b)
+{
+    pf_yield();
+    return pf_compare(a, b);
+}
+
+/* rb->qsort(), the same comparisons in the same order, a yield between */
+static void pf_sort(void *base, size_t count, size_t size,
+                    int (*compare)(const void *, const void *))
+{
+    if (!pf_held)
+    {
+        rb->qsort(base, count, size, compare);
+        return;
+    }
+    pf_compare = compare;
+    rb->qsort(base, count, size, pf_compare_yielding);
+}
+
+/* A search open in the loop that looks (get_tcs_search_res(), the first of
+   create_album_untagged()): Quit? waits for its end, asked at the next look.
+   A power-off answered within the question waited for that search
+   (tagcache_prepare_shutdown()), until the power was cut 20 s later. */
+static bool pf_searching, quit_pending;
+
 static bool progress_cancel(int step, int count, char *msg)
 {
+    pf_yield();
     const struct text_message prompt = {
             (const char*[]) {"Quit?", "Progress will be lost"}, 2};
 
@@ -922,12 +968,21 @@ static bool progress_cancel(int step, int count, char *msg)
     else if (preparing && IS_SYSEVENT(action))
         rb->default_event_handler(action);
 #endif
-    if (action == ACTION_STD_CANCEL || action == ACTION_STD_MENU)
-    {
+    bool ask = action == ACTION_STD_CANCEL || action == ACTION_STD_MENU;
 #ifdef ITUNESDB_HAVE_ART
-        if (preparing)
-            return true; /* Cover Flow makes it when it opens */
+    if (ask && preparing)
+        return true; /* Cover Flow makes it when it opens */
 #endif
+    if (ask && pf_searching)
+    {
+        quit_pending = true;
+        ask = false;
+    }
+    else if (quit_pending && !pf_searching)
+        ask = true;
+    if (ask)
+    {
+        quit_pending = false;
         if (rb->gui_syncyesno_run(&prompt, NULL, NULL) == YESNO_YES)
             return true;
         rb->lcd_clear_display();
@@ -1496,6 +1551,7 @@ static int get_tcs_search_res(int type, struct tagcache_search *tcs,
         data_size = sizeof(struct album_data);
     }
 
+    pf_searching = true;
     while (rb->tagcache_get_next(tcs, tcs_buf, tcs_bufsz))
     {
         if (progress_cancel(0, 0, NULL))
@@ -1525,6 +1581,7 @@ static int get_tcs_search_res(int type, struct tagcache_search *tcs,
         name_idx += l;
     }
     rb->tagcache_search_finish(tcs);
+    pf_searching = false;
     return ret;
 }
 
@@ -1554,11 +1611,13 @@ static int create_album_untagged(struct tagcache_search *tcs,
     {
         rb->tagcache_search_add_filter(tcs, tag_album, pf_idx.album_untagged_seek);
 
+        pf_searching = true;
         while (rb->tagcache_get_next(tcs, tcs_buf, tcs_bufsz))
         {
             if (progress_cancel(pf_idx.album_ct, total_count, STR_STEP_INDEXING_UNTAGGED))
             {
                 rb->tagcache_search_finish(tcs);
+                pf_searching = false;
                 return ERROR_USER_ABORT;
             }
 
@@ -1580,6 +1639,7 @@ static int create_album_untagged(struct tagcache_search *tcs,
             pf_idx.album_ct++;
         }
         rb->tagcache_search_finish(tcs);
+        pf_searching = false;
 
         if (ret == SUCCESS) {
             draw_splashscreen(*buf, *bufsz);
@@ -1862,17 +1922,18 @@ static bool assign_albums_from_ram(void *buf, size_t buf_size,
 
     rb->memcpy(by_seek.artists, pf_idx.artist_index,
                pf_idx.artist_ct * sizeof(struct artist_data));
-    rb->qsort(by_seek.artists, pf_idx.artist_ct, sizeof(struct artist_data),
-              compare_artist_seeks);
+    pf_sort(by_seek.artists, pf_idx.artist_ct, sizeof(struct artist_data),
+            compare_artist_seeks);
     for (int j = 0; j < pf_idx.album_ct; j++)
     {
         by_seek.order[j] = j;
         by_seek.seen[j] = 0;
     }
-    rb->qsort(by_seek.order, pf_idx.album_ct, sizeof(int),
-              compare_album_seeks);
+    pf_sort(by_seek.order, pf_idx.album_ct, sizeof(int), compare_album_seeks);
+    pf_yield();
     if (!rb->tagcache_for_each_track(album_of_track, NULL))
         return false;
+    pf_yield();
     *music_alone = music_only();
     if (*music_alone)
     {
@@ -1964,7 +2025,7 @@ static struct pf_index_t made_stamp;
   Create an index of all artists and albums from the database.
   Also store the artists and album names so we can access them later.
  */
-static int create_album_index(void)
+static int make_album_index(void)
 {
     void *buf = pf_idx.buf;
     size_t buf_size = pf_idx.buf_sz;
@@ -2036,8 +2097,8 @@ static int create_album_index(void)
                                                       music_alone);
 
     /* sort list order to find duplicates */
-    rb->qsort(pf_idx.album_index, pf_idx.album_ct,
-              sizeof(struct album_data), compare_album_artists);
+    pf_sort(pf_idx.album_index, pf_idx.album_ct,
+            sizeof(struct album_data), compare_album_artists);
 
     draw_splashscreen(buf, buf_size);
     draw_progressbar(0, pf_idx.album_ct, STR_STEP_REMOVING_DUPLICATES);
@@ -2071,10 +2132,32 @@ static int create_album_index(void)
     pf_idx.artist_index = 0;
 
     take_album_dates();
-    rb->qsort(pf_idx.album_index, pf_idx.album_ct,
-                          sizeof(struct album_data), compare_albums);
+    pf_yield();
+    pf_sort(pf_idx.album_index, pf_idx.album_ct,
+            sizeof(struct album_data), compare_albums);
 
     return (pf_idx.album_ct > 0) ? 0 : ERROR_NO_ALBUMS;
+}
+
+/* made with commits held off, as an open search holds them, for its yields
+   (pf_yield()); let go on every way out of it. Only for Updating Library
+   (preparing), whose events wait for the step and whose Menu asks nothing
+   (progress_cancel()): a power-off answered in Cover Flow's own Quit? would
+   wait for the hold (tagcache_prepare_shutdown()). */
+static int create_album_index(void)
+{
+    static struct tagcache_search hold;
+    quit_pending = false;
+#ifdef ITUNESDB_HAVE_ART
+    pf_held = preparing && rb->tagcache_search(&hold, tag_title);
+#else
+    pf_held = false;
+#endif
+    const int res = make_album_index();
+    if (pf_held)
+        rb->tagcache_search_finish(&hold);
+    pf_held = false;
+    return res;
 }
 
 /* what the index is made of: the database as it is now, the entries below

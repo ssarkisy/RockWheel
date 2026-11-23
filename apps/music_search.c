@@ -659,9 +659,32 @@ static struct {
     bool have[2];       /* its name read, not given yet */
     char name[2][TAGCACHE_BUFSZ];
     int read;           /* of the files' names, deleted ones not */
+    int unyielded;      /* those read since the last yield, of any group */
     uint32_t *albums;   /* the albums' artists' name_crc()s, NULL for none */
     int album_count;
 } names_in;
+
+/* The other threads let run every so many names read (group_next()), as
+   Updating Library's letters go through them, some 80 us each on an iPod,
+   and a search through the database: without it the wheel, the screen and
+   music's threads waited 1.45 s on an iPod of 13,000 songs. Only while a
+   search of the group is open, which keeps the database from being
+   committed (tagcache_hold()): the places of its names, read before and
+   after, are of the same files. */
+#define NAMES_YIELD_READS 128
+
+static void names_yield(void)
+{
+    names_in.unyielded = 0;
+    for (int i = 0; i < names_in.files; i++)
+    {
+        if (names_in.searching[i])
+        {
+            yield();
+            return;
+        }
+    }
+}
 
 /* the albums' artists into the room, false if they don't fit */
 static bool albums_read(void *room, size_t size)
@@ -681,6 +704,9 @@ static bool albums_read(void *room, size_t size)
             break;
         }
         crcs[n++] = name_crc(names_in.name[1]);
+        /* its search open, which holds commits off */
+        if (!(n & 255))
+            yield();
     }
     tagcache_search_finish(&tcs);
     if (!fits)
@@ -726,7 +752,9 @@ static void artist_places(int idx_id, const int32_t *tag_seek, void *data)
         const int32_t seek = tag_seek[tags[i]];
         if (!data)
             artists_last[i] = MAX(artists_last[i], seek);
-        else if (seek >= 0 && tagcache_track_kind(idx_id) == 0)
+        /* within the bits the first pass found room for */
+        else if (seek >= 0 && seek <= artists_last[i]
+                 && tagcache_track_kind(idx_id) == 0)
             names_in.music[i][seek >> 6] |= 1 << ((seek >> 3) & 7);
     }
 }
@@ -755,8 +783,11 @@ static void group_begin(int g, void *room, size_t size)
     names_in.album_count = 0;
 #ifdef HAVE_TC_RAMCACHE
     artists_last[0] = artists_last[1] = -1;
+    /* the passes let the other threads run: with the albums' artists they
+       took 95 ms on an iPod of 13,000 songs */
     if (g == GROUP_ARTISTS && room && tagcache_kinds_known()
-        && group_tag[g] < TAG_COUNT && tagcache_for_each_track(artist_places, NULL))
+        && group_tag[g] < TAG_COUNT
+        && tagcache_for_each_track_yielding(artist_places, NULL))
     {
         /* the bits at the room's end, the albums' artists before them */
         const size_t bytes[2] = { (artists_last[0] >> 6) + 2,
@@ -767,7 +798,7 @@ static void group_begin(int g, void *room, size_t size)
             names_in.music[0] = (uint8_t *)room + size;
             names_in.music[1] = names_in.music[0] + bytes[0];
             memset(names_in.music[0], 0, bytes[0] + bytes[1]);
-            tagcache_for_each_track(artist_places, names_in.music);
+            tagcache_for_each_track_yielding(artist_places, names_in.music);
         }
     }
 #endif
@@ -793,6 +824,9 @@ static const char *group_next(int32_t *idx_id)
         {
             names_in.have[i] = group_listed(i);
             names_in.read++;
+            /* those not listed too, which may come in a run */
+            if (++names_in.unyielded >= NAMES_YIELD_READS)
+                names_yield();
         }
     }
     if (names_in.files == 1)

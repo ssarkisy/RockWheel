@@ -315,6 +315,19 @@ static void mark_song(int idx_id, const int32_t *tag_seek, void *data)
         tagcache_compilation_album_song(idx_id);
 }
 
+/* As the table is made, the other threads let run between its parts: the
+   step took 0.3 to 0.4 s on an iPod of 13,000 songs, without a yield.
+   With commits held off (tagcache_hold(), album_years_make()), which would
+   change the places the table is of; the table isn't ready meanwhile
+   (made_commitid), and only this thread writes it. */
+static bool years_held;
+
+static void make_yield(void)
+{
+    if (years_held)
+        yield();
+}
+
 /* The albums' marks of the songs (tagcache_compilation_albums_begin()), of
    the table just made: a pass over the songs if an album is a compilation */
 static void mark_compilations(void)
@@ -324,8 +337,9 @@ static void mark_compilations(void)
     bool any = false;
     for (int i = 0; i < count && !any; i++)
         any = albums[i].first & FIRST_COMPILATION;
+    /* the marks aren't ready until done: nothing goes by them meanwhile */
     if (any)
-        tagcache_for_each_track(mark_song, (void *)albums);
+        tagcache_for_each_track_yielding(mark_song, (void *)albums);
     if (albums)
         core_put_data_pinned((void *)albums);
     tagcache_compilation_albums_done();
@@ -341,6 +355,9 @@ static bool make(void)
     made_commitid = -1;
     if (!tagcache_finds_entries())
         return false;
+    /* the songs' compilation marks the table goes by, as they are before the
+       pass reads them: changed meanwhile, the table isn't ready */
+    const uint32_t compilations = tagcache_compilation_songs_hash();
     /* about one album for each eight songs: room for twice that many to
        begin with, four times the places */
     unsigned places = 64;
@@ -362,11 +379,12 @@ static bool make(void)
             table[i].album = -1;
         struct counting c = { table, (int32_t *)(table + places), places - 1,
                               0, places / 4 * 3, false };
-        const bool ok = tagcache_for_each_track(count_song, &c);
+        const bool ok = tagcache_for_each_track_yielding(count_song, &c);
         if (ok && !c.full)
         {
             struct recent *newest = (struct recent *)(c.added + places);
             const int picked = recent_pick(&c, newest);
+            make_yield();
             /* together at the start, sorted, and the room after them let go */
             int n = 0;
             for (unsigned i = 0; i < places; i++)
@@ -380,6 +398,7 @@ static bool make(void)
                 table_hash = ((table_hash ^ (uint32_t)table[i].album) * 16777619u
                               ^ (uint32_t)table[i].albumartist) * 16777619u;
             count = n;
+            make_yield();
             for (int i = 0; i < picked; i++)
                 recent_no[i] = album_in(table, newest[i].album,
                                         newest[i].albumartist);
@@ -389,7 +408,10 @@ static bool make(void)
                quarters at most, take 16 bytes each and this 8 */
             by_artist = n > 0 && n <= INT16_MAX; /* as the lists number them */
             if (by_artist)
+            {
                 place_by_artist(table, n);
+                make_yield();
+            }
             core_put_data_pinned(table);
             if (n > 0)
                 core_shrink(handle, core_get_data(handle), n * sizeof(*table)
@@ -399,7 +421,7 @@ static bool make(void)
                 handle = core_free(handle);
             rows_used = ROWS_MOST; /* none begun */
             made_commitid = tagcache_get_commitid();
-            made_compilations = tagcache_compilation_songs_hash();
+            made_compilations = compilations;
             generation++;
             mark_compilations();
             return true;
@@ -417,7 +439,11 @@ static bool make(void)
 bool album_years_make(void)
 {
     cpu_boost(true);
+    years_held = tagcache_hold();
     const bool made = make();
+    if (years_held)
+        tagcache_release();
+    years_held = false;
     cpu_boost(false);
     return made;
 }

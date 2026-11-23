@@ -1512,11 +1512,16 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
         by_key[i] = i;
     qsort(by_key, usable_old, sizeof(*by_key), cmp_old_key);
 
-    /* each album's key and what its cover is, and those with one by year */
+    /* each album's key and what its cover is, and those with one by year:
+       the other threads let run every 16 albums, with commits held off, and
+       the header of the database the albums' songs were looked up in, as
+       the hold was taken */
     cpu_boost(true);
     const int total = 2 * count;
     int slots = 0;
     bool stopped = false;
+    const bool held = tagcache_hold();
+    const int commitid = tagcache_get_commitid();
     for (int no = 0; no < count && !stopped; no++)
     {
         struct itunesdb_art art;
@@ -1533,6 +1538,8 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
         {
             progress(no, total);
             stopped = !go_on();
+            if (held)
+                yield();
         }
     }
     qsort(order, slots, sizeof(*order), cmp_by_year);
@@ -1541,9 +1548,11 @@ void list_covers_make(void (*progress)(int done, int total), bool (*go_on)(void)
 
     const struct file_header h = {
         .magic = COVERS_MAGIC, .version = COVERS_VERSION,
-        .commitid = tagcache_get_commitid(), .count = count,
+        .commitid = commitid, .count = count,
         .table = album_years_hash(), .slots = slots, .side = SIDE,
     };
+    if (held)
+        tagcache_release();
     /* the same albums with the same covers in the same places: only the
        database it's of, which is in the header alone */
     bool same = !stopped && usable_old == count && old_h.table == h.table

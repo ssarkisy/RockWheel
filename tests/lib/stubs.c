@@ -308,6 +308,26 @@ bool tagcache_for_each_track(void (*f)(int idx_id, const int32_t *tag_seek,
     return false;
 }
 
+bool tagcache_for_each_track_yielding(void (*f)(int idx_id,
+                                                const int32_t *tag_seek,
+                                                void *data),
+                                      void *data)
+{
+    (void)f;
+    (void)data;
+    return false;
+}
+
+/* no database here: nothing to hold */
+bool tagcache_hold(void)
+{
+    return false;
+}
+
+void tagcache_release(void)
+{
+}
+
 bool tagcache_tag_string(int tag, int32_t seek, char *buf, size_t size)
 {
     (void)tag;

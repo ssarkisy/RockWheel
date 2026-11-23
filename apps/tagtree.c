@@ -2604,6 +2604,9 @@ static bool tagtree_search_progress(int count)
         if (++rows & 63)
             return true;
         library_update_songs_progress(0, 0);
+        /* and the other threads let run: the walk of Songs' 13,000 rows held
+           the CPU 0.3 s. Called within a search, which holds commits off. */
+        yield();
         return boot_screen_go_on();
     }
     return show_search_progress(false, count, 0, 0);
@@ -3004,6 +3007,7 @@ static const uint16_t *songs_order_from_hint(const struct song_key *keys, int n,
     }
     if (2 * m <= n)
         return NULL;
+    yield(); /* as songs_order_sort()'s, commits held off by its callers */
     /* the new ones, in their order by name, sorted by key: stable */
     int added = 0;
     for (int row = 0; row < n; row++)
@@ -3021,6 +3025,7 @@ static const uint16_t *songs_order_from_hint(const struct song_key *keys, int n,
         out[k++] = a[x++];
     while (y < added)
         out[k++] = more[y++];
+    yield();
     /* proved */
     memset(t->seen, 0, bits);
     for (k = 0; k < n; k++)
@@ -3071,8 +3076,14 @@ static struct song_place *songs_order_sort(struct tree_context *c, int order,
             album_key[no] = SONG_ALBUM_NONE;
     }
 
+    /* the keys, the other threads let run every 1024 songs: an order's took
+       0.25 to 0.35 s on an iPod of 13,000 songs. Its callers hold commits
+       off, which would take the memory the keys are read from: the search
+       of the list (make_entries()), or songs_orders_put()'s hold. */
     for (int i = 0; i < n; i++)
     {
+        if ((i & 1023) == 1023)
+            yield();
         const int32_t idx = e[i].extraseek;
         const int no = album_years_number(tagcache_sort_key(idx, tag_album),
                                           tagcache_sort_key(idx, tag_albumartist));
@@ -3230,7 +3241,7 @@ static bool songs_inputs(struct songs_inputs *in)
 {
 #ifdef HAVE_TC_RAMCACHE
     struct songs_hashing h = { HASH_START, -1, -1 };
-    if (!tagcache_for_each_track(songs_hash_track, &h))
+    if (!tagcache_for_each_track_yielding(songs_hash_track, &h))
         return false;
     in->songs = words_hash(&h.unnamed, sizeof(h.unnamed), h.hash);
     const int32_t albums = album_years_count();
@@ -8218,16 +8229,36 @@ static void album_keys_write(void)
     const int room = size / sizeof(*keys);
     if (!keys || room <= 0 || !tagcache_finds_entries())
         return;
+    /* commits held off, for the yields between the keys' pieces and for the
+       file to be of the database its header says */
+    const bool held = tagcache_hold();
     const int entries = tagcache_album_keys_inputs(&h.inputs)
                         ? tagcache_entry_count() : 0;
     const int fd = whole_file_open(ALBUM_KEYS_FILE);
     if (fd < 0)
+    {
+        if (held)
+            tagcache_release();
         return;
+    }
     /* the header again at the end, with the keys' sum */
     bool ok = write(fd, &h, sizeof(h)) == sizeof(h);
     for (int first = 0; first < entries && ok; )
     {
-        const int n = tagcache_album_keys(first, keys, room);
+        /* as much as the room takes, made in pieces with a yield after each:
+           made whole, with their inputs and the writes, the keys took 0.2 s
+           on an iPod of 13,000 songs */
+        int n = 0;
+        while (n < room && first + n < entries)
+        {
+            const int got = tagcache_album_keys(first + n, keys + n,
+                                                MIN(2048, room - n));
+            if (got <= 0)
+                break;
+            n += got;
+            if (held)
+                yield();
+        }
         const ssize_t bytes = n * sizeof(*keys);
         ok = n > 0 && write(fd, keys, bytes) == bytes;
         if (ok)
@@ -8238,6 +8269,8 @@ static void album_keys_write(void)
     ok = ok && lseek(fd, 0, SEEK_SET) == 0
          && write(fd, &h, sizeof(h)) == sizeof(h);
     whole_file_close(fd, ALBUM_KEYS_FILE, ok);
+    if (held)
+        tagcache_release();
 }
 
 /* At Updating Library: Songs made by name, sorted into each order in turn,
@@ -8348,7 +8381,7 @@ static bool songs_hint_load(struct songs_hint hint[SONGS_ORDERS],
 
 /* The orders' file of the list by name the tree has, as found, with the
    sort's room for its songs; or the header alone without it */
-static void songs_orders_put(struct tree_context *c, struct song_key *keys)
+static void songs_orders_file(struct tree_context *c, struct song_key *keys)
 {
     struct songs_inputs in;
     if (!songs_inputs(&in))
@@ -8383,6 +8416,17 @@ static void songs_orders_put(struct tree_context *c, struct song_key *keys)
     whole_file_close(fd, SONGS_ORDERS_FILE, ok);
 }
 
+/* With commits held off, for the yields of the sorts (songs_order_sort())
+   and for the file to be of the database its header says: during a commit,
+   which takes the memory the inputs are read from, there's none to write */
+static void songs_orders_put(struct tree_context *c, struct song_key *keys)
+{
+    if (!tagcache_hold())
+        return;
+    songs_orders_file(c, keys);
+    tagcache_release();
+}
+
 /* At Updating Library: Songs' orders into their file, so that the list opens
    without its sort, the playlist of the list of all songs, which takes
    seconds to write, so that playing a song of it starts at once, and the
@@ -8393,6 +8437,10 @@ void tagtree_prepare_songs(void)
     struct search_instruction *songs = tagtree_all_songs();
     if (!songs)
         return;
+    /* held still until it's all back as it was, with no yield before: songs
+       and the browser's csi kept here point into it, and what follows lets
+       the other threads run, whose memory taken would move it */
+    core_pin(tagtree_handle);
 
     /* as the browser has it for that list, and back after */
     struct search_instruction *old_csi = csi;
@@ -8469,6 +8517,7 @@ void tagtree_prepare_songs(void)
     c->dirlength = length;
     c->dirsindir = dirs;
     c->special_entry_count = special;
+    core_unpin(tagtree_handle);
 }
 
 bool tagtree_songs_prepared(void)

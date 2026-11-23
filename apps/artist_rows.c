@@ -43,6 +43,7 @@
 #include "list_covers.h"
 #include "file_write.h"
 #include "artist_rows.h"
+#include "misc.h"
 
 #if defined(ITUNESDB_HAVE_ART) && defined(HAVE_TC_RAMCACHE)
 
@@ -419,15 +420,21 @@ void artist_rows_make(void (*progress)(int done, int total), bool (*go_on)(void)
     bool ok = fw_put(&w, &h, sizeof(h));
     bool stopped = false;
     cpu_boost(true);
+    /* The pass, the sort and the rows let the other threads run: a tag's
+       pass over every entry and its sort of every song held the CPU
+       throughout (a sort of 13,000, 190 ms: misc.h). With commits held off,
+       which would take the names the rows read by their places; the songs
+       are in the plugins' buffer, this thread's. */
+    const bool held = tagcache_hold();
     for (int t = 0; t < TAGS && ok && !stopped; t++)
     {
         struct collecting c = { songs, 0, most, tags[t], false };
         h.count[t] = 0;
         progress(t * 2, TAGS * 2);
         /* without room for every song, none of the tag's: its rows as names */
-        if (!tagcache_for_each_track(collect, &c) || c.full)
+        if (!tagcache_for_each_track_yielding(collect, &c) || c.full)
             continue;
-        qsort(songs, c.n, sizeof(*songs), cmp_song);
+        qsort_yielding(songs, c.n, sizeof(*songs), cmp_song);
         progress(t * 2 + 1, TAGS * 2);
         stopped = !go_on();
         for (int i = 0, made = 0; i < c.n && ok && !stopped; made++)
@@ -441,9 +448,15 @@ void artist_rows_make(void (*progress)(int done, int total), bool (*go_on)(void)
             h.count[t]++;
             i = end;
             if ((made & 63) == 63)
+            {
                 stopped = !go_on();
+                if (held)
+                    yield();
+            }
         }
     }
+    if (held)
+        tagcache_release();
     cpu_boost(false);
     ok = ok && !stopped && fw_seek(&w, 0) && fw_put(&w, &h, sizeof(h));
     if (!fw_close(&w, ok))

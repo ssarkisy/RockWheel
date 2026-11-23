@@ -207,6 +207,15 @@ bool tagcache_get_next(struct tagcache_search *tcs, char *buf, long size);
 bool tagcache_retrieve(struct tagcache_search *tcs, int idxid, 
                        int tag, char *buf, long size);
 void tagcache_search_finish(struct tagcache_search *tcs);
+/* Commits held off, as by an open search, for a pass that yields: a
+   commit waits for the holds before it begins and before it takes the
+   database's memory (tagcache.c). False, nothing held, during a commit's
+   main part or without a database. For one thread's pass of a second or
+   two at most, let go on every way out of it; nested as searches are. Not
+   across a wait for the database's thread, nor around a power-off, which
+   waits for the holds (tagcache_prepare_shutdown()). */
+bool tagcache_hold(void);
+void tagcache_release(void);
 long tagcache_get_numeric(const struct tagcache_search *tcs, int tag);
 /* for a file of iTunesDB's whose own tags are empty */
 bool tagcache_fill_text(struct mp3entry *id3, const char *filename);
@@ -530,6 +539,12 @@ int tagcache_get_commitid(void);
 bool tagcache_for_each_track(void (*f)(int idx_id, const int32_t *tag_seek,
                                        void *data),
                              void *data);
+/* the same, the other threads let run as it goes, with commits held off
+   (tagcache_hold()); f mustn't yield either */
+bool tagcache_for_each_track_yielding(void (*f)(int idx_id,
+                                                const int32_t *tag_seek,
+                                                void *data),
+                                      void *data);
 /* The text of a tag's name by its seek, as a search or the seeks above give
    it, of the database in memory as it is now: false without it, or for
    UNTAGGED, which is no name */
