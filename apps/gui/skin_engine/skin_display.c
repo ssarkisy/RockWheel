@@ -1607,32 +1607,52 @@ static void draw_cover_tinted_image(struct screen *display, const struct gui_img
 
 #if LCD_DEPTH == 16 && LCD_STRIDEFORMAT != VERTICAL_STRIDE
 /* Photos' collage is drawn without the colour of its ground, so that a
-   theme's panel shows round the thumbnails. Where the panel is a backdrop's
+   theme's pane shows round the thumbnails. Where the pane is a backdrop's
    picture with something on it, as Classic's note, bits of that would show
-   in the gaps: there its place has the panel's plain ground first, each row
-   the backdrop's own at the picture's left edge, in fours, which keeps the
-   dither of a gradient. A limit: this is done whenever the screen has a
-   backdrop at all, not only where its picture lies under the collage, so a
-   theme with a backdrop elsewhere and a plain viewport for the collage would
-   get the backdrop's rows there. None of the three themes is such a one. */
+   in the gaps: there its place has the pane's plain ground first, a row at a
+   time. A row of the backdrop the same as the backdrop's row just under the
+   picture (over it, at the screen's foot) is plain already and is drawn as
+   it is: a pane alike from top to bottom keeps its floor and its walls, as
+   Dieter's shadow at its left. Any other row, as Classic's gradient, has its
+   16 pixels at the picture's left edge repeated, the period of a whole-screen
+   backdrop's dither (tools/buildzip.pl's at packaging, bmp.c's DITHERX for
+   one loaded as 24 bit; a row of one colour repeats in 16 too), so that a
+   gradient is the backdrop's own. A limit: where the pane changes from row
+   to row, or the row under (over) the picture isn't its plain ground, or
+   the picture is as tall as the screen, a wall at its left is repeated
+   across. None of the four themes is such a one. */
 static void draw_photos_panel_ground(struct screen *display,
                                      const struct gui_img *img)
 {
     const fb_data *backdrop = lcd_get_backdrop();
     const struct viewport *vp = *display->current_viewport;
     const int left = vp->x + img->x, top = vp->y + img->y;
-    const int width = MIN(img->bm.width, vp->width - img->x);
+    const int width = MIN(MIN(img->bm.width, vp->width - img->x), LCD_WIDTH - left);
+    const int height = MIN(img->bm.height, vp->height - img->y);
     if (!backdrop || display->screen_type != SCREEN_MAIN || left < 0
-        || left + 4 > LCD_WIDTH || width <= 0 || width > LCD_WIDTH)
+        || width <= 0 || height <= 0)
         return;
+    const int plain_y = top + height < LCD_HEIGHT ? top + height : top - 1;
+    const fb_data *plain = plain_y >= 0 && plain_y < LCD_HEIGHT
+                           ? backdrop + plain_y * LCD_WIDTH + left : NULL;
     static fb_data line[LCD_WIDTH];
-    for (int row = 0; row < img->bm.height; row++)
+    for (int row = 0; row < height; row++)
     {
         if (top + row < 0 || top + row >= LCD_HEIGHT)
             continue;
         const fb_data *edge = backdrop + (top + row) * LCD_WIDTH + left;
+        int same = 0;
+        if (plain)
+            while (same < width && edge[same] == plain[same])
+                same++;
+        if (same == width)
+        {
+            display->bitmap_part(backdrop, left, top + row, LCD_WIDTH,
+                                 img->x, img->y + row, width, 1);
+            continue;
+        }
         for (int x = 0; x < width; x++)
-            line[x] = edge[x & 3];
+            line[x] = edge[x & 15];
         display->bitmap_part(line, 0, 0, width, img->x, img->y + row, width, 1);
     }
 }
