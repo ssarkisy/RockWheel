@@ -1897,6 +1897,30 @@ static void search_restart(struct jpeg *p_jpeg)
 /* more than the bit buffer's few bytes of a whole file's last row */
 #define JPEG_PAST_END_SLACK 16
 
+/* What is left of the data after the headers: in the read buffer and after
+   it. An upper bound: the reads that decode an ID3 or an Ogg picture's bytes
+   count fewer than they take, and a segment skipped by a seek isn't counted
+   off. */
+static uint64_t jpeg_data_left(const struct jpeg *p_jpeg)
+{
+#ifdef JPEG_FROM_MEM
+    return p_jpeg->len;
+#else
+    return (uint64_t)p_jpeg->len + MAX(p_jpeg->buf_left, 0);
+#endif
+}
+
+/* The blocks the scan codes, after fix_headers(): every block of every MCU
+   when its components are interleaved. A scan of one component (every block
+   of the MCU is that component's) isn't interleaved: it codes each 8 x 8
+   block of the picture, whatever the component's sampling factors say. */
+static uint64_t jpeg_coded_blocks(const struct jpeg *p_jpeg)
+{
+    if (p_jpeg->mcu_membership[p_jpeg->blocks - 1] == 0)
+        return (uint64_t)((p_jpeg->x_size + 7) / 8) * ((p_jpeg->y_size + 7) / 8);
+    return (uint64_t)p_jpeg->x_mbl * p_jpeg->y_mbl * p_jpeg->blocks;
+}
+
 static struct img_part *store_row_jpeg(void *jpeg_args)
 {
     struct jpeg *p_jpeg = (struct jpeg*) jpeg_args;
@@ -2267,6 +2291,20 @@ int clip_jpeg_fd(int fd, int flags,
     {
         JDEBUGF("Aborting resize of image > 32767 pixels\n");
         return -1;
+    }
+
+    /* Each block's coded data is at least a DC code and an AC one (its EOB
+       if nothing else), Huffman codes of a bit or more: 2 bits. A damaged or
+       hostile file whose data can't hold half of that for its blocks, as one
+       claiming 27848 x 8392 pixels in a kilobyte, is refused before any row
+       of it is made: its decode and scaling would walk every row it claims.
+       Half: a whole file cut short keeps showing what it holds (grey below)
+       while at least half of its data is there, even one coded in those 2
+       bits a block. */
+    if ((uint64_t)jpeg_data_left(p_jpeg) * 8 < jpeg_coded_blocks(p_jpeg))
+    {
+        JDEBUGF("data too short for %dx%d\n", p_jpeg->x_size, p_jpeg->y_size);
+        return -17;
     }
 
     src_dim.width = p_jpeg->x_size;
