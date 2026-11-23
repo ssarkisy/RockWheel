@@ -1684,9 +1684,17 @@ enum plugin_status plugin_start(const void *parameter)
 #endif
     if (!screen_buf || !load_database())
     {
+        /* over the main menu as it is drawn */
         rb->splash(HZ * 2, TEXT(LANG_NO_PHOTOS));
         return PLUGIN_OK;
     }
+#ifdef UI_MAIN_MENU_PANE
+    /* the iPod photo's menu: the screen's whole width, as Music's, with no
+       pane beside it (photos_panel.h); set already when opened again from
+       Now Playing. The main menu's photos() sets it back (root_menu.c). */
+    if (!rb->menu_wide())
+        rb->menu_set_wide(true);
+#endif
     configfile_load(CONFIG_FILE, config, ARRAYLEN(config), CONFIG_VERSION);
     int old_time = slide_time;
     bool old_repeat = slide_repeat, old_shuffle = slide_shuffle;

@@ -1090,7 +1090,8 @@ int plugin_load(const char* plugin, const void* parameter)
     }
 
 #ifdef HAVE_DISK_STORAGE
-    if (!storage_disk_is_active())
+    const bool waited = !storage_disk_is_active();
+    if (waited)
         splash(0, ID2P(LANG_WAIT));
 #endif
     strcpy(current_plugin, plugin);
@@ -1149,6 +1150,12 @@ int plugin_load(const char* plugin, const void* parameter)
     lcd_remote_clear_display();
     lcd_remote_update();
 #endif
+#ifdef HAVE_DISK_STORAGE
+    /* "Loading..." stays on the screen the theme is left on: the plugin's
+       splashes keep its size, so that the first covers it whatever the
+       lengths of their texts, as "No Photos" where it is the shorter */
+    splash_keep_size(waited && theme_enabled);
+#endif
     if (get_current_activity() == ACTIVITY_WPS)
         push_activity_without_refresh(ACTIVITY_PLUGIN);
     else
@@ -1203,6 +1210,9 @@ int plugin_load(const char* plugin, const void* parameter)
     plugin_running = true;
     int rc = p_hdr->entry_point(parameter); /* run the loaded plugin */
     plugin_running = false;
+#ifdef HAVE_DISK_STORAGE
+    splash_keep_size(false); /* the plugin drew none: not for what's next */
+#endif
 #ifdef HAVE_WHEEL_ACCELERATION
     button_wheel_press_quiet(press_quiet);
 #if CONFIG_KEYPAD == IPOD_4G_PAD && !defined(IPOD_MINI) && !defined(SIMULATOR)

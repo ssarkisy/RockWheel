@@ -42,6 +42,12 @@ extern void splashf(int ticks, const char *fmt, ...) ATTRIBUTE_PRINTF(2, 3);
  */
 #define splash(__ticks, __str) splashf(__ticks, __str)
 
+/* The next change of activity keeps the splashes' size, which it otherwise
+   resets, so that the next one covers the last: for a screen opened over a
+   splash without being drawn, as a plugin with the theme left on over
+   plugin_load()'s "Loading...". False drops it. */
+extern void splash_keep_size(bool keep);
+
 /* set a delay before displaying the progress meter the first time */
 extern void splash_progress_set_delay(long delay_ticks);
 /*

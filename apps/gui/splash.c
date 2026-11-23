@@ -138,6 +138,16 @@ static bool plaque_shown(const struct viewport *vp, int r, unsigned colour)
  *  where as "\n\n" will break a line and add a blank line
  *  "\t\t" would break a line and add a total of 4 spaces to the next line
 */
+#ifndef BOOTLOADER
+/* the size kept at the next change of activity (splash_keep_size()) */
+static bool size_kept = false;
+
+void splash_keep_size(bool keep)
+{
+    size_kept = keep;
+}
+#endif
+
 static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
                             struct viewport *vp, int addl_lines)
 {
@@ -151,11 +161,15 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
 
     if (last_act != act) /* changed activities reset width / height */
     {
-        FOR_NB_SCREENS(i)
+        if (!size_kept)
         {
-            max_width[i] = 0;
-            max_height[i] = 0;
+            FOR_NB_SCREENS(i)
+            {
+                max_width[i] = 0;
+                max_height[i] = 0;
+            }
         }
+        size_kept = false;
         last_act = act;
     }
 #else /*def BOOTLOADER*/

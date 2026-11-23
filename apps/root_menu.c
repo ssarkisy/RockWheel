@@ -861,9 +861,25 @@ static int photos(void *param)
 {
     (void)param;
 #ifdef UI_MAIN_MENU_PANE
-    /* the iPod photo's: its menu of the screen's whole width, as Music's,
-       with no pane beside it (photos_panel.h) */
-    menu_set_wide(true);
+    /* The iPod photo's menu takes the screen's whole width. From the main
+       menu's Select the plugin sets it, once it has photos to show: the
+       theme drawn wide over the main menu leaves part of its pane, and with
+       none "No Photos" goes over the main menu as it is. From Now Playing's
+       Menu, its theme left in the main menu's look, the pane with the song's
+       cover or note: the wide look at once, its lists' area cleared, which
+       plugin_load() puts on the screen under "Loading...". */
+    if (last_screen != GO_TO_ROOT)
+    {
+        menu_set_wide(true);
+        FOR_NB_SCREENS(i)
+        {
+            struct viewport vp;
+            viewport_set_defaults(&vp, i);
+            struct viewport *last = screens[i].set_viewport(&vp);
+            screens[i].clear_viewport();
+            screens[i].set_viewport(last);
+        }
+    }
 #endif
     /* on the Video its menu keeps the collage beside it, not the song's
        cover, which the theme shows by a screen that has no panel */
