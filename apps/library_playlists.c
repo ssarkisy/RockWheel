@@ -2535,6 +2535,10 @@ static struct {
     int header;
     const char *name, *above;
     bool name_shown;
+    /* their texts, and the file of the song whose menu is open: here rather
+       than on main's stack, under the screens nested over the list, as the
+       lists Go to Artist opens from a song's menu */
+    char title_buf[MAX_PATH], above_buf[MAX_PATH], menu_file[MAX_PATH];
 } lp;
 
 static bool lp_load(void)
@@ -2885,8 +2889,10 @@ static void lp_before_draw(struct gui_synclist *list)
 }
 
 /* the music from this song on, from the playlist's file, written first if
-   it's behind the list. False if it didn't start. */
-static bool lp_play(int song)
+   it's behind the list. False if it didn't start. Its buffers, as those of
+   the other rows' work below, kept out of lp_view()'s frame, which the lists
+   opened from a song's menu are nested over */
+static bool NO_INLINE lp_play(int song)
 {
     /* the song chosen is one sold with a lock on it: said, nothing changes */
     char path[MAX_PATH];
@@ -3147,15 +3153,16 @@ static bool lp_remove(int song)
 }
 
 /* On-The-Go as a playlist of its own on the iPod, as on a stock one: "On-The-Go
-   1", the first number free, in the catalogue; On-The-Go empty again */
-static bool lp_save_otg(char *saved, size_t size)
+   1", the first number free, in the catalogue, which opens at it; On-The-Go
+   empty again */
+static bool NO_INLINE lp_save_otg(void)
 {
-    char root[MAX_PATH];
+    char root[MAX_PATH], saved[MAX_PATH];
     if (!catalog_directory_name(root, sizeof(root)))
         return false;
     for (int n = 1; n < 1000; n++)
     {
-        snprintf(saved, size, "%s/%s %d.m3u8", root, str(LANG_ON_THE_GO), n);
+        snprintf(saved, sizeof(saved), "%s/%s %d.m3u8", root, str(LANG_ON_THE_GO), n);
         char folder[MAX_PATH];
         snprintf(folder, sizeof(folder), "%s/%s %d", root, str(LANG_ON_THE_GO), n);
         if (file_exists(saved) || dir_exists(folder))
@@ -3164,6 +3171,7 @@ static bool lp_save_otg(char *saved, size_t size)
             return false;
         lp_index_moved(OTG_FILE, saved);
         lp_source_moved(OTG_FILE, saved);
+        catalog_select_playlist(saved);
         return true;
     }
     return false;
@@ -3173,7 +3181,7 @@ static bool lp_save_otg(char *saved, size_t size)
    On-The-Go and for one at the catalogue's top synced from the computer,
    Unsynced for one of the iPod's own there, else its folder's name. Into
    buf if it's that */
-static const char *title_above(char *buf, size_t size)
+static const char * NO_INLINE title_above(char *buf, size_t size)
 {
     char root[MAX_PATH];
     const char *slash = strrchr(lp.file, '/');
@@ -3215,21 +3223,26 @@ static void lp_header_open(struct gui_synclist *list)
                            Icon_Playlist);
 }
 
-/* a held Select: the menu of the song, as in Songs */
-static int lp_song_menu(int song)
+/* the song's file, through a search whose 728 bytes are gone by the menu */
+static bool NO_INLINE lp_song_file(int song, char *path, size_t size)
 {
-    char path[MAX_PATH], title[MAX_PATH];
     struct tagcache_search tcs;
     if (!tagcache_search(&tcs, tag_filename))
-        return -1;
+        return false;
     const bool found = tagcache_retrieve(&tcs, lp.songs[song].idx, tag_filename,
-                                         path, sizeof(path));
+                                         path, size);
     tagcache_search_finish(&tcs);
-    if (!found)
+    return found;
+}
+
+/* a held Select: the menu of the song, as in Songs */
+static int NO_INLINE lp_song_menu(int song)
+{
+    char *path = lp.menu_file;
+    if (!lp_song_file(song, path, sizeof(lp.menu_file)))
         return -1;
-    /* its own: what the menu opens may take the plugin buffer */
-    strmemccpy(title, lp.pool + lp.names[song], sizeof(title));
-    onplay_set_title(title);
+    /* the menu's own copy: what the menu opens may take the plugin buffer */
+    onplay_set_title(lp.pool + lp.names[song]);
     /* out of one made on the iPod */
     onplay_set_removable(!lp.library);
     const long size_before = file_size(lp.file);
@@ -3277,17 +3290,17 @@ int lp_view(const char *file, int *selection)
     }
 
     /* its name, without .m3u8 */
-    char title[MAX_PATH];
+    char *title = lp.title_buf;
+    const size_t title_size = sizeof(lp.title_buf);
     const char *base = strrchr(lp.file, '/');
-    strmemccpy(title, base ? base + 1 : lp.file, sizeof(title));
+    strmemccpy(title, base ? base + 1 : lp.file, title_size);
     char *ext = strrchr(title, '.');
     if (ext && ext != title)
         *ext = '\0';
     if (lp.otg)
-        strmemccpy(title, str(LANG_ON_THE_GO), sizeof(title));
-    char above[MAX_PATH];
+        strmemccpy(title, str(LANG_ON_THE_GO), title_size);
     lp.name = title;
-    lp.above = title_above(above, sizeof(above));
+    lp.above = title_above(lp.above_buf, sizeof(lp.above_buf));
     lp.header = 0;
 
     push_current_activity(ACTIVITY_PLAYLISTVIEWER);
@@ -3383,10 +3396,8 @@ int lp_view(const char *file, int *selection)
                     break;
                 if (is_save_row(row))
                 {
-                    char saved[MAX_PATH];
-                    if (lp_save_otg(saved, sizeof(saved)))
+                    if (lp_save_otg())
                     {
-                        catalog_select_playlist(saved);
                         transition_begin(TRANSITION_BACK);
                         ret = PLAYLIST_VIEWER_CANCEL;
                     }

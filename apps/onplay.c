@@ -587,16 +587,36 @@ MENUITEM_FUNCTION(on_the_go_item, 0, ID2P(LANG_ADD_TO_ON_THE_GO),
    one synced from Finder, which the next sync writes again */
 static int add_to_picked_playlist(void)
 {
-    char target[MAX_PATH], song[MAX_PATH];
-    song[0] = '\0';
+    char target[MAX_PATH];
+    /* the song, as the selected file, in its buffer: not a copy on main's
+       stack under the catalogue and its keyboard. What onplay() put there,
+       which selected_file.path points at, is written over (for a row of
+       Music's lists "/<its name>", the name catalog_add_to_a_playlist()
+       offers; emptied for a row of a list of songs that isn't one): nothing
+       reads it after this, as both menus close after their item
+       (MENU_EXITAFTERTHISMENU) and the catalogue opens no menu
+       (BROWSE_NO_CONTEXT_MENU) */
+    const char *song = NULL;
     /* the song playing as it is now, before the catalogue is gone through */
     if (selected_file.context == CONTEXT_WPS)
     {
         const struct mp3entry *id3 = audio_current_track();
         if (!id3 || !id3->path[0])
             return 0;
-        strmemccpy(song, id3->path, sizeof(song));
+        strmemccpy(selected_file.buf, id3->path, sizeof(selected_file.buf));
+        song = selected_file.buf;
     }
+    /* a song of Music's lists by its file, while the list has it, kept
+       where prepare_database_sel() keeps one: the catalogue's listing takes
+       the list's room, which the list's own loop loads again after the menu,
+       as for Go to Artist (ONPLAY_RELOAD_DIR). Loaded here, under the menu,
+       All Songs nested in the lists opened from a playlist's song went
+       deepest on main's stack */
+    else if (selected_file.context == CONTEXT_ID3DB
+             && (selected_file.attr & FILE_ATTR_MASK) == FILE_ATTR_AUDIO
+             && tagtree_selected_song_file(selected_file.buf,
+                                           sizeof(selected_file.buf)))
+        song = selected_file.buf;
     menu_now_playing_away(true);
     const int r = ip_pick_playlist(target, sizeof(target));
     menu_now_playing_away(false);
@@ -610,8 +630,19 @@ static int add_to_picked_playlist(void)
     switch (selected_file.context)
     {
         case CONTEXT_ID3DB:
-            tagtree_reload_after_browse();
-            ip_add_selection(target);
+            if (song)
+            {
+                /* said, as the list's own add (catalog_insert_into()) did */
+                if (!ip_add_file(target, song))
+                    splash(HZ*2, ID2P(LANG_FAILED));
+                onplay_result = ONPLAY_RELOAD_DIR;
+            }
+            else
+            {
+                /* an album's songs or the like, gathered from the list */
+                tagtree_reload_after_browse();
+                ip_add_selection(target);
+            }
             break;
         case CONTEXT_WPS:
             ip_add_file(target, song);

@@ -4171,27 +4171,19 @@ static int make_recent(struct tree_context *c)
     return n;
 }
 
+static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
+                                       bool init, int special_before);
+
+/* The list's rows. All Songs and Recently Added are made apart, so that the
+   frame of the search for the others, 2.3 KB, isn't held under theirs: All
+   Songs nested in the lists over a menu went past main's stack in 2.0.1 */
 static int make_entries(struct tree_context *c, int offset, bool init)
 {
     logf( "%s", __func__);
-    char tcs_buf[TAGCACHE_BUFSZ];
-    const long tcs_bufsz = sizeof(tcs_buf);
-    struct tagcache_search tcs;
-    struct display_format *fmt;
-    int i;
-    int namebufused = 0;
-    int total_count = 0;
     /* a part of a list in chunks after its first: the rows at its top, which
        aren't songs, as its first part found them */
     const int special_before = c->special_entry_count;
     c->special_entry_count = 0;
-    int level = c->currextra;
-    int tag;
-    bool sort = false;
-    bool sort_inverse;
-    bool is_basename = false;
-    int sort_limit;
-    int strip;
     entries_whole = false;
     entries_years = false;
     entries_two_lines = false;
@@ -4223,8 +4215,28 @@ static int make_entries(struct tree_context *c, int offset, bool init)
 
     if (c->currtable == TABLE_ALLSUBENTRIES)
         return make_all_songs(c, c->currextra - 2, init);
-    if (c->currtable == TABLE_NAVIBROWSE && level == 0 && is_recent(csi))
+    if (c->currtable == TABLE_NAVIBROWSE && c->currextra == 0 && is_recent(csi))
         return make_recent(c);
+    return make_list_entries(c, offset, init, special_before);
+}
+
+static int NO_INLINE make_list_entries(struct tree_context *c, int offset,
+                                       bool init, int special_before)
+{
+    char tcs_buf[TAGCACHE_BUFSZ];
+    const long tcs_bufsz = sizeof(tcs_buf);
+    struct tagcache_search tcs;
+    struct display_format *fmt;
+    int i;
+    int namebufused = 0;
+    int total_count = 0;
+    int level = c->currextra;
+    int tag;
+    bool sort = false;
+    bool sort_inverse;
+    bool is_basename = false;
+    int sort_limit;
+    int strip;
 
     if (c->currtable == TABLE_ALLSUBENTRIES_SORTED_BY_ALBUMS)
     {
@@ -7131,12 +7143,14 @@ static int cmp_gather_key(const void *p1, const void *p2)
    their count; -1 if the database is busy. With their progress shown, as a
    list's, if left is given: if the user leaves before the end, true in it,
    and only the songs found till then. The lists' buffers are held still by
-   the caller, as long as it reads the keys. */
+   the caller, as long as it reads the keys. Through the caller's search and
+   buffer of TAGCACHE_BUFSZ, finished before it returns: one set on the stack
+   for this and what the caller searches after it. */
 static int gather_songs(struct tree_context *c, int extra, int32_t row_seek,
-                        int32_t row_artist, bool *left, struct gather_key **keys)
+                        int32_t row_artist, bool *left, struct gather_key **keys,
+                        struct tagcache_search *tcs, char *buf)
 {
-    struct tagcache_search tcs;
-    if (!tagcache_search(&tcs, tag_title))
+    if (!tagcache_search(tcs, tag_title))
         return -1;
     /* the row's level and those above it, as the list it opens has them */
     static struct tagcache_search_clause numeric[MAX_TAGS];
@@ -7151,14 +7165,14 @@ static int gather_songs(struct tree_context *c, int extra, int32_t row_seek,
             numeric[i].type = clause_is;
             numeric[i].numeric = true;
             numeric[i].numeric_data = seek;
-            tagcache_search_add_clause(&tcs, &numeric[i]);
+            tagcache_search_add_clause(tcs, &numeric[i]);
         }
         else
-            tagcache_search_add_filter(&tcs, csi->tagorder[i], seek);
-        add_artist_filter(&tcs, artist);
+            tagcache_search_add_filter(tcs, csi->tagorder[i], seek);
+        add_artist_filter(tcs, artist);
     }
     core_pin(tagtree_handle);
-    add_list_clauses(&tcs, csi->tagorder_count - 1);
+    add_list_clauses(tcs, csi->tagorder_count - 1);
 
     /* past half the lists' room: the songs' rows, written over its start
        one by one, reach a key only after it's read */
@@ -7176,12 +7190,11 @@ static int gather_songs(struct tree_context *c, int extra, int32_t row_seek,
                      || next == tag_virt_canonicalartist ? next : -1,
     };
     album_years_rows_begin();
-    tagcache_search_set_match(&tcs, gather_match, &g);
-    char buf[TAGCACHE_BUFSZ];
+    tagcache_search_set_match(tcs, gather_match, &g);
     int n = 0;
-    while (n < g.room && tagcache_get_next(&tcs, buf, sizeof(buf)))
+    while (n < g.room && tagcache_get_next(tcs, buf, TAGCACHE_BUFSZ))
     {
-        g.keys[n++].idx = tcs.idx_id;
+        g.keys[n++].idx = tcs->idx_id;
         if (left && !tagtree_search_progress(n))
         {
             *left = true;
@@ -7200,14 +7213,14 @@ static int gather_songs(struct tree_context *c, int extra, int32_t row_seek,
         if (untagged < 0 && k->album != checked)
         {
             checked = k->album;
-            if (tagcache_retrieve(&tcs, k->idx, tag_album, buf, sizeof(buf))
+            if (tagcache_retrieve(tcs, k->idx, tag_album, buf, TAGCACHE_BUFSZ)
                 && !strcmp(buf, UNTAGGED))
                 untagged = checked;
         }
         if (g.group_tag >= 0 && untagged_group < 0 && k->group != group_checked)
         {
             group_checked = k->group;
-            if (tagcache_retrieve(&tcs, k->idx, g.group_tag, buf, sizeof(buf))
+            if (tagcache_retrieve(tcs, k->idx, g.group_tag, buf, TAGCACHE_BUFSZ)
                 && !strcmp(buf, UNTAGGED))
                 untagged_group = group_checked;
         }
@@ -7221,10 +7234,21 @@ static int gather_songs(struct tree_context *c, int extra, int32_t row_seek,
             k->group = INT32_MAX;
     }
     qsort(g.keys, n, sizeof(*g.keys), cmp_gather_key);
-    tagcache_search_finish(&tcs);
+    tagcache_search_finish(tcs);
     core_unpin(tagtree_handle);
     *keys = g.keys;
     return n;
+}
+
+/* goto_all_songs()'s songs of a row, through a search of their own, which
+   isn't on the stack under make_all_songs() and its own */
+static int NO_INLINE gather_row_songs(int extra, const struct tagentry *row,
+                                      struct gather_key **keys)
+{
+    struct tagcache_search tcs;
+    char buf[TAGCACHE_BUFSZ];
+    return gather_songs(tc, extra, row->extraseek, row_artist(row), NULL, keys,
+                        &tcs, buf);
 }
 
 /* Those songs the list, until reset_tc_to_prev(): the list the row opens if
@@ -7266,8 +7290,7 @@ static bool goto_all_songs(void)
 
     tree_lock_cache(tc);
     struct gather_key *keys;
-    const int n = gather_songs(tc, extra, row->extraseek, row_artist(row), NULL,
-                               &keys);
+    const int n = gather_row_songs(extra, row, &keys);
     struct tagentry *entries = get_entries(tc);
     for (int i = 0; i < n; i++)
     {
@@ -7427,10 +7450,12 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
     tree_lock_cache(c);
     struct gather_key *keys;
     bool left = false;
+    /* gathered through the search and the buffer used here after it */
+    struct tagcache_search tcs;
+    char buf[TAGCACHE_BUFSZ];
     const int n = gather_songs(c, extra, csi->result_seek[extra],
                                csi->result_artist[extra], init ? &left : NULL,
-                               &keys);
-    struct tagcache_search tcs;
+                               &keys, &tcs, buf);
     if (n < 0 || !tagcache_search(&tcs, tag_title))
     {
         tree_unlock_cache(c);
@@ -7501,7 +7526,6 @@ static int make_all_songs(struct tree_context *c, int extra, bool init)
        take, has no name rather than the list fewer rows */
     const long room = c->cache.name_buffer_size
                       - groups * (long)sizeof(struct song_group);
-    char buf[TAGCACHE_BUFSZ];
     int digits = 0;
     for (int i = 0; i < n; i++)
     {
@@ -7791,6 +7815,16 @@ bool tagtree_add_to_file(const char *file)
 void tagtree_reload_after_browse(void)
 {
     tagtree_load(tc);
+}
+
+bool tagtree_selected_song_file(char *buf, int size)
+{
+    if (tc && tc->dirlength > 0
+        && tagtree_get_entry(tc, tc->selected_item)->newtable == TABLE_PLAYTRACK
+        && tagtree_get_filename(tc, buf, size) >= 0)
+        return true;
+    buf[0] = '\0';
+    return false;
 }
 
 /* in Music's own list, whose rows are its sections: none adds a song */
