@@ -112,6 +112,7 @@
 #include "rolo.h"
 #endif
 #endif
+#include "hang.h"
 
 #ifndef PLUGIN
 #include "core_alloc.h" /*core_load_bmp()*/
@@ -757,6 +758,10 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
         case SYS_USB_CONNECTED:
         {
             intptr_t seqnum = button_get_data();
+            /* the other threads wait on USB, and the flush takes what it
+               takes: no hang catcher until the USB screen ends, D2's count
+               begun again then, as the calibration's "usb" phase was */
+            hang_hold(HANG_HOLD_USB, true);
             if (callback != NULL)
                 callback(parameter);
             health_note_free();
@@ -768,6 +773,7 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
 #endif
 #endif
             gui_usb_screen_run(false, seqnum);
+            hang_hold(HANG_HOLD_USB, false);
 #ifdef BOOTFILE
 #if !defined(USB_NONE) && !defined(USB_HANDLED_BY_OF)
             check_bootfile(true);

@@ -45,6 +45,13 @@
 #include "file.h"
 #endif
 #endif
+#ifdef HAVE_HANG_SCREEN
+#include "hang.h"
+#include "scroll_engine.h"
+#endif
+#ifdef HAVE_HANG_CATCHER
+#include "thread.h"
+#endif
 
 #if (defined(CPU_MIPS) && (CONFIG_PLATFORM & PLATFORM_NATIVE))
 /* TODO: see comment above exception_dump in system-mips.c */
@@ -297,6 +304,30 @@ static void stkov_trace(unsigned int core, uintptr_t panic_sp, uint32_t pc,
     }
 }
 _Static_assert(PANIC_REC_TRACE >= 2, "stkov_trace() divides by it less 1");
+
+#ifdef HAVE_HANG_CATCHER
+/* The trace of a HANG record: the hung thread's live chain, from sp up to
+   its stack's end, ten picked from it evenly as for a Stkov (stkov_trace()),
+   so that the nested screens that led to a UI's wait are named with the
+   wait. Nothing below sp is read: a hung thread's stale frames are only what
+   returned before the hang. */
+static void hang_trace(uintptr_t begin, uintptr_t end, uintptr_t sp,
+                       uint32_t pc, uint32_t *out)
+{
+    begin &= ~3;
+    end &= ~3;
+    sp &= ~3;
+    if (begin >= end || end - begin > 0x100000 || sp >= end
+        || sp + 0x10000 < begin)
+        return;
+
+    uint32_t *const live = stkov_chains[1];
+    const int n = stkov_chain(sp, end, end, end, pc, live);
+    for (int k = 0; k < PANIC_REC_TRACE && k < n; k++)
+        out[k] = live[n <= PANIC_REC_TRACE ? k
+                      : k * (n - 1) / (PANIC_REC_TRACE - 1)];
+}
+#endif /* HAVE_HANG_CATCHER */
 #endif /* HAVE_PANIC_STKOV_SCAN */
 
 #ifdef SIMULATOR
@@ -313,9 +344,20 @@ static void panic_record_sim_store(const struct panic_record *area)
 }
 #endif
 
-void panic_record_save(unsigned int kind, unsigned int pc, unsigned int lr,
-                       unsigned int sp, const unsigned int *regs,
-                       const char *msg, bool unwind)
+/* A hang's stack, for its trace: the walk's bounds and start, all in the
+   alias it is read through */
+struct hang_stack
+{
+    uintptr_t begin, end, sp;
+};
+
+/* panic_record_save()'s, for another thread's record too: a hang's, which
+   names the hung thread, and its core, and walks its stack (hang) */
+static void record_save(unsigned int kind, unsigned int core, unsigned int pc,
+                        unsigned int lr, unsigned int sp,
+                        const unsigned int *regs, const char *thread,
+                        const char *msg, bool unwind,
+                        const struct hang_stack *hang)
 {
     struct panic_record *area = panic_record_area();
 
@@ -332,10 +374,8 @@ void panic_record_save(unsigned int kind, unsigned int pc, unsigned int lr,
         panic_record_bump(area); /* what followed the first matters less */
     else
     {
-        /* threads exist once the tick runs */
-        panic_record_write(area, kind, CURRENT_CORE, pc, lr,
-                           sp, current_tick ? thread_self_name() : NULL,
-                           RBVERSION, msg);
+        panic_record_write(area, kind, core, pc, lr, sp, thread, RBVERSION,
+                           msg);
         area->magic = 0;
         for (unsigned int i = 0; regs && i < 8; i++)
             area->regs[i] = regs[i];
@@ -350,6 +390,11 @@ void panic_record_save(unsigned int kind, unsigned int pc, unsigned int lr,
             /* into copy 0 alone: if the unwind faults, copies 1 and 2 keep
                the record without its trace, for the boot's vote */
             area->magic = 0;
+#ifdef HAVE_HANG_CATCHER
+            if (hang)
+                hang_trace(hang->begin, hang->end, hang->sp, pc, area->trace);
+            else
+#endif
 #ifdef HAVE_PANIC_STKOV_SCAN
             if (stkov[CURRENT_CORE].end)
                 stkov_trace(CURRENT_CORE, sp, pc, area->trace);
@@ -363,6 +408,7 @@ void panic_record_save(unsigned int kind, unsigned int pc, unsigned int lr,
         (void)unwind;
 #endif
     }
+    (void)hang;
     panic_record_replicate(area);
 #ifdef SIMULATOR
     panic_record_sim_store(area);
@@ -371,6 +417,15 @@ void panic_record_save(unsigned int kind, unsigned int pc, unsigned int lr,
 #ifdef HAVE_CORELOCK_OBJECT
     corelock_unlock(&panic_cl);
 #endif
+}
+
+void panic_record_save(unsigned int kind, unsigned int pc, unsigned int lr,
+                       unsigned int sp, const unsigned int *regs,
+                       const char *msg, bool unwind)
+{
+    /* threads exist once the tick runs */
+    record_save(kind, CURRENT_CORE, pc, lr, sp, regs,
+                current_tick ? thread_self_name() : NULL, msg, unwind, NULL);
 }
 
 void panic_draw_request(void)
@@ -398,6 +453,312 @@ int panic_last_row(void)
 #endif
     return rows;
 }
+
+#ifdef HAVE_HANG_SCREEN
+struct hang_text hang_text;
+
+/* panic_hang()'s, for hang_finish() on the crash stack */
+static unsigned int hang_found;
+static unsigned long hang_ms;
+static unsigned int hang_ui;
+
+/* The HANG screen as the owner approved its text (2026-11-20), in English
+   in the system font: while the translated text isn't drawn (hang_text) */
+static void hang_draw_english(void)
+{
+    static const char * const lines[] = {
+        "RockWheel stopped responding", "",
+        "To restart, hold Menu and Select.", "",
+        "After the restart, send the file", CRASH_LOG_SHOWN,
+        "to " CRASH_REPORT_ADDRESS,
+    };
+    const int h = SYSFONT_HEIGHT * 3 / 2;
+    int y = (LCD_HEIGHT - (int)ARRAYLEN(lines) * h) / 2;
+#if LCD_DEPTH > 1
+    lcd_set_drawinfo(DRMODE_SOLID, LCD_BLACK, LCD_WHITE);
+#endif
+    lcd_clear_display();
+    lcd_setfont(FONT_SYSFIXED);
+    for (unsigned int i = 0; i < ARRAYLEN(lines); i++, y += h)
+    {
+        const int w = strlen(lines[i]) * SYSFONT_WIDTH;
+        lcd_putsxy((LCD_WIDTH - w) / 2, y, (const unsigned char *)lines[i]);
+    }
+}
+
+/* With no font read: each line's bitmap, in its colour */
+static void hang_draw(void)
+{
+    /* to the screen, should the hang have come while the text was drawn */
+    lcd_glyph_sink_cancel();
+    lcd_scroll_stop();
+    lcd_set_viewport(NULL);
+#if LCD_DEPTH > 1
+    lcd_set_backdrop(NULL);
+#endif
+    const struct hang_text *t = &hang_text;
+    if (!t->ready)
+    {
+        hang_draw_english();
+        return;
+    }
+
+    lcd_set_drawinfo(DRMODE_SOLID, t->fg[0], t->bg);
+    lcd_clear_display();
+    const unsigned char *bits = t->bits;
+    const unsigned int column = (t->height + 7) / 8;
+    for (int i = 0; i < t->lines; i++)
+    {
+        lcd_set_foreground(t->fg[t->colour[i]]);
+        lcd_mono_bitmap(bits, t->x[i], t->y[i], t->width[i], t->height);
+        bits += t->width[i] * column;
+    }
+}
+
+#ifdef HAVE_HANG_CATCHER
+/* The sp and lr of the mode the tick's interrupt came from (a thread's, sys
+   mode), from the IRQ mode it is still in, as UIE reads them */
+static void hang_interrupted(uint32_t *sp, uint32_t *lr)
+{
+    uint32_t s, l;
+    asm volatile (
+        "mrs    r2, cpsr        \n"
+        "mrs    r3, spsr        \n"
+        "and    r3, r3, #0x1f   \n"
+        "cmp    r3, #0x10       \n" /* user mode's registers are sys mode's */
+        "moveq  r3, #0x1f       \n"
+        "orr    r3, r3, #0xc0   \n"
+        "msr    cpsr_c, r3      \n"
+        "mov    %[s], sp        \n"
+        "mov    %[l], lr        \n"
+        "msr    cpsr_c, r2      \n"
+        /* lr: banked, the outputs mustn't be in it across the switch */
+        : [s] "=r" (s), [l] "=r" (l) : : "r2", "r3", "lr", "cc");
+    *sp = s;
+    *lr = l;
+}
+
+/* An address of a stack as the CPU reads the other core's: uncached */
+static uintptr_t hang_uncached(uintptr_t a)
+{
+    return a < UNCACHED_BASE_ADDR ? (uintptr_t)UNCACHED_ADDR(a) : a;
+}
+
+/* A thread switched out: its context's lr is a return inside switch_thread()
+   (after its first call) and its r4-r11 switch_thread()'s own by then. The
+   push of switch_thread()'s prologue, the nearest before that lr, holds the
+   caller's: the return address into the function that blocked or slept, and
+   r4-r11 as they were there. Into *pc, regs (those the push holds, else 0)
+   and *caller_sp, the sp of that call; false if the frame isn't such a push
+   within the stack, or the word in its lr's slot no return address. */
+static bool switched_frame(uint32_t lr, uintptr_t sp, uintptr_t begin,
+                           uintptr_t end, uint32_t *pc, uint32_t *regs,
+                           uintptr_t *caller_sp)
+{
+    const uint32_t size = stkov_frame(lr); /* the push and any sub sp */
+    uint32_t insn = 0, p = lr - 8;
+    for (int i = 0; ; i++, p -= 4)
+    {
+        if (i >= 64 || !stkov_is_code(p))
+            return false;
+        insn = *(const uint32_t *)p;
+        if ((insn & 0xffff4000) == 0xe92d4000)  /* push {..., lr} */
+            break;
+    }
+    uint32_t pushed = 0;
+    for (uint32_t r = insn & 0xffff; r; r &= r - 1)
+        pushed += 4;
+    if (!size || size < pushed || (sp & 3) || sp < begin
+        || sp + size > end)
+        return false;
+    /* a sub sp after the push makes room below it */
+    const uint32_t *word = (const uint32_t *)(sp + (size - pushed));
+    for (int r = 0; r < 16; r++)
+    {
+        if (!(insn & (1u << r)))
+            continue;
+        if (r >= 4 && r <= 11)
+            regs[r - 4] = *word;
+        else if (r == 14)
+            *pc = *word;
+        word++;
+    }
+    *caller_sp = sp + size;
+    return stkov_after_call(*pc);
+}
+
+static bool hang_lit; /* the HANG screen's light, as its wait leaves it */
+
+/* The HANG screen's wait for Menu+Select, which resets the iPod: its light
+   out after HANG_LIGHT_S without a button (owner, 2026-11-22), so that a
+   pocket's iPod doesn't spend its battery, whose end would lose the record;
+   any button lights it again. The click wheel is polled, as nothing else
+   runs now. */
+static void NORETURN_ATTR hang_wait(void)
+{
+    system_exception_quiet();
+    unsigned long since = USEC_TIMER;
+    hang_lit = true;
+    while (1)
+    {
+        if (button_crash_pressed())
+        {
+            if (!hang_lit)
+                backlight_hw_crash_on();
+            hang_lit = true;
+            since = USEC_TIMER;
+        }
+        else if (hang_lit && USEC_TIMER - since > HANG_LIGHT_S * 1000000ul)
+        {
+            backlight_hw_crash_off();
+            hang_lit = false;
+        }
+    }
+}
+#endif /* HAVE_HANG_CATCHER */
+
+static void hang_append(char *msg, const char *fmt, ...)
+    ATTRIBUTE_PRINTF(2, 3);
+static void hang_append(char *msg, const char *fmt, ...)
+{
+    const size_t len = strlen(msg);
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(msg + len, PANIC_REC_MSG - len, fmt, ap);
+    va_end(ap);
+}
+
+/* On the crash stack, interrupts and FIQ off: the record first, then the
+   panel and the screen, then the light, so that a fault while drawing still
+   leaves the record. The thread is read as the hang left it. */
+static void NORETURN_ATTR hang_finish(int pc_, int sp_, const char *fmt_,
+                                      va_list *ap_)
+{
+    (void)pc_;
+    (void)sp_;
+    (void)fmt_;
+    (void)ap_;
+    const bool no_yield = hang_found & HANG_FOUND_NO_YIELD;
+    static char msg[PANIC_REC_MSG];
+    msg[0] = '\0';
+    hang_append(msg, "hang: %s %lu.%lu s", no_yield ? "no yield" : "ui away",
+                hang_ms / 1000, hang_ms % 1000 / 100);
+
+#ifdef HAVE_HANG_CATCHER
+    static struct thread_hang_info info;
+    const bool known = no_yield ? thread_get_hang_info(hang_found & 0xff, 0,
+                                                       &info)
+                                : thread_get_hang_info(-1, hang_ui, &info);
+    uint32_t pc = 0, lr = 0, sp = 0;
+    const unsigned int *regs = NULL;
+    struct hang_stack hs = { 0, 0, 0 };
+    if (known)
+    {
+        hs.begin = info.stack_begin;
+        hs.end = info.stack_end;
+        if (info.running && info.core == CPU)
+        {
+            /* the thread this tick came in on: irq_handler() begins with
+               sub lr, lr, #4 and a push whose last word is that lr, its
+               return, at the top of the IRQ stack (crt0-pp.S) */
+            extern unsigned char irq_stack[];
+            const uintptr_t top = (uintptr_t)irq_stack;
+            pc = *(const uint32_t *)(top - 4);
+            hang_interrupted(&sp, &lr);
+            hs.sp = sp;
+        }
+        else if (info.running)
+        {
+            /* the COP's, whose registers the CPU can't read: from the
+               deepest word its stack has had, through the uncached alias,
+               as lines the COP holds dirty can't be seen */
+            hs.begin = hang_uncached(hs.begin);
+            hs.end = hang_uncached(hs.end);
+            uintptr_t p = hs.begin;
+            while (p < hs.end && *(const uint32_t *)p == 0xdeadbeef)
+                p += 4;
+            hs.sp = p;
+            sp = info.stack_begin + (p - hs.begin);
+        }
+        else
+        {
+            /* switched out: where its call of switch_thread() returns, and
+               its registers there, from that call's frame; else none, and
+               the trace's first return address says where it waits. The
+               walk starts at that frame, its link skipped as the pc. */
+            static uint32_t frame_regs[8];
+            uintptr_t caller_sp;
+            hs.sp = info.sp;
+            sp = info.sp;
+            if (switched_frame(info.lr, info.sp, info.stack_begin,
+                               info.stack_end, &pc, frame_regs, &caller_sp))
+            {
+                sp = caller_sp;
+                regs = (const unsigned int *)frame_regs;
+            }
+            else
+                pc = 0;
+        }
+        hang_append(msg, " (%s", info.state);
+        if (info.wq)
+            hang_append(msg, " wq=%08lx", (unsigned long)info.wq);
+        if (info.owner[0])
+            hang_append(msg, " own=%s", info.owner);
+        hang_append(msg, ")%s", info.overflowed ? " STACK OVERFLOW" : "");
+    }
+    record_save(PANIC_KIND_HANG, known ? info.core : CPU, pc, lr, sp, regs,
+                known ? info.name : NULL, msg, known, known ? &hs : NULL);
+
+    /* the clock down and the drive off before the screen, which needs
+       neither: a display wedged in a wait of its driver leaves them so */
+#ifdef HAVE_ADJUSTABLE_CPU_FREQ
+    if (cpu_boost_lock())
+    {
+        set_cpu_frequency(0);
+        cpu_boost_unlock();
+    }
+#endif
+#ifdef HAVE_ATA_POWER_OFF
+    ide_power_enable(false);
+#endif
+
+    lcd_awake_crash();
+    hang_draw();
+    lcd_update();
+    backlight_hw_crash_on();
+    hang_wait();
+#else /* the simulator: its screen and its record, no thread read */
+    (void)hang_ui;
+    hang_append(msg, " (running)");
+    record_save(PANIC_KIND_HANG, CURRENT_CORE, 0, 0, 0, NULL,
+                thread_self_name(), msg, false, NULL);
+    hang_draw();
+    lcd_update();
+#endif /* HAVE_HANG_CATCHER */
+
+    system_exception_wait(); /* if this returns, try to reboot */
+    system_reboot();
+    while (1);
+}
+
+void panic_hang(unsigned int found, unsigned long ms, unsigned int ui)
+{
+#if (CONFIG_PLATFORM & PLATFORM_NATIVE)
+    /* from the tick's interrupt, IRQ off: the PCM's FIQ too, as panicf() */
+    disable_interrupt(IRQ_FIQ_STATUS);
+#endif
+    hang_found = found;
+    hang_ms = ms;
+    hang_ui = ui;
+#ifdef PANIC_OWN_STACK
+    /* the IRQ stack has 1 KB, its handlers' frames in it: the rest on the
+       crash stack, as UIE's */
+    uie_stack_call(0, 0, NULL, NULL, hang_finish);
+#else
+    hang_finish(0, 0, NULL, NULL);
+#endif
+}
+#endif /* HAVE_HANG_SCREEN */
 
 #if defined(CPU_ARM) && defined(HAVE_RB_BACKTRACE)
 void panicf_f( const char *fmt, ...) USED_ATTR;
@@ -474,6 +835,9 @@ static void panic_finish(int pc, int sp, const char *fmt, va_list *ap)
 #endif
 #endif
 
+    /* to the screen, should the panic have come while the HANG screen's
+       text was drawn into its bitmap (hang_text.c) */
+    lcd_glyph_sink_cancel();
     lcd_set_viewport(NULL);
 
     int y = 1;

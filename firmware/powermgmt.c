@@ -35,6 +35,7 @@
 #include "backlight.h"
 #include "lcd.h"
 #include "rtc.h"
+#include "hang.h"
 #if CONFIG_TUNER
 #include "fmradio.h"
 #endif
@@ -220,6 +221,7 @@ int _battery_voltage(void) { return -1; }
 #else
 /* Data for the digital exponential filter */
 static int voltage_avg, voltage_now;
+static int voltage_read = -1; /* the last reading taken in, for health.log */
 #endif
 
 #if !(CONFIG_BATTERY_MEASURE & CURRENT_MEASURE)
@@ -262,6 +264,15 @@ int battery_voltage(void)
 {
 #if CONFIG_BATTERY_MEASURE & VOLTAGE_MEASURE
     return voltage_now;
+#else
+    return -1;
+#endif
+}
+
+int battery_voltage_read(void)
+{
+#if CONFIG_BATTERY_MEASURE & VOLTAGE_MEASURE
+    return voltage_read;
 #else
     return -1;
 #endif
@@ -325,7 +336,8 @@ int battery_current(void)
 static void average_init(void)
 {
 #if CONFIG_BATTERY_MEASURE & VOLTAGE_MEASURE
-    voltage_now = _battery_voltage() + 15;
+    voltage_read = _battery_voltage();
+    voltage_now = voltage_read + 15;
 
     /* The battery voltage is usually a little lower directly after
        turning on, because the disk was used heavily. Raise it by 5% */
@@ -354,6 +366,7 @@ static void average_step(bool low_battery)
 {
 #if CONFIG_BATTERY_MEASURE & VOLTAGE_MEASURE
     int millivolts = _battery_voltage();
+    voltage_read = millivolts;
     if(low_battery) {
         voltage_now = (millivolts + voltage_now + 1) / 2;
         voltage_avg += voltage_now - voltage_avg / BATT_AVE_SAMPLES;
@@ -1172,6 +1185,9 @@ void reset_poweroff_timer(void)
 #ifndef BOOTLOADER
 static void sys_shutdown_common(void)
 {
+    /* the UI stops reading buttons for the power-off, and its flush takes
+       what it takes: the hang catcher off until it's refused, at each try */
+    hang_hold(HANG_HOLD_SHUTDOWN, true);
     /* If the main thread fails to shut down the system, we will force a
        power off after an 20 second timeout - 28 seconds if recording */
     if (shutdown_timeout == 0) {
@@ -1224,6 +1240,7 @@ void cancel_shutdown(void)
     shutdown_timeout = 0;
     /* the light, locked for the power-off, by its timeout again */
     backlight_shutdown_cancelled();
+    hang_hold(HANG_HOLD_SHUTDOWN, false);
 }
 
 void set_sleeptimer_duration(int minutes)
@@ -1287,6 +1304,9 @@ static void sleep_enter(bool pause, bool flush)
     if (flush)
         button_queue_post(SYS_SLEEP_FLUSH, 0);
     sleeping = true;
+    /* the UI only waits, and flushes: D2 off, its count begun again at the
+       wake */
+    hang_hold(HANG_HOLD_ASLEEP, true);
 #ifdef LCD_SLEEP_ASLEEP_ONLY
     /* the panel off, once the light is: awake it stays on, dark */
     backlight_lcd_power(false);
@@ -1300,6 +1320,7 @@ static void sleep_enter(bool pause, bool flush)
 static void sleep_wake(void)
 {
     sleeping = false;
+    hang_hold(HANG_HOLD_ASLEEP, false);
     sleep_off_requested = false;
     sleep_set_clock(false);
 #ifdef LCD_SLEEP_ASLEEP_ONLY

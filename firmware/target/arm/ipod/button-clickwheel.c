@@ -313,6 +313,49 @@ void ipod_4g_button_int(void)
     CPU_HI_INT_EN = I2C_MASK;
 }
 
+#ifdef HAVE_HANG_CATCHER
+#include "hang.h"
+/* The HANG screen's (panic.c), interrupts off: a packet the controller
+   latched, read and the controller armed again as ipod_4g_button_int() and
+   ipod_4g_button_read() do it, nothing else of theirs done. Hold first, as
+   button_read_device() takes it, which the tick no longer calls: locked, the
+   wheel's sensor is off and nothing of it is read; a change of Hold is a
+   press, as it lights a stock iPod; unlocked, the sensor is on again. */
+bool button_crash_pressed(void)
+{
+    static int hold_was = -1; /* the first call: as the hang left it */
+    const bool hold = button_hold();
+    if (hold != hold_was)
+    {
+        const bool first = hold_was < 0;
+        hold_was = hold;
+        if (hold)
+            DEV_EN &= ~DEV_OPTO;
+        else if (!first || !(DEV_EN & DEV_OPTO))
+            opto_i2c_init(); /* the sensor on, as an unlock turns it on */
+        if (!first)
+            return true;
+    }
+    if (hold)
+        return false;
+    if (!(inl(0x7000c104) & 0x04000000))
+        return false;
+    udelay(50);
+    const unsigned status = CLICKWHEEL_DATA;
+    const bool valid = (status & 0x800000ff) == 0x8000001a;
+    if (!valid && (status & 0x800000ff) != 0x8000003a && status != 0xFFFFFFFF)
+    {
+        udelay(2000);
+        outl(inl(0x7000c100) & ~0x60000000, 0x7000c100);
+        outl(inl(0x7000c104) | 0x04000000, 0x7000c104);
+        outl(inl(0x7000c100) | 0x60000000, 0x7000c100);
+    }
+    outl(inl(0x7000c104) | 0x0c000000, 0x7000c104);
+    outl(0x400a1f00, 0x7000c100);
+    return valid && ((status & 0x00001f00) || wheel_packet_touched(status));
+}
+#endif
+
 void button_init_device(void)
 {
     opto_i2c_init();

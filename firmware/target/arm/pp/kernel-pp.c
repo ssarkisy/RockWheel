@@ -20,6 +20,7 @@
 #include "config.h"
 #include "system.h"
 #include "kernel.h"
+#include "hang.h"
 
 #if !defined(BOOTLOADER) || defined(HAVE_BOOTLOADER_USB_MODE)
 void TIMER1(void)
@@ -30,6 +31,12 @@ void TIMER1(void)
     /* Run through the list of tick tasks using main CPU core - 
        wake up the COP through its control interface to provide pulse */
     call_tick_tasks();
+
+#ifdef HAVE_HANG_CATCHER
+    /* both cores looked at from here, before the COP's pulse: neither tick
+       task slots nor timeouts, and nothing to forget to register */
+    hang_tick();
+#endif
 
 #if NUM_CORES > 1
     /* Pulse the COP */

@@ -138,6 +138,9 @@ static void NORETURN_ATTR uie_show(unsigned int pc, unsigned int num,
 #endif
     unsigned line = 0;
 
+    /* to the screen, should the fault have come while the HANG screen's
+       text was drawn into its bitmap (hang_text.c) */
+    lcd_glyph_sink_cancel();
     lcd_setfont(FONT_SYSFIXED);
     lcd_set_viewport(NULL);
     lcd_clear_display();

@@ -21,6 +21,7 @@
 #include "system.h"
 #include "kernel.h"
 #include "button.h"
+#include "hang.h"
 #ifdef HAVE_SDL
 #include "SDL.h"
 #if SDL_MAJOR_VERSION > 1
@@ -261,7 +262,12 @@ void button_clear_pressed(void)
 long button_get_w_tmo(int ticks)
 {
     struct queue_event ev;
+    /* the UI's wait, polls too, is what the hang catcher's D2 times the UI's
+       absences from: of the thread that waited last, the main thread or a
+       plugin's own (hang.c) */
+    hang_ui_wait(true);
     button_queue_wait(&ev, ticks);
+    hang_ui_wait(false);
 
     if (ev.id == SYS_TIMEOUT)
         ev.id = BUTTON_NONE;

@@ -35,6 +35,7 @@
 #include <profile.h>
 #endif
 #include "core_alloc.h"
+#include "hang.h"
 
 #if (CONFIG_PLATFORM & PLATFORM_HOSTED)
 #include <errno.h>
@@ -1038,6 +1039,77 @@ unsigned long thread_running_usec(void)
     return USEC_TIMER - running_since[CURRENT_CORE];
 }
 #endif
+
+#ifdef HAVE_HANG_CATCHER
+/* From the CPU's tick, of either core, as hang.c's D1 reads it. Unlocked:
+   the run queue's head and the time are single words, and a pick between
+   the reads only makes this one look old once, which D1's second look in a
+   row sets right. The time is read after since: before, a pick in between
+   would make it negative (the 1.5 calibration's 4294967 ms on the COP).
+   0 while the core idles, its run queue empty, and before its first pick. */
+unsigned long thread_core_running_usec(unsigned int core)
+{
+    const struct core_entry *corep = __core_id_entry(core);
+    const unsigned long since = running_since[core];
+    if (RTR_EMPTY(&corep->rtr) || !since)
+        return 0;
+    const long held = USEC_TIMER - since;
+    return held > 0 ? (unsigned long)held : 0;
+}
+
+bool thread_hang_exists(unsigned int thread_id)
+{
+    if (THREAD_ID_SLOT(thread_id) >= MAXTHREADS)
+        return false;
+    const struct thread_entry *thread = __thread_id_entry(thread_id);
+    return thread && thread->id == thread_id && thread->state != STATE_KILLED;
+}
+
+/* For the HANG record, from the crash stack with interrupts off and the other
+   core going on: what the thread's slot holds now, unlocked. The names are
+   copied, as the record outlives the slots. */
+bool thread_get_hang_info(int core, unsigned int thread_id,
+                          struct thread_hang_info *info)
+{
+    struct thread_entry *thread = core >= 0 ?
+        __core_id_entry(core)->running : __thread_id_entry(thread_id);
+    if (!thread || (core < 0 && thread->id != thread_id))
+        return false;
+
+    memset(info, 0, sizeof(*info));
+    format_thread_name(info->name, sizeof(info->name), thread);
+#if NUM_CORES > 1
+    info->core = thread->core;
+#endif
+    info->running = __core_id_entry(info->core)->running == thread
+                    && thread->state == STATE_RUNNING;
+    static const char * const states[THREAD_NUM_STATES] = {
+        [STATE_KILLED] = "killed", [STATE_RUNNING] = "ready",
+        [STATE_BLOCKED] = "blocked", [STATE_SLEEPING] = "sleeping",
+        [STATE_BLOCKED_W_TMO] = "blocked", [STATE_FROZEN] = "frozen",
+    };
+    info->state = info->running ? "running" :
+                  thread->state < THREAD_NUM_STATES ? states[thread->state]
+                                                    : "?";
+    info->stack_begin = (uintptr_t)thread->stack;
+    info->stack_end = (uintptr_t)thread->stack + thread->stack_size;
+    info->overflowed = thread->stack_size > 0 && thread->stack[0] != DEADBEEF;
+    info->sp = thread->context.sp;
+    info->lr = thread->context.lr;
+    for (int i = 0; i < 8; i++)
+        info->regs[i] = thread->context.r[i];
+    if (thread->state == STATE_BLOCKED || thread->state == STATE_BLOCKED_W_TMO)
+    {
+        info->wq = thread->wqp;
+        /* a mutex's owner, or the thread a queue_send() waits for */
+        struct blocker *bl = thread->blocker;
+        struct thread_entry *owner = bl ? bl->thread : NULL;
+        if (owner)
+            format_thread_name(info->owner, sizeof(info->owner), owner);
+    }
+    return true;
+}
+#endif /* HAVE_HANG_CATCHER */
 
 void switch_thread(void)
 {

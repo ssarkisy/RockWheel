@@ -41,6 +41,7 @@
 #include "splash.h"
 #include "cuesheet.h"
 #include "filetree.h"
+#include "hang_text.h"
 #include "misc.h"
 #include "strnatcmp.h"
 #include "keyboard.h"
@@ -585,6 +586,8 @@ static void ft_load_font(char *file)
     screens[screen].setuifont(
         font_load_ex(file,0,global_settings.glyphs_to_cache));
     viewportmanager_theme_changed(THEME_UI_VIEWPORT);
+    /* the HANG screen's in it too: no skins are loaded again for it */
+    hang_text_render();
 }
 
 static void ft_apply_skin_file(char *buf, char *file)

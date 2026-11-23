@@ -81,12 +81,18 @@ struct panic_record
     uint32_t core;                      /* CPU 0, COP 1 */
     uint32_t pc;                        /* where it faulted or hung; for
                                            panicf and a jump to 0, the
-                                           caller's return address */
+                                           caller's return address; for a
+                                           hung thread switched out, the
+                                           return of its call of
+                                           switch_thread(), 0 if not found */
     uint32_t lr;                        /* of the mode the exception came
                                            from (IRQ's for a fault in a
                                            handler); 0 for panicf */
     uint32_t sp;
-    uint32_t regs[8];                   /* r0-r7 at a data abort, else 0 */
+    uint32_t regs[8];                   /* r0-r7 at a data abort; for a
+                                           hung thread switched out, r4-r11
+                                           in its call of switch_thread(), as
+                                           that pushed them; else 0 */
     uint32_t uptime;                    /* current_tick */
     uint32_t wall;                      /* seconds since 1970, RTC at boot +
                                            uptime; 0: unknown */

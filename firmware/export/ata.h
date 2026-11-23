@@ -271,6 +271,10 @@ void ata_spin_waits(bool on);
 unsigned long ata_wait_begin(void);
 void ata_wait_yield(unsigned long begun);
 
+/* the drive spins up now, or began to or was reset at tick or since: the
+   hang catcher's grace for a UI that waits on it (HAVE_HANG_CATCHER, hang.c) */
+bool ata_troubled_since(long tick);
+
 #ifdef HAVE_ATA_DMA
 /* Returns current DMA mode */
 int ata_get_dma_mode(void);

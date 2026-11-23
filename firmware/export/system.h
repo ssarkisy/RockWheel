@@ -30,6 +30,12 @@ extern void system_reboot (void);
 /* Called from any UIE handler and panicf - wait for a key and return
  * to reboot system. */
 extern void system_exception_wait(void);
+#ifdef CPU_PP
+/* system_exception_wait()'s first steps: no interrupt on either core from
+   now on, nothing sounding. The HANG screen's wait (panic.c) goes on from
+   there itself. */
+extern void system_exception_quiet(void);
+#endif
 
 #if NUM_CORES == 1
 extern void system_init(void) INIT_ATTR;
@@ -276,6 +282,18 @@ static inline void cpu_boost_unlock(void)
 #if defined(HAVE_PANIC_RECORD) && !defined(SIMULATOR) && \
     defined(BACKTRACE_UNWARMINDER) && defined(CPU_PP)
     #define HAVE_PANIC_STKOV_SCAN
+#endif
+
+/* Define this if a hang is caught from the kernel's tick (hang.c): a record
+ * as a panic's, its trace walked as a stack overflow's is, and the HANG
+ * screen (panic.c), whose text is drawn beforehand (apps/hang_text.c). The
+ * simulator draws that screen and keeps its record, with no detector. */
+#ifdef HAVE_PANIC_STKOV_SCAN
+    #define HAVE_HANG_CATCHER
+#endif
+#if defined(HAVE_HANG_CATCHER) || (defined(HAVE_PANIC_RECORD) && \
+                                   defined(SIMULATOR) && LCD_DEPTH >= 16)
+    #define HAVE_HANG_SCREEN
 #endif
 
 /*

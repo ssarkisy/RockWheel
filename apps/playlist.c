@@ -115,6 +115,7 @@
 #endif
 #include "logf.h"
 #include "panic.h"
+#include "hang.h"
 
 #if 0//def ROCKBOX_HAS_LOGDISKF
 #undef DEBUGF
@@ -762,6 +763,12 @@ static void display_playlist_count(int count, const unsigned char *fmt,
 {
     static long talked_tick = 0;
     long id = P2ID(fmt);
+
+    /* every PLAYLIST_DISPLAY_COUNT songs of an insertion or a save: the UI
+       going on, for the hang catcher. A save reads no button at all (its
+       abort is off), and a whole library's 32,000 songs, each a name read
+       and a line written, can take longer than D2's limit. */
+    hang_ui_alive();
 
     if(id >= 0 && global_settings.talk_menu)
     {

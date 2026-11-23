@@ -235,6 +235,28 @@ extern bool lcd_update_held(int *x, int *y, int *width, int *height);
 extern void lcd_clear_viewport(void);
 extern void lcd_clear_display(void);
 extern void lcd_putsxy(int x, int y, const unsigned char *string);
+#if defined(HAVE_LCD_COLOR) && !defined(BOOTLOADER)
+/* While set, the main screen's text goes to it glyph by glyph instead, by
+   the same rules (direction, fallback fonts, marks): each glyph's bits in its
+   font's form, the mono bitmap's or (alpha) the 4-bit alpha's of 0 for ink,
+   from src_x of rows stride pixels, to x, y of the viewport, width by height.
+   For text drawn into a bitmap of its own (apps/hang_text.c), by the thread
+   lcd_glyph_sink_thread alone: other threads' text still goes to the screen. */
+extern void (*lcd_glyph_sink)(const unsigned char *bits, bool alpha,
+                              int src_x, int stride, int x, int y,
+                              int width, int height);
+extern unsigned int lcd_glyph_sink_thread;
+/* A crash screen's text to the screen, whatever was being drawn into a
+   bitmap when the crash came */
+static inline void lcd_glyph_sink_cancel(void)
+{
+    lcd_glyph_sink = NULL;
+}
+#else
+static inline void lcd_glyph_sink_cancel(void)
+{
+}
+#endif
 extern void lcd_putsxyf(int x, int y, const unsigned char *fmt, ...);
 extern void lcd_putsxy_style_offset(int x, int y, const unsigned char *str,
                                     int style, int offset);

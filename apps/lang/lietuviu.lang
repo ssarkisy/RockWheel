@@ -19432,3 +19432,45 @@
     *: ""
   </voice>
 </phrase>
+<phrase>
+  id: LANG_HANG_TITLE
+  desc: the HANG screen's first line, alone on it, after the iPod stopped responding and waits for the user's reset; RockWheel is the name of the firmware, as it is
+  user: core
+  <source>
+    *: "RockWheel stopped responding"
+  </source>
+  <dest>
+    *: "RockWheel nereaguoja"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HANG_RESTART
+  desc: the HANG screen, how to restart: hold the iPod's Menu and Select buttons together; keep Menu and Select as the iPod's own phrases name those buttons
+  user: core
+  <source>
+    *: "To restart, hold Menu and Select."
+  </source>
+  <dest>
+    *: "Norėdami paleisti iš naujo, laikykite nuspaudę Menu ir Select."
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_HANG_SEND
+  desc: the HANG screen, after the restart: the first %s is the file's path (.rockbox/crash.log), the second the e-mail address, both put in as they are; keep %s before %s; it may run over several lines
+  user: core
+  <source>
+    *: "After the restart, send the file %s to %s"
+  </source>
+  <dest>
+    *: "Paleidę iš naujo, nusiųskite failą %s adresu %s"
+  </dest>
+  <voice>
+    *: ""
+  </voice>
+</phrase>

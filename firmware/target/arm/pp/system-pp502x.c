@@ -661,9 +661,8 @@ void ICODE_ATTR system_reboot(void)
     while (1);
 }
 
-void system_exception_wait(void)
+void system_exception_quiet(void)
 {
-    /* FIXME: we just need the right buttons */
     CPU_INT_DIS = -1;
     COP_INT_DIS = -1;
 #if defined(IPOD_ARCH) && defined(HAVE_HARDWARE_CLICK)
@@ -671,6 +670,12 @@ void system_exception_wait(void)
        come now: its tone would sound until a reset */
     PWM0_CTRL = 0;
 #endif
+}
+
+void system_exception_wait(void)
+{
+    /* FIXME: we just need the right buttons */
+    system_exception_quiet();
 
     /* Halt */
     PROC_CTL(CURRENT_CORE) = 0x40000000;

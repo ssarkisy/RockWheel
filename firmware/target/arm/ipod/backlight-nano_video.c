@@ -110,6 +110,51 @@ void _backlight_hw_enable(bool on)
     enabled = on;
 }
 
+#ifdef HAVE_HANG_CATCHER
+#include "hang.h"
+/* The HANG screen's light (panic.c), interrupts off: the circuit on with the
+   clock's waits instead of sleep(), the panel already woken by
+   lcd_awake_crash(), at the brightness set; the LED steady, as the fade's
+   TIMER2 toggles it no more. By the lines themselves, not enabled, which a
+   hang inside _backlight_hw_enable()'s sleeps leaves behind them: the
+   dimmer is told its level in steps from the one it has, 16 only after a
+   power-up, so a circuit already on keeps current_dim. */
+void backlight_hw_crash_on(void)
+{
+    const bool on = (GPIOB_OUTPUT_VAL & 0x08) && (GPIOD_OUTPUT_VAL & 0x80);
+    if (!on)
+    {
+        /* off, or half off: off whole as long as _backlight_hw_enable()
+           keeps it so, then on from the dimmer's power-up level */
+        GPIO_CLEAR_BITWISE(GPIOD_OUTPUT_VAL, 0x80);
+        GPIO_CLEAR_BITWISE(GPIOB_OUTPUT_VAL, 0x08);
+        udelay(50000);
+        GPIO_SET_BITWISE(GPIOB_OUTPUT_VAL, 0x08);
+        GPIO_SET_BITWISE(GPIOD_OUTPUT_VAL, 0x80);
+        udelay(10000);
+        current_dim = 16;
+    }
+    else if (!enabled)
+    {
+        /* switched on, its wait cut short before the level was set */
+        udelay(10000);
+        current_dim = 16;
+    }
+    enabled = true;
+    backlight_hw_brightness(brightness);
+    _backlight_led_on();
+}
+
+/* and out, as _backlight_off_normal() without its sleep */
+void backlight_hw_crash_off(void)
+{
+    _backlight_led_off();
+    GPIO_CLEAR_BITWISE(GPIOD_OUTPUT_VAL, 0x80);
+    GPIO_CLEAR_BITWISE(GPIOB_OUTPUT_VAL, 0x08);
+    enabled = false;
+}
+#endif
+
 /* Switch the backlight on. Works only if the backlight circuit is enabled.
  * Called in ISR context for fading, so it must be fast. */
 void _backlight_led_on(void)

@@ -95,6 +95,7 @@
 #include "list_covers.h"
 #include "artist_rows.h"
 #endif
+#include "hang.h"
 
 struct root_items {
     int (*function)(void* param);
@@ -2540,6 +2541,10 @@ void root_menu(void)
     int selected = 0;
     int shortcut_origin = GO_TO_ROOT;
 
+    /* the hang catcher's D1 from here; its D2, the UI away from its buttons,
+       from the loop: the waits for the dircache and the boot's Updating
+       Library before it took up to 28 s on 13k songs (hang.h) */
+    hang_start();
     push_current_activity(ACTIVITY_MAINMENU);
 #ifdef HAVE_DIRCACHE
     /* The tree of the files is in memory before the menu shows, as every cache
@@ -2595,6 +2600,7 @@ void root_menu(void)
     if (settings_first_start())
         language_screen();
     next_screen = root_menu_setup_screens();
+    hang_run();
 
     while (true)
     {

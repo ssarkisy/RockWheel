@@ -35,6 +35,7 @@
 /* Included only for lcd_awake() prototype */
 #include "backlight-target.h"
 #endif
+#include "hang.h"
 
 /* The BCM bus width is 16 bits. But since the low address bits aren't decoded
  * by the chip (the 3 BCM address bits are mapped to address bits 16..18 of the
@@ -671,13 +672,18 @@ const unsigned char bcm_bootstrapdata[] =
     0xA1, 0x81, 0x91, 0x02, 0x12, 0x22, 0x72, 0x62
 };
 
-static void bcm_init(void)
+/* polled: with interrupts off, for the HANG screen (lcd_awake_crash()), the
+   waits by the clock instead of sleep() and yield() */
+static void bcm_init(bool polled)
 {
     int i;
 
     /* Power up BCM */
     GPO32_VAL |= 0x4000;
-    sleep(HZ/20);
+    if (polled)
+        udelay(50000);
+    else
+        sleep(HZ/20);
 
     /* Bootstrap stage 1 */
 
@@ -727,8 +733,14 @@ static void bcm_init(void)
     bcm_write32(0x10000C00, 0);
     bcm_write32(0x10000400, 0xA5A50002);
 
+    const unsigned long start = USEC_TIMER;
     while (bcm_read32(BCMA_COMMAND) == 0)
-        yield();
+    {
+        if (!polled)
+            yield();
+        else if (USEC_TIMER - start > 1000000)
+            break; /* the screen tried, the record already kept */
+    }
 
     /* sleep(HZ/2) apparently unneeded */
 }
@@ -742,7 +754,7 @@ void lcd_awake(void)
         if (sleepwait > 0 && sleepwait < HZ/20)
             sleep(sleepwait);
 
-        bcm_init();
+        bcm_init(false);
 
         /* Start the first LCD update, which also initializes the LCD */
         lcd_state.state = LCD_INITIAL;
@@ -760,6 +772,37 @@ void lcd_awake(void)
         send_event(LCD_EVENT_ACTIVATION, NULL);
     }
 }
+
+#ifdef HAVE_HANG_CATCHER
+/* lcd_awake() for the HANG screen (panic.c), interrupts off: polled, with no
+   tick task, semaphore or event. Powered off first, whatever a sleep or a
+   wake the hang cut short left the BCM in, as from off it boots the same
+   way each time, then kept off 50 ms as lcd_awake() keeps it. The first
+   update, which also starts the panel, is waited for as lcd_awake() waits
+   for it, so that the light shows no white. */
+void lcd_awake_crash(void)
+{
+    if (lcd_state.display_on || flash_vmcs_length == 0)
+        return;
+
+    GPO32_VAL &= ~0x4000;
+    udelay(50000);
+    bcm_init(true);
+
+    lcd_state.state = LCD_INITIAL;
+    lcd_state.waking = false;
+    lcd_state.display_on = true;
+    lcd_update();
+
+    const unsigned long start = USEC_TIMER;
+    while (USEC_TIMER - start < BCM_LCDINIT_TIMEOUT * (1000000 / HZ))
+    {
+        const unsigned data = bcm_read32(BCMA_COMMAND);
+        if (data != BCMCMD_LCD_UPDATE && data != 0xFFFF)
+            break;
+    }
+}
+#endif /* HAVE_HANG_CATCHER */
 
 void lcd_sleep(void)
 {

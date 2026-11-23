@@ -5,6 +5,8 @@
 # play with the iPod's buttons and wheel and fit the plugin buffer without
 # taking the music's; of files, only Sokoban needs its sokoban.levels, which
 # goes with it by its name.
+# Each reads a button at least every few seconds while it works, or the hang
+# catcher calls the iPod hung after 20 s (firmware/export/hang.h).
 rockblox
 2048
 sudoku

@@ -35,6 +35,7 @@
 #include "core_alloc.h"
 #include "storage.h"
 #include "rolo.h"
+#include "hang.h"
 
 #include "loader_strerror.h"
 #if defined(MI4_FORMAT)
@@ -120,6 +121,7 @@ void rolo_restart_cop(void)
 
 static void rolo_error(const char *text)
 {
+    hang_hold(HANG_HOLD_ROLO, false); /* the UI reads buttons again */
     rolo_handle = core_free(rolo_handle);
     lcd_clear_display();
     lcd_puts(0, 0, "ROLO error:");
@@ -236,6 +238,9 @@ int rolo_load(const char* filename)
     size_t filebuf_size;
     int err, length;
 
+    /* the file is read by the UI, which reads no button meanwhile, and the
+       wait for the COP spins: no hang catcher, unless it fails */
+    hang_hold(HANG_HOLD_ROLO, true);
     lcd_clear_display();
     rolo_puts(0, 0, "ROLO");
     rolo_puts(0, 1, "Loading...");

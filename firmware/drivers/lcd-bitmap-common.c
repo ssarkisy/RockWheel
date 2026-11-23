@@ -380,6 +380,34 @@ static void LCDFN(mono_bmp_part_helper)(const unsigned char *src, int src_x,
     LCDFN(mono_bitmap_part)(src, src_x, src_y, stride, x, y, width, height);
 }
 
+#if defined(MAIN_LCD) && defined(HAVE_LCD_COLOR) && !defined(BOOTLOADER)
+void (*lcd_glyph_sink)(const unsigned char *bits, bool alpha, int src_x,
+                       int stride, int x, int y, int width, int height);
+unsigned int lcd_glyph_sink_thread;
+
+/* lcd_glyph_sink's, in place of the screen's bitmap parts: for its own
+   thread's text alone, as another's (the scroll thread's) may come while a
+   font read yields */
+static void glyph_sink_mono(const unsigned char *src, int src_x, int src_y,
+                            int stride, int x, int y, int width, int height)
+{
+    if (thread_self() == lcd_glyph_sink_thread)
+        lcd_glyph_sink(src, false, src_x, stride, x, y, width, height);
+    else
+        LCDFN(mono_bitmap_part)(src, src_x, src_y, stride, x, y, width,
+                                height);
+}
+
+static void glyph_sink_alpha(const unsigned char *src, int src_x, int src_y,
+                             int stride, int x, int y, int width, int height)
+{
+    if (thread_self() == lcd_glyph_sink_thread)
+        lcd_glyph_sink(src, true, src_x, stride, x, y, width, height);
+    else
+        lcd_alpha_bitmap_part(src, src_x, src_y, stride, x, y, width, height);
+}
+#endif
+
 #ifndef BOOTLOADER
 /* put a string at a given pixel position, skipping first ofs pixel columns */
 static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
@@ -448,6 +476,10 @@ static void LCDFN(putsxyofs)(int x, int y, int ofs, const unsigned char *str)
         else
 #endif
             bmp_part_fn = LCDFN(mono_bmp_part_helper);
+#if defined(MAIN_LCD) && defined(HAVE_LCD_COLOR)
+        if (lcd_glyph_sink)
+            bmp_part_fn = gf->depth ? glyph_sink_alpha : glyph_sink_mono;
+#endif
         /* on the baseline, within the line; one too tall for it centred on
            it, but Hangul's of the size above on the baseline still */
         int gy = y + ((int)pf->height - (int)gf->height) / 2;

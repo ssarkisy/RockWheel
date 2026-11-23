@@ -23,6 +23,7 @@
 #   make -C tests check-lines    the playlists' line reader against the loops
 #                                it replaced
 #   make -C tests check-panic    the crash record, its copies and their vote
+#   make -C tests check-hang     the hang catcher's detectors, phases and holds
 #   make -C tests check-fw       file_write.c with each operation failing or
 #                                cut
 #   make -C tests check-orders   the Songs orders' sort from a hint, and its
@@ -88,15 +89,15 @@ LIB_OBJ := $(OBJ)/lib/check.o $(OBJ)/lib/stubs.o $(OBJ)/lib/simfs.o \
 	$(OBJ)/apps/file_write.o
 
 .PHONY: all check check-keys check-itunesdb check-covers check-codecs \
-	check-wheel check-disk check-lines check-panic check-fw check-orders \
-	check-bar check-compilations clean
+	check-wheel check-disk check-lines check-panic check-hang check-fw \
+	check-orders check-bar check-compilations clean
 all: $(BUILD)/test_keys $(BUILD)/test_itunesdb $(BUILD)/test_covers \
-	$(BUILD)/test_wheel $(BUILD)/test_panic_record $(BUILD)/test_fw \
-	$(BUILD)/test_orders $(BUILD)/test_skin_ratio
+	$(BUILD)/test_wheel $(BUILD)/test_panic_record $(BUILD)/test_hang \
+	$(BUILD)/test_fw $(BUILD)/test_orders $(BUILD)/test_skin_ratio
 
 check: check-keys check-itunesdb check-covers check-wheel check-codecs \
-	check-compilations check-disk check-lines check-panic check-fw \
-	check-orders check-bar
+	check-compilations check-disk check-lines check-panic check-hang \
+	check-fw check-orders check-bar
 
 $(OBJ)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -164,6 +165,20 @@ $(BUILD)/test_panic_record: $(OBJ)/panic/test_panic_record.o \
 
 check-panic: $(BUILD)/test_panic_record
 	@$(BUILD)/test_panic_record
+
+# The hang catcher: firmware/hang.c, built by test_hang.c itself with the
+# catcher on, the scheduler and the record stubbed
+$(OBJ)/hang/%.o: $(TESTS)/hang/%.c $(ROOT)/firmware/hang.c
+	@mkdir -p $(dir $@)
+	@echo CC $(subst $(ROOT)/,,$<)
+	@$(HOST_CC) $(CFLAGS) -Wall -MMD -c $< -o $@
+
+$(BUILD)/test_hang: $(OBJ)/hang/test_hang.o $(OBJ)/lib/check.o
+	@echo LD $(notdir $@)
+	@$(HOST_CC) $(LDFLAGS) -o $@ $^
+
+check-hang: $(BUILD)/test_hang
+	@$(BUILD)/test_hang
 
 # skin_ratio.h: a bar's slider's place and the skins' percentages, against
 # the expressions they replaced, in 32 bits as the iPod worked them out

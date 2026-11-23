@@ -39,7 +39,9 @@ from bisect import bisect_right
 
 ARCHIVE = os.path.expanduser('~/ipod-data/archive/device-builds')
 TOOLCHAIN = os.path.expanduser('~/Developer/rockbox-toolchain/bin')
-# what the record's pc is: the fault itself, or a return address
+# what the record's pc is: the fault itself, or a return address. A hang's
+# is the interrupted instruction of a thread running, else the return of its
+# call of switch_thread()
 PC_IS_RETURN = {'panicf', 'jump to 0', 'hang'}
 
 
@@ -206,15 +208,20 @@ def main():
             print(f'   {label:<6} {value:08x}  '
                   + (describe(syms, value, is_return) if value else '-'))
 
-        show('pc', rec.get('pc', ''), what in PC_IS_RETURN)
+        running = what == 'hang' and '(running)' in rec.get('message', '')
+        show('pc', rec.get('pc', ''), what in PC_IS_RETURN and not running)
         show('lr', rec.get('lr', ''), True)
         print(f'   sp     {rec.get("sp", "?")}')
         regs = rec.get('regs', '').split()
+        # a data abort's r0-r7; a hang's, a switched-out thread's r4-r11 as
+        # switch_thread()'s prologue pushed them
+        first = 4 if what == 'hang' else 0
         for i, r in enumerate(regs):
             value = int(r, 16)
             hit = syms.lookup(value & ~1)
             if value >= 0x1000 and hit:   # small numbers aren't code
-                print(f'   r{i:<5} {value:08x}  {describe(syms, value, False)}')
+                print(f'   r{first + i:<5} {value:08x}  '
+                      f'{describe(syms, value, False)}')
         for i, t in enumerate(rec.get('trace', '').split()):
             show(f'#{i}', t, True)
 

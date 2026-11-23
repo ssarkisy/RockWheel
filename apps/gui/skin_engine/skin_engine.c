@@ -43,6 +43,7 @@
 #include "statusbar-skinned.h"
 #include "wps_internals.h"
 #include "menu_cover.h"
+#include "hang_text.h"
 
 #define FAILSAFENAME "rockbox_failsafe"
 
@@ -261,6 +262,8 @@ static void skins_reload(bool stop_audio)
 void settings_apply_skins(void)
 {
     skins_reload(true);
+    /* in the language, the font and the colours now set */
+    hang_text_render();
 }
 
 /* For skins with all the same album art sizes as those before them, so that what's

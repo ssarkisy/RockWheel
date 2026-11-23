@@ -121,6 +121,8 @@ struct battery_tables_t {
 int battery_level(void); /* percent */
 int battery_time(void); /* minutes */
 int battery_voltage(void); /* filtered batt. voltage in millivolts */
+/* the target's last reading the filter took in, millivolts; -1 without one */
+int battery_voltage_read(void);
 int battery_current(void); /* battery current in milliamps
                             * (may just be a rough estimate) */
 

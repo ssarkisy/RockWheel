@@ -34,6 +34,7 @@
 #include "crc32.h"
 #include "sound.h"
 #include "settings.h"
+#include "hang_text.h"
 #ifdef HAVE_COMPOSITE_VIDEO_OUT
 #include "videoout.h"
 #endif
@@ -1237,6 +1238,10 @@ void settings_apply(bool read_disk)
         CHART(">icons_init");
         icons_init();
         CHART("<icons_init");
+
+        /* the HANG screen's in the language and font just loaded: a .cfg's
+           language loads no skins, and doesn't come to settings_apply_skins() */
+        hang_text_render();
 
 #ifdef HAVE_LCD_COLOR
         CHART(">read_color_theme_file");

@@ -47,6 +47,14 @@ static bool enabled = false;
  * without delay. Not doing that does a short (fixed) fade out. Opt for the
  * latter. */
 
+static void light_on(void)
+{
+    /* brightness full */
+    outl(0x80000000 | (brightness << 16), 0x7000a010);
+    GPIO_SET_BITWISE(GPIOB_OUTPUT_VAL, 0x08);
+    enabled = true;
+}
+
 void backlight_hw_on(void)
 {
 #ifdef HAVE_LCD_SLEEP
@@ -54,11 +62,24 @@ void backlight_hw_on(void)
        again, before the light shows it */
     lcd_awake_redrawn();
 #endif
-    /* brightness full */
-    outl(0x80000000 | (brightness << 16), 0x7000a010);
-    GPIO_SET_BITWISE(GPIOB_OUTPUT_VAL, 0x08);
-    enabled = true;
+    light_on();
 }
+
+#ifdef HAVE_HANG_CATCHER
+#include "hang.h"
+/* The HANG screen's light (panic.c), interrupts off: the panel already woken
+   by lcd_awake_crash(), and lcd_awake_redrawn()'s wait for the UI's redraw
+   by sleep() of no use */
+void backlight_hw_crash_on(void)
+{
+    light_on();
+}
+
+void backlight_hw_crash_off(void)
+{
+    backlight_hw_off();
+}
+#endif
 
 void backlight_hw_off(void)
 {

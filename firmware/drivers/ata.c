@@ -127,6 +127,26 @@ static inline void keep_ata_active(void)
     last_disk_activity = current_tick;
 }
 
+#ifdef HAVE_HANG_CATCHER
+/* when the drive last began to spin up or was reset: a UI waiting on it then
+   is given longer before the hang catcher calls it hung (hang.c) */
+static long trouble_tick;
+
+bool ata_troubled_since(long tick)
+{
+    return ata_state == ATA_SPINUP || !TIME_BEFORE(trouble_tick, tick);
+}
+
+static inline void ata_troubled(void)
+{
+    trouble_tick = current_tick;
+}
+#else
+static inline void ata_troubled(void)
+{
+}
+#endif
+
 static inline bool ata_sleep_timed_out(void)
 {
     return sleep_timeout &&
@@ -587,6 +607,7 @@ static int ata_transfer_sectors(uint64_t start,
         int state = ata_state;
         read_from_off = state == ATA_OFF && !write;
         ata_state = ATA_SPINUP;
+        ata_troubled();
         if (ata_perform_wakeup(state)) {
             ret = -2;
             goto error;
@@ -1008,6 +1029,7 @@ static int perform_soft_reset(void)
     int retry_count;
 
     logf("ata SOFT RESET %ld", current_tick);
+    ata_troubled();
 
     ATA_OUT8(ATA_SELECT, SELECT_LBA | ata_device );
     ATA_OUT8(ATA_CONTROL, CONTROL_nIEN|CONTROL_SRST );

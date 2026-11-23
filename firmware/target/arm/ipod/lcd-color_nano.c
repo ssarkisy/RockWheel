@@ -32,6 +32,7 @@
 #include "hwcompat.h"
 #include "backlight-target.h"
 #include "backlight.h"
+#include "hang.h"
 
 /* LCD command codes for HD66789R */
 #define LCD_CNTL_RAM_ADDR_SET           0x21
@@ -70,9 +71,39 @@ static unsigned int lcd_updates SHAREDBSS_ATTR;
 static struct corelock lcd_cl SHAREDBSS_ATTR;
 #endif
 
+#if NUM_CORES > 1 && !defined(BOOTLOADER)
+/* With interrupts off, as panicf, UIE and the HANG screen draw (on the CPU),
+   the other core's update is waited for 50 ms at most, then the panel drawn
+   all the same, as the Video's BCM is taken (lcd_take_bcm()): a COP stuck
+   in an update would hold the lock for good. Only the CPU's crash screen
+   sets this, and only an unlock there acts on it: any other took the lock
+   as always and gives it back. */
+static bool lcd_lock_skipped;
+
+static inline bool lcd_crash_drawing(void)
+{
+    return !irq_enabled() && CURRENT_CORE == CPU;
+}
+#endif
+
 static inline void lcd_lock(void)
 {
 #if NUM_CORES > 1
+#ifndef BOOTLOADER
+    if (lcd_crash_drawing())
+    {
+        const unsigned long start = USEC_TIMER;
+        while (!corelock_try_lock(&lcd_cl))
+        {
+            if (USEC_TIMER - start > 50000)
+            {
+                lcd_lock_skipped = true;
+                return;
+            }
+        }
+        return;
+    }
+#endif
     corelock_lock(&lcd_cl);
 #endif
 }
@@ -80,6 +111,13 @@ static inline void lcd_lock(void)
 static inline void lcd_unlock(void)
 {
 #if NUM_CORES > 1
+#ifndef BOOTLOADER
+    if (lcd_lock_skipped && lcd_crash_drawing())
+    {
+        lcd_lock_skipped = false;
+        return;
+    }
+#endif
     corelock_unlock(&lcd_cl);
 #endif
 }
@@ -605,6 +643,34 @@ void lcd_sleep(void)
     lcd_unlock();
 }
 
+/* under lcd_cl, the panel off */
+static void lcd_power_on(void)
+{
+    /* as Apple's firmware powers it on (in its 1.x osos at 0x169b68), which
+       sets none of lcd_init_device()'s other registers again */
+    lcd_cmd_data(0xef, 0x0);
+    lcd_cmd_data(0x01, 0x0);
+    lcd_cmd_data(0x80, 0x1); udelay(1000);
+    lcd_cmd_data(0x7e, 0x5);
+    lcd_cmd_data(0x7f, 0x1);
+    lcd_off = false;
+}
+
+#ifdef HAVE_HANG_CATCHER
+/* lcd_awake() for the HANG screen (panic.c), interrupts off: without the
+   activation's event, whose handlers would draw, and with its lock bounded
+   (lcd_lock()); the screen is drawn whole right after */
+void lcd_awake_crash(void)
+{
+    if (lcd_type != 0 || !lcd_off)
+        return;
+    lcd_lock();
+    if (lcd_off)
+        lcd_power_on();
+    lcd_unlock();
+}
+#endif
+
 /* From the backlight thread: before the light comes on (lcd_awake_redrawn()),
    as the iPod's sleep ends, the light off (backlight.c), and at a shutdown */
 void lcd_awake(void)
@@ -621,14 +687,7 @@ void lcd_awake(void)
         return;
     }
 
-    /* as Apple's firmware powers it on (in its 1.x osos at 0x169b68), which
-       sets none of lcd_init_device()'s other registers again */
-    lcd_cmd_data(0xef, 0x0);
-    lcd_cmd_data(0x01, 0x0);
-    lcd_cmd_data(0x80, 0x1); udelay(1000);
-    lcd_cmd_data(0x7e, 0x5);
-    lcd_cmd_data(0x7f, 0x1);
-    lcd_off = false;
+    lcd_power_on();
 
     /* the framebuffer's whole picture before the light shows the panel,
        whatever the panel kept, and whatever lcd_update_held() would hold:

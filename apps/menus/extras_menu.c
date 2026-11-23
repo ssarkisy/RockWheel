@@ -61,6 +61,11 @@ static int plugin_there(int action, const struct menu_item_ex *this_item,
     return action;
 }
 
+/* A plugin admitted here, or in apps/plugins/ROCKWHEEL or ROCKWHEEL_GAMES,
+   reads a button at least every few seconds while it works, on the thread
+   whose screen it is: else the hang catcher's D2 calls the iPod hung after
+   20 s (hang.h). The shipped ones do. Of Rockbox's, mp3_encoder, wav2wv and
+   vbrfix (a whole file without one) don't, and aren't shipped. */
 #define EXTRA(name, lang, path) \
     MENUITEM_FUNCTION_W_PARAM(name, MENU_FUNC_CHECK_RETVAL, ID2P(lang), \
                               run_plugin, (void *)(path), plugin_there, \

@@ -482,8 +482,10 @@ put_boot_data_here
 /* Align stacks to cache line boundary */
     .balign 32
 
-/* 256 words of IRQ stack */
+/* 256 words of IRQ stack. Global for the hang catcher's record (panic.c),
+   which takes the interrupted pc from the top of the tick's frame. */
     .space 256*4
+    .global irq_stack
 irq_stack:
 
 /* 256 words of COP IRQ stack */

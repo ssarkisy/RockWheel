@@ -28,6 +28,8 @@
 #include "timefuncs.h"
 #include "version.h"
 #include "cpu_time.h"
+#include "power.h"
+#include "powermgmt.h"
 #include "health_log.h"
 
 #if (CONFIG_STORAGE & STORAGE_ATA) && (CONFIG_PLATFORM & PLATFORM_NATIVE) \
@@ -718,6 +720,34 @@ static inline void cpu_line_written(void)
 }
 #endif /* HAVE_CPU_TIME */
 
+/* The battery as the flush finds it, on the line of each flush that writes:
+   the voltage as filtered and the reading last taken into it, the percentage
+   shown, and the charge. Never a flush of its own: as the iPod falls asleep
+   that would wake the disk for it alone. */
+static int battery_line(char *line, size_t size)
+{
+    const int mv = battery_voltage();
+    if (mv < 0)
+        return 0;
+    const char *charge = "on battery";
+#if CONFIG_CHARGING
+    const unsigned int inputs = power_input_status();
+    const bool usb = inputs & POWER_INPUT_USB_CHARGER;
+    if (inputs & POWER_INPUT_CHARGER)
+    {
+        if (charging_state())
+            charge = usb ? "charging, on USB" : "charging, on the charger";
+        else
+            charge = usb ? "not charging, on USB"
+                         : "not charging, on the charger";
+    }
+#endif
+    const int n = snprintf(line, size, "%ld battery: %d mV, %d mV at the last"
+                           " reading; %d%%; %s\n", current_tick / HZ, mv,
+                           battery_voltage_read(), battery_level(), charge);
+    return MIN(n, (int)size - 1);
+}
+
 void health_usb_ended(void)
 {
 #ifdef HAVE_CPU_TIME
@@ -741,7 +771,7 @@ void health_flush(void)
     /* and the memory's, the descriptors', the fonts', the dircache's and the
        tallies': static, as the stack has little to spare here */
     static char memory[NOTE_MAX], files[NOTE_MAX], fonts[NOTE_MAX],
-                dc[NOTE_MAX], tally[NOTE_MAX];
+                dc[NOTE_MAX], tally[NOTE_MAX], battery[96];
     const int memory_len = memory_line(memory, sizeof(memory));
     const int files_len = files_line(files, sizeof(files));
     const int fonts_len = fonts_line(fonts, sizeof(fonts));
@@ -759,6 +789,7 @@ void health_flush(void)
     if (!len && !drive_len && !usb_len && !fat_len && !kernel_len && !cpu_len
         && !memory_len && !files_len && !fonts_len && !dc_len && !tally_len)
         return;
+    const int battery_len = battery_line(battery, sizeof(battery));
 
     int fd = open(HEALTH_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
     if (fd >= 0 && ffilesize(fd) >= HEALTH_FILE_MAX)
@@ -794,6 +825,7 @@ void health_flush(void)
         ok = write(fd, text, n) == n;
     }
     ok = ok && (!memory_len || write(fd, memory, memory_len) == memory_len)
+            && (!battery_len || write(fd, battery, battery_len) == battery_len)
             && (!drive_len || write(fd, drive, drive_len) == drive_len)
             && (!usb_len || write(fd, usb, usb_len) == usb_len)
             && (!fat_len || write(fd, fat, fat_len) == fat_len)

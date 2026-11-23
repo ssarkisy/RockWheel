@@ -52,6 +52,7 @@ debug.c
 panic.c
 #if !defined(BOOTLOADER)
 common/panic_record.c
+hang.c
 #endif
 #if (CONFIG_PLATFORM & PLATFORM_HOSTED) && defined(BOOTFILE)
 target/hosted/rolo.c
