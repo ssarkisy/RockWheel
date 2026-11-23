@@ -5173,14 +5173,23 @@ bool itunesdb_resumes(const char *path)
    them, each in a slot of its own behind a header that says which it is */
 #define SLIDES_FILE     ROCKBOX_DIR "/itunesdb_slides.dat"
 #define SLIDES_TODO     ROCKBOX_DIR "/itunesdb_slides.todo"
+/* holding, in a byte, the makings in a row that frame reads or writes that
+   failed left short: at this many no boot makes them again, and the rest is
+   left for the next import's making, which empties it, as each boot's took
+   as long again under Preparing Covers (an empty file: none yet). A full
+   disk isn't counted: Updating Library says so, and each boot tries again */
+#define SLIDES_TRIES    3
+/* the slots itunesdb_slides_todo() reads for slides of an older kind */
+#define SLIDES_KIND_SLOTS 8
 /* every slot's header checked at the next making: a slide recorded as made
    didn't load */
 #define SLIDES_CHECK    ROCKBOX_DIR "/itunesdb_slides.check"
 /* "RBI4": of frames checked, at the size of Cover Flow's larger covers; each
    slot of a file of the smaller ones, which were "RBI2", is made again */
 #define SLIDE_MAGIC     0x34494252
-/* of a small frame, the large ones being unlike it: made again by an import
-   that finds its frames changed, as Finder may have written them since
+/* of a small frame, the large ones being unlike it, or of a large one whose
+   small one was empty or didn't read: made again by an import that finds
+   its frames changed, as Finder may have written them since
    (unsure_same()); "RBI3" before */
 #define SLIDE_UNSURE    0x35494252 /* "RBI5" */
 /* the colours' record of a made slide: of this size only, as a slide of
@@ -5198,7 +5207,16 @@ bool itunesdb_resumes(const char *path)
    slide, as a slide isn't made again, and known of each album when a track plays */
 #define COLOURS_FILE    ROCKBOX_DIR "/itunesdb_colours.dat"
 #define COLOURS_MAGIC   0x43494252 /* "RBIC" */
-#define COLOURS_VERSION 2 /* 2: all of the colour, and not its hue */
+#define COLOURS_VERSION 3 /* 2: all of the colour, and not its hue;
+                             3: no unsure slide of an empty frame */
+/* Version 2's records are taken, but for the unsure ones: an empty small
+   frame could have made them, as clusters that hold no frame read as zeros,
+   and those slides stayed black, as an unsure one is made again only when
+   its frames change. The first making after it, at the boot
+   (itunesdb_slides_todo()), makes them again. An older firmware takes no
+   record of version 3: it reads every slot again for its colour and makes
+   its unsure ones again. */
+#define COLOURS_VERSION_2 2
 #define SLIDE_PIXELS    (ITUNESDB_SLIDE_SIZE * ITUNESDB_SLIDE_SIZE)
 #define SLIDE_SLOT      ((int)ALIGN_UP(sizeof(struct slide_header) \
                                  + SLIDE_PIXELS * sizeof(fb_data), 2048))
@@ -6316,6 +6334,9 @@ static struct index slides_index = { 0, 0, sizeof(uint64_t) }; /* the keys */
 /* of the slides, their colours as uint32_t, then what each one's record says
    as uint16_t: 0 not made, MADE_SURE, or an unsure one's hash; 0 for none */
 static int colours_handle;
+/* those records were of version 2, some taken for not made: a making cut
+   short goes on at the next boot, as after an import (SLIDES_TODO) */
+static bool colours_older;
 /* a slide recorded as made didn't load: all are checked at the next making */
 static bool slides_suspect;
 static struct art_header index_hdr;
@@ -6437,12 +6458,16 @@ static void load_colours(void)
         made[i] = 0;
     }
     struct index_header h;
+    colours_older = false;
     int fd = open(COLOURS_FILE, O_RDONLY);
     if (fd >= 0)
     {
         if (read(fd, &h, sizeof(h)) == sizeof(h) && h.magic == COLOURS_MAGIC
-            && h.version == COLOURS_VERSION)
+            && (h.version == COLOURS_VERSION
+                || h.version == COLOURS_VERSION_2))
         {
+            const bool unsure_taken = h.version == COLOURS_VERSION;
+            colours_older = !unsure_taken;
             struct slide_colour *c = colours_block;
             const uint32_t count = MIN(h.count, slides_index.count);
             for (uint32_t i = 0; i < count; )
@@ -6457,6 +6482,8 @@ static void load_colours(void)
                     {
                         colours[i] = c[k].colour;
                         made[i] = record_made(c[k].made);
+                        if (made[i] >= MADE_UNSURE_MIN && !unsure_taken)
+                            made[i] = 0;
                     }
                 }
             }
@@ -6509,11 +6536,13 @@ static bool colours_written(void)
     return same;
 }
 
-static void write_colours(void)
+/* false if they couldn't be written, errno saying why */
+static bool write_colours(void)
 {
-    if (colours_handle <= 0 || colours_written()
-        || !out_open(COLOURS_FILE, FW_CACHE))
-        return;
+    if (colours_handle <= 0 || colours_written())
+        return true;
+    if (!out_open(COLOURS_FILE, FW_CACHE))
+        return false;
     struct index_header h = { COLOURS_MAGIC, COLOURS_VERSION, slides_index.count };
     fw_put(&out, &h, sizeof(h));
     for (uint32_t i = 0; i < slides_index.count; i++)
@@ -6522,7 +6551,7 @@ static void write_colours(void)
         colour_entry(i, &c);
         fw_put(&out, &c, sizeof(c));
     }
-    fw_close(&out, true);
+    return fw_close(&out, true);
 }
 
 /* the colour of slide i (from 0) of the index */
@@ -7222,18 +7251,38 @@ static uint32_t frame_sum(const fb_data *frame, const struct itunesdb_art *art)
     return h;
 }
 
+/* whether a frame read whole is all 0: no cover, but clusters that hold no
+   frame, as such clusters read; no slide is made of it, and *seen is set.
+   Finder's black is 0 too, so a cover all of that black is taken for none,
+   and Cover Flow shows its frame. */
+static bool frame_empty(const fb_data *frame, const struct itunesdb_art *art,
+                        bool *seen)
+{
+    const int n = art->width * art->height;
+    for (int k = 0; k < n; k++)
+    {
+        if (frame[k])
+            return false;
+    }
+    *seen = true;
+    return true;
+}
+
 /* an unsure slide's hash, in its record: the places of all its sources'
-   frames, and the pixels of its first large one, which Finder may write
-   after listing it. One unsure again of the same frames isn't made again at
-   the next import, which made each with up to seven frame reads, and then
-   Cover Flow's album list, Songs and the covers' step after it again, as
-   the import hadn't kept the covers. 16 bits of it, from 2. */
-static uint16_t unsure_hash(const struct art_slide *slide, uint32_t first_sum)
+   frames, and the pixels of its first large and small ones, which Finder
+   may write after listing them (sums[], as unsure_same() reads them). One
+   unsure again of the same frames isn't made again at the next import,
+   which made each with up to seven frame reads, and then Cover Flow's album
+   list, Songs and the covers' step after it again, as the import hadn't
+   kept the covers. 16 bits of it, from 2. */
+static uint16_t unsure_hash(const struct art_slide *slide,
+                            const uint32_t sums[2])
 {
     /* and of this size of slides, as SLIDE_MADE is: one of another isn't
        taken, its header unread */
-    const uint32_t h = index_hash(slide, sizeof(*slide),
-                                  first_sum ^ ITUNESDB_SLIDE_SIZE);
+    uint32_t h = index_hash(slide, sizeof(*slide),
+                            sums[0] ^ ITUNESDB_SLIDE_SIZE);
+    h = index_hash(&sums[1], sizeof(sums[1]), h);
     const uint16_t folded = (h ^ (h >> 16)) & 0xffff;
     return folded < MADE_UNSURE_MIN ? folded + MADE_UNSURE_MIN : folded;
 }
@@ -7241,14 +7290,26 @@ static uint16_t unsure_hash(const struct art_slide *slide, uint32_t first_sum)
 /* The cover to make a slide of, into art, with art_lock held: the first
    large frame like its small one or with none to tell, else the first small
    one, as one Finder hasn't written is more often the large, and then
-   *unsure, with the sum of the first large frame in *first_sum (0 if it
-   wasn't read). NULL without. */
+   *unsure. A frame that didn't read or is empty is none: a large one whose
+   small one is such is taken after the first small one, unsure too, and
+   then the small one of another source that differs. For an unsure one,
+   sums[] has the sums of the first source's large and small frames as they
+   read, 0 for one that didn't. *empty: a frame read empty. NULL without, and
+   *failed if a read failed: the making is then left short, and the slide
+   tried again at the next one (SLIDES_TRIES). */
 static const fb_data *slide_frame(const struct art_slide *slide,
                                   struct itunesdb_art *art, bool *unsure,
-                                  uint32_t *first_sum)
+                                  uint32_t sums[2], bool *failed, bool *empty)
 {
     *unsure = false;
-    *first_sum = 0;
+    *failed = false;
+    *empty = false;
+    sums[0] = sums[1] = 0;
+    int unchecked = -1;  /* the first source whose small frame couldn't tell */
+    int differs = -1;    /* and the first whose small one differed */
+    /* the first source's small frame, while small_raw still has it */
+    struct itunesdb_art small0;
+    const fb_data *s0 = NULL;
     for (int i = 0; i < SLIDE_SOURCES; i++)
     {
         const struct art_frame *f = &slide->source[i].large;
@@ -7257,23 +7318,88 @@ static const fb_data *slide_frame(const struct art_slide *slide,
         if (!f->file || !art_place(f->format, f->file, f->offset, art))
             break;
         const fb_data *frame = get_frame(art);
-        if (!frame)
-            continue;
-        if (!g->file || !art_place(g->format, g->file, g->offset, &small))
+        const bool large = frame && !frame_empty(frame, art, empty);
+        if (large
+            && (!g->file || !art_place(g->format, g->file, g->offset, &small)))
             return frame;
-        const fb_data *s = read_frame(&small, small_raw, sizeof(small_raw));
-        if (!s || frames_agree(frame, art->width, art->height,
-                               s, small.width, small.height))
+        const fb_data *s = large ? read_frame(&small, small_raw,
+                                              sizeof(small_raw)) : NULL;
+        const bool told = s && !frame_empty(s, &small, empty);
+        if (told && frames_agree(frame, art->width, art->height,
+                                 s, small.width, small.height))
             return frame;
-        /* before the next source's is read over it */
+        if (!frame || (large && !s))
+            *failed = true;
+        /* before the next source's are read over them */
         if (i == 0)
-            *first_sum = frame_sum(frame, art);
+        {
+            sums[0] = frame ? frame_sum(frame, art) : 0;
+            sums[1] = s ? frame_sum(s, &small) : 0;
+            if (s)
+            {
+                small0 = small;
+                s0 = s;
+            }
+        }
+        else if (large)
+            s0 = NULL;
+        if (large && !told && unchecked < 0)
+            unchecked = i;
+        if (told && differs < 0)
+            differs = i;
     }
+    /* none agreed: the first source's small frame, read again unless it is
+       still in small_raw, as it may not have been read above */
     const struct art_frame *g = &slide->source[0].small;
-    if (!g->file || !art_place(g->format, g->file, g->offset, art))
-        return NULL;
-    *unsure = true;
-    return read_frame(art, small_raw, sizeof(small_raw));
+    if (s0 || (g->file && art_place(g->format, g->file, g->offset, art)))
+    {
+        const fb_data *s = s0;
+        if (s0)
+            *art = small0;
+        else
+        {
+            s = read_frame(art, small_raw, sizeof(small_raw));
+            if (!s)
+                *failed = true;
+            sums[1] = s ? frame_sum(s, art) : 0;
+        }
+        if (s && !frame_empty(s, art, empty))
+        {
+            *unsure = true;
+            return s;
+        }
+    }
+    if (unchecked >= 0)
+    {
+        const struct art_frame *f = &slide->source[unchecked].large;
+        if (art_place(f->format, f->file, f->offset, art))
+        {
+            const fb_data *frame = get_frame(art);
+            if (!frame)
+                *failed = true;
+            else if (!frame_empty(frame, art, empty))
+            {
+                *unsure = true;
+                return frame;
+            }
+        }
+    }
+    if (differs > 0)
+    {
+        g = &slide->source[differs].small;
+        if (art_place(g->format, g->file, g->offset, art))
+        {
+            const fb_data *s = read_frame(art, small_raw, sizeof(small_raw));
+            if (!s)
+                *failed = true;
+            else if (!frame_empty(s, art, empty))
+            {
+                *unsure = true;
+                return s;
+            }
+        }
+    }
+    return NULL;
 }
 
 /* the sources of slide i, from the index */
@@ -7289,7 +7415,8 @@ static bool read_slide_sources(int index_fd, uint32_t i,
 }
 
 /* whether unsure slide i, of the record's hash made, is of the frames it was
-   made of: its sources in the index and its first large frame as they are */
+   made of: its sources in the index and its first large and small frames as
+   they are */
 static bool unsure_same(int index_fd, uint32_t i, uint16_t made)
 {
     struct art_slide slide;
@@ -7297,29 +7424,40 @@ static bool unsure_same(int index_fd, uint32_t i, uint16_t made)
     if (!read_slide_sources(index_fd, i, &slide))
         return false;
     const struct art_frame *f = &slide.source[0].large;
-    uint32_t sum = 0;
+    const struct art_frame *g = &slide.source[0].small;
+    uint32_t sums[2] = { 0, 0 };
     lock_art();
     if (f->file && art_place(f->format, f->file, f->offset, &art))
     {
         const fb_data *frame = get_frame(&art);
         if (frame)
-            sum = frame_sum(frame, &art);
+            sums[0] = frame_sum(frame, &art);
+    }
+    if (g->file && art_place(g->format, g->file, g->offset, &art))
+    {
+        const fb_data *s = read_frame(&art, small_raw, sizeof(small_raw));
+        if (s)
+            sums[1] = frame_sum(s, &art);
     }
     mutex_unlock(&art_lock);
-    return unsure_hash(&slide, sum) == made;
+    return unsure_hash(&slide, sums) == made;
 }
+
+/* what make_slide() did */
+enum { MAKE_FAILED, MAKE_DONE, MAKE_EMPTY };
 
 /* makes slide i of the index in the slides file, which is *size long so
    far, of the sources read from the index: the slide first, then its header,
    so that a slide being made is never taken for the one it will be. *made:
-   what its record is to say. */
-static bool make_slide(int fd, int index_fd, uint32_t i, uint64_t key,
-                       off_t *size, uint16_t *made)
+   what its record is to say. MAKE_EMPTY: every frame read and none had a
+   pixel, and the slot is blank, written so unless it was (blank) */
+static int make_slide(int fd, int index_fd, uint32_t i, uint64_t key,
+                      off_t *size, uint16_t *made, bool blank)
 {
     struct art_slide slide;
     struct itunesdb_art art;
     if (!read_slide_sources(index_fd, i, &slide))
-        return false;
+        return MAKE_FAILED;
 
     struct slide_header *head = (struct slide_header *)slide_slot;
     fb_data *pixels = (fb_data *)(slide_slot + sizeof(*head));
@@ -7329,18 +7467,19 @@ static bool make_slide(int fd, int index_fd, uint32_t i, uint64_t key,
        couldn't be made */
     off_t pos = (off_t)i * SLIDE_SLOT;
     if (lseek(fd, MIN(*size, pos), SEEK_SET) < 0)
-        return false;
+        return MAKE_FAILED;
     for (; *size < pos; *size += SLIDE_SLOT)
     {
         if (write(fd, slide_slot, SLIDE_SLOT) != SLIDE_SLOT)
-            return false;
+            return MAKE_FAILED;
     }
 
     lock_art();
     int w = 0, h = 0;
-    bool unsure;
-    uint32_t first_sum;
-    const fb_data *frame = slide_frame(&slide, &art, &unsure, &first_sum);
+    bool unsure, failed, empty;
+    uint32_t sums[2];
+    const fb_data *frame = slide_frame(&slide, &art, &unsure, sums, &failed,
+                                       &empty);
     if (frame)
     {
         /* the largest that fits the slide, keeping the shape */
@@ -7352,16 +7491,54 @@ static bool make_slide(int fd, int index_fd, uint32_t i, uint64_t key,
         scale_frame(frame, art.width, art.height, pixels, w, h, true);
     }
     mutex_unlock(&art_lock);
-    if (!frame || write(fd, slide_slot, SLIDE_SLOT) != SLIDE_SLOT)
-        return false;
+    /* each slide that met one: health.log tells how much of the art reads
+       so */
+    if (empty)
+        health_tally("cover slides with an empty frame");
+    if (!frame && failed)
+        return MAKE_FAILED;
+    if (!frame && blank)
+        return MAKE_EMPTY;
+    /* with no frame, the slot blank: an old slide in it, of the same key,
+       would show */
+    if (write(fd, slide_slot, SLIDE_SLOT) != SLIDE_SLOT)
+        return MAKE_FAILED;
     *size = MAX(*size, pos + (off_t)SLIDE_SLOT);
-    *made = unsure ? unsure_hash(&slide, first_sum) : MADE_SURE;
+    if (!frame)
+        return MAKE_EMPTY;
+    *made = unsure ? unsure_hash(&slide, sums) : MADE_SURE;
     head->magic = unsure ? SLIDE_UNSURE : SLIDE_MAGIC;
     head->width = w;
     head->height = h;
     head->key = key;
+    return (lseek(fd, pos, SEEK_SET) == pos
+            && write(fd, head, sizeof(*head)) == sizeof(*head))
+           ? MAKE_DONE : MAKE_FAILED;
+}
+
+/* whether slot i holds a slide of an older kind, by its mark */
+static bool slot_older(int fd, uint32_t i)
+{
+    struct slide_header head;
+    const off_t pos = (off_t)i * SLIDE_SLOT;
     return lseek(fd, pos, SEEK_SET) == pos
-           && write(fd, head, sizeof(*head)) == sizeof(*head);
+           && read(fd, &head, sizeof(head)) == sizeof(head)
+           && head.magic != 0 && head.magic != SLIDE_MAGIC
+           && head.magic != SLIDE_UNSURE;
+}
+
+/* the makings in a row left short, from SLIDES_TODO */
+static int slides_tries(void)
+{
+    unsigned char tries = 0;
+    const int fd = open(SLIDES_TODO, O_RDONLY);
+    if (fd >= 0)
+    {
+        if (read(fd, &tries, 1) != 1)
+            tries = 0;
+        close(fd);
+    }
+    return tries;
 }
 
 bool itunesdb_slides_todo(void)
@@ -7380,26 +7557,28 @@ bool itunesdb_slides_todo(void)
         read(fd, &colours, sizeof(colours));
         close(fd);
     }
-    if (file_exists(SLIDES_TODO) || file_exists(SLIDES_CHECK))
+    /* given up at SLIDES_TRIES makings in a row: none at a boot until an
+       import's, whatever else would bring one, as a colours file that can't
+       be written or a slot of an older kind that can't be made again. That
+       holds back a later COLOURS_VERSION or slide format too, which comes
+       here to be made at the boot as version 3 did: such a change has to
+       remove SLIDES_TODO where it finds the older files, or keep a version
+       beside the count. ART_VERSION's brings an import, which empties it. */
+    if (file_exists(SLIDES_TODO))
+        return slides_tries() < SLIDES_TRIES;
+    if (file_exists(SLIDES_CHECK))
         return true;
     if (h.magic != ART_MAGIC)
         return false;
     /* slides of an older kind, by the mark of the first made of them, as one
-       of another size isn't taken and Cover Flow then makes each of a cover */
+       of another size isn't taken and Cover Flow then makes each of a cover;
+       the making makes those slots again, or blanks them (none there) */
     fd = h.nslides > 0 ? open(SLIDES_FILE, O_RDONLY) : -1;
     if (fd >= 0)
     {
         bool older = false;
-        for (int i = 0; i < 8 && !older; i++)
-        {
-            struct slide_header head;
-            const off_t pos = (off_t)i * SLIDE_SLOT;
-            if (lseek(fd, pos, SEEK_SET) != pos
-                || read(fd, &head, sizeof(head)) != sizeof(head))
-                break;
-            older = head.magic != 0 && head.magic != SLIDE_MAGIC
-                    && head.magic != SLIDE_UNSURE;
-        }
+        for (uint32_t i = 0; i < SLIDES_KIND_SLOTS && !older; i++)
+            older = slot_older(fd, i);
         close(fd);
         if (older)
             return true;
@@ -7418,6 +7597,50 @@ static void note_slide_colour(uint32_t i)
     if (colours_handle > 0)
         ((uint32_t *)core_get_data(colours_handle))[i] = cover_palette_colour(
             (const fb_data *)(slide_slot + sizeof(*head)), head->height, head->width);
+}
+
+/* the lists' covers are made of the slides and their colours, and the import
+   kept no covers then: before the first slide that changes */
+static void slides_changing(bool *remaking)
+{
+    if (*remaking)
+        return;
+    *remaking = true;
+    art_kept = false;
+#ifdef HAVE_TAGCACHE
+    list_covers_forget();
+#endif
+}
+
+/* A making left short by reads or writes that failed, not by a stop or a
+   full disk: made again at the next boot, but SLIDES_TRIES makings in a row
+   at most, which SLIDES_TODO counts; the rest then waits for the next
+   import's making, and health.log says so. A frame that never reads made
+   each boot's Preparing Covers as long again. The count is written in place,
+   with no moment of no file; if that fails, the file is left as it was, but
+   for the last, which takes it away. */
+static void slides_left_short(uint32_t failures)
+{
+    const unsigned char tries = MIN(slides_tries(), SLIDES_TRIES - 1) + 1;
+    errno = 0;
+    const int fd = open(SLIDES_TODO, O_WRONLY | O_CREAT, 0666);
+    bool written = fd >= 0 && write(fd, &tries, 1) == 1;
+    if (fd >= 0 && close(fd) < 0)
+        written = false;
+    /* an empty one has no cluster for the byte: a full disk is said so
+       here too, at the makings that write no colours */
+    if (!written)
+        library_write_failed();
+    if (tries < SLIDES_TRIES)
+        return;
+    if (!written)
+        remove(SLIDES_TODO);
+    remove(SLIDES_CHECK);
+    slides_suspect = false;
+    health_note("cover flow: %d makings in a row left short by reads or "
+                "writes that failed, %lu slides or writes failing in the "
+                "last: the rest left for the next import", (int)tries,
+                (unsigned long)failures);
 }
 
 void itunesdb_make_slides(volatile int *done, volatile int *total,
@@ -7451,6 +7674,13 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
     bool complete = true;
     const bool check_all = slides_suspect || file_exists(SLIDES_CHECK);
     bool remaking = false;
+    /* of records of version 2, of which some are made again: the colours of
+       version 3 that a making cut short writes don't say so, and the rest
+       is made at the next boot, as after an import */
+    if (colours_older && !file_exists(SLIDES_TODO))
+        close(open(SLIDES_TODO, O_WRONLY | O_CREAT | O_TRUNC, 0666));
+    bool stopped = false, nospace = false;
+    uint32_t failures = 0;
     if (total)
         *total = count;
     cpu_boost(true);
@@ -7462,28 +7692,51 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
         if (stop && stop())
         {
             complete = false;
+            stopped = true;
             break;
         }
         uint64_t key = slide_key(i);
-        if (!key)
-            continue;
-        /* made already, by the colours' record: no header read. An unsure
-           one is, while the frames it was made of are as they were. */
         off_t pos = (off_t)i * SLIDE_SLOT;
         const bool in_file = pos + (off_t)SLIDE_SLOT <= size;
+        /* one of the first slots with a slide of an older kind, which
+           itunesdb_slides_todo() reads, would bring this making back at each
+           boot: made again, or blank where no album is */
+        const bool older = i < SLIDES_KIND_SLOTS && in_file
+                           && slot_older(fd, i);
+        if (!key)
+        {
+            static const struct slide_header none;
+            errno = 0;
+            if (older && !(lseek(fd, pos, SEEK_SET) == pos
+                           && write(fd, &none, sizeof(none)) == sizeof(none)))
+            {
+                complete = false;
+                if (errno == ENOSPC)
+                    nospace = true;
+                else
+                    failures++;
+            }
+            continue;
+        }
+        /* made already, by the colours' record: no header read. An unsure
+           one is, while the frames it was made of are as they were. */
         uint16_t record = colours_handle > 0 ? slides_made()[i] : 0;
         if (record >= MADE_UNSURE_MIN
             && !(in_file && slide_colour(i) != COVER_COLOUR_UNKNOWN
                  && unsure_same(index_fd, i, record)))
             record = 0;
-        if (!check_all && in_file && record
+        if (!check_all && in_file && record && !older
             && slide_colour(i) != COVER_COLOUR_UNKNOWN)
             continue;
         if (colours_handle > 0)
             slides_made()[i] = 0;
-        bool made = in_file
-                    && lseek(fd, pos, SEEK_SET) == pos
-                    && read(fd, &head, sizeof(head)) == sizeof(head)
+        const bool head_read = in_file
+                               && lseek(fd, pos, SEEK_SET) == pos
+                               && read(fd, &head, sizeof(head)) == sizeof(head);
+        /* none in it, as of an album no frame of which had a pixel: no
+           change if there is none again */
+        const bool blank = head_read && head.magic == 0;
+        bool made = head_read
                     && (head.magic == SLIDE_MAGIC
                         || (head.magic == SLIDE_UNSURE
                             && record >= MADE_UNSURE_MIN))
@@ -7492,27 +7745,33 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
                        of another, kept by its slot's being as big, it showed
                        smaller */
                     && MAX(head.width, head.height) == ITUNESDB_SLIDE_SIZE;
-        if (made && (colours_handle <= 0 || slide_colour(i) != COVER_COLOUR_UNKNOWN))
+        /* its colour taken as it is only with a record: one that says not
+           made can be of the slide that was in the slot before, as a version
+           2 file cut short at its first making left them, or 2.0.1's of its
+           unsure ones */
+        if (made && (colours_handle <= 0
+                     || (record && slide_colour(i) != COVER_COLOUR_UNKNOWN)))
         {
             if (colours_handle > 0)
                 slides_made()[i] = head.magic == SLIDE_MAGIC ? MADE_SURE
                                                              : record;
             continue;
         }
-        if (!remaking)
-        {
-            /* the lists' covers are made of the slides and their colours */
-            remaking = true;
-            art_kept = false;
-#ifdef HAVE_TAGCACHE
-            list_covers_forget();
-#endif
-        }
+        /* the lists' covers are made of the slides and their colours: made
+           again before a slide changes, or after one is made in a slot that
+           had none */
+        if (!blank)
+            slides_changing(&remaking);
         errno = 0;
         uint16_t now = MADE_SURE;
-        if (made ? lseek(fd, pos, SEEK_SET) == pos
-                   && read(fd, slide_slot, SLIDE_SLOT) == SLIDE_SLOT
-                 : make_slide(fd, index_fd, i, key, &size, &now))
+        const int result = !made ? make_slide(fd, index_fd, i, key, &size, &now,
+                                              blank)
+                           : (lseek(fd, pos, SEEK_SET) == pos
+                              && read(fd, slide_slot, SLIDE_SLOT) == SLIDE_SLOT)
+                           ? MAKE_DONE : MAKE_FAILED;
+        if (result == MAKE_DONE && blank)
+            slides_changing(&remaking);
+        if (result == MAKE_DONE)
         {
             note_slide_colour(i);
             /* one of a small frame alone is made again at the next import
@@ -7520,20 +7779,42 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
             if (colours_handle > 0)
                 slides_made()[i] = now;
         }
+        else if (result == MAKE_EMPTY)
+        {
+            /* none, tried again at the next import, not at each boot:
+               Cover Flow shows the cover's frame meanwhile, and Now Playing
+               takes no colour of the slide that was in the slot */
+            if (colours_handle > 0)
+                ((uint32_t *)core_get_data(colours_handle))[i] =
+                    COVER_COLOUR_UNKNOWN;
+        }
         else
         {
             complete = false;
-            /* the disk full: the rest at the next boot, and said so */
+            /* the disk full: stopped and not counted, as Updating Library
+               says so; made at the next boot, with SLIDES_TODO kept */
             if (errno == ENOSPC)
             {
                 library_write_failed();
+                nospace = true;
                 break;
             }
+            failures++;
         }
         yield();
     }
     cpu_boost(false);
-    write_colours();
+    /* records that aren't written left it short as well, for the next boot
+       to make again, or the disk full */
+    errno = 0;
+    if (!write_colours())
+    {
+        complete = false;
+        if (errno == ENOSPC)
+            nospace = true;
+        else
+            failures++;
+    }
     /* the slides of albums gone at the end */
     off_t end = (off_t)count * (off_t)SLIDE_SLOT;
     if (complete && size > end)
@@ -7545,7 +7826,10 @@ void itunesdb_make_slides(volatile int *done, volatile int *total,
         remove(SLIDES_TODO);
         remove(SLIDES_CHECK);
         slides_suspect = false;
+        colours_older = false;
     }
+    else if (!stopped && !nospace)
+        slides_left_short(failures);
 }
 
 /** The covers of the albums of songs copied outside Finder's folder **/
