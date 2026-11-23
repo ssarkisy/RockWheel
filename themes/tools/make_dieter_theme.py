@@ -351,14 +351,16 @@ class Font:
 
 
 # --- the screens' layouts --------------------------------------------------------------
-# The Video's, the mockups' grid: one margin of 16 px; the status line's 20
-# rows, its hairline and lip under them, the lists from 24, rows of 27 and of
-# 36 with covers of 32, so that 8 or 6 fill them (the owner's rule: equal
-# rows, a whole number of them); the main menu's pane from column 160; Now
-# Playing's cover of 144 at (16, 28), its details from 176, the scale's
-# window across the margin under it, the times under the window.
+# The Video's, the mockups' grid: one margin of 16 px; the status line's
+# clock and glyphs at the lists' text inset (SM = UI_METRIC_TEXT_INSET in
+# apps/gui/ui_theme.c), so that the clock starts where the menu's text does;
+# the status line's 20 rows, its hairline and lip under them, the lists from 24, rows of 27 and of 36 with covers of 32, so that
+# 8 or 6 fill them (the owner's rule: equal rows, a whole number of them);
+# the main menu's pane from column 160; Now Playing's cover of 144 at
+# (16, 28), its details from 176, the scale's window across the margin
+# under it, the times under the window.
 VIDEO = dict(
-    NAME="video", W=320, H=240, OUT=THEME, M=16, SM=16, STATUS=20, TOP=24, ROW=27,
+    NAME="video", W=320, H=240, OUT=THEME, M=16, SM=4, STATUS=20, TOP=24, ROW=27,
     PANE=160, BATT=(20, 10), GAP=6, PCT_GAP=3, PLAY_H=9,
     # the clock's width, the title's place and width; Now Playing's title's
     CLOCK=(64, 84, 152), NP_TITLE=(100, 120),
@@ -381,8 +383,8 @@ VIDEO = dict(
     TW_R=14, USB_R=30, USB_W=4,
 )
 # The iPod photo's, by the same rules on its screen: a margin of 14 px, the
-# status line's half that (its clock and its glyphs nearer the screen's
-# sides); the status line's 16 rows, the lists from 16 (over its
+# status line at the lists' text inset as the Video's; the status line's 16
+# rows, the lists from 16 (over its
 # hairline and lip); rows
 # of 20, of two lines the firmware's 32 with covers of 29 (LINE_COVER_SIZE),
 # so that 8 or 5 fill them; the pane from 110, as the port's. Now Playing
@@ -390,7 +392,7 @@ VIDEO = dict(
 # text's room): its cover of 96 at (4, 30), its details from 108 to 4 px
 # from the right, the scale's window and the times as wide.
 PHOTO = dict(
-    NAME="photo", W=220, H=176, OUT=os.path.join(THEME, "220x176"), M=14, SM=7, STATUS=16,
+    NAME="photo", W=220, H=176, OUT=os.path.join(THEME, "220x176"), M=14, SM=4, STATUS=16,
     TOP=16, ROW=20, PANE=110, BATT=(17, 8), GAP=5, PCT_GAP=2, PLAY_H=8,
     # the clock short of the title's viewport: right to left its text ends
     # at its viewport's end, which the title's drew over

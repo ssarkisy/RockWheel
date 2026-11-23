@@ -25,43 +25,43 @@
 # the status line on the backdrop's strip: the clock, the title, the glyphs;
 # with Battery Percentage the level left of the battery, the glyphs left of
 # it and the title shorter (np_status())
-%Vl(npclock,7,1,42,14,5)%Vf(211C18)
+%Vl(npclock,4,1,42,14,5)%Vf(211C18)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(nptitle,62,1,96,14,5)%Vf(211C18)
 %s%ac%Sx(Now Playing)
-%Vl(pnpclock,7,1,31,14,5)%Vf(211C18)
+%Vl(pnpclock,4,1,31,14,5)%Vf(211C18)
 %al%?cf<%cH:%cM|%cl:%cM>
-%Vl(pnptitle0,43,1,102,14,5)%Vf(211C18)
+%Vl(pnptitle0,40,1,108,14,5)%Vf(211C18)
 %s%ac%Sx(Now Playing)
-%Vl(pnptitle1,43,1,88,14,5)%Vf(211C18)
+%Vl(pnptitle1,40,1,94,14,5)%Vf(211C18)
 %s%ac%Sx(Now Playing)
-%Vl(bat,196,3,16,10,-)
+%Vl(bat,199,3,16,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%Vl(playn0,182,3,9,10,-)
+%Vl(playn0,185,3,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(moon,182,3,9,10,-)
+%Vl(moon,185,3,9,10,-)
 %xd(N)
-%Vl(playn1,168,3,9,10,-)
+%Vl(playn1,171,3,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(ppct,162,1,32,14,5)%Vf(211C18)
+%Vl(ppct,165,1,32,14,5)%Vf(211C18)
 %aR%?bl<|%bl%%>
-%Vl(pplayn0,148,3,9,10,-)
+%Vl(pplayn0,151,3,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pplayn02,155,3,9,10,-)
+%Vl(pplayn02,158,3,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pplayn01,162,3,9,10,-)
+%Vl(pplayn01,165,3,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon,148,3,9,10,-)
+%Vl(pmoon,151,3,9,10,-)
 %xd(N)
-%Vl(pplayn1,134,3,9,10,-)
+%Vl(pplayn1,137,3,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon2,155,3,9,10,-)
+%Vl(pmoon2,158,3,9,10,-)
 %xd(N)
-%Vl(pplayn12,141,3,9,10,-)
+%Vl(pplayn12,144,3,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon1,162,3,9,10,-)
+%Vl(pmoon1,165,3,9,10,-)
 %xd(N)
-%Vl(pplayn11,148,3,9,10,-)
+%Vl(pplayn11,151,3,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(mode1,204,20,12,11,-)
 %?mm<%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>

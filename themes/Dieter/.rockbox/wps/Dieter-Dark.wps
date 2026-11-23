@@ -22,43 +22,41 @@
 %?if(%mw, <, 3)<%?kk<%?nW(title)<%?St(now playing format)<%?St(now playing rating)<%Vd(s211)%?Sr<%Vd(s211q)|%Vd(s211l)>|%?rr<%Vd(s201)|%Vd(s211)%?Sr<%Vd(s211q)|%Vd(s211l)>>|%Vd(s201)>|%?St(now playing rating)<%Vd(s210)%?Sr<%Vd(s210q)|%Vd(s210l)>|%?rr<%Vd(s200)|%Vd(s210)%?Sr<%Vd(s210q)|%Vd(s210l)>>|%Vd(s200)>>|%?St(now playing format)<%?St(now playing rating)<%Vd(s111)%?Sr<%Vd(s111q)|%Vd(s111l)>|%?rr<%Vd(s101)|%Vd(s111)%?Sr<%Vd(s111q)|%Vd(s111l)>>|%Vd(s101)>|%?St(now playing rating)<%Vd(s110)%?Sr<%Vd(s110q)|%Vd(s110l)>|%?rr<%Vd(s100)|%Vd(s110)%?Sr<%Vd(s110q)|%Vd(s110l)>>|%Vd(s100)>>>|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%?ks<%Vd(b21)|%Vd(b20)>|%?ks<%Vd(b11)|%Vd(b10)>>>|%?mw<||||%?kk<%?nW(title)<%?St(now playing format)<%Vd(s201)|%Vd(s200)>|%?St(now playing format)<%Vd(s101)|%Vd(s100)>>|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%?ks<%Vd(b21)|%Vd(b20)>|%?ks<%Vd(b11)|%Vd(b10)>>>|%?kk<|%?nW(title)<%Vd(e2)|%Vd(e1)>|%?nW(title)<%Vd(b20)|%Vd(b10)>>>>
 %?mw<%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)|||%Vd(mode1)%Vd(mode2)|%Vd(mode1)%Vd(mode2)>
 %?mw<%?mv(2.0)<%Vd(knob)|%?C<%Vd(art)|%Vd(noart)>>|%?C<%Vd(art)|%Vd(noart)>|||%?C<%Vd(art)|%Vd(noart)>|%?C<%Vd(art)|%Vd(noart)>>
-%?St(battery percentage)<%Vd(npclock)%?nN<%Vd(pnptitle1)|%Vd(nptitle)>%Vd(bat)%?nN<%Vd(ppct)%?if(%bl, <, 10)<%Vd(pmoon1)%Vd(pplayn11)|%?if(%bl, <, 100)<%Vd(pmoon2)%Vd(pplayn12)|%Vd(pmoon)%Vd(pplayn1)>>|%Vd(ppct)%?if(%bl, <, 10)<%Vd(pplayn01)|%?if(%bl, <, 100)<%Vd(pplayn02)|%Vd(pplayn0)>>>|%Vd(npclock)%Vd(nptitle)%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>
+%?St(battery percentage)<%Vd(npclock)%?nN<%Vd(nptitle)|%Vd(nptitle)>%Vd(bat)%?nN<%Vd(ppct)%?if(%bl, <, 10)<%Vd(pmoon1)%Vd(pplayn11)|%?if(%bl, <, 100)<%Vd(pmoon2)%Vd(pplayn12)|%Vd(pmoon)%Vd(pplayn1)>>|%Vd(ppct)%?if(%bl, <, 10)<%Vd(pplayn01)|%?if(%bl, <, 100)<%Vd(pplayn02)|%Vd(pplayn0)>>>|%Vd(npclock)%Vd(nptitle)%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>
 # the status line on the backdrop's strip: the clock, the title, the glyphs;
 # with Battery Percentage the level left of the battery, the glyphs left of
 # it and the title shorter (np_status())
-%Vl(npclock,16,2,64,15,5)%Vf(EFEFEF)
+%Vl(npclock,4,2,64,15,5)%Vf(EFEFEF)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(nptitle,100,2,120,15,5)%Vf(EFEFEF)
 %s%ac%Sx(Now Playing)
-%Vl(pnptitle1,107,2,106,15,5)%Vf(EFEFEF)
-%s%ac%Sx(Now Playing)
-%Vl(bat,284,5,19,10,-)
+%Vl(bat,296,5,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%Vl(playn0,269,5,9,10,-)
+%Vl(playn0,281,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(moon,268,5,10,10,-)
+%Vl(moon,280,5,10,10,-)
 %xd(N)
-%Vl(playn1,253,5,9,10,-)
+%Vl(playn1,265,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(ppct,248,2,33,15,5)%Vf(EFEFEF)
+%Vl(ppct,260,2,33,15,5)%Vf(EFEFEF)
 %aR%?bl<|%bl%%>
-%Vl(pplayn0,233,5,9,10,-)
+%Vl(pplayn0,245,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pplayn02,238,5,9,10,-)
+%Vl(pplayn02,250,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pplayn01,246,5,9,10,-)
+%Vl(pplayn01,258,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon,232,5,10,10,-)
+%Vl(pmoon,244,5,10,10,-)
 %xd(N)
-%Vl(pplayn1,217,5,9,10,-)
+%Vl(pplayn1,229,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon2,237,5,10,10,-)
+%Vl(pmoon2,249,5,10,10,-)
 %xd(N)
-%Vl(pplayn12,222,5,9,10,-)
+%Vl(pplayn12,234,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon1,245,5,10,10,-)
+%Vl(pmoon1,257,5,10,10,-)
 %xd(N)
-%Vl(pplayn11,230,5,9,10,-)
+%Vl(pplayn11,242,5,9,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(mode1,292,25,12,11,-)
 %?mm<%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>

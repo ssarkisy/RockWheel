@@ -15,8 +15,9 @@ Quiet and precise, with a little depth:
   colour but the cover and one small signal: the cursor's dot, Now Playing's
   needle, Search's caret and chosen key, Cover Flow's chosen track and the
   rating's lit lamps.
-- One margin of 16 px (14 on the iPod photo) for the clock, the names, the
-  covers and the scale.
+- One margin of 16 px (14 on the iPod photo) for the names, the covers and
+  the scale; the status line's clock and glyphs 4 px from the screen's sides,
+  where the menu's text starts.
 - Rows of 30 px in Inter SemiBold, 36 for two lines. The selected row is a
   flat band the list's width, its top row lit and its foot shaded, with a dot
   in the signal colour in the left margin. A chevron on the selected row, and
