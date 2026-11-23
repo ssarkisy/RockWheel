@@ -143,6 +143,9 @@ static size_t pcmbuf_bytes_waiting;
 static unsigned long pcmbuf_written;
 static struct chunkdesc *current_desc;
 static size_t chunk_transidx;
+/* the track change marked at a crossfade's start (crossfade_start()): the
+   playing track's own samples go on after the mark, the next mixed in */
+static bool chunk_trans_crossfade;
 
 static size_t pcmbuf_watermark = 0;
 
@@ -182,6 +185,13 @@ static enum
 
 static bool crossfade_mixmode;
 static bool crossfade_auto_skip;
+/* the playing track's tail faded out to its end already
+   (crossfade_fade_out_tail()): the next crossfade mixes the next in, as in mix
+   mode, not fading it out again; any track change takes it */
+static bool crossfade_tail_faded;
+/* this crossfade goes into such a tail: rejected, as with under half a second
+   left by the time it starts, the next fades in after it instead */
+static bool crossfade_into_faded_tail;
 static size_t crossfade_widx;
 static size_t crossfade_bufidx;
 
@@ -215,6 +225,8 @@ static void crossfade_start(void);
 static void write_to_crossfade(size_t size, unsigned long elapsed,
                                off_t offset);
 static void pcmbuf_finish_crossfade_enable(void);
+static void crossfade_fade_out_tail(void);
+static void crossfade_fade_in_appended(void);
 #else
 #define crossfade_cancel() do {} while(0)
 #endif /* HAVE_CROSSFADE */
@@ -743,8 +755,9 @@ size_t pcmbuf_init(void *bufend)
 /** Track change */
 
 /* Place a track change notification in a specific descriptor or post it
-   immediately if the buffer is empty or the index is invalid */
-static void pcmbuf_monitor_track_change_ex(size_t index)
+   immediately if the buffer is empty or the index is invalid; crossfade: at a
+   crossfade's start (chunk_trans_crossfade) */
+static void pcmbuf_monitor_track_change_ex(size_t index, bool crossfade)
 {
     /* Call with PCM lockout */
     if (chunk_ridx != chunk_widx && index != INVALID_BUF_INDEX)
@@ -756,6 +769,7 @@ static void pcmbuf_monitor_track_change_ex(size_t index)
         if (index_committed(index))
         {
             chunk_transidx = index;
+            chunk_trans_crossfade = crossfade;
             return;
         }
     }
@@ -796,11 +810,50 @@ void pcmbuf_monitor_track_change(bool monitor)
     pcm_play_lock();
 
     if (monitor)
-        pcmbuf_monitor_track_change_ex(chunk_widx);
+        pcmbuf_monitor_track_change_ex(chunk_widx, false);
     else
         pcmbuf_cancel_track_change(false);
 
     pcm_play_unlock();
+}
+
+/* With the codec stopped on the next track, before the end of the one playing
+   has played (playback.c, a queue edit that changed the next track): all after
+   the marked end is dropped, and that end is no longer a track change. Without
+   a crossfade that is what it decoded of the next. With one begun, the mark is
+   at the crossfade's start: the playing track's own last seconds go too, the
+   next mixed into them, and what is left of it fades out to the cut instead
+   (crossfade_fade_out_tail()). False, nothing changed, if the end has
+   played or there is none marked: checked and dropped under one lock, so the
+   PCM can't pass it in between. */
+bool pcmbuf_drop_next_track(void)
+{
+    pcm_play_lock();
+
+    const bool ahead = index_committed(chunk_transidx);
+    /* by where the mark is, not the crossfade's state: one fully mixed in is
+       over (crossfade_cancel()), its mark still at its start */
+    const bool tail = ahead && chunk_trans_crossfade;
+    if (ahead)
+    {
+        const size_t before = pcmbuf_unplayed_bytes() + pcmbuf_bytes_waiting;
+        snip_buffer_tail(chunk_transidx, 1);
+        chunk_transidx = INVALID_BUF_INDEX;
+        crossfade_cancel();
+        /* never heard: what's heard so far stays written less what's to play
+           (pcmbuf_until_heard()) */
+        pcmbuf_written -= before - (pcmbuf_unplayed_bytes() + pcmbuf_bytes_waiting);
+    }
+
+    pcm_play_unlock();
+
+#ifdef HAVE_CROSSFADE
+    if (tail)
+        crossfade_fade_out_tail();
+#else
+    (void)tail;
+#endif
+    return ahead;
 }
 
 void pcmbuf_start_track_change(enum pcm_track_change_type type)
@@ -818,6 +871,8 @@ void pcmbuf_start_track_change(enum pcm_track_change_type type)
 
 #ifdef HAVE_CROSSFADE
     bool crossfade = false;
+    const bool tail_faded = crossfade_tail_faded;
+    crossfade_tail_faded = false;
 #endif
     bool auto_skip = type != TRACK_CHANGE_MANUAL;
 
@@ -873,8 +928,9 @@ void pcmbuf_start_track_change(enum pcm_track_change_type type)
         logf("crossfade track change");
 
         /* Don't enable mix mode when skipping tracks manually */
-        crossfade_mixmode = auto_skip &&
-            global_settings.crossfade_fade_out_mixmode;
+        crossfade_mixmode = (auto_skip &&
+            global_settings.crossfade_fade_out_mixmode) || tail_faded;
+        crossfade_into_faded_tail = tail_faded;
 
         crossfade_auto_skip = auto_skip;
 
@@ -883,6 +939,18 @@ void pcmbuf_start_track_change(enum pcm_track_change_type type)
         pcmbuf_monitor_track_change(auto_skip);
 
         trigger_cpu_boost();
+    }
+    else if (tail_faded && type == TRACK_CHANGE_AUTO
+             && crossfade_status == CROSSFADE_INACTIVE)
+    {
+        /* the playing track faded out to a cut too near its end for a
+           crossfade (under half a second left): the next fades in after it
+           as it would into one, so neither meets the other at full level */
+        logf("fade-in after a faded cut");
+
+        crossfade_fade_in_appended();
+
+        pcmbuf_monitor_track_change(true);
     }
     else
 #endif /* HAVE_CROSSFADE */
@@ -1083,6 +1151,20 @@ static void crossfade_cancel(void)
 {
     crossfade_status = CROSSFADE_INACTIVE;
     crossfade_widx = INVALID_BUF_INDEX;
+    crossfade_tail_faded = false;
+    crossfade_into_faded_tail = false;
+}
+
+/* The playing track decoded again from a seek (playback.c): its tail faded out
+   to a cut (crossfade_fade_out_tail()) is no longer what's before the next
+   track change, which crossfades as any. A seek with the ff/rw pre-step
+   cancels it with the PCM's stop; one without, as iAP's or a plugin's, didn't. */
+void pcmbuf_forget_tail_fade(void)
+{
+    pcm_play_lock();
+    crossfade_tail_faded = false;
+    crossfade_into_faded_tail = false;
+    pcm_play_unlock();
 }
 
 /* Find the buffer index that's 'size' bytes away from 'index' */
@@ -1262,6 +1344,9 @@ static void crossfade_start(void)
 
     pcm_play_lock();
 
+    const bool into_faded_tail = crossfade_into_faded_tail;
+    crossfade_into_faded_tail = false;
+
     if (crossfade_status == CROSSFADE_CONTINUE)
     {
         logf("fade-in continuing");
@@ -1269,7 +1354,7 @@ static void crossfade_start(void)
         crossfade_status = CROSSFADE_ACTIVE;
 
         if (crossfade_auto_skip)
-            pcmbuf_monitor_track_change_ex(crossfade_widx);
+            pcmbuf_monitor_track_change_ex(crossfade_widx, false);
 
         pcm_play_unlock();
         return;
@@ -1284,6 +1369,8 @@ static void crossfade_start(void)
     {
         logf("crossfade rejected");
         crossfade_cancel();
+        if (into_faded_tail)
+            crossfade_fade_in_appended();
         pcm_play_unlock();
         return;
     }
@@ -1366,11 +1453,64 @@ static void crossfade_start(void)
 
     /* Move track transistion to chunk before the first one of incoming track */
     if (crossfade_auto_skip)
-        pcmbuf_monitor_track_change_ex(crossfade_widx);
+        pcmbuf_monitor_track_change_ex(crossfade_widx, true);
 
     pcm_play_unlock();
 
     logf("crossfade_start done!");
+}
+
+/* After a cut at a crossfade begun (pcmbuf_drop_next_track()): the playing
+   track's own fade-out went with it, so what's left of it fades out in place to
+   the cut, over the fade-out setting's length (a quarter of a second for none)
+   or all there is: never a cut at full level. A crossfade into the new next
+   then only mixes it in (crossfade_tail_faded), or, with too little left for
+   one, the new next fades in after the cut (crossfade_fade_in_appended()).
+   Unlocked as crossfade_start() fades, the codec stopped: only the PCM reads
+   meanwhile. */
+static void crossfade_fade_out_tail(void)
+{
+    const size_t fade = MAX((size_t)global_settings.crossfade_fade_out_duration
+                            * BYTERATE, (size_t)BYTERATE / 4);
+
+    pcm_play_lock();
+
+    /* what's there by the chunks' own sizes, the one playing from its start */
+    size_t index = chunk_ridx;
+    size_t size = 0;
+    for (size_t i = chunk_ridx; i != chunk_widx; i = index_next(i))
+        size += index_chunkdesc(i)->size;
+
+    size_t rem = MIN(size, fade);
+    if (size > rem)
+        index = crossfade_find_index(chunk_ridx, size - rem);
+    crossfade_tail_faded = rem > 0;
+
+    pcm_play_unlock();
+
+    if (!rem)
+        return;
+
+    struct mixfader outfader;
+    mixfader_init(&outfader, MIXFADE_UNITY, 0, rem, false);
+    crossfade_mix_fade(&outfader, rem, NULL, &index, 0, MIXFADE_KEEP_POS);
+}
+
+/* The next track faded in as it's written after what's buffered, as a
+   crossfade's fade-in goes on past the end of the data (crossfade_mix_fade()
+   allocating): over the fade-in setting's length, a quarter of a second for
+   none; the crossfade's state until it's done, as CROSSFADE_CONTINUE has it */
+static void crossfade_fade_in_appended(void)
+{
+    const size_t fade = MAX((size_t)global_settings.crossfade_fade_in_duration
+                            * BYTERATE, (size_t)BYTERATE / 4);
+
+    pcm_play_lock();
+    mixfader_init(&crossfade_infader, 0, MIXFADE_UNITY, fade, true);
+    crossfade_widx = chunk_widx;
+    crossfade_auto_skip = true;
+    crossfade_status = CROSSFADE_ACTIVE;
+    pcm_play_unlock();
 }
 
 /* Perform fade-in of new track */

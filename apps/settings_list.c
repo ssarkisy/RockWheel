@@ -1033,9 +1033,10 @@ static void audiobook_speed_changed(int value)
 static void shuffle_playlist_callback(int mode)
 {
     struct playlist_info *playlist = playlist_get_current();
-    /* Sound Check's Albums takes the new shuffle as the next song starts
-       (codec_thread.c), not in the middle of this one but for a seek that
-       decodes it again */
+    /* Sound Check's Albums takes the new shuffle as the next song not yet
+       begun starts (codec_thread.c), not in the middle of this one but for a
+       seek that decodes it again; a queued next song the codec has begun,
+       which the reorder keeps next (playback.c), plays in the old mode */
     if (playlist->started
         && (audio_status() & AUDIO_STATUS_PLAY) == AUDIO_STATUS_PLAY)
     {

@@ -39,9 +39,7 @@
 #include "playlist.h"
 #include "pathfuncs.h"
 #include "abrepeat.h"
-#ifdef HAVE_PLAY_FREQ
-#include "pcm_mixer.h"
-#endif
+#include "pcm_mixer.h" /* the channel's status (audio_check_complete_owed()) */
 #include "pcmbuf.h"
 #include "audio_thread.h"
 #include "playback.h"
@@ -381,6 +379,20 @@ static struct
 static bool codec_skip_pending = false;
 static int  codec_skip_status;
 static bool codec_seeking = false;          /* Codec seeking ack expected? */
+
+/* The codec has decoded all of the track playing, and the next track it had
+   begun was taken back by a queue edit (audio_take_back_next_track()): the
+   codec's completion of the one playing is posted once the track now after it
+   has loaded, or none is loading (audio_check_complete_owed()). Until then the
+   one playing stays the track list's current, its cover with it; the codec is
+   still set for the track taken back, which a seek sets again
+   (audio_on_ff_rewind()). */
+static bool complete_owed = false;
+static long complete_owed_tick;
+/* a last resort, should a load never end: the PCM buffer's 8 s, and the default
+   crossfade's 2 more, have played by then unless paused; posted while the next
+   still loads, the change waits for it as any does */
+#define COMPLETE_OWED_MAX   (20*HZ)
 
 /* Tracks in a row that played nothing (CODEC_ERROR_SILENT). With Repeat, a
    queue in which nothing plays would go round without end, the disk
@@ -848,6 +860,49 @@ static void track_list_clear(unsigned int action)
 
             track_list_free_buf_info(tbip);
         }
+
+        hid = next_hid;
+    }
+}
+
+/* Close the tracks before the one the user hears and those after last_hid,
+   which is it or one after it: from it to last_hid they stay as they are, the
+   codec's current with them (audio_on_audio_flush()) */
+static void track_list_keep_through(int last_hid)
+{
+    logf("%s:last=%d", __func__, last_hid);
+
+    /* none before it kept, as by track_list_clear(); those kept after it are
+       the list's songs there now */
+    playlist_queue_buffer_cleared();
+    buf_set_watermark(0);
+
+    struct track_info user;
+    const int first_hid = track_list_user_current(0, &user) ? user.self_hid : 0;
+    bool keep = false;
+    int hid = track_list.first_hid;
+
+    while (hid > 0)
+    {
+        struct track_buf_info *tbip = track_buf_info_get(hid);
+        if (!tbip)
+            break;
+
+        int next_hid = tbip->link[1];
+
+        if (hid == first_hid)
+            keep = true;
+
+        if (!keep)
+        {
+            if (hid == track_list.in_progress_hid)
+                track_list.in_progress_hid = 0;
+
+            track_list_free_buf_info(tbip);
+        }
+
+        if (hid == last_hid)
+            keep = false;
 
         hid = next_hid;
     }
@@ -1552,6 +1607,7 @@ static bool halt_decoding_track(bool stop)
     codec_skip_pending = false;
     codec_seeking = false;
     pause_on_track_change = false;
+    complete_owed = false;
     return retval;
 }
 
@@ -3872,6 +3928,9 @@ static void audio_on_ff_rewind(long time)
     }
 
     enum track_skip_type pending = skip_pending;
+    /* the codec still set for the next track a queue edit took back, as if
+       backed out of an auto skip but for the track list (complete_owed) */
+    const bool owed = complete_owed;
 
     switch (pending)
     {
@@ -3903,6 +3962,9 @@ static void audio_on_ff_rewind(long time)
         queue_reply(&audio_queue, 1);
 
         bool haltres = halt_decoding_track(pending == TRACK_SKIP_AUTO);
+        /* decoded again from here: a tail faded out by a take-back isn't
+           what comes next, a seek without the ff/rw pre-step keeping it */
+        pcmbuf_forget_tail_fade();
 
         /* Need this set in case ff/rw mode + error but _after_ the codec
            halt that will reset it */
@@ -3932,12 +3994,26 @@ static void audio_on_ff_rewind(long time)
         bool finish_load = cur_info.audio_hid < 0;
         if (finish_load)
         {
+            /* The track isn't loaded yet: it starts where asked once it is
+               (audio_start_codec()), and no codec seek, nor its completion,
+               is to come. The seek is over now, as audio_complete_codec_seek()
+               ends one but for the codec's position, which is another
+               track's: the sound from before it dropped, the PCM let play.
+               Left set, ff/rw mode kept the PCM from ever starting again. */
+            if (ff_rw_mode)
+            {
+                ff_rw_mode = false;
+                pcmbuf_play_stop();
+                if (play_status != PLAY_PAUSED)
+                    pcmbuf_pause(false);
+            }
+            codec_seeking = false;
             // track is not yet loaded so simply update resume details for upcoming finish_load_track and quit
             playing_id3_sync(&cur_info, &(struct audio_resume_info){ time, 0, false }, true);
             return;
         }
 
-        if (pending == TRACK_SKIP_AUTO)
+        if (pending == TRACK_SKIP_AUTO || owed)
         {
             if (!bufreadid3(cur_info.id3_hid, ci_id3) ||
                 !audio_init_codec(&cur_info, ci_id3))
@@ -4000,6 +4076,139 @@ static void audio_on_ff_rewind(long time)
     audio_handle_track_load_status(LOAD_TRACK_ERR_START_CODEC);
 }
 
+/* How many of the tracks buffered after the one the user hears are still the
+   list's next songs, in order: each the file playlist_peek() gives at its
+   place now. An edit of the queue changes the list from some place on, and
+   those before it play as they are, whatever the edit was. *last_hid: the last
+   of them, or the one heard for none. With the playlist's offsets the user's,
+   so not for TRACK_SKIP_AUTO_NEW_PLAYLIST. */
+static int audio_tracks_still_next(int *last_hid)
+{
+    struct track_info info;
+    if (!track_list_user_current(0, &info))
+        return 0;
+    *last_hid = info.self_hid;
+
+    char path[MAX_PATH];
+    int kept = 0;
+    /* each from the one before, by its link */
+    while (track_list_get_info_from(info.self_hid, 1, &info))
+    {
+        /* the peek first: it can yield, and the id3 on the buffer move; the
+           last may be loading, its id3 then waited for, as a clear of it
+           waits (bufclose()) */
+        const char *now = playlist_peek(kept + 1, path, sizeof (path));
+        const struct mp3entry *id3 = valid_mp3entry(bufgetid3(info.id3_hid));
+        if (!now || !id3 || !same_file_path(id3->path, now))
+            break;
+        *last_hid = info.self_hid;
+        kept++;
+    }
+    return kept;
+}
+
+/* All after the one playing closed, and the list refilled after it */
+static void audio_flush_after_current(void)
+{
+    track_list_clear(TRACK_LIST_KEEP_CURRENT);
+    playlist_peek_offset = 0;
+    id3_write_locked(UNBUFFERED_ID3, NULL);
+    audio_update_and_announce_next_track(NULL);
+
+    /* Ignore return since it's about the next track, not this one */
+    audio_fill_file_buffer();
+}
+
+/* The codec on the next track, which a queue edit has changed, in the last
+   seconds of the one playing: what it decoded of that next track is dropped,
+   and the track list goes back to the one playing. Without a crossfade that
+   one plays on to its end as it would have. With one begun, the cut is at the
+   crossfade's start: the playing track's last seconds (its fade-out, with the
+   next mixed in) are never heard, what's left of it fades out to the cut
+   (pcmbuf_drop_next_track()), and the new next crosses into that as any next
+   track does if half a second is left when it starts, or else fades in after
+   it (crossfade_fade_in_appended()). The codec has decoded all of the one
+   playing; its completion comes once the track next now has loaded
+   (complete_owed). False, for the restart, if the track playing isn't in the
+   list, or the end has played already (the codec stopped then). */
+static bool audio_take_back_next_track(void)
+{
+    struct track_info playing;
+    if (!track_list_user_current(0, &playing))
+        return false;
+
+    /* as halt_decoding_track(), but the PCM's end looked at first */
+    buf_signal_handle(ci.audio_hid, true);
+    codec_stop();
+    buf_signal_handle(ci.audio_hid, false);
+
+    if (!pcmbuf_drop_next_track())
+        return false;
+
+    /* the stopped codec's messages; no end of track to come from the PCM */
+    audio_clear_track_notifications();
+    codec_skip_pending = false;
+    codec_seeking = false;
+    pause_on_track_change = false;
+
+    /* the list and the skip together: the user's current is the one
+       playing throughout */
+    track_list_advance_current(-1, NULL);
+    skip_pending = TRACK_SKIP_NONE;
+    /* the buffer's useful data counted from it, as when the codec has just
+       finished it (the watermark's) */
+    buf_set_base_handle(playing.audio_hid);
+    complete_owed = true;
+    complete_owed_tick = current_tick;
+    return true;
+}
+
+/* The tracks still next kept, their data and the codec's decoding with them,
+   and the list refilled after the last of them */
+static void audio_keep_tracks(int kept, int last_hid)
+{
+    track_list_keep_through(last_hid);
+    playlist_peek_offset = kept;
+    /* the one after them, read while the buffer was full: maybe another song
+       now; the next one, among them, is the same and not announced again */
+    id3_write_locked(UNBUFFERED_ID3, NULL);
+
+    /* the load after the last kept waited for its audio: still the same one */
+    struct track_info last;
+    if (filling == STATE_FILLING && fill_waiting_hid > 0
+        && track_list_last(0, &last) && last.self_hid == last_hid
+        && last.audio_hid == fill_waiting_hid)
+        return;
+
+    audio_fill_file_buffer();
+}
+
+/* complete_owed: posted as the codec would have, once the track after the one
+   playing has its audio or none is loading; or once the sound runs low or out
+   as it plays, not to wait past its end, the next then started as it loads */
+static void audio_check_complete_owed(void)
+{
+    if (!complete_owed)
+        return;
+
+    struct track_info next;
+    const bool loading = filling == STATE_FILLING
+        && (!track_list_current(1, &next) || next.audio_hid < 0);
+    const bool ending = play_status == PLAY_PLAYING && !ff_rw_mode
+        && (pcmbuf_is_lowdata()
+            || mixer_channel_status(PCM_MIXER_CHAN_PLAYBACK) == CHANNEL_STOPPED);
+    if (loading && !ending && play_status != PLAY_STOPPED
+        && TIME_BEFORE(current_tick, complete_owed_tick + COMPLETE_OWED_MAX))
+        return;
+
+    complete_owed = false;
+    if (play_status != PLAY_STOPPED)
+    {
+        LOGFQUEUE("audio > audio Q_AUDIO_CODEC_COMPLETE (owed)");
+        audio_queue_post(Q_AUDIO_CODEC_COMPLETE, CODEC_OK);
+    }
+}
+
 /* Invalidates all but currently playing track
    (Q_AUDIO_FLUSH) */
 static void audio_on_audio_flush(void)
@@ -4016,19 +4225,34 @@ static void audio_on_audio_flush(void)
     switch (skip_pending)
     {
     case TRACK_SKIP_NONE:
-    case TRACK_SKIP_AUTO_END_PLAYLIST:
+    case TRACK_SKIP_AUTO:
+    {
+        /* the ones still next stay, the codec on the next if it is: the
+           music isn't touched, nothing read again */
+        int last_hid;
+        const int kept = audio_tracks_still_next(&last_hid);
+        if (kept > 0)
+        {
+            audio_keep_tracks(kept, last_hid);
+            break;
+        }
+
+        if (skip_pending == TRACK_SKIP_AUTO && !audio_take_back_next_track())
+        {
+            /* as before: the one playing read again from where it is, and
+               decoded to its end again */
+            audio_start_playback(NULL, AUDIO_START_RESTART);
+            break;
+        }
+
         /* Remove all but the currently playing track from the list and
            refill after that */
-        track_list_clear(TRACK_LIST_KEEP_CURRENT);
-        playlist_peek_offset = 0;
-        id3_write_locked(UNBUFFERED_ID3, NULL);
-        audio_update_and_announce_next_track(NULL);
+        audio_flush_after_current();
+        break;
+    }
 
-        /* Ignore return since it's about the next track, not this one */
-        audio_fill_file_buffer();
-
-        if (skip_pending == TRACK_SKIP_NONE)
-            break;
+    case TRACK_SKIP_AUTO_END_PLAYLIST:
+        audio_flush_after_current();
 
         /* There's now a track after this one now - convert to auto skip -
            no skip should pend right now because multiple flush messages can
@@ -4038,12 +4262,8 @@ static void audio_on_audio_flush(void)
         audio_queue_post(Q_AUDIO_CODEC_COMPLETE, CODEC_OK);
         break;
 
-    case TRACK_SKIP_AUTO:
     case TRACK_SKIP_AUTO_NEW_PLAYLIST:
-        /* Precisely removing what it already decoded for the next track is
-           not possible so a restart is required in order to continue the
-           currently playing track without the now invalid future track
-           playing */
+        /* the playlist already on the next list's first: a restart */
         audio_start_playback(NULL, AUDIO_START_RESTART);
         break;
 
@@ -4192,6 +4412,9 @@ void audio_playback_handler(struct queue_event *ev)
             break;
         } /* end switch */
 
+        /* after each message: the load it waits for may have ended */
+        audio_check_complete_owed();
+
         switch (filling)
         {
         /* Active states */
@@ -4222,9 +4445,11 @@ void audio_playback_handler(struct queue_event *ev)
             else
             {
                 /* If doing auto skip, poll pcmbuf track notifications a bit
-                   faster to promply detect the transition */
+                   faster to promply detect the transition; and the sound
+                   left while a codec's completion is owed */
                 queue_wait_w_tmo(&audio_queue, ev,
-                    skip_pending == TRACK_SKIP_NONE ? HZ/2 : HZ/10);
+                    skip_pending == TRACK_SKIP_NONE && !complete_owed
+                    ? HZ/2 : HZ/10);
             }
             break;
 
