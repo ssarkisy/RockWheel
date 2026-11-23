@@ -88,6 +88,10 @@ bool library_language_changed(void);
 /* After USB, once the screen it came in has closed: from within a plugin's,
    it took the plugins' buffer from under the plugin itself */
 void library_update_after_usb(void);
+/* the disk's free clusters counted again, if that's owed, as a step of
+   Updating Library would be (free_space.h): USB or a switch off, come
+   meanwhile, answered after it; true if USB was */
+bool library_free_recount(void);
 /* on that screen, for a plugin working at the end of it: total is 0 when it
    only says that it still works */
 void library_update_progress(int done, int total);

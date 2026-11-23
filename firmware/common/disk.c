@@ -600,6 +600,23 @@ void volume_recalc_free(IF_MV_NONVOID(int volume))
     disk_writer_unlock();
 }
 
+#ifndef BOOTLOADER
+/* A step of fat_recount_free(), on the writer's lock for that step alone, a
+   read of the FAT: the file system goes on between steps, the count kept
+   right meanwhile by fat.c, and a writer waits for one read at the most */
+int volume_recount_free(IF_MV(int volume,) void *buf, unsigned long size,
+                        struct fat_recount *r)
+{
+    if (!CHECK_VOL(volume))
+        return -1;
+
+    disk_writer_lock();
+    int rc = fat_recount_free(IF_MV(volume,) buf, size, r);
+    disk_writer_unlock();
+    return rc;
+}
+#endif
+
 unsigned int volume_get_cluster_size(IF_MV_NONVOID(int volume))
 {
     if (!CHECK_VOL(volume))

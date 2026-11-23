@@ -125,6 +125,12 @@ struct volumeinfo
 
 /* Volume-centric functions (in disk.c) */
 void volume_recalc_free(IF_MV_NONVOID(int volume));
+#if (CONFIG_PLATFORM & PLATFORM_NATIVE) && !defined(BOOTLOADER)
+/* a step of the FAT's count of the free clusters (fat.h) */
+struct fat_recount;
+int volume_recount_free(IF_MV(int volume,) void *buf, unsigned long size,
+                        struct fat_recount *r);
+#endif
 unsigned int volume_get_cluster_size(IF_MV_NONVOID(int volume));
 void volume_size(IF_MV(int volume,) sector_t *size, sector_t *free);
 #ifdef HAVE_DIRCACHE

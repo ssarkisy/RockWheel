@@ -72,6 +72,7 @@
 #include "open_plugin.h"
 #include "drive_info.h"
 #include "health_log.h"
+#include "free_space.h"
 #include "statusbar-skinned.h"
 
 #include "debug.h"
@@ -759,6 +760,7 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
             if (callback != NULL)
                 callback(parameter);
             health_note_free();
+            free_space_usb_connected();
             system_flush();
 #ifdef BOOTFILE
 #if !defined(USB_NONE) && !defined(USB_HANDLED_BY_OF)
@@ -772,17 +774,23 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
 #endif
 #endif
             system_restore();
+            /* the computer may have left FSInfo's count of free clusters off */
+            free_space_usb_ended();
 #ifdef HAVE_TAGCACHE
             /* After a sync, the new songs before anything else, as after a
                boot: at once, as a browser stays open after USB, and from
                within a plugin's screen once that has closed, as plugins do
                after USB: it took the plugins' buffer from under the plugin
                itself. Once the dircache is built again, as at boot: before
-               it, every folder and file was looked up on the disk. */
+               it, every folder and file was looked up on the disk. The free
+               space is counted first, as the room of the library's files
+               goes by it. The library isn't checked again after a USB
+               session answered during the count: that session's own pass
+               here checked it, or left it to the main menu. */
             library_take_no_room(); /* of before the computer had the disk */
             if (library_update_waits())
                 library_update_after_usb();
-            else if (tagcache_check_sync())
+            else if (!library_free_recount() && tagcache_check_sync())
                 show_library_update();
 #endif
 #ifdef ITUNESDB_HAVE_ART

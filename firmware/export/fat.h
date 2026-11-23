@@ -226,6 +226,22 @@ unsigned int fat_get_cluster_size(IF_MV_NONVOID(int volume));
 bool fat_get_offsets(IF_MV(int volume,) uint64_t *start, uint64_t *data);
 void fat_recalc_free(IF_MV_NONVOID(int volume));
 bool fat_size(IF_MV(int volume,) sector_t *size, sector_t *free);
+#ifndef BOOTLOADER
+/* The free clusters counted from the FAT read straight from the disk, many
+   sectors a read, in steps: fat_recount_free() in fat.c, which says how */
+struct fat_recount
+{
+    unsigned long kept;       /* the volume's count before it was replaced */
+    unsigned long found;      /* the count found, the volume's now */
+    unsigned long sectors;    /* the FAT's sectors read */
+    unsigned long reads;      /* in this many reads */
+    unsigned long us;         /* the steps' time in microseconds, */
+    unsigned long read_us;    /* of it reading; both 0 where the target
+                                 can't tell */
+};
+int fat_recount_free(IF_MV(int volume,) void *buf, unsigned long size,
+                     struct fat_recount *r);
+#endif
 
 /** Misc. **/
 void fat_empty_fat_direntry(struct fat_direntry *entry);

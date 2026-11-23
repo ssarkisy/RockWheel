@@ -930,6 +930,41 @@ static void forget_seek_marks(void)
 #define forget_seek_marks()
 #endif /* MEMORYSIZE >= 16 && !BOOTLOADER */
 
+#ifndef BOOTLOADER
+/* The free clusters counted again from the FAT itself (fat_recount_free()),
+   read straight from the disk many sectors at a time, in steps between which
+   the file system goes on. A cluster taken or freed meanwhile in a sector
+   counted already moves this count as it moves the volume's own
+   (recount_moved()); one in a sector still ahead is read as it is by then.
+   A mount or an unmount of the volume ends it. */
+static struct
+{
+    struct bpb *bpb;            /* the volume counted, NULL for none */
+    unsigned long next;         /* the FAT's sector read next, from its start */
+    unsigned long free;         /* the free clusters of the sectors before it */
+    unsigned long first;        /* the first free cluster found, 0 for none */
+    struct fat_recount stat;
+} recount;
+
+/* by is +1 for a cluster of the FAT's sector freed, -1 for one taken: with
+   the volume's count, on the cache's lock */
+static inline void recount_moved(struct bpb *fat_bpb, unsigned long sector,
+                                 int by)
+{
+    if (recount.bpb != fat_bpb || sector >= recount.next)
+        return;
+    if (by > 0)
+        recount.free++;
+    else if (recount.free > 0)
+        recount.free--;
+}
+#define recount_end(_bpb) \
+    ({ if (recount.bpb == (_bpb)) recount.bpb = NULL; })
+#else
+#define recount_moved(_bpb, sector, by) ((void)0)
+#define recount_end(_bpb)               ((void)0)
+#endif /* !BOOTLOADER */
+
 #ifdef HAVE_FILE_MAP
 /* One more each time a cluster is about to be freed, and as volumes are
    mounted or unmounted: a map of a file's sectors made before may then have
@@ -1047,8 +1082,12 @@ static int update_fat_entry16(struct bpb *fat_bpb, unsigned long entry,
     if (val)
     {
         /* being allocated */
-        if (curval == 0x0000 && fat_bpb->fsinfo.freecount > 0)
-            fat_bpb->fsinfo.freecount--;
+        if (curval == 0x0000)
+        {
+            if (fat_bpb->fsinfo.freecount > 0)
+                fat_bpb->fsinfo.freecount--;
+            recount_moved(fat_bpb, sector, -1);
+        }
     }
     else
     {
@@ -1057,6 +1096,7 @@ static int update_fat_entry16(struct bpb *fat_bpb, unsigned long entry,
         {
             fat_bpb->fsinfo.freecount++;
             fat_bpb->full = false;
+            recount_moved(fat_bpb, sector, 1);
         }
     }
 
@@ -1220,8 +1260,12 @@ static int update_fat_entry32(struct bpb *fat_bpb, unsigned long entry,
     if (val)
     {
         /* being allocated */
-        if (!(curval & 0x0fffffff) && fat_bpb->fsinfo.freecount > 0)
-            fat_bpb->fsinfo.freecount--;
+        if (!(curval & 0x0fffffff))
+        {
+            if (fat_bpb->fsinfo.freecount > 0)
+                fat_bpb->fsinfo.freecount--;
+            recount_moved(fat_bpb, sector, -1);
+        }
     }
     else
     {
@@ -1230,6 +1274,7 @@ static int update_fat_entry32(struct bpb *fat_bpb, unsigned long entry,
         {
             fat_bpb->fsinfo.freecount++;
             fat_bpb->full = false;
+            recount_moved(fat_bpb, sector, 1);
         }
     }
 
@@ -3536,6 +3581,7 @@ int fat_mount(IF_MV(int volume,) IF_MD(int drive,) unsigned long startsector)
     /* it worked */
     forget_seek_marks();
     chains_changing();
+    recount_end(fat_bpb);
     fat_bpb->full = false;
     fat_bpb->mounted = true;
 
@@ -3564,6 +3610,7 @@ int fat_unmount(IF_MV_NONVOID(int volume))
     cache_discard(IF_MV(fat_bpb));
     forget_seek_marks();
     chains_changing();
+    recount_end(fat_bpb);
     fat_bpb->mounted = false;
 
     return 0;
@@ -3716,6 +3763,127 @@ void fat_recalc_free(IF_MV_NONVOID(int volume))
     fat_recalc_free_internal(fat_bpb);
     dc_unlock_cache();
 }
+
+#ifndef BOOTLOADER
+/* The most sectors a step reads, whatever the buffer: as many as one ATA
+   command takes with LBA28 */
+#define RECOUNT_MAX_SECTORS 256
+
+/* One step of a count of the volume's free clusters from its FAT: the next of
+   its sectors read straight from the disk into buf, as many as size bytes
+   take (aligned as for the caller's own reads of the disk), after the cache's
+   changes are written, the FAT's first, so that the disk has it as it is. The
+   count goes on from the step before, clusters taken and freed between them
+   (recount); at the last step it is the volume's count and FSInfo's, written
+   then, and *r has the whole count's figures. 1 while more is to be read, 0
+   at the end; < 0 if the volume isn't mounted, buf can't take a sector, or a
+   read failed, which ends it. On the caller's writer lock of the file system,
+   for the step alone (volume_recount_free()). */
+int fat_recount_free(IF_MV(int volume,) void *buf, unsigned long size,
+                     struct fat_recount *r)
+{
+    struct bpb * const fat_bpb = FAT_BPB(volume);
+    if (!fat_bpb)
+        return -1;
+
+    const unsigned long most = MIN(size / LOG_SECTOR_SIZE(fat_bpb),
+                                   RECOUNT_MAX_SECTORS);
+    if (!most)
+        return -2;
+
+#ifdef HAVE_FAT16SUPPORT
+    const bool fat16 = fat_bpb->is_fat16;
+    const unsigned long per = fat16 ? CLUSTERS_PER_FAT16_SECTOR
+                                    : CLUSTERS_PER_FAT_SECTOR;
+#else
+    const unsigned long per = CLUSTERS_PER_FAT_SECTOR;
+#endif
+    /* up to the last cluster's sector, not the FAT's spare ones after it */
+    const unsigned long last = fat_bpb->dataclusters + 1;
+    const unsigned long end = MIN(fat_bpb->fatsize, last / per + 1);
+
+    if (recount.bpb != fat_bpb)
+    {
+        memset(&recount, 0, sizeof(recount));
+        recount.bpb = fat_bpb;
+    }
+
+#ifdef USEC_TIMER
+    const unsigned long began = USEC_TIMER;
+#endif
+    dc_lock_cache();
+    dc_commit_all(IF_MV(fat_bpb->volume));
+    dc_unlock_cache();
+
+    const unsigned long sector = recount.next;
+    const unsigned long count = MIN(most, end - sector);
+#ifdef USEC_TIMER
+    const unsigned long read_began = USEC_TIMER;
+#endif
+    int rc = storage_read_sectors(IF_MD(fat_bpb->drive,) fat_bpb->startsector
+                                  + fat_bpb->fatrgnstart + sector, count, buf);
+#ifdef USEC_TIMER
+    recount.stat.read_us += USEC_TIMER - read_began;
+#endif
+    if (rc < 0)
+    {
+        DEBUGF("%s() - Could not read FAT sector %lu (error %d)\n",
+               __func__, sector, rc);
+        recount.bpb = NULL;
+        return rc * 10 - 3;
+    }
+
+    /* the entries of the volume's clusters among them: 2 to last */
+    const unsigned long c0 = sector * per;
+    const unsigned long i0 = c0 < 2 ? 2 - c0 : 0;
+    const unsigned long n = MIN(count * per, last + 1 - c0);
+    unsigned long free = 0;
+#ifdef HAVE_FAT16SUPPORT
+    if (fat16)
+    {
+        const uint16_t *e = buf;
+        for (unsigned long i = i0; i < n; i++)
+            free += !e[i];
+        for (unsigned long i = i0; free && !recount.first && i < n; i++)
+            if (!e[i])
+                recount.first = c0 + i;
+    }
+    else
+#endif /* HAVE_FAT16SUPPORT */
+    {
+        const uint32_t *e = buf;
+        for (unsigned long i = i0; i < n; i++)
+            free += !(letoh32(e[i]) & 0x0fffffff);
+        for (unsigned long i = i0; free && !recount.first && i < n; i++)
+            if (!(letoh32(e[i]) & 0x0fffffff))
+                recount.first = c0 + i;
+    }
+
+    recount.free += free;
+    recount.next = sector + count;
+    recount.stat.reads++;
+    recount.stat.sectors += count;
+#ifdef USEC_TIMER
+    recount.stat.us += USEC_TIMER - began;
+#endif
+    if (recount.next < end)
+        return 1;
+
+    /* the volume's count from now on, and FSInfo's on the disk */
+    if (r)
+    {
+        *r = recount.stat;
+        r->kept = fat_bpb->fsinfo.freecount;
+        r->found = recount.free;
+    }
+    recount.bpb = NULL;
+    fat_bpb->fsinfo.freecount = recount.free;
+    if (fat_bpb->fsinfo.nextfree == 0xffffffff && recount.first)
+        fat_bpb->fsinfo.nextfree = recount.first;
+    cache_commit(fat_bpb);
+    return 0;
+}
+#endif /* !BOOTLOADER */
 
 bool fat_size(IF_MV(int volume,) sector_t *size, sector_t *free)
 {

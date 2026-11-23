@@ -88,6 +88,7 @@
 #include "disk.h"
 #include "backlight.h"
 #include "icons.h"
+#include "free_space.h"
 #ifdef HAVE_TAGCACHE
 #include "music_search.h"
 #include "album_years.h"
@@ -1881,6 +1882,24 @@ static bool library_playlists_go_on(void)
     return !held_event;
 }
 
+/* The disk's free clusters counted again, if that's owed (free_space.c), as
+   Updating Library's steps go: under the boot logo or what USB's screen
+   left, nothing new shown. USB or a switch off come meanwhile stop it and are
+   answered after it: a count stopped for USB begins again after that session,
+   the volume mounted again; one stopped as music started goes on from where
+   it stopped. Before the library's check, whose room goes by that count, and
+   not under an import, whose writes would wait for each of its reads. True
+   if it answered USB, whose session checked the library after it. */
+bool library_free_recount(void)
+{
+    free_space_recount(library_playlists_go_on);
+    if (!held_event)
+        return false;
+    const long event = held_event;
+    held_event = 0;
+    return default_event_handler(event) == SYS_USB_CONNECTED;
+}
+
 /* the bytes of text's first line in width: up to a space, or the characters
    that fit in a line with none, as in Chinese */
 int text_line_bytes(const unsigned char *text, int width)
@@ -2329,6 +2348,11 @@ static void library_update_screen(const char *words)
         if (current_tick - step_start >= HZ)
             step_end(STEP_PLAYLISTS);
     }
+    /* the free space counted again, if it wasn't before an import the boot
+       began (root_menu()): once its writes are over, USB or a switch off come
+       meanwhile held, as by the playlists' indexing above, for what follows */
+    if (phase == TAGCACHE_IMPORT_NONE && !held_event)
+        free_space_recount(library_playlists_go_on);
     /* The list to resume, read again after all that may have written a
        playlist's file, while this or the boot's logo shows and the disk
        spins: Resume Playback then starts at once. For the main menu, which
@@ -2513,6 +2537,14 @@ void root_menu(void)
     usb_checked = database_ram_wait();
 #endif
 #ifdef HAVE_TAGCACHE
+    /* the free space counted again, if that's owed, before the check, whose
+       room goes by it; after an import the boot began (tagcache_init()),
+       on its screen (library_update_screen()). USB come meanwhile checked the
+       library after its session, as in database_ram_wait(). */
+    int import_done, import_total;
+    if (tagcache_get_import(&import_done, &import_total)
+        == TAGCACHE_IMPORT_NONE)
+        usb_checked |= library_free_recount();
     /* the songs outside Finder's folder, as after USB: the check there was
        lost to a reset or a switch off right after it, and the songs copied
        waited for the next connection. Not again after one that USB, come
@@ -2557,7 +2589,9 @@ void root_menu(void)
         if (library_update_pending && !(audio_status() & AUDIO_STATUS_PLAY))
         {
             library_update_pending = false;
-            if (tagcache_check_sync())
+            /* not again after a USB session answered during the count, whose
+               own pass checked the library or left it pending again */
+            if (!library_free_recount() && tagcache_check_sync())
                 show_library_update();
 #ifdef ITUNESDB_HAVE_ART
             menu_cover_resume_look();

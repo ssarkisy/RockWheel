@@ -52,6 +52,9 @@ crash_log.c
 #if (CONFIG_STORAGE & STORAGE_ATA) && (CONFIG_PLATFORM & PLATFORM_NATIVE) && defined(HAVE_ATA_POWER_OFF)
 drive_info.c
 #endif
+#if (CONFIG_PLATFORM & PLATFORM_NATIVE)
+free_space.c
+#endif
 open_plugin.c
 onplay.c
 playlist.c
