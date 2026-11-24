@@ -9770,11 +9770,30 @@ static bool ipod_control_private(const char *path)
     return len != 5 || strncasecmp(rest, "Music", 5);
 }
 
+/* Windows's Recycle Bin, which keeps the files deleted in Explorer:
+   $RECYCLE.BIN from Vista on, RECYCLED before it on a FAT disk (RECYCLER is
+   NTFS's). Only at the top of a volume, where Windows makes it: an album may
+   be called Recycled. RECYCLED only in capitals, the short name Windows
+   gives it: a folder of one's own called Recycled, there too, stays. */
+static bool windows_bin(const char *path)
+{
+#ifdef HAVE_MULTIVOLUME
+    path_strip_volume(path, &path, false);
+#endif
+    path = GOBBLE_PATH_SEPCH(path);
+    return (!strncasecmp(path, "$RECYCLE.BIN", 12)
+            && IS_COMP_TERMINATOR(path[12]))
+           || (!strncmp(path, "RECYCLED", 8) && IS_COMP_TERMINATOR(path[8]));
+}
+
 /* a path with a name of macOS's own in it (is_macos_name()): the "._" file
    beside each song copied with its attributes, which every scan opened and
-   turned down, and the Trash, whose songs went into the library */
+   turned down, and the Trash, whose songs went into the library; or in
+   Windows's Recycle Bin, whose songs did too */
 static bool hidden_path(const char *path)
 {
+    if (windows_bin(path))
+        return true;
     for (const char *s = path; (s = strchr(s, '/')); s++)
     {
         if (is_macos_name(s + 1))
@@ -10719,7 +10738,7 @@ static bool check_dir(const char *dirname, int add_files)
             else
 #endif /* SIMULATOR */
             if (!rockbox_dir(curpath) && !outside_skips(curpath)
-                && !ipod_control_private(curpath)
+                && !ipod_control_private(curpath) && !windows_bin(curpath)
                 && walk_enter(&scan_trail, info.firstcluster))
             {
                 check_dir(curpath, add_files);
@@ -10798,6 +10817,7 @@ static int count_dir(bool add_files)
             if (!(info.attribute & ATTR_LINK))
 #endif
             if (!rockbox_dir(countpath) && !finder_dir(countpath)
+                && !windows_bin(countpath)
                 && walk_enter(&count_trail, info.firstcluster))
             {
                 count += count_dir(add_files);
