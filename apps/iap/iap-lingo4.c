@@ -1480,16 +1480,20 @@ void iap_handlepkt_mode4(const unsigned int len, const unsigned char *buf)
                         playlist_get_track_info(NULL, start_index + counter,
                                                 &track);
                         iap_get_trackinfo(start_index + counter, &id3);
+                        /* a tag the file hasn't, NULL, as "" */
                         switch(buf[3])
                         {
                             case 0x05:
-                                strmemccpy((char *)&data[7], id3.title,64);
+                                strmemccpy((char *)&data[7],
+                                           id3.title ? id3.title : "", 64);
                                 break;
                             case 0x02:
-                                strmemccpy((char *)&data[7], id3.artist,64);
+                                strmemccpy((char *)&data[7],
+                                           id3.artist ? id3.artist : "", 64);
                                 break;
                             case 0x03:
-                                strmemccpy((char *)&data[7], id3.album,64);
+                                strmemccpy((char *)&data[7],
+                                           id3.album ? id3.album : "", 64);
                                 break;
                             case 0x04:
                             case 0x06:

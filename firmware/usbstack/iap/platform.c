@@ -263,6 +263,14 @@ IAPBool iap_platform_get_hold_switch_state(struct IAPContext* iap_ctx, IAPBool* 
     return iap_true;
 }
 
+/* a tag of the track's with its NUL; one the file hasn't, NULL, as "" */
+static IAPBool append_tag(struct IAPSpan* span, const char* tag) {
+    if(tag == NULL) {
+        tag = "";
+    }
+    return iap_span_append(span, tag, strlen(tag) + 1);
+}
+
 /* taken from iap-core.c */
 static void get_trackinfo(const unsigned int track, struct mp3entry* id3) {
     int tracknum = track;
@@ -307,16 +315,16 @@ IAPBool iap_platform_get_indexed_track_info(struct IAPContext* iap_ctx, uint32_t
         info->release_date->seconds = 0;
     }
     if(info->artist != NULL) {
-        check_act(iap_span_append(info->artist, id3.artist, strlen(id3.artist) + 1), return iap_false);
+        check_act(append_tag(info->artist, id3.artist), return iap_false);
     }
     if(info->composer != NULL) {
-        check_act(iap_span_append(info->composer, id3.composer, strlen(id3.composer) + 1), return iap_false);
+        check_act(append_tag(info->composer, id3.composer), return iap_false);
     }
     if(info->album != NULL) {
-        check_act(iap_span_append(info->album, id3.album, strlen(id3.album) + 1), return iap_false);
+        check_act(append_tag(info->album, id3.album), return iap_false);
     }
     if(info->title != NULL) {
-        check_act(iap_span_append(info->title, id3.title, strlen(id3.title) + 1), return iap_false);
+        check_act(append_tag(info->title, id3.title), return iap_false);
     }
     return iap_true;
 }
