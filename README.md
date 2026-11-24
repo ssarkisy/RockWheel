@@ -198,7 +198,7 @@ The script finds the iPod, downloads and checks the files for its model, install
 
 ## Credits and license
 
-RockWheel is based on [Rockbox](https://www.rockbox.org). It includes fixes and the ALAC decoder's assembly code from [PodBox](https://github.com/anthonyfletcher/podbox), and reliability ideas from [ProkBox5g](https://github.com/prokbox/prokbox5g).
+RockWheel is based on [Rockbox](https://www.rockbox.org). It includes fixes and the ALAC decoder's assembly code from [PodBox](https://github.com/anthonyfletcher/podbox), and reliability ideas from [ProkBox5g](https://github.com/prokbox/prokbox5g). The equalizer editor follows PodBox's design, and its curve uses PodBox's maths.
 
 The firmware is licensed under the GNU General Public License, version 2 or later. The installer uses version 3 or later of the same license. [Firmware license](LICENSE) · [Installer source and license](https://github.com/ssarkisy/RockWheel-Installer) · [Theme and font credits](themes/README.md)
 
