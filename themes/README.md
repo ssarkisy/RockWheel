@@ -101,11 +101,11 @@ Changes from the originals:
   Without a cover, the backdrop's note in its place is drawn the same way,
   turned with Angled Cover, over the flat reflection the backdrop has for it.
 - Now Playing's details stand beside the cover as one block in the middle of
-  its height, as on a stock iPod: the title, artist, album, the song's place
-  in its list, then the stars and the format as Settings > Appearance says
-  (Rating, Format and Bitrate). A skin places nothing by what it shows, so
-  each combination has viewports of its own; `make_classic_np.py` writes
-  them, between the lines of the WPS that name it.
+  its height, as on a stock iPod: the title, artist, album, the stars as
+  Settings > Appearance says (Rating), the song's place in its list in the
+  album's style, then the format (Format and Bitrate). A skin places nothing
+  by what it shows, so each combination has viewports of its own;
+  `make_classic_np.py` writes them, between the lines of the WPS that name it.
 - Shuffle and repeat stand in Now Playing's top right corner, under the status
   bar, as on a stock iPod; the status bar has neither.
 - A dark version, `iClassic-Square-Dark`, which the Dark Theme setting shows.

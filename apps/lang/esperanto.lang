@@ -14699,7 +14699,7 @@
 </phrase>
 <phrase>
   id: LANG_NP_RATING
-  desc: a setting of Settings > Appearance, in its Now Playing section: whether a song's stars show on Now Playing, under its place in the list: Always, Only Rated (once it has a rating) or Never. The rating screen of Now Playing's menu stays either way
+  desc: a setting of Settings > Appearance, in its Now Playing section: whether a song's stars show on Now Playing: Always, Only Rated (once it has a rating) or Never. The rating screen of Now Playing's menu stays either way
   user: core
   <source>
     *: "Rating"
@@ -14727,7 +14727,7 @@
 </phrase>
 <phrase>
   id: LANG_NP_FORMAT
-  desc: a setting of Settings > Appearance, in its Now Playing section, On or Off: a song's format and bitrate on Now Playing, as AAC 256 kbps, under its stars. Off by default, as on a stock iPod
+  desc: a setting of Settings > Appearance, in its Now Playing section, On or Off: a song's format and bitrate on Now Playing, as AAC 256 kbps. Off by default, as on a stock iPod
   user: core
   <source>
     *: "Format and Bitrate"

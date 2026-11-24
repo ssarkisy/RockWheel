@@ -9,14 +9,17 @@
 #       && themes/tools/make_rtl_stars.py
 #
 # The details stand beside the cover as one block in the middle of its
-# height, as on a stock iPod: the title; a song's artist, album and place in
-# its list, then its stars and its format as Settings > Appearance says
-# (Rating, Format and Bitrate); an episode's show, date, place and time left;
+# height, as on a stock iPod: the title; a song's artist and album, its stars
+# as Settings > Appearance says (Rating), then its place in its list, a line
+# as the album's (the stock guide's figure: the stars, then "10 of 12"), and
+# its format (Format and Bitrate); an episode's show, date, place and time left;
 # a book's author, chapter, place, its speed when it isn't the normal one and
-# its format. A skin places nothing by what is shown, so each of these has
+# its format. Every line stands on one pitch, the stars and the format in a
+# line's place, and the block's ink in the middle of the cover's height
+# (block()). A skin places nothing by what is shown, so each of these has
 # viewports of its own, named by what it holds: s<stars><format>, e,
-# b<speed><format>. The rows are those the lines had in 1.4. The same in
-# the iPod photo's skin, themes/iClassic-Square/220x176, by its layout (PHOTO).
+# b<speed><format>. The same in the iPod photo's skin,
+# themes/iClassic-Square/220x176, by its layout (PHOTO).
 
 import os
 import struct
@@ -35,6 +38,7 @@ CHAPTER = "%?kc<%kc|%id>"
 # apps/gui/skin_engine/skin_display.c), two spaces apart: the one the cut
 # leaves and the speed's own. With no speed, the time left has the whole width.
 LEFT = "%nx%al%kl%ar%?ks< %ks|>"
+PLACE = "%s%al%pp %Sx(of) %pe"
 
 
 # The layouts by screen, set in turn as globals (use()); the iPod Video's:
@@ -42,9 +46,8 @@ VIDEO = dict(
     WPS=os.path.join(HERE, "..", "iClassic-Square", ".rockbox", "wps", "iClassic-Square.wps"),
     COVER_Y=41, COVER=136,
     COL=160, COL_W=148,
-    # each line: its viewport's font, rows, colour (None: the firmware's,
-    # %fB's) and text; a line of the 14 px font after one of 17 stands 2 rows
-    # into its place of 18, on the same baseline
+    # each line: its viewport's font, rows (fewer where the next line's
+    # starts sooner), colour (None: the firmware's, %fB's) and text
     LINES={
         "title": (1, 21, "000000", "%t(8)%s%al%?it<%it|%fn>;%t(16)%al%?it<%it|%fn>"),
         "artist": (3, 18, "666666", "%%t(8)%%al%s;%%t(8)%%s%%al%s;%%t(8)%%al%s" % ((ARTIST,) * 3)),
@@ -53,26 +56,30 @@ VIDEO = dict(
         "date": (2, 18, "767676", "%al%kd"),
         "author": (3, 18, "666666", "%%t(8)%%al%s;%%t(8)%%s%%al%s;%%t(8)%%al%s" % ((AUTHOR,) * 3)),
         "chapter": (2, 18, "767676", "%%t(16)%%al%s;%%t(8)%%al%%s%s" % ((CHAPTER,) * 2)),
-        "count": (2, 14, "767676", "%s%al%pp %Sx(of) %pe"),
+        "count": (2, 14, "767676", PLACE),
+        # a song's place, under its stars or its album, in the album's font
+        # and colour
+        "place": (7, 18, "767676", PLACE),
         "format": (4, 18, None, "%fB"),
         "left": (2, 16, "767676", LEFT),
         "speed": (2, 16, "767676", "%al%?ks<%ks|>"),
     },
-    SMALL_UNDER_LARGE=("date", "chapter"),
-    COUNT_GAP=4,
-    STARS_GAP=6,
-    FOOT_GAP=5,             # over the first line under the place in the list
-    FOOT_UNDER_FOOT=3,      # over the format under the stars or the speed
-    # repeat and shuffle under the status bar's right end, repeat at the
-    # column's edge: the large icons (their white is the ground's), and for
-    # Shuffle by albums its own icon of the status bar, in the middle of
-    # their place; 4 rows under the line of the bar of 24
-    # (make_classic_header.py)
-    MODES_Y=27,
+    PITCH=18,               # from a line's baseline to the next one's
+    # each font's ink in its viewport: its capitals' top row and its
+    # baseline; the stars' and the format's first and last rows
+    INK={1: (6, 16), 3: (4, 12), 7: (4, 12), 2: (3, 10), 4: (3, 13), "stars": (1, 11)},
+    # repeat and shuffle under the status line's right end, their ink's last
+    # column the battery's (its viewport at 291, its picture's last column
+    # 24): the large icons (their white is the ground's), and for Shuffle by
+    # albums its own icon of the status bar, at their place's right end; two
+    # rows under the dark line of the bar of 24 (make_classic_header.py)
+    BATTERY_RIGHT=315,
+    MODES_Y=25,
 )
 # The iPod photo's 220x176: the cover 96 px, the column beside it in its
-# fonts, 17 px for the title and 14 for the rest, in their own rows, the gaps
-# smaller; the block kept under the modes, which only its tallest reach
+# fonts, 17 px for the title and 14 for the rest, on a pitch of 14, so that
+# the tallest block, a rated song's with its format, stays beside the cover
+# under the modes
 PHOTO = dict(
     WPS=os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox", "wps",
                      "iClassic-Square.wps"),
@@ -88,16 +95,16 @@ PHOTO = dict(
         "date": (2, 15) + VIDEO["LINES"]["date"][2:],
         "author": (3, 15) + VIDEO["LINES"]["author"][2:],
         "chapter": (2, 15) + VIDEO["LINES"]["chapter"][2:],
+        "place": (7, 15) + VIDEO["LINES"]["place"][2:],
         "format": (4, 15) + VIDEO["LINES"]["format"][2:],
         "left": (2, 15) + VIDEO["LINES"]["left"][2:],
         "speed": (2, 15) + VIDEO["LINES"]["speed"][2:],
     }),
-    SMALL_UNDER_LARGE=(),
-    COUNT_GAP=2,
-    STARS_GAP=4,
-    FOOT_GAP=3,
-    FOOT_UNDER_FOOT=2,
-    MODES_Y=22,
+    PITCH=14,
+    INK={1: (4, 12), 3: (3, 10), 7: (3, 10), 2: (3, 10), 4: (3, 13), "stars": (1, 11)},
+    # the battery's viewport at 191; two rows under the bar's line of 16
+    BATTERY_RIGHT=215,
+    MODES_Y=17,
 )
 STARS_ROWS = 13  # the small stars' row; their width is the Ratings picture's
 MODE_W, MODE_H = 19, 20
@@ -111,46 +118,50 @@ def use(layout):
 use(VIDEO)
 
 
-def block(parts):
-    """parts: (what, clear rows over it); each one's top row and rows, the
-    block in the middle of the cover's height"""
-    rows = [STARS_ROWS if what == "stars" else LINES[what][1] for what, _ in parts]
-    y = COVER_Y + COVER // 2 - sum(r + gap for r, (_, gap) in zip(rows, parts)) // 2
-    # but under the modes at the column's right end
-    y = max(y, MODES_Y + MODE_H + 1)
+def ink(what):
+    """the line's ink in its viewport (INK)"""
+    return INK["stars"] if what == "stars" else INK[LINES[what][0]]
+
+
+def block(lines):
+    """the lines' viewports, (what, top row, rows) each: their baselines PITCH
+    apart, the stars and the format in a line's place, in the middle of its
+    capitals; the block's ink, from the first line's capitals to the last
+    one's foot, in the middle of the cover's height, but under the modes"""
+    caps = ink("artist")
+    middle = (caps[1] - caps[0]) // 2
     out = []
-    for (what, gap), r in zip(parts, rows):
-        y += gap
-        out.append((what, y, r))
-        y += r
-    return out
-
-
-def details(first, second):
-    return [("title", 0), (first, 0), (second, 0), ("count", COUNT_GAP)]
-
-
-def feet(*lines):
-    """the lines under the place in the list, each one's gap"""
-    return [(what, FOOT_GAP if n == 0 else FOOT_UNDER_FOOT) for n, what in enumerate(lines)]
+    for n, what in enumerate(lines):
+        top, foot = ink(what)
+        base = n * PITCH
+        y = base - middle - (top + foot) // 2 if what in ("stars", "format") else base - foot
+        out.append([what, y, STARS_ROWS if what == "stars" else LINES[what][1]])
+    first = out[0][1] + ink(out[0][0])[0]
+    last = out[-1][1] + ink(out[-1][0])[1]
+    shift = max(COVER_Y + COVER // 2 - (first + last + 1) // 2,
+                MODES_Y + MODE_H + 1 - out[0][1])
+    for line in out:
+        line[1] += shift
+    # none taller than to the next one's top, which it would clear
+    for line, below in zip(out, out[1:]):
+        line[2] = min(line[2], below[1] - line[1])
+    return [tuple(line) for line in out]
 
 
 def variants():
     out = {}
     for stars in (0, 1):
         for fmt in (0, 1):
-            out["s%d%d" % (stars, fmt)] = details("artist", "album") + feet(
-                *(["stars"] if stars else []) + (["format"] if fmt else []))
-    out["e"] = details("show", "date") + feet("left")
+            # a song's place right under its album without stars
+            out["s%d%d" % (stars, fmt)] = (["title", "artist", "album"]
+                                           + (["stars"] if stars else []) + ["place"]
+                                           + (["format"] if fmt else []))
+    out["e"] = ["title", "show", "date", "count", "left"]
     for speed in (0, 1):
         for fmt in (0, 1):
-            out["b%d%d" % (speed, fmt)] = details("author", "chapter") + feet(
-                *(["speed"] if speed else []) + (["format"] if fmt else []))
-    # the stars' gap is their own
-    for parts in out.values():
-        for i, (what, gap) in enumerate(parts):
-            if what == "stars":
-                parts[i] = (what, STARS_GAP)
+            out["b%d%d" % (speed, fmt)] = (["title", "author", "chapter", "count"]
+                                           + (["speed"] if speed else [])
+                                           + (["format"] if fmt else []))
     return out
 
 
@@ -166,9 +177,8 @@ def viewports():
                             for pic in "qR") + ">"]
                 continue
             font, _, colour, text = LINES[what]
-            if what in SMALL_UNDER_LARGE:
-                y, rows = y + 2, rows - 2
-            # the place's figures start a column left, as in 1.4
+            # an episode's and a book's place, in the smaller font, its figures
+            # a column left, as in 1.4; a song's at the album's column
             x, w = (COL - 1, COL_W + 1) if what == "count" else (COL, COL_W)
             out += ["%%Vl(%s,%d,%d,%d,%d,%d)%s" % (label, x, y, w, rows, font,
                                                    "%%Vf(%s)" % colour if colour else ""),
@@ -199,11 +209,11 @@ def modes():
     shuffle = "%?ps<%?pa<%xd(A)|%xd(S)>|>"
     # %mm: off, all, one, shuffle, A-B
     repeat = "%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)"
-    right = COL + COL_W - MODE_W + 1
+    right = BATTERY_RIGHT - MODE_W + 1
     return [
         "%xl(r,Repeat Icon.bmp,0,0,4)",
         "%xl(S,Shuffle Icon.bmp,0,0)",
-        "%%xl(A,Status Shuffle Albums.bmp,%d,%d)" % ((MODE_W - 16 + 1) // 2, (MODE_H - 16) // 2),
+        "%%xl(A,Status Shuffle Albums.bmp,%d,%d)" % (MODE_W - 16, (MODE_H - 16) // 2),
         "%%Vl(mode1,%d,%d,%d,%d,-)" % (right, MODES_Y, MODE_W, MODE_H),
         "%%?mm<%s|%s>" % (shuffle, repeat),
         "%%Vl(mode2,%d,%d,%d,%d,-)" % (right - MODE_GAP - MODE_W, MODES_Y, MODE_W, MODE_H),
@@ -243,7 +253,7 @@ def write():
          "%xC(q)"] + viewports() + [
          "# never shown, it only gives %fB the font of the bitrate",
          "%Vl(bitrate,0,0,1,1,6)",
-         "# repeat and shuffle under the status bar's right end, repeat at the column's edge"]
+         "# repeat and shuffle under the status bar's right end, ending where the battery does"]
         + modes(),
     ]
     for (b, e), part in reversed(list(zip(zip(begins, ends), parts))):

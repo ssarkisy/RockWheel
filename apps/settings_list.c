@@ -1864,8 +1864,8 @@ const struct settings_list settings[] = {
                    ID2P(LANG_STATUS_ICONS_BATTERY), ID2P(LANG_STATUS_ICONS_OWN)),
     OFFON_SETTING(0, angled_cover, LANG_ANGLED_COVER, false, "angled cover", NULL),
 #endif
-    /* what Now Playing shows under a song's place in its list: the themes'
-       skins ask for these by name, so every build has them */
+    /* a song's stars and its format on Now Playing: the themes' skins ask
+       for these by name, so every build has them */
     CHOICE_SETTING(0, np_rating, LANG_NP_RATING, 0, "now playing rating",
                    "always,rated,never", NULL, 3, ID2P(LANG_ALWAYS),
                    ID2P(LANG_NP_RATING_RATED), ID2P(LANG_NEVER)),
