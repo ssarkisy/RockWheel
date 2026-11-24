@@ -1309,6 +1309,10 @@ static bool make_panels(fb_data *panel)
             compose_panel(panel, album->items, album->count);
         ok = rb->write(fd, panel, PANEL_SIZE) == (ssize_t)PANEL_SIZE;
         rb->yield();
+        /* made at Updating Library after USB, an album's twelve thumbnails
+           read and no button: many albums can take longer than the hang
+           catcher's limit for the UI */
+        rb->hang_ui_alive();
     }
     return rb->whole_file_close(fd, PHOTOS_PANELS_FILE, ok) && ok;
 }

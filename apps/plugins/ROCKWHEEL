@@ -3,8 +3,9 @@
 # the plugin's, as pictureflow_splash.bmp. RockWheel's menus
 # open only these: Extras and its games, Photos, the playing time of the
 # playlist, the track info and a long tag of it, Cover Flow of the Music menu.
-# Each reads a button at least every few seconds while it works, or the hang
-# catcher calls the iPod hung after 20 s (firmware/export/hang.h).
+# Each reads a button at least every few seconds while it works, or in a
+# bounded step calls rb->hang_ui_alive(); else the hang catcher calls the iPod
+# hung after 20 s (firmware/export/hang.h).
 photos
 clock
 calendar

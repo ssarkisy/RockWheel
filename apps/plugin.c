@@ -115,6 +115,7 @@ extern struct battery_tables_t device_battery_tables; /* powermgmt.c */
 /* File handle leak prophylaxis */
 #include "bitarray.h"
 #include "file_internal.h" /* for MAX_OPEN_FILES */
+#include "hang.h"
 
 #define PCOC_WRAPPER(_x_)   WRAPPER(_x_)
 
@@ -1003,6 +1004,7 @@ static const struct plugin_api rockbox_api = {
     itunesdb_song_keep,
     library_update_covers_count,
 #endif
+    hang_ui_alive,
 };
 
 static int plugin_buffer_handle;

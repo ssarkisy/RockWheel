@@ -71,6 +71,7 @@
 #include "album_years.h"
 #include "list_covers.h"
 #include "artist_rows.h"
+#include "hang.h"
 
 #define str_or_empty(x) (x ? x : "(NULL)")
 
@@ -9271,7 +9272,13 @@ int tagtree_show_played(int most)
     {
         const int n = show_played_after(album, from, ids);
         for (int i = 0; i < n && (most <= 0 || count < most); i++)
+        {
+            /* each a folder read up to its file, and no button: a show's
+               very many in one folder can take longer than the hang
+               catcher's limit for the UI */
+            hang_ui_alive();
             count += !tagcache_track_read_only(ids[i]);
+        }
         if (n < SHOW_PLAYED_BATCH || (most > 0 && count >= most))
             return count;
         from = ids[n - 1];
@@ -9296,6 +9303,11 @@ int tagtree_show_delete_played(int most)
         for (int i = 0; i < n && done < most; i++)
         {
             from = ids[i];
+            /* each a file freed, its entry and the playlists' note written,
+               or at most its folder read if it's passed over, and no button
+               read: a show's hundreds can take longer than the hang catcher's
+               limit for the UI */
+            hang_ui_alive();
             /* not tried: one playing now, or marked read-only */
             if (!tagcache_track_deletable(ids[i])
                 || tagcache_track_read_only(ids[i]))

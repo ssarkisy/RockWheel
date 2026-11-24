@@ -27,7 +27,8 @@
  *   end of one button_get_w_tmo() wait to the next call: blocked, or busy
  *   while it yields. The UI thread is the last of the CPU's to wait for a
  *   button. A plugin that works longer without reading one shows the HANG
- *   screen: the shipped ones read them (extras_menu.c).
+ *   screen: the shipped ones read them, or in a bounded step say they go on
+ *   with rb->hang_ui_alive(), as Photos' collages (extras_menu.c).
  * Either, at two looks in a row, makes a crash record of kind
  * PANIC_KIND_HANG and shows the HANG screen, which waits for Menu+Select
  * (panic_hang(), panic.c); the next boot writes the record to crash.log.
