@@ -221,8 +221,8 @@ TITLE = "%al%nx%Lt"
 # known (%bl's first case)
 PCT_TEXT = "%aR%?bl<|%bl%%>"
 LEVEL_GAP = 6
-# the half-covered columns of the playing glyphs end at their 6th, the moon's
-# at its 8th
+# the half-covered columns of the playing glyphs end at column 6 (from 0), the
+# moon's at column 8
 INK_END = {"Playing_Status": 6, "Night": 8}
 
 

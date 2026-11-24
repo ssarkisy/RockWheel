@@ -134,8 +134,8 @@ after a change, in this order:
 - `make_classic_np.py`: the details of Now Playing, in the light theme's WPS,
   of either screen.
 - `make_dark_theme.py`: the dark theme, all of it from the light one, of
-  either screen, but for the status line's glyphs, which the two scripts above
-  make.
+  either screen, but for the status line's glyphs, which
+  `make_classic_header.py` and `make_night_icon.py` make.
 
 Dieter's skins, pictures and the glyphs the firmware draws in it are all written by
 `make_dieter_theme.py` (see `Dieter/README.md`).

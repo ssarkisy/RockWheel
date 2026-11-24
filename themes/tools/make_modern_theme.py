@@ -201,7 +201,7 @@ def glyphs_x(right=None):
 # (%bl's first case)
 PCT_TEXT = "%aR%?bl<|%bl%%>"
 LEVEL_GAP = 6
-PLAY_INK = 8            # the playing glyphs' half-covered columns end at their 8th
+PLAY_INK = 8            # the playing glyphs' half-covered columns end at column 8 (from 0)
 
 
 def level_play(font, bat_x):

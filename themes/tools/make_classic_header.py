@@ -27,9 +27,11 @@ and how much of it the pixel covers (layers()), on the rows of that screen's
 bar where its skins draw it (STATUS), transparent where it covers nothing, so
 that the bar shows through. They were cut from the original bar: a pixel
 within NEAR of one of the colours of its row there is the bar, and one at the
-glyph's edge (edge_layers()) as much ink as it is of the colour between the
-bar and its neighbour's furthest from it; their own light parts, as the charging
-battery's body, stay. The play glyph's triangles are drawn anew from their
+glyph's edge beside the bar round it (edge_layers()) as much ink as it is of
+the blend of the bar and the neighbour's colour that fits it best. Their own
+light parts stay, as the charging battery's body, but for three of its pixels
+(frame Bb) within NEAR of their row's colours, which show the bar there,
+all but the same colour. The play glyph's triangles are drawn anew from their
 shapes (PLAY_SHAPES) in the colours of the gloss inside them, so that their
 edges are smooth as the moon's (make_night_icon.py, which puts it on the bars
 the same way). The dark look's inks are make_dark_theme.py's header_pixel(),

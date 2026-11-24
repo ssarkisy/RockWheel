@@ -167,8 +167,8 @@ static void handle_usb_events(struct viewport *title)
 /* Colours of the title bar, for each row */
 static const unsigned long ipod_usb_title_bar[] = {
 #ifdef UI_220X176
-    /* Classic's 220x176 skin's (iClassic_bg.bmp, its 16 rows), with the dark
-       line under it */
+    /* Classic's 220x176 skin's (iClassic_bg.bmp, its 16 rows), the last of
+       them its dark line */
     0xf6f6ff, 0xedf6ff, 0xeef4fb, 0xe6eff6, 0xe6edf4, 0xe5e9ed, 0xe1e7ef, 0xdfe5ec,
     0xd5dce1, 0xd4d9dd, 0xcfd7df, 0xcdd4d9, 0xc5cfd5, 0xc4ccd2, 0xd1d5d8, 0x6c737b,
 #else

@@ -70,8 +70,10 @@ LEVEL_CHAIN = ("", 100), ("2", 20), ("2i", 10), ("1", 0), ("1i", 1)
 
 
 def level_places(font, right, before):
-    """for each level 0 to 100 the x of a glyph that ends `before` columns
-    left of the first digit's ink of the level, which ends at column right - 1"""
+    """for each level 0 to 100 the x of a glyph that starts `before` columns
+    left of the first digit's ink of the level, which ends at column right - 1:
+    one whose ink ends at its column e stands a gap of g from it with
+    before = 1 + g + e"""
     return [right - width(font, "%d%%" % n) + ink_start(font, str(n)[0]) - before
             for n in range(101)]
 
