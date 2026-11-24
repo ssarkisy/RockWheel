@@ -653,6 +653,12 @@ static uint8_t channel_pair_element(NeAACDecHandle hDecoder, bitfile *ld,
                 }
             }
         }
+        else if (ics1->ms_mask_present == 3)
+        {
+            /* reserved: ms_decode() reads ms_used, which element_clear()
+               leaves as an earlier frame set it */
+            memset(ics1->ms_used, 0, sizeof(ics1->ms_used));
+        }
 
 #ifdef ERROR_RESILIENCE
         if ((hDecoder->object_type >= ER_OBJECT_START) && (ics1->predictor_data_present))
@@ -1701,8 +1707,11 @@ static uint8_t section_data(NeAACDecHandle hDecoder, ic_stream *ics, bitfile *ld
             printf("%d\n", ics->sect_end[g][i]);
 #endif
 
-            /* past num_swb, sect_sfb_offset holds what an earlier track left */
-            if (k + sect_len >= 8*15 || k + sect_len > ics->num_swb)
+            /* past max_sfb, the frame has no scale factors: a malformed
+               stream, which FFmpeg rejects too. ics_info() keeps max_sfb
+               within num_swb, past which sect_sfb_offset holds what an
+               earlier track left, and so within the arrays' 8*15 */
+            if (k + sect_len > ics->max_sfb)
                 return 15;
 
             for (sfb = k; sfb < k + sect_len; sfb++)
