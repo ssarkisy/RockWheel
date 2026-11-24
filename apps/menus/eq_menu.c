@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 #include "eq_menu.h"
 #include "system.h"
 #include "kernel.h"
@@ -55,6 +56,8 @@
 #include "eq_files.h"
 #include "eq_curve.h"
 #include "eq_editor.h"
+#include "health_log.h"
+#include "file.h"
 #ifdef HAVE_TAGCACHE
 #include "music_search.h"
 #endif
@@ -839,9 +842,9 @@ MAKE_MENU(equalizer_menu, ID2P(LANG_EQUALIZER), NULL, Icon_EQ,
         &eq_enable, &eq_graphical, &eq_precut, &gain_menu,
         &advanced_menu, &eq_save, &eq_browse, &eq_reset);
 
-/* The equalizer of the iPod settings: Off, iTunes' presets, as on a stock iPod, and
-   those for particular earphones, each set by selecting it. The gains are iTunes' own,
-   in hundredths of a dB, for bands at 32 Hz to 16 kHz like the default bands here.
+/* The equalizer of the iPod settings: Off and iTunes' presets, as on a stock iPod,
+   each set by selecting it, and the user's own. The gains are iTunes' own, in
+   hundredths of a dB, for bands at 32 Hz to 16 kHz like the default bands here.
 
    Each preset's precut, in tenths of a dB, is its largest boost after the bands add
    up, with the DSP's filters, which is more than any one band where they overlap. It's
@@ -901,18 +904,20 @@ static const struct
       { -150, -300, -300, 150, 375, 375, 300, 150, 0, -150 } },
 };
 
-/* For particular earphones, with eq_models and a row further down saying which are
-   for which model. From measurements of several of them,
-   against the Harman target of their kind. Few bands, at their own frequencies and
-   the rest off, as each one takes time from the UI. Bands are numbered as the
-   defaults, and q and gain are in tenths. The precut is as for iTunes' presets. The
-   id is what the settings keep, so a new one takes the next free number. */
+/* The presets for particular earphones that were built in until 2.1.1, ids 1 to
+   6 of the settings' eq_preset: now presets of the user's, written once into
+   /.rockbox/eqs (eq_phones_boot()) and listed, renamed and deleted as any other,
+   a model's several in a folder of its name. From measurements of several of
+   them, against the Harman target of their kind. Few bands, at their own
+   frequencies and the rest off, as each one takes time from the UI. Bands are
+   numbered as the defaults, and q and gain are in tenths. The precut is the
+   files' own, from the curve's peak (eq_files_load()), as for every preset */
 #define EQ_PHONES_BANDS 6
 static const struct
 {
-    int lang_id;
-    int id;
-    int precut;
+    int id;             /* eq_preset's, in a setting from before */
+    const char *folder; /* in /.rockbox/eqs, "" for the top */
+    const char *name;   /* the file's, without ".cfg", in English in every language */
     struct
     {
         int band;
@@ -921,11 +926,11 @@ static const struct
 } eq_phones[] =
 {
     /* 7Hz Zero 2: 2 dB too much at 100-250 Hz, and 2 to 5 dB too little at 2.5-6.3 kHz */
-    { LANG_EQ_ZERO2, 1, 40,
+    { 1, "7Hz Zero 2", "7Hz Zero 2",
       { { 2, { EQ_FILTER_PEAK, 170, 10, -25 } },
         { 7, { EQ_FILTER_PEAK, 5000, 10, 40 } } } },
     /* a little ahead of the target at 1.6-4 kHz, for voices */
-    { LANG_EQ_ZERO2_VOICE, 2, 40, /* 3.7 dB */
+    { 2, "7Hz Zero 2", "7Hz Zero 2 Voice",
       { { 2, { EQ_FILTER_PEAK, 170, 10, -30 } },
         { 6, { EQ_FILTER_PEAK, 3000, 12, 25 } },
         { 7, { EQ_FILTER_PEAK, 5500, 12, 30 } } } },
@@ -934,14 +939,14 @@ static const struct
        Their peak at 8-8.5 kHz is cut, right after a dip it stands 6 to 10 dB over:
        with it these made a lot of sibilance. So is some of the one at 12.5-13 kHz,
        5 dB over the target. */
-    { LANG_EQ_ZERO2_DETAIL, 3, 40, /* 3.8 */
+    { 3, "7Hz Zero 2", "7Hz Zero 2 Detail",
       { { 2, { EQ_FILTER_PEAK, 170, 8, -35 } },
         { 5, { EQ_FILTER_PEAK, 4000, 8, 40 } },
         { 6, { EQ_FILTER_PEAK, 8300, 30, -50 } },
         { 7, { EQ_FILTER_PEAK, 10500, 40, 20 } },
         { 8, { EQ_FILTER_PEAK, 12800, 30, -30 } } } },
     /* the same way, less far, for treble that's too much with the first */
-    { LANG_EQ_ZERO2_SOFT, 4, 30, /* 2.5 */
+    { 4, "7Hz Zero 2", "7Hz Zero 2 Soft",
       { { 2, { EQ_FILTER_PEAK, 170, 10, -20 } },
         { 7, { EQ_FILTER_PEAK, 5000, 10, 25 } } } },
     /* Koss KPH30i, from 3 measurements against the over-ear target and then by ear: 10 dB
@@ -949,7 +954,7 @@ static const struct
        much at 125-250 Hz, of which half is cut, as all of it sounded dry. A notch of 8 to
        12 dB at 4-4.5 kHz comes right before a peak at 5 kHz that a single wide band would
        raise, then dips at 6.3 and 10 kHz. Voices wanted a little more around 3 kHz. */
-    { LANG_EQ_KPH30I, 5, 80,
+    { 5, "", "Koss KPH30i",
       { { 0, { EQ_FILTER_LOW_SHELF, 70, 10, 75 } },
         { 2, { EQ_FILTER_PEAK, 190, 11, -15 } },
         { 4, { EQ_FILTER_PEAK, 3000, 12, 15 } },
@@ -962,7 +967,7 @@ static const struct
        bass still punches. 3 dB too little at 2-2.5 kHz, filled for voices and guitars.
        Sibilance, loudest at 8 kHz, and a peak at 10 kHz are cut only in part: more,
        or anything off at 4 kHz or above 12 kHz, made the sound closed or dull. */
-    { LANG_EQ_XM4C, 6, 30,
+    { 6, "", "Sony WH-1000XM4C",
       { { 0, { EQ_FILTER_LOW_SHELF, 100, 6, -50 } },
         { 2, { EQ_FILTER_PEAK, 160, 10, -55 } },
         { 6, { EQ_FILTER_PEAK, 2300, 20, 30 } },
@@ -970,46 +975,30 @@ static const struct
         { 8, { EQ_FILTER_PEAK, 10000, 50, -33 } } } },
 };
 
-/* Preset numbers: 0 is off, then the earphones', then iTunes' */
+/* Preset numbers: 0 is off, then iTunes' */
 static struct eq_band_setting eq_preset_band(int preset, int band)
 {
     struct eq_band_setting setting = eq_defaults[band];
-    preset--;
-    if (preset < (int)ARRAYLEN(eq_phones))
-    {
-        for (int i = 0; i < EQ_PHONES_BANDS; i++)
-        {
-            /* unused entries are band 0 with gain 0, which is the default anyway */
-            if (eq_phones[preset].bands[i].setting.gain != 0
-                && eq_phones[preset].bands[i].band == band)
-                setting = eq_phones[preset].bands[i].setting;
-        }
-    }
-    else
-    {
-        /* to the tenths of a dB the bands are set in */
-        int gain = eq_presets[preset - ARRAYLEN(eq_phones)].gain[band];
-        setting.gain = (gain + (gain < 0 ? -5 : 5)) / 10;
-    }
+    /* to the tenths of a dB the bands are set in */
+    int gain = eq_presets[preset - 1].gain[band];
+    setting.gain = (gain + (gain < 0 ? -5 : 5)) / 10;
     return setting;
 }
 
 static int eq_preset_precut(int preset)
 {
-    return preset <= (int)ARRAYLEN(eq_phones) ? eq_phones[preset - 1].precut
-           : eq_presets[preset - 1 - ARRAYLEN(eq_phones)].precut;
+    return eq_presets[preset - 1].precut;
 }
 
-/* the id the settings keep for a preset: the earphones' own, and 101 on for
-   iTunes', which never change */
+/* the id the settings keep for a preset: 101 on for iTunes', which never
+   change, as 1 to 6 were the earphones' (eq_phones) */
 #define EQ_ITUNES_ID 101
 static int eq_preset_id(int preset)
 {
-    return preset <= (int)ARRAYLEN(eq_phones) ? eq_phones[preset - 1].id
-           : EQ_ITUNES_ID + preset - 1 - (int)ARRAYLEN(eq_phones);
+    return EQ_ITUNES_ID + preset - 1;
 }
 
-#define EQ_PRESETS ((int)(ARRAYLEN(eq_phones) + ARRAYLEN(eq_presets)))
+#define EQ_PRESETS ((int)ARRAYLEN(eq_presets))
 
 /* the preset whose bands the EQ's are, or 0 */
 static int eq_preset_of_bands(void)
@@ -1178,10 +1167,158 @@ static void eq_config_check(void)
             eq_curve_precut(eq_curve_peak_of(global_settings.eq_band_settings));
 }
 
+/** the earphones' presets, from before **/
+
+/* There once eq_phones_boot() has written them all, or found a file or folder
+   of a name there instead: until then each boot tries again, so that one
+   deleted meanwhile may come back. A file of its own in /.rockbox, not in eqs
+   or the settings: neither a settings reset nor deleting eqs brings them
+   back, and an update, whose zip has no such file, leaves it */
+#define EQ_PHONES_MARK ROCKBOX_DIR "/eq-headphones-written"
+static bool eq_phones_done;
+/* this boot's eq_phones_boot() left one unwritten: told once, by the first
+   eq_phones_move() after it */
+static bool eq_phones_unwritten;
+
+static void eq_phones_bands(int k, struct eq_band_setting *bands)
+{
+    memcpy(bands, eq_defaults, sizeof(eq_defaults));
+    for (int i = 0; i < EQ_PHONES_BANDS; i++)
+    {
+        /* unused entries are band 0 with gain 0, which is the default anyway */
+        if (eq_phones[k].bands[i].setting.gain != 0)
+            bands[eq_phones[k].bands[i].band] = eq_phones[k].bands[i].setting;
+    }
+}
+
+/* member by member: the enum is a byte on ARM, and the padding after it
+   whatever a struct copy left there */
+static bool eq_bands_equal(const struct eq_band_setting *a,
+                           const struct eq_band_setting *b)
+{
+    for (int i = 0; i < EQ_NUM_BANDS; i++)
+    {
+        if (a[i].type != b[i].type || a[i].cutoff != b[i].cutoff
+            || a[i].q != b[i].q || a[i].gain != b[i].gain)
+            return false;
+    }
+    return true;
+}
+
+/* What its .cfg is, its path from /.rockbox/eqs into rel (EQ_PATH_MAX):
+   EQ_PHONES_OWN, a preset of its bands, as a boot wrote it; EQ_PHONES_OTHER,
+   another preset, as one of the user's; EQ_PHONES_BAD, a file that is no
+   preset; or EQ_PHONES_NONE */
+enum { EQ_PHONES_NONE, EQ_PHONES_BAD, EQ_PHONES_OTHER, EQ_PHONES_OWN };
+static int eq_phones_file(int k, char *rel)
+{
+    struct eq_band_setting bands[EQ_NUM_BANDS], in_file[EQ_NUM_BANDS];
+    int precut;
+    snprintf(rel, EQ_PATH_MAX, "%s%s%s.cfg", eq_phones[k].folder,
+             eq_phones[k].folder[0] ? "/" : "", eq_phones[k].name);
+    if (!eq_files_load(rel, in_file, &precut))
+        return eq_files_exists(rel) ? EQ_PHONES_BAD : EQ_PHONES_NONE;
+    eq_phones_bands(k, bands);
+    return eq_bands_equal(in_file, bands) ? EQ_PHONES_OWN : EQ_PHONES_OTHER;
+}
+
+void INIT_ATTR eq_phones_boot(void)
+{
+    eq_phones_done = file_exists(EQ_PHONES_MARK);
+    if (eq_phones_done)
+        return;
+    struct eq_band_setting bands[EQ_NUM_BANDS];
+    char rel[EQ_PATH_MAX];
+    /* RockWheel 1.0 to 1.2.1 kept no eq_preset: the EQ on, at the bands of
+       one of them, is that one, as 2.1.0's eq_preset_of_bands() named it */
+    for (int k = 0; global_settings.eq_enabled && !global_settings.eq_preset
+                    && k < (int)ARRAYLEN(eq_phones); k++)
+    {
+        eq_phones_bands(k, bands);
+        if (eq_bands_equal(bands, global_settings.eq_band_settings))
+            global_settings.eq_preset = eq_phones[k].id;
+    }
+    int failed = 0, err = 0;
+    for (int k = 0; k < (int)ARRAYLEN(eq_phones); k++)
+    {
+        eq_phones_bands(k, bands);
+        switch (eq_files_write_new(eq_phones[k].folder, eq_phones[k].name, bands))
+        {
+            case EQ_NEW_TAKEN:
+                /* unless it's its own, from a boot that didn't get to the mark */
+                if (eq_phones_file(k, rel) != EQ_PHONES_OWN)
+                    health_note("eq: headphone preset %d not written, a file or "
+                                "folder of its name is there", eq_phones[k].id);
+                break;
+            case EQ_NEW_FAILED:
+                failed++;
+                err = errno;
+                break;
+        }
+    }
+    if (failed)
+    {
+        eq_phones_unwritten = true;
+        health_note("eq: %d of %d headphone presets not written, errno %d: tried "
+                    "again at the next boot", failed, (int)ARRAYLEN(eq_phones), err);
+        return;
+    }
+    const int fd = open(EQ_PHONES_MARK, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    eq_phones_done = fd >= 0 && close(fd) >= 0;
+    if (!eq_phones_done)
+        health_note("eq: headphone presets' mark not written, errno %d", errno);
+}
+
+/* The EQ on one of them by a setting from before: set to its file, if that
+   has its bands, and on. Else Off: for good, eq_preset 0, once the file is
+   another preset or no preset, or they are all in and its file gone; else
+   until a boot has written it, eq_preset kept, and the boot that has sets it
+   to the file and on again. Off with eq_preset 1 to 6 is that wait alone, as
+   2.1.0's lists cleared eq_preset with the EQ (eq_set_preset()): any choice in
+   the lists, Off too, or a settings reset ends the wait, the EQ staying as
+   chosen */
+static void eq_phones_move(void)
+{
+    const int id = global_settings.eq_preset;
+    int k = 0;
+    while (k < (int)ARRAYLEN(eq_phones) && eq_phones[k].id != id)
+        k++;
+    if (k == (int)ARRAYLEN(eq_phones))
+        return;
+    /* its path, which the EQ keeps only if it goes over to the file */
+    const int file = eq_phones_file(k, global_settings.eq_preset_file);
+    if (file == EQ_PHONES_OWN)
+    {
+        global_settings.eq_enabled = true;
+        global_settings.eq_preset = EQ_ID_FILE;
+        settings_save();
+        return;
+    }
+    global_settings.eq_preset_file[0] = '\0';
+    const bool waits = file == EQ_PHONES_NONE && !eq_phones_done;
+    if (!waits)
+        health_note("eq: the setting on headphone preset %d turned the EQ off: its "
+                    "file %s", id, file == EQ_PHONES_OTHER ? "is another preset"
+                    : file == EQ_PHONES_BAD ? "is no preset" : "isn't there");
+    else if (eq_phones_unwritten)
+        health_note("eq: the setting on headphone preset %d turned the EQ off until "
+                    "a boot writes its file", id);
+    eq_phones_unwritten = false;
+    const bool changed = global_settings.eq_enabled || !waits;
+    global_settings.eq_enabled = false;
+    if (!waits)
+        global_settings.eq_preset = 0;
+    if (changed)
+        settings_save();
+}
+
 void eq_update_preset(bool read_files)
 {
     if (read_files)
+    {
         eq_files_read();
+        eq_phones_move();
+    }
     eq_config_check();
     const int preset = eq_get_preset();
     if (preset <= 0)
@@ -1223,30 +1360,15 @@ void eq_update_preset(bool read_files)
     global_settings.eq_precut = eq_preset_precut(preset);
 }
 
-/* The first list: Off, iTunes' presets as one row, the user's own, Custom first,
-   and a row for each model of earphones, which has a list of its own if it has
-   several presets. So that many models don't make a long list of everything.
-   Start From in the editor's menu has the same rows without Off and Custom, and
-   copies the one chosen into Custom. The user's presets: the folders of
-   /.rockbox/eqs first, each a list of its own, then the presets, each by name,
-   as Playlists and the files' lists have their folders first */
-#define EQ_ITUNES_FIRST (1 + (int)ARRAYLEN(eq_phones))
+/* The first list: Off, iTunes' presets as one row, then the user's own, Custom
+   first. Start From in the editor's menu has the same rows without Off and
+   Custom, and copies the one chosen into Custom. The user's presets: the folders
+   of /.rockbox/eqs first, each a list of its own, then the presets, each by
+   name, as Playlists and the files' lists have their folders first */
+#define EQ_ITUNES_FIRST 1
 #define EQ_ROW_ITUNES 1
 #define EQ_ROW_CUSTOM 3
 #define EQ_ROW_FIRST_MINE 4
-
-/* those of eq_phones that are for one model; each also has its row further down */
-static const struct
-{
-    int lang_id;
-    int first;
-    int count;
-} eq_models[] =
-{
-    { LANG_EQ_ZERO2, 0, 4 },
-    { LANG_EQ_KPH30I, 4, 1 },
-    { LANG_EQ_XM4C, 5, 1 },
-};
 
 static int eq_current; /* the preset the first list opened with, and chose since */
 /* the user's preset it is, an entry of the table, or -1 (eq_level_build()) */
@@ -1334,7 +1456,7 @@ static struct eq_nav {
     char title[EQ_DEPTH_MAX + 1][EQ_NAME_MAX];
     struct menu_item_ex menu[EQ_DEPTH_MAX + 1];
     struct menu_callback_with_desc desc[EQ_DEPTH_MAX + 1];
-    const struct menu_item_ex *top[EQ_ROW_FIRST_MINE + EQ_FILES_MAX + 4];
+    const struct menu_item_ex *top[EQ_ROW_FIRST_MINE + EQ_FILES_MAX];
 } eq_navs[2];
 #define NAV (&eq_navs[eq_list_mode])
 _Static_assert(ARRAYLEN(eq_navs[0].top) <= MENU_MAX_ROWS,
@@ -1439,17 +1561,8 @@ static bool eq_level_build(struct eq_nav *nav, int depth)
 static int eq_choose_off(void);
 static int eq_choose_itunes(void);
 static int eq_choose_custom(void);
-static int eq_choose_model(int model);
 static char *eq_itunes_row_name(int selected_item, void *data,
                                 char *buffer, size_t buffer_len);
-static char *eq_model_row_name(int selected_item, void *data,
-                               char *buffer, size_t buffer_len);
-
-#define EQ_MODEL_ROW(name, model, flags)                                        \
-    static int name##_choose(void) { return eq_choose_model(model); }           \
-    MENUITEM_FUNCTION_DYNTEXT(name, MENU_FUNC_CHECK_RETVAL|(flags), name##_choose, \
-                              eq_model_row_name, NULL, (void *)(intptr_t)(model), \
-                              NULL, Icon_NOICON)
 
 static char *eq_off_row_name(int selected_item, void *data, char *buffer,
                              size_t len)
@@ -1472,11 +1585,6 @@ MENUITEM_GROUP(eq_mine_group, ID2P(LANG_EQ_MY_PRESETS));
 /* opens the editor: a row that leads on */
 MENUITEM_FUNCTION_DYNTEXT(eq_custom_row, MENU_FUNC_CHECK_RETVAL, eq_choose_custom,
                           eq_custom_row_name, NULL, NULL, NULL, Icon_NOICON);
-MENUITEM_GROUP(eq_phones_group, ID2P(LANG_EQ_HEADPHONES));
-/* one preset: selecting the row sets it, and it has no arrow */
-EQ_MODEL_ROW(eq_zero2_row, 0, 0);
-EQ_MODEL_ROW(eq_kph30i_row, 1, MENU_EXITAFTERTHISMENU);
-EQ_MODEL_ROW(eq_xm4c_row, 2, MENU_EXITAFTERTHISMENU);
 
 /* the first list's or Start From's rows, with the top folder's as it is now */
 static void eq_top_build(struct eq_nav *nav, bool start)
@@ -1501,10 +1609,6 @@ static void eq_top_build(struct eq_nav *nav, bool start)
         r[n++] = &eq_folder_row;
     for (int i = 0; i < presets; i++)
         r[n++] = &eq_entry_row;
-    r[n++] = &eq_phones_group;
-    r[n++] = &eq_zero2_row;
-    r[n++] = &eq_kph30i_row;
-    r[n++] = &eq_xm4c_row;
     nav->desc[0] = (struct menu_callback_with_desc){
         eq_level_callback, start ? ID2P(LANG_EQ_START_FROM) : ID2P(LANG_EQUALIZER), Icon_EQ };
     struct menu_item_ex *m = &nav->menu[0];
@@ -1889,26 +1993,6 @@ static int eq_choose_custom(void)
     return ret;
 }
 
-/* "7Hz Zero 2: Voice" among the presets of the 7Hz Zero 2 is "Voice" */
-static const unsigned char *eq_short_name(int lang_id)
-{
-    const char *name = strstr(str(lang_id), ": ");
-    return name ? (const unsigned char *)name + 2 : ID2P(LANG_EQ_STANDARD);
-}
-
-static int eq_choose_model(int model)
-{
-    if (eq_take_held())
-        return 0;
-    const int first = eq_models[model].first, count = eq_models[model].count;
-    if (count == 1)
-        return eq_chosen_preset(1 + first);
-    static const unsigned char *names[ARRAYLEN(eq_phones)];
-    for (int i = 0; i < count; i++)
-        names[i] = eq_short_name(eq_phones[first + i].lang_id);
-    return eq_choose_from(eq_models[model].lang_id, 1 + first, count, names);
-}
-
 static char *eq_itunes_row_name(int selected_item, void *data,
                                 char *buffer, size_t buffer_len)
 {
@@ -1917,23 +2001,6 @@ static char *eq_itunes_row_name(int selected_item, void *data,
         return str(LANG_EQ_GENERAL);
     snprintf(buffer, buffer_len, "%s\t%s", str(LANG_EQ_GENERAL),
              str(eq_presets[eq_current - EQ_ITUNES_FIRST].lang_id));
-    return buffer;
-}
-
-static char *eq_model_row_name(int selected_item, void *data,
-                               char *buffer, size_t buffer_len)
-{
-    (void)selected_item;
-    const int model = (intptr_t)data;
-    const int first = eq_models[model].first, count = eq_models[model].count;
-    const int phones = eq_current - 1;
-    if (count == 1)
-        return eq_marked(str(eq_models[model].lang_id), phones == first, buffer,
-                         buffer_len);
-    if (phones < first || phones >= first + count)
-        return str(eq_models[model].lang_id);
-    snprintf(buffer, buffer_len, "%s\t%s", str(eq_models[model].lang_id),
-             P2STR(eq_short_name(eq_phones[phones].lang_id)));
     return buffer;
 }
 
@@ -2029,16 +2096,6 @@ static int eq_choose_preset(void)
     }
     else if (eq_current >= EQ_ITUNES_FIRST)
         selected = EQ_ROW_ITUNES;
-    else if (eq_current > 0)
-    {
-        const struct eq_level *l = &nav->level[0];
-        for (int i = 0; i < (int)ARRAYLEN(eq_models); i++)
-        {
-            if (eq_current > eq_models[i].first
-                && eq_current <= eq_models[i].first + eq_models[i].count)
-                selected = l->base + l->folders + l->presets + 1 + i;
-        }
-    }
     int ret;
     while ((ret = do_menu(&nav->menu[0], &selected, NULL, false)) == EQ_LIST_AGAIN)
     {
@@ -2058,7 +2115,6 @@ static int eq_choose_preset(void)
 static char *eq_setting_name(void)
 {
     static char shown[EQ_NAME_MAX];
-    const int phones = ARRAYLEN(eq_phones);
     const int preset = eq_get_preset();
     if (!preset && global_settings.eq_enabled)
         return NULL;
@@ -2069,8 +2125,7 @@ static char *eq_setting_name(void)
         eq_files_shown_name(global_settings.eq_preset_file, shown, sizeof(shown));
         return shown;
     }
-    return str(!preset ? LANG_OFF : preset <= phones ?
-               eq_phones[preset - 1].lang_id : eq_presets[preset - phones - 1].lang_id);
+    return str(!preset ? LANG_OFF : eq_presets[preset - 1].lang_id);
 }
 
 /* in the settings list, and in the menu over Now Playing */

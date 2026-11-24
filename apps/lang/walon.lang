@@ -12821,44 +12821,44 @@
 </phrase>
 <phrase>
   id: LANG_EQ_ZERO2_VOICE
-  desc: in the iPod's EQ list, the preset for the 7Hz Zero 2 earphones that brings voices forward
+  desc: deprecated
   user: core
   <source>
-    *: "7Hz Zero 2: Voice"
+    *: ""
   </source>
   <dest>
-    *: "7Hz Zero 2: Vwès"
+    *: ""
   </dest>
   <voice>
-    *: "7Hz Zero 2: Vwès"
+    *: ""
   </voice>
 </phrase>
 <phrase>
   id: LANG_EQ_ZERO2_SOFT
-  desc: in the iPod's EQ list, the gentler preset for the 7Hz Zero 2 earphones
+  desc: deprecated
   user: core
   <source>
-    *: "7Hz Zero 2: Soft"
+    *: ""
   </source>
   <dest>
-    *: "7Hz Zero 2: Doûs"
+    *: ""
   </dest>
   <voice>
-    *: "7Hz Zero 2: Doûs"
+    *: ""
   </voice>
 </phrase>
 <phrase>
   id: LANG_EQ_ZERO2_DETAIL
-  desc: in the iPod's EQ list, the preset for the 7Hz Zero 2 earphones for strings, quiet sounds and cymbals
+  desc: deprecated
   user: core
   <source>
-    *: "7Hz Zero 2: Detail"
+    *: ""
   </source>
   <dest>
-    *: "7Hz Zero 2: Detay"
+    *: ""
   </dest>
   <voice>
-    *: "7Hz Zero 2: Detay"
+    *: ""
   </voice>
 </phrase>
 <phrase>

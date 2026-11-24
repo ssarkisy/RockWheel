@@ -77,6 +77,8 @@ void eq_files_shown_name(const char *path, char *buf, size_t size);
    from its file now: false for a file that isn't there or isn't a preset,
    which then changes nothing */
 bool eq_files_load(const char *path, struct eq_band_setting *bands, int *precut);
+/* whether a file, or a folder, is at that path from /.rockbox/eqs */
+bool eq_files_exists(const char *path);
 /* whether a band from a file or a .cfg is one the EQ takes: its values within
    the settings' ranges and played as the curve shows it */
 bool eq_files_band_ok(const struct eq_band_setting *band);
@@ -88,6 +90,18 @@ bool eq_files_taken(int folder, const char *name, int except);
    written, and then nothing changed */
 bool eq_files_save(const char *name, const struct eq_band_setting *bands,
                    int precut);
+/* A preset written in RockWheel's format as a file of its own, name.cfg in
+   folder ("" for the top, or "A", made if it isn't there), only where nothing
+   has its name: no preset's file of it there in any form, nor a folder or
+   another file of the name, nor a file in the folder's place. EQ_NEW_TAKEN
+   for those, which are left as they are. Not listed until the
+   folder is read again (eq_files_read()). EQ_NEW_FAILED if it couldn't be
+   written, and then no file of it is there; errno is the file system's
+   failure where it had one. Only while init() runs: INIT_ATTR, its code
+   overwritten after (config.h) */
+enum { EQ_NEW_WRITTEN, EQ_NEW_TAKEN, EQ_NEW_FAILED };
+int eq_files_write_new(const char *folder, const char *name,
+                       const struct eq_band_setting *bands);
 /* the entry renamed, now at its name's place; -1 if it couldn't be */
 int eq_files_rename(int entry, const char *name);
 bool eq_files_delete(int entry);

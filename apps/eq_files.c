@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include "system.h"
 #include "file.h"
 #include "dir.h"
@@ -920,6 +921,12 @@ static bool read_file(const char *file, bool apo)
     return true;
 }
 
+bool eq_files_exists(const char *rel)
+{
+    return (size_t)snprintf(path, sizeof(path), EQS_DIR "/%s", rel) < sizeof(path)
+           && file_exists(path);
+}
+
 bool eq_files_load(const char *rel, struct eq_band_setting *bands, int *precut)
 {
     const size_t len = strlen(rel);
@@ -1086,16 +1093,13 @@ static bool remove_files(const struct eq_entry *e)
     return true;
 }
 
-bool eq_files_save(const char *name, const struct eq_band_setting *bands,
-                   int precut)
+/* A preset's .cfg of the name in the folder dir ("…/A/B/"), in RockWheel's
+   format: the whole file at once, beside the old one until it is written,
+   which rename() then replaces, so that a full disk or a reset leaves the
+   old preset. False if it couldn't be written, errno then the failure's */
+static bool write_cfg(const char *dir, const char *name,
+                      const struct eq_band_setting *bands, int precut)
 {
-    /* with no room for its row, not written: it would be there but not listed */
-    if (sibling(EQ_TOP, name, -1) < 0 && count >= EQ_FILES_MAX)
-        return false;
-    if (!dir_exists(EQS_DIR) && mkdir(EQS_DIR) < 0)
-        return false;
-    /* the whole file at once, beside the old one until it is written, which
-       rename() then replaces: a full disk or a reset leaves the old preset */
     size_t len = snprintf(text, sizeof(text),
                           "# RockWheel EQ preset\neq enabled: on\neq precut: %d\n",
                           precut);
@@ -1104,8 +1108,8 @@ bool eq_files_save(const char *name, const struct eq_band_setting *bands,
                         i, bands[i].cutoff, bands[i].q, bands[i].gain,
                         type_name(bands[i].type));
     if (len >= sizeof(text)
-        || !form_path(other, EQS_DIR "/", name, FORM_CFG)
-        || (size_t)snprintf(path, sizeof(path), EQS_DIR "/%s.new", name) >= sizeof(path))
+        || !form_path(other, dir, name, FORM_CFG)
+        || (size_t)snprintf(path, sizeof(path), "%s%s.new", dir, name) >= sizeof(path))
         return false;
     const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd < 0)
@@ -1113,9 +1117,23 @@ bool eq_files_save(const char *name, const struct eq_band_setting *bands,
     const bool written = write(fd, text, len) == (ssize_t)len;
     if (close(fd) < 0 || !written || rename(path, other) < 0)
     {
+        const int err = errno;
         remove(path);
+        errno = err;
         return false;
     }
+    return true;
+}
+
+bool eq_files_save(const char *name, const struct eq_band_setting *bands,
+                   int precut)
+{
+    /* with no room for its row, not written: it would be there but not listed */
+    if (sibling(EQ_TOP, name, -1) < 0 && count >= EQ_FILES_MAX)
+        return false;
+    if ((!dir_exists(EQS_DIR) && mkdir(EQS_DIR) < 0)
+        || !write_cfg(EQS_DIR "/", name, bands, precut))
+        return false;
     /* the preset of the name it replaces, when that was other files (a
        ParametricEQ.txt with its FixedBandEQ, or one in a folder of its own):
        the .cfg is it now */
@@ -1136,6 +1154,38 @@ bool eq_files_save(const char *name, const struct eq_band_setting *bands,
     e.kind = KIND_CFG;
     insert(&e);
     return true;
+}
+
+int INIT_ATTR eq_files_write_new(const char *folder, const char *name,
+                                 const struct eq_band_setting *bands)
+{
+    char dir[MAX_PATH];
+    if (!dir_exists(EQS_DIR) && mkdir(EQS_DIR) < 0)
+        return EQ_NEW_FAILED;
+    /* its folder made, unless a file has its name */
+    if ((size_t)snprintf(dir, sizeof(dir), EQS_DIR "/%s", folder) >= sizeof(dir) - 1)
+        return EQ_NEW_FAILED;
+    if (folder[0] && !dir_exists(dir))
+    {
+        if (file_exists(dir))
+            return EQ_NEW_TAKEN;
+        if (mkdir(dir) < 0)
+            return EQ_NEW_FAILED;
+    }
+    if (folder[0])
+        strcat(dir, "/");
+    /* none of a preset's files of the name beside it, nor a folder, which
+       would be listed under it (an AutoEq model's) */
+    if (name_in(dir, name, false))
+        return EQ_NEW_TAKEN;
+    if ((size_t)snprintf(path, sizeof(path), "%s%s", dir, name) >= sizeof(path))
+        return EQ_NEW_FAILED;
+    if (file_exists(path)) /* of any type */
+        return EQ_NEW_TAKEN;
+    /* the precut it is played with here, from its bands as every preset's
+       (eq_files_load()), for a firmware that reads the file's */
+    const int precut = eq_curve_precut(eq_curve_peak_of(bands));
+    return write_cfg(dir, name, bands, precut) ? EQ_NEW_WRITTEN : EQ_NEW_FAILED;
 }
 
 /* a file of the preset's, in the folder dir, to the new name: false if not */

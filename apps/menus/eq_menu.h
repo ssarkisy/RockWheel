@@ -52,8 +52,15 @@ void eq_enabled_option_callback(bool enabled);
 
 /* the bands and precut of the preset the EQ is set to as this firmware has them, for
    one chosen with an older firmware, and the user's preset as its file is now; with
-   read_files, the user's presets read from the disk first (eq_files_read()) */
+   read_files, the user's presets read from the disk first (eq_files_read()), and a
+   setting on one of the earphones' presets from before moved to its file */
 void eq_update_preset(bool read_files);
+/* At boot, before the music and before the settings are applied, which read the
+   user's presets: the presets for particular earphones the EQ once had built
+   in, written into /.rockbox/eqs as the user's own, at each boot until a boot
+   has written each of them or found its name taken (eq_menu.c), then never
+   again. Only from init(): INIT_ATTR, its code overwritten after (config.h) */
+void eq_phones_boot(void);
 
 /* the EQ set to Custom (global_settings.eq_custom), as it is */
 void eq_set_custom(void);

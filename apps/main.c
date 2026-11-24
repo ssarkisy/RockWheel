@@ -68,6 +68,7 @@
 #endif
 #include "drive_info.h"
 #include "crash_log.h"
+#include "menus/eq_menu.h"
 #ifdef HAVE_TAGCACHE
 #include "tagcache.h"
 #include "tagtree.h"
@@ -509,6 +510,7 @@ static void init(void)
 #endif
     crash_log_boot();
     night_mode_boot();
+    eq_phones_boot();
     settings_apply(true);
     init_battery_tables();
 #ifdef HAVE_DIRCACHE
@@ -822,6 +824,7 @@ static void init(void)
 #endif /* HAVE_TAGCACHE */
 #endif /* HAVE_DIRCACHE */
 
+    eq_phones_boot();
     CHART(">settings_apply(true)");
     settings_apply(true);
     CHART("<settings_apply(true)");

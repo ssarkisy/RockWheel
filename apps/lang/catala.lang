@@ -12859,13 +12859,13 @@
 </phrase>
 <phrase>
   id: LANG_EQ_ZERO2
-  desc: in the iPod's EQ list, the preset for the 7Hz Zero 2 earphones, by their name
+  desc: deprecated
   user: core
   <source>
-    *: "7Hz Zero 2"
+    *: ""
   </source>
   <dest>
-    *: "7Hz Zero 2"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -12873,13 +12873,13 @@
 </phrase>
 <phrase>
   id: LANG_EQ_ZERO2_VOICE
-  desc: in the iPod's EQ list, the preset for the 7Hz Zero 2 earphones that brings voices forward
+  desc: deprecated
   user: core
   <source>
-    *: "7Hz Zero 2: Voice"
+    *: ""
   </source>
   <dest>
-    *: "7Hz Zero 2: Veu"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -12887,13 +12887,13 @@
 </phrase>
 <phrase>
   id: LANG_EQ_ZERO2_SOFT
-  desc: in the iPod's EQ list, the gentler preset for the 7Hz Zero 2 earphones
+  desc: deprecated
   user: core
   <source>
-    *: "7Hz Zero 2: Soft"
+    *: ""
   </source>
   <dest>
-    *: "7Hz Zero 2: Suau"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -12901,13 +12901,13 @@
 </phrase>
 <phrase>
   id: LANG_EQ_ZERO2_DETAIL
-  desc: in the iPod's EQ list, the preset for the 7Hz Zero 2 earphones for strings, quiet sounds and cymbals
+  desc: deprecated
   user: core
   <source>
-    *: "7Hz Zero 2: Detail"
+    *: ""
   </source>
   <dest>
-    *: "7Hz Zero 2: Detall"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -14713,13 +14713,13 @@
 </phrase>
 <phrase>
   id: LANG_EQ_KPH30I
-  desc: in the iPod's EQ list, the preset for the Koss KPH30i headphones, by their name
+  desc: deprecated
   user: core
   <source>
-    *: "KPH30i"
+    *: ""
   </source>
   <dest>
-    *: "KPH30i"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -14909,13 +14909,13 @@
 </phrase>
 <phrase>
   id: LANG_EQ_HEADPHONES
-  desc: in the EQ screen: above the earphones and headphones that have presets
+  desc: deprecated
   user: core
   <source>
-    *: "Headphones"
+    *: ""
   </source>
   <dest>
-    *: "Auriculars"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -14939,13 +14939,13 @@
 </phrase>
 <phrase>
   id: LANG_EQ_STANDARD
-  desc: in the EQ screen of a model of headphones: its first preset, against which the others have a name of their own
+  desc: deprecated
   user: core
   <source>
-    *: "Standard"
+    *: ""
   </source>
   <dest>
-    *: "Estàndard"
+    *: ""
   </dest>
   <voice>
     *: ""
@@ -15023,13 +15023,13 @@
 </phrase>
 <phrase>
   id: LANG_EQ_XM4C
-  desc: in the iPod's EQ list, the preset for the Sony WH-1000XM4C headphones, by their name
+  desc: deprecated
   user: core
   <source>
-    *: "WH-1000XM4C"
+    *: ""
   </source>
   <dest>
-    *: "WH-1000XM4C"
+    *: ""
   </dest>
   <voice>
     *: ""
