@@ -3,26 +3,19 @@
 #
 #     themes/tools/make_night_icon.py
 #
-# Needs Pillow. A crescent, shaded from top to bottom like the hold icon's lock, drawn
-# at eight times the size and brought down. A partly covered
-# pixel gets the colour of the original theme's bar in its row from TOP, and an empty
-# one the magenta that skins take as transparent. The iPod photo's status line has the
-# moon too, and the Video's taller bar keeps those rows (make_classic_header.py); drawn
-# at y 4 there, its edges carry rows 2 to 17, not the ones under them, at most 7.5
-# levels apart. Run make_dark_theme.py after it.
-import os
-from PIL import Image
-
+# after make_classic_header.py, whose Video bar it goes on. Plain Python. A crescent,
+# shaded from top to bottom like the hold icon's lock, drawn at eight times the size and
+# brought down: each pixel as much of the shade as the moon covers of it, on each
+# screen's bar where its skins draw it, the Video's at y 4 and the iPod photo's at y 1,
+# in either look, as make_classic_header.py puts the status line's other glyphs
+# (status_glyphs()): the dark look's shade its header_pixel(), on the dark bar. An empty
+# pixel is the magenta that skins take as transparent.
 import make_classic_header as header_tool
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-THEME = os.path.join(HERE, '..', 'iClassic-Square', '.rockbox', 'wps', 'iClassic-Square')
 SIZE = 16
 SCALE = 8
-TOP = 2  # the row of the bar the icon starts at
-BAR_COLUMNS = range(228, 265)
-TRANSPARENT = 255, 0, 255
 LIGHT, DARK = (0x7a, 0x86, 0x96), (0x19, 0x1a, 0x23)  # the lock's, top and bottom
+PLACES = (('Status Night', 4), ('Status Night', 1))  # the Video's and the photo's
 
 # the moon: a disc with another taken out of its upper right
 CENTRE, RADIUS = (7.6, 7.0), 6.2
@@ -36,23 +29,15 @@ def covered(x, y):
 
 
 def main():
-    header = header_tool.original_header(os.path.join(THEME, 'iClassic_bg.bmp'))
-    image = Image.new('RGB', (SIZE, SIZE), TRANSPARENT)
     top = CENTRE[1] - RADIUS
+    rows = []
     for y in range(SIZE):
-        bar = [sum(header[TOP + y][x][i] for x in BAR_COLUMNS) / len(BAR_COLUMNS)
-               for i in range(3)]
         t = min(max((y + 0.5 - top) / (2 * RADIUS), 0), 1)
-        ink = [LIGHT[i] + (DARK[i] - LIGHT[i]) * t for i in range(3)]
-        for x in range(SIZE):
-            hits = sum(covered(x + (sx + 0.5) / SCALE, y + (sy + 0.5) / SCALE)
-                       for sy in range(SCALE) for sx in range(SCALE))
-            alpha = hits / SCALE ** 2
-            if alpha < 0.02:
-                continue
-            image.putpixel((x, y), tuple(round(ink[i] * alpha + bar[i] * (1 - alpha))
-                                         for i in range(3)))
-    image.save(os.path.join(THEME, 'Status Night.bmp'))
+        ink = tuple(round(LIGHT[i] + (DARK[i] - LIGHT[i]) * t) for i in range(3))
+        rows.append([(ink, sum(covered(x + (sx + 0.5) / SCALE, y + (sy + 0.5) / SCALE)
+                               for sy in range(SCALE) for sx in range(SCALE)) / SCALE ** 2)
+                     for x in range(SIZE)])
+    header_tool.status_glyphs(rows, 1, PLACES)
 
 
 main()

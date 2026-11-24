@@ -43,22 +43,23 @@ VIDEO = screen(os.path.join(HERE, "..", "iClassic-Square", ".rockbox"),
                PANELS=(("backdrops", "iClassic_bd.bmp", True), ("wps", "About Backdrop.bmp", True),
                        ("wps", "Wide Backdrop.bmp", False)),
                PANEL_X=160,  # the panel beside the lists, dark in both
-               HEADER_GLYPHS=("Battery", "Playing Status", "Hold Icon", "Status Night",
-                              "Memory Access", "Radio Icon", "Stereo Icon",
-                              "Status Battery", "Status Playing", "Status Hold"),
+               # the skins' status line's are make_classic_header.py's and
+               # make_night_icon.py's, on the dark bar
+               HEADER_GLYPHS=("Battery", "Playing Status", "Hold Icon",
+                              "Memory Access", "Radio Icon", "Stereo Icon"),
                GROUND_GLYPHS=("Stars", "Ratings", "Signal", "Volume Left", "Volume Right",
                               "Art Mask", "Scrub Hints", "Repeat Icon", "Shuffle Icon",
                               "Status Shuffle Albums"),
                COPIED=("Scrub Knob", "Disk Fill", "Photos Icon"))
 PHOTO = screen(os.path.join(HERE, "..", "iClassic-Square", "220x176", ".rockbox"),
-               HEADER_HEIGHT=15,    # make_classic_220x176.py's BAR_ROWS
+               HEADER_HEIGHT=15,    # make_classic_header.py's PHOTO_ROWS
                BAR_X=40, BAR_Y=143, BAR_W=140, ART=(9, 31, 105, 127),
                ART_REFLECTION_ROWS=14, LIGHT_REFLECTION="%Cr(14,128)",
                SKINS=("wps", "sbs"),
                PANELS=(("backdrops", "iClassic_bd.bmp", True), ("wps", "About Backdrop.bmp", True),
                        ("wps", "Wide Backdrop.bmp", False)),
                PANEL_X=110,  # the main menu's pane
-               HEADER_GLYPHS=("Battery", "Playing Status", "Hold Icon", "Status Night"),
+               HEADER_GLYPHS=(),
                GROUND_GLYPHS=("Stars", "Ratings", "Volume Left", "Volume Right", "Art Mask",
                               "Scrub Hints", "Repeat Icon", "Shuffle Icon",
                               "Status Shuffle Albums"),

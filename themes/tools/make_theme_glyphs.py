@@ -5,7 +5,8 @@
 
 The folder is the export of the mockups' own drawing code (names, sizes and
 frames in its manifest.json: nothing of them is written here), but for
-Playlists' marks, drawn here (catalogue_marks()). A mask is black
+Playlists' marks, drawn here (catalogue_marks()), and the status line's
+play glyph's triangles (PLAY_SHAPES). A mask is black
 with alpha, its frames stacked top to bottom; a coloured glyph (the notes of
 a missing cover) is a file a look, as drawn, with a mask of its shape beside
 it as "<Name> Mask": the firmware draws the mask in the theme's two colours
@@ -186,6 +187,50 @@ def shape(width, height, inside):
     return rows
 
 
+# The status line's play glyph: its frames that are triangles drawn here, the
+# export's being of whole pixels, so that their edges are smooth as the
+# moon's: by theme, the convex polygons of (x, y) in a frame's cell of
+# playing, forward and back (frames 0, 2 and 3), the pixels whose middles
+# they take in the export's pixels; pausing (frame 1), its bars on whole
+# pixels, the export's
+PLAY_SHAPES = {
+    "neo": {0: (((2, 0), (7, 5), (2, 10)),),
+            2: (((0, 1), (4, 5), (0, 9)), ((4, 1), (8, 5), (4, 9))),
+            3: (((4, 1), (0, 5), (4, 9)), ((8, 1), (4, 5), (8, 9)))},
+    "modern": {0: (((0, 0), (10, 5), (0, 10)),),
+               2: (((0, 0), (5, 5), (0, 10)), ((5, 0), (10, 5), (5, 10))),
+               3: (((5, 0), (0, 5), (5, 10)), ((10, 0), (5, 5), (10, 10)))},
+}
+PLAY_SAMPLES = 16       # each way in a pixel
+
+
+def in_polygon(polygon, x, y):
+    """the point is in the convex polygon, of either winding"""
+    side = 0
+    for (x0, y0), (x1, y1) in zip(polygon, polygon[1:] + polygon[:1]):
+        cross = (x1 - x0) * (y - y0) - (y1 - y0) * (x - x0)
+        if cross:
+            if side and (cross > 0) != (side > 0):
+                return False
+            side = cross
+    return True
+
+
+def playing_status(theme, g, rows):
+    """the export's frames of the play glyph with those PLAY_SHAPES has drawn
+    anew, each pixel's alpha what of it the polygons cover"""
+    w, h, n = g["width"], g["height"], PLAY_SAMPLES
+    rows = [bytes(row) for row in rows]
+    for frame, polygons in PLAY_SHAPES[theme].items():
+        for y in range(h):
+            rows[frame * h + y] = bytes(
+                (sum(any(in_polygon(p, x + (i + 0.5) / n, y + (j + 0.5) / n)
+                         for p in polygons)
+                     for j in range(n) for i in range(n)) * 255 + n * n // 2) // (n * n)
+                for x in range(w))
+    return rows
+
+
 def capsule(width, height, thick):
     """a bar thick px high in the middle of the height, its ends round"""
     r = thick / 2
@@ -346,6 +391,8 @@ def main():
             if screen and name in PANE:
                 continue
             g, rows = load(name)
+            if name == "Playing Status":
+                rows = playing_status(theme, g, rows)
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(rows),
                 rgb(colours[role]) if role else None, rows)
             if look == "Neo" and not screen:

@@ -117,29 +117,32 @@ Changes from the originals:
 The extra bitmaps are drawn by the scripts in `tools/`, which are run again
 after a change, in this order:
 
-- `make_assets.py`, `make_night_icon.py`,
-  `make_usb_screen.py`, `make_about_panel.py`: bitmaps of their own.
+- `make_assets.py`, `make_usb_screen.py`, `make_about_panel.py`: bitmaps of
+  their own.
 - `make_menu_icons.py`: the backdrops' placeholder note and its reflection, and
   the original theme's battery out of their status bar, where the skins draw one.
 - `make_classic_header.py`: the Video's status line 24 px high, as a stock 5G's,
-  in the backdrops of the lists and of Now Playing (the radio's too), and its
-  battery, play glyph and lock without the bar under them, for the skins' status
-  line. The scripts that draw from the original bar's rows (the photo's status
-  line, the moon) read them back from the taller one.
+  in the backdrops of the lists and of Now Playing (the radio's too), and the
+  skins' battery, play glyph and lock, on either screen's bar where the skins
+  draw them, light and dark, their edges smooth. The scripts that draw from the
+  original bar's rows (the photo's status line, these glyphs) read them back
+  from the taller one.
+- `make_night_icon.py`: the moon of Night Mode, on those bars the same way.
 - `make_classic_220x176.py`: the iPod photo's pictures from these, its note
   of a missing cover and its Photos Icon drawn anew at their sizes, and its
   About Backdrop and Disk Fill scaled from this branch's own by 176/240.
 - `make_classic_np.py`: the details of Now Playing, in the light theme's WPS,
   of either screen.
 - `make_dark_theme.py`: the dark theme, all of it from the light one, of
-  either screen.
+  either screen, but for the status line's glyphs, which the two scripts above
+  make.
 
 Dieter's skins, pictures and the glyphs the firmware draws in it are all written by
 `make_dieter_theme.py` (see `Dieter/README.md`).
 Modern's and Neo's skins, light and dark, are written by `make_modern_theme.py`
 and `make_neo_theme.py`, and their glyphs come from the mockups' export through
-`make_modern_glyphs.py` and `make_theme_glyphs.py`. None of these skins is edited
-by hand.
+`make_modern_glyphs.py` and `make_theme_glyphs.py`, which draw the play glyph's
+triangles themselves, smooth. None of these skins is edited by hand.
 
 To try them in the simulator, copy them over the simulator disk:
 

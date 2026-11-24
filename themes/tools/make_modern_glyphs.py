@@ -5,7 +5,8 @@
 
 As make_theme_glyphs.py does Neo's, whose reader and writers it uses: names,
 sizes and frames are the manifest's, but for Playlists' marks, drawn by its
-catalogue_marks(); Shuffle's first frame is SHUFFLE_SONGS below. Written:
+catalogue_marks(); Shuffle's first frame is SHUFFLE_SONGS below, and the
+play glyph's triangles its playing_status()'s. Written:
 
 - apps/gui/modern_glyphs.h: the masks the lists draw themselves (LIST below),
   as tables of alpha;
@@ -28,7 +29,7 @@ import os
 import sys
 
 from make_theme_glyphs import (HERE, ROOT, bmp, capsule, catalogue_marks, disc, ident,
-                               read_png, rgb, smart_gear, table)
+                               playing_status, read_png, rgb, smart_gear, table)
 
 # "Catalogue Marks", Playlists' marks, are drawn by catalogue_marks(), 13 px wide,
 # and the smart playlists' by smart_gear()
@@ -180,6 +181,8 @@ def main():
             if screen and name in PANE:
                 continue
             g, rows = load(name, None if role else "dark" if "Dark" in look else "light")
+            if name == "Playing Status":
+                rows = playing_status("modern", g, rows)
             bmp(os.path.join(folder_out, name + ".bmp"), g["width"], len(rows),
                 rgb(colours[role]) if role else None, rows)
             if look == "Modern" and not screen:

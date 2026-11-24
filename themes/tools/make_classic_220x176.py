@@ -58,9 +58,10 @@ ABOUT_SRC_W = round((W - PANE) / ABOUT_SCALE)
 ABOUT_SRC_X = 160 + (160 - ABOUT_SRC_W) // 2
 DISK_FILL = (round(128 * ABOUT_SCALE), round(11 * ABOUT_SCALE))
 
-GLYPHS = ("Battery", "Playing Status", "Hold Icon", "Status Night", "Status Shuffle Albums",
-          "Repeat Icon", "Shuffle Icon", "Ratings", "Stars", "Scrub Knob", "Scrub Hints",
-          "Volume Left", "Volume Right")
+# the glyphs taken as they are; the status line's, on its own bar, are
+# make_classic_header.py's and make_night_icon.py's
+GLYPHS = ("Status Shuffle Albums", "Repeat Icon", "Shuffle Icon", "Ratings", "Stars",
+          "Scrub Knob", "Scrub Hints", "Volume Left", "Volume Right")
 
 
 class Note(icons.Note):
@@ -134,16 +135,11 @@ def shortened(rows, width):
 # its first to its last, then its dark line; the lists' 160 rows under it,
 # five of 32 or eight of 20 (apps/gui/ui_theme.c), from row 16. They are the
 # Video's original 18, which its taller bar of 23 keeps (make_classic_header.py)
-BAR_ROWS = 15
-VIDEO_BAR_ROWS = 18
-
-
 def list_backdrop():
-    """the status bar and the lists' white: the wide screen's, cut"""
+    """the status bar (make_classic_header.py's photo_bar()) and the lists'
+    white: the wide screen's, cut"""
     path = os.path.join(LIGHT, "Wide Backdrop.bmp")
-    header = header_tool.original_header(path)
-    bar = [header[round(y * (VIDEO_BAR_ROWS - 1) / (BAR_ROWS - 1))]
-           for y in range(BAR_ROWS)] + [header[VIDEO_BAR_ROWS]]
+    bar = header_tool.photo_bar(header_tool.original_header(path))
     src = read_bmp(path)
     rows = bar + src[header_tool.LIST_TOP:header_tool.LIST_TOP + H - len(bar)]
     return crop(rows, (0, W), 0, H)
