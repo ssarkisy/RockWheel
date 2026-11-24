@@ -30,7 +30,7 @@ A user has reported running it on a 5.5G 30 GB with its original hard drive, ins
 
 If you use it on a hard drive, please open an issue and describe how it runs.
 
-**iPod Photo (Beta).** I've tested one: a 30 GB iPod Photo (M9829) with its original hard drive, on Apple's software 1.2.1, synced with Finder on macOS 26. The app also recognizes the 20, 40 and 60 GB iPod Photo and iPod color, and the color U2 and Harry Potter editions, but none of them has been tried. iPod Photos were made with several kinds of screen. On the kind in the test iPod, and one other, RockWheel writes each change so that it never shows in pieces. Only the test iPod's kind is switched off while the iPod sleeps: the others stay on, dark. RockWheel hasn't run on the other kinds of screen yet. The iPod Photo with iTunes on Windows hasn't been tried either.
+**iPod Photo (Beta).** I've tested one: a 30 GB iPod Photo (M9829) on Apple's software 1.2.1, synced with Finder on macOS 26, first with its original hard drive and since 2.1 with a 256 GB SD card in an adapter in its place. The app also recognizes the 20, 40 and 60 GB iPod Photo and iPod color, and the color U2 and Harry Potter editions, but none of them has been tried. iPod Photos were made with several kinds of screen. On the kind in the test iPod, and one other, RockWheel writes each change so that it never shows in pieces. Only the test iPod's kind is switched off while the iPod sleeps: the others stay on, dark. RockWheel hasn't run on the other kinds of screen yet. The iPod Photo with iTunes on Windows hasn't been tried either.
 
 **The scripts.** Both scripts changed in 2.0 for the iPod Photo, and the changes also run when you update an iPod Video. They were checked with the real release files and stand-ins for the iPod, but not yet on a real iPod.
 
@@ -138,6 +138,8 @@ Users have installed RockWheel this way. If these steps don't work for you, plea
 
 **By hand:** extract the firmware zip for your iPod onto it, replacing the existing files. If you installed the extra games, extract the games zip too. Update both each time: games from an older version don't run with newer firmware. Saved games and high scores are kept.
 
+**From 2.0 or 2.0.1:** see "Before you update" in the [2.1 release notes](https://github.com/ssarkisy/RockWheel/releases/tag/v2.1.0).
+
 **From 1.4.1:** see "Before you update" in the [2.0 release notes](https://github.com/ssarkisy/RockWheel/releases/tag/v2.0.0).
 
 **From 1.3 or earlier:** the first start rebuilds the library, keeping play counts, ratings and playback positions. See [Updating to 1.4](updating-to-1.4.md) for the other changes.
@@ -232,7 +234,7 @@ Deleted files leave the library after the next connection and unplug. Moved or r
 
 Live Lyrics uses timed lyrics embedded in the file. For copied music, you can also put an `.lrc` file with the same name beside the song.
 
-Copied books and podcasts work like synced ones. RockWheel recognizes them by the `.m4b` extension, the Audiobook or Podcast genre, or a folder named Audiobooks or Podcasts.
+Copied books and podcasts work like synced ones. RockWheel recognizes them by the `.m4b` extension, the Audiobook or Podcast genre (as a name or as ID3's genre number), or a folder named Audiobooks or Podcasts.
 
 Podcasts, audiobooks and recordings of ten minutes or longer have chapters, read from MP3, M4A and M4B files. That works for mixes and concerts stored as one file too. Next skips to the next chapter; Previous returns to the start of the current one. Hold Select in Now Playing and choose Chapters for the full list.
 
@@ -264,6 +266,12 @@ The iPod decodes nearly every format on its second processor core, leaving the f
 
 ### Sound
 
+**Equalizer presets.** My Presets lists the files in `.rockbox/eqs` on the iPod, in up to four levels of folders and up to 256 presets and folders in all. Files you copy there appear after you unplug the iPod. It reads RockWheel's and Rockbox's `.cfg` presets and the `ParametricEQ.txt` files that AutoEq and Equalizer APO write, so you can copy AutoEq's folder for your headphones as it is. A folder that holds a single preset, as AutoEq makes one for each model, is listed as that preset.
+
+A `ParametricEQ.txt` file can have up to ten filters, each a peak (PK), a low shelf (LSC) or a high shelf (HSC). A file with more filters, another kind of filter or settings for one channel isn't used, as the iPod couldn't play it the way its curve shows. RockWheel ignores the file's Preamp and lowers the level by as much as the curve's highest point needs, as it does for every preset. Presets you save in the editor are written at the top of `.rockbox/eqs` in RockWheel's format.
+
+**Sound Check › Albums** uses the album gain that ReplayGain tags store in the files. A song without one gets its track gain, as with On, so a library whose files have no album gain sounds the same with Albums as with On.
+
 The Sony WH-1000XM4C presets are for a wired connection in Active Mode, with the headphones switched on.
 
 ## Last.fm in detail
@@ -281,9 +289,10 @@ You can use any other uploader that reads `.scrobbler.log` instead, or turn Last
 
 ## Limits
 
-- The playback queue holds at most 32,000 songs.
-- With more than 32,767 songs, the Songs list can only be sorted by name.
-- Libraries much larger than 25,000 songs haven't been tested on an iPod. In the simulator with 32 MB of RAM (tested with 1.4), the theme may not load if the iPod restarts straight into Updating Library, and a library of 100,000 songs doesn't start.
+- The playback queue holds the whole library, up to 65,000 songs, if the iPod has the memory for it when it starts. Otherwise it holds at most 32,000.
+- With more than 65,534 songs, or without the memory for it, the Songs list can only be sorted by name.
+- On a 32 MB iPod Video, the library holds about 58,000 songs when it's first built and about 54,000 when a sync adds songs to it. These figures come from an emulator, with names of average length; longer names lower both. If a sync brings more songs than fit, the iPod says so and leaves the new songs out, but your removals, play counts and ratings still go through, and the new songs are tried again at the next sync. Songs you copied without Finder past that point are left out too, and the iPod tries them again at every start.
+- Libraries much larger than 25,000 songs haven't been tested on an iPod. In the simulator with 32 MB of RAM (tested with 1.4), the theme may not load if the iPod restarts straight into Updating Library.
 - Music purchased from iTunes plays unless it has copy protection. Protected songs and audiobooks appear in the library, but RockWheel reports that it can't play them. Apple Music subscription tracks aren't supported.
 - RockWheel doesn't play video. To watch videos on the iPod Video, start the stock firmware, which shares the same library, by turning the Hold switch on while the iPod starts.
 - Podcast playback positions and completion don't sync back to Podcasts on the Mac.
@@ -298,7 +307,7 @@ You can use any other uploader that reads `.scrobbler.log` instead, or turn Last
 
 - `health.log` records errors and when they happened. It also records how long the processor ran at each speed, and which formats played on which core. It's written at USB connection and at power-off. It has no song names and nothing that identifies your iPod.
 - `drive.txt` describes the drive without its serial number.
-- `crash.log`: after a crash, the next start writes what happened there, with RockWheel's version. The crash screen asks you to send this file. Older records move to `crash.old.log` once the file reaches 16 KB.
+- `crash.log`: after a crash or a freeze, the next start writes what happened there, with RockWheel's version. The crash screen and the freeze screen ask you to send this file. Older records move to `crash.old.log` once the file reaches 16 KB.
 
 **The app** has Copy Report on every error screen, and Check iPod shows what it found. Neither contains the serial number, the computer's name or your home folder's paths.
 
