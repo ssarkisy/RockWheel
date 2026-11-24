@@ -193,11 +193,21 @@ def glyphs_x(right=None):
 
 
 # Settings > Appearance > Battery Percentage: the level left of the battery,
-# right-aligned in the clock's font and colour, PCT_GAP from it; the glyphs
-# left of it stand as far left as "100%" takes, so that they don't move with
-# it, the theme's second gap between them; against the battery right to left
-# too (%aR). None while the level isn't known (%bl's first case)
+# right-aligned in the clock's font and colour, PCT_GAP from it; the playing
+# status's glyph left of it by the level shown, its ink LEVEL_GAP from the
+# first digit's (the owner's, 2026-11-24), the moon the theme's second gap
+# left of that; the titles' room as for 100 %, the glyphs' leftmost. Against
+# the battery right to left too (%aR). None while the level isn't known
+# (%bl's first case)
 PCT_TEXT = "%aR%?bl<|%bl%%>"
+LEVEL_GAP = 6
+PLAY_INK = 8            # the playing glyphs' half-covered columns end at their 8th
+
+
+def level_play(font, bat_x):
+    """the playing status's place for each level, and its cases (fnt_width)"""
+    places = fnt_width.level_places(font, bat_x - PCT_GAP, 1 + LEVEL_GAP + PLAY_INK)
+    return places, fnt_width.level_cases(places)
 
 
 def pct_glyphs_x(font, right=None, narrow=False):
@@ -212,7 +222,7 @@ def pct_glyphs_x(font, right=None, narrow=False):
     pct_x = bat_x - PCT_GAP - fnt_width.width(font, "100%")
     if narrow:
         return bat_x, pct_x, None, bat_x - GLYPH_GAPS[1] - SIZES["Night"][0]
-    play_x = pct_x - GLYPH_GAPS[1] - SIZES["Playing_Status"][0]
+    play_x = min(level_play(font, bat_x)[0])
     moon_x = play_x - GLYPH_GAPS[1] - SIZES["Night"][0]
     return bat_x, pct_x, play_x, moon_x
 
@@ -306,9 +316,15 @@ def pct_status(font, right=None, suffix="", narrow=False, clock=False):
             "%al%?cf<%cH:%cM|%cl:%cM>"]
         show += "%%Vd(pclock%s)" % suffix
     if not narrow:
-        out += [vp("play", "Playing_Status", play_x),
-                "%%?mh<%%xd(H)|%%?mp<|%s|%s|%s|%s>>" % tuple(play)]
-    out += [vp("moon", "Night", moon_x), "%xd(N)"]
+        # the playing status and the moon by the level shown
+        _, (cases, select) = level_play(font, bat_x)
+        for case, x in cases:
+            out += [vp("play" + case, "Playing_Status", x),
+                    "%%?mh<%%xd(H)|%%?mp<|%s|%s|%s|%s>>" % tuple(play),
+                    vp("moon" + case, "Night", x - GLYPH_GAPS[1] - SIZES["Night"][0]),
+                    "%xd(N)"]
+    else:
+        out += [vp("moon", "Night", moon_x), "%xd(N)"]
     if narrow:
         # Hold's padlock, without the playing status, in the level's place
         out += [vp("hold", "Playing_Status",
@@ -316,7 +332,8 @@ def pct_status(font, right=None, suffix="", narrow=False, clock=False):
         show += "%%?mh<%%Vd(phold%s)|%%?nN<%%Vd(pmoon%s)|%%Vd(ppct%s)>>" % (
             suffix, suffix, suffix)
     else:
-        show += "%%Vd(ppct%s)%%Vd(pplay%s)%%?nN<%%Vd(pmoon%s)>" % ((suffix,) * 3)
+        show += "%%Vd(ppct%s)" % suffix + select(
+            lambda case: "%%Vd(pplay%s%s)%%?nN<%%Vd(pmoon%s%s)>" % (case, suffix, case, suffix))
     return "\n".join(out), show
 
 

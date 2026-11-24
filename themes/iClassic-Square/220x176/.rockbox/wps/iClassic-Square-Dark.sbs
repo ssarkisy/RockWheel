@@ -59,15 +59,15 @@
 %xd(N)
 %Vl(hnight,52,1,16,16,-)
 %xd(N)
-%Vl(pnight,120,1,16,16,-)
+%Vl(pnight,122,1,16,16,-)
 %xd(N)
-%Vl(pnight2,126,1,16,16,-)
+%Vl(pnight2,128,1,16,16,-)
 %xd(N)
-%Vl(pnight2i,127,1,16,16,-)
+%Vl(pnight2i,129,1,16,16,-)
 %xd(N)
-%Vl(pnight1,133,1,16,16,-)
+%Vl(pnight1,135,1,16,16,-)
 %xd(N)
-%Vl(pnight1i,134,1,16,16,-)
+%Vl(pnight1i,136,1,16,16,-)
 %xd(N)
 %Vl(phnight,68,1,16,16,-)
 %xd(N)
@@ -88,18 +88,18 @@
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
 %Vl(hplay,68,2,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-# with Battery Percentage the play glyph's ink ends 7 px from the level's first digit, as
-# from the battery without it: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
+# with Battery Percentage the play glyph's ink ends 6 px before the level's first digit's
+# (half-covered columns), in every layout: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
 # (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the moon with it
-%Vl(pplay,137,2,16,13,-)
+%Vl(pplay,139,2,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-%Vl(pplay2,143,2,16,13,-)
+%Vl(pplay2,145,2,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-%Vl(pplay2i,144,2,16,13,-)
+%Vl(pplay2i,146,2,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-%Vl(pplay1,150,2,16,13,-)
+%Vl(pplay1,152,2,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-%Vl(pplay1i,151,2,16,13,-)
+%Vl(pplay1i,153,2,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
 # beside the pane with Battery Percentage: Hold's padlock in the level's place
 %Vl(phhold,68,2,16,13,-)

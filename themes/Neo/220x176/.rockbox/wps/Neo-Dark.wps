@@ -42,12 +42,12 @@
 %s%ac%Sx(Now Playing)
 %Vl(pnpclock,10,1,31,14,5)%Vf(B5AEA5)
 %al%?cf<%cH:%cM|%cl:%cM>
-%Vl(pnptitle0,46,1,93,14,5)%Vf(EFEBE7)
+%Vl(pnptitle0,46,1,95,14,5)%Vf(EFEBE7)
 %s%ac%Sx(Now Playing)
-%Vl(pnptitle1,46,1,78,14,5)%Vf(EFEBE7)
+%Vl(pnptitle1,46,1,80,14,5)%Vf(EFEBE7)
 %s%ac%Sx(Now Playing)
 %V(0,15,220,1,-)%Vb(313029)
-%?St(battery percentage)<%Vd(pbat)%?nN<%Vd(ppct)%Vd(pmoon)%Vd(pplayn1)|%Vd(ppct)%Vd(pplayn0)>|%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>
+%?St(battery percentage)<%Vd(pbat)%?nN<%Vd(ppct)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pmoon1i)%Vd(pplayn11i)|%Vd(pmoon1)%Vd(pplayn11)>|%?if(%bl, <, 20)<%Vd(pmoon2i)%Vd(pplayn12i)|%?if(%bl, <, 100)<%Vd(pmoon2)%Vd(pplayn12)|%Vd(pmoon)%Vd(pplayn1)>>>|%Vd(ppct)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pplayn01i)|%Vd(pplayn01)>|%?if(%bl, <, 20)<%Vd(pplayn02i)|%?if(%bl, <, 100)<%Vd(pplayn02)|%Vd(pplayn0)>>>>|%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>
 %Vl(bat,191,2,19,10,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(playn0,178,2,8,10,-)
@@ -60,11 +60,35 @@
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(ppct,157,1,32,14,5)%Vf(B5AEA5)
 %aR%?bl<|%bl%%>
-%Vl(pplayn0,144,2,8,10,-)
+%Vl(pplayn0,146,2,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon,142,2,10,10,-)
+%Vl(pplayn02,152,2,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pplayn02i,153,2,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pplayn01,159,2,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pplayn01i,160,2,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon,144,2,10,10,-)
 %xd(N)
-%Vl(pplayn1,129,2,8,10,-)
+%Vl(pplayn1,131,2,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon2,150,2,10,10,-)
+%xd(N)
+%Vl(pplayn12,137,2,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon2i,151,2,10,10,-)
+%xd(N)
+%Vl(pplayn12i,138,2,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon1,157,2,10,10,-)
+%xd(N)
+%Vl(pplayn11,144,2,8,10,-)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon1i,158,2,10,10,-)
+%xd(N)
+%Vl(pplayn11i,145,2,8,10,-)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
 %Vl(mode1,202,20,12,11,-)
 %?mm<%?ps<%?pa<%xd(Sb)|%xd(Sa)>|>|%xd(Ra)|%xd(Rb)|%xd(Rc)|%xd(Rd)>

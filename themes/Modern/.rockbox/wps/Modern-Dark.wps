@@ -32,16 +32,16 @@
 # the status bar, as the lists have it
 %V(0,0,320,23,-)%Vb(101010)
 %V(0,23,320,1,-)%Vb(202429)
-%?St(battery percentage)<%Vd(pbat)%Vd(ppct)%Vd(pplay)%?nN<%Vd(pmoon)>|%Vd(bat)%Vd(play)%?nN<%Vd(moon)>>
+%?St(battery percentage)<%Vd(pbat)%Vd(ppct)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pplay1i)%?nN<%Vd(pmoon1i)>|%Vd(pplay1)%?nN<%Vd(pmoon1)>>|%?if(%bl, <, 20)<%Vd(pplay2i)%?nN<%Vd(pmoon2i)>|%?if(%bl, <, 100)<%Vd(pplay2)%?nN<%Vd(pmoon2)>|%Vd(pplay)%?nN<%Vd(pmoon)>>>>|%Vd(bat)%Vd(play)%?nN<%Vd(moon)>>
 %Vl(npclock,12,5,56,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%?cf<%cH:%cM|%cl:%cM>
 %Vl(nptitle,72,5,168,14,2)%Vf(FFFFFF)%Vb(101010)
 %s%ac%Sx(Now Playing)
 %Vl(pnpclock,12,5,56,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%?cf<%cH:%cM|%cl:%cM>
-%Vl(pnptitle0,85,5,142,14,2)%Vf(FFFFFF)%Vb(101010)
+%Vl(pnptitle0,82,5,148,14,2)%Vf(FFFFFF)%Vb(101010)
 %s%ac%Sx(Now Playing)
-%Vl(pnptitle1,101,5,110,14,2)%Vf(FFFFFF)%Vb(101010)
+%Vl(pnptitle1,98,5,116,14,2)%Vf(FFFFFF)%Vb(101010)
 %s%ac%Sx(Now Playing)
 %Vl(bat,284,7,24,10,-)%Vb(101010)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
@@ -53,9 +53,25 @@
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(ppct,249,5,32,14,2)%Vf(FFFFFF)%Vb(101010)
 %aR%?bl<|%bl%%>
-%Vl(pplay,233,7,10,10,-)%Vb(101010)
+%Vl(pplay,236,7,10,10,-)%Vb(101010)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon,217,7,10,10,-)%Vb(101010)
+%Vl(pmoon,220,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay2,242,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon2,226,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay2i,243,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon2i,227,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay1,249,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon1,233,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay1i,250,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon1i,234,7,10,10,-)%Vb(101010)
 %xd(N)
 %xl(R,Repeat.bmp,0,0,4)
 %xl(S,Shuffle.bmp,0,0,2)

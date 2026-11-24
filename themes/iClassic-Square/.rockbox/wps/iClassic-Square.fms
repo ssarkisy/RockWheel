@@ -42,31 +42,31 @@
 %aR%?bl<|%bl%%>
 %xl(P,Status Playing.bmp,0,0,4)
 %xA(P)
-# with Battery Percentage the play glyph's ink ends 7 px from the level's first digit, as
-# from the battery without it: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
+# with Battery Percentage the play glyph's ink ends 6 px before the level's first digit's
+# (half-covered columns), in every layout: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
 # (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the lock with it
-%Vl(pnum,237,5,16,13,-)
+%Vl(pnum,239,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
-%Vl(pnum2,243,5,16,13,-)
+%Vl(pnum2,245,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
-%Vl(pnum2i,244,5,16,13,-)
+%Vl(pnum2i,246,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
-%Vl(pnum1,250,5,16,13,-)
+%Vl(pnum1,252,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
-%Vl(pnum1i,251,5,16,13,-)
+%Vl(pnum1i,253,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
 %Vl(nonumbat,271,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
 %xl(h,Status Hold.bmp,0,1)
-%Vl(pnum,219,5,13,13,-)
+%Vl(pnum,221,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum2,225,5,13,13,-)
+%Vl(pnum2,227,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum2i,226,5,13,13,-)
+%Vl(pnum2i,228,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum1,232,5,13,13,-)
+%Vl(pnum1,234,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum1i,233,5,13,13,-)
+%Vl(pnum1i,235,5,13,13,-)
 %?mh<%xd(h)|>
 %Vl(nonumbat,253,5,13,13,-)
 %?mh<%xd(h)|>

@@ -11,7 +11,7 @@
 %xl(N,Night.bmp,0,0)
 # beside the pane the bar is as wide as the menu: the clock and the glyphs,
 # no title; the pane has the screen's whole height
-%?LW<%VI(wide)%Vd(bar)%Vd(rule)%?St(battery percentage)<%?nN<%?Lf(ptitle1)<%Vd(clock)%Vd(ptitle1)|%?nN<%Vd(plongm)|%?mh<%Vd(plongp)|%?mp<%Vd(plong)|%Vd(plongp)|%Vd(plongp)|%Vd(plongp)|%Vd(plongp)>>>>|%?Lf(ptitle0)<%Vd(clock)%Vd(ptitle0)|%?nN<%Vd(plongm)|%?mh<%Vd(plongp)|%?mp<%Vd(plong)|%Vd(plongp)|%Vd(plongp)|%Vd(plongp)|%Vd(plongp)>>>>>%Vd(pbat)%Vd(ppct)%Vd(pplay)%?nN<%Vd(pmoon)>|%?Lf(title)<%Vd(clock)%Vd(title)|%?nN<%Vd(longm)|%?mh<%Vd(longp)|%?mp<%Vd(long)|%Vd(longp)|%Vd(longp)|%Vd(longp)|%Vd(longp)>>>>%Vd(bat)%Vd(play)%?nN<%Vd(moon)>>|%VI(half)%Vd(barh)%Vd(ruleh)%?St(battery percentage)<%Vd(pbath)%Vd(pclockh)%Vd(ppcth)%Vd(pplayh)%?nN<%Vd(pmoonh)>|%Vd(clock)%Vd(bath)%Vd(playh)%?nN<%Vd(moonh)>>>
+%?LW<%VI(wide)%Vd(bar)%Vd(rule)%?St(battery percentage)<%?nN<%?Lf(ptitle1)<%Vd(clock)%Vd(ptitle1)|%?nN<%Vd(plongm)|%?mh<%Vd(plongp)|%?mp<%Vd(plong)|%Vd(plongp)|%Vd(plongp)|%Vd(plongp)|%Vd(plongp)>>>>|%?Lf(ptitle0)<%Vd(clock)%Vd(ptitle0)|%?nN<%Vd(plongm)|%?mh<%Vd(plongp)|%?mp<%Vd(plong)|%Vd(plongp)|%Vd(plongp)|%Vd(plongp)|%Vd(plongp)>>>>>%Vd(pbat)%Vd(ppct)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pplay1i)%?nN<%Vd(pmoon1i)>|%Vd(pplay1)%?nN<%Vd(pmoon1)>>|%?if(%bl, <, 20)<%Vd(pplay2i)%?nN<%Vd(pmoon2i)>|%?if(%bl, <, 100)<%Vd(pplay2)%?nN<%Vd(pmoon2)>|%Vd(pplay)%?nN<%Vd(pmoon)>>>>|%?Lf(title)<%Vd(clock)%Vd(title)|%?nN<%Vd(longm)|%?mh<%Vd(longp)|%?mp<%Vd(long)|%Vd(longp)|%Vd(longp)|%Vd(longp)|%Vd(longp)>>>>%Vd(bat)%Vd(play)%?nN<%Vd(moon)>>|%VI(half)%Vd(barh)%Vd(ruleh)%?St(battery percentage)<%Vd(pbath)%Vd(pclockh)%Vd(ppcth)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pplay1ih)%?nN<%Vd(pmoon1ih)>|%Vd(pplay1h)%?nN<%Vd(pmoon1h)>>|%?if(%bl, <, 20)<%Vd(pplay2ih)%?nN<%Vd(pmoon2ih)>|%?if(%bl, <, 100)<%Vd(pplay2h)%?nN<%Vd(pmoon2h)>|%Vd(pplayh)%?nN<%Vd(pmoonh)>>>>|%Vd(clock)%Vd(bath)%Vd(playh)%?nN<%Vd(moonh)>>>
 # the pane by the row selected: Settings, Photos, or the music, which Extras has too
 %?LW<|%?LS<%Vd(pane)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(pane)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(pane)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
 # the cover fills the pane, nothing over it: Finder's 240 px frame, its middle
@@ -42,15 +42,15 @@
 %al%nx%Lt
 %Vl(long,12,5,266,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%nx%Lt
-%Vl(plongm,12,5,199,14,2)%Vf(FFFFFF)%Vb(101010)
+%Vl(plongm,12,5,202,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%nx%Lt
-%Vl(plongp,12,5,215,14,2)%Vf(FFFFFF)%Vb(101010)
+%Vl(plongp,12,5,218,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%nx%Lt
 %Vl(plong,12,5,231,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%nx%Lt
-%Vl(ptitle0,85,5,142,14,2)%Vf(FFFFFF)%Vb(101010)
+%Vl(ptitle0,82,5,148,14,2)%Vf(FFFFFF)%Vb(101010)
 %ac%?if(%Li, =, 33)<%nn|%Lt>
-%Vl(ptitle1,101,5,110,14,2)%Vf(FFFFFF)%Vb(101010)
+%Vl(ptitle1,98,5,116,14,2)%Vf(FFFFFF)%Vb(101010)
 %ac%?if(%Li, =, 33)<%nn|%Lt>
 %Vl(bat,284,7,24,10,-)%Vb(101010)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
@@ -62,9 +62,25 @@
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(ppct,249,5,32,14,2)%Vf(FFFFFF)%Vb(101010)
 %aR%?bl<|%bl%%>
-%Vl(pplay,233,7,10,10,-)%Vb(101010)
+%Vl(pplay,236,7,10,10,-)%Vb(101010)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon,217,7,10,10,-)%Vb(101010)
+%Vl(pmoon,220,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay2,242,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon2,226,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay2i,243,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon2i,227,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay1,249,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon1,233,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay1i,250,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon1i,234,7,10,10,-)%Vb(101010)
 %xd(N)
 %Vl(bath,128,7,24,10,-)%Vb(101010)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
@@ -78,9 +94,25 @@
 %aR%?bl<|%bl%%>
 %Vl(pclockh,12,5,31,14,2)%Vf(FFFFFF)%Vb(101010)
 %al%?cf<%cH:%cM|%cl:%cM>
-%Vl(pplayh,77,7,10,10,-)%Vb(101010)
+%Vl(pplayh,80,7,10,10,-)%Vb(101010)
 %?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoonh,61,7,10,10,-)%Vb(101010)
+%Vl(pmoonh,64,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay2h,86,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon2h,70,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay2ih,87,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon2ih,71,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay1h,93,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon1h,77,7,10,10,-)%Vb(101010)
+%xd(N)
+%Vl(pplay1ih,94,7,10,10,-)%Vb(101010)
+%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pmoon1ih,78,7,10,10,-)%Vb(101010)
 %xd(N)
 # the pane without a cover: a surface, and on it by the row; a hairline at
 # its left (below, after the collage, which would clear it)

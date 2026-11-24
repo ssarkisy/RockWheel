@@ -213,11 +213,17 @@ TITLE = "%al%nx%Lt"
 
 
 # Settings > Appearance > Battery Percentage: the level left of the battery,
-# right-aligned in the clock's font and colour, PCT_GAP from it; the glyphs
-# left of it stand as far left as "100%" takes, so that they don't move with
-# it; against the battery right to left too (%aR). None while the level
-# isn't known (%bl's first case)
+# right-aligned in the clock's font and colour, PCT_GAP from it; the glyph
+# next to it, the playing status's or Night Mode's moon, by the level shown,
+# its ink LEVEL_GAP from the first digit's (the owner's, 2026-11-24), the
+# other GAP left of it; the titles' room as for 100 %, the glyphs' leftmost.
+# Against the battery right to left too (%aR). None while the level isn't
+# known (%bl's first case)
 PCT_TEXT = "%aR%?bl<|%bl%%>"
+LEVEL_GAP = 6
+# the half-covered columns of the playing glyphs end at their 6th, the moon's
+# at its 8th
+INK_END = {"Playing_Status": 6, "Night": 8}
 
 
 def status(width, prefix="", name=None, pct=False, narrow=False, font=3,
@@ -266,6 +272,34 @@ def status(width, prefix="", name=None, pct=False, narrow=False, font=3,
         at = x
         tag = "n%d" % night
         this = []
+        if pct and not narrow:
+            # by the level shown: the moon, or without it the playing status,
+            # next to it, and the playing status left of the moon
+            this.append("%%Vd(%spct)" % prefix)
+            near = "Night" if night else "Playing_Status"
+            places = fnt_width.level_places(font_name, level_x + pct_w,
+                                            1 + LEVEL_GAP + INK_END[near])
+            cases, select = fnt_width.level_cases(places)
+            shown = []
+            for case, gx in cases:
+                if night:
+                    out += [vp("moon" + case, "Night", gx), "%xd(N)"]
+                    gx -= GAP + SIZES["Playing_Status"][0]
+                out += [vp("play" + tag + case, "Playing_Status", gx), state]
+            this.append(select(lambda case: ("%%Vd(%smoon%s)" % (prefix, case) if night else "")
+                               + "%%Vd(%splay%s%s)" % (prefix, tag, case)))
+            # the leftmost, 100 %'s
+            past = min(places)
+            at = past - (GAP + SIZES["Playing_Status"][0] if night else 0)
+            if not night:
+                past = level_x
+            rooms.append((at - GAP - MARGIN, past - GAP - MARGIN))
+            if name:
+                out += title_vps(prefix + "name", night, rooms[night], name)
+                this.append("%%?if(%%Li, =, 33)<%%Vd(%sclock)|%s>" % (
+                    prefix, title_show(prefix + "name", night)))
+            branches.append("".join(this))
+            continue
         if pct and not (narrow and night):
             at = level_x
             this.append("%%Vd(%spct)" % prefix)

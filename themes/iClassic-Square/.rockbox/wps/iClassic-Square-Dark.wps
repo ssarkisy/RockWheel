@@ -69,32 +69,32 @@
 %xl(P,Status Playing.bmp,0,0,4)
 # the play glyph and the bar take Classic's colour, if it has one other than its blue
 %xA(P)
-# with Battery Percentage the play glyph's ink ends 7 px from the level's first digit, as
-# from the battery without it: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
+# with Battery Percentage the play glyph's ink ends 6 px before the level's first digit's
+# (half-covered columns), in every layout: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
 # (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the lock and
 # the moon with it
-%Vl(pnum,237,5,16,13,-)
+%Vl(pnum,239,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(pnum2,243,5,16,13,-)
+%Vl(pnum2,245,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(pnum2i,244,5,16,13,-)
+%Vl(pnum2i,246,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(pnum1,250,5,16,13,-)
+%Vl(pnum1,252,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(pnum1i,251,5,16,13,-)
+%Vl(pnum1i,253,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
 %Vl(nonumbat,271,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
 %xl(h,Status Hold.bmp,0,1)
-%Vl(pnum,181,5,13,13,-)
+%Vl(pnum,183,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum2,187,5,13,13,-)
+%Vl(pnum2,189,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum2i,188,5,13,13,-)
+%Vl(pnum2i,190,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum1,194,5,13,13,-)
+%Vl(pnum1,196,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum1i,195,5,13,13,-)
+%Vl(pnum1i,197,5,13,13,-)
 %?mh<%xd(h)|>
 %Vl(nonumbat,215,5,13,13,-)
 %?mh<%xd(h)|>
@@ -102,15 +102,15 @@
 %xl(N,Status Night.bmp,0,0)
 %Vl(night,249,4,16,16,-)
 %xd(N)
-%Vl(nightnum,215,4,16,16,-)
+%Vl(nightnum,217,4,16,16,-)
 %xd(N)
-%Vl(nightnum2,221,4,16,16,-)
+%Vl(nightnum2,223,4,16,16,-)
 %xd(N)
-%Vl(nightnum2i,222,4,16,16,-)
+%Vl(nightnum2i,224,4,16,16,-)
 %xd(N)
-%Vl(nightnum1,228,4,16,16,-)
+%Vl(nightnum1,230,4,16,16,-)
 %xd(N)
-%Vl(nightnum1i,229,4,16,16,-)
+%Vl(nightnum1i,231,4,16,16,-)
 %xd(N)
 #%?C<%Vd(aa)|>
 #%xl(w,FrameTop.bmp,0,0)
