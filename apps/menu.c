@@ -536,7 +536,8 @@ static bool menu_is_group(int item, void *data)
 }
 
 /* A line of "name\tvalue": the name as usual, then the value at the right end,
-   grey, left of where a chevron can come in a list that has them. The value
+   grey (in Classic's Settings its colour, menu_value_colour()), left of
+   where a chevron can come in a list that has them. The value
    always whole: a name too long for the room before it ends in "…" there,
    and scrolls in it while selected. The name of a group has a bar of its
    own. */
@@ -772,6 +773,20 @@ static const char *menu_value_line(int selected_item, void *data, char *buffer,
     if (tab[1] == MENU_CHECK)
         return NULL;
     return tab + 1;
+}
+
+unsigned menu_value_colour(const struct gui_synclist *list)
+{
+#ifdef HAVE_LCD_COLOR
+    /* a do_menu() list made in Settings, not another list there, as About's
+       numbers or a folder's */
+    if (list->selection_look == LIST_SELECTION_SETTINGS
+        && list->callback_get_item_name == get_menu_item_name)
+        return ui_theme_settings_value();
+#else
+    (void)list;
+#endif
+    return VALUE_COLOUR;
 }
 
 void menu_draw_value_line(struct list_putlineinfo_t *info)
@@ -1064,7 +1079,8 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         end.x = end_x;
         end.dy = (info->linedes->height - height) / 2
                  + font_get(name_font)->ascent - font_get(end.font)->ascent;
-        end.colour = inked ? ui_colour(UI_COLOUR_VALUE_SELECTED) : VALUE_COLOUR;
+        end.colour = inked ? ui_colour(UI_COLOUR_VALUE_SELECTED)
+                           : menu_value_colour(info->list);
     }
     end.text = value;
 

@@ -1783,6 +1783,16 @@ bool ui_theme_accent_shown(void)
 #endif
 }
 
+unsigned ui_theme_settings_value(void)
+{
+#ifdef HAVE_LCD_COLOR
+    if (global_settings.ui_theme == UI_THEME_CLASSIC)
+        return ui_colour(global_settings.dark_theme ? UI_COLOUR_SELECTOR_START
+                                                    : UI_COLOUR_SELECTOR_END);
+#endif
+    return ui_colour(UI_COLOUR_VALUE);
+}
+
 unsigned ui_theme_accent(unsigned colour, bool status)
 {
 #ifdef HAVE_ACCENT

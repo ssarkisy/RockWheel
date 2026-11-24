@@ -1569,7 +1569,7 @@ const char *line_fit(const char *text, int font, int width, char *buf,
 
 void line_draw_subline(struct screen *display, int font, int x, int y,
                        int top_dy, const struct line_desc *line,
-                       const char *text)
+                       const char *text, unsigned value_colour)
 {
     struct viewport *vp = *display->current_viewport;
     char buf[MAX_PATH], accent[48];
@@ -1603,7 +1603,7 @@ void line_draw_subline(struct screen *display, int font, int x, int y,
     const int name_font = vp->font;
     const unsigned fg = display->get_foreground();
 #ifdef HAVE_LCD_COLOR
-    unsigned colour = LIST_VALUE_COLOUR, accent_colour = LIST_VALUE_COLOUR;
+    unsigned colour = value_colour, accent_colour = LIST_VALUE_COLOUR;
 #ifndef DISABLE_ALPHA_BITMAP
     accent_colour = speaker_colour();
 #endif

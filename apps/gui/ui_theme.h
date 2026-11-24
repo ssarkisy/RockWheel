@@ -445,6 +445,12 @@ unsigned ui_theme_accent_swatch(int colour, int quarter);
    its skins that take it (%xA, Now Playing's bar and the status line's play
    glyph) are drawn in it, by ui_theme_accent() */
 bool ui_theme_accent_shown(void);
+/* A setting's value in Settings' lists (menu_value_colour()): in Classic
+   in the colour of its selection, the darker end on the light ground and
+   the lighter on the dark one (#2969D6 and #5A9AEF in Classic's blue, as
+   Multicolor has in Settings); in another theme a value's grey,
+   UI_COLOUR_VALUE */
+unsigned ui_theme_settings_value(void);
 /* Dieter's signal colour, the setting's value as it is now in the look of
    Dark Theme now: what UI_COLOUR_SIGNAL is */
 unsigned ui_theme_signal(void);

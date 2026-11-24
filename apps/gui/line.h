@@ -255,8 +255,9 @@ void line_scroll_stop_parts(struct screen *display);
 const char *line_fit(const char *text, int font, int width, char *buf,
                      size_t size);
 /* The second line of a row of two, as an album's year and artist under its
-   name: in font, grey as a setting's value, as the selection's text on it,
-   from x of the part put at y, its cell top_dy pixels below the part's top,
+   name: in font, in value_colour (a value's grey, LIST_VALUE_COLOUR, or a
+   setting's in Settings, menu_value_colour()), as the selection's text on
+   it, from x of the part put at y, its cell top_dy pixels below the part's top,
    and cut short with "…" before the speaker and the chevron. Its start up to
    a SUBLINE_ACCENT_END, which isn't drawn, is in the speaker's blue instead,
    as a show's new episodes: who makes a line of a tag's text takes the mark
@@ -265,7 +266,7 @@ const char *line_fit(const char *text, int font, int width, char *buf,
 #define SUBLINE_ACCENT_END '\x1f'
 void line_draw_subline(struct screen *display, int font, int x, int y,
                        int top_dy, const struct line_desc *line,
-                       const char *text);
+                       const char *text, unsigned value_colour);
 /* An album's cover at x, y of a row: pixels of LINE_COVER_SIZE a side, or
    NULL for the note on a tile in its place, as an album without one has and
    one not read yet. On the iPod photo's 220x176 29 px, in its rows of two

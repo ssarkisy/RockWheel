@@ -166,6 +166,11 @@ void menu_set_wide(bool wide);
    has the screen without it. Drawn at once, it took 110-230 ms then. */
 void menu_set_wide_later(bool wide);
 void menu_draw_value_line(struct list_putlineinfo_t *info);
+/* the colour of a value in a list's rows not selected, beside its name
+   (menu_draw_value_line()) or under it (the iPod photo's Settings): a
+   value's grey; in Settings' own lists the theme's for them
+   (ui_theme_settings_value()) */
+unsigned menu_value_colour(const struct gui_synclist *list);
 /* in a row's text for that, before a lighter text drawn right after the
    name, as an album's artist in Search's list */
 #define MENU_LIGHT_SEP '\x1f'

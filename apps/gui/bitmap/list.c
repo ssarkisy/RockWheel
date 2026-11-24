@@ -44,6 +44,7 @@
 #include "statusbar-skinned.h"
 #include "debug.h"
 #include "line.h"
+#include "menu.h"
 #include "fixedpoint.h"
 #include "rbunicode.h"
 #include "rbpaths.h"
@@ -1179,7 +1180,7 @@ void list_draw(struct screen *display, struct gui_synclist *list)
                                  line_ink_left(list_text_vp->font, entry_name)
                                  - line_ink_left(subline_font, subline) : 0),
                               list_info.y + name_h, SUBLINE_TOP_DY, &linedes,
-                              subline);
+                              subline, menu_value_colour(list));
         /* an episode's right to left too, from the other end */
         if (mark != LINE_MARK_NONE)
             line_draw_mark(display, list_info.x
