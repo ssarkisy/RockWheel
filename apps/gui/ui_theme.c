@@ -1168,7 +1168,7 @@ static int tone_section = UI_SECTION_SYSTEM;
 #define HAVE_ACCENT
 /* Classic's colour: a macOS accent colour in place of its blue wherever that
    is, by the approved mockup's rule (roadmap 1.4.1 A2, accent_mock.py). The
-   selection with its bevel, and what takes its colours from the settings'
+   selection, and what takes its colours from the settings'
    (the speaker and the marks, Search's key, Cover Flow's selection); the
    scrollbar; the skins' pictures that take it (%xA): Now Playing's bar and
    the status line's play glyph. The status line, the panes and the missing
@@ -1177,12 +1177,14 @@ static int tone_section = UI_SECTION_SYSTEM;
    saturation, takes the accent's hue, and its saturation is scaled by the
    accent's; its value is scaled by the accent's from 50 % saturation on,
    less so down to 12 % and not at all below, so that a pale tint keeps its
-   lightness. Classic's darker end #186DBD is macOS's Blue at 87 % of its
-   saturation and 74 % of its value, so each colour's end is it at the same,
-   and Blue is Classic's own. A colour's value is lowered until white on the
-   middle of the selection reads 2.7 to 1 (accent_mock.py's 2.65, the
-   owner's Yellow); Yellow is a warm gold (42 degrees, 80 % saturation), as
-   macOS's selection under white */
+   lightness. The selection's ends are made from Classic's earlier ones,
+   #6BA6DE and #186DBD (accent_base), so that each colour keeps its own as
+   Classic's blue became a stock 5G's, #5A9AEF to #2969D6; Blue is Classic's
+   own. That darker end #186DBD is macOS's Blue at 87 % of its saturation
+   and 74 % of its value, so each colour's end is it at the same. A colour's
+   value is lowered until white on the middle of the selection reads 2.7 to
+   1 (accent_mock.py's 2.65, the owner's Yellow); Yellow is a warm gold (42
+   degrees, 80 % saturation), as macOS's selection under white */
 struct ui_accent {
     short hue;     /* in tenths of a degree */
     short s, v;    /* saturation and value, out of ACCENT_ONE */
@@ -1209,6 +1211,10 @@ static const struct ui_accent accent_sections[UI_SECTION_SYSTEM] = {
     [UI_SECTION_MUSIC]      = { 3521,  8200,  9804 },
     [UI_SECTION_PODCASTS]   = { 2637,  7973,  8706 },
     [UI_SECTION_AUDIOBOOKS] = {  351, 10000, 10000 },
+};
+/* the blue the selection's ends are made from in a colour */
+static const unsigned accent_base[2] = {
+    RGB(0x6b, 0xa6, 0xde), RGB(0x18, 0x6d, 0xbd),
 };
 static int accent_choice = UI_ACCENT_DEFAULT;
 /* the theme's colours taken (ui_theme_to_settings()): at boot the setting's
@@ -1296,8 +1302,7 @@ static bool accent_update(void)
     const struct ui_theme *const classic = &ui_themes[UI_THEME_CLASSIC];
     for (int i = 0; i < 2; i++)
         accent_selector[i] = accent
-            ? accent_colour(accent, classic->look[0].colour[UI_COLOUR_SELECTOR_START + i],
-                            false, false)
+            ? accent_colour(accent, accent_base[i], false, false)
             : classic->look[0].colour[UI_COLOUR_SELECTOR_START + i];
     for (int i = 0; i < UI_SCROLLBAR_THUMB_STEPS; i++)
         accent_thumb[i] = accent ? accent_colour(accent, classic->scrollbar_thumb[i],
@@ -1747,8 +1752,8 @@ unsigned ui_theme_accent_swatch(int colour, int quarter)
         UI_SECTION_PODCASTS,
     };
     const struct ui_accent *const a = accent_of(colour, round[quarter & 3]);
-    const unsigned *const plain =
-        &ui_themes[UI_THEME_CLASSIC].look[0].colour[UI_COLOUR_SELECTOR_START];
+    const unsigned *const plain = a ? accent_base
+        : &ui_themes[UI_THEME_CLASSIC].look[0].colour[UI_COLOUR_SELECTOR_START];
     int mid[3];
     for (int k = 0; k < 3; k++)
         mid[k] = 0;

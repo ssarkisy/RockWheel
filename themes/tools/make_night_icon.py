@@ -5,10 +5,15 @@
 #
 # Needs Pillow. A crescent, shaded from top to bottom like the hold icon's lock, drawn
 # at eight times the size and brought down. A partly covered
-# pixel gets the colour of the bar in its row, and an empty one the magenta that skins
-# take as transparent. Run make_dark_theme.py after it.
+# pixel gets the colour of the original theme's bar in its row from TOP, and an empty
+# one the magenta that skins take as transparent. The iPod photo's status line has the
+# moon too, and the Video's taller bar keeps those rows (make_classic_header.py); drawn
+# at y 4 there, its edges carry rows 2 to 17, not the ones under them, at most 7.5
+# levels apart. Run make_dark_theme.py after it.
 import os
 from PIL import Image
+
+import make_classic_header as header_tool
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 THEME = os.path.join(HERE, '..', 'iClassic-Square', '.rockbox', 'wps', 'iClassic-Square')
@@ -31,11 +36,11 @@ def covered(x, y):
 
 
 def main():
-    backdrop = Image.open(os.path.join(THEME, 'iClassic_bg.bmp')).convert('RGB')
+    header = header_tool.original_header(os.path.join(THEME, 'iClassic_bg.bmp'))
     image = Image.new('RGB', (SIZE, SIZE), TRANSPARENT)
     top = CENTRE[1] - RADIUS
     for y in range(SIZE):
-        bar = [sum(backdrop.getpixel((x, TOP + y))[i] for x in BAR_COLUMNS) / len(BAR_COLUMNS)
+        bar = [sum(header[TOP + y][x][i] for x in BAR_COLUMNS) / len(BAR_COLUMNS)
                for i in range(3)]
         t = min(max((y + 0.5 - top) / (2 * RADIUS), 0), 1)
         ink = [LIGHT[i] + (DARK[i] - LIGHT[i]) * t for i in range(3)]

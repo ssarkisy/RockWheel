@@ -56,16 +56,25 @@ enum { UI_THEME_CLASSIC, UI_THEME_MODERN, UI_THEME_NEO, UI_THEME_DIETER, UI_THEM
 #define UI_CLASSIC_BACKDROP_DARK BACKDROP_DIR "/iClassic_bd_dark.bmp"
 #define UI_CLASSIC_TEXT          LCD_RGBPACK(0x00, 0x00, 0x00)
 #define UI_CLASSIC_GROUND        LCD_RGBPACK(0xff, 0xff, 0xff)
-#define UI_CLASSIC_SELECTOR_START LCD_RGBPACK(0x6b, 0xa6, 0xde)
-#define UI_CLASSIC_SELECTOR_END  LCD_RGBPACK(0x18, 0x6d, 0xbd)
+/* the selected row's gradient, a stock 5G's: from the row under its top
+   line, which is the dark end (line.c selection_gradient()), to its foot */
+#define UI_CLASSIC_SELECTOR_START LCD_RGBPACK(0x5a, 0x9a, 0xef)
+#define UI_CLASSIC_SELECTOR_END  LCD_RGBPACK(0x29, 0x69, 0xd6)
 #define UI_CLASSIC_SELECTOR_TEXT LCD_RGBPACK(0xff, 0xff, 0xff)
 #define UI_CLASSIC_TEXT_INSET    5
 /* the dark ground, as in themes/tools/make_dark_theme.py */
 #define UI_CLASSIC_DARK_GROUND_R 18
 #define UI_CLASSIC_DARK_GROUND_G 18
 #define UI_CLASSIC_DARK_GROUND_B 20
-/* the status line's rows, with the hairline under it */
-#define UI_CLASSIC_STATUS_ROWS   19
+/* the status line's rows, with the hairline under it, as Now Playing's
+   backdrop has them: on the Video 24, a stock 5G's, as the lists' and the
+   radio's (themes/tools/make_classic_header.py); on the iPod photo 16, its
+   skins' (themes/tools/make_classic_220x176.py) */
+#ifdef UI_220X176
+#define UI_CLASSIC_STATUS_ROWS   16
+#else
+#define UI_CLASSIC_STATUS_ROWS   24
+#endif
 
 enum ui_colour {
     UI_COLOUR_TEXT,
@@ -343,8 +352,9 @@ struct ui_theme_look {
     unsigned colour[UI_COLOUR_COUNT];
     /* with selector_bevel, the selected row's top row this many percent of
        the way to white, and its last two rows to black, the one before the
-       last first, which a 0 leaves as it is; all 0 for Classic's 45, 15 and
-       35 */
+       last first, which a 0 leaves as it is; all 0 for Classic's, a stock
+       iPod's: its top row a line of the gradient's dark end, no edge at the
+       foot (line.c selection_gradient()) */
     signed char bevel[3];
     /* the scrollbar's track, inner then outer, in 8-bit parts: the columns
        between are worked out from these, not from the screen's colours */

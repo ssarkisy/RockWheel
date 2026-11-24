@@ -528,15 +528,13 @@ static unsigned mix_color(unsigned c1, unsigned c2, int pct)
     return LCD_RGBPACK(r, g, b);
 }
 
-/* A lighter top and a darker bottom edge on a gradient selection bar, as
-   on a stock iPod: Classic's strengths, or the theme's look's own */
+/* The look's bevel on a gradient selection bar (Dieter's): its top row
+   bevel[0] percent of the way to white, its last two bevel[1] and bevel[2]
+   to black, by the look's values */
 static void draw_bevel(struct screen *display, int x, int y, int width,
-                       int height, struct line_desc *line)
+                       int height, struct line_desc *line,
+                       const signed char *bevel)
 {
-    static const signed char classic[3] = { 45, 15, 35 };
-    const signed char *bevel = ui_theme_look(global_settings.dark_theme)->bevel;
-    if (!bevel[0] && !bevel[1] && !bevel[2])
-        bevel = classic;
     unsigned fg = display->get_foreground();
     if (line->line == 0 && line->row_top == 0)
     {
@@ -555,6 +553,49 @@ static void draw_bevel(struct screen *display, int x, int y, int width,
         display->hline(x, x + width - 1, y + height - 1);
     }
     display->set_foreground(fg);
+}
+
+/* A gradient selection bar's rows from y, height of them, those of an item
+   src_height high from its row skip, as lcd_gradient_fillrect_part() has
+   them. With list_selector_bevel: the look's bevel, or, for a look without
+   one (Classic's), a stock iPod's top line: its top row a line of the
+   gradient's dark end, the gradient from its start on the row under it to
+   its end on the last, and no edge at the foot. Without it (Modern's, Neo's)
+   the plain gradient */
+static void selection_gradient(struct screen *display, int x, int y,
+                               int width, int height, int src_height,
+                               int skip, struct line_desc *line)
+{
+    const signed char *bevel = global_settings.list_selector_bevel
+        ? ui_theme_look(global_settings.dark_theme)->bevel : NULL;
+    if (bevel && !bevel[0] && !bevel[1] && !bevel[2])
+    {
+        bevel = NULL;
+        if (src_height > 2)
+        {
+            if (skip == 0)
+            {
+                const unsigned fg = display->get_foreground();
+                display->set_foreground(line->line_end_color);
+                /* as wide as the gradient's rows, which go a column past
+                   the width */
+                display->hline(x, x + width, y);
+                display->set_foreground(fg);
+                y++;
+                height--;
+            }
+            else
+                skip--;
+            /* the gradient's steps one fewer than its rows, so that its
+               last row is the end colour: lcd_gradient_fillrect_part()
+               goes on a row past src_height */
+            src_height -= 2;
+        }
+    }
+    display->gradient_fillrect_part(x, y, width, height, line->line_color,
+                                    line->line_end_color, src_height, skip);
+    if (bevel)
+        draw_bevel(display, x, y, width, height, line, bevel);
 }
 #endif
 
@@ -660,10 +701,7 @@ unsigned line_selection_bar(struct screen *display, int x, int y, int width,
         if (global_settings.cursor_style == SYNCLIST_CURSOR_GRADIENT)
             line.line_end_color = global_settings.lse_color;
         display->set_drawmode(DRMODE_FG);
-        display->gradient_fillrect(x, y, width, height, line.line_color,
-                                   line.line_end_color);
-        if (global_settings.list_selector_bevel)
-            draw_bevel(display, x, y, width, height, &line);
+        selection_gradient(display, x, y, width, height, height, 0, &line);
         return global_settings.lst_color;
     }
 #endif
@@ -745,13 +783,9 @@ static void style_line(struct screen *display,
                 break;
             }
             display->set_drawmode(DRMODE_FG);
-            display->gradient_fillrect_part(x, y, width, bar_height,
-                                            line->line_color,
-                                            line->line_end_color,
-                                            row*line->nlines,
-                                            row*line->line + line->row_top);
-            if (global_settings.list_selector_bevel)
-                draw_bevel(display, x, y, width, bar_height, line);
+            selection_gradient(display, x, y, width, bar_height,
+                               row*line->nlines, row*line->line + line->row_top,
+                               line);
             break;
         }
         case STYLE_COLORBAR:

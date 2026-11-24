@@ -46,19 +46,39 @@
 %xK(B)
 %V(191,3,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%?St(battery percentage)<%Vd(numbat)|%Vd(nonumbat)>
-%?nN<%?St(battery percentage)<%Vd(nightnum)|%Vd(night)>|>
+%?St(battery percentage)<%Vd(numbat)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pnum1i)|%Vd(pnum1)>|%?if(%bl, <, 20)<%Vd(pnum2i)|%?if(%bl, <, 100)<%Vd(pnum2)|%Vd(pnum)>>>|%Vd(nonumbat)>
+%?nN<%?St(battery percentage)<%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(nightnum1i)|%Vd(nightnum1)>|%?if(%bl, <, 20)<%Vd(nightnum2i)|%?if(%bl, <, 100)<%Vd(nightnum2)|%Vd(nightnum)>>>|%Vd(night)>|>
 %Vl(numbat,155,2,32,12,2)%Vf(000000)
 %aR%?bl<|%bl%%>
 %xl(P,Playing Status.bmp,0,0,4)
 # the play glyph and the bar take Classic's colour, if it has one other than its blue
 %xA(P)
-%Vl(numbat,136,2,16,13,-)
+# with Battery Percentage the play glyph's ink ends 7 px from the level's first digit, as
+# from the battery without it: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
+# (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the lock and
+# the moon with it
+%Vl(pnum,137,2,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%Vl(pnum2,143,2,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%Vl(pnum2i,144,2,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%Vl(pnum1,150,2,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%Vl(pnum1i,151,2,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
 %Vl(nonumbat,171,2,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
 %xl(h,Hold Icon.bmp,0,1)
-%Vl(numbat,80,2,13,13,-)
+%Vl(pnum,81,2,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum2,87,2,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum2i,88,2,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum1,94,2,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum1i,95,2,13,13,-)
 %?mh<%xd(h)|>
 %Vl(nonumbat,115,2,13,13,-)
 %?mh<%xd(h)|>
@@ -66,7 +86,15 @@
 %xl(N,Status Night.bmp,0,0)
 %Vl(night,149,1,16,16,-)
 %xd(N)
-%Vl(nightnum,114,1,16,16,-)
+%Vl(nightnum,115,1,16,16,-)
+%xd(N)
+%Vl(nightnum2,121,1,16,16,-)
+%xd(N)
+%Vl(nightnum2i,122,1,16,16,-)
+%xd(N)
+%Vl(nightnum1,128,1,16,16,-)
+%xd(N)
+%Vl(nightnum1i,129,1,16,16,-)
 %xd(N)
 # the cover, 96 px, with its reflection of 14 rows under it, angled if the
 # setting says

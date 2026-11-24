@@ -50,38 +50,67 @@
 # a podcast's or an audiobook's scrubber has the hints at the line's ends, and a shorter line
 %?kn<%?mw<%?mv(2.0)<|%Vd(chapter)>|%?kk<%Vd(chapter)|%Vd(chapterscrub)|%Vd(chapterscrub)>||||>|>
 %?mv(5)<%?St(battery percentage)<%Vd(titlebat)|%Vd(title)>|%?St(battery percentage)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>>>
-%Vl(title,6,2,190,14,4)%Vf(F2F2F6)
+# the status line 24 px high, as the lists' (themes/tools/make_classic_header.py)
+%Vl(title,6,4,190,14,4)%Vf(F2F2F6)
 %s%al%Sx(Now Playing)
-%Vl(titlebat,6,2,155,14,4)%Vf(F2F2F6)
+%Vl(titlebat,6,4,155,14,4)%Vf(F2F2F6)
 %s%al%Sx(Now Playing)
-%Vl(clock,6,2,155,14,4)%Vf(F2F2F6)
+%Vl(clock,6,4,155,14,4)%Vf(F2F2F6)
 %s%al%?pS(15)<%Sx(Now Playing)|%?cf<%cH:%cM|%cl:%cM %cP>>
-%xl(B,Battery.bmp,0,0,24)
+%xl(B,Status Battery.bmp,0,0,24)
 # its charge in its own colours in the cover's, unless the setting says
 %xK(B)
-%V(291,4,25,11,-)
+%V(291,6,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%?St(battery percentage)<%Vd(numbat)|%Vd(nonumbat)>
-%?nN<%?St(battery percentage)<%Vd(nightnum)|%Vd(night)>|>
-%Vl(numbat,255,3,32,12,2)%Vf(F2F2F6)
+%?St(battery percentage)<%Vd(numbat)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pnum1i)|%Vd(pnum1)>|%?if(%bl, <, 20)<%Vd(pnum2i)|%?if(%bl, <, 100)<%Vd(pnum2)|%Vd(pnum)>>>|%Vd(nonumbat)>
+%?nN<%?St(battery percentage)<%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(nightnum1i)|%Vd(nightnum1)>|%?if(%bl, <, 20)<%Vd(nightnum2i)|%?if(%bl, <, 100)<%Vd(nightnum2)|%Vd(nightnum)>>>|%Vd(night)>|>
+%Vl(numbat,255,4,32,12,2)%Vf(F2F2F6)
 %aR%?bl<|%bl%%>
-%xl(P,Playing Status.bmp,0,0,4)
+%xl(P,Status Playing.bmp,0,0,4)
 # the play glyph and the bar take Classic's colour, if it has one other than its blue
 %xA(P)
-%Vl(numbat,236,3,16,13,-)
+# with Battery Percentage the play glyph's ink ends 7 px from the level's first digit, as
+# from the battery without it: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
+# (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the lock and
+# the moon with it
+%Vl(pnum,237,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(nonumbat,271,3,16,13,-)
+%Vl(pnum2,243,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%xl(h,Hold Icon.bmp,0,1)
-%Vl(numbat,180,3,13,13,-)
+%Vl(pnum2i,244,5,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%Vl(pnum1,250,5,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%Vl(pnum1i,251,5,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%Vl(nonumbat,271,5,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
+%xl(h,Status Hold.bmp,0,1)
+%Vl(pnum,181,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(nonumbat,215,3,13,13,-)
+%Vl(pnum2,187,5,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum2i,188,5,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum1,194,5,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum1i,195,5,13,13,-)
+%?mh<%xd(h)|>
+%Vl(nonumbat,215,5,13,13,-)
 %?mh<%xd(h)|>
 # Night Mode on: the moon, just left of the play glyph beside the battery
 %xl(N,Status Night.bmp,0,0)
-%Vl(night,249,2,16,16,-)
+%Vl(night,249,4,16,16,-)
 %xd(N)
-%Vl(nightnum,214,2,16,16,-)
+%Vl(nightnum,215,4,16,16,-)
+%xd(N)
+%Vl(nightnum2,221,4,16,16,-)
+%xd(N)
+%Vl(nightnum2i,222,4,16,16,-)
+%xd(N)
+%Vl(nightnum1,228,4,16,16,-)
+%xd(N)
+%Vl(nightnum1i,229,4,16,16,-)
 %xd(N)
 #%?C<%Vd(aa)|>
 #%xl(w,FrameTop.bmp,0,0)
@@ -201,9 +230,9 @@
 %xl(r,Repeat Icon.bmp,0,0,4)
 %xl(S,Shuffle Icon.bmp,0,0)
 %xl(A,Status Shuffle Albums.bmp,2,2)
-%Vl(mode1,290,22,19,20,-)
+%Vl(mode1,290,27,19,20,-)
 %?mm<%?ps<%?pa<%xd(A)|%xd(S)>|>|%xd(ra)|%xd(rb)|%t(1.0)%xd(rc);%t(1.0)%xd(ra)|%xd(rd)>
-%Vl(mode2,267,22,19,20,-)
+%Vl(mode2,267,27,19,20,-)
 %?mm<|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>|%?ps<%?pa<%xd(A)|%xd(S)>|>>
 # end: made by themes/tools/make_classic_np.py
 # The bar with its times, in the row's whole width: what is played in the middle of
@@ -255,12 +284,13 @@
 # hidden with the rest of the "info" viewports
 %xl(F,Art Mask.bmp,0,0)
 %xl(G,Art Mask.bmp,260,0)
-%Vl(bigart,0,19,320,221,-)
-# 200x200, the size Finder makes the covers in, so nothing is scaled
-%Cl(60,10,200,200,c,c)
+%Vl(bigart,0,24,320,216,-)
+# 200x200, the size Finder makes the covers in, so nothing is scaled, in the
+# middle of the rows under the status bar
+%Cl(60,8,200,200,c,c)
 %Cd%xd(F)%xd(G)
 # lyrics view: the WPS code draws the lyrics into this viewport
-%Vl(lyrics,8,24,304,212,5)%Vf(F2F2F6)
+%Vl(lyrics,8,29,304,207,5)%Vf(F2F2F6)
 # speed view, of a podcast or an audiobook: the WPS code draws "Speed" and the
 # row of speeds into this viewport, under the cover's reflection
 %Vl(speed,0,203,320,35,2)%Vf(8E9094)

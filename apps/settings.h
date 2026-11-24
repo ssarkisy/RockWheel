@@ -727,7 +727,9 @@ struct user_settings
     int lss_color; /* background color for the selector or start color for the gradient */
     int lse_color; /* end color for the selector gradient */
     int lst_color; /* color of the text for the selector */
-    bool list_selector_bevel; /* lighter top, darker bottom edge on the gradient selector */
+    /* the theme's edges on the gradient selector: Classic's top row of its
+       dark end, or the look's bevel (line.c selection_gradient()) */
+    bool list_selector_bevel;
     bool list_selector_chevron; /* chevron on a selected item that leads to more */
     unsigned char colors_file[MAX_FILENAME+1];
 #endif

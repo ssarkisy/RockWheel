@@ -18,7 +18,7 @@
 %wd
 %Fl(2,14-Inter-SemiBold.fnt,512)
 %Fl(3,14-Inter-Bold.fnt,512)
-%?LW<%VI(wide)%?St(battery percentage)<%?nN<%Vd(ptitlen)%Vd(pnight)|%Vd(ptitle)>%Vd(bat)%Vd(ppct)%Vd(pplay)|%?nN<%Vd(titlen)%Vd(night)|%Vd(title)>%Vd(bat)%Vd(play)>|%VI(half)%?St(battery percentage)<%?nN<%Vd(tn)|%Vd(pt)>%?mh<%Vd(phhold)|%?nN<%Vd(phnight)|%Vd(phpct)>>%Vd(hbat)|%?nN<%Vd(tn)%Vd(hnight)|%Vd(t)>%Vd(hbat)%Vd(hplay)>>
+%?LW<%VI(wide)%?St(battery percentage)<%?nN<%Vd(ptitlen)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pnight1i)|%Vd(pnight1)>|%?if(%bl, <, 20)<%Vd(pnight2i)|%?if(%bl, <, 100)<%Vd(pnight2)|%Vd(pnight)>>>|%Vd(ptitle)>%Vd(bat)%Vd(ppct)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pplay1i)|%Vd(pplay1)>|%?if(%bl, <, 20)<%Vd(pplay2i)|%?if(%bl, <, 100)<%Vd(pplay2)|%Vd(pplay)>>>|%?nN<%Vd(titlen)%Vd(night)|%Vd(title)>%Vd(bat)%Vd(play)>|%VI(half)%?St(battery percentage)<%?nN<%Vd(tn)|%Vd(pt)>%?mh<%Vd(phhold)|%?nN<%Vd(phnight)|%Vd(phpct)>>%Vd(hbat)|%?nN<%Vd(tn)%Vd(hnight)|%Vd(t)>%Vd(hbat)%Vd(hplay)>>
 # beside the main menu, its pane by the row selected: Settings or Extras, the
 # iPod and its disk; Photos, their collage; the rest, the song's cover, or
 # the note in the backdrop and under it the library's count or the track
@@ -59,7 +59,15 @@
 %xd(N)
 %Vl(hnight,52,1,16,16,-)
 %xd(N)
-%Vl(pnight,119,1,16,16,-)
+%Vl(pnight,120,1,16,16,-)
+%xd(N)
+%Vl(pnight2,126,1,16,16,-)
+%xd(N)
+%Vl(pnight2i,127,1,16,16,-)
+%xd(N)
+%Vl(pnight1,133,1,16,16,-)
+%xd(N)
+%Vl(pnight1i,134,1,16,16,-)
 %xd(N)
 %Vl(phnight,68,1,16,16,-)
 %xd(N)
@@ -80,7 +88,18 @@
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
 %Vl(hplay,68,2,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-%Vl(pplay,136,2,16,13,-)
+# with Battery Percentage the play glyph's ink ends 7 px from the level's first digit, as
+# from the battery without it: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
+# (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the moon with it
+%Vl(pplay,137,2,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplay2,143,2,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplay2i,144,2,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplay1,150,2,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplay1i,151,2,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
 # beside the pane with Battery Percentage: Hold's padlock in the level's place
 %Vl(phhold,68,2,16,13,-)

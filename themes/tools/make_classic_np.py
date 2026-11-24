@@ -66,8 +66,9 @@ VIDEO = dict(
     # repeat and shuffle under the status bar's right end, repeat at the
     # column's edge: the large icons (their white is the ground's), and for
     # Shuffle by albums its own icon of the status bar, in the middle of
-    # their place
-    MODES_Y=22,
+    # their place; 4 rows under the line of the bar of 24
+    # (make_classic_header.py)
+    MODES_Y=27,
 )
 # The iPod photo's 220x176: the cover 96 px, the column beside it in its
 # fonts, 17 px for the title and 14 for the rest, in their own rows, the gaps

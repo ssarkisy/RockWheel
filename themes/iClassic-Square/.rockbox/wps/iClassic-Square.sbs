@@ -23,7 +23,7 @@
 %Fl(2,14-Inter-SemiBold.fnt,512)
 %Fl(3,14-Inter-Bold.fnt,512)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
-%?LW<%VI(wide)%?St(battery percentage)<%?nN<%Vd(ptitlewiden)%Vd(pnightwide)|%Vd(ptitlewide)>%Vd(batwide)%Vd(ppctwide)%Vd(pplaywide)|%?nN<%Vd(titlewiden)%Vd(nightwide)|%Vd(titlewide)>%Vd(batwide)%Vd(playwide)>|%VI(half)%?St(battery percentage)<%?nN<%Vd(ptn)%Vd(pnight)|%Vd(pt)>%Vd(bat)%Vd(ppct)%Vd(pplay)|%?nN<%Vd(tn)%Vd(night)|%Vd(t)>%Vd(bat)%Vd(play)>>
+%?LW<%VI(wide)%?St(battery percentage)<%?nN<%Vd(ptitlewiden)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pnightwide1i)|%Vd(pnightwide1)>|%?if(%bl, <, 20)<%Vd(pnightwide2i)|%?if(%bl, <, 100)<%Vd(pnightwide2)|%Vd(pnightwide)>>>|%Vd(ptitlewide)>%Vd(batwide)%Vd(ppctwide)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pplaywide1i)|%Vd(pplaywide1)>|%?if(%bl, <, 20)<%Vd(pplaywide2i)|%?if(%bl, <, 100)<%Vd(pplaywide2)|%Vd(pplaywide)>>>|%?nN<%Vd(titlewiden)%Vd(nightwide)|%Vd(titlewide)>%Vd(batwide)%Vd(playwide)>|%VI(half)%?St(battery percentage)<%?nN<%Vd(ptn)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pnight1i)|%Vd(pnight1)>|%?if(%bl, <, 20)<%Vd(pnight2i)|%?if(%bl, <, 100)<%Vd(pnight2)|%Vd(pnight)>>>|%Vd(pt)>%Vd(bat)%Vd(ppct)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pplay1i)|%Vd(pplay1)>|%?if(%bl, <, 20)<%Vd(pplay2i)|%?if(%bl, <, 100)<%Vd(pplay2)|%Vd(pplay)>>>|%?nN<%Vd(tn)%Vd(night)|%Vd(t)>%Vd(bat)%Vd(play)>>
 %?LW<|%?LS<%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%Vd(about)%?if(%nl, >, 15)<%Vd(longname)|%Vd(name)>|%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(radio)|%Vd(radio)>>>>
 %Cl(0,0,240,240,c,c)
 %Vl(a,120,0,200,240,-)
@@ -33,59 +33,99 @@
 %Vi(wide,0,24,320,216,1)%Vf(000000)%Vb(FFFFFF)
 %Vi(half,0,24,160,216,1)%Vf(000000)%Vb(FFFFFF)
 
-%Vl(t,6,2,110,14,3)%Vf(000000)
+# the status line 24 px high, as a stock 5G's (tools/make_classic_header.py):
+# its texts and glyphs in the middle of its gradient's 23 rows, over its line
+%Vl(t,6,4,110,14,3)%Vf(000000)
 #%s%al%?if(%Li, =, 0)<|%?if(%Li, <=, 32)<%Lt|%?if(%Li, =, 33)<iPod|>>>
 # the title of the list; in the main menu the time
 %al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
-%Vl(titlewide,6,2,250,14,3)%Vf(000000)
+%Vl(titlewide,6,4,250,14,3)%Vf(000000)
 %s%al%Lt
 # the same, shorter, beside the moon of Night Mode
-%Vl(tn,6,2,94,14,3)%Vf(000000)
+%Vl(tn,6,4,94,14,3)%Vf(000000)
 %al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
-%Vl(titlewiden,6,2,244,14,3)%Vf(000000)
+%Vl(titlewiden,6,4,244,14,3)%Vf(000000)
 %s%al%Lt
 # with Battery Percentage: the titles shorter by the level's box and its gap
-%Vl(pt,6,2,71,14,3)%Vf(000000)
+%Vl(pt,6,4,71,14,3)%Vf(000000)
 %al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
-%Vl(ptitlewide,6,2,215,14,3)%Vf(000000)
+%Vl(ptitlewide,6,4,215,14,3)%Vf(000000)
 %s%al%Lt
-%Vl(ptn,6,2,55,14,3)%Vf(000000)
+%Vl(ptn,6,4,55,14,3)%Vf(000000)
 %al%?if(%Li, =, 33)<%?cf<%cH:%cM|%cl:%cM>|%s%Lt>
-%Vl(ptitlewiden,6,2,209,14,3)%Vf(000000)
+%Vl(ptitlewiden,6,4,209,14,3)%Vf(000000)
 %s%al%Lt
 %xl(N,Status Night.bmp,0,0)
-%Vl(night,102,2,16,16,-)
+%Vl(night,102,4,16,16,-)
 %xd(N)
-%Vl(nightwide,254,2,16,16,-)
+%Vl(nightwide,254,4,16,16,-)
 %xd(N)
-%Vl(pnight,63,2,16,16,-)
+%Vl(pnight,68,4,16,16,-)
 %xd(N)
-%Vl(pnightwide,219,2,16,16,-)
+%Vl(pnight2,74,4,16,16,-)
 %xd(N)
-%Vl(n,2,3,114,14,2)%Vf(000000)
+%Vl(pnight2i,75,4,16,16,-)
+%xd(N)
+%Vl(pnight1,81,4,16,16,-)
+%xd(N)
+%Vl(pnight1i,82,4,16,16,-)
+%xd(N)
+%Vl(pnightwide,220,4,16,16,-)
+%xd(N)
+%Vl(pnightwide2,226,4,16,16,-)
+%xd(N)
+%Vl(pnightwide2i,227,4,16,16,-)
+%xd(N)
+%Vl(pnightwide1,233,4,16,16,-)
+%xd(N)
+%Vl(pnightwide1i,234,4,16,16,-)
+%xd(N)
+%Vl(n,2,5,114,14,2)%Vf(000000)
 s%al%?cs<||%?Rp<%Sx(Recording)>|%?tp<%Sx(FM Radio)>|%Sx(Playlist)>
-%xl(B,Battery.bmp,0,0,24)
-%Vl(bat,134,4,25,11,-)
+%xl(B,Status Battery.bmp,0,0,24)
+%Vl(bat,134,6,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%Vl(ppct,98,2,32,14,3)%Vf(000000)
+%Vl(ppct,98,4,32,14,3)%Vf(000000)
 %aR%?bl<|%bl%%>
-%Vl(ppctwide,255,2,32,14,3)%Vf(000000)
+%Vl(ppctwide,255,4,32,14,3)%Vf(000000)
 %aR%?bl<|%bl%%>
-%Vl(batwide,291,4,25,11,-)
+%Vl(batwide,291,6,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%xl(h,Hold Icon.bmp,0,1)
+%xl(h,Status Hold.bmp,0,1)
 #%xl(M,Memory Access.bmp,0,0,6)
-%xl(P,Playing Status.bmp,0,0,4)
+%xl(P,Status Playing.bmp,0,0,4)
 # in Classic's colour, if it has one other than its blue
 %xA(P)
-%Vl(play,118,3,16,13,-)
+%Vl(play,118,5,16,13,-)
 #%?mh<%xd(h)|%?lh<%t(0.1)%xd(Ma);%t(0.1)%xd(Mb);%t(0.1)%xd(Mc);%t(0.1)%xd(Md);%t(0.1)%xd(Me);%t(0.1)%xd(Mf)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>>
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-%Vl(playwide,271,3,16,13,-)
+%Vl(playwide,271,5,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-%Vl(pplay,79,3,16,13,-)
+# with Battery Percentage the play glyph's ink ends 3 px from the level's first digit, as
+# from the battery without it: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
+# (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the moon with it
+%Vl(pplay,84,5,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
-%Vl(pplaywide,236,3,16,13,-)
+%Vl(pplay2,90,5,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplay2i,91,5,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplay1,97,5,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplay1i,98,5,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+# with Battery Percentage the play glyph's ink ends 7 px from the level's first digit, as
+# from the battery without it: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
+# (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the moon with it
+%Vl(pplaywide,237,5,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplaywide2,243,5,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplaywide2i,244,5,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplaywide1,250,5,16,13,-)
+%?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
+%Vl(pplaywide1i,251,5,16,13,-)
 %?mh<%xd(h)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|%xd(Pa)|%xd(Pb)|%xd(Pa)|%xd(Pb)>>
 # Settings or Extras selected in the main menu: the iPod and its disk, as on a stock iPod
 %XS(About Backdrop.bmp)

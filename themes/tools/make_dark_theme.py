@@ -35,7 +35,8 @@ def screen(root, **places):
 # firmware make it; the skins' files; the backdrops beside the lists, with or without
 # the panel; the pictures of the status bar and of the ground
 VIDEO = screen(os.path.join(HERE, "..", "iClassic-Square", ".rockbox"),
-               HEADER_HEIGHT=18,    # the status bar's rows above its dark line
+               HEADER_HEIGHT=23,    # the status bar's rows above its dark line
+                                    # (make_classic_header.py's)
                BAR_X=58, BAR_Y=206, BAR_W=204, ART=(12, 41, 148, 177),
                ART_REFLECTION_ROWS=22, LIGHT_REFLECTION="%Cr",
                SKINS=("wps", "sbs", "fms"),
@@ -43,7 +44,8 @@ VIDEO = screen(os.path.join(HERE, "..", "iClassic-Square", ".rockbox"),
                        ("wps", "Wide Backdrop.bmp", False)),
                PANEL_X=160,  # the panel beside the lists, dark in both
                HEADER_GLYPHS=("Battery", "Playing Status", "Hold Icon", "Status Night",
-                              "Memory Access", "Radio Icon", "Stereo Icon"),
+                              "Memory Access", "Radio Icon", "Stereo Icon",
+                              "Status Battery", "Status Playing", "Status Hold"),
                GROUND_GLYPHS=("Stars", "Ratings", "Signal", "Volume Left", "Volume Right",
                               "Art Mask", "Scrub Hints", "Repeat Icon", "Shuffle Icon",
                               "Status Shuffle Albums"),

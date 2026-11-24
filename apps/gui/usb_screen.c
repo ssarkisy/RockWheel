@@ -152,10 +152,10 @@ static void handle_usb_events(struct viewport *title)
    where the skin has it, and the sign as large as on the iPod Video, as the
    theme's glyphs are; the sign and the words are a block in the middle of
    the rows under the bar */
-#define IPOD_USB_SIGN_Y     35
-#define IPOD_USB_TEXT_Y     150 /* the middle of it */
+#define IPOD_USB_SIGN_Y     34
+#define IPOD_USB_TEXT_Y     149 /* the middle of it */
 #define IPOD_USB_BATTERY_X  191
-#define IPOD_USB_BATTERY_Y  4
+#define IPOD_USB_BATTERY_Y  3
 #else
 #define IPOD_USB_SIGN_Y     71
 #define IPOD_USB_TEXT_Y     186 /* the middle of it */
@@ -167,10 +167,10 @@ static void handle_usb_events(struct viewport *title)
 /* Colours of the title bar, for each row */
 static const unsigned long ipod_usb_title_bar[] = {
 #ifdef UI_220X176
-    /* Classic's 220x176 skin's (iClassic_bg.bmp), with the dark line under it */
-    0xf6f6ff, 0xedf6ff, 0xeef4fb, 0xeef2f6, 0xe6eff6, 0xe6edf4, 0xe5e9ed, 0xe1e7ef,
-    0xdfe5ec, 0xdae1e7, 0xd5dce1, 0xd4d9dd, 0xcfd7df, 0xcdd4d9, 0xced2d5, 0xc5cfd5,
-    0xc4ccd2, 0xd1d5d8, 0x6c737b,
+    /* Classic's 220x176 skin's (iClassic_bg.bmp, its 16 rows), with the dark
+       line under it */
+    0xf6f6ff, 0xedf6ff, 0xeef4fb, 0xe6eff6, 0xe6edf4, 0xe5e9ed, 0xe1e7ef, 0xdfe5ec,
+    0xd5dce1, 0xd4d9dd, 0xcfd7df, 0xcdd4d9, 0xc5cfd5, 0xc4ccd2, 0xd1d5d8, 0x6c737b,
 #else
     0xe6e7e5, 0xe4e5e3, 0xe2e3e3, 0xdfe1e3, 0xdde1e4, 0xdadfe2, 0xd7dce0, 0xd4dade,
     0xd5dde0, 0xd5dde0, 0xd4dcdf, 0xd2dadd, 0xced7da, 0xc7d1d5, 0xc3ced4, 0xc4d0d7,

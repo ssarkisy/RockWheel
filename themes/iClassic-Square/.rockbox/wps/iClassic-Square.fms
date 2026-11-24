@@ -27,31 +27,51 @@
 %Fl(3,17-Inter-SemiBold.fnt)
 #%Fl(4,12-Adobe-Helvetica-Bold.fnt,12)
 %?mv(5)<%?St(battery percentage)<%Vd(titlebat)|%Vd(title)>|%?St(battery percentage)<%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(titlebat)|%Vd(titlebat)>|%?mp<%Vd(clock)|%Vd(clock)|%Vd(clock)|%Vd(title)|%Vd(title)>>>
-%Vl(title,5,3,246,14,2)%Vf(000000)
+# the status line 24 px high, as the lists' (themes/tools/make_classic_header.py)
+%Vl(title,5,4,246,14,2)%Vf(000000)
 %s%al%Sx(FM Radio)
-%Vl(titlebat,5,3,211,14,2)%Vf(000000)
+%Vl(titlebat,5,4,211,14,2)%Vf(000000)
 %s%al%Sx(FM Radio)
-%Vl(clock,5,3,211,14,2)%Vf(000000)
+%Vl(clock,5,4,211,14,2)%Vf(000000)
 %t(10)%s%al%Sx(FM Radio);%t(30)%s%al%?cf<%cH:%cM|%cl:%cM %cP>
-%xl(B,Battery.bmp,0,0,24)
-%V(291,4,25,11,-)
+%xl(B,Status Battery.bmp,0,0,24)
+%V(291,6,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
-%?St(battery percentage)<%Vd(numbat)|%Vd(nonumbat)>
-%Vl(numbat,255,3,32,12,2)%Vf(000000)
+%?St(battery percentage)<%Vd(numbat)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pnum1i)|%Vd(pnum1)>|%?if(%bl, <, 20)<%Vd(pnum2i)|%?if(%bl, <, 100)<%Vd(pnum2)|%Vd(pnum)>>>|%Vd(nonumbat)>
+%Vl(numbat,255,4,32,12,2)%Vf(000000)
 %aR%?bl<|%bl%%>
-%xl(P,Playing Status.bmp,0,0,4)
+%xl(P,Status Playing.bmp,0,0,4)
 %xA(P)
-%Vl(numbat,236,3,16,13,-)
+# with Battery Percentage the play glyph's ink ends 7 px from the level's first digit, as
+# from the battery without it: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
+# (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the lock with it
+%Vl(pnum,237,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
-%Vl(nonumbat,271,3,16,13,-)
+%Vl(pnum2,243,5,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
-%xl(h,Hold Icon.bmp,0,1)
-%Vl(numbat,218,3,13,13,-)
+%Vl(pnum2i,244,5,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
+%Vl(pnum1,250,5,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
+%Vl(pnum1i,251,5,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
+%Vl(nonumbat,271,5,16,13,-)
+%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)|||%xd(Pa)|%xd(Pb)>
+%xl(h,Status Hold.bmp,0,1)
+%Vl(pnum,219,5,13,13,-)
 %?mh<%xd(h)|>
-%Vl(nonumbat,253,2,13,13,-)
+%Vl(pnum2,225,5,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum2i,226,5,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum1,232,5,13,13,-)
+%?mh<%xd(h)|>
+%Vl(pnum1i,233,5,13,13,-)
+%?mh<%xd(h)|>
+%Vl(nonumbat,253,5,13,13,-)
 %?mh<%xd(h)|>
 %xl(s,Stereo Icon.bmp,0,0)
-%V(295,21,17,14,-)
+%V(295,26,17,14,-)
 %?ts<%xd(s)|>
 %?C<%Vd(aa)|%Vd(na)>
 #%xl(w,FrameTop.bmp,0,0)

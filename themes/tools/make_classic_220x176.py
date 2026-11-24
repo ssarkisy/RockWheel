@@ -25,6 +25,7 @@
 import os
 import shutil
 
+import make_classic_header as header_tool
 import make_menu_icons as icons
 from make_menu_icons import mix, read_bmp, write_bmp
 
@@ -131,17 +132,20 @@ def shortened(rows, width):
 
 # the status bar: 15 rows of the Video's 18 of gradient, taken evenly from
 # its first to its last, then its dark line; the lists' 160 rows under it,
-# five of 32 or eight of 20 (apps/gui/ui_theme.c), from row 16
+# five of 32 or eight of 20 (apps/gui/ui_theme.c), from row 16. They are the
+# Video's original 18, which its taller bar of 23 keeps (make_classic_header.py)
 BAR_ROWS = 15
 VIDEO_BAR_ROWS = 18
 
 
 def list_backdrop():
     """the status bar and the lists' white: the wide screen's, cut"""
-    src = read_bmp(os.path.join(LIGHT, "Wide Backdrop.bmp"))
-    bar = [src[round(y * (VIDEO_BAR_ROWS - 1) / (BAR_ROWS - 1))]
-           for y in range(BAR_ROWS)] + [src[VIDEO_BAR_ROWS]]
-    rows = bar + src[VIDEO_BAR_ROWS + 1:VIDEO_BAR_ROWS + 1 + H - len(bar)]
+    path = os.path.join(LIGHT, "Wide Backdrop.bmp")
+    header = header_tool.original_header(path)
+    bar = [header[round(y * (VIDEO_BAR_ROWS - 1) / (BAR_ROWS - 1))]
+           for y in range(BAR_ROWS)] + [header[VIDEO_BAR_ROWS]]
+    src = read_bmp(path)
+    rows = bar + src[header_tool.LIST_TOP:header_tool.LIST_TOP + H - len(bar)]
     return crop(rows, (0, W), 0, H)
 
 

@@ -1514,9 +1514,10 @@ bool cover_palette_update(int art_handle, uint32_t colour)
 }
 
 /* From a part of the backdrop with nothing in it, with the same dither: right
-   of Now Playing's texts, a little under the status bar */
+   of Now Playing's texts, a little under the status bar; at a multiple of 4,
+   as the dither repeats every 4 rows */
 #define PLAIN_BACKDROP_X (LCD_WIDTH - 16)
-#define PLAIN_BACKDROP_Y (HEADER_HEIGHT + 21)
+#define PLAIN_BACKDROP_Y 40
 
 bool cover_palette_clear(struct screen *display, const struct viewport *vp)
 {

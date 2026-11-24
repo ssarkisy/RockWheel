@@ -109,6 +109,10 @@ Changes from the originals:
 - Shuffle and repeat stand in Now Playing's top right corner, under the status
   bar, as on a stock iPod; the status bar has neither.
 - A dark version, `iClassic-Square-Dark`, which the Dark Theme setting shows.
+- On the Video the status line is 24 px high, as a stock 5G's: the lists start
+  right under its line, and Now Playing's and the radio's are the same. The
+  selected row, which the firmware draws, is a stock 5G's bar on either screen:
+  a line of its dark end over its gradient, without an edge at its foot.
 
 The extra bitmaps are drawn by the scripts in `tools/`, which are run again
 after a change, in this order:
@@ -117,6 +121,11 @@ after a change, in this order:
   `make_usb_screen.py`, `make_about_panel.py`: bitmaps of their own.
 - `make_menu_icons.py`: the backdrops' placeholder note and its reflection, and
   the original theme's battery out of their status bar, where the skins draw one.
+- `make_classic_header.py`: the Video's status line 24 px high, as a stock 5G's,
+  in the backdrops of the lists and of Now Playing (the radio's too), and its
+  battery, play glyph and lock without the bar under them, for the skins' status
+  line. The scripts that draw from the original bar's rows (the photo's status
+  line, the moon) read them back from the taller one.
 - `make_classic_220x176.py`: the iPod photo's pictures from these, its note
   of a missing cover and its Photos Icon drawn anew at their sizes, and its
   About Backdrop and Disk Fill scaled from this branch's own by 176/240.
