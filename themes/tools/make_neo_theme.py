@@ -226,6 +226,16 @@ LEVEL_GAP = 6
 INK_END = {"Playing_Status": 6, "Night": 8}
 
 
+def glyph_offsets():
+    """With Battery Percentage, one viewport a place of the level's holds the
+    glyphs next to it: from its left the playing status left of Night Mode's
+    moon, the moon, and without the moon the playing status where the moon
+    would be, as much further right as the moon's ink ends later. The moon's
+    and that playing status's columns in it (M, and D and E: images())"""
+    moon = GAP + SIZES["Playing_Status"][0]
+    return moon, moon + INK_END["Night"] - INK_END["Playing_Status"]
+
+
 def status(width, prefix="", name=None, pct=False, narrow=False, font=3,
            font_name=None):
     """The glyphs' viewports and the line that shows them: from the right the
@@ -261,9 +271,31 @@ def status(width, prefix="", name=None, pct=False, narrow=False, font=3,
         level_x = x - PCT_GAP - pct_w
         out += ["%%Vl(%spct,%d,%d,%d,%d,%d)%%Vf(CLOCK)" % (prefix, level_x, TEXT_Y, pct_w,
                                                             CELL, font), PCT_TEXT]
-    play = frames("P", 4)
-    # %mp: stopped, playing, paused, forward, rewind
-    state = "%%?mh<%%xd(H)|%%?mp<|%s|%s|%s|%s>>" % (play[0], play[1], play[2], play[3])
+    def states(play, hold):
+        # %mp: stopped, playing, paused, forward, rewind
+        f = frames(play, 4)
+        return "%%?mh<%%xd(%s)|%%?mp<|%s|%s|%s|%s>>" % (hold, f[0], f[1], f[2], f[3])
+    state = states("P", "H")
+    glyphs = ""
+    if pct and not narrow:
+        # by the level shown, one viewport a place (glyph_offsets()), one
+        # conditional for either: Night Mode's places are the moon's, as
+        # many columns left of the playing status's alone at every level
+        places = {near: fnt_width.level_places(font_name, level_x + pct_w,
+                                               1 + LEVEL_GAP + INK_END[near])
+                  for near in ("Playing_Status", "Night")}
+        moon_at, play_at = glyph_offsets()
+        assert all(a - b == play_at - moon_at
+                   for a, b in zip(places["Playing_Status"], places["Night"]))
+        assert SIZES["Night"][1] == SIZES["Playing_Status"][1] == SIZES["Hold"][1]
+        cases, select = fnt_width.level_cases(places["Playing_Status"])
+        h = SIZES["Playing_Status"][1]
+        for case, gx in cases:
+            out += ["%%Vl(%sglyphs%s,%d,%d,%d,%d,-)" % (
+                        prefix, case, gx - play_at, FOOT - h, play_at + SIZES["Playing_Status"][0],
+                        h),
+                    "%%?nN<%%xd(M)%s|%s>" % (state, states("D", "E"))]
+        glyphs = select(lambda case: "%%Vd(%sglyphs%s)" % (prefix, case))
     if narrow:
         # Hold's padlock, without the playing status, in the level's place
         out += [vp("hold", "Playing_Status", x - GAP - SIZES["Playing_Status"][0]), "%xd(H)"]
@@ -273,23 +305,11 @@ def status(width, prefix="", name=None, pct=False, narrow=False, font=3,
         tag = "n%d" % night
         this = []
         if pct and not narrow:
-            # by the level shown: the moon, or without it the playing status,
-            # next to it, and the playing status left of the moon
+            # the glyphs by the level shown (glyphs, above)
             this.append("%%Vd(%spct)" % prefix)
             near = "Night" if night else "Playing_Status"
-            places = fnt_width.level_places(font_name, level_x + pct_w,
-                                            1 + LEVEL_GAP + INK_END[near])
-            cases, select = fnt_width.level_cases(places)
-            shown = []
-            for case, gx in cases:
-                if night:
-                    out += [vp("moon" + case, "Night", gx), "%xd(N)"]
-                    gx -= GAP + SIZES["Playing_Status"][0]
-                out += [vp("play" + tag + case, "Playing_Status", gx), state]
-            this.append(select(lambda case: ("%%Vd(%smoon%s)" % (prefix, case) if night else "")
-                               + "%%Vd(%splay%s%s)" % (prefix, tag, case)))
             # the leftmost, 100 %'s
-            past = min(places)
+            past = min(places[near])
             at = past - (GAP + SIZES["Playing_Status"][0] if night else 0)
             if not night:
                 past = level_x
@@ -320,7 +340,7 @@ def status(width, prefix="", name=None, pct=False, narrow=False, font=3,
             this.append("%%?if(%%Li, =, 33)<%%Vd(%sclock)|%s>" % (
                 prefix, title_show(prefix + "name", night)))
         branches.append("".join(this))
-    show = "%%Vd(%sbat)%%?nN<%s|%s>" % (prefix, branches[1], branches[0])
+    show = "%%Vd(%sbat)%s%%?nN<%s|%s>" % (prefix, glyphs, branches[1], branches[0])
     return "\n".join(out), show, rooms
 
 
@@ -333,6 +353,12 @@ def images(modes):
         n = SIZES[name][2]
         out.append("%%xl(%s,%s.bmp,0,0%s)" % (label, name.replace("_", " "),
                                               ",%d" % n if n > 1 else ""))
+    # the glyphs next to Battery Percentage's level, in their viewport
+    # (glyph_offsets())
+    moon_at, play_at = glyph_offsets()
+    out += ["%%xl(M,Night.bmp,%d,0)" % moon_at,
+            "%%xl(D,Playing Status.bmp,%d,0,4)" % play_at,
+            "%%xl(E,Hold.bmp,%d,0)" % play_at]
     return "\n".join(out)
 
 

@@ -84,7 +84,9 @@ def level_cases(places):
     Where the level's digits are of one width the chain of %?if: 100, 20-99,
     10-19, 0 and 2-9, and 1 (a 1's ink starts later); otherwise %?bl itself,
     one option a level, a case for each place (its first, unknown, shows the
-    case of 0)"""
+    case of 0). In the simulator an option of one %Vd parses to about 180
+    bytes; a chain of %?if halving the levels' runs of one place took more,
+    about 420 a test, so a case is best one %Vd"""
     groups = {"": [100], "2": range(20, 100), "2i": range(10, 20), "1": [0] + list(range(2, 10)),
               "1i": [1]}
     if all(len({places[n] for n in groups[s]}) == 1 for s in groups):

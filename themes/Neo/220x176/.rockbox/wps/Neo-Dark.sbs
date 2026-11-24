@@ -7,7 +7,10 @@
 %xl(P,Playing Status.bmp,0,0,4)
 %xl(H,Hold.bmp,0,0)
 %xl(N,Night.bmp,0,0)
-%?LW<%VI(wide)%Vd(rulewide)%?St(battery percentage)<%?if(%Li, =, 33)<%Vd(clockwide)|%?nN<%?Lf(ptitlewide1)<%Vd(clockwide)%Vd(ptitlewide1)|%?mh<%Vd(plongn1p)|%?mp<%Vd(plongn1)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)>>>|%?Lf(ptitlewide0)<%Vd(clockwide)%Vd(ptitlewide0)|%?mh<%Vd(plongn0p)|%?mp<%Vd(plongn0)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)>>>>>%Vd(pbat)%?nN<%Vd(ppct)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pmoon1i)%Vd(pplayn11i)|%Vd(pmoon1)%Vd(pplayn11)>|%?if(%bl, <, 20)<%Vd(pmoon2i)%Vd(pplayn12i)|%?if(%bl, <, 100)<%Vd(pmoon2)%Vd(pplayn12)|%Vd(pmoon)%Vd(pplayn1)>>>|%Vd(ppct)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pplayn01i)|%Vd(pplayn01)>|%?if(%bl, <, 20)<%Vd(pplayn02i)|%?if(%bl, <, 100)<%Vd(pplayn02)|%Vd(pplayn0)>>>>|%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>|%VI(half)%Vd(rulehalf)%Vd(column)%?St(battery percentage)<%Vd(phbat)%?nN<%?mh<%Vd(phhold)|%Vd(phmoon)>%?if(%Li, =, 33)<%Vd(phclock)|%?mh<%Vd(phnamen1p)|%?mp<%Vd(phnamen1)|%Vd(phnamen1p)|%Vd(phnamen1p)|%Vd(phnamen1p)|%Vd(phnamen1p)>>>|%?mh<%Vd(phhold)|%Vd(phpct)>%?if(%Li, =, 33)<%Vd(phclock)|%?mh<%Vd(phnamen0p)|%?mp<%Vd(phnamen0)|%Vd(phnamen0p)|%Vd(phnamen0p)|%Vd(phnamen0p)|%Vd(phnamen0p)>>>>|%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen1p)|%?mp<%Vd(hnamen1)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)>>>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen0p)|%?mp<%Vd(hnamen0)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)>>>>>>
+%xl(M,Night.bmp,13,0)
+%xl(D,Playing Status.bmp,15,0,4)
+%xl(E,Hold.bmp,15,0)
+%?LW<%VI(wide)%Vd(rulewide)%?St(battery percentage)<%?if(%Li, =, 33)<%Vd(clockwide)|%?nN<%?Lf(ptitlewide1)<%Vd(clockwide)%Vd(ptitlewide1)|%?mh<%Vd(plongn1p)|%?mp<%Vd(plongn1)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)|%Vd(plongn1p)>>>|%?Lf(ptitlewide0)<%Vd(clockwide)%Vd(ptitlewide0)|%?mh<%Vd(plongn0p)|%?mp<%Vd(plongn0)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)|%Vd(plongn0p)>>>>>%Vd(pbat)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pglyphs1i)|%Vd(pglyphs1)>|%?if(%bl, <, 20)<%Vd(pglyphs2i)|%?if(%bl, <, 100)<%Vd(pglyphs2)|%Vd(pglyphs)>>>%?nN<%Vd(ppct)|%Vd(ppct)>|%?if(%Li, =, 33)<%Vd(clockwide)|%?Lf(titlewide)<%Vd(clockwide)%Vd(titlewide)|%?nN<%?mh<%Vd(longn1p)|%?mp<%Vd(longn1)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)|%Vd(longn1p)>>|%?mh<%Vd(longn0p)|%?mp<%Vd(longn0)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)|%Vd(longn0p)>>>>>%Vd(bat)%?nN<%Vd(moon)%Vd(playn1)|%Vd(playn0)>>|%VI(half)%Vd(rulehalf)%Vd(column)%?St(battery percentage)<%Vd(phbat)%?nN<%?mh<%Vd(phhold)|%Vd(phmoon)>%?if(%Li, =, 33)<%Vd(phclock)|%?mh<%Vd(phnamen1p)|%?mp<%Vd(phnamen1)|%Vd(phnamen1p)|%Vd(phnamen1p)|%Vd(phnamen1p)|%Vd(phnamen1p)>>>|%?mh<%Vd(phhold)|%Vd(phpct)>%?if(%Li, =, 33)<%Vd(phclock)|%?mh<%Vd(phnamen0p)|%?mp<%Vd(phnamen0)|%Vd(phnamen0p)|%Vd(phnamen0p)|%Vd(phnamen0p)|%Vd(phnamen0p)>>>>|%Vd(hbat)%?nN<%Vd(hmoon)%Vd(hplayn1)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen1p)|%?mp<%Vd(hnamen1)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)|%Vd(hnamen1p)>>>|%Vd(hplayn0)%?if(%Li, =, 33)<%Vd(hclock)|%?mh<%Vd(hnamen0p)|%?mp<%Vd(hnamen0)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)|%Vd(hnamen0p)>>>>>>
 # the pane by the row selected: Settings, Photos, or the music, which Extras
 # has too
 %?LW<|%?LS<%Vd(surface)%Vd(ring)%Vd(about)|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>|%Vd(surface)%?nP<%Vd(collage)%Vd(photocount)|%Vd(nophotos)%Vd(photocaption)>|%?C<%Vd(a)|%Vd(surface)%Vd(note)%?mp<%Vd(stopped)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(normal)|%Vd(stopped)|%Vd(stopped)>>>>
@@ -56,36 +59,16 @@
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %Vl(ppct,163,1,32,14,3)%Vf(B5AEA5)
 %aR%?bl<|%bl%%>
-%Vl(pplayn0,152,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pplayn02,158,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pplayn02i,159,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pplayn01,165,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pplayn01i,166,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon,150,2,10,10,-)
-%xd(N)
-%Vl(pplayn1,137,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon2,156,2,10,10,-)
-%xd(N)
-%Vl(pplayn12,143,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon2i,157,2,10,10,-)
-%xd(N)
-%Vl(pplayn12i,144,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon1,163,2,10,10,-)
-%xd(N)
-%Vl(pplayn11,150,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
-%Vl(pmoon1i,164,2,10,10,-)
-%xd(N)
-%Vl(pplayn11i,151,2,8,10,-)
-%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>
+%Vl(pglyphs,137,2,23,10,-)
+%?nN<%xd(M)%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>|%?mh<%xd(E)|%?mp<|%xd(Da)|%xd(Db)|%xd(Dc)|%xd(Dd)>>>
+%Vl(pglyphs2,143,2,23,10,-)
+%?nN<%xd(M)%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>|%?mh<%xd(E)|%?mp<|%xd(Da)|%xd(Db)|%xd(Dc)|%xd(Dd)>>>
+%Vl(pglyphs2i,144,2,23,10,-)
+%?nN<%xd(M)%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>|%?mh<%xd(E)|%?mp<|%xd(Da)|%xd(Db)|%xd(Dc)|%xd(Dd)>>>
+%Vl(pglyphs1,150,2,23,10,-)
+%?nN<%xd(M)%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>|%?mh<%xd(E)|%?mp<|%xd(Da)|%xd(Db)|%xd(Dc)|%xd(Dd)>>>
+%Vl(pglyphs1i,151,2,23,10,-)
+%?nN<%xd(M)%?mh<%xd(H)|%?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>>|%?mh<%xd(E)|%?mp<|%xd(Da)|%xd(Db)|%xd(Dc)|%xd(Dd)>>>
 %Vl(ptitlewide0,73,1,74,14,3)%Vf(EFEBE7)
 %ac%Lt
 %Vl(ptitlewide1,88,1,44,14,3)%Vf(EFEBE7)
