@@ -338,9 +338,9 @@ static int folders_read;
    newest noted go first, make_room()). Below the top, a folder is listed with
    all of its presets or none, with its own row only if it has presets or
    folders noted: false when there's no room for them, the table full. Of
-   one name, one row: a .cfg over a ParametricEQ.txt over a plain .txt,
-   whichever is read first, the row keeping which of the others are beside it;
-   a model's FixedBandEQ beside its ParametricEQ: not listed */
+   one name, one row: a .cfg over a ParametricEQ.txt over a plain .txt, in
+   whatever order they are read, the row keeping which of the others are
+   beside it; a model's FixedBandEQ beside its ParametricEQ: not listed */
 static bool read_folder(int id, int parent, int depth, const char *name,
                         const char *rel)
 {
@@ -382,8 +382,8 @@ static bool read_folder(int id, int parent, int depth, const char *name,
         if (same >= 0)
         {
             /* of one name, a .cfg first, then a ParametricEQ, then a plain
-               .txt, whichever comes first: the one listed keeps which of the
-               others are beside it, to go with it (forms_of()) */
+               .txt, in whatever order they come: the one listed keeps which
+               of the others are beside it, to go with it (forms_of()) */
             struct eq_entry *s = &entries[same];
             const bool plain = s->kind == KIND_TXT && !(s->flags & F_APO);
             if (e.kind == KIND_CFG && s->kind == KIND_TXT)

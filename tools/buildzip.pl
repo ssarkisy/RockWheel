@@ -203,7 +203,7 @@ sub theme_bmp_for_screen {
 }
 
 # The themes' folders copied into $temp_dir, their pictures packaged by
-# theme_bmp_for_screen(). Then a warning where a backdrop could be missed and shown
+# theme_bmp_for_screen(), and a warning where a backdrop could be missed and shown
 # undithered: a reference that names no packaged picture, and a 24 bit picture of the
 # screen's size that no reference names.
 sub theme_install {

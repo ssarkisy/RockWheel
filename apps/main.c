@@ -230,15 +230,15 @@ int main(void)
     }
 #endif
 #if !defined(BOOTLOADER) && !defined(APPLICATION)
-    /* Spotlight leaves a disk with this empty file at its root alone: it
-       makes no index there and stops writing the one it made before (seen
-       on macOS 26 with FAT32). The iPod never reads that index, and a sync
-       has one writer less. Hidden, as the Mac's own dot files are, for
-       Windows; Files and the library pass over it (is_macos_name()). Made
-       only when nothing has the name, before USB can take the disk: this
-       thread hasn't answered it yet. Asked first, as an open to write
-       counts as a file changed even when it fails (file_change_note()). A
-       create that fails is tried again at the next boot. */
+    /* With this empty file at its root, Spotlight neither indexes the disk
+       nor writes more of an index made before (seen on macOS 26 with FAT32),
+       which the iPod never reads: a sync has one writer less. Hidden, as the
+       Mac's own dot files are, for Windows; Files and the library pass over
+       it (is_macos_name()). Made only when nothing has the name, before USB
+       can take the disk: this thread hasn't answered it yet. Asked first, as
+       an open to write counts as a file changed even when it fails
+       (file_change_note()). A create that fails is tried again at the next
+       boot. */
     if (!file_exists("/.metadata_never_index"))
     {
         int fd = open("/.metadata_never_index",

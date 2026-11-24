@@ -87,7 +87,8 @@ void itunesdb_write_playcounts(void);
 /* one of the import's, by its second line */
 bool itunesdb_own_playlist(const char *file);
 /* a folder holding, in it or in one in it, a file that isn't a playlist (a
-   song, a picture), dot files and bookmarks aside: never the import's */
+   song, a picture), dot files and bookmarks aside, or a folder too deep, or
+   with too long a path, to look into: never the import's */
 bool itunesdb_holds_foreign(const char *folder);
 /* The playlists the last import wrote and the folders it made, a line each:
    "<hash> <size> <time> <file>", and "dir <folder>"; after a smart
@@ -244,11 +245,11 @@ bool itunesdb_import_kept_art(void);
    for each album of each artist, a list of the pass before made again once,
    at the next update's album list or Cover Flow. */
 #define ITUNESDB_ALBUM_INDEX_MAGIC "PFIW"
-/* A list is of music alone when it is made with the tracks' kinds known (the
-   database in memory: MUSIC_ONLY, kind_if_known being tagcache_kind_if_known(),
-   the plugin's through its API), and its stamp has the entries' complement
-   then (ENTRIES). A list whose stamp differs from that of one made now, by
-   MUSIC_ONLY now, is made again. */
+/* A list is stamped as music alone when it is made with the tracks' kinds
+   known (the database in memory: MUSIC_ONLY, kind_if_known being
+   tagcache_kind_if_known(), the plugin's through its API), and its stamp has
+   the entries' complement then (ENTRIES). A list whose stamp differs from
+   that of one made now, by MUSIC_ONLY now, is made again. */
 #define ITUNESDB_ALBUM_INDEX_MUSIC_ONLY(kind_if_known) ((kind_if_known)(0) >= 0)
 #define ITUNESDB_ALBUM_INDEX_ENTRIES(entries, music_alone) \
     ((music_alone) ? ~(entries) : (entries))
@@ -270,7 +271,7 @@ struct itunesdb_art {
     int width, height;  /* of the frame */
     int slide;          /* its album's slide for Cover Flow, 0 for none */
     uint32_t colour;    /* its album's colour: see cover_palette.h */
-    int reason;         /* none found: why the picture there is isn't shown
+    int reason;         /* none found: why the picture there isn't shown
                            (enum itunesdb_cover_reason), 0 for no picture */
 };
 

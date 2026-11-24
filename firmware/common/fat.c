@@ -3238,7 +3238,9 @@ static long seek_chain(struct bpb *fat_bpb, const struct fat_file *file,
         long mark = (long)m->count << SEEK_MARK_SHIFT;
         long stop = mark > from && mark < to ? mark : to;
         cluster = skip_clusters(fat_bpb, cluster, stop - from);
-        /* the end, or a damaged link: no mark of it */
+        /* the end, or a damaged link: no mark of it (a bad cluster passed in
+           where a mark is due is marked at the loop's top, harmlessly: every
+           seek through that mark is refused) */
         if (!cluster_in_volume(fat_bpb, cluster))
             break;
         from = stop;

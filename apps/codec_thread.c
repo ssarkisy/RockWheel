@@ -635,7 +635,8 @@ static void run_codec(void)
         /* Sound Check's Albums by the shuffle as of this track, before its
            codec gives the DSP its gains: a change of the shuffle is heard
            from the next song (settings_list.c), or from a seek that decodes
-           this one again (one into its last seconds, already decoded) */
+           this one again (a seek made in its last seconds, once it is all
+           decoded) */
         replaygain_update();
 
         /* This will be either the initial buffered offset or where it left off

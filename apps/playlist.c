@@ -4476,7 +4476,7 @@ int playlist_resume(void)
                         /* a track of the list as it stands: a negative
                            one, which no writer makes, ends the resume; one
                            past its end, as a library playlist shorter since
-                           a sync leaves, is gone already: skipped */
+                           a sync leaves, can't be matched: skipped */
                         if (position < 0)
                         {
                             result = -20;

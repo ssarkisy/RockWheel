@@ -863,7 +863,9 @@ static const char *try_id3_token(struct wps_token *token, int offset,
             /* in the manual's order, %?rg<Off|Track|Album|TrackShuffle|
                AlbumShuffle|No tag>, not the enum's: the kind of gain heard,
                in its shuffle form under Sound Check's Albums
-               (REPLAYGAIN_SHUFFLE); a song without a gain tag, No tag */
+               (REPLAYGAIN_SHUFFLE); a song without a gain tag, No tag, as
+               is one with only an album gain under On (REPLAYGAIN_TRACK),
+               though the DSP plays that album gain */
             int type = id3_get_replaygain_mode(id3);
 
             if (type == REPLAYGAIN_TRACK)

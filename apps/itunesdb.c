@@ -2097,12 +2097,13 @@ static bool own_file_in(char *path, size_t len, int depth)
 }
 
 /* Something in the folder at path, or in one in it, that isn't a playlist:
-   a song, a picture, a folder too deep to look into. Such a folder is never
-   the import's, whatever made or listed it: one a firmware before 2.1.0 took
-   over at an import without a list, as a Finder folder named "Music" with the
-   catalogue at the disk's top or at a folder of songs, is the user's again.
-   Dot files, the Mac's ._ ones among them, and bookmarks count for nothing.
-   The path is as it was after. */
+   a song, a picture, a folder too deep, or with too long a path, to look
+   into. Such a folder is never the import's, whatever made or listed it:
+   one a firmware before 2.1.0 took over at an import without a list, as a
+   Finder folder named "Music" with the catalogue at the disk's top or at a
+   folder of songs, is the user's again. Dot files, the Mac's ._ ones among
+   them, and bookmarks count for nothing, and so does a folder that can't be
+   read. The path is as it was after. */
 static bool foreign_in(char *path, size_t size, int depth)
 {
     DIR *d = opendir(path);

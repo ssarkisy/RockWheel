@@ -235,7 +235,7 @@ seek_start :
                                   rm_outbuf+q.samples_per_channel,
                                   q.samples_per_channel);
             ci->set_elapsed(rmctx.audiotimestamp+(rmctx.bit_rate ?
-                            1000*8*sps/rmctx.bit_rate : 0)*i);  
+                            1000*8*sps/rmctx.bit_rate : 0)*i);
             rmctx.frame_number++;
         }
         packet_count -= h;

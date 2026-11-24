@@ -51,10 +51,10 @@
 #include "menus/eq_menu.h"
 #include "eq_editor.h"
 
-/* The layout of the approved mockups (mockups-r1, report §1), in the screen's
-   pixels. The plot spans 20 Hz to 20 kHz across its columns and +-12 dB down
-   its rows: half a dB, a step of the wheel, is 3 rows on the Video and 2 on the
-   iPod photo, so that every step moves the curve as far */
+/* The editor's layout, in the screen's pixels. The plot spans 20 Hz to
+   20 kHz across its columns and +-12 dB down its rows: half a dB, a step of
+   the wheel, is 3 rows on the Video and 2 on the iPod photo, so that every
+   step moves the curve as far */
 #ifdef UI_220X176
 #define PLOT_X0  7
 #define PLOT_X1  212

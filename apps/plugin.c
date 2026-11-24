@@ -1211,7 +1211,7 @@ int plugin_load(const char* plugin, const void* parameter)
     int rc = p_hdr->entry_point(parameter); /* run the loaded plugin */
     plugin_running = false;
 #ifdef HAVE_DISK_STORAGE
-    splash_keep_size(false); /* the plugin drew none: not for what's next */
+    splash_keep_size(false); /* dropped if the plugin drew no splash */
 #endif
 #ifdef HAVE_WHEEL_ACCELERATION
     button_wheel_press_quiet(press_quiet);

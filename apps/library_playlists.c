@@ -1631,7 +1631,7 @@ static size_t in_catalog(const char *file, char *buf, size_t size)
 
 /* A playlist of path into the counts or out of them, delta 1 or -1: each
    folder's it is in, up to the catalogue's top, and Unsynced's if it's
-   there, as the item at the top it is in or is isn't the computer's. A
+   there, as the item at the top it is in is or isn't the computer's. A
    folder without a row has one made, of its playlists */
 static void rows_folders(const char *path, int delta)
 {

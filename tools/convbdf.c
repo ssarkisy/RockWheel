@@ -851,8 +851,10 @@ int bdf_read_bitmaps(FILE *fp, struct font* pf)
             }
 
             y = bby_orig + bbh_orig; /* 0-based y within the char */
-            /* ink past the glyph's width, which a glyph of it can't have: a
-               BDF's past its advance, or past its BBX */
+            /* ink past the glyph's words, which a glyph of it can't hold: a
+               BDF's past its advance, or past its BBX. Ink past its width
+               but in its last word is kept here, and dropped as the glyph
+               is rotated */
             int ink_cut = 0;
 
             /* read bitmaps */

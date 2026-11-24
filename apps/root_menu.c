@@ -1906,7 +1906,8 @@ static bool library_playlists_go_on(void)
    the volume mounted again; one stopped as music started goes on from where
    it stopped. Before the library's check, whose room goes by that count, and
    not under an import, whose writes would wait for each of its reads. True
-   if it answered USB, whose session checked the library after it. */
+   if it answered USB, whose session checked the library after it, or left
+   it pending. */
 bool library_free_recount(void)
 {
     free_space_recount(library_playlists_go_on);
@@ -2031,8 +2032,10 @@ static void library_no_space_show(void)
 #ifdef ITUNESDB_HAVE_ART
 /* whether Cover Flow's album list is of the database: its magic, commit,
    entries and albums' file size, as pictureflow.c's load_album_index() checks
-   them. Not Cover Flow's own cache version (pictureflow.cfg): a list current
-   here is made again at Cover Flow's start after its Rebuild Cache. */
+   them. Not Cover Flow's own cache version (pictureflow.cfg): after its
+   Rebuild Cache, or with no pictureflow.cfg, a list current here is made
+   again at Cover Flow's start or the next Preparing Albums, whichever comes
+   first. */
 static bool album_list_current(void)
 {
     struct tagcache_stat *stat = tagcache_get_stat();

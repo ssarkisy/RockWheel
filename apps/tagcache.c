@@ -3121,11 +3121,12 @@ void tagcache_search_finish(struct tagcache_search *tcs)
    (its unload of the RAM cache), so that the entries stay where they are,
    and their names' places in the tags' files. One taken during a commit's
    first reads, before that unload, has the old database meanwhile, the
-   new one after: what's made then is of a commit id that's past by its
-   end. Deletions, the counts and a reload of the cache (an update that
-   found nothing) go on meanwhile. As tagcache_search() takes it: waited for
-   while a commit reads (read_lock), and false, nothing held, during the
-   rest of a commit or without a database. */
+   new one after it's let go: what's made then is of a commit id that's past
+   by its end; one taken after the unload finds no database in memory.
+   Deletions, the counts and a reload of the cache (an update that found
+   nothing) go on meanwhile. As tagcache_search() takes it: waited for while
+   a commit reads (read_lock), which its steps are all within, and false,
+   nothing held, without a database. */
 bool tagcache_hold(void)
 {
     while (read_lock)
@@ -4596,9 +4597,9 @@ static void carry_numbers(struct temp_file_entry *entry,
    crash record it logged is the database thread's; else only at the second
    boot in a row that ended in its reading (strikes), as a user's reset can
    come while a sound file is read. The scans leave a listed file out until
-   it changes, or the firmware does, whose parsers may read it by then. A
-   reading that returns, a boot ending outside one, or a power-off, which
-   the memory doesn't keep, starts the count again. */
+   it changes, or the firmware does, whose parsers may read it by then. The
+   marked file's reading returning, a boot ending outside a reading, or a
+   power-off, which the memory doesn't keep, starts the count again. */
 #define TAGCACHE_FILE_SKIPPED "database_skipped.tcd"
 #define SCAN_MARK_MAGIC       0x4b4d5752 /* "RWMK" */
 #define SCAN_SKIP_MAGIC       0x4b535752 /* "RWSK" */
@@ -7709,8 +7710,8 @@ static void run_command_queue(bool force)
        reset or power loss before the swap leaves in place (commit_recover()
        undoes the commit), and kept queued, for the new one after the swap.
        Sleep's flush takes the storage thread's way, which leaves a commit's
-       queue alone; a power-off waits for the commit, or with an empty
-       battery flushes nothing. */
+       queue alone; a power-off is refused during a commit's steps and waits
+       for the rest of it, or with an empty battery flushes nothing. */
     if (force || command_queue_is_full())
     {
         mutex_lock(&command_queue_mutex);

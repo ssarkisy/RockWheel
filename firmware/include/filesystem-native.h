@@ -31,7 +31,7 @@
 
 /* open(): a file it creates gets FAT's hidden attribute, as the Mac's dot
    files have, so that Windows hides it too. Ours, beside fcntl.h's; an open
-   that finds the file changes nothing of it */
+   that finds the file leaves its attributes as they are */
 #define O_HIDDEN 0x1000
 #endif /* _FILESYSTEM_NATIVE_H_ */
 

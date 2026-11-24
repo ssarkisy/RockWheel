@@ -209,8 +209,8 @@ bool tagcache_retrieve(struct tagcache_search *tcs, int idxid,
 void tagcache_search_finish(struct tagcache_search *tcs);
 /* Commits held off, as by an open search, for a pass that yields: a
    commit waits for the holds before it begins and before it takes the
-   database's memory (tagcache.c). False, nothing held, during a commit's
-   main part or without a database. For one thread's pass of a second or
+   database's memory (tagcache.c). Waits out a commit's main part; false,
+   nothing held, without a database. For one thread's pass of a second or
    two at most, let go on every way out of it; nested as searches are. Not
    across a wait for the database's thread, nor around a power-off, which
    waits for the holds (tagcache_prepare_shutdown()). */

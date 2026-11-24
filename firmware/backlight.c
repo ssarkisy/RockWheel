@@ -542,7 +542,8 @@ static void lcd_sleep_if_asleep(void)
 
 #ifdef HAVE_IDLE_SLEEP
 /* The light on or coming on, by the light, not by its setting: Always On and
-   Backlight on Hold = On under Hold say on whatever the iPod's sleep did */
+   Backlight on Hold = On under Hold say on whatever the iPod's sleep did.
+   The last branch, by the setting, is only the Video simulator's (no PWM) */
 static bool backlight_lit_now(void)
 {
 #if CONFIG_BACKLIGHT_FADING == BACKLIGHT_FADING_PWM

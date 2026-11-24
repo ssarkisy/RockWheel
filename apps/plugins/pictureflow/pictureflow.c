@@ -5854,10 +5854,11 @@ static int main_menu(void)
 #define ROTATE_FRAME_COUNT  10
 #define ROTATE_FRAME_ANGLE  24
 
-/* Opening and closing an album as on an iPod classic: the cover's right edge comes
-   forward and sweeps to the left (FLIP_SIDE -1; 1 turns it the other way, left edge
-   first), and the 34 key frames take about 0.39 seconds, 3.5 times the 25 frames a
-   second of the rest (it was 1.25 times, about 1.1 seconds). */
+/* Opening and closing an album: the cover's right edge comes forward and
+   sweeps to the left (FLIP_SIDE -1; 1 turns it the other way, left edge
+   first). The key frames, 34 (23 without room for the card), play at 3.5
+   times the 25 frames a second of the rest: the 34 in about 0.39 seconds
+   (it was 1.25 times, about 1.1 seconds). */
 #define FLIP_SIDE           (-1)
 #define COVER_ANIM_PART(p)  ((p) * 7 / 2)
 

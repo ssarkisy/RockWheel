@@ -354,11 +354,12 @@ class Font:
 # The Video's, the mockups' grid: one margin of 16 px; the status line's
 # clock and glyphs at the lists' text inset (SM = UI_METRIC_TEXT_INSET in
 # apps/gui/ui_theme.c), so that the clock starts where the menu's text does;
-# the status line's 20 rows, its hairline and lip under them, the lists from 24, rows of 27 and of 36 with covers of 32, so that
-# 8 or 6 fill them (the owner's rule: equal rows, a whole number of them);
-# the main menu's pane from column 160; Now Playing's cover of 144 at
-# (16, 28), its details from 176, the scale's window across the margin
-# under it, the times under the window.
+# the status line's 20 rows, its hairline and lip under them, the lists
+# from 24, rows of 27 and of 36 with covers of 32, so that 8 or 6 fill them
+# (the owner's rule: equal rows, a whole number of them); the main menu's
+# pane from column 160; Now Playing's cover of 144 at (16, 28), its details
+# from 176, the scale's window across the margin under it, the times under
+# the window.
 VIDEO = dict(
     NAME="video", W=320, H=240, OUT=THEME, M=16, SM=4, STATUS=20, TOP=24, ROW=27,
     PANE=160, BATT=(20, 10), GAP=6, PCT_GAP=3, PLAY_H=9,
