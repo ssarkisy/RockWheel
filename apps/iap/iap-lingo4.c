@@ -1810,22 +1810,9 @@ void iap_handlepkt_mode4(const unsigned int len, const unsigned char *buf)
         {
             unsigned char data[70] = {0x04, 0x00, 0xFF};
             struct mp3entry id3;
-            long tracknum = get_u32(&buf[3]);
 
             data[2] = cmd + 1;
-            memcpy(&id3, audio_current_track(), sizeof(id3));
-            tracknum += playlist_get_first_index(NULL);
-            if(tracknum >= playlist_amount())
-                tracknum -= playlist_amount();
-            /* If the tracknumber is not the current one,
-               read id3 from disk */
-            if(playlist_next(0) != tracknum)
-            {
-                struct playlist_track_info info;
-                playlist_get_track_info(NULL, tracknum, &info);
-                /* memset(&id3, 0, sizeof(struct mp3entry)); --get_metadata does this for us */
-                get_metadata(&id3, -1, info.filename);
-            }
+            iap_get_trackinfo(get_u32(&buf[3]), &id3);
             /* Return the requested track data */
             switch(cmd)
             {

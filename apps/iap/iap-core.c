@@ -736,7 +736,9 @@ void iap_get_trackinfo(const unsigned int track, struct mp3entry* id3)
         /* memset(id3, 0, sizeof(*id3)) --get_metadata does this for us */
         get_metadata(id3, -1, info.filename);
     } else {
-        memcpy(id3, audio_current_track(), sizeof(*id3));
+        /* not memcpy(): the copy's tags would point into the playing
+           track's entry, which playback writes over at a track change */
+        copy_mp3entry(id3, audio_current_track());
     }
 }
 
