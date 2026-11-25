@@ -6,7 +6,7 @@
 # after make_classic_header.py, whose Video bar it goes on. Plain Python. A crescent,
 # shaded from top to bottom like the hold icon's lock, drawn at eight times the size and
 # brought down: each pixel as much of the shade as the moon covers of it, on each
-# screen's bar where its skins draw it, the Video's at y 4 and the iPod photo's at y 1,
+# screen's bar where its skins draw it, the Video's at y 4 and the iPod photo's at y 0,
 # in either look, as make_classic_header.py puts the status line's other glyphs
 # (status_glyphs()): the dark look's shade its header_pixel(), on the dark bar. An empty
 # pixel is the magenta that skins take as transparent.
@@ -15,7 +15,7 @@ import make_classic_header as header_tool
 SIZE = 16
 SCALE = 8
 LIGHT, DARK = (0x7a, 0x86, 0x96), (0x19, 0x1a, 0x23)  # the lock's, top and bottom
-PLACES = (('Status Night', 4), ('Status Night', 1))  # the Video's and the photo's
+PLACES = (('Status Night', 4), ('Status Night', 0))  # the Video's and the photo's
 
 # the moon: a disc with another taken out of its upper right
 CENTRE, RADIUS = (7.6, 7.0), 6.2

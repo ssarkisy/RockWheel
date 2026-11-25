@@ -44,11 +44,11 @@
 %xl(B,Battery.bmp,0,0,24)
 # its charge in its own colours in the cover's, unless the setting says
 %xK(B)
-%V(191,3,25,11,-)
+%V(191,2,25,11,-)
 %?bp<%?bc<%t(1.0)%xd(Ba);%t(1.0)%xd(Bb)|%xd(Bc)>|%?bl<%xd(Bd)|%xd(Bd)|%xd(Be)|%xd(Bf)|%xd(Bg)|%xd(Bh)|%xd(Bi)|%xd(Bj)|%xd(Bk)|%xd(Bl)|%xd(Bm)|%xd(Bn)|%xd(Bo)|%xd(Bp)|%xd(Bq)|%xd(Br)|%xd(Bs)|%xd(Bt)|%xd(Bu)|%xd(Bv)|%xd(Bw)|%xd(Bx)|%xd(Bx)|%xd(Bx)>>
 %?St(battery percentage)<%Vd(numbat)%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(pnum1i)|%Vd(pnum1)>|%?if(%bl, <, 20)<%Vd(pnum2i)|%?if(%bl, <, 100)<%Vd(pnum2)|%Vd(pnum)>>>|%Vd(nonumbat)>
 %?nN<%?St(battery percentage)<%?if(%bl, <, 10)<%?if(%bl, =, 1)<%Vd(nightnum1i)|%Vd(nightnum1)>|%?if(%bl, <, 20)<%Vd(nightnum2i)|%?if(%bl, <, 100)<%Vd(nightnum2)|%Vd(nightnum)>>>|%Vd(night)>|>
-%Vl(numbat,155,2,32,12,2)%Vf(000000)
+%Vl(numbat,155,1,32,12,2)%Vf(000000)
 %aR%?bl<|%bl%%>
 %xl(P,Playing Status.bmp,0,0,4)
 # the play glyph and the bar take Classic's colour, if it has one other than its blue
@@ -57,44 +57,44 @@
 # (half-covered columns), in every layout: a viewport for 100 %, 20-99 (2), 10-19 (2i), 2-9 and 0
 # (1), and 1 % (1i), a 1's ink starting a pixel further into its cell; the lock and
 # the moon with it
-%Vl(pnum,139,2,16,13,-)
+%Vl(pnum,139,1,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(pnum2,145,2,16,13,-)
+%Vl(pnum2,145,1,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(pnum2i,146,2,16,13,-)
+%Vl(pnum2i,146,1,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(pnum1,152,2,16,13,-)
+%Vl(pnum1,152,1,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(pnum1i,153,2,16,13,-)
+%Vl(pnum1i,153,1,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
-%Vl(nonumbat,171,2,16,13,-)
+%Vl(nonumbat,171,1,16,13,-)
 %?mp<|%xd(Pa)|%xd(Pb)|%xd(Pc)|%xd(Pd)>
 %xl(h,Hold Icon.bmp,0,1)
-%Vl(pnum,83,2,13,13,-)
+%Vl(pnum,83,1,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum2,89,2,13,13,-)
+%Vl(pnum2,89,1,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum2i,90,2,13,13,-)
+%Vl(pnum2i,90,1,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum1,96,2,13,13,-)
+%Vl(pnum1,96,1,13,13,-)
 %?mh<%xd(h)|>
-%Vl(pnum1i,97,2,13,13,-)
+%Vl(pnum1i,97,1,13,13,-)
 %?mh<%xd(h)|>
-%Vl(nonumbat,115,2,13,13,-)
+%Vl(nonumbat,115,1,13,13,-)
 %?mh<%xd(h)|>
 # Night Mode on: the moon, just left of the play glyph beside the battery
 %xl(N,Status Night.bmp,0,0)
-%Vl(night,149,1,16,16,-)
+%Vl(night,149,0,16,16,-)
 %xd(N)
-%Vl(nightnum,117,1,16,16,-)
+%Vl(nightnum,117,0,16,16,-)
 %xd(N)
-%Vl(nightnum2,123,1,16,16,-)
+%Vl(nightnum2,123,0,16,16,-)
 %xd(N)
-%Vl(nightnum2i,124,1,16,16,-)
+%Vl(nightnum2i,124,0,16,16,-)
 %xd(N)
-%Vl(nightnum1,130,1,16,16,-)
+%Vl(nightnum1,130,0,16,16,-)
 %xd(N)
-%Vl(nightnum1i,131,1,16,16,-)
+%Vl(nightnum1i,131,0,16,16,-)
 %xd(N)
 # the cover, 96 px, with its reflection of 14 rows under it, angled if the
 # setting says

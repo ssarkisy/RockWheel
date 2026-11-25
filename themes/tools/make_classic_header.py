@@ -66,10 +66,11 @@ REFERENCE = os.path.join(WPS, 'iClassic_bg.bmp')
 # lock 1 lower, %xl(h,...,0,1)), as the pictures' bar matches. Then each
 # screen's file of it and the row its skins draw it at: on the Video's bar of
 # 24 rows the battery at 6, the play glyph at 5 and the lock a row lower; on
-# the iPod photo's of 16 at 3, 2 and 3
-STATUS = (('Battery', 24, 4, ('Status Battery', 6), ('Battery', 3)),
-          ('Playing Status', 4, 2, ('Status Playing', 5), ('Playing Status', 2)),
-          ('Hold Icon', 1, 3, ('Status Hold', 6), ('Hold Icon', 3)))
+# the iPod photo's of 16 at 2, 1 and 2, the battery's and the play glyph's ink
+# in the middle of its 15 rows over the dark line
+STATUS = (('Battery', 24, 4, ('Status Battery', 6), ('Battery', 2)),
+          ('Playing Status', 4, 2, ('Status Playing', 5), ('Playing Status', 1)),
+          ('Hold Icon', 1, 3, ('Status Hold', 6), ('Hold Icon', 2)))
 # the play glyph's frames, in its 16 by 13 cells, as convex polygons of
 # (x, y): playing, a triangle 2 px wider each row down to its middle, its tip
 # cut at x 12.5 as the picture's; paused, two bars on whole pixels; forward and
