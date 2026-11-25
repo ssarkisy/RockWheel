@@ -127,8 +127,9 @@ void lp_index_moved(const char *from, const char *to);
 void lp_source_moved(const char *from, const char *to);
 /* its screen: a playlist viewer's result */
 int lp_view(const char *file, int *selection);
-/* its songs played from the first, as Select on that one there, the screen
-   not shown: Play on its row in Playlists. True if the music plays */
+/* its songs played from the first, as Select on that one there, or with
+   Shuffle on from any, the screen not shown: Play on its row in Playlists.
+   True if the music plays */
 bool lp_play_file(const char *file);
 /* Music > Playlists' rows with their covers, as Playlist Covers has them:
    what the row of a playlist, a folder or On-The-Go shows, by its path, from

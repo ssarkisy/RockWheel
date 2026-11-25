@@ -2888,6 +2888,10 @@ static void lp_before_draw(struct gui_synclist *list)
     }
 }
 
+/* the playlist played by Play on its row (lp_play_file()), not from a song
+   chosen: with Shuffle on, from any of its songs, as on a stock iPod */
+static bool lp_whole;
+
 /* the music from this song on, from the playlist's file, written first if
    it's behind the list. False if it didn't start. Its buffers, as those of
    the other rows' work below, kept out of lp_view()'s frame, which the lists
@@ -2941,8 +2945,8 @@ static bool NO_INLINE lp_play(int song)
     int start = MIN((int)lp.songs[song].line, amount - 1);
     if (global_settings.playlist_shuffle)
     {
-        start = playlist_shuffle(0, start);
-        if (!global_settings.play_selected)
+        start = playlist_shuffle(0, lp_whole ? -1 : start);
+        if (!global_settings.play_selected || lp_whole)
             start = 0;
     }
     playlist_start(start, 0, 0);
@@ -2957,7 +2961,12 @@ bool lp_play_file(const char *file)
     lp.otg = lp_same_file(lp.file, OTG_FILE);
     lp.waited = smart_prepare(lp.file);
     lp.unloaded = !lp_load();
-    return !lp.unloaded && lp.count > 0 && lp_play(0);
+    if (lp.unloaded || lp.count <= 0)
+        return false;
+    lp_whole = true;
+    const bool played = lp_play(0);
+    lp_whole = false;
+    return played;
 }
 
 /* the song out of the music playing too, if it plays from this playlist:

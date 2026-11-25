@@ -6469,6 +6469,10 @@ static int context_menu(void)
 
 
 
+/* the album played by Play on its cover, not from a track chosen: with
+   Shuffle on, from any of its tracks, as on a stock iPod */
+static bool play_whole_album;
+
 /*
  * Puts selected album's tracks into a newly created playlist and starts playing
  */
@@ -6519,7 +6523,12 @@ static bool start_playback(bool return_to_WPS)
 #endif
             return false;
         }
-        if (shuffle)
+        if (shuffle && play_whole_album)
+        {
+            rb->playlist_shuffle(0, -1);
+            start_index = 0;
+        }
+        else if (shuffle)
             start_index = rb->playlist_shuffle(0, pf_tracks.sel);
     }
     rb->playlist_start(start_index, 0, 0);
@@ -7650,10 +7659,10 @@ static int pictureflow_main(void)
 #ifdef ITUNESDB_HAVE_ART
         case ACTION_LIST_PLAYPAUSE:
 #if PF_PLAYBACK_CAPABLE
-            /* Play on an album plays it from its first track, and on a track
-               from that one, as Select on a track, as on a stock iPod, and
-               Now Playing comes as after Select (auto_wps, never 0 here).
-               Nothing while a cover turns */
+            /* Play on an album plays it from its first track, or with Shuffle
+               on from any, and on a track from that one, as Select on a
+               track, as on a stock iPod; Now Playing comes as after Select
+               (auto_wps, never 0 here). Nothing while a cover turns */
             if (pf_state == pf_scrolling)
             {
                 set_current_slide(target);
@@ -7664,9 +7673,13 @@ static int pictureflow_main(void)
             {
                 drop_frame();
                 /* the album's tracks made for it on a cover, from its first
-                   (start_playback()), and given back if it doesn't play, as
-                   after its menu (context_menu_cleanup()) */
-                if (start_playback(true))
+                   (start_playback()), or with Shuffle on from any, and given
+                   back if it doesn't play, as after its menu
+                   (context_menu_cleanup()) */
+                play_whole_album = pf_state != pf_show_tracks;
+                const bool played = start_playback(true);
+                play_whole_album = false;
+                if (played)
                     return PLUGIN_GOTO_WPS;
                 if (pf_state != pf_show_tracks)
                     free_borrowed_tracks();

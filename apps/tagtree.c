@@ -8633,8 +8633,10 @@ bool tagtree_songs_stale(void)
    artist's or a composer's too many for All Songs, in Music's lists or
    Search (play_row_gathered()). From a playlist of no list's, as no list
    shows them, not one by the id of the list of the rows, by which one of its
-   other rows would find these songs again */
-static bool play_gathered;
+   other rows would find these songs again. And play_whole: the songs of a
+   row played by Play, not a song chosen, which with Shuffle on start at any
+   of them, as on a stock iPod (the owner's decision, 2026-11-24) */
+static bool play_gathered, play_whole;
 
 static int tagtree_play_folder(struct tree_context* c)
 {
@@ -8684,12 +8686,12 @@ static int tagtree_play_folder(struct tree_context* c)
     }
 
     /* a show's episodes and a book's parts in their order, whatever Shuffle
-       is */
+       is; a song chosen first, as Play Selected First has it */
     if (global_settings.playlist_shuffle
         && !in_section(LANG_PODCASTS) && !in_section(LANG_AUDIOBOOKS))
     {
-        start_index = playlist_shuffle(0, start_index);
-        if (!global_settings.play_selected)
+        start_index = playlist_shuffle(0, play_whole ? -1 : start_index);
+        if (!global_settings.play_selected || play_whole)
             start_index = 0;
     }
 
@@ -8803,9 +8805,10 @@ static void levels_back(struct tree_context *c, int dirlevel, int selected_item)
 
 /* The selected row played, one tagtree_row_plays() takes: a song as Select;
    a row of songs as Select on the row of them all in the list it opens, or
-   else its songs gathered, from the first. The lists stay as they were, Menu
-   over Now Playing back to this one, Playing From to the list it opened
-   (played_place). 2 (to Now Playing) if the music plays */
+   else its songs gathered: from the first, or with Shuffle on from any
+   (play_whole). The lists stay as they were, Menu over Now Playing back to
+   this one, Playing From to the list it opened (played_place). 2 (to Now
+   Playing) if the music plays */
 int tagtree_play_row(struct tree_context *c)
 {
     const int dirlevel = c->dirlevel;
@@ -8824,6 +8827,7 @@ int tagtree_play_row(struct tree_context *c)
     }
 
     int rc = -1;
+    play_whole = true;
     tagtree_enter(c, false);
     if (c->dirlevel == dirlevel + 1 && tagtree_load(c) >= 0
         && c->dirlevel == dirlevel + 1)
@@ -8843,6 +8847,7 @@ int tagtree_play_row(struct tree_context *c)
         rc = c->dirlevel == dirlevel && c->currtable != TABLE_ROOT ?
              play_row_gathered(c) : 0;
     }
+    play_whole = false;
     if (rc == 2)
         levels_back(c, dirlevel, row);
     else
@@ -8869,6 +8874,7 @@ bool tagtree_play_found(int tag, const char *name, int32_t artist,
         return false;
     /* in the list its row opens, as go_to_row() leaves it */
     const int opened = c->dirlevel;
+    play_whole = true;
     int rc = play_list_opened(c);
     int from_row = c->selected_item;
     if (rc < 0)
@@ -8880,6 +8886,7 @@ bool tagtree_play_found(int tag, const char *name, int32_t artist,
         rc = tagtree_load(c) >= 0 && c->dirlevel == opened - 1 ?
              play_row_gathered(c) : 0;
     }
+    play_whole = false;
     /* the place it was started from, which Search's own rows have none of:
        the list opened, as after Select on the album and that song
        (go_to_browse()), where Playing From goes; for the songs gathered, the

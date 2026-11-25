@@ -219,8 +219,9 @@ static int view_playlist(char *file, int *selection)
 
 /* A playlist picked by Play, as Playlists shows the catalogue: its songs
    from the first, as Select on that one in its screen, which doesn't open,
-   as on a stock iPod. 1 if the music plays, 0 if it doesn't, -1 for one
-   picked by Select, or without the database in memory, to show */
+   or with Shuffle on from any, as on a stock iPod. 1 if the music plays, 0
+   if it doesn't, -1 for one picked by Select, or without the database in
+   memory, to show */
 static int play_picked(const char *file)
 {
 #ifdef HAVE_TAGCACHE
