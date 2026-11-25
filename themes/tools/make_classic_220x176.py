@@ -3,7 +3,8 @@
 # light theme's of 320x240, into themes/iClassic-Square/220x176/.rockbox:
 #
 #   themes/tools/make_classic_220x176.py && themes/tools/make_classic_np.py \
-#       && themes/tools/make_dark_theme.py && themes/tools/make_rtl_stars.py
+#       && themes/tools/make_dark_theme.py && themes/tools/make_rtl_stars.py \
+#       && themes/tools/make_pane_shadow.py
 #
 # Nothing is scaled. What is the same on both screens is taken as it is: the
 # status bar's rows, cut to the screen's width (its texture repeats every 20
@@ -30,6 +31,7 @@ import shutil
 import make_classic_header as header_tool
 import make_classic_modes as modes
 import make_menu_icons as icons
+import make_pane_shadow as pane_shadow
 from make_menu_icons import mix, read_bmp, write_bmp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -170,6 +172,12 @@ def about_backdrop(screen):
     """Settings' and Extras' pane, as on the Video: its About Backdrop's pane
     at the pane's height, its middle columns, beside the lists' backdrop"""
     src = read_bmp(os.path.join(LIGHT, "About Backdrop.bmp"))
+    # its first columns as the gradient they are under the list's shadow, which
+    # the photo's is given of its own, last (make_pane_shadow.py)
+    gradient = icons.panel_gradient()
+    band = pane_shadow.band(100)
+    src = [list(row[:160]) + [gradient[y]] * band + list(row[160 + band:])
+           for y, row in enumerate(src)]
     pane = resample(src, ABOUT_SRC_X, 0, ABOUT_SRC_W, 240, W - PANE, H)
     return [list(row[:PANE]) + pane[y] for y, row in enumerate(screen)]
 

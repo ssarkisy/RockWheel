@@ -279,6 +279,12 @@ enum ui_metric {
        switch at the right margin in the middle of the row, a row without a
        value its name alone in its middle (menu.c) */
     UI_METRIC_SETTINGS_TWO_LINES,
+    /* the list's shadow over the main menu's pane, as a stock iPod classic's
+       (menu_cover.c): percent of stock's strength; 0 for none. In the
+       backdrops under the pane (themes/tools/make_pane_shadow.py), and by
+       the firmware over what is drawn on them: the cover, the collage of
+       photos, the caution over the note. Classic's alone */
+    UI_METRIC_PANE_SHADOW,
     UI_METRIC_COUNT
 };
 

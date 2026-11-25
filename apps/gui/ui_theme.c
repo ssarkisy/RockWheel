@@ -159,6 +159,10 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
             /* the cover on columns 0 to 31, the text's cell from 39 */
             [UI_METRIC_ROW_COVER_GAP]        = 7,
+            /* the pane from the list's end, the list's shadow over it as
+               stock's: in its backdrops, and over the cover */
+            [UI_METRIC_PANE_LEFT]            = 110,
+            [UI_METRIC_PANE_SHADOW]          = 100,
             /* three rows, 51 px: the cover 44 px, 4 under their top; the
                texts' three lines 49 px from 2 down */
             [UI_METRIC_HEADER_COVER_TOP]     = 4,
@@ -208,6 +212,10 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SUBLINE_TOP_DY]       = 0,
             /* the cover on columns 0 to 35, the text's cell from 45 */
             [UI_METRIC_ROW_COVER_GAP]        = 9,
+            /* the pane from the list's end, the list's shadow over it as
+               stock's: in its backdrops, and over the cover */
+            [UI_METRIC_PANE_LEFT]            = 160,
+            [UI_METRIC_PANE_SHADOW]          = 100,
             [UI_METRIC_HEADER_COVER_TOP]     = 6,
             [UI_METRIC_HEADER_COVER_GAP]     = 10,
             [UI_METRIC_HEADER_TEXT_MARGIN]   = 6,

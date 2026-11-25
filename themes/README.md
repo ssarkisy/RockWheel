@@ -136,6 +136,11 @@ after a change, in this order:
 - `make_dark_theme.py`: the dark theme, all of it from the light one, of
   either screen, but for the status line's glyphs, which
   `make_classic_header.py` and `make_night_icon.py` make.
+- `make_pane_shadow.py`, last: the list's shadow over the main menu's pane, as
+  on a stock iPod classic, in the lists' backdrops and the About Backdrop,
+  light and dark, of either screen; a picture that has it is left alone. The
+  firmware gives it to what is drawn over the pane, the cover and the
+  collage of photos (`UI_METRIC_PANE_SHADOW`).
 
 Dieter's skins, pictures and the glyphs the firmware draws in it are all written by
 `make_dieter_theme.py` (see `Dieter/README.md`).

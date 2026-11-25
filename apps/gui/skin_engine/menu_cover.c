@@ -904,8 +904,67 @@ static void blend_row(fb_data *dst, const fb_data *src, int n)
         dst[i] = AVG2((uint32_t)src[i], (uint32_t)src[i + 1]);
 }
 
+/* The list's shadow over the pane, as a stock iPod classic's
+   (PreviewArea_Shadow_Image, measured in 2.0.5's screenshots): of the pane's
+   first columns, each so much of 256 to black, at the theme's strength
+   (UI_METRIC_PANE_SHADOW), those under 3 of 256 left out, as
+   themes/tools/make_pane_shadow.py has them in the pictures under the pane */
+static const unsigned char pane_shadow[] = {
+    119, 107, 99, 89, 80, 75, 68, 62, 54, 47, 40, 34, 28, 23, 18, 13, 11, 8, 6, 4
+};
+
+static void pane_shadow_rows(int x0, int y0, int y1, bool over_backdrop)
+{
+    const int strength = ui_metric(UI_METRIC_PANE_SHADOW);
+    const int left = ui_metric(UI_METRIC_PANE_LEFT);
+    if (strength <= 0 || left <= 0)
+        return;
+    const fb_data *backdrop = over_backdrop ? lcd_get_backdrop() : NULL;
+    if (over_backdrop && !backdrop)
+        return;
+    struct viewport *vp = lcd_set_viewport_ex(NULL, 0);
+    for (int i = MAX(x0 - left, 0); i < (int)ARRAYLEN(pane_shadow); i++)
+    {
+        const int dark = pane_shadow[i] * strength / 100;
+        if (dark < 3 || left + i >= LCD_WIDTH)
+            break;
+        const unsigned keep = 256 - dark;
+        for (int y = MAX(y0, 0); y < MIN(y1, LCD_HEIGHT); y++)
+        {
+            fb_data *p = FBADDR(left + i, y);
+            /* what the backdrop shows there has the shadow already */
+            if (backdrop && *p == backdrop[y * LCD_FBWIDTH + left + i])
+                continue;
+#if LCD_PIXELFORMAT == RGB565
+            const unsigned c = *p;
+            *p = (((c >> 11) * keep >> 8) << 11)
+                 | ((((c >> 5) & 0x3f) * keep >> 8) << 5)
+                 | ((c & 0x1f) * keep >> 8);
+#else
+            const unsigned c = FB_UNPACK_SCALAR_LCD(*p);
+            *p = FB_SCALARPACK_LCD(LCD_RGBPACK(RGB_UNPACK_RED(c) * keep >> 8,
+                                               RGB_UNPACK_GREEN(c) * keep >> 8,
+                                               RGB_UNPACK_BLUE(c) * keep >> 8));
+#endif
+        }
+    }
+    lcd_set_viewport_ex(vp, 0);
+}
+
+void menu_cover_pane_shadow(int x0, int y0, int y1)
+{
+    pane_shadow_rows(x0, y0, y1, false);
+}
+
+void menu_cover_pane_shadow_drawn(const struct viewport *vp)
+{
+    pane_shadow_rows(vp->x, vp->y, vp->y + vp->height, true);
+}
+
 void menu_cover_shade(int x0, int y0, int y1)
 {
+    /* the list's shadow over the cover, of the columns it covers */
+    menu_cover_pane_shadow(x0, y0, y1);
     const int shade = ui_metric(UI_METRIC_PANE_SHADE);
     const int x = ui_metric(UI_METRIC_PANE_LEFT);
     if (shade <= 0 || x <= 0 || x + 2 > LCD_WIDTH || x0 > x + 1)

@@ -291,12 +291,13 @@ def optical_offset(shape):
 
 
 def panel_gradient():
-    """Each row of the panel beside the Settings selection, at its sides, which only have
-    the gradient: the middle of a few columns, to leave out the dither of its making"""
+    """Each row of the panel beside the Settings selection, at its right side, which only
+    has the gradient: the middle of a few columns, to leave out the dither of its making.
+    Not at its left, which the list's shadow darkens (make_pane_shadow.py)"""
     rows = read_bmp(os.path.join(WPS, 'About Backdrop.bmp'))
     gradient = []
     for row in rows:
-        side = sorted(row[x] for x in list(range(PANEL_X, PANEL_X + 8)) + list(range(312, 320)))
+        side = sorted(row[x] for x in range(312, 320))
         gradient.append(side[len(side) // 2])
     return gradient
 
