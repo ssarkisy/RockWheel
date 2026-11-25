@@ -122,9 +122,10 @@ static unsigned char *read_aligned(unsigned char *p)
 
 #define KEPT        256   /* covers kept, 512 KB of 32 px, 648 KB of 36: what some 40 screens showed */
 #define STRETCH     16    /* covers the making writes at once */
-/* Covers a read takes at most, those in a row in the file, 8 KB: each read
-   its own turn of the reader, which gives way to the UI between them, as
-   Cover Flow's loader does its slides, and in each transfer it waits for
+/* Covers a read takes at most, those in a row in the file, 8 KB on the iPod
+   photo and 12 KB on the Video (SLOT_SIZE): each read its own turn of the
+   reader, which gives way to the UI between them, as Cover Flow's loader
+   does its slides, and in each transfer it waits for
    (ata_dma_yield_always()). Two at least, which the map's check reads into */
 #define READ_COVERS 4
 #define WANTED_MAX  48    /* of a frame's rows, and of those next to them */
@@ -137,7 +138,8 @@ static unsigned char *read_aligned(unsigned char *p)
 #define AT_REST     (HZ / 30 + 1)
 /* how long the reads before a frame take at most, those left lacking read
    before the next frame or by the reader; and the covers one of them takes,
-   those in a row in the file, 16 KB: a screen's in Albums by year */
+   those in a row in the file, 16 KB on the iPod photo and 24 KB on the
+   Video: a screen's in Albums by year */
 #define DRAW_SOON_US 6000
 #define READ_NOW_COVERS 8
 /* the pieces of the file on the disk mapped at most, 2 KB: one if it's in a

@@ -13,7 +13,7 @@ Modern is a clean, flat list interface:
 
 - A white ground, black text and one saturated pink-red accent. No gradients,
   bevels or textures.
-- Rows 30 px high in Inter SemiBold, 36 px for a row of two lines, with no
+- Rows 30 px high in Inter SemiBold, 35 px for a row of two lines, with no
   hairlines between them. The selected row is a flat band of the accent across
   the whole list, its text white. In Settings the band is a light grey and the
   setting's name is in the accent.

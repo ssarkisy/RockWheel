@@ -21,7 +21,7 @@ Neo is calm and airy:
   neutral: a white ground with light grey panes, bands and fields, and grey
   small text. With it on, the surfaces take a pale tint of the colour, and
   small text and section names a deeper one.
-- Rows 30 px high in Inter SemiBold, 36 px for a row of two lines. The
+- Rows 30 px high in Inter SemiBold, 35 px for a row of two lines. The
   selected row is a rounded rectangle inset from the row's sides, in the
   colour, with white text. A chevron on every row that leads on. A section's
   name stands on a band as high as a row. On and Off are words at the row's

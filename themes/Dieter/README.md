@@ -18,7 +18,7 @@ Quiet and precise, with a little depth:
 - One margin of 16 px (14 on the iPod photo) for the names, the covers and
   the scale; the status line's clock and glyphs 4 px from the screen's sides,
   where the menu's text starts.
-- Rows of 30 px in Inter SemiBold, 36 for two lines. The selected row is a
+- Rows of 27 px in Inter SemiBold, 36 for two lines. The selected row is a
   flat band the list's width, its top row lit and its foot shaded, with a dot
   in the signal colour in the left margin. A chevron on the selected row, and
   on the main menu's Now Playing row while it is selected, as in Classic. A
