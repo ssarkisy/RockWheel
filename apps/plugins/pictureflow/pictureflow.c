@@ -6503,7 +6503,9 @@ static bool play_whole_album;
 #ifdef ITUNESDB_HAVE_ART
 /* Opened again from Now Playing's Menu as it was left for it from an album's
    tracks (ITUNESDB_COVER_FLOW_BACK, back_to_tracks): those tracks shown at
-   once, as Select and Select again show them, at the track playing */
+   once, as Select and Select again show them, at the track playing, once the
+   covers in view are loaded (view_slides_loaded()). No frame is shown before
+   them: Now Playing stays on the screen meanwhile, as Cover Flow loads */
 static bool open_tracks_at_start;
 
 static void select_playing_track(void)
@@ -7375,6 +7377,50 @@ static bool slides_pending(void)
     return thread_loading || !rb->queue_empty(&thread_q);
 }
 
+#ifdef ITUNESDB_HAVE_ART
+/* one of the slide cache's, loaded */
+static bool slide_cached(int slide_index)
+{
+    int i = pf_sldcache.used;
+    for (int j = 0; i != -1 && j < SLIDE_CACHE_SIZE; j++)
+    {
+        if (pf_sldcache.cache[i].index == slide_index)
+            return true;
+        i = pf_sldcache.cache[i].next;
+        if (i == pf_sldcache.used)
+            break;
+    }
+    return false;
+}
+
+/* The covers in view, the album's and those beside it, loaded, as a start
+   shows them, or none left for the slide thread to load: an album's tracks
+   keep it from loading while they show (buf_ctx), so covers not loaded by
+   the time they open come only as the album closes */
+static bool view_slides_loaded(void)
+{
+    if (!slides_pending())
+        return true;
+    for (int i = center_index - pf_cfg.num_slides;
+         i <= center_index + pf_cfg.num_slides; i++)
+    {
+        if (i >= 0 && i < number_of_slides && !slide_cached(i))
+            return false;
+    }
+    return true;
+}
+#endif
+
+/* no frame shown yet (open_tracks_at_start) */
+static inline bool frames_held(void)
+{
+#ifdef ITUNESDB_HAVE_ART
+    return open_tracks_at_start;
+#else
+    return false;
+#endif
+}
+
 /* one of these lines moving on the screen now, rather than waiting at an end:
    each of its steps draws a frame of the covers */
 static bool line_moves(unsigned lines)
@@ -7517,7 +7563,8 @@ static int pictureflow_main(void)
         if (animating)
             rb->pcmbuf_hold_for_ui(HZ / 4);
 #ifdef PF_SHOW_ON_COP
-        bool show_on_cop = animating && cop_draws && frame_other && !cpu_shows;
+        bool show_on_cop = animating && cop_draws && frame_other && !cpu_shows
+                           && !frames_held();
         if (show_on_cop)
             cop_show = shown_later;
         else
@@ -7672,7 +7719,7 @@ static int pictureflow_main(void)
             }
             else
 #endif
-            if (is_initial_slide == false)
+            if (is_initial_slide == false && !frames_held())
                 mylcd_update();
         }
 #if CARD_FRAME_COUNT > 0
@@ -7690,19 +7737,27 @@ static int pictureflow_main(void)
             get_context_map);
 #ifdef ITUNESDB_HAVE_ART
         /* back from Now Playing to the tracks it was left from: Select's
-           steps from the cover, the second skipping the turn, then the track
-           playing selected; a press meanwhile goes first */
+           steps from the cover once the covers in view are in, the second
+           skipping the turn, then the track playing selected. A press as
+           they load goes first, and the covers show as they are */
         if (open_tracks_at_start && button == ACTION_NONE)
         {
-            if (pf_state == pf_idle || pf_state == pf_cover_in)
+            if (pf_state == pf_cover_in
+                || (pf_state == pf_idle && view_slides_loaded()))
                 button = PF_TRACKLIST;
-            else
+            else if (pf_state != pf_idle)
             {
                 if (pf_state == pf_show_tracks)
                     select_playing_track();
                 idle_shown = false; /* drawn again with it */
                 open_tracks_at_start = false;
             }
+        }
+        else if (open_tracks_at_start && pf_state == pf_idle
+                 && !IS_SYSEVENT(button))
+        {
+            idle_shown = false;
+            open_tracks_at_start = false;
         }
 #endif
         if (button != ACTION_NONE)

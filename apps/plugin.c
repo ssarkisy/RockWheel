@@ -1012,6 +1012,13 @@ static size_t plugin_buffer_size;
 
 static bool plugin_running;
 
+static bool keep_screen;
+
+void plugin_load_keep_screen(void)
+{
+    keep_screen = true;
+}
+
 bool plugin_is_running(void)
 {
     return plugin_running;
@@ -1030,14 +1037,22 @@ int plugin_load(const char* plugin, const void* parameter)
     struct lc_header     *hdr;
     const char * resume_plugin = NULL;
 
+    /* the caller's, for this load alone */
+    const bool keep = keep_screen;
+    keep_screen = false;
     if (!plugin)
         return PLUGIN_ERROR;
 
     /* a plugin has the playlist and the settings by their addresses: the
        list read for Resume Playback isn't taken for what a load would give */
     playlist_resume_forget();
-    /* its screen without a slide to it */
-    transition_cancel();
+    /* its screen without a slide to it; with the screen kept, not the one
+       drawn behind it while the slide waited, as the status line of the
+       screen under Now Playing as it was left */
+    if (keep)
+        transition_drop();
+    else
+        transition_cancel();
     menu_cover_end();
 #ifdef HAVE_TAGCACHE
     /* every thread slot it had before, as Cover Flow's two: not one taken by
@@ -1158,7 +1173,10 @@ int plugin_load(const char* plugin, const void* parameter)
        lengths of their texts, as "No Photos" where it is the shorter */
     splash_keep_size(waited && theme_enabled);
 #endif
-    if (get_current_activity() == ACTIVITY_WPS)
+    /* the status line not drawn over the screen left, which shows until the
+       plugin draws: the theme's, without the lists, showed for as long as it
+       took to load */
+    if (keep || get_current_activity() == ACTIVITY_WPS)
         push_activity_without_refresh(ACTIVITY_PLUGIN);
     else
         push_current_activity(ACTIVITY_PLUGIN);

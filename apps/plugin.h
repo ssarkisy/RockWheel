@@ -1276,6 +1276,11 @@ extern unsigned char plugin_end_addr[];
 int plugin_load(const char* plugin, const void* parameter);
 /* while a plugin's code runs, its menus too */
 bool plugin_is_running(void);
+/* the next plugin_load() leaves the screen as it is until the plugin draws its
+   own, as over Now Playing: for one opened at once after the screen left, Now
+   Playing or the go-to's lists it went back to, which is still on the screen,
+   the screen drawn since not shown (root_menu.c's cover_flow_again()) */
+void plugin_load_keep_screen(void);
 
 /* defined by the plugin */
 extern const struct plugin_api *rb;

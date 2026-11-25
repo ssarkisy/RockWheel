@@ -230,6 +230,14 @@ void transition_cancel(void)
         lcd_update();
 }
 
+void transition_drop(void)
+{
+    if (!pending)
+        return;
+    pending = false;
+    lcd_release_updates();
+}
+
 void transition_run(void)
 {
     if (!pending)

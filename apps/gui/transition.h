@@ -37,6 +37,9 @@ bool transition_pending(void);
 bool transition_active(void);
 /* the display as drawn, without a slide, as before a plugin loads */
 void transition_cancel(void);
+/* no slide, and what was drawn since it began not shown: the screen stays as
+   it was until the next update */
+void transition_drop(void);
 /* the next screen comes later than most, as Now Playing after a song is
    chosen: the slide waits for it this long from now */
 void transition_wait(long ticks);
@@ -46,6 +49,7 @@ static inline void transition_run(void) {}
 static inline bool transition_pending(void) { return false; }
 static inline bool transition_active(void) { return false; }
 static inline void transition_cancel(void) {}
+static inline void transition_drop(void) {}
 static inline void transition_wait(long ticks) { (void)ticks; }
 #endif
 

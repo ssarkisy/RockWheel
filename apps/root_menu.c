@@ -256,6 +256,10 @@ static int cover_flow_again(void)
 {
     const int back = wps_cover_flow_back;
     cover_flow_from_main_menu = back == GO_TO_ROOT;
+    /* the screen left, Now Playing or the go-to's lists Menu went back to
+       first (wps_go_back()), on the screen until Cover Flow draws, as when
+       it opens over Now Playing */
+    plugin_load_keep_screen();
 #ifdef ITUNESDB_HAVE_ART
     const int ret = root_menu_cover_flow(ITUNESDB_COVER_FLOW_BACK, NULL);
 #else
