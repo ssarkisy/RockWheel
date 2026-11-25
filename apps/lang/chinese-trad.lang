@@ -14166,7 +14166,7 @@
 </phrase>
 <phrase>
   id: LANG_SORT_BY
-  desc: the row of the menu a held Select opens in Music > Albums, Songs, an artist's albums, their All Songs, Podcasts and Playlists, and the title of its choice of the list's orders; its value, as Year or Name, shows at the right end as a setting's does
+  desc: the row of the menu a held Select opens in Music > Albums, Songs, an artist's albums, their All Songs, Podcasts and Playlists, which Select switches to the list's next order; its value, as Year or Name, shows at the right end as a setting's does
   user: core
   <source>
     *: "Sort By"

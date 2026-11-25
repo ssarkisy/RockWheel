@@ -953,7 +953,8 @@ static void tree_set_width(void)
 /* The hint of where Sort By is, "Sort By is in the hold-Select menu", over a
    list with an order to choose as it's entered, not as it's gone back to
    nor loaded again: SORT_BY_HINTS times at most, none once a menu has shown
-   Sort By (onplay.c). For 2 s, or till a key, which then does what it does */
+   Sort By (onplay.c). Wide, in lines to be read (splash_wide()), till a key,
+   6 s at most; the key, pressed and released, does nothing else */
 static void sort_hint(struct gui_synclist *list, bool id3db)
 {
     static int level = -1, table, extra;
@@ -979,10 +980,26 @@ static void sort_hint(struct gui_synclist *list, bool id3db)
 #endif
     global_settings.sort_by_hints++;
     settings_save();
-    splash(0, ID2P(LANG_SORT_BY_HINT));
-    const long until = current_tick + 2 * HZ;
-    while (TIME_BEFORE(current_tick, until) && !button_queue_count())
-        sleep(HZ / 20);
+    splash_wide(ID2P(LANG_SORT_BY_HINT));
+    const long until = current_tick + 6 * HZ;
+    while (TIME_BEFORE(current_tick, until))
+    {
+        const long button = button_get_w_tmo(HZ / 10);
+        /* nor a key's release or repeat, as of the one that opened it */
+        if (button == BUTTON_NONE || (button & (BUTTON_REL | BUTTON_REPEAT)))
+            continue;
+        if (IS_SYSEVENT(button))
+        {
+            default_event_handler(button);
+            break;
+        }
+        /* a button held till it's let go, its events taken here; a step of
+           the wheel, which nothing holds, the one alone */
+        while (button_status() != BUTTON_NONE)
+            button_get_w_tmo(HZ / 20);
+        button_clear_queue();
+        break;
+    }
     gui_synclist_draw(list);
 }
 
@@ -1453,7 +1470,8 @@ static bool sort_menu_open;
 static bool catalog_folder_menu(const char *path, const char *name)
 {
     /* and the catalogue's Sort By, then Cancel last, as the other menus a
-       held Select opens. Menu in Sort By's choice back to it */
+       held Select opens. Select on Sort By switches it, the menu open again
+       on it */
     static char sort_row[64];
     MENUITEM_STRINGLIST(folder_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
                         onplay_cancel_callback,
@@ -1468,7 +1486,7 @@ static bool catalog_folder_menu(const char *path, const char *name)
                  tree_sort_value());
         choice = do_menu(&folder_menu, &selected, NULL, false);
     }
-    while (choice == 2 && !onplay_sort_choose());
+    while (choice == 2 && onplay_sort_next());
     sort_menu_open = false;
     switch (choice)
     {

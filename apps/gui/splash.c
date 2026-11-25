@@ -141,6 +141,9 @@ static bool plaque_shown(const struct viewport *vp, int r, unsigned colour)
 #ifndef BOOTLOADER
 /* the size kept at the next change of activity (splash_keep_size()) */
 static bool size_kept = false;
+/* splash_wide()'s: the box the area's width, its lines wrapped in two
+   thirds of it on the Video */
+static bool splash_is_wide = false;
 
 void splash_keep_size(bool keep)
 {
@@ -195,6 +198,11 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
     const bool plaque = splash_plaque(screen, &pad_x, &pad_y);
     int width = vp->width - pad_x*2;
     int height = vp->height - (plaque ? pad_y*2 : 0);
+#if LCD_WIDTH >= 320
+    /* in two or three lines; on the iPod photo's 220 px, the whole width */
+    if (splash_is_wide)
+        width = width * 2 / 3;
+#endif
 
     /* prevent screen artifacts by keeping the max width / height seen */
     int maxw = max_width[screen->screen_type];
@@ -357,6 +365,8 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
 
     width = maxw + 2*pad_x;
     height = maxh + 2*pad_y;
+    if (splash_is_wide)
+        width = vp->width;
 
     if (width > vp->width)
         width = vp->width;
@@ -371,9 +381,13 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
     if (!has_tabs)
         vp->flags |=  VP_FLAG_ALIGN_CENTER;
 
-    /* prevent artifacts by locking to max width & height observed on repeated calls */
-    max_width[screen->screen_type] = width - 2*pad_x;
-    max_height[screen->screen_type] = height - 2*pad_y;
+    /* prevent artifacts by locking to max width & height observed on repeated calls;
+       not a wide one's, which the list is drawn over again after */
+    if (!splash_is_wide)
+    {
+        max_width[screen->screen_type] = width - 2*pad_x;
+        max_height[screen->screen_type] = height - 2*pad_y;
+    }
 
 #if defined(HAVE_LCD_COLOR) && !defined(BOOTLOADER)
     if (plaque)
@@ -523,6 +537,17 @@ void splashf(int ticks, const char *fmt, ...)
     }
     if (ticks)
         sleep(ticks);
+}
+
+void splash_wide(const char *str)
+{
+    const long id = P2ID((const unsigned char *)str);
+    if (id >= 0)
+        cond_talk_ids_fq(id);
+    splash_is_wide = true;
+    /* from no size kept: as wide as the hint's own lines */
+    splashf(0, "\f%s", P2STR((const unsigned char *)str));
+    splash_is_wide = false;
 }
 
 /* set delay before progress meter is shown */

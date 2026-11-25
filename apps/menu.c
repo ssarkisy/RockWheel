@@ -789,6 +789,24 @@ unsigned menu_value_colour(const struct gui_synclist *list)
     return VALUE_COLOUR;
 }
 
+/* and a row's: in Classic, Sort By in the menu of a held Select (onplay.c,
+   tree.c), the list's order as a setting, in Settings' colour as Settings'
+   values are; it has no row elsewhere */
+static unsigned row_value_colour(const struct gui_synclist *list,
+                                 const char *text)
+{
+#ifdef HAVE_LCD_COLOR
+    const char *sort_by = str(LANG_SORT_BY);
+    const size_t len = strlen(sort_by);
+    if (global_settings.ui_theme == UI_THEME_CLASSIC
+        && !strncmp(text, sort_by, len) && text[len] == '\t')
+        return ui_theme_settings_value();
+#else
+    (void)text;
+#endif
+    return menu_value_colour(list);
+}
+
 void menu_draw_value_line(struct list_putlineinfo_t *info)
 {
     struct screen *display = info->display;
@@ -1080,7 +1098,7 @@ void menu_draw_value_line(struct list_putlineinfo_t *info)
         end.dy = (info->linedes->height - height) / 2
                  + font_get(name_font)->ascent - font_get(end.font)->ascent;
         end.colour = inked ? ui_colour(UI_COLOUR_VALUE_SELECTED)
-                           : menu_value_colour(info->list);
+                           : row_value_colour(info->list, text);
     }
     end.text = value;
 

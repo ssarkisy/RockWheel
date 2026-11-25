@@ -48,6 +48,12 @@ extern void splashf(int ticks, const char *fmt, ...) ATTRIBUTE_PRINTF(2, 3);
    plugin_load()'s "Loading...". False drops it. */
 extern void splash_keep_size(bool keep);
 
+/* A hint to be read, as Sort By's where it is (tree.c): as splash(), its
+   box the list's whole width, its lines centred, wrapped in two thirds of it
+   on the Video and in all of it on the iPod photo, two or three of them, the
+   theme's padding round them. Shown, not waited for */
+extern void splash_wide(const char *str);
+
 /* set a delay before displaying the progress meter the first time */
 extern void splash_progress_set_delay(long delay_ticks);
 /*

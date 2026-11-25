@@ -38,7 +38,6 @@
 #include "tree.h"
 #include "settings.h"
 #include "settings_list.h"
-#include "option_select.h"
 #include "gui/ui_theme.h"
 #include "playlist_viewer.h"
 #include "talk.h"
@@ -2306,47 +2305,27 @@ static int delete_callback(int action, const struct menu_item_ex *this_item,
 /* Sort By, in the menu of a held Select on a row of a list with an order to
    choose (tree_sort_setting()): Albums, Songs, Podcasts' shows, a person's
    albums, their All Songs and Playlists. Its value at the right end; Select
-   opens the choice of the orders, one chosen the list in it at once, on the
-   row it was on, Menu there back to this menu. Its first showing ends the
-   hint of where it is (tree.c) */
-static int sort_chosen_value;
-static bool sort_was_chosen;
-static void sort_chosen(int value)
-{
-    sort_chosen_value = value;
-    sort_was_chosen = true;
-}
-
-bool onplay_sort_choose(void)
+   switches it in place to the list's next order, as a setting of Settings
+   is, the menu staying open, the new one said; the list in it as the menu
+   closes, on the row it was on (tree_sort_chosen()). Its first showing ends
+   the hint of where it is (tree.c) */
+bool onplay_sort_next(void)
 {
     int *var = tree_sort_setting();
     const struct settings_list *setting = var ? find_setting(var) : NULL;
     if (!setting || !(setting->flags & F_CHOICE_SETTING))
         return false;
-    /* a copy of the setting with a variable of its own, told of a choice
-       made with Select alone: Menu leaves the order as it was */
-    int value = *var;
-    struct choice_setting choice = *setting->choice_setting;
-    choice.option_callback = sort_chosen;
-    struct settings_list copy = *setting;
-    copy.flags |= F_CB_ON_SELECT_ONLY;
-    copy.setting = &value;
-    copy.choice_setting = &choice;
-    sort_was_chosen = false;
-    option_screen(&copy, NULL, false, ID2P(LANG_SORT_BY));
-    if (!sort_was_chosen)
-        return false;
-    if (sort_chosen_value != *var)
-        tree_sort_chosen(sort_chosen_value);
+    tree_sort_chosen((*var + 1) % setting->choice_setting->count);
+    if (global_settings.talk_menu)
+        talk_setting(var);
     return true;
 }
 
 static int sort_by_do(void)
 {
-    if (!onplay_sort_choose())
-        return 0;
-    onplay_result = ONPLAY_RELOAD_DIR;
-    return 1;
+    if (onplay_sort_next())
+        onplay_result = ONPLAY_RELOAD_DIR;
+    return 0;
 }
 
 static char *sort_by_name(int selected_item, void *data, char *buffer,
@@ -2373,8 +2352,8 @@ static int sort_by_callback(int action, const struct menu_item_ex *this_item,
     return action;
 }
 
-MENUITEM_FUNCTION_DYNTEXT(sort_by_item,
-                          MENU_EXITAFTERTHISMENU|MENU_FUNC_OPENS_SCREEN|MENU_FUNC_CHECK_RETVAL,
+/* with this flag, the menu stays open */
+MENUITEM_FUNCTION_DYNTEXT(sort_by_item, MENU_EXITAFTERTHISMENU,
                           sort_by_do, sort_by_name, NULL, NULL,
                           sort_by_callback, Icon_NOICON);
 

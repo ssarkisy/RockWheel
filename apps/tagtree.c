@@ -5098,6 +5098,8 @@ static int load_root(struct tree_context *c)
     tc = c;
     c->currtable = TABLE_ROOT;
     c->special_entry_count = 0;
+    /* Music's own menus have no order to choose, whatever list was last */
+    entries_sort = LIST_SORT_NONE;
     if (c->dirlevel == 0)
         c->currextra = rootmenu;
 
@@ -9195,7 +9197,8 @@ char *tagtree_get_title(struct tree_context* c)
    its setting, NULL for a list without one */
 int *tagtree_sort_setting(struct tree_context *c)
 {
-    (void)c;
+    if (c->currtable == TABLE_ROOT)
+        return NULL;
     switch (entries_sort)
     {
         case LIST_SORT_ALBUMS:    return &global_settings.albums_sort;

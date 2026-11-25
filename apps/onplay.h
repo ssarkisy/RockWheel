@@ -113,10 +113,10 @@ int onplay_cancel_row(int action, struct gui_synclist *list);
 int onplay_cancel_callback(int action, const struct menu_item_ex *this_item,
                            struct gui_synclist *this_list);
 int get_onplay_context(void);
-/* Sort By's choice of the orders of the list a held Select's menu was opened
-   in (tree_sort_setting()), the one it has checked: true with one chosen,
-   the list then loaded again in it (tree_sort_chosen()), false for Menu */
-bool onplay_sort_choose(void);
+/* Sort By switched to the next order of the list a held Select's menu was
+   opened in (tree_sort_setting()), said if the menus are; the list in it as
+   it's loaded again (tree_sort_chosen()). False for a list without one */
+bool onplay_sort_next(void);
 /* a menu of Sort By and Cancel alone, for a row of such a list with no menu
    of its own; title its name */
 void onplay_sort_menu(const char *title);
