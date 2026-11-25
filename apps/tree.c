@@ -950,11 +950,41 @@ static void tree_set_width(void)
         menu_set_wide(wide);
 }
 
+/* A hint shown over the list, till a key, ticks at most. The keys down as it
+   shows, as Select+Play that asked for it, let go first, not ending it; a
+   key pressed then ends it, pressed and let go here, doing nothing else, a
+   step of the wheel, which nothing holds, the one alone. A system event, as
+   USB, ends it and is left for dirbrowse() */
+static void hint_wait(long ticks)
+{
+    const long until = current_tick + ticks;
+    bool fresh = button_status() == BUTTON_NONE;
+    while (TIME_BEFORE(current_tick, until))
+    {
+        fresh = fresh || button_status() == BUTTON_NONE;
+        const long button = button_get_w_tmo(HZ / 20);
+        if (button == BUTTON_NONE)
+            continue;
+        if (IS_SYSEVENT(button))
+        {
+            button_queue_post(button, 0);
+            break;
+        }
+        /* nor a key's release or repeat, as of the one that opened the list */
+        if (!fresh || (button & (BUTTON_REL | BUTTON_REPEAT)))
+            continue;
+        while (button_status() != BUTTON_NONE)
+            button_get_w_tmo(HZ / 20);
+        button_clear_queue();
+        break;
+    }
+}
+
 /* The hint of where Sort By is, "Sort By is in the hold-Select menu", over a
    list with an order to choose as it's entered, not as it's gone back to
    nor loaded again: SORT_BY_HINTS times at most, none once a menu has shown
    Sort By (onplay.c). Wide, in lines to be read (splash_wide()), till a key,
-   6 s at most; the key, pressed and released, does nothing else */
+   6 s at most (hint_wait()) */
 static void sort_hint(struct gui_synclist *list, bool id3db)
 {
     static int level = -1, table, extra;
@@ -981,25 +1011,7 @@ static void sort_hint(struct gui_synclist *list, bool id3db)
     global_settings.sort_by_hints++;
     settings_save();
     splash_wide(ID2P(LANG_SORT_BY_HINT));
-    const long until = current_tick + 6 * HZ;
-    while (TIME_BEFORE(current_tick, until))
-    {
-        const long button = button_get_w_tmo(HZ / 10);
-        /* nor a key's release or repeat, as of the one that opened it */
-        if (button == BUTTON_NONE || (button & (BUTTON_REL | BUTTON_REPEAT)))
-            continue;
-        if (IS_SYSEVENT(button))
-        {
-            default_event_handler(button);
-            break;
-        }
-        /* a button held till it's let go, its events taken here; a step of
-           the wheel, which nothing holds, the one alone */
-        while (button_status() != BUTTON_NONE)
-            button_get_w_tmo(HZ / 20);
-        button_clear_queue();
-        break;
-    }
+    hint_wait(6 * HZ);
     gui_synclist_draw(list);
 }
 
@@ -1605,19 +1617,46 @@ const char *tree_sort_value(void)
     return str(global_settings.playlists_sort ? LANG_SORT_Z_A : LANG_SORT_A_Z);
 }
 
-/* an order chosen: the list loaded again in it, the row selected kept */
+/* an order chosen: the list loaded again in it, the row selected kept. Music's
+   at once, under a menu still open too, so that what goes by the row
+   selected there next, as Go to Artist's place to come back to, has the list
+   as it is now; its screen with the next load (reload_dir) */
 void tree_sort_chosen(int value)
 {
 #ifdef HAVE_TAGCACHE
     if (*tc.dirfilter == SHOW_ID3DB)
     {
         tagtree_sort_by_chosen(&tc, value);
+        tagtree_load(&tc);
         reload_dir = true;
         return;
     }
 #endif
     catalog_sort_chosen(value);
 }
+
+#ifdef HAVE_HOTKEY
+/* Select+Play in a list with an order to choose, on any of its rows: its
+   next order at once, as Sort By in the menu of a held Select, the list in
+   it on the same row; then the order's name in a box as the hint's, about a
+   second, any key ending it and taken. False for a list without one */
+static bool sort_hotkey(void)
+{
+    sort_menu_open = true;
+    const bool sorted = onplay_sort_next();
+    sort_menu_open = false;
+    if (!sorted)
+        return false;
+    update_dir();
+    reload_dir = false;
+    char text[64];
+    snprintf(text, sizeof(text), "%s: %s", str(LANG_SORT_BY), tree_sort_value());
+    splash_wide(text);
+    hint_wait(HZ);
+    gui_synclist_draw(&tree_lists);
+    return true;
+}
+#endif
 
 /* The catalogue's row with no menu of its own, Unsynced, On-The-Go or a
    folder from the computer: Sort By and Cancel, by the row's name */
@@ -1753,6 +1792,11 @@ static int dirbrowse(void)
         /* an entry's still, for what goes by it */
         tc.selected_item = on_otg ? MAX(tc.filesindir - 1, 0)
                                   : index_of(gui_synclist_get_sel_pos(&tree_lists));
+#ifdef HAVE_HOTKEY
+        /* Select+Play: the list's next order, if it has one */
+        if (button == ACTION_TREE_HOTKEY && sort_hotkey())
+            button = ACTION_NONE;
+#endif
         int customaction = ONPLAY_NO_CUSTOMACTION;
         bool do_restore_display = true;
         #ifdef HAVE_TAGCACHE
