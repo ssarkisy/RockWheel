@@ -290,6 +290,16 @@ bool root_menu_leave_asked(void)
     return asked.what != ASK_NONE;
 }
 
+bool root_menu_back_to_cover_flow(void)
+{
+#ifdef HAVE_TAGCACHE
+    /* nav_back() from its entry, the top one */
+    return nav_count >= 2 && nav[nav_count - 2].screen == GO_TO_COVER_FLOW;
+#else
+    return false;
+#endif
+}
+
 void root_menu_ask_cover_flow(void)
 {
     ask(ASK_COVER_FLOW, false, NULL);
@@ -405,6 +415,8 @@ static int cover_flow(const char *at)
     buf_hold_fill(COVER_FLOW_HOLD);
     const int ret = plugin_load(PLUGIN_DEMOS_DIR "/pictureflow.rock", at);
     buf_hold_fill(0);
+    /* the theme Now Playing gave back undrawn for it, if it didn't start */
+    viewportmanager_theme_draw_unshown();
     cover_flow_go_to_offered = false;
     /* music started there is Cover Flow's, not the lists' it was
        opened over (note_music_origin()) */
@@ -985,11 +997,15 @@ static int wpsscrn(void* param)
         }
     }
 
+    /* left for Cover Flow, which clears the screen first: the lists' theme
+       not drawn for it (viewportmanager_theme_undo_unshown()), nor their
+       status line, which its quitting draws whole */
     if (ret_val == GO_TO_PLAYLIST_VIEWER
         || ret_val == GO_TO_PLUGIN
         || ret_val == GO_TO_WPS
         || ret_val == GO_TO_PREVIOUS_MUSIC
         || ret_val == GO_TO_PREVIOUS_BROWSER
+        || viewportmanager_theme_unshown()
         || (ret_val == GO_TO_PREVIOUS
                && (last_screen == GO_TO_MAINMENU /* Settings */
                 || last_screen == GO_TO_BROWSEPLUGINS

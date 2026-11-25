@@ -100,12 +100,18 @@ static void set_clear_valid_vp(enum screen_type screen, struct viewport *vp)
     }
 }
 
+/* viewportmanager_theme_undo_unshown()'s: its toggle draws nothing; and the
+   screens whose theme it gave back undrawn, until a change of it draws it */
+static bool theme_unshown;
+static bool theme_undrawn[NB_SCREENS];
+
 static void toggle_theme(enum screen_type screen, bool force)
 {
     bool enable_event = false;
     static bool was_enabled[NB_SCREENS] = {false};
     static bool after_boot[NB_SCREENS] = {false};
     struct viewport *last_vp;
+    const bool unshown = theme_unshown;
 
     FOR_NB_SCREENS(i)
     {
@@ -116,7 +122,13 @@ static void toggle_theme(enum screen_type screen, bool force)
     skinlist_set_cfg(screen, NULL);
     toggle_events(enable_event);
 
-    if (is_theme_enabled(screen))
+    if (is_theme_enabled(screen) && unshown)
+    {
+        /* drawn whole by its next update or change */
+        skin_request_full_update(CUSTOM_STATUSBAR);
+        sb_skin_force_next_update();
+    }
+    else if (is_theme_enabled(screen))
     {
         last_vp = screens[screen].set_viewport(NULL);
         bool first_boot = theme_stack_top[screen] == 0;
@@ -173,6 +185,11 @@ static void toggle_theme(enum screen_type screen, bool force)
     send_event(GUI_EVENT_THEME_CHANGED, NULL);
     FOR_NB_SCREENS(i)
         was_enabled[i] = is_theme_enabled(i);
+    /* what's around the theme cleared, and all of it drawn, as it's next
+       enabled: unless viewportmanager_theme_draw_unshown() does first */
+    theme_undrawn[screen] = unshown && was_enabled[screen];
+    if (theme_undrawn[screen])
+        was_enabled[screen] = false;
 #ifdef HAVE_TOUCHSCREEN
     sb_bypass_touchregions(!is_theme_enabled(SCREEN_MAIN));
 #endif
@@ -202,6 +219,28 @@ void viewportmanager_theme_undo(enum screen_type screen, bool force_redraw)
     toggle_theme(screen, force_redraw);
     if (sb_get_persistent_title(screen))
         screens[screen].scroll_stop();
+}
+
+void viewportmanager_theme_undo_unshown(enum screen_type screen)
+{
+    theme_unshown = true;
+    viewportmanager_theme_undo(screen, false);
+    theme_unshown = false;
+}
+
+void viewportmanager_theme_draw_unshown(void)
+{
+    FOR_NB_SCREENS(i)
+        if (theme_undrawn[i])
+            toggle_theme(i, true);
+}
+
+bool viewportmanager_theme_unshown(void)
+{
+    FOR_NB_SCREENS(i)
+        if (theme_undrawn[i])
+            return true;
+    return false;
 }
 
 

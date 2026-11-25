@@ -57,6 +57,14 @@ void viewportmanager_theme_enable(enum screen_type screen, bool enable,
  * currently enabled (i,e the undo doing nothing).
  * Should almost always be set to false except coming out of fully skinned screens */
 void viewportmanager_theme_undo(enum screen_type screen, bool force_redraw);
+/* The same, nothing of the theme given back drawn now: its next update or
+   change draws it whole, for a screen next that clears the screen before it
+   shows anything, as Cover Flow over Now Playing left as it is. If none has
+   by the time it's done, viewportmanager_theme_draw_unshown() draws it */
+void viewportmanager_theme_undo_unshown(enum screen_type screen);
+void viewportmanager_theme_draw_unshown(void);
+/* a theme given back so, not drawn yet: nor its status line now */
+bool viewportmanager_theme_unshown(void);
 
 /* call this when a theme changed */
 void viewportmanager_theme_changed(const int);

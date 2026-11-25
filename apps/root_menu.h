@@ -57,6 +57,8 @@ void root_menu_ask_go_to_album(const char *name, int32_t artist);
    from the history (the plugin's own words) */
 bool root_menu_go_to_later(const char *path);
 void root_menu_cover_flow_left(const char *state);
+/* Now Playing's Menu goes back to Cover Flow, which opens over it as it is */
+bool root_menu_back_to_cover_flow(void);
 #ifdef HAVE_TAGCACHE
 /* Play on an album (tag_album) or an artist Search found: its songs played as
    from its row in Albums or Artists, the lists left as they were. True if

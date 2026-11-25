@@ -1043,7 +1043,10 @@ static void display_mode_tick(void)
         set_display_mode(WPS_MODE_VOLUME);
 }
 
-static void gwps_leave_wps(bool theme_enabled)
+/* drawn: the theme given back drawn now; else only once something next draws
+   it, for Cover Flow, which keeps Now Playing on the screen until its first
+   frame, drawn on a screen it cleared (viewportmanager_theme_undo_unshown()) */
+static void gwps_leave_wps_as(bool theme_enabled, bool drawn)
 {
 #if defined(HAVE_ALBUMART) && (LCD_DEPTH >= 16)
     /* a theme's tone is its user's again before another screen is drawn */
@@ -1057,7 +1060,9 @@ static void gwps_leave_wps(bool theme_enabled)
     {
         struct gui_wps *gwps = skin_get_gwps(WPS, i);
         gwps->display->scroll_stop();
-        if (theme_enabled)
+        if (theme_enabled && !drawn)
+            viewportmanager_theme_undo_unshown(i);
+        else if (theme_enabled)
         {
 #ifdef HAVE_BACKDROP_IMAGE
             skin_backdrop_show(sb_get_backdrop(i));
@@ -1089,6 +1094,11 @@ static void gwps_leave_wps(bool theme_enabled)
 #ifdef HAVE_TOUCHSCREEN
     touchscreen_set_mode(global_settings.touch_mode);
 #endif
+}
+
+static void gwps_leave_wps(bool theme_enabled)
+{
+    gwps_leave_wps_as(theme_enabled, true);
 }
 
 static void restore_theme(void)
@@ -1379,16 +1389,21 @@ long gui_wps_show(void)
                 if (!hotkey && onplay_wps_menu_empty())
                     break;
                 /* Now Playing as it is, before leaving it draws the menus'
-                   screen: the menu slides over it */
+                   screen: the menu slides over it. For Cover Flow by its
+                   hotkey, which opens over it as it is, nothing drawn */
                 if (!hotkey)
                     transition_begin(TRANSITION_FORWARD);
-                gwps_leave_wps(true);
+                gwps_leave_wps_as(true, !(hotkey
+                    && HK_CTX_GET(0, global_settings.context_wps) == HOTKEY_COVER_FLOW));
                 int retval = onplay(state->id3->path,
                        FILE_ATTR_AUDIO, CONTEXT_WPS, hotkey, ONPLAY_NO_CUSTOMACTION);
                 /* a screen the menu asked for, which the root loop opens over
                    Now Playing as it is left (root_menu_leave_asked()) */
                 if (root_menu_leave_asked())
                     return GO_TO_PREVIOUS;
+                /* the theme given back undrawn for Cover Flow, which didn't
+                   come after all */
+                viewportmanager_theme_draw_unshown();
                 /* if music is stopped in the context menu we want to exit the wps */
                 if (retval == ONPLAY_MAINMENU
                     || !audio_status())
@@ -1412,8 +1427,15 @@ long gui_wps_show(void)
             /* back to wherever the WPS was entered from, as Menu does
                on a stock iPod */
             case ACTION_WPS_BROWSE:
-                transition_begin(TRANSITION_BACK);
-                gwps_leave_wps(true);
+                /* to Cover Flow, which opens over Now Playing as it is:
+                   neither a slide nor the screen under it drawn */
+                if (root_menu_back_to_cover_flow())
+                    gwps_leave_wps_as(true, false);
+                else
+                {
+                    transition_begin(TRANSITION_BACK);
+                    gwps_leave_wps(true);
+                }
                 return GO_TO_PREVIOUS;
                 break;
 
