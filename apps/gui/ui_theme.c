@@ -173,7 +173,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_CHEVRON_ALL]          = 0,
             [UI_METRIC_CHEVRON_ON_PLAY]      = 1,
             [UI_METRIC_GROUP_BAR]            = 1,
-            [UI_METRIC_SETTINGS_TWO_LINES]   = 1, /* the iPod photo's rows */
+            [UI_METRIC_SETTINGS_TWO_LINES]   = 0, /* one line, as the Video's */
         },
 #else
         .cover_colours = true,
@@ -411,7 +411,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_SCROLLBAR_LINE]       = 2,
             /* iOS 13's, 22 x 13 here (menu.c) */
             [UI_METRIC_SWITCHES]             = 1,
-            [UI_METRIC_SETTINGS_TWO_LINES]   = 1, /* the iPod photo's rows */
+            [UI_METRIC_SETTINGS_TWO_LINES]   = 0, /* one line, as the Video's */
             [UI_METRIC_ACCENT_MARKS]         = 1,
             [UI_METRIC_MENU_MARKS]           = 1,
             [UI_METRIC_SEARCH_RADIUS]        = 6,
@@ -727,7 +727,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_ROW_COVER_RADIUS]     = 3,
             /* On and Off in words, as the Video's Neo */
             [UI_METRIC_SWITCHES]             = 0,
-            [UI_METRIC_SETTINGS_TWO_LINES]   = 1, /* the iPod photo's rows */
+            [UI_METRIC_SETTINGS_TWO_LINES]   = 0, /* one line, as the Video's */
         },
 #else
         .list_font = "19-Inter-SemiBold",
@@ -1039,7 +1039,7 @@ static const struct ui_theme ui_themes[] = {
             [UI_METRIC_RING_TRACK]           = 1,
             /* no dot: the selected name in its signal colour */
             [UI_METRIC_SELECTION_SIGNAL]     = 1,
-            [UI_METRIC_SETTINGS_TWO_LINES]   = 1, /* the iPod photo's rows */
+            [UI_METRIC_SETTINGS_TWO_LINES]   = 0, /* one line, as the Video's */
             [UI_METRIC_PANE_SHADE]           = 35,
             [UI_METRIC_RING_TICKS]           = 1,
             [UI_METRIC_SEARCH_KEYS]          = 1,
